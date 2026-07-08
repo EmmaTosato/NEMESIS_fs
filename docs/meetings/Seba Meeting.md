@@ -4,7 +4,6 @@ People: Sebastiano
 > Data driven project 
 
 # Dataset Lesioni
-
 Cartella  EBRAIN: /data/corbetta/Clinical_connectome
 
 - /data/corbetta/Clinical_connectome/UNIPD
@@ -38,10 +37,10 @@ Per ogni dataset, e singolo soggetto 
 HC = healthy
 ST =stroke
 
-particpants.tsv —> infotmaizoni demografiche e cliniche (tabulari)
+particpants.tsv —> infotmaizoni demografiche e cliniche (tabulari).
 
 
-L’idea è che più aumenti il numero, più la distribuzione delle lesioni copre la ditiribuzione empirica dellos stroke.
+L’idea è che più aumenti il numero, più la distribuzione delle lesioni copre la distribuzione empirica dellos stroke.
 
 
 # Mappe di Lesioni
