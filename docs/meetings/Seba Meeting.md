@@ -1,5 +1,8 @@
 Date: 07/07/2026
 People: Sebastiano
+
+> Data driven project 
+
 # Dataset Lesioni
 
 Cartella  EBRAIN: /data/corbetta/Clinical_connectome
