@@ -6,7 +6,7 @@ People: Sebastiano
 # Dataset Lesioni
 Cartella  EBRAIN: /data/corbetta/Clinical_connectome
 
-- /data/corbetta/Clinical_connectome/UNIPD
+- /data/corbetta/Clinical_connectome/UNIPD --> Padova
 - /data/corbetta/Clinical_connectome/UKFLR —> Friburgo
 - /data/corbetta/Clinical_connectome/UKE —> Amburgo
 - /data/corbetta/Clinical_connectome/FIDIS —> Santiago
@@ -27,20 +27,19 @@ Cartella Nemesis: /data/corbetta/<>/NEMESIS —-> Padova
   
 #### Struttura interna 
 Per ogni dataset, e singolo soggetto 
-- anat (sequenze in nativo)
-- lesioni segmentate in T1
-- derivatvies (lesioni già in MNI, nel templato, 1mm / 2mm ?)
-- manual_masks/<\soggetto>/anat/<>/nii.gz
+- anat (sequenze in nativo): 
+	- lesioni segmentate in T1
+- derivatives (lesioni già in MNI, nel templato, 1mm / 2mm ?)
+	- manual_masks/<\soggetto>/anat/<>/nii.gz
 
 
 #### Info
-HC = healthy
-ST =stroke
-
-particpants.tsv —> infotmaizoni demografiche e cliniche (tabulari).
-
-
-L’idea è che più aumenti il numero, più la distribuzione delle lesioni copre la distribuzione empirica dellos stroke.
+- Prefix:
+	- HC = healthy
+	- ST =stroke
+	- PD = Parkison Disease
+- particpants.tsv —> informazioni demografiche e cliniche (tabulari).
+- L’idea è che più aumenti il numero, più la distribuzione delle lesioni copre la distribuzione empirica dellos stroke.
 
 
 # Mappe di Lesioni
@@ -75,7 +74,7 @@ L’idea è che più aumenti il numero, più la distribuzione delle lesioni copr
 	- tsv
 	- NHSS (score totale) che posso plottare
 	- plottare diversi dataset per vedere qual è la copertura devi vari dataset
-	- subitem corrispondono ai dei domini ( 9 linguaggio —> cluster sinistrofrontale / 11 neglect / 5a al 6b motorio
+	- subitem corrispondono ai dei domini ( 9 linguaggio —> cluster sinistrofrontale / 11 neglect / 5a al 6b motorio )
 - Colora l’embeeding con queste info
 
 
