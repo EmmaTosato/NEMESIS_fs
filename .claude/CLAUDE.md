@@ -34,3 +34,9 @@ Create/update it from `environment.yml` (see `docs/setup.md` for details). Raw n
 
 - Treat `docs/project/` as the current-state synthesis of project goals/scope, and `assets/meetings/` + `assets/papers/*/markdown/_full.md` as the primary sources behind it — cross-reference the originals when reasoning about project design or when `docs/` doesn't cover something.
 - When new papers are added under `assets/papers/`, add them to `assets/papers/paper_lists.md` for consistency with the existing index.
+
+## Code standards
+
+@code_standards.md
+
+Applies to any code written under `src/` (and its tests, once they exist): architecture, error handling (no silent fallbacks — every edge case raises or is handled deliberately), testing, config, logging, docs conventions.

@@ -5,23 +5,31 @@ People: Sebastiano
 
 # Dataset Lesioni
 Cartella  EBRAIN: /data/corbetta/Clinical_connectome
-
-- /data/corbetta/Clinical_connectome/UNIPD --> Padova
-- /data/corbetta/Clinical_connectome/UKFLR —> Friburgo
-- /data/corbetta/Clinical_connectome/UKE —> Amburgo
-- /data/corbetta/Clinical_connectome/FIDIS —> Santiago
-- /data/corbetta/Clinical_connectome/UCL —> Londra 
+1. /data/corbetta/Clinical_connectome/UNIPD --> Padova
+2. /data/corbetta/Clinical_connectome/UKFLR —> Friburgo
+3. /data/corbetta/Clinical_connectome/UKE —> Amburgo
+4. /data/corbetta/Clinical_connectome/UCL —> Londra 
+5. /data/corbetta/Clinical_connectome/FIDIS —> Santiago
 
 Cartella Nemesis: /data/corbetta/<>/NEMESIS —-> Padova
 
 #### Datasets:
-1. Washu  (n = 200)
-2. PASPORT (n = 100)
-3. PSP (n = circa 200)
-4. stroke_UKLFR (n = 700)
-5. Manca un dataset grosso, clinico di Amburgo (n = 500) —> arriverà
-6. Potremmo chiedere accesso di 4100 lesioni di UCL  (?)
-7. Santiago 
+**1. UNIPD**
+- Washu  (n = 200)
+- PASPORT (n = 100)
+- PSP (n = circa 200)
+
+**2. UKFLR**
+- stroke_UKLFR (n = 700)
+
+**3. UKE**
+- Manca un dataset grosso, clinico di Amburgo (n = 500) —> arriverà
+
+**4. UCL**
+- Potremmo chiedere accesso di 4100 lesioni di UCL --> forse arriverà 
+
+**5. FIDIS**
+- Santiago  -->  arriverà
   
 200 + 100 + 200 + 700 + 500+ 4100  = 5800
   
@@ -41,13 +49,10 @@ Per ogni dataset, e singolo soggetto 
 - particpants.tsv —> informazioni demografiche e cliniche (tabulari).
 - L’idea è che più aumenti il numero, più la distribuzione delle lesioni copre la distribuzione empirica dellos stroke.
 
+</br>
 
-# Mappe di Lesioni
-- Lesioni
+# Mappe di Lesioni - SDC
 - Mappe (Thiebaut)
-  
-
-# SDC
 - Foulon (Thiebaut) —> whole brain SDC (disconessione a livello globale)
 - BCBToolKIt impelmetnano questa computazione
 - Goals
