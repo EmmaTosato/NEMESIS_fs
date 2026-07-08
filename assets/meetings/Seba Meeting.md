@@ -29,7 +29,7 @@ Cartella Nemesis: /data/corbetta/<>/NEMESIS —-> Padova
 Per ogni dataset, e singolo soggetto 
 - anat (sequenze in nativo)
 - lesioni segmentate in T1
-- derivatvies (lesioni già in MNI, nel templato, 1mm / 2mm ?)
+- derivatives (lesioni già in MNI, nel templato, 1mm / 2mm ?)
 - manual_masks/<\soggetto>/anat/<>/nii.gz
 
 
@@ -37,10 +37,10 @@ Per ogni dataset, e singolo soggetto 
 HC = healthy
 ST =stroke
 
-particpants.tsv —> infotmaizoni demografiche e cliniche (tabulari).
+participants.tsv —> informazioni demografiche e cliniche (tabulari).
 
 
-L’idea è che più aumenti il numero, più la distribuzione delle lesioni copre la distribuzione empirica dellos stroke.
+L’idea è che più aumenti il numero, più la distribuzione delle lesioni copre la distribuzione empirica dello stroke.
 
 
 # Mappe di Lesioni
@@ -50,16 +50,16 @@ L’idea è che più aumenti il numero, più la distribuzione delle lesioni copr
 
 # SDC
 - Foulon (Thiebaut) —> whole brain SDC (disconessione a livello globale)
-- BCBToolKIt impelmetnano questa computazione
+- BCBToolKIt implementano questa computazione
 - Goals
-	- Disconessione in funzione delle lesioni 
+	- Disconnessione in funzione delle lesioni 
 	- E anche come la lesione e SDC overlappano con sottocorticali etc (atlas) —> mi valuti questa regione in funzione degli atlas
-- Probabolità da 0 a 1 in ogni voxel, prob che la stramline sia disconessa
+- Probabilità da 0 a 1 in ogni voxel, prob che la streamline sia disconessa
 - Vedi Mail
-- L’outout del toolbox, per ogni soggetto:
-	- statistiche lesioni + disconnectoma
-	- disconectome parcelizzato per un tot di altas
-	- lesione parcelizzato per un tot di altas
+- L’output del toolbox, per ogni soggetto:
+	- statistiche lesioni + disconnettoma
+	- disconectome parcellizzato per un tot di altas
+	- lesione parcellizzato per un tot di altas
 	- disconectome non parcellizzato (volumetrico più grezzo)
 
 
