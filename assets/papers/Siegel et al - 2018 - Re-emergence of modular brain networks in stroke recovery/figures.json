@@ -1,0 +1,56 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "2",
+    "caption": ". Group FC Similarity to controls. Pearson correlation between all members of a given group and control at timepoint 1. The X-axis is a simple measure of FC similarity. This measure is computed by tur",
+    "pdf_page": 24,
+    "doc_page": 24
+  },
+  {
+    "id": "3",
+    "caption": ". Behavior recovery following stroke is predicted by recovery of brain network modularity. A: Modularity measures the density of links inside communities compared to links between communities. Modular",
+    "pdf_page": 25,
+    "doc_page": 25
+  },
+  {
+    "id": "4",
+    "caption": ".",
+    "pdf_page": 26,
+    "doc_page": 26
+  },
+  {
+    "id": "5",
+    "caption": ". P108: Severe aphasia with good recovery paralleled by modularity recovery. At two weeks post-stroke, language performance was 11.7 standard deviations below age-matched controls. This improved to 2.",
+    "pdf_page": 27,
+    "doc_page": 27
+  },
+  {
+    "id": "6",
+    "caption": ". P30: Severe left hemi-neglect with poor recovery, low modularity throughout. Results are generated and displayed as in Fig. 5.",
+    "pdf_page": 28,
+    "doc_page": 28
+  },
+  {
+    "id": "7",
+    "caption": ". P161: Severe left hemiparesis with good recovery, minimal change in modularity by 1 year. Results are generated and displayed as in Fig. 5.",
+    "pdf_page": 29,
+    "doc_page": 29
+  },
+  {
+    "id": "9",
+    "caption": "",
+    "pdf_page": 30,
+    "doc_page": 30
+  },
+  {
+    "id": "1_2",
+    "caption": ".",
+    "pdf_page": 23,
+    "doc_page": 23
+  }
+]

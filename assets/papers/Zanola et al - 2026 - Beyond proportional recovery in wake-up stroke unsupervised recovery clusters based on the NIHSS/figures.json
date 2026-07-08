@@ -1,0 +1,51 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "3",
+    "caption": "Fig. 3 Clustering results. Panel A, shows the recovery ratio (RR) versus the total NIHSS at 22-36 h, with colors indicating different clusters. Error-bars are reported for both variables and for each ",
+    "pdf_page": 7,
+    "doc_page": 7,
+    "svg": "figures/page_007.svg"
+  },
+  {
+    "id": "4",
+    "caption": "Fig. 4 Cluster's features. Panel A investigates the relation between lesion volume and total NIHSS at 22-36 h. In both panels A and B, subjects (dots) are colored by cluster assignment, the dashed lin",
+    "pdf_page": 8,
+    "doc_page": 8,
+    "svg": "figures/page_008.svg"
+  },
+  {
+    "id": "5",
+    "caption": "Fig. 5 90days mRS relation with early recovery. Panel A shows the amount of patients for each range of recovery ratio, for each of the two range of the mRS considered. In detail in blue when mRS \u2264 2 ,",
+    "pdf_page": 10,
+    "doc_page": 10,
+    "svg": "figures/page_010.svg"
+  },
+  {
+    "id": "1_2",
+    "caption": "Fig. 1 Chronic versus sub-acute score and PRR. Panel A, shows the total NIHSS at 90 days versus total NIHSS at 22-36 h (chronic vs. sub-acute). Panel B, shows the PRR i.e. the total NIHSS change versu",
+    "pdf_page": 3,
+    "doc_page": 3,
+    "svg": "figures/page_003.svg"
+  },
+  {
+    "id": "2_2",
+    "caption": "Fig. 2 Recovery ratio distribution. The main histogram depicts, in gray, the distribution of recovery ratios for the entire population. The inset provides a magnified view focusing on the recovery rat",
+    "pdf_page": 4,
+    "doc_page": 4,
+    "svg": "figures/page_004.svg"
+  }
+]

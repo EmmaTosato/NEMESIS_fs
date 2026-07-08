@@ -1,0 +1,123 @@
+{
+  "source_pdf": "examples/Siegel et al. - 2016 - Disruptions of network connectivity predict impairment in multiple behavioral domains after stroke.pdf",
+  "extracted_at": "2026-07-07T11:08:36",
+  "pdf_metadata": {
+    "title": "Disruptions of network connectivity predict impairment in multiple behavioral domains after stroke",
+    "author": "",
+    "subject": "Proc. Natl. Acad. Sci. U.S.A. 2016.113:E4367-E4376",
+    "keywords": "",
+    "producer": "Acrobat Distiller 10.0.0 (Windows); modified using iText 4.2.0 by 1T3XT",
+    "creator": "Arbortext Advanced Print Publisher 9.1.510/W Unicode",
+    "creation_date": "D:20160714014413+05'30'",
+    "mod_date": "D:20260624011415-07'00'"
+  },
+  "page_offset": 0,
+  "pages": 10,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 5,
+    "png": 2,
+    "embedded_images": 16,
+    "classifications": {
+      "DIAGRAM": 3,
+      "ICON_TABLE": 2,
+      "BITMAP": 5
+    },
+    "figures_in_index": 7,
+    "tables_in_index": 0,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 33,
+      "images": 2,
+      "class": "DIAGRAM",
+      "svg": "figures/page_001.svg"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 296,
+      "images": 2,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_002.svg",
+      "png": "tables_visual/page_002.png"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 2707,
+      "images": 3,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_003.svg",
+      "png": "tables_visual/page_003.png",
+      "img_errors": [
+        "<pymupdf.mupdf.FzErrorArgument; proxy of <Swig Object of type 'mupdf::FzErrorArgument *' at 0x176f4ec10> >"
+      ]
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 98,
+      "images": 2,
+      "class": "DIAGRAM",
+      "svg": "figures/page_004.svg"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 2,
+      "images": 2,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 47,
+      "images": 2,
+      "class": "DIAGRAM",
+      "svg": "figures/page_006.svg"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 2,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 2,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    }
+  ]
+}

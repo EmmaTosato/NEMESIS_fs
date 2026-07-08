@@ -1,0 +1,966 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" width="612.283" height="790.866" viewBox="0 0 612.283 790.866">
+<defs>
+<clipPath id="clip_1">
+<path transform="matrix(1,0,0,-1,0,790.866)" d="M42.293 685.928H578.891V746.873H42.293Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="clip_3">
+<path transform="matrix(1,0,0,-1,0,790.866)" d="M0 0H612.283V790.866H0Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="clip_4">
+<path transform="matrix(1,0,0,-1,0,790.866)" d="M56.693 561.657H66.671V571.635H56.693Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="clip_5">
+<path transform="matrix(1,0,0,-1,56.6929,229.20905)" d="M0 0H9.978V9.978H0Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="clip_6">
+<path transform="matrix(1,0,0,-1,56.6929,229.20905)" d="M9.978 9.978H0V0H9.978Z"/>
+</clipPath>
+<clipPath id="clip_7">
+<path transform="matrix(1,0,0,-1,0,790.866)" d="M0 0H612.283V790.866H0Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="clip_8">
+<path transform="matrix(1,0,0,-1,0,790.866)" d="M56.693 533.65H66.671V543.62808H56.693Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="clip_9">
+<path transform="matrix(1,0,0,-1,56.6929,257.216)" d="M0 0H9.978V9.978H0Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="clip_10">
+<path transform="matrix(1,0,0,-1,56.6929,257.216)" d="M9.978 9.978H0V0H9.978Z"/>
+</clipPath>
+<clipPath id="clip_11">
+<path transform="matrix(1,0,0,-1,0,790.866)" d="M0 0H612.283V790.866H0Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="clip_12">
+<path transform="matrix(1,0,0,-1,0,790.866)" d="M300.586 533.65H310.564V543.62808H300.586Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="clip_13">
+<path transform="matrix(1,0,0,-1,300.586,257.216)" d="M0 0H9.978V9.978H0Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="clip_14">
+<path transform="matrix(1,0,0,-1,300.586,257.216)" d="M9.978 9.978H0V0H9.978Z"/>
+</clipPath>
+<clipPath id="clip_15">
+<path transform="matrix(1,0,0,-1,0,790.866)" d="M0 0H612.283V790.866H0Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="clip_16">
+<path transform="matrix(1,0,0,-1,0,790.866)" d="M458.476 533.65H468.454V543.62808H458.476Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="clip_17">
+<path transform="matrix(1,0,0,-1,458.476,257.216)" d="M0 0H9.978V9.978H0Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="clip_18">
+<path transform="matrix(1,0,0,-1,458.476,257.216)" d="M9.978 9.978H0V0H9.978Z"/>
+</clipPath>
+<clipPath id="clip_19">
+<path transform="matrix(1,0,0,-1,0,790.866)" d="M0 0H612.283V790.866H0Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<text fill="#524e9f" xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="8.4999" font-family="Caecilia LT Std"><tspan y="-754.98" x="56.6929 62.362337 65.66879 68.97525 74.330188 78.58013 80.94311 84.08807 87.23304 92.587978 97.63692 100.305889 102.66886 107.717807 111.33876 116.064708 119.20967 123.935619 128.66156 131.02454 135.75049 140.47644 145.2024 149.92835 153.0733 158.11374 161.7347 166.61363 169.28261 174.95204 178.097 182.97594 190.37085 195.24979 200.60472 205.33068 210.05663">https://doi.org/10.1093/brain/awad013</tspan></text>
+<text fill="#524e9f" xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="8.4999" font-family="Caecilia LT Std"><tspan y="-754.98" x="411.75923 417.11418 422.6221 428.92054 431.7595 438.52543 440.8986 445.62455 450.3505 455.07646 459.8024 462.16539 464.5394 469.26536 473.9913 478.71726 481.08024 483.41856 488.1445 492.87046 497.5964 502.32237 506.5723 511.29826 516.0242 520.7501 525.4761 533.98788 535.8748">BRAIN 2023: 146; 1963&#x2013;1978 | </tspan></text>
+<text fill="#524e9f" xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="8.4999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-754.98" x="544.36618 549.3981 554.43 559.4619">1963</tspan></text>
+<path transform="matrix(1,0,0,-1,42.6929,321.01005)" d="M0 0H535.827V-16.499H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,337.50904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,350.00904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,362.50904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,375.00904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,387.50904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,400.00904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,412.50904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,425.00904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,437.50904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,450.00904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,462.50904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,475.00904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,487.50904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,500.00904)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,512.50906)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,525.00906)" d="M0 0H535.827V-12.499H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,537.50808)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,550.00808)" d="M0 0H535.827V-12.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,562.50808)" d="M0 0H535.827V-24.5H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,564.52,283.709)" d="M0 0H-507.827V.5H0" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,321.01005)" d="M0 0V-16.499H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,337.50904)" d="M0 0V16.499H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,321.01005)" d="M0 0V-16.499H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,337.50904)" d="M0 0V16.499H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,56.6929,321.01005)" d="M0 0H507.827V-4H0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,337.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,350.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,337.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,350.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,350.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,362.50904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,350.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,362.50904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,362.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,375.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,362.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,375.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,375.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,387.50904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,375.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,387.50904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,387.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,400.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,387.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,400.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,400.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,412.50904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,400.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,412.50904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,412.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,425.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,412.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,425.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,425.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,437.50904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,425.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,437.50904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,437.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,450.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,437.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,450.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,450.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,462.50904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,450.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,462.50904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,462.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,475.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,462.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,475.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,475.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,487.50904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,475.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,487.50904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,487.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,500.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,487.50904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,500.00904)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,500.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,512.50906)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,500.00904)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,512.50906)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,512.50906)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,525.00906)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,512.50906)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,525.00906)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,525.00906)" d="M0 0V-12.499H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,537.50808)" d="M0 0V12.499H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,525.00906)" d="M0 0V-12.499H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,537.50808)" d="M0 0V12.499H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,537.50808)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,550.00808)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,537.50808)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,550.00808)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,550.00808)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,562.50808)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,550.00808)" d="M0 0V-12.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,562.50808)" d="M0 0V12.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,562.50808)" d="M0 0V-24.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,587.00808)" d="M0 0V24.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,578.52,562.50808)" d="M0 0V-24.5H-14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,42.6929,587.00808)" d="M0 0V24.5H14V0" fill="#fff9de" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,564.52,587.00808)" d="M0 0H-507.827V12H0" fill="#fff9de" fill-rule="evenodd"/>
+<g clip-path="url(#clip_1)">
+<g transform="matrix(.23998122,0,0,.23994056,42.2929,43.99315)">
+<image id="image_2" width="2236" height="254" xlink:href="data:image/jpeg;base64,
+/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS
+Ew8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJ
+CQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy
+MjIyMjIyMjIyMjIyMjL/wAARCAD+CLwDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEA
+AAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIh
+MUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6
+Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZ
+mqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx
+8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREA
+AgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAV
+YnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hp
+anN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPE
+xcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDv
+ft13/wA/U3/fZo+3Xf8Az9Tf99mq9FfR8kex5fM+5Y+3Xf8Az9Tf99mj7dd/8/U3
+/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/3
+2aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWP
+t13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9
+FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3X
+f/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8A
+z9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckew
+cz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3
+/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/3
+2aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWP
+t13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9
+FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3X
+f/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8A
+z9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckew
+cz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3
+/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/3
+2aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWP
+t13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9
+FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3X
+f/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8A
+z9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckew
+cz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3
+/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/3
+2aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWP
+t13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9
+FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3X
+f/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8A
+z9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckew
+cz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3
+/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/3
+2aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWP
+t13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9
+FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3X
+f/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8A
+z9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckew
+cz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3
+/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/3
+2aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWP
+t13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9
+FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3X
+f/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8A
+z9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckew
+cz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3
+/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/3
+2aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWP
+t13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9
+FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3X
+f/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8A
+z9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckew
+cz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3
+/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/3
+2aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWP
+t13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9
+FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3X
+f/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8A
+z9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckew
+cz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3
+/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/3
+2aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWP
+t13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9
+FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3X
+f/P1N/32ar0Uckewcz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8A
+z9Tf99mj7dd/8/U3/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckew
+cz7lj7dd/wDP1N/32aPt13/z9Tf99mq9FHJHsHM+5Y+3Xf8Az9Tf99mj7dd/8/U3
+/fZqvRRyR7BzPuWPt13/AM/U3/fZo+3Xf/P1N/32ar0Uckewcz7lj7dd/wDP1N/3
+2aPt13/z9Tf99moKXFHLHsHMyf7dd/8AP1N/32aPt13/AM/U3/fZqDv0qxFZTSAE
+gIvq1S1BboLyYC9u/wDn6m/77NSwS6jcHEc83uS5wKsC1tbRd0p8xvQ1G+oM2EiX
+aOgAFZOSfwoe27LkUc0fM15M7em8gVOZXI5mk/76qug8tN0pwx7elRNdLvCjuaw5
+XJl81i0cls/aZ1xz/rDioLiW6Q5SeRlP91jVOW6LOcdM1btZyIy559KrkcVdk899
+AiW/l+aS5ljX/eOasKWj/wCXiZj/ALUhqpJcu3VsD0p0U6hSGGSaHFsaaLi3MhYD
+zH/76NNMkmXZJpS3XbvOKrRt8xPtxSSb48buM81PIrj5nYhkvrxDy8y/iaiOpXP/
+AD2k/wC+jUxuXH8RxTC0cv341PuODWyS6xM7vuM/tG6PHnyf99GpIr25z81xIf8A
+gZ4pgtY8hgSQegqaNkRtoC9e1OXJbRCV+4s+p3KkqjyZx1yaq/brz/n4m/76NWGu
+juOMUouj7flSSSXwjbv1IFu71uk05/4EanjbUHPM8qj3c1IlwzdxUxEhj3c4qZSt
+0RSjfqSwyTQwkyXDsc9yaiku5Twsz4/3qhuHCRqvtmqpkGetTGnfUbnbQufabj/n
+vJ/30aDc3A/5bSf99Gqm/PQ80+NmOQwxjvVOCXQlSfcsR3s27Blf/vo083zI21pn
+J/3jUXlR7gxOabLawytvDspNTaF9SryJWkeXkXU6n2kNVpRfL9y8lb2LkGo2jlty
+f4lHpU8cwcYPIqrW1WqFzX3KTXd6hw1zOD7uaT7bd/8AP1N/32avvFuU7QJF/ut/
+SqbWyMcRko/9xq1jKD3QnfuM+3Xf/P1N/wB9mk+3Xf8Az9Tf99monRo22sCD6Gm1
+oox7C5mT/brv/n6m/wC+zR9uu/8An6m/77NQUmKfLHsHM+5Y+3Xf/P1N/wB9mj7d
+d/8AP1N/32ar0Uckewcz7lj7dd/8/U3/AH2aPt13/wA/U3/fZqvRRyR7BzPuWPt1
+3/z9Tf8AfZo+3Xf/AD9Tf99mq9FHJHsHM+5Y+3Xf/P1N/wB9mj7dd/8AP1N/32ar
+0Uckewcz7lj7dd/8/U3/AH2aPt13/wA/U3/fZqvRRyR7BzPuWPt13/z9Tf8AfZo+
+3Xf/AD9Tf99mq9FHJHsHM+5Y+3Xf/P1N/wB9mj7dd/8AP1N/32ar0Uckewcz7lj7
+dd/8/U3/AH2aPt13/wA/U3/fZqvRRyR7BzPuWPt13/z9Tf8AfZo+3Xf/AD9Tf99m
+q9FHJHsHM+5Y+3Xf/P1N/wB9mj7dd/8AP1N/32ar0Uckewcz7lj7dd/8/U3/AH2a
+Pt13/wA/U3/fZqvRRyR7BzPuFFFFUIKKKKACiiigAooooAKKtLpt8wyLOcj/AHDT
+xpGoH/l0l/Faj2kF1Q+WXYpUVoDRNRP/AC6t+JFPGgamf+Xcfi4pe2p/zL7x8kux
+mUVq/wDCO6l/zyT/AL7FIfD2pj/lgp+jil7el/MvvH7OfYy6KvSaPqMfW0kP+6M/
+yqpJFJEcSRsh9GGKuM4y2ZLi1uhlFFFUIKKKsJYXkihktZmU8ghDzSbS3BJvYr0V
+cGlagf8Alzm/FacNG1E/8usn41PtYd0VyS7FGitEaHqR/wCXY/iRTh4f1M/8u4/F
+xS9tT/mX3h7OXYzKK1f+Ed1L/niv/fYpjaBqS9bfP0YGl7el/MvvD2c+xm0VYlsL
+uDmW2lUepU4qvWiaexLTW4UUUUwCiiigAooooAKKKKACiiigAoqa3tLi6fbBEzn2
+HArodP8ADIRhJesGI58ten4msqteFNe8y4U5T2OYorX8RWgttR3ooVJVBAHTI4P9
+KyKqnNTipLqTKPK7BRRRViCiiigAoqe1sri9dlt497KMkZxVr+wtS/59j/30KiVS
+EXZtDUZPVIzqK0f7C1L/AJ9j/wB9Cj+wtS/59j/30KXtqf8AMvvHyS7GdRWj/YWp
+f8+x/wC+hR/YWpf8+x/76FHtqf8AMvvDkl2M6itH+wtS/wCfY/8AfQpToOpD/l2/
+8eFHtqf8y+8PZy7GbRWj/YWpf8+x/wC+hR/YWpf8+x/76FHtqf8AMvvDkl2M6irN
+1p91ZKrXEJRW4B6iq1XGSkrpktNbhRRRTAKKKKACiirFrY3N6WFvHv2YzzjFJtRV
+2CTeiK9FaP8AYWpf8+x/76FH9hal/wA+x/76FR7an/MvvK5JdjOorR/sLUv+fY/9
+9Cj+wtS/59j/AN9Cj21P+ZfeHJLsZ1FaP9hal/z7H/voVnspRirDBBwRVRnGXwu4
+nFrdCUUUVQgooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACloooELU0FrJcN8oAXux6VJBaggST8J1A7mrOZLgbIs
+RxDgnoBWMqnYaXcE+yWhwMySevWrXbzpW2qBwDVTdFb/ACwrukP8R5qSXAhjNw3I
+52etYSVy0xMiZyUQEd3ela7jg4VVZvXFVJLiSVgiDC9Aop8dj/FM2PYVfKl8RN30
+Iprl7iUlc89hUkFpKW3MNoA71YDRRDEa80nmlmw3SnzO1ooLLqRCw9ZhmpZCLeLy
+85NLK0akFD9ajl23ABDYcevQ1N299gatsVzJk05ZKY0Ei9qaI2z0/WtdDPUtLLxR
+JMz/AHmzjpmkt0jEmJw23HaopOvFTZXLu7CbsmrEEe9lUdSaqAHNWoWwuR1FOe2h
+Md9SS4zEXzjcOBVNXIanTyEsQe1QZpwjpqEndjh82fUc0ZK/Q80ICXz2pwUFMD5y
+D+AqthWJYXOeK0UuHaIRECswEp1/SrMVztBz6cVjUjc0hK2hHeeYzk4OBxVMkg81
+ceb5crxk8imeeT97B+oq4XS2JdrlYOatRTgRgnrnGKbmB/vR4PqvFKbZH5ik/wCA
+tTbT3EvImeQA8HjtSh9wIqm4eM/MKckmMVPJoPmd9S9HJvAUkZ7E1FJEEO9Bhc4I
+/umkXk5qyAWGe+MMP7wrN+6y9yJHqV1SVVEg57Gq0g8o5Gdh6VIHDQgjtQ11QJ9B
+JI2VdrjzY/U9RVWSzO3fCdy+h6ir8cuOG5Hehh5b7047keo9aFNxHZMxiCDg8Gkr
+VuLNLhfMiwH7jsazGUoxVgQR1BrohNSIaaG0lOpMVoAlFFFABRRRQAUUUUAFFFFA
+BRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQBqQ+INQhwDK
+rgdnUf0rYsPEsU7rFcp5THgMDlf/AK1cnRXPUwtKa2saRrTj1PSqKzdCuGudJiZj
+lkyhP0rSrxJxcJOL6HoRd1c5DU9WvrfVLiOK4ZUVsBcA44FRxeJNQjPzNHIP9pf8
+Kraz/wAhm6/3/wCgqjXtwo05U1eK2R58qklJ2Z1lp4nt5SFuYzCT/EOVra/c3MQO
+Ekjbp0INec1paRq0mnThWJNux+ZfT3Fc9bBK3NT3NaeIe0zoLzw7Z3ILRDyJPVen
+5Vy99p9xp8uyZeD91x0Nd+rB1DKcqRkGoby0ivbZoZRlW6H0PrXNQxc4O0tUa1KM
+ZK63PPKvQaxf26KkdwdijAUgEVWuYHtbmSB/vIcfWoq9dxjNaq6OJNxeh0Vn4okD
+hbuNWX++nBH4V00ciSxrIjBkYZBHevN66/wxOZNOaMnPlPgfQ8152Mw0Ix54Kx1U
+Krb5Wbdcpr1/d22qskM7ou0HAPFdXXGeJP8AkMN/uLWOBinVs+xeIbUNCOLxBqMR
+5mDj0dRWtaeKI3IW6i8v/bTkflXLUV6U8LSnujljWnHqejxSxzxiSJ1dD0IOaq3e
+k2V4D5kKhv768GuR0vVJdOnBBLQsfnT+o967iKRJolkQ5RhkGvLrUZ4eV0zrhONR
+anG6pok2n5kQ+ZB/eA5X61lV6Syq6lWAKkYIPeuF1ew/s+/aNf8AVt8yfT0ruwmK
+dT3JbmFaly6rYoUUUV2nOFFFFABRRRQAUUVPZW5u72KAfxsAfYd6TaSuwSu7Ha6M
+jJpFsGGCVz0q9UImijnS1BAfZuVfYcVNXz023JyfU9SOisYviW287ThKB80TZ/A8
+GuPr0aeJZ4JImGVdSprzyWNoZnib7yMVP4V6eAqXg4djjxMbSuMooorvOcKKKKAH
+xTSwNuikeM+qnFaEGvahAR++8wejjNZlFTKnCXxK41JrZna6VrcWonymXy5wM7c8
+H6Vq151bTNb3UUqnBVga9EUhlDDoRmvHxdBUpJx2Z20KjmtRayNV12LT28mNfMnx
+yM8L9a1XbZGzf3QTXnc8rTzySscl2JzTwdBVZNy2QV6jgrIvT69qE5P7/wAseiDF
+Rw6xfwNlbl29nO7+dUaK9VUaaVuVHHzyve501n4oBIS8i2/7af4V0MUsc0ayROHR
+hkEHrXnFbXh2/a3vRbM37qXgD0auLE4OPK5wN6Vd3tI6y4t47mBoZlDIwwRXEapp
+kmm3G05aJvuP6+31ru6hurWK8t2hmXcjfp71yYfEOlLyN6tJTXmed0Vc1HTpdOuD
+G/KH7j+oqnXtxkpK6OBpp2YUUUUxBUkNxNbsWhleMnrtOM1HRQ0nowNa38RX8JG9
+1lX0cc/mK6HTdbt9QIjwY5v7jHr9DXEUqO0bh0JDKcgjtXLVwlOa0VmawrSjvqek
+1V1C+j0+1aaTk9FX1NGnXX2ywhn7svP171zvimcvexwA/LGmce5/yK8yhR56vJLp
+uddSpyw5kUbrW766Y5maNeyx8YrPJJJJOSaKK9uMIxVoqxwOTe4UUUVQgooooAKK
+KKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKK
+KKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKK
+KKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKK
+KKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKK
+KKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKK
+KKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKU
+UlLQAtW7S1L/ALxl+UdAe9FvbcB3Ukn7qevufatEBYxvkwWHQDoK56lTohxj3Imt
+iTvnkUL2APWiVgxEUfzEdl4AqAu93cbuiL1PpSzSrEpWMYB79zWai72e47oC6QEB
+cM54z6VFIHurnaOg4z6VAm55BgZYnitA7bOIqCDI3JNW/dem5K19BY44LbOOXx1p
+spfALAgN0qqZCzVM0kjqqs2QvQelLlad2PmTQqLuPvT5IGjHIxmmxSeW4OPzqa5v
+POUZGMUnzX0KXLYouSDzTPMNJIcmhRn6VslpqY3F85x0NHnP6/pU08CxxxsHDFhk
+gdqqniiNnsDunZlmGZi2CcilcE4qvGcOKsqwOCalqz0KWughjOM1HvaNsitSWWA2
+oVQN30rKlPzVMJOW6HOKWw52jm5bKt6joaj2gcjH4mozSitVGxNx5II5bPsOlAcg
+jP3QegptIRRYVy3c3EcyoFTaR1qtupmaUA+lCikrDbu7sdmgc03Dehpy9aZNh+DS
+ZKnirDNCbdAoIlH3ielViR61CdxtWJlm3Da/IpHgB+aPp6VDmpIpCre3ehq2qBPu
+SwsRww5FaYkh+z4H3hVJBG+AxwDTGBUkA8etYySkzaL5UTOQ+eASeq/3qrKPLPBJ
+ibjnqp96aJPm+99KmLRiUjG4sMMD0qrW0JvchEhVtp7VYEhZAR1X9RUTpGTtkYBx
+0I9PeliRkcAZKnih2YlckSXy3GD8jcipLi3S7TI4kHQ1VZT5cg/uHIp1vP060nF/
+Eik+jKDo0bFGGGHam1q3sIlg84D5x+orLrenPmVyWrCUlONJWgCUUUUAFFFFABRR
+RQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAHXe
+Fmzp0i+khrcrB8K/8eU3/XT+lb1eDiv40j0aPwI4PWf+Qzdf7/8AQVRq9rP/ACGb
+r/f/AKCqNe3S/hx9EcE/iYUUUVZJ2nh24M+lIrHJjJT8O1a1YPhUEWMp7GTj8q3q
+8DEpKrJI9Gk7wRyHiiIJqSOP+WkfP4ViVueKZA+oxoOqR8/iaw69jDX9jG5xVfjY
+V0vhNuLlfcGuarpPCf37n6LU4z+Cx0PjR01cZ4k/5DDf7i12dcZ4k/5DDf7i1wYD
++L8jpxHwGRRRRXsHCFdd4YuDLYPCxyYm4+hrka6TwmDuuj2wv9a5cak6LNqDtNHT
+Vz/iuIG1gl7q5X8//wBVdBWB4qkAs4I+7Pn8h/8AXrzMLf20bHVW+BnKUUUV7p54
+UUUUAFFFFABXQ+FrXdNLdMOEGxfqev8An3rnq7Ff+JP4bz0k2Z/4E3+f0rlxcnyc
+i3lobUV73M+hi3WqEeIftSnKRtsHuo4P9a7JWDqGU5BGQa82rtPD139p01UY5eE7
+D9O1c+NoqMIyXTQ0oVLyafU1q43xHbeRqZkA+WUbvx6GuyrF8S23nacJgPmibP4H
+rXNg6nJVXnobV480Dj6KKK9s88KKKKACiiigAPAzXotsc2sJ9UX+Vecnoa9FtP8A
+jyg/65r/ACrzsx2idWG3Yl4dtlOf9g/yrzwdBXoOof8AIPuP+uZrz4dKeX/DIWJ3
+QUUUV6BzBUtsxS6hYdQ6n9aip0f+tT/eH86T2Bbno+4cc9elLWH4hmkgs7aWJirq
+4II+lW9J1WPUoOcLOo+df6j2rwXRl7P2i2PSU1zcpZvbOK+t2hmGQeh7g+orh7+w
+m0+5MMo46q3ZhXoFVb+xi1C2MUo56q3dTWmGxLpOz2Iq0udXW55/RVi8s5rG4aGY
+YI6Hsw9RVevaTTV0cDVtGFFFFMAooooA7Hwy27Scf3XIrn9cfzNZuD6ED8hW94X/
+AOQY/wD11P8AIVzWptu1S6P/AE1b+dcFBf7TNnTUf7qJVooorvOYKKKKACiiigAo
+oooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAo
+oooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAo
+oooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAo
+oooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAo
+oooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAo
+oooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiloAK
+s2sAkbzHHyA8D+8fSooYmmkCDv1PoK0crHGSOFX5V9/U1lUlbRDS6jy6qcZyx6mo
+Lh2mm8lDnJx9KgLkngirVpGP3kxwD0rK3LqF+bQVsIgjT7oqtIhY5NW8DPJq0beI
+wqwPPU1PPylcnMULZBbxmZx854UVA7mRiT3qe5ky3sOlVN3PtWkVf3mZydtCVF79
+qY0rA4BwKtTTboI1KBcDGRVPGT7U466sHpoidH85Cv8AGBke9QM5pwBicNzkUToN
+25futz9KasmLcizk1KOEHoB+tMWPI3H5V9fWpc4XAXavq3U02wsRfMe1Hluf4acW
+HdyfoKTev90n6mndiDyn/u0o8xf4SKTzAOiLThKB/CR9DSdwAyHGDTOoLelSbkfj
+Bz780nlhR8zgD0FCYERGKUDnFS4RsbUY4HegAjsi0+YCZLGR4DKBwKrFCPvEAVZF
+0yxlPNOPQCq7MvYE/WojzX1G7dBvH8IyfU0cj7zc+goLn2A9qbV2EPEnoPzNOEo7
+qDUXSlG0nDZHuKGkBNugccgpSPDgZRgwPTFJ5JU5zuQc7lpmWd8jgmpXkxiYYdRi
+gHmnStlsZyBxn1pg59jVisWN+EU+9EzkxqaYc+WAfWlY5gH1qLajIlbDA1KW23GT
+0JzUFSg71Ck4YdPf2qmhBISJWB9amti28AMR61GyM4DBTuHBH9aswJ5YyetRJ6FJ
+ah5joZgVB4J6VXS7Kn/VpWijYUlhkHsage2t5c7V2v7Gs4yj1RbTJobhZo9rEAn0
+qheWZgO9eUPf0pGjaBt2cr6+lXreVZ4zFJyCMU/gfNHYE+bRmPSVNcQNbzFD07H1
+qI10p3V0RsNNFLSUxhRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFF
+ABRRRQAUUUUAFFFFABRRRQB1nhX/AI8pv+un9K3qwfCv/HlN/wBdP6VvV4WK/jSP
+Ro/Ajg9Z/wCQzdf7/wDQVRq9rP8AyGbr/f8A6CqOa9ql/Dj6I4J/EwpQCxAAyScA
+DvU9tYXV222CB298YA/Gum0zQ4tPxcXTq0o6Z+6tZ1sRCmtd+xUKcpl/SbM2OnRQ
+t9/7zfU1LeXkVjbNNK2AOg7k+lZ174jtbcFYP38nt90fjXL3l9PfzeZO+fRR0H0r
+z6WFnVlzz0R0zrRguWJHc3D3VzJPJ95zn6VFRRXrpJKyOJu4V0fhP79z9FrnK6Pw
+n9+5+i1zYv8AgyNaHxo6euM8Sf8AIYb/AHFrs64zxJ/yGG/3FrgwH8X5HTiPgMii
+ijqcDrXsHCFdn4dtGttO3uMNMd2PbtWVo+gSTOtxdqViHIQ9W+vtXVkqi5JCqB+A
+rzMbiFJeziddCm17zFritfvheagVQ5jiG0H1Pc1f1nXw6NbWbZB4eUfyFc3V4PDu
+P7yRNeqn7qCiiivQOYKKKKACiiigC9pFr9s1OGMjKA7m+grV8U3WXhtVPT52/p/W
+pvDFr5dtLduMbztU+w6/59q5/ULk3l/NP2Zvl+nauNfvMRfpH8zd+5S9StWt4eu/
+s2prGx+SYbT9e1ZNKrFGDKcEHINdNSCnFxfUxjLlaZ6TUc8Sz28kTfddSpqOwuRe
+WUU4/iXn696sV8+04yt1R6ejR5vLG0Urxt95GKn8KbWv4jtvI1MyAfLKN349DWRX
+0FOfPBS7nmyjyyaCiiirJCiiigBD0Nei2f8Ax5Qf9c1/lXnR6GvRbP8A48oP+ua/
+yrzsx+GJ04bdjNQ/5B9x/wBczXnw6V6DqH/IPuP+uZrz4dKeX/DIMTugooor0DmC
+nR/61P8AeH86bTo/9an+8P50PYDqfE//ACDYP98fyrmbe4ltZ1mhYq6ng103if8A
+5BsH++P5VylcmDSdGz8zavpM7zTNTi1K33LhZV++np/9ar1ed2t1LZ3CzQthl/I+
+xruNO1GLUbcSJw44dO6muHFYZ0nzR2OijV59HuGpadFqNuY34cco/cGuHurWWzuG
+hmXDr+o9a9EqhqmmRalb7Wwsq/cf0/8ArUYXEuk+WWwVqXPqtzhKKkuIJbWdoZlK
+up5FR17KaaujhCiiigDrvC3/ACDZP+up/kK5i9Ob64PrI3866bwr/wAg+b/rqf5C
+uXuTm7mP+2f51xUP49Q3qfw4kVFFFdpgFFFFABRRRQAUUUUAFFFFABRRRQAUUUUA
+FFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUA
+FFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUA
+FFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUA
+FFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUA
+FFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUA
+FFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAC0fTrRVqyh86bLD5U5P9KmTsrsF
+roTRRGCDA/1sn6CknDOwij+6gxmrAYyTsVH3eAfeq08oQeWnT19a54tt+Y5bERhx
+1bJq2FMNoinuSTUVrBk+bJ93sPWrEn72IjPNOctbBFdSm02Gqz5hSEA9TyaqLA7S
+YIwM9TU1237zA+lNpNpCTaVyCWTcaYnzOB6mkNS2w/e7vStHoidxbhv3hX+7xTY2
+2sCO1Mdt7sexNJnFCWlhPcsXE5nfzHwD04pIWVv3b/dP6VAAXbCgkntV63suQZT1
+7ColyxVikm3cgYkHO0seir6Uq2txMc4x7mtB5IoucDNV3vm6LwKhSk9kU0luIumN
+/HIB9BUgsLdfvSE/jVVrl2PWkVmJALcntTtPqxc0eiLotbT61ILS1JwFGapuJY8A
+rtB9aWO68lgwOWqHGT2ZSavqi4bS3Iwq4H1qE2Vuhztb69RVV7lmOc9aVLp1PU01
+Ca6ico9iRrUMMJcfgaheynXlQHH+yanEscvDpz6rxTijxjMTbz6dxTUpLQVkzOZW
+Q4ZSD70laK3LEYlUEf7Q5pr26yfNBJ/wAj+VWqncXL2M+pxbsYPN4xSElTguAR1B
+Wnea+3Hmrj6VTbewvUh2lug/SgRsOuFHvT8nP+u/KghGG7eSe+BTuAB9gAQnrkn1
+qUnKeYQA54BHf3qEMinhcn3qwtyBA8ZRSW/iPUVD8kC8yoRSAU4+1H3a0EPLAKMj
+J7Zp5+eIAKB681CBk5NKzZGKloBCnPBBoxjqKAMmpNpxnsfWnewCxTMuMMauw7HI
+45J9azuhqeKXbUTjfYqErPU1LmIRqCDnNUS21qGuCw5NRFix9azhFpamkpJ7E8mM
+ByMq3DCqvME2M8dQfarIDm2YBTkEEVFcxloInCnqRinHexL7lieMXltkf6xRkVk9
+ODWjBI8QjJB5bBFQ38OyTzFHysefrVU3yvlB6q5TpKdSGugkSiiigYUUUUAFFFFA
+BRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB1nhX/jym/6
+6f0rerB8K/8AHlN/10/pW9XhYr+NI9Gj8COdv5tES+mFxAzzbvn4PXFNh1TQ4j8t
+rt9zHmsfWf8AkM3X+/8A0FUa9KGGjKCu3t3OSVVqTskd3b6nY3S+XDcKpIwB90iq
+V94eN0Sy3spPYSHcK5GtbTNdnsmVJiZYO4PVfpWUsLOl71FlqtGek0RXWh31oCxi
+8xB/FHz+lZ3Q4PWvRoZo7iFZYmDIwyCKpX+jWt+pLJsl7OvX8fWpp49p2qIcsP1i
+zhqKt3+nz6dP5cwyD91x0aqlejGSkro5WmnZhXR+E/v3P0Wucro/Cf37n6LXPi/4
+MjWh8aOnrn9W0Sa/1AzJNEilQMNnNdBXG+I3ZdYbazL8i9DivNwak6nuuzsdVdpR
+1Reh8KDgzXRPsi1rWmkWVkQYoQX/AL78muJW7uUOVuJR/wADNbWk+IZUlWG8ffG3
+AkPVfr7V1V6OIcb81/wMadSmntY6quQ8RyXiXhillJgYZQDgY966/rWfrOnjULFl
+UfvU+ZD7+lceGqKnUTlsb1YuUdDhaKCCCQRgjqKK9088KKKKACiiigAp0aNLIsaj
+LMQAKbWz4btPP1HzmGUhGfx7VFSahByfQqEeaSRvXkMtpoZtrWNpH2BAFHPPU/zr
+lP7K1D/nzm/75rsp9VsraZopbhVdeo9Kj/tzTv8An6SvLo1qtNaRvfXqddSEJPVn
+I/2VqH/PnN/3zR/ZWof8+c3/AHzXXf25p3/P0lH9uad/z9JW31uv/J+ZHsaf8xS8
+OJd28ctvcQSRpnchYce4rdqgutaczBRdJknAq/XDWcpT5pK1zoppJWTuYvia287T
+hMB80TZ/A9a4+vRriFZ7eSFujqVNedyRtFK8bfeQlT+FehgKl4OPY5cTG0rjaKKK
+7znCiiigBD0Nei2f/HlB/wBc1/lXnR6GvRbP/jyg/wCua/yrzsx+GJ04bdjNQ/5B
+9x/1zNefDpXoOof8g+4/65mvPh0p5f8ADIMTugooor0DmCnR/wCtT/eH86bTo/8A
+Wp/vD+dD2A6nxP8A8g2D/fH8q5Sur8T/APINg/3x/KuUrkwX8I2r/GFWLO8lsbhZ
+oTgjqOxHoar0V1NJqzMU7ao9AsL+HULcSxHnoynqpq1Xn1jfTWFyJoj7MvZhXcWV
+7Ff26zRH6r3U+leNicM6TutjvpVVNWe5W1bSk1KDIws6j5G/oa4qWKSCVopVKupw
+Qa9HrL1jSE1GLfHhbhR8p/vexq8LivZvklt+RNajze8tziaKdJG8UjRyKVdTgg9q
+bXrnEdZ4V/48Zv8Arr/QVy9x/wAfMv8Avn+ddP4U/wCPKf8A66f0rmLj/j5l/wB8
+/wA646H8ep8jep/DiR0UUV2GAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFF
+FFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFF
+FFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFF
+FFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFF
+FFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFF
+FFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFF
+FFABRRRQAUUUUAFFFFABRRRQAUCiloAK17KPy7TP8Tc1kgFiFHc4rbXcJljQZAAB
+rnrPSxUSI/uLbn7781Tgj+0T8/cHJq/feQxw0u1h2qJI0hgwJRljmojL3b9WDWo2
+4LqRkbVx8oqJZyPenTyFl5bcB0xVQkk4A+lXCOmpMnroXIpI2kGVAHfNOvliVh5b
+bsjmqoQr99gvt1NOG09Fd/foKOXW6Dm0syEKWOAM1Ps8uI469MijO3hmCj+6vWpH
+uQ9usQRQFOc96bbewkkVDxSIjO4VRkmhzkk1et4vJh80gbm6fSqlLlQoq46KNYBs
+UZkPU+lLNN5Y2qcnuacAIYyWPztzUGC54X8TWK1d2W72ICWc0CNm4GPzqcwknLPg
+DsKRmjj+UAn2rTm7EcvcbHbnJ3Ee23mpAkULgnG4e+acUZ7ffsOwHtUG5f8A9dTq
+x7E0915pG/kdvlqDzU/u1G+M9KFAHJ/KrUUkS5NslzG/8B/CgRRno+D6UAOw4GB+
+VIQg9WP6UgHYdGwF68buuatvF9nVXL5z2FUxK6Y2YUe1OaTzerbW/Q1LTbKTSLDF
+J+JRz2YdagZJLdgQcqejCmoxDbWGDVyP7uG+6expP3fQF73qRTRC6h8xRiVR/wB9
+Cs/B7A1sogiO5B8h9e1UbuJ45zt6NyKKc+hUk7XKm0+lOVWByBzS4Pd8fjQAP+eh
+NbXMxTE33lB2n9KPLbvxUsIBbaCTu4pZ4BA5RyQR7VHNrYdtLkBwvuaaFLHPQU/M
+Y7E0jMSMAYFWhDWPYU2nBSelSLCxp3SAjU4NWXuS8CQkDavPvULQuOxNMIYdRUtK
+QJtATmgd/ak5p0akuPTvmq2QWHpjvyewFTiQJ6Z9BS28aFn3OARwPaq2396VzwO9
+Z6SZWqRfinJ57dyanLwyLtYfkaymlJ4XhR0pyOah0upSn0NA28bY2ueOmaYYS0Lx
+P271EkpHercMgcbW9KzfNEtWZhspRip6g8001f1G32MJF6Hg1QrrhLmVzNqzEopa
+SrAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoo
+ooA6zwr/AMeU3/XT+lb1YPhX/jym/wCun9K3q8LFfxpHo0fgRwes/wDIZuv9/wDo
+Ko1e1n/kM3X+/wD0FUa9ql/Dj6I4J/EwoooqyTb8O6ibe6+yyN+6lPy57NXX15sr
+FGDr1U5FeiW0vn2sUv8AfUGvKx9JRkprqdmGndcrI76yjv7V4ZB1+6fQ+tcDNE8E
+zxOMMhKmvR64rxFGI9YcgY3qG/GngKj5nDoLExVuYyq6Pwn9+5+i1zldH4T+/c/R
+a68X/BkY0PjR09cZ4k/5DDf7i12dcZ4k/wCQw3+4tcGA/i/I6cR8BkUUUV7BwnZ+
+Hr/7XY+U7Zlh+U+47GteuA029awvUmH3ejj1Fd7G6yxq6EFWGQR3rxcZR9nO62Z3
+0J80bdUcn4j037Pcfa41/dyn5sdm/wDr1h16Lc28d1bvDKMo4wa4K9s5LG6eCQcj
+ofUetduDr88eR7o569PlfMtivRRRXaYBRRRQAV2WiQLYaN50nBcGRj7dv0rlbC2N
+5fQwDozc/TvXUeI7kW2mCBODKdoA/ujr/SuLFvnlGkupvR91Ob6HJ3EzXFxJM33n
+YtUdFFdqVlZGAUUUUAFd7pN19s02GUnLAbW+orgq6LwtdbZZbVjww3r9e9ceNp81
+O/Y3w8rSt3OorjPEVt5GqFwPllG78e9dnWJ4mtvN09ZgPmibP4GuDB1OSqvPQ6K8
+eaByFFFFe2cAUUUUAIehr0Wz/wCPKD/rmv8AKvOj0Nei2f8Ax5Qf9c1/lXnZj8MT
+pw27Gah/yD7j/rma8+HSvQdQ/wCQfcf9czXnw6U8v+GQYndBRRRXoHMFOj/1qf7w
+/nTakgGbiIerr/Oh7Ajp/E4/4lsP++P5Vyldd4oX/iWIfSQVyNcmC/hG2I+MKKKK
+6zEKt6fqEunXAljOVPDJ2YVUopSipKzBNp3R6HaXcV7brNC2VPbuD6Gp64LTNSl0
+243r80bffT1H+NdxbXMV3As0LbkavExOHdJ6bHoUqqmvMzNa0db6MzQgC4Uf99D0
+rjmVkYqwIYHBB7V6TWJrmii8U3FuoE4HK/3x/jW+ExXL7k9jOtRv70SLwp/x6XA/
+2x/KuZuP+PmX/fP866XwqCILlSMEOMg/Subuhi7m/wB8/wA66aP8efyMZ/w4kVFF
+FdhiFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAU
+UUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAU
+UUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAU
+UUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAU
+UUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAU
+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
+ooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigA
+ooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigA
+ooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigA
+ooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigA
+ooooAKKKKACiiigAooooAKKKKACiiigAooooABThSUUCNnTYgLTd/ebNTzSpG25s
+ZFN085sUx2zVS9yDXDbmqO5q3aJC8sbTl2LA55qbdGBguTjviqDZJqY5jAA5rdwW
+hkpEsjqRwTUQkYHh+PQim+Y3cCjeCfuimo2Bu44MT0K/lSsr4yXwKQOAT8uKnkuj
+KiKyjCelJ3vogVralXBBzmly0jDcSaUtzwKdGTu6VRJYsYyJX46oRVp4yLZRwOSa
+dYhd5LEZxxUlwq+XjPArlnK8zojG0TMKKhJJDHsKlhyMyPwAOBSHarZA5ocsZEjH
+J6kVo9TNaECybpG3End3pv3qc0JhcgjDelNVgJK0VuhGuzFEDN0FPFtkcuv4mpo0
+kmL7MYAyarSMD6Gkm3oOyWo4LbL96bPsq1LG1p0ySM96olcUqcGm4XW4lK3Q0Ggg
+LbiRj61E8W4fIpUf7JzT5hEI12tu3D5we1UirK3BI9CKmCb6lSsh7wsq5Iz71Dir
+CXMycEh1PGCKlMUEg3ISpPY9qvma3JtfYrRsVYEHBHIqfAOXTgg8im/Z2ByDmrEU
+L7S4X5V4b6VMpLcaTInzw4/GpIyQd2PoKdsCttxkH9KCDGdvV/btUN3VirW1LRUS
+wlGwWxke1ZPzBmXBLDitO3zjrk55qnqB8uTC8Bxkn1pU9Jco5q6uVGJz2Prik3e1
+J/DSV0pGRLGwJ2kcGnGEhdwBxnGe1RA4q0blzaiPPyZqJXWw1bqVl4cfWmtkMRQT
+S5VvvcH19avzEKW2svtSOuGpzqnDbiRjsKdtWSLKkkr2PpSTGQgZ6VOy+TEVON7d
+vSo0B3jnnPBrSmtN0CswG89CP61E5pNJlRTd7GbEuZB7Gldg8rZ9cZqZo/Jg3Llm
+PcdBVSqXvO4tiy0TMkew5GO1SJG8cRYL8x4BxUEbAjYxx3Dehq9FNKls6BQc/jUT
+utBxSZV2t/db8qcscmeEakaeVeNxo+0Sf3zT1FoaECMnzMPvDBFV76HKSDuPmFRp
+K7Ix3HI5q4+JY0b+8MGsdYyuappqxhUUrLtcqe3FJXYZiUUUUwCiiigAooooAKKK
+KACiiigAooooAKKKKACiiigAooooAKKKKACiinxFFlRpF3IDll9RQAyr1jpN1fyA
+JGVjzzIwwBWhDrOlwHMembT68GrY8VW4GBayAfUVy1Kta1oQNowh9qRuW8CW1vHD
+GMKgwKlrn/8AhK7f/n3l/MUv/CVW3/PvL+YrzHhqzd3E6lVp9yTxBpT3sazwLmWM
+YK/3hXIurRsVdSrDsRiur/4Sq1/54S/pUcniLT5f9ZaM31UGu2hKvTjyuF0YVFTm
+7pnL5HrVu00y7vXAiibb3dhgCtka9psZzHp/P0FJJ4rIGIbQD03N/hW0qtZ/DD72
+QoU1vI2NL0uLTYSFO6Vvvv6//WqW81G2sULTSAHso5J/CuTuPEGoTggSiJfRBj9a
+zGZnYs7FmPUk5Nc8cFOcuaqzR14xVoIv6pqsupS8jZCv3U/qaz6BjIz0rch1bS4M
+FNM+YdyQa7X+6iowjcw+N3kzNs9Our6QLDEcd3IwBXb2NmljZpboc7ep9T3NYw8V
+W6jC2kgHoCKX/hLIf+fWT/voVw4hYitpy2R0U3ShrfU6Gs3WNLGpW4CELMnKE9D7
+GqH/AAlkP/PrJ/30KP8AhLIf+fWT/voVhDD14SUorU0lVpyVmznbiyubRis8Lr74
+4/OoK6g+KrdhhrSQj0JFVZdY0uc5k0vJ9eBXowq1vtQOVwh0kYNFPmZHmdokKRls
+qp7CmV0oyJbe4ktZ1mhba6ng12mmavBqMYAISYfeQn+VcNSqxVgykgjoQa56+HjW
+Wu5pTquB6TWfqWkQaiuW+SYDiQf19a5m38QahAApkEijs4yfzq6niub+O1Q/RjXA
+sJXpyvA6fbU5K0jNutHvbWYRmFnBOFZBkGtzRdCa2cXN0B5o+4n933PvTB4sj72j
+/wDfYo/4SyL/AJ9JP++hW1R4qcOXlIiqMXe50VcXrOkz2t1JMiF4HO4FRnbnsa0v
++Esh/wCfST/voUv/AAlcB/5dJP8AvoVlQp4ijK6iVUlTmrNnLUV0Eut6bP8A6zTN
+35VkXsttNOHtYDDHtwVJzzXowqSk7SjY5pRS2dytRRRWpAVNa2k17MIoELEnk9h9
+afYzW0E5e6t/PTHC571uxeJrSFdsVi6L6KQKxq1KkdIRuaQjF/EzetLcWtpFADkI
+oGfWpq57/hLIf+fWT/voUf8ACWQ/8+sn/fQryXha7d3E7FWprqbF/ZR39q0EnGeV
+b0PrXEXun3NhIVmjO3s46Gt//hLIf+fWT/voUjeKbd12tZuw9CQa6cOsRR05boyq
+OlPW+py9KAWOFBJ9AM1tPqekO+9tKOfYjmrEPiCwtxiLTin0xXW6tS2kH+BgoR6y
+GaHokxuEurlCiJyqHqTXVVz3/CWQ/wDPrJ/30KP+Esh/59ZP++hXBWpYirLmlE6Y
+TpQVkzoa5PWtEmjuHubZC8Tncyr1U/4Vb/4SyH/n1k/76FH/AAlkP/PrJ/30KKNL
+EUpXjEJzpTVmzliCpwQQfQ0V0U3iCwuB+904v9cVXXUdHVtw0s/QsK9BVZ21g/wO
+Zwj0kZdraT3kgjgjLk9x0H1NdtpWnJptoIwQ0jcu3qayo/E9rEu2OydV9FIFO/4S
+yH/n1k/76FcmI+sVVyqNkbU/Zw1vqdDXPazoLTyNc2gG88vH6+4o/wCEsh/59ZP+
++hR/wlkP/PrJ/wB9CsKVHEUpc0UaTnSmrNnMyxSQOUljZGHZhimV00viW0mXbLYs
+4/2iDWJfz2txKrWtt5C4+Zc9TXp06k5aTjY5JRitncqUUUVsQFFFFABW5oWsG0cW
+07fuGPysf4D/AIVh0VFSnGpHlkVGTi7o9KByMjpXn2ojGp3Q/wCmrfzrb0DWcAWd
+y/H/ACzdj+hrF1Iq2p3LKQVMjEEd+a4sJSlSqyizetNTgmirRRRXoHMFFFFABRRR
+QAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRR
+QAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRR
+QAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRR
+QAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRR
+QAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRR
+QAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUALS00UtAjV
+0mcbWhY89R9Kt3Vp5y8EZrBR2ikV14YciugtZxcRbgevb0NcdaLjLnRrFpqzMv7D
+Msg4BGfWpmtpHl5HBqa6VghKcHOarb2IIDHn5lpqUpK5Nkh95Z+SBtOc1nsMHmp3
+nk/vGoS5b7wzWsFJLUiTTegh5FHPoalCsU+UYBpmJP8AJqriHwQmZ9uQPc0ki+W5
+APQ0Ayr0J/Ol3Sk/MM/hS1uGliWKcoVfPQ1qyDdGwH1FY2TggoPyrUtJhJbI5HI+
+VhWFWPVGlN9CtszIPTNQGU+aXBwc8VoyRhCzYOMVmtsHUNTg0xSViRpTNkvyx6no
+TUKoA/3sEdm4qSIRswHzUx5CkhjAzg9+atdkS9dWOIdVGM8+hqBlc/wmpJGUn7nQ
+duKYCp/vfgapCYzDDqDSgHPANShVYdXo24/vU+YVhFJxgg1PFFvwMZJqJQPVqtQt
+sIIJ/Gs5PTQqK11EltDGOVqsYyDgVpyl7jHFRi2AOWP4CojUstS5QTehVj3dNuat
+Ro+0gnaD29anWMbeFxTJA33UHPcmoc7jUbETOAhVeo/lTEBZdx49zUiosTAu2SeO
+agd2eTb0FUtdhPzJlbsvAz+dV9SGQh98fpVlV5UenP41U1BgVQepJ/DpTh8aB7FM
++lIKcw5H0oVc10mQ2ng/KRSbaUDk0AMxS4pyLuNXEtHaMsFyB3qZTURpN7FIHAw3
+K9xUkTIrgBW545NLJHg0iRFjwCSPQUNpoNRzsiyHKYz3HaleZxhS2R2+lNuB84I9
+KjJ/dj2NJJOzC7JmlKlZF+633h71FOgVgy/dYZ+lC5aJl9PmpQd8DL3XkU0rDuQi
+po5mjPynFQ09I2fkYA9TVO3URaEsUvEgI+lNlgwf3Z3cZ98U1ViU/M5J9BU7TJHG
+hWLPJxmsno9Ct1qQW2SxXB5GKvRbhZjcMEMKbFcEzxAKqhxzirUgVoW2Y255z2rK
+cnfVFxWhiXQ23Ug96hqW4cSXDsOhPFRV1x2RHUQ0UppKoAooooAKKKKACiiigAoo
+ooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoo
+ooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoo
+ooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoo
+ooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoo
+ooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoo
+ooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoo
+ooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoo
+ooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoo
+ooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoo
+ooAKKKKAClpKKAHVZsrn7PLhj+7br7e9VaWplFSVmCdtTojtlX6iqbwEHA7ciqdt
+etB8rZKdsdRWnDcxzgbWGa5HGVP0NLqRnXMRDAgdRnFQCJnbCg1r3EW7kVTEkkLZ
+AFaQm2tCJRsyvsZflYH/AOvUbDJPr3qw1w7ud4GG4/GmyIdwbuetWm+pL8iuKmi5
+YAsQM8mmvGV5H3TSKCTwap6okszlYpdscu5cdak0+ci4MTnhxx9arGMAZZwPYUZj
+jZXUOSORzis3FONi07O5s7goZJPu+tV5rQHlAPxqZ3Wa080AEMO/rVNbuWI4UAr/
+AHcVzwT6GkmuoLBIjD9y3XqDmo7wFJlkCYLDr71djvI3+9G6H2HFTq8TjbvBJ9ar
+nknqhcqa0ZlpMgtTGY8se9V1iJPStzygehU/hR5B/wBn/vmhVktgdNsoW5MJJABy
+Mc0nkljwM1pCEDrg/hS/KvAA/Kp9prdFcnRlJLPn5jj2FWFhRBwo+pqbn2Ao+Udx
+UObZSikR8H1NAB9hUmfQijnuwqbgIAQOTTZCFUkDJ9KeSB1IFJuX+8DQgM94ZJZV
+YgnmpFgIckjLdhVzIFVJ7sR5AUt9On51qpSloiGktWK/yqQGyerN6VlXMolmJX7o
+4H0qe4kkmi+UYX0FUwpzxzXRShbVmcpXFP3R9KlgZVkBYZAOSPWoWPbsKVfX0rRq
+6IJ5pEkmLKm0HkKO1RhgFORTFyWApZOGwO1JK2gbkkbKD3rQivfLhMY796yQ2O1S
+CQelTOmpblxk4k0rqT1oiuWhYmPjjGTUBdT60m5afIrWYuZ3uSSkuqnvUTYChfzp
+7v8AIg9qixmqihEsHL49jSQ/6wfkaWEYLN6CiEfOKT6gKsBBJPIX3pCGY8naPSrL
+wt5TSAHYGxmoso0ZJJDL39alSuNoRQqe5p/lPKu7PT9KZhVAb7wPepBJujZRwMdK
+TvugVhFKi5iCnIXjPrV+DEsMyHvkVQiwwU45DA1asG/dyn/aqKi0Lg9TII2kj04p
+KknGLiT/AHjUddSd0SBpKU0lMAooooAKKKKACiiigAooooAKKKKACiiigAooooAK
+KKKACiiigAp8Wzzk8z7m4bvpTKKGB0+fDfqn60Z8N+qfrXMUVzfVf77+819r/dR0
++fDfqn60Z8N+qfrXMUUfVf77+8Pa+SOnz4b9U/WjPhv1T9a5iij6r/ff3h7XyR0+
+fDfqn60Z8N+qfrXMUUfVf77+8Pa+SOnz4b9U/WjPhv1T9a5iij6r/ff3h7XyR0+f
+Dfqn60Z8N+qfrXMUUfVf77+8Pa+SOnz4b9U/WjPhv1T9a5iij6r/AH394e18kdPn
+w36p+tGfDfqn61zFFH1X++/vD2vkjp8+G/VP1oz4b9U/WuYoo+q/3394e18kdPnw
+36p+tGfDfqn61zFFH1X++/vD2vkjp8+G/VP1oz4b9U/WuYoo+q/3394e18kdPnw3
+6p+tGfDfqn61zFFH1X++/vD2vkjp8+G/VP1oz4b9U/WuYoo+q/3394e18kdPnw36
+p+tGfDfqn61zFFH1X++/vD2vkjp8+G/VP1oz4b9U/WuYoo+q/wB9/eHtfJHT58N+
+qfrRnw36p+tcxRR9V/vv7w9r5I6fPhv1T9aM+G/VP1rmKKPqv99/eHtfJHT58N+q
+frRnw36p+tcxRR9V/vv7w9r5I6fPhv1T9aM+G/VP1rmKKPqv99/eHtfJHT58N+qf
+rRnw36p+tcxRR9V/vv7w9r5I6fPhv1T9aM+G/VP1rmKKPqv99/eHtfJHT58N+qfr
+Rnw36p+tcxRR9V/vv7w9r5I6fPhv1T9aM+G/VP1rmKKPqv8Aff3h7XyR0+fDfqn6
+0Z8N+qfrXMUUfVf77+8Pa+SOnz4b9U/WjPhv1T9a5iij6r/ff3h7XyR0+fDfqn60
+Z8N+qfrXMUUfVf77+8Pa+SOnz4b9U/WjPhv1T9a5iij6r/ff3h7XyR0+fDfqn60Z
+8N+qfrXMUUfVf77+8Pa+SOnz4b9U/WjPhv1T9a5iij6r/ff3h7XyR0+fDfqn60Z8
+N+qfrXMUUfVf77+8Pa+SOnz4b9U/WuZfG9tv3c8fSkorSnS9nfVv1JnPm6BRRRWp
+AUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQ
+AUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQ
+AUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQ
+AUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQ
+AUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQ
+AUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQ
+AUtJRQAtKrFSGBwR3ptLSsBq21+HG2TCt6noastGkg9DWDU8V3LDgA5HoawlR6xK
+U+5ovZZOaJogUXAqOLU1JxImz3HIq6HjkUHOR6jmsW5xfvFJJ7Geq4+VhlTSm0Oc
+ryKvGAHkUscZU47U/adhcncoG2QfeYk+lL5aBR+7B+prTMQI5AqKSH2pKrcOSwy0
+bMTx7VGORTGErHCg/gKtQRBAW7ntTznPGBWblq7F8uhSFrK/LNge5qRYIouS240+
+WSJP9Y+fbNQG+jU4jTmqXNIn3UWg+c7UI98UpYqMvIF+tZ1zeyq+N2MgHaKotLJK
+2Mkk1UaLeonUtob6zxupIOdp5qOSYgfLgVRMgtbcIOXPJqus7k8miNG+oOoXvOdi
+f3p/KkXdjJfNVt+MZPWmzTnG0GrUOxPMWzcqpwOtR3tzJhYYyQxGTt6/SqUWXmUd
+cmtVokiJdv8AWN39BSkowaGm5JmfHFcZyc/i1Xokkxzj8DTdw5wB/OlWUj0ok2wS
+SJHEm3GDiqxVl6ZqyJQe35U7cGGDz9ahNoppMqq+DyoNMlhEi5iAB7irDRA/dJH1
+5FREPGefzq0+xLXcoNEyHBGKTHpWjuWQYcA+9NFqh+7WntO5HJ2KkKEEuegFRFSz
+HArU+zkJgKcetUpkK/KOlEZ3YOLSIPL9StOEWehU03aScY5qxAirIpkHy55GauTs
+JaldkKnBGKbVybaXbZjyyeATzVdoWHK8g0Rl3Bqwj/wj0FPjiLUPGd/OAKuWzRIy
+55AqZSstBxV3qRGHZET3PAqGMYcCtO7lhkI2nGPbis8jYGf06fWohJtalSjZ6CCc
+tujZvlY9OwNQnKlgeO1Mp4fIAcZA71ty2IbuOiP3k7EU6PiJj7YojCFhgHPpU0hS
+MBAuT1NQ3rYaQtqhwxx24qxaRtFasW6s1NikYR8Lye1WJDtiUdhyaxnJt2NIpGLc
+c3Mv+8aipztukZvU5ptdaVkQIaKKKoAooooAKKKKACiiigAooooAKKKKACiiigAo
+oooAKKKKACiiigAooooAKKKt2Wm3V+37iP5R1duAKUpKKu2CTbsipRXQr4UmK/Nd
+ID6BCaqXfh69tULqFmUddnX8qxjiaUnZSNHSmlexk0UUVuZhRWzYaA99ZrcC5VA2
+eCmcfrU0nhacJmK5jkPpjFYPE0k7NmipTavYwKKkngktpmilQq69QajrdO+qMwor
+TsNHa+spLkThAmflK5zgVmDkVMZxk2l0G4tJNhRRV6y0m7v+Yo8J/fbgU5SjFXk7
+Ak27Io0V0I8KTbebpAfTYf8AGql14evrZS4CyoBklDz+VYxxNKTspFulNa2Mmiit
+LS9IbU1kKzCPYQOVzmtZzjBc0tiIxcnZGbRSsNrFfQkVYsLQ314luHCFs/MRmm5J
+K7Ek27IrUVd1LTJtNmCud6MPlcDANUqIyUlzR2G007MKKsWNqb28jtw4Qvn5iM44
+zTtQsjp921uzhyADuAx1pc8ebk6hyu1+hVoooqhBRWpeaHNZ6et0zhs43IF5XNZd
+TCcZq8WOUXHRhRRWnpmjtqUMkizCPYcYK5zROcYLmlsEYuTsjMoooqhBRRRQAUUU
+UAFFaem6LLqUEkqyCNVOBlc7jWaylHKsMMpwRUxnGTcU9UNxaV2JRRT4Y/OnjiBx
+vYLn0qm7aiGUV0J8KuDzeoP+Af8A16qXvh67tIjKpWVF5O3qPwrCOJpSdlI0dKa1
+aMmiit218NPc2sc4ulUOucFOn61pUqwpq8nYmMHLYwqK6L/hE5P+fxP+/Z/xo/4R
+OT/n8T/v2f8AGsvrdH+b8y/Y1OxztFXtU0xtMmjjaUSb1LZC4xUVhaG+u0tw4Qtn
+5iM1qqkXHnT0M+Vp8vUrUVa1CyOn3jW5cOQAdwGOtVaqMlJXQmmnZhRU9rZ3F7Js
+t4y57nsPqa2I/Ctwy5kuI0PoFJrOdanDSTKjTlLZGBRW3P4YvIwTG8cvsDg1jyRv
+DI0cilXU4IPaqhVhP4XcJQlHdDKKtafZm/u1tw4QkE7iM0moWZsLx7cuHKgHcBjq
+M0+ePNydRcrtzdCtRRRVCCituz8OPeWkdwLlVDjOCmcfrU//AAicn/P4n/fs/wCN
+YPFUU7ORoqM3rY52ir2qaa2mTJG0ok3LuyFxVGtoyUlzR2IaadmFFFFMQUUUUAFF
+FFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFF
+FFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFF
+FFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFF
+FFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFF
+FFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFF
+FFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFF
+FFABS0lFADhTo5XiOUYrTM0ZpNX3EX49SkXHmKG9xwasrqcJHPmL+GayKKydGDK5
+2acmq4I8pM+pc1ZttRinKo4KOfXv+NYdTWpH2qL/AHhUyoQ5Rqbub004iGQMmsya
+6lkPXA9qtXRySKqFQp6ZNZU4pK45tkgQXGC3En/oVRmB1baqYHc1JCzxSCXIyB3q
+KWXrtOc9zVq97Il2tchnG+XOflAxk96faxGWZQq5QHLGocF3x3JrVnjaKBEgO0L1
+x3qpy5Uoiir6lOW0uZJCxjP501bKcHJibj6VbjnuAMF9wHqKa9/MGwFU/UVClPZW
+Hyx3ZW+y3LNkxt+lI1lcEk+WTVhtRlUcxpmojqcx6Ig/CqTqdhWgTafbNHK0kilS
+vTNF/LifHHA9KsWUz3ELGQ55qtev5cwPU4FZpt1NSnZQ0GJhj1ANSsCoyVIz3NQq
+6sc8Z+lTvM0ignkDj8Kp3uCtYj3t2IP86ljk3MFz17GodyE/MmCPenggYymR65pN
+Aid90TbW4PoTSCTPynr6EVEXUg9WHoTzTQyH5dx/3WFSojbJHjzzH+VNSQg4PFKp
+IOFbPseo/wAaeyCUcnD9m7H60X6MPQnFyDDsxz0qvLGsnsaryF4jhxQJz0DEU4wt
+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
+KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAK
+KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAK
+KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAK
+KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAK
+KKKACiiigBaXNNooEOpyNtkVvQimZpaTA23/AHjZBzUWzb2yaqQ3K8ByUYcBvWry
+yNgFlDj1WuRxcdDTRkYieQnAJxVd0xWkjp/A+0nsajktyRwKUZ2eoOOhnxL++Q/7
+QrVkb5vaqJhKtkjoauTAnB9aJu7QQVkPRoRCQ33vpVGQKpyfyqQ5AqBwW60QjZjl
+K4SmJoQAPn9aqYqxspy27MpIHArZNRRk02y5poxB+NR36fOpwOmOafp/y70P1FSX
+se+MMBnFc97VDW14GeoX+4M/7JqRQByNy/Wm7R/d/KnqMdCa1ZCJ4YVmyOnHWmNC
+EYgOR7YpUyOhwfanbCxyefes9Uy9LEJVDjJIPrilMYbqwI9an8sdTmmbF/un8DRz
+CsRCMnowYeh6in7WHb8e9PAXjJI+oqR0TA8vnjnmhyGkR+YGXZIoYe4qKSzR/mif
+HselPJZeOPoRilDf7BB9V5oV1sJ2e5UME6fw7h6qc06M84YEGrincOv404Ej7wBH
+0puo+oKIpt9sHmbhyM4qhMnda0G2Mm0kgelV2tSTmOQH60oStuVJX2M7dIDxmpll
+lCN65GPWppLaVfm25HtUOGPVRW11Iys0OWWbuq/jU8U7KwJCGoY4znOOBU0dvIx6
+YHvUS5So3HtPliwUZ+lIhkY1YS2AHJHuaa80cIwg3tWd1skXZ7scAwH3uO9MDB5B
+jlF7+tQjzLgkyHCDnHQVXur1Qhhg6d2/wpqDbshcxVuJnmkbcxKg4UdhUNFFdqVl
+ZGYhooopgFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABR
+RRQBb0y8+wX8c5yVHDD2NbutaSb8LfWRDllG5R/EPUVy9XrDVrrT+InDR90bkf8A
+1q56tKTkqlPdfiaQmrcstiq8MqMVeJ1YdiprQ03RLm9lUyRtHADlmYYyPatBfFY2
+/PZZb1D/AP1qqXfiS7uEKRBYFPdeT+dS54iSso287lJU1re5Z8R30YSPT4CNqYL4
+7Y6CudoJJJJOSeporalTVOPKjOc3J3Ootv8AkTpf9xq5+xvJLG6SeM9D8w/vD0q7
+HrAj0Z9P8gkspG/d6+1ZVZ0qTXOpLRsuc/ht0R0+uWkd9ZR6lbDJC/Njuv8A9auY
+rV0vWm0+B4Hi86JuQu7GPWs2Zo3mdokKITkKTnFFCM4Xg9lsxVHGXvLc6bQP+QHc
+/Vv5Vyo+6PpWtp+sixsZbYwF9+fm3YxkVlDgYoowlGc2+rCck4xSNXQL9bK+2yHE
+Uo2k+h7GrWt6LKJ2u7VDJG/LKvJB/wAKwK07HXbyyUIGEsY6K/b6GlUpTU/aU9+q
+7jjOLjyyKCPNbyhkZ45B3HBFdV4clu5Una6eZhkbTJn9KqjxUuPmsQW9d/8A9aq0
+/ie7kXbDGkQ9eprKrGrWjyuFvO5cHCDvzGNJ/rZP94/zrpfCn+rufqK5gkkknqea
+1NJ1caWsoMBk3kHhsYrfEwlOk4x3M6UlGd2Zsn+tf/eP860dA/5DMP4/yrNY7mZv
+Uk1Z0+7FjepcFN+3Py5xmrqRbptLsTBpSTZa8Rf8hub/AHV/lVSxvZbC5WaI9OGX
+sw9KXUbwX989yE2bgBtznoMVVpU4fulCS6BKXvto7eKK21Ge21OA4dM7vfgjB9xX
+PeI/+Qw/+6v8qg0vVJdMmLKN8bfeTOM+9R6lejUL1rgRmPIA25z0rnpUJ061/s20
+NZ1Iyh5kVpbtd3cUC9XbH0Heup1bVzpJhtraNGIXkNngdq57Sr+PTrhpmgMrbcL8
+2MVBe3TXt5JcMMFzwM9B2FaVKTq1VzL3V+ZMZ8kNN2a3/CVXn/PCD9f8a0oZxr+j
+TI6qsw7DoD1BrkKvaXqTaZcNIE3oy4Zc4zU1cLFRvTVmhwrO9pPQpEFSQRgjgiuo
+8Lf8eVz/AL39K569nS6u5J44zGHOduc4Per2k6yNMikQwGTe2chsY/SqxEJVKVkt
+RUmozu9jJorpf+Eqj/58P/Hx/hVXUNeS+snt1tPLLY+bcDjBz6U41araTh+KE4Qt
+pL8DEoooroMwrq7DGjeH2uXUebJ82D3J6CuWjKrIrOu5QQSAcZrS1XWDqUcUaw+V
+GnO3dnJrnrwlUcY9OppTko3fUs/8JVef88IP1/xq7pfiCS9vRb3EcaBx8pXPX05r
+ladG7RyLIhwynINKeEpOLSVhqtNPVl3WbP7FqUiAYRvnT6Gq9j/x/wBv/wBdBV3V
+dWTU44gbcxyJ/Fuzn9Kz4JPJuI5cZ2MGx61dPndK0lqTLl57rY3fFn/Hzbf7jfzF
+N8O6jskNjOcxSfcz2Pp+NUdX1QapJE4hMewEYLZzms8EqwYHBByDWcKF6Cpz3LlU
+tU5ol/WNPOn3rKo/dP8AMh/pWfWxea2l/YLBPbEyqOJA/f1xisetaPPyWmtSJ8t/
+d2Ok8J9bn8K5+f8A4+Zv+ujfzq/pGrDSzLmEyb8dGxis6Rt8rvjG5icfU1NOElVn
+J7Ow5STgkNrT0D/kMw/Q/wAqzKtafdixvUuCm/bn5c4rSqnKDS7EwdpJst+I/wDk
+NSf7i/yqha3DWt1FOvVGz9al1K9GoXrXAjMeVA2k56VUqaULU1GXYc5e+2jrdUsU
+1qziu7RgZAOB6j0+tcvJbTwuVkhdWHYqamstRudPcmB/lPVDyDWwnis7f3tmGb/Z
+fH9KwjGtR92K5kaNwnq3ZmLb6fd3TAQwO3uRgfnTLq2e0uXgcgsnXHStmbxTOykQ
+W6R+7HOKxJppLiZpZW3OxyTW1N1ZO81ZGclBL3Xc0fDv/IYj/wB1v5UniL/kNzf7
+q/yqtp16LC8W4Me/AI25xW0fFUZOTYk/9tB/hWVRVI1ueMb6WLi4uHK3bU5qiul/
+4SqP/nw/8fH+Fc2Tkk+pzW9Oc5X5o2+ZnKMVs7nUSf8AImf8AH/oQrlq3rLxGtpZ
+R25tC+wYzvxn9Kn/AOEqj/58P/Hx/hXNT9rTckoXu77o1lyTt73Q5qitHVtUXUmi
+KweVsB75zms6uuDbjeSszGSSejCiiiqEFFFFABRRRQAUUUUAFFFFABRRRQAUUUUA
+FFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUA
+FFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUA
+FFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUA
+FFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUA
+FFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUA
+FFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUtJRQ
+A6nxzSRHKMR7VHS0mr7iL8d+rYE0f4rVmN0fmGbn0zisejv71k6KexSkbZeVD86B
+h9KmV0eIHBHbpWLHdzx8K5x6HkVetdQV3EciBS3cHjNYTpNK5SkiV/L7vj8KbiEn
+/WD8qWVoVJDFh+FQeba9fMI/4DQk2uoN6lqWCGJAxcYNRrcQopAZsH0FRGe2I/1p
+P4Uwy2n98n/gNNRfW4N66Eq3UccgZUcn3rS+WSPI5Uiscz2w6b2/CrFnfIZBCEba
+x6k9KmdN2ukEZdGTSQCPrkj2qLfCP4j+VX2ZY1LE4A6ms+e6tZHzuAx/s1MG5FSS
+Q4Sw+/5U4Sp2DGq32i1H8RP0FL9rth0Dn8KvkfYm5bWUnjy+Pc04+WBk5U1S+3IP
+uIT9TilXUCTiSL5fal7OXYOZF0BD0kU/WneUp5+X8DVMXVo3Xcp9xTxLanpMBU8r
+K5kWtnGM/nzTTCPQfhxUIlgByJxUnnwH/lqKm0kO6HCEjpu/OlMTEdSDTN0Z6TL+
+dKGjHWZf++qNQ0F8uQen40bHHVkFI0kOB++U0zfF6o30NGrG7E65A+8PypCIifm2
+Zqu0qDoifVmpRcRKPmaEfQ0crFdEshWNdwTeB2AqsbqZzhVCj061Kt5CMbSGz6Co
+by9aAjyo1wepPaqjF3tYTa7ikyDmQksegpG2RrvlYKPTvVB7+djkFQT3AquzM7Fm
+Yk+pNbqk+pHMixc3jT/InyRenc/Wq1FJW8YqKsiW7gaSiiqAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA
+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigApaSig
+B1FJRQIWj/PFFFIDRgnS5QRykCQdCf4v/r1DNbMh6VUq3DfOg2Sr5i/qKxcHF3iP
+R7lcqRSc1or9luDhG2sf4WqrMBG+0LiqU7uwmrEIUmpIV/fJjhs8VGXJ74pEcpIr
+jqDmqabQjcuCLm2AByMkN7EVjyJsPI56GtGNxHeK+f3NyPwDVJdWwYFugPX29K5o
+S5HY1kubUxjmipXjK8Y+7SKvI7ZrpvoZDOamghaYkL2p9xb+QwBYNkZ+WoFkaP7p
+xU35loFrPUViyuVyeKQOe4B/CmscnJoxzmqsBJzjO0Y+lIWx/CKsCcG38sqMnvim
+CBzEZNpKA4z2qL9x27EO4HnaKVZOcBRSFSDjFIQarRiLGJNm7GBULMT3qdZ38nyx
+0NQbPlzUrzGxoOR0pQOD6dqkEZOcVMsBJUY7U3JIEriQId6jooG4028fdF/vNx9B
+UzMEVgCAB95h29vrVCWUyvnovQD0FRFc0rlbIZRRmkrckKSiimMKKKKACiiigAoo
+ooAKKKKACiiigAooooAKKKKACiiigAooooAKKdtNG00ANop200bTQA2inbTRtNAD
+aKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG
+00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop
+200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQ
+A2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbT
+RtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADa
+KdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG0
+0ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop2
+00bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA
+2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTR
+tNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaK
+dtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00
+ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop20
+0bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2
+inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRt
+NADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKd
+tNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00A
+Nop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop200
+bTQAlFLtNG00gCil2mjaaBAM5yOtXWP2qDfj94v3v8apbTUtu7QyhuoPBHqKia6o
+a7ERGKKnuYgshC9KhxVJ3VxFq2bzYmtmOD96M+hrVt5RPbgsME/Kw9x1rBUMGBBw
+QeK1Leb98jkfLMvzD0Yd6560OqNIMdcW4yGxkdDVNoirEe9aYkDAqwJ7VBIq8HnP
+SohNrRhKK3M9gSuaaUJ5q2UXke9CqP0rXnI5SqYTzSmPt6itACLyB8p3+tRhV4pK
+pcbgVVjOBnsanUuEMWTsPVaeirjFOJVW6ZqXK40rFZoskGlMIIPHvU5ZSBgGjdwf
+8KOZhyohWPOOKBGFPP5VLnuScD0pquC3A/E0XYWHLF83p9KWWRYlOOPVj3+lJJMI
+0bg+9Z0rvK+5j9B6U4xcnqNuwTTGXjoo6CoqXaaNproSS2IEpKdtNG01QDaKdtNG
+00ANop200bTQA2inbTRtNADaKdtNG00ANop200bTQA2inbTRtNADaKdtNG00ANop
+200bTQA2inbTRtNADaKdtNG00Af/2Q=="/>
+</g>
+</g>
+<g clip-path="url(#clip_3)">
+<text fill="#524e9f" xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="23" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-643.635" x="56.6929 70.3319 83.9709 92.4809 105.268909 120.60991 129.1199 135.5507 150.04071 157.2857 169.2227 180.7227 194.36171 209.70272 225.04372 237.83171 249.33171 257.8417 271.4807 294.4807 307.2687 313.73634 328.22633 338.02433 350.81233 365.3023 372.5473 384.0473 392.5573 399.8023 413.4413 428.78233">Latent disconnectome prediction </tspan><tspan y="-617.668" x="56.6929 70.3319 78.4279 84.867908 92.11291 105.75191 121.09291 134.2949 143.65592 152.16591 164.9539 174.7519 197.7519 204.2057 215.7057 229.34471 242.5467 257.8877 265.1327 273.6427 280.8877 294.0897 306.8777 316.23869 330.2917 343.07969 358.4207 372.0597 385.2617 392.50669 406.1457 421.4867 431.2847 444.9237 452.1687">of long-term cognitive-behavioural </tspan><tspan y="-591.655" x="56.6929 68.629909 82.268909 105.268909 119.75891 128.2689 141.90792 164.90792 176.84491 183.2872 190.5322 205.8732 212.3132 224.2502 232.7602 242.5582 256.1972 270.2502">symptoms in stroke</tspan></text>
+</g>
+<g clip-path="url(#clip_4)">
+<g clip-path="url(#clip_5)">
+<g clip-path="url(#clip_6)">
+<path transform="matrix(1,0,0,-1,61.4659,222.68505)" d="M0 0H.958C2.488 0 2.8-1.158 2.8-1.756 2.8-2.921 1.882-3.513 .805-3.513H0V0ZM-.639-4.112H.898C2.581-4.112 3.479-2.961 3.479-1.756 3.479-.885 2.994 .599 1.004 .599H-.639V-4.112ZM-2.236-4.112H-1.637V.599H-2.236V-4.112ZM-2.375 1.437C-2.375 1.197-2.176 .998-1.936 .998-1.696 .998-1.497 1.197-1.497 1.437-1.497 1.676-1.696 1.875-1.936 1.875-2.176 1.875-2.375 1.676-2.375 1.437ZM5.205-1.535C5.205-4.291 2.972-6.524 .216-6.524-2.54-6.524-4.773-4.291-4.773-1.535-4.773 1.221-2.54 3.454 .216 3.454 2.972 3.454 5.205 1.221 5.205-1.535Z" fill="#72be44"/>
+</g>
+</g>
+</g>
+<g clip-path="url(#clip_7)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="11.9999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-563.641" x="66.6708 73.78674 77.56671 84.682659 88.04383 96.26376 103.37971 107.159679 114.27562 120.71957 127.16351 130.94348">Lia Talozzi,</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1.0607088 0 -0 .94276586 0 790.866)" font-size="8.48461" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-603.5114" x="126.77937 131.80226 134.3137 139.3366 141.84804 146.87093">1,2,3 </tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="11.9999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-563.641" x="159.137 166.46894 170.90889 177.58084 185.14078 193.14472 200.26065 208.26459 212.04456 218.7165 222.12209 226.11806 229.67003 233.0072 239.89514 247.01108 252.12303 259.45497 266.1269 269.90687">Stephanie J. Forkel,</tspan></text>
+<text xml:space="preserve" transform="matrix(1.0607088 0 -0 .94276586 0 790.866)" font-size="8.48461" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-603.5114" x="257.8342 262.8571 265.36854 270.39143 272.90287 277.92576 280.4372 285.46009 287.97154 292.99443">2,4,5,6,&#x2020; </tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="11.9999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-563.641" x="314.135 323.02696 330.14289 333.92286 340.5948 348.59873 353.0387 356.81867 364.8226 371.93855 375.30574 382.42167 389.5376 395.53755 402.20948 405.98945 409.7694 416.88536">Valentina Pacella,</tspan></text>
+<text xml:space="preserve" transform="matrix(1.0607088 0 -0 .94276586 0 790.866)" font-size="8.48461" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-603.5114" x="396.37178 401.39463 403.90608 408.92897 411.4404 416.4633 418.97474 423.99763">1,2,7,&#x2020; </tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="11.9999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-563.641" x="453.09 461.98194 465.7619 471.76185 476.2018 483.31776 488.42973 491.7537 501.3056 508.42155 514.8655 521.98147 525.7614 531.9894">Victor Nozais,</tspan></text>
+<text xml:space="preserve" transform="matrix(1.0607088 0 -0 .94276586 0 790.866)" font-size="8.48461" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-603.5114" x="504.92466 509.94755 512.459 517.4819">1,2 </tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="11.9999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-549.638" x="56.6929 63.80884 68.2488 72.02877 78.700717 86.70465 94.70859 101.38053 104.768108 113.87603 117.656 121.43597 128.55191 133.66387 138.10382">Etienne Allart,</tspan></text>
+<text xml:space="preserve" transform="matrix(1.0607088 0 -0 .94276586 0 790.866)" font-size="8.48461" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-588.6583" x="133.51357 138.53644 141.04788 146.07077">8,9 </tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="11.9999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-549.638" x="158.287 166.50693 173.17888 176.95885 180.73882 188.74275 195.4147 198.82147 205.93741 209.71738 215.94533 221.94528 225.72525 231.7252 238.39716 242.17713 245.95709 249.73706">C&#x00e9;line Piscicelli,</tspan></text>
+<text xml:space="preserve" transform="matrix(1.0607088 0 -0 .94276586 0 790.866)" font-size="8.48461" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-588.6583" x="238.75261 243.77552 248.7984 251.30985 256.33274 261.35563">10,11 </tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="11.9999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-549.638" x="280.573 289.90895 297.02488 309.02479 312.80476 320.8087 324.58866 330.5886 333.97737 341.0933 347.76524 352.8772 359.54914 367.55308 375.557 382.67295 390.67689">Dominic P&#x00e9;rennou,</tspan></text>
+<text xml:space="preserve" transform="matrix(1.0607088 0 -0 .94276586 0 790.866)" font-size="8.48461" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-588.6583" x="371.67884 376.70173 381.7246">12 </tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="11.9999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-549.638" x="408.246 417.58195 424.69789 432.7018 436.48179 443.15373 446.9337 450.31166 458.5316 463.64356 470.7595 478.76344 485.43537 489.21534">Daniel Tranel,</tspan></text>
+<text xml:space="preserve" transform="matrix(1.0607088 0 -0 .94276586 0 790.866)" font-size="8.48461" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-588.6583" x="464.51768 469.54057 474.56346 477.0749 482.09779 487.12068">13,14 </tspan></text>
+<g clip-path="url(#clip_8)">
+<g clip-path="url(#clip_9)">
+<g clip-path="url(#clip_10)">
+<path transform="matrix(1,0,0,-1,61.4659,250.692)" d="M0 0H.958C2.488 0 2.8-1.158 2.8-1.756 2.8-2.921 1.882-3.513 .805-3.513H0V0ZM-.639-4.112H.898C2.581-4.112 3.479-2.961 3.479-1.756 3.479-.885 2.994 .599 1.004 .599H-.639V-4.112ZM-2.236-4.112H-1.637V.599H-2.236V-4.112ZM-2.375 1.437C-2.375 1.197-2.176 .998-1.936 .998-1.696 .998-1.497 1.197-1.497 1.437-1.497 1.676-1.696 1.875-1.936 1.875-2.176 1.875-2.375 1.676-2.375 1.437ZM5.205-1.535C5.205-4.291 2.972-6.524 .216-6.524-2.54-6.524-4.773-4.291-4.773-1.535-4.773 1.221-2.54 3.454 .216 3.454 2.972 3.454 5.205 1.221 5.205-1.535Z" fill="#72be44"/>
+</g>
+</g>
+</g>
+<g clip-path="url(#clip_11)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="11.9999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-535.635" x="66.6708 75.778728 82.89467 88.00662 95.12257 103.1265 106.07128 113.63122 120.74716 127.419109 133.64705">Aaron Boes,</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1.0607088 0 -0 .94276586 0 790.866)" font-size="8.48461" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-573.80526" x="129.34465 134.36754 139.39043">15 </tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="11.9999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-535.635" x="150.746 162.07392 169.18985 177.19379 182.30574 186.08571 192.52965 196.30962 203.42555 206.36074 214.58066 221.6966 226.80855 234.14049 240.81244 245.2524 249.69235 256.8083">Maurizio Corbetta,</tspan></text>
+<text xml:space="preserve" transform="matrix(1.0607088 0 -0 .94276586 0 790.866)" font-size="8.48461" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-573.80526" x="245.48682 250.50969 255.53258 258.04405 263.06694 268.0898 270.60124 275.6241 280.647">16,17,18 </tspan></text>
+<g clip-path="url(#clip_12)">
+<g clip-path="url(#clip_13)">
+<g clip-path="url(#clip_14)">
+<path transform="matrix(1,0,0,-1,305.359,250.692)" d="M0 0H.958C2.488 0 2.8-1.158 2.8-1.756 2.8-2.921 1.882-3.513 .805-3.513H0V0ZM-.639-4.112H.898C2.581-4.112 3.479-2.961 3.479-1.756 3.479-.885 2.994 .599 1.004 .599H-.639V-4.112ZM-2.236-4.112H-1.637V.599H-2.236V-4.112ZM-2.375 1.437C-2.375 1.197-2.176 .998-1.936 .998-1.696 .998-1.497 1.197-1.497 1.437-1.497 1.676-1.696 1.875-1.936 1.875-2.176 1.875-2.375 1.676-2.375 1.437ZM5.205-1.535C5.205-4.291 2.972-6.524 .216-6.524-2.54-6.524-4.773-4.291-4.773-1.535-4.773 1.221-2.54 3.454 .216 3.454 2.972 3.454 5.205 1.221 5.205-1.535Z" fill="#72be44"/>
+</g>
+</g>
+</g>
+<g clip-path="url(#clip_15)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="11.9999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-535.635" x="310.564 317.67994 324.79588 329.90785 337.02378 343.2517 351.25566 358.5876 365.25953 372.14747 375.08024 384.63215 391.74809 397.74803 405.75196 412.4239">Parashkev Nachev</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1.0607088 0 -0 .94276586 0 790.866)" font-size="8.48461" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-573.80526" x="395.30265 400.32554 405.34843">19 </tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="11.9999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-535.635" x="432.907 440.02296 448.0269 455.58683">and </tspan></text>
+<g clip-path="url(#clip_16)">
+<g clip-path="url(#clip_17)">
+<g clip-path="url(#clip_18)">
+<path transform="matrix(1,0,0,-1,463.24903,250.692)" d="M0 0H.958C2.488 0 2.8-1.158 2.8-1.756 2.8-2.921 1.882-3.513 .805-3.513H0V0ZM-.639-4.112H.898C2.581-4.112 3.479-2.961 3.479-1.756 3.479-.885 2.994 .599 1.004 .599H-.639V-4.112ZM-2.236-4.112H-1.637V.599H-2.236V-4.112ZM-2.375 1.437C-2.375 1.197-2.176 .998-1.936 .998-1.696 .998-1.497 1.197-1.497 1.437-1.497 1.676-1.696 1.875-1.936 1.875-2.176 1.875-2.375 1.676-2.375 1.437ZM5.205-1.535C5.205-4.291 2.972-6.524 .216-6.524-2.54-6.524-4.773-4.291-4.773-1.535-4.773 1.221-2.54 3.454 .216 3.454 2.972 3.454 5.205 1.221 5.205-1.535Z" fill="#72be44"/>
+</g>
+</g>
+</g>
+<g clip-path="url(#clip_19)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="11.9999" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-535.635" x="468.454 479.78193 483.5619 489.56184 497.56578 504.2377 508.01768 510.97325 519.1932 527.1971 530.97708 537.649 544.9809 552.09689 560.10079 564.5407">Michel Thiebaut </tspan><tspan y="-521.6311" x="56.689455 64.24939 70.92133 74.2645 81.59644 87.59639 95.60033 102.71627 107.156238 111.5962 118.26814">de Schotten</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1.0607088 0 -0 .94276586 0 790.866)" font-size="8.48461" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-559.0116" x="119.082637 124.10552 126.61697">1,2</tspan></text>
+<text xml:space="preserve" transform="matrix(1.0607152 0 -0 .94276019 0 790.866)" font-size="6.3634426" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-517.4614" x="53.447809">&#x2020;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std" font-weight="bold"><tspan y="-483.874" x="60.6614 66.8264 72.8294 77.8334 82.504398 87.50839 90.0275 95.364498 101.36749 104.697498 110.70049 116.03749 119.87149 124.54249 127.10479 131.6048 136.9418 142.94481 146.27481 150.10881 152.94382 158.44281 164.44582 167.77582 172.77982 178.44982 180.96352 185.96752 191.63751 197.64052 202.97753 205.81253 208.64754 213.98455 216.50995 219.83995 225.17696 227.67806 231.00806 237.01107 239.84607 244.51708 247.06768 255.06868 260.40568 264.2397 269.73869">These authors contributed equally to this work.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-453.3739" x="56.6933 62.0303 65.5313 69.3653 74.7113 80.0483 85.0523 86.9099 91.4099 94.2359 99.2399 105.2429 108.06889 110.90389 113.73889 118.40989 123.57589 129.57889 133.0799 135.9059 141.0719 142.979 145.80501 154.80501 160.475 165.641 170.31201 173.81302 178.31302 180.16973 183.67073 189.67374 194.67774 196.55423 202.22423 208.05623 213.22223 216.04824 218.87424 222.37525 227.54125 229.43575 234.78174 238.11174 239.98104 242.80704 245.63304 248.96305 253.96704 256.46907 258.34919 265.3512 270.6972 278.5272 283.5312 288.69718 293.70118 297.5352 300.0372 301.8894 305.3904 311.3934 316.3974 318.27394 321.0999 326.44593 332.4489 337.4529 341.1159 344.6169 349.6209 353.45494 362.45494 364.36476 369.03575 374.38175 379.38575 385.38874 388.21473 391.71574 394.54173 399.7077 404.7117 406.6008 411.6048 416.77079 422.1168 424.94279 430.77479 434.2758 437.10179 442.44779 448.45079 450.3111 453.1371 459.14009 461.0265 465.5265 469.0275 472.8615 478.20753 483.54454 488.54853 490.39353 493.2195 497.7195 499.63475 505.30476 510.65077 515.99679 519.83078 522.65676 527.82278 529.6813 535.35128 539.18527 544.1893 549.85928 552.68527 557.35629">Stroke significantly impacts the quality of life. However, the long-term cognitive evolution in stroke is poorly predict</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-453.3739" x="560.8571">-</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-440.8441" x="56.6933 61.8593 67.1963 70.02229 75.02629 76.70479 81.87079 85.37179 87.07999 90.580989 96.583988 101.58798 103.29438 106.12038 112.123378 117.79337 120.61937 125.78537 128.61138 134.28137 140.11338 145.27938 148.10538 149.83878 152.66478 157.66878 162.83478 167.83878 170.66478 173.16678 174.84078 180.85277 186.85578 191.85977 195.69377 200.69777 202.45008 205.27608 209.77608 211.46448 216.63048 222.63349 224.33359 230.16559 233.99959 239.00359 244.00759 250.01059 253.5116 255.2306 261.2336 266.2376 271.2416 276.91163 278.58836 282.08937 287.43537 289.13368 294.47068 299.47468 302.97569 306.47669 311.48069 315.3147 317.02653 322.69654 326.53056 331.53456 337.20457 340.03056 344.70155 348.20256 349.90806 352.73405 358.08006 364.08305 369.08705 372.75004 376.25105 381.25505 385.08906 394.08906 395.77296 400.27296 405.43894 414.43894 420.10896 423.60997 428.95597 437.95597 442.45597 444.18849 449.52549 454.69148 459.19148 464.19548 469.86549 471.57099 476.917 482.91999 484.61109 489.77708 494.44807 500.28007 503.78108 508.78507 510.51939 515.19039 518.01638 520.84237 526.84536 529.6713 534.34237 539.50839 542.33438 544.02456 550.0275 555.03158">able at the individual level. There is an urgent need to better predict long-term symptoms based on acute clinical neu</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-440.8441" x="560.8634">-</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-428.3719" x="56.6933 60.527299 65.8733 68.699298 77.699298 82.865299 87.86929 90.6953 96.698299 101.70229 105.56149 111.23149 116.39749 119.89849 125.06449 127.56649 131.4707 136.6367 140.4707 145.4747 150.6407 153.4667 158.8127 164.6447 169.1447 172.9697 180.7997 186.14569 189.97969 195.3167 199.8167 203.6975 209.7005 214.8665 220.0325 225.0365 228.9254 234.5954 239.5994 248.5994 253.94539 259.9484 264.4484 267.9494 271.78343 276.9494 280.4504 285.4544 291.12443 294.97285 300.13883 303.98725 308.48725 311.98826 315.82228 321.16828 327.17127 332.17527 336.07499 339.909 344.913 347.73899 352.90498 356.40599 359.23197 364.57798 370.58097 375.08097 381.08396 383.90995 389.57997 393.44819 398.7852 403.78919 407.2902 415.12019 420.12419 425.12818 431.13117 435.0048 438.5058 444.5088 449.5128 453.3729 456.19889 461.5449 466.21589 471.38188 474.88288 477.70887 483.05488 489.05787 492.94407 498.29008 501.62007 505.47389 513.3039 519.3069 522.1329 525.63388 530.6379 534.5007 543.5007 548.6667 552.16769 555.66867 560.67269 564.50668">roimaging data. Previous works have demonstrated a strong relationship between the location of white matter </tspan><tspan y="-415.84388" x="56.6933 62.3633 65.1893 69.6893 74.3603 79.7063 85.7093 91.712299 96.71629 101.38729 104.88829 107.714298 113.060298 119.06329 123.56329 126.19759 131.36359 137.3666 143.03659 145.64389 150.3149 153.1409 155.9669 161.96991 164.79592 169.46692 174.63292 177.45893 180.05632 184.55632 189.72232 198.72232 204.39232 207.89333 213.23932 222.23932 226.73932 229.24132 231.81713 238.81912 244.16512 251.99512 256.9991 262.1651 267.1691 271.0031 273.50514 276.15116 279.98518 284.98918 290.99217 296.66218 301.66618 305.50019 308.32618 314.32917 319.33317 321.90177 325.40278 331.40577 336.40977 339.02339 344.02738 350.03038 353.53138 356.35737 360.19139 365.19538 367.8234 372.3234 377.9934 383.1594 387.83039 392.83439 395.4327 400.77873 404.1087 406.7142 412.38423 417.73023 422.23023 426.73023 429.5562 434.89323 437.7192 442.7232 445.37913 451.04914 453.87513 458.37513 463.0461 468.39213 474.3951 480.3981 485.4021 490.0731 493.5741 496.4001 501.7461 507.74909 511.41209 517.0821 522.0861 524.92117 527.7561 532.4271 535.2531 538.7541 541.3605 546.5265 551.0265 555.5265">disconnections and clinical symptoms. However, rendering the entire space of possible disconnection-deficit asso</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-415.843" x="560.8724">-</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-403.3708" x="56.6933 61.3643 64.1903 69.3563 72.8573 75.683307 81.029308 87.0323 91.5323 93.429508 98.775508 104.4455 107.9465 110.77251 119.77251 124.93851 127.76451 130.59052 135.75652 137.65012 142.15012 147.98212 151.81612 156.98212 161.98612 167.15212 172.31812 177.65512 180.48113 185.48513 187.36972 195.19972 198.02573 200.85173 203.67774 205.56774 210.73374 213.55974 216.38574 221.73174 229.56174 231.47693 234.80693 240.15293 243.98693 245.87693 251.04293 252.90682 257.4068 262.57279 267.07279 270.5738 275.5778 284.5778 289.74378 293.24479 296.07078 300.74177 302.62638 307.79237 312.29237 316.79237 322.13838 326.80937 329.63536 334.80134 338.30235 341.12834 346.47434 352.47734 354.38716 359.72416 364.72816 368.22917 376.05915 381.06315 386.06715 392.07014 393.95835 399.29536 403.12937 408.29536 411.12135 417.12434 419.01704 424.68705 427.51304 432.01304 436.68403 442.03004 448.03303 454.036 459.04 463.711 467.212 470.038 475.384 481.387 485.887 487.7851 492.95109 498.95408 504.62409 506.4943 511.16529 516.5113 521.5153 527.5183 530.3443 533.8453 536.67129 541.8373 546.8413 550.50436 555.8413">ciations optimally surveyable will allow for a systematic association between brain disconnections and cognitive-be</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-403.3708" x="560.8454">-</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-390.841" x="56.6933 62.696298 67.8623 73.0283 75.854297 81.200298 87.032299 90.866298 96.032299 98.85829 102.95419 111.95419 116.95819 122.12419 126.62419 132.45619 136.29019 141.29419 145.79419 149.8955 155.0615 158.5625 162.5945 166.0955 172.09851 177.10251 181.1903 184.01631 190.01932 195.68932 198.51532 203.68132 206.50733 212.17733 218.00933 223.17533 226.00133 230.11612 232.94213 237.94612 243.11212 248.11612 250.94213 253.44412 257.49864 264.50065 269.50465 273.33866 278.34266 282.44398 290.27397 295.27796 299.39457 305.06459 308.8986 313.9026 318.4026 323.4066 329.40959 332.91059 336.9822 340.48323 346.4862 351.4902 355.578 364.578 369.924 374.424 377.92503 381.99665 386.66764 392.01365 401.01365 406.68367 410.51768 415.52168 421.52467 426.52867 432.53166 437.03166 439.85765 445.02363 450.02763 454.11006 457.44004 461.27406 466.44004 475.44004 480.44404 488.27403 493.62004 497.45405 502.79106 505.29307 509.38539 514.5514 518.6266 523.2976 528.6436 537.6436 543.3136 548.6596 553.1596 555.9856 559.4866 564.4906">havioural measures at the individual level. Here we present the most comprehensive framework, a composite </tspan><tspan y="-378.367" x="56.6933 65.6933 71.0393 74.8733 80.5433 86.546298 91.892299 96.392299 102.062297 107.228298 111.89929 116.90329 120.64189 125.98789 129.31789 133.05739 140.88739 146.8904 149.7164 153.2174 158.2214 161.91411 170.91411 176.08011 179.58112 183.08213 188.08612 191.92012 195.64702 201.31702 204.14302 208.64302 213.31403 218.66002 224.66303 230.66603 235.67003 240.34104 243.84204 246.66805 252.01404 258.01704 262.51704 266.28627 269.11225 274.78227 277.60826 282.10826 286.77925 292.12525 298.12825 304.13124 309.13523 313.8062 317.30723 322.65324 331.65324 336.65724 339.48323 343.21824 346.71925 352.06526 355.80476 361.47477 365.30879 370.31278 375.9828 378.80879 383.47978 386.98078 390.67079 396.67378 401.67778 407.50978 411.34379 416.6898 422.3598 426.8598 432.0258 436.69679 442.69978 448.04579 450.87178 456.21778 461.22178 464.04777 468.71876 473.88475 476.71073 480.47184 484.97184 489.64283 494.98884 498.82286 503.82685 508.32685 512.0502 517.0542 520.7811 525.94717 530.9512 536.1172 539.9512 543.6844 548.8504 552.1804 555.6814 560.6854 564.5194">morphospace of white matter disconnections (disconnectome) to predict neuropsychological scores 1 year after </tspan><tspan y="-365.839" x="56.6933 61.1933 64.6943 68.5283 73.8743 79.211299 84.215297 86.71729 89.91409 94.91809 97.744098 103.74709 109.08409 111.910099 117.91309 122.91709 126.08419 129.58519 135.5882 140.5922 143.8295 146.6555 151.8215 155.32251 160.3265 166.32952 169.83052 172.96973 178.63973 181.46573 185.96573 190.63674 195.98273 201.98574 207.98874 212.99274 217.66374 221.16475 226.51074 235.51074 240.51474 243.72234 252.72234 258.06834 261.90235 267.57237 273.57536 278.92137 283.42137 289.09138 294.25736 298.92835 303.93235 307.10487 310.60588 315.95188 319.1811 325.18409 330.18809 336.02009 339.8541 345.2001 350.87013 355.37013 360.5361 365.2071 371.21009 376.5561 379.38209 384.7281 389.7321 392.55809 397.22908 402.39506 405.22105 408.41517 413.76118 419.59318 423.09419 427.76518 433.11119 442.11119 447.11518 451.61518 454.79039 459.95637 462.78236 467.78636 470.61235 476.28236 480.78236 483.98728 489.32429 492.15028 497.49629 500.32228 505.66828 510.67228 513.4983 518.1693 523.3353 526.1613 529.341 532.167 538.17 542.67 545.496 550.5 556.503 560.00399 564.50399">stroke. Linking the latent disconnectome morphospace to neuropsychological outcomes yields biological insights </tspan><tspan y="-353.365" x="56.6933 60.194299 66.197299 71.3633 74.864299 80.9573 86.1233 89.9573 94.961299 101.0264 106.1924 111.3584 116.5244 119.3504 122.17641 127.34241 132.67942 135.50542 140.50942 146.60782 151.77382 156.27382 162.31102 165.81203 171.81504 176.81903 182.89133 185.72634 188.56133 192.39533 196.89533 200.39633 206.47493 211.14594 216.49193 225.49193 231.16193 234.99593 239.99993 246.00293 251.00693 257.00993 261.50993 264.3359 269.5019 274.5059 280.5728 285.7388 289.2398 292.0658 297.23179 301.73179 307.8419 313.1879 316.51789 322.5821 328.2521 331.0781 335.5781 340.24909 345.5951 351.59809 357.60108 362.60508 367.27607 370.77708 376.12309 385.12309 390.12709 393.79008 399.46009 404.46409 407.29908 410.1341 414.80509 417.63108 421.13209 427.2377 431.07173 436.0757 438.9017 444.0677 447.5687 450.39469 455.7407 461.74369 466.24369 472.3079 477.47389 482.14488 485.97889 491.3249 495.8249 500.3249 506.381 511.385 516.38906 522.48117 526.98117 531.65219 536.99819 540.83218 545.8362 550.3362 559.3362 564.5022">that are available as the first comprehensive atlas of disconnectome-deficit relations across 86 scores&#x2014;a </tspan><tspan y="-340.83699" x="56.6933 63.8573 68.8613 74.6933 78.5273 83.8733 89.5433 94.0433 99.2093 103.880298 109.88329 115.229297 118.0553 123.4013 128.4053 131.23131 135.90232 141.06832 143.89432 151.08621 160.75222 166.75522 169.58123 173.08223 178.08623 185.32852 193.66252 198.82852 202.32953 205.83054 210.83454 214.66854 221.89554 228.56455 232.06555 234.89156 240.05756 244.55756 247.05956 254.26766 261.10768 266.93968 270.77369 277.9647 283.96769 289.3137 294.47969 299.48368 302.30967 309.54298 315.21299 319.047 324.051 329.721 332.547 337.218 340.719 343.54499 348.71098 353.71498 360.9636 364.29359 368.1276 373.29359 382.29359 387.29759 395.12757 400.47358 404.3076 409.6446 412.1466 419.35743 422.85844 428.86143 433.86543 441.07084 447.90184 450.7278 455.2278 459.8988 465.2448 471.2478 477.2508 482.2548 486.92579 490.4268 495.7728 504.7728 509.7768 516.98226 522.3192 527.4852 536.4852 542.1552 545.6562 551.0022 560.0022 564.5022">Neuropsychological White Matter Atlas. Our novel predictive framework, the Disconnectome Symptoms </tspan><tspan y="-328.36299" x="56.6933 63.5243 66.350299 70.850299 75.52129 80.867298 86.033298 91.03729 94.87129 99.87529 103.70929 106.21129 108.28309 113.44909 118.12009 124.123088 126.94908 131.95308 137.11908 142.12308 147.79308 149.89548 155.23249 160.23648 163.73749 167.2385 172.2425 176.07649 178.1852 183.8552 187.6892 192.69319 198.36319 201.1892 205.8602 209.3612 212.18721 217.35321 220.17922 223.68022 228.84622 230.96662 236.63661 241.64061 245.47461 248.80461 254.1506 257.98463 266.98463 272.1506 278.1536 282.8246 287.82859 292.32859 294.4058 297.9068 303.9098 309.07579 315.07878 317.19648 321.69648 324.52247 329.85948 331.93669 337.28269 340.7837 346.78669 351.79069 355.6247 357.7316 366.7316 372.0776 377.74763 382.75163 385.5776 390.0776 392.57963 394.69554 397.5215 403.5245 408.1955 411.02149 416.8535 422.5235 425.3495 431.35249 436.35649 438.4625 441.79249 447.62449 453.62748 458.29847 461.79948 464.62547 469.97148 475.97447 481.14045 483.96644 486.08415 491.75416 494.58015 499.08015 503.75114 509.09715 515.10018 521.10317 526.1072 530.7782 534.2792 537.10519 542.4512 548.45419 550.9562 553.0388 555.8648">Discoverer, achieved better predictivity performances than six other models, including functional disconnection, le</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-328.3657" x="560.8688">-</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-315.8368" x="56.6933 61.1933 64.0193 69.3653 75.3683 78.179 81.68 87.026 92.696 98.042 100.868 106.214 111.217998 116.383998 119.224399 124.390399 130.3934 136.0634 138.8975 144.0635 149.4095 152.2355 158.0675 167.0675 172.0715 174.8975 183.8975 189.2435 194.9135 199.9175 202.7435 205.5695 208.39551 214.39852 219.40251 221.90451 224.73052 231.57051 237.40251 240.90352 244.56652 249.9125 253.24251 256.90553 261.40553 266.5715 275.5715 281.24153 284.0675 289.0715 291.8543 297.52433 301.35835 306.36235 312.03236 314.85835 319.52934 323.03034 325.85633 331.20234 337.20533 340.04396 345.71397 350.71797 354.55198 357.37797 362.54396 367.54795 373.21797 376.04399 379.37397 383.20799 388.554 397.554 400.3647 403.8657 409.86869 412.69468 417.19468 420.03779 425.20378 428.70478 431.53077 436.69676 441.19676 444.01826 449.68827 453.52229 458.52629 463.02629 468.03028 474.03327 477.53428 482.53828 488.20829 491.01719 496.18318 499.011 508.011 513.015 518.181 524.184 527.0172 532.1832 537.5202 542.0202 547.3662 550.1922 556.0242 559.52517 564.5292">sion topology and volume modelling. Out-of-sample prediction derived from this atlas presented a mean absolute </tspan><tspan y="-303.3628" x="56.6933 61.6973 65.5313 69.3653 74.7113 78.5453 80.7872 86.1242 91.1282 93.95419 99.30019 107.130199 109.3604 114.364398 119.36839 126.865398 129.0893 134.2553 140.2583 145.9283 148.1378 153.3038 156.1298 158.95581 164.3018 172.1318 177.1358 182.8058 185.045 190.715 195.719 199.553 204.053 209.39899 215.402 220.568 223.394 226.22 231.05301 236.057 238.28 244.283 249.287 255.119 258.953 264.299 269.96903 274.46903 279.635 284.306 290.309 295.655 298.481 303.827 308.831 311.65699 316.32798 321.49397 324.31996 326.55107 332.22108 336.05509 341.05909 346.7291 349.55509 354.22608 357.72709 360.55308 365.89909 371.90208 376.40208 378.90409 381.146 386.31199 390.146 395.15 400.82 403.646 408.317 411.818 414.64399 419.99 425.99299 428.20069 433.5467 439.54969 441.8078 446.9738 452.97679 455.1872 460.1912 465.5282 469.0292 474.0332 477.86723 483.8702 489.0362 491.86219 494.078 498.749 504.095 510.098 515.444 519.27798 522.77896 525.03256 530.19857 534.86959 540.87258 543.69857 548.7026 553.8686 558.8726 564.5426">error below 20% and allowed personalize neuropsychological predictions. Prediction on an external cohort achieved </tspan><tspan y="-290.83479" x="56.6933 61.8593 67.8623">an </tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std" font-style="italic"><tspan y="-290.83479" x="69.7343">R</tspan></text>
+<text xml:space="preserve" transform="matrix(1.0607152 0 -0 .94276019 0 790.866)" font-size="6.3634426" font-family="Caecilia LT Std"><tspan y="-312.76249" x="70.92516">2</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="STIXGeneral"><tspan y="-290.835" x="80.5039">=</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-290.835" x="88.1539 93.1579 95.6599 100.663898 105.66789 110.67189 112.58889 115.91889 121.26489 125.09889 126.98889 131.48889 136.49289 145.49289 150.65889 156.6619 160.1629 162.9889 167.65991 169.56522 172.48122 175.39722 181.22922 186.23322 192.23622 196.90723 202.07323 204.57523 206.41573 209.42173 215.42473 217.35703 222.52303 228.19303 233.86302 236.68903 240.19004 243.01604 248.36203 254.36504 256.86705 258.74357 262.24458 266.07859 271.24458 274.07057 280.07356 282.89955 288.90254 293.90653 295.82084 300.98683 306.9898 312.65983 314.52915 318.03016 323.03416 327.53416 331.03517 333.86116 339.86415 344.86814 346.73115 354.56114 359.56513 363.39915 368.40315 370.31477 374.14878 379.15278 384.82279 387.64878 390.47477 395.14576 400.31175 403.81275 408.81675 414.48677 416.40647 421.75248 427.75547 429.61579 433.1168 440.94679 446.2928 448.2107 453.2147 458.5517 462.0527 467.0567 470.89073 476.8937 482.0597 484.88569 486.7622 491.4332 496.7792 502.7822 508.1282 511.96223 515.4632 519.9632 521.855 527.021 531.692 537.695 540.521 545.525 550.69107 553.517 559.52 564.52407">0.201 for semantic fluency. In addition, training and testing were replicated on two external cohorts achieving </tspan><tspan y="-278.361" x="56.6899 61.8559 67.8589">an </tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std" font-style="italic"><tspan y="-278.361" x="70.3519">R</tspan></text>
+<text xml:space="preserve" transform="matrix(1.0607152 0 -0 .94276019 0 790.866)" font-size="6.3634426" font-family="Caecilia LT Std"><tspan y="-299.47279" x="71.51317">2</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="STIXGeneral"><tspan y="-278.362" x="81.1275">=</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-278.362" x="88.777507 93.7815 96.2835 101.2875 106.2915 108.847499 112.1775 117.5235 121.3575 123.8712 129.0372 131.8632 136.3632 142.1952 147.5412 152.0412 157.7112 162.8772 166.3782 169.20421 174.37021 177.19622 179.71352 185.38352 190.38751 194.22151 197.55152 202.8975 206.7315 215.7315 220.8975 226.90052 231.57152 236.57552">0.18 for visuospatial performance.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-265.8331" x="56.6934 62.705404 68.708408 71.53441 76.03441 79.143909 82.47391 86.30791 91.47391 100.47391 105.477909 113.30791 118.65391 122.48791 127.824909 130.90381 133.72982 138.22982 141.2781 146.4441 151.6101 156.77611 159.60211 162.42812 167.59412 172.93112 175.75713 180.76113 183.85442 189.02042 193.52042 196.61013 201.77613 207.77913 210.84003 213.66603 219.66904 223.17005 228.17404 232.00804 237.17404 241.84505 245.34606 248.17206 253.33806 258.34208 261.4669 269.29689 274.30088 279.63789 282.7276 287.8936 293.5636 299.2336 302.0596 304.8856 309.55659 314.72257 318.22358 321.04957 326.39558 332.39857 335.4514">This framework is available as an interactive web application (</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-265.8331" x="338.27738 344.28038 347.78138 351.28239 356.9524 359.4544 361.87089 365.20088 370.87089 373.69688 378.19688 382.86787 388.21388 394.21687 400.21986 405.22386 409.89485 413.39585 418.74186 427.74186 432.74586 437.24586 440.74687 446.57887 452.24888 455.07487 460.42088 462.92289 468.2599 472.93089 478.26789 481.09388 486.25987 491.59687 494.09889 498.76988 504.11589">http://disconnectomestudio.bcblab.com</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-265.8331" x="513.1158 515.9418 519.0234 522.52438 527.87039 530.9853 536.6553 540.48928 545.83529 551.0013 553.8273 559.49728 564.5013">) to provide </tspan><tspan y="-253.3591" x="56.68979 60.19079 66.19379 71.197788 73.244388 76.57439 81.92039 87.75239 93.75539 99.425388 104.591388 108.092388 110.91838 116.26438 122.26738 126.76738 128.85898 132.18898 137.53498 141.36898 143.42908 148.59508 150.62908 156.63208 161.63608 169.46608 171.54868 176.71468 182.71768 188.38768 190.42708 196.09708 199.93108 205.09708 209.76808 213.26909 216.0951 220.7661 225.9321 228.7581 230.8497 236.0157 241.6857 247.3557 251.1897 256.5357 261.7017 266.37269 272.37568 274.4466 277.9476 283.2936 285.33125 294.33125 299.67726 305.34727 310.35127 313.17726 316.00325 318.82923 324.8322 329.8362 331.87654 336.54753 341.89353 346.89753 352.9005 355.7265 359.2275 362.0535 367.3995 373.4025 375.47343 378.2994 384.3024 386.358 390.858 394.359 398.19303 403.53904 408.87605 413.88005 416.38206 418.44667 428.11268 433.11668 435.17048 441.17347 446.51948 452.18949 457.19349 459.2653 464.6113 470.4433 474.2773 476.33024 481.49623 484.99723 487.8232 492.9892 497.4892 499.5736 504.7396 510.74259 516.4126 518.45297 526.28298 531.287 536.62399 538.6922 543.8582 549.5282 555.1982 558.0242">the foundations for a new and practical approach to modelling cognition in stroke. We hope our atlas and web appli</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-253.3609" x="560.8536">-</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-240.832" x="56.6934 61.364404 66.5304 70.0314 72.85741 78.20341 84.206409 85.946109 93.77611 96.60211 99.428119 102.25412 104.030719 110.033718 115.03771 117.86371 123.53371 125.290508 128.7915 134.1375 135.8925 139.7265 144.7305 150.4005 156.2325 160.9035 165.9075 167.6967 171.19771 177.20072 182.20471 183.91112 189.24813 195.08013 198.91413 204.58412 209.58812 215.59113 217.36052 222.70652 226.03652 227.79152 232.46253 237.80852 242.81252 248.81552 251.64153 255.14253 257.96855 263.13453 268.13853 269.91426 275.58427 280.58827 283.42326 286.25828 290.92927 293.75526 297.25627 301.75627 303.53379 308.8798 314.88279 316.6297 322.2997 327.4657 330.9667 333.7927 338.7967 344.79969 348.3007 352.8007 355.3027 357.05143 360.55244 366.55543 371.55943 374.3854 378.21943 379.95555 383.28553 388.4515 397.4515 400.2775 403.1035 405.92948 410.93348 415.43348 417.20289 422.36888 428.37187 434.04188 435.7978 443.62779 446.45378 452.12379 457.12779 460.9618 462.7276 467.2276 472.5736 477.2446 480.0706 485.0746 488.5756 493.74159 495.4957 503.32569 509.32868 512.15469 514.98068 519.9847 521.7442 526.9102 529.7362 534.2362 539.5822 541.36068 547.36367 552.3677 555.19369">cation will help to reduce the burden of cognitive deficits on patients, their families and wider society while also help</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-240.832" x="560.8635">-</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-228.3589" x="56.6934 59.5194 65.5224 70.5264 73.9275 77.4285 82.7745 86.116199 89.617198 94.783199 97.60919 100.435199 105.7812 109.6152 112.988399 116.3184 122.1504 125.6514 131.4834 135.3174 140.3214 143.7162 149.3862 154.3902 158.2242 162.7242 168.07019 174.0732 179.2392 182.0652 184.8912 189.72422 194.72821 200.39821 203.7534 207.25441 211.08841 216.0924 221.2584 224.75942 233.75942 238.76342 244.76642 248.26743 251.65953 257.32954 261.16355 266.50956 271.51356 275.34757 280.51356 289.51356 298.51356 303.51756 308.01756 311.41416 316.58015 322.58314 328.25315 331.59666 337.26667 340.09266 344.59266 349.26365 354.60966 359.77565 364.77964 368.61366 372.01838 378.02137 383.02537 390.85536 394.18537 397.68638 402.85237 406.68638 411.69038 416.69438 420.19538 424.69538 428.0875 431.41749 436.7635 440.5975 443.96174 447.46275 451.29676 456.30076 461.46675 464.96775 473.96775 478.97175 484.97474 488.47575 492.97575 495.47776 498.84019 508.50617 513.5102 516.9257 521.92977 527.2667 532.9367 537.94076 542.61178 546.11276 549.46707 554.81307 560.645 564.479">ing to tailor future personalized treatment programmes and discover new targets for treatments. We expect our </tspan><tspan y="-215.8309" x="56.6934 60.0234 63.8574 69.0234 78.0234 83.0274 90.8574 96.2034 100.0374 105.3744 107.876399 112.376399 114.9162 118.7502 123.9162 129.9192 134.9232 139.9272 142.4121 147.75809 151.08809 153.63689 158.80289 163.30289 167.80289 172.80689 177.30689 181.80689 190.80689 195.81089 201.81389 205.3149 209.8149 212.3169 217.4829 223.4859 229.1559 231.7065 237.3765 241.2105 246.2145 251.88449 254.7105 259.3815 262.8825 265.7085 270.87449 275.87849 278.3643 284.0343 289.3803 297.2103 302.2143 306.0483 308.58183 312.08283 317.42884 319.97676 322.80274 328.80574 333.4767 337.31074 342.31474 347.4807 351.9807 356.9847 359.49214 364.49613 369.6621 374.6661 380.6691 383.19 386.52 392.352 396.186 399.687 405.69 410.694 414.528 417.03544 420.53645 426.53944 430.37345 435.71946 441.55146 446.55546 452.55845 455.07667 458.40666 464.23866 467.73966 473.57167 477.40568 482.40968 484.9531 489.62409 493.4581 498.8041 506.6341 512.3041 516.8041 522.1501 527.98208 531.81607 536.48709 539.31307 545.31607 550.32009">framework&#x2019;s range of assessments and predictive power to increase even further through future crowdsourcing.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-180.3403" x="56.6934">1</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-180.3403" x="69.167407 75.665409 79.499408 84.845409 90.67741 96.347408 101.3514 107.718 113.388 115.89 118.895999 127.895999 133.062 138.066 143.06999 146.90399 149.73 154.734 161.00879 168.17279 173.17679 179.00879 182.84279 188.18878 191.51879 196.86478 202.86779 207.53879 211.0398 213.8658 219.21179 225.2148 231.2178 236.2218 239.0478 241.87381 246.8778 249.3798 255.7428 258.7488 264.7518 269.2518 272.7528 275.5788 279.0798 284.9118 288.4128 294.69123 300.36125 305.36524 309.86524 316.17787 324.51188 329.67787 332.50386 337.66984 343.33985 346.16584 351.16984 355.66984 361.98515 369.14915 374.15315 379.98515 383.81916 389.16517 394.83518 399.83918 404.84318 409.84718 415.85017 420.85417 424.68818 429.85417 433.35517 436.18116 441.34715 446.35115 450.85115 454.51414 461.34513 469.67915 475.51115 481.83457 486.83857 491.84257 496.84657 501.85057 504.35258 510.69129 516.85629 524.02029 529.85226 535.1892 537.6912 544.02639 550.19137 555.35739 562.02639 564.5284">Groupe d&#x2019;Imagerie Neurofonctionnelle, Institut des Maladies Neurod&#x00e9;g&#x00e9;n&#x00e9;ratives-UMR 5293, CNRS, CEA, </tspan><tspan y="-169.3423" x="69.167407 75.998409 82.0014 84.82741 89.99341 94.997409 98.831409 103.331409 106.15741 109.65841 114.82441 117.35521 122.70121 126.03121 128.58092 134.25092 139.59691 143.43091 149.1009 154.1049 159.2709 165.1029 170.43991 172.94191 175.46552 181.13552 186.4815 190.3155 195.9855 200.9895 206.1555 211.9875 217.32451 219.8265 222.35102 227.35501 232.35901 237.363 242.367 247.371 249.873 252.3984 257.4024 261.23643 266.4024 272.4054 277.0764">University of Bordeaux, Bordeaux, 33076, France</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-158.3443" x="56.693407">2</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-158.3443" x="69.167407 74.8374 78.6714 83.8374 86.66341 92.666408 95.1891 101.3541 106.7001 112.7031 118.7061 123.7101 128.3811 131.88211 134.70812 139.87412 142.70012 146.20113 151.36713 153.92223 159.08823 165.09123 170.76123 173.25513 178.92513 183.92913 189.93213 195.09813 200.26413 203.09014 208.43613 214.26813 218.10213 220.65003 225.65402 230.82003 236.15703 241.50302 245.33702 250.50302 254.00403 259.35005 263.18406 268.35005 270.85206 273.37477 278.71177 284.05778 287.89179 293.2288 298.5748 304.5778 310.58079 315.58479 318.10569 324.93669 330.93968 333.76567 338.93165 343.93565 347.76966 352.26966 355.09565 358.59666 361.42265 366.42665 370.92665 373.42866 375.93067 381.09666 386.26264 390.09666 392.92265 397.42265 399.92466 402.46269 407.46669 412.47068 417.47468 422.47868 427.48268 429.98469 432.5101 437.5141 441.3481 446.5141 452.5171 457.18809">Brain Connectivity and Behaviour Laboratory, Sorbonne Universities, Paris, 75006, France</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-147.3463" x="56.693407">3</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-147.3463" x="69.167407 75.998409 81.0024 86.6724 91.8384 95.6724 99.1734 108.1734 113.1774 119.1804 122.6814 124.725299 130.07129 133.40129 135.38399 142.54799 147.55199 153.38399 157.21799 162.56398 165.38999 170.73598 175.73998 180.90598 182.89228 188.05828 194.06128 199.73128 201.71488 208.87888 213.88288 219.71488 223.54888 228.89487 231.72087 237.06687 242.07086 244.89687 249.56787 254.73387 257.55989 259.5984 264.9354 269.60639 272.43238 277.43638 283.43937 288.11036 293.11436 297.61436 300.11637 302.11799 307.455 310.956 316.12199 322.12498 325.45497 330.80097 334.63499 340.305 342.2562 349.0872 355.09019 357.91618 363.08216 368.08616 371.92018 376.42018 379.24617 382.74717 387.91316 389.93547 395.27247 399.94346 405.94645 411.29246 416.63847 419.46446 421.45616 426.80216 430.13215 432.11488 440.44889 445.45289 451.1229 453.94889 458.61988 461.44587 467.44886 472.45286 474.95487 476.95918 482.29618 485.79719 490.96318 496.96617 500.29615 505.64216 509.47618 515.1462 517.6482 519.6489 525.8139 532.4829 534.9849 536.99649 542.0005 547.0045 552.00857 557.0126 562.0166 564.5186">Department of Neurology and Neurological Sciences, Stanford University School of Medicine, Stanford, CA, 94305, </tspan><tspan y="-136.3483" x="69.167407 75.998409 81.3354">USA</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-125.350299" x="56.693407">4</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-125.350299" x="69.167407 75.998409 81.344409 87.347408 93.0174 98.0214 101.8554 106.3554 108.9087 115.0737 120.0777 126.080699 129.5817 133.4157 138.4197 140.9397 144.2697 149.61569 153.44969 155.9634 162.12839 167.47438 172.47838 178.48139 181.30739 184.8084 187.6344 192.9804 198.9834 201.4854 203.982 209.814 214.98 220.65 225.987 231.333 237.165 242.83499 245.36849 252.19948 258.20249 261.02848 266.19447 271.19847 275.03248 279.53248 282.35847 285.85948 291.02546 293.52748 296.05198 301.05598 306.05998 311.06398 316.06797 318.61589 325.11387 331.94486 334.43247 341.59648 344.42247 347.24845 356.24845 361.25245 366.25645 371.26045 377.26344 379.76545 382.28187 388.29386 394.29685 399.30085 401.84068 409.00468 414.00868 417.50968 423.51268 428.51667 432.35069 435.17668 440.34266 446.34565 452.01567">Donders Centre for Cognition, Radboud University, 6525 GD Nijmegen, The Netherlands</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-114.352298" x="56.693407">5</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-114.352298" x="69.167407 75.332408 80.3364 86.3394 89.8404 93.6744 98.6784 104.2593 107.5893 112.9353 116.7693 122.3448 129.5088 134.5128 140.3448 144.1788 149.5248 152.3508 161.3508 166.5168 171.5208 174.3468 180.34981 185.3538 190.88611 196.22312 200.89412 203.72013 208.72412 214.72713 219.39813 224.40213 228.90213 231.40413 236.97783 243.80883 248.81282 254.48282 259.6488 263.48283 266.98384 275.98384 280.98783 286.9908 290.49183 296.05204 301.39805 304.72804 310.28196 317.44596 322.44996 328.28196 332.11598 337.46199 340.28797 349.28797 354.45396 359.45796 362.28395 368.28694 373.29093 375.79295 381.37477 384.38078 390.38377 394.88377 398.38478 401.21076 404.71177 410.54377 414.04478 419.04878 424.63148 429.97749 433.30747 438.8614 444.02738 448.52738 453.69337 458.36436 464.36735 467.19334 472.3593 475.86033 479.69435 484.86033 487.36235 492.88926 498.05525 502.55525 507.72123 512.3922 518.3952 523.7412 526.5672 531.9132 536.91726 542.08328 547.65518 552.82119 558.82418 564.49417">Centre for Neuroimaging Sciences, Department of Neuroimaging, Institute of Psychiatry, Psychology and </tspan><tspan y="-103.354297" x="69.167407 76.331409 81.3354 87.167407 91.0014 96.347408 100.847408 105.5184 108.344409 113.348407 119.3514 124.0224 129.0264 131.5284 134.0799 140.4159 143.2419 149.2449 154.2489 156.7509 161.2509 163.7871 169.95209 175.29808 178.12409 180.95009 185.95409 190.95809 195.96208 198.48299 203.48699 208.83298 214.83599 220.50598 225.85198 231.85498 234.35698 236.86438 241.86838 247.21437 253.21738 258.8874 264.2334 270.2364 272.7384 275.24583 280.58283 285.7488 290.7528 293.2737 298.2777 304.94673 309.9507 312.45274 314.98716 321.81816">Neuroscience, King&#x2019;s College London, London, SE5 8AF, UK</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-92.35629" x="56.693407">6</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="9" font-family="Caecilia LT Std"><tspan y="-92.35629" x="69.167407 75.998409 81.0024 86.6724 91.8384 95.6724 99.1734 108.1734 113.1774 119.1804 122.6814 127.1814 129.71489 135.06089 138.39089 140.93968 148.10369 153.10768 158.93968 162.77368 168.11968 172.61968 178.45168 182.28568 187.28968 192.29367 196.12767 201.29367 203.79567 206.30667 212.31867 217.32266 221.99367 227.99668 233.99968 236.82569 241.49669 246.66269 249.4887 252.0015 258.8325 264.83549 267.66148 272.82746 277.83146 281.66548 286.16548 288.99147 292.49247 297.65846 300.19017 305.53617 308.86616 311.35917 319.69319 325.52519 331.52818 334.35417 339.02516 345.02815 347.58506 352.92207 357.59306 363.59605 368.94206 374.28807 377.11405 379.61607 384.96208 388.29206 390.78419 399.1182 404.1222 409.7922 412.6182 417.28919 420.11518 426.11817 431.12217 433.62419 436.1955 444.5295 450.3615 456.3645 459.1905 463.86149 469.86448 472.3665 474.8604 479.8644 484.8684 489.8724 494.8764 499.8804 502.38243 504.90785 511.40583 516.40988 520.24386 529.24386 534.40988 540.41287">Departments of Neurosurgery, Technical University of Munich School of Medicine, Munich, 81675, Germany</tspan></text>
+<path transform="matrix(1,0,0,-1,564.52,719.80007)" d="M0 0H-507.827V.5H0" fill-rule="evenodd"/>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="6.9998" font-family="Caecilia LT Std"><tspan y="-60.0944" x="56.6929 61.22877 65.12066 68.753559 72.64545 74.84338 78.86127 82.75316 87.16303 89.12088 95.60269 99.620578 103.63846 105.618007 109.509899 113.40179 115.34773 117.29368 121.18557 125.07746 128.96935 132.86124 134.80718 136.73912 141.275 145.16689 149.18477 151.3827 154.8826 158.77449 163.18437 165.14221 170.71405 174.87194 178.88982 182.78171 189.78151 193.93239 197.82428 200.8062 202.78574 206.67763 210.56952 212.51546 214.4614 218.35329 222.24518 226.13707 230.02896 231.9749 233.96353 239.15039 242.7833 246.4162 250.30809 254.71797 257.4409 261.33277 265.74266 267.6956 273.00843 276.9003 280.5332 284.42509 291.42488 295.57575 299.46763 302.44953 304.3759 308.26777 312.15965 314.1056 316.11106 320.00294 323.8948 327.78669 331.67857 333.6245 335.55647 340.74333 345.1532 349.17109 353.18898 357.85783 361.49073 365.3826 367.36076 371.37864 375.01155 378.64445 382.53633 386.03623 389.53614 391.51148 395.92137 400.4572 404.6081 406.80604 409.00398 412.63688 416.65476 419.3777 421.57563 425.7335 430.40235 432.3301 438.81193 442.8298 445.8117 449.4446 454.11347 456.08393 459.9758 463.86769 465.81364 467.75959 471.65147 475.54335 479.4352">Received May 18, 2022. Revised November 30, 2022. Accepted December 12, 2022. Advance access publication March 16, 2023</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="6.4" font-family="Caecilia LT Std"><tspan y="-51.137" x="56.6929 61.8129 63.60874 67.88394 72.15274 75.71114 77.498668 82.241069 86.38827 88.87787 93.14667 96.948268 99.67467 101.684268 104.88426 106.89386 108.67946 112.23786 115.796268 119.35467 122.91307 124.69227 126.481067 130.15467 134.30187 138.09706 140.10666 142.11626 145.31626 149.58506 153.14345 157.17545 158.96553 162.76073 166.43433 168.26282 173.12682 176.92201 179.29001 183.09162 185.81801 189.85 191.62026 196.47786 200.74666 202.75626 206.42986 209.98825 212.71465 215.91464 217.92424 220.41384 224.08744 225.8628 229.53639 232.26279 235.82118 239.02118 242.22118 244.00423 247.80583 252.07463 253.86856 257.66377 261.22218 265.49098 269.16459 271.1742 273.5422 275.35533 279.15693 281.52494 283.292 285.7816 290.05039 293.6088 295.42384 300.04463 304.1918 307.86543 310.59184 314.26545 318.53425 321.02384 324.82545 327.55186 330.75187 332.55796 336.35957 338.72758 340.49464 344.52665 347.25306 350.92668 352.93629 357.20509 358.98429">&#x00a9; The Author(s) 2023. Published by Oxford University Press on behalf of the Guarantors of Brain. </tspan><tspan y="-42.1258" x="56.6929 60.9681 65.2369 67.2465 70.446498 71.99977 74.00937 77.209369 78.746 82.4196 86.6884 88.21352 93.077518 97.10951 100.667919 104.936717 106.46823 111.21063 114.532238 117.853839 121.41224 124.612239 127.81223 129.37192 133.04552 135.77191 138.2615 140.2711 143.5927 145.6023 149.16069 150.68837 154.72037 156.72997 159.92996 162.41956 165.14595 167.15555 170.95075 175.09795 177.58754 181.14594 185.17794 186.74466 190.89186 195.16066 199.19266 202.75106 205.47745 206.98401 209.4736 213.7424 217.3008 218.83232 221.32192 224.88031 227.6067 234.0067 237.2067 238.73183 242.53343 244.90143 246.44191 248.9315 253.2003 256.7587 258.34718 262.73118 265.45759 269.016 272.6896 275.1792 277.1888 280.86244 284.42085 285.9562 290.3402 294.1418 300.5418 306.9418 310.7434 315.0122 318.21223 319.74504 324.48744 326.97703 329.4666 332.19303 334.20265 337.99784 342.14503 344.6346 346.64424 350.44584 354.71464 356.25514 359.81355 361.82316 365.14476 368.70317 372.97196 376.17198 379.73039 381.25614">This is an Open Access article distributed under the terms of the Creative Commons Attribution License (</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="6.4" font-family="Caecilia LT Std"><tspan y="-42.1258" x="383.26576 387.53456 390.02415 392.51374 396.54576 399.74577 401.52497 403.89299 406.261 409.58259 412.309 415.8674 419.54103 422.0306 424.04023 427.71385 431.27226 434.59385 438.39546 444.79545 451.19544 454.99705 459.26585 462.46586 464.24507 468.04667 470.77308 474.33149 476.6995 478.7091 480.71873 484.0403 487.59873 491.86753 495.06755 498.62596 501.82597 504.19398 507.98918 511.66279 514.03079 517.5892 519.36837 522.92678">https://creativecommons.org/licenses/by/4.0/</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="6.4" font-family="Caecilia LT Std"><tspan y="-42.1232" x="525.2945 527.3041 529.08328 530.6403 536.2083 540.4771 542.4867 545.8083 550.0771 551.6169 555.64889 559.2073">), which per</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="6.4" font-family="Caecilia LT Std"><tspan y="-42.1232" x="561.9339">-</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 790.866)" font-size="6.4" font-family="Caecilia LT Std"><tspan y="-33.1088" x="56.6929 63.092905 65.1025 67.5921 70.7921 72.56618 76.71338 80.98218 83.70858 87.26698 90.46698 92.95658 95.68298 97.69258 101.01418 103.503787 107.06219 111.094188 112.931629 115.65803 119.21643 123.36363 126.56363 130.12203 131.90123 133.68044 137.71244 139.72203 142.92203 145.41162 148.13802 150.14762 153.94281 158.09001 160.5796 162.5892 166.39081 170.6596 172.43881 174.21802 177.89162 182.16042 186.19242 187.99402 190.72042 194.27881 198.3108 201.0372 204.8388 208.8708 213.018 216.3396 218.8292 220.83879 224.6404 228.9092 230.68328 232.69287 236.96167 238.73384 242.40744 246.67624 250.34984 252.17 258.57 262.12843 266.16044 268.17005 272.31724 278.71723 280.49644 282.27565 286.30766 289.03407 292.83567 296.50929 298.5189 302.5509 306.1093 310.14134 311.92567 314.41526 318.68406 322.24247 324.0575 327.8591 330.5855 332.59513 336.15354 338.16316 342.43196 346.10557 348.11518 349.90974 355.47773 359.27934 362.00575 365.80094 367.5974 369.60704 372.80705 374.5709 378.6029 381.3293 385.13093 389.16294 392.72135 395.44776 397.45738 401.13099 402.91725 406.23884 408.24845 410.73805 414.29646 418.32847">mits unrestricted reuse, distribution, and reproduction in any medium, provided the original work is properly cited.</tspan></text>
+<text fill="#666666" xml:space="preserve" transform="matrix(0 1 -1 0 0 790.866)" font-size="8" font-family="EAELFM+ArialMT"><tspan y="-590.11" x="-675.4 -669.624 -665.176 -659.4 -654.952 -653.176 -648.728 -644.28 -639.83206 -635.38406 -630.93606 -628.72006 -626.504 -623.84 -619.392 -612.728 -610.512 -606.064 -603.848 -601.632 -597.184 -593.184 -590.968 -588.752 -586.536 -582.088 -578.088 -573.64 -569.192 -564.744 -558.08 -556.304 -552.304 -550.088 -545.64 -541.192 -536.744 -534.528 -530.528 -526.08 -519.416 -517.2 -512.752 -510.088 -505.64 -503.864 -499.41603 -497.2 -492.752 -490.088 -487.872 -486.096 -482.096 -480.32 -475.872 -473.656 -469.208 -464.76 -460.312 -458.096 -453.648 -451.432 -446.984 -442.536 -438.088 -433.64 -431.424 -426.976 -422.528 -418.08003 -413.63203 -409.18403 -404.73603 -400.28804 -398.07203 -393.62403 -389.62403 -387.40803 -381.63203 -379.85603 -375.40803 -373.19203 -370.976 -366.096 -361.648 -358.984 -356.32 -354.544 -352.328 -347.88 -345.216 -343.44 -338.992 -336.776 -332.328 -330.112 -324.784 -323.008 -319.008 -316.792 -312.344 -305.68 -303.904 -301.688 -296.36 -291.912 -289.248 -284.8 -282.58399 -278.136 -275.472 -271.024 -267.024 -264.80799 -260.36 -258.58399 -256.80799 -254.59198 -249.26398 -244.81598 -240.81598 -238.59998 -236.38397 -231.93598 -229.71997 -225.27198 -221.27198 -216.82398 -212.37598 -207.92798 -201.26398 -199.48798 -195.03998 -192.82398 -188.37598 -184.37598 -179.92798 -177.26398 -175.04798 -170.59998 -166.15198 -163.93598 -159.48798 -155.03998 -152.82398 -148.82398 -144.37598 -139.92798 -135.47998 -133.26398 -128.81598 -124.36798 -119.91998">Downloaded from https://academic.oup.com/brain/article/146/5/1963/7079039 by Dip. Territorio e Sistemi Agroforestali Sez. 1 economia user on 24 June 2026</tspan></text>
+</svg>

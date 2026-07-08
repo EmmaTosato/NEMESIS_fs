@@ -1,0 +1,162 @@
+{
+  "source_pdf": "examples/Corbetta et al. - 2015 - Common Behavioral Clusters and Subcortical Anatomy in Stroke.pdf",
+  "extracted_at": "2026-07-07T11:07:28",
+  "pdf_metadata": {
+    "title": "Common Behavioral Clusters and Subcortical Anatomy in Stroke",
+    "author": "Maurizio Corbetta",
+    "subject": "Neuron, 85 (2015) 927-941. doi:10.1016/j.neuron.2015.02.027",
+    "keywords": "",
+    "producer": "Acrobat Distiller 8.1.0 (Windows)",
+    "creator": "Elsevier",
+    "creation_date": "D:20150227052244+05'30'",
+    "mod_date": "D:20150227194304+05'30'"
+  },
+  "page_offset": 0,
+  "pages": 16,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 4,
+    "png": 2,
+    "embedded_images": 9,
+    "classifications": {
+      "DIAGRAM": 2,
+      "BITMAP": 6,
+      "TEXT": 6,
+      "ICON_TABLE": 2
+    },
+    "figures_in_index": 15,
+    "tables_in_index": 4,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 16,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_001.svg"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 16,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_002.svg"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 7,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 7,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 364,
+      "images": 1,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_005.svg",
+      "png": "tables_visual/page_005.png"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 872,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_006.svg",
+      "png": "tables_visual/page_006.png"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 7,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 7,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 7,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 7,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 11,
+      "doc_page": 11,
+      "drawings": 7,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 12,
+      "doc_page": 12,
+      "drawings": 7,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 13,
+      "doc_page": 13,
+      "drawings": 7,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 14,
+      "doc_page": 14,
+      "drawings": 7,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 15,
+      "doc_page": 15,
+      "drawings": 7,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 16,
+      "doc_page": 16,
+      "drawings": 7,
+      "images": 0,
+      "class": "TEXT"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 21,
+    "doc_page": 21
+  },
+  {
+    "id": "3",
+    "caption": "Structural disconnection data. (a) The regional parcels and tractography atlas. (b) Left Cortical SC matrix derived from the tractography atlas and regional parcels. Right - Cortical SSPL matrix deriv",
+    "pdf_page": 23,
+    "doc_page": 23
+  },
+  {
+    "id": "4",
+    "caption": "Functional connectivity disruptions. (a) Cortical regions are shown on the cortical surface and are color-coded by network assignment. (b) The transformation of a raw functional connectivity matrix to",
+    "pdf_page": 25,
+    "doc_page": 25
+  },
+  {
+    "id": "6",
+    "caption": "",
+    "pdf_page": 26,
+    "doc_page": 26
+  },
+  {
+    "id": "2_2",
+    "caption": "Group-level lesion topography. Color intensities indicate the number of patients with overlapping lesions at each voxel in the brain (max=18).",
+    "pdf_page": 22,
+    "doc_page": 22
+  },
+  {
+    "id": "6_2",
+    "caption": "Effects of direct and indirect disconnection on functional connectivity. (a-b) Results for positive functional connections. (a) The matrix shows positive functional connections from the mean control f",
+    "pdf_page": 27,
+    "doc_page": 27
+  }
+]
