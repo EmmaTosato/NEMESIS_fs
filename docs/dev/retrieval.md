@@ -65,7 +65,11 @@ Filenames are preserved exactly as at the source (no renaming/transformation) �
 
 ## Report
 
-Written to `reports/<project>/retrieval_<timestamp>.md` (fixed repo convention, like `data/`/`docs/`/`src/` — not itself in config, unlike `output_root`). Aggregate counts per dataset (subjects selected, copied, skipped, failed, participants status) plus an explicit list of every WARNING-category miss (subject_id + what was missing) — never a list of successful copies, only anomalies.
+Written to `reports/data_retrieval/<project>/<dd-mm-yy>__<hh-mm>.md` (fixed repo convention, like `data/`/`docs/`/`src/` — not itself in config, unlike `output_root`). Title is `<project>_<dd-mm-yy>` with the run time as a subtitle; the file name keeps minute precision so multiple runs on the same day don't collide.
+
+Content, in order: a verbatim JSON dump of the fields actually read from the config (derived from the parsed `RetrievalConfig`, not a re-read of the file, so it can't drift from what the run actually used — see `_config_summary`); the aggregate summary table per dataset (subjects selected, copied, skipped, failed, participants status); then every WARNING-category miss (subject_id + what was missing), grouped per dataset with a `Missing Count = N` line and a `---` separator between datasets — never a list of successful copies, only anomalies. A dataset with zero misses is omitted from this section entirely.
+
+No log file is currently written — `main()` only configures a console `StreamHandler` (`logging.basicConfig`, no `filename=`), so the narrative (skip/copied/warning lines) exists only in the terminal during the run and is not persisted. The report is the only persisted artifact per run.
 
 ## Testing
 

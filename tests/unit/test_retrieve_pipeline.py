@@ -1,5 +1,7 @@
 """Unit tests for src.pipeline.retrieve_data - synthetic fixtures, no EBRAIN mount needed."""
 
+from datetime import datetime
+
 import pytest
 
 from src.pipeline import retrieve_data
@@ -185,3 +187,76 @@ def test_full_run_end_to_end(tmp_path, monkeypatch):
     report_text = report_path.read_text()
     assert "UNIPD/WashU" in report_text
     assert "| UNIPD/WashU | 3 | 3 | 0 | 0 |" in report_text
+
+
+def _minimal_config(tmp_path, **overrides):
+    defaults = dict(
+        output_root=tmp_path / "data",
+        project="clinical_connectome",
+        project_root=tmp_path / "source",
+        datasets=["UNIPD/WashU", "UNIPD/PASPORT"],
+        group_filter=["ST"],
+        subjects=None,
+        retrieve=[RetrieveItem(space="mni", modality="lesion_mask")],
+        include_tabular_data=True,
+        overwrite=False,
+    )
+    defaults.update(overrides)
+    return RetrievalConfig(**defaults)
+
+
+def test_build_report_title_and_config_dump(tmp_path):
+    config = _minimal_config(tmp_path)
+    stats = {"UNIPD/WashU": retrieve_data.DatasetStats(), "UNIPD/PASPORT": retrieve_data.DatasetStats()}
+    report = retrieve_data._build_report(config, stats, datetime(2026, 7, 9, 10, 22))
+    lines = report.splitlines()
+    assert lines[0] == "# clinical_connectome_09-07-26"
+    assert lines[1] == "## 10:22"
+    assert '"project": "clinical_connectome"' in report
+    assert '"overwrite": false' in report
+    assert '"UNIPD/WashU"' in report and '"UNIPD/PASPORT"' in report
+
+
+def test_build_report_groups_missing_by_dataset_with_counts_and_separator(tmp_path):
+    config = _minimal_config(tmp_path)
+    stats = {
+        "UNIPD/WashU": retrieve_data.DatasetStats(
+            missing=["UNIPD/WashU: sub-A - no mni/lesion_mask", "UNIPD/WashU: sub-B - no mni/lesion_mask"]
+        ),
+        "UNIPD/PASPORT": retrieve_data.DatasetStats(missing=["UNIPD/PASPORT: sub-C - no mni/lesion_mask"]),
+    }
+    report = retrieve_data._build_report(config, stats, datetime(2026, 7, 9, 10, 22))
+    expected_block = (
+        "- UNIPD/WashU: sub-A - no mni/lesion_mask\n"
+        "- UNIPD/WashU: sub-B - no mni/lesion_mask\n"
+        "\n"
+        "Missing Count = 2\n"
+        "\n"
+        "---\n"
+        "\n"
+        "- UNIPD/PASPORT: sub-C - no mni/lesion_mask\n"
+        "\n"
+        "Missing Count = 1"
+    )
+    assert expected_block in report
+
+
+def test_build_report_omits_dataset_with_no_missing_entries(tmp_path):
+    config = _minimal_config(tmp_path)
+    stats = {
+        "UNIPD/WashU": retrieve_data.DatasetStats(missing=["UNIPD/WashU: sub-A - no mni/lesion_mask"]),
+        "UNIPD/PASPORT": retrieve_data.DatasetStats(missing=[]),
+    }
+    report = retrieve_data._build_report(config, stats, datetime(2026, 7, 9, 10, 22))
+    missing_section = report.split("## Missing")[1]
+    assert "UNIPD/PASPORT" not in missing_section
+    assert missing_section.count("Missing Count") == 1
+
+
+def test_write_report_path_uses_data_retrieval_folder_and_project(tmp_path, monkeypatch):
+    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "reports" / "data_retrieval")
+    config = _minimal_config(tmp_path)
+    stats = {"UNIPD/WashU": retrieve_data.DatasetStats(), "UNIPD/PASPORT": retrieve_data.DatasetStats()}
+    report_path = retrieve_data._write_report(config, stats)
+    assert report_path.parent == tmp_path / "reports" / "data_retrieval" / "clinical_connectome"
+    assert report_path.suffix == ".md"

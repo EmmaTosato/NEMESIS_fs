@@ -73,7 +73,7 @@ Two things to decide: **which files** (`retrieve`) and **which subjects** (`grou
 |---|---|---|
 | UNIPD/WashU | T1w, T2w, FLAIR, lesion_roi | lesion_mask |
 | UNIPD/PASPORT | CT, FLAIR, lesion_roi | lesion_mask |
-| UNIPD/PSP | CT, FLAIR (**no native lesion_roi**) | lesion_mask |
+| UNIPD/PSP | CT, FLAIR  | lesion_mask |
 | UKLFR/stroke_UKLFR | T1w, T2w, FLAIR, lesion_roi | lesion_mask |
 
 Asking for a modality a dataset doesn't have (e.g. `lesion_roi` on PSP) stops the whole run before anything is copied, with a clear error — fix the config and re-run.
@@ -96,9 +96,9 @@ Filenames are exactly as at the source — nothing renamed or transformed.
 
 ## The report
 
-Every run writes `reports/clinical_connectome/retrieval_<timestamp>.md` — a small summary: how many subjects per dataset, how many files copied/skipped/failed, whether `participants.tsv` was copied, and an explicit list of anything that went wrong (a specific file missing for a specific subject, a copy that failed) — never a list of successful copies, just the exceptions worth looking at.
+Every run writes `reports/data_retrieval/clinical_connectome/<dd-mm-yy>__<hh-mm>.md` — starting with the config actually used (so you can always tell which settings produced it), then a summary table (subjects per dataset, files copied/skipped/failed, whether `participants.tsv` was copied), then an explicit list of anything that went wrong (a specific file missing for a specific subject), grouped by dataset with a count — never a list of successful copies, just the exceptions worth looking at.
 
-Console output while it runs shows the same story live: which dataset is being processed, each file copied or skipped, any warnings, as they happen.
+Console output while it runs shows the same story live: which dataset is being processed, each file copied or skipped, any warnings, as they happen. This narrative is **not** saved anywhere — only the report file persists after the run ends.
 
 ## Re-running
 

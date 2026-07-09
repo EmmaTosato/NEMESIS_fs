@@ -14,6 +14,7 @@ run; a summary report is written at the end either way.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import shutil
 from dataclasses import dataclass, field
@@ -23,7 +24,7 @@ from pathlib import Path
 from src.retrieval.config import RetrievalConfig, load_config
 from src.retrieval.dataset import Dataset
 
-REPORTS_ROOT = Path("reports")
+REPORTS_ROOT = Path("reports") / "data_retrieval"
 
 
 @dataclass
@@ -161,13 +162,34 @@ def _retrieve_all(datasets: dict[str, Dataset], config: RetrievalConfig) -> dict
     return stats
 
 
-def _build_report(config: RetrievalConfig, stats: dict[str, DatasetStats], timestamp: str) -> str:
-    requested = ", ".join(f"{item.space}/{item.modality}" for item in config.retrieve)
+def _config_summary(config: RetrievalConfig) -> str:
+    """JSON dump of the fields actually used from the config file - derived
+    from the parsed RetrievalConfig (not a re-read of the file) so it can
+    never drift from what the run actually used."""
+    payload = {
+        "output_root": str(config.output_root),
+        "project": config.project,
+        "project_root": str(config.project_root),
+        "datasets": config.datasets,
+        "group_filter": config.group_filter,
+        "subjects": config.subjects,
+        "retrieve": [{"space": item.space, "modality": item.modality} for item in config.retrieve],
+        "include_tabular_data": config.include_tabular_data,
+        "overwrite": config.overwrite,
+    }
+    return json.dumps(payload, indent=2)
+
+
+def _build_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: datetime) -> str:
     lines = [
-        f"# Data Retrieval Report — {timestamp}",
+        f"# {config.project}_{now.strftime('%d-%m-%y')}",
+        f"## {now.strftime('%H:%M')}",
         "",
-        f"Requested: {requested}",
-        f"Group filter: {config.group_filter}",
+        "## Config",
+        "",
+        "```json",
+        _config_summary(config),
+        "```",
         "",
         "## Summary",
         "",
@@ -179,18 +201,24 @@ def _build_report(config: RetrievalConfig, stats: dict[str, DatasetStats], times
             f"| {name} | {s.subjects_selected} | {s.copied} | {s.skipped_existing} | "
             f"{s.failed} | {s.participants_status} |"
         )
-    all_missing = [line for s in stats.values() for line in s.missing]
     lines += ["", "## Missing (file not found for a specific subject)", ""]
-    lines += [f"- {line}" for line in all_missing] if all_missing else ["- none"]
+    groups_with_missing = [(name, s.missing) for name, s in stats.items() if s.missing]
+    if not groups_with_missing:
+        lines.append("- none")
+    for i, (_name, missing) in enumerate(groups_with_missing):
+        if i > 0:
+            lines += ["---", ""]
+        lines += [f"- {line}" for line in missing]
+        lines += ["", f"Missing Count = {len(missing)}", ""]
     return "\n".join(lines)
 
 
 def _write_report(config: RetrievalConfig, stats: dict[str, DatasetStats]) -> Path:
-    timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+    now = datetime.now()
     report_dir = REPORTS_ROOT / config.project
     report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / f"retrieval_{timestamp}.md"
-    report_path.write_text(_build_report(config, stats, timestamp))
+    report_path = report_dir / f"{now.strftime('%d-%m-%y__%H-%M')}.md"
+    report_path.write_text(_build_report(config, stats, now))
     return report_path
 
 
