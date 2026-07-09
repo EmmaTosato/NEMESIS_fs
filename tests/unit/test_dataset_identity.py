@@ -1,0 +1,67 @@
+"""Unit tests for Dataset identity: construction, subjects(), group_of()."""
+
+import pytest
+
+from src.retrieval.dataset import Dataset
+
+
+def _make_dataset_root(tmp_path, subject_ids):
+    root = tmp_path / "UNIPD" / "WashU"
+    for subject_id in subject_ids:
+        (root / subject_id / "anat").mkdir(parents=True)
+    return tmp_path
+
+
+def test_missing_root_raises(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        Dataset(tmp_path, "UNIPD/WashU")
+
+
+def test_subjects_lists_all_sorted(tmp_path):
+    project_root = _make_dataset_root(
+        tmp_path, ["sub-STUNIPD0003", "sub-STUNIPD0001", "sub-STUNIPDHC0002"]
+    )
+    ds = Dataset(project_root, "UNIPD/WashU")
+    assert ds.subjects() == ["sub-STUNIPD0001", "sub-STUNIPD0003", "sub-STUNIPDHC0002"]
+
+
+def test_subjects_filtered_by_group(tmp_path):
+    project_root = _make_dataset_root(
+        tmp_path, ["sub-STUNIPD0001", "sub-STUNIPDHC0002"]
+    )
+    ds = Dataset(project_root, "UNIPD/WashU")
+    assert ds.subjects(group="ST") == ["sub-STUNIPD0001"]
+    assert ds.subjects(group="HC") == ["sub-STUNIPDHC0002"]
+    assert ds.subjects(group="PD") == []
+
+
+def test_group_of_stroke_subject(tmp_path):
+    project_root = _make_dataset_root(tmp_path, ["sub-STUNIPD0001"])
+    ds = Dataset(project_root, "UNIPD/WashU")
+    assert ds.group_of("sub-STUNIPD0001") == "ST"
+
+
+def test_group_of_healthy_control(tmp_path):
+    project_root = _make_dataset_root(tmp_path, ["sub-STUNIPDHC0002"])
+    ds = Dataset(project_root, "UNIPD/WashU")
+    assert ds.group_of("sub-STUNIPDHC0002") == "HC"
+
+
+def test_group_of_malformed_subject_id_raises(tmp_path):
+    project_root = _make_dataset_root(tmp_path, ["sub-STUNIPD0001"])
+    ds = Dataset(project_root, "UNIPD/WashU")
+    with pytest.raises(ValueError, match="subject_id"):
+        ds.group_of("not-a-subject-id")
+
+
+def test_require_subject_raises_for_unknown_subject(tmp_path):
+    project_root = _make_dataset_root(tmp_path, ["sub-STUNIPD0001"])
+    ds = Dataset(project_root, "UNIPD/WashU")
+    with pytest.raises(ValueError, match="sub-STUNIPD9999"):
+        ds._require_subject("sub-STUNIPD9999")
+
+
+def test_require_subject_does_not_raise_for_known_subject(tmp_path):
+    project_root = _make_dataset_root(tmp_path, ["sub-STUNIPD0001"])
+    ds = Dataset(project_root, "UNIPD/WashU")
+    ds._require_subject("sub-STUNIPD0001")
