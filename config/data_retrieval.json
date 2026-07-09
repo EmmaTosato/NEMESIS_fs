@@ -1,0 +1,13 @@
+{
+  "output_root": "data/",
+  "project": "clinical_connectome",
+  "project_root": "/data/corbetta/Clinical_connectome",
+  "datasets": ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"],
+  "group_filter": ["ST"],
+  "subjects": null,
+  "retrieve": [
+    { "space": "mni", "modality": "lesion_mask" }
+  ],
+  "include_tabular_data": true,
+  "overwrite": false
+}
