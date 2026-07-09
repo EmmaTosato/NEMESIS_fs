@@ -2,6 +2,7 @@
   "output_root": "data/",
   "project": "clinical_connectome",
   "project_root": "/data/corbetta/Clinical_connectome",
+  "file_patterns": "config/file_patterns.json",
   "datasets": ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"],
   "group_filter": ["ST"],
   "subjects": null,

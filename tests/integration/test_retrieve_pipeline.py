@@ -10,31 +10,35 @@ from pathlib import Path
 import pytest
 
 from src.pipeline import retrieve_data
-from src.retrieval.config import RetrievalConfig, RetrieveItem
+from src.retrieval.config import RetrievalConfig, RetrieveItem, load_file_patterns
 from src.retrieval.dataset import Dataset
 
 PROJECT_ROOT = Path("/data/corbetta/Clinical_connectome")
+FILE_PATTERNS_PATH = Path("config/file_patterns.json")
 
 pytestmark = pytest.mark.skipif(
     not PROJECT_ROOT.is_dir(), reason="EBRAIN mount not available on this machine"
 )
 
 
-def _two_subjects_with_mni_mask(dataset_name: str) -> list[str]:
-    ds = Dataset(PROJECT_ROOT, dataset_name)
-    with_mask = [s for s in ds.subjects(group="ST") if ds.mni_mask(s) is not None]
+def _two_subjects_with_mni_mask(dataset_name: str, file_patterns) -> list[str]:
+    ds = Dataset(PROJECT_ROOT, dataset_name, file_patterns)
+    with_mask = [s for s in ds.subjects(group="ST") if ds.resolve(s, "mni", "lesion_mask") is not None]
     return with_mask[:2]
 
 
 def test_end_to_end_small_real_run(tmp_path, monkeypatch):
     monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "reports")
-    subjects = _two_subjects_with_mni_mask("UNIPD/PASPORT")
+    file_patterns = load_file_patterns(FILE_PATTERNS_PATH)
+    subjects = _two_subjects_with_mni_mask("UNIPD/PASPORT", file_patterns)
     assert len(subjects) == 2  # sanity: the fixture assumption holds on real data
 
     config = RetrievalConfig(
         output_root=tmp_path / "data",
         project="clinical_connectome",
         project_root=PROJECT_ROOT,
+        file_patterns_path=FILE_PATTERNS_PATH,
+        file_patterns=file_patterns,
         datasets=["UNIPD/PASPORT"],
         group_filter=None,
         subjects=subjects,

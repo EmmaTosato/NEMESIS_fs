@@ -40,3 +40,9 @@ Create/update it from `environment.yml` (see `docs/setup.md` for details). Raw n
 @code_standards.md
 
 Applies to any code written under `src/` (and its tests, once they exist): architecture, error handling (no silent fallbacks — every edge case raises or is handled deliberately), testing, config, logging, docs conventions.
+
+## Lessons learned
+
+@lessons_learned.md
+
+Cumulative, concise index of recurring error patterns and best practices found while debugging or reviewing this repo's code — one entry per pattern, never duplicated across sessions. Read it before starting a debugging session or writing new code in `src/`. Updated after every debugging session per `code_standards.md` §8.

@@ -1,8 +1,24 @@
-"""Unit tests for Dataset.native() and Dataset.mni_mask() - lesion resolution and edge cases."""
+"""Unit tests for Dataset.resolve() and Dataset.available() - lesion file resolution."""
 
 import pytest
 
+from src.retrieval.config import FilePatterns
 from src.retrieval.dataset import Dataset
+
+_PATTERNS = FilePatterns(
+    patterns={
+        ("native", "T1w"): ["{subject_id}/anat/{subject_id}_T1w.nii.gz"],
+        ("native", "FLAIR"): ["{subject_id}/anat/{subject_id}_FLAIR.nii.gz"],
+        ("native", "lesion_roi"): [
+            "{subject_id}/anat/{subject_id}_lesion_roi.nii.gz",
+            "{subject_id}/anat/{subject_id}_space-T1w_lesion_roi.nii.gz",
+        ],
+        ("mni", "lesion_mask"): [
+            "derivatives/manual_masks/{subject_id}/anat/"
+            "{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
+        ],
+    }
+)
 
 
 def _touch(path):
@@ -45,66 +61,84 @@ def _make_psp_like(tmp_path):
     return tmp_path
 
 
-def test_native_resolves_existing_file(tmp_path):
+def test_resolve_native_existing_file(tmp_path):
     root = _make_washu_like(tmp_path)
-    ds = Dataset(root, "UNIPD/WashU")
-    path = ds.native("sub-STUNIPD0001", "T1w")
-    assert path is not None
-    assert path.name == "sub-STUNIPD0001_T1w.nii.gz"
+    ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
+    resolved = ds.resolve("sub-STUNIPD0001", "native", "T1w")
+    assert resolved is not None
+    assert resolved.path.name == "sub-STUNIPD0001_T1w.nii.gz"
+    assert resolved.extra_matches == ()
 
 
-def test_native_resolves_lesion_roi_naming_variant(tmp_path):
+def test_resolve_native_lesion_roi_naming_variant(tmp_path):
     root = _make_washu_like(tmp_path)
-    ds = Dataset(root, "UNIPD/WashU")
-    path = ds.native("sub-STUNIPD0001", "lesion_roi")
-    assert path is not None
-    assert "lesion_roi" in path.name
+    ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
+    resolved = ds.resolve("sub-STUNIPD0001", "native", "lesion_roi")
+    assert resolved is not None
+    assert "lesion_roi" in resolved.path.name
+    assert resolved.extra_matches == ()
 
 
-def test_native_returns_none_when_missing_for_subject(tmp_path):
+def test_resolve_returns_none_when_missing_for_subject(tmp_path):
     root = _make_washu_like(tmp_path)
-    ds = Dataset(root, "UNIPD/WashU")
-    # T1w is structurally available in this dataset, but sub-0002 has no lesion_roi.
-    assert ds.native("sub-STUNIPD0002", "lesion_roi") is None
+    ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
+    # lesion_roi is structurally registered, but sub-0002 has no matching file.
+    assert ds.resolve("sub-STUNIPD0002", "native", "lesion_roi") is None
 
 
-def test_native_raises_when_modality_not_supported_by_dataset(tmp_path):
-    root = _make_psp_like(tmp_path)
-    ds = Dataset(root, "UNIPD/PSP")
-    with pytest.raises(ValueError, match="lesion_roi"):
-        ds.native("sub-STUNIPD0100", "lesion_roi")
-
-
-def test_native_raises_for_unknown_subject(tmp_path):
+def test_resolve_flags_extra_matches_when_more_than_one_template_matches(tmp_path):
+    """If a subject has files matching more than one registered template for
+    the same (space, modality), the first (by priority) is used, and the
+    rest are surfaced as extra_matches rather than silently dropped."""
     root = _make_washu_like(tmp_path)
-    ds = Dataset(root, "UNIPD/WashU")
+    _touch(root / "UNIPD" / "WashU" / "sub-STUNIPD0001" / "anat" / "sub-STUNIPD0001_lesion_roi.nii.gz")
+    ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
+    resolved = ds.resolve("sub-STUNIPD0001", "native", "lesion_roi")
+    assert resolved is not None
+    assert resolved.path.name == "sub-STUNIPD0001_lesion_roi.nii.gz"  # first template in priority order
+    assert len(resolved.extra_matches) == 1
+    assert resolved.extra_matches[0].name == "sub-STUNIPD0001_space-T1w_lesion_roi.nii.gz"
+
+
+def test_resolve_raises_for_unregistered_combination(tmp_path):
+    root = _make_washu_like(tmp_path)
+    ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
+    with pytest.raises(ValueError, match="no file pattern registered"):
+        ds.resolve("sub-STUNIPD0001", "native", "CT")  # not in _PATTERNS at all
+
+
+def test_resolve_raises_for_unknown_subject(tmp_path):
+    root = _make_washu_like(tmp_path)
+    ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
     with pytest.raises(ValueError, match="sub-STUNIPD9999"):
-        ds.native("sub-STUNIPD9999", "T1w")
+        ds.resolve("sub-STUNIPD9999", "native", "T1w")
 
 
-def test_mni_mask_resolves_existing_file(tmp_path):
+def test_resolve_mni_mask_existing_file(tmp_path):
     root = _make_washu_like(tmp_path)
-    ds = Dataset(root, "UNIPD/WashU")
-    path = ds.mni_mask("sub-STUNIPD0001")
-    assert path is not None
-    assert "label-lesion_mask" in path.name
+    ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
+    resolved = ds.resolve("sub-STUNIPD0001", "mni", "lesion_mask")
+    assert resolved is not None
+    assert "label-lesion_mask" in resolved.path.name
 
 
-def test_mni_mask_returns_none_when_missing_for_subject(tmp_path):
+def test_resolve_mni_mask_returns_none_when_missing_for_subject(tmp_path):
     root = _make_washu_like(tmp_path)
-    ds = Dataset(root, "UNIPD/WashU")
-    assert ds.mni_mask("sub-STUNIPD0002") is None
+    ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
+    assert ds.resolve("sub-STUNIPD0002", "mni", "lesion_mask") is None
 
 
-def test_mni_mask_raises_when_dataset_has_no_derivatives(tmp_path):
-    root = tmp_path / "UNIPD" / "NoDerivatives"
-    _touch(root / "sub-STUNIPD0001" / "anat" / "sub-STUNIPD0001_T1w.nii.gz")
-    ds = Dataset(tmp_path, "UNIPD/NoDerivatives")
-    with pytest.raises(ValueError, match="derivatives"):
-        ds.mni_mask("sub-STUNIPD0001")
-
-
-def test_available_sequences_discovered_from_disk(tmp_path):
+def test_available_true_when_at_least_one_subject_has_it(tmp_path):
     root = _make_washu_like(tmp_path)
-    ds = Dataset(root, "UNIPD/WashU")
-    assert ds.available_sequences() == {"T1w", "lesion_roi"}
+    ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
+    assert ds.available("native", "T1w") is True
+    assert ds.available("native", "lesion_roi") is True
+    assert ds.available("mni", "lesion_mask") is True
+
+
+def test_available_false_when_dataset_structurally_lacks_it(tmp_path):
+    root = _make_psp_like(tmp_path)
+    ds = Dataset(root, "UNIPD/PSP", _PATTERNS)
+    assert ds.available("native", "lesion_roi") is False
+    assert ds.available("native", "T1w") is False  # PSP-like fixture has no T1w at all
+    assert ds.available("native", "FLAIR") is True

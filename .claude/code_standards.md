@@ -105,8 +105,8 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 
 ## 8. Debug report
 
-- Un file per sessione di debug (`docs/debug_reports/debug_DD_MM_YY.md` se/quando la cartella esiste)
-- Un bug per sezione, con livello di criticità e "lessons learned" obbligatorio (azionabile, non una parafrasi del bug)
+- Un file per sessione di debug (`docs/debugging/debug_DD_MM_YY.md` se/quando la cartella esiste)
+- Un bug per sezione, con livello di criticità e "lessons learned" obbligatorio (azionabile, non una parafrasi del bug) (`lesson_learned.md`)
 
 ---
 

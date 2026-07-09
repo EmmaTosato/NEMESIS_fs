@@ -10,25 +10,37 @@ different and will be addressed separately when that work starts.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
 
-from src.retrieval.config import NATIVE_MODALITIES
+from src.retrieval.config import FilePatterns
 
 _SUBJECT_RE = re.compile(r"^sub-(?P<disease>ST|PD|GM)(?P<site>[A-Z]+?)(?P<hc>HC)?(?P<num>\d+)$")
+
+
+@dataclass(frozen=True)
+class ResolvedFile:
+    """Result of Dataset.resolve(): the file to use, plus any other
+    registered templates that also matched for the same subject (empty in
+    the common case of exactly one match)."""
+
+    path: Path
+    extra_matches: tuple[Path, ...]
 
 
 class Dataset:
     """One dataset (e.g. project='clinical_connectome', name='UNIPD/WashU')."""
 
-    def __init__(self, project_root: Path, name: str):
+    def __init__(self, project_root: Path, name: str, file_patterns: FilePatterns):
         self.name = name
+        self.file_patterns = file_patterns
         # `lesion_root` points ONLY at the lesion data tree (native files and
         # its own derivatives/manual_masks/ subfolder) - it never resolves
         # anything under the separate `features/` tree. `space="native"` vs
-        # `space="mni"` (see native()/mni_mask()) are both subfolders inside
-        # this same lesion_root, not two different roots.
+        # `space="mni"` (see resolve()) are both subfolders inside this same
+        # lesion_root, not two different roots.
         self.lesion_root = project_root / name
         self.features_root = project_root / "features" / name
         if not self.lesion_root.is_dir():
@@ -38,11 +50,31 @@ class Dataset:
         return f"Dataset({self.name!r})"
 
     def subjects(self, group: str | None = None) -> list[str]:
-        """List of subject_id (sub-* folders), optionally filtered by group."""
-        ids = sorted(p.name for p in self.lesion_root.glob("sub-*") if p.is_dir())
+        """List of subject_id (sub-* folders) that match the expected naming
+        convention, optionally filtered by group. Folders starting with
+        sub-* that don't match the convention are never included here -
+        see non_conforming_subject_folders()."""
+        ids = sorted(
+            p.name
+            for p in self.lesion_root.glob("sub-*")
+            if p.is_dir() and _SUBJECT_RE.match(p.name)
+        )
         if group is None:
             return ids
         return [s for s in ids if self.group_of(s) == group]
+
+    def non_conforming_subject_folders(self) -> list[str]:
+        """sub-* folders that exist on disk but don't match the expected
+        naming convention - never returned by subjects(). Surfaced
+        separately as a data-quality signal (relevant to the ongoing
+        subject-ID standardization effort) instead of being silently
+        absorbed as a fake subject, or left to crash group_of() only when a
+        group filter happens to be used."""
+        return sorted(
+            p.name
+            for p in self.lesion_root.glob("sub-*")
+            if p.is_dir() and not _SUBJECT_RE.match(p.name)
+        )
 
     def group_of(self, subject_id: str) -> str:
         """Group of a subject_id ('ST' | 'HC' | 'PD' | 'GM'), from its naming."""
@@ -56,59 +88,41 @@ class Dataset:
         if subject_id not in self.subjects():
             raise ValueError(f"{subject_id!r} does not exist in dataset {self.name!r}")
 
-    def available_sequences(self) -> set[str]:
-        """Native modalities actually present in this dataset (discovered from disk)."""
-        return {
-            modality
-            for modality in NATIVE_MODALITIES
-            if next(self.lesion_root.glob(f"sub-*/anat/*_{modality}.nii.gz"), None) is not None
-        }
+    def available(self, space: str, modality: str) -> bool:
+        """True if at least one subject in this dataset has a file matching
+        any template registered for this (space, modality) - dataset-wide,
+        not per-subject. A dataset can pass this check while most of its
+        subjects individually lack the file (see resolve() for that case,
+        surfaced as a per-subject miss, not a dataset-level failure)."""
+        templates = self.file_patterns.templates_for(space, modality)
+        return any(
+            next(self.lesion_root.glob(template.replace("{subject_id}", "*")), None) is not None
+            for template in templates
+        )
 
-    def has_mni_mask(self) -> bool:
-        """True if this dataset has any MNI-space lesion mask (derivatives/manual_masks)."""
-        pattern = "derivatives/manual_masks/sub-*/anat/*_label-lesion_mask.nii.gz"
-        return next(self.lesion_root.glob(pattern), None) is not None
+    def resolve(self, subject_id: str, space: str, modality: str) -> ResolvedFile | None:
+        """Path to the file for this subject/space/modality, or None if this
+        subject doesn't have it.
 
-    def native(self, subject_id: str, modality: str) -> Path | None:
-        """Path to a native-space file, or None if missing for this subject.
+        Raises ValueError if (space, modality) is not a combination the
+        file_patterns registry knows about at all - a request this dataset
+        can never satisfy, regardless of subject.
 
-        Raises ValueError if `modality` is not structurally available anywhere
-        in this dataset - a request this dataset can never satisfy.
+        If more than one registered template matches for this subject, the
+        first one (by priority order in the registry) is returned as
+        `.path`; the rest are returned as `.extra_matches` rather than
+        silently discarded - two matching files for the same subject may be
+        an equivalent naming variant, or may be a real data problem (e.g. a
+        stale file left behind), and that distinction is for the report,
+        not something to hide.
         """
         self._require_subject(subject_id)
-        available = self.available_sequences()
-        if modality not in available:
-            raise ValueError(
-                f"dataset {self.name!r} does not have modality {modality!r} "
-                f"(available: {sorted(available)})"
-            )
-        # native files live under the BIDS "anat" datatype folder on disk.
-        native_dir = self.lesion_root / subject_id / "anat"
-        # `*_<modality>.nii.gz` also matches the two lesion_roi naming variants
-        # (`_lesion_roi.nii.gz` and `_space-T1w_lesion_roi.nii.gz`).
-        return next(native_dir.glob(f"*_{modality}.nii.gz"), None)
-
-    def mni_mask(self, subject_id: str) -> Path | None:
-        """Path to the MNI-space lesion mask (derivatives), or None if missing for this subject.
-
-        Raises ValueError if this dataset has no derivatives/manual_masks at all.
-
-        NOTE: this method is hardcoded to the single derivative that exists today
-        (derivatives/manual_masks). `space="mni"` is not a generic "search any
-        MNI-space file" lookup - it only works because manual_masks is currently
-        the only derivative, and it happens to be in MNI space. If a second
-        derivative appears (in MNI space or otherwise), this method will not
-        find it; disambiguating between multiple derivatives (e.g. via a
-        `derivative` selector alongside `space`) is a design decision to make
-        when that second derivative actually exists, not now.
-        """
-        self._require_subject(subject_id)
-        if not self.has_mni_mask():
-            raise ValueError(f"dataset {self.name!r} has no derivatives/manual_masks")
-        # the mask lives under derivatives/manual_masks/<subject>/anat/ on disk
-        # (BIDS reuses the "anat" datatype label here too, unrelated to space=native).
-        mask_dir = self.lesion_root / "derivatives" / "manual_masks" / subject_id / "anat"
-        return next(mask_dir.glob("*_label-lesion_mask.nii.gz"), None)
+        templates = self.file_patterns.templates_for(space, modality)
+        candidates = [self.lesion_root / template.format(subject_id=subject_id) for template in templates]
+        existing = [c for c in candidates if c.is_file()]
+        if not existing:
+            return None
+        return ResolvedFile(path=existing[0], extra_matches=tuple(existing[1:]))
 
     def participants_tsv_path(self) -> Path | None:
         """Path to participants.tsv, or None if this dataset has none (e.g. WashU)."""
