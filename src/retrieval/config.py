@@ -50,6 +50,12 @@ class FilePatterns:
     def has(self, space: str, modality: str) -> bool:
         return (space, modality) in self.patterns
 
+    def modalities_for(self, space: str) -> list[str]:
+        """Every modality registered under `space` - used to check whether a
+        subject has *any* file in that space, without pinning down one
+        specific modality (e.g. Dataset.has_any)."""
+        return [modality for (s, modality) in self.patterns if s == space]
+
 
 @dataclass(frozen=True)
 class RetrieveItem:

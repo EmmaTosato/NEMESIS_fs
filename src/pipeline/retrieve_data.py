@@ -21,11 +21,25 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from src.retrieval.config import RetrievalConfig, load_config
+from src.retrieval import verify
+from src.retrieval.config import RetrievalConfig, RetrieveItem, load_config
 from src.retrieval.dataset import Dataset
 
 REPORTS_ROOT = Path("reports") / "data_retrieval"
 LOGS_ROOT = Path("logs") / "data_retrieval"
+REPORT_FILENAME_PREFIX = "copy_summary"
+
+
+@dataclass(frozen=True)
+class ReportEntry:
+    """One Missing/Ambiguous line, tagged with which (space, modality) it
+    belongs to - lets the report sub-group entries by that instead of
+    dumping every retrieve item's misses into one flat per-dataset list.
+    `group` is "" for entries not tied to one specific retrieve item (e.g.
+    an explicitly requested subject absent from this dataset entirely)."""
+
+    group: str
+    line: str
 
 
 @dataclass
@@ -34,10 +48,12 @@ class DatasetStats:
     copied: int = 0
     skipped_existing: int = 0
     failed: int = 0
-    missing: list[str] = field(default_factory=list)
-    ambiguous: list[str] = field(default_factory=list)
+    missing: list[ReportEntry] = field(default_factory=list)
+    ambiguous: list[ReportEntry] = field(default_factory=list)
     non_conforming: list[str] = field(default_factory=list)
-    participants_status: str = "not requested"
+    mismatched: list[str] = field(default_factory=list)
+    missing_locally: list[str] = field(default_factory=list)
+    unexpected_local_files: list[str] = field(default_factory=list)
 
 
 def _build_datasets(config: RetrievalConfig) -> dict[str, Dataset]:
@@ -112,19 +128,35 @@ def _copy_one(source: Path, destination: Path, overwrite: bool, stats: DatasetSt
     stats.copied += 1
 
 
+def _missing_message(name: str, subject_id: str, item: RetrieveItem) -> ReportEntry:
+    """Missing-file entry for the report, tagged with the (space, modality)
+    that produced it (see ReportEntry) so multiple retrieve items don't get
+    interleaved into one flat list per dataset. Whether this subject has
+    data in some other space/modality is a separate question, answered by
+    the full per-subject matrix report (src.retrieval.matrix), not by this
+    pipeline - this line only states what THIS run looked for and didn't
+    find."""
+    return ReportEntry(
+        group=f"{item.space}/{item.modality}", line=f"{name}: {subject_id} - no {item.space}/{item.modality}"
+    )
+
+
 def _retrieve_subject(
     name: str, ds: Dataset, subject_id: str, config: RetrievalConfig, stats: DatasetStats
 ) -> None:
     for item in config.retrieve:
         resolved = ds.resolve(subject_id, item.space, item.modality)
         if resolved is None:
-            stats.missing.append(f"{name}: {subject_id} - no {item.space}/{item.modality}")
+            stats.missing.append(_missing_message(name, subject_id, item))
             continue
         if resolved.extra_matches:
             extra_names = ", ".join(m.name for m in resolved.extra_matches)
             stats.ambiguous.append(
-                f"{name}: {subject_id} - {item.space}/{item.modality}: using "
-                f"{resolved.path.name}, also matched {extra_names}"
+                ReportEntry(
+                    group=f"{item.space}/{item.modality}",
+                    line=f"{name}: {subject_id} - {item.space}/{item.modality}: using "
+                    f"{resolved.path.name}, also matched {extra_names}",
+                )
             )
             logging.warning(
                 "ambiguous match for %s %s/%s: using %s, also matched %s",
@@ -139,22 +171,17 @@ def _retrieve_subject(
 
 
 def _retrieve_participants(name: str, ds: Dataset, config: RetrievalConfig, stats: DatasetStats) -> None:
+    """Copies participants.tsv through the same _copy_one path as any other
+    file - its outcome folds into the same copied/skipped/failed counts
+    already in the summary table, rather than a separate status field only
+    this one file had. Absence at source (e.g. WashU has none) is a
+    legitimate per-dataset fact, not tracked here - see the dataset matrix
+    report (src.retrieval.matrix) for what each dataset does/doesn't have."""
     source = ds.participants_tsv_path()
     if source is None:
-        stats.participants_status = "absent at source"
         return
     destination = config.output_root / config.project / name / "participants.tsv"
-    if destination.exists() and not config.overwrite:
-        stats.participants_status = "skipped (exists)"
-        return
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        shutil.copy2(source, destination)
-    except OSError as exc:
-        logging.warning("copy failed: %s -> %s (%s)", source, destination, exc, exc_info=True)
-        stats.participants_status = "failed"
-        return
-    stats.participants_status = "copied"
+    _copy_one(source, destination, config.overwrite, stats)
 
 
 def _report_explicit_subjects_absent_from_dataset(
@@ -169,7 +196,9 @@ def _report_explicit_subjects_absent_from_dataset(
         return
     present = set(subjects)
     absent = dict.fromkeys(s for s in config.subjects if s not in present)  # dedup, keep order
-    stats.missing += [f"{name}: {s} - not present in this dataset" for s in absent]
+    stats.missing += [
+        ReportEntry(group="", line=f"{name}: {s} - not present in this dataset") for s in absent
+    ]
 
 
 def _report_non_conforming_subject_folders(name: str, ds: Dataset, stats: DatasetStats) -> None:
@@ -198,10 +227,33 @@ def _retrieve_dataset(name: str, ds: Dataset, config: RetrievalConfig, stats: Da
         _retrieve_participants(name, ds, config, stats)
 
 
+def _verify_dataset_copies(name: str, ds: Dataset, config: RetrievalConfig, stats: DatasetStats) -> None:
+    """Re-derives what data/ should contain for this dataset (same subject
+    selection the copy phase used) and compares it against the current source
+    byte-for-byte - catches both a corrupted write and a local file that was
+    correct when copied but no longer matches because the source changed
+    since (see src.retrieval.verify). Runs from _retrieve_all only after
+    EVERY requested dataset has finished copying, never interleaved with the
+    copy phase of any dataset."""
+    subjects = _select_subjects(ds, config)
+    result = verify.verify_dataset(name, ds, subjects, config)
+    stats.mismatched = result.mismatched
+    stats.missing_locally = result.missing_locally
+    stats.unexpected_local_files = result.unexpected_local_files
+    for message in result.mismatched:
+        logging.error("checksum mismatch: %s", message)
+    for message in result.missing_locally:
+        logging.error("not copied despite source having it: %s", message)
+    for message in result.unexpected_local_files:
+        logging.warning("unexpected local file: %s", message)
+
+
 def _retrieve_all(datasets: dict[str, Dataset], config: RetrievalConfig) -> dict[str, DatasetStats]:
     stats = {name: DatasetStats() for name in datasets}
     for name, ds in datasets.items():
         _retrieve_dataset(name, ds, config, stats[name])
+    for name, ds in datasets.items():
+        _verify_dataset_copies(name, ds, config, stats[name])
     return stats
 
 
@@ -224,11 +276,21 @@ def _config_summary(config: RetrievalConfig) -> str:
     return json.dumps(payload, indent=2)
 
 
-def _grouped_section(stats: dict[str, DatasetStats], attr: str, header: str, count_label: str) -> list[str]:
-    """Shared rendering for the Missing/Ambiguous/Non-conforming report
-    sections: grouped per dataset, a count per group, a '---' separator
-    between groups, and 'none' when nothing in any dataset has an entry."""
-    lines = ["", header, ""]
+def _section_header(title: str, subtitle: str) -> list[str]:
+    """Title as a heading, explanation as a separate italic subtitle line
+    below it - kept apart so the heading itself stays scannable instead of
+    one long run-on line mixing the section name and its explanation."""
+    return ["", f"## {title}", f"*{subtitle}*", ""]
+
+
+def _grouped_section(
+    stats: dict[str, DatasetStats], attr: str, title: str, subtitle: str, count_label: str
+) -> list[str]:
+    """Shared rendering for report sections holding a flat list[str] per
+    dataset (Non-conforming, Mismatched, Not-copied, Unexpected): grouped per
+    dataset, a count per group, a '---' separator between groups, and 'none'
+    when nothing in any dataset has an entry."""
+    lines = _section_header(title, subtitle)
     groups = [(name, getattr(s, attr)) for name, s in stats.items() if getattr(s, attr)]
     if not groups:
         lines.append("- none")
@@ -236,6 +298,37 @@ def _grouped_section(stats: dict[str, DatasetStats], attr: str, header: str, cou
         if i > 0:
             lines += ["---", ""]
         lines += [f"- {line}" for line in entries]
+        lines += ["", f"{count_label} = {len(entries)}", ""]
+    return lines
+
+
+def _grouped_by_modality_section(
+    stats: dict[str, DatasetStats], attr: str, title: str, subtitle: str, count_label: str
+) -> list[str]:
+    """Rendering for Missing/Ambiguous: same per-dataset grouping as
+    _grouped_section, but each dataset's entries (list[ReportEntry]) are
+    further sub-grouped by which (space, modality) produced them, each with
+    its own sub-heading and count - a run requesting several modalities in
+    `retrieve` would otherwise interleave them into one flat, hard-to-scan
+    list per dataset. Entries with group="" (not tied to one retrieve item,
+    e.g. an explicitly requested subject absent from this dataset) get no
+    sub-heading, listed first."""
+    lines = _section_header(title, subtitle)
+    groups = [(name, getattr(s, attr)) for name, s in stats.items() if getattr(s, attr)]
+    if not groups:
+        lines.append("- none")
+    for i, (_name, entries) in enumerate(groups):
+        if i > 0:
+            lines += ["---", ""]
+        by_modality: dict[str, list[str]] = {}
+        for entry in entries:
+            by_modality.setdefault(entry.group, []).append(entry.line)
+        for j, (modality_key, modality_lines) in enumerate(by_modality.items()):
+            if j > 0:
+                lines.append("")
+            if modality_key:
+                lines.append(f"**{modality_key}** ({len(modality_lines)})")
+            lines += [f"- {line}" for line in modality_lines]
         lines += ["", f"{count_label} = {len(entries)}", ""]
     return lines
 
@@ -253,33 +346,60 @@ def _build_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: 
         "",
         "## Summary",
         "",
-        "| dataset | subjects | copied | skipped (exists) | failed | participants.tsv |",
-        "|---|---|---|---|---|---|",
+        "| dataset | subjects | copied | skipped (exists) | failed |",
+        "|---|---|---|---|---|",
     ]
     for name, s in stats.items():
         lines.append(
-            f"| {name} | {s.subjects_selected} | {s.copied} | {s.skipped_existing} | "
-            f"{s.failed} | {s.participants_status} |"
+            f"| {name} | {s.subjects_selected} | {s.copied} | {s.skipped_existing} | {s.failed} |"
         )
-    lines += _grouped_section(
+    lines += _grouped_by_modality_section(
         stats,
         "missing",
-        "## Missing (file not found for a specific subject, or an explicitly "
-        "requested subject not present in this dataset)",
+        "Missing",
+        "File not found for a specific subject, or an explicitly requested subject not "
+        "present in this dataset. Sub-grouped by which space/modality was requested.",
         "Missing Count",
     )
-    lines += _grouped_section(
+    lines += _grouped_by_modality_section(
         stats,
         "ambiguous",
-        "## Ambiguous (more than one registered file matched for a subject - "
-        "highest-priority one used)",
+        "Ambiguous",
+        "More than one registered file matched for a subject - the highest-priority one "
+        "was used. Sub-grouped by which space/modality was requested.",
         "Ambiguous Count",
     )
     lines += _grouped_section(
         stats,
         "non_conforming",
-        "## Non-conforming subject folders (found on disk, excluded from retrieval)",
+        "Non-conforming subject folders",
+        "Folders found on disk that don't match the expected subject naming convention - "
+        "excluded from retrieval.",
         "Non-conforming Count",
+    )
+    lines += _grouped_section(
+        stats,
+        "mismatched",
+        "Mismatched",
+        "A local file's checksum differs from its current source - possible corruption, "
+        "or the source changed after this file was copied.",
+        "Mismatched Count",
+    )
+    lines += _grouped_section(
+        stats,
+        "missing_locally",
+        "Not copied despite source having it",
+        "Verification found the source file, but data/ doesn't have it - a copy that "
+        "silently failed to land.",
+        "Not Copied Count",
+    )
+    lines += _grouped_section(
+        stats,
+        "unexpected_local_files",
+        "Unexpected local files",
+        "Present in data/ but not the current resolution for any expected subject/modality "
+        "- stale naming or a leftover from a prior run.",
+        "Unexpected Count",
     )
     return "\n".join(lines)
 
@@ -288,7 +408,7 @@ def _write_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: 
     now = now or datetime.now()
     report_dir = REPORTS_ROOT / config.project
     report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / f"{now.strftime('%d-%m-%y__%H-%M')}.md"
+    report_path = report_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M')}.md"
     report_path.write_text(_build_report(config, stats, now))
     return report_path
 
@@ -296,7 +416,7 @@ def _write_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: 
 def _log_path(config: RetrievalConfig, now: datetime) -> Path:
     log_dir = LOGS_ROOT / config.project
     log_dir.mkdir(parents=True, exist_ok=True)
-    return log_dir / f"{now.strftime('%d-%m-%y__%H-%M')}.log"
+    return log_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M')}.log"
 
 
 def _attach_file_handler(log_path: Path) -> None:
@@ -348,6 +468,16 @@ def main(argv: list[str] | None = None) -> int:
 
     stats = _retrieve_all(datasets, config)
     report_path = _write_report(config, stats, now)
+
+    total_verification_errors = sum(
+        len(s.mismatched) + len(s.missing_locally) for s in stats.values()
+    )
+    if total_verification_errors:
+        logging.error(
+            "post-copy verification found %d problem(s) against source - see report: %s",
+            total_verification_errors,
+            report_path,
+        )
     logging.info("done - report written to %s, log written to %s", report_path, log_path)
     return 0
 

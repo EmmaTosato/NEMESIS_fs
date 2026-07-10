@@ -2,6 +2,89 @@
 
 Ultimo aggiornamento: 2026-07-09. Scritto per permettere a un nuovo agente/sessione di riprendere senza contesto pregresso. Il file copre più sessioni, in ordine cronologico inverso (la più recente in cima).
 
+## Sessione 2026-07-09 (4) — Verifica checksum integrata nel pipeline (design a due fasi) + test di integrazione senza numeri hardcoded
+
+### Obiettivo
+
+Verificare che i file copiati in `data/` corrispondano davvero alla sorgente EBRAIN (soggetto giusto, contenuto giusto), poi integrare questa verifica nel pipeline di retrieval stesso invece di lasciarla solo come script separato.
+
+**Nota per chi legge dopo**: questa sessione **non** corrisponde al racconto della sessione (3) qui sotto (quella descrive la feature come "già presente nel repo, scoperta durante il run" — probabilmente un'altra conversazione parallela sullo stesso repo). In questa sessione la feature di verifica è stata **costruita da zero, in due iterazioni**, con il design finale diverso da quello di un primo tentativo — vedi sotto.
+
+### Decisioni prese / concetti discussi
+
+1. **Prima iterazione (scartata)**: verifica checksum inline dentro `_copy_one`/`_retrieve_participants`, subito dopo ogni singola copia/skip. Scartata perché l'utente ha chiarito due cose: (a) la verifica va fatta **solo dopo che tutte le copie di tutti i dataset sono finite**, non interfogliata file per file; (b) la logica di verifica esisteva già in `scripts/verify_retrieval.py` (script standalone scritto in una sessione/turno precedente) — andava **riusata**, non riscritta dentro il pipeline.
+2. **Design finale**: logica di verifica estratta in un modulo condiviso **`src/retrieval/verify.py`** (`verify_dataset(name, ds, subjects, config) -> VerificationResult`), usato da due chiamanti:
+   - `src/pipeline/retrieve_data.py`: `_retrieve_all` ora fa due passate sequenziali — prima copia *tutti* i dataset richiesti (`_retrieve_dataset`), poi verifica *tutti* i dataset (`_verify_dataset_copies`), mai interfogliate.
+   - `scripts/verify_retrieval.py`: ridotto a thin wrapper CLI che richiama la stessa funzione, tenuto come backup per un controllo manuale senza rilanciare tutto il retrieval.
+3. **Cosa controlla `verify_dataset`**: per ogni soggetto della selezione, ri-risolve il file sorgente con `Dataset.resolve()` (mai fidandosi della copia già fatta) e confronta sha256 sorgente vs locale → 3 categorie di esito: `mismatched` (contenuto diverso — corruzione o sorgente cambiata), `missing_locally` (sorgente ce l'ha, `data/` no — copia fallita silenziosamente), `unexpected_local_files` (file presente in locale ma non risolvibile da nessuna combinazione attesa oggi — naming vecchio/residuo). Tutti e 3 aggiunti a `DatasetStats` (`src/pipeline/retrieve_data.py:33-44`), loggati (ERROR i primi due, WARNING il terzo) e resi come nuove sezioni nel report.
+4. **Test di integrazione riscritti per non usare numeri hardcoded** (obiezione esplicita dell'utente: "il numero di partecipanti cambia in maniera dinamica", "tu devi contare in tempo reale"). Causa scatenante: un run reale della suite ha fatto emergere che 3 test con conteggi scritti a mano (201/296 maschere MNI/T1w per WashU, "WashU non ha participants.tsv") erano diventati falsi — non per un bug, ma perché un collega (`nazziale`) aveva aggiunto mesi fa (verificato con `ls -la`, mtime maggio/ottobre 2025) la cartella raw mancante per `sub-STUNIPD0001` (prima un'anomalia nota, "derivative orfana") e un `participants.tsv` per WashU. Fix: `tests/integration/test_lesion_counts.py` e `test_participants.py` ora calcolano il valore atteso **al momento del test**, con un metodo indipendente da `Dataset`/`file_patterns.json` (glob diretto sul filesystem reale), e confrontano quell'insieme con l'output di `Dataset.resolve()` — un mismatch segnala sempre un vero bug nella logica di risoluzione, mai un dato cambiato nel frattempo. Unica tabella rimasta hardcoded: `EXPECTED_AVAILABLE_MODALITIES` (quali *tipi* di scan esistono per dataset — fatto strutturale stabile, diverso da un conteggio).
+5. Chiarito con l'utente un falso allarme: durante un run di prova ho trovato che `data/` era stata svuotata tra un mio comando e l'altro — non un bug, l'utente l'aveva cancellata di persona per testare il retrieval da zero.
+
+### File modificati/creati (verificato con `git status`/`git diff`)
+
+- **Codice nuovo**: `src/retrieval/verify.py`
+- **Codice modificato**: `src/pipeline/retrieve_data.py` (+58/-0 circa: `DatasetStats` con 3 nuovi campi, `_verify_dataset_copies`, doppio loop in `_retrieve_all`, nuove sezioni report, log ERROR aggregato in `main()`), `scripts/verify_retrieval.py` (riscritto da zero come thin wrapper, -100 righe circa)
+- **Test nuovi**: `tests/unit/test_verify.py` (7 test per `verify_dataset`)
+- **Test modificati**: `tests/unit/test_retrieve_pipeline.py` (firma `_copy_one` invariata rispetto a prima della prima iterazione, nuovo test sul doppio-loop), `tests/integration/test_lesion_counts.py`, `tests/integration/test_participants.py` (riscritti per non hardcodare conteggi/fatti, vedi punto 4 sopra)
+- **Doc**: `docs/dev/retrieval.md` (matrice STOP/WARNING/ERROR aggiornata, sezione dedicata alla verifica, layout moduli, sezione testing riscritta), `docs/guides/retrieval.md` (sezione "Verification: a final pass...", elenco sezioni report aggiornato)
+- **Dati locali (gitignored)**: `data/`, `logs/`, `reports/` ripopolati da un run reale dell'utente
+
+### Stato dei test
+
+**97/97 passati** (`conda run -n nemesis python -m pytest tests/unit/ tests/integration/ -v`, ultima esecuzione — include sia i nuovi `test_verify.py` sia i test di integrazione riscritti, contro il mount EBRAIN reale). Il run reale del pipeline fatto dall'utente in questa sessione ha prodotto una verifica pulita: 0 `mismatched`, 0 `missing_locally`, 0 `unexpected_local_files` su tutti e 4 i dataset.
+
+### Osservazione da verificare
+
+Il log di un run intermedio (`09-07-26__16-51.log`) dice "report written to ... 09-07-26__16-51.md", ma quel file non esiste in `reports/` — probabilmente cancellato manualmente dall'utente (coerente con l'abitudine, già vista in sessione precedente, di trattare i report come artefatti rigenerabili). Non confermato esplicitamente dall'utente in questa sessione, a differenza del caso analogo in sessione (3).
+
+### Prossimo passo esatto
+
+1. Lavoro attuale (retrieval + verify + doc + test) tutto in working tree, non committato — decidere se/quando committare (nessun commit richiesto esplicitamente in questa sessione).
+2. Se si vuole, chiarire con l'utente il file di report mancante (vedi sopra) — non bloccante.
+3. Tornare al filone SDC/BCBToolKit o Task1 (vedi "Prossimo passo esatto" di sessione (2) più sotto) quando si vuole riprendere il lavoro di modellazione, oppure proseguire sul modulo di retrieval se emergono altri dataset/modalità da aggiungere a `file_patterns.json`.
+
+---
+
+## Sessione 2026-07-09 (3) — Rilancio retrieval dopo refactor `file_patterns` + scoperta feature di verifica checksum
+
+### Obiettivo
+
+Eseguire il "prossimo passo esatto" lasciato dalla sessione (2) precedente: rilanciare la suite di test (mai fatto dopo il refactor `file_patterns.json`), poi un run reale della pipeline di retrieval, e ispezionare l'output.
+
+### Sequenza eseguita
+
+1. **Suite completa** (`conda run -n nemesis python -m pytest tests/unit/ tests/integration/ -v`): **87/87 passed**, inclusi gli integration test contro il mount EBRAIN reale. Nota: questo run **non includeva ancora** `tests/unit/test_verify.py` (comparso nel working tree solo dopo, vedi punto 3) — quei test non sono stati verificati in questa sessione.
+2. **Run reale della pipeline** (`python -m src.pipeline.retrieve_data --config config/data_retrieval.json`), config invariata (4 dataset, `group_filter: ["ST"]`, `mni/lesion_mask`, `include_tabular_data: true`, `overwrite: false`). Report/log `09-07-26__16-44`:
+   - 1150 file copiati (WashU 202, PASPORT 83, PSP 168, UKLFR 697), 0 falliti, `participants.tsv` copiato per tutti i dataset che lo hanno a sorgente.
+   - Missing (per-soggetto, normale — file assente a sorgente): 170 totali (49+14+69+38).
+   - Ambiguous = 0, Non-conforming subject folders = 0.
+   - Log pulito: solo righe `INFO: copied: ...`, nessun WARNING/ERROR.
+   - Rilanciata una seconda volta (report `16-51`, poi **cancellato dall'utente** — non fa parte dello storico, ignorare/non cercarlo) solo per conferma idempotenza (`overwrite: false` → tutto skipped, 0 copiati).
+3. **Scoperta**: nel repo era già presente (fuori da questa conversazione, probabilmente modifiche dirette dell'utente nell'IDE in parallelo alla chat) una feature di **verifica checksum** non documentata all'inizio della sessione: `src/retrieval/verify.py` (nuovo, non tracciato), integrata in `retrieve_data.py` (`_verify_dataset_copies`, gira dopo che *tutti* i dataset hanno finito la copia, mai interleaved), `scripts/verify_retrieval.py` ridotto a thin wrapper CLI attorno allo stesso modulo, `tests/unit/test_verify.py` nuovo. Il report del run (punto 2) mostrava solo la sezione **Mismatched** (vuota) — le due sezioni aggiuntive introdotte dal codice attuale (**Not copied despite source having it**, **Unexpected local files**) non comparivano nel report perché il codice è stato esteso *dopo* quel run: il report è quindi "stale" rispetto all'ultima versione del codice su questi due punti specifici (il valore comunque risulta 0 per entrambi, vedi punto 4, solo non era nel report scritto su disco).
+4. **Verifica standalone** (`PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/data_retrieval.json`), con il codice nella sua versione più recente: **0 checksum mismatch, 0 missing local file, 0 unexpected local files**. Conferma che `data/` è coerente con la sorgente EBRAIN secondo tutti e 3 i controlli.
+5. `docs/guides/retrieval.md` e `docs/dev/retrieval.md` risultano **già aggiornati** (modificati, non commitati) per documentare la feature di verifica — non serve intervento di documentazione da parte mia, era stato erroneamente segnalato come "non documentato" in un turno precedente di questa sessione prima che l'utente completasse l'editing.
+
+### File modificati (non commitati — verificato con `git status`/`git diff`)
+
+- **Codice**: `src/pipeline/retrieve_data.py` (+58, integrazione verifica), `scripts/verify_retrieval.py` (riscritto come thin wrapper, -100 righe circa)
+- **Nuovo, non tracciato**: `src/retrieval/verify.py`, `tests/unit/test_verify.py`
+- **Test modificati**: `tests/integration/test_lesion_counts.py`, `tests/integration/test_participants.py`, `tests/unit/test_retrieve_pipeline.py`
+- **Doc**: `docs/dev/retrieval.md`, `docs/guides/retrieval.md`
+- **Dati locali (gitignored, non impattano commit)**: `data/`, `logs/`, `reports/` popolati dal run
+
+### Stato dei test
+
+87/87 (unit+integration, **prima** dell'introduzione di `test_verify.py` nel working tree) — vedi nota al punto 1. `test_verify.py` non ancora incluso in un run pytest in questa sessione.
+
+### Prossimo passo esatto
+
+1. Rilanciare `conda run -n nemesis python -m pytest tests/unit/ tests/integration/ -v` includendo il nuovo `tests/unit/test_verify.py`, per avere un conteggio verde che copra anche la feature di verifica checksum.
+2. Se si vuole un report su disco allineato al codice attuale (con tutte e 5 le sezioni: Missing, Ambiguous, Non-conforming, Mismatched, Not copied, Unexpected), rilanciare la pipeline un'altra volta.
+3. Decidere se/quando committare il lavoro corrente (retrieval + verify + doc), attualmente tutto in working tree non staged.
+4. Tornare al filone SDC/BCBToolKit (sessione (2)): email al gestore server ancora da inviare da parte dell'utente; nel frattempo Task1 (embedding UMAP/t-SNE su lesioni grezze) può partire senza aspettare.
+
+---
+
 ## Sessione 2026-07-09 (2) — SDC/BCBToolKit: blocco permessi e mappatura pipeline del paper
 
 ### Obiettivo

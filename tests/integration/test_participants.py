@@ -1,6 +1,11 @@
 """Integration tests for Dataset.participants() against the real EBRAIN data.
 
 Skipped entirely if the mount is not reachable on this machine.
+
+Which specific dataset has a participants.tsv is a curated fact that can
+change over time (a dataset that lacked one can gain one) - not asserted here
+as a fixed per-dataset truth. What's checked instead is the contract: if a
+dataset has one right now, it must be well-formed.
 """
 
 from pathlib import Path
@@ -19,18 +24,22 @@ pytestmark = pytest.mark.skipif(
 # participants() never touches file_patterns - an empty registry is enough.
 _EMPTY_PATTERNS = FilePatterns(patterns={})
 
-
-def test_washu_has_no_participants_tsv():
-    ds = Dataset(PROJECT_ROOT, "UNIPD/WashU", _EMPTY_PATTERNS)
-    assert ds.participants() is None
+ALL_DATASETS = ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"]
 
 
-@pytest.mark.parametrize(
-    "dataset_name", ["UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"]
-)
-def test_other_datasets_have_participants_tsv(dataset_name):
+@pytest.mark.parametrize("dataset_name", ALL_DATASETS)
+def test_participants_tsv_is_well_formed_when_present(dataset_name):
     ds = Dataset(PROJECT_ROOT, dataset_name, _EMPTY_PATTERNS)
     df = ds.participants()
-    assert df is not None
+    if df is None:
+        return  # legitimate per-dataset fact today, not asserted either way
     assert "participant_id" in df.columns
     assert len(df) == len(ds.subjects())
+
+
+def test_at_least_one_dataset_has_participants_tsv():
+    """Sanity check that the participants() path is actually exercised by at
+    least one real dataset - otherwise test_participants_tsv_is_well_formed_when_present
+    could silently pass on every dataset by hitting the `df is None` return."""
+    datasets = [Dataset(PROJECT_ROOT, name, _EMPTY_PATTERNS) for name in ALL_DATASETS]
+    assert any(ds.participants() is not None for ds in datasets)

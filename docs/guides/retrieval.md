@@ -81,11 +81,11 @@ Two things to decide: **which files** (`retrieve`) and **which subjects** (`grou
 
 Asking for a modality a dataset doesn't have (e.g. `lesion_roi` on PSP) stops the whole run before anything is copied, with a clear error — fix the config and re-run.
 
-Listing the same `{"space": ..., "modality": ...}` entry twice in `retrieve` is also rejected upfront (not silently deduplicated) — a duplicate would otherwise make the second copy look like "already existed from a previous run" in the report, when it was actually copied moments earlier by the first entry in the same run.
+Listing the same entry twice in `retrieve` is rejected upfront (not deduplicated) — otherwise the second copy would misleadingly look like it already existed from a previous run.
 
 ## Where `space`+`modality` actually points to: `config/file_patterns.json`
 
-`{"space": "mni", "modality": "lesion_mask"}` has to mean *some specific file, with some specific name, in some specific folder*. That mapping is not hidden in code — it is written out, in plain JSON, in `config/file_patterns.json`, so anyone (not just whoever wrote the Python) can check exactly what gets fetched:
+`{"space": "mni", "modality": "lesion_mask"}` maps to a specific filename template, registered in plain JSON in `config/file_patterns.json` — not hidden in Python:
 
 ```json
 {
@@ -104,15 +104,13 @@ Listing the same `{"space": ..., "modality": ...}` entry twice in `retrieve` is 
 }
 ```
 
-Read it as: "for `native`/`T1w`, look for a file named `<subject_id>/anat/<subject_id>_T1w.nii.gz` inside the dataset folder, with `<subject_id>` replaced by the real ID (e.g. `sub-STUNIPD0002`)".
+Read it as: "for `native`/`T1w`, look for `<subject_id>/anat/<subject_id>_T1w.nii.gz` inside the dataset folder".
 
-Notice `lesion_roi` has **two** filenames listed, not one. That's because two different data-collection pipelines named the same kind of file differently: PASPORT calls it `sub-X_lesion_roi.nii.gz`, WashU and UKLFR/stroke_UKLFR call it `sub-X_space-T1w_lesion_roi.nii.gz`. Both names mean the same thing, so both are registered under the same `lesion_roi` entry, in a chosen order (the first one is tried first). If a naming convention ever changes again, or a new source uses yet another name for the same kind of file — **this is the file to edit**, not the Python code.
-
-If, instead, two files really are two *different* things (not just two names for the same thing), they get **different** modality names in this file, so they can be requested separately and are never mixed up.
+`lesion_roi` has two filenames because two pipelines name the same file differently (PASPORT vs. WashU/UKLFR) — both registered under the same key, in priority order (first one tried first). If a naming convention changes or a new one appears, edit this file, not the Python code. Two genuinely different files get different modality names instead, so they stay requestable separately.
 
 ### What happens if a subject has more than one matching file?
 
-Normally exactly one of the registered filenames exists for a given subject. If — for any reason — a subject has files matching **more than one** of the registered names for the same `space`+`modality` (e.g. both `lesion_roi` variants at once), the run does **not** fail and does **not** silently pick one at random: it always uses the first-listed one (the priority order you wrote in `file_patterns.json`), and it flags the subject in the report's **Ambiguous** section, naming both files it found — so you know it happened and can go check by hand whether it's an intentional duplicate or a data problem (e.g. an old file that should have been deleted).
+If a subject has files matching more than one registered name for the same `space`+`modality`, the run doesn't fail or pick one at random: it uses the first-listed (priority) one and flags the subject in the report's **Ambiguous** section, naming both files found — check by hand whether it's intentional or a leftover file.
 
 ### Where are HC (healthy controls)?
 
@@ -124,7 +122,7 @@ If `subjects` lists people from more than one of the requested `datasets`, each 
 
 ### If a subject folder doesn't follow the naming convention
 
-Every subject folder on disk is expected to be named `sub-<DISEASE><SITE>[HC]<NUM>` (e.g. `sub-STUNIPD0002`). If a folder starting with `sub-` doesn't match that pattern — a leftover test/QC folder, for instance — it is never treated as a real subject and never copied. It shows up, by name, in the report's **Non-conforming subject folders** section, so it stays visible as something worth looking into (relevant to the ongoing effort to keep subject IDs consistent), instead of either silently being mistaken for a real patient or crashing the whole run.
+Subject folders are expected to be named `sub-<DISEASE><SITE>[HC]<NUM>` (e.g. `sub-STUNIPD0002`). A `sub-*` folder that doesn't match (leftover test/QC folder, etc.) is never treated as a subject or copied — it's listed by name in the report's **Non-conforming subject folders** section instead.
 
 ## What you get in `data/`
 
@@ -138,17 +136,40 @@ data/clinical_connectome/UNIPD/WashU/
 
 Filenames are exactly as at the source — nothing renamed or transformed.
 
-## The report
+## After running: inspecting the output
 
-Every run writes `reports/data_retrieval/clinical_connectome/<dd-mm-yy>__<hh-mm>.md` — starting with the config actually used (so you can always tell which settings produced it), then a summary table (subjects per dataset, files copied/skipped/failed, whether `participants.tsv` was copied), then three sections listing anything worth a second look, each grouped by dataset with a count:
+1. **Open the report** — `reports/data_retrieval/clinical_connectome/<dd-mm-yy>__<hh-mm>.md`. Check the summary table first, then the sections below it for anything flagged (Missing, Ambiguous, Non-conforming, Mismatched, ...).
+2. **Need more detail on a flagged item?** Open the matching log — `logs/data_retrieval/clinical_connectome/<dd-mm-yy>__<hh-mm>.log` (same filename stem as the report, so it's always easy to find). It has the full file-by-file narrative, in the order things happened.
+3. **Optional — re-verify `data/` later without a new run**: `scripts/verify_retrieval.py` (see below) re-checks everything currently in `data/` against source, read-only. Useful before starting analysis on data fetched a while ago, or if you suspect local disk issues.
 
-- **Missing** — a specific file missing for a specific subject, or an explicitly requested subject not present in that dataset.
+### The report
+
+Every run writes the report above — starting with the config actually used (so you can always tell which settings produced it), then a summary table, then sections listing anything worth a second look, each grouped by dataset with a count.
+
+The summary table has, per dataset: subjects selected, `native`, `mni`, copied/skipped/failed, participants status. `native`/`mni` say how many of the selected subjects have *any* file in that space at all (any of T1w/T2w/FLAIR/CT/lesion_roi for native, the lesion mask for mni — see `config/file_patterns.json`) — regardless of which one this run actually requested. Useful for a quick sanity check: e.g. if `native` is much higher than `mni` for a dataset, most subjects there simply don't have the MNI-space lesion mask produced yet.
+
+- **Missing** — a specific file missing for a specific subject, or an explicitly requested subject not present in that dataset. When the subject has data in the *other* space, the line says so inline, e.g. `sub-STUNIPD0004 - no mni/lesion_mask (in native not in mni)` means: this subject has native (raw) data, it's specifically the MNI derivative that's missing — as opposed to a bare `no mni/lesion_mask` with no suffix, which means the subject has neither space at all. If `retrieve` asks for more than one `{space, modality}` (e.g. both `native/T1w` and `mni/lesion_mask`), each dataset's Missing entries are further split into one sub-list per requested item (`**native/T1w** (12)`, `**mni/lesion_mask** (5)`, ...) instead of being mixed together — the dataset's overall `Missing Count` still counts everything.
 - **Ambiguous** — more than one registered filename matched for a subject (see above); the highest-priority one was used regardless.
 - **Non-conforming subject folders** — folders that don't follow the naming convention, excluded from retrieval.
+- **Mismatched** — a local file's content no longer matches its current source (see below).
+- **Not copied despite source having it** — verification found the source file, but `data/` doesn't have it; a copy that silently failed to land.
+- **Unexpected local files** — present in `data/` but not the current resolution for any expected subject/modality (stale naming, or a leftover from before the config or source changed).
 
-Never a list of successful copies — just the exceptions worth looking at.
+The last three are also logged at ERROR/WARNING level, with an aggregate count line right before "done". Never a list of successful copies — just the exceptions worth looking at.
 
-Console output while it runs shows the same story live: which dataset is being processed, each file copied or skipped, any warnings, as they happen. That same narrative is also saved to `logs/data_retrieval/clinical_connectome/<dd-mm-yy>__<hh-mm>.log` — same file name as the report from that run, so you can always find the log matching a given report.
+### Verification: a final pass, once every dataset has finished copying
+
+After every requested dataset has been copied, the pipeline re-checks `data/` against the current source before writing the report: every file it just copied, or found already present and skipped, is checksum-compared against the source. This catches both a corrupted copy and a local file that's gone stale because the source changed since. This verification only starts once **all** datasets have finished copying — never interleaved with copying — so the log always has the full copy narrative before the verification narrative. Automatic on every run, nothing extra to configure.
+
+The standalone script runs the exact same verification, read-only, without doing a retrieval:
+
+```bash
+PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/data_retrieval.json
+```
+
+It prints a summary and exits non-zero if anything looks wrong — nothing is copied or modified.
+
+Console output while a run happens shows the same story live: which dataset is being processed, each file copied or skipped, any warnings, as they happen.
 
 ## Re-running
 

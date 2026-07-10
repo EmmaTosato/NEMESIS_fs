@@ -199,6 +199,38 @@ def test_load_file_patterns_supports_multiple_templates_per_combination(tmp_path
     assert len(patterns.templates_for("native", "lesion_roi")) == 2
 
 
+def test_file_patterns_modalities_for_returns_only_that_space(tmp_path):
+    path = _write_file_patterns(
+        tmp_path,
+        {
+            "native": {
+                "T1w": ["{subject_id}/anat/{subject_id}_T1w.nii.gz"],
+                "lesion_roi": ["{subject_id}/anat/{subject_id}_lesion_roi.nii.gz"],
+            },
+            "mni": {
+                "lesion_mask": [
+                    "derivatives/manual_masks/{subject_id}/anat/{subject_id}_label-lesion_mask.nii.gz"
+                ]
+            },
+        },
+    )
+    patterns = load_file_patterns(path)
+    assert sorted(patterns.modalities_for("native")) == ["T1w", "lesion_roi"]
+    assert patterns.modalities_for("mni") == ["lesion_mask"]
+
+
+def test_file_patterns_modalities_for_space_absent_from_registry_is_empty(tmp_path):
+    """A registry that only defines "native" (no "mni" key at all - a valid,
+    if unusual, registry per load_file_patterns) must report zero modalities
+    for "mni", not raise - Dataset.has_any relies on this to mean "nothing
+    registered for this space", distinct from KNOWN_SPACES validity."""
+    path = _write_file_patterns(
+        tmp_path, {"native": {"T1w": ["{subject_id}/anat/{subject_id}_T1w.nii.gz"]}}
+    )
+    patterns = load_file_patterns(path)
+    assert patterns.modalities_for("mni") == []
+
+
 def test_file_patterns_templates_for_unknown_combination_raises(tmp_path):
     path = _write_file_patterns(tmp_path)
     patterns = load_file_patterns(path)

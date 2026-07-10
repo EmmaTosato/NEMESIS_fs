@@ -1,11 +1,15 @@
 """Integration tests against the real EBRAIN-mounted Clinical_connectome data.
 
-Skipped entirely if the mount is not reachable on this machine. These counts
-were verified manually against the real filesystem during design and act as
-a regression anchor: a mismatch signals a bug in the file_patterns registry
-or the resolution logic, not a change in the (static) source data. Uses the
-real config/file_patterns.json registry, not a synthetic one, since the
-whole point here is verifying the production mapping against real data.
+Skipped entirely if the mount is not reachable on this machine. Ground truth
+is never a hardcoded number - the datasets are actively curated (subjects and
+files are added on EBRAIN over time), so a frozen count would fail the moment
+the data legitimately changes, not when the code breaks. Instead, every check
+here recomputes its own expectation directly from the real filesystem at test
+run time (independent of Dataset/file_patterns.json) and compares it against
+what Dataset.resolve()/.available() report - a mismatch then always signals a
+real discrepancy in the resolution logic, never a stale number. Uses the real
+config/file_patterns.json registry, not a synthetic one, since the whole
+point here is verifying the production mapping against real data.
 """
 
 from pathlib import Path
@@ -24,22 +28,9 @@ pytestmark = pytest.mark.skipif(
 
 FILE_PATTERNS = load_file_patterns(FILE_PATTERNS_PATH) if FILE_PATTERNS_PATH.is_file() else None
 
-EXPECTED_MNI_MASK_ST_COUNT = {
-    # WashU: derivatives/manual_masks has 202 subject folders, but one of them
-    # (sub-STUNIPD0001) is an orphaned derivative with no matching raw subject
-    # folder - Dataset.subjects() (raw-based) correctly does not count it, so
-    # the real reachable count is 201, not 202.
-    "UNIPD/WashU": 201,
-    "UNIPD/PASPORT": 83,
-    "UNIPD/PSP": 168,
-    "UKLFR/stroke_UKLFR": 697,
-}
-
-EXPECTED_NATIVE_T1W_COUNT = {
-    "UNIPD/WashU": 296,
-    "UKLFR/stroke_UKLFR": 720,
-}
-
+# Which dataset structurally has which native modality is stable (a scanning
+# protocol fact), unlike per-subject counts - safe to keep as a small fixed
+# table, re-verified every run against Dataset.available().
 EXPECTED_AVAILABLE_MODALITIES = {
     "UNIPD/WashU": {"T1w", "T2w", "FLAIR", "lesion_roi"},
     "UNIPD/PASPORT": {"CT", "FLAIR", "lesion_roi"},
@@ -49,19 +40,41 @@ EXPECTED_AVAILABLE_MODALITIES = {
 
 ALL_NATIVE_MODALITIES = ("T1w", "T2w", "FLAIR", "CT", "lesion_roi")
 
+_MNI_MASK_GLOB = "sub-*/anat/*_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
+_NATIVE_T1W_GLOB = "sub-*/anat/*_T1w.nii.gz"
 
-@pytest.mark.parametrize("dataset_name", list(EXPECTED_MNI_MASK_ST_COUNT))
-def test_mni_mask_count_matches_verified_numbers(dataset_name):
+
+def _subject_id_from_match(path: Path) -> str:
+    return path.parent.parent.name  # sub-*/anat/<file> - subject folder is two levels up
+
+
+@pytest.mark.parametrize("dataset_name", list(EXPECTED_AVAILABLE_MODALITIES))
+def test_mni_mask_resolution_matches_raw_filesystem(dataset_name):
+    """Ground truth: which valid subjects actually have a mask file on disk
+    right now, found independently via a raw glob - not via file_patterns.json
+    or Dataset at all. Compared against Dataset.resolve() for the same set of
+    subjects; any difference is a real bug in the resolution logic, since both
+    sides look at the filesystem at the same moment."""
     ds = Dataset(PROJECT_ROOT, dataset_name, FILE_PATTERNS)
-    count = sum(1 for sub in ds.subjects() if ds.resolve(sub, "mni", "lesion_mask") is not None)
-    assert count == EXPECTED_MNI_MASK_ST_COUNT[dataset_name]
+    valid_subjects = set(ds.subjects())
+    manual_masks_root = PROJECT_ROOT / dataset_name / "derivatives" / "manual_masks"
+    ground_truth = {
+        _subject_id_from_match(path) for path in manual_masks_root.glob(_MNI_MASK_GLOB)
+    } & valid_subjects
+    via_resolve = {sub for sub in valid_subjects if ds.resolve(sub, "mni", "lesion_mask") is not None}
+    assert via_resolve == ground_truth
 
 
-@pytest.mark.parametrize("dataset_name", list(EXPECTED_NATIVE_T1W_COUNT))
-def test_native_t1w_count_matches_verified_numbers(dataset_name):
+@pytest.mark.parametrize("dataset_name", ["UNIPD/WashU", "UKLFR/stroke_UKLFR"])
+def test_native_t1w_resolution_matches_raw_filesystem(dataset_name):
     ds = Dataset(PROJECT_ROOT, dataset_name, FILE_PATTERNS)
-    count = sum(1 for sub in ds.subjects() if ds.resolve(sub, "native", "T1w") is not None)
-    assert count == EXPECTED_NATIVE_T1W_COUNT[dataset_name]
+    valid_subjects = set(ds.subjects())
+    dataset_root = PROJECT_ROOT / dataset_name
+    ground_truth = {
+        _subject_id_from_match(path) for path in dataset_root.glob(_NATIVE_T1W_GLOB)
+    } & valid_subjects
+    via_resolve = {sub for sub in valid_subjects if ds.resolve(sub, "native", "T1w") is not None}
+    assert via_resolve == ground_truth
 
 
 @pytest.mark.parametrize("dataset_name", list(EXPECTED_AVAILABLE_MODALITIES))

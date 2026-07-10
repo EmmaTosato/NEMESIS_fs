@@ -12,9 +12,12 @@ config/
 └── file_patterns.json    # registry: (space, modality) -> filename template(s) - see below
 src/retrieval/
 ├── config.py    # parsing/validation of both JSON files - no filesystem I/O
-└── dataset.py   # Dataset class - resolves paths for one dataset, does touch the filesystem
+├── dataset.py   # Dataset class - resolves paths for one dataset, does touch the filesystem
+└── verify.py    # post-copy checksum verification - shared by retrieve_data.py and scripts/verify_retrieval.py
 src/pipeline/
-└── retrieve_data.py   # CLI entry point: validate upfront, copy, write report
+└── retrieve_data.py   # CLI entry point: validate upfront, copy, verify, write report
+scripts/
+└── verify_retrieval.py   # accessory: standalone, on-demand re-check of data/ against source
 ```
 
 Single-class design: **one** `Dataset` class is instantiated once per requested dataset name (`Dataset(project_root, "UNIPD/WashU", file_patterns)`), not a subclass per dataset. The 4 in-scope datasets share the same on-disk convention exactly; differences between them (which native modalities exist, presence of `participants.tsv`) are discovered from disk at runtime (`available()`), never hardcoded per dataset name.
@@ -81,6 +84,8 @@ If more than one template matches for the same subject (a real data anomaly, or 
 
 `Dataset.available(space, modality)` mirrors this dataset-wide: true if *any* subject in the dataset has a file matching *any* registered template for that combination. Used by upfront validation (`_validate_retrieve_items`) to reject a request a dataset can never satisfy, before any copying starts.
 
+`Dataset.has_any(subject_id, space)` is the per-subject counterpart, but modality-agnostic: true if this subject has a file matching *any* modality registered for `space` (backed by `FilePatterns.modalities_for(space)`), not one specific modality. Where `resolve()` answers "does this subject have `native/T1w`", `has_any()` answers "does this subject have native data at all, in whatever modality it comes in". This exists purely for reporting (see the Missing-section annotation and the summary table's `native`/`mni` columns below) — the copy/verify logic never calls it, since a retrieval request is always about one exact `(space, modality)` pair.
+
 ## The STOP / WARNING / informational matrix
 
 This is the core contract of the pipeline and is enforced in `src/pipeline/retrieve_data.py`:
@@ -88,7 +93,8 @@ This is the core contract of the pipeline and is enforced in `src/pipeline/retri
 | category | cases | where enforced |
 |---|---|---|
 | 🛑 STOP — validated upfront, across **all** requested datasets, before any file is copied | `(space, modality)` not registered in `file_patterns.json` at all · modality/space not structurally present in a dataset · `group_filter` matches 0 subjects in a dataset · unknown explicit `subjects` entry · duplicate `(space, modality)` pair in `retrieve` · dataset root unreachable · invalid config | `_build_datasets`, `_validate_upfront` (`retrieve_data.py`), `load_config`, `_require_known_combinations` (`config.py`) |
-| ⚠️ WARNING — logged, run continues | file missing for a specific subject · an explicitly requested subject not present in a specific requested dataset · more than one registered file matched for a subject (highest-priority one used) · a `sub-*` folder found on disk that doesn't match the expected subject naming (excluded from retrieval) · copy fails for a specific file (permissions, disk full, ...) | `_retrieve_subject`, `_report_explicit_subjects_absent_from_dataset`, `_report_non_conforming_subject_folders`, `_copy_one` |
+| ⚠️ WARNING — logged, run continues | file missing for a specific subject · an explicitly requested subject not present in a specific requested dataset · more than one registered file matched for a subject (highest-priority one used) · a `sub-*` folder found on disk that doesn't match the expected subject naming (excluded from retrieval) · copy fails for a specific file (permissions, disk full, ...) · a local file no longer resolvable from any current source pattern | `_retrieve_subject`, `_report_explicit_subjects_absent_from_dataset`, `_report_non_conforming_subject_folders`, `_copy_one`, `verify._find_unexpected_local_files` |
+| 🔴 ERROR — logged, run continues, but surfaced above WARNING (found only in the verification phase, after ALL datasets have finished copying) | local file's checksum doesn't match its current source · source has the file but `data/` doesn't (a copy that silently failed to land) | `_verify_dataset_copies` (`retrieve_data.py`), `verify.verify_dataset` (`src/retrieval/verify.py`) |
 | ℹ️ informational | destination already exists: skipped (`overwrite=false`) or overwritten (`overwrite=true`) | `_copy_one`, `_retrieve_participants` |
 
 `group_filter` is **not** validated (and not applied) when `config.subjects` is set explicitly — picking exact subject IDs already expresses full intent, so group filtering would be redundant and potentially confusing (see `_validate_upfront`: the group-filter check is skipped entirely when `subjects is not None`).
@@ -117,6 +123,24 @@ Two identical `{space, modality}` entries would make the pipeline process the sa
 
 Known groups: `ST`, `HC`, `PD`, `GM`. Known spaces: `native`, `mni`. Known modalities: whatever is registered in `file_patterns.json` (see above) — not a static list in code anymore.
 
+### Checksum verification: a distinct phase, run only after every dataset has finished copying
+
+`shutil.copy2` succeeding, or a destination already existing (`skipped (exists)`), used to be treated as proof the local file was correct. Neither actually is: a copy can be truncated by a disk-full mid-write without raising, and a file already present locally may have been copied from a source that has since changed upstream (a corrected lesion mask, a re-run segmentation) — `overwrite=false` would then keep serving stale content silently forever.
+
+This is closed by `src/retrieval/verify.py` (`verify_dataset(name, ds, subjects, config) -> VerificationResult`), a module shared by two callers rather than logic duplicated in each:
+
+- `src/pipeline/retrieve_data.py` — `_retrieve_all` runs the copy phase for **every** requested dataset first (`_retrieve_dataset` in a loop), then, only once that loop has fully completed, runs a second loop calling `_verify_dataset_copies` per dataset. Verification is never interleaved with any dataset's copy phase — this was an explicit design choice (see lessons_learned pattern about aggregate vs per-item timing): copying dataset A must not be blocked or reordered by verification noise from dataset B, and the log's copy narrative for a run is always complete before its verification narrative begins.
+- `scripts/verify_retrieval.py` — a standalone, read-only, on-demand re-check that calls the exact same `verify.verify_dataset`, without running a retrieval at all (see below).
+
+`verify_dataset` re-resolves the source file for every `(subject, retrieve item)` the given `subjects` selection actually has (skipping ones where `resolve()` returns `None` — source doesn't have it either, not a verification concern, already covered by `stats.missing`), and for each one:
+- if `data/` doesn't have the corresponding file at all → `VerificationResult.missing_locally` (a copy that silently failed to land — distinct from `stats.missing`, which means the *source* doesn't have it),
+- if it does, compares `verify.sha256()` of source vs. local file → `VerificationResult.mismatched` on any difference,
+- afterwards, walks every file actually present under the dataset's local root and flags any that isn't one of the paths just verified → `VerificationResult.unexpected_local_files` (stale naming, or a leftover from before the config or source changed).
+
+`_verify_dataset_copies` copies these three lists onto `stats.mismatched` / `stats.missing_locally` / `stats.unexpected_local_files`, logging `mismatched`/`missing_locally` at `logging.error` (data corruption or drift, not a normal per-subject gap) and `unexpected_local_files` at `logging.warning`. `main()` additionally logs one aggregate `ERROR` line with the total mismatch+missing-locally count across all datasets right before the final "done" line, so it's impossible to miss in the console/log even when scrolling past a long per-subject narrative.
+
+This makes the run itself self-verifying — no separate step needed to know the copies are byte-correct. `scripts/verify_retrieval.py` still exists as a standalone, on-demand re-check: useful when you want to re-verify `data/` against source *without* doing a run (e.g. after suspecting local disk corruption, or before starting analysis on data copied a while ago), since it doesn't require `overwrite=true` to re-touch anything — it only reads.
+
 ## Output layout
 
 ```
@@ -135,12 +159,28 @@ Written to `reports/data_retrieval/<project>/<dd-mm-yy>__<hh-mm>.md` (fixed repo
 
 Content, in order:
 1. A verbatim JSON dump of the fields actually read from the config (derived from the parsed `RetrievalConfig`, not a re-read of the file, so it can't drift from what the run actually used — see `_config_summary`; `file_patterns` is shown as its configured path, not the full registry content).
-2. The aggregate summary table per dataset (subjects selected, copied, skipped, failed, participants status).
+2. The aggregate summary table per dataset: subjects selected, `native`/`mni` (see below), copied, skipped, failed, participants status.
 3. **Missing** — file not found for a specific subject, or an explicitly requested subject not present in that dataset.
 4. **Ambiguous** — more than one registered file matched for a subject; the highest-priority one was used regardless.
 5. **Non-conforming subject folders** — `sub-*` folders found on disk that don't match the expected naming convention, excluded from retrieval.
+6. **Mismatched** — a local file's checksum doesn't match its current source (see checksum verification above) — the most severe entry, since it means the local copy is actually wrong, not just absent or ambiguous.
+7. **Not copied despite source having it** — verification found the source file but `data/` doesn't have it (`stats.missing_locally`) — a copy that silently failed to land, distinct from section 3 (source itself lacking the file).
+8. **Unexpected local files** — present under the dataset's local root but not the current resolution for any expected subject/modality (`stats.unexpected_local_files`) — stale naming, or a leftover from before the config or source changed.
 
-Sections 3-5 share the same rendering (`_grouped_section`): grouped per dataset, a `<Section> Count = N` line per dataset, a `---` separator between datasets, `- none` if nothing to report anywhere. Never a list of successful copies — only anomalies.
+Sections 4-8 (Ambiguous, Non-conforming, Mismatched, Not-copied, Unexpected) share one rendering (`_grouped_section`): grouped per dataset, a `<Section> Count = N` line per dataset, a `---` separator between datasets, `- none` if nothing to report anywhere. Section 3 (Missing) and the Ambiguous entries within section 4 additionally sub-group by `(space, modality)` within each dataset (`_grouped_by_modality_section`, see below) — everything else stays a flat per-dataset list. Never a list of successful copies — only anomalies.
+
+### Sub-grouping Missing/Ambiguous by `(space, modality)`
+
+`config.retrieve` can list more than one `{space, modality}` pair in a single run (e.g. `native/T1w` and `mni/lesion_mask` together). Each entry `_retrieve_subject` appends to `stats.missing`/`stats.ambiguous` is a `ReportEntry(group, line)`, not a bare string — `group` is `f"{item.space}/{item.modality}"` for entries produced while resolving a specific retrieve item, or `""` for the one entry type that isn't tied to one (`_report_explicit_subjects_absent_from_dataset`'s "not present in this dataset" line).
+
+`_grouped_by_modality_section` uses `group` to render each dataset's block as one sub-list per `(space, modality)`, each with its own `**space/modality** (n)` sub-heading, instead of interleaving every requested item's misses into one flat list per dataset — the more retrieve items a run asks for, the more this matters for readability. The dataset-level `Missing Count = N` / `Ambiguous Count = N` line still reports the dataset total across all sub-groups, unchanged.
+
+### `native`/`mni` summary columns and the Missing-section annotation
+
+A recurring point of confusion when reading a bare `<dataset>: <subject_id> - no mni/lesion_mask` line: does this subject have *no data at all*, or does it have native (raw) data and is only missing the mni derivative (the far more common case — a derivative simply hasn't been produced yet for that subject)? Two additions close that gap, both computed via `Dataset.has_any` (`_count_subjects_with_space` in `retrieve_data.py`):
+
+- The summary table's `native`/`mni` columns (`stats.subjects_native`/`stats.subjects_mni`) count, out of the subjects *selected* for this run, how many have *at least one* file for that space — any modality registered under it in `file_patterns.json` (e.g. any of T1w/T2w/FLAIR/CT/lesion_roi counts for `native`), not necessarily the exact modality this run's `retrieve` asks for. This is a coarser, always-computed signal, independent of what's actually being retrieved.
+- Each Missing line generated by `_missing_message` gets a conditional suffix — `(in native not in mni)` or `(in mni not in native)` — when the subject has data in the *other* space. Omitted entirely when the subject has neither (there is no asymmetry worth flagging in that case). This is a per-subject, per-line answer to exactly the question above; the summary columns are the dataset-wide aggregate of the same underlying check.
 
 ## Log
 
@@ -148,9 +188,19 @@ Sections 3-5 share the same rendering (`_grouped_section`): grouped per dataset,
 
 The file handler is attached only once `config.project` is known (i.e. after `load_config` succeeds) — a config-load failure has nowhere to put a log file, so it only reaches the console. `_attach_file_handler` removes any `FileHandler` left on the root logger by a previous `main()` call in the same process before attaching a new one; without this, calling `main()` twice in one interpreter (e.g. a notebook) would keep writing the second run's lines into the first run's log file (see `test_main_does_not_leak_log_lines_across_runs`).
 
+## Standalone re-verification (`scripts/verify_retrieval.py`)
+
+An accessory script, not part of the pipeline entry point — a thin CLI wrapper around `src/retrieval/verify.py`, kept for on-demand, read-only re-checks of `data/` against source, independent of running a retrieval. For each requested dataset it computes the subject selection with `retrieve_data._select_subjects` (imported directly — the script is accessory, not a layered module, so reusing this rather than re-deriving it is the pragmatic choice) and calls the exact same `verify.verify_dataset` the pipeline's post-copy phase uses — no separate logic to keep in sync.
+
+```bash
+PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/data_retrieval.json
+```
+
 ## Testing
 
-`tests/unit/` — synthetic fixtures in `tmp_path`, no EBRAIN mount required, run always. `tests/integration/` — against the real mount and the real `config/file_patterns.json` registry, `pytest.mark.skipif` if unreachable; several assert exact counts verified manually during design (e.g. WashU MNI mask count is 201, not 202 — one subject, `sub-STUNIPD0001`, has an orphaned derivative with no matching raw subject folder; see the comment in `tests/integration/test_lesion_counts.py`), plus a check (`test_no_ambiguous_matches_across_real_data`) that no real subject today has files matching more than one registered `lesion_roi` variant simultaneously. Run with:
+`tests/unit/` — synthetic fixtures in `tmp_path`, no EBRAIN mount required, run always. `tests/integration/` — against the real mount and the real `config/file_patterns.json` registry, `pytest.mark.skipif` if unreachable.
+
+Datasets on EBRAIN are actively curated (subjects and files are added over time - e.g. `UNIPD/WashU` gained a raw folder for a previously-orphaned derivative, and its own `participants.tsv`, between one working session and the next), so integration tests here never hardcode an exact expected count or a fixed "this dataset does/doesn't have X" fact — that would fail the moment the data legitimately changes, indistinguishable from a real code regression. Instead, counts are checked as a **differential**: `test_mni_mask_resolution_matches_raw_filesystem`/`test_native_t1w_resolution_matches_raw_filesystem` (`test_lesion_counts.py`) independently re-glob the real filesystem at test run time (bypassing `Dataset`/`file_patterns.json` entirely) and assert that set matches what `Dataset.resolve()` reports *right now* — a mismatch always means the resolution logic disagrees with reality at this exact moment, never a stale number. Per-dataset `participants.tsv` presence is similarly not asserted either way (`test_participants.py`); only that when present, it's well-formed. `EXPECTED_AVAILABLE_MODALITIES` is the one table still hardcoded — which *kinds* of native scans a dataset has is a stable protocol fact (adding subjects doesn't add new modality types), unlike a count. `test_no_ambiguous_matches_across_real_data` checks that no real subject today has files matching more than one registered `lesion_roi` variant simultaneously. Run with:
 
 ```bash
 conda run -n nemesis python -m pytest tests/unit/ tests/integration/ -v

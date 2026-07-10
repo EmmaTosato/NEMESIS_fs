@@ -128,6 +128,26 @@ def test_resolve_mni_mask_returns_none_when_missing_for_subject(tmp_path):
     assert ds.resolve("sub-STUNIPD0002", "mni", "lesion_mask") is None
 
 
+def test_has_any_true_when_subject_has_at_least_one_native_modality(tmp_path):
+    root = _make_washu_like(tmp_path)
+    ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
+    # sub-STUNIPD0002 has T1w but no lesion_roi/FLAIR - still counts as "has native".
+    assert ds.has_any("sub-STUNIPD0002", "native") is True
+
+
+def test_has_any_true_when_subject_has_mni_derivative(tmp_path):
+    root = _make_washu_like(tmp_path)
+    ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
+    assert ds.has_any("sub-STUNIPD0001", "mni") is True
+
+
+def test_has_any_false_when_subject_has_none_of_the_space_modalities(tmp_path):
+    root = _make_washu_like(tmp_path)
+    ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
+    # sub-STUNIPD0002 has no mni derivative at all.
+    assert ds.has_any("sub-STUNIPD0002", "mni") is False
+
+
 def test_available_true_when_at_least_one_subject_has_it(tmp_path):
     root = _make_washu_like(tmp_path)
     ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
