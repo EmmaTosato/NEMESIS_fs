@@ -160,26 +160,16 @@ def test_retrieve_dataset_with_group_filter_does_not_crash_on_non_conforming_fol
     ]
 
 
-def test_retrieve_dataset_counts_subjects_with_native_and_mni_data(tmp_path):
-    """subjects_native/subjects_mni count ANY file registered under that
-    space (per file_patterns.json), independent of which specific modality
-    `retrieve` actually asks for - here retrieve only asks for mni/lesion_mask,
-    yet subjects_native must still reflect the 2 ST subjects that have T1w."""
-    project_root = _make_washu_like(tmp_path)
-    config = _make_config(tmp_path, project_root, group_filter=["ST"])
-    datasets = retrieve_data._build_datasets(config)
-    retrieve_data._validate_upfront(datasets, config)
-    stats = retrieve_data._retrieve_all(datasets, config)
-    # ST subjects: sub-STUNIPD0001 (T1w + mni mask), sub-STUNIPD0002 (T1w only).
-    assert stats["UNIPD/WashU"].subjects_native == 2
-    assert stats["UNIPD/WashU"].subjects_mni == 1
-
-
-def test_missing_entry_notes_subject_has_data_in_the_other_space(tmp_path):
-    """sub-STUNIPD0002 has native T1w but no mni lesion_mask - the Missing
-    line for it must say so, so a reader doesn't have to go check
-    file_patterns.json / disk by hand to know whether this is 'no data at
-    all' or 'raw arrived, derivative didn't'."""
+def test_missing_entry_is_tagged_and_says_not_found_when_derivatives_dir_absent(tmp_path):
+    """sub-STUNIPD0002 has native T1w but no mni lesion_mask, and no
+    derivatives/manual_masks/sub-STUNIPD0002/ folder at all (only
+    sub-STUNIPD0001 has one in this fixture) - describe_absence must say
+    "not found", not "empty folder" (that's only when the folder exists but
+    has nothing in it - see test_dataset_lesion.py). No cross-space
+    annotation - that comparison is the data_summary report's job (see
+    src.retrieval.matrix), not this pipeline's. Tagged with its (space,
+    modality) group so multi-item runs can be sub-grouped (see
+    _build_report tests)."""
     project_root = _make_washu_like(tmp_path)
     config = _make_config(
         tmp_path,
@@ -194,74 +184,8 @@ def test_missing_entry_notes_subject_has_data_in_the_other_space(tmp_path):
     assert stats["UNIPD/WashU"].missing == [
         ReportEntry(
             group="mni/lesion_mask",
-            line="UNIPD/WashU: sub-STUNIPD0002 - no mni/lesion_mask (in native not in mni)",
+            line="UNIPD/WashU: sub-STUNIPD0002 - no mni/lesion_mask (not found)",
         )
-    ]
-
-
-def test_missing_entry_notes_reverse_direction_when_only_mni_present(tmp_path):
-    project_root = tmp_path
-    root = project_root / "UNIPD" / "WashU"
-    # A second subject with native T1w, so the dataset-wide availability check
-    # (native/T1w must exist *somewhere* in this dataset) still passes - only
-    # sub-STUNIPD0099 itself is missing it, which is what this test is about.
-    _touch(root / "sub-STUNIPD0001" / "anat" / "sub-STUNIPD0001_T1w.nii.gz")
-    # sub-STUNIPD0099's own folder must exist for Dataset.subjects() to know
-    # about it at all - only its derivatives/manual_masks entry carries data.
-    _touch(root / "sub-STUNIPD0099" / "dwi" / "sub-STUNIPD0099_dwi.nii.gz")
-    _touch(
-        root
-        / "derivatives"
-        / "manual_masks"
-        / "sub-STUNIPD0099"
-        / "anat"
-        / "sub-STUNIPD0099_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
-    )
-    config = _make_config(
-        tmp_path,
-        project_root,
-        retrieve=[RetrieveItem(space="native", modality="T1w")],
-        subjects=["sub-STUNIPD0099"],
-        group_filter=None,
-    )
-    datasets = retrieve_data._build_datasets(config)
-    retrieve_data._validate_upfront(datasets, config)
-    stats = retrieve_data._retrieve_all(datasets, config)
-    assert stats["UNIPD/WashU"].missing == [
-        ReportEntry(
-            group="native/T1w",
-            line="UNIPD/WashU: sub-STUNIPD0099 - no native/T1w (in mni not in native)",
-        )
-    ]
-
-
-def test_missing_entry_has_no_annotation_when_subject_has_neither_space(tmp_path):
-    project_root = tmp_path
-    root = project_root / "UNIPD" / "WashU"
-    _touch(root / "sub-STUNIPD0099" / "anat" / "placeholder_not_a_registered_file.txt")
-    # A second subject with an mni mask, so the dataset-wide availability
-    # check (mni/lesion_mask must exist *somewhere*) still passes - only
-    # sub-STUNIPD0099 itself has neither space, which is what this test covers.
-    _touch(
-        root
-        / "derivatives"
-        / "manual_masks"
-        / "sub-STUNIPD0001"
-        / "anat"
-        / "sub-STUNIPD0001_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
-    )
-    config = _make_config(
-        tmp_path,
-        project_root,
-        retrieve=[RetrieveItem(space="mni", modality="lesion_mask")],
-        subjects=["sub-STUNIPD0099"],
-        group_filter=None,
-    )
-    datasets = retrieve_data._build_datasets(config)
-    retrieve_data._validate_upfront(datasets, config)
-    stats = retrieve_data._retrieve_all(datasets, config)
-    assert stats["UNIPD/WashU"].missing == [
-        ReportEntry(group="mni/lesion_mask", line="UNIPD/WashU: sub-STUNIPD0099 - no mni/lesion_mask")
     ]
 
 
@@ -314,7 +238,7 @@ def test_copy_one_copies_new_file(tmp_path):
     source.write_bytes(b"data")
     destination = tmp_path / "out" / "dest.nii.gz"
     stats = retrieve_data.DatasetStats()
-    retrieve_data._copy_one(source, destination, overwrite=False, stats=stats)
+    retrieve_data._copy_one(source, destination, overwrite=False, stats=stats, label="test")
     assert destination.read_bytes() == b"data"
     assert stats.copied == 1
 
@@ -325,7 +249,7 @@ def test_copy_one_skips_existing_when_overwrite_false(tmp_path):
     destination = tmp_path / "dest.nii.gz"
     destination.write_bytes(b"old")
     stats = retrieve_data.DatasetStats()
-    retrieve_data._copy_one(source, destination, overwrite=False, stats=stats)
+    retrieve_data._copy_one(source, destination, overwrite=False, stats=stats, label="test")
     assert destination.read_bytes() == b"old"
     assert stats.skipped_existing == 1
     assert stats.copied == 0
@@ -337,7 +261,7 @@ def test_copy_one_overwrites_when_true(tmp_path):
     destination = tmp_path / "dest.nii.gz"
     destination.write_bytes(b"old")
     stats = retrieve_data.DatasetStats()
-    retrieve_data._copy_one(source, destination, overwrite=True, stats=stats)
+    retrieve_data._copy_one(source, destination, overwrite=True, stats=stats, label="test")
     assert destination.read_bytes() == b"new"
     assert stats.copied == 1
 
@@ -351,8 +275,13 @@ def test_copy_one_logs_and_continues_on_failure(tmp_path, monkeypatch):
     source.write_bytes(b"data")
     destination = tmp_path / "dest.nii.gz"
     stats = retrieve_data.DatasetStats()
-    retrieve_data._copy_one(source, destination, overwrite=False, stats=stats)  # must not raise
-    assert stats.failed == 1
+    retrieve_data._copy_one(
+        source, destination, overwrite=False, stats=stats, label="UNIPD/WashU: sub-A - native/T1w", group="native/T1w"
+    )  # must not raise
+    assert len(stats.failed) == 1
+    assert stats.failed[0] == ReportEntry(
+        group="native/T1w", line="UNIPD/WashU: sub-A - native/T1w: copy failed (disk full)"
+    )
     assert stats.copied == 0
 
 
@@ -389,9 +318,8 @@ def test_full_run_end_to_end(tmp_path, monkeypatch):
     report_path = retrieve_data._write_report(config, stats)
     report_text = report_path.read_text()
     assert "UNIPD/WashU" in report_text
-    # 3 subjects selected, all 3 have native (T1w), only sub-STUNIPD0001 has mni (lesion_mask),
-    # 3 copied, 0 skipped, 0 failed, participants.tsv not requested (include_tabular_data=False).
-    assert "| UNIPD/WashU | 3 | 3 | 1 | 3 | 0 | 0 | not requested |" in report_text
+    # 3 copied, 0 skipped, 0 failed.
+    assert "| UNIPD/WashU | 3 | 0 | 0 |" in report_text
 
 
 def _minimal_config(tmp_path, **overrides):
@@ -444,14 +372,14 @@ def test_build_report_groups_missing_by_dataset_with_counts_and_separator(tmp_pa
         "- UNIPD/WashU: sub-A - no mni/lesion_mask\n"
         "- UNIPD/WashU: sub-B - no mni/lesion_mask\n"
         "\n"
-        "Missing Count = 2\n"
+        "File Not Found Count = 2\n"
         "\n"
         "---\n"
         "\n"
         "**mni/lesion_mask** (1)\n"
         "- UNIPD/PASPORT: sub-C - no mni/lesion_mask\n"
         "\n"
-        "Missing Count = 1"
+        "File Not Found Count = 1"
     )
     assert expected_block in report
 
@@ -479,7 +407,7 @@ def test_build_report_sub_groups_missing_by_modality_within_one_dataset(tmp_path
         "**mni/lesion_mask** (1)\n"
         "- UNIPD/WashU: sub-A - no mni/lesion_mask\n"
         "\n"
-        "Missing Count = 3"
+        "File Not Found Count = 3"
     )
     assert expected_block in report
 
@@ -493,9 +421,28 @@ def test_build_report_omits_dataset_with_no_missing_entries(tmp_path):
         "UNIPD/PASPORT": retrieve_data.DatasetStats(missing=[]),
     }
     report = retrieve_data._build_report(config, stats, datetime(2026, 7, 9, 10, 22))
-    missing_section = report.split("## Missing")[1].split("## Ambiguous")[0]
+    missing_section = report.split("## File not found")[1].split("## Non-conforming")[0]
     assert "UNIPD/PASPORT" not in missing_section
-    assert missing_section.count("Missing Count") == 1
+    assert missing_section.count("File Not Found Count") == 1
+
+
+def test_build_report_includes_failed_section(tmp_path):
+    config = _minimal_config(tmp_path)
+    stats = {
+        "UNIPD/WashU": retrieve_data.DatasetStats(
+            failed=[
+                ReportEntry(
+                    group="mni/lesion_mask",
+                    line="UNIPD/WashU: sub-A - mni/lesion_mask: copy failed (disk full)",
+                )
+            ]
+        ),
+        "UNIPD/PASPORT": retrieve_data.DatasetStats(),
+    }
+    report = retrieve_data._build_report(config, stats, datetime(2026, 7, 9, 10, 22))
+    assert "## Failed" in report
+    assert "Failed Count = 1" in report
+    assert "| UNIPD/WashU | 0 | 0 | 1 |" in report  # summary table's failed column reflects len(failed)
 
 
 def test_build_report_includes_ambiguous_and_non_conforming_sections(tmp_path):

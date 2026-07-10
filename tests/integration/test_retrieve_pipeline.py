@@ -52,9 +52,10 @@ def test_end_to_end_small_real_run(tmp_path, monkeypatch):
     stats = retrieve_data._retrieve_all(datasets, config)
 
     assert stats["UNIPD/PASPORT"].subjects_selected == 2
-    assert stats["UNIPD/PASPORT"].copied == 2
-    assert stats["UNIPD/PASPORT"].failed == 0
-    assert stats["UNIPD/PASPORT"].participants_status == "copied"
+    # 2 subjects' mni/lesion_mask + participants.tsv folded into the same copied count
+    # (see _retrieve_participants reusing _copy_one).
+    assert stats["UNIPD/PASPORT"].copied == 3
+    assert stats["UNIPD/PASPORT"].failed == []
 
     for subject_id in subjects:
         copied = (
@@ -79,5 +80,5 @@ def test_end_to_end_small_real_run(tmp_path, monkeypatch):
     # Second run, overwrite=False: everything should be skipped, nothing re-copied.
     stats_second_run = retrieve_data._retrieve_all(datasets, config)
     assert stats_second_run["UNIPD/PASPORT"].copied == 0
-    assert stats_second_run["UNIPD/PASPORT"].skipped_existing == 2
-    assert stats_second_run["UNIPD/PASPORT"].participants_status == "skipped (exists)"
+    # 2 subjects' mni/lesion_mask + participants.tsv, all already present.
+    assert stats_second_run["UNIPD/PASPORT"].skipped_existing == 3

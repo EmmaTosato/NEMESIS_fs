@@ -128,24 +128,25 @@ def test_resolve_mni_mask_returns_none_when_missing_for_subject(tmp_path):
     assert ds.resolve("sub-STUNIPD0002", "mni", "lesion_mask") is None
 
 
-def test_has_any_true_when_subject_has_at_least_one_native_modality(tmp_path):
+def test_describe_absence_not_found_when_folder_does_not_exist_at_all(tmp_path):
     root = _make_washu_like(tmp_path)
     ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
-    # sub-STUNIPD0002 has T1w but no lesion_roi/FLAIR - still counts as "has native".
-    assert ds.has_any("sub-STUNIPD0002", "native") is True
+    # sub-STUNIPD0002 has no derivatives/manual_masks/sub-STUNIPD0002/ folder at all.
+    assert ds.describe_absence("sub-STUNIPD0002", "mni", "lesion_mask") == "not found"
 
 
-def test_has_any_true_when_subject_has_mni_derivative(tmp_path):
+def test_describe_absence_not_found_when_folder_has_other_content(tmp_path):
     root = _make_washu_like(tmp_path)
     ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
-    assert ds.has_any("sub-STUNIPD0001", "mni") is True
+    # sub-STUNIPD0002's anat/ folder exists and has a T1w file, just not lesion_roi.
+    assert ds.describe_absence("sub-STUNIPD0002", "native", "lesion_roi") == "not found"
 
 
-def test_has_any_false_when_subject_has_none_of_the_space_modalities(tmp_path):
+def test_describe_absence_empty_folder_when_folder_exists_with_nothing_in_it(tmp_path):
     root = _make_washu_like(tmp_path)
+    (root / "UNIPD" / "WashU" / "sub-STUNIPD0099" / "anat").mkdir(parents=True)
     ds = Dataset(root, "UNIPD/WashU", _PATTERNS)
-    # sub-STUNIPD0002 has no mni derivative at all.
-    assert ds.has_any("sub-STUNIPD0002", "mni") is False
+    assert ds.describe_absence("sub-STUNIPD0099", "native", "T1w") == "empty folder"
 
 
 def test_available_true_when_at_least_one_subject_has_it(tmp_path):

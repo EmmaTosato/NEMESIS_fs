@@ -222,8 +222,9 @@ def test_file_patterns_modalities_for_returns_only_that_space(tmp_path):
 def test_file_patterns_modalities_for_space_absent_from_registry_is_empty(tmp_path):
     """A registry that only defines "native" (no "mni" key at all - a valid,
     if unusual, registry per load_file_patterns) must report zero modalities
-    for "mni", not raise - Dataset.has_any relies on this to mean "nothing
-    registered for this space", distinct from KNOWN_SPACES validity."""
+    for "mni", not raise - src.retrieval.matrix relies on this to build zero
+    columns for a space with nothing registered, distinct from KNOWN_SPACES
+    validity."""
     path = _write_file_patterns(
         tmp_path, {"native": {"T1w": ["{subject_id}/anat/{subject_id}_T1w.nii.gz"]}}
     )

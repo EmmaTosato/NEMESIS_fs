@@ -51,9 +51,10 @@ class FilePatterns:
         return (space, modality) in self.patterns
 
     def modalities_for(self, space: str) -> list[str]:
-        """Every modality registered under `space` - used to check whether a
-        subject has *any* file in that space, without pinning down one
-        specific modality (e.g. Dataset.has_any)."""
+        """Every modality registered under `space` - used to enumerate all
+        (space, modality) columns of the dataset-wide availability matrix
+        (see src.retrieval.matrix), independent of what any specific
+        retrieval run's `retrieve` list asks for."""
         return [modality for (s, modality) in self.patterns if s == space]
 
 

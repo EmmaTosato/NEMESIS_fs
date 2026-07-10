@@ -32,11 +32,12 @@ REPORT_FILENAME_PREFIX = "copy_summary"
 
 @dataclass(frozen=True)
 class ReportEntry:
-    """One Missing/Ambiguous line, tagged with which (space, modality) it
-    belongs to - lets the report sub-group entries by that instead of
-    dumping every retrieve item's misses into one flat per-dataset list.
+    """One Failed/Missing/Ambiguous line, tagged with which (space, modality)
+    it belongs to - lets the report sub-group entries by that instead of
+    dumping every retrieve item's issues into one flat per-dataset list.
     `group` is "" for entries not tied to one specific retrieve item (e.g.
-    an explicitly requested subject absent from this dataset entirely)."""
+    an explicitly requested subject absent from this dataset entirely, or a
+    failed participants.tsv copy)."""
 
     group: str
     line: str
@@ -47,7 +48,7 @@ class DatasetStats:
     subjects_selected: int = 0
     copied: int = 0
     skipped_existing: int = 0
-    failed: int = 0
+    failed: list[ReportEntry] = field(default_factory=list)
     missing: list[ReportEntry] = field(default_factory=list)
     ambiguous: list[ReportEntry] = field(default_factory=list)
     non_conforming: list[str] = field(default_factory=list)
@@ -112,7 +113,14 @@ def _destination_path(
     return config.output_root / config.project / dataset_name / subject_id / "lesion" / space / source.name
 
 
-def _copy_one(source: Path, destination: Path, overwrite: bool, stats: DatasetStats) -> None:
+def _copy_one(
+    source: Path, destination: Path, overwrite: bool, stats: DatasetStats, label: str, group: str = ""
+) -> None:
+    """`label` identifies the file for the Failed-section entry - e.g.
+    "<dataset>: <subject_id> - <space>/<modality>" for a lesion file, or
+    "<dataset>: participants.tsv". `group` is the (space, modality) tag used
+    to sub-group Failed like Missing/Ambiguous (see ReportEntry) - "" for
+    files not tied to one specific retrieve item (e.g. participants.tsv)."""
     if destination.exists() and not overwrite:
         logging.info("skip (exists): %s", destination)
         stats.skipped_existing += 1
@@ -122,22 +130,26 @@ def _copy_one(source: Path, destination: Path, overwrite: bool, stats: DatasetSt
         shutil.copy2(source, destination)
     except OSError as exc:
         logging.warning("copy failed: %s -> %s (%s)", source, destination, exc, exc_info=True)
-        stats.failed += 1
+        stats.failed.append(ReportEntry(group=group, line=f"{label}: copy failed ({exc})"))
         return
     logging.info("copied: %s", destination)
     stats.copied += 1
 
 
-def _missing_message(name: str, subject_id: str, item: RetrieveItem) -> ReportEntry:
-    """Missing-file entry for the report, tagged with the (space, modality)
+def _missing_message(ds: Dataset, name: str, subject_id: str, item: RetrieveItem) -> ReportEntry:
+    """File-not-found entry for the report, tagged with the (space, modality)
     that produced it (see ReportEntry) so multiple retrieve items don't get
-    interleaved into one flat list per dataset. Whether this subject has
-    data in some other space/modality is a separate question, answered by
-    the full per-subject matrix report (src.retrieval.matrix), not by this
-    pipeline - this line only states what THIS run looked for and didn't
-    find."""
+    interleaved into one flat list per dataset. Distinguishes *why* nothing
+    matched - "empty folder" (the directory that would hold the file exists
+    but has nothing in it - the file was simply never produced for this
+    subject) vs "not found" (every other case) - see Dataset.describe_absence.
+    Whether this subject has data in some *other* space/modality is a
+    separate question, answered by the data_summary report
+    (src.retrieval.matrix), not here."""
+    reason = ds.describe_absence(subject_id, item.space, item.modality)
     return ReportEntry(
-        group=f"{item.space}/{item.modality}", line=f"{name}: {subject_id} - no {item.space}/{item.modality}"
+        group=f"{item.space}/{item.modality}",
+        line=f"{name}: {subject_id} - no {item.space}/{item.modality} ({reason})",
     )
 
 
@@ -147,7 +159,7 @@ def _retrieve_subject(
     for item in config.retrieve:
         resolved = ds.resolve(subject_id, item.space, item.modality)
         if resolved is None:
-            stats.missing.append(_missing_message(name, subject_id, item))
+            stats.missing.append(_missing_message(ds, name, subject_id, item))
             continue
         if resolved.extra_matches:
             extra_names = ", ".join(m.name for m in resolved.extra_matches)
@@ -167,7 +179,8 @@ def _retrieve_subject(
                 extra_names,
             )
         destination = _destination_path(config, name, subject_id, item.space, resolved.path)
-        _copy_one(resolved.path, destination, config.overwrite, stats)
+        label = f"{name}: {subject_id} - {item.space}/{item.modality}"
+        _copy_one(resolved.path, destination, config.overwrite, stats, label, group=f"{item.space}/{item.modality}")
 
 
 def _retrieve_participants(name: str, ds: Dataset, config: RetrievalConfig, stats: DatasetStats) -> None:
@@ -175,13 +188,13 @@ def _retrieve_participants(name: str, ds: Dataset, config: RetrievalConfig, stat
     file - its outcome folds into the same copied/skipped/failed counts
     already in the summary table, rather than a separate status field only
     this one file had. Absence at source (e.g. WashU has none) is a
-    legitimate per-dataset fact, not tracked here - see the dataset matrix
+    legitimate per-dataset fact, not tracked here - see the data_summary
     report (src.retrieval.matrix) for what each dataset does/doesn't have."""
     source = ds.participants_tsv_path()
     if source is None:
         return
     destination = config.output_root / config.project / name / "participants.tsv"
-    _copy_one(source, destination, config.overwrite, stats)
+    _copy_one(source, destination, config.overwrite, stats, f"{name}: participants.tsv")
 
 
 def _report_explicit_subjects_absent_from_dataset(
@@ -305,7 +318,7 @@ def _grouped_section(
 def _grouped_by_modality_section(
     stats: dict[str, DatasetStats], attr: str, title: str, subtitle: str, count_label: str
 ) -> list[str]:
-    """Rendering for Missing/Ambiguous: same per-dataset grouping as
+    """Rendering for Failed/Ambiguous/Missing: same per-dataset grouping as
     _grouped_section, but each dataset's entries (list[ReportEntry]) are
     further sub-grouped by which (space, modality) produced them, each with
     its own sub-heading and count - a run requesting several modalities in
@@ -346,20 +359,18 @@ def _build_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: 
         "",
         "## Summary",
         "",
-        "| dataset | subjects | copied | skipped (exists) | failed |",
-        "|---|---|---|---|---|",
+        "| dataset | copied | skipped (exists) | failed |",
+        "|---|---|---|---|",
     ]
     for name, s in stats.items():
-        lines.append(
-            f"| {name} | {s.subjects_selected} | {s.copied} | {s.skipped_existing} | {s.failed} |"
-        )
+        lines.append(f"| {name} | {s.copied} | {s.skipped_existing} | {len(s.failed)} |")
     lines += _grouped_by_modality_section(
         stats,
-        "missing",
-        "Missing",
-        "File not found for a specific subject, or an explicitly requested subject not "
-        "present in this dataset. Sub-grouped by which space/modality was requested.",
-        "Missing Count",
+        "failed",
+        "Failed",
+        "A file's copy did not complete correctly, for the reason given. Sub-grouped by "
+        "which space/modality was requested.",
+        "Failed Count",
     )
     lines += _grouped_by_modality_section(
         stats,
@@ -368,6 +379,16 @@ def _build_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: 
         "More than one registered file matched for a subject - the highest-priority one "
         "was used. Sub-grouped by which space/modality was requested.",
         "Ambiguous Count",
+    )
+    lines += _grouped_by_modality_section(
+        stats,
+        "missing",
+        "File not found",
+        "No registered file found for a specific subject (or an explicitly requested "
+        "subject not present in this dataset). \"empty folder\" means the directory that "
+        "would hold the file exists but is empty; \"not found\" covers every other case. "
+        "Sub-grouped by which space/modality was requested.",
+        "File Not Found Count",
     )
     lines += _grouped_section(
         stats,

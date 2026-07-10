@@ -124,6 +124,21 @@ class Dataset:
             return None
         return ResolvedFile(path=existing[0], extra_matches=tuple(existing[1:]))
 
+    def describe_absence(self, subject_id: str, space: str, modality: str) -> str:
+        """Why resolve() returned None for this (subject, space, modality) -
+        call only once that's already been confirmed, this does not
+        re-check. "empty folder" if the directory that would hold the file
+        (the parent of the highest-priority registered template) exists but
+        has nothing in it at all - the file was simply never produced for
+        this subject. "not found" for every other case (the directory
+        doesn't exist, or has other content but not this file). Reporting
+        only - resolve()/available() never call this."""
+        template = self.file_patterns.templates_for(space, modality)[0]
+        folder = (self.lesion_root / template.format(subject_id=subject_id)).parent
+        if folder.is_dir() and not any(folder.iterdir()):
+            return "empty folder"
+        return "not found"
+
     def participants_tsv_path(self) -> Path | None:
         """Path to participants.tsv, or None if this dataset has none (e.g. WashU)."""
         path = self.lesion_root / "participants.tsv"

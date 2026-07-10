@@ -138,17 +138,18 @@ Filenames are exactly as at the source — nothing renamed or transformed.
 
 ## After running: inspecting the output
 
-1. **Open the report** — `reports/data_retrieval/clinical_connectome/<dd-mm-yy>__<hh-mm>.md`. Check the summary table first, then the sections below it for anything flagged (Missing, Ambiguous, Non-conforming, Mismatched, ...).
-2. **Need more detail on a flagged item?** Open the matching log — `logs/data_retrieval/clinical_connectome/<dd-mm-yy>__<hh-mm>.log` (same filename stem as the report, so it's always easy to find). It has the full file-by-file narrative, in the order things happened.
-3. **Optional — re-verify `data/` later without a new run**: `scripts/verify_retrieval.py` (see below) re-checks everything currently in `data/` against source, read-only. Useful before starting analysis on data fetched a while ago, or if you suspect local disk issues.
+1. **Open the report** — `reports/data_retrieval/clinical_connectome/copy_summary__<dd-mm-yy>__<hh-mm>.md`. Check the summary table first, then the sections below it for anything flagged (Missing, Ambiguous, Non-conforming, Mismatched, ...).
+2. **Need more detail on a flagged item?** Open the matching log — `logs/data_retrieval/clinical_connectome/copy_summary__<dd-mm-yy>__<hh-mm>.log` (same filename stem as the report, so it's always easy to find). It has the full file-by-file narrative, in the order things happened.
+3. **Want the full picture of what a dataset has, not just this run's gaps?** See [Dataset matrix](#dataset-matrix-the-full-picture) below.
+4. **Optional — re-verify `data/` later without a new run**: `scripts/verify_retrieval.py` (see below) re-checks everything currently in `data/` against source, read-only. Useful before starting analysis on data fetched a while ago, or if you suspect local disk issues.
 
 ### The report
 
-Every run writes the report above — starting with the config actually used (so you can always tell which settings produced it), then a summary table, then sections listing anything worth a second look, each grouped by dataset with a count.
+Every run writes the report above — starting with the config actually used (so you can always tell which settings produced it), then a summary table (subjects selected, copied, skipped (exists), failed - per dataset), then sections listing anything worth a second look, each a title heading with an explanation on the line right below it, grouped by dataset with a count.
 
-The summary table has, per dataset: subjects selected, `native`, `mni`, copied/skipped/failed, participants status. `native`/`mni` say how many of the selected subjects have *any* file in that space at all (any of T1w/T2w/FLAIR/CT/lesion_roi for native, the lesion mask for mni — see `config/file_patterns.json`) — regardless of which one this run actually requested. Useful for a quick sanity check: e.g. if `native` is much higher than `mni` for a dataset, most subjects there simply don't have the MNI-space lesion mask produced yet.
+This report only explains **this run**: what it looked for (`retrieve`) and what it did or didn't find. It does not say anything about whether a subject has other data your `retrieve` list didn't ask about - for that, see [Dataset matrix](#dataset-matrix-the-full-picture) below.
 
-- **Missing** — a specific file missing for a specific subject, or an explicitly requested subject not present in that dataset. When the subject has data in the *other* space, the line says so inline, e.g. `sub-STUNIPD0004 - no mni/lesion_mask (in native not in mni)` means: this subject has native (raw) data, it's specifically the MNI derivative that's missing — as opposed to a bare `no mni/lesion_mask` with no suffix, which means the subject has neither space at all. If `retrieve` asks for more than one `{space, modality}` (e.g. both `native/T1w` and `mni/lesion_mask`), each dataset's Missing entries are further split into one sub-list per requested item (`**native/T1w** (12)`, `**mni/lesion_mask** (5)`, ...) instead of being mixed together — the dataset's overall `Missing Count` still counts everything.
+- **Missing** — a specific file missing for a specific subject, or an explicitly requested subject not present in that dataset. If `retrieve` asks for more than one `{space, modality}` (e.g. both `native/T1w` and `mni/lesion_mask`), each dataset's Missing entries are split into one sub-list per requested item (`**native/T1w** (12)`, `**mni/lesion_mask** (5)`, ...) instead of being mixed together — the dataset's overall `Missing Count` still counts everything.
 - **Ambiguous** — more than one registered filename matched for a subject (see above); the highest-priority one was used regardless.
 - **Non-conforming subject folders** — folders that don't follow the naming convention, excluded from retrieval.
 - **Mismatched** — a local file's content no longer matches its current source (see below).
@@ -156,6 +157,18 @@ The summary table has, per dataset: subjects selected, `native`, `mni`, copied/s
 - **Unexpected local files** — present in `data/` but not the current resolution for any expected subject/modality (stale naming, or a leftover from before the config or source changed).
 
 The last three are also logged at ERROR/WARNING level, with an aggregate count line right before "done". Never a list of successful copies — just the exceptions worth looking at.
+
+### Dataset matrix: the full picture
+
+`copy_summary` only tells you about the exact `(space, modality)` combinations a given run's `retrieve` asked for. To see everything a dataset has - every registered modality, for every subject, at once - run the separate, read-only matrix report:
+
+```bash
+PYTHONPATH=. conda run -n nemesis python scripts/dataset_matrix.py --config config/data_retrieval.json
+```
+
+Writes `reports/data_retrieval/clinical_connectome/dataset_matrix__<dd-mm-yy>__<hh-mm>.md`: one table per dataset, one row per subject, one column per `(space, modality)` registered in `config/file_patterns.json` (e.g. `native/T1w`, `native/lesion_roi`, `mni/lesion_mask`). Each cell shows the resolved filename, or `missing` if nothing was found. A `**present**` row at the bottom of each table counts how many subjects have a real file per column - for a combination you actually retrieve, that count should match `copied + skipped (exists)` in the corresponding `copy_summary` report; if it doesn't, something changed on the source between the two runs, or one of the reports is stale.
+
+Nothing is copied or modified - purely a read of the current source, same as `verify_retrieval.py`.
 
 ### Verification: a final pass, once every dataset has finished copying
 
