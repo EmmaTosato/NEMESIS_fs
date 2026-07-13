@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from src.retrieval.config import load_file_patterns
+from src.retrieval.config import RetrieveItem, load_file_patterns
 from src.retrieval.dataset import Dataset
 
 PROJECT_ROOT = Path("/data/corbetta/Clinical_connectome")
@@ -55,53 +55,61 @@ def test_mni_mask_resolution_matches_raw_filesystem(dataset_name):
     or Dataset at all. Compared against Dataset.resolve() for the same set of
     subjects; any difference is a real bug in the resolution logic, since both
     sides look at the filesystem at the same moment."""
-    ds = Dataset(PROJECT_ROOT, dataset_name, FILE_PATTERNS)
-    valid_subjects = set(ds.subjects())
+    ds = Dataset(dataset_name, FILE_PATTERNS)
+    valid_subjects = set(ds.subjects("lesion", "native"))
     manual_masks_root = PROJECT_ROOT / dataset_name / "derivatives" / "manual_masks"
     ground_truth = {
         _subject_id_from_match(path) for path in manual_masks_root.glob(_MNI_MASK_GLOB)
     } & valid_subjects
-    via_resolve = {sub for sub in valid_subjects if ds.resolve(sub, "mni", "lesion_mask") is not None}
+    item = RetrieveItem(object="lesion", space="mni", modality="lesion_mask")
+    via_resolve = {sub for sub in valid_subjects if ds.resolve(sub, item)}
     assert via_resolve == ground_truth
 
 
 @pytest.mark.parametrize("dataset_name", ["UNIPD/WashU", "UKLFR/stroke_UKLFR"])
 def test_native_t1w_resolution_matches_raw_filesystem(dataset_name):
-    ds = Dataset(PROJECT_ROOT, dataset_name, FILE_PATTERNS)
-    valid_subjects = set(ds.subjects())
+    ds = Dataset(dataset_name, FILE_PATTERNS)
+    valid_subjects = set(ds.subjects("lesion", "native"))
     dataset_root = PROJECT_ROOT / dataset_name
     ground_truth = {
         _subject_id_from_match(path) for path in dataset_root.glob(_NATIVE_T1W_GLOB)
     } & valid_subjects
-    via_resolve = {sub for sub in valid_subjects if ds.resolve(sub, "native", "T1w") is not None}
+    item = RetrieveItem(object="lesion", space="native", modality="T1w")
+    via_resolve = {sub for sub in valid_subjects if ds.resolve(sub, item)}
     assert via_resolve == ground_truth
 
 
 @pytest.mark.parametrize("dataset_name", list(EXPECTED_AVAILABLE_MODALITIES))
 def test_available_matches_verified_table(dataset_name):
-    ds = Dataset(PROJECT_ROOT, dataset_name, FILE_PATTERNS)
-    available = {modality for modality in ALL_NATIVE_MODALITIES if ds.available("native", modality)}
+    ds = Dataset(dataset_name, FILE_PATTERNS)
+    available = {
+        modality for modality in ALL_NATIVE_MODALITIES if ds.available("lesion", "native", modality)
+    }
     assert available == EXPECTED_AVAILABLE_MODALITIES[dataset_name]
 
 
 def test_psp_has_no_native_lesion_roi():
-    ds = Dataset(PROJECT_ROOT, "UNIPD/PSP", FILE_PATTERNS)
-    assert ds.available("native", "lesion_roi") is False
-    assert ds.resolve(ds.subjects()[0], "native", "lesion_roi") is None
+    ds = Dataset("UNIPD/PSP", FILE_PATTERNS)
+    assert ds.available("lesion", "native", "lesion_roi") is False
+    subject_id = ds.subjects("lesion", "native")[0]
+    assert ds.resolve(subject_id, RetrieveItem(object="lesion", space="native", modality="lesion_roi")) == []
 
 
-def test_no_ambiguous_matches_across_real_data():
-    """Regression for the priority-list ambiguity: confirms no real subject,
-    in any in-scope dataset, currently has files matching more than one
-    registered lesion_roi naming variant simultaneously."""
+def test_no_subject_has_more_than_one_lesion_roi_naming_variant():
+    """Data-quality check, not a resolution-logic regression anymore (there is
+    no priority/ambiguity concept - see FilePatterns docstring: resolve()
+    copies every matching template). Still worth knowing whether any real
+    subject, in any in-scope dataset, currently has files matching more than
+    one registered lesion_roi naming variant simultaneously - that subject
+    would get 2 files copied instead of 1."""
+    item = RetrieveItem(object="lesion", space="native", modality="lesion_roi")
     for dataset_name in EXPECTED_AVAILABLE_MODALITIES:
-        ds = Dataset(PROJECT_ROOT, dataset_name, FILE_PATTERNS)
-        if not ds.available("native", "lesion_roi"):
+        ds = Dataset(dataset_name, FILE_PATTERNS)
+        if not ds.available("lesion", "native", "lesion_roi"):
             continue
-        for subject_id in ds.subjects():
-            resolved = ds.resolve(subject_id, "native", "lesion_roi")
-            if resolved is not None:
-                assert resolved.extra_matches == (), (
-                    f"{dataset_name}: {subject_id} unexpectedly has an ambiguous "
-                    f"lesion_roi match: {resolved.extra_matches}"
-                )
+        for subject_id in ds.subjects("lesion", "native"):
+            resolved = ds.resolve(subject_id, item)
+            assert len(resolved) <= 1, (
+                f"{dataset_name}: {subject_id} has {len(resolved)} lesion_roi naming "
+                f"variants simultaneously: {[p.name for p in resolved]}"
+            )

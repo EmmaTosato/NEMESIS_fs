@@ -22,8 +22,9 @@ pytestmark = pytest.mark.skipif(
 
 
 def _two_subjects_with_mni_mask(dataset_name: str, file_patterns) -> list[str]:
-    ds = Dataset(PROJECT_ROOT, dataset_name, file_patterns)
-    with_mask = [s for s in ds.subjects(group="ST") if ds.resolve(s, "mni", "lesion_mask") is not None]
+    ds = Dataset(dataset_name, file_patterns)
+    item = RetrieveItem(object="lesion", space="mni", modality="lesion_mask")
+    with_mask = [s for s in ds.subjects("lesion", "native", group="ST") if ds.resolve(s, item)]
     return with_mask[:2]
 
 
@@ -36,13 +37,12 @@ def test_end_to_end_small_real_run(tmp_path, monkeypatch):
     config = RetrievalConfig(
         output_root=tmp_path / "data",
         project="clinical_connectome",
-        project_root=PROJECT_ROOT,
         file_patterns_path=FILE_PATTERNS_PATH,
         file_patterns=file_patterns,
         datasets=["UNIPD/PASPORT"],
         group_filter=None,
         subjects=subjects,
-        retrieve=[RetrieveItem(space="mni", modality="lesion_mask")],
+        retrieve=[RetrieveItem(object="lesion", space="mni", modality="lesion_mask")],
         include_tabular_data=True,
         overwrite=False,
     )

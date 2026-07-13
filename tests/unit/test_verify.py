@@ -4,15 +4,18 @@ from src.retrieval import verify
 from src.retrieval.config import FilePatterns, RetrievalConfig, RetrieveItem
 from src.retrieval.dataset import Dataset
 
-_FILE_PATTERNS = FilePatterns(
-    patterns={
-        ("native", "T1w"): ["{subject_id}/anat/{subject_id}_T1w.nii.gz"],
-        ("mni", "lesion_mask"): [
-            "derivatives/manual_masks/{subject_id}/anat/"
-            "{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
-        ],
-    }
-)
+
+def _make_patterns(project_root):
+    return FilePatterns(
+        project_roots={"lesion": project_root},
+        patterns={
+            ("lesion", "native", "T1w"): ["{subject_id}/anat/{subject_id}_T1w.nii.gz"],
+            ("lesion", "mni", "lesion_mask"): [
+                "derivatives/manual_masks/{subject_id}/anat/"
+                "{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
+            ],
+        },
+    )
 
 
 def _touch(path, content=b"data"):
@@ -24,13 +27,12 @@ def _make_config(tmp_path, project_root, **overrides):
     defaults = dict(
         output_root=tmp_path / "data",
         project="clinical_connectome",
-        project_root=project_root,
         file_patterns_path=tmp_path / "file_patterns.json",
-        file_patterns=_FILE_PATTERNS,
+        file_patterns=_make_patterns(project_root),
         datasets=["UNIPD/WashU"],
         group_filter=["ST"],
         subjects=None,
-        retrieve=[RetrieveItem(space="native", modality="T1w")],
+        retrieve=[RetrieveItem(object="lesion", space="native", modality="T1w")],
         include_tabular_data=False,
         overwrite=False,
     )
@@ -41,7 +43,7 @@ def _make_config(tmp_path, project_root, **overrides):
 def _make_dataset(tmp_path):
     root = tmp_path / "UNIPD" / "WashU"
     _touch(root / "sub-STUNIPD0001" / "anat" / "sub-STUNIPD0001_T1w.nii.gz", b"content-1")
-    ds = Dataset(tmp_path, "UNIPD/WashU", _FILE_PATTERNS)
+    ds = Dataset("UNIPD/WashU", _make_patterns(tmp_path))
     return tmp_path, ds
 
 
@@ -81,7 +83,7 @@ def test_verify_dataset_flags_checksum_mismatch(tmp_path):
 
     assert len(result.mismatched) == 1
     assert "sub-STUNIPD0001" in result.mismatched[0]
-    assert "native/T1w" in result.mismatched[0]
+    assert "lesion/native/T1w" in result.mismatched[0]
 
 
 def test_verify_dataset_flags_missing_locally_when_source_has_file_but_local_does_not(tmp_path):
@@ -97,8 +99,9 @@ def test_verify_dataset_flags_missing_locally_when_source_has_file_but_local_doe
 
 
 def test_verify_dataset_skips_subjects_where_source_has_no_file(tmp_path):
-    """resolved is None (source itself lacks the file) is not a verification
-    concern - already covered by stats.missing during the copy phase."""
+    """An empty resolve() list (source itself lacks the file) is not a
+    verification concern - already covered by stats.missing during the copy
+    phase."""
     project_root, ds = _make_dataset(tmp_path)
     _touch(project_root / "UNIPD" / "WashU" / "sub-STUNIPD0002" / "anat" / "placeholder.txt")
     config = _make_config(tmp_path, project_root)

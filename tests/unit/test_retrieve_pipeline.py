@@ -10,20 +10,23 @@ from src.pipeline.retrieve_data import ReportEntry
 from src.retrieval.config import FilePatterns, RetrievalConfig, RetrieveItem
 from src.retrieval.dataset import Dataset
 
-_FILE_PATTERNS = FilePatterns(
-    patterns={
-        ("native", "T1w"): ["{subject_id}/anat/{subject_id}_T1w.nii.gz"],
-        ("native", "FLAIR"): ["{subject_id}/anat/{subject_id}_FLAIR.nii.gz"],
-        ("native", "lesion_roi"): [
-            "{subject_id}/anat/{subject_id}_lesion_roi.nii.gz",
-            "{subject_id}/anat/{subject_id}_space-T1w_lesion_roi.nii.gz",
-        ],
-        ("mni", "lesion_mask"): [
-            "derivatives/manual_masks/{subject_id}/anat/"
-            "{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
-        ],
-    }
-)
+
+def _make_patterns(project_root):
+    return FilePatterns(
+        project_roots={"lesion": project_root},
+        patterns={
+            ("lesion", "native", "T1w"): ["{subject_id}/anat/{subject_id}_T1w.nii.gz"],
+            ("lesion", "native", "FLAIR"): ["{subject_id}/anat/{subject_id}_FLAIR.nii.gz"],
+            ("lesion", "native", "lesion_roi"): [
+                "{subject_id}/anat/{subject_id}_lesion_roi.nii.gz",
+                "{subject_id}/anat/{subject_id}_space-T1w_lesion_roi.nii.gz",
+            ],
+            ("lesion", "mni", "lesion_mask"): [
+                "derivatives/manual_masks/{subject_id}/anat/"
+                "{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
+            ],
+        },
+    )
 
 
 def _touch(path):
@@ -52,13 +55,12 @@ def _make_config(tmp_path, project_root, **overrides):
     defaults = dict(
         output_root=tmp_path / "data",
         project="clinical_connectome",
-        project_root=project_root,
         file_patterns_path=tmp_path / "file_patterns.json",
-        file_patterns=_FILE_PATTERNS,
+        file_patterns=_make_patterns(project_root),
         datasets=["UNIPD/WashU"],
         group_filter=["ST"],
         subjects=None,
-        retrieve=[RetrieveItem(space="mni", modality="lesion_mask")],
+        retrieve=[RetrieveItem(object="lesion", space="mni", modality="lesion_mask")],
         include_tabular_data=False,
         overwrite=False,
     )
@@ -69,7 +71,7 @@ def _make_config(tmp_path, project_root, **overrides):
 def test_validate_upfront_raises_for_unsupported_modality(tmp_path):
     project_root = _make_washu_like(tmp_path)
     config = _make_config(
-        tmp_path, project_root, retrieve=[RetrieveItem(space="native", modality="FLAIR")]
+        tmp_path, project_root, retrieve=[RetrieveItem(object="lesion", space="native", modality="FLAIR")]
     )
     datasets = retrieve_data._build_datasets(config)
     with pytest.raises(ValueError, match="FLAIR"):
@@ -119,7 +121,7 @@ def test_explicit_subject_absent_from_one_dataset_reported_as_missing(tmp_path):
         datasets=["UNIPD/WashU", "UNIPD/PASPORT"],
         group_filter=None,
         subjects=["sub-STUNIPD0001", "sub-STUNIPD0500"],
-        retrieve=[RetrieveItem(space="native", modality="T1w")],
+        retrieve=[RetrieveItem(object="lesion", space="native", modality="T1w")],
     )
     datasets = retrieve_data._build_datasets(config)
     retrieve_data._validate_upfront(datasets, config)  # both subjects exist somewhere - must not raise
@@ -167,14 +169,14 @@ def test_missing_entry_is_tagged_and_says_not_found_when_derivatives_dir_absent(
     "not found", not "empty folder" (that's only when the folder exists but
     has nothing in it - see test_dataset_lesion.py). No cross-space
     annotation - that comparison is the data_summary report's job (see
-    src.retrieval.matrix), not this pipeline's. Tagged with its (space,
-    modality) group so multi-item runs can be sub-grouped (see
-    _build_report tests)."""
+    src.retrieval.matrix), not this pipeline's. Tagged with its
+    (object, space, modality) group so multi-item runs can be sub-grouped
+    (see _build_report tests)."""
     project_root = _make_washu_like(tmp_path)
     config = _make_config(
         tmp_path,
         project_root,
-        retrieve=[RetrieveItem(space="mni", modality="lesion_mask")],
+        retrieve=[RetrieveItem(object="lesion", space="mni", modality="lesion_mask")],
         subjects=["sub-STUNIPD0002"],
         group_filter=None,
     )
@@ -183,13 +185,17 @@ def test_missing_entry_is_tagged_and_says_not_found_when_derivatives_dir_absent(
     stats = retrieve_data._retrieve_all(datasets, config)
     assert stats["UNIPD/WashU"].missing == [
         ReportEntry(
-            group="mni/lesion_mask",
-            line="UNIPD/WashU: sub-STUNIPD0002 - no mni/lesion_mask (not found)",
+            group="lesion/mni/lesion_mask",
+            line="UNIPD/WashU: sub-STUNIPD0002 - no lesion/mni/lesion_mask (not found)",
         )
     ]
 
 
-def test_retrieve_subject_flags_ambiguous_match(tmp_path):
+def test_retrieve_subject_copies_every_matching_template(tmp_path):
+    """If a subject has files matching more than one registered template for
+    the same (object, space, modality), all of them get copied - there is no
+    priority/ambiguity concept anymore (see FilePatterns docstring: "grab
+    every one of these that exists")."""
     project_root = _make_washu_like(tmp_path)
     root = project_root / "UNIPD" / "WashU"
     _touch(root / "sub-STUNIPD0001" / "anat" / "sub-STUNIPD0001_lesion_roi.nii.gz")
@@ -197,36 +203,41 @@ def test_retrieve_subject_flags_ambiguous_match(tmp_path):
     config = _make_config(
         tmp_path,
         project_root,
-        retrieve=[RetrieveItem(space="native", modality="lesion_roi")],
+        retrieve=[RetrieveItem(object="lesion", space="native", modality="lesion_roi")],
         subjects=["sub-STUNIPD0001"],
         group_filter=None,
     )
     datasets = retrieve_data._build_datasets(config)
     retrieve_data._validate_upfront(datasets, config)
     stats = retrieve_data._retrieve_all(datasets, config)
-    assert len(stats["UNIPD/WashU"].ambiguous) == 1
-    assert "sub-STUNIPD0001" in stats["UNIPD/WashU"].ambiguous[0].line
-    assert stats["UNIPD/WashU"].ambiguous[0].group == "native/lesion_roi"
-    assert stats["UNIPD/WashU"].copied == 1  # highest-priority match still copied
+    assert stats["UNIPD/WashU"].copied == 2
+    assert stats["UNIPD/WashU"].missing == []
 
 
 def test_select_subjects_no_filter_returns_everyone(tmp_path):
     project_root = _make_washu_like(tmp_path)
-    ds = Dataset(project_root, "UNIPD/WashU", _FILE_PATTERNS)
+    ds = Dataset("UNIPD/WashU", _make_patterns(project_root))
     config = _make_config(tmp_path, project_root, group_filter=None)
-    assert retrieve_data._select_subjects(ds, config) == ds.subjects()
+    # union across every space of the "lesion" object this config touches (native + mni,
+    # since config.retrieve requests the "lesion" object, see _known_object_spaces) -
+    # every subject has at least native, so all 3 are selected.
+    assert retrieve_data._select_subjects(ds, config) == [
+        "sub-STUNIPD0001",
+        "sub-STUNIPD0002",
+        "sub-STUNIPDHC0003",
+    ]
 
 
 def test_select_subjects_group_filter(tmp_path):
     project_root = _make_washu_like(tmp_path)
-    ds = Dataset(project_root, "UNIPD/WashU", _FILE_PATTERNS)
+    ds = Dataset("UNIPD/WashU", _make_patterns(project_root))
     config = _make_config(tmp_path, project_root, group_filter=["HC"])
     assert retrieve_data._select_subjects(ds, config) == ["sub-STUNIPDHC0003"]
 
 
 def test_select_subjects_explicit_bypasses_group_filter(tmp_path):
     project_root = _make_washu_like(tmp_path)
-    ds = Dataset(project_root, "UNIPD/WashU", _FILE_PATTERNS)
+    ds = Dataset("UNIPD/WashU", _make_patterns(project_root))
     config = _make_config(
         tmp_path, project_root, group_filter=["PD"], subjects=["sub-STUNIPD0001", "sub-STUNIPD0002"]
     )
@@ -276,11 +287,16 @@ def test_copy_one_logs_and_continues_on_failure(tmp_path, monkeypatch):
     destination = tmp_path / "dest.nii.gz"
     stats = retrieve_data.DatasetStats()
     retrieve_data._copy_one(
-        source, destination, overwrite=False, stats=stats, label="UNIPD/WashU: sub-A - native/T1w", group="native/T1w"
+        source,
+        destination,
+        overwrite=False,
+        stats=stats,
+        label="UNIPD/WashU: sub-A - lesion/native/T1w",
+        group="lesion/native/T1w",
     )  # must not raise
     assert len(stats.failed) == 1
     assert stats.failed[0] == ReportEntry(
-        group="native/T1w", line="UNIPD/WashU: sub-A - native/T1w: copy failed (disk full)"
+        group="lesion/native/T1w", line="UNIPD/WashU: sub-A - lesion/native/T1w: copy failed (disk full)"
     )
     assert stats.copied == 0
 
@@ -291,7 +307,7 @@ def test_full_run_end_to_end(tmp_path, monkeypatch):
     config = _make_config(
         tmp_path,
         project_root,
-        retrieve=[RetrieveItem(space="native", modality="T1w")],
+        retrieve=[RetrieveItem(object="lesion", space="native", modality="T1w")],
         group_filter=None,
     )
     datasets = retrieve_data._build_datasets(config)
@@ -326,13 +342,12 @@ def _minimal_config(tmp_path, **overrides):
     defaults = dict(
         output_root=tmp_path / "data",
         project="clinical_connectome",
-        project_root=tmp_path / "source",
         file_patterns_path=tmp_path / "file_patterns.json",
-        file_patterns=_FILE_PATTERNS,
+        file_patterns=_make_patterns(tmp_path / "source"),
         datasets=["UNIPD/WashU", "UNIPD/PASPORT"],
         group_filter=["ST"],
         subjects=None,
-        retrieve=[RetrieveItem(space="mni", modality="lesion_mask")],
+        retrieve=[RetrieveItem(object="lesion", space="mni", modality="lesion_mask")],
         include_tabular_data=True,
         overwrite=False,
     )
@@ -358,26 +373,30 @@ def test_build_report_groups_missing_by_dataset_with_counts_and_separator(tmp_pa
     stats = {
         "UNIPD/WashU": retrieve_data.DatasetStats(
             missing=[
-                ReportEntry(group="mni/lesion_mask", line="UNIPD/WashU: sub-A - no mni/lesion_mask"),
-                ReportEntry(group="mni/lesion_mask", line="UNIPD/WashU: sub-B - no mni/lesion_mask"),
+                ReportEntry(group="lesion/mni/lesion_mask", line="UNIPD/WashU: sub-A - no lesion/mni/lesion_mask"),
+                ReportEntry(group="lesion/mni/lesion_mask", line="UNIPD/WashU: sub-B - no lesion/mni/lesion_mask"),
             ]
         ),
         "UNIPD/PASPORT": retrieve_data.DatasetStats(
-            missing=[ReportEntry(group="mni/lesion_mask", line="UNIPD/PASPORT: sub-C - no mni/lesion_mask")]
+            missing=[
+                ReportEntry(
+                    group="lesion/mni/lesion_mask", line="UNIPD/PASPORT: sub-C - no lesion/mni/lesion_mask"
+                )
+            ]
         ),
     }
     report = retrieve_data._build_report(config, stats, datetime(2026, 7, 9, 10, 22))
     expected_block = (
-        "**mni/lesion_mask** (2)\n"
-        "- UNIPD/WashU: sub-A - no mni/lesion_mask\n"
-        "- UNIPD/WashU: sub-B - no mni/lesion_mask\n"
+        "**lesion/mni/lesion_mask** (2)\n"
+        "- UNIPD/WashU: sub-A - no lesion/mni/lesion_mask\n"
+        "- UNIPD/WashU: sub-B - no lesion/mni/lesion_mask\n"
         "\n"
         "File Not Found Count = 2\n"
         "\n"
         "---\n"
         "\n"
-        "**mni/lesion_mask** (1)\n"
-        "- UNIPD/PASPORT: sub-C - no mni/lesion_mask\n"
+        "**lesion/mni/lesion_mask** (1)\n"
+        "- UNIPD/PASPORT: sub-C - no lesion/mni/lesion_mask\n"
         "\n"
         "File Not Found Count = 1"
     )
@@ -385,27 +404,27 @@ def test_build_report_groups_missing_by_dataset_with_counts_and_separator(tmp_pa
 
 
 def test_build_report_sub_groups_missing_by_modality_within_one_dataset(tmp_path):
-    """A run requesting more than one (space, modality) must not interleave
-    their misses into one flat list per dataset - each gets its own
-    sub-heading and count, so a reader can scan one modality at a time."""
+    """A run requesting more than one (object, space, modality) must not
+    interleave their misses into one flat list per dataset - each gets its
+    own sub-heading and count, so a reader can scan one modality at a time."""
     config = _minimal_config(tmp_path)
     stats = {
         "UNIPD/WashU": retrieve_data.DatasetStats(
             missing=[
-                ReportEntry(group="native/T1w", line="UNIPD/WashU: sub-A - no native/T1w"),
-                ReportEntry(group="mni/lesion_mask", line="UNIPD/WashU: sub-A - no mni/lesion_mask"),
-                ReportEntry(group="native/T1w", line="UNIPD/WashU: sub-B - no native/T1w"),
+                ReportEntry(group="lesion/native/T1w", line="UNIPD/WashU: sub-A - no lesion/native/T1w"),
+                ReportEntry(group="lesion/mni/lesion_mask", line="UNIPD/WashU: sub-A - no lesion/mni/lesion_mask"),
+                ReportEntry(group="lesion/native/T1w", line="UNIPD/WashU: sub-B - no lesion/native/T1w"),
             ]
         ),
     }
     report = retrieve_data._build_report(config, stats, datetime(2026, 7, 9, 10, 22))
     expected_block = (
-        "**native/T1w** (2)\n"
-        "- UNIPD/WashU: sub-A - no native/T1w\n"
-        "- UNIPD/WashU: sub-B - no native/T1w\n"
+        "**lesion/native/T1w** (2)\n"
+        "- UNIPD/WashU: sub-A - no lesion/native/T1w\n"
+        "- UNIPD/WashU: sub-B - no lesion/native/T1w\n"
         "\n"
-        "**mni/lesion_mask** (1)\n"
-        "- UNIPD/WashU: sub-A - no mni/lesion_mask\n"
+        "**lesion/mni/lesion_mask** (1)\n"
+        "- UNIPD/WashU: sub-A - no lesion/mni/lesion_mask\n"
         "\n"
         "File Not Found Count = 3"
     )
@@ -416,7 +435,9 @@ def test_build_report_omits_dataset_with_no_missing_entries(tmp_path):
     config = _minimal_config(tmp_path)
     stats = {
         "UNIPD/WashU": retrieve_data.DatasetStats(
-            missing=[ReportEntry(group="mni/lesion_mask", line="UNIPD/WashU: sub-A - no mni/lesion_mask")]
+            missing=[
+                ReportEntry(group="lesion/mni/lesion_mask", line="UNIPD/WashU: sub-A - no lesion/mni/lesion_mask")
+            ]
         ),
         "UNIPD/PASPORT": retrieve_data.DatasetStats(missing=[]),
     }
@@ -432,8 +453,8 @@ def test_build_report_includes_failed_section(tmp_path):
         "UNIPD/WashU": retrieve_data.DatasetStats(
             failed=[
                 ReportEntry(
-                    group="mni/lesion_mask",
-                    line="UNIPD/WashU: sub-A - mni/lesion_mask: copy failed (disk full)",
+                    group="lesion/mni/lesion_mask",
+                    line="UNIPD/WashU: sub-A - lesion/mni/lesion_mask: copy failed (disk full)",
                 )
             ]
         ),
@@ -445,23 +466,15 @@ def test_build_report_includes_failed_section(tmp_path):
     assert "| UNIPD/WashU | 0 | 0 | 1 |" in report  # summary table's failed column reflects len(failed)
 
 
-def test_build_report_includes_ambiguous_and_non_conforming_sections(tmp_path):
+def test_build_report_includes_non_conforming_section(tmp_path):
     config = _minimal_config(tmp_path)
     stats = {
         "UNIPD/WashU": retrieve_data.DatasetStats(
-            ambiguous=[
-                ReportEntry(
-                    group="native/lesion_roi",
-                    line="UNIPD/WashU: sub-A - native/lesion_roi: using X, also matched Y",
-                )
-            ],
             non_conforming=["UNIPD/WashU: sub-TEST - does not match expected subject naming, excluded from retrieval"],
         ),
         "UNIPD/PASPORT": retrieve_data.DatasetStats(),
     }
     report = retrieve_data._build_report(config, stats, datetime(2026, 7, 9, 10, 22))
-    assert "## Ambiguous" in report
-    assert "Ambiguous Count = 1" in report
     assert "## Non-conforming subject folders" in report
     assert "Non-conforming Count = 1" in report
 
@@ -470,7 +483,7 @@ def test_build_report_includes_mismatched_section(tmp_path):
     config = _minimal_config(tmp_path)
     stats = {
         "UNIPD/WashU": retrieve_data.DatasetStats(
-            mismatched=["UNIPD/WashU: sub-A native/T1w - checksum differs from source: /a vs /b"]
+            mismatched=["UNIPD/WashU: sub-A lesion/native/T1w - checksum differs from source: /a vs /b"]
         ),
         "UNIPD/PASPORT": retrieve_data.DatasetStats(),
     }
@@ -488,17 +501,20 @@ def test_write_report_path_uses_data_retrieval_folder_and_project(tmp_path, monk
     assert report_path.suffix == ".md"
 
 
-def _write_file_patterns_json(path):
+def _write_file_patterns_json(path, project_root):
     path.write_text(
         json.dumps(
             {
-                "native": {"T1w": ["{subject_id}/anat/{subject_id}_T1w.nii.gz"]},
-                "mni": {
-                    "lesion_mask": [
-                        "derivatives/manual_masks/{subject_id}/anat/"
-                        "{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
-                    ]
-                },
+                "lesion": {
+                    "project_root": str(project_root),
+                    "native": {"T1w": ["{subject_id}/anat/{subject_id}_T1w.nii.gz"]},
+                    "mni": {
+                        "lesion_mask": [
+                            "derivatives/manual_masks/{subject_id}/anat/"
+                            "{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
+                        ]
+                    },
+                }
             }
         )
     )
@@ -507,16 +523,15 @@ def _write_file_patterns_json(path):
 def _write_json_config(config_path, project_root, output_root, **overrides):
     file_patterns_path = config_path.parent / "file_patterns.json"
     if not file_patterns_path.is_file():
-        _write_file_patterns_json(file_patterns_path)
+        _write_file_patterns_json(file_patterns_path, project_root)
     payload = {
         "output_root": str(output_root),
         "project": "clinical_connectome",
-        "project_root": str(project_root),
         "file_patterns": str(file_patterns_path),
         "datasets": ["UNIPD/WashU"],
         "group_filter": None,
         "subjects": None,
-        "retrieve": [{"space": "native", "modality": "T1w"}],
+        "retrieve": [{"object": "lesion", "space": "native", "modality": "T1w"}],
         "include_tabular_data": False,
         "overwrite": False,
     }

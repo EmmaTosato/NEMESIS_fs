@@ -45,9 +45,9 @@ def local_dataset_root(config: RetrievalConfig, dataset_name: str) -> Path:
 
 
 def local_destination(
-    config: RetrievalConfig, dataset_name: str, subject_id: str, space: str, filename: str
+    config: RetrievalConfig, dataset_name: str, subject_id: str, object_: str, space: str, filename: str
 ) -> Path:
-    return local_dataset_root(config, dataset_name) / subject_id / "lesion" / space / filename
+    return local_dataset_root(config, dataset_name) / subject_id / object_ / space / filename
 
 
 def _verify_subject_files(
@@ -59,19 +59,18 @@ def _verify_subject_files(
     expected_local_files: set[Path],
 ) -> None:
     for item in config.retrieve:
-        resolved = ds.resolve(subject_id, item.space, item.modality)
-        if resolved is None:
-            continue  # source doesn't have it either - not a verification concern, see stats.missing
-        local_path = local_destination(config, name, subject_id, item.space, resolved.path.name)
-        expected_local_files.add(local_path)
-        label = f"{name}: {subject_id} {item.space}/{item.modality}"
-        if not local_path.is_file():
-            result.missing_locally.append(f"{label} - source has it ({resolved.path}) but data/ doesn't")
-            continue
-        if sha256(resolved.path) != sha256(local_path):
-            result.mismatched.append(
-                f"{label} - checksum differs from source: {resolved.path} vs {local_path}"
-            )
+        resolved = ds.resolve(subject_id, item)  # [] if source doesn't have it either - see stats.missing
+        for source in resolved:
+            local_path = local_destination(config, name, subject_id, item.object, item.space, source.name)
+            expected_local_files.add(local_path)
+            label = f"{name}: {subject_id} {item.object}/{item.space}/{item.modality}"
+            if not local_path.is_file():
+                result.missing_locally.append(f"{label} - source has it ({source}) but data/ doesn't")
+                continue
+            if sha256(source) != sha256(local_path):
+                result.mismatched.append(
+                    f"{label} - checksum differs from source: {source} vs {local_path}"
+                )
 
 
 def _verify_participants_file(

@@ -7,7 +7,7 @@ re-verify already-retrieved data without doing a run at all: read-only, never
 copies or modifies anything.
 
 Usage:
-    PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/data_retrieval.json
+    PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/retrieval.json
 """
 
 from __future__ import annotations
@@ -28,14 +28,14 @@ def _print_section(title: str, entries: list[str]) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", required=True, help="Path to a data_retrieval.json file")
+    parser.add_argument("--config", required=True, help="Path to a retrieval.json file")
     args = parser.parse_args(argv)
 
     config = load_config(args.config)
 
     result = verify.VerificationResult()
     for name in config.datasets:
-        ds = Dataset(config.project_root, name, config.file_patterns)
+        ds = Dataset(name, config.file_patterns)
         subjects = _select_subjects(ds, config)
         dataset_result = verify.verify_dataset(name, ds, subjects, config)
         result.mismatched += dataset_result.mismatched
