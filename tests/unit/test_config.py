@@ -10,13 +10,18 @@ from src.retrieval.config import FilePatterns, RetrieveItem, load_config, load_f
 VALID_FILE_PATTERNS = {
     "lesion": {
         "project_root": "/data/corbetta/Clinical_connectome",
-        "native": {
-            "lesion_roi": ["{subject_id}/anat/{subject_id}_lesion_roi.nii.gz"],
+        "manual_masks": {
+            "anat": {
+                "lesion_mask": [
+                    "derivatives/manual_masks/{subject_id}/anat/{subject_id}_label-lesion_mask.nii.gz"
+                ],
+            },
         },
-        "mni": {
-            "lesion_mask": [
-                "derivatives/manual_masks/{subject_id}/anat/{subject_id}_label-lesion_mask.nii.gz"
-            ],
+    },
+    "feature": {
+        "project_root": "/data/corbetta/Clinical_connectome/features",
+        "func": {
+            "FC-pearson": ["{subject_id}/func/{subject_id}_FC-pearson.csv"],
         },
     },
 }
@@ -35,8 +40,8 @@ VALID_CONFIG = {
     "group_filter": ["ST"],
     "subjects": None,
     "retrieve": [
-        {"object": "lesion", "space": "mni", "modality": "lesion_mask"},
-        {"object": "lesion", "space": "native", "modality": "lesion_roi"},
+        {"object": "lesion", "pipeline": "manual_masks", "datatype": "anat", "suffix": "lesion_mask"},
+        {"object": "feature", "datatype": "func", "suffix": "FC-pearson"},
     ],
     "include_tabular_data": True,
     "overwrite": False,
@@ -58,13 +63,13 @@ def test_valid_config_loads(tmp_path):
     assert config.group_filter == ["ST"]
     assert config.subjects is None
     assert config.retrieve == [
-        RetrieveItem(object="lesion", space="mni", modality="lesion_mask"),
-        RetrieveItem(object="lesion", space="native", modality="lesion_roi"),
+        RetrieveItem(object="lesion", pipeline="manual_masks", datatype="anat", suffix="lesion_mask"),
+        RetrieveItem(object="feature", pipeline=None, datatype="func", suffix="FC-pearson"),
     ]
     assert config.include_tabular_data is True
     assert config.overwrite is False
-    assert config.file_patterns.has("lesion", "mni", "lesion_mask")
-    assert config.file_patterns.has("lesion", "native", "lesion_roi")
+    assert config.file_patterns.has("lesion", "manual_masks", "anat", "lesion_mask")
+    assert config.file_patterns.has("feature", "func", "FC-pearson")
     assert config.file_patterns.project_root_for("lesion") == Path("/data/corbetta/Clinical_connectome")
 
 
@@ -103,6 +108,30 @@ def test_empty_datasets_list_raises(tmp_path):
         load_config(path)
 
 
+def test_duplicate_datasets_raise(tmp_path):
+    """Found via fuzzing: a duplicate dataset name used to dedupe silently
+    (Dataset instances are keyed by name in a dict in _build_datasets),
+    masking a likely copy-paste mistake - now rejected explicitly, same
+    pattern as duplicate retrieve items."""
+    path = _write_config(tmp_path, {"datasets": ["UNIPD/WashU", "UNIPD/WashU"]})
+    with pytest.raises(ValueError, match="duplicate"):
+        load_config(path)
+
+
+@pytest.mark.parametrize("bad_value", [123, ["anat"], {"a": 1}, None, ""])
+def test_retrieve_item_field_wrong_type_raises(tmp_path, bad_value):
+    """Found via fuzzing: a non-string value for datatype/suffix (e.g. a list
+    or dict) used to pass parsing unchecked and only crash later with a raw
+    TypeError (unhashable type) deep in duplicate-checking or combination
+    lookup - now rejected explicitly, right where the item is parsed."""
+    path = _write_config(
+        tmp_path,
+        {"retrieve": [{"object": "lesion", "pipeline": "manual_masks", "datatype": bad_value, "suffix": "lesion_mask"}]},
+    )
+    with pytest.raises(ValueError, match="datatype"):
+        load_config(path)
+
+
 def test_empty_retrieve_list_raises(tmp_path):
     path = _write_config(tmp_path, {"retrieve": []})
     with pytest.raises(ValueError, match="retrieve"):
@@ -111,21 +140,43 @@ def test_empty_retrieve_list_raises(tmp_path):
 
 def test_unknown_object_raises(tmp_path):
     path = _write_config(
-        tmp_path, {"retrieve": [{"object": "bogus", "space": "native", "modality": "lesion_roi"}]}
+        tmp_path, {"retrieve": [{"object": "bogus", "datatype": "anat", "suffix": "lesion_roi"}]}
     )
     with pytest.raises(ValueError, match="object"):
         load_config(path)
 
 
 def test_retrieve_combination_not_registered_in_file_patterns_raises(tmp_path):
-    """space/modality validity is no longer a static constant - it depends on
-    whatever is registered in file_patterns.json, cross-checked in load_config
-    (see config._require_known_combinations). Here `lesion_mask` is only
-    registered under `mni`, not `native`."""
+    """datatype/suffix validity is no longer a static constant - it depends
+    on whatever is registered in file_patterns.json, cross-checked in
+    load_config (see config._require_known_combinations). Here `lesion_mask`
+    is only registered under `anat`, not `dwi`."""
     path = _write_config(
-        tmp_path, {"retrieve": [{"object": "lesion", "space": "native", "modality": "lesion_mask"}]}
+        tmp_path,
+        {"retrieve": [{"object": "lesion", "pipeline": "manual_masks", "datatype": "dwi", "suffix": "lesion_mask"}]},
     )
     with pytest.raises(ValueError, match="not registered"):
+        load_config(path)
+
+
+def test_retrieve_item_missing_pipeline_for_lesion_raises(tmp_path):
+    path = _write_config(
+        tmp_path, {"retrieve": [{"object": "lesion", "datatype": "anat", "suffix": "lesion_mask"}]}
+    )
+    with pytest.raises(ValueError, match="pipeline"):
+        load_config(path)
+
+
+def test_retrieve_item_pipeline_present_for_feature_raises(tmp_path):
+    path = _write_config(
+        tmp_path,
+        {
+            "retrieve": [
+                {"object": "feature", "pipeline": "bogus", "datatype": "func", "suffix": "FC-pearson"}
+            ]
+        },
+    )
+    with pytest.raises(ValueError, match="pipeline"):
         load_config(path)
 
 
@@ -162,8 +213,8 @@ def test_duplicate_retrieve_items_raise(tmp_path):
         tmp_path,
         {
             "retrieve": [
-                {"object": "lesion", "space": "mni", "modality": "lesion_mask"},
-                {"object": "lesion", "space": "mni", "modality": "lesion_mask"},
+                {"object": "lesion", "pipeline": "manual_masks", "datatype": "anat", "suffix": "lesion_mask"},
+                {"object": "lesion", "pipeline": "manual_masks", "datatype": "anat", "suffix": "lesion_mask"},
             ]
         },
     )
@@ -174,22 +225,42 @@ def test_duplicate_retrieve_items_raise(tmp_path):
 def test_retrieve_item_rejects_unknown_object_when_constructed_directly():
     """The object invariant must hold regardless of how RetrieveItem is
     built, not just when going through load_config - see
-    config.RetrieveItem.__post_init__. space/modality validity is NOT
+    config.RetrieveItem.__post_init__. datatype/suffix validity is NOT
     checked here anymore (see FilePatterns tests below) - it depends on the
     external file_patterns registry, not a static constant."""
     with pytest.raises(ValueError, match="object"):
-        RetrieveItem(object="bogus", space="native", modality="T1w")
+        RetrieveItem(object="bogus", pipeline=None, datatype="anat", suffix="T1w")
+
+
+def test_retrieve_item_rejects_missing_pipeline_for_lesion():
+    with pytest.raises(ValueError, match="pipeline"):
+        RetrieveItem(object="lesion", pipeline=None, datatype="anat", suffix="lesion_mask")
+
+
+def test_retrieve_item_rejects_pipeline_for_feature():
+    with pytest.raises(ValueError, match="pipeline"):
+        RetrieveItem(object="feature", pipeline="manual_masks", datatype="func", suffix="FC-pearson")
+
+
+def test_retrieve_item_path_key_round_trips_through_from_path():
+    lesion_item = RetrieveItem(object="lesion", pipeline="manual_masks", datatype="anat", suffix="lesion_mask")
+    assert lesion_item.path_key() == ("lesion", "manual_masks", "anat", "lesion_mask")
+    assert RetrieveItem.from_path(*lesion_item.path_key()) == lesion_item
+
+    feature_item = RetrieveItem(object="feature", pipeline=None, datatype="func", suffix="FC-pearson")
+    assert feature_item.path_key() == ("feature", "func", "FC-pearson")
+    assert RetrieveItem.from_path(*feature_item.path_key()) == feature_item
 
 
 def test_load_file_patterns_valid(tmp_path):
     path = _write_file_patterns(tmp_path)
     patterns = load_file_patterns(path)
     assert isinstance(patterns, FilePatterns)
-    assert patterns.has("lesion", "native", "lesion_roi")
-    assert patterns.has("lesion", "mni", "lesion_mask")
-    assert not patterns.has("lesion", "mni", "T1w")
-    assert patterns.templates_for("lesion", "native", "lesion_roi") == [
-        "{subject_id}/anat/{subject_id}_lesion_roi.nii.gz"
+    assert patterns.has("lesion", "manual_masks", "anat", "lesion_mask")
+    assert patterns.has("feature", "func", "FC-pearson")
+    assert not patterns.has("lesion", "manual_masks", "anat", "T1w")
+    assert patterns.templates_for("lesion", "manual_masks", "anat", "lesion_mask") == [
+        "derivatives/manual_masks/{subject_id}/anat/{subject_id}_label-lesion_mask.nii.gz"
     ]
 
 
@@ -205,17 +276,19 @@ def test_load_file_patterns_supports_multiple_templates_per_combination(tmp_path
         {
             "lesion": {
                 "project_root": "/data/corbetta/Clinical_connectome",
-                "native": {
-                    "lesion_roi": [
-                        "{subject_id}/anat/{subject_id}_lesion_roi.nii.gz",
-                        "{subject_id}/anat/{subject_id}_space-T1w_lesion_roi.nii.gz",
-                    ]
+                "manual_masks": {
+                    "anat": {
+                        "lesion_mask": [
+                            "derivatives/manual_masks/{subject_id}/anat/{subject_id}_label-lesion_mask.nii.gz",
+                            "derivatives/manual_masks/{subject_id}/anat/{subject_id}_space-T1w_label-lesion_mask.nii.gz",
+                        ]
+                    },
                 },
             }
         },
     )
     patterns = load_file_patterns(path)
-    assert len(patterns.templates_for("lesion", "native", "lesion_roi")) == 2
+    assert len(patterns.templates_for("lesion", "manual_masks", "anat", "lesion_mask")) == 2
 
 
 def test_file_patterns_combinations_for_returns_only_that_object(tmp_path):
@@ -224,63 +297,56 @@ def test_file_patterns_combinations_for_returns_only_that_object(tmp_path):
         {
             "lesion": {
                 "project_root": "/data/corbetta/Clinical_connectome",
-                "native": {
-                    "T1w": ["{subject_id}/anat/{subject_id}_T1w.nii.gz"],
-                    "lesion_roi": ["{subject_id}/anat/{subject_id}_lesion_roi.nii.gz"],
-                },
-                "mni": {
-                    "lesion_mask": [
-                        "derivatives/manual_masks/{subject_id}/anat/{subject_id}_label-lesion_mask.nii.gz"
-                    ]
+                "manual_masks": {
+                    "anat": {
+                        "T1w": ["{subject_id}/anat/{subject_id}_T1w.nii.gz"],
+                        "lesion_mask": ["{subject_id}/anat/{subject_id}_lesion_mask.nii.gz"],
+                    },
                 },
             },
             "feature": {
                 "project_root": "/data/corbetta/Clinical_connectome/features",
-                "func": {"motion": ["{subject_id}/func/{subject_id}_desc-motion.tsv"]},
+                "func": {"FC-pearson": ["{subject_id}/func/{subject_id}_FC-pearson.csv"]},
             },
         },
     )
     patterns = load_file_patterns(path)
     assert patterns.combinations_for("lesion") == [
-        ("lesion", "mni", "lesion_mask"),
-        ("lesion", "native", "T1w"),
-        ("lesion", "native", "lesion_roi"),
+        ("lesion", "manual_masks", "anat", "T1w"),
+        ("lesion", "manual_masks", "anat", "lesion_mask"),
     ]
-    assert patterns.combinations_for("feature") == [("feature", "func", "motion")]
+    assert patterns.combinations_for("feature") == [("feature", "func", "FC-pearson")]
 
 
-def test_file_patterns_all_object_spaces(tmp_path):
+def test_file_patterns_subject_discovery_keys(tmp_path):
     path = _write_file_patterns(
         tmp_path,
         {
             "lesion": {
                 "project_root": "/data/corbetta/Clinical_connectome",
-                "native": {"T1w": ["{subject_id}/anat/{subject_id}_T1w.nii.gz"]},
-                "mni": {
-                    "lesion_mask": [
-                        "derivatives/manual_masks/{subject_id}/anat/{subject_id}_label-lesion_mask.nii.gz"
-                    ]
+                "manual_masks": {
+                    "anat": {"lesion_mask": ["derivatives/manual_masks/{subject_id}/anat/{subject_id}_lesion_mask.nii.gz"]}
                 },
             },
             "feature": {
                 "project_root": "/data/corbetta/Clinical_connectome/features",
-                "func": {"motion": ["{subject_id}/func/{subject_id}_desc-motion.tsv"]},
+                "func": {"FC-pearson": ["{subject_id}/func/{subject_id}_FC-pearson.csv"]},
             },
         },
     )
     patterns = load_file_patterns(path)
-    assert patterns.all_object_spaces() == {("lesion", "native"), ("lesion", "mni"), ("feature", "func")}
+    assert patterns.subject_discovery_keys() == {("lesion", "manual_masks"), ("feature", None)}
 
 
 def test_file_patterns_templates_for_unknown_combination_raises(tmp_path):
     path = _write_file_patterns(tmp_path)
     patterns = load_file_patterns(path)
     with pytest.raises(ValueError, match="no file pattern registered"):
-        patterns.templates_for("lesion", "native", "T1w")
+        patterns.templates_for("lesion", "manual_masks", "anat", "T1w")
 
 
 def test_file_patterns_project_root_for_unknown_object_raises(tmp_path):
-    path = _write_file_patterns(tmp_path)
+    path = _write_file_patterns(tmp_path, {"lesion": VALID_FILE_PATTERNS["lesion"]})
     patterns = load_file_patterns(path)
     with pytest.raises(ValueError, match="no project_root"):
         patterns.project_root_for("feature")
@@ -308,7 +374,8 @@ def test_load_file_patterns_rejects_unknown_object(tmp_path):
 
 def test_load_file_patterns_rejects_missing_project_root(tmp_path):
     path = _write_file_patterns(
-        tmp_path, {"lesion": {"native": {"T1w": ["{subject_id}/anat/{subject_id}_T1w.nii.gz"]}}}
+        tmp_path,
+        {"lesion": {"manual_masks": {"anat": {"T1w": ["{subject_id}/anat/{subject_id}_T1w.nii.gz"]}}}},
     )
     with pytest.raises(ValueError, match="project_root"):
         load_file_patterns(path)
@@ -316,7 +383,7 @@ def test_load_file_patterns_rejects_missing_project_root(tmp_path):
 
 def test_load_file_patterns_rejects_empty_modality_list(tmp_path):
     path = _write_file_patterns(
-        tmp_path, {"lesion": {"project_root": "/x", "native": {"T1w": []}}}
+        tmp_path, {"lesion": {"project_root": "/x", "manual_masks": {"anat": {"T1w": []}}}}
     )
     with pytest.raises(ValueError, match="non-empty list"):
         load_file_patterns(path)
@@ -324,7 +391,8 @@ def test_load_file_patterns_rejects_empty_modality_list(tmp_path):
 
 def test_load_file_patterns_rejects_template_without_subject_id_placeholder(tmp_path):
     path = _write_file_patterns(
-        tmp_path, {"lesion": {"project_root": "/x", "native": {"T1w": ["sub-fixed-name.nii.gz"]}}}
+        tmp_path,
+        {"lesion": {"project_root": "/x", "manual_masks": {"anat": {"T1w": ["sub-fixed-name.nii.gz"]}}}},
     )
     with pytest.raises(ValueError, match="subject_id"):
         load_file_patterns(path)

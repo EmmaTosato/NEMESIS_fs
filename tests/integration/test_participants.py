@@ -21,11 +21,16 @@ pytestmark = pytest.mark.skipif(
     not PROJECT_ROOT.is_dir(), reason="EBRAIN mount not available on this machine"
 )
 
-# participants() only needs project_root - a minimal native/T1w registration
-# is enough to also let subjects() (used for the row-count check below) work.
+# participants() only needs project_root - a minimal manual_masks/lesion_mask
+# registration is enough to also let subjects() (used for the row-count check
+# below) work.
 _PATTERNS = FilePatterns(
     project_roots={"lesion": PROJECT_ROOT},
-    patterns={("lesion", "native", "T1w"): ["{subject_id}/anat/{subject_id}_T1w.nii.gz"]},
+    patterns={
+        ("lesion", "manual_masks", "anat", "lesion_mask"): [
+            "derivatives/manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
+        ]
+    },
 )
 
 ALL_DATASETS = ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"]
@@ -33,12 +38,16 @@ ALL_DATASETS = ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR
 
 @pytest.mark.parametrize("dataset_name", ALL_DATASETS)
 def test_participants_tsv_is_well_formed_when_present(dataset_name):
+    """Row-count equality with subjects() no longer holds: unlike the old
+    `native` combo (present for essentially every subject), `manual_masks` is
+    a genuine subset of the full roster (not every subject has a lesion
+    mask) - so only a subset relationship is checked, not equality."""
     ds = Dataset(dataset_name, _PATTERNS)
     df = ds.participants()
     if df is None:
         return  # legitimate per-dataset fact today, not asserted either way
     assert "participant_id" in df.columns
-    assert len(df) == len(ds.subjects("lesion", "native"))
+    assert set(ds.subjects("lesion", "manual_masks")) <= set(df["participant_id"])
 
 
 def test_at_least_one_dataset_has_participants_tsv():
