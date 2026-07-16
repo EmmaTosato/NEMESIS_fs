@@ -1,0 +1,76 @@
+# clinical_connectome_16-07-26
+## 20:25
+
+## Config
+
+```json
+{
+  "output_root": "data",
+  "project": "clinical_connectome",
+  "file_patterns": "config/file_patterns.json",
+  "datasets": [
+    "UNIPD/WashU",
+    "UNIPD/PASPORT",
+    "UNIPD/PSP",
+    "UKLFR/stroke_UKLFR"
+  ],
+  "group_filter": [
+    "ST"
+  ],
+  "subjects": null,
+  "retrieve": [
+    {
+      "object": "lesion",
+      "pipeline": "manual_masks",
+      "datatype": "anat",
+      "suffix": "lesion_mask"
+    }
+  ],
+  "include_tabular_data": true,
+  "overwrite": false
+}
+```
+
+## Summary
+
+| dataset | copied | skipped (exists) | failed | participants.tsv |
+|---|---|---|---|---|
+| UNIPD/WashU | 0 | 202 | 0 | skipped (exists) |
+| UNIPD/PASPORT | 0 | 83 | 0 | skipped (exists) |
+| UNIPD/PSP | 0 | 168 | 0 | skipped (exists) |
+| UKLFR/stroke_UKLFR | 0 | 697 | 0 | skipped (exists) |
+
+## Failed
+*A file's copy did not complete correctly, for the reason given. Sub-grouped by which object/pipeline/datatype/suffix was requested.*
+
+- none
+
+## File not found
+*No registered file found for a specific subject (or an explicitly requested subject not present in this dataset). "empty folder" means the directory that would hold the file exists but is empty; "not found" covers every other case. Sub-grouped by which object/pipeline/datatype/suffix was requested.*
+
+- none
+
+## Skipped - object not present in this dataset
+*A retrieve item whose object this dataset structurally lacks entirely (e.g. no features/ tree) - skipped for this dataset only, every other dataset and item still runs. Not an error.*
+
+- none
+
+## Non-conforming subject folders
+*Folders found on disk that don't match the expected subject naming convention - excluded from retrieval.*
+
+- none
+
+## Mismatched
+*A local file's checksum differs from its current source - possible corruption, or the source changed after this file was copied.*
+
+- none
+
+## Not copied despite source having it
+*Verification found the source file, but data/ doesn't have it - a copy that silently failed to land.*
+
+- none
+
+## Unexpected local files
+*Present in data/ but not the current resolution for any expected subject/retrieve item - stale naming or a leftover from a prior run.*
+
+- none

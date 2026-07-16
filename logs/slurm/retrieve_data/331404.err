@@ -201,6 +201,7 @@ INFO: copied: data/clinical_connectome/UNIPD/WashU/sub-STUNIPD0248/lesion/mni/su
 INFO: copied: data/clinical_connectome/UNIPD/WashU/sub-STUNIPD0249/lesion/mni/sub-STUNIPD0249_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
 INFO: copied: data/clinical_connectome/UNIPD/WashU/sub-STUNIPD0250/lesion/mni/sub-STUNIPD0250_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
 INFO: copied: data/clinical_connectome/UNIPD/WashU/sub-STUNIPD0251/lesion/mni/sub-STUNIPD0251_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+INFO: copied: data/clinical_connectome/UNIPD/WashU/participants.tsv
 INFO: UNIPD/PASPORT: retrieving 97 subjects
 INFO: copied: data/clinical_connectome/UNIPD/PASPORT/sub-STUNIPD0489/lesion/mni/sub-STUNIPD0489_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
 INFO: copied: data/clinical_connectome/UNIPD/PASPORT/sub-STUNIPD0490/lesion/mni/sub-STUNIPD0490_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
@@ -285,6 +286,7 @@ INFO: copied: data/clinical_connectome/UNIPD/PASPORT/sub-STUNIPD0580/lesion/mni/
 INFO: copied: data/clinical_connectome/UNIPD/PASPORT/sub-STUNIPD0583/lesion/mni/sub-STUNIPD0583_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
 INFO: copied: data/clinical_connectome/UNIPD/PASPORT/sub-STUNIPD0584/lesion/mni/sub-STUNIPD0584_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
 INFO: copied: data/clinical_connectome/UNIPD/PASPORT/sub-STUNIPD0585/lesion/mni/sub-STUNIPD0585_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+INFO: copied: data/clinical_connectome/UNIPD/PASPORT/participants.tsv
 INFO: UNIPD/PSP: retrieving 237 subjects
 INFO: copied: data/clinical_connectome/UNIPD/PSP/sub-STUNIPD0252/lesion/mni/sub-STUNIPD0252_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
 INFO: copied: data/clinical_connectome/UNIPD/PSP/sub-STUNIPD0253/lesion/mni/sub-STUNIPD0253_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
@@ -454,6 +456,7 @@ INFO: copied: data/clinical_connectome/UNIPD/PSP/sub-STUNIPD0483/lesion/mni/sub-
 INFO: copied: data/clinical_connectome/UNIPD/PSP/sub-STUNIPD0485/lesion/mni/sub-STUNIPD0485_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
 INFO: copied: data/clinical_connectome/UNIPD/PSP/sub-STUNIPD0486/lesion/mni/sub-STUNIPD0486_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
 INFO: copied: data/clinical_connectome/UNIPD/PSP/sub-STUNIPD0487/lesion/mni/sub-STUNIPD0487_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+INFO: copied: data/clinical_connectome/UNIPD/PSP/participants.tsv
 INFO: UKLFR/stroke_UKLFR: retrieving 735 subjects
 INFO: copied: data/clinical_connectome/UKLFR/stroke_UKLFR/sub-STUKLFR0001/lesion/mni/sub-STUKLFR0001_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
 INFO: copied: data/clinical_connectome/UKLFR/stroke_UKLFR/sub-STUKLFR0002/lesion/mni/sub-STUKLFR0002_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
@@ -1152,4 +1155,5 @@ INFO: copied: data/clinical_connectome/UKLFR/stroke_UKLFR/sub-STUKLFR0731/lesion
 INFO: copied: data/clinical_connectome/UKLFR/stroke_UKLFR/sub-STUKLFR0732/lesion/mni/sub-STUKLFR0732_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
 INFO: copied: data/clinical_connectome/UKLFR/stroke_UKLFR/sub-STUKLFR0733/lesion/mni/sub-STUKLFR0733_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
 INFO: copied: data/clinical_connectome/UKLFR/stroke_UKLFR/sub-STUKLFR0735/lesion/mni/sub-STUKLFR0735_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
-INFO: done - report written to reports/data_retrieval/clinical_connectome/09-07-26__16-44.md, log written to logs/data_retrieval/clinical_connectome/09-07-26__16-44.log
+INFO: copied: data/clinical_connectome/UKLFR/stroke_UKLFR/participants.tsv
+INFO: done - report written to reports/data_retrieval/clinical_connectome/copy_summary__16-07-26__11-56.md, log written to logs/data_retrieval/clinical_connectome/copy_summary__16-07-26__11-56.log
