@@ -1,14 +1,13 @@
 """Standalone, read-only report: full per-subject data-availability CSV, one
 file per dataset.
 
-For every subject visible in any (object, space) the registry knows about
-(see matrix.select_all_subjects), and every (object, space, modality)
-registered in that config's file_patterns.json, shows whether the file
-exists on the EBRAIN source: "-" if present, "missing" if not. Independent
-of what any specific retrieval run's `retrieve` list asks for - a complete
-picture of what the dataset actually has, not an explanation of one run's
-gaps (see src.pipeline.retrieve_data for that). Never copies or modifies
-anything.
+For every subject visible in any (object, pipeline) the registry knows about
+(see matrix.select_all_subjects), and every leaf combination registered in
+that config's file_patterns.json, shows whether the file exists on the
+EBRAIN source: "-" if present, "missing" if not. Independent of what any
+specific retrieval run's `retrieve` list asks for - a complete picture of
+what the dataset actually has, not an explanation of one run's gaps (see
+src.pipeline.retrieve_data for that). Never copies or modifies anything.
 
 Unlike the timestamped copy_summary report, this one is a current snapshot,
 not a run log: same fixed filename every time, overwritten on each call.

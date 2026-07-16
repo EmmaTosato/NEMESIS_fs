@@ -1,7 +1,7 @@
 """Full per-subject data-availability matrix.
 
 Independent of what any specific retrieval run requests: for every subject
-the registry knows about, and every (object, space, modality) registered in
+the registry knows about, and every combination registered in
 file_patterns.json, shows whether the file exists and, if so, which filename
 resolved. Answers "what does our data actually look like across everything we
 know how to look for" as one complete picture - as opposed to
@@ -18,108 +18,106 @@ from src.retrieval.config import RetrievalConfig, RetrieveItem
 from src.retrieval.dataset import Dataset
 
 MISSING_CELL = "missing"
-PRESENT_CELL = "-"
+PRESENT_CELL = "present"
 
 
 @dataclass(frozen=True)
 class MatrixRow:
-    """One subject's presence/absence across every registered
-    (object, space, modality)."""
+    """One subject's presence/absence across every registered leaf
+    combination."""
 
     subject_id: str
-    cells: dict[str, str]  # "object/space/modality" -> resolved filename, or MISSING_CELL
+    cells: dict[str, str]  # "/".join(path_key()) -> resolved filename, or MISSING_CELL
 
 
-def combinations_from_file_patterns(config: RetrievalConfig) -> list[tuple[str, str, str]]:
-    """Every (object, space, modality) triple registered in this project's
-    file_patterns registry, across every known object, in a stable order -
-    the matrix's columns, independent of what any particular run's
-    `retrieve` list asks for. Assumes every leaf combination is exactly 3
-    levels deep (object, space-or-equivalent, modality) - true for
-    everything registered today (`lesion` and `feature` alike); a deeper
-    object would need this generalized when it's actually added."""
-    combos: list[tuple[str, str, str]] = []
+def combinations_from_file_patterns(config: RetrievalConfig) -> list[tuple[str, ...]]:
+    """Every leaf combination registered in this project's file_patterns
+    registry, across every known object, in a stable order - the matrix's
+    columns, independent of what any particular run's `retrieve` list asks
+    for. Depth varies by object (see RetrieveItem) - RetrieveItem.from_path()
+    is the single source of truth for what shape is valid per object, so
+    this raises the same clear error it would raise for a malformed
+    `retrieve` entry, rather than an ad hoc depth check."""
+    combos: list[tuple[str, ...]] = []
     for object_ in config.file_patterns.project_roots:
         for combo in config.file_patterns.combinations_for(object_):
-            if len(combo) != 3:
-                raise ValueError(
-                    "data_summary only supports 3-level (object, space, modality) "
-                    f"combinations, got {combo}"
-                )
+            RetrieveItem.from_path(*combo)  # raises if this object's leaves have the wrong shape
             combos.append(combo)
     return sorted(combos)
 
 
 def select_all_subjects(ds: Dataset, config: RetrievalConfig) -> list[str]:
-    """Every subject visible in ANY (object, space) the registry knows about
-    for this dataset, filtered by group_filter/subjects the same way a
+    """Every subject visible under ANY (object, pipeline) the registry knows
+    about for this dataset, filtered by group_filter/subjects the same way a
     normal run would - broader than retrieve_data._select_subjects, which
-    only looks at the exact (object, space) pairs a run's `retrieve` list
+    only looks at the exact (object, pipeline) pairs a run's `retrieve` list
     requests. This is the full picture, independent of what's being
-    retrieved."""
-    all_spaces = config.file_patterns.all_object_spaces()
+    retrieved.
+
+    Skips objects this dataset structurally doesn't have at all (e.g. no
+    `features/` tree yet - see Dataset.has_object) rather than raising: that
+    is a legitimate "nothing to report for this object here", not a
+    failure."""
+    discovery_keys = {(o, p) for o, p in config.file_patterns.subject_discovery_keys() if ds.has_object(o)}
     if config.subjects is not None:
-        found = {s for object_, space in all_spaces for s in ds.subjects(object_, space)}
+        found = {s for object_, pipeline in discovery_keys for s in ds.subjects(object_, pipeline)}
         return sorted(found & set(config.subjects))
     if config.group_filter is None:
-        return sorted({s for object_, space in all_spaces for s in ds.subjects(object_, space)})
+        return sorted({s for object_, pipeline in discovery_keys for s in ds.subjects(object_, pipeline)})
     return sorted(
         {
             s
-            for object_, space in all_spaces
+            for object_, pipeline in discovery_keys
             for group in config.group_filter
-            for s in ds.subjects(object_, space, group=group)
+            for s in ds.subjects(object_, pipeline, group=group)
         }
     )
 
 
-def build_matrix(ds: Dataset, subjects: list[str], combinations: list[tuple[str, str, str]]) -> list[MatrixRow]:
-    """One MatrixRow per subject, one cell per (object, space, modality)
-    combination. If more than one registered template matches (e.g.
-    lesion_roi's two naming variants), the cell shows the first match's
-    filename - the CSV rendering (to_csv_rows) only cares about presence,
-    not which/how many matched."""
+def build_matrix(ds: Dataset, subjects: list[str], combinations: list[tuple[str, ...]]) -> list[MatrixRow]:
+    """One MatrixRow per subject, one cell per registered leaf combination.
+    If more than one registered template matches (e.g. two simultaneously
+    present atlas files, or naming-variant alternates), the cell shows the
+    first match's filename - the CSV rendering (to_csv_rows) only cares
+    about presence, not which/how many matched.
+
+    A column whose object this dataset doesn't structurally have at all
+    (e.g. no `features/` tree yet - see Dataset.has_object) is MISSING_CELL
+    for every subject, without calling resolve() at all - that would raise,
+    since resolve() is for a specifically-requested object where a missing
+    root is a real error, not "this object doesn't apply here"."""
     rows = []
     for subject_id in subjects:
         cells = {}
-        for object_, space, modality in combinations:
-            resolved = ds.resolve(subject_id, RetrieveItem(object=object_, space=space, modality=modality))
-            cells[f"{object_}/{space}/{modality}"] = resolved[0].name if resolved else MISSING_CELL
+        for combo in combinations:
+            key = "/".join(combo)
+            object_ = combo[0]
+            if not ds.has_object(object_):
+                cells[key] = MISSING_CELL
+                continue
+            item = RetrieveItem.from_path(*combo)
+            resolved = ds.resolve(subject_id, item)
+            cells[key] = resolved[0].name if resolved else MISSING_CELL
         rows.append(MatrixRow(subject_id=subject_id, cells=cells))
     return rows
 
 
-def count_present(rows: list[MatrixRow], combinations: list[tuple[str, str, str]]) -> dict[str, int]:
-    """How many rows have a real file (not MISSING_CELL) for each column -
-    meant to reconcile against a retrieve_data.py run's copied+skipped
-    (exists) count for the same (object, space, modality), when that
-    combination was actually requested in that run's config."""
-    return {
-        f"{object_}/{space}/{modality}": sum(
-            1 for row in rows if row.cells[f"{object_}/{space}/{modality}"] != MISSING_CELL
-        )
-        for object_, space, modality in combinations
-    }
-
-
-def to_csv_rows(rows: list[MatrixRow], combinations: list[tuple[str, str, str]]) -> list[list[str]]:
+def to_csv_rows(rows: list[MatrixRow], combinations: list[tuple[str, ...]]) -> list[list[str]]:
     """Renders the matrix as plain presence/absence rows for csv.writer: a
-    header, one row per subject (PRESENT_CELL "-" or MISSING_CELL "missing"
-    per column - the point here is presence, not the exact filename, unlike
-    MatrixRow.cells), and a trailing "present" row with count_present()'s
-    per-column totals."""
-    header = ["subject"] + [f"{object_}/{space}/{modality}" for object_, space, modality in combinations]
+    header, one row per subject (PRESENT_CELL "present" or MISSING_CELL
+    "missing" per column - the point here is presence, not the exact
+    filename, unlike MatrixRow.cells). No aggregate rows - per-column
+    present/missing totals are computed separately (in a notebook), not
+    baked into this file."""
+    columns = ["/".join(combo) for combo in combinations]
+    header = ["subject"] + columns
     csv_rows = [header]
     for row in rows:
         csv_rows.append(
             [row.subject_id]
             + [
-                MISSING_CELL if row.cells[f"{object_}/{space}/{modality}"] == MISSING_CELL else PRESENT_CELL
-                for object_, space, modality in combinations
+                MISSING_CELL if row.cells[key] == MISSING_CELL else PRESENT_CELL
+                for key in columns
             ]
         )
-    counts = count_present(rows, combinations)
-    csv_rows.append(
-        ["present"] + [str(counts[f"{object_}/{space}/{modality}"]) for object_, space, modality in combinations]
-    )
     return csv_rows

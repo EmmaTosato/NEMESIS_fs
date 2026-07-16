@@ -3,12 +3,25 @@
 Usage:
     python -m src.pipeline.retrieve_data --config config/retrieval.json
 
-Structural problems (unsupported object/space/modality, unknown group,
-unreachable dataset root, unknown explicit subject) are validated upfront
-across ALL requested datasets before anything is copied - a bad request
-never leaves partial output behind. Per-subject/per-file issues (a file
-missing for one subject, a copy that fails for one subject) are logged and
-do not stop the run; a summary report is written at the end either way.
+Structural problems (unsupported object/pipeline/datatype/suffix, unknown
+group, an item that resolves to nothing anywhere despite its object being
+present, unknown explicit subject) are validated upfront across ALL
+requested datasets before anything is copied - a bad request never leaves
+partial output behind. Per-subject/per-file issues (a file missing for one
+subject, a copy that fails for one subject) are logged and do not stop the
+run; a summary report is written at the end either way.
+
+One exception to "validated upfront, STOP on failure": a `retrieve` item
+whose `object` a specific dataset structurally lacks entirely (e.g. no
+`features/` tree at all - see Dataset.has_object) is a per-dataset WARNING,
+not a STOP - that item is skipped for that dataset only, logged and reported
+(see _report_skipped_retrieve_items), while every other dataset and item
+still runs normally. This mirrors a pattern src.retrieval.matrix already
+implements (select_all_subjects/build_matrix skip objects a dataset lacks
+via has_object()) - bringing this module in line with it, rather than
+inventing a new rule. A dataset contributing literally zero effective items
+this way (none of its `retrieve` items apply at all) IS still a STOP - see
+_validate_retrieve_items.
 """
 
 from __future__ import annotations
@@ -24,6 +37,7 @@ from pathlib import Path
 from src.retrieval import verify
 from src.retrieval.config import RetrievalConfig, RetrieveItem, load_config
 from src.retrieval.dataset import Dataset
+from src.retrieval.output_layout import local_relative_path
 
 REPORTS_ROOT = Path("reports") / "data_retrieval"
 LOGS_ROOT = Path("logs") / "data_retrieval"
@@ -32,9 +46,10 @@ REPORT_FILENAME_PREFIX = "copy_summary"
 
 @dataclass(frozen=True)
 class ReportEntry:
-    """One Failed/Missing line, tagged with which (object, space, modality)
-    it belongs to - lets the report sub-group entries by that instead of
-    dumping every retrieve item's issues into one flat per-dataset list.
+    """One Failed/Missing line, tagged with which retrieve item
+    (item.path_key()) it belongs to - lets the report sub-group entries by
+    that instead of dumping every retrieve item's issues into one flat
+    per-dataset list.
     `group` is "" for entries not tied to one specific retrieve item (e.g.
     an explicitly requested subject absent from this dataset entirely, or a
     failed participants.tsv copy)."""
@@ -54,6 +69,14 @@ class DatasetStats:
     mismatched: list[str] = field(default_factory=list)
     missing_locally: list[str] = field(default_factory=list)
     unexpected_local_files: list[str] = field(default_factory=list)
+    skipped_objects: list[str] = field(default_factory=list)
+    # participants.tsv is metadata, not one of the requested data files
+    # (lesion masks / feature CSVs) - tracked separately so `copied`/
+    # `skipped_existing` reflect data-file counts only (see _copy_one).
+    # None means "never attempted" (include_tabular_data=false, or the
+    # dataset has no participants.tsv at source) - a legitimate state, not
+    # ambiguous with "attempted and something happened".
+    participants_outcome: str | None = None
 
 
 def _build_datasets(config: RetrievalConfig) -> dict[str, Dataset]:
@@ -64,25 +87,41 @@ def _build_datasets(config: RetrievalConfig) -> dict[str, Dataset]:
     return {name: Dataset(name, config.file_patterns) for name in config.datasets}
 
 
-def _known_object_spaces(config: RetrievalConfig) -> set[tuple[str, str]]:
-    """Every (object, space) the file_patterns registry knows about, for any
-    object this run's `retrieve` list touches - broader than the exact
-    (object, space) pairs named in `retrieve` itself. A subject known via one
-    space (e.g. native) must stay discoverable even when this run only
-    requests a *different* space of the same object (e.g. mni) - otherwise
-    they'd be invisible to the whole run instead of correctly showing up as
-    a per-item "File not found" entry (see _missing_message)."""
-    requested_objects = {item.object for item in config.retrieve}
-    return {(o, s) for o, s in config.file_patterns.all_object_spaces() if o in requested_objects}
+def _retrieve_items_for_dataset(ds: Dataset, config: RetrievalConfig) -> list[RetrieveItem]:
+    """config.retrieve items whose object this dataset actually has a root
+    for. A dataset structurally lacking an entire object tree (e.g. no
+    features/ at all) skips that item for THIS dataset only - see
+    _report_skipped_retrieve_items for where this is surfaced as a WARNING,
+    not silently. Mirrors src.retrieval.matrix.select_all_subjects's existing
+    has_object()-based skip (see its docstring) - this brings retrieve_data
+    in line with a pattern matrix.py already established, rather than
+    inventing a new one."""
+    return [item for item in config.retrieve if ds.has_object(item.object)]
+
+
+def _known_object_pipelines(ds: Dataset, config: RetrievalConfig) -> set[tuple[str, str | None]]:
+    """Exactly the (object, pipeline) pairs this run's `retrieve` list asks
+    for AND that this dataset actually has (see _retrieve_items_for_dataset)
+    - nothing broader. A subject who only exists under some *other* pipeline
+    of the same object is not a member of this run at all: not selected, not
+    counted, not reported as missing. Whether that subject has data in some
+    other object/pipeline is a separate question, answered by the
+    data_summary report (see src.retrieval.matrix), not this pipeline (see
+    also _missing_message, _retrieve_participants) - copy_summary only ever
+    explains the gaps for exactly what was asked for and applies to this
+    dataset."""
+    return {(item.object, item.pipeline) for item in _retrieve_items_for_dataset(ds, config)}
 
 
 def _discover_subjects(ds: Dataset, config: RetrievalConfig, group: str | None = None) -> set[str]:
-    """Union of subjects visible in any space of any object this run
-    touches, for this dataset (see _known_object_spaces)."""
+    """Union of subjects visible in exactly the (object, pipeline) pairs this
+    run's `retrieve` list asks for and this dataset has (see
+    _known_object_pipelines) - never broadened to other pipelines of the
+    same object."""
     return {
         subject_id
-        for object_, space in _known_object_spaces(config)
-        for subject_id in ds.subjects(object_, space, group=group)
+        for object_, pipeline in _known_object_pipelines(ds, config)
+        for subject_id in ds.subjects(object_, pipeline, group=group)
     }
 
 
@@ -90,11 +129,28 @@ def _validate_upfront(datasets: dict[str, Dataset], config: RetrievalConfig) -> 
     """Raise ValueError if the request is structurally impossible for any
     requested dataset. Runs for ALL datasets before any file is copied."""
     for name, ds in datasets.items():
+        _validate_subject_discovery(name, ds, config)
         if config.subjects is None:
             _validate_group_filter(name, ds, config)
         _validate_retrieve_items(name, ds, config)
     if config.subjects is not None:
         _validate_explicit_subjects(datasets, config)
+
+
+def _validate_subject_discovery(name: str, ds: Dataset, config: RetrievalConfig) -> None:
+    """Exercises subject discovery for every (object, pipeline) this run
+    touches and this dataset has (see _known_object_pipelines), unconditionally
+    - not just when group_filter happens to be set. A malformed registered
+    template (e.g.
+    {subject_id} not present as its own path segment - see
+    Dataset._subject_container) must surface here, before any copying
+    starts for ANY requested dataset - otherwise, with group_filter=None
+    and subjects=None (the "retrieve everyone" case), this would only be
+    discovered later, mid-copy, for whichever dataset happens to hit it -
+    potentially after other datasets earlier in the same run already had
+    files copied, violating "a bad request never leaves partial output
+    behind" (see module docstring)."""
+    _discover_subjects(ds, config)
 
 
 def _validate_group_filter(name: str, ds: Dataset, config: RetrievalConfig) -> None:
@@ -106,11 +162,24 @@ def _validate_group_filter(name: str, ds: Dataset, config: RetrievalConfig) -> N
 
 
 def _validate_retrieve_items(name: str, ds: Dataset, config: RetrievalConfig) -> None:
-    for item in config.retrieve:
-        if not ds.available(item.object, item.space, item.modality):
+    """STOPs (raises) in two cases - both real config problems, as opposed to
+    the WARNING-and-skip case (see _report_skipped_retrieve_items):
+    - this dataset supports NONE of the requested retrieve items at all
+      (every item's object is structurally absent) - very likely the wrong
+      dataset was listed in `datasets`, must not silently copy 0 subjects;
+    - an item whose object IS present here still resolves to nothing
+      anywhere for this dataset - a genuinely broken/misconfigured template,
+      not a legitimate per-dataset gap."""
+    applicable = _retrieve_items_for_dataset(ds, config)
+    if not applicable:
+        raise ValueError(
+            f"{name}: none of the requested 'retrieve' items apply to this dataset "
+            "(every item's object is structurally absent here) - check 'datasets' in the config"
+        )
+    for item in applicable:
+        if not ds.available(item):
             raise ValueError(
-                f"{name}: no file registered/found for object={item.object!r} "
-                f"space={item.space!r} modality={item.modality!r}"
+                f"{name}: no file registered/found for {'/'.join(item.path_key())}"
             )
 
 
@@ -133,77 +202,102 @@ def _select_subjects(ds: Dataset, config: RetrievalConfig) -> list[str]:
 
 
 def _destination_path(
-    config: RetrievalConfig, dataset_name: str, subject_id: str, object_: str, space: str, source: Path
+    config: RetrievalConfig, dataset_name: str, subject_id: str, item: RetrieveItem, source: Path
 ) -> Path:
-    return config.output_root / config.project / dataset_name / subject_id / object_ / space / source.name
+    return (
+        config.output_root / config.project / dataset_name / subject_id
+        / local_relative_path(item, source.name)
+    )
 
 
 def _copy_one(
-    source: Path, destination: Path, overwrite: bool, stats: DatasetStats, label: str, group: str = ""
+    source: Path,
+    destination: Path,
+    overwrite: bool,
+    stats: DatasetStats,
+    label: str,
+    group: str = "",
+    *,
+    is_participants: bool = False,
 ) -> None:
     """`label` identifies the file for the Failed-section entry - e.g.
-    "<dataset>: <subject_id> - <object>/<space>/<modality>" for a lesion
-    file, or "<dataset>: participants.tsv". `group` is the
-    (object, space, modality) tag used to sub-group Failed like Missing (see
+    "<dataset>: <subject_id> - <object>/<pipeline>/<datatype>/<suffix>" for a
+    lesion file, or "<dataset>: participants.tsv". `group` is the
+    item.path_key() tag used to sub-group Failed like Missing (see
     ReportEntry) - "" for files not tied to one specific retrieve item (e.g.
-    participants.tsv)."""
+    participants.tsv). `is_participants` routes the outcome into
+    `stats.participants_outcome` instead of `stats.copied`/
+    `stats.skipped_existing` - participants.tsv is metadata, not a data file,
+    and must not inflate counts meant to reflect how many lesion masks/
+    feature files actually landed (see DatasetStats)."""
     if destination.exists() and not overwrite:
         logging.info("skip (exists): %s", destination)
-        stats.skipped_existing += 1
+        if is_participants:
+            stats.participants_outcome = "skipped (exists)"
+        else:
+            stats.skipped_existing += 1
         return
-    destination.parent.mkdir(parents=True, exist_ok=True)
     try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
     except OSError as exc:
         logging.warning("copy failed: %s -> %s (%s)", source, destination, exc, exc_info=True)
         stats.failed.append(ReportEntry(group=group, line=f"{label}: copy failed ({exc})"))
+        if is_participants:
+            stats.participants_outcome = "failed"
         return
     logging.info("copied: %s", destination)
-    stats.copied += 1
+    if is_participants:
+        stats.participants_outcome = "copied"
+    else:
+        stats.copied += 1
 
 
 def _missing_message(ds: Dataset, name: str, subject_id: str, item: RetrieveItem) -> ReportEntry:
-    """File-not-found entry for the report, tagged with the
-    (object, space, modality) that produced it (see ReportEntry) so multiple
-    retrieve items don't get interleaved into one flat list per dataset.
-    Distinguishes *why* nothing matched - "empty folder" (the directory that
-    would hold the file exists but has nothing in it - the file was simply
-    never produced for this subject) vs "not found" (every other case) - see
-    Dataset.describe_absence. Whether this subject has data in some *other*
-    object/space/modality is a separate question, answered by the
-    data_summary report (src.retrieval.matrix), not here."""
+    """File-not-found entry for the report, tagged with the item.path_key()
+    that produced it (see ReportEntry) so multiple retrieve items don't get
+    interleaved into one flat list per dataset. Distinguishes *why* nothing
+    matched - "empty folder" (the directory that would hold the file exists
+    but has nothing in it - the file was simply never produced for this
+    subject) vs "not found" (every other case) - see Dataset.describe_absence.
+    Whether this subject has data in some *other* combination is a separate
+    question, answered by the data_summary report (src.retrieval.matrix), not
+    here."""
     reason = ds.describe_absence(subject_id, item)
-    group = f"{item.object}/{item.space}/{item.modality}"
+    group = "/".join(item.path_key())
     return ReportEntry(group=group, line=f"{name}: {subject_id} - no {group} ({reason})")
 
 
 def _retrieve_subject(
     name: str, ds: Dataset, subject_id: str, config: RetrievalConfig, stats: DatasetStats
 ) -> None:
-    for item in config.retrieve:
+    for item in _retrieve_items_for_dataset(ds, config):
         resolved = ds.resolve(subject_id, item)
         if not resolved:
             stats.missing.append(_missing_message(ds, name, subject_id, item))
             continue
-        group = f"{item.object}/{item.space}/{item.modality}"
+        group = "/".join(item.path_key())
         label = f"{name}: {subject_id} - {group}"
         for source in resolved:
-            destination = _destination_path(config, name, subject_id, item.object, item.space, source)
+            destination = _destination_path(config, name, subject_id, item, source)
             _copy_one(source, destination, config.overwrite, stats, label, group=group)
 
 
 def _retrieve_participants(name: str, ds: Dataset, config: RetrievalConfig, stats: DatasetStats) -> None:
     """Copies participants.tsv through the same _copy_one path as any other
-    file - its outcome folds into the same copied/skipped/failed counts
-    already in the summary table, rather than a separate status field only
-    this one file had. Absence at source (e.g. WashU has none) is a
-    legitimate per-dataset fact, not tracked here - see the data_summary
-    report (src.retrieval.matrix) for what each dataset does/doesn't have."""
+    file, but tagged `is_participants=True` so its outcome lands in
+    `stats.participants_outcome`, not the data-file `copied`/
+    `skipped_existing` counts (see DatasetStats/_copy_one - participants.tsv
+    is metadata, not a lesion mask or feature file, and mixing it into those
+    counts made them off-by-one against the real number of data files).
+    Absence at source (e.g. WashU has none) is a legitimate per-dataset fact,
+    not tracked here - see the data_summary report (src.retrieval.matrix)
+    for what each dataset does/doesn't have."""
     source = ds.participants_tsv_path()
     if source is None:
         return
     destination = config.output_root / config.project / name / "participants.tsv"
-    _copy_one(source, destination, config.overwrite, stats, f"{name}: participants.tsv")
+    _copy_one(source, destination, config.overwrite, stats, f"{name}: participants.tsv", is_participants=True)
 
 
 def _report_explicit_subjects_absent_from_dataset(
@@ -229,11 +323,12 @@ def _report_non_conforming_subject_folders(
     """sub-* folders that don't match the expected naming convention are
     never retrieved (Dataset.subjects() already excludes them) - this makes
     their exclusion visible instead of silent. Checked across every
-    (object, space) this run actually requests, since non-conforming folders
-    can exist under any of their independent subject containers."""
+    (object, pipeline) this run actually requests and this dataset has,
+    since non-conforming folders can exist under any of their independent
+    subject containers."""
     found: set[str] = set()
-    for object_, space in _known_object_spaces(config):
-        found |= set(ds.non_conforming_subject_folders(object_, space))
+    for object_, pipeline in _known_object_pipelines(ds, config):
+        found |= set(ds.non_conforming_subject_folders(object_, pipeline))
     stats.non_conforming = [
         f"{name}: {folder} - does not match expected subject naming, excluded from retrieval"
         for folder in sorted(found)
@@ -242,9 +337,23 @@ def _report_non_conforming_subject_folders(
         logging.warning("%s: %d non-conforming subject folder(s) excluded", name, len(stats.non_conforming))
 
 
+def _report_skipped_retrieve_items(name: str, ds: Dataset, config: RetrievalConfig, stats: DatasetStats) -> None:
+    """WARNING (not STOP): a retrieve item whose object this dataset
+    structurally lacks (e.g. feature/... on a dataset with no features/ tree
+    at all) is skipped for this dataset only - every other requested dataset
+    and every other retrieve item still runs. Surfaced explicitly here (log +
+    report) so the skip is visible, not silent - see code_standards.md §0."""
+    skipped = [item for item in config.retrieve if not ds.has_object(item.object)]
+    for item in skipped:
+        message = f"{name}: object={item.object!r} not present in this dataset - skipping {'/'.join(item.path_key())}"
+        logging.warning(message)
+        stats.skipped_objects.append(message)
+
+
 def _retrieve_dataset(name: str, ds: Dataset, config: RetrievalConfig, stats: DatasetStats) -> None:
     subjects = _select_subjects(ds, config)
     stats.subjects_selected = len(subjects)
+    _report_skipped_retrieve_items(name, ds, config, stats)
     _report_non_conforming_subject_folders(name, ds, config, stats)
     _report_explicit_subjects_absent_from_dataset(name, config, subjects, stats)
     logging.info("%s: retrieving %d subjects", name, len(subjects))
@@ -296,7 +405,8 @@ def _config_summary(config: RetrievalConfig) -> str:
         "group_filter": config.group_filter,
         "subjects": config.subjects,
         "retrieve": [
-            {"object": item.object, "space": item.space, "modality": item.modality} for item in config.retrieve
+            {"object": item.object, "pipeline": item.pipeline, "datatype": item.datatype, "suffix": item.suffix}
+            for item in config.retrieve
         ],
         "include_tabular_data": config.include_tabular_data,
         "overwrite": config.overwrite,
@@ -335,9 +445,9 @@ def _grouped_by_modality_section(
 ) -> list[str]:
     """Rendering for Failed/Missing: same per-dataset grouping as
     _grouped_section, but each dataset's entries (list[ReportEntry]) are
-    further sub-grouped by which (object, space, modality) produced them,
-    each with its own sub-heading and count - a run requesting several
-    modalities in `retrieve` would otherwise interleave them into one flat,
+    further sub-grouped by which retrieve item (item.path_key()) produced
+    them, each with its own sub-heading and count - a run requesting several
+    items in `retrieve` would otherwise interleave them into one flat,
     hard-to-scan list per dataset. Entries with group="" (not tied to one
     retrieve item, e.g. an explicitly requested subject absent from this
     dataset) get no sub-heading, listed first."""
@@ -374,17 +484,20 @@ def _build_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: 
         "",
         "## Summary",
         "",
-        "| dataset | copied | skipped (exists) | failed |",
-        "|---|---|---|---|",
+        "| dataset | copied | skipped (exists) | failed | participants.tsv |",
+        "|---|---|---|---|---|",
     ]
     for name, s in stats.items():
-        lines.append(f"| {name} | {s.copied} | {s.skipped_existing} | {len(s.failed)} |")
+        lines.append(
+            f"| {name} | {s.copied} | {s.skipped_existing} | {len(s.failed)} | "
+            f"{s.participants_outcome or '—'} |"
+        )
     lines += _grouped_by_modality_section(
         stats,
         "failed",
         "Failed",
         "A file's copy did not complete correctly, for the reason given. Sub-grouped by "
-        "which object/space/modality was requested.",
+        "which object/pipeline/datatype/suffix was requested.",
         "Failed Count",
     )
     lines += _grouped_by_modality_section(
@@ -394,8 +507,17 @@ def _build_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: 
         "No registered file found for a specific subject (or an explicitly requested "
         "subject not present in this dataset). \"empty folder\" means the directory that "
         "would hold the file exists but is empty; \"not found\" covers every other case. "
-        "Sub-grouped by which object/space/modality was requested.",
+        "Sub-grouped by which object/pipeline/datatype/suffix was requested.",
         "File Not Found Count",
+    )
+    lines += _grouped_section(
+        stats,
+        "skipped_objects",
+        "Skipped - object not present in this dataset",
+        "A retrieve item whose object this dataset structurally lacks entirely (e.g. no "
+        "features/ tree) - skipped for this dataset only, every other dataset and item "
+        "still runs. Not an error.",
+        "Skipped Count",
     )
     lines += _grouped_section(
         stats,
@@ -425,7 +547,7 @@ def _build_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: 
         stats,
         "unexpected_local_files",
         "Unexpected local files",
-        "Present in data/ but not the current resolution for any expected subject/modality "
+        "Present in data/ but not the current resolution for any expected subject/retrieve item "
         "- stale naming or a leftover from a prior run.",
         "Unexpected Count",
     )
@@ -484,8 +606,14 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     now = datetime.now()
-    log_path = _log_path(config, now)
-    _attach_file_handler(log_path)
+    try:
+        log_path = _log_path(config, now)
+        _attach_file_handler(log_path)
+    except OSError as exc:
+        # No file handler yet at this point - this still reaches the console
+        # StreamHandler from basicConfig() above.
+        logging.error("cannot set up log file: %s", exc, exc_info=True)
+        return 1
 
     try:
         datasets = _build_datasets(config)
@@ -495,7 +623,12 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     stats = _retrieve_all(datasets, config)
-    report_path = _write_report(config, stats, now)
+
+    try:
+        report_path = _write_report(config, stats, now)
+    except OSError as exc:
+        logging.error("cannot write report: %s", exc, exc_info=True)
+        return 1
 
     total_verification_errors = sum(
         len(s.mismatched) + len(s.missing_locally) for s in stats.values()

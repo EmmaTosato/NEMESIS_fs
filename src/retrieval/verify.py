@@ -21,8 +21,9 @@ import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from src.retrieval.config import RetrievalConfig
+from src.retrieval.config import RetrievalConfig, RetrieveItem
 from src.retrieval.dataset import Dataset
+from src.retrieval.output_layout import local_relative_path
 
 
 @dataclass
@@ -45,9 +46,9 @@ def local_dataset_root(config: RetrievalConfig, dataset_name: str) -> Path:
 
 
 def local_destination(
-    config: RetrievalConfig, dataset_name: str, subject_id: str, object_: str, space: str, filename: str
+    config: RetrievalConfig, dataset_name: str, subject_id: str, item: RetrieveItem, filename: str
 ) -> Path:
-    return local_dataset_root(config, dataset_name) / subject_id / object_ / space / filename
+    return local_dataset_root(config, dataset_name) / subject_id / local_relative_path(item, filename)
 
 
 def _verify_subject_files(
@@ -58,12 +59,18 @@ def _verify_subject_files(
     result: VerificationResult,
     expected_local_files: set[Path],
 ) -> None:
+    """Only checks retrieve items whose object this dataset actually has
+    (see Dataset.has_object) - an item skipped at copy time for this dataset
+    (see retrieve_data._report_skipped_retrieve_items) was never expected to
+    land locally either, so it's not a verification target here."""
     for item in config.retrieve:
+        if not ds.has_object(item.object):
+            continue
         resolved = ds.resolve(subject_id, item)  # [] if source doesn't have it either - see stats.missing
         for source in resolved:
-            local_path = local_destination(config, name, subject_id, item.object, item.space, source.name)
+            local_path = local_destination(config, name, subject_id, item, source.name)
             expected_local_files.add(local_path)
-            label = f"{name}: {subject_id} {item.object}/{item.space}/{item.modality}"
+            label = f"{name}: {subject_id} {'/'.join(item.path_key())}"
             if not local_path.is_file():
                 result.missing_locally.append(f"{label} - source has it ({source}) but data/ doesn't")
                 continue
@@ -104,7 +111,7 @@ def _find_unexpected_local_files(
     for path in root.rglob("*"):
         if path.is_file() and path not in expected_local_files:
             result.unexpected_local_files.append(
-                f"{name}: {path} - not the current resolution for any expected subject/modality"
+                f"{name}: {path} - not the current resolution for any expected subject/retrieve item"
             )
 
 

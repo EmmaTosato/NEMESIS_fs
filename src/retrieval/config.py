@@ -16,6 +16,18 @@ from pathlib import Path
 KNOWN_GROUPS = ("ST", "HC", "PD", "GM")
 KNOWN_OBJECTS = ("lesion", "feature")
 
+# Whether an object's file_patterns.json leaves nest under a BIDS-Derivatives
+# pipeline name (e.g. lesion/manual_masks/anat/lesion_mask) or not (e.g.
+# feature/func/FC-pearson - our features/ tree has no dataset_description.json
+# anywhere and no discoverable pipeline name, so we don't invent one). Every
+# object in KNOWN_OBJECTS must be in exactly one of these two sets - the
+# asserts catch a new object added to KNOWN_OBJECTS without updating them,
+# at import time; RetrieveItem.__post_init__ catches it defensively too.
+_OBJECTS_REQUIRING_PIPELINE = frozenset({"lesion"})
+_OBJECTS_FORBIDDING_PIPELINE = frozenset({"feature"})
+assert _OBJECTS_REQUIRING_PIPELINE | _OBJECTS_FORBIDDING_PIPELINE == set(KNOWN_OBJECTS)
+assert not (_OBJECTS_REQUIRING_PIPELINE & _OBJECTS_FORBIDDING_PIPELINE)
+
 
 @dataclass(frozen=True)
 class FilePatterns:
@@ -27,10 +39,13 @@ class FilePatterns:
     KNOWN_OBJECTS), then by however many levels that object's own data needs
     down to an ordered list of path templates (relative to that object's own
     `project_root`, with `{subject_id}` as the only placeholder). `lesion`
-    nests two levels below object (space, then modality - e.g.
-    `lesion.native.T1w`); `feature` nests whatever levels its own registered
-    keys need (e.g. `feature.func.motion`) - the depth is read from the JSON,
-    never assumed by this class.
+    nests three levels below object (pipeline, then datatype, then suffix -
+    e.g. `lesion.manual_masks.anat.lesion_mask`); `feature` nests two levels
+    (datatype, then suffix - e.g. `feature.func.FC-pearson`), since it has no
+    pipeline (see _OBJECTS_FORBIDDING_PIPELINE). Depth genuinely varies by
+    object - read from the JSON, never assumed by this class. See
+    RetrieveItem.path_key()/from_path() for the one place that maps between
+    this tuple shape and typed fields.
 
     Each object has its own `project_root`, since `lesion` and `feature` live
     under different directory trees at the source (see
@@ -67,34 +82,116 @@ class FilePatterns:
         of what any specific retrieval run's `retrieve` list asks for."""
         return sorted(key for key in self.patterns if key[0] == object_)
 
-    def all_object_spaces(self) -> set[tuple[str, str]]:
-        """Every distinct (object, space) pair registered anywhere in this
-        registry - i.e. the second path segment under each object (for
-        `lesion`: native/mni; for `feature`: whatever its own registered
-        keys are). Used by retrieve_data.py to discover subjects across every
-        space of a requested object, not just the exact (object, space)
-        pairs a run's `retrieve` list happens to name - so a subject known
-        via one space is never invisible just because this run only asked
-        for a different space of the same object."""
-        return {(key[0], key[1]) for key in self.patterns}
+    def subject_discovery_keys(self) -> set[tuple[str, str | None]]:
+        """Every distinct (object, pipeline) pair registered anywhere in this
+        registry - pipeline is None for objects that don't use one (see
+        _OBJECTS_FORBIDDING_PIPELINE). This is the axis subject folders are
+        discovered under: for `lesion`/`manual_masks`, {subject_id} sits
+        right after the `manual_masks` path segment, before `datatype` even
+        appears; for `feature`, {subject_id} is the very first segment (no
+        pipeline at all). Two leaves sharing the same (object, pipeline) are
+        assumed to share the same subject-folder location - true by the
+        BIDS-Derivatives convention this registry follows
+        (derivatives/<pipeline>/sub-*/... vs sub-*/... directly). Used by
+        matrix.select_all_subjects and retrieve_data._known_object_pipelines
+        to discover subjects across every pipeline of a requested object, not
+        just the exact (object, pipeline) pairs a run's `retrieve` list
+        happens to name."""
+        return {(combo[0], RetrieveItem.from_path(*combo).pipeline) for combo in self.patterns}
 
 
 @dataclass(frozen=True)
 class RetrieveItem:
+    """One (object, *path) leaf to retrieve, in BIDS-aligned vocabulary.
+
+    `pipeline` is a BIDS-Derivatives pipeline name (e.g. `manual_masks`) -
+    required and non-empty for objects in _OBJECTS_REQUIRING_PIPELINE
+    (today: `lesion`), and must be None for objects in
+    _OBJECTS_FORBIDDING_PIPELINE (today: `feature` - our features/ tree has
+    no discoverable pipeline name, so we don't invent one; BIDS itself
+    defines no formal "pipeline" entity either, see docs/dev/retrieval.md).
+    `datatype` is the BIDS-official content type (anat/dwi/func). `suffix` is
+    the BIDS-official term for what this project used to call "modality" -
+    BIDS reserves "modality" for acquisition technology (MRI/PET/...), a
+    different, higher-level concept this project doesn't need.
+
+    Field *shape* is not the same for every object - see path_key()/
+    from_path() for the one place that maps between this and the flat tuple
+    keys used by FilePatterns."""
+
     object: str
-    space: str
-    modality: str
+    pipeline: str | None
+    datatype: str
+    suffix: str
 
     def __post_init__(self) -> None:
-        """Only `object` is validated here - it is a true structural
-        constant (lesion/feature will not change, see KNOWN_OBJECTS).
-        `space`/`modality` validity depends on the external file_patterns
-        registry, which a dataclass can't reasonably depend on at
+        """Only `object` is a true structural constant (see KNOWN_OBJECTS) -
+        validated directly. `pipeline`'s required-or-forbidden-ness is also
+        validated here since it's a per-object rule known statically (see
+        _OBJECTS_REQUIRING_PIPELINE/_OBJECTS_FORBIDDING_PIPELINE), unlike
+        `datatype`/`suffix`, whose *validity* depends on the external
+        file_patterns registry and can't reasonably be checked at
         construction time - see _require_known_combinations, which
         cross-validates config.retrieve against config.file_patterns once in
-        load_config."""
+        load_config. The explicit if/elif/else: raise (not a 2-branch
+        if/else) means a 3rd object added to KNOWN_OBJECTS without updating
+        the two pipeline-requirement sets fails loudly here too, not just via
+        the module-level assert."""
         if self.object not in KNOWN_OBJECTS:
             raise ValueError(f"RetrieveItem: unknown object {self.object!r} (known: {KNOWN_OBJECTS})")
+        if self.object in _OBJECTS_REQUIRING_PIPELINE:
+            if not self.pipeline:
+                raise ValueError(f"RetrieveItem: object={self.object!r} requires a non-empty 'pipeline'")
+        elif self.object in _OBJECTS_FORBIDDING_PIPELINE:
+            if self.pipeline is not None:
+                raise ValueError(
+                    f"RetrieveItem: object={self.object!r} must not set 'pipeline' (got {self.pipeline!r}) "
+                    "- BIDS defines no formal pipeline concept for this object, see docs/dev/retrieval.md"
+                )
+        else:
+            raise ValueError(
+                f"RetrieveItem: object={self.object!r} has no pipeline-requirement rule registered - "
+                "add it to _OBJECTS_REQUIRING_PIPELINE or _OBJECTS_FORBIDDING_PIPELINE"
+            )
+        if not self.datatype:
+            raise ValueError(f"RetrieveItem: 'datatype' must be a non-empty string, got {self.datatype!r}")
+        if not self.suffix:
+            raise ValueError(f"RetrieveItem: 'suffix' must be a non-empty string, got {self.suffix!r}")
+
+    def path_key(self) -> tuple[str, ...]:
+        """The (object, *path) tuple this item resolves to in
+        file_patterns.json - includes `pipeline` only for objects that
+        require one. Variable length by design, not a bug - see class
+        docstring."""
+        if self.pipeline is not None:
+            return (self.object, self.pipeline, self.datatype, self.suffix)
+        return (self.object, self.datatype, self.suffix)
+
+    @classmethod
+    def from_path(cls, *path: str) -> "RetrieveItem":
+        """Inverse of path_key() - the one place that knows how many fields
+        follow `object` for a given object, so callers (matrix.py
+        especially) never need their own knowledge of the schema shape.
+        Raises ValueError with the same object-requirement rules as
+        __post_init__ if the shape doesn't match."""
+        if not path:
+            raise ValueError("RetrieveItem.from_path: empty path")
+        object_, *rest = path
+        if object_ in _OBJECTS_REQUIRING_PIPELINE:
+            if len(rest) != 3:
+                raise ValueError(
+                    f"RetrieveItem.from_path: object={object_!r} expects (pipeline, datatype, suffix), got {rest}"
+                )
+            pipeline, datatype, suffix = rest
+            return cls(object=object_, pipeline=pipeline, datatype=datatype, suffix=suffix)
+        if object_ in _OBJECTS_FORBIDDING_PIPELINE:
+            if len(rest) != 2:
+                raise ValueError(
+                    f"RetrieveItem.from_path: object={object_!r} expects (datatype, suffix), got {rest}"
+                )
+            datatype, suffix = rest
+            return cls(object=object_, pipeline=None, datatype=datatype, suffix=suffix)
+        raise ValueError(f"RetrieveItem.from_path: unknown object {object_!r} (known: {KNOWN_OBJECTS})")
 
 
 @dataclass(frozen=True)
@@ -142,7 +239,7 @@ def load_file_patterns(path: str | Path) -> FilePatterns:
         project_roots[object_] = Path(project_root)
         rest = {k: v for k, v in node.items() if k != "project_root"}
         if not rest:
-            raise ValueError(f"file_patterns: object {object_!r} has no modalities registered")
+            raise ValueError(f"file_patterns: object {object_!r} has no leaves registered")
         _walk_patterns(patterns, (object_,), rest)
 
     return FilePatterns(project_roots=project_roots, patterns=patterns)
@@ -150,9 +247,9 @@ def load_file_patterns(path: str | Path) -> FilePatterns:
 
 def _walk_patterns(patterns: dict[tuple[str, ...], list[str]], prefix: tuple[str, ...], node: object) -> None:
     """Recursively parses a nested file_patterns node into flat
-    `(object, *path) -> templates` entries - handles `lesion`'s fixed 2 levels
-    (space, modality) and whatever depth `feature` needs, without assuming a
-    fixed shape."""
+    `(object, *path) -> templates` entries - handles `lesion`'s 3 levels
+    (pipeline, datatype, suffix) and `feature`'s 2 levels (datatype, suffix),
+    without assuming a fixed shape."""
     label = ".".join(prefix)
     if isinstance(node, list):
         if not node:
@@ -196,7 +293,7 @@ def load_config(path: str | Path) -> RetrievalConfig:
         project=_require_str(raw, "project"),
         file_patterns_path=file_patterns_path,
         file_patterns=file_patterns,
-        datasets=_require_str_list(raw, "datasets", allow_empty=False),
+        datasets=_require_unique_str_list(raw, "datasets"),
         group_filter=_optional_group_filter(raw),
         subjects=_optional_str_list(raw, "subjects"),
         retrieve=retrieve,
@@ -234,6 +331,19 @@ def _require_str_list(raw: dict, key: str, *, allow_empty: bool) -> list[str]:
     return value
 
 
+def _require_unique_str_list(raw: dict, key: str) -> list[str]:
+    """Like _require_str_list(allow_empty=False), but also rejects duplicate
+    entries explicitly rather than silently collapsing them - a duplicate
+    dataset name would otherwise dedupe invisibly (Dataset instances are
+    keyed by name in a dict in _build_datasets), masking what's very likely
+    a copy-paste mistake in the config."""
+    value = _require_str_list(raw, key, allow_empty=False)
+    duplicates = {v for v in value if value.count(v) > 1}
+    if duplicates:
+        raise ValueError(f"config: field {key!r} contains duplicate entries: {sorted(duplicates)}")
+    return value
+
+
 def _optional_str_list(raw: dict, key: str) -> list[str] | None:
     if raw.get(key) is None:
         return None
@@ -264,25 +374,49 @@ def _require_retrieve_list(raw: dict) -> list[RetrieveItem]:
 
 
 def _parse_retrieve_item(item: dict) -> RetrieveItem:
-    required = ("object", "space", "modality")
-    if not isinstance(item, dict) or not all(key in item for key in required):
+    """`pipeline` is required only for objects in _OBJECTS_REQUIRING_PIPELINE,
+    and explicitly rejected (not silently dropped - code_standards.md §0) if
+    present for an object in _OBJECTS_FORBIDDING_PIPELINE, so a config typo
+    (setting `pipeline` on a `feature` entry, expecting it to matter) fails
+    loudly instead of being ignored."""
+    if not isinstance(item, dict) or "object" not in item:
+        raise ValueError(f"config: each 'retrieve' entry must have an 'object' field, got {item!r}")
+    object_ = item["object"]
+    if not isinstance(object_, str) or not object_:
+        raise ValueError(f"config: 'retrieve' entry field 'object' must be a non-empty string, got {object_!r}")
+    if object_ not in KNOWN_OBJECTS:
+        raise ValueError(f"config: 'retrieve' entry has unknown object {object_!r} (known: {KNOWN_OBJECTS})")
+
+    if object_ in _OBJECTS_FORBIDDING_PIPELINE and "pipeline" in item:
         raise ValueError(
-            f"config: each 'retrieve' entry must have 'object', 'space' and 'modality', got {item!r}"
+            f"config: 'retrieve' entry for object={object_!r} must not set 'pipeline' (got {item['pipeline']!r}) "
+            "- BIDS defines no formal pipeline concept for this object, see docs/dev/retrieval.md"
         )
-    return RetrieveItem(object=item["object"], space=item["space"], modality=item["modality"])
+    required = ("pipeline", "datatype", "suffix") if object_ in _OBJECTS_REQUIRING_PIPELINE else ("datatype", "suffix")
+    if not all(key in item for key in required):
+        raise ValueError(
+            f"config: 'retrieve' entry for object={object_!r} must have fields {required}, got {item!r}"
+        )
+    for key in required:
+        if not isinstance(item[key], str) or not item[key]:
+            raise ValueError(
+                f"config: 'retrieve' entry field {key!r} must be a non-empty string, got {item[key]!r}"
+            )
+    pipeline = item["pipeline"] if object_ in _OBJECTS_REQUIRING_PIPELINE else None
+    return RetrieveItem(object=object_, pipeline=pipeline, datatype=item["datatype"], suffix=item["suffix"])
 
 
 def _reject_duplicate_retrieve_items(items: list[RetrieveItem]) -> None:
-    """Two identical (object, space, modality) entries would make the second
-    one copy the exact same file to the exact same destination as the first,
+    """Two identical entries (same path_key()) would make the second one
+    copy the exact same file to the exact same destination as the first,
     within the same run - it would show up as 'skipped (exists)' in the
     report, indistinguishable from a file genuinely already present from a
     previous run. Rejected upfront rather than silently deduplicated, so a
     copy-paste mistake in the config is never masked."""
-    seen: set[tuple[str, str, str]] = set()
-    duplicates: set[tuple[str, str, str]] = set()
+    seen: set[tuple[str, ...]] = set()
+    duplicates: set[tuple[str, ...]] = set()
     for item in items:
-        key = (item.object, item.space, item.modality)
+        key = item.path_key()
         if key in seen:
             duplicates.add(key)
         seen.add(key)
@@ -291,13 +425,12 @@ def _reject_duplicate_retrieve_items(items: list[RetrieveItem]) -> None:
 
 
 def _require_known_combinations(retrieve: list[RetrieveItem], file_patterns: FilePatterns) -> None:
-    """An (object, space, modality) requested in `retrieve` must be a
-    combination the file_patterns registry actually knows how to look up -
-    otherwise the request would only fail later, per-dataset, with a less
-    direct error."""
-    unknown = [item for item in retrieve if not file_patterns.has(item.object, item.space, item.modality)]
+    """A combination requested in `retrieve` must be registered in the
+    file_patterns registry - otherwise the request would only fail later,
+    per-dataset, with a less direct error."""
+    unknown = [item for item in retrieve if not file_patterns.has(*item.path_key())]
     if unknown:
         raise ValueError(
             "config: 'retrieve' requests combinations not registered in file_patterns: "
-            f"{[(item.object, item.space, item.modality) for item in unknown]}"
+            f"{[item.path_key() for item in unknown]}"
         )
