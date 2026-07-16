@@ -1,26 +1,21 @@
 {
   "lesion": {
     "project_root": "/data/corbetta/Clinical_connectome",
-    "native": {
-      "T1w": ["{subject_id}/anat/{subject_id}_T1w.nii.gz"],
-      "T2w": ["{subject_id}/anat/{subject_id}_T2w.nii.gz"],
-      "FLAIR": ["{subject_id}/anat/{subject_id}_FLAIR.nii.gz"],
-      "CT": ["{subject_id}/anat/{subject_id}_CT.nii.gz"],
-      "lesion_roi": [
-        "{subject_id}/anat/{subject_id}_lesion_roi.nii.gz",
-        "{subject_id}/anat/{subject_id}_space-T1w_lesion_roi.nii.gz"
-      ]
-    },
-    "mni": {
-      "lesion_mask": [
-        "derivatives/manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
-      ]
+    "manual_masks": {
+      "anat": {
+        "lesion_mask": [
+          "derivatives/manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
+        ]
+      }
     }
   },
   "feature": {
     "project_root": "/data/corbetta/Clinical_connectome/features",
     "func": {
-      "motion": ["{subject_id}/func/{subject_id}_desc-motion.tsv"]
+      "FC-pearson": [
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer200TianS1Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer200TianS2Buckner7N.csv"
+      ]
     }
   }
 }

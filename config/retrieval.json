@@ -6,7 +6,7 @@
   "group_filter": ["ST"],
   "subjects": null,
   "retrieve": [
-    { "object": "lesion", "space": "mni", "modality": "lesion_mask" }
+    { "object": "lesion", "pipeline": "manual_masks", "datatype": "anat", "suffix": "lesion_mask" }
   ],
   "include_tabular_data": true,
   "overwrite": false
