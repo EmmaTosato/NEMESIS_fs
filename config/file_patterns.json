@@ -8,14 +8,5 @@
         ]
       }
     }
-  },
-  "feature": {
-    "project_root": "/data/corbetta/Clinical_connectome/features",
-    "func": {
-      "FC-pearson": [
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer200TianS1Buckner7N.csv",
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer200TianS2Buckner7N.csv"
-      ]
-    }
   }
 }
