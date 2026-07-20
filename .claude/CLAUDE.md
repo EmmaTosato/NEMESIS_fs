@@ -18,13 +18,13 @@ Create/update it from `environment.yml` (see `docs/setup.md` for details). Raw n
 
 ## Running pipelines (SLURM)
 
-This project runs on a shared cluster: every Python pipeline/script entry point (`src/pipeline/*.py`, `scripts/*.py`) is launched through an `sbatch` job script under `jobs/<pipeline_name>/run_<pipeline_name>.sh` — never invoked directly (no bare `python`/`conda run` on the login node). `jobs/retrieve_data/run_retrieve_data.sh` is the reference example; `jobs/data_summary/` and `jobs/verify_retrieval/` follow the same shape:
+This project runs on a shared cluster: every Python pipeline/script entry point (`src/pipeline/*.py`, `scripts/*.py`) is launched through an `sbatch` job script at `jobs/run_<pipeline_name>.sh` — a single file directly under `jobs/`, not a per-pipeline subfolder (only switch a pipeline to a `jobs/<name>/` subfolder if it genuinely needs more than one `.sh` script) — never invoked directly (no bare `python`/`conda run` on the login node). `jobs/run_retrieve_data.sh` is the reference example; `jobs/run_data_summary.sh` and `jobs/run_verify_retrieval.sh` follow the same shape:
 
 - `#SBATCH` header (job name, partition, cpus/mem/time, `-o`/`-e` pointing at `logs/slurm/<pipeline_name>/%j.{out,err}`) — that log directory must already exist before `sbatch` submission, SLURM does not create it.
 - `source .../conda.sh && conda activate nemesis`, then `cd` to the repo root.
 - The exact invocation documented in `docs/guides/` for that entry point (`python -m src.pipeline...` for `src/pipeline/`, `PYTHONPATH="$PROJECT_ROOT" python scripts/...` for `scripts/`, since those aren't run with `-m`).
 
-Resource values in `jobs/` are conservative starting points (this is I/O-bound file-copying work, not compute-heavy), not fixed — adjust `--cpus-per-task`/`--mem`/`-t` per job as needed. When a new pipeline/script is added under `src/pipeline/` or `scripts/`, add a matching `jobs/<name>/run_<name>.sh` at the same time, not as an afterthought.
+Resource values in `jobs/` are conservative starting points (this is I/O-bound file-copying work, not compute-heavy), not fixed — adjust `--cpus-per-task`/`--mem`/`-t` per job as needed. When a new pipeline/script is added under `src/pipeline/` or `scripts/`, add a matching `jobs/run_<name>.sh` at the same time, not as an afterthought.
 
 ## Repository structure
 

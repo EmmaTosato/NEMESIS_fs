@@ -14,7 +14,7 @@ from src.retrieval.config import RetrievalConfig, RetrieveItem, load_file_patter
 from src.retrieval.dataset import Dataset
 
 PROJECT_ROOT = Path("/data/corbetta/Clinical_connectome")
-FILE_PATTERNS_PATH = Path("config/file_patterns.json")
+FILE_PATTERNS_PATH = Path("config/registry/file_patterns.json")
 
 pytestmark = pytest.mark.skipif(
     not PROJECT_ROOT.is_dir(), reason="EBRAIN mount not available on this machine"

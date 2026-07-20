@@ -8,7 +8,7 @@ here recomputes its own expectation directly from the real filesystem at test
 run time (independent of Dataset/file_patterns.json) and compares it against
 what Dataset.resolve() reports - a mismatch then always signals a real
 discrepancy in the resolution logic, never a stale number. Uses the real
-config/file_patterns.json registry, not a synthetic one, since the whole
+config/registry/file_patterns.json registry, not a synthetic one, since the whole
 point here is verifying the production mapping against real data.
 
 Scoped to `manual_masks` (lesion) and `FC-pearson` (feature, WashU only) -
@@ -24,7 +24,7 @@ from src.retrieval.config import RetrieveItem, load_file_patterns
 from src.retrieval.dataset import Dataset
 
 PROJECT_ROOT = Path("/data/corbetta/Clinical_connectome")
-FILE_PATTERNS_PATH = Path("config/file_patterns.json")
+FILE_PATTERNS_PATH = Path("config/registry/file_patterns.json")
 
 pytestmark = pytest.mark.skipif(
     not PROJECT_ROOT.is_dir(), reason="EBRAIN mount not available on this machine"

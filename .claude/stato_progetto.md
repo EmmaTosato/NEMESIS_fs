@@ -9,7 +9,7 @@ NEMESIS è il repo di lavoro per un progetto di ricerca in neuroimaging dello st
 ## Architettura e Tech Stack
 
 - **Linguaggio**: Python 3.11, ambiente conda `nemesis` (`environment.yml`): numpy, scipy, pandas, scikit-learn, umap-learn, matplotlib, seaborn, networkx, jupyterlab, nibabel, nilearn.
-- **Esecuzione**: cluster SLURM condiviso — ogni pipeline/script gira solo tramite job `sbatch` (`jobs/<name>/run_<name>.sh`), mai `python` diretto sul login node.
+- **Esecuzione**: cluster SLURM condiviso — ogni pipeline/script gira solo tramite job `sbatch` (`jobs/run_<name>.sh`, file singolo direttamente sotto `jobs/` — una sottocartella `jobs/<name>/` solo se quella pipeline arriva ad avere più di uno `.sh`), mai `python` diretto sul login node.
 - **Dati**: sorgente grezza (`*.nii`, `*.nii.gz`, `.csv` di feature) su EBRAIN, mount `/data/corbetta/Clinical_connectome/` — non versionata nel repo. 4 dataset in scope: `UNIPD/WashU`, `UNIPD/PASPORT`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`, tutti in formato BIDS reale (raw + `derivatives/manual_masks/`).
 - **Config**: JSON versionato sotto `config/`, un file per pipeline/dominio.
 - **Testing**: `pytest`, `tests/unit/` + `tests/integration/`.
@@ -19,7 +19,7 @@ NEMESIS è il repo di lavoro per un progetto di ricerca in neuroimaging dello st
 
 - **Niente fallback silenziosi**: ogni caso limite (input mancante, file assente, formato inatteso) solleva un errore esplicito con messaggio che identifica cosa manca, oppure è gestito con una strategia intenzionale e documentata — mai una toppa che nasconde il problema.
 - **Architettura a livelli**: `utils` → `retrieval` → `features` → `models`/`analysis` → `pipeline`. I livelli alti dipendono dai bassi, mai il contrario.
-- **Entry point centralizzati**: un solo punto d'ingresso per pipeline in `src/pipeline/`, niente script sparsi. Ogni pipeline/script (`src/pipeline/*.py`, `scripts/*.py`) ha il proprio `jobs/<name>/run_<name>.sh` gemello, aggiunto insieme al codice, non dopo.
+- **Entry point centralizzati**: un solo punto d'ingresso per pipeline in `src/pipeline/`, niente script sparsi. Ogni pipeline/script (`src/pipeline/*.py`, `scripts/*.py`) ha il proprio `jobs/run_<name>.sh` gemello, aggiunto insieme al codice, non dopo.
 - **Config = single source of truth**: nessun valore ambiente-dipendente (path, soglie, iperparametri) hardcoded nel codice; ogni valore vive in un solo posto.
 - **Schema di retrieval in vocabolario BIDS**: un `RetrieveItem` ha campi `object` (`lesion`/`feature`), `pipeline`, `datatype`, `suffix` — la *forma* dei campi non è uniforme tra `object`: `pipeline` è obbligatorio per `lesion` (nome di pipeline BIDS-Derivatives reale, oggi `manual_masks`) e vietato per `feature` (nessun `dataset_description.json` sotto `features/`, nessuna pipeline reale da nominare). Questa regola è validata sia a livello di modulo sia per-istanza, mai con un branching implicito a 2 vie.
 - **Un dataset che non ha affatto un `object` richiesto è un WARNING per-dataset** (quel `retrieve` item viene saltato solo per quel dataset, il run continua) — non uno STOP globale. Se un dataset non supporta **nessuno** dei `retrieve` item richiesti, resta invece uno STOP upfront (probabile errore nella lista `datasets` del config).
@@ -33,9 +33,9 @@ NEMESIS è il repo di lavoro per un progetto di ricerca in neuroimaging dello st
 ## Mappa dello Stato Attuale
 
 **Retrieval — stabile, verificato con run reali in produzione.**
-`config/retrieval.json` + `config/file_patterns.json` → `src.retrieval.config.load_config` → `Dataset` (`src/retrieval/dataset.py`, risoluzione file pigra, nessun I/O alla costruzione) → `src.pipeline.retrieve_data.main()` (valida upfront su tutti i dataset richiesti, copia, verifica checksum post-copia via `src/retrieval/verify.py`, scrive `copy_summary` + log). `src/retrieval/matrix.py` + `scripts/data_summary.py` generano CSV di disponibilità dati per l'intero registro, indipendenti dal report di un singolo run.
+`config/pipelines/retrieval.json` + `config/registry/file_patterns.json` → `src.retrieval.config.load_config` → `Dataset` (`src/retrieval/dataset.py`, risoluzione file pigra, nessun I/O alla costruzione) → `src.pipeline.retrieve_data.main()` (valida upfront su tutti i dataset richiesti, copia, verifica checksum post-copia via `src/retrieval/verify.py`, scrive `copy_summary` + log). `src/retrieval/matrix.py` + `scripts/data_summary.py` generano CSV di disponibilità dati per l'intero registro, indipendenti dal report di un singolo run.
 
-**Copertura dati attuale (registro `config/file_patterns.json`)**: **solo** `lesion/manual_masks/anat/lesion_mask`, su tutti e 4 i dataset. `feature`/`FC-pearson` è stato rimosso dal registro (era limitato a `UNIPD/WashU`, 2 atlanti su ~30 disponibili) — non richiesto per ora, non nei piani immediati. Provata e poi scartata nella stessa sessione anche una voce `lesion/raw/anat/lesion_roi` (lesione in spazio nativo, verificata su disco: WashU 202/319, PASPORT 83/97, PSP **0/237**, UKLFR 735/735) — rimossa su richiesta esplicita, non è nel registro oggi.
+**Copertura dati attuale (registro `config/registry/file_patterns.json`)**: **solo** `lesion/manual_masks/anat/lesion_mask`, su tutti e 4 i dataset. `feature`/`FC-pearson` è stato rimosso dal registro (era limitato a `UNIPD/WashU`, 2 atlanti su ~30 disponibili) — non richiesto per ora, non nei piani immediati. Provata e poi scartata nella stessa sessione anche una voce `lesion/raw/anat/lesion_roi` (lesione in spazio nativo, verificata su disco: WashU 202/319, PASPORT 83/97, PSP **0/237**, UKLFR 735/735) — rimossa su richiesta esplicita, non è nel registro oggi.
 
 **Nota**: `docs/dev/retrieval.md` e `docs/guides/retrieval.md` descrivono ancora `feature`/`FC-pearson` in dettaglio (esempi, tabelle, sezione "Writing retrieve items") come se fosse registrato — è un disallineamento noto tra doc e config reale, segnalato all'utente, non ancora risolto (decisione in sospeso: aggiornare la doc per riflettere lo stato attuale, o lasciarla come riferimento per una reintroduzione a breve).
 
@@ -76,16 +76,16 @@ sovrascritti senza sapere perché erano stati modificati.
 
 ## Work In Progress
 
-Il refactor dello schema di retrieval verso vocabolario BIDS (config, codice, test, doc, run reali) è stato **committato** (10 commit separati per categoria). Da lì, in questa sessione, `config/file_patterns.json` è stato modificato ulteriormente in working tree (non ancora committato): rimosso `feature`, provata e rimossa `lesion/raw` — il file ora ha solo `lesion/manual_masks`. I 4 CSV di `data_summary` in `reports/data_retrieval/clinical_connectome/` sono stati rigenerati (`sbatch jobs/data_summary/run_data_summary.sh`) mentre `raw` era ancora nel registro, quindi contengono una colonna `lesion/raw/anat/lesion_roi` ormai stale rispetto al registro attuale — vanno rigenerati un'altra volta prima di committare, per riflettere lo stato finale (solo `manual_masks`).
+Il refactor dello schema di retrieval verso vocabolario BIDS (config, codice, test, doc, run reali) è stato **committato** (10 commit separati per categoria). Da lì, in questa sessione, `config/registry/file_patterns.json` è stato modificato ulteriormente in working tree (non ancora committato): rimosso `feature`, provata e rimossa `lesion/raw` — il file ora ha solo `lesion/manual_masks`. I 4 CSV di `data_summary` in `reports/data_retrieval/clinical_connectome/` sono stati rigenerati (`sbatch jobs/run_data_summary.sh`) mentre `raw` era ancora nel registro, quindi contengono una colonna `lesion/raw/anat/lesion_roi` ormai stale rispetto al registro attuale — vanno rigenerati un'altra volta prima di committare, per riflettere lo stato finale (solo `manual_masks`).
 
 In parallelo (fuori dal repo): setup locale di BCBToolKit/BCBlib per il calcolo SDC, vedi sezione
 dedicata sopra — Stage 2 del test da completare.
 
 ## Prossimi Passi
 
-1. Rilanciare `sbatch jobs/data_summary/run_data_summary.sh` per aggiornare i 4 CSV allo stato attuale del registro (solo `lesion/manual_masks`, senza la colonna `raw` stale).
-2. Decidere sul disallineamento doc/config per `feature` (vedi "Mappa dello Stato Attuale") — poi committare `config/file_patterns.json` + i CSV rigenerati.
-3. Decidere se/quando riaggiungere `feature`/`FC-pearson` (o `lesion/raw`) a `config/retrieval.json` — oggi `retrieve` chiede solo `lesion/manual_masks/anat/lesion_mask`.
+1. Rilanciare `sbatch jobs/run_data_summary.sh` per aggiornare i 4 CSV allo stato attuale del registro (solo `lesion/manual_masks`, senza la colonna `raw` stale).
+2. Decidere sul disallineamento doc/config per `feature` (vedi "Mappa dello Stato Attuale") — poi committare `config/registry/file_patterns.json` + i CSV rigenerati.
+3. Decidere se/quando riaggiungere `feature`/`FC-pearson` (o `lesion/raw`) a `config/pipelines/retrieval.json` — oggi `retrieve` chiede solo `lesion/manual_masks/anat/lesion_mask`.
 4. Iniziare a popolare `src/analysis/steps.py` con il primo step reale (es. feature extraction dalle lesion mask) per sbloccare la pipeline di analisi, oggi solo scheletro.
 5. Completare il test Stage 2 di BCBlib (`bcb-lesion-features`) sull'output già prodotto in
    `/data/etosato/results/test_lesion_features/prep/` — interrotto per timeout, da rilanciare.

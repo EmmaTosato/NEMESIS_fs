@@ -6,7 +6,7 @@ Copies lesion masks and functional-connectivity features (and, optionally, the c
 
 ```bash
 conda activate nemesis
-python -m src.pipeline.retrieve_data --config config/retrieval.json
+python -m src.pipeline.retrieve_data --config config/pipelines/retrieval.json
 ```
 
 One required argument, `--config`. Everything else — which datasets, which files, where to put them — is in the JSON file.
@@ -15,13 +15,13 @@ One required argument, `--config`. Everything else — which datasets, which fil
 
 Two things to decide: **which files** (`retrieve`) and **which subjects** (`group_filter` / `subjects`).
 
-### The real, current config — `config/retrieval.json`
+### The real, current config — `config/pipelines/retrieval.json`
 
 ```json
 {
   "output_root": "data/",
   "project": "clinical_connectome",
-  "file_patterns": "config/file_patterns.json",
+  "file_patterns": "config/registry/file_patterns.json",
   "datasets": ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"],
   "group_filter": ["ST"],
   "subjects": null,
@@ -42,7 +42,7 @@ This is the exact starting point to copy-paste from and adapt — both examples 
 {
   "output_root": "data/",
   "project": "clinical_connectome",
-  "file_patterns": "config/file_patterns.json",
+  "file_patterns": "config/registry/file_patterns.json",
   "datasets": ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"],
   "group_filter": ["ST"],
   "subjects": null,
@@ -60,7 +60,7 @@ This is the exact starting point to copy-paste from and adapt — both examples 
 {
   "output_root": "data/",
   "project": "clinical_connectome",
-  "file_patterns": "config/file_patterns.json",
+  "file_patterns": "config/registry/file_patterns.json",
   "datasets": ["UNIPD/WashU"],
   "group_filter": null,
   "subjects": ["sub-STUNIPD0002", "sub-STUNIPD0003"],
@@ -78,7 +78,7 @@ This is the exact starting point to copy-paste from and adapt — both examples 
 |---|---|
 | `output_root` | where copied files land locally (usually `"data/"`) |
 | `project` | name used in the local folder layout |
-| `file_patterns` | path to the registry file that says which real filename corresponds to each entry in `retrieve`, and where each `object`'s data actually lives on the source (see below) — normally leave it as `"config/file_patterns.json"` |
+| `file_patterns` | path to the registry file that says which real filename corresponds to each entry in `retrieve`, and where each `object`'s data actually lives on the source (see below) — normally leave it as `"config/registry/file_patterns.json"` |
 | `datasets` | which of the 4 datasets to include (`"UNIPD/WashU"` etc.) |
 | `group_filter` | `["ST"]`, `["HC"]`, both, or `null` for everyone. Ignored entirely if `subjects` is set. |
 | `subjects` | `null` for everyone (subject to `group_filter`), or an exact list of subject IDs to retrieve — bypasses `group_filter` |
@@ -86,7 +86,7 @@ This is the exact starting point to copy-paste from and adapt — both examples 
 | `include_tabular_data` | copy `participants.tsv` too, when the dataset has one |
 | `overwrite` | `false` (default, recommended): skip files that already exist locally. `true`: re-copy and replace them |
 
-No `project_root` field — each `object` has its own source root, declared in `config/file_patterns.json` instead, since `lesion` and `feature` live under different directory trees on the source.
+No `project_root` field — each `object` has its own source root, declared in `config/registry/file_patterns.json` instead, since `lesion` and `feature` live under different directory trees on the source.
 
 ## Writing `retrieve` items
 
@@ -101,7 +101,7 @@ Each entry in `retrieve` is one thing to copy, described in BIDS-aligned vocabul
 
 If you set `pipeline` on a `feature` entry, or omit it on a `lesion` entry, the config fails to load with a clear error — this is checked before anything is copied, not silently ignored. Why `feature` has no `pipeline`: `Clinical_connectome/features/` has no `dataset_description.json` anywhere and isn't itself a BIDS `derivatives/` tree, so there's no real pipeline name to put there.
 
-The two exact items usable today (copy-paste from `config/retrieval.json` above):
+The two exact items usable today (copy-paste from `config/pipelines/retrieval.json` above):
 
 ```json
 { "object": "lesion", "pipeline": "manual_masks", "datatype": "anat", "suffix": "lesion_mask" }
@@ -111,7 +111,7 @@ The normalized (MNI-space) lesion mask — available on all 4 datasets.
 ```json
 { "object": "feature", "datatype": "func", "suffix": "FC-pearson" }
 ```
-Functional-connectivity matrices for 2 atlases (`Schaefer200TianS1Buckner7N`, `Schaefer200TianS2Buckner7N`) — **`UNIPD/WashU` only**, see the availability table below. More atlases (and other feature types like `ALFF`/`ReHo`/motion/QC metrics) are registered incrementally in `config/file_patterns.json` as they're needed — ask before assuming one exists.
+Functional-connectivity matrices for 2 atlases (`Schaefer200TianS1Buckner7N`, `Schaefer200TianS2Buckner7N`) — **`UNIPD/WashU` only**, see the availability table below. More atlases (and other feature types like `ALFF`/`ReHo`/motion/QC metrics) are registered incrementally in `config/registry/file_patterns.json` as they're needed — ask before assuming one exists.
 
 ### Availability per dataset
 
@@ -126,7 +126,7 @@ Asking for a combination not registered in `file_patterns.json` at all stops the
 
 Listing the same entry twice in `retrieve` is rejected upfront (not deduplicated) — otherwise the second copy would misleadingly look like it already existed from a previous run.
 
-## Where `retrieve` items actually point to: `config/file_patterns.json`
+## Where `retrieve` items actually point to: `config/registry/file_patterns.json`
 
 Each item maps to one or more filename templates, registered in plain JSON — not hidden in Python:
 
@@ -180,7 +180,7 @@ Subject folders are expected to be named `sub-<DISEASE><SITE>[HC]<NUM>` (e.g. `s
 
 ### A dataset entirely missing an object — expected, not a bug
 
-`config/retrieval.json`'s `datasets` lists all 4 datasets, but `feature`/`FC-pearson` only exists for WashU. Rather than stopping the whole run over that, PASPORT/PSP/UKLFR each get a **Skipped — object not present in this dataset** entry in the report for the `feature` item, and continue normally for `lesion`/`manual_masks`. If you see this for `feature` on those 3 datasets, that's expected, not something to fix. It would only be worth investigating if it showed up for `lesion`/`manual_masks` (which really is registered everywhere) or for `feature` on WashU itself.
+`config/pipelines/retrieval.json`'s `datasets` lists all 4 datasets, but `feature`/`FC-pearson` only exists for WashU. Rather than stopping the whole run over that, PASPORT/PSP/UKLFR each get a **Skipped — object not present in this dataset** entry in the report for the `feature` item, and continue normally for `lesion`/`manual_masks`. If you see this for `feature` on those 3 datasets, that's expected, not something to fix. It would only be worth investigating if it showed up for `lesion`/`manual_masks` (which really is registered everywhere) or for `feature` on WashU itself.
 
 ## What you get in `data/`
 
@@ -226,10 +226,10 @@ The last four sections are also logged at ERROR/WARNING level, with an aggregate
 `copy_summary` only tells you about the exact combinations a given run's `retrieve` asked for. To see everything a dataset has - every registered leaf, for every subject, at once - run the separate, read-only summary:
 
 ```bash
-PYTHONPATH=. conda run -n nemesis python scripts/data_summary.py --config config/retrieval.json
+PYTHONPATH=. conda run -n nemesis python scripts/data_summary.py --config config/pipelines/retrieval.json
 ```
 
-Writes one CSV per dataset - `reports/data_retrieval/clinical_connectome/data_summary__UNIPD_WashU.csv`, `..._UNIPD_PASPORT.csv`, etc. (same fixed filename every time, overwritten on each run - a current snapshot, not a dated report). One row per subject, one column per leaf registered in `config/file_patterns.json` (e.g. `lesion/manual_masks/anat/lesion_mask`, `feature/func/FC-pearson`). Each cell is `present` if the file exists, `missing` if not - open it in a spreadsheet and filter for `missing` to scan gaps quickly. No trailing totals row - per-column counts (e.g. to reconcile against `copied + skipped (exists)` in a `copy_summary` report) are computed separately, outside this CSV.
+Writes one CSV per dataset - `reports/data_retrieval/clinical_connectome/data_summary__UNIPD_WashU.csv`, `..._UNIPD_PASPORT.csv`, etc. (same fixed filename every time, overwritten on each run - a current snapshot, not a dated report). One row per subject, one column per leaf registered in `config/registry/file_patterns.json` (e.g. `lesion/manual_masks/anat/lesion_mask`, `feature/func/FC-pearson`). Each cell is `present` if the file exists, `missing` if not - open it in a spreadsheet and filter for `missing` to scan gaps quickly. No trailing totals row - per-column counts (e.g. to reconcile against `copied + skipped (exists)` in a `copy_summary` report) are computed separately, outside this CSV.
 
 Nothing is copied or modified - purely a read of the current source, same as `verify_retrieval.py`.
 
@@ -240,7 +240,7 @@ After every requested dataset has been copied, the pipeline re-checks `data/` ag
 The standalone script runs the exact same verification, read-only, without doing a retrieval:
 
 ```bash
-PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/retrieval.json
+PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/pipelines/retrieval.json
 ```
 
 It prints a summary and exits non-zero if anything looks wrong — nothing is copied or modified.

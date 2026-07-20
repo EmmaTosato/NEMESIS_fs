@@ -11,7 +11,7 @@ set -euo pipefail
 
 PROJECT_ROOT="/home/etosato/Projects/NEMESIS_fs"
 CONDA_ENV="nemesis"
-CONFIG_FILE="${PROJECT_ROOT}/config/retrieval.json"
+CONFIG_FILE="${PROJECT_ROOT}/config/pipelines/retrieval.json"
 
 set +u
 source /home/etosato/miniconda3/etc/profile.d/conda.sh

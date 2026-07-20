@@ -61,7 +61,7 @@ Originally, "where does a file live on disk" was hardcoded in `Dataset` as Pytho
 1. **Ambiguous glob matches.** A loose pattern could match more than one real naming variant without anything *guaranteeing* it wouldn't.
 2. **Not inspectable.** The mapping was buried in Python string formatting — a non-programmer collaborator had no way to check "what file does this actually mean" without reading source code.
 
-The registry (`config/file_patterns.json`) fixes both. Top level is `object`; each object maps its own `project_root` plus however many nested levels it needs down to an ordered list of path templates (relative to that object's `project_root`, with `{subject_id}` as the only placeholder — it already includes the `sub-` prefix, e.g. `sub-STUNIPD0002`, so templates must not add a second one):
+The registry (`config/registry/file_patterns.json`) fixes both. Top level is `object`; each object maps its own `project_root` plus however many nested levels it needs down to an ordered list of path templates (relative to that object's `project_root`, with `{subject_id}` as the only placeholder — it already includes the `sub-` prefix, e.g. `sub-STUNIPD0002`, so templates must not add a second one):
 
 ```json
 {
@@ -289,18 +289,18 @@ Neither is part of the pipeline entry point; both reuse `retrieve_data._select_s
 **`scripts/verify_retrieval.py`** — on-demand, read-only re-check of `data/` against source. Calls the exact same `verify.verify_dataset` the pipeline's post-copy phase uses.
 
 ```bash
-PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/retrieval.json
+PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/pipelines/retrieval.json
 ```
 
 **`scripts/data_summary.py`** — writes the `data_summary` CSVs described above.
 
 ```bash
-PYTHONPATH=. conda run -n nemesis python scripts/data_summary.py --config config/retrieval.json
+PYTHONPATH=. conda run -n nemesis python scripts/data_summary.py --config config/pipelines/retrieval.json
 ```
 
 ## Testing
 
-`tests/unit/` — synthetic fixtures in `tmp_path`, no EBRAIN mount required. `tests/integration/` — against the real mount and the real `config/file_patterns.json` registry, `pytest.mark.skipif` if unreachable.
+`tests/unit/` — synthetic fixtures in `tmp_path`, no EBRAIN mount required. `tests/integration/` — against the real mount and the real `config/registry/file_patterns.json` registry, `pytest.mark.skipif` if unreachable.
 
 Datasets on EBRAIN are actively curated, so integration tests never hardcode an exact expected count — counts are checked as a **differential**: `test_manual_masks_lesion_mask_resolution_matches_raw_filesystem`/`test_feature_fc_pearson_resolution_matches_raw_filesystem` (`test_resolution_counts.py`) independently re-glob the real filesystem at test run time and assert that set matches what `Dataset.resolve()` reports *right now*. `test_subjects_with_both_fc_pearson_atlases_get_both_files` checks the "2 genuinely different simultaneous files" nuance specifically: a real subject known (via glob, not hardcoded) to have both Schaefer200 atlas variants must resolve to exactly 2 paths.
 

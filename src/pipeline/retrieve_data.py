@@ -1,7 +1,7 @@
 """CLI entry point: retrieve lesion/feature data and metadata into the local workspace.
 
 Usage:
-    python -m src.pipeline.retrieve_data --config config/retrieval.json
+    python -m src.pipeline.retrieve_data --config config/pipelines/retrieval.json
 
 Structural problems (unsupported object/pipeline/datatype/suffix, unknown
 group, an item that resolves to nothing anywhere despite its object being

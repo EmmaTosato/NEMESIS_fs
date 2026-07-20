@@ -13,7 +13,7 @@ Unlike the timestamped copy_summary report, this one is a current snapshot,
 not a run log: same fixed filename every time, overwritten on each call.
 
 Usage:
-    PYTHONPATH=. conda run -n nemesis python scripts/data_summary.py --config config/retrieval.json
+    PYTHONPATH=. conda run -n nemesis python scripts/data_summary.py --config config/pipelines/retrieval.json
 """
 
 from __future__ import annotations

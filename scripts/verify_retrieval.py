@@ -7,7 +7,7 @@ re-verify already-retrieved data without doing a run at all: read-only, never
 copies or modifies anything.
 
 Usage:
-    PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/retrieval.json
+    PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/pipelines/retrieval.json
 """
 
 from __future__ import annotations

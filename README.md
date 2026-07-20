@@ -50,11 +50,11 @@ conda activate nemesis
 
 ## What's implemented so far
 
-**Data retrieval** (`src/retrieval/`, `src/pipeline/retrieve_data.py`): copies lesion data and `participants.tsv` from the 4 in-scope stroke datasets (`UNIPD/WashU`, `UNIPD/PASPORT`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`) into `data/`, driven by [`config/retrieval.json`](config/retrieval.json) (per-run request) and [`config/file_patterns.json`](config/file_patterns.json) (naming registry, per `object` — `lesion` today, `feature` reserved for later):
+**Data retrieval** (`src/retrieval/`, `src/pipeline/retrieve_data.py`): copies lesion data and `participants.tsv` from the 4 in-scope stroke datasets (`UNIPD/WashU`, `UNIPD/PASPORT`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`) into `data/`, driven by [`config/pipelines/retrieval.json`](config/pipelines/retrieval.json) (per-run request) and [`config/registry/file_patterns.json`](config/registry/file_patterns.json) (naming registry, per `object` — `lesion` today, `feature` reserved for later):
 
 ```bash
 conda activate nemesis
-python -m src.pipeline.retrieve_data --config config/retrieval.json
+python -m src.pipeline.retrieve_data --config config/pipelines/retrieval.json
 ```
 
 Every run writes a report (`reports/`) and a matching log (`logs/`) summarizing what was copied and flagging anything that needs a human look (missing files, non-conforming subject folders). A separate, read-only `scripts/data_summary.py` gives the full per-subject availability picture across every registered modality, independent of any one run. Full usage guide: [`docs/guides/retrieval.md`](docs/guides/retrieval.md). Architecture/design rationale: [`docs/dev/retrieval.md`](docs/dev/retrieval.md).
