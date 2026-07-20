@@ -1,0 +1,9 @@
+{
+  "project": "clinical_connectome",
+  "input_path": "data/derived/lesion_matrix/20-07_run1",
+  "reduction_method": "umap",
+  "params_file": "config/registry/params_reduction.json",
+  "output_root": "results/dim_reduction",
+  "run_name": "run1",
+  "overwrite": false
+}
