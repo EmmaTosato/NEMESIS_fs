@@ -167,6 +167,22 @@ def _load_reference_image(lesion_files: dict[str, list[Path]], reference_dataset
     return nib.load(files[0])
 
 
+def load_reference_image(data_root: Path, reference_dataset: str, lesion_glob: str) -> nib.Nifti1Image:
+    """Load the reference lesion mask that fixes the common voxel grid.
+
+    Public so callers that only need the grid (e.g. the build_lesion_matrix
+    pipeline script, to reconstruct QC volumes after the fact) don't have to
+    re-run full lesion discovery/validation across every dataset via
+    build_lesion_matrix - this only touches reference_dataset.
+    """
+    files = sorted((data_root / reference_dataset).glob(lesion_glob))
+    if not files:
+        raise ValueError(
+            f"reference_dataset {reference_dataset!r} has no lesion files matching {lesion_glob!r} under {data_root}"
+        )
+    return nib.load(files[0])
+
+
 def _load_and_binarize_lesion(
     path: Path, reference_img: nib.Nifti1Image, resample_interpolation: str, binarize_threshold: float
 ) -> np.ndarray:

@@ -59,12 +59,11 @@ def save_matrix(
             f"extra_arrays uses reserved name(s) {sorted(reserved_clash)}, "
             f"which collide with the artifact's own files ({sorted(_RESERVED_EXTRA_ARRAY_NAMES)})"
         )
-    for name, array in extra_arrays.items():
-        if array.shape[0] != X.shape[0]:
-            raise ValueError(
-                f"extra_arrays[{name!r}] has {array.shape[0]} rows but matrix has "
-                f"{X.shape[0]} rows - must match"
-            )
+    # No shape relationship to X is assumed or checked here: an extra array can be
+    # subject-aligned (X.shape[0]), feature-aligned (X.shape[1], or the pre-drop
+    # feature count), or something else entirely - that meaning belongs to the
+    # caller (e.g. build_lesion_matrix.py's non_constant_mask is feature-aligned,
+    # parcel_ids is aligned to X's post-drop columns).
 
     output_dir.parent.mkdir(parents=True, exist_ok=True)
     tmp_dir = Path(tempfile.mkdtemp(prefix=f".{output_dir.name}_tmp_", dir=output_dir.parent))
