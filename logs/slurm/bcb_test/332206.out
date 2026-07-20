@@ -1,0 +1,29 @@
+Preprocessing lesions [BIDS mode] → /data/etosato/results/test_lesion_features_real/prep
+  [1/1] sub-STUNIPD0001 ...
+════════════════════════════════════════════════════════
+  BCBToolKit — Disconnectome Maps
+────────────────────────────────────────────────────────
+  Subjects : 1
+  Tracks   : 10 *.trk files
+  Atlas    : /data/etosato/tools/BCBToolKit/Tools/extraFiles/tracks
+  Threshold: 0
+  Jobs     : 4 parallel
+  Temp dir : /data/etosato/results/test_lesion_features_real/tmp/bcb_disco_58921
+────────────────────────────────────────────────────────
+  INPUT                                               OUTPUT STEM
+────────────────────────────────────────────────────────
+  …-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz  …_space-MNI152NLin6Asym_res-1_desc-disconnectome
+════════════════════════════════════════════════════════
+
+  [done]  sub-STUNIPD0001_space-MNI152NLin6Asym_res-1_desc-disconnectome  (1m10s)
+
+════════════════════════════════════════════════════════
+  Completed successfully: 1 / 1 subjects
+  Total time: 1m10s
+════════════════════════════════════════════════════════
+
+ done (0.3s)
+Preprocessed 1 subject(s).
+Running disconnectome computation for 1 subject(s)...
+Moved 1 disconnectome(s) into BIDS structure.
+Done.

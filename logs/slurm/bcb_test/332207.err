@@ -1,0 +1,2 @@
+/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_tdi.py:37: RuntimeWarning: TDI script/atlas not found (looked in TDI_DIR and /opt/tdi); skipping Tract Density Index.
+  warnings.warn(
