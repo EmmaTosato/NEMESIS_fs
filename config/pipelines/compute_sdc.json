@@ -1,0 +1,15 @@
+{
+  "project": "clinical_connectome",
+  "file_patterns": "config/registry/file_patterns_server.json",
+  "datasets": ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"],
+  "group_filter": ["ST"],
+  "bcbtoolkit_path": "/data/etosato/tools/BCBToolKit",
+  "tracks_dir": null,
+  "cores_per_subject": 4,
+  "stage2_ebrains": true,
+  "stage2_presets": [],
+  "output_root": "data/derived/sdc",
+  "run_name": "run1",
+  "overwrite": false,
+  "run_notes": "tracks_dir=null usa l'atlante trattografie bundled in BCBToolKit (10 soggetti, parziale - vedi INSTALL_LOG.md #9.1); da aggiornare quando il download dell'atlante completo (180 soggetti 1mm) e' pronto."
+}
