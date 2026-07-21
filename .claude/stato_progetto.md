@@ -2,6 +2,32 @@
 
 Ultimo aggiornamento: 2026-07-21. Snapshot dello stato attuale del progetto — non un log cronologico. Errori passati, bug risolti e strade scartate vivono in `.claude/lessons_learned.md` (pattern generalizzabili) e `docs/debugging/` (narrativa completa per sessione di debug); l'evoluzione delle decisioni strategiche vive in `.claude/decision_log.md`; qui restano solo le regole/vincoli in vigore oggi e la mappa dello stato attuale.
 
+## Sessione 2026-07-21 (2) — Riorganizzazione architettura: risultati e tag di sessione per multi-modalità
+
+**Obiettivo**: Riorganizzare la struttura dei salvataggi (dati derivati e risultati) per supportare future modalità (FC, SDC) in parallelo alle matrici lesionali, standardizzando il tracciamento dei parametri di sessione.
+
+**Decisioni prese / concetti discussi**:
+- **Directory dei risultati compartimentalizzata**: I risultati dei modelli (dim_reduction, clustering) sono stati spostati da una cartella root condivisa (es. `results/clustering`) a sotto-cartelle specifiche per modalità (es. `results/lesion/clustering`). Questo permetterà di avere pipeline distinte (es. regressione per FC) senza sporcare l'albero delle directory.
+- **SESSIONS.md vs RUNS.md**: Il file originario `RUNS.md` dei "matrix builder" in `data/derived/...` è stato formalmente rinominato in `SESSIONS.md` per chiarire la sua funzione: definire i metadati della *coorte/sessione* usata, separandolo dal concetto di `RUNS.md` (che rimane nelle cartelle dei modelli a valle in `results/` per loggare i tuning e gli step). Non si è usato un unico SESSIONS.md globale, ma uno separato per modalità per mantenere l'architettura decouplata.
+- **Auto-propagazione del log**: `run_log.py` è stato reso intelligente. Quando un modello a valle scrive il suo log, cerca dinamicamente il file `SESSIONS.md` corretto in `data/derived/*/SESSIONS.md` e copia in automatico l'intestazione della sessione.
+- **Configurazioni Parametriche**: Il costruttore di matrice ora accetta un campo `data_modality: lesion` configurato nei `.json`, che viene automaticamente stampato come metadato quando crea una nuova entry in `SESSIONS.md`.
+
+**File modificati/creati**:
+- **Codice**: `src/pipeline/build_lesion_matrix.py`, `src/utils/run_log.py`, `src/analysis/build_config.py`, `src/pipeline/compute_sdc.py`
+- **Config**: `config/pipelines/build_lesion_matrix.json`, `config/pipelines/clustering.json`, `config/pipelines/dim_reduction.json`, `config/pipelines/dim_reduction_clustering.json` (root puntati a `results/lesion/`)
+- **Documentazione**: `docs/dev/analysis.md`, `docs/guides/compute_sdc.md`
+- **FS**: Spostate fisicamente le cartelle dei risultati in `results/lesion/` e rinominato `data/derived/lesion_matrix/RUNS.md` -> `SESSIONS.md`.
+
+**Errori trovati e corretti**: 
+- Nessun errore, solo refactoring preventivo per la scalabilità del progetto verso FC e SDC.
+
+**Stato dei test**:
+- I test non sono stati rilanciati esplicitamente in questa sessione focalizzata su refactoring I/O.
+
+**Prossimo passo esatto**:
+- Procedere con l'organizzazione dei commit Git per isolare le modifiche in step logici e versionare il progetto in questo nuovo stato "multi-modalità ready".
+
+
 ## Sessione 2026-07-21 — Atlante combinato Glasser+subcorticale (372 regioni) per il metodo del paper Thiebaut de Schotten 2020
 
 **Obiettivo**: preparare l'atlante di parcellazione usato dal paper Thiebaut de Schotten et al. 2020 prima della loro PCA varimax (360 parcelle corticali MMP/Glasser + 12 regioni subcorticali) per poterlo passare come `atlas_path` a `build_lesion_matrix.py`.

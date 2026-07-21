@@ -3,7 +3,7 @@
   "input_path": "data/derived/lesion_matrix/21-07_s1",
   "reduction_method": "umap",
   "params_file": "config/registry/params_reduction.json",
-  "output_root": "results/dim_reduction",
+  "output_root": "results/lesion/dim_reduction",
   "session_name": "umap_s1",
   "overwrite": true,
   "fine_tuning": false,

@@ -11,7 +11,7 @@ Questa pipeline calcola la **SDC (Structural Disconnectome)** per ogni soggetto 
 
 1. **`--mode manifest`** — scopre tutti i soggetti una sola volta (stessa logica di `retrieve_data.py`, via `Dataset`/`file_patterns`), scrive `manifest.csv` (ordine fisso). I soggetti esclusi (lesion mask assente, ambigua, o `subject_id` duplicato tra dataset diversi) vanno in `manifest_excluded.json` con il motivo — mai scartati in silenzio.
 2. **`--mode run --task-id I --task-count N`** — l'unità di parallelismo. Prende `manifest.csv`, seleziona i soggetti `I::N` (stride slice — copertura completa e disgiunta per qualunque N), costruisce lo staging BIDS via symlink, lancia Stage 1, **verifica** l'output (shape NIfTI attesa 182×218×182, non solo "il file esiste"), e solo per i soggetti che passano lancia Stage 2. Ogni soggetto ottiene uno stato scritto in `_status/<subject_id>.json` (`ok`, `failed_stage1_process`, `failed_stage1_check`, `failed_stage2_process`, `dry_run`).
-3. **`--mode aggregate`** — unico passo finale: legge tutti gli `_status/*.json`, fa il merge (symlink) degli output dei soggetti `ok` in `<output_dir>/{prep,features}/`, scrive `config.md`/`manifest.json` e un'entry in `data/derived/sdc/RUNS.md`.
+3. **`--mode aggregate`** — unico passo finale: legge tutti gli `_status/*.json`, fa il merge (symlink) degli output dei soggetti `ok` in `<output_dir>/{prep,features}/`, scrive `config.md`/`manifest.json` e un'entry in `data/derived/sdc/SESSIONS.md`.
 
 Un fallimento per singolo soggetto (Stage 1 non converge, check fallito, Stage 2 crash su quel soggetto) **non ferma gli altri** — è tracciato nello status e basta. Un fallimento strutturale (config sbagliata, `bcbtoolkit_path` inesistente, il processo Stage 1/2 crasha per l'intero task) fa fallire il task con exit code ≠ 0.
 
@@ -27,7 +27,7 @@ data/derived/sdc/<session_name>/
 ├── features/<subject_id>/       # simlink all'output Stage 2
 ├── manifest.json                # conteggi per stato
 └── config.md
-data/derived/sdc/RUNS.md         # storico run (append-only)
+data/derived/sdc/SESSIONS.md         # storico run (append-only)
 ```
 
 Nota: a differenza di `build_lesion_matrix.py`, la cartella di output **non** è datata (`<dd-mm>_<session_name>`) ma è solo `<session_name>` — le tre fasi possono girare a distanza di giorni (coda SLURM) e devono risolvere sempre alla stessa cartella partendo solo dal config.

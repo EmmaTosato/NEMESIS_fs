@@ -3,7 +3,7 @@
   "input_path": "results/dim_reduction/umap/21-07_umap_s1",
   "clustering_methods": ["kmeans", "agglomerative", "gmm"],
   "params_file": "config/registry/params_clustering.json",
-  "output_root": "results/clustering",
+  "output_root": "results/lesion/clustering",
   "session_name": "umap_s1",
   "overwrite": true,
   "run_notes": "Clustering on the UMAP embedding of the voxel-wise matrix"
