@@ -1,6 +1,6 @@
 {
   "project": "clinical_connectome",
-  "input_path": "results/dim_reduction/umap/21-07_umap_s1",
+  "input_path": "results/lesion/dim_reduction/umap/21-07_s1.1_d01",
   "clustering_methods": ["kmeans", "agglomerative", "gmm"],
   "params_file": "config/registry/params_clustering.json",
   "output_root": "results/lesion/clustering",

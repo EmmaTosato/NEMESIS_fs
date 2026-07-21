@@ -36,7 +36,7 @@ I parametri nel file `config/pipelines/dim_reduction_clustering.json` sono essen
 - **`clustering_methods`**: `(Lista di Stringhe)` Seleziona I METODI di raggruppamento con cui vuoi tagliare i dati (es. `["kmeans", "agglomerative", "gmm"]`). Verranno eseguiti tutti, a ruota.
 - **`reduction_params_file`**: `(Stringa)` Punta al registro matematico della riduzione (`"config/registry/params_reduction.json"`). 
 - **`clustering_params_file`**: `(Stringa)` Punta al registro matematico dei raggruppamenti (`"config/registry/params_clustering.json"`).
-- **`output_root`**: `(Stringa)` Sede finale dei risultati combinati (`"results/dim_reduction_clustering"`).
+- **`output_root`**: `(Stringa)` Sede finale dei risultati combinati (`"results/lesion/dim_reduction_clustering"` — il primo segmento dopo `results/` indica la modalità dato, `lesion`/`fc`/`sdc`; questa pipeline ha un ramo terzo dedicato, separato sia da `dim_reduction/` che da `clustering/`).
 - **`session_name`**: `(Stringa)` Il nome dell'operazione massiva (es. `"run_1"`).
 - **`overwrite`**: `(Booleano)` A `true` per sovrascrivere.
 - **`run_notes`**: `(Stringa)` Spazio libero per note su perché stai facendo il run.
@@ -50,7 +50,7 @@ I parametri nel file `config/pipelines/dim_reduction_clustering.json` sono essen
 ## Output Finale
 
 Immagina di lanciare la pipeline scegliendo `reduction_method: "umap"` e `clustering_methods: ["kmeans", "gmm"]`.
-All'interno di `results/dim_reduction_clustering/` avverrà la seguente organizzazione:
+All'interno di `results/lesion/dim_reduction_clustering/` avverrà la seguente organizzazione:
 
 Verranno create due cartelle basate sulla combinazione nominale dei due passaggi:
 1. `umap-kmeans/`

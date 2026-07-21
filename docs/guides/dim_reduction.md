@@ -54,7 +54,7 @@ Ecco la spiegazione di `config/pipelines/dim_reduction.json`:
   - `"pca_varimax"`: PCA seguita da una rotazione Varimax, usata per massimizzare la separazione ortogonale delle lesioni (metodo *Thiebaut de Schotten*).
   - `"pacmap"`: L'algoritmo Pairwise Controlled Manifold Approximation.
 - **`params_file`**: `(Stringa)` Il percorso al file di registro che custodisce la matematica pura. Di base lasciate `"config/registry/params_reduction.json"`. *(Vedi sezione sotto)*.
-- **`output_root`**: `(Stringa)` Dove vuoi che la pipeline crei la cartella con i risultati (`"results/dim_reduction"`).
+- **`output_root`**: `(Stringa)` Dove vuoi che la pipeline crei la cartella con i risultati (`"results/lesion/dim_reduction"` — il primo segmento dopo `results/` indica la modalità dato, `lesion`/`fc`/`sdc`).
 - **`session_name`**: `(Stringa)` Il nome dell'esperimento (es. `"umap_test_1"`). Se stai facendo Fine-Tuning chiamalo magari `"tune1"`.
 - **`overwrite`**: `(Booleano)` A `true` permette allo script di sovrascrivere silenziosamente un file preesistente.
 - **`fine_tuning`**: `(Booleano)` Attiva (`true`) o disattiva (`false`) la modalità di ricerca dei parametri di cui abbiamo parlato sopra.
@@ -68,10 +68,10 @@ Quando in modalità Fine-Tuning scopri che `n_neighbors: 30` è perfetto per te,
 
 ## Output e File Log Storici
 
-Tutti i risultati, per ogni metodo, finiranno separati in `results/dim_reduction/<metodo>/<GIORNO-MESE>_<session_name>`.
+Tutti i risultati, per ogni metodo, finiranno separati in `results/lesion/dim_reduction/<metodo>/<GIORNO-MESE>_<session_name>` (il nome cartella include anche un tag auto-generato dal parametro chiave del metodo, es. `21-07_s1.1_d01` per UMAP con `min_dist=0.1` — vedi `config/registry/params_reduction.json`).
 
 - Se eri in **Fine-Tuning**: Troverai `tuning_results.csv` e `tuning_plot.png`. Niente matrice.
 - Se eri in **Produzione**: Troverai `matrix.npy` (questa volta non avrà 800.000 colonne, ma magari solo 2), un `config.md` di riepilogo e il `metadata.csv` (che copia i dati dei pazienti dalla matrice originale senza alterarli). Se l'embedding ha almeno 2 componenti troverai anche due plot: `embedding_plot.png` (statico, puntini anonimi) e `embedding_plot_interactive.html` (interattivo, apribile in un browser — colorato per `dataset` e, passando sopra un punto, mostra `subject_id`/`dataset` di quel soggetto). Per rigenerare entrambi i plot da una run già esistente senza ricalcolare l'embedding: `scripts/replot_dim_reduction.py --run-dir <cartella_run>`.
 
 **Molto Importante: Il file RUNS.md**
-Nella cartella base di ogni metodo (es. `results/dim_reduction/umap/RUNS.md`), lo script compilerà un vero e proprio "Diario di Bordo" automatico. Ogni volta che lanci la pipeline con successo, scriverà nel diario l'ora, se era un test di fine tuning o una produzione, quali parametri matematici esatti hai usato e le note che avevi scritto. In questo modo avrai una traccia storica scientifica di ogni singola prova fatta nei mesi, e non rischierai mai di scordarti con quali impostazioni avevi ottenuto un certo grafico.
+Nella cartella base di ogni metodo (es. `results/lesion/dim_reduction/umap/RUNS.md`), lo script compilerà un vero e proprio "Diario di Bordo" automatico. Ogni volta che lanci la pipeline con successo, scriverà nel diario l'ora, se era un test di fine tuning o una produzione, quali parametri matematici esatti hai usato e le note che avevi scritto. In questo modo avrai una traccia storica scientifica di ogni singola prova fatta nei mesi, e non rischierai mai di scordarti con quali impostazioni avevi ottenuto un certo grafico.
