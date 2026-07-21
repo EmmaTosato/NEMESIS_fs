@@ -6,12 +6,12 @@
   },
   "agglomerative": {
     "tag_param": "n_clusters",
-    "tag_prefix": "a",
+    "tag_prefix": "n_clust",
     "params": { "n_clusters": 4, "linkage": "ward" }
   },
   "gmm": {
     "tag_param": "n_components",
-    "tag_prefix": "g",
+    "tag_prefix": "n_comp",
     "params": { "n_components": 4, "random_state": 0 }
   },
   "dbscan": {
@@ -21,7 +21,7 @@
   },
   "spectral": {
     "tag_param": "n_clusters",
-    "tag_prefix": "s",
+    "tag_prefix": "n_clust",
     "params": { "n_clusters": 4, "affinity": "nearest_neighbors", "random_state": 0 }
   }
 }

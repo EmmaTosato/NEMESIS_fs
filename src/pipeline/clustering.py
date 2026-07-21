@@ -31,7 +31,7 @@ import pandas as pd
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.model_config import ClusteringConfig, load_clustering_config
 from src.analysis.params import load_method_params
-from src.analysis.plotting import plot_clusters_2d, plot_clusters_comparison, plot_clusters_interactive
+from src.analysis.plotting import compose_run_title, plot_clusters_2d, plot_clusters_comparison, plot_clusters_interactive
 from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
@@ -84,7 +84,7 @@ def main(argv: list[str] | None = None) -> int:
             comparison_dir / "cluster_comparison.png",
             xlabel="feature 0 (raw)",
             ylabel="feature 1 (raw)",
-            suptitle=f"{config.project} — clustering method comparison (no reduction)",
+            suptitle=compose_run_title(comparison_dir, config.project),
         )
         _write_comparison_readme(comparison_dir, config, now)
         logging.info("comparison plot written to %s", comparison_dir / "cluster_comparison.png")
@@ -104,7 +104,7 @@ def _run_one_method(
     or None if this method's run failed - the caller stops the whole run.
     """
     try:
-        params = load_method_params(config.params_file, method)
+        params, tag = load_method_params(config.params_file, method)
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return None
@@ -113,8 +113,10 @@ def _run_one_method(
 
     metadata_out = metadata.copy()
     metadata_out["cluster_label"] = cluster_labels
-
-    output_dir = _output_dir(config, method, now)
+    
+    effective_session_name = f"{config.session_name}_{tag}" if tag else config.session_name
+    output_dir = config.output_root / method / f"{now.strftime('%d-%m')}_{effective_session_name}"
+    
     try:
         save_matrix(
             output_dir,
@@ -129,13 +131,15 @@ def _run_one_method(
     logging.info("[%s] clustered matrix written to %s (shape %s)", method, output_dir, X.shape)
 
     if X.shape[1] >= 2:
+        plot_title = compose_run_title(output_dir, config.project)
+
         plot_clusters_2d(
             X[:, :2],
             cluster_labels,
             output_dir / "cluster_plot.png",
             xlabel="feature 0 (raw)",
             ylabel="feature 1 (raw)",
-            title=f"{config.project} — {method} (no reduction)",
+            title=plot_title,
         )
         logging.info("[%s] cluster plot written to %s", method, output_dir / "cluster_plot.png")
 
@@ -145,7 +149,7 @@ def _run_one_method(
             output_dir / "cluster_plot_interactive.html",
             xlabel="feature 0 (raw)",
             ylabel="feature 1 (raw)",
-            title=f"{config.project} — {method} (no reduction)",
+            title=plot_title,
         )
         logging.info("[%s] interactive cluster plot written to %s", method, output_dir / "cluster_plot_interactive.html")
     else:
@@ -158,7 +162,7 @@ def _run_one_method(
     try:
         report_path = _write_report(config, method, X, cluster_labels, params, now)
         append_run_log_entry(
-            _runs_md_path(config, method), config.session_name, now, "production", params, output_dir, config.run_notes
+            _runs_md_path(config, method), effective_session_name, now, "production", params, output_dir, config.run_notes
         )
     except OSError as exc:
         logging.error("[%s] cannot write report/run log: %s", method, exc, exc_info=True)

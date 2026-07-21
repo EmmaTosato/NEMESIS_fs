@@ -27,6 +27,27 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
+def compose_run_title(output_dir: Path, project: str) -> str:
+    """Compose a plot title from a run's own output directory path, prefixed
+    with `project` - e.g. output_dir=results/lesion/dim_reduction/umap/21-07_s1_d01
+    -> "clinical_connectome — lesion › dim_reduction › umap › 21-07_s1_d01".
+
+    Single source of truth for "which run is this": output_dir is the same
+    Path every pipeline script already builds for save_matrix/logging, so the
+    title can never drift out of sync with it, and stays correct no matter
+    how deep results/ ends up nested (modality/pipeline/method/session/tag -
+    see docs/dev/analysis.md) without this function needing to know about any
+    of those axes individually. Drops a leading "results" path segment for
+    readability (every pipeline's output_root today starts with "results/");
+    falls back to the full path if it doesn't, rather than raising - a
+    cosmetic difference only, not a broken title.
+    """
+    parts = output_dir.parts
+    if parts and parts[0] == "results":
+        parts = parts[1:]
+    return f"{project} — " + " › ".join(parts)
+
+
 def plot_embedding_2d(
     X_2d: np.ndarray, output_path: Path, xlabel: str, ylabel: str, title: str
 ) -> None:

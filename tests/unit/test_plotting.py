@@ -1,10 +1,28 @@
-"""Unit tests for src/analysis/plotting.py - plot_embedding_interactive/plot_clusters_interactive."""
+"""Unit tests for src/analysis/plotting.py - plot_embedding_interactive/plot_clusters_interactive/compose_run_title."""
+
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from src.analysis.plotting import plot_clusters_interactive, plot_embedding_interactive
+from src.analysis.plotting import compose_run_title, plot_clusters_interactive, plot_embedding_interactive
+
+
+def test_compose_run_title_drops_leading_results_segment():
+    output_dir = Path("results/lesion/dim_reduction/umap/21-07_s1_d01")
+
+    title = compose_run_title(output_dir, "clinical_connectome")
+
+    assert title == "clinical_connectome — lesion › dim_reduction › umap › 21-07_s1_d01"
+
+
+def test_compose_run_title_keeps_full_path_without_leading_results():
+    output_dir = Path("other_root/umap/21-07_s1")
+
+    title = compose_run_title(output_dir, "clinical_connectome")
+
+    assert title == "clinical_connectome — other_root › umap › 21-07_s1"
 
 
 def _embedding_and_metadata():

@@ -46,7 +46,7 @@ Una volta scelti i parametri ottimali grazie alla modalità precedente (e avendo
 Ecco la spiegazione di `config/pipelines/dim_reduction.json`:
 
 - **`project`**: `(Stringa)` Il nome del progetto (es. `"clinical_connectome"`).
-- **`input_path`**: `(Stringa)` La cartella esatta della matrice di partenza che vuoi comprimere. Questa cartella DEVE esistere ed essere un output di `build_lesion_matrix.py` (es. `"data/derived/lesion_matrix/20-07_s1"`).
+- **`input_path`**: `(Stringa)` La cartella esatta della matrice di partenza che vuoi comprimere. Questa cartella DEVE esistere ed essere un output di `build_lesion_matrix.py` (es. `"data/derived/lesion_matrix/21-07_s1.1"`).
 - **`reduction_method`**: `(Stringa)` Il nome della formula matematica da usare. Valori possibili:
   - `"umap"`: Metodo moderno topologico. Ottimo per conservare sia distanze globali che locali.
   - `"tsne"`: Metodo classico. Ottimo per fare bei grafici, ma storicamente inaffidabile per il calcolo di vere distanze cliniche.

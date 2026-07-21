@@ -30,7 +30,7 @@ import pandas as pd
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.model_config import DimReductionClusteringConfig, load_dim_reduction_clustering_config
 from src.analysis.params import load_method_params
-from src.analysis.plotting import plot_clusters_2d, plot_clusters_comparison, plot_clusters_interactive
+from src.analysis.plotting import compose_run_title, plot_clusters_2d, plot_clusters_comparison, plot_clusters_interactive
 from src.analysis.reduction import REDUCTION_METHODS
 from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
@@ -65,31 +65,46 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         X, metadata, _extra_arrays = load_matrix(config.input_path)
-        reduction_params = load_method_params(config.reduction_params_file, config.reduction_method)
+        reduction_params, reduction_tag = load_method_params(config.reduction_params_file, config.reduction_method)
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return 1
 
     embedding = REDUCTION_METHODS[config.reduction_method](X, reduction_params)
+    
+    effective_reduction_session = f"{config.session_name}_{reduction_tag}" if reduction_tag else config.session_name
 
     labels_by_method: dict[str, np.ndarray] = {}
     for method in config.clustering_methods:
-        cluster_labels = _run_one_method(config, method, X, embedding, metadata, reduction_params, now)
+        cluster_labels = _run_one_method(config, method, X, embedding, metadata, reduction_params, reduction_tag, now)
         if cluster_labels is None:
             return 1
         labels_by_method[method] = cluster_labels
 
     if embedding.shape[1] >= 2:
-        comparison_dir = _comparison_dir(config, now)
+        comparison_dir = config.output_root / "comparison" / f"{now.strftime('%d-%m')}_{effective_reduction_session}"
         plot_clusters_comparison(
             embedding[:, :2],
             labels_by_method,
             comparison_dir / "cluster_comparison.png",
             xlabel=f"{config.reduction_method} dim 1",
             ylabel=f"{config.reduction_method} dim 2",
-            suptitle=f"{config.project} — {config.reduction_method}, clustering method comparison",
+            suptitle=compose_run_title(comparison_dir, config.project),
         )
-        _write_comparison_readme(comparison_dir, config, now)
+        
+        lines = [
+            f"# {config.project} dim_reduction_clustering method comparison "
+            f"({config.reduction_method}) — {now.strftime('%d-%m-%y %H:%M')}",
+            "",
+            f"Reduction method: {config.reduction_method}",
+            f"Clustering methods compared: {list(config.clustering_methods)}",
+            "",
+            "Individual outputs:",
+        ]
+        lines += [f"- `{config.output_root / _method_dir(config, m)}`" for m in config.clustering_methods]
+        comparison_dir.mkdir(parents=True, exist_ok=True)
+        (comparison_dir / "config.md").write_text("\n".join(lines) + "\n")
+        
         logging.info("comparison plot written to %s", comparison_dir / "cluster_comparison.png")
     else:
         logging.warning(
@@ -109,6 +124,7 @@ def _run_one_method(
     embedding: np.ndarray,
     metadata: pd.DataFrame,
     reduction_params: dict,
+    reduction_tag: str | None,
     now: datetime,
 ) -> np.ndarray | None:
     """Runs one clustering method on the (already computed once) embedding -
@@ -117,7 +133,7 @@ def _run_one_method(
     the caller stops the whole run.
     """
     try:
-        clustering_params = load_method_params(config.clustering_params_file, method)
+        clustering_params, clustering_tag = load_method_params(config.clustering_params_file, method)
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return None
@@ -126,8 +142,11 @@ def _run_one_method(
 
     metadata_out = metadata.copy()
     metadata_out["cluster_label"] = cluster_labels
+    
+    tags = [t for t in (reduction_tag, clustering_tag) if t]
+    effective_session_name = config.session_name + ("_" + "_".join(tags) if tags else "")
 
-    output_dir = _output_dir(config, method, now)
+    output_dir = config.output_root / _method_dir(config, method) / f"{now.strftime('%d-%m')}_{effective_session_name}"
     try:
         save_matrix(
             output_dir,
@@ -142,13 +161,15 @@ def _run_one_method(
     logging.info("[%s] embedding+clusters written to %s (shape %s)", method, output_dir, embedding.shape)
 
     if embedding.shape[1] >= 2:
+        plot_title = compose_run_title(output_dir, config.project)
+
         plot_clusters_2d(
             embedding[:, :2],
             cluster_labels,
             output_dir / "cluster_plot.png",
             xlabel=f"{config.reduction_method} dim 1",
             ylabel=f"{config.reduction_method} dim 2",
-            title=f"{config.project} — {config.reduction_method} + {method}",
+            title=plot_title,
         )
         logging.info("[%s] cluster plot written to %s", method, output_dir / "cluster_plot.png")
 
@@ -158,7 +179,7 @@ def _run_one_method(
             output_dir / "cluster_plot_interactive.html",
             xlabel=f"{config.reduction_method} dim 1",
             ylabel=f"{config.reduction_method} dim 2",
-            title=f"{config.project} — {config.reduction_method} + {method}",
+            title=plot_title,
         )
         logging.info("[%s] interactive cluster plot written to %s", method, output_dir / "cluster_plot_interactive.html")
     else:
@@ -172,7 +193,7 @@ def _run_one_method(
         report_path = _write_report(config, method, X, embedding, cluster_labels, reduction_params, clustering_params, now)
         append_run_log_entry(
             _runs_md_path(config, method),
-            config.session_name,
+            effective_session_name,
             now,
             "production",
             {"reduction_params": reduction_params, "clustering_params": clustering_params},
