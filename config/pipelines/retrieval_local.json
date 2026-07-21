@@ -1,7 +1,7 @@
 {
   "output_root": "data/",
   "project": "clinical_connectome",
-  "file_patterns": "config/registry/file_patterns.json",
+  "file_patterns": "config/registry/file_patterns_local.json",
   "datasets": ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"],
   "group_filter": ["ST"],
   "subjects": null,
