@@ -2,6 +2,29 @@
 
 Ultimo aggiornamento: 2026-07-21. Snapshot dello stato attuale del progetto — non un log cronologico. Errori passati, bug risolti e strade scartate vivono in `.claude/lessons_learned.md` (pattern generalizzabili) e `docs/debugging/` (narrativa completa per sessione di debug); l'evoluzione delle decisioni strategiche vive in `.claude/decision_log.md`; qui restano solo le regole/vincoli in vigore oggi e la mappa dello stato attuale.
 
+## Sessione 2026-07-21 — Atlante combinato Glasser+subcorticale (372 regioni) per il metodo del paper Thiebaut de Schotten 2020
+
+**Obiettivo**: preparare l'atlante di parcellazione usato dal paper Thiebaut de Schotten et al. 2020 prima della loro PCA varimax (360 parcelle corticali MMP/Glasser + 12 regioni subcorticali) per poterlo passare come `atlas_path` a `build_lesion_matrix.py`.
+
+**Decisioni prese / concetti discussi**:
+- Verificato `assets/atlases/MNI_Glasser_HCP_v1.0.nii.gz`: 360 label non-zero corrette, ma il range destro reale è **1001–1180**, non 1000–1180 come inizialmente assunto dall'utente (nessun voxel vale 1000 — l'omologo di `L_V1=1` è `R_V1=1001`).
+- Letto il paper (`assets/papers/Thiebaut de Schotten .../markdown/_full.md`, sezione "Data compression"): confermate le 12 regioni subcorticali (talamo, caudato, ippocampo, pallido, putamen, amigdala, bilaterali) ma il paper le dice "defined manually" — **nessun atlante sorgente citato**. Scelto Harvard-Oxford subcortical (`HarvardOxford-sub-maxprob-thr25-2mm.nii.gz`) come sostituto pratico documentato, non riproduzione fedele — va segnalato come limite se/quando si scrive la metodologia in `docs/methods/`.
+- Un dizionario di indici Harvard-Oxford proposto da un agente esterno (non di questa sessione) aveva un **bug off-by-one** su `R_Hippocampus`/`R_Amygdala` (offset +11 uniforme assunto per tutte le 6 strutture, valido solo per Thalamus/Caudate/Putamen/Pallidum — rotto dal `Brain-Stem`, struttura non bilaterale, che sfalsa la numerazione). Corretto leggendo `/data/sw/fsl/data/atlases/HarvardOxford-Subcortical.xml` (fonte autoritativa) e confermato sui dati reali (dimensione dei cluster: ippocampo 700 voxel > amigdala 366 voxel). Vedi `docs/debugging/debug_21_07_26.md` e `.claude/lessons_learned.md` pattern #11.
+- Nuovo modulo `src/atlases/` (nuovo layer, non incastrabile in `retrieval`/`features` esistenti): numerazione output delle 12 subcorticali continua la convenzione di Glasser (sinistra 181–186, destra 1181–1186, nessuna collisione con 1–180/1001–1180). Politica sovrapposizioni cortex/subcortex dopo il resampling (Harvard-Oxford 2mm → griglia Glasser 1mm, nearest-neighbor): **cortex vince** (MMP è la parcellazione primaria nel paper), loggato non silenzioso (8791 voxel di overlap nel run reale).
+
+**File modificati/creati** (già committati dall'utente stesso in `19191f9` "Add combined atlas build pipeline", non da questa sessione agente):
+- Codice: `src/atlases/{__init__,combine,config}.py`, `src/pipeline/build_combined_atlas.py`
+- Config/job: `config/pipelines/build_combined_atlas.json`, `jobs/run_build_combined_atlas.sh`
+- Test: `tests/unit/test_combine_atlas.py` (8 test, incluso regression test esplicito sul bug off-by-one), `tests/integration/test_build_combined_atlas_pipeline.py` (E2E sui file reali)
+- Doc: `docs/debugging/debug_21_07_26.md` (nuovo), `.claude/lessons_learned.md` (pattern #11), `README.md`, `assets/atlases/README.md` (sezione "Derived / combined atlases") — la sezione aggiunta in `docs/guides/analysis.md` §0 è stata poi riorganizzata dall'utente in commit successivi (vedi nota sotto)
+- Output reale generato (non in git, `.nii.gz` gitignored): `assets/atlases/glasser_hcp_harvardoxford_subcortical_372.nii.gz` + `..._labels.csv` (quest'ultimo committato)
+
+**Stato dei test**: 10/10 passano (`tests/unit/test_combine_atlas.py` + `tests/integration/test_build_combined_atlas_pipeline.py`), suite completa non rilanciata (per preferenza nota dell'utente, vedi memoria `feedback_test_pace`).
+
+**Nota importante — attività parallela nello stesso working tree**: durante questa sessione sono comparse ed è stato committato molto lavoro non fatto da questo agente (probabile altra sessione Claude/terminale in parallelo, poi confermato essere l'utente stesso via commit `git log`): refactor `reference_dataset`→`reference_template_path` in `src/analysis/`+`src/features/lesion.py`, nuovi atlanti scaricati (Schaefer, Tian, Buckner) in `assets/atlases/`, notebook rifatto (`notebooks/dataset_exploration.ipynb` sostituisce `metadata_analysis.ipynb`), un primo run reale di `build_lesion_matrix.py` (**voxel-wise, non parcellato — non ha ancora usato l'atlante combinato**, 1150 soggetti × 254865 feature, commit "first run"). **In corso, non committato**: `docs/guides/analysis.md` è stato cancellato e diviso in `docs/guides/atlas_building.md` + `docs/guides/matrix_building.md` — riorganizzazione dell'utente, non toccare finché non è lui a dire che è conclusa.
+
+**Prossimo passo esatto**: per usare davvero l'atlante a 372 regioni, editare `config/pipelines/build_lesion_matrix.json` (oggi resettato a `parcellate: false, atlas_path: null`) impostando `"parcellate": true`, `"atlas_path": "assets/atlases/glasser_hcp_harvardoxford_subcortical_372.nii.gz"`, `"parcel_aggregation": "fraction_lesioned"` (e un `run_name` diverso da `run1` per non confliggere con l'output voxel-wise già scritto in `data/derived/lesion_matrix/21-07_run1`), poi `sbatch jobs/run_build_lesion_matrix.sh`.
+
 ## Core Context
 
 NEMESIS è il repo di lavoro per un progetto di ricerca in neuroimaging dello stroke (Corbetta lab): costruisce embedding a bassa dimensionalità di lesioni cerebrali e disconnettomi strutturali/funzionali, li clusterizza, e mette in relazione i cluster con outcome clinico-comportamentali (NIHSS, linguaggio, neglect, dominio motorio). Serve il team di ricerca per testare l'ipotesi lesione↔disconnessione↔outcome su 4 coorti cliniche reali (~1300 soggetti totali).
