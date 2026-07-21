@@ -35,7 +35,7 @@ import pandas as pd
 
 from src.analysis.model_config import DimReductionConfig, load_dim_reduction_config
 from src.analysis.params import load_method_params, load_trustworthiness_n_neighbors, load_tuning_grid
-from src.analysis.plotting import plot_embedding_2d, plot_tuning_curve, plot_tuning_heatmap
+from src.analysis.plotting import plot_embedding_2d, plot_embedding_interactive, plot_tuning_curve, plot_tuning_heatmap
 from src.analysis.reduction import REDUCTION_METHODS
 from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
 from src.utils.artifacts import load_matrix, save_matrix
@@ -84,14 +84,16 @@ def _run_production(
     config: DimReductionConfig, X: np.ndarray, metadata: pd.DataFrame, now: datetime, log_path: Path
 ) -> int:
     try:
-        params = load_method_params(config.params_file, config.reduction_method)
+        params, tag = load_method_params(config.params_file, config.reduction_method)
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return 1
 
+    effective_session_name = f"{config.session_name}_{tag}" if tag else config.session_name
+    output_dir = config.output_root / config.reduction_method / f"{now.strftime('%d-%m')}_{effective_session_name}"
+
     embedding = REDUCTION_METHODS[config.reduction_method](X, params)
 
-    output_dir = _output_dir(config, now)
     try:
         save_matrix(
             output_dir,
@@ -119,10 +121,24 @@ def _run_production(
         except Exception as exc:
             logging.warning("failed to generate embedding plot: %s", exc)
 
+        try:
+            interactive_plot_path = output_dir / "embedding_plot_interactive.html"
+            plot_embedding_interactive(
+                embedding,
+                metadata,
+                interactive_plot_path,
+                f"{config.reduction_method.upper()} 1",
+                f"{config.reduction_method.upper()} 2",
+                f"{config.project} {config.reduction_method} ({now.strftime('%d-%m-%y %H:%M')})"
+            )
+            logging.info("interactive embedding plot written to %s", interactive_plot_path)
+        except Exception as exc:
+            logging.warning("failed to generate interactive embedding plot: %s", exc)
+
     try:
         report_path = _write_report(config, X, embedding, params, now)
         append_run_log_entry(
-            _runs_md_path(config), config.session_name, now, "production", params, output_dir, config.run_notes
+            _runs_md_path(config), effective_session_name, now, "production", params, output_dir, config.run_notes
         )
     except OSError as exc:
         logging.error("cannot write report/run log: %s", exc, exc_info=True)
@@ -137,7 +153,7 @@ def _run_production(
 def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, now: datetime, log_path: Path) -> int:
     method = config.reduction_method
     try:
-        base_params = load_method_params(config.params_file, method)
+        params, _ = load_method_params(config.params_file, method)
         tuning_grid = load_tuning_grid(config.params_file, method)
         trustworthiness_n_neighbors = (
             load_trustworthiness_n_neighbors(config.params_file, method)
@@ -148,8 +164,10 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, now: datetime, l
         logging.error(str(exc))
         return 1
 
+    effective_session_name = config.session_name
+
     try:
-        results = run_tuning_sweep(method, X, base_params, tuning_grid, trustworthiness_n_neighbors)
+        results = run_tuning_sweep(method, X, params, tuning_grid, trustworthiness_n_neighbors)
     except ValueError as exc:
         logging.error(str(exc))
         return 1

@@ -2,11 +2,15 @@
   "project": "clinical_connectome",
   "input_path": "data/derived/lesion_matrix/20-07_s1",
   "reduction_method": "umap",
-  "clustering_methods": ["kmeans", "agglomerative", "gmm"],
+  "clustering_methods": [
+    "kmeans",
+    "agglomerative",
+    "gmm"
+  ],
   "reduction_params_file": "config/registry/params_reduction.json",
   "clustering_params_file": "config/registry/params_clustering.json",
   "output_root": "results/dim_reduction_clustering",
   "session_name": "s1",
-  "overwrite": false,
+  "overwrite": true,
   "run_notes": null
 }

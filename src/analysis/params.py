@@ -16,8 +16,8 @@ import json
 from pathlib import Path
 
 
-def load_method_params(params_file: str | Path, method: str) -> dict:
-    """Load the params dict registered for `method` in `params_file`.
+def load_method_params(params_file: str | Path, method: str) -> tuple[dict, str | None]:
+    """Load the params dict and the optional tag registered for `method`.
 
     Raises FileNotFoundError if params_file doesn't exist, ValueError if its
     top-level shape isn't a JSON object, if `method` has no entry, or if that
@@ -29,7 +29,16 @@ def load_method_params(params_file: str | Path, method: str) -> dict:
     params = entry["params"]
     if not isinstance(params, dict):
         raise ValueError(f"{params_file}: {method!r}.params must be a JSON object, got {params!r}")
-    return params
+        
+    tag_param = entry.get("tag_param")
+    tag_prefix = entry.get("tag_prefix", "")
+    
+    tag_str = None
+    if tag_param and tag_param in params:
+        val_str = str(params[tag_param]).replace(".", "")
+        tag_str = f"{tag_prefix}{val_str}"
+        
+    return params, tag_str
 
 
 def load_tuning_grid(params_file: str | Path, method: str) -> dict[str, list]:

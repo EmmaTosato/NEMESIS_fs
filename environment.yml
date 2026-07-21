@@ -10,6 +10,7 @@ dependencies:
   - umap-learn
   - matplotlib
   - seaborn
+  - plotly
   - networkx
   - jupyterlab
   - pytest
