@@ -51,7 +51,7 @@ python -m src.pipeline.build_lesion_matrix --config config/pipelines/build_lesio
   "project": "clinical_connectome",
   "data_root": "data/clinical_connectome",
   "datasets": ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"],
-  "reference_template_path": "data/templates/mni152_2mm.nii.gz",
+  "reference_template_path": "data/clinical_connectome/UNIPD/WashU/sub-STUNIPD0001/lesion/manual_masks/anat/sub-STUNIPD0001_space-MNI152NLin6Asym_label-lesion_mask.nii.gz",
   "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
   "binarize_threshold": 0.5,
   "resample_interpolation": "nearest",
@@ -68,7 +68,9 @@ python -m src.pipeline.build_lesion_matrix --config config/pipelines/build_lesio
 
 Each subject's lesion mask is resampled onto `reference_template_path`'s grid (only where its native resolution differs), re-binarized at `binarize_threshold`, and flattened into one row of `X`. Voxels that are constant across every subject (never lesioned in this cohort) are dropped.
 
-`reference_template_path` is an explicit, caller-supplied NIfTI (e.g. a canonical MNI152 2mm template) — **not** derived from any subject's lesion file. This is deliberate: the masks retrieved by `retrieve_data.py` are already named `space-MNI152NLin6Asym` (BIDS convention, produced upstream by the `manual_masks` pipeline, outside this repo), but that name alone doesn't guarantee a specific voxel resolution — picking "the first lesion file found" as the reference would silently tie the whole matrix's grid to whatever resolution that one file happens to have. Point this at a real template file with the resolution/grid actually wanted.
+`reference_template_path` is an explicit, caller-supplied NIfTI — **not** implicitly derived from "the first lesion file found" (which used to silently tie the matrix's grid to whatever resolution one arbitrary subject happened to have). Today it's set to one `UNIPD/WashU` subject's lesion mask (2mm isotropic, `91×109×91` — confirmed to match FSL's own `MNI152_T1_2mm_brain.nii.gz` grid exactly, shape/voxel-size/affine), a deliberate choice for now since we want 2mm and WashU is the one dataset already natively at that resolution (`docs/guides/datasets.md`, "Risoluzione delle lesioni nella sorgente").
+
+Worth being precise about what this does and doesn't guarantee: matching grid (shape/affine) only proves the two files are sampled on the same voxel geometry, not that WashU's content was normalized with the exact same template as FSL's `MNI152NLin6Asym` - that association today rests on the BIDS filename (`space-MNI152NLin6Asym`), which is a claim made by whatever pipeline produced `manual_masks` upstream (outside this repo), not something verified voxel-by-voxel here. If a stronger guarantee is needed later, swap in FSL's own `$FSLDIR/data/standard/MNI152_T1_2mm_brain.nii.gz` directly (same grid, but the actual canonical template file rather than a subject's mask) or do a visual QC overlay of a normalized T1w against it.
 
 ### Parcellated — proportion of damage per atlas region
 
@@ -77,7 +79,7 @@ Each subject's lesion mask is resampled onto `reference_template_path`'s grid (o
   "project": "clinical_connectome",
   "data_root": "data/clinical_connectome",
   "datasets": ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"],
-  "reference_template_path": "data/templates/mni152_2mm.nii.gz",
+  "reference_template_path": "data/clinical_connectome/UNIPD/WashU/sub-STUNIPD0001/lesion/manual_masks/anat/sub-STUNIPD0001_space-MNI152NLin6Asym_label-lesion_mask.nii.gz",
   "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
   "binarize_threshold": 0.5,
   "resample_interpolation": "nearest",
