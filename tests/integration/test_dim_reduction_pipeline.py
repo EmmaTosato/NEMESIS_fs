@@ -119,9 +119,9 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
     assert list(metadata.columns) == ["subject_id", "dataset"]  # unchanged, per design
     assert len(metadata) == 8
 
-    runs_md = (output_root / "pca" / "RUNS.md").read_text()
-    assert "run1" in runs_md
-    assert "(production)" in runs_md
+    runs_csv = (output_root / "pca" / "runs.csv").read_text()
+    assert "run1" in runs_csv
+    assert "production" in runs_csv
 
 
 def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, monkeypatch):
@@ -157,10 +157,10 @@ def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, mon
     assert list(results.columns) == ["n_neighbors", "min_dist", "trustworthiness"]
     assert len(results) == 4  # 2 x 2 grid
 
-    runs_md = (output_root / "umap" / "RUNS.md").read_text()
-    assert "tune1" in runs_md
-    assert "(tuning)" in runs_md
-    assert "prova sweep" in runs_md
+    runs_csv = (output_root / "umap" / "runs.csv").read_text()
+    assert "tune1" in runs_csv
+    assert "tuning" in runs_csv
+    assert "prova sweep" in runs_csv
 
 
 def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_path, monkeypatch):

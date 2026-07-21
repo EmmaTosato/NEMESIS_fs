@@ -91,9 +91,9 @@ def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch):
     assert len(reports) == 1
     assert len(logs) == 1
 
-    runs_md = (output_root / "RUNS.md").read_text()
-    assert "run1" in runs_md
-    assert "(production)" in runs_md
+    runs_csv = (output_root / "runs.csv").read_text()
+    assert "run1" in runs_csv
+    assert "production" in runs_csv
 
 
 def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, monkeypatch):

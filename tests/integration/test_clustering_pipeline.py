@@ -89,9 +89,9 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
     assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
-    runs_md = (output_root / "kmeans" / "RUNS.md").read_text()
-    assert "run1" in runs_md
-    assert "(production)" in runs_md
+    runs_csv = (output_root / "kmeans" / "runs.csv").read_text()
+    assert "run1" in runs_csv
+    assert "production" in runs_csv
 
 
 def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):

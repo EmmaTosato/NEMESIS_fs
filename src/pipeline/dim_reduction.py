@@ -16,7 +16,7 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
   tuning_results.csv/tuning_plot.png, picks parameters by hand, writes them
   into params_reduction.json's "params", and re-runs with fine_tuning=false.
 
-Both modes append an entry to <output_root>/<method>/RUNS.md - a
+Both modes append an entry to <output_root>/<method>/runs.csv - a
 chronological, human-readable history of every run (tuning or production)
 for that method, distinct from any single run's own config.md (see
 docs/dev/analysis.md).
@@ -146,7 +146,7 @@ def _run_production(
     try:
         report_path = _write_report(config, X, embedding, params, now)
         append_run_log_entry(
-            _runs_md_path(config), effective_session_name, now, "production", params, output_dir, config.run_notes
+            _runs_csv_path(config), effective_session_name, now, "production", params, output_dir, config.run_notes
         )
     except OSError as exc:
         logging.error("cannot write report/run log: %s", exc, exc_info=True)
@@ -190,7 +190,7 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, now: datetime, l
 
     try:
         append_run_log_entry(
-            _runs_md_path(config),
+            _runs_csv_path(config),
             config.session_name,
             now,
             "tuning",
@@ -214,8 +214,8 @@ def _tuning_output_dir(config: DimReductionConfig, now: datetime) -> Path:
     return config.output_root / config.reduction_method / "tuning" / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
-def _runs_md_path(config: DimReductionConfig) -> Path:
-    return config.output_root / config.reduction_method / "RUNS.md"
+def _runs_csv_path(config: DimReductionConfig) -> Path:
+    return config.output_root / config.reduction_method / "runs.csv"
 
 
 def _write_tuning_output(

@@ -128,7 +128,7 @@ def _run_one_method(
     now: datetime,
 ) -> np.ndarray | None:
     """Runs one clustering method on the (already computed once) embedding -
-    artifact, plot, report, RUNS.md. Returns the cluster_labels actually
+    artifact, plot, report, runs.csv. Returns the cluster_labels actually
     saved (for the comparison plot to reuse verbatim), or None on failure -
     the caller stops the whole run.
     """
@@ -192,7 +192,7 @@ def _run_one_method(
     try:
         report_path = _write_report(config, method, X, embedding, cluster_labels, reduction_params, clustering_params, now)
         append_run_log_entry(
-            _runs_md_path(config, method),
+            _runs_csv_path(config, method),
             effective_session_name,
             now,
             "production",
@@ -220,8 +220,8 @@ def _method_dir(config: DimReductionClusteringConfig, method: str) -> str:
     return f"{config.reduction_method}-{method}"
 
 
-def _runs_md_path(config: DimReductionClusteringConfig, method: str) -> Path:
-    return config.output_root / _method_dir(config, method) / "RUNS.md"
+def _runs_csv_path(config: DimReductionClusteringConfig, method: str) -> Path:
+    return config.output_root / _method_dir(config, method) / "runs.csv"
 
 
 def _config_summary(config: DimReductionClusteringConfig, method: str) -> str:

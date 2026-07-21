@@ -201,7 +201,7 @@ def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
         (output_dir / "manifest.json").write_text(json.dumps({"counts": counts, "total": len(statuses)}, indent=2))
         (output_dir / "config.md").write_text(_readme_text(config, counts, len(statuses), now))
         append_run_log_entry(
-            config.output_root / "SESSIONS.md", config.session_name, now, "production", counts, output_dir, config.run_notes
+            config.output_root / "runs.csv", config.session_name, now, "production", counts, output_dir, config.run_notes
         )
     except OSError as exc:
         logging.error("aggregate: cannot write summary/run log: %s", exc, exc_info=True)

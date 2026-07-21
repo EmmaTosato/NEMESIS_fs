@@ -113,16 +113,14 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         report_path = _write_report(config, X, metadata, parcel_ids, now)
-        session_extra = f"- Datasets: {', '.join(config.datasets)}\n- Data Modality: {config.data_modality}"
         append_run_log_entry(
-            config.output_root / "SESSIONS.md",
+            config.output_root / "runs.csv",
             config.session_name,
             now,
             "production",
             {"parcellate": config.parcellate, "binarize_threshold": config.binarize_threshold},
             output_dir,
             config.run_notes,
-            session_description_extra=session_extra
         )
     except OSError as exc:
         logging.error("cannot write report/run log: %s", exc, exc_info=True)
@@ -148,6 +146,7 @@ def _config_summary(config: BuildMatrixConfig) -> str:
     what the run actually used."""
     payload = {
         "project": config.project,
+        "data_modality": config.data_modality,
         "data_root": str(config.data_root),
         "datasets": config.datasets,
         "reference_template_path": str(config.reference_template_path),

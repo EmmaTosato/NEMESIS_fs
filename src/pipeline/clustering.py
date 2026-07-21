@@ -99,7 +99,7 @@ def _run_one_method(
     config: ClusteringConfig, method: str, X: np.ndarray, metadata: pd.DataFrame, now: datetime
 ) -> np.ndarray | None:
     """Runs one clustering method end to end (params, artifact, plot, report,
-    RUNS.md). Returns the cluster_labels actually saved (for the comparison
+    runs.csv). Returns the cluster_labels actually saved (for the comparison
     plot to reuse verbatim, rather than re-running the method a second time),
     or None if this method's run failed - the caller stops the whole run.
     """
@@ -162,7 +162,7 @@ def _run_one_method(
     try:
         report_path = _write_report(config, method, X, cluster_labels, params, now)
         append_run_log_entry(
-            _runs_md_path(config, method), effective_session_name, now, "production", params, output_dir, config.run_notes
+            _runs_csv_path(config, method), effective_session_name, now, "production", params, output_dir, config.run_notes
         )
     except OSError as exc:
         logging.error("[%s] cannot write report/run log: %s", method, exc, exc_info=True)
@@ -180,8 +180,8 @@ def _comparison_dir(config: ClusteringConfig, now: datetime) -> Path:
     return config.output_root / "comparison" / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
-def _runs_md_path(config: ClusteringConfig, method: str) -> Path:
-    return config.output_root / method / "RUNS.md"
+def _runs_csv_path(config: ClusteringConfig, method: str) -> Path:
+    return config.output_root / method / "runs.csv"
 
 
 def _config_summary(config: ClusteringConfig, method: str) -> str:
