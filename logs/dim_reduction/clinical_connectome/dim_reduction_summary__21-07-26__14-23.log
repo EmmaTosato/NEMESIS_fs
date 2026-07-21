@@ -1,0 +1,2 @@
+INFO: tuning results written to results/dim_reduction/umap/tuning/21-07_umap_tuning_run1 (16 combinations evaluated)
+INFO: done - tuning results written to results/dim_reduction/umap/tuning/21-07_umap_tuning_run1, log written to logs/dim_reduction/clinical_connectome/dim_reduction_summary__21-07-26__14-23.log
