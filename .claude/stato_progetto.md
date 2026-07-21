@@ -2,6 +2,25 @@
 
 Ultimo aggiornamento: 2026-07-21. Snapshot dello stato attuale del progetto — non un log cronologico. Errori passati, bug risolti e strade scartate vivono in `.claude/lessons_learned.md` (pattern generalizzabili) e `docs/debugging/` (narrativa completa per sessione di debug); l'evoluzione delle decisioni strategiche vive in `.claude/decision_log.md`; qui restano solo le regole/vincoli in vigore oggi e la mappa dello stato attuale.
 
+## Sessione 2026-07-21 (3) — Audit di allineamento docs/config/src/tests + fix bug reali
+
+**Obiettivo**: l'utente ha chiesto di verificare se `.claude/stato_progetto.md`, `docs/`, `config/`, `src/` e `tests/` sono allineati tra loro, e di sistemare tutto quello che non lo è.
+
+**Decisioni prese / concetti discussi**:
+- `stato_progetto.md` (nella versione letta a inizio sessione, prima della sessione (2) sopra) descriveva uno stato ampiamente superato: pipeline di analisi come "solo scheletro" (in realtà pienamente implementata), nessun codice di orchestrazione BCBToolKit (in realtà `src/sdc/` + `compute_sdc.py` esistono), nomi di config pre-split (`retrieval.json`/`file_patterns.json` invece di `_local`/`_server`).
+- `.claude/CLAUDE.md` stesso (le istruzioni canoniche del progetto) referenziava `docs/project/{overview,tasks,datasets}.md`, una cartella che non esiste più — sostituita da `README.md` (overview/task breakdown) + `docs/guides/datasets.md`. Anche l'affermazione "There is no source code yet" era falsa (`src/` ha 7 sottomoduli, `tests/` 282 test). Corretto.
+- Lanciata la suite reale (`pytest tests/ -q`) per la prima volta in questa sessione: **11 test falliti su 282** (259 passed, 12 skipped) — non "227 passing" come dichiarato in `docs/dev/analysis.md`. Causa: refactor recenti (rename di una variabile locale, rename `README.md`→`config.md`, split `retrieval.json`/`file_patterns.json`→`_local`/`_server`) applicati solo al call site più ovvio, mai grep'ati su tutto il repo. Narrativa completa in `docs/debugging/debug_21_07_26.md` §2-4, pattern generale aggiunto in `.claude/lessons_learned.md` #12.
+- **Sovrapposizione con sessione parallela**: mentre si indagavano questi bug, una sessione parallela (stesso utente, altro terminale — pattern già noto, vedi sessione atlante sotto) ha committato in autonomia fix **identici** per lo stesso `NameError` su `base_params` e lo stesso rename `README.md`→`config.md` (commit `6cc0add` "bugs fix", `5174ff9`, `4865f65` — quest'ultimo con lo stesso identico testo che questa sessione aveva scritto per `docs/dev/analysis.md`). Nessun conflitto: le due working tree sono convergute sullo stesso contenuto. Il contributo di questa sessione **non coperto** da quei commit paralleli: gli script `sbatch` reali (`jobs/run_retrieve_data.sh`, `run_data_summary.sh`, `run_verify_retrieval.sh`) puntavano ancora a `config/pipelines/retrieval.json`, file non più esistente dopo lo split locale/server di un commit precedente — avrebbero fallito al primo lancio reale con `FileNotFoundError`, nessuno l'aveva notato. Corretti a `retrieval_server.json`, insieme a `README.md`, `docs/dev/retrieval.md`, `docs/guides/retrieval.md`, `src/pipeline/retrieve_data.py` e i due script accessori (`scripts/verify_retrieval.py`/`data_summary.py`).
+
+**File modificati in questa sessione (non ancora committati)**:
+- Job/script: `jobs/run_retrieve_data.sh`, `jobs/run_data_summary.sh`, `jobs/run_verify_retrieval.sh` (`retrieval.json`→`retrieval_server.json`), `scripts/verify_retrieval.py`, `scripts/data_summary.py` (docstring/help text)
+- Doc: `README.md`, `docs/dev/retrieval.md`, `docs/guides/retrieval.md` (path split locale/server), `.claude/CLAUDE.md` (rimossi riferimenti a `docs/project/` inesistente e all'affermazione "nessun codice sorgente"), `docs/debugging/debug_21_07_26.md` (nuove sezioni §2-4), `.claude/lessons_learned.md` (pattern #12)
+- Codice: nessuna modifica propria oltre a quanto già convergente con la sessione parallela (vedi sopra — `dim_reduction.py`/`clustering.py`/`dim_reduction_clustering.py` e 5 file di test, già in commit `6cc0add`)
+
+**Stato dei test**: 270/282 passano, 12 skipped (integration contro mount EBRAIN reale) — 0 failed, verificato rilanciando `pytest tests/ -q` due volte (prima e dopo i fix).
+
+**Prossimo passo esatto**: rivedere e committare le modifiche elencate sopra (`git status` per la lista esatta) — nessuna committata da questa sessione agente. Dopodiché, riprendere dalla mappa "Work In Progress"/"Prossimi Passi" più sotto in questo file (non toccati da questa sessione, restano validi).
+
 ## Sessione 2026-07-21 (2) — Riorganizzazione architettura: risultati e tag di sessione per multi-modalità
 
 **Obiettivo**: Riorganizzare la struttura dei salvataggi (dati derivati e risultati) per supportare future modalità (FC, SDC) in parallelo alle matrici lesionali, standardizzando il tracciamento dei parametri di sessione.
