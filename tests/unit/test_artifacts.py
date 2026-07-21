@@ -25,7 +25,7 @@ def test_save_and_load_roundtrip(tmp_path):
     assert np.array_equal(X, X2)
     assert metadata.equals(metadata2)
     assert np.array_equal(extra["non_constant_mask"], extra2["non_constant_mask"])
-    assert (out_dir / "README.md").read_text() == "# readme\n"
+    assert (out_dir / "config.md").read_text() == "# readme\n"
 
 
 def test_overwrite_false_raises_on_existing_dir(tmp_path):

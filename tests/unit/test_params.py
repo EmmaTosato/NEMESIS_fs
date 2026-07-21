@@ -15,8 +15,8 @@ def _write(tmp_path, payload):
 
 def test_load_method_params_valid(tmp_path):
     path = _write(tmp_path, {"umap": {"params": {"n_neighbors": 15}}, "tsne": {"params": {"perplexity": 30}}})
-    assert load_method_params(path, "umap") == {"n_neighbors": 15}
-    assert load_method_params(path, "tsne") == {"perplexity": 30}
+    assert load_method_params(path, "umap") == ({"n_neighbors": 15}, None)
+    assert load_method_params(path, "tsne") == ({"perplexity": 30}, None)
 
 
 def test_unknown_method_raises(tmp_path):

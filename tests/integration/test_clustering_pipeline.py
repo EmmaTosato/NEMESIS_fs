@@ -213,7 +213,7 @@ def test_clustering_end_to_end_dbscan_reports_noise_separately(tmp_path, monkeyp
     # subject in the noise bucket - a real exercise of the -1 path, not a mock
     assert set(metadata["cluster_label"].unique()) == {-1}
 
-    readme = (out_dir / "README.md").read_text()
+    readme = (out_dir / "config.md").read_text()
     assert "Clusters found: 0" in readme
     assert "12 noise points, label -1" in readme
 
@@ -265,6 +265,6 @@ def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path,
 
     comparison_dir = next(p for p in (output_root / "comparison").iterdir() if p.is_dir())
     assert (comparison_dir / "cluster_comparison.png").stat().st_size > 0
-    comparison_readme = (comparison_dir / "README.md").read_text()
+    comparison_readme = (comparison_dir / "config.md").read_text()
     assert "kmeans" in comparison_readme
     assert "agglomerative" in comparison_readme

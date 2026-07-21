@@ -194,7 +194,7 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, now: datetime, l
             config.session_name,
             now,
             "tuning",
-            {"base_params": base_params, "tuning_grid": tuning_grid},
+            {"base_params": params, "tuning_grid": tuning_grid},
             output_dir,
             config.run_notes,
         )
@@ -204,10 +204,6 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, now: datetime, l
 
     logging.info("done - tuning results written to %s, log written to %s", output_dir, log_path)
     return 0
-
-
-def _output_dir(config: DimReductionConfig, now: datetime) -> Path:
-    return config.output_root / config.reduction_method / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
 def _tuning_output_dir(config: DimReductionConfig, now: datetime) -> Path:

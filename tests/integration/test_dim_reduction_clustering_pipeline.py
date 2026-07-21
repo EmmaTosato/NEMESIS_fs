@@ -139,7 +139,7 @@ def test_dim_reduction_clustering_end_to_end_multiple_methods_writes_comparison_
 
     comparison_dir = next(p for p in (output_root / "comparison").iterdir() if p.is_dir())
     assert (comparison_dir / "cluster_comparison.png").stat().st_size > 0
-    comparison_readme = (comparison_dir / "README.md").read_text()
+    comparison_readme = (comparison_dir / "config.md").read_text()
     assert "kmeans" in comparison_readme
     assert "agglomerative" in comparison_readme
     assert "pca" in comparison_readme

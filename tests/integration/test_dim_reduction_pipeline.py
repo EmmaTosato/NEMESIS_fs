@@ -112,7 +112,7 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
     exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
     assert exit_code == 0
 
-    out_dir = next((output_root / "pca").iterdir())
+    out_dir = next(p for p in (output_root / "pca").iterdir() if p.is_dir())
     embedding = np.load(out_dir / "matrix.npy")
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert embedding.shape == (8, 2)

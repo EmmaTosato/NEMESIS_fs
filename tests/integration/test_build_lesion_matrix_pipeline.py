@@ -80,7 +80,7 @@ def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch):
     assert out_dir.name.endswith("_run1")
 
     assert (out_dir / "manifest.json").is_file()
-    assert (out_dir / "README.md").is_file()
+    assert (out_dir / "config.md").is_file()
     matrix = np.load(out_dir / "matrix.npy")
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert matrix.shape[0] == 5
@@ -106,7 +106,7 @@ def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, 
     config_path = _write_config(tmp_path, data_root, output_root)
 
     assert build_lesion_matrix.main(["--config", str(config_path)]) == 0
-    out_dir = next(output_root.iterdir())
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
     manifest_before = (out_dir / "manifest.json").read_text()
 
     exit_code = build_lesion_matrix.main(["--config", str(config_path)])
@@ -143,7 +143,7 @@ def test_parcellate_with_save_parcellated_volumes(tmp_path, monkeypatch):
     exit_code = build_lesion_matrix.main(["--config", str(config_path)])
     assert exit_code == 0
 
-    out_dir = next(output_root.iterdir())
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
     assert (out_dir / "parcel_ids.npy").is_file()
     volumes = list((out_dir / "parcellated_volumes").glob("*.nii.gz"))
     assert len(volumes) == 3

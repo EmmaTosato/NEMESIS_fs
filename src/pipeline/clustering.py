@@ -172,10 +172,6 @@ def _run_one_method(
     return cluster_labels
 
 
-def _output_dir(config: ClusteringConfig, method: str, now: datetime) -> Path:
-    return config.output_root / method / f"{now.strftime('%d-%m')}_{config.session_name}"
-
-
 def _comparison_dir(config: ClusteringConfig, now: datetime) -> Path:
     return config.output_root / "comparison" / f"{now.strftime('%d-%m')}_{config.session_name}"
 
@@ -267,7 +263,7 @@ def _write_comparison_readme(comparison_dir: Path, config: ClusteringConfig, now
     ]
     lines += [f"- `{config.output_root / m / dated_run}`" for m in config.clustering_methods]
     comparison_dir.mkdir(parents=True, exist_ok=True)
-    (comparison_dir / "README.md").write_text("\n".join(lines) + "\n")
+    (comparison_dir / "config.md").write_text("\n".join(lines) + "\n")
 
 
 def _log_path(config: ClusteringConfig, now: datetime) -> Path:

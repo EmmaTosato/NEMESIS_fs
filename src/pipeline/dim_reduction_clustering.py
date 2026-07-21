@@ -208,10 +208,6 @@ def _run_one_method(
     return cluster_labels
 
 
-def _output_dir(config: DimReductionClusteringConfig, method: str, now: datetime) -> Path:
-    return config.output_root / _method_dir(config, method) / f"{now.strftime('%d-%m')}_{config.session_name}"
-
-
 def _comparison_dir(config: DimReductionClusteringConfig, now: datetime) -> Path:
     return config.output_root / "comparison" / f"{now.strftime('%d-%m')}_{config.session_name}"
 
