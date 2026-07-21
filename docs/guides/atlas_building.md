@@ -5,6 +5,19 @@ Questa guida descrive l'uso della pipeline `build_combined_atlas.py`, che è un 
 **Script**: `src/pipeline/build_combined_atlas.py`
 **Configurazione**: `config/pipelines/build_combined_atlas.json`
 
+## Esecuzione (Locale vs Server/SLURM)
+
+**1. Esecuzione sul Server (con SLURM)**
+Sul server, lancia lo script inviandolo alla coda tramite SLURM (così non si interrompe se chiudi la connessione). Trovi lo script in `jobs/`:
+```bash
+sbatch jobs/run_build_combined_atlas.sh
+```
+
+**2. Esecuzione in Locale (senza SLURM)**
+Dal tuo PC locale, dopo aver attivato l'ambiente `nemesis`, lancia la pipeline direttamente da terminale:
+```bash
+python -m src.pipeline.build_combined_atlas --config config/pipelines/build_combined_atlas.json
+```
 ## Cosa significa "Atlas Building"?
 
 Un "Atlante Cerebrale" in neuroimaging è un file immagine 3D (un volume NIfTI) in cui a diverse zone del cervello sono assegnati valori interi diversi (es. tutto ciò che vale 1 è la corteccia visiva primaria, tutto ciò che vale 2 è l'ippocampo, lo zero è lo sfondo vuoto). Serve da "stampino" per dividere il cervello in sezioni logiche.

@@ -5,6 +5,22 @@ Questa guida illustra in modo dettagliato come utilizzare la pipeline `build_les
 **Script**: `src/pipeline/build_lesion_matrix.py`
 **Configurazione**: `config/pipelines/build_lesion_matrix.json`
 
+## Esecuzione (Locale vs Server/SLURM)
+
+**1. Esecuzione sul Server (con SLURM)**
+Sul server (es. cluster HPC), si consiglia di lanciare lo script inviandolo alla coda tramite SLURM, in modo che l'elaborazione non si interrompa se chiudi il terminale. Trovi lo script già pronto nella cartella `jobs/`:
+```bash
+sbatch jobs/run_build_lesion_matrix.sh
+```
+*(Ricordati di verificare che il file `run_build_lesion_matrix.sh` punti al JSON di configurazione che intendi usare).*
+
+**2. Esecuzione in Locale (senza SLURM)**
+Se ti trovi sul tuo PC locale (o se vuoi avviare lo script direttamente senza passare per la coda SLURM), esegui semplicemente il comando Python da terminale. Assicurati prima di aver attivato l'ambiente `nemesis` (es. `conda activate nemesis`):
+```bash
+python -m src.pipeline.build_lesion_matrix --config config/pipelines/build_lesion_matrix.json
+```
+*(Nota: in locale userai probabilmente un file di configurazione specifico, come `config/pipelines/build_lesion_matrix_local.json` se hai adattato i percorsi).*
+
 ## Il concetto: cosa significa "Matrix Building"?
 
 Ogni paziente ha una lesione tridimensionale (una "maschera" NIfTI) in cui alcuni voxel (i "pixel" in 3D) sono sani (valore 0) e altri sono lesionati (valore 1). 

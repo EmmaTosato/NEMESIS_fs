@@ -5,6 +5,19 @@ Questa guida tratta un singolo script, ma probabilmente il più utilizzato nell'
 **Script**: `src/pipeline/dim_reduction_clustering.py`
 **Configurazione**: `config/pipelines/dim_reduction_clustering.json`
 
+## Esecuzione (Locale vs Server/SLURM)
+
+**1. Esecuzione sul Server (con SLURM)**
+Sul server, lancia lo script inviandolo alla coda tramite SLURM (così non si interrompe se chiudi la connessione). Trovi lo script in `jobs/`:
+```bash
+sbatch jobs/run_dim_reduction_clustering.sh
+```
+
+**2. Esecuzione in Locale (senza SLURM)**
+Dal tuo PC locale, dopo aver attivato l'ambiente `nemesis`, lancia la pipeline direttamente da terminale:
+```bash
+python -m src.pipeline.dim_reduction_clustering --config config/pipelines/dim_reduction_clustering.json
+```
 ## Il concetto: La "Scorciatoia" d'Eccellenza
 
 Di norma, il workflow standard prevede due passaggi consecutivi e laboriosi: prendere la matrice grezza e comprimerla (*Dim Reduction*), segnarsi la cartella di output, aprire il file del *Clustering*, e far puntare il parametro a quella cartella per dividere i dati in gruppi.

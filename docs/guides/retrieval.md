@@ -2,13 +2,22 @@
 
 Questa guida spiega in parole semplici e chiare come usare la pipeline di retrieval. L'obiettivo di questo script è "copiare in modo intelligente" le immagini cerebrali dal server centrale (EBRAIN) al tuo computer locale (nella cartella `data/`), preparandole per l'analisi.
 
-Il comando per lanciare la pipeline dal terminale, dopo aver attivato l'ambiente `nemesis`, è:
+## Esecuzione (Locale vs Server/SLURM)
+
+**1. Esecuzione sul Server (con SLURM)**
+Sul server, lancia lo script inviandolo alla coda tramite SLURM (così non si interrompe se chiudi la connessione). Trovi lo script in `jobs/`:
+```bash
+sbatch jobs/run_retrieve_data.sh
+```
+
+**2. Esecuzione in Locale (senza SLURM)**
+Dal tuo PC locale, dopo aver attivato l'ambiente `nemesis`, lancia la pipeline direttamente da terminale:
 ```bash
 python -m src.pipeline.retrieve_data --config config/pipelines/retrieval.json
 ```
+*(Se hai creato file separati, assicurati di puntare al config giusto, es. `retrieval_local.json`).*
 
 Tutte le regole su cosa scaricare, quali pazienti scegliere, e dove salvare i file si definiscono nel file JSON di configurazione indicato nel comando.
-
 ---
 
 ## Retrieve Data (`src/pipeline/retrieve_data.py`)

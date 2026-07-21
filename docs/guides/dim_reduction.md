@@ -5,6 +5,19 @@ Questa guida descrive come utilizzare la pipeline `dim_reduction.py`. Il suo sco
 **Script**: `src/pipeline/dim_reduction.py`
 **Configurazione**: `config/pipelines/dim_reduction.json`
 
+## Esecuzione (Locale vs Server/SLURM)
+
+**1. Esecuzione sul Server (con SLURM)**
+Sul server, lancia lo script inviandolo alla coda tramite SLURM (così non si interrompe se chiudi la connessione). Trovi lo script in `jobs/`:
+```bash
+sbatch jobs/run_dim_reduction.sh
+```
+
+**2. Esecuzione in Locale (senza SLURM)**
+Dal tuo PC locale, dopo aver attivato l'ambiente `nemesis`, lancia la pipeline direttamente da terminale:
+```bash
+python -m src.pipeline.dim_reduction --config config/pipelines/dim_reduction.json
+```
 ## Il concetto: cosa significa "Riduzione della Dimensionalità"?
 
 Immagina di avere una matrice *Voxel-wise* generata nel passaggio di *Matrix Building*: ogni paziente è definito da 800.000 numeri (uno per voxel). Non puoi disegnare un grafico con 800.000 assi. Gli algoritmi di Riduzione della Dimensionalità sono equazioni avanzate che "guardano" questi 800.000 numeri e trovano i modelli intrinseci, riassumendo tutto il paziente in 2, 3 o 10 coordinate (componenti principali o embedding).

@@ -5,6 +5,19 @@ Questa guida illustra l'uso dello script `clustering.py`. L'obiettivo è analizz
 **Script**: `src/pipeline/clustering.py`
 **Configurazione**: `config/pipelines/clustering.json`
 
+## Esecuzione (Locale vs Server/SLURM)
+
+**1. Esecuzione sul Server (con SLURM)**
+Sul server, lancia lo script inviandolo alla coda tramite SLURM (così non si interrompe se chiudi la connessione). Trovi lo script in `jobs/`:
+```bash
+sbatch jobs/run_clustering.sh
+```
+
+**2. Esecuzione in Locale (senza SLURM)**
+Dal tuo PC locale, dopo aver attivato l'ambiente `nemesis`, lancia la pipeline direttamente da terminale:
+```bash
+python -m src.pipeline.clustering --config config/pipelines/clustering.json
+```
 ## Il concetto: cosa significa "Clustering"?
 
 Mentre il *Matrix Building* ci dice l'estensione del danno e la *Dim Reduction* semplifica le informazioni estraendo i pattern principali, il Clustering fa un passo interpretativo. Gli algoritmi analizzano le "distanze matematiche" tra i pazienti. Pazienti "vicini" tra loro vengono racchiusi in un cerchio invisibile ed etichettati, ad esempio, come "Pazienti di Tipo 1".
