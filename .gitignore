@@ -1,5 +1,3 @@
-*.nii.gz
-*.nii
 __pycache__/
 .ipynb_checkpoints/
 *.pyc
