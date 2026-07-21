@@ -13,9 +13,9 @@ sbatch jobs/run_retrieve_data.sh
 **2. Esecuzione in Locale (senza SLURM)**
 Dal tuo PC locale, dopo aver attivato l'ambiente `nemesis`, lancia la pipeline direttamente da terminale:
 ```bash
-python -m src.pipeline.retrieve_data --config config/pipelines/retrieval.json
+python -m src.pipeline.retrieve_data --config config/pipelines/retrieval_local.json
 ```
-*(Se hai creato file separati, assicurati di puntare al config giusto, es. `retrieval_local.json`).*
+Esistono due config separate per i due ambienti (stesso schema, cambia solo il `file_patterns`/`project_root` sorgente): `retrieval_local.json` (usa `config/registry/file_patterns_local.json`, `project_root` da editare col mount locale) per un tuo PC, `retrieval_server.json` (usa `config/registry/file_patterns_server.json`, `project_root` già puntato al mount reale `/data/corbetta/Clinical_connectome`) per il server — quest'ultima è quella lanciata da `jobs/run_retrieve_data.sh` via `sbatch`.
 
 Tutte le regole su cosa scaricare, quali pazienti scegliere, e dove salvare i file si definiscono nel file JSON di configurazione indicato nel comando.
 ---
@@ -23,17 +23,17 @@ Tutte le regole su cosa scaricare, quali pazienti scegliere, e dove salvare i fi
 ## Retrieve Data (`src/pipeline/retrieve_data.py`)
 
 **Cosa fa**: La pipeline si collega alla tua sorgente dati, legge quali pazienti o gruppi le hai chiesto di cercare, ispeziona le loro cartelle, verifica che i file richiesti (come le maschere di lesione) siano effettivamente presenti e, infine, li copia sul tuo computer preservando l'esatta struttura BIDS delle cartelle. È progettato per essere "sicuro": se mancano dei file o ci sono problemi, non si blocca ma annota tutto in un report dettagliato per farti sapere chi manca all'appello.
-**File di Configurazione**: `config/pipelines/retrieval.json`
+**File di Configurazione**: `config/pipelines/retrieval_local.json` (per un tuo PC) o `retrieval_server.json` (per il server/SLURM) — stesso schema, cambia solo quale `file_patterns` registry puntano.
 **Input**: I file sorgente sul mount EBRAIN (es. `/data/corbetta/Clinical_connectome`).
 **Output**: Le copie locali dei file in `data/`, e un utilissimo report di sintesi in `reports/data_retrieval/`.
 
-### Spiegazione dei Parametri (`retrieval.json`)
+### Spiegazione dei Parametri (`retrieval_local.json`/`retrieval_server.json`)
 
 Ecco tutti i valori possibili e cosa significano, riga per riga:
 
 - `output_root`: Dove vuoi posizionare le copie. Solitamente si lascia `"data/"`.
 - `project`: Il nome del progetto, usato per creare la sottocartella principale. Mettendo `"clinical_connectome"`, i file andranno in `data/clinical_connectome/`.
-- `file_patterns`: Il percorso del "registro" delle regole di nomenclatura (`"config/registry/file_patterns.json"`). Non serve modificarlo, serve al codice per tradurre i concetti logici (es. "FC-pearson") nei percorsi file esatti richiesti dal sistema.
+- `file_patterns`: Il percorso del "registro" delle regole di nomenclatura (`"config/registry/file_patterns_local.json"` o `"config/registry/file_patterns_server.json"` a seconda dell'ambiente — cambia solo il `project_root` sorgente tra i due). Non serve modificarlo, serve al codice per tradurre i concetti logici (es. "FC-pearson") nei percorsi file esatti richiesti dal sistema.
 - `datasets`: Un elenco delle raccolte di pazienti da includere. I valori attualmente supportati sono: `["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"]`.
 - `group_filter`: Filtra il gruppo dei soggetti.
   - Usa `["ST"]` se vuoi estrarre solo i pazienti affetti da Stroke.

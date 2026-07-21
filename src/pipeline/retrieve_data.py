@@ -1,7 +1,7 @@
 """CLI entry point: retrieve lesion/feature data and metadata into the local workspace.
 
 Usage:
-    python -m src.pipeline.retrieve_data --config config/pipelines/retrieval.json
+    python -m src.pipeline.retrieve_data --config config/pipelines/retrieval_server.json
 
 Structural problems (unsupported object/pipeline/datatype/suffix, unknown
 group, an item that resolves to nothing anywhere despite its object being
@@ -590,7 +590,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Retrieve lesion/feature data and metadata into the local workspace."
     )
-    parser.add_argument("--config", required=True, help="Path to a retrieval.json file")
+    parser.add_argument("--config", required=True, help="Path to a retrieval_local.json/retrieval_server.json file")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")

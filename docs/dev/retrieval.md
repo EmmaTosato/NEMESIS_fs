@@ -6,7 +6,7 @@ Scope today: 4 stroke datasets in `Clinical_connectome` (`UNIPD/WashU`, `UNIPD/P
 
 ## The `object` axis, and why field *shape* varies by object
 
-Everything in this module is organized around a top-level `object`: **`lesion`** and **`feature`** (`KNOWN_OBJECTS = ("lesion", "feature")` in `config.py` — a true structural invariant). Everything below it is fully data-driven from `file_patterns.json`, in BIDS-aligned vocabulary:
+Everything in this module is organized around a top-level `object`: **`lesion`** and **`feature`** (`KNOWN_OBJECTS = ("lesion", "feature")` in `config.py` — a true structural invariant). Everything below it is fully data-driven from the `file_patterns_{local,server}.json` registry, in BIDS-aligned vocabulary:
 
 - **`pipeline`** — a BIDS-Derivatives pipeline name (e.g. `manual_masks`). BIDS itself does **not** define "pipeline" as a formal entity or term — verified against the spec (bids.neuroimaging.io/getting_started/folders_and_files/derivatives.html): the word appears once, purely descriptively ("Derivatives are outputs of (pre-)processing pipelines..."), and the `derivatives/<name>/` folder segment has no official designation. It's our own vocabulary choice for "which derivatives-style folder tree this comes from", not a borrowed formal term.
 - **`datatype`** — BIDS-official content type: `anat` / `dwi` / `func`.
@@ -26,9 +26,12 @@ Each object also has its **own `project_root`** (`lesion` → `/data/corbetta/Cl
 ## Module layout
 
 ```
-config/
-├── retrieval.json       # per-run request: which datasets, subjects, files, options
-└── file_patterns.json   # registry: object -> pipeline? -> datatype -> suffix -> filename template(s)
+config/pipelines/
+├── retrieval_local.json    # per-run request for a local machine: which datasets, subjects, files, options
+└── retrieval_server.json   # same schema, for the server/SLURM environment
+config/registry/
+├── file_patterns_local.json    # registry: object -> pipeline? -> datatype -> suffix -> filename template(s)
+└── file_patterns_server.json   # same schema, only project_root differs (local mount vs. real EBRAIN path)
 src/retrieval/
 ├── config.py          # parsing/validation of both JSON files - no filesystem I/O
 ├── dataset.py          # Dataset class - resolves paths for one dataset, does touch the filesystem
@@ -54,14 +57,14 @@ def __init__(self, name: str, file_patterns: FilePatterns):
 
 No root is resolved or checked at construction time. `_root_for(object_)` (`file_patterns.project_root_for(object_) / name`) is called lazily by every method that actually needs a root (`subjects()`, `resolve()`, `available()`, ...), and raises `FileNotFoundError` there if that object's root doesn't exist for this dataset. `has_object(object_)` wraps that same check into a boolean for callers that need to check many objects at once without treating absence as fatal (see the WARNING case below).
 
-## The `file_patterns.json` registry — why it exists, and its shape
+## The `file_patterns_{local,server}.json` registry — why it exists, and its shape
 
 Originally, "where does a file live on disk" was hardcoded in `Dataset` as Python `glob()` calls. Two problems with that:
 
 1. **Ambiguous glob matches.** A loose pattern could match more than one real naming variant without anything *guaranteeing* it wouldn't.
 2. **Not inspectable.** The mapping was buried in Python string formatting — a non-programmer collaborator had no way to check "what file does this actually mean" without reading source code.
 
-The registry (`config/registry/file_patterns.json`) fixes both. Top level is `object`; each object maps its own `project_root` plus however many nested levels it needs down to an ordered list of path templates (relative to that object's `project_root`, with `{subject_id}` as the only placeholder — it already includes the `sub-` prefix, e.g. `sub-STUNIPD0002`, so templates must not add a second one):
+The registry (`config/registry/file_patterns_local.json`/`file_patterns_server.json`) fixes both. Top level is `object`; each object maps its own `project_root` plus however many nested levels it needs down to an ordered list of path templates (relative to that object's `project_root`, with `{subject_id}` as the only placeholder — it already includes the `sub-` prefix, e.g. `sub-STUNIPD0002`, so templates must not add a second one):
 
 ```json
 {
@@ -267,7 +270,7 @@ Instead, `Dataset.describe_absence(subject_id, item)` (called only once `resolve
 
 ## Data summary CSVs (`data_summary`, `src/retrieval/matrix.py` + `scripts/data_summary.py`)
 
-A second, independent report answering "what does this dataset actually have, across everything we know how to look for" — as opposed to `copy_summary`, which only explains one run's gaps for the exact combinations it requested. Read-only; takes the same `retrieval.json`/`file_patterns.json` a normal run would.
+A second, independent report answering "what does this dataset actually have, across everything we know how to look for" — as opposed to `copy_summary`, which only explains one run's gaps for the exact combinations it requested. Read-only; takes the same `retrieval_{local,server}.json`/`file_patterns_{local,server}.json` a normal run would.
 
 - `matrix.combinations_from_file_patterns(config)` — every leaf combination registered anywhere in the registry, across every known object, sorted — the matrix's columns. Depth varies by object (see above); shape validated via `RetrieveItem.from_path()` for each combo (single source of truth, not an ad hoc depth check).
 - `matrix.select_all_subjects(ds, config)` — every subject visible in **any** `(object, pipeline)` the registry knows about (`file_patterns.subject_discovery_keys()`), filtered by `group_filter`/`subjects` the same way a run would. Deliberately broader than `retrieve_data._select_subjects` (which only looks at what a run's `retrieve` list touches) — this script shows the full picture regardless of what's being retrieved. Skips objects a dataset structurally lacks (`ds.has_object`) rather than raising.
@@ -289,18 +292,18 @@ Neither is part of the pipeline entry point; both reuse `retrieve_data._select_s
 **`scripts/verify_retrieval.py`** — on-demand, read-only re-check of `data/` against source. Calls the exact same `verify.verify_dataset` the pipeline's post-copy phase uses.
 
 ```bash
-PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/pipelines/retrieval.json
+PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/pipelines/retrieval_server.json
 ```
 
 **`scripts/data_summary.py`** — writes the `data_summary` CSVs described above.
 
 ```bash
-PYTHONPATH=. conda run -n nemesis python scripts/data_summary.py --config config/pipelines/retrieval.json
+PYTHONPATH=. conda run -n nemesis python scripts/data_summary.py --config config/pipelines/retrieval_server.json
 ```
 
 ## Testing
 
-`tests/unit/` — synthetic fixtures in `tmp_path`, no EBRAIN mount required. `tests/integration/` — against the real mount and the real `config/registry/file_patterns.json` registry, `pytest.mark.skipif` if unreachable.
+`tests/unit/` — synthetic fixtures in `tmp_path`, no EBRAIN mount required. `tests/integration/` — against the real mount and the real `config/registry/file_patterns_server.json` registry, `pytest.mark.skipif` if unreachable.
 
 Datasets on EBRAIN are actively curated, so integration tests never hardcode an exact expected count — counts are checked as a **differential**: `test_manual_masks_lesion_mask_resolution_matches_raw_filesystem`/`test_feature_fc_pearson_resolution_matches_raw_filesystem` (`test_resolution_counts.py`) independently re-glob the real filesystem at test run time and assert that set matches what `Dataset.resolve()` reports *right now*. `test_subjects_with_both_fc_pearson_atlases_get_both_files` checks the "2 genuinely different simultaneous files" nuance specifically: a real subject known (via glob, not hardcoded) to have both Schaefer200 atlas variants must resolve to exactly 2 paths.
 

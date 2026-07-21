@@ -7,7 +7,7 @@ re-verify already-retrieved data without doing a run at all: read-only, never
 copies or modifies anything.
 
 Usage:
-    PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/pipelines/retrieval.json
+    PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/pipelines/retrieval_server.json
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ def _print_section(title: str, entries: list[str]) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", required=True, help="Path to a retrieval.json file")
+    parser.add_argument("--config", required=True, help="Path to a retrieval_local.json/retrieval_server.json file")
     args = parser.parse_args(argv)
 
     config = load_config(args.config)

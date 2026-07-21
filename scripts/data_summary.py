@@ -3,7 +3,7 @@ file per dataset.
 
 For every subject visible in any (object, pipeline) the registry knows about
 (see matrix.select_all_subjects), and every leaf combination registered in
-that config's file_patterns.json, shows whether the file exists on the
+that config's file_patterns_local.json/file_patterns_server.json, shows whether the file exists on the
 EBRAIN source: "-" if present, "missing" if not. Independent of what any
 specific retrieval run's `retrieve` list asks for - a complete picture of
 what the dataset actually has, not an explanation of one run's gaps (see
@@ -13,7 +13,7 @@ Unlike the timestamped copy_summary report, this one is a current snapshot,
 not a run log: same fixed filename every time, overwritten on each call.
 
 Usage:
-    PYTHONPATH=. conda run -n nemesis python scripts/data_summary.py --config config/pipelines/retrieval.json
+    PYTHONPATH=. conda run -n nemesis python scripts/data_summary.py --config config/pipelines/retrieval_server.json
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ def write_reports(config: RetrievalConfig) -> list[Path]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", required=True, help="Path to a retrieval.json file")
+    parser.add_argument("--config", required=True, help="Path to a retrieval_local.json/retrieval_server.json file")
     args = parser.parse_args(argv)
 
     config = load_config(args.config)
