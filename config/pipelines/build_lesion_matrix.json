@@ -6,12 +6,12 @@
   "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
   "binarize_threshold": 0.5,
   "resample_interpolation": "nearest",
-  "parcellate": false,
-  "atlas_path": null,
-  "parcel_aggregation": null,
+  "parcellate": true,
+  "atlas_path": "assets/atlases/glasser_hcp_harvardoxford_subcortical_372.nii.gz",
+  "parcel_aggregation": "fraction_lesioned",
   "save_parcellated_volumes": false,
   "output_root": "data/derived/lesion_matrix",
-  "run_name": "run1",
+  "run_name": "mmp372_run1",
   "overwrite": false,
-  "run_notes": null
+  "run_notes": "parcellated on the 372-region Glasser HCP + Harvard-Oxford subcortical atlas (build_combined_atlas.py output)"
 }
