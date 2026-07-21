@@ -14,7 +14,7 @@ _SHARED = {
     "project": "clinical_connectome",
     "input_path": "data/derived/lesion_matrix/run1",
     "output_root": "results/x",
-    "run_name": "run1",
+    "session_name": "run1",
     "overwrite": False,
 }
 

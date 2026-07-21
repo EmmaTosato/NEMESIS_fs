@@ -36,7 +36,7 @@ def _config(tmp_path, *, datasets, group_filter=None):
         stage2_ebrains=True,
         stage2_presets=[],
         output_root=tmp_path / "out",
-        run_name="run1",
+        session_name="run1",
         overwrite=False,
         run_notes=None,
     )

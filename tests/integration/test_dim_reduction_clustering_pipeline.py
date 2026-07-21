@@ -44,7 +44,7 @@ def _build_matrix(tmp_path, monkeypatch, n_subjects=12):
         "parcel_aggregation": None,
         "save_parcellated_volumes": False,
         "output_root": str(output_root),
-        "run_name": "run1",
+        "session_name": "run1",
         "overwrite": False,
         "run_notes": None,
     }
@@ -73,7 +73,7 @@ def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
         "clustering_methods": ["kmeans"],
         "clustering_params_file": str(clustering_params_path),
         "output_root": str(output_root),
-        "run_name": "run1",
+        "session_name": "run1",
         "overwrite": False,
         "run_notes": "prova pca+kmeans",
     }
@@ -122,7 +122,7 @@ def test_dim_reduction_clustering_end_to_end_multiple_methods_writes_comparison_
         "clustering_methods": ["kmeans", "agglomerative"],
         "clustering_params_file": str(clustering_params_path),
         "output_root": str(output_root),
-        "run_name": "run1",
+        "session_name": "run1",
         "overwrite": False,
         "run_notes": None,
     }

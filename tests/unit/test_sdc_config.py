@@ -43,7 +43,7 @@ def _base_config(tmp_path):
         "stage2_ebrains": True,
         "stage2_presets": [],
         "output_root": "data/derived/sdc",
-        "run_name": "run1",
+        "session_name": "run1",
         "overwrite": False,
         "run_notes": None,
     }

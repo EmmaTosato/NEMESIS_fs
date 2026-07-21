@@ -19,7 +19,7 @@ _BASE = {
     "parcel_aggregation": None,
     "save_parcellated_volumes": False,
     "output_root": "data/derived/lesion_matrix",
-    "run_name": "run1",
+    "session_name": "run1",
     "overwrite": False,
 }
 

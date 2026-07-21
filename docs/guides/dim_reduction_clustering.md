@@ -60,7 +60,7 @@ Cosa troverai dentro ciascuna?
 - `matrix.npy`: I dati compressi (es. una matrice con le sole 2 coordinate finali generate da UMAP).
 - `metadata.csv`: Il file d'anagrafica con le colonne aggiornate (ora avrai l'ID del paziente e accanto la dicitura es. Cluster 3).
 - Un file `config.md` di riepilogo estremamente minuzioso.
-- Il file cumulativo del diario di bordo `RUNS.md`.
+- Il file cumulativo del diario di bordo `runs.csv` (una riga per run: `run_id, timestamp, run_type, params, output, notes`).
 - `cluster_plot.png`: Un meraviglioso grafico in due dimensioni con tutti i pazienti a puntini. Gli assi geometrici saranno quelli ricavati da UMAP, e i colori (il rosso per il Gruppo 0, il verde per il Gruppo 1) deriveranno in questa cartella da K-Means e nell'altra da GMM.
 - `cluster_plot_interactive.html`: la stessa vista, ma interattiva (apribile in un browser) — passando sopra un punto vedi `subject_id`/`dataset`/gruppo del paziente, e un menu a tendina permette di ricolorare al volo i punti per `dataset` invece che per cluster, per controllare se un raggruppamento riflette un effetto sito piuttosto che una vera struttura clinica.
 

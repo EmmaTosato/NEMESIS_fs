@@ -53,7 +53,7 @@ def _write_config(tmp_path, data_root, output_root, overrides=None):
         "parcel_aggregation": None,
         "save_parcellated_volumes": False,
         "output_root": str(output_root),
-        "run_name": "run1",
+        "session_name": "run1",
         "overwrite": False,
     }
     cfg.update(overrides or {})

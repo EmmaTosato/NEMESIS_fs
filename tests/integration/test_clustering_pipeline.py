@@ -44,7 +44,7 @@ def _build_matrix(tmp_path, monkeypatch, n_subjects=12):
         "parcel_aggregation": None,
         "save_parcellated_volumes": False,
         "output_root": str(output_root),
-        "run_name": "run1",
+        "session_name": "run1",
         "overwrite": False,
         "run_notes": None,
     }
@@ -71,7 +71,7 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
-        "run_name": "run1",
+        "session_name": "run1",
         "overwrite": False,
         "run_notes": None,
     }
@@ -109,7 +109,7 @@ def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):
         "clustering_methods": ["agglomerative"],
         "params_file": str(params_path),
         "output_root": str(output_root),
-        "run_name": "run1",
+        "session_name": "run1",
         "overwrite": False,
         "run_notes": None,
     }
@@ -138,7 +138,7 @@ def test_clustering_end_to_end_gmm(tmp_path, monkeypatch):
         "clustering_methods": ["gmm"],
         "params_file": str(params_path),
         "output_root": str(output_root),
-        "run_name": "run1",
+        "session_name": "run1",
         "overwrite": False,
         "run_notes": None,
     }
@@ -169,7 +169,7 @@ def test_clustering_end_to_end_spectral(tmp_path, monkeypatch):
         "clustering_methods": ["spectral"],
         "params_file": str(params_path),
         "output_root": str(output_root),
-        "run_name": "run1",
+        "session_name": "run1",
         "overwrite": False,
         "run_notes": None,
     }
@@ -198,7 +198,7 @@ def test_clustering_end_to_end_dbscan_reports_noise_separately(tmp_path, monkeyp
         "clustering_methods": ["dbscan"],
         "params_file": str(params_path),
         "output_root": str(output_root),
-        "run_name": "run1",
+        "session_name": "run1",
         "overwrite": False,
         "run_notes": None,
     }
@@ -240,7 +240,7 @@ def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path,
         "clustering_methods": ["kmeans", "agglomerative"],
         "params_file": str(params_path),
         "output_root": str(output_root),
-        "run_name": "run1",
+        "session_name": "run1",
         "overwrite": False,
         "run_notes": None,
     }
