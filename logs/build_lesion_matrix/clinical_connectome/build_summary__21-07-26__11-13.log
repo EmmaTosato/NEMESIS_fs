@@ -1,0 +1,2 @@
+INFO: matrix written to data/derived/lesion_matrix/21-07_run1 (shape (1150, 254865))
+INFO: done - matrix written to data/derived/lesion_matrix/21-07_run1, report written to reports/build_lesion_matrix/clinical_connectome/build_summary__21-07-26__11-13.md, log written to logs/build_lesion_matrix/clinical_connectome/build_summary__21-07-26__11-13.log
