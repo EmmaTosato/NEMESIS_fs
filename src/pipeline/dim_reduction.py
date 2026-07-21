@@ -35,7 +35,7 @@ import pandas as pd
 
 from src.analysis.model_config import DimReductionConfig, load_dim_reduction_config
 from src.analysis.params import load_method_params, load_trustworthiness_n_neighbors, load_tuning_grid
-from src.analysis.plotting import plot_tuning_curve, plot_tuning_heatmap
+from src.analysis.plotting import plot_embedding_2d, plot_tuning_curve, plot_tuning_heatmap
 from src.analysis.reduction import REDUCTION_METHODS
 from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
 from src.utils.artifacts import load_matrix, save_matrix
@@ -104,6 +104,20 @@ def _run_production(
         logging.error(str(exc))
         return 1
     logging.info("embedding written to %s (shape %s)", output_dir, embedding.shape)
+
+    if embedding.shape[1] >= 2:
+        try:
+            plot_path = output_dir / "embedding_plot.png"
+            plot_embedding_2d(
+                embedding,
+                plot_path,
+                f"{config.reduction_method.upper()} 1",
+                f"{config.reduction_method.upper()} 2",
+                f"{config.project} {config.reduction_method} ({now.strftime('%d-%m-%y %H:%M')})"
+            )
+            logging.info("embedding plot written to %s", plot_path)
+        except Exception as exc:
+            logging.warning("failed to generate embedding plot: %s", exc)
 
     try:
         report_path = _write_report(config, X, embedding, params, now)

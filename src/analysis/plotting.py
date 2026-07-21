@@ -21,6 +21,24 @@ import numpy as np
 import pandas as pd
 
 
+def plot_embedding_2d(
+    X_2d: np.ndarray, output_path: Path, xlabel: str, ylabel: str, title: str
+) -> None:
+    """Scatter the first 2 columns of X_2d (no color labels), to output_path."""
+    if X_2d.shape[1] < 2:
+        raise ValueError(f"plot_embedding_2d needs at least 2 columns, got shape {X_2d.shape}")
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.scatter(X_2d[:, 0], X_2d[:, 1], alpha=0.5, s=12)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
 def plot_clusters_2d(
     X_2d: np.ndarray, cluster_labels: np.ndarray, output_path: Path, xlabel: str, ylabel: str, title: str
 ) -> None:
