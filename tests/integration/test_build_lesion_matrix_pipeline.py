@@ -33,12 +33,18 @@ def _make_dataset(data_root, n_subjects=5):
         _make_lesion_subject(data_root, "siteA", f"sub-{i:02d}", voxels)
 
 
+def _make_reference_template(path):
+    nib.save(nib.Nifti1Image(np.zeros(_SHAPE, dtype=np.float32), _AFFINE), path)
+
+
 def _write_config(tmp_path, data_root, output_root, overrides=None):
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
     cfg = {
         "project": "testproj",
         "data_root": str(data_root),
         "datasets": ["siteA"],
-        "reference_dataset": "siteA",
+        "reference_template_path": str(template_path),
         "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
         "binarize_threshold": 0.5,
         "resample_interpolation": "nearest",
@@ -68,9 +74,9 @@ def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch):
     exit_code = build_lesion_matrix.main(["--config", str(config_path)])
     assert exit_code == 0
 
-    output_dirs = list(output_root.iterdir())
-    assert len(output_dirs) == 1
-    out_dir = output_dirs[0]
+    run_dirs = [p for p in output_root.iterdir() if p.is_dir()]
+    assert len(run_dirs) == 1
+    out_dir = run_dirs[0]
     assert out_dir.name.endswith("_run1")
 
     assert (out_dir / "manifest.json").is_file()
@@ -84,6 +90,10 @@ def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch):
     logs = list((tmp_path / "logs" / "testproj").glob("*.log"))
     assert len(reports) == 1
     assert len(logs) == 1
+
+    runs_md = (output_root / "RUNS.md").read_text()
+    assert "run1" in runs_md
+    assert "(production)" in runs_md
 
 
 def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, monkeypatch):

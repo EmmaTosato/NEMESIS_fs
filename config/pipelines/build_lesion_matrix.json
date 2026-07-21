@@ -2,7 +2,7 @@
   "project": "clinical_connectome",
   "data_root": "data/clinical_connectome",
   "datasets": ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"],
-  "reference_dataset": "UNIPD/WashU",
+  "reference_template_path": "CHANGEME/path/to/reference_template.nii.gz",
   "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
   "binarize_threshold": 0.5,
   "resample_interpolation": "nearest",
@@ -12,5 +12,6 @@
   "save_parcellated_volumes": false,
   "output_root": "data/derived/lesion_matrix",
   "run_name": "run1",
-  "overwrite": false
+  "overwrite": false,
+  "run_notes": null
 }

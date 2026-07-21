@@ -32,6 +32,10 @@ def _make_atlas(path, block_a, block_b):
     nib.save(nib.Nifti1Image(atlas, _AFFINE), path)
 
 
+def _make_reference_template(path):
+    nib.save(nib.Nifti1Image(np.zeros(_SHAPE, dtype=np.float32), _AFFINE), path)
+
+
 _GLOB = "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz"
 
 
@@ -39,11 +43,13 @@ def test_build_lesion_matrix_voxelwise(tmp_path):
     _make_lesion_subject(tmp_path, "siteA", "sub-01", [(1, 1, 1), (1, 1, 2)])
     _make_lesion_subject(tmp_path, "siteA", "sub-02", [(1, 1, 1)])
     _make_lesion_subject(tmp_path, "siteA", "sub-03", [(5, 5, 5)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
 
     X, metadata, non_constant_mask, parcel_ids = build_lesion_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
-        reference_dataset="siteA",
+        reference_template_path=template_path,
         lesion_glob=_GLOB,
         binarize_threshold=0.5,
         resample_interpolation="nearest",
@@ -61,12 +67,14 @@ def test_build_lesion_matrix_voxelwise(tmp_path):
 def test_build_lesion_matrix_subject_count_mismatch_raises(tmp_path):
     _make_lesion_subject(tmp_path, "siteA", "sub-01", [(1, 1, 1)])
     (tmp_path / "siteA" / "sub-02").mkdir(parents=True)  # subject dir with no lesion file
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
 
     with pytest.raises(ValueError, match="subject dirs"):
         build_lesion_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
-            reference_dataset="siteA",
+            reference_template_path=template_path,
             lesion_glob=_GLOB,
             binarize_threshold=0.5,
             resample_interpolation="nearest",
@@ -83,11 +91,13 @@ def test_build_lesion_matrix_parcellated_fraction_lesioned(tmp_path):
     block_a = np.s_[0:5, 0:5, 0:5]
     block_b = np.s_[5:10, 5:10, 5:10]
     _make_atlas(atlas_path, block_a, block_b)
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
 
     X, metadata, _non_constant_mask, parcel_ids = build_lesion_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
-        reference_dataset="siteA",
+        reference_template_path=template_path,
         lesion_glob=_GLOB,
         binarize_threshold=0.5,
         resample_interpolation="nearest",
@@ -115,10 +125,12 @@ def test_build_lesion_matrix_parcellated_fraction_lesioned(tmp_path):
 )
 def test_parcellation_argument_validation(tmp_path, kwargs, match):
     _make_lesion_subject(tmp_path, "siteA", "sub-01", [(1, 1, 1)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
     base = dict(
         data_root=tmp_path,
         datasets=["siteA"],
-        reference_dataset="siteA",
+        reference_template_path=template_path,
         lesion_glob=_GLOB,
         binarize_threshold=0.5,
         resample_interpolation="nearest",
@@ -132,32 +144,20 @@ def test_unknown_parcel_aggregation_raises(tmp_path):
     _make_lesion_subject(tmp_path, "siteA", "sub-01", [(1, 1, 1)])
     atlas_path = tmp_path / "atlas.nii.gz"
     _make_atlas(atlas_path, np.s_[0:5, 0:5, 0:5], np.s_[5:10, 5:10, 5:10])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
 
     with pytest.raises(ValueError, match="unknown parcel_aggregation"):
         build_lesion_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
-            reference_dataset="siteA",
+            reference_template_path=template_path,
             lesion_glob=_GLOB,
             binarize_threshold=0.5,
             resample_interpolation="nearest",
             parcellate=True,
             atlas_path=atlas_path,
             parcel_aggregation="bogus",
-        )
-
-
-def test_reference_dataset_not_in_datasets_raises(tmp_path):
-    _make_lesion_subject(tmp_path, "siteA", "sub-01", [(1, 1, 1)])
-    with pytest.raises(ValueError, match="reference_dataset"):
-        build_lesion_matrix(
-            data_root=tmp_path,
-            datasets=["siteA"],
-            reference_dataset="siteB",
-            lesion_glob=_GLOB,
-            binarize_threshold=0.5,
-            resample_interpolation="nearest",
-            parcellate=False,
         )
 
 
@@ -208,7 +208,13 @@ def test_reconstruct_parcel_volume_length_mismatch_raises():
         reconstruct_parcel_volume(np.array([0.1, 0.2]), atlas_labels, np.array([1]))
 
 
-def test_load_reference_image_no_files_raises(tmp_path):
-    (tmp_path / "siteA").mkdir()
-    with pytest.raises(ValueError, match="no lesion files"):
-        load_reference_image(tmp_path, "siteA", _GLOB)
+def test_load_reference_image_missing_file_raises(tmp_path):
+    with pytest.raises(FileNotFoundError, match="reference_template_path not found"):
+        load_reference_image(tmp_path / "does_not_exist.nii.gz")
+
+
+def test_load_reference_image_valid(tmp_path):
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+    reference_img = load_reference_image(template_path)
+    assert reference_img.shape == _SHAPE

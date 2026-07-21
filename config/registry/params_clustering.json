@@ -1,3 +1,7 @@
 {
-  "kmeans": { "params": { "n_clusters": 4, "random_state": 0, "n_init": "auto" } }
+  "kmeans": { "params": { "n_clusters": 4, "random_state": 0, "n_init": "auto" } },
+  "agglomerative": { "params": { "n_clusters": 4, "linkage": "ward" } },
+  "gmm": { "params": { "n_components": 4, "random_state": 0 } },
+  "dbscan": { "params": { "eps": 0.5, "min_samples": 5 } },
+  "spectral": { "params": { "n_clusters": 4, "affinity": "nearest_neighbors", "random_state": 0 } }
 }

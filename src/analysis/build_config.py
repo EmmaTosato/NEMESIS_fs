@@ -23,7 +23,7 @@ class BuildMatrixConfig:
     project: str
     data_root: Path
     datasets: list[str]
-    reference_dataset: str
+    reference_template_path: Path
     lesion_glob: str
     binarize_threshold: float
     resample_interpolation: str
@@ -34,6 +34,7 @@ class BuildMatrixConfig:
     output_root: Path
     run_name: str
     overwrite: bool
+    run_notes: str | None
 
 
 def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
@@ -53,8 +54,7 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
         raise ValueError(f"config: top-level content must be a JSON object, got {raw!r}")
 
     datasets = _require_unique_str_list(raw, "datasets")
-    reference_dataset = _require_str(raw, "reference_dataset")
-    _validate_reference_dataset(datasets, reference_dataset)
+    reference_template_path = Path(_require_str(raw, "reference_template_path"))
 
     resample_interpolation = _validate_resample_interpolation(_require_str(raw, "resample_interpolation"))
     binarize_threshold = _require_float_in_range(raw, "binarize_threshold", 0.0, 1.0)
@@ -66,7 +66,7 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
         project=_require_str(raw, "project"),
         data_root=Path(_require_str(raw, "data_root")),
         datasets=datasets,
-        reference_dataset=reference_dataset,
+        reference_template_path=reference_template_path,
         lesion_glob=_require_str(raw, "lesion_glob"),
         binarize_threshold=binarize_threshold,
         resample_interpolation=resample_interpolation,
@@ -77,6 +77,7 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
         output_root=Path(_require_str(raw, "output_root")),
         run_name=_require_str(raw, "run_name"),
         overwrite=_require_bool(raw, "overwrite"),
+        run_notes=_optional_str(raw, "run_notes"),
     )
 
 
@@ -137,11 +138,6 @@ def _validate_resample_interpolation(value: str) -> str:
             f"config: field 'resample_interpolation' must be one of {sorted(_KNOWN_INTERPOLATIONS)}, got {value!r}"
         )
     return value
-
-
-def _validate_reference_dataset(datasets: list[str], reference_dataset: str) -> None:
-    if reference_dataset not in datasets:
-        raise ValueError(f"config: reference_dataset {reference_dataset!r} must be one of datasets {datasets}")
 
 
 def _validate_parcellation_fields(raw: dict, parcellate: bool) -> tuple[Path | None, str | None, bool]:

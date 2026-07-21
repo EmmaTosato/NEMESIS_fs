@@ -5,5 +5,7 @@
   "params_file": "config/registry/params_reduction.json",
   "output_root": "results/dim_reduction",
   "run_name": "run1",
-  "overwrite": false
+  "overwrite": false,
+  "fine_tuning": false,
+  "run_notes": null
 }

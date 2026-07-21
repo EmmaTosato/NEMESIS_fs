@@ -32,6 +32,7 @@ from src.features.lesion import (
 )
 from src.utils.artifacts import save_matrix
 from src.utils.logging_setup import attach_file_handler
+from src.utils.run_log import append_run_log_entry
 
 REPORTS_ROOT = Path("reports") / "build_lesion_matrix"
 LOGS_ROOT = Path("logs") / "build_lesion_matrix"
@@ -68,7 +69,7 @@ def main(argv: list[str] | None = None) -> int:
         X, metadata, non_constant_mask, parcel_ids = build_lesion_matrix(
             data_root=config.data_root,
             datasets=config.datasets,
-            reference_dataset=config.reference_dataset,
+            reference_template_path=config.reference_template_path,
             lesion_glob=config.lesion_glob,
             binarize_threshold=config.binarize_threshold,
             resample_interpolation=config.resample_interpolation,
@@ -112,8 +113,17 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         report_path = _write_report(config, X, metadata, parcel_ids, now)
+        append_run_log_entry(
+            config.output_root / "RUNS.md",
+            config.run_name,
+            now,
+            "production",
+            {"parcellate": config.parcellate, "binarize_threshold": config.binarize_threshold},
+            output_dir,
+            config.run_notes,
+        )
     except OSError as exc:
-        logging.error("cannot write report: %s", exc, exc_info=True)
+        logging.error("cannot write report/run log: %s", exc, exc_info=True)
         return 1
 
     logging.info(
@@ -138,7 +148,7 @@ def _config_summary(config: BuildMatrixConfig) -> str:
         "project": config.project,
         "data_root": str(config.data_root),
         "datasets": config.datasets,
-        "reference_dataset": config.reference_dataset,
+        "reference_template_path": str(config.reference_template_path),
         "lesion_glob": config.lesion_glob,
         "binarize_threshold": config.binarize_threshold,
         "resample_interpolation": config.resample_interpolation,
@@ -149,6 +159,7 @@ def _config_summary(config: BuildMatrixConfig) -> str:
         "output_root": str(config.output_root),
         "run_name": config.run_name,
         "overwrite": config.overwrite,
+        "run_notes": config.run_notes,
     }
     return json.dumps(payload, indent=2)
 
@@ -211,7 +222,7 @@ def _write_parcellated_volumes(
     QC-only outputs alongside an already-successfully-saved matrix, not the
     run's real output.
     """
-    reference_img = load_reference_image(config.data_root, config.reference_dataset, config.lesion_glob)
+    reference_img = load_reference_image(config.reference_template_path)
     atlas_labels, _ = load_and_resample_atlas(config.atlas_path, reference_img)
 
     volumes_dir = output_dir / "parcellated_volumes"

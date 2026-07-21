@@ -17,3 +17,5 @@ dependencies:
   - pip:
       - nibabel
       - nilearn
+      - factor_analyzer
+      - pacmap

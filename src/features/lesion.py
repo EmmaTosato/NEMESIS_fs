@@ -37,7 +37,7 @@ PARCEL_AGGREGATIONS: dict[str, Callable[[np.ndarray], np.ndarray]] = {
 def build_lesion_matrix(
     data_root: Path,
     datasets: list[str],
-    reference_dataset: str,
+    reference_template_path: Path,
     lesion_glob: str,
     binarize_threshold: float,
     resample_interpolation: str,
@@ -53,11 +53,9 @@ def build_lesion_matrix(
     filtered to the columns that survived the constant-feature drop.
     """
     _validate_parcellation_args(parcellate, atlas_path, parcel_aggregation)
-    if reference_dataset not in datasets:
-        raise ValueError(f"reference_dataset {reference_dataset!r} must be one of {datasets}")
 
     lesion_files = _discover_lesion_files(data_root, datasets, lesion_glob)
-    reference_img = _load_reference_image(lesion_files, reference_dataset)
+    reference_img = load_reference_image(reference_template_path)
     X_voxelwise, metadata = _stack_voxel_matrix(
         lesion_files, reference_img, resample_interpolation, binarize_threshold
     )
@@ -160,27 +158,23 @@ def _discover_lesion_files(data_root: Path, datasets: list[str], lesion_glob: st
     return lesion_files
 
 
-def _load_reference_image(lesion_files: dict[str, list[Path]], reference_dataset: str) -> nib.Nifti1Image:
-    files = lesion_files[reference_dataset]
-    if not files:
-        raise ValueError(f"reference_dataset {reference_dataset!r} has no lesion files to build the reference grid from")
-    return nib.load(files[0])
+def load_reference_image(reference_template_path: Path) -> nib.Nifti1Image:
+    """Load the explicit reference template that fixes the common voxel grid.
 
-
-def load_reference_image(data_root: Path, reference_dataset: str, lesion_glob: str) -> nib.Nifti1Image:
-    """Load the reference lesion mask that fixes the common voxel grid.
+    Every subject's lesion mask (and, when parcellate=True, the atlas) is
+    resampled onto this image's grid if its own shape differs. Caller-supplied
+    on purpose - picking "the first lesion file found" as an implicit
+    reference silently ties the common grid to whichever file happens to sort
+    first, with no guarantee it's the resolution/space actually wanted (e.g.
+    a canonical MNI152 2mm template).
 
     Public so callers that only need the grid (e.g. the build_lesion_matrix
     pipeline script, to reconstruct QC volumes after the fact) don't have to
-    re-run full lesion discovery/validation across every dataset via
-    build_lesion_matrix - this only touches reference_dataset.
+    re-run full lesion discovery/validation via build_lesion_matrix.
     """
-    files = sorted((data_root / reference_dataset).glob(lesion_glob))
-    if not files:
-        raise ValueError(
-            f"reference_dataset {reference_dataset!r} has no lesion files matching {lesion_glob!r} under {data_root}"
-        )
-    return nib.load(files[0])
+    if not reference_template_path.is_file():
+        raise FileNotFoundError(f"reference_template_path not found: {reference_template_path}")
+    return nib.load(reference_template_path)
 
 
 def _load_and_binarize_lesion(

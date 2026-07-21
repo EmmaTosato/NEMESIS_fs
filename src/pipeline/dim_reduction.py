@@ -4,10 +4,22 @@ Usage:
     python -m src.pipeline.dim_reduction --config config/pipelines/dim_reduction.json
 
 Reads a matrix artifact written by build_lesion_matrix.py (input_path must
-already exist - no auto-build fallback), embeds it with the configured
-method, and writes a new artifact holding the embedding. metadata is carried
-over unchanged (same subjects/dataset, same row order) since reduction
-doesn't touch it.
+already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
+
+- fine_tuning=false (production): embeds with the method's "params" from
+  params_reduction.json, writes a normal matrix artifact holding the
+  embedding. metadata is carried over unchanged.
+- fine_tuning=true (manual hyperparameter search, umap/pca only - t-SNE's
+  params come from Thiebaut de Schotten et al. 2020, not a sweep): evaluates
+  every combination in the method's "tuning_grid", writes a comparison table
+  + plot instead of an embedding. No automatic selection - a human reads
+  tuning_results.csv/tuning_plot.png, picks parameters by hand, writes them
+  into params_reduction.json's "params", and re-runs with fine_tuning=false.
+
+Both modes append an entry to <output_root>/<method>/RUNS.md - a
+chronological, human-readable history of every run (tuning or production)
+for that method, distinct from any single run's own README.md (see
+docs/dev/analysis.md).
 """
 
 from __future__ import annotations
@@ -19,12 +31,16 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from src.analysis.model_config import DimReductionConfig, load_dim_reduction_config
-from src.analysis.params import load_method_params
+from src.analysis.params import load_method_params, load_trustworthiness_n_neighbors, load_tuning_grid
+from src.analysis.plotting import plot_tuning_curve, plot_tuning_heatmap
 from src.analysis.reduction import REDUCTION_METHODS
+from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
 from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
+from src.utils.run_log import append_run_log_entry
 
 REPORTS_ROOT = Path("reports") / "dim_reduction"
 LOGS_ROOT = Path("logs") / "dim_reduction"
@@ -55,6 +71,19 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         X, metadata, _extra_arrays = load_matrix(config.input_path)
+    except (FileNotFoundError, ValueError) as exc:
+        logging.error(str(exc))
+        return 1
+
+    if config.fine_tuning:
+        return _run_fine_tuning(config, X, now, log_path)
+    return _run_production(config, X, metadata, now, log_path)
+
+
+def _run_production(
+    config: DimReductionConfig, X: np.ndarray, metadata: pd.DataFrame, now: datetime, log_path: Path
+) -> int:
+    try:
         params = load_method_params(config.params_file, config.reduction_method)
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
@@ -78,8 +107,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         report_path = _write_report(config, X, embedding, params, now)
+        append_run_log_entry(
+            _runs_md_path(config), config.run_name, now, "production", params, output_dir, config.run_notes
+        )
     except OSError as exc:
-        logging.error("cannot write report: %s", exc, exc_info=True)
+        logging.error("cannot write report/run log: %s", exc, exc_info=True)
         return 1
 
     logging.info(
@@ -88,8 +120,119 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, now: datetime, log_path: Path) -> int:
+    method = config.reduction_method
+    try:
+        base_params = load_method_params(config.params_file, method)
+        tuning_grid = load_tuning_grid(config.params_file, method)
+        trustworthiness_n_neighbors = (
+            load_trustworthiness_n_neighbors(config.params_file, method)
+            if method in METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS
+            else None
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        logging.error(str(exc))
+        return 1
+
+    try:
+        results = run_tuning_sweep(method, X, base_params, tuning_grid, trustworthiness_n_neighbors)
+    except ValueError as exc:
+        logging.error(str(exc))
+        return 1
+
+    output_dir = _tuning_output_dir(config, now)
+    try:
+        _write_tuning_output(output_dir, results, tuning_grid, TUNING_METRIC_NAMES[method], config, now, config.overwrite)
+    except (FileExistsError, OSError) as exc:
+        logging.error(str(exc))
+        return 1
+    logging.info("tuning results written to %s (%d combinations evaluated)", output_dir, len(results))
+
+    try:
+        append_run_log_entry(
+            _runs_md_path(config),
+            config.run_name,
+            now,
+            "tuning",
+            {"base_params": base_params, "tuning_grid": tuning_grid},
+            output_dir,
+            config.run_notes,
+        )
+    except OSError as exc:
+        logging.error("cannot write run log: %s", exc, exc_info=True)
+        return 1
+
+    logging.info("done - tuning results written to %s, log written to %s", output_dir, log_path)
+    return 0
+
+
 def _output_dir(config: DimReductionConfig, now: datetime) -> Path:
     return config.output_root / config.reduction_method / f"{now.strftime('%d-%m')}_{config.run_name}"
+
+
+def _tuning_output_dir(config: DimReductionConfig, now: datetime) -> Path:
+    return config.output_root / config.reduction_method / "tuning" / f"{now.strftime('%d-%m')}_{config.run_name}"
+
+
+def _runs_md_path(config: DimReductionConfig) -> Path:
+    return config.output_root / config.reduction_method / "RUNS.md"
+
+
+def _write_tuning_output(
+    output_dir: Path,
+    results: pd.DataFrame,
+    tuning_grid: dict[str, list],
+    metric_col: str,
+    config: DimReductionConfig,
+    now: datetime,
+    overwrite: bool,
+) -> None:
+    if output_dir.exists() and not overwrite:
+        raise FileExistsError(
+            f"output directory {output_dir} already exists and overwrite=False "
+            "- set overwrite=True to replace it, or choose a different run_name"
+        )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results.to_csv(output_dir / "tuning_results.csv", index=False)
+
+    swept_params = list(tuning_grid.keys())
+    title = f"{config.project} — {config.reduction_method} fine-tuning ({now.strftime('%d-%m-%y %H:%M')})"
+    if len(swept_params) == 1:
+        plot_tuning_curve(results, swept_params[0], metric_col, output_dir / "tuning_plot.png", title)
+    elif len(swept_params) == 2:
+        plot_tuning_heatmap(results, swept_params[0], swept_params[1], metric_col, output_dir / "tuning_plot.png", title)
+    else:
+        logging.warning(
+            "tuning_grid has %d swept parameters - no plot generated (only 1 or 2 are supported)", len(swept_params)
+        )
+
+    readme_lines = [
+        f"# {title}",
+        "",
+        "## Config",
+        "",
+        "```json",
+        json.dumps(
+            {
+                "project": config.project,
+                "input_path": str(config.input_path),
+                "reduction_method": config.reduction_method,
+                "params_file": str(config.params_file),
+                "run_name": config.run_name,
+            },
+            indent=2,
+        ),
+        "```",
+        "",
+        "## Summary",
+        "",
+        f"Swept parameters: {swept_params}",
+        f"Combinations evaluated: {len(results)}",
+        f"Metric: {metric_col}",
+        "",
+        "No automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",
+    ]
+    (output_dir / "README.md").write_text("\n".join(readme_lines) + "\n")
 
 
 def _config_summary(config: DimReductionConfig) -> str:
@@ -101,6 +244,8 @@ def _config_summary(config: DimReductionConfig) -> str:
         "output_root": str(config.output_root),
         "run_name": config.run_name,
         "overwrite": config.overwrite,
+        "fine_tuning": config.fine_tuning,
+        "run_notes": config.run_notes,
     }
     return json.dumps(payload, indent=2)
 

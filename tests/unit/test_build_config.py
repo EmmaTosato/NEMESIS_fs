@@ -10,7 +10,7 @@ _BASE = {
     "project": "clinical_connectome",
     "data_root": "data/clinical_connectome",
     "datasets": ["UNIPD/WashU", "UNIPD/PASPORT"],
-    "reference_dataset": "UNIPD/WashU",
+    "reference_template_path": "/templates/mni152_2mm.nii.gz",
     "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
     "binarize_threshold": 0.5,
     "resample_interpolation": "nearest",
@@ -37,6 +37,7 @@ def test_valid_voxelwise_config(tmp_path):
     assert config.atlas_path is None
     assert config.binarize_threshold == 0.5
     assert config.resample_interpolation == "nearest"
+    assert str(config.reference_template_path) == "/templates/mni152_2mm.nii.gz"
 
 
 def test_valid_parcellated_config(tmp_path):
@@ -56,7 +57,6 @@ def test_missing_file_raises(tmp_path):
 @pytest.mark.parametrize(
     "overrides, match",
     [
-        ({"reference_dataset": "NOT/IN/DATASETS"}, "reference_dataset"),
         ({"resample_interpolation": "cubic"}, "resample_interpolation"),
         ({"binarize_threshold": 5.0}, "between 0.0 and 1.0"),
         ({"binarize_threshold": -0.1}, "between 0.0 and 1.0"),
@@ -71,6 +71,7 @@ def test_missing_file_raises(tmp_path):
         ({"datasets": ["UNIPD/WashU", "UNIPD/WashU"]}, "duplicate entries"),
         ({"datasets": []}, "non-empty list"),
         ({"project": ""}, "non-empty string"),
+        ({"reference_template_path": ""}, "non-empty string"),
     ],
 )
 def test_invalid_configs_raise_value_error(tmp_path, overrides, match):

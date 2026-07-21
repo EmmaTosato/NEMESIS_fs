@@ -1,5 +1,21 @@
 {
-  "umap": { "params": { "n_neighbors": 15, "min_dist": 0.1, "n_components": 2, "random_state": 0 } },
+  "umap": {
+    "params": { "n_neighbors": 15, "min_dist": 0.1, "n_components": 2, "random_state": 0 },
+    "tuning_grid": { "n_neighbors": [5, 15, 30, 50], "min_dist": [0.0, 0.1, 0.25, 0.5] },
+    "trustworthiness_n_neighbors": 10
+  },
   "tsne": { "params": { "perplexity": 30, "early_exaggeration": 12, "learning_rate": 200, "max_iter": 1000, "init": "random", "random_state": 0 } },
-  "pca":  { "params": { "n_components": 10 } }
+  "pca":  {
+    "params": { "n_components": 10 },
+    "tuning_grid": { "n_components": [2, 5, 10, 15, 20, 30] }
+  },
+  "pca_varimax": {
+    "params": { "n_components": 10, "rotation_max_iter": 500 },
+    "tuning_grid": { "n_components": [2, 5, 10, 15, 20, 30] }
+  },
+  "pacmap": {
+    "params": { "n_components": 2, "n_neighbors": 10, "MN_ratio": 0.5, "FP_ratio": 2.0, "random_state": 0 },
+    "tuning_grid": { "n_neighbors": [5, 10, 20, 50] },
+    "trustworthiness_n_neighbors": 10
+  }
 }

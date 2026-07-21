@@ -1,10 +1,13 @@
 """Loads per-method hyperparameters from config/registry/params_reduction.json / params_clustering.json.
 
-Shape: {method: {"params": {...}}}. Hyperparameters themselves are never
-validated key-by-key here - sklearn/umap raise their own error for a bad
-constructor argument when src/analysis/reduction.py or clustering.py unpacks
-the returned dict (code_standards.md §5: every hyperparameter lives only in
-this file, never hardcoded in src/).
+Shape: {method: {"params": {...}, "tuning_grid": {...}?, "trustworthiness_n_neighbors": int?}}.
+Hyperparameters themselves are never validated key-by-key here - sklearn/umap
+raise their own error for a bad constructor argument when
+src/analysis/reduction.py or clustering.py unpacks the returned dict
+(code_standards.md §5: every hyperparameter lives only in this file, never
+hardcoded in src/). "tuning_grid"/"trustworthiness_n_neighbors" are optional -
+only methods that support fine-tuning (today: umap, pca) have them; t-SNE and
+kmeans have "params" only.
 """
 
 from __future__ import annotations
@@ -20,6 +23,49 @@ def load_method_params(params_file: str | Path, method: str) -> dict:
     top-level shape isn't a JSON object, if `method` has no entry, or if that
     entry's "params" isn't itself a JSON object.
     """
+    entry = _load_method_entry(params_file, method)
+    if "params" not in entry:
+        raise ValueError(f"{params_file}: entry for method {method!r} must be a JSON object with a 'params' key")
+    params = entry["params"]
+    if not isinstance(params, dict):
+        raise ValueError(f"{params_file}: {method!r}.params must be a JSON object, got {params!r}")
+    return params
+
+
+def load_tuning_grid(params_file: str | Path, method: str) -> dict[str, list]:
+    """Load the tuning_grid dict registered for `method` in `params_file`.
+
+    Raises ValueError if `method` has no "tuning_grid" entry (fine-tuning not
+    supported/configured for this method) or if it isn't a JSON object
+    mapping each hyperparameter name to a non-empty list of values to sweep.
+    """
+    entry = _load_method_entry(params_file, method)
+    if "tuning_grid" not in entry:
+        raise ValueError(f"{params_file}: method {method!r} has no 'tuning_grid' entry - fine-tuning not configured for it")
+    grid = entry["tuning_grid"]
+    if not isinstance(grid, dict) or not grid:
+        raise ValueError(f"{params_file}: {method!r}.tuning_grid must be a non-empty JSON object, got {grid!r}")
+    for key, values in grid.items():
+        if not isinstance(values, list) or not values:
+            raise ValueError(f"{params_file}: {method!r}.tuning_grid[{key!r}] must be a non-empty list, got {values!r}")
+    return grid
+
+
+def load_trustworthiness_n_neighbors(params_file: str | Path, method: str) -> int:
+    """Load the trustworthiness_n_neighbors int registered for `method` in `params_file`.
+
+    Raises ValueError if `method` has no such entry, or it isn't a positive int.
+    """
+    entry = _load_method_entry(params_file, method)
+    if "trustworthiness_n_neighbors" not in entry:
+        raise ValueError(f"{params_file}: method {method!r} has no 'trustworthiness_n_neighbors' entry")
+    value = entry["trustworthiness_n_neighbors"]
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"{params_file}: {method!r}.trustworthiness_n_neighbors must be a positive integer, got {value!r}")
+    return value
+
+
+def _load_method_entry(params_file: str | Path, method: str) -> dict:
     params_file = Path(params_file)
     if not params_file.is_file():
         raise FileNotFoundError(f"params file not found: {params_file}")
@@ -32,11 +78,6 @@ def load_method_params(params_file: str | Path, method: str) -> dict:
     if method not in raw:
         raise ValueError(f"{params_file}: no entry for method {method!r} (known: {sorted(raw)})")
     entry = raw[method]
-    if not isinstance(entry, dict) or "params" not in entry:
-        raise ValueError(f"{params_file}: entry for method {method!r} must be a JSON object with a 'params' key")
-
-    params = entry["params"]
-    if not isinstance(params, dict):
-        raise ValueError(f"{params_file}: {method!r}.params must be a JSON object, got {params!r}")
-
-    return params
+    if not isinstance(entry, dict):
+        raise ValueError(f"{params_file}: entry for method {method!r} must be a JSON object")
+    return entry
