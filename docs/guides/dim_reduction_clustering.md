@@ -31,13 +31,13 @@ Lo script `dim_reduction_clustering` fa tutto questo con un solo colpo di pistol
 I parametri nel file `config/pipelines/dim_reduction_clustering.json` sono essenzialmente la fusione esatta delle impostazioni delle guide precedenti.
 
 - **`project`**: `(Stringa)` `"clinical_connectome"`.
-- **`input_path`**: `(Stringa)` La cartella esatta originata dalla pipeline base di *Matrix Building* (es. `"data/derived/lesion_matrix/20-07_run1"`). Non dargli in pasto dati già compressi, ci penserà lui.
+- **`input_path`**: `(Stringa)` La cartella esatta originata dalla pipeline base di *Matrix Building* (es. `"data/derived/lesion_matrix/20-07_s1"`). Non dargli in pasto dati già compressi, ci penserà lui.
 - **`reduction_method`**: `(Stringa)` Seleziona UN SOLO algoritmo di compressione (es. `"umap"` oppure `"pca_varimax"`). È lo scultore che modellerà l'argilla per i clustering successivi.
 - **`clustering_methods`**: `(Lista di Stringhe)` Seleziona I METODI di raggruppamento con cui vuoi tagliare i dati (es. `["kmeans", "agglomerative", "gmm"]`). Verranno eseguiti tutti, a ruota.
 - **`reduction_params_file`**: `(Stringa)` Punta al registro matematico della riduzione (`"config/registry/params_reduction.json"`). 
 - **`clustering_params_file`**: `(Stringa)` Punta al registro matematico dei raggruppamenti (`"config/registry/params_clustering.json"`).
 - **`output_root`**: `(Stringa)` Sede finale dei risultati combinati (`"results/dim_reduction_clustering"`).
-- **`run_name`**: `(Stringa)` Il nome dell'operazione massiva (es. `"run_1"`).
+- **`session_name`**: `(Stringa)` Il nome dell'operazione massiva (es. `"run_1"`).
 - **`overwrite`**: `(Booleano)` A `true` per sovrascrivere.
 - **`run_notes`**: `(Stringa)` Spazio libero per note su perché stai facendo il run.
 
@@ -59,8 +59,9 @@ Verranno create due cartelle basate sulla combinazione nominale dei due passaggi
 Cosa troverai dentro ciascuna?
 - `matrix.npy`: I dati compressi (es. una matrice con le sole 2 coordinate finali generate da UMAP).
 - `metadata.csv`: Il file d'anagrafica con le colonne aggiornate (ora avrai l'ID del paziente e accanto la dicitura es. Cluster 3).
-- Un file `README.md` di riepilogo estremamente minuzioso.
+- Un file `config.md` di riepilogo estremamente minuzioso.
 - Il file cumulativo del diario di bordo `RUNS.md`.
 - `cluster_plot.png`: Un meraviglioso grafico in due dimensioni con tutti i pazienti a puntini. Gli assi geometrici saranno quelli ricavati da UMAP, e i colori (il rosso per il Gruppo 0, il verde per il Gruppo 1) deriveranno in questa cartella da K-Means e nell'altra da GMM.
+- `cluster_plot_interactive.html`: la stessa vista, ma interattiva (apribile in un browser) — passando sopra un punto vedi `subject_id`/`dataset`/gruppo del paziente, e un menu a tendina permette di ricolorare al volo i punti per `dataset` invece che per cluster, per controllare se un raggruppamento riflette un effetto sito piuttosto che una vera struttura clinica.
 
 Infine, come per il modulo di clustering classico, ti regalerà in automatico la super cartella speciale `comparison/` in cui stamperà tutti i grafici di K-Means e di GMM uno a fianco all'altro. Siccome lo spazio generato da UMAP sotto è lo stesso, le posizioni dei puntini saranno le stesse, e potrai focalizzarti unicamente sul confrontare come i due diversi algoritmi di clustering si sono "litigati" i colori con cui colorarli.

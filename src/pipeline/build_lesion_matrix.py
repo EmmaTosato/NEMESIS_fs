@@ -115,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         report_path = _write_report(config, X, metadata, parcel_ids, now)
         append_run_log_entry(
             config.output_root / "RUNS.md",
-            config.run_name,
+            config.session_name,
             now,
             "production",
             {"parcellate": config.parcellate, "binarize_threshold": config.binarize_threshold},
@@ -133,7 +133,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _output_dir(config: BuildMatrixConfig, now: datetime) -> Path:
-    return config.output_root / f"{now.strftime('%d-%m')}_{config.run_name}"
+    return config.output_root / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
 def _dataset_counts(metadata: pd.DataFrame) -> dict[str, int]:
@@ -157,7 +157,7 @@ def _config_summary(config: BuildMatrixConfig) -> str:
         "parcel_aggregation": config.parcel_aggregation,
         "save_parcellated_volumes": config.save_parcellated_volumes,
         "output_root": str(config.output_root),
-        "run_name": config.run_name,
+        "session_name": config.session_name,
         "overwrite": config.overwrite,
         "run_notes": config.run_notes,
     }

@@ -26,7 +26,7 @@ class DimReductionConfig:
     reduction_method: str
     params_file: Path
     output_root: Path
-    run_name: str
+    session_name: str
     overwrite: bool
     fine_tuning: bool
     run_notes: str | None
@@ -39,7 +39,7 @@ class ClusteringConfig:
     clustering_methods: tuple[str, ...]
     params_file: Path
     output_root: Path
-    run_name: str
+    session_name: str
     overwrite: bool
     run_notes: str | None
 
@@ -53,21 +53,21 @@ class DimReductionClusteringConfig:
     clustering_methods: tuple[str, ...]
     clustering_params_file: Path
     output_root: Path
-    run_name: str
+    session_name: str
     overwrite: bool
     run_notes: str | None
 
 
 def load_dim_reduction_config(path: str | Path) -> DimReductionConfig:
     raw = _read_config(path)
-    project, input_path, output_root, run_name, overwrite, run_notes = _load_shared_fields(raw)
+    project, input_path, output_root, session_name, overwrite, run_notes = _load_shared_fields(raw)
     return DimReductionConfig(
         project=project,
         input_path=input_path,
         reduction_method=_validate_method(_require_str(raw, "reduction_method"), REDUCTION_METHODS, "reduction_method"),
         params_file=Path(_require_str(raw, "params_file")),
         output_root=output_root,
-        run_name=run_name,
+        session_name=session_name,
         overwrite=overwrite,
         fine_tuning=_require_bool(raw, "fine_tuning"),
         run_notes=run_notes,
@@ -76,14 +76,14 @@ def load_dim_reduction_config(path: str | Path) -> DimReductionConfig:
 
 def load_clustering_config(path: str | Path) -> ClusteringConfig:
     raw = _read_config(path)
-    project, input_path, output_root, run_name, overwrite, run_notes = _load_shared_fields(raw)
+    project, input_path, output_root, session_name, overwrite, run_notes = _load_shared_fields(raw)
     return ClusteringConfig(
         project=project,
         input_path=input_path,
         clustering_methods=_require_method_list(raw, "clustering_methods", CLUSTERING_METHODS),
         params_file=Path(_require_str(raw, "params_file")),
         output_root=output_root,
-        run_name=run_name,
+        session_name=session_name,
         overwrite=overwrite,
         run_notes=run_notes,
     )
@@ -91,7 +91,7 @@ def load_clustering_config(path: str | Path) -> ClusteringConfig:
 
 def load_dim_reduction_clustering_config(path: str | Path) -> DimReductionClusteringConfig:
     raw = _read_config(path)
-    project, input_path, output_root, run_name, overwrite, run_notes = _load_shared_fields(raw)
+    project, input_path, output_root, session_name, overwrite, run_notes = _load_shared_fields(raw)
     return DimReductionClusteringConfig(
         project=project,
         input_path=input_path,
@@ -100,7 +100,7 @@ def load_dim_reduction_clustering_config(path: str | Path) -> DimReductionCluste
         clustering_methods=_require_method_list(raw, "clustering_methods", CLUSTERING_METHODS),
         clustering_params_file=Path(_require_str(raw, "clustering_params_file")),
         output_root=output_root,
-        run_name=run_name,
+        session_name=session_name,
         overwrite=overwrite,
         run_notes=run_notes,
     )
@@ -122,7 +122,7 @@ def _load_shared_fields(raw: dict) -> tuple[str, Path, Path, str, bool, str | No
         _require_str(raw, "project"),
         Path(_require_str(raw, "input_path")),
         Path(_require_str(raw, "output_root")),
-        _require_str(raw, "run_name"),
+        _require_str(raw, "session_name"),
         _require_bool(raw, "overwrite"),
         _optional_str(raw, "run_notes"),
     )

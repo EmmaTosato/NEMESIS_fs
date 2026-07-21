@@ -83,8 +83,8 @@ Ecco la traduzione e spiegazione esatta di ogni riga nel file `config/pipelines/
 - **`parcel_aggregation`**: `(Stringa)` La matematica di raggruppamento per le regioni. Al momento supportiamo solo `"fraction_lesioned"`.
 - **`save_parcellated_volumes`**: `(Booleano)` Crea dei NIfTI 3D di controllo (QC) visualizzabili con FSleyes per vedere l'atlante "riempito".
 - **`output_root`**: `(Stringa)` La cartella finale per il risultato. Mettiamo `"data/derived/lesion_matrix"`.
-- **`run_name`**: `(Stringa)` Un'etichetta per distinguere questa specifica matrice. Es: `"run_voxelwise_01"`. 
-- **`overwrite`**: `(Booleano)` Se imposti `true`, cancella silenziosamente i risultati precedenti con lo stesso `run_name`. Se `false`, va in errore per proteggere i tuoi dati pregressi.
+- **`session_name`**: `(Stringa)` Un'etichetta per distinguere questa specifica matrice. Es: `"s_voxelwise_01"`. 
+- **`overwrite`**: `(Booleano)` Se imposti `true`, cancella silenziosamente i risultati precedenti con lo stesso `session_name`. Se `false`, va in errore per proteggere i tuoi dati pregressi.
 - **`run_notes`**: `(Stringa o null)` Eventuali note discorsive che vuoi appuntarti (es. "Matrice creata escludendo UKLFR per test").
 
 ---
@@ -95,11 +95,11 @@ Ecco la traduzione e spiegazione esatta di ogni riga nel file `config/pipelines/
 La pipeline leggerà dinamicamente le cartelle dentro `data_root` cercandovi maschere NIfTI corrispondenti a `lesion_glob`.
 
 **Output**:
-I risultati verranno generati all'interno di: `data/derived/lesion_matrix/<GIORNO-MESE>_<run_name>/`.
+I risultati verranno generati all'interno di: `data/derived/lesion_matrix/<GIORNO-MESE>_<session_name>/`.
 Troverai i seguenti file:
 1. `matrix.npy`: I dati matematici puri e crudi (la matrice vera e propria). Non apribile con un editor di testo, ma leggibile tramite script Python.
 2. `metadata.csv`: Una riga per paziente, con `subject_id` e `dataset` di provenienza. La riga 5 di questo file corrisponde esattamente alla riga 5 della matrice `matrix.npy`.
 3. `non_constant_mask.npy`: Quando sovrapponi le lesioni di migliaia di pazienti su un cervello standard, ci sono tantissimi voxel (pixel 3D) in cui nessun paziente ha mai avuto una lesione, oppure voxel in cui tutti hanno una lesione. Queste colonne "costanti" non portano alcuna informazione utile agli algoritmi di machine learning (come PCA, UMAP o clustering), ma occupano una quantità enorme di memoria inutile. Per questo motivo, la pipeline rimuove queste colonne durante la creazione della matrice. Il file `non_constant_mask.npy` è un array booleano (Vero/Falso) lungo quanto l'intero cervello originale, che ti dice per ogni voxel se è stato "tenuto" o "scartato". Ti servirà in futuro, alla fine dell'analisi, quando vorrai prendere i tuoi risultati (es. i pesi di una PCA) e "spalmarli" di nuovo su un'immagine del cervello per poterli visualizzare spazialmente.
 4. `parcel_ids.npy`: (Solo per Categoria Parcellated) Mostra l'ID dell'atlante a cui corrisponde ogni colonna della matrice.
-5. `README.md`: Un mini-report che riassume le impostazioni esatte e la forma finale della matrice.
+5. `config.md`: Un mini-report che riassume le impostazioni esatte e la forma finale della matrice.
 6. `parcellated_volumes/`: (Solo se richiesto) Una sottocartella con le copie 3D visualizzabili per ogni paziente.

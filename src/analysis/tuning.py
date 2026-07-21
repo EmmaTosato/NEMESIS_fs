@@ -100,8 +100,15 @@ def run_tuning_sweep(
     evaluator = _EVALUATORS[method]
     keys = list(tuning_grid.keys())
     rows = []
-    for combo in itertools.product(*tuning_grid.values()):
+    import logging
+    
+    combinations = list(itertools.product(*tuning_grid.values()))
+    total = len(combinations)
+    logging.info("Starting fine-tuning sweep for %s (%d combinations)", method, total)
+    
+    for i, combo in enumerate(combinations, 1):
         combo_params = {**base_params, **dict(zip(keys, combo))}
+        logging.info("Evaluating combination %d/%d: %s", i, total, dict(zip(keys, combo)))
         if method in METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS:
             if trustworthiness_n_neighbors is None:
                 raise ValueError(f"trustworthiness_n_neighbors is required to fine-tune {method!r}")

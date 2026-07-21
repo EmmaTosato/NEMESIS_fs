@@ -7,11 +7,13 @@ Reads a matrix artifact (input_path must already exist), embeds it once with
 the configured reduction method, then clusters that same embedding (not the
 raw matrix) with every method in clustering_methods (one or more). Each
 method writes its own artifact: the embedding as matrix.npy, cluster_label
-appended to metadata.csv, plus a basic 2D scatter plot (first 2 embedding
-dimensions, colored by cluster) for a first visual sanity check. When more
-than one clustering method is requested, an additional side-by-side
+appended to metadata.csv, a static 2D scatter plot colored by cluster
+(cluster_plot.png) for a first visual sanity check, and an interactive HTML
+version (cluster_plot_interactive.html) with a dropdown to switch coloring
+between cluster and dataset, hover showing every metadata column per point.
+When more than one clustering method is requested, an additional side-by-side
 comparison plot is written to
-<output_root>/comparison/<dd-mm>_<run_name>/cluster_comparison.png.
+<output_root>/comparison/<dd-mm>_<session_name>/cluster_comparison.png.
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ import pandas as pd
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.model_config import DimReductionClusteringConfig, load_dim_reduction_clustering_config
 from src.analysis.params import load_method_params
-from src.analysis.plotting import plot_clusters_2d, plot_clusters_comparison
+from src.analysis.plotting import plot_clusters_2d, plot_clusters_comparison, plot_clusters_interactive
 from src.analysis.reduction import REDUCTION_METHODS
 from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
@@ -149,9 +151,19 @@ def _run_one_method(
             title=f"{config.project} — {config.reduction_method} + {method}",
         )
         logging.info("[%s] cluster plot written to %s", method, output_dir / "cluster_plot.png")
+
+        plot_clusters_interactive(
+            embedding[:, :2],
+            metadata_out,
+            output_dir / "cluster_plot_interactive.html",
+            xlabel=f"{config.reduction_method} dim 1",
+            ylabel=f"{config.reduction_method} dim 2",
+            title=f"{config.project} — {config.reduction_method} + {method}",
+        )
+        logging.info("[%s] interactive cluster plot written to %s", method, output_dir / "cluster_plot_interactive.html")
     else:
         logging.warning(
-            "[%s] embedding has only %d component(s) - skipping cluster_plot.png (needs at least 2)",
+            "[%s] embedding has only %d component(s) - skipping cluster_plot.png/cluster_plot_interactive.html (needs at least 2)",
             method,
             embedding.shape[1],
         )
@@ -160,7 +172,7 @@ def _run_one_method(
         report_path = _write_report(config, method, X, embedding, cluster_labels, reduction_params, clustering_params, now)
         append_run_log_entry(
             _runs_md_path(config, method),
-            config.run_name,
+            config.session_name,
             now,
             "production",
             {"reduction_params": reduction_params, "clustering_params": clustering_params},
@@ -176,11 +188,11 @@ def _run_one_method(
 
 
 def _output_dir(config: DimReductionClusteringConfig, method: str, now: datetime) -> Path:
-    return config.output_root / _method_dir(config, method) / f"{now.strftime('%d-%m')}_{config.run_name}"
+    return config.output_root / _method_dir(config, method) / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
 def _comparison_dir(config: DimReductionClusteringConfig, now: datetime) -> Path:
-    return config.output_root / "comparison" / f"{now.strftime('%d-%m')}_{config.run_name}"
+    return config.output_root / "comparison" / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
 def _method_dir(config: DimReductionClusteringConfig, method: str) -> str:
@@ -201,7 +213,7 @@ def _config_summary(config: DimReductionClusteringConfig, method: str) -> str:
         "clustering_methods_requested": list(config.clustering_methods),
         "clustering_params_file": str(config.clustering_params_file),
         "output_root": str(config.output_root),
-        "run_name": config.run_name,
+        "session_name": config.session_name,
         "overwrite": config.overwrite,
         "run_notes": config.run_notes,
     }
@@ -301,7 +313,7 @@ def _write_report(
 
 
 def _write_comparison_readme(comparison_dir: Path, config: DimReductionClusteringConfig, now: datetime) -> None:
-    dated_run = f"{now.strftime('%d-%m')}_{config.run_name}"
+    dated_run = f"{now.strftime('%d-%m')}_{config.session_name}"
     lines = [
         f"# {config.project} dim_reduction_clustering method comparison "
         f"({config.reduction_method}) — {now.strftime('%d-%m-%y %H:%M')}",
@@ -313,7 +325,7 @@ def _write_comparison_readme(comparison_dir: Path, config: DimReductionClusterin
     ]
     lines += [f"- `{config.output_root / _method_dir(config, m) / dated_run}`" for m in config.clustering_methods]
     comparison_dir.mkdir(parents=True, exist_ok=True)
-    (comparison_dir / "README.md").write_text("\n".join(lines) + "\n")
+    (comparison_dir / "config.md").write_text("\n".join(lines) + "\n")
 
 
 def _log_path(config: DimReductionClusteringConfig, now: datetime) -> Path:

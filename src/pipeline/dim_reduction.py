@@ -18,7 +18,7 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
 
 Both modes append an entry to <output_root>/<method>/RUNS.md - a
 chronological, human-readable history of every run (tuning or production)
-for that method, distinct from any single run's own README.md (see
+for that method, distinct from any single run's own config.md (see
 docs/dev/analysis.md).
 """
 
@@ -122,7 +122,7 @@ def _run_production(
     try:
         report_path = _write_report(config, X, embedding, params, now)
         append_run_log_entry(
-            _runs_md_path(config), config.run_name, now, "production", params, output_dir, config.run_notes
+            _runs_md_path(config), config.session_name, now, "production", params, output_dir, config.run_notes
         )
     except OSError as exc:
         logging.error("cannot write report/run log: %s", exc, exc_info=True)
@@ -165,7 +165,7 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, now: datetime, l
     try:
         append_run_log_entry(
             _runs_md_path(config),
-            config.run_name,
+            config.session_name,
             now,
             "tuning",
             {"base_params": base_params, "tuning_grid": tuning_grid},
@@ -181,11 +181,11 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, now: datetime, l
 
 
 def _output_dir(config: DimReductionConfig, now: datetime) -> Path:
-    return config.output_root / config.reduction_method / f"{now.strftime('%d-%m')}_{config.run_name}"
+    return config.output_root / config.reduction_method / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
 def _tuning_output_dir(config: DimReductionConfig, now: datetime) -> Path:
-    return config.output_root / config.reduction_method / "tuning" / f"{now.strftime('%d-%m')}_{config.run_name}"
+    return config.output_root / config.reduction_method / "tuning" / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
 def _runs_md_path(config: DimReductionConfig) -> Path:
@@ -204,7 +204,7 @@ def _write_tuning_output(
     if output_dir.exists() and not overwrite:
         raise FileExistsError(
             f"output directory {output_dir} already exists and overwrite=False "
-            "- set overwrite=True to replace it, or choose a different run_name"
+            "- set overwrite=True to replace it, or choose a different session_name"
         )
     output_dir.mkdir(parents=True, exist_ok=True)
     results.to_csv(output_dir / "tuning_results.csv", index=False)
@@ -232,7 +232,7 @@ def _write_tuning_output(
                 "input_path": str(config.input_path),
                 "reduction_method": config.reduction_method,
                 "params_file": str(config.params_file),
-                "run_name": config.run_name,
+                "session_name": config.session_name,
             },
             indent=2,
         ),
@@ -246,7 +246,7 @@ def _write_tuning_output(
         "",
         "No automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",
     ]
-    (output_dir / "README.md").write_text("\n".join(readme_lines) + "\n")
+    (output_dir / "config.md").write_text("\n".join(readme_lines) + "\n")
 
 
 def _config_summary(config: DimReductionConfig) -> str:
@@ -256,7 +256,7 @@ def _config_summary(config: DimReductionConfig) -> str:
         "reduction_method": config.reduction_method,
         "params_file": str(config.params_file),
         "output_root": str(config.output_root),
-        "run_name": config.run_name,
+        "session_name": config.session_name,
         "overwrite": config.overwrite,
         "fine_tuning": config.fine_tuning,
         "run_notes": config.run_notes,

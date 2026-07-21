@@ -9,7 +9,7 @@
   "stage2_ebrains": true,
   "stage2_presets": [],
   "output_root": "data/derived/sdc",
-  "run_name": "run1",
+  "session_name": "s1",
   "overwrite": false,
   "run_notes": "tracks_dir=null usa l'atlante trattografie bundled in BCBToolKit (10 soggetti, parziale - vedi INSTALL_LOG.md #9.1); da aggiornare quando il download dell'atlante completo (180 soggetti 1mm) e' pronto."
 }

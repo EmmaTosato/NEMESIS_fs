@@ -11,14 +11,14 @@ Questa pipeline calcola la **SDC (Structural Disconnectome)** per ogni soggetto 
 
 1. **`--mode manifest`** — scopre tutti i soggetti una sola volta (stessa logica di `retrieve_data.py`, via `Dataset`/`file_patterns`), scrive `manifest.csv` (ordine fisso). I soggetti esclusi (lesion mask assente, ambigua, o `subject_id` duplicato tra dataset diversi) vanno in `manifest_excluded.json` con il motivo — mai scartati in silenzio.
 2. **`--mode run --task-id I --task-count N`** — l'unità di parallelismo. Prende `manifest.csv`, seleziona i soggetti `I::N` (stride slice — copertura completa e disgiunta per qualunque N), costruisce lo staging BIDS via symlink, lancia Stage 1, **verifica** l'output (shape NIfTI attesa 182×218×182, non solo "il file esiste"), e solo per i soggetti che passano lancia Stage 2. Ogni soggetto ottiene uno stato scritto in `_status/<subject_id>.json` (`ok`, `failed_stage1_process`, `failed_stage1_check`, `failed_stage2_process`, `dry_run`).
-3. **`--mode aggregate`** — unico passo finale: legge tutti gli `_status/*.json`, fa il merge (symlink) degli output dei soggetti `ok` in `<output_dir>/{prep,features}/`, scrive `README.md`/`manifest.json` e un'entry in `data/derived/sdc/RUNS.md`.
+3. **`--mode aggregate`** — unico passo finale: legge tutti gli `_status/*.json`, fa il merge (symlink) degli output dei soggetti `ok` in `<output_dir>/{prep,features}/`, scrive `config.md`/`manifest.json` e un'entry in `data/derived/sdc/RUNS.md`.
 
 Un fallimento per singolo soggetto (Stage 1 non converge, check fallito, Stage 2 crash su quel soggetto) **non ferma gli altri** — è tracciato nello status e basta. Un fallimento strutturale (config sbagliata, `bcbtoolkit_path` inesistente, il processo Stage 1/2 crasha per l'intero task) fa fallire il task con exit code ≠ 0.
 
 ## Output
 
 ```
-data/derived/sdc/<run_name>/
+data/derived/sdc/<session_name>/
 ├── manifest.csv                 # subject_id, dataset, lesion_mask_path
 ├── manifest_excluded.json       # subject_id -> perché escluso
 ├── _status/<subject_id>.json    # esito per soggetto
@@ -26,11 +26,11 @@ data/derived/sdc/<run_name>/
 ├── prep/<subject_id>/           # simlink all'output Stage 1 verificato
 ├── features/<subject_id>/       # simlink all'output Stage 2
 ├── manifest.json                # conteggi per stato
-└── README.md
+└── config.md
 data/derived/sdc/RUNS.md         # storico run (append-only)
 ```
 
-Nota: a differenza di `build_lesion_matrix.py`, la cartella di output **non** è datata (`<dd-mm>_<run_name>`) ma è solo `<run_name>` — le tre fasi possono girare a distanza di giorni (coda SLURM) e devono risolvere sempre alla stessa cartella partendo solo dal config.
+Nota: a differenza di `build_lesion_matrix.py`, la cartella di output **non** è datata (`<dd-mm>_<session_name>`) ma è solo `<session_name>` — le tre fasi possono girare a distanza di giorni (coda SLURM) e devono risolvere sempre alla stessa cartella partendo solo dal config.
 
 `_work/` non viene ripulito automaticamente dopo l'aggregate (sono simlink verso `_work/`, cancellarlo romperebbe `prep/`/`features/`) — se serve liberare spazio dopo aver verificato l'output finale, valutare caso per caso, non è automatizzato.
 
@@ -41,7 +41,7 @@ Tre job in sequenza, il secondo è un array:
 ```bash
 # 1. manifest — controlla quanti soggetti sono stati scoperti
 sbatch jobs/run_compute_sdc_manifest.sh
-wc -l data/derived/sdc/run1/manifest.csv   # N soggetti + 1 header
+wc -l data/derived/sdc/s1/manifest.csv   # N soggetti + 1 header
 
 # 2. array — editare #SBATCH --array=0-<N-1> in jobs/run_compute_sdc.sh
 #    (un task per soggetto: --cpus-per-task deve combaciare con
@@ -82,7 +82,7 @@ Applicabile solo a `--mode run`. Passa `--dry-run` a `bcb-lf-preprocess` (che st
 | `stage2_ebrains` | `true` per usare tutti e 14 gli atlanti EBRAINS di default in Stage 2 |
 | `stage2_presets` | Lista di preset atlas aggiuntivi (`--preset`, ripetibile) |
 | `output_root` | `"data/derived/sdc"` |
-| `run_name` | Etichetta del run — determina la cartella di output (non datata, vedi sopra) |
+| `session_name` | Etichetta del run — determina la cartella di output (non datata, vedi sopra) |
 | `overwrite` | Se `false`, `--mode manifest` rifiuta di sovrascrivere un `manifest.csv` esistente |
 | `run_notes` | Note libere |
 

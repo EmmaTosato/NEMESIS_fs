@@ -32,7 +32,7 @@ class BuildMatrixConfig:
     parcel_aggregation: str | None
     save_parcellated_volumes: bool
     output_root: Path
-    run_name: str
+    session_name: str
     overwrite: bool
     run_notes: str | None
 
@@ -75,7 +75,7 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
         parcel_aggregation=parcel_aggregation,
         save_parcellated_volumes=save_parcellated_volumes,
         output_root=Path(_require_str(raw, "output_root")),
-        run_name=_require_str(raw, "run_name"),
+        session_name=_require_str(raw, "session_name"),
         overwrite=_require_bool(raw, "overwrite"),
         run_notes=_optional_str(raw, "run_notes"),
     )

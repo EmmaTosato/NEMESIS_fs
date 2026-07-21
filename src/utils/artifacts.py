@@ -2,7 +2,7 @@
 
 Used by every analysis pipeline script (build/reduction/clustering) to write and
 read its output directory. No caching/hashing: the caller decides the output
-path (`output_root/<run_name>`) and whether re-running it is allowed
+path (`output_root/<session_name>`) and whether re-running it is allowed
 (`overwrite`) - this module only guarantees the write is atomic and that a
 directory is never left half-written.
 """
@@ -21,7 +21,7 @@ import pandas as pd
 MANIFEST_FILENAME = "manifest.json"
 MATRIX_FILENAME = "matrix.npy"
 METADATA_FILENAME = "metadata.csv"
-README_FILENAME = "README.md"
+README_FILENAME = "config.md"
 
 _RESERVED_EXTRA_ARRAY_NAMES = {"matrix", "metadata", "manifest", "README"}
 
@@ -36,8 +36,8 @@ def save_matrix(
 ) -> Path:
     """Atomically write a matrix artifact to output_dir.
 
-    Writes matrix.npy, metadata.csv, one <name>.npy per extra_arrays entry,
-    README.md, and manifest.json (last) to a temporary sibling directory, then
+    Writes    `matrix.npy` (or `.npz`), `metadata.parquet`, optionally `extra_arrays.npz`,
+    config.md, and manifest.json (last) to a temporary sibling directory, then
     renames it into place - output_dir either doesn't exist, or exists fully
     written, never partially.
     """
@@ -45,7 +45,7 @@ def save_matrix(
     if output_dir.exists() and not overwrite:
         raise FileExistsError(
             f"output directory {output_dir} already exists and overwrite=False "
-            "- set overwrite=True to replace it, or choose a different run_name"
+            "- set overwrite=True to replace it, or choose a different session_name"
         )
     if X.shape[0] != len(metadata):
         raise ValueError(

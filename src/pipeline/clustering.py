@@ -7,11 +7,14 @@ Reads a matrix artifact (input_path must already exist), clusters it as-is
 with every method in clustering_methods (one or more), and writes a new
 artifact per method: the same matrix (unchanged - clustering doesn't
 transform the feature space) as matrix.npy, cluster_label appended to
-metadata.csv, plus a basic 2D scatter plot of the first 2 raw features
-colored by cluster - a coarse sanity check only, since those 2 features are
-not a meaningful projection (no reduction happened). When more than one
-method is requested, an additional side-by-side comparison plot is written
-to <output_root>/comparison/<dd-mm>_<run_name>/cluster_comparison.png.
+metadata.csv, a static 2D scatter plot of the first 2 raw features colored
+by cluster (cluster_plot.png) - a coarse sanity check only, since those 2
+features are not a meaningful projection (no reduction happened) - and an
+interactive HTML version (cluster_plot_interactive.html) with a dropdown to
+switch coloring between cluster and dataset, hover showing every metadata
+column per point. When more than one method is requested, an additional
+side-by-side comparison plot is written to
+<output_root>/comparison/<dd-mm>_<session_name>/cluster_comparison.png.
 """
 
 from __future__ import annotations
@@ -28,7 +31,7 @@ import pandas as pd
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.model_config import ClusteringConfig, load_clustering_config
 from src.analysis.params import load_method_params
-from src.analysis.plotting import plot_clusters_2d, plot_clusters_comparison
+from src.analysis.plotting import plot_clusters_2d, plot_clusters_comparison, plot_clusters_interactive
 from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
@@ -135,13 +138,27 @@ def _run_one_method(
             title=f"{config.project} — {method} (no reduction)",
         )
         logging.info("[%s] cluster plot written to %s", method, output_dir / "cluster_plot.png")
+
+        plot_clusters_interactive(
+            X[:, :2],
+            metadata_out,
+            output_dir / "cluster_plot_interactive.html",
+            xlabel="feature 0 (raw)",
+            ylabel="feature 1 (raw)",
+            title=f"{config.project} — {method} (no reduction)",
+        )
+        logging.info("[%s] interactive cluster plot written to %s", method, output_dir / "cluster_plot_interactive.html")
     else:
-        logging.warning("[%s] matrix has only %d feature(s) - skipping cluster_plot.png (needs at least 2)", method, X.shape[1])
+        logging.warning(
+            "[%s] matrix has only %d feature(s) - skipping cluster_plot.png/cluster_plot_interactive.html (needs at least 2)",
+            method,
+            X.shape[1],
+        )
 
     try:
         report_path = _write_report(config, method, X, cluster_labels, params, now)
         append_run_log_entry(
-            _runs_md_path(config, method), config.run_name, now, "production", params, output_dir, config.run_notes
+            _runs_md_path(config, method), config.session_name, now, "production", params, output_dir, config.run_notes
         )
     except OSError as exc:
         logging.error("[%s] cannot write report/run log: %s", method, exc, exc_info=True)
@@ -152,11 +169,11 @@ def _run_one_method(
 
 
 def _output_dir(config: ClusteringConfig, method: str, now: datetime) -> Path:
-    return config.output_root / method / f"{now.strftime('%d-%m')}_{config.run_name}"
+    return config.output_root / method / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
 def _comparison_dir(config: ClusteringConfig, now: datetime) -> Path:
-    return config.output_root / "comparison" / f"{now.strftime('%d-%m')}_{config.run_name}"
+    return config.output_root / "comparison" / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
 def _runs_md_path(config: ClusteringConfig, method: str) -> Path:
@@ -171,7 +188,7 @@ def _config_summary(config: ClusteringConfig, method: str) -> str:
         "clustering_methods_requested": list(config.clustering_methods),
         "params_file": str(config.params_file),
         "output_root": str(config.output_root),
-        "run_name": config.run_name,
+        "session_name": config.session_name,
         "overwrite": config.overwrite,
         "run_notes": config.run_notes,
     }
@@ -236,7 +253,7 @@ def _write_report(
 
 
 def _write_comparison_readme(comparison_dir: Path, config: ClusteringConfig, now: datetime) -> None:
-    dated_run = f"{now.strftime('%d-%m')}_{config.run_name}"
+    dated_run = f"{now.strftime('%d-%m')}_{config.session_name}"
     lines = [
         f"# {config.project} clustering method comparison — {now.strftime('%d-%m-%y %H:%M')}",
         "",

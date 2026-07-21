@@ -17,8 +17,8 @@ never stop other subjects (see check_stage1_outputs docstring) - the run's
 own exit code only reflects structural failures (bad config, a Stage 1/2
 process crash), not "some subjects failed the disconnectome check".
 
-output_dir is `<output_root>/<run_name>` - not date-stamped like the other
-pipelines' `<dd-mm>_<run_name>` convention (see build_lesion_matrix.py),
+output_dir is `<output_root>/<session_name>` - not date-stamped like the other
+pipelines' `<dd-mm>_<session_name>` convention (see build_lesion_matrix.py),
 because manifest/run/aggregate for the same run can span multiple days
 (SLURM queue wait) and must all resolve to the same directory from config
 alone.
@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         logging.error(str(exc))
         return 1
 
-    output_dir = config.output_root / config.run_name
+    output_dir = config.output_root / config.session_name
     now = datetime.now()
     try:
         log_path = _log_path(config, args.mode, now)
@@ -199,9 +199,9 @@ def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
 
     try:
         (output_dir / "manifest.json").write_text(json.dumps({"counts": counts, "total": len(statuses)}, indent=2))
-        (output_dir / "README.md").write_text(_readme_text(config, counts, len(statuses), now))
+        (output_dir / "config.md").write_text(_readme_text(config, counts, len(statuses), now))
         append_run_log_entry(
-            config.output_root / "RUNS.md", config.run_name, now, "production", counts, output_dir, config.run_notes
+            config.output_root / "RUNS.md", config.session_name, now, "production", counts, output_dir, config.run_notes
         )
     except OSError as exc:
         logging.error("aggregate: cannot write summary/run log: %s", exc, exc_info=True)
@@ -220,7 +220,7 @@ def _link_subject(source: Path, destination: Path) -> None:
 
 def _readme_text(config: SDCConfig, counts: dict[str, int], total: int, now: datetime) -> str:
     lines = [
-        f"# {config.project} SDC — {config.run_name} — {now.strftime('%d-%m-%y %H:%M')}",
+        f"# {config.project} SDC — {config.session_name} — {now.strftime('%d-%m-%y %H:%M')}",
         "",
         f"Total subjects processed: {total}",
         "",
@@ -233,7 +233,7 @@ def _readme_text(config: SDCConfig, counts: dict[str, int], total: int, now: dat
 
 
 def _log_path(config: SDCConfig, mode: str, now: datetime) -> Path:
-    log_dir = LOGS_ROOT / config.project / config.run_name
+    log_dir = LOGS_ROOT / config.project / config.session_name
     log_dir.mkdir(parents=True, exist_ok=True)
     return log_dir / f"{mode}__{now.strftime('%d-%m-%y__%H-%M-%S')}.log"
 

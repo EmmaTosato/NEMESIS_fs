@@ -11,7 +11,7 @@
   "parcel_aggregation": "fraction_lesioned",
   "save_parcellated_volumes": false,
   "output_root": "data/derived/lesion_matrix",
-  "run_name": "mmp372_run1",
+  "session_name": "mmp372_s1",
   "overwrite": false,
   "run_notes": "parcellated on the 372-region Glasser HCP + Harvard-Oxford subcortical atlas (build_combined_atlas.py output)"
 }

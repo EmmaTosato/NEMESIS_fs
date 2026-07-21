@@ -31,7 +31,7 @@ class SDCConfig:
     stage2_ebrains: bool
     stage2_presets: list[str]
     output_root: Path
-    run_name: str
+    session_name: str
     overwrite: bool
     run_notes: str | None
 
@@ -77,7 +77,7 @@ def load_sdc_config(path: str | Path) -> SDCConfig:
         stage2_ebrains=_require_bool(raw, "stage2_ebrains"),
         stage2_presets=_optional_str_list(raw, "stage2_presets") or [],
         output_root=Path(_require_str(raw, "output_root")),
-        run_name=_require_str(raw, "run_name"),
+        session_name=_require_str(raw, "session_name"),
         overwrite=_require_bool(raw, "overwrite"),
         run_notes=_optional_str(raw, "run_notes"),
     )
