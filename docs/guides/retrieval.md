@@ -1,6 +1,6 @@
 # Data retrieval — user guide
 
-Copies lesion masks and functional-connectivity features (and, optionally, the clinical/demographic table) from the EBRAIN-mounted `Clinical_connectome` source into this project's local `data/` folder, driven by a single JSON config. Covers the 4 in-scope stroke datasets: `UNIPD/WashU`, `UNIPD/PASPORT`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`.
+Copies lesion masks and functional-connectivity features (and, optionally, the clinical/demographic table) from the EBRAIN-mounted `Clinical_connectome` source into this project's local `data/` folder, driven by a single JSON config. This page is about retrieval mechanics only; dataset-specific characteristics, source-side resolution, and what each dataset contains are described in [Dataset guide](datasets.md).
 
 ## How to run
 
@@ -114,6 +114,8 @@ The normalized (MNI-space) lesion mask — available on all 4 datasets.
 Functional-connectivity matrices for 2 atlases (`Schaefer200TianS1Buckner7N`, `Schaefer200TianS2Buckner7N`) — **`UNIPD/WashU` only**, see the availability table below. More atlases (and other feature types like `ALFF`/`ReHo`/motion/QC metrics) are registered incrementally in `config/registry/file_patterns.json` as they're needed — ask before assuming one exists.
 
 ### Availability per dataset
+
+For the dataset-by-dataset breakdown of source resolution and current lesion coverage, see [Dataset guide](datasets.md).
 
 | dataset | `lesion`/`manual_masks`/`lesion_mask` | `feature`/`FC-pearson` |
 |---|:-:|:-:|
@@ -229,7 +231,7 @@ The last four sections are also logged at ERROR/WARNING level, with an aggregate
 PYTHONPATH=. conda run -n nemesis python scripts/data_summary.py --config config/pipelines/retrieval.json
 ```
 
-Writes one CSV per dataset - `reports/data_retrieval/clinical_connectome/data_summary__UNIPD_WashU.csv`, `..._UNIPD_PASPORT.csv`, etc. (same fixed filename every time, overwritten on each run - a current snapshot, not a dated report). One row per subject, one column per leaf registered in `config/registry/file_patterns.json` (e.g. `lesion/manual_masks/anat/lesion_mask`, `feature/func/FC-pearson`). Each cell is `present` if the file exists, `missing` if not - open it in a spreadsheet and filter for `missing` to scan gaps quickly. No trailing totals row - per-column counts (e.g. to reconcile against `copied + skipped (exists)` in a `copy_summary` report) are computed separately, outside this CSV.
+Writes one CSV per dataset - `reports/datasets/data_summary__UNIPD_WashU.csv`, `..._UNIPD_PASPORT.csv`, etc. (same fixed filename every time, overwritten on each run - a current snapshot, not a dated report). One row per subject, one column per leaf registered in `config/registry/file_patterns.json` (e.g. `lesion/manual_masks/anat/lesion_mask`, `feature/func/FC-pearson`). Each cell is `present` if the file exists, `missing` if not - open it in a spreadsheet and filter for `missing` to scan gaps quickly. No trailing totals row - per-column counts (e.g. to reconcile against `copied + skipped (exists)` in a `copy_summary` report) are computed separately, outside this CSV.
 
 Nothing is copied or modified - purely a read of the current source, same as `verify_retrieval.py`.
 

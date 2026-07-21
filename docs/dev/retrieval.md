@@ -1,6 +1,6 @@
 # Data retrieval — technical reference
 
-Audience: developers/agents working on `src/retrieval/` and `src/pipeline/retrieve_data.py`. For "how do I run this", see `docs/guides/retrieval.md`.
+Audience: developers/agents working on `src/retrieval/` and `src/pipeline/retrieve_data.py`. For "how do I run this", see `docs/guides/retrieval.md`. For the named design patterns used throughout (Registry, boundary validation, immutable value objects, ...), see `docs/dev/design_patterns.md`.
 
 Scope today: 4 stroke datasets in `Clinical_connectome` (`UNIPD/WashU`, `UNIPD/PASPORT`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`). NEMESIS_BIDS is a different source with a different layout (sessions, different subject-ID convention) and is **not** covered by this module — deliberately deferred, most likely a second class alongside `Dataset` when that work starts, not a speculative generalization of this one.
 
@@ -274,7 +274,7 @@ A second, independent report answering "what does this dataset actually have, ac
 - `matrix.build_matrix(ds, subjects, combinations)` — one `MatrixRow(subject_id, cells)` per subject; `cells["/".join(combo)]` is the first resolved filename or `matrix.MISSING_CELL`.
 - `matrix.to_csv_rows(rows, combinations)` — header row, one row per subject (`matrix.PRESENT_CELL` `"present"` or `matrix.MISSING_CELL` `"missing"` per column — deliberately not the filename). No aggregate rows: per-column present/missing totals are computed separately, outside this module (e.g. in a notebook, from the written CSV).
 
-Written to `reports/data_retrieval/<project>/data_summary__<dataset with "/" replaced by "_">.csv` — one file per dataset (a `.csv` has no multi-sheet concept, unlike `.xlsx`), **not timestamped**: same fixed filename every time, overwritten on each call — a current snapshot, not a run log. No STOP/WARNING semantics — a raw availability snapshot, not a run outcome.
+Written to `reports/datasets/data_summary__<dataset with "/" replaced by "_">.csv` — one file per dataset (a `.csv` has no multi-sheet concept, unlike `.xlsx`), **not timestamped**: same fixed filename every time, overwritten on each call — a current snapshot, not a run log. No STOP/WARNING semantics — a raw availability snapshot, not a run outcome. Deliberately its own `REPORTS_ROOT` (`reports/datasets`, defined in `scripts/data_summary.py` itself, not imported from `retrieve_data.py`) — a dataset-availability snapshot is conceptually independent of any one retrieval run's copy log. Unlike `copy_summary`/`build_summary`/etc., **not** nested under a `<project>` subfolder — filenames are already disambiguated per-dataset, and there's only ever one project's worth of datasets to summarize at a time.
 
 ## Log
 

@@ -22,19 +22,18 @@ import argparse
 import csv
 from pathlib import Path
 
-from src.pipeline.retrieve_data import REPORTS_ROOT
 from src.retrieval import matrix
 from src.retrieval.config import RetrievalConfig, load_config
 from src.retrieval.dataset import Dataset
 
+REPORTS_ROOT = Path("reports") / "datasets"
 REPORT_FILENAME_PREFIX = "data_summary"
 
 
-def _dataset_report_path(config: RetrievalConfig, dataset_name: str) -> Path:
+def _dataset_report_path(dataset_name: str) -> Path:
     safe_name = dataset_name.replace("/", "_")
-    report_dir = REPORTS_ROOT / config.project
-    report_dir.mkdir(parents=True, exist_ok=True)
-    return report_dir / f"{REPORT_FILENAME_PREFIX}__{safe_name}.csv"
+    REPORTS_ROOT.mkdir(parents=True, exist_ok=True)
+    return REPORTS_ROOT / f"{REPORT_FILENAME_PREFIX}__{safe_name}.csv"
 
 
 def write_reports(config: RetrievalConfig) -> list[Path]:
@@ -45,7 +44,7 @@ def write_reports(config: RetrievalConfig) -> list[Path]:
         subjects = matrix.select_all_subjects(ds, config)
         rows = matrix.build_matrix(ds, subjects, combinations)
         csv_rows = matrix.to_csv_rows(rows, combinations)
-        path = _dataset_report_path(config, name)
+        path = _dataset_report_path(name)
         with path.open("w", newline="") as f:
             csv.writer(f).writerows(csv_rows)
         written.append(path)
