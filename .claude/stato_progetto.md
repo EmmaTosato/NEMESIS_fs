@@ -1,6 +1,6 @@
 # Stato progetto — NEMESIS
 
-Ultimo aggiornamento: 2026-07-20. Snapshot dello stato attuale del progetto — non un log cronologico. Errori passati, bug risolti e strade scartate vivono in `.claude/lessons_learned.md` (pattern generalizzabili) e `docs/debugging/` (narrativa completa per sessione di debug); l'evoluzione delle decisioni strategiche vive in `.claude/decision_log.md`; qui restano solo le regole/vincoli in vigore oggi e la mappa dello stato attuale.
+Ultimo aggiornamento: 2026-07-21. Snapshot dello stato attuale del progetto — non un log cronologico. Errori passati, bug risolti e strade scartate vivono in `.claude/lessons_learned.md` (pattern generalizzabili) e `docs/debugging/` (narrativa completa per sessione di debug); l'evoluzione delle decisioni strategiche vive in `.claude/decision_log.md`; qui restano solo le regole/vincoli in vigore oggi e la mappa dello stato attuale.
 
 ## Core Context
 
@@ -54,29 +54,48 @@ accesso a `/data/tshimanga/BCBToolKit` (copia esistente di un altro utente), nie
 sotto `/shared/`, niente `/etc/environment`. Richiesta di setup condiviso già inviata
 all'amministratore del server, risposta non ancora pervenuta.
 
-**Stato**: installazione locale **funzionante e verificata** con un test end-to-end (Stage 1,
-calcolo SDC su una lesione di esempio — riuscito). Stage 2 (estrazione feature per atlante,
-produce i CSV finali) lanciato ma non ancora completato con successo (interrotto per timeout,
-non per errore reale).
+**Stato**: installazione locale **funzionante e verificata end-to-end su un soggetto reale del
+progetto** (`sub-STUNIPD0001`, 20/07): Stage 1 (`bcb-lf-preprocess`, calcolo SDC) e Stage 2
+(`bcb-lesion-features`, estrazione feature per 14 atlanti EBRAINS) entrambi riusciti via `sbatch`
+(job SLURM `332206`/`332207`). Nel farlo, emerso e risolto un mismatch glibc tra login node
+(2.35) e nodi di calcolo (2.27): `h5py` installato via `pip` portava un `libhdf5` binario
+incompatibile coi nodi di calcolo — fix: reinstallato da `conda-forge`
+(`conda install -n nemesis -c conda-forge h5py --force-reinstall -y`).
 
 **Dettaglio completo, passo per passo, con ogni comando eseguito e il comando esatto di
-rimozione per ciascuno**: `/data/etosato/tools/README.md` (fuori dal repo Nemesis, vive insieme
-all'installazione stessa). Include anche una tabella di confronto punto-per-punto con la mail
-originale del maintainer.
+rimozione per ciascuno**: `/data/etosato/tools/INSTALL_LOG.md` (fuori dal repo Nemesis, vive
+insieme all'installazione stessa; include la tabella di confronto punto-per-punto con la mail
+originale del maintainer e le domande metodologiche aperte, vedi sotto). La documentazione
+"come si usa" (Stage 1/Stage 2, script diretti quando il wrapper non basta) è stata separata in
+`/data/etosato/tools/USAGE.md`; `README.md` è ora solo un indice tra i due.
 
 **Punto tecnico non ovvio, utile a chi riprende**: il pacchetto scaricato da `toolkit.bcblab.com`
-è in realtà un repository git congelato a un commit del 2017, mancante di `run_disco.sh` (lo
-script che l'automazione da riga di comando richiede) e di `Tools/extraFiles/nulldeform.mat` (una
-matrice identità usata solo quando una lesione è in spazio SPM MNI 181×217×181 invece di FSL MNI
-182×218×182). Risolto con un `git checkout` mirato dei soli file mancanti (verificati uno per uno
-contro tutti i riferimenti `Tools/extraFiles/*` nei nuovi script), non un `git pull` pieno — alcuni
-binari FSL/librerie ANTs nel pacchetto scaricato avevano contenuto diverso dal commit git
-registrato (causa ignota, probabile patch della distribuzione pubblica) e un pull pieno li avrebbe
-sovrascritti senza sapere perché erano stati modificati.
+è in realtà un repository git congelato a un commit del 2017, mancante di `run_disco.sh`/
+`tractotron_cli.sh`/`nulldeform.mat`. Risolto inizialmente con un `git checkout` mirato dei soli
+file mancanti (non un `git pull` pieno, per prudenza su binari FSL/librerie con contenuto diverso
+dal commit registrato). **21/07**: verificato con `git diff` contro `origin/master` che quei
+binari erano in realtà già identici alla `master` corrente (non una patch custom, solo un
+pacchetto scaricato più aggiornato del commit congelato) — fatto quindi un `git pull` pieno
+(via stash/pull/stash-pop, un solo conflitto su uno script legacy non usato da BCBlib, risolto
+tenendo la versione upstream). Repo ora allineato a `origin/master` (HEAD `17456eb`).
+
+**Riorganizzazione `/data/etosato/` (21/07)**: rimosso `BCBToolKitLINUX.tar.gz` (7.6GB, morto dal
+`git pull`), spostate le cache `bcblib_atlases/`/`templateflow/` da top-level a dentro `tools/`
+(env var aggiornate in `~/.bashrc`). `data/etosato/data/` e `results/{lorenzo_data,paper_trial}`
+non toccati (materiale di altri lavori).
+
+**Domande metodologiche aperte** (dettaglio in `INSTALL_LOG.md` §9), da decidere prima di usare
+la pipeline su dati reali su scala: (1) atlante trattografie di riferimento — oggi solo 10
+soggetti (sottoinsieme parziale del 2017), ⏳ download in corso dell'atlante Dropbox completo a
+1mm (180 soggetti, quello raccomandato per lesioni a 1mm come le nostre); (2) se applicare una
+soglia alla probabilità di disconnessione continua (oggi nessuna, il flag `-t` di `run_disco.sh`
+non è esposto dal wrapper); (3) se Task 2 (embedding) debba consumare l'output voxelwise di
+Stage 1 o le tabelle per-atlante di Stage 2; (4) quale sottoinsieme dei 14 atlanti EBRAINS serva
+davvero per Task 5, in base ai domini clinici da spiegare.
 
 ## Work In Progress
 
-Il refactor dello schema di retrieval verso vocabolario BIDS (config, codice, test, doc, run reali) è stato **committato** (10 commit separati per categoria). Da lì, in questa sessione, `config/registry/file_patterns.json` è stato modificato ulteriormente in working tree (non ancora committato): rimosso `feature`, provata e rimossa `lesion/raw` — il file ora ha solo `lesion/manual_masks`. I 4 CSV di `data_summary` in `reports/data_retrieval/clinical_connectome/` sono stati rigenerati (`sbatch jobs/run_data_summary.sh`) mentre `raw` era ancora nel registro, quindi contengono una colonna `lesion/raw/anat/lesion_roi` ormai stale rispetto al registro attuale — vanno rigenerati un'altra volta prima di committare, per riflettere lo stato finale (solo `manual_masks`).
+Il refactor dello schema di retrieval verso vocabolario BIDS (config, codice, test, doc, run reali) è stato **committato** (10 commit separati per categoria). Da lì, in questa sessione, `config/registry/file_patterns.json` è stato modificato ulteriormente in working tree (non ancora committato): rimosso `feature`, provata e rimossa `lesion/raw` — il file ora ha solo `lesion/manual_masks`. I 4 CSV di `data_summary` (ora in `reports/datasets/`, senza sottocartella `<project>` — spostati fuori da `reports/data_retrieval/` in una sessione successiva, `scripts/data_summary.py` ha oggi un `REPORTS_ROOT` proprio invece di importarlo da `retrieve_data.py`) sono stati rigenerati (`sbatch jobs/run_data_summary.sh`) mentre `raw` era ancora nel registro, quindi contengono una colonna `lesion/raw/anat/lesion_roi` ormai stale rispetto al registro attuale — vanno rigenerati un'altra volta prima di committare, per riflettere lo stato finale (solo `manual_masks`).
 
 In parallelo (fuori dal repo): setup locale di BCBToolKit/BCBlib per il calcolo SDC, vedi sezione
 dedicata sopra — Stage 2 del test da completare.
@@ -87,10 +106,14 @@ dedicata sopra — Stage 2 del test da completare.
 2. Decidere sul disallineamento doc/config per `feature` (vedi "Mappa dello Stato Attuale") — poi committare `config/registry/file_patterns.json` + i CSV rigenerati.
 3. Decidere se/quando riaggiungere `feature`/`FC-pearson` (o `lesion/raw`) a `config/pipelines/retrieval.json` — oggi `retrieve` chiede solo `lesion/manual_masks/anat/lesion_mask`.
 4. Iniziare a popolare `src/analysis/steps.py` con il primo step reale (es. feature extraction dalle lesion mask) per sbloccare la pipeline di analisi, oggi solo scheletro.
-5. Completare il test Stage 2 di BCBlib (`bcb-lesion-features`) sull'output già prodotto in
-   `/data/etosato/results/test_lesion_features/prep/` — interrotto per timeout, da rilanciare.
-6. Seguire la risposta dell'amministratore del server sulla richiesta di setup condiviso di
+5. A download dell'atlante trattografie completato (180 soggetti 1mm), sostituire
+   `Tools/extraFiles/tracks/` e aggiornare il punto 1 delle domande metodologiche in
+   `INSTALL_LOG.md` §9.
+6. Decidere le altre 3 domande metodologiche aperte su BCBToolKit (soglia disconnessione,
+   voxelwise vs per-atlante per Task 2, quali atlanti servono per Task 5) — richiede input dal
+   team/letteratura, non risolvibile da soli.
+7. Seguire la risposta dell'amministratore del server sulla richiesta di setup condiviso di
    BCBToolKit/BCBlib (mail inviata, risposta non ancora arrivata).
-7. Una volta verificato lo Stage 2, decidere l'architettura del modulo `src/` che orchestrerà
-   `bcb-lf-preprocess`/`bcb-lesion-features` sui dati reali già recuperati da `retrieve_data.py`
-   (nessun codice scritto finora in questa direzione — solo il tool esterno è stato validato).
+8. Decidere l'architettura del modulo `src/` che orchestrerà `bcb-lf-preprocess`/
+   `bcb-lesion-features` sui dati reali già recuperati da `retrieve_data.py` (nessun codice
+   scritto finora in questa direzione — solo il tool esterno è stato validato end-to-end).

@@ -2,6 +2,8 @@
 
 Plain-language reference for the methods wired into `src/analysis/reduction.py` (`config/registry/params_reduction.json`). Not a general ML textbook chapter — just enough to read a config's hyperparameters and know what they're actually controlling, and to pick a method with some intuition for its trade-offs. For clustering, see `docs/methods/clustering.md`. For *why* these specific methods were chosen for NEMESIS (varimax PCA on parcellated lesion damage), see Thiebaut de Schotten et al. 2020 (`assets/papers/Thiebaut de Schotten et al - 2020 - ...`).
 
+t-SNE's parameters below are fixed from that paper - not something to fine-tune. UMAP/PCA's `n_neighbors`/`min_dist`/`n_components` don't have a paper-given answer for this data, so `dim_reduction.py` supports a manual fine-tuning sweep over them (`fine_tuning: true`, `docs/guides/analysis.md` "Fine-tuning") - a human still picks the final value by inspecting the sweep's results, never automatic.
+
 ## The problem it solves
 
 `build_lesion_matrix.py` produces one row per subject with hundreds of thousands of voxel columns (or a few hundred parcel columns, if parcellated) — far more columns than subjects. Dimensionality reduction compresses each subject's row into a handful of numbers (2-30, typically) that still capture most of what makes subjects different from each other — either to visualize subjects on a 2D plot, or to feed a smaller, less noisy input into clustering.
@@ -35,6 +37,26 @@ Also non-linear and also neighbor-based, but built on a different mathematical f
   - `min_dist` — how tightly points are allowed to pack together in the low-dimensional output. Low values produce tighter, more visually separated clusters; high values spread points more evenly, useful for seeing continuous gradients rather than discrete groups.
 - **Also stochastic** — fix `random_state` for reproducibility, same caveat as t-SNE.
 
+## PCA with varimax rotation (`pca_varimax_embed`, `"pca_varimax"`)
+
+Same starting point as plain PCA (covariance-matrix eigendecomposition), but the loadings are then rotated with an orthogonal **varimax** rotation before scores are computed by multiple regression - this is the exact methodology of Thiebaut de Schotten et al. 2020's "Data compression" step (parcellate with MMP + 12 subcortical ROIs, then varimax-rotated PCA), which `build_lesion_matrix.py`'s parcellated output is designed to match.
+
+- **Why rotate at all**: plain PCA's components are mathematically convenient (orthogonal, maximal variance) but not necessarily easy to *interpret* - a raw component often loads a little on almost every parcel. Varimax rotates the components (without changing the subspace they span, or the total variance they explain - it's an orthogonal rotation) to make each component's loadings as close as possible to "a few parcels load heavily, the rest near zero" - easier to read as "this component is basically left MCA territory".
+- **Two-step estimator, not one**: unlike the other strategies here, `pca_varimax_embed` doesn't blindly unpack `params` into a single constructor - it wraps two distinct steps (`sklearn.decomposition.PCA`, then `factor_analyzer.Rotator(method="varimax")`), so `params` requires both `n_components` and `rotation_max_iter` explicitly (`ValueError` if either is missing).
+- **`n_components` must be >= 2** - varimax rotates loadings *between* components, so there's nothing to rotate with only one.
+- **Component scores via multiple regression**: after rotation, each subject's row is regressed onto the rotated loadings to get that subject's component scores (`np.linalg.lstsq`) - the same "multiple regression" step the paper describes, not just re-projecting through the (now rotated) loadings directly.
+- **Deterministic**, like plain PCA - no `random_state` needed.
+- Supports the same manual fine-tuning sweep as plain PCA (`n_components` vs. cumulative explained variance - the rotation doesn't change that criterion, since it's orthogonal).
+
+## PaCMAP — Pairwise Controlled Manifold Approximation (`pacmap_embed`, `"pacmap"`)
+
+Another non-linear, neighbor-based method (github.com/YingfanWang/PaCMAP), positioned by its authors as balancing local and global structure preservation better than either t-SNE or UMAP alone, by explicitly weighting three kinds of point pairs during optimization (nearby, mid-near, and further pairs) instead of just nearby ones.
+
+- **Key parameters**: `n_neighbors` (same role as UMAP's), `MN_ratio`/`FP_ratio` - control how many mid-near/further pairs are sampled relative to nearby pairs, which is what lets PaCMAP balance local vs. global structure (higher `MN_ratio` pulls towards preserving more global relationships).
+- **Also stochastic** - fix `random_state` for reproducibility.
+- **Needs enough subjects to be meaningful**: `n_neighbors` (and the derived mid-near/further pair counts) must fit within the number of subjects; on very small datasets (e.g. a handful of subjects) the library reorganizes/warns rather than failing outright, but the projection is not meaningful at that scale.
+- Supports the same manual fine-tuning sweep as UMAP (`n_neighbors` vs. trustworthiness - a generic neighbor-preservation metric, not specific to UMAP's own algorithm).
+
 ## Choosing between them, briefly
 
-PCA first, always — it's the cheap, interpretable baseline that tells you how much of the variance is linear before reaching for something non-linear. If subjects don't separate well under PCA but a real grouping is suspected, t-SNE/UMAP are the next step for visualization; UMAP is the more practical default at NEMESIS's scale (thousands of subjects) and is what to reach for first ahead of clustering (`docs/methods/clustering.md`) rather than pure visualization.
+PCA first, always — it's the cheap, interpretable baseline that tells you how much of the variance is linear before reaching for something non-linear. If subjects don't separate well under PCA but a real grouping is suspected, t-SNE/UMAP are the next step for visualization; UMAP is the more practical default at NEMESIS's scale (thousands of subjects) and is what to reach for first ahead of clustering (`docs/methods/clustering.md`) rather than pure visualization. `pca_varimax` is the interpretable option when the goal is reading component *meaning* off parcels/voxels (matching the paper's own methodology exactly), not just separating subjects. `pacmap` is an alternative to try alongside UMAP when UMAP's local/global trade-off looks off for a given run - not a default, since UMAP is already established here.

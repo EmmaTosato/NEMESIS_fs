@@ -4,7 +4,7 @@ Plain-language reference for the methods wired into `src/analysis/clustering.py`
 
 ## The problem it solves
 
-Clustering groups subjects into a fixed number of groups based on similarity, without knowing the "right" answer in advance (unsupervised) — the hypothesis being that clusters correspond to distinct lesion/disconnection topographies. It runs either on a dimensionality-reduction embedding (`dim_reduction_clustering.py`) or directly on a feature matrix (`clustering.py`) — see `docs/guides/analysis.md` for when each script applies.
+Clustering groups subjects based on similarity, without knowing the "right" answer in advance (unsupervised) — the hypothesis being that clusters correspond to distinct lesion/disconnection topographies. Most methods here (KMeans, Agglomerative, GaussianMixture, SpectralClustering) require a fixed number of groups decided upfront; DBSCAN is the exception — it discovers the group count from the data's density structure instead. It runs either on a dimensionality-reduction embedding (`dim_reduction_clustering.py`) or directly on a feature matrix (`clustering.py`) — see `docs/guides/analysis.md` for when each script applies.
 
 ## KMeans (`kmeans_cluster`, `"kmeans"`)
 
@@ -14,3 +14,40 @@ Partitions subjects into `n_clusters` groups by iteratively placing a centroid p
 - **Assumes roughly spherical, similar-sized clusters** in whatever space it's run on. This is exactly why `dim_reduction_clustering.py` clusters the *embedding* rather than the raw voxel/parcel matrix by default in this pipeline's typical use — clustering directly on hundreds of thousands of raw voxel columns is both computationally wasteful and geometrically unreliable for KMeans (`clustering.py`, the no-reduction script, exists for when that's still the deliberate choice, e.g. clustering directly on a small parcellated matrix).
 - **Sensitive to feature scale**: features with a larger numeric range dominate the distance calculation. Not a concern for `fraction_lesioned`-parcellated features (all already in `[0, 1]`) or for a PCA/UMAP/t-SNE embedding (already on a comparable scale) — would matter if clustering directly on raw voxel counts of very different magnitudes.
 - **Stochastic centroid initialization**: set `random_state` for reproducibility; `n_init` controls how many random initializations are tried before keeping the best (higher = more robust to bad initial placement, slower).
+
+## AgglomerativeClustering (`agglomerative_cluster`, `"agglomerative"`)
+
+Hierarchical, bottom-up: starts with every subject as its own cluster and repeatedly merges the two closest clusters until `n_clusters` remain (or, alternatively via `distance_threshold`, until the closest pair is farther apart than a cutoff - not used by default here).
+
+- **Must decide `n_clusters` upfront**, same as KMeans.
+- **`linkage`** controls how "distance between two clusters" is defined when merging: `"ward"` (default here) minimizes the increase in within-cluster variance, tends towards similarly-sized, roughly spherical clusters (closest in spirit to KMeans); `"average"`/`"complete"`/`"single"` are less shape-constrained but more sensitive to outliers (`"single"` especially, prone to "chaining" distinct groups together through a few intermediate points).
+- **Deterministic** given the data and `linkage` — no `random_state`.
+- Unlike KMeans, produces a full merge hierarchy internally (a dendrogram), even though this pipeline only surfaces the final `n_clusters` cut — useful context if a future run wants to inspect the hierarchy itself, not just one cut of it.
+
+## GaussianMixture (`gmm_cluster`, `"gmm"`)
+
+Soft/probabilistic clustering: models the data as a mixture of `n_components` Gaussian distributions and assigns each subject to the component with the highest posterior probability (`fit_predict` hardens the soft assignment into a single label, same output shape as the other methods here).
+
+- **Must decide `n_components` upfront** (GaussianMixture's own name for what the other methods here call `n_clusters` — same role).
+- **Allows elliptical, differently-sized clusters** (each component has its own covariance), unlike KMeans' implicit assumption of similarly-sized spherical clusters — a real advantage if lesion/disconnection topographies are expected to differ in spread, not just location.
+- **Stochastic initialization**: set `random_state` for reproducibility.
+- Being probabilistic, the underlying model also exposes per-subject class probabilities (`predict_proba`) — not used by this pipeline today (only the hardened label is kept), but worth knowing about if soft cluster membership becomes useful later.
+
+## DBSCAN (`dbscan_cluster`, `"dbscan"`)
+
+Density-based: groups points that are densely packed together (at least `min_samples` points within `eps` distance of each other), and explicitly labels points that don't belong to any dense region as **noise**, with label `-1` — not an error, a legitimate "this subject didn't fit any cluster" outcome.
+
+- **Does not take `n_clusters`** — the number of clusters is discovered from the density structure, not fixed upfront.
+- **`eps`/`min_samples` are not universal defaults** — unlike `n_clusters` (whose "right" value is a modeling choice regardless of data scale), `eps` is a literal distance threshold in whatever feature space is being clustered on, so it must be re-tuned per feature space (raw voxels vs. a parcellated matrix vs. a UMAP/PCA embedding all have wildly different natural distance scales). The `eps: 0.5, min_samples: 5` registered in `config/registry/params_clustering.json` is a starting point to override, not a validated default.
+- **`-1` (noise) is reported separately, not silently counted as a cluster**: `clustering.py`/`dim_reduction_clustering.py`'s "Clusters found: N" line excludes label `-1` from `N` and adds a "(+ M noise points, label -1)" note when present — counting noise as a genuine cluster would silently overstate how many groups were actually found.
+- Well-suited to finding irregularly-shaped clusters and outliers KMeans/GMM would force into some cluster regardless; poorly suited when clusters have meaningfully different densities (a single global `eps` can't separate a dense cluster and a sparse one at the same time).
+
+## SpectralClustering (`spectral_cluster`, `"spectral"`)
+
+Graph-based: builds a similarity graph between subjects (here, `affinity="nearest_neighbors"` — an edge between a subject and its nearest neighbors, not a full pairwise similarity matrix) and clusters via the eigenvectors of that graph's Laplacian, then a final KMeans pass on the resulting low-dimensional embedding.
+
+- **Must decide `n_clusters` upfront**, same as KMeans/Agglomerative.
+- **Finds non-convex clusters KMeans can't** — because it works on graph connectivity rather than raw Euclidean distance, two crescent-shaped or otherwise non-spherical groups that KMeans would slice incorrectly can come out correctly separated.
+- **`affinity`** controls how the similarity graph is built — `"nearest_neighbors"` (used here) scales better and avoids assuming a single global distance scale, unlike `"rbf"` (a dense Gaussian-kernel similarity matrix, sensitive to its `gamma` bandwidth parameter and expensive on large subject counts).
+- **Stochastic** (the final KMeans pass): set `random_state` for reproducibility.
+- **Computationally heavier than KMeans/Agglomerative** — building and decomposing the similarity graph doesn't scale as well to NEMESIS's larger subject counts (thousands); more practical on the smaller, already-clustered-once subsets (e.g. Task 3's n~500 fMRI cohort) than on the full lesion cohort.

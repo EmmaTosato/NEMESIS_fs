@@ -24,6 +24,12 @@ This folder collects the atlas files used in the project. Paths below are relati
 | Tian subcortex, S4 | `Tian_Subcortex_S4_3T.nii.gz`, `Tian_Subcortex_S4_3T_label.txt` | Multi-scale subcortical atlas, 3T version. |
 | Buckner 7n | `atl-Buckner7_space-MNI_dseg.nii`, `atl-Buckner7.tsv` | Cerebellar/network-based atlas. |
 
+## Derived / combined atlases
+
+| Atlas | Files | Built by | Short note |
+| --- | --- | --- | --- |
+| Glasser MMP + Harvard-Oxford subcortical, 372 regions | `glasser_hcp_harvardoxford_subcortical_372.nii.gz`, `glasser_hcp_harvardoxford_subcortical_372_labels.csv` | `src/pipeline/build_combined_atlas.py` (`config/pipelines/build_combined_atlas.json`) | 360 Glasser cortical parcels + 12 Harvard-Oxford subcortical structures (thalamus/caudate/putamen/pallidum/hippocampus/amygdala, L+R), merged into one label volume — reproduces the parcellation used by Thiebaut de Schotten et al. 2020 ahead of varimax PCA. Not checked into git (gitignored like every other `.nii.gz` in this folder); regenerate via `python -m src.pipeline.build_combined_atlas --config config/pipelines/build_combined_atlas.json` if missing. See `docs/guides/analysis.md` §0. |
+
 ## Notes
 
 - The Schaefer + Tian files are hybrid cortex-subcortex parcellations.
