@@ -141,12 +141,29 @@ def _validate_parcellation_args(
 
 
 def _discover_lesion_files(data_root: Path, datasets: list[str], lesion_glob: str) -> dict[str, list[Path]]:
+    """One entry per dataset: every file matching lesion_glob under
+    data_root/dataset, sanity-checked against how many subject folders
+    actually exist. Where subject folders sit relative to dataset_root
+    differs by local retrieval layout (subject-first vs pipeline-first, see
+    src.retrieval.output_layout) - rather than assuming they're
+    dataset_root's immediate children (true only for the older subject-first
+    layout), the subject-folder glob is derived from lesion_glob itself: the
+    last path segment that is exactly "*" (the subject-id wildcard, not a
+    compound filename pattern like "*_label-lesion_mask.nii.gz")."""
+    segments = lesion_glob.split("/")
+    bare_wildcard_indices = [i for i, seg in enumerate(segments) if seg == "*"]
+    if not bare_wildcard_indices:
+        raise ValueError(
+            f"lesion_glob {lesion_glob!r} has no bare '*' path segment identifying where "
+            "subject folders sit - cannot sanity-check subject count"
+        )
+    subject_glob = "/".join(segments[: bare_wildcard_indices[-1] + 1])
+
     lesion_files: dict[str, list[Path]] = {}
     for dataset in datasets:
         dataset_root = data_root / dataset
         files = sorted(dataset_root.glob(lesion_glob))
-        # subject dirs only - excludes root-level files like participants.tsv
-        n_subject_dirs = len([p for p in dataset_root.iterdir() if p.is_dir()])
+        n_subject_dirs = len([p for p in dataset_root.glob(subject_glob) if p.is_dir()])
         # one lesion mask expected per subject dir; stop on mismatch rather than
         # silently proceeding with missing or duplicated data
         if len(files) != n_subject_dirs:

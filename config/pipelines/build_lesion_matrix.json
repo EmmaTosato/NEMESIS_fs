@@ -1,9 +1,9 @@
 {
   "project": "clinical_connectome",
-  "data_root": "data/clinical_connectome",
+  "data_root": "data/clinical_connectome/derivatives",
   "datasets": ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"],
-  "reference_template_path": "data/clinical_connectome/UNIPD/WashU/sub-STUNIPD0001/lesion/manual_masks/anat/sub-STUNIPD0001_space-MNI152NLin6Asym_label-lesion_mask.nii.gz",
-  "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
+  "reference_template_path": "data/clinical_connectome/derivatives/UNIPD/WashU/manual_masks/sub-STUNIPD0001/anat/sub-STUNIPD0001_space-MNI152NLin6Asym_label-lesion_mask.nii.gz",
+  "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",
   "binarize_threshold": 0.5,
   "resample_interpolation": "nearest",
   "parcellate": true,

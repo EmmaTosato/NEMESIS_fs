@@ -46,7 +46,35 @@ Ultimo aggiornamento: 2026-07-21. Snapshot dello stato attuale del progetto — 
 **Prossimo passo esatto**:
 - Procedere con l'organizzazione dei commit Git per isolare le modifiche in step logici e versionare il progetto in questo nuovo stato "multi-modalità ready".
 
+## Sessione 2026-07-21 (2) — Integrazione BCBToolKit come pipeline orchestrata (compute_sdc)
 
+**Obiettivo**: integrare BCBToolKit/BCBlib (Stage 1+2, vedi sessioni precedenti su `/data/etosato/tools/`) come pipeline NEMESIS orchestrata su tutti i soggetti di `data/clinical_connectome`, invece di lanci manuali per singolo soggetto.
+
+**Decisioni prese / concetti discussi**:
+- Tre modalità separate (`manifest`/`run`/`aggregate`) invece di un comando unico: `bcb-lf-preprocess`/`bcb-lesion-features` non hanno un flag per-soggetto, operano su intere directory (confermato via `--help`). Il parallelismo per soggetto si ottiene quindi costruendo, per ogni task, una staging dir BIDS (symlink) contenente solo i soggetti assegnati a quel task — mai un parametro/flag inventato che questi tool non hanno.
+- `manifest.csv` costruito una sola volta (`--mode manifest`) e riletto da ogni task run (stride slice `task_id::task_count`) — copertura completa e disgiunta qualunque sia N, e la stessa lista è condivisa tra tutti i task senza che debbano coordinarsi.
+- Check esplicito tra Stage 1 e Stage 2: verifica che il disconnectome sia un NIfTI caricabile con shape 182×218×182 prima di passare il soggetto a Stage 2 — un soggetto che fallisce è escluso e loggato (`_status/<subject_id>.json`), non blocca gli altri soggetti dello stesso task né degli altri task (isolamento per-soggetto, mai un fallimento silenzioso — coerente con `code_standards.md` §0).
+- `output_dir` = `<output_root>/<run_name>`, **non datata** (a differenza di `<dd-mm>_<run_name>` usato da `build_lesion_matrix.py`): le tre fasi possono girare a distanza di giorni per via della coda SLURM e devono risolvere sempre alla stessa cartella dal solo config, non dall'istante di esecuzione.
+- Parallelismo: SLURM job array (`jobs/run_compute_sdc.sh`, un task per soggetto) in produzione; pool locale con `xargs -P` dimensionato su `nproc/cores_per_subject` per lo script non-SLURM (`scripts/run_compute_sdc_no_slurm.sh`) — quest'ultimo vive deliberatamente in `scripts/` e non `jobs/`, perché non passa da `sbatch` (`jobs/` è riservato alla convenzione sbatch da `CLAUDE.md`).
+- `cores_per_subject` nel config deve combaciare con `--cpus-per-task` dell'array SLURM (o essere usato per calcolare il pool locale) — documentato esplicitamente per evitare oversottoscrizione della macchina.
+
+**File modificati/creati**:
+- Codice: `src/sdc/{config,manifest,staging,runner,status}.py` (nuovo package), `src/pipeline/compute_sdc.py` (CLI: `manifest`/`run`/`aggregate`, `--dry-run`)
+- Config/job: `config/pipelines/compute_sdc.json`, `jobs/run_compute_sdc_manifest.sh`, `jobs/run_compute_sdc.sh` (array), `jobs/run_compute_sdc_aggregate.sh`, `scripts/run_compute_sdc_no_slurm.sh`
+- Test: `tests/unit/test_sdc_config.py`, `test_sdc_manifest.py`, `test_sdc_staging_and_check.py` (28 test nuovi)
+- Doc: `docs/guides/compute_sdc.md`
+
+**Stato dei test**: 264/271 passano (28 nuovi tutti verdi + 236 preesistenti). 7 fallimenti preesistenti e NON correlati a questo lavoro, non toccati: `tests/integration/test_resolution_counts.py` (6 test) e `test_retrieve_pipeline.py::test_end_to_end_small_real_run` puntano a `config/registry/file_patterns.json`, che nel repo attuale esiste solo nelle varianti `_local`/`_server` — problema preesistente da investigare in una sessione dedicata, non causato né risolto qui.
+
+**Verifica dry-run su dati reali** (richiesta esplicita dell'utente: non testare Stage 1/2 per davvero su tutti i soggetti):
+- `--mode manifest` su `clinical_connectome` reale: **1150 soggetti** scoperti (4 dataset, `group_filter=["ST"]`), 0 esclusi.
+- Primo tentativo con lo script locale a piena parallelizzazione (pool dimensionato su `nproc=32`/`cores_per_subject=4` = 8 task concorrenti) è fallito per esaurimento risorse della sandbox interattiva (`OpenBLAS pthread_create failed`, limite processi) — **non un bug del codice**: ogni task fallito ha comunque scritto correttamente lo status `failed_stage1_process` per i propri soggetti invece di far crashare l'intero run, confermando che l'isolamento per-soggetto funziona anche sotto stress.
+- Retest controllato, un solo soggetto (`--task-id 0 --task-count 1150 --dry-run`): `bcb-lf-preprocess` ha risposto correttamente `"Would preprocess 1 lesion(s)"` per `sub-STUNIPD0001`, confermando che staging/symlink, `bcbtoolkit_path`, `--skip-existing`/`--dry-run` sono cablati correttamente end-to-end sui dati reali.
+- Scratch di verifica (`data/derived/sdc/run1/`) ripulito dopo il test (comunque gitignored, `data/*` in `.gitignore`) — il `run_name="run1"` del config è quindi pronto per un run reale senza conflitti con l'output di verifica.
+
+**Nota — attività di auto-commit non spiegata**: durante la sessione, i file nuovi (`src/sdc/*`, `config/pipelines/compute_sdc.json`, `jobs/run_compute_sdc*.sh`, `scripts/run_compute_sdc_no_slurm.sh`) sono comparsi come già committati in git (commit con messaggi informali: "sdc pipeline", "launching", "laucning", "mix") **senza che l'agente abbia eseguito alcun comando git in questa sessione** — nessun hook è configurato in `.claude/settings.json`/`settings.local.json`. Stesso pattern già osservato nella sessione precedente (vedi sotto, "Nota importante — attività parallela nello stesso working tree"): sembra un meccanismo di auto-commit esterno attivo sulla macchina dell'utente, non un'azione di questo agente. Da chiarire con l'utente se non già noto.
+
+**Prossimo passo esatto**: lancio reale in produzione quando l'atlante trattografie completo sarà pronto (il config attuale punta ancora al bundled parziale, 10 soggetti — vedi sessioni precedenti su `/data/etosato/tools/`): `sbatch jobs/run_compute_sdc_manifest.sh` → controllare N soggetti in `manifest.csv` → editare `#SBATCH --array=0-<N-1>` in `jobs/run_compute_sdc.sh` → `sbatch jobs/run_compute_sdc.sh` → `sbatch jobs/run_compute_sdc_aggregate.sh` una volta che l'array è completo (verificare con `sacct -j <array_job_id>`).
 ## Sessione 2026-07-21 — Atlante combinato Glasser+subcorticale (372 regioni) per il metodo del paper Thiebaut de Schotten 2020
 
 **Obiettivo**: preparare l'atlante di parcellazione usato dal paper Thiebaut de Schotten et al. 2020 prima della loro PCA varimax (360 parcelle corticali MMP/Glasser + 12 regioni subcorticali) per poterlo passare come `atlas_path` a `build_lesion_matrix.py`.

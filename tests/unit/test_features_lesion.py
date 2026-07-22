@@ -39,6 +39,19 @@ def _make_reference_template(path):
 _GLOB = "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz"
 
 
+def _make_lesion_subject_pipeline_first(data_root, dataset, subject_id, lesion_voxels):
+    """Same fixture as _make_lesion_subject, but in the pipeline-first shape
+    (`<pipeline>/<subject_id>/anat/...`) the real local retrieval layout uses
+    today (src.retrieval.output_layout) - regression fixture for
+    test_build_lesion_matrix_voxelwise_pipeline_first_layout below."""
+    subject_dir = data_root / dataset / "manual_masks" / subject_id / "anat"
+    subject_dir.mkdir(parents=True, exist_ok=True)
+    volume = np.zeros(_SHAPE, dtype=np.float32)
+    for voxel in lesion_voxels:
+        volume[voxel] = 1.0
+    nib.save(nib.Nifti1Image(volume, _AFFINE), subject_dir / f"{subject_id}_label-lesion_mask.nii.gz")
+
+
 def test_build_lesion_matrix_voxelwise(tmp_path):
     _make_lesion_subject(tmp_path, "siteA", "sub-01", [(1, 1, 1), (1, 1, 2)])
     _make_lesion_subject(tmp_path, "siteA", "sub-02", [(1, 1, 1)])
@@ -62,6 +75,31 @@ def test_build_lesion_matrix_voxelwise(tmp_path):
     assert non_constant_mask.sum() == X.shape[1]
     # 3 distinct lesioned voxels across all subjects survive the constant-feature drop
     assert X.shape[1] == 3
+
+
+def test_build_lesion_matrix_voxelwise_pipeline_first_layout(tmp_path):
+    """Regression: _discover_lesion_files must derive where subject folders
+    sit from lesion_glob itself, not assume they're dataset_root's immediate
+    children - the real local layout is pipeline-first
+    (<pipeline>/<subject_id>/...) today, not subject-first."""
+    _make_lesion_subject_pipeline_first(tmp_path, "siteA", "sub-01", [(1, 1, 1), (1, 1, 2)])
+    _make_lesion_subject_pipeline_first(tmp_path, "siteA", "sub-02", [(1, 1, 1)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+
+    X, metadata, non_constant_mask, parcel_ids = build_lesion_matrix(
+        data_root=tmp_path,
+        datasets=["siteA"],
+        reference_template_path=template_path,
+        lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
+        binarize_threshold=0.5,
+        resample_interpolation="nearest",
+        parcellate=False,
+    )
+
+    assert parcel_ids is None
+    assert list(metadata["subject_id"]) == ["sub-01", "sub-02"]
+    assert X.shape[0] == 2
 
 
 def test_build_lesion_matrix_subject_count_mismatch_raises(tmp_path):

@@ -45,9 +45,11 @@ Tre job in sequenza, il secondo è un array:
 sbatch jobs/run_compute_sdc_manifest.sh
 wc -l data/derived/sdc/s1/manifest.csv   # N soggetti + 1 header
 
-# 2. array — editare #SBATCH --array=0-<N-1> in jobs/run_compute_sdc.sh
-#    (un task per soggetto: --cpus-per-task deve combaciare con
-#    cores_per_subject nel config)
+# 2. array — editare #SBATCH --array=0-<N-1>%<max_concorrenti> in
+#    jobs/run_compute_sdc.sh (un task per soggetto: --cpus-per-task deve
+#    combaciare con cores_per_subject nel config; il %<max_concorrenti>
+#    limita quanti task girano insieme - il resto resta pending in coda,
+#    partito automaticamente man mano che si liberano slot)
 sbatch jobs/run_compute_sdc.sh
 
 # 3. aggregate — solo dopo che TUTTI i task dell'array sono completati

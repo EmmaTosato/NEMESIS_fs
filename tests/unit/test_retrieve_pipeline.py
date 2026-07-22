@@ -476,11 +476,11 @@ def test_full_run_end_to_end(tmp_path, monkeypatch):
         tmp_path
         / "data"
         / "clinical_connectome"
+        / "derivatives"
         / "UNIPD"
         / "WashU"
-        / "sub-STUNIPD0001"
-        / "lesion"
         / "manual_masks"
+        / "sub-STUNIPD0001"
         / "anat"
         / "sub-STUNIPD0001_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
     )
@@ -787,11 +787,11 @@ def test_main_verifies_only_after_every_dataset_has_finished_copying(tmp_path, m
     stale_destination = (
         output_root
         / "clinical_connectome"
+        / "derivatives"
         / "UNIPD"
         / "WashU"
-        / "sub-STUNIPD0001"
-        / "lesion"
         / "manual_masks"
+        / "sub-STUNIPD0001"
         / "anat"
         / "sub-STUNIPD0001_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
     )

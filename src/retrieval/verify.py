@@ -23,7 +23,7 @@ from pathlib import Path
 
 from src.retrieval.config import RetrievalConfig, RetrieveItem
 from src.retrieval.dataset import Dataset
-from src.retrieval.output_layout import local_relative_path
+from src.retrieval.output_layout import local_dataset_root, local_relative_path
 
 
 @dataclass
@@ -41,14 +41,10 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def local_dataset_root(config: RetrievalConfig, dataset_name: str) -> Path:
-    return config.output_root / config.project / dataset_name
-
-
 def local_destination(
     config: RetrievalConfig, dataset_name: str, subject_id: str, item: RetrieveItem, filename: str
 ) -> Path:
-    return local_dataset_root(config, dataset_name) / subject_id / local_relative_path(item, filename)
+    return local_dataset_root(config, dataset_name) / local_relative_path(item, subject_id, filename)
 
 
 def _verify_subject_files(

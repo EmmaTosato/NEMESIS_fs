@@ -4,6 +4,10 @@ Audience: developers/agents working on `src/retrieval/` and `src/pipeline/retrie
 
 Scope today: 4 stroke datasets in `Clinical_connectome` (`UNIPD/WashU`, `UNIPD/PASPORT`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`). NEMESIS_BIDS is a different source with a different layout (sessions, different subject-ID convention) and is **not** covered by this module — deliberately deferred, most likely a second class alongside `Dataset` when that work starts, not a speculative generalization of this one.
 
+**Two config variants, not one**: `config/pipelines/retrieval.json` and `config/registry/file_patterns.json` are placeholder names throughout this doc for whichever concrete file you pass via `--config`/`file_patterns` — in practice there is no plain `retrieval.json`/`file_patterns.json` on disk, only `_local.json` (Windows path convention, for a laptop-mounted copy) and `_server.json` (the real EBRAIN mount path, used in production via `jobs/run_retrieve_data.sh`). Both variants must be kept in sync by hand when a leaf/retrieve item changes — there is no code that derives one from the other.
+
+**`feature` is not available for every dataset**: unlike `lesion` (present for all 4 in-scope datasets), the `features/` tree on EBRAIN today only exists for `UNIPD/WashU` (176/196 subject folders actually populated — the rest are empty placeholder folders, not a per-atlas gap). `PASPORT`, `PSP`, `UKLFR` have no `features/` tree at all. A `retrieval.json` that requests only `feature` items must therefore list `datasets: ["UNIPD/WashU"]` — listing a dataset with zero applicable `feature` leaves is a STOP, not a WARNING (see the STOP/WARNING matrix below: "a dataset supports none of the requested retrieve items at all").
+
 ## The `object` axis, and why field *shape* varies by object
 
 Everything in this module is organized around a top-level `object`: **`lesion`** and **`feature`** (`KNOWN_OBJECTS = ("lesion", "feature")` in `config.py` — a true structural invariant). Everything below it is fully data-driven from the `file_patterns_{local,server}.json` registry, in BIDS-aligned vocabulary:
@@ -82,8 +86,17 @@ The registry (`config/registry/file_patterns_local.json`/`file_patterns_server.j
     "project_root": "/data/corbetta/Clinical_connectome/features",
     "func": {
       "FC-pearson": [
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer200TianS1Buckner7N.csv",
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer200TianS2Buckner7N.csv"
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-GlasserTianS1Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-GlasserTianS2Buckner7N.csv",
+        "... (15 templates total: Glasser × TianS1/S2/S3, Schaefer100/200/300/400 × TianS1/S2/S3, all × Buckner7N)"
+      ],
+      "motion": [
+        "{subject_id}/func/{subject_id}_desc-motion.tsv",
+        "{subject_id}/func/{subject_id}_desc-motion.json"
+      ],
+      "outliers": [
+        "{subject_id}/func/{subject_id}_desc-outliers.tsv",
+        "{subject_id}/func/{subject_id}_desc-outliers.json"
       ]
     }
   }
@@ -112,7 +125,7 @@ Accessors: `.project_root_for(object_)`, `.templates_for(object_, *path)` (raise
 More than one template under the same leaf key means `resolve()` grabs **every one that exists** for a subject — but this mechanism serves two semantically distinct situations, both handled by the identical code path:
 
 1. **Naming-variant alternates** — two filenames represent the *same logical thing*, named differently depending on which pipeline produced it (the historical, real case for the old `lesion_roi` leaf, before native retrieval was descoped this round — see below).
-2. **Genuinely different, simultaneously-present files** — the current real case: the two `FC-pearson` templates above (`Schaefer200TianS1Buckner7N`, `Schaefer200TianS2Buckner7N`) are **not** alternate names for the same atlas — they are two different atlases' connectivity matrices that legitimately coexist for the same subject. `resolve()` correctly returns both, and both get copied — that's the desired behavior — but it's worth remembering this is "grab every registered file that exists", not "resolve ambiguity between spellings of one file".
+2. **Genuinely different, simultaneously-present files** — the current real case for `feature.func.FC-pearson`: its 15 templates (`GlasserTianS{1,2,3}Buckner7N`, `Schaefer{100,200,300,400}TianS{1,2,3}Buckner7N`) are **not** alternate names for the same atlas — they are 15 different atlases' connectivity matrices that legitimately coexist for the same subject. `resolve()` correctly returns all that exist (up to 15), and all get copied — that's the desired behavior. Same reasoning applies to `feature.func.motion`/`feature.func.outliers`, each registered as 2 templates (`.tsv` + `.json` sidecar) — not alternates, both wanted every time a subject has either.
 
 Whether a given leaf's multiple templates mean (1) or (2) is a domain decision made by whoever edits `file_patterns.json`, not something the code infers or distinguishes.
 
@@ -228,14 +241,23 @@ This is closed by `src/retrieval/verify.py` (`verify_dataset(name, ds, subjects,
 ## Output layout
 
 ```
-<output_root>/<project>/<dataset>/
+<output_root>/<project>/derivatives/<dataset>/
 ├── participants.tsv                              # verbatim copy, only if include_tabular_data and present at source
-└── <subject_id>/
-    ├── lesion/manual_masks/anat/<filename>       # object with a pipeline: one extra directory level
-    └── feature/func/<filename>                   # object without a pipeline: no extra level
+├── manual_masks/                                 # real BIDS-Derivatives pipeline name (lesion)
+│   └── <subject_id>/anat/<filename>
+└── features/                                      # stand-in label we chose for `feature` (no real pipeline name - see below)
+    └── <subject_id>/func/<filename>
 ```
 
-Both shapes come out of the same single-source-of-truth function, **`output_layout.local_relative_path(item, filename)`** — `item.path_key()` minus its trailing `suffix` element (`suffix` identifies *which* file, not a folder level). `retrieve_data._destination_path` and `verify.local_destination` both delegate to it, so the copy phase and the verification phase can never independently drift on where a file is supposed to land — a real duplication that existed before this round (`_destination_path` and `local_destination` each had their own copy of the same layout logic) and was deliberately collapsed into one function as part of this refactor. Filenames are preserved exactly as at the source.
+Pipeline-first, deliberately mirroring real BIDS-Derivatives ordering (`<dataset>/derivatives/<pipeline>/sub-XXX/<datatype>/...`) — not subject-first (`sub-XXX/<pipeline>/<datatype>/...`), which was this layout's original shape until it was pointed out that real BIDS puts the pipeline before the subject, not after. The `object` axis (`lesion`/`feature`) itself is not a path segment any more; which pipeline folder a file sits under is what tells you its object, same as at the real BIDS-Derivatives source. Trade-off worth remembering: the previous subject-first layout guaranteed no two objects could ever collide (since `object`, a true structural invariant - see `KNOWN_OBJECTS` - was always the first path segment); pipeline-first only avoids collisions because the two pipeline-folder names in use today (`manual_masks`, `features`) happen to differ, not because any invariant enforces it.
+
+**Why a single `derivatives/` level sits directly below `project`, above every dataset** (unchanged by the pipeline-first switch): everything this pipeline ever retrieves is itself derived/processed data — `lesion`/`manual_masks` is a real BIDS-Derivatives pipeline at the source, and `feature` is non-BIDS-conformant processed data with no formal pipeline name at all (see the `object` axis section above) — native/raw acquisitions are deliberately out of scope (see "This round vs. a future native/raw round"). One shared `derivatives/` above every dataset says "nothing under `data/` is ever raw" for the whole project at once, rather than mirroring the source's own per-dataset `<dataset>/derivatives/<pipeline>/` nesting per (dataset, pipeline) individually.
+
+**Why `feature` gets a made-up pipeline folder name (`features`)**: `feature` has no real pipeline name at the source (`_OBJECTS_FORBIDDING_PIPELINE`, see above) - there is nothing honest to reuse. `output_layout._LOCAL_PIPELINE_LABEL_FOR_OBJECT` registers `"feature": "features"` as an explicit, intentional stand-in for local organization purposes only - not a claim about the source. Every object in `_OBJECTS_FORBIDDING_PIPELINE` must have an entry here, or `output_layout._pipeline_folder` raises rather than silently reusing the object name or crashing on a `None` segment. The project's stated intent is to need this less over time (push pipelines to declare a real name at the source instead), not to grow this dict as a permanent workaround.
+
+Both per-subject shapes come out of the same single-source-of-truth function, **`output_layout.local_relative_path(item, subject_id, filename)`** — `<pipeline-or-stand-in>/<subject_id>/<datatype>/<filename>`, pipeline first. The dataset-root prefix (`<output_root>/<project>/derivatives/<dataset>`) is its own single-source-of-truth function, **`output_layout.local_dataset_root(config, dataset_name)`** — used by `retrieve_data._destination_path`/`_retrieve_participants` and by `verify.local_destination`/the participants-tsv check/the unexpected-local-files walk, so the copy phase and the verification phase can never independently drift on where a file is supposed to land. Filenames are preserved exactly as at the source.
+
+**Downstream consequence for `src/features/lesion.py`**: `_discover_lesion_files` used to assume subject folders were `data_root/<dataset>`'s immediate children (true only under the old subject-first layout) - it now derives the subject-folder glob from `lesion_glob` itself (the last bare `"*"` path segment), so it works for either layout without hardcoding one. `config/pipelines/build_lesion_matrix.json`'s `data_root`/`lesion_glob`/`reference_template_path` were updated to the pipeline-first shape (`"manual_masks/*/anat/*_label-lesion_mask.nii.gz"`) accordingly - this is the kind of downstream break a local-layout change causes silently if every consumer reading from `data/` isn't re-checked.
 
 ## Report (`copy_summary`)
 
@@ -305,7 +327,9 @@ PYTHONPATH=. conda run -n nemesis python scripts/data_summary.py --config config
 
 `tests/unit/` — synthetic fixtures in `tmp_path`, no EBRAIN mount required. `tests/integration/` — against the real mount and the real `config/registry/file_patterns_server.json` registry, `pytest.mark.skipif` if unreachable.
 
-Datasets on EBRAIN are actively curated, so integration tests never hardcode an exact expected count — counts are checked as a **differential**: `test_manual_masks_lesion_mask_resolution_matches_raw_filesystem`/`test_feature_fc_pearson_resolution_matches_raw_filesystem` (`test_resolution_counts.py`) independently re-glob the real filesystem at test run time and assert that set matches what `Dataset.resolve()` reports *right now*. `test_subjects_with_both_fc_pearson_atlases_get_both_files` checks the "2 genuinely different simultaneous files" nuance specifically: a real subject known (via glob, not hardcoded) to have both Schaefer200 atlas variants must resolve to exactly 2 paths.
+Datasets on EBRAIN are actively curated, so integration tests never hardcode an exact expected count — counts are checked as a **differential**: `test_manual_masks_lesion_mask_resolution_matches_raw_filesystem`/`test_feature_fc_pearson_resolution_matches_raw_filesystem` (`test_resolution_counts.py`) independently re-glob the real filesystem at test run time and assert that set matches what `Dataset.resolve()` reports *right now*. `test_subjects_with_both_fc_pearson_atlases_get_both_files` checks the "genuinely different simultaneous files" nuance specifically: a real subject known (via glob, not hardcoded) to have multiple registered atlas variants must resolve to that many paths.
+
+**Known follow-up, not yet done**: these tests hardcode `FILE_PATTERNS_PATH = Path("config/registry/file_patterns.json")`, a filename that no longer exists (only `_local.json`/`_server.json` do — see the note on config variants above) — a **pre-existing** failure predating this session's changes, tracked in `.claude/stato_progetto.md`, not caused by the new `feature` leaves. Independently, the tests' own glob patterns (`_FC_PEARSON_S1_GLOB`/`_FC_PEARSON_S2_GLOB`) and `test_subjects_with_both_fc_pearson_atlases_get_both_files` still hardcode the earlier 2-atlas (`Schaefer200TianS1/S2Buckner7N`) case and don't exercise the current 15-atlas set or the new `motion`/`outliers` leaves. Both issues need fixing (the path, then the coverage) before these tests are a meaningful check of today's registry.
 
 ```bash
 conda run -n nemesis python -m pytest tests/unit/ tests/integration/ -v
@@ -313,7 +337,7 @@ conda run -n nemesis python -m pytest tests/unit/ tests/integration/ -v
 
 ## This round vs. a future native/raw round
 
-This refactor deliberately covers only `lesion`/`manual_masks` (derivatives) and `feature`/`FC-pearson` (2 of ~30 available atlas templates) — **native/raw BIDS data is fully descoped**, for concrete reasons found while surveying the real EBRAIN mount:
+This refactor deliberately covers only `lesion`/`manual_masks` (derivatives) and `feature`/`{FC-pearson,motion,outliers}` — for `FC-pearson`, a curated subset of 15 of the ~30 available atlas templates on disk (`GlasserTianS{1,2,3}Buckner7N` + `Schaefer{100,200,300,400}TianS{1,2,3}Buckner7N` — chosen for consistency with the Glasser-based combined atlas already built for lesions, plus multi-resolution Schaefer; `Yan*`, `AAL116`, `Brainnetome246`, `DesikanKilliany[Tourville]Aseg` are on disk but not registered, and can be added the same way if a future task needs them) — **native/raw BIDS data is fully descoped**, for concrete reasons found while surveying the real EBRAIN mount:
 
 - func run-naming differs per dataset (WashU: `task-rest_run-01..07_bold`, 0-14 runs/subject; UKLFR: single `task-rest_bold`, no `run` entity at all).
 - dwi has 5 acquisition variants for WashU (`acq-b1000_dir-AP`, `acq-b2000_dir-AP`, `acq-b300_dir-AP`, `acq-b300_dir-PA`, plain) vs. a single plain file for UKLFR.

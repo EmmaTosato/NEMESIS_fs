@@ -14,7 +14,7 @@ from src.retrieval.config import RetrievalConfig, RetrieveItem, load_file_patter
 from src.retrieval.dataset import Dataset
 
 PROJECT_ROOT = Path("/data/corbetta/Clinical_connectome")
-FILE_PATTERNS_PATH = Path("config/registry/file_patterns.json")
+FILE_PATTERNS_PATH = Path("config/registry/file_patterns_server.json")
 
 pytestmark = pytest.mark.skipif(
     not PROJECT_ROOT.is_dir(), reason="EBRAIN mount not available on this machine"
@@ -73,16 +73,18 @@ def test_end_to_end_small_real_run(tmp_path, monkeypatch):
             tmp_path
             / "data"
             / "clinical_connectome"
+            / "derivatives"
             / "UNIPD"
             / "PASPORT"
-            / subject_id
-            / "lesion"
             / "manual_masks"
+            / subject_id
             / "anat"
         )
         assert list(copied.glob("*_label-lesion_mask.nii.gz"))
 
-    participants_copy = tmp_path / "data" / "clinical_connectome" / "UNIPD" / "PASPORT" / "participants.tsv"
+    participants_copy = (
+        tmp_path / "data" / "clinical_connectome" / "derivatives" / "UNIPD" / "PASPORT" / "participants.tsv"
+    )
     assert participants_copy.is_file()
 
     report_path = retrieve_data._write_report(config, stats)

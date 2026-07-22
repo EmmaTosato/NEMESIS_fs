@@ -56,13 +56,9 @@ def _make_dataset(tmp_path):
 
 def _local_lesion_mask_path(config, subject_id):
     return (
-        config.output_root
-        / config.project
-        / "UNIPD"
-        / "WashU"
-        / subject_id
-        / "lesion"
+        verify.local_dataset_root(config, "UNIPD/WashU")
         / "manual_masks"
+        / subject_id
         / "anat"
         / f"{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
     )
@@ -125,7 +121,7 @@ def test_verify_dataset_flags_unexpected_local_file(tmp_path):
     config = _make_config(tmp_path, project_root)
     _touch(_local_lesion_mask_path(config, "sub-STUNIPD0001"), b"content-1")
     stale_leftover = (
-        config.output_root / config.project / "UNIPD" / "WashU" / "sub-STUNIPD0001" / "lesion" / "manual_masks" / "anat"
+        verify.local_dataset_root(config, "UNIPD/WashU") / "manual_masks" / "sub-STUNIPD0001" / "anat"
         / "sub-STUNIPD0001_old_naming.nii.gz"
     )
     _touch(stale_leftover, b"leftover")
@@ -174,7 +170,7 @@ def test_verify_dataset_checks_participants_tsv(tmp_path):
     config = _make_config(tmp_path, project_root, include_tabular_data=True)
     _touch(_local_lesion_mask_path(config, "sub-STUNIPD0001"), b"content-1")
     _touch(
-        config.output_root / config.project / "UNIPD" / "WashU" / "participants.tsv",
+        verify.local_dataset_root(config, "UNIPD/WashU") / "participants.tsv",
         b"participant_id\nsub-STUNIPD0001\n",
     )
 
@@ -190,7 +186,7 @@ def test_verify_dataset_flags_participants_tsv_mismatch(tmp_path):
     config = _make_config(tmp_path, project_root, include_tabular_data=True)
     _touch(_local_lesion_mask_path(config, "sub-STUNIPD0001"), b"content-1")
     _touch(
-        config.output_root / config.project / "UNIPD" / "WashU" / "participants.tsv",
+        verify.local_dataset_root(config, "UNIPD/WashU") / "participants.tsv",
         b"stale-table",
     )
 

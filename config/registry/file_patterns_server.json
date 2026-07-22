@@ -8,5 +8,35 @@
         ]
       }
     }
+  },
+  "feature": {
+    "project_root": "/data/corbetta/Clinical_connectome/features",
+    "func": {
+      "FC-pearson": [
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-GlasserTianS1Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-GlasserTianS2Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-GlasserTianS3Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer100TianS1Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer100TianS2Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer100TianS3Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer200TianS1Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer200TianS2Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer200TianS3Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer300TianS1Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer300TianS2Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer300TianS3Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer400TianS1Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer400TianS2Buckner7N.csv",
+        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Schaefer400TianS3Buckner7N.csv"
+      ],
+      "motion": [
+        "{subject_id}/func/{subject_id}_desc-motion.tsv",
+        "{subject_id}/func/{subject_id}_desc-motion.json"
+      ],
+      "outliers": [
+        "{subject_id}/func/{subject_id}_desc-outliers.tsv",
+        "{subject_id}/func/{subject_id}_desc-outliers.json"
+      ]
+    }
   }
 }

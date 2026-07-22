@@ -72,10 +72,10 @@ In questo approccio, il cervello viene sovrapposto a un "Atlante" (una mappa che
 Ecco la traduzione e spiegazione esatta di ogni riga nel file `config/pipelines/build_lesion_matrix.json`:
 
 - **`project`**: `(Stringa)` Il nome del tuo progetto, usato per creare le sottocartelle. Es: `"clinical_connectome"`.
-- **`data_root`**: `(Stringa)` Il percorso in cui il *Retrieve Data* ha precedentemente scaricato i dati. Es: `"data/clinical_connectome"`.
+- **`data_root`**: `(Stringa)` Il percorso in cui il *Retrieve Data* ha precedentemente scaricato i dati. Es: `"data/clinical_connectome/derivatives"` (nota il livello `derivatives/`: tutto ciò che il retrieval scarica è per definizione un derivato, mai un'acquisizione grezza - vedi `docs/dev/retrieval.md`).
 - **`datasets`**: `(Lista di Stringhe)` Quali coorti ospedaliere includere nella matrice. Es: `["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"]`.
 - **`reference_template_path`**: `(Stringa)` Il percorso di un file immagine NIfTI usato come "Griglia Universale". Dato che ospedali diversi acquisiscono le RM a risoluzioni diverse (1mm, 1.5mm, 2mm), tutte le lesioni verranno deformate per coincidere esattamente con questa griglia. Solitamente si usa l'immagine di un paziente WashU a 2mm, oppure un template MNI standard.
-- **`lesion_glob`**: `(Stringa)` La regola per pescare i file corretti nelle cartelle dei pazienti. Lasciare sempre: `"*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz"`.
+- **`lesion_glob`**: `(Stringa)` La regola per pescare i file corretti nelle cartelle dei pazienti. Lasciare sempre: `"manual_masks/*/anat/*_label-lesion_mask.nii.gz"` (layout pipeline-first: prima il nome della pipeline, poi il soggetto — vedi `docs/dev/retrieval.md`).
 - **`binarize_threshold`**: `(Numero Decimale)` Valore tra 0.0 e 1.0. Quando la lesione viene deformata sulla nuova griglia (resampling), alcuni bordi potrebbero sfocarsi diventando grigi (es. 0.4). Questo parametro dice: "Tutto ciò che ha un valore sopra 0.5 diventa 1 (lesionato), tutto il resto diventa 0 (sano)".
 - **`resample_interpolation`**: `(Stringa)` La matematica della deformazione spaziale. Dato che lavoriamo con maschere binarie nette (0 o 1), va usato sempre e solo `"nearest"` (arrotonda al vicino più prossimo) e non `"linear"`.
 - **`parcellate`**: `(Booleano)` Scegli se fare la matrice per Atlante (`true`) o per singolo Voxel (`false`).
