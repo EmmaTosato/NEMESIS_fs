@@ -1,6 +1,6 @@
-## Pipeline
-
-* [ ] 
+- [ ] SDC toolkit c'è, leggi come è stato fatta
+- [ ] sessione di debug intensa
+- [ ] creare skill per decison log
 
 ## To see
 
