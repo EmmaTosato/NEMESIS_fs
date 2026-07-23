@@ -60,7 +60,7 @@ def local_dataset_root(config: RetrievalConfig, dataset_name: str) -> Path:
     return config.output_root / config.project / "derivatives" / dataset_name
 
 
-def _pipeline_folder(item: RetrieveItem) -> str:
+def pipeline_folder(item: RetrieveItem) -> str:
     """The local top-level folder name for this item's `object` - the real
     BIDS-Derivatives pipeline name when the object has one (`item.pipeline`),
     or the registered stand-in for objects that structurally forbid one (see
@@ -82,4 +82,4 @@ def local_relative_path(item: RetrieveItem, subject_id: str, filename: str) -> P
     first, then subject, matching real BIDS-Derivatives ordering (see module
     docstring), unlike the dataset-root prefix from local_dataset_root()
     which groups by dataset, not by pipeline."""
-    return Path(_pipeline_folder(item), subject_id, item.datatype, filename)
+    return Path(pipeline_folder(item), subject_id, item.datatype, filename)

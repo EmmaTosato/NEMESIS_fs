@@ -132,6 +132,37 @@ def test_verify_dataset_flags_unexpected_local_file(tmp_path):
     assert "old_naming" in result.unexpected_local_files[0]
 
 
+def test_verify_dataset_does_not_flag_leftover_from_a_different_registered_combination(tmp_path):
+    """A local file matching a combination this dataset genuinely has
+    registered (e.g. `feature`, from an earlier run that requested it) but
+    that THIS run's config.retrieve doesn't ask for, is a legitimate
+    leftover - not an orphan. Distinct from
+    test_verify_dataset_flags_unexpected_local_file, where the file's name
+    doesn't match any registered template at all."""
+    project_root, ds = _make_dataset(tmp_path)
+    file_patterns = _make_patterns(project_root)
+    file_patterns = FilePatterns(
+        project_roots={**file_patterns.project_roots, "feature": project_root / "features"},
+        patterns={
+            **file_patterns.patterns,
+            ("feature", "func", "FC-pearson"): ["{subject_id}/func/{subject_id}_FC-pearson.csv"],
+        },
+    )
+    (project_root / "features" / "UNIPD" / "WashU").mkdir(parents=True)  # source root must exist for ds.has_object
+    ds = Dataset("UNIPD/WashU", file_patterns)
+    config = _make_config(tmp_path, project_root, file_patterns=file_patterns)
+    _touch(_local_lesion_mask_path(config, "sub-STUNIPD0001"), b"content-1")
+    leftover_feature_file = (
+        verify.local_dataset_root(config, "UNIPD/WashU") / "features" / "sub-STUNIPD0001" / "func"
+        / "sub-STUNIPD0001_FC-pearson.csv"
+    )
+    _touch(leftover_feature_file, b"leftover-but-legitimate")
+
+    result = verify.verify_dataset("UNIPD/WashU", ds, ["sub-STUNIPD0001"], config)
+
+    assert result.unexpected_local_files == []
+
+
 def test_verify_dataset_skips_retrieve_item_whose_object_this_dataset_lacks(tmp_path):
     """A retrieve item whose object this dataset structurally lacks (e.g.
     feature/... on a dataset with no features/ tree) is not a verification
