@@ -39,7 +39,7 @@ set -u
 
 cd "${PROJECT_ROOT}"
 
-RUN_NAME=$(jq -r '.run_name' "${CONFIG_FILE}")
+RUN_NAME=$(jq -r '.session_name' "${CONFIG_FILE}")
 LOG_DIR="logs/local/compute_sdc/${RUN_NAME}"
 mkdir -p "${LOG_DIR}"
 
@@ -56,6 +56,13 @@ run_all() {
         exit 1
     fi
     echo "local pool: ${TASK_COUNT} concurrent task(s) (${HOST_CORES} cores / ${CORES_PER_SUBJECT} cores-per-subject)"
+
+    # Without this, each bcb-lf-preprocess subprocess defaults to using every
+    # host core for BLAS threading (OpenBLAS/numpy ignore cores_per_subject),
+    # so TASK_COUNT concurrent processes oversubscribe far past HOST_CORES
+    # and pthread_create starts failing under load - see debug session 23/07/26.
+    export OPENBLAS_NUM_THREADS="${CORES_PER_SUBJECT}"
+    export OMP_NUM_THREADS="${CORES_PER_SUBJECT}"
 
     seq 0 "$(( TASK_COUNT - 1 ))" | xargs -I{} -P "${TASK_COUNT}" \
         python -m src.pipeline.compute_sdc --config "${CONFIG_FILE}" --mode run \

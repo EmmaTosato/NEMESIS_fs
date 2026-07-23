@@ -1,0 +1,1016 @@
+INFO: stage1: 144 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_3/staging --output-dir data/derived/sdc/s1/_work/task_3/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T --dry-run
+INFO: stage1: 144 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_4/staging --output-dir data/derived/sdc/s1/_work/task_4/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T --dry-run
+INFO: stage1: 144 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_1/staging --output-dir data/derived/sdc/s1/_work/task_1/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T --dry-run
+INFO: stage1: 144 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_5/staging --output-dir data/derived/sdc/s1/_work/task_5/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T --dry-run
+INFO: stage1: 143 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_7/staging --output-dir data/derived/sdc/s1/_work/task_7/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T --dry-run
+INFO: stage1: 143 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_6/staging --output-dir data/derived/sdc/s1/_work/task_6/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T --dry-run
+INFO: stage1: 144 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_2/staging --output-dir data/derived/sdc/s1/_work/task_2/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T --dry-run
+INFO: stage1: 144 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_0/staging --output-dir data/derived/sdc/s1/_work/task_0/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T --dry-run
+INFO: stage1 stdout:
+
+ERROR: stage1 stderr:
+OpenBLAS blas_thread_init: pthread_create failed for thread 1 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 2 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 3 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 4 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 5 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 6 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 7 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 8 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 9 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 10 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 11 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 12 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 13 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 14 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 15 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 16 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 17 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 18 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 19 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 20 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 21 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 22 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 23 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 24 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 25 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 26 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 27 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 28 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 29 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 30 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 31 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+Traceback (most recent call last):
+  File "/home/etosato/miniconda3/envs/nemesis/bin/bcb-lf-preprocess", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/scripts/run_lf_preprocess.py", line 100, in main
+    from bcblib.tools.lesion_features._bids import iter_bids_lesions, iter_flat_lesions
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/__init__.py", line 11, in <module>
+    from bcblib.tools.lesion_features._pipeline import (
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_pipeline.py", line 16, in <module>
+    from bcblib.tools.lesion_features._preprocess import preprocess_one
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_preprocess.py", line 7, in <module>
+    import nibabel as nib
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/nibabel/__init__.py", line 41, in <module>
+    from . import analyze as ana
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/nibabel/analyze.py", line 87, in <module>
+    import numpy as np
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/__init__.py", line 112, in <module>
+    from numpy.__config__ import show_config
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/__config__.py", line 4, in <module>
+    from numpy._core._multiarray_umath import (
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/_core/__init__.py", line 24, in <module>
+    from . import multiarray
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/_core/multiarray.py", line 11, in <module>
+    from . import _multiarray_umath, overrides
+KeyboardInterrupt
+
+INFO: stage1 stdout:
+
+ERROR: stage1 stderr:
+OpenBLAS blas_thread_init: pthread_create failed for thread 1 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 2 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 3 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 4 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 5 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 6 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 7 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 8 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 9 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 10 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 11 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 12 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 13 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 14 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 15 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 16 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 17 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 18 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 19 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 20 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 21 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 22 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 23 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 24 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 25 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 26 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 27 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 28 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 29 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 30 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 31 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+Traceback (most recent call last):
+  File "/home/etosato/miniconda3/envs/nemesis/bin/bcb-lf-preprocess", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/scripts/run_lf_preprocess.py", line 100, in main
+    from bcblib.tools.lesion_features._bids import iter_bids_lesions, iter_flat_lesions
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/__init__.py", line 11, in <module>
+    from bcblib.tools.lesion_features._pipeline import (
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_pipeline.py", line 16, in <module>
+    from bcblib.tools.lesion_features._preprocess import preprocess_one
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_preprocess.py", line 7, in <module>
+    import nibabel as nib
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/nibabel/__init__.py", line 41, in <module>
+    from . import analyze as ana
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/nibabel/analyze.py", line 87, in <module>
+    import numpy as np
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/__init__.py", line 112, in <module>
+    from numpy.__config__ import show_config
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/__config__.py", line 4, in <module>
+    from numpy._core._multiarray_umath import (
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/_core/__init__.py", line 24, in <module>
+    from . import multiarray
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/_core/multiarray.py", line 11, in <module>
+    from . import _multiarray_umath, overrides
+KeyboardInterrupt
+
+INFO: stage1 stdout:
+
+ERROR: stage1 stderr:
+OpenBLAS blas_thread_init: pthread_create failed for thread 2 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 3 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 4 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 5 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 6 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 7 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 8 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 9 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 10 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 11 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 12 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 13 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 14 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 15 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 16 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 17 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 18 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 19 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 20 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 21 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 22 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 23 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 24 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 25 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 26 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 27 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 28 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 29 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 30 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 31 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+Traceback (most recent call last):
+  File "/home/etosato/miniconda3/envs/nemesis/bin/bcb-lf-preprocess", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/scripts/run_lf_preprocess.py", line 100, in main
+    from bcblib.tools.lesion_features._bids import iter_bids_lesions, iter_flat_lesions
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/__init__.py", line 11, in <module>
+    from bcblib.tools.lesion_features._pipeline import (
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_pipeline.py", line 16, in <module>
+    from bcblib.tools.lesion_features._preprocess import preprocess_one
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_preprocess.py", line 7, in <module>
+    import nibabel as nib
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/nibabel/__init__.py", line 41, in <module>
+    from . import analyze as ana
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/nibabel/analyze.py", line 87, in <module>
+    import numpy as np
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/__init__.py", line 112, in <module>
+    from numpy.__config__ import show_config
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/__config__.py", line 4, in <module>
+    from numpy._core._multiarray_umath import (
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/_core/__init__.py", line 24, in <module>
+    from . import multiarray
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/_core/multiarray.py", line 11, in <module>
+    from . import _multiarray_umath, overrides
+KeyboardInterrupt
+
+INFO: stage1 stdout:
+
+ERROR: stage1 stderr:
+OpenBLAS blas_thread_init: pthread_create failed for thread 16 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 17 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 18 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 19 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 20 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 21 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 22 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 23 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 24 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 25 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 26 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 27 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 28 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 29 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 30 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 31 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+Traceback (most recent call last):
+  File "/home/etosato/miniconda3/envs/nemesis/bin/bcb-lf-preprocess", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/scripts/run_lf_preprocess.py", line 100, in main
+    from bcblib.tools.lesion_features._bids import iter_bids_lesions, iter_flat_lesions
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/__init__.py", line 11, in <module>
+    from bcblib.tools.lesion_features._pipeline import (
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_pipeline.py", line 16, in <module>
+    from bcblib.tools.lesion_features._preprocess import preprocess_one
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_preprocess.py", line 7, in <module>
+    import nibabel as nib
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/nibabel/__init__.py", line 41, in <module>
+    from . import analyze as ana
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/nibabel/analyze.py", line 87, in <module>
+    import numpy as np
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/__init__.py", line 112, in <module>
+    from numpy.__config__ import show_config
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/__config__.py", line 4, in <module>
+    from numpy._core._multiarray_umath import (
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/_core/__init__.py", line 24, in <module>
+    from . import multiarray
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/_core/multiarray.py", line 11, in <module>
+    from . import _multiarray_umath, overrides
+KeyboardInterrupt
+
+ERROR: task 6: stage1 process failed: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_6/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_6/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' died with <Signals.SIGINT: 2>.
+Traceback (most recent call last):
+  File "/home/etosato/Projects/NEMESIS_fs/src/pipeline/compute_sdc.py", line 137, in _run_task
+    run_stage1(chunk, staging_dir, prep_dir, config, dry_run=dry_run)
+  File "/home/etosato/Projects/NEMESIS_fs/src/sdc/runner.py", line 51, in run_stage1
+    result.check_returncode()
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/subprocess.py", line 502, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+subprocess.CalledProcessError: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_6/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_6/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' died with <Signals.SIGINT: 2>.
+ERROR: task 5: stage1 process failed: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_5/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_5/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' died with <Signals.SIGINT: 2>.
+Traceback (most recent call last):
+  File "/home/etosato/Projects/NEMESIS_fs/src/pipeline/compute_sdc.py", line 137, in _run_task
+    run_stage1(chunk, staging_dir, prep_dir, config, dry_run=dry_run)
+  File "/home/etosato/Projects/NEMESIS_fs/src/sdc/runner.py", line 51, in run_stage1
+    result.check_returncode()
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/subprocess.py", line 502, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+subprocess.CalledProcessError: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_5/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_5/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' died with <Signals.SIGINT: 2>.
+ERROR: task 7: stage1 process failed: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_7/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_7/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' died with <Signals.SIGINT: 2>.
+Traceback (most recent call last):
+  File "/home/etosato/Projects/NEMESIS_fs/src/pipeline/compute_sdc.py", line 137, in _run_task
+    run_stage1(chunk, staging_dir, prep_dir, config, dry_run=dry_run)
+  File "/home/etosato/Projects/NEMESIS_fs/src/sdc/runner.py", line 51, in run_stage1
+    result.check_returncode()
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/subprocess.py", line 502, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+subprocess.CalledProcessError: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_7/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_7/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' died with <Signals.SIGINT: 2>.
+ERROR: task 2: stage1 process failed: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_2/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_2/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' died with <Signals.SIGINT: 2>.
+Traceback (most recent call last):
+  File "/home/etosato/Projects/NEMESIS_fs/src/pipeline/compute_sdc.py", line 137, in _run_task
+    run_stage1(chunk, staging_dir, prep_dir, config, dry_run=dry_run)
+  File "/home/etosato/Projects/NEMESIS_fs/src/sdc/runner.py", line 51, in run_stage1
+    result.check_returncode()
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/subprocess.py", line 502, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+subprocess.CalledProcessError: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_2/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_2/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' died with <Signals.SIGINT: 2>.
+INFO: stage1 stdout:
+
+ERROR: stage1 stderr:
+OpenBLAS blas_thread_init: pthread_create failed for thread 1 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 2 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 3 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 4 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 5 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 6 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 7 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 8 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 9 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 10 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 11 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 12 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 13 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 14 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 15 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 16 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 17 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 18 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 19 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 20 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 21 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 22 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 23 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 24 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 25 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 26 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 27 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 28 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 29 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 30 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 31 of 32: Resource temporarily unavailable
+OpenBLAS blas_thread_init: ensure that your address space and process count limits are big enough (ulimit -a)
+OpenBLAS blas_thread_init: or set a smaller OPENBLAS_NUM_THREADS to fit into what you have available
+OpenBLAS blas_thread_init: RLIMIT_NPROC 255828 current, 255828 max
+Traceback (most recent call last):
+  File "/home/etosato/miniconda3/envs/nemesis/bin/bcb-lf-preprocess", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/scripts/run_lf_preprocess.py", line 100, in main
+    from bcblib.tools.lesion_features._bids import iter_bids_lesions, iter_flat_lesions
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/__init__.py", line 11, in <module>
+    from bcblib.tools.lesion_features._pipeline import (
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_pipeline.py", line 16, in <module>
+    from bcblib.tools.lesion_features._preprocess import preprocess_one
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_preprocess.py", line 7, in <module>
+    import nibabel as nib
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/nibabel/__init__.py", line 41, in <module>
+    from . import analyze as ana
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/nibabel/analyze.py", line 87, in <module>
+    import numpy as np
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/__init__.py", line 112, in <module>
+    from numpy.__config__ import show_config
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/__config__.py", line 4, in <module>
+    from numpy._core._multiarray_umath import (
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/_core/__init__.py", line 24, in <module>
+    from . import multiarray
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/numpy/_core/multiarray.py", line 11, in <module>
+    from . import _multiarray_umath, overrides
+KeyboardInterrupt
+
+ERROR: task 0: stage1 process failed: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_0/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_0/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' died with <Signals.SIGINT: 2>.
+Traceback (most recent call last):
+  File "/home/etosato/Projects/NEMESIS_fs/src/pipeline/compute_sdc.py", line 137, in _run_task
+    run_stage1(chunk, staging_dir, prep_dir, config, dry_run=dry_run)
+  File "/home/etosato/Projects/NEMESIS_fs/src/sdc/runner.py", line 51, in run_stage1
+    result.check_returncode()
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/subprocess.py", line 502, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+subprocess.CalledProcessError: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_0/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_0/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' died with <Signals.SIGINT: 2>.
+INFO: stage1 stdout:
+
+ERROR: stage1 stderr:
+/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/arviz/__init__.py:50: FutureWarning: 
+ArviZ is undergoing a major refactor to improve flexibility and extensibility while maintaining a user-friendly interface.
+Some upcoming changes may be backward incompatible.
+For details and migration guidance, visit: https://python.arviz.org/en/latest/user_guide/migration_guide.html
+  warn(
+Traceback (most recent call last):
+  File "/home/etosato/miniconda3/envs/nemesis/bin/bcb-lf-preprocess", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/scripts/run_lf_preprocess.py", line 100, in main
+    from bcblib.tools.lesion_features._bids import iter_bids_lesions, iter_flat_lesions
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/__init__.py", line 11, in <module>
+    from bcblib.tools.lesion_features._pipeline import (
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_pipeline.py", line 16, in <module>
+    from bcblib.tools.lesion_features._preprocess import preprocess_one
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_preprocess.py", line 11, in <module>
+    from bcblib.tools.damage_profile._space import warp_binary_mask
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/damage_profile/__init__.py", line 8, in <module>
+    from bcblib.tools.damage_profile._core import damage_profile
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/damage_profile/_core.py", line 16, in <module>
+    from bcblib.tools.damage_profile._space import check_and_resample
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/damage_profile/_space.py", line 13, in <module>
+    from bcblib.tools.best_overlap import _check_image_space
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/best_overlap.py", line 50, in <module>
+    import pymc as pm
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/pymc/__init__.py", line 50, in <module>
+    from pymc import _version, gp, math, ode, sampling
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/pymc/gp/__init__.py", line 17, in <module>
+    from pymc.gp import cov, mean, util
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/pymc/gp/cov.py", line 52, in <module>
+    from pymc.pytensorf import constant_fold
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/pymc/pytensorf.py", line 53, in <module>
+    from pymc.util import makeiter
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/pymc/util.py", line 23, in <module>
+    import arviz
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/arviz/__init__.py", line 61, in <module>
+    _warn_once_per_day()
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/arviz/__init__.py", line 58, in _warn_once_per_day
+    _atomic_write_text(stamp_file, today.isoformat())
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/arviz/__init__.py", line 36, in _atomic_write_text
+    tmp.replace(path)
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/pathlib.py", line 1188, in replace
+    os.replace(self, target)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/etosato/.cache/arviz/daily_warning.tmp' -> '/home/etosato/.cache/arviz/daily_warning'
+
+INFO: stage1 stdout:
+
+ERROR: stage1 stderr:
+/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/arviz/__init__.py:50: FutureWarning: 
+ArviZ is undergoing a major refactor to improve flexibility and extensibility while maintaining a user-friendly interface.
+Some upcoming changes may be backward incompatible.
+For details and migration guidance, visit: https://python.arviz.org/en/latest/user_guide/migration_guide.html
+  warn(
+Traceback (most recent call last):
+  File "/home/etosato/miniconda3/envs/nemesis/bin/bcb-lf-preprocess", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/scripts/run_lf_preprocess.py", line 100, in main
+    from bcblib.tools.lesion_features._bids import iter_bids_lesions, iter_flat_lesions
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/__init__.py", line 11, in <module>
+    from bcblib.tools.lesion_features._pipeline import (
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_pipeline.py", line 16, in <module>
+    from bcblib.tools.lesion_features._preprocess import preprocess_one
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_preprocess.py", line 11, in <module>
+    from bcblib.tools.damage_profile._space import warp_binary_mask
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/damage_profile/__init__.py", line 8, in <module>
+    from bcblib.tools.damage_profile._core import damage_profile
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/damage_profile/_core.py", line 16, in <module>
+    from bcblib.tools.damage_profile._space import check_and_resample
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/damage_profile/_space.py", line 13, in <module>
+    from bcblib.tools.best_overlap import _check_image_space
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/best_overlap.py", line 50, in <module>
+    import pymc as pm
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/pymc/__init__.py", line 50, in <module>
+    from pymc import _version, gp, math, ode, sampling
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/pymc/gp/__init__.py", line 17, in <module>
+    from pymc.gp import cov, mean, util
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/pymc/gp/cov.py", line 52, in <module>
+    from pymc.pytensorf import constant_fold
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/pymc/pytensorf.py", line 53, in <module>
+    from pymc.util import makeiter
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/pymc/util.py", line 23, in <module>
+    import arviz
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/arviz/__init__.py", line 61, in <module>
+    _warn_once_per_day()
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/arviz/__init__.py", line 58, in _warn_once_per_day
+    _atomic_write_text(stamp_file, today.isoformat())
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/arviz/__init__.py", line 36, in _atomic_write_text
+    tmp.replace(path)
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/pathlib.py", line 1188, in replace
+    os.replace(self, target)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/etosato/.cache/arviz/daily_warning.tmp' -> '/home/etosato/.cache/arviz/daily_warning'
+
+ERROR: task 1: stage1 process failed: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_1/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_1/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' returned non-zero exit status 1.
+Traceback (most recent call last):
+  File "/home/etosato/Projects/NEMESIS_fs/src/pipeline/compute_sdc.py", line 137, in _run_task
+    run_stage1(chunk, staging_dir, prep_dir, config, dry_run=dry_run)
+  File "/home/etosato/Projects/NEMESIS_fs/src/sdc/runner.py", line 51, in run_stage1
+    result.check_returncode()
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/subprocess.py", line 502, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+subprocess.CalledProcessError: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_1/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_1/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' returned non-zero exit status 1.
+ERROR: task 4: stage1 process failed: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_4/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_4/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' returned non-zero exit status 1.
+Traceback (most recent call last):
+  File "/home/etosato/Projects/NEMESIS_fs/src/pipeline/compute_sdc.py", line 137, in _run_task
+    run_stage1(chunk, staging_dir, prep_dir, config, dry_run=dry_run)
+  File "/home/etosato/Projects/NEMESIS_fs/src/sdc/runner.py", line 51, in run_stage1
+    result.check_returncode()
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/subprocess.py", line 502, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+subprocess.CalledProcessError: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_4/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_4/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T', '--dry-run']' returned non-zero exit status 1.
+INFO: stage1 stdout:
+Would preprocess 144 lesion(s) [BIDS mode, suffix='*_label-lesion_mask.nii.gz']:
+  sub-STUKLFR0008: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0008/anat/sub-STUKLFR0008_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0016: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0016/anat/sub-STUKLFR0016_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0024: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0024/anat/sub-STUKLFR0024_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0033: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0033/anat/sub-STUKLFR0033_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0042: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0042/anat/sub-STUKLFR0042_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0050: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0050/anat/sub-STUKLFR0050_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0059: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0059/anat/sub-STUKLFR0059_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0067: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0067/anat/sub-STUKLFR0067_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0075: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0075/anat/sub-STUKLFR0075_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0083: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0083/anat/sub-STUKLFR0083_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0091: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0091/anat/sub-STUKLFR0091_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0100: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0100/anat/sub-STUKLFR0100_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0108: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0108/anat/sub-STUKLFR0108_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0116: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0116/anat/sub-STUKLFR0116_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0124: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0124/anat/sub-STUKLFR0124_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0134: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0134/anat/sub-STUKLFR0134_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0143: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0143/anat/sub-STUKLFR0143_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0152: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0152/anat/sub-STUKLFR0152_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0161: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0161/anat/sub-STUKLFR0161_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0170: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0170/anat/sub-STUKLFR0170_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0178: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0178/anat/sub-STUKLFR0178_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0187: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0187/anat/sub-STUKLFR0187_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0195: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0195/anat/sub-STUKLFR0195_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0203: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0203/anat/sub-STUKLFR0203_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0212: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0212/anat/sub-STUKLFR0212_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0220: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0220/anat/sub-STUKLFR0220_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0228: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0228/anat/sub-STUKLFR0228_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0237: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0237/anat/sub-STUKLFR0237_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0246: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0246/anat/sub-STUKLFR0246_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0255: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0255/anat/sub-STUKLFR0255_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0263: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0263/anat/sub-STUKLFR0263_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0272: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0272/anat/sub-STUKLFR0272_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0282: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0282/anat/sub-STUKLFR0282_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0290: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0290/anat/sub-STUKLFR0290_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0298: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0298/anat/sub-STUKLFR0298_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0306: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0306/anat/sub-STUKLFR0306_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0314: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0314/anat/sub-STUKLFR0314_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0322: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0322/anat/sub-STUKLFR0322_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0330: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0330/anat/sub-STUKLFR0330_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0339: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0339/anat/sub-STUKLFR0339_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0347: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0347/anat/sub-STUKLFR0347_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0355: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0355/anat/sub-STUKLFR0355_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0363: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0363/anat/sub-STUKLFR0363_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0372: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0372/anat/sub-STUKLFR0372_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0380: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0380/anat/sub-STUKLFR0380_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0388: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0388/anat/sub-STUKLFR0388_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0397: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0397/anat/sub-STUKLFR0397_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0405: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0405/anat/sub-STUKLFR0405_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0414: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0414/anat/sub-STUKLFR0414_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0422: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0422/anat/sub-STUKLFR0422_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0432: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0432/anat/sub-STUKLFR0432_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0444: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0444/anat/sub-STUKLFR0444_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0452: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0452/anat/sub-STUKLFR0452_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0460: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0460/anat/sub-STUKLFR0460_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0469: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0469/anat/sub-STUKLFR0469_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0478: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0478/anat/sub-STUKLFR0478_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0487: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0487/anat/sub-STUKLFR0487_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0495: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0495/anat/sub-STUKLFR0495_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0503: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0503/anat/sub-STUKLFR0503_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0511: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0511/anat/sub-STUKLFR0511_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0519: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0519/anat/sub-STUKLFR0519_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0527: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0527/anat/sub-STUKLFR0527_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0536: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0536/anat/sub-STUKLFR0536_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0544: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0544/anat/sub-STUKLFR0544_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0552: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0552/anat/sub-STUKLFR0552_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0560: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0560/anat/sub-STUKLFR0560_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0568: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0568/anat/sub-STUKLFR0568_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0577: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0577/anat/sub-STUKLFR0577_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0585: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0585/anat/sub-STUKLFR0585_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0593: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0593/anat/sub-STUKLFR0593_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0602: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0602/anat/sub-STUKLFR0602_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0611: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0611/anat/sub-STUKLFR0611_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0619: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0619/anat/sub-STUKLFR0619_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0627: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0627/anat/sub-STUKLFR0627_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0635: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0635/anat/sub-STUKLFR0635_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0643: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0643/anat/sub-STUKLFR0643_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0651: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0651/anat/sub-STUKLFR0651_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0659: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0659/anat/sub-STUKLFR0659_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0667: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0667/anat/sub-STUKLFR0667_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0675: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0675/anat/sub-STUKLFR0675_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0683: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0683/anat/sub-STUKLFR0683_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0691: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0691/anat/sub-STUKLFR0691_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0699: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0699/anat/sub-STUKLFR0699_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0708: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0708/anat/sub-STUKLFR0708_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0716: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0716/anat/sub-STUKLFR0716_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0724: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0724/anat/sub-STUKLFR0724_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUKLFR0732: data/derived/sdc/s1/_work/task_3/staging/sub-STUKLFR0732/anat/sub-STUKLFR0732_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0005: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0005/anat/sub-STUNIPD0005_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0015: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0015/anat/sub-STUNIPD0015_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0025: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0025/anat/sub-STUNIPD0025_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0038: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0038/anat/sub-STUNIPD0038_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0048: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0048/anat/sub-STUNIPD0048_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0056: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0056/anat/sub-STUNIPD0056_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0066: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0066/anat/sub-STUNIPD0066_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0077: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0077/anat/sub-STUNIPD0077_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0085: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0085/anat/sub-STUNIPD0085_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0094: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0094/anat/sub-STUNIPD0094_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0104: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0104/anat/sub-STUNIPD0104_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0119: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0119/anat/sub-STUNIPD0119_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0133: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0133/anat/sub-STUNIPD0133_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0142: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0142/anat/sub-STUNIPD0142_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0150: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0150/anat/sub-STUNIPD0150_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0162: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0162/anat/sub-STUNIPD0162_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0172: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0172/anat/sub-STUNIPD0172_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0180: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0180/anat/sub-STUNIPD0180_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0189: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0189/anat/sub-STUNIPD0189_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0199: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0199/anat/sub-STUNIPD0199_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0208: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0208/anat/sub-STUNIPD0208_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0218: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0218/anat/sub-STUNIPD0218_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0226: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0226/anat/sub-STUNIPD0226_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0235: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0235/anat/sub-STUNIPD0235_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0245: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0245/anat/sub-STUNIPD0245_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0258: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0258/anat/sub-STUNIPD0258_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0267: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0267/anat/sub-STUNIPD0267_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0276: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0276/anat/sub-STUNIPD0276_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0284: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0284/anat/sub-STUNIPD0284_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0292: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0292/anat/sub-STUNIPD0292_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0304: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0304/anat/sub-STUNIPD0304_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0313: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0313/anat/sub-STUNIPD0313_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0323: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0323/anat/sub-STUNIPD0323_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0335: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0335/anat/sub-STUNIPD0335_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0346: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0346/anat/sub-STUNIPD0346_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0358: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0358/anat/sub-STUNIPD0358_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0372: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0372/anat/sub-STUNIPD0372_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0383: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0383/anat/sub-STUNIPD0383_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0392: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0392/anat/sub-STUNIPD0392_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0401: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0401/anat/sub-STUNIPD0401_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0414: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0414/anat/sub-STUNIPD0414_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0424: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0424/anat/sub-STUNIPD0424_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0438: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0438/anat/sub-STUNIPD0438_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0451: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0451/anat/sub-STUNIPD0451_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0472: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0472/anat/sub-STUNIPD0472_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0486: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0486/anat/sub-STUNIPD0486_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0490: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0490/anat/sub-STUNIPD0490_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0498: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0498/anat/sub-STUNIPD0498_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0506: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0506/anat/sub-STUNIPD0506_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0514: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0514/anat/sub-STUNIPD0514_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0522: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0522/anat/sub-STUNIPD0522_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0530: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0530/anat/sub-STUNIPD0530_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0538: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0538/anat/sub-STUNIPD0538_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0551: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0551/anat/sub-STUNIPD0551_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0561: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0561/anat/sub-STUNIPD0561_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0573: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0573/anat/sub-STUNIPD0573_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+  sub-STUNIPD0584: data/derived/sdc/s1/_work/task_3/staging/sub-STUNIPD0584/anat/sub-STUNIPD0584_space-MNI152NLin6Asym_label-lesion_mask.nii.gz
+
+INFO: task 3: dry-run complete for 144 subject(s), stage2 not invoked

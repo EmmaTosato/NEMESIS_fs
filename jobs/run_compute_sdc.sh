@@ -6,25 +6,30 @@
 #SBATCH -t 04:00:00
 #SBATCH -o /home/etosato/Projects/NEMESIS_fs/logs/slurm/compute_sdc/%A_%a.out
 #SBATCH -e /home/etosato/Projects/NEMESIS_fs/logs/slurm/compute_sdc/%A_%a.err
-# --array must be set at submission time, e.g. for 1150 subjects, at most 10
-# running concurrently (the rest queue as pending until a slot frees up):
-#SBATCH --array=0-1149%10
+# --array must be set at submission time. For 1150 subjects we'd want one
+# task per subject (0-1149), but the cluster's MaxArraySize=1001 (see
+# `scontrol show config | grep MaxArraySize`) rejects that outright - so
+# this is chunked to 575 tasks x 2 subjects/task instead (stride slice,
+# still complete/disjoint coverage - see docs/guides/compute_sdc.md), at
+# most 3 running concurrently (the rest queue as pending until a slot frees
+# up):
+#SBATCH --array=0-574%3
 
-# Step 2/3 of the compute_sdc pipeline: one array task per subject (this
-# array size, N tasks => N subjects, keeps the mapping trivial - see
-# docs/guides/compute_sdc.md for chunking multiple subjects per task if the
-# manifest grows large enough that per-subject array tasks become
-# impractical for the scheduler). Requires manifest.csv to already exist
-# (jobs/run_compute_sdc_manifest.sh must have completed first) and
-# --cpus-per-task here must equal cores_per_subject in the config (see
-# compute_sdc.json) - the two are the same number by construction, since
-# each task processes exactly one subject.
+# Step 2/3 of the compute_sdc pipeline: one array task per ~2 subjects
+# (chunked from the ideal 1-subject-per-task mapping - see comment on
+# --array above - because the cluster's MaxArraySize rejects a 1150-task
+# array). Requires manifest.csv to already exist (jobs/run_compute_sdc_manifest.sh
+# must have completed first) and --cpus-per-task here must equal
+# cores_per_subject in the config (compute_sdc.json) - bcb-lf-preprocess/
+# bcb-lesion-features share that core budget across every subject in a
+# task's staging folder, not per-subject.
 #
-# The %10 throttle caps concurrently RUNNING tasks at 10 - the remaining
-# 1140 sit PENDING in the queue and SLURM starts each one as a running slot
-# frees up, so cores_per_subject x 10 (not x 1150) is what's actually
-# consumed from the `brains` partition at any given moment. Adjust the %N to
-# whatever the partition can spare alongside other lab jobs.
+# The %3 throttle caps concurrently RUNNING tasks at 3 - the remaining 572
+# sit PENDING in the queue and SLURM starts each one as a running slot frees
+# up, so cores_per_subject x 3 (not x 575) is what's actually consumed from
+# the `brains` partition at any given moment. Capped at 3 to stay within
+# this user's max-concurrent-jobs quota on the cluster - do not raise
+# without checking that quota first.
 
 set -euo pipefail
 

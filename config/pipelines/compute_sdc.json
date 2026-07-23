@@ -4,12 +4,12 @@
   "datasets": ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"],
   "group_filter": ["ST"],
   "bcbtoolkit_path": "/data/etosato/tools/BCBToolKit",
-  "tracks_dir": null,
+  "tracks_dir": "/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T",
   "cores_per_subject": 4,
   "stage2_ebrains": true,
   "stage2_presets": [],
   "output_root": "data/derived/sdc",
   "session_name": "s1",
   "overwrite": false,
-  "run_notes": "tracks_dir=null usa l'atlante trattografie bundled in BCBToolKit (10 soggetti, parziale - vedi INSTALL_LOG.md #9.1); da aggiornare quando il download dell'atlante completo (180 soggetti 1mm) e' pronto."
+  "run_notes": "tracks_dir aggiornato al 23/07/26 all'atlante completo (178 soggetti, HCP 7T, 1mm) estratto da tracks7T.zip in /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T (integrita' zip verificata con unzip -t, nessun errore CRC su 181 file testati)."
 }
