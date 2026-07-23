@@ -10,7 +10,7 @@ Questa pipeline calcola la **SDC (Structural Disconnectome)** per ogni soggetto 
 `bcb-lf-preprocess`/`bcb-lesion-features` non hanno un flag per processare un singolo soggetto — operano su un'intera cartella. Per parallelizzare per soggetto, ogni invocazione di `compute_sdc.py --mode run` costruisce quindi una cartella di staging che contiene **solo i soggetti assegnati a quel task**, e ci lancia sopra i due tool. Questo richiede tre fasi separate, eseguite in sequenza (anche a distanza di giorni, per via della coda SLURM):
 
 1. **`--mode manifest`** — scopre tutti i soggetti una sola volta (stessa logica di `retrieve_data.py`, via `Dataset`/`file_patterns`), scrive `manifest.csv` (ordine fisso). I soggetti esclusi (lesion mask assente, ambigua, o `subject_id` duplicato tra dataset diversi) vanno in `manifest_excluded.json` con il motivo — mai scartati in silenzio.
-2. **`--mode run --task-id I --task-count N`** — l'unità di parallelismo. Prende `manifest.csv`, seleziona i soggetti `I::N` (stride slice — copertura completa e disgiunta per qualunque N), costruisce lo staging BIDS via symlink, lancia Stage 1, **verifica** l'output (shape NIfTI attesa 182×218×182, non solo "il file esiste"), e solo per i soggetti che passano lancia Stage 2. Ogni soggetto ottiene uno stato scritto in `_status/<subject_id>.json` (`ok`, `failed_stage1_process`, `failed_stage1_check`, `failed_stage2_process`, `dry_run`).
+2. **`--mode run --task-id I --task-count N`** — l'unità di parallelismo. Prende `manifest.csv`, seleziona i soggetti `I::N` (stride slice — copertura completa e disgiunta per qualunque N), **ricampiona** (nearest-neighbour) ogni lesion mask non già sulla griglia canonica MNI152NLin6Asym 1mm (`182×218×182`) - necessario perché `bcb-lf-preprocess` (bcblib) rileva la risoluzione sorgente da una whitelist fissa di shape 1mm/2mm e crasha su qualunque altra, anche se il suo resampling interno sarebbe generico (vedi `docs/debugging/debug_23_07_26.md`, `.claude/lessons_learned.md` #13) - costruisce lo staging BIDS via symlink, lancia Stage 1, **verifica** l'output (shape NIfTI attesa 182×218×182, non solo "il file esiste"), e solo per i soggetti che passano lancia Stage 2. Ogni soggetto ottiene uno stato scritto in `_status/<subject_id>.json` (`ok`, `failed_resample`, `failed_stage1_process`, `failed_stage1_check`, `failed_stage2_process`, `dry_run`).
 3. **`--mode aggregate`** — unico passo finale: legge tutti gli `_status/*.json`, fa il merge (symlink) degli output dei soggetti `ok` in `<output_dir>/{prep,features}/`, scrive `config.md`/`manifest.json` e una riga in `data/derived/sdc/runs.csv`.
 
 Un fallimento per singolo soggetto (Stage 1 non converge, check fallito, Stage 2 crash su quel soggetto) **non ferma gli altri** — è tracciato nello status e basta. Un fallimento strutturale (config sbagliata, `bcbtoolkit_path` inesistente, il processo Stage 1/2 crasha per l'intero task) fa fallire il task con exit code ≠ 0.
@@ -22,7 +22,7 @@ data/derived/sdc/<session_name>/
 ├── manifest.csv                 # subject_id, dataset, lesion_mask_path
 ├── manifest_excluded.json       # subject_id -> perché escluso
 ├── _status/<subject_id>.json    # esito per soggetto
-├── _work/task_<I>/{staging,prep,validated_prep,features}/  # scratch per task, non pulito automaticamente
+├── _work/task_<I>/{resampled,staging,prep,validated_prep,features}/  # scratch per task, non pulito automaticamente
 ├── prep/<subject_id>/           # simlink all'output Stage 1 verificato
 ├── features/<subject_id>/       # simlink all'output Stage 2
 ├── manifest.json                # conteggi per stato
@@ -80,7 +80,7 @@ Applicabile solo a `--mode run`. Passa `--dry-run` a `bcb-lf-preprocess` (che st
 | `file_patterns` | Path al registry `file_patterns_{local,server}.json` (stesso usato da `retrieval.json`) |
 | `datasets` | Coorti da includere |
 | `group_filter` | Lista gruppi (`["ST"]`) o `null` |
-| `bcbtoolkit_path` | Path a BCBToolKit (deve contenere `run_disco.sh`, validato al load) |
+| `bcbtoolkit_path` | Path a BCBToolKit (deve contenere `run_disco.sh` e `Tools/extraFiles/MNI152.nii.gz`, entrambi validati al load - il secondo è il target del pre-resampling delle lesion mask, vedi sopra) |
 | `tracks_dir` | Atlante trattografie custom, o `null` per usare quello bundled in BCBToolKit |
 | `cores_per_subject` | Core per soggetto (`--ncores` di `bcb-lf-preprocess`) — deve combaciare con `--cpus-per-task` dell'array SLURM o essere usato per calcolare il pool locale |
 | `stage2_ebrains` | `true` per usare tutti e 14 gli atlanti EBRAINS di default in Stage 2 |
