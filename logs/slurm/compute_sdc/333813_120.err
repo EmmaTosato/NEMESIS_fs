@@ -1,0 +1,34 @@
+INFO: stage1: 2 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_120/staging --output-dir data/derived/sdc/s1/_work/task_120/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T
+INFO: stage1 stdout:
+Preprocessing lesions [BIDS mode] → data/derived/sdc/s1/_work/task_120/prep
+  [1/2] sub-STUKLFR0259 ...
+ERROR: stage1 stderr:
+Traceback (most recent call last):
+  File "/home/etosato/miniconda3/envs/nemesis/bin/bcb-lf-preprocess", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/scripts/run_lf_preprocess.py", line 119, in main
+    results = preprocess_batch(
+              ^^^^^^^^^^^^^^^^^
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_pipeline.py", line 128, in preprocess_batch
+    out_path = preprocess_one(lesion_path, prep_dir, sub_id, ses_id)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_preprocess.py", line 190, in preprocess_one
+    norm = normalise_lesion_to_mni6(img, space, res)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_preprocess.py", line 106, in normalise_lesion_to_mni6
+    source_res = detect_resolution_from_shape(img)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/site-packages/bcblib/tools/lesion_features/_preprocess.py", line 69, in detect_resolution_from_shape
+    raise ValueError(
+ValueError: Unrecognised image shape (121, 145, 121); cannot determine resolution.
+
+ERROR: task 120: stage1 process failed: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_120/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_120/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T']' returned non-zero exit status 1.
+Traceback (most recent call last):
+  File "/home/etosato/Projects/NEMESIS_fs/src/pipeline/compute_sdc.py", line 137, in _run_task
+    run_stage1(chunk, staging_dir, prep_dir, config, dry_run=dry_run)
+  File "/home/etosato/Projects/NEMESIS_fs/src/sdc/runner.py", line 51, in run_stage1
+    result.check_returncode()
+  File "/home/etosato/miniconda3/envs/nemesis/lib/python3.11/subprocess.py", line 502, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+subprocess.CalledProcessError: Command '['bcb-lf-preprocess', '--bids-dir', 'data/derived/sdc/s1/_work/task_120/staging', '--output-dir', 'data/derived/sdc/s1/_work/task_120/prep', '--bcbtoolkit', '/data/etosato/tools/BCBToolKit', '--ncores', '4', '--skip-existing', '--tracks-dir', '/data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T']' returned non-zero exit status 1.

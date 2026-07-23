@@ -28,6 +28,9 @@ def _write_bcbtoolkit(tmp_path):
     bcb_dir = tmp_path / "BCBToolKit"
     bcb_dir.mkdir()
     (bcb_dir / "run_disco.sh").touch()
+    mni152_dir = bcb_dir / "Tools" / "extraFiles"
+    mni152_dir.mkdir(parents=True)
+    (mni152_dir / "MNI152.nii.gz").touch()
     return bcb_dir
 
 
@@ -62,6 +65,7 @@ def test_valid_config(tmp_path):
     assert config.cores_per_subject == 4
     assert config.stage2_ebrains is True
     assert config.tracks_dir is None
+    assert config.mni152_reference_path.is_file()
     assert config.file_patterns.has(*_LESION_LEAF)
 
 
@@ -80,6 +84,14 @@ def test_bcbtoolkit_path_without_run_disco_raises(tmp_path):
 def test_tracks_dir_must_exist(tmp_path):
     with pytest.raises(ValueError, match="tracks_dir"):
         load_sdc_config(_write(tmp_path, {"tracks_dir": str(tmp_path / "nope")}))
+
+
+def test_bcbtoolkit_path_without_mni152_reference_raises(tmp_path):
+    bcb_dir = tmp_path / "BCBToolKitNoReference"
+    bcb_dir.mkdir()
+    (bcb_dir / "run_disco.sh").touch()
+    with pytest.raises(ValueError, match="Tools/extraFiles/MNI152.nii.gz"):
+        load_sdc_config(_write(tmp_path, {"bcbtoolkit_path": str(bcb_dir)}))
 
 
 @pytest.mark.parametrize(

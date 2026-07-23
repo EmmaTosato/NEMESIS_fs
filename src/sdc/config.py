@@ -17,6 +17,11 @@ from src.retrieval.config import KNOWN_GROUPS, FilePatterns, RetrieveItem, load_
 
 LESION_ITEM = RetrieveItem(object="lesion", pipeline="manual_masks", datatype="anat", suffix="lesion_mask")
 
+# Same MNI152 1mm grid run_disco.sh itself resamples onto internally (hardcoded
+# as its own `-ref`, see run_disco.sh) - used as the resample target for lesion
+# masks that arrive on a non-canonical grid, see src/sdc/resample.py.
+_MNI152_REFERENCE_RELPATH = Path("Tools/extraFiles/MNI152.nii.gz")
+
 
 @dataclass(frozen=True)
 class SDCConfig:
@@ -26,6 +31,7 @@ class SDCConfig:
     datasets: list[str]
     group_filter: list[str] | None
     bcbtoolkit_path: Path
+    mni152_reference_path: Path
     tracks_dir: Path | None
     cores_per_subject: int
     stage2_ebrains: bool
@@ -64,6 +70,12 @@ def load_sdc_config(path: str | Path) -> SDCConfig:
     bcbtoolkit_path = Path(_require_str(raw, "bcbtoolkit_path"))
     if not (bcbtoolkit_path / "run_disco.sh").is_file():
         raise ValueError(f"config: bcbtoolkit_path {bcbtoolkit_path} does not contain run_disco.sh")
+    mni152_reference_path = bcbtoolkit_path / _MNI152_REFERENCE_RELPATH
+    if not mni152_reference_path.is_file():
+        raise ValueError(
+            f"config: bcbtoolkit_path {bcbtoolkit_path} does not contain "
+            f"{_MNI152_REFERENCE_RELPATH} - needed as the lesion-mask resample target"
+        )
 
     return SDCConfig(
         project=_require_str(raw, "project"),
@@ -72,6 +84,7 @@ def load_sdc_config(path: str | Path) -> SDCConfig:
         datasets=_require_unique_str_list(raw, "datasets"),
         group_filter=_optional_group_filter(raw),
         bcbtoolkit_path=bcbtoolkit_path,
+        mni152_reference_path=mni152_reference_path,
         tracks_dir=_optional_existing_dir(raw, "tracks_dir"),
         cores_per_subject=_require_positive_int(raw, "cores_per_subject"),
         stage2_ebrains=_require_bool(raw, "stage2_ebrains"),

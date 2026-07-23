@@ -11,7 +11,14 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-KNOWN_STATUSES = ("ok", "failed_stage1_process", "failed_stage1_check", "failed_stage2_process", "dry_run")
+KNOWN_STATUSES = (
+    "ok",
+    "failed_resample",
+    "failed_stage1_process",
+    "failed_stage1_check",
+    "failed_stage2_process",
+    "dry_run",
+)
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,2 @@
+INFO: stage1: 2 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_255/staging --output-dir data/derived/sdc/s1/_work/task_255/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T
+slurmstepd-brain02: error: *** JOB 334188 ON brain02 CANCELLED AT 2026-07-23T17:19:18 ***

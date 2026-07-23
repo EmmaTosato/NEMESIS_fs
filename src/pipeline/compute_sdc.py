@@ -33,8 +33,11 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+import nibabel as nib
+
 from src.sdc.config import SDCConfig, load_sdc_config
 from src.sdc.manifest import ManifestRow, build_manifest, read_manifest, select_chunk, write_manifest
+from src.sdc.resample import resample_nonconforming_rows
 from src.sdc.runner import check_stage1_outputs, run_stage1, run_stage2, stage_validated_prep
 from src.sdc.staging import stage_subjects
 from src.sdc.status import SubjectStatus, read_all_statuses, write_status
@@ -126,11 +129,24 @@ def _run_task(config: SDCConfig, output_dir: Path, task_id: int, task_count: int
         return 0
 
     task_dir = output_dir / "_work" / f"task_{task_id}"
+    resampled_dir = task_dir / "resampled"
     staging_dir = task_dir / "staging"
     prep_dir = task_dir / "prep"
     validated_dir = task_dir / "validated_prep"
     features_dir = task_dir / "features"
     status_dir = output_dir / "_status"
+
+    try:
+        reference_img = nib.load(config.mni152_reference_path)
+        chunk, failed_resample = resample_nonconforming_rows(chunk, reference_img, resampled_dir)
+    except OSError as exc:
+        logging.error("task %d: loading resample reference failed structurally: %s", task_id, exc, exc_info=True)
+        return 1
+    for subject_id, reason in failed_resample.items():
+        write_status(status_dir, SubjectStatus(subject_id, task_id, "failed_resample", reason))
+    if not chunk:
+        logging.warning("task %d: no subject survived resampling, stage1 skipped", task_id)
+        return 0
 
     try:
         stage_subjects(chunk, staging_dir)
