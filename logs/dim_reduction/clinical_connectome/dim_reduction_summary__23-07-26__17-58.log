@@ -1,0 +1,23 @@
+INFO: Starting fine-tuning sweep for pca (20 combinations)
+INFO: Evaluating combination 1/20: {'n_components': 2}
+INFO: Evaluating combination 2/20: {'n_components': 5}
+INFO: Evaluating combination 3/20: {'n_components': 10}
+INFO: Evaluating combination 4/20: {'n_components': 15}
+INFO: Evaluating combination 5/20: {'n_components': 20}
+INFO: Evaluating combination 6/20: {'n_components': 25}
+INFO: Evaluating combination 7/20: {'n_components': 30}
+INFO: Evaluating combination 8/20: {'n_components': 32}
+INFO: Evaluating combination 9/20: {'n_components': 34}
+INFO: Evaluating combination 10/20: {'n_components': 36}
+INFO: Evaluating combination 11/20: {'n_components': 38}
+INFO: Evaluating combination 12/20: {'n_components': 40}
+INFO: Evaluating combination 13/20: {'n_components': 42}
+INFO: Evaluating combination 14/20: {'n_components': 44}
+INFO: Evaluating combination 15/20: {'n_components': 46}
+INFO: Evaluating combination 16/20: {'n_components': 48}
+INFO: Evaluating combination 17/20: {'n_components': 50}
+INFO: Evaluating combination 18/20: {'n_components': 75}
+INFO: Evaluating combination 19/20: {'n_components': 100}
+INFO: Evaluating combination 20/20: {'n_components': 150}
+INFO: tuning results written to results/lesion/dim_reduction/pca/tuning/23-07_s1.1_pca_tune (20 combinations evaluated)
+INFO: done - tuning results written to results/lesion/dim_reduction/pca/tuning/23-07_s1.1_pca_tune, log written to logs/dim_reduction/clinical_connectome/dim_reduction_summary__23-07-26__17-58.log

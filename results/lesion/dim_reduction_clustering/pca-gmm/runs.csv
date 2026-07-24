@@ -1,0 +1,2 @@
+run_id,timestamp,run_type,params,output,notes
+s1.1_c150_n_comp4,23-07-26 20:11,production,"{""reduction_params"": {""n_components"": 150, ""random_state"": 0}, ""clustering_params"": {""n_components"": 4, ""random_state"": 0}}",results/lesion/dim_reduction_clustering/pca-gmm/23-07_s1.1_c150_n_comp4,"pca (n_components=150) + all 5 clustering methods, voxel-wise matrix"

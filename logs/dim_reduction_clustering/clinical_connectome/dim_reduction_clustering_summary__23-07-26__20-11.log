@@ -1,0 +1,22 @@
+INFO: [kmeans] embedding+clusters written to results/lesion/dim_reduction_clustering/pca-kmeans/23-07_s1.1_c150_k4 (shape (1150, 150))
+INFO: [kmeans] cluster plot written to results/lesion/dim_reduction_clustering/pca-kmeans/23-07_s1.1_c150_k4/cluster_plot.png
+INFO: [kmeans] interactive cluster plot written to results/lesion/dim_reduction_clustering/pca-kmeans/23-07_s1.1_c150_k4/cluster_plot_interactive.html
+INFO: [kmeans] done - output written to results/lesion/dim_reduction_clustering/pca-kmeans/23-07_s1.1_c150_k4, report written to reports/dim_reduction_clustering/clinical_connectome/dim_reduction_clustering_summary__kmeans__23-07-26__20-11.md
+INFO: [agglomerative] embedding+clusters written to results/lesion/dim_reduction_clustering/pca-agglomerative/23-07_s1.1_c150_n_clust4 (shape (1150, 150))
+INFO: [agglomerative] cluster plot written to results/lesion/dim_reduction_clustering/pca-agglomerative/23-07_s1.1_c150_n_clust4/cluster_plot.png
+INFO: [agglomerative] interactive cluster plot written to results/lesion/dim_reduction_clustering/pca-agglomerative/23-07_s1.1_c150_n_clust4/cluster_plot_interactive.html
+INFO: [agglomerative] done - output written to results/lesion/dim_reduction_clustering/pca-agglomerative/23-07_s1.1_c150_n_clust4, report written to reports/dim_reduction_clustering/clinical_connectome/dim_reduction_clustering_summary__agglomerative__23-07-26__20-11.md
+INFO: [gmm] embedding+clusters written to results/lesion/dim_reduction_clustering/pca-gmm/23-07_s1.1_c150_n_comp4 (shape (1150, 150))
+INFO: [gmm] cluster plot written to results/lesion/dim_reduction_clustering/pca-gmm/23-07_s1.1_c150_n_comp4/cluster_plot.png
+INFO: [gmm] interactive cluster plot written to results/lesion/dim_reduction_clustering/pca-gmm/23-07_s1.1_c150_n_comp4/cluster_plot_interactive.html
+INFO: [gmm] done - output written to results/lesion/dim_reduction_clustering/pca-gmm/23-07_s1.1_c150_n_comp4, report written to reports/dim_reduction_clustering/clinical_connectome/dim_reduction_clustering_summary__gmm__23-07-26__20-11.md
+INFO: [dbscan] embedding+clusters written to results/lesion/dim_reduction_clustering/pca-dbscan/23-07_s1.1_c150_e05 (shape (1150, 150))
+INFO: [dbscan] cluster plot written to results/lesion/dim_reduction_clustering/pca-dbscan/23-07_s1.1_c150_e05/cluster_plot.png
+INFO: [dbscan] interactive cluster plot written to results/lesion/dim_reduction_clustering/pca-dbscan/23-07_s1.1_c150_e05/cluster_plot_interactive.html
+INFO: [dbscan] done - output written to results/lesion/dim_reduction_clustering/pca-dbscan/23-07_s1.1_c150_e05, report written to reports/dim_reduction_clustering/clinical_connectome/dim_reduction_clustering_summary__dbscan__23-07-26__20-11.md
+INFO: [spectral] embedding+clusters written to results/lesion/dim_reduction_clustering/pca-spectral/23-07_s1.1_c150_n_clust4 (shape (1150, 150))
+INFO: [spectral] cluster plot written to results/lesion/dim_reduction_clustering/pca-spectral/23-07_s1.1_c150_n_clust4/cluster_plot.png
+INFO: [spectral] interactive cluster plot written to results/lesion/dim_reduction_clustering/pca-spectral/23-07_s1.1_c150_n_clust4/cluster_plot_interactive.html
+INFO: [spectral] done - output written to results/lesion/dim_reduction_clustering/pca-spectral/23-07_s1.1_c150_n_clust4, report written to reports/dim_reduction_clustering/clinical_connectome/dim_reduction_clustering_summary__spectral__23-07-26__20-11.md
+INFO: comparison plot written to results/lesion/dim_reduction_clustering/comparison/23-07_s1.1_c150/cluster_comparison.png
+INFO: done - all 5 method(s) written under results/lesion/dim_reduction_clustering, log written to logs/dim_reduction_clustering/clinical_connectome/dim_reduction_clustering_summary__23-07-26__20-11.log

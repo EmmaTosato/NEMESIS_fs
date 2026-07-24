@@ -1,10 +1,10 @@
 {
   "project": "clinical_connectome",
-  "input_path": "results/lesion/dim_reduction/umap/21-07_s1.1_d01",
-  "clustering_methods": ["kmeans", "agglomerative", "gmm"],
+  "input_path": "data/derived/lesion_matrix/21-07_s1.1",
+  "clustering_methods": ["kmeans", "agglomerative", "dbscan", "spectral"],
   "params_file": "config/registry/params_clustering.json",
   "output_root": "results/lesion/clustering",
-  "session_name": "umap_s1",
+  "session_name": "s1.1_raw",
   "overwrite": true,
-  "run_notes": "Clustering on the UMAP embedding of the voxel-wise matrix"
+  "run_notes": "Clustering directly on the raw voxel-wise lesion matrix (21-07_s1.1), no dimensionality reduction, all 5 methods for comparison"
 }
