@@ -20,8 +20,8 @@
     "params": { "eps": 0.5, "min_samples": 5 }
   },
   "spectral": {
-    "tag_param": "n_clusters",
-    "tag_prefix": "n_clust",
-    "params": { "n_clusters": 4, "affinity": "nearest_neighbors", "random_state": 0 }
+    "tag_param": "n_neighbors",
+    "tag_prefix": "nn",
+    "params": { "n_clusters": 4, "affinity": "nearest_neighbors", "n_neighbors": 20, "random_state": 0 }
   }
 }
