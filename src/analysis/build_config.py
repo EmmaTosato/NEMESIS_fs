@@ -145,6 +145,97 @@ def _validate_resample_interpolation(value: str) -> str:
     return value
 
 
+@dataclass(frozen=True)
+class MaskFcConfig:
+    project: str
+    data_root: Path
+    dataset: str
+    atlas_root: Path
+    atlas_combos: list[str]
+    lesion_glob: str
+    fc_glob_template: str
+    min_coverage: float
+    resample_interpolation: str
+    binarize_threshold: float
+    output_root: Path
+    session_name: str
+    overwrite: bool
+    run_notes: str | None
+
+
+def load_mask_fc_config(path: str | Path) -> MaskFcConfig:
+    """Load and validate a mask_fc.json file.
+
+    Deliberately decoupled from build_fc_matrix.json (own config, own loader,
+    own dataclass) - the two pipelines are independent: this one turns raw
+    lesion masks + raw FC matrices into NaN-masked per-subject matrices,
+    nothing else reads a lesion mask or an atlas past this point.
+    """
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"config file not found: {path}")
+
+    with path.open() as f:
+        raw = json.load(f)
+    if not isinstance(raw, dict):
+        raise ValueError(f"config: top-level content must be a JSON object, got {raw!r}")
+
+    return MaskFcConfig(
+        project=_require_str(raw, "project"),
+        data_root=Path(_require_str(raw, "data_root")),
+        dataset=_require_str(raw, "dataset"),
+        atlas_root=Path(_require_str(raw, "atlas_root")),
+        atlas_combos=_require_unique_str_list(raw, "atlas_combos"),
+        lesion_glob=_require_str(raw, "lesion_glob"),
+        fc_glob_template=_require_str(raw, "fc_glob_template"),
+        min_coverage=_require_float_in_range(raw, "min_coverage", 0.0, 1.0),
+        resample_interpolation=_validate_resample_interpolation(_require_str(raw, "resample_interpolation")),
+        binarize_threshold=_require_float_in_range(raw, "binarize_threshold", 0.0, 1.0),
+        output_root=Path(_require_str(raw, "output_root")),
+        session_name=_require_str(raw, "session_name"),
+        overwrite=_require_bool(raw, "overwrite"),
+        run_notes=_optional_str(raw, "run_notes"),
+    )
+
+
+@dataclass(frozen=True)
+class BuildFcMatrixConfig:
+    project: str
+    masked_fc_root: Path
+    atlas_combos: list[str]
+    output_root: Path
+    session_name: str
+    overwrite: bool
+    run_notes: str | None
+
+
+def load_build_fc_matrix_config(path: str | Path) -> BuildFcMatrixConfig:
+    """Load and validate a build_fc_matrix.json file.
+
+    No lesion_glob, no atlas_path, no min_coverage here - this pipeline reads
+    only the already-masked CSVs mask_fc.py already wrote (masked_fc_root),
+    by design (see src/features/functional.py module docstring).
+    """
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"config file not found: {path}")
+
+    with path.open() as f:
+        raw = json.load(f)
+    if not isinstance(raw, dict):
+        raise ValueError(f"config: top-level content must be a JSON object, got {raw!r}")
+
+    return BuildFcMatrixConfig(
+        project=_require_str(raw, "project"),
+        masked_fc_root=Path(_require_str(raw, "masked_fc_root")),
+        atlas_combos=_require_unique_str_list(raw, "atlas_combos"),
+        output_root=Path(_require_str(raw, "output_root")),
+        session_name=_require_str(raw, "session_name"),
+        overwrite=_require_bool(raw, "overwrite"),
+        run_notes=_optional_str(raw, "run_notes"),
+    )
+
+
 def _validate_parcellation_fields(raw: dict, parcellate: bool) -> tuple[Path | None, str | None, bool]:
     atlas_path_str = _optional_str(raw, "atlas_path")
     parcel_aggregation = _optional_str(raw, "parcel_aggregation")
