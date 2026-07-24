@@ -205,9 +205,16 @@ def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
             continue
         task_dir = output_dir / "_work" / f"task_{status.task_id}"
         try:
-            # task_dir/prep/<subject> already holds both Stage 1 (NIfTI) and
-            # Stage 2 (CSV/TSV) output together - see run_stage2's docstring
-            _link_subject(task_dir / "prep" / status.subject_id, output_dir / status.subject_id)
+            # task_dir/prep/<subject>/lesion already holds both Stage 1 (NIfTI)
+            # and Stage 2 (CSV/TSV) output together - see run_stage2's
+            # docstring. Linking straight to the "lesion" subfolder (bcblib's
+            # own LF_SUBDIR constant - not a real BIDS datatype, just this
+            # tool's naming) instead of the subject folder itself flattens the
+            # final output to output_dir/<subject>/* directly. Assumes no
+            # session-level nesting (bcblib inserts ses-<id>/ between sub-<id>
+            # and lesion/ otherwise) - true here since staging.py never
+            # creates ses-* folders.
+            _link_subject(task_dir / "prep" / status.subject_id / "lesion", output_dir / status.subject_id)
         except OSError as exc:
             logging.error("aggregate: cannot merge %s: %s", status.subject_id, exc, exc_info=True)
             return 1
