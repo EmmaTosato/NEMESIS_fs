@@ -37,18 +37,20 @@ import plotly.graph_objects as go
 import seaborn as sns
 from scipy.cluster.hierarchy import dendrogram
 
-# Validated categorical palette (8 hues, CVD-safe in fixed order) - see
-# .claude/skills or the dataviz skill's references/palette.md. Colors cycle
-# past 8 clusters (an inherent limit of a validated-safe set, not a bug).
+# Pink/azzurro/green categorical palette (5 tones, user-requested hue
+# families) - CVD-safe on EVERY pairwise combination (not just neighbors,
+# relevant since scatter points from different clusters sit next to each
+# other anywhere on the plot, not just adjacent in a legend), verified with
+# a Python port of the dataviz skill's validate_palette.js (same OKLab/
+# Machado-CVD math, same thresholds - worst all-pairs CVD dE 8.6, worst
+# normal-vision dE 18.3, both clear of the 8.0/15.0 gates). Colors cycle
+# past 5 clusters (an inherent limit of a validated-safe set, not a bug).
 _CATEGORICAL_PALETTE = [
-    "#2a78d6",  # blue
-    "#eb6834",  # orange
-    "#1baf7a",  # aqua
-    "#eda100",  # yellow
-    "#e87ba4",  # magenta
+    "#e87ba4",  # pink
+    "#3aa9e0",  # azzurro (sky blue)
     "#008300",  # green
-    "#4a3aa7",  # violet
-    "#e34948",  # red
+    "#b03d68",  # pink (deep rose)
+    "#1a6bab",  # azzurro (navy)
 ]
 # Fixed neutral gray for the DBSCAN/OPTICS noise label -1, kept out of the
 # categorical set so it never impersonates a real cluster.
