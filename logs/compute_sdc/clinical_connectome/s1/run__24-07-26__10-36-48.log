@@ -1,0 +1,7 @@
+ERROR: task 0: staging/stage1 failed structurally: staging_dir is not empty, refusing to reuse it: data/derived/sdc/s1/_work/task_0/staging
+Traceback (most recent call last):
+  File "/home/etosato/Projects/NEMESIS_fs/src/pipeline/compute_sdc.py", line 152, in _run_task
+    stage_subjects(chunk, staging_dir)
+  File "/home/etosato/Projects/NEMESIS_fs/src/sdc/staging.py", line 26, in stage_subjects
+    raise FileExistsError(f"staging_dir is not empty, refusing to reuse it: {staging_dir}")
+FileExistsError: staging_dir is not empty, refusing to reuse it: data/derived/sdc/s1/_work/task_0/staging

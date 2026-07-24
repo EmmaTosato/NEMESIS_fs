@@ -98,15 +98,26 @@ def stage_validated_prep(passed: list[ManifestRow], prep_dir: Path, validated_pr
         (validated_prep_dir / row.subject_id).symlink_to((prep_dir / row.subject_id).resolve())
 
 
-def run_stage2(validated_prep_dir: Path, features_dir: Path, config: SDCConfig, *, dry_run: bool) -> None:
-    """Runs bcb-lesion-features over validated_prep_dir. bcb-lesion-features
-    has no --dry-run flag (unlike bcb-lf-preprocess) - dry_run=True here
-    means the command is logged and never executed, instead of relying on
-    the tool itself to no-op."""
+def run_stage2(validated_prep_dir: Path, config: SDCConfig, *, dry_run: bool) -> None:
+    """Runs bcb-lesion-features over validated_prep_dir, writing its output
+    (per-atlas overlap CSVs, mapstats TSVs) into that same directory rather
+    than a separate features_dir - bcb-lesion-features only ever reads
+    Stage 1's existing lesion/disconnectome NIfTIs and writes new files
+    alongside them (bcblib.tools.lesion_features._pipeline._process_anat: no
+    read-modify-write, no directory deletion), so this merges Stage 1 and
+    Stage 2 output into one lesion/ folder per subject for free - each
+    subject ends up on one physical grid, not split across prep/ and
+    features/ trees (validated_prep_dir/<subject> is itself a symlink into
+    prep_dir/<subject>, see stage_validated_prep, so writes here land in the
+    same place Stage 1 already wrote to).
+
+    bcb-lesion-features has no --dry-run flag (unlike bcb-lf-preprocess) -
+    dry_run=True here means the command is logged and never executed,
+    instead of relying on the tool itself to no-op."""
     command = [
         "bcb-lesion-features",
         "--prep-dir", str(validated_prep_dir),
-        "--output-dir", str(features_dir),
+        "--output-dir", str(validated_prep_dir),
         "--assume-yes",
         "--skip-existing",
     ]

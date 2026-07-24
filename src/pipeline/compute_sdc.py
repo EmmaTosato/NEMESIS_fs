@@ -11,7 +11,8 @@ process invocation by design: `manifest` discovers subjects once and freezes
 the list every `run` task slices a chunk from (src/sdc/manifest.py); `run` is
 the unit of parallelism (one per SLURM array task, or one per local worker);
 `aggregate` merges every task's per-subject outcome (src/sdc/status.py) into
-the run's final prep/features directories and run history. Unlike
+the run's final per-subject output directories (Stage 1 + Stage 2 combined,
+see run_stage2's docstring) and run history. Unlike
 build_lesion_matrix.py's single all-or-nothing run, per-subject failures here
 never stop other subjects (see check_stage1_outputs docstring) - the run's
 own exit code only reflects structural failures (bad config, a Stage 1/2
@@ -133,7 +134,6 @@ def _run_task(config: SDCConfig, output_dir: Path, task_id: int, task_count: int
     staging_dir = task_dir / "staging"
     prep_dir = task_dir / "prep"
     validated_dir = task_dir / "validated_prep"
-    features_dir = task_dir / "features"
     status_dir = output_dir / "_status"
 
     try:
@@ -175,7 +175,7 @@ def _run_task(config: SDCConfig, output_dir: Path, task_id: int, task_count: int
 
     try:
         stage_validated_prep(passed, prep_dir, validated_dir)
-        run_stage2(validated_dir, features_dir, config, dry_run=False)
+        run_stage2(validated_dir, config, dry_run=False)
     except (FileExistsError, OSError) as exc:
         logging.error("task %d: stage2 staging failed structurally: %s", task_id, exc, exc_info=True)
         return 1
@@ -198,8 +198,6 @@ def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
         logging.error(str(exc))
         return 1
 
-    prep_dir = output_dir / "prep"
-    features_dir = output_dir / "features"
     counts: dict[str, int] = {}
     for status in statuses:
         counts[status.status] = counts.get(status.status, 0) + 1
@@ -207,8 +205,9 @@ def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
             continue
         task_dir = output_dir / "_work" / f"task_{status.task_id}"
         try:
-            _link_subject(task_dir / "prep" / status.subject_id, prep_dir / status.subject_id)
-            _link_subject(task_dir / "features" / status.subject_id, features_dir / status.subject_id)
+            # task_dir/prep/<subject> already holds both Stage 1 (NIfTI) and
+            # Stage 2 (CSV/TSV) output together - see run_stage2's docstring
+            _link_subject(task_dir / "prep" / status.subject_id, output_dir / status.subject_id)
         except OSError as exc:
             logging.error("aggregate: cannot merge %s: %s", status.subject_id, exc, exc_info=True)
             return 1
@@ -223,7 +222,7 @@ def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
         logging.error("aggregate: cannot write summary/run log: %s", exc, exc_info=True)
         return 1
 
-    logging.info("aggregate: done - %s -> prep/features merged under %s", counts, output_dir)
+    logging.info("aggregate: done - %s -> merged under %s", counts, output_dir)
     return 0
 
 

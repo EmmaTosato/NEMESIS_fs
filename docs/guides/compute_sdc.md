@@ -22,13 +22,19 @@ data/derived/sdc/<session_name>/
 ├── manifest.csv                 # subject_id, dataset, lesion_mask_path
 ├── manifest_excluded.json       # subject_id -> perché escluso
 ├── _status/<subject_id>.json    # esito per soggetto
-├── _work/task_<I>/{resampled,staging,prep,validated_prep,features}/  # scratch per task, non pulito automaticamente
-├── prep/<subject_id>/           # simlink all'output Stage 1 verificato
-├── features/<subject_id>/       # simlink all'output Stage 2
+├── _work/task_<I>/{resampled,staging,prep,validated_prep}/  # scratch per task, non pulito automaticamente
+├── <subject_id>/lesion/         # simlink all'output Stage 1 + Stage 2 combinati (solo soggetti "ok")
+│   ├── <subject_id>_..._label-lesion_mask.nii.gz          # Stage 1
+│   ├── <subject_id>_..._desc-disconnectome.nii.gz         # Stage 1
+│   ├── <subject_id>_..._desc-lesion_mapstats.tsv          # Stage 2
+│   ├── <subject_id>_..._desc-disconnectome_mapstats.tsv   # Stage 2
+│   └── <subject_id>_..._LF-{lesion,disconnectome}_atlas-<nome>.csv  # Stage 2, uno per atlante
 ├── manifest.json                # conteggi per stato
 └── config.md
 data/derived/sdc/runs.csv            # storico run (append-only, CSV: run_id, timestamp, run_type, params, output, notes)
 ```
+
+Stage 1 e Stage 2 finiscono nella stessa cartella `<subject_id>/lesion/` per costruzione, non per un merge fatto da noi: `bcb-lesion-features` (Stage 2) legge l'output NIfTI di Stage 1 e scrive i propri CSV/TSV accanto, senza mai toccare/cancellare l'input (`run_stage2` in `src/sdc/runner.py` punta `--output-dir` sullo stesso `validated_prep_dir` usato come `--prep-dir`) - non esistono più cartelle `prep/`/`features/` separate a livello di sessione.
 
 `SESSIONS.md` (cosa significa un `session_name`, es. `s1.1`: dataset, modalità, cosa è cambiato) non è qui — è scritto a mano, canonico in `data/SESSIONS.md`, condiviso da tutte le pipeline (non solo SDC), con una copia/symlink in `results/SESSIONS.md`.
 

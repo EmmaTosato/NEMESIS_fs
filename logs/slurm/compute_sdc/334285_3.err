@@ -1,0 +1,37 @@
+INFO: stage1: 2 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_3/staging --output-dir data/derived/sdc/s1/_work/task_3/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T
+INFO: stage1 stdout:
+Preprocessing lesions [BIDS mode] → data/derived/sdc/s1/_work/task_3/prep
+  [1/2] sub-STUKLFR0133 ... done (0.2s)
+  [2/2] sub-STUNIPD0005 ...
+════════════════════════════════════════════════════════
+  BCBToolKit — Disconnectome Maps
+────────────────────────────────────────────────────────
+  Subjects : 2
+  Tracks   : 178 *.trk files
+  Atlas    : /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T
+  Threshold: 0
+  Jobs     : 4 parallel
+  Temp dir : /tmp/bcb_disco_116487
+────────────────────────────────────────────────────────
+  INPUT                                               OUTPUT STEM
+────────────────────────────────────────────────────────
+  …-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz  …_space-MNI152NLin6Asym_res-1_desc-disconnectome
+  …-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz  …_space-MNI152NLin6Asym_res-1_desc-disconnectome
+════════════════════════════════════════════════════════
+
+  [done]  sub-STUNIPD0005_space-MNI152NLin6Asym_res-1_desc-disconnectome  (24m37s)
+  [done]  sub-STUKLFR0133_space-MNI152NLin6Asym_res-1_desc-disconnectome  (24m38s)
+
+════════════════════════════════════════════════════════
+  Completed successfully: 2 / 2 subjects
+  Total time: 24m38s
+════════════════════════════════════════════════════════
+
+ done (0.1s)
+Preprocessed 2 subject(s).
+Running disconnectome computation for 2 subject(s)...
+Moved 2 disconnectome(s) into BIDS structure.
+Done.
+
+INFO: stage2: command: bcb-lesion-features --prep-dir data/derived/sdc/s1/_work/task_3/validated_prep --output-dir data/derived/sdc/s1/_work/task_3/features --assume-yes --skip-existing --ebrains
+slurmstepd-brain02: error: *** JOB 334296 ON brain02 CANCELLED AT 2026-07-24T10:57:44 ***
