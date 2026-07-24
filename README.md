@@ -68,6 +68,8 @@ python -m src.pipeline.build_combined_atlas --config config/pipelines/build_comb
 
 Writes the combined atlas (`assets/atlases/glasser_hcp_harvardoxford_subcortical_372.nii.gz`) and a label lookup CSV (`..._372_labels.csv`, value/name/hemisphere/source), ready to use as-is via any pipeline's `atlas_path` config field.
 
+**FC lesion masking and matrix building** (`src/features/functional.py`, `src/pipeline/mask_fc.py` + `build_fc_matrix.py`): two deliberately decoupled pipelines that turn the WashU functional-connectivity CSVs (already computed via XCP-D, 12 atlas combos) into a subjects × edges feature matrix ready for `dim_reduction.py`. `mask_fc.py` marks as missing (`NaN`, not zero — see `docs/dev/analysis.md` for why) any FC node whose territory is substantially lesioned (`nilearn`-based coverage check, same `min_coverage` scheme as XCP-D's own BOLD-coverage thresholding), writing one masked matrix per subject to `data/derived/features/masked_fc/`; `build_fc_matrix.py` reads only that already-masked output, vectorizes and stacks it into `data/derived/features/fc_matrix/`. NaN-imputation and the per-subject exclusion threshold are deliberately left open, pending an empirical look at the full cohort (`docs/dev/analysis.md`).
+
 Everything past this (SDC computation, embedding, clustering, clinical correlation — Tasks 1-5 above) is not yet implemented.
 
 ## Contributing / development conventions

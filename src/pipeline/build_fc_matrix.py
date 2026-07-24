@@ -103,7 +103,9 @@ def main(argv: list[str] | None = None) -> int:
                 metadata,
                 readme_lines,
                 overwrite=config.overwrite,
-                extra_arrays={"edge_names": np.array(edge_names, dtype=object)},
+                # np.array(edge_names) without dtype=object: a plain unicode array, loadable via
+                # np.load without allow_pickle=True - an object-dtype array would require it.
+                extra_arrays={"edge_names": np.array(edge_names)},
             )
         except (FileExistsError, ValueError, OSError) as exc:
             logging.error("%s: %s", combo, exc)

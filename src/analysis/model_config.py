@@ -56,6 +56,7 @@ class DimReductionClusteringConfig:
     output_root: Path
     session_name: str
     overwrite: bool
+    fine_tuning: bool
     run_notes: str | None
 
 
@@ -104,6 +105,7 @@ def load_dim_reduction_clustering_config(path: str | Path) -> DimReductionCluste
         output_root=output_root,
         session_name=session_name,
         overwrite=overwrite,
+        fine_tuning=_require_bool(raw, "fine_tuning"),
         run_notes=run_notes,
     )
 

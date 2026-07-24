@@ -39,11 +39,13 @@ I parametri nel file `config/pipelines/dim_reduction_clustering.json` sono essen
 - **`output_root`**: `(Stringa)` Sede finale dei risultati combinati (`"results/lesion/dim_reduction_clustering"` — il primo segmento dopo `results/` indica la modalità dato, `lesion`/`fc`/`sdc`; questa pipeline ha un ramo terzo dedicato, separato sia da `dim_reduction/` che da `clustering/`).
 - **`session_name`**: `(Stringa)` Il nome dell'operazione massiva (es. `"run_1"`).
 - **`overwrite`**: `(Booleano)` A `true` per sovrascrivere.
+- **`fine_tuning`**: `(Booleano)` A `false` (default) esegue il clustering di produzione descritto sopra. A `true` passa in modalità tuning — vedi sotto.
 - **`run_notes`**: `(Stringa)` Spazio libero per note su perché stai facendo il run.
 
 ### Note sul Funzionamento Interno
 
-- **Niente Fine-Tuning**: Questa pipeline è pensata per "calcolare", non per sperimentare. Non troverai qui il parametro `fine_tuning`. Presume che tu abbia già scelto i parametri ottimali per UMAP/PCA e K-Means nei rispettivi file `json` (tramite l'apposita guida al *Dim Reduction*). Prenderà quei parametri come "assoluti" ed eseguirà il lavoro finale.
+- **La riduzione non si tara mai qui**: qualunque sia `fine_tuning`, la riduzione dimensionale gira sempre una volta sola, con i parametri "assoluti" già scelti in `reduction_params_file` (mai il suo `tuning_grid`). Se devi ancora scegliere quei parametri, usa prima la guida al *Dim Reduction*.
+- **`fine_tuning: true`** riguarda solo il clustering: invece di clusterizzare l'embedding con i parametri finali, per ogni metodo in `clustering_methods` prova tutta la griglia dichiarata nel `tuning_grid` di quel metodo (`config/registry/params_clustering.json`) — è la scorciatoia per tarare il clustering su un embedding specifico senza doverlo prima salvare su disco con `dim_reduction.py` e poi ripuntarci `clustering.py --fine_tuning`. Stesse metriche/diagnosi della guida al *Clustering* (silhouette, Calinski-Harabasz, Davies-Bouldin, + `inertia`/`bic`/`aic`/dendrogramma/eigengap/k-distance a seconda del metodo). **Niente grafico di comparazione** in questa modalità, nemmeno con più metodi richiesti — uno sweep non produce un'unica assegnazione di cluster da confrontare.
 
 ---
 
@@ -74,3 +76,5 @@ Cosa troverai dentro ciascuna cartella `umap/kmeans/...`/`umap/gmm/...`?
 Il diario di bordo `runs.csv` (`run_id, timestamp, run_type, params, output, notes`) vive invece **a livello della riduzione**, non per ogni sottocartella di clustering: un solo `umap/runs.csv` raccoglie tutte le righe di K-Means, GMM e qualunque altro metodo lanciato su quella stessa riduzione, distinte dalle due colonne iniziali `reduction_method`/`clustering_method`.
 
 Infine, come per il modulo di clustering classico, ti regalerà in automatico la super cartella speciale `umap/comparison/` in cui stamperà tutti i grafici di K-Means e di GMM uno a fianco all'altro (`cluster_comparison.png`). Siccome lo spazio generato da UMAP sotto è lo stesso, le posizioni dei puntini saranno le stesse, e potrai focalizzarti unicamente sul confrontare come i due diversi algoritmi di clustering si sono "litigati" i colori con cui colorarli. C'è anche una versione interattiva, `cluster_comparison_interactive.html`: stesso layout 2D, con un menu a tendina per far ricolorare i punti secondo l'assegnazione di ciascun metodo, uno alla volta, senza dover aprire N file separati. La cartella stessa porta il nome della riduzione prima del tag (`umap_<dd-mm>_...`) — l'unico posto in cui questo si ripete esplicitamente nel nome, dato che altrove è già implicito nella posizione nell'albero.
+
+**Se invece eri in Fine-Tuning** (`"fine_tuning": true`): niente `matrix.npy`/`cluster_plot.png`/comparison — per ogni metodo trovi `results/lesion/dim_reduction_clustering/umap/<metodo>/tuning/<dd-mm>_<session_name>/` con `tuning_results.csv` + `tuning_plot.png`, più il grafico diagnostico specifico del metodo quando previsto (`dendrogram.png` per Agglomerative, `eigengap_plot.png` per Spectral, `k_distance_plot.png` per DBSCAN). Stesso `umap/runs.csv` condiviso di prima, con le righe di tuning marcate `run_type=tuning`.

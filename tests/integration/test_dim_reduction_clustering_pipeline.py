@@ -76,6 +76,7 @@ def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
+        "fine_tuning": False,
         "run_notes": "prova pca+kmeans",
     }
     cfg_path = tmp_path / "drc.json"
@@ -129,6 +130,7 @@ def test_dim_reduction_clustering_end_to_end_multiple_methods_writes_comparison_
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
+        "fine_tuning": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "drc.json"
@@ -159,3 +161,141 @@ def test_dim_reduction_clustering_end_to_end_multiple_methods_writes_comparison_
     assert "kmeans" in comparison_readme
     assert "agglomerative" in comparison_readme
     assert "pca" in comparison_readme
+
+
+def test_dim_reduction_clustering_fine_tuning_kmeans_sweeps_against_one_embedding(tmp_path, monkeypatch):
+    """fine_tuning=true: the reduction runs once (fixed params, never swept),
+    then kmeans' own tuning_grid is swept against that one embedding.
+    """
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction_clustering, "REPORTS_ROOT", tmp_path / "drc_reports")
+    monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
+
+    reduction_params_path = tmp_path / "params_reduction.json"
+    reduction_params_path.write_text(json.dumps({"pca": {"params": {"n_components": 2}}}))
+    clustering_params_path = tmp_path / "params_clustering.json"
+    clustering_params_path.write_text(
+        json.dumps(
+            {
+                "kmeans": {
+                    "params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"},
+                    "tuning_grid": {"n_clusters": [2, 3, 4]},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "drc_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "pca",
+        "reduction_params_file": str(reduction_params_path),
+        "clustering_methods": ["kmeans"],
+        "clustering_params_file": str(clustering_params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "run_notes": "prova sweep n_clusters su embedding pca",
+    }
+    cfg_path = tmp_path / "drc.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next((output_root / "pca" / "kmeans" / "tuning").iterdir())
+    assert (tuning_dir / "tuning_results.csv").is_file()
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
+    assert not (tuning_dir / "matrix.npy").exists()  # a sweep is not a matrix artifact
+
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert list(results["n_clusters"]) == [2, 3, 4]
+    assert "inertia" in results.columns
+    assert "silhouette" in results.columns
+
+    # no comparison plot in tuning mode - only one method's sweep, and a sweep
+    # isn't a single set of cluster labels to compare side by side anyway
+    assert not (output_root / "pca" / "comparison").exists()
+
+    with (output_root / "pca" / "runs.csv").open(newline="") as f:
+        runs_rows = list(csv.DictReader(f))
+    assert runs_rows[0]["reduction_method"] == "pca"
+    assert runs_rows[0]["clustering_method"] == "kmeans"
+    assert runs_rows[0]["run_type"] == "tuning"
+    assert runs_rows[0]["notes"] == "prova sweep n_clusters su embedding pca"
+
+
+def test_dim_reduction_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction_clustering, "REPORTS_ROOT", tmp_path / "drc_reports")
+    monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
+
+    reduction_params_path = tmp_path / "params_reduction.json"
+    reduction_params_path.write_text(json.dumps({"pca": {"params": {"n_components": 2}}}))
+    clustering_params_path = tmp_path / "params_clustering.json"
+    clustering_params_path.write_text(
+        json.dumps(
+            {
+                "agglomerative": {
+                    "params": {"n_clusters": 3, "linkage": "ward"},
+                    "tuning_grid": {"n_clusters": [2, 3]},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "drc_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "pca",
+        "reduction_params_file": str(reduction_params_path),
+        "clustering_methods": ["agglomerative"],
+        "clustering_params_file": str(clustering_params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "drc.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next((output_root / "pca" / "agglomerative" / "tuning").iterdir())
+    assert (tuning_dir / "dendrogram.png").stat().st_size > 0  # standalone diagnostic, agglomerative-only
+
+
+def test_dim_reduction_clustering_fine_tuning_missing_tuning_grid_raises(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction_clustering, "REPORTS_ROOT", tmp_path / "drc_reports")
+    monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
+
+    reduction_params_path = tmp_path / "params_reduction.json"
+    reduction_params_path.write_text(json.dumps({"pca": {"params": {"n_components": 2}}}))
+    clustering_params_path = tmp_path / "params_clustering.json"
+    # kmeans has no "tuning_grid" entry on purpose
+    clustering_params_path.write_text(
+        json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}})
+    )
+
+    output_root = tmp_path / "drc_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "pca",
+        "reduction_params_file": str(reduction_params_path),
+        "clustering_methods": ["kmeans"],
+        "clustering_params_file": str(clustering_params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "drc.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 1

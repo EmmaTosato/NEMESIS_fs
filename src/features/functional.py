@@ -86,13 +86,13 @@ def compute_parcel_coverage(atlas_img: nib.Nifti1Image, label_ids: list[int], he
     """
     ones_img = nib.Nifti1Image(np.ones(atlas_img.shape, dtype=np.int32), atlas_img.affine, atlas_img.header)
 
-    masker_total = NiftiLabelsMasker(labels_img=atlas_img, background_label=0, strategy="sum", standardize=False)
+    masker_total = NiftiLabelsMasker(labels_img=atlas_img, background_label=0, strategy="sum", standardize=None)
     n_total = np.atleast_1d(np.squeeze(masker_total.fit_transform(ones_img)))
     # labels_[1:]: labels_[0] is always the "Background" placeholder (label 0), not a real parcel.
     total_by_label = dict(zip(masker_total.labels_[1:], n_total))
 
     masker_healthy = NiftiLabelsMasker(
-        labels_img=atlas_img, mask_img=healthy_img, background_label=0, strategy="sum", standardize=False
+        labels_img=atlas_img, mask_img=healthy_img, background_label=0, strategy="sum", standardize=None
     )
     n_healthy = np.atleast_1d(np.squeeze(masker_healthy.fit_transform(ones_img)))
     healthy_by_label = dict(zip(masker_healthy.labels_[1:], n_healthy))

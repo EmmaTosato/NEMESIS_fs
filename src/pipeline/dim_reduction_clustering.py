@@ -20,6 +20,22 @@ When more than one clustering method is requested, an additional side-by-side
 comparison (static cluster_comparison.png + interactive
 cluster_comparison_interactive.html, dropdown per method) is written to
 <output_root>/<reduction_method>/comparison/<reduction_method>_<dd-mm>_<session_name>/.
+
+`fine_tuning: true` switches to fine-tuning mode: the reduction step still
+runs exactly once, at its already-chosen production params (never swept here
+- that's dim_reduction.py's job) - but instead of clustering production, each
+method in clustering_methods runs a fine-tuning sweep over its own
+tuning_grid *against that one embedding*, via
+src/analysis/clustering_tuning.py (same sweep/metrics/standalone-diagnostics
+clustering.py's own fine_tuning mode uses). This is the one-shot alternative
+to save_matrix-ing the embedding via dim_reduction.py and separately pointing
+clustering.py --fine_tuning at it: useful when you only want to tune
+clustering on a specific reduction without needing that embedding saved to
+disk as its own artifact. Output per method:
+<output_root>/<reduction_method>/<method>/tuning/<dd-mm>_<session_name>/
+{tuning_results.csv, tuning_plot.png, config.md} plus a standalone diagnostic
+plot for agglomerative/spectral/dbscan. No comparison plot in this mode - a
+sweep's rows aren't a single set of cluster labels to compare side by side.
 """
 
 from __future__ import annotations
@@ -34,15 +50,28 @@ import numpy as np
 import pandas as pd
 
 from src.analysis.clustering import CLUSTERING_METHODS
+from src.analysis.clustering_tuning import (
+    METHOD_METRIC_COLUMNS,
+    STANDALONE_DIAGNOSTIC_METHODS,
+    compute_dendrogram_linkage,
+    compute_eigengap,
+    compute_k_distance,
+    run_clustering_tuning_sweep,
+)
 from src.analysis.model_config import DimReductionClusteringConfig, load_dim_reduction_clustering_config
-from src.analysis.params import load_method_params
+from src.analysis.params import load_method_params, load_tuning_grid
 from src.analysis.plotting import (
+    compose_cluster_plot_title,
     compose_comparison_title,
     compose_run_title,
     plot_clusters_2d,
     plot_clusters_comparison,
     plot_clusters_comparison_interactive,
     plot_clusters_interactive,
+    plot_clustering_tuning_metrics,
+    plot_dendrogram,
+    plot_eigengap,
+    plot_k_distance,
 )
 from src.analysis.reduction import REDUCTION_METHODS
 from src.utils.artifacts import load_matrix, save_matrix
@@ -84,8 +113,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     embedding = REDUCTION_METHODS[config.reduction_method](X, reduction_params)
-    
+
     effective_reduction_session = f"{config.session_name}_{reduction_tag}" if reduction_tag else config.session_name
+
+    if config.fine_tuning:
+        return _run_fine_tuning(config, embedding, reduction_params, reduction_tag, now, log_path)
 
     labels_by_method: dict[str, np.ndarray] = {}
     for method in config.clustering_methods:
@@ -189,7 +221,7 @@ def _run_one_method(
     logging.info("[%s] embedding+clusters written to %s (shape %s)", method, output_dir, embedding.shape)
 
     if embedding.shape[1] >= 2:
-        plot_title = compose_run_title(output_dir, config.project)
+        plot_title = compose_cluster_plot_title(output_dir, config.reduction_method, method)
 
         plot_clusters_2d(
             embedding[:, :2],
@@ -257,6 +289,7 @@ def _config_summary(config: DimReductionClusteringConfig, method: str) -> str:
         "output_root": str(config.output_root),
         "session_name": config.session_name,
         "overwrite": config.overwrite,
+        "fine_tuning": config.fine_tuning,
         "run_notes": config.run_notes,
     }
     return json.dumps(payload, indent=2)
@@ -352,6 +385,182 @@ def _write_report(
         _build_report(config, method, X, embedding, cluster_labels, reduction_params, clustering_params, now)
     )
     return report_path
+
+
+def _run_fine_tuning(
+    config: DimReductionClusteringConfig,
+    embedding: np.ndarray,
+    reduction_params: dict,
+    reduction_tag: str | None,
+    now: datetime,
+    log_path: Path,
+) -> int:
+    for method in config.clustering_methods:
+        if not _run_one_method_tuning(config, method, embedding, reduction_params, reduction_tag, now):
+            return 1
+
+    logging.info(
+        "done - fine-tuning for all %d method(s) written under %s, log written to %s",
+        len(config.clustering_methods),
+        config.output_root,
+        log_path,
+    )
+    return 0
+
+
+def _run_one_method_tuning(
+    config: DimReductionClusteringConfig,
+    method: str,
+    embedding: np.ndarray,
+    reduction_params: dict,
+    reduction_tag: str | None,
+    now: datetime,
+) -> bool:
+    """Runs one clustering method's fine-tuning sweep against the
+    already-computed embedding (never recomputed here - the reduction step
+    stays fixed at its own already-chosen production params; only the
+    clustering hyperparameters are swept, same evaluators clustering.py's own
+    fine_tuning mode uses). Returns False on failure - the caller stops the
+    whole run, no partial-failure tolerance, consistent with the production
+    loop's own fail-fast behavior.
+    """
+    try:
+        base_params, _ = load_method_params(config.clustering_params_file, method)
+        tuning_grid = load_tuning_grid(config.clustering_params_file, method)
+    except (FileNotFoundError, ValueError) as exc:
+        logging.error("[%s] %s", method, exc)
+        return False
+
+    results = run_clustering_tuning_sweep(method, embedding, base_params, tuning_grid)
+
+    effective_reduction_session = f"{config.session_name}_{reduction_tag}" if reduction_tag else config.session_name
+    output_dir = (
+        config.output_root
+        / config.reduction_method
+        / method
+        / "tuning"
+        / f"{now.strftime('%d-%m')}_{effective_reduction_session}"
+    )
+    try:
+        _write_tuning_output(output_dir, results, tuning_grid, method, embedding, base_params, reduction_params, config, now)
+    except (FileExistsError, OSError) as exc:
+        logging.error("[%s] %s", method, exc)
+        return False
+    logging.info("[%s] tuning results written to %s (%d combination(s) evaluated)", method, output_dir, len(results))
+
+    try:
+        append_run_log_entry(
+            _runs_csv_path(config),
+            effective_reduction_session,
+            now,
+            "tuning",
+            {
+                "reduction_params": reduction_params,
+                "clustering_base_params": base_params,
+                "clustering_tuning_grid": tuning_grid,
+            },
+            output_dir,
+            config.run_notes,
+            extra_columns={"reduction_method": config.reduction_method, "clustering_method": method},
+        )
+    except OSError as exc:
+        logging.error("[%s] cannot write run log: %s", method, exc, exc_info=True)
+        return False
+
+    return True
+
+
+def _write_tuning_output(
+    output_dir: Path,
+    results: pd.DataFrame,
+    tuning_grid: dict[str, list],
+    method: str,
+    embedding: np.ndarray,
+    base_params: dict,
+    reduction_params: dict,
+    config: DimReductionClusteringConfig,
+    now: datetime,
+) -> None:
+    if output_dir.exists() and not config.overwrite:
+        raise FileExistsError(
+            f"output directory {output_dir} already exists and overwrite=False "
+            "- set overwrite=True to replace it, or choose a different session_name"
+        )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results.to_csv(output_dir / "tuning_results.csv", index=False)
+
+    swept_params = list(tuning_grid.keys())
+    title = compose_run_title(output_dir, config.project)
+    metric_cols = METHOD_METRIC_COLUMNS[method]
+    if len(swept_params) == 1:
+        plot_clustering_tuning_metrics(results, swept_params[0], metric_cols, output_dir / "tuning_plot.png", title)
+    else:
+        logging.warning(
+            "[%s] tuning_grid has %d swept parameters - no metric plot generated (only 1 is supported)",
+            method,
+            len(swept_params),
+        )
+
+    if method in STANDALONE_DIAGNOSTIC_METHODS:
+        _write_standalone_diagnostic(output_dir, method, embedding, base_params, title)
+
+    readme_lines = [
+        f"# {title}",
+        "",
+        "## Config",
+        "",
+        "```json",
+        json.dumps(
+            {
+                "project": config.project,
+                "input_path": str(config.input_path),
+                "reduction_method": config.reduction_method,
+                "reduction_params_used": reduction_params,
+                "clustering_method": method,
+                "clustering_params_file": str(config.clustering_params_file),
+                "session_name": config.session_name,
+            },
+            indent=2,
+        ),
+        "```",
+        "",
+        "## Summary",
+        "",
+        f"Embedding shape: {embedding.shape[0]} subjects x {embedding.shape[1]} components (reduction fixed, not swept)",
+        f"Swept parameters: {swept_params}",
+        f"Combinations evaluated: {len(results)}",
+        f"Metrics: {metric_cols}",
+        "",
+        "No automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",
+    ]
+    (output_dir / "config.md").write_text("\n".join(readme_lines) + "\n")
+
+
+def _write_standalone_diagnostic(output_dir: Path, method: str, embedding: np.ndarray, base_params: dict, title: str) -> None:
+    """Diagnostic plot independent of the swept tuning_grid, computed once
+    from base_params - see src/analysis/clustering_tuning.py's module
+    docstring for why these 3 (and only these 3) methods get one. Same
+    dispatch as clustering.py's own helper of the same name, duplicated
+    rather than shared per this codebase's established per-CLI convention
+    (see docs/dev/analysis.md) - the two callers differ in which config type
+    they close over.
+    """
+    if method == "agglomerative":
+        linkage_matrix = compute_dendrogram_linkage(embedding, base_params)
+        plot_dendrogram(linkage_matrix, output_dir / "dendrogram.png", title)
+        logging.info("[%s] dendrogram written to %s", method, output_dir / "dendrogram.png")
+    elif method == "spectral":
+        eigenvalues = compute_eigengap(embedding, base_params)
+        plot_eigengap(eigenvalues, output_dir / "eigengap_plot.png", title)
+        logging.info("[%s] eigengap plot written to %s", method, output_dir / "eigengap_plot.png")
+    elif method == "dbscan":
+        if "min_samples" not in base_params:
+            raise ValueError(f"[{method}] params must include 'min_samples' to compute the k-distance plot")
+        distances = compute_k_distance(embedding, base_params["min_samples"])
+        plot_k_distance(distances, output_dir / "k_distance_plot.png", title)
+        logging.info("[%s] k-distance plot written to %s", method, output_dir / "k_distance_plot.png")
+    else:
+        raise ValueError(f"no standalone diagnostic wired for method {method!r}")
 
 
 def _log_path(config: DimReductionClusteringConfig, now: datetime) -> Path:

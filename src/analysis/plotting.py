@@ -56,13 +56,20 @@ _CATEGORICAL_PALETTE = [
 # categorical set so it never impersonates a real cluster.
 _NOISE_COLOR = "#9e9d98"
 
+# Shared between plot_clusters_2d (single method) and plot_clusters_comparison (grid).
+_MARKER_SIZE = 18
+_AXIS_PADDING_FRACTION = 0.08
+
 _COMPARISON_SUBPLOT_WIDTH = 7.0
 _COMPARISON_SUBPLOT_HEIGHT = 5.5
 _COMPARISON_WSPACE = 0.65
 _COMPARISON_HSPACE = 0.55
 _COMPARISON_TITLE_FONTSIZE = 15
-_COMPARISON_MARKER_SIZE = 18
-_COMPARISON_AXIS_PADDING_FRACTION = 0.08
+
+_SINGLE_PLOT_WIDTH = 7.5
+_SINGLE_PLOT_HEIGHT = 5.5
+_SINGLE_PLOT_TITLE_FONTSIZE = 15
+_SINGLE_PLOT_TITLE_PAD = 20
 
 
 def _square_grid_shape(n_items: int) -> tuple[int, int]:
@@ -137,6 +144,24 @@ def compose_comparison_title(output_dir: Path, reduction_method: str | None) -> 
     return f"Clustering comparison - {modality_title}"
 
 
+def compose_cluster_plot_title(output_dir: Path, reduction_method: str, clustering_method: str) -> str:
+    """Title for a single clustering method's static scatter (cluster_plot.png):
+    "<Modality> - <ReductionMethod> - <ClusteringMethod>", each segment
+    capitalized (Python's str.capitalize(), e.g. "umap" -> "Umap").
+
+    <Modality> is derived the same way as compose_comparison_title (naive
+    capitalized plural of output_dir's first path segment after a leading
+    "results") - reused so the two title schemes can't drift apart.
+    """
+    parts = output_dir.parts
+    if parts and parts[0] == "results":
+        parts = parts[1:]
+    if not parts:
+        raise ValueError(f"cannot derive a modality from output_dir {output_dir} - no path segments after 'results'")
+    modality_title = parts[0][0].upper() + parts[0][1:] + "s"
+    return f"{modality_title} - {reduction_method.capitalize()} - {clustering_method.capitalize()}"
+
+
 def plot_embedding_2d(
     X_2d: np.ndarray, output_path: Path, xlabel: str, ylabel: str, title: str
 ) -> None:
@@ -208,18 +233,47 @@ def plot_clusters_2d(
 
     Callers pass whatever 2D array is actually meaningful for their case
     (a dimensionality-reduction embedding, or raw features when there's no
-    reduction) - this function has no opinion on where X_2d came from.
+    reduction) - this function has no opinion on where X_2d came from. Same
+    treatment as plot_clusters_comparison's per-panel styling: validated
+    categorical palette, legend anchored outside the axes (never over the
+    data), axis limits padded beyond the data's own min/max so edge points
+    aren't clipped by their own marker radius, extra title padding.
     """
     if X_2d.shape[1] < 2:
         raise ValueError(f"plot_clusters_2d needs at least 2 columns, got shape {X_2d.shape}")
 
-    fig, ax = plt.subplots(figsize=(6, 5))
-    scatter = ax.scatter(X_2d[:, 0], X_2d[:, 1], c=cluster_labels, cmap="tab10", s=12)
+    x_min, x_max = X_2d[:, 0].min(), X_2d[:, 0].max()
+    y_min, y_max = X_2d[:, 1].min(), X_2d[:, 1].max()
+    x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
+    y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
+    unique_labels = sorted(np.unique(cluster_labels).tolist())
+
+    fig, ax = plt.subplots(figsize=(_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT))
+    sns.scatterplot(
+        x=X_2d[:, 0],
+        y=X_2d[:, 1],
+        hue=cluster_labels,
+        hue_order=unique_labels,
+        palette=_palette_for_labels(unique_labels),
+        s=_MARKER_SIZE,
+        edgecolor="none",
+        legend="full",
+        ax=ax,
+    )
+    ax.set_xlim(x_min - x_pad, x_max + x_pad)
+    ax.set_ylim(y_min - y_pad, y_max + y_pad)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.set_title(title)
-    legend = ax.legend(*scatter.legend_elements(), title="cluster", loc="best")
-    ax.add_artist(legend)
+    ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
+    handles, legend_labels = ax.get_legend_handles_labels()
+    ax.legend(
+        handles,
+        legend_labels,
+        title="cluster",
+        loc="upper left",
+        bbox_to_anchor=(1.02, 1.0),
+        borderaxespad=0.0,
+    )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
@@ -345,8 +399,8 @@ def plot_clusters_comparison(
 
     x_min, x_max = X_2d[:, 0].min(), X_2d[:, 0].max()
     y_min, y_max = X_2d[:, 1].min(), X_2d[:, 1].max()
-    x_pad = (x_max - x_min) * _COMPARISON_AXIS_PADDING_FRACTION
-    y_pad = (y_max - y_min) * _COMPARISON_AXIS_PADDING_FRACTION
+    x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
+    y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
     xlim = (x_min - x_pad, x_max + x_pad)
     ylim = (y_min - y_pad, y_max + y_pad)
 
@@ -367,7 +421,7 @@ def plot_clusters_comparison(
             hue=labels,
             hue_order=unique_labels,
             palette=_palette_for_labels(unique_labels),
-            s=_COMPARISON_MARKER_SIZE,
+            s=_MARKER_SIZE,
             edgecolor="none",
             legend="full",
             ax=ax,
