@@ -1,0 +1,6 @@
+INFO: [spectral] clustered matrix written to results/lesion/clustering/spectral/24-07_pacmap_n5_spectral_nn50_nn50 (shape (1150, 2))
+INFO: [spectral] cluster plot written to results/lesion/clustering/spectral/24-07_pacmap_n5_spectral_nn50_nn50/cluster_plot.png
+INFO: [spectral] interactive cluster plot written to results/lesion/clustering/spectral/24-07_pacmap_n5_spectral_nn50_nn50/cluster_plot_interactive.html
+INFO: [spectral] done - output written to results/lesion/clustering/spectral/24-07_pacmap_n5_spectral_nn50_nn50, report written to reports/clustering/clinical_connectome/clustering_summary__spectral__24-07-26__09-59.md
+INFO: comparison plot written to results/lesion/clustering/comparison/24-07_pacmap_n5_spectral_nn50/cluster_comparison.png
+INFO: done - all 1 method(s) written under results/lesion/clustering, log written to logs/clustering/clinical_connectome/clustering_summary__24-07-26__09-59.log

@@ -1,2 +1,0 @@
-run_id,timestamp,run_type,params,output,notes
-s1.1_p30_e05,24-07-26 09:53,production,"{""reduction_params"": {""n_components"": 2, ""perplexity"": 30, ""early_exaggeration"": 12, ""learning_rate"": 200, ""max_iter"": 1000, ""random_state"": 0}, ""clustering_params"": {""eps"": 0.5, ""min_samples"": 5}}",results/lesion/dim_reduction_clustering/tsne-dbscan/24-07_s1.1_p30_e05,"tsne (perplexity=30, paper value) + all 5 clustering methods, voxel-wise matrix"

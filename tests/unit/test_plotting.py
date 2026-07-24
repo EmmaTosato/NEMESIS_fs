@@ -1,4 +1,6 @@
-"""Unit tests for src/analysis/plotting.py - plot_embedding_interactive/plot_clusters_interactive/compose_run_title."""
+"""Unit tests for src/analysis/plotting.py - plot_embedding_interactive/plot_clusters_interactive/
+plot_clusters_comparison_interactive/compose_run_title/plot_clustering_tuning_metrics/
+plot_dendrogram/plot_eigengap/plot_k_distance."""
 
 from pathlib import Path
 
@@ -6,7 +8,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.analysis.plotting import compose_run_title, plot_clusters_interactive, plot_embedding_interactive
+from src.analysis.plotting import (
+    compose_run_title,
+    plot_clustering_tuning_metrics,
+    plot_clusters_comparison_interactive,
+    plot_clusters_interactive,
+    plot_dendrogram,
+    plot_eigengap,
+    plot_embedding_interactive,
+    plot_k_distance,
+)
 
 
 def test_compose_run_title_drops_leading_results_segment():
@@ -126,3 +137,114 @@ def test_clusters_interactive_raises_on_missing_dataset_column(tmp_path):
 
     with pytest.raises(ValueError, match="dataset"):
         plot_clusters_interactive(X_2d, metadata_no_dataset, tmp_path / "out.html", "x", "y", "title")
+
+
+def _labels_by_method():
+    return {
+        "kmeans": np.array([0, 0, 1, 1]),
+        "agglomerative": np.array([0, 1, 1, 0]),
+    }
+
+
+def test_clusters_comparison_interactive_writes_html_with_dropdown(tmp_path):
+    X_2d, metadata = _embedding_and_metadata()
+    output_path = tmp_path / "cluster_comparison_interactive.html"
+
+    plot_clusters_comparison_interactive(X_2d, _labels_by_method(), metadata, output_path, "dim 1", "dim 2", "test title")
+
+    assert output_path.exists()
+    html = output_path.read_text()
+    assert "plotly" in html
+    assert "updatemenus" in html
+    assert "kmeans" in html
+    assert "agglomerative" in html
+    for subject_id in metadata["subject_id"]:
+        assert subject_id in html
+
+
+def test_clusters_comparison_interactive_raises_on_fewer_than_two_columns(tmp_path):
+    X_1d = np.array([[0.0], [1.0], [2.0], [3.0]])
+    _, metadata = _embedding_and_metadata()
+
+    with pytest.raises(ValueError, match="at least 2 columns"):
+        plot_clusters_comparison_interactive(X_1d, _labels_by_method(), metadata, tmp_path / "out.html", "x", "y", "title")
+
+
+def test_clusters_comparison_interactive_raises_on_row_count_mismatch(tmp_path):
+    X_2d, metadata = _embedding_and_metadata()
+    mismatched_metadata = metadata.iloc[:-1]
+
+    with pytest.raises(ValueError, match="must match"):
+        plot_clusters_comparison_interactive(
+            X_2d, _labels_by_method(), mismatched_metadata, tmp_path / "out.html", "x", "y", "title"
+        )
+
+
+def test_clusters_comparison_interactive_raises_on_empty_labels_by_method(tmp_path):
+    X_2d, metadata = _embedding_and_metadata()
+
+    with pytest.raises(ValueError, match="at least one method"):
+        plot_clusters_comparison_interactive(X_2d, {}, metadata, tmp_path / "out.html", "x", "y", "title")
+
+
+def test_plot_clustering_tuning_metrics_writes_one_subplot_per_metric(tmp_path):
+    df = pd.DataFrame(
+        {
+            "n_clusters": [2, 3, 4],
+            "silhouette": [0.4, 0.8, 0.6],
+            "calinski_harabasz": [50.0, 500.0, 300.0],
+            "inertia": [200.0, 10.0, 8.0],
+        }
+    )
+    output_path = tmp_path / "tuning_plot.png"
+
+    plot_clustering_tuning_metrics(df, "n_clusters", ["silhouette", "calinski_harabasz", "inertia"], output_path, "test title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_clustering_tuning_metrics_raises_on_empty_metric_cols(tmp_path):
+    df = pd.DataFrame({"n_clusters": [2, 3], "silhouette": [0.4, 0.8]})
+
+    with pytest.raises(ValueError, match="at least one metric column"):
+        plot_clustering_tuning_metrics(df, "n_clusters", [], tmp_path / "out.png", "title")
+
+
+def test_plot_dendrogram_writes_file(tmp_path):
+    from src.analysis.clustering_tuning import compute_dendrogram_linkage
+
+    rng = np.random.default_rng(0)
+    X = np.vstack([rng.normal(loc=[0, 0], size=(10, 2)), rng.normal(loc=[5, 5], size=(10, 2))])
+    linkage_matrix = compute_dendrogram_linkage(X, {"linkage": "ward"})
+    output_path = tmp_path / "dendrogram.png"
+
+    plot_dendrogram(linkage_matrix, output_path, "test title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_eigengap_marks_largest_gap(tmp_path):
+    eigenvalues = np.array([0.0, 0.01, 0.02, 0.5, 0.6, 0.7])
+    output_path = tmp_path / "eigengap_plot.png"
+
+    plot_eigengap(eigenvalues, output_path, "test title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_eigengap_raises_on_fewer_than_two_eigenvalues(tmp_path):
+    with pytest.raises(ValueError, match="at least 2 eigenvalues"):
+        plot_eigengap(np.array([0.0]), tmp_path / "out.png", "title")
+
+
+def test_plot_k_distance_writes_file(tmp_path):
+    distances = np.sort(np.random.default_rng(0).uniform(0, 1, size=30))
+    output_path = tmp_path / "k_distance_plot.png"
+
+    plot_k_distance(distances, output_path, "test title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0

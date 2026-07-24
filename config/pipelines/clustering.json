@@ -4,7 +4,8 @@
   "clustering_methods": ["spectral"],
   "params_file": "config/registry/params_clustering.json",
   "output_root": "results/lesion/clustering",
-  "session_name": "pacmap_n5_spectral_nn20",
+  "session_name": "pacmap_n5_spectral_nn50",
   "overwrite": true,
-  "run_notes": "Re-testing spectral on the pacmap (n_neighbors=5) embedding with a wider affinity graph (n_neighbors=20 instead of sklearn default 10) to check whether the disconnected-graph warning/isolated-satellite issue seen at nn=10 improves"
+  "fine_tuning": false,
+  "run_notes": "Re-testing spectral on the pacmap (n_neighbors=5) embedding with an even wider affinity graph (n_neighbors=50) - nn=20 still triggered the disconnected-graph warning and left the small top-right satellite fused into the main blob"
 }

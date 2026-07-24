@@ -1,2 +1,0 @@
-run_id,timestamp,run_type,params,output,notes
-pacmap_n5_spectral_nn20_nn20,24-07-26 09:58,production,"{""n_clusters"": 4, ""affinity"": ""nearest_neighbors"", ""n_neighbors"": 20, ""random_state"": 0}",results/lesion/clustering/spectral/24-07_pacmap_n5_spectral_nn20_nn20,Re-testing spectral on the pacmap (n_neighbors=5) embedding with a wider affinity graph (n_neighbors=20 instead of sklearn default 10) to check whether the disconnected-graph warning/isolated-satellite issue seen at nn=10 improves

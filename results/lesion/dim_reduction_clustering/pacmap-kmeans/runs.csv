@@ -1,2 +1,0 @@
-run_id,timestamp,run_type,params,output,notes
-s1.1_n5_k4,24-07-26 09:56,production,"{""reduction_params"": {""n_components"": 2, ""n_neighbors"": 5, ""MN_ratio"": 0.5, ""FP_ratio"": 2.0, ""random_state"": 0}, ""clustering_params"": {""n_clusters"": 4, ""random_state"": 0, ""n_init"": ""auto""}}",results/lesion/dim_reduction_clustering/pacmap-kmeans/24-07_s1.1_n5_k4,"pacmap (n_neighbors=5, best trustworthiness from tuning, see results/lesion/dim_reduction/pacmap/tuning/23-07_s1.1_pacmap_tune) + all 5 clustering methods, voxel-wise matrix"

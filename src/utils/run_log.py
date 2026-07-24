@@ -31,6 +31,7 @@ def append_run_log_entry(
     params_summary: dict,
     output_dir: Path,
     run_notes: str | None,
+    extra_columns: dict[str, str] | None = None,
 ) -> None:
     """Append one row to runs_csv_path, creating it (with a header) if absent.
 
@@ -38,15 +39,26 @@ def append_run_log_entry(
     same log, without splitting them into separate files - seeing both in
     one chronological history is the point (e.g. "s2 used the params the
     20-07 tuning sweep in this same file found best").
+
+    extra_columns prepends caller-specific leading columns (e.g. which of two
+    axes a row belongs to, for a pipeline that shares one runs_csv_path
+    across more than one dimension - see dim_reduction_clustering.py, whose
+    runs.csv is shared by every clustering method run against a given
+    reduction). Every call writing to the *same* runs_csv_path must pass the
+    same extra_columns keys, since the header is only written once, on the
+    first call. Omitted (None) by every other caller today - keeps FIELDNAMES
+    as the exact, unchanged schema for their files.
     """
+    fieldnames = list(extra_columns) + FIELDNAMES if extra_columns else FIELDNAMES
     runs_csv_path.parent.mkdir(parents=True, exist_ok=True)
     write_header = not runs_csv_path.is_file()
 
     with runs_csv_path.open("a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
         if write_header:
             writer.writeheader()
-        writer.writerow(
+        row = dict(extra_columns) if extra_columns else {}
+        row.update(
             {
                 "run_id": run_id,
                 "timestamp": now.strftime("%d-%m-%y %H:%M"),
@@ -56,3 +68,4 @@ def append_run_log_entry(
                 "notes": run_notes or "",
             }
         )
+        writer.writerow(row)

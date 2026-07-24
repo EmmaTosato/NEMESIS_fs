@@ -73,6 +73,7 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
+        "fine_tuning": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -111,6 +112,7 @@ def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
+        "fine_tuning": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -140,6 +142,7 @@ def test_clustering_end_to_end_gmm(tmp_path, monkeypatch):
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
+        "fine_tuning": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -171,6 +174,7 @@ def test_clustering_end_to_end_spectral(tmp_path, monkeypatch):
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
+        "fine_tuning": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -200,6 +204,7 @@ def test_clustering_end_to_end_dbscan_reports_noise_separately(tmp_path, monkeyp
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
+        "fine_tuning": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -242,6 +247,7 @@ def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path,
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
+        "fine_tuning": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -268,3 +274,236 @@ def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path,
     comparison_readme = (comparison_dir / "config.md").read_text()
     assert "kmeans" in comparison_readme
     assert "agglomerative" in comparison_readme
+
+
+def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_reports")
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "kmeans": {
+                    "params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"},
+                    "tuning_grid": {"n_clusters": [2, 3, 4]},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "run_notes": "prova sweep n_clusters",
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next((output_root / "kmeans" / "tuning").iterdir())
+    assert (tuning_dir / "tuning_results.csv").is_file()
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
+    assert not (tuning_dir / "matrix.npy").exists()  # a sweep is not a matrix artifact
+
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert list(results["n_clusters"]) == [2, 3, 4]
+    assert "inertia" in results.columns
+    assert "silhouette" in results.columns
+
+    runs_csv = (output_root / "kmeans" / "runs.csv").read_text()
+    assert "tune1" in runs_csv
+    assert "tuning" in runs_csv
+    assert "prova sweep n_clusters" in runs_csv
+
+
+def test_clustering_fine_tuning_gmm_writes_bic_aic(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_reports")
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {"gmm": {"params": {"n_components": 3, "random_state": 0}, "tuning_grid": {"n_components": [2, 3]}}}
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["gmm"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next((output_root / "gmm" / "tuning").iterdir())
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert "bic" in results.columns
+    assert "aic" in results.columns
+
+
+def test_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_reports")
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {"agglomerative": {"params": {"n_clusters": 3, "linkage": "ward"}, "tuning_grid": {"n_clusters": [2, 3]}}}
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["agglomerative"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next((output_root / "agglomerative" / "tuning").iterdir())
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
+    assert (tuning_dir / "dendrogram.png").stat().st_size > 0  # standalone diagnostic, agglomerative-only
+
+
+def test_clustering_fine_tuning_spectral_writes_eigengap(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_reports")
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "spectral": {
+                    "params": {"n_clusters": 3, "affinity": "nearest_neighbors", "n_neighbors": 5, "random_state": 0},
+                    "tuning_grid": {"n_clusters": [2, 3]},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["spectral"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next((output_root / "spectral" / "tuning").iterdir())
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
+    assert (tuning_dir / "eigengap_plot.png").stat().st_size > 0  # standalone diagnostic, spectral-only
+
+
+def test_clustering_fine_tuning_dbscan_writes_k_distance_and_noise_fraction(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_reports")
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps({"dbscan": {"params": {"eps": 0.5, "min_samples": 3}, "tuning_grid": {"eps": [0.3, 5.0]}}})
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["dbscan"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next((output_root / "dbscan" / "tuning").iterdir())
+    assert (tuning_dir / "k_distance_plot.png").stat().st_size > 0  # standalone diagnostic, dbscan-only
+
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert "noise_fraction" in results.columns
+
+
+def test_clustering_fine_tuning_multiple_methods_stops_on_first_failure(tmp_path, monkeypatch):
+    """A method with no tuning_grid entry fails its own sweep - the whole
+    fine-tuning run stops there (no partial-failure tolerance), same
+    philosophy as the production loop.
+    """
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_reports")
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "kmeans": {
+                    "params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"},
+                    "tuning_grid": {"n_clusters": [2, 3]},
+                },
+                # agglomerative has no "tuning_grid" entry on purpose
+                "agglomerative": {"params": {"n_clusters": 3, "linkage": "ward"}},
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["kmeans", "agglomerative"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 1

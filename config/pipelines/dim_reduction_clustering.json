@@ -6,13 +6,12 @@
     "kmeans",
     "agglomerative",
     "gmm",
-    "dbscan",
-    "spectral"
+    "dbscan"
   ],
   "reduction_params_file": "config/registry/params_reduction.json",
   "clustering_params_file": "config/registry/params_clustering.json",
   "output_root": "results/lesion/dim_reduction_clustering",
   "session_name": "s1.1",
   "overwrite": true,
-  "run_notes": "pacmap (n_neighbors=5, best trustworthiness from tuning, see results/lesion/dim_reduction/pacmap/tuning/23-07_s1.1_pacmap_tune) + all 5 clustering methods, voxel-wise matrix"
+  "run_notes": "pacmap (n_neighbors=5, best trustworthiness from tuning, see results/lesion/dim_reduction/pacmap/tuning/23-07_s1.1_pacmap_tune) + kmeans/agglomerative/gmm/dbscan, voxel-wise matrix. spectral excluded from this embedding: with n_clusters=4 it always fuses one of two disconnected satellite groups into the main blob, regardless of n_neighbors (tried 10/20/50)"
 }

@@ -69,9 +69,15 @@ def test_dim_reduction_config_unknown_method_raises(tmp_path):
 
 
 def test_clustering_config_valid(tmp_path):
-    payload = {**_SHARED, "clustering_methods": ["kmeans"], "params_file": "config/registry/params_clustering.json"}
+    payload = {
+        **_SHARED,
+        "clustering_methods": ["kmeans"],
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
+    }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.clustering_methods == ("kmeans",)
+    assert config.fine_tuning is False
 
 
 def test_clustering_config_multiple_methods_valid(tmp_path):
@@ -79,13 +85,36 @@ def test_clustering_config_multiple_methods_valid(tmp_path):
         **_SHARED,
         "clustering_methods": ["kmeans", "dbscan", "gmm"],
         "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.clustering_methods == ("kmeans", "dbscan", "gmm")
 
 
+def test_clustering_config_fine_tuning_true(tmp_path):
+    payload = {
+        **_SHARED,
+        "clustering_methods": ["kmeans"],
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": True,
+    }
+    config = load_clustering_config(_write(tmp_path, "cl.json", payload))
+    assert config.fine_tuning is True
+
+
+def test_clustering_config_missing_fine_tuning_raises(tmp_path):
+    payload = {**_SHARED, "clustering_methods": ["kmeans"], "params_file": "config/registry/params_clustering.json"}
+    with pytest.raises(ValueError, match="missing required field 'fine_tuning'"):
+        load_clustering_config(_write(tmp_path, "cl.json", payload))
+
+
 def test_clustering_config_unknown_method_raises(tmp_path):
-    payload = {**_SHARED, "clustering_methods": ["bogus"], "params_file": "config/registry/params_clustering.json"}
+    payload = {
+        **_SHARED,
+        "clustering_methods": ["bogus"],
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
+    }
     with pytest.raises(ValueError, match="unknown clustering_method"):
         load_clustering_config(_write(tmp_path, "cl.json", payload))
 
@@ -95,19 +124,30 @@ def test_clustering_config_duplicate_methods_raises(tmp_path):
         **_SHARED,
         "clustering_methods": ["kmeans", "kmeans"],
         "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
     }
     with pytest.raises(ValueError, match="duplicate entries"):
         load_clustering_config(_write(tmp_path, "cl.json", payload))
 
 
 def test_clustering_config_empty_list_raises(tmp_path):
-    payload = {**_SHARED, "clustering_methods": [], "params_file": "config/registry/params_clustering.json"}
+    payload = {
+        **_SHARED,
+        "clustering_methods": [],
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
+    }
     with pytest.raises(ValueError, match="non-empty list"):
         load_clustering_config(_write(tmp_path, "cl.json", payload))
 
 
 def test_clustering_config_non_list_raises(tmp_path):
-    payload = {**_SHARED, "clustering_methods": "kmeans", "params_file": "config/registry/params_clustering.json"}
+    payload = {
+        **_SHARED,
+        "clustering_methods": "kmeans",
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
+    }
     with pytest.raises(ValueError, match="non-empty list"):
         load_clustering_config(_write(tmp_path, "cl.json", payload))
 

@@ -1,5 +1,6 @@
 """Integration test: dim_reduction_clustering.py chained onto a build_lesion_matrix.py output."""
 
+import csv
 import json
 
 import nibabel as nib
@@ -83,7 +84,7 @@ def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
     exit_code = dim_reduction_clustering.main(["--config", str(cfg_path)])
     assert exit_code == 0
 
-    out_dir = next(p for p in (output_root / "pca-kmeans").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "pca" / "kmeans").iterdir() if p.is_dir())
     embedding = np.load(out_dir / "matrix.npy")
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert embedding.shape == (12, 2)
@@ -91,9 +92,13 @@ def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
     assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
-    runs_csv = (output_root / "pca-kmeans" / "runs.csv").read_text()
-    assert "run1" in runs_csv
-    assert "prova pca+kmeans" in runs_csv
+    with (output_root / "pca" / "runs.csv").open(newline="") as f:
+        runs_rows = list(csv.DictReader(f))
+    assert len(runs_rows) == 1
+    assert runs_rows[0]["reduction_method"] == "pca"
+    assert runs_rows[0]["clustering_method"] == "kmeans"
+    assert runs_rows[0]["run_id"] == "run1"
+    assert runs_rows[0]["notes"] == "prova pca+kmeans"
 
 
 def test_dim_reduction_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path, monkeypatch):
@@ -131,14 +136,25 @@ def test_dim_reduction_clustering_end_to_end_multiple_methods_writes_comparison_
 
     assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
 
-    for method in ("pca-kmeans", "pca-agglomerative"):
-        out_dir = next(p for p in (output_root / method).iterdir() if p.is_dir())
+    for method in ("kmeans", "agglomerative"):
+        out_dir = next(p for p in (output_root / "pca" / method).iterdir() if p.is_dir())
         embedding = np.load(out_dir / "matrix.npy")
         assert embedding.shape == (12, 2)
         assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
-    comparison_dir = next(p for p in (output_root / "comparison").iterdir() if p.is_dir())
+    # both methods share one runs.csv under the reduction folder, distinguished by clustering_method
+    with (output_root / "pca" / "runs.csv").open(newline="") as f:
+        runs_rows = list(csv.DictReader(f))
+    assert [row["clustering_method"] for row in runs_rows] == ["kmeans", "agglomerative"]
+    assert all(row["reduction_method"] == "pca" for row in runs_rows)
+
+    comparison_dir = next(p for p in (output_root / "pca" / "comparison").iterdir() if p.is_dir())
+    assert comparison_dir.name.startswith("pca_")
     assert (comparison_dir / "cluster_comparison.png").stat().st_size > 0
+    assert (comparison_dir / "cluster_comparison_interactive.html").stat().st_size > 0
+    comparison_html = (comparison_dir / "cluster_comparison_interactive.html").read_text()
+    assert "plotly" in comparison_html
+    assert "updatemenus" in comparison_html
     comparison_readme = (comparison_dir / "config.md").read_text()
     assert "kmeans" in comparison_readme
     assert "agglomerative" in comparison_readme

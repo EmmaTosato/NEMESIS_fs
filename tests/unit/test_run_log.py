@@ -47,3 +47,52 @@ def test_run_notes_included_when_provided(tmp_path):
         runs_csv, "run1", datetime(2026, 7, 20, 16, 30), "production", {}, Path("out/run1"), "cambiati i parametri"
     )
     assert _read_rows(runs_csv)[0]["notes"] == "cambiati i parametri"
+
+
+def test_extra_columns_prepended_to_header_and_row(tmp_path):
+    runs_csv = tmp_path / "runs.csv"
+    append_run_log_entry(
+        runs_csv,
+        "run1",
+        datetime(2026, 7, 24, 10, 0),
+        "production",
+        {},
+        Path("out/run1"),
+        None,
+        extra_columns={"reduction_method": "pca", "clustering_method": "kmeans"},
+    )
+
+    assert runs_csv.read_text().splitlines()[0] == "reduction_method,clustering_method,run_id,timestamp,run_type,params,output,notes"
+    row = _read_rows(runs_csv)[0]
+    assert row["reduction_method"] == "pca"
+    assert row["clustering_method"] == "kmeans"
+    assert row["run_id"] == "run1"
+
+
+def test_extra_columns_shared_across_appends_to_same_file(tmp_path):
+    runs_csv = tmp_path / "runs.csv"
+    append_run_log_entry(
+        runs_csv,
+        "run1",
+        datetime(2026, 7, 24, 10, 0),
+        "production",
+        {},
+        Path("out/run1"),
+        None,
+        extra_columns={"reduction_method": "pca", "clustering_method": "kmeans"},
+    )
+    append_run_log_entry(
+        runs_csv,
+        "run1",
+        datetime(2026, 7, 24, 10, 5),
+        "production",
+        {},
+        Path("out/run1"),
+        None,
+        extra_columns={"reduction_method": "pca", "clustering_method": "agglomerative"},
+    )
+
+    rows = _read_rows(runs_csv)
+    assert [row["clustering_method"] for row in rows] == ["kmeans", "agglomerative"]
+    # header only written once, even after 2 appends
+    assert runs_csv.read_text().count("reduction_method,clustering_method,run_id") == 1

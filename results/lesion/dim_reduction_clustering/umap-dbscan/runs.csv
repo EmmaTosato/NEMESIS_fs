@@ -1,2 +1,0 @@
-run_id,timestamp,run_type,params,output,notes
-s1.1_d00_e05,23-07-26 20:10,production,"{""reduction_params"": {""n_neighbors"": 5, ""min_dist"": 0.0, ""n_components"": 2, ""random_state"": 0}, ""clustering_params"": {""eps"": 0.5, ""min_samples"": 5}}",results/lesion/dim_reduction_clustering/umap-dbscan/23-07_s1.1_d00_e05,"umap (n_neighbors=5, min_dist=0.0) + all 5 clustering methods, voxel-wise matrix"

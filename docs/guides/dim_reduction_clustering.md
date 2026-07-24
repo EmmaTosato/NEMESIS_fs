@@ -50,18 +50,27 @@ I parametri nel file `config/pipelines/dim_reduction_clustering.json` sono essen
 ## Output Finale
 
 Immagina di lanciare la pipeline scegliendo `reduction_method: "umap"` e `clustering_methods: ["kmeans", "gmm"]`.
-All'interno di `results/lesion/dim_reduction_clustering/` avverrà la seguente organizzazione:
+All'interno di `results/lesion/dim_reduction_clustering/` avverrà la seguente organizzazione, annidata per riduzione e poi per clustering (stessa logica di `results/lesion/dim_reduction/`):
 
-Verranno create due cartelle basate sulla combinazione nominale dei due passaggi:
-1. `umap-kmeans/`
-2. `umap-gmm/`
+```
+results/lesion/dim_reduction_clustering/
+└── umap/
+    ├── kmeans/
+    │   └── <dd-mm>_<session_name>_<reduction_tag>_<clustering_tag>/
+    ├── gmm/
+    │   └── <dd-mm>_<session_name>_<reduction_tag>_<clustering_tag>/
+    ├── runs.csv
+    └── comparison/
+        └── umap_<dd-mm>_<session_name>_<reduction_tag>/
+```
 
-Cosa troverai dentro ciascuna?
+Cosa troverai dentro ciascuna cartella `umap/kmeans/...`/`umap/gmm/...`?
 - `matrix.npy`: I dati compressi (es. una matrice con le sole 2 coordinate finali generate da UMAP).
 - `metadata.csv`: Il file d'anagrafica con le colonne aggiornate (ora avrai l'ID del paziente e accanto la dicitura es. Cluster 3).
 - Un file `config.md` di riepilogo estremamente minuzioso.
-- Il file cumulativo del diario di bordo `runs.csv` (una riga per run: `run_id, timestamp, run_type, params, output, notes`).
 - `cluster_plot.png`: Un meraviglioso grafico in due dimensioni con tutti i pazienti a puntini. Gli assi geometrici saranno quelli ricavati da UMAP, e i colori (il rosso per il Gruppo 0, il verde per il Gruppo 1) deriveranno in questa cartella da K-Means e nell'altra da GMM.
 - `cluster_plot_interactive.html`: la stessa vista, ma interattiva (apribile in un browser) — passando sopra un punto vedi `subject_id`/`dataset`/gruppo del paziente, e un menu a tendina permette di ricolorare al volo i punti per `dataset` invece che per cluster, per controllare se un raggruppamento riflette un effetto sito piuttosto che una vera struttura clinica.
 
-Infine, come per il modulo di clustering classico, ti regalerà in automatico la super cartella speciale `comparison/` in cui stamperà tutti i grafici di K-Means e di GMM uno a fianco all'altro. Siccome lo spazio generato da UMAP sotto è lo stesso, le posizioni dei puntini saranno le stesse, e potrai focalizzarti unicamente sul confrontare come i due diversi algoritmi di clustering si sono "litigati" i colori con cui colorarli.
+Il diario di bordo `runs.csv` (`run_id, timestamp, run_type, params, output, notes`) vive invece **a livello della riduzione**, non per ogni sottocartella di clustering: un solo `umap/runs.csv` raccoglie tutte le righe di K-Means, GMM e qualunque altro metodo lanciato su quella stessa riduzione, distinte dalle due colonne iniziali `reduction_method`/`clustering_method`.
+
+Infine, come per il modulo di clustering classico, ti regalerà in automatico la super cartella speciale `umap/comparison/` in cui stamperà tutti i grafici di K-Means e di GMM uno a fianco all'altro (`cluster_comparison.png`). Siccome lo spazio generato da UMAP sotto è lo stesso, le posizioni dei puntini saranno le stesse, e potrai focalizzarti unicamente sul confrontare come i due diversi algoritmi di clustering si sono "litigati" i colori con cui colorarli. C'è anche una versione interattiva, `cluster_comparison_interactive.html`: stesso layout 2D, con un menu a tendina per far ricolorare i punti secondo l'assegnazione di ciascun metodo, uno alla volta, senza dover aprire N file separati. La cartella stessa porta il nome della riduzione prima del tag (`umap_<dd-mm>_...`) — l'unico posto in cui questo si ripete esplicitamente nel nome, dato che altrove è già implicito nella posizione nell'albero.
