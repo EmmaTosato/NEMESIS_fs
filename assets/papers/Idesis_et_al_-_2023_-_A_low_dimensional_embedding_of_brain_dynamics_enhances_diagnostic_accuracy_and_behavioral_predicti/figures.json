@@ -1,0 +1,44 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "2",
+    "caption": "Preserved features in latent space: ( A ) Calculation of edge time series by means of Hadamard product at each time point. The highest top amplitude frames (top %10 of co-fluctuation root-sum-squared)",
+    "pdf_page": 8,
+    "doc_page": 8,
+    "svg": "figures/page_008.svg"
+  },
+  {
+    "id": "3",
+    "caption": "Classification in acute stage and relation with behavior: ( A ) Reversibility was computed by calculating the average of the difference between the time-shifted correlation matrices for the forward an",
+    "pdf_page": 10,
+    "doc_page": 10,
+    "svg": "figures/page_010.svg"
+  },
+  {
+    "id": "4",
+    "caption": "Prediction of recovery: ( A ) FC distance (Frobenius norm of the difference between the two matrices) between stroke patients at each time point and the healthy controls indicating the decrease of dis",
+    "pdf_page": 12,
+    "doc_page": 12,
+    "svg": "figures/page_012.svg"
+  },
+  {
+    "id": "6",
+    "caption": "",
+    "pdf_page": 17,
+    "doc_page": 17,
+    "svg": "figures/page_017.svg"
+  },
+  {
+    "id": "1_2",
+    "caption": "Summary of the analysis. fMRI signals from both groups (healthy controls and stroke patients) were used as input signals for the autoencoder. Reconstruction error was calculated by assessing the diffe",
+    "pdf_page": 7,
+    "doc_page": 7,
+    "svg": "figures/page_007.svg"
+  }
+]

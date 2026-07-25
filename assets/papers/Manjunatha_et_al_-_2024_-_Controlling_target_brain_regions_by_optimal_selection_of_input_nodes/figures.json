@@ -1,0 +1,53 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "3",
+    "caption": "Driver nodes and target nodes. (A) Weshow a rendering of the brain, with each dot representing the center of one of the 74 regions. Node size is inversely proportional to the node driver centrality E ",
+    "pdf_page": 14,
+    "doc_page": 14
+  },
+  {
+    "id": "4",
+    "caption": "Target RSN controllability. For each of the eight RSNs, we computed the control energy required to control all nodes belonging to that RSN, when nd = 5 driver nodes are selected among all remote nodes",
+    "pdf_page": 16,
+    "doc_page": 16,
+    "svg": "figures/page_016.svg"
+  },
+  {
+    "id": "6",
+    "caption": "Optimal driver nodes for RSN). Two example RSNs with the corresponding target nodes(small blue markers) and top 10 aggregate driver nodes (yellow markers) are shown. Brain images were visualized using",
+    "pdf_page": 18,
+    "doc_page": 18
+  },
+  {
+    "id": "7",
+    "caption": "",
+    "pdf_page": 17,
+    "doc_page": 17
+  },
+  {
+    "id": "1_2",
+    "caption": "Dependence of the control energy on the number of driver and target nodes. (A) Energy to control the whole brain network (median over subjects) as a function of the number of driver nodes nd . For eac",
+    "pdf_page": 10,
+    "doc_page": 10
+  },
+  {
+    "id": "2_2",
+    "caption": "Relation between single-driver single-target energy and effective connectivity. Weconsidered the control energy required to consider a single target j using a single target i (top left; the brain imag",
+    "pdf_page": 12,
+    "doc_page": 12
+  }
+]

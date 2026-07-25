@@ -1,0 +1,177 @@
+{
+  "source_pdf": "/Users/emmatosato/Local Projects/Personal/Paper-Downloader/downloaded/Idesis_et_al - 2023 - A_low_dimensional_embedding_of_brain_dynamics_enhances_diagnostic_accuracy_and_behavioral_prediction.pdf",
+  "extracted_at": "2026-07-25T17:32:31",
+  "pdf_metadata": {
+    "title": "A low dimensional embedding of brain dynamics enhances diagnostic accuracy and behavioral prediction in stroke",
+    "author": "Sebastian Idesis ",
+    "subject": "Scientific Reports, https://doi.org/10.1038/s41598-023-42533-z",
+    "keywords": "",
+    "producer": "Adobe PDF Library 15.0; modified using iText\u00ae 5.3.5 \u00a92000-2012 1T3XT BVBA (SPRINGER SBM; licensed version)",
+    "creator": "Springer",
+    "creation_date": "D:20230919134254+05'30'",
+    "mod_date": "D:20231121121525+01'00'"
+  },
+  "page_offset": 0,
+  "pages": 17,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 17,
+    "png": 0,
+    "embedded_images": 5,
+    "classifications": {
+      "DIAGRAM": 17
+    },
+    "figures_in_index": 6,
+    "tables_in_index": 0,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 58,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_001.svg"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 16,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_002.svg"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 16,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_003.svg"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 19,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_004.svg"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 16,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_005.svg"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 16,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_006.svg"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 19,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_007.svg"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 19,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_008.svg"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 17,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_009.svg"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 19,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_010.svg"
+    },
+    {
+      "pdf_page": 11,
+      "doc_page": 11,
+      "drawings": 16,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_011.svg"
+    },
+    {
+      "pdf_page": 12,
+      "doc_page": 12,
+      "drawings": 19,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_012.svg"
+    },
+    {
+      "pdf_page": 13,
+      "doc_page": 13,
+      "drawings": 16,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_013.svg"
+    },
+    {
+      "pdf_page": 14,
+      "doc_page": 14,
+      "drawings": 16,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_014.svg"
+    },
+    {
+      "pdf_page": 15,
+      "doc_page": 15,
+      "drawings": 16,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_015.svg"
+    },
+    {
+      "pdf_page": 16,
+      "doc_page": 16,
+      "drawings": 16,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_016.svg"
+    },
+    {
+      "pdf_page": 17,
+      "doc_page": 17,
+      "drawings": 26,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_017.svg"
+    }
+  ]
+}
