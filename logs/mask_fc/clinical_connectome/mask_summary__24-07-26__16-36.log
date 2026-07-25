@@ -1,0 +1,2 @@
+INFO: Yan200TianS2Buckner7N: masked 169 subjects (mean 3.9 compromised nodes/subject)
+INFO: done - masked FC written under data/derived/features/masked_fc (1 combo(s)), report written to reports/mask_fc/clinical_connectome/mask_summary__24-07-26__16-36.md, log written to logs/mask_fc/clinical_connectome/mask_summary__24-07-26__16-36.log

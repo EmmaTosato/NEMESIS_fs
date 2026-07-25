@@ -490,7 +490,7 @@ def _write_tuning_output(
     results.to_csv(output_dir / "tuning_results.csv", index=False)
 
     swept_params = list(tuning_grid.keys())
-    title = compose_run_title(output_dir, config.project)
+    title = compose_cluster_plot_title(output_dir, config.reduction_method, method)
     metric_cols = METHOD_METRIC_COLUMNS[method]
     if len(swept_params) == 1:
         plot_clustering_tuning_metrics(results, swept_params[0], metric_cols, output_dir / "tuning_plot.png", title)

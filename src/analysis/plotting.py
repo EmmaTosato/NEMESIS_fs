@@ -591,7 +591,7 @@ def plot_clustering_tuning_metrics(df: pd.DataFrame, param_col: str, metric_cols
         ax.plot(sorted_df[param_col], sorted_df[metric_col], marker="o")
         ax.set_xlabel(param_col)
         ax.set_ylabel(metric_col)
-    fig.suptitle(title)
+    fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
@@ -609,7 +609,7 @@ def plot_dendrogram(linkage_matrix: np.ndarray, output_path: Path, title: str, t
     dendrogram(linkage_matrix, truncate_mode="lastp", p=truncate_last_p, ax=ax, show_contracted=True)
     ax.set_xlabel(f"cluster size (or subject index if a leaf) - truncated to last {truncate_last_p} merges")
     ax.set_ylabel("merge distance")
-    ax.set_title(title)
+    ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
@@ -635,7 +635,7 @@ def plot_eigengap(eigenvalues: np.ndarray, output_path: Path, title: str) -> Non
     ax.axvline(best_gap_idx + 1, color="red", linestyle="--", label=f"largest gap after eigenvalue {best_gap_idx + 1}")
     ax.set_xlabel("eigenvalue index")
     ax.set_ylabel("eigenvalue")
-    ax.set_title(title)
+    ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
     ax.legend()
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -652,7 +652,7 @@ def plot_k_distance(distances: np.ndarray, output_path: Path, title: str) -> Non
     ax.plot(range(1, len(distances) + 1), distances, marker=".", markersize=3)
     ax.set_xlabel("points sorted by distance")
     ax.set_ylabel("distance to k-th nearest neighbor")
-    ax.set_title(title)
+    ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")

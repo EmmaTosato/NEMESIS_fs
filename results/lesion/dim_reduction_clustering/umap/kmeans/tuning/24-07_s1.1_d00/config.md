@@ -1,4 +1,4 @@
-# clinical_connectome — lesion › dim_reduction_clustering › umap › kmeans › tuning › 24-07_s1.1_d00
+# Lesions - Umap - Kmeans
 
 ## Config
 

@@ -1,0 +1,4 @@
+INFO: Yan200TianS2Buckner7N: constant-edge check complete - 0 constant edges found, 28441/28441 kept
+INFO: Yan200TianS2Buckner7N: matrix built (169 subjects x 28441 edges) - NaN per subject: min=0 max=9135 mean=1012.7
+INFO: Yan200TianS2Buckner7N: matrix written to data/derived/features/fc_matrix/Yan200TianS2Buckner7N/24-07_s1 (shape (169, 28441))
+INFO: done - matrices written under data/derived/features/fc_matrix (1 combo(s)), report written to reports/build_fc_matrix/clinical_connectome/build_summary__24-07-26__16-40.md, log written to logs/build_fc_matrix/clinical_connectome/build_summary__24-07-26__16-40.log

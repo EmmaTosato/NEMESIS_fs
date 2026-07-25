@@ -1,4 +1,4 @@
-# clinical_connectome — lesion › dim_reduction_clustering › pca › kmeans › tuning › 24-07_s1.1_c150
+# Lesions - Pca - Kmeans
 
 ## Config
 

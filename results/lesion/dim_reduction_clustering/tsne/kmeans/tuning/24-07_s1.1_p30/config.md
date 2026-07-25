@@ -1,4 +1,4 @@
-# clinical_connectome — lesion › dim_reduction_clustering › tsne › kmeans › tuning › 24-07_s1.1_p30
+# Lesions - Tsne - Kmeans
 
 ## Config
 
