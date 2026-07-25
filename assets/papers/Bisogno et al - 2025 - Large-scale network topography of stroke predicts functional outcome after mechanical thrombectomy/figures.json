@@ -1,0 +1,45 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 2,
+    "doc_page": 2,
+    "svg": "figures/page_002.svg"
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 6,
+    "doc_page": 6
+  },
+  {
+    "id": "3",
+    "caption": "Figure 3 Anatomical correlates of 3-month disability following stroke. We describe regions showing significant correlation with disability at 3 months in the stroke sample (linear correlation with n =",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "4",
+    "caption": "Figure 4 White matter fibre bundles related to disability. The top panel shows the coronal and sagittal view of the white matter fibre bundles significantly associated with the mRS (linear correlation",
+    "pdf_page": 9,
+    "doc_page": 9
+  },
+  {
+    "id": "5",
+    "caption": "",
+    "pdf_page": 9,
+    "doc_page": 9
+  },
+  {
+    "id": "6",
+    "caption": "",
+    "pdf_page": 9,
+    "doc_page": 9
+  },
+  {
+    "id": "2_2",
+    "caption": "Figure 2 Predictive performance of lesion-derived models. ( A ) Prediction scores for the five different models based on the reference model and the atlases considered in the study (single best perfor",
+    "pdf_page": 7,
+    "doc_page": 7
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 2,
+    "doc_page": 2
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 2,
+    "doc_page": 2
+  },
+  {
+    "id": "3",
+    "caption": "",
+    "pdf_page": 3,
+    "doc_page": 3
+  },
+  {
+    "id": "4",
+    "caption": "",
+    "pdf_page": 3,
+    "doc_page": 3
+  },
+  {
+    "id": "6",
+    "caption": "",
+    "pdf_page": 3,
+    "doc_page": 3
+  },
+  {
+    "id": "1_2",
+    "caption": "Figure 1  Lesion flipping and space of analysis. ( A ) Top : Violin plot between lesions that are flipped to one hemisphere versus unflipped in terms of Jaccard similarity index. Bottom : The similari",
+    "pdf_page": 3,
+    "doc_page": 3
+  }
+]
