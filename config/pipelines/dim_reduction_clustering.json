@@ -8,6 +8,6 @@
   "output_root": "results/lesion/dim_reduction_clustering",
   "session_name": "s1.1",
   "overwrite": true,
-  "fine_tuning": true,
-  "run_notes": "re-run pacmap tuning (log file for the 24-07 16:53 run disappeared from disk, not caused by this session's code)"
+  "fine_tuning": false,
+  "run_notes": "pacmap (n_neighbors=5, best trustworthiness from tuning, results/lesion/dim_reduction/pacmap/tuning/23-07_s1.1_pacmap_tune) + kmeans/agglomerative/gmm/dbscan, voxel-wise matrix. spectral escluso: su questo embedding fonde sempre uno dei due gruppi satellite disconnessi nel blob principale, indipendentemente da n_neighbors (visto in una sessione precedente)"
 }

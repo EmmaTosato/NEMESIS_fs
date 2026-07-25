@@ -1,6 +1,65 @@
 # Stato progetto — NEMESIS
 
-Ultimo aggiornamento: 2026-07-21. Snapshot dello stato attuale del progetto — non un log cronologico. Errori passati, bug risolti e strade scartate vivono in `.claude/lessons_learned.md` (pattern generalizzabili) e `docs/debugging/` (narrativa completa per sessione di debug); l'evoluzione delle decisioni strategiche vive in `.claude/decision_log.md`; qui restano solo le regole/vincoli in vigore oggi e la mappa dello stato attuale.
+Ultimo aggiornamento: 2026-07-25. Snapshot dello stato attuale del progetto — non un log cronologico. Errori passati, bug risolti e strade scartate vivono in `.claude/lessons_learned.md` (pattern generalizzabili) e `docs/debugging/` (narrativa completa per sessione di debug); l'evoluzione delle decisioni strategiche vive in `.claude/decision_log.md`; qui restano solo le regole/vincoli in vigore oggi e la mappa dello stato attuale.
+
+## Sessione 2026-07-25 (2) — Tuning `dim_reduction_clustering`: fix titoli plot, analisi risultati, log spariti
+
+**Obiettivo**: proseguire il lavoro (sessione precedente) di aggiunta della modalità `fine_tuning` a `dim_reduction_clustering.py`/`clustering.py` — fix di un mismatch nei titoli dei plot di tuning, poi analisi dei risultati di tuning sulle 4 riduzioni (umap/tsne/pacmap/pca) × 5 metodi di clustering.
+
+**Decisioni prese / concetti discussi**:
+- **Fix titolo plot di tuning**: `_write_tuning_output` in `dim_reduction_clustering.py` usava ancora `compose_run_title` (vecchio formato) mentre la modalità produzione nello stesso file era già stata migrata a `compose_cluster_plot_title` (sessione parallela). Corretto a `compose_cluster_plot_title(output_dir, config.reduction_method, method)`; aggiunto styling coerente (grassetto, stessa fontsize/pad) alle 4 funzioni di plot condivise in `plotting.py` (`plot_clustering_tuning_metrics`, `plot_dendrogram`, `plot_eigengap`, `plot_k_distance`).
+- **Il fix non è retroattivo**: i plot già su disco (generati prima del fix) restano col titolo vecchio finché non si rilancia il tuning con `overwrite: true`. Rilanciato per tutte e 4 le riduzioni (prima solo 4 metodi kmeans/agglomerative/gmm/dbscan, poi un secondo giro con anche `spectral` per umap/tsne/pca — pacmap resta senza spectral, escluso di proposito per il problema noto dei gruppi satellite disconnessi).
+- **Log spariti dal disco senza causa nota**: dopo il primo giro di rerun, i log corrispondenti (incluse le run originali delle 12:43-12:49 del 24/07) non erano più presenti in `logs/dim_reduction_clustering/clinical_connectome/` — stesso pattern di sparizioni non spiegate già osservato in sessioni precedenti (non causato dal codice di questa sessione, verificato che il tuning non tocca cartelle sorelle). Rilanciato il tuning di pacmap una terza volta per rigenerare il log; essendo cambiata la data (24→25 luglio) il tag di output è cambiato (`24-07_s1.1_n5`→`25-07_s1.1_n5`), creando cartelle duplicate — le vecchie (dati identici, senza log) sono state rimosse su richiesta.
+
+**Analisi dei risultati di tuning** (silhouette/Calinski-Harabasz/Davies-Bouldin su 1150 soggetti, matrice voxel-wise):
+- **Umap** è la riduzione più affidabile: kmeans e gmm confermano `k=4` (default registry) come ottimo locale reale. dbscan invece non trova struttura (silhouette ~0 o negativo).
+- **Pacmap**: tutti i metodi a k variabile preferiscono `k=2` come silhouette massimo assoluto (coerente col pattern blob+satelliti già noto), con massimo locale secondario a k=6; il default k=4 non è il picco ma resta una scelta ragionevole più fine.
+- **Tsne**: struttura debole ovunque, il massimo è quasi sempre banalmente k=2; i valori alti di dbscan sono un artefatto (96-99% dei punti classificati come noise).
+- **Pca (150 componenti)**: nessun metodo trova struttura robusta — dbscan e spectral falliscono quasi del tutto (curse of dimensionality), gmm ha BIC/AIC instabili. Conferma indiretta del perché la pipeline clusterizza su proiezioni 2D e non sui componenti PCA grezzi.
+- **Nessun valore "tuned" è stato applicato alla produzione** — il tuning resta puramente diagnostico (nessuna selezione automatica), coerente con la filosofia del progetto. I risultati di produzione su disco per tutte e 4 le riduzioni usano ancora i default del registry.
+
+**File modificati**: `src/pipeline/dim_reduction_clustering.py` (fix titolo tuning), `src/analysis/plotting.py` (styling titoli tuning). `config/pipelines/dim_reduction_clustering.json` modificato ripetutamente per i rerun, poi ripristinato allo stato di produzione (`reduction_method: pacmap`, `fine_tuning: false`).
+
+**Stato dei test**: non rilanciati in questa sessione (nessuna modifica a logica di dominio, solo styling titoli — il fix era già coperto dai test esistenti sulla sessione precedente).
+
+**Prossimo passo esatto**: decidere se applicare uno dei valori suggeriti dal tuning (es. `k=2` per pacmap) a una run di produzione, o lasciare tutto ai default finché non emerge una motivazione clinica/metodologica più forte per cambiarli. Da tenere d'occhio: il pattern di log/risultati che spariscono dal disco senza azione dell'agente — non ancora capito da dove venga, segnalarlo esplicitamente se si ripresenta.
+
+## Sessione 2026-07-25 — Masking FC per lesione: da "va fatto" a pipeline in produzione, girata su tutta la coorte WashU
+
+**Obiettivo**: l'utente (non esperta del dominio tecnico, guidata passo-passo) ha chiesto di mascherare le feature di connettività funzionale (FC) già calcolate per la coorte WashU (`data/clinical_connectome/derivatives/UNIPD/WashU/features/`) in funzione della lesione di ciascun paziente, poi costruire una matrice 2D pronta per la riduzione dimensionale (Task 3).
+
+**Decisioni prese / concetti discussi** (in ordine, ognuna verificata prima di procedere, mai assunta):
+- **Metodologia non inventata**: cercata in letteratura prima di scrivere codice. Riferimenti chiave: Siegel et al. 2016 (stessa coorte WashU — connessioni lesionate azzerate nei modelli multivariati), Griffis et al. 2019 (soglia 50% overlap per escludere un nodo, già in `assets/papers/`), XCP-D (`xcp_d/interfaces/connectivity.py`, classe `NiftiParcellate` — stesso schema `min_coverage` già usato dal tool che ha generato queste stesse FC).
+- **Zero vs NaN, poi deciso NaN**: prima ipotesi era azzerare (stile Siegel). Approfondendo la letteratura (Griffis et al. 2019: *"the PLSC approach cannot accommodate missing values ... set to 0"*) emerso che il campo marca NaN e sostituisce con zero **solo** subito prima di un metodo che non tollera dati mancanti — non alla sorgente. Deciso di separare: `mask_fc.py` marca NaN e si ferma lì; l'imputazione (passo "Fase C") resta **non implementata**, deliberatamente fuori scope, da collocare vicino a `dim_reduction.py` quando si deciderà la strategia (default previsto: `"zero"`).
+- **Due pipeline separate, anche a livello di config** (non una sola): `mask_fc.py` (lesione+FC grezza → CSV mascherati con NaN, per soggetto) e `build_fc_matrix.py` (solo CSV già mascherati → matrice impilata). Motivo: permettere di analizzare `mask_summary.csv` su tutta la coorte e decidere una soglia di esclusione paziente **prima** di costruire la matrice finale, senza dover rifare il masking ogni volta.
+- **Atlante**: 12 combinazioni (`Yan{100,200,300,400}TianS{1,2,3}Buckner7N`) recuperate da `/data/corbetta/Clinical_connectome/Atlases/fmriprep/` (server, via SSH `pnc-vpn` — funziona non-interattivo, `BatchMode=yes`) e committate in `assets/atlases/fmriprep/` (formato BIDS-Derivatives `dseg.tsv`+`dseg.nii.gz`, verificato che l'ordine nodi combaci esattamente con le CSV FC reali). Solo `Yan200TianS2Buckner7N` validata/usata finora.
+- **Parcellizzazione**: niente funzione scritta a mano — riusato `nilearn.maskers.NiftiLabelsMasker` con lo stesso schema a doppio masker di XCP-D (un masker senza maschera conta tutti i voxel, uno con `mask_img=healthy_img` conta i sani, il rapporto è la coverage).
+- **Vettorizzazione**: solo triangolo superiore (no diagonale, la matrice FC è simmetrica) — nomi connessione `nodoA__nodoB`.
+- **Output su disco confermati dall'utente**: `data/derived/features/masked_fc/<combo>/` (CSV mascherati per soggetto, con NaN) e `data/derived/features/fc_matrix/<combo>/<data>_<session>/` (matrice finale, stesso formato atomico di `build_lesion_matrix.py` — `matrix.npy`/`metadata.csv`/`manifest.json`/`config.md` + `edge_names.npy`).
+- **`drop_constant_edges`**: una colonna con **qualunque** NaN non viene mai valutata per costanza — tenuta a prescindere (punto di design volutamente non ancora deciso, vedi soglia di esclusione sotto). Un edge identico per tutti i pazienti tra quelli senza NaN è invece un'anomalia per dati continui (non normale come nel caso binario delle lesioni) — loggato a `WARNING`, non silenzioso.
+
+**File creati** (tutti già committati dall'utente stesso in commit paralleli — `b031c81` "functional masking", `6eb2311`/`97daffe`/`0382c02` "results" — nessuna azione di commit fatta da questa sessione agente):
+- Codice: `src/features/functional.py`, `src/pipeline/mask_fc.py`, `src/pipeline/build_fc_matrix.py`, `src/analysis/build_config.py` (aggiunte `MaskFcConfig`/`BuildFcMatrixConfig`)
+- Config/job: `config/pipelines/mask_fc.json`, `config/pipelines/build_fc_matrix.json`, `jobs/run_mask_fc.sh`, `jobs/run_build_fc_matrix.sh`
+- Test: `tests/unit/test_features_functional.py` (25 test, incluso un regression test per ciascuno dei 2 bug sotto), `tests/integration/test_mask_fc_pipeline.py` (3 test E2E), `tests/integration/test_build_fc_matrix_pipeline.py` (3 test E2E)
+- Doc: `docs/dev/analysis.md` (sezione aggiornata da "planned" a "implemented"), `docs/guides/fc_matrix_building.md` (nuova), `README.md` (paragrafo aggiunto), `docs/debugging/debug_23_07_26.md` (nuovo), `.claude/lessons_learned.md` (pattern #13, nuovo)
+- Esplorativo: `notebooks/fc_lesion_masking.ipynb` (prototipo eseguito realmente, con spiegazioni in linguaggio semplice per utente non tecnica — precede e motiva il codice in `src/`)
+- Dati reali generati (run locale su tutta la coorte WashU, 169 soggetti, combo `Yan200TianS2Buckner7N`): `data/derived/features/masked_fc/Yan200TianS2Buckner7N/` (169 CSV + `mask_summary.csv`) e `data/derived/features/fc_matrix/Yan200TianS2Buckner7N/24-07_s1/` (matrice 169×28441)
+
+**Errori trovati e corretti** (narrativa completa in `docs/debugging/debug_23_07_26.md`):
+1. Overflow silenzioso in `uint8` nel conteggio voxel-per-parcel via `NiftiLabelsMasker(strategy="sum")` — un parcel da 695 voxel risultava 183 (`695 mod 256`). Fix: `int32`.
+2. Un parcel completamente lesionato **sparisce** dall'output del masker mascherato invece di leggere 0 — rischio di crash (shape mismatch) o disallineamento silenzioso. Fix: indicizzare per label id/nome, mai per posizione.
+3. (minore, in `build_fc_matrix.py`) `np.save` su un array `edge_names` con `dtype=object` produce un file non rileggibile da `np.load` senza `allow_pickle=True` — fix: lasciare che numpy inferisca il proprio dtype stringa nativo (nessun `dtype=object`).
+
+**Stato dei test**: 344 passed, 12 skipped, 0 failed (`pytest tests/ -q`, rilanciata più volte durante la sessione, ultima volta dopo tutte le modifiche).
+
+**Run reale eseguita** (in locale su questo Mac, non su cluster — richiesta esplicita dell'utente "voglio runnare solo qua"): `mask_fc.py` + `build_fc_matrix.py` su tutta la coorte WashU reale (169 soggetti con sia lesione che FC per la combo `Yan200TianS2Buckner7N`). Distribuzione nodi compromessi per paziente: mediana 1, media 3.9, max 42/239 (~18%), 0 pazienti sopra 50 nodi compromessi, 80/169 pazienti senza nessun nodo compromesso.
+
+**Prossimi passi esatti**:
+1. Analizzare `data/derived/features/masked_fc/Yan200TianS2Buckner7N/mask_summary.csv` (già generato, numeri sopra) per decidere una soglia di esclusione paziente — non ancora implementata in `build_fc_matrix.json`/`build_fc_matrix.py` di proposito.
+2. Ripetere `mask_fc.py`/`build_fc_matrix.py` sulle altre 11 combinazioni di atlante (oggi solo `Yan200TianS2Buckner7N` in `atlas_combos`) — bastano modifica dei due config e rilancio, nessun cambio di codice.
+3. Implementare il passo di imputazione NaN (Fase C, non ancora scritto) come funzione separata e configurabile vicino a `src/analysis/reduction.py`/`dim_reduction.py` — default `"zero"`, loggando quanti valori vengono sostituiti.
+4. Sul cluster: il branch lì (`server-pnc`) è diverso da `main` e ha modifiche proprie non committate (`src/pipeline/compute_sdc.py`) — se/quando si vorrà lanciare queste pipeline via SLURM invece che in locale, andrà prima sincronizzato `main` dentro `server-pnc` (non fatto in questa sessione, l'utente ha chiesto di lanciare solo in locale).
 
 ## Sessione 2026-07-21 (3) — Audit di allineamento docs/config/src/tests + fix bug reali
 
