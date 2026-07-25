@@ -1,0 +1,299 @@
+# Analisi dei risultati di tuning — clustering su embedding 2D
+
+Dati: matrice lesionale voxel-wise, 1150 soggetti (`data/derived/lesion_matrix/21-07_s1.1`), sessione `s1.1`. Tuning eseguito per 4 metodi di riduzione (umap, pacmap, tsne, pca) × 5 metodi di clustering (kmeans, agglomerative, gmm, dbscan, spectral — spectral escluso di proposito su pacmap, vedi sotto). Come leggere ogni indice/plot: [assets/knowledge/clustering_tuning_guide.md](../../../assets/knowledge/clustering_tuning_guide.md).
+
+**Questo documento non seleziona automaticamente nessun parametro** — riporta l'analisi per rendere più veloce la scelta umana, coerente con la filosofia generale del progetto (nessuna selezione automatica silenziosa). Default attuali (`config/registry/params_clustering.json`): `kmeans n_clusters=4`, `agglomerative n_clusters=4`, `gmm n_components=4`, `dbscan eps=0.5`, `spectral n_clusters=4`.
+
+---
+
+## Sommario rapido — raccomandazioni per combinazione
+
+| Riduzione | Metodo | Default | Raccomandazione | Confidenza | Nota |
+|---|---|---|---|---|---|
+| **umap** | kmeans | k=4 | **k=4** (confermato) | Alta | Tutti e 3 gli indici concordano |
+| **umap** | agglomerative | k=4 | **k=5** | Media | k=4 è il *peggior* silhouette dell'intera griglia |
+| **umap** | gmm | n=4 | **n=4** (confermato) | Alta | Vince DB e CH, pareggia silhouette |
+| **umap** | dbscan | eps=0.5 | nessuno affidabile | Bassa | Silhouette ~0 ovunque nel range testato |
+| **umap** | spectral | n=4 | **n=8** | Media | Eigengap suggerisce n≈11 (fuori griglia) |
+| **pacmap** | kmeans | k=4 | **k=6** (o k=2 per split macro) | Media | Silhouette in pareggio 2/6, DB+CH favoriscono 6 |
+| **pacmap** | agglomerative | k=4 | **k=5** (DB) / k=2 (dendrogramma) | Bassa-Media | Tensione irrisolta tra i due criteri |
+| **pacmap** | gmm | n=4 | **n=6** (o n=2 per split macro) | Media | Stesso pattern di kmeans |
+| **pacmap** | dbscan | eps=0.5 | **trade-off esplicito** | — | eps=0.3 (qualità, -36% coorte) vs eps=0.5/0.7 (copertura) |
+| **tsne** | kmeans | k=4 | **k=5** | Media | k=4 è tra i peggiori della griglia |
+| **tsne** | agglomerative | k=4 | **k=2** | Medio-Alta | Silhouette + dendrogramma concordano nettamente |
+| **tsne** | gmm | n=4 | **n=2** | Media | Silhouette + CH concordano, DB preferisce n=5 |
+| **tsne** | dbscan | eps=0.5 | **evitare il default** | Critica | eps=0.5 → 98.9% noise! eps=1.5 il meno peggio |
+| **tsne** | spectral | n=4 | **n=5** | Media | Eigengap suggerisce n≈12 (fuori griglia) |
+| **pca** | kmeans | k=4 | **k=2** | Alta (ma debole in assoluto) | Vince tutti e 3 gli indici |
+| **pca** | agglomerative | k=4 | **k=2** | Alta sugli indici, ⚠️ vedi nota | Dendrogramma: un ramo = 563/1150 soggetti |
+| **pca** | gmm | n=4 | **n=4** (confermato) | Alta | Unico metodo PCA dove il default è già ottimale |
+| **pca** | dbscan | eps=0.5 | **da evitare del tutto** | Critica | >90% noise a ogni eps testato |
+| **pca** | spectral | n=4 | nessuno affidabile | Critica | Silhouette ~0 ovunque, nessuna struttura reale |
+
+**Osservazione generale più importante**: il clustering diretto sui 150 componenti PCA è sistematicamente più debole (silhouette max 0.44 contro 0.5-0.64 delle altre riduzioni) e in alcuni casi inutilizzabile (dbscan, spectral) — coerente col fatto che la pipeline usa proiezioni 2D prima di clusterizzare. **umap è la riduzione più affidabile** per kmeans/gmm (default già ottimali). **tsne** ha un default (`eps=0.5` per dbscan) che va assolutamente evitato in produzione: scarta il 98.9% della coorte.
+
+---
+
+## UMAP (min_dist=0.0, n_neighbors=5)
+
+### KMeans
+| k | silhouette | Calinski-Harabasz | Davies-Bouldin |
+|---|---|---|---|
+| 2 | 0.427 | 1105 | 0.946 |
+| 3 | 0.474 | 1417 | 0.764 |
+| **4 (default)** | **0.497** | 1553 | **0.693** |
+| 5 | 0.496 | 1497 | 0.716 |
+| 6 | 0.475 | 1521 | 0.801 |
+| 8 | 0.469 | 1672 | 0.774 |
+| 10 | 0.440 | 1733 | 0.750 |
+
+**k=4 è la scelta migliore**: silhouette massimo (pareggiato con k=5, 0.497 vs 0.496), Davies-Bouldin minimo netto (0.693). Calinski-Harabasz non è il più alto in assoluto (cresce con k come atteso) ma è già competitivo a k=4. Inertia (curva a gomito) non mostra un gomito netto, scende in modo regolare. **Nessun cambiamento consigliato rispetto al default.**
+
+### Agglomerative
+| k | silhouette | Calinski-Harabasz | Davies-Bouldin |
+|---|---|---|---|
+| 2 | 0.456 | 908 | 0.738 |
+| 3 | 0.425 | 1098 | 0.719 |
+| **4 (default)** | **0.419** ⚠️ peggiore | 1216 | 0.754 |
+| **5** | **0.485** | 1423 | 0.743 |
+| 6 | 0.483 | 1465 | 0.751 |
+| 8 | 0.453 | 1578 | 0.757 |
+| 10 | 0.453 | 1659 | 0.745 |
+
+Il default k=4 ha il **silhouette più basso di tutta la griglia** (0.419, peggio anche di k=2). k=5 vince nettamente sul silhouette (0.485) ed è competitivo su Davies-Bouldin (0.743, terzo migliore dopo k=3 0.719 e k=2 0.738 — differenze comunque piccole, range 0.72-0.76). Dendrogramma: il salto più grande è alla radice (97→68, gap 29) ma non è dominante come su pacmap/tsne (il secondo salto è 68→47, gap 21 — non trascurabile), quindi la struttura non è nettamente binaria. **Raccomandazione: k=5**, chiaro miglioramento rispetto al default attuale.
+
+### GMM
+| n | silhouette | Calinski-Harabasz | Davies-Bouldin | BIC | AIC |
+|---|---|---|---|---|---|
+| 2 | 0.431 | 987 | 0.969 | 9591 | 9536 |
+| 3 | 0.446 | 1211 | 0.767 | 9318 | 9232 |
+| **4 (default)** | **0.496** | **1549** | **0.693** | 9153 | 9037 |
+| 5 | 0.495 | 1460 | 0.722 | 9057 | 8910 |
+| 6 | 0.444 | 1272 | 0.890 | 8705 | 8529 |
+| 8 | 0.431 | 1425 | 0.899 | 8626 | 8389 |
+| 10 | 0.405 | 1232 | 1.688 | 8506 | 8208 |
+
+n=4 vince **tutti e tre** gli indici generici: silhouette massimo (pareggiato con n=5), Davies-Bouldin minimo, e — caso raro — Calinski-Harabasz ha un vero picco a n=4 (non solo un trend crescente: scende dopo). BIC/AIC scendono monotonicamente fino a n=10 senza risalire, quindi non informativi qui (pattern di overfitting tipico, vedi guida). **Nessun cambiamento consigliato: n=4 è la scelta più solida di tutto lo studio.**
+
+### DBSCAN
+| eps | silhouette | Calinski-Harabasz | Davies-Bouldin | noise |
+|---|---|---|---|---|
+| 0.3 | -0.073 | 288 | 2.078 | 1.0% |
+| **0.5 (default)** | **-0.106** | 235 | 0.912 | 0.0% |
+| 0.7 | 0.006 | 339 | 1.024 | 0.0% |
+| 1.0-2.0 | degenerato (NaN, collassa in 1 cluster) | — | — | 0.0% |
+
+Il silhouette è **vicino a zero o negativo su tutto il range testato** — DBSCAN non trova struttura basata su densità in questo embedding, indipendentemente da `eps`. Il k-distance plot mostra una salita graduale fino a ~1050/1150 punti, poi un'impennata solo intorno a distanza 0.25-0.35 — più bassa del più piccolo `eps` testato (0.3), suggerendo che varrebbe la pena testare `eps` ancora più piccoli (~0.15-0.2) in un round di tuning dedicato. **Con la griglia attuale, DBSCAN non è consigliabile su umap.**
+
+### Spectral
+| n | silhouette | Calinski-Harabasz | Davies-Bouldin |
+|---|---|---|---|
+| 2 | 0.456 | 908 | 0.738 |
+| 3 | 0.441 | 1168 | 0.880 |
+| **4 (default)** | 0.477 | 1442 | 0.700 |
+| 5 | 0.469 | 1331 | 0.723 |
+| 6 | 0.492 | 1479 | 0.738 |
+| **8** | **0.493** | 1564 | **0.677** |
+| 10 | 0.436 | 1722 | 0.770 |
+
+n=8 vince silhouette (0.493, appena sopra n=6 0.492) e Davies-Bouldin (0.677, il migliore). Il default n=4 è decente ma non ottimale su nessuno dei due. **Eigengap** (diagnostica indipendente): il salto più grande è dopo il **11° autovalore** — suggerisce n≈11, fuori dalla griglia testata (max 10) ma coerente nella direzione ("più cluster di quanto suggerisca il default"). **Raccomandazione: n=8** tra i valori testati; varrebbe la pena estendere la griglia fino a 12-15 per verificare l'indicazione dell'eigengap.
+
+---
+
+## PACMAP (n_neighbors=5)
+
+*Spectral escluso di proposito: fonde sempre uno dei due gruppi satellite disconnessi nel blob principale, indipendentemente da n_neighbors (osservato in sessione precedente).*
+
+### KMeans
+| k | silhouette | Calinski-Harabasz | Davies-Bouldin |
+|---|---|---|---|
+| 2 | **0.506** | 1621 | 0.746 |
+| 3 | 0.450 | 1547 | 0.820 |
+| **4 (default)** | 0.479 | 1386 | 0.655 |
+| 5 | 0.434 | 1362 | 0.884 |
+| **6** | 0.504 | **1970** | **0.581** |
+| 8 | 0.495 | 2436 | 0.630 |
+| 10 | 0.475 | 2564 | 0.726 |
+
+Silhouette sostanzialmente pareggiato tra k=2 (0.506) e k=6 (0.504, differenza trascurabile). Davies-Bouldin e Calinski-Harabasz concordano entrambi nettamente su **k=6**. Il default k=4 non vince su nessun indice. **Raccomandazione: k=6**; k=2 resta un'alternativa legittima se si preferisce una struttura più macro (coerente con l'esclusione di spectral per lo stesso motivo — vedi sotto).
+
+### Agglomerative
+| k | silhouette | Calinski-Harabasz | Davies-Bouldin |
+|---|---|---|---|
+| **2** | **0.489** | 1551 | 0.733 |
+| 3 | 0.430 | 1438 | 0.912 (peggiore) |
+| **4 (default)** | 0.439 | 1304 | 0.677 |
+| **5** | 0.478 | 1375 | **0.541** |
+| 6 | 0.458 | 1695 | 0.641 |
+| 8 | 0.466 | 2084 | 0.594 |
+| 10 | 0.451 | 2491 | 0.713 |
+
+Tensione tra silhouette (picco k=2) e Davies-Bouldin (nettamente migliore a k=5, 0.541 contro 0.733 di k=2). Dendrogramma: il salto più grande è alla radice (365→180, ben più grande dei salti successivi ~110-180) — conferma k=2 come struttura visivamente più dominante, coerente col pattern "blob + satelliti" già noto. **Nessuna raccomandazione netta**: k=2 se si privilegia la struttura macro più naturale (e coerente col resto dell'evidenza su pacmap), k=5 se si privilegiano cluster compatti internamente.
+
+### GMM
+| n | silhouette | Calinski-Harabasz | Davies-Bouldin | BIC | AIC |
+|---|---|---|---|---|---|
+| 2 | **0.512** | 1611 | 0.745 | 14768 | 14712 |
+| 3 | 0.433 | 1443 | 0.848 | 14630 | 14544 |
+| **4 (default)** | 0.374 (tra i peggiori) | 780 | 1.022 | 13816 | 13700 |
+| 5 | 0.436 | 1030 | 1.018 | 13444 | 13298 |
+| **6** | 0.485 | **1725** | **0.584** | 13206 | 13029 |
+| 8 | 0.389 | 1445 | 0.635 | 12923 | 12686 |
+| 10 | 0.387 | 1873 | 0.837 | 12888 | 12590 |
+
+Stesso pattern di kmeans: silhouette preferisce n=2, ma Davies-Bouldin e Calinski-Harabasz convergono su **n=6**. Il default n=4 è tra i **peggiori** valori della griglia su silhouette (0.374, quasi il minimo). BIC/AIC scendono monotonicamente, non informativi. **Raccomandazione: n=6** (o n=2 per lo split macro) — il default attuale n=4 è una scelta debole, da cambiare in ogni caso.
+
+### DBSCAN — trade-off qualità/copertura
+| eps | silhouette | Calinski-Harabasz | Davies-Bouldin | noise |
+|---|---|---|---|---|
+| **0.3** | **0.642** | **8981** | **0.419** | **36.3%** ⚠️ |
+| **0.5 (default)** | 0.284 | 689 | 0.688 | 8.4% |
+| 0.7 | 0.118 | 637 | 0.663 | 1.7% |
+| 1.0-2.0 | ~0.28 (piatto) | ~98 | ~0.67 (piatto) | ≤0.5% |
+
+`eps=0.3` vince su tutti e tre gli indici di qualità ma scarta il 36% della coorte. Il default `eps=0.5` è un compromesso ragionevole (8.4% noise, qualità nettamente inferiore al picco). **Non c'è una risposta oggettiva**: è una scelta esplicita tra qualità della separazione e copertura della coorte.
+
+---
+
+## TSNE (perplexity=30)
+
+### KMeans
+| k | silhouette | Calinski-Harabasz | Davies-Bouldin |
+|---|---|---|---|
+| 2 | 0.411 | 1081 | 0.948 (peggiore) |
+| 3 | 0.389 | 1071 | 0.913 |
+| **4 (default)** | 0.367 (peggiore) | 964 | 0.925 |
+| **5** | **0.410** | **1154** | **0.831** |
+| 6 | 0.388 | 1123 | 0.890 |
+| 8 | 0.386 | 1125 | 0.829 |
+| 10 | 0.365 | 1140 | 0.857 |
+
+Il default k=4 ha il **silhouette peggiore** di tutta la griglia insieme a k=10. k=5 è quasi a pari merito col miglior silhouette (k=2, 0.411 vs 0.410) ma ha anche il miglior/quasi-miglior Davies-Bouldin (0.831, contro 0.948 di k=2) e un picco locale di Calinski-Harabasz (1154, il più alto). **Raccomandazione: k=5**, cambiamento chiaro rispetto al default.
+
+### Agglomerative
+| k | silhouette | Calinski-Harabasz | Davies-Bouldin |
+|---|---|---|---|
+| **2** | **0.398** | 1004 | 0.951 |
+| 3 | 0.335 | 869 | 1.045 (peggiore) |
+| **4 (default)** | 0.340 | 870 | 0.989 |
+| 5 | 0.322 | 913 | 0.926 |
+| **6** | 0.337 | 955 | **0.879** |
+| 8 | 0.340 | 987 | 0.880 |
+| 10 | 0.330 | 1001 | 0.888 |
+
+Struttura debole ovunque (silhouette 0.32-0.40, valori bassi rispetto a umap/pacmap). Silhouette nettamente più alto a k=2 (0.398 contro il secondo migliore 0.340). Dendrogramma: il salto alla radice (670→360, gap 310) è **di gran lunga** il più grande dell'albero — conferma fortemente k=2 come taglio naturale. Davies-Bouldin preferirebbe k=6 (0.879) ma il margine sul resto della griglia è modesto. **Raccomandazione: k=2**, supportata sia da silhouette sia dal dendrogramma.
+
+### GMM
+| n | silhouette | Calinski-Harabasz | Davies-Bouldin | BIC | AIC |
+|---|---|---|---|---|---|
+| **2** | **0.416** | **1058** | 0.933 | 18602 | 18547 |
+| 3 | 0.381 | 1032 | 0.944 | 18538 | 18452 |
+| **4 (default)** | 0.365 (peggiore) | 878 | 0.873 | 18480 | 18364 |
+| 5 | 0.370 | 957 | **0.815** | 18360 | 18214 |
+| 6 | 0.378 | 1004 | 0.907 | 18395 | 18219 |
+| 8 | 0.376 | 1026 | 0.863 | 18410 | 18173 |
+| 10 | 0.351 | 1022 | 0.881 | 18426 | 18128 |
+
+n=2 vince silhouette e Calinski-Harabasz nettamente; Davies-Bouldin preferisce leggermente n=5 (0.815 contro 0.933 di n=2), ma il default n=4 è comunque tra i peggiori su silhouette. BIC/AIC non informativi (monotoni). **Raccomandazione: n=2** come scelta primaria (2 indici su 3 d'accordo), n=5 come alternativa se si vuole ottimizzare solo Davies-Bouldin.
+
+### DBSCAN — ⚠️ attenzione al default
+| eps | silhouette | Calinski-Harabasz | Davies-Bouldin | noise |
+|---|---|---|---|---|
+| 0.3 | degenerato | — | — | **99.6%** |
+| **0.5 (default)** | 0.988 | 37019 | 0.014 | **98.9%** ⚠️ |
+| 0.7 | 0.951 | 7262 | 0.060 | 96.2% |
+| 1.0 | 0.548 | 1218 | 0.342 | 82.3% |
+| **1.5** | 0.302 | 504 | 0.628 | **33.2%** |
+| 2.0 | -0.179 | 78 | 0.826 | 9.5% |
+
+**Il default `eps=0.5` classifica il 98.9% della coorte come rumore** — resterebbero solo ~13 soggetti su 1150 come "cluster reale". I valori di silhouette apparentemente ottimi a eps=0.5/0.7 (0.988, 0.951) sono un **artefatto**: calcolati su una manciata di punti superstiti, non un segnale di qualità. Solo a `eps≥1.5` la copertura torna ragionevole, ma lì la qualità è mediocre (silhouette 0.302) o negativa (eps=2.0). **Non usare mai il default `eps=0.5` su tsne in produzione.** Se serve comunque DBSCAN su tsne, `eps=1.5` è il compromesso meno peggio (33% noise, qualità reale non artefatta).
+
+### Spectral
+| n | silhouette | Calinski-Harabasz | Davies-Bouldin |
+|---|---|---|---|
+| 2 | 0.413 | 1080 | 0.944 (peggiore) |
+| 3 | 0.352 | 797 | 0.873 |
+| **4 (default)** | 0.390 | 1018 | 0.859 |
+| **5** | 0.398 | **1091** | 0.830 |
+| 6 | 0.362 | 979 | 0.828 |
+| 8 | 0.351 | 1004 | 0.850 |
+| 10 | 0.357 | 1064 | **0.816** |
+
+n=5 offre il miglior compromesso: secondo miglior silhouette (0.398, dietro solo a n=2 0.413 che però ha il peggior Davies-Bouldin), Calinski-Harabasz più alto della griglia. **Eigengap**: salto più grande dopo il **12° autovalore** → suggerisce n≈12, fuori dalla griglia testata (max 10), stesso pattern osservato su umap spectral. **Raccomandazione: n=5** tra i valori testati; da verificare estendendo la griglia vista l'indicazione dell'eigengap.
+
+---
+
+## PCA (150 componenti)
+
+⚠️ **Attenzione generale**: il clustering diretto sui 150 componenti PCA è sistematicamente più debole delle altre riduzioni (curse of dimensionality per metodi basati su distanza/densità) — anche i "vincitori" quantitativi qui sotto restano deboli in assoluto.
+
+### KMeans
+| k | silhouette | Calinski-Harabasz | Davies-Bouldin |
+|---|---|---|---|
+| **2** | **0.436** | **166** | **1.907** |
+| 3 | 0.365 | 100 | 2.083 |
+| **4 (default)** | 0.397 | 138 | 1.954 |
+| 5 | 0.396 | 120 | 2.239 |
+| 6 | 0.397 | 103 | 2.265 |
+| 8 | 0.336 | 89 | 2.121 |
+| 10 | 0.273 | 74 | 2.133 |
+
+k=2 vince **tutti e tre** gli indici in modo netto e senza ambiguità — raro in questo studio. **Raccomandazione: k=2.** Nota: anche il valore migliore (silhouette 0.436) resta comunque inferiore al peggior risultato ottenuto su umap/pacmap.
+
+### Agglomerative — ⚠️ cluster fortemente sbilanciati
+| k | silhouette | Calinski-Harabasz | Davies-Bouldin |
+|---|---|---|---|
+| **2** | **0.443** | **155** | **1.874** |
+| 3 | 0.322 | 141 | 2.195 |
+| **4 (default)** | 0.329 | 118 | 2.265 |
+| 5 | 0.298 | 102 | 2.092 |
+| 6 | 0.303 | 92 | 2.385 |
+| 8 | 0.313 | 80 | 2.119 |
+| 10 | 0.268 | 73 | 2.153 |
+
+k=2 vince tutti e tre gli indici, ma il **dendrogramma rivela un problema più serio**: uno dei rami troncati contiene da solo **563 dei 1150 soggetti** (quasi metà dell'intera coorte in un'unica foglia), con gli altri rami molto più piccoli e sbilanciati. Non è una struttura clinicamente interpretabile in sottogruppi bilanciati, ma un blob dominante indifferenziato più piccole code — sintomo diretto della debolezza generale del clustering su PCA grezzo. **Da usare con cautela anche scegliendo k=2.**
+
+### GMM — unico metodo dove il default è già ottimale
+| n | silhouette | Calinski-Harabasz | Davies-Bouldin | BIC | AIC |
+|---|---|---|---|---|---|
+| 2 | 0.058 (pessimo) | 81 | 3.020 (peggiore) | 595468 | 479623 |
+| 3 | 0.365 | 100 | 2.083 | 829087 | 655316 |
+| **4 (default)** | **0.397** | **138** | **1.954** | 732674 | 500978 |
+| 5 | 0.396 | 120 | 2.239 | 704060 | 414439 |
+| 6 | 0.397 | 103 | 2.265 | 715363 | 367816 |
+| 8 | 0.336 | 89 | 2.121 | 772135 | 308738 |
+| 10 | 0.273 | 74 | 2.133 | 880956 | 301708 |
+
+A differenza di kmeans/agglomerative, per GMM **n=2 è la scelta peggiore** (silhouette 0.058, quasi casuale) — forzare 2 gaussiane su questi dati produce componenti sovrapposte invece della stessa partizione semplice che trova kmeans. n=4 vince silhouette, Davies-Bouldin e Calinski-Harabasz. BIC/AIC instabili e non monotoni (sintomo di fit instabile in 150 dimensioni), non utilizzabili per la scelta. **Nessun cambiamento consigliato: n=4 è già la scelta migliore.**
+
+### DBSCAN — inutilizzabile
+| eps | silhouette | noise |
+|---|---|---|
+| 0.3-0.7 | degenerato (NaN) | 96-97% |
+| **0.5 (default)** | degenerato | **96.7%** |
+| 1.0 | 0.782 (artefatto) | 94.3% |
+| 2.0 | 0.395 | 91.0% |
+
+**Ogni singolo valore di `eps` testato produce oltre il 90% di rumore.** Il silhouette "buono" a eps=1.0 (0.782) è calcolato su appena ~65 soggetti superstiti (5.7% della coorte) — non un risultato reale. DBSCAN è strutturalmente inadatto ai 150 componenti PCA grezzi (le distanze diventano quasi uniformi in alta dimensione, tipico della curse of dimensionality). **Da evitare del tutto su PCA**, indipendentemente dal valore di eps.
+
+### Spectral — nessuna struttura reale
+| n | silhouette | Calinski-Harabasz | Davies-Bouldin |
+|---|---|---|---|
+| 2 | 0.083 | 88 | 2.944 |
+| 3 | 0.131 | 93 | 2.464 |
+| 4 | 0.062 | 76 | 2.422 |
+| **5 (default)** | 0.081 | 76 | 2.255 |
+| 6 | 0.049 | 73 | 2.291 |
+| 8 | -0.041 | 64 | 2.480 |
+| 10 | -0.054 | 53 | 2.597 |
+
+Tutti i valori di silhouette sono vicini a zero (0.05-0.13) o negativi — un ordine di grandezza più debole di qualunque altra combinazione riduzione×metodo in questo studio. Eigengap: salto più grande dopo il 2° autovalore (suggerisce n=2), ma dato il livello di rumore generale questa indicazione va presa con grande scetticismo. **Spectral non trova struttura reale su PCA — qualunque n si scelga, il risultato non è affidabile.**
+
+---
+
+## Note metodologiche
+
+- Tutti gli indici sono calcolati con `src/analysis/clustering_tuning.py::compute_clustering_metrics`; per DBSCAN i punti di rumore (`label -1`) sono esclusi da silhouette/CH/DB, `noise_fraction` è sempre riportato a parte.
+- Dendrogrammi/eigengap/k-distance sono diagnostiche **standalone**, calcolate una sola volta dai `base_params` — non dipendono dal valore di k/eps scelto nella sweep.
+- Nessun valore riportato qui è stato applicato in produzione durante questa sessione — i risultati di produzione su disco per tutte e 4 le riduzioni usano ancora i default del registry.
+- Dati sorgente completi: `results/lesion/dim_reduction_clustering/<riduzione>/<metodo>/tuning/*/tuning_results.csv` + plot nella stessa cartella.

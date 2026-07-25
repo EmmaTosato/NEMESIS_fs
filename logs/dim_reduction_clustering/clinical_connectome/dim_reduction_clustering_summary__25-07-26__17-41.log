@@ -1,0 +1,39 @@
+WARNING: Warning: random state is set to 0.
+INFO: Starting clustering fine-tuning sweep for kmeans (7 combinations)
+INFO: Evaluating combination 1/7: {'n_clusters': 2}
+INFO: Evaluating combination 2/7: {'n_clusters': 3}
+INFO: Evaluating combination 3/7: {'n_clusters': 4}
+INFO: Evaluating combination 4/7: {'n_clusters': 5}
+INFO: Evaluating combination 5/7: {'n_clusters': 6}
+INFO: Evaluating combination 6/7: {'n_clusters': 8}
+INFO: Evaluating combination 7/7: {'n_clusters': 10}
+INFO: [kmeans] tuning results written to results/lesion/dim_reduction_clustering/pacmap/kmeans/tuning/25-07_s1.1_n5 (7 combination(s) evaluated)
+INFO: Starting clustering fine-tuning sweep for agglomerative (7 combinations)
+INFO: Evaluating combination 1/7: {'n_clusters': 2}
+INFO: Evaluating combination 2/7: {'n_clusters': 3}
+INFO: Evaluating combination 3/7: {'n_clusters': 4}
+INFO: Evaluating combination 4/7: {'n_clusters': 5}
+INFO: Evaluating combination 5/7: {'n_clusters': 6}
+INFO: Evaluating combination 6/7: {'n_clusters': 8}
+INFO: Evaluating combination 7/7: {'n_clusters': 10}
+INFO: [agglomerative] dendrogram written to results/lesion/dim_reduction_clustering/pacmap/agglomerative/tuning/25-07_s1.1_n5/dendrogram.png
+INFO: [agglomerative] tuning results written to results/lesion/dim_reduction_clustering/pacmap/agglomerative/tuning/25-07_s1.1_n5 (7 combination(s) evaluated)
+INFO: Starting clustering fine-tuning sweep for gmm (7 combinations)
+INFO: Evaluating combination 1/7: {'n_components': 2}
+INFO: Evaluating combination 2/7: {'n_components': 3}
+INFO: Evaluating combination 3/7: {'n_components': 4}
+INFO: Evaluating combination 4/7: {'n_components': 5}
+INFO: Evaluating combination 5/7: {'n_components': 6}
+INFO: Evaluating combination 6/7: {'n_components': 8}
+INFO: Evaluating combination 7/7: {'n_components': 10}
+INFO: [gmm] tuning results written to results/lesion/dim_reduction_clustering/pacmap/gmm/tuning/25-07_s1.1_n5 (7 combination(s) evaluated)
+INFO: Starting clustering fine-tuning sweep for dbscan (6 combinations)
+INFO: Evaluating combination 1/6: {'eps': 0.3}
+INFO: Evaluating combination 2/6: {'eps': 0.5}
+INFO: Evaluating combination 3/6: {'eps': 0.7}
+INFO: Evaluating combination 4/6: {'eps': 1.0}
+INFO: Evaluating combination 5/6: {'eps': 1.5}
+INFO: Evaluating combination 6/6: {'eps': 2.0}
+INFO: [dbscan] k-distance plot written to results/lesion/dim_reduction_clustering/pacmap/dbscan/tuning/25-07_s1.1_n5/k_distance_plot.png
+INFO: [dbscan] tuning results written to results/lesion/dim_reduction_clustering/pacmap/dbscan/tuning/25-07_s1.1_n5 (6 combination(s) evaluated)
+INFO: done - fine-tuning for all 4 method(s) written under results/lesion/dim_reduction_clustering, log written to logs/dim_reduction_clustering/clinical_connectome/dim_reduction_clustering_summary__25-07-26__17-41.log

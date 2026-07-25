@@ -71,6 +71,11 @@ _SINGLE_PLOT_HEIGHT = 5.5
 _SINGLE_PLOT_TITLE_FONTSIZE = 15
 _SINGLE_PLOT_TITLE_PAD = 20
 
+_TUNING_METRICS_SUBPLOT_WIDTH = 6.0
+_TUNING_METRICS_SUBPLOT_HEIGHT = 4.5
+_TUNING_METRICS_WSPACE = 0.4
+_TUNING_METRICS_HSPACE = 0.4
+
 
 def _square_grid_shape(n_items: int) -> tuple[int, int]:
     """Smallest square (nrows == ncols) grid that fits n_items, e.g. 4 -> (2, 2),
@@ -580,17 +585,31 @@ def plot_clustering_tuning_metrics(df: pd.DataFrame, param_col: str, metric_cols
     (unbounded positive, lower is better) live on incomparable scales -
     overlaying them on one shared axis would be misleading, so each gets its
     own subplot instead.
+
+    Laid out on the smallest square grid that fits all metrics (see
+    _square_grid_shape), not a single row - a single row of 4-5 subplots
+    compresses each one so much that axis labels/ticks collide.
     """
     if not metric_cols:
         raise ValueError("plot_clustering_tuning_metrics needs at least one metric column")
 
     sorted_df = df.sort_values(param_col)
+    nrows, ncols = _square_grid_shape(len(metric_cols))
 
-    fig, axes = plt.subplots(1, len(metric_cols), figsize=(5 * len(metric_cols), 4.5), squeeze=False)
-    for ax, metric_col in zip(axes[0], metric_cols):
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(_TUNING_METRICS_SUBPLOT_WIDTH * ncols, _TUNING_METRICS_SUBPLOT_HEIGHT * nrows),
+        squeeze=False,
+        gridspec_kw={"wspace": _TUNING_METRICS_WSPACE, "hspace": _TUNING_METRICS_HSPACE},
+    )
+    for i, metric_col in enumerate(metric_cols):
+        ax = axes[i // ncols][i % ncols]
         ax.plot(sorted_df[param_col], sorted_df[metric_col], marker="o")
         ax.set_xlabel(param_col)
         ax.set_ylabel(metric_col)
+    for i in range(len(metric_cols), nrows * ncols):
+        axes[i // ncols][i % ncols].set_visible(False)
     fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
