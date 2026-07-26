@@ -33,7 +33,7 @@ from src.utils.artifacts import save_matrix
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
 
-REPORTS_ROOT = Path("reports") / "build_fc_matrix"
+REPORTS_ROOT = Path("summaries") / "build_fc_matrix"
 LOGS_ROOT = Path("logs") / "build_fc_matrix"
 REPORT_FILENAME_PREFIX = "build_summary"
 

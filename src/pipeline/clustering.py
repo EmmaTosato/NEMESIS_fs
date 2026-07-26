@@ -78,7 +78,7 @@ from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
 
-REPORTS_ROOT = Path("reports") / "clustering"
+REPORTS_ROOT = Path("summaries") / "clustering"
 LOGS_ROOT = Path("logs") / "clustering"
 REPORT_FILENAME_PREFIX = "clustering_summary"
 

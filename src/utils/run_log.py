@@ -4,7 +4,7 @@ A run's config.md/report describe that one run in isolation. runs.csv answers
 a different question - "every run (tuning sweep or production) that ever
 wrote into a given method folder, and how did it differ" - across time.
 Never overwritten, never atomic (a log, not a primary artifact - same tier
-as reports/logs, see docs/dev/design_patterns.md).
+as summaries/logs, see docs/dev/design_patterns.md).
 
 Deliberately does not know about session *meaning* - what session "s1.1" was
 for, which datasets/modality it covers, etc. That's SESSIONS.md, hand-written

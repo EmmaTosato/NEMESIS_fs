@@ -31,7 +31,7 @@ from src.features.functional import mask_dataset_fc, resolve_atlas_paths
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
 
-REPORTS_ROOT = Path("reports") / "mask_fc"
+REPORTS_ROOT = Path("summaries") / "mask_fc"
 LOGS_ROOT = Path("logs") / "mask_fc"
 REPORT_FILENAME_PREFIX = "mask_summary"
 SUMMARY_FILENAME = "mask_summary.csv"

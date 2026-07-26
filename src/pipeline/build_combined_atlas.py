@@ -25,7 +25,7 @@ from src.atlases.combine import build_combined_atlas
 from src.atlases.config import BuildCombinedAtlasConfig, load_build_combined_atlas_config
 from src.utils.logging_setup import attach_file_handler
 
-REPORTS_ROOT = Path("reports") / "build_combined_atlas"
+REPORTS_ROOT = Path("summaries") / "build_combined_atlas"
 LOGS_ROOT = Path("logs") / "build_combined_atlas"
 
 

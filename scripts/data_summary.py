@@ -26,7 +26,7 @@ from src.retrieval import matrix
 from src.retrieval.config import RetrievalConfig, load_config
 from src.retrieval.dataset import Dataset
 
-REPORTS_ROOT = Path("reports") / "datasets"
+REPORTS_ROOT = Path("summaries") / "datasets"
 REPORT_FILENAME_PREFIX = "data_summary"
 
 
