@@ -68,10 +68,12 @@ def test_resample_nonconforming_rows_leaves_conforming_rows_untouched(tmp_path):
     _write_lesion(lesion_path, _REFERENCE_SHAPE, _REFERENCE_AFFINE)
     row = ManifestRow(subject_id="sub-A", dataset="UNIPD/WashU", lesion_mask_path=lesion_path)
 
-    rows, failed = resample_nonconforming_rows([row], _reference_img(), tmp_path / "resampled")
+    rows, failed, timings = resample_nonconforming_rows([row], _reference_img(), tmp_path / "resampled")
 
     assert rows == [row]
     assert failed == {}
+    assert "sub-A" in timings
+    assert timings["sub-A"] >= 0.0
 
 
 def test_resample_nonconforming_rows_repoints_path_for_nonconforming_row(tmp_path):
@@ -82,13 +84,14 @@ def test_resample_nonconforming_rows_repoints_path_for_nonconforming_row(tmp_pat
     row = ManifestRow(subject_id="sub-B", dataset="UKLFR/stroke_UKLFR", lesion_mask_path=lesion_path)
     resampled_dir = tmp_path / "resampled"
 
-    rows, failed = resample_nonconforming_rows([row], _reference_img(), resampled_dir)
+    rows, failed, timings = resample_nonconforming_rows([row], _reference_img(), resampled_dir)
 
     assert failed == {}
     assert len(rows) == 1
     assert rows[0].subject_id == "sub-B"
     assert rows[0].lesion_mask_path != lesion_path
     assert rows[0].lesion_mask_path.parent == resampled_dir
+    assert "sub-B" in timings
 
 
 def test_resample_nonconforming_rows_isolates_one_unreadable_subject(tmp_path):
@@ -99,11 +102,13 @@ def test_resample_nonconforming_rows_isolates_one_unreadable_subject(tmp_path):
     good_row = ManifestRow(subject_id="sub-A", dataset="UNIPD/WashU", lesion_mask_path=good_path)
     bad_row = ManifestRow(subject_id="sub-B", dataset="UKLFR/stroke_UKLFR", lesion_mask_path=bad_path)
 
-    rows, failed = resample_nonconforming_rows([good_row, bad_row], _reference_img(), tmp_path / "resampled")
+    rows, failed, timings = resample_nonconforming_rows([good_row, bad_row], _reference_img(), tmp_path / "resampled")
 
     assert rows == [good_row]
     assert "sub-B" in failed
     assert "not a loadable NIfTI" in failed["sub-B"]
+    assert "sub-A" in timings
+    assert "sub-B" in timings
 
 
 def test_resample_lesion_if_needed_rejects_missing_file(tmp_path):

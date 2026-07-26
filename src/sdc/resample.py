@@ -22,6 +22,7 @@ src/features/lesion.py (load_and_resample_atlas, _load_and_binarize_lesion).
 
 from __future__ import annotations
 
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -54,22 +55,30 @@ def resample_lesion_if_needed(lesion_path: Path, reference_img: nib.Nifti1Image,
 
 def resample_nonconforming_rows(
     rows: list[ManifestRow], reference_img: nib.Nifti1Image, resampled_dir: Path
-) -> tuple[list[ManifestRow], dict[str, str]]:
-    """Returns (rows, failed): rows with lesion_mask_path repointed at a
-    resampled copy for any subject whose mask isn't already on
+) -> tuple[list[ManifestRow], dict[str, str], dict[str, float]]:
+    """Returns (rows, failed, timings): rows with lesion_mask_path repointed
+    at a resampled copy for any subject whose mask isn't already on
     reference_img's grid (returned unchanged if it already conforms).
     failed maps subject_id -> reason for any subject whose mask could not be
     loaded at all (corrupt/unreadable NIfTI) - excluded from rows rather
     than raising, so one bad file doesn't abort resampling (and therefore
     Stage 1) for the rest of the task's subjects, same per-subject isolation
-    as check_stage1_outputs in runner.py."""
+    as check_stage1_outputs in runner.py. timings maps subject_id -> seconds
+    spent in resample_lesion_if_needed for that subject (every row in rows
+    plus every subject_id in failed has an entry) - unlike Stage 1/2, this
+    step is genuinely per-subject, so the timing is real per-subject data,
+    not a chunk-wide average."""
     result = []
     failed: dict[str, str] = {}
+    timings: dict[str, float] = {}
     for row in rows:
+        start = time.perf_counter()
         try:
             resolved_path = resample_lesion_if_needed(row.lesion_mask_path, reference_img, resampled_dir)
         except (OSError, ValueError, ImageFileError) as exc:
+            timings[row.subject_id] = time.perf_counter() - start
             failed[row.subject_id] = f"lesion mask not a loadable NIfTI: {exc}"
             continue
+        timings[row.subject_id] = time.perf_counter() - start
         result.append(row if resolved_path == row.lesion_mask_path else replace(row, lesion_mask_path=resolved_path))
-    return result, failed
+    return result, failed, timings
