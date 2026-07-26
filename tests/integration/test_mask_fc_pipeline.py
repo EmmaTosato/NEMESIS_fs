@@ -76,7 +76,7 @@ def _all_voxels_in_block(block):
 
 
 def test_mask_fc_end_to_end(tmp_path, monkeypatch):
-    monkeypatch.setattr(mask_fc, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(mask_fc, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(mask_fc, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
@@ -104,7 +104,7 @@ def test_mask_fc_end_to_end(tmp_path, monkeypatch):
     summary = pd.read_csv(combo_dir / "mask_summary.csv")
     assert set(summary["subject_id"]) == {"sub-01", "sub-02"}
 
-    reports = list((tmp_path / "reports" / "testproj").glob("*.md"))
+    reports = list((tmp_path / "summaries" / "testproj").glob("*.md"))
     logs = list((tmp_path / "logs" / "testproj").glob("*.log"))
     assert len(reports) == 1
     assert len(logs) == 1
@@ -115,7 +115,7 @@ def test_mask_fc_end_to_end(tmp_path, monkeypatch):
 
 
 def test_mask_fc_overwrite_false_rerun_fails(tmp_path, monkeypatch):
-    monkeypatch.setattr(mask_fc, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(mask_fc, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(mask_fc, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
@@ -131,7 +131,7 @@ def test_mask_fc_overwrite_false_rerun_fails(tmp_path, monkeypatch):
 
 
 def test_mask_fc_missing_lesion_subject_skipped_not_fatal(tmp_path, monkeypatch):
-    monkeypatch.setattr(mask_fc, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(mask_fc, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(mask_fc, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"

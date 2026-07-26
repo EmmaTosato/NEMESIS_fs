@@ -33,7 +33,7 @@ def test_end_to_end_small_real_run(tmp_path, monkeypatch):
     feature/FC-pearson item must WARNING-skip for this dataset (see
     src.pipeline.retrieve_data._report_skipped_retrieve_items), not stop the
     run, while lesion/manual_masks still copies normally."""
-    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "summaries")
     file_patterns = load_file_patterns(FILE_PATTERNS_PATH)
     subjects = _two_subjects_with_lesion_mask("UNIPD/PASPORT", file_patterns)
     assert len(subjects) == 2  # sanity: the fixture assumption holds on real data

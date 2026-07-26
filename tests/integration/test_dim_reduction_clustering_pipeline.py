@@ -15,7 +15,7 @@ _SHAPE = (10, 10, 10)
 
 
 def _build_matrix(tmp_path, monkeypatch, n_subjects=12):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"

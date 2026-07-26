@@ -26,7 +26,7 @@ def _make_dataset(data_root, n_subjects=8):
 
 
 def _build_matrix(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
@@ -90,7 +90,7 @@ def _write_params(tmp_path):
 
 def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_reports")
+    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_summaries")
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
     params_path = _write_params(tmp_path)
@@ -126,7 +126,7 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
 
 def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_reports")
+    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_summaries")
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
     params_path = _write_params(tmp_path)
@@ -165,7 +165,7 @@ def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, mon
 
 def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_reports")
+    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_summaries")
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
     params_path = _write_params(tmp_path)
@@ -198,7 +198,7 @@ def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_pa
 
 def test_dim_reduction_fine_tuning_pacmap_writes_sweep_not_embedding(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_reports")
+    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_summaries")
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
     params_path = _write_params(tmp_path)
@@ -230,7 +230,7 @@ def test_dim_reduction_fine_tuning_pacmap_writes_sweep_not_embedding(tmp_path, m
 
 
 def test_dim_reduction_missing_input_path_raises(tmp_path, monkeypatch):
-    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_reports")
+    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_summaries")
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
     params_path = _write_params(tmp_path)

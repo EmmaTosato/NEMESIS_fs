@@ -36,7 +36,7 @@ def _write_config(tmp_path, masked_fc_root, output_root, overrides=None):
 
 
 def test_build_fc_matrix_end_to_end(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_fc_matrix, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(build_fc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_fc_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     masked_fc_root = tmp_path / "masked_fc"
@@ -65,7 +65,7 @@ def test_build_fc_matrix_end_to_end(tmp_path, monkeypatch):
     assert np.isnan(X[1]).sum() == 2  # sub-02: A__B and B__C are NaN
     assert list(extra_arrays["edge_names"]) == ["A__B", "A__C", "B__C"]
 
-    reports = list((tmp_path / "reports" / "testproj").glob("*.md"))
+    reports = list((tmp_path / "summaries" / "testproj").glob("*.md"))
     logs = list((tmp_path / "logs" / "testproj").glob("*.log"))
     assert len(reports) == 1
     assert len(logs) == 1
@@ -76,7 +76,7 @@ def test_build_fc_matrix_end_to_end(tmp_path, monkeypatch):
 
 
 def test_build_fc_matrix_drops_constant_edge(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_fc_matrix, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(build_fc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_fc_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     masked_fc_root = tmp_path / "masked_fc"
@@ -100,7 +100,7 @@ def test_build_fc_matrix_drops_constant_edge(tmp_path, monkeypatch):
 
 
 def test_build_fc_matrix_missing_input_raises(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_fc_matrix, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(build_fc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_fc_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     config_path = _write_config(tmp_path, tmp_path / "does_not_exist", tmp_path / "out")

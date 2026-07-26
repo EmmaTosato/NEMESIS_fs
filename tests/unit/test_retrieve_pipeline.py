@@ -460,7 +460,7 @@ def test_copy_one_logs_and_continues_when_destination_parent_cannot_be_created(t
 
 
 def test_full_run_end_to_end(tmp_path, monkeypatch):
-    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "summaries")
     project_root = _make_washu_like(tmp_path)
     config = _make_config(tmp_path, project_root, group_filter=None)
 
@@ -683,11 +683,11 @@ def test_build_report_includes_mismatched_section(tmp_path):
 
 
 def test_write_report_path_uses_data_retrieval_folder_and_project(tmp_path, monkeypatch):
-    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "reports" / "data_retrieval")
+    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "summaries" / "data_retrieval")
     config = _minimal_config(tmp_path)
     stats = {"UNIPD/WashU": retrieve_data.DatasetStats(), "UNIPD/PASPORT": retrieve_data.DatasetStats()}
     report_path = retrieve_data._write_report(config, stats)
-    assert report_path.parent == tmp_path / "reports" / "data_retrieval" / "clinical_connectome"
+    assert report_path.parent == tmp_path / "summaries" / "data_retrieval" / "clinical_connectome"
     assert report_path.suffix == ".md"
 
 
@@ -731,7 +731,7 @@ def _write_json_config(config_path, project_root, output_root, **overrides):
 
 
 def test_main_writes_paired_log_and_report(tmp_path, monkeypatch):
-    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(retrieve_data, "LOGS_ROOT", tmp_path / "logs")
     project_root = _make_washu_like(tmp_path / "source")
     config_path = tmp_path / "config.json"
@@ -740,7 +740,7 @@ def test_main_writes_paired_log_and_report(tmp_path, monkeypatch):
     exit_code = retrieve_data.main(["--config", str(config_path)])
 
     assert exit_code == 0
-    report_files = list((tmp_path / "reports" / "clinical_connectome").glob("*.md"))
+    report_files = list((tmp_path / "summaries" / "clinical_connectome").glob("*.md"))
     log_files = list((tmp_path / "logs" / "clinical_connectome").glob("*.log"))
     assert len(report_files) == 1
     assert len(log_files) == 1
@@ -758,7 +758,7 @@ def test_main_stops_cleanly_when_log_directory_cannot_be_created(tmp_path, monke
     traceback instead of a clean stop."""
     blocked_logs_root = tmp_path / "logs_is_a_file"
     blocked_logs_root.write_text("i am a file, not a directory")
-    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(retrieve_data, "LOGS_ROOT", blocked_logs_root)
     project_root = _make_washu_like(tmp_path / "source")
     config_path = tmp_path / "config.json"
@@ -777,7 +777,7 @@ def test_main_verifies_only_after_every_dataset_has_finished_copying(tmp_path, m
     verification is a distinct final phase (see _retrieve_all): the "copied"/
     "retrieving N subjects" narrative for every dataset is fully written to
     the log before the first "checksum mismatch" line appears."""
-    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(retrieve_data, "LOGS_ROOT", tmp_path / "logs")
     project_root = _make_washu_like(tmp_path / "source")
     config_path = tmp_path / "config.json"
@@ -801,7 +801,7 @@ def test_main_verifies_only_after_every_dataset_has_finished_copying(tmp_path, m
     exit_code = retrieve_data.main(["--config", str(config_path)])
 
     assert exit_code == 0  # per-file issues are logged, not fatal to the run
-    report_text = (tmp_path / "reports" / "clinical_connectome").glob("*.md").__next__().read_text()
+    report_text = (tmp_path / "summaries" / "clinical_connectome").glob("*.md").__next__().read_text()
     assert "## Mismatched" in report_text
     assert "sub-STUNIPD0001" in report_text.split("## Mismatched")[1]
 
@@ -813,7 +813,7 @@ def test_main_verifies_only_after_every_dataset_has_finished_copying(tmp_path, m
 
 
 def test_main_does_not_leak_log_lines_across_runs(tmp_path, monkeypatch):
-    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(retrieve_data, "LOGS_ROOT", tmp_path / "logs")
 
     project_root_a = _make_washu_like(tmp_path / "run_a" / "source")

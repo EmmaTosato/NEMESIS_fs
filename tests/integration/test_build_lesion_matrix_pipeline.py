@@ -63,7 +63,7 @@ def _write_config(tmp_path, data_root, output_root, overrides=None):
 
 
 def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
@@ -86,7 +86,7 @@ def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch):
     assert matrix.shape[0] == 5
     assert len(metadata) == 5
 
-    reports = list((tmp_path / "reports" / "testproj").glob("*.md"))
+    reports = list((tmp_path / "summaries" / "testproj").glob("*.md"))
     logs = list((tmp_path / "logs" / "testproj").glob("*.log"))
     assert len(reports) == 1
     assert len(logs) == 1
@@ -97,7 +97,7 @@ def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch):
 
 
 def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
@@ -115,7 +115,7 @@ def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, 
 
 
 def test_parcellate_with_save_parcellated_volumes(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
