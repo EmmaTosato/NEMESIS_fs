@@ -1,0 +1,16 @@
+INFO: Starting clustering fine-tuning sweep for spectral (12 combinations)
+INFO: Evaluating combination 1/12: {'n_clusters': 2}
+INFO: Evaluating combination 2/12: {'n_clusters': 3}
+INFO: Evaluating combination 3/12: {'n_clusters': 4}
+INFO: Evaluating combination 4/12: {'n_clusters': 5}
+INFO: Evaluating combination 5/12: {'n_clusters': 6}
+INFO: Evaluating combination 6/12: {'n_clusters': 8}
+INFO: Evaluating combination 7/12: {'n_clusters': 10}
+INFO: Evaluating combination 8/12: {'n_clusters': 11}
+INFO: Evaluating combination 9/12: {'n_clusters': 12}
+INFO: Evaluating combination 10/12: {'n_clusters': 13}
+INFO: Evaluating combination 11/12: {'n_clusters': 14}
+INFO: Evaluating combination 12/12: {'n_clusters': 15}
+INFO: [spectral] eigengap plot written to results/lesion/dim_reduction_clustering/umap/spectral/tuning/26-07_s1.1_d00/eigengap_plot.png
+INFO: [spectral] tuning results written to results/lesion/dim_reduction_clustering/umap/spectral/tuning/26-07_s1.1_d00 (12 combination(s) evaluated)
+INFO: done - fine-tuning for all 1 method(s) written under results/lesion/dim_reduction_clustering, log written to logs/dim_reduction_clustering/clinical_connectome/dim_reduction_clustering_summary__26-07-26__15-56.log
