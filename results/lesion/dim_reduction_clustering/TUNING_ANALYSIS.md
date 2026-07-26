@@ -14,7 +14,7 @@ Dati: matrice lesionale voxel-wise, 1150 soggetti (`data/derived/lesion_matrix/2
 | **umap** | agglomerative | k=4 | **k=5** | Media | k=4 è il *peggior* silhouette dell'intera griglia |
 | **umap** | gmm | n=4 | **n=4** (confermato) | Alta | Vince DB e CH, pareggia silhouette |
 | **umap** | dbscan | eps=0.5 | nessuno affidabile | Bassa | Silhouette ~0 ovunque nel range testato |
-| **umap** | spectral | n=4 | **n=8** | Media | Eigengap suggerisce n≈11 (fuori griglia) |
+| **umap** | spectral | n=4 | **n=8** (confermato) | Alta | Griglia estesa a 15: n=8 resta il picco, n=11-15 peggiorano — l'indicazione eigengap non regge sui dati |
 | **pacmap** | kmeans | k=4 | **k=6** (o k=2 per split macro) | Media | Silhouette in pareggio 2/6, DB+CH favoriscono 6 |
 | **pacmap** | agglomerative | k=4 | **k=5** (DB) / k=2 (dendrogramma) | Bassa-Media | Tensione irrisolta tra i due criteri |
 | **pacmap** | gmm | n=4 | **n=6** (o n=2 per split macro) | Media | Stesso pattern di kmeans |
@@ -23,14 +23,19 @@ Dati: matrice lesionale voxel-wise, 1150 soggetti (`data/derived/lesion_matrix/2
 | **tsne** | agglomerative | k=4 | **k=2** | Medio-Alta | Silhouette + dendrogramma concordano nettamente |
 | **tsne** | gmm | n=4 | **n=2** | Media | Silhouette + CH concordano, DB preferisce n=5 |
 | **tsne** | dbscan | eps=0.5 | **evitare il default** | Critica | eps=0.5 → 98.9% noise! eps=1.5 il meno peggio |
-| **tsne** | spectral | n=4 | **n=5** | Media | Eigengap suggerisce n≈12 (fuori griglia) |
+| **tsne** | spectral | n=4 | **n=5** (confermato) | Alta | Griglia estesa a 15: n=5 resta il migliore su silhouette, n=12 peggiora — l'indicazione eigengap non regge sui dati |
 | **pca** | kmeans | k=4 | **k=2** | Alta (ma debole in assoluto) | Vince tutti e 3 gli indici |
 | **pca** | agglomerative | k=4 | **k=2** | Alta sugli indici, ⚠️ vedi nota | Dendrogramma: un ramo = 563/1150 soggetti |
 | **pca** | gmm | n=4 | **n=4** (confermato) | Alta | Unico metodo PCA dove il default è già ottimale |
 | **pca** | dbscan | eps=0.5 | **da evitare del tutto** | Critica | >90% noise a ogni eps testato |
 | **pca** | spectral | n=4 | nessuno affidabile | Critica | Silhouette ~0 ovunque, nessuna struttura reale |
+| **pca-2D** *(test di controllo, non in produzione)* | kmeans | — | **k=3** | Alta, ma ⚠️ **confonde con volume lesionale** (verificato: PC2 correla r=0.92 col volume) | Silhouette 0.695, il più alto dello studio |
+| **pca-2D** | agglomerative | — | **k=3** | Alta, ⚠️ stesso confondimento | Stesso pattern di kmeans |
+| **pca-2D** | gmm | — | n=2 (debole) | Bassa | Unico metodo che NON migliora passando a 2D |
+| **pca-2D** | dbscan | — | **eps=2.0** | Alta, ⚠️ stesso confondimento | Nessun trade-off qualità/copertura, a differenza di pacmap |
+| **pca-2D** | spectral | — | **n=3** | Media, ⚠️ stesso confondimento | Coerente con kmeans/agglomerative |
 
-**Osservazione generale più importante**: il clustering diretto sui 150 componenti PCA è sistematicamente più debole (silhouette max 0.44 contro 0.5-0.64 delle altre riduzioni) e in alcuni casi inutilizzabile (dbscan, spectral) — coerente col fatto che la pipeline usa proiezioni 2D prima di clusterizzare. **umap è la riduzione più affidabile** per kmeans/gmm (default già ottimali). **tsne** ha un default (`eps=0.5` per dbscan) che va assolutamente evitato in produzione: scarta il 98.9% della coorte.
+**Osservazione generale più importante (aggiornata dopo il test di controllo pca a 2 componenti, vedi sezione dedicata)**: il fallimento del clustering su PCA **non è dovuto a PCA come metodo**, ma al fatto che veniva usato a 150 componenti — un confronto non alla pari con le altre 3 riduzioni, tutte a 2D. **PCA a 2 componenti clusterizza molto bene** (silhouette kmeans fino a 0.695, il più alto di tutto lo studio, superiore anche a umap e pacmap), ma va interpretato con cautela: le prime 2 componenti PCA catturano la direzione di massima varianza nei voxel lesionati, che con ogni probabilità è dominata dal **volume della lesione** più che dalla sua topografia — un asse di separazione probabilmente meno interessante clinicamente di quello che umap/tsne/pacmap cercano di preservare (vicinato locale). Da verificare prima di usarlo in produzione (vedi sezione dedicata). **umap resta la riduzione più affidabile e già interpretativamente sicura** per kmeans/gmm (default già ottimali). **tsne** ha un default (`eps=0.5` per dbscan) che va assolutamente evitato in produzione: scarta il 98.9% della coorte.
 
 ---
 
@@ -95,8 +100,15 @@ Il silhouette è **vicino a zero o negativo su tutto il range testato** — DBSC
 | 6 | 0.492 | 1479 | 0.738 |
 | **8** | **0.493** | 1564 | **0.677** |
 | 10 | 0.436 | 1722 | 0.770 |
+| 11 | 0.422 | 1716 | 0.755 |
+| 12 | 0.416 | 1744 | 0.760 |
+| 13 | 0.407 | 1694 | 0.758 |
+| 14 | 0.417 | 1770 | 0.772 |
+| 15 | 0.413 | 1801 | 0.785 |
 
-n=8 vince silhouette (0.493, appena sopra n=6 0.492) e Davies-Bouldin (0.677, il migliore). Il default n=4 è decente ma non ottimale su nessuno dei due. **Eigengap** (diagnostica indipendente): il salto più grande è dopo il **11° autovalore** — suggerisce n≈11, fuori dalla griglia testata (max 10) ma coerente nella direzione ("più cluster di quanto suggerisca il default"). **Raccomandazione: n=8** tra i valori testati; varrebbe la pena estendere la griglia fino a 12-15 per verificare l'indicazione dell'eigengap.
+n=8 vince silhouette (0.493, appena sopra n=6 0.492) e Davies-Bouldin (0.677, il migliore). Il default n=4 è decente ma non ottimale su nessuno dei due.
+
+**Round di tuning aggiuntivo (griglia estesa a 15, per verificare l'eigengap)**: l'eigengap (diagnostica indipendente sulla struttura del grafo) suggeriva un salto più grande dopo l'11° autovalore, indicando n≈11 come possibile numero naturale di cluster. Rilanciato il tuning con la griglia estesa fino a 15 (`results/lesion/dim_reduction_clustering/umap/spectral/tuning/26-07_s1.1_d00`): **l'indicazione non regge sui dati**. Da n=11 in poi il silhouette *peggiora* monotonicamente rispetto al picco a n=8 (0.493 → 0.422 a n=11 → 0.407 al minimo locale n=13), e Davies-Bouldin non migliora oltre n=8 (0.677, il minimo di tutta la griglia estesa). Calinski-Harabasz continua a crescere con n (atteso, cresce quasi sempre con più cluster, non è un segnale di qualità autonomo). **Conclusione: n=8 resta la scelta migliore confermata su tutta la griglia 2-15** — l'eigengap qui indicava una struttura del grafo di similarità che non si traduce in una separazione migliore dei cluster nello spazio embedded.
 
 ---
 
@@ -214,12 +226,19 @@ n=2 vince silhouette e Calinski-Harabasz nettamente; Davies-Bouldin preferisce l
 | 2 | 0.413 | 1080 | 0.944 (peggiore) |
 | 3 | 0.352 | 797 | 0.873 |
 | **4 (default)** | 0.390 | 1018 | 0.859 |
-| **5** | 0.398 | **1091** | 0.830 |
+| **5** | 0.398 | 1091 | 0.830 |
 | 6 | 0.362 | 979 | 0.828 |
 | 8 | 0.351 | 1004 | 0.850 |
-| 10 | 0.357 | 1064 | **0.816** |
+| 10 | 0.357 | 1064 | 0.816 |
+| 11 | 0.370 | 1145 | 0.782 |
+| 12 | 0.375 | 1167 | 0.779 |
+| 13 | 0.369 | 1186 | 0.782 |
+| 14 | 0.370 | **1217** | **0.772** |
+| 15 | 0.364 | 1207 | 0.770 |
 
-n=5 offre il miglior compromesso: secondo miglior silhouette (0.398, dietro solo a n=2 0.413 che però ha il peggior Davies-Bouldin), Calinski-Harabasz più alto della griglia. **Eigengap**: salto più grande dopo il **12° autovalore** → suggerisce n≈12, fuori dalla griglia testata (max 10), stesso pattern osservato su umap spectral. **Raccomandazione: n=5** tra i valori testati; da verificare estendendo la griglia vista l'indicazione dell'eigengap.
+n=5 offre il miglior compromesso tra i valori originali: secondo miglior silhouette (0.398, dietro solo a n=2 0.413 che però ha il peggior Davies-Bouldin), Calinski-Harabasz alto.
+
+**Round di tuning aggiuntivo (griglia estesa a 15, per verificare l'eigengap)**: l'eigengap suggeriva n≈12 come numero naturale di cluster. Rilanciato il tuning con griglia estesa a 15 (`results/lesion/dim_reduction_clustering/tsne/spectral/tuning/26-07_s1.1_p30`): **stesso esito di umap, l'indicazione non regge**. A n=12 il silhouette è 0.375, inferiore al picco n=5 (0.398); Davies-Bouldin migliora leggermente rispetto a n=5 (0.779 vs 0.830) ma il guadagno è marginale e non compensa il calo di silhouette. Calinski-Harabasz continua a crescere con n, come atteso, non un segnale di qualità autonomo. **Conclusione: n=5 resta la scelta migliore** — la griglia estesa non produce un candidato che superi nettamente n=5 su più indici insieme.
 
 ---
 
@@ -291,9 +310,97 @@ Tutti i valori di silhouette sono vicini a zero (0.05-0.13) o negativi — un or
 
 ---
 
+## PCA a 2 componenti — test di controllo
+
+**Perché**: la sezione precedente (PCA a 150 componenti) mostrava un clustering sistematicamente debole/inutilizzabile. Prima di concludere che "PCA non funziona sui voxel di lesione", va isolata la variabile confusa: 150 componenti è un confronto non alla pari con gli altri 3 metodi, tutti usati a 2D — il fallimento poteva essere *curse of dimensionality* (qualunque metodo di clustering soffre in 150D) più che un limite di PCA come riduzione. Test: stessa pipeline, `pca.params.n_components` temporaneamente impostato a 2 nel registry, tuning rilanciato su tutti e 5 i metodi (`results/lesion/dim_reduction_clustering/pca/<metodo>/tuning/26-07_s1.1_c2/`), poi registry ripristinato a 150 (usato in produzione).
+
+**Risultato: l'ipotesi è confermata — non era PCA, era la dimensionalità.**
+
+| Metodo | Silhouette max (150D) | Silhouette max (2D) | Miglioramento |
+|---|---|---|---|
+| kmeans | 0.436 (k=2) | **0.695 (k=3)** | +59%, supera anche umap (0.497) e pacmap (0.506) |
+| agglomerative | 0.443 (k=2) | **0.696 (k=3)** | +57%, stesso pattern |
+| gmm | 0.397 (n=4) | 0.298 (n=2) | peggiora leggermente — unico caso |
+| dbscan | 0.782 su 5.7% coorte (artefatto) | 0.507 su 95% coorte (eps=2.0) | da artefatto a risultato reale e utilizzabile |
+| spectral | 0.131 (n=3, rumore) | 0.415 (n=3) | +217%, ora un segnale reale |
+
+### KMeans (pca-2D)
+| k | silhouette | Calinski-Harabasz | Davies-Bouldin |
+|---|---|---|---|
+| 2 | 0.655 | 819 | 0.627 |
+| **3** | **0.695** | 1612 | **0.521** |
+| 4 | 0.678 | 1656 | 0.521 |
+| 5 | 0.673 | 2205 | 0.518 |
+| 6 | 0.664 | 2189 | 0.517 |
+| 8 | 0.604 | 2906 | 0.525 |
+| 10 | 0.628 | 3661 | 0.489 |
+
+Gomito netto sia sul silhouette (picco a k=3, poi calo regolare) sia sul Davies-Bouldin (crollo da 0.627 a k=2 → 0.521 a k=3, poi piatto) — i due indici concordano senza ambiguità. **k=3 è la scelta più pulita di tutto lo studio**, nessuna tensione tra indici.
+
+### Agglomerative (pca-2D)
+Stesso pattern di kmeans: silhouette massimo a k=3 (0.696), Davies-Bouldin minimo condiviso tra k=5/k=6 (~0.51, ma k=3 è vicinissimo a 0.531). Dendrogramma: split a 3 rami più bilanciati che a 150D (il ramo più grande ora copre 311/1150 soggetti, 27% — ancora sbilanciato ma molto meno del 49% visto a 150D). **Raccomandazione: k=3**, coerente con kmeans.
+
+### GMM (pca-2D) — l'unico che non migliora
+| n | silhouette | Davies-Bouldin | BIC | AIC |
+|---|---|---|---|---|
+| **2** | **0.298** | 1.299 | 13932 | 13876 |
+| 3 | 0.137 | 1.044 | 12500 | 12415 |
+| 4 | 0.083 | 0.990 | 11835 | 11719 |
+| 8 | 0.180 | 0.972 | 11233 | 10996 |
+
+Silhouette molto più basso di kmeans/agglomerative sullo stesso embedding (0.30 contro 0.70) — le gaussiane probabilistiche non si adattano bene alla stessa struttura che kmeans/agglomerative separano nettamente, segno che i cluster non sono ellissoidi ben separati ma probabilmente allungati/non-gaussiani (coerente con un asse dominato dal volume lesionale, continuo più che a gruppi). BIC/AIC monotoni, non informativi come al solito. **n=2 resta la scelta meno peggio per GMM**, ma il metodo non è quello consigliato su questo embedding — preferire kmeans/agglomerative.
+
+### DBSCAN (pca-2D) — da artefatto a risultato reale
+| eps | silhouette | noise |
+|---|---|---|
+| 0.3 | 0.399 | 48.3% |
+| 0.5 | -0.106 | 33.1% |
+| 0.7 | 0.001 | 23.3% |
+| 1.0 | 0.471 | 13.6% |
+| 1.5 | 0.489 | 8.0% |
+| **2.0** | **0.507** | **4.7%** |
+
+A differenza dei 150D (>90% noise ovunque), qui la copertura è ragionevole a `eps≥1.0` con qualità crescente fino a `eps=2.0` (miglior silhouette *e* minor noise contemporaneamente — nessun trade-off qui, a differenza di pacmap). **Raccomandazione: eps=2.0**, il migliore su entrambi i fronti.
+
+### Spectral (pca-2D)
+| n | silhouette | Davies-Bouldin |
+|---|---|---|
+| 2 | 0.266 | 1.349 |
+| **3** | **0.415** | 0.813 |
+| 4 | 0.316 | 0.788 |
+| 10 | 0.404 | 0.611 |
+
+n=3 vince il silhouette, n=10 il Davies-Bouldin — tensione simile ad altri casi, ma entrambi i valori sono comunque un netto miglioramento rispetto al rumore quasi puro visto a 150D. **Raccomandazione: n=3**, coerente con kmeans/agglomerative.
+
+### ⚠️ Caveat prima di usarlo in produzione
+
+Il miglioramento è reale ma **va interpretato con cautela prima di trattarlo come "il miglior embedding dello studio"**: le prime 2 componenti PCA sono per costruzione le direzioni di massima varianza nei voxel lesionati. Su maschere binarie di lesione, la varianza è quasi certamente dominata dal **volume della lesione** (lesioni grandi vs piccole correlano su moltissimi voxel contemporaneamente) più che dalla sua **posizione/topografia** — che è invece il segnale che umap/tsne/pacmap, essendo neighbor-embedding, sono costruiti per preservare (vedi [assets/knowledge/dimensionality_reduction_methods.md](../../../assets/knowledge/dimensionality_reduction_methods.md)).
+
+**Verifica eseguita — ipotesi confermata**: calcolato il volume lesionale per soggetto (somma dei voxel lesionati nella matrice binaria, `data/derived/lesion_matrix/21-07_s1.1/matrix.npy`) e correlato con PC1/PC2.
+
+| Componente | Varianza spiegata | Pearson r vs volume | Spearman ρ vs volume |
+|---|---|---|---|
+| PC1 | 14.0% | 0.14 (debole) | -0.06 |
+| **PC2** | 8.9% | **0.92** (quasi perfetta) | **0.87** |
+
+`PC2` è quasi un doppione lineare del volume lesionale (r=0.92). Prova diretta sul clustering: kmeans k=3 sull'embedding pca-2D, volume per cluster:
+
+| Cluster | N (%) | Volume mediano (voxel) | Range |
+|---|---|---|---|
+| 0 | 870 (76%) | 1114 | 1 – 16.885 |
+| 1 | 128 (11%) | 10.778 | 4.875 – 37.187 |
+| 2 | 152 (13%) | 8.627 | 4.145 – 41.646 |
+
+Il cluster 0 (lesioni piccole) è separato dagli altri due quasi solo per dimensione (mediana ~10x più piccola) — il silhouette=0.695, il più alto di tutto lo studio, riflette in larga parte **"lesioni piccole vs lesioni grandi"**, non una separazione per topografia.
+
+**Conclusione**: pca-2D non va scartato in automatico (distinguere lesioni piccole/grandi può avere rilevanza clinica), ma **non è un sostituto valido di umap/pacmap** per l'obiettivo del progetto (sottotipi topografici) — il segnale principale che cattura è ridondante con una semplice covariata di volume lesionale, molto più economica da calcolare di un intero embedding+clustering. Se si vuole isolare la componente topografica pura, andrebbe testato un PCA-2D calcolato dopo aver normalizzato/regressato via il volume lesionale (non fatto in questa sessione).
+
+---
+
 ## Note metodologiche
 
 - Tutti gli indici sono calcolati con `src/analysis/clustering_tuning.py::compute_clustering_metrics`; per DBSCAN i punti di rumore (`label -1`) sono esclusi da silhouette/CH/DB, `noise_fraction` è sempre riportato a parte.
 - Dendrogrammi/eigengap/k-distance sono diagnostiche **standalone**, calcolate una sola volta dai `base_params` — non dipendono dal valore di k/eps scelto nella sweep.
 - Nessun valore riportato qui è stato applicato in produzione durante questa sessione — i risultati di produzione su disco per tutte e 4 le riduzioni usano ancora i default del registry.
 - Dati sorgente completi: `results/lesion/dim_reduction_clustering/<riduzione>/<metodo>/tuning/*/tuning_results.csv` + plot nella stessa cartella.
+- Griglia `spectral` (`config/registry/params_clustering.json`) estesa da `[2,3,4,5,6,8,10]` a `[...,11,12,13,14,15]` per verificare l'indicazione dell'eigengap su umap/tsne (vedi sezioni dedicate) — resta così nel registry, non impatta la produzione (usata solo in `fine_tuning: true`).
