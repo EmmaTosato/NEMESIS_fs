@@ -25,7 +25,7 @@ Tutte le regole su cosa scaricare, quali pazienti scegliere, e dove salvare i fi
 **Cosa fa**: La pipeline si collega alla tua sorgente dati, legge quali pazienti o gruppi le hai chiesto di cercare, ispeziona le loro cartelle, verifica che i file richiesti (come le maschere di lesione) siano effettivamente presenti e, infine, li copia sul tuo computer preservando l'esatta struttura BIDS delle cartelle. È progettato per essere "sicuro": se mancano dei file o ci sono problemi, non si blocca ma annota tutto in un report dettagliato per farti sapere chi manca all'appello.
 **File di Configurazione**: `config/pipelines/retrieval_server.json` (produzione) / `retrieval_local.json` (locale)
 **Input**: I file sorgente sul mount EBRAIN (es. `/data/corbetta/Clinical_connectome`).
-**Output**: Le copie locali dei file in `data/`, e un utilissimo report di sintesi in `reports/data_retrieval/`.
+**Output**: Le copie locali dei file in `data/`, e un utilissimo report di sintesi in `summaries/data_retrieval/`.
 
 ### Spiegazione dei Parametri (`retrieval_server.json`/`retrieval_local.json`)
 
@@ -71,5 +71,5 @@ Questo è il cuore della configurazione. È una lista di blocchi tra parentesi g
 ### Controllare i risultati
 
 A fine operazione, troverai i tuoi dati scaricati esplorando la cartella `data/`.
-Ancora più importante, guarda il report generato in **`reports/data_retrieval/clinical_connectome/copy_summary__<data>.md`**.
+Ancora più importante, guarda il report generato in **`summaries/data_retrieval/clinical_connectome/copy_summary__<data>.md`**.
 Invece di farti spulciare migliaia di file, il report ti darà una chiara lista umana di cosa è andato storto: "Paziente X, lesione non trovata; Paziente Y, cartella saltata", permettendoti di correggere immediatamente i problemi alla radice o di tenere conto di dati mancanti.
