@@ -1,2 +1,2 @@
-run_id,timestamp,run_type,params,output,notes
-s1.1_d00,23-07-26 17:55,production,"{""n_neighbors"": 5, ""min_dist"": 0.0, ""n_components"": 2, ""random_state"": 0}",results/lesion/dim_reduction/umap/23-07_s1.1_d00,"UMAP production run on voxel-wise lesion matrix (21-07_s1.1), best params from existing tuning sweep (n_neighbors=5, min_dist=0.0, trustworthiness=0.740)"
+session,id,timestamp,params,output,notes
+s1.1,d00,23-07-26 17:55,"{""n_neighbors"": 5, ""min_dist"": 0.0, ""n_components"": 2, ""random_state"": 0}",results/lesion/dim_reduction/umap/23-07_s1.1_d00,"UMAP production run on voxel-wise lesion matrix (21-07_s1.1), best params from existing tuning sweep (n_neighbors=5, min_dist=0.0, trustworthiness=0.740)"

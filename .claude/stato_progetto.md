@@ -1,6 +1,73 @@
 # Stato progetto — NEMESIS
 
-Ultimo aggiornamento: 2026-07-26. Snapshot dello stato attuale del progetto — non un log cronologico. Errori passati, bug risolti e strade scartate vivono in `.claude/lessons_learned.md` (pattern generalizzabili) e `docs/debugging/` (narrativa completa per sessione di debug); l'evoluzione delle decisioni strategiche vive in `.claude/decision_log.md`; qui restano solo le regole/vincoli in vigore oggi e la mappa dello stato attuale.
+Ultimo aggiornamento: 2026-07-27. Snapshot dello stato attuale del progetto — non un log cronologico. Errori passati, bug risolti e strade scartate vivono in `.claude/lessons_learned.md` (pattern generalizzabili) e `docs/debugging/` (narrativa completa per sessione di debug); l'evoluzione delle decisioni strategiche vive in `.claude/decision_log.md`; qui restano solo le regole/vincoli in vigore oggi e la mappa dello stato attuale.
+
+## Sessione 2026-07-27 (3) — Refactoring schema logging (runs.csv)
+
+**Obiettivo**: Ristrutturare i log di esecuzione (`runs.csv`) delle pipeline di dim_reduction e clustering per separare i tuning dalla produzione e ripulire lo schema delle colonne, migliorando la leggibilità e l'analisi storica.
+
+**Decisioni prese / concetti discussi**:
+- **Separazione log**: Invece di un singolo `runs.csv` con colonna `run_type`, ora ogni metodo (es. `pacmap/`) ospita due file distinti: `runs.csv` per la produzione e `runs_tuning.csv` per il tuning.
+- **Pulizia ID**: La colonna `run_id` (es. `s1.1_pacmap_tune`) è stata divisa in due colonne `session` (`s1.1`) e `id` (`pacmap_tune`).
+- **Migrazione storica**: Uno script automatizzato ha migrato tutti i log storici di `dim_reduction` e `dim_reduction_clustering` verso il nuovo schema senza perdere dati, ripristinando la pulizia formale (es. rimuovendo la colonna `reduction_method` dove ridondante).
+- **Nuovi documenti narrativi**: I file esplorativi `RUNNING_STRATEGIES.md` e `TUNING_ANALYSIS.md` in `results/lesion/...` sono stati ripuliti, strutturati e spostati in `docs/experiments/runs_history_s1.1.md` e `docs/experiments/tuning_analysis_s1.1.md` per un tracking versionato su Git pulito.
+
+**File modificati/creati**:
+- **Codice**: `src/utils/run_log.py`, `src/pipeline/dim_reduction.py`, `src/pipeline/dim_reduction_clustering.py`
+- **Documentazione**: `docs/experiments/runs_history_s1.1.md`, `docs/experiments/tuning_analysis_s1.1.md`
+- **Dati log**: Tutti i `runs.csv` e `runs_tuning.csv` in `results/lesion/dim_reduction*/`
+
+**Prossimo passo esatto**: Iniziare l'ispezione clinica/visiva dei cluster ottenuti da UMAP e t-SNE.
+
+## Sessione 2026-07-27 (2) — WashU mischia pazienti (ST) e controlli sani (HC) sotto `features/`: fix del group_filter in mask_fc/build_lesion_matrix
+
+**Obiettivo**: l'utente ha scoperto che `data/clinical_connectome/derivatives/UNIPD/WashU/features/` contiene ora, oltre ai 169 pazienti (`sub-STUNIPD...`), anche 56 controlli sani (`sub-STUNIPDHC...`) — arrivati durante la sessione stessa (0 HC all'inizio, 56 verificati dopo). Obiettivo: verificare se le pipeline di masking/costruzione matrice li avrebbero trattati correttamente, e correggere se no.
+
+**Decisioni prese / concetti discussi**:
+- **Confermato un problema reale, ma non ancora esploso per un effetto collaterale incidentale**: `src/retrieval/dataset.py` distingue già correttamente HC da ST (`group_of()`, regex `_SUBJECT_RE`, già usato da `group_filter` in `retrieval_local.json`/`retrieval_server.json`/`compute_sdc.json`). Ma `src/features/functional.py` (usato da `mask_fc.py`/`build_fc_matrix.py`) e `src/features/lesion.py` (usato da `build_lesion_matrix.py`) fanno `Path.glob()` diretto su `data/clinical_connectome/derivatives/`, **senza mai passare da quel layer** — quindi non ereditavano la distinzione HC/ST. Non era ancora esploso solo perché un controllo sano, non avendo lesione, non ha mai una lesion mask sotto `manual_masks/`: l'intersezione lesione×FC di `mask_fc.py` escludeva gli HC per puro effetto collaterale, etichettandoli però erroneamente come `missing_lesion` ("paziente a cui manca la maschera" — falso per un HC, che non ne ha mai bisogno per definizione).
+- **Perché `functional.py`/`lesion.py` non passano dal registro di retrieval (`Dataset`/`FilePatterns`)**: verificato che `config/registry/file_patterns_local.json`/`_server.json` **hanno di nuovo** `feature`/`FC-pearson` registrato (una nota di una sessione precedente diceva "rimosso" — risultava superata, corretto il malinteso durante la discussione). Il motivo per non riusarlo comunque: quel modello registra l'atlas combo come una delle tante alternative di template fisse (adatto a `retrieve_data.py`, "copia qualunque combo esiste"), non a una pipeline che deve processare un combo alla volta scelto a runtime (`mask_fc.json`'s loop su `atlas_combos`). Riusare `Dataset.resolve()` avrebbe richiesto comunque un filtro a valle per substring — nessun vantaggio reale.
+- **Fix scelto, con l'utente**: non patchare solo `mask_fc.py` (che l'utente aveva segnalato per primo), ma unificare la discovery duplicata tra `lesion.py` e `functional.py` in un nuovo modulo condiviso, e aggiungere `group_filter` come campo di config esplicito in **entrambe** le pipeline (`mask_fc.json` **e** `build_lesion_matrix.json`), stessa sintassi già usata da `retrieval_local.json` (`["ST"]` = solo pazienti, `["ST", "HC"]` = includi anche i sani, assente/`null` = nessun filtro). `build_lesion_matrix.py`/`lesion.py` erano stati inizialmente considerati "fuori scope" (oggi 0 HC in `manual_masks/`, strutturalmente mai popolato per un sano) ma poi inclusi comunque nell'unificazione, su richiesta esplicita dell'utente di trattare correzione config+codice+test+doc a livello globale, non per singola pipeline.
+- **`data/derived` (output delle pipeline) deliberatamente fuori scope**: struttura diversa (per-run/per-combo, non per-soggetto BIDS) — un secondo modulo di discovery lì è rimandato a quando arriverà un secondo tipo di dato oltre a `masked_fc`/`fc_matrix`/`lesion_matrix`.
+- **Notebook esplicitamente rimandati**: l'utente ha chiesto di limitare questo giro a `src`/test/doc/config e di guardare i notebook in una sessione successiva — non toccati.
+
+**File modificati in questa sessione**:
+- Codice: `src/retrieval/dataset.py` (`group_of` estratto a funzione di modulo), nuovo `src/features/subject_discovery.py` (`discover_files_by_subject`, condiviso), `src/features/functional.py` (`discover_subject_files`/`mask_dataset_fc` con `group_filter`), `src/features/lesion.py` (`_discover_lesion_files`/`build_lesion_matrix` con `group_filter`, sanity-check subject-count ora calcolato sul sottoinsieme già filtrato per gruppo), `src/analysis/build_config.py` (`group_filter` in `MaskFcConfig`/`BuildMatrixConfig`, validato contro `KNOWN_GROUPS`), `src/pipeline/mask_fc.py`/`build_lesion_matrix.py` (propagano `group_filter`, loggano `excluded_by_group`, lo includono nel config summary)
+- Config: `config/pipelines/mask_fc.json` + `config/pipelines/build_lesion_matrix.json` → `"group_filter": ["ST"]`
+- Test: `tests/unit/test_features_functional.py` (4 nuovi test group_filter, ID realistici `sub-STUNIPD.../sub-STUNIPDHC...`), `tests/unit/test_features_lesion.py` (1 nuovo test), `tests/unit/test_build_config.py` (validazione `group_filter` per entrambi i loader), `tests/integration/test_mask_fc_pipeline.py` + `test_build_lesion_matrix_pipeline.py` (1 test E2E ciascuno, ST+HC misti nella stessa cartella)
+- Doc: `docs/guides/fc_matrix_building.md` (nuova sezione "Filtro per gruppo"), `docs/guides/matrix_building.md` (campo `group_filter` documentato), `docs/dev/analysis.md` (firme di funzione aggiornate), nuovo `docs/debugging/debug_27_07_26.md`, nuovo pattern #14 in `.claude/lessons_learned.md`
+
+**Non toccato in questa sessione** (segnalato ma esplicitamente non corretto): `src/features/clinical.py::extract_target()` (nuovo, non ancora committato, scritto in una sessione parallela per il predict_deficit/Siegel2016 pipeline) **non ha alcun filtro HC/ST** — verificato sul `participants.tsv` reale di WashU che per un HC campi come `ARAT_L/R`, `9HPT_L/R`, `Boston_nam`, `Clock` **non sono `n/a`** (a differenza di `NIHSS`/`Corsi`), quindi un HC passerebbe come un paziente con quei punteggi comportamentali se `predict_deficit.py` (non ancora scritto) unisse `participants.tsv` a una matrice senza un join che li escluda a monte. Da correggere quando si riprende quel lavoro — non nello scope di questa sessione.
+
+**Stato dei test**: 378 passed, 12 skipped, 0 failed (`pytest tests/ -q`, rilanciata due volte: dopo il refactor codice/test, e di nuovo dopo le modifiche a doc/config).
+
+**Prossimo passo esatto**: nessuna azione bloccante — il fix è completo e testato. Se si riprende il lavoro parallelo su Task 5 (`src/analysis/prediction.py`, `src/features/clinical.py`, non ancora rivisto in dettaglio in nessuna sessione), applicare lo stesso principio di `group_filter` a `clinical.py::extract_target()`/`load_participants()` prima di scrivere `predict_deficit.py`, per non reintrodurre lo stesso bug in un punto diverso della pipeline.
+
+## Sessione 2026-07-27 — Correzione disallineamento: produzione clustering (26/07) non documentata; focus su UMAP/t-SNE
+
+**Obiettivo**: ripasso del contesto progetto su richiesta dell'utente; nel farlo, emerso che questo file (fermo alla sessione 25/07) non rifletteva un run di produzione già eseguito il giorno dopo — corretto qui. Deciso con l'utente il prossimo focus: UMAP e t-SNE, con pacmap lasciato in sospeso.
+
+**Decisioni prese / concetti discussi**:
+- **Disallineamento trovato**: la sessione 2026-07-25 (2), sotto, riportava "nessun valore tuned applicato alla produzione — il tuning resta puramente diagnostico". Questo era vero al 25/07 ma **non più** dopo un run di produzione datato 26-07-26 (visibile in `results/lesion/dim_reduction_clustering/*/*/runs.csv`, `run_type=production`, e in `results/lesion/dim_reduction_clustering/RUNNING_STRATEGIES.md`), non ancora registrato in questo file. Nessuna sessione precedente lo aveva scritto qui — colmato ora.
+- **Stato reale della produzione clustering** (input `data/derived/lesion_matrix/21-07_s1.1`, 1150 soggetti, matrice voxel-wise, tag sessione `s1.1`), da `RUNNING_STRATEGIES.md`:
+  - **In produzione**: umap, pacmap, tsne — ciascuno con kmeans/agglomerative/gmm tarati dal tuning (`spectral` incluso solo per umap/tsne):
+
+    | Riduzione | kmeans | agglomerative | gmm | spectral |
+    |---|---|---|---|---|
+    | umap | k=4 | k=5 | n=4 | n=8 |
+    | pacmap | k=6 | k=2 | n=6 | escluso (fonde i satelliti) |
+    | tsne | k=5 | k=2 | n=2 | n=5 |
+  - **pca scartato dalla produzione**: 150 componenti debole/inutilizzabile (curse of dimensionality); la proiezione 2D è confusa col volume lesionale (r=0.92 con PC2), non con la topografia — non è la stessa cosa di una riduzione che separa i soggetti per pattern lesionale.
+  - **dbscan escluso ovunque**: su umap/tsne/pca nessuna struttura reale o quasi tutto rumore; su pacmap unico caso con segnale reale ma trade-off qualità/copertura (`eps` 0.3 vs 0.5/0.7) mai risolto — aperto, da riprendere in sessione dedicata.
+  - Config checked-in (`config/pipelines/dim_reduction_clustering.json` + `config/registry/params_clustering.json`) punta oggi a **pacmap** con questi valori come riferimento di produzione — non necessariamente la riduzione su cui l'utente vuole concentrare l'interpretazione clinica (vedi sotto).
+- **Decisione dell'utente per il prossimo lavoro**: concentrarsi sull'interpretazione/analisi dei cluster ottenuti da **UMAP e t-SNE**. **pacmap resta esplicitamente "da capire"** — non scartato, ma non ancora nel focus attivo (probabilmente legato al pattern blob+satelliti/k=2 dominante già documentato nella sessione 25-07 (2), da chiarire prima di fidarsene per l'interpretazione clinica).
+
+**File modificati in questa sessione**: solo questo file (`.claude/stato_progetto.md`). Nessun codice/config toccato.
+
+**Nota — attività parallela non rivista**: `git status` mostra file non tracciati non toccati da questa sessione (`src/analysis/prediction.py`, `src/features/clinical.py`, `tests/unit/test_prediction.py`, `tests/unit/test_features_clinical.py`, più modifiche a `config/pipelines/build_lesion_matrix.json`) — stesso pattern di attività parallela già documentato in sessioni precedenti (vedi 2026-07-25, 2026-07-21). Non ispezionati in questa sessione, potrebbero essere già lavoro reale su Task 5 (predizione/feature cliniche) — da verificare in una sessione dedicata prima di assumerne lo stato.
+
+**Stato dei test**: non rilanciati — nessuna modifica a `src/` in questa sessione.
+
+**Prossimo passo esatto**: aprire l'interpretazione clinica/analisi dei cluster di produzione per **umap** (k=4/5/4/8 su kmeans/agglomerative/gmm/spectral) e **tsne** (k=5/2/2/5), partendo da `results/lesion/dim_reduction_clustering/umap/` e `.../tsne/`. pacmap resta in sospeso finché non si chiarisce perché preferisce sistematicamente k basso (2) rispetto alle altre due riduzioni — non riprenderlo senza che l'utente lo richieda esplicitamente.
 
 ## Sessione 2026-07-26 — Esplorazione soglia di esclusione paziente (masked FC) + separazione teoria/notebook
 
@@ -299,3 +366,4 @@ dedicata sopra — Stage 2 del test da completare.
 8. Decidere l'architettura del modulo `src/` che orchestrerà `bcb-lf-preprocess`/
    `bcb-lesion-features` sui dati reali già recuperati da `retrieve_data.py` (nessun codice
    scritto finora in questa direzione — solo il tool esterno è stato validato end-to-end).
+9. **Covariata Volume Lesionale**: Assicurarsi che i futuri step di analisi (clustering UMAP/t-SNE in `dim_reduction.py` e modelli predittivi in `prediction.py`) usino o tengano traccia di `lesion_volume_ml` come covariata per fare regress-out dell'effetto "volume puro". Come emerso dall'EDA in `lesion_analysis.ipynb`, i dataset (es. PASPORT) hanno distribuzioni volumetriche sistematicamente diverse, il che potrebbe guidare falsamente i cluster se non controllato.

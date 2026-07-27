@@ -252,7 +252,7 @@ def _run_one_method(
     try:
         report_path = _write_report(config, method, X, embedding, cluster_labels, reduction_params, clustering_params, now)
         append_run_log_entry(
-            _runs_csv_path(config),
+            config.output_root / config.reduction_method,
             effective_session_name,
             now,
             "production",
@@ -273,8 +273,6 @@ def _method_dir(config: DimReductionClusteringConfig, method: str) -> Path:
     return Path(config.reduction_method) / method
 
 
-def _runs_csv_path(config: DimReductionClusteringConfig) -> Path:
-    return config.output_root / config.reduction_method / "runs.csv"
 
 
 def _config_summary(config: DimReductionClusteringConfig, method: str) -> str:
@@ -450,7 +448,7 @@ def _run_one_method_tuning(
 
     try:
         append_run_log_entry(
-            _runs_csv_path(config),
+            config.output_root / config.reduction_method,
             effective_reduction_session,
             now,
             "tuning",

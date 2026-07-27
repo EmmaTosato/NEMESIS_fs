@@ -146,7 +146,13 @@ def _run_production(
     try:
         report_path = _write_report(config, X, embedding, params, now)
         append_run_log_entry(
-            _runs_csv_path(config), effective_session_name, now, "production", params, output_dir, config.run_notes
+            config.output_root / config.reduction_method,
+            effective_session_name,
+            now,
+            "production",
+            params,
+            output_dir,
+            config.run_notes,
         )
     except OSError as exc:
         logging.error("cannot write report/run log: %s", exc, exc_info=True)
@@ -190,7 +196,7 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, now: datetime, l
 
     try:
         append_run_log_entry(
-            _runs_csv_path(config),
+            config.output_root / config.reduction_method,
             config.session_name,
             now,
             "tuning",
@@ -210,8 +216,7 @@ def _tuning_output_dir(config: DimReductionConfig, now: datetime) -> Path:
     return config.output_root / config.reduction_method / "tuning" / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
-def _runs_csv_path(config: DimReductionConfig) -> Path:
-    return config.output_root / config.reduction_method / "runs.csv"
+
 
 
 def _write_tuning_output(

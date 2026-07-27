@@ -1,6 +1,6 @@
-"""Append-only per-method run history (runs.csv), separate from a single run's own config.md.
+"""Append-only per-method run history (production_runs.csv / tuning_runs.csv).
 
-A run's config.md/report describe that one run in isolation. runs.csv answers
+A run's config.md/report describe that one run in isolation. These CSVs answer
 a different question - "every run (tuning sweep or production) that ever
 wrote into a given method folder, and how did it differ" - across time.
 Never overwritten, never atomic (a log, not a primary artifact - same tier
@@ -20,11 +20,11 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-FIELDNAMES = ["run_id", "timestamp", "run_type", "params", "output", "notes"]
+FIELDNAMES = ["session", "id", "timestamp", "params", "output", "notes"]
 
 
 def append_run_log_entry(
-    runs_csv_path: Path,
+    log_dir: Path,
     run_id: str,
     now: datetime,
     run_type: str,
@@ -49,6 +49,14 @@ def append_run_log_entry(
     first call. Omitted (None) by every other caller today - keeps FIELDNAMES
     as the exact, unchanged schema for their files.
     """
+    if "_" in run_id:
+        session, id_part = run_id.split("_", 1)
+    else:
+        session, id_part = run_id, ""
+
+    file_name = "runs.csv" if run_type == "production" else "runs_tuning.csv"
+    runs_csv_path = log_dir / file_name
+
     fieldnames = list(extra_columns) + FIELDNAMES if extra_columns else FIELDNAMES
     runs_csv_path.parent.mkdir(parents=True, exist_ok=True)
     write_header = not runs_csv_path.is_file()
@@ -60,9 +68,9 @@ def append_run_log_entry(
         row = dict(extra_columns) if extra_columns else {}
         row.update(
             {
-                "run_id": run_id,
+                "session": session,
+                "id": id_part,
                 "timestamp": now.strftime("%d-%m-%y %H:%M"),
-                "run_type": run_type,
                 "params": json.dumps(params_summary),
                 "output": str(output_dir),
                 "notes": run_notes or "",
