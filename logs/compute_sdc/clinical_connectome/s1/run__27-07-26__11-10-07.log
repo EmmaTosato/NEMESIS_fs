@@ -34,3 +34,10 @@ Moved 2 disconnectome(s) into BIDS structure.
 Done.
 
 INFO: stage2: command: bcb-lesion-features --prep-dir data/derived/sdc/s1/_work/task_124/validated_prep --output-dir data/derived/sdc/s1/_work/task_124/validated_prep --assume-yes --skip-existing --ebrains
+INFO: stage2 stdout:
+Extracting features from data/derived/sdc/s1/_work/task_124/validated_prep → data/derived/sdc/s1/_work/task_124/validated_prep
+  [1/2] sub-STUKLFR0263 ... done (719.7s, 1 file(s))
+  [2/2] sub-STUNIPD0163 ... done (699.7s, 1 file(s))
+Processed 2 subject(s).
+
+INFO: task 124: 2/2 subject(s) completed successfully
