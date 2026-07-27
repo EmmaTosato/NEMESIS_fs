@@ -53,6 +53,23 @@ Non un metodo inventato per l'occasione — lo stesso approccio già usato in le
 - **Griffis et al. 2019** — versione più precisa: una zona viene esclusa solo se una percentuale sufficiente del suo territorio è dentro la lesione. Soglia standard di campo: **50%**. Citazione esatta: *"Because the PLSC approach cannot accommodate missing values, functional connectivity between parcels that had been excluded ... was set to 0"* — il valore mancante viene marcato come tale (NaN) e sostituito con un valore concreto **solo nel momento in cui serve** a uno strumento che non tollera dati mancanti, non prima.
 - **XCP-D** (`xcp_d/interfaces/connectivity.py`, classe `NiftiParcellate`) — il software che ha generato le matrici FC reali usa già un meccanismo identico (`min_coverage`, soglia di default 0.5), per un problema diverso (copertura BOLD). Si riusa lo stesso meccanismo con la lesione al posto del problema originale.
 
+### Sensibilità alla soglia: cosa succede ai valori estremi
+
+`min_coverage` non è un valore hardcoded nel codice — è un campo obbligatorio di `config/pipelines/mask_fc.json` (oggi `0.5`), validato in `[0.0, 1.0]` da `src/analysis/build_config.py` (`_require_float_in_range`) e **senza default implicito**: se il campo manca, il caricamento del config solleva `ValueError`, mai un valore silenzioso (coerente con `code_standards.md` §0). Senza una soglia il concetto di "nodo compromesso" non è definibile — resta solo la coverage, un numero continuo tra 0 e 1.
+
+La decisione booleana vive in `src/features/functional.py`, `find_compromised_nodes` — confronto stretto, non `<=`:
+
+```python
+return node_names[parcel_coverage < min_coverage]
+```
+
+Ai due estremi:
+
+- **`min_coverage = 0.0`**: `parcel_coverage < 0.0` è sempre falso — nessun nodo verrebbe mai marcato compromesso, nemmeno uno distrutto al 100%. Il masking sarebbe di fatto disattivato: il segnale di tessuto morto verrebbe trattato come attività neurale reale, la stessa confusione descritta nella [sezione 3](#3-il-problema-lesione--fc).
+- **`min_coverage = 1.0`**: qualunque nodo con anche un solo voxel dentro la lesione (coverage < 100%) verrebbe marcato compromesso. Con lesion mask reali (rumore di segmentazione, resampling) questo marca compromessi molti più nodi per paziente rispetto a `0.5` — sui dati reali WashU, con soglia `0.5` la mediana è 1 nodo compromesso su 169 pazienti (media 3.9, vedi `notebooks/artifacts_inspection.ipynb`, sezione "Masked FC matrices"); una soglia `1.0` sposterebbe questa distribuzione molto più in alto, senza un guadagno scientifico corrispondente.
+
+`0.5` non è quindi un numero scelto ad hoc in questo progetto: è lo stesso standard di campo di Griffis et al. 2019, riusato dallo stesso meccanismo (`min_coverage`) già presente in XCP-D per il proprio problema di copertura BOLD. Per verificarne la sensibilità sui dati reali, l'approccio corretto è uno sweep esplicito (rilanciare `mask_fc.py` con `min_coverage` a es. 0.3/0.5/0.7 e confrontare le distribuzioni di `mask_summary.csv`), non la sua rimozione.
+
 ## 5. L'atlante (mappa cerebrale)
 
 Per sapere quanto è dentro la lesione ogni singola zona serve una mappa di riferimento che dice esattamente dove sono i confini di ciascuna delle ~239 zone usate per calcolare la FC — senza questa mappa non si sa a quale zona appartiene ogni punto del cervello. Va caricata una sola volta (non per paziente): la mappa è sempre la stessa, cambia solo la lesione da confrontarci.

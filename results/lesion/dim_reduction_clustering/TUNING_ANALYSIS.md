@@ -397,6 +397,26 @@ Il cluster 0 (lesioni piccole) è separato dagli altri due quasi solo per dimens
 
 ---
 
+## Conclusioni
+
+Tabella riassuntiva finale, dopo tutti i round di tuning (originale + griglia spectral estesa + test di controllo pca-2D):
+
+| Riduzione | kmeans | agglomerative | gmm | dbscan | spectral |
+|---|---|---|---|---|---|
+| **umap** | k=4 (confermato) | k=5 | n=4 (confermato) | ❌ nessuno affidabile | **n=8** (confermato, Alta) |
+| **pacmap** | k=6 (o k=2 per split macro) | k=5 (metriche) / k=2 (dendrogramma) | n=6 (o n=2 per split macro) | trade-off eps=0.3 (qualità) vs eps=0.5/0.7 (copertura) | escluso di proposito (fonde i satelliti) |
+| **tsne** | k=5 | k=2 | n=2 | ⚠️ evitare default eps=0.5 (98.9% noise); eps=1.5 meno peggio | **n=5** (confermato, Alta) |
+| **pca (150 comp.)** | k=2 (debole) | k=2 ⚠️ sbilanciato (563/1150) | n=4 (confermato) | ❌ da evitare (>90% noise) | ❌ nessuna struttura |
+| **pca-2D** (test di controllo) | k=3 ⚠️ confonde col volume (r=0.92) | k=3 ⚠️ stesso confondimento | n=2 debole | eps=2.0 ⚠️ stesso confondimento | n=3 ⚠️ stesso confondimento |
+
+**Decisione presa** (su questo input, `data/derived/lesion_matrix/21-07_s1.1`, matrice voxel-wise): **PCA non viene portato avanti come riduzione**, né a 150 componenti (curse of dimensionality: struttura sistematicamente debole, dbscan/spectral inutilizzabili) né a 2 componenti (il segnale che cattura è ridondante col volume lesionale, non con la topografia — vedi sezione dedicata). Le altre 3 riduzioni (**umap**, **pacmap**, **tsne**) restano tutte valide, con i valori sopra.
+
+**Aperto**: comportamento di **dbscan** ancora da capire a fondo — fallisce su umap/tsne/pca (nessuna struttura o quasi tutto rumore) e su pacmap ha un trade-off netto qualità/copertura mai risolto. Non è chiaro se sia un limite del metodo su questi embedding o se manchi ancora il valore di `eps` giusto — da riprendere prima di usarlo in produzione su una qualunque riduzione.
+
+Le scelte operative conseguenti (quali valori usare per una run di produzione) sono tracciate separatamente in [`RUNNING_STRATEGIES.md`](RUNNING_STRATEGIES.md).
+
+---
+
 ## Note metodologiche
 
 - Tutti gli indici sono calcolati con `src/analysis/clustering_tuning.py::compute_clustering_metrics`; per DBSCAN i punti di rumore (`label -1`) sono esclusi da silhouette/CH/DB, `noise_fraction` è sempre riportato a parte.

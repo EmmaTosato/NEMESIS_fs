@@ -1,0 +1,13 @@
+{
+  "created_at": "2026-07-26T14:25:22.050672+00:00",
+  "matrix_shape": [
+    1150,
+    2
+  ],
+  "matrix_dtype": "float64",
+  "metadata_columns": [
+    "subject_id",
+    "dataset"
+  ],
+  "extra_arrays": {}
+}
