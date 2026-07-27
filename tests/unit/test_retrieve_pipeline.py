@@ -489,8 +489,58 @@ def test_full_run_end_to_end(tmp_path, monkeypatch):
     report_path = retrieve_data._write_report(config, stats)
     report_text = report_path.read_text()
     assert "UNIPD/WashU" in report_text
-    # 3 copied, 0 skipped, 0 failed.
-    assert "| UNIPD/WashU | 3 | 0 | 0 | — |" in report_text
+    # 3 copied, 0 skipped, 0 failed, no fatal error.
+    assert "| UNIPD/WashU | 3 | 0 | 0 | — | — |" in report_text
+
+
+def test_retrieve_all_records_fatal_error_without_losing_other_datasets_stats(tmp_path, monkeypatch):
+    """Regression: _retrieve_dataset raising for one dataset (e.g. a broken
+    registry path caught only at runtime) used to propagate straight out of
+    _retrieve_all, losing the DatasetStats already collected - for every
+    dataset, not just the failing one - and preventing _write_report from
+    ever running (see main()). Now the exception is caught per-dataset:
+    everything copied before the error is still counted, a sibling dataset
+    that raises nothing runs to completion including verification, and the
+    failure itself is recorded on DatasetStats.fatal_error instead of
+    disappearing."""
+    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "reports")
+    project_root = _make_washu_like(tmp_path)
+    (tmp_path / "UNIPD" / "PASPORT").mkdir(parents=True)
+    for subject_id in ["sub-STUNIPD0001"]:
+        _touch(
+            tmp_path / "UNIPD" / "PASPORT" / "derivatives" / "manual_masks" / subject_id / "anat"
+            / f"{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
+        )
+    config = _make_config(
+        tmp_path, project_root, group_filter=None, datasets=["UNIPD/WashU", "UNIPD/PASPORT"]
+    )
+    datasets = retrieve_data._build_datasets(config)
+    retrieve_data._validate_upfront(datasets, config)
+
+    real_retrieve_dataset = retrieve_data._retrieve_dataset
+
+    def _raise_for_washu(name, ds, config, stats):
+        if name == "UNIPD/WashU":
+            raise FileNotFoundError("dataset root not found: /broken/path")
+        return real_retrieve_dataset(name, ds, config, stats)
+
+    monkeypatch.setattr(retrieve_data, "_retrieve_dataset", _raise_for_washu)
+
+    stats = retrieve_data._retrieve_all(datasets, config)
+
+    assert stats["UNIPD/WashU"].fatal_error == "dataset root not found: /broken/path"
+    assert stats["UNIPD/WashU"].copied == 0
+    # Sibling dataset unaffected - copied and verified normally.
+    assert stats["UNIPD/PASPORT"].fatal_error is None
+    assert stats["UNIPD/PASPORT"].copied == 1
+    assert stats["UNIPD/PASPORT"].mismatched == []
+
+    report_path = retrieve_data._write_report(config, stats)
+    report_text = report_path.read_text()
+    assert "## FATAL - retrieval aborted partway through" in report_text
+    assert "**UNIPD/WashU**: dataset root not found: /broken/path" in report_text
+    assert "| UNIPD/WashU | 0 | 0 | 0 | — | dataset root not found: /broken/path |" in report_text
+    assert "| UNIPD/PASPORT | 1 | 0 | 0 | — | — |" in report_text
 
 
 def _minimal_config(tmp_path, **overrides):
@@ -636,7 +686,7 @@ def test_build_report_includes_failed_section(tmp_path):
     report = retrieve_data._build_report(config, stats, datetime(2026, 7, 9, 10, 22))
     assert "## Failed" in report
     assert "Failed Count = 1" in report
-    assert "| UNIPD/WashU | 0 | 0 | 1 | — |" in report  # summary table's failed column reflects len(failed)
+    assert "| UNIPD/WashU | 0 | 0 | 1 | — | — |" in report  # summary table's failed column reflects len(failed)
 
 
 def test_build_report_includes_skipped_objects_section(tmp_path):
@@ -749,6 +799,39 @@ def test_main_writes_paired_log_and_report(tmp_path, monkeypatch):
     log_text = log_files[0].read_text()
     assert "retrieving 3 subjects" in log_text
     assert "copied:" in log_text
+
+
+def test_main_still_writes_report_when_participants_tsv_fetch_raises(tmp_path, monkeypatch, caplog):
+    """Regression for the real incident this was modeled on: a broken
+    file_patterns.json project_root made participants_tsv_path() raise
+    FileNotFoundError - which used to propagate straight out of
+    _retrieve_all/main() before _write_report ever ran, even though every
+    subject had already been copied successfully. Now main() still writes
+    the report (with everything copied, plus a FATAL entry) and exits 1,
+    instead of leaving no report/no trace of the completed copy work."""
+    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "reports")
+    monkeypatch.setattr(retrieve_data, "LOGS_ROOT", tmp_path / "logs")
+    project_root = _make_washu_like(tmp_path / "source")
+    config_path = tmp_path / "config.json"
+    _write_json_config(config_path, project_root, tmp_path / "data", include_tabular_data=True)
+
+    def _raise(ds):
+        raise FileNotFoundError("dataset root not found: /data/corbetta/Clinical_connectome/derivatives/UNIPD/WashU")
+
+    monkeypatch.setattr(Dataset, "participants_tsv_path", _raise)
+
+    exit_code = retrieve_data.main(["--config", str(config_path)])
+
+    assert exit_code == 1
+    assert "retrieval aborted partway through for dataset(s)" in caplog.text
+
+    report_files = list((tmp_path / "reports" / "clinical_connectome").glob("*.md"))
+    assert len(report_files) == 1  # the report IS written despite the crash
+    report_text = report_files[0].read_text()
+    assert "## FATAL - retrieval aborted partway through" in report_text
+    assert "dataset root not found" in report_text
+    # The 3 subjects were copied before participants.tsv was ever attempted.
+    assert "| UNIPD/WashU | 3 | 0 | 0 | — |" in report_text
 
 
 def test_main_stops_cleanly_when_log_directory_cannot_be_created(tmp_path, monkeypatch, caplog):

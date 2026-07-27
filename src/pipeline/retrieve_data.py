@@ -9,7 +9,10 @@ present, unknown explicit subject) are validated upfront across ALL
 requested datasets before anything is copied - a bad request never leaves
 partial output behind. Per-subject/per-file issues (a file missing for one
 subject, a copy that fails for one subject) are logged and do not stop the
-run; a summary report is written at the end either way.
+run; a summary report is written at the end either way - even if a dataset's
+copy phase raises partway through on something upfront validation couldn't
+catch (see DatasetStats.fatal_error/_retrieve_all): that dataset is marked
+fatal in the report instead of the report never being written at all.
 
 One exception to "validated upfront, STOP on failure": a `retrieve` item
 whose `object` a specific dataset structurally lacks entirely (e.g. no
@@ -77,6 +80,13 @@ class DatasetStats:
     # dataset has no participants.tsv at source) - a legitimate state, not
     # ambiguous with "attempted and something happened".
     participants_outcome: str | None = None
+    # Set only if _retrieve_dataset raised and this dataset's copy phase
+    # never finished (e.g. a broken registry path) - None means it ran to
+    # completion. Whatever was copied before the exception is still counted
+    # above; this field just makes the interruption itself visible in the
+    # report instead of the whole report silently never being written (see
+    # _retrieve_all/main).
+    fatal_error: str | None = None
 
 
 def _build_datasets(config: RetrievalConfig) -> dict[str, Dataset]:
@@ -385,10 +395,30 @@ def _verify_dataset_copies(name: str, ds: Dataset, config: RetrievalConfig, stat
 
 
 def _retrieve_all(datasets: dict[str, Dataset], config: RetrievalConfig) -> dict[str, DatasetStats]:
+    """Runs the copy phase for every dataset, then the verification phase for
+    every dataset that finished copying (see _verify_dataset_copies) - never
+    interleaved.
+
+    A dataset whose copy phase raises (e.g. a broken registry path caught
+    only at runtime, not by upfront validation) does not abort the whole run
+    or lose what was already collected for other datasets: the exception is
+    caught here, logged with full context, and recorded on that dataset's
+    own DatasetStats.fatal_error - stats is still returned so main() can
+    write a report with everything gathered up to the interruption, instead
+    of the exception propagating past _write_report entirely (see
+    code_standards.md §0 - explicit handling, not a silent fallback: the
+    error is surfaced in both the log and the report, and main() still exits
+    non-zero for it)."""
     stats = {name: DatasetStats() for name in datasets}
     for name, ds in datasets.items():
-        _retrieve_dataset(name, ds, config, stats[name])
+        try:
+            _retrieve_dataset(name, ds, config, stats[name])
+        except (FileNotFoundError, ValueError) as exc:
+            logging.error("%s: retrieval aborted partway through - %s", name, exc, exc_info=True)
+            stats[name].fatal_error = str(exc)
     for name, ds in datasets.items():
+        if stats[name].fatal_error is not None:
+            continue
         _verify_dataset_copies(name, ds, config, stats[name])
     return stats
 
@@ -484,14 +514,29 @@ def _build_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: 
         "",
         "## Summary",
         "",
-        "| dataset | copied | skipped (exists) | failed | participants.tsv |",
-        "|---|---|---|---|---|",
+        "| dataset | copied | skipped (exists) | failed | participants.tsv | fatal error |",
+        "|---|---|---|---|---|---|",
     ]
     for name, s in stats.items():
         lines.append(
             f"| {name} | {s.copied} | {s.skipped_existing} | {len(s.failed)} | "
-            f"{s.participants_outcome or '—'} |"
+            f"{s.participants_outcome or '—'} | {s.fatal_error or '—'} |"
         )
+    fatal = {name: s.fatal_error for name, s in stats.items() if s.fatal_error is not None}
+    if fatal:
+        lines += [
+            "",
+            "## FATAL - retrieval aborted partway through",
+            "",
+            "The dataset's copy phase raised before finishing - everything copied before "
+            "the error is still reflected in the Summary table above and on disk, but "
+            "nothing past that point (including this dataset's checksum verification) ran. "
+            "This is not one of the expected per-subject/per-file issues below - it needs a "
+            "human fix (see the error) before re-running.",
+            "",
+        ]
+        for name, message in fatal.items():
+            lines.append(f"- **{name}**: {message}")
     lines += _grouped_by_modality_section(
         stats,
         "failed",
@@ -639,8 +684,15 @@ def main(argv: list[str] | None = None) -> int:
             total_verification_errors,
             report_path,
         )
+    fatal_datasets = [name for name, s in stats.items() if s.fatal_error is not None]
+    if fatal_datasets:
+        logging.error(
+            "retrieval aborted partway through for dataset(s) %s - see report: %s",
+            fatal_datasets,
+            report_path,
+        )
     logging.info("done - report written to %s, log written to %s", report_path, log_path)
-    return 0
+    return 1 if fatal_datasets else 0
 
 
 if __name__ == "__main__":
