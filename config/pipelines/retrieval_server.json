@@ -3,7 +3,7 @@
   "project": "clinical_connectome",
   "file_patterns": "config/registry/file_patterns_server.json",
   "datasets": ["UNIPD/WashU"],
-  "group_filter": ["ST"],
+  "group_filter": ["ST", "HC"],
   "subjects": null,
   "retrieve": [
     { "object": "feature", "datatype": "func", "suffix": "FC-pearson" },
