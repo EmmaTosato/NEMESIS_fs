@@ -6,3 +6,5 @@ __pycache__/
 data/*
 !data/.gitkeep
 !data/SESSIONS.md
+
+sub_BCB_example/*
