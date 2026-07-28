@@ -155,12 +155,20 @@ def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, mon
 
     tuning_dir = next((output_root / "umap" / "tuning").iterdir())
     assert (tuning_dir / "tuning_results.csv").is_file()
-    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
+    assert not (tuning_dir / "tuning_plot.png").exists()  # 2 swept params - heatmaps removed on request, CSV only
     assert not (tuning_dir / "matrix.npy").exists()  # a sweep is not a matrix artifact
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert list(results.columns) == ["n_neighbors", "min_dist", "trustworthiness"]
     assert len(results) == 4  # 2 x 2 grid
+
+    # config.md must be a self-contained snapshot of what was actually swept -
+    # not just the pipeline-level config, which alone can't tell you the grid.
+    config_md = (tuning_dir / "config.md").read_text()
+    assert '"base_params"' in config_md
+    assert '"tuning_grid"' in config_md
+    assert '"n_neighbors": [' in config_md
+    assert '"min_dist": [' in config_md
 
     runs_csv = (output_root / "umap" / "runs_tuning.csv").read_text()
     assert "tune1" in runs_csv

@@ -9,7 +9,7 @@
       "learning_rate": 200,
       "max_iter": 1000,
       "random_state": 0,
-      "metric": "jaccard"
+      "metric": "euclidean"
     },
     "tuning_grid": {
       "perplexity": [5, 15, 30, 50, 75],
@@ -20,7 +20,7 @@
   },
   "umap": {
     "tag_param": "metric",
-    "tag_prefix": "m",
+    "tag_prefix": "m_",
     "params": {
       "n_neighbors": 15,
       "min_dist": 0.0,

@@ -12,10 +12,12 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
 - fine_tuning=true (manual hyperparameter search, umap/tsne/pca/pca_varimax/
   pacmap - t-SNE only sweeps perplexity, its other params still come from
   Thiebaut de Schotten et al. 2020): evaluates every combination in the
-  method's "tuning_grid", writes a comparison table
-  + plot instead of an embedding. No automatic selection - a human reads
-  tuning_results.csv/tuning_plot.png, picks parameters by hand, writes them
-  into params_reduction.json's "params", and re-runs with fine_tuning=false.
+  method's "tuning_grid", writes a comparison table (tuning_results.csv)
+  instead of an embedding - plus a line plot (tuning_plot.png) only when
+  exactly one parameter is swept; 2+ swept parameters get no plot (heatmaps
+  removed on request), just the CSV. No automatic selection - a human reads
+  it, picks parameters by hand, writes them into params_reduction.json's
+  "params", and re-runs with fine_tuning=false.
 
 Both modes append an entry to <output_root>/<method>/runs.csv - a
 chronological, human-readable history of every run (tuning or production)
@@ -42,7 +44,6 @@ from src.analysis.plotting import (
     plot_embedding_2d,
     plot_embedding_interactive,
     plot_tuning_curve,
-    plot_tuning_heatmap,
 )
 from src.analysis.reduction import REDUCTION_METHODS
 from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
@@ -194,7 +195,7 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, now: datetime, l
 
     output_dir = _tuning_output_dir(config, now)
     try:
-        _write_tuning_output(output_dir, results, tuning_grid, TUNING_METRIC_NAMES[method], config, now, config.overwrite)
+        _write_tuning_output(output_dir, results, params, tuning_grid, TUNING_METRIC_NAMES[method], config, now, config.overwrite)
     except (FileExistsError, OSError) as exc:
         logging.error(str(exc))
         return 1
@@ -228,6 +229,7 @@ def _tuning_output_dir(config: DimReductionConfig, now: datetime) -> Path:
 def _write_tuning_output(
     output_dir: Path,
     results: pd.DataFrame,
+    base_params: dict,
     tuning_grid: dict[str, list],
     metric_col: str,
     config: DimReductionConfig,
@@ -246,12 +248,17 @@ def _write_tuning_output(
     title = compose_run_title(output_dir, config.project)
     if len(swept_params) == 1:
         plot_tuning_curve(results, swept_params[0], metric_col, output_dir / "tuning_plot.png", title)
-    elif len(swept_params) == 2:
-        plot_tuning_heatmap(results, swept_params[0], swept_params[1], metric_col, output_dir / "tuning_plot.png", title)
     else:
         logging.warning(
-            "tuning_grid has %d swept parameters - no plot generated (only 1 or 2 are supported)", len(swept_params)
+            "tuning_grid has %d swept parameters - no plot generated (heatmaps removed on request, "
+            "only a 1-parameter curve is supported; tuning_results.csv still has every combination)",
+            len(swept_params),
         )
+
+    n_skipped = int(results["skipped_reason"].notna().sum()) if "skipped_reason" in results.columns else 0
+    combinations_line = f"Combinations evaluated: {len(results)}"
+    if n_skipped:
+        combinations_line += f" ({n_skipped} skipped - impossible parameter combination, see skipped_reason column)"
 
     readme_lines = [
         f"# {title}",
@@ -266,6 +273,8 @@ def _write_tuning_output(
                 "reduction_method": config.reduction_method,
                 "params_file": str(config.params_file),
                 "session_name": config.session_name,
+                "base_params": base_params,
+                "tuning_grid": tuning_grid,
             },
             indent=2,
         ),
@@ -274,7 +283,7 @@ def _write_tuning_output(
         "## Summary",
         "",
         f"Swept parameters: {swept_params}",
-        f"Combinations evaluated: {len(results)}",
+        combinations_line,
         f"Metric: {metric_col}",
         "",
         "No automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",

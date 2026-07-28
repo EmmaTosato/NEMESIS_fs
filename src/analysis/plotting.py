@@ -15,9 +15,11 @@ breakdown of that same sanity check, for one already-chosen production
 result - a single aggregate silhouette number (reported during fine_tuning,
 see clustering_tuning.compute_clustering_metrics) can hide a bad cluster
 averaged out by good ones; this plots every sample's own coefficient,
-grouped by cluster, next to the same 2D scatter. plot_tuning_curve/plot_tuning_heatmap exist because a human has to eyeball a
+grouped by cluster, next to the same 2D scatter. plot_tuning_curve exists because a human has to eyeball a
 fine-tuning sweep to pick parameters by hand (src/analysis/tuning.py) - no
-automatic selection. plot_clustering_tuning_metrics/plot_dendrogram/
+automatic selection; a 2+-parameter dim_reduction.py sweep gets no plot at
+all, only tuning_results.csv (no heatmap here - removed on request, kept for
+clustering_tuning.py below). plot_clustering_tuning_metrics/plot_dendrogram/
 plot_eigengap/plot_k_distance are the same "human eyeballs a sweep" idea
 applied to clustering.py's own fine-tuning mode (src/analysis/clustering_tuning.py)
 - one generic multi-metric curve plus 3 method-specific standalone diagnostics
@@ -652,34 +654,12 @@ def plot_tuning_curve(df: pd.DataFrame, param_col: str, metric_col: str, output_
     plt.close(fig)
 
 
-def plot_tuning_heatmap(
-    df: pd.DataFrame, param_x: str, param_y: str, metric_col: str, output_path: Path, title: str
-) -> None:
-    """Heatmap: two swept hyperparameters vs. the tuning metric (e.g. UMAP's n_neighbors x min_dist grid)."""
-    pivot = df.pivot(index=param_y, columns=param_x, values=metric_col)
-
-    fig, ax = plt.subplots(figsize=(6, 5))
-    image = ax.imshow(pivot.values, cmap="viridis", aspect="auto")
-    ax.set_xticks(range(len(pivot.columns)))
-    ax.set_xticklabels(pivot.columns)
-    ax.set_yticks(range(len(pivot.index)))
-    ax.set_yticklabels(pivot.index)
-    ax.set_xlabel(param_x)
-    ax.set_ylabel(param_y)
-    ax.set_title(title)
-    fig.colorbar(image, ax=ax, label=metric_col)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-
-
 def plot_clustering_tuning_heatmaps(
     df: pd.DataFrame, param_x: str, param_y: str, metric_cols: list[str], output_path: Path, title: str
 ) -> None:
     """One heatmap subplot per metric in metric_cols, sharing param_x/param_y
-    on the two axes - the clustering-tuning equivalent of plot_tuning_heatmap,
-    but for more than one metric at once (see plot_clustering_tuning_metrics
+    on the two axes - a 2-parameter clustering-tuning sweep (params_clustering.json),
+    one heatmap per metric at once (see plot_clustering_tuning_metrics
     for why silhouette/Calinski-Harabasz/Davies-Bouldin/extras each need
     their own subplot rather than one shared axis).
     """
