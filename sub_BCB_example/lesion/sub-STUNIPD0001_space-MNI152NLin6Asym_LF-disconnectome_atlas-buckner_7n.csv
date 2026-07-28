@@ -1,0 +1,2 @@
+region_name,n_voxels_region,n_voxels_overlap,fraction_covered,mean_overlap,weighted_mean_overlap,sum_overlap,sum_atlas_in_tract,pwll_normalised,max_atlas_prob_in_overlap,continuous_dice,p90_overlap,p95_overlap
+atl-Buckner7_space-MNI_dseg,185545,40661,0.21914360397747176,0.006197957389221118,0.006444042260110496,1150.0000037830323,911068.0,0.001262254852308535,7.0,0.0024166543286650555,0.056179776787757874,0.10112359374761581

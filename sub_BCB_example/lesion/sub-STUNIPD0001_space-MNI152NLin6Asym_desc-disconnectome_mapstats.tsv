@@ -1,0 +1,2 @@
+n_nonzero_voxels	voxel_volume_mm3	map_volume_mm3	map_sum	map_mean_nonzero	map_min_nonzero	map_max	map_p50_nonzero	map_p90_nonzero	map_p95_nonzero
+1320440	1.0	1320440.0	287086.09004586516	0.21741698982601645	0.00561797758564353	1.0	0.07865168899297714	0.7078651785850525	0.949438214302063

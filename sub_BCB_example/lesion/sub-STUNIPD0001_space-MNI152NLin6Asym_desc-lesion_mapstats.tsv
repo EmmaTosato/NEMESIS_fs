@@ -1,0 +1,2 @@
+n_nonzero_voxels	voxel_volume_mm3	map_volume_mm3	map_sum	map_mean_nonzero	map_min_nonzero	map_max	map_p50_nonzero	map_p90_nonzero	map_p95_nonzero	tdi
+36928	1.0	36928.0	36928.0	1.0	1.0	1.0	1.0	1.0	1.0	43.3968932504065
