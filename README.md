@@ -24,14 +24,18 @@ tests/
 ├── unit/         # synthetic fixtures, no external data required
 └── integration/  # against the real EBRAIN mount, skipped automatically if unreachable
 docs/
+├── methods/      # methodological documentation and literature notes
 ├── setup.md      # environment setup
 ├── guides/       # how to use each pipeline (user-facing)
 ├── dev/          # architecture/implementation reference (developer-facing)
 └── debugging/    # dated, per-session debug reports
 assets/
+├── atlases/      # Reference brain atlases
+└── metadata/     # Project metadata
+management/
 ├── meetings/     # raw dated meeting notes (primary source for project scope/decisions)
-├── papers/       # reference literature, one folder per paper, extracted via docling
-└── notes/        # non-normative scratch notes (e.g. architecture drafts)
+└── nemesis_project/ # project administrative documents
+papers/           # reference literature, one folder per paper, extracted via docling
 data/             # local copy of retrieved neuroimaging data (gitignored, not in repo)
 summaries/, logs/   # per-run outputs of the pipelines (gitignored)
 .claude/          # agent-facing project instructions and conventions (see below)
