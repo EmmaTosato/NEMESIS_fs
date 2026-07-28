@@ -35,6 +35,8 @@ import pandas as pd
 from nilearn.image import resample_to_img
 from nilearn.maskers import NiftiLabelsMasker
 
+from src.features.subject_discovery import discover_files_by_subject
+
 
 def resolve_atlas_paths(atlas_root: Path, combo: str) -> tuple[Path, Path]:
     """Resolve the BIDS-Derivatives nii.gz + tsv paths for one atlas combo folder.
@@ -178,36 +180,50 @@ def mask_subject_fc(
 
 
 def discover_subject_files(
-    data_root: Path, dataset: str, atlas_combo: str, lesion_glob: str, fc_glob_template: str
-) -> tuple[dict[str, tuple[Path, Path]], list[str]]:
-    """Subjects with both a lesion mask and an FC matrix for atlas_combo.
+    data_root: Path,
+    dataset: str,
+    atlas_combo: str,
+    lesion_glob: str,
+    fc_glob_template: str,
+    group_filter: list[str] | None,
+) -> tuple[dict[str, tuple[Path, Path]], list[str], list[str]]:
+    """Subjects with both a lesion mask and an FC matrix for atlas_combo, restricted to group_filter.
 
-    Returns ({subject_id: (lesion_path, fc_path)}, subjects_missing_lesion).
-    A subject present in the FC feature set but missing a lesion mask is a
-    known, legitimate, per-subject gap (docs/guides/datasets.md: lesion masks
-    are present "sulla maggior parte" of subjects, not all) - reported and
-    skipped, never a hard stop for the whole dataset. Raises ValueError if no
-    subject has both (likely a config error - wrong dataset/atlas_combo).
+    Returns ({subject_id: (lesion_path, fc_path)}, subjects_missing_lesion,
+    subjects_excluded_by_group). group_filter restricts by each subject's
+    naming-derived group (src.retrieval.dataset.group_of) BEFORE the
+    lesion/FC intersection is computed - required because a dataset's
+    `features/` tree can hold both patients (ST) and healthy controls (HC)
+    side by side (e.g. WashU), and an HC subject is not a "missing lesion
+    mask" gap (that reporting is reserved for a patient whose mask genuinely
+    wasn't drawn) but a structurally different population this
+    lesion-masking pipeline does not apply to (a healthy control has no
+    lesion to mask). group_filter=None means no restriction - only correct
+    for a dataset/config known not to mix groups, never the default for one
+    that does.
+
+    Raises ValueError if no subject has both, within group_filter (likely a
+    config error - wrong dataset/atlas_combo/group_filter).
     """
     dataset_root = Path(data_root) / dataset
     fc_glob = fc_glob_template.format(combo=atlas_combo)
-    fc_files = sorted(dataset_root.glob(fc_glob))
-    if not fc_files:
+    if not any(dataset_root.glob(fc_glob)):
         raise FileNotFoundError(f"no FC files found matching {fc_glob!r} under {dataset_root}")
-    fc_by_subject = {f.name.split("_")[0]: f for f in fc_files}
 
-    lesion_files = sorted(dataset_root.glob(lesion_glob))
-    lesion_by_subject = {f.name.split("_")[0]: f for f in lesion_files}
+    fc_by_subject, fc_excluded = discover_files_by_subject(data_root, dataset, fc_glob, group_filter)
+    lesion_by_subject, lesion_excluded = discover_files_by_subject(data_root, dataset, lesion_glob, group_filter)
+    excluded_by_group = sorted(set(fc_excluded) | set(lesion_excluded))
 
     usable_subjects = sorted(fc_by_subject.keys() & lesion_by_subject.keys())
     missing_lesion = sorted(fc_by_subject.keys() - lesion_by_subject.keys())
     if not usable_subjects:
         raise ValueError(
             f"no subject under {dataset_root} has both a lesion mask and an FC file for {atlas_combo!r}"
+            + (f" within group_filter={group_filter}" if group_filter is not None else "")
         )
 
     subject_files = {subject: (lesion_by_subject[subject], fc_by_subject[subject]) for subject in usable_subjects}
-    return subject_files, missing_lesion
+    return subject_files, missing_lesion, excluded_by_group
 
 
 def mask_dataset_fc(
@@ -222,20 +238,23 @@ def mask_dataset_fc(
     resample_interpolation: str,
     binarize_threshold: float,
     output_dir: Path,
-) -> tuple[pd.DataFrame, list[str]]:
+    group_filter: list[str] | None,
+) -> tuple[pd.DataFrame, list[str], list[str]]:
     """Mask every discoverable subject's FC matrix and write it to output_dir.
 
-    Returns (summary, missing_lesion) - summary has one row per masked
-    subject (subject_id, n_compromised_nodes), missing_lesion is the list of
-    subjects skipped for lacking a lesion mask (see discover_subject_files).
+    Returns (summary, missing_lesion, excluded_by_group) - summary has one
+    row per masked subject (subject_id, n_compromised_nodes), missing_lesion
+    is the list of subjects skipped for lacking a lesion mask, excluded_by_group
+    is the list of subjects skipped because their naming-derived group isn't
+    in group_filter (see discover_subject_files for the ST-vs-HC rationale).
     """
     atlas_img, label_table = load_atlas(atlas_path, label_table_path)
     label_ids = label_table["index"].tolist()
     id_to_name = dict(zip(label_table["index"], label_table["label"]))
     node_names = np.array([id_to_name[i] for i in label_ids])
 
-    subject_files, missing_lesion = discover_subject_files(
-        data_root, dataset, atlas_combo, lesion_glob, fc_glob_template
+    subject_files, missing_lesion, excluded_by_group = discover_subject_files(
+        data_root, dataset, atlas_combo, lesion_glob, fc_glob_template, group_filter
     )
 
     output_dir = Path(output_dir)
@@ -255,7 +274,7 @@ def mask_dataset_fc(
         rows.append({"subject_id": subject, "n_compromised_nodes": len(compromised_names)})
 
     summary = pd.DataFrame(rows).sort_values("subject_id").reset_index(drop=True)
-    return summary, missing_lesion
+    return summary, missing_lesion, excluded_by_group
 
 
 def discover_masked_fc_files(masked_fc_dir: Path) -> dict[str, Path]:

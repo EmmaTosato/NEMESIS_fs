@@ -1,14 +1,7 @@
-# Runs History — NEMESIS
+# Runs History S1.1
 
-Questo documento traccia la cronologia delle esecuzioni di **produzione** (i dati finali usati per i downstream task) e le scelte metodologiche (il "protocollo") adottate per ogni ciclo di esperimenti.
+## 26-06-2026 Run
 
-Funge da ponte narrativo per spiegare *perché* i run salvati nei CSV di produzione usano specifiche configurazioni. Per i dettagli sulle esplorazioni, le metriche scartate e i dubbi che hanno portato a queste scelte, vedi il documento di tuning corrispondente.
-
----
-
-## Storico Esecuzioni
-
-### Sessione `s1.1`
 - **Data Run Produzione:** 26 Luglio 2026
 - **Pipeline:** `dim_reduction_clustering`
 - **Dati in ingresso:** Matrice lesionale voxel-wise, 1150 soggetti (`data/derived/lesion_matrix/21-07_s1.1`)

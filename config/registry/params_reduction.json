@@ -19,7 +19,12 @@
       "min_dist": 0.0,
       "n_components": 2,
       "random_state": 0
-    }
+    },
+    "tuning_grid": {
+      "n_neighbors": [5, 15, 30],
+      "metric": ["euclidean", "jaccard", "dice"]
+    },
+    "trustworthiness_n_neighbors": 10
   },
   "pacmap": {
     "tag_param": "n_neighbors",

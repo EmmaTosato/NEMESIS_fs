@@ -1,6 +1,6 @@
 # Clustering Tuning Results s1.1
 
-## 26-07-2026
+## 26-07-2026 Analysis
 
 - Dati: matrice lesionale voxel-wise, 1150 soggetti (`data/derived/lesion_matrix/21-07_s1.1`)
 - Sessione `s1.1`.

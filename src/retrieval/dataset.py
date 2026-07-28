@@ -28,6 +28,20 @@ from src.retrieval.config import FilePatterns, RetrieveItem
 _SUBJECT_RE = re.compile(r"^sub-(?P<disease>ST|PD|GM)(?P<site>[A-Z]+?)(?P<hc>HC)?(?P<num>\d+)$")
 
 
+def group_of(subject_id: str) -> str:
+    """Group of a subject_id ('ST' | 'HC' | 'PD' | 'GM'), from its naming.
+
+    Module-level (not just Dataset.group_of) so any layer that discovers
+    subjects by globbing a folder directly - e.g. src/features/functional.py,
+    which does not go through Dataset - can still tell a healthy control from
+    a patient without duplicating _SUBJECT_RE.
+    """
+    match = _SUBJECT_RE.match(subject_id)
+    if match is None:
+        raise ValueError(f"subject_id does not match expected naming: {subject_id!r}")
+    return "HC" if match.group("hc") else match.group("disease")
+
+
 class Dataset:
     """One dataset (e.g. project='clinical_connectome', name='UNIPD/WashU').
 
@@ -122,10 +136,7 @@ class Dataset:
 
     def group_of(self, subject_id: str) -> str:
         """Group of a subject_id ('ST' | 'HC' | 'PD' | 'GM'), from its naming."""
-        match = _SUBJECT_RE.match(subject_id)
-        if match is None:
-            raise ValueError(f"subject_id does not match expected naming: {subject_id!r}")
-        return "HC" if match.group("hc") else match.group("disease")
+        return group_of(subject_id)
 
     def available(self, item: RetrieveItem) -> bool:
         """True if at least one subject has a file matching any template

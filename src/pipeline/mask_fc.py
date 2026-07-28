@@ -72,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
 
         atlas_path, label_table_path = resolve_atlas_paths(config.atlas_root, combo)
         try:
-            summary, missing_lesion = mask_dataset_fc(
+            summary, missing_lesion, excluded_by_group = mask_dataset_fc(
                 data_root=config.data_root,
                 dataset=config.dataset,
                 atlas_path=atlas_path,
@@ -84,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
                 resample_interpolation=config.resample_interpolation,
                 binarize_threshold=config.binarize_threshold,
                 output_dir=output_dir,
+                group_filter=config.group_filter,
             )
         except (FileNotFoundError, ValueError) as exc:
             logging.error("%s: %s", combo, exc)
@@ -95,6 +96,14 @@ def main(argv: list[str] | None = None) -> int:
                 combo,
                 len(missing_lesion),
                 missing_lesion,
+            )
+        if excluded_by_group:
+            logging.info(
+                "%s: %d subject(s) excluded by group_filter=%s: %s",
+                combo,
+                len(excluded_by_group),
+                config.group_filter,
+                excluded_by_group,
             )
         logging.info(
             "%s: masked %d subjects (mean %.1f compromised nodes/subject)",
@@ -147,6 +156,7 @@ def _config_summary(config: MaskFcConfig) -> str:
         "project": config.project,
         "data_root": str(config.data_root),
         "dataset": config.dataset,
+        "group_filter": config.group_filter,
         "atlas_root": str(config.atlas_root),
         "atlas_combos": config.atlas_combos,
         "lesion_glob": config.lesion_glob,

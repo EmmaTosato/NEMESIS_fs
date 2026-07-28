@@ -24,6 +24,9 @@ import numpy as np
 import pandas as pd
 from nilearn.image import resample_to_img
 
+from src.features.subject_discovery import discover_files_by_subject
+from src.retrieval.dataset import group_of
+
 # Each entry reduces a (n_subjects, n_voxels_in_parcel) block to (n_subjects,).
 # Only one method exists today (binary lesion masks only support "proportion
 # of damage"); kept as a registry, not hardcoded, because SDC/FC will need
@@ -42,19 +45,25 @@ def build_lesion_matrix(
     binarize_threshold: float,
     resample_interpolation: str,
     parcellate: bool,
+    group_filter: list[str] | None,
     atlas_path: Path | None = None,
     parcel_aggregation: str | None = None,
-) -> tuple[np.ndarray, pd.DataFrame, np.ndarray, np.ndarray | None]:
+) -> tuple[np.ndarray, pd.DataFrame, np.ndarray, np.ndarray | None, list[str]]:
     """Build X (n_subjects x n_features), row-aligned metadata, and drop-mask.
 
-    Returns (X, metadata, non_constant_mask, parcel_ids). parcel_ids is None
-    iff parcellate=False (voxel-wise has no parcel identity to report) -
-    otherwise it holds the atlas label id behind each column of X, already
-    filtered to the columns that survived the constant-feature drop.
+    Returns (X, metadata, non_constant_mask, parcel_ids, excluded_by_group).
+    parcel_ids is None iff parcellate=False (voxel-wise has no parcel
+    identity to report) - otherwise it holds the atlas label id behind each
+    column of X, already filtered to the columns that survived the
+    constant-feature drop. excluded_by_group is the list of subjects skipped
+    because their naming-derived group (src.retrieval.dataset.group_of)
+    isn't in group_filter - see _discover_lesion_files. group_filter=None
+    means no restriction (only correct for datasets known not to mix
+    groups - see src/features/subject_discovery.py).
     """
     _validate_parcellation_args(parcellate, atlas_path, parcel_aggregation)
 
-    lesion_files = _discover_lesion_files(data_root, datasets, lesion_glob)
+    lesion_files, excluded_by_group = _discover_lesion_files(data_root, datasets, lesion_glob, group_filter)
     reference_img = load_reference_image(reference_template_path)
     X_voxelwise, metadata = _stack_voxel_matrix(
         lesion_files, reference_img, resample_interpolation, binarize_threshold
@@ -72,7 +81,7 @@ def build_lesion_matrix(
     if parcellate:
         parcel_ids = parcel_ids[non_constant_mask]
 
-    return X, metadata, non_constant_mask, parcel_ids
+    return X, metadata, non_constant_mask, parcel_ids, excluded_by_group
 
 
 def load_and_resample_atlas(
@@ -140,16 +149,30 @@ def _validate_parcellation_args(
         raise ValueError("atlas_path/parcel_aggregation must not be set when parcellate=False")
 
 
-def _discover_lesion_files(data_root: Path, datasets: list[str], lesion_glob: str) -> dict[str, list[Path]]:
-    """One entry per dataset: every file matching lesion_glob under
-    data_root/dataset, sanity-checked against how many subject folders
-    actually exist. Where subject folders sit relative to dataset_root
-    differs by local retrieval layout (subject-first vs pipeline-first, see
-    src.retrieval.output_layout) - rather than assuming they're
-    dataset_root's immediate children (true only for the older subject-first
-    layout), the subject-folder glob is derived from lesion_glob itself: the
-    last path segment that is exactly "*" (the subject-id wildcard, not a
-    compound filename pattern like "*_label-lesion_mask.nii.gz")."""
+def _discover_lesion_files(
+    data_root: Path, datasets: list[str], lesion_glob: str, group_filter: list[str] | None
+) -> tuple[dict[str, dict[str, Path]], list[str]]:
+    """One entry per dataset: {subject_id: lesion_path}, restricted to
+    group_filter, sanity-checked against how many (group-filtered) subject
+    folders actually exist. Where subject folders sit relative to
+    dataset_root differs by local retrieval layout (subject-first vs
+    pipeline-first, see src.retrieval.output_layout) - rather than assuming
+    they're dataset_root's immediate children (true only for the older
+    subject-first layout), the subject-folder glob is derived from
+    lesion_glob itself: the last path segment that is exactly "*" (the
+    subject-id wildcard, not a compound filename pattern like
+    "*_label-lesion_mask.nii.gz").
+
+    The subject-dir count used for the sanity check is itself restricted to
+    group_filter (see src.features.subject_discovery) - comparing against
+    every folder regardless of group would break as soon as a dataset mixes
+    groups under this pipeline/object (not the case today for manual_masks -
+    a healthy control has no lesion to mask - but not a guarantee this code
+    should silently assume).
+
+    Returns (lesion_files, excluded_by_group) - excluded_by_group merges the
+    per-dataset exclusion lists, for the caller to log explicitly.
+    """
     segments = lesion_glob.split("/")
     bare_wildcard_indices = [i for i, seg in enumerate(segments) if seg == "*"]
     if not bare_wildcard_indices:
@@ -159,20 +182,25 @@ def _discover_lesion_files(data_root: Path, datasets: list[str], lesion_glob: st
         )
     subject_glob = "/".join(segments[: bare_wildcard_indices[-1] + 1])
 
-    lesion_files: dict[str, list[Path]] = {}
+    lesion_files: dict[str, dict[str, Path]] = {}
+    excluded_by_group: list[str] = []
     for dataset in datasets:
         dataset_root = data_root / dataset
-        files = sorted(dataset_root.glob(lesion_glob))
-        n_subject_dirs = len([p for p in dataset_root.glob(subject_glob) if p.is_dir()])
-        # one lesion mask expected per subject dir; stop on mismatch rather than
-        # silently proceeding with missing or duplicated data
-        if len(files) != n_subject_dirs:
+        by_subject, excluded = discover_files_by_subject(data_root, dataset, lesion_glob, group_filter)
+        excluded_by_group.extend(excluded)
+
+        subject_dirs = [p.name for p in dataset_root.glob(subject_glob) if p.is_dir()]
+        if group_filter is not None:
+            subject_dirs = [s for s in subject_dirs if group_of(s) in group_filter]
+        # one lesion mask expected per (group-filtered) subject dir; stop on mismatch
+        # rather than silently proceeding with missing or duplicated data
+        if len(by_subject) != len(subject_dirs):
             raise ValueError(
-                f"{dataset}: {n_subject_dirs} subject dirs but {len(files)} lesion masks "
+                f"{dataset}: {len(subject_dirs)} subject dirs but {len(by_subject)} lesion masks "
                 f"found matching {lesion_glob!r} - check the retrieval report"
             )
-        lesion_files[dataset] = files
-    return lesion_files
+        lesion_files[dataset] = by_subject
+    return lesion_files, sorted(set(excluded_by_group))
 
 
 def load_reference_image(reference_template_path: Path) -> nib.Nifti1Image:
@@ -208,7 +236,7 @@ def _load_and_binarize_lesion(
 
 
 def _stack_voxel_matrix(
-    lesion_files: dict[str, list[Path]],
+    lesion_files: dict[str, dict[str, Path]],
     reference_img: nib.Nifti1Image,
     resample_interpolation: str,
     binarize_threshold: float,
@@ -217,10 +245,11 @@ def _stack_voxel_matrix(
     dataset_labels: list[str] = []
     vectors: list[np.ndarray] = []
 
-    for dataset, files in lesion_files.items():
-        for f in files:
+    for dataset, by_subject in lesion_files.items():
+        for subject_id in sorted(by_subject):
+            f = by_subject[subject_id]
             vectors.append(_load_and_binarize_lesion(f, reference_img, resample_interpolation, binarize_threshold))
-            subject_ids.append(f.name.split("_")[0])
+            subject_ids.append(subject_id)
             dataset_labels.append(dataset)
 
     X = np.stack(vectors)

@@ -33,6 +33,23 @@ python -m src.pipeline.mask_fc --config config/pipelines/mask_fc.json
 python -m src.pipeline.build_fc_matrix --config config/pipelines/build_fc_matrix.json
 ```
 
+## Filtro per gruppo (`group_filter`)
+
+Alcuni dataset (es. `UNIPD/WashU`) hanno, sotto la stessa cartella `features/`, sia pazienti (`ST`) sia controlli sani (`HC`) - un healthy control ha una FC calcolata ma nessuna lesione da mascherare. `mask_fc.json` ha un campo opzionale `group_filter`, stessa sintassi già usata da `retrieval_local.json`/`retrieval_server.json`:
+
+```json
+"group_filter": ["ST"]
+```
+
+restringe la discovery ai soli soggetti il cui gruppo (dedotto dal nome, es. `sub-STUNIPDHC0004` → `HC`, `sub-STUNIPD0237` → `ST`) è nell'elenco. Un HC escluso così compare nel log come `excluded_by_group`, mai come `missing_lesion` (quella dicitura resta riservata a un paziente a cui manca davvero la maschera). Omettere il campo (o metterlo a `null`) equivale a nessun filtro - da usare solo se il dataset non mescola gruppi.
+
+Per includere anche i controlli sani (es. per l'analisi di confronto del Task 3):
+```json
+"group_filter": ["ST", "HC"]
+```
+
+`build_lesion_matrix.json` ha lo stesso campo, con la stessa semantica (vedi `docs/guides/matrix_building.md`).
+
 ## Cosa contiene l'output
 
 - **Ancora nessuna imputazione**: la matrice finale contiene ancora dei NaN per le connessioni compromesse dalla lesione — non vengono sostituiti con zero o altro in questa fase. La sostituzione è un passo separato, deliberatamente non ancora implementato, che avverrà solo subito prima della riduzione dimensionale (`dim_reduction.py`).

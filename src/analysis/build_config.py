@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from src.features.lesion import PARCEL_AGGREGATIONS
+from src.retrieval.config import KNOWN_GROUPS
 
 _KNOWN_INTERPOLATIONS = frozenset({"linear", "nearest", "continuous"})
 
@@ -23,6 +24,7 @@ class BuildMatrixConfig:
     project: str
     data_root: Path
     datasets: list[str]
+    group_filter: list[str] | None
     reference_template_path: Path
     lesion_glob: str
     binarize_threshold: float
@@ -70,6 +72,7 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
         project=_require_str(raw, "project"),
         data_root=Path(_require_str(raw, "data_root")),
         datasets=datasets,
+        group_filter=_optional_group_filter(raw),
         reference_template_path=reference_template_path,
         lesion_glob=_require_str(raw, "lesion_glob"),
         binarize_threshold=binarize_threshold,
@@ -137,6 +140,20 @@ def _require_float_in_range(raw: dict, key: str, lo: float, hi: float) -> float:
     return value
 
 
+def _optional_group_filter(raw: dict) -> list[str] | None:
+    """Same convention as src.retrieval.config._optional_group_filter: absent/null
+    means no restriction, present means exactly these groups (src.retrieval.dataset.group_of)."""
+    value = raw.get("group_filter")
+    if value is None:
+        return None
+    if not isinstance(value, list) or not value or not all(isinstance(v, str) and v for v in value):
+        raise ValueError(f"config: field 'group_filter' must be a non-empty list of non-empty strings, got {value!r}")
+    unknown = [g for g in value if g not in KNOWN_GROUPS]
+    if unknown:
+        raise ValueError(f"config: group_filter contains unknown group(s) {unknown} (known: {KNOWN_GROUPS})")
+    return value
+
+
 def _validate_resample_interpolation(value: str) -> str:
     if value not in _KNOWN_INTERPOLATIONS:
         raise ValueError(
@@ -150,6 +167,7 @@ class MaskFcConfig:
     project: str
     data_root: Path
     dataset: str
+    group_filter: list[str] | None
     atlas_root: Path
     atlas_combos: list[str]
     lesion_glob: str
@@ -184,6 +202,7 @@ def load_mask_fc_config(path: str | Path) -> MaskFcConfig:
         project=_require_str(raw, "project"),
         data_root=Path(_require_str(raw, "data_root")),
         dataset=_require_str(raw, "dataset"),
+        group_filter=_optional_group_filter(raw),
         atlas_root=Path(_require_str(raw, "atlas_root")),
         atlas_combos=_require_unique_str_list(raw, "atlas_combos"),
         lesion_glob=_require_str(raw, "lesion_glob"),

@@ -11,7 +11,10 @@ docs/methods/dimensionality_reduction.md).
 Quality metric differs by method, on purpose (see docs/methods/dimensionality_reduction.md):
 - umap/pacmap: trustworthiness(X, embedding) - how well local neighborhoods
   survive the projection. Generic across any neighbor-based non-linear
-  embedding, not umap-specific, so pacmap reuses it unchanged.
+  embedding, not umap-specific, so pacmap reuses it unchanged. For umap,
+  a binary metric (jaccard/dice) in the swept "metric" is scored with that
+  *same* metric (see evaluate_umap) - never silently compared against
+  trustworthiness's own euclidean default.
 - pca/pca_varimax: cumulative explained variance ratio - PCA's own natural,
   standard criterion, and the exact one the paper uses to choose a component
   count. Varimax rotation is orthogonal, so it doesn't change the total
@@ -29,6 +32,7 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.manifold import trustworthiness
 
+from src.analysis.distances import SUPPORTED_BINARY_METRICS, binary_pairwise_distance
 from src.analysis.reduction import pacmap_embed, pca_varimax_embed, umap_embed
 
 TUNING_METRIC_NAMES = {
@@ -42,8 +46,31 @@ METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS = {"umap", "pacmap"}
 
 
 def evaluate_umap(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int) -> tuple[np.ndarray, float]:
-    embedding = umap_embed(X, params)
-    score = float(trustworthiness(X, embedding, n_neighbors=trustworthiness_n_neighbors))
+    """Embed with UMAP, then score with trustworthiness(X, embedding).
+
+    trustworthiness needs its own notion of "how close were these points
+    originally" - if params requests a binary metric (jaccard/dice), that
+    notion must be the *same* metric the embedding was actually built with,
+    not trustworthiness's own euclidean default (comparing a jaccard-built
+    embedding against euclidean neighborhoods isn't a fair test of it, see
+    docs/dev/analysis.md). For those metrics X is replaced by its precomputed
+    binary_pairwise_distance matrix for both the embedding and the score, and
+    umap's own metric is switched to "precomputed" accordingly (also avoids
+    umap/sklearn each recomputing pairwise distances the slow, non-vectorized
+    way on raw high-dimensional binary features).
+    """
+    metric = params.get("metric", "euclidean")
+    if metric in SUPPORTED_BINARY_METRICS:
+        X_input = binary_pairwise_distance(X, metric)
+        umap_params = {**params, "metric": "precomputed"}
+        trustworthiness_metric = "precomputed"
+    else:
+        X_input = X
+        umap_params = params
+        trustworthiness_metric = metric
+
+    embedding = umap_embed(X_input, umap_params)
+    score = float(trustworthiness(X_input, embedding, n_neighbors=trustworthiness_n_neighbors, metric=trustworthiness_metric))
     return embedding, score
 
 

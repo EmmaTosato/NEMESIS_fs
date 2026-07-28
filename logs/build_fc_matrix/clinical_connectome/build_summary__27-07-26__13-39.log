@@ -1,0 +1,34 @@
+INFO: Yan100TianS1Buckner7N: constant-edge check complete - 0 constant edges found, 7503/7503 kept
+INFO: Yan100TianS1Buckner7N: matrix built (169 subjects x 7503 edges) - NaN per subject: min=0 max=2453 mean=254.9
+INFO: Yan100TianS1Buckner7N: matrix written to data/derived/features/fc_matrix/Yan100TianS1Buckner7N/27-07_s2 (shape (169, 7503))
+INFO: Yan100TianS2Buckner7N: constant-edge check complete - 0 constant edges found, 9591/9591 kept
+INFO: Yan100TianS2Buckner7N: matrix built (169 subjects x 9591 edges) - NaN per subject: min=0 max=3263 mean=360.6
+INFO: Yan100TianS2Buckner7N: matrix written to data/derived/features/fc_matrix/Yan100TianS2Buckner7N/27-07_s2 (shape (169, 9591))
+INFO: Yan100TianS3Buckner7N: constant-edge check complete - 0 constant edges found, 12246/12246 kept
+INFO: Yan100TianS3Buckner7N: matrix built (169 subjects x 12246 edges) - NaN per subject: min=0 max=4245 mean=524.8
+INFO: Yan100TianS3Buckner7N: matrix written to data/derived/features/fc_matrix/Yan100TianS3Buckner7N/27-07_s2 (shape (169, 12246))
+INFO: Yan200TianS1Buckner7N: constant-edge check complete - 0 constant edges found, 24753/24753 kept
+INFO: Yan200TianS1Buckner7N: matrix built (169 subjects x 24753 edges) - NaN per subject: min=0 max=7733 mean=827.4
+INFO: Yan200TianS1Buckner7N: matrix written to data/derived/features/fc_matrix/Yan200TianS1Buckner7N/27-07_s2 (shape (169, 24753))
+INFO: Yan200TianS3Buckner7N: constant-edge check complete - 0 constant edges found, 32896/32896 kept
+INFO: Yan200TianS3Buckner7N: matrix built (169 subjects x 32896 edges) - NaN per subject: min=0 max=10741 mean=1283.3
+INFO: Yan200TianS3Buckner7N: matrix written to data/derived/features/fc_matrix/Yan200TianS3Buckner7N/27-07_s2 (shape (169, 32896))
+INFO: Yan300TianS1Buckner7N: constant-edge check complete - 0 constant edges found, 52003/52003 kept
+INFO: Yan300TianS1Buckner7N: matrix built (169 subjects x 52003 edges) - NaN per subject: min=0 max=17812 mean=2132.1
+INFO: Yan300TianS1Buckner7N: matrix written to data/derived/features/fc_matrix/Yan300TianS1Buckner7N/27-07_s2 (shape (169, 52003))
+INFO: Yan300TianS2Buckner7N: constant-edge check complete - 0 constant edges found, 57291/57291 kept
+INFO: Yan300TianS2Buckner7N: matrix built (169 subjects x 57291 edges) - NaN per subject: min=0 max=19890 mean=2416.4
+INFO: Yan300TianS2Buckner7N: matrix written to data/derived/features/fc_matrix/Yan300TianS2Buckner7N/27-07_s2 (shape (169, 57291))
+INFO: Yan300TianS3Buckner7N: constant-edge check complete - 0 constant edges found, 63546/63546 kept
+INFO: Yan300TianS3Buckner7N: matrix built (169 subjects x 63546 edges) - NaN per subject: min=0 max=22218 mean=2814.9
+INFO: Yan300TianS3Buckner7N: matrix written to data/derived/features/fc_matrix/Yan300TianS3Buckner7N/27-07_s2 (shape (169, 63546))
+INFO: Yan400TianS1Buckner7N: constant-edge check complete - 0 constant edges found, 89253/89253 kept
+INFO: Yan400TianS1Buckner7N: matrix built (169 subjects x 89253 edges) - NaN per subject: min=0 max=31623 mean=3604.9
+INFO: Yan400TianS1Buckner7N: matrix written to data/derived/features/fc_matrix/Yan400TianS1Buckner7N/27-07_s2 (shape (169, 89253))
+INFO: Yan400TianS2Buckner7N: constant-edge check complete - 0 constant edges found, 96141/96141 kept
+INFO: Yan400TianS2Buckner7N: matrix built (169 subjects x 96141 edges) - NaN per subject: min=0 max=34365 mean=3973.5
+INFO: Yan400TianS2Buckner7N: matrix written to data/derived/features/fc_matrix/Yan400TianS2Buckner7N/27-07_s2 (shape (169, 96141))
+INFO: Yan400TianS3Buckner7N: constant-edge check complete - 0 constant edges found, 104196/104196 kept
+INFO: Yan400TianS3Buckner7N: matrix built (169 subjects x 104196 edges) - NaN per subject: min=0 max=37401 mean=4483.9
+INFO: Yan400TianS3Buckner7N: matrix written to data/derived/features/fc_matrix/Yan400TianS3Buckner7N/27-07_s2 (shape (169, 104196))
+INFO: done - matrices written under data/derived/features/fc_matrix (11 combo(s)), report written to summaries/build_fc_matrix/clinical_connectome/build_summary__27-07-26__13-39.md, log written to logs/build_fc_matrix/clinical_connectome/build_summary__27-07-26__13-39.log

@@ -1,0 +1,12 @@
+INFO: Yan100TianS1Buckner7N: masked 169 subjects (mean 1.9 compromised nodes/subject)
+INFO: Yan100TianS2Buckner7N: masked 169 subjects (mean 2.4 compromised nodes/subject)
+INFO: Yan100TianS3Buckner7N: masked 169 subjects (mean 3.2 compromised nodes/subject)
+INFO: Yan200TianS1Buckner7N: masked 169 subjects (mean 3.3 compromised nodes/subject)
+INFO: Yan200TianS3Buckner7N: masked 169 subjects (mean 4.7 compromised nodes/subject)
+INFO: Yan300TianS1Buckner7N: masked 169 subjects (mean 5.6 compromised nodes/subject)
+INFO: Yan300TianS2Buckner7N: masked 169 subjects (mean 6.1 compromised nodes/subject)
+INFO: Yan300TianS3Buckner7N: masked 169 subjects (mean 6.9 compromised nodes/subject)
+INFO: Yan400TianS1Buckner7N: masked 169 subjects (mean 7.0 compromised nodes/subject)
+INFO: Yan400TianS2Buckner7N: masked 169 subjects (mean 7.5 compromised nodes/subject)
+INFO: Yan400TianS3Buckner7N: masked 169 subjects (mean 8.3 compromised nodes/subject)
+INFO: done - masked FC written under data/derived/features/masked_fc (11 combo(s)), report written to summaries/mask_fc/clinical_connectome/mask_summary__27-07-26__12-05.md, log written to logs/mask_fc/clinical_connectome/mask_summary__27-07-26__12-05.log

@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     try:
-        X, metadata, non_constant_mask, parcel_ids = build_lesion_matrix(
+        X, metadata, non_constant_mask, parcel_ids, excluded_by_group = build_lesion_matrix(
             data_root=config.data_root,
             datasets=config.datasets,
             reference_template_path=config.reference_template_path,
@@ -74,12 +74,21 @@ def main(argv: list[str] | None = None) -> int:
             binarize_threshold=config.binarize_threshold,
             resample_interpolation=config.resample_interpolation,
             parcellate=config.parcellate,
+            group_filter=config.group_filter,
             atlas_path=config.atlas_path,
             parcel_aggregation=config.parcel_aggregation,
         )
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return 1
+
+    if excluded_by_group:
+        logging.info(
+            "%d subject(s) excluded by group_filter=%s: %s",
+            len(excluded_by_group),
+            config.group_filter,
+            excluded_by_group,
+        )
 
     output_dir = _output_dir(config, now)
     extra_arrays = {"non_constant_mask": non_constant_mask}
@@ -149,6 +158,7 @@ def _config_summary(config: BuildMatrixConfig) -> str:
         "data_modality": config.data_modality,
         "data_root": str(config.data_root),
         "datasets": config.datasets,
+        "group_filter": config.group_filter,
         "reference_template_path": str(config.reference_template_path),
         "lesion_glob": config.lesion_glob,
         "binarize_threshold": config.binarize_threshold,
