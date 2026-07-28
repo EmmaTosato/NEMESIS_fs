@@ -1,10 +1,10 @@
 {
   "lesion": {
-    "project_root": "/data/corbetta/Clinical_connectome/derivatives",
+    "project_root": "/data/corbetta/Clinical_connectome",
     "manual_masks": {
       "anat": {
         "lesion_mask": [
-          "manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
+          "derivatives/manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
         ]
       }
     }

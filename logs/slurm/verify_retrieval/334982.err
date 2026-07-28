@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "/home/etosato/Projects/NEMESIS_fs/scripts/verify_retrieval.py", line 53, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/etosato/Projects/NEMESIS_fs/scripts/verify_retrieval.py", line 40, in main
+    dataset_result = verify.verify_dataset(name, ds, subjects, config)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/etosato/Projects/NEMESIS_fs/src/retrieval/verify.py", line 175, in verify_dataset
+    _verify_participants_file(name, ds, config, result, expected_local_files)
+  File "/home/etosato/Projects/NEMESIS_fs/src/retrieval/verify.py", line 88, in _verify_participants_file
+    source = ds.participants_tsv_path()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/etosato/Projects/NEMESIS_fs/src/retrieval/dataset.py", line 187, in participants_tsv_path
+    path = self._root_for("lesion") / "participants.tsv"
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/etosato/Projects/NEMESIS_fs/src/retrieval/dataset.py", line 51, in _root_for
+    raise FileNotFoundError(f"dataset root not found: {root}")
+FileNotFoundError: dataset root not found: /data/corbetta/Clinical_connectome/derivatives/UNIPD/WashU
