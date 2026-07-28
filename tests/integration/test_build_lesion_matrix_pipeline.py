@@ -96,6 +96,24 @@ def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch):
     assert "production" in runs_csv
 
 
+def test_build_lesion_matrix_group_filter_excludes_hc(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
+
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    _make_lesion_subject(data_root, "siteA", "sub-STUNIPDHC0001", [(2, 2, 2)])
+    config_path = _write_config(tmp_path, data_root, output_root, overrides={"group_filter": ["ST"]})
+
+    exit_code = build_lesion_matrix.main(["--config", str(config_path)])
+    assert exit_code == 0
+
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
+
+
 def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, monkeypatch):
     monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")

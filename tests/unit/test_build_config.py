@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from src.analysis.build_config import load_build_matrix_config
+from src.analysis.build_config import load_build_matrix_config, load_mask_fc_config
 
 _BASE = {
     "project": "clinical_connectome",
@@ -38,6 +38,32 @@ def test_valid_voxelwise_config(tmp_path):
     assert config.binarize_threshold == 0.5
     assert config.resample_interpolation == "nearest"
     assert str(config.reference_template_path) == "/templates/mni152_2mm.nii.gz"
+    assert config.group_filter is None  # absent from _BASE -> no restriction
+
+
+def test_group_filter_defaults_to_none_when_absent(tmp_path):
+    config = load_build_matrix_config(_write(tmp_path, {}))
+    assert config.group_filter is None
+
+
+def test_group_filter_restricts_to_declared_groups(tmp_path):
+    config = load_build_matrix_config(_write(tmp_path, {"group_filter": ["ST"]}))
+    assert config.group_filter == ["ST"]
+
+
+def test_group_filter_can_include_multiple_groups(tmp_path):
+    config = load_build_matrix_config(_write(tmp_path, {"group_filter": ["ST", "HC"]}))
+    assert config.group_filter == ["ST", "HC"]
+
+
+def test_group_filter_unknown_group_raises(tmp_path):
+    with pytest.raises(ValueError, match="unknown group"):
+        load_build_matrix_config(_write(tmp_path, {"group_filter": ["XX"]}))
+
+
+def test_group_filter_empty_list_raises(tmp_path):
+    with pytest.raises(ValueError, match="non-empty list"):
+        load_build_matrix_config(_write(tmp_path, {"group_filter": []}))
 
 
 def test_valid_parcellated_config(tmp_path):
@@ -84,3 +110,44 @@ def test_top_level_must_be_object(tmp_path):
     path.write_text(json.dumps(["not", "an", "object"]))
     with pytest.raises(ValueError, match="top-level content must be a JSON object"):
         load_build_matrix_config(path)
+
+
+# --- load_mask_fc_config: group_filter ----------------------------------------
+
+_MASK_FC_BASE = {
+    "project": "clinical_connectome",
+    "data_root": "data/clinical_connectome/derivatives",
+    "dataset": "UNIPD/WashU",
+    "atlas_root": "assets/atlases/fmriprep",
+    "atlas_combos": ["Yan200TianS2Buckner7N"],
+    "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",
+    "fc_glob_template": "features/*/func/*_FC-pearson_atlas-{combo}.csv",
+    "min_coverage": 0.5,
+    "resample_interpolation": "nearest",
+    "binarize_threshold": 0.5,
+    "output_root": "data/derived/features/masked_fc",
+    "session_name": "s1",
+    "overwrite": False,
+}
+
+
+def _write_mask_fc(tmp_path, overrides):
+    cfg = {**_MASK_FC_BASE, **overrides}
+    path = tmp_path / "mask_fc_cfg.json"
+    path.write_text(json.dumps(cfg))
+    return path
+
+
+def test_mask_fc_group_filter_defaults_to_none_when_absent(tmp_path):
+    config = load_mask_fc_config(_write_mask_fc(tmp_path, {}))
+    assert config.group_filter is None
+
+
+def test_mask_fc_group_filter_restricts_to_declared_groups(tmp_path):
+    config = load_mask_fc_config(_write_mask_fc(tmp_path, {"group_filter": ["ST"]}))
+    assert config.group_filter == ["ST"]
+
+
+def test_mask_fc_group_filter_unknown_group_raises(tmp_path):
+    with pytest.raises(ValueError, match="unknown group"):
+        load_mask_fc_config(_write_mask_fc(tmp_path, {"group_filter": ["XX"]}))

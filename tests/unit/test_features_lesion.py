@@ -59,7 +59,7 @@ def test_build_lesion_matrix_voxelwise(tmp_path):
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
-    X, metadata, non_constant_mask, parcel_ids = build_lesion_matrix(
+    X, metadata, non_constant_mask, parcel_ids, excluded_by_group = build_lesion_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
         reference_template_path=template_path,
@@ -67,8 +67,10 @@ def test_build_lesion_matrix_voxelwise(tmp_path):
         binarize_threshold=0.5,
         resample_interpolation="nearest",
         parcellate=False,
+        group_filter=None,
     )
 
+    assert excluded_by_group == []
     assert parcel_ids is None
     assert list(metadata["subject_id"]) == ["sub-01", "sub-02", "sub-03"]
     assert X.shape[0] == 3
@@ -87,7 +89,7 @@ def test_build_lesion_matrix_voxelwise_pipeline_first_layout(tmp_path):
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
-    X, metadata, non_constant_mask, parcel_ids = build_lesion_matrix(
+    X, metadata, non_constant_mask, parcel_ids, excluded_by_group = build_lesion_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
         reference_template_path=template_path,
@@ -95,11 +97,41 @@ def test_build_lesion_matrix_voxelwise_pipeline_first_layout(tmp_path):
         binarize_threshold=0.5,
         resample_interpolation="nearest",
         parcellate=False,
+        group_filter=None,
     )
 
+    assert excluded_by_group == []
     assert parcel_ids is None
     assert list(metadata["subject_id"]) == ["sub-01", "sub-02"]
     assert X.shape[0] == 2
+
+
+def test_build_lesion_matrix_group_filter_excludes_hc(tmp_path):
+    """A healthy control has no lesion to mask and structurally shouldn't
+    ever appear under manual_masks/ - but the discovery mechanism must not
+    silently rely on that absence: with group_filter=["ST"], an HC subject
+    dir that does exist (e.g. a future data-organization slip) is excluded
+    explicitly and reported, not counted as a subject-dir/lesion-mask
+    mismatch (see src/features/subject_discovery.py)."""
+    _make_lesion_subject_pipeline_first(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    _make_lesion_subject_pipeline_first(tmp_path, "siteA", "sub-STUNIPDHC0001", [(5, 5, 5)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+
+    X, metadata, non_constant_mask, parcel_ids, excluded_by_group = build_lesion_matrix(
+        data_root=tmp_path,
+        datasets=["siteA"],
+        reference_template_path=template_path,
+        lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
+        binarize_threshold=0.5,
+        resample_interpolation="nearest",
+        parcellate=False,
+        group_filter=["ST"],
+    )
+
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
+    assert X.shape[0] == 1
+    assert excluded_by_group == ["sub-STUNIPDHC0001"]
 
 
 def test_build_lesion_matrix_subject_count_mismatch_raises(tmp_path):
@@ -117,6 +149,7 @@ def test_build_lesion_matrix_subject_count_mismatch_raises(tmp_path):
             binarize_threshold=0.5,
             resample_interpolation="nearest",
             parcellate=False,
+            group_filter=None,
         )
 
 
@@ -132,7 +165,7 @@ def test_build_lesion_matrix_parcellated_fraction_lesioned(tmp_path):
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
-    X, metadata, _non_constant_mask, parcel_ids = build_lesion_matrix(
+    X, metadata, _non_constant_mask, parcel_ids, excluded_by_group = build_lesion_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
         reference_template_path=template_path,
@@ -140,10 +173,12 @@ def test_build_lesion_matrix_parcellated_fraction_lesioned(tmp_path):
         binarize_threshold=0.5,
         resample_interpolation="nearest",
         parcellate=True,
+        group_filter=None,
         atlas_path=atlas_path,
         parcel_aggregation="fraction_lesioned",
     )
 
+    assert excluded_by_group == []
     assert list(parcel_ids) == [1, 2]
     assert X.shape == (3, 2)
     parcel_a_size = 5 * 5 * 5
@@ -172,6 +207,7 @@ def test_parcellation_argument_validation(tmp_path, kwargs, match):
         lesion_glob=_GLOB,
         binarize_threshold=0.5,
         resample_interpolation="nearest",
+        group_filter=None,
     )
     base.update(kwargs)
     with pytest.raises(ValueError, match=match):
@@ -194,6 +230,7 @@ def test_unknown_parcel_aggregation_raises(tmp_path):
             binarize_threshold=0.5,
             resample_interpolation="nearest",
             parcellate=True,
+            group_filter=None,
             atlas_path=atlas_path,
             parcel_aggregation="bogus",
         )

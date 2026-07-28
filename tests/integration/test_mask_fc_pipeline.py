@@ -130,6 +130,41 @@ def test_mask_fc_overwrite_false_rerun_fails(tmp_path, monkeypatch):
     assert mask_fc.main(["--config", str(config_path)]) == 1
 
 
+def test_mask_fc_group_filter_excludes_healthy_controls(tmp_path, monkeypatch):
+    """Regression: a dataset's features/ tree can hold both patients (ST) and
+    healthy controls (HC) side by side (real WashU layout). With
+    group_filter=["ST"] in the config, an HC subject that has an FC file but
+    (being healthy) no lesion mask must be excluded from the run entirely,
+    not written out and not counted as missing_lesion."""
+    monkeypatch.setattr(mask_fc, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(mask_fc, "LOGS_ROOT", tmp_path / "logs")
+
+    data_root = tmp_path / "data"
+    atlas_root = tmp_path / "atlases"
+    output_root = tmp_path / "out"
+    node_names = ["Region_A", "Region_B"]
+    _make_atlas(atlas_root, "ComboX")
+    _make_subject(data_root, "siteA", "sub-STUNIPD0001", "ComboX", node_names, [])
+
+    # Healthy control: FC file only, no lesion mask - structurally never has one.
+    fc_dir = data_root / "siteA" / "features" / "sub-STUNIPDHC0001" / "func"
+    fc_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(np.eye(2), index=node_names, columns=node_names).to_csv(
+        fc_dir / "sub-STUNIPDHC0001_FC-pearson_atlas-ComboX.csv", sep="\t"
+    )
+
+    config_path = _write_config(tmp_path, data_root, atlas_root, output_root, overrides={"group_filter": ["ST"]})
+    exit_code = mask_fc.main(["--config", str(config_path)])
+    assert exit_code == 0
+
+    combo_dir = output_root / "ComboX"
+    assert (combo_dir / "sub-STUNIPD0001_masked_fc.csv").is_file()
+    assert not (combo_dir / "sub-STUNIPDHC0001_masked_fc.csv").is_file()
+
+    summary = pd.read_csv(combo_dir / "mask_summary.csv")
+    assert set(summary["subject_id"]) == {"sub-STUNIPD0001"}
+
+
 def test_mask_fc_missing_lesion_subject_skipped_not_fatal(tmp_path, monkeypatch):
     monkeypatch.setattr(mask_fc, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(mask_fc, "LOGS_ROOT", tmp_path / "logs")

@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+from sklearn.manifold import trustworthiness
 
 from src.analysis.tuning import (
     TUNING_METRIC_NAMES,
@@ -14,6 +15,12 @@ from src.analysis.tuning import (
 
 _X = np.random.default_rng(0).random((40, 10))
 
+# Binary fixture for jaccard/dice metric tests - umap/tsne's continuous _X above
+# has no "on/off" features, so jaccard/dice (defined on binary vectors) need
+# their own fixture. Every row has >=1 nonzero feature (required by
+# binary_pairwise_distance).
+_X_BINARY = (np.random.default_rng(1).random((40, 20)) > 0.7).astype(np.uint8)
+
 
 def test_evaluate_pca_returns_embedding_and_variance():
     embedding, score = evaluate_pca(_X, {"n_components": 3})
@@ -25,6 +32,34 @@ def test_evaluate_umap_returns_embedding_and_trustworthiness():
     embedding, score = evaluate_umap(_X, {"n_neighbors": 5, "min_dist": 0.1, "n_components": 2, "random_state": 0}, trustworthiness_n_neighbors=5)
     assert embedding.shape == (40, 2)
     assert 0.0 <= score <= 1.0
+
+
+def test_evaluate_umap_with_jaccard_metric_returns_valid_embedding_and_score():
+    embedding, score = evaluate_umap(
+        _X_BINARY, {"n_neighbors": 5, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "jaccard"}, trustworthiness_n_neighbors=5
+    )
+    assert embedding.shape == (40, 2)
+    assert 0.0 <= score <= 1.0
+
+
+def test_evaluate_umap_with_dice_metric_returns_valid_embedding_and_score():
+    embedding, score = evaluate_umap(
+        _X_BINARY, {"n_neighbors": 5, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "dice"}, trustworthiness_n_neighbors=5
+    )
+    assert embedding.shape == (40, 2)
+    assert 0.0 <= score <= 1.0
+
+
+def test_evaluate_umap_binary_metric_scored_against_matching_metric_not_euclidean():
+    # Same embedding, scored two ways: evaluate_umap's own path (trustworthiness
+    # against the jaccard distance matrix) vs. naively against raw-X euclidean
+    # neighborhoods. These read different notions of "originally close", so
+    # they aren't expected to agree - this pins evaluate_umap to the matching-
+    # metric behavior rather than silently falling back to euclidean.
+    params = {"n_neighbors": 5, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "jaccard"}
+    embedding, matching_metric_score = evaluate_umap(_X_BINARY, params, trustworthiness_n_neighbors=5)
+    euclidean_score = float(trustworthiness(_X_BINARY, embedding, n_neighbors=5, metric="euclidean"))
+    assert matching_metric_score != pytest.approx(euclidean_score)
 
 
 def test_evaluate_pca_varimax_returns_embedding_and_variance():
@@ -62,6 +97,19 @@ def test_run_tuning_sweep_umap_two_params_cartesian_product():
     )
     assert list(df.columns) == ["n_neighbors", "min_dist", TUNING_METRIC_NAMES["umap"]]
     assert len(df) == 4  # 2 x 2 cartesian product
+
+
+def test_run_tuning_sweep_umap_metric_and_n_neighbors_cartesian_product():
+    df = run_tuning_sweep(
+        "umap",
+        _X_BINARY,
+        base_params={"random_state": 0, "n_components": 2, "min_dist": 0.1},
+        tuning_grid={"n_neighbors": [5, 10], "metric": ["euclidean", "jaccard", "dice"]},
+        trustworthiness_n_neighbors=5,
+    )
+    assert list(df.columns) == ["n_neighbors", "metric", TUNING_METRIC_NAMES["umap"]]
+    assert len(df) == 6  # 2 x 3 cartesian product
+    assert set(df["metric"]) == {"euclidean", "jaccard", "dice"}
 
 
 def test_run_tuning_sweep_pca_varimax_one_param():

@@ -245,22 +245,86 @@ def test_discover_subject_files_skips_subjects_missing_lesion(tmp_path):
         combo="ComboX",
     )
 
-    subject_files, missing_lesion = discover_subject_files(tmp_path, "siteA", "ComboX", _LESION_GLOB, _FC_GLOB_TEMPLATE)
+    subject_files, missing_lesion, excluded_by_group = discover_subject_files(
+        tmp_path, "siteA", "ComboX", _LESION_GLOB, _FC_GLOB_TEMPLATE, group_filter=None
+    )
     assert set(subject_files) == {"sub-01", "sub-02"}
     assert missing_lesion == ["sub-03"]
+    assert excluded_by_group == []
 
 
 def test_discover_subject_files_none_usable_raises(tmp_path):
     _make_dataset_dir(tmp_path, "siteA", subjects_with_lesion=[], subjects_with_fc=["sub-01"], combo="ComboX")
 
     with pytest.raises(ValueError, match="no subject"):
-        discover_subject_files(tmp_path, "siteA", "ComboX", _LESION_GLOB, _FC_GLOB_TEMPLATE)
+        discover_subject_files(tmp_path, "siteA", "ComboX", _LESION_GLOB, _FC_GLOB_TEMPLATE, group_filter=None)
 
 
 def test_discover_subject_files_no_fc_raises(tmp_path):
     (tmp_path / "siteA").mkdir()
     with pytest.raises(FileNotFoundError, match="no FC files"):
-        discover_subject_files(tmp_path, "siteA", "ComboX", _LESION_GLOB, _FC_GLOB_TEMPLATE)
+        discover_subject_files(tmp_path, "siteA", "ComboX", _LESION_GLOB, _FC_GLOB_TEMPLATE, group_filter=None)
+
+
+# --- discover_subject_files: group_filter (ST vs HC, regression for the WashU HC bug) -----
+
+
+def test_discover_subject_files_group_filter_excludes_hc_not_as_missing_lesion(tmp_path):
+    """Regression: WashU's features/ tree holds both patients (ST) and healthy
+    controls (HC) side by side. An HC subject has an FC file but, being
+    healthy, never a lesion mask - without group_filter it would land in
+    missing_lesion (wrongly implying "a patient whose mask wasn't drawn").
+    With group_filter=["ST"] it must be excluded before that distinction is
+    even computed, and reported separately as excluded_by_group."""
+    _make_dataset_dir(
+        tmp_path, "siteA",
+        subjects_with_lesion=["sub-STUNIPD0001"],
+        subjects_with_fc=["sub-STUNIPD0001", "sub-STUNIPDHC0001"],
+        combo="ComboX",
+    )
+
+    subject_files, missing_lesion, excluded_by_group = discover_subject_files(
+        tmp_path, "siteA", "ComboX", _LESION_GLOB, _FC_GLOB_TEMPLATE, group_filter=["ST"]
+    )
+    assert set(subject_files) == {"sub-STUNIPD0001"}
+    assert missing_lesion == []
+    assert excluded_by_group == ["sub-STUNIPDHC0001"]
+
+
+def test_discover_subject_files_group_filter_none_keeps_old_missing_lesion_behavior(tmp_path):
+    """Without an explicit group_filter, the HC subject above still surfaces
+    (as missing_lesion, not silently dropped) - group_filter=None is a
+    deliberate opt-out, not an implicit exclusion of HC."""
+    _make_dataset_dir(
+        tmp_path, "siteA",
+        subjects_with_lesion=["sub-STUNIPD0001"],
+        subjects_with_fc=["sub-STUNIPD0001", "sub-STUNIPDHC0001"],
+        combo="ComboX",
+    )
+
+    subject_files, missing_lesion, excluded_by_group = discover_subject_files(
+        tmp_path, "siteA", "ComboX", _LESION_GLOB, _FC_GLOB_TEMPLATE, group_filter=None
+    )
+    assert set(subject_files) == {"sub-STUNIPD0001"}
+    assert missing_lesion == ["sub-STUNIPDHC0001"]
+    assert excluded_by_group == []
+
+
+def test_discover_subject_files_group_filter_can_include_hc(tmp_path):
+    """group_filter=["ST", "HC"] opts back in - e.g. Task 3's HC comparison
+    cohort - rather than the mechanism being ST-only by construction."""
+    _make_dataset_dir(
+        tmp_path, "siteA",
+        subjects_with_lesion=["sub-STUNIPD0001", "sub-STUNIPDHC0001"],
+        subjects_with_fc=["sub-STUNIPD0001", "sub-STUNIPDHC0001"],
+        combo="ComboX",
+    )
+
+    subject_files, missing_lesion, excluded_by_group = discover_subject_files(
+        tmp_path, "siteA", "ComboX", _LESION_GLOB, _FC_GLOB_TEMPLATE, group_filter=["ST", "HC"]
+    )
+    assert set(subject_files) == {"sub-STUNIPD0001", "sub-STUNIPDHC0001"}
+    assert excluded_by_group == []
 
 
 # --- stack_fc_vectors ---------------------------------------------------------
@@ -393,7 +457,7 @@ def test_mask_dataset_fc_end_to_end(tmp_path):
         _make_fc(node_names).to_csv(fc_dir / f"{subject}_FC-pearson_atlas-{combo}.csv", sep="\t")
 
     output_dir = tmp_path / "out"
-    summary, missing_lesion = mask_dataset_fc(
+    summary, missing_lesion, excluded_by_group = mask_dataset_fc(
         data_root=data_root,
         dataset="siteA",
         atlas_path=atlas_path,
@@ -405,9 +469,11 @@ def test_mask_dataset_fc_end_to_end(tmp_path):
         resample_interpolation="nearest",
         binarize_threshold=0.5,
         output_dir=output_dir,
+        group_filter=None,
     )
 
     assert missing_lesion == []
+    assert excluded_by_group == []
     assert set(summary["subject_id"]) == {"sub-01", "sub-02"}
     sub01_row = summary[summary["subject_id"] == "sub-01"].iloc[0]
     sub02_row = summary[summary["subject_id"] == "sub-02"].iloc[0]
