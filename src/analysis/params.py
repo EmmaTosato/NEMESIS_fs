@@ -1,19 +1,23 @@
 """Loads per-method hyperparameters from config/registry/params_reduction.json / params_clustering.json.
 
-Shape: {method: {"params": {...}, "tuning_grid": {...}?, "trustworthiness_n_neighbors": int?}}.
+Shape: {method: {"params": {...}, "tuning_grid": {...}?, "trustworthiness_n_neighbors": int?, "consensus": {...}?}}.
 Hyperparameters themselves are never validated key-by-key here - sklearn/umap
 raise their own error for a bad constructor argument when
 src/analysis/reduction.py or clustering.py unpacks the returned dict
 (code_standards.md §5: every hyperparameter lives only in this file, never
 hardcoded in src/). "tuning_grid"/"trustworthiness_n_neighbors" are optional -
 only methods that support fine-tuning (today: umap, pca) have them; t-SNE and
-kmeans have "params" only.
+kmeans have "params" only. "consensus" (params_clustering.json only) is
+optional and restricted to kmeans/gmm/spectral - see
+src/analysis/consensus_clustering.py.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+
+from src.analysis.consensus_clustering import CONSENSUS_ELIGIBLE_METHODS
 
 
 def load_method_params(params_file: str | Path, method: str) -> tuple[dict, str | None]:
@@ -58,6 +62,54 @@ def load_tuning_grid(params_file: str | Path, method: str) -> dict[str, list]:
         if not isinstance(values, list) or not values:
             raise ValueError(f"{params_file}: {method!r}.tuning_grid[{key!r}] must be a non-empty list, got {values!r}")
     return grid
+
+
+def load_consensus_config(params_file: str | Path, method: str) -> dict | None:
+    """Load the optional "consensus" block registered for `method` in
+    `params_file` (see src/analysis/consensus_clustering.py). Absent -> None,
+    a legitimate "consensus/stability clustering not requested for this run"
+    case, not an error.
+
+    Raises ValueError if `method` isn't in CONSENSUS_ELIGIBLE_METHODS but a
+    "consensus" entry is present anyway (e.g. added under "dbscan" by
+    mistake - an impossible config, must fail loudly), or if the block's
+    shape is wrong: only "rsc"/"monti" keys allowed, "rsc" needs an int
+    "n_repeats" >= 1, "monti" needs those plus a "subsample_fraction" in
+    (0, 1).
+    """
+    entry = _load_method_entry(params_file, method)
+    if "consensus" not in entry:
+        return None
+    if method not in CONSENSUS_ELIGIBLE_METHODS:
+        raise ValueError(
+            f"{params_file}: {method!r} has a 'consensus' entry, but consensus/stability clustering is only "
+            f"defined for {sorted(CONSENSUS_ELIGIBLE_METHODS)}"
+        )
+
+    consensus = entry["consensus"]
+    if not isinstance(consensus, dict) or not consensus:
+        raise ValueError(f"{params_file}: {method!r}.consensus must be a non-empty JSON object, got {consensus!r}")
+    unknown_keys = set(consensus) - {"rsc", "monti"}
+    if unknown_keys:
+        raise ValueError(f"{params_file}: {method!r}.consensus has unknown key(s) {sorted(unknown_keys)} - only 'rsc'/'monti' allowed")
+
+    if "rsc" in consensus:
+        _validate_n_repeats(params_file, method, "rsc", consensus["rsc"])
+    if "monti" in consensus:
+        _validate_n_repeats(params_file, method, "monti", consensus["monti"])
+        fraction = consensus["monti"].get("subsample_fraction")
+        if not isinstance(fraction, (int, float)) or isinstance(fraction, bool) or not (0.0 < fraction < 1.0):
+            raise ValueError(f"{params_file}: {method!r}.consensus.monti.subsample_fraction must be in (0, 1), got {fraction!r}")
+
+    return consensus
+
+
+def _validate_n_repeats(params_file: str | Path, method: str, key: str, block: object) -> None:
+    if not isinstance(block, dict):
+        raise ValueError(f"{params_file}: {method!r}.consensus.{key} must be a JSON object, got {block!r}")
+    n_repeats = block.get("n_repeats")
+    if isinstance(n_repeats, bool) or not isinstance(n_repeats, int) or n_repeats < 1:
+        raise ValueError(f"{params_file}: {method!r}.consensus.{key}.n_repeats must be a positive integer, got {n_repeats!r}")
 
 
 def load_trustworthiness_n_neighbors(params_file: str | Path, method: str) -> int:

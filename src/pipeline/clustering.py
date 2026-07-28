@@ -54,15 +54,17 @@ import pandas as pd
 
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.clustering_tuning import (
+    CONSENSUS_METRIC_COLUMNS,
     METHOD_METRIC_COLUMNS,
     STANDALONE_DIAGNOSTIC_METHODS,
     compute_dendrogram_linkage,
     compute_eigengap,
     compute_k_distance,
+    consensus_suggestion_lines,
     run_clustering_tuning_sweep,
 )
 from src.analysis.model_config import ClusteringConfig, load_clustering_config
-from src.analysis.params import load_method_params, load_tuning_grid
+from src.analysis.params import load_consensus_config, load_method_params, load_tuning_grid
 from src.analysis.plotting import (
     compose_comparison_title,
     compose_run_title,
@@ -335,11 +337,12 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
     try:
         base_params, _ = load_method_params(config.params_file, method)
         tuning_grid = load_tuning_grid(config.params_file, method)
+        consensus_config = load_consensus_config(config.params_file, method)
     except (FileNotFoundError, ValueError) as exc:
         logging.error("[%s] %s", method, exc)
         return False
 
-    results = run_clustering_tuning_sweep(method, X, base_params, tuning_grid)
+    results = run_clustering_tuning_sweep(method, X, base_params, tuning_grid, consensus_config)
 
     output_dir = _tuning_output_dir(config, method, now)
     try:
@@ -390,7 +393,7 @@ def _write_tuning_output(
 
     swept_params = list(tuning_grid.keys())
     title = compose_run_title(output_dir, config.project)
-    metric_cols = METHOD_METRIC_COLUMNS[method]
+    metric_cols = METHOD_METRIC_COLUMNS[method] + [c for c in CONSENSUS_METRIC_COLUMNS if c in results.columns]
     if len(swept_params) == 1:
         plot_clustering_tuning_metrics(results, swept_params[0], metric_cols, output_dir / "tuning_plot.png", title)
     else:
@@ -426,6 +429,7 @@ def _write_tuning_output(
         f"Swept parameters: {swept_params}",
         f"Combinations evaluated: {len(results)}",
         f"Metrics: {metric_cols}",
+    ] + consensus_suggestion_lines(results, method) + [
         "",
         "No automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",
     ]

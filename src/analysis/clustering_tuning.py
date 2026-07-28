@@ -44,6 +44,16 @@ from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import NearestNeighbors, kneighbors_graph
 
 from src.analysis.clustering import CLUSTERING_METHODS
+from src.analysis.consensus_clustering import (
+    CONSENSUS_ELIGIBLE_METHODS,
+    K_PARAM_NAME,
+    compute_monti_stability,
+    compute_rsc_eigengap,
+    run_monti_repeats,
+    run_rsc_repeats,
+)
+
+CONSENSUS_METRIC_COLUMNS = ("rsc_eigengap", "monti_stability")
 
 METHOD_METRIC_COLUMNS: dict[str, list[str]] = {
     "kmeans": ["silhouette", "calinski_harabasz", "davies_bouldin", "inertia"],
@@ -114,7 +124,9 @@ _EXTRA_METRICS_EVALUATORS: dict[str, Callable[[np.ndarray, dict], tuple[np.ndarr
 }
 
 
-def run_clustering_tuning_sweep(method: str, X: np.ndarray, base_params: dict, tuning_grid: dict[str, list]) -> pd.DataFrame:
+def run_clustering_tuning_sweep(
+    method: str, X: np.ndarray, base_params: dict, tuning_grid: dict[str, list], consensus_config: dict | None = None
+) -> pd.DataFrame:
     """Evaluate every combination in the Cartesian product of tuning_grid.
 
     Each combination overrides base_params for the swept keys only (unswept
@@ -122,9 +134,24 @@ def run_clustering_tuning_sweep(method: str, X: np.ndarray, base_params: dict, t
     row per combination: the swept parameter values, the 3 generic metrics +
     noise_fraction (compute_clustering_metrics), plus any method-specific
     extra column (see METHOD_METRIC_COLUMNS/_EXTRA_METRICS_EVALUATORS).
+
+    consensus_config, when given, is {"rsc": {"n_repeats": int}, "monti":
+    {"n_repeats": int, "subsample_fraction": float}} (either/both keys) -
+    adds "rsc_eigengap"/"monti_stability" columns per row (see
+    src/analysis/consensus_clustering.py). None (the default) leaves output
+    unchanged from before consensus/stability clustering existed. Raises
+    ValueError immediately if given for a method outside
+    CONSENSUS_ELIGIBLE_METHODS (agglomerative/dbscan are deterministic given
+    the same data - a stability sweep for them would be degenerate/silent
+    garbage, not just unsupported).
     """
     if method not in CLUSTERING_METHODS:
         raise ValueError(f"unknown clustering method {method!r} - known: {sorted(CLUSTERING_METHODS)}")
+    if consensus_config is not None and method not in CONSENSUS_ELIGIBLE_METHODS:
+        raise ValueError(
+            f"consensus_config given for method {method!r}, but consensus/stability clustering is only defined for "
+            f"{sorted(CONSENSUS_ELIGIBLE_METHODS)}"
+        )
 
     keys = list(tuning_grid.keys())
     combinations = list(itertools.product(*tuning_grid.values()))
@@ -141,9 +168,49 @@ def run_clustering_tuning_sweep(method: str, X: np.ndarray, base_params: dict, t
             labels = CLUSTERING_METHODS[method](X, combo_params)
             extra_metrics = {}
         generic_metrics = compute_clustering_metrics(X, labels)
-        rows.append({**dict(zip(keys, combo)), **generic_metrics, **extra_metrics})
+        consensus_metrics = _compute_consensus_metrics(method, X, combo_params, consensus_config)
+        rows.append({**dict(zip(keys, combo)), **generic_metrics, **extra_metrics, **consensus_metrics})
 
     return pd.DataFrame(rows)
+
+
+def _compute_consensus_metrics(method: str, X: np.ndarray, combo_params: dict, consensus_config: dict | None) -> dict[str, float]:
+    """rsc_eigengap/monti_stability for one already-built combo_params dict -
+    the k value they're scored against is read straight off combo_params
+    (K_PARAM_NAME[method]), since it's exactly the parameter tuning_grid
+    swept to produce this combo.
+    """
+    if consensus_config is None:
+        return {}
+
+    k = combo_params[K_PARAM_NAME[method]]
+    metrics: dict[str, float] = {}
+    if "rsc" in consensus_config:
+        cooccurrence = run_rsc_repeats(method, X, combo_params, consensus_config["rsc"]["n_repeats"])
+        metrics["rsc_eigengap"] = compute_rsc_eigengap(cooccurrence, k)
+    if "monti" in consensus_config:
+        consensus_matrix = run_monti_repeats(
+            method, X, combo_params, consensus_config["monti"]["n_repeats"], consensus_config["monti"]["subsample_fraction"]
+        )
+        metrics["monti_stability"] = compute_monti_stability(consensus_matrix)
+    return metrics
+
+
+def consensus_suggestion_lines(results: pd.DataFrame, method: str) -> list[str]:
+    """Readme lines stating each consensus method's own literature-defined
+    "suggested k" (RSC: argmax rsc_eigengap; Monti: argmax monti_stability,
+    i.e. argmin PAC) - purely informational, never read back by any code.
+    Empty list when neither column is present (consensus wasn't requested).
+    """
+    k_param = K_PARAM_NAME.get(method)
+    lines = []
+    if "rsc_eigengap" in results.columns:
+        best_row = results.loc[results["rsc_eigengap"].idxmax()]
+        lines.append(f"RSC suggests {k_param}={int(best_row[k_param])} (largest eigengap on the co-occurrence matrix)")
+    if "monti_stability" in results.columns:
+        best_row = results.loc[results["monti_stability"].idxmax()]
+        lines.append(f"Monti suggests {k_param}={int(best_row[k_param])} (highest 1-PAC stability score)")
+    return lines
 
 
 def compute_dendrogram_linkage(X: np.ndarray, params: dict) -> np.ndarray:

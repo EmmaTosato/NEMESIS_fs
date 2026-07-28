@@ -93,7 +93,7 @@ def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch):
 
     runs_csv = (output_root / "runs.csv").read_text()
     assert "run1" in runs_csv
-    assert "production" in runs_csv
+    assert not (output_root / "runs_tuning.csv").exists()  # production/tuning are separate files, not a column
 
 
 def test_build_lesion_matrix_group_filter_excludes_hc(tmp_path, monkeypatch):

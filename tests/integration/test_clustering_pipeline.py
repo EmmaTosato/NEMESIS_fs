@@ -92,7 +92,7 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
 
     runs_csv = (output_root / "kmeans" / "runs.csv").read_text()
     assert "run1" in runs_csv
-    assert "production" in runs_csv
+    assert not (output_root / "kmeans" / "runs_tuning.csv").exists()  # production/tuning are separate files, not a column
 
 
 def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):
@@ -320,10 +320,10 @@ def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monke
     assert "inertia" in results.columns
     assert "silhouette" in results.columns
 
-    runs_csv = (output_root / "kmeans" / "runs.csv").read_text()
+    runs_csv = (output_root / "kmeans" / "runs_tuning.csv").read_text()
     assert "tune1" in runs_csv
-    assert "tuning" in runs_csv
     assert "prova sweep n_clusters" in runs_csv
+    assert not (output_root / "kmeans" / "runs.csv").exists()  # tuning writes runs_tuning.csv, not runs.csv
 
 
 def test_clustering_fine_tuning_gmm_writes_bic_aic(tmp_path, monkeypatch):

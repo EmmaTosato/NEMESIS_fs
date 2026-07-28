@@ -99,7 +99,7 @@ def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
     assert len(runs_rows) == 1
     assert runs_rows[0]["reduction_method"] == "pca"
     assert runs_rows[0]["clustering_method"] == "kmeans"
-    assert runs_rows[0]["run_id"] == "run1"
+    assert runs_rows[0]["session"] == "run1"
     assert runs_rows[0]["notes"] == "prova pca+kmeans"
 
 
@@ -221,11 +221,11 @@ def test_dim_reduction_clustering_fine_tuning_kmeans_sweeps_against_one_embeddin
     # isn't a single set of cluster labels to compare side by side anyway
     assert not (output_root / "pca" / "comparison").exists()
 
-    with (output_root / "pca" / "runs.csv").open(newline="") as f:
+    assert not (output_root / "pca" / "runs.csv").exists()  # tuning writes runs_tuning.csv, not runs.csv
+    with (output_root / "pca" / "runs_tuning.csv").open(newline="") as f:
         runs_rows = list(csv.DictReader(f))
     assert runs_rows[0]["reduction_method"] == "pca"
     assert runs_rows[0]["clustering_method"] == "kmeans"
-    assert runs_rows[0]["run_type"] == "tuning"
     assert runs_rows[0]["notes"] == "prova sweep n_clusters su embedding pca"
 
 
