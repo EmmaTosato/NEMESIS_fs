@@ -39,29 +39,43 @@ I parametri nel file `config/pipelines/dim_reduction_clustering.json` sono essen
 - **`output_root`**: `(Stringa)` Sede finale dei risultati combinati (`"results/lesion/dim_reduction_clustering"` — il primo segmento dopo `results/` indica la modalità dato, `lesion`/`fc`/`sdc`; questa pipeline ha un ramo terzo dedicato, separato sia da `dim_reduction/` che da `clustering/`).
 - **`session_name`**: `(Stringa)` Il nome dell'operazione massiva (es. `"run_1"`).
 - **`overwrite`**: `(Booleano)` A `true` per sovrascrivere.
+- **`fine_tuning`**: `(Booleano)` A `false` (default) esegue il clustering di produzione descritto sopra. A `true` passa in modalità tuning — vedi sotto.
+- **`regress_out_volume`**: `(Booleano)` Come nella guida al *Dim Reduction*: rimuove per regressione lineare l'effetto del volume lesionale dall'embedding (calcolato una volta sola, prima del clustering) prima di clusterizzarlo. Incompatibile con `metric: "jaccard"`/`"dice"` in `reduction_params_file` (errore esplicito se combinati) — vedi `docs/methods/dimensionality_reduction.md`.
 - **`run_notes`**: `(Stringa)` Spazio libero per note su perché stai facendo il run.
 
 ### Note sul Funzionamento Interno
 
-- **Niente Fine-Tuning**: Questa pipeline è pensata per "calcolare", non per sperimentare. Non troverai qui il parametro `fine_tuning`. Presume che tu abbia già scelto i parametri ottimali per UMAP/PCA e K-Means nei rispettivi file `json` (tramite l'apposita guida al *Dim Reduction*). Prenderà quei parametri come "assoluti" ed eseguirà il lavoro finale.
+- **La riduzione non si tara mai qui**: qualunque sia `fine_tuning`, la riduzione dimensionale gira sempre una volta sola, con i parametri "assoluti" già scelti in `reduction_params_file` (mai il suo `tuning_grid`). Se devi ancora scegliere quei parametri, usa prima la guida al *Dim Reduction*.
+- **`fine_tuning: true`** riguarda solo il clustering: invece di clusterizzare l'embedding con i parametri finali, per ogni metodo in `clustering_methods` prova tutta la griglia dichiarata nel `tuning_grid` di quel metodo (`config/registry/params_clustering.json`) — è la scorciatoia per tarare il clustering su un embedding specifico senza doverlo prima salvare su disco con `dim_reduction.py` e poi ripuntarci `clustering.py --fine_tuning`. Stesse metriche/diagnosi della guida al *Clustering* (silhouette, Calinski-Harabasz, Davies-Bouldin, + `inertia`/`bic`/`aic`/dendrogramma/eigengap/k-distance a seconda del metodo). **Niente grafico di comparazione** in questa modalità, nemmeno con più metodi richiesti — uno sweep non produce un'unica assegnazione di cluster da confrontare.
 
 ---
 
 ## Output Finale
 
 Immagina di lanciare la pipeline scegliendo `reduction_method: "umap"` e `clustering_methods: ["kmeans", "gmm"]`.
-All'interno di `results/lesion/dim_reduction_clustering/` avverrà la seguente organizzazione:
+All'interno di `results/lesion/dim_reduction_clustering/` avverrà la seguente organizzazione, annidata per riduzione e poi per clustering (stessa logica di `results/lesion/dim_reduction/`):
 
-Verranno create due cartelle basate sulla combinazione nominale dei due passaggi:
-1. `umap-kmeans/`
-2. `umap-gmm/`
+```
+results/lesion/dim_reduction_clustering/
+└── umap/
+    ├── kmeans/
+    │   └── <dd-mm>_<session_name>_<reduction_tag>_<clustering_tag>/
+    ├── gmm/
+    │   └── <dd-mm>_<session_name>_<reduction_tag>_<clustering_tag>/
+    ├── runs.csv
+    └── comparison/
+        └── umap_<dd-mm>_<session_name>_<reduction_tag>/
+```
 
-Cosa troverai dentro ciascuna?
+Cosa troverai dentro ciascuna cartella `umap/kmeans/...`/`umap/gmm/...`?
 - `matrix.npy`: I dati compressi (es. una matrice con le sole 2 coordinate finali generate da UMAP).
 - `metadata.csv`: Il file d'anagrafica con le colonne aggiornate (ora avrai l'ID del paziente e accanto la dicitura es. Cluster 3).
 - Un file `config.md` di riepilogo estremamente minuzioso.
-- Il file cumulativo del diario di bordo `runs.csv` (una riga per run: `run_id, timestamp, run_type, params, output, notes`).
 - `cluster_plot.png`: Un meraviglioso grafico in due dimensioni con tutti i pazienti a puntini. Gli assi geometrici saranno quelli ricavati da UMAP, e i colori (il rosso per il Gruppo 0, il verde per il Gruppo 1) deriveranno in questa cartella da K-Means e nell'altra da GMM.
 - `cluster_plot_interactive.html`: la stessa vista, ma interattiva (apribile in un browser) — passando sopra un punto vedi `subject_id`/`dataset`/gruppo del paziente, e un menu a tendina permette di ricolorare al volo i punti per `dataset` invece che per cluster, per controllare se un raggruppamento riflette un effetto sito piuttosto che una vera struttura clinica.
 
-Infine, come per il modulo di clustering classico, ti regalerà in automatico la super cartella speciale `comparison/` in cui stamperà tutti i grafici di K-Means e di GMM uno a fianco all'altro. Siccome lo spazio generato da UMAP sotto è lo stesso, le posizioni dei puntini saranno le stesse, e potrai focalizzarti unicamente sul confrontare come i due diversi algoritmi di clustering si sono "litigati" i colori con cui colorarli.
+Il diario di bordo `runs.csv` (`reduction_method, clustering_method, session, id, timestamp, params, output, notes`) vive invece **a livello della riduzione**, non per ogni sottocartella di clustering: un solo `umap/runs.csv` raccoglie tutte le righe di K-Means, GMM e qualunque altro metodo lanciato su quella stessa riduzione, distinte dalle due colonne iniziali `reduction_method`/`clustering_method`.
+
+Infine, come per il modulo di clustering classico, ti regalerà in automatico la super cartella speciale `umap/comparison/` in cui stamperà tutti i grafici di K-Means e di GMM uno a fianco all'altro (`cluster_comparison.png`). Siccome lo spazio generato da UMAP sotto è lo stesso, le posizioni dei puntini saranno le stesse, e potrai focalizzarti unicamente sul confrontare come i due diversi algoritmi di clustering si sono "litigati" i colori con cui colorarli. C'è anche una versione interattiva, `cluster_comparison_interactive.html`: stesso layout 2D, con un menu a tendina per far ricolorare i punti secondo l'assegnazione di ciascun metodo, uno alla volta, senza dover aprire N file separati. La cartella stessa porta il nome della riduzione prima del tag (`umap_<dd-mm>_...`) — l'unico posto in cui questo si ripete esplicitamente nel nome, dato che altrove è già implicito nella posizione nell'albero.
+
+**Se invece eri in Fine-Tuning** (`"fine_tuning": true`): niente `matrix.npy`/`cluster_plot.png`/comparison — per ogni metodo trovi `results/lesion/dim_reduction_clustering/umap/<metodo>/tuning/<dd-mm>_<session_name>/` con `tuning_results.csv` + `tuning_plot.png`, più il grafico diagnostico specifico del metodo quando previsto (`dendrogram.png` per Agglomerative, `eigengap_plot.png` per Spectral, `k_distance_plot.png` per DBSCAN). Le righe di tuning vanno in un file separato, `umap/runs_tuning.csv` (non `runs.csv`, riservato alla produzione).

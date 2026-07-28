@@ -55,7 +55,7 @@ Every `load_*_config` function returns one of these (`RetrievalConfig`, `Retriev
 
 `src/utils/artifacts.py`'s `save_matrix`: write every file (`matrix.npy`, `metadata.csv`, extra arrays, `config.md`, `manifest.json` last) into a temporary sibling directory, then `rename()` it into place as the final step. A crash or interruption at any point before the rename leaves only an orphaned temp directory - the real output path never exists in a partial state. `load_matrix` relies on this: it treats "no `manifest.json`" as "this artifact was never successfully built," which is only a valid inference because of the atomic swap.
 
-Contrast with the pipeline scripts' own `reports/`/`logs/` writes, and `build_lesion_matrix.py`'s QC-volume writing (`_write_parcellated_volumes`) - both **not** atomic, deliberately: they're secondary/informational outputs written after the real artifact already landed successfully, so a partial write there doesn't corrupt anything that matters (see `docs/dev/analysis.md`, "QC-volume writing is intentionally not atomic").
+Contrast with the pipeline scripts' own `summaries/`/`logs/` writes, and `build_lesion_matrix.py`'s QC-volume writing (`_write_parcellated_volumes`) - both **not** atomic, deliberately: they're secondary/informational outputs written after the real artifact already landed successfully, so a partial write there doesn't corrupt anything that matters (see `docs/dev/analysis.md`, "QC-volume writing is intentionally not atomic").
 
 ## Layered architecture
 

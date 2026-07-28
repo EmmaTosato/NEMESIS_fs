@@ -29,7 +29,10 @@ Quando chiediamo dei file tramite la pipeline di *Retrieval Data*, andiamo a pes
 
 ### 2. Dati Clinici e Anagrafici
 - **Path logico**: `participants.tsv`
-- Contiene età, sesso, punteggi clinici dei soggetti. È fornito per PSP, PASPORT e UKLFR, ma ad oggi la sorgente di WashU ne è sprovvista in questo formato per come sono state generate le derivate.
+- Contiene età, sesso, punteggi clinici dei soggetti. È fornito per tutti e 4 i dataset, inclusa **WashU** (verificato 27/07: `data/clinical_connectome/derivatives/UNIPD/WashU/participants.tsv`, 319 soggetti — nota precedente su questa pagina, che lo dava assente per WashU, era stale/errata).
+- Campi anagrafici comuni: `age`, `sex`, `handedness`, `education`, `lesion_side`.
+- **Gruppo soggetto**: `disease_id` (`ST` = stroke, `HC` = controlli sani) — per WashU entrambi i gruppi sono presenti nel file, ma solo `ST` risulta oggi effettivamente coperto da lesione + FC nella pipeline di masking (`data/derived/features/fc_matrix/`).
+- **Punteggi clinici/comportamentali disponibili per WashU** (copertura sui 169 soggetti con FC già mascherata, `Yan200TianS2Buckner7N/24-07_s2`): `NIHSS` (+ sotto-item `NIHSS_1A`...`NIHSS_11`, severità globale, ~73% dei soggetti), `ARAT_L`/`ARAT_R` (Action Research Arm Test, motorio, ~98%), `9HPT_L`/`9HPT_R` (Nine-Hole Peg Test, motorio fine, ~66%), `Boston_nam` (Boston Naming Test, linguaggio, ~96%), `Clock` (Clock Drawing Test, cognitivo/visuospaziale, ~66%), `Corsi` (Corsi block-tapping, attenzione/memoria di lavoro visuospaziale, ~34%), `GDS_15` (scala di depressione geriatrica, **0% di copertura sulla coorte con FC** — non utilizzabile per questa coorte). Non è la stessa batteria multi-test/punteggio composito PCA di Siegel et al. 2016 (vedi `docs/methods/Siegel2016_Reproduction.md`), ma test clinici singoli standard in letteratura stroke, sufficienti come target per un modeling analogo per dominio.
 
 ### 3. Matrici di Connettività (Feature Funzionali)
 - **Path logico**: `feature/func/FC-pearson`

@@ -58,6 +58,7 @@ Ecco la spiegazione di `config/pipelines/dim_reduction.json`:
 - **`session_name`**: `(Stringa)` Il nome dell'esperimento (es. `"umap_test_1"`). Se stai facendo Fine-Tuning chiamalo magari `"tune1"`.
 - **`overwrite`**: `(Booleano)` A `true` permette allo script di sovrascrivere silenziosamente un file preesistente.
 - **`fine_tuning`**: `(Booleano)` Attiva (`true`) o disattiva (`false`) la modalità di ricerca dei parametri di cui abbiamo parlato sopra.
+- **`regress_out_volume`**: `(Booleano)` Solo in modalità Produzione. A `true`, prima di salvare l'embedding, rimuove per regressione lineare l'effetto del volume lesionale (numero di voxel lesionati per soggetto) da ciascuna coordinata dell'embedding — utile perché su dati binari lesionali il volume può dominare la struttura trovata (visto con la PCA, dove una componente correlava r=0.92 col volume). **Incompatibile con `metric: "jaccard"`/`"dice"` in `params_reduction.json`**: quelle metriche già normalizzano per il volume di ciascun soggetto, quindi regredirlo di nuovo toglierebbe segnale topografico reale, non un confondimento — la pipeline si ferma con un errore esplicito se provi a combinare le due cose. Vedi `docs/methods/dimensionality_reduction.md` per il dettaglio metodologico.
 - **`run_notes`**: `(Stringa)` Note per descrivere storicamente perché stai lanciando questo test (es. "Provo UMAP a 10 componenti").
 
 ### Come funziona il file `params_reduction.json`?

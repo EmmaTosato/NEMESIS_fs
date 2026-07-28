@@ -56,4 +56,4 @@ Quando lanci lo script:
 
 - **Il file NIfTI** (`.nii.gz`): il volume 3D matematico. Questo sarà il file da fornire alla voce `atlas_path` nella configurazione del *Matrix Building*.
 - **La tabella delle Etichette** (`.csv`): un file leggibile su Excel contenente colonne strutturate (es. `Value: 361`, `Name: L_Thalamus`, `Hemisphere: Left`, `Source: harvard_oxford_subcortical`).
-- **Report di Costruzione**: in `reports/build_combined_atlas/`, verrà generato un mini-documento di riepilogo per tracciare storicamente l'operazione.
+- **Report di Costruzione**: in `summaries/build_combined_atlas/`, verrà generato un mini-documento di riepilogo per tracciare storicamente l'operazione.
