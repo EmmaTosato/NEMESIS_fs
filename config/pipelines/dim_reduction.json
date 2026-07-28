@@ -8,5 +8,5 @@
   "overwrite": true,
   "fine_tuning": true,
   "regress_out_volume": false,
-  "run_notes": "first tuning_grid on perplexity [5,15,30,50,75]"
+  "run_notes": "extended tuning_grid: perplexity [5,15,30,50,75] x metric [euclidean,jaccard,dice] (added metric like umap)"
 }

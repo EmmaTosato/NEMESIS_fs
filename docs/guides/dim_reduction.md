@@ -36,7 +36,7 @@ Attivando questa modalità, lo script **non** calcolerà il risultato finale, ma
 Alla fine ti fornirà un file Excel (CSV) e dei grafici colorati a mappa di calore (Heatmap) mostrandoti quale combinazione matematica di parametri ottiene il punteggio di "bontà del dato" (Trustworthiness) più alto.
 Spetta a te umano analizzare il grafico e scegliere il set di parametri vincenti.
 
-Il fine-tuning è supportato per `umap` (`n_neighbors`/`metric`), `pca`/`pca_varimax` (`n_components`), `pacmap` (`n_neighbors`) e, per `tsne`, solo `perplexity` — gli altri parametri di t-SNE (`early_exaggeration`, `learning_rate`, `max_iter`) restano fissati da Thiebaut de Schotten et al. 2020 e non entrano nella sweep (vedi `docs/methods/dimensionality_reduction.md`).
+Il fine-tuning è supportato per `umap` (`n_neighbors`/`metric`), `pca`/`pca_varimax` (`n_components`), `pacmap` (`n_neighbors`) e `tsne` (`perplexity`/`metric`, stesso meccanismo di `umap`) — gli altri parametri di t-SNE (`early_exaggeration`, `learning_rate`, `max_iter`) restano fissati da Thiebaut de Schotten et al. 2020 e non entrano nella sweep (vedi `docs/methods/dimensionality_reduction.md`).
 
 ### 2. Modalità Produzione (`"fine_tuning": false`)
 Una volta scelti i parametri ottimali grazie alla modalità precedente (e avendoli salvati nel file dei parametri), lanci lo script in questa modalità. Lo script prenderà le impostazioni e produrrà la matrice compressa finale da passare ai passaggi successivi.
