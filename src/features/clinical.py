@@ -4,7 +4,7 @@ Used to join a lesion/FC feature matrix's subjects against behavioral deficit
 scores (NIHSS, ARAT, 9HPT, Boston naming, Clock, Corsi - see
 docs/guides/datasets.md) for the lesion-deficit vs FC-deficit prediction
 pipeline (src/pipeline/predict_deficit.py), reproducing Siegel et al. 2016
-(docs/methods/Siegel2016_Reproduction.md).
+(docs/knowledge/Siegel2016_Reproduction.md).
 
 participants.tsv's own subject-id column is "participant_id" - renamed to
 "subject_id" here, to match the join key already used by every matrix

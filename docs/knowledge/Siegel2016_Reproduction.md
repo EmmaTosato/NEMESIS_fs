@@ -46,7 +46,7 @@ Domanda: i due effetti (calo omotopico DAN, aumento DAN-DMN ipsilesionale) sono 
 
 Interpretazione: il calo di FC omotopica è una conseguenza generica di "quanto tessuto è danneggiato", non di "dove" — mentre la topografia specifica di *quali* connessioni calano probabilmente sì dipende da dove è la lesione (non testato qui, resta un'inferenza).
 
-Nota di metodo: questo è lo stesso schema logico di parsimonia ("un predittore semplice spiega quanto uno complesso?") che il paper userà su scala più larga per il confronto lesion-deficit vs FC-deficit (sezione successiva). Applicabile anche a noi: il numero di nodi FC compromessi da lesione (già calcolato in `mask_summary.csv`, vedi `docs/methods/fc_lesion_masking.md`) spiega la performance quanto l'intera topografia della lesione?
+Nota di metodo: questo è lo stesso schema logico di parsimonia ("un predittore semplice spiega quanto uno complesso?") che il paper userà su scala più larga per il confronto lesion-deficit vs FC-deficit (sezione successiva). Applicabile anche a noi: il numero di nodi FC compromessi da lesione (già calcolato in `mask_summary.csv`, vedi `docs/knowledge/fc_lesion_masking.md`) spiega la performance quanto l'intera topografia della lesione?
 
 ### Step 8 — Escludere confondimenti residui
 Motion, percentuale di tempo a occhi aperti, lateralità del lag — nessuno spiega le differenze di FC omotopica, né tra gruppi né tra individui.
