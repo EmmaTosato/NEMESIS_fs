@@ -10,6 +10,7 @@ import pytest
 
 from src.analysis.plotting import (
     compose_run_title,
+    plot_clustering_tuning_heatmaps,
     plot_clustering_tuning_metrics,
     plot_clusters_comparison_interactive,
     plot_clusters_interactive,
@@ -209,6 +210,30 @@ def test_plot_clustering_tuning_metrics_raises_on_empty_metric_cols(tmp_path):
 
     with pytest.raises(ValueError, match="at least one metric column"):
         plot_clustering_tuning_metrics(df, "n_clusters", [], tmp_path / "out.png", "title")
+
+
+def test_plot_clustering_tuning_heatmaps_writes_one_subplot_per_metric(tmp_path):
+    df = pd.DataFrame(
+        {
+            "eps": [0.3, 0.3, 0.5, 0.5],
+            "min_samples": [3, 5, 3, 5],
+            "silhouette": [0.4, 0.5, 0.6, 0.7],
+            "calinski_harabasz": [50.0, 60.0, 70.0, 80.0],
+        }
+    )
+    output_path = tmp_path / "tuning_plot.png"
+
+    plot_clustering_tuning_heatmaps(df, "eps", "min_samples", ["silhouette", "calinski_harabasz"], output_path, "test title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_clustering_tuning_heatmaps_raises_on_empty_metric_cols(tmp_path):
+    df = pd.DataFrame({"eps": [0.3, 0.5], "min_samples": [3, 5], "silhouette": [0.4, 0.8]})
+
+    with pytest.raises(ValueError, match="at least one metric column"):
+        plot_clustering_tuning_heatmaps(df, "eps", "min_samples", [], tmp_path / "out.png", "title")
 
 
 def test_plot_dendrogram_writes_file(tmp_path):

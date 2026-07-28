@@ -577,6 +577,48 @@ def plot_tuning_heatmap(
     plt.close(fig)
 
 
+def plot_clustering_tuning_heatmaps(
+    df: pd.DataFrame, param_x: str, param_y: str, metric_cols: list[str], output_path: Path, title: str
+) -> None:
+    """One heatmap subplot per metric in metric_cols, sharing param_x/param_y
+    on the two axes - the clustering-tuning equivalent of plot_tuning_heatmap,
+    but for more than one metric at once (see plot_clustering_tuning_metrics
+    for why silhouette/Calinski-Harabasz/Davies-Bouldin/extras each need
+    their own subplot rather than one shared axis).
+    """
+    if not metric_cols:
+        raise ValueError("plot_clustering_tuning_heatmaps needs at least one metric column")
+
+    nrows, ncols = _square_grid_shape(len(metric_cols))
+
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(_TUNING_METRICS_SUBPLOT_WIDTH * ncols, _TUNING_METRICS_SUBPLOT_HEIGHT * nrows),
+        squeeze=False,
+        gridspec_kw={"wspace": _TUNING_METRICS_WSPACE, "hspace": _TUNING_METRICS_HSPACE},
+    )
+    for i, metric_col in enumerate(metric_cols):
+        ax = axes[i // ncols][i % ncols]
+        pivot = df.pivot(index=param_y, columns=param_x, values=metric_col)
+        image = ax.imshow(pivot.values, cmap="viridis", aspect="auto")
+        ax.set_xticks(range(len(pivot.columns)))
+        ax.set_xticklabels(pivot.columns)
+        ax.set_yticks(range(len(pivot.index)))
+        ax.set_yticklabels(pivot.index)
+        ax.set_xlabel(param_x)
+        ax.set_ylabel(param_y)
+        ax.set_title(metric_col)
+        fig.colorbar(image, ax=ax)
+    for i in range(len(metric_cols), nrows * ncols):
+        axes[i // ncols][i % ncols].set_visible(False)
+    fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
 def plot_clustering_tuning_metrics(df: pd.DataFrame, param_col: str, metric_cols: list[str], output_path: Path, title: str) -> None:
     """One line-plot subplot per metric in metric_cols, all sharing param_col
     on the x-axis - the clustering-tuning equivalent of plot_tuning_curve, but

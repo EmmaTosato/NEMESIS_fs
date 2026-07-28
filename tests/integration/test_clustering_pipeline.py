@@ -312,6 +312,47 @@ def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monke
     assert not (output_root / "kmeans" / "runs.csv").exists()  # tuning writes runs_tuning.csv, not runs.csv
 
 
+def test_clustering_fine_tuning_two_swept_params_writes_heatmap(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "agglomerative": {
+                    "params": {"n_clusters": 2, "linkage": "ward"},
+                    "tuning_grid": {"n_clusters": [2, 3], "linkage": ["ward", "average"]},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["agglomerative"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next((output_root / "agglomerative" / "tuning").iterdir())
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0  # heatmap, not the 1-param line plot
+
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert len(results) == 4  # 2 x 2 cartesian product
+    assert set(results["linkage"]) == {"ward", "average"}
+
+
 def test_clustering_fine_tuning_kmeans_with_consensus_writes_rsc_monti_columns(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")

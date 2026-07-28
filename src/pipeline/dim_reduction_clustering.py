@@ -71,6 +71,7 @@ from src.analysis.plotting import (
     plot_clusters_comparison,
     plot_clusters_comparison_interactive,
     plot_clusters_interactive,
+    plot_clustering_tuning_heatmaps,
     plot_clustering_tuning_metrics,
     plot_dendrogram,
     plot_eigengap,
@@ -464,9 +465,13 @@ def _write_tuning_output(
     metric_cols = METHOD_METRIC_COLUMNS[method] + [c for c in CONSENSUS_METRIC_COLUMNS if c in results.columns]
     if len(swept_params) == 1:
         plot_clustering_tuning_metrics(results, swept_params[0], metric_cols, output_dir / "tuning_plot.png", title)
+    elif len(swept_params) == 2:
+        plot_clustering_tuning_heatmaps(
+            results, swept_params[0], swept_params[1], metric_cols, output_dir / "tuning_plot.png", title
+        )
     else:
         logging.warning(
-            "[%s] tuning_grid has %d swept parameters - no metric plot generated (only 1 is supported)",
+            "[%s] tuning_grid has %d swept parameters - no metric plot generated (only 1 or 2 are supported)",
             method,
             len(swept_params),
         )

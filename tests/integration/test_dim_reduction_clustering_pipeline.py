@@ -226,6 +226,52 @@ def test_dim_reduction_clustering_fine_tuning_kmeans_sweeps_against_one_embeddin
     assert runs_rows[0]["notes"] == "prova sweep n_clusters su embedding pca"
 
 
+def test_dim_reduction_clustering_fine_tuning_two_swept_params_writes_heatmap(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
+
+    reduction_params_path = tmp_path / "params_reduction.json"
+    reduction_params_path.write_text(json.dumps({"pca": {"params": {"n_components": 2}}}))
+    clustering_params_path = tmp_path / "params_clustering.json"
+    clustering_params_path.write_text(
+        json.dumps(
+            {
+                "agglomerative": {
+                    "params": {"n_clusters": 2, "linkage": "ward"},
+                    "tuning_grid": {"n_clusters": [2, 3], "linkage": ["ward", "average"]},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "drc_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "pca",
+        "reduction_params_file": str(reduction_params_path),
+        "clustering_methods": ["agglomerative"],
+        "clustering_params_file": str(clustering_params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "regress_out_volume": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "drc.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next((output_root / "pca" / "agglomerative" / "tuning").iterdir())
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0  # heatmap, not the 1-param line plot
+
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert len(results) == 4  # 2 x 2 cartesian product
+    assert set(results["linkage"]) == {"ward", "average"}
+
+
 def test_dim_reduction_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
