@@ -35,6 +35,26 @@ Il clustering non ha un "punteggio oggettivo" come la trustworthiness della ridu
 
 Attivando questa modalità, per ogni metodo in `clustering_methods` lo script prova tutti i valori dichiarati nel `tuning_grid` di quel metodo (`config/registry/params_clustering.json`) e calcola, per ciascuno: **silhouette score**, **Calinski-Harabasz**, **Davies-Bouldin** (generici, uguali per tutti e 5 i metodi). K-Means guadagna anche una colonna `inertia` (criterio del gomito), GMM guadagna `bic`/`aic` (criteri basati sulla verosimiglianza). Tre metodi ricevono in più un grafico diagnostico "a sé stante", indipendente dalla griglia provata: **Agglomerative** un dendrogramma, **Spectral** un grafico dell'eigengap, **DBSCAN** un k-distance plot (per scegliere `eps`). Nessuna selezione automatica — spetta a te leggere `tuning_results.csv`/i grafici e scegliere il valore a mano.
 
+#### Consensus/stability clustering (opzionale, solo kmeans/gmm/spectral)
+
+Oltre ai 3 indici generici, per `kmeans`/`gmm`/`spectral` puoi attivare due colonne aggiuntive che misurano **quanto è stabile** un certo `k`, non solo quanto è "buono" su un singolo run (vedi `docs/methods/clustering.md` per la spiegazione completa e i riferimenti in letteratura). Sono disattivate di default — per attivarle, aggiungi un blocco `"consensus"` dentro l'entry del metodo in `config/registry/params_clustering.json`:
+
+```json
+"kmeans": {
+  "params": { "n_clusters": 6, "random_state": 0, "n_init": "auto" },
+  "tuning_grid": { "n_clusters": [2, 3, 4, 5, 6, 8, 10] },
+  "consensus": {
+    "rsc": { "n_repeats": 200 },
+    "monti": { "n_repeats": 200, "subsample_fraction": 0.8 }
+  }
+}
+```
+
+- `"rsc"` (opzionale): ripete il metodo `n_repeats` volte sugli stessi identici dati, cambiando solo il seed casuale — misura quanto l'assegnazione dipende dal caso dell'inizializzazione. Aggiunge la colonna `rsc_eigengap` (più alto = più stabile).
+- `"monti"` (opzionale): ripete il metodo `n_repeats` volte su un sottocampione casuale di soggetti (`subsample_fraction`, es. `0.8` = 80%) — misura quanto l'assegnazione dipende da chi c'è nel campione. Aggiunge la colonna `monti_stability` (più alto = più stabile).
+
+Puoi attivarne uno solo o entrambi. Quando presenti, `tuning_plot.png` include anche queste colonne, e `config.md` riporta in più una riga di testo con il `k` suggerito da ciascun metodo (es. "RSC suggests n_clusters=4 (...)") — un'informazione in più da guardare insieme alle altre, mai una scelta automatica applicata al posto tuo.
+
 ### 2. Modalità Produzione (`"fine_tuning": false`)
 Una volta scelti i parametri (es. `n_clusters`) e salvati in `config/registry/params_clustering.json`, lanci lo script in questa modalità: produce il clustering finale, come descritto sopra.
 

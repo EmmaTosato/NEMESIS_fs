@@ -1,8 +1,15 @@
 {
   "project": "clinical_connectome",
   "data_root": "data/clinical_connectome/derivatives",
-  "datasets": ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"],
-  "group_filter": ["ST"],
+  "datasets": [
+    "UNIPD/WashU",
+    "UNIPD/PASPORT",
+    "UNIPD/PSP",
+    "UKLFR/stroke_UKLFR"
+  ],
+  "group_filter": [
+    "ST"
+  ],
   "reference_template_path": "data/clinical_connectome/derivatives/UNIPD/WashU/manual_masks/sub-STUNIPD0001/anat/sub-STUNIPD0001_space-MNI152NLin6Asym_label-lesion_mask.nii.gz",
   "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",
   "binarize_threshold": 0.5,
@@ -15,5 +22,5 @@
   "output_root": "data/derived/lesion_matrix",
   "session_name": "yan300s1",
   "overwrite": false,
-  "run_notes": "parcellated on Yan300TianS2Buckner7N to match fc_matrix atlas, for Siegel 2016 lesion-deficit vs FC-deficit reproduction (predict_deficit pipeline)"
+  "run_notes": ""
 }
