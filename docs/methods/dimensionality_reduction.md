@@ -1,6 +1,6 @@
 # Dimensionality reduction — what these methods actually do
 
-Plain-language reference for the methods wired into `src/analysis/reduction.py` (`config/registry/params_reduction.json`). Not a general ML textbook chapter — just enough to read a config's hyperparameters and know what they're actually controlling, and to pick a method with some intuition for its trade-offs. For clustering, see `docs/methods/clustering.md`. For *why* these specific methods were chosen for NEMESIS (varimax PCA on parcellated lesion damage), see Thiebaut de Schotten et al. 2020 (`assets/papers/Thiebaut de Schotten et al - 2020 - ...`).
+Plain-language reference for the methods wired into `src/analysis/reduction.py` (`config/registry/params_reduction.json`). Not a general ML textbook chapter — just enough to read a config's hyperparameters and know what they're actually controlling, and to pick a method with some intuition for its trade-offs. For clustering, see `docs/methods/clustering.md`. For *why* these specific methods were chosen for NEMESIS (varimax PCA on parcellated lesion damage), see Thiebaut de Schotten et al. 2020 (`papers/Thiebaut de Schotten et al - 2020 - ...`).
 
 t-SNE's parameters below are fixed from that paper - not something to fine-tune. UMAP/PCA's `n_neighbors`/`min_dist`/`n_components` don't have a paper-given answer for this data, so `dim_reduction.py` supports a manual fine-tuning sweep over them (`fine_tuning: true`, `docs/guides/analysis.md` "Fine-tuning") - a human still picks the final value by inspecting the sweep's results, never automatic.
 

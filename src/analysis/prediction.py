@@ -4,7 +4,7 @@ Array-in/array-out, no I/O - src/pipeline/predict_deficit.py owns loading
 matrices, joining participants.tsv, and writing output. Mirrors the
 separation already used by reduction.py/clustering.py (see docs/dev/analysis.md).
 
-Method, step by step, matching assets/knowledge/Siegel2016_Reproduction.md
+Method, step by step, matching docs/methods/Siegel2016_Reproduction.md
 ("Experimental Procedures" -> "Multivariate Ridge Regression"):
 1. PCA per feature type (lesion, FC), independently, retaining a fixed
    fraction of variance (95% in the paper) - pca_variance_retained.

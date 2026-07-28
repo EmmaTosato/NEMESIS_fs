@@ -1,6 +1,6 @@
 # Siegel et al. 2016 — analisi metodologica passo per passo, in vista di una riproduzione
 
-> Fonte: `assets/papers/Siegel et al - 2016 - Disruptions of network connectivity predict impairment in multiple behavioral domains after stroke/markdown/_full.md`. Obiettivo del documento: scomporre il paper sezione per sezione, isolando ogni step metodologico (cosa fanno, con quale test statistico, per rispondere a quale domanda), per valutare cosa è direttamente riproducibile con i dati NEMESIS (`data/derived/features/fc_matrix/`, in prospettiva `data/derived/features/lesion_matrix/`) e cosa manca.
+> Fonte: `papers/Siegel et al - 2016 - Disruptions of network connectivity predict impairment in multiple behavioral domains after stroke/markdown/_full.md`. Obiettivo del documento: scomporre il paper sezione per sezione, isolando ogni step metodologico (cosa fanno, con quale test statistico, per rispondere a quale domanda), per valutare cosa è direttamente riproducibile con i dati NEMESIS (`data/derived/features/fc_matrix/`, in prospettiva `data/derived/features/lesion_matrix/`) e cosa manca.
 
 Il paper in sintesi: coorte di 132 pazienti stroke subacuti (100 dopo esclusioni) + 27 controlli, confronto tra danno strutturale (lesione) e disfunzione fisiologica distribuita (FC a riposo) nello spiegare il deficit comportamentale in 6 domini (attenzione, memoria visiva, memoria verbale, linguaggio, motorio, visivo). Risultato chiave: memoria (visiva/verbale) meglio spiegata da FC, motorio/visivo meglio spiegati da lesione, linguaggio da entrambi.
 
@@ -46,7 +46,7 @@ Domanda: i due effetti (calo omotopico DAN, aumento DAN-DMN ipsilesionale) sono 
 
 Interpretazione: il calo di FC omotopica è una conseguenza generica di "quanto tessuto è danneggiato", non di "dove" — mentre la topografia specifica di *quali* connessioni calano probabilmente sì dipende da dove è la lesione (non testato qui, resta un'inferenza).
 
-Nota di metodo: questo è lo stesso schema logico di parsimonia ("un predittore semplice spiega quanto uno complesso?") che il paper userà su scala più larga per il confronto lesion-deficit vs FC-deficit (sezione successiva). Applicabile anche a noi: il numero di nodi FC compromessi da lesione (già calcolato in `mask_summary.csv`, vedi `assets/knowledge/fc_lesion_masking.md`) spiega la performance quanto l'intera topografia della lesione?
+Nota di metodo: questo è lo stesso schema logico di parsimonia ("un predittore semplice spiega quanto uno complesso?") che il paper userà su scala più larga per il confronto lesion-deficit vs FC-deficit (sezione successiva). Applicabile anche a noi: il numero di nodi FC compromessi da lesione (già calcolato in `mask_summary.csv`, vedi `docs/methods/fc_lesion_masking.md`) spiega la performance quanto l'intera topografia della lesione?
 
 ### Step 8 — Escludere confondimenti residui
 Motion, percentuale di tempo a occhi aperti, lateralità del lag — nessuno spiega le differenze di FC omotopica, né tra gruppi né tra individui.

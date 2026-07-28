@@ -8,7 +8,7 @@
 - 5 metodi di clustering (kmeans, agglomerative, gmm, dbscan, spectral — spectral escluso di proposito su pacmap, vedi sotto).
 - Tuning su metodi di clustering
 - Note:
-  - Come leggere ogni indice/plot: [assets/knowledge/clustering_tuning_guide.md](../../assets/knowledge/clustering_tuning_guide.md).
+  - Come leggere ogni indice/plot: [docs/methods/clustering_tuning_guide.md](../../docs/methods/clustering_tuning_guide.md).
   - Questo documento non seleziona automaticamente nessun parametro
 
 ### UMAP (min_dist=0.0, n_neighbors=5)
@@ -370,7 +370,7 @@ n=3 vince il silhouette, n=10 il Davies-Bouldin — tensione simile ad altri cas
 
 #### ⚠️ Caveat prima di usarlo in produzione
 
-Il miglioramento è reale ma **va interpretato con cautela prima di trattarlo come "il miglior embedding dello studio"**: le prime 2 componenti PCA sono per costruzione le direzioni di massima varianza nei voxel lesionati. Su maschere binarie di lesione, la varianza è quasi certamente dominata dal **volume della lesione** (lesioni grandi vs piccole correlano su moltissimi voxel contemporaneamente) più che dalla sua **posizione/topografia** — che è invece il segnale che umap/tsne/pacmap, essendo neighbor-embedding, sono costruiti per preservare (vedi [assets/knowledge/dimensionality_reduction_methods.md](../../assets/knowledge/dimensionality_reduction_methods.md)).
+Il miglioramento è reale ma **va interpretato con cautela prima di trattarlo come "il miglior embedding dello studio"**: le prime 2 componenti PCA sono per costruzione le direzioni di massima varianza nei voxel lesionati. Su maschere binarie di lesione, la varianza è quasi certamente dominata dal **volume della lesione** (lesioni grandi vs piccole correlano su moltissimi voxel contemporaneamente) più che dalla sua **posizione/topografia** — che è invece il segnale che umap/tsne/pacmap, essendo neighbor-embedding, sono costruiti per preservare (vedi [docs/methods/dimensionality_reduction_methods.md](../../docs/methods/dimensionality_reduction_methods.md)).
 
 **Verifica eseguita — ipotesi confermata**: calcolato il volume lesionale per soggetto (somma dei voxel lesionati nella matrice binaria, `data/derived/lesion_matrix/21-07_s1.1/matrix.npy`) e correlato con PC1/PC2.
 

@@ -35,7 +35,7 @@ def pca_embed(X: np.ndarray, params: dict) -> np.ndarray:
 def pca_varimax_embed(X: np.ndarray, params: dict) -> np.ndarray:
     """PCA (covariance-matrix eigendecomposition) + varimax-rotated loadings +
     component scores via multiple regression - Thiebaut de Schotten et al. 2020
-    methodology ("Data compression", assets/papers/Thiebaut de Schotten et al -
+    methodology ("Data compression", papers/Thiebaut de Schotten et al -
     2020 - .../markdown/_full.md).
 
     Unlike the other strategies here, params is not unpacked blindly into a

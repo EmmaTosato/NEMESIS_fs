@@ -1,6 +1,6 @@
 # Masking delle feature FC in funzione della lesione — teoria e decisioni di metodo
 
-> Fonte: Siegel et al. 2016 (*PNAS*), Griffis et al. 2019 (*Neuron*, in `assets/papers/`), XCP-D (`xcp_d/interfaces/connectivity.py`). Implementazione: `src/features/functional.py`, `src/pipeline/mask_fc.py`/`build_fc_matrix.py`. Prototipo eseguito su dati reali: `notebooks/fc_lesion_masking.ipynb`.
+> Fonte: Siegel et al. 2016 (*PNAS*), Griffis et al. 2019 (*Neuron*, in `papers/`), XCP-D (`xcp_d/interfaces/connectivity.py`). Implementazione: `src/features/functional.py`, `src/pipeline/mask_fc.py`/`build_fc_matrix.py`. Prototipo eseguito su dati reali: `notebooks/fc_lesion_masking.ipynb`.
 
 Il documento è in tre parti:
 
