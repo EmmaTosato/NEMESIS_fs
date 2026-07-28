@@ -82,6 +82,11 @@ def _write_params(tmp_path):
                     "tuning_grid": {"n_neighbors": [2, 3]},
                     "trustworthiness_n_neighbors": 2,
                 },
+                "tsne": {
+                    "params": {"n_components": 2, "perplexity": 3, "random_state": 0},
+                    "tuning_grid": {"perplexity": [2, 3]},
+                    "trustworthiness_n_neighbors": 2,
+                },
             }
         )
     )
@@ -90,7 +95,6 @@ def _write_params(tmp_path):
 
 def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_summaries")
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
     params_path = _write_params(tmp_path)
@@ -127,7 +131,6 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
 
 def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_summaries")
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
     params_path = _write_params(tmp_path)
@@ -167,7 +170,6 @@ def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, mon
 
 def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_summaries")
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
     params_path = _write_params(tmp_path)
@@ -201,7 +203,6 @@ def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_pa
 
 def test_dim_reduction_fine_tuning_pacmap_writes_sweep_not_embedding(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_summaries")
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
     params_path = _write_params(tmp_path)
@@ -230,6 +231,39 @@ def test_dim_reduction_fine_tuning_pacmap_writes_sweep_not_embedding(tmp_path, m
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert list(results.columns) == ["n_neighbors", "trustworthiness"]
+    assert len(results) == 2  # 2-value grid
+
+
+def test_dim_reduction_fine_tuning_tsne_writes_sweep_not_embedding(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+
+    params_path = _write_params(tmp_path)
+    output_root = tmp_path / "dr_out"
+    dr_cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "tsne",
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "regress_out_volume": False,
+        "run_notes": None,
+    }
+    dr_cfg_path = tmp_path / "dim_reduction_tuning.json"
+    dr_cfg_path.write_text(json.dumps(dr_cfg))
+
+    exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
+    assert exit_code == 0
+
+    tuning_dir = next((output_root / "tsne" / "tuning").iterdir())
+    assert (tuning_dir / "tuning_results.csv").is_file()
+    assert not (tuning_dir / "matrix.npy").exists()  # a sweep is not a matrix artifact
+
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert list(results.columns) == ["perplexity", "trustworthiness"]
     assert len(results) == 2  # 2-value grid
 
 
@@ -287,7 +321,6 @@ def _build_matrix_varying_volume(tmp_path, monkeypatch):
 
 def test_dim_reduction_regress_out_volume_changes_embedding(tmp_path, monkeypatch):
     input_dir = _build_matrix_varying_volume(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_summaries")
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
     params_path = _write_params(tmp_path)
@@ -321,7 +354,6 @@ def test_dim_reduction_regress_out_volume_changes_embedding(tmp_path, monkeypatc
 
 def test_dim_reduction_regress_out_volume_incompatible_with_jaccard_raises(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_summaries")
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
     params_path = tmp_path / "params_reduction.json"
@@ -359,7 +391,6 @@ def test_dim_reduction_regress_out_volume_incompatible_with_jaccard_raises(tmp_p
 
 
 def test_dim_reduction_missing_input_path_raises(tmp_path, monkeypatch):
-    monkeypatch.setattr(dim_reduction, "REPORTS_ROOT", tmp_path / "dr_summaries")
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
     params_path = _write_params(tmp_path)

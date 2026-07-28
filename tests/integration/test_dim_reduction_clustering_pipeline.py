@@ -57,7 +57,6 @@ def _build_matrix(tmp_path, monkeypatch, n_subjects=12):
 
 def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction_clustering, "REPORTS_ROOT", tmp_path / "drc_reports")
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
 
     reduction_params_path = tmp_path / "params_reduction.json"
@@ -105,7 +104,6 @@ def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
 
 def test_dim_reduction_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction_clustering, "REPORTS_ROOT", tmp_path / "drc_reports")
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
 
     reduction_params_path = tmp_path / "params_reduction.json"
@@ -170,7 +168,6 @@ def test_dim_reduction_clustering_fine_tuning_kmeans_sweeps_against_one_embeddin
     then kmeans' own tuning_grid is swept against that one embedding.
     """
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction_clustering, "REPORTS_ROOT", tmp_path / "drc_reports")
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
 
     reduction_params_path = tmp_path / "params_reduction.json"
@@ -231,7 +228,6 @@ def test_dim_reduction_clustering_fine_tuning_kmeans_sweeps_against_one_embeddin
 
 def test_dim_reduction_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction_clustering, "REPORTS_ROOT", tmp_path / "drc_reports")
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
 
     reduction_params_path = tmp_path / "params_reduction.json"
@@ -324,7 +320,6 @@ def _build_matrix_varying_volume(tmp_path, monkeypatch):
 
 def test_dim_reduction_clustering_regress_out_volume_changes_embedding(tmp_path, monkeypatch):
     input_dir = _build_matrix_varying_volume(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction_clustering, "REPORTS_ROOT", tmp_path / "drc_reports")
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
 
     reduction_params_path = tmp_path / "params_reduction.json"
@@ -364,7 +359,6 @@ def test_dim_reduction_clustering_regress_out_volume_changes_embedding(tmp_path,
 
 def test_dim_reduction_clustering_regress_out_volume_incompatible_with_dice_raises(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction_clustering, "REPORTS_ROOT", tmp_path / "drc_reports")
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
 
     reduction_params_path = tmp_path / "params_reduction.json"
@@ -408,7 +402,6 @@ def test_dim_reduction_clustering_regress_out_volume_incompatible_with_dice_rais
 
 def test_dim_reduction_clustering_fine_tuning_missing_tuning_grid_raises(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction_clustering, "REPORTS_ROOT", tmp_path / "drc_reports")
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
 
     reduction_params_path = tmp_path / "params_reduction.json"

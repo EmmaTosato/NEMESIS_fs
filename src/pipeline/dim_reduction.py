@@ -9,9 +9,10 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
 - fine_tuning=false (production): embeds with the method's "params" from
   params_reduction.json, writes a normal matrix artifact holding the
   embedding. metadata is carried over unchanged.
-- fine_tuning=true (manual hyperparameter search, umap/pca only - t-SNE's
-  params come from Thiebaut de Schotten et al. 2020, not a sweep): evaluates
-  every combination in the method's "tuning_grid", writes a comparison table
+- fine_tuning=true (manual hyperparameter search, umap/tsne/pca/pca_varimax/
+  pacmap - t-SNE only sweeps perplexity, its other params still come from
+  Thiebaut de Schotten et al. 2020): evaluates every combination in the
+  method's "tuning_grid", writes a comparison table
   + plot instead of an embedding. No automatic selection - a human reads
   tuning_results.csv/tuning_plot.png, picks parameters by hand, writes them
   into params_reduction.json's "params", and re-runs with fine_tuning=false.
@@ -49,7 +50,6 @@ from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
 
-REPORTS_ROOT = Path("summaries") / "dim_reduction"
 LOGS_ROOT = Path("logs") / "dim_reduction"
 REPORT_FILENAME_PREFIX = "dim_reduction_summary"
 
@@ -153,7 +153,6 @@ def _run_production(
             logging.warning("failed to generate interactive embedding plot: %s", exc)
 
     try:
-        report_path = _write_report(config, X, embedding, params, now)
         append_run_log_entry(
             config.output_root / config.reduction_method,
             effective_session_name,
@@ -164,12 +163,10 @@ def _run_production(
             config.run_notes,
         )
     except OSError as exc:
-        logging.error("cannot write report/run log: %s", exc, exc_info=True)
+        logging.error("cannot write run log: %s", exc, exc_info=True)
         return 1
 
-    logging.info(
-        "done - embedding written to %s, report written to %s, log written to %s", output_dir, report_path, log_path
-    )
+    logging.info("done - embedding written to %s, log written to %s", output_dir, log_path)
     return 0
 
 
@@ -323,21 +320,6 @@ def _build_readme_lines(
     return [f"# {config.project} dim_reduction ({config.reduction_method}) — {now.strftime('%d-%m-%y %H:%M')}", ""] + _summary_lines(
         config, X, embedding, params
     )
-
-
-def _build_report(config: DimReductionConfig, X: np.ndarray, embedding: np.ndarray, params: dict, now: datetime) -> str:
-    lines = [f"# {config.project}_{now.strftime('%d-%m-%y')}", f"## {now.strftime('%H:%M')}", ""] + _summary_lines(
-        config, X, embedding, params
-    )
-    return "\n".join(lines)
-
-
-def _write_report(config: DimReductionConfig, X: np.ndarray, embedding: np.ndarray, params: dict, now: datetime) -> Path:
-    report_dir = REPORTS_ROOT / config.project
-    report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M')}.md"
-    report_path.write_text(_build_report(config, X, embedding, params, now))
-    return report_path
 
 
 def _log_path(config: DimReductionConfig, now: datetime) -> Path:

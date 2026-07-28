@@ -80,7 +80,6 @@ from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
 
-REPORTS_ROOT = Path("summaries") / "clustering"
 LOGS_ROOT = Path("logs") / "clustering"
 REPORT_FILENAME_PREFIX = "clustering_summary"
 
@@ -145,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
 def _run_one_method(
     config: ClusteringConfig, method: str, X: np.ndarray, metadata: pd.DataFrame, now: datetime
 ) -> np.ndarray | None:
-    """Runs one clustering method end to end (params, artifact, plot, report,
+    """Runs one clustering method end to end (params, artifact, plot,
     runs.csv). Returns the cluster_labels actually saved (for the comparison
     plot to reuse verbatim, rather than re-running the method a second time),
     or None if this method's run failed - the caller stops the whole run.
@@ -207,15 +206,14 @@ def _run_one_method(
         )
 
     try:
-        report_path = _write_report(config, method, X, cluster_labels, params, now)
         append_run_log_entry(
             _run_log_dir(config, method), effective_session_name, now, "production", params, output_dir, config.run_notes
         )
     except OSError as exc:
-        logging.error("[%s] cannot write report/run log: %s", method, exc, exc_info=True)
+        logging.error("[%s] cannot write run log: %s", method, exc, exc_info=True)
         return None
 
-    logging.info("[%s] done - output written to %s, report written to %s", method, output_dir, report_path)
+    logging.info("[%s] done - output written to %s", method, output_dir)
     return cluster_labels
 
 
@@ -277,27 +275,6 @@ def _build_readme_lines(
 ) -> list[str]:
     title = f"# {config.project} clustering ({method}) — {now.strftime('%d-%m-%y %H:%M')}"
     return [title, ""] + _summary_lines(config, method, X, cluster_labels, params)
-
-
-def _build_report(
-    config: ClusteringConfig, method: str, X: np.ndarray, cluster_labels: np.ndarray, params: dict, now: datetime
-) -> str:
-    lines = [f"# {config.project}_{now.strftime('%d-%m-%y')}", f"## {now.strftime('%H:%M')} ({method})", ""] + _summary_lines(
-        config, method, X, cluster_labels, params
-    )
-    return "\n".join(lines)
-
-
-def _write_report(
-    config: ClusteringConfig, method: str, X: np.ndarray, cluster_labels: np.ndarray, params: dict, now: datetime
-) -> Path:
-    report_dir = REPORTS_ROOT / config.project
-    report_dir.mkdir(parents=True, exist_ok=True)
-    # method in the filename: multiple methods share the same `now` in one run,
-    # so without it the 2nd method's report would silently overwrite the 1st's.
-    report_path = report_dir / f"{REPORT_FILENAME_PREFIX}__{method}__{now.strftime('%d-%m-%y__%H-%M')}.md"
-    report_path.write_text(_build_report(config, method, X, cluster_labels, params, now))
-    return report_path
 
 
 def _write_comparison_readme(comparison_dir: Path, config: ClusteringConfig, now: datetime) -> None:
@@ -429,11 +406,16 @@ def _write_tuning_output(
         f"Swept parameters: {swept_params}",
         f"Combinations evaluated: {len(results)}",
         f"Metrics: {metric_cols}",
-    ] + consensus_suggestion_lines(results, method) + [
         "",
         "No automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",
     ]
     (output_dir / "config.md").write_text("\n".join(readme_lines) + "\n")
+
+    suggestion_lines = consensus_suggestion_lines(results, method)
+    if suggestion_lines:
+        (output_dir / "consensus_suggestions.md").write_text(
+            "\n".join([f"# {title} — consensus/stability suggestions", ""] + suggestion_lines) + "\n"
+        )
 
 
 def _write_standalone_diagnostic(output_dir: Path, method: str, X: np.ndarray, base_params: dict, title: str) -> None:

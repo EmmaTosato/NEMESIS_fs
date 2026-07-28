@@ -1,12 +1,12 @@
 {
   "project": "clinical_connectome",
   "input_path": "data/derived/lesion_matrix/21-07_s1.1",
-  "reduction_method": "pacmap",
+  "reduction_method": "tsne",
   "params_file": "config/registry/params_reduction.json",
   "output_root": "results/lesion/dim_reduction",
   "session_name": "s1.1",
   "overwrite": true,
-  "fine_tuning": false,
+  "fine_tuning": true,
   "regress_out_volume": false,
-  "run_notes": ""
+  "run_notes": "first tuning_grid on perplexity [5,15,30,50,75]"
 }

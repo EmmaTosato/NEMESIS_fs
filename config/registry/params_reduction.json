@@ -9,7 +9,11 @@
       "learning_rate": 200,
       "max_iter": 1000,
       "random_state": 0
-    }
+    },
+    "tuning_grid": {
+      "perplexity": [5, 15, 30, 50, 75]
+    },
+    "trustworthiness_n_neighbors": 10
   },
   "umap": {
     "tag_param": "min_dist",
@@ -22,7 +26,7 @@
       "metric": "euclidean"
     },
     "tuning_grid": {
-      "n_neighbors": [5, 15, 30],
+      "n_neighbors": [5, 15, 30, 50, 100],
       "metric": ["euclidean", "jaccard", "dice"]
     },
     "trustworthiness_n_neighbors": 10

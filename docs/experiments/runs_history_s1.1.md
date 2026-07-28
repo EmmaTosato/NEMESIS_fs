@@ -10,7 +10,9 @@
 - **Configurazioni Scelte (Clustering):**
   - **UMAP:** K-Means (k=4), Agglomerative (k=5), GMM (n=4), Spectral (n=8)
   - **PACMAP:** K-Means (k=6), Agglomerative (k=2), GMM (n=6). *Spectral escluso di proposito (fonde i satelliti).*
-  - **t-SNE:** K-Means (k=5), Agglomerative (k=2), GMM (n=2), Spectral (n=5)
+  - **t-SNE:**
+    - K-Means (k=5), Agglomerative (k=2), GMM (n=2), Spectral (n=5)
+    - t-sne seguie i parametri fissati da Thiebaut de Schotten et al. 2020
 - **Casi Aperti (DBSCAN):** Escluso dalla produzione su tutte le riduzioni. Su umap/tsne/pca produce rumore totale o nessuna struttura; su pacmap ha un trade-off irrisolto tra qualità e copertura della coorte (eps=0.3 vs 0.5/0.7). Da analizzare in sessione dedicata prima dell'uso.
 - **Motivazione / Decisione:** Valori determinati dall'analisi quantitativa e visiva documentata in [`tuning_analysis_s1.1.md`](tuning_analysis_s1.1.md).
 - **Riferimento Log (CSV):** `results/lesion/dim_reduction_clustering/<riduzione>/runs.csv`

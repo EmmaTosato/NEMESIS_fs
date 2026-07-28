@@ -9,6 +9,7 @@ from src.analysis.tuning import (
     evaluate_pacmap,
     evaluate_pca,
     evaluate_pca_varimax,
+    evaluate_tsne,
     evaluate_umap,
     run_tuning_sweep,
 )
@@ -60,6 +61,12 @@ def test_evaluate_umap_binary_metric_scored_against_matching_metric_not_euclidea
     embedding, matching_metric_score = evaluate_umap(_X_BINARY, params, trustworthiness_n_neighbors=5)
     euclidean_score = float(trustworthiness(_X_BINARY, embedding, n_neighbors=5, metric="euclidean"))
     assert matching_metric_score != pytest.approx(euclidean_score)
+
+
+def test_evaluate_tsne_returns_embedding_and_trustworthiness():
+    embedding, score = evaluate_tsne(_X, {"n_components": 2, "perplexity": 10, "random_state": 0}, trustworthiness_n_neighbors=5)
+    assert embedding.shape == (40, 2)
+    assert 0.0 <= score <= 1.0
 
 
 def test_evaluate_pca_varimax_returns_embedding_and_variance():
@@ -151,10 +158,27 @@ def test_run_tuning_sweep_pacmap_without_trustworthiness_n_neighbors_raises():
 
 
 def test_run_tuning_sweep_unsupported_method_raises():
-    with pytest.raises(ValueError, match="fine-tuning not supported for method 'tsne'"):
-        run_tuning_sweep("tsne", _X, {}, {"perplexity": [10, 20]}, None)
+    with pytest.raises(ValueError, match="fine-tuning not supported for method 'kmeans'"):
+        run_tuning_sweep("kmeans", _X, {}, {"n_clusters": [2, 3]}, None)
 
 
 def test_run_tuning_sweep_umap_without_trustworthiness_n_neighbors_raises():
     with pytest.raises(ValueError, match="trustworthiness_n_neighbors is required"):
         run_tuning_sweep("umap", _X, {"random_state": 0}, {"n_neighbors": [5]}, trustworthiness_n_neighbors=None)
+
+
+def test_run_tuning_sweep_tsne_one_param():
+    df = run_tuning_sweep(
+        "tsne",
+        _X,
+        base_params={"n_components": 2, "random_state": 0},
+        tuning_grid={"perplexity": [5, 10]},
+        trustworthiness_n_neighbors=5,
+    )
+    assert list(df.columns) == ["perplexity", TUNING_METRIC_NAMES["tsne"]]
+    assert len(df) == 2
+
+
+def test_run_tuning_sweep_tsne_without_trustworthiness_n_neighbors_raises():
+    with pytest.raises(ValueError, match="trustworthiness_n_neighbors is required"):
+        run_tuning_sweep("tsne", _X, {"n_components": 2, "random_state": 0}, {"perplexity": [5]}, trustworthiness_n_neighbors=None)

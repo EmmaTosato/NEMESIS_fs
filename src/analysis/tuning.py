@@ -1,20 +1,22 @@
 """Manual fine-tuning sweep for dimensionality-reduction methods that support it
-(today: umap, pca, pca_varimax, pacmap).
+(today: umap, tsne, pca, pca_varimax, pacmap).
 
 No automatic selection: run_tuning_sweep only produces a comparison table -
 a human reads it (or the accompanying plot) and picks the best combination by
 hand, then writes it into params_reduction.json's "params" for a normal
-(fine_tuning=false) run. t-SNE is deliberately excluded - its parameters come
-straight from Thiebaut de Schotten et al. 2020, not from a sweep (see
+(fine_tuning=false) run. t-SNE's other parameters (early_exaggeration,
+learning_rate, max_iter) still come straight from Thiebaut de Schotten et al.
+2020 and are not swept - only perplexity is, on explicit request, since the
+paper's own supplementary material sweeps it too (see
 docs/methods/dimensionality_reduction.md).
 
 Quality metric differs by method, on purpose (see docs/methods/dimensionality_reduction.md):
-- umap/pacmap: trustworthiness(X, embedding) - how well local neighborhoods
-  survive the projection. Generic across any neighbor-based non-linear
-  embedding, not umap-specific, so pacmap reuses it unchanged. For umap,
-  a binary metric (jaccard/dice) in the swept "metric" is scored with that
-  *same* metric (see evaluate_umap) - never silently compared against
-  trustworthiness's own euclidean default.
+- umap/tsne/pacmap: trustworthiness(X, embedding) - how well local
+  neighborhoods survive the projection. Generic across any neighbor-based
+  non-linear embedding, not umap-specific, so tsne/pacmap reuse it unchanged.
+  For umap, a binary metric (jaccard/dice) in the swept "metric" is scored
+  with that *same* metric (see evaluate_umap) - never silently compared
+  against trustworthiness's own euclidean default.
 - pca/pca_varimax: cumulative explained variance ratio - PCA's own natural,
   standard criterion, and the exact one the paper uses to choose a component
   count. Varimax rotation is orthogonal, so it doesn't change the total
@@ -33,16 +35,17 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import trustworthiness
 
 from src.analysis.distances import SUPPORTED_BINARY_METRICS, binary_pairwise_distance
-from src.analysis.reduction import pacmap_embed, pca_varimax_embed, umap_embed
+from src.analysis.reduction import pacmap_embed, pca_varimax_embed, tsne_embed, umap_embed
 
 TUNING_METRIC_NAMES = {
     "umap": "trustworthiness",
+    "tsne": "trustworthiness",
     "pca": "cumulative_explained_variance",
     "pca_varimax": "cumulative_explained_variance",
     "pacmap": "trustworthiness",
 }
 
-METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS = {"umap", "pacmap"}
+METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS = {"umap", "tsne", "pacmap"}
 
 
 def evaluate_umap(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int) -> tuple[np.ndarray, float]:
@@ -74,6 +77,18 @@ def evaluate_umap(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int)
     return embedding, score
 
 
+def evaluate_tsne(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int) -> tuple[np.ndarray, float]:
+    """Embed with t-SNE, then score with trustworthiness(X, embedding).
+
+    Only perplexity is ever swept (see module docstring) - t-SNE's params
+    have no "metric" key here, so unlike evaluate_umap there's no binary
+    (jaccard/dice) branch to handle.
+    """
+    embedding = tsne_embed(X, params)
+    score = float(trustworthiness(X, embedding, n_neighbors=trustworthiness_n_neighbors))
+    return embedding, score
+
+
 def evaluate_pca(X: np.ndarray, params: dict) -> tuple[np.ndarray, float]:
     fitted = PCA(**params)
     embedding = fitted.fit_transform(X)
@@ -96,6 +111,7 @@ def evaluate_pacmap(X: np.ndarray, params: dict, trustworthiness_n_neighbors: in
 
 _EVALUATORS: dict[str, Callable] = {
     "umap": evaluate_umap,
+    "tsne": evaluate_tsne,
     "pca": evaluate_pca,
     "pca_varimax": evaluate_pca_varimax,
     "pacmap": evaluate_pacmap,
@@ -117,8 +133,9 @@ def run_tuning_sweep(
     column (see TUNING_METRIC_NAMES).
 
     Raises ValueError for a method with no supported tuning evaluator (only
-    the methods in TUNING_METRIC_NAMES are supported today - t-SNE/kmeans have
-    no tuning_grid to begin with, see params.py.load_tuning_grid).
+    the methods in TUNING_METRIC_NAMES are supported today - kmeans/agglomerative/
+    gmm/dbscan/spectral have no tuning_grid to begin with here, see
+    clustering_tuning.py instead, and params.py.load_tuning_grid).
     """
     if method not in TUNING_METRIC_NAMES:
         raise ValueError(f"fine-tuning not supported for method {method!r} - known: {sorted(TUNING_METRIC_NAMES)}")

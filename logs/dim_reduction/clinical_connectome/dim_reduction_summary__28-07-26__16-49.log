@@ -1,0 +1,8 @@
+INFO: Starting fine-tuning sweep for tsne (5 combinations)
+INFO: Evaluating combination 1/5: {'perplexity': 5}
+INFO: Evaluating combination 2/5: {'perplexity': 15}
+INFO: Evaluating combination 3/5: {'perplexity': 30}
+INFO: Evaluating combination 4/5: {'perplexity': 50}
+INFO: Evaluating combination 5/5: {'perplexity': 75}
+INFO: tuning results written to results/lesion/dim_reduction/tsne/tuning/28-07_s1.1 (5 combinations evaluated)
+INFO: done - tuning results written to results/lesion/dim_reduction/tsne/tuning/28-07_s1.1, log written to logs/dim_reduction/clinical_connectome/dim_reduction_summary__28-07-26__16-49.log

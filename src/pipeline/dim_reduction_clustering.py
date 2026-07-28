@@ -81,7 +81,6 @@ from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
 
-REPORTS_ROOT = Path("summaries") / "dim_reduction_clustering"
 LOGS_ROOT = Path("logs") / "dim_reduction_clustering"
 REPORT_FILENAME_PREFIX = "dim_reduction_clustering_summary"
 
@@ -261,7 +260,6 @@ def _run_one_method(
         )
 
     try:
-        report_path = _write_report(config, method, X, embedding, cluster_labels, reduction_params, clustering_params, now)
         append_run_log_entry(
             config.output_root / config.reduction_method,
             effective_session_name,
@@ -273,10 +271,10 @@ def _run_one_method(
             extra_columns={"reduction_method": config.reduction_method, "clustering_method": method},
         )
     except OSError as exc:
-        logging.error("[%s] cannot write report/run log: %s", method, exc, exc_info=True)
+        logging.error("[%s] cannot write run log: %s", method, exc, exc_info=True)
         return None
 
-    logging.info("[%s] done - output written to %s, report written to %s", method, output_dir, report_path)
+    logging.info("[%s] done - output written to %s", method, output_dir)
     return cluster_labels
 
 
@@ -356,45 +354,6 @@ def _build_readme_lines(
 ) -> list[str]:
     title = f"# {config.project} dim_reduction_clustering ({config.reduction_method}+{method}) — {now.strftime('%d-%m-%y %H:%M')}"
     return [title, ""] + _summary_lines(config, method, X, embedding, cluster_labels, reduction_params, clustering_params)
-
-
-def _build_report(
-    config: DimReductionClusteringConfig,
-    method: str,
-    X: np.ndarray,
-    embedding: np.ndarray,
-    cluster_labels: np.ndarray,
-    reduction_params: dict,
-    clustering_params: dict,
-    now: datetime,
-) -> str:
-    lines = [
-        f"# {config.project}_{now.strftime('%d-%m-%y')}",
-        f"## {now.strftime('%H:%M')} ({config.reduction_method}+{method})",
-        "",
-    ] + _summary_lines(config, method, X, embedding, cluster_labels, reduction_params, clustering_params)
-    return "\n".join(lines)
-
-
-def _write_report(
-    config: DimReductionClusteringConfig,
-    method: str,
-    X: np.ndarray,
-    embedding: np.ndarray,
-    cluster_labels: np.ndarray,
-    reduction_params: dict,
-    clustering_params: dict,
-    now: datetime,
-) -> Path:
-    report_dir = REPORTS_ROOT / config.project
-    report_dir.mkdir(parents=True, exist_ok=True)
-    # method in the filename: multiple methods share the same `now` in one
-    # run, so without it the 2nd method's report would silently overwrite the 1st's.
-    report_path = report_dir / f"{REPORT_FILENAME_PREFIX}__{method}__{now.strftime('%d-%m-%y__%H-%M')}.md"
-    report_path.write_text(
-        _build_report(config, method, X, embedding, cluster_labels, reduction_params, clustering_params, now)
-    )
-    return report_path
 
 
 def _run_fine_tuning(
@@ -541,11 +500,16 @@ def _write_tuning_output(
         f"Swept parameters: {swept_params}",
         f"Combinations evaluated: {len(results)}",
         f"Metrics: {metric_cols}",
-    ] + consensus_suggestion_lines(results, method) + [
         "",
         "No automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",
     ]
     (output_dir / "config.md").write_text("\n".join(readme_lines) + "\n")
+
+    suggestion_lines = consensus_suggestion_lines(results, method)
+    if suggestion_lines:
+        (output_dir / "consensus_suggestions.md").write_text(
+            "\n".join([f"# {title} — consensus/stability suggestions", ""] + suggestion_lines) + "\n"
+        )
 
 
 def _write_standalone_diagnostic(output_dir: Path, method: str, embedding: np.ndarray, base_params: dict, title: str) -> None:

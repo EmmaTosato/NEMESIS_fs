@@ -2,7 +2,7 @@
 
 Plain-language reference for the methods wired into `src/analysis/reduction.py` (`config/registry/params_reduction.json`). Not a general ML textbook chapter — just enough to read a config's hyperparameters and know what they're actually controlling, and to pick a method with some intuition for its trade-offs. For clustering, see `docs/methods/clustering.md`. For *why* these specific methods were chosen for NEMESIS (varimax PCA on parcellated lesion damage), see Thiebaut de Schotten et al. 2020 (`papers/Thiebaut de Schotten et al - 2020 - ...`).
 
-t-SNE's parameters below are fixed from that paper - not something to fine-tune. UMAP/PCA's `n_neighbors`/`min_dist`/`n_components` don't have a paper-given answer for this data, so `dim_reduction.py` supports a manual fine-tuning sweep over them (`fine_tuning: true`, `docs/guides/analysis.md` "Fine-tuning") - a human still picks the final value by inspecting the sweep's results, never automatic.
+Most of t-SNE's parameters below are fixed from that paper - `early_exaggeration`/`learning_rate`/`max_iter` are not fine-tuned. `perplexity` is the exception: the paper's own supplementary material sweeps it too, so `dim_reduction.py` supports a manual fine-tuning sweep over it exactly like UMAP/PCA's `n_neighbors`/`min_dist`/`n_components` (`fine_tuning: true`, `docs/guides/dim_reduction.md` "Fine-tuning") - a human still picks the final value by inspecting the sweep's results, never automatic.
 
 ## The problem it solves
 
@@ -24,7 +24,7 @@ Non-linear. Tries to place subjects on a 2D (or 3D) map such that subjects that 
 - **Distances *between* clusters on the plot are not meaningful** — two clusters drawn far apart aren't necessarily more different than two drawn close together. Cluster *sizes* on the plot aren't meaningful either. This is t-SNE's most common misreading: don't infer relative similarity between clusters from the plot, only "these points are neighbors" within a cluster.
 - **Stochastic**: results differ between runs unless `random_state` (or `init="random"`'s seed) is fixed — set once and kept in `config/registry/params_reduction.json` for a reproducible run.
 - **Key parameters**:
-  - `perplexity` — roughly, the expected number of close neighbors per point; controls the local/global balance. Too low → fragments genuine clusters into noise; too high → smears distinct clusters together. Typical range 5-50; must be smaller than the number of subjects.
+  - `perplexity` — roughly, the expected number of close neighbors per point; controls the local/global balance. Too low → fragments genuine clusters into noise; too high → smears distinct clusters together. Typical range 5-50; must be smaller than the number of subjects. The one t-SNE parameter fine-tuned here (`fine_tuning: true`, `tuning_grid.perplexity` in `config/registry/params_reduction.json`) — same sweep mechanism as UMAP/PCA, scored with trustworthiness (see `docs/guides/dim_reduction.md` "Fine-tuning").
   - `early_exaggeration` — inflates distances between clusters early in optimization to help them separate cleanly before fine-tuning; rarely needs tuning away from the library default range.
   - `learning_rate`, `max_iter` — standard optimization controls; `max_iter` too low can leave the embedding under-converged (points still visibly drifting if you re-ran with more iterations).
 

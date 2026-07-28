@@ -56,7 +56,6 @@ def _build_matrix(tmp_path, monkeypatch, n_subjects=12):
 
 def test_clustering_end_to_end(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_summaries")
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"
@@ -97,7 +96,6 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
 
 def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_summaries")
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"
@@ -127,7 +125,6 @@ def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):
 
 def test_clustering_end_to_end_gmm(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_summaries")
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"
@@ -157,7 +154,6 @@ def test_clustering_end_to_end_gmm(tmp_path, monkeypatch):
 
 def test_clustering_end_to_end_spectral(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_summaries")
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"
@@ -189,7 +185,6 @@ def test_clustering_end_to_end_spectral(tmp_path, monkeypatch):
 
 def test_clustering_end_to_end_dbscan_reports_noise_separately(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_summaries")
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"
@@ -225,7 +220,6 @@ def test_clustering_end_to_end_dbscan_reports_noise_separately(tmp_path, monkeyp
 
 def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_summaries")
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"
@@ -262,13 +256,6 @@ def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path,
         assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
         assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
-    # per-method reports don't collide (method disambiguates the filename)
-    report_dir = tmp_path / "cl_summaries" / "testproj"
-    reports = list(report_dir.glob("clustering_summary__*.md"))
-    assert len(reports) == 2
-    assert any("kmeans" in p.name for p in reports)
-    assert any("agglomerative" in p.name for p in reports)
-
     comparison_dir = next(p for p in (output_root / "comparison").iterdir() if p.is_dir())
     assert (comparison_dir / "cluster_comparison.png").stat().st_size > 0
     comparison_readme = (comparison_dir / "config.md").read_text()
@@ -278,7 +265,6 @@ def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path,
 
 def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_summaries")
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"
@@ -326,9 +312,58 @@ def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monke
     assert not (output_root / "kmeans" / "runs.csv").exists()  # tuning writes runs_tuning.csv, not runs.csv
 
 
+def test_clustering_fine_tuning_kmeans_with_consensus_writes_rsc_monti_columns(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "kmeans": {
+                    "params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"},
+                    "tuning_grid": {"n_clusters": [2, 3]},
+                    "consensus": {"rsc": {"n_repeats": 5}, "monti": {"n_repeats": 10, "subsample_fraction": 0.8}},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_consensus",
+        "overwrite": False,
+        "fine_tuning": True,
+        "run_notes": "prova consensus/stability clustering",
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next((output_root / "kmeans" / "tuning").iterdir())
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert "rsc_eigengap" in results.columns
+    assert "monti_stability" in results.columns
+    assert results["rsc_eigengap"].notna().all()
+    assert results["monti_stability"].notna().all()
+
+    # config.md stays a pure launch snapshot - the suggestion goes in its own file
+    config_md = (tuning_dir / "config.md").read_text()
+    assert "suggests" not in config_md.lower()
+
+    suggestions = (tuning_dir / "consensus_suggestions.md").read_text()
+    assert "RSC suggests n_clusters=" in suggestions
+    assert "Monti suggests n_clusters=" in suggestions
+
+
 def test_clustering_fine_tuning_gmm_writes_bic_aic(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_summaries")
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"
@@ -363,7 +398,6 @@ def test_clustering_fine_tuning_gmm_writes_bic_aic(tmp_path, monkeypatch):
 
 def test_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_summaries")
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"
@@ -397,7 +431,6 @@ def test_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkey
 
 def test_clustering_fine_tuning_spectral_writes_eigengap(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_summaries")
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"
@@ -436,7 +469,6 @@ def test_clustering_fine_tuning_spectral_writes_eigengap(tmp_path, monkeypatch):
 
 def test_clustering_fine_tuning_dbscan_writes_k_distance_and_noise_fraction(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_summaries")
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"
@@ -474,7 +506,6 @@ def test_clustering_fine_tuning_multiple_methods_stops_on_first_failure(tmp_path
     philosophy as the production loop.
     """
     input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(clustering, "REPORTS_ROOT", tmp_path / "cl_summaries")
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"

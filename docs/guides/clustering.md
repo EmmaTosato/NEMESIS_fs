@@ -53,7 +53,7 @@ Oltre ai 3 indici generici, per `kmeans`/`gmm`/`spectral` puoi attivare due colo
 - `"rsc"` (opzionale): ripete il metodo `n_repeats` volte sugli stessi identici dati, cambiando solo il seed casuale — misura quanto l'assegnazione dipende dal caso dell'inizializzazione. Aggiunge la colonna `rsc_eigengap` (più alto = più stabile).
 - `"monti"` (opzionale): ripete il metodo `n_repeats` volte su un sottocampione casuale di soggetti (`subsample_fraction`, es. `0.8` = 80%) — misura quanto l'assegnazione dipende da chi c'è nel campione. Aggiunge la colonna `monti_stability` (più alto = più stabile).
 
-Puoi attivarne uno solo o entrambi. Quando presenti, `tuning_plot.png` include anche queste colonne, e `config.md` riporta in più una riga di testo con il `k` suggerito da ciascun metodo (es. "RSC suggests n_clusters=4 (...)") — un'informazione in più da guardare insieme alle altre, mai una scelta automatica applicata al posto tuo.
+Puoi attivarne uno solo o entrambi. Quando presenti, `tuning_plot.png` include anche queste colonne, e nella stessa cartella trovi un file separato `consensus_suggestions.md` con il `k` suggerito da ciascun metodo (es. "RSC suggests n_clusters=4 (...)") — un'informazione in più da guardare insieme alle altre, mai scritta dentro `config.md` (quello resta sempre uno snapshot statico di come hai lanciato la pipeline) né una scelta automatica applicata al posto tuo.
 
 ### 2. Modalità Produzione (`"fine_tuning": false`)
 Una volta scelti i parametri (es. `n_clusters`) e salvati in `config/registry/params_clustering.json`, lanci lo script in questa modalità: produce il clustering finale, come descritto sopra.
