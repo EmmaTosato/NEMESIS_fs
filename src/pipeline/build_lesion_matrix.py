@@ -123,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         report_path = _write_report(config, X, metadata, parcel_ids, now)
         append_run_log_entry(
-            config.output_root / "runs.csv",
+            config.output_root,
             config.session_name,
             now,
             "production",

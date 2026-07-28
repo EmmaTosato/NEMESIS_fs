@@ -50,6 +50,7 @@ import numpy as np
 import pandas as pd
 
 from src.analysis.clustering import CLUSTERING_METHODS
+from src.analysis.covariates import check_volume_regression_compatible, regress_out_covariate
 from src.analysis.clustering_tuning import (
     METHOD_METRIC_COLUMNS,
     STANDALONE_DIAGNOSTIC_METHODS,
@@ -108,11 +109,19 @@ def main(argv: list[str] | None = None) -> int:
     try:
         X, metadata, _extra_arrays = load_matrix(config.input_path)
         reduction_params, reduction_tag = load_method_params(config.reduction_params_file, config.reduction_method)
+        check_volume_regression_compatible(config.regress_out_volume, reduction_params)
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return 1
 
     embedding = REDUCTION_METHODS[config.reduction_method](X, reduction_params)
+
+    if config.regress_out_volume:
+        # X is binary (0/1 per voxel); a row's voxel count is exactly proportional to its
+        # lesion volume in ml, and OLS residuals are invariant to that scalar rescaling.
+        lesion_load_voxels = X.sum(axis=1)
+        embedding = regress_out_covariate(embedding, lesion_load_voxels)
+        logging.info("regressed out lesion volume (voxel count) from the embedding before clustering")
 
     effective_reduction_session = f"{config.session_name}_{reduction_tag}" if reduction_tag else config.session_name
 
@@ -288,6 +297,7 @@ def _config_summary(config: DimReductionClusteringConfig, method: str) -> str:
         "session_name": config.session_name,
         "overwrite": config.overwrite,
         "fine_tuning": config.fine_tuning,
+        "regress_out_volume": config.regress_out_volume,
         "run_notes": config.run_notes,
     }
     return json.dumps(payload, indent=2)

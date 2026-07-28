@@ -9,5 +9,6 @@
   "session_name": "s1.1",
   "overwrite": true,
   "fine_tuning": false,
+  "regress_out_volume": false,
   "run_notes": "pacmap (n_neighbors=5, best trustworthiness from tuning, results/lesion/dim_reduction/pacmap/tuning/23-07_s1.1_pacmap_tune) + kmeans/agglomerative/gmm with tuned values from TUNING_ANALYSIS.md/RUNNING_STRATEGIES.md (session s1.1): k=6/k=2/n=6. spectral excluded: fuses satellite groups on this embedding, independent of n_neighbors (seen in a previous session). dbscan excluded: open question, see RUNNING_STRATEGIES.md - not yet understood well enough to trust in production on any reduction"
 }

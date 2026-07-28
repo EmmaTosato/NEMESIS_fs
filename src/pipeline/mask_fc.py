@@ -122,7 +122,7 @@ def main(argv: list[str] | None = None) -> int:
 
         try:
             append_run_log_entry(
-                config.output_root / "runs.csv",
+                config.output_root,
                 config.session_name,
                 now,
                 "production",

@@ -29,6 +29,7 @@ class DimReductionConfig:
     session_name: str
     overwrite: bool
     fine_tuning: bool
+    regress_out_volume: bool
     run_notes: str | None
 
 
@@ -57,6 +58,7 @@ class DimReductionClusteringConfig:
     session_name: str
     overwrite: bool
     fine_tuning: bool
+    regress_out_volume: bool
     run_notes: str | None
 
 
@@ -72,6 +74,7 @@ def load_dim_reduction_config(path: str | Path) -> DimReductionConfig:
         session_name=session_name,
         overwrite=overwrite,
         fine_tuning=_require_bool(raw, "fine_tuning"),
+        regress_out_volume=_require_bool(raw, "regress_out_volume"),
         run_notes=run_notes,
     )
 
@@ -106,6 +109,7 @@ def load_dim_reduction_clustering_config(path: str | Path) -> DimReductionCluste
         session_name=session_name,
         overwrite=overwrite,
         fine_tuning=_require_bool(raw, "fine_tuning"),
+        regress_out_volume=_require_bool(raw, "regress_out_volume"),
         run_notes=run_notes,
     )
 

@@ -207,7 +207,7 @@ def _run_one_method(
     try:
         report_path = _write_report(config, method, X, cluster_labels, params, now)
         append_run_log_entry(
-            _runs_csv_path(config, method), effective_session_name, now, "production", params, output_dir, config.run_notes
+            _run_log_dir(config, method), effective_session_name, now, "production", params, output_dir, config.run_notes
         )
     except OSError as exc:
         logging.error("[%s] cannot write report/run log: %s", method, exc, exc_info=True)
@@ -221,8 +221,8 @@ def _comparison_dir(config: ClusteringConfig, now: datetime) -> Path:
     return config.output_root / "comparison" / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
-def _runs_csv_path(config: ClusteringConfig, method: str) -> Path:
-    return config.output_root / method / "runs.csv"
+def _run_log_dir(config: ClusteringConfig, method: str) -> Path:
+    return config.output_root / method
 
 
 def _config_summary(config: ClusteringConfig, method: str) -> str:
@@ -351,7 +351,7 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
 
     try:
         append_run_log_entry(
-            _runs_csv_path(config, method),
+            _run_log_dir(config, method),
             config.session_name,
             now,
             "tuning",

@@ -33,6 +33,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from src.analysis.covariates import check_volume_regression_compatible, regress_out_covariate
 from src.analysis.model_config import DimReductionConfig, load_dim_reduction_config
 from src.analysis.params import load_method_params, load_trustworthiness_n_neighbors, load_tuning_grid
 from src.analysis.plotting import (
@@ -91,6 +92,7 @@ def _run_production(
 ) -> int:
     try:
         params, tag = load_method_params(config.params_file, config.reduction_method)
+        check_volume_regression_compatible(config.regress_out_volume, params)
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return 1
@@ -99,6 +101,13 @@ def _run_production(
     output_dir = config.output_root / config.reduction_method / f"{now.strftime('%d-%m')}_{effective_session_name}"
 
     embedding = REDUCTION_METHODS[config.reduction_method](X, params)
+
+    if config.regress_out_volume:
+        # X is binary (0/1 per voxel); a row's voxel count is exactly proportional to its
+        # lesion volume in ml, and OLS residuals are invariant to that scalar rescaling.
+        lesion_load_voxels = X.sum(axis=1)
+        embedding = regress_out_covariate(embedding, lesion_load_voxels)
+        logging.info("regressed out lesion volume (voxel count) from the embedding before saving")
 
     try:
         save_matrix(
@@ -286,6 +295,7 @@ def _config_summary(config: DimReductionConfig) -> str:
         "session_name": config.session_name,
         "overwrite": config.overwrite,
         "fine_tuning": config.fine_tuning,
+        "regress_out_volume": config.regress_out_volume,
         "run_notes": config.run_notes,
     }
     return json.dumps(payload, indent=2)
