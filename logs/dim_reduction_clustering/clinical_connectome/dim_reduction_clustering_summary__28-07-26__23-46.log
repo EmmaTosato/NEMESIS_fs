@@ -7,7 +7,7 @@ INFO: Evaluating combination 4/7: {'n_clusters': 5}
 INFO: Evaluating combination 5/7: {'n_clusters': 6}
 INFO: Evaluating combination 6/7: {'n_clusters': 8}
 INFO: Evaluating combination 7/7: {'n_clusters': 10}
-INFO: [kmeans] tuning results written to results/lesion/dim_reduction_clustering/umap/kmeans/tuning/28-07_s1.1_volON_meuclidean (7 combination(s) evaluated)
+INFO: [kmeans] tuning results written to results/lesion/dim_reduction_clustering/umap/kmeans/tuning/28-07_s1.1_volON_m_euclidean (7 combination(s) evaluated)
 INFO: Starting clustering fine-tuning sweep for agglomerative (28 combinations)
 INFO: Evaluating combination 1/28: {'n_clusters': 2, 'linkage': 'ward'}
 INFO: Evaluating combination 2/28: {'n_clusters': 2, 'linkage': 'complete'}
@@ -37,8 +37,8 @@ INFO: Evaluating combination 25/28: {'n_clusters': 10, 'linkage': 'ward'}
 INFO: Evaluating combination 26/28: {'n_clusters': 10, 'linkage': 'complete'}
 INFO: Evaluating combination 27/28: {'n_clusters': 10, 'linkage': 'average'}
 INFO: Evaluating combination 28/28: {'n_clusters': 10, 'linkage': 'single'}
-INFO: [agglomerative] dendrogram written to results/lesion/dim_reduction_clustering/umap/agglomerative/tuning/28-07_s1.1_volON_meuclidean/dendrogram.png
-INFO: [agglomerative] tuning results written to results/lesion/dim_reduction_clustering/umap/agglomerative/tuning/28-07_s1.1_volON_meuclidean (28 combination(s) evaluated)
+INFO: [agglomerative] dendrogram written to results/lesion/dim_reduction_clustering/umap/agglomerative/tuning/28-07_s1.1_volON_m_euclidean/dendrogram.png
+INFO: [agglomerative] tuning results written to results/lesion/dim_reduction_clustering/umap/agglomerative/tuning/28-07_s1.1_volON_m_euclidean (28 combination(s) evaluated)
 INFO: Starting clustering fine-tuning sweep for gmm (28 combinations)
 INFO: Evaluating combination 1/28: {'n_components': 2, 'covariance_type': 'full'}
 INFO: Evaluating combination 2/28: {'n_components': 2, 'covariance_type': 'tied'}
@@ -68,7 +68,7 @@ INFO: Evaluating combination 25/28: {'n_components': 10, 'covariance_type': 'ful
 INFO: Evaluating combination 26/28: {'n_components': 10, 'covariance_type': 'tied'}
 INFO: Evaluating combination 27/28: {'n_components': 10, 'covariance_type': 'diag'}
 INFO: Evaluating combination 28/28: {'n_components': 10, 'covariance_type': 'spherical'}
-INFO: [gmm] tuning results written to results/lesion/dim_reduction_clustering/umap/gmm/tuning/28-07_s1.1_volON_meuclidean (28 combination(s) evaluated)
+INFO: [gmm] tuning results written to results/lesion/dim_reduction_clustering/umap/gmm/tuning/28-07_s1.1_volON_m_euclidean (28 combination(s) evaluated)
 INFO: Starting clustering fine-tuning sweep for dbscan (18 combinations)
 INFO: Evaluating combination 1/18: {'eps': 0.3, 'min_samples': 3}
 WARNING: cannot compute silhouette/calinski_harabasz/davies_bouldin: 1 non-noise cluster(s) found (need 2..n-1) - degenerate combination, recording NaN
@@ -105,8 +105,8 @@ INFO: Evaluating combination 17/18: {'eps': 2.0, 'min_samples': 5}
 WARNING: cannot compute silhouette/calinski_harabasz/davies_bouldin: 1 non-noise cluster(s) found (need 2..n-1) - degenerate combination, recording NaN
 INFO: Evaluating combination 18/18: {'eps': 2.0, 'min_samples': 10}
 WARNING: cannot compute silhouette/calinski_harabasz/davies_bouldin: 1 non-noise cluster(s) found (need 2..n-1) - degenerate combination, recording NaN
-INFO: [dbscan] k-distance plot written to results/lesion/dim_reduction_clustering/umap/dbscan/tuning/28-07_s1.1_volON_meuclidean/k_distance_plot.png
-INFO: [dbscan] tuning results written to results/lesion/dim_reduction_clustering/umap/dbscan/tuning/28-07_s1.1_volON_meuclidean (18 combination(s) evaluated)
+INFO: [dbscan] k-distance plot written to results/lesion/dim_reduction_clustering/umap/dbscan/tuning/28-07_s1.1_volON_m_euclidean/k_distance_plot.png
+INFO: [dbscan] tuning results written to results/lesion/dim_reduction_clustering/umap/dbscan/tuning/28-07_s1.1_volON_m_euclidean (18 combination(s) evaluated)
 INFO: Starting clustering fine-tuning sweep for spectral (48 combinations)
 INFO: Evaluating combination 1/48: {'n_clusters': 2, 'n_neighbors': 10}
 INFO: Evaluating combination 2/48: {'n_clusters': 2, 'n_neighbors': 30}
@@ -156,6 +156,6 @@ INFO: Evaluating combination 45/48: {'n_clusters': 15, 'n_neighbors': 10}
 INFO: Evaluating combination 46/48: {'n_clusters': 15, 'n_neighbors': 30}
 INFO: Evaluating combination 47/48: {'n_clusters': 15, 'n_neighbors': 50}
 INFO: Evaluating combination 48/48: {'n_clusters': 15, 'n_neighbors': 100}
-INFO: [spectral] eigengap plot written to results/lesion/dim_reduction_clustering/umap/spectral/tuning/28-07_s1.1_volON_meuclidean/eigengap_plot.png
-INFO: [spectral] tuning results written to results/lesion/dim_reduction_clustering/umap/spectral/tuning/28-07_s1.1_volON_meuclidean (48 combination(s) evaluated)
+INFO: [spectral] eigengap plot written to results/lesion/dim_reduction_clustering/umap/spectral/tuning/28-07_s1.1_volON_m_euclidean/eigengap_plot.png
+INFO: [spectral] tuning results written to results/lesion/dim_reduction_clustering/umap/spectral/tuning/28-07_s1.1_volON_m_euclidean (48 combination(s) evaluated)
 INFO: done - fine-tuning for all 5 method(s) written under results/lesion/dim_reduction_clustering, log written to logs/dim_reduction_clustering/clinical_connectome/dim_reduction_clustering_summary__28-07-26__23-46.log
