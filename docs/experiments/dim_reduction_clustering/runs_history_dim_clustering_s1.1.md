@@ -1,6 +1,8 @@
-# Runs History S1.1
+# Runs History
 
-## 26-06-2026 Run
+# Dimensionality Reduction S1.1
+
+## 26-07-2026 Run
 
 - **Data Run Produzione:** 26 Luglio 2026
 - **Pipeline:** `dim_reduction_clustering`
@@ -14,6 +16,26 @@
     - K-Means (k=5), Agglomerative (k=2), GMM (n=2), Spectral (n=5)
     - t-sne seguie i parametri fissati da Thiebaut de Schotten et al. 2020
 - **Casi Aperti (DBSCAN):** Escluso dalla produzione su tutte le riduzioni. Su umap/tsne/pca produce rumore totale o nessuna struttura; su pacmap ha un trade-off irrisolto tra qualità e copertura della coorte (eps=0.3 vs 0.5/0.7). Da analizzare in sessione dedicata prima dell'uso.
-- **Motivazione / Decisione:** Valori determinati dall'analisi quantitativa e visiva documentata in [`tuning_dim_clustering_s1.1.md`](tuning_dim_clustering_s1.1.md) (tuning dei metodi di riduzione dimensionale: [`tuning_dim_s1.1.md`](tuning_dim_s1.1.md)).
+- **Motivazione / Decisione:** Valori determinati dall'analisi quantitativa e visiva documentata in
+  - [`tuning_dim_clustering_s1.1.md`](tuning_dim_clustering_s1.1.md) (tuning dei metodi di clustering)
+  - [`tuning_dim_s1.1.md`](tuning_dim_s1.1.md) - tuning non registrato, ma risalente al 23-07
 - **Riferimento Log (CSV):** `results/lesion/dim_reduction_clustering/<riduzione>/runs.csv`
 - **Output:** I risultati di questa sessione sono stati scritti in directory del tipo `26-07_s1.1_*` sotto ogni metodo.
+
+## 28-07-2026 Run
+
+- **Data Run Produzione:** 28 Luglio 2026
+- **Pipeline:** `dim_reduction_clustering`
+- **Dati in ingresso:** Matrice lesionale voxel-wise, 1150 soggetti (`data/derived/lesion_matrix/21-07_s1.1`)
+- **Riduzioni in Produzione:** UMAP, t-SNE
+
+  - Tuning fatto sulla base del tuing
+- **Configurazioni Scelte (Clustering):**
+- - **UMAP:**
+  - **PACMAP:**
+  - **t-SNE:**
+- **Motivazione / Decisione:**
+- - [`tuning_dim_s1.1.md`](tuning_dim_s1.1.md) - 28-07-2026 Analysis — UMAP, t-SNE
+- **Riferimento Log (CSV):** `results/lesion/dim_reduction_clustering/<riduzione>/runs.csv`
+- **Output:** I risultati di questa sessione sono stati scritti in directory del tipo `26-07_s1.1_*` sotto ogni metodo.
+-

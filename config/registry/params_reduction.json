@@ -19,11 +19,11 @@
     "tag_param": "min_dist",
     "tag_prefix": "d",
     "params": {
-      "n_neighbors": 5,
+      "n_neighbors": 15,
       "min_dist": 0.0,
       "n_components": 2,
       "random_state": 0,
-      "metric": "euclidean"
+      "metric": "jaccard"
     },
     "tuning_grid": {
       "n_neighbors": [5, 15, 30, 50, 100],

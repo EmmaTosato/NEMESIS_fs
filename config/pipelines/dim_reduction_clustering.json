@@ -1,18 +1,20 @@
 {
   "project": "clinical_connectome",
   "input_path": "data/derived/lesion_matrix/21-07_s1.1",
-  "reduction_method": "pacmap",
+  "reduction_method": "umap",
   "clustering_methods": [
     "kmeans",
     "agglomerative",
-    "gmm"
+    "gmm",
+    "dbscan",
+    "spectral"
   ],
   "reduction_params_file": "config/registry/params_reduction.json",
   "clustering_params_file": "config/registry/params_clustering.json",
   "output_root": "results/lesion/dim_reduction_clustering",
   "session_name": "s1.1",
   "overwrite": true,
-  "fine_tuning": false,
+  "fine_tuning": true,
   "regress_out_volume": false,
-  "run_notes": ""
+  "run_notes": "clustering tuning on updated umap embedding (n_neighbors=15, metric=jaccard, was n_neighbors=5/euclidean)"
 }

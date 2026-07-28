@@ -28,7 +28,7 @@
 
 **Come interpretarlo**: ogni componente è un asse di varianza, **ma non etichettato** — cosa rappresenti va sempre stabilito correlandolo con variabili note (età, volume lesione, ecc.), mai assunto a priori. A differenza degli altri tre metodi, PCA non ha alcuna nozione di "vicinato": due punti vicini nell'embedding PCA non erano necessariamente vicini nei dati originali, lo sono solo lungo le direzioni di massima varianza.
 
-**Uso nel progetto**: sia come riduzione diretta pre-clustering (150 o 2 componenti, vedi `TUNING_ANALYSIS.md`), sia — in Thiebaut de Schotten 2020 — come step **successivo** a un embedding (PCA varimax-rotated dopo t-SNE), un uso diverso dal nostro. **Verifica empirica fatta in questo progetto** (`TUNING_ANALYSIS.md`): un caso concreto del principio "va sempre correlato con variabili note" — una delle due componenti PCA su lesioni voxel-wise si è rivelata correlata al 92% (Pearson r) col volume lesionale, non con la topografia della lesione.
+**Uso nel progetto**: sia come riduzione diretta pre-clustering (150 o 2 componenti, vedi `tuning_dim_clustering_s1.1.md`), sia — in Thiebaut de Schotten 2020 — come step **successivo** a un embedding (PCA varimax-rotated dopo t-SNE), un uso diverso dal nostro. **Verifica empirica fatta in questo progetto** (`tuning_dim_clustering_s1.1.md`): un caso concreto del principio "va sempre correlato con variabili note" — una delle due componenti PCA su lesioni voxel-wise si è rivelata correlata al 92% (Pearson r) col volume lesionale, non con la topografia della lesione.
 
 ## Confronto sintetico
 

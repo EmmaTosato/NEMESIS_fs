@@ -62,11 +62,11 @@ Ultimo aggiornamento: 2026-07-28. Snapshot dello stato attuale del progetto — 
 - **Separazione log**: Invece di un singolo `runs.csv` con colonna `run_type`, ora ogni metodo (es. `pacmap/`) ospita due file distinti: `runs.csv` per la produzione e `runs_tuning.csv` per il tuning.
 - **Pulizia ID**: La colonna `run_id` (es. `s1.1_pacmap_tune`) è stata divisa in due colonne `session` (`s1.1`) e `id` (`pacmap_tune`).
 - **Migrazione storica**: Uno script automatizzato ha migrato tutti i log storici di `dim_reduction` e `dim_reduction_clustering` verso il nuovo schema senza perdere dati, ripristinando la pulizia formale (es. rimuovendo la colonna `reduction_method` dove ridondante).
-- **Nuovi documenti narrativi**: I file esplorativi `RUNNING_STRATEGIES.md` e `TUNING_ANALYSIS.md` in `results/lesion/...` sono stati ripuliti, strutturati e spostati in `docs/experiments/runs_history_s1.1.md` e `docs/experiments/tuning_analysis_s1.1.md` per un tracking versionato su Git pulito.
+- **Nuovi documenti narrativi**: I file esplorativi `RUNNING_STRATEGIES.md` e `TUNING_ANALYSIS.md` in `results/lesion/...` sono stati ripuliti, strutturati e spostati in `docs/experiments/dim_reduction_clustering/runs_history_dim_clustering_s1.1.md` e `docs/experiments/dim_reduction_clustering/tuning_dim_clustering_s1.1.md` per un tracking versionato su Git pulito.
 
 **File modificati/creati**:
 - **Codice**: `src/utils/run_log.py`, `src/pipeline/dim_reduction.py`, `src/pipeline/dim_reduction_clustering.py`
-- **Documentazione**: `docs/experiments/runs_history_s1.1.md`, `docs/experiments/tuning_analysis_s1.1.md`
+- **Documentazione**: `docs/experiments/dim_reduction_clustering/runs_history_dim_clustering_s1.1.md`, `docs/experiments/dim_reduction_clustering/tuning_dim_clustering_s1.1.md`
 - **Dati log**: Tutti i `runs.csv` e `runs_tuning.csv` in `results/lesion/dim_reduction*/`
 
 **Prossimo passo esatto**: Iniziare l'ispezione clinica/visiva dei cluster ottenuti da UMAP e t-SNE.
