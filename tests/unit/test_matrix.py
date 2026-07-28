@@ -71,12 +71,40 @@ def test_build_matrix_reports_filename_when_present_and_missing_marker_when_abse
     rows = matrix.build_matrix(ds, ["sub-STUNIPD0001", "sub-STUNIPD0002"], combinations)
 
     row1 = next(r for r in rows if r.subject_id == "sub-STUNIPD0001")
-    assert row1.cells["lesion/manual_masks/anat/lesion_mask"] == "sub-STUNIPD0001_label-lesion_mask.nii.gz"
-    assert row1.cells["lesion/manual_masks/anat/other_mask"] == matrix.MISSING_CELL
+    assert row1.cells["lesion/manual_masks/anat/lesion_mask"].filename == "sub-STUNIPD0001_label-lesion_mask.nii.gz"
+    assert row1.cells["lesion/manual_masks/anat/lesion_mask"].marker() == matrix.PRESENT_CELL
+    assert row1.cells["lesion/manual_masks/anat/other_mask"].marker() == matrix.MISSING_CELL
 
     row2 = next(r for r in rows if r.subject_id == "sub-STUNIPD0002")
-    assert row2.cells["lesion/manual_masks/anat/lesion_mask"] == matrix.MISSING_CELL
-    assert row2.cells["lesion/manual_masks/anat/other_mask"] == "sub-STUNIPD0002_label-other_mask.nii.gz"
+    assert row2.cells["lesion/manual_masks/anat/lesion_mask"].marker() == matrix.MISSING_CELL
+    assert row2.cells["lesion/manual_masks/anat/other_mask"].filename == "sub-STUNIPD0002_label-other_mask.nii.gz"
+    assert row2.cells["lesion/manual_masks/anat/other_mask"].marker() == matrix.PRESENT_CELL
+
+
+def test_build_matrix_reports_incomplete_when_some_but_not_all_templates_match(tmp_path):
+    """A leaf registering more than one template (e.g. feature/func/FC-pearson's
+    12 per-atlas files) is not a naming-variant alternate here - all of them
+    are expected to coexist per subject. A subject with only 1 of 2
+    registered templates must show as incomplete, not present."""
+    root = tmp_path / "UNIPD" / "WashU"
+    _touch(root / "derivatives" / "manual_masks" / "sub-STUNIPD0001" / "anat" / "sub-STUNIPD0001_label-lesion_mask.nii.gz")
+    file_patterns = FilePatterns(
+        project_roots={"lesion": tmp_path},
+        patterns={
+            ("lesion", "manual_masks", "anat", "lesion_mask"): [
+                "derivatives/manual_masks/{subject_id}/anat/{subject_id}_label-lesion_mask.nii.gz",
+                "derivatives/manual_masks/{subject_id}/anat/{subject_id}_extra-lesion_mask.nii.gz",
+            ]
+        },
+    )
+    ds = Dataset("UNIPD/WashU", file_patterns)
+    combinations = [("lesion", "manual_masks", "anat", "lesion_mask")]
+    rows = matrix.build_matrix(ds, ["sub-STUNIPD0001"], combinations)
+
+    cell = rows[0].cells["lesion/manual_masks/anat/lesion_mask"]
+    assert cell.matched == 1
+    assert cell.total == 2
+    assert cell.marker() == matrix.INCOMPLETE_CELL
 
 
 def test_to_csv_rows_uses_present_and_missing_markers(tmp_path):
@@ -93,6 +121,28 @@ def test_to_csv_rows_uses_present_and_missing_markers(tmp_path):
         ["subject", "lesion/manual_masks/anat/lesion_mask", "lesion/manual_masks/anat/other_mask"],
         ["sub-STUNIPD0001", "present", "missing"],
         ["sub-STUNIPD0002", "missing", "present"],
+    ]
+
+
+def test_to_csv_rows_uses_incomplete_marker_when_some_templates_missing(tmp_path):
+    root = tmp_path / "UNIPD" / "WashU"
+    _touch(root / "derivatives" / "manual_masks" / "sub-STUNIPD0001" / "anat" / "sub-STUNIPD0001_label-lesion_mask.nii.gz")
+    file_patterns = FilePatterns(
+        project_roots={"lesion": tmp_path},
+        patterns={
+            ("lesion", "manual_masks", "anat", "lesion_mask"): [
+                "derivatives/manual_masks/{subject_id}/anat/{subject_id}_label-lesion_mask.nii.gz",
+                "derivatives/manual_masks/{subject_id}/anat/{subject_id}_extra-lesion_mask.nii.gz",
+            ]
+        },
+    )
+    ds = Dataset("UNIPD/WashU", file_patterns)
+    combinations = [("lesion", "manual_masks", "anat", "lesion_mask")]
+    rows = matrix.build_matrix(ds, ["sub-STUNIPD0001"], combinations)
+
+    assert matrix.to_csv_rows(rows, combinations) == [
+        ["subject", "lesion/manual_masks/anat/lesion_mask"],
+        ["sub-STUNIPD0001", "incomplete"],
     ]
 
 
@@ -146,4 +196,4 @@ def test_build_matrix_marks_missing_for_object_with_no_root_on_this_dataset(tmp_
     ds = Dataset("UNIPD/WashU", file_patterns)
     combinations = matrix.combinations_from_file_patterns(_minimal_config(tmp_path, file_patterns))
     rows = matrix.build_matrix(ds, ["sub-STUNIPD0001"], combinations)
-    assert rows[0].cells["feature/func/FC-pearson"] == matrix.MISSING_CELL
+    assert rows[0].cells["feature/func/FC-pearson"].marker() == matrix.MISSING_CELL

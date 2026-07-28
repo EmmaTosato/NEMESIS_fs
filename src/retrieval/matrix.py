@@ -18,7 +18,36 @@ from src.retrieval.config import RetrievalConfig, RetrieveItem
 from src.retrieval.dataset import Dataset
 
 MISSING_CELL = "missing"
+INCOMPLETE_CELL = "incomplete"
 PRESENT_CELL = "present"
+
+
+@dataclass(frozen=True)
+class CellStatus:
+    """One subject's status for one registered leaf combination: how many of
+    the combination's registered templates matched on disk (`matched`), out
+    of how many are registered in total (`total`) - a leaf like
+    `feature/func/FC-pearson` registers 12 per-atlas templates as alternates
+    that are all expected to coexist per subject (see FilePatterns
+    docstring), not naming variants of a single file. `filename` is the
+    first matched file's name, kept for reference (e.g. debugging which
+    template matched), or None if nothing matched.
+
+    marker() collapses this into the three-state presence used by the CSV:
+    matched == 0 -> missing; 0 < matched < total -> incomplete (some but not
+    all of the registered files exist for this subject); matched == total ->
+    present."""
+
+    matched: int
+    total: int
+    filename: str | None
+
+    def marker(self) -> str:
+        if self.matched == 0:
+            return MISSING_CELL
+        if self.matched < self.total:
+            return INCOMPLETE_CELL
+        return PRESENT_CELL
 
 
 @dataclass(frozen=True)
@@ -27,7 +56,7 @@ class MatrixRow:
     combination."""
 
     subject_id: str
-    cells: dict[str, str]  # "/".join(path_key()) -> resolved filename, or MISSING_CELL
+    cells: dict[str, CellStatus]  # "/".join(path_key()) -> CellStatus
 
 
 def combinations_from_file_patterns(config: RetrievalConfig) -> list[tuple[str, ...]]:
@@ -75,37 +104,47 @@ def select_all_subjects(ds: Dataset, config: RetrievalConfig) -> list[str]:
 
 
 def build_matrix(ds: Dataset, subjects: list[str], combinations: list[tuple[str, ...]]) -> list[MatrixRow]:
-    """One MatrixRow per subject, one cell per registered leaf combination.
-    If more than one registered template matches (e.g. two simultaneously
-    present atlas files, or naming-variant alternates), the cell shows the
-    first match's filename - the CSV rendering (to_csv_rows) only cares
-    about presence, not which/how many matched.
+    """One MatrixRow per subject, one CellStatus per registered leaf
+    combination, carrying how many of that combination's registered
+    templates matched (out of how many are registered) - not just a binary
+    present/missing, since a leaf like `feature/func/FC-pearson` registers 12
+    per-atlas templates that are all expected to be present per subject, and
+    a subject with only some of them is a distinct, reportable state
+    (CellStatus.marker() -> INCOMPLETE_CELL), not indistinguishable from
+    "fully present".
 
     A column whose object this dataset doesn't structurally have at all
-    (e.g. no `features/` tree yet - see Dataset.has_object) is MISSING_CELL
+    (e.g. no `features/` tree yet - see Dataset.has_object) gets matched=0
     for every subject, without calling resolve() at all - that would raise,
     since resolve() is for a specifically-requested object where a missing
-    root is a real error, not "this object doesn't apply here"."""
+    root is a real error, not "this object doesn't apply here". `total` is
+    still the registered template count, derived from the registry alone."""
     rows = []
     for subject_id in subjects:
         cells = {}
         for combo in combinations:
             key = "/".join(combo)
             object_ = combo[0]
+            total = len(ds.file_patterns.templates_for(*combo))
             if not ds.has_object(object_):
-                cells[key] = MISSING_CELL
+                cells[key] = CellStatus(matched=0, total=total, filename=None)
                 continue
             item = RetrieveItem.from_path(*combo)
             resolved = ds.resolve(subject_id, item)
-            cells[key] = resolved[0].name if resolved else MISSING_CELL
+            cells[key] = CellStatus(
+                matched=len(resolved),
+                total=total,
+                filename=resolved[0].name if resolved else None,
+            )
         rows.append(MatrixRow(subject_id=subject_id, cells=cells))
     return rows
 
 
 def to_csv_rows(rows: list[MatrixRow], combinations: list[tuple[str, ...]]) -> list[list[str]]:
-    """Renders the matrix as plain presence/absence rows for csv.writer: a
-    header, one row per subject (PRESENT_CELL "present" or MISSING_CELL
-    "missing" per column - the point here is presence, not the exact
+    """Renders the matrix as three-state presence rows for csv.writer: a
+    header, one row per subject (PRESENT_CELL "present" / INCOMPLETE_CELL
+    "incomplete" / MISSING_CELL "missing" per column, from
+    CellStatus.marker() - the point here is presence, not the exact
     filename, unlike MatrixRow.cells). No aggregate rows - per-column
     present/missing totals are computed separately (in a notebook), not
     baked into this file."""
@@ -113,11 +152,5 @@ def to_csv_rows(rows: list[MatrixRow], combinations: list[tuple[str, ...]]) -> l
     header = ["subject"] + columns
     csv_rows = [header]
     for row in rows:
-        csv_rows.append(
-            [row.subject_id]
-            + [
-                MISSING_CELL if row.cells[key] == MISSING_CELL else PRESENT_CELL
-                for key in columns
-            ]
-        )
+        csv_rows.append([row.subject_id] + [row.cells[key].marker() for key in columns])
     return csv_rows
