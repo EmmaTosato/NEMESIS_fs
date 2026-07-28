@@ -1,6 +1,6 @@
 # Stato progetto — NEMESIS
 
-Ultimo aggiornamento: 2026-07-28. Snapshot dello stato attuale del progetto — non un log cronologico. Errori passati, bug risolti e strade scartate vivono in `.claude/lessons_learned.md` (pattern generalizzabili) e `docs/debugging/` (narrativa completa per sessione di debug); l'evoluzione delle decisioni strategiche vive in `.claude/decision_log.md`; qui restano solo le regole/vincoli in vigore oggi e la mappa dello stato attuale.
+Ultimo aggiornamento: 2026-07-28. Snapshot dello stato attuale del progetto — non un log cronologico. Errori passati, bug risolti e strade scartate vivono in `.claude/lessons_learned.md` (pattern generalizzabili) e `docs/debugging/` (narrativa completa per sessione di debug); l'evoluzione delle decisioni strategiche vive in `.claude/decision_log.md`; le regole di sincronizzazione col cluster vivono in `.claude/branch_alignment.md`; qui restano solo le regole/vincoli in vigore oggi e la mappa dello stato attuale.
 
 ## Sessione 2026-07-28 — `regress_out_volume` in dim_reduction + fix runs.csv/runs_tuning.csv + letteratura per i prossimi step di clustering
 
