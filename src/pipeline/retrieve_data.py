@@ -68,6 +68,12 @@ class DatasetStats:
     skipped_existing: int = 0
     failed: list[ReportEntry] = field(default_factory=list)
     missing: list[ReportEntry] = field(default_factory=list)
+    # A subject for whom SOME but not ALL of a leaf's registered templates
+    # matched (e.g. 3 of the 12 FC-pearson atlas files) - distinct from
+    # `missing` (zero matched). What did match is still copied normally; this
+    # only makes the gap visible instead of a partial subject looking
+    # identical to a fully-covered one (see _retrieve_subject).
+    incomplete: list[ReportEntry] = field(default_factory=list)
     non_conforming: list[str] = field(default_factory=list)
     mismatched: list[str] = field(default_factory=list)
     missing_locally: list[str] = field(default_factory=list)
@@ -278,6 +284,16 @@ def _missing_message(ds: Dataset, name: str, subject_id: str, item: RetrieveItem
     return ReportEntry(group=group, line=f"{name}: {subject_id} - no {group} ({reason})")
 
 
+def _incomplete_message(name: str, subject_id: str, item: RetrieveItem, matched: int, total: int) -> ReportEntry:
+    """Entry for a subject who has SOME but not ALL of a leaf's registered
+    templates (see DatasetStats.incomplete) - e.g. 3 of the 12 registered
+    feature/func/FC-pearson atlas files. `total` comes straight from the
+    registry (how many templates are registered for this item), not from
+    what any one subject happens to have."""
+    group = "/".join(item.path_key())
+    return ReportEntry(group=group, line=f"{name}: {subject_id} - {group} ({matched}/{total} registered files found)")
+
+
 def _retrieve_subject(
     name: str, ds: Dataset, subject_id: str, config: RetrievalConfig, stats: DatasetStats
 ) -> None:
@@ -286,6 +302,9 @@ def _retrieve_subject(
         if not resolved:
             stats.missing.append(_missing_message(ds, name, subject_id, item))
             continue
+        total = len(ds.file_patterns.templates_for(*item.path_key()))
+        if len(resolved) < total:
+            stats.incomplete.append(_incomplete_message(name, subject_id, item, len(resolved), total))
         group = "/".join(item.path_key())
         label = f"{name}: {subject_id} - {group}"
         for source in resolved:
@@ -514,12 +533,12 @@ def _build_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: 
         "",
         "## Summary",
         "",
-        "| dataset | copied | skipped (exists) | failed | participants.tsv | fatal error |",
-        "|---|---|---|---|---|---|",
+        "| dataset | copied | skipped (exists) | failed | incomplete | participants.tsv | fatal error |",
+        "|---|---|---|---|---|---|---|",
     ]
     for name, s in stats.items():
         lines.append(
-            f"| {name} | {s.copied} | {s.skipped_existing} | {len(s.failed)} | "
+            f"| {name} | {s.copied} | {s.skipped_existing} | {len(s.failed)} | {len(s.incomplete)} | "
             f"{s.participants_outcome or '—'} | {s.fatal_error or '—'} |"
         )
     fatal = {name: s.fatal_error for name, s in stats.items() if s.fatal_error is not None}
@@ -554,6 +573,15 @@ def _build_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: 
         "would hold the file exists but is empty; \"not found\" covers every other case. "
         "Sub-grouped by which object/pipeline/datatype/suffix was requested.",
         "File Not Found Count",
+    )
+    lines += _grouped_by_modality_section(
+        stats,
+        "incomplete",
+        "Incomplete",
+        "A subject has SOME but not ALL of a leaf's registered templates (e.g. 3 of 12 "
+        "registered feature/func/FC-pearson atlas files) - what did match was still copied "
+        "normally. Sub-grouped by which object/pipeline/datatype/suffix was requested.",
+        "Incomplete Count",
     )
     lines += _grouped_section(
         stats,

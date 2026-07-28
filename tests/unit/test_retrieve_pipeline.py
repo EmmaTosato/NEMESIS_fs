@@ -279,6 +279,40 @@ def test_retrieve_subject_copies_every_matching_template(tmp_path):
     stats = retrieve_data._retrieve_all(datasets, config)
     assert stats["UNIPD/WashU"].copied == 2
     assert stats["UNIPD/WashU"].missing == []
+    assert stats["UNIPD/WashU"].incomplete == []
+
+
+def test_retrieve_subject_reports_incomplete_when_some_but_not_all_templates_match(tmp_path):
+    """A subject who only has 1 of 2 registered templates for the same leaf
+    is not 'missing' (something was found and copied) and not silently
+    treated as fully covered either - it must show up in stats.incomplete,
+    distinct from both."""
+    root = tmp_path / "UNIPD" / "WashU"
+    _touch(root / "derivatives" / "manual_masks" / "sub-STUNIPD0001" / "anat" / "sub-STUNIPD0001_label-lesion_mask.nii.gz")
+    file_patterns = FilePatterns(
+        project_roots={"lesion": tmp_path},
+        patterns={
+            ("lesion", "manual_masks", "anat", "lesion_mask"): [
+                "derivatives/manual_masks/{subject_id}/anat/{subject_id}_label-lesion_mask.nii.gz",
+                "derivatives/manual_masks/{subject_id}/anat/"
+                "{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz",
+            ]
+        },
+    )
+    config = _make_config(
+        tmp_path,
+        tmp_path,
+        file_patterns=file_patterns,
+        subjects=["sub-STUNIPD0001"],
+        group_filter=None,
+    )
+    datasets = retrieve_data._build_datasets(config)
+    retrieve_data._validate_upfront(datasets, config)
+    stats = retrieve_data._retrieve_all(datasets, config)
+    assert stats["UNIPD/WashU"].copied == 1
+    assert stats["UNIPD/WashU"].missing == []
+    assert len(stats["UNIPD/WashU"].incomplete) == 1
+    assert "1/2 registered files found" in stats["UNIPD/WashU"].incomplete[0].line
 
 
 def test_select_subjects_no_filter_returns_everyone(tmp_path):
@@ -490,7 +524,7 @@ def test_full_run_end_to_end(tmp_path, monkeypatch):
     report_text = report_path.read_text()
     assert "UNIPD/WashU" in report_text
     # 3 copied, 0 skipped, 0 failed, no fatal error.
-    assert "| UNIPD/WashU | 3 | 0 | 0 | — | — |" in report_text
+    assert "| UNIPD/WashU | 3 | 0 | 0 | 0 | — | — |" in report_text
 
 
 def test_retrieve_all_records_fatal_error_without_losing_other_datasets_stats(tmp_path, monkeypatch):
@@ -539,8 +573,8 @@ def test_retrieve_all_records_fatal_error_without_losing_other_datasets_stats(tm
     report_text = report_path.read_text()
     assert "## FATAL - retrieval aborted partway through" in report_text
     assert "**UNIPD/WashU**: dataset root not found: /broken/path" in report_text
-    assert "| UNIPD/WashU | 0 | 0 | 0 | — | dataset root not found: /broken/path |" in report_text
-    assert "| UNIPD/PASPORT | 1 | 0 | 0 | — | — |" in report_text
+    assert "| UNIPD/WashU | 0 | 0 | 0 | 0 | — | dataset root not found: /broken/path |" in report_text
+    assert "| UNIPD/PASPORT | 1 | 0 | 0 | 0 | — | — |" in report_text
 
 
 def _minimal_config(tmp_path, **overrides):
@@ -686,7 +720,26 @@ def test_build_report_includes_failed_section(tmp_path):
     report = retrieve_data._build_report(config, stats, datetime(2026, 7, 9, 10, 22))
     assert "## Failed" in report
     assert "Failed Count = 1" in report
-    assert "| UNIPD/WashU | 0 | 0 | 1 | — | — |" in report  # summary table's failed column reflects len(failed)
+    assert "| UNIPD/WashU | 0 | 0 | 1 | 0 | — | — |" in report  # summary table's failed column reflects len(failed)
+
+
+def test_build_report_includes_incomplete_section(tmp_path):
+    config = _minimal_config(tmp_path)
+    stats = {
+        "UNIPD/WashU": retrieve_data.DatasetStats(
+            incomplete=[
+                ReportEntry(
+                    group="feature/func/FC-pearson",
+                    line="UNIPD/WashU: sub-A - feature/func/FC-pearson (3/12 registered files found)",
+                )
+            ]
+        ),
+        "UNIPD/PASPORT": retrieve_data.DatasetStats(),
+    }
+    report = retrieve_data._build_report(config, stats, datetime(2026, 7, 9, 10, 22))
+    assert "## Incomplete" in report
+    assert "Incomplete Count = 1" in report
+    assert "| UNIPD/WashU | 0 | 0 | 0 | 1 | — | — |" in report  # summary table's incomplete column reflects len(incomplete)
 
 
 def test_build_report_includes_skipped_objects_section(tmp_path):
@@ -831,7 +884,7 @@ def test_main_still_writes_report_when_participants_tsv_fetch_raises(tmp_path, m
     assert "## FATAL - retrieval aborted partway through" in report_text
     assert "dataset root not found" in report_text
     # The 3 subjects were copied before participants.tsv was ever attempted.
-    assert "| UNIPD/WashU | 3 | 0 | 0 | — |" in report_text
+    assert "| UNIPD/WashU | 3 | 0 | 0 | 0 | — |" in report_text
 
 
 def test_main_stops_cleanly_when_log_directory_cannot_be_created(tmp_path, monkeypatch, caplog):
