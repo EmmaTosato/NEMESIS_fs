@@ -14,8 +14,8 @@
 
 ## Summary
 
-Swept parameters: ['perplexity']
-Combinations evaluated: 5
+Swept parameters: ['perplexity', 'metric']
+Combinations evaluated: 15
 Metric: trustworthiness
 
 No automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.
