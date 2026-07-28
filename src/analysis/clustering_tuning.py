@@ -38,7 +38,7 @@ import pandas as pd
 from scipy.linalg import eigh
 from scipy.sparse import csgraph
 from sklearn.cluster import AgglomerativeClustering, KMeans
-from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, silhouette_score
+from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, silhouette_samples, silhouette_score
 from sklearn.metrics.pairwise import rbf_kernel
 from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import NearestNeighbors, kneighbors_graph
@@ -105,6 +105,37 @@ def compute_clustering_metrics(X: np.ndarray, labels: np.ndarray) -> dict[str, f
         "davies_bouldin": float(davies_bouldin_score(non_noise_X, non_noise_labels)),
         "noise_fraction": noise_fraction,
     }
+
+
+def compute_silhouette_samples(X: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Per-sample silhouette coefficients for one (X, labels) clustering result -
+    the production-time, per-cluster-breakdown counterpart of
+    compute_clustering_metrics's single aggregate "silhouette" number (their
+    mean is exactly that number, since silhouette_score is defined as the mean
+    of silhouette_samples). Feeds plotting.plot_silhouette_analysis.
+
+    DBSCAN-style noise (label -1) is excluded, same convention as
+    compute_clustering_metrics - silhouette is undefined for a "cluster" that
+    isn't one. Returns (non_noise_labels, sample_silhouette_values), same
+    length and order (noise rows dropped from both). Raises ValueError if
+    fewer than 2 non-noise clusters remain (degenerate combination, nothing
+    meaningful to plot) - unlike compute_clustering_metrics's NaN-and-warn
+    (built for an unattended sweep over many combinations), this runs once
+    for the single already-chosen production result, so the caller decides
+    whether to skip the plot.
+    """
+    labels = np.asarray(labels)
+    noise_mask = labels == -1
+    non_noise_X = X[~noise_mask]
+    non_noise_labels = labels[~noise_mask]
+    n_unique = len(np.unique(non_noise_labels))
+
+    if n_unique < 2 or n_unique > len(non_noise_labels) - 1:
+        raise ValueError(
+            f"cannot compute per-sample silhouette: {n_unique} non-noise cluster(s) found (need 2..n-1)"
+        )
+
+    return non_noise_labels, silhouette_samples(non_noise_X, non_noise_labels)
 
 
 def _kmeans_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.ndarray, dict[str, float]]:

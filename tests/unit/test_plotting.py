@@ -1,6 +1,6 @@
 """Unit tests for src/analysis/plotting.py - plot_embedding_interactive/plot_clusters_interactive/
 plot_clusters_comparison_interactive/compose_run_title/plot_clustering_tuning_metrics/
-plot_dendrogram/plot_eigengap/plot_k_distance."""
+plot_dendrogram/plot_eigengap/plot_k_distance/plot_silhouette_analysis."""
 
 from pathlib import Path
 
@@ -18,6 +18,7 @@ from src.analysis.plotting import (
     plot_eigengap,
     plot_embedding_interactive,
     plot_k_distance,
+    plot_silhouette_analysis,
 )
 
 
@@ -273,3 +274,51 @@ def test_plot_k_distance_writes_file(tmp_path):
 
     assert output_path.exists()
     assert output_path.stat().st_size > 0
+
+
+def _three_blobs_2d():
+    rng = np.random.default_rng(0)
+    return np.vstack(
+        [
+            rng.normal(loc=[0, 0], scale=0.3, size=(15, 2)),
+            rng.normal(loc=[5, 5], scale=0.3, size=(15, 2)),
+            rng.normal(loc=[0, 5], scale=0.3, size=(15, 2)),
+        ]
+    )
+
+
+def test_plot_silhouette_analysis_writes_file(tmp_path):
+    from src.analysis.clustering_tuning import compute_silhouette_samples
+
+    X_2d = _three_blobs_2d()
+    cluster_labels = np.array([0] * 15 + [1] * 15 + [2] * 15)
+    sample_labels, sample_values = compute_silhouette_samples(X_2d, cluster_labels)
+    output_path = tmp_path / "silhouette_plot.png"
+
+    plot_silhouette_analysis(sample_labels, sample_values, X_2d, cluster_labels, output_path, "x", "y", "test title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_silhouette_analysis_handles_noise_in_display_labels_only(tmp_path):
+    from src.analysis.clustering_tuning import compute_silhouette_samples
+
+    X_2d = _three_blobs_2d()
+    display_labels = np.array([0] * 15 + [1] * 15 + [-1] * 15)
+    sample_labels, sample_values = compute_silhouette_samples(X_2d, display_labels)
+    output_path = tmp_path / "silhouette_plot.png"
+
+    plot_silhouette_analysis(sample_labels, sample_values, X_2d, display_labels, output_path, "x", "y", "test title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_silhouette_analysis_raises_on_fewer_than_two_columns(tmp_path):
+    sample_labels = np.array([0, 0, 1, 1])
+    sample_values = np.array([0.5, 0.6, 0.4, 0.3])
+    X_1d = np.array([[0.0], [1.0], [2.0], [3.0]])
+
+    with pytest.raises(ValueError, match="at least 2 columns"):
+        plot_silhouette_analysis(sample_labels, sample_values, X_1d, sample_labels, tmp_path / "out.png", "x", "y", "title")

@@ -10,6 +10,7 @@ from src.analysis.clustering_tuning import (
     compute_dendrogram_linkage,
     compute_eigengap,
     compute_k_distance,
+    compute_silhouette_samples,
     run_clustering_tuning_sweep,
 )
 
@@ -67,6 +68,42 @@ def test_compute_clustering_metrics_returns_nan_when_all_noise():
 
     assert np.isnan(metrics["silhouette"])
     assert metrics["noise_fraction"] == 1.0
+
+
+def test_compute_silhouette_samples_mean_matches_aggregate_silhouette():
+    X = _three_blobs()
+    labels = np.array([0] * 15 + [1] * 15 + [2] * 15)
+
+    sample_labels, sample_values = compute_silhouette_samples(X, labels)
+
+    assert len(sample_labels) == len(sample_values) == 45
+    assert np.mean(sample_values) == pytest.approx(compute_clustering_metrics(X, labels)["silhouette"])
+
+
+def test_compute_silhouette_samples_excludes_noise():
+    X = _three_blobs()
+    labels = np.array([0] * 15 + [1] * 15 + [-1] * 15)
+
+    sample_labels, sample_values = compute_silhouette_samples(X, labels)
+
+    assert len(sample_labels) == len(sample_values) == 30
+    assert -1 not in sample_labels
+
+
+def test_compute_silhouette_samples_raises_on_degenerate_single_cluster():
+    X = _three_blobs()
+    labels = np.zeros(45, dtype=int)
+
+    with pytest.raises(ValueError, match="non-noise cluster"):
+        compute_silhouette_samples(X, labels)
+
+
+def test_compute_silhouette_samples_raises_when_all_noise():
+    X = _three_blobs()
+    labels = np.full(45, -1)
+
+    with pytest.raises(ValueError, match="non-noise cluster"):
+        compute_silhouette_samples(X, labels)
 
 
 def test_run_clustering_tuning_sweep_kmeans_includes_inertia():

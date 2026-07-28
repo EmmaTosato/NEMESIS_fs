@@ -10,7 +10,12 @@ can give. plot_clusters_2d exists only because seeing clusters on a 2D
 scatter is the minimum needed to sanity-check a clustering run;
 plot_clusters_comparison_interactive extends the same per-point hover need to
 a multi-method comparison, one dropdown option per method instead of a
-static side-by-side grid. plot_tuning_curve/plot_tuning_heatmap exist because a human has to eyeball a
+static side-by-side grid. plot_silhouette_analysis is the per-cluster
+breakdown of that same sanity check, for one already-chosen production
+result - a single aggregate silhouette number (reported during fine_tuning,
+see clustering_tuning.compute_clustering_metrics) can hide a bad cluster
+averaged out by good ones; this plots every sample's own coefficient,
+grouped by cluster, next to the same 2D scatter. plot_tuning_curve/plot_tuning_heatmap exist because a human has to eyeball a
 fine-tuning sweep to pick parameters by hand (src/analysis/tuning.py) - no
 automatic selection. plot_clustering_tuning_metrics/plot_dendrogram/
 plot_eigengap/plot_k_distance are the same "human eyeballs a sweep" idea
@@ -75,6 +80,11 @@ _TUNING_METRICS_SUBPLOT_WIDTH = 6.0
 _TUNING_METRICS_SUBPLOT_HEIGHT = 4.5
 _TUNING_METRICS_WSPACE = 0.4
 _TUNING_METRICS_HSPACE = 0.4
+
+_SILHOUETTE_SUBPLOT_WIDTH = 6.5
+_SILHOUETTE_HEIGHT = 5.5
+_SILHOUETTE_WSPACE = 0.35
+_SILHOUETTE_BAND_GAP = 10  # vertical gap (in samples) between per-cluster silhouette bands
 
 
 def _square_grid_shape(n_items: int) -> tuple[int, int]:
@@ -280,6 +290,93 @@ def plot_clusters_2d(
         borderaxespad=0.0,
     )
 
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_silhouette_analysis(
+    sample_labels: np.ndarray,
+    sample_silhouette_values: np.ndarray,
+    X_2d: np.ndarray,
+    display_labels: np.ndarray,
+    output_path: Path,
+    xlabel: str,
+    ylabel: str,
+    title: str,
+) -> None:
+    """The classic sklearn-style two-panel silhouette diagnostic for one
+    already-chosen production clustering result.
+
+    Left: one filled horizontal band per cluster, its members' individual
+    silhouette coefficients sorted ascending within the band - a wide,
+    uniformly high band reads as a well-separated cluster; a band dipping
+    below 0 means those members sit, on average, closer to a neighboring
+    cluster than their own. A dashed line marks the mean over all bands,
+    which equals compute_clustering_metrics's aggregate "silhouette" number
+    exactly (silhouette_score is defined as that mean) - this plot is a
+    breakdown of that single number, not a different metric. Right: the same
+    2D scatter as plot_clusters_2d, for a side-by-side spatial read.
+
+    sample_labels/sample_silhouette_values come from
+    clustering_tuning.compute_silhouette_samples - noise (-1) already
+    excluded there, since silhouette is undefined for a "cluster" that isn't
+    one. display_labels is the FULL label vector (noise included, grayed out
+    by _palette_for_labels) so the scatter panel still shows where noise
+    points physically sit, even though they have no band on the left.
+    """
+    if X_2d.shape[1] < 2:
+        raise ValueError(f"plot_silhouette_analysis needs at least 2 columns in X_2d, got shape {X_2d.shape}")
+
+    display_unique = sorted(np.unique(display_labels).tolist())
+    palette = _palette_for_labels(display_unique)
+    avg_score = float(np.mean(sample_silhouette_values))
+
+    fig, (ax_sil, ax_scatter) = plt.subplots(
+        1,
+        2,
+        figsize=(_SILHOUETTE_SUBPLOT_WIDTH * 2, _SILHOUETTE_HEIGHT),
+        gridspec_kw={"wspace": _SILHOUETTE_WSPACE},
+    )
+
+    y_lower = _SILHOUETTE_BAND_GAP
+    for label in sorted(np.unique(sample_labels).tolist()):
+        values = np.sort(sample_silhouette_values[sample_labels == label])
+        y_upper = y_lower + len(values)
+        ax_sil.fill_betweenx(np.arange(y_lower, y_upper), 0, values, facecolor=palette[label], edgecolor=palette[label])
+        ax_sil.text(-0.05, y_lower + 0.5 * len(values), str(label))
+        y_lower = y_upper + _SILHOUETTE_BAND_GAP
+    ax_sil.axvline(avg_score, color="red", linestyle="--", label=f"mean = {avg_score:.3f}")
+    ax_sil.set_xlabel("silhouette coefficient")
+    ax_sil.set_ylabel("cluster")
+    ax_sil.set_yticks([])
+    ax_sil.legend(loc="lower right")
+
+    x_min, x_max = X_2d[:, 0].min(), X_2d[:, 0].max()
+    y_min, y_max = X_2d[:, 1].min(), X_2d[:, 1].max()
+    x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
+    y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
+    sns.scatterplot(
+        x=X_2d[:, 0],
+        y=X_2d[:, 1],
+        hue=display_labels,
+        hue_order=display_unique,
+        palette=palette,
+        s=_MARKER_SIZE,
+        edgecolor="none",
+        legend="full",
+        ax=ax_scatter,
+    )
+    ax_scatter.set_xlim(x_min - x_pad, x_max + x_pad)
+    ax_scatter.set_ylim(y_min - y_pad, y_max + y_pad)
+    ax_scatter.set_xlabel(xlabel)
+    ax_scatter.set_ylabel(ylabel)
+    handles, legend_labels = ax_scatter.get_legend_handles_labels()
+    ax_scatter.legend(
+        handles, legend_labels, title="cluster", loc="upper left", bbox_to_anchor=(1.02, 1.0), borderaxespad=0.0
+    )
+
+    fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)

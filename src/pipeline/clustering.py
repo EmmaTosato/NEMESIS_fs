@@ -15,11 +15,15 @@ convention as dim_reduction.py:
   matrix.npy, cluster_label appended to metadata.csv, a static 2D scatter
   plot of the first 2 raw features colored by cluster (cluster_plot.png) -
   a coarse sanity check only, since those 2 features are not a meaningful
-  projection (no reduction happened) - and an interactive HTML version
+  projection (no reduction happened) - an interactive HTML version
   (cluster_plot_interactive.html) with a dropdown to switch coloring
   between cluster and dataset, hover showing every metadata column per
-  point. When more than one method is requested, an additional side-by-side
-  comparison plot is written to
+  point, and a per-sample silhouette diagnostic (silhouette_plot.png,
+  computed on the full matrix used for clustering, not just the 2 display
+  features - see src/analysis/clustering_tuning.py::compute_silhouette_samples),
+  skipped with a warning if the chosen result is degenerate (fewer than 2
+  non-noise clusters). When more than one method is requested, an additional
+  side-by-side comparison plot is written to
   <output_root>/comparison/<dd-mm>_<session_name>/cluster_comparison.png.
 - fine_tuning=true (manual hyperparameter search, every method in
   clustering_methods, one sweep each over that method's "tuning_grid"):
@@ -60,6 +64,7 @@ from src.analysis.clustering_tuning import (
     compute_dendrogram_linkage,
     compute_eigengap,
     compute_k_distance,
+    compute_silhouette_samples,
     consensus_suggestion_lines,
     run_clustering_tuning_sweep,
 )
@@ -76,6 +81,7 @@ from src.analysis.plotting import (
     plot_dendrogram,
     plot_eigengap,
     plot_k_distance,
+    plot_silhouette_analysis,
 )
 from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
@@ -199,6 +205,22 @@ def _run_one_method(
             title=plot_title,
         )
         logging.info("[%s] interactive cluster plot written to %s", method, output_dir / "cluster_plot_interactive.html")
+
+        try:
+            sample_labels, sample_silhouette_values = compute_silhouette_samples(X, cluster_labels)
+            plot_silhouette_analysis(
+                sample_labels,
+                sample_silhouette_values,
+                X[:, :2],
+                cluster_labels,
+                output_dir / "silhouette_plot.png",
+                xlabel="feature 0 (raw)",
+                ylabel="feature 1 (raw)",
+                title=plot_title,
+            )
+            logging.info("[%s] silhouette plot written to %s", method, output_dir / "silhouette_plot.png")
+        except ValueError as exc:
+            logging.warning("[%s] skipping silhouette_plot.png: %s", method, exc)
     else:
         logging.warning(
             "[%s] matrix has only %d feature(s) - skipping cluster_plot.png/cluster_plot_interactive.html (needs at least 2)",

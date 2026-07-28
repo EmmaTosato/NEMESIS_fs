@@ -18,8 +18,8 @@
     "trustworthiness_n_neighbors": 10
   },
   "umap": {
-    "tag_param": "min_dist",
-    "tag_prefix": "d",
+    "tag_param": "metric",
+    "tag_prefix": "m",
     "params": {
       "n_neighbors": 15,
       "min_dist": 0.0,

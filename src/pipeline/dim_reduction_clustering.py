@@ -10,9 +10,12 @@ method writes its own artifact under
 <output_root>/<reduction_method>/<clustering_method>/<dd-mm>_<session_name>/:
 the embedding as matrix.npy, cluster_label appended to metadata.csv, a static
 2D scatter plot colored by cluster (cluster_plot.png) for a first visual
-sanity check, and an interactive HTML version (cluster_plot_interactive.html)
+sanity check, an interactive HTML version (cluster_plot_interactive.html)
 with a dropdown to switch coloring between cluster and dataset, hover showing
-every metadata column per point. Every clustering method run against the same
+every metadata column per point, and a per-sample silhouette diagnostic
+(silhouette_plot.png, see src/analysis/clustering_tuning.py::compute_silhouette_samples),
+skipped with a warning if the chosen result is degenerate (fewer than 2
+non-noise clusters). Every clustering method run against the same
 reduction shares one run history,
 <output_root>/<reduction_method>/runs.csv (see src/utils/run_log.py),
 distinguished by its leading reduction_method/clustering_method columns.
@@ -58,6 +61,7 @@ from src.analysis.clustering_tuning import (
     compute_dendrogram_linkage,
     compute_eigengap,
     compute_k_distance,
+    compute_silhouette_samples,
     consensus_suggestion_lines,
     run_clustering_tuning_sweep,
 )
@@ -76,6 +80,7 @@ from src.analysis.plotting import (
     plot_dendrogram,
     plot_eigengap,
     plot_k_distance,
+    plot_silhouette_analysis,
 )
 from src.analysis.reduction import REDUCTION_METHODS
 from src.utils.artifacts import load_matrix, save_matrix
@@ -253,6 +258,22 @@ def _run_one_method(
             title=plot_title,
         )
         logging.info("[%s] interactive cluster plot written to %s", method, output_dir / "cluster_plot_interactive.html")
+
+        try:
+            sample_labels, sample_silhouette_values = compute_silhouette_samples(embedding, cluster_labels)
+            plot_silhouette_analysis(
+                sample_labels,
+                sample_silhouette_values,
+                embedding[:, :2],
+                cluster_labels,
+                output_dir / "silhouette_plot.png",
+                xlabel=f"{config.reduction_method} dim 1",
+                ylabel=f"{config.reduction_method} dim 2",
+                title=plot_title,
+            )
+            logging.info("[%s] silhouette plot written to %s", method, output_dir / "silhouette_plot.png")
+        except ValueError as exc:
+            logging.warning("[%s] skipping silhouette_plot.png: %s", method, exc)
     else:
         logging.warning(
             "[%s] embedding has only %d component(s) - skipping cluster_plot.png/cluster_plot_interactive.html (needs at least 2)",
