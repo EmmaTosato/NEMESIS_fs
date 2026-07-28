@@ -14,9 +14,10 @@ Quality metric differs by method, on purpose (see docs/methods/dimensionality_re
 - umap/tsne/pacmap: trustworthiness(X, embedding) - how well local
   neighborhoods survive the projection. Generic across any neighbor-based
   non-linear embedding, not umap-specific, so tsne/pacmap reuse it unchanged.
-  For umap, a binary metric (jaccard/dice) in the swept "metric" is scored
-  with that *same* metric (see evaluate_umap) - never silently compared
-  against trustworthiness's own euclidean default.
+  For umap/tsne, a binary metric (jaccard/dice) in the swept "metric" is
+  scored with that *same* metric (see evaluate_umap/evaluate_tsne) - never
+  silently compared against trustworthiness's own euclidean default. pacmap
+  has no such branch - its tuning_grid only ever sweeps n_neighbors.
 - pca/pca_varimax: cumulative explained variance ratio - PCA's own natural,
   standard criterion, and the exact one the paper uses to choose a component
   count. Varimax rotation is orthogonal, so it doesn't change the total
@@ -80,12 +81,28 @@ def evaluate_umap(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int)
 def evaluate_tsne(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int) -> tuple[np.ndarray, float]:
     """Embed with t-SNE, then score with trustworthiness(X, embedding).
 
-    Only perplexity is ever swept (see module docstring) - t-SNE's params
-    have no "metric" key here, so unlike evaluate_umap there's no binary
-    (jaccard/dice) branch to handle.
+    Same binary-metric handling as evaluate_umap, for the same reason: on
+    binary voxel data, euclidean is dominated by lesion volume rather than
+    topography, so jaccard/dice (precomputed, see binary_pairwise_distance)
+    are swept alongside perplexity - both the embedding and its
+    trustworthiness score use that same precomputed matrix. sklearn's TSNE
+    additionally requires init != "pca" (its own default) whenever
+    metric="precomputed" - "pca" needs the raw feature matrix, not a distance
+    matrix - so init is forced to "random" in that case, never left at the
+    default for a precomputed run.
     """
-    embedding = tsne_embed(X, params)
-    score = float(trustworthiness(X, embedding, n_neighbors=trustworthiness_n_neighbors))
+    metric = params.get("metric", "euclidean")
+    if metric in SUPPORTED_BINARY_METRICS:
+        X_input = binary_pairwise_distance(X, metric)
+        tsne_params = {**params, "metric": "precomputed", "init": "random"}
+        trustworthiness_metric = "precomputed"
+    else:
+        X_input = X
+        tsne_params = params
+        trustworthiness_metric = metric
+
+    embedding = tsne_embed(X_input, tsne_params)
+    score = float(trustworthiness(X_input, embedding, n_neighbors=trustworthiness_n_neighbors, metric=trustworthiness_metric))
     return embedding, score
 
 

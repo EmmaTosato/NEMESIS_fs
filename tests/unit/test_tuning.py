@@ -69,6 +69,29 @@ def test_evaluate_tsne_returns_embedding_and_trustworthiness():
     assert 0.0 <= score <= 1.0
 
 
+def test_evaluate_tsne_with_jaccard_metric_returns_valid_embedding_and_score():
+    embedding, score = evaluate_tsne(
+        _X_BINARY, {"n_components": 2, "perplexity": 10, "random_state": 0, "metric": "jaccard"}, trustworthiness_n_neighbors=5
+    )
+    assert embedding.shape == (40, 2)
+    assert 0.0 <= score <= 1.0
+
+
+def test_evaluate_tsne_with_dice_metric_returns_valid_embedding_and_score():
+    embedding, score = evaluate_tsne(
+        _X_BINARY, {"n_components": 2, "perplexity": 10, "random_state": 0, "metric": "dice"}, trustworthiness_n_neighbors=5
+    )
+    assert embedding.shape == (40, 2)
+    assert 0.0 <= score <= 1.0
+
+
+def test_evaluate_tsne_binary_metric_scored_against_matching_metric_not_euclidean():
+    params = {"n_components": 2, "perplexity": 10, "random_state": 0, "metric": "jaccard"}
+    embedding, matching_metric_score = evaluate_tsne(_X_BINARY, params, trustworthiness_n_neighbors=5)
+    euclidean_score = float(trustworthiness(_X_BINARY, embedding, n_neighbors=5, metric="euclidean"))
+    assert matching_metric_score != pytest.approx(euclidean_score)
+
+
 def test_evaluate_pca_varimax_returns_embedding_and_variance():
     embedding, score = evaluate_pca_varimax(_X, {"n_components": 3, "rotation_max_iter": 500})
     assert embedding.shape == (40, 3)
@@ -182,3 +205,16 @@ def test_run_tuning_sweep_tsne_one_param():
 def test_run_tuning_sweep_tsne_without_trustworthiness_n_neighbors_raises():
     with pytest.raises(ValueError, match="trustworthiness_n_neighbors is required"):
         run_tuning_sweep("tsne", _X, {"n_components": 2, "random_state": 0}, {"perplexity": [5]}, trustworthiness_n_neighbors=None)
+
+
+def test_run_tuning_sweep_tsne_metric_and_perplexity_cartesian_product():
+    df = run_tuning_sweep(
+        "tsne",
+        _X_BINARY,
+        base_params={"random_state": 0, "n_components": 2},
+        tuning_grid={"perplexity": [5, 10], "metric": ["euclidean", "jaccard", "dice"]},
+        trustworthiness_n_neighbors=5,
+    )
+    assert list(df.columns) == ["perplexity", "metric", TUNING_METRIC_NAMES["tsne"]]
+    assert len(df) == 6  # 2 x 3 cartesian product
+    assert set(df["metric"]) == {"euclidean", "jaccard", "dice"}

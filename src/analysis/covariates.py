@@ -36,7 +36,7 @@ def check_volume_regression_compatible(regress_out_volume: bool, reduction_param
     """Raises if `regress_out_volume` is requested together with a metric that
     already normalizes distances by lesion volume (jaccard/dice) - stacking
     both would silently over-correct. A method/params with no `metric` key
-    (pca, pacmap, tsne today) has no such normalization, so it is unaffected.
+    (pca, pacmap today) has no such normalization, so it is unaffected.
     """
     metric = reduction_params.get("metric")
     if regress_out_volume and metric in _VOLUME_NORMALIZED_METRICS:
