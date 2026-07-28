@@ -8,5 +8,5 @@
   "overwrite": true,
   "fine_tuning": false,
   "regress_out_volume": false,
-  "run_notes": "PaCMAP production run on voxel-wise lesion matrix (21-07_s1.1), best params from tuning sweep (n_neighbors=5, trustworthiness=0.738)"
+  "run_notes": ""
 }

@@ -2,7 +2,9 @@
   "project": "clinical_connectome",
   "data_root": "data/clinical_connectome/derivatives",
   "dataset": "UNIPD/WashU",
-  "group_filter": ["ST"],
+  "group_filter": [
+    "ST"
+  ],
   "atlas_root": "assets/atlases/fmriprep",
   "atlas_combos": [
     "Yan100TianS1Buckner7N",
@@ -25,5 +27,5 @@
   "output_root": "data/derived/features/masked_fc",
   "session_name": "s2",
   "overwrite": false,
-  "run_notes": "seconda run reale di masking FC-lesione, le restanti 11 combo atlante (Yan200TianS2Buckner7N gia' processata, stessa sessione s2)"
+  "run_notes": ""
 }

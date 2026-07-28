@@ -17,5 +17,5 @@
   "output_root": "data/derived/features/fc_matrix",
   "session_name": "s2",
   "overwrite": false,
-  "run_notes": "seconda matrice impilata da FC mascherate (masked_fc/s2), le restanti 11 combo atlante (Yan200TianS2Buckner7N gia' impilata, stessa sessione s2) - contiene ancora NaN, nessuna imputazione, nessuna soglia di esclusione soggetto ancora decisa"
+  "run_notes": ""
 }

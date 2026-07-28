@@ -1,11 +1,13 @@
 {
   "project": "clinical_connectome",
   "input_path": "results/lesion/dim_reduction/pacmap/23-07_s1.1_n5",
-  "clustering_methods": ["spectral"],
+  "clustering_methods": [
+    "spectral"
+  ],
   "params_file": "config/registry/params_clustering.json",
   "output_root": "results/lesion/clustering",
-  "session_name": "pacmap_n5_spectral_nn50",
+  "session_name": "",
   "overwrite": true,
   "fine_tuning": false,
-  "run_notes": "Re-testing spectral on the pacmap (n_neighbors=5) embedding with an even wider affinity graph (n_neighbors=50) - nn=20 still triggered the disconnected-graph warning and left the small top-right satellite fused into the main blob"
+  "run_notes": ""
 }
