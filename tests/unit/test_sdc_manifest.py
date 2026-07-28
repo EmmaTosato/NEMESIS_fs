@@ -31,6 +31,7 @@ def _config(tmp_path, *, datasets, group_filter=None):
         datasets=datasets,
         group_filter=group_filter,
         bcbtoolkit_path=tmp_path / "BCBToolKit",
+        mni152_reference_path=tmp_path / "BCBToolKit" / "Tools" / "extraFiles" / "MNI152.nii.gz",
         tracks_dir=None,
         cores_per_subject=4,
         stage2_ebrains=True,

@@ -11,7 +11,8 @@ process invocation by design: `manifest` discovers subjects once and freezes
 the list every `run` task slices a chunk from (src/sdc/manifest.py); `run` is
 the unit of parallelism (one per SLURM array task, or one per local worker);
 `aggregate` merges every task's per-subject outcome (src/sdc/status.py) into
-the run's final prep/features directories and run history. Unlike
+the run's final per-subject output directories (Stage 1 + Stage 2 combined,
+see run_stage2's docstring) and run history. Unlike
 build_lesion_matrix.py's single all-or-nothing run, per-subject failures here
 never stop other subjects (see check_stage1_outputs docstring) - the run's
 own exit code only reflects structural failures (bad config, a Stage 1/2
@@ -30,14 +31,18 @@ import argparse
 import json
 import logging
 import subprocess
+import time
 from datetime import datetime
 from pathlib import Path
 
+import nibabel as nib
+
 from src.sdc.config import SDCConfig, load_sdc_config
 from src.sdc.manifest import ManifestRow, build_manifest, read_manifest, select_chunk, write_manifest
-from src.sdc.runner import check_stage1_outputs, run_stage1, run_stage2, stage_validated_prep
+from src.sdc.resample import resample_nonconforming_rows
+from src.sdc.runner import check_stage1_outputs, check_stage2_outputs, run_stage1, run_stage2, stage_validated_prep
 from src.sdc.staging import stage_subjects
-from src.sdc.status import SubjectStatus, read_all_statuses, write_status
+from src.sdc.status import StageEvent, SubjectStatus, read_all_statuses, write_status
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
 
@@ -126,53 +131,144 @@ def _run_task(config: SDCConfig, output_dir: Path, task_id: int, task_count: int
         return 0
 
     task_dir = output_dir / "_work" / f"task_{task_id}"
+    resampled_dir = task_dir / "resampled"
     staging_dir = task_dir / "staging"
     prep_dir = task_dir / "prep"
     validated_dir = task_dir / "validated_prep"
-    features_dir = task_dir / "features"
     status_dir = output_dir / "_status"
+
+    events: dict[str, list[StageEvent]] = {row.subject_id: [] for row in chunk}
+    final: dict[str, tuple[str, str]] = {}
+
+    try:
+        reference_img = nib.load(config.mni152_reference_path)
+        chunk, failed_resample, resample_timings = resample_nonconforming_rows(chunk, reference_img, resampled_dir)
+    except OSError as exc:
+        logging.error("task %d: loading resample reference failed structurally: %s", task_id, exc, exc_info=True)
+        return 1
+    for subject_id, reason in failed_resample.items():
+        events[subject_id].append(StageEvent("resample", "failed", resample_timings[subject_id], reason))
+        final[subject_id] = ("failed_resample", reason)
+    for row in chunk:
+        events[row.subject_id].append(
+            StageEvent("resample", "ok", resample_timings[row.subject_id], "conforming or resampled")
+        )
+    if not chunk:
+        logging.warning("task %d: no subject survived resampling, stage1 skipped", task_id)
+        _finalize_statuses(status_dir, task_id, events, final)
+        return 0
 
     try:
         stage_subjects(chunk, staging_dir)
-        run_stage1(chunk, staging_dir, prep_dir, config, dry_run=dry_run)
     except (FileExistsError, OSError) as exc:
-        logging.error("task %d: staging/stage1 failed structurally: %s", task_id, exc, exc_info=True)
+        logging.error("task %d: staging failed structurally: %s", task_id, exc, exc_info=True)
         return 1
+
+    stage1_process_error: str | None = None
+    start = time.perf_counter()
+    try:
+        run_stage1(chunk, staging_dir, prep_dir, config, dry_run=dry_run)
     except subprocess.CalledProcessError as exc:
-        logging.error("task %d: stage1 process failed: %s", task_id, exc, exc_info=True)
-        for row in chunk:
-            write_status(status_dir, SubjectStatus(row.subject_id, task_id, "failed_stage1_process", str(exc)))
-        return 1
+        stage1_process_error = str(exc)
+        logging.error("task %d: stage1 process failed, attempting per-subject salvage: %s", task_id, exc)
+    stage1_duration = time.perf_counter() - start
+    stage1_outcome = "process_error" if stage1_process_error else "ok"
+    for row in chunk:
+        events[row.subject_id].append(
+            StageEvent("stage1_process", stage1_outcome, stage1_duration, stage1_process_error or "stage1 subprocess completed")
+        )
 
     if dry_run:
         for row in chunk:
-            write_status(status_dir, SubjectStatus(row.subject_id, task_id, "dry_run", "stage1 dry-run only"))
+            final[row.subject_id] = ("dry_run", "stage1 dry-run only")
+        _finalize_statuses(status_dir, task_id, events, final)
         logging.info("task %d: dry-run complete for %d subject(s), stage2 not invoked", task_id, len(chunk))
         return 0
 
+    start = time.perf_counter()
     passed, failed_check = check_stage1_outputs(chunk, prep_dir)
+    check1_duration = time.perf_counter() - start
     for subject_id, reason in failed_check.items():
-        write_status(status_dir, SubjectStatus(subject_id, task_id, "failed_stage1_check", reason))
+        events[subject_id].append(StageEvent("stage1_check", "failed", check1_duration, reason))
+        status = "failed_stage1_process" if stage1_process_error else "failed_stage1_check"
+        detail = f"{stage1_process_error} | {reason}" if stage1_process_error else reason
+        final[subject_id] = (status, detail)
+    for row in passed:
+        events[row.subject_id].append(StageEvent("stage1_check", "ok", check1_duration, "disconnectome output verified"))
+
+    if stage1_process_error and not passed:
+        logging.error("task %d: stage1 process failed and no subject could be salvaged", task_id)
+        _finalize_statuses(status_dir, task_id, events, final)
+        return 1
+    if stage1_process_error:
+        logging.warning(
+            "task %d: stage1 process failed but %d/%d subject(s) salvaged via output check",
+            task_id, len(passed), len(chunk),
+        )
     if not passed:
         logging.warning("task %d: no subject passed the stage1 check, stage2 skipped", task_id)
+        _finalize_statuses(status_dir, task_id, events, final)
         return 0
 
     try:
         stage_validated_prep(passed, prep_dir, validated_dir)
-        run_stage2(validated_dir, features_dir, config, dry_run=False)
     except (FileExistsError, OSError) as exc:
         logging.error("task %d: stage2 staging failed structurally: %s", task_id, exc, exc_info=True)
-        return 1
-    except subprocess.CalledProcessError as exc:
-        logging.error("task %d: stage2 process failed: %s", task_id, exc, exc_info=True)
-        for row in passed:
-            write_status(status_dir, SubjectStatus(row.subject_id, task_id, "failed_stage2_process", str(exc)))
+        _finalize_statuses(status_dir, task_id, events, final)
         return 1
 
+    stage2_process_error: str | None = None
+    start = time.perf_counter()
+    try:
+        run_stage2(validated_dir, config, dry_run=False)
+    except subprocess.CalledProcessError as exc:
+        stage2_process_error = str(exc)
+        logging.error("task %d: stage2 process failed, attempting per-subject salvage: %s", task_id, exc)
+    stage2_duration = time.perf_counter() - start
+    stage2_outcome = "process_error" if stage2_process_error else "ok"
     for row in passed:
-        write_status(status_dir, SubjectStatus(row.subject_id, task_id, "ok", "stage1+stage2 completed"))
-    logging.info("task %d: %d/%d subject(s) completed successfully", task_id, len(passed), len(chunk))
+        events[row.subject_id].append(
+            StageEvent("stage2_process", stage2_outcome, stage2_duration, stage2_process_error or "stage2 subprocess completed")
+        )
+
+    start = time.perf_counter()
+    ok_rows, failed_stage2_check = check_stage2_outputs(passed, prep_dir, config)
+    check2_duration = time.perf_counter() - start
+    for subject_id, reason in failed_stage2_check.items():
+        events[subject_id].append(StageEvent("stage2_check", "failed", check2_duration, reason))
+        status = "failed_stage2_process" if stage2_process_error else "failed_stage2_check"
+        detail = f"{stage2_process_error} | {reason}" if stage2_process_error else reason
+        final[subject_id] = (status, detail)
+    for row in ok_rows:
+        events[row.subject_id].append(StageEvent("stage2_check", "ok", check2_duration, "stage2 output verified"))
+        final[row.subject_id] = ("ok", "stage1+stage2 completed")
+
+    if stage2_process_error and not ok_rows:
+        logging.error("task %d: stage2 process failed and no subject could be salvaged", task_id)
+        _finalize_statuses(status_dir, task_id, events, final)
+        return 1
+    if stage2_process_error:
+        logging.warning(
+            "task %d: stage2 process failed but %d/%d subject(s) salvaged via output check",
+            task_id, len(ok_rows), len(passed),
+        )
+
+    _finalize_statuses(status_dir, task_id, events, final)
+    logging.info("task %d: %d/%d subject(s) completed successfully", task_id, len(ok_rows), len(chunk))
     return 0
+
+
+def _finalize_statuses(
+    status_dir: Path, task_id: int, events: dict[str, list[StageEvent]], final: dict[str, tuple[str, str]]
+) -> None:
+    """Writes one SubjectStatus per subject that reached a terminal outcome
+    in this task, each carrying the full stage-by-stage trace accumulated so
+    far. Subjects still in `events` but missing from `final` (e.g. stuck
+    mid-pipeline after a structural OSError) are left without a status file,
+    same as before this refactor - a structural error requires human
+    intervention regardless of a per-subject write here."""
+    for subject_id, (status, detail) in final.items():
+        write_status(status_dir, SubjectStatus(subject_id, task_id, status, detail, stages=tuple(events[subject_id])))
 
 
 def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
@@ -182,8 +278,6 @@ def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
         logging.error(str(exc))
         return 1
 
-    prep_dir = output_dir / "prep"
-    features_dir = output_dir / "features"
     counts: dict[str, int] = {}
     for status in statuses:
         counts[status.status] = counts.get(status.status, 0) + 1
@@ -191,15 +285,23 @@ def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
             continue
         task_dir = output_dir / "_work" / f"task_{status.task_id}"
         try:
-            _link_subject(task_dir / "prep" / status.subject_id, prep_dir / status.subject_id)
-            _link_subject(task_dir / "features" / status.subject_id, features_dir / status.subject_id)
+            # task_dir/prep/<subject>/lesion already holds both Stage 1 (NIfTI)
+            # and Stage 2 (CSV/TSV) output together - see run_stage2's
+            # docstring. Linking straight to the "lesion" subfolder (bcblib's
+            # own LF_SUBDIR constant - not a real BIDS datatype, just this
+            # tool's naming) instead of the subject folder itself flattens the
+            # final output to output_dir/<subject>/* directly. Assumes no
+            # session-level nesting (bcblib inserts ses-<id>/ between sub-<id>
+            # and lesion/ otherwise) - true here since staging.py never
+            # creates ses-* folders.
+            _link_subject(task_dir / "prep" / status.subject_id / "lesion", output_dir / status.subject_id)
         except OSError as exc:
             logging.error("aggregate: cannot merge %s: %s", status.subject_id, exc, exc_info=True)
             return 1
 
     try:
         (output_dir / "manifest.json").write_text(json.dumps({"counts": counts, "total": len(statuses)}, indent=2))
-        (output_dir / "config.md").write_text(_readme_text(config, counts, len(statuses), now))
+        (output_dir / "config.md").write_text(_readme_text(config, counts, len(statuses), now, statuses))
         append_run_log_entry(
             config.output_root, config.session_name, now, "production", counts, output_dir, config.run_notes
         )
@@ -207,7 +309,7 @@ def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
         logging.error("aggregate: cannot write summary/run log: %s", exc, exc_info=True)
         return 1
 
-    logging.info("aggregate: done - %s -> prep/features merged under %s", counts, output_dir)
+    logging.info("aggregate: done - %s -> merged under %s", counts, output_dir)
     return 0
 
 
@@ -218,7 +320,9 @@ def _link_subject(source: Path, destination: Path) -> None:
     destination.symlink_to(source.resolve())
 
 
-def _readme_text(config: SDCConfig, counts: dict[str, int], total: int, now: datetime) -> str:
+def _readme_text(
+    config: SDCConfig, counts: dict[str, int], total: int, now: datetime, statuses: list[SubjectStatus]
+) -> str:
     lines = [
         f"# {config.project} SDC — {config.session_name} — {now.strftime('%d-%m-%y %H:%M')}",
         "",
@@ -229,7 +333,27 @@ def _readme_text(config: SDCConfig, counts: dict[str, int], total: int, now: dat
     ]
     for status, count in sorted(counts.items()):
         lines.append(f"| {status} | {count} |")
+    lines += ["", "## Average stage duration (seconds)", "", "| stage | mean duration (s) | events |", "|---|---|---|"]
+    for stage, mean_duration, event_count in _mean_stage_durations(statuses):
+        lines.append(f"| {stage} | {mean_duration:.1f} | {event_count} |")
     return "\n".join(lines) + "\n"
+
+
+def _mean_stage_durations(statuses: list[SubjectStatus]) -> list[tuple[str, float, int]]:
+    """Averages StageEvent.duration_s per stage across every subject status
+    read at aggregate time. stage1_process/stage2_process durations are
+    chunk-wide (see StageEvent's docstring) and therefore repeated once per
+    subject in that chunk - this average is over those per-subject-repeated
+    values, not over distinct subprocess invocations, so it answers "what
+    duration did a subject typically experience for this stage" rather than
+    "how long did one subprocess call take"."""
+    totals: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    for status in statuses:
+        for event in status.stages:
+            totals[event.stage] = totals.get(event.stage, 0.0) + event.duration_s
+            counts[event.stage] = counts.get(event.stage, 0) + 1
+    return sorted((stage, totals[stage] / counts[stage], counts[stage]) for stage in totals)
 
 
 def _log_path(config: SDCConfig, mode: str, now: datetime) -> Path:
