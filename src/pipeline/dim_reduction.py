@@ -8,7 +8,14 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
 
 - fine_tuning=false (production): embeds with the method's "params" from
   params_reduction.json, writes a normal matrix artifact holding the
-  embedding. metadata is carried over unchanged.
+  embedding. metadata gains 2 columns not present on input:
+  lesion_volume_voxels (X.sum(axis=1), the same per-subject voxel count
+  regress_out_volume already uses) and lesion_side (src/features/clinical.py's
+  join_lesion_side, "unknown" for a subject/dataset the source participants.tsv
+  can't resolve) - both exist to color embedding_plot_volume.*/embedding_plot_side.*
+  (see plotting.py) and are persisted, not just computed ad hoc, so
+  scripts/replot_dim_reduction.py can regenerate every plot from metadata.csv
+  alone, without reloading the original feature matrix.
 - fine_tuning=true (manual hyperparameter search, umap/tsne/pca/pca_varimax/
   pacmap - t-SNE only sweeps perplexity, its other params still come from
   Thiebaut de Schotten et al. 2020): evaluates every combination in the
@@ -40,13 +47,17 @@ from src.analysis.covariates import check_volume_regression_compatible, regress_
 from src.analysis.model_config import DimReductionConfig, load_dim_reduction_config
 from src.analysis.params import load_method_params, load_trustworthiness_n_neighbors, load_tuning_grid
 from src.analysis.plotting import (
+    compose_embedding_plot_title,
     compose_run_title,
     plot_embedding_2d,
+    plot_embedding_categorical,
+    plot_embedding_continuous,
     plot_embedding_interactive,
     plot_tuning_curve,
 )
 from src.analysis.reduction import REDUCTION_METHODS
 from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
+from src.features.clinical import join_lesion_side
 from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
@@ -103,18 +114,31 @@ def _run_production(
 
     embedding = REDUCTION_METHODS[config.reduction_method](X, params)
 
+    # Same quantity regress_out_volume uses below - computed unconditionally (not just
+    # when regress_out_volume is set) since it's also the Volume coloring for the plots.
+    lesion_volume_voxels = X.sum(axis=1)
+
     if config.regress_out_volume:
         # X is binary (0/1 per voxel); a row's voxel count is exactly proportional to its
         # lesion volume in ml, and OLS residuals are invariant to that scalar rescaling.
-        lesion_load_voxels = X.sum(axis=1)
-        embedding = regress_out_covariate(embedding, lesion_load_voxels)
+        embedding = regress_out_covariate(embedding, lesion_volume_voxels)
         logging.info("regressed out lesion volume (voxel count) from the embedding before saving")
+
+    try:
+        lesion_side = join_lesion_side(metadata)
+    except (FileNotFoundError, ValueError) as exc:
+        logging.error(str(exc))
+        return 1
+
+    metadata_out = metadata.copy()
+    metadata_out["lesion_volume_voxels"] = lesion_volume_voxels
+    metadata_out["lesion_side"] = lesion_side
 
     try:
         save_matrix(
             output_dir,
             embedding,
-            metadata,
+            metadata_out,
             _build_readme_lines(config, X, embedding, params, now),
             overwrite=config.overwrite,
         )
@@ -124,34 +148,68 @@ def _run_production(
     logging.info("embedding written to %s (shape %s)", output_dir, embedding.shape)
 
     if embedding.shape[1] >= 2:
-        plot_title = compose_run_title(output_dir, config.project)
+        xlabel, ylabel = f"{config.reduction_method} dim 1", f"{config.reduction_method} dim 2"
 
         try:
             plot_path = output_dir / "embedding_plot.png"
             plot_embedding_2d(
                 embedding,
                 plot_path,
-                f"{config.reduction_method.upper()} 1",
-                f"{config.reduction_method.upper()} 2",
-                plot_title,
+                xlabel,
+                ylabel,
+                compose_embedding_plot_title(output_dir, config.reduction_method),
             )
             logging.info("embedding plot written to %s", plot_path)
         except Exception as exc:
             logging.warning("failed to generate embedding plot: %s", exc)
 
+        for color_by, column in (("Dataset", "dataset"), ("Side", "lesion_side")):
+            suffix = column.replace("lesion_", "")
+            title = compose_embedding_plot_title(output_dir, config.reduction_method, color_by)
+            try:
+                plot_embedding_categorical(
+                    embedding,
+                    metadata_out[column].to_numpy(),
+                    output_dir / f"embedding_plot_{suffix}.png",
+                    xlabel,
+                    ylabel,
+                    title,
+                    legend_title=column,
+                )
+                logging.info("%s embedding plot written to %s", color_by.lower(), output_dir / f"embedding_plot_{suffix}.png")
+            except Exception as exc:
+                logging.warning("failed to generate %s embedding plot: %s", color_by.lower(), exc)
+
+            try:
+                interactive_path = output_dir / f"embedding_plot_{suffix}.html"
+                plot_embedding_interactive(embedding, metadata_out, interactive_path, xlabel, ylabel, title, color_column=column)
+                logging.info("interactive %s embedding plot written to %s", color_by.lower(), interactive_path)
+            except Exception as exc:
+                logging.warning("failed to generate interactive %s embedding plot: %s", color_by.lower(), exc)
+
+        volume_title = compose_embedding_plot_title(output_dir, config.reduction_method, "Volume")
         try:
-            interactive_plot_path = output_dir / "embedding_plot_interactive.html"
-            plot_embedding_interactive(
+            plot_embedding_continuous(
                 embedding,
-                metadata,
-                interactive_plot_path,
-                f"{config.reduction_method.upper()} 1",
-                f"{config.reduction_method.upper()} 2",
-                plot_title,
+                lesion_volume_voxels,
+                output_dir / "embedding_plot_volume.png",
+                xlabel,
+                ylabel,
+                volume_title,
+                colorbar_label="lesion volume (voxels)",
             )
-            logging.info("interactive embedding plot written to %s", interactive_plot_path)
+            logging.info("volume embedding plot written to %s", output_dir / "embedding_plot_volume.png")
         except Exception as exc:
-            logging.warning("failed to generate interactive embedding plot: %s", exc)
+            logging.warning("failed to generate volume embedding plot: %s", exc)
+
+        try:
+            interactive_volume_path = output_dir / "embedding_plot_volume.html"
+            plot_embedding_interactive(
+                embedding, metadata_out, interactive_volume_path, xlabel, ylabel, volume_title, color_column="lesion_volume_voxels"
+            )
+            logging.info("interactive volume embedding plot written to %s", interactive_volume_path)
+        except Exception as exc:
+            logging.warning("failed to generate interactive volume embedding plot: %s", exc)
 
     try:
         append_run_log_entry(

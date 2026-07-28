@@ -1,0 +1,2 @@
+INFO: Starting fine-tuning sweep for tsne (30 combinations)
+INFO: Evaluating combination 1/30: {'perplexity': 5, 'metric': 'euclidean', 'regress_out_volume': False}

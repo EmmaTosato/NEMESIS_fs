@@ -515,6 +515,8 @@ def _write_tuning_output(
                 "clustering_method": method,
                 "clustering_params_file": str(config.clustering_params_file),
                 "session_name": config.session_name,
+                "clustering_base_params": base_params,
+                "clustering_tuning_grid": tuning_grid,
             },
             indent=2,
         ),
@@ -527,7 +529,7 @@ def _write_tuning_output(
         f"Combinations evaluated: {len(results)}",
         f"Metrics: {metric_cols}",
         "",
-        "No automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",
+        "Warning: no automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",
     ]
     (output_dir / "config.md").write_text("\n".join(readme_lines) + "\n")
 

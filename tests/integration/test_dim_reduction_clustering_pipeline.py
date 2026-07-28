@@ -214,6 +214,14 @@ def test_dim_reduction_clustering_fine_tuning_kmeans_sweeps_against_one_embeddin
     assert "inertia" in results.columns
     assert "silhouette" in results.columns
 
+    # config.md must be a self-contained snapshot of what was actually swept -
+    # not just the pipeline-level config, which alone can't tell you the grid.
+    config_md = (tuning_dir / "config.md").read_text()
+    assert '"clustering_base_params"' in config_md
+    assert '"clustering_tuning_grid"' in config_md
+    assert '"n_clusters": [' in config_md
+    assert "Warning: no automatic selection" in config_md
+
     # no comparison plot in tuning mode - only one method's sweep, and a sweep
     # isn't a single set of cluster labels to compare side by side anyway
     assert not (output_root / "pca" / "comparison").exists()
