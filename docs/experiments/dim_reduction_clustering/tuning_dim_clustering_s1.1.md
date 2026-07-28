@@ -14,18 +14,38 @@ Tuning dei metodi di clustering (kmeans/agglomerative/gmm/dbscan/spectral) su va
 
 **PCA scartato come riduzione**: a 150 componenti soffre di curse of dimensionality (struttura sistematicamente debole/inutilizzabile); a 2 componenti il segnale principale (silhouette più alto di tutto lo studio) si è rivelato ridondante col volume lesionale, non con la topografia — `PC2` correla r=0.92 (Pearson) col volume lesionale per soggetto, verificato direttamente sui cluster (kmeans k=3: il gruppo "lesioni piccole" separato quasi solo per dimensione). umap/pacmap/tsne restano tutte valide.
 
-## 28-07-2026 — griglia estesa (umap aggiornato a jaccard, tsne invariato; +linkage/covariance_type/min_samples/n_neighbors)
+## 28/29-07-2026 — metric × regress_out_volume (umap/tsne), rilancio dopo pulizia dei tuning precedenti
 
-Embedding aggiornati rispetto al round precedente: **umap** ora con `n_neighbors=15, metric=jaccard` (vedi [`tuning_dim_s1.1.md`](tuning_dim_s1.1.md)) al posto del vecchio `n_neighbors=5, euclidean`; **tsne** invariato (`perplexity=30` — il guadagno a 50 era marginale, non adottato).
+Sostituisce il round precedente (stessa griglia base, tuning cancellato e rilanciato con `regress_out_volume` come terza dimensione di confronto). Sessione unica a cavallo di mezzanotte: UMAP taggato `28-07`, t-SNE `29-07`, stessi dati/config altrimenti. `regress_out_volume=true` non è applicabile con `metric=jaccard`/`dice` (incompatibilità esplicita, `src/analysis/covariates.py`) — nessuna riga per quella combinazione.
 
-| Riduzione | kmeans | agglomerative | gmm | dbscan | spectral |
+**Dim tuning** (embedding, trustworthiness — invariato rispetto a prima, incluso per riferimento):
+
+| Riduzione | euclidean | jaccard | dice |
+|---|---|---|---|
+| umap (n_neighbors 5→100) | 0.740 → 0.718 | 0.943 → 0.931 (best 0.945 @ 15) | 0.942 → 0.929 (best 0.945 @ 15) |
+| tsne (perplexity 5→75) | 0.748 → 0.760 | 0.947 → 0.943 (best 0.952 @ 15) | 0.947 → 0.950 (best 0.954 @ 15) |
+
+**Clustering tuning — UMAP**:
+
+| Variante | kmeans | agglomerative | gmm | dbscan | spectral |
 |---|---|---|---|---|---|
-| **umap** (jaccard) | k=2 (silhouette 0.756, nettamente più alto che con l'euclidean di prima) | k=2 con qualunque `linkage` (identico); ⚠️ `single` degrada da k=4 in su, arriva negativo a k=8 | n=2 con qualunque `covariance_type` (identico) | ⚠️ stesso artefatto di prima, ancora più marcato: eps 0.7-2.0 collassano tutti sullo stesso risultato (0.677, identico ad agglomerative k=3) | k=2 con `n_neighbors`≥30; ⚠️ `n_neighbors=10` è chiaramente troppo basso (silhouette negativo anche a k=2) — conferma che il default 50 è una buona scelta |
-| **tsne** (perplexity=30) | k=2 (debole, 0.41 — separazione molto più bassa che su umap-jaccard) | k=2 con `linkage=complete` | n=2 con `covariance_type=diag` | ⚠️ stesso artefatto (eps=0.5 default: 98.9% noise, silhouette "ottimo" fittizio) | k=2, `n_neighbors` ha impatto minimo qui |
+| euclidean, vol=ON | k=3 (0.472) | k=3, average (0.466) | n=3, spherical (0.475) | eps=0.3, min_samples=10 (0.199, noise 3.5%) | k=3, nn=100 (0.474) |
+| euclidean, vol=OFF | k=4 (0.462) | k=3, average (0.443) | n=4, spherical (0.464) | eps=0.3, min_samples=3 (0.255, noise 0.1%) | k=5, nn=100 (0.464) |
+| jaccard | k=2 (0.756) | k=2, ward (0.756) | n=2, full (0.756) | eps≥0.7 (0.677, noise ~0%) | k=2, nn=30 (0.756) |
 
-**Osservazione principale**: con l'embedding UMAP corretto (jaccard), la separazione a k=2 è nettamente più netta di tutto lo studio precedente (0.756 contro 0.37-0.5) — e quasi ogni metodo/parametro aggiuntivo converge sullo stesso k=2, segno di una struttura più semplice di quanto suggerisse l'embedding euclidean. Su tsne la separazione resta debole (~0.41), coerente col fatto che qui non c'è un'opzione di metrica binaria da sfruttare.
+**Clustering tuning — t-SNE** (perplexity=30 fissa):
 
-**dbscan**: confermato inaffidabile su entrambe le riduzioni (stessi artefatti di rumore) — resta fuori da qualunque scelta di produzione finché non si esplora una griglia `eps` dedicata più fine (proposta non ancora eseguita: `[0.3, 0.4, 0.5, 0.55, 0.6, 0.65, 0.7]`, per risolvere la zona di transizione tra 0.5 e 0.7 dove oggi non abbiamo risoluzione).
+| Variante | kmeans | agglomerative | gmm | dbscan | spectral |
+|---|---|---|---|---|---|
+| euclidean, vol=ON | k=2 (0.420) | k=2, average (0.423) | n=2, diag (0.428) | ⚠️ eps=0.5/min_samples=5 (0.984, noise 98.9%) | k=2, nn=10 (0.426) |
+| euclidean, vol=OFF | k=2 (0.411) | k=2, complete (0.408) | n=2, diag (0.417) | ⚠️ eps=0.5/min_samples=5 (0.988, noise 98.9%) | k=2, nn=10 (0.415) |
+| jaccard | k=2 (0.606) | k=2, complete (0.602) | n=2, tied (0.605) | ⚠️ eps=0.5/min_samples=3 (0.955, noise 98.3%) | k=2, nn=100 (0.605) |
+
+**Letture numeriche**:
+- `regress_out_volume` ON vs OFF (euclidean, unico confronto possibile): Δsilhouette ≤0.02 su entrambe le riduzioni — effetto trascurabile sulla qualità del clustering.
+- euclidean → jaccard: +0.28 su umap (0.47→0.756), +0.19 su tsne (0.42→0.606) — salto molto più marcato su umap.
+- umap-jaccard: le 5 combinazioni di metodo/parametro con silhouette più alta convergono **tutte** su k=2, silhouette identico (0.756) — incluso dbscan a eps≥0.7 con noise~0%, non un artefatto come altrove.
+- dbscan resta inaffidabile ovunque tranne che su umap-jaccard: noise_fraction ≥90% su tutte le altre 5 combinazioni (euclidean umap escluso, dove noise è comunque basso ma silhouette bassa) — i valori di silhouette "alti" su tsne (0.955-0.988) sono calcolati su ~1-2% dei soggetti, non comparabili.
 
 Le scelte operative conseguenti (quali valori usare per una run di produzione) sono tracciate separatamente in [`runs_history_dim_clustering_s1.1.md`](runs_history_dim_clustering_s1.1.md).
 
