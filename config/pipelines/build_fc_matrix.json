@@ -1,0 +1,21 @@
+{
+  "project": "clinical_connectome",
+  "masked_fc_root": "data/derived/features/masked_fc",
+  "atlas_combos": [
+    "Yan100TianS1Buckner7N",
+    "Yan100TianS2Buckner7N",
+    "Yan100TianS3Buckner7N",
+    "Yan200TianS1Buckner7N",
+    "Yan200TianS3Buckner7N",
+    "Yan300TianS1Buckner7N",
+    "Yan300TianS2Buckner7N",
+    "Yan300TianS3Buckner7N",
+    "Yan400TianS1Buckner7N",
+    "Yan400TianS2Buckner7N",
+    "Yan400TianS3Buckner7N"
+  ],
+  "output_root": "data/derived/features/fc_matrix",
+  "session_name": "s2",
+  "overwrite": false,
+  "run_notes": ""
+}

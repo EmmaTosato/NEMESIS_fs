@@ -1,38 +1,38 @@
 {
   "lesion": {
-    "project_root": "C:/Users/tuonome/Documents/Clinical_connectome",
+    "project_root": "/Users/emmatosato/Local Projects/Local PhD Projects/NEMESIS_fs/data/clinical_connectome/derivatives",
     "manual_masks": {
       "anat": {
         "lesion_mask": [
-          "derivatives/manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
+          "manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz"
         ]
       }
     }
   },
   "feature": {
-    "project_root": "C:/Users/tuonome/Documents/Clinical_connectome/features",
+    "project_root": "/Users/emmatosato/Local Projects/Local PhD Projects/NEMESIS_fs/data/clinical_connectome/derivatives",
     "func": {
       "FC-pearson": [
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan100TianS1Buckner7N.csv",
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan100TianS2Buckner7N.csv",
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan100TianS3Buckner7N.csv",
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan200TianS1Buckner7N.csv",
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan200TianS2Buckner7N.csv",
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan200TianS3Buckner7N.csv",
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan300TianS1Buckner7N.csv",
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan300TianS2Buckner7N.csv",
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan300TianS3Buckner7N.csv",
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan400TianS1Buckner7N.csv",
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan400TianS2Buckner7N.csv",
-        "{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan400TianS3Buckner7N.csv"
+        "features/{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan100TianS1Buckner7N.csv",
+        "features/{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan100TianS2Buckner7N.csv",
+        "features/{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan100TianS3Buckner7N.csv",
+        "features/{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan200TianS1Buckner7N.csv",
+        "features/{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan200TianS2Buckner7N.csv",
+        "features/{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan200TianS3Buckner7N.csv",
+        "features/{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan300TianS1Buckner7N.csv",
+        "features/{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan300TianS2Buckner7N.csv",
+        "features/{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan300TianS3Buckner7N.csv",
+        "features/{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan400TianS1Buckner7N.csv",
+        "features/{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan400TianS2Buckner7N.csv",
+        "features/{subject_id}/func/{subject_id}_space-MNI152NLin6Asym_FC-pearson_atlas-Yan400TianS3Buckner7N.csv"
       ],
       "motion": [
-        "{subject_id}/func/{subject_id}_desc-motion.tsv",
-        "{subject_id}/func/{subject_id}_desc-motion.json"
+        "features/{subject_id}/func/{subject_id}_desc-motion.tsv",
+        "features/{subject_id}/func/{subject_id}_desc-motion.json"
       ],
       "outliers": [
-        "{subject_id}/func/{subject_id}_desc-outliers.tsv",
-        "{subject_id}/func/{subject_id}_desc-outliers.json"
+        "features/{subject_id}/func/{subject_id}_desc-outliers.tsv",
+        "features/{subject_id}/func/{subject_id}_desc-outliers.json"
       ]
     }
   }

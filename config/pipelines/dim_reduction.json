@@ -1,11 +1,12 @@
 {
   "project": "clinical_connectome",
-  "input_path": "data/derived/lesion_matrix/21-07_s1",
-  "reduction_method": "umap",
+  "input_path": "data/derived/lesion_matrix/21-07_s1.1",
+  "reduction_method": "pacmap",
   "params_file": "config/registry/params_reduction.json",
   "output_root": "results/lesion/dim_reduction",
-  "session_name": "umap_s1",
+  "session_name": "s1.1",
   "overwrite": true,
   "fine_tuning": false,
-  "run_notes": "UMAP production run with fine-tuned params (n_neighbors=15, min_dist=0.1)"
+  "regress_out_volume": false,
+  "run_notes": ""
 }
