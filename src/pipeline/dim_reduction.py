@@ -286,7 +286,7 @@ def _write_tuning_output(
         combinations_line,
         f"Metric: {metric_col}",
         "",
-        "No automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",
+        "Warning: no automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",
     ]
     (output_dir / "config.md").write_text("\n".join(readme_lines) + "\n")
 

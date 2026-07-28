@@ -24,7 +24,21 @@ plot_eigengap/plot_k_distance are the same "human eyeballs a sweep" idea
 applied to clustering.py's own fine-tuning mode (src/analysis/clustering_tuning.py)
 - one generic multi-metric curve plus 3 method-specific standalone diagnostics
 (dendrogram for agglomerative, eigengap for spectral, k-distance for dbscan),
-also with no automatic selection.
+also with no automatic selection. plot_embedding_categorical/
+plot_embedding_continuous extend dim_reduction.py's production embedding plot
+beyond the single-color plot_embedding_2d and the dataset-only
+plot_embedding_interactive: any string category (dataset, lesion side) or
+continuous quantity (lesion volume) per subject can be the color axis, each
+written as its own embedding_plot_<name>.png - a static PNG only has one
+legend/colorbar, so combining more than one coloring on the same static image
+isn't attempted here (the interactive plot_embedding_interactive already
+answers "what if I want a different color" via color_column, no separate
+function needed for that side). Cluster-vs-dataset coloring in
+plot_clusters_interactive was un-deferred and then re-deferred: a clustering
+plot's job is to show the cluster assignment, dataset coloring belongs to
+dim_reduction.py's own embedding_plot_dataset instead - keeping the two
+concerns in the two places that already own them, rather than one function
+answering both.
 """
 
 from __future__ import annotations
@@ -137,25 +151,28 @@ def compose_run_title(output_dir: Path, project: str) -> str:
     return f"{project} — " + " › ".join(parts)
 
 
-def compose_comparison_title(output_dir: Path, reduction_method: str | None) -> str:
-    """Suptitle for a cluster-method comparison plot:
-    "Clustering comparison - <Modality> - <reduction_method>" (or without the
-    trailing segment when reduction_method is None, e.g. clustering.py's
-    comparison, which clusters a matrix directly with no reduction step).
-
-    <Modality> is the naive capitalized plural (append "s") of output_dir's
-    modality segment - the first path part after a leading "results", e.g.
-    "lesion" -> "Lesions" - so a future modality (e.g. "sdc" -> "Sdcs") picks
-    up the same format automatically. Reused verbatim by both clustering.py
-    and dim_reduction_clustering.py so the two comparison plots can't drift
-    out of format sync with each other.
+def _modality_title(output_dir: Path) -> str:
+    """Naive capitalized plural (append "s") of output_dir's modality segment
+    - the first path part after a leading "results", e.g. "lesion" ->
+    "Lesions" - so a future modality (e.g. "sdc" -> "Sdcs") picks up the same
+    format automatically. Shared by every title composer below so they can't
+    drift out of format sync with each other.
     """
     parts = output_dir.parts
     if parts and parts[0] == "results":
         parts = parts[1:]
     if not parts:
         raise ValueError(f"cannot derive a modality from output_dir {output_dir} - no path segments after 'results'")
-    modality_title = parts[0][0].upper() + parts[0][1:] + "s"
+    return parts[0][0].upper() + parts[0][1:] + "s"
+
+
+def compose_comparison_title(output_dir: Path, reduction_method: str | None) -> str:
+    """Suptitle for a cluster-method comparison plot:
+    "Clustering comparison - <Modality> - <reduction_method>" (or without the
+    trailing segment when reduction_method is None, e.g. clustering.py's
+    comparison, which clusters a matrix directly with no reduction step).
+    """
+    modality_title = _modality_title(output_dir)
     if reduction_method:
         return f"Clustering comparison - {modality_title} - {reduction_method}"
     return f"Clustering comparison - {modality_title}"
@@ -165,32 +182,162 @@ def compose_cluster_plot_title(output_dir: Path, reduction_method: str, clusteri
     """Title for a single clustering method's static scatter (cluster_plot.png):
     "<Modality> - <ReductionMethod> - <ClusteringMethod>", each segment
     capitalized (Python's str.capitalize(), e.g. "umap" -> "Umap").
-
-    <Modality> is derived the same way as compose_comparison_title (naive
-    capitalized plural of output_dir's first path segment after a leading
-    "results") - reused so the two title schemes can't drift apart.
     """
-    parts = output_dir.parts
-    if parts and parts[0] == "results":
-        parts = parts[1:]
-    if not parts:
-        raise ValueError(f"cannot derive a modality from output_dir {output_dir} - no path segments after 'results'")
-    modality_title = parts[0][0].upper() + parts[0][1:] + "s"
+    modality_title = _modality_title(output_dir)
     return f"{modality_title} - {reduction_method.capitalize()} - {clustering_method.capitalize()}"
+
+
+def compose_embedding_plot_title(output_dir: Path, reduction_method: str, color_by: str | None = None) -> str:
+    """Title for a dim_reduction.py embedding scatter: "<Modality> -
+    <ReductionMethod>" (embedding_plot.png, unico colore) or "<Modality> -
+    <ReductionMethod> - <color_by>" (embedding_plot_{dataset,volume,side}.*),
+    same capitalization/format convention as compose_cluster_plot_title so
+    the two plot families read as one style instead of two.
+    """
+    modality_title = _modality_title(output_dir)
+    if color_by:
+        return f"{modality_title} - {reduction_method.capitalize()} - {color_by}"
+    return f"{modality_title} - {reduction_method.capitalize()}"
 
 
 def plot_embedding_2d(
     X_2d: np.ndarray, output_path: Path, xlabel: str, ylabel: str, title: str
 ) -> None:
-    """Scatter the first 2 columns of X_2d (no color labels), to output_path."""
+    """Scatter the first 2 columns of X_2d (no color labels), to output_path.
+
+    Same visual conventions as plot_clusters_2d (figure size, marker size,
+    bold/padded title, axis padding beyond the data's own min/max) minus the
+    legend/palette - there's no grouping to label here, just one color.
+    """
     if X_2d.shape[1] < 2:
         raise ValueError(f"plot_embedding_2d needs at least 2 columns, got shape {X_2d.shape}")
 
-    fig, ax = plt.subplots(figsize=(6, 5))
-    ax.scatter(X_2d[:, 0], X_2d[:, 1], alpha=0.5, s=12)
+    x_min, x_max = X_2d[:, 0].min(), X_2d[:, 0].max()
+    y_min, y_max = X_2d[:, 1].min(), X_2d[:, 1].max()
+    x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
+    y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
+
+    fig, ax = plt.subplots(figsize=(_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT))
+    ax.scatter(X_2d[:, 0], X_2d[:, 1], alpha=0.5, s=_MARKER_SIZE, edgecolor="none")
+    ax.set_xlim(x_min - x_pad, x_max + x_pad)
+    ax.set_ylim(y_min - y_pad, y_max + y_pad)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.set_title(title)
+    ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def _palette_for_categories(categories: list[str], missing_label: str = "unknown") -> dict[str, str]:
+    """Maps each category string to a color: missing_label always gets the
+    fixed neutral gray (same convention as -1/noise in _palette_for_labels),
+    every other category cycles through the validated categorical palette in
+    the order given (callers pass a sorted list, so this is deterministic).
+    """
+    palette: dict[str, str] = {}
+    colors = itertools.cycle(_CATEGORICAL_PALETTE)
+    for category in categories:
+        if category == missing_label:
+            palette[category] = _NOISE_COLOR
+        else:
+            palette[category] = next(colors)
+    return palette
+
+
+def plot_embedding_categorical(
+    X_2d: np.ndarray,
+    categories: np.ndarray,
+    output_path: Path,
+    xlabel: str,
+    ylabel: str,
+    title: str,
+    legend_title: str,
+    missing_label: str = "unknown",
+) -> None:
+    """Scatter the first 2 columns of X_2d, colored by an arbitrary string
+    category per point (e.g. dataset, lesion side), to output_path.
+
+    Same visual treatment as plot_clusters_2d: validated categorical
+    palette (missing_label - default "unknown" - always the same neutral
+    gray used for cluster noise, so a structurally-missing value never
+    impersonates a real category), legend anchored outside the axes, axis
+    limits padded beyond the data's own min/max, bold/padded title.
+    """
+    if X_2d.shape[1] < 2:
+        raise ValueError(f"plot_embedding_categorical needs at least 2 columns, got shape {X_2d.shape}")
+
+    x_min, x_max = X_2d[:, 0].min(), X_2d[:, 0].max()
+    y_min, y_max = X_2d[:, 1].min(), X_2d[:, 1].max()
+    x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
+    y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
+    unique_categories = sorted(pd.unique(categories).tolist())
+
+    fig, ax = plt.subplots(figsize=(_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT))
+    sns.scatterplot(
+        x=X_2d[:, 0],
+        y=X_2d[:, 1],
+        hue=categories,
+        hue_order=unique_categories,
+        palette=_palette_for_categories(unique_categories, missing_label),
+        s=_MARKER_SIZE,
+        edgecolor="none",
+        legend="full",
+        ax=ax,
+    )
+    ax.set_xlim(x_min - x_pad, x_max + x_pad)
+    ax.set_ylim(y_min - y_pad, y_max + y_pad)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
+    handles, legend_labels = ax.get_legend_handles_labels()
+    ax.legend(
+        handles,
+        legend_labels,
+        title=legend_title,
+        loc="upper left",
+        bbox_to_anchor=(1.02, 1.0),
+        borderaxespad=0.0,
+    )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_embedding_continuous(
+    X_2d: np.ndarray,
+    values: np.ndarray,
+    output_path: Path,
+    xlabel: str,
+    ylabel: str,
+    title: str,
+    colorbar_label: str,
+) -> None:
+    """Scatter the first 2 columns of X_2d, colored by a continuous value per
+    point (e.g. lesion volume in voxels), with a colorbar, to output_path.
+
+    Same figure size/marker size/axis padding/bold-padded-title conventions
+    as plot_clusters_2d/plot_embedding_categorical - a continuous quantity
+    has no legend entries to place, so a colorbar takes that role instead.
+    """
+    if X_2d.shape[1] < 2:
+        raise ValueError(f"plot_embedding_continuous needs at least 2 columns, got shape {X_2d.shape}")
+
+    x_min, x_max = X_2d[:, 0].min(), X_2d[:, 0].max()
+    y_min, y_max = X_2d[:, 1].min(), X_2d[:, 1].max()
+    x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
+    y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
+
+    fig, ax = plt.subplots(figsize=(_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT))
+    scatter = ax.scatter(X_2d[:, 0], X_2d[:, 1], c=values, cmap="viridis", s=_MARKER_SIZE, edgecolor="none")
+    ax.set_xlim(x_min - x_pad, x_max + x_pad)
+    ax.set_ylim(y_min - y_pad, y_max + y_pad)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
+    fig.colorbar(scatter, ax=ax, label=colorbar_label)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
@@ -392,20 +539,14 @@ def plot_clusters_interactive(
     ylabel: str,
     title: str,
     cluster_column: str = "cluster_label",
-    dataset_column: str = "dataset",
 ) -> None:
-    """Interactive HTML scatter of the first 2 columns of X_2d, with a
-    dropdown to switch the point coloring between cluster_column and
-    dataset_column - every metadata column shown on hover either way.
+    """Interactive HTML scatter of the first 2 columns of X_2d, colored by
+    cluster_column, with every metadata column shown on hover.
 
-    One self-contained HTML instead of two separate files: cluster
-    assignment and dataset/site are both plausible lenses on the same 2D
-    layout (does a cluster boundary track a site effect, or genuine
-    structure?), and switching between them in place answers that better
-    than opening two files side by side. Built with two full px.scatter
-    trace sets (one per coloring) merged into one go.Figure, toggled via
-    trace `visible` - plotly hides a trace's legend entry automatically
-    when visible=False, so the legend always matches the active coloring.
+    Cluster-only coloring on purpose (no dataset/site toggle here - a
+    clustering plot's job is to inspect the cluster assignment; dataset
+    coloring lives on dim_reduction.py's own embedding_plot_dataset instead,
+    see plotting.py's module docstring / docs/dev/analysis.md).
     """
     if X_2d.shape[1] < 2:
         raise ValueError(f"plot_clusters_interactive needs at least 2 columns, got shape {X_2d.shape}")
@@ -413,9 +554,8 @@ def plot_clusters_interactive(
         raise ValueError(
             f"X_2d has {X_2d.shape[0]} rows but metadata has {len(metadata)} rows - must match"
         )
-    for column in (cluster_column, dataset_column):
-        if column not in metadata.columns:
-            raise ValueError(f"column {column!r} not found in metadata columns {list(metadata.columns)}")
+    if cluster_column not in metadata.columns:
+        raise ValueError(f"column {cluster_column!r} not found in metadata columns {list(metadata.columns)}")
 
     plot_df = metadata.copy()
     plot_df["_dim1"] = X_2d[:, 0]
@@ -423,51 +563,8 @@ def plot_clusters_interactive(
     plot_df["_cluster_str"] = plot_df[cluster_column].astype(str)
 
     hover_columns = list(metadata.columns)
-    fig_by_cluster = px.scatter(plot_df, x="_dim1", y="_dim2", color="_cluster_str", hover_data=hover_columns)
-    fig_by_dataset = px.scatter(plot_df, x="_dim1", y="_dim2", color=dataset_column, hover_data=hover_columns)
-    for trace in fig_by_dataset.data:
-        trace.visible = False
-
-    n_cluster_traces = len(fig_by_cluster.data)
-    n_dataset_traces = len(fig_by_dataset.data)
-    title_by_cluster = f"{title} (colored by {cluster_column})"
-    title_by_dataset = f"{title} (colored by {dataset_column})"
-
-    fig = go.Figure(data=list(fig_by_cluster.data) + list(fig_by_dataset.data))
-    fig.update_layout(
-        title=title_by_cluster,
-        xaxis_title=xlabel,
-        yaxis_title=ylabel,
-        updatemenus=[
-            dict(
-                type="dropdown",
-                direction="down",
-                showactive=True,
-                x=1.0,
-                xanchor="right",
-                y=1.15,
-                yanchor="top",
-                buttons=[
-                    dict(
-                        label=f"Color by {cluster_column}",
-                        method="update",
-                        args=[
-                            {"visible": [True] * n_cluster_traces + [False] * n_dataset_traces},
-                            {"title": title_by_cluster},
-                        ],
-                    ),
-                    dict(
-                        label=f"Color by {dataset_column}",
-                        method="update",
-                        args=[
-                            {"visible": [False] * n_cluster_traces + [True] * n_dataset_traces},
-                            {"title": title_by_dataset},
-                        ],
-                    ),
-                ],
-            )
-        ],
-    )
+    fig = px.scatter(plot_df, x="_dim1", y="_dim2", color="_cluster_str", hover_data=hover_columns, title=title)
+    fig.update_layout(xaxis_title=xlabel, yaxis_title=ylabel, legend_title=cluster_column)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.write_html(output_path)
