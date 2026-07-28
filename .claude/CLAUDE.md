@@ -16,6 +16,8 @@ conda activate nemesis
 
 Create/update it from `environment.yml` (see `docs/setup.md` for details). Raw neuroimaging data (`*.nii`, `*.nii.gz`, gitignored) is not stored in this repo — it lives on EBRAIN (paths documented in `docs/guides/datasets.md`).
 
+**SDC pipeline (`src/sdc/`, `src/pipeline/compute_sdc.py`) cannot be run or tested locally**: it imports `bcblib` (BCBToolKit), a tool installed only in the cluster's conda environment, not in any local `nemesis` env (this Mac included). `tests/unit/test_sdc_staging_and_check.py`/`tests/integration/test_compute_sdc_pipeline.py` fail at collection with `ModuleNotFoundError: No module named 'bcblib'` outside the server — this is an environment gap, not a code regression; don't try to fix/install around it locally, and exclude those two files (`pytest --ignore=...`) when running the suite outside the cluster.
+
 ## Running pipelines (SLURM)
 
 This project runs on a shared cluster: every Python pipeline/script entry point (`src/pipeline/*.py`, `scripts/*.py`) is launched through an `sbatch` job script at `jobs/run_<pipeline_name>.sh` — a single file directly under `jobs/`, not a per-pipeline subfolder (only switch a pipeline to a `jobs/<name>/` subfolder if it genuinely needs more than one `.sh` script) — never invoked directly (no bare `python`/`conda run` on the login node). `jobs/run_retrieve_data.sh` is the reference example; `jobs/run_data_summary.sh` and `jobs/run_verify_retrieval.sh` follow the same shape:
