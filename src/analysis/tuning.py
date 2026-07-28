@@ -23,6 +23,14 @@ Quality metric differs by method, on purpose (see docs/methods/dimensionality_re
   count. Varimax rotation is orthogonal, so it doesn't change the total
   variance explained by the underlying (unrotated) components - the same
   criterion applies unchanged to pca_varimax.
+
+`regress_out_volume` (umap/tsne only today) can be swept in tuning_grid
+alongside `metric`: evaluate_umap/evaluate_tsne apply it to the embedding
+before scoring, exactly like the production path in dim_reduction.py. Some
+combinations are impossible by construction (regress_out_volume=True with
+metric=jaccard/dice, see src/analysis/covariates.py) - run_tuning_sweep
+skips just that row (score=NaN, "skipped_reason" column explains why)
+rather than crashing the whole sweep or silently dropping it.
 """
 
 from __future__ import annotations
@@ -35,6 +43,11 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.manifold import trustworthiness
 
+from src.analysis.covariates import (
+    VolumeRegressionIncompatibleError,
+    check_volume_regression_compatible,
+    regress_out_covariate,
+)
 from src.analysis.distances import SUPPORTED_BINARY_METRICS, binary_pairwise_distance
 from src.analysis.reduction import pacmap_embed, pca_varimax_embed, tsne_embed, umap_embed
 
@@ -50,7 +63,8 @@ METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS = {"umap", "tsne", "pacmap"}
 
 
 def evaluate_umap(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int) -> tuple[np.ndarray, float]:
-    """Embed with UMAP, then score with trustworthiness(X, embedding).
+    """Embed with UMAP, optionally regress out lesion volume, then score with
+    trustworthiness(X, embedding).
 
     trustworthiness needs its own notion of "how close were these points
     originally" - if params requests a binary metric (jaccard/dice), that
@@ -62,24 +76,41 @@ def evaluate_umap(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int)
     umap's own metric is switched to "precomputed" accordingly (also avoids
     umap/sklearn each recomputing pairwise distances the slow, non-vectorized
     way on raw high-dimensional binary features).
+
+    "regress_out_volume" (default False) is not a UMAP constructor argument -
+    stripped from params before embedding, applied to the embedding
+    afterwards exactly like the production path in dim_reduction.py (OLS
+    residuals against each subject's voxel count, X.sum(axis=1)), and the
+    score is computed on that residualized embedding since that is what a
+    production run with the same flag would actually save. Raises
+    VolumeRegressionIncompatibleError if combined with metric=jaccard/dice -
+    checked here (not only in run_tuning_sweep) so this holds regardless of
+    caller, per the project's "single always-run validation point" rule.
     """
+    regress_out_volume = params.get("regress_out_volume", False)
+    check_volume_regression_compatible(regress_out_volume, params)
+
     metric = params.get("metric", "euclidean")
     if metric in SUPPORTED_BINARY_METRICS:
         X_input = binary_pairwise_distance(X, metric)
-        umap_params = {**params, "metric": "precomputed"}
+        umap_params = {k: v for k, v in params.items() if k not in ("metric", "regress_out_volume")}
+        umap_params["metric"] = "precomputed"
         trustworthiness_metric = "precomputed"
     else:
         X_input = X
-        umap_params = params
+        umap_params = {k: v for k, v in params.items() if k != "regress_out_volume"}
         trustworthiness_metric = metric
 
     embedding = umap_embed(X_input, umap_params)
+    if regress_out_volume:
+        embedding = regress_out_covariate(embedding, X.sum(axis=1))
     score = float(trustworthiness(X_input, embedding, n_neighbors=trustworthiness_n_neighbors, metric=trustworthiness_metric))
     return embedding, score
 
 
 def evaluate_tsne(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int) -> tuple[np.ndarray, float]:
-    """Embed with t-SNE, then score with trustworthiness(X, embedding).
+    """Embed with t-SNE, optionally regress out lesion volume, then score with
+    trustworthiness(X, embedding).
 
     Same binary-metric handling as evaluate_umap, for the same reason: on
     binary voxel data, euclidean is dominated by lesion volume rather than
@@ -90,18 +121,29 @@ def evaluate_tsne(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int)
     metric="precomputed" - "pca" needs the raw feature matrix, not a distance
     matrix - so init is forced to "random" in that case, never left at the
     default for a precomputed run.
+
+    Same "regress_out_volume" handling as evaluate_umap too (see its
+    docstring): stripped from params, applied to the embedding after fitting,
+    scored on the residualized embedding, validated here regardless of caller.
     """
+    regress_out_volume = params.get("regress_out_volume", False)
+    check_volume_regression_compatible(regress_out_volume, params)
+
     metric = params.get("metric", "euclidean")
     if metric in SUPPORTED_BINARY_METRICS:
         X_input = binary_pairwise_distance(X, metric)
-        tsne_params = {**params, "metric": "precomputed", "init": "random"}
+        tsne_params = {k: v for k, v in params.items() if k not in ("metric", "regress_out_volume")}
+        tsne_params["metric"] = "precomputed"
+        tsne_params["init"] = "random"
         trustworthiness_metric = "precomputed"
     else:
         X_input = X
-        tsne_params = params
+        tsne_params = {k: v for k, v in params.items() if k != "regress_out_volume"}
         trustworthiness_metric = metric
 
     embedding = tsne_embed(X_input, tsne_params)
+    if regress_out_volume:
+        embedding = regress_out_covariate(embedding, X.sum(axis=1))
     score = float(trustworthiness(X_input, embedding, n_neighbors=trustworthiness_n_neighbors, metric=trustworthiness_metric))
     return embedding, score
 
@@ -153,6 +195,14 @@ def run_tuning_sweep(
     the methods in TUNING_METRIC_NAMES are supported today - kmeans/agglomerative/
     gmm/dbscan/spectral have no tuning_grid to begin with here, see
     clustering_tuning.py instead, and params.py.load_tuning_grid).
+
+    If a combination has regress_out_volume=True together with metric=jaccard/dice
+    (umap/tsne only - see evaluate_umap/evaluate_tsne), that specific combination
+    is not evaluated: no embedding is computed, and its row gets metric_name=NaN
+    plus a "skipped_reason" column explaining why - explicit and visible in
+    tuning_results.csv, rather than crashing the whole sweep or silently omitting
+    the row. The "skipped_reason" column itself is only present in the returned
+    DataFrame when at least one combination was actually skipped.
     """
     if method not in TUNING_METRIC_NAMES:
         raise ValueError(f"fine-tuning not supported for method {method!r} - known: {sorted(TUNING_METRIC_NAMES)}")
@@ -168,14 +218,20 @@ def run_tuning_sweep(
     logging.info("Starting fine-tuning sweep for %s (%d combinations)", method, total)
     
     for i, combo in enumerate(combinations, 1):
-        combo_params = {**base_params, **dict(zip(keys, combo))}
-        logging.info("Evaluating combination %d/%d: %s", i, total, dict(zip(keys, combo)))
+        swept = dict(zip(keys, combo))
+        combo_params = {**base_params, **swept}
+        logging.info("Evaluating combination %d/%d: %s", i, total, swept)
         if method in METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS:
             if trustworthiness_n_neighbors is None:
                 raise ValueError(f"trustworthiness_n_neighbors is required to fine-tune {method!r}")
-            _embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors)
+            try:
+                _embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors)
+            except VolumeRegressionIncompatibleError as exc:
+                logging.warning("skipping combination %d/%d (%s): %s", i, total, swept, exc)
+                rows.append({**swept, metric_name: float("nan"), "skipped_reason": str(exc)})
+                continue
         else:
             _embedding, score = evaluator(X, combo_params)
-        rows.append({**dict(zip(keys, combo)), metric_name: score})
+        rows.append({**swept, metric_name: score})
 
     return pd.DataFrame(rows)

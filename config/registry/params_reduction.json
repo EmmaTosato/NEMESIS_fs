@@ -9,11 +9,12 @@
       "learning_rate": 200,
       "max_iter": 1000,
       "random_state": 0,
-      "metric": "euclidean"
+      "metric": "jaccard"
     },
     "tuning_grid": {
       "perplexity": [5, 15, 30, 50, 75],
-      "metric": ["euclidean", "jaccard", "dice"]
+      "metric": ["euclidean", "jaccard", "dice"],
+      "regress_out_volume": [false, true]
     },
     "trustworthiness_n_neighbors": 10
   },
@@ -29,7 +30,8 @@
     },
     "tuning_grid": {
       "n_neighbors": [5, 15, 30, 50, 100],
-      "metric": ["euclidean", "jaccard", "dice"]
+      "metric": ["euclidean", "jaccard", "dice"],
+      "regress_out_volume": [false, true]
     },
     "trustworthiness_n_neighbors": 10
   },

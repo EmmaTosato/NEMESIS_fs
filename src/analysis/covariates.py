@@ -17,6 +17,15 @@ import numpy as np
 _VOLUME_NORMALIZED_METRICS = {"jaccard", "dice"}
 
 
+class VolumeRegressionIncompatibleError(ValueError):
+    """regress_out_volume=True requested together with a metric that already
+    normalizes distances by lesion volume (jaccard/dice). A ValueError
+    subclass so existing call sites catching ValueError are unaffected;
+    a distinct type lets tuning.py's sweep catch this specific failure
+    and skip just that combination, without swallowing unrelated ValueErrors.
+    """
+
+
 def regress_out_covariate(embedding: np.ndarray, covariate: np.ndarray) -> np.ndarray:
     """Removes the linear effect of `covariate` from each embedding column via OLS residuals."""
     if embedding.shape[0] != covariate.shape[0]:
@@ -40,7 +49,7 @@ def check_volume_regression_compatible(regress_out_volume: bool, reduction_param
     """
     metric = reduction_params.get("metric")
     if regress_out_volume and metric in _VOLUME_NORMALIZED_METRICS:
-        raise ValueError(
+        raise VolumeRegressionIncompatibleError(
             f"regress_out_volume=True is incompatible with metric={metric!r} - {metric} already "
             "normalizes distances by lesion volume; regressing it out again would remove real "
             "topographic signal, not a confound. Set regress_out_volume=False or use a different metric."

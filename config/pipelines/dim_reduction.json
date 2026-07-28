@@ -1,7 +1,7 @@
 {
   "project": "clinical_connectome",
   "input_path": "data/derived/lesion_matrix/21-07_s1.1",
-  "reduction_method": "tsne",
+  "reduction_method": "umap",
   "params_file": "config/registry/params_reduction.json",
   "output_root": "results/lesion/dim_reduction",
   "session_name": "s1.1",

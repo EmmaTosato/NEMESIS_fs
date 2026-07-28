@@ -3,7 +3,11 @@
 import numpy as np
 import pytest
 
-from src.analysis.covariates import check_volume_regression_compatible, regress_out_covariate
+from src.analysis.covariates import (
+    VolumeRegressionIncompatibleError,
+    check_volume_regression_compatible,
+    regress_out_covariate,
+)
 
 
 def test_regress_out_covariate_removes_linear_effect():
@@ -56,3 +60,11 @@ def test_check_volume_regression_compatible_allows_missing_metric():
 
 def test_check_volume_regression_compatible_no_check_when_flag_false():
     check_volume_regression_compatible(False, {"metric": "jaccard"})
+
+
+def test_check_volume_regression_compatible_raises_dedicated_exception_type():
+    # tuning.py's run_tuning_sweep catches this specific type to skip just the
+    # incompatible combination - a plain ValueError would be indistinguishable
+    # from any other failure and either crash the sweep or mask real bugs.
+    with pytest.raises(VolumeRegressionIncompatibleError):
+        check_volume_regression_compatible(True, {"metric": "jaccard"})
