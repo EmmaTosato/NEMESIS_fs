@@ -1,0 +1,51 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "2",
+    "caption": "Fig. 2 | Cortical bistability and its network effects during physiological sleep. The presence of bistability during NREM sleep impacts the ability of cortical circuits to engage in stable, reciprocal",
+    "pdf_page": 4,
+    "doc_page": 4,
+    "svg": "figures/page_004.svg"
+  },
+  {
+    "id": "3",
+    "caption": "Fig. 3 | Cortical bistability in awake brain-injured patients. A TMS-EEG in unresponsive wakefulness syndrome patients shows the presence of bistability impacting the ability of cortical circuits to e",
+    "pdf_page": 5,
+    "doc_page": 5,
+    "svg": "figures/page_005.svg"
+  },
+  {
+    "id": "4",
+    "caption": "Fig. 4 | Cortical bistability in perilesional areas and its propagation to connectedsites. Mesoscaleexploration of the effects of controlled surgical lesions performed in epileptic patients using radi",
+    "pdf_page": 7,
+    "doc_page": 7,
+    "svg": "figures/page_007.svg"
+  },
+  {
+    "id": "5",
+    "caption": "Fig. 5 | Mechanisms of postlesional slow waves. Many events associated with structural brain damage can converge in engaging cortical bistability during wakefulness. The fi rst class of events involve",
+    "pdf_page": 8,
+    "doc_page": 8,
+    "svg": "figures/page_008.svg"
+  },
+  {
+    "id": "6",
+    "caption": "Fig. 6 | An integrated scenario. A schematic illustration of the vision encompassing a key role of cortical bistability in the aftermath of brain injury. A The primary structural lesion (black shade) ",
+    "pdf_page": 11,
+    "doc_page": 11,
+    "svg": "figures/page_011.svg"
+  },
+  {
+    "id": "1_2",
+    "caption": "Fig. 1 | Slow waves, cortical bistability, and their EEG detection. A Simultaneous EEG and intracellular recordings. EEG slow waves correspond to the alternation between periods of depolarization and ",
+    "pdf_page": 2,
+    "doc_page": 2,
+    "svg": "figures/page_002.svg"
+  }
+]

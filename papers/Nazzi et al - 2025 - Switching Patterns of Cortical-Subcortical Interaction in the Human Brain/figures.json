@@ -1,0 +1,56 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 5,
+    "doc_page": 5
+  },
+  {
+    "id": "3",
+    "caption": "Cortical -subcortical interactions. a , We computed a metric of ' FC change ' within each RSN by computing the change of v (principal eigenvector of the swFC) across adjacent time windows. For each RS",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "5",
+    "caption": "",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "6",
+    "caption": "",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "7",
+    "caption": "",
+    "pdf_page": 9,
+    "doc_page": 9
+  },
+  {
+    "id": "2_2",
+    "caption": "Existence of two main clusters of subcortical regions. We applied PCA on the time evolution of v (principal eigenvector of the swFC), restricting attention to subcortical regions. a , We plot the amou",
+    "pdf_page": 6,
+    "doc_page": 6
+  },
+  {
+    "id": "5_2",
+    "caption": "Association between DFSs and principal components. The series of the principal eigenvector of whole-brain connectivity ( v ) are shown for 500 s of a representative subject, aligned with the correspon",
+    "pdf_page": 10,
+    "doc_page": 10
+  },
+  {
+    "id": "6_2",
+    "caption": "FC and behavior. We investigated the impact of FC di ff erences among individuals on behavior by carefully scrutinizing the relationships between di ff erent facets of the former and the latter throug",
+    "pdf_page": 11,
+    "doc_page": 11
+  }
+]

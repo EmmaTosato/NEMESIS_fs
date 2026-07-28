@@ -1,0 +1,133 @@
+{
+  "source_pdf": "examples/Bisogno et al. - 2021 - A low-dimensional structure of neurological impairment in stroke.pdf",
+  "extracted_at": "2026-07-07T11:06:56",
+  "pdf_metadata": {
+    "title": "OP-BRCM210120 1..13",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "producer": "Adobe LiveCycle PDF Generator",
+    "creator": "Arbortext Advanced Print Publisher 9.0.114/W",
+    "creation_date": "D:20210611210810+05'30'",
+    "mod_date": "D:20210611210922+05'30'"
+  },
+  "page_offset": 0,
+  "pages": 13,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 0,
+    "png": 0,
+    "embedded_images": 8,
+    "classifications": {
+      "BITMAP": 8,
+      "TEXT": 5
+    },
+    "figures_in_index": 7,
+    "tables_in_index": 0,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 7,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 2,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 9,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 9,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 9,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 9,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 9,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 9,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 11,
+      "doc_page": 11,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 12,
+      "doc_page": 12,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 13,
+      "doc_page": 13,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    }
+  ]
+}

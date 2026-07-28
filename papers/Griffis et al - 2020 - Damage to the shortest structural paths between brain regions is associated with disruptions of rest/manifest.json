@@ -1,0 +1,240 @@
+{
+  "source_pdf": "examples/Griffis et al. - 2020 - Damage to the shortest structural paths between brain regions is associated with disruptions of rest.pdf",
+  "extracted_at": "2026-07-07T11:07:50",
+  "pdf_metadata": {
+    "title": "Damage to the shortest structural paths between brain regions is associated with disruptions of resting-state functional connectivity after stroke",
+    "author": "Joseph C. Griffis, Nicholas V. Metcalf, Maurizio Corbetta, Gordon L. Shulman",
+    "subject": "",
+    "keywords": "stroke, lesion, functional connectivity, structural connectivity, structural disconnection, shortest path length",
+    "producer": "Antenna House PDF Output Library 6.6.1477 (Linux64)",
+    "creator": "AH XSL Formatter V6.6 MR7 for Linux64 : 6.6.9.39847 (2019-07-29T09:58+09)",
+    "creation_date": "D:20200309103952-05'00'",
+    "mod_date": "D:20200309103952-05'00'"
+  },
+  "page_offset": 0,
+  "pages": 28,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 1,
+    "png": 0,
+    "embedded_images": 7,
+    "classifications": {
+      "BITMAP": 7,
+      "TEXT": 20,
+      "DIAGRAM": 1
+    },
+    "figures_in_index": 7,
+    "tables_in_index": 1,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 12,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 3,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 11,
+      "doc_page": 11,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 12,
+      "doc_page": 12,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 13,
+      "doc_page": 13,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 14,
+      "doc_page": 14,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 15,
+      "doc_page": 15,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 16,
+      "doc_page": 16,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 17,
+      "doc_page": 17,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 18,
+      "doc_page": 18,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 19,
+      "doc_page": 19,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 20,
+      "doc_page": 20,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 21,
+      "doc_page": 21,
+      "drawings": 2,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 22,
+      "doc_page": 22,
+      "drawings": 2,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 23,
+      "doc_page": 23,
+      "drawings": 2,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 24,
+      "doc_page": 24,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 25,
+      "doc_page": 25,
+      "drawings": 2,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 26,
+      "doc_page": 26,
+      "drawings": 2,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 27,
+      "doc_page": 27,
+      "drawings": 2,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 28,
+      "doc_page": 28,
+      "drawings": 32,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_028.svg"
+    }
+  ]
+}

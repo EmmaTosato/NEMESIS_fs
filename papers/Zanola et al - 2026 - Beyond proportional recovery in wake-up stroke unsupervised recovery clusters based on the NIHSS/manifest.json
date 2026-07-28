@@ -1,0 +1,146 @@
+{
+  "source_pdf": "examples/Zanola et al. - 2026 - Beyond proportional recovery in wake-up stroke unsupervised recovery clusters based on the NIHSS.pdf",
+  "extracted_at": "2026-07-07T11:09:11",
+  "pdf_metadata": {
+    "title": "",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "producer": "Adobe PDF Library 17.0; modified using iText\u00ae 5.5.13.4 \u00a92000-2024 iText Group NV (SPRINGER SBM; licensed version)",
+    "creator": "Adobe InDesign 18.0 (Windows)",
+    "creation_date": "D:20260129060255+01'00'",
+    "mod_date": "D:20260220152637+01'00'"
+  },
+  "page_offset": 0,
+  "pages": 13,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 6,
+    "png": 5,
+    "embedded_images": 4,
+    "classifications": {
+      "DIAGRAM": 1,
+      "TEXT": 6,
+      "ICON_TABLE": 5,
+      "BITMAP": 1
+    },
+    "figures_in_index": 7,
+    "tables_in_index": 1,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 37,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_001.svg"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 634,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_003.svg",
+      "png": "tables_visual/page_003.png"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 607,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_004.svg",
+      "png": "tables_visual/page_004.png"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 9,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 914,
+      "images": 1,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_007.svg",
+      "png": "tables_visual/page_007.png"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 1036,
+      "images": 1,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_008.svg",
+      "png": "tables_visual/page_008.png"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 584,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_010.svg",
+      "png": "tables_visual/page_010.png"
+    },
+    {
+      "pdf_page": 11,
+      "doc_page": 11,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 12,
+      "doc_page": 12,
+      "drawings": 1,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 13,
+      "doc_page": 13,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    }
+  ]
+}

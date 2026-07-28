@@ -1,0 +1,44 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 2,
+    "doc_page": 2
+  },
+  {
+    "id": "2",
+    "caption": "Figure 2 Behaviour factor analysis. ( A ) The percentage of variance explained by each Principal Component is proportional to the diameter of each circle. The position of each circle on the brain atla",
+    "pdf_page": 5,
+    "doc_page": 5
+  },
+  {
+    "id": "3",
+    "caption": "Figure 3 Correlation matrix of behavioural subtests. The colour bar represents Pearson r-values. Each square corresponds to the variables identified through the PCA analysis (i.e. PC1, PC2, PC3).",
+    "pdf_page": 6,
+    "doc_page": 6
+  },
+  {
+    "id": "4",
+    "caption": "Figure 4 Ridge regression scatter plots. Factor scores for right (in green) and left (in red) lesions (in black for midline lesions). The diameter of each coloured circle is proportional to the lesion",
+    "pdf_page": 7,
+    "doc_page": 7
+  },
+  {
+    "id": "5",
+    "caption": "Figure 5 Ridge regression maps from the University of Padova sample. Warm colours represent positive correlation between anatomical voxels and high PC values (i.e. high level of impairment in the corr",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "6",
+    "caption": "Figure 6 Ridge regression maps from the Washington University sample. Warm colours represent positive correlation between anatomical voxels and high PC values (i.e. high level of impairment in the cor",
+    "pdf_page": 9,
+    "doc_page": 9
+  },
+  {
+    "id": "1_2",
+    "caption": "Figure 1 Lesion topography. Overlay of damage in atlas space ( n \u00bc 164). The colour bar represents the percentage of lesions affecting each voxel (anatomical view).",
+    "pdf_page": 4,
+    "doc_page": 4
+  }
+]

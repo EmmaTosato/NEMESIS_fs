@@ -1,0 +1,70 @@
+{
+  "source_pdf": "/Users/emmatosato/Local Projects/PhD/NEMESIS_fs/scratch/pdfs/Pini et al - 2023 - The correlation of behavioural deficits post-stroke a trivial issue.pdf",
+  "extracted_at": "2026-07-25T17:56:04",
+  "pdf_metadata": {
+    "title": "The correlation of behavioural deficits post-stroke: a trivial issue?",
+    "author": "Lorenzo Pini",
+    "subject": "DOI: 10.1093/brain/awad173; Brain, 146, 10, 2023-05-24.",
+    "keywords": "",
+    "producer": "PDFlib+PDI 9.0.7p3 (C++/Win64); modified using iTextSharp.LGPLv2.Core 3.7.4.0",
+    "creator": "Servigistics Arbortext Advanced Print Publisher 11.1.4546/W-x64",
+    "creation_date": "D:20230925223742+05'30'",
+    "mod_date": "D:20260725154733+00'00'"
+  },
+  "page_offset": 0,
+  "pages": 4,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 0,
+    "png": 0,
+    "embedded_images": 2,
+    "classifications": {
+      "TEXT": 2,
+      "BITMAP": 2
+    },
+    "figures_in_index": 6,
+    "tables_in_index": 0,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 5,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    }
+  ]
+}

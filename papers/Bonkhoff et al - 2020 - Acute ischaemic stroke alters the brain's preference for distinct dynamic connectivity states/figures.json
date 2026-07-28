@@ -1,0 +1,53 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "2",
+    "caption": "Figure 2 Overlap maps of DWI lesions (A-D) and within-network connectivity (E). ( A ) Entire sample of stroke patients. The majority of lesions were located subcortically, with the maximum overlap ( n",
+    "pdf_page": 7,
+    "doc_page": 7
+  },
+  {
+    "id": "3",
+    "caption": "Figure 3 Circle plots of significant static functional connectivity differences between the subgroups ( post hoc t -tests, P 5 0.05, FDR-corrected for multiple comparisons). ( A ) Moderately affected ",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "4",
+    "caption": "Figure 4 Dynamic functional network connectivity analysis. ( A ) Three resulting connectivity states as well as their across-group frequencies. The first state was characterized by a highly positive i",
+    "pdf_page": 9,
+    "doc_page": 9
+  },
+  {
+    "id": "5",
+    "caption": "Figure 5 DFNC analysis. Fraction and dwell times as well as the number of transitions for the three groups: healthy controls, moderately, and severely affected patients. ( A ) Fraction times. Over the",
+    "pdf_page": 10,
+    "doc_page": 10,
+    "svg": "figures/page_010.svg"
+  },
+  {
+    "id": "6",
+    "caption": "Figure 6 Transition matrices displaying the differences in likelihood of changing from one connectivity state to another between the subgroups. In general, subjects tended to stay in their current con",
+    "pdf_page": 10,
+    "doc_page": 10,
+    "svg": "figures/page_010.svg"
+  },
+  {
+    "id": "7",
+    "caption": "Figure 7 Differences in dynamic functional connectivity between the various subgroups. Subgroup-specific connectivity matrices as well as numbers and percentages of subjects within a group entering th",
+    "pdf_page": 11,
+    "doc_page": 11
+  },
+  {
+    "id": "1_2",
+    "caption": "Figure 1 Intrinsic connectivity networks and between-network analysis. ( A ) Spatial maps of the 13 independent components computed for the entire sample (31 ischaemic stroke patients and 17 healthy c",
+    "pdf_page": 5,
+    "doc_page": 5
+  }
+]

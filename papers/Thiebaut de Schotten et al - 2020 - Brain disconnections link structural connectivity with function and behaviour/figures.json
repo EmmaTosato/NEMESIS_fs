@@ -1,0 +1,47 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "3",
+    "caption": "Fig. 3 Functional mapping of white matter connections. 3D representation of four representative components maps side-by-side with white matter sections. comp. component, Arc arcuate, B Broca area, Ins",
+    "pdf_page": 4,
+    "doc_page": 4
+  },
+  {
+    "id": "4",
+    "caption": "Fig. 4 Atlas of white matter function. a summary map of the white matter function only displaying terms with the highest statistical level (see Supplementary Figs. 50 -57 for high resolution). b Effec",
+    "pdf_page": 5,
+    "doc_page": 5
+  },
+  {
+    "id": "7",
+    "caption": "",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "1_2",
+    "caption": "Fig. 1 The biased distribution of ischaemic stroke. a A representative brain lesion (left) together with its estimated disconnections (right). b The stroke lesion distribution (top row) compared with ",
+    "pdf_page": 2,
+    "doc_page": 2
+  },
+  {
+    "id": "2_2",
+    "caption": "Fig. 2 Principal components of stroke and their relationship to function. a The cumulative percentage of explained variance for the first 30 components of the stroke disconnectome (red), synthetic dis",
+    "pdf_page": 3,
+    "doc_page": 3,
+    "svg": "figures/page_003.svg"
+  }
+]

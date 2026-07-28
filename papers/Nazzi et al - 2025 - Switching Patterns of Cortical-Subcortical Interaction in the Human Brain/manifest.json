@@ -1,0 +1,142 @@
+{
+  "source_pdf": "/Users/emmatosato/Local Projects/PhD/NEMESIS_fs/scratch/pdfs/Nazzi et al - 2025 - Switching Patterns of Cortical-Subcortical Interaction in the Human Brain.pdf",
+  "extracted_at": "2026-07-25T17:56:14",
+  "pdf_metadata": {
+    "title": "Switching Patterns of Cortical\u2013Subcortical Interaction in the Human Brain",
+    "author": "Alessandro Nazzi, Chiara Favaretto, Antonino Vallesi, Maurizio Corbetta, Michele Allegra",
+    "subject": "",
+    "keywords": "",
+    "producer": "Acrobat Distiller 8.1.0 (Windows)",
+    "creator": "Arbortext Advanced Print Publisher 10.0.1465/W Unicode",
+    "creation_date": "D:20251024201502+05'30'",
+    "mod_date": "D:20251024201502+05'30'"
+  },
+  "page_offset": 0,
+  "pages": 14,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 1,
+    "png": 0,
+    "embedded_images": 8,
+    "classifications": {
+      "BITMAP": 7,
+      "TEXT": 6,
+      "DIAGRAM": 1
+    },
+    "figures_in_index": 9,
+    "tables_in_index": 1,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 9,
+      "images": 2,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 15,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_003.svg"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 3,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 11,
+      "doc_page": 11,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 12,
+      "doc_page": 12,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 13,
+      "doc_page": 13,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 14,
+      "doc_page": 14,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    }
+  ]
+}

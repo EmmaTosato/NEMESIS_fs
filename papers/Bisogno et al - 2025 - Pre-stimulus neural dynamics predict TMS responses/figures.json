@@ -1,0 +1,81 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "3",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "4",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "5",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "6",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "7",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "1_2",
+    "caption": "Pre-stimulus HFD values influence differenc es in TEPs . Individual trials from all subjects were ordered by the HFD estimated at the pre-stimulus TEP (from 800 ms to 200 ms) on channel C3. The mean o",
+    "pdf_page": 4,
+    "doc_page": 4
+  },
+  {
+    "id": "2_2",
+    "caption": "Pre-stimulus PSD values influence differenc es in TEPs . Individual trials from all subjects were ordered by the pre-stimulus PSD bands estimated by Morlet wavelet and integrated between 800 ms and 20",
+    "pdf_page": 5,
+    "doc_page": 5
+  },
+  {
+    "id": "3_2",
+    "caption": "Partial correlation heatmap between pre- and post-stimulus features. Pearson partial correlation between delta, theta, alpha, beta, gamma, HFD and eLFP correlation. Only significant R-value are shown,",
+    "pdf_page": 6,
+    "doc_page": 6
+  },
+  {
+    "id": "4_2",
+    "caption": "(a) Actual vs. predicted HFD values -Predicted HFD values by optimized stacking regressor on pre-stimulus power bands (delta, theta, alpha, beta, and gamma) . The red dashed line represents the ideal ",
+    "pdf_page": 6,
+    "doc_page": 6
+  },
+  {
+    "id": "5_2",
+    "caption": "(a) Actual vs. predicted eLFP values - eLFP predicted values by optimized Voting Regressor on pre-stimulus power bands (delta, theta, alpha, beta, gamma, and HFD) . The red dashed line represents the ",
+    "pdf_page": 7,
+    "doc_page": 7
+  }
+]

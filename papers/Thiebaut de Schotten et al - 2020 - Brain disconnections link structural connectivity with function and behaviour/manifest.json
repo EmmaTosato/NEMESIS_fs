@@ -1,0 +1,103 @@
+{
+  "source_pdf": "examples/Thiebaut de Schotten et al. - 2020 - Brain disconnections link structural connectivity with function and behaviour.pdf",
+  "extracted_at": "2026-07-07T11:08:54",
+  "pdf_metadata": {
+    "title": "Brain disconnections link structural connectivity with function and behaviour",
+    "author": "Michel Thiebaut de Schotten",
+    "subject": "Nature Communications, doi:10.1038/s41467-020-18920-9",
+    "keywords": "",
+    "producer": "iText\u00ae 5.3.5 \u00a92000-2012 1T3XT BVBA (SPRINGER SBM; licensed version)",
+    "creator": "Springer",
+    "creation_date": "D:20201002212332+05'30'",
+    "mod_date": "D:20201005124051+02'00'"
+  },
+  "page_offset": 0,
+  "pages": 8,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 2,
+    "png": 1,
+    "embedded_images": 5,
+    "classifications": {
+      "DIAGRAM": 1,
+      "BITMAP": 4,
+      "ICON_TABLE": 1,
+      "TEXT": 2
+    },
+    "figures_in_index": 7,
+    "tables_in_index": 0,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 34,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_001.svg"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 8,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 1500,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_003.svg",
+      "png": "tables_visual/page_003.png"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 1,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 7,
+      "images": 2,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 1,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 11,
+      "images": 0,
+      "class": "TEXT"
+    }
+  ]
+}

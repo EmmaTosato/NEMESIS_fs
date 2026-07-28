@@ -1,0 +1,68 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 2,
+    "doc_page": 2
+  },
+  {
+    "id": "3",
+    "caption": "Disconnection Provides the Best Anatomical Account of Network Dysfunction After Stroke",
+    "pdf_page": 37,
+    "doc_page": 37
+  },
+  {
+    "id": "4",
+    "caption": "",
+    "pdf_page": 35,
+    "doc_page": 35
+  },
+  {
+    "id": "5",
+    "caption": "Low-Dimensional Covariance of Disconnection and Functional Connectivity Patterns (A) Proportion of total covariance explained by 1 st  10 LVs from the PLSC of SDC and FC patterns in the patient group ",
+    "pdf_page": 39,
+    "doc_page": 39
+  },
+  {
+    "id": "6",
+    "caption": "LV1 Underlies Core Functional Connectivity Disruptions and Correlates with Behavior (A) Scatterplots show relationships between core FC disruptions (y axes) and LV1 FC (top row) and SDC (bottom row) s",
+    "pdf_page": 40,
+    "doc_page": 40
+  },
+  {
+    "id": "7",
+    "caption": "",
+    "pdf_page": 38,
+    "doc_page": 38
+  },
+  {
+    "id": "9",
+    "caption": "",
+    "pdf_page": 39,
+    "doc_page": 39
+  },
+  {
+    "id": "1_2",
+    "caption": "Disconnection Measures Capture Common Effects of Disparate Lesions",
+    "pdf_page": 35,
+    "doc_page": 35
+  },
+  {
+    "id": "2_2",
+    "caption": "Total Disconnection Is Superior to Cortical Hub Damage for Explaining Reduced Modularity",
+    "pdf_page": 36,
+    "doc_page": 36
+  },
+  {
+    "id": "7_2",
+    "caption": "Disconnection Topographies Are Partially Reflected in Functional Connectivity Patterns",
+    "pdf_page": 41,
+    "doc_page": 41
+  }
+]

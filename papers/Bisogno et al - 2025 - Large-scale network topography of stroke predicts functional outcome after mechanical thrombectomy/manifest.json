@@ -1,0 +1,131 @@
+{
+  "source_pdf": "/Users/emmatosato/Local Projects/PhD/NEMESIS_fs/scratch/pdfs/Bisogno et al - 2025 - Large-scale network topography of stroke predicts functional outcome after mechanical thrombectomy.pdf",
+  "extracted_at": "2026-07-25T17:55:44",
+  "pdf_metadata": {
+    "title": "Large-scale network topography of stroke predicts functional outcome after mechanical thrombectomy",
+    "author": "Antonio Luigi Bisogno",
+    "subject": "DOI: 10.1093/braincomms/fcaf285; Brain Communications, 7, 4, 2025-08-28.; Abstract: Mechanical thrombectomy effectively restores blood flow in patients with acute ischaemic stroke caused by large vessel occlusion. While mechanical thrombectomy has improved functional outcomes, 35%\u201360% of patients still experience residual disabilities. Typically, patients are selected for mechanical thrombectomy based on degree of hypoperfusion around the core measured on a vascular atlas. This study had two aims: (i) to evaluate the prognostic value of lesion topography onto functional outcome at 3\u2005months post-mechanical thrombectomy, when the lesion is localized either onto a vascular atlas or large-scale, functional or structural, network atlases; and (2) to examine patterns of post-stroke structural and functional disconnection significantly related to the most common stroke functional outcome scale, i.e. the modified Rankin scale at 3\u2005months post-event. A retrospective analysis was conducted on ",
+    "keywords": "stroke; recovery; thrombectomy; neural networks",
+    "producer": "PDFlib+PDI 9.0.7p3 (C++/Win64)",
+    "creator": "Servigistics Arbortext Advanced Print Publisher 11.1.4546/W-x64",
+    "creation_date": "D:20250826193514+05'30'",
+    "mod_date": "D:20250828102715+05'30'"
+  },
+  "page_offset": 0,
+  "pages": 12,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 2,
+    "png": 1,
+    "embedded_images": 6,
+    "classifications": {
+      "ICON_TABLE": 1,
+      "DIAGRAM": 1,
+      "TEXT": 6,
+      "BITMAP": 4
+    },
+    "figures_in_index": 7,
+    "tables_in_index": 0,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 125,
+      "images": 1,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_001.svg",
+      "png": "tables_visual/page_001.png"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 18,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_002.svg"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 11,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 9,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 10,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 12,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 11,
+      "doc_page": 11,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 12,
+      "doc_page": 12,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    }
+  ]
+}

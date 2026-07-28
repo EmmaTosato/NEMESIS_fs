@@ -1,0 +1,133 @@
+{
+  "source_pdf": "/Users/emmatosato/Local Projects/Personal/Paper-Downloader/downloaded/Facchini_et_al - 2023 - A_common_low_dimensional_structure_of_cognitive_impairment_in_stroke_and_brain_tumors.pdf",
+  "extracted_at": "2026-07-25T17:32:30",
+  "pdf_metadata": {
+    "title": "A common low dimensional structure of cognitive impairment in stroke and brain tumors",
+    "author": "Silvia Facchini",
+    "subject": "NeuroImage: Clinical, 40 (2023) 103518. doi:10.1016/j.nicl.2023.103518",
+    "keywords": "Stroke,Neuro-oncology,Neuropsychology,Cognition,Neural networks",
+    "producer": "iLovePDF",
+    "creator": "Elsevier",
+    "creation_date": "D:20230930100255Z",
+    "mod_date": "D:20231103104024Z"
+  },
+  "page_offset": 0,
+  "pages": 13,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 0,
+    "png": 0,
+    "embedded_images": 9,
+    "classifications": {
+      "BITMAP": 8,
+      "TEXT": 5
+    },
+    "figures_in_index": 10,
+    "tables_in_index": 2,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 8,
+      "images": 2,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 7,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 10,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 11,
+      "doc_page": 11,
+      "drawings": 0,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 12,
+      "doc_page": 12,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 13,
+      "doc_page": 13,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    }
+  ]
+}
