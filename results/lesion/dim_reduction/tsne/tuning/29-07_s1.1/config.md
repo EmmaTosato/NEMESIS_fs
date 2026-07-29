@@ -42,7 +42,7 @@
 ## Summary
 
 Swept parameters: ['perplexity', 'metric', 'regress_out_volume']
-Combinations evaluated: 30 (10 skipped - impossible parameter combination, see skipped_reason column)
+Combinations evaluated: 20
 Metric: trustworthiness
 
 Warning: no automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.

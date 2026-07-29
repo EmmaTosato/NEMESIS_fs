@@ -28,9 +28,12 @@ Quality metric differs by method, on purpose (see docs/methods/dimensionality_re
 alongside `metric`: evaluate_umap/evaluate_tsne apply it to the embedding
 before scoring, exactly like the production path in dim_reduction.py. Some
 combinations are impossible by construction (regress_out_volume=True with
-metric=jaccard/dice, see src/analysis/covariates.py) - run_tuning_sweep
-skips just that row (score=NaN, "skipped_reason" column explains why)
-rather than crashing the whole sweep or silently dropping it.
+metric=jaccard/dice - see src/analysis/covariates.py, which already documents
+why) - run_tuning_sweep excludes that combination from the returned table
+entirely (a WARNING is logged when it happens, so it's not silent - but the
+incompatibility is a known, documented fact, not a per-run finding worth a
+placeholder row in every tuning_results.csv) rather than crashing the whole
+sweep.
 """
 
 from __future__ import annotations
@@ -198,11 +201,11 @@ def run_tuning_sweep(
 
     If a combination has regress_out_volume=True together with metric=jaccard/dice
     (umap/tsne only - see evaluate_umap/evaluate_tsne), that specific combination
-    is not evaluated: no embedding is computed, and its row gets metric_name=NaN
-    plus a "skipped_reason" column explaining why - explicit and visible in
-    tuning_results.csv, rather than crashing the whole sweep or silently omitting
-    the row. The "skipped_reason" column itself is only present in the returned
-    DataFrame when at least one combination was actually skipped.
+    is excluded entirely from the returned table - no embedding is computed, no
+    row is added. A WARNING is logged when this happens (so it's not silent),
+    but the incompatibility itself is a known, documented fact
+    (src/analysis/covariates.py, docs/methods/dimensionality_reduction.md), not
+    a per-run result worth a placeholder row in every tuning_results.csv.
     """
     if method not in TUNING_METRIC_NAMES:
         raise ValueError(f"fine-tuning not supported for method {method!r} - known: {sorted(TUNING_METRIC_NAMES)}")
@@ -227,8 +230,13 @@ def run_tuning_sweep(
             try:
                 _embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors)
             except VolumeRegressionIncompatibleError as exc:
-                logging.warning("skipping combination %d/%d (%s): %s", i, total, swept, exc)
-                rows.append({**swept, metric_name: float("nan"), "skipped_reason": str(exc)})
+                logging.warning(
+                    "excluding combination %d/%d (%s) from results - impossible by construction: %s",
+                    i,
+                    total,
+                    swept,
+                    exc,
+                )
                 continue
         else:
             _embedding, score = evaluator(X, combo_params)

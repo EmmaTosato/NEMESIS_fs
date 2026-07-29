@@ -309,14 +309,9 @@ def _write_tuning_output(
     else:
         logging.warning(
             "tuning_grid has %d swept parameters - no plot generated (heatmaps removed on request, "
-            "only a 1-parameter curve is supported; tuning_results.csv still has every combination)",
+            "only a 1-parameter curve is supported; tuning_results.csv still has every evaluated combination)",
             len(swept_params),
         )
-
-    n_skipped = int(results["skipped_reason"].notna().sum()) if "skipped_reason" in results.columns else 0
-    combinations_line = f"Combinations evaluated: {len(results)}"
-    if n_skipped:
-        combinations_line += f" ({n_skipped} skipped - impossible parameter combination, see skipped_reason column)"
 
     readme_lines = [
         f"# {title}",
@@ -341,7 +336,7 @@ def _write_tuning_output(
         "## Summary",
         "",
         f"Swept parameters: {swept_params}",
-        combinations_line,
+        f"Combinations evaluated: {len(results)}",
         f"Metric: {metric_col}",
         "",
         "Warning: no automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",

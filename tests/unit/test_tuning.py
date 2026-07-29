@@ -94,7 +94,7 @@ def test_evaluate_tsne_regress_out_volume_with_dice_raises():
         evaluate_tsne(_X_BINARY, params, trustworthiness_n_neighbors=5)
 
 
-def test_run_tuning_sweep_skips_incompatible_regress_out_volume_combo():
+def test_run_tuning_sweep_excludes_incompatible_regress_out_volume_combo():
     df = run_tuning_sweep(
         "umap",
         _X_BINARY,
@@ -102,16 +102,12 @@ def test_run_tuning_sweep_skips_incompatible_regress_out_volume_combo():
         tuning_grid={"metric": ["euclidean", "jaccard"], "regress_out_volume": [False, True]},
         trustworthiness_n_neighbors=5,
     )
-    assert len(df) == 4  # 2 x 2 cartesian product, none dropped
-    assert "skipped_reason" in df.columns
-
-    skipped = df[(df["metric"] == "jaccard") & (df["regress_out_volume"])]
-    assert len(skipped) == 1
-    assert skipped[TUNING_METRIC_NAMES["umap"]].isna().all()
-    assert skipped["skipped_reason"].iloc[0] is not None
-
-    evaluated = df[~((df["metric"] == "jaccard") & (df["regress_out_volume"]))]
-    assert evaluated[TUNING_METRIC_NAMES["umap"]].notna().all()
+    # 2 x 2 cartesian product minus the 1 impossible-by-construction combination
+    # (metric=jaccard, regress_out_volume=True) - excluded entirely, not a NaN row.
+    assert len(df) == 3
+    assert "skipped_reason" not in df.columns
+    assert not ((df["metric"] == "jaccard") & (df["regress_out_volume"])).any()
+    assert df[TUNING_METRIC_NAMES["umap"]].notna().all()
 
 
 def test_run_tuning_sweep_no_skipped_reason_column_without_regress_out_volume():
