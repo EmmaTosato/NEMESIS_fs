@@ -24,7 +24,7 @@
 
 ## 28-07-2026 Run
 
-- **Data Run Produzione:** 28 Luglio 2026
+- **Data Run Produzione:** 29 Luglio 2026
 - **Pipeline:** `dim_reduction_clustering`
 - **Dati in ingresso:** Matrice lesionale voxel-wise, 1150 soggetti (`data/derived/lesion_matrix/21-07_s1.1`)
 - **Riduzioni in Produzione:** UMAP, t-SNE
