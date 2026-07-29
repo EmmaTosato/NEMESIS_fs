@@ -1,0 +1,10 @@
+WARNING: dataset=UNIPD/PASPORT: participants file assets/metadata/UNIPD_PASPORT_participants_lesions.tsv has no lesion_side column - 83 subject(s) marked 'unknown'
+INFO: embedding written to results/lesion/dim_reduction_plot_verify/pca/29-07_verify1 (shape (1150, 2))
+INFO: embedding plot written to results/lesion/dim_reduction_plot_verify/pca/29-07_verify1/embedding_plot.png
+INFO: dataset embedding plot written to results/lesion/dim_reduction_plot_verify/pca/29-07_verify1/embedding_plot_dataset.png
+INFO: interactive dataset embedding plot written to results/lesion/dim_reduction_plot_verify/pca/29-07_verify1/embedding_plot_dataset.html
+INFO: side embedding plot written to results/lesion/dim_reduction_plot_verify/pca/29-07_verify1/embedding_plot_side.png
+INFO: interactive side embedding plot written to results/lesion/dim_reduction_plot_verify/pca/29-07_verify1/embedding_plot_side.html
+INFO: volume embedding plot written to results/lesion/dim_reduction_plot_verify/pca/29-07_verify1/embedding_plot_volume.png
+INFO: interactive volume embedding plot written to results/lesion/dim_reduction_plot_verify/pca/29-07_verify1/embedding_plot_volume.html
+INFO: done - embedding written to results/lesion/dim_reduction_plot_verify/pca/29-07_verify1, log written to logs/dim_reduction/clinical_connectome/dim_reduction_summary__29-07-26__09-31.log

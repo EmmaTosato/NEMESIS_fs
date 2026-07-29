@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-07-29T07:31:09.806616+00:00",
+  "matrix_shape": [
+    1150,
+    2
+  ],
+  "matrix_dtype": "float64",
+  "metadata_columns": [
+    "subject_id",
+    "dataset",
+    "lesion_volume_voxels",
+    "lesion_side"
+  ],
+  "extra_arrays": {}
+}

@@ -1,0 +1,2 @@
+session,id,timestamp,params,output,notes
+verify1,,29-07-26 09:31,"{""n_components"": 2, ""random_state"": 0}",results/lesion/dim_reduction_plot_verify/pca/29-07_verify1,"scratch run to visually verify the new Dataset/Volume/Side plots - not a real production result, safe to delete"

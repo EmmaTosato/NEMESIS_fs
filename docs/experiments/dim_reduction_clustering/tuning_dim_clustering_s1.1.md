@@ -14,9 +14,9 @@ Tuning dei metodi di clustering (kmeans/agglomerative/gmm/dbscan/spectral) su va
 
 **PCA scartato come riduzione**: a 150 componenti soffre di curse of dimensionality (struttura sistematicamente debole/inutilizzabile); a 2 componenti il segnale principale (silhouette più alto di tutto lo studio) si è rivelato ridondante col volume lesionale, non con la topografia — `PC2` correla r=0.92 (Pearson) col volume lesionale per soggetto, verificato direttamente sui cluster (kmeans k=3: il gruppo "lesioni piccole" separato quasi solo per dimensione). umap/pacmap/tsne restano tutte valide.
 
-## 28/29-07-2026 — metric × regress_out_volume (umap/tsne), rilancio dopo pulizia dei tuning precedenti
+## 29-07-2026 — metric × regress_out_volume (umap/tsne), griglia a 1 parametro per metodo
 
-Sostituisce il round precedente (stessa griglia base, tuning cancellato e rilanciato con `regress_out_volume` come terza dimensione di confronto). Sessione unica a cavallo di mezzanotte: UMAP taggato `28-07`, t-SNE `29-07`, stessi dati/config altrimenti. `regress_out_volume=true` non è applicabile con `metric=jaccard`/`dice` (incompatibilità esplicita, `src/analysis/covariates.py`) — nessuna riga per quella combinazione.
+Sostituisce il round precedente: stesso confronto (`metric` × `regress_out_volume`), ma tuning_grid tornata a **un solo parametro sweeppato per metodo** (agglomerative/gmm/dbscan/spectral avevano temporaneamente sweeppato anche `linkage`/`covariance_type`/`min_samples`/`n_neighbors` — tolto, vedi note metodologiche). Parametro secondario tenuto fisso al default di `params_clustering.json`: `linkage=ward`, `covariance_type` non specificato (default sklearn `full`), `min_samples=5`, `n_neighbors=50`. Sessione unica, tutte le run tag `29-07`. `regress_out_volume=true` non è applicabile con `metric=jaccard`/`dice` (incompatibilità esplicita, `src/analysis/covariates.py`) — nessuna riga per quella combinazione.
 
 **Dim tuning** (embedding, trustworthiness — invariato rispetto a prima, incluso per riferimento):
 
@@ -27,27 +27,30 @@ Sostituisce il round precedente (stessa griglia base, tuning cancellato e rilanc
 
 **Clustering tuning — UMAP**:
 
-| Variante | kmeans | agglomerative | gmm | dbscan | spectral |
+| Variante | kmeans | agglomerative (ward) | gmm (full) | dbscan (min_samples=5) | spectral (nn=50) |
 |---|---|---|---|---|---|
-| euclidean, vol=ON | k=3 (0.472) | k=3, average (0.466) | n=3, spherical (0.475) | eps=0.3, min_samples=10 (0.199, noise 3.5%) | k=3, nn=100 (0.474) |
-| euclidean, vol=OFF | k=4 (0.462) | k=3, average (0.443) | n=4, spherical (0.464) | eps=0.3, min_samples=3 (0.255, noise 0.1%) | k=5, nn=100 (0.464) |
-| jaccard | k=2 (0.756) | k=2, ward (0.756) | n=2, full (0.756) | eps≥0.7 (0.677, noise ~0%) | k=2, nn=30 (0.756) |
+| euclidean, vol=ON | k=3 (0.472) | k=2 (0.435) | n=3 (0.471) | ❌ nessuna combinazione con ≥2 cluster non-noise (tutto NaN) | k=4 (0.457) |
+| euclidean, vol=OFF | k=4 (0.462) | k=2 (0.434) | n=3 (0.452) | eps=0.3 (0.093, noise 0.2%) | k=5 (0.458) |
+| jaccard | k=2 (0.756) | k=2 (0.756) | n=2 (0.756) | eps≥0.7 (0.677, noise ~0%) | k=2 (0.756) |
 
 **Clustering tuning — t-SNE** (perplexity=30 fissa):
 
-| Variante | kmeans | agglomerative | gmm | dbscan | spectral |
+| Variante | kmeans | agglomerative (ward) | gmm (full) | dbscan (min_samples=5) | spectral (nn=50) |
 |---|---|---|---|---|---|
-| euclidean, vol=ON | k=2 (0.420) | k=2, average (0.423) | n=2, diag (0.428) | ⚠️ eps=0.5/min_samples=5 (0.984, noise 98.9%) | k=2, nn=10 (0.426) |
-| euclidean, vol=OFF | k=2 (0.411) | k=2, complete (0.408) | n=2, diag (0.417) | ⚠️ eps=0.5/min_samples=5 (0.988, noise 98.9%) | k=2, nn=10 (0.415) |
-| jaccard | k=2 (0.606) | k=2, complete (0.602) | n=2, tied (0.605) | ⚠️ eps=0.5/min_samples=3 (0.955, noise 98.3%) | k=2, nn=100 (0.605) |
+| euclidean, vol=ON | k=2 (0.420) | k=2 (0.423) | n=2 (0.427) | ⚠️ eps=0.5 (0.984, noise 98.9%) | k=2 (0.419) |
+| euclidean, vol=OFF | k=2 (0.411) | k=2 (0.398) | n=2 (0.416) | ⚠️ eps=0.5 (0.988, noise 98.9%) | k=2 (0.413) |
+| jaccard | k=2 (0.606) | k=2 (0.602) | n=2 (0.604) | ⚠️ eps=1.0 (0.941, noise 96.7%) | k=2 (0.602) |
 
 **Letture numeriche**:
-- `regress_out_volume` ON vs OFF (euclidean, unico confronto possibile): Δsilhouette ≤0.02 su entrambe le riduzioni — effetto trascurabile sulla qualità del clustering.
+- `regress_out_volume` ON vs OFF (euclidean, unico confronto possibile): Δsilhouette ≤0.02 su entrambe le riduzioni — effetto trascurabile sulla qualità del clustering, confermato anche con la griglia a 1 parametro.
 - euclidean → jaccard: +0.28 su umap (0.47→0.756), +0.19 su tsne (0.42→0.606) — salto molto più marcato su umap.
-- umap-jaccard: le 5 combinazioni di metodo/parametro con silhouette più alta convergono **tutte** su k=2, silhouette identico (0.756) — incluso dbscan a eps≥0.7 con noise~0%, non un artefatto come altrove.
-- dbscan resta inaffidabile ovunque tranne che su umap-jaccard: noise_fraction ≥90% su tutte le altre 5 combinazioni (euclidean umap escluso, dove noise è comunque basso ma silhouette bassa) — i valori di silhouette "alti" su tsne (0.955-0.988) sono calcolati su ~1-2% dei soggetti, non comparabili.
+- umap-jaccard: tutti e 5 i metodi convergono su k=2, silhouette identico (0.756) — incluso dbscan a eps≥0.7 con noise~0%, non un artefatto come altrove.
+- dbscan resta inaffidabile ovunque tranne che su umap-jaccard: noise_fraction ≥90% su tutte le altre 5 combinazioni; su umap-euclidean/vol=ON, con `min_samples` fissato a 5 (non più sweeppato), **nessun `eps` produce un risultato valido** (era 0.199 quando `min_samples=10` era esplorabile) — differenza diretta dell'aver tolto il secondo parametro dalla griglia.
+- agglomerative: con `linkage` fissato a `ward` (non più sweeppato), il valore ottimale scende da k=3 a k=2 sulle varianti euclidean di umap (`linkage=average` trovava k=3 quando era esplorabile) — stesso effetto collaterale del punto sopra, non un cambiamento nei dati.
 
 Le scelte operative conseguenti (quali valori usare per una run di produzione) sono tracciate separatamente in [`runs_history_dim_clustering_s1.1.md`](runs_history_dim_clustering_s1.1.md).
+
+**Da fare per chiudere questa sezione**: quanto sopra è solo l'estratto numerico di `tuning_results.csv` — non ancora incrociato con i grafici corrispondenti (`tuning_plot.png` per metodo/variante, `eigengap_plot.png`/`k_distance_plot.png`/`dendrogram.png` per gli standalone). In particolare va ancora guardato a occhio: la curva silhouette 2→10 di ciascuna variante (non solo l'argmax riportato qui), l'eigengap di spectral su umap-jaccard (l'euristica automatica indica un gap a n=20, ma i primi 3 autovalori sono già vicini a zero - da leggere a mano), e il k-distance plot di dbscan dove "ALL NaN"/noise alto rende il numero da solo poco informativo.
 
 ---
 
@@ -55,6 +58,6 @@ Le scelte operative conseguenti (quali valori usare per una run di produzione) s
 
 - Tutti gli indici sono calcolati con `src/analysis/clustering_tuning.py::compute_clustering_metrics`; per DBSCAN i punti di rumore (`label -1`) sono esclusi da silhouette/CH/DB, `noise_fraction` è sempre riportato a parte.
 - Dendrogrammi/eigengap/k-distance sono diagnostiche **standalone**, calcolate una sola volta dai `base_params` — non dipendono dal valore di k/eps scelto nella sweep.
-- Dal 28-07-2026, `agglomerative`/`gmm`/`dbscan`/`spectral` sweepano un secondo parametro (`linkage`/`covariance_type`/`min_samples`/`n_neighbors`) accanto a quello principale — `tuning_plot.png` per questi metodi è quindi una heatmap (`plot_clustering_tuning_heatmaps`), non più una curva.
+- Il secondo parametro sweeppato per `agglomerative`/`gmm`/`dbscan`/`spectral` (`linkage`/`covariance_type`/`min_samples`/`n_neighbors`), introdotto il 28-07-2026, è stato tolto il 29-07-2026 su richiesta esplicita — `tuning_plot.png` per questi metodi è tornato a essere una curva singola (`plot_clustering_tuning_metrics`), non più una heatmap (`plot_clustering_tuning_heatmaps`, rimasta nel codice ma non più richiamata da questi metodi con la config attuale).
 - Nessun valore riportato qui è stato applicato in produzione — i risultati di produzione su disco usano ancora i default del registry salvo dove esplicitamente annotato.
 - Griglia `spectral` (`config/registry/params_clustering.json`) estesa da `[2,3,4,5,6,8,10]` a `[...,11,12,13,14,15]` per verificare l'indicazione dell'eigengap su umap/tsne — resta così nel registry, non impatta la produzione (usata solo in `fine_tuning: true`).
