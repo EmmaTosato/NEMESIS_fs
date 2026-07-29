@@ -6,11 +6,26 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 
+from src.features import clinical
 from src.pipeline import build_lesion_matrix, dim_reduction
 
 _AFFINE = np.eye(4) * 2
 _AFFINE[3, 3] = 1
 _SHAPE = (10, 10, 10)
+
+
+def _write_lesion_side_registry(tmp_path, monkeypatch, subject_ids, dataset="siteA"):
+    """Fixture participants.tsv under a monkeypatched METADATA_ROOT, so
+    dim_reduction.py's join_lesion_side (src/features/clinical.py) can
+    resolve lesion_side for the synthetic "siteA" dataset these tests build,
+    the same way it would for a real UNIPD/WashU-style dataset name.
+    """
+    metadata_root = tmp_path / "metadata_registry"
+    metadata_root.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    sides = [("left", "right")[i % 2] for i in range(len(subject_ids))]
+    rows = [{"participant_id": sid, "lesion_side": side} for sid, side in zip(subject_ids, sides)]
+    pd.DataFrame(rows).to_csv(metadata_root / f"{dataset}_participants_lesions.tsv", sep="\t", index=False)
 
 
 def _make_dataset(data_root, n_subjects=8):
@@ -96,6 +111,7 @@ def _write_params(tmp_path):
 def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    _write_lesion_side_registry(tmp_path, monkeypatch, [f"sub-{i:02d}" for i in range(8)])
 
     params_path = _write_params(tmp_path)
     output_root = tmp_path / "dr_out"
@@ -121,8 +137,15 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
     embedding = np.load(out_dir / "matrix.npy")
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert embedding.shape == (8, 2)
-    assert list(metadata.columns) == ["subject_id", "dataset"]  # unchanged, per design
+    assert list(metadata.columns) == ["subject_id", "dataset", "lesion_volume_voxels", "lesion_side"]
     assert len(metadata) == 8
+    assert set(metadata["lesion_side"]) == {"left", "right"}
+    assert (metadata["lesion_volume_voxels"] > 0).all()
+
+    for suffix in ("", "_dataset", "_volume", "_side"):
+        assert (out_dir / f"embedding_plot{suffix}.png").is_file()
+    for suffix in ("dataset", "volume", "side"):
+        assert (out_dir / f"embedding_plot_{suffix}.html").is_file()
 
     runs_csv = (output_root / "pca" / "runs.csv").read_text()
     assert "run1" in runs_csv
@@ -330,6 +353,7 @@ def _build_matrix_varying_volume(tmp_path, monkeypatch):
 def test_dim_reduction_regress_out_volume_changes_embedding(tmp_path, monkeypatch):
     input_dir = _build_matrix_varying_volume(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    _write_lesion_side_registry(tmp_path, monkeypatch, [f"sub-{i:02d}" for i in range(8)])
 
     params_path = _write_params(tmp_path)
     output_root = tmp_path / "dr_out"

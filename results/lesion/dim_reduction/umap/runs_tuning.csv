@@ -1,1 +1,2 @@
 session,id,timestamp,params,output,notes
+s1.1,,29-07-26 08:53,"{""base_params"": {""n_neighbors"": 15, ""min_dist"": 0.0, ""n_components"": 2, ""random_state"": 0, ""metric"": ""jaccard""}, ""tuning_grid"": {""n_neighbors"": [5, 15, 30, 50, 100], ""metric"": [""euclidean"", ""jaccard"", ""dice""], ""regress_out_volume"": [false, true]}}",results/lesion/dim_reduction/umap/tuning/29-07_s1.1,clean re-run after deleting confusing prior tuning attempts: n_neighbors x metric x regress_out_volume

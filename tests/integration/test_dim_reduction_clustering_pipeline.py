@@ -93,6 +93,10 @@ def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
     assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
+    interactive_html = (out_dir / "cluster_plot_interactive.html").read_text()
+    assert "plotly" in interactive_html
+    assert "Color by" not in interactive_html  # cluster-only coloring, no dataset toggle
+
     with (output_root / "pca" / "runs.csv").open(newline="") as f:
         runs_rows = list(csv.DictReader(f))
     assert len(runs_rows) == 1

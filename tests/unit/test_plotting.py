@@ -1,5 +1,6 @@
 """Unit tests for src/analysis/plotting.py - plot_embedding_interactive/plot_clusters_interactive/
-plot_clusters_comparison_interactive/compose_run_title/plot_clustering_tuning_metrics/
+plot_clusters_comparison_interactive/compose_run_title/compose_embedding_plot_title/
+plot_embedding_categorical/plot_embedding_continuous/plot_clustering_tuning_metrics/
 plot_dendrogram/plot_eigengap/plot_k_distance/plot_silhouette_analysis."""
 
 from pathlib import Path
@@ -9,6 +10,7 @@ import pandas as pd
 import pytest
 
 from src.analysis.plotting import (
+    compose_embedding_plot_title,
     compose_run_title,
     plot_clustering_tuning_heatmaps,
     plot_clustering_tuning_metrics,
@@ -16,6 +18,8 @@ from src.analysis.plotting import (
     plot_clusters_interactive,
     plot_dendrogram,
     plot_eigengap,
+    plot_embedding_categorical,
+    plot_embedding_continuous,
     plot_embedding_interactive,
     plot_k_distance,
     plot_silhouette_analysis,
@@ -36,6 +40,23 @@ def test_compose_run_title_keeps_full_path_without_leading_results():
     title = compose_run_title(output_dir, "clinical_connectome")
 
     assert title == "clinical_connectome — other_root › umap › 21-07_s1"
+
+
+def test_compose_embedding_plot_title_base():
+    output_dir = Path("results/lesion/dim_reduction/umap/21-07_s1_d01")
+
+    assert compose_embedding_plot_title(output_dir, "umap") == "Lesions - Umap"
+
+
+def test_compose_embedding_plot_title_with_color_by():
+    output_dir = Path("results/lesion/dim_reduction/umap/21-07_s1_d01")
+
+    assert compose_embedding_plot_title(output_dir, "umap", "Dataset") == "Lesions - Umap - Dataset"
+
+
+def test_compose_embedding_plot_title_raises_without_modality_segment():
+    with pytest.raises(ValueError, match="cannot derive a modality"):
+        compose_embedding_plot_title(Path("results"), "umap")
 
 
 def _embedding_and_metadata():
@@ -94,7 +115,55 @@ def test_raises_on_missing_color_column(tmp_path):
         )
 
 
-def test_clusters_interactive_writes_html_with_dropdown(tmp_path):
+def test_plot_embedding_categorical_writes_file(tmp_path):
+    X_2d, metadata = _embedding_and_metadata()
+    output_path = tmp_path / "embedding_plot_dataset.png"
+
+    plot_embedding_categorical(X_2d, metadata["dataset"].to_numpy(), output_path, "x", "y", "title", legend_title="dataset")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_embedding_categorical_handles_missing_label(tmp_path):
+    categories = np.array(["left", "right", "unknown", "left"])
+    X_2d, _ = _embedding_and_metadata()
+    output_path = tmp_path / "embedding_plot_side.png"
+
+    plot_embedding_categorical(X_2d, categories, output_path, "x", "y", "title", legend_title="lesion_side")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_embedding_categorical_raises_on_fewer_than_two_columns(tmp_path):
+    X_1d = np.array([[0.0], [1.0], [2.0], [3.0]])
+    categories = np.array(["left", "right", "left", "right"])
+
+    with pytest.raises(ValueError, match="at least 2 columns"):
+        plot_embedding_categorical(X_1d, categories, tmp_path / "out.png", "x", "y", "title", legend_title="side")
+
+
+def test_plot_embedding_continuous_writes_file(tmp_path):
+    X_2d, _ = _embedding_and_metadata()
+    values = np.array([10.0, 20.0, 30.0, 40.0])
+    output_path = tmp_path / "embedding_plot_volume.png"
+
+    plot_embedding_continuous(X_2d, values, output_path, "x", "y", "title", colorbar_label="lesion volume (voxels)")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_embedding_continuous_raises_on_fewer_than_two_columns(tmp_path):
+    X_1d = np.array([[0.0], [1.0], [2.0], [3.0]])
+    values = np.array([10.0, 20.0, 30.0, 40.0])
+
+    with pytest.raises(ValueError, match="at least 2 columns"):
+        plot_embedding_continuous(X_1d, values, tmp_path / "out.png", "x", "y", "title", colorbar_label="volume")
+
+
+def test_clusters_interactive_writes_html_colored_by_cluster(tmp_path):
     X_2d, metadata = _embedding_and_cluster_metadata()
     output_path = tmp_path / "cluster_plot_interactive.html"
 
@@ -103,9 +172,7 @@ def test_clusters_interactive_writes_html_with_dropdown(tmp_path):
     assert output_path.exists()
     html = output_path.read_text()
     assert "plotly" in html
-    assert "updatemenus" in html
-    assert "Color by cluster_label" in html
-    assert "Color by dataset" in html
+    assert "Color by" not in html  # no dataset/cluster toggle - cluster-only coloring, no dropdown buttons
     for subject_id in metadata["subject_id"]:
         assert subject_id in html
 
@@ -131,14 +198,6 @@ def test_clusters_interactive_raises_on_missing_cluster_column(tmp_path):
 
     with pytest.raises(ValueError, match="cluster_label"):
         plot_clusters_interactive(X_2d, metadata, tmp_path / "out.html", "x", "y", "title")
-
-
-def test_clusters_interactive_raises_on_missing_dataset_column(tmp_path):
-    X_2d, metadata = _embedding_and_cluster_metadata()
-    metadata_no_dataset = metadata.drop(columns=["dataset"])
-
-    with pytest.raises(ValueError, match="dataset"):
-        plot_clusters_interactive(X_2d, metadata_no_dataset, tmp_path / "out.html", "x", "y", "title")
 
 
 def _labels_by_method():

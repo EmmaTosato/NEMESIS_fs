@@ -12,9 +12,9 @@
   "reduction_params_file": "config/registry/params_reduction.json",
   "clustering_params_file": "config/registry/params_clustering.json",
   "output_root": "results/lesion/dim_reduction_clustering",
-  "session_name": "s1.1_volOFF",
+  "session_name": "s1.1",
   "overwrite": true,
   "fine_tuning": true,
   "regress_out_volume": false,
-  "run_notes": "re-run with single-param tuning_grid (heatmaps -> curves): metric=euclidean, regress_out_volume=false"
+  "run_notes": "clustering tuning on updated umap embedding (n_neighbors=15, metric=jaccard, was n_neighbors=5/euclidean)"
 }

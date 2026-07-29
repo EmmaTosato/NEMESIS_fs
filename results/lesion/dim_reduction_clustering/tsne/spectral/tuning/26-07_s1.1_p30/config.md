@@ -17,7 +17,29 @@
   },
   "clustering_method": "spectral",
   "clustering_params_file": "config/registry/params_clustering.json",
-  "session_name": "s1.1"
+  "session_name": "s1.1",
+  "clustering_base_params": {
+    "n_clusters": 4,
+    "affinity": "nearest_neighbors",
+    "n_neighbors": 50,
+    "random_state": 0
+  },
+  "clustering_tuning_grid": {
+    "n_clusters": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ]
+  }
 }
 ```
 
@@ -28,4 +50,4 @@ Swept parameters: ['n_clusters']
 Combinations evaluated: 12
 Metrics: ['silhouette', 'calinski_harabasz', 'davies_bouldin']
 
-No automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.
+Warning: no automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.

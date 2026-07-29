@@ -1,0 +1,31 @@
+n_neighbors,metric,regress_out_volume,trustworthiness,skipped_reason
+5,euclidean,False,0.7402150727192596,
+5,euclidean,True,0.7244089140973806,
+5,jaccard,False,0.9426644949891736,
+5,jaccard,True,,"regress_out_volume=True is incompatible with metric='jaccard' - jaccard already normalizes distances by lesion volume; regressing it out again would remove real topographic signal, not a confound. Set regress_out_volume=False or use a different metric."
+5,dice,False,0.9421235939985054,
+5,dice,True,,"regress_out_volume=True is incompatible with metric='dice' - dice already normalizes distances by lesion volume; regressing it out again would remove real topographic signal, not a confound. Set regress_out_volume=False or use a different metric."
+15,euclidean,False,0.7369974131488686,
+15,euclidean,True,0.7149467875141319,
+15,jaccard,False,0.9454683350259643,
+15,jaccard,True,,"regress_out_volume=True is incompatible with metric='jaccard' - jaccard already normalizes distances by lesion volume; regressing it out again would remove real topographic signal, not a confound. Set regress_out_volume=False or use a different metric."
+15,dice,False,0.9453585758905475,
+15,dice,True,,"regress_out_volume=True is incompatible with metric='dice' - dice already normalizes distances by lesion volume; regressing it out again would remove real topographic signal, not a confound. Set regress_out_volume=False or use a different metric."
+30,euclidean,False,0.7322288692586276,
+30,euclidean,True,0.7261847586563703,
+30,jaccard,False,0.9406311150286469,
+30,jaccard,True,,"regress_out_volume=True is incompatible with metric='jaccard' - jaccard already normalizes distances by lesion volume; regressing it out again would remove real topographic signal, not a confound. Set regress_out_volume=False or use a different metric."
+30,dice,False,0.9407698468967367,
+30,dice,True,,"regress_out_volume=True is incompatible with metric='dice' - dice already normalizes distances by lesion volume; regressing it out again would remove real topographic signal, not a confound. Set regress_out_volume=False or use a different metric."
+50,euclidean,False,0.7242750110180696,
+50,euclidean,True,0.716798359744764,
+50,jaccard,False,0.9332447544407612,
+50,jaccard,True,,"regress_out_volume=True is incompatible with metric='jaccard' - jaccard already normalizes distances by lesion volume; regressing it out again would remove real topographic signal, not a confound. Set regress_out_volume=False or use a different metric."
+50,dice,False,0.9339179489144807,
+50,dice,True,,"regress_out_volume=True is incompatible with metric='dice' - dice already normalizes distances by lesion volume; regressing it out again would remove real topographic signal, not a confound. Set regress_out_volume=False or use a different metric."
+100,euclidean,False,0.7181652902063733,
+100,euclidean,True,0.7076453522908004,
+100,jaccard,False,0.930893517542683,
+100,jaccard,True,,"regress_out_volume=True is incompatible with metric='jaccard' - jaccard already normalizes distances by lesion volume; regressing it out again would remove real topographic signal, not a confound. Set regress_out_volume=False or use a different metric."
+100,dice,False,0.9292232931572997,
+100,dice,True,,"regress_out_volume=True is incompatible with metric='dice' - dice already normalizes distances by lesion volume; regressing it out again would remove real topographic signal, not a confound. Set regress_out_volume=False or use a different metric."

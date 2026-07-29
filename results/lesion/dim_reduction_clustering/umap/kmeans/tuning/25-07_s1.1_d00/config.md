@@ -15,7 +15,23 @@
   },
   "clustering_method": "kmeans",
   "clustering_params_file": "config/registry/params_clustering.json",
-  "session_name": "s1.1"
+  "session_name": "s1.1",
+  "clustering_base_params": {
+    "n_clusters": 4,
+    "random_state": 0,
+    "n_init": "auto"
+  },
+  "clustering_tuning_grid": {
+    "n_clusters": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      8,
+      10
+    ]
+  }
 }
 ```
 
@@ -26,4 +42,4 @@ Swept parameters: ['n_clusters']
 Combinations evaluated: 7
 Metrics: ['silhouette', 'calinski_harabasz', 'davies_bouldin', 'inertia']
 
-No automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.
+Warning: no automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.
