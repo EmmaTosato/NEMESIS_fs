@@ -1,15 +1,37 @@
 # Dimensionality Reduction  + Clustering S1.1 
 
 ## 26-07-2026 Tuning
+Ecco la sintesi dell'analisi strutturata per punti chiave, senza l'uso di emoji.
 
-| Riduzione                           | kmeans                      | agglomerative                                                              | gmm              | dbscan                                                                                                                                       | spectral                                                                                        |
-| ----------------------------------- | --------------------------- | -------------------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| **umap** (n_neighbors=5, euclidean) | k=4 (confermato)            | k=5                                                                        | n=4 (confermato) | ❌ nessuno affidabile (silhouette ~0 su tutto il range)                                                                                       | n=8 (confermato anche su griglia estesa a 15 — l'eigengap suggeriva n≈11 ma non regge sui dati) |
-| **pacmap** (n_neighbors=5)          | k=6 (o k=2 per split macro) | k=5 (metriche) / k=2 (dendrogramma)                                        | n=6 (o n=2)      | trade-off: eps=0.3 qualità (36% noise) vs eps=0.5 copertura (8% noise, qualità inferiore)                                                    | escluso di proposito (fonde i satelliti)                                                        |
-| **tsne** (perplexity=30)            | k=5                         | k=2                                                                        | n=2              | ⚠️ eps=0.5 default è un**artefatto** (98.9% noise, silhouette "0.988" calcolato su ~13 soggetti superstiti); eps=1.5 meno peggio (33% noise) | n=5 (confermato anche su griglia estesa a 15)                                                   |
-| **pca** 150 comp.                   | k=2 (debole)                | k=2 ⚠️ sbilanciato (563/1150 soggetti in un'unica foglia del dendrogramma) | n=4              | ❌ >90% noise ovunque                                                                                                                         | ❌ nessuna struttura reale                                                                       |
-| **pca** 2 comp. (test di controllo) | k=3 ⚠️ confonde col volume  | k=3 stesso confondimento                                                   | n=2 debole       | eps=2.0 stesso confondimento                                                                                                                 | n=3 stesso confondimento                                                                        |
+### Metodi Validi 
+**UMAP** (n_neighbors=5, euclidean)
+- **KMeans & GMM:** Solidi a **k=4** / **n=4** (confermati).
+- **Agglomerative:** **k=5**.
+- **Spectral:** **n=8** (l'eigengap suggeriva 11, ma i dati non lo supportano).
+- **DBSCAN:** Inaffidabile (silhouette ~0 su tutto il range).
 
-**PCA scartato come riduzione**: a 150 componenti soffre di curse of dimensionality (struttura sistematicamente debole/inutilizzabile); a 2 componenti il segnale principale (silhouette più alto di tutto lo studio) si è rivelato ridondante col volume lesionale, non con la topografia — `PC2` correla r=0.92 (Pearson) col volume lesionale per soggetto, verificato direttamente sui cluster (kmeans k=3: il gruppo "lesioni piccole" separato quasi solo per dimensione). umap/pacmap/tsne restano tutte valide.
+**PACMAP** (n_neighbors=5)
+- **KMeans & GMM:** **k=6** / **n=6** (oppure **k=2** / **n=2** per split macro).
+- **Agglomerative:** Incoerente tra metriche (**k=5**) e dendrogramma (**k=2**).
+- **DBSCAN:** Forte trade-off. `eps=0.3` favorisce la qualità (ma 36% noise), `eps=0.5` favorisce la copertura (8% noise, qualità inferiore).
+- **Spectral:** Escluso di proposito (tende a fondere i cluster satelliti). 
+
+**t-SNE** (perplexity=30)
+- **KMeans & Spectral:** **k=5** / **n=5** (quest'ultimo confermato su griglia estesa).
+- **Agglomerative & GMM:** **k=2** / **n=2**.
+- **DBSCAN:** Attenzione agli artefatti. `eps=0.5` crea un falso segnale (silhouette 0.988 ma 98.9% di noise, salva solo 13 soggetti). `eps=1.5` è il compromesso migliore (33% noise).
+    
+
+### PCA: Scartata 
+La PCA è risultata inefficace sia ad alta che a bassa dimensionalità:
+- **PCA 150 componenti:**
+    - Soffre della _curse of dimensionality_.
+    - Nessuna struttura reale rilevata (Spectral inefficace, DBSCAN >90% noise).
+    - Clustering debole e sbilanciato (es. Agglomerative k=2 mette 563/1150 soggetti in un'unica foglia).
+        
+- **PCA 2 componenti (Test di controllo):**
+    - Il segnale predominante (silhouette elevato) **non è topografico ma volumetrico**.
+    - La PC2 ha una correlazione di Pearson elevatissima (r=0.92) con il volume lesionale.    
+    - Tutti gli algoritmi (KMeans, Agglomerative, DBSCAN, Spectral a 3 cluster) isolano semplicemente il gruppo delle "lesioni piccole", rendendo la topografia irrilevante.
 
 ---
