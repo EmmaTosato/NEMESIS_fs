@@ -1,4 +1,8 @@
-Ecco gli appunti riorganizzati:
+Date: 29/07/2026
+People: Professor Corbetta
+
+---
+
 
 ## 1. Estensione della letteratura — lavori da includere
 
@@ -38,52 +42,3 @@ Ecco gli appunti riorganizzati:
 
 - La struttura normale guida la FC → connettività normale solo lievemente alterata nel paziente
 - Approccio: calcolare la connettività del singolo paziente come **z-score rispetto al pattern normativo** (gruppo di controllo/normale)
-
----
-
-Vuoi che approfondisca qualche punto (es. come collegare Volpi/Siegel al vostro pipeline SDC, o come strutturare l'analisi z-score)?
-
-Date: 24/06
-People: Professor Corbetta, Sebastiano and Antonio
-
-# Feature space
-
-**Objectives**: multimodal relation across modalities 
-
-**Task1**:
-
-- n=4000
-- Low dim embedding lesions —> visualizzazione spaziale
-- Clustering across lesions —> topographic clustering
-
-**Task2**:
-
-- n=3000
-- Low dim embedding lesions di SDC
-
-**Task3**:
-
-- Clustering across n= 500 patients with fMRI  (WU+PD+fri).
-- Calculate fMRI matrices differences compared to healthy (subtraction).
-- Relation of matrices with clustering
-- So for each subject:
-  - multiscale realtiionship between FDC and SDC pattern
-  - commn patter /cluster anlysis
-
-**Task4**:
-
-- n=80 (Padova)
-- EEG features calculation: frequency band map differences (stroke versus healthy) .
-- Embedding
-
-**Task5**:
-
-- n=60 
-- correlation with Behavioural
-- multismodal and multiscale features and behavioral correlates
-
-+ demo/ana
-
-Note
-
-- 3/4 lavori possbili

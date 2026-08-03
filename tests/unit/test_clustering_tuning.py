@@ -9,7 +9,6 @@ from src.analysis.clustering_tuning import (
     compute_clustering_metrics,
     compute_dendrogram_linkage,
     compute_eigengap,
-    compute_k_distance,
     compute_silhouette_samples,
     run_clustering_tuning_sweep,
 )
@@ -126,16 +125,18 @@ def test_run_clustering_tuning_sweep_gmm_includes_bic_aic():
     assert df["aic"].notna().all()
 
 
-def test_run_clustering_tuning_sweep_dbscan_noise_fraction_varies_with_eps():
+def test_run_clustering_tuning_sweep_hdbscan_noise_fraction_varies_with_min_cluster_size():
     X = _three_blobs()
-    df = run_clustering_tuning_sweep("dbscan", X, {"min_samples": 3}, {"eps": [0.05, 2.0]})
+    df = run_clustering_tuning_sweep("hdbscan", X, {}, {"min_cluster_size": [2, 20]})
 
-    # eps=0.05 is far too small for this data's scale -> mostly/all noise;
-    # eps=2.0 comfortably covers each blob -> no noise
-    tiny_eps_row = df[df["eps"] == 0.05].iloc[0]
-    large_eps_row = df[df["eps"] == 2.0].iloc[0]
-    assert tiny_eps_row["noise_fraction"] > large_eps_row["noise_fraction"]
-    assert large_eps_row["noise_fraction"] == 0.0
+    # min_cluster_size=2 is small enough to absorb this data's sparse edges into
+    # the 3 (15-point) blobs -> some noise but not total; min_cluster_size=20
+    # exceeds every blob's own size -> no cluster can ever form, every point
+    # ends up noise
+    small_mcs_row = df[df["min_cluster_size"] == 2].iloc[0]
+    large_mcs_row = df[df["min_cluster_size"] == 20].iloc[0]
+    assert large_mcs_row["noise_fraction"] > small_mcs_row["noise_fraction"]
+    assert large_mcs_row["noise_fraction"] == 1.0
 
 
 def test_run_clustering_tuning_sweep_unknown_method_raises():
@@ -176,14 +177,5 @@ def test_compute_eigengap_raises_on_unsupported_affinity():
         compute_eigengap(X, {"affinity": "precomputed"})
 
 
-def test_compute_k_distance_sorted_ascending():
-    X = _three_blobs()
-    distances = compute_k_distance(X, min_samples=3)
-
-    assert distances.shape == (45,)
-    assert (np.diff(distances) >= 0).all()
-    assert (distances > 0).all()
-
-
-def test_standalone_diagnostic_methods_covers_exactly_agglomerative_spectral_dbscan():
-    assert STANDALONE_DIAGNOSTIC_METHODS == {"agglomerative", "spectral", "dbscan"}
+def test_standalone_diagnostic_methods_covers_exactly_agglomerative_spectral():
+    assert STANDALONE_DIAGNOSTIC_METHODS == {"agglomerative", "spectral"}

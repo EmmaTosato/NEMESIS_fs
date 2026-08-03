@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import numpy as np
-from sklearn.cluster import DBSCAN, AgglomerativeClustering, KMeans, SpectralClustering
+from sklearn.cluster import HDBSCAN, AgglomerativeClustering, KMeans, SpectralClustering
 from sklearn.mixture import GaussianMixture
 
 
@@ -27,8 +27,8 @@ def gmm_cluster(X: np.ndarray, params: dict) -> np.ndarray:
     return GaussianMixture(**params).fit_predict(X)
 
 
-def dbscan_cluster(X: np.ndarray, params: dict) -> np.ndarray:
-    return DBSCAN(**params).fit_predict(X)
+def hdbscan_cluster(X: np.ndarray, params: dict) -> np.ndarray:
+    return HDBSCAN(**params).fit_predict(X)
 
 
 def spectral_cluster(X: np.ndarray, params: dict) -> np.ndarray:
@@ -39,6 +39,6 @@ CLUSTERING_METHODS: dict[str, Callable[[np.ndarray, dict], np.ndarray]] = {
     "kmeans": kmeans_cluster,
     "agglomerative": agglomerative_cluster,
     "gmm": gmm_cluster,
-    "dbscan": dbscan_cluster,
+    "hdbscan": hdbscan_cluster,
     "spectral": spectral_cluster,
 }

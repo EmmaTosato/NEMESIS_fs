@@ -10,7 +10,7 @@ column per already-swept row.
   exact same data?" No resampling - N repeats of the same method on the full
   dataset, varying only the random seed. Only meaningful for methods with
   genuine internal stochasticity (k-means centroid init, GMM init, spectral
-  clustering's internal k-means step) - agglomerative/dbscan are
+  clustering's internal k-means step) - agglomerative/hdbscan are
   deterministic given the same data, so a repeat with a different seed
   reproduces the identical partition (a degenerate, uninformative
   co-occurrence matrix). See compute_rsc_eigengap.

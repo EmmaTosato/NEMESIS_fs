@@ -1,5 +1,5 @@
 """Manual fine-tuning sweep for clustering methods (kmeans, agglomerative, gmm,
-dbscan, spectral) - mirrors src/analysis/tuning.py's dim-reduction sweep, but
+hdbscan, spectral) - mirrors src/analysis/tuning.py's dim-reduction sweep, but
 clustering has no ground truth to score against: every generic metric here is
 an *internal* validation index computed straight from (X, cluster_labels) -
 silhouette / Calinski-Harabasz / Davies-Bouldin, identically for every
@@ -12,19 +12,20 @@ Two kinds of extras beyond the 3 generic metrics, see METHOD_METRIC_COLUMNS:
 - Per-combination scalar columns, added to the same sweep row when the method
   exposes one after fitting: kmeans' inertia_ (elbow criterion), gmm's
   bic_/aic_ (likelihood-based criteria, unlike the other 3 which are purely
-  geometric). DBSCAN's noise_fraction is generic (computed for every method)
-  but only ever non-zero for DBSCAN, so it's only surfaced as a plotted
+  geometric). HDBSCAN's noise_fraction is generic (computed for every method)
+  but only ever non-zero for HDBSCAN, so it's only surfaced as a plotted
   metric there (see clustering.py's _write_tuning_output).
-- Standalone, single-fit diagnostics independent of which n_clusters/eps ends
-  up chosen - not a function of the swept grid, so they don't belong as sweep
+- Standalone, single-fit diagnostics independent of which n_clusters ends up
+  chosen - not a function of the swept grid, so they don't belong as sweep
   columns: agglomerative's dendrogram (the full merge hierarchy, computed
   from base_params - see compute_dendrogram_linkage), spectral's eigengap
   (biggest gap between consecutive eigenvalues of the affinity graph's
   Laplacian - the eigengap heuristic, a more principled criterion for
   spectral clustering than the generic geometric indices - see
-  compute_eigengap), dbscan's k-distance plot (sorted distance-to-min_samples
-  -th-neighbor, the standard way to read off a reasonable eps by eye - see
-  compute_k_distance).
+  compute_eigengap). HDBSCAN gets no standalone diagnostic - unlike DBSCAN
+  (replaced here), it has no single distance threshold (eps) to read off a
+  plot by eye; min_cluster_size is judged directly from the swept
+  noise_fraction/silhouette columns instead.
 """
 
 from __future__ import annotations
@@ -41,7 +42,7 @@ from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, silhouette_samples, silhouette_score
 from sklearn.metrics.pairwise import rbf_kernel
 from sklearn.mixture import GaussianMixture
-from sklearn.neighbors import NearestNeighbors, kneighbors_graph
+from sklearn.neighbors import kneighbors_graph
 
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.consensus_clustering import (
@@ -59,17 +60,17 @@ METHOD_METRIC_COLUMNS: dict[str, list[str]] = {
     "kmeans": ["silhouette", "calinski_harabasz", "davies_bouldin", "inertia"],
     "agglomerative": ["silhouette", "calinski_harabasz", "davies_bouldin"],
     "gmm": ["silhouette", "calinski_harabasz", "davies_bouldin", "bic", "aic"],
-    "dbscan": ["silhouette", "calinski_harabasz", "davies_bouldin", "noise_fraction"],
+    "hdbscan": ["silhouette", "calinski_harabasz", "davies_bouldin", "noise_fraction"],
     "spectral": ["silhouette", "calinski_harabasz", "davies_bouldin"],
 }
 
-STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral", "dbscan"}
+STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral"}
 
 
 def compute_clustering_metrics(X: np.ndarray, labels: np.ndarray) -> dict[str, float]:
     """Generic internal-validation metrics for one (X, labels) clustering result.
 
-    DBSCAN-style noise (label -1) is excluded from silhouette/Calinski-Harabasz
+    HDBSCAN-style noise (label -1) is excluded from silhouette/Calinski-Harabasz
     /Davies-Bouldin (undefined for a "cluster" that isn't one), but
     noise_fraction is always reported so the exclusion is visible, not silent.
     A degenerate combination (fewer than 2 non-noise clusters, or every
@@ -114,7 +115,7 @@ def compute_silhouette_samples(X: np.ndarray, labels: np.ndarray) -> tuple[np.nd
     mean is exactly that number, since silhouette_score is defined as the mean
     of silhouette_samples). Feeds plotting.plot_silhouette_analysis.
 
-    DBSCAN-style noise (label -1) is excluded, same convention as
+    HDBSCAN-style noise (label -1) is excluded, same convention as
     compute_clustering_metrics - silhouette is undefined for a "cluster" that
     isn't one. Returns (non_noise_labels, sample_silhouette_values), same
     length and order (noise rows dropped from both). Raises ValueError if
@@ -172,7 +173,7 @@ def run_clustering_tuning_sweep(
     src/analysis/consensus_clustering.py). None (the default) leaves output
     unchanged from before consensus/stability clustering existed. Raises
     ValueError immediately if given for a method outside
-    CONSENSUS_ELIGIBLE_METHODS (agglomerative/dbscan are deterministic given
+    CONSENSUS_ELIGIBLE_METHODS (agglomerative/hdbscan are deterministic given
     the same data - a stability sweep for them would be degenerate/silent
     garbage, not just unsupported).
     """
@@ -301,16 +302,3 @@ def compute_eigengap(X: np.ndarray, params: dict, max_k: int = 20) -> np.ndarray
     k = min(max_k, laplacian.shape[0] - 1)
     eigenvalues = eigh(laplacian, eigvals_only=True, subset_by_index=[0, k])
     return np.sort(eigenvalues)
-
-
-def compute_k_distance(X: np.ndarray, min_samples: int) -> np.ndarray:
-    """Sorted (ascending) distance from each point to its min_samples-th
-    nearest neighbor (itself included in the count, matching DBSCAN's own
-    definition of min_samples) - the standard k-distance plot for picking
-    DBSCAN's eps: a good eps sits at the point of steepest rise ("knee") in
-    the sorted curve. Independent of any swept eps value in the tuning_grid -
-    min_samples is the only DBSCAN parameter this depends on.
-    """
-    neighbors = NearestNeighbors(n_neighbors=min_samples).fit(X)
-    distances, _ = neighbors.kneighbors(X)
-    return np.sort(distances[:, -1])

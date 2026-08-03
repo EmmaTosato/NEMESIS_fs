@@ -33,9 +33,9 @@ convention as dim_reduction.py:
   plus a method-specific extra where one exists (kmeans' inertia, gmm's
   bic/aic). Writes tuning_results.csv + tuning_plot.png (one subplot per
   metric) to <output_root>/<method>/tuning/<dd-mm>_<session_name>/, plus a
-  standalone diagnostic plot for the 3 methods that have one, independent of
+  standalone diagnostic plot for the 2 methods that have one, independent of
   the swept grid: agglomerative's dendrogram.png, spectral's
-  eigengap_plot.png, dbscan's k_distance_plot.png. No automatic selection -
+  eigengap_plot.png. No automatic selection -
   a human reads the outputs and picks parameters by hand, writes them into
   params_clustering.json's "params", and re-runs with fine_tuning=false.
 
@@ -63,7 +63,6 @@ from src.analysis.clustering_tuning import (
     STANDALONE_DIAGNOSTIC_METHODS,
     compute_dendrogram_linkage,
     compute_eigengap,
-    compute_k_distance,
     compute_silhouette_samples,
     consensus_suggestion_lines,
     run_clustering_tuning_sweep,
@@ -80,7 +79,6 @@ from src.analysis.plotting import (
     plot_clustering_tuning_metrics,
     plot_dendrogram,
     plot_eigengap,
-    plot_k_distance,
     plot_silhouette_analysis,
 )
 from src.utils.artifacts import load_matrix, save_matrix
@@ -281,7 +279,7 @@ def _summary_lines(config: ClusteringConfig, method: str, X: np.ndarray, cluster
 
 
 def _clusters_found_line(cluster_labels: np.ndarray) -> str:
-    """"Clusters found: N" - excludes DBSCAN/OPTICS-style noise label -1 from
+    """"Clusters found: N" - excludes HDBSCAN/OPTICS-style noise label -1 from
     the cluster count (counting it as a cluster would silently overstate the
     result); reports the noise count separately when present, for any method.
     """
@@ -448,7 +446,7 @@ def _write_tuning_output(
 def _write_standalone_diagnostic(output_dir: Path, method: str, X: np.ndarray, base_params: dict, title: str) -> None:
     """Diagnostic plot independent of the swept tuning_grid, computed once
     from base_params - see src/analysis/clustering_tuning.py's module
-    docstring for why these 3 (and only these 3) methods get one.
+    docstring for why these 2 (and only these 2) methods get one.
     """
     if method == "agglomerative":
         linkage_matrix = compute_dendrogram_linkage(X, base_params)
@@ -458,12 +456,6 @@ def _write_standalone_diagnostic(output_dir: Path, method: str, X: np.ndarray, b
         eigenvalues = compute_eigengap(X, base_params)
         plot_eigengap(eigenvalues, output_dir / "eigengap_plot.png", title)
         logging.info("[%s] eigengap plot written to %s", method, output_dir / "eigengap_plot.png")
-    elif method == "dbscan":
-        if "min_samples" not in base_params:
-            raise ValueError(f"[{method}] params must include 'min_samples' to compute the k-distance plot")
-        distances = compute_k_distance(X, base_params["min_samples"])
-        plot_k_distance(distances, output_dir / "k_distance_plot.png", title)
-        logging.info("[%s] k-distance plot written to %s", method, output_dir / "k_distance_plot.png")
     else:
         raise ValueError(f"no standalone diagnostic wired for method {method!r}")
 

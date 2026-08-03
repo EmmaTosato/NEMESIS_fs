@@ -51,7 +51,7 @@ def test_run_rsc_repeats_on_well_separated_blobs_is_near_binary():
 def test_run_monti_repeats_rejects_ineligible_method():
     X = _two_blobs()
     with pytest.raises(ValueError, match="gmm.*kmeans.*spectral"):
-        run_monti_repeats("dbscan", X, {"eps": 0.5, "min_samples": 3}, n_repeats=5, subsample_fraction=0.8)
+        run_monti_repeats("hdbscan", X, {"min_cluster_size": 3}, n_repeats=5, subsample_fraction=0.8)
 
 
 def test_run_monti_repeats_rejects_invalid_subsample_fraction():

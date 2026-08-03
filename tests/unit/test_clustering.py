@@ -5,8 +5,8 @@ import numpy as np
 from src.analysis.clustering import (
     CLUSTERING_METHODS,
     agglomerative_cluster,
-    dbscan_cluster,
     gmm_cluster,
+    hdbscan_cluster,
     kmeans_cluster,
     spectral_cluster,
 )
@@ -15,11 +15,11 @@ _X = np.random.default_rng(0).random((30, 5))
 
 
 def test_registry_has_expected_methods():
-    assert set(CLUSTERING_METHODS) == {"kmeans", "agglomerative", "gmm", "dbscan", "spectral"}
+    assert set(CLUSTERING_METHODS) == {"kmeans", "agglomerative", "gmm", "hdbscan", "spectral"}
     assert CLUSTERING_METHODS["kmeans"] is kmeans_cluster
     assert CLUSTERING_METHODS["agglomerative"] is agglomerative_cluster
     assert CLUSTERING_METHODS["gmm"] is gmm_cluster
-    assert CLUSTERING_METHODS["dbscan"] is dbscan_cluster
+    assert CLUSTERING_METHODS["hdbscan"] is hdbscan_cluster
     assert CLUSTERING_METHODS["spectral"] is spectral_cluster
 
 
@@ -47,11 +47,11 @@ def test_spectral_cluster_shape_and_label_count():
     assert set(labels.tolist()) <= {0, 1, 2, 3}
 
 
-def test_dbscan_cluster_shape_and_noise_label():
-    # eps=0.5/min_samples=5 on this synthetic (30, 5) uniform data produces
-    # noise (-1) plus one real cluster (0) - verified by manual smoke-test.
+def test_hdbscan_cluster_shape_and_noise_label():
+    # min_cluster_size=3 on this synthetic (30, 5) uniform data produces
+    # noise (-1) plus 2 real clusters - verified by manual smoke-test.
     # The point of this test is that -1 is a legitimate label, not an error.
-    labels = dbscan_cluster(_X, {"eps": 0.5, "min_samples": 5})
+    labels = hdbscan_cluster(_X, {"min_cluster_size": 3})
     assert labels.shape == (30,)
     assert set(labels.tolist()) <= {-1, 0, 1, 2, 3}
     assert -1 in labels.tolist()

@@ -183,18 +183,18 @@ def test_clustering_end_to_end_spectral(tmp_path, monkeypatch):
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
 
 
-def test_clustering_end_to_end_dbscan_reports_noise_separately(tmp_path, monkeypatch):
+def test_clustering_end_to_end_hdbscan_reports_noise_separately(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"
-    params_path.write_text(json.dumps({"dbscan": {"params": {"eps": 0.5, "min_samples": 5}}}))
+    params_path.write_text(json.dumps({"hdbscan": {"params": {"min_cluster_size": 5}}}))
 
     output_root = tmp_path / "cl_out"
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
-        "clustering_methods": ["dbscan"],
+        "clustering_methods": ["hdbscan"],
         "params_file": str(params_path),
         "output_root": str(output_root),
         "session_name": "run1",
@@ -207,10 +207,11 @@ def test_clustering_end_to_end_dbscan_reports_noise_separately(tmp_path, monkeyp
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "dbscan").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "hdbscan").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
-    # this sparse raw-voxel synthetic fixture (eps=0.5/min_samples=5) puts every
-    # subject in the noise bucket - a real exercise of the -1 path, not a mock
+    # this sparse raw-voxel synthetic fixture (min_cluster_size=5 on 12 subjects)
+    # puts every subject in the noise bucket - a real exercise of the -1 path,
+    # not a mock
     assert set(metadata["cluster_label"].unique()) == {-1}
 
     readme = (out_dir / "config.md").read_text()
@@ -508,20 +509,20 @@ def test_clustering_fine_tuning_spectral_writes_eigengap(tmp_path, monkeypatch):
     assert (tuning_dir / "eigengap_plot.png").stat().st_size > 0  # standalone diagnostic, spectral-only
 
 
-def test_clustering_fine_tuning_dbscan_writes_k_distance_and_noise_fraction(tmp_path, monkeypatch):
+def test_clustering_fine_tuning_hdbscan_writes_noise_fraction(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
     params_path = tmp_path / "params_clustering.json"
     params_path.write_text(
-        json.dumps({"dbscan": {"params": {"eps": 0.5, "min_samples": 3}, "tuning_grid": {"eps": [0.3, 5.0]}}})
+        json.dumps({"hdbscan": {"params": {}, "tuning_grid": {"min_cluster_size": [2, 8]}}})
     )
 
     output_root = tmp_path / "cl_out"
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
-        "clustering_methods": ["dbscan"],
+        "clustering_methods": ["hdbscan"],
         "params_file": str(params_path),
         "output_root": str(output_root),
         "session_name": "tune1",
@@ -534,8 +535,10 @@ def test_clustering_fine_tuning_dbscan_writes_k_distance_and_noise_fraction(tmp_
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next((output_root / "dbscan" / "tuning").iterdir())
-    assert (tuning_dir / "k_distance_plot.png").stat().st_size > 0  # standalone diagnostic, dbscan-only
+    # HDBSCAN gets no standalone diagnostic (unlike agglomerative/spectral) -
+    # no eps to read off a plot by eye, see clustering_tuning.py's module docstring
+    tuning_dir = next((output_root / "hdbscan" / "tuning").iterdir())
+    assert not (tuning_dir / "k_distance_plot.png").exists()
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert "noise_fraction" in results.columns

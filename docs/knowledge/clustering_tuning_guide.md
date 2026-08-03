@@ -2,7 +2,7 @@
 
 > **Implementazione:** 
 > - `src/analysis/clustering_tuning.py` (calcolo indici/diagnostiche)
-> - `src/analysis/plotting.py` (`plot_clustering_tuning_metrics`, `plot_dendrogram`, `plot_eigengap`, `plot_k_distance`)
+> - `src/analysis/plotting.py` (`plot_clustering_tuning_metrics`, `plot_dendrogram`, `plot_eigengap`)
 > - Orchestrazione in `src/pipeline/clustering.py` / `dim_reduction_clustering.py` quando `fine_tuning: true`.
 > 
 > **Guida d'uso:** `docs/guides/clustering.md`, `docs/guides/dim_reduction_clustering.md`.
@@ -12,7 +12,7 @@
 Per ogni metodo di clustering, il tuning esegue lo stesso algoritmo su una griglia di valori del suo iperparametro principale:
 - `n_clusters` per KMeans, Agglomerative, Spectral
 - `n_components` per GMM
-- `eps` per DBSCAN
+- `min_cluster_size` per HDBSCAN
 *(Le griglie sono definite in `config/registry/params_clustering.json`)*
 
 Per ogni valore calcola un set di indici di validazione interna. Non essendoci un ground truth clinico disponibile, non ci sono metriche di accuratezza, ma solo misure di "quanto sono compatti e separati i cluster trovati".
@@ -30,7 +30,7 @@ Ogni `tuning_plot.png` è una griglia quadrata (definita da `_square_grid_shape`
 | **Calinski-Harabasz** | `[0, +∞)` | Più alto = meglio | Rapporto tra dispersione *tra* i cluster e dispersione *dentro* i cluster. Tende quasi sempre a **crescere con k** (più cluster piccoli = più dispersione tra loro). Da solo non è affidabile per scegliere k, va letto come tendenza/conferma. |
 | **Davies-Bouldin** | `[0, +∞)` | Più basso = meglio | Media del rapporto tra "quanto è disperso al suo interno" e "quanto è vicino al cluster più simile a lui". È l'unico dei tre che penalizza esplicitamente due cluster troppo vicini tra loro, motivo per cui a volte diverge dal Silhouette. |
 
-> **Nota per DBSCAN:** I punti classificati come rumore (label `-1`) sono **esclusi** da questi 3 indici, poiché non avrebbero senso per una "non-classe". La frazione di rumore è sempre riportata separatamente (`noise_fraction`), mai nascosta.
+> **Nota per HDBSCAN:** I punti classificati come rumore (label `-1`) sono **esclusi** da questi 3 indici, poiché non avrebbero senso per una "non-classe". La frazione di rumore è sempre riportata separatamente (`noise_fraction`), mai nascosta.
 
 **Come leggerli insieme:**
 - Se Silhouette, Calinski-Harabasz e Davies-Bouldin concordano tutti sullo stesso `k`, la scelta è solida.
@@ -60,9 +60,9 @@ Ogni `tuning_plot.png` è una griglia quadrata (definita da `_square_grid_shape`
 - **Come si leggono:** Più basso = meglio. 
 - **Attenzione:** Se scendono in modo monotono su tutta la griglia senza mai risalire, non stanno dando un'informazione utile in quel range (la griglia non arriva al punto di svolta). In questo caso, usare i 3 indici generici.
 
-### DBSCAN — `noise_fraction` + k-distance plot (`k_distance_plot.png`)
-- **Noise fraction:** Colonna aggiuntiva in `tuning_plot.png`. **Va sempre letta insieme agli altri indici, mai da sola**. Un `eps` piccolo può dare indici ottimi solo perché scarta molti soggetti difficili considerandoli rumore (i pochi rimasti sembrano ben separati). È un vero **trade-off qualità/copertura**.
-- **k-distance plot:** Diagnostica **standalone** per stimare un `eps` di partenza. Mostra le distanze dal `min_samples`-esimo vicino ordinata in modo crescente. Il "gomito" di questa curva è una stima ragionevole per `eps`.
+### HDBSCAN — `noise_fraction` (nessuna diagnostica standalone)
+- **Noise fraction:** Colonna aggiuntiva in `tuning_plot.png`. **Va sempre letta insieme agli altri indici, mai da sola**. Un `min_cluster_size` grande può dare indici ottimi solo perché scarta molti soggetti difficili considerandoli rumore (i pochi rimasti sembrano ben separati). È un vero **trade-off qualità/copertura**.
+- **Nessun grafico standalone**: a differenza del vecchio DBSCAN (che aveva un k-distance plot per stimare `eps` a occhio), HDBSCAN non ha una singola soglia di distanza da leggere su un grafico — `min_cluster_size` si giudica direttamente dalla curva `noise_fraction`/silhouette già sweepata.
 
 ### Spectral — eigengap (`eigengap_plot.png`)
 - **Dove:** Diagnostica **standalone**, calcolata una sola volta e indipendente dal `k`.
@@ -78,5 +78,4 @@ Per ogni combinazione `<riduzione>/<metodo>/tuning/<tag>/` vengono generati:
 - **Diagnostiche standalone:**
   - `dendrogram.png` (solo per Agglomerative)
   - `eigengap_plot.png` (solo per Spectral)
-  - `k_distance_plot.png` (solo per DBSCAN)
 - `config.md`: snapshot dei parametri utilizzati per quella specifica run.
