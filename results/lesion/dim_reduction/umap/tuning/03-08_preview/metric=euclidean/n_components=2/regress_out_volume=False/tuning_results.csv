@@ -1,5 +1,0 @@
-metric,n_components,regress_out_volume,n_neighbors,min_dist,trustworthiness
-euclidean,2,False,15,0.0,0.7369974131488686
-euclidean,2,False,15,0.1,0.7375150899649339
-euclidean,2,False,30,0.0,0.7322288692586276
-euclidean,2,False,30,0.1,0.7291317761128251

@@ -64,8 +64,20 @@ TUNING_METRIC_NAMES = {
 
 METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS = {"umap", "tsne", "pacmap"}
 
+# umap/tsne are the only evaluators that can request a precomputed binary
+# distance matrix (jaccard/dice) - run_tuning_sweep passes each a shared
+# per-sweep cache (keyed by metric name) so a sweep with N combinations at
+# the same metric computes that matrix once, not N times (X.astype(float64)
+# alone allocates a full-size copy of the feature matrix, plus an O(n^2)
+# matmul - see binary_pairwise_distance - neither depends on n_neighbors/
+# min_dist/n_components/regress_out_volume, so redoing it per combination is
+# pure waste).
+METHODS_WITH_DISTANCE_CACHE = {"umap", "tsne"}
 
-def evaluate_umap(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int) -> tuple[np.ndarray, float]:
+
+def evaluate_umap(
+    X: np.ndarray, params: dict, trustworthiness_n_neighbors: int, distance_cache: dict[str, np.ndarray] | None = None
+) -> tuple[np.ndarray, float]:
     """Embed with UMAP, optionally regress out lesion volume, then score with
     trustworthiness(X, embedding).
 
@@ -79,6 +91,12 @@ def evaluate_umap(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int)
     umap's own metric is switched to "precomputed" accordingly (also avoids
     umap/sklearn each recomputing pairwise distances the slow, non-vectorized
     way on raw high-dimensional binary features).
+
+    `distance_cache`, when given, is read/written by metric name - a repeat
+    call for the same metric (e.g. the next n_neighbors/min_dist combination
+    in the same sweep) reuses the matrix instead of recomputing it. None
+    (default, e.g. a standalone call outside run_tuning_sweep) always
+    recomputes - never stale, just uncached.
 
     "regress_out_volume" (default False) is not a UMAP constructor argument -
     stripped from params before embedding, applied to the embedding
@@ -95,7 +113,12 @@ def evaluate_umap(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int)
 
     metric = params.get("metric", "euclidean")
     if metric in SUPPORTED_BINARY_METRICS:
-        X_input = binary_pairwise_distance(X, metric)
+        if distance_cache is not None and metric in distance_cache:
+            X_input = distance_cache[metric]
+        else:
+            X_input = binary_pairwise_distance(X, metric)
+            if distance_cache is not None:
+                distance_cache[metric] = X_input
         umap_params = {k: v for k, v in params.items() if k not in ("metric", "regress_out_volume")}
         umap_params["metric"] = "precomputed"
         trustworthiness_metric = "precomputed"
@@ -111,7 +134,9 @@ def evaluate_umap(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int)
     return embedding, score
 
 
-def evaluate_tsne(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int) -> tuple[np.ndarray, float]:
+def evaluate_tsne(
+    X: np.ndarray, params: dict, trustworthiness_n_neighbors: int, distance_cache: dict[str, np.ndarray] | None = None
+) -> tuple[np.ndarray, float]:
     """Embed with t-SNE, optionally regress out lesion volume, then score with
     trustworthiness(X, embedding).
 
@@ -125,6 +150,10 @@ def evaluate_tsne(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int)
     matrix - so init is forced to "random" in that case, never left at the
     default for a precomputed run.
 
+    `distance_cache` behaves exactly as in evaluate_umap - reused by metric
+    name across calls within the same sweep, None (default) always
+    recomputes.
+
     Same "regress_out_volume" handling as evaluate_umap too (see its
     docstring): stripped from params, applied to the embedding after fitting,
     scored on the residualized embedding, validated here regardless of caller.
@@ -134,7 +163,12 @@ def evaluate_tsne(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int)
 
     metric = params.get("metric", "euclidean")
     if metric in SUPPORTED_BINARY_METRICS:
-        X_input = binary_pairwise_distance(X, metric)
+        if distance_cache is not None and metric in distance_cache:
+            X_input = distance_cache[metric]
+        else:
+            X_input = binary_pairwise_distance(X, metric)
+            if distance_cache is not None:
+                distance_cache[metric] = X_input
         tsne_params = {k: v for k, v in params.items() if k not in ("metric", "regress_out_volume")}
         tsne_params["metric"] = "precomputed"
         tsne_params["init"] = "random"
@@ -225,6 +259,7 @@ def run_tuning_sweep(
     keys = list(tuning_grid.keys())
     rows = []
     embeddings_by_combo: dict[tuple, np.ndarray] = {}
+    distance_cache: dict[str, np.ndarray] = {}
     import logging
 
     combinations = list(itertools.product(*tuning_grid.values()))
@@ -239,7 +274,10 @@ def run_tuning_sweep(
             if trustworthiness_n_neighbors is None:
                 raise ValueError(f"trustworthiness_n_neighbors is required to fine-tune {method!r}")
             try:
-                embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors)
+                if method in METHODS_WITH_DISTANCE_CACHE:
+                    embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors, distance_cache)
+                else:
+                    embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors)
             except VolumeRegressionIncompatibleError as exc:
                 logging.warning(
                     "excluding combination %d/%d (%s) from results - impossible by construction: %s",
