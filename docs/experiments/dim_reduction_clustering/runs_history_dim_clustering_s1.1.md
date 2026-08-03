@@ -1,6 +1,6 @@
 # Runs History
 
-# Dimensionality Reduction S1.1
+# Dimensionality Reduction + Clustering S1.1
 
 ## 26-07-2026 Run
 
@@ -38,4 +38,6 @@
 - - [`tuning_dim_s1.1.md`](tuning_dim_s1.1.md) - 28-07-2026 Analysis — UMAP, t-SNE
 - **Riferimento Log (CSV):** `results/lesion/dim_reduction_clustering/<riduzione>/runs.csv`
 - **Output:** I risultati di questa sessione sono stati scritti in directory del tipo `26-07_s1.1_*` sotto ogni metodo.
--
+
+
+## 03-08-2026 Run
