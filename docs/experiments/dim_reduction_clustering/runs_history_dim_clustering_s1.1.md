@@ -1,6 +1,4 @@
-# Runs History
-
-# Dimensionality Reduction + Clustering S1.1
+#  Dimensionality Reduction + Clustering S1.1
 
 ## 26-07-2026 Run
 
@@ -28,8 +26,6 @@
 - **Pipeline:** `dim_reduction_clustering`
 - **Dati in ingresso:** Matrice lesionale voxel-wise, 1150 soggetti (`data/derived/lesion_matrix/21-07_s1.1`)
 - **Riduzioni in Produzione:** UMAP, t-SNE
-
-  - Tuning fatto sulla base del tuing
 - **Configurazioni Scelte (Clustering):**
 - - **UMAP:**
   - **PACMAP:**
