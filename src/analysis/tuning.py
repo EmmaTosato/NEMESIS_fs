@@ -186,22 +186,32 @@ def run_tuning_sweep(
     base_params: dict,
     tuning_grid: dict[str, list],
     trustworthiness_n_neighbors: int | None,
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, dict[tuple, np.ndarray]]:
     """Evaluate every combination in the Cartesian product of tuning_grid.
 
     Each combination overrides base_params for the swept keys only (unswept
-    keys, e.g. random_state, stay fixed at base_params' value). Returns one
-    row per combination: the swept parameter values plus the method's metric
-    column (see TUNING_METRIC_NAMES).
+    keys, e.g. random_state, stay fixed at base_params' value). Returns
+    (results, embeddings_by_combo):
+    - results: one row per combination, the swept parameter values plus the
+      method's metric column (see TUNING_METRIC_NAMES) - unchanged shape from
+      before embeddings were kept, still the only thing written to
+      tuning_results.csv.
+    - embeddings_by_combo: the embedding actually computed for each
+      combination, keyed by the exact `combo` tuple (values in
+      tuning_grid.keys() order) - kept in memory only, never serialized, so
+      callers that need to *see* an embedding (not just its score) - e.g.
+      dim_reduction.py's per-leaf embeddings_grid plot - don't have to refit
+      it a second time. A combination excluded below (see
+      VolumeRegressionIncompatibleError) has no entry in either return value.
 
     Raises ValueError for a method with no supported tuning evaluator (only
     the methods in TUNING_METRIC_NAMES are supported today - kmeans/agglomerative/
-    gmm/dbscan/spectral have no tuning_grid to begin with here, see
+    gmm/hdbscan/spectral have no tuning_grid to begin with here, see
     clustering_tuning.py instead, and params.py.load_tuning_grid).
 
     If a combination has regress_out_volume=True together with metric=jaccard/dice
     (umap/tsne only - see evaluate_umap/evaluate_tsne), that specific combination
-    is excluded entirely from the returned table - no embedding is computed, no
+    is excluded entirely from both return values - no embedding is computed, no
     row is added. A WARNING is logged when this happens (so it's not silent),
     but the incompatibility itself is a known, documented fact
     (src/analysis/covariates.py, docs/methods/dimensionality_reduction.md), not
@@ -214,12 +224,13 @@ def run_tuning_sweep(
     evaluator = _EVALUATORS[method]
     keys = list(tuning_grid.keys())
     rows = []
+    embeddings_by_combo: dict[tuple, np.ndarray] = {}
     import logging
-    
+
     combinations = list(itertools.product(*tuning_grid.values()))
     total = len(combinations)
     logging.info("Starting fine-tuning sweep for %s (%d combinations)", method, total)
-    
+
     for i, combo in enumerate(combinations, 1):
         swept = dict(zip(keys, combo))
         combo_params = {**base_params, **swept}
@@ -228,7 +239,7 @@ def run_tuning_sweep(
             if trustworthiness_n_neighbors is None:
                 raise ValueError(f"trustworthiness_n_neighbors is required to fine-tune {method!r}")
             try:
-                _embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors)
+                embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors)
             except VolumeRegressionIncompatibleError as exc:
                 logging.warning(
                     "excluding combination %d/%d (%s) from results - impossible by construction: %s",
@@ -239,7 +250,8 @@ def run_tuning_sweep(
                 )
                 continue
         else:
-            _embedding, score = evaluator(X, combo_params)
+            embedding, score = evaluator(X, combo_params)
         rows.append({**swept, metric_name: score})
+        embeddings_by_combo[combo] = embedding
 
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows), embeddings_by_combo

@@ -8,8 +8,14 @@ coordinates - the expensive step (t-SNE/UMAP/PCA fit) never needs to be
 redone just because src/analysis/plotting.py's plotting code changed.
 
 Reads matrix.npy + metadata.csv from --run-dir and overwrites the matching
-plot file(s) in place:
-- dim_reduction run (metadata has no cluster_label column): embedding_plot.png
+plot file(s) in place. Only works for a run whose saved embedding has exactly
+2 components - it deliberately never reloads the original feature matrix, so
+unlike dim_reduction.py/dim_reduction_clustering.py it has no way to refit a
+lower-dimensional visualization projection when a run's own n_components is
+above its viz_n_components (see src/analysis/reduction.py::embedding_for_viz);
+raises ValueError for any other component count, rerun the original pipeline
+instead.
+- dim_reduction run (metadata has no cluster_label column): embedding_plot_unico.png
   + embedding_plot_{dataset,volume,side}.png/.html (7 files total). dataset/
   lesion_volume_voxels/lesion_side are read directly from metadata.csv (persisted
   there by dim_reduction.py's _run_production) - never recomputed from the
@@ -50,9 +56,13 @@ _REQUIRED_EMBEDDING_COLUMNS = ("dataset", "lesion_volume_voxels", "lesion_side")
 
 def replot(run_dir: Path) -> list[Path]:
     X, metadata, _extra_arrays = load_matrix(run_dir)
-    if X.shape[1] < 2:
+    if X.shape[1] != 2:
         raise ValueError(
-            f"run {run_dir} has an embedding with {X.shape[1]} component(s) - need at least 2 to plot"
+            f"run {run_dir} has a saved embedding with {X.shape[1]} component(s) - this script can only replot an "
+            "already-2-component embedding: it deliberately avoids reloading the original feature matrix, so it has "
+            "no way to refit a lower-dimensional visualization projection the way dim_reduction.py/"
+            "dim_reduction_clustering.py do (see src/analysis/reduction.py::embedding_for_viz). Rerun the original "
+            "pipeline instead if this run's saved embedding has more components than its own viz_n_components."
         )
 
     if CLUSTER_LABEL_COLUMN in metadata.columns:
@@ -68,9 +78,9 @@ def _replot_clustering(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> 
     title = compose_cluster_plot_title(run_dir, reduction_method, clustering_method)
 
     static_path = run_dir / "cluster_plot.png"
-    plot_clusters_2d(X[:, :2], metadata[CLUSTER_LABEL_COLUMN].to_numpy(), static_path, xlabel, ylabel, title)
+    plot_clusters_2d(X, metadata[CLUSTER_LABEL_COLUMN].to_numpy(), static_path, xlabel, ylabel, title)
     interactive_path = run_dir / "cluster_plot_interactive.html"
-    plot_clusters_interactive(X[:, :2], metadata, interactive_path, xlabel, ylabel, title)
+    plot_clusters_interactive(X, metadata, interactive_path, xlabel, ylabel, title)
     return [static_path, interactive_path]
 
 
@@ -87,8 +97,8 @@ def _replot_embedding(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> l
     xlabel, ylabel = f"{reduction_method} dim 1", f"{reduction_method} dim 2"
     output_paths = []
 
-    static_path = run_dir / "embedding_plot.png"
-    plot_embedding_2d(X[:, :2], static_path, xlabel, ylabel, compose_embedding_plot_title(run_dir, reduction_method))
+    static_path = run_dir / "embedding_plot_unico.png"
+    plot_embedding_2d(X, static_path, xlabel, ylabel, compose_embedding_plot_title(run_dir, reduction_method))
     output_paths.append(static_path)
 
     for color_by, column in (("Dataset", "dataset"), ("Side", "lesion_side")):
@@ -96,24 +106,24 @@ def _replot_embedding(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> l
         title = compose_embedding_plot_title(run_dir, reduction_method, color_by)
 
         static_path = run_dir / f"embedding_plot_{suffix}.png"
-        plot_embedding_categorical(X[:, :2], metadata[column].to_numpy(), static_path, xlabel, ylabel, title, legend_title=column)
+        plot_embedding_categorical(X, metadata[column].to_numpy(), static_path, xlabel, ylabel, title, legend_title=column)
         output_paths.append(static_path)
 
         interactive_path = run_dir / f"embedding_plot_{suffix}.html"
-        plot_embedding_interactive(X[:, :2], metadata, interactive_path, xlabel, ylabel, title, color_column=column)
+        plot_embedding_interactive(X, metadata, interactive_path, xlabel, ylabel, title, color_column=column)
         output_paths.append(interactive_path)
 
     volume_title = compose_embedding_plot_title(run_dir, reduction_method, "Volume")
     static_path = run_dir / "embedding_plot_volume.png"
     plot_embedding_continuous(
-        X[:, :2], metadata["lesion_volume_voxels"].to_numpy(), static_path, xlabel, ylabel, volume_title,
+        X, metadata["lesion_volume_voxels"].to_numpy(), static_path, xlabel, ylabel, volume_title,
         colorbar_label="lesion volume (voxels)",
     )
     output_paths.append(static_path)
 
     interactive_path = run_dir / "embedding_plot_volume.html"
     plot_embedding_interactive(
-        X[:, :2], metadata, interactive_path, xlabel, ylabel, volume_title, color_column="lesion_volume_voxels"
+        X, metadata, interactive_path, xlabel, ylabel, volume_title, color_column="lesion_volume_voxels"
     )
     output_paths.append(interactive_path)
 

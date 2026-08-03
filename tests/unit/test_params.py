@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from src.analysis.params import load_method_params, load_trustworthiness_n_neighbors, load_tuning_grid
+from src.analysis.params import load_method_params, load_nested_params, load_trustworthiness_n_neighbors, load_tuning_grid
 
 
 def _write(tmp_path, payload):
@@ -92,3 +92,47 @@ def test_load_trustworthiness_n_neighbors_not_positive_int_raises(tmp_path):
     path2 = _write(tmp_path, {"umap": {"params": {}, "trustworthiness_n_neighbors": True}})
     with pytest.raises(ValueError, match="must be a positive integer"):
         load_trustworthiness_n_neighbors(path2, "umap")
+
+
+def test_load_nested_params_absent_returns_empty_list(tmp_path):
+    path = _write(tmp_path, {"pca": {"params": {}, "tuning_grid": {"n_components": [2, 4]}}})
+    assert load_nested_params(path, "pca", {"n_components": [2, 4]}) == []
+
+
+def test_load_nested_params_valid(tmp_path):
+    tuning_grid = {"metric": ["euclidean", "jaccard"], "n_components": [2, 5], "n_neighbors": [5, 15], "min_dist": [0.0, 0.1]}
+    path = _write(tmp_path, {"umap": {"params": {}, "tuning_grid": tuning_grid, "nested_params": ["metric", "n_components"]}})
+    assert load_nested_params(path, "umap", tuning_grid) == ["metric", "n_components"]
+
+
+def test_load_nested_params_not_a_list_raises(tmp_path):
+    tuning_grid = {"metric": ["euclidean", "jaccard"], "n_neighbors": [5, 15]}
+    path = _write(tmp_path, {"umap": {"params": {}, "tuning_grid": tuning_grid, "nested_params": "metric"}})
+    with pytest.raises(ValueError, match="must be a list of strings"):
+        load_nested_params(path, "umap", tuning_grid)
+
+
+def test_load_nested_params_unknown_reference_raises(tmp_path):
+    tuning_grid = {"metric": ["euclidean", "jaccard"], "n_neighbors": [5, 15]}
+    path = _write(tmp_path, {"umap": {"params": {}, "tuning_grid": tuning_grid, "nested_params": ["typo_metric"]}})
+    with pytest.raises(ValueError, match="not present in tuning_grid"):
+        load_nested_params(path, "umap", tuning_grid)
+
+
+def test_load_nested_params_zero_free_params_raises(tmp_path):
+    tuning_grid = {"metric": ["euclidean", "jaccard"]}
+    path = _write(tmp_path, {"umap": {"params": {}, "tuning_grid": tuning_grid, "nested_params": ["metric"]}})
+    with pytest.raises(ValueError, match="must be exactly 1 or 2"):
+        load_nested_params(path, "umap", tuning_grid)
+
+
+def test_load_nested_params_too_many_free_params_raises(tmp_path):
+    tuning_grid = {
+        "metric": ["euclidean", "jaccard"],
+        "a": [1, 2],
+        "b": [1, 2],
+        "c": [1, 2],
+    }
+    path = _write(tmp_path, {"umap": {"params": {}, "tuning_grid": tuning_grid, "nested_params": ["metric"]}})
+    with pytest.raises(ValueError, match="must be exactly 1 or 2"):
+        load_nested_params(path, "umap", tuning_grid)

@@ -36,7 +36,30 @@ Attivando questa modalità, lo script **non** calcolerà il risultato finale, ma
 Alla fine ti fornirà un file Excel (CSV) e dei grafici colorati a mappa di calore (Heatmap) mostrandoti quale combinazione matematica di parametri ottiene il punteggio di "bontà del dato" (Trustworthiness) più alto.
 Spetta a te umano analizzare il grafico e scegliere il set di parametri vincenti.
 
-Il fine-tuning è supportato per `umap` (`n_neighbors`/`metric`), `pca`/`pca_varimax` (`n_components`), `pacmap` (`n_neighbors`) e `tsne` (`perplexity`/`metric`, stesso meccanismo di `umap`) — gli altri parametri di t-SNE (`early_exaggeration`, `learning_rate`, `max_iter`) restano fissati da Thiebaut de Schotten et al. 2020 e non entrano nella sweep (vedi `docs/methods/dimensionality_reduction.md`).
+Il fine-tuning è supportato per `umap` (`n_neighbors`/`min_dist`/`metric`/`n_components`/`regress_out_volume`), `pca`/`pca_varimax` (`n_components`), `pacmap` (`n_neighbors`) e `tsne` (`perplexity`/`metric`/`regress_out_volume`, stesso meccanismo di `umap`) — gli altri parametri di t-SNE (`early_exaggeration`, `learning_rate`, `max_iter`) restano fissati da Thiebaut de Schotten et al. 2020 e non entrano nella sweep (vedi `docs/methods/dimensionality_reduction.md`).
+
+#### `nested_params`: parametri "decisi a priori" vs il vero grid search
+
+Quando `tuning_grid` ha più di 2 parametri (es. UMAP: `metric`, `n_components`, `regress_out_volume`, `n_neighbors`, `min_dist`), non ha senso incrociarli tutti in un'unica tabella/grafico — alcuni sono decisioni teoriche/a-priori (che metrica usare, quante componenti servono a valle), altri sono il vero grid search da esplorare visivamente. `nested_params` (opzionale, in `params_reduction.json` per metodo) dichiara **quali** parametri fissare uno alla volta, in **che ordine** di annidamento cartelle:
+
+```json
+"umap": {
+  "tuning_grid": {
+    "metric": ["euclidean", "jaccard", "dice"],
+    "n_components": [2, 5, 10],
+    "regress_out_volume": [false, true],
+    "n_neighbors": [5, 15, 30, 50, 100],
+    "min_dist": [0.0, 0.1, 0.25]
+  },
+  "nested_params": ["metric", "n_components", "regress_out_volume"]
+}
+```
+
+Quello che resta di `tuning_grid` dopo `nested_params` (qui `n_neighbors`/`min_dist`) dev'essere esattamente 1 o 2 chiavi — è il grid libero, quello davvero visualizzato. Per ogni combinazione **reale** dei parametri annidati (una combinazione con `regress_out_volume: true` + `metric: jaccard/dice` non esiste mai, è incompatibile per costruzione — vedi sotto) viene creata una sottocartella `metric=.../n_components=.../regress_out_volume=.../`, con dentro:
+- `tuning_results.csv` — solo le righe di quella combinazione
+- `embeddings_grid_unico.png` (+ una copia per ogni voce di `color_by`, vedi sotto) — non un numero, ma gli **embedding veri**: un blocco per ogni parametro libero (es. "n_neighbors", poi "min_dist"), ciascuno una riga di scatter, uno per valore, con l'altro parametro libero tenuto al valore di `params` — separati da spazio bianco, sottotitolo per blocco.
+
+Se `nested_params` non è dichiarato (es. `pca`, `pacmap`, o qualunque metodo con al massimo 2 parametri in `tuning_grid`), il comportamento resta quello di sempre: un `tuning_plot.png` a curva se c'è un solo parametro sweepato, nessun grafico (solo CSV) se ce ne sono 2+.
 
 ### 2. Modalità Produzione (`"fine_tuning": false`)
 Una volta scelti i parametri ottimali grazie alla modalità precedente (e avendoli salvati nel file dei parametri), lanci lo script in questa modalità. Lo script prenderà le impostazioni e produrrà la matrice compressa finale da passare ai passaggi successivi.
@@ -61,7 +84,9 @@ Ecco la spiegazione di `config/pipelines/dim_reduction.json`:
 - **`overwrite`**: `(Booleano)` A `true` permette allo script di sovrascrivere silenziosamente un file preesistente.
 - **`fine_tuning`**: `(Booleano)` Attiva (`true`) o disattiva (`false`) la modalità di ricerca dei parametri di cui abbiamo parlato sopra.
 - **`regress_out_volume`**: `(Booleano)` In modalità Produzione. A `true`, prima di salvare l'embedding, rimuove per regressione lineare l'effetto del volume lesionale (numero di voxel lesionati per soggetto) da ciascuna coordinata dell'embedding — utile perché su dati binari lesionali il volume può dominare la struttura trovata (visto con la PCA, dove una componente correlava r=0.92 col volume). **Incompatibile con `metric: "jaccard"`/`"dice"` in `params_reduction.json`**: quelle metriche già normalizzano per il volume di ciascun soggetto, quindi regredirlo di nuovo toglierebbe segnale topografico reale, non un confondimento — la pipeline si ferma con un errore esplicito se provi a combinare le due cose. Vedi `docs/methods/dimensionality_reduction.md` per il dettaglio metodologico.
-  - **Sweepabile anche in Fine-Tuning** (umap/tsne): se `"regress_out_volume": [false, true]` è nel `tuning_grid` di `params_reduction.json`, ogni combinazione viene valutata con/senza regressione. Le combinazioni impossibili (`regress_out_volume: true` insieme a `metric: "jaccard"/"dice"`) **non compaiono affatto** in `tuning_results.csv` — vengono escluse a monte (un WARNING viene comunque loggato durante il run), non è utile ripetere in ogni tabella un'incompatibilità già nota e documentata qui sopra. **Nota**: il Fine-Tuning genera un grafico (`tuning_plot.png`) solo quando sweepi **un unico parametro** — con 2 o più (es. `n_neighbors`/`perplexity` × `metric`, o × `regress_out_volume`) niente grafico, solo `tuning_results.csv` (le heatmap sono state rimosse su richiesta).
+  - **Sweepabile anche in Fine-Tuning** (umap/tsne): se `"regress_out_volume": [false, true]` è nel `tuning_grid` di `params_reduction.json`, ogni combinazione viene valutata con/senza regressione. Le combinazioni impossibili (`regress_out_volume: true` insieme a `metric: "jaccard"/"dice"`) **non compaiono affatto** in `tuning_results.csv`, né generano una cartella `nested_params` — vengono escluse a monte (un WARNING viene comunque loggato durante il run).
+- **`color_by`**: `(Lista di stringhe)` Quali modalità di colorazione generare per gli embedding, oltre a quella base "unico colore" (sempre generata, non va elencata). Valori riconosciuti oggi: `"dataset"`, `"side"` (lato della lesione), `"volume"` (voxel lesionati) — il registro è in `src/analysis/embedding_coloring.py`, estendibile aggiungendo una entry lì + il nome qui. Lista vuota `[]` = solo "unico colore". Usato sia in Produzione (`embedding_plot_<nome>.*`) sia in Fine-Tuning con `nested_params` (`embeddings_grid_<nome>.png`).
+- **`viz_n_components`**: `(Intero, 2 o 3)` Quante componenti usare per **visualizzare** l'embedding — indipendente da quante ne usa realmente la riduzione/il clustering. Se coincide con `n_components` di `params`, viene riusato l'embedding già calcolato (costo zero, il caso di oggi con `n_components: 2` ovunque); se è diverso, viene rifittato un embedding **separato** solo per il plotting (stessi `metric`/`n_neighbors`/`min_dist`/`random_state`, vedi `src/analysis/reduction.py::embedding_for_viz`) — mai un taglio arbitrario delle prime 2/3 colonne di un embedding a più dimensioni (UMAP/t-SNE/PaCMAP non sono ordinati per varianza come la PCA, tagliare produce un disegno che può mostrare cluster falsamente sovrapposti o separati). Con `3`: solo il plot interattivo (`.html`, rotabile nel browser), nessun PNG statico 3D (poco leggibile senza poter ruotare).
 - **`run_notes`**: `(Stringa)` Note per descrivere storicamente perché stai lanciando questo test (es. "Provo UMAP a 10 componenti").
 
 ### Come funziona il file `params_reduction.json`?
@@ -74,14 +99,10 @@ Quando in modalità Fine-Tuning scopri che `n_neighbors: 30` è perfetto per te,
 
 Tutti i risultati, per ogni metodo, finiranno separati in `results/lesion/dim_reduction/<metodo>/<GIORNO-MESE>_<session_name>` (il nome cartella include anche un tag auto-generato dal parametro chiave del metodo, es. `21-07_s1.1_d01` per UMAP con `min_dist=0.1` — vedi `config/registry/params_reduction.json`).
 
-- Se eri in **Fine-Tuning**: Troverai `tuning_results.csv` e `tuning_plot.png`. Niente matrice.
-- Se eri in **Produzione**: Troverai `matrix.npy` (questa volta non avrà 800.000 colonne, ma magari solo 2), un `config.md` di riepilogo e il `metadata.csv` (che stavolta guadagna 2 colonne rispetto alla matrice originale: `lesion_volume_voxels`, il conteggio voxel della lesione di ogni soggetto, e `lesion_side`, il lato della lesione — `"unknown"` per un soggetto/dataset per cui non è risolvibile, es. PASPORT che non ha quella colonna). Se l'embedding ha almeno 2 componenti troverai 4 plot statici + 3 interattivi:
-  - `embedding_plot.png` — puntini anonimi, un solo colore.
-  - `embedding_plot_dataset.png`/`.html` — colorato per `dataset`.
-  - `embedding_plot_volume.png`/`.html` — colorato per `lesion_volume_voxels` (colormap continua + colorbar).
-  - `embedding_plot_side.png`/`.html` — colorato per `lesion_side` (categoria `"unknown"` per i soggetti senza lato risolvibile).
+- Se eri in **Fine-Tuning**: Troverai `tuning_results.csv` e, se `nested_params` non è dichiarato, `tuning_plot.png` (solo con un parametro sweepato). Se `nested_params` **è** dichiarato, invece di un unico `tuning_plot.png` trovi le sottocartelle `<param>=<valore>/...` descritte sopra, ciascuna con la propria `tuning_results.csv` filtrata e `embeddings_grid_<colore>.png`. Niente matrice in nessuno dei due casi.
+- Se eri in **Produzione**: Troverai `matrix.npy` (questa volta non avrà 800.000 colonne, ma magari solo 2, o quante ne hai messe in `n_components`), un `config.md` di riepilogo e il `metadata.csv` (che stavolta guadagna 2 colonne rispetto alla matrice originale: `lesion_volume_voxels`, il conteggio voxel della lesione di ogni soggetto, e `lesion_side`, il lato della lesione — `"unknown"` per un soggetto/dataset per cui non è risolvibile, es. PASPORT che non ha quella colonna). Troverai sempre `embedding_plot_unico.png` (puntini anonimi, un solo colore) più una coppia PNG+HTML per ogni voce di `color_by` (es. `embedding_plot_dataset.png`/`.html`, `embedding_plot_volume.png`/`.html`, `embedding_plot_side.png`/`.html`) — se `n_components` (o `viz_n_components`) è diverso da 2, l'embedding usato per questi plot è un fit separato solo-per-visualizzazione, non l'embedding salvato in `matrix.npy` (vedi `viz_n_components` sopra).
 
-  Ogni file `.html` è interattivo (apribile in un browser), passando sopra un punto mostra tutte le colonne di `metadata.csv` (`subject_id`/`dataset`/`lesion_volume_voxels`/`lesion_side`) di quel soggetto. Per rigenerare tutti e 7 i plot da una run già esistente senza ricalcolare l'embedding: `scripts/replot_dim_reduction.py --run-dir <cartella_run>`.
+  Ogni file `.html` è interattivo (apribile in un browser), passando sopra un punto mostra tutte le colonne di `metadata.csv` di quel soggetto. Per rigenerare i plot da una run già esistente senza ricalcolare l'embedding: `scripts/replot_dim_reduction.py --run-dir <cartella_run>` — funziona solo se l'embedding salvato ha esattamente 2 componenti (non ha la matrice grezza originale per rifittare una proiezione, a differenza della pipeline vera).
 
 **Molto Importante: Il file runs.csv**
 Nella cartella base di ogni metodo (es. `results/lesion/dim_reduction/umap/runs.csv`), lo script compilerà un vero e proprio "Diario di Bordo" automatico, stavolta in formato CSV (una riga per run: `run_id, timestamp, run_type, params, output, notes`). Ogni volta che lanci la pipeline con successo, aggiungerà una riga con l'ora, se era un test di fine tuning o una produzione, quali parametri matematici esatti hai usato e le note che avevi scritto. In questo modo avrai una traccia storica scientifica di ogni singola prova fatta nei mesi, interrogabile con pandas, e non rischierai mai di scordarti con quali impostazioni avevi ottenuto un certo grafico.

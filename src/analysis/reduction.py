@@ -73,3 +73,33 @@ REDUCTION_METHODS: dict[str, Callable[[np.ndarray, dict], np.ndarray]] = {
     "pca_varimax": pca_varimax_embed,
     "pacmap": pacmap_embed,
 }
+
+
+def embedding_for_viz(
+    reduction_method: str, X: np.ndarray, reduction_params: dict, embedding: np.ndarray, viz_n_components: int
+) -> np.ndarray:
+    """Returns an embedding with exactly `viz_n_components` columns, suitable
+    to plot - reused unmodified if `embedding` already has that many columns
+    (every production config today: n_components == viz_n_components == 2,
+    zero extra cost), otherwise refit from scratch on the same raw `X` with
+    only `n_components` overridden to `viz_n_components`.
+
+    Why a refit and not embedding[:, :viz_n_components]: for umap/tsne/pacmap,
+    the output dimensions of a single fit have no ordering by importance
+    (unlike PCA's variance-ranked components) - they're jointly optimized to
+    satisfy one objective in the full n_components-dimensional space, so
+    slicing 2 or 3 of them out is an arbitrary cut, not a meaningful summary,
+    and can make a real cluster structure look artificially merged or split.
+    A second fit at n_components=viz_n_components, same metric/n_neighbors/
+    min_dist/random_state, shares the same neighbor graph as the original fit
+    (that graph depends only on metric/n_neighbors, not n_components) and is
+    UMAP/t-SNE's own best-effort layout for exactly that many dimensions. For
+    PCA this second fit is mathematically equivalent to slicing (greedy
+    variance ordering means the top components don't change when more are
+    requested), so the same rule is correct for every REDUCTION_METHODS
+    entry without a per-method branch.
+    """
+    if embedding.shape[1] == viz_n_components:
+        return embedding
+    viz_params = {**reduction_params, "n_components": viz_n_components}
+    return REDUCTION_METHODS[reduction_method](X, viz_params)

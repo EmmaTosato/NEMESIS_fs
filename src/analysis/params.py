@@ -64,6 +64,48 @@ def load_tuning_grid(params_file: str | Path, method: str) -> dict[str, list]:
     return grid
 
 
+def load_nested_params(params_file: str | Path, method: str, tuning_grid: dict[str, list]) -> list[str]:
+    """Load the ordered "nested_params" list registered for `method` in
+    `params_file` - the tuning_grid keys fixed one-at-a-time (nested output
+    folders, outermost first), as opposed to the "free" keys left over
+    (tuning_grid minus nested_params) that get swept jointly as the real
+    grid search (see src/pipeline/dim_reduction.py's _write_tuning_output).
+
+    Absent -> [] (no nesting - every tuning_grid key is a free/grid
+    parameter), a legitimate case for a method with <= 2 total swept
+    parameters (e.g. pacmap/pca today).
+
+    Raises ValueError if nested_params isn't a list of strings, if any name
+    isn't a key of `tuning_grid` (an ambiguous/impossible reference - e.g. a
+    typo), or if the free parameters left over (tuning_grid keys minus
+    nested_params) aren't exactly 1 or 2 (0 = nothing left to visualize in a
+    leaf folder, >2 = not representable by the 2-block embedding grid).
+    """
+    entry = _load_method_entry(params_file, method)
+    if "nested_params" not in entry:
+        return []
+
+    nested_params = entry["nested_params"]
+    if not isinstance(nested_params, list) or not all(isinstance(name, str) for name in nested_params):
+        raise ValueError(f"{params_file}: {method!r}.nested_params must be a list of strings, got {nested_params!r}")
+
+    unknown = [name for name in nested_params if name not in tuning_grid]
+    if unknown:
+        raise ValueError(
+            f"{params_file}: {method!r}.nested_params references {unknown!r}, not present in tuning_grid "
+            f"(known: {sorted(tuning_grid)})"
+        )
+
+    free_params = [key for key in tuning_grid if key not in nested_params]
+    if len(free_params) not in (1, 2):
+        raise ValueError(
+            f"{params_file}: {method!r} has {len(free_params)} free parameter(s) left after nested_params "
+            f"{nested_params!r} ({free_params!r}) - must be exactly 1 or 2 (the visualizable grid search)"
+        )
+
+    return nested_params
+
+
 def load_consensus_config(params_file: str | Path, method: str) -> dict | None:
     """Load the optional "consensus" block registered for `method` in
     `params_file` (see src/analysis/consensus_clustering.py). Absent -> None,
@@ -71,7 +113,7 @@ def load_consensus_config(params_file: str | Path, method: str) -> dict | None:
     case, not an error.
 
     Raises ValueError if `method` isn't in CONSENSUS_ELIGIBLE_METHODS but a
-    "consensus" entry is present anyway (e.g. added under "dbscan" by
+    "consensus" entry is present anyway (e.g. added under "hdbscan" by
     mistake - an impossible config, must fail loudly), or if the block's
     shape is wrong: only "rsc"/"monti" keys allowed, "rsc" needs an int
     "n_repeats" >= 1, "monti" needs those plus a "subsample_fraction" in

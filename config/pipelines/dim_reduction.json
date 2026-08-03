@@ -8,5 +8,7 @@
   "overwrite": true,
   "fine_tuning": true,
   "regress_out_volume": false,
+  "color_by": ["dataset", "side", "volume"],
+  "viz_n_components": 2,
   "run_notes": "clean re-run after deleting confusing prior tuning attempts: n_neighbors x metric x regress_out_volume"
 }

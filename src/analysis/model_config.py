@@ -30,6 +30,8 @@ class DimReductionConfig:
     overwrite: bool
     fine_tuning: bool
     regress_out_volume: bool
+    color_by: tuple[str, ...]
+    viz_n_components: int
     run_notes: str | None
 
 
@@ -59,6 +61,8 @@ class DimReductionClusteringConfig:
     overwrite: bool
     fine_tuning: bool
     regress_out_volume: bool
+    viz_n_components: int
+    color_by: tuple[str, ...]
     run_notes: str | None
 
 
@@ -75,6 +79,8 @@ def load_dim_reduction_config(path: str | Path) -> DimReductionConfig:
         overwrite=overwrite,
         fine_tuning=_require_bool(raw, "fine_tuning"),
         regress_out_volume=_require_bool(raw, "regress_out_volume"),
+        color_by=_require_str_list_allow_empty(raw, "color_by"),
+        viz_n_components=_require_viz_n_components(raw),
         run_notes=run_notes,
     )
 
@@ -110,6 +116,8 @@ def load_dim_reduction_clustering_config(path: str | Path) -> DimReductionCluste
         overwrite=overwrite,
         fine_tuning=_require_bool(raw, "fine_tuning"),
         regress_out_volume=_require_bool(raw, "regress_out_volume"),
+        viz_n_components=_require_viz_n_components(raw),
+        color_by=_require_str_list_allow_empty(raw, "color_by"),
         run_notes=run_notes,
     )
 
@@ -185,3 +193,38 @@ def _require_str_list(raw: dict, key: str) -> tuple[str, ...]:
 
 def _require_method_list(raw: dict, key: str, registry: dict) -> tuple[str, ...]:
     return tuple(_validate_method(m, registry, "clustering_method") for m in _require_str_list(raw, key))
+
+
+def _require_str_list_allow_empty(raw: dict, key: str) -> tuple[str, ...]:
+    """Like _require_str_list, but an empty list is valid (color_by's "no
+    extra coloring" case) - only "the field is missing entirely" is an error,
+    forcing every config to state the choice explicitly rather than fall
+    back to a default. Actual color mode names (e.g. "dataset"/"volume") are
+    resolved against src/analysis/embedding_coloring.COLOR_MODES at plot
+    time, not here - keeps this module free of a dependency on that registry.
+    """
+    if key not in raw:
+        raise ValueError(f"config: missing required field {key!r}")
+    value = raw[key]
+    if not isinstance(value, list):
+        raise ValueError(f"config: field {key!r} must be a list, got {value!r}")
+    for item in value:
+        if not isinstance(item, str) or not item:
+            raise ValueError(f"config: field {key!r} must contain only non-empty strings, got {item!r}")
+    if len(set(value)) != len(value):
+        raise ValueError(f"config: field {key!r} contains duplicate entries: {value!r}")
+    return tuple(value)
+
+
+def _require_viz_n_components(raw: dict) -> int:
+    """viz_n_components must be 2 or 3 - the only dimensionalities any
+    plotting function in this codebase supports (2D static+interactive, 3D
+    interactive-only, see src/analysis/embedding_plots.py).
+    """
+    key = "viz_n_components"
+    if key not in raw:
+        raise ValueError(f"config: missing required field {key!r}")
+    value = raw[key]
+    if isinstance(value, bool) or not isinstance(value, int) or value not in (2, 3):
+        raise ValueError(f"config: field {key!r} must be 2 or 3, got {value!r}")
+    return value

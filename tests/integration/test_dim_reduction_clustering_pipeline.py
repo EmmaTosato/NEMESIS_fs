@@ -77,6 +77,8 @@ def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
         "overwrite": False,
         "fine_tuning": False,
         "regress_out_volume": False,
+        "viz_n_components": 2,
+        "color_by": [],
         "run_notes": "prova pca+kmeans",
     }
     cfg_path = tmp_path / "drc.json"
@@ -135,6 +137,8 @@ def test_dim_reduction_clustering_end_to_end_multiple_methods_writes_comparison_
         "overwrite": False,
         "fine_tuning": False,
         "regress_out_volume": False,
+        "viz_n_components": 2,
+        "color_by": [],
         "run_notes": None,
     }
     cfg_path = tmp_path / "drc.json"
@@ -201,6 +205,8 @@ def test_dim_reduction_clustering_fine_tuning_kmeans_sweeps_against_one_embeddin
         "overwrite": False,
         "fine_tuning": True,
         "regress_out_volume": False,
+        "viz_n_components": 2,
+        "color_by": [],
         "run_notes": "prova sweep n_clusters su embedding pca",
     }
     cfg_path = tmp_path / "drc.json"
@@ -269,6 +275,8 @@ def test_dim_reduction_clustering_fine_tuning_two_swept_params_writes_heatmap(tm
         "overwrite": False,
         "fine_tuning": True,
         "regress_out_volume": False,
+        "viz_n_components": 2,
+        "color_by": [],
         "run_notes": None,
     }
     cfg_path = tmp_path / "drc.json"
@@ -315,6 +323,8 @@ def test_dim_reduction_clustering_fine_tuning_agglomerative_writes_dendrogram(tm
         "overwrite": False,
         "fine_tuning": True,
         "regress_out_volume": False,
+        "viz_n_components": 2,
+        "color_by": [],
         "run_notes": None,
     }
     cfg_path = tmp_path / "drc.json"
@@ -400,6 +410,8 @@ def test_dim_reduction_clustering_regress_out_volume_changes_embedding(tmp_path,
             "overwrite": False,
             "fine_tuning": False,
             "regress_out_volume": regress_out_volume,
+            "viz_n_components": 2,
+            "color_by": [],
             "run_notes": None,
         }
         cfg_path = tmp_path / f"drc_{session_name}.json"
@@ -450,6 +462,8 @@ def test_dim_reduction_clustering_regress_out_volume_incompatible_with_dice_rais
         "overwrite": False,
         "fine_tuning": False,
         "regress_out_volume": True,
+        "viz_n_components": 2,
+        "color_by": [],
         "run_notes": None,
     }
     cfg_path = tmp_path / "drc.json"
@@ -483,6 +497,86 @@ def test_dim_reduction_clustering_fine_tuning_missing_tuning_grid_raises(tmp_pat
         "overwrite": False,
         "fine_tuning": True,
         "regress_out_volume": False,
+        "viz_n_components": 2,
+        "color_by": [],
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "drc.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 1
+
+
+def test_dim_reduction_clustering_viz_embedding_refit_when_n_components_above_viz(tmp_path, monkeypatch):
+    """Real end-to-end test of the double-embedding mechanism (2026-08 session):
+    clustering runs on the full n_components=4 embedding (saved as-is in
+    matrix.npy), but every plot uses a separately-fit 2-component embedding
+    (viz_n_components) instead of an invalid slice - and the optional
+    color_by bonus feature writes its own embedding/ folder.
+    """
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
+
+    reduction_params_path = tmp_path / "params_reduction.json"
+    reduction_params_path.write_text(
+        json.dumps({"umap": {"params": {"n_neighbors": 4, "min_dist": 0.1, "n_components": 4, "random_state": 0}}})
+    )
+    clustering_params_path = tmp_path / "params_clustering.json"
+    clustering_params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
+
+    output_root = tmp_path / "drc_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "umap",
+        "reduction_params_file": str(reduction_params_path),
+        "clustering_methods": ["kmeans"],
+        "clustering_params_file": str(clustering_params_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "regress_out_volume": False,
+        "viz_n_components": 2,
+        "color_by": ["dataset"],
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "drc.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
+
+    out_dir = next(p for p in (output_root / "umap" / "kmeans").iterdir() if p.is_dir())
+    embedding = np.load(out_dir / "matrix.npy")
+    assert embedding.shape == (12, 4)  # the real, saved clustering embedding - unaffected by viz
+    assert (out_dir / "cluster_plot.png").stat().st_size > 0  # still a valid 2D plot, not a broken slice
+
+    embedding_dir = next(p for p in (output_root / "umap" / "embedding").iterdir() if p.is_dir())
+    assert (embedding_dir / "embedding_plot_dataset.png").stat().st_size > 0
+
+
+def test_dim_reduction_clustering_viz_n_components_3_rejected(tmp_path, monkeypatch):
+    monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
+
+    reduction_params_path = tmp_path / "params_reduction.json"
+    reduction_params_path.write_text(json.dumps({"pca": {"params": {"n_components": 2}}}))
+    clustering_params_path = tmp_path / "params_clustering.json"
+    clustering_params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
+
+    cfg = {
+        "project": "testproj",
+        "input_path": str(tmp_path / "does-not-matter"),
+        "reduction_method": "pca",
+        "reduction_params_file": str(reduction_params_path),
+        "clustering_methods": ["kmeans"],
+        "clustering_params_file": str(clustering_params_path),
+        "output_root": str(tmp_path / "drc_out"),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "regress_out_volume": False,
+        "viz_n_components": 3,
+        "color_by": [],
         "run_notes": None,
     }
     cfg_path = tmp_path / "drc.json"

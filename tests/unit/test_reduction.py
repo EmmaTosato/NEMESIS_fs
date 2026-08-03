@@ -5,6 +5,7 @@ import pytest
 
 from src.analysis.reduction import (
     REDUCTION_METHODS,
+    embedding_for_viz,
     pacmap_embed,
     pca_embed,
     pca_varimax_embed,
@@ -65,3 +66,45 @@ def test_pacmap_embed_shape():
         _X, {"n_components": 2, "n_neighbors": 5, "MN_ratio": 0.5, "FP_ratio": 2.0, "random_state": 0}
     )
     assert out.shape == (30, 2)
+
+
+def test_embedding_for_viz_reuses_when_already_matching_dimensions():
+    embedding = umap_embed(_X, {"n_neighbors": 5, "min_dist": 0.1, "n_components": 2, "random_state": 0})
+    params = {"n_neighbors": 5, "min_dist": 0.1, "n_components": 2, "random_state": 0}
+
+    viz_embedding = embedding_for_viz("umap", _X, params, embedding, viz_n_components=2)
+
+    assert viz_embedding is embedding
+
+
+def test_embedding_for_viz_refits_when_dimensions_differ():
+    params = {"n_neighbors": 5, "min_dist": 0.1, "n_components": 5, "random_state": 0}
+    embedding = umap_embed(_X, params)
+    assert embedding.shape == (30, 5)
+
+    viz_embedding = embedding_for_viz("umap", _X, params, embedding, viz_n_components=2)
+
+    assert viz_embedding.shape == (30, 2)
+    assert viz_embedding is not embedding
+
+
+def test_embedding_for_viz_refit_matches_direct_call_with_same_params():
+    params = {"n_neighbors": 5, "min_dist": 0.1, "n_components": 5, "random_state": 0}
+    embedding = umap_embed(_X, params)
+
+    viz_embedding = embedding_for_viz("umap", _X, params, embedding, viz_n_components=2)
+    direct_2d = umap_embed(_X, {**params, "n_components": 2})
+
+    assert np.allclose(viz_embedding, direct_2d)
+
+
+def test_embedding_for_viz_pca_refit_equivalent_to_slicing():
+    # PCA's greedy variance ordering means the top components don't change
+    # when more are requested - refitting at fewer components should give the
+    # same result as slicing, unlike umap/tsne/pacmap.
+    params = {"n_components": 5}
+    embedding = pca_embed(_X, params)
+
+    viz_embedding = embedding_for_viz("pca", _X, params, embedding, viz_n_components=2)
+
+    assert np.allclose(np.abs(viz_embedding), np.abs(embedding[:, :2]))

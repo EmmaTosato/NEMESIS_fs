@@ -32,11 +32,15 @@ def test_dim_reduction_config_valid(tmp_path):
         "params_file": "config/registry/params_reduction.json",
         "fine_tuning": False,
         "regress_out_volume": False,
+        "color_by": ["dataset", "volume"],
+        "viz_n_components": 2,
     }
     config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
     assert config.reduction_method == "umap"
     assert config.fine_tuning is False
     assert config.regress_out_volume is False
+    assert config.color_by == ("dataset", "volume")
+    assert config.viz_n_components == 2
     assert config.run_notes is None
 
 
@@ -47,6 +51,8 @@ def test_dim_reduction_config_with_run_notes(tmp_path):
         "params_file": "config/registry/params_reduction.json",
         "fine_tuning": True,
         "regress_out_volume": False,
+        "color_by": [],
+        "viz_n_components": 2,
         "run_notes": "provo n_neighbors piu alto",
     }
     config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
@@ -79,9 +85,12 @@ def test_dim_reduction_config_regress_out_volume_true(tmp_path):
         "params_file": "config/registry/params_reduction.json",
         "fine_tuning": False,
         "regress_out_volume": True,
+        "color_by": ["dataset"],
+        "viz_n_components": 3,
     }
     config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
     assert config.regress_out_volume is True
+    assert config.viz_n_components == 3
 
 
 def test_dim_reduction_config_missing_regress_out_volume_raises(tmp_path):
@@ -107,6 +116,59 @@ def test_dim_reduction_config_non_bool_regress_out_volume_raises(tmp_path):
         load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
 
 
+def _dr_payload(**overrides):
+    payload = {
+        **_SHARED,
+        "reduction_method": "umap",
+        "params_file": "config/registry/params_reduction.json",
+        "fine_tuning": False,
+        "regress_out_volume": False,
+        "color_by": [],
+        "viz_n_components": 2,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_dim_reduction_config_color_by_empty_list_valid(tmp_path):
+    config = load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(color_by=[])))
+    assert config.color_by == ()
+
+
+def test_dim_reduction_config_missing_color_by_raises(tmp_path):
+    payload = _dr_payload()
+    del payload["color_by"]
+    with pytest.raises(ValueError, match="missing required field 'color_by'"):
+        load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
+
+
+def test_dim_reduction_config_color_by_non_list_raises(tmp_path):
+    with pytest.raises(ValueError, match="field 'color_by' must be a list"):
+        load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(color_by="dataset")))
+
+
+def test_dim_reduction_config_color_by_duplicate_raises(tmp_path):
+    with pytest.raises(ValueError, match="duplicate entries"):
+        load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(color_by=["dataset", "dataset"])))
+
+
+def test_dim_reduction_config_missing_viz_n_components_raises(tmp_path):
+    payload = _dr_payload()
+    del payload["viz_n_components"]
+    with pytest.raises(ValueError, match="missing required field 'viz_n_components'"):
+        load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
+
+
+def test_dim_reduction_config_viz_n_components_must_be_2_or_3(tmp_path):
+    with pytest.raises(ValueError, match="field 'viz_n_components' must be 2 or 3"):
+        load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(viz_n_components=4)))
+
+
+def test_dim_reduction_config_viz_n_components_rejects_bool(tmp_path):
+    with pytest.raises(ValueError, match="field 'viz_n_components' must be 2 or 3"):
+        load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(viz_n_components=True)))
+
+
 def test_clustering_config_valid(tmp_path):
     payload = {
         **_SHARED,
@@ -122,12 +184,12 @@ def test_clustering_config_valid(tmp_path):
 def test_clustering_config_multiple_methods_valid(tmp_path):
     payload = {
         **_SHARED,
-        "clustering_methods": ["kmeans", "dbscan", "gmm"],
+        "clustering_methods": ["kmeans", "hdbscan", "gmm"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
-    assert config.clustering_methods == ("kmeans", "dbscan", "gmm")
+    assert config.clustering_methods == ("kmeans", "hdbscan", "gmm")
 
 
 def test_clustering_config_fine_tuning_true(tmp_path):
@@ -200,6 +262,8 @@ def test_dim_reduction_clustering_config_valid(tmp_path):
         "clustering_params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
         "regress_out_volume": False,
+        "viz_n_components": 2,
+        "color_by": [],
     }
     config = load_dim_reduction_clustering_config(_write(tmp_path, "drc.json", payload))
     assert config.reduction_method == "tsne"
@@ -208,6 +272,8 @@ def test_dim_reduction_clustering_config_valid(tmp_path):
     assert str(config.clustering_params_file) == "config/registry/params_clustering.json"
     assert config.fine_tuning is False
     assert config.regress_out_volume is False
+    assert config.viz_n_components == 2
+    assert config.color_by == ()
 
 
 def test_dim_reduction_clustering_config_missing_fine_tuning_raises(tmp_path):

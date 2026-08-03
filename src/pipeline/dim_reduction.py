@@ -44,18 +44,11 @@ import numpy as np
 import pandas as pd
 
 from src.analysis.covariates import check_volume_regression_compatible, regress_out_covariate
+from src.analysis.embedding_plots import write_embedding_grid, write_embedding_plots
 from src.analysis.model_config import DimReductionConfig, load_dim_reduction_config
-from src.analysis.params import load_method_params, load_trustworthiness_n_neighbors, load_tuning_grid
-from src.analysis.plotting import (
-    compose_embedding_plot_title,
-    compose_run_title,
-    plot_embedding_2d,
-    plot_embedding_categorical,
-    plot_embedding_continuous,
-    plot_embedding_interactive,
-    plot_tuning_curve,
-)
-from src.analysis.reduction import REDUCTION_METHODS
+from src.analysis.params import load_method_params, load_nested_params, load_trustworthiness_n_neighbors, load_tuning_grid
+from src.analysis.plotting import compose_embedding_plot_title, compose_run_title, plot_tuning_curve
+from src.analysis.reduction import REDUCTION_METHODS, embedding_for_viz
 from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
 from src.features.clinical import join_lesion_side
 from src.utils.artifacts import load_matrix, save_matrix
@@ -95,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if config.fine_tuning:
-        return _run_fine_tuning(config, X, now, log_path)
+        return _run_fine_tuning(config, X, metadata, now, log_path)
     return _run_production(config, X, metadata, now, log_path)
 
 
@@ -118,11 +111,22 @@ def _run_production(
     # when regress_out_volume is set) since it's also the Volume coloring for the plots.
     lesion_volume_voxels = X.sum(axis=1)
 
+    # Separate embedding for visualization only (2 or 3 components, config.viz_n_components) -
+    # reused as-is when it already matches (every production config today: both are 2, zero
+    # extra cost); refit from raw X otherwise, since slicing embedding[:, :viz_n_components]
+    # out of a higher-dimensional umap/tsne/pacmap fit is not a meaningful projection (see
+    # src/analysis/reduction.py::embedding_for_viz's docstring). Computed before
+    # regress_out_volume below so both the saved and the plotted embedding get the same
+    # treatment.
+    viz_embedding = embedding_for_viz(config.reduction_method, X, params, embedding, config.viz_n_components)
+    viz_is_saved_embedding = viz_embedding is embedding
+
     if config.regress_out_volume:
         # X is binary (0/1 per voxel); a row's voxel count is exactly proportional to its
         # lesion volume in ml, and OLS residuals are invariant to that scalar rescaling.
         embedding = regress_out_covariate(embedding, lesion_volume_voxels)
-        logging.info("regressed out lesion volume (voxel count) from the embedding before saving")
+        viz_embedding = embedding if viz_is_saved_embedding else regress_out_covariate(viz_embedding, lesion_volume_voxels)
+        logging.info("regressed out lesion volume (voxel count) from both the saved and visualization embeddings")
 
     try:
         lesion_side = join_lesion_side(metadata)
@@ -147,69 +151,19 @@ def _run_production(
         return 1
     logging.info("embedding written to %s (shape %s)", output_dir, embedding.shape)
 
-    if embedding.shape[1] >= 2:
-        xlabel, ylabel = f"{config.reduction_method} dim 1", f"{config.reduction_method} dim 2"
-
-        try:
-            plot_path = output_dir / "embedding_plot.png"
-            plot_embedding_2d(
-                embedding,
-                plot_path,
-                xlabel,
-                ylabel,
-                compose_embedding_plot_title(output_dir, config.reduction_method),
-            )
-            logging.info("embedding plot written to %s", plot_path)
-        except Exception as exc:
-            logging.warning("failed to generate embedding plot: %s", exc)
-
-        for color_by, column in (("Dataset", "dataset"), ("Side", "lesion_side")):
-            suffix = column.replace("lesion_", "")
-            title = compose_embedding_plot_title(output_dir, config.reduction_method, color_by)
-            try:
-                plot_embedding_categorical(
-                    embedding,
-                    metadata_out[column].to_numpy(),
-                    output_dir / f"embedding_plot_{suffix}.png",
-                    xlabel,
-                    ylabel,
-                    title,
-                    legend_title=column,
-                )
-                logging.info("%s embedding plot written to %s", color_by.lower(), output_dir / f"embedding_plot_{suffix}.png")
-            except Exception as exc:
-                logging.warning("failed to generate %s embedding plot: %s", color_by.lower(), exc)
-
-            try:
-                interactive_path = output_dir / f"embedding_plot_{suffix}.html"
-                plot_embedding_interactive(embedding, metadata_out, interactive_path, xlabel, ylabel, title, color_column=column)
-                logging.info("interactive %s embedding plot written to %s", color_by.lower(), interactive_path)
-            except Exception as exc:
-                logging.warning("failed to generate interactive %s embedding plot: %s", color_by.lower(), exc)
-
-        volume_title = compose_embedding_plot_title(output_dir, config.reduction_method, "Volume")
-        try:
-            plot_embedding_continuous(
-                embedding,
-                lesion_volume_voxels,
-                output_dir / "embedding_plot_volume.png",
-                xlabel,
-                ylabel,
-                volume_title,
-                colorbar_label="lesion volume (voxels)",
-            )
-            logging.info("volume embedding plot written to %s", output_dir / "embedding_plot_volume.png")
-        except Exception as exc:
-            logging.warning("failed to generate volume embedding plot: %s", exc)
-
-        try:
-            interactive_volume_path = output_dir / "embedding_plot_volume.html"
-            plot_embedding_interactive(
-                embedding, metadata_out, interactive_volume_path, xlabel, ylabel, volume_title, color_column="lesion_volume_voxels"
-            )
-            logging.info("interactive volume embedding plot written to %s", interactive_volume_path)
-        except Exception as exc:
-            logging.warning("failed to generate interactive volume embedding plot: %s", exc)
+    xlabel, ylabel = f"{config.reduction_method} dim 1", f"{config.reduction_method} dim 2"
+    zlabel = f"{config.reduction_method} dim 3" if viz_embedding.shape[1] == 3 else None
+    write_embedding_plots(
+        viz_embedding,
+        metadata_out,
+        X,
+        list(config.color_by),
+        output_dir,
+        xlabel,
+        ylabel,
+        lambda label: compose_embedding_plot_title(output_dir, config.reduction_method, label.capitalize() if label else None),
+        zlabel=zlabel,
+    )
 
     try:
         append_run_log_entry(
@@ -229,11 +183,12 @@ def _run_production(
     return 0
 
 
-def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, now: datetime, log_path: Path) -> int:
+def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, metadata: pd.DataFrame, now: datetime, log_path: Path) -> int:
     method = config.reduction_method
     try:
         params, _ = load_method_params(config.params_file, method)
         tuning_grid = load_tuning_grid(config.params_file, method)
+        nested_params = load_nested_params(config.params_file, method, tuning_grid)
         trustworthiness_n_neighbors = (
             load_trustworthiness_n_neighbors(config.params_file, method)
             if method in METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS
@@ -243,18 +198,29 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, now: datetime, l
         logging.error(str(exc))
         return 1
 
-    effective_session_name = config.session_name
-
     try:
-        results = run_tuning_sweep(method, X, params, tuning_grid, trustworthiness_n_neighbors)
+        results, embeddings_by_combo = run_tuning_sweep(method, X, params, tuning_grid, trustworthiness_n_neighbors)
     except ValueError as exc:
         logging.error(str(exc))
         return 1
 
     output_dir = _tuning_output_dir(config, now)
     try:
-        _write_tuning_output(output_dir, results, params, tuning_grid, TUNING_METRIC_NAMES[method], config, now, config.overwrite)
-    except (FileExistsError, OSError) as exc:
+        _write_tuning_output(
+            output_dir,
+            results,
+            embeddings_by_combo,
+            params,
+            tuning_grid,
+            nested_params,
+            TUNING_METRIC_NAMES[method],
+            config,
+            X,
+            metadata,
+            now,
+            config.overwrite,
+        )
+    except (FileExistsError, OSError, ValueError) as exc:
         logging.error(str(exc))
         return 1
     logging.info("tuning results written to %s (%d combinations evaluated)", output_dir, len(results))
@@ -287,10 +253,14 @@ def _tuning_output_dir(config: DimReductionConfig, now: datetime) -> Path:
 def _write_tuning_output(
     output_dir: Path,
     results: pd.DataFrame,
+    embeddings_by_combo: dict[tuple, np.ndarray],
     base_params: dict,
     tuning_grid: dict[str, list],
+    nested_params: list[str],
     metric_col: str,
     config: DimReductionConfig,
+    X: np.ndarray,
+    metadata: pd.DataFrame,
     now: datetime,
     overwrite: bool,
 ) -> None:
@@ -303,14 +273,22 @@ def _write_tuning_output(
     results.to_csv(output_dir / "tuning_results.csv", index=False)
 
     swept_params = list(tuning_grid.keys())
+    free_params = [key for key in swept_params if key not in nested_params]
     title = compose_run_title(output_dir, config.project)
-    if len(swept_params) == 1:
-        plot_tuning_curve(results, swept_params[0], metric_col, output_dir / "tuning_plot.png", title)
+
+    if not nested_params:
+        if len(free_params) == 1:
+            plot_tuning_curve(results, free_params[0], metric_col, output_dir / "tuning_plot.png", title)
+        else:
+            logging.warning(
+                "tuning_grid has %d swept parameters and no nested_params declared - no plot generated "
+                "(only a 1-parameter curve is supported without nested_params; tuning_results.csv still has "
+                "every evaluated combination)",
+                len(swept_params),
+            )
     else:
-        logging.warning(
-            "tuning_grid has %d swept parameters - no plot generated (heatmaps removed on request, "
-            "only a 1-parameter curve is supported; tuning_results.csv still has every evaluated combination)",
-            len(swept_params),
+        _write_nested_tuning_leaves(
+            output_dir, results, embeddings_by_combo, base_params, tuning_grid, nested_params, free_params, config, X, metadata, title
         )
 
     readme_lines = [
@@ -328,6 +306,7 @@ def _write_tuning_output(
                 "session_name": config.session_name,
                 "base_params": base_params,
                 "tuning_grid": tuning_grid,
+                "nested_params": nested_params,
             },
             indent=2,
         ),
@@ -336,12 +315,123 @@ def _write_tuning_output(
         "## Summary",
         "",
         f"Swept parameters: {swept_params}",
+        f"Nested parameters (one subfolder per real combination): {nested_params or 'none'}",
+        f"Free/grid parameters (embeddings_grid.png per leaf): {free_params}",
         f"Combinations evaluated: {len(results)}",
         f"Metric: {metric_col}",
         "",
-        "Warning: no automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",
+        "Warning: no automatic selection - inspect tuning_results.csv/tuning_plot.png (or the per-leaf "
+        "embeddings_grid_*.png) and pick parameters by hand.",
     ]
     (output_dir / "config.md").write_text("\n".join(readme_lines) + "\n")
+
+
+# embeddings_grid.png is a static-only diagnostic (no interactive counterpart) - always 2
+# components regardless of config.viz_n_components, which governs production/interactive
+# plots that can legitimately be 3D (see plot_embedding_grid_blocks, 2D-only by construction).
+_TUNING_GRID_N_COMPONENTS = 2
+
+
+def _write_nested_tuning_leaves(
+    output_dir: Path,
+    results: pd.DataFrame,
+    embeddings_by_combo: dict[tuple, np.ndarray],
+    base_params: dict,
+    tuning_grid: dict[str, list],
+    nested_params: list[str],
+    free_params: list[str],
+    config: DimReductionConfig,
+    X: np.ndarray,
+    metadata: pd.DataFrame,
+    title: str,
+) -> None:
+    """Groups `results` by nested_params (one subfolder per real combination
+    actually present - an invalid combo excluded upstream by run_tuning_sweep,
+    e.g. metric=jaccard + regress_out_volume=True, never produces a group
+    here, so no empty folder is ever created for it), writing each leaf's own
+    filtered tuning_results.csv plus embeddings_grid_<color>.png (see
+    src/analysis/embedding_plots.py::write_embedding_grid): one row per free
+    parameter, holding every other free parameter at base_params' own value.
+    """
+    keys = list(tuning_grid.keys())
+    for group_key, group in results.groupby(nested_params, sort=False):
+        raw_values = group_key if isinstance(group_key, tuple) else (group_key,)
+        leaf = {name: (value.item() if hasattr(value, "item") else value) for name, value in zip(nested_params, raw_values)}
+
+        leaf_dir = output_dir
+        for name in nested_params:
+            leaf_dir = leaf_dir / f"{name}={leaf[name]}"
+        leaf_dir.mkdir(parents=True, exist_ok=True)
+        group.to_csv(leaf_dir / "tuning_results.csv", index=False)
+
+        blocks = _build_grid_blocks(free_params, tuning_grid, keys, leaf, base_params, embeddings_by_combo, config, X)
+        leaf_title = f"{title} — " + ", ".join(f"{name}={leaf[name]}" for name in nested_params)
+        write_embedding_grid(
+            blocks,
+            metadata,
+            X,
+            list(config.color_by),
+            leaf_dir,
+            f"{config.reduction_method} dim 1",
+            f"{config.reduction_method} dim 2",
+            lambda label, leaf_title=leaf_title: f"{leaf_title} — {label}" if label else leaf_title,
+        )
+
+
+def _build_grid_blocks(
+    free_params: list[str],
+    tuning_grid: dict[str, list],
+    keys: list[str],
+    leaf: dict,
+    base_params: dict,
+    embeddings_by_combo: dict[tuple, np.ndarray],
+    config: DimReductionConfig,
+    X: np.ndarray,
+) -> list[tuple[str, list[tuple[str, np.ndarray]]]]:
+    """For each free parameter, one cell per value it can take - every other
+    free parameter held at base_params' own value (must be one of that
+    parameter's own tuning_grid values, else raises: the embedding for that
+    exact combination was never computed by run_tuning_sweep - fix by adding
+    the base_params value to that parameter's tuning_grid list). Each cell's
+    embedding is reduced to _TUNING_GRID_N_COMPONENTS via embedding_for_viz
+    when the combination's own n_components differs (e.g. a leaf whose
+    n_components is itself in nested_params, or is a free parameter with a
+    swept value other than 2) - the sweep's own embeddings are at whatever
+    dimensionality that combination actually used.
+    """
+    blocks = []
+    for varying in free_params:
+        held_params = [p for p in free_params if p != varying]
+        cells = []
+        for value in tuning_grid[varying]:
+            combo_values = []
+            for key in keys:
+                if key == varying:
+                    combo_values.append(value)
+                elif key in leaf:
+                    combo_values.append(leaf[key])
+                else:
+                    if key not in base_params:
+                        raise ValueError(
+                            f"cannot build embeddings_grid: free parameter {key!r} has no base_params value "
+                            f"to hold it at while varying {varying!r}"
+                        )
+                    combo_values.append(base_params[key])
+            combo = tuple(combo_values)
+            if combo not in embeddings_by_combo:
+                raise ValueError(
+                    f"no embedding computed for combination {dict(zip(keys, combo))!r} - the base_params "
+                    f"value for {held_params!r} must be present in that parameter's own tuning_grid list "
+                    "for the embeddings_grid plot to hold it there"
+                )
+            embedding = embeddings_by_combo[combo]
+            reduction_params_for_combo = {**base_params, **dict(zip(keys, combo))}
+            embedding = embedding_for_viz(
+                config.reduction_method, X, reduction_params_for_combo, embedding, _TUNING_GRID_N_COMPONENTS
+            )
+            cells.append((str(value), embedding))
+        blocks.append((varying, cells))
+    return blocks
 
 
 def _config_summary(config: DimReductionConfig) -> str:
@@ -355,6 +445,8 @@ def _config_summary(config: DimReductionConfig) -> str:
         "overwrite": config.overwrite,
         "fine_tuning": config.fine_tuning,
         "regress_out_volume": config.regress_out_volume,
+        "color_by": list(config.color_by),
+        "viz_n_components": config.viz_n_components,
         "run_notes": config.run_notes,
     }
     return json.dumps(payload, indent=2)

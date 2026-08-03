@@ -1,7 +1,7 @@
 """Unit tests for src/analysis/plotting.py - plot_embedding_interactive/plot_clusters_interactive/
 plot_clusters_comparison_interactive/compose_run_title/compose_embedding_plot_title/
 plot_embedding_categorical/plot_embedding_continuous/plot_clustering_tuning_metrics/
-plot_dendrogram/plot_eigengap/plot_k_distance/plot_silhouette_analysis."""
+plot_dendrogram/plot_eigengap/plot_silhouette_analysis."""
 
 from pathlib import Path
 
@@ -20,8 +20,8 @@ from src.analysis.plotting import (
     plot_eigengap,
     plot_embedding_categorical,
     plot_embedding_continuous,
+    plot_embedding_grid_blocks,
     plot_embedding_interactive,
-    plot_k_distance,
     plot_silhouette_analysis,
 )
 
@@ -94,8 +94,38 @@ def test_raises_on_fewer_than_two_columns(tmp_path):
     X_1d = np.array([[0.0], [1.0], [2.0], [3.0]])
     _, metadata = _embedding_and_metadata()
 
-    with pytest.raises(ValueError, match="at least 2 columns"):
+    with pytest.raises(ValueError, match="supports 2 or 3 columns"):
         plot_embedding_interactive(X_1d, metadata, tmp_path / "out.html", "x", "y", "title")
+
+
+def test_raises_on_more_than_three_columns(tmp_path):
+    X_4d = np.zeros((4, 4))
+    _, metadata = _embedding_and_metadata()
+
+    with pytest.raises(ValueError, match="supports 2 or 3 columns"):
+        plot_embedding_interactive(X_4d, metadata, tmp_path / "out.html", "x", "y", "title")
+
+
+def test_writes_html_file_3d_scatter(tmp_path):
+    _, metadata = _embedding_and_metadata()
+    X_3d = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [2.0, 2.0, 2.0], [3.0, 3.0, 3.0]])
+    output_path = tmp_path / "embedding_plot_3d.html"
+
+    plot_embedding_interactive(X_3d, metadata, output_path, "dim 1", "dim 2", "test title", zlabel="dim 3")
+
+    assert output_path.exists()
+    html = output_path.read_text()
+    assert "plotly" in html
+    for subject_id in metadata["subject_id"]:
+        assert subject_id in html
+
+
+def test_raises_without_zlabel_for_3d(tmp_path):
+    _, metadata = _embedding_and_metadata()
+    X_3d = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [2.0, 2.0, 2.0], [3.0, 3.0, 3.0]])
+
+    with pytest.raises(ValueError, match="needs zlabel"):
+        plot_embedding_interactive(X_3d, metadata, tmp_path / "out.html", "x", "y", "title")
 
 
 def test_raises_on_row_count_mismatch(tmp_path):
@@ -325,16 +355,6 @@ def test_plot_eigengap_raises_on_fewer_than_two_eigenvalues(tmp_path):
         plot_eigengap(np.array([0.0]), tmp_path / "out.png", "title")
 
 
-def test_plot_k_distance_writes_file(tmp_path):
-    distances = np.sort(np.random.default_rng(0).uniform(0, 1, size=30))
-    output_path = tmp_path / "k_distance_plot.png"
-
-    plot_k_distance(distances, output_path, "test title")
-
-    assert output_path.exists()
-    assert output_path.stat().st_size > 0
-
-
 def _three_blobs_2d():
     rng = np.random.default_rng(0)
     return np.vstack(
@@ -381,3 +401,69 @@ def test_plot_silhouette_analysis_raises_on_fewer_than_two_columns(tmp_path):
 
     with pytest.raises(ValueError, match="at least 2 columns"):
         plot_silhouette_analysis(sample_labels, sample_values, X_1d, sample_labels, tmp_path / "out.png", "x", "y", "title")
+
+
+def _small_embeddings(n=8, seed=0):
+    rng = np.random.default_rng(seed)
+    return rng.random((n, 2)) * 10
+
+
+def test_plot_embedding_grid_blocks_unico_writes_file(tmp_path):
+    blocks = [
+        ("n_neighbors", [("5", _small_embeddings()), ("10", _small_embeddings(seed=1))]),
+        ("min_dist", [("0.0", _small_embeddings(seed=2)), ("0.2", _small_embeddings(seed=3))]),
+    ]
+    output_path = tmp_path / "embeddings_grid_unico.png"
+
+    plot_embedding_grid_blocks(blocks, output_path, "dim 1", "dim 2", "test suptitle")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_embedding_grid_blocks_categorical_writes_file(tmp_path):
+    blocks = [("n_neighbors", [("5", _small_embeddings(n=6)), ("10", _small_embeddings(n=6, seed=1))])]
+    color_values = np.array(["UNIPD/WashU"] * 3 + ["UKLFR/stroke_UKLFR"] * 3)
+    output_path = tmp_path / "embeddings_grid_dataset.png"
+
+    plot_embedding_grid_blocks(
+        blocks, output_path, "dim 1", "dim 2", "test suptitle", color_values=color_values, color_kind="categorical", legend_title="dataset"
+    )
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_embedding_grid_blocks_continuous_writes_file(tmp_path):
+    blocks = [("n_neighbors", [("5", _small_embeddings(n=6)), ("10", _small_embeddings(n=6, seed=1))])]
+    color_values = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    output_path = tmp_path / "embeddings_grid_volume.png"
+
+    plot_embedding_grid_blocks(
+        blocks, output_path, "dim 1", "dim 2", "test suptitle", color_values=color_values, color_kind="continuous", legend_title="volume"
+    )
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_embedding_grid_blocks_single_free_param_one_block(tmp_path):
+    blocks = [("perplexity", [("5", _small_embeddings()), ("10", _small_embeddings(seed=1)), ("30", _small_embeddings(seed=2))])]
+    output_path = tmp_path / "embeddings_grid_unico.png"
+
+    plot_embedding_grid_blocks(blocks, output_path, "dim 1", "dim 2", "test suptitle")
+
+    assert output_path.exists()
+
+
+def test_plot_embedding_grid_blocks_empty_raises(tmp_path):
+    with pytest.raises(ValueError, match="at least one block"):
+        plot_embedding_grid_blocks([], tmp_path / "out.png", "x", "y", "title")
+
+
+def test_plot_embedding_grid_blocks_invalid_color_kind_raises(tmp_path):
+    blocks = [("n_neighbors", [("5", _small_embeddings())])]
+    with pytest.raises(ValueError, match="color_kind must be"):
+        plot_embedding_grid_blocks(
+            blocks, tmp_path / "out.png", "x", "y", "title", color_values=np.array([1, 2]), color_kind="bogus"
+        )

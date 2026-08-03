@@ -6,7 +6,7 @@
     "kmeans",
     "agglomerative",
     "gmm",
-    "dbscan",
+    "hdbscan",
     "spectral"
   ],
   "reduction_params_file": "config/registry/params_reduction.json",
@@ -16,5 +16,7 @@
   "overwrite": true,
   "fine_tuning": true,
   "regress_out_volume": false,
+  "viz_n_components": 2,
+  "color_by": [],
   "run_notes": "clustering tuning on updated umap embedding (n_neighbors=15, metric=jaccard, was n_neighbors=5/euclidean)"
 }

@@ -95,7 +95,7 @@ def test_evaluate_tsne_regress_out_volume_with_dice_raises():
 
 
 def test_run_tuning_sweep_excludes_incompatible_regress_out_volume_combo():
-    df = run_tuning_sweep(
+    df, _embeddings_by_combo = run_tuning_sweep(
         "umap",
         _X_BINARY,
         base_params={"random_state": 0, "n_components": 2, "min_dist": 0.1},
@@ -111,7 +111,7 @@ def test_run_tuning_sweep_excludes_incompatible_regress_out_volume_combo():
 
 
 def test_run_tuning_sweep_no_skipped_reason_column_without_regress_out_volume():
-    df = run_tuning_sweep(
+    df, _embeddings_by_combo = run_tuning_sweep(
         "umap",
         _X_BINARY,
         base_params={"random_state": 0, "n_components": 2, "min_dist": 0.1},
@@ -167,7 +167,7 @@ def test_evaluate_pacmap_returns_embedding_and_trustworthiness():
 
 
 def test_run_tuning_sweep_pca_one_param():
-    df = run_tuning_sweep("pca", _X, base_params={}, tuning_grid={"n_components": [2, 4, 6]}, trustworthiness_n_neighbors=None)
+    df, _embeddings_by_combo = run_tuning_sweep("pca", _X, base_params={}, tuning_grid={"n_components": [2, 4, 6]}, trustworthiness_n_neighbors=None)
     assert list(df.columns) == ["n_components", TUNING_METRIC_NAMES["pca"]]
     assert len(df) == 3
     assert list(df["n_components"]) == [2, 4, 6]
@@ -176,7 +176,7 @@ def test_run_tuning_sweep_pca_one_param():
 
 
 def test_run_tuning_sweep_umap_two_params_cartesian_product():
-    df = run_tuning_sweep(
+    df, _embeddings_by_combo = run_tuning_sweep(
         "umap",
         _X,
         base_params={"random_state": 0, "n_components": 2},
@@ -188,7 +188,7 @@ def test_run_tuning_sweep_umap_two_params_cartesian_product():
 
 
 def test_run_tuning_sweep_umap_metric_and_n_neighbors_cartesian_product():
-    df = run_tuning_sweep(
+    df, _embeddings_by_combo = run_tuning_sweep(
         "umap",
         _X_BINARY,
         base_params={"random_state": 0, "n_components": 2, "min_dist": 0.1},
@@ -201,7 +201,7 @@ def test_run_tuning_sweep_umap_metric_and_n_neighbors_cartesian_product():
 
 
 def test_run_tuning_sweep_pca_varimax_one_param():
-    df = run_tuning_sweep(
+    df, _embeddings_by_combo = run_tuning_sweep(
         "pca_varimax",
         _X,
         base_params={"rotation_max_iter": 500},
@@ -216,7 +216,7 @@ def test_run_tuning_sweep_pca_varimax_one_param():
 
 
 def test_run_tuning_sweep_pacmap_one_param():
-    df = run_tuning_sweep(
+    df, _embeddings_by_combo = run_tuning_sweep(
         "pacmap",
         _X,
         base_params={"n_components": 2, "MN_ratio": 0.5, "FP_ratio": 2.0, "random_state": 0},
@@ -249,7 +249,7 @@ def test_run_tuning_sweep_umap_without_trustworthiness_n_neighbors_raises():
 
 
 def test_run_tuning_sweep_tsne_one_param():
-    df = run_tuning_sweep(
+    df, _embeddings_by_combo = run_tuning_sweep(
         "tsne",
         _X,
         base_params={"n_components": 2, "random_state": 0},
@@ -266,7 +266,7 @@ def test_run_tuning_sweep_tsne_without_trustworthiness_n_neighbors_raises():
 
 
 def test_run_tuning_sweep_tsne_metric_and_perplexity_cartesian_product():
-    df = run_tuning_sweep(
+    df, _embeddings_by_combo = run_tuning_sweep(
         "tsne",
         _X_BINARY,
         base_params={"random_state": 0, "n_components": 2},
@@ -276,3 +276,31 @@ def test_run_tuning_sweep_tsne_metric_and_perplexity_cartesian_product():
     assert list(df.columns) == ["perplexity", "metric", TUNING_METRIC_NAMES["tsne"]]
     assert len(df) == 6  # 2 x 3 cartesian product
     assert set(df["metric"]) == {"euclidean", "jaccard", "dice"}
+
+
+def test_run_tuning_sweep_returns_embedding_per_combo():
+    df, embeddings_by_combo = run_tuning_sweep(
+        "umap",
+        _X,
+        base_params={"random_state": 0, "n_components": 2},
+        tuning_grid={"n_neighbors": [5, 10], "min_dist": [0.1, 0.5]},
+        trustworthiness_n_neighbors=5,
+    )
+    assert len(embeddings_by_combo) == len(df) == 4
+    for combo, embedding in embeddings_by_combo.items():
+        assert isinstance(combo, tuple) and len(combo) == 2
+        assert embedding.shape == (40, 2)
+    # combo keys match the swept columns/order in df, e.g. (5, 0.1)
+    assert (5, 0.1) in embeddings_by_combo
+
+
+def test_run_tuning_sweep_embeddings_by_combo_excludes_incompatible_regress_out_volume_combo():
+    df, embeddings_by_combo = run_tuning_sweep(
+        "umap",
+        _X_BINARY,
+        base_params={"random_state": 0, "n_components": 2, "min_dist": 0.1},
+        tuning_grid={"metric": ["euclidean", "jaccard"], "regress_out_volume": [False, True]},
+        trustworthiness_n_neighbors=5,
+    )
+    assert len(embeddings_by_combo) == len(df) == 3
+    assert ("jaccard", True) not in embeddings_by_combo

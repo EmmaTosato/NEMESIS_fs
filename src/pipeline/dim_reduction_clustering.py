@@ -37,7 +37,7 @@ clustering on a specific reduction without needing that embedding saved to
 disk as its own artifact. Output per method:
 <output_root>/<reduction_method>/<method>/tuning/<dd-mm>_<session_name>/
 {tuning_results.csv, tuning_plot.png, config.md} plus a standalone diagnostic
-plot for agglomerative/spectral/dbscan. No comparison plot in this mode - a
+plot for agglomerative/spectral. No comparison plot in this mode - a
 sweep's rows aren't a single set of cluster labels to compare side by side.
 """
 
@@ -54,13 +54,13 @@ import pandas as pd
 
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.covariates import check_volume_regression_compatible, regress_out_covariate
+from src.analysis.embedding_plots import write_embedding_plots
 from src.analysis.clustering_tuning import (
     CONSENSUS_METRIC_COLUMNS,
     METHOD_METRIC_COLUMNS,
     STANDALONE_DIAGNOSTIC_METHODS,
     compute_dendrogram_linkage,
     compute_eigengap,
-    compute_k_distance,
     compute_silhouette_samples,
     consensus_suggestion_lines,
     run_clustering_tuning_sweep,
@@ -79,10 +79,9 @@ from src.analysis.plotting import (
     plot_clustering_tuning_metrics,
     plot_dendrogram,
     plot_eigengap,
-    plot_k_distance,
     plot_silhouette_analysis,
 )
-from src.analysis.reduction import REDUCTION_METHODS
+from src.analysis.reduction import REDUCTION_METHODS, embedding_for_viz
 from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
@@ -105,6 +104,15 @@ def main(argv: list[str] | None = None) -> int:
         logging.error(str(exc))
         return 1
 
+    if config.viz_n_components != 2:
+        logging.error(
+            "viz_n_components=%d not supported here - every cluster-coloring plot in this pipeline "
+            "(plot_clusters_2d/plot_clusters_interactive/plot_silhouette_analysis/plot_clusters_comparison*) "
+            "is 2D-only, unlike dim_reduction.py's own embedding plots",
+            config.viz_n_components,
+        )
+        return 1
+
     now = datetime.now()
     try:
         log_path = _log_path(config, now)
@@ -123,69 +131,91 @@ def main(argv: list[str] | None = None) -> int:
 
     embedding = REDUCTION_METHODS[config.reduction_method](X, reduction_params)
 
+    # Separate embedding for visualization only - reused as-is when it already has
+    # viz_n_components columns (every config today: both 2, zero extra cost), otherwise
+    # refit from raw X (see src/analysis/reduction.py::embedding_for_viz's docstring for why
+    # slicing embedding[:, :viz_n_components] is not a valid substitute for umap/tsne/pacmap).
+    # Computed before regress_out_volume below so both the clustering and the plotted
+    # embedding get the same treatment; clustering/silhouette always use the real `embedding`
+    # (whatever its own n_components is), never `viz_embedding`.
+    viz_embedding = embedding_for_viz(config.reduction_method, X, reduction_params, embedding, config.viz_n_components)
+    viz_is_clustering_embedding = viz_embedding is embedding
+
     if config.regress_out_volume:
         # X is binary (0/1 per voxel); a row's voxel count is exactly proportional to its
         # lesion volume in ml, and OLS residuals are invariant to that scalar rescaling.
         lesion_load_voxels = X.sum(axis=1)
         embedding = regress_out_covariate(embedding, lesion_load_voxels)
-        logging.info("regressed out lesion volume (voxel count) from the embedding before clustering")
+        viz_embedding = embedding if viz_is_clustering_embedding else regress_out_covariate(viz_embedding, lesion_load_voxels)
+        logging.info("regressed out lesion volume (voxel count) from both the clustering and visualization embeddings")
 
     effective_reduction_session = f"{config.session_name}_{reduction_tag}" if reduction_tag else config.session_name
 
     if config.fine_tuning:
-        return _run_fine_tuning(config, embedding, reduction_params, reduction_tag, now, log_path)
+        return _run_fine_tuning(config, embedding, reduction_params, now, log_path)
+
+    if config.color_by:
+        embedding_dir = (
+            config.output_root / config.reduction_method / "embedding" / f"{now.strftime('%d-%m')}_{effective_reduction_session}"
+        )
+        write_embedding_plots(
+            viz_embedding,
+            metadata,
+            X,
+            list(config.color_by),
+            embedding_dir,
+            f"{config.reduction_method} dim 1",
+            f"{config.reduction_method} dim 2",
+            lambda label: compose_run_title(embedding_dir, config.project) + (f" — {label}" if label else ""),
+        )
+        logging.info("embedding color_by plots written to %s", embedding_dir)
 
     labels_by_method: dict[str, np.ndarray] = {}
     for method in config.clustering_methods:
-        cluster_labels = _run_one_method(config, method, X, embedding, metadata, reduction_params, reduction_tag, now)
+        cluster_labels = _run_one_method(config, method, X, embedding, viz_embedding, metadata, reduction_params, reduction_tag, now)
         if cluster_labels is None:
             return 1
         labels_by_method[method] = cluster_labels
 
-    if embedding.shape[1] >= 2:
-        comparison_dir = (
-            config.output_root
-            / config.reduction_method
-            / "comparison"
-            / f"{config.reduction_method}_{now.strftime('%d-%m')}_{effective_reduction_session}"
-        )
-        plot_clusters_comparison(
-            embedding[:, :2],
-            labels_by_method,
-            comparison_dir / "cluster_comparison.png",
-            xlabel=f"{config.reduction_method} dim 1",
-            ylabel=f"{config.reduction_method} dim 2",
-            suptitle=compose_comparison_title(comparison_dir, config.reduction_method),
-        )
-        logging.info("comparison plot written to %s", comparison_dir / "cluster_comparison.png")
+    comparison_dir = (
+        config.output_root
+        / config.reduction_method
+        / "comparison"
+        / f"{config.reduction_method}_{now.strftime('%d-%m')}_{effective_reduction_session}"
+    )
+    plot_clusters_comparison(
+        viz_embedding,
+        labels_by_method,
+        comparison_dir / "cluster_comparison.png",
+        xlabel=f"{config.reduction_method} dim 1",
+        ylabel=f"{config.reduction_method} dim 2",
+        suptitle=compose_comparison_title(comparison_dir, config.reduction_method),
+    )
+    logging.info("comparison plot written to %s", comparison_dir / "cluster_comparison.png")
 
-        plot_clusters_comparison_interactive(
-            embedding[:, :2],
-            labels_by_method,
-            metadata,
-            comparison_dir / "cluster_comparison_interactive.html",
-            xlabel=f"{config.reduction_method} dim 1",
-            ylabel=f"{config.reduction_method} dim 2",
-            title=compose_run_title(comparison_dir, config.project),
-        )
-        logging.info("interactive comparison plot written to %s", comparison_dir / "cluster_comparison_interactive.html")
+    plot_clusters_comparison_interactive(
+        viz_embedding,
+        labels_by_method,
+        metadata,
+        comparison_dir / "cluster_comparison_interactive.html",
+        xlabel=f"{config.reduction_method} dim 1",
+        ylabel=f"{config.reduction_method} dim 2",
+        title=compose_run_title(comparison_dir, config.project),
+    )
+    logging.info("interactive comparison plot written to %s", comparison_dir / "cluster_comparison_interactive.html")
 
-        lines = [
-            f"# {config.project} dim_reduction_clustering method comparison "
-            f"({config.reduction_method}) — {now.strftime('%d-%m-%y %H:%M')}",
-            "",
-            f"Reduction method: {config.reduction_method}",
-            f"Clustering methods compared: {list(config.clustering_methods)}",
-            "",
-            "Individual outputs:",
-        ]
-        lines += [f"- `{config.output_root / _method_dir(config, m)}`" for m in config.clustering_methods]
-        comparison_dir.mkdir(parents=True, exist_ok=True)
-        (comparison_dir / "config.md").write_text("\n".join(lines) + "\n")
-    else:
-        logging.warning(
-            "embedding has only %d component(s) - skipping cluster_comparison.png (needs at least 2)", embedding.shape[1]
-        )
+    lines = [
+        f"# {config.project} dim_reduction_clustering method comparison "
+        f"({config.reduction_method}) — {now.strftime('%d-%m-%y %H:%M')}",
+        "",
+        f"Reduction method: {config.reduction_method}",
+        f"Clustering methods compared: {list(config.clustering_methods)}",
+        "",
+        "Individual outputs:",
+    ]
+    lines += [f"- `{config.output_root / _method_dir(config, m)}`" for m in config.clustering_methods]
+    comparison_dir.mkdir(parents=True, exist_ok=True)
+    (comparison_dir / "config.md").write_text("\n".join(lines) + "\n")
 
     logging.info(
         "done - all %d method(s) written under %s, log written to %s", len(config.clustering_methods), config.output_root, log_path
@@ -198,6 +228,7 @@ def _run_one_method(
     method: str,
     X: np.ndarray,
     embedding: np.ndarray,
+    viz_embedding: np.ndarray,
     metadata: pd.DataFrame,
     reduction_params: dict,
     reduction_tag: str | None,
@@ -236,50 +267,43 @@ def _run_one_method(
         return None
     logging.info("[%s] embedding+clusters written to %s (shape %s)", method, output_dir, embedding.shape)
 
-    if embedding.shape[1] >= 2:
-        plot_title = compose_cluster_plot_title(output_dir, config.reduction_method, method)
+    plot_title = compose_cluster_plot_title(output_dir, config.reduction_method, method)
 
-        plot_clusters_2d(
-            embedding[:, :2],
+    plot_clusters_2d(
+        viz_embedding,
+        cluster_labels,
+        output_dir / "cluster_plot.png",
+        xlabel=f"{config.reduction_method} dim 1",
+        ylabel=f"{config.reduction_method} dim 2",
+        title=plot_title,
+    )
+    logging.info("[%s] cluster plot written to %s", method, output_dir / "cluster_plot.png")
+
+    plot_clusters_interactive(
+        viz_embedding,
+        metadata_out,
+        output_dir / "cluster_plot_interactive.html",
+        xlabel=f"{config.reduction_method} dim 1",
+        ylabel=f"{config.reduction_method} dim 2",
+        title=plot_title,
+    )
+    logging.info("[%s] interactive cluster plot written to %s", method, output_dir / "cluster_plot_interactive.html")
+
+    try:
+        sample_labels, sample_silhouette_values = compute_silhouette_samples(embedding, cluster_labels)
+        plot_silhouette_analysis(
+            sample_labels,
+            sample_silhouette_values,
+            viz_embedding,
             cluster_labels,
-            output_dir / "cluster_plot.png",
+            output_dir / "silhouette_plot.png",
             xlabel=f"{config.reduction_method} dim 1",
             ylabel=f"{config.reduction_method} dim 2",
             title=plot_title,
         )
-        logging.info("[%s] cluster plot written to %s", method, output_dir / "cluster_plot.png")
-
-        plot_clusters_interactive(
-            embedding[:, :2],
-            metadata_out,
-            output_dir / "cluster_plot_interactive.html",
-            xlabel=f"{config.reduction_method} dim 1",
-            ylabel=f"{config.reduction_method} dim 2",
-            title=plot_title,
-        )
-        logging.info("[%s] interactive cluster plot written to %s", method, output_dir / "cluster_plot_interactive.html")
-
-        try:
-            sample_labels, sample_silhouette_values = compute_silhouette_samples(embedding, cluster_labels)
-            plot_silhouette_analysis(
-                sample_labels,
-                sample_silhouette_values,
-                embedding[:, :2],
-                cluster_labels,
-                output_dir / "silhouette_plot.png",
-                xlabel=f"{config.reduction_method} dim 1",
-                ylabel=f"{config.reduction_method} dim 2",
-                title=plot_title,
-            )
-            logging.info("[%s] silhouette plot written to %s", method, output_dir / "silhouette_plot.png")
-        except ValueError as exc:
-            logging.warning("[%s] skipping silhouette_plot.png: %s", method, exc)
-    else:
-        logging.warning(
-            "[%s] embedding has only %d component(s) - skipping cluster_plot.png/cluster_plot_interactive.html (needs at least 2)",
-            method,
-            embedding.shape[1],
-        )
+        logging.info("[%s] silhouette plot written to %s", method, output_dir / "silhouette_plot.png")
+    except ValueError as exc:
+        logging.warning("[%s] skipping silhouette_plot.png: %s", method, exc)
 
     try:
         append_run_log_entry(
@@ -320,6 +344,8 @@ def _config_summary(config: DimReductionClusteringConfig, method: str) -> str:
         "overwrite": config.overwrite,
         "fine_tuning": config.fine_tuning,
         "regress_out_volume": config.regress_out_volume,
+        "viz_n_components": config.viz_n_components,
+        "color_by": list(config.color_by),
         "run_notes": config.run_notes,
     }
     return json.dumps(payload, indent=2)
@@ -352,7 +378,7 @@ def _summary_lines(
 
 
 def _clusters_found_line(cluster_labels: np.ndarray) -> str:
-    """"Clusters found: N" - excludes DBSCAN/OPTICS-style noise label -1 from
+    """"Clusters found: N" - excludes HDBSCAN/OPTICS-style noise label -1 from
     the cluster count (counting it as a cluster would silently overstate the
     result); reports the noise count separately when present, for any method.
     """
@@ -382,12 +408,11 @@ def _run_fine_tuning(
     config: DimReductionClusteringConfig,
     embedding: np.ndarray,
     reduction_params: dict,
-    reduction_tag: str | None,
     now: datetime,
     log_path: Path,
 ) -> int:
     for method in config.clustering_methods:
-        if not _run_one_method_tuning(config, method, embedding, reduction_params, reduction_tag, now):
+        if not _run_one_method_tuning(config, method, embedding, reduction_params, now):
             return 1
 
     logging.info(
@@ -404,7 +429,6 @@ def _run_one_method_tuning(
     method: str,
     embedding: np.ndarray,
     reduction_params: dict,
-    reduction_tag: str | None,
     now: datetime,
 ) -> bool:
     """Runs one clustering method's fine-tuning sweep against the
@@ -414,6 +438,14 @@ def _run_one_method_tuning(
     fine_tuning mode uses). Returns False on failure - the caller stops the
     whole run, no partial-failure tolerance, consistent with the production
     loop's own fail-fast behavior.
+
+    Output dir is <dd-mm>_<session_name> - no reduction tag, unlike the
+    production path in _run_one_method: which reduction produced the embedding
+    is already unambiguous from the enclosing <reduction_method>/<method>/
+    folders, and its exact params are always in this run's own config.md, so
+    tagging the session name here would only duplicate that without adding
+    any information - same convention as dim_reduction.py's/clustering.py's
+    own tuning mode (never tagged either, see their _tuning_output_dir).
     """
     try:
         base_params, _ = load_method_params(config.clustering_params_file, method)
@@ -425,13 +457,12 @@ def _run_one_method_tuning(
 
     results = run_clustering_tuning_sweep(method, embedding, base_params, tuning_grid, consensus_config)
 
-    effective_reduction_session = f"{config.session_name}_{reduction_tag}" if reduction_tag else config.session_name
     output_dir = (
         config.output_root
         / config.reduction_method
         / method
         / "tuning"
-        / f"{now.strftime('%d-%m')}_{effective_reduction_session}"
+        / f"{now.strftime('%d-%m')}_{config.session_name}"
     )
     try:
         _write_tuning_output(output_dir, results, tuning_grid, method, embedding, base_params, reduction_params, config, now)
@@ -443,7 +474,7 @@ def _run_one_method_tuning(
     try:
         append_run_log_entry(
             config.output_root / config.reduction_method,
-            effective_reduction_session,
+            config.session_name,
             now,
             "tuning",
             {
@@ -543,7 +574,7 @@ def _write_tuning_output(
 def _write_standalone_diagnostic(output_dir: Path, method: str, embedding: np.ndarray, base_params: dict, title: str) -> None:
     """Diagnostic plot independent of the swept tuning_grid, computed once
     from base_params - see src/analysis/clustering_tuning.py's module
-    docstring for why these 3 (and only these 3) methods get one. Same
+    docstring for why these 2 (and only these 2) methods get one. Same
     dispatch as clustering.py's own helper of the same name, duplicated
     rather than shared per this codebase's established per-CLI convention
     (see docs/dev/analysis.md) - the two callers differ in which config type
@@ -557,12 +588,6 @@ def _write_standalone_diagnostic(output_dir: Path, method: str, embedding: np.nd
         eigenvalues = compute_eigengap(embedding, base_params)
         plot_eigengap(eigenvalues, output_dir / "eigengap_plot.png", title)
         logging.info("[%s] eigengap plot written to %s", method, output_dir / "eigengap_plot.png")
-    elif method == "dbscan":
-        if "min_samples" not in base_params:
-            raise ValueError(f"[{method}] params must include 'min_samples' to compute the k-distance plot")
-        distances = compute_k_distance(embedding, base_params["min_samples"])
-        plot_k_distance(distances, output_dir / "k_distance_plot.png", title)
-        logging.info("[%s] k-distance plot written to %s", method, output_dir / "k_distance_plot.png")
     else:
         raise ValueError(f"no standalone diagnostic wired for method {method!r}")
 

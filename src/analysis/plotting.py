@@ -20,11 +20,12 @@ fine-tuning sweep to pick parameters by hand (src/analysis/tuning.py) - no
 automatic selection; a 2+-parameter dim_reduction.py sweep gets no plot at
 all, only tuning_results.csv (no heatmap here - removed on request, kept for
 clustering_tuning.py below). plot_clustering_tuning_metrics/plot_dendrogram/
-plot_eigengap/plot_k_distance are the same "human eyeballs a sweep" idea
-applied to clustering.py's own fine-tuning mode (src/analysis/clustering_tuning.py)
-- one generic multi-metric curve plus 3 method-specific standalone diagnostics
-(dendrogram for agglomerative, eigengap for spectral, k-distance for dbscan),
-also with no automatic selection. plot_embedding_categorical/
+plot_eigengap are the same "human eyeballs a sweep" idea applied to
+clustering.py's own fine-tuning mode (src/analysis/clustering_tuning.py) -
+one generic multi-metric curve plus 2 method-specific standalone diagnostics
+(dendrogram for agglomerative, eigengap for spectral - HDBSCAN gets no
+standalone diagnostic, see clustering_tuning.py's module docstring), also
+with no automatic selection. plot_embedding_categorical/
 plot_embedding_continuous extend dim_reduction.py's production embedding plot
 beyond the single-color plot_embedding_2d and the dataset-only
 plot_embedding_interactive: any string category (dataset, lesion side) or
@@ -73,7 +74,7 @@ _CATEGORICAL_PALETTE = [
     "#b03d68",  # pink (deep rose)
     "#1a6bab",  # azzurro (navy)
 ]
-# Fixed neutral gray for the DBSCAN/OPTICS noise label -1, kept out of the
+# Fixed neutral gray for the HDBSCAN/OPTICS noise label -1, kept out of the
 # categorical set so it never impersonates a real cluster.
 _NOISE_COLOR = "#9e9d98"
 
@@ -189,8 +190,8 @@ def compose_cluster_plot_title(output_dir: Path, reduction_method: str, clusteri
 
 def compose_embedding_plot_title(output_dir: Path, reduction_method: str, color_by: str | None = None) -> str:
     """Title for a dim_reduction.py embedding scatter: "<Modality> -
-    <ReductionMethod>" (embedding_plot.png, unico colore) or "<Modality> -
-    <ReductionMethod> - <color_by>" (embedding_plot_{dataset,volume,side}.*),
+    <ReductionMethod>" (embedding_plot_unico.png, single color) or "<Modality>
+    - <ReductionMethod> - <color_by>" (embedding_plot_{dataset,volume,side}.*),
     same capitalization/format convention as compose_cluster_plot_title so
     the two plot families read as one style instead of two.
     """
@@ -345,46 +346,52 @@ def plot_embedding_continuous(
 
 
 def plot_embedding_interactive(
-    X_2d: np.ndarray,
+    X: np.ndarray,
     metadata: pd.DataFrame,
     output_path: Path,
     xlabel: str,
     ylabel: str,
     title: str,
     color_column: str = "dataset",
+    zlabel: str | None = None,
 ) -> None:
-    """Interactive HTML scatter of the first 2 columns of X_2d, colored by
+    """Interactive HTML scatter of the first 2 or 3 columns of X, colored by
     metadata[color_column], with every metadata column shown on hover.
 
     Standalone self-contained HTML (plotly, no server) - open it directly in
     a browser. Every subject_id/dataset stays attached to its point, unlike
     plot_embedding_2d's anonymous dots, so an outlier or a cluster boundary
     can be traced back to a specific subject by hovering.
+
+    Branches on X.shape[1]: 2 columns -> px.scatter, 3 columns -> px.scatter_3d
+    (needs `zlabel`, since a 3D scene has a third axis to label) - a 3D
+    embedding gets no static-PNG counterpart anywhere in this module (a
+    non-rotatable 3D scatter is often unreadable), this interactive plot is
+    its only rendering. Raises ValueError for any other column count.
     """
-    if X_2d.shape[1] < 2:
-        raise ValueError(f"plot_embedding_interactive needs at least 2 columns, got shape {X_2d.shape}")
-    if len(metadata) != X_2d.shape[0]:
-        raise ValueError(
-            f"X_2d has {X_2d.shape[0]} rows but metadata has {len(metadata)} rows - must match"
-        )
+    n_dims = X.shape[1]
+    if n_dims not in (2, 3):
+        raise ValueError(f"plot_embedding_interactive supports 2 or 3 columns, got shape {X.shape}")
+    if len(metadata) != X.shape[0]:
+        raise ValueError(f"X has {X.shape[0]} rows but metadata has {len(metadata)} rows - must match")
     if color_column not in metadata.columns:
-        raise ValueError(
-            f"color_column {color_column!r} not found in metadata columns {list(metadata.columns)}"
-        )
+        raise ValueError(f"color_column {color_column!r} not found in metadata columns {list(metadata.columns)}")
+    if n_dims == 3 and zlabel is None:
+        raise ValueError("plot_embedding_interactive needs zlabel for a 3-column embedding")
 
     plot_df = metadata.copy()
-    plot_df["_dim1"] = X_2d[:, 0]
-    plot_df["_dim2"] = X_2d[:, 1]
+    plot_df["_dim1"] = X[:, 0]
+    plot_df["_dim2"] = X[:, 1]
 
-    fig = px.scatter(
-        plot_df,
-        x="_dim1",
-        y="_dim2",
-        color=color_column,
-        hover_data=list(metadata.columns),
-        title=title,
-    )
-    fig.update_layout(xaxis_title=xlabel, yaxis_title=ylabel)
+    if n_dims == 2:
+        fig = px.scatter(plot_df, x="_dim1", y="_dim2", color=color_column, hover_data=list(metadata.columns), title=title)
+        fig.update_layout(xaxis_title=xlabel, yaxis_title=ylabel)
+    else:
+        plot_df["_dim3"] = X[:, 2]
+        fig = px.scatter_3d(
+            plot_df, x="_dim1", y="_dim2", z="_dim3", color=color_column, hover_data=list(metadata.columns), title=title
+        )
+        fig.update_layout(scene={"xaxis_title": xlabel, "yaxis_title": ylabel, "zaxis_title": zlabel})
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.write_html(output_path)
@@ -736,6 +743,114 @@ def plot_clusters_comparison_interactive(
     fig.write_html(output_path)
 
 
+def plot_embedding_grid_blocks(
+    blocks: list[tuple[str, list[tuple[str, np.ndarray]]]],
+    output_path: Path,
+    xlabel: str,
+    ylabel: str,
+    suptitle: str,
+    color_values: np.ndarray | None = None,
+    color_kind: str | None = None,
+    legend_title: str | None = None,
+) -> None:
+    """One row of small scatter subplots per entry in `blocks` - each entry
+    is (block_title, [(cell_title, embedding_2d), ...]), e.g. block_title=
+    "n_neighbors", one cell per swept n_neighbors value while every other
+    grid parameter stays at its production/base value (the caller - see
+    src/analysis/embedding_plots.py::write_embedding_grid - decides which
+    embeddings go in which cell; this function only lays them out).
+
+    Shows the *real* embeddings side by side (unlike plot_tuning_curve's
+    single numeric score), so a human can see how the point cloud's shape
+    actually changes with a parameter, not just how one aggregate metric
+    moves. A dedicated label row (own axis, text only) sits above each
+    block's scatter row, and a blank spacer row separates one block from the
+    next - real whitespace, not just subplot padding, so multiple blocks in
+    one figure read as visually distinct sections.
+
+    All cells share the same x/y axis limits (padded beyond the combined
+    min/max of every embedding shown) and the same coloring: `color_values`/
+    `color_kind` is None/None for "unico" (single color, same convention as
+    plot_embedding_2d), or a color_by mode's per-subject values plus
+    "categorical"/"continuous" (same two renderings as
+    plot_embedding_categorical/plot_embedding_continuous) - every cell is a
+    fit of the same subjects, so one shared legend/colorbar for the whole
+    figure is enough, taken from the first cell only.
+    """
+    if not blocks:
+        raise ValueError("plot_embedding_grid_blocks needs at least one block")
+    if color_kind not in (None, "categorical", "continuous"):
+        raise ValueError(f"color_kind must be None, 'categorical' or 'continuous', got {color_kind!r}")
+
+    ncols = max(len(cells) for _, cells in blocks)
+    all_points = np.concatenate([embedding for _, cells in blocks for _, embedding in cells], axis=0)
+    x_min, x_max = all_points[:, 0].min(), all_points[:, 0].max()
+    y_min, y_max = all_points[:, 1].min(), all_points[:, 1].max()
+    x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
+    y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
+
+    height_ratios: list[float] = []
+    for i in range(len(blocks)):
+        height_ratios += [0.5, 4.0]
+        if i < len(blocks) - 1:
+            height_ratios.append(0.8)
+
+    fig = plt.figure(figsize=(_TUNING_METRICS_SUBPLOT_WIDTH * ncols, sum(height_ratios) * 0.9))
+    gridspec = fig.add_gridspec(len(height_ratios), ncols, height_ratios=height_ratios, hspace=0.15, wspace=0.35)
+
+    legend_handles_labels = None
+    row = 0
+    for block_title, cells in blocks:
+        label_ax = fig.add_subplot(gridspec[row, :])
+        label_ax.axis("off")
+        label_ax.text(0.5, 0.5, block_title, ha="center", va="center", fontweight="bold", fontsize=12)
+        row += 1
+
+        for col, (cell_title, embedding) in enumerate(cells):
+            ax = fig.add_subplot(gridspec[row, col])
+            if color_values is None:
+                ax.scatter(embedding[:, 0], embedding[:, 1], alpha=0.5, s=_MARKER_SIZE, edgecolor="none")
+            elif color_kind == "categorical":
+                unique_categories = sorted(pd.unique(color_values).tolist())
+                show_legend = legend_handles_labels is None
+                sns.scatterplot(
+                    x=embedding[:, 0],
+                    y=embedding[:, 1],
+                    hue=color_values,
+                    hue_order=unique_categories,
+                    palette=_palette_for_categories(unique_categories),
+                    s=_MARKER_SIZE,
+                    edgecolor="none",
+                    legend="full" if show_legend else False,
+                    ax=ax,
+                )
+                if show_legend:
+                    legend_handles_labels = ax.get_legend_handles_labels()
+                    ax.get_legend().remove()
+            else:  # continuous
+                ax.scatter(embedding[:, 0], embedding[:, 1], c=color_values, cmap="viridis", s=_MARKER_SIZE, edgecolor="none")
+            ax.set_xlim(x_min - x_pad, x_max + x_pad)
+            ax.set_ylim(y_min - y_pad, y_max + y_pad)
+            ax.set_title(cell_title, fontsize=10)
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabel)
+        for col in range(len(cells), ncols):
+            fig.add_subplot(gridspec[row, col]).axis("off")
+        row += 1
+
+        if row < len(height_ratios) and height_ratios[row] < 1:
+            fig.add_subplot(gridspec[row, :]).axis("off")
+            row += 1
+
+    if legend_handles_labels:
+        fig.legend(*legend_handles_labels, title=legend_title, loc="upper left", bbox_to_anchor=(1.0, 0.95))
+
+    fig.suptitle(suptitle, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
 def plot_tuning_curve(df: pd.DataFrame, param_col: str, metric_col: str, output_path: Path, title: str) -> None:
     """Line plot: one swept hyperparameter vs. the tuning metric (e.g. PCA's n_components sweep)."""
     sorted_df = df.sort_values(param_col)
@@ -872,22 +987,6 @@ def plot_eigengap(eigenvalues: np.ndarray, output_path: Path, title: str) -> Non
     ax.set_ylabel("eigenvalue")
     ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
     ax.legend()
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-
-
-def plot_k_distance(distances: np.ndarray, output_path: Path, title: str) -> None:
-    """Sorted k-distance curve (clustering_tuning.compute_k_distance) for
-    picking DBSCAN's eps by eye - a good eps sits at the "knee" (steepest
-    rise) of this ascending curve.
-    """
-    fig, ax = plt.subplots(figsize=(6, 5))
-    ax.plot(range(1, len(distances) + 1), distances, marker=".", markersize=3)
-    ax.set_xlabel("points sorted by distance")
-    ax.set_ylabel("distance to k-th nearest neighbor")
-    ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")

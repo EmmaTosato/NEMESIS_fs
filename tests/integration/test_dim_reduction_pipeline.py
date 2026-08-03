@@ -125,6 +125,8 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
         "overwrite": False,
         "fine_tuning": False,
         "regress_out_volume": False,
+        "color_by": ["dataset", "volume", "side"],
+        "viz_n_components": 2,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction.json"
@@ -142,7 +144,7 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
     assert set(metadata["lesion_side"]) == {"left", "right"}
     assert (metadata["lesion_volume_voxels"] > 0).all()
 
-    for suffix in ("", "_dataset", "_volume", "_side"):
+    for suffix in ("_unico", "_dataset", "_volume", "_side"):
         assert (out_dir / f"embedding_plot{suffix}.png").is_file()
     for suffix in ("dataset", "volume", "side"):
         assert (out_dir / f"embedding_plot_{suffix}.html").is_file()
@@ -168,6 +170,8 @@ def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, mon
         "overwrite": False,
         "fine_tuning": True,
         "regress_out_volume": False,
+        "color_by": [],
+        "viz_n_components": 2,
         "run_notes": "prova sweep",
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning.json"
@@ -215,6 +219,8 @@ def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_pa
         "overwrite": False,
         "fine_tuning": True,
         "regress_out_volume": False,
+        "color_by": [],
+        "viz_n_components": 2,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning.json"
@@ -248,6 +254,8 @@ def test_dim_reduction_fine_tuning_pacmap_writes_sweep_not_embedding(tmp_path, m
         "overwrite": False,
         "fine_tuning": True,
         "regress_out_volume": False,
+        "color_by": [],
+        "viz_n_components": 2,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning.json"
@@ -281,6 +289,8 @@ def test_dim_reduction_fine_tuning_tsne_writes_sweep_not_embedding(tmp_path, mon
         "overwrite": False,
         "fine_tuning": True,
         "regress_out_volume": False,
+        "color_by": [],
+        "viz_n_components": 2,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning.json"
@@ -369,6 +379,8 @@ def test_dim_reduction_regress_out_volume_changes_embedding(tmp_path, monkeypatc
             "overwrite": False,
             "fine_tuning": False,
             "regress_out_volume": regress_out_volume,
+            "color_by": [],
+            "viz_n_components": 2,
             "run_notes": None,
         }
         cfg_path = tmp_path / f"dim_reduction_{session_name}.json"
@@ -414,6 +426,8 @@ def test_dim_reduction_regress_out_volume_incompatible_with_jaccard_raises(tmp_p
         "overwrite": False,
         "fine_tuning": False,
         "regress_out_volume": True,
+        "color_by": [],
+        "viz_n_components": 2,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction.json"
@@ -436,9 +450,74 @@ def test_dim_reduction_missing_input_path_raises(tmp_path, monkeypatch):
         "overwrite": False,
         "fine_tuning": False,
         "regress_out_volume": False,
+        "color_by": [],
+        "viz_n_components": 2,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction.json"
     dr_cfg_path.write_text(json.dumps(dr_cfg))
 
     assert dim_reduction.main(["--config", str(dr_cfg_path)]) == 1
+
+
+def test_dim_reduction_fine_tuning_nested_params_writes_leaf_folders_and_embeddings_grid(tmp_path, monkeypatch):
+    """Real end-to-end test of the nested_params mechanism (2026-08 session):
+    metric fixed one-at-a-time (own subfolder per value), n_neighbors/min_dist
+    swept jointly as the real grid, each leaf getting its own filtered
+    tuning_results.csv plus an embeddings_grid_unico.png of real embeddings.
+    """
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+
+    params_path = tmp_path / "params_nested.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "umap": {
+                    "params": {"n_neighbors": 3, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "euclidean"},
+                    "tuning_grid": {
+                        "metric": ["euclidean", "cosine"],
+                        "n_neighbors": [2, 3],
+                        "min_dist": [0.1, 0.5],
+                    },
+                    "nested_params": ["metric"],
+                    "trustworthiness_n_neighbors": 2,
+                }
+            }
+        )
+    )
+    output_root = tmp_path / "dr_out"
+    dr_cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "umap",
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_nested",
+        "overwrite": False,
+        "fine_tuning": True,
+        "regress_out_volume": False,
+        "color_by": [],
+        "viz_n_components": 2,
+        "run_notes": None,
+    }
+    dr_cfg_path = tmp_path / "dim_reduction_tuning_nested.json"
+    dr_cfg_path.write_text(json.dumps(dr_cfg))
+
+    exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
+    assert exit_code == 0
+
+    tuning_dir = next((output_root / "umap" / "tuning").iterdir())
+    top_results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert len(top_results) == 8  # 2 metric x 2 n_neighbors x 2 min_dist
+
+    for metric in ("euclidean", "cosine"):
+        leaf_dir = tuning_dir / f"metric={metric}"
+        assert leaf_dir.is_dir()
+        leaf_results = pd.read_csv(leaf_dir / "tuning_results.csv")
+        assert len(leaf_results) == 4  # 2 n_neighbors x 2 min_dist, this metric only
+        assert set(leaf_results["metric"]) == {metric}
+        assert (leaf_dir / "embeddings_grid_unico.png").is_file()
+
+    config_md = (tuning_dir / "config.md").read_text()
+    assert '"nested_params": [' in config_md
