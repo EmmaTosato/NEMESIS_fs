@@ -373,7 +373,7 @@ def _write_nested_tuning_leaves(
             leaf_dir,
             f"{config.reduction_method} dim 1",
             f"{config.reduction_method} dim 2",
-            lambda label, leaf_title=leaf_title: f"{leaf_title} - {label}" if label else leaf_title,
+            lambda label, leaf_title=leaf_title: f"{leaf_title} - {label.capitalize()}" if label else leaf_title,
         )
 
 
