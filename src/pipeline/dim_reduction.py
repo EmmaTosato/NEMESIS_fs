@@ -47,7 +47,7 @@ from src.analysis.covariates import check_volume_regression_compatible, regress_
 from src.analysis.embedding_plots import write_embedding_grid, write_embedding_plots
 from src.analysis.model_config import DimReductionConfig, load_dim_reduction_config
 from src.analysis.params import load_method_params, load_nested_params, load_trustworthiness_n_neighbors, load_tuning_grid
-from src.analysis.plotting import compose_embedding_plot_title, compose_run_title, plot_tuning_curve
+from src.analysis.plotting import compose_embedding_plot_title, compose_run_title, compose_tuning_leaf_title, plot_tuning_curve
 from src.analysis.reduction import REDUCTION_METHODS, embedding_for_viz
 from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
 from src.features.clinical import join_lesion_side
@@ -288,7 +288,7 @@ def _write_tuning_output(
             )
     else:
         _write_nested_tuning_leaves(
-            output_dir, results, embeddings_by_combo, base_params, tuning_grid, nested_params, free_params, config, X, metadata, title
+            output_dir, results, embeddings_by_combo, base_params, tuning_grid, nested_params, free_params, config, X, metadata
         )
 
     readme_lines = [
@@ -343,7 +343,6 @@ def _write_nested_tuning_leaves(
     config: DimReductionConfig,
     X: np.ndarray,
     metadata: pd.DataFrame,
-    title: str,
 ) -> None:
     """Groups `results` by nested_params (one subfolder per real combination
     actually present - an invalid combo excluded upstream by run_tuning_sweep,
@@ -365,7 +364,7 @@ def _write_nested_tuning_leaves(
         group.to_csv(leaf_dir / "tuning_results.csv", index=False)
 
         blocks = _build_grid_blocks(free_params, tuning_grid, keys, leaf, base_params, embeddings_by_combo, config, X)
-        leaf_title = f"{title} — " + ", ".join(f"{name}={leaf[name]}" for name in nested_params)
+        leaf_title = compose_tuning_leaf_title(output_dir, config.reduction_method, leaf)
         write_embedding_grid(
             blocks,
             metadata,
@@ -374,7 +373,7 @@ def _write_nested_tuning_leaves(
             leaf_dir,
             f"{config.reduction_method} dim 1",
             f"{config.reduction_method} dim 2",
-            lambda label, leaf_title=leaf_title: f"{leaf_title} — {label}" if label else leaf_title,
+            lambda label, leaf_title=leaf_title: f"{leaf_title} - {label}" if label else leaf_title,
         )
 
 

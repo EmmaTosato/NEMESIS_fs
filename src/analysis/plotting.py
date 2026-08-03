@@ -98,6 +98,13 @@ _TUNING_METRICS_SUBPLOT_HEIGHT = 4.5
 _TUNING_METRICS_WSPACE = 0.4
 _TUNING_METRICS_HSPACE = 0.4
 
+# plot_embedding_grid_blocks packs the same subject count into a much smaller
+# cell than a single full-figure embedding plot - a smaller, lower-alpha
+# marker keeps individual points distinguishable instead of merging into one
+# solid blob.
+_GRID_MARKER_SIZE = 12
+_GRID_MARKER_ALPHA = 0.7
+
 _SILHOUETTE_SUBPLOT_WIDTH = 6.5
 _SILHOUETTE_HEIGHT = 5.5
 _SILHOUETTE_WSPACE = 0.35
@@ -199,6 +206,37 @@ def compose_embedding_plot_title(output_dir: Path, reduction_method: str, color_
     if color_by:
         return f"{modality_title} - {reduction_method.capitalize()} - {color_by}"
     return f"{modality_title} - {reduction_method.capitalize()}"
+
+
+def compose_tuning_leaf_title(output_dir: Path, reduction_method: str, leaf: dict) -> str:
+    """Title for one nested-tuning leaf's embeddings_grid_*.png
+    (dim_reduction.py's fine-tuning mode, nested_params declared):
+    "<Modality> - <ReductionMethod> - <Metric> - <N> Components[ -
+    RegressVolume <bool>]", same capitalization convention as
+    compose_cluster_plot_title/compose_embedding_plot_title so every plot
+    family in this pipeline reads as one style instead of a path dump.
+
+    `leaf` is one real nested-parameter combination (e.g. {"metric":
+    "euclidean", "n_components": 2, "regress_out_volume": False}) - only the
+    keys actually present are rendered, so this works for any nested_params
+    subset (e.g. tsne's leaf has no "n_components"). The RegressVolume
+    segment is dropped whenever metric isn't "euclidean": jaccard/dice never
+    combine with regress_out_volume=True (see
+    covariates.check_volume_regression_compatible), so every one of their
+    leaves would show the same constant "RegressVolume False", adding no
+    information.
+    """
+    modality_title = _modality_title(output_dir)
+    parts = [modality_title, reduction_method.capitalize()]
+    metric = leaf.get("metric")
+    if metric is not None:
+        parts.append(str(metric).capitalize())
+    n_components = leaf.get("n_components")
+    if n_components is not None:
+        parts.append(f"{n_components} Components")
+    if metric == "euclidean" and "regress_out_volume" in leaf:
+        parts.append(f"RegressVolume {leaf['regress_out_volume']}")
+    return " - ".join(parts)
 
 
 def plot_embedding_2d(
@@ -768,14 +806,19 @@ def plot_embedding_grid_blocks(
     next - real whitespace, not just subplot padding, so multiple blocks in
     one figure read as visually distinct sections.
 
-    All cells share the same x/y axis limits (padded beyond the combined
-    min/max of every embedding shown) and the same coloring: `color_values`/
-    `color_kind` is None/None for "unico" (single color, same convention as
-    plot_embedding_2d), or a color_by mode's per-subject values plus
-    "categorical"/"continuous" (same two renderings as
-    plot_embedding_categorical/plot_embedding_continuous) - every cell is a
-    fit of the same subjects, so one shared legend/colorbar for the whole
-    figure is enough, taken from the first cell only.
+    Each cell auto-scales to its *own* embedding's min/max (padded the same
+    way as plot_embedding_2d) rather than sharing one axis range across every
+    cell - two UMAP/t-SNE fits with different hyperparameters have no shared
+    coordinate frame to begin with (absolute position/scale is arbitrary per
+    fit, `.claude/lessons_learned.md` #16), so forcing a shared range only
+    shrinks every cell to whatever corner of a mostly-empty canvas its fit
+    happened to land in, without buying any real comparability. Coloring is
+    shared, though: `color_values`/`color_kind` is None/None for "unico"
+    (single color, same convention as plot_embedding_2d), or a color_by
+    mode's per-subject values plus "categorical"/"continuous" (same two
+    renderings as plot_embedding_categorical/plot_embedding_continuous) -
+    every cell is a fit of the same subjects, so one shared legend/colorbar
+    for the whole figure is enough, taken from the first cell only.
     """
     if not blocks:
         raise ValueError("plot_embedding_grid_blocks needs at least one block")
@@ -783,11 +826,6 @@ def plot_embedding_grid_blocks(
         raise ValueError(f"color_kind must be None, 'categorical' or 'continuous', got {color_kind!r}")
 
     ncols = max(len(cells) for _, cells in blocks)
-    all_points = np.concatenate([embedding for _, cells in blocks for _, embedding in cells], axis=0)
-    x_min, x_max = all_points[:, 0].min(), all_points[:, 0].max()
-    y_min, y_max = all_points[:, 1].min(), all_points[:, 1].max()
-    x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
-    y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
 
     height_ratios: list[float] = []
     for i in range(len(blocks)):
@@ -809,7 +847,7 @@ def plot_embedding_grid_blocks(
         for col, (cell_title, embedding) in enumerate(cells):
             ax = fig.add_subplot(gridspec[row, col])
             if color_values is None:
-                ax.scatter(embedding[:, 0], embedding[:, 1], alpha=0.5, s=_MARKER_SIZE, edgecolor="none")
+                ax.scatter(embedding[:, 0], embedding[:, 1], alpha=_GRID_MARKER_ALPHA, s=_GRID_MARKER_SIZE, edgecolor="none")
             elif color_kind == "categorical":
                 unique_categories = sorted(pd.unique(color_values).tolist())
                 show_legend = legend_handles_labels is None
@@ -819,7 +857,8 @@ def plot_embedding_grid_blocks(
                     hue=color_values,
                     hue_order=unique_categories,
                     palette=_palette_for_categories(unique_categories),
-                    s=_MARKER_SIZE,
+                    s=_GRID_MARKER_SIZE,
+                    alpha=_GRID_MARKER_ALPHA,
                     edgecolor="none",
                     legend="full" if show_legend else False,
                     ax=ax,
@@ -828,7 +867,14 @@ def plot_embedding_grid_blocks(
                     legend_handles_labels = ax.get_legend_handles_labels()
                     ax.get_legend().remove()
             else:  # continuous
-                ax.scatter(embedding[:, 0], embedding[:, 1], c=color_values, cmap="viridis", s=_MARKER_SIZE, edgecolor="none")
+                ax.scatter(
+                    embedding[:, 0], embedding[:, 1], c=color_values, cmap="viridis",
+                    alpha=_GRID_MARKER_ALPHA, s=_GRID_MARKER_SIZE, edgecolor="none",
+                )
+            x_min, x_max = embedding[:, 0].min(), embedding[:, 0].max()
+            y_min, y_max = embedding[:, 1].min(), embedding[:, 1].max()
+            x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
+            y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
             ax.set_xlim(x_min - x_pad, x_max + x_pad)
             ax.set_ylim(y_min - y_pad, y_max + y_pad)
             ax.set_title(cell_title, fontsize=10)
