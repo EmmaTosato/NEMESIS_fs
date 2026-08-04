@@ -521,3 +521,66 @@ def test_dim_reduction_fine_tuning_nested_params_writes_leaf_folders_and_embeddi
 
     config_md = (tuning_dir / "config.md").read_text()
     assert '"nested_params": [' in config_md
+
+
+def test_dim_reduction_fine_tuning_nested_n_components_and_regress_out_volume_refits_viz(tmp_path, monkeypatch):
+    """Regression test: a nested_params sweep combining n_components (forcing
+    _build_grid_blocks to refit a viz embedding, since a leaf's own
+    n_components != the grid's fixed 2) with regress_out_volume (a
+    pipeline-level flag, never a REDUCTION_METHODS constructor argument) used
+    to crash with `TypeError: UMAP.__init__() got an unexpected keyword
+    argument 'regress_out_volume'` - reduction_params_for_combo forwarded the
+    raw tuning_grid combo (including regress_out_volume) straight into
+    embedding_for_viz -> umap.UMAP(**params). Only surfaced once a real
+    n_components-varying sweep was run (2026-08 session) - every prior test
+    kept n_components fixed at viz's own 2, which takes embedding_for_viz's
+    early-return path and never reaches the broken call.
+    """
+    input_dir = _build_matrix_varying_volume(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    _write_lesion_side_registry(tmp_path, monkeypatch, [f"sub-{i:02d}" for i in range(8)])
+
+    params_path = tmp_path / "params_nested_ncomp.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "umap": {
+                    "params": {"n_neighbors": 3, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "euclidean"},
+                    "tuning_grid": {
+                        "n_components": [2, 3],
+                        "regress_out_volume": [False, True],
+                        "n_neighbors": [2, 3],
+                    },
+                    "nested_params": ["n_components", "regress_out_volume"],
+                    "trustworthiness_n_neighbors": 2,
+                }
+            }
+        )
+    )
+    output_root = tmp_path / "dr_out_ncomp"
+    dr_cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "umap",
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_nested_ncomp",
+        "overwrite": False,
+        "fine_tuning": True,
+        "regress_out_volume": False,
+        "color_by": [],
+        "viz_n_components": 2,
+        "run_notes": None,
+    }
+    dr_cfg_path = tmp_path / "dim_reduction_tuning_nested_ncomp.json"
+    dr_cfg_path.write_text(json.dumps(dr_cfg))
+
+    exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
+    assert exit_code == 0
+
+    tuning_dir = next((output_root / "umap" / "tuning").iterdir())
+    # n_components=3 forces a refit (2 != the grid's fixed viz n_components); regress_out_volume=True
+    # on that same leaf exercises the post-refit regress_out_covariate re-application.
+    leaf_dir = tuning_dir / "n_components=3" / "regress_out_volume=True"
+    assert leaf_dir.is_dir()
+    assert (leaf_dir / "embeddings_grid_unico.png").is_file()

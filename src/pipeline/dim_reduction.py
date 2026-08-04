@@ -424,11 +424,21 @@ def _build_grid_blocks(
                     "for the embeddings_grid plot to hold it there"
                 )
             embedding = embeddings_by_combo[combo]
-            reduction_params_for_combo = {**base_params, **dict(zip(keys, combo))}
-            embedding = embedding_for_viz(
+            combo_params = {**base_params, **dict(zip(keys, combo))}
+            # regress_out_volume is a pipeline-level post-fit step, never a
+            # REDUCTION_METHODS constructor argument - strip it before
+            # embedding_for_viz forwards params straight into e.g. umap.UMAP(**params).
+            regress_out_volume_for_combo = combo_params.get("regress_out_volume", False)
+            reduction_params_for_combo = {k: v for k, v in combo_params.items() if k != "regress_out_volume"}
+            viz_embedding = embedding_for_viz(
                 config.reduction_method, X, reduction_params_for_combo, embedding, _TUNING_GRID_N_COMPONENTS
             )
-            cells.append((str(value), embedding))
+            if viz_embedding is not embedding and regress_out_volume_for_combo:
+                # A refit (not the reused-as-is case) never went through
+                # run_tuning_sweep's own regress_out_volume step - apply it
+                # here too, so the plotted embedding matches what was scored.
+                viz_embedding = regress_out_covariate(viz_embedding, X.sum(axis=1))
+            cells.append((str(value), viz_embedding))
         blocks.append((varying, cells))
     return blocks
 
