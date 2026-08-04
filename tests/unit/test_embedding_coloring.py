@@ -31,6 +31,19 @@ def test_volume_mode_is_continuous_and_sums_X_rows():
     assert list(values) == [2, 1, 3]
 
 
+def test_volume_mode_uses_log_scale():
+    assert resolve_color_mode("volume").log_scale is True
+
+
+def test_nihss_mode_uses_linear_scale():
+    assert resolve_color_mode("nihss").log_scale is False
+
+
+def test_categorical_modes_default_log_scale_false():
+    assert resolve_color_mode("dataset").log_scale is False
+    assert resolve_color_mode("side").log_scale is False
+
+
 def test_side_mode_is_categorical_and_reads_participants_tsv(tmp_path, monkeypatch):
     monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
     path = tmp_path / "UNIPD_WashU_participants_lesions.tsv"

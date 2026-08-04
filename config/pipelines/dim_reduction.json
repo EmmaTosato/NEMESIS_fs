@@ -1,7 +1,7 @@
 {
   "project": "clinical_connectome",
   "input_path": "data/derived/lesion_matrix/21-07_s1.1",
-  "reduction_method": "umap",
+  "reduction_method": "tsne",
   "params_file": "config/registry/params_reduction.json",
   "output_root": "results/lesion/dim_reduction",
   "session_name": "s1.1",
@@ -10,6 +10,6 @@
   "regress_out_volume": false,
   "color_by": ["dataset", "side", "volume"],
   "viz_n_components": 2,
-  "write_embeddings_grid": false,
-  "run_notes": "umap tuning: jaccard+dice, n_components [5,10] (2 gia' fatto in s1.1), regress_out_volume=False (True escluso per queste metriche) x n_neighbors x min_dist (grid). write_embeddings_grid=false: rifit identico a quello gia' fatto a n_components=2 con la stessa griglia n_neighbors/min_dist."
+  "write_embeddings_grid": true,
+  "run_notes": "tsne tuning: metric x regress_out_volume (nested) + perplexity (grid). n_components fisso a 2, nessuna esplorazione componenti per t-sne."
 }

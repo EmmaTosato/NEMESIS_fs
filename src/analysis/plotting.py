@@ -49,6 +49,7 @@ import math
 from pathlib import Path
 
 import matplotlib
+import matplotlib.colors as mcolors
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -353,6 +354,7 @@ def plot_embedding_continuous(
     ylabel: str,
     title: str,
     colorbar_label: str,
+    log_scale: bool = False,
 ) -> None:
     """Scatter the first 2 columns of X_2d, colored by a continuous value per
     point (e.g. lesion volume in voxels), with a colorbar, to output_path.
@@ -369,6 +371,16 @@ def plot_embedding_continuous(
     just "no data here"). The colorbar's range is fit to the non-NaN values
     only, so a handful of missing subjects never compresses the color scale
     for everyone else.
+
+    log_scale=True (used for "volume", a heavily right-skewed voxel count -
+    see embedding_coloring.py's COLOR_MODES) maps color via matplotlib's
+    LogNorm instead of the default linear normalization: on a linear scale a
+    handful of large-lesion outliers stretch the scale so far that almost
+    every other point looks the same dark color, log-scale spreads the whole
+    cohort back out. Raises ValueError if any non-missing value is <= 0 -
+    LogNorm can't represent that, and silently masking it out (matplotlib's
+    own behavior) would misrepresent a real "zero volume" subject as if its
+    value were unresolvable, the same category as a genuinely missing NIHSS.
     """
     if X_2d.shape[1] < 2:
         raise ValueError(f"plot_embedding_continuous needs at least 2 columns, got shape {X_2d.shape}")
@@ -381,6 +393,17 @@ def plot_embedding_continuous(
     values = np.asarray(values, dtype=float)
     is_missing = np.isnan(values)
 
+    norm = None
+    if log_scale:
+        present_values = values[~is_missing]
+        if present_values.size and (present_values <= 0).any():
+            raise ValueError(
+                f"log_scale=True needs every non-missing value > 0, got {int((present_values <= 0).sum())} "
+                "value(s) <= 0 - a log color scale can't represent them"
+            )
+        if present_values.size:
+            norm = mcolors.LogNorm(vmin=present_values.min(), vmax=present_values.max())
+
     fig, ax = plt.subplots(figsize=(_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT))
     if is_missing.any():
         ax.scatter(
@@ -389,7 +412,7 @@ def plot_embedding_continuous(
         )
     scatter = ax.scatter(
         X_2d[~is_missing, 0], X_2d[~is_missing, 1],
-        c=values[~is_missing], cmap="viridis", s=_MARKER_SIZE, edgecolor="none",
+        c=values[~is_missing], cmap="viridis", norm=norm, s=_MARKER_SIZE, edgecolor="none",
     )
     ax.set_xlim(x_min - x_pad, x_max + x_pad)
     ax.set_ylim(y_min - y_pad, y_max + y_pad)
@@ -812,6 +835,7 @@ def plot_embedding_grid_blocks(
     color_values: np.ndarray | None = None,
     color_kind: str | None = None,
     legend_title: str | None = None,
+    log_scale: bool = False,
 ) -> None:
     """One row of small scatter subplots per entry in `blocks` - each entry
     is (block_title, [(cell_title, embedding_2d), ...]), e.g. block_title=
@@ -840,12 +864,34 @@ def plot_embedding_grid_blocks(
     mode's per-subject values plus "categorical"/"continuous" (same two
     renderings as plot_embedding_categorical/plot_embedding_continuous) -
     every cell is a fit of the same subjects, so one shared legend/colorbar
-    for the whole figure is enough, taken from the first cell only.
+    for the whole figure is enough, taken from the first cell only. A NaN in
+    `color_values` (continuous mode only, e.g. a subject with no resolvable
+    NIHSS) is drawn in the same fixed neutral gray as plot_embedding_continuous's
+    missing bucket, with its own small "missing" legend entry - same reasoning,
+    never left transparent/invisible. log_scale=True (continuous mode only,
+    "volume" - see embedding_coloring.py) colors via LogNorm instead of linear;
+    raises ValueError if any non-missing value is <= 0, same as
+    plot_embedding_continuous.
     """
     if not blocks:
         raise ValueError("plot_embedding_grid_blocks needs at least one block")
     if color_kind not in (None, "categorical", "continuous"):
         raise ValueError(f"color_kind must be None, 'categorical' or 'continuous', got {color_kind!r}")
+
+    is_missing_color = None
+    continuous_norm = None
+    if color_kind == "continuous" and color_values is not None:
+        color_values = np.asarray(color_values, dtype=float)
+        is_missing_color = np.isnan(color_values)
+        if log_scale:
+            present_values = color_values[~is_missing_color]
+            if present_values.size and (present_values <= 0).any():
+                raise ValueError(
+                    f"log_scale=True needs every non-missing value > 0, got "
+                    f"{int((present_values <= 0).sum())} value(s) <= 0 - a log color scale can't represent them"
+                )
+            if present_values.size:
+                continuous_norm = mcolors.LogNorm(vmin=present_values.min(), vmax=present_values.max())
 
     ncols = max(len(cells) for _, cells in blocks)
 
@@ -859,6 +905,7 @@ def plot_embedding_grid_blocks(
     gridspec = fig.add_gridspec(len(height_ratios), ncols, height_ratios=height_ratios, hspace=0.15, wspace=0.35)
 
     legend_handles_labels = None
+    missing_handles_labels = None
     continuous_mappable = None
     data_axes: list[plt.Axes] = []
     row = 0
@@ -891,8 +938,17 @@ def plot_embedding_grid_blocks(
                     legend_handles_labels = ax.get_legend_handles_labels()
                     ax.get_legend().remove()
             else:  # continuous
+                if is_missing_color.any():
+                    ax.scatter(
+                        embedding[is_missing_color, 0], embedding[is_missing_color, 1],
+                        c=_NOISE_COLOR, alpha=_GRID_MARKER_ALPHA, s=_GRID_MARKER_SIZE, edgecolor="none",
+                        label="missing",
+                    )
+                    if missing_handles_labels is None:
+                        missing_handles_labels = ax.get_legend_handles_labels()
                 scatter = ax.scatter(
-                    embedding[:, 0], embedding[:, 1], c=color_values, cmap="viridis",
+                    embedding[~is_missing_color, 0], embedding[~is_missing_color, 1],
+                    c=color_values[~is_missing_color], cmap="viridis", norm=continuous_norm,
                     alpha=_GRID_MARKER_ALPHA, s=_GRID_MARKER_SIZE, edgecolor="none",
                 )
                 if continuous_mappable is None:
@@ -919,6 +975,8 @@ def plot_embedding_grid_blocks(
         fig.legend(*legend_handles_labels, title=legend_title, loc="upper left", bbox_to_anchor=(1.0, 0.95))
     if continuous_mappable is not None:
         fig.colorbar(continuous_mappable, ax=data_axes, label=legend_title, shrink=0.6)
+    if missing_handles_labels:
+        fig.legend(*missing_handles_labels, loc="lower left", bbox_to_anchor=(1.0, 0.05))
 
     fig.suptitle(suptitle, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
     output_path.parent.mkdir(parents=True, exist_ok=True)

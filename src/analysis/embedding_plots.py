@@ -82,10 +82,18 @@ def write_embedding_plots(
                 if mode.kind == "categorical":
                     plot_embedding_categorical(embedding, values, static_path, xlabel, ylabel, title, legend_title=mode.label)
                 else:
-                    plot_embedding_continuous(embedding, values, static_path, xlabel, ylabel, title, colorbar_label=mode.label)
+                    plot_embedding_continuous(
+                        embedding, values, static_path, xlabel, ylabel, title,
+                        colorbar_label=mode.label, log_scale=mode.log_scale,
+                    )
             except Exception as exc:
                 logging.warning("failed to generate %r embedding plot: %s", name, exc)
 
+        # Interactive HTML stays linear-scale regardless of mode.log_scale: plotly
+        # express has no direct LogNorm-style color-axis equivalent (it would mean
+        # log-transforming `values` and manually relabeling the colorbar ticks back
+        # to real units) - the static PNG above is where log_scale actually matters,
+        # the interactive view's hover already surfaces each point's real value.
         try:
             metadata_for_plot = metadata.copy()
             metadata_for_plot[name] = values
@@ -143,6 +151,7 @@ def write_embedding_grid(
                 color_values=values,
                 color_kind=mode.kind,
                 legend_title=mode.label,
+                log_scale=mode.log_scale,
             )
         except Exception as exc:
             logging.warning("failed to generate %r embedding grid: %s", name, exc)

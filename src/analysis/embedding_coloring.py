@@ -31,6 +31,9 @@ class ColorMode:
     kind: ColorKind
     compute: Callable[[pd.DataFrame, np.ndarray], np.ndarray]
     label: str
+    # continuous only - see plot_embedding_continuous/plot_embedding_grid_blocks's
+    # own log_scale param. Ignored for categorical modes.
+    log_scale: bool = False
 
 
 COLOR_MODES: dict[str, ColorMode] = {
@@ -51,6 +54,12 @@ COLOR_MODES: dict[str, ColorMode] = {
         # to convert here either).
         compute=lambda metadata, X: X.sum(axis=1),
         label="lesion volume (voxels)",
+        # Heavily right-skewed (a handful of large-lesion outliers otherwise
+        # stretch a linear scale so far that almost every other point looks
+        # the same dark color - visually confirmed on the real 1150-subject
+        # cohort, session 2026-08-04) - log makes the whole cohort's spread
+        # readable again.
+        log_scale=True,
     ),
     "nihss": ColorMode(
         kind="continuous",
@@ -59,6 +68,10 @@ COLOR_MODES: dict[str, ColorMode] = {
         # plot_embedding_continuous's NaN handling (rendered neutral gray).
         compute=lambda metadata, X: join_nihss(metadata).to_numpy(),
         label="NIHSS (severity)",
+        # Linear: less skewed than volume, and kept on the same viridis
+        # palette as volume (not a second hue family) - deliberately, on
+        # request, log_scale=False is the actual differentiator between the
+        # two modes' plots, not the colormap.
     ),
 }
 

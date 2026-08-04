@@ -206,6 +206,41 @@ def test_plot_embedding_continuous_all_nan_does_not_raise(tmp_path):
     assert output_path.exists()
 
 
+def test_plot_embedding_continuous_log_scale_writes_file(tmp_path):
+    X_2d, _ = _embedding_and_metadata()
+    values = np.array([1.0, 100.0, 5000.0, 40000.0])
+    output_path = tmp_path / "embedding_plot_volume.png"
+
+    plot_embedding_continuous(
+        X_2d, values, output_path, "x", "y", "title", colorbar_label="lesion volume (voxels)", log_scale=True
+    )
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_embedding_continuous_log_scale_with_nan_writes_file(tmp_path):
+    X_2d, _ = _embedding_and_metadata()
+    values = np.array([1.0, np.nan, 5000.0, 40000.0])
+    output_path = tmp_path / "embedding_plot_volume_missing.png"
+
+    plot_embedding_continuous(
+        X_2d, values, output_path, "x", "y", "title", colorbar_label="lesion volume (voxels)", log_scale=True
+    )
+
+    assert output_path.exists()
+
+
+def test_plot_embedding_continuous_log_scale_rejects_non_positive_value(tmp_path):
+    X_2d, _ = _embedding_and_metadata()
+    values = np.array([0.0, 100.0, 5000.0, 40000.0])
+
+    with pytest.raises(ValueError, match="log_scale=True needs every non-missing value > 0"):
+        plot_embedding_continuous(
+            X_2d, values, tmp_path / "out.png", "x", "y", "title", colorbar_label="volume", log_scale=True
+        )
+
+
 def test_plot_embedding_continuous_raises_on_fewer_than_two_columns(tmp_path):
     X_1d = np.array([[0.0], [1.0], [2.0], [3.0]])
     values = np.array([10.0, 20.0, 30.0, 40.0])
@@ -497,6 +532,49 @@ def test_plot_embedding_grid_blocks_continuous_draws_one_shared_colorbar(tmp_pat
 
     assert len(calls) == 1
     assert calls[0]["label"] == "Lesion volume (voxels)"
+
+
+def test_plot_embedding_grid_blocks_continuous_nan_draws_missing_legend(tmp_path):
+    """Regression test: the continuous branch never NaN-checked color_values at all
+    (unlike plot_embedding_continuous's gray/legend treatment) - a subject with a
+    missing NIHSS would be scattered with an unmapped NaN color (matplotlib's own
+    default: fully transparent, invisible, no legend entry)."""
+    blocks = [("n_neighbors", [("5", _small_embeddings(n=6)), ("10", _small_embeddings(n=6, seed=1))])]
+    color_values = np.array([1.0, np.nan, 3.0, 4.0, np.nan, 6.0])
+    output_path = tmp_path / "embeddings_grid_nihss.png"
+
+    plot_embedding_grid_blocks(
+        blocks, output_path, "dim 1", "dim 2", "test suptitle",
+        color_values=color_values, color_kind="continuous", legend_title="NIHSS (severity)",
+    )
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_embedding_grid_blocks_log_scale_uses_lognorm(tmp_path):
+    blocks = [("n_neighbors", [("5", _small_embeddings(n=6)), ("10", _small_embeddings(n=6, seed=1))])]
+    color_values = np.array([1.0, 10.0, 100.0, 1000.0, 10000.0, 40000.0])
+    output_path = tmp_path / "embeddings_grid_volume.png"
+
+    plot_embedding_grid_blocks(
+        blocks, output_path, "dim 1", "dim 2", "test suptitle",
+        color_values=color_values, color_kind="continuous", legend_title="Lesion volume (voxels)", log_scale=True,
+    )
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_embedding_grid_blocks_log_scale_rejects_non_positive_value(tmp_path):
+    blocks = [("n_neighbors", [("5", _small_embeddings(n=6)), ("10", _small_embeddings(n=6, seed=1))])]
+    color_values = np.array([0.0, 10.0, 100.0, 1000.0, 10000.0, 40000.0])
+
+    with pytest.raises(ValueError, match="log_scale=True needs every non-missing value > 0"):
+        plot_embedding_grid_blocks(
+            blocks, tmp_path / "out.png", "dim 1", "dim 2", "test suptitle",
+            color_values=color_values, color_kind="continuous", legend_title="volume", log_scale=True,
+        )
 
 
 def test_plot_embedding_grid_blocks_single_free_param_one_block(tmp_path):
