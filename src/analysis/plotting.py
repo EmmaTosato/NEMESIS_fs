@@ -360,6 +360,15 @@ def plot_embedding_continuous(
     Same figure size/marker size/axis padding/bold-padded-title conventions
     as plot_clusters_2d/plot_embedding_categorical - a continuous quantity
     has no legend entries to place, so a colorbar takes that role instead.
+
+    A NaN in values (e.g. a subject with no resolvable NIHSS score, see
+    join_nihss) is drawn in the same fixed neutral gray as the categorical
+    plots' missing/noise bucket (_NOISE_COLOR), underneath the colored
+    points, rather than left to matplotlib's own default (fully transparent
+    - the point silently vanishes with no visual sign it's missing, not
+    just "no data here"). The colorbar's range is fit to the non-NaN values
+    only, so a handful of missing subjects never compresses the color scale
+    for everyone else.
     """
     if X_2d.shape[1] < 2:
         raise ValueError(f"plot_embedding_continuous needs at least 2 columns, got shape {X_2d.shape}")
@@ -369,14 +378,27 @@ def plot_embedding_continuous(
     x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
     y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
 
+    values = np.asarray(values, dtype=float)
+    is_missing = np.isnan(values)
+
     fig, ax = plt.subplots(figsize=(_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT))
-    scatter = ax.scatter(X_2d[:, 0], X_2d[:, 1], c=values, cmap="viridis", s=_MARKER_SIZE, edgecolor="none")
+    if is_missing.any():
+        ax.scatter(
+            X_2d[is_missing, 0], X_2d[is_missing, 1],
+            c=_NOISE_COLOR, s=_MARKER_SIZE, edgecolor="none", label="missing",
+        )
+    scatter = ax.scatter(
+        X_2d[~is_missing, 0], X_2d[~is_missing, 1],
+        c=values[~is_missing], cmap="viridis", s=_MARKER_SIZE, edgecolor="none",
+    )
     ax.set_xlim(x_min - x_pad, x_max + x_pad)
     ax.set_ylim(y_min - y_pad, y_max + y_pad)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
     fig.colorbar(scatter, ax=ax, label=colorbar_label)
+    if is_missing.any():
+        ax.legend(loc="upper right", framealpha=0.9)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")

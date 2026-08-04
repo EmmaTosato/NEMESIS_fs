@@ -185,6 +185,27 @@ def test_plot_embedding_continuous_writes_file(tmp_path):
     assert output_path.stat().st_size > 0
 
 
+def test_plot_embedding_continuous_renders_nan_as_gray_points(tmp_path):
+    X_2d, _ = _embedding_and_metadata()
+    values = np.array([10.0, np.nan, 30.0, 40.0])
+    output_path = tmp_path / "embedding_plot_nihss.png"
+
+    plot_embedding_continuous(X_2d, values, output_path, "x", "y", "title", colorbar_label="NIHSS (severity)")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_embedding_continuous_all_nan_does_not_raise(tmp_path):
+    X_2d, _ = _embedding_and_metadata()
+    values = np.full(4, np.nan)
+    output_path = tmp_path / "embedding_plot_nihss_all_missing.png"
+
+    plot_embedding_continuous(X_2d, values, output_path, "x", "y", "title", colorbar_label="NIHSS (severity)")
+
+    assert output_path.exists()
+
+
 def test_plot_embedding_continuous_raises_on_fewer_than_two_columns(tmp_path):
     X_1d = np.array([[0.0], [1.0], [2.0], [3.0]])
     values = np.array([10.0, 20.0, 30.0, 40.0])

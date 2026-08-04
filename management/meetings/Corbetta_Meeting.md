@@ -15,7 +15,7 @@ People: Professor Corbetta
 - **D'Amico** → approccio "fingerprint"
 - **Fallani** → clustering longitudinale
 
-## 2. Domanda aperta centrale
+## 2. Domande
 
 **Non è chiaro come le feature locali si correlino con le alterazioni globali** → cioè, alterazioni locali del segnale come si legano a pattern di rete più ampi.
 
@@ -31,7 +31,6 @@ People: Professor Corbetta
 *Domanda di sintesi: quale di queste feature spiega meglio il comportamento?*
 
 ## 4. Pipeline FC (Connettività Funzionale) — proposta
-
 1. Mappe funzionali → lesione
 2. Identificazione di vari pattern di alterazione
 3. Embedding a bassa dimensionalità (low-dimensional embedding)

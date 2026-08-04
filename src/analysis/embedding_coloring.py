@@ -21,7 +21,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from src.features.clinical import join_lesion_side
+from src.features.clinical import join_lesion_side, join_nihss
 
 ColorKind = Literal["categorical", "continuous"]
 
@@ -51,6 +51,14 @@ COLOR_MODES: dict[str, ColorMode] = {
         # to convert here either).
         compute=lambda metadata, X: X.sum(axis=1),
         label="lesion volume (voxels)",
+    ),
+    "nihss": ColorMode(
+        kind="continuous",
+        # NaN for subjects with no resolvable NIHSS (dataset-wide gap, e.g.
+        # PASPORT, or a per-subject missing cell) - see join_nihss and
+        # plot_embedding_continuous's NaN handling (rendered neutral gray).
+        compute=lambda metadata, X: join_nihss(metadata).to_numpy(),
+        label="NIHSS (severity)",
     ),
 }
 

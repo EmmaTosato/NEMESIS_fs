@@ -34,6 +34,7 @@ def test_dim_reduction_config_valid(tmp_path):
         "regress_out_volume": False,
         "color_by": ["dataset", "volume"],
         "viz_n_components": 2,
+        "write_embeddings_grid": True,
     }
     config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
     assert config.reduction_method == "umap"
@@ -41,6 +42,7 @@ def test_dim_reduction_config_valid(tmp_path):
     assert config.regress_out_volume is False
     assert config.color_by == ("dataset", "volume")
     assert config.viz_n_components == 2
+    assert config.write_embeddings_grid is True
     assert config.run_notes is None
 
 
@@ -53,6 +55,7 @@ def test_dim_reduction_config_with_run_notes(tmp_path):
         "regress_out_volume": False,
         "color_by": [],
         "viz_n_components": 2,
+        "write_embeddings_grid": True,
         "run_notes": "provo n_neighbors piu alto",
     }
     config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
@@ -87,10 +90,12 @@ def test_dim_reduction_config_regress_out_volume_true(tmp_path):
         "regress_out_volume": True,
         "color_by": ["dataset"],
         "viz_n_components": 3,
+        "write_embeddings_grid": False,
     }
     config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
     assert config.regress_out_volume is True
     assert config.viz_n_components == 3
+    assert config.write_embeddings_grid is False
 
 
 def test_dim_reduction_config_missing_regress_out_volume_raises(tmp_path):
@@ -125,6 +130,7 @@ def _dr_payload(**overrides):
         "regress_out_volume": False,
         "color_by": [],
         "viz_n_components": 2,
+        "write_embeddings_grid": True,
     }
     payload.update(overrides)
     return payload
@@ -167,6 +173,18 @@ def test_dim_reduction_config_viz_n_components_must_be_2_or_3(tmp_path):
 def test_dim_reduction_config_viz_n_components_rejects_bool(tmp_path):
     with pytest.raises(ValueError, match="field 'viz_n_components' must be 2 or 3"):
         load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(viz_n_components=True)))
+
+
+def test_dim_reduction_config_missing_write_embeddings_grid_raises(tmp_path):
+    payload = _dr_payload()
+    del payload["write_embeddings_grid"]
+    with pytest.raises(ValueError, match="missing required field 'write_embeddings_grid'"):
+        load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
+
+
+def test_dim_reduction_config_write_embeddings_grid_non_bool_raises(tmp_path):
+    with pytest.raises(ValueError, match="field 'write_embeddings_grid' must be a boolean"):
+        load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(write_embeddings_grid="true")))
 
 
 def test_clustering_config_valid(tmp_path):

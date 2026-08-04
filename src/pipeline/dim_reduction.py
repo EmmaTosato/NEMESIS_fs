@@ -348,9 +348,22 @@ def _write_nested_tuning_leaves(
     actually present - an invalid combo excluded upstream by run_tuning_sweep,
     e.g. metric=jaccard + regress_out_volume=True, never produces a group
     here, so no empty folder is ever created for it), writing each leaf's own
-    filtered tuning_results.csv plus embeddings_grid_<color>.png (see
+    filtered tuning_results.csv plus, unless `config.write_embeddings_grid` is
+    False, embeddings_grid_<color>.png (see
     src/analysis/embedding_plots.py::write_embedding_grid): one row per free
     parameter, holding every other free parameter at base_params' own value.
+
+    `write_embeddings_grid=False` is a manual opt-out, not an automatic one -
+    when a leaf's own n_components differs from _TUNING_GRID_N_COMPONENTS,
+    _build_grid_blocks refits at 2 components for the plot, and that refit
+    uses the exact same metric/n_neighbors/min_dist/random_state as whatever
+    other leaf already swept those same free-parameter values at
+    n_components=2 - with a fixed random_state, umap/tsne are deterministic,
+    so the two are pixel-identical, not just visually similar. Skip the flag
+    (leave it True) unless you already know this run's tuning_grid has no
+    n_components=_TUNING_GRID_N_COMPONENTS leaf to be redundant with - the
+    refit is otherwise the only way to see this leaf's neighborhood structure
+    in 2D at all.
     """
     keys = list(tuning_grid.keys())
     for group_key, group in results.groupby(nested_params, sort=False):
@@ -362,6 +375,9 @@ def _write_nested_tuning_leaves(
             leaf_dir = leaf_dir / f"{name}={leaf[name]}"
         leaf_dir.mkdir(parents=True, exist_ok=True)
         group.to_csv(leaf_dir / "tuning_results.csv", index=False)
+
+        if not config.write_embeddings_grid:
+            continue
 
         blocks = _build_grid_blocks(free_params, tuning_grid, keys, leaf, base_params, embeddings_by_combo, config, X)
         leaf_title = compose_tuning_leaf_title(output_dir, config.reduction_method, leaf)

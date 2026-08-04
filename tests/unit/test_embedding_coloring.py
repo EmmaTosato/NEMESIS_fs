@@ -13,7 +13,7 @@ def _metadata():
 
 
 def test_registry_has_expected_modes():
-    assert set(COLOR_MODES) == {"dataset", "side", "volume"}
+    assert set(COLOR_MODES) == {"dataset", "side", "volume", "nihss"}
 
 
 def test_dataset_mode_is_categorical_and_reads_metadata_column():
@@ -43,6 +43,21 @@ def test_side_mode_is_categorical_and_reads_participants_tsv(tmp_path, monkeypat
     assert mode.kind == "categorical"
     values = mode.compute(metadata, np.zeros((2, 3)))
     assert list(values) == ["left", "right"]
+
+
+def test_nihss_mode_is_continuous_and_reads_participants_tsv(tmp_path, monkeypatch):
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    path = tmp_path / "UNIPD_WashU_participants_lesions.tsv"
+    pd.DataFrame([{"participant_id": "sub-1", "NIHSS": "4"}, {"participant_id": "sub-2", "NIHSS": "n/a"}]).to_csv(
+        path, sep="\t", index=False
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "dataset": ["UNIPD/WashU", "UNIPD/WashU"]})
+
+    mode = resolve_color_mode("nihss")
+    assert mode.kind == "continuous"
+    values = mode.compute(metadata, np.zeros((2, 3)))
+    assert values[0] == 4.0
+    assert np.isnan(values[1])
 
 
 def test_resolve_color_mode_unknown_raises():

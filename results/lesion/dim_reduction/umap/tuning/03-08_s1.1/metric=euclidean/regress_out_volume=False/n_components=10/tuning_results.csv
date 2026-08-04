@@ -1,0 +1,16 @@
+metric,n_components,regress_out_volume,n_neighbors,min_dist,trustworthiness
+euclidean,10,False,5,0.0,0.7522587617605917
+euclidean,10,False,5,0.1,0.7576379558127503
+euclidean,10,False,5,0.25,0.7651466457163661
+euclidean,10,False,15,0.0,0.7548798742981969
+euclidean,10,False,15,0.1,0.7589017188188629
+euclidean,10,False,15,0.25,0.7678023262498324
+euclidean,10,False,30,0.0,0.7535721156609884
+euclidean,10,False,30,0.1,0.7591971180562209
+euclidean,10,False,30,0.25,0.7682576886964186
+euclidean,10,False,50,0.0,0.7546275509226436
+euclidean,10,False,50,0.1,0.7596251173663939
+euclidean,10,False,50,0.25,0.7655030563167072
+euclidean,10,False,100,0.0,0.7492659857818997
+euclidean,10,False,100,0.1,0.7559918753712611
+euclidean,10,False,100,0.25,0.7635923889091153

@@ -32,6 +32,7 @@ class DimReductionConfig:
     regress_out_volume: bool
     color_by: tuple[str, ...]
     viz_n_components: int
+    write_embeddings_grid: bool
     run_notes: str | None
 
 
@@ -81,6 +82,7 @@ def load_dim_reduction_config(path: str | Path) -> DimReductionConfig:
         regress_out_volume=_require_bool(raw, "regress_out_volume"),
         color_by=_require_str_list_allow_empty(raw, "color_by"),
         viz_n_components=_require_viz_n_components(raw),
+        write_embeddings_grid=_require_bool(raw, "write_embeddings_grid"),
         run_notes=run_notes,
     )
 
