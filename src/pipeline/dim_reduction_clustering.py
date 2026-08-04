@@ -5,10 +5,16 @@ Usage:
 
 Reads a matrix artifact (input_path must already exist), embeds it once with
 the configured reduction method, then clusters that same embedding (not the
-raw matrix) with every method in clustering_methods (one or more). Each
+raw matrix) with every method in clustering_methods (one or more). In
+production mode (fine_tuning=false), metadata is first enriched with
+lesion_volume_voxels/lesion_side/nihss via
+src/features/clinical.py::enrich_metadata_with_lesion_info - the same
+enrichment dim_reduction.py always persists, shared so a result from this
+pipeline carries the same columns regardless of which one produced it. Each
 method writes its own artifact under
 <output_root>/<reduction_method>/<clustering_method>/<dd-mm>_<session_name>/:
-the embedding as matrix.npy, cluster_label appended to metadata.csv, a static
+the embedding as matrix.npy, cluster_label appended to that enriched
+metadata.csv, a static
 2D scatter plot colored by cluster (cluster_plot.png) for a first visual
 sanity check, an interactive HTML version (cluster_plot_interactive.html)
 with a dropdown to switch coloring between cluster and dataset, hover showing
@@ -82,6 +88,7 @@ from src.analysis.plotting import (
     plot_silhouette_analysis,
 )
 from src.analysis.reduction import REDUCTION_METHODS, embedding_for_viz
+from src.features.clinical import enrich_metadata_with_lesion_info
 from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
@@ -153,6 +160,19 @@ def main(argv: list[str] | None = None) -> int:
 
     if config.fine_tuning:
         return _run_fine_tuning(config, embedding, reduction_params, now, log_path)
+
+    # Same enrichment dim_reduction.py always persists - shared via
+    # enrich_metadata_with_lesion_info so a result produced by this pipeline
+    # carries the same columns forward as one produced by dim_reduction.py,
+    # regardless of which was run (see docs/dev/analysis.md). Not done in the
+    # fine_tuning branch above: that mode writes no metadata.csv at all (only
+    # tuning_results.csv/plots), so an unresolvable subject there would abort
+    # a tuning run for a column it never uses.
+    try:
+        metadata = enrich_metadata_with_lesion_info(metadata, X)
+    except (FileNotFoundError, ValueError) as exc:
+        logging.error(str(exc))
+        return 1
 
     if config.color_by:
         embedding_dir = (
