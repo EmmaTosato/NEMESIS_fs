@@ -4,11 +4,11 @@
   "reduction_method": "umap",
   "params_file": "config/registry/params_reduction.json",
   "output_root": "results/lesion/dim_reduction",
-  "session_name": "s1.1",
-  "overwrite": true,
+  "session_name": "s1.1_ncomp",
+  "overwrite": false,
   "fine_tuning": true,
   "regress_out_volume": false,
   "color_by": ["dataset", "side", "volume"],
   "viz_n_components": 2,
-  "run_notes": "umap tuning: metric x regress_out_volume (nested, n_components fissato a 2) + n_neighbors x min_dist (grid)."
+  "run_notes": "umap tuning: solo euclidean, n_components [5,10] (2 gia' fatto in s1.1) x regress_out_volume (nested) + n_neighbors x min_dist (grid)."
 }
