@@ -5,3 +5,5 @@ INFO: Evaluating combination 3/30: {'metric': 'euclidean', 'regress_out_volume':
 INFO: Evaluating combination 4/30: {'metric': 'euclidean', 'regress_out_volume': False, 'perplexity': 50}
 INFO: Evaluating combination 5/30: {'metric': 'euclidean', 'regress_out_volume': False, 'perplexity': 75}
 INFO: Evaluating combination 6/30: {'metric': 'euclidean', 'regress_out_volume': True, 'perplexity': 5}
+INFO: Evaluating combination 7/30: {'metric': 'euclidean', 'regress_out_volume': True, 'perplexity': 15}
+INFO: Evaluating combination 8/30: {'metric': 'euclidean', 'regress_out_volume': True, 'perplexity': 30}
