@@ -8,12 +8,17 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
 
 - fine_tuning=false (production): embeds with the method's "params" from
   params_reduction.json, writes a normal matrix artifact holding the
-  embedding. metadata gains 2 columns not present on input:
+  embedding. metadata gains 3 columns not present on input, via
+  src/features/clinical.py's enrich_metadata_with_lesion_info (shared with
+  dim_reduction_clustering.py, so both pipelines always persist the same
+  enrichment regardless of which one produced a given result):
   lesion_volume_voxels (X.sum(axis=1), the same per-subject voxel count
-  regress_out_volume already uses) and lesion_side (src/features/clinical.py's
-  join_lesion_side, "unknown" for a subject/dataset the source participants.tsv
-  can't resolve) - both exist to color embedding_plot_volume.*/embedding_plot_side.*
-  (see plotting.py) and are persisted, not just computed ad hoc, so
+  regress_out_volume already uses), lesion_side ("unknown" for a
+  subject/dataset the source participants.tsv can't resolve), and nihss
+  (NaN under the same conditions - a continuous score has no "unknown"
+  category to fall into). All three exist to color
+  embedding_plot_volume.*/embedding_plot_side.*/embedding_plot_nihss.* (see
+  plotting.py) and are persisted, not just computed ad hoc, so
   scripts/replot_dim_reduction.py can regenerate every plot from metadata.csv
   alone, without reloading the original feature matrix.
 - fine_tuning=true (manual hyperparameter search, umap/tsne/pca/pca_varimax/
@@ -50,7 +55,7 @@ from src.analysis.params import load_method_params, load_nested_params, load_tru
 from src.analysis.plotting import compose_embedding_plot_title, compose_run_title, compose_tuning_leaf_title, plot_tuning_curve
 from src.analysis.reduction import REDUCTION_METHODS, embedding_for_viz
 from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
-from src.features.clinical import join_lesion_side
+from src.features.clinical import enrich_metadata_with_lesion_info
 from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
@@ -129,14 +134,10 @@ def _run_production(
         logging.info("regressed out lesion volume (voxel count) from both the saved and visualization embeddings")
 
     try:
-        lesion_side = join_lesion_side(metadata)
+        metadata_out = enrich_metadata_with_lesion_info(metadata, X)
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return 1
-
-    metadata_out = metadata.copy()
-    metadata_out["lesion_volume_voxels"] = lesion_volume_voxels
-    metadata_out["lesion_side"] = lesion_side
 
     try:
         save_matrix(

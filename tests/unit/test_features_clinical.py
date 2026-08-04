@@ -2,11 +2,18 @@
 
 import logging
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from src.features import clinical
-from src.features.clinical import extract_target, join_lesion_side, load_participants
+from src.features.clinical import (
+    enrich_metadata_with_lesion_info,
+    extract_target,
+    join_lesion_side,
+    join_nihss,
+    load_participants,
+)
 
 
 def _write_participants(tmp_path, rows):
@@ -139,3 +146,105 @@ def test_join_lesion_side_subject_missing_from_participants_raises(tmp_path, mon
 def test_join_lesion_side_raises_on_missing_required_columns():
     with pytest.raises(ValueError, match="subject_id"):
         join_lesion_side(pd.DataFrame({"dataset": ["UNIPD/WashU"]}))
+
+
+def test_join_nihss_merges_present_column(tmp_path, monkeypatch):
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    _write_dataset_participants(
+        tmp_path, "UNIPD/WashU",
+        [{"participant_id": "sub-1", "NIHSS": "4"}, {"participant_id": "sub-2", "NIHSS": "12"}],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "dataset": ["UNIPD/WashU", "UNIPD/WashU"]})
+
+    nihss = join_nihss(metadata)
+
+    assert nihss.tolist() == [4.0, 12.0]
+
+
+def test_join_nihss_per_row_missing_value_becomes_nan(tmp_path, monkeypatch):
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    _write_dataset_participants(
+        tmp_path, "UNIPD/WashU",
+        [{"participant_id": "sub-1", "NIHSS": "4"}, {"participant_id": "sub-2", "NIHSS": "n/a"}],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "dataset": ["UNIPD/WashU", "UNIPD/WashU"]})
+
+    nihss = join_nihss(metadata)
+
+    assert nihss.tolist()[0] == 4.0
+    assert pd.isna(nihss.tolist()[1])
+
+
+def test_join_nihss_dataset_wide_missing_column_becomes_nan_and_warns(tmp_path, monkeypatch, caplog):
+    # Mirrors the real PASPORT gap: no plain "NIHSS" column, only per-timepoint variants.
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    _write_dataset_participants(
+        tmp_path, "UNIPD/PASPORT",
+        [{"participant_id": "sub-1", "NIHSS_at_presentation": "6"}],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-1"], "dataset": ["UNIPD/PASPORT"]})
+
+    with caplog.at_level(logging.WARNING):
+        nihss = join_nihss(metadata)
+
+    assert pd.isna(nihss.tolist()[0])
+    assert "no NIHSS column" in caplog.text
+
+
+def test_join_nihss_unresolvable_dataset_raises_file_not_found(tmp_path, monkeypatch):
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    metadata = pd.DataFrame({"subject_id": ["sub-1"], "dataset": ["UNIPD/NotARealDataset"]})
+
+    with pytest.raises(FileNotFoundError):
+        join_nihss(metadata)
+
+
+def test_join_nihss_subject_missing_from_participants_raises(tmp_path, monkeypatch):
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    _write_dataset_participants(tmp_path, "UNIPD/WashU", [{"participant_id": "sub-1", "NIHSS": "4"}])
+    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "dataset": ["UNIPD/WashU", "UNIPD/WashU"]})
+
+    with pytest.raises(ValueError, match="sub-2"):
+        join_nihss(metadata)
+
+
+def test_join_nihss_non_numeric_value_raises(tmp_path, monkeypatch):
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    _write_dataset_participants(tmp_path, "UNIPD/WashU", [{"participant_id": "sub-1", "NIHSS": "not-a-number"}])
+    metadata = pd.DataFrame({"subject_id": ["sub-1"], "dataset": ["UNIPD/WashU"]})
+
+    with pytest.raises(ValueError, match="non-numeric"):
+        join_nihss(metadata)
+
+
+def test_join_nihss_raises_on_missing_required_columns():
+    with pytest.raises(ValueError, match="subject_id"):
+        join_nihss(pd.DataFrame({"dataset": ["UNIPD/WashU"]}))
+
+
+def test_enrich_metadata_with_lesion_info_adds_all_three_columns(tmp_path, monkeypatch):
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    _write_dataset_participants(
+        tmp_path, "UNIPD/WashU",
+        [{"participant_id": "sub-1", "lesion_side": "left", "NIHSS": "4"},
+         {"participant_id": "sub-2", "lesion_side": "right", "NIHSS": "9"}],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "dataset": ["UNIPD/WashU", "UNIPD/WashU"]})
+    X = np.array([[1, 1, 0], [1, 0, 0]])
+
+    enriched = enrich_metadata_with_lesion_info(metadata, X)
+
+    assert list(enriched.columns) == ["subject_id", "dataset", "lesion_volume_voxels", "lesion_side", "nihss"]
+    assert enriched["lesion_volume_voxels"].tolist() == [2, 1]
+    assert enriched["lesion_side"].tolist() == ["left", "right"]
+    assert enriched["nihss"].tolist() == [4.0, 9.0]
+    # original metadata untouched
+    assert list(metadata.columns) == ["subject_id", "dataset"]
+
+
+def test_enrich_metadata_with_lesion_info_row_count_mismatch_raises():
+    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "dataset": ["UNIPD/WashU", "UNIPD/WashU"]})
+    X = np.array([[1, 1, 0]])
+
+    with pytest.raises(ValueError, match="must match"):
+        enrich_metadata_with_lesion_info(metadata, X)
