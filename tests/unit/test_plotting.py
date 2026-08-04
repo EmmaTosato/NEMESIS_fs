@@ -468,6 +468,37 @@ def test_plot_embedding_grid_blocks_continuous_writes_file(tmp_path):
     assert output_path.stat().st_size > 0
 
 
+def test_plot_embedding_grid_blocks_continuous_draws_one_shared_colorbar(tmp_path, monkeypatch):
+    """Regression test: the continuous branch used to scatter-plot with c=color_values
+    but never call fig.colorbar - the figure had no legend/colorbar at all, unlike the
+    categorical branch (found by inspecting a real embeddings_grid_volume.png)."""
+    import matplotlib.figure
+
+    calls = []
+    original_colorbar = matplotlib.figure.Figure.colorbar
+
+    def _spy_colorbar(self, mappable, *args, **kwargs):
+        calls.append(kwargs)
+        return original_colorbar(self, mappable, *args, **kwargs)
+
+    monkeypatch.setattr(matplotlib.figure.Figure, "colorbar", _spy_colorbar)
+
+    blocks = [
+        ("n_neighbors", [("5", _small_embeddings(n=6)), ("10", _small_embeddings(n=6, seed=1))]),
+        ("min_dist", [("0.0", _small_embeddings(n=6, seed=2)), ("0.2", _small_embeddings(n=6, seed=3))]),
+    ]
+    color_values = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    output_path = tmp_path / "embeddings_grid_volume.png"
+
+    plot_embedding_grid_blocks(
+        blocks, output_path, "dim 1", "dim 2", "test suptitle",
+        color_values=color_values, color_kind="continuous", legend_title="Lesion volume (voxels)",
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["label"] == "Lesion volume (voxels)"
+
+
 def test_plot_embedding_grid_blocks_single_free_param_one_block(tmp_path):
     blocks = [("perplexity", [("5", _small_embeddings()), ("10", _small_embeddings(seed=1)), ("30", _small_embeddings(seed=2))])]
     output_path = tmp_path / "embeddings_grid_unico.png"

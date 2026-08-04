@@ -859,6 +859,8 @@ def plot_embedding_grid_blocks(
     gridspec = fig.add_gridspec(len(height_ratios), ncols, height_ratios=height_ratios, hspace=0.15, wspace=0.35)
 
     legend_handles_labels = None
+    continuous_mappable = None
+    data_axes: list[plt.Axes] = []
     row = 0
     for block_title, cells in blocks:
         label_ax = fig.add_subplot(gridspec[row, :])
@@ -889,10 +891,13 @@ def plot_embedding_grid_blocks(
                     legend_handles_labels = ax.get_legend_handles_labels()
                     ax.get_legend().remove()
             else:  # continuous
-                ax.scatter(
+                scatter = ax.scatter(
                     embedding[:, 0], embedding[:, 1], c=color_values, cmap="viridis",
                     alpha=_GRID_MARKER_ALPHA, s=_GRID_MARKER_SIZE, edgecolor="none",
                 )
+                if continuous_mappable is None:
+                    continuous_mappable = scatter
+            data_axes.append(ax)
             x_min, x_max = embedding[:, 0].min(), embedding[:, 0].max()
             y_min, y_max = embedding[:, 1].min(), embedding[:, 1].max()
             x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
@@ -912,6 +917,8 @@ def plot_embedding_grid_blocks(
 
     if legend_handles_labels:
         fig.legend(*legend_handles_labels, title=legend_title, loc="upper left", bbox_to_anchor=(1.0, 0.95))
+    if continuous_mappable is not None:
+        fig.colorbar(continuous_mappable, ax=data_axes, label=legend_title, shrink=0.6)
 
     fig.suptitle(suptitle, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
     output_path.parent.mkdir(parents=True, exist_ok=True)
