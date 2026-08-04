@@ -16,15 +16,19 @@ _SHAPE = (10, 10, 10)
 
 def _write_lesion_side_registry(tmp_path, monkeypatch, subject_ids, dataset="siteA"):
     """Fixture participants.tsv under a monkeypatched METADATA_ROOT, so
-    dim_reduction.py's join_lesion_side (src/features/clinical.py) can
-    resolve lesion_side for the synthetic "siteA" dataset these tests build,
-    the same way it would for a real UNIPD/WashU-style dataset name.
+    dim_reduction.py's enrich_metadata_with_lesion_info (src/features/clinical.py,
+    join_lesion_side + join_nihss) can resolve lesion_side/nihss for the
+    synthetic "siteA" dataset these tests build, the same way it would for a
+    real UNIPD/WashU-style dataset name.
     """
     metadata_root = tmp_path / "metadata_registry"
     metadata_root.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
     sides = [("left", "right")[i % 2] for i in range(len(subject_ids))]
-    rows = [{"participant_id": sid, "lesion_side": side} for sid, side in zip(subject_ids, sides)]
+    rows = [
+        {"participant_id": sid, "lesion_side": side, "NIHSS": str(4 + i)}
+        for i, (sid, side) in enumerate(zip(subject_ids, sides))
+    ]
     pd.DataFrame(rows).to_csv(metadata_root / f"{dataset}_participants_lesions.tsv", sep="\t", index=False)
 
 
@@ -140,9 +144,10 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
     embedding = np.load(out_dir / "matrix.npy")
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert embedding.shape == (8, 2)
-    assert list(metadata.columns) == ["subject_id", "dataset", "lesion_volume_voxels", "lesion_side"]
+    assert list(metadata.columns) == ["subject_id", "dataset", "lesion_volume_voxels", "lesion_side", "nihss"]
     assert len(metadata) == 8
     assert set(metadata["lesion_side"]) == {"left", "right"}
+    assert metadata["nihss"].tolist() == [4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
     assert (metadata["lesion_volume_voxels"] > 0).all()
 
     for suffix in ("_unico", "_dataset", "_volume", "_side"):

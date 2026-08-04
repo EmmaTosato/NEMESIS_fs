@@ -7,11 +7,29 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 
+from src.features import clinical
 from src.pipeline import build_lesion_matrix, dim_reduction_clustering
 
 _AFFINE = np.eye(4) * 2
 _AFFINE[3, 3] = 1
 _SHAPE = (10, 10, 10)
+
+
+def _write_participants_registry(tmp_path, monkeypatch, n_subjects, dataset="siteA"):
+    """Fixture participants.tsv under a monkeypatched METADATA_ROOT, so
+    dim_reduction_clustering.py's production-mode enrich_metadata_with_lesion_info
+    (src/features/clinical.py) can resolve lesion_side/nihss for the
+    synthetic "siteA" dataset these tests build - same fixture shape as
+    test_dim_reduction_pipeline.py's own registry helper.
+    """
+    metadata_root = tmp_path / "metadata_registry"
+    metadata_root.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    rows = [
+        {"participant_id": f"sub-{i:02d}", "lesion_side": ("left", "right")[i % 2], "NIHSS": str(4 + i)}
+        for i in range(n_subjects)
+    ]
+    pd.DataFrame(rows).to_csv(metadata_root / f"{dataset}_participants_lesions.tsv", sep="\t", index=False)
 
 
 def _build_matrix(tmp_path, monkeypatch, n_subjects=12):
@@ -57,6 +75,7 @@ def _build_matrix(tmp_path, monkeypatch, n_subjects=12):
 
 def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
+    _write_participants_registry(tmp_path, monkeypatch, n_subjects=12)
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
 
     reduction_params_path = tmp_path / "params_reduction.json"
@@ -91,7 +110,9 @@ def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
     embedding = np.load(out_dir / "matrix.npy")
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert embedding.shape == (12, 2)
-    assert list(metadata.columns) == ["subject_id", "dataset", "cluster_label"]
+    assert list(metadata.columns) == [
+        "subject_id", "dataset", "lesion_volume_voxels", "lesion_side", "nihss", "cluster_label",
+    ]
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
     assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
@@ -110,6 +131,7 @@ def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
 
 def test_dim_reduction_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
+    _write_participants_registry(tmp_path, monkeypatch, n_subjects=12)
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
 
     reduction_params_path = tmp_path / "params_reduction.json"
@@ -388,6 +410,7 @@ def _build_matrix_varying_volume(tmp_path, monkeypatch):
 
 def test_dim_reduction_clustering_regress_out_volume_changes_embedding(tmp_path, monkeypatch):
     input_dir = _build_matrix_varying_volume(tmp_path, monkeypatch)
+    _write_participants_registry(tmp_path, monkeypatch, n_subjects=12)
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
 
     reduction_params_path = tmp_path / "params_reduction.json"
@@ -515,6 +538,7 @@ def test_dim_reduction_clustering_viz_embedding_refit_when_n_components_above_vi
     color_by bonus feature writes its own embedding/ folder.
     """
     input_dir = _build_matrix(tmp_path, monkeypatch)
+    _write_participants_registry(tmp_path, monkeypatch, n_subjects=12)
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
 
     reduction_params_path = tmp_path / "params_reduction.json"
