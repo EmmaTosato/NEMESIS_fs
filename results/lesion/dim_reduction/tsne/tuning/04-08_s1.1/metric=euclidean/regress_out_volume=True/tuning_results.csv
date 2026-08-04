@@ -1,0 +1,6 @@
+metric,regress_out_volume,perplexity,trustworthiness
+euclidean,True,5,0.7077549581313354
+euclidean,True,15,0.7441639488761569
+euclidean,True,30,0.7510675072336023
+euclidean,True,50,0.7567992028666143
+euclidean,True,75,0.7473304079560044

@@ -1,0 +1,6 @@
+metric,regress_out_volume,perplexity,trustworthiness
+jaccard,False,5,0.947168145323548
+jaccard,False,15,0.9524465479908789
+jaccard,False,30,0.947604345909901
+jaccard,False,50,0.9401125950907314
+jaccard,False,75,0.9426708567267711

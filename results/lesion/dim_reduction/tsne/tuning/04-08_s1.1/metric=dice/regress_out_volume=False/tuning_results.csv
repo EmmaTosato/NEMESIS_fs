@@ -1,0 +1,6 @@
+metric,regress_out_volume,perplexity,trustworthiness
+dice,False,5,0.9467999310173032
+dice,False,15,0.9538858336367294
+dice,False,30,0.9523058999367658
+dice,False,50,0.9495510376147316
+dice,False,75,0.9496745166420756

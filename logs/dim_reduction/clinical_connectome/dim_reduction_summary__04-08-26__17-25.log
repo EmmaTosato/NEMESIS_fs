@@ -1,0 +1,7 @@
+INFO: Starting fine-tuning sweep for tsne (30 combinations)
+INFO: Evaluating combination 1/30: {'metric': 'euclidean', 'regress_out_volume': False, 'perplexity': 5}
+INFO: Evaluating combination 2/30: {'metric': 'euclidean', 'regress_out_volume': False, 'perplexity': 15}
+INFO: Evaluating combination 3/30: {'metric': 'euclidean', 'regress_out_volume': False, 'perplexity': 30}
+INFO: Evaluating combination 4/30: {'metric': 'euclidean', 'regress_out_volume': False, 'perplexity': 50}
+INFO: Evaluating combination 5/30: {'metric': 'euclidean', 'regress_out_volume': False, 'perplexity': 75}
+INFO: Evaluating combination 6/30: {'metric': 'euclidean', 'regress_out_volume': True, 'perplexity': 5}

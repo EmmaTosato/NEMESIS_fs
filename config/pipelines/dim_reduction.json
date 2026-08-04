@@ -5,10 +5,10 @@
   "params_file": "config/registry/params_reduction.json",
   "output_root": "results/lesion/dim_reduction",
   "session_name": "s1.1",
-  "overwrite": false,
+  "overwrite": true,
   "fine_tuning": true,
   "regress_out_volume": false,
-  "color_by": ["dataset", "side", "volume"],
+  "color_by": ["dataset", "side", "volume", "nihss"],
   "viz_n_components": 2,
   "write_embeddings_grid": true,
   "run_notes": "tsne tuning: metric x regress_out_volume (nested) + perplexity (grid). n_components fisso a 2, nessuna esplorazione componenti per t-sne."
