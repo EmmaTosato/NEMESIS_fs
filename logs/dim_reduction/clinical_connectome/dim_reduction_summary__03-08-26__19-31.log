@@ -1,0 +1,27 @@
+INFO: Starting fine-tuning sweep for umap (270 combinations)
+INFO: Evaluating combination 1/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 5, 'min_dist': 0.0}
+INFO: Evaluating combination 2/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 5, 'min_dist': 0.1}
+INFO: Evaluating combination 3/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 5, 'min_dist': 0.25}
+INFO: Evaluating combination 4/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 15, 'min_dist': 0.0}
+INFO: Evaluating combination 5/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 15, 'min_dist': 0.1}
+INFO: Evaluating combination 6/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 15, 'min_dist': 0.25}
+INFO: Evaluating combination 7/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 30, 'min_dist': 0.0}
+INFO: Evaluating combination 8/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 30, 'min_dist': 0.1}
+INFO: Evaluating combination 9/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 30, 'min_dist': 0.25}
+INFO: Evaluating combination 10/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 50, 'min_dist': 0.0}
+INFO: Evaluating combination 11/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 50, 'min_dist': 0.1}
+INFO: Evaluating combination 12/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 50, 'min_dist': 0.25}
+INFO: Evaluating combination 13/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 100, 'min_dist': 0.0}
+INFO: Evaluating combination 14/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 100, 'min_dist': 0.1}
+INFO: Evaluating combination 15/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 100, 'min_dist': 0.25}
+INFO: Evaluating combination 16/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': True, 'n_neighbors': 5, 'min_dist': 0.0}
+INFO: Evaluating combination 17/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': True, 'n_neighbors': 5, 'min_dist': 0.1}
+INFO: Evaluating combination 18/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': True, 'n_neighbors': 5, 'min_dist': 0.25}
+INFO: Evaluating combination 19/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': True, 'n_neighbors': 15, 'min_dist': 0.0}
+INFO: Evaluating combination 20/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': True, 'n_neighbors': 15, 'min_dist': 0.1}
+INFO: Evaluating combination 21/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': True, 'n_neighbors': 15, 'min_dist': 0.25}
+INFO: Evaluating combination 22/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': True, 'n_neighbors': 30, 'min_dist': 0.0}
+INFO: Evaluating combination 23/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': True, 'n_neighbors': 30, 'min_dist': 0.1}
+INFO: Evaluating combination 24/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': True, 'n_neighbors': 30, 'min_dist': 0.25}
+INFO: Evaluating combination 25/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': True, 'n_neighbors': 50, 'min_dist': 0.0}
+INFO: Evaluating combination 26/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': True, 'n_neighbors': 50, 'min_dist': 0.1}

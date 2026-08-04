@@ -10,7 +10,7 @@
 > **Guida d'uso:** `docs/guides/dim_reduction.md`.
 > **Cosa fanno i metodi (UMAP/t-SNE)**: `docs/knowledge/umap_tsne_guide.md`.
 
-## Cos'è il tuning 
+## Cos'è il tuning
 
 Per `umap`/`tsne`/`pacmap`/`pca`/`pca_varimax`, il tuning esegue lo stesso metodo su una griglia di iperparametri (`config/registry/params_reduction.json`'s `tuning_grid`) e calcola, per ogni combinazione, un solo numero di qualità (vedi sotto). **Nessuna selezione automatica**: la scelta finale resta sempre umana, guardando `tuning_results.csv` e i plot, poi scritta a mano in `params_reduction.json`'s `"params"`.
 
@@ -27,9 +27,10 @@ Confronta, per ogni punto, i suoi *k* vicini più prossimi nello spazio original
 
 - **Range**: `[0, 1]`, più alto = meglio. `1.0` = nessuna intrusione, il vicinato locale è preservato perfettamente.
 - **`k` (il numero di vicini controllati) è un parametro a parte**, `trustworthiness_n_neighbors` in `params_reduction.json` — **non** lo stesso `n_neighbors` che UMAP sweeppa per costruire il proprio grafo. Sono due concetti distinti tenuti deliberatamente separati (`docs/dev/analysis.md`).
-- **Cosa NON misura**: l'opposto (un vicino vero che nell'embedding finisce lontano) — quella si chiama *continuity*, un indice complementare **non implementato qui** (asimmetria nota della metrica, non un bug del progetto).
+- **Cosa NON misura**: l'opposto (un vicino vero che nell'embedding finisce lontano) — un indice complementare **non implementato qui** (asimmetria nota della metrica, non un bug del progetto).
 - **Va confrontata solo a parità di spazio di distanza**: se l'embedding è costruito con `metric="jaccard"`, il trustworthiness dev'essere calcolato con la *stessa* metrica jaccard, non con l'euclidea di default di `sklearn` — altrimenti si giudica un imbarazzo costruito con un righello con uno diverso (bug reale trovato e corretto in una sessione precedente, vedi `evaluate_umap`/`evaluate_tsne`).
-- **Non è comparabile tra `n_components` diversi**: un embedding a più dimensioni ha strutturalmente più "spazio" per preservare i vicini, quindi trustworthiness cresce quasi meccanicamente con `n_components` — non usarla per decidere se un punteggio a 2 componenti è "peggiore" di uno a 10, solo per confrontare combinazioni allo **stesso** `n_components` (vedi sotto).
+- **Non è comparabile tra `n_components` diversi**: un embedding a più dimensioni ha strutturalmente più "spazio" per preservare i vicini, quindi trustworthiness cresce quasi meccanicamente con `n_components` — non usarla per decidere se un punteggio a 2 componenti è "peggiore" di uno a 10. Ogni valore di `n_components` va giudicato **separatamente**, sul proprio sotto-insieme di combinazioni (da qui la scelta di tenerlo tra i `nested_params`, una cartella/foglia distinta per ciascun valore).
+- **Tra cosa si può confrontare, quindi**: solo combinazioni allo **stesso** `n_components` — `metric` diverso, `regress_out_volume` diverso, `n_neighbors`/`min_dist` diversi, tutti confrontabili tra loro finché `n_components` resta fisso.
 - **Attenzione ai confondimenti**: un punteggio alto non garantisce un pattern *clinico* interessante — può derivare da un artefatto strutturale della metrica (es. jaccard/dice su maschere binarie che separano nettamente per lato della lesione, non per topografia). Il numero da solo non lo rivela: va incrociato con i plot colorati (`embeddings_grid_dataset.png`/`_side.png`/`_volume.png`).
 
 ### Varianza cumulativa spiegata (PCA)
