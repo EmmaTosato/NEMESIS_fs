@@ -1,30 +1,35 @@
-# Cinetto et al. 
-_Clinical variables surpass lesion and disconnection features predicting multi-domain stroke outcomes_
+
+# Zanola et al. (2026) 
+_Beyond proportional recovery in wake-up stroke: Unsupervised recovery clusters based on the NIHSS_
 
 ## Riassunto brevissimo
-Questo studio affronta la sfida della prognosi a lungo termine post-ictus. 
-I ricercatori hanno valutato in modo sistematico se l'aggiunta di complesse metriche di neuroimaging (topografia della lesione e stime di disconnessione strutturale a livello dell'intero cervello) migliori la previsione del recupero rispetto all'uso delle sole variabili cliniche e demografiche di base. Tracciando 199 pazienti su otto domini funzionali per un anno, lo studio dimostra (come suggerisce chiaramente il titolo) che i dati clinici e demografici superano le complesse misurazioni del danno e delle disconnessioni anatomiche nel prevedere gli esiti a lungo termine.
+Il paper mette in discussione la tradizionale Regola del Recupero Proporzionale (PRR) nell'ictus, che divide rigidamente i pazienti in "fitters" e "non-fitters" tramite modelli lineari. Utilizzando tecniche di apprendimento non supervisionato (clustering) su 201 pazienti, gli autori identificano 6 traiettorie distinte di recupero, dimostrando che la maggior parte dei pazienti recupera in modo eterogeneo e non strettamente proporzionale al deficit iniziale. Questo approccio guidato dai dati offre una visione più sfumata e oggettiva della prognosi riabilitativa.
 
 ---
 
 ## Domande scientifiche e Obiettivi
-- Qual è il reale valore prognostico aggiuntivo (incrementale) delle mappe avanzate di lesione e di disconnessione strutturale (SDC) rispetto ai predittori clinici standard (es. punteggio NIHSS, età)?
-- È possibile prevedere in modo affidabile il recupero del paziente non in un singolo dominio, ma trasversalmente in **molteplici domini cognitivi e funzionali** all'interno della stessa coorte clinica?
-- **Obiettivo principale:** Confrontare testa a testa e in modo gerarchico l'accuratezza predittiva di 4 categorie di dati (demografici, clinico-neurologici acuti, topografia della lesione e disconnettoma) per stimare gli esiti dei pazienti a 2 settimane, 3 mesi e 12 mesi di distanza dall'ictus.
+- Come superare i limiti statistici (come il cosiddetto "accoppiamento matematico" e la divisione arbitraria in due sole categorie) tipici dei classici modelli lineari di recupero post-ictus?
+- È possibile raggruppare i pazienti in base alla reale somiglianza delle loro traiettorie di recupero, piuttosto che forzarli in un singolo modello matematico globale?
+- **Obiettivo principale:** Utilizzare algoritmi di clustering per identificare fenotipi (cluster) di recupero eterogenei in modo completamente guidato dai dati, validandone poi la rilevanza clinica rispetto a noti fattori prognostici (volume/lato lesione, trattamento).
 
 ## Metodologie
-
-- **Campione:** Una coorte prospettica di 199 pazienti al primo ictus (età 19-83 anni) e 68 controlli sani abbinati per età e istruzione.
-- **Elaborazione Neuroimaging:** Le lesioni dei pazienti sono state segmentate su scansioni anatomiche standard e proiettate su un connettoma sano (derivato da 178 soggetti dello _Human Connectome Project_) utilizzando il _BCB Toolkit_. Questo ha generato mappe probabilistiche indirette dei tratti di materia bianca disconnessi (SDC) per ogni paziente.
-- **Modellistica Predittiva (Machine Learning):** La vastissima quantità di dati spaziali (lesioni e SDC) è stata compressa utilizzando un'Analisi delle Componenti Principali (PCA). Successivamente, è stato applicato un algoritmo di _Ridge Regression_ con validazione incrociata per prevedere i punteggi in ben **otto domini** (motorio destro/sinistro, linguaggio, attenzione generale e spaziale, memoria verbale e spaziale, e indipendenza funzionale). I predittori sono stati inseriti nel modello a strati (partendo dalle basi demografiche fino ai dati di neuroimaging) per testarne il valore aggiunto.
+- **Campione:** 201 pazienti dal trial clinico WAKE-UP (ictus al risveglio), selezionati per gravità moderata (NIHSS > 4 all'esordio) e con deficit ancora presenti a 22-36 ore.
+- **Calcolo del Recovery Ratio (RR):** La misura del recupero è stata calcolata come rapporto tra il punteggio NIHSS sub-acuto (22-36 h) e quello cronico (a 90 giorni).
+- **Clustering (RSC):** È stato applicato un algoritmo di _Repeated Spectral Clustering_ basato sulle differenze assolute dei tassi di recupero tra i vari pazienti per raggrupparli in base alla similarità clinica.
+- **Validazione:** I cluster ottenuti sono stati confrontati con la classica regressione lineare (PRR) e correlati a variabili cliniche esterne (es. lato e volume della lesione, trattamento con rtPA).
 
 ## Risultati
-- **Fattori latenti di danno:** L'analisi PCA sulle mappe ha catturato in modo eccellente le distribuzioni tipiche dei danni da ictus. Per le lesioni, ha distinto gli ictus emisferici (destra vs sinistra) e l'interessamento dell'arteria cerebrale media. Per le disconnessioni (SDC), ha estratto modelli tipici di danno ai grandi fasci di materia bianca, come il corpo calloso, il tratto cortico-spinale, il fascicolo arcuato e il fascicolo fronto-occipitale inferiore.
-- **Superiorità della clinica:** Come anticipato programmaticamente dal titolo del manoscritto, nella competizione "testa a testa" le variabili cliniche misurate nella fase acuta (come la gravità misurata dalla scala NIHSS o il lato della lesione) combinate alle caratteristiche demografiche, hanno superato le sofisticate metriche del danno anatomico (lesione) e del disconnettoma (SDC) nel prevedere l'andamento del paziente nei mesi successivi.
+- **Sei traiettorie di recupero:** L'algoritmo ha individuato 6 cluster ottimali: C0 (recupero totale, 100%), C1 (recupero sopra la media), C2 e C3 (nella media, in linea con le stime del modello lineare PRR), C4 (sotto la media) e C5 (nessun recupero o deterioramento).
+- **Nessun impatto per volume e trattamento:** Il volume della lesione all'ingresso in ospedale e il trattamento trombolitico (rtPA) non hanno mostrato associazioni significative con l'appartenenza ai diversi cluster di recupero.
+- **Asimmetria emisferica:** Il lato della lesione ha influenzato il recupero. I pazienti con recupero perfetto (C0) avevano più lesioni destre del previsto, mentre i pazienti nei cluster a recupero medio-basso (C3) avevano più lesioni sinistre.
+- **Predittività precoce:** Un Recovery Ratio precoce (\ge) 0.3 (valutato nelle prime fasi) ha permesso di prevedere l'appartenenza ai cluster favorevoli (C0-C3) in circa il 90% dei casi.
 
 ## Breve Discussione
-- Il paper lancia un messaggio clinico di forte impatto (in leggero contrasto o integrazione rispetto agli studi precedenti di questo gruppo): sebbene la stima dettagliata del "disconnettoma" e della topografia della lesione offra preziose intuizioni sui meccanismi patofisiologici dell'ictus, per quanto riguarda la pura **previsione degli esiti clinici**, i fattori tradizionali rimangono superiori.
-- I modelli predittivi più complessi e ad alta dimensionalità non battono le variabili standard raccolte al letto del paziente. Fattori come l'età, l'educazione e la severità clinica acuta misurata con l'NIHSS inglobano già al loro interno l'effetto del danno neurale e sono sufficienti (e persino migliori) per stimare con successo le traiettorie di recupero multi-dominio del paziente.
+- La classificazione binaria in "fitters" e "non-fitters" imposta dai modelli PRR dipende fortemente dal metodo usato ed è altamente soggettiva. Il clustering evita questo problema raggruppando i pazienti in fenotipi naturali.
+- La maggioranza dei pazienti non segue una regola di recupero fisso e proporzionale; la natura del recupero è più complessa ed eterogenea.
+- Il clustering dei tassi di recupero si è rivelato un modo efficiente per incorporare la variabile "tempo" nell'algoritmo, offrendo un quadro molto più granulare della ripresa post-ictus.
+- L'identificazione precoce dei pazienti destinati ai cluster meno favorevoli potrebbe rivelarsi fondamentale in futuro per personalizzare le terapie riabilitative e massimizzare la neuroplasticità.
+---
 
 # Santoro et al. (2026)
 _Individual connectome fingerprints reveal early stabilization and long-term circuit remodeling after stroke_
@@ -58,36 +63,79 @@ Questo studio longitudinale analizza l'evoluzione dei pattern di connettività c
 - L'individuazione di questa precoce identità funzionale consolidata offre ai clinici una finestra temporale ottimale (entro le prime tre settimane) per ricavare biomarcatori prognostici stabili e personalizzare gli interventi riabilitativi o di neurostimolazione precoce.
 
 ---
-# Zanola et al. (2026) 
-_Beyond proportional recovery in wake-up stroke: Unsupervised recovery clusters based on the NIHSS_
+# Pini et al. (2026)  
+_Longitudinal Degeneration of Microstructural and Structural Connectivity Patterns Following Stroke_
+
+### ## Riassunto brevissimo
+- **Degenerazione progressiva a lungo termine**: Lo studio monitora longitudinalmente l'evoluzione della materia bianca (WM) post-ictus a `$2$` settimane (fase subacuta) e a `$3$` mesi (fase cronica) dall'evento, dimostrando che il danno strutturale a distanza e la degenerazione microstrutturale continuano a progredire nel tempo, estendendosi ben oltre la lesione iniziale e coinvolgendo anche l'emisfero sano (contralesionale).
+- **Doppia dissociazione struttura-comportamento**: I risultati rivelano che le alterazioni globali della connettività strutturale (SC) sono associate a deficit cognitivi (ma non motori) esclusivamente nella fase acuta. Al contrario, le alterazioni microstrutturali locali all'interno dei tratti disconnessi (in particolare il fascio corticospinale) predicono stabilmente e a lungo termine i deficit motori controlaterali sia a `$2$` settimane sia a `$3$` mesi.
+- **Disaccoppiamento della traiettoria strutturale**: Mentre la connettività funzionale (FC) tende storicamente a normalizzarsi in parallelo al recupero comportamentale, la connettività strutturale (SC) mostra una traiettoria divergente di progressiva degenerazione, suggerendo che il recupero clinico tardivo si basa sul ricalibramento funzionale e sinaptico dei circuiti superstiti piuttosto che su una restaurazione strutturale del connettoma.
+
+---
+
+### ## Domande scientifiche e Obiettivi
+- In che modo le alterazioni della connettività strutturale globale (SC) e le alterazioni microstrutturali locali (DTI e NODDI) mostrano traiettorie temporali accoppiate o divergenti post-ictus?
+- La degenerazione progressiva a lungo termine della materia bianca a distanza dalla lesione iniziale (connectional diaschisis strutturale) spiega le differenze interindividuali nella traiettoria di recupero cognitivo e motorio dei pazienti?
+- **Obiettivo principale**: Integrare in un unico modello quantitativo e longitudinale la riorganizzazione globale della connettività strutturale (tramite gradienti di trattografia) e la degenerazione microstrutturale locale dei tratti disconnessi per mappare sistematicamente la relazione tra integrità del trattoma e traiettorie comportamentali a `$2$` settimane e `$3$` mesi post-ictus.
+
+---
+
+### ## Metodologie
+- **Campione**: Studio prospettico longitudinale su `$79$` pazienti con primo ictus ischemico o emorragico (di cui `$48$` valutati con risonanza magnetica a `$2$` settimane e `$26$` che hanno ripetuto la scansione a `$3$` mesi) confrontati con `$33$` controlli sani abbinati.
+- **Fattori Comportamentali Latenti**: Una vasta batteria neuropsicologica multivariata (motorio, linguaggio, attenzione, neglect e memoria) è stata ridotta tramite analisi fattoriale latente in `$5$` macro-fattori, spiegando circa il `$50\%$` della varianza comportamentale complessiva.
+- **Gradienti di Connettività Strutturale (SC)**: Calcolo di matrici strutturali a partire da trattografia probabilistica dell'intero cervello (con `$10$` milioni di linee di flusso e raffinamento `$SIFT2$`) proiettate su uno spazio di embedding a bassa dimensionalità (_diffusion map embedding_) per estrarre i primi `$3$` gradienti strutturali principali (intra- ed inter-emisferici). La deviazione individuale dal connettoma di controllo sano è stata quantificata tramite la metrica di _Gradient Divergence_ (\(GD\)).
+- **Modellazione Microstrutturale Locale (DTI-NODDI)**: Estrazione voxel-wise di parametri di diffusione DTI (fractional anisotropy `$FA$`, mean diffusivity `$MD$`, axial diffusivity `$AD$`, radial diffusivity `$RD$`) e NODDI (neurite density index `$NDI$`/`$ICVF$`, orientation dispersion index `$ODI$`, isotropic volume fraction `$ISOVF$`). I parametri sono stati sintetizzati tramite analisi fattoriale in `$3$` mappe latenti stabili: `$dwiF1$` (acqua libera), `$dwiF2$` (anisotropia e dispersione dell'orientamento delle fibre) e `$dwiF3$` (mielinizzazione).
+- **Disconnessione Strutturale (SDC)**: Le lesioni di ciascun paziente sono state proiettate su un connettoma sano di riferimento per stimare le mappe di disconnessione strutturale probabilistica (SDC) e tracciare i tratti di sostanza bianca disconnessi a diverse soglie (`$40\%$`, `$60\%$`, `$80\%$`).
+- **Analisi Statistiche**: Utilizzo di Modelli Lineari a Effetti Misti (LMM) per analizzare la degenerazione strutturale e microstrutturale longitudinale (subacuto vs. cronico) controllando per covariate demografiche, e regressioni lineari robuste con bootstrapping (`$n = 1000$`) per associare i dati di neuroimaging ai fattori comportamentali.
+
+---
+
+### ## Risultati
+- **Gradienti e mappe microstrutturali stabili**: La scomposizione matematica ha identificato `$3$` gradienti strutturali che mappano l'organizzazione delle fibre (antero-posteriore, ventro-dorsale e callosale) e `$3$` fattori microstrutturali stabili e replicabili test-retest (`$r > 0.94$`).
+- **Alterazioni diffuse e accuratezza diagnostica**: Nella fase acuta (a `$2$` settimane), i pazienti presentano estese alterazioni dei gradienti globali in entrambi gli emisferi (ipsilesionale e contralesionale) ben oltre i confini del territorio vascolare della lesione, consentendo di classificare i pazienti rispetto ai controlli con un'accuratezza del `$90\%$`.
+- **Degenerazione strutturale progressiva**: I modelli LMM mostrano che le alterazioni della connettività globale (\(GD\)) continuano a progredire significativamente tra le `$2$` settimane e i `$3$` mesi in entrambi gli emisferi, confermando una progressiva degenerazione secondaria del connettoma.
+- **Perdita di mielina nei tratti disconnessi**: All'interno delle maschere di disconnessione (SDC), si assiste a una riduzione longitudinale significativa del fattore microstrutturale `$dwiF3$`, indice di progressivi processi di demielinizzazione e degenerazione assonale secondaria (Walleriana) a carico delle fibre disconnesse.
+- **Legame disconnessione focale - connettoma globale**: Le alterazioni microstrutturali locali dei tratti disconnessi correlano significativamente e predicono il grado di divergenza globale (\(GD\)) dell'intero connettoma strutturale in entrambi gli emisferi (`$R^2$` tra `$0.16$` e `$0.23$`), dimostrando come la disconnessione locale guidi a cascata il collasso dei network globali.
+- **Doppia dissociazione cervello-comportamento**:
+    - _Gradienti globali e cognizione (fase acuta)_: Nella fase acuta, l'alterazione dei gradienti globali (\(GD\)) predice significativamente i deficit in domini cognitivi complessi, quali linguaggio-memoria verbale, memoria spaziale e attenzione-neglect. Questa associazione **scompare completamente** a `$3$` mesi, evidenziando il disaccoppiamento tra la continua degenerazione strutturale e il recupero cognitivo.
+    - _Microstruttura locale e motricità_: Al contrario, i parametri microstrutturali locali (`$dwiF2$`, che mappa l'anisotropia e la coerenza delle fibre) all'interno delle aree disconnesse (principalmente il tratto corticospinale) predicono stabilmente e in modo robusto i deficit motori controlaterali sia nella fase acuta (`$R^2 = 0.37$`) sia nella fase cronica a `$3$` mesi (`$R^2 = 0.42$`).
+
+---
+
+### ## Breve Discussione
+- **Divergenza struttura-funzione nella plasticità**: Esiste una chiara dissociazione nei meccanismi biologici del recupero post-ictus. Mentre la connettività funzionale (FC) si riorganizza e tende a normalizzarsi guidando il recupero clinico, la materia bianca strutturale (SC) va incontro a un declino e a una degenerazione degenerativa inarrestabile. Questo dimostra che il cervello recupera le proprie funzioni cognitive "sfruttando" in modo flessibile ed efficiente lo scheletro strutturale danneggiato rimasto (ricalibramento sinaptico), piuttosto che riparando le connessioni anatomiche spezzate.
+- **L'ictus come patologia diffusa del connettoma**: Il lavoro conferma sperimentalmente in vivo che l'ictus non deve essere considerato un danno locale. L'interruzione focale di tratti assonali strategici innesca una degenerazione trans-sinaptica e microstrutturale remota (comprese alterazioni nella corteccia contralesionale sana) che altera l'architettura globale del connettoma strutturale dell'intero cervello.
+- **Implicazioni cliniche per la riabilitazione**: Dal momento che la degenerazione strutturale della materia bianca a `$3$` mesi è disaccoppiata dal recupero cognitivo dei pazienti, gli sforzi terapeutici della neuroriabilitazione (e delle tecniche di stimolazione magnetica/elettrica cerebrale) non dovrebbero mirare all'inversione del danno anatomico, ma al potenziamento della riserva funzionale e all'adattamento dinamico dei network corticali risparmiati.
+
+---
+
+# Cinetto et al.  (2026)
+_Clinical variables surpass lesion and disconnection features predicting multi-domain stroke outcomes_
 
 ## Riassunto brevissimo
-Il paper mette in discussione la tradizionale Regola del Recupero Proporzionale (PRR) nell'ictus, che divide rigidamente i pazienti in "fitters" e "non-fitters" tramite modelli lineari. Utilizzando tecniche di apprendimento non supervisionato (clustering) su 201 pazienti, gli autori identificano 6 traiettorie distinte di recupero, dimostrando che la maggior parte dei pazienti recupera in modo eterogeneo e non strettamente proporzionale al deficit iniziale. Questo approccio guidato dai dati offre una visione più sfumata e oggettiva della prognosi riabilitativa.
+Questo studio affronta la sfida della prognosi a lungo termine post-ictus. 
+I ricercatori hanno valutato in modo sistematico se l'aggiunta di complesse metriche di neuroimaging (topografia della lesione e stime di disconnessione strutturale a livello dell'intero cervello) migliori la previsione del recupero rispetto all'uso delle sole variabili cliniche e demografiche di base. Tracciando 199 pazienti su otto domini funzionali per un anno, lo studio dimostra (come suggerisce chiaramente il titolo) che i dati clinici e demografici superano le complesse misurazioni del danno e delle disconnessioni anatomiche nel prevedere gli esiti a lungo termine.
 
 ---
 
 ## Domande scientifiche e Obiettivi
-- Come superare i limiti statistici (come il cosiddetto "accoppiamento matematico" e la divisione arbitraria in due sole categorie) tipici dei classici modelli lineari di recupero post-ictus?
-- È possibile raggruppare i pazienti in base alla reale somiglianza delle loro traiettorie di recupero, piuttosto che forzarli in un singolo modello matematico globale?
-- **Obiettivo principale:** Utilizzare algoritmi di clustering per identificare fenotipi (cluster) di recupero eterogenei in modo completamente guidato dai dati, validandone poi la rilevanza clinica rispetto a noti fattori prognostici (volume/lato lesione, trattamento).
+- Qual è il reale valore prognostico aggiuntivo (incrementale) delle mappe avanzate di lesione e di disconnessione strutturale (SDC) rispetto ai predittori clinici standard (es. punteggio NIHSS, età)?
+- È possibile prevedere in modo affidabile il recupero del paziente non in un singolo dominio, ma trasversalmente in **molteplici domini cognitivi e funzionali** all'interno della stessa coorte clinica?
+- **Obiettivo principale:** Confrontare testa a testa e in modo gerarchico l'accuratezza predittiva di 4 categorie di dati (demografici, clinico-neurologici acuti, topografia della lesione e disconnettoma) per stimare gli esiti dei pazienti a 2 settimane, 3 mesi e 12 mesi di distanza dall'ictus.
 
 ## Metodologie
-- **Campione:** 201 pazienti dal trial clinico WAKE-UP (ictus al risveglio), selezionati per gravità moderata (NIHSS > 4 all'esordio) e con deficit ancora presenti a 22-36 ore.
-- **Calcolo del Recovery Ratio (RR):** La misura del recupero è stata calcolata come rapporto tra il punteggio NIHSS sub-acuto (22-36 h) e quello cronico (a 90 giorni).
-- **Clustering (RSC):** È stato applicato un algoritmo di _Repeated Spectral Clustering_ basato sulle differenze assolute dei tassi di recupero tra i vari pazienti per raggrupparli in base alla similarità clinica.
-- **Validazione:** I cluster ottenuti sono stati confrontati con la classica regressione lineare (PRR) e correlati a variabili cliniche esterne (es. lato e volume della lesione, trattamento con rtPA).
+
+- **Campione:** Una coorte prospettica di 199 pazienti al primo ictus (età 19-83 anni) e 68 controlli sani abbinati per età e istruzione.
+- **Elaborazione Neuroimaging:** Le lesioni dei pazienti sono state segmentate su scansioni anatomiche standard e proiettate su un connettoma sano (derivato da 178 soggetti dello _Human Connectome Project_) utilizzando il _BCB Toolkit_. Questo ha generato mappe probabilistiche indirette dei tratti di materia bianca disconnessi (SDC) per ogni paziente.
+- **Modellistica Predittiva (Machine Learning):** La vastissima quantità di dati spaziali (lesioni e SDC) è stata compressa utilizzando un'Analisi delle Componenti Principali (PCA). Successivamente, è stato applicato un algoritmo di _Ridge Regression_ con validazione incrociata per prevedere i punteggi in ben **otto domini** (motorio destro/sinistro, linguaggio, attenzione generale e spaziale, memoria verbale e spaziale, e indipendenza funzionale). I predittori sono stati inseriti nel modello a strati (partendo dalle basi demografiche fino ai dati di neuroimaging) per testarne il valore aggiunto.
 
 ## Risultati
-- **Sei traiettorie di recupero:** L'algoritmo ha individuato 6 cluster ottimali: C0 (recupero totale, 100%), C1 (recupero sopra la media), C2 e C3 (nella media, in linea con le stime del modello lineare PRR), C4 (sotto la media) e C5 (nessun recupero o deterioramento).
-- **Nessun impatto per volume e trattamento:** Il volume della lesione all'ingresso in ospedale e il trattamento trombolitico (rtPA) non hanno mostrato associazioni significative con l'appartenenza ai diversi cluster di recupero.
-- **Asimmetria emisferica:** Il lato della lesione ha influenzato il recupero. I pazienti con recupero perfetto (C0) avevano più lesioni destre del previsto, mentre i pazienti nei cluster a recupero medio-basso (C3) avevano più lesioni sinistre.
-- **Predittività precoce:** Un Recovery Ratio precoce (\ge) 0.3 (valutato nelle prime fasi) ha permesso di prevedere l'appartenenza ai cluster favorevoli (C0-C3) in circa il 90% dei casi.
+- **Fattori latenti di danno:** L'analisi PCA sulle mappe ha catturato in modo eccellente le distribuzioni tipiche dei danni da ictus. Per le lesioni, ha distinto gli ictus emisferici (destra vs sinistra) e l'interessamento dell'arteria cerebrale media. Per le disconnessioni (SDC), ha estratto modelli tipici di danno ai grandi fasci di materia bianca, come il corpo calloso, il tratto cortico-spinale, il fascicolo arcuato e il fascicolo fronto-occipitale inferiore.
+- **Superiorità della clinica:** Come anticipato programmaticamente dal titolo del manoscritto, nella competizione "testa a testa" le variabili cliniche misurate nella fase acuta (come la gravità misurata dalla scala NIHSS o il lato della lesione) combinate alle caratteristiche demografiche, hanno superato le sofisticate metriche del danno anatomico (lesione) e del disconnettoma (SDC) nel prevedere l'andamento del paziente nei mesi successivi.
 
 ## Breve Discussione
-- La classificazione binaria in "fitters" e "non-fitters" imposta dai modelli PRR dipende fortemente dal metodo usato ed è altamente soggettiva. Il clustering evita questo problema raggruppando i pazienti in fenotipi naturali.
-- La maggioranza dei pazienti non segue una regola di recupero fisso e proporzionale; la natura del recupero è più complessa ed eterogenea.
-- Il clustering dei tassi di recupero si è rivelato un modo efficiente per incorporare la variabile "tempo" nell'algoritmo, offrendo un quadro molto più granulare della ripresa post-ictus.
-- L'identificazione precoce dei pazienti destinati ai cluster meno favorevoli potrebbe rivelarsi fondamentale in futuro per personalizzare le terapie riabilitative e massimizzare la neuroplasticità.
+- Il paper lancia un messaggio clinico di forte impatto (in leggero contrasto o integrazione rispetto agli studi precedenti di questo gruppo): sebbene la stima dettagliata del "disconnettoma" e della topografia della lesione offra preziose intuizioni sui meccanismi patofisiologici dell'ictus, per quanto riguarda la pura **previsione degli esiti clinici**, i fattori tradizionali rimangono superiori.
+- I modelli predittivi più complessi e ad alta dimensionalità non battono le variabili standard raccolte al letto del paziente. Fattori come l'età, l'educazione e la severità clinica acuta misurata con l'NIHSS inglobano già al loro interno l'effetto del danno neurale e sono sufficienti (e persino migliori) per stimare con successo le traiettorie di recupero multi-dominio del paziente.
 
 # Volpi et al. (2025) 
 _The brain’s “dark energy” puzzle upgraded: FDG uptake, delivery and phosphorylation, and their coupling with resting-state brain activity_
@@ -123,6 +171,50 @@ _The brain’s “dark energy” puzzle upgraded: FDG uptake, delivery and phosp
 - **Rilevanza clinico-applicativa**: Questi risultati arricchiscono la nostra comprensione dell'accoppiamento tra flusso, metabolismo e attività neurale spontanea, suggerendo l'utilità futura di mappare \(K_1\) e \(k_3\) per valutare precocemente patologie come l'Alzheimer o i traumi cerebrali.
 
 ---
+# Bisogno et al. (2025)
+_Large-scale network topography of stroke predicts functional outcome after mechanical thrombectomy_
+
+### ## Riassunto brevissimo
+- **Prevedere gli esiti dopo la trombectomia**: Nonostante l'efficacia clinica della trombectomia meccanica (MT) nel ripristinare il flusso sanguigno nell'ictus ischemico acuto da occlusione di grandi vasi (LVO), una percentuale compresa tra il `$35\%$` e il `$60\%$` dei pazienti presenta ancora disabilità residue a `$3$` mesi di distanza dall'evento.
+- **La superiorità dell'approccio di rete**: La disabilità a `$3$` mesi (misurata con la scala Rankin modificata, mRS) viene prevista in modo significativamente migliore mappando la lesione all'interno dell'atlante funzionale corticale di Yeo (`$R^2 = 0.382$`) o dell'atlante strutturale della sostanza bianca di Figley (`$R^2 = 0.338$`), mentre la classica zonizzazione vascolare fornisce la predizione più debole in assoluto (`$R^2 = 0.146$`).
+- **Il disconnettoma della disabilità**: Lo studio rivela che la disconnessione funzionale delle reti visive, somatomotorie e attentive dorsali, unitamente alla disconnessione strutturale di grandi fasci di sostanza bianca (come il fascio corticospinale e il corpo calloso), costituisce il principale substrato biologico e predittivo del danno funzionale a lungo termine.
+
+---
+
+### ## Domande scientifiche e Obiettivi
+- La localizzazione spaziale della lesione ischemica post-trombectomia all'interno di atlanti di network funzionali o strutturali fornisce una previsione dell'outcome clinico a `$3$` mesi superiore rispetto alle classiche mappe vascolari?
+- Quali specifici pattern di disconnessione strutturale e funzionale indiretta (SDC e FDC) si associano in modo significativo alla gravità della disabilità a lungo termine (mRS) nei pazienti sottoposti a MT?
+- **Obiettivo principale**: Valutare il valore prognostico incrementale della topografia lesionale basata su network rispetto a quella basata su mappe vascolari e ai predittori clinici tradizionali, offrendo un modello predittivo con una forte vocazione alla traducibilità clinica.
+
+---
+
+### ## Metodologie
+- **Campione**: Studio retrospettivo condotto su `$70$` pazienti con primo ictus ischemico acuto da occlusione di grandi vasi (LVO) nella circolazione anteriore, trattati con trombectomia meccanica presso l'Azienda Ospedaliera Università di Padova tra gennaio `$2018$` e giugno `$2022$`.
+- **Neuroimaging e Segmentazione**: Le lesioni sub-acute sono state segmentate manualmente su scansioni TC o risonanze MRI-FLAIR eseguite in media a `$7 \pm 3.5$` giorni dall'evento. Le maschere lesionali sono state normalizzate nello spazio standard MNI.
+- **Atlanti di Riferimento**: La lesione di ciascun paziente è stata proiettata su tre spazi: (1) un atlante vascolare ad alta risoluzione con `$32$` suddivisioni (inclusi i territori dell'arteria cerebrale media), (2) l'atlante funzionale corticale di Yeo a `$7$` e `$17$` network, e (3) l'atlante strutturale della sostanza bianca di Figley con `$13$` sistemi di connessione.
+- **Modellistica Predittiva**: È stata applicata una regressione Lasso con cross-validazione _leave-one-out_ (LOO) per prevedere il punteggio mRS a `$3$` mesi, calcolando la percentuale di sovrapposizione lesione-atlante ed escludendo le regioni con overlap inferiore al `$5\%$`. Le performance dei modelli sono state valutate tramite il coefficiente di determinazione (`$R^2$`).
+- **Analisi Voxel-wise e Disconnessioni**: Sono state stimate le mappe probabilistiche di disconnessione strutturale (SDC) e funzionale (FDC) indiretta tramite il _BCB Toolkit_. Le associazioni voxel-wise con l'mRS a `$3$` mesi sono state calcolate tramite permutazioni (`$n = 1000$`) corrette per errore family-wise (FWE) con soglia `$P < 0.01$`.
+
+---
+
+### ## Risultati
+
+- **Superiorità predittiva dei network**: La predizione dell'mRS a `$3$` mesi è risultata decisamente più robusta utilizzando l'atlante funzionale di Yeo a `$7$` network (`$R^2 = 0.382$`), seguito dall'atlante strutturale di Figley (`$R^2 = 0.338$`). L'atlante vascolare ha mostrato le performance peggiori (`$R^2 = 0.146$`). I risultati per l'atlante funzionale sono stati confermati anche con la parcellizzazione a `$17$` network (`$R^2 = 0.363$`).
+- **Il fallimento dell'ASPECTS**: In linea con le scarse performance dell'atlante vascolare, il punteggio ASPECTS misurato all'ammissione ha mostrato una correlazione quasi nulla con l'mRS a `$3$` mesi (`$r = 0.130$`), spiegando una quota di varianza del tutto trascurabile (`$R^2 = 0.017$`).
+- **Confronto e integrazione con il modello di benchmark**: Il modello clinico di riferimento (età, sesso, NIHSS all'ammissione) ha spiegato da solo il `$48.4\%$` della varianza (`$R^2 = 0.484$`). L'aggiunta dei dati di network (ad esempio Yeo a `$7$` network) a questo modello clinico di base ha fornito un incremento significativo dell'accuratezza predittiva, portando il modello combinato a spiegare circa il `$60\%$` della varianza (`$R^2 \approx 0.6$`).
+- **I correlati della disfunzione funzionale e strutturale**:
+    - A livello voxel-wise, il danno lesionale diretto associato a peggiori esiti clinici si localizza bilateralmente nella corona radiata e nel fascio corticospinale sinistro.
+    - La disconnessione funzionale (FDC) si associa significativamente a disabilità nei network visivo (VIS, `$R^2 = 0.379, P < 0.05$`), somatomotorio (SMN, `$R^2 = 0.340, P < 0.05$`) e attentivo dorsale (DAN, `$R^2 = 0.318, P < 0.05$`).
+    - La disconnessione strutturale (SDC) mostra associazioni critiche con la compromissione delle fibre callosali anteriori, delle radiazioni talamiche, del fascicolo uncinato, del forceps major e dei fascicoli longitudinali superiori e inferiori bilateralmente.
+
+---
+
+### ## Breve Discussione
+- **Oltre i territori vascolari**: Lo studio dimostra che la prognosi e il recupero a lungo termine del paziente dopo trombectomia non dipendono strettamente dal danno strutturato secondo i classici confini vascolari (come l'ASPECTS), ma sono governati dall'integrità dei grandi network funzionali e strutturali che tali vasi irrorano.
+- **La "riserva strutturale" come motore di plasticità**: I risultati supportano l'importanza clinica della riserva strutturale e funzionale del connettoma cerebrale: preservare i canali strategici di comunicazione sani (nonostante la lesione vascolare primaria) fornisce al cervello il substrato neurofisiologico necessario per riorganizzarsi e compensare i deficit.
+- **Implicazioni cliniche per la riabilitazione**: Spostare l'attenzione dalla mera volumetria o topografia lesionale in fase acuta verso l'analisi dei network risparmiati ("capacità residua") apre la strada ad approcci terapeutici personalizzati, come la stimolazione cerebrale non invasiva guidata matematicamente su regioni funzionalmente rilevanti ma strutturalmente intatte.
+
+---
 
 # Volpi et al. (2024)
 _The brain’s “dark energy” puzzle: How strongly is glucose metabolism linked to resting-state brain activity?_
@@ -145,7 +237,41 @@ _The brain’s “dark energy” puzzle: How strongly is glucose metabolism link
 - **Modellistica statistica e Selezione**: Selezione delle caratteristiche eseguita sul Dataset 1 mediante algoritmi robusti (NNLS, Elastic Net, GETS) per minimizzare la multicollinearità e la sovra-parametrizzazione.
 - **Multilevel Modeling (MEM)**: Implementazione di modelli lineari a effetti misti (MEM) per catturare simultaneamente gli effetti a livello di popolazione (effetti fissi) e la variabilità tra i singoli soggetti (effetti random).
 
-## 
+## Extracted rs-fMRI features
+Nei lavori di Volpi et al. (2024, 2025), l'attività cerebrale spontanea a riposo viene sviscerata in modo estremamente approfondito estraendo **\(50\) metriche funzionali diverse** a livello di singola regione d'interesse (ROI). L'obiettivo di questo "arsenale" di misure è superare la classica e parziale visione della connettività media per catturare ogni possibile sfaccettatura fisica, dinamica e temporale del segnale rs-fMRI BOLD.
+
+Queste \(50\) caratteristiche vengono classificate a priori in **quattro categorie o "pool" funzionali**, ciascuna dotata di un preciso significato di teoria dei segnali o di teoria dei grafi:
+
+### 1. Signal Pool (Proprietà Locali e Temporali del Segnale)
+Questo gruppo misura le caratteristiche statistiche di base, la complessità temporale e la sincronizzazione spaziale a cortissimo raggio del segnale BOLD di ogni singola area:
+
+- **Statistiche di base:** `med-BOLD` (mediana della serie temporale BOLD), `MAD-BOLD` (deviazione assoluta mediana, indicatore di variabilità/fluttuazione locale) e `skew-BOLD` (asimmetria della distribuzione del segnale).
+- **ALFF (_Amplitude of Low-Frequency Fluctuations_):** Calcola la magnitudo delle fluttuazioni spontanee a bassa frequenza (tipicamente nell'intervallo \(0.01 - 0.1 \text{ Hz}\)), riflettendo l'intensità energetica dell'oscillazione locale.
+- **ReHo (_Regional Homogeneity_):** Utilizzando il coefficiente di concordanza di Kendall, misura il grado di sincronizzazione temporale locale tra i segnali BOLD di una serie di voxel adiacenti all'interno della stessa ROI.
+- **Variabilità della ReHo nel tempo:** `MAD-ReHo` e `CV-ReHo` (coefficiente di variazione percentuale della ReHo calcolata a finestre scorrevoli o _sliding windows_) descrivono quanto la sincronia locale sia flessibile e fluttui nel tempo.
+- **peaks-BOLD:** Conta il numero di "pseudo-eventi" (picchi di grandissima ampiezza nel segnale BOLD), catturando dinamiche non-lineari ed eventi estremi di attivazione locale.
+- **Entropia e Complessità:** `ApEn-BOLD` (_Approximate Entropy_) e `rApEn-BOLD` (_Range Approximate Entropy_) quantificano la regolarità e la imprevedibilità temporale del segnale: valori più alti indicano segnali più complessi, caotici e ricchi di informazione.
+- **AR-BOLD:** Il coefficiente di riflessione di un modello autoregressivo di primo ordine \(\text{AR}(1)\) applicato alla serie BOLD, che riassume la memoria a breve termine o autocorrelazione del segnale.
+
+### 2. HRF Pool (Funzione di Risposta Emodinamica)
+Questo pool estrae ed esamina la **risposta emodinamica (HRF)** regionale, che funge da interfaccia tra l'attività neuronale e il segnale fMRI BOLD:
+
+- **peak-HRF:** L'altezza massima del picco dell'HRF (stimato tramite deconvolution cieca del segnale BOLD), considerata un potenziale proxy del flusso ematico locale (\(\text{CBF}\)).
+- **Reti Emodinamiche (`hrf-DEG`, `hrf-STR`, `hrf-CC`, `hrf-BC`, `hrf-EC`, `hrf-LE`, `hrf-GE`):** Invece di mappare la connettività classica tra i segnali fMRI, gli autori calcolano la correlazione spaziale tra le **forme d'onda delle HRF** deconvolute delle diverse aree, descrivendo per la prima volta delle reti "puramente vascolari". Su queste reti vengono applicate metriche di teoria dei grafi per estrarre la centralità dei nodi (Degree, Strength, Betweenness, Eigenvector) e l'efficienza della topografia vascolare (Clustering Coefficient, Local e Global Efficiency).
+
+### 3. sFC Pool (Connettività Funzionale Statica)
+Rappresenta l'approccio di rete classico, calcolato come la correlazione di Pearson tra i segnali BOLD di coppie di regioni sull'intera durata della scansione:
+
+- **Proprietà di rete (`s-DEG`, `s-STR`, `s-CC`, `s-BC`, `s-EC`, `s-LE`, `s-GE`):** Misure di teoria dei grafi applicate alla matrice statica di connettività funzionale per valutare il ruolo di ciascun nodo nell'integrazione e segregazione cerebrale globale.
+- **med-LEig (_Leading Eigenvector_):** La mediana temporale del primo autovettore (Leading Eigenvector) estratto dalla coerenza di fase istantanea del segnale BOLD. Rappresenta la configurazione di sincronizzazione di fase dominante e stabile durante la scansione.
+
+### 4. tvFC Pool (Connettività Funzionale Variabile nel Tempo)
+Questo pool descrive come la connettività di rete si riorganizzi e fluttui secondo dopo secondo (chronnectome) applicando un approccio a finestre scorrevoli (_sliding windows_):
+
+- **Variabilità temporale delle metriche di rete:** `mdiff-DEG/STR/...` (mediana temporale dei differenziali delle metriche dei grafi) e `CV-DEG/STR/...` (coefficiente di variazione temporale), che quantificano la tendenza di una regione a cambiare la propria centralità nel corso del tempo.
+- **SampEn (_Sample Entropy_) delle metriche di rete:** `SampEn-DEG/STR/...` quantifica la complessità temporale e la regolarità delle riconfigurazioni delle metriche dei grafi istante per istante.
+- **Variabilità di fase (`MAD-LEig`, `CV-LEig`, `mdiff-LEig`):** Deviazione assoluta mediana, coefficiente di variazione e differenziale temporale del Leading Eigenvector, usati per mappare l'instabilità temporale degli stati di sincronizzazione di fase istantanei.
+
 ## Risultati
 - **Il ruolo dominante di ReHo**: La sincronizzazione locale misurata con ReHo (Regional Homogeneity) emerge come il predittore più forte e stabile. Da sola spiega il 32% (Dataset 1) e il 53% (Dataset 2) della varianza spaziale dell'uptake del glucosio a livello di gruppo.
 - **Modelli multivariati (9p e 3p)**:
@@ -191,6 +317,100 @@ Prevedere l'evoluzione cognitiva a lungo termine dopo un ictus è estremamente c
 - Questo strumento permette di estrarre un profilo neuropsicologico altamente personalizzato per il singolo paziente, fondamentale per pianificare strategie riabilitative e terapeutiche su misura.
 - Il rilascio del modello sotto forma di applicazione web gratuita (_Disconnectome Studio_) fornisce una risorsa immediata per l'uso clinico e accademico, con un database che potrà essere costantemente aggiornato in futuro grazie al crowdsourcing globale.
 
+---
+# Idesis et al. (2023)
+_A low dimensional embedding of brain dynamics enhances diagnostic accuracy and behavioral prediction in stroke_
+## Riassunto brevissimo
+- **Comprimere la complessità del cervello:** Per superare l'elevata dimensionalità e la ridondanza dei segnali di risonanza magnetica funzionale a riposo (rs-fMRI) post-ictus, gli autori propongono un metodo di riduzione non lineare basato su autoencoder (AE) per mappare la dinamica cerebrale in uno spazio latente a sole 6 dimensioni.
+- **La freccia del tempo nel cervello:** Sfruttando il framework Temporal Evolution NETwork (TENET), lo studio misura la non-reversibilità temporale del segnale BOLD (ovvero l'asimmetria del segnale nel tempo, considerata un indice della distanza del sistema dall'equilibrio termodinamico).
+- **Prognosi e diagnosi potenziate:** La reversibilità calcolata nello spazio latente dell'autoencoder dimostra una netta superiorità rispetto ai metodi lineari come la PCA e alle classiche misure di connettività funzionale (FC) nello spazio di origine (source space), raggiungendo un'accuratezza del 73% nella classificazione della severità della lesione e fino al 76-79% nella previsione del recupero clinico a un anno.
+    
+
+## Domande scientifiche e Obiettivi
+- È possibile mappare l'attività neuronale ad alta dimensionalità post-ictus in uno spazio latente a bassa dimensionalità senza perdere informazioni fisiologiche e cliniche fondamentali?
+- I modelli di deep learning non lineari (come gli autoencoder) sono più efficienti dei metodi lineari tradizionali (come l'Analisi delle Componenti Principali, PCA) nel catturare e preservare la complessa geometria (manifold curvo) delle fluttuazioni BOLD?
+- L'integrazione di metriche di complessità temporale, in particolare la non-reversibilità temporale del segnale (freccia del tempo), all'interno dello spazio latente può migliorare l'identificazione precoce dei deficit e la prognosi del recupero comportamentale a lungo termine rispetto ai classici modelli statici di FC?
+
+## Metodologie
+- **Campione e Dati:** Utilizzo del database della coorte di pazienti post-ictus della Washington University (WU Stroke Cohort). Sono state analizzate le scansioni fMRI resting-state (rs-fMRI) di pazienti in fase acuta (2 settimane dall'evento) e controlli sani, con 896 punti temporali totali estratti per soggetto.
+- **Parcellazione:** Le serie temporali BOLD sono state proiettate su una parcellazione comprendente 235 regioni di interesse (ROI, composte da 200 aree corticali e 35 strutture sottocorticali).
+- **Autoencoder (AE):** Addestramento di una rete neurale profonda con strati densi e funzioni di attivazione lineari rettificate (ReLU) per comprimere la matrice dei dati rs-fMRI (235 × 896). La selezione della dimensionalità ottimale ha identificato lo spazio latente a 6 dimensioni, punto in cui l'errore di ricostruzione si stabilizza e la correlazione tra spazio di origine e spazio latente supera 0.9. L'addestramento ha previsto una suddivisione 80/20% per training e test e tecniche di arresto precoce (early stopping) per prevenire l'overfitting.
+- **TENET (Temporal Evolution NETwork):** Calcolo della reversibilità del segnale analizzando l'asimmetria temporale tra le matrici di cross-correlazione "forward" (in avanti) e "reversed" (all'indietro) delle serie storiche BOLD. Questa metrica funge da proxy dello stato di non-equilibrio termodinamico del sistema cerebrale.
+- **Classificazione e Predizione:** Applicazione di classificatori Random Forest sia nello spazio di origine (source space) sia nello spazio latente (AE a 6 dimensioni) per:
+    1. Classificare i soggetti in controlli sani o pazienti in fase acuta.
+    2. Classificare i pazienti in base alla gravità del volume della lesione (alto vs. basso volume).
+    3. Prevedere l'andamento del recupero a un anno (alto vs. basso recupero) definito tramite tre criteri: miglioramento dei punteggi comportamentali in 9 domini, riduzione della distanza funzionale rispetto ai sani (distanza di Frobenius, FC distance) o recupero dell'accoppiamento struttura-funzione (correlazione SC/FC).
+        
+
+## Risultati
+
+- **Conservazione e potenziamento dei biomarcatori:** Lo spazio latente a 6 dimensioni non solo conserva i pattern dinamici essenziali del segnale (metastabilità, co-fluttuazioni di picco, modularità, complessità funzionale e dinamica di connettività, FCD), ma mostra performance superiori rispetto alla PCA. Quest'ultima, a parità di dimensioni (6 componenti principali), spiega solo l'85% della varianza complessiva, confermando l'efficacia della compressione non lineare eseguita dall'autoencoder.
+- **Classificazione acuta ed effetto lesione:** Nel discriminare i pazienti dai controlli a due settimane dall'evento, la reversibilità nel source space ha raggiunto un'accuratezza del 79%. Nel distinguere i pazienti con alto o basso volume di lesione acuta, la reversibilità nello spazio latente a 6 dimensioni ha mostrato l'accuratezza più elevata, pari al 73% (SD = 9%), superando la FC media dello spazio latente (72%), la reversibilità nel source space (65%) e la FC media nel source space (59%).
+    
+- **Miglioramento radicale della prognosi a un anno:** Nella predizione del recupero clinico a lungo termine (1 anno), l'integrazione di spazio latente e reversibilità temporale ha demolito le performance delle metriche convenzionali:
+    - _Miglioramento comportamentale:_ La reversibilità latente ha predetto il recupero con un'accuratezza del 76% (SD = 9%) (che sale al 79% utilizzando la prima componente principale dei punteggi comportamentali). Al contrario, la connettività funzionale media nel source space si è attestata a livelli di pura casualità (52%).
+    - _Distanza funzionale (FC distance):_ La reversibilità latente ha predetto la riduzione della distanza dal profilo sano con un'accuratezza del 71% (SD = 11%), contro il 55% della FC media nel source space.
+    - _Accoppiamento (SC/FC):_ La reversibilità latente ha predetto il ripristino dell'accoppiamento struttura-funzione con un'accuratezza del 70% (SD = 12%), contro il 55% della FC del source space.
+        
+- **Associazioni cervello-comportamento specifiche:** Mentre la FC e la reversibilità nello spazio originale mostrano deboli associazioni limitate a pochissimi domini comportamentali (come la motricità sinistra e l'attenzione visiva), la reversibilità nello spazio latente correla in modo robusto e diffuso con il recupero a lungo termine in molteplici domini complessi: motricità sinistra (r = 0.48), orientamento attentivo e disimpegno (r = 0.40), memoria spaziale (r = 0.34) e controllo motorio (r = 0.36).
+    
+
+## Breve Discussione
+- **La natura non lineare della dinamica cerebrale:** Il lavoro dimostra che il funzionamento del cervello a riposo poggia su un manifold dinamico non lineare e a bassa dimensionalità. L'applicazione di reti neurali non lineari (autoencoder) consente di rimuovere il rumore di fondo e la ridondanza spaziale tipica dei dati fMRI, isolando le coordinate "essenziali" della patologia.
+- **Il significato termodinamico della reversibilità:** Un cervello sano elabora le informazioni rimanendo lontano dall'equilibrio termodinamico, uno stato caratterizzato da una marcata asimmetria temporale (elevata non-reversibilità). Il danno da ictus altera la reversibilità del segnale, avvicinando patologicamente il sistema verso l'equilibrio termodinamico e riducendo l'entropia. Questo crollo dell'equilibrio dinamico si traduce, sul piano clinico, nel ridotto repertorio di stati dinamici e comportamentali tipici del deficit neurologico.
+- **Traduzione per la medicina di precisione:** L'abbattimento della complessità spaziale della rs-fMRI a sole 6 coordinate latenti e interpretabili apre prospettive cliniche rivoluzionarie. Ridurre un connettoma ad altissima dimensionalità in una mappa latente stabile semplifica enormemente l'identificazione di biomarcatori prognostici affidabili anche a livello di singolo paziente, fornendo una bussola matematica per individuare in modo personalizzato i target della stimolazione cerebrale non invasiva (TMS o tDCS).
+
+---
+
+# Facchini et al. (2023)
+_A common low dimensional structure of cognitive impairment in stroke and brain tumors_
+
+### ## Riassunto brevissimo
+- **Struttura cognitiva a bassa dimensionalità comune**: Lo studio dimostra che i deficit cognitivi post-lesionali si raggruppano in un set di sintomi a bassa dimensionalità altamente sovrapponibile tra ictus e tumori cerebrali, con tre componenti principali (PC) che spiegano circa il `$41.5\%$` della varianza totale della popolazione.
+- **Profili clinici parzialmente divergenti**: Nonostante la struttura latente comune, l'ictus ischemico o emorragico colpisce maggiormente funzioni che richiedono un'elaborazione più localizzata come la denominazione e il calcolo, mentre i tumori compromettono più severamente la memoria episodica, il recupero verbale e la fluenza fonemica.
+- **Disaccoppiamento lesione-comportamento nei tumori**: La sola localizzazione del danno predice in modo significativo i deficit cognitivi individuali nell'ictus (fino al `$30\%$` per la PC2), ma fallisce quasi completamente nel nucleo dei tumori a causa dei lenti meccanismi di riorganizzazione funzionale e plasticità di rete.
+
+---
+
+### ## Domande scientifiche e Obiettivi
+- I pazienti affetti da tumori cerebrali primitivi e quelli colpiti da ictus mostrano profili di compromissione cognitiva sovrapponibili quando valutati con la medesima batteria neuropsicologica multivariata?
+- In che misura la localizzazione anatomica e il volume del danno strutturale predicono le prestazioni cognitive individuali nelle due diverse patologie?
+- **Obiettivo principale**: Confrontare in modo sistematico la struttura latente dei deficit cognitivi e l'associazione lesione-comportamento tra una coorte prospettica di pazienti con ictus e una con tumori cerebrali, testando se la bassa dimensionalità si generalizzi oltre la patologia vascolare.
+
+---
+
+### ## Metodologie
+- **Campione**: Sono stati inclusi `$77$` pazienti con primo ictus ischemico o emorragico (valutati entro due settimane dall'evento) e `$76$` pazienti con tumore cerebrale primitivo (gliomi e meningiomi) di nuova diagnosi (valutati prima della chirurgia), selezionando solo coloro in grado di completare l'intera batteria di test.
+- **Valutazione Comportamentale**: Somministrazione di un set multivariato di test per esplorare molteplici domini cognitivi, tra cui l'Oxford Cognitive Screen (OCS), l'Esame Neuropsicologico Breve 2 (TMT A e B, fluenza fonemica, memoria di prosa, test di interferenza), il Boston Naming Test (BNT) e i test di digit span e Corsi block-tapping.
+- **Segmentazione e Normalizzazione**: Le lesioni sono state tracciate manualmente su scansioni MRI o TC e normalizzate nello spazio standard MNI152. Per i tumori, sono state segmentate separatamente la regione del nucleo tumorale (_core_) e la circostante area di edema perilesionale.
+- **Analisi Statistiche**:
+    1. È stata applicata l'Analisi delle Componenti Principali (PCA) con rotazione obliqua per estrarre i fattori comportamentali latenti.
+    2. Una regressione logistica è stata implementata per verificare la discriminabilità neuropsicologica delle due eziologie, controllando per età, istruzione, sesso e lato della lesione.
+    3. Modelli di regressione ridge (RR) sono stati addestrati per prevedere i punteggi comportamentali individuali (le PC) partendo unicamente dai voxel cerebrali danneggiati.
+
+---
+
+### ## Risultati
+- **Le tre componenti cognitive latenti**: La PCA sull'intero campione (`$n = 153$`) ha estratto tre fattori che spiegano il `$41.5\%$` della varianza totale:
+    - **PC1 (`$25\%$` di varianza)**: carica principalmente compiti di linguaggio (denominazione, lettura), memoria verbale, memoria episodica e memoria di lavoro.
+    - **PC2 (`$9\%$` di varianza)**: mappa l'attenzione visuo-spaziale, il neglect allocentrico ed egocentrico, e le funzioni esecutive (TMT A e B).
+    - **PC3 (`$7.5\%$` di varianza)**: carica prevalentemente prove di calcolo, scrittura di numeri e orientamento temporale.
+- **Consistenza e sovrapponibilità delle PC**: Le PCA condotte separatamente hanno mostrato un'architettura e varianza spiegata simili (ictus: `$44.6\%$`; tumori: `$48\%$`). Proiettando i dati dei pazienti oncologici nello spazio delle PC dell'ictus, i due gruppi sono risultati indistinguibili in uno spazio tridimensionale, con le PC dell'ictus capaci di spiegare ben il `$30.3\%$` della varianza dei punteggi dei tumori. Un'ANOVA a misure miste ha confermato che i pesi dei test sulle PC non differiscono significativamente tra le due patologie (`$F(2, 296) = 1.47; p = 0.23$`).
+- **Profilo di differenziazione clinica**: La regressione logistica (AUC = `$0.889$`) ha identificato cinque test capaci di discriminare significativamente le due eziologie:
+    - L'**ictus** si associa a una maggiore compromissione nella denominazione OCS-denomination (`$z = -2.79; p = 0.005$`) e nel calcolo OCS-calculation (`$z = -3.17; p = 0.001$`).
+    - I **tumori** mostrano deficit peggiori nella memoria episodica OCS-episodic memory (`$z = 2.75; p = 0.005$`), nei test di interferenza di memoria a `$10\text{ s}$` (`$z = 2.28; p = 0.022$`) e nella fluenza fonemica (`$z = 2.21; p = 0.027$`).
+- **Mappatura Lesione-Comportamento (Ridge Regression)**:
+    - Nell'**ictus**, la sola mappa lesionale predice in modo significativo la PC1 (`$R^2 = 0.13, p = 0.04$`, localizzata nell'area perisilviana sinistra) e la PC2 (`$R^2 = 0.30, p < 0.001$`, localizzata nella regione parieto-occipitale destra).
+    - Nei **tumori**, l'anatomia del solo nucleo tumorale (_core_) non mostra alcuna capacità predittiva dei sintomi (`$R^2 < 10\%$`). Una relazione significativa per la PC1 emerge unicamente quando viene aggiunta all'analisi la regione del cono edematoso perilesionale (`$R^2 = 0.16, p = 0.01$`), localizzandosi nell'area perisilviana sinistra.
+
+---
+
+### ## Breve Discussione
+- **Confutazione del bias anatomico**: Alcuni ricercatori hanno ipotizzato che la bassa dimensionalità dei sintomi post-ictus sia un artefatto dovuto alla natura vascolare delle lesioni. Questo studio smentisce tale critica dimostrando che la stessa identica struttura latente a tre fattori emerge nei tumori cerebrali, sebbene questi presentino una topografia lesionale completamente differente (giunzione grigio-bianca fronto-temporale vs. gangli della base e materia bianca profonda dell'ictus) e un basso overlap lesionale globale.
+- **Lentezza di crescita e riorganizzazione funzionale**: Nei tumori, la mancanza di predittività del solo _core_ lesionale è giustificata dalla loro crescita lenta (settimane/mesi), che consente dinamiche di plasticità e rimodellamento funzionale su larga scala in aree sane remote. Al contrario, l'insorgenza acuta dell'ictus (minuti/ore) interrompe improvvisamente i flussi di informazione impedendo un compenso immediato.
+- **L'impatto clinico dell'edema e delle disconnessioni**: La predittività della PC1 nei tumori, che emerge solo includendo l'edema perilesionale, suggerisce che i sintomi cognitivi dipendono in massima parte dalla disconnessione causata dalla pressione edematosa sulle grandi vie associative profonde che transitano sotto la corteccia. Entrambe le patologie, dunque, supportano un approccio clinico e riabilitativo che superi il localizzazionismo classico a favore di una moderna neuropsicologia basata sul connettoma e sulle interazioni di rete su larga scala.
+
+---
 
 # Bisogno et al. (2021)
 _A low-dimensional structure of neurological impairment in stroke_
