@@ -261,13 +261,11 @@ Questo pool estrae ed esamina la **risposta emodinamica (HRF)** regionale, che f
 
 ### 3. sFC Pool (Connettività Funzionale Statica)
 Rappresenta l'approccio di rete classico, calcolato come la correlazione di Pearson tra i segnali BOLD di coppie di regioni sull'intera durata della scansione:
-
 - **Proprietà di rete (`s-DEG`, `s-STR`, `s-CC`, `s-BC`, `s-EC`, `s-LE`, `s-GE`):** Misure di teoria dei grafi applicate alla matrice statica di connettività funzionale per valutare il ruolo di ciascun nodo nell'integrazione e segregazione cerebrale globale.
 - **med-LEig (_Leading Eigenvector_):** La mediana temporale del primo autovettore (Leading Eigenvector) estratto dalla coerenza di fase istantanea del segnale BOLD. Rappresenta la configurazione di sincronizzazione di fase dominante e stabile durante la scansione.
 
-### 4. tvFC Pool (Connettività Funzionale Variabile nel Tempo)
+### 4. tvFC Pool (Connet.ltività Funzionale Variabile nel Tempo)
 Questo pool descrive come la connettività di rete si riorganizzi e fluttui secondo dopo secondo (chronnectome) applicando un approccio a finestre scorrevoli (_sliding windows_):
-
 - **Variabilità temporale delle metriche di rete:** `mdiff-DEG/STR/...` (mediana temporale dei differenziali delle metriche dei grafi) e `CV-DEG/STR/...` (coefficiente di variazione temporale), che quantificano la tendenza di una regione a cambiare la propria centralità nel corso del tempo.
 - **SampEn (_Sample Entropy_) delle metriche di rete:** `SampEn-DEG/STR/...` quantifica la complessità temporale e la regolarità delle riconfigurazioni delle metriche dei grafi istante per istante.
 - **Variabilità di fase (`MAD-LEig`, `CV-LEig`, `mdiff-LEig`):** Deviazione assoluta mediana, coefficiente di variazione e differenziale temporale del Leading Eigenvector, usati per mappare l'instabilità temporale degli stati di sincronizzazione di fase istantanei.
@@ -291,7 +289,9 @@ Questo pool descrive come la connettività di rete si riorganizzi e fluttui seco
 _Latent disconnectome prediction of long-term cognitive-behavioural symptoms in stroke_
 
 ## Riassunto brevissimo
-Prevedere l'evoluzione cognitiva a lungo termine dopo un ictus è estremamente complesso a livello individuale. Questo studio introduce un nuovo approccio basato sul "disconnettoma" (la mappa delle disconnessioni della materia bianca) per prevedere i sintomi a un anno di distanza. Comprimendo i dati di migliaia di lesioni in uno spazio bidimensionale (morfospazio), gli autori hanno sviluppato il _Disconnectome Symptoms Discoverer_ (DSD), un modello che supera le tradizionali metriche predittive. Il lavoro ha prodotto il primo Atlante Neuropsicologico della Materia Bianca (NWMA) e un'app web interattiva per la pratica clinica.
+Prevedere l'evoluzione cognitiva a lungo termine dopo un ictus è estremamente complesso a livello individuale. 
+Questo studio introduce un nuovo approccio basato sul "**disconnettoma**" (la mappa delle disconnessioni della materia bianca) per **prevedere i sintomi** a un anno di distanza. Comprimendo i dati di migliaia di lesioni in uno spazio bidimensionale (morfospazio), gli autori hanno sviluppato il _Disconnectome Symptoms Discoverer_ (**DSD**), un modello che supera le tradizionali metriche predittive.
+Il lavoro ha prodotto il primo Atlante Neuropsicologico della Materia Bianca (**NWMA**) e un'app web interattiva per la pratica clinica.
 
 ---
 
@@ -479,8 +479,13 @@ Mappando 1333 lesioni con reti fMRI, gli autori hanno quindi creato il primo "At
 _Post-stroke deficit prediction from lesion and indirect structural and functional disconnection_
 
 ## Riassunto brevissimo
-Questo studio valuta l'accuratezza di diversi approcci di neuroimaging per prevedere i deficit comportamentali post-ictus nella fase subacuta. Analizzando 132 pazienti, gli autori confrontano i modelli predittivi basati sulla lesione focale, sulle stime indirette della disconnessione strutturale (SDC) e funzionale (FDC) – ottenute proiettando la lesione su atlanti sani – e sulla connettività funzionale misurata direttamente con fMRI. 
-I risultati dimostrano che la stima della disconnessione strutturale indiretta (SDC) ha un potere predittivo paragonabile alla lesione stessa, mentre la disconnessione funzionale indiretta (FDC) fallisce nel prevedere i deficit, indicando che non può sostituire le vere acquisizioni fMRI.
+Questo studio valuta l'accuratezza di diversi approcci di neuroimaging per **prevedere i deficit** **comportamentali** post-ictus nella fase subacuta. 
+Analizzando 132 pazienti, gli autori confrontano i modelli predittivi basati sulla 
+- lesione focale, 
+- sulle stime indirette della disconnessione strutturale (SDC) 
+- e funzionale (FDC) – ottenute proiettando la lesione su atlanti sani – 
+- e sulla connettività funzionale misurata direttamente con fMRI. 
+--> I risultati dimostrano che la stima della disconnessione strutturale indiretta (SDC) ha un potere predittivo paragonabile alla lesione stessa, mentre la disconnessione funzionale indiretta (FDC) fallisce nel prevedere i deficit, indicando che non può sostituire le vere acquisizioni fMRI.
 
 ---
 
@@ -511,7 +516,8 @@ _Damage to the shortest structural paths between brain regions is associated wit
 ## Riassunto brevissimo
 Questo studio esamina come le lesioni cerebrali focali alterino la connettività funzionale a riposo (FC) attraverso disconnessioni strutturali sia dirette che indirette. 
 Analizzando 114 pazienti con ictus in fase subacuta, gli autori stimano l'impatto del danno proiettando le lesioni su un atlante trattografico derivato da individui sani.
-I risultati dimostrano che la FC subisce gravi alterazioni non solo quando le connessioni strutturali dirette vengono distrutte, ma anche quando la lesione va ad allungare i "percorsi strutturali più brevi" (Shortest Structural Path Length, SSPL) tra due regioni, creando una disconnessione indiretta. Entrambe le disconnessioni compromettono significativamente l'attività e la sincronizzazione delle reti cerebrali.
+I risultati dimostrano che la **FC** subisce gravi **alterazioni** non solo quando le connessioni strutturali dirette vengono distrutte, ma anche quando la lesione va ad allungare i "percorsi strutturali più brevi" (Shortest Structural Path Length, SSPL) tra due regioni, creando una **disconnessione indiretta**. 
+--> Entrambe le disconnessioni compromettono significativamente l'attività e la sincronizzazione delle reti cerebrali.
 
 ---
 
@@ -540,8 +546,8 @@ I risultati dimostrano che la FC subisce gravi alterazioni non solo quando le co
 _Acute ischaemic stroke alters the brain's preference for distinct dynamic connectivity states_
 
 ## Riassunto brevissimo
-Questo studio utilizza la risonanza magnetica funzionale (fMRI) a riposo con un approccio _dinamico_ (ad alta risoluzione temporale) per esplorare come l'ictus ischemico acuto alteri le reti del sistema motorio. 
-Analizzando 31 pazienti e 17 controlli sani, gli autori scoprono tre "stati di connettività" transitori. 
+Questo studio utilizza la risonanza magnetica funzionale (**fMRI**) a riposo con un approccio **_dinamico_** (ad alta risoluzione temporale) per esplorare come l'ictus ischemico acuto alteri le reti del sistema motorio. 
+Analizzando 31 pazienti e 17 controlli sani, gli autori scoprono tre "**stati di connettività**" **transitori**. 
 I risultati dimostrano che l'ictus non altera solo la connettività globale in modo statico, ma modifica le preferenze temporali del cervello per specifici stati di attivazione, rivelando pattern nettamente diversi basati sulla gravità del deficit motorio iniziale (moderato vs grave) che i metodi classici non riuscivano a cogliere.
 
 ---
@@ -574,8 +580,8 @@ _Structural Disconnections Explain Brain Network Dysfunction after Stroke_
 
 ## Riassunto brevissimo
 Questo studio sfida l'assunto tradizionale secondo cui le disfunzioni delle reti cerebrali post-ictus (misurate tramite fMRI) derivino principalmente dal danno locale a specifiche regioni critiche di materia grigia. 
-Analizzando 114 pazienti, gli autori dimostrano invece che le alterazioni della connettività funzionale dipendono in modo preponderante dalla disconnessione strutturale (SDC) dei fasci di materia bianca. 
-I risultati evidenziano che le disconnessioni fisiche dei tratti, in particolare quelli interemisferici, causano diffuse interruzioni funzionali a cascata, spiegando il crollo della modularità e dell'integrazione delle reti molto meglio di quanto non faccia il danno locale alla corteccia.
+Analizzando 114 pazienti, gli autori dimostrano invece che le **alterazioni della connettività** **funzionale** dipendono in modo preponderante dalla disconnessione strutturale (**SDC**) dei fasci di **materia bianca**. 
+--> I risultati evidenziano che le disconnessioni fisiche dei tratti, in particolare quelli **interemisferici**, causano diffuse interruzioni funzionali a cascata, spiegando il crollo della modularità e dell'integrazione delle reti molto meglio di quanto non faccia il danno locale alla corteccia.
 
 ---
 
@@ -633,7 +639,9 @@ Questo articolo di rassegna (_review_) propone un modello concettuale a tre vie 
 - *Re-emergence of modular brain networks in stroke recovery*
 
 ## Riassunto brevissimo
-Questi due lavori complementari dimostrano che l'ictus non causa solo danni focali, ma altera profondamente l'organizzazione globale e dinamica dei network cerebrali. Nel 2016, gli autori scoprono che la disfunzione dei network (misurata con fMRI) predice i deficit cognitivi complessi (come la memoria) molto meglio della sola mappa strutturale della lesione, che è invece più accurata per i deficit sensomotori. Nel 2018, lo studio longitudinale rivela che l'architettura dei network, in particolare la loro "modularità", crolla nella fase acuta ma riemerge progressivamente nel tempo. Fondamentalmente, il ripristino di questa modularità va di pari passo con il recupero clinico delle funzioni cognitive superiori (linguaggio, memoria, attenzione), ma non di quelle motorie o visive.
+Questi due lavori complementari dimostrano che l'ictus non causa solo danni focali, ma altera profondamente l'**organizzazione globale e dinamica dei network** cerebrali. 
+Nel 2016, gli autori scoprono che la disfunzione dei network (misurata con fMRI) predice i deficit cognitivi complessi (come la memoria) molto meglio della sola mappa strutturale della lesione, che è invece più accurata per i deficit sensomotori. 
+Nel 2018, lo studio longitudinale rivela che l'architettura dei network, in particolare la loro "modularità", crolla nella fase acuta ma riemerge progressivamente nel tempo. Fondamentalmente, il ripristino di questa modularità va di pari passo con il recupero clinico delle funzioni cognitive superiori (linguaggio, memoria, attenzione), ma non di quelle motorie o visive.
 
 ---
 
@@ -650,14 +658,12 @@ Questi due lavori complementari dimostrano che l'ictus non causa solo danni foca
 - **Analisi Longitudinale dei Grafi (2018):** Utilizzando la teoria dei grafi, i ricercatori hanno calcolato la "modularità" dei network nel corso del tempo, ovvero la misura in cui i sistemi cerebrali mostrano un'alta integrazione (connessioni dense al proprio interno) e un'alta segregazione (poche connessioni verso altre reti).
 
 ## Risultati
-
 - **Doppia dissociazione predittiva (2016):** I deficit di memoria (visiva e verbale) sono previsti in modo decisamente migliore dalle alterazioni della connettività funzionale. Al contrario, i danni motori e visivi sono previsti meglio dalla topografia della lesione strutturale. L'attenzione e il linguaggio sono ben predetti da entrambi gli approcci.
 - **Alterazione globale dei network (2016 e 2018):** L'ictus causa un pattern generale di disfunzione di rete caratterizzato dalla diminuzione dell'integrazione interemisferica e dalla perdita di segregazione intraemisferica. Questa perdita di architettura modulare si presenta già in fase subacuta.
 - **Recupero della Modularità (2018):** Mentre le aree corticali mantengono i loro confini anatomici, la modularità dei sistemi cerebrali, gravemente compromessa a due settimane dall'evento, mostra un recupero significativo a 3 mesi e fino a 1 anno di distanza.
 - **Correlazione con la clinica (2018):** Il progressivo recupero della modularità correla fortemente con il recupero dei deficit di linguaggio, memoria spaziale e attenzione. Al contrario, non vi è associazione significativa tra il recupero della modularità globale e il recupero delle funzioni più basiche, come quelle motorie o visive.
 
 ## Breve Discussione
-
 - Questi studi stabiliscono un principio fondamentale nella neurobiologia dell'ictus: mentre le funzioni sensomotorie primarie dipendono in gran parte dall'integrità anatomica di aree e fasci specifici, le funzioni cognitive superiori (come la memoria, l'attenzione e il linguaggio) emergono dalla complessa e flessibile interazione di network distribuiti.
 - Il cervello sano si affida a un'architettura "modulare" ad alta efficienza; la distruzione e la successiva "riemersione" di questa modularità (ovvero la capacità delle reti di tornare a comunicare bene al proprio interno e a isolarsi correttamente dalle altre) rappresenta un potentissimo biomarcatore fisiologico per il recupero cognitivo.
 - A livello clinico e terapeutico, questi dati suggeriscono che le future strategie di riabilitazione orientate al recupero delle funzioni cognitive superiori non dovrebbero limitarsi a stimolare l'area perilesionale, ma dovrebbero mirare a normalizzare il flusso di informazioni e l'organizzazione dei sistemi cerebrali su larga scala.

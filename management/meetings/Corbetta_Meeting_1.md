@@ -3,42 +3,26 @@ People: Professor Corbetta
 
 ---
 
+## STATEMENTS
+- non è chiaro come le feature locali siano correlate con le frature globali
+    - alterazioni locali vs globali del segnale
+    - Volpi et. al
+    - MediaGFC
+    - VarianzaGFC
+- fino ad ora il comportamento è stato l'asse per la predizione delle lesioni
+- covarianza concetto centrale
+- Regional homogentic
 
-## 1. Estensione della letteratura — lavori da includere
+## TO DO
 
-- **Bonkhoff** → clustering (stati dinamici di connettività)
-- **Talozzi** → fase cronica
-- **Siegel 2016** → asse comportamentale per predire le lesioni (rilevante anche per "Michael"/lavoro correlato)
-- **Siegel 2018/2019** → deficit SDC vs deficit fMRI, e loro covarianza
-- **Volpi et al.** → relazione tra variabili BOLD globali e locali
-- **Sebastiano** (lavoro/collega, da specificare meglio)
-- **D'Amico** → approccio "fingerprint"
-- **Fallani** → clustering longitudinale
+- Estendere la letteratura a lavori attuali oltre ai paper che fanno parte della cerchia Nemesis
+- Vedere quali lavori fanno clustering
+    - tra quelli present, tipo Bonkhoff
+    - tra quelli da cercare
+    - Vedi Fallani con clustering longitudinale
 
-## 2. Domande
-
-1. **Non è chiaro come le feature locali si correlino con le alterazioni globali** → cioè, alterazioni locali del segnale come si legano a pattern di rete più ampi.
-
- 2. Trovare alterazioni *canoniche* di connettività funzionale.
-## 3. Segnale locale — quali feature considerare
-
-- Ampiezza
-- Covarianza
-- ALFF (Amplitude of Low-Frequency Fluctuation)
-- Regional homogeneity (quanto sono correlati i segnali tra voxel vicini)
-- Media GFC / Varianza GFC (Global Functional Connectivity)
-- Parametri locali in funzione della **distanza dalla lesione**
-
-*Domanda di sintesi: quale di queste feature spiega meglio il comportamento?*
-
-## 4. Pipeline FC (Connettività Funzionale) — proposta
-1. Mappe funzionali → lesione
-2. Identificazione di vari pattern di alterazione
-3. Embedding a bassa dimensionalità (low-dimensional embedding)
-
-
-
-## 5. Ipotesi guida
-
-- La struttura normale guida la FC → connettività normale solo lievemente alterata nel paziente
-- Approccio: calcolare la connettività del singolo paziente come **z-score rispetto al pattern normativo** (gruppo di controllo/normale)
+## GOALS
+- Trovare delle alterazioni canoniche di connettività funzionale
+- la struttura normale guida la fc: connettivtà normale lievemente alterate
+- Connettività singlo paziente zscore rispetto al normale
+    
