@@ -1,0 +1,161 @@
+{
+  "source_pdf": "/Users/emmatosato/Software/Zotero/storage/XBI3TLP3/Volpi et al. - 2024 - The brain\u2019s \u201cdark energy\u201d puzzle How strongly is glucose metabolism linked to resting-state brain a.pdf",
+  "extracted_at": "2026-08-05T11:01:56",
+  "pdf_metadata": {
+    "title": "untitled",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "producer": "Adobe LiveCycle PDF Generator",
+    "creator": "Arbortext Advanced Print Publisher 9.1.580/W Unicode",
+    "creation_date": "D:20240717123413+05'30'",
+    "mod_date": "D:20240717123415+05'30'"
+  },
+  "page_offset": 0,
+  "pages": 17,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 0,
+    "png": 0,
+    "embedded_images": 6,
+    "classifications": {
+      "TEXT": 11,
+      "BITMAP": 6
+    },
+    "figures_in_index": 8,
+    "tables_in_index": 1,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 13,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 4,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 5,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 5,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 5,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 5,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 11,
+      "doc_page": 11,
+      "drawings": 5,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 12,
+      "doc_page": 12,
+      "drawings": 5,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 13,
+      "doc_page": 13,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 14,
+      "doc_page": 14,
+      "drawings": 4,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 15,
+      "doc_page": 15,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 16,
+      "doc_page": 16,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 17,
+      "doc_page": 17,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    }
+  ]
+}

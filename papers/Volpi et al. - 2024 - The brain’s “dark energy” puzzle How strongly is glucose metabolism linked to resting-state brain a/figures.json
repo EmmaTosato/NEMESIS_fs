@@ -1,0 +1,50 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "3",
+    "caption": "Bivariate functional-metabolic associations are stronger across regions with low glucose metabolism. Pearson's correlations (p < 0.05, FDR-corrected, non-significant values in white) between SUVR and ",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "4",
+    "caption": "Multilevel modeling of glucose metabolism: fixed effects (9-parameter model). Estimate weights and standard errors (SEs) for the fixed effects h , which represent the parameters that best explain SUVR",
+    "pdf_page": 9,
+    "doc_page": 9
+  },
+  {
+    "id": "5",
+    "caption": "Multilevel modeling of glucose metabolism: explained regional variability (9-parameter model). Across-individual average of weighted residuals vi of the multilevel model (avg. wres), for Dataset 1 (a)",
+    "pdf_page": 11,
+    "doc_page": 11
+  },
+  {
+    "id": "6",
+    "caption": "Multilevel modeling of glucose metabolism: individual variability vs. covariates in Dataset 2 . Scatter plots of the significant correlations (p < 0.05, both uncorrected and FDR-corrected) between ind",
+    "pdf_page": 12,
+    "doc_page": 12
+  },
+  {
+    "id": "1_2",
+    "caption": "Flowchart of rs-fMRI ( left ) and [ 18 F]FDG PET ( right ) data processing, feature extraction and analysis, for both datasets ( Dataset 1 and 2 ). The parcel-wise rs-fMRI data were used to extract fi",
+    "pdf_page": 6,
+    "doc_page": 6
+  },
+  {
+    "id": "2_2",
+    "caption": "Bivariate correlations among rs-fMRI variables, and between rs-fMRI variables and SUVR , at group-average level. The pattern of Pearson's correlations (p < 0.05, FDR-corrected, non-significant values ",
+    "pdf_page": 7,
+    "doc_page": 7
+  }
+]

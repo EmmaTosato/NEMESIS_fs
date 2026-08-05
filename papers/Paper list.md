@@ -26,38 +26,38 @@ I ricercatori hanno valutato in modo sistematico se l'aggiunta di complesse metr
 - Il paper lancia un messaggio clinico di forte impatto (in leggero contrasto o integrazione rispetto agli studi precedenti di questo gruppo): sebbene la stima dettagliata del "disconnettoma" e della topografia della lesione offra preziose intuizioni sui meccanismi patofisiologici dell'ictus, per quanto riguarda la pura **previsione degli esiti clinici**, i fattori tradizionali rimangono superiori.
 - I modelli predittivi più complessi e ad alta dimensionalità non battono le variabili standard raccolte al letto del paziente. Fattori come l'età, l'educazione e la severità clinica acuta misurata con l'NIHSS inglobano già al loro interno l'effetto del danno neurale e sono sufficienti (e persino migliori) per stimare con successo le traiettorie di recupero multi-dominio del paziente.
 
-# Thiebaut de Schotten et al. (2020) 
-_Brain disconnections link structural connectivity with function and behaviour_
+# Santoro et al. (2026)
+_Individual connectome fingerprints reveal early stabilization and long-term circuit remodeling after stroke_
 
 ## Riassunto brevissimo
-Il paper dimostra che i deficit cognitivi post-ictus derivano non solo dal danno tissutale locale, ma dalla disconnessione delle reti di materia bianca. 
-Poiché gli ictus colpiscono il cervello seguendo schemi non casuali, la classificazione clinica storica delle funzioni cerebrali risulta distorta. 
-Mappando 1333 lesioni con reti fMRI, gli autori hanno quindi creato il primo "Atlante della Funzione della Materia Bianca" per 590 funzioni cognitive.
+Questo studio longitudinale analizza l'evoluzione dei pattern di connettività cerebrale specifici del singolo individuo ("brain fingerprints") durante il primo anno post-ictus. Nonostante lo scostamento persistente dall'architettura sana, il connettoma funzionale unico di ciascun paziente si stabilizza precocemente, entro sole tre settimane dall'evento. Questa precoce stabilizzazione a livello globale maschera un rimodellamento a lungo termine specifico per ciascuna rete (con aumento iniziale nei sistemi sensoriali/attentivi e declino in quelli associativi di alto livello), guidato da una riconfigurazione funzionale dinamica che avviene al di sopra di una lesione strutturale stabile.
 
 ---
 
 ## Domande scientifiche e Obiettivi
-- Qual è il ruolo specifico delle connessioni di materia bianca nel supportare le funzioni cerebrali e il comportamento?
-- La nostra comprensione storica delle funzioni cerebrali, derivata dall'osservazione clinica dei pazienti, è stata distorta dal fatto che le lesioni da ictus non si distribuiscono in modo casuale?
-- **Obiettivo principale:** Creare un "Disconnettoma" umano per mappare sistematicamente le funzioni cognitive sui tratti di materia bianca e migliorare le previsioni cliniche.
+- In che modo l'ictus altera nel tempo le caratteristiche di connettività uniche e specifiche del singolo individuo ("impronte digitali" del connettoma funzionale)?
+- Come si articola la relazione dinamica tra un danno strutturale sostanzialmente statico (la lesione biologica) e un fenotipo funzionale plastico e mutevole durante il recupero?
+- **Obiettivo principale:** Tracciare l'evoluzione temporale delle impronte digitali connettomiche dei pazienti post-ictus nel primo anno dall'evento, valutando la loro stabilità, il rimodellamento dei circuiti a livello di rete e il loro valore prognostico per i deficit cognitivi cronici.
 
 ## Metodologie
-- **Campione:** È stato utilizzato un database di 1333 lesioni reali da ictus. Per confronto, sono state generate 1333 lesioni "sintetiche" (casuali, ma identiche per volume e lateralizzazione a quelle reali).
-- **Creazione del Disconnettoma:** Le lesioni sono state proiettate su una mappa ad alta risoluzione della materia bianca di individui sani (dati trattografici a 7T dello _Human Connectome Project_) per stimare la probabilità di disconnessione dei tratti.
-- **Riduzione dimensionale (PCA):** È stata applicata un'Analisi delle Componenti Principali per raggruppare e riassumere i complessi pattern di disconnessione in un numero ridotto di "profili".
-- **Confronto Funzionale:** I profili di disconnessione sono stati correlati spazialmente con 590 mappe meta-analitiche di attivazione cerebrale funzionale (fMRI) tratte dal database _Neurosynth_.
+- **Campione e disegno longitudinale:** Valutazione longitudinale di pazienti post-ictus seguiti in quattro sessioni temporali chiave: T1 (fase acuta, ~1 settimana), T2 (fase subacuta precoce, ~3 settimane), T3 (fase subacuta tardiva, ~3 mesi) e T4 (fase cronica, ~1 anno), confrontati con soggetti sani di controllo.
+- **Brain Fingerprinting (Impronte cerebrali):** Calcolo di due indici connettomici principali: (1) `Iclinical` (clinical similarity) per misurare la somiglianza globale del connettoma del paziente rispetto a un gruppo di controllo sano; (2) `Iself` (self-identifiability) per valutare quanto la connettività di ogni singolo paziente rimanga stabile e riconoscibile nel tempo rispetto al proprio baseline cronico (T4).
+- **Residualizzazione e Teoria dei Grafi:** Le matrici di connettività funzionale (FC) sono state residualizzate per eliminare l'effetto di confondi come età, sesso e volume della lesione; le analisi a livello di rete si sono basate sulle sette reti canoniche di Yeo (visiva, somatomotoria, attenzione dorsale/ventrale, limbica, frontoparietale, default mode) e strutture sottocorticali.
+- **Struttura-Funzione ed Embedding:** Analisi congiunta di matrici strutturali (SC, da risonanza di diffusione) e funzionali (FC, da fMRI resting-state) per mappare lo scostamento e il progressivo riavvicinamento dei pazienti verso il manifold di connettività dei soggetti sani.
+- **Predizione multivariata:** Addestramento di modelli di _machine learning_ per verificare se le impronte funzionali precoci (T1-T2) potessero prevedere i punteggi clinico-comportamentali cronici a un anno di distanza.
 
 ## Risultati
-- **Distribuzione non casuale:** Le lesioni da ictus e le conseguenti disconnessioni mostrano un'alta ridondanza (si raggruppano in cluster molto più delle lesioni sintetiche) e tendono a colpire la materia bianca profonda.
-- **Correlazione Struttura-Funzione:** 46 componenti principali spiegano oltre il 90% delle disconnessioni da ictus. Ben 40 di queste componenti correlano in modo significativo con specifiche reti funzionali fMRI (es. calcolo, navigazione spaziale, campo visivo, linguaggio).
-- **Atlante della Materia Bianca:** È stato generato un atlante completo che mappa 590 funzioni cognitive direttamente sui tratti di materia bianca. I risultati mostrano anche una forte asimmetria: si sa molto di più sulle funzioni della materia bianca dell'emisfero sinistro rispetto a quello destro.
+- **Stabilizzazione precoce del fingerprint:** Anche se l'ictus allontana bruscamente il cervello dall'architettura sana (riduzione di `Iclinical` a tutti i timepoint), il connettoma funzionale specifico di ciascun paziente si consolida precocemente, mostrando un forte incremento di somiglianza a se stesso (`Iself`) già a partire da T2 (3 settimane post-ictus).
+- **Rimodellamento dei circuiti specifico per sistema:** Sotto la stabilità globale si nasconde una complessa riorganizzazione. I sistemi somatomotori (SM) e di attenzione ventrale (VA) mostrano forti variazioni e riconfigurazioni rapide nelle prime 3 settimane (T1 \(\rightarrow\) T2). Successivamente, si osserva un declino graduale di connettività nelle reti associative di alto livello (es. Default Mode Network, DMN e rete frontoparietale, FPN).
+- **Dissociazione struttura-funzione:** La similarità strutturale (SC) con i soggetti sani rimane fissa e invariata nel tempo (lesione stabile), mentre la similarità funzionale (FC) aumenta in modo continuo, riflettendo una plasticità dinamica "sopra" lo scheletro strutturale danneggiato.
+- **Predittività prognostica delle impronte precoci:** Le "firme" funzionali acute sono altamente informative e predicono in modo selettivo le performance cognitive a lungo termine (a 1 anno) in domini neuropsicologici complessi come il linguaggio, le funzioni esecutive e l'attenzione.
 
 ## Breve Discussione
-- La forte corrispondenza tra le disconnessioni da ictus e le mappe fMRI suggerisce che l'organizzazione della materia bianca guida la segregazione funzionale del cervello.
-- Poiché l'associazione tra disconnessione e funzione è molto più forte nelle lesioni reali rispetto a quelle sintetiche, gli autori concludono che 
-" dalla natura non casuale e concentrica in cui gli ictus colpiscono il cervello.
-- L'Atlante creato rappresenta un nuovo, potente strumento clinico, scaricabile e utilizzabile per proiettare qualsiasi attivazione funzionale sulla materia bianca e prevedere i deficit dei pazienti in base al loro specifico danno strutturale.
+- Il connettoma post-ictus si comporta come un sistema dinamico vincolato: la lesione strutturale rigida impone dei limiti alla riorganizzazione, ma la dinamica funzionale conserva una flessibilità sufficiente per stabilire una nuova configurazione stabile personale (fingerprint consolidato a 3 settimane).
+- Questo studio evidenzia l'importanza clinica del brain fingerprinting: lungi dall'essere solo rumore o disorganizzazione caotica, il connettoma rimodellato acutamente rappresenta un'impronta stabile e individuale, che racchiude informazioni cruciali sulla futura traiettoria di recupero del paziente.
+- L'individuazione di questa precoce identità funzionale consolidata offre ai clinici una finestra temporale ottimale (entro le prime tre settimane) per ricavare biomarcatori prognostici stabili e personalizzare gli interventi riabilitativi o di neurostimolazione precoce.
 
+---
 # Zanola et al. (2026) 
 _Beyond proportional recovery in wake-up stroke: Unsupervised recovery clusters based on the NIHSS_
 
@@ -89,7 +89,76 @@ Il paper mette in discussione la tradizionale Regola del Recupero Proporzionale 
 - Il clustering dei tassi di recupero si è rivelato un modo efficiente per incorporare la variabile "tempo" nell'algoritmo, offrendo un quadro molto più granulare della ripresa post-ictus.
 - L'identificazione precoce dei pazienti destinati ai cluster meno favorevoli potrebbe rivelarsi fondamentale in futuro per personalizzare le terapie riabilitative e massimizzare la neuroplasticità.
 
+# Volpi et al. (2025) 
+_The brain’s “dark energy” puzzle upgraded: FDG uptake, delivery and phosphorylation, and their coupling with resting-state brain activity_
 
+## Riassunto brevissimo
+- **Evoluzione della "dark energy"**: Il lavoro estende la comprensione del consumo energetico intrinseco del cervello sano superando la semplice misurazione semi-quantitativa dell'uptake (SUVR) per mappare i singoli parametri cinetici del glucosio ad alta risoluzione.
+- **Profili cinetici indipendenti**: Tramite un ampio database di soggetti sani, gli autori dimostrano che la consegna di glucosio (\(K_1\)) e la sua fosforilazione intracellulare (\(k_3\)) hanno distribuzioni spaziali distinte e non ridondanti.
+- **Accoppiamento multimodale**: Combinando la PET dinamica e la rs-fMRI, lo studio rivela come la consegna e l'elaborazione del glucosio cerebrale siano regolate in modo differenziale dall'attività neuronale spontanea locale e dal metabolismo dell'ossigeno.
+
+---
+
+## Domande scientifiche e Obiettivi
+- **Regolazione dell'energia a riposo**: In che modo le fluttuazioni spontanee dell'attività neuronale (valutate tramite rs-fMRI) determinano e si accoppiano al consumo di glucosio a riposo?
+- **Scomposizione della cinetica**: La consegna del glucosio attraverso la barriera emato-encefalica (\(K_1\)) e la sua fosforilazione enzimatica (\(k_3\)) presentano profili spaziali diversi e accoppiamenti emodinamici o metabolici differenziati?
+- **Obiettivo principale**: Creare modelli predittivi multivariati basati su rs-fMRI e PET con ossigeno (\(CBF\) e \(CMRO_2\)) per mappare e spiegare accuratamente la variabilità spaziale e individuale di ciascun parametro cinetico (\(K_i\), \(K_1\), \(k_3\)).
+
+## Metodologie
+- **Campione e PET multimodale**: Coinvolgimento di 47 controlli sani sottoposti nella stessa giornata a PET dinamica con \(FDG\) (metabolismo del glucosio), PET con \(H_2O\) (flusso ematico cerebrale, CBF), PET con \(O_2\) (tasso metabolico dell'ossigeno, \(CMRO_2\)) e risonanza magnetica funzionale a riposo (rs-fMRI).
+- **Modellazione cinetica compartimentale**: Calcolo voxel-wise dei parametri compartimentali di Sokoloff (\(K_1\), \(k_3\), e il macroparametro d'importazione \(K_i\)) integrato con un algoritmo Bayesiano variazionale su 216 regioni della materia grigia.
+- **Integrazione di caratteristiche rs-fMRI**: Estrazione di 50 metriche fMRI raggruppate in quattro pool: (1) caratteristiche del segnale locale (es. ReHo, ALFF,peaks-BOLD), (2) rete della risposta emodinamica (HRF), (3) connettività funzionale statica (sFC) e (4) connettività funzionale variabile nel tempo (tvFC).
+- **Modellistica statistica multilivello**: Utilizzo di modelli lineari a effetti misti (MEM) e regressione ridge per stimare la varianza spaziale di ciascun parametro \(FDG\) a livello individuale e di popolazione, sia con predittori fMRI-only sia integrando CBF e \(CMRO_2\).
+
+## Risultati
+
+- **Distribuzioni spaziali uniche**: Il parametro \(K_1\) (consegna) è risultato il meno ridondante, caratterizzato da un forte pattern posteromediale; al contrario, \(K_i\) e \(k_3\) hanno mostrato discrepanze regionali uniche a livello delle cortecce occipitali, del talamo e del cervelletto.
+- **L'effetto fMRI-only**: I modelli basati esclusivamente su rs-fMRI hanno spiegato una quota moderata ma significativa della varianza individuale dei parametri: il \(35%\) per l'importazione (\(K_i\)), il \(21%\) per la fosforilazione (\(k_3\)) e solo il \(14%\) per la consegna (\(K_1\)).
+- **Il ruolo dominante di ReHo**: L'omogeneità regionale (ReHo), che misura la sincronizzazione dell'attività locale, è emersa come la singola metrica funzionale più importante, spiegando da sola gran parte della varianza di \(K_i\) e \(k_3\).
+- **Upgrade metabolico con ossigeno**: L'inclusione di \(CMRO_2\) ha notevolmente migliorato la varianza spiegata (l'R² pooled sale al \(46%\) per \(K_i\) e al \(28%\) per \(K_1\)), mostrando come il tasso metabolico dell'ossigeno sia fortemente e direttamente accoppiato al tasso di consegna del glucosio (\(K_1\)).
+
+## Breve Discussione
+- **Cinetiche non ridondanti**: La scomposizione dell'uptake complessivo del glucosio nei suoi parametri elementari di consegna e fosforilazione dimostra che l'analisi dei microparametri non è ridondante e rivela meccanismi fisiologici altrimenti nascosti dal SUVR.
+- **Separazione funzionale dei processi**: La fosforilazione intracellulare del glucosio (\(k_3\)) è strettamente accoppiata alla sincronia dell'attività locale (ReHo), mentre la consegna del glucosio attraverso la barriera emato-encefalica (\(K_1\)) è guidata dal metabolismo dell'ossigeno (\(CMRO_2\)).
+- **Rilevanza clinico-applicativa**: Questi risultati arricchiscono la nostra comprensione dell'accoppiamento tra flusso, metabolismo e attività neurale spontanea, suggerendo l'utilità futura di mappare \(K_1\) e \(k_3\) per valutare precocemente patologie come l'Alzheimer o i traumi cerebrali.
+
+---
+
+# Volpi et al. (2024)
+_The brain’s “dark energy” puzzle: How strongly is glucose metabolism linked to resting-state brain activity?_
+
+## Riassunto brevissimo
+- **Il puzzle dell'energia oscura**: Il cervello consuma a riposo circa il 25% del glucosio corporeo, pur rappresentando solo il 2% del peso corporeo. Questo studio indaga in che misura questa notevole spesa energetica regionale sia guidata dall'attività neuronale spontanea.
+- **Accoppiamento non-lineare e locale**: Integrando 50 metriche di risonanza magnetica funzionale a riposo (rs-fMRI) in due dataset indipendenti di controlli sani, gli autori dimostrano che l'accoppiamento spaziale funzionale-metabolico (misurato con \([^{18}\text{F}]\text{FDG PET}\) SUVR) è non-lineare, eterogeneo e dominato da indici di sincronizzazione locale (come la Regional Homogeneity, ReHo).
+- **Influenza del metabolismo periferico**: La forza di questo accoppiamento spaziale (espressa dall'\(R^2\) individuale) varia tra i soggetti ed è direttamente influenzata e inversamente correlata a parametri metabolici periferici, quali il peso corporeo, il BMI e l'insulina plasmatica a riposo.
+
+---
+
+## Domande scientifiche e Obiettivi
+- In che misura l'immensa spesa energetica del cervello a riposo è legata e spiegata dalle fluttuazioni e dalle reti dell'attività neuronale spontanea (rs-fMRI)?
+- Quali specifiche caratteristiche del segnale BOLD (locali, emodinamiche, o di connettività statica/dinamica a lungo termine) si associano più strettamente al metabolismo regionale?
+- **Obiettivo principale**: Costruire e validare in modo _out-of-sample_ (su un secondo dataset indipendente) un modello predittivo multivariato e multilivello (MEM) in grado di mappare la variabilità spaziale dell'uptake di glucosio (\([^{18}\text{F}]\text{FDG}\) SUVR) a partire dalle fluttuazioni rs-fMRI, analizzando anche l'influenza di fattori costituzionali e periferici.
+
+## Metodologie
+- **Campione e Dataset**: Studio condotto su due dataset indipendenti di soggetti sani: il Dataset 1 (utilizzato per l'addestramento e la selezione delle caratteristiche) e il Dataset 2 (utilizzato come test per verificare la riproducibilità out-of-sample).
+- **Caratteristiche funzionali (fMRI)**: Estrazione di 50 metriche derivate dal segnale BOLD a riposo, suddivise a priori in 4 categorie: (1) caratteristiche del segnale locale/sincronia, (2) risposta emodinamica (HRF), (3) connettività funzionale statica (sFC) e (4) connettività funzionale variabile nel tempo (tvFC).
+- **Modellistica statistica e Selezione**: Selezione delle caratteristiche eseguita sul Dataset 1 mediante algoritmi robusti (NNLS, Elastic Net, GETS) per minimizzare la multicollinearità e la sovra-parametrizzazione.
+- **Multilevel Modeling (MEM)**: Implementazione di modelli lineari a effetti misti (MEM) per catturare simultaneamente gli effetti a livello di popolazione (effetti fissi) e la variabilità tra i singoli soggetti (effetti random).
+
+## Risultati
+- **Il ruolo dominante di ReHo**: La sincronizzazione locale misurata con ReHo (Regional Homogeneity) emerge come il predittore più forte e stabile. Da sola spiega il 32% (Dataset 1) e il 53% (Dataset 2) della varianza spaziale dell'uptake del glucosio a livello di gruppo.
+- **Modelli multivariati (9p e 3p)**:
+    - Il modello a 9 parametri (9p; inclusivo di entropia, ReHo, picchi BOLD, connettività statica e dinamica) spiega il 41% della varianza nel Dataset 1, ma mostra instabilità nel Dataset 2.
+    - Il modello parsimonioso a 3 parametri (3p; ReHo, CV-ReHo e connettività dinamica) si dimostra altamente riproducibile, spiegando il 59% della varianza nel Dataset 2 out-of-sample.
+- **Eterogeneità dei residui**: Il modello sottostima sistematicamente il consumo energetico a livello della corteccia posteromediale (in particolare il cingolo posteriore e il precuneo), del talamo e del caudato. Queste aree ad altissimo metabolismo possiedono peculiarità biologiche (es. densità sinaptica, navetta del lattato astrocita-neurone o metabolismo dell'ossigeno) che la fMRI BOLD non riesce a catturare completamente.
+- **Legame con il metabolismo periferico**: Nel Dataset 2, la forza dell'accoppiamento funzionale-metabolico del singolo soggetto (\(R^2\) individuale) correla negativamente con il peso corporeo (\($r = -0.495$\)), l'area di superficie corporea (BSA, \(r = -0.492\)), il BMI (\(r = -0.382\)) e i livelli di insulina plasmatica a riposo (\(r = -0.473\)).
+
+## Breve Discussione
+- L'accoppiamento spaziale dimostra che il mantenimento dei potenziali di membrana a riposo e la trasmissione sinaptica (espressi dalla sincronia locale rs-fMRI) costituiscono la quota principale dell'energia oscura del cervello sano.
+- I residui positivi stabili confermano che l'fMRI fornisce solo un'immagine parziale dell'attività neurale; aree metabolicamente voraci dipendono anche da flussi metabolici non-ossidativi e dinamiche gliali complesse.
+- La correlazione inversa con l'insulina periferica e il peso corporeo suggerisce che variazioni metaboliche sistemiche (es. l'insulino-resistenza precoce) si riflettono in un disallineamento precoce tra attività neuronale e consumo di glucosio nel cervello, ponendo le basi per l'identificazione di biomarcatori precoci di declino cognitivo e metabolico.
+
+---
 
 # Talozzi et al. (2023) 
 _Latent disconnectome prediction of long-term cognitive-behavioural symptoms in stroke_
@@ -153,6 +222,37 @@ Tradizionalmente, i deficit causati da ictus vengono classificati come sindromi 
 - Questa architettura del danno è estremamente stabile e specifica per l'ictus, indipendentemente dalla popolazione studiata, dal tempo trascorso (acuto vs cronico) o dalla batteria di test utilizzata-.
 - Mentre la sola scala NIHSS spesso manca di sensibilità per i domini cognitivi, la sua integrazione con il test OCS si è dimostrata uno strumento eccellente e con altissima _compliance_ (completato dall'88% dei pazienti contro il 51% dei test lunghi), ideale per guidare futuri studi di popolazione e trial clinici-.
 
+# Thiebaut de Schotten et al. (2020) 
+_Brain disconnections link structural connectivity with function and behaviour_
+
+## Riassunto brevissimo
+Il paper dimostra che i deficit cognitivi post-ictus derivano non solo dal danno tissutale locale, ma dalla disconnessione delle reti di materia bianca. 
+Poiché gli ictus colpiscono il cervello seguendo schemi non casuali, la classificazione clinica storica delle funzioni cerebrali risulta distorta. 
+Mappando 1333 lesioni con reti fMRI, gli autori hanno quindi creato il primo "Atlante della Funzione della Materia Bianca" per 590 funzioni cognitive.
+
+---
+
+## Domande scientifiche e Obiettivi
+- Qual è il ruolo specifico delle connessioni di materia bianca nel supportare le funzioni cerebrali e il comportamento?
+- La nostra comprensione storica delle funzioni cerebrali, derivata dall'osservazione clinica dei pazienti, è stata distorta dal fatto che le lesioni da ictus non si distribuiscono in modo casuale?
+- **Obiettivo principale:** Creare un "Disconnettoma" umano per mappare sistematicamente le funzioni cognitive sui tratti di materia bianca e migliorare le previsioni cliniche.
+
+## Metodologie
+- **Campione:** È stato utilizzato un database di 1333 lesioni reali da ictus. Per confronto, sono state generate 1333 lesioni "sintetiche" (casuali, ma identiche per volume e lateralizzazione a quelle reali).
+- **Creazione del Disconnettoma:** Le lesioni sono state proiettate su una mappa ad alta risoluzione della materia bianca di individui sani (dati trattografici a 7T dello _Human Connectome Project_) per stimare la probabilità di disconnessione dei tratti.
+- **Riduzione dimensionale (PCA):** È stata applicata un'Analisi delle Componenti Principali per raggruppare e riassumere i complessi pattern di disconnessione in un numero ridotto di "profili".
+- **Confronto Funzionale:** I profili di disconnessione sono stati correlati spazialmente con 590 mappe meta-analitiche di attivazione cerebrale funzionale (fMRI) tratte dal database _Neurosynth_.
+
+## Risultati
+- **Distribuzione non casuale:** Le lesioni da ictus e le conseguenti disconnessioni mostrano un'alta ridondanza (si raggruppano in cluster molto più delle lesioni sintetiche) e tendono a colpire la materia bianca profonda.
+- **Correlazione Struttura-Funzione:** 46 componenti principali spiegano oltre il 90% delle disconnessioni da ictus. Ben 40 di queste componenti correlano in modo significativo con specifiche reti funzionali fMRI (es. calcolo, navigazione spaziale, campo visivo, linguaggio).
+- **Atlante della Materia Bianca:** È stato generato un atlante completo che mappa 590 funzioni cognitive direttamente sui tratti di materia bianca. I risultati mostrano anche una forte asimmetria: si sa molto di più sulle funzioni della materia bianca dell'emisfero sinistro rispetto a quello destro.
+
+## Breve Discussione
+- La forte corrispondenza tra le disconnessioni da ictus e le mappe fMRI suggerisce che l'organizzazione della materia bianca guida la segregazione funzionale del cervello.
+- Poiché l'associazione tra disconnessione e funzione è molto più forte nelle lesioni reali rispetto a quelle sintetiche, gli autori concludono che 
+" dalla natura non casuale e concentrica in cui gli ictus colpiscono il cervello.
+- L'Atlante creato rappresenta un nuovo, potente strumento clinico, scaricabile e utilizzabile per proiettare qualsiasi attivazione funzionale sulla materia bianca e prevedere i deficit dei pazienti in base al loro specifico danno strutturale.
 
 # Salvalaggio et al. (2020)
 _Post-stroke deficit prediction from lesion and indirect structural and functional disconnection_
@@ -278,6 +378,34 @@ I risultati evidenziano che le disconnessioni fisiche dei tratti, in particolare
 - Il paper ribalta un dogma classico: non è la "morte" o il danno del tessuto corticale in sé a generare i più gravi deficit di network su larga scala, ma la recisione dei "cavi di comunicazione" di materia bianca che collegano le aree intatte.
 - Le lesioni focali innescano una disfunzione globale e stereotipata (perdita di modularità) che dipende intimamente dall'architettura delle connessioni strutturali distrutte, con i tratti interemisferici che giocano un ruolo critico.
 - L'inclusione delle stime di disconnessione della materia bianca è un passo imprescindibile per comprendere le basi neurali dei deficit funzionali post-ictus; basarsi unicamente sulla posizione della lesione corticale fornisce un quadro parziale e con minor potere esplicativo.
+
+# Corbetta et al. (2018) 
+_On the low dimensionality of behavioral deficits and alterations of brain network connectivity after focal injury_
+## Riassunto brevissimo
+Questo articolo di rassegna (_review_) propone un modello concettuale a tre vie che collega il danno anatomico strutturale, le alterazioni fisiologiche dei network e i deficit comportamentali post-ictus. Gli autori sostengono che la natura prevalentemente sottocorticale e di materia bianca delle lesioni da ictus induca una perdita generalizzata della modularità cerebrale. Questa disfunzione fisiologica diffusa riduce l'entropia (ovvero la variabilità) degli stati neurali che il cervello può esplorare, spiegando perché i molteplici deficit clinici si manifestino in una struttura a bassa dimensionalità.
+
+---
+
+## Domande scientifiche e Obiettivi
+- In che modo il danno strutturale focale (che colpisce principalmente la materia bianca e le regioni sottocorticali) si traduce in disfunzioni fisiologiche diffuse a livello di network remoti?
+- Qual è il meccanismo neurale alla base della bassa dimensionalità dei deficit comportamentali post-ictus e come questo si relaziona con le alterazioni della connettività funzionale (FC)?
+- **Obiettivo principale:** Proporre una sintesi teorica e un modello fisiologico (basato sulla riduzione dell'entropia degli stati neurali) per spiegare la mappatura a tre vie fra lesione strutturale, connettività funzionale e fenotipi comportamentali a livello di popolazione.
+
+## Metodologie
+- **Sintesi e integrazione di dati di popolazione:** Trattandosi di un articolo di rassegna, gli autori integrano e discutono i dati empirici longitudinali e trasversali di ampie coorti prospettiche di pazienti con ictus (in particolare la coorte della _Washington University_ con n = 132 pazienti valutati con batterie neuropsicologiche dettagliate, MRI strutturale e resting-state fMRI).
+- **Modellistica computazionale _whole-brain_:** Viene analizzato l'uso di modelli computazionali realistici che simulano l'effetto delle lesioni sul connettoma strutturale per studiare l'emergere di pattern dinamici globali, valutando metriche di integrazione, segregazione ed entropia dei nodi.
+- **Analisi di rete e teoria dei grafi:** Discussione dell'applicazione di metriche globali di rete, in particolare la modularità (bilancio tra integrazione interna ed estesa segregazione dei network), come biomarcatori neurofisiologici del danno e del recupero.
+
+## Risultati
+- **Conferma della bassa dimensionalità:** Nonostante l'uso di batterie neuropsicologiche molto estese (es. 42 test su 6 domini), la maggior parte della varianza comportamentale post-ictus è catturata da pochissimi fattori principali (es. una componente motoria-attentiva e una componente cognitiva-linguaggio), riflettendo la struttura vascolare e l'impatto sui grandi fasci di materia bianca.
+- **Fenotipi di FC anomala:** Le alterazioni della connettività funzionale si manifestano in pattern diffusi e topograficamente specifici, caratterizzati principalmente da due anomalie: (1) perdita di connettività interemisferica homotopic e (2) un aumento anomalo della connettività intraemisferica tra network normalmente segregati (es. default mode network e dorsal attention network).
+- **Perdita di entropia e di stati neurali:** Sia i dati empirici fMRI sia le simulazioni computazionali dimostrano che le lesioni provocano una riduzione dell'entropia dei nodi (variabilità dei segnali) non solo nell'emisfero danneggiato ma anche in quello sano, riducendo la complessità e la capacità di esplorazione degli stati neurali del cervello.
+- **La modularità correla con il recupero:** Il ripristino o la normalizzazione della connettività funzionale su larga scala (misurata tramite l'aumento della modularità) è il principale fattore predittivo del recupero cognitivo longitudinale.
+
+## Breve Discussione
+- **Dalla specificità locale all'interazione di network:** La neuropsicologia deve evolvere da una visione puramente modulare e focalizzata su singoli casi di dissociazioni "pure" verso modelli che considerino le interazioni dinamiche tra sistemi distribuiti su larga scala.
+- **La variabilità come target riabilitativo:** Se la ridotta variabilità degli stati neurali limita il repertorio comportamentale del paziente, l'obiettivo primario della riabilitazione e della neurostimolazione (es. TMS o tDCS) dovrebbe essere la normalizzazione di questa variabilità e il ripristino della modularità globale, piuttosto che la stimolazione di un singolo sito focale.
+- **Necessità di stimolazione multi-sito:** Data la natura intrinsecamente diffusa delle alterazioni di FC che supportano i deficit cognitivi, i protocolli terapeutici futuri dovranno probabilmente affidarsi a stimolazioni multi-sito, guidate da modelli computazionali personalizzati.
 
 # Siegel et al. (2016) - Siegel et al. (2018)
 - *Disruptions of network connectivity predict impairment in multiple behavioral domains after stroke*
