@@ -1,0 +1,56 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "3",
+    "caption": "FIGURE 3 | Normalized ERP at the channel C3 for a control and a stroke subject with stimulus on right hand. The ERP plotting at C3 shows great similarity for both control and stroke. The latency of P5",
+    "pdf_page": 6,
+    "doc_page": 6
+  },
+  {
+    "id": "4",
+    "caption": "FIGURE 4 | Brain topographies of the P50 peak for control and stroke subjects when a dominant hand (for controls) or an affected hand (for stroke) is stimulated. (A,B) Controls, (C) stroke 1, (D) stro",
+    "pdf_page": 6,
+    "doc_page": 6
+  },
+  {
+    "id": "5",
+    "caption": "FIGURE 5 | Source interactions estimated from LCD model. The plots show the information flow between P50 and N100 for each subject and anatomic connections between the active sources estimated via whi",
+    "pdf_page": 7,
+    "doc_page": 7
+  },
+  {
+    "id": "6",
+    "caption": "FIGURE 6 | Matrices of the LCD model coefficients for controls (A,B) and stroke participants (C,D) .",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "9",
+    "caption": "",
+    "pdf_page": 10,
+    "doc_page": 10
+  },
+  {
+    "id": "1_2",
+    "caption": "FIGURE 1 | Lesion locations for two stroke subjects shown on an axial slice of the T1-weighted anatomic images.",
+    "pdf_page": 3,
+    "doc_page": 3
+  },
+  {
+    "id": "2_2",
+    "caption": "FIGURE 2 | Workflow of the VBMEG method. EEG, anatomic and diffusion weighted MRIs are first preprocessed. Then EEG sources are estimated using hVB approach. By combining sources and anatomical connec",
+    "pdf_page": 5,
+    "doc_page": 5
+  }
+]

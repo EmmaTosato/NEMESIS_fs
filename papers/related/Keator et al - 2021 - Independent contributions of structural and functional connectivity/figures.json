@@ -1,0 +1,68 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "3",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "4",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "5",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "6",
+    "caption": "Resting-state functional connectivity predicting speech comprehension. (A) Five temporoparietal connections in the left hemisphere ventral stream predicted speech comprehension, after controlling for ",
+    "pdf_page": 10,
+    "doc_page": 10
+  },
+  {
+    "id": "7",
+    "caption": "",
+    "pdf_page": 7,
+    "doc_page": 7
+  },
+  {
+    "id": "1_2",
+    "caption": "Lesion overlap map for study participants ( n = 97). The color scale indicates the number of participants with lesion damage at a particular location. The upper boundary ( n = 80) of the color scale i",
+    "pdf_page": 5,
+    "doc_page": 5
+  },
+  {
+    "id": "3_2",
+    "caption": "Flow chart of neuroimaging analyses. Neuroimaging modalities, anatomical covariates, and dependent variables described in Methods 1.4.1 -1.4.3 are outlined in the current figure. Speech comprehension ",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "4_2",
+    "caption": "Lesion-symptom mapping analysis for speech performance. Damage to the STG was associated with lower speech comprehension scores (yellow, z = -2.97); damage to the precentral gyrus was associated with ",
+    "pdf_page": 9,
+    "doc_page": 9
+  },
+  {
+    "id": "5_2",
+    "caption": "Structural connectivity predicting language scores. Seven structural pathways, two left hemisphere and five interhemispheric connections, predicted speech comprehension scores, after controlling for t",
+    "pdf_page": 9,
+    "doc_page": 9
+  }
+]

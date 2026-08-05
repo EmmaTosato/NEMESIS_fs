@@ -1,0 +1,50 @@
+[
+  {
+    "id": "1",
+    "caption": "FIGURE 1 Reduced Structural Connectome: A. The stroke lesion mask is shown in red in a patient with a unilateral hemispheric infarct. Streamlines that intersect the lesion are shown by the colored lin",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "2",
+    "caption": "Correlation between FM scores and A. the lesion volume; B. age; and C. days post-stroke. The black line indicates FM score of 42, used to separate the group into H and L. The blue line is a linear fit",
+    "pdf_page": 12,
+    "doc_page": 12
+  },
+  {
+    "id": "3",
+    "caption": "Structural Disconnections involving the Brainstem: A. The probability of the ROI being disconnected from the brainstem when the patient in in the low FM score ('L') group . The ROI in ipsilesional M1 ",
+    "pdf_page": 14,
+    "doc_page": 14
+  },
+  {
+    "id": "4",
+    "caption": "Structural network measurements in the motor-related areas. Magenta circle  SFG; Blue circle - PMd; Red circle - M1; I - ipsilesional hemisphere; C - contralesional hemisphere; H - high motor group; L",
+    "pdf_page": 15,
+    "doc_page": 15
+  },
+  {
+    "id": "5",
+    "caption": "Significant ROIs outside the motor-related areas: Each color-filled solid circle represents a significant ROI (two-tailed, p  0.05). Transparent circles are non-significant ROIs. Sizes of circles corr",
+    "pdf_page": 16,
+    "doc_page": 16
+  },
+  {
+    "id": "6",
+    "caption": "Significant ROIs in the motor-related areas for and frequencies: All \u03b4 \u03b2 color-filled dots and transparent circles are the ROIs with network metrics such that H>L. Each color-filled dot represents a s",
+    "pdf_page": 17,
+    "doc_page": 17
+  },
+  {
+    "id": "7",
+    "caption": "Significant ROIs outside the motor-related areas in and frequencies (Left \u03b4 \u03b2 and Right view of the ipsilesional and contralesional hemisphere): Each color-filled dot represents a significant ROI with",
+    "pdf_page": 19,
+    "doc_page": 19
+  },
+  {
+    "id": "2_2",
+    "caption": "Brain areas of significant ROIs outside of the motor-related areas in motor betweenness centrality found in \u03b4, \u03b21, and \u03b22 bands: I - ipsilesional hemisphere; C contralesional hemisphere. Areas with si",
+    "pdf_page": 18,
+    "doc_page": 18
+  }
+]

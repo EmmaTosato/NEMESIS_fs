@@ -1,0 +1,56 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "4",
+    "caption": "Fig. 4 Classification weight maps for different paretic hand outcomes after stroke. a , b . One-sample spatial distributions of ALFF, ReHo, DC, and VMHC in the PPH and CPH groups. c. Spatial distribut",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "5",
+    "caption": "",
+    "pdf_page": 7,
+    "doc_page": 7
+  },
+  {
+    "id": "6",
+    "caption": "Fig. 6 Transcriptional profiles of ALFF-derived classification weight maps. a . A gene expression matrix was used for imaging-transcriptomic associations. b . The explained variance for each PLS compo",
+    "pdf_page": 11,
+    "doc_page": 11
+  },
+  {
+    "id": "7",
+    "caption": "Fig. 7 Neurotransmitter distribution correlated with ALFF-derived classification weight maps. The panel depicts the regional distributions of various neurotransmitter systems and their correlations wi",
+    "pdf_page": 12,
+    "doc_page": 12
+  },
+  {
+    "id": "1_2",
+    "caption": "Fig. 1 Workflow of the study design. a . Rs-fMRI metrics, including ALFF, ReHo, DC, and VMHC, were calculated. b . Multivariate pattern analysis was applied to classify patients with PPH and CPH and t",
+    "pdf_page": 3,
+    "doc_page": 3
+  },
+  {
+    "id": "2_2",
+    "caption": "Fig. 2 Lesion distribution map for stroke patients with different paretic hand outcomes. The color bar represents the lesion frequency of the patients in each voxel within the left hemisphere (ipsiles",
+    "pdf_page": 4,
+    "doc_page": 4
+  },
+  {
+    "id": "5_2",
+    "caption": "Fig. 5 Prediction performance of paretic hand scores using different rs-fMRI metrics. a . Scatter plots show the observed and predicted FMA-HW scores across subjects. The mean absolute error (MAE) is ",
+    "pdf_page": 10,
+    "doc_page": 10
+  }
+]

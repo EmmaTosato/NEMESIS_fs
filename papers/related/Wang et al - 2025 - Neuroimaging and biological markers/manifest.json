@@ -1,0 +1,148 @@
+{
+  "source_pdf": "/Users/emmatosato/Local Projects/Local PhD Projects/NEMESIS_fs/papers/related/s12984-025-01682-0.pdf",
+  "extracted_at": "2026-08-05T17:44:04",
+  "pdf_metadata": {
+    "title": "Neuroimaging and biological markers of different paretic hand outcomes after stroke",
+    "author": "Zhujun Wang ",
+    "subject": "Journal of NeuroEngineering and Rehabilitation, https://doi.org/10.1186/s12984-025-01682-0",
+    "keywords": "Stroke; Biomarker; Machine learning; Resting-state fMRI; ALFF/ReHo/DC/VMHC; Gene expression; Neurotransmitter",
+    "producer": "Acrobat Distiller 10.1.8 (Windows); modified using iText\u00ae 5.5.13.4 \u00a92000-2024 iText Group NV (SPRINGER SBM; licensed version)",
+    "creator": "Springer",
+    "creation_date": "D:20250629161146+05'30'",
+    "mod_date": "D:20250705113348+02'00'"
+  },
+  "page_offset": 0,
+  "pages": 15,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 0,
+    "png": 0,
+    "embedded_images": 9,
+    "classifications": {
+      "DIAGRAM": 2,
+      "TEXT": 5,
+      "BITMAP": 8
+    },
+    "figures_in_index": 9,
+    "tables_in_index": 2,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 81,
+      "images": 1,
+      "class": "DIAGRAM"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 1,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 1,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 14,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 1,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 22,
+      "images": 0,
+      "class": "DIAGRAM"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 1,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 11,
+      "doc_page": 11,
+      "drawings": 1,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 12,
+      "doc_page": 12,
+      "drawings": 1,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 13,
+      "doc_page": 13,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 14,
+      "doc_page": 14,
+      "drawings": 1,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 15,
+      "doc_page": 15,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "2",
+    "caption": "Distribution of behavioral-motor and sensory-scores. The principal diagonal panels represent the histogram values for each of the four behavioral scores, two being motor scores (ARAT and FMA-UE) and t",
+    "pdf_page": 4,
+    "doc_page": 4
+  },
+  {
+    "id": "3",
+    "caption": "Brain maps with maximal behavioral association from Lesion Symptom Mapping and CCA. Final map corresponding to the CCA solution and providing the maximum correlation between the X variables (the PCA c",
+    "pdf_page": 5,
+    "doc_page": 5
+  },
+  {
+    "id": "5",
+    "caption": "#Comp = 6; T=0.42; p = 0.035+0.006; Ve = 83.40%",
+    "pdf_page": 6,
+    "doc_page": 6
+  },
+  {
+    "id": "6",
+    "caption": "",
+    "pdf_page": 13,
+    "doc_page": 13
+  },
+  {
+    "id": "1_2",
+    "caption": "Pipeline for multimodal and multidomain lesion network mapping and its association to behavioral outcome after stroke through Canonical Correlation Analysis (CCA). At the patient level (gray shading),",
+    "pdf_page": 3,
+    "doc_page": 3
+  }
+]

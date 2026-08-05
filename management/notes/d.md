@@ -97,3 +97,64 @@
 |Statement|Fonte|Perché è rilevante|
 |---|---|---|
 |"Fino ad ora il comportamento è stato l'asse per la predizione delle lesioni"|Corbetta_Meeting_1|Non è un'assunzione di background ma una critica esplicita alla letteratura corrente: la maggior parte dei paper (Siegel, Corbetta 2015, Bisogno) usa la lesione/SDC per predire il comportamento come outcome finale. NEMESIS, nella sua componente esplorativa (Task multimodale, inferenza anatomia→funzione), propone invece di **usare l'anatomia per inferire il fenotipo funzionale**, spostando l'asse. Va esplicitato nella nota come giustificazione della novità metodologica.|
+
+
+# Cosa possiamo riprodurre/validare con i nostri dati — revisione
+
+Il punto chiave da esplicitare, prima della tabella: **non tutte le modalità hanno la stessa N**. Questo non è un dettaglio tecnico ma vincola direttamente quali confronti sono fattibili e quali no.
+
+## Dati per modalità
+
+| Modalità                                                              | N stimata                          | Dataset coperti                                                                                            | Note                                                         |
+| --------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Lesioni (mask binarie)                                                | fino a ~5800                       | Washu(200), PASPORT(100), PSP(200), UKLFR(700), Amburgo(500, in arrivo), UCL(4100, da negoziare), Santiago | La N più grande e più eterogenea per sito                    |
+| SDC (da lesione via BCB Toolkit)                                      | stessa N delle lesioni disponibili | idem                                                                                                       | Derivata, non richiede dati aggiuntivi oltre la lesione      |
+| Feature funzionali (matrici FC)                                       | sottoinsieme, ordine di ~500       | Washu + Padova + Friburgo                                                                                  | Richiede coorte sana di riferimento per costruire le matrici |
+| Feature EEG                                                           | ~80                                | Padova                                                                                                     | In arrivo (TBD, settembre/ottobre);                          |
+| Dati clinico/comportamentali (tsv: NIHSS + subitem, dati demografici) | variabile per dataset              | tutti quelli con participants.tsv                                                                          | Copertura da verificare dataset per dataset                  |
+| Longitudinale                                                         | **da definire**                    | non chiaro quali dataset abbiano più timepoint, né a quali distanze (2 sett? 3 mesi? 1 anno?)              |                                                              |
+
+## Cosa si può fare
+### Domanda 1 — Integrazione multimodale
+
+_(come si combinano lesione, SDC, FC/FDC, EEG in un quadro unico; come si sovrappongono/divergono le modalità)_
+
+| Cosa replicare                                                            | Riferimento  | Perché serve a questa domanda                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Relazionare pattern SDC e pattern FC nella stessa coorte (approccio PLSC) | Griffis 2019 | È il test minimo a due modalità: prima di poter dire come si "sovrappongono/divergono" più modalità insieme, bisogna sapere come si relazionano due alla volta. Senza questo passaggio non si può nemmeno interpretare cosa succede aggiungendo una terza o quarta modalità |
+
+
+---
+
+### Domanda 2 — Alterazioni canoniche di connettività
+
+_(pattern ricorrenti e generalizzabili tra pazienti; generalizzabilità tra dataset; inferenza anatomia→funzione)_
+
+| Cosa replicare                                                                               | Riferimento                             | Perché serve a questa domanda                                                                                                                                                                                                                                                                             |
+| -------------------------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Embedding UMAP/t-SNE + clustering topografico di lesioni e SDC                               | Thiebaut de Schotten 2020, Talozzi 2023 | È il prerequisito: un "pattern canonico" o un "fenotipo" richiede prima di tutto una struttura di cluster su cui poi verificare se è ricorrente/generalizzabile                                                                                                                                           |
+| Confronto tra soluzione di clustering su lesione vs su SDC (ARI/NMI)                         | Idea originale                          | Verifica se il pattern "canonico" trovato dipende dalla rappresentazione usata (lesione grezza vs SDC) — un pattern robusto dovrebbe emergere in entrambe le rappresentazioni, o la divergenza stessa è informativa su cosa la SDC aggiunge                                                               |
+| Repliche longitudinali (Siegel 2018, Santoro 2026, Pini 2026)                                | —                                       | Un pattern "canonico" trovato in acuto ha senso come fenotipo stabile solo se sappiamo se persiste nel tempo o si riorganizza — altrimenti "canonico" descriverebbe solo un istante, non una caratteristica del paziente                                                                                  |
+
+---
+
+### Domanda 3 — Locale vs. globale
+
+_(come si collegano le feature locali del segnale funzionale alle alterazioni globali di rete; quale feature locale predice meglio il comportamento)_
+
+| Cosa replicare                                                                                | Riferimento        | Perché serve a questa domanda                                                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Adattare il catalogo delle 4 pool di feature locali (Signal, HRF, sFC, tvFC) al comportamento | Volpi 2024/2025    | Risponde direttamente alla seconda parte della domanda: è l'unico framework esistente che confronta sistematicamente più feature locali candidate — va solo ri-targettizzato dal metabolismo al comportamento                                                 |
+
+
+---
+
+### Non legate direttamente a una domanda di ricerca, ma di supporto trasversale
+
+|Cosa replicare|Riferimento|Ruolo|
+|---|---|---|
+|Siegel replication in parallelo (lesione→comportamento; SDC→comportamento)|Siegel 2016|Non risponde a nessuna delle tre domande direttamente — è la validazione clinica del framework lesione/SDC che sostiene l'intero progetto (l'obiettivo scientifico dichiarato a monte delle tre domande esplorative)|
+
+---
+
+
