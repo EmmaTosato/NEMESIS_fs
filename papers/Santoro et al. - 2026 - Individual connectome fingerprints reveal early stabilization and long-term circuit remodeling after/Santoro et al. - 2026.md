@@ -89,6 +89,7 @@ Retest
 ![Figure on PDF page 3](figures/img_p003_0.png)
 
 **Figure labels:**
+
 - 12
 - Healthy controls
 - ECONS TrainStim
@@ -176,6 +177,7 @@ The longitudinal trajectory of identification suggested rapid consolidation rath
 ![FIG. 2. Longitudinal evolution of functional connectome identification following stroke . (a) Distribution of connectome similarity scores I clinical for healthy controls (TrainStim vs. ECONS) and stroke patients (relative to ECONS) across four time points. Stroke scores are significantly lower than healthy controls at T 1 , T 2 , and T 4 ( ∗ ∗ p < 0 . 01, FDR-corrected Mann-Whitney U test), with a marginal trend at T 3 ( p = 0 . 053). (b) Distribution of self-identifiability scores ( I self ), quantifying patient connectome similarity between earlier time points and the chronic outcome (T4). Significantly lower I self at T 1 compared to T 2 indicates rapid functional reorganization of the individual fingerprint within the first three weeks post-stroke ( ∗ ∗ ∗ p < 0 . 001, LMM). I self at T 2 shows no significant difference from T 3 ( p FDR = 0 . 054). (c) Median I self within and between seven canonical networks and subcortical structures (VIS, visual; SM, somatomotor; DA, dorsal attention; VA, ventral attention; L, limbic; FP, frontoparietal; DMN, default mode) and subcortical structures (SC). Comparing (T1,T4) and (T2,T4) reveals how specific networks consolidate their functional distinctiveness over time. (d) Significant relative percentage increase in I self from acute to sub-acute stages ( T 1 → T 2 ), referenced to the chronic baseline ( T 4 ). Warmer colors denote networks undergoing rapid functional reconfiguration, notably the ventral attention (VA), limbic (L), and somatomotor (SM) systems ( p < 0 . 05, LMM).](figures/page_004.svg)
 
 **Figure labels:**
+
 - (a)
 - (d)
 - (c)
@@ -245,6 +247,7 @@ VIS SM DA VA L FP DMN SC
 ![FIG. 3. Longitudinal functional reconfiguration decouples from structural damage following stroke. (a) Grouplevel matrices displaying the percentage of DWI-derived structurally lesioned edges (upper triangle) and functionally altered edges (lower triangle; FDR-corrected Mann-Whitney U test, q < 0 . 05) relative to healthy controls across four time points ( T 1 -T 4 ). Structural disconnection patterns remain relatively static, whereas functional alterations evolve dynamically, revealing a spatial dissociation between the fixed structural injury and time-varying functional reorganization throughout the first year. (b) Circular plots depict positive (hyperconnectivity, red) and negative (hypoconnectivity, blue) functional alterations at T1-T4, as quantified by Cohen's d effect size. (c) Box plots summarize the fraction of altered edges that are within-hemisphere (WH) or inter-hemisphere (IH), further subdivided into hyperconnectivity ( WH +; IH +) and hypoconnectivity ( WH -; IH -). Early stages ( T 1 -T 2 ) are dominated by within-hemisphere hyperconnectivity, whereas the late sub-acute/chronic phase ( T 3 -T 4 ) shows a relative increase in inter-hemispheric alterations, consistent with a shift from local to cross-hemispheric plasticity. Data are shown for the longitudinal subset ( n = 22). Network abbreviations: VIS, visual; SM, somatomotor; DA, dorsal attention; VA, ventral attention; L, limbic; FP, frontoparietal; DMN, default mode; SC, subcortical.](figures/img_p005_0.png)
 
 **Figure labels:**
+
 - SM
 - VIS SM DA VA L FP DMN SC
 - 3 weeks (T2)
@@ -272,6 +275,7 @@ The rapid consolidation of whole-brain fingerprints by the early sub-acute stage
 ![FIG. 4. Longitudinal distribution of positive and negative functional network alterations. Matrices report the network-level fraction of functional edges significantly altered in stroke patients relative to healthy controls (ECONS) across four stages (T1: 1 week; T2: 3 weeks; T3: 3 months; T4: 1 year). Significance was determined via edge-wise Mann-Whitney U tests (70 876 comparisons, FDR-corrected at q < 0 . 05), and aggregated by network block. (a) Fraction of positive alterations (hyper-connectivity), highlighting a left-hemispheric intra-hemispheric peak at T2, primarily involving VA, L, and FP systems. (b) Fraction of negative alterations (hypo-connectivity), which peaks at T3 and persists into the chronic phase, with prominent involvement of VIS and SM networks. Black lines delineate left-hemisphere, right-hemisphere, and inter-hemispheric blocks. Abbreviations: VIS, visual; SM, somatomotor; DA, dorsal attention; VA, ventral attention; L, limbic; FP, frontoparietal; DMN, default mode; SC, subcortical.](figures/page_006.svg)
 
 **Figure labels:**
+
 - Left Hemisphere
 - Right Hemisphere
 - (a)
@@ -310,6 +314,7 @@ During their first year post-stroke, patients showed a systematic and individual
 ![FIG. 5. Longitudinal convergence of the post-stroke connectome toward the healthy manifold. (a-d) Each panel shows a bivariate embedding of stroke patients at acute ( T 1 ), early sub-acute ( T 2 ), late sub-acute ( T 3 ), and chronic ( T 4 ) stages. Each point denotes one patient positioned by their similarity (Pearson correlation) to a healthy reference template derived from the ECONS cohort, computed separately for structural connectivity (SC; x-axis) and functional connectivity (FC; y-axis). The shaded density indicates the distribution of healthy controls and patients and their 95% confidence, defining the range of (healthy) normative variability. Percentages report the fraction of patients outside this healthy envelope at each stage. Patients show a pronounced structure-function dissociation early after stroke, with relatively preserved SC similarity but reduced and highly variable FC similarity. Across the first year, patient trajectories shift toward the healthy density peak primarily along the FC axis, whereas SC similarity remains comparatively stable, consistent with recovery dominated by functional reconfiguration on top of a largely invariant structural scaffold. Substantial inter-individual dispersion persists at late stages, reflecting heterogeneous network-level consequences of injury and compensatory adaptations.](figures/page_008.svg)
 
 **Figure labels:**
+
 - 0.90
 - 0.92
 - 0.94
@@ -362,6 +367,7 @@ NMF scores
 ![FIG. 6. Domain-specific behavioral recovery and its relationship to structural lesion burden. (a) Behavioral composite scores across six domains (Motor, Attention, Executive, Sensory, Language, Neglect) over time. Scores were derived using Non-negative Matrix Factorization (NMF) to ensure cross-session comparability; higher scores indicate greater clinical impairment. Boxplots show median, interquartile range, and 1.5 × IQR whiskers at each timepoint (T1: ∼ 1 week, T2: ∼ 3 weeks, T3: ∼ 3 months, T4: ∼ 1 year) (b) Distribution of structural lesion burden across the cohort, quantified as the log-transformed number of voxels (log(1 + voxels)). (c) Correlation between acute lesion volume and behavioral impairment at T1. While most domains (Attention, Executive, Sensory, Language, Neglect) show a significant positive correlation with total lesion size, motor impairment exhibits a notable dissociation ( r = 0 . 19, p = 0 . 14), suggesting that motor outcomes are driven more by lesion topography than gross volume. (d) Example of longitudinal profile (patient P019) showing domain scores across time points, illustrating within-subject heterogeneity and delayed improvement in motor impairment emerging from T3 onward. Parentheses report the NMF domain composite score (arbitrary units; scaled to [0,1]) at each timepoint; higher values indicate greater impairment. This individual example is shown for illustration and is not intended to be representative of the full cohort.](figures/page_009.svg)
 
 **Figure labels:**
+
 - (a)
 - (b)
 - (c)
@@ -379,6 +385,7 @@ At the acute stage, PLSC identified a robust multivariate connectivity pattern w
 ![FIG. 7. Multivariate brain-behavior mapping and longitudinal forecasting of clinical outcomes. (a) Two-stage predictive framework coupling Partial Least Squares Correlation (PLSC) with Ridge regression. Latent axes of maximal covariance between functional connectivity (Brain X ) and behavioral scores (Behavior Y ) are identified via PLSC. Significant components generate a connectivity mask for Ridge regression, validated using a leave-one-subject-out (LOSO) approach to predict outcomes at subsequent time points ( T i → T i +1 ... 4 ). (b) Network-level aggregation of the significant PLSC connectivity mask derived at the acute stage ( T 1 ). Heatmaps display the percentage of significantly negative (blue) and positive (red) edges, highlighting the prominent contribution of higher-order association systems (FP, DMN) and subcortical structures (SC) to the acute behavioral phenotype. (c) LOSO prediction performance ( R 2 ) for individual behavioral domains using the T 1 latent mask. The model successfully forecasts language, executive, and attention outcomes at follow-up ( T 2 , T 3 , T 4 ), whereas motor and neglect domains show negligible predictability from this functional signature. (d) Prediction accuracy for a global composite behavioral score across longitudinal intervals. Accuracy decays as the temporal gap from T 1 increases but peaks during the late sub-acute to chronic transition ( T 3 → T 4 ; R 2 = 0 . 584), reflecting late-stage stabilization of the brain-behavior relationship. (e) Scatter plots correlating actual versus predicted global scores for some of the intervals reported in panel (d).](figures/page_010.svg)
 
 **Figure labels:**
+
 - (b)
 - (a)
 - (c)
@@ -565,12 +572,12 @@ A.S. has received funding from the European Union's Horizon 2020 research and in
 
 ***TABLE I. Data availability across the TiMeS longitudinal cohort . Entries report the number of stroke patients with available data for resting-state fMRI (BOLD), BOLD plus behavioral assessment, BOLD plus lesion information, or all modalities jointly, at each post-stroke session. Columns labeled T i & T j indicate the number of patients with data available at both time points, enabling paired longitudinal analyses. Columns labeled T1-T3 and T1-T4 indicate the number of patients with complete longitudinal coverage across the corresponding interval.***
 
-|   | T1 | T2 | T3 | T4 | T 1& T 2 | T 1& T 3 | T 1& T 4 | T 2& T 3 | T 2& T 4 | T 3& T 4 | T1-T3 | T1-T4 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| BOLD | 62 | 53 | 44 | 40 | 45 | 39 | 33 | 37 | 31 | 31 | 32 | 22 |
-| BOLD & Behavioral | 56 | 53 | 43 | 39 | 43 | 37 | 31 | 36 | 30 | 30 | 31 | 21 |
-| BOLD & Lesions | 60 | 50 | 41 | 33 | 43 | 37 | 27 | 33 | 24 | 25 | 30 | 17 |
-| All | 54 | 50 | 40 | 33 | 41 | 35 | 26 | 32 | 24 | 25 | 29 | 17 |
+|                   | T1 | T2 | T3 | T4 | T 1& T 2 | T 1& T 3 | T 1& T 4 | T 2& T 3 | T 2& T 4 | T 3& T 4 | T1-T3 | T1-T4 |
+| ----------------- | -- | -- | -- | -- | -------- | -------- | -------- | -------- | -------- | -------- | ----- | ----- |
+| BOLD              | 62 | 53 | 44 | 40 | 45       | 39       | 33       | 37       | 31       | 31       | 32    | 22    |
+| BOLD & Behavioral | 56 | 53 | 43 | 39 | 43       | 37       | 31       | 36       | 30       | 30       | 31    | 21    |
+| BOLD & Lesions    | 60 | 50 | 41 | 33 | 43       | 37       | 27       | 33       | 24       | 25       | 30    | 17    |
+| All               | 54 | 50 | 40 | 33 | 41       | 35       | 26       | 32       | 24       | 25       | 29    | 17    |
 
 - O. Sporns, G. Tononi, and R. K¨ otter, 'The Human Connectome: A Structural Description of the Human Brain,' PLoS Computational Biology 1 , e42 (2005).
 - D. S. Bassett and O. Sporns, 'Network neuroscience,' Nature neuroscience 20 , 353-364 (2017).
@@ -604,7 +611,6 @@ A.S. has received funding from the European Union's Horizon 2020 research and in
 - X. Shen, E. S. Finn, D. Scheinost, M. D. Rosenberg, M. M. Chun, X. Papademetris, and R. T. Constable, 'Using connectome-based predictive modeling to predict individual behavior from brain connectivity,' Nat Protoc 12 , 506-518 (2017).
 - P. Sorrentino, R. Rucco, A. Lardone, M. Liparoti, E. Troisi Lopez, C. Cavaliere, A. Soricelli, V. Jirsa, G. Sorrentino, and E. Amico, 'Clinical connectome fingerprints of cognitive decline,' NeuroImage 238 , 118253 (2021).
 - E. Troisi Lopez, R. Minino, M. Liparoti, A. Polverino, A. Romano, R. De Micco, F. Lucidi, A. Tessitore,
-
 - Amico, G. Sorrentino, V. Jirsa, and P. Sorrentino, 'Fading of brain network fingerprint in Parkinson's disease predicts motor clinical impairment,' Human Brain Mapping 44 , 1239-1250 (2023).
 - A. Romano, E. Trosi Lopez, M. Liparoti, A. Polverino, R. Minino, F. Trojsi, S. Bonavita, L. Mandolesi, C. Granata, E. Amico, G. Sorrentino, and P. Sorrentino, 'The progressive loss of brain network fingerprints in Amyotrophic Lateral Sclerosis predicts clinical impairment,' NeuroImage: Clinical 35 , 103095 (2022).
 - S. Stampacchia, S. Asadi, S. Tomczyk, F. Ribaldi, M. Scheffler, K.-O. L¨ ovblad, M. Pievani, A. B. Fall, M. G. Preti, P. G. Unschuld, D. Van De Ville, O. Blanke, G. B. Frisoni, V. Garibotto, and E. Amico, 'Fingerprints of brain disease: Connectome identifiability in Alzheimer's disease,' Communications Biology 7 , 1-16 (2024).
@@ -663,7 +669,6 @@ systematic review,' Brain Res 1840 , 149023 (2024).
 - B. T. Thomas Yeo, F. M. Krienen, J. Sepulcre, M. R. Sabuncu, D. Lashkari, M. Hollinshead, J. L. Roffman, J. W. Smoller, L. Z¨ ollei, J. R. Polimeni, B. Fischl, H. Liu, and R. L. Buckner, 'The organization of the human cerebral cortex estimated by intrinsic functional connectivity,' Journal of Neurophysiology 106 , 11251165 (2011).
 - C. Foulon, L. Cerliani, S. Kinkingn´ ehun, R. Levy, C. Rosso, M. Urbanski, E. Volle, and M. Thiebaut de Schotten, 'Advanced lesion symptom mapping analyses and implementation as BCBtoolkit,' Gigascience 7 , giy004 (2018).
 - J. Cohen, Statistical power analysis for the behavioral sciences (routledge, 2013).
-
 - G. Deco, G. Tononi, M. Boly, and M. L. Kringelbach, 'Rethinking segregation and integration: Contributions of whole-brain modelling,' Nat Rev Neurosci 16 , 430439 (2015).
 - M. Breakspear, 'Dynamic models of large-scale brain activity,' Nat Neurosci 20 , 340-352 (2017).
 - J. Vohryzek, G. Deco, B. Cessac, M. L. Kringelbach, and J. Cabral, 'Ghost Attractors in Spontaneous Brain Activity: Recurrent Excursions Into FunctionallyRelevant BOLD Phase-Locking States,' Front. Syst. Neurosci. 14 (2020), 10.3389/fnsys.2020.00020.
@@ -722,6 +727,7 @@ Patient Retest (T3)
 ![FIG. S1. Longitudinal identifiability metrics across all pairs of time points. (a-c) Distributions of self-identifiability ( I self ), between-subject identifiability ( I others ), and identifiability difference [ I diff = ( I self -I others ]), for connectomes compared against the late-chronic reference ( T 4 ), i.e. between T1-T4, T2-T4 and T3-T4. All three metrics indicate that subject-level reconfiguration is largest between the acute (T1) and early sub-acute (T2) phases, as T1-T4 shows markedly lower identifiability than T2-T4 and T3-T4 (( ∗∗ p < 0 . 05, ∗∗ p < 0 . 01, Wilcoxon test, FDR-corrected). (d) Identifiability matrices for all longitudinal pairings, reporting success rate (SR), mean I diff , and Cohen's d . Pairings that are closer in time (e.g., T 1 -T 2 , T 2 -T 3 ) generally show higher SR and larger effect sizes. Notably, despite its shorter temporal separation, T 1 -T 3 shows lower SR and smaller effects than later intervals involving T 4 (e.g., T 2 -T 4 , T 3 -T 4 ), reinforcing the conclusion that a disproportionate reorganization of individual connectome identity is concentrated between the acute ( T 1 ) and early sub-acute ( T 2 ) stages.](figures/img_p022_0.png)
 
 **Figure labels:**
+
 - lothers
 - 0.4 -
 - 0.3 -
@@ -777,6 +783,7 @@ VIS
 ![FIG. S2. Spatial specificity of connectome fingerprinting across times. Topography of stable individual functional connections, defined by an Intraclass Correlation Coefficient ( ICC ) > 0 . 6, evaluated between early recovery stages ( T 1 , T 2 , T 3 ) and the chronic baseline ( T 4 ). Matrices display the percentage of these highly stable edges within and between canonical functional networks and subcortical structures. Notably, connections involving higher-order association systems-specifically the frontoparietal (FP) and default mode (DMN) networks-exhibit the highest proportion of stable edges across evaluated intervals, suggesting that these networks form a persistent functional infrastructure that anchors the individual connectome post-stroke. To eliminate variance driven by sample attrition, this analysis was restricted exclusively to the subset of 22 patients common to the analyzed longitudinal intervals. Network abbreviations: VIS, visual; SM, somatomotor; DA, dorsal attention; VA, ventral attention; L, limbic; FP, frontoparietal; DMN, default mode; SC, subcortical.](figures/img_p023_0.png)
 
 **Figure labels:**
+
 - SM DA VA
 - L FP
 - DMN SC
@@ -798,6 +805,7 @@ VIS
 ![FIG. S3. Network-resolved consolidation of longitudinal self-identifiability. Heatmaps report the median withinsubject similarity ( I self ; Pearson correlation) of functional connectivity patterns computed between early sessions and the chronic endpoint ( T 4 ), summarized within and between canonical networks (VIS, SM, DA, VA, L, FP, DMN, SC). Top panels show median I self for the ( T 1 , T 4 ), ( T 2 , T 4 ), and ( T 3 , T 4 ) intervals. In line with an early reconfiguration of the individual fingerprint, I self increases markedly from T 1 to T 2 (and remains elevated at T 3 ), whereas differences between T 2 and T 3 are minimal, indicating little additional change after the early sub-acute stage. Bottom panels quantify the relative median increase in I self between successive early intervals (e.g., T 1 → T 2 , T 1 → T 3 , T 2 → T 3 ), expressed as a percentage of the corresponding T 4 -referenced baseline, further emphasizing that the dominant shift occurs between T 1 and T 2 rather than between T 2 and T 3 . Statistical significance of interval effects was assessed using linear mixed-effects models with subject-specific random intercepts and FDR correction across network blocks.](figures/page_024.svg)
 
 **Figure labels:**
+
 - VIS SM DA VA
 - L
 - FP DMNSC
@@ -893,6 +901,7 @@ VIS
 ![FIG. S4. Longitudinal evolution of clinical and functional connectome identification in the complete-case subsample. Analyses replicate Fig. 2 using only patients with resting-state fMRI available at all four post-stroke sessions ( N = 22), reducing statistical power but preserving the overall pattern of effects. (a) Clinical identifiability ( I clinical ), defined as similarity of each patient's FC to the ECONS reference, remains reduced relative to the healthy control comparison (TrainStim vs. ECONS) across timepoints; in this smaller subsample, group differences are attenuated and some contrasts no longer reach significance, consistent with limited power. (b) Self-identifiability ( I self ) between earlier sessions and the chronic endpoint (T4) shows the same temporal profile as in the full cohort, with lower stability for the acute interval ( T 1 -T 4 ) relative to later intervals and a rapid increase by the early sub-acute stage. In this subsample, the early increase is weaker and does not consistently survive correction, but the direction of effect matches the main analysis (LMM with subject-specific random intercept; FDRcorrected). (c) Network-resolved I self (median within/between Yeo networks and subcortical structures) reproduces the relative pattern of higher stability in association systems and lower stability in sensorimotor/subcortical blocks, albeit with increased variance. (d) Relative percentage increase in I self from T 1 to T 2 , referenced to T 4 , shows the same networks contributing most to early consolidation (notably VA, L, and SM), but with reduced statistical sensitivity compared to the full sample.](figures/page_025.svg)
 
 **Figure labels:**
+
 - (a)
 - (d)
 - (c)
@@ -1204,6 +1213,7 @@ DA
 ![FIG. S5. Comparison of direct and indirect measures of structural disconnection. Longitudinal quantification of structural network disruption for the same subset of patients used in Fig 3 estimated using three complementary methodological approaches across four time points (T1, 1 week; T2, 3 weeks; T3, 3 months; T4, 1 year). (a) Matrices display the network-level percentage of disconnected edges estimated via direct lesion masking (Lesion impairment), (b) probabilistic tractography using the BCB toolkit (BCB impairment), and (c) empirical patient-specific DTI tractography (DTI impairment). While the spatial topography of damage-heavily affecting subcortical (SC) and somatomotor (SM) connections-is consistent across methods, direct lesion masking yields higher absolute impairment magnitudes compared to DTI-based estimates. (d) Correlation matrices (Pearson's r) quantifying the spatial similarity between the structural damage profiles generated by each method. High positive correlations confirm that the topological pattern of the disconnectome is robust to the specific modality used for estimation. Network abbreviations: VIS, Visual; SM, Somatomotor; DA, Dorsal Attention; VA, Ventral Attention; L, Limbic; FP, FrontoParietal; DMN, Default Mode Network; SC, Subcortical.](figures/page_026.svg)
 
 **Figure labels:**
+
 - (a)
 - (b)
 - (c)
@@ -1358,6 +1368,7 @@ DA
 ![FIG. S6. Robustness of clinical and functional connectome identification controlling for age, gender, and lesion size. Functional connectivity matrices were residualized for age and gender (all subjects) and log-transformed lesion volume (stroke patients only) prior to analysis. (a) Distribution of clinical identifiability scores ( I clinical ) for healthy controls (TrainStim vs. ECONS) and stroke patients (relative to ECONS). Controlling for covariates, stroke scores are significantly lower than healthy controls across all four time points ( ∗ ∗ ∗ p < 0 . 001, FDR-corrected Mann-Whitney U test). (b) Distribution of selfidentifiability scores ( I self ), quantifying patient connectome similarity between earlier time points and the chronic outcome ( T 4 ). Significantly lower I self at T 1 compared to T 2 confirms that the rapid functional reorganization of the individual fingerprint within the first three weeks is robust to demographic and injury severity factors ( ∗∗∗ p < 0 . 001, LMM). (c) Median I self within and between seven canonical networks (VIS, visual; SM, somatomotor; DA, dorsal attention; VA, ventral attention; L, limbic; FP, frontoparietal; DMN, default mode) and subcortical structures (SC). (d) Significant relative percentage increase in I self from acute to early sub-acute stages ( T 1 → T 2 ), referenced to the chronic baseline ( T 4 ). Consistent with the main analysis, warmer colors denote networks undergoing rapid functional reconfiguration, notably the ventral attention (VA), limbic (L), and somatomotor (SM) systems ( p < 0 . 05, LMM).](figures/page_027.svg)
 
 **Figure labels:**
+
 - (a)
 - (d)
 - (c)
@@ -1427,6 +1438,7 @@ VIS SM DA VA L FP DMN SC
 ![FIG. S7. Robustness of longitudinal structural and functional alterations controlling for age, gender, and lesion size. Functional connectivity matrices were residualized for age and gender (all subjects) and log-transformed lesion volume (stroke patients only) prior to analysis. (a) Group-level matrices displaying the percentage of DTI-derived structurally lesioned edges (upper triangle) and covariate-residualized functionally altered edges (lower triangle; FDR-corrected Mann-Whitney U test, q < 0 . 05) relative to healthy controls across four time points ( T 1 -T 4 ). Consistent with the main findings, structural disconnection patterns remain static, whereas functional alterations evolve dynamically, confirming that the spatial dissociation between fixed structural injury and time-varying functional reorganization is independent of these covariates. (b) Circular plots depict positive (hyperconnectivity, red) and negative (hypoconnectivity, blue) functional alterations at T 1 -T 4 , quantified by Cohen's d effect sizes from the residualized data. (c) Box plots summarize the fraction of altered edges classified as withinhemisphere (WH) or inter-hemispheric (IH), further subdivided into hyperconnectivity ( WH +; IH +) and hypoconnectivity ( WH -; IH -). Early stages ( T 1 -T 2 ) are dominated by within-hemisphere hyperconnectivity, whereas the late sub-acute/chronic phase ( T 3 -T 4 ) shows a relative increase in inter-hemispheric alterations, validating the shift from local to cross-hemispheric plasticity. Data are shown for the longitudinal subset ( n = 22). Network abbreviations: VIS, visual; SM, somatomotor; DA, dorsal attention; VA, ventral attention; L, limbic; FP, frontoparietal; DMN, default mode; SC, subcortical.](figures/img_p028_0.png)
 
 **Figure labels:**
+
 - SM
 - VIS SM DA VA L FP DMN SC
 - 3 weeks (T2)
@@ -1450,6 +1462,7 @@ VIS SM DA VA L FP DMN SC
 ![FIG. S8. Robustness of multivariate brain-behavior mapping and longitudinal prediction controlling for age, gender, and lesion size. Functional connectivity matrices were residualized for age and gender (all subjects) and logtransformed lesion volume (stroke patients only) prior to analysis. (a) Two-stage predictive framework coupling Partial Least Squares Correlation (PLSC) with Ridge regression. Latent axes of maximal covariance between the residualized functional connectivity (Brain X ) and behavioral scores (Behavior Y ) are identified via PLSC. Significant components generate a connectivity mask for Ridge regression, validated using a leave-one-subject-out (LOSO) approach to predict outcomes at subsequent time points ( T i → T i +1 ... 4 ). (b) Network-level aggregation of the significant PLSC connectivity mask derived at the acute stage ( T 1 ) from the residualized data. Heatmaps display the percentage of significantly negative (blue) and positive (red) edges, highlighting the prominent contribution of higher-order association systems (FP, DMN) and subcortical structures (SC) to the acute behavioral phenotype. (c) LOSO prediction performance ( R 2 ) for individual behavioral domains using the T 1 latent mask. Consistent with the main findings, the model successfully forecasts language, executive, and attention outcomes at follow-up ( T 2 , T 3 , T 4 ), whereas motor and neglect domains show negligible predictability from this functional signature. (d) Prediction accuracy for a global composite behavioral score across longitudinal intervals. Accuracy decays as the temporal gap from T 1 increases but peaks during the late sub-acute transition ( T 3 → T 4 ; R 2 = 0 . 533), confirming that the late-stage stabilization of the brain-behavior relationship is robust to demographic and injury severity factors. (e) Scatter plots correlating actual versus predicted global scores for key intervals reported in panel (d) (e.g., T 1 → T 2 , R 2 = 0 . 484, r = 0 . 698, p < 0 . 001).](figures/page_029.svg)
 
 **Figure labels:**
+
 - (b)
 - (a)
 - (c)
