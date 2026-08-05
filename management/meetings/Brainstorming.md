@@ -1,4 +1,8 @@
-Ecco gli appunti riorganizzati:
+Date: 24/06/2026
+People: Professor Corbetta, Antonio, Sebastinao
+
+---
+
 
 ## 1. Estensione della letteratura — lavori da includere
 

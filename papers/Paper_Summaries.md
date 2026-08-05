@@ -129,15 +129,15 @@ _The brain’s “dark energy” puzzle: How strongly is glucose metabolism link
 
 ## Riassunto brevissimo
 - **Il puzzle dell'energia oscura**: Il cervello consuma a riposo circa il 25% del glucosio corporeo, pur rappresentando solo il 2% del peso corporeo. Questo studio indaga in che misura questa notevole spesa energetica regionale sia guidata dall'attività neuronale spontanea.
-- **Accoppiamento non-lineare e locale**: Integrando 50 metriche di risonanza magnetica funzionale a riposo (rs-fMRI) in due dataset indipendenti di controlli sani, gli autori dimostrano che l'accoppiamento spaziale funzionale-metabolico (misurato con \([^{18}\text{F}]\text{FDG PET}\) SUVR) è non-lineare, eterogeneo e dominato da indici di sincronizzazione locale (come la Regional Homogeneity, ReHo).
-- **Influenza del metabolismo periferico**: La forza di questo accoppiamento spaziale (espressa dall'\(R^2\) individuale) varia tra i soggetti ed è direttamente influenzata e inversamente correlata a parametri metabolici periferici, quali il peso corporeo, il BMI e l'insulina plasmatica a riposo.
+- **Accoppiamento non-lineare e locale**: Integrando 50 metriche di risonanza magnetica funzionale a riposo (rs-fMRI) in due dataset indipendenti di controlli sani, gli autori dimostrano che l'accoppiamento spaziale funzionale-metabolico (misurato con \($[^{18}\text{F}]\text{FDG PET})$ SUVR) è non-lineare, eterogeneo e dominato da indici di sincronizzazione locale (come la Regional Homogeneity, ReHo).
+- **Influenza del metabolismo periferico**: La forza di questo accoppiamento spaziale (espressa dall' $R^2$ individuale) varia tra i soggetti ed è direttamente influenzata e inversamente correlata a parametri metabolici periferici, quali il peso corporeo, il BMI e l'insulina plasmatica a riposo.
 
 ---
 
 ## Domande scientifiche e Obiettivi
 - In che misura l'immensa spesa energetica del cervello a riposo è legata e spiegata dalle fluttuazioni e dalle reti dell'attività neuronale spontanea (rs-fMRI)?
 - Quali specifiche caratteristiche del segnale BOLD (locali, emodinamiche, o di connettività statica/dinamica a lungo termine) si associano più strettamente al metabolismo regionale?
-- **Obiettivo principale**: Costruire e validare in modo _out-of-sample_ (su un secondo dataset indipendente) un modello predittivo multivariato e multilivello (MEM) in grado di mappare la variabilità spaziale dell'uptake di glucosio (\([^{18}\text{F}]\text{FDG}\) SUVR) a partire dalle fluttuazioni rs-fMRI, analizzando anche l'influenza di fattori costituzionali e periferici.
+- **Obiettivo principale**: Costruire e validare in modo _out-of-sample_ (su un secondo dataset indipendente) un modello predittivo multivariato e multilivello (MEM) in grado di mappare la variabilità spaziale dell'uptake di glucosio  \($[^{18}\text{F}]\text{FDG PET})$ SUVR) a partire dalle fluttuazioni rs-fMRI, analizzando anche l'influenza di fattori costituzionali e periferici.
 
 ## Metodologie
 - **Campione e Dataset**: Studio condotto su due dataset indipendenti di soggetti sani: il Dataset 1 (utilizzato per l'addestramento e la selezione delle caratteristiche) e il Dataset 2 (utilizzato come test per verificare la riproducibilità out-of-sample).
@@ -145,13 +145,14 @@ _The brain’s “dark energy” puzzle: How strongly is glucose metabolism link
 - **Modellistica statistica e Selezione**: Selezione delle caratteristiche eseguita sul Dataset 1 mediante algoritmi robusti (NNLS, Elastic Net, GETS) per minimizzare la multicollinearità e la sovra-parametrizzazione.
 - **Multilevel Modeling (MEM)**: Implementazione di modelli lineari a effetti misti (MEM) per catturare simultaneamente gli effetti a livello di popolazione (effetti fissi) e la variabilità tra i singoli soggetti (effetti random).
 
+## 
 ## Risultati
 - **Il ruolo dominante di ReHo**: La sincronizzazione locale misurata con ReHo (Regional Homogeneity) emerge come il predittore più forte e stabile. Da sola spiega il 32% (Dataset 1) e il 53% (Dataset 2) della varianza spaziale dell'uptake del glucosio a livello di gruppo.
 - **Modelli multivariati (9p e 3p)**:
     - Il modello a 9 parametri (9p; inclusivo di entropia, ReHo, picchi BOLD, connettività statica e dinamica) spiega il 41% della varianza nel Dataset 1, ma mostra instabilità nel Dataset 2.
     - Il modello parsimonioso a 3 parametri (3p; ReHo, CV-ReHo e connettività dinamica) si dimostra altamente riproducibile, spiegando il 59% della varianza nel Dataset 2 out-of-sample.
 - **Eterogeneità dei residui**: Il modello sottostima sistematicamente il consumo energetico a livello della corteccia posteromediale (in particolare il cingolo posteriore e il precuneo), del talamo e del caudato. Queste aree ad altissimo metabolismo possiedono peculiarità biologiche (es. densità sinaptica, navetta del lattato astrocita-neurone o metabolismo dell'ossigeno) che la fMRI BOLD non riesce a catturare completamente.
-- **Legame con il metabolismo periferico**: Nel Dataset 2, la forza dell'accoppiamento funzionale-metabolico del singolo soggetto (\(R^2\) individuale) correla negativamente con il peso corporeo (\($r = -0.495$\)), l'area di superficie corporea (BSA, \(r = -0.492\)), il BMI (\(r = -0.382\)) e i livelli di insulina plasmatica a riposo (\(r = -0.473\)).
+- **Legame con il metabolismo periferico**: Nel Dataset 2, la forza dell'accoppiamento funzionale-metabolico del singolo soggetto ($R^2$ individuale) correla negativamente con il peso corporeo ($r = -0.495$), l'area di superficie corporea (BSA, $r = -0.492$), il BMI ($r = -0.382$) e i livelli di insulina plasmatica a riposo ($r = -0.473$).
 
 ## Breve Discussione
 - L'accoppiamento spaziale dimostra che il mantenimento dei potenziali di membrana a riposo e la trasmissione sinaptica (espressi dalla sincronia locale rs-fMRI) costituiscono la quota principale dell'energia oscura del cervello sano.

@@ -17,8 +17,9 @@ People: Professor Corbetta
 
 ## 2. Domande
 
-**Non è chiaro come le feature locali si correlino con le alterazioni globali** → cioè, alterazioni locali del segnale come si legano a pattern di rete più ampi.
+1. **Non è chiaro come le feature locali si correlino con le alterazioni globali** → cioè, alterazioni locali del segnale come si legano a pattern di rete più ampi.
 
+ 2. Trovare alterazioni *canoniche* di connettività funzionale.
 ## 3. Segnale locale — quali feature considerare
 
 - Ampiezza
@@ -35,7 +36,7 @@ People: Professor Corbetta
 2. Identificazione di vari pattern di alterazione
 3. Embedding a bassa dimensionalità (low-dimensional embedding)
 
-**Obiettivo:** trovare alterazioni *canoniche* di connettività funzionale.
+
 
 ## 5. Ipotesi guida
 
