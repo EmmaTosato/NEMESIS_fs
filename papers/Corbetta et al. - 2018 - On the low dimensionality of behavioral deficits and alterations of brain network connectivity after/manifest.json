@@ -1,0 +1,110 @@
+{
+  "source_pdf": "/Users/emmatosato/Software/Zotero/storage/UN2GMF9K/Corbetta et al. - 2018 - On the low dimensionality of behavioral deficits and alterations of brain network connectivity after.pdf",
+  "extracted_at": "2026-08-04T18:19:42",
+  "pdf_metadata": {
+    "title": "On the low dimensionality of behavioral deficits and alterations of brain network connectivity after focal injury",
+    "author": "Maurizio Corbetta",
+    "subject": "CORTEX, 107 (2018) 229-237. doi:10.1016/j.cortex.2017.12.017",
+    "keywords": "",
+    "producer": "Acrobat Distiller 8.1.0 (Windows)",
+    "creator": "Elsevier",
+    "creation_date": "D:20181004010335+05'30'",
+    "mod_date": "D:20181004010407+05'30'"
+  },
+  "page_offset": 0,
+  "pages": 9,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 2,
+    "png": 2,
+    "embedded_images": 3,
+    "classifications": {
+      "ICON_TABLE": 2,
+      "TEXT": 5,
+      "BITMAP": 2
+    },
+    "figures_in_index": 7,
+    "tables_in_index": 0,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 167,
+      "images": 1,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_001.svg",
+      "png": "tables_visual/page_001.png"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 3,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 2,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 5,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 2,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 371,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_007.svg",
+      "png": "tables_visual/page_007.png"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    }
+  ]
+}

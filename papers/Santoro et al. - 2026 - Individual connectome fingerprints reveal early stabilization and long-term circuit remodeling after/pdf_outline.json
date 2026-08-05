@@ -1,0 +1,206 @@
+[
+  {
+    "level": 1,
+    "title": "Individual connectome fingerprints reveal early stabilization and long-term circuit remodeling after stroke",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "level": 2,
+    "title": "Abstract",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "level": 2,
+    "title": "Results",
+    "pdf_page": 2,
+    "doc_page": 2
+  },
+  {
+    "level": 3,
+    "title": "The individual connectome fingerprint is resilient and consolidates early after stroke",
+    "pdf_page": 3,
+    "doc_page": 3
+  },
+  {
+    "level": 3,
+    "title": "Decoupling of functional reconfiguration from structural lesion",
+    "pdf_page": 5,
+    "doc_page": 5
+  },
+  {
+    "level": 3,
+    "title": "Temporal asymmetry of hyper- and hypo-connectivity phenotypes",
+    "pdf_page": 7,
+    "doc_page": 7
+  },
+  {
+    "level": 3,
+    "title": "Recovery as a longitudinal migration toward a healthy structure\u2013function manifold",
+    "pdf_page": 7,
+    "doc_page": 7
+  },
+  {
+    "level": 3,
+    "title": "Behavioral recovery is domain-specific and only partly explained by lesion size",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "level": 3,
+    "title": "Multivariate brain\u2013behavior coupling reveals a predictive acute functional signature",
+    "pdf_page": 9,
+    "doc_page": 9
+  },
+  {
+    "level": 2,
+    "title": "Discussion",
+    "pdf_page": 11,
+    "doc_page": 11
+  },
+  {
+    "level": 3,
+    "title": "The paradox of rapid stabilization and persistent plasticity",
+    "pdf_page": 11,
+    "doc_page": 11
+  },
+  {
+    "level": 3,
+    "title": "Decoupling of structural injury and functional reorganization",
+    "pdf_page": 11,
+    "doc_page": 11
+  },
+  {
+    "level": 3,
+    "title": "Recovery as a trajectory in a structure\u2013function manifold",
+    "pdf_page": 12,
+    "doc_page": 12
+  },
+  {
+    "level": 3,
+    "title": "Multivariate brain\u2013behavior signatures of recovery",
+    "pdf_page": 12,
+    "doc_page": 12
+  },
+  {
+    "level": 3,
+    "title": "Limitations and future directions",
+    "pdf_page": 12,
+    "doc_page": 12
+  },
+  {
+    "level": 2,
+    "title": "Methods",
+    "pdf_page": 13,
+    "doc_page": 13
+  },
+  {
+    "level": 3,
+    "title": "Participants and study design",
+    "pdf_page": 13,
+    "doc_page": 13
+  },
+  {
+    "level": 3,
+    "title": "MRI acquisition and preprocessing",
+    "pdf_page": 13,
+    "doc_page": 13
+  },
+  {
+    "level": 4,
+    "title": "Diffusion preprocessing and structural connectome estimation",
+    "pdf_page": 13,
+    "doc_page": 13
+  },
+  {
+    "level": 4,
+    "title": "Functional and structural connectome construction",
+    "pdf_page": 13,
+    "doc_page": 13
+  },
+  {
+    "level": 4,
+    "title": "Connectome fingerprinting and identifiability metrics",
+    "pdf_page": 14,
+    "doc_page": 14
+  },
+  {
+    "level": 4,
+    "title": "Clinical similarity to healthy controls",
+    "pdf_page": 14,
+    "doc_page": 14
+  },
+  {
+    "level": 4,
+    "title": "Statistical inference for longitudinal fingerprinting",
+    "pdf_page": 14,
+    "doc_page": 14
+  },
+  {
+    "level": 4,
+    "title": "Single-edge fingerprinting and link reliability",
+    "pdf_page": 14,
+    "doc_page": 14
+  },
+  {
+    "level": 4,
+    "title": "Structural disconnection and disconnectome estimation",
+    "pdf_page": 14,
+    "doc_page": 14
+  },
+  {
+    "level": 4,
+    "title": "Whole-brain structure\u2013function state-space embedding",
+    "pdf_page": 14,
+    "doc_page": 14
+  },
+  {
+    "level": 4,
+    "title": "Behavioral scores",
+    "pdf_page": 15,
+    "doc_page": 15
+  },
+  {
+    "level": 4,
+    "title": "Detrending behavioral scores for longitudinal prediction",
+    "pdf_page": 15,
+    "doc_page": 15
+  },
+  {
+    "level": 4,
+    "title": "Multivariate brain\u2013behavior association and leakage-aware prediction",
+    "pdf_page": 15,
+    "doc_page": 15
+  },
+  {
+    "level": 4,
+    "title": "Covariate handling and robustness analyses",
+    "pdf_page": 15,
+    "doc_page": 15
+  },
+  {
+    "level": 4,
+    "title": "Multiple-comparison correction",
+    "pdf_page": 16,
+    "doc_page": 16
+  },
+  {
+    "level": 4,
+    "title": "Code availability",
+    "pdf_page": 16,
+    "doc_page": 16
+  },
+  {
+    "level": 4,
+    "title": "Acknowledgment",
+    "pdf_page": 16,
+    "doc_page": 16
+  },
+  {
+    "level": 2,
+    "title": "References",
+    "pdf_page": 18,
+    "doc_page": 18
+  }
+]

@@ -1,0 +1,55 @@
+{
+  "italic": [
+    {
+      "text": "self",
+      "pdf_page": 24,
+      "doc_page": 24,
+      "font": "DejaVuSans-Oblique",
+      "kind": "italic"
+    },
+    {
+      "text": "self",
+      "pdf_page": 24,
+      "doc_page": 24,
+      "font": "DejaVuSans-Oblique",
+      "kind": "italic"
+    },
+    {
+      "text": "self",
+      "pdf_page": 24,
+      "doc_page": 24,
+      "font": "DejaVuSans-Oblique",
+      "kind": "italic"
+    },
+    {
+      "text": "self",
+      "pdf_page": 24,
+      "doc_page": 24,
+      "font": "DejaVuSans-Oblique",
+      "kind": "italic"
+    },
+    {
+      "text": "self",
+      "pdf_page": 24,
+      "doc_page": 24,
+      "font": "DejaVuSans-Oblique",
+      "kind": "italic"
+    },
+    {
+      "text": "self",
+      "pdf_page": 24,
+      "doc_page": 24,
+      "font": "DejaVuSans-Oblique",
+      "kind": "italic"
+    }
+  ],
+  "bold": [
+    {
+      "text": "Residualized",
+      "pdf_page": 29,
+      "doc_page": 29,
+      "font": "Arial-BoldItalicMT",
+      "kind": "bolditalic"
+    }
+  ]
+}

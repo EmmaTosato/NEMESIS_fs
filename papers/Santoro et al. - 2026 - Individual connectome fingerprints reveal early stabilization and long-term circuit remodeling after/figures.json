@@ -1,0 +1,102 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 3,
+    "doc_page": 3
+  },
+  {
+    "id": "2",
+    "caption": "Longitudinal evolution of functional connectome identification following stroke . (a) Distribution of connectome similarity scores I clinical for healthy controls (TrainStim vs. ECONS) and stroke pati",
+    "pdf_page": 4,
+    "doc_page": 4,
+    "svg": "figures/page_004.svg"
+  },
+  {
+    "id": "3",
+    "caption": "Longitudinal functional reconfiguration decouples from structural damage following stroke. (a) Grouplevel matrices displaying the percentage of DWI-derived structurally lesioned edges (upper triangle)",
+    "pdf_page": 5,
+    "doc_page": 5
+  },
+  {
+    "id": "4",
+    "caption": "Longitudinal distribution of positive and negative functional network alterations. Matrices report the network-level fraction of functional edges significantly altered in stroke patients relative to h",
+    "pdf_page": 6,
+    "doc_page": 6,
+    "svg": "figures/page_006.svg"
+  },
+  {
+    "id": "5",
+    "caption": "Longitudinal convergence of the post-stroke connectome toward the healthy manifold. (a-d) Each panel shows a bivariate embedding of stroke patients at acute ( T 1 ), early sub-acute ( T 2 ), late sub-",
+    "pdf_page": 8,
+    "doc_page": 8,
+    "svg": "figures/page_008.svg"
+  },
+  {
+    "id": "6",
+    "caption": "Domain-specific behavioral recovery and its relationship to structural lesion burden. (a) Behavioral composite scores across six domains (Motor, Attention, Executive, Sensory, Language, Neglect) over ",
+    "pdf_page": 9,
+    "doc_page": 9,
+    "svg": "figures/page_009.svg"
+  },
+  {
+    "id": "7",
+    "caption": "Multivariate brain-behavior mapping and longitudinal forecasting of clinical outcomes. (a) Two-stage predictive framework coupling Partial Least Squares Correlation (PLSC) with Ridge regression. Laten",
+    "pdf_page": 10,
+    "doc_page": 10,
+    "svg": "figures/page_010.svg"
+  },
+  {
+    "id": "S1",
+    "caption": "Longitudinal identifiability metrics across all pairs of time points. (a-c) Distributions of self-identifiability ( I self ), between-subject identifiability ( I others ), and identifiability differen",
+    "pdf_page": 22,
+    "doc_page": 22
+  },
+  {
+    "id": "S2",
+    "caption": "Spatial specificity of connectome fingerprinting across times. Topography of stable individual functional connections, defined by an Intraclass Correlation Coefficient ( ICC ) > 0 . 6, evaluated betwe",
+    "pdf_page": 23,
+    "doc_page": 23
+  },
+  {
+    "id": "S3",
+    "caption": "Network-resolved consolidation of longitudinal self-identifiability. Heatmaps report the median withinsubject similarity ( I self ; Pearson correlation) of functional connectivity patterns computed be",
+    "pdf_page": 24,
+    "doc_page": 24,
+    "svg": "figures/page_024.svg"
+  },
+  {
+    "id": "S4",
+    "caption": "Longitudinal evolution of clinical and functional connectome identification in the complete-case subsample. Analyses replicate Fig. 2 using only patients with resting-state fMRI available at all four ",
+    "pdf_page": 25,
+    "doc_page": 25,
+    "svg": "figures/page_025.svg"
+  },
+  {
+    "id": "S5",
+    "caption": "Comparison of direct and indirect measures of structural disconnection. Longitudinal quantification of structural network disruption for the same subset of patients used in Fig 3 estimated using three",
+    "pdf_page": 26,
+    "doc_page": 26,
+    "svg": "figures/page_026.svg"
+  },
+  {
+    "id": "S6",
+    "caption": "Robustness of clinical and functional connectome identification controlling for age, gender, and lesion size. Functional connectivity matrices were residualized for age and gender (all subjects) and l",
+    "pdf_page": 27,
+    "doc_page": 27,
+    "svg": "figures/page_027.svg"
+  },
+  {
+    "id": "S7",
+    "caption": "Robustness of longitudinal structural and functional alterations controlling for age, gender, and lesion size. Functional connectivity matrices were residualized for age and gender (all subjects) and ",
+    "pdf_page": 28,
+    "doc_page": 28
+  },
+  {
+    "id": "S8",
+    "caption": "Robustness of multivariate brain-behavior mapping and longitudinal prediction controlling for age, gender, and lesion size. Functional connectivity matrices were residualized for age and gender (all s",
+    "pdf_page": 29,
+    "doc_page": 29,
+    "svg": "figures/page_029.svg"
+  }
+]

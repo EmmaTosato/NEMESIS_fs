@@ -1,0 +1,47 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "3",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "5",
+    "caption": "",
+    "pdf_page": 6,
+    "doc_page": 6
+  },
+  {
+    "id": "7",
+    "caption": "",
+    "pdf_page": 6,
+    "doc_page": 6
+  },
+  {
+    "id": "1_2",
+    "caption": "Fig. 1 e Behavioral clusters in stroke at 2 weeks (left). Thickness of line indicates strength of correlation between behavioral deficits across subjects. Moderation effect between cognitive deficits ",
+    "pdf_page": 4,
+    "doc_page": 4
+  },
+  {
+    "id": "2_2",
+    "caption": "Fig. 2 e Functional connectivity (FC) correlates of stroke. Two most common phenotypes of abnormal connectivity that correlate with behavioral deficits: decrease of inter-hemispheric FC, and abnormall",
+    "pdf_page": 6,
+    "doc_page": 6
+  }
+]

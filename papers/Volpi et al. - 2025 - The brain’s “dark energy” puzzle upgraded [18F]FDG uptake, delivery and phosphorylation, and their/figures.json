@@ -1,0 +1,50 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1
+  },
+  {
+    "id": "3",
+    "caption": "Top and bottom 20% values of group-average K i (a), K 1 (b) and k 3 (c), along with corresponding boxplots showing groupaverage regional values of each parameter divided according to Schaefer's functi",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "4",
+    "caption": "Spider plot of Pearson's correlations across brain regions between group-average [ 18 F]FDG kinetic parameters ( K i , K 1 and k 3) vs. group-average rs-fMRI features (divided into 4 a priori defined ",
+    "pdf_page": 9,
+    "doc_page": 9
+  },
+  {
+    "id": "5",
+    "caption": "Multilevel modeling of glucose metabolism: rs-fMRI-only models . Fixed effects h (adapted 9-parameter model) for [ 18 F]FDG kinetic parameters ( K i , K 1 and k 3): estimate weights and estimation err",
+    "pdf_page": 10,
+    "doc_page": 10
+  },
+  {
+    "id": "6",
+    "caption": "Multilevel modeling of glucose metabolism: rs-fMRI plus CMRO2 models . Fixed effects h (adapted 9-parameter model \u00fe CMRO2) for [ 18 F]FDG kinetic parameters ( K i , K 1 and k 3): estimate weights and ",
+    "pdf_page": 12,
+    "doc_page": 12
+  },
+  {
+    "id": "1_2",
+    "caption": "Flowchart of the analysis. The rs-fMRI data ( left ) were used to extract fifty features representative of four 'pools', i.e., 1) signal and local measures, 2) hemodynamic response function ( HRF ), 3",
+    "pdf_page": 4,
+    "doc_page": 4
+  },
+  {
+    "id": "2_2",
+    "caption": "Group-average [ 18 F]FDG PET parametric maps (n \u00bc 47) for K i , K 1 , k 3 in MNI space, generated using a variational Bayesian inference algorithm. 28 The individual dynamic data are masked to include",
+    "pdf_page": 7,
+    "doc_page": 7
+  }
+]
