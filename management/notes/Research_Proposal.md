@@ -101,8 +101,6 @@
 
 # Cosa possiamo fare noi
 
-Il punto chiave da esplicitare, prima della tabella: **non tutte le modalità hanno la stessa N**. Questo non è un dettaglio tecnico ma vincola direttamente quali confronti sono fattibili e quali no.
-
 ## Dati per modalità
 
 | Modalità                                                              | N stimata                          | Dataset coperti                                                                                            | Note                                                         |
@@ -118,120 +116,26 @@ Il punto chiave da esplicitare, prima della tabella: **non tutte le modalità ha
 ##  Workflow possibile
 
 ```
-FASE 1 — Rappresentazione anatomica (tutta la coorte)
-│
-├─ Lesione (mask) ──────┐
-│                        ├─→ Embedding (UMAP/t-SNE/PCA)
-└─ SDC (da BCB Toolkit) ─┘         [Replica: Thiebaut 2020, Talozzi 2023]
-                                        │
-                                        ▼
-                        Clustering (grid search parametri)
-                                        │
-                                        ▼
-                        Consensus clustering (co-appartenenza su run multipli)
-                              → partizione finale
-                              [Estensione: principio Zanola 2026, applicato dati statici]
-                                        │
-                                        ▼
-                        Confronto clustering lesione vs SDC (ARI/NMI)
-                              [Estensione: metriche standard su problema nuovo]
-                                        │
-                        ────────────────┼────────────────
-                        (resto invariato)
-                        ────────────────┼────────────────
-                        │                                │
-                        ▼                                ▼
-FASE 2 — Validazione clinica              FASE 3 — Validazione funzionale
-(sottoinsieme con comportamento)          (sottoinsieme con FC / EEG)
-│                                          │
-├─ Siegel replication in parallelo         ├─ Proiezione cluster → pattern FC
-│  lesione→comportamento                   │  [Estensione: vicino a Bisogno 2025]
-│  SDC→comportamento                       │
-│  [Replica: Siegel 2016]                  ├─ Relazione SDC↔FC (PLSC)
-│                                          │  [Replica: Griffis 2019]
-└─ (richiede copertura tsv per dominio)    │
-                                           └─ Descrizione EEG per cluster
-                                              [Questione aperta]
-                        │                                │
-                        └────────────────┬───────────────┘
-                                          ▼
-FASE 4 — Estensioni metodologiche mirate
-│
-├─ Feature locali (ALFF/ReHo) → comportamento
-│  [Estensione: Volpi 2024/2025 retargettizzato]
-│
-├─ Link locale↔globale (ReHo vs modularità/GFC)
-│  [Estensione/Questione aperta: Corbetta + Griffis 2020]
-│
-└─ Armonizzazione multi-sito
-   [Questione aperta: metodo da validare per questo tipo di dato]
-                                          │
-                                          ▼
-FASE 5 — Integrazione multimodale (obiettivo finale)
-   Framework unico lesione + SDC + FC + EEG
-   [Questione aperta: nessun precedente diretto in letteratura]
-                                          │
-                                          ▼
-FASE 6 — Traduzione clinica (orizzonte finale, oltre NEMESIS attuale)
-   Dal fenotipo funzionale/multimodale a terapie mirate e personalizzate
-   (es. protocolli TMS-EEG calibrati sul pattern di alterazione del paziente)
-   [Questione aperta: nessun paper della collezione arriva a questo step —
-    richiede che la Fase 5 produca
+LESIONI                              SDC
+ (mask binarie,                   (via BCB Toolkit,
+  ~5750 soggetti)                  stessa N lesioni)
+      |                                   |
+      v                                   v
+ Embedding lesioni                  Embedding SDC
+ (PCA / UMAP / t-SNE / ...)          (PCA / UMAP / t-SNE / ...)          
+      |                                   |
+      v                                   v
+ Clustering lesioni                 Clustering SDC
+ (k-means/ HDBSCAN / ...)       (k-means/ HDBSCAN / ...)
+      |                                   |
+      +-----------------+-----------------+
+                        |
+                        v
+         Confronto cluster lesione vs SDC
+           (ARI, NMI, contingency table)
+                                 
 ```
 
 
 ## Tabella riepilogativa per fasi del workflow 
 
-### FASE 1 — Rappresentazione anatomica
-
-|Cosa|Riferimento|Domanda di ricerca|Note / varianti|
-|---|---|---|---|
-|Embedding + clustering topografico di lesioni e SDC, con consensus clustering per la partizione finale — _replica + estensione_|Thiebaut de Schotten 2020, Talozzi 2023 (embedding/clustering); Zanola 2026 (principio del consensus, qui applicato a dati statici)|D2|Varianti: UMAP vs t-SNE vs PCA; metrica Jaccard vs Dice; consensus come step standard o come confronto A/B|
-|Confronto tra soluzione di clustering su lesione vs su SDC (ARI/NMI, contingency table) — _estensione_|—|D2|Nessun paper confronta due clustering ottenuti da rappresentazioni diverse (lesione grezza vs SDC) dello stesso dato|
-
----
-
-### FASE 2 — Validazione clinica
-
-|Cosa|Riferimento|Domanda di ricerca|Note / varianti|
-|---|---|---|---|
-|Siegel replication in parallelo (lesione→comportamento; SDC→comportamento) — _replica_|Siegel 2016|Supporto trasversale|Varianti: Ridge (standard) vs Lasso (Bisogno 2025) vs Random Forest (Idesis 2023); richiede copertura tsv per dominio|
-
----
-
-### FASE 3 — Validazione funzionale
-
-|Cosa|Riferimento|Domanda di ricerca|Note / varianti|
-|---|---|---|---|
-|Relazione SDC↔FC (PLSC): componenti latenti che collegano covariamente disconnessione strutturale e alterazione funzionale su tutta la coorte con entrambe disponibili — _replica_|Griffis 2019|D1|Variante: PLSR invece di PLSC, a seconda che si voglia predire o solo correlare|
-|Proiezione cluster → pattern FC: descrivere la FC media dei pazienti che condividono lo stesso cluster anatomico (da Fase 1), confrontata con quella dei sani — _estensione_|Concettualmente vicino a Bisogno 2025|D2|Non è clustering della FC — è descrizione della FC dentro cluster già definiti solo su base anatomica|
-|Descrizione EEG per cluster: verificare se il segnale EEG è caratteristico per cluster anatomico (sottoinsieme Padova, ~80) — _questione aperta_|—|D1|Puro pilota/proof-of-concept, nessuno standard di confronto in letteratura|
-
----
-
-### FASE 4 — Estensioni metodologiche mirate
-
-|Cosa|Riferimento|Domanda di ricerca|Note / varianti|
-|---|---|---|---|
-|Feature locali (catalogo 4 pool: Signal, HRF, sFC, tvFC) → comportamento — _estensione_|Volpi 2024/2025|D3|Stesso framework di selezione feature, target sostituito da SUVR a punteggio comportamentale|
-|Link locale↔globale: ReHo regionale vs metriche di rete globali (modularità, GFC) — _estensione / questione aperta_|Corbetta_Meeting_1; Griffis 2020 (diaschisi)|D3|Combina due framework esistenti in un modo nuovo, mai fatto nel contesto comportamentale stroke|
-|Armonizzazione multi-sito (neuroCombat o equivalente) — _questione aperta_|Seba_Meeting_3; tecnica standard in connettomica multicentrica|D1 / D2|Non è chiaro se applicabile direttamente a lesioni/SDC binarie o parcellizzate (pensata per matrici FC) — prerequisito trasversale a Fase 1 e Fase 3|
-
----
-
-### FASE 5 — Integrazione multimodale
-
-|Cosa|Riferimento|Domanda di ricerca|Note / varianti|
-|---|---|---|---|
-|Scelta early vs late fusion delle modalità (concatenazione feature grezze vs fusione degli embedding già calcolati) — _questione aperta_|—|D1|Decisione architetturale preliminare|
-|Scelta del metodo di fusione da testare (Similarity Network Fusion, joint factorization, multi-view CCA/spectral clustering) — _questione aperta_|—|D1|Nessun precedente diretto: metodi mutuati da altri ambiti (es. multi-omics), mai applicati a lesione+SDC+FC+EEG|
-|Definizione della coorte target: 3 modalità (lesione+SDC+FC, N~500) come passo intermedio vs 4 modalità complete (+EEG, N~80)|—|D1|Il framework "completo" richiede l'intersezione di tutte le modalità disponibili contemporaneamente|
-|Definizione della metrica di validazione del guadagno rispetto a singola modalità (predittività su comportamento, stabilità dei cluster, sottogruppi altrimenti indistinguibili) — _questione aperta_|—|D1|Necessaria per dire che l'integrazione aggiunge qualcosa rispetto a guardare le modalità separatamente (Fasi 2-4)|
-
----
-
-### Riepilogo — Il meccanismo causale/gerarchico locale→globale
-
-|Cosa|Riferimento|Domanda di ricerca|Note|
-|---|---|---|---|
-|Il meccanismo (non solo correlazione) con cui un'alterazione locale si traduce in un'alterazione di rete globale — _questione aperta_|—|D3|Non collocabile in una fase precisa del workflow attuale: richiede probabilmente un disegno ad hoc, non solo un'estensione di metodo esistente — da discutere se va prima o dopo la Fase 4|
