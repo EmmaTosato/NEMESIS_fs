@@ -19,8 +19,8 @@
   - demografici, e score clinici
 
 # GOALS
-- goal clinico: Voglio trovare dei fenotipi generalizzabili tra dataset armonizzazione
-- trovare alterazioni canoniche di connettività funzionale
-- paziente -> mascheriamo lesione -->  sdc -> clustering --> in base al cluster anatomico bisogna inferire il cluster fenotipo. Non ho un contatto funzionale di quel soggetto, è una stima
-	- cluster anatomico --> che fingerprint funzionale ha quel cluster frontale dx e frontale sx che appartengono alla stessa fenotipizzazione funzionale
+- Goal clinico: Voglio trovare dei fenotipi generalizzabili tra dataset armonizzazione
+- Trovare alterazioni canoniche di connettività funzionale
+- Paziente -> mascheriamo lesione -->  sdc -> clustering --> in base al cluster anatomico bisogna inferire il cluster fenotipo. Non ho un contatto funzionale di quel soggetto, è una stima
+	- Cluster anatomico --> che fingerprint funzionale ha quel cluster frontale dx e frontale sx che appartengono alla stessa fenotipizzazione funzionale
 - 4/5 fenotipi funzionali idealmente (feasibility)

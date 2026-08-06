@@ -20,9 +20,9 @@ People: Professor Corbetta
     - tra quelli present, tipo Bonkhoff
     - tra quelli da cercare
     - Vedi Fallani con clustering longitudinale
-
+- Connettività singolo paziente zscore rispetto al normale
 ## GOALS
 - Trovare delle alterazioni canoniche di connettività funzionale
-- la struttura normale guida la fc: connettivtà normale lievemente alterate
-- Connettività singlo paziente zscore rispetto al normale
+- La struttura normale guida la fc: connettivtà normale lievemente alterate
+
     

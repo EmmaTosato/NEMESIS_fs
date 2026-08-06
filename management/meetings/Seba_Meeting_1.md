@@ -17,15 +17,15 @@ Cartella  EBRAIN: /data/corbetta/Clinical_connectome
 Cartella Nemesis: /data/corbetta/<>/NEMESIS —-> Padova
 
 #### Datasets:
-1. Washu  (n = 200)
-2. PASPORT (n = 100)
-3. PSP (n = circa 200)
-4. stroke_UKLFR (n = 700)
+1. Washu  (n = 202)
+2. PASPORT (n = 83)
+3. PSP (n = 168)
+4. stroke_UKLFR (n = 697)
 5. Manca un dataset grosso, clinico di Amburgo (n = 500) —> arriverà
 6. Potremmo chiedere accesso di 4100 lesioni di UCL  (?)
 7. Santiago 
 
-200 + 100 + 200 + 700 + 500+ 4100  = 5800
+202 + 83 + 168 + 697 + 500+ 4100  = 5750
 
 #### Struttura interna 
 
@@ -103,6 +103,6 @@ Clinical_connectome/features/<\dataset>/func, dentro troverai le features
 - descrivo la connettività funzionale rispetto ai sani per tutti i soggetti nel cluster
 - posso farlo sia per BOLD che diffusione (numeri circa uguali)
 - Sarebbe molto power per cluster anatomico (quello che viene fuori dalle lesioni): tutti i pazienti che hanno questa lesione prototipica, hanno questo patter funzionale/ di diffisione = renderebbe le rispsote contestuallizzate, specifiche a quel sottogryppo clinico e neuroanatomico
-- Cerca ome confrontare i clustering di diversi embedding
+- Cerca come confrontare i clustering di diversi embedding
 - A livello di spazio fisico nel cervello, capire come il delta (frqueneza EEG) spiega gli effetti di trovati da Siegel 2016
 
