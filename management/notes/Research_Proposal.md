@@ -115,64 +115,49 @@
 ##  Workflow possibile
 
 ```
-LESIONI                    SDC                        FC
-(mask binarie,          (via BCB Toolkit,          (embedding+clustering indipendente,
- ~5750 soggetti)          stessa N lesioni)          sul sottoinsieme con fMRI ~500
-                                                      WU+PD+Fri; PCA/UMAP su matrice
-                                                      statica ora, autoencoder su dinamica
-                                                      se disponibile)
-     |                         |                          |
-     v                         v                          v
-Embedding lesioni        Embedding SDC              Embedding FC
-(PCA/UMAP/t-SNE)          (PCA/UMAP/t-SNE)
-     |                         |                          |
-     v                         v                          v
-Clustering lesioni        Clustering SDC              Clustering FC
-     |                         |                          |
-     +------------+------------+------------+--------------+
-                  |                         |
-                  v                         v
-      Confronto a coppie: lesione vs SDC / lesione vs FC / SDC vs FC
-                   (ARI, NMI, contingency table)
-                                |
-                                v
-                Cluster anatomico di riferimento
-              (lesione e/o SDC, in base al confronto sopra)
-                                |
-        +-----------------------+-----------------------------+
-        |                                                      |
-        v                                                      v
- Sottoinsieme con fMRI                                Tutti i soggetti del cluster
- (~500, WU + PD + Friburgo — ha già                    (anche senza fMRI diretta)
-  un'etichetta di cluster FC indipendente)
-        |                                                      |
-        v                                                      |
- FC mascherata su lesione + z-score                            |
- vs coorte sana (Siegel 2016)                                  |
-        |                                                      |
-        v                                                      |
- Feature locali vs globali                                     |
- (ReHo, ALFF, GFC media/varianza —                             |
-  Volpi 2024/2025)                                             |
-        |                                                      |
-        v                                                      |
- Fingerprint funzionale medio per cluster,                     |
- confrontato col cluster FC indipendente                       |
- (ARI/NMI di sopra, qui usata come validazione)                |
-        |                                                      |
-        +---------------------------+---------------------------+
-                                    |
-                                    v
-                    Inferenza fenotipo funzionale
-          (cluster anatomico -> fingerprint atteso)
-                                    |
-                                    v
-             Correlazione con outcome clinico-comportamentale
-            (NIHSS, subitem, domini validazione con
-             Kruskal-Wallis / chi2 + FDR, schema Zanola 2026)
+LESIONI (mask binarie, ~5750)     SDC (via BCB Toolkit, stessa N)     FC (embedding+clustering indipendente, sottoinsieme fMRI ~500 WU+PD+Fri)
+              |                                |                                       |
+              v                                v                                       v
+   Embedding lesioni (PCA/UMAP/t-SNE)   Embedding SDC (PCA/UMAP/t-SNE)   Embedding FC (PCA/UMAP su matrice statica; autoencoder su dinamica se disponibile)
+              |                                |                                       |
+              v                                v                                       v
+      Clustering lesioni                 Clustering SDC                         Clustering FC
+              |                                |                                       |
+              +----------------+---------------+-------------------+-------------------+
+                               |                                   |
+                               v                                   v
+            Confronto a coppie: lesione vs SDC / lesione vs FC / SDC vs FC (ARI, NMI, contingency table)
+                                                |
+                                                v
+                Cluster anatomico di riferimento (lesione e/o SDC, in base al confronto sopra)
+                                                |
+                +-------------------------------+--------------------------------+
+                |                                                                |
+                v                                                                v
+   Sottoinsieme con fMRI (~500, WU+PD+Fri —                          Tutti i soggetti del cluster
+   ha già un'etichetta di cluster FC indipendente)                    (anche senza fMRI diretta)
+                |                                                                |
+                v                                                                |
+   FC mascherata su lesione + z-score vs coorte sana (Siegel 2016)                |
+                |                                                                |
+                v                                                                |
+   Feature locali vs globali (ReHo, ALFF, GFC media/varianza — Volpi 2024/2025)    |
+                |                                                                |
+                v                                                                |
+   Fingerprint funzionale medio per cluster, confrontato col cluster FC           |
+   indipendente (ARI/NMI di sopra, qui usata come validazione)                    |
+                |                                                                |
+                +--------------------------------+-------------------------------+
+                                                  |
+                                                  v
+                        Inferenza fenotipo funzionale (cluster anatomico -> fingerprint atteso)
+                                                  |
+                                                  v
+        Correlazione con outcome clinico-comportamentale (NIHSS, subitem, domini;
+        Kruskal-Wallis/chi2 + FDR, schema Zanola 2026)
 
 
- EEG (Task 4, n~80, Padova) — deferred a Sett/Ott 2026
+EEG (Task 4, n~80, Padova) — deferred a Sett/Ott 2026
 ```
 
 
