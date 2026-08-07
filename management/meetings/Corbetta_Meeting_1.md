@@ -4,7 +4,7 @@ People: Professor Corbetta
 ---
 
 ## STATEMENTS
-- non è chiaro come le feature locali siano correlate con le frature globali
+- non è chiaro come le feature locali siano correlate con le features globali
     - alterazioni locali vs globali del segnale
     - Volpi et. al
     - MediaGFC
@@ -14,7 +14,6 @@ People: Professor Corbetta
 - Regional homogentic
 
 ## TO DO
-
 - Estendere la letteratura a lavori attuali oltre ai paper che fanno parte della cerchia Nemesis
 - Vedere quali lavori fanno clustering
     - tra quelli present, tipo Bonkhoff

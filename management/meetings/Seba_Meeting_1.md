@@ -98,11 +98,11 @@ Clinical_connectome/features/<\dataset>/func, dentro troverai le features
 	  - subitem corrispondono ai dei domini ( 9 linguaggio —> cluster sinistrofrontale / 11 neglect / 5a al 6b motorio
 	- Colora l’embeeding con queste info
 - Possibile Workflow
-- cluster degli SDC
-- Posso prendere cluster x (itero per tutti i cluster)
-- descrivo la connettività funzionale rispetto ai sani per tutti i soggetti nel cluster
-- posso farlo sia per BOLD che diffusione (numeri circa uguali)
-- Sarebbe molto power per cluster anatomico (quello che viene fuori dalle lesioni): tutti i pazienti che hanno questa lesione prototipica, hanno questo patter funzionale/ di diffisione = renderebbe le rispsote contestuallizzate, specifiche a quel sottogryppo clinico e neuroanatomico
-- Cerca come confrontare i clustering di diversi embedding
+	- cluster degli SDC
+	- Posso prendere cluster x (itero per tutti i cluster)
+	- descrivo la connettività funzionale rispetto ai sani per tutti i soggetti nel cluster
+	- posso farlo sia per BOLD che diffusione (numeri circa uguali)
+	- Sarebbe molto power per cluster anatomico (quello che viene fuori dalle lesioni): tutti i pazienti che hanno questa lesione prototipica, hanno questo patter funzionale/ di diffisione = renderebbe le rispsote contestuallizzate, specifiche a quel sottogryppo clinico e neuroanatomico
+	- Cerca come confrontare i clustering di diversi embedding
 - A livello di spazio fisico nel cervello, capire come il delta (frqueneza EEG) spiega gli effetti di trovati da Siegel 2016
 
