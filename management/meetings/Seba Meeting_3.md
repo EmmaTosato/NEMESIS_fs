@@ -1,6 +1,6 @@
 
 # STATEMENTS
-- ST e HC Washu hanno scanner diversi neurocombat 
+- ST e HC Washu hanno scanner diversi ---> usare neurocombat 
 - acquisition.tsv
 - Michele - D'Amico fingerprint nei sani unico
   - stabile
@@ -9,6 +9,7 @@
   - ALFF, Reho (volumi)
 
 # TO DO
+- ST e HC Washu hanno scanner diversi ---> usare neurocombat
 - Volpi: https://pmc.ncbi.nlm.nih.gov/articles/PMC12081390/
 - Siegel 2018-2019
 - Griffis 2020
@@ -19,8 +20,7 @@
   - demografici, e score clinici
 
 # GOALS
-- Goal clinico: Voglio trovare dei fenotipi generalizzabili tra dataset armonizzazione
-- Trovare alterazioni canoniche di connettività funzionale
-- Paziente -> mascheriamo lesione -->  sdc -> clustering --> in base al cluster anatomico bisogna inferire il cluster fenotipo. Non ho un contatto funzionale di quel soggetto, è una stima
+- Goal clinico: Voglio trovare dei fenotipi generalizzabili tra dataset 
+ - GOAL: Trovare alterazioni canoniche di connettività funzionale - 4/5 fenotipi funzionali idealmente (feasibility)
+	- COME?: Paziente -> mascheriamo lesione -->  sdc -> clustering --> in base al cluster anatomico bisogna inferire il cluster fenotipo. Non ho un contatto funzionale di quel soggetto, è una stima
 	- Cluster anatomico --> che fingerprint funzionale ha quel cluster frontale dx e frontale sx che appartengono alla stessa fenotipizzazione funzionale
-- 4/5 fenotipi funzionali idealmente (feasibility)
