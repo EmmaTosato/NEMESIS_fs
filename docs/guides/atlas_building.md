@@ -29,7 +29,9 @@ Nel caso del nostro progetto NEMESIS, fonde:
 1. L'Atlante **Corticale Glasser MMP** (360 regioni sulla superficie del cervello).
 2. L'Atlante **Sottocorticale Harvard-Oxford** (limitatamente a 12 specifiche regioni profonde: talamo, caudato, putamen, pallido, ippocampo e amigdala per emisfero destro e sinistro).
 
-Il risultato è un atlante univoco e completo da **372 regioni**. Questa procedura riproduce esattamente il metodo scientifico pubblicato nello studio *Thiebaut de Schotten et al. 2020*.
+Il risultato è un atlante univoco e completo da **372 regioni**, costruito ispirandosi al metodo pubblicato nello studio *Thiebaut de Schotten et al. 2020*.
+
+**Nota sullo stato**: questa combinazione Glasser+Harvard-Oxford è stata costruita e usata **una sola volta**, in via esplorativa. Non è (ancora) la parcellazione anatomica adottata in modo definitivo dal progetto per la matrice di lesione — chi la ripropone in altri documenti dovrebbe trattarla come un'opzione disponibile, non come lo standard di fatto.
 
 ---
 

@@ -54,7 +54,7 @@ Questo è il cuore della configurazione. È una lista di blocchi tra parentesi g
    ```json
    { "object": "feature", "datatype": "func", "suffix": "FC-pearson" }
    ```
-   Questo blocco indica al sistema di recuperare **tutte** le matrici di connettività già calcolate per il soggetto, per ogni atlante di parcellazione registrato (oggi 15: `GlasserTianS{1,2,3}Buckner7N` e `Schaefer{100,200,300,400}TianS{1,2,3}Buckner7N` — un sottoinsieme scelto delle ~30 varianti disponibili alla sorgente, coerente con l'atlante Glasser+subcorticale già costruito per le lesioni). Un soggetto con un file mancante per un solo atlante non blocca nulla: quell'atlante viene semplicemente segnalato come "non trovato" per quel soggetto nel report, gli altri 14 vengono comunque copiati. Si noti che per `feature` non si inserisce il valore `pipeline` per ragioni di standardizzazione.
+   Questo blocco indica al sistema di recuperare **tutte** le matrici di connettività già calcolate per il soggetto, per ogni atlante di parcellazione registrato (oggi 12: `Yan{100,200,300,400}TianS{1,2,3}Buckner7N` — un sottoinsieme scelto delle varianti disponibili alla sorgente). Un soggetto con un file mancante per un solo atlante non blocca nulla: quell'atlante viene semplicemente segnalato come "non trovato" per quel soggetto nel report, gli altri 11 vengono comunque copiati. Si noti che per `feature` non si inserisce il valore `pipeline` per ragioni di standardizzazione.
 
 3. **Per copiare i dati di controllo qualità del preprocessing funzionale (motion/outliers)**:
    ```json
