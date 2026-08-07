@@ -137,5 +137,56 @@ LESIONI                              SDC
 ```
 
 
-## Tabella riepilogativa per fasi del workflow 
+## Tabella riepilogativa per fasi del workflow
+
+Per ogni fase, tre ruoli possibili della letteratura: **base** (perché lo facciamo), **confronto** (cosa replichiamo sui nostri dati), **trampolino** (idea nuova/estensione, ancora da discutere col gruppo).
+
+| Fase | Task (meeting/README) | Metodo candidato | Base fondante | Confronto/replica | Trampolino di lancio |
+|---|---|---|---|---|---|
+| 1. Embedding lesioni (n~5750) | Task 1 | PCA(varimax) / UMAP / t-SNE su lesioni parcellizzate (atlante combinato Glasser+HO, già implementato) | Thiebaut de Schotten 2020 (lesioni non casuali, seguono la vascolarizzazione → clusterizzano) | Replicare la PCA varimax di Thiebaut de Schotten (46 componenti, 30 spiegano >90% varianza) sulla nostra N molto più ampia; confrontare i cluster con i territori vascolari noti | Confrontare sistematicamente più combinazioni embedding×clustering alla scala n~5750 (pipeline `dim_reduction`/`clustering` già supporta il fine-tuning) — scala non coperta dai paper raccolti finora |
+| 2. Embedding SDC (n~3000) | Task 2 | Stessi metodi di riduzione, su SDC parcellizzata (BCB Toolkit) | Griffis 2019/2020 (SDC spiega la disfunzione di rete meglio del danno locale); Salvalaggio 2020 (SDC ≈ lesione come predittore, FDC fallisce) | Replicare il morfospazio UMAP di Talozzi 2023, ma partendo da SDC (non lesione grezza) e sulla nostra coorte | — |
+| 3. Confronto cluster lesione vs SDC | Task 1+2 | ARI, NMI, contingency table | Intuizione qualitativa in `Seba_Meeting_1` ("lesioni topograficamente diverse condividono lo stesso streamline disconnesso") | Nessun paper della raccolta attuale fa questo confronto quantitativo diretto (da verificare estendendo la rassegna, TODO `Corbetta_Meeting_1`) | **Candidato per analisi originale**: quantificare quanto la SDC comprime cluster lesionali distinti in uno stesso cluster — risponde direttamente alla Domanda 2 (fenotipi generalizzabili) |
+| 4. Feature funzionali per cluster anatomico (n~500, WU+PD+Fri) | Task 3 | FC mascherata su lesione (già implementato, `mask_fc.py`/`build_fc_matrix.py`), z-score rispetto a coorte sana | Griffis 2019 (PLSC struttura-funzione); Santoro 2026 (fingerprint individuale stabile ma persistentemente diverso dalla norma sana) | Riprodurre l'approccio di Siegel 2016 di mascheramento FC su estensione lesionale, come richiesto esplicitamente in `Seba_Meeting_3` | Calcolo z-score per singolo paziente vs template sano (richiesto in `Corbetta_Meeting_1`), poi mediato per cluster anatomico — non ancora fatto in nessun paper della raccolta su questa scala multi-sito |
+| 5. Inferenza fenotipo funzionale da cluster anatomico | Task 3 | Media delle feature funzionali (FC/ALFF/ReHo) all'interno di ciascun cluster anatomico | — | — | **Goal esplicito di `Seba_Meeting_2`**: "cluster anatomico → fingerprint funzionale stimato" per soggetti senza fMRI diretta; capovolge l'asse comportamento→lesione tipico della letteratura corrente (vedi K); target 4-5 fenotipi funzionali (feasibility, da validare) |
+| 6. Feature locali vs. globali del segnale FC | Task 3 | ReHo, ALFF, ampiezza/covarianza, media/varianza GFC (catalogo di 50 feature, Volpi 2024/2025) | Volpi 2024 (ReHo = predittore locale più forte del metabolismo, R²=32-53% su sani); Volpi 2025 (k3 legato a ReHo, K1 a CMRO2) | — (Volpi lavora su soggetti sani, non stroke: da noi sarebbe la prima applicazione a una coorte lesionale) | Domanda esplicita e ancora aperta in `Corbetta_Meeting_1` ("non è chiaro come le feature locali siano correlate con le feature globali") — usare il catalogo Volpi come punto di partenza per costruire predittori locali intra-cluster |
+| 7. Correlazione con outcome clinico-comportamentale | Task 5 | Ridge regression / PCA sui punteggi comportamentali; test non parametrici + FDR per validare i cluster contro variabili esterne | Corbetta 2015/Bisogno 2021/Facchini 2023 (struttura a 3 fattori, bassa dimensionalità); Talozzi 2023 (DSD) | Validare i nostri cluster (anatomici/SDC) contro NIHSS e subitem con lo schema statistico di Zanola 2026 (Kruskal-Wallis/χ² + correzione FDR) | Testare sulla nostra coorte la tensione clinica-vs-imaging emersa in H (Bisogno 2025 vs Cinetto): i cluster anatomici/SDC aggiungono valore incrementale ai soli dati clinico-demografici, o no? |
+| 8. EEG (n~80, Padova) | Task 4 | TBD | — | — | Deferred a settembre/ottobre 2026 |
+
+---
+
+# Workflow discorsivo
+
+Il punto di partenza è la constatazione (base fondante, sezione A) che lesione e SDC non sono ridondanti tra loro, e che entrambe si lasciano comprimere in spazi a bassa dimensionalità senza perdere informazione clinicamente utile (sezione B). Questo giustifica l'impianto a doppio binario del workflow grafico sopra: lesione e SDC vengono ridotte ed embeddate separatamente, clusterizzate separatamente, e solo dopo confrontate.
+
+1. **Embedding + clustering lesioni (Task 1)**. Punto di partenza naturale perché è la modalità con la N più alta (~5750, potenzialmente) e la più matura nella pipeline attuale (`dim_reduction`/`clustering`, atlante combinato Glasser+HO già pronto). L'obiettivo qui non è solo descrittivo: verificare se i cluster lesionali replicano una segmentazione essenzialmente vascolare (come atteso da Thiebaut de Schotten 2020) o se emergono raggruppamenti che il solo territorio arterioso non spiega — questo è già di per sé un primo test della Domanda 2 (fenotipi generalizzabili).
+2. **Embedding + clustering SDC (Task 2)**, appena `compute_sdc.py` avrà prodotto un batch reale sul cluster (dipendenza bloccante, vedi "Prossimi passi"). Stessa logica del punto 1, ma sullo spazio di disconnessione.
+3. **Confronto cluster lesione vs SDC** (ARI/NMI/contingency table): è il primo risultato realmente originale del progetto rispetto alla letteratura raccolta. L'intuizione di partenza (Seba_Meeting_1: lesioni topograficamente diverse possono condividere lo stesso streamline disconnesso, quindi finire nello stesso cluster SDC pur avendo cluster lesionali diversi) va qui trasformata in una misura quantitativa.
+4. **Estensione funzionale (Task 3)**, sul sottoinsieme con fMRI (~500, WU+PD+Friburgo). Per ciascun cluster anatomico (lesione o SDC), si descrive la FC media dei soggetti che vi appartengono, mascherata sull'estensione lesionale (Siegel 2016, già implementato) e confrontata con la norma sana tramite z-score per soggetto (richiesta esplicita di Corbetta in meeting). Questo è il passaggio che permette di rispondere al goal di Seba_Meeting_2: dato un cluster anatomico, quale fingerprint funzionale gli si può associare — utile in particolare per i soggetti privi di fMRI diretta, che sono la maggioranza della coorte totale.
+5. **Feature locali vs. globali (Task 3, in parallelo al punto 4)**. Qui entra il catalogo di Volpi 2024/2025 (ReHo, ALFF, ampiezza/covarianza, GFC media/varianza): non testato finora su una coorte stroke, ma un candidato naturale per rispondere alla Domanda 3 (locale vs. globale), esplicitamente aperta da Corbetta.
+6. **Correlazione con l'outcome clinico (Task 5)**: validazione dei cluster (anatomici, SDC, e — se emergono — funzionali) contro le variabili cliniche disponibili (NIHSS e subitem, domini comportamentali dove presenti), con lo schema statistico già validato in letteratura da Zanola 2026 per problemi analoghi (cluster su dato continuo → validazione con variabili esterne non usate nel clustering).
+7. **EEG (Task 4)**: deferred, nessun'azione richiesta ora.
+
+Questo ordine non è vincolante: è pensato per essere aggiornato via via che SDC reale, feature funzionali su scala e nuova letteratura diventano disponibili.
+
+---
+
+# Domande aperte / tensioni da portare al gruppo
+
+- Estendere la rassegna oltre i paper già raccolti nella cerchia NEMESIS (TODO esplicito, `Corbetta_Meeting_1`), in particolare cercando lavori di **clustering longitudinale** (es. Fallani, citato a meeting) e letteratura recente su fingerprinting/z-score individuale.
+- Longitudinale non ancora mappato: non è chiaro quali dataset abbiano più timepoint e a quali distanze (2 settimane? 3 mesi? 1 anno?) — condiziona sia il disegno di Task 3/5 sia il confronto con Santoro 2026/Siegel 2018/Pini 2026, che sono tutti longitudinali.
+- Armonizzazione tra scanner (neuroCombat, `Seba_Meeting_2`): necessaria almeno per WashU ST vs HC (scanner diversi); da verificare se serve anche per gli altri dataset multi-sito una volta aggregati.
+- Standard di parcellizzazione da adottare: Yan200/Tian S2/Buckner in spazio fMRIPrep (`Seba_Meeting_3`, per le feature funzionali) vs. l'atlante combinato Glasser+HarvardOxford già implementato per le lesioni — va capito se servono due atlanti per due scopi diversi o se conviene armonizzare.
+- Feasibility del numero target di fenotipi funzionali (4-5, `Seba_Meeting_2`) — dichiarato come da validare, non un vincolo.
+- Radar/spider plot per centroide di lesione (metriche + connettività + demografici + score clinici), richiesto in `Seba_Meeting_2`: non ancora implementato, utile come strumento di comunicazione per il progress report.
+- La tensione clinica-vs-imaging (sezione H: Bisogno 2025 vs Cinetto) non è risolta in letteratura — va trattata come domanda empirica da testare sui nostri dati, non come assunzione di partenza.
+
+---
+
+# Prossimi passi immediati (in vista del progress report)
+
+- Eseguire un primo giro end-to-end di embedding+clustering lesioni (Task 1) su un sottoinsieme già disponibile localmente, per avere un primo risultato preliminare mostrabile.
+- Sbloccare Task 2 lanciando `compute_sdc.py` su un batch reale sul cluster (attualmente non testabile in locale, richiede `bcblib`).
+- Validare i cluster lesionali preliminari contro variabili esterne disponibili (lato, volume, NIHSS) con lo schema di Zanola 2026, come primo controllo di sanità.
+- Una volta disponibile la SDC reale, avviare il confronto cluster lesione vs SDC (fase 3 del workflow discorsivo).
+- Portare al gruppo le tensioni/domande aperte elencate sopra, in particolare l'estensione della rassegna e la mappatura del longitudinale. 
 
