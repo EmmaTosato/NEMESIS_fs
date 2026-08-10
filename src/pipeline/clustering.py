@@ -50,6 +50,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -385,11 +386,18 @@ def _write_tuning_output(
     config: ClusteringConfig,
     now: datetime,
 ) -> None:
-    if output_dir.exists() and not config.overwrite:
-        raise FileExistsError(
-            f"output directory {output_dir} already exists and overwrite=False "
-            "- set overwrite=True to replace it, or choose a different session_name"
-        )
+    if output_dir.exists():
+        if not config.overwrite:
+            raise FileExistsError(
+                f"output directory {output_dir} already exists and overwrite=False "
+                "- set overwrite=True to replace it, or choose a different session_name"
+            )
+        # A previous run into this exact output_dir may have left a
+        # standalone diagnostic (dendrogram.png/eigengap_plot.png) this run's
+        # method doesn't produce - wipe first so overwrite=True always means
+        # "this directory reflects exactly this run" (same rationale as
+        # dim_reduction.py's _write_tuning_output, see lessons_learned.md #18).
+        shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     results.to_csv(output_dir / "tuning_results.csv", index=False)
 

@@ -537,6 +537,81 @@ def test_dim_reduction_fine_tuning_nested_params_writes_leaf_folders_and_embeddi
     assert '"nested_params": [' in config_md
 
 
+def test_dim_reduction_fine_tuning_overwrite_wipes_leaves_from_incompatible_prior_grid(tmp_path, monkeypatch):
+    """Regression: re-running fine_tuning into the same output_dir with
+    overwrite=True but a DIFFERENT nested_params (fewer nesting levels) used
+    to leave the prior run's now-orphaned leaf folders on disk, never
+    described by the freshly-written config.md (lessons_learned.md #18 -
+    already happened once in production, fixed by hand that time)."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+
+    params_path = tmp_path / "params_nested.json"
+
+    def _write_params(nested_params):
+        params_path.write_text(
+            json.dumps(
+                {
+                    "umap": {
+                        "params": {
+                            "n_neighbors": 3,
+                            "min_dist": 0.1,
+                            "n_components": 2,
+                            "random_state": 0,
+                            "metric": "euclidean",
+                        },
+                        "tuning_grid": {
+                            "metric": ["euclidean", "cosine"],
+                            "n_neighbors": [2, 3],
+                            "min_dist": [0.1],
+                        },
+                        "nested_params": nested_params,
+                        "trustworthiness_n_neighbors": 2,
+                    }
+                }
+            )
+        )
+
+    output_root = tmp_path / "dr_out"
+
+    def _cfg(overwrite):
+        return {
+            "project": "testproj",
+            "input_path": str(input_dir),
+            "reduction_method": "umap",
+            "params_file": str(params_path),
+            "output_root": str(output_root),
+            "session_name": "tune_reuse",
+            "overwrite": overwrite,
+            "fine_tuning": True,
+            "regress_out_volume": False,
+            "color_by": [],
+            "viz_n_components": 2,
+            "write_embeddings_grid": True,
+            "run_notes": None,
+        }
+
+    # Run 1: nested on both metric and n_neighbors -> 2-level leaf folders.
+    _write_params(["metric", "n_neighbors"])
+    cfg_path = tmp_path / "cfg1.json"
+    cfg_path.write_text(json.dumps(_cfg(overwrite=False)))
+    assert dim_reduction.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next((output_root / "umap" / "tuning").iterdir())
+    stale_leaf = tuning_dir / "metric=euclidean" / "n_neighbors=2"
+    assert stale_leaf.is_dir()
+
+    # Run 2: same output_dir (same session_name, same day), overwrite=True,
+    # but nested only on metric - n_neighbors becomes a free/grid param again.
+    _write_params(["metric"])
+    cfg_path2 = tmp_path / "cfg2.json"
+    cfg_path2.write_text(json.dumps(_cfg(overwrite=True)))
+    assert dim_reduction.main(["--config", str(cfg_path2)]) == 0
+
+    assert not stale_leaf.exists(), "leaf folder from the prior, incompatible nested_params must not survive overwrite=True"
+    assert (tuning_dir / "metric=euclidean" / "tuning_results.csv").is_file()
+
+
 def test_dim_reduction_fine_tuning_write_embeddings_grid_false_skips_plots_keeps_csv(tmp_path, monkeypatch):
     """write_embeddings_grid=False is a manual opt-out (2026-08 session): each
     leaf's tuning_results.csv is still written (cheap, always useful), but

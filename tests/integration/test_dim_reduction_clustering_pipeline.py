@@ -314,6 +314,79 @@ def test_dim_reduction_clustering_fine_tuning_two_swept_params_writes_heatmap(tm
     assert set(results["linkage"]) == {"ward", "average"}
 
 
+def test_dim_reduction_clustering_fine_tuning_overwrite_wipes_stale_plot_from_incompatible_prior_grid(
+    tmp_path, monkeypatch
+):
+    """Regression: same gap as clustering.py's twin - re-running fine_tuning
+    into the same output_dir with overwrite=True but a differently-shaped
+    tuning_grid (3+ swept params, no plot supported) used to leave the prior
+    run's tuning_plot.png stale on disk (lessons_learned.md #18)."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
+
+    reduction_params_path = tmp_path / "params_reduction.json"
+    reduction_params_path.write_text(json.dumps({"pca": {"params": {"n_components": 2}}}))
+    clustering_params_path = tmp_path / "params_clustering.json"
+    output_root = tmp_path / "drc_out"
+
+    def _cfg(overwrite):
+        return {
+            "project": "testproj",
+            "input_path": str(input_dir),
+            "reduction_method": "pca",
+            "reduction_params_file": str(reduction_params_path),
+            "clustering_methods": ["kmeans"],
+            "clustering_params_file": str(clustering_params_path),
+            "output_root": str(output_root),
+            "session_name": "tune_reuse",
+            "overwrite": overwrite,
+            "fine_tuning": True,
+            "regress_out_volume": False,
+            "viz_n_components": 2,
+            "color_by": [],
+            "run_notes": None,
+        }
+
+    # Run 1: 1 swept param -> writes a real tuning_plot.png (line plot).
+    clustering_params_path.write_text(
+        json.dumps(
+            {
+                "kmeans": {
+                    "params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"},
+                    "tuning_grid": {"n_clusters": [2, 3]},
+                }
+            }
+        )
+    )
+    cfg_path = tmp_path / "drc1.json"
+    cfg_path.write_text(json.dumps(_cfg(overwrite=False)))
+    assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next((output_root / "pca" / "kmeans" / "tuning").iterdir())
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
+
+    # Run 2: same output_dir, overwrite=True, but 3 swept params - no plot
+    # supported (only 1 or 2), see _write_tuning_output's own warning branch.
+    clustering_params_path.write_text(
+        json.dumps(
+            {
+                "kmeans": {
+                    "params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"},
+                    "tuning_grid": {"n_clusters": [2, 3], "random_state": [0, 1], "n_init": [1, 2]},
+                }
+            }
+        )
+    )
+    cfg_path2 = tmp_path / "drc2.json"
+    cfg_path2.write_text(json.dumps(_cfg(overwrite=True)))
+    assert dim_reduction_clustering.main(["--config", str(cfg_path2)]) == 0
+
+    assert not (tuning_dir / "tuning_plot.png").exists(), (
+        "stale plot from the prior, incompatible grid must not survive overwrite=True"
+    )
+    assert (tuning_dir / "tuning_results.csv").is_file()
+
+
 def test_dim_reduction_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")

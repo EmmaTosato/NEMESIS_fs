@@ -354,6 +354,72 @@ def test_clustering_fine_tuning_two_swept_params_writes_heatmap(tmp_path, monkey
     assert set(results["linkage"]) == {"ward", "average"}
 
 
+def test_clustering_fine_tuning_overwrite_wipes_stale_plot_from_incompatible_prior_grid(tmp_path, monkeypatch):
+    """Regression: re-running fine_tuning into the same output_dir with
+    overwrite=True but a differently-shaped tuning_grid (3+ swept params,
+    which produces no plot at all - only 1 or 2 are supported) used to leave
+    the prior run's tuning_plot.png sitting there, stale and undescribed by
+    the freshly-written config.md - same root cause as dim_reduction.py's
+    leaf-folder staleness (lessons_learned.md #18)."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    output_root = tmp_path / "cl_out"
+    params_path = tmp_path / "params_clustering.json"
+
+    def _cfg(overwrite):
+        return {
+            "project": "testproj",
+            "input_path": str(input_dir),
+            "clustering_methods": ["kmeans"],
+            "params_file": str(params_path),
+            "output_root": str(output_root),
+            "session_name": "tune_reuse",
+            "overwrite": overwrite,
+            "fine_tuning": True,
+            "run_notes": None,
+        }
+
+    # Run 1: 1 swept param -> writes a real tuning_plot.png (line plot).
+    params_path.write_text(
+        json.dumps(
+            {
+                "kmeans": {
+                    "params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"},
+                    "tuning_grid": {"n_clusters": [2, 3]},
+                }
+            }
+        )
+    )
+    cfg_path = tmp_path / "cl1.json"
+    cfg_path.write_text(json.dumps(_cfg(overwrite=False)))
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next((output_root / "kmeans" / "tuning").iterdir())
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
+
+    # Run 2: same output_dir, overwrite=True, but 3 swept params - no plot
+    # supported (only 1 or 2), see _write_tuning_output's own warning branch.
+    params_path.write_text(
+        json.dumps(
+            {
+                "kmeans": {
+                    "params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"},
+                    "tuning_grid": {"n_clusters": [2, 3], "random_state": [0, 1], "n_init": [1, 2]},
+                }
+            }
+        )
+    )
+    cfg_path2 = tmp_path / "cl2.json"
+    cfg_path2.write_text(json.dumps(_cfg(overwrite=True)))
+    assert clustering.main(["--config", str(cfg_path2)]) == 0
+
+    assert not (tuning_dir / "tuning_plot.png").exists(), (
+        "stale plot from the prior, incompatible grid must not survive overwrite=True"
+    )
+    assert (tuning_dir / "tuning_results.csv").is_file()
+
+
 def test_clustering_fine_tuning_kmeans_with_consensus_writes_rsc_monti_columns(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")

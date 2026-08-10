@@ -20,7 +20,7 @@ from unittest.mock import patch
 import nibabel as nib
 import numpy as np
 
-from src.pipeline.compute_sdc import _run_task
+from src.pipeline.compute_sdc import _link_subject, _run_task
 from src.sdc.config import SDCConfig
 from src.sdc.manifest import ManifestRow, write_manifest
 from src.sdc.runner import _EXPECTED_SHAPE
@@ -169,3 +169,53 @@ def test_run_task_returns_1_when_no_subject_salvageable_after_stage1_crash(tmp_p
     statuses = {s.subject_id: s for s in read_all_statuses(output_dir / "_status")}
     assert statuses["sub-A"].status == "failed_stage1_process"
     assert statuses["sub-B"].status == "failed_stage1_process"
+
+
+def _write_marker_dir(path: Path, content: str) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "marker.txt").write_text(content)
+
+
+def test_link_subject_creates_symlink_when_absent(tmp_path):
+    source = tmp_path / "task_0" / "prep" / "sub-A" / "lesion"
+    _write_marker_dir(source, "task_0")
+    destination = tmp_path / "output" / "sub-A"
+
+    _link_subject(source, destination)
+
+    assert destination.is_symlink()
+    assert destination.resolve() == source.resolve()
+
+
+def test_link_subject_is_a_noop_when_already_correctly_linked(tmp_path):
+    source = tmp_path / "task_0" / "prep" / "sub-A" / "lesion"
+    _write_marker_dir(source, "task_0")
+    destination = tmp_path / "output" / "sub-A"
+    _link_subject(source, destination)
+    original_target = destination.readlink()
+
+    _link_subject(source, destination)  # second call, same source
+
+    assert destination.readlink() == original_target
+
+
+def test_link_subject_relinks_to_newer_source(tmp_path):
+    """Regression: a stale symlink from an earlier (e.g. retried) task used
+    to survive forever, silently - destination.exists() alone can't tell
+    "already correctly linked" from "linked to something else that still
+    happens to exist", both make it True. A subject reprocessed in a later
+    task (retry after a manifest rebuild) must end up pointing at the newer
+    task's output, not the stale one, the next time --mode aggregate runs."""
+    old_source = tmp_path / "task_0" / "prep" / "sub-A" / "lesion"
+    _write_marker_dir(old_source, "task_0")
+    destination = tmp_path / "output" / "sub-A"
+    _link_subject(old_source, destination)
+    assert destination.resolve() == old_source.resolve()
+
+    new_source = tmp_path / "task_17" / "prep" / "sub-A" / "lesion"
+    _write_marker_dir(new_source, "task_17")
+
+    _link_subject(new_source, destination)
+
+    assert destination.is_symlink()
+    assert destination.resolve() == new_source.resolve()

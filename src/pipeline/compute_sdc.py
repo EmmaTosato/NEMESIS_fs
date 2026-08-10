@@ -314,10 +314,27 @@ def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
 
 
 def _link_subject(source: Path, destination: Path) -> None:
+    """Symlink destination -> source, re-pointing it if it already exists.
+
+    A prior --mode aggregate run may have linked this subject to an older
+    task_dir (e.g. before a retry re-ran and produced a newer task_id for
+    the same subject) - destination.exists() alone can't tell "already
+    correctly linked" from "linked to something stale", since both make it
+    True. Compares resolved targets instead: a no-op if destination already
+    points at source (the common case, avoids needless relinking every
+    aggregate run), otherwise unlinks and relinks to the current source. A
+    destination that isn't a symlink at all (should never happen - this
+    function is the only writer of output_dir/<subject>) is left for
+    symlink_to's own FileExistsError to surface loudly, not silently
+    skipped or overwritten.
+    """
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists():
-        return
-    destination.symlink_to(source.resolve())
+    resolved_source = source.resolve()
+    if destination.is_symlink():
+        if destination.resolve() == resolved_source:
+            return
+        destination.unlink()
+    destination.symlink_to(resolved_source)
 
 
 def _readme_text(
