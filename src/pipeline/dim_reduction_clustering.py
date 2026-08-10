@@ -475,7 +475,11 @@ def _run_one_method_tuning(
         logging.error("[%s] %s", method, exc)
         return False
 
-    results = run_clustering_tuning_sweep(method, embedding, base_params, tuning_grid, consensus_config)
+    try:
+        results = run_clustering_tuning_sweep(method, embedding, base_params, tuning_grid, consensus_config)
+    except ValueError as exc:
+        logging.error("[%s] %s", method, exc)
+        return False
 
     output_dir = (
         config.output_root

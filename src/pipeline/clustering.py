@@ -340,7 +340,11 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
         logging.error("[%s] %s", method, exc)
         return False
 
-    results = run_clustering_tuning_sweep(method, X, base_params, tuning_grid, consensus_config)
+    try:
+        results = run_clustering_tuning_sweep(method, X, base_params, tuning_grid, consensus_config)
+    except ValueError as exc:
+        logging.error("[%s] %s", method, exc)
+        return False
 
     output_dir = _tuning_output_dir(config, method, now)
     try:

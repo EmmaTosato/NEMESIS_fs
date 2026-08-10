@@ -582,3 +582,48 @@ def test_clustering_fine_tuning_multiple_methods_stops_on_first_failure(tmp_path
     cfg_path.write_text(json.dumps(cfg))
 
     assert clustering.main(["--config", str(cfg_path)]) == 1
+
+
+def test_clustering_fine_tuning_sweep_value_error_is_caught_not_propagated(tmp_path, monkeypatch):
+    """Regression: run_clustering_tuning_sweep sat between two try/except
+    blocks in _run_one_method_tuning, itself unprotected - a ValueError
+    raised inside it (e.g. run_monti_repeats finding two subjects never
+    co-sampled together) used to propagate as a raw, unhandled exception out
+    of main() instead of the clean logging.error + return 1 every other
+    failure in this function already gets."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    def _raise(*args, **kwargs):
+        raise ValueError("subjects sub-00 and sub-05 never co-sampled together")
+
+    monkeypatch.setattr(clustering, "run_clustering_tuning_sweep", _raise)
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "kmeans": {
+                    "params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"},
+                    "tuning_grid": {"n_clusters": [2, 3]},
+                },
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl_valueerror.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 1

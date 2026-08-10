@@ -530,6 +530,56 @@ def test_dim_reduction_clustering_fine_tuning_missing_tuning_grid_raises(tmp_pat
     assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 1
 
 
+def test_dim_reduction_clustering_fine_tuning_sweep_value_error_is_caught_not_propagated(tmp_path, monkeypatch):
+    """Regression: same gap as clustering.py's twin - run_clustering_tuning_sweep
+    sat unprotected between two try/except blocks in _run_one_method_tuning.
+    A ValueError raised inside it must produce a clean logging.error +
+    return 1, not propagate as a raw unhandled exception out of main()."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
+
+    def _raise(*args, **kwargs):
+        raise ValueError("subjects sub-00 and sub-05 never co-sampled together")
+
+    monkeypatch.setattr(dim_reduction_clustering, "run_clustering_tuning_sweep", _raise)
+
+    reduction_params_path = tmp_path / "params_reduction.json"
+    reduction_params_path.write_text(json.dumps({"pca": {"params": {"n_components": 2}}}))
+    clustering_params_path = tmp_path / "params_clustering.json"
+    clustering_params_path.write_text(
+        json.dumps(
+            {
+                "kmeans": {
+                    "params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"},
+                    "tuning_grid": {"n_clusters": [2, 3]},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "drc_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "pca",
+        "reduction_params_file": str(reduction_params_path),
+        "clustering_methods": ["kmeans"],
+        "clustering_params_file": str(clustering_params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "regress_out_volume": False,
+        "viz_n_components": 2,
+        "color_by": [],
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "drc_valueerror.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 1
+
+
 def test_dim_reduction_clustering_viz_embedding_refit_when_n_components_above_viz(tmp_path, monkeypatch):
     """Real end-to-end test of the double-embedding mechanism (2026-08 session):
     clustering runs on the full n_components=4 embedding (saved as-is in

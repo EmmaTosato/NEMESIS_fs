@@ -44,10 +44,33 @@ def discover_files_by_subject(
     subject_id is taken as the leading "_"-delimited token of the filename
     (e.g. "sub-STUNIPD0001_space-...-mask.nii.gz" -> "sub-STUNIPD0001"), the
     convention every caller of this function already relies on.
+
+    Raises ValueError if more than one file maps to the same subject_id (a
+    leftover/duplicate file, not a legitimate multiplicity - unlike the
+    retrieval registry's atlas-combo templates, this function's contract is
+    exactly one file per subject per glob_pattern; the caller is expected to
+    call it once per combo/variant when more than one legitimately exists).
+    Never picks one arbitrarily - the caller must resolve/clean up the
+    conflict before this can proceed.
     """
     dataset_root = Path(data_root) / dataset
     files = sorted(dataset_root.glob(glob_pattern))
-    by_subject = {f.name.split("_")[0]: f for f in files}
+
+    matches_by_subject: dict[str, list[Path]] = {}
+    for f in files:
+        matches_by_subject.setdefault(f.name.split("_")[0], []).append(f)
+
+    ambiguous = {subject: paths for subject, paths in matches_by_subject.items() if len(paths) > 1}
+    if ambiguous:
+        details = "; ".join(
+            f"{subject}: {[str(p) for p in paths]}" for subject, paths in sorted(ambiguous.items())
+        )
+        raise ValueError(
+            f"{dataset}: {len(ambiguous)} subject(s) matched more than one file for "
+            f"glob_pattern={glob_pattern!r} - expected exactly one file per subject ({details})"
+        )
+
+    by_subject = {subject: paths[0] for subject, paths in matches_by_subject.items()}
 
     excluded_by_group: list[str] = []
     if group_filter is not None:
