@@ -6,6 +6,12 @@ src.pipeline.retrieve_data._verify_dataset_copies). Useful when you want to
 re-verify already-retrieved data without doing a run at all: read-only, never
 copies or modifies anything.
 
+Runs the same upfront validation as retrieve_data.py's main() before
+verifying anything (_validate_upfront - group_filter matches >=1 subject,
+explicit `subjects` actually exist somewhere) - a typo'd subjects/group_filter
+entry must stop this script with a clear error, not silently verify an empty
+selection and report "0 problems found" as if everything had been checked.
+
 Usage:
     PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/pipelines/retrieval_server.json
 """
@@ -13,11 +19,11 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import sys
 
-from src.pipeline.retrieve_data import _select_subjects
+from src.pipeline.retrieve_data import _build_datasets, _select_subjects, _validate_upfront
 from src.retrieval import verify
 from src.retrieval.config import load_config
-from src.retrieval.dataset import Dataset
 
 
 def _print_section(title: str, entries: list[str]) -> None:
@@ -32,10 +38,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     config = load_config(args.config)
+    datasets = _build_datasets(config)
+    try:
+        _validate_upfront(datasets, config)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
 
     result = verify.VerificationResult()
-    for name in config.datasets:
-        ds = Dataset(name, config.file_patterns)
+    for name, ds in datasets.items():
         subjects = _select_subjects(ds, config)
         dataset_result = verify.verify_dataset(name, ds, subjects, config)
         result.mismatched += dataset_result.mismatched
