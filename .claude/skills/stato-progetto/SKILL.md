@@ -1,38 +1,53 @@
 ---
 name: stato-progetto
-description: Aggiorna .claude/stato_progetto.md con un riassunto tecnico della sessione corrente (decisioni prese, file modificati, concetti discussi, errori trovati, stato test, prossimo passo esatto). Usa questa skill quando l'utente chiede esplicitamente di salvare/aggiornare lo stato del progetto, o quando avvisa che la chat sta per essere resettata/compattata.
+description: Aggiorna .claude/stato_progetto.md con uno snapshot tecnico dello stato attuale del progetto (architettura, lavoro attivo, vincoli in vigore, prossimo passo esatto). Usa questa skill quando l'utente chiede esplicitamente di salvare/aggiornare lo stato del progetto, o quando avvisa che la chat sta per essere resettata/compattata.
 ---
 
 # Checkpoint: stato_progetto.md
 
-`stato_progetto.md` è **cumulativo e cronologico inverso**: copre più sessioni, la più recente in cima. A differenza di un file "stato attuale" che si riscrive da zero, qui **non si cancella mai nulla** — si aggiunge una nuova sezione in testa, le sessioni precedenti restano intatte per lo storico. Lo scopo è permettere a un nuovo agente/sessione, senza alcun contesto pregresso, di riprendere esattamente da dove ci si è fermati.
+`stato_progetto.md` è uno **snapshot puro dello stato attuale** — non un log cronologico, non un diario di sessione. Si **riscrive in place** ogni volta: non si aggiunge una nuova sezione, non si accumula nulla, il contenuto precedente viene sostituito da quello che è vero *ora*. Lo scopo è permettere a un nuovo agente/sessione, senza alcun contesto pregresso, di sapere rapidamente dove si trova il progetto oggi — non di ricostruire come ci si è arrivati.
+
+**La narrativa di cosa è successo sessione per sessione non va qui.** È già coperta altrove — non duplicarla:
+- **git log / commit message** — cosa è cambiato nel codice, quando, perché (a livello di dettaglio tecnico di un singolo cambio).
+- **`docs/debugging/debug_DD_MM_YY.md`** — narrativa completa di una sessione di debug con bug reali trovati.
+- **`.claude/decision_log.md`** — solo i pivot strategici/architetturali di alto livello (mai lavoro ordinario, mai bug minori: vedi la sua stessa intestazione).
+- **`.claude/lessons_learned.md`** — pattern di errore generalizzabili, deduplicati.
+- **`runs.csv`/`runs_tuning.csv` + `logs/`/`summaries/`** — provenienza di ogni esecuzione di pipeline (parametri, output, log grezzo), già machine-written.
+- **`.claude/stato_progetto_archive.md`** — storico congelato delle sessioni registrate prima del 2026-08-10 (quando questo file era ancora un log cronologico); sola lettura, non toccarlo.
+
+Se un'informazione ha già una casa in uno di questi posti, in `stato_progetto.md` ci va **solo un puntatore**, non il contenuto.
 
 ## Procedura
 
-1. **Leggi** `.claude/stato_progetto.md` se esiste. Se non esiste, crealo con intestazione:
+1. **Leggi** `.claude/stato_progetto.md` se esiste. Se non esiste, crealo con la struttura del passo 3.
+
+2. **Verifica sul filesystem, non a memoria**: `git status`/`git log`/`ls` per capire cosa è effettivamente cambiato prima di scrivere qualunque affermazione su file modificati o lavoro fatto.
+
+3. **Riscrivi l'intero file** (non appendere) con questa struttura:
    ```
    # Stato progetto — NEMESIS
 
-   Ultimo aggiornamento: YYYY-MM-DD. Scritto per permettere a un nuovo agente/sessione di riprendere senza contesto pregresso. Il file copre più sessioni, in ordine cronologico inverso (la più recente in cima).
+   Ultimo aggiornamento: YYYY-MM-DD. Snapshot dello stato attuale — non un log cronologico. [...]
+
+   ## Architettura / cosa è implementato
+   [puntatore a README.md/docs/dev/, non ripetere il contenuto]
+
+   ## Lavoro attivo / thread aperti
+   [cosa è in corso *ora*, non cosa è stato fatto in passato]
+
+   ## Vincoli/regole in vigore oggi
+   [regole operative attuali - solo quelle che cambiano il comportamento di un agente che riprende il lavoro]
+
+   ## Prossimo passo esatto
+   [azione concreta, specifica, azionabile subito - non "continuare il lavoro"]
    ```
 
-2. **Determina il titolo della nuova sezione**: `## Sessione YYYY-MM-DD [(N)] — <titolo breve>`.
-   - Data odierna assoluta (non relativa).
-   - Se è già presente in cima una sezione con la stessa data, questa è la sessione successiva dello stesso giorno → aggiungi il suffisso numerico `(2)`, `(3)`, ecc. Se è la prima del giorno, nessun suffisso.
-   - Titolo breve = argomento principale affrontato (es. "SDC/BCBToolKit: blocco permessi e mappatura pipeline del paper"), non generico ("lavoro vario").
-
-3. **Inserisci la nuova sezione subito dopo la riga "Ultimo aggiornamento"**, prima di tutte le sessioni precedenti. Aggiorna anche la data in quella riga.
-
-4. **Contenuto della sezione** — ricostruiscilo dalla conversazione corrente e, dove possibile, verifica sul filesystem invece di fidarti solo della memoria della chat (`git status`, `git diff`, `ls`):
-   - **Obiettivo**: cosa si stava cercando di fare, 1-3 frasi.
-   - **Decisioni prese / concetti discussi**: le scelte fatte (architetturali, di design, di scope) **con la motivazione** — il "perché", non solo il "cosa". Se una decisione precedente è stata cambiata o scartata in questa sessione, dillo esplicitamente (non lasciare che sembri sempre stata così).
-   - **File modificati/creati**: elenco per categoria (codice, config, test, doc) — controlla con `git status`/`git diff`, non elencare a memoria.
-   - **Errori trovati e corretti**: riassunto sintetico se ce ne sono stati; se esiste già un debug report dedicato per la sessione, rimanda lì per il dettaglio invece di duplicarlo qui.
-   - **Stato dei test**: conteggio esatto se rilanciati (es. "70/70 passano"), oppure nota esplicita se non sono stati rilanciati e perché.
+4. **Contenuto di ogni sezione**:
+   - **Architettura / cosa è implementato**: un puntatore a `README.md`/`docs/dev/`, non una ricostruzione — se stai per scrivere più di 1-2 righe qui, quell'informazione appartiene a `docs/`, non a questo file.
+   - **Lavoro attivo / thread aperti**: solo ciò che non è ancora concluso — task/piani a metà, decisioni prese ma non ancora implementate. Se un thread si è chiuso in questa sessione, rimuovilo, non lasciarlo come "fatto" (git log lo prova già).
+   - **Vincoli/regole in vigore oggi**: solo regole operative che cambiano il comportamento di un agente che riprende — non rifare l'inventario di `code_standards.md`/`CLAUDE.md`, solo eccezioni/vincoli specifici del momento (es. "lavoro su branch X", "server Y irraggiungibile", "modalità locale non SLURM").
    - **Prossimo passo esatto**: azione concreta, specifica, azionabile subito — non "continuare il lavoro". Deve bastare a un agente senza contesto per sapere cosa fare per primo.
 
-5. **Sii tecnico e conciso**: questo file lo legge un agente, non un umano che vuole prosa piacevole. Evita di ripetere tra sezioni la stessa informazione. Ometti sezioni vuote invece di scrivere "nessuno".
+5. **Sii tecnico e conciso**: questo file lo legge un agente, non un umano che vuole prosa piacevole. Ometti sezioni vuote invece di scrivere "nessuno". Se una sezione esistente è ormai falsa/superata (thread chiuso, vincolo caduto), **cancellala**, non annotarla come storica — per quello c'è l'archivio/git log.
 
-6. **Non toccare le sessioni precedenti** già presenti nel file: restano intatte, anche se ora sai che una decisione lì descritta è stata superata — in quel caso lo segnali nella *nuova* sezione, non modifichi la vecchia.
-
-7. Se in questa sessione sono emersi **pattern di errore generalizzabili** (non specifici al task del giorno, ma riutilizzabili — es. un tipo di bug che potrebbe ripetersi altrove), verifica se vanno aggiunti anche a `.claude/lessons_learned.md`: quello è l'indice dei pattern, `stato_progetto.md` è il diario di sessione. Non duplicare contenuto tra i due file.
+6. Se in questa sessione sono emersi **pattern di errore generalizzabili** (non specifici al task del giorno, ma riutilizzabili — es. un tipo di bug che potrebbe ripetersi altrove), verifica se vanno aggiunti a `.claude/lessons_learned.md`. Se è emerso un **vero pivot strategico/architetturale** (cambio di direzione motivato, non un fix), verifica se va aggiunto a `.claude/decision_log.md`. Non duplicare contenuto tra questi file e lo snapshot.
