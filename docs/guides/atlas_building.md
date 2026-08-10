@@ -51,11 +51,11 @@ Ecco cosa significano le impostazioni nel file `config/pipelines/build_combined_
 
 Quando lanci lo script:
 1. Il codice apre entrambi gli atlanti e verifica che condividano la stessa geometria (stessa "risoluzione" e "allineamento nello spazio").
-2. Prende il blocco corticale e vi incastra le 12 strutture sottocorticali prese dal secondo atlante, scalando automaticamente gli indici in modo che le prime 360 aree siano corticali e le successive (361-372) siano sottocorticali, per evitare conflitti o sovrapposizioni matematiche.
+2. Prende il blocco corticale e vi incastra le 12 strutture sottocorticali prese dal secondo atlante, riusando la convenzione di numerazione nativa di Glasser invece di rinumerare tutto da 1 a 372 in sequenza: emisfero sinistro corticale **1-180**, poi le 6 sottocorticali sinistre subito dopo (**181-186**); emisfero destro corticale **1001-1180** (= indice sinistro + 1000, lo stesso offset che Glasser usa già per il proprio atlante), poi le 6 sottocorticali destre (**1181-1186**). Gli indici quindi non sono continui — si passa da 186 a 1001 — ma non ci sono conflitti/sovrapposizioni tra le due metà, che è l'obiettivo dello scaling.
 3. Se ci sono sovrapposizioni spaziali (un millimetro del cervello che risulta appartenere sia alla corteccia che a un'area profonda), il conflitto viene sempre risolto **dando priorità alla corteccia**. Il programma ti avviserà comunque tramite un messaggio di log su quanti voxel sono andati in sovrapposizione.
 
 ## File in Uscita (Output)
 
 - **Il file NIfTI** (`.nii.gz`): il volume 3D matematico. Questo sarà il file da fornire alla voce `atlas_path` nella configurazione del *Matrix Building*.
-- **La tabella delle Etichette** (`.csv`): un file leggibile su Excel contenente colonne strutturate (es. `Value: 361`, `Name: L_Thalamus`, `Hemisphere: Left`, `Source: harvard_oxford_subcortical`).
+- **La tabella delle Etichette** (`.csv`): un file leggibile su Excel contenente colonne strutturate (es. `Value: 181`, `Name: L_Thalamus`, `Hemisphere: L`, `Source: harvard_oxford_subcortical` — la colonna `Hemisphere` usa il codice a lettera singola `L`/`R`, non la parola estesa).
 - **Report di Costruzione**: in `summaries/build_combined_atlas/`, verrà generato un mini-documento di riepilogo per tracciare storicamente l'operazione.

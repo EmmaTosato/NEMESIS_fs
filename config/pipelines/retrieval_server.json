@@ -2,13 +2,22 @@
   "output_root": "data/",
   "project": "clinical_connectome",
   "file_patterns": "config/registry/file_patterns_server.json",
-  "datasets": ["UNIPD/WashU"],
-  "group_filter": ["ST"],
+  "datasets": [
+    "UNIPD/WashU",
+    "UNIPD/PASPORT",
+    "UNIPD/PSP",
+    "UKLFR/stroke_UKLFR"
+  ],
+  "group_filter": [
+    "ST",
+    "HC"
+  ],
   "subjects": null,
   "retrieve": [
     { "object": "feature", "datatype": "func", "suffix": "FC-pearson" },
     { "object": "feature", "datatype": "func", "suffix": "motion" },
-    { "object": "feature", "datatype": "func", "suffix": "outliers" }
+    { "object": "feature", "datatype": "func", "suffix": "outliers" },
+    { "object": "lesion", "pipeline": "manual_masks", "datatype": "anat", "suffix": "lesion_mask" }
   ],
   "include_tabular_data": true,
   "overwrite": false

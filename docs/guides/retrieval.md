@@ -15,7 +15,7 @@ Dal tuo PC locale, dopo aver attivato l'ambiente `nemesis`, lancia la pipeline d
 ```bash
 python -m src.pipeline.retrieve_data --config config/pipelines/retrieval_local.json
 ```
-Esistono due varianti di config, non una sola: `retrieval_server.json` (path EBRAIN reale, `/data/corbetta/Clinical_connectome/...`, usato in produzione da `jobs/run_retrieve_data.sh`) e `retrieval_local.json` (stesso contenuto, path Windows per un mount locale). Ognuna punta al proprio registro (`file_patterns_server.json`/`file_patterns_local.json`) — vanno tenuti allineati a mano quando cambi una voce in uno dei due.
+Esistono due varianti di config, non una sola: `retrieval_server.json` (usato in produzione da `jobs/run_retrieve_data.sh`) e `retrieval_local.json` (stesso contenuto — stessi `datasets`/`group_filter`/`retrieve` — pensato per un'esecuzione locale, es. su un mount o una copia locale dei dati). Ognuna punta al proprio registro (`file_patterns_server.json`/`file_patterns_local.json`), dove vive il vero percorso sorgente per ciascun ambiente (`/data/corbetta/Clinical_connectome/...` sul server, un path locale per il mount/copia sul tuo computer) — i due `retrieval_*.json` vanno tenuti allineati a mano quando cambi una voce in uno dei due.
 
 Tutte le regole su cosa scaricare, quali pazienti scegliere, e dove salvare i file si definiscono nel file JSON di configurazione indicato nel comando.
 ---
@@ -35,9 +35,10 @@ Ecco tutti i valori possibili e cosa significano, riga per riga:
 - `project`: Il nome del progetto, usato per creare la sottocartella principale. Mettendo `"clinical_connectome"`, i file andranno in `data/clinical_connectome/derivatives/<dataset>/<pipeline>/<soggetto>/...` — sempre sotto un unico livello `derivatives/` comune a tutti i dataset (perché tutto ciò che questa pipeline scarica è per definizione un derivato, mai un'acquisizione grezza), e **prima il nome della pipeline, poi il soggetto** (ordine BIDS-Derivatives reale): es. `data/clinical_connectome/derivatives/UNIPD/WashU/manual_masks/sub-STUNIPD0001/anat/...` per le lesioni, `.../features/sub-STUNIPD0131/func/...` per le feature (`features` è un nome scelto da noi per comodità locale, dato che questi dati non hanno un vero nome di pipeline alla sorgente — vedi `docs/dev/retrieval.md`).
 - `file_patterns`: Il percorso del "registro" delle regole di nomenclatura (`"config/registry/file_patterns_server.json"` o `_local.json`, coerente con la variante di `retrieval_*.json` che stai usando). Non serve modificarlo per un run normale, serve al codice per tradurre i concetti logici (es. "FC-pearson") nei percorsi file esatti richiesti dal sistema.
 - `datasets`: Un elenco delle raccolte di pazienti da includere. I 4 dataset noti sono: `UNIPD/WashU`, `UNIPD/PASPORT`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR` — ma **non tutti supportano gli stessi `object`**: `lesion` (maschere di lesione) è disponibile su tutti e 4, mentre `feature` (matrici di connettività funzionale) esiste **solo su `UNIPD/WashU`** (gli altri 3 non hanno affatto un albero `features/` alla sorgente). Se il tuo `retrieve` chiede solo `feature`, `datasets` deve limitarsi a `["UNIPD/WashU"]` — includere un dataset che non supporta *nessuno* degli item richiesti è un errore bloccante (probabile refuso), non un semplice avviso.
-- `group_filter`: Filtra il gruppo dei soggetti.
-  - Usa `["ST"]` se vuoi estrarre solo i pazienti affetti da Stroke.
+- `group_filter`: Filtra il gruppo dei soggetti, dedotto dal nome del soggetto. I gruppi noti sono 4 (`KNOWN_GROUPS` in `src/retrieval/config.py`), anche se in questo progetto oggi ne usiamo di fatto solo due:
+  - Usa `["ST"]` se vuoi estrarre solo i pazienti affetti da Stroke — il caso normale per NEMESIS.
   - Usa `["HC"]` se vuoi estrarre solo i controlli sani (Healthy Controls).
+  - `["PD"]` (Parkinson's Disease) e `["GM"]` (Glioblastoma Multiforme) sono anch'essi valori accettati dal codice, ma **non usati in nessun dataset di questo progetto** — restano supportati perché lo stesso codice di retrieval è pensato per essere riutilizzabile su altri progetti/coorti del gruppo che potrebbero usare quei gruppi.
   - Usa `null` per estrarre tutti i gruppi in modo indiscriminato.
 - `subjects`: Usalo se vuoi estrarre solo una lista specifica di codici identificativi (es. `["sub-STUNIPD0001", "sub-STUNIPD0002"]`). Se invece vuoi che la pipeline trovi tutti i soggetti in automatico in base al filtro `group_filter`, imposta questo valore a `null`.
 
@@ -54,7 +55,7 @@ Questo è il cuore della configurazione. È una lista di blocchi tra parentesi g
    ```json
    { "object": "feature", "datatype": "func", "suffix": "FC-pearson" }
    ```
-   Questo blocco indica al sistema di recuperare **tutte** le matrici di connettività già calcolate per il soggetto, per ogni atlante di parcellazione registrato (oggi 12: `Yan{100,200,300,400}TianS{1,2,3}Buckner7N` — un sottoinsieme scelto delle varianti disponibili alla sorgente). Un soggetto con un file mancante per un solo atlante non blocca nulla: quell'atlante viene semplicemente segnalato come "non trovato" per quel soggetto nel report, gli altri 11 vengono comunque copiati. Si noti che per `feature` non si inserisce il valore `pipeline` per ragioni di standardizzazione.
+   Questo blocco indica al sistema di recuperare **tutte** le matrici di connettività già calcolate per il soggetto, per ogni atlante di parcellazione registrato (oggi 12: `Yan{100,200,300,400}TianS{1,2,3}Buckner7N` — un sottoinsieme scelto delle varianti disponibili alla sorgente). Un soggetto con un file mancante per un solo atlante non blocca nulla: nel report quel soggetto viene segnalato nella sezione "Incomplete" con un **conteggio aggregato** (es. "11/12 registered files found") — il report non elenca *quale* atlante specifico manca, solo quanti; gli altri 11 vengono comunque copiati. Si noti che per `feature` non si inserisce il valore `pipeline` per ragioni di standardizzazione.
 
 3. **Per copiare i dati di controllo qualità del preprocessing funzionale (motion/outliers)**:
    ```json
