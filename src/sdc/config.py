@@ -88,7 +88,7 @@ def load_sdc_config(path: str | Path) -> SDCConfig:
         tracks_dir=_optional_existing_dir(raw, "tracks_dir"),
         cores_per_subject=_require_positive_int(raw, "cores_per_subject"),
         stage2_ebrains=_require_bool(raw, "stage2_ebrains"),
-        stage2_presets=_optional_str_list(raw, "stage2_presets") or [],
+        stage2_presets=_optional_unique_str_list(raw, "stage2_presets") or [],
         output_root=Path(_require_str(raw, "output_root")),
         session_name=_require_str(raw, "session_name"),
         overwrite=_require_bool(raw, "overwrite"),
@@ -159,6 +159,22 @@ def _optional_str_list(raw: dict, key: str) -> list[str] | None:
     if raw.get(key) is None:
         return None
     return _require_str_list(raw, key, allow_empty=True)
+
+
+def _optional_unique_str_list(raw: dict, key: str) -> list[str] | None:
+    """Same duplicate rejection as _require_unique_str_list, for an optional
+    field that may legitimately be absent/empty (unlike `datasets`) - see
+    stage2_presets, whose duplicate count directly corrupts
+    src.sdc.runner.check_stage2_outputs' expected_atlas_count, failing every
+    genuinely successful subject with a misleading Stage 2 error instead of
+    surfacing the real config typo."""
+    if raw.get(key) is None:
+        return None
+    value = _require_str_list(raw, key, allow_empty=True)
+    duplicates = {v for v in value if value.count(v) > 1}
+    if duplicates:
+        raise ValueError(f"config: field {key!r} contains duplicate entries: {sorted(duplicates)}")
+    return value
 
 
 def _optional_group_filter(raw: dict) -> list[str] | None:

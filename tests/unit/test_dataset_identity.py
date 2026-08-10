@@ -112,3 +112,20 @@ def test_group_of_malformed_subject_id_raises(tmp_path):
     ds = Dataset("UNIPD/WashU", _make_patterns(tmp_path))
     with pytest.raises(ValueError, match="subject_id"):
         ds.group_of("not-a-subject-id")
+
+
+def test_group_of_recognizes_uklfr_site(tmp_path):
+    ds = Dataset("UKLFR/stroke_UKLFR", _make_patterns(tmp_path))
+    assert ds.group_of("sub-STUKLFR0001") == "ST"
+
+
+def test_group_of_unregistered_site_ending_in_hc_raises_instead_of_misclassifying(tmp_path):
+    """Regression: the old [A-Z]+? lazy regex accepted ANY site code,
+    always preferring to split a trailing "HC" into the healthy-control
+    marker whenever the tail allowed it - a genuine stroke patient from a
+    hypothetical unregistered site "MONTREALHC" would have been silently
+    misclassified as a healthy control, no error. KNOWN_SITES makes an
+    unregistered site raise instead of being guessed."""
+    ds = Dataset("UNIPD/WashU", _make_patterns(tmp_path))
+    with pytest.raises(ValueError, match="subject_id"):
+        ds.group_of("sub-STMONTREALHC0001")

@@ -13,18 +13,20 @@ only be 1 when zero subjects are salvageable.
 
 from __future__ import annotations
 
+import json
 import subprocess
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
 import nibabel as nib
 import numpy as np
 
-from src.pipeline.compute_sdc import _link_subject, _run_task
+from src.pipeline.compute_sdc import _link_subject, _run_aggregate, _run_task
 from src.sdc.config import SDCConfig
 from src.sdc.manifest import ManifestRow, write_manifest
 from src.sdc.runner import _EXPECTED_SHAPE
-from src.sdc.status import read_all_statuses
+from src.sdc.status import SubjectStatus, read_all_statuses, write_status
 
 _AFFINE = np.eye(4)
 
@@ -125,7 +127,7 @@ def test_run_task_full_success_writes_ok_status_with_full_stage_trace(tmp_path):
         exit_code = _run_task(config, output_dir, task_id=0, task_count=1, dry_run=False)
 
     assert exit_code == 0
-    statuses = {s.subject_id: s for s in read_all_statuses(output_dir / "_status")}
+    statuses = {s.subject_id: s for s in read_all_statuses(output_dir / "_status")[0]}
     assert statuses["sub-A"].status == "ok"
     assert statuses["sub-B"].status == "ok"
     stage_names = [event.stage for event in statuses["sub-A"].stages]
@@ -148,7 +150,7 @@ def test_run_task_salvages_subject_that_completed_before_stage1_crash(tmp_path):
         exit_code = _run_task(config, output_dir, task_id=0, task_count=1, dry_run=False)
 
     assert exit_code == 0
-    statuses = {s.subject_id: s for s in read_all_statuses(output_dir / "_status")}
+    statuses = {s.subject_id: s for s in read_all_statuses(output_dir / "_status")[0]}
     assert statuses["sub-A"].status == "ok"
     assert statuses["sub-B"].status == "failed_stage1_process"
     assert "returned non-zero exit status" in statuses["sub-B"].detail
@@ -166,9 +168,28 @@ def test_run_task_returns_1_when_no_subject_salvageable_after_stage1_crash(tmp_p
         exit_code = _run_task(config, output_dir, task_id=0, task_count=1, dry_run=False)
 
     assert exit_code == 1
-    statuses = {s.subject_id: s for s in read_all_statuses(output_dir / "_status")}
+    statuses = {s.subject_id: s for s in read_all_statuses(output_dir / "_status")[0]}
     assert statuses["sub-A"].status == "failed_stage1_process"
     assert statuses["sub-B"].status == "failed_stage1_process"
+
+
+def test_run_aggregate_isolates_corrupt_status_file_from_the_rest(tmp_path):
+    """Regression: a single corrupt status file (e.g. from a task killed
+    mid-write) used to abort --mode aggregate entirely, hiding every other
+    subject already completed successfully. It must instead be skipped and
+    reported, not fail the whole aggregate run."""
+    config, output_dir = _setup(tmp_path, ["sub-A"])
+    status_dir = output_dir / "_status"
+    write_status(status_dir, SubjectStatus(subject_id="sub-A", task_id=0, status="ok", detail="fine"))
+    (status_dir / "sub-B.json").write_text('{"subject_id": "sub-B", "task_id": 0, "stat')  # truncated
+
+    exit_code = _run_aggregate(config, output_dir, datetime.now())
+
+    assert exit_code == 0
+    manifest = json.loads((output_dir / "manifest.json").read_text())
+    assert manifest["total"] == 1
+    assert "sub-B" in manifest["unreadable_status_files"]
+    assert "sub-B" in (output_dir / "config.md").read_text()
 
 
 def _write_marker_dir(path: Path, content: str) -> None:

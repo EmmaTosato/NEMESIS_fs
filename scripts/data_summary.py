@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import sys
 from pathlib import Path
 
 from src.retrieval import matrix
@@ -41,6 +42,7 @@ def write_reports(config: RetrievalConfig) -> list[Path]:
     written = []
     for name in config.datasets:
         ds = Dataset(name, config.file_patterns)
+        matrix.validate_subject_filters(ds, config, name)
         subjects = matrix.select_all_subjects(ds, config)
         rows = matrix.build_matrix(ds, subjects, combinations)
         csv_rows = matrix.to_csv_rows(rows, combinations)
@@ -57,7 +59,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     config = load_config(args.config)
-    for path in write_reports(config):
+    try:
+        written = write_reports(config)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    for path in written:
         print(f"data summary written to {path}")
     return 0
 

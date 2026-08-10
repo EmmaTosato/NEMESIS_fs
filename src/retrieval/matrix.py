@@ -75,6 +75,14 @@ def combinations_from_file_patterns(config: RetrievalConfig) -> list[tuple[str, 
     return sorted(combos)
 
 
+def _discovery_keys(ds: Dataset, config: RetrievalConfig) -> set[tuple[str, str | None]]:
+    """Every (object, pipeline) subject_discovery_keys() lists that this
+    dataset structurally has (see Dataset.has_object) - the full picture
+    select_all_subjects/validate_subject_filters both discover subjects
+    from, independent of any specific run's `retrieve` list."""
+    return {(o, p) for o, p in config.file_patterns.subject_discovery_keys() if ds.has_object(o)}
+
+
 def select_all_subjects(ds: Dataset, config: RetrievalConfig) -> list[str]:
     """Every subject visible under ANY (object, pipeline) the registry knows
     about for this dataset, filtered by group_filter/subjects the same way a
@@ -86,8 +94,9 @@ def select_all_subjects(ds: Dataset, config: RetrievalConfig) -> list[str]:
     Skips objects this dataset structurally doesn't have at all (e.g. no
     `features/` tree yet - see Dataset.has_object) rather than raising: that
     is a legitimate "nothing to report for this object here", not a
-    failure."""
-    discovery_keys = {(o, p) for o, p in config.file_patterns.subject_discovery_keys() if ds.has_object(o)}
+    failure. Call validate_subject_filters first to distinguish that from a
+    group_filter/subjects that matches nothing by config mistake."""
+    discovery_keys = _discovery_keys(ds, config)
     if config.subjects is not None:
         found = {s for object_, pipeline in discovery_keys for s in ds.subjects(object_, pipeline)}
         return sorted(found & set(config.subjects))
@@ -101,6 +110,36 @@ def select_all_subjects(ds: Dataset, config: RetrievalConfig) -> list[str]:
             for s in ds.subjects(object_, pipeline, group=group)
         }
     )
+
+
+def validate_subject_filters(ds: Dataset, config: RetrievalConfig, dataset_name: str) -> None:
+    """Raise ValueError if group_filter/subjects would silently select zero
+    subjects for this dataset - the same "structurally impossible request"
+    check src.pipeline.retrieve_data._validate_upfront makes for a run's own
+    (narrower) `retrieve`-scoped subject set, scoped here instead to the
+    full (object, pipeline) picture select_all_subjects itself draws from
+    (this report is independent of `retrieve`, see module docstring, so
+    retrieve_data's own validators - scoped to _known_object_pipelines -
+    would check the wrong set of subjects if reused directly here).
+
+    A dataset that genuinely has zero subjects at all (no filter applied) is
+    not an error here - that is select_all_subjects' own documented
+    "nothing to report for this object" case, not a config mistake."""
+    if config.subjects is None and config.group_filter is None:
+        return
+    discovery_keys = _discovery_keys(ds, config)
+    all_subjects = {s for object_, pipeline in discovery_keys for s in ds.subjects(object_, pipeline)}
+    if not all_subjects:
+        return
+    if config.subjects is not None:
+        unknown = [s for s in config.subjects if s not in all_subjects]
+        if unknown:
+            raise ValueError(f"{dataset_name}: subjects not found in this dataset: {unknown}")
+        return
+    for group in config.group_filter:
+        matched = {s for object_, pipeline in discovery_keys for s in ds.subjects(object_, pipeline, group=group)}
+        if not matched:
+            raise ValueError(f"{dataset_name}: group_filter {group!r} matches 0 subjects")
 
 
 def build_matrix(ds: Dataset, subjects: list[str], combinations: list[tuple[str, ...]]) -> list[MatrixRow]:

@@ -273,10 +273,12 @@ def _finalize_statuses(
 
 def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
     try:
-        statuses = read_all_statuses(output_dir / "_status")
+        statuses, failed_status_files = read_all_statuses(output_dir / "_status")
     except FileNotFoundError as exc:
         logging.error(str(exc))
         return 1
+    for stem, reason in sorted(failed_status_files.items()):
+        logging.warning("aggregate: skipping unreadable status file %s.json: %s", stem, reason)
 
     counts: dict[str, int] = {}
     for status in statuses:
@@ -300,8 +302,14 @@ def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
             return 1
 
     try:
-        (output_dir / "manifest.json").write_text(json.dumps({"counts": counts, "total": len(statuses)}, indent=2))
-        (output_dir / "config.md").write_text(_readme_text(config, counts, len(statuses), now, statuses))
+        (output_dir / "manifest.json").write_text(
+            json.dumps(
+                {"counts": counts, "total": len(statuses), "unreadable_status_files": failed_status_files}, indent=2
+            )
+        )
+        (output_dir / "config.md").write_text(
+            _readme_text(config, counts, len(statuses), now, statuses, failed_status_files)
+        )
         append_run_log_entry(
             config.output_root, config.session_name, now, "production", counts, output_dir, config.run_notes
         )
@@ -309,7 +317,12 @@ def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
         logging.error("aggregate: cannot write summary/run log: %s", exc, exc_info=True)
         return 1
 
-    logging.info("aggregate: done - %s -> merged under %s", counts, output_dir)
+    logging.info(
+        "aggregate: done - %s (%d unreadable status file(s)) -> merged under %s",
+        counts,
+        len(failed_status_files),
+        output_dir,
+    )
     return 0
 
 
@@ -338,7 +351,12 @@ def _link_subject(source: Path, destination: Path) -> None:
 
 
 def _readme_text(
-    config: SDCConfig, counts: dict[str, int], total: int, now: datetime, statuses: list[SubjectStatus]
+    config: SDCConfig,
+    counts: dict[str, int],
+    total: int,
+    now: datetime,
+    statuses: list[SubjectStatus],
+    failed_status_files: dict[str, str],
 ) -> str:
     lines = [
         f"# {config.project} SDC — {config.session_name} — {now.strftime('%d-%m-%y %H:%M')}",
@@ -353,6 +371,10 @@ def _readme_text(
     lines += ["", "## Average stage duration (seconds)", "", "| stage | mean duration (s) | events |", "|---|---|---|"]
     for stage, mean_duration, event_count in _mean_stage_durations(statuses):
         lines.append(f"| {stage} | {mean_duration:.1f} | {event_count} |")
+    if failed_status_files:
+        lines += ["", "## Unreadable status files (excluded from the counts above)", "", "| file | reason |", "|---|---|"]
+        for stem, reason in sorted(failed_status_files.items()):
+            lines.append(f"| {stem}.json | {reason} |")
     return "\n".join(lines) + "\n"
 
 

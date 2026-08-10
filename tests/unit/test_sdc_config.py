@@ -102,6 +102,7 @@ def test_bcbtoolkit_path_without_mni152_reference_raises(tmp_path):
         ({"cores_per_subject": True}, "positive integer"),
         ({"datasets": []}, "must not be empty"),
         ({"datasets": ["UNIPD/WashU", "UNIPD/WashU"]}, "duplicate entries"),
+        ({"stage2_presets": ["JHU_tracts_2mm", "JHU_tracts_2mm"]}, "duplicate entries"),
         ({"group_filter": ["XX"]}, "unknown group"),
         ({"stage2_ebrains": "yes"}, "must be a boolean"),
         ({"project": ""}, "non-empty string"),

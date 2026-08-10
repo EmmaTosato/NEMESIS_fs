@@ -25,7 +25,18 @@ import pandas as pd
 
 from src.retrieval.config import FilePatterns, RetrieveItem
 
-_SUBJECT_RE = re.compile(r"^sub-(?P<disease>ST|PD|GM)(?P<site>[A-Z]+?)(?P<hc>HC)?(?P<num>\d+)$")
+# Every site code seen across the 4 in-scope datasets' real subject IDs
+# (UNIPD houses WashU/PASPORT/PSP under one site code, UKLFR its own).
+# Deliberately a closed, explicit list, not `[A-Z]+?` free-form matching: a
+# lazy regex can't tell "site code that happens to end in HC" apart from
+# "site code + HC (healthy control) marker" - e.g. a hypothetical future
+# site "MONTREALHC" would always be mis-split into site="MONTREAL"+hc=True,
+# silently misclassifying every stroke patient from that site as a healthy
+# control. Adding a new site requires adding it here explicitly - an
+# unregistered site raises (see group_of), it is never guessed.
+KNOWN_SITES = ("UNIPD", "UKLFR")
+_SITE_ALTERNATION = "|".join(sorted(KNOWN_SITES, key=len, reverse=True))
+_SUBJECT_RE = re.compile(rf"^sub-(?P<disease>ST|PD|GM)(?P<site>{_SITE_ALTERNATION})(?P<hc>HC)?(?P<num>\d+)$")
 
 
 def group_of(subject_id: str) -> str:
@@ -35,6 +46,11 @@ def group_of(subject_id: str) -> str:
     subjects by globbing a folder directly - e.g. src/features/functional.py,
     which does not go through Dataset - can still tell a healthy control from
     a patient without duplicating _SUBJECT_RE.
+
+    Raises ValueError both for a structurally malformed subject_id and for
+    one whose site code isn't in KNOWN_SITES - the latter is deliberate: a
+    genuinely new site must be added to KNOWN_SITES by a human, never
+    silently inferred from the ID alone (see KNOWN_SITES docstring above).
     """
     match = _SUBJECT_RE.match(subject_id)
     if match is None:

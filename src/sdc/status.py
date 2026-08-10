@@ -8,6 +8,8 @@ each task only ever writes its own subjects' files.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -61,18 +63,42 @@ class SubjectStatus:
 
 
 def write_status(status_dir: Path, status: SubjectStatus) -> None:
+    """Writes <status_dir>/<subject_id>.json atomically (temp-file-then-rename,
+    same pattern as src/utils/artifacts.py::save_matrix) - a SLURM task
+    killed (OOM/timeout) mid-write must never leave a truncated JSON file,
+    which read_all_statuses could otherwise fail to parse."""
     status_dir.mkdir(parents=True, exist_ok=True)
     path = status_dir / f"{status.subject_id}.json"
-    path.write_text(json.dumps(asdict(status), indent=2))
+    fd, tmp_name = tempfile.mkstemp(dir=status_dir, prefix=f".{status.subject_id}_tmp_", suffix=".json")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(json.dumps(asdict(status), indent=2))
+        os.replace(tmp_name, path)
+    except BaseException:
+        Path(tmp_name).unlink(missing_ok=True)
+        raise
 
 
-def read_all_statuses(status_dir: Path) -> list[SubjectStatus]:
+def read_all_statuses(status_dir: Path) -> tuple[list[SubjectStatus], dict[str, str]]:
+    """Returns (statuses, failed): failed maps the offending file's stem
+    (best-effort subject_id - a truncated file may not even parse far
+    enough to read the real one) -> error reason, for any status file that
+    isn't valid JSON or doesn't reconstruct into a SubjectStatus. One
+    corrupt file (e.g. from a task killed mid-write before write_status's
+    atomic rename above existed, or a leftover from before this fix) must
+    not abort aggregation for every other subject already completed
+    successfully - same per-item isolation as
+    resample_nonconforming_rows/check_stage1_outputs in this same pipeline."""
     if not status_dir.is_dir():
         raise FileNotFoundError(f"status dir not found: {status_dir} - has `--mode run` been executed yet?")
     statuses = []
+    failed: dict[str, str] = {}
     for path in sorted(status_dir.glob("*.json")):
-        with path.open() as f:
-            raw = json.load(f)
-        raw["stages"] = tuple(StageEvent(**event) for event in raw.get("stages", []))
-        statuses.append(SubjectStatus(**raw))
-    return statuses
+        try:
+            with path.open() as f:
+                raw = json.load(f)
+            raw["stages"] = tuple(StageEvent(**event) for event in raw.get("stages", []))
+            statuses.append(SubjectStatus(**raw))
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+            failed[path.stem] = str(exc)
+    return statuses, failed

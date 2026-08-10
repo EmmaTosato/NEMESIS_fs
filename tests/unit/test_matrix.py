@@ -1,5 +1,7 @@
 """Unit tests for src.retrieval.matrix - synthetic fixtures, no EBRAIN mount needed."""
 
+import pytest
+
 from src.retrieval import matrix
 from src.retrieval.config import FilePatterns, RetrievalConfig
 from src.retrieval.dataset import Dataset
@@ -188,6 +190,43 @@ def test_select_all_subjects_skips_object_with_no_root_on_this_dataset(tmp_path)
     ds = Dataset("UNIPD/WashU", file_patterns)
     config = _minimal_config(tmp_path, file_patterns)
     assert matrix.select_all_subjects(ds, config) == ["sub-STUNIPD0001", "sub-STUNIPD0002"]
+
+
+def test_validate_subject_filters_raises_for_unknown_explicit_subject(tmp_path):
+    """Regression: scripts/data_summary.py used to call select_all_subjects
+    directly with no upfront check - a typo'd subjects entry silently
+    selected zero subjects (found & set(config.subjects) is empty), the
+    report ended up with only a header row, and nothing signaled why."""
+    project_root = _make_washu_like(tmp_path)
+    ds = Dataset("UNIPD/WashU", _make_patterns(project_root))
+    config = _minimal_config(tmp_path, _make_patterns(project_root), subjects=["sub-STUNIPD9999"])
+    with pytest.raises(ValueError, match="sub-STUNIPD9999"):
+        matrix.validate_subject_filters(ds, config, "UNIPD/WashU")
+
+
+def test_validate_subject_filters_raises_when_group_filter_matches_nobody(tmp_path):
+    project_root = _make_washu_like(tmp_path)
+    ds = Dataset("UNIPD/WashU", _make_patterns(project_root))
+    config = _minimal_config(tmp_path, _make_patterns(project_root), group_filter=["PD"])
+    with pytest.raises(ValueError, match="group_filter"):
+        matrix.validate_subject_filters(ds, config, "UNIPD/WashU")
+
+
+def test_validate_subject_filters_passes_for_valid_explicit_subject(tmp_path):
+    project_root = _make_washu_like(tmp_path)
+    ds = Dataset("UNIPD/WashU", _make_patterns(project_root))
+    config = _minimal_config(tmp_path, _make_patterns(project_root), subjects=["sub-STUNIPD0001"])
+    matrix.validate_subject_filters(ds, config, "UNIPD/WashU")  # must not raise
+
+
+def test_validate_subject_filters_does_not_raise_for_genuinely_empty_dataset(tmp_path):
+    """A dataset that structurally has no subjects at all (no filter set) is
+    a legitimate "nothing to report" case, not a config mistake - distinct
+    from a filter that excludes an otherwise non-empty dataset."""
+    file_patterns = _make_patterns(tmp_path / "nonexistent")
+    ds = Dataset("UNIPD/WashU", file_patterns)
+    config = _minimal_config(tmp_path, file_patterns, group_filter=["ST"])
+    matrix.validate_subject_filters(ds, config, "UNIPD/WashU")  # must not raise
 
 
 def test_build_matrix_marks_missing_for_object_with_no_root_on_this_dataset(tmp_path):
