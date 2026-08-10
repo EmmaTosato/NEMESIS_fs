@@ -31,10 +31,10 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
   it, picks parameters by hand, writes them into params_reduction.json's
   "params", and re-runs with fine_tuning=false.
 
-Both modes append an entry to <output_root>/<method>/runs.csv - a
-chronological, human-readable history of every run (tuning or production)
-for that method, distinct from any single run's own config.md (see
-docs/dev/analysis.md).
+Both modes append an entry to <output_root>/<method>/runs.csv (production) or
+runs_tuning.csv (fine-tuning) - a chronological, human-readable history of
+every run of that kind for that method, distinct from any single run's own
+config.md (see docs/dev/config.md).
 """
 
 from __future__ import annotations

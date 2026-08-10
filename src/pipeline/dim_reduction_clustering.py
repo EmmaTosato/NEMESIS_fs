@@ -164,7 +164,7 @@ def main(argv: list[str] | None = None) -> int:
     # Same enrichment dim_reduction.py always persists - shared via
     # enrich_metadata_with_lesion_info so a result produced by this pipeline
     # carries the same columns forward as one produced by dim_reduction.py,
-    # regardless of which was run (see docs/dev/analysis.md). Not done in the
+    # regardless of which was run (see docs/dev/plotting.md). Not done in the
     # fine_tuning branch above: that mode writes no metadata.csv at all (only
     # tuning_results.csv/plots), so an unresolvable subject there would abort
     # a tuning run for a column it never uses.
@@ -597,7 +597,7 @@ def _write_standalone_diagnostic(output_dir: Path, method: str, embedding: np.nd
     docstring for why these 2 (and only these 2) methods get one. Same
     dispatch as clustering.py's own helper of the same name, duplicated
     rather than shared per this codebase's established per-CLI convention
-    (see docs/dev/analysis.md) - the two callers differ in which config type
+    (see docs/dev/models.md) - the two callers differ in which config type
     they close over.
     """
     if method == "agglomerative":

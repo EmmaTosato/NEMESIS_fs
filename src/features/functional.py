@@ -8,7 +8,7 @@ pipeline scripts:
    fill value here. NaN is the honest representation of "not computable";
    a fill value belongs only immediately before a method that cannot accept
    missing values (PCA/UMAP), i.e. next to `src/analysis/reduction.py`, not
-   here - see docs/dev/analysis.md for the literature behind this split
+   here - see docs/dev/fc_matrix.md for the literature behind this split
    (Griffis et al. 2019: "the PLSC approach cannot accommodate missing
    values ... set to 0" - the fill value is a downstream necessity, not part
    of the masking step itself).
@@ -19,7 +19,7 @@ pipeline scripts:
    raw lesion/FC data again.
 
 Migrated from notebooks/fc_lesion_masking.ipynb, validated against real
-WashU subjects before landing here - see docs/dev/analysis.md and
+WashU subjects before landing here - see docs/dev/fc_matrix.md and
 docs/debugging/debug_23_07_26.md for the two nilearn pitfalls found during
 that validation (uint8 counting overflow, disappearing fully-lesioned
 parcels - both handled explicitly in compute_parcel_coverage below).
@@ -112,7 +112,7 @@ def resample_lesion_to_atlas(
     Resampling always happens, even when lesion_img.shape == atlas_img.shape:
     identical shape does not imply identical orientation (affine) - verified
     on real WashU data, where the lesion mask and the server atlas share the
-    same shape but an opposite-sign X axis (docs/dev/analysis.md).
+    same shape but an opposite-sign X axis (docs/dev/fc_matrix.md).
     """
     lesion_resampled = resample_to_img(
         lesion_img, atlas_img, interpolation=resample_interpolation, force_resample=True, copy_header=True
@@ -307,8 +307,9 @@ def drop_constant_edges(X: np.ndarray, edge_names: list[str]) -> tuple[np.ndarra
     """Drop edges with an identical value across every subject that has one.
 
     An edge with any NaN is never evaluated for constancy - kept
-    unconditionally (an open design point, not yet decided: the per-subject/
-    per-edge exclusion threshold, see docs/dev/analysis.md). Returns
+    unconditionally (the per-subject/per-edge exclusion threshold question
+    is settled, not open: no threshold, no subject excluded, see
+    docs/dev/fc_matrix.md). Returns
     (X_filtered, kept_edge_names, dropped_info), where dropped_info is
     [(edge_name, shared_value), ...] - the caller (build_fc_matrix.py) logs
     this explicitly: an exactly-identical continuous FC value across every

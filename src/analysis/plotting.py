@@ -148,7 +148,7 @@ def compose_run_title(output_dir: Path, project: str) -> str:
     Path every pipeline script already builds for save_matrix/logging, so the
     title can never drift out of sync with it, and stays correct no matter
     how deep results/ ends up nested (modality/pipeline/method/session/tag -
-    see docs/dev/analysis.md) without this function needing to know about any
+    see docs/dev/plotting.md) without this function needing to know about any
     of those axes individually. Drops a leading "results" path segment for
     readability (every pipeline's output_root today starts with "results/");
     falls back to the full path if it doesn't, rather than raising - a
@@ -636,7 +636,7 @@ def plot_clusters_interactive(
     Cluster-only coloring on purpose (no dataset/site toggle here - a
     clustering plot's job is to inspect the cluster assignment; dataset
     coloring lives on dim_reduction.py's own embedding_plot_dataset instead,
-    see plotting.py's module docstring / docs/dev/analysis.md).
+    see plotting.py's module docstring / docs/dev/plotting.md).
     """
     if X_2d.shape[1] < 2:
         raise ValueError(f"plot_clusters_interactive needs at least 2 columns, got shape {X_2d.shape}")

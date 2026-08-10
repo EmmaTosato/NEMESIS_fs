@@ -217,7 +217,7 @@ def enrich_metadata_with_lesion_info(metadata: pd.DataFrame, X: np.ndarray) -> p
     dim_reduction_clustering.py so both always carry the same columns
     forward in their metadata.csv, regardless of which one was run (before
     this function existed, only dim_reduction.py did this - see
-    docs/dev/analysis.md). X must be the raw voxel-wise lesion matrix
+    docs/dev/plotting.md). X must be the raw voxel-wise lesion matrix
     (same row count/order as metadata, checked below) - lesion volume is
     X.sum(axis=1), a voxel count, not ml (a scalar rescaling, no need to
     convert here either).

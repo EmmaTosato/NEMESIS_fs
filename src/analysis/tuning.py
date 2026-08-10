@@ -86,7 +86,7 @@ def evaluate_umap(
     notion must be the *same* metric the embedding was actually built with,
     not trustworthiness's own euclidean default (comparing a jaccard-built
     embedding against euclidean neighborhoods isn't a fair test of it, see
-    docs/dev/analysis.md). For those metrics X is replaced by its precomputed
+    docs/dev/models.md). For those metrics X is replaced by its precomputed
     binary_pairwise_distance matrix for both the embedding and the score, and
     umap's own metric is switched to "precomputed" accordingly (also avoids
     umap/sklearn each recomputing pairwise distances the slow, non-vectorized

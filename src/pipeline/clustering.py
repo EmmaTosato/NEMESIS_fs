@@ -42,7 +42,7 @@ convention as dim_reduction.py:
 Both modes append an entry to <output_root>/<method>/runs.csv - a
 chronological, human-readable history of every run (tuning or production)
 for that method, distinct from any single run's own config.md (see
-docs/dev/analysis.md).
+docs/dev/config.md).
 """
 
 from __future__ import annotations

@@ -68,7 +68,7 @@ def test_extra_arrays_not_shape_checked_against_X(tmp_path):
     """non_constant_mask (feature-aligned, not subject-aligned) must be
     accepted even though its length differs from X.shape[0] - regression test
     for the bug found while testing build_lesion_matrix.py (see
-    docs/dev/analysis.md)."""
+    docs/dev/lesion_matrix.md)."""
     X, metadata = _matrix_and_metadata()
     feature_aligned = np.ones(1000, dtype=bool)  # unrelated length to X's 4 rows / 3 columns
     save_matrix(tmp_path / "run1", X, metadata, ["x"], overwrite=False, extra_arrays={"non_constant_mask": feature_aligned})

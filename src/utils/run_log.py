@@ -1,4 +1,4 @@
-"""Append-only per-method run history (production_runs.csv / tuning_runs.csv).
+"""Append-only per-method run history (runs.csv / runs_tuning.csv).
 
 A run's config.md/report describe that one run in isolation. These CSVs answer
 a different question - "every run (tuning sweep or production) that ever
@@ -35,10 +35,10 @@ def append_run_log_entry(
 ) -> None:
     """Append one row to runs_csv_path, creating it (with a header) if absent.
 
-    run_type distinguishes a fine-tuning sweep from a production run in the
-    same log, without splitting them into separate files - seeing both in
-    one chronological history is the point (e.g. "s2 used the params the
-    20-07 tuning sweep in this same file found best").
+    run_type picks which of two files the row goes to - runs.csv for
+    "production", runs_tuning.csv for anything else - so a fine-tuning sweep
+    and a production run never land in the same file, even though they share
+    this same append/schema logic.
 
     extra_columns prepends caller-specific leading columns (e.g. which of two
     axes a row belongs to, for a pipeline that shares one runs_csv_path

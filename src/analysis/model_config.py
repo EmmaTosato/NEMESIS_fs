@@ -6,7 +6,7 @@ checked against REDUCTION_METHODS; clustering_methods (a non-empty list,
 duplicates rejected - lessons_learned.md #5) has every element checked
 against CLUSTERING_METHODS - requires those registries to already exist,
 which is why this module was built after reduction.py/clustering.py (see
-docs/dev/analysis.md).
+docs/dev/config.md).
 """
 
 from __future__ import annotations
