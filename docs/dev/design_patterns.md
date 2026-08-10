@@ -1,6 +1,6 @@
 # Design patterns used in this repo
 
-Cross-cutting reference: the recurring design patterns/idioms used across `src/`, named explicitly, with one canonical example each and pointers to the fuller module-level writeups (`docs/dev/retrieval.md`, `docs/dev/analysis.md`). Not a general design-patterns tutorial — only the ones this repo actually uses, and why each was chosen here specifically.
+Cross-cutting reference: the recurring design patterns/idioms used across `src/`, named explicitly, with one canonical example each and pointers to the fuller module-level writeups (`docs/dev/retrieval.md`, `docs/dev/models.md`, `docs/dev/config.md`, `docs/dev/plotting.md`, `docs/dev/lesion_matrix.md`, `docs/dev/fc_matrix.md`). Not a general design-patterns tutorial — only the ones this repo actually uses, and why each was chosen here specifically.
 
 ## Strategy
 
@@ -55,7 +55,7 @@ Every `load_*_config` function returns one of these (`RetrievalConfig`, `Retriev
 
 `src/utils/artifacts.py`'s `save_matrix`: write every file (`matrix.npy`, `metadata.csv`, extra arrays, `config.md`, `manifest.json` last) into a temporary sibling directory, then `rename()` it into place as the final step. A crash or interruption at any point before the rename leaves only an orphaned temp directory - the real output path never exists in a partial state. `load_matrix` relies on this: it treats "no `manifest.json`" as "this artifact was never successfully built," which is only a valid inference because of the atomic swap.
 
-Contrast with the pipeline scripts' own `summaries/`/`logs/` writes, and `build_lesion_matrix.py`'s QC-volume writing (`_write_parcellated_volumes`) - both **not** atomic, deliberately: they're secondary/informational outputs written after the real artifact already landed successfully, so a partial write there doesn't corrupt anything that matters (see `docs/dev/analysis.md`, "QC-volume writing is intentionally not atomic").
+Contrast with the pipeline scripts' own `summaries/`/`logs/` writes, and `build_lesion_matrix.py`'s QC-volume writing (`_write_parcellated_volumes`) - both **not** atomic, deliberately: they're secondary/informational outputs written after the real artifact already landed successfully, so a partial write there doesn't corrupt anything that matters (see `docs/dev/lesion_matrix.md`, "QC-volume writing is intentionally not atomic").
 
 ## Layered architecture
 

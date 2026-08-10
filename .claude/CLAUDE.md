@@ -33,7 +33,7 @@ Resource values in `jobs/` are conservative starting points (this is I/O-bound f
 - `docs/` — stable, incremental project documentation (distinct from raw meeting notes, which live under `assets/`):
   - `README.md` (repo root) — project goal, hypothesis, Task 1-5 breakdown, and the current "what's implemented so far" picture
   - `docs/guides/` — user-facing "how do I run this" guides, one per pipeline (`retrieval.md`, `atlas_building.md`, `matrix_building.md`, `dim_reduction.md`, `clustering.md`, `dim_reduction_clustering.md`, `compute_sdc.md`) plus `datasets.md` (EBRAIN paths, per-dataset N, per-subject folder structure, `participants.tsv` conventions)
-  - `docs/dev/` — developer-facing architecture/implementation reference per module (`retrieval.md`, `analysis.md`, `design_patterns.md`), kept current as each piece lands — not a restatement of any original plan
+  - `docs/dev/` — developer-facing architecture/implementation reference per module (`retrieval.md`, `models.md`, `config.md`, `plotting.md`, `lesion_matrix.md`, `fc_matrix.md`, `design_patterns.md`), kept current as each piece lands — not a restatement of any original plan
   - `docs/methods/` — methodology write-ups (dimensionality reduction, clustering); check what's actually present rather than assuming full coverage
   - `docs/knowledge/` — informal literature/method notes gathered while building a pipeline (per-method guides, reproduction notes, decisions log) — distinct from `docs/methods/`'s polished write-ups: this is dev-facing working notes, not the current-state synthesis
   - `docs/debugging/` — dated, per-session debug reports (see `code_standards.md` §8)

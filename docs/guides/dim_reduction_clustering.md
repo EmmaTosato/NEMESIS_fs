@@ -32,7 +32,7 @@ I parametri nel file `config/pipelines/dim_reduction_clustering.json` sono essen
 
 - **`project`**: `(Stringa)` `"clinical_connectome"`.
 - **`input_path`**: `(Stringa)` La cartella esatta originata dalla pipeline base di *Matrix Building* (es. `"data/derived/lesion_matrix/21-07_s1.1"`). Non dargli in pasto dati già compressi, ci penserà lui.
-- **`reduction_method`**: `(Stringa)` Seleziona UN SOLO algoritmo di compressione (es. `"umap"` oppure `"pca_varimax"`). È lo scultore che modellerà l'argilla per i clustering successivi.
+- **`reduction_method`**: `(Stringa)` Seleziona UN SOLO algoritmo di compressione (es. `"umap"` oppure `"pca_varimax"` — quest'ultimo però non selezionabile oggi: `config/registry/params_reduction.json` non ha più una voce `"pca_varimax"`, vedi `docs/guides/dim_reduction.md`). È lo scultore che modellerà l'argilla per i clustering successivi.
 - **`clustering_methods`**: `(Lista di Stringhe)` Seleziona I METODI di raggruppamento con cui vuoi tagliare i dati (es. `["kmeans", "agglomerative", "gmm"]`). Verranno eseguiti tutti, a ruota.
 - **`reduction_params_file`**: `(Stringa)` Punta al registro matematico della riduzione (`"config/registry/params_reduction.json"`). 
 - **`clustering_params_file`**: `(Stringa)` Punta al registro matematico dei raggruppamenti (`"config/registry/params_clustering.json"`).

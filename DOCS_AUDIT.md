@@ -45,63 +45,24 @@ Per ogni file: cosa è confermato corretto, cosa è obsoleto/errato (con riferim
 
 ---
 
-## `docs/dev/retrieval.md`
-
-File molto denso e per lo più eccellente (spiega bene *perché*, non solo *cosa*) — ma contiene l'errore più significativo trovato finora nell'intero audit, **internamente incoerente con se stesso**.
-
-**✅ Confermato corretto**
-- `KNOWN_OBJECTS = ("lesion", "feature")`, `_OBJECTS_REQUIRING_PIPELINE`/`_OBJECTS_FORBIDDING_PIPELINE`, profondità variabile 3 vs 2 livelli — confermato in `src/retrieval/config.py`.
-- `KNOWN_GROUPS`: qui la doc elenca correttamente **tutti e 4** i gruppi (`ST, HC, PD, GM`, riga 228) — a differenza di `docs/guides/retrieval.md` che ne omette 2 (vedi sopra). Questo file è la fonte corretta.
-- Layout output pipeline-first, `output_layout.local_relative_path`/`local_dataset_root` — combacia esattamente col codice (già verificato per `docs/guides/retrieval.md`).
-- Percorso `assets/dataset_summaries/data_summary__<dataset>.csv`, non timestampato, non annidato per progetto — confermato sui file reali (`ls assets/dataset_summaries/`).
-- `_reject_duplicate_retrieve_items`, `RetrieveItem.__post_init__` con `if/elif/else: raise` — confermato in `config.py`.
-- Tabella STOP/WARNING/ERROR/FATAL — coerente con `retrieve_data.py` (già verificato in dettaglio per la guida utente).
-
-**⚠️ Errore maggiore — conteggio/nomi atlanti FC-pearson, il documento si contraddiceva da solo — RISOLTO il 10/08**
-Il registro reale (`config/registry/file_patterns_{server,local}.json`, contato a mano) ha **12 template Yan-based**: `Yan{100,200,300,400}TianS{1,2,3}Buckner7N`.
-- Righe 91, 128, 346 descrivevano **15 template Glasser+Schaefer-based**, un registro mai esistito sul disco reale (nessuna traccia di "Glasser"/"Schaefer" in `file_patterns_server.json`; via `git log` il registro usa Yan almeno dal 21/07, mai cambiato da allora). Righe 275, 304 dicevano invece correttamente "12", senza nominare gli atlanti — il documento era quindi incoerente al proprio interno (3 punti dicevano 15/Glasser-Schaefer, 2 dicevano 12).
-- **Fix applicato**, su indicazione esplicita dell'utente di non "bloccare" di nuovo un numero/nome specifico che potrebbe ricambiare in futuro: le 3 righe sbagliate sono state corrette per riflettere lo stato Yan-based di oggi, ma **formulate come puntatori al registro** ("vedi `file_patterns_server.json` per la lista corrente, questo insieme è già cambiato una volta ed è previsto possa ricambiare"), non come un nuovo conteggio fisso destinato a ridiventare stale alla prossima modifica dell'atlante.
-
-**⚠️ Sezione "Known follow-up, not yet done" (riga 338) — completamente superata — RISOLTO il 10/08**
-Entrambi i problemi descritti come "non ancora sistemati" erano **già risolti** nel codice (verificato su `tests/integration/test_resolution_counts.py` reale: `FILE_PATTERNS_PATH` punta già a `file_patterns_server.json`, e il test FC-pearson deriva i template dinamicamente dal registro invece di hardcodare nomi/conteggi). **Fix applicato**: sezione riscritta per documentare che è stata risolta, invece di restare descritta come lavoro ancora da fare.
-
-**⚠️ Riga 7 — stesso errore già trovato nella guida utente — RISOLTO il 10/08**: *"`_local.json` (Windows path convention, for a laptop-mounted copy)"* era falso. **Fix applicato**: riformulato per non affermare "Windows", e per riflettere la decisione dell'utente che i due `retrieval_*.json` restano allineati per contenuto (stesso `datasets`/`group_filter`/`retrieve`), differendo solo nel puntatore al registro — coerente con l'allineamento di `retrieval_server.json` applicato in `docs/guides/retrieval.md`.
-
-**❓ Non verificabile da qui / dato ambiguo (non ancora toccato, in attesa di nuova evidenza)**
-- Riga 9: *"176/196 subject folders actually populated"* per WashU `features/` alla sorgente — la copia locale ha **225** cartelle `sub-*` sotto `features/` (verificato `ls`), un numero diverso da entrambi quelli citati. Non è una prova di errore (la copia locale non è necessariamente uno snapshot identico all'istante in cui questa cifra fu misurata, ed EBRAIN è "attivamente curato" per stessa ammissione della doc, riga 336) ma il numero citato non è più riscontrabile oggi con i dati disponibili — da ri-misurare se questa cifra serve ancora a qualcosa.
+## `docs/dev/retrieval.md` — ✅ FATTO (10/08: atlanti FC-pearson Glasser/Schaefer→Yan corretti come puntatori al registro; sezione "Known follow-up" riscritta come risolta; riga 7 "Windows path" corretta; riga 9 "176/196" rimossa e sostituita col conteggio reale confermato dall'utente — 225 cartelle WashU `features/`, 169 stroke + 56 controlli sani)
 
 ---
 
-## `docs/dev/analysis.md`
+## `docs/dev/analysis.md` — ✅ FATTO, poi **spezzato in 5 file** (10/08)
 
-File enorme (321 righe) e per la maggior parte di qualità eccellente — molto probabilmente il documento più denso e accurato dell'intero audit finora. Ma la sezione "Status" iniziale e la sezione `run_log.py` contengono errori chiari e verificabili, in netto contrasto con la cura del resto del file.
+Prima corretti i 3 errori trovati (riga 7 "Status" `feature` falsamente descritto come non registrato, sezione `run_log.py` con lo schema `runs.csv` a due file, righe 318-319 sulla soglia FC "not yet decided"/"not yet run for real" — vedi commit precedenti). Poi, su richiesta esplicita dell'utente (file "troppo lungo", 321 righe che coprivano 3 pipeline concettualmente diverse), **spezzato in 5 nuovi file** invece di restare un unico doc:
+- `docs/dev/models.md` — `reduction.py`/`clustering.py`, `tuning.py`, `clustering_tuning.py`, `consensus_clustering.py`, `distances.py`, `covariates.py`, + i 3 CLI (`dim_reduction.py`/`clustering.py`/`dim_reduction_clustering.py`)
+- `docs/dev/config.md` — `params.py`, `model_config.py`, `run_log.py`/`SESSIONS.md`, `logging_setup.py`
+- `docs/dev/plotting.md` — `plotting.py`, `embedding_coloring.py`/`embedding_plots.py`, le funzioni di arricchimento metadata (`clinical.py::join_lesion_side`/`join_nihss`/`enrich_metadata_with_lesion_info`)
+- `docs/dev/lesion_matrix.md` — `features/lesion.py`, `build_config.py`, CLI `build_lesion_matrix.py`
+- `docs/dev/fc_matrix.md` — `features/functional.py`, CLI `mask_fc.py`/`build_fc_matrix.py`
 
-**✅ Confermato corretto (verifica estesa)**
-- `REDUCTION_METHODS`/`CLUSTERING_METHODS` (5 e 5, nomi esatti) — confermato.
-- `params["metric"]` di produzione: `umap` → `"jaccard"`, `tsne` → `"euclidean"` — confermato esattamente su `config/registry/params_reduction.json` reale.
-- `PARCEL_AGGREGATIONS` con solo `"fraction_lesioned"` — confermato (già verificato per `matrix_building.md`).
-- I 2 bug reali di `nilearn.NiftiLabelsMasker` (overflow `uint8`, parcel scomparso invece di leggere 0) — coerenti con `lessons_learned.md` #13 e `debug_23_07_26.md`, verificabili nel codice.
-- Struttura output/nomi (`embeddings_grid_*.png`, `consensus_suggestions.md`, `CONSENSUS_ELIGIBLE_METHODS = {kmeans, gmm, spectral}`, `STANDALONE_DIAGNOSTIC_METHODS = {agglomerative, spectral}`, rimozione di `compute_k_distance`/`plot_k_distance`) — tutto confermato nel codice reale già ispezionato per i file precedenti.
-- `data/SESSIONS.md` come unico path sotto `data/` non ignorato da git (`!data/SESSIONS.md`) — verificabile in `.gitignore`, coerente col resto del progetto.
-
-**⚠️ Errore confermato #1 — riga 7, sezione "Status" (proprio quella che dichiara di essere sempre aggiornata)**
-*"`feature` not currently registered in `config/registry/file_patterns_local.json`/`file_patterns_server.json`"* — **falso**: verificato che entrambi i file hanno oggi `{"lesion": ..., "feature": ...}` come chiavi di primo livello, con `feature.func.FC-pearson`/`motion`/`outliers` pienamente popolati (12 template Yan-based). Ironico dato che l'introduzione del file dichiara esplicitamente *"This file documents what is actually implemented today... not a restatement of the plan"*.
-
-**⚠️ Errore confermato #2 — schema `runs.csv`, ripetuto 3 volte nello stesso file (righe 110, 211, 220)**
-Il file descrive esplicitamente e più volte, con motivazione dettagliata, che produzione e tuning finiscono **nello stesso file** `<output_root>/<method>/runs.csv`, distinti solo da una colonna `run_type` (*"the point is seeing... in one place, not two separate histories to cross-reference"*, riga 110). Questo **contraddice il codice reale** già verificato (`src/utils/run_log.py`: `file_name = "runs.csv" if run_type == "production" else "runs_tuning.csv"`, più gli header reali `session,id,timestamp,params,output,notes` senza `run_id`/`run_type` su `results/lesion/dim_reduction/*/runs.csv`). È lo stesso errore già trovato in `docs/guides/dim_reduction.md`/`docs/guides/clustering.md`, ma qui è più esteso: l'intera sezione "`src/utils/run_log.py`" (righe 106-114) descrive un design (`FIELDNAMES` include `run_id`/`run_type`, un solo file) che il codice reale ha da tempo sostituito con lo split `runs.csv`/`runs_tuning.csv` — `docs/guides/dim_reduction_clustering.md` (verificato sopra) ha invece la descrizione corretta.
-
-**⚠️ Righe 318-319 — framing "non ancora deciso" doppiamente stale, stesso pattern già trovato in `fc_matrix_building.md`**
-*"A per-subject exclusion threshold... not yet run for real; only synthetic/small-sample data so far"*: falso su entrambi i punti.
-1. `mask_fc.py` **è stato eseguito su dati reali** (169 soggetti WashU reali, `mask_summary.csv` con numeri reali — confermato già nel file precedente e in `stato_progetto.md` sessione 2026-07-25).
-2. La decisione sulla soglia di esclusione è stata **chiusa esplicitamente** in sessione 2026-07-27 ("non si esclude nessun paziente, nessuna soglia implementata... non è un lavoro rimasto da fare, è chiusa") — non è più "not yet decided".
-
-**❓ Non verificabile da qui**: dettagli implementativi minori (es. formule esatte di `compute_monti_stability`/RSC) — plausibili e ben referenziati alla letteratura (`papers/Zanola et al - 2026`), non riverificati matematicamente riga per riga.
+`docs/dev/analysis.md` originale rimosso (`git rm -f`). **Tutti i 17 riferimenti incrociati trovati** verso il vecchio file sono stati aggiornati al file giusto tra i 5 nuovi (README.md, `docs/guides/fc_matrix_building.md`, `docs/knowledge/dim_reduction_tuning_guide.md`/`fc_lesion_masking.md`, `docs/dev/design_patterns.md`, `.claude/CLAUDE.md` — struttura `docs/dev/` aggiornata —, e 9 file `src/`/`tests/`) — **tranne** `.claude/stato_progetto.md` e `docs/debugging/debug_27_07_26.md`, lasciati intatti perché narrativa storica (descrivono correttamente cosa esisteva *allora*, non vanno riscritti per lo stato di oggi, stesso principio già applicato alla sezione `docs/debugging/` di questo audit). Colte anche 2 occasioni per correggere di striscio la stessa imprecisione "soglia FC non ancora decisa" trovata altrove, in `README.md` e nel commento sorgente di `src/features/functional.py::drop_constant_edges`.
 
 ---
 
----
-
-## `docs/methods/dimensionality_reduction.md` — ✅ FATTO (10/08: aggiunta nota all'inizio della sezione `pca_varimax` che segnala non essere raggiungibile da CLI oggi, pur essendo implementato/testato — stessa lacuna trasversale già notata in `dim_reduction_tuning_guide.md`/`docs/dev/analysis.md`/`docs/guides/dim_reduction.md`/`docs/guides/dim_reduction_clustering.md`, questi ultimi 3 non ancora corretti)
+## `docs/methods/dimensionality_reduction.md` — ✅ FATTO (10/08: aggiunta nota all'inizio della sezione `pca_varimax` che segnala non essere raggiungibile da CLI oggi, pur essendo implementato/testato — stessa lacuna trasversale segnalata e corretta in tutti e 5 i documenti coinvolti: questo, `dim_reduction_tuning_guide.md`, `docs/dev/analysis.md`, `docs/guides/dim_reduction.md`, `docs/guides/dim_reduction_clustering.md`)
 
 ---
 

@@ -58,6 +58,6 @@ Per includere anche i controlli sani (es. per l'analisi di confronto del Task 3)
 ## Cosa manca ancora (deciso di proposito, non un bug)
 
 1. **Soglia di esclusione paziente**: **decisione chiusa, non un lavoro da riprendere** — nessun paziente viene escluso per "troppi nodi compromessi", e non è previsto implementare una soglia. `mask_summary.csv` resta comunque disponibile per un'ispezione manuale caso per caso, se mai servisse in futuro.
-2. **Imputazione dei NaN**: non implementata in queste pipeline, per design — vedi `docs/dev/analysis.md` per la motivazione (letteratura Griffis et al. 2019 / Siegel et al. 2016).
+2. **Imputazione dei NaN**: non implementata in queste pipeline, per design — vedi `docs/dev/fc_matrix.md` per la motivazione (letteratura Griffis et al. 2019 / Siegel et al. 2016).
 
 Vedi anche `notebooks/fc_lesion_masking.ipynb` per una spiegazione passo-passo, in linguaggio semplice, dell'intero procedimento (compresi i due bug di `nilearn` trovati e corretti durante la validazione).

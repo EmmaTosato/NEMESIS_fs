@@ -105,7 +105,7 @@ Una volta costruita la tabella pazienti × connessioni, si contano i NaN in due 
 
 - `data/derived/features/masked_fc/<combo>/` — matrici mascherate per singolo paziente (CSV con NaN) + `mask_summary.csv` (quanti nodi compromessi per paziente).
 - `data/derived/features/fc_matrix/<combo>/<data>_<session>/` — matrice 2D finale (pazienti × connessioni), impilata e vettorizzata, ancora con i NaN dentro.
-- Guida utente: `docs/guides/fc_matrix_building.md`. Architettura: `docs/dev/analysis.md`.
+- Guida utente: `docs/guides/fc_matrix_building.md`. Architettura: `docs/dev/fc_matrix.md`.
 
 ---
 

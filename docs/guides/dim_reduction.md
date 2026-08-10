@@ -76,7 +76,7 @@ Ecco la spiegazione di `config/pipelines/dim_reduction.json`:
   - `"umap"`: Metodo moderno topologico. Ottimo per conservare sia distanze globali che locali.
   - `"tsne"`: Metodo classico. Ottimo per fare bei grafici, ma storicamente inaffidabile per il calcolo di vere distanze cliniche.
   - `"pca"`: L'Analisi delle Componenti Principali, pura e lineare.
-  - `"pca_varimax"`: PCA seguita da una rotazione Varimax, usata per massimizzare la separazione ortogonale delle lesioni (metodo *Thiebaut de Schotten*).
+  - `"pca_varimax"`: PCA seguita da una rotazione Varimax, usata per massimizzare la separazione ortogonale delle lesioni (metodo *Thiebaut de Schotten*). **Non selezionabile oggi**: `config/registry/params_reduction.json` non ha più una voce `"pca_varimax"` (rimossa in un riordino del file, mai reintrodotta) — il codice la implementa e la testa ancora, ma finché quella voce non torna nel registro, impostare `"reduction_method": "pca_varimax"` fa fallire la pipeline con un errore di metodo non registrato.
   - `"pacmap"`: L'algoritmo Pairwise Controlled Manifold Approximation.
 - **`params_file`**: `(Stringa)` Il percorso al file di registro che custodisce la matematica pura. Di base lasciate `"config/registry/params_reduction.json"`. *(Vedi sezione sotto)*.
 - **`output_root`**: `(Stringa)` Dove vuoi che la pipeline crei la cartella con i risultati (`"results/lesion/dim_reduction"` — il primo segmento dopo `results/` indica la modalità dato, `lesion`/`fc`/`sdc`).
