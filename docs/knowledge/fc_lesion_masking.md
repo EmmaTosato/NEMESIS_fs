@@ -79,7 +79,7 @@ Contenuto (già pronto sul server EBRAIN, cartella `Atlases/fmriprep/atlas-<comb
 - Un'immagine 3D (`*_res-2_dseg.nii.gz`) dove ogni punto del cervello ha un numero che identifica a quale zona appartiene (0 = fuori dal cervello).
 - Una tabella (`*_dseg.tsv`) che traduce ogni numero in un nome leggibile.
 
-Si usa direttamente la versione a **2mm** di risoluzione (`res-2`) perché è già alla stessa risoluzione della lesion mask WashU — evita un passaggio di ricampionamento in più. 12 combinazioni di atlante sono disponibili (`Yan{100,200,300,400}TianS{1,2,3}Buckner7N`); oggi solo `Yan200TianS2Buckner7N` è stata validata/usata sui dati reali.
+Si usa direttamente la versione a **2mm** di risoluzione (`res-2`) perché è già alla stessa risoluzione della lesion mask WashU — evita un passaggio di ricampionamento in più. 12 combinazioni di atlante sono disponibili (`Yan{100,200,300,400}TianS{1,2,3}Buckner7N`) — tutte e 12 sono state effettivamente girate sui dati reali, sia il masking (`data/derived/features/masked_fc/`, 169 pazienti mascherati per ciascuna) sia la matrice finale (`data/derived/features/fc_matrix/`, una per combo); `Yan200TianS2Buckner7N` è stata la prima validata (24/07), le altre 11 seguite il 27/07.
 
 Il concetto chiave che l'atlante rende possibile calcolare è la **coverage**: la percentuale di voxel sani di una zona, ottenuta sovrapponendo lesione e atlante. È il numero su cui si decide se una zona è compromessa; il calcolo concreto è lo [step 3 della procedura](#step-1-8--per-ogni-paziente-mask_fcpy).
 

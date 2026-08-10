@@ -43,6 +43,8 @@ Also non-linear and also neighbor-based, but built on a different mathematical f
 
 ## PCA with varimax rotation (`pca_varimax_embed`, `"pca_varimax"`)
 
+**Currently not runnable from config**: `pca_varimax_embed` is fully implemented and unit-tested (`REDUCTION_METHODS["pca_varimax"]`, `tests/unit/test_reduction.py`/`test_tuning.py`), but `config/registry/params_reduction.json` has no `"pca_varimax"` entry today (removed during a registry reorganization, never re-added) - setting `"reduction_method": "pca_varimax"` in `dim_reduction.json` would raise `ValueError` (method not registered) until an entry is added back. Everything below describes the method as designed/tested, not as currently reachable via the CLI.
+
 Same starting point as plain PCA (covariance-matrix eigendecomposition), but the loadings are then rotated with an orthogonal **varimax** rotation before scores are computed by multiple regression - this is the exact methodology of Thiebaut de Schotten et al. 2020's "Data compression" step (parcellate with MMP + 12 subcortical ROIs, then varimax-rotated PCA), which `build_lesion_matrix.py`'s parcellated output is designed to match.
 
 - **Why rotate at all**: plain PCA's components are mathematically convenient (orthogonal, maximal variance) but not necessarily easy to *interpret* - a raw component often loads a little on almost every parcel. Varimax rotates the components (without changing the subspace they span, or the total variance they explain - it's an orthogonal rotation) to make each component's loadings as close as possible to "a few parcels load heavily, the rest near zero" - easier to read as "this component is basically left MCA territory".

@@ -4,7 +4,7 @@ Plain-language reference for the methods wired into `src/analysis/clustering.py`
 
 ## The problem it solves
 
-Clustering groups subjects based on similarity, without knowing the "right" answer in advance (unsupervised) — the hypothesis being that clusters correspond to distinct lesion/disconnection topographies. Most methods here (KMeans, Agglomerative, GaussianMixture, SpectralClustering) require a fixed number of groups decided upfront; HDBSCAN is the exception — it discovers the group count from the data's density structure instead. It runs either on a dimensionality-reduction embedding (`dim_reduction_clustering.py`) or directly on a feature matrix (`clustering.py`) — see `docs/guides/analysis.md` for when each script applies.
+Clustering groups subjects based on similarity, without knowing the "right" answer in advance (unsupervised) — the hypothesis being that clusters correspond to distinct lesion/disconnection topographies. Most methods here (KMeans, Agglomerative, GaussianMixture, SpectralClustering) require a fixed number of groups decided upfront; HDBSCAN is the exception — it discovers the group count from the data's density structure instead. It runs either on a dimensionality-reduction embedding (`dim_reduction_clustering.py`) or directly on a feature matrix (`clustering.py`) — see `docs/guides/clustering.md`/`docs/guides/dim_reduction_clustering.md` for when each script applies.
 
 ## Choosing hyperparameters: `clustering.py`'s fine-tuning mode
 
