@@ -3,10 +3,10 @@
 # without SLURM: for quick tests on a handful of subjects, or on a machine
 # without a scheduler. Production runs on the cluster go through
 # jobs/run_compute_sdc_manifest.sh + jobs/run_compute_sdc.sh (array) +
-# jobs/run_compute_sdc_aggregate.sh instead (see docs/guides/compute_sdc.md,
-# ".claude/CLAUDE.md" reserves jobs/ for the sbatch convention - this script
-# intentionally lives in scripts/, not jobs/, since it never goes through
-# sbatch).
+# jobs/run_compute_sdc_aggregate.sh instead (see docs/guides/compute_sdc.md).
+# Lives here in jobs/, not scripts/, even though it never goes through
+# sbatch itself - it's still an entry point for the compute_sdc pipeline,
+# just the local/no-scheduler path.
 #
 # Parallelism here is a bounded local process pool (xargs -P), not a SLURM
 # array: TASK_COUNT = local CPU count / cores_per_subject (from the config),
@@ -14,7 +14,7 @@
 # cores the same way --cpus-per-task does per array task on the cluster.
 #
 # Usage:
-#   scripts/run_compute_sdc_no_slurm.sh [config_file] [--dry-run] [--background]
+#   jobs/run_compute_sdc_no_slurm.sh [config_file] [--dry-run] [--background]
 
 set -euo pipefail
 

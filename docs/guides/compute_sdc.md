@@ -37,7 +37,7 @@ data/derived/sdc/<session_name>/
 │   └── <subject_id>_..._LF-{lesion,disconnectome}_atlas-<nome>.csv  # Stage 2, uno per atlante
 ├── manifest.json                # conteggi per stato
 └── config.md
-data/derived/sdc/runs.csv            # storico run (append-only, CSV: run_id, timestamp, run_type, params, output, notes)
+data/derived/sdc/runs.csv            # storico run (append-only, CSV: session, id, timestamp, params, output, notes)
 ```
 
 Stage 1 e Stage 2 finiscono nella stessa cartella `<subject_id>/lesion/` per costruzione, non per un merge fatto da noi: `bcb-lesion-features` (Stage 2) legge l'output NIfTI di Stage 1 e scrive i propri CSV/TSV accanto, senza mai toccare/cancellare l'input (`run_stage2` in `src/sdc/runner.py` punta `--output-dir` sullo stesso `validated_prep_dir` usato come `--prep-dir`) - non esistono più cartelle `prep/`/`features/` separate a livello di sessione.
@@ -75,10 +75,10 @@ Per test rapidi su pochi soggetti o su una macchina senza scheduler:
 
 ```bash
 conda activate nemesis
-scripts/run_compute_sdc_no_slurm.sh config/pipelines/compute_sdc.json
+jobs/run_compute_sdc_no_slurm.sh config/pipelines/compute_sdc.json
 ```
 
-Fa manifest → run (pool locale, `xargs -P`, dimensionato come `nproc / cores_per_subject`, mai sovrasottoscritto) → aggregate, tutto in un unico comando. `--dry-run` per un giro a vuoto, `--background` per lanciarlo con `nohup` e liberare il terminale. Vive in `scripts/`, non in `jobs/`, perché non passa da `sbatch` — la regola "sempre via sbatch" di `.claude/CLAUDE.md` riguarda l'esecuzione in produzione sul cluster, non i test locali.
+Fa manifest → run (pool locale, `xargs -P`, dimensionato come `nproc / cores_per_subject`, mai sovrasottoscritto) → aggregate, tutto in un unico comando. `--dry-run` per un giro a vuoto, `--background` per lanciarlo con `nohup` e liberare il terminale.
 
 ## `--dry-run`
 

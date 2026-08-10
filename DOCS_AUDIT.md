@@ -11,125 +11,31 @@ Per ogni file: cosa è confermato corretto, cosa è obsoleto/errato (con riferim
 
 ---
 
-## `docs/guides/atlas_building.md` — ✅ FATTO (2 discrepanze trovate e corrette il 10/08: riga 54 sullo schema di numerazione Glasser 1-180/181-186/1001-1180/1181-1186 invece di "361-372", riga 60 sull'esempio Value/Hemisphere sbagliato)
+## `docs/guides/atlas_building.md` — ✅ FATTO 
 
 ---
 
-## `docs/guides/matrix_building.md`
-
-**✅ Confermato corretto**
-- Comando SLURM/locale, path script/config — combaciano con `jobs/run_build_lesion_matrix.sh`/`src/pipeline/build_lesion_matrix.py`.
-- Esempio "Categoria 1 - Voxel-wise" (`parcellate:false, atlas_path:null, parcel_aggregation:null, save_parcellated_volumes:false`) — **verificato sul run reale** `data/derived/lesion_matrix/21-07_s1.1/config.md`: config identico nella sostanza, output reale **1150×254865** (la doc dice "es. 1000 righe e 800.000 colonne", ordine di grandezza coerente).
-- `metadata.csv` con colonne `subject_id`/`dataset`, una riga per paziente — verificato sul file reale, match esatto.
-- `group_filter`: sintassi e default di produzione `["ST"]` — confermato nel config reale.
-- `reference_template_path` = tipicamente un soggetto WashU 2mm — confermato (già verificato nel file precedente).
-- `resample_interpolation: "nearest"` obbligatorio per maschere binarie — coerente con l'uso reale in `src/features/lesion.py` (`resample_to_img(..., interpolation=resample_interpolation)`).
-- `parcel_aggregation`: "supportiamo solo `fraction_lesioned`" — confermato, `PARCEL_AGGREGATIONS` in `src/features/lesion.py` ha esattamente una sola entry registrata.
-- Validazione `atlas_path`/`parcel_aggregation` obbligatori se `parcellate:true`, vietati se `false` — confermato in `src/analysis/build_config.py::_validate_parcellation_fields`.
-- `overwrite`: `false`→`FileExistsError` esplicito, `true`→sostituzione atomica (temp-dir+rename) — confermato in `src/utils/artifacts.py::save_matrix`, comportamento "cancella e ricrea" è corretto in sostanza.
-- `non_constant_mask.npy` — descrizione (array booleano lungo quanto il cervello originale, colonne costanti scartate) coerente con `manifest.json` reale (`"extra_arrays": {"non_constant_mask": [902629]}` — lunghezza pre-drop).
-
-**⚠️ Discrepanze/imprecisioni**
-1. **Sezione "File di Input e di Output" (righe 98-106) — omissione**: l'elenco dei file di output **non menziona `manifest.json`**, che invece è presente in ogni run reale (verificato su `data/derived/lesion_matrix/21-07_s1.1/manifest.json`, generato sempre da `save_matrix` insieme a `config.md`). Mancano anche i dettagli sul suo contenuto (matrix_shape, dtype, metadata_columns).
-2. **Riga 22 — nota fuorviante**: *"in locale userai probabilmente ... config/pipelines/build_lesion_matrix_local.json"* — questo file **non esiste** (verificato `ls config/pipelines/`, esiste solo `build_lesion_matrix.json`). A differenza della pipeline di retrieval (che ha davvero una coppia `_local`/`_server`), questa pipeline non ha alcuna convenzione di split locale/server — la frase è formulata in modo dubitativo ("probabilmente", "se hai adattato") quindi non è tecnicamente falsa, ma rischia di far credere che quella convenzione sia già stabilita anche qui.
-3. **Nota di contesto (non un errore della guida, ma rilevante)**: il config **realmente committato oggi** (`config/pipelines/build_lesion_matrix.json`) non è nello stato "voxel-wise" mostrato come esempio nella Categoria 1 — è configurato con `"parcellate": true` e `"atlas_path": ".../fmriprep/atlas-Yan300TianS2Buckner7N/..."` (un atlante Yan-Tian-Buckner, non quello Glasser+Harvard-Oxford usato come esempio a riga 62), `"session_name": "yan300s1"`. Nessun output corrispondente esiste in locale (`data/derived/lesion_matrix/` ha solo `21-07_s1.1`, voxel-wise) — sembra una run pianificata/sul cluster, non ancora eseguita qui o i cui risultati non sono stati sincronizzati su questo Mac. La guida stessa non descrive questo stato specifico del config (ragionevole, dato che documenta il meccanismo generale, non lo stato del file in un dato momento) ma vale la pena saperlo per non sorprendersi rilanciando la pipeline col config committato as-is.
-
-**❓ Non verificabile da qui**: nessuno oltre a quanto sopra.
+## `docs/guides/matrix_building.md` — ✅ FATTO (10/08: aggiunto `manifest.json` all'elenco output; rimossa la nota fuorviante su `build_lesion_matrix_local.json`, sostituita con un avviso generale di controllare/aggiornare il config prima di ogni run, su indicazione dell'utente — il punto 3, sullo snapshot config non ancora lanciato, non è un problema da correggere in sé, solo un promemoria)
 
 ---
 
-## `docs/guides/fc_matrix_building.md`
-
-**✅ Confermato corretto (in gran parte verificato su dati reali locali)**
-- Script/config di entrambe le pipeline, comandi SLURM/locale — combaciano con `jobs/run_mask_fc.sh`/`run_build_fc_matrix.sh` e `src/pipeline/mask_fc.py`/`build_fc_matrix.py`.
-- Nomi file di output di `mask_fc.py`: `<subject>_masked_fc.csv` + `mask_summary.csv` — confermati sia nel codice (`SUMMARY_FILENAME`, `f"{subject}_masked_fc.csv"`) sia sui file reali in `data/derived/features/masked_fc/Yan200TianS2Buckner7N/`.
-- Output di `build_fc_matrix.py` (`matrix.npy`, `metadata.csv`, `manifest.json`, `edge_names.npy`) — confermato sui file reali in `data/derived/features/fc_matrix/Yan200TianS2Buckner7N/24-07_s2/` (manifest.json presente, shape 169×28441, `edge_names.npy` con notazione `NodoA__NodoB` come descritto altrove).
-- `group_filter`: sintassi, `excluded_by_group` vs `missing_lesion` come dicitura distinta — confermato in `src/features/functional.py` (`missing_lesion`/`excluded_by_group` sono effettivamente due liste separate restituite da `discover_subject_files`).
-- "La matrice finale contiene ancora NaN, nessuna imputazione" — **verificato sul dato reale**: `matrix.npy` di `Yan200TianS2Buckner7N/24-07_s2` ha davvero NaN (3.56% delle celle).
-- "Connessioni costanti rimosse e loggate" — confermato, `drop_constant_edges()` esiste in `src/features/functional.py` esattamente con questo scopo.
-
-**⚠️ Discrepanza (framing, non tecnica)**
-- **Riga 60**: *"Soglia di esclusione paziente: nessun paziente viene ancora escluso ... va decisa guardando i mask_summary.csv reali su tutta la coorte"* — presenta la soglia come una decisione **ancora aperta**. Ma `.claude/stato_progetto.md` (sessione 2026-07-27) registra che questa decisione è stata **chiusa esplicitamente**: *"decisione presa in questa sessione — non si esclude nessun paziente, nessuna soglia implementata. Non è un lavoro rimasto da fare, è chiusa."* Il comportamento del codice è coerente in entrambi i casi (nessuna soglia implementata, verificato: nessun campo `exclusion_threshold`/simile in `src/`/`config/`) — quindi non è un bug funzionale, ma la guida presenta come "da fare" qualcosa che il progetto ha già deciso di **non fare mai**, il che potrebbe portare qualcuno a riaprire una discussione già chiusa.
-
-**❓ Non verificabile da qui**: nessuno.
+## `docs/guides/fc_matrix_building.md` — ✅ FATTO (10/08: righe 13 e 60 riscritte per riflettere che la soglia di esclusione paziente è una decisione chiusa — utente ha confermato che non la implementerà — non più presentata come "da decidere"; resto del file già confermato corretto, nessun'altra discrepanza)
 
 ---
 
-## `docs/guides/compute_sdc.md`
-
-Nota di scope: pipeline non eseguibile/testabile in locale (`bcblib` solo sul cluster, per vincolo noto in `.claude/CLAUDE.md`) — verificato leggendo `src/sdc/*.py`/`src/pipeline/compute_sdc.py`/`jobs/*.sh` reali, mai eseguendo nulla.
-
-**✅ Confermato corretto**
-- Moduli citati (`src/sdc/{config,manifest,staging,runner,status,resample}.py`) e le tre modalità `manifest`/`run`/`aggregate` — combaciano con i file reali.
-- Colonne `manifest.csv` (`subject_id, dataset, lesion_mask_path`) — confermato esattamente, `src/sdc/manifest.py::_MANIFEST_FIELDS`.
-- Stati per-soggetto (`ok`, `failed_resample`, `failed_stage1_process`, `failed_stage1_check`, `failed_stage2_process`, `failed_stage2_check`, `dry_run`) — confermato esattamente, `src/sdc/status.py`.
-- Griglia canonica di resampling MNI152NLin6Asym — confermato (`src/sdc/resample.py` docstring), coerente col riferimento a `debug_23_07_26.md`/pattern #13 di `lessons_learned.md`.
-- Job SLURM citati (`run_compute_sdc_manifest.sh`, `run_compute_sdc.sh`, `run_compute_sdc_aggregate.sh`) esistono tutti in `jobs/`.
-- Tutti i campi della tabella parametri (`project`, `file_patterns`, `datasets`, `group_filter`, `bcbtoolkit_path`, `tracks_dir`, `cores_per_subject`, `stage2_ebrains`, `stage2_presets`, `output_root`, `session_name`, `overwrite`, `run_notes`) — combaciano esattamente con `config/pipelines/compute_sdc.json` reale.
-
-**⚠️ Discrepanze reali (2)**
-1. **Righe 78-81 — path sbagliato**: la guida dice *"Vive in `scripts/`, non in `jobs/`, perché non passa da `sbatch`"* per `run_compute_sdc_no_slurm.sh`. **Falso**: il file oggi vive fisicamente in **`jobs/run_compute_sdc_no_slurm.sh`** (verificato `find`), non in `scripts/`. Causa trovata via `git log`: uno spostamento reale `scripts/`→`jobs/` è avvenuto il 28/07 (commit `4e112d8`, "nee job") - **né la guida né il commento header dello script stesso sono stati aggiornati** dopo lo spostamento (lo script contiene ancora testualmente "this script intentionally lives in scripts/, not jobs/"). Pattern da manuale del `lessons_learned.md` #12 (rename non propagato ovunque) - qui il rename non è stato propagato né alla doc né al file spostato stesso.
-2. **Riga 40 — schema di `runs.csv` obsoleto**: la guida descrive le colonne come *"run_id, timestamp, run_type, params, output, notes"* — questo è lo schema **pre-refactor**. Lo schema reale oggi (`src/utils/run_log.py::FIELDNAMES`) è `["session", "id", "timestamp", "params", "output", "notes"]` (niente `run_id`/`run_type` — sostituiti da `session`+`id` separati, refactor di sessione 2026-07-27(3), esteso a `compute_sdc.py` proprio per chiudere questo gap secondo `.claude/lessons_learned.md` #12/`stato_progetto.md`). Il codice (`compute_sdc.py` importa e usa `append_run_log_entry` col nuovo schema) è corretto; solo la doc non è stata aggiornata di conseguenza.
-
-**❓ Non verificabile da qui (richiede cluster/bcblib)**
-- "stage2_ebrains: true usa tutti e 15 gli atlanti EBRAINS" — richiede `bcblib.tools.lesion_features._constants.EBRAINS_ATLAS_SPECS`, non installabile in locale (`ModuleNotFoundError` confermato, atteso).
-- Comportamento dettagliato di Stage 1/2, dry-run reale, timing per-stage — nessuna esecuzione possibile qui.
+## `docs/guides/compute_sdc.md` — ✅ FATTO (10/08: comando corretto a `jobs/run_compute_sdc_no_slurm.sh` invece di `scripts/...`, aggiornato anche il commento header dello script stesso che diceva la stessa cosa sbagliata; schema `runs.csv` corretto a `session, id, timestamp, params, output, notes`. Non verificabile da qui, richiede cluster/bcblib: conteggio 15 atlanti EBRAINS, comportamento Stage 1/2 reale)
 
 ---
 
-## `docs/guides/dim_reduction.md`
-
-**✅ Confermato corretto (ampia verifica di codice)**
-- Comando SLURM/locale, path script/config — combaciano con `jobs/run_dim_reduction.sh`/`src/pipeline/dim_reduction.py`.
-- 5 `reduction_method` (`umap`/`tsne`/`pca`/`pca_varimax`/`pacmap`) — confermati in `REDUCTION_METHODS`/uso reale.
-- Meccanismo `nested_params`: validazione "1 o 2 chiavi libere dopo nested_params" — confermato esattamente in `src/analysis/params.py::load_nested_params` (messaggio d'errore identico nella sostanza).
-- `viz_n_components`/`embedding_for_viz` (riuso se coincide con `n_components`, rifit altrimenti con stessi iperparametri, mai un taglio di colonne) — confermato in `src/analysis/reduction.py::embedding_for_viz`.
-- `write_embeddings_grid` — campo booleano confermato in `src/analysis/model_config.py`.
-- `color_by`/arricchimento metadata: `enrich_metadata_with_lesion_info` aggiunge **esattamente** `lesion_volume_voxels`/`lesion_side`/`nihss`, sempre, indipendentemente da `color_by` — confermato leggendo `src/features/clinical.py` (anche il docstring della funzione conferma letteralmente "regardless of which one was run").
-- `regress_out_volume`: incompatibilità esplicita con `metric: jaccard/dice` — coerente con quanto già verificato nel contesto di sessione (`covariates.py::check_volume_regression_compatible`).
-- `scripts/replot_dim_reduction.py --run-dir <cartella>`, rifiuto esplicito se l'embedding salvato non ha 2 componenti — confermato letteralmente nel codice (`raise ValueError` su `X.shape[1] != 2`).
-
-**⚠️ Discrepanza reale (stesso pattern già trovato in `compute_sdc.md`)**
-- **Righe 108-109 — sbagliate su due punti**: *"lo script compilerà ... runs.csv (una riga per run: `run_id, timestamp, run_type, params, output, notes`) ... se era un test di fine tuning o una produzione"*.
-  1. **Schema colonne obsoleto**: lo schema reale (`src/utils/run_log.py::FIELDNAMES`, e verificato sull'header reale di `results/lesion/dim_reduction/{umap,tsne,pca,pacmap}/runs.csv`) è `session, id, timestamp, params, output, notes` — non esistono più le colonne `run_id`/`run_type`.
-  2. **Struttura sbagliata**: la doc descrive **un solo file** `runs.csv` che distingue tuning/produzione con una colonna `run_type`. In realtà (confermato: `results/lesion/dim_reduction/umap/` ha sia `runs.csv` **sia** `runs_tuning.csv`) sono **due file separati** — produzione in `runs.csv`, fine-tuning in `runs_tuning.csv` — non menzionato affatto nella guida.
-  - Nota collaterale (fuori scope docs/, solo per completezza): anche il docstring interno di `src/pipeline/dim_reduction.py` ("Both modes append an entry to .../runs.csv") e quello di `src/utils/run_log.py` ("without splitting them into separate files") sono anch'essi obsoleti rispetto al comportamento reale del codice nella stessa funzione (`file_name = "runs.csv" if run_type == "production" else "runs_tuning.csv"`) — il gap non è solo nella doc utente ma si ripete nei commenti sorgente.
-
-**❓ Non verificabile da qui**: contenuto discorsivo/didattico (spiegazioni concettuali su cosa "significa" la riduzione dimensionale) — non tecnicamente falsificabile.
+## `docs/guides/dim_reduction.md` — ✅ FATTO (10/08: sezione runs.csv riscritta per descrivere correttamente i due file separati `runs.csv`/`runs_tuning.csv` con schema `session, id, timestamp, params, output, notes`. Nota collaterale non toccata, fuori scope docs/: anche i docstring interni di `src/pipeline/dim_reduction.py` e `src/utils/run_log.py` hanno la stessa descrizione obsoleta)
 
 ---
 
-## `docs/guides/clustering.md`
-
-**✅ Confermato corretto (ampia verifica di codice)**
-- Comando SLURM/locale — combaciano con `jobs/run_clustering.sh`/`src/pipeline/clustering.py`.
-- 5 metodi (`kmeans`/`agglomerative`/`gmm`/`hdbscan`/`spectral`) — confermati esattamente (5 funzioni `*_cluster` in `src/analysis/clustering.py`).
-- Un solo parametro di tuning per metodo (`n_clusters` per kmeans/agglomerative/spectral, `n_components` per gmm, `min_cluster_size` per hdbscan) — confermato esattamente sul `config/registry/params_clustering.json` reale.
-- Colonne extra per metodo (`kmeans`→`inertia`, `gmm`→`bic`/`aic`, `hdbscan`→`noise_fraction`) — confermato esattamente in `src/analysis/clustering_tuning.py::METHOD_METRIC_COLUMNS`.
-- Diagnostica standalone solo per agglomerative (dendrogramma)/spectral (eigengap), nessuna per hdbscan — confermato (`STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral"}`).
-- Consensus/stability clustering (`rsc`/`monti`, colonne `rsc_eigengap`/`monti_stability`, disattivato di default) — **implementato** (`src/analysis/consensus_clustering.py` esiste con `run_rsc_repeats`/`run_monti_repeats`/`compute_rsc_eigengap`/`compute_monti_stability`; era ancora "nessun codice scritto" secondo `stato_progetto.md` del 28/07 — evidentemente completato dopo). Nome file `consensus_suggestions.md` confermato in `src/pipeline/clustering.py`.
-- `cluster_plot.png` "disegna solo le primissime due colonne" — confermato letteralmente (`X[:, :2]` usato direttamente in `src/pipeline/clustering.py`, più occorrenze) — a differenza del bug di `lessons_learned.md` #16 (che riguardava `dim_reduction`/`dim_reduction_clustering`), qui è un comportamento noto e correttamente **documentato come limite esplicito** dalla guida stessa (non c'è una matrice grezza da cui rifittare, essendo `clustering.py` disaccoppiato da qualunque riduzione), quindi non è un bug della doc.
-
-**⚠️ Discrepanza reale (stessa classe di bug di `dim_reduction.md`)**
-- **Riga 101**: *"esattamente come per `dim_reduction.py`... accumula una riga per ogni esecuzione, di produzione o di fine-tuning"* in un solo `runs.csv`. `clustering.py` usa la stessa funzione condivisa `append_run_log_entry` (`src/utils/run_log.py`) di `dim_reduction.py` — che **separa** produzione (`runs.csv`) e tuning (`runs_tuning.csv`) in due file distinti, non una singola tabella con colonna `run_type`. La frase "esattamente come per dim_reduction.py" è in un certo senso vera (stesso meccanismo, stesso errore) ma eredita la stessa imprecisione già trovata in `docs/guides/dim_reduction.md` — non è stato possibile verificare su output reale locale (`results/lesion/clustering/` non esiste su questo Mac, nessun run mai eseguito qui), ma la conclusione segue direttamente dal codice condiviso già verificato.
-
-**❓ Non verificabile da qui**: nessun run reale di `clustering.py` presente in locale per un controllo end-to-end sui file di output.
+## `docs/guides/clustering.md` — ✅ FATTO (10/08: riga 101 corretta per descrivere i due file separati `runs.csv`/`runs_tuning.csv`, stesso fix di `dim_reduction.md`. Resto del file già confermato corretto in dettaglio, incluso il comportamento noto/documentato di `cluster_plot.png` che disegna solo le prime 2 colonne)
 
 ---
 
-## `docs/guides/dim_reduction_clustering.md`
-
-**✅ Confermato corretto — file di alta qualità, anche più accurato dei due precedenti sullo stesso argomento**
-- Comando SLURM/locale — combaciano.
-- `viz_n_components` "dev'essere 2 qui, non è ammesso 3" — confermato: `src/pipeline/dim_reduction_clustering.py:114` ha un check specifico (`if config.viz_n_components != 2: raise ...`) più stringente del limite generico 2-o-3 di `model_config.py::_require_viz_n_components`.
-- `metadata.csv` guadagna sempre `lesion_volume_voxels`/`lesion_side`/`nihss` in produzione (mai in tuning) — confermato, stessa funzione condivisa già verificata per `dim_reduction.md`.
-- **`runs.csv` (riga 81, 85) — QUESTA guida lo descrive correttamente**: schema `reduction_method, clustering_method, session, id, timestamp, params, output, notes` — confermato esattamente (`extra_columns={"reduction_method":..., "clustering_method":...}` in `src/pipeline/dim_reduction_clustering.py`, prependuto a `FIELDNAMES`). E dichiara esplicitamente **due file separati** (`runs.csv` produzione / `runs_tuning.csv` tuning, riga 85: *"non `runs.csv`, riservato alla produzione"*) — a differenza di `docs/guides/dim_reduction.md` e `docs/guides/clustering.md`, che invece descrivono erroneamente un unico file con colonna `run_type` (vedi le due voci sopra). Questo file è la fonte corretta; gli altri due andrebbero allineati a questo.
-- Struttura output (`<metodo_riduzione>/<metodo_clustering>/...`, cartella `comparison/` con prefisso `<reduzione>_<dd-mm>_...`) e nomi file (`cluster_plot.png`, `cluster_plot_interactive.html`, `silhouette_plot.png`, `cluster_comparison.png`, `cluster_comparison_interactive.html`) — coerenti con quanto già verificato nel contesto di sessione e con `clustering.md`.
-
-**⚠️ Discrepanza reale**
-- **Riga 52 — riferimento a una feature rimossa**: elenca *"... dendrogramma/eigengap/**k-distance** a seconda del metodo"* tra le diagnosi disponibili in fine-tuning. `k-distance` **non esiste più nel codice** (`grep -rn "k_distance"` su tutto `src/`: zero occorrenze) — era il diagnostico per DBSCAN, rimosso insieme a `compute_k_distance`/`plot_k_distance` quando DBSCAN è stato sostituito da HDBSCAN (sessione 2026-07-29, vedi `.claude/stato_progetto.md`). Riferimento residuo mai ripulito — esattamente il caso che `code_standards.md` §7 segnala come "peggio di nessuna doc".
-
-**❓ Non verificabile da qui**: nessun run reale di questa pipeline presente in locale per un controllo end-to-end diretto sui nomi cartella (`<dd-mm>_<session>_<reduction_tag>_<clustering_tag>`) — verosimile per coerenza con gli schemi già visti altrove, non riverificato byte-per-byte qui.
+## `docs/guides/dim_reduction_clustering.md` — ✅ FATTO (10/08: rimosso il riferimento residuo a "k-distance" tra le diagnosi di fine-tuning, feature rimossa insieme a DBSCAN→HDBSCAN in sessione 2026-07-29. La descrizione di `runs.csv`/`runs_tuning.csv` era già corretta in questo file - è servita da riferimento per correggere `dim_reduction.md`/`clustering.md`)
 
 ---
 

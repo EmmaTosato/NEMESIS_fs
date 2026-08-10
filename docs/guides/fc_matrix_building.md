@@ -10,7 +10,7 @@ Questa guida spiega come usare le due pipeline che trasformano le matrici di con
 1. **`mask_fc.py`** — legge le lesion mask e le matrici FC grezze, marca come mancanti (NaN) le zone compromesse dalla lesione, scrive una matrice mascherata per soggetto.
 2. **`build_fc_matrix.py`** — legge *solo* l'output già mascherato del passo 1 (non tocca più lesioni o atlanti), la vettorizza e la impila in un'unica matrice.
 
-Sono separate apposta: dopo aver mascherato tutta la coorte, si può analizzare quanti nodi risultano compromessi per soggetto (file `mask_summary.csv`, uno per combinazione di atlante) e decidere con calma una soglia di esclusione paziente, **prima** di costruire la matrice finale — senza dover rifare il masking ogni volta che si cambia idea sulla soglia.
+Sono separate apposta: dopo aver mascherato tutta la coorte, si può analizzare quanti nodi risultano compromessi per soggetto (file `mask_summary.csv`, uno per combinazione di atlante) **prima** di costruire la matrice finale — utile per ispezionare a occhio quanto è compromesso un singolo paziente, anche se oggi nessuna soglia di esclusione viene applicata (vedi sotto, decisione già chiusa).
 
 ## Esecuzione
 
@@ -57,7 +57,7 @@ Per includere anche i controlli sani (es. per l'analisi di confronto del Task 3)
 
 ## Cosa manca ancora (deciso di proposito, non un bug)
 
-1. **Soglia di esclusione paziente**: nessun paziente viene ancora escluso per "troppi nodi compromessi" — va decisa guardando i `mask_summary.csv` reali su tutta la coorte.
+1. **Soglia di esclusione paziente**: **decisione chiusa, non un lavoro da riprendere** — nessun paziente viene escluso per "troppi nodi compromessi", e non è previsto implementare una soglia. `mask_summary.csv` resta comunque disponibile per un'ispezione manuale caso per caso, se mai servisse in futuro.
 2. **Imputazione dei NaN**: non implementata in queste pipeline, per design — vedi `docs/dev/analysis.md` per la motivazione (letteratura Griffis et al. 2019 / Siegel et al. 2016).
 
 Vedi anche `notebooks/fc_lesion_masking.ipynb` per una spiegazione passo-passo, in linguaggio semplice, dell'intero procedimento (compresi i due bug di `nilearn` trovati e corretti durante la validazione).

@@ -19,7 +19,7 @@ Se ti trovi sul tuo PC locale (o se vuoi avviare lo script direttamente senza pa
 ```bash
 python -m src.pipeline.build_lesion_matrix --config config/pipelines/build_lesion_matrix.json
 ```
-*(Nota: in locale userai probabilmente un file di configurazione specifico, come `config/pipelines/build_lesion_matrix_local.json` se hai adattato i percorsi).*
+*(Nota: a differenza della pipeline di retrieval (che ha davvero due varianti, `_local.json`/`_server.json`), questa pipeline usa un solo file di config, `config/pipelines/build_lesion_matrix.json` — locale e server condividono lo stesso file. **Controlla e aggiorna sempre i campi del config prima di lanciare una run** — in particolare `parcellate`/`atlas_path`/`session_name` — perché riflette l'ultima run decisa (anche se non ancora eseguita), non un default stabile.)*
 
 ## Il concetto: cosa significa "Matrix Building"?
 
@@ -102,5 +102,6 @@ Troverai i seguenti file:
 2. `metadata.csv`: Una riga per paziente, con `subject_id` e `dataset` di provenienza. La riga 5 di questo file corrisponde esattamente alla riga 5 della matrice `matrix.npy`.
 3. `non_constant_mask.npy`: Quando sovrapponi le lesioni di migliaia di pazienti su un cervello standard, ci sono tantissimi voxel (pixel 3D) in cui nessun paziente ha mai avuto una lesione, oppure voxel in cui tutti hanno una lesione. Queste colonne "costanti" non portano alcuna informazione utile agli algoritmi di machine learning (come PCA, UMAP o clustering), ma occupano una quantità enorme di memoria inutile. Per questo motivo, la pipeline rimuove queste colonne durante la creazione della matrice. Il file `non_constant_mask.npy` è un array booleano (Vero/Falso) lungo quanto l'intero cervello originale, che ti dice per ogni voxel se è stato "tenuto" o "scartato". Ti servirà in futuro, alla fine dell'analisi, quando vorrai prendere i tuoi risultati (es. i pesi di una PCA) e "spalmarli" di nuovo su un'immagine del cervello per poterli visualizzare spazialmente.
 4. `parcel_ids.npy`: (Solo per Categoria Parcellated) Mostra l'ID dell'atlante a cui corrisponde ogni colonna della matrice.
-5. `config.md`: Un mini-report che riassume le impostazioni esatte e la forma finale della matrice.
-6. `parcellated_volumes/`: (Solo se richiesto) Una sottocartella con le copie 3D visualizzabili per ogni paziente.
+5. `manifest.json`: Il "certificato di completezza" della matrice — forma esatta (`matrix_shape`), tipo di dato (`matrix_dtype`), nomi delle colonne di `metadata.csv` e lunghezza di ogni array extra (es. `non_constant_mask`). Se questo file manca, la matrice non è stata scritta correttamente e non va usata (è il file che la pipeline stessa controlla per capire se una cartella di run è completa).
+6. `config.md`: Un mini-report che riassume le impostazioni esatte e la forma finale della matrice.
+7. `parcellated_volumes/`: (Solo se richiesto) Una sottocartella con le copie 3D visualizzabili per ogni paziente.
