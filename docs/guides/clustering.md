@@ -39,7 +39,7 @@ Attivando questa modalità, per ogni metodo in `clustering_methods` lo script pr
 
 #### Consensus/stability clustering (opzionale, solo kmeans/gmm/spectral)
 
-Oltre ai 3 indici generici, per `kmeans`/`gmm`/`spectral` puoi attivare due colonne aggiuntive che misurano **quanto è stabile** un certo `k`, non solo quanto è "buono" su un singolo run (vedi `docs/methods/clustering.md` per la spiegazione completa e i riferimenti in letteratura). Sono disattivate di default — per attivarle, aggiungi un blocco `"consensus"` dentro l'entry del metodo in `config/registry/params_clustering.json`:
+Oltre ai 3 indici generici, per `kmeans`/`gmm`/`spectral` puoi attivare due colonne aggiuntive che misurano **quanto è stabile** un certo `k`, non solo quanto è "buono" su un singolo run (vedi `docs/knowledge/clustering.md` per la spiegazione completa e i riferimenti in letteratura). Sono disattivate di default — per attivarle, aggiungi un blocco `"consensus"` dentro l'entry del metodo in `config/registry/params_clustering.json`:
 
 ```json
 "kmeans": {

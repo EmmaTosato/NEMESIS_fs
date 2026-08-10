@@ -1,7 +1,7 @@
 """Post-reduction covariate adjustment for dimensionality-reduction embeddings.
 
 `jaccard`/`dice` already normalize distances by each subject's own lesion
-size (see docs/methods/dimensionality_reduction.md) - regressing lesion
+size (see docs/knowledge/dimensionality_reduction.md) - regressing lesion
 volume out again on top of one of those metrics would remove real
 topographic signal, not a confound. This module stays metric-agnostic
 itself (`regress_out_covariate` will happily residualize any embedding);

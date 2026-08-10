@@ -8,9 +8,9 @@ hand, then writes it into params_reduction.json's "params" for a normal
 learning_rate, max_iter) still come straight from Thiebaut de Schotten et al.
 2020 and are not swept - only perplexity is, on explicit request, since the
 paper's own supplementary material sweeps it too (see
-docs/methods/dimensionality_reduction.md).
+docs/knowledge/dimensionality_reduction.md).
 
-Quality metric differs by method, on purpose (see docs/methods/dimensionality_reduction.md):
+Quality metric differs by method, on purpose (see docs/knowledge/dimensionality_reduction.md):
 - umap/tsne/pacmap: trustworthiness(X, embedding) - how well local
   neighborhoods survive the projection. Generic across any neighbor-based
   non-linear embedding, not umap-specific, so tsne/pacmap reuse it unchanged.
@@ -248,7 +248,7 @@ def run_tuning_sweep(
     is excluded entirely from both return values - no embedding is computed, no
     row is added. A WARNING is logged when this happens (so it's not silent),
     but the incompatibility itself is a known, documented fact
-    (src/analysis/covariates.py, docs/methods/dimensionality_reduction.md), not
+    (src/analysis/covariates.py, docs/knowledge/dimensionality_reduction.md), not
     a per-run result worth a placeholder row in every tuning_results.csv.
     """
     if method not in TUNING_METRIC_NAMES:
