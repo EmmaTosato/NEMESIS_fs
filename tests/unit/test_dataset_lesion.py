@@ -176,3 +176,39 @@ def test_available_false_when_dataset_structurally_lacks_it(tmp_path):
     root = _make_psp_like(tmp_path)
     ds = Dataset("UNIPD/PSP", _make_patterns(root))
     assert ds.available(_item("lesion_mask")) is False
+
+
+def test_missing_templates_names_the_one_template_that_did_not_match(tmp_path):
+    """sub-STUNIPD0001 (WashU-like fixture) only has the space-tagged
+    variant on disk - missing_templates() must name the plain variant as the
+    one that didn't match, not just report a count (see
+    retrieve_data._incomplete_message, the one caller of this method)."""
+    root = _make_washu_like(tmp_path)
+    ds = Dataset("UNIPD/WashU", _make_patterns(root))
+    missing = ds.missing_templates("sub-STUNIPD0001", _item("lesion_mask"))
+    assert missing == [
+        "derivatives/manual_masks/{subject_id}/anat/{subject_id}_label-lesion_mask.nii.gz"
+    ]
+
+
+def test_missing_templates_empty_when_every_template_matches(tmp_path):
+    root = _make_washu_like(tmp_path)
+    _touch(
+        root
+        / "UNIPD"
+        / "WashU"
+        / "derivatives"
+        / "manual_masks"
+        / "sub-STUNIPD0001"
+        / "anat"
+        / "sub-STUNIPD0001_label-lesion_mask.nii.gz"
+    )
+    ds = Dataset("UNIPD/WashU", _make_patterns(root))
+    assert ds.missing_templates("sub-STUNIPD0001", _item("lesion_mask")) == []
+
+
+def test_missing_templates_raises_for_unregistered_combination(tmp_path):
+    root = _make_washu_like(tmp_path)
+    ds = Dataset("UNIPD/WashU", _make_patterns(root))
+    with pytest.raises(ValueError, match="no file pattern registered"):
+        ds.missing_templates("sub-STUNIPD0001", _item("CT"))

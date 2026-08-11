@@ -297,8 +297,9 @@ def _incomplete_message(
     feature/func/FC-pearson atlas files. `total` comes straight from the
     registry (how many templates are registered for this item), not from
     what any one subject happens to have. `missing_templates` names exactly
-    which registered template(s) didn't match (basename only - the leading
-    `{subject_id}/...` path is already redundant with `group`), so a human
+    which registered template(s) didn't match - rendered as the concrete
+    filename for this subject (basename only, `{subject_id}` substituted;
+    the leading directory is already redundant with `group`) - so a human
     doesn't have to diff resolved files against the registry by hand to find
     out which one is absent."""
     group = "/".join(item.path_key())

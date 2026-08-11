@@ -312,7 +312,11 @@ def test_retrieve_subject_reports_incomplete_when_some_but_not_all_templates_mat
     assert stats["UNIPD/WashU"].copied == 1
     assert stats["UNIPD/WashU"].missing == []
     assert len(stats["UNIPD/WashU"].incomplete) == 1
-    assert "1/2 registered files found" in stats["UNIPD/WashU"].incomplete[0].line
+    line = stats["UNIPD/WashU"].incomplete[0].line
+    assert "1/2 registered files found" in line
+    # Regression: which specific template didn't match used to be invisible -
+    # only the aggregate count was reported (see .claude/lessons_learned.md).
+    assert "missing: sub-STUNIPD0001_space-MNI152NLin6Asym_label-lesion_mask.nii.gz" in line
 
 
 def test_select_subjects_no_filter_returns_everyone(tmp_path):
