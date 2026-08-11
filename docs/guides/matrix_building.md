@@ -1,107 +1,85 @@
-# Guida al Matrix Building (Costruzione della Matrice)
+# Guida al Matrix Building (Costruzione della Matrice di Lesione)
 
-Questa guida illustra in modo dettagliato come utilizzare la pipeline `build_lesion_matrix.py` per trasformare singole maschere di lesione 3D in una matrice numerica strutturata. La matrice è il formato di base necessario per tutti gli algoritmi successivi (riduzione della dimensionalità e clustering).
+Questa guida illustra in modo dettagliato come utilizzare la pipeline `build_lesion_matrix.py` per trasformare singole maschere di lesione 3D in una matrice numerica strutturata. **La matrice è il formato di base necessario** per tutti gli algoritmi successivi.
 
-**Script**: `src/pipeline/build_lesion_matrix.py`
-**Configurazione**: `config/pipelines/build_lesion_matrix.json`
+- **Script**: `src/pipeline/build_lesion_matrix.py`
+- **Configurazione**: `config/pipelines/build_lesion_matrix.json` *(usata sia per locale che server)*
 
-## Esecuzione (Locale vs Server/SLURM)
+---
 
-**1. Esecuzione sul Server (con SLURM)**
-Sul server (es. cluster HPC), si consiglia di lanciare lo script inviandolo alla coda tramite SLURM, in modo che l'elaborazione non si interrompa se chiudi il terminale. Trovi lo script già pronto nella cartella `jobs/`:
+## 🚀 Esecuzione
+
+### 1. Sul Server (tramite SLURM)
+L'esecuzione tramite SLURM previene interruzioni dovute alla chiusura della connessione.
 ```bash
 sbatch jobs/run_build_lesion_matrix.sh
 ```
-*(Ricordati di verificare che il file `run_build_lesion_matrix.sh` punti al JSON di configurazione che intendi usare).*
 
-**2. Esecuzione in Locale (senza SLURM)**
-Se ti trovi sul tuo PC locale (o se vuoi avviare lo script direttamente senza passare per la coda SLURM), esegui semplicemente il comando Python da terminale. Assicurati prima di aver attivato l'ambiente `nemesis` (es. `conda activate nemesis`):
+### 2. In Locale
+Dal PC locale, dopo aver attivato l'ambiente `nemesis`:
 ```bash
 python -m src.pipeline.build_lesion_matrix --config config/pipelines/build_lesion_matrix.json
 ```
-*(Nota: a differenza della pipeline di retrieval (che ha davvero due varianti, `_local.json`/`_server.json`), questa pipeline usa un solo file di config, `config/pipelines/build_lesion_matrix.json` — locale e server condividono lo stesso file. **Controlla e aggiorna sempre i campi del config prima di lanciare una run** — in particolare `parcellate`/`atlas_path`/`session_name` — perché riflette l'ultima run decisa (anche se non ancora eseguita), non un default stabile.)*
-
-## Il concetto: cosa significa "Matrix Building"?
-
-Ogni paziente ha una lesione tridimensionale (una "maschera" NIfTI) in cui alcuni voxel (i "pixel" in 3D) sono sani (valore 0) e altri sono lesionati (valore 1). 
-Il "Matrix Building" prende i cervelli di centinaia di pazienti e li allinea su un'unica griglia spaziale. Successivamente, estrae questi dati 3D e li "appiattisce" in una tabella 2D (una matrice):
-- **Righe**: rappresentano i singoli pazienti (soggetti).
-- **Colonne**: rappresentano le caratteristiche della lesione.
-
-Le "caratteristiche" (colonne) possono essere calcolate in due modi completamente diversi, ovvero le **due categorie** di questa pipeline.
 
 ---
 
-## Categoria 1: Matrice Voxel-wise (per singolo Voxel)
+## 🧠 Cos'è il "Matrix Building"?
 
-In questo approccio, il cervello viene mantenuto alla sua massima risoluzione.
-- **Le Colonne**: Ogni colonna della matrice rappresenta un singolo e specifico voxel millimetrico del cervello. 
-- **I Valori**: Saranno `0` (sano) o `1` (lesionato) per quel paziente in quel millimetro esatto.
-- **Risultato**: Una matrice gigantesca (es. 1000 righe e 800.000 colonne). È utile per analisi statistiche precise al millimetro.
-
-**Come si configura in `build_lesion_matrix.json`:**
-```json
-"parcellate": false,
-"atlas_path": null,
-"parcel_aggregation": null,
-"save_parcellated_volumes": false
-```
+Le lesioni 3D binarie (sano=0, rotto=1) dei pazienti devono essere allineate e standardizzate. Lo script estrae i dati spaziali e li "appiattisce" in una tabella matematica a 2 Dimensioni:
+- **Righe**: Rappresentano i singoli pazienti.
+- **Colonne**: Rappresentano le caratteristiche della lesione, che possono essere classificate in due Categorie operative (Voxel-wise o Parcellated).
 
 ---
 
-## Categoria 2: Matrice Parcellated (raggruppata per Regioni dell'Atlante)
+## 🔄 Categorie (Le due Vie del Matrix Building)
 
-In questo approccio, il cervello viene sovrapposto a un "Atlante" (una mappa che divide il cervello in regioni anatomiche macroscopiche, es. area di Broca, Talamo, ecc.).
-- **Le Colonne**: Ogni colonna rappresenta una singola macro-regione dell'atlante (es. se l'atlante ha 372 regioni, ci saranno 372 colonne).
-- **I Valori**: Saranno percentuali da `0.0` a `1.0`. Indicano **quale frazione** di quella determinata area è stata distrutta dalla lesione.
-- **Risultato**: Una matrice compatta (es. 1000 righe e 372 colonne). È ideale per il clustering rapido e per capire l'impatto funzionale della lesione.
+### Categoria 1: Matrice Voxel-wise (Massima Risoluzione)
+Il cervello viene mantenuto in alta definizione.
+- **Colonne**: Un singolo voxel millimetrico (fino a 800.000 colonne).
+- **Valori**: `0` o `1`.
+- **Ideale per**: Analisi statistiche micro-strutturali, non indicato per raggruppamento veloce.
+- **JSON**: `"parcellate": false, "atlas_path": null`
 
-**Come si configura in `build_lesion_matrix.json`:**
-```json
-"parcellate": true,
-"atlas_path": "assets/atlases/glasser_hcp_harvardoxford_subcortical_372.nii.gz",
-"parcel_aggregation": "fraction_lesioned",
-"save_parcellated_volumes": true
-```
-*Se abiliti `save_parcellated_volumes`, il programma salverà anche dei file 3D che mostrano a colori quali regioni si sono riempite per ciascun paziente, molto utile per ispezione visiva.*
-
----
-
-## Dettaglio di tutti i Parametri JSON
-
-Ecco la traduzione e spiegazione esatta di ogni riga nel file `config/pipelines/build_lesion_matrix.json`:
-
-- **`project`**: `(Stringa)` Il nome del tuo progetto, usato per creare le sottocartelle. Es: `"clinical_connectome"`.
-- **`data_root`**: `(Stringa)` Il percorso in cui il *Retrieve Data* ha precedentemente scaricato i dati. Es: `"data/clinical_connectome/derivatives"` (nota il livello `derivatives/`: tutto ciò che il retrieval scarica è per definizione un derivato, mai un'acquisizione grezza - vedi `docs/dev/retrieval.md`).
-- **`datasets`**: `(Lista di Stringhe)` Quali coorti ospedaliere includere nella matrice. Es: `["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"]`.
-- **`group_filter`**: `(Lista di Stringhe o null)` Restringe i soggetti al solo gruppo dichiarato (dedotto dal nome, es. `sub-STUNIPDHC0004` → `HC`, `sub-STUNIPD0237` → `ST`) - stessa sintassi già usata in `retrieval_local.json`. Serve perché alcuni dataset (es. WashU) hanno anche controlli sani (`HC`) mescolati agli stessi soggetti pazienti (`ST`). Impostare `["ST"]` per i soli pazienti (default di produzione), `["ST", "HC"]` per includere anche i sani, `null`/assente per nessun filtro (solo se il dataset non mescola gruppi).
-- **`reference_template_path`**: `(Stringa)` Il percorso di un file immagine NIfTI usato come "Griglia Universale". Dato che ospedali diversi acquisiscono le RM a risoluzioni diverse (1mm, 1.5mm, 2mm), tutte le lesioni verranno deformate per coincidere esattamente con questa griglia. Solitamente si usa l'immagine di un paziente WashU a 2mm, oppure un template MNI standard.
-- **`lesion_glob`**: `(Stringa)` La regola per pescare i file corretti nelle cartelle dei pazienti. Lasciare sempre: `"manual_masks/*/anat/*_label-lesion_mask.nii.gz"` (layout pipeline-first: prima il nome della pipeline, poi il soggetto — vedi `docs/dev/retrieval.md`).
-- **`binarize_threshold`**: `(Numero Decimale)` Valore tra 0.0 e 1.0. Quando la lesione viene deformata sulla nuova griglia (resampling), alcuni bordi potrebbero sfocarsi diventando grigi (es. 0.4). Questo parametro dice: "Tutto ciò che ha un valore sopra 0.5 diventa 1 (lesionato), tutto il resto diventa 0 (sano)".
-- **`resample_interpolation`**: `(Stringa)` La matematica della deformazione spaziale. Dato che lavoriamo con maschere binarie nette (0 o 1), va usato sempre e solo `"nearest"` (arrotonda al vicino più prossimo) e non `"linear"`.
-- **`parcellate`**: `(Booleano)` Scegli se fare la matrice per Atlante (`true`) o per singolo Voxel (`false`).
-- **`atlas_path`**: `(Stringa)` Il file NIfTI dell'atlante desiderato. Obbligatorio se `parcellate` è `true`.
-- **`parcel_aggregation`**: `(Stringa)` La matematica di raggruppamento per le regioni. Al momento supportiamo solo `"fraction_lesioned"`.
-- **`save_parcellated_volumes`**: `(Booleano)` Crea dei NIfTI 3D di controllo (QC) visualizzabili con FSleyes per vedere l'atlante "riempito".
-- **`output_root`**: `(Stringa)` La cartella finale per il risultato. Mettiamo `"data/derived/lesion_matrix"`.
-- **`session_name`**: `(Stringa)` Un'etichetta per distinguere questa specifica matrice. Es: `"s_voxelwise_01"`. 
-- **`overwrite`**: `(Booleano)` Se imposti `true`, cancella silenziosamente i risultati precedenti con lo stesso `session_name`. Se `false`, va in errore per proteggere i tuoi dati pregressi.
-- **`run_notes`**: `(Stringa o null)` Eventuali note discorsive che vuoi appuntarti (es. "Matrice creata escludendo UKLFR per test").
+### Categoria 2: Matrice Parcellated (Per Aree Anatomiche)
+La lesione viene sovrapposta a un Atlante che divide la materia grigia e bianca in Macro Aree.
+- **Colonne**: Le regioni logiche (Es. l'atlante combinato Glasser possiede 372 regioni/colonne).
+- **Valori**: Frazioni da `0.0` a `1.0` (indicanti la percentuale di area distrutta dalla lesione).
+- **Ideale per**: Clustering macroscopico veloce e studi cognitivi.
+- **JSON**: `"parcellate": true, "atlas_path": "path_all_atlante"`
 
 ---
 
-## File di Input e di Output
+## ⚙️ Dettaglio Parametri JSON
 
-**Input**: 
-La pipeline leggerà dinamicamente le cartelle dentro `data_root` cercandovi maschere NIfTI corrispondenti a `lesion_glob`.
+Spiegazione delle chiavi di `config/pipelines/build_lesion_matrix.json`:
 
-**Output**:
-I risultati verranno generati all'interno di: `data/derived/lesion_matrix/<GIORNO-MESE>_<session_name>/`.
-Troverai i seguenti file:
-1. `matrix.npy`: I dati matematici puri e crudi (la matrice vera e propria). Non apribile con un editor di testo, ma leggibile tramite script Python.
-2. `metadata.csv`: Una riga per paziente, con `subject_id` e `dataset` di provenienza. La riga 5 di questo file corrisponde esattamente alla riga 5 della matrice `matrix.npy`.
-3. `non_constant_mask.npy`: Quando sovrapponi le lesioni di migliaia di pazienti su un cervello standard, ci sono tantissimi voxel (pixel 3D) in cui nessun paziente ha mai avuto una lesione, oppure voxel in cui tutti hanno una lesione. Queste colonne "costanti" non portano alcuna informazione utile agli algoritmi di machine learning (come PCA, UMAP o clustering), ma occupano una quantità enorme di memoria inutile. Per questo motivo, la pipeline rimuove queste colonne durante la creazione della matrice. Il file `non_constant_mask.npy` è un array booleano (Vero/Falso) lungo quanto l'intero cervello originale, che ti dice per ogni voxel se è stato "tenuto" o "scartato". Ti servirà in futuro, alla fine dell'analisi, quando vorrai prendere i tuoi risultati (es. i pesi di una PCA) e "spalmarli" di nuovo su un'immagine del cervello per poterli visualizzare spazialmente.
-4. `parcel_ids.npy`: (Solo per Categoria Parcellated) Mostra l'ID dell'atlante a cui corrisponde ogni colonna della matrice.
-5. `manifest.json`: Il "certificato di completezza" della matrice — forma esatta (`matrix_shape`), tipo di dato (`matrix_dtype`), nomi delle colonne di `metadata.csv` e lunghezza di ogni array extra (es. `non_constant_mask`). Se questo file manca, la matrice non è stata scritta correttamente e non va usata (è il file che la pipeline stessa controlla per capire se una cartella di run è completa).
-6. `config.md`: Un mini-report che riassume le impostazioni esatte e la forma finale della matrice.
-7. `parcellated_volumes/`: (Solo se richiesto) Una sottocartella con le copie 3D visualizzabili per ogni paziente.
+| Parametro | Descrizione |
+| :--- | :--- |
+| **`project`** | Nome del progetto (es. `"clinical_connectome"`). |
+| **`data_root`** | Sede dei dati grezzi estratti (es. `"data/clinical_connectome/derivatives"`). |
+| **`datasets`** | Lista delle coorti da includere (es. `["UNIPD/WashU", ...]`). |
+| **`group_filter`** | Lista per filtrare i pazienti sani vs malati. `["ST"]` include solo gli "Stroke". `null` non applica filtri. |
+| **`reference_template_path`** | File MNI di riferimento spaziale per la "Deformazione/Resampling" di tutte le lesioni. |
+| **`lesion_glob`** | Il percorso fisso dei file (non toccare): `"manual_masks/*/anat/*_label-lesion_mask.nii.gz"`. |
+| **`binarize_threshold`** | (Solitamente `0.5`). Trasforma contorni grigi della deformazione spaziale in lesione netta (1 o 0). |
+| **`resample_interpolation`**| La matematica della deformazione spaziale. Deve sempre essere `"nearest"`. |
+| **`parcellate`** | `true` (Categoria 2) o `false` (Categoria 1). |
+| **`atlas_path`** | Necessario solo se parcellate=true. Il NIfTI dell'atlante desiderato. |
+| **`parcel_aggregation`** | Attualmente supportato solo `"fraction_lesioned"`. |
+| **`save_parcellated_volumes`** | (Solo Cat 2) Genera le visualizzazioni NIfTI 3D di controllo QC del paziente "riempito" a colori. |
+| **`output_root`** | Sede file (di base: `"data/derived/lesion_matrix"`). |
+| **`session_name`** | Nome univoco per distinguere i batch es. `"s_voxelwise_01"`. |
+| **`overwrite`** | `true` sovrascrive output di run passati. |
+
+---
+
+## 📂 Struttura dell'Output Finale
+
+L'output vive in `data/derived/lesion_matrix/<GIORNO-MESE>_<session_name>/` e contiene:
+
+1. **`matrix.npy`**: La matrice matematicamente pura da processare.
+2. **`metadata.csv`**: L'anagrafica che relaziona ogni riga della matrice al paziente (Es. Riga 5 della matrice appartiene a Sub-ID-X).
+3. **`non_constant_mask.npy`**: Le lesioni su migliaia di pazienti hanno zone in cui "nessuno ha mai avuto un danno". Vengono tolte dalla matrice per tagliare dimensioni inutili di calcolo. Questo array ricorda quali colonne esatte sono state tagliate, per riposizionarle al momento dei report visivi su immagini del cervello.
+4. **`parcel_ids.npy`**: (Solo Parcellated). Indica l'ID dell'atlante corrispondente alla colonna.
+5. **`manifest.json`**: Il "Certificato di Integrità". Se manca, la pipeline ha fallito. 
+6. **`config.md`**: File riassuntivo stampabile dei settaggi di questa sessione.
