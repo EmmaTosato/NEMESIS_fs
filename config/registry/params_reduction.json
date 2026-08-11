@@ -23,11 +23,11 @@
     "tag_param": "metric",
     "tag_prefix": "m_",
     "params": {
-      "n_neighbors": 15,
+      "n_neighbors": 5,
       "min_dist": 0.0,
       "n_components": 2,
       "random_state": 0,
-      "metric": "jaccard"
+      "metric": "euclidean"
     },
     "tuning_grid": {
       "metric": ["dice", "euclidean"],

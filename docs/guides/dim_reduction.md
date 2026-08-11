@@ -58,7 +58,7 @@ Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modal
 | **`viz_n_components`** | *Intero (2 o 3)* | Dimensioni fisse del plot grafico, anche se la compressione vera è a più dimensioni. Evita distorsioni di "taglio". A `3`, fornisce solo l'HTML interattivo ruotabile. |
 | **`color_by`** | *Lista* | Genera plot colorati per specifici tag: `"dataset"`, `"side"`, `"volume"`, `"nihss"`. |
 | **`write_embeddings_grid`** | *Booleano* | Se `false`, disattiva manualmente `embeddings_grid_*.png` in modalità Fine-Tuning (resta comunque scritto `tuning_results.csv`). |
-| **`save_tuning_embeddings`** | *Booleano* | Se `true`, salva in `embeddings.npz` l'embedding effettivo di **ogni** combinazione valutata nel Fine-Tuning (non solo quelle mostrate in `embeddings_grid_*.png`) — vedi sotto. Opt-in, `false` di default: nessuna run precedente all'introduzione di questo campo ha mai scritto questo file. |
+| **`save_tuning_embeddings`** | *Booleano* | Se `true`, salva in `embeddings.npz` l'embedding effettivo di **ogni** combinazione valutata nel Fine-Tuning (non solo quelle mostrate in `embeddings_grid_*.png`), più un `metadata.csv` autosufficiente accanto — vedi sotto. Opt-in, `false` di default: nessuna run precedente all'introduzione di questo campo ha mai scritto questi file. |
 
 ---
 
@@ -69,12 +69,13 @@ Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modal
 ### In Modalità Produzione
 - **`matrix.npy`**: La nuova matrice compressa.
 - **`metadata.csv`**: L'anagrafica arricchita in automatico di `lesion_volume_voxels`, `lesion_side`, e `nihss`.
-- **Plot Grafici**: Un `embedding_plot_unico.png` base, più una coppia PNG/HTML per ogni voce elencata in `color_by`. I file HTML sono interattivi.
+- **Plot Grafici**: Un `embedding_plot_unico.png` base, più un PNG statico per ogni voce elencata in `color_by` (`embedding_plot_<voce>.png`). Un solo file `embedding_plot_interactive.html` interattivo, con una tendina per passare da una colorazione all'altra tra tutte le voci di `color_by` — non più un file HTML separato per voce.
 
 ### In Modalità Fine-Tuning
 - **`tuning_results.csv`**: I punteggi matematici estratti per ogni esperimento.
 - **`tuning_plot.png`** e **`embeddings_grid_*.png`**: I plot per visualizzare come cambia la compressione al variare dei parametri, organizzati per sottocartelle se si usa la struttura *nested*.
 - **`embeddings.npz`** (solo se `save_tuning_embeddings: true`): un unico file con l'embedding vero e proprio di ogni combinazione valutata, non solo quelle disegnate nei plot. Ogni array è indicizzato da una chiave leggibile tipo `"n_neighbors=15,min_dist=0.1"` (stessi nomi/valori delle colonne di `tuning_results.csv`) — si ricostruisce la chiave dai valori di una riga per recuperare il suo embedding, senza bisogno di un indice separato. Pensato per essere lo strato dati di un futuro plot interattivo (vedi `docs/knowledge/dim_reduction_tuning_guide.md`) che legge e basta, senza dover rifittare nulla.
+- **`metadata.csv`** (stesso trigger, un solo file in cima alla cartella — non per foglia, stessi soggetti per tutto lo sweep): l'anagrafica arricchita, identica per schema a quella di produzione (`lesion_volume_voxels`/`lesion_side`/`nihss`). Serve perché i colori di `embeddings_grid_*.png` si calcolano al volo (join live col registro clinico, somma su `X`) — senza questo file, un plot futuro che legge solo `embeddings.npz` non avrebbe modo di sapere di chi è ogni punto o come colorarlo.
 
 ### I Diari di Bordo (Runs)
 In cima a ciascun ramo (es. `results/lesion/dim_reduction/production/umap/` e `results/lesion/dim_reduction/tuning/umap/`) viene generato e alimentato in **append-only** un file:

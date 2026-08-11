@@ -39,20 +39,25 @@ def write_embedding_plots(
 ) -> None:
     """Writes `<file_prefix>_unico.png` (always, single color) plus, for each
     name in `color_by` (resolved via embedding_coloring.COLOR_MODES), a
-    static PNG + interactive HTML pair: `<file_prefix>_<name>.png`/`.html`.
+    static PNG (`<file_prefix>_<name>.png`) - and one combined interactive
+    HTML, `<file_prefix>_interactive.html`, with a dropdown to switch the
+    coloring between every mode in `color_by` that computed successfully,
+    instead of a separate HTML file per mode.
 
     `embedding` must have exactly 2 or 3 columns (this writes *visualization*
     embeddings, already reduced to a plottable size - see
     src/analysis/reduction.py::embedding_for_viz for how a caller gets one).
-    With 3 columns, only the interactive plot is produced per color mode (and
-    no "unico" static PNG at all) - a non-rotatable static 3D scatter is
-    often unreadable, see plot_embedding_interactive's docstring; `zlabel` is
-    then required.
+    With 3 columns, no "unico" static PNG is written at all (only the
+    interactive plot renders a 3D embedding anywhere in this module) -
+    `zlabel` is required in that case.
 
-    Each output is wrapped in its own try/except (broad Exception, logged as
-    WARNING) - one bad coloring mode (e.g. a dataset with no resolvable
-    participants.tsv for lesion_side) must not abort the whole run, same
-    convention dim_reduction.py used before this function existed.
+    Each static output is wrapped in its own try/except (broad Exception,
+    logged as WARNING) - one bad coloring mode (e.g. a dataset with no
+    resolvable participants.tsv for lesion_side) must not abort the whole
+    run, same convention dim_reduction.py used before this function existed.
+    The combined interactive HTML is a single file covering every mode that
+    computed successfully, so it can only fail (or be skipped, if every mode
+    failed) as one unit - not per mode like the static PNGs.
     """
     n_dims = embedding.shape[1]
     if n_dims not in (2, 3):
@@ -65,6 +70,9 @@ def write_embedding_plots(
             plot_embedding_2d(embedding, output_dir / f"{file_prefix}_unico.png", xlabel, ylabel, title_fn(None))
         except Exception as exc:
             logging.warning("failed to generate 'unico' embedding plot: %s", exc)
+
+    metadata_for_plot = metadata.copy()
+    interactive_color_options: list[tuple[str, str]] = []
 
     for name in color_by:
         mode = resolve_color_mode(name)
@@ -89,26 +97,28 @@ def write_embedding_plots(
             except Exception as exc:
                 logging.warning("failed to generate %r embedding plot: %s", name, exc)
 
-        # Interactive HTML stays linear-scale regardless of mode.log_scale: plotly
-        # express has no direct LogNorm-style color-axis equivalent (it would mean
-        # log-transforming `values` and manually relabeling the colorbar ticks back
-        # to real units) - the static PNG above is where log_scale actually matters,
-        # the interactive view's hover already surfaces each point's real value.
+        metadata_for_plot[name] = values
+        interactive_color_options.append((mode.label, name))
+
+    # Interactive HTML stays linear-scale regardless of any mode's log_scale: plotly
+    # express has no direct LogNorm-style color-axis equivalent (it would mean
+    # log-transforming `values` and manually relabeling the colorbar ticks back
+    # to real units) - the static PNGs above are where log_scale actually matters,
+    # the interactive view's hover already surfaces each point's real value.
+    if interactive_color_options:
         try:
-            metadata_for_plot = metadata.copy()
-            metadata_for_plot[name] = values
             plot_embedding_interactive(
                 embedding,
                 metadata_for_plot,
-                output_dir / f"{file_prefix}_{name}.html",
+                interactive_color_options,
+                output_dir / f"{file_prefix}_interactive.html",
                 xlabel,
                 ylabel,
-                title,
-                color_column=name,
+                title_fn(None),
                 zlabel=zlabel,
             )
         except Exception as exc:
-            logging.warning("failed to generate interactive %r embedding plot: %s", name, exc)
+            logging.warning("failed to generate interactive embedding plot: %s", exc)
 
 
 def write_embedding_grid(

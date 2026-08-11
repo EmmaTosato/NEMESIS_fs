@@ -38,8 +38,11 @@ tuning run and a production run can never collide on disk, and each branch
 carries its own chronological run history, distinct from any single run's
 own config.md (see docs/dev/config.md). fine_tuning=true's sweep can also
 persist every combination's actual embedding (not just its score) into
-<output_root>/tuning/<method>/<dd-mm>_<session_name>/embeddings.npz when
-config.save_tuning_embeddings is true (opt-in, off by default).
+<output_root>/tuning/<method>/<dd-mm>_<session_name>/embeddings.npz, plus a
+self-contained metadata.csv (same enrichment _run_production always applies),
+when config.save_tuning_embeddings is true (opt-in, off by default) - so a
+later reader can plot any saved combination without reloading X or the
+participants.tsv registry.
 """
 
 from __future__ import annotations
@@ -205,6 +208,22 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, metadata: pd.Dat
         logging.error(str(exc))
         return 1
 
+    # Only when embeddings are actually being persisted (save_tuning_embeddings):
+    # a future replot of embeddings.npz needs metadata.csv self-contained (literal
+    # lesion_volume_voxels/lesion_side/nihss columns), the same enrichment
+    # _run_production always applies, so it never has to reload X or hit the
+    # participants.tsv registry again. Every other tuning run (the default,
+    # save_tuning_embeddings=False) keeps metadata exactly as loaded - unchanged
+    # behavior, since embeddings_grid_*.png's own color modes already compute
+    # side/nihss/volume live (src/analysis/embedding_coloring.py) without needing
+    # this enrichment.
+    if config.save_tuning_embeddings:
+        try:
+            metadata = enrich_metadata_with_lesion_info(metadata, X)
+        except (FileNotFoundError, ValueError) as exc:
+            logging.error(str(exc))
+            return 1
+
     try:
         results, embeddings_by_combo = run_tuning_sweep(method, X, params, tuning_grid, trustworthiness_n_neighbors)
     except ValueError as exc:
@@ -290,6 +309,11 @@ def _write_tuning_output(
     swept_params = list(tuning_grid.keys())
     if config.save_tuning_embeddings:
         _write_tuning_embeddings(output_dir, embeddings_by_combo, swept_params)
+        # Same subjects/row order for every combination in this sweep (one X/metadata
+        # for the whole run) - written once at the top, not per leaf. Self-contained
+        # (already enriched by the caller above) so a later reader never needs X or
+        # the participants.tsv registry again, just this file + embeddings.npz.
+        metadata.to_csv(output_dir / "metadata.csv", index=False)
     free_params = [key for key in swept_params if key not in nested_params]
     title = compose_run_title(output_dir, config.project)
 

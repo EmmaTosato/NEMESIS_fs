@@ -16,16 +16,19 @@ above its viz_n_components (see src/analysis/reduction.py::embedding_for_viz);
 raises ValueError for any other component count, rerun the original pipeline
 instead.
 - dim_reduction run (metadata has no cluster_label column): embedding_plot_unico.png
-  + one embedding_plot_<name>.png/.html pair per src.analysis.embedding_coloring.COLOR_MODES
+  + one embedding_plot_<name>.png per src.analysis.embedding_coloring.COLOR_MODES
   entry whose backing column is present in this run's metadata.csv (today:
-  dataset/side/volume/nihss, up to 9 files total - see
-  _PERSISTED_COLUMN_BY_MODE below for the mode-name -> column mapping). Every
-  value is read directly from metadata.csv (persisted there by
+  dataset/side/volume/nihss - see _PERSISTED_COLUMN_BY_MODE below for the
+  mode-name -> column mapping), plus a single combined
+  embedding_plot_interactive.html covering every one of those modes via a
+  dropdown (2026-08 session, on request - was one .html per mode before).
+  Every value is read directly from metadata.csv (persisted there by
   dim_reduction.py's _run_production/enrich_metadata_with_lesion_info) -
   never recomputed from the original feature matrix nor rejoined from
   assets/metadata/participants.tsv. A mode whose column this run's
   metadata.csv predates (e.g. an old run before "nihss" existed) is skipped
-  with a WARNING, not silently omitted and not a reason to fail the rest.
+  with a WARNING, not silently omitted and not a reason to fail the rest -
+  it also just doesn't get an entry in the combined HTML's dropdown.
 - dim_reduction_clustering run (metadata has cluster_label): cluster_plot.png
   + cluster_plot_interactive.html (2 files, cluster-colored only - no dataset
   coloring here, see plotting.py's plot_clusters_interactive).
@@ -130,6 +133,8 @@ def _replot_embedding(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> l
     plot_embedding_2d(X, static_path, xlabel, ylabel, compose_embedding_plot_title(run_dir, reduction_method))
     output_paths.append(static_path)
 
+    interactive_color_options: list[tuple[str, str]] = []
+
     for name, mode in COLOR_MODES.items():
         column = _PERSISTED_COLUMN_BY_MODE.get(name)
         if column is None or column not in metadata.columns:
@@ -153,8 +158,14 @@ def _replot_embedding(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> l
             )
         output_paths.append(static_path)
 
-        interactive_path = run_dir / f"embedding_plot_{name}.html"
-        plot_embedding_interactive(X, metadata, interactive_path, xlabel, ylabel, title, color_column=column)
+        interactive_color_options.append((mode.label, column))
+
+    if interactive_color_options:
+        interactive_path = run_dir / "embedding_plot_interactive.html"
+        plot_embedding_interactive(
+            X, metadata, interactive_color_options, interactive_path, xlabel, ylabel,
+            compose_embedding_plot_title(run_dir, reduction_method),
+        )
         output_paths.append(interactive_path)
 
     return output_paths

@@ -153,8 +153,8 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
 
     for suffix in ("_unico", "_dataset", "_volume", "_side"):
         assert (out_dir / f"embedding_plot{suffix}.png").is_file()
-    for suffix in ("dataset", "volume", "side"):
-        assert (out_dir / f"embedding_plot_{suffix}.html").is_file()
+    # one combined interactive HTML with a dropdown, not one per color_by mode
+    assert (out_dir / "embedding_plot_interactive.html").is_file()
 
     runs_csv = (output_root / "production" / "pca" / "runs.csv").read_text()
     assert "run1" in runs_csv
@@ -194,6 +194,7 @@ def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, mon
     assert not (tuning_dir / "tuning_plot.png").exists()  # 2 swept params - heatmaps removed on request, CSV only
     assert not (tuning_dir / "matrix.npy").exists()  # a sweep is not a matrix artifact
     assert not (tuning_dir / "embeddings.npz").exists()  # save_tuning_embeddings=False (default) writes nothing
+    assert not (tuning_dir / "metadata.csv").exists()  # same flag also gates metadata.csv - no enrichment either
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert list(results.columns) == ["n_neighbors", "min_dist", "trustworthiness"]
@@ -219,10 +220,15 @@ def test_dim_reduction_fine_tuning_save_tuning_embeddings_writes_npz(tmp_path, m
     self-describing 'k1=v1,k2=v2,...' string built from tuning_grid's own key
     order - the same names/values each tuning_results.csv row already carries,
     so a caller rebuilds the exact key from any row without a separate index
-    file (docs/dev/models.md).
+    file (docs/dev/models.md). Also writes a self-contained metadata.csv
+    (same enrich_metadata_with_lesion_info as production - needs the
+    lesion_side/nihss registry fixture, unlike the sibling test above which
+    doesn't enrich at all) so a later reader never needs X or the
+    participants.tsv registry again to color/label a saved embedding.
     """
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    _write_lesion_side_registry(tmp_path, monkeypatch, [f"sub-{i:02d}" for i in range(8)])
 
     params_path = _write_params(tmp_path)
     output_root = tmp_path / "dr_out"
@@ -259,6 +265,15 @@ def test_dim_reduction_fine_tuning_save_tuning_embeddings_writes_npz(tmp_path, m
     assert set(data.files) == expected_keys
     for key in expected_keys:
         assert data[key].shape == (8, 2)  # 8 subjects (fixture size), n_components=2 (umap's base params)
+
+    metadata_path = tuning_dir / "metadata.csv"
+    assert metadata_path.is_file()
+    metadata = pd.read_csv(metadata_path)
+    assert list(metadata.columns) == ["subject_id", "dataset", "lesion_volume_voxels", "lesion_side", "nihss"]
+    assert len(metadata) == 8
+    assert set(metadata["lesion_side"]) == {"left", "right"}
+    assert metadata["nihss"].tolist() == [4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
+    assert (metadata["lesion_volume_voxels"] > 0).all()
 
 
 def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_path, monkeypatch):
