@@ -58,6 +58,22 @@ def group_of(subject_id: str) -> str:
     return "HC" if match.group("hc") else match.group("disease")
 
 
+def _subject_id_pattern(template: str) -> re.Pattern[str]:
+    """Regex for template with every "{subject_id}" occurrence bound to the
+    same value via a backreference (first occurrence a named group, every
+    later one (?P=subject_id)) - used by Dataset.available() so a template
+    with {subject_id} in more than one path segment can't be satisfied by a
+    file whose segments disagree on which subject it belongs to (see
+    available()'s own docstring). Every other character is escaped, so only
+    the placeholder itself is treated as a pattern."""
+    escaped_chunks = [re.escape(chunk) for chunk in template.split("{subject_id}")]
+    pieces = [escaped_chunks[0]]
+    for i, chunk in enumerate(escaped_chunks[1:]):
+        pieces.append("(?P<subject_id>[^/]+)" if i == 0 else "(?P=subject_id)")
+        pieces.append(chunk)
+    return re.compile("^" + "".join(pieces) + "$")
+
+
 class Dataset:
     """One dataset (e.g. project='clinical_connectome', name='UNIPD/WashU').
 
@@ -159,13 +175,24 @@ class Dataset:
         registered for item.path_key() - dataset-wide, not per-subject. A
         dataset can pass this check while most of its subjects individually
         lack the file (see resolve() for that case, surfaced as a
-        per-subject miss, not a dataset-level failure)."""
+        per-subject miss, not a dataset-level failure).
+
+        A template with {subject_id} in more than one path segment (true for
+        every registered lesion_mask/feature template today - both a
+        directory and the filename) requires every occurrence to bind to the
+        SAME subject, checked via _subject_id_pattern's backreferenced
+        regex - not independent glob wildcards, which would happily treat
+        e.g. sub-A/anat/sub-B_label-lesion_mask.nii.gz (a real-world mis-copy,
+        folder and filename disagreeing on subject) as "available", even
+        though no real subject would ever produce that path via resolve()."""
         root = self._root_for(item.object)
         templates = self.file_patterns.templates_for(*item.path_key())
-        return any(
-            next(root.glob(template.replace("{subject_id}", "*")), None) is not None
-            for template in templates
-        )
+        for template in templates:
+            pattern = _subject_id_pattern(template)
+            for candidate in root.glob(template.replace("{subject_id}", "*")):
+                if pattern.match(candidate.relative_to(root).as_posix()):
+                    return True
+        return False
 
     def resolve(self, subject_id: str, item: RetrieveItem) -> list[Path]:
         """Every existing file for this subject matching any template

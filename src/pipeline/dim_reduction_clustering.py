@@ -625,7 +625,7 @@ def _write_standalone_diagnostic(output_dir: Path, method: str, embedding: np.nd
 def _log_path(config: DimReductionClusteringConfig, now: datetime) -> Path:
     log_dir = LOGS_ROOT / config.project
     log_dir.mkdir(parents=True, exist_ok=True)
-    return log_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M')}.log"
+    return log_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.log"
 
 
 if __name__ == "__main__":

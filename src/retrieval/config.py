@@ -295,7 +295,7 @@ def load_config(path: str | Path) -> RetrievalConfig:
         file_patterns=file_patterns,
         datasets=_require_unique_str_list(raw, "datasets"),
         group_filter=_optional_group_filter(raw),
-        subjects=_optional_str_list(raw, "subjects"),
+        subjects=_optional_unique_str_list(raw, "subjects"),
         retrieve=retrieve,
         include_tabular_data=_require_bool(raw, "include_tabular_data"),
         overwrite=_require_bool(raw, "overwrite"),
@@ -348,6 +348,22 @@ def _optional_str_list(raw: dict, key: str) -> list[str] | None:
     if raw.get(key) is None:
         return None
     return _require_str_list(raw, key, allow_empty=False)
+
+
+def _optional_unique_str_list(raw: dict, key: str) -> list[str] | None:
+    """Same duplicate rejection as _require_unique_str_list, for an optional
+    field (unlike `datasets`/`retrieve`, may legitimately be absent) - see
+    `subjects`, which previously tolerated duplicates silently deduped
+    downstream (_select_subjects' set intersection), inconsistent with the
+    "reject, don't silently dedupe" convention this file applies to
+    `datasets`/`retrieve` two fields away."""
+    if raw.get(key) is None:
+        return None
+    value = _require_str_list(raw, key, allow_empty=False)
+    duplicates = {v for v in value if value.count(v) > 1}
+    if duplicates:
+        raise ValueError(f"config: field {key!r} contains duplicate entries: {sorted(duplicates)}")
+    return value
 
 
 def _optional_group_filter(raw: dict) -> list[str] | None:

@@ -794,6 +794,23 @@ def test_write_report_path_uses_data_retrieval_folder_and_project(tmp_path, monk
     assert report_path.suffix == ".md"
 
 
+def test_write_report_filename_includes_seconds_to_avoid_same_minute_collisions(tmp_path, monkeypatch):
+    """Regression: two runs started within the same minute (e.g. a quick
+    resubmit after a transient mount blip) used to compute the identical
+    report path and silently overwrite each other's report - the timestamp
+    only had minute granularity. Same fix applies to _log_path."""
+    monkeypatch.setattr(retrieve_data, "REPORTS_ROOT", tmp_path / "summaries" / "data_retrieval")
+    config = _minimal_config(tmp_path)
+    stats = {"UNIPD/WashU": retrieve_data.DatasetStats()}
+
+    path1 = retrieve_data._write_report(config, stats, datetime(2026, 8, 10, 14, 32, 5))
+    path2 = retrieve_data._write_report(config, stats, datetime(2026, 8, 10, 14, 32, 47))
+
+    assert path1 != path2
+    assert path1.name.endswith("14-32-05.md")
+    assert path2.name.endswith("14-32-47.md")
+
+
 def _write_file_patterns_json(path, project_root):
     path.write_text(
         json.dumps(

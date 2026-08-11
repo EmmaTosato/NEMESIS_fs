@@ -264,7 +264,7 @@ Both per-subject shapes come out of the same single-source-of-truth function, **
 
 ## Report (`copy_summary`)
 
-Written to `summaries/data_retrieval/<project>/copy_summary__<dd-mm-yy>__<hh-mm>.md` (the `copy_summary` prefix distinguishes it from the `data_summary` CSVs, see below). Title is `<project>_<dd-mm-yy>` with the run time as a subtitle.
+Written to `summaries/data_retrieval/<project>/copy_summary__<dd-mm-yy>__<hh-mm-ss>.md` (the `copy_summary` prefix distinguishes it from the `data_summary` CSVs, see below; the timestamp includes seconds so two runs started within the same minute - e.g. a quick resubmit after a transient mount blip - never collide and silently overwrite each other's report). Title is `<project>_<dd-mm-yy>` with the run time as a subtitle.
 
 This report only explains what **this run** did and did or didn't find for the exact combinations in its `retrieve` list — it deliberately does not try to answer "what does this dataset have in general" (that's `data_summary`). Content, in order:
 1. A verbatim JSON dump of the fields actually read from the config (see `_config_summary`; each `retrieve` item now dumps `object`/`pipeline`/`datatype`/`suffix`, with `pipeline: null` shown explicitly for objects that don't use one — honest about the field's absence-by-design, not omitted).
@@ -309,7 +309,7 @@ Written to `assets/dataset_summaries/data_summary__<dataset with "/" replaced by
 
 ## Log
 
-`main()` writes the full narrative to `logs/data_retrieval/<project>/copy_summary__<dd-mm-yy>__<hh-mm>.log`, timestamp-paired with the report. `data_summary.py` writes no log (read-only, prints each written CSV's path to stdout).
+`main()` writes the full narrative to `logs/data_retrieval/<project>/copy_summary__<dd-mm-yy>__<hh-mm-ss>.log`, timestamp-paired with the report. `data_summary.py` writes no log (read-only, prints each written CSV's path to stdout).
 
 `_attach_file_handler` removes any `FileHandler` left on the root logger by a previous `main()` call in the same process before attaching a new one (see `test_main_does_not_leak_log_lines_across_runs`).
 

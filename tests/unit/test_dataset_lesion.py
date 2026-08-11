@@ -150,6 +150,28 @@ def test_available_true_when_at_least_one_subject_has_it(tmp_path):
     assert ds.available(_item("lesion_mask")) is True
 
 
+def test_available_false_for_cross_subject_mismatch(tmp_path):
+    """Regression: a file whose folder subject and filename subject disagree
+    (a real-world mis-copy, e.g. sub-A/anat/sub-B_label-lesion_mask.nii.gz)
+    used to be reported as "available" - the template's two {subject_id}
+    occurrences were replaced with two independent glob wildcards, matching
+    regardless of whether the two actually agreed with each other. No real
+    subject would ever produce this path via resolve()."""
+    root = tmp_path
+    _touch(
+        root
+        / "UNIPD"
+        / "WashU"
+        / "derivatives"
+        / "manual_masks"
+        / "sub-STUNIPD0001"
+        / "anat"
+        / "sub-STUNIPD0002_label-lesion_mask.nii.gz"
+    )
+    ds = Dataset("UNIPD/WashU", _make_patterns(root))
+    assert ds.available(_item("lesion_mask")) is False
+
+
 def test_available_false_when_dataset_structurally_lacks_it(tmp_path):
     root = _make_psp_like(tmp_path)
     ds = Dataset("UNIPD/PSP", _make_patterns(root))

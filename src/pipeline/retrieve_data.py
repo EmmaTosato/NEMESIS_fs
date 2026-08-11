@@ -631,7 +631,7 @@ def _write_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: 
     now = now or datetime.now()
     report_dir = REPORTS_ROOT / config.project
     report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M')}.md"
+    report_path = report_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.md"
     report_path.write_text(_build_report(config, stats, now))
     return report_path
 
@@ -639,7 +639,7 @@ def _write_report(config: RetrievalConfig, stats: dict[str, DatasetStats], now: 
 def _log_path(config: RetrievalConfig, now: datetime) -> Path:
     log_dir = LOGS_ROOT / config.project
     log_dir.mkdir(parents=True, exist_ok=True)
-    return log_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M')}.log"
+    return log_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.log"
 
 
 def _attach_file_handler(log_path: Path) -> None:

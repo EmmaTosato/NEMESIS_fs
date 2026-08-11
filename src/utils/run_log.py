@@ -19,15 +19,19 @@ import csv
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 FIELDNAMES = ["session", "id", "timestamp", "params", "output", "notes"]
+
+RunType = Literal["production", "tuning"]
+_FILE_NAME_BY_RUN_TYPE: dict[RunType, str] = {"production": "runs.csv", "tuning": "runs_tuning.csv"}
 
 
 def append_run_log_entry(
     log_dir: Path,
     run_id: str,
     now: datetime,
-    run_type: str,
+    run_type: RunType,
     params_summary: dict,
     output_dir: Path,
     run_notes: str | None,
@@ -36,9 +40,13 @@ def append_run_log_entry(
     """Append one row to runs_csv_path, creating it (with a header) if absent.
 
     run_type picks which of two files the row goes to - runs.csv for
-    "production", runs_tuning.csv for anything else - so a fine-tuning sweep
-    and a production run never land in the same file, even though they share
-    this same append/schema logic.
+    "production", runs_tuning.csv for "tuning" - so a fine-tuning sweep and a
+    production run never land in the same file, even though they share this
+    same append/schema logic. Raises ValueError for anything else - a typo'd
+    or new-but-unregistered run_type must not silently fall into one of the
+    two files by accident (every call site in this repo passes one of these
+    two literal strings; a Literal-typed caller catches a typo at type-check
+    time already, this is the runtime backstop).
 
     extra_columns prepends caller-specific leading columns (e.g. which of two
     axes a row belongs to, for a pipeline that shares one runs_csv_path
@@ -54,8 +62,9 @@ def append_run_log_entry(
     else:
         session, id_part = run_id, ""
 
-    file_name = "runs.csv" if run_type == "production" else "runs_tuning.csv"
-    runs_csv_path = log_dir / file_name
+    if run_type not in _FILE_NAME_BY_RUN_TYPE:
+        raise ValueError(f"run_type must be one of {sorted(_FILE_NAME_BY_RUN_TYPE)}, got {run_type!r}")
+    runs_csv_path = log_dir / _FILE_NAME_BY_RUN_TYPE[run_type]
 
     fieldnames = list(extra_columns) + FIELDNAMES if extra_columns else FIELDNAMES
     runs_csv_path.parent.mkdir(parents=True, exist_ok=True)

@@ -202,6 +202,16 @@ def test_subjects_explicit_list(tmp_path):
     assert config.subjects == ["sub-STUNIPD0002"]
 
 
+def test_duplicate_subjects_raise(tmp_path):
+    """Same convention as test_duplicate_datasets_raise - `subjects` used to
+    tolerate duplicates (silently deduped downstream by _select_subjects'
+    set intersection), inconsistent with `datasets`/`retrieve` two fields
+    away, which both reject a copy-pasted duplicate explicitly."""
+    path = _write_config(tmp_path, {"subjects": ["sub-STUNIPD0002", "sub-STUNIPD0002"]})
+    with pytest.raises(ValueError, match="duplicate"):
+        load_config(path)
+
+
 def test_overwrite_wrong_type_raises(tmp_path):
     path = _write_config(tmp_path, {"overwrite": "false"})
     with pytest.raises(ValueError, match="overwrite"):

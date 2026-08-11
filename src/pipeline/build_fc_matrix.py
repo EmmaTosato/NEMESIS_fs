@@ -212,7 +212,7 @@ def _write_report(config: BuildFcMatrixConfig, combo_reports: dict[str, dict], n
 
     report_dir = REPORTS_ROOT / config.project
     report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M')}.md"
+    report_path = report_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.md"
     report_path.write_text("\n".join(lines) + "\n")
     return report_path
 
@@ -220,7 +220,7 @@ def _write_report(config: BuildFcMatrixConfig, combo_reports: dict[str, dict], n
 def _log_path(config: BuildFcMatrixConfig, now: datetime) -> Path:
     log_dir = LOGS_ROOT / config.project
     log_dir.mkdir(parents=True, exist_ok=True)
-    return log_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M')}.log"
+    return log_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.log"
 
 
 if __name__ == "__main__":

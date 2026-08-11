@@ -171,6 +171,17 @@ def _run_task(config: SDCConfig, output_dir: Path, task_id: int, task_count: int
     except subprocess.CalledProcessError as exc:
         stage1_process_error = str(exc)
         logging.error("task %d: stage1 process failed, attempting per-subject salvage: %s", task_id, exc)
+    except OSError as exc:
+        # bcb-lf-preprocess not found/not executable (e.g. cluster module not
+        # loaded) - the process never even started, so there is nothing to
+        # salvage (unlike CalledProcessError above, where it ran and failed
+        # partway through - check_stage1_outputs is never reached here).
+        logging.error(
+            "task %d: stage1 could not be launched (bcb-lf-preprocess not found/not executable?): %s",
+            task_id, exc, exc_info=True,
+        )
+        _finalize_statuses(status_dir, task_id, events, final)
+        return 1
     stage1_duration = time.perf_counter() - start
     stage1_outcome = "process_error" if stage1_process_error else "ok"
     for row in chunk:
@@ -224,6 +235,16 @@ def _run_task(config: SDCConfig, output_dir: Path, task_id: int, task_count: int
     except subprocess.CalledProcessError as exc:
         stage2_process_error = str(exc)
         logging.error("task %d: stage2 process failed, attempting per-subject salvage: %s", task_id, exc)
+    except OSError as exc:
+        # bcb-lesion-features not found/not executable - same reasoning as
+        # run_stage1's OSError handler above: nothing to salvage, the
+        # process never started.
+        logging.error(
+            "task %d: stage2 could not be launched (bcb-lesion-features not found/not executable?): %s",
+            task_id, exc, exc_info=True,
+        )
+        _finalize_statuses(status_dir, task_id, events, final)
+        return 1
     stage2_duration = time.perf_counter() - start
     stage2_outcome = "process_error" if stage2_process_error else "ok"
     for row in passed:

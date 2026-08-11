@@ -140,14 +140,14 @@ def _write_report(
 
     report_dir = REPORTS_ROOT
     report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / f"build_summary__{now.strftime('%d-%m-%y__%H-%M')}.md"
+    report_path = report_dir / f"build_summary__{now.strftime('%d-%m-%y__%H-%M-%S')}.md"
     report_path.write_text("\n".join(lines) + "\n")
     return report_path
 
 
 def _log_path(now: datetime) -> Path:
     LOGS_ROOT.mkdir(parents=True, exist_ok=True)
-    return LOGS_ROOT / f"build_summary__{now.strftime('%d-%m-%y__%H-%M')}.log"
+    return LOGS_ROOT / f"build_summary__{now.strftime('%d-%m-%y__%H-%M-%S')}.log"
 
 
 if __name__ == "__main__":

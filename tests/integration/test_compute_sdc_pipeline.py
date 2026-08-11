@@ -173,6 +173,38 @@ def test_run_task_returns_1_when_no_subject_salvageable_after_stage1_crash(tmp_p
     assert statuses["sub-B"].status == "failed_stage1_process"
 
 
+def test_run_task_returns_1_when_stage1_binary_not_found(tmp_path):
+    """Regression: FileNotFoundError/OSError from subprocess.run (e.g. the
+    bcb-lf-preprocess binary not on PATH - a cluster module not loaded) used
+    to propagate unhandled instead of the clean logging.error + return 1
+    every other structural failure in this function gets."""
+    config, output_dir = _setup(tmp_path, ["sub-A"])
+
+    def dispatch(command, capture_output, text):
+        raise FileNotFoundError("[Errno 2] No such file or directory: 'bcb-lf-preprocess'")
+
+    with patch("src.sdc.runner.subprocess.run", side_effect=dispatch):
+        exit_code = _run_task(config, output_dir, task_id=0, task_count=1, dry_run=False)
+
+    assert exit_code == 1
+
+
+def test_run_task_returns_1_when_stage2_binary_not_found(tmp_path):
+    config, output_dir = _setup(tmp_path, ["sub-A"])
+    task_dir = output_dir / "_work" / "task_0"
+    prep_dir = task_dir / "prep"
+
+    def dispatch(command, capture_output, text):
+        if command[0] == "bcb-lf-preprocess":
+            return _stage1_mock_writing(prep_dir, {"sub-A"}, returncode=0)(command, capture_output, text)
+        raise FileNotFoundError("[Errno 2] No such file or directory: 'bcb-lesion-features'")
+
+    with patch("src.sdc.runner.subprocess.run", side_effect=dispatch):
+        exit_code = _run_task(config, output_dir, task_id=0, task_count=1, dry_run=False)
+
+    assert exit_code == 1
+
+
 def test_run_aggregate_isolates_corrupt_status_file_from_the_rest(tmp_path):
     """Regression: a single corrupt status file (e.g. from a task killed
     mid-write) used to abort --mode aggregate entirely, hiding every other

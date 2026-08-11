@@ -4,6 +4,8 @@ import csv
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 from src.utils.run_log import append_run_log_entry
 
 
@@ -111,3 +113,14 @@ def test_production_and_tuning_write_separate_files(tmp_path):
     assert (tmp_path / "runs_tuning.csv").is_file()
     assert _read_rows(tmp_path / "runs.csv")[0]["id"] == "run1"
     assert _read_rows(tmp_path / "runs_tuning.csv")[0]["id"] == "tune1"
+
+
+def test_unknown_run_type_raises_instead_of_silently_writing_to_tuning_file(tmp_path):
+    """Regression: run_type picked its target file via `"runs.csv" if
+    run_type == "production" else "runs_tuning.csv"` - a typo like
+    "Production" or a future third run_type would have silently landed in
+    runs_tuning.csv instead of raising."""
+    with pytest.raises(ValueError, match="run_type"):
+        append_run_log_entry(tmp_path, "s1_run1", datetime(2026, 7, 24, 10, 0), "Production", {}, Path("out"), None)
+    assert not (tmp_path / "runs.csv").exists()
+    assert not (tmp_path / "runs_tuning.csv").exists()
