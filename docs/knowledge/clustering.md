@@ -2,7 +2,7 @@
 
 > **Implementazione:** `src/analysis/clustering.py`, `config/registry/params_clustering.json`.
 > **Come leggere gli indici di tuning** (silhouette, dendrogramma, eigengap...): `docs/knowledge/clustering_tuning_guide.md`.
-> **Riduzione dimensionale**: `docs/knowledge/dimensionality_reduction.md`.
+> **Riduzione dimensionale**: `docs/knowledge/dim_reduction.md`.
 
 Guida in linguaggio semplice a cosa fa ciascun metodo di clustering usato nel progetto — non un manuale di ML, solo il minimo per capire cosa controlla un iperparametro in config.
 

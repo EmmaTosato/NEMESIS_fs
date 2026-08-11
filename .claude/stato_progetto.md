@@ -4,7 +4,7 @@ Ultimo aggiornamento: 2026-08-11. **Snapshot dello stato attuale — non un log 
 
 ## Architettura / cosa è implementato
 
-Sintesi corrente in `README.md` ("What's implemented so far") — non ripetuta qui. Riferimento architetturale sviluppatore: `docs/dev/` (`retrieval.md`, `models.md`, `config.md`, `plotting.md`, `lesion_matrix.md`, `fc_matrix.md`, `design_patterns.md`). Note metodologiche/di letteratura ora tutte sotto `docs/knowledge/` (`docs/methods/` è stato rimosso e il suo contenuto — `clustering.md`, `dimensionality_reduction.md` — fuso lì dentro, tradotto in italiano).
+Sintesi corrente in `README.md` ("What's implemented so far") — non ripetuta qui. Riferimento architetturale sviluppatore: `docs/dev/` (`retrieval.md`, `models.md`, `config.md`, `plotting.md`, `lesion_matrix.md`, `fc_matrix.md`, `design_patterns.md`). Note metodologiche/di letteratura ora tutte sotto `docs/knowledge/` (`docs/methods/` è stato rimosso e il suo contenuto — `clustering.md`, `dim_reduction.md` — fuso lì dentro, tradotto in italiano).
 
 ## Lavoro attivo / thread aperti
 

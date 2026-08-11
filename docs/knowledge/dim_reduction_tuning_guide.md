@@ -12,7 +12,7 @@
 
 ## Cos'è il tuning
 
-Per `umap`/`tsne`/`pacmap`/`pca`/`pca_varimax`, il tuning esegue lo stesso metodo su una griglia di iperparametri (`config/registry/params_reduction.json`'s `tuning_grid`) e calcola, per ogni combinazione, un solo numero di qualità (vedi sotto). **Nessuna selezione automatica**: la scelta finale resta sempre umana, guardando `tuning_results.csv` e i plot, poi scritta a mano in `params_reduction.json`'s `"params"`. (`pca_varimax` è implementato e testato ma oggi non ha una entry in `params_reduction.json` — non eseguibile da CLI finché non viene reintrodotta, vedi `docs/knowledge/dimensionality_reduction.md`.)
+Per `umap`/`tsne`/`pacmap`/`pca`/`pca_varimax`, il tuning esegue lo stesso metodo su una griglia di iperparametri (`config/registry/params_reduction.json`'s `tuning_grid`) e calcola, per ogni combinazione, un solo numero di qualità (vedi sotto). **Nessuna selezione automatica**: la scelta finale resta sempre umana, guardando `tuning_results.csv` e i plot, poi scritta a mano in `params_reduction.json`'s `"params"`. (`pca_varimax` è implementato e testato ma oggi non ha una entry in `params_reduction.json` — non eseguibile da CLI finché non viene reintrodotta, vedi `docs/knowledge/dim_reduction.md`.)
 
 ## Le due metriche di valutazione usate
 

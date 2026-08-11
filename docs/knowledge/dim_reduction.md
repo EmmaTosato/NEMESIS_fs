@@ -3,7 +3,7 @@
 > **Implementazione:** `src/analysis/reduction.py`, `config/registry/params_reduction.json`.
 > **Meccanica dettagliata UMAP/t-SNE** (letteratura, come interpretarli): `docs/knowledge/umap_tsne_guide.md`.
 > **Come leggere gli indici di tuning** (trustworthiness, varianza spiegata): `docs/knowledge/dim_reduction_tuning_guide.md`.
-> **Rassegna più ampia di metodi** (anche non usati nel progetto): `docs/knowledge/dimensionality_reduction_methods.md`.
+> **Rassegna più ampia di metodi** (anche non usati nel progetto): `docs/knowledge/dim_reduction_literature_survey.md`.
 > **Clustering**: `docs/knowledge/clustering.md`.
 
 Guida in linguaggio semplice a cosa fa ciascun metodo di riduzione dimensionale usato nel progetto — non un manuale di ML, solo il minimo per capire cosa controlla un iperparametro in config e con qualche criterio per scegliere tra i metodi.
