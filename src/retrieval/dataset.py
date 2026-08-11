@@ -194,6 +194,17 @@ class Dataset:
                     return True
         return False
 
+    def _candidates(self, subject_id: str, item: RetrieveItem) -> list[tuple[str, Path]]:
+        """Every (template, path) pair registered for item.path_key(), for
+        this subject - whether or not the path actually exists on disk.
+        Single source of truth for how a template string maps to a candidate
+        path, shared by resolve() (what matched) and missing_templates()
+        (what didn't) so the two can never drift out of sync with each
+        other."""
+        root = self._root_for(item.object)
+        templates = self.file_patterns.templates_for(*item.path_key())
+        return [(template, root / template.format(subject_id=subject_id)) for template in templates]
+
     def resolve(self, subject_id: str, item: RetrieveItem) -> list[Path]:
         """Every existing file for this subject matching any template
         registered for item.path_key() - not just the first found. There is
@@ -212,10 +223,16 @@ class Dataset:
         (config._require_known_combinations already rejects this at load
         time); defensive for direct/programmatic use.
         """
-        root = self._root_for(item.object)
-        templates = self.file_patterns.templates_for(*item.path_key())
-        candidates = [root / template.format(subject_id=subject_id) for template in templates]
-        return [c for c in candidates if c.is_file()]
+        return [path for _, path in self._candidates(subject_id, item) if path.is_file()]
+
+    def missing_templates(self, subject_id: str, item: RetrieveItem) -> list[str]:
+        """Which of item.path_key()'s registered templates have no matching
+        file for this subject - the complement of resolve(), same candidate
+        list. Used only for reporting (see
+        retrieve_data._incomplete_message): resolve() itself never needs
+        this, it only cares about what DID match. Raises ValueError under
+        the same condition as resolve() (unregistered item.path_key())."""
+        return [template for template, path in self._candidates(subject_id, item) if not path.is_file()]
 
     def describe_absence(self, subject_id: str, item: RetrieveItem) -> str:
         """Why resolve() returned [] for this (subject, item) - call only

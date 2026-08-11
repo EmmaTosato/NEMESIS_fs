@@ -284,14 +284,34 @@ def _missing_message(ds: Dataset, name: str, subject_id: str, item: RetrieveItem
     return ReportEntry(group=group, line=f"{name}: {subject_id} - no {group} ({reason})")
 
 
-def _incomplete_message(name: str, subject_id: str, item: RetrieveItem, matched: int, total: int) -> ReportEntry:
+def _incomplete_message(
+    name: str,
+    subject_id: str,
+    item: RetrieveItem,
+    matched: int,
+    total: int,
+    missing_templates: list[str],
+) -> ReportEntry:
     """Entry for a subject who has SOME but not ALL of a leaf's registered
     templates (see DatasetStats.incomplete) - e.g. 3 of the 12 registered
     feature/func/FC-pearson atlas files. `total` comes straight from the
     registry (how many templates are registered for this item), not from
-    what any one subject happens to have."""
+    what any one subject happens to have. `missing_templates` names exactly
+    which registered template(s) didn't match (basename only - the leading
+    `{subject_id}/...` path is already redundant with `group`), so a human
+    doesn't have to diff resolved files against the registry by hand to find
+    out which one is absent."""
     group = "/".join(item.path_key())
-    return ReportEntry(group=group, line=f"{name}: {subject_id} - {group} ({matched}/{total} registered files found)")
+    missing_names = ", ".join(
+        Path(template.format(subject_id=subject_id)).name for template in missing_templates
+    )
+    return ReportEntry(
+        group=group,
+        line=(
+            f"{name}: {subject_id} - {group} "
+            f"({matched}/{total} registered files found; missing: {missing_names})"
+        ),
+    )
 
 
 def _retrieve_subject(
@@ -304,7 +324,8 @@ def _retrieve_subject(
             continue
         total = len(ds.file_patterns.templates_for(*item.path_key()))
         if len(resolved) < total:
-            stats.incomplete.append(_incomplete_message(name, subject_id, item, len(resolved), total))
+            missing = ds.missing_templates(subject_id, item)
+            stats.incomplete.append(_incomplete_message(name, subject_id, item, len(resolved), total, missing))
         group = "/".join(item.path_key())
         label = f"{name}: {subject_id} - {group}"
         for source in resolved:

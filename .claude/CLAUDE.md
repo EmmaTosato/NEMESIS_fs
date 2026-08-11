@@ -18,15 +18,17 @@ Create/update it from `environment.yml` (see `docs/setup.md` for details). Raw n
 
 **SDC pipeline (`src/sdc/`, `src/pipeline/compute_sdc.py`) cannot be run or tested locally**: it imports `bcblib` (BCBToolKit), a tool installed only in the cluster's conda environment, not in any local `nemesis` env (this Mac included). `tests/unit/test_sdc_staging_and_check.py`/`tests/integration/test_compute_sdc_pipeline.py` fail at collection with `ModuleNotFoundError: No module named 'bcblib'` outside the server — this is an environment gap, not a code regression; don't try to fix/install around it locally, and exclude those two files (`pytest --ignore=...`) when running the suite outside the cluster.
 
-## Running pipelines (SLURM)
+## Running pipelines (local vs. SLURM)
 
-This project runs on a shared cluster: every Python pipeline/script entry point (`src/pipeline/*.py`, `scripts/*.py`) is launched through an `sbatch` job script at `jobs/run_<pipeline_name>.sh` — a single file directly under `jobs/`, not a per-pipeline subfolder (only switch a pipeline to a `jobs/<name>/` subfolder if it genuinely needs more than one `.sh` script) — never invoked directly (no bare `python`/`conda run` on the login node). `jobs/run_retrieve_data.sh` is the reference example; `jobs/run_data_summary.sh` and `jobs/run_verify_retrieval.sh` follow the same shape:
+Two supported ways to invoke a pipeline entry point (`src/pipeline/*.py`, `scripts/*.py`) — every guide under `docs/guides/` documents both for its own pipeline:
 
-- `#SBATCH` header (job name, partition, cpus/mem/time, `-o`/`-e` pointing at `logs/slurm/<pipeline_name>/%j.{out,err}`) — that log directory must already exist before `sbatch` submission, SLURM does not create it.
-- `source .../conda.sh && conda activate nemesis`, then `cd` to the repo root.
-- The exact invocation documented in `docs/guides/` for that entry point (`python -m src.pipeline...` for `src/pipeline/`, `PYTHONPATH="$PROJECT_ROOT" python scripts/...` for `scripts/`, since those aren't run with `-m`).
+- **Local, direct (current default)**: `conda activate nemesis`, `cd` to the repo root, then the exact invocation from that pipeline's guide (`python -m src.pipeline...` for `src/pipeline/`, `PYTHONPATH="$PROJECT_ROOT" python scripts/...` for `scripts/`, since those aren't run with `-m`). Pipelines run directly like this for now — don't propose `sbatch`/cluster jobs unless the user asks for it, or a run genuinely needs cluster-scale resources.
+- **On the shared cluster, via `sbatch`** (production/full-scale runs, or anything that must survive a closed SSH connection): submitted through a job script at `jobs/run_<pipeline_name>.sh` — a single file directly under `jobs/`, not a per-pipeline subfolder (only switch a pipeline to a `jobs/<name>/` subfolder if it genuinely needs more than one `.sh` script) — never invoked directly (no bare `python`/`conda run` on the login node). `jobs/run_retrieve_data.sh` is the reference example; `jobs/run_data_summary.sh` and `jobs/run_verify_retrieval.sh` follow the same shape:
+  - `#SBATCH` header (job name, partition, cpus/mem/time, `-o`/`-e` pointing at `logs/slurm/<pipeline_name>/%j.{out,err}`) — that log directory must already exist before `sbatch` submission, SLURM does not create it.
+  - `source .../conda.sh && conda activate nemesis`, then `cd` to the repo root.
+  - The same invocation as the local case, taken from the pipeline's guide.
 
-Resource values in `jobs/` are conservative starting points (this is I/O-bound file-copying work, not compute-heavy), not fixed — adjust `--cpus-per-task`/`--mem`/`-t` per job as needed. When a new pipeline/script is added under `src/pipeline/` or `scripts/`, add a matching `jobs/run_<name>.sh` at the same time, not as an afterthought.
+Resource values in `jobs/` are conservative starting points (this is I/O-bound file-copying work, not compute-heavy), not fixed — adjust `--cpus-per-task`/`--mem`/`-t` per job as needed. When a new pipeline/script is added under `src/pipeline/` or `scripts/`, add a matching `jobs/run_<name>.sh` at the same time, not as an afterthought — it's needed the moment that pipeline runs on the cluster, even if only run locally for now.
 
 ## Repository structure
 
@@ -42,7 +44,7 @@ Resource values in `jobs/` are conservative starting points (this is I/O-bound f
   - Within each paper folder: `markdown/_full.md` is the full extracted text (read this for paper content) — `manifest.json` and `figures.json` describe extraction metadata and page/figure mapping, `figures/` holds page-level SVG/PNG renders. Not every folder has a full docling extraction (e.g. `chunks.jsonl`, `tables.json`, `docling_document.json` referenced in `manifest.json` are frequently absent) — check what's actually present rather than assuming the full file set from the manifest.
 - `src/` — project source code: `retrieval/`, `atlases/`, `features/`, `sdc/`, `analysis/`, `utils/`, and `pipeline/` (CLI entry points).
 - `scripts/` — accessory/one-off scripts (data organization, setup utilities), not the main pipeline code.
-- `jobs/` — one `sbatch` job script per `src/pipeline/`/`scripts/` entry point (see "Running pipelines (SLURM)" above).
+- `jobs/` — one `sbatch` job script per `src/pipeline/`/`scripts/` entry point, for cluster runs (see "Running pipelines (local vs. SLURM)" above).
 
 ## Working in this repo
 
