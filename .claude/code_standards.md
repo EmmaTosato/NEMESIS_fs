@@ -110,6 +110,12 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 
 ---
 
+## 9. Git e Automazione
+
+- **Nessun commit automatico da parte dell'AI**: L'assistente non deve mai creare o eseguire commit in modo automatico senza una esplicita richiesta dell'utente. Le modifiche vanno solo apportate ai file.
+
+---
+
 ## Riferimenti
 
 - [`.claude/CLAUDE.md`](../.claude/CLAUDE.md) — struttura repo e convenzioni generali NEMESIS

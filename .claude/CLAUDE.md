@@ -48,6 +48,7 @@ Resource values in `jobs/` are conservative starting points (this is I/O-bound f
 
 - Treat `README.md` + `docs/guides/`/`docs/dev/` as the current-state synthesis of project goals/scope, and `management/meetings/` + `papers/*/markdown/_full.md` as the primary sources behind it — cross-reference the originals when reasoning about project design or when `docs/` doesn't cover something.
 - When new papers are added under `papers/`, add them to `papers/paper_lists.md` for consistency with the existing index.
+- **Never make git commits automatically**. Do not run `git commit` unless explicitly requested by the user.
 
 ## Code standards
 
