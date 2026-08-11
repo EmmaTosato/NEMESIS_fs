@@ -8,7 +8,7 @@ Questa pipeline calcola la **SDC (Structural Disconnectome)** per ogni soggetto 
 
 ---
 
-## 🔄 Flusso in 3 Fasi (`manifest`, `run`, `aggregate`)
+## Flusso in 3 Fasi (`manifest`, `run`, `aggregate`)
 
 Dato che i tool sottostanti lavorano su intere directory e non singoli file, lo script usa tre fasi eseguite in sequenza per gestire staging e parallelismo.
 
@@ -31,7 +31,7 @@ Dato che i tool sottostanti lavorano su intere directory e non singoli file, lo 
 
 ---
 
-## 🚀 Esecuzione
+## Esecuzione
 
 ### Tramite SLURM (Produzione)
 Si tratta di tre job in sequenza (il secondo è un array):
@@ -57,7 +57,7 @@ jobs/run_compute_sdc_no_slurm.sh config/pipelines/compute_sdc.json
 
 ---
 
-## ⚙️ Dettaglio Parametri JSON
+## Dettaglio Parametri JSON
 
 | Campo | Tipo | Descrizione |
 | :--- | :--- | :--- |
@@ -76,7 +76,7 @@ jobs/run_compute_sdc_no_slurm.sh config/pipelines/compute_sdc.json
 
 ---
 
-## 📂 Struttura Cartelle di Output
+## Struttura Cartelle di Output
 
 ```text
 data/derived/sdc/<session_name>/

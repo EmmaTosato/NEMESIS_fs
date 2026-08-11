@@ -7,7 +7,7 @@ Questa guida illustra l'uso di due pipeline accoppiate per processare le Matrici
 
 ---
 
-## 🧠 Perché Due Pipeline Separate?
+## Perché Due Pipeline Separate?
 
 Per ragioni di flessibilità e ispezione clinica, il processo è diviso:
 
@@ -18,7 +18,7 @@ Per ragioni di flessibilità e ispezione clinica, il processo è diviso:
 
 ---
 
-## 🚀 Esecuzione in Produzione
+## Esecuzione in Produzione
 
 ### Fase 1. Masking (sul server, via SLURM)
 ```bash
@@ -37,7 +37,7 @@ sbatch jobs/run_build_fc_matrix.sh
 
 ---
 
-## ⚙️ Dettaglio Parametri Importanti
+## Dettaglio Parametri Importanti
 
 ### Il Filtro `group_filter`
 Dataset come `UNIPD/WashU` contengono sia pazienti affetti da ictus (`ST`) sia controlli sani (`HC`).
@@ -49,8 +49,8 @@ In `mask_fc.json` e `build_fc_matrix.json` puoi specificare:
 
 ---
 
-## 🔎 Cosa C'è e Cosa Manca nell'Output (Per Design)
+## Cosa C'è e Cosa Manca nell'Output (Per Design)
 
-- ⚠️ **I Valori NaN restano NaN**: Al termine di questa pipeline, le connessioni distrutte rimangono vuote (`NaN`). **Non vi è ancora imputazione**. L'imputazione intelligente dei dati mancanti avverrà in un passaggio separato appena prima della *Dim Reduction*.
-- 🧹 **Pulizia Connessioni**: Connessioni che restano magicamente costanti identiche per tutti i pazienti (rarissimo, ma possibile) vengono automaticamente rimosse e loggate per ottimizzare i dati per il Machine Learning.
-- 🚫 **Soglie di Esclusione Paziente**: Nonostante in `mask_summary.csv` si sappia quanti nodi il paziente ha distrutto, **è una decisione progettuale non implementare una soglia**. Nessun paziente viene "escluso" per troppi danni in questa fase.
+- **I Valori NaN restano NaN**: Al termine di questa pipeline, le connessioni distrutte rimangono vuote (`NaN`). **Non vi è ancora imputazione**. L'imputazione intelligente dei dati mancanti avverrà in un passaggio separato appena prima della *Dim Reduction*.
+- **Pulizia Connessioni**: Connessioni che restano magicamente costanti identiche per tutti i pazienti (rarissimo, ma possibile) vengono automaticamente rimosse e loggate per ottimizzare i dati per il Machine Learning.
+- **Soglie di Esclusione Paziente**: Nonostante in `mask_summary.csv` si sappia quanti nodi il paziente ha distrutto, **è una decisione progettuale non implementare una soglia**. Nessun paziente viene "escluso" per troppi danni in questa fase.

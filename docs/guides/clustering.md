@@ -7,7 +7,7 @@ Questa guida illustra l'uso dello script `clustering.py`. L'obiettivo è analizz
 
 ---
 
-## 🚀 Esecuzione
+## Esecuzione
 
 ### 1. Sul Server (tramite SLURM)
 L'esecuzione tramite SLURM previene interruzioni dovute alla chiusura della connessione.
@@ -23,7 +23,7 @@ python -m src.pipeline.clustering --config config/pipelines/clustering.json
 
 ---
 
-## 🧠 Cos'è il Clustering?
+## Cos'è il Clustering?
 
 Mentre la *Dim Reduction* semplifica le informazioni, il **Clustering fa un passo interpretativo**. Analizza le "distanze matematiche" tra i pazienti e raggruppa i soggetti "vicini" assegnando loro un'etichetta (es. "Tipo 1"). 
 
@@ -31,7 +31,7 @@ Mentre la *Dim Reduction* semplifica le informazioni, il **Clustering fa un pass
 
 ---
 
-## 🔄 Modalità di Funzionamento
+## Modalità di Funzionamento
 
 ### 1. Modalità Fine-Tuning (`"fine_tuning": true`)
 Utilizzata per trovare la configurazione ottimale. Calcola indici interni di compattezza per ogni combinazione di parametri in `config/registry/params_clustering.json`.
@@ -50,7 +50,7 @@ Genera i cluster definitivi usando i parametri precedentemente scelti in `config
 
 ---
 
-## ⚙️ Dettaglio Parametri JSON (`clustering.json`)
+## Dettaglio Parametri JSON (`clustering.json`)
 
 | Parametro | Tipo | Descrizione |
 | :--- | :--- | :--- |
@@ -68,7 +68,7 @@ Genera i cluster definitivi usando i parametri precedentemente scelti in `config
 
 ---
 
-## 📂 Output e Grafici
+## Output e Grafici
 
 A seconda della modalità, vengono generati risultati diversi.
 

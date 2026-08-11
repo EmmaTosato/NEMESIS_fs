@@ -7,7 +7,7 @@ Questa guida illustra il funzionamento della pipeline di Retrieval. L'obiettivo 
 
 ---
 
-## 🚀 Esecuzione
+## Esecuzione
 
 ### 1. Sul Server (tramite SLURM)
 Questa è l'esecuzione di Produzione, lavora direttamente sulla master source.
@@ -23,7 +23,7 @@ python -m src.pipeline.retrieve_data --config config/pipelines/retrieval_local.j
 
 ---
 
-## 🧠 Flusso e Funzionamento dello Script
+## Flusso e Funzionamento dello Script
 
 Lo script consulta le regole passate nel JSON e scansiona il mount indicato in cerca delle informazioni (Es. Maschere di lesione o Matrici FC).
 Non si "interrompe in errore" se a un paziente mancano dei file; bensì estrae tutto il possibile e genera un solido e utilissimo report log per l'umano indicante chi manca all'appello. 
@@ -32,7 +32,7 @@ Tutti i dati estratti sono considerati "Derivati" in quanto soggetti ad elaboraz
 
 ---
 
-## ⚙️ Dettaglio Parametri JSON
+## Dettaglio Parametri JSON
 
 I parametri decidono esattamente cosa e per chi estrarre.
 
@@ -65,7 +65,7 @@ I parametri decidono esattamente cosa e per chi estrarre.
 
 ---
 
-## 📂 Output e Report
+## Output e Report
 
 - I dati prelevati finiscono riorganizzati sotto la struttura standard `data/<project_name>/derivatives/...` nel tuo locale.
 - **Fondamentale**: Terminato il job, analizza `summaries/data_retrieval/<project_name>/copy_summary__<data>.md`. Questo file in chiaro descriverà quante cartelle sono state scansionate, chi è incompleto, chi manca di file lesione e il perché. Essenziale per il troubleshooting senza sfogliare a mano 300 pazienti.

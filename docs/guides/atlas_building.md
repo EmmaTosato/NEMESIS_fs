@@ -7,7 +7,7 @@ Questa guida descrive l'uso della pipeline `build_combined_atlas.py`, un pre-req
 
 ---
 
-## 🚀 Esecuzione
+## Esecuzione
 
 ### 1. Sul Server (tramite SLURM)
 L'esecuzione tramite SLURM previene interruzioni dovute alla chiusura della connessione.
@@ -23,7 +23,7 @@ python -m src.pipeline.build_combined_atlas --config config/pipelines/build_comb
 
 ---
 
-## 🧠 Cos'è l'Atlas Building?
+## Cos'è l'Atlas Building?
 
 Un "Atlante Cerebrale" in neuroimaging è un file immagine 3D (un volume NIfTI) in cui a diverse zone del cervello sono assegnati valori interi univoci (es. `1` = corteccia visiva primaria, `2` = ippocampo, `0` = sfondo). Funge da "stampino" per dividere il cervello in sezioni logiche.
 
@@ -38,7 +38,7 @@ In neuroscienze è spesso necessario unire atlanti diversi per combinare dettagl
 
 ---
 
-## ⚙️ Dettaglio Parametri JSON
+## Dettaglio Parametri JSON
 
 Impostazioni in `config/pipelines/build_combined_atlas.json`:
 
@@ -52,7 +52,7 @@ Impostazioni in `config/pipelines/build_combined_atlas.json`:
 
 ---
 
-## 🔄 Flusso di Esecuzione
+## Flusso di Esecuzione
 
 1. **Verifica Geometria**: Controlla che gli atlanti condividano stessa risoluzione e allineamento spaziale.
 2. **Fusione e Indici**: Inserisce le 12 strutture sottocorticali nell'atlante corticale mantenendo la convenzione Glasser:
@@ -63,10 +63,10 @@ Impostazioni in `config/pipelines/build_combined_atlas.json`:
 
 ---
 
-## 📂 Output Generato
+## Output Generato
 
 L'esecuzione produce:
 
-- 🧊 **File NIfTI (`.nii.gz`)**: Il volume 3D matematico, da usare come `atlas_path` nel *Matrix Building*.
-- 📊 **Tabella Etichette (`.csv`)**: Legenda strutturata con colonne come `Value`, `Name`, `Hemisphere` (con `L`/`R`), e `Source`.
-- 📝 **Report di Costruzione**: Un documento di riepilogo salvato in `summaries/build_combined_atlas/`.
+- **File NIfTI (`.nii.gz`)**: Il volume 3D matematico, da usare come `atlas_path` nel *Matrix Building*.
+- **Tabella Etichette (`.csv`)**: Legenda strutturata con colonne come `Value`, `Name`, `Hemisphere` (con `L`/`R`), e `Source`.
+- **Report di Costruzione**: Un documento di riepilogo salvato in `summaries/build_combined_atlas/`.

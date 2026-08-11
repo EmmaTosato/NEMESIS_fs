@@ -6,7 +6,7 @@ I dati grezzi e processati risiedono sul server **EBRAIN**, accessibili tramite 
 
 ---
 
-## 📊 Coorti Cliniche Supportate
+## Coorti Cliniche Supportate
 
 Attualmente sono gestite 4 coorti. Sebbene sia in corso un processo di armonizzazione (usando lo standard `BIDS`), storicamente derivano da acquisizioni diverse. Le risoluzioni geometriche differiscono tra gli ospedali.
 
@@ -17,12 +17,12 @@ Attualmente sono gestite 4 coorti. Sebbene sia in corso un processo di armonizza
 | **`UNIPD/PASPORT`** | ~97 | 1.0 mm | Presente (maggior parte) |
 | **`UKLFR/stroke_UKLFR`**| ~735 | 1.5 mm | Presente (quasi totalità) |
 
-> ⚠️ **Nota vitale per la matrice lesionale**: 
+> **Nota vitale per la matrice lesionale**: 
 > Data la disparità del Voxel Size (da 1 a 2 mm), durante l'esecuzione di `build_lesion_matrix` viene effettuato un **resampling spaziale**. Le lesioni vengono "deformate" e allineate su un'unica griglia omogenea (il `reference_template_path`), tipicamente a 2mm per rispettare lo standard MNI152 di FSL.
 
 ---
 
-## 🗂️ Tipi di Dato (Objects) Esistenti
+## Tipi di Dato (Objects) Esistenti
 
 La pipeline *Retrieve Data* pesca "oggetti" da sorgenti asimmetriche. Questo significa che non tutte le informazioni esistono contemporaneamente per ogni dataset.
 

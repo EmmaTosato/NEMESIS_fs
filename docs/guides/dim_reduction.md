@@ -7,7 +7,7 @@ Questa guida descrive l'utilizzo della pipeline `dim_reduction.py`. Il suo scopo
 
 ---
 
-## 🚀 Esecuzione
+## Esecuzione
 
 ### 1. Sul Server (tramite SLURM)
 L'esecuzione tramite SLURM previene interruzioni dovute alla chiusura della connessione.
@@ -23,13 +23,13 @@ python -m src.pipeline.dim_reduction --config config/pipelines/dim_reduction.jso
 
 ---
 
-## 🧠 Cos'è la Riduzione della Dimensionalità?
+## Cos'è la Riduzione della Dimensionalità?
 
 Immagina una matrice *Voxel-wise*: ogni paziente è definito da centinaia di migliaia di voxel. Non è possibile graficare 800.000 assi. Gli algoritmi di riduzione riassumono il paziente in 2, 3 o più "coordinate". Se chiedi 2 coordinate, puoi visualizzare ogni paziente su un grafico X/Y. Pazienti clinicamente o strutturalmente simili si troveranno vicini.
 
 ---
 
-## 🔄 Modalità di Funzionamento
+## Modalità di Funzionamento
 
 ### 1. Modalità Fine-Tuning (`"fine_tuning": true`)
 Gli algoritmi (come UMAP o t-SNE) richiedono parametri non universali, come `n_neighbors`. **Non esiste un valore giusto a priori.** 
@@ -42,7 +42,7 @@ Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modal
 
 ---
 
-## ⚙️ Dettaglio Parametri JSON (`dim_reduction.json`)
+## Dettaglio Parametri JSON (`dim_reduction.json`)
 
 | Parametro | Tipo | Descrizione |
 | :--- | :--- | :--- |
@@ -54,13 +54,13 @@ Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modal
 | **`session_name`** | *Stringa* | Nome dell'esperimento (es. `"umap_test_1"`). |
 | **`overwrite`** | *Booleano* | Se `true`, sovrascrive esecuzioni preesistenti aventi lo stesso nome. |
 | **`fine_tuning`** | *Booleano* | Attiva/disattiva il *grid search* dei parametri. |
-| **`regress_out_volume`**| *Booleano* | Rimuove linearmente l'effetto volume lesionale. **⚠️ Incompatibile** con metriche `jaccard` o `dice`. |
+| **`regress_out_volume`**| *Booleano* | Rimuove linearmente l'effetto volume lesionale. **Incompatibile** con metriche `jaccard` o `dice`. |
 | **`viz_n_components`** | *Intero (2 o 3)* | Dimensioni fisse del plot grafico, anche se la compressione vera è a più dimensioni. Evita distorsioni di "taglio". A `3`, fornisce solo l'HTML interattivo ruotabile. |
 | **`color_by`** | *Lista* | Genera plot colorati per specifici tag: `"dataset"`, `"side"`, `"volume"`, `"nihss"`. |
 
 ---
 
-## 📂 Output e Diari Storici
+## Output e Diari Storici
 
 I risultati sono salvati in `results/lesion/dim_reduction/<metodo>/<Data>_<session_name>_<tag>`.
 

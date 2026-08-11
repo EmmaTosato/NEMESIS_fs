@@ -7,7 +7,7 @@ Questa guida illustra in modo dettagliato come utilizzare la pipeline `build_les
 
 ---
 
-## 🚀 Esecuzione
+## Esecuzione
 
 ### 1. Sul Server (tramite SLURM)
 L'esecuzione tramite SLURM previene interruzioni dovute alla chiusura della connessione.
@@ -23,7 +23,7 @@ python -m src.pipeline.build_lesion_matrix --config config/pipelines/build_lesio
 
 ---
 
-## 🧠 Cos'è il "Matrix Building"?
+## Cos'è il "Matrix Building"?
 
 Le lesioni 3D binarie (sano=0, rotto=1) dei pazienti devono essere allineate e standardizzate. Lo script estrae i dati spaziali e li "appiattisce" in una tabella matematica a 2 Dimensioni:
 - **Righe**: Rappresentano i singoli pazienti.
@@ -31,7 +31,7 @@ Le lesioni 3D binarie (sano=0, rotto=1) dei pazienti devono essere allineate e s
 
 ---
 
-## 🔄 Categorie (Le due Vie del Matrix Building)
+## Categorie (Le due Vie del Matrix Building)
 
 ### Categoria 1: Matrice Voxel-wise (Massima Risoluzione)
 Il cervello viene mantenuto in alta definizione.
@@ -49,7 +49,7 @@ La lesione viene sovrapposta a un Atlante che divide la materia grigia e bianca 
 
 ---
 
-## ⚙️ Dettaglio Parametri JSON
+## Dettaglio Parametri JSON
 
 Spiegazione delle chiavi di `config/pipelines/build_lesion_matrix.json`:
 
@@ -73,7 +73,7 @@ Spiegazione delle chiavi di `config/pipelines/build_lesion_matrix.json`:
 
 ---
 
-## 📂 Struttura dell'Output Finale
+## Struttura dell'Output Finale
 
 L'output vive in `data/derived/lesion_matrix/<GIORNO-MESE>_<session_name>/` e contiene:
 

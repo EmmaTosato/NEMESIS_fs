@@ -7,7 +7,7 @@ Questa guida riguarda lo script più utilizzato nell'intero progetto NEMESIS: `d
 
 ---
 
-## 🚀 Esecuzione
+## Esecuzione
 
 ### 1. Sul Server (tramite SLURM)
 L'esecuzione tramite SLURM previene interruzioni dovute alla chiusura della connessione.
@@ -23,14 +23,14 @@ python -m src.pipeline.dim_reduction_clustering --config config/pipelines/dim_re
 
 ---
 
-## 🧠 La "Scorciatoia" d'Eccellenza
+## La "Scorciatoia" d'Eccellenza
 
 Invece di eseguire faticosamente e manualmente prima lo script di Riduzione e, in seguito, quello di Clustering, questo script compie **entrambi i passaggi consecutivamente**.
 Prende i dati grezzi, comprime lo spazio geometrico usando **UN** singolo algoritmo, e in cascata vi applica **MOLTEPLICI** algoritmi di clustering, generando anche file di comparazione automatica.
 
 ---
 
-## ⚙️ Dettaglio Parametri JSON
+## Dettaglio Parametri JSON
 
 I parametri uniscono quelli di `dim_reduction` e `clustering`:
 
@@ -53,7 +53,7 @@ I parametri uniscono quelli di `dim_reduction` e `clustering`:
 
 ---
 
-## 🔎 Note Fondamentali sul Funzionamento Interno
+## Note Fondamentali sul Funzionamento Interno
 
 - **La Riduzione NON si tara mai in questo script**: la `dim_reduction` avviene qui sempre "in produzione", prendendo i valori finali fissati su `reduction_params_file`. Per tarare UMAP o PCA, devi usare prima lo script isolato.
 - Il flag **`fine_tuning: true` qui serve solo a tarare gli algoritmi di clustering** sullo spazio appena compresso.
@@ -61,7 +61,7 @@ I parametri uniscono quelli di `dim_reduction` e `clustering`:
 
 ---
 
-## 📂 Organizzazione e Output Generato
+## Organizzazione e Output Generato
 
 L'output viene salvato nella root dedicata e organizzato ad albero (Riduzione ➔ Clustering):
 ```text
