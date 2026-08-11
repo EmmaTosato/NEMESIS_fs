@@ -1,2 +1,3 @@
 session,id,timestamp,params,output,notes
 s1.1,d00,23-07-26 17:55,"{""n_neighbors"": 5, ""min_dist"": 0.0, ""n_components"": 2, ""random_state"": 0}",results/lesion/dim_reduction/umap/23-07_s1.1_d00,"UMAP production run on voxel-wise lesion matrix (21-07_s1.1), best params from existing tuning sweep (n_neighbors=5, min_dist=0.0, trustworthiness=0.740)"
+s1.1,nc2_m_dice,11-08-26 19:14,"{""n_neighbors"": 15, ""min_dist"": 0.0, ""n_components"": 2, ""random_state"": 0, ""metric"": ""dice""}",results/lesion/dim_reduction/production/umap/11-08_s1.1_nc2_m_dice,"first production of dimensionality reduction after specialized tuning - metric=dice, n_components=2"
