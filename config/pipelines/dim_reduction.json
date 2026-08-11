@@ -11,5 +11,6 @@
   "color_by": ["dataset", "side", "volume", "nihss"],
   "viz_n_components": 2,
   "write_embeddings_grid": true,
-  "run_notes": "umap tuning: dice + euclidean (regress_out_volume=False fisso, jaccard escluso - quasi ridondante con dice, stesso ordinamento kNN a meno di trasformazione monotona), su tutte le n_components (2/5/10, nested) x n_neighbors (5/15/30/50/100) x min_dist esteso (0/0.01/0.05/0.1/0.5/1.0, grid) - per scegliere min_dist di produzione con l'embedding orientato al clustering a valle, non solo alla trustworthiness."
+  "save_tuning_embeddings": true,
+  "run_notes": "umap tuning: dice + euclidean (regress_out_volume=False fisso, jaccard escluso - quasi ridondante con dice, stesso ordinamento kNN a meno di trasformazione monotona), n_components fissato a 2 (non sweeppato questo giro - serve gia' pronto per la visualizzazione) x n_neighbors (5/15/30/50/100) x min_dist esteso (0/0.01/0.05/0.1/0.5/1.0, grid allineata a pair-code.github.io/understanding-umap) - nested per metric (2 foglie: dice, euclidean), regress_out_volume fisso - per scegliere min_dist di produzione con l'embedding orientato al clustering a valle, non solo alla trustworthiness."
 }

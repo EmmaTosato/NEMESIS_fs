@@ -98,7 +98,9 @@ def replot(run_dir: Path) -> list[Path]:
 
 
 def _replot_clustering(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> list[Path]:
-    # <output_root>/<reduction_method>/<clustering_method>/<dd-mm>_<tag>
+    # <output_root>/production/<reduction_method>/<clustering_method>/<dd-mm>_<tag> - only the 2
+    # levels immediately above run_dir matter here (clustering_method, then reduction_method);
+    # whatever sits above that (production/, or nothing, pre-2026-08) is never inspected.
     reduction_method = run_dir.parent.parent.name
     clustering_method = run_dir.parent.name
     xlabel, ylabel = f"{reduction_method} dim 1", f"{reduction_method} dim 2"
@@ -118,7 +120,8 @@ def _replot_embedding(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> l
             "this script knows about; rerun src.pipeline.dim_reduction to regenerate it"
         )
 
-    # <output_root>/<reduction_method>/<dd-mm>_<tag>
+    # <output_root>/production/<reduction_method>/<dd-mm>_<tag> - only the 1 level immediately
+    # above run_dir matters here; whatever sits above that is never inspected.
     reduction_method = run_dir.parent.name
     xlabel, ylabel = f"{reduction_method} dim 1", f"{reduction_method} dim 2"
     output_paths = []

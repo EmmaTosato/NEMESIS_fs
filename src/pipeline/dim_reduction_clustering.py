@@ -12,7 +12,7 @@ src/features/clinical.py::enrich_metadata_with_lesion_info - the same
 enrichment dim_reduction.py always persists, shared so a result from this
 pipeline carries the same columns regardless of which one produced it. Each
 method writes its own artifact under
-<output_root>/<reduction_method>/<clustering_method>/<dd-mm>_<session_name>/:
+<output_root>/production/<reduction_method>/<clustering_method>/<dd-mm>_<session_name>/:
 the embedding as matrix.npy, cluster_label appended to that enriched
 metadata.csv, a static
 2D scatter plot colored by cluster (cluster_plot.png) for a first visual
@@ -23,12 +23,12 @@ every metadata column per point, and a per-sample silhouette diagnostic
 skipped with a warning if the chosen result is degenerate (fewer than 2
 non-noise clusters). Every clustering method run against the same
 reduction shares one run history,
-<output_root>/<reduction_method>/runs.csv (see src/utils/run_log.py),
+<output_root>/production/<reduction_method>/runs.csv (see src/utils/run_log.py),
 distinguished by its leading reduction_method/clustering_method columns.
 When more than one clustering method is requested, an additional side-by-side
 comparison (static cluster_comparison.png + interactive
 cluster_comparison_interactive.html, dropdown per method) is written to
-<output_root>/<reduction_method>/comparison/<reduction_method>_<dd-mm>_<session_name>/.
+<output_root>/production/<reduction_method>/comparison/<reduction_method>_<dd-mm>_<session_name>/.
 
 `fine_tuning: true` switches to fine-tuning mode: the reduction step still
 runs exactly once, at its already-chosen production params (never swept here
@@ -41,10 +41,14 @@ to save_matrix-ing the embedding via dim_reduction.py and separately pointing
 clustering.py --fine_tuning at it: useful when you only want to tune
 clustering on a specific reduction without needing that embedding saved to
 disk as its own artifact. Output per method:
-<output_root>/<reduction_method>/<method>/tuning/<dd-mm>_<session_name>/
+<output_root>/tuning/<reduction_method>/<method>/<dd-mm>_<session_name>/
 {tuning_results.csv, tuning_plot.png, config.md} plus a standalone diagnostic
 plot for agglomerative/spectral. No comparison plot in this mode - a
 sweep's rows aren't a single set of cluster labels to compare side by side.
+
+Output lives under two separate branches of output_root, never mixed:
+<output_root>/production/... (embeddings/plots/comparison, runs.csv) and
+<output_root>/tuning/... (sweep tables/plots, runs_tuning.csv).
 """
 
 from __future__ import annotations
@@ -177,7 +181,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if config.color_by:
         embedding_dir = (
-            config.output_root / config.reduction_method / "embedding" / f"{now.strftime('%d-%m')}_{effective_reduction_session}"
+            config.output_root
+            / "production"
+            / config.reduction_method
+            / "embedding"
+            / f"{now.strftime('%d-%m')}_{effective_reduction_session}"
         )
         write_embedding_plots(
             viz_embedding,
@@ -200,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
 
     comparison_dir = (
         config.output_root
+        / "production"
         / config.reduction_method
         / "comparison"
         / f"{config.reduction_method}_{now.strftime('%d-%m')}_{effective_reduction_session}"
@@ -234,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
         "",
         "Individual outputs:",
     ]
-    lines += [f"- `{config.output_root / _method_dir(config, m)}`" for m in config.clustering_methods]
+    lines += [f"- `{config.output_root / 'production' / _method_dir(config, m)}`" for m in config.clustering_methods]
     comparison_dir.mkdir(parents=True, exist_ok=True)
     (comparison_dir / "config.md").write_text("\n".join(lines) + "\n")
 
@@ -274,7 +283,7 @@ def _run_one_method(
     tags = [t for t in (reduction_tag, clustering_tag) if t]
     effective_session_name = config.session_name + ("_" + "_".join(tags) if tags else "")
 
-    output_dir = config.output_root / _method_dir(config, method) / f"{now.strftime('%d-%m')}_{effective_session_name}"
+    output_dir = config.output_root / "production" / _method_dir(config, method) / f"{now.strftime('%d-%m')}_{effective_session_name}"
     try:
         save_matrix(
             output_dir,
@@ -328,7 +337,7 @@ def _run_one_method(
 
     try:
         append_run_log_entry(
-            config.output_root / config.reduction_method,
+            config.output_root / "production" / config.reduction_method,
             effective_session_name,
             now,
             "production",
@@ -484,9 +493,9 @@ def _run_one_method_tuning(
 
     output_dir = (
         config.output_root
+        / "tuning"
         / config.reduction_method
         / method
-        / "tuning"
         / f"{now.strftime('%d-%m')}_{config.session_name}"
     )
     try:
@@ -498,7 +507,7 @@ def _run_one_method_tuning(
 
     try:
         append_run_log_entry(
-            config.output_root / config.reduction_method,
+            config.output_root / "tuning" / config.reduction_method,
             config.session_name,
             now,
             "tuning",

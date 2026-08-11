@@ -106,7 +106,7 @@ def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
     exit_code = dim_reduction_clustering.main(["--config", str(cfg_path)])
     assert exit_code == 0
 
-    out_dir = next(p for p in (output_root / "pca" / "kmeans").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "pca" / "kmeans").iterdir() if p.is_dir())
     embedding = np.load(out_dir / "matrix.npy")
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert embedding.shape == (12, 2)
@@ -120,7 +120,7 @@ def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
     assert "plotly" in interactive_html
     assert "Color by" not in interactive_html  # cluster-only coloring, no dataset toggle
 
-    with (output_root / "pca" / "runs.csv").open(newline="") as f:
+    with (output_root / "production" / "pca" / "runs.csv").open(newline="") as f:
         runs_rows = list(csv.DictReader(f))
     assert len(runs_rows) == 1
     assert runs_rows[0]["reduction_method"] == "pca"
@@ -169,18 +169,18 @@ def test_dim_reduction_clustering_end_to_end_multiple_methods_writes_comparison_
     assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
 
     for method in ("kmeans", "agglomerative"):
-        out_dir = next(p for p in (output_root / "pca" / method).iterdir() if p.is_dir())
+        out_dir = next(p for p in (output_root / "production" / "pca" / method).iterdir() if p.is_dir())
         embedding = np.load(out_dir / "matrix.npy")
         assert embedding.shape == (12, 2)
         assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
     # both methods share one runs.csv under the reduction folder, distinguished by clustering_method
-    with (output_root / "pca" / "runs.csv").open(newline="") as f:
+    with (output_root / "production" / "pca" / "runs.csv").open(newline="") as f:
         runs_rows = list(csv.DictReader(f))
     assert [row["clustering_method"] for row in runs_rows] == ["kmeans", "agglomerative"]
     assert all(row["reduction_method"] == "pca" for row in runs_rows)
 
-    comparison_dir = next(p for p in (output_root / "pca" / "comparison").iterdir() if p.is_dir())
+    comparison_dir = next(p for p in (output_root / "production" / "pca" / "comparison").iterdir() if p.is_dir())
     assert comparison_dir.name.startswith("pca_")
     assert (comparison_dir / "cluster_comparison.png").stat().st_size > 0
     assert (comparison_dir / "cluster_comparison_interactive.html").stat().st_size > 0
@@ -236,7 +236,7 @@ def test_dim_reduction_clustering_fine_tuning_kmeans_sweeps_against_one_embeddin
 
     assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next((output_root / "pca" / "kmeans" / "tuning").iterdir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "pca" / "kmeans").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_results.csv").is_file()
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
     assert not (tuning_dir / "matrix.npy").exists()  # a sweep is not a matrix artifact
@@ -256,10 +256,10 @@ def test_dim_reduction_clustering_fine_tuning_kmeans_sweeps_against_one_embeddin
 
     # no comparison plot in tuning mode - only one method's sweep, and a sweep
     # isn't a single set of cluster labels to compare side by side anyway
-    assert not (output_root / "pca" / "comparison").exists()
+    assert not (output_root / "production" / "pca" / "comparison").exists()
 
-    assert not (output_root / "pca" / "runs.csv").exists()  # tuning writes runs_tuning.csv, not runs.csv
-    with (output_root / "pca" / "runs_tuning.csv").open(newline="") as f:
+    assert not (output_root / "production" / "pca" / "runs.csv").exists()  # tuning writes runs_tuning.csv, not runs.csv
+    with (output_root / "tuning" / "pca" / "runs_tuning.csv").open(newline="") as f:
         runs_rows = list(csv.DictReader(f))
     assert runs_rows[0]["reduction_method"] == "pca"
     assert runs_rows[0]["clustering_method"] == "kmeans"
@@ -306,7 +306,7 @@ def test_dim_reduction_clustering_fine_tuning_two_swept_params_writes_heatmap(tm
 
     assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next((output_root / "pca" / "agglomerative" / "tuning").iterdir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "pca" / "agglomerative").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0  # heatmap, not the 1-param line plot
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
@@ -362,7 +362,7 @@ def test_dim_reduction_clustering_fine_tuning_overwrite_wipes_stale_plot_from_in
     cfg_path.write_text(json.dumps(_cfg(overwrite=False)))
     assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next((output_root / "pca" / "kmeans" / "tuning").iterdir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "pca" / "kmeans").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
 
     # Run 2: same output_dir, overwrite=True, but 3 swept params - no plot
@@ -427,7 +427,7 @@ def test_dim_reduction_clustering_fine_tuning_agglomerative_writes_dendrogram(tm
 
     assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next((output_root / "pca" / "agglomerative" / "tuning").iterdir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "pca" / "agglomerative").iterdir() if p.is_dir())
     assert (tuning_dir / "dendrogram.png").stat().st_size > 0  # standalone diagnostic, agglomerative-only
 
 
@@ -513,7 +513,7 @@ def test_dim_reduction_clustering_regress_out_volume_changes_embedding(tmp_path,
         cfg_path = tmp_path / f"drc_{session_name}.json"
         cfg_path.write_text(json.dumps(cfg))
         assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
-        out_dir = next(p for p in (output_root / "pca" / "kmeans").iterdir() if session_name in p.name)
+        out_dir = next(p for p in (output_root / "production" / "pca" / "kmeans").iterdir() if session_name in p.name)
         return np.load(out_dir / "matrix.npy")
 
     embedding_plain = _run(False, "plain")
@@ -693,12 +693,12 @@ def test_dim_reduction_clustering_viz_embedding_refit_when_n_components_above_vi
 
     assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "umap" / "kmeans").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "umap" / "kmeans").iterdir() if p.is_dir())
     embedding = np.load(out_dir / "matrix.npy")
     assert embedding.shape == (12, 4)  # the real, saved clustering embedding - unaffected by viz
     assert (out_dir / "cluster_plot.png").stat().st_size > 0  # still a valid 2D plot, not a broken slice
 
-    embedding_dir = next(p for p in (output_root / "umap" / "embedding").iterdir() if p.is_dir())
+    embedding_dir = next(p for p in (output_root / "production" / "umap" / "embedding").iterdir() if p.is_dir())
     assert (embedding_dir / "embedding_plot_dataset.png").stat().st_size > 0
 
 

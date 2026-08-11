@@ -24,7 +24,7 @@ convention as dim_reduction.py:
   skipped with a warning if the chosen result is degenerate (fewer than 2
   non-noise clusters). When more than one method is requested, an additional
   side-by-side comparison plot is written to
-  <output_root>/comparison/<dd-mm>_<session_name>/cluster_comparison.png.
+  <output_root>/production/comparison/<dd-mm>_<session_name>/cluster_comparison.png.
 - fine_tuning=true (manual hyperparameter search, every method in
   clustering_methods, one sweep each over that method's "tuning_grid"):
   since clustering has no ground truth to score against, every combination
@@ -32,17 +32,18 @@ convention as dim_reduction.py:
   Calinski-Harabasz, Davies-Bouldin - see src/analysis/clustering_tuning.py)
   plus a method-specific extra where one exists (kmeans' inertia, gmm's
   bic/aic). Writes tuning_results.csv + tuning_plot.png (one subplot per
-  metric) to <output_root>/<method>/tuning/<dd-mm>_<session_name>/, plus a
+  metric) to <output_root>/tuning/<method>/<dd-mm>_<session_name>/, plus a
   standalone diagnostic plot for the 2 methods that have one, independent of
   the swept grid: agglomerative's dendrogram.png, spectral's
   eigengap_plot.png. No automatic selection -
   a human reads the outputs and picks parameters by hand, writes them into
   params_clustering.json's "params", and re-runs with fine_tuning=false.
 
-Both modes append an entry to <output_root>/<method>/runs.csv - a
-chronological, human-readable history of every run (tuning or production)
-for that method, distinct from any single run's own config.md (see
-docs/dev/config.md).
+Output lives under two separate branches of output_root, never mixed:
+<output_root>/production/<method>/ (production, runs.csv) and
+<output_root>/tuning/<method>/ (tuning, runs_tuning.csv) - each branch keeps
+its own chronological run history, distinct from any single run's own
+config.md (see docs/dev/config.md).
 """
 
 from __future__ import annotations
@@ -167,7 +168,7 @@ def _run_one_method(
     metadata_out["cluster_label"] = cluster_labels
     
     effective_session_name = f"{config.session_name}_{tag}" if tag else config.session_name
-    output_dir = config.output_root / method / f"{now.strftime('%d-%m')}_{effective_session_name}"
+    output_dir = config.output_root / "production" / method / f"{now.strftime('%d-%m')}_{effective_session_name}"
     
     try:
         save_matrix(
@@ -229,7 +230,13 @@ def _run_one_method(
 
     try:
         append_run_log_entry(
-            _run_log_dir(config, method), effective_session_name, now, "production", params, output_dir, config.run_notes
+            _run_log_dir(config, method, "production"),
+            effective_session_name,
+            now,
+            "production",
+            params,
+            output_dir,
+            config.run_notes,
         )
     except OSError as exc:
         logging.error("[%s] cannot write run log: %s", method, exc, exc_info=True)
@@ -240,11 +247,17 @@ def _run_one_method(
 
 
 def _comparison_dir(config: ClusteringConfig, now: datetime) -> Path:
-    return config.output_root / "comparison" / f"{now.strftime('%d-%m')}_{config.session_name}"
+    # comparison/ is a production-only artifact (it compares saved cluster_label
+    # results across methods) - always under the production/ branch, never tuning/.
+    return config.output_root / "production" / "comparison" / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
-def _run_log_dir(config: ClusteringConfig, method: str) -> Path:
-    return config.output_root / method
+def _run_log_dir(config: ClusteringConfig, method: str, branch: str) -> Path:
+    """branch is "production" or "tuning" (same literal each caller also passes
+    as append_run_log_entry's own run_type) - the two runs.csv/runs_tuning.csv
+    histories live under separate output_root branches, never side by side.
+    """
+    return config.output_root / branch / method
 
 
 def _config_summary(config: ClusteringConfig, method: str) -> str:
@@ -308,7 +321,7 @@ def _write_comparison_readme(comparison_dir: Path, config: ClusteringConfig, now
         "",
         "Individual outputs:",
     ]
-    lines += [f"- `{config.output_root / m / dated_run}`" for m in config.clustering_methods]
+    lines += [f"- `{config.output_root / 'production' / m / dated_run}`" for m in config.clustering_methods]
     comparison_dir.mkdir(parents=True, exist_ok=True)
     (comparison_dir / "config.md").write_text("\n".join(lines) + "\n")
 
@@ -357,7 +370,7 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
 
     try:
         append_run_log_entry(
-            _run_log_dir(config, method),
+            _run_log_dir(config, method, "tuning"),
             config.session_name,
             now,
             "tuning",
@@ -373,7 +386,7 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
 
 
 def _tuning_output_dir(config: ClusteringConfig, method: str, now: datetime) -> Path:
-    return config.output_root / method / "tuning" / f"{now.strftime('%d-%m')}_{config.session_name}"
+    return config.output_root / "tuning" / method / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
 def _write_tuning_output(

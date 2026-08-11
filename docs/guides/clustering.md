@@ -70,22 +70,22 @@ Genera i cluster definitivi usando i parametri precedentemente scelti in `config
 
 ## Output e Grafici
 
-A seconda della modalità, vengono generati risultati diversi.
+A seconda della modalità, vengono generati risultati diversi. **Dal 2026-08, produzione e tuning vivono in due rami separati sotto `output_root`**, mai mescolati: `results/lesion/clustering/production/<metodo>/...` e `results/lesion/clustering/tuning/<metodo>/...`.
 
-### Se in "Produzione" (per ogni metodo, es. in `kmeans/` o `hdbscan/`)
+### Se in "Produzione" (`production/<metodo>/`, es. `production/kmeans/` o `production/hdbscan/`)
 1. **`matrix.npy`**: Copia della matrice di partenza.
 2. **`metadata.csv`**: File arricchito con la colonna **`cluster_label`**.
 3. **`cluster_plot.png` & `.html`**: Grafico 2D (prime 2 colonne) colorato per cluster. La versione HTML è interattiva.
 4. **`silhouette_plot.png`**: Grafico di qualità del clustering paziente per paziente.
-5. **Cartella `comparison/`**: (Solo se si usano più metodi) Affianca i risultati visivi degli algoritmi scelti (es. `cluster_plot_comparison.png`), utilissimo per decidere quale metodo "taglia" meglio i dati.
+5. **Cartella `production/comparison/`**: (Solo se si usano più metodi) Affianca i risultati visivi degli algoritmi scelti (es. `cluster_plot_comparison.png`), utilissimo per decidere quale metodo "taglia" meglio i dati.
 
-### Se in "Fine-Tuning" (nella cartella `tuning/`)
+### Se in "Fine-Tuning" (`tuning/<metodo>/`)
 1. **`tuning_results.csv`**: Risultati numerici dello sweep parametri.
 2. **`tuning_plot.png`**: Sottografici per metrica calcolata.
 3. Grafici diagnostici aggiuntivi (se supportati, es. dendrogramma).
 *(Non vengono salvati `matrix.npy` o grafici di assegnazione).*
 
 ### Diari di Bordo
-Ogni metodo mantiene uno storico delle esecuzioni mai sovrascritto:
-- `runs.csv` per Produzione.
-- `runs_tuning.csv` per Fine-Tuning.
+Ogni metodo mantiene uno storico delle esecuzioni mai sovrascritto, in cima al proprio ramo:
+- `production/<metodo>/runs.csv` per Produzione.
+- `tuning/<metodo>/runs_tuning.csv` per Fine-Tuning.

@@ -1,6 +1,6 @@
 {
   "project": "clinical_connectome",
-  "input_path": "results/lesion/dim_reduction/pacmap/23-07_s1.1_n5",
+  "input_path": "results/lesion/dim_reduction/production/pacmap/23-07_s1.1_n5",
   "clustering_methods": [
     "spectral"
   ],

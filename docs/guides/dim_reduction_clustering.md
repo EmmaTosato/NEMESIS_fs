@@ -63,18 +63,27 @@ I parametri uniscono quelli di `dim_reduction` e `clustering`:
 
 ## Organizzazione e Output Generato
 
-L'output viene salvato nella root dedicata e organizzato ad albero (Riduzione ➔ Clustering):
+**Dal 2026-08, produzione e tuning vivono in due rami separati sotto `output_root`**, mai mescolati, e dentro ciascuno l'albero è organizzato (Riduzione ➔ Clustering) come prima:
 ```text
 results/lesion/dim_reduction_clustering/
-└── umap/
-    ├── kmeans/
-    │   └── <Data>_<session_name>_<umap_tag>_<kmeans_tag>/
-    ├── gmm/
-    │   └── <Data>_<session_name>_<umap_tag>_<gmm_tag>/
-    ├── runs.csv  <-- Diario di produzione a livello di Riduzione
-    └── comparison/
-        └── umap_<Data>_<session_name>_<umap_tag>/
+├── production/
+│   └── umap/
+│       ├── kmeans/
+│       │   └── <Data>_<session_name>_<umap_tag>_<kmeans_tag>/
+│       ├── gmm/
+│       │   └── <Data>_<session_name>_<umap_tag>_<gmm_tag>/
+│       ├── runs.csv  <-- Diario di produzione a livello di Riduzione
+│       └── comparison/
+│           └── umap_<Data>_<session_name>_<umap_tag>/
+└── tuning/
+    └── umap/
+        ├── kmeans/
+        │   └── tuning/<Data>_<session_name>/{tuning_results.csv, tuning_plot.png, config.md}
+        ├── gmm/
+        │   └── tuning/<Data>_<session_name>/...
+        └── runs_tuning.csv  <-- Diario di tuning a livello di Riduzione (fine_tuning: true)
 ```
+Nessun `comparison/` in modalità tuning (`fine_tuning: true`) — uno sweep produce righe di indici, non un set di etichette da confrontare fianco a fianco.
 
 ### Contenuto Cartella Specifica (es. `umap/kmeans/`)
 - `matrix.npy`: La matrice di dati compressi.

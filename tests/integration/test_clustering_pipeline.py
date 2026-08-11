@@ -81,7 +81,7 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
     exit_code = clustering.main(["--config", str(cfg_path)])
     assert exit_code == 0
 
-    out_dir = next(p for p in (output_root / "kmeans").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "kmeans").iterdir() if p.is_dir())
     X = np.load(out_dir / "matrix.npy")
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert np.array_equal(X, original_X)  # unchanged, per design (no reduction happened)
@@ -89,9 +89,9 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
     assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
-    runs_csv = (output_root / "kmeans" / "runs.csv").read_text()
+    runs_csv = (output_root / "production" / "kmeans" / "runs.csv").read_text()
     assert "run1" in runs_csv
-    assert not (output_root / "kmeans" / "runs_tuning.csv").exists()  # production/tuning are separate files, not a column
+    assert not (output_root / "tuning" / "kmeans" / "runs_tuning.csv").exists()  # production/tuning are separate files, not a column
 
 
 def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):
@@ -118,7 +118,7 @@ def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "agglomerative").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "agglomerative").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
 
@@ -147,7 +147,7 @@ def test_clustering_end_to_end_gmm(tmp_path, monkeypatch):
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "gmm").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "gmm").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
 
@@ -178,7 +178,7 @@ def test_clustering_end_to_end_spectral(tmp_path, monkeypatch):
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "spectral").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "spectral").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
 
@@ -207,7 +207,7 @@ def test_clustering_end_to_end_hdbscan_reports_noise_separately(tmp_path, monkey
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "hdbscan").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "hdbscan").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
     # this sparse raw-voxel synthetic fixture (min_cluster_size=5 on 12 subjects)
     # puts every subject in the noise bucket - a real exercise of the -1 path,
@@ -252,12 +252,12 @@ def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path,
 
     # both methods get their own full artifact, unchanged from the single-method case
     for method in ("kmeans", "agglomerative"):
-        out_dir = next(p for p in (output_root / method).iterdir() if p.is_dir())
+        out_dir = next(p for p in (output_root / "production" / method).iterdir() if p.is_dir())
         metadata = pd.read_csv(out_dir / "metadata.csv")
         assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
         assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
-    comparison_dir = next(p for p in (output_root / "comparison").iterdir() if p.is_dir())
+    comparison_dir = next(p for p in (output_root / "production" / "comparison").iterdir() if p.is_dir())
     assert (comparison_dir / "cluster_comparison.png").stat().st_size > 0
     comparison_readme = (comparison_dir / "config.md").read_text()
     assert "kmeans" in comparison_readme
@@ -297,7 +297,7 @@ def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monke
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next((output_root / "kmeans" / "tuning").iterdir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_results.csv").is_file()
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
     assert not (tuning_dir / "matrix.npy").exists()  # a sweep is not a matrix artifact
@@ -307,10 +307,10 @@ def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monke
     assert "inertia" in results.columns
     assert "silhouette" in results.columns
 
-    runs_csv = (output_root / "kmeans" / "runs_tuning.csv").read_text()
+    runs_csv = (output_root / "tuning" / "kmeans" / "runs_tuning.csv").read_text()
     assert "tune1" in runs_csv
     assert "prova sweep n_clusters" in runs_csv
-    assert not (output_root / "kmeans" / "runs.csv").exists()  # tuning writes runs_tuning.csv, not runs.csv
+    assert not (output_root / "production" / "kmeans" / "runs.csv").exists()  # tuning writes runs_tuning.csv, not runs.csv
 
 
 def test_clustering_fine_tuning_two_swept_params_writes_heatmap(tmp_path, monkeypatch):
@@ -346,7 +346,7 @@ def test_clustering_fine_tuning_two_swept_params_writes_heatmap(tmp_path, monkey
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next((output_root / "agglomerative" / "tuning").iterdir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "agglomerative").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0  # heatmap, not the 1-param line plot
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
@@ -395,7 +395,7 @@ def test_clustering_fine_tuning_overwrite_wipes_stale_plot_from_incompatible_pri
     cfg_path.write_text(json.dumps(_cfg(overwrite=False)))
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next((output_root / "kmeans" / "tuning").iterdir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
 
     # Run 2: same output_dir, overwrite=True, but 3 swept params - no plot
@@ -454,7 +454,7 @@ def test_clustering_fine_tuning_kmeans_with_consensus_writes_rsc_monti_columns(t
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next((output_root / "kmeans" / "tuning").iterdir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans").iterdir() if p.is_dir())
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert "rsc_eigengap" in results.columns
     assert "monti_stability" in results.columns
@@ -498,7 +498,7 @@ def test_clustering_fine_tuning_gmm_writes_bic_aic(tmp_path, monkeypatch):
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next((output_root / "gmm" / "tuning").iterdir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "gmm").iterdir() if p.is_dir())
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert "bic" in results.columns
     assert "aic" in results.columns
@@ -532,7 +532,7 @@ def test_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkey
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next((output_root / "agglomerative" / "tuning").iterdir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "agglomerative").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
     assert (tuning_dir / "dendrogram.png").stat().st_size > 0  # standalone diagnostic, agglomerative-only
 
@@ -570,7 +570,7 @@ def test_clustering_fine_tuning_spectral_writes_eigengap(tmp_path, monkeypatch):
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next((output_root / "spectral" / "tuning").iterdir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "spectral").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
     assert (tuning_dir / "eigengap_plot.png").stat().st_size > 0  # standalone diagnostic, spectral-only
 
@@ -603,7 +603,7 @@ def test_clustering_fine_tuning_hdbscan_writes_noise_fraction(tmp_path, monkeypa
 
     # HDBSCAN gets no standalone diagnostic (unlike agglomerative/spectral) -
     # no eps to read off a plot by eye, see clustering_tuning.py's module docstring
-    tuning_dir = next((output_root / "hdbscan" / "tuning").iterdir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "hdbscan").iterdir() if p.is_dir())
     assert not (tuning_dir / "k_distance_plot.png").exists()
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")

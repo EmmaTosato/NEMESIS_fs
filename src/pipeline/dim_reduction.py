@@ -31,10 +31,15 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
   it, picks parameters by hand, writes them into params_reduction.json's
   "params", and re-runs with fine_tuning=false.
 
-Both modes append an entry to <output_root>/<method>/runs.csv (production) or
-runs_tuning.csv (fine-tuning) - a chronological, human-readable history of
-every run of that kind for that method, distinct from any single run's own
-config.md (see docs/dev/config.md).
+Output lives under two separate branches of output_root, never mixed:
+<output_root>/production/<method>/ (embeddings + plots + runs.csv) and
+<output_root>/tuning/<method>/ (sweep tables/plots + runs_tuning.csv) - a
+tuning run and a production run can never collide on disk, and each branch
+carries its own chronological run history, distinct from any single run's
+own config.md (see docs/dev/config.md). fine_tuning=true's sweep can also
+persist every combination's actual embedding (not just its score) into
+<output_root>/tuning/<method>/<dd-mm>_<session_name>/embeddings.npz when
+config.save_tuning_embeddings is true (opt-in, off by default).
 """
 
 from __future__ import annotations
@@ -109,7 +114,7 @@ def _run_production(
         return 1
 
     effective_session_name = f"{config.session_name}_{tag}" if tag else config.session_name
-    output_dir = config.output_root / config.reduction_method / f"{now.strftime('%d-%m')}_{effective_session_name}"
+    output_dir = config.output_root / "production" / config.reduction_method / f"{now.strftime('%d-%m')}_{effective_session_name}"
 
     embedding = REDUCTION_METHODS[config.reduction_method](X, params)
 
@@ -169,7 +174,7 @@ def _run_production(
 
     try:
         append_run_log_entry(
-            config.output_root / config.reduction_method,
+            config.output_root / "production" / config.reduction_method,
             effective_session_name,
             now,
             "production",
@@ -229,7 +234,7 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, metadata: pd.Dat
 
     try:
         append_run_log_entry(
-            config.output_root / config.reduction_method,
+            config.output_root / "tuning" / config.reduction_method,
             config.session_name,
             now,
             "tuning",
@@ -246,7 +251,7 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, metadata: pd.Dat
 
 
 def _tuning_output_dir(config: DimReductionConfig, now: datetime) -> Path:
-    return config.output_root / config.reduction_method / "tuning" / f"{now.strftime('%d-%m')}_{config.session_name}"
+    return config.output_root / "tuning" / config.reduction_method / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
 
@@ -283,6 +288,8 @@ def _write_tuning_output(
     results.to_csv(output_dir / "tuning_results.csv", index=False)
 
     swept_params = list(tuning_grid.keys())
+    if config.save_tuning_embeddings:
+        _write_tuning_embeddings(output_dir, embeddings_by_combo, swept_params)
     free_params = [key for key in swept_params if key not in nested_params]
     title = compose_run_title(output_dir, config.project)
 
@@ -334,6 +341,31 @@ def _write_tuning_output(
         "embeddings_grid_*.png) and pick parameters by hand.",
     ]
     (output_dir / "config.md").write_text("\n".join(readme_lines) + "\n")
+
+
+def _combo_key(keys: list[str], combo: tuple) -> str:
+    """Self-describing string key for one tuning combination, e.g.
+    'metric=jaccard,n_components=5,regress_out_volume=False,n_neighbors=15,min_dist=0.1' -
+    same names/order as tuning_grid.keys() for that run (matches embeddings_by_combo's
+    own combo tuple, see run_tuning_sweep), so it's identical, character for character, to
+    the string a caller rebuilds from that same row's own values in tuning_results.csv
+    (str(bool) is 'True'/'False', same as pandas' own CSV serialization) - no separate
+    index file needed to join the two.
+    """
+    return ",".join(f"{key}={value}" for key, value in zip(keys, combo))
+
+
+def _write_tuning_embeddings(output_dir: Path, embeddings_by_combo: dict[tuple, np.ndarray], keys: list[str]) -> None:
+    """Serializes every combination's embedding actually computed by the sweep
+    (not just the ones shown in embeddings_grid_*.png - the full Cartesian
+    product minus any VolumeRegressionIncompatibleError exclusions) into a
+    single embeddings.npz, keyed by _combo_key. Opt-in via
+    config.save_tuning_embeddings - before this flag existed no tuning run
+    ever wrote this file, so it stays off by default (code_standards.md
+    §0/§5: no silent change to an existing run's output shape).
+    """
+    arrays = {_combo_key(keys, combo): embedding for combo, embedding in embeddings_by_combo.items()}
+    np.savez(output_dir / "embeddings.npz", **arrays)
 
 
 # embeddings_grid.png is a static-only diagnostic (no interactive counterpart) - always 2

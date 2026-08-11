@@ -57,12 +57,14 @@ Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modal
 | **`regress_out_volume`**| *Booleano* | Rimuove linearmente l'effetto volume lesionale. **Incompatibile** con metriche `jaccard` o `dice`. |
 | **`viz_n_components`** | *Intero (2 o 3)* | Dimensioni fisse del plot grafico, anche se la compressione vera è a più dimensioni. Evita distorsioni di "taglio". A `3`, fornisce solo l'HTML interattivo ruotabile. |
 | **`color_by`** | *Lista* | Genera plot colorati per specifici tag: `"dataset"`, `"side"`, `"volume"`, `"nihss"`. |
+| **`write_embeddings_grid`** | *Booleano* | Se `false`, disattiva manualmente `embeddings_grid_*.png` in modalità Fine-Tuning (resta comunque scritto `tuning_results.csv`). |
+| **`save_tuning_embeddings`** | *Booleano* | Se `true`, salva in `embeddings.npz` l'embedding effettivo di **ogni** combinazione valutata nel Fine-Tuning (non solo quelle mostrate in `embeddings_grid_*.png`) — vedi sotto. Opt-in, `false` di default: nessuna run precedente all'introduzione di questo campo ha mai scritto questo file. |
 
 ---
 
 ## Output e Diari Storici
 
-I risultati sono salvati in `results/lesion/dim_reduction/<metodo>/<Data>_<session_name>_<tag>`.
+**Dal 2026-08, i risultati di produzione e di tuning vivono in due rami separati sotto `output_root`, mai mescolati**: `results/lesion/dim_reduction/production/<metodo>/<Data>_<session_name>_<tag>` e `results/lesion/dim_reduction/tuning/<metodo>/<Data>_<session_name>`. Prima di questa data `tuning/` viveva dentro la cartella del metodo (`<metodo>/tuning/...`) — se stai guardando risultati più vecchi di questa data, tienilo a mente.
 
 ### In Modalità Produzione
 - **`matrix.npy`**: La nuova matrice compressa.
@@ -72,9 +74,10 @@ I risultati sono salvati in `results/lesion/dim_reduction/<metodo>/<Data>_<sessi
 ### In Modalità Fine-Tuning
 - **`tuning_results.csv`**: I punteggi matematici estratti per ogni esperimento.
 - **`tuning_plot.png`** e **`embeddings_grid_*.png`**: I plot per visualizzare come cambia la compressione al variare dei parametri, organizzati per sottocartelle se si usa la struttura *nested*.
+- **`embeddings.npz`** (solo se `save_tuning_embeddings: true`): un unico file con l'embedding vero e proprio di ogni combinazione valutata, non solo quelle disegnate nei plot. Ogni array è indicizzato da una chiave leggibile tipo `"n_neighbors=15,min_dist=0.1"` (stessi nomi/valori delle colonne di `tuning_results.csv`) — si ricostruisce la chiave dai valori di una riga per recuperare il suo embedding, senza bisogno di un indice separato. Pensato per essere lo strato dati di un futuro plot interattivo (vedi `docs/knowledge/dim_reduction_tuning_guide.md`) che legge e basta, senza dover rifittare nulla.
 
 ### I Diari di Bordo (Runs)
-Nella directory radice del metodo (es. `results/lesion/dim_reduction/umap/`) sono generati e alimentati in **append-only** due file:
-- `runs.csv` per le esecuzioni di produzione.
-- `runs_tuning.csv` per gli esperimenti di tuning.
+In cima a ciascun ramo (es. `results/lesion/dim_reduction/production/umap/` e `results/lesion/dim_reduction/tuning/umap/`) viene generato e alimentato in **append-only** un file:
+- `production/<metodo>/runs.csv` per le esecuzioni di produzione.
+- `tuning/<metodo>/runs_tuning.csv` per gli esperimenti di tuning.
 Questa traccia storica evita la perdita della memoria sulle configurazioni sperimentate. Non sono da confondere con `data/SESSIONS.md`, un documento scritto a mano dall'umano.
