@@ -88,6 +88,7 @@ Lista di lavoro derivata **alla lettera** dalla struttura di [`Research_Proposal
 ## Fase 7 — Correlazione con outcome clinico-comportamentale (Task 5)
 
 - [ ] 🔥⛔ **Pipeline Task 5 assente — da eliminare e riscrivere**: Eliminare `prediction.py`/`clinical.py` inutilizzato, verrà riscritto più avanti.
+  - [ ] 💭 **Data leakage nella riproduzione Siegel 2016 (`prediction.py::pca_variance_retained`)**: la PCA viene fittata su *tutti* i soggetti (incluso quello poi tenuto fuori a ogni fold LOOCV), non dentro il fold — il soggetto held-out contribuisce a definire le componenti su cui viene poi predetto (leakage che gonfia l'accuratezza stimata). La scelta di λ è invece corretta (LOOCV interno annidato, mai sul soggetto held-out — solo la PCA ne è fuori). È verosimilmente fedele a Siegel et al. 2016 stesso (stesso ordine descritto nel paper), quindi non un bug introdotto qui, ma un limite metodologico noto di quella famiglia di lavori. Trovato durante una revisione di letteratura 2026-08, mai raggiunto in produzione (`predict_deficit.py` non esiste). Se si riscrive la pipeline: valutare uno spostamento del fit PCA dentro il fold (fit su train, transform su test) per una stima non ottimistica, o quantomeno documentare esplicitamente il limite nell'output/report della nuova pipeline. Dettagli completi in `src/analysis/prediction.py`'s module docstring.
 - [ ] Ridge regression / PCA sui punteggi comportamentali.
 - [ ] Test non parametrici + correzione FDR per validare i cluster contro NIHSS e subitem.
 - [ ] Boxplot/violin delle variabili cliniche per cluster.

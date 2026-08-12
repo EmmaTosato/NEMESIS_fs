@@ -46,7 +46,6 @@ I parametri uniscono quelli di `dim_reduction` e `clustering`:
 | **`session_name`** | *Stringa* | Etichetta dell'operazione massiva. |
 | **`overwrite`** | *Booleano* | Se `true` sovrascrive directory identiche. |
 | **`fine_tuning`** | *Booleano* | Se `false` (default) effettua Produzione Finale. Se `true` compie tuning del clustering. **(Vedi Note)** |
-| **`regress_out_volume`** | *Booleano* | Rimuove linearmente l'effetto volume prima del clustering. Incompatibile con metriche `jaccard/dice`. |
 | **`viz_n_components`** | *Intero (solo 2)*| Forza a 2 componenti l'output *esclusivamente per la grafica visiva*. **A differenza del solo Dim Reduction, qui `3` non è ammesso**. |
 | **`color_by`** | *Lista* | (*Opzionale*). Se popolata, genera parallelamente grafici di embedding aggiuntivi esplorativi (`dataset`, `side`, `volume`, `nihss`). |
 | **`run_notes`** | *Stringa* | Spazio note libere. |

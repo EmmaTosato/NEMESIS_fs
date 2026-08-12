@@ -12,8 +12,7 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
   src/features/clinical.py's enrich_metadata_with_lesion_info (shared with
   dim_reduction_clustering.py, so both pipelines always persist the same
   enrichment regardless of which one produced a given result):
-  lesion_volume_voxels (X.sum(axis=1), the same per-subject voxel count
-  regress_out_volume already uses), lesion_side ("unknown" for a
+  lesion_volume_voxels (X.sum(axis=1)), lesion_side ("unknown" for a
   subject/dataset the source participants.tsv can't resolve), and nihss
   (NaN under the same conditions - a continuous score has no "unknown"
   category to fall into). All three exist to color
@@ -57,12 +56,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.analysis.covariates import check_volume_regression_compatible, regress_out_covariate
+from src.analysis.distances import SUPPORTED_BINARY_METRICS, require_binary_matrix
 from src.analysis.embedding_plots import write_embedding_grid, write_embedding_plots
 from src.analysis.model_config import DimReductionConfig, load_dim_reduction_config
 from src.analysis.params import load_method_params, load_nested_params, load_trustworthiness_n_neighbors, load_tuning_grid
 from src.analysis.plotting import compose_embedding_plot_title, compose_run_title, compose_tuning_leaf_title, plot_tuning_curve
-from src.analysis.reduction import REDUCTION_METHODS, embedding_for_viz
+from src.analysis.reduction import embed, embedding_for_viz
 from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
 from src.features.clinical import enrich_metadata_with_lesion_info
 from src.utils.artifacts import load_matrix, save_matrix
@@ -111,7 +110,8 @@ def _run_production(
 ) -> int:
     try:
         params, tag = load_method_params(config.params_file, config.reduction_method)
-        check_volume_regression_compatible(config.regress_out_volume, params)
+        if params.get("metric") in SUPPORTED_BINARY_METRICS:
+            require_binary_matrix(X, params["metric"])
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return 1
@@ -119,28 +119,18 @@ def _run_production(
     effective_session_name = f"{config.session_name}_{tag}" if tag else config.session_name
     output_dir = config.output_root / "production" / config.reduction_method / f"{now.strftime('%d-%m')}_{effective_session_name}"
 
-    embedding = REDUCTION_METHODS[config.reduction_method](X, params)
-
-    # Same quantity regress_out_volume uses below - computed unconditionally (not just
-    # when regress_out_volume is set) since it's also the Volume coloring for the plots.
-    lesion_volume_voxels = X.sum(axis=1)
+    # distance_cache: if params["metric"] is jaccard/dice, embed() below and any viz
+    # refit right after share the same precomputed distance matrix instead of
+    # recomputing it (see src/analysis/reduction.py::embed's docstring).
+    distance_cache: dict[str, np.ndarray] = {}
+    embedding = embed(config.reduction_method, X, params, distance_cache)
 
     # Separate embedding for visualization only (2 or 3 components, config.viz_n_components) -
     # reused as-is when it already matches (every production config today: both are 2, zero
     # extra cost); refit from raw X otherwise, since slicing embedding[:, :viz_n_components]
     # out of a higher-dimensional umap/tsne/pacmap fit is not a meaningful projection (see
-    # src/analysis/reduction.py::embedding_for_viz's docstring). Computed before
-    # regress_out_volume below so both the saved and the plotted embedding get the same
-    # treatment.
-    viz_embedding = embedding_for_viz(config.reduction_method, X, params, embedding, config.viz_n_components)
-    viz_is_saved_embedding = viz_embedding is embedding
-
-    if config.regress_out_volume:
-        # X is binary (0/1 per voxel); a row's voxel count is exactly proportional to its
-        # lesion volume in ml, and OLS residuals are invariant to that scalar rescaling.
-        embedding = regress_out_covariate(embedding, lesion_volume_voxels)
-        viz_embedding = embedding if viz_is_saved_embedding else regress_out_covariate(viz_embedding, lesion_volume_voxels)
-        logging.info("regressed out lesion volume (voxel count) from both the saved and visualization embeddings")
+    # src/analysis/reduction.py::embedding_for_viz's docstring).
+    viz_embedding = embedding_for_viz(config.reduction_method, X, params, embedding, config.viz_n_components, distance_cache)
 
     try:
         metadata_out = enrich_metadata_with_lesion_info(metadata, X)
@@ -369,7 +359,7 @@ def _write_tuning_output(
 
 def _combo_key(keys: list[str], combo: tuple) -> str:
     """Self-describing string key for one tuning combination, e.g.
-    'metric=jaccard,n_components=5,regress_out_volume=False,n_neighbors=15,min_dist=0.1' -
+    'metric=jaccard,n_components=5,n_neighbors=15,min_dist=0.1' -
     same names/order as tuning_grid.keys() for that run (matches embeddings_by_combo's
     own combo tuple, see run_tuning_sweep), so it's identical, character for character, to
     the string a caller rebuilds from that same row's own values in tuning_results.csv
@@ -382,8 +372,7 @@ def _combo_key(keys: list[str], combo: tuple) -> str:
 def _write_tuning_embeddings(output_dir: Path, embeddings_by_combo: dict[tuple, np.ndarray], keys: list[str]) -> None:
     """Serializes every combination's embedding actually computed by the sweep
     (not just the ones shown in embeddings_grid_*.png - the full Cartesian
-    product minus any VolumeRegressionIncompatibleError exclusions) into a
-    single embeddings.npz, keyed by _combo_key. Opt-in via
+    product) into a single embeddings.npz, keyed by _combo_key. Opt-in via
     config.save_tuning_embeddings - before this flag existed no tuning run
     ever wrote this file, so it stays off by default (code_standards.md
     §0/§5: no silent change to an existing run's output shape).
@@ -411,9 +400,7 @@ def _write_nested_tuning_leaves(
     metadata: pd.DataFrame,
 ) -> None:
     """Groups `results` by nested_params (one subfolder per real combination
-    actually present - an invalid combo excluded upstream by run_tuning_sweep,
-    e.g. metric=jaccard + regress_out_volume=True, never produces a group
-    here, so no empty folder is ever created for it), writing each leaf's own
+    actually present), writing each leaf's own
     filtered tuning_results.csv plus, unless `config.write_embeddings_grid` is
     False, embeddings_grid_<color>.png (see
     src/analysis/embedding_plots.py::write_embedding_grid): one row per free
@@ -507,19 +494,9 @@ def _build_grid_blocks(
                 )
             embedding = embeddings_by_combo[combo]
             combo_params = {**base_params, **dict(zip(keys, combo))}
-            # regress_out_volume is a pipeline-level post-fit step, never a
-            # REDUCTION_METHODS constructor argument - strip it before
-            # embedding_for_viz forwards params straight into e.g. umap.UMAP(**params).
-            regress_out_volume_for_combo = combo_params.get("regress_out_volume", False)
-            reduction_params_for_combo = {k: v for k, v in combo_params.items() if k != "regress_out_volume"}
             viz_embedding = embedding_for_viz(
-                config.reduction_method, X, reduction_params_for_combo, embedding, _TUNING_GRID_N_COMPONENTS
+                config.reduction_method, X, combo_params, embedding, _TUNING_GRID_N_COMPONENTS
             )
-            if viz_embedding is not embedding and regress_out_volume_for_combo:
-                # A refit (not the reused-as-is case) never went through
-                # run_tuning_sweep's own regress_out_volume step - apply it
-                # here too, so the plotted embedding matches what was scored.
-                viz_embedding = regress_out_covariate(viz_embedding, X.sum(axis=1))
             cells.append((str(value), viz_embedding))
         blocks.append((varying, cells))
     return blocks
@@ -535,7 +512,6 @@ def _config_summary(config: DimReductionConfig) -> str:
         "session_name": config.session_name,
         "overwrite": config.overwrite,
         "fine_tuning": config.fine_tuning,
-        "regress_out_volume": config.regress_out_volume,
         "color_by": list(config.color_by),
         "viz_n_components": config.viz_n_components,
         "run_notes": config.run_notes,

@@ -54,7 +54,6 @@ Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modal
 | **`session_name`** | *Stringa* | Nome dell'esperimento (es. `"umap_test_1"`). |
 | **`overwrite`** | *Booleano* | Se `true`, sovrascrive esecuzioni preesistenti aventi lo stesso nome. |
 | **`fine_tuning`** | *Booleano* | Attiva/disattiva il *grid search* dei parametri. |
-| **`regress_out_volume`**| *Booleano* | Rimuove linearmente l'effetto volume lesionale. **Incompatibile** con metriche `jaccard` o `dice`. |
 | **`viz_n_components`** | *Intero (2 o 3)* | Dimensioni fisse del plot grafico, anche se la compressione vera è a più dimensioni. Evita distorsioni di "taglio". A `3`, fornisce solo l'HTML interattivo ruotabile. |
 | **`color_by`** | *Lista* | Genera plot colorati per specifici tag: `"dataset"`, `"side"`, `"volume"`, `"nihss"`. |
 | **`write_embeddings_grid`** | *Booleano* | Se `false`, disattiva manualmente `embeddings_grid_*.png` in modalità Fine-Tuning (resta comunque scritto `tuning_results.csv`). |

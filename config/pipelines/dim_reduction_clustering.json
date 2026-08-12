@@ -15,7 +15,6 @@
   "session_name": "s1.1",
   "overwrite": true,
   "fine_tuning": true,
-  "regress_out_volume": false,
   "viz_n_components": 2,
   "color_by": [],
   "run_notes": "clustering tuning on updated umap embedding (n_neighbors=15, metric=jaccard, was n_neighbors=5/euclidean)"

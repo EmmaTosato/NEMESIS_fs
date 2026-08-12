@@ -220,16 +220,31 @@ def enrich_metadata_with_lesion_info(metadata: pd.DataFrame, X: np.ndarray) -> p
     docs/dev/plotting.md). X must be the raw voxel-wise lesion matrix
     (same row count/order as metadata, checked below) - lesion volume is
     X.sum(axis=1), a voxel count, not ml (a scalar rescaling, no need to
-    convert here either).
+    convert here either) - only valid when X is strictly binary (checked
+    below).
 
-    Raises ValueError if X and metadata don't have matching row counts, and
-    propagates join_lesion_side's/join_nihss's own FileNotFoundError/
-    ValueError verbatim - an unresolvable dataset or subject is a real data
-    problem, never swallowed here.
+    Raises ValueError if X and metadata don't have matching row counts, if X
+    isn't strictly binary (2026-08, literature-validation review:
+    build_lesion_matrix.py can produce a continuous matrix in [0, 1] instead
+    of a binary one when parcellate=True/parcel_aggregation="fraction_lesioned"
+    - X.sum(axis=1) on that input is a sum of per-parcel fractions, neither a
+    voxel count nor proportional to lesion volume in ml, so the resulting
+    "lesion_volume_voxels" column and its regress_out_volume/color_by="volume"
+    consumers would be silently wrong), and propagates join_lesion_side's/
+    join_nihss's own FileNotFoundError/ValueError verbatim - an unresolvable
+    dataset or subject is a real data problem, never swallowed here.
     """
     if X.shape[0] != len(metadata):
         raise ValueError(
             f"X has {X.shape[0]} rows but metadata has {len(metadata)} rows - must match"
+        )
+    if not np.all((X == 0) | (X == 1)):
+        raise ValueError(
+            "enrich_metadata_with_lesion_info requires a strictly binary (0/1) X - "
+            "lesion_volume_voxels is computed as X.sum(axis=1), which is only a real voxel "
+            "count (and only proportional to lesion volume in ml) for a binary voxel-wise "
+            "matrix. A parcellated 'fraction_lesioned' matrix (continuous in [0, 1]) would "
+            "silently produce a value that is neither - pass the raw voxel-wise matrix instead"
         )
     metadata_out = metadata.copy()
     metadata_out["lesion_volume_voxels"] = X.sum(axis=1)

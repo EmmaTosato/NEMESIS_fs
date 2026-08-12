@@ -49,9 +49,8 @@ COLOR_MODES: dict[str, ColorMode] = {
     ),
     "volume": ColorMode(
         kind="continuous",
-        # Same quantity dim_reduction.py's regress_out_volume/lesion_volume_voxels
-        # column already uses - voxel count, not ml (a scalar rescaling, no need
-        # to convert here either).
+        # Same quantity metadata's lesion_volume_voxels column already uses -
+        # voxel count, not ml (a scalar rescaling, no need to convert here either).
         compute=lambda metadata, X: X.sum(axis=1),
         label="lesion volume (voxels)",
         # Heavily right-skewed (a handful of large-lesion outliers otherwise

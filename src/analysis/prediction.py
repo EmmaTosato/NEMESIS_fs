@@ -21,6 +21,23 @@ Method, step by step, matching Siegel et al. 2016's
 6. Multiple-comparison correction across behavioral targets - benjamini_hochberg
    (hand-rolled: statsmodels is not a project dependency, and one well-known
    ~10-line algorithm doesn't justify adding it).
+
+KNOWN METHODOLOGICAL LIMITATION (found 2026-08, literature-validation review -
+not yet reached production, predict_deficit.py doesn't exist; tracked in
+management/notes/TODO.md's Fase 7): step 1's PCA is fit on *all* subjects,
+including whichever one step 2's outer LOOCV loop will later hold out for that
+fold - the held-out subject contributes to defining the PCA components it is
+then predicted from, a data-leakage pattern that inflates the estimated
+accuracy. This is separate from lambda selection in ridge_loocv, which IS
+correctly nested (inner LOOCV over the training set only, never touching the
+held-out subject) - only the PCA step is outside the fold. This almost
+certainly matches Siegel et al. 2016's own described order ("Experimental
+Procedures" lists PCA, then the LOOCV ridge loop, as two separate top-level
+steps) - a known limitation of that paper's methodology, not a bug introduced
+here. Before extending this module into a real pipeline: either move the PCA
+fit inside the outer fold (fit on train, transform on test, for a
+non-optimistic accuracy estimate) or explicitly document the limitation
+wherever accuracy_r2's output is reported.
 """
 
 from __future__ import annotations

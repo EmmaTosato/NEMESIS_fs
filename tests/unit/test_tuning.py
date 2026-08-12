@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 from sklearn.manifold import trustworthiness
 
-from src.analysis.covariates import VolumeRegressionIncompatibleError
 from src.analysis.tuning import (
     TUNING_METRIC_NAMES,
     evaluate_pacmap,
@@ -64,53 +63,7 @@ def test_evaluate_umap_binary_metric_scored_against_matching_metric_not_euclidea
     assert matching_metric_score != pytest.approx(euclidean_score)
 
 
-def test_evaluate_umap_regress_out_volume_removes_correlation_with_lesion_volume():
-    params = {"n_neighbors": 5, "min_dist": 0.1, "n_components": 2, "random_state": 0, "regress_out_volume": True}
-    embedding, score = evaluate_umap(_X_BINARY, params, trustworthiness_n_neighbors=5)
-    lesion_load = _X_BINARY.sum(axis=1)
-    assert abs(np.corrcoef(embedding[:, 0], lesion_load)[0, 1]) < 1e-6
-    assert abs(np.corrcoef(embedding[:, 1], lesion_load)[0, 1]) < 1e-6
-    assert 0.0 <= score <= 1.0
-
-
-def test_evaluate_umap_regress_out_volume_with_jaccard_raises():
-    params = {"n_neighbors": 5, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "jaccard", "regress_out_volume": True}
-    with pytest.raises(VolumeRegressionIncompatibleError):
-        evaluate_umap(_X_BINARY, params, trustworthiness_n_neighbors=5)
-
-
-def test_evaluate_tsne_regress_out_volume_removes_correlation_with_lesion_volume():
-    params = {"n_components": 2, "perplexity": 10, "random_state": 0, "regress_out_volume": True}
-    embedding, score = evaluate_tsne(_X_BINARY, params, trustworthiness_n_neighbors=5)
-    lesion_load = _X_BINARY.sum(axis=1)
-    assert abs(np.corrcoef(embedding[:, 0], lesion_load)[0, 1]) < 1e-6
-    assert abs(np.corrcoef(embedding[:, 1], lesion_load)[0, 1]) < 1e-6
-    assert 0.0 <= score <= 1.0
-
-
-def test_evaluate_tsne_regress_out_volume_with_dice_raises():
-    params = {"n_components": 2, "perplexity": 10, "random_state": 0, "metric": "dice", "regress_out_volume": True}
-    with pytest.raises(VolumeRegressionIncompatibleError):
-        evaluate_tsne(_X_BINARY, params, trustworthiness_n_neighbors=5)
-
-
-def test_run_tuning_sweep_excludes_incompatible_regress_out_volume_combo():
-    df, _embeddings_by_combo = run_tuning_sweep(
-        "umap",
-        _X_BINARY,
-        base_params={"random_state": 0, "n_components": 2, "min_dist": 0.1},
-        tuning_grid={"metric": ["euclidean", "jaccard"], "regress_out_volume": [False, True]},
-        trustworthiness_n_neighbors=5,
-    )
-    # 2 x 2 cartesian product minus the 1 impossible-by-construction combination
-    # (metric=jaccard, regress_out_volume=True) - excluded entirely, not a NaN row.
-    assert len(df) == 3
-    assert "skipped_reason" not in df.columns
-    assert not ((df["metric"] == "jaccard") & (df["regress_out_volume"])).any()
-    assert df[TUNING_METRIC_NAMES["umap"]].notna().all()
-
-
-def test_run_tuning_sweep_no_skipped_reason_column_without_regress_out_volume():
+def test_run_tuning_sweep_no_skipped_reason_column():
     df, _embeddings_by_combo = run_tuning_sweep(
         "umap",
         _X_BINARY,
@@ -292,15 +245,3 @@ def test_run_tuning_sweep_returns_embedding_per_combo():
         assert embedding.shape == (40, 2)
     # combo keys match the swept columns/order in df, e.g. (5, 0.1)
     assert (5, 0.1) in embeddings_by_combo
-
-
-def test_run_tuning_sweep_embeddings_by_combo_excludes_incompatible_regress_out_volume_combo():
-    df, embeddings_by_combo = run_tuning_sweep(
-        "umap",
-        _X_BINARY,
-        base_params={"random_state": 0, "n_components": 2, "min_dist": 0.1},
-        tuning_grid={"metric": ["euclidean", "jaccard"], "regress_out_volume": [False, True]},
-        trustworthiness_n_neighbors=5,
-    )
-    assert len(embeddings_by_combo) == len(df) == 3
-    assert ("jaccard", True) not in embeddings_by_combo

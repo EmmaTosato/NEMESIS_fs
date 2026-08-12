@@ -13,10 +13,9 @@
     },
     "tuning_grid": {
       "metric": ["euclidean", "jaccard", "dice"],
-      "regress_out_volume": [false, true],
       "perplexity": [5, 15, 30, 50, 75]
     },
-    "nested_params": ["metric", "regress_out_volume"],
+    "nested_params": ["metric"],
     "trustworthiness_n_neighbors": 10
   },
   "umap": {
@@ -31,11 +30,10 @@
     },
     "tuning_grid": {
       "metric": ["dice", "euclidean"],
-      "regress_out_volume": [false],
       "n_neighbors": [5, 15, 30, 50, 100],
       "min_dist": [0.0, 0.01, 0.05, 0.1, 0.5, 1.0]
     },
-    "nested_params": ["metric", "regress_out_volume"],
+    "nested_params": ["metric"],
     "trustworthiness_n_neighbors": 10
   },
   "pacmap": {
@@ -46,7 +44,8 @@
       "n_neighbors": 5,
       "MN_ratio": 0.5,
       "FP_ratio": 2.0,
-      "random_state": 0
+      "random_state": 0,
+      "apply_pca": true
     },
     "tuning_grid": {
       "n_neighbors": [5, 10, 20, 50]

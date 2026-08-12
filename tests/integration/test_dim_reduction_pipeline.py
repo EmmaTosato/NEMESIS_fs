@@ -8,6 +8,7 @@ import pandas as pd
 
 from src.features import clinical
 from src.pipeline import build_lesion_matrix, dim_reduction
+from src.utils.artifacts import save_matrix
 
 _AFFINE = np.eye(4) * 2
 _AFFINE[3, 3] = 1
@@ -128,7 +129,6 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
-        "regress_out_volume": False,
         "color_by": ["dataset", "volume", "side"],
         "viz_n_components": 2,
         "write_embeddings_grid": True,
@@ -176,7 +176,6 @@ def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, mon
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
-        "regress_out_volume": False,
         "color_by": [],
         "viz_n_components": 2,
         "write_embeddings_grid": True,
@@ -241,7 +240,6 @@ def test_dim_reduction_fine_tuning_save_tuning_embeddings_writes_npz(tmp_path, m
         "session_name": "tune_emb",
         "overwrite": False,
         "fine_tuning": True,
-        "regress_out_volume": False,
         "color_by": [],
         "viz_n_components": 2,
         "write_embeddings_grid": True,
@@ -291,7 +289,6 @@ def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_pa
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
-        "regress_out_volume": False,
         "color_by": [],
         "viz_n_components": 2,
         "write_embeddings_grid": True,
@@ -328,7 +325,6 @@ def test_dim_reduction_fine_tuning_pacmap_writes_sweep_not_embedding(tmp_path, m
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
-        "regress_out_volume": False,
         "color_by": [],
         "viz_n_components": 2,
         "write_embeddings_grid": True,
@@ -365,7 +361,6 @@ def test_dim_reduction_fine_tuning_tsne_writes_sweep_not_embedding(tmp_path, mon
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
-        "regress_out_volume": False,
         "color_by": [],
         "viz_n_components": 2,
         "write_embeddings_grid": True,
@@ -391,8 +386,8 @@ def _make_varying_volume_dataset(data_root, n_subjects=8):
     """Unlike _make_dataset (fixed 5-voxel draws, which can coincidentally
     tie every subject's lesion volume at the same count), each subject here
     gets a strictly increasing, non-overlapping voxel count - guarantees the
-    lesion-volume covariate actually varies, which regress_out_covariate
-    requires (zero-variance covariate raises, see test_covariates.py).
+    lesion-volume covariate actually varies (used by tests that check
+    lesion_volume_voxels/enrich_metadata_with_lesion_info downstream).
     """
     rng = np.random.default_rng(42)
     for i in range(n_subjects):
@@ -439,47 +434,25 @@ def _build_matrix_varying_volume(tmp_path, monkeypatch):
     return next(p for p in output_root.iterdir() if p.is_dir())
 
 
-def test_dim_reduction_regress_out_volume_changes_embedding(tmp_path, monkeypatch):
-    input_dir = _build_matrix_varying_volume(tmp_path, monkeypatch)
+def test_dim_reduction_jaccard_metric_on_non_binary_matrix_raises(tmp_path, monkeypatch):
+    """Regression test for the binarity-validation gap (2026-08,
+    literature-validation review): jaccard/dice are only defined on strictly
+    binary data - a parcellated 'fraction_lesioned' matrix (continuous in
+    [0, 1], as build_lesion_matrix.py produces when parcellate=True) fed to
+    metric="jaccard" used to silently compute numbers that look like valid
+    distances but aren't Jaccard/Dice at all. Production must now reject this
+    upfront, before any output directory is created. Built directly via
+    save_matrix (not build_lesion_matrix.py, which would need a real atlas
+    fixture to actually parcellate) - only the continuous-valued matrix.npy
+    matters for this test, not how it was produced.
+    """
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
-    _write_lesion_side_registry(tmp_path, monkeypatch, [f"sub-{i:02d}" for i in range(8)])
 
-    params_path = _write_params(tmp_path)
-    output_root = tmp_path / "dr_out"
-
-    def _run(regress_out_volume: bool, session_name: str) -> np.ndarray:
-        dr_cfg = {
-            "project": "testproj",
-            "input_path": str(input_dir),
-            "reduction_method": "pca",
-            "params_file": str(params_path),
-            "output_root": str(output_root),
-            "session_name": session_name,
-            "overwrite": False,
-            "fine_tuning": False,
-            "regress_out_volume": regress_out_volume,
-            "color_by": [],
-            "viz_n_components": 2,
-            "write_embeddings_grid": True,
-            "save_tuning_embeddings": False,
-            "run_notes": None,
-        }
-        cfg_path = tmp_path / f"dim_reduction_{session_name}.json"
-        cfg_path.write_text(json.dumps(dr_cfg))
-        assert dim_reduction.main(["--config", str(cfg_path)]) == 0
-        out_dir = next(p for p in (output_root / "production" / "pca").iterdir() if session_name in p.name)
-        return np.load(out_dir / "matrix.npy")
-
-    embedding_plain = _run(False, "plain")
-    embedding_regressed = _run(True, "regressed")
-
-    assert embedding_plain.shape == embedding_regressed.shape
-    assert not np.array_equal(embedding_plain, embedding_regressed)
-
-
-def test_dim_reduction_regress_out_volume_incompatible_with_jaccard_raises(tmp_path, monkeypatch):
-    input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    input_dir = tmp_path / "continuous_matrix"
+    rng = np.random.default_rng(0)
+    X_continuous = rng.random((8, 5))  # e.g. fraction_lesioned per parcel - never exactly 0/1
+    metadata = pd.DataFrame({"subject_id": [f"sub-{i:02d}" for i in range(8)], "dataset": "siteA"})
+    save_matrix(input_dir, X_continuous, metadata, ["# continuous fixture"], overwrite=False)
 
     params_path = tmp_path / "params_reduction.json"
     params_path.write_text(
@@ -506,7 +479,6 @@ def test_dim_reduction_regress_out_volume_incompatible_with_jaccard_raises(tmp_p
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
-        "regress_out_volume": True,
         "color_by": [],
         "viz_n_components": 2,
         "write_embeddings_grid": True,
@@ -517,6 +489,7 @@ def test_dim_reduction_regress_out_volume_incompatible_with_jaccard_raises(tmp_p
     dr_cfg_path.write_text(json.dumps(dr_cfg))
 
     assert dim_reduction.main(["--config", str(dr_cfg_path)]) == 1
+    assert not (tmp_path / "dr_out").exists()
 
 
 def test_dim_reduction_missing_input_path_raises(tmp_path, monkeypatch):
@@ -532,7 +505,6 @@ def test_dim_reduction_missing_input_path_raises(tmp_path, monkeypatch):
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
-        "regress_out_volume": False,
         "color_by": [],
         "viz_n_components": 2,
         "write_embeddings_grid": True,
@@ -581,7 +553,6 @@ def test_dim_reduction_fine_tuning_nested_params_writes_leaf_folders_and_embeddi
         "session_name": "tune_nested",
         "overwrite": False,
         "fine_tuning": True,
-        "regress_out_volume": False,
         "color_by": [],
         "viz_n_components": 2,
         "write_embeddings_grid": True,
@@ -657,7 +628,6 @@ def test_dim_reduction_fine_tuning_overwrite_wipes_leaves_from_incompatible_prio
             "session_name": "tune_reuse",
             "overwrite": overwrite,
             "fine_tuning": True,
-            "regress_out_volume": False,
             "color_by": [],
             "viz_n_components": 2,
             "write_embeddings_grid": True,
@@ -726,7 +696,6 @@ def test_dim_reduction_fine_tuning_write_embeddings_grid_false_skips_plots_keeps
         "session_name": "tune_nested_no_grid",
         "overwrite": False,
         "fine_tuning": True,
-        "regress_out_volume": False,
         "color_by": [],
         "viz_n_components": 2,
         "write_embeddings_grid": False,
@@ -748,18 +717,16 @@ def test_dim_reduction_fine_tuning_write_embeddings_grid_false_skips_plots_keeps
     assert not any(tuning_dir.rglob("embeddings_grid_*.png"))
 
 
-def test_dim_reduction_fine_tuning_nested_n_components_and_regress_out_volume_refits_viz(tmp_path, monkeypatch):
-    """Regression test: a nested_params sweep combining n_components (forcing
-    _build_grid_blocks to refit a viz embedding, since a leaf's own
-    n_components != the grid's fixed 2) with regress_out_volume (a
-    pipeline-level flag, never a REDUCTION_METHODS constructor argument) used
-    to crash with `TypeError: UMAP.__init__() got an unexpected keyword
-    argument 'regress_out_volume'` - reduction_params_for_combo forwarded the
-    raw tuning_grid combo (including regress_out_volume) straight into
-    embedding_for_viz -> umap.UMAP(**params). Only surfaced once a real
-    n_components-varying sweep was run (2026-08 session) - every prior test
-    kept n_components fixed at viz's own 2, which takes embedding_for_viz's
-    early-return path and never reaches the broken call.
+def test_dim_reduction_fine_tuning_nested_n_components_refits_viz(tmp_path, monkeypatch):
+    """Regression coverage for embedding_for_viz's refit branch: a
+    nested_params sweep that varies n_components forces
+    _build_grid_blocks/embedding_for_viz to actually refit (a leaf's own
+    n_components=3 != the grid's fixed viz n_components=2), not take the
+    "already the right shape, reuse as-is" early-return path - a branch that
+    stays untested by construction as long as every leaf's n_components
+    happens to already equal 2 (lessons_learned.md #17: the first real input
+    that finally makes the early-return condition false is the first real
+    test that branch has ever had).
     """
     input_dir = _build_matrix_varying_volume(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
@@ -773,10 +740,9 @@ def test_dim_reduction_fine_tuning_nested_n_components_and_regress_out_volume_re
                     "params": {"n_neighbors": 3, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "euclidean"},
                     "tuning_grid": {
                         "n_components": [2, 3],
-                        "regress_out_volume": [False, True],
                         "n_neighbors": [2, 3],
                     },
-                    "nested_params": ["n_components", "regress_out_volume"],
+                    "nested_params": ["n_components"],
                     "trustworthiness_n_neighbors": 2,
                 }
             }
@@ -792,7 +758,6 @@ def test_dim_reduction_fine_tuning_nested_n_components_and_regress_out_volume_re
         "session_name": "tune_nested_ncomp",
         "overwrite": False,
         "fine_tuning": True,
-        "regress_out_volume": False,
         "color_by": [],
         "viz_n_components": 2,
         "write_embeddings_grid": True,
@@ -806,8 +771,7 @@ def test_dim_reduction_fine_tuning_nested_n_components_and_regress_out_volume_re
     assert exit_code == 0
 
     tuning_dir = next(p for p in (output_root / "tuning" / "umap").iterdir() if p.is_dir())
-    # n_components=3 forces a refit (2 != the grid's fixed viz n_components); regress_out_volume=True
-    # on that same leaf exercises the post-refit regress_out_covariate re-application.
-    leaf_dir = tuning_dir / "n_components=3" / "regress_out_volume=True"
+    # n_components=3 forces a refit (2 != the grid's fixed viz n_components).
+    leaf_dir = tuning_dir / "n_components=3"
     assert leaf_dir.is_dir()
     assert (leaf_dir / "embeddings_grid_unico.png").is_file()

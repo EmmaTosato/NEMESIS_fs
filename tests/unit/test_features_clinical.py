@@ -248,3 +248,17 @@ def test_enrich_metadata_with_lesion_info_row_count_mismatch_raises():
 
     with pytest.raises(ValueError, match="must match"):
         enrich_metadata_with_lesion_info(metadata, X)
+
+
+def test_enrich_metadata_with_lesion_info_non_binary_matrix_raises():
+    """Regression test (2026-08, literature-validation review): a parcellated
+    'fraction_lesioned' matrix (continuous in [0, 1], as build_lesion_matrix.py
+    produces when parcellate=True) used to silently produce a
+    lesion_volume_voxels value that is neither a voxel count nor proportional
+    to lesion volume in ml - must now raise instead.
+    """
+    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "dataset": ["UNIPD/WashU", "UNIPD/WashU"]})
+    X = np.array([[0.3, 0.8, 0.0], [1.0, 0.0, 0.5]])
+
+    with pytest.raises(ValueError, match="strictly binary"):
+        enrich_metadata_with_lesion_info(metadata, X)

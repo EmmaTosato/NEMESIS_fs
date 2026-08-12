@@ -9,6 +9,7 @@ import pandas as pd
 
 from src.features import clinical
 from src.pipeline import build_lesion_matrix, dim_reduction_clustering
+from src.utils.artifacts import save_matrix
 
 _AFFINE = np.eye(4) * 2
 _AFFINE[3, 3] = 1
@@ -95,7 +96,6 @@ def test_dim_reduction_clustering_end_to_end(tmp_path, monkeypatch):
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
-        "regress_out_volume": False,
         "viz_n_components": 2,
         "color_by": [],
         "run_notes": "prova pca+kmeans",
@@ -158,7 +158,6 @@ def test_dim_reduction_clustering_end_to_end_multiple_methods_writes_comparison_
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
-        "regress_out_volume": False,
         "viz_n_components": 2,
         "color_by": [],
         "run_notes": None,
@@ -226,7 +225,6 @@ def test_dim_reduction_clustering_fine_tuning_kmeans_sweeps_against_one_embeddin
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
-        "regress_out_volume": False,
         "viz_n_components": 2,
         "color_by": [],
         "run_notes": "prova sweep n_clusters su embedding pca",
@@ -296,7 +294,6 @@ def test_dim_reduction_clustering_fine_tuning_two_swept_params_writes_heatmap(tm
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
-        "regress_out_volume": False,
         "viz_n_components": 2,
         "color_by": [],
         "run_notes": None,
@@ -341,7 +338,6 @@ def test_dim_reduction_clustering_fine_tuning_overwrite_wipes_stale_plot_from_in
             "session_name": "tune_reuse",
             "overwrite": overwrite,
             "fine_tuning": True,
-            "regress_out_volume": False,
             "viz_n_components": 2,
             "color_by": [],
             "run_notes": None,
@@ -417,7 +413,6 @@ def test_dim_reduction_clustering_fine_tuning_agglomerative_writes_dendrogram(tm
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
-        "regress_out_volume": False,
         "viz_n_components": 2,
         "color_by": [],
         "run_notes": None,
@@ -431,101 +426,20 @@ def test_dim_reduction_clustering_fine_tuning_agglomerative_writes_dendrogram(tm
     assert (tuning_dir / "dendrogram.png").stat().st_size > 0  # standalone diagnostic, agglomerative-only
 
 
-def _make_varying_volume_dataset(data_root, n_subjects=12):
-    """Unlike _build_matrix's _make_dataset (fixed 5-voxel draws, which can
-    coincidentally tie every subject's lesion volume at the same count),
-    each subject here gets a strictly increasing, non-overlapping voxel
-    count - guarantees the lesion-volume covariate actually varies, which
-    regress_out_covariate requires (zero-variance covariate raises).
+def test_dim_reduction_clustering_dice_metric_on_non_binary_matrix_raises(tmp_path, monkeypatch):
+    """Regression test for the binarity-validation gap (2026-08,
+    literature-validation review): metric="dice" requires a strictly binary
+    matrix - dim_reduction_clustering.py's main() must reject a continuous
+    (e.g. parcellated fraction_lesioned) matrix upfront, before computing
+    anything, same as dim_reduction.py's own production path.
     """
-    rng = np.random.default_rng(42)
-    for i in range(n_subjects):
-        subject_id = f"sub-{i:02d}"
-        subject_dir = data_root / "siteA" / subject_id / "lesion" / "manual_masks" / "anat"
-        subject_dir.mkdir(parents=True, exist_ok=True)
-        n_voxels = 3 + i
-        flat = np.zeros(np.prod(_SHAPE), dtype=np.float32)
-        flat[rng.choice(flat.shape[0], size=n_voxels, replace=False)] = 1.0
-        nib.save(nib.Nifti1Image(flat.reshape(_SHAPE), _AFFINE), subject_dir / f"{subject_id}_label-lesion_mask.nii.gz")
-
-
-def _build_matrix_varying_volume(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
-    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
-
-    data_root = tmp_path / "data"
-    _make_varying_volume_dataset(data_root)
-    output_root = tmp_path / "matrix_out"
-    template_path = tmp_path / "reference_template.nii.gz"
-    nib.save(nib.Nifti1Image(np.zeros(_SHAPE, dtype=np.float32), _AFFINE), template_path)
-    build_cfg = {
-        "project": "testproj",
-        "data_root": str(data_root),
-        "datasets": ["siteA"],
-        "reference_template_path": str(template_path),
-        "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
-        "binarize_threshold": 0.5,
-        "resample_interpolation": "nearest",
-        "parcellate": False,
-        "atlas_path": None,
-        "parcel_aggregation": None,
-        "save_parcellated_volumes": False,
-        "output_root": str(output_root),
-        "session_name": "run1",
-        "overwrite": False,
-        "run_notes": None,
-    }
-    build_cfg_path = tmp_path / "build_varying.json"
-    build_cfg_path.write_text(json.dumps(build_cfg))
-    assert build_lesion_matrix.main(["--config", str(build_cfg_path)]) == 0
-    return next(p for p in output_root.iterdir() if p.is_dir())
-
-
-def test_dim_reduction_clustering_regress_out_volume_changes_embedding(tmp_path, monkeypatch):
-    input_dir = _build_matrix_varying_volume(tmp_path, monkeypatch)
-    _write_participants_registry(tmp_path, monkeypatch, n_subjects=12)
     monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
 
-    reduction_params_path = tmp_path / "params_reduction.json"
-    reduction_params_path.write_text(json.dumps({"pca": {"params": {"n_components": 2}}}))
-    clustering_params_path = tmp_path / "params_clustering.json"
-    clustering_params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
-
-    output_root = tmp_path / "drc_out"
-
-    def _run(regress_out_volume: bool, session_name: str) -> np.ndarray:
-        cfg = {
-            "project": "testproj",
-            "input_path": str(input_dir),
-            "reduction_method": "pca",
-            "reduction_params_file": str(reduction_params_path),
-            "clustering_methods": ["kmeans"],
-            "clustering_params_file": str(clustering_params_path),
-            "output_root": str(output_root),
-            "session_name": session_name,
-            "overwrite": False,
-            "fine_tuning": False,
-            "regress_out_volume": regress_out_volume,
-            "viz_n_components": 2,
-            "color_by": [],
-            "run_notes": None,
-        }
-        cfg_path = tmp_path / f"drc_{session_name}.json"
-        cfg_path.write_text(json.dumps(cfg))
-        assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 0
-        out_dir = next(p for p in (output_root / "production" / "pca" / "kmeans").iterdir() if session_name in p.name)
-        return np.load(out_dir / "matrix.npy")
-
-    embedding_plain = _run(False, "plain")
-    embedding_regressed = _run(True, "regressed")
-
-    assert embedding_plain.shape == embedding_regressed.shape
-    assert not np.array_equal(embedding_plain, embedding_regressed)
-
-
-def test_dim_reduction_clustering_regress_out_volume_incompatible_with_dice_raises(tmp_path, monkeypatch):
-    input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction_clustering, "LOGS_ROOT", tmp_path / "drc_logs")
+    input_dir = tmp_path / "continuous_matrix"
+    rng = np.random.default_rng(0)
+    X_continuous = rng.random((12, 5))
+    metadata = pd.DataFrame({"subject_id": [f"sub-{i:02d}" for i in range(12)], "dataset": "siteA"})
+    save_matrix(input_dir, X_continuous, metadata, ["# continuous fixture"], overwrite=False)
 
     reduction_params_path = tmp_path / "params_reduction.json"
     reduction_params_path.write_text(
@@ -557,7 +471,6 @@ def test_dim_reduction_clustering_regress_out_volume_incompatible_with_dice_rais
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
-        "regress_out_volume": True,
         "viz_n_components": 2,
         "color_by": [],
         "run_notes": None,
@@ -566,6 +479,7 @@ def test_dim_reduction_clustering_regress_out_volume_incompatible_with_dice_rais
     cfg_path.write_text(json.dumps(cfg))
 
     assert dim_reduction_clustering.main(["--config", str(cfg_path)]) == 1
+    assert not (tmp_path / "drc_out").exists()
 
 
 def test_dim_reduction_clustering_fine_tuning_missing_tuning_grid_raises(tmp_path, monkeypatch):
@@ -592,7 +506,6 @@ def test_dim_reduction_clustering_fine_tuning_missing_tuning_grid_raises(tmp_pat
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
-        "regress_out_volume": False,
         "viz_n_components": 2,
         "color_by": [],
         "run_notes": None,
@@ -642,7 +555,6 @@ def test_dim_reduction_clustering_fine_tuning_sweep_value_error_is_caught_not_pr
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
-        "regress_out_volume": False,
         "viz_n_components": 2,
         "color_by": [],
         "run_notes": None,
@@ -683,7 +595,6 @@ def test_dim_reduction_clustering_viz_embedding_refit_when_n_components_above_vi
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
-        "regress_out_volume": False,
         "viz_n_components": 2,
         "color_by": ["dataset"],
         "run_notes": None,
@@ -721,7 +632,6 @@ def test_dim_reduction_clustering_viz_n_components_3_rejected(tmp_path, monkeypa
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
-        "regress_out_volume": False,
         "viz_n_components": 3,
         "color_by": [],
         "run_notes": None,

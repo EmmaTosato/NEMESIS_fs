@@ -213,20 +213,15 @@ def compose_embedding_plot_title(output_dir: Path, reduction_method: str, color_
 def compose_tuning_leaf_title(output_dir: Path, reduction_method: str, leaf: dict) -> str:
     """Title for one nested-tuning leaf's embeddings_grid_*.png
     (dim_reduction.py's fine-tuning mode, nested_params declared):
-    "<Modality> - <ReductionMethod> - <Metric> - <N> Components[ -
-    RegressVolume <bool>]", same capitalization convention as
+    "<Modality> - <ReductionMethod> - <Metric> - <N> Components", same
+    capitalization convention as
     compose_cluster_plot_title/compose_embedding_plot_title so every plot
     family in this pipeline reads as one style instead of a path dump.
 
     `leaf` is one real nested-parameter combination (e.g. {"metric":
-    "euclidean", "n_components": 2, "regress_out_volume": False}) - only the
-    keys actually present are rendered, so this works for any nested_params
-    subset (e.g. tsne's leaf has no "n_components"). The RegressVolume
-    segment is dropped whenever metric isn't "euclidean": jaccard/dice never
-    combine with regress_out_volume=True (see
-    covariates.check_volume_regression_compatible), so every one of their
-    leaves would show the same constant "RegressVolume False", adding no
-    information.
+    "euclidean", "n_components": 2}) - only the keys actually present are
+    rendered, so this works for any nested_params subset (e.g. tsne's leaf
+    has no "n_components").
     """
     modality_title = _modality_title(output_dir)
     parts = [modality_title, reduction_method.capitalize()]
@@ -236,8 +231,6 @@ def compose_tuning_leaf_title(output_dir: Path, reduction_method: str, leaf: dic
     n_components = leaf.get("n_components")
     if n_components is not None:
         parts.append(f"{n_components} Components")
-    if metric == "euclidean" and "regress_out_volume" in leaf:
-        parts.append(f"RegressVolume {leaf['regress_out_volume']}")
     return " - ".join(parts)
 
 

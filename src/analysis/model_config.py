@@ -29,7 +29,6 @@ class DimReductionConfig:
     session_name: str
     overwrite: bool
     fine_tuning: bool
-    regress_out_volume: bool
     color_by: tuple[str, ...]
     viz_n_components: int
     write_embeddings_grid: bool
@@ -62,7 +61,6 @@ class DimReductionClusteringConfig:
     session_name: str
     overwrite: bool
     fine_tuning: bool
-    regress_out_volume: bool
     viz_n_components: int
     color_by: tuple[str, ...]
     run_notes: str | None
@@ -80,7 +78,6 @@ def load_dim_reduction_config(path: str | Path) -> DimReductionConfig:
         session_name=session_name,
         overwrite=overwrite,
         fine_tuning=_require_bool(raw, "fine_tuning"),
-        regress_out_volume=_require_bool(raw, "regress_out_volume"),
         color_by=_require_str_list_allow_empty(raw, "color_by"),
         viz_n_components=_require_viz_n_components(raw),
         write_embeddings_grid=_require_bool(raw, "write_embeddings_grid"),
@@ -119,7 +116,6 @@ def load_dim_reduction_clustering_config(path: str | Path) -> DimReductionCluste
         session_name=session_name,
         overwrite=overwrite,
         fine_tuning=_require_bool(raw, "fine_tuning"),
-        regress_out_volume=_require_bool(raw, "regress_out_volume"),
         viz_n_components=_require_viz_n_components(raw),
         color_by=_require_str_list_allow_empty(raw, "color_by"),
         run_notes=run_notes,

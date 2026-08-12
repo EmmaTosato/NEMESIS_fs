@@ -23,17 +23,6 @@ Quality metric differs by method, on purpose (see docs/knowledge/dim_reduction.m
   count. Varimax rotation is orthogonal, so it doesn't change the total
   variance explained by the underlying (unrotated) components - the same
   criterion applies unchanged to pca_varimax.
-
-`regress_out_volume` (umap/tsne only today) can be swept in tuning_grid
-alongside `metric`: evaluate_umap/evaluate_tsne apply it to the embedding
-before scoring, exactly like the production path in dim_reduction.py. Some
-combinations are impossible by construction (regress_out_volume=True with
-metric=jaccard/dice - see src/analysis/covariates.py, which already documents
-why) - run_tuning_sweep excludes that combination from the returned table
-entirely (a WARNING is logged when it happens, so it's not silent - but the
-incompatibility is a known, documented fact, not a per-run finding worth a
-placeholder row in every tuning_results.csv) rather than crashing the whole
-sweep.
 """
 
 from __future__ import annotations
@@ -46,11 +35,6 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.manifold import trustworthiness
 
-from src.analysis.covariates import (
-    VolumeRegressionIncompatibleError,
-    check_volume_regression_compatible,
-    regress_out_covariate,
-)
 from src.analysis.distances import SUPPORTED_BINARY_METRICS, binary_pairwise_distance
 from src.analysis.reduction import pacmap_embed, pca_varimax_embed, tsne_embed, umap_embed
 
@@ -70,16 +54,14 @@ METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS = {"umap", "tsne", "pacmap"}
 # the same metric computes that matrix once, not N times (X.astype(float64)
 # alone allocates a full-size copy of the feature matrix, plus an O(n^2)
 # matmul - see binary_pairwise_distance - neither depends on n_neighbors/
-# min_dist/n_components/regress_out_volume, so redoing it per combination is
-# pure waste).
+# min_dist/n_components, so redoing it per combination is pure waste).
 METHODS_WITH_DISTANCE_CACHE = {"umap", "tsne"}
 
 
 def evaluate_umap(
     X: np.ndarray, params: dict, trustworthiness_n_neighbors: int, distance_cache: dict[str, np.ndarray] | None = None
 ) -> tuple[np.ndarray, float]:
-    """Embed with UMAP, optionally regress out lesion volume, then score with
-    trustworthiness(X, embedding).
+    """Embed with UMAP, then score with trustworthiness(X, embedding).
 
     trustworthiness needs its own notion of "how close were these points
     originally" - if params requests a binary metric (jaccard/dice), that
@@ -88,29 +70,21 @@ def evaluate_umap(
     embedding against euclidean neighborhoods isn't a fair test of it, see
     docs/dev/models.md). For those metrics X is replaced by its precomputed
     binary_pairwise_distance matrix for both the embedding and the score, and
-    umap's own metric is switched to "precomputed" accordingly (also avoids
-    umap/sklearn each recomputing pairwise distances the slow, non-vectorized
-    way on raw high-dimensional binary features).
+    umap's own metric is switched to "precomputed" accordingly - this also
+    guarantees an *exact* neighbor graph (umap-learn only computes exact
+    k-NN itself for datasets under 4096 samples - `n_index_samples < 4096`
+    in `UMAP.fit()`, https://github.com/lmcinnes/umap/blob/master/umap/umap_.py
+    - above that it silently switches to the approximate NNDescent/pynndescent
+    search; precomputing avoids depending on that undocumented, version-
+    dependent threshold at all - see dim_reduction.py's production path,
+    which now goes through the same precomputed branch for the same reason).
 
     `distance_cache`, when given, is read/written by metric name - a repeat
     call for the same metric (e.g. the next n_neighbors/min_dist combination
     in the same sweep) reuses the matrix instead of recomputing it. None
     (default, e.g. a standalone call outside run_tuning_sweep) always
     recomputes - never stale, just uncached.
-
-    "regress_out_volume" (default False) is not a UMAP constructor argument -
-    stripped from params before embedding, applied to the embedding
-    afterwards exactly like the production path in dim_reduction.py (OLS
-    residuals against each subject's voxel count, X.sum(axis=1)), and the
-    score is computed on that residualized embedding since that is what a
-    production run with the same flag would actually save. Raises
-    VolumeRegressionIncompatibleError if combined with metric=jaccard/dice -
-    checked here (not only in run_tuning_sweep) so this holds regardless of
-    caller, per the project's "single always-run validation point" rule.
     """
-    regress_out_volume = params.get("regress_out_volume", False)
-    check_volume_regression_compatible(regress_out_volume, params)
-
     metric = params.get("metric", "euclidean")
     if metric in SUPPORTED_BINARY_METRICS:
         if distance_cache is not None and metric in distance_cache:
@@ -119,17 +93,15 @@ def evaluate_umap(
             X_input = binary_pairwise_distance(X, metric)
             if distance_cache is not None:
                 distance_cache[metric] = X_input
-        umap_params = {k: v for k, v in params.items() if k not in ("metric", "regress_out_volume")}
+        umap_params = {k: v for k, v in params.items() if k != "metric"}
         umap_params["metric"] = "precomputed"
         trustworthiness_metric = "precomputed"
     else:
         X_input = X
-        umap_params = {k: v for k, v in params.items() if k != "regress_out_volume"}
+        umap_params = dict(params)
         trustworthiness_metric = metric
 
     embedding = umap_embed(X_input, umap_params)
-    if regress_out_volume:
-        embedding = regress_out_covariate(embedding, X.sum(axis=1))
     score = float(trustworthiness(X_input, embedding, n_neighbors=trustworthiness_n_neighbors, metric=trustworthiness_metric))
     return embedding, score
 
@@ -137,8 +109,7 @@ def evaluate_umap(
 def evaluate_tsne(
     X: np.ndarray, params: dict, trustworthiness_n_neighbors: int, distance_cache: dict[str, np.ndarray] | None = None
 ) -> tuple[np.ndarray, float]:
-    """Embed with t-SNE, optionally regress out lesion volume, then score with
-    trustworthiness(X, embedding).
+    """Embed with t-SNE, then score with trustworthiness(X, embedding).
 
     Same binary-metric handling as evaluate_umap, for the same reason: on
     binary voxel data, euclidean is dominated by lesion volume rather than
@@ -153,14 +124,7 @@ def evaluate_tsne(
     `distance_cache` behaves exactly as in evaluate_umap - reused by metric
     name across calls within the same sweep, None (default) always
     recomputes.
-
-    Same "regress_out_volume" handling as evaluate_umap too (see its
-    docstring): stripped from params, applied to the embedding after fitting,
-    scored on the residualized embedding, validated here regardless of caller.
     """
-    regress_out_volume = params.get("regress_out_volume", False)
-    check_volume_regression_compatible(regress_out_volume, params)
-
     metric = params.get("metric", "euclidean")
     if metric in SUPPORTED_BINARY_METRICS:
         if distance_cache is not None and metric in distance_cache:
@@ -169,18 +133,16 @@ def evaluate_tsne(
             X_input = binary_pairwise_distance(X, metric)
             if distance_cache is not None:
                 distance_cache[metric] = X_input
-        tsne_params = {k: v for k, v in params.items() if k not in ("metric", "regress_out_volume")}
+        tsne_params = {k: v for k, v in params.items() if k != "metric"}
         tsne_params["metric"] = "precomputed"
         tsne_params["init"] = "random"
         trustworthiness_metric = "precomputed"
     else:
         X_input = X
-        tsne_params = {k: v for k, v in params.items() if k != "regress_out_volume"}
+        tsne_params = dict(params)
         trustworthiness_metric = metric
 
     embedding = tsne_embed(X_input, tsne_params)
-    if regress_out_volume:
-        embedding = regress_out_covariate(embedding, X.sum(axis=1))
     score = float(trustworthiness(X_input, embedding, n_neighbors=trustworthiness_n_neighbors, metric=trustworthiness_metric))
     return embedding, score
 
@@ -235,21 +197,12 @@ def run_tuning_sweep(
       tuning_grid.keys() order) - kept in memory only, never serialized, so
       callers that need to *see* an embedding (not just its score) - e.g.
       dim_reduction.py's per-leaf embeddings_grid plot - don't have to refit
-      it a second time. A combination excluded below (see
-      VolumeRegressionIncompatibleError) has no entry in either return value.
+      it a second time.
 
     Raises ValueError for a method with no supported tuning evaluator (only
     the methods in TUNING_METRIC_NAMES are supported today - kmeans/agglomerative/
     gmm/hdbscan/spectral have no tuning_grid to begin with here, see
     clustering_tuning.py instead, and params.py.load_tuning_grid).
-
-    If a combination has regress_out_volume=True together with metric=jaccard/dice
-    (umap/tsne only - see evaluate_umap/evaluate_tsne), that specific combination
-    is excluded entirely from both return values - no embedding is computed, no
-    row is added. A WARNING is logged when this happens (so it's not silent),
-    but the incompatibility itself is a known, documented fact
-    (src/analysis/covariates.py, docs/knowledge/dim_reduction.md), not
-    a per-run result worth a placeholder row in every tuning_results.csv.
     """
     if method not in TUNING_METRIC_NAMES:
         raise ValueError(f"fine-tuning not supported for method {method!r} - known: {sorted(TUNING_METRIC_NAMES)}")
@@ -273,20 +226,10 @@ def run_tuning_sweep(
         if method in METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS:
             if trustworthiness_n_neighbors is None:
                 raise ValueError(f"trustworthiness_n_neighbors is required to fine-tune {method!r}")
-            try:
-                if method in METHODS_WITH_DISTANCE_CACHE:
-                    embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors, distance_cache)
-                else:
-                    embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors)
-            except VolumeRegressionIncompatibleError as exc:
-                logging.warning(
-                    "excluding combination %d/%d (%s) from results - impossible by construction: %s",
-                    i,
-                    total,
-                    swept,
-                    exc,
-                )
-                continue
+            if method in METHODS_WITH_DISTANCE_CACHE:
+                embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors, distance_cache)
+            else:
+                embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors)
         else:
             embedding, score = evaluator(X, combo_params)
         rows.append({**swept, metric_name: score})

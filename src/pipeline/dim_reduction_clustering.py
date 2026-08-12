@@ -64,7 +64,7 @@ import numpy as np
 import pandas as pd
 
 from src.analysis.clustering import CLUSTERING_METHODS
-from src.analysis.covariates import check_volume_regression_compatible, regress_out_covariate
+from src.analysis.distances import SUPPORTED_BINARY_METRICS, require_binary_matrix
 from src.analysis.embedding_plots import write_embedding_plots
 from src.analysis.clustering_tuning import (
     CONSENSUS_METRIC_COLUMNS,
@@ -92,7 +92,7 @@ from src.analysis.plotting import (
     plot_eigengap,
     plot_silhouette_analysis,
 )
-from src.analysis.reduction import REDUCTION_METHODS, embedding_for_viz
+from src.analysis.reduction import embed, embedding_for_viz
 from src.features.clinical import enrich_metadata_with_lesion_info
 from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
@@ -136,30 +136,25 @@ def main(argv: list[str] | None = None) -> int:
     try:
         X, metadata, _extra_arrays = load_matrix(config.input_path)
         reduction_params, reduction_tag = load_method_params(config.reduction_params_file, config.reduction_method)
-        check_volume_regression_compatible(config.regress_out_volume, reduction_params)
+        if reduction_params.get("metric") in SUPPORTED_BINARY_METRICS:
+            require_binary_matrix(X, reduction_params["metric"])
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return 1
 
-    embedding = REDUCTION_METHODS[config.reduction_method](X, reduction_params)
+    # distance_cache: if reduction_params["metric"] is jaccard/dice, embed() below and
+    # the viz refit right after share the same precomputed distance matrix instead of
+    # recomputing it (see src/analysis/reduction.py::embed's docstring).
+    distance_cache: dict[str, np.ndarray] = {}
+    embedding = embed(config.reduction_method, X, reduction_params, distance_cache)
 
     # Separate embedding for visualization only - reused as-is when it already has
     # viz_n_components columns (every config today: both 2, zero extra cost), otherwise
     # refit from raw X (see src/analysis/reduction.py::embedding_for_viz's docstring for why
     # slicing embedding[:, :viz_n_components] is not a valid substitute for umap/tsne/pacmap).
-    # Computed before regress_out_volume below so both the clustering and the plotted
-    # embedding get the same treatment; clustering/silhouette always use the real `embedding`
-    # (whatever its own n_components is), never `viz_embedding`.
-    viz_embedding = embedding_for_viz(config.reduction_method, X, reduction_params, embedding, config.viz_n_components)
-    viz_is_clustering_embedding = viz_embedding is embedding
-
-    if config.regress_out_volume:
-        # X is binary (0/1 per voxel); a row's voxel count is exactly proportional to its
-        # lesion volume in ml, and OLS residuals are invariant to that scalar rescaling.
-        lesion_load_voxels = X.sum(axis=1)
-        embedding = regress_out_covariate(embedding, lesion_load_voxels)
-        viz_embedding = embedding if viz_is_clustering_embedding else regress_out_covariate(viz_embedding, lesion_load_voxels)
-        logging.info("regressed out lesion volume (voxel count) from both the clustering and visualization embeddings")
+    # Clustering/silhouette always use the real `embedding` (whatever its own n_components
+    # is), never `viz_embedding`.
+    viz_embedding = embedding_for_viz(config.reduction_method, X, reduction_params, embedding, config.viz_n_components, distance_cache)
 
     effective_reduction_session = f"{config.session_name}_{reduction_tag}" if reduction_tag else config.session_name
 
@@ -373,7 +368,6 @@ def _config_summary(config: DimReductionClusteringConfig, method: str) -> str:
         "session_name": config.session_name,
         "overwrite": config.overwrite,
         "fine_tuning": config.fine_tuning,
-        "regress_out_volume": config.regress_out_volume,
         "viz_n_components": config.viz_n_components,
         "color_by": list(config.color_by),
         "run_notes": config.run_notes,

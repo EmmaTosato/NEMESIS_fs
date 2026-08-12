@@ -31,7 +31,6 @@ def test_dim_reduction_config_valid(tmp_path):
         "reduction_method": "umap",
         "params_file": "config/registry/params_reduction.json",
         "fine_tuning": False,
-        "regress_out_volume": False,
         "color_by": ["dataset", "volume"],
         "viz_n_components": 2,
         "write_embeddings_grid": True,
@@ -40,7 +39,6 @@ def test_dim_reduction_config_valid(tmp_path):
     config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
     assert config.reduction_method == "umap"
     assert config.fine_tuning is False
-    assert config.regress_out_volume is False
     assert config.color_by == ("dataset", "volume")
     assert config.viz_n_components == 2
     assert config.write_embeddings_grid is True
@@ -54,7 +52,6 @@ def test_dim_reduction_config_with_run_notes(tmp_path):
         "reduction_method": "umap",
         "params_file": "config/registry/params_reduction.json",
         "fine_tuning": True,
-        "regress_out_volume": False,
         "color_by": [],
         "viz_n_components": 2,
         "write_embeddings_grid": True,
@@ -78,51 +75,8 @@ def test_dim_reduction_config_unknown_method_raises(tmp_path):
         "reduction_method": "bogus",
         "params_file": "config/registry/params_reduction.json",
         "fine_tuning": False,
-        "regress_out_volume": False,
     }
     with pytest.raises(ValueError, match="unknown reduction_method"):
-        load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
-
-
-def test_dim_reduction_config_regress_out_volume_true(tmp_path):
-    payload = {
-        **_SHARED,
-        "reduction_method": "umap",
-        "params_file": "config/registry/params_reduction.json",
-        "fine_tuning": False,
-        "regress_out_volume": True,
-        "color_by": ["dataset"],
-        "viz_n_components": 3,
-        "write_embeddings_grid": False,
-        "save_tuning_embeddings": True,
-    }
-    config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
-    assert config.regress_out_volume is True
-    assert config.viz_n_components == 3
-    assert config.write_embeddings_grid is False
-    assert config.save_tuning_embeddings is True
-
-
-def test_dim_reduction_config_missing_regress_out_volume_raises(tmp_path):
-    payload = {
-        **_SHARED,
-        "reduction_method": "umap",
-        "params_file": "config/registry/params_reduction.json",
-        "fine_tuning": False,
-    }
-    with pytest.raises(ValueError, match="missing required field 'regress_out_volume'"):
-        load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
-
-
-def test_dim_reduction_config_non_bool_regress_out_volume_raises(tmp_path):
-    payload = {
-        **_SHARED,
-        "reduction_method": "umap",
-        "params_file": "config/registry/params_reduction.json",
-        "fine_tuning": False,
-        "regress_out_volume": "true",
-    }
-    with pytest.raises(ValueError, match="field 'regress_out_volume' must be a boolean"):
         load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
 
 
@@ -132,7 +86,6 @@ def _dr_payload(**overrides):
         "reduction_method": "umap",
         "params_file": "config/registry/params_reduction.json",
         "fine_tuning": False,
-        "regress_out_volume": False,
         "color_by": [],
         "viz_n_components": 2,
         "write_embeddings_grid": True,
@@ -297,7 +250,6 @@ def test_dim_reduction_clustering_config_valid(tmp_path):
         "clustering_methods": ["kmeans"],
         "clustering_params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
-        "regress_out_volume": False,
         "viz_n_components": 2,
         "color_by": [],
     }
@@ -307,7 +259,6 @@ def test_dim_reduction_clustering_config_valid(tmp_path):
     assert str(config.reduction_params_file) == "config/registry/params_reduction.json"
     assert str(config.clustering_params_file) == "config/registry/params_clustering.json"
     assert config.fine_tuning is False
-    assert config.regress_out_volume is False
     assert config.viz_n_components == 2
     assert config.color_by == ()
 
@@ -321,19 +272,6 @@ def test_dim_reduction_clustering_config_missing_fine_tuning_raises(tmp_path):
         "clustering_params_file": "config/registry/params_clustering.json",
     }
     with pytest.raises(ValueError, match="missing required field 'fine_tuning'"):
-        load_dim_reduction_clustering_config(_write(tmp_path, "drc.json", payload))
-
-
-def test_dim_reduction_clustering_config_missing_regress_out_volume_raises(tmp_path):
-    payload = {
-        **_SHARED,
-        "reduction_method": "tsne",
-        "reduction_params_file": "config/registry/params_reduction.json",
-        "clustering_methods": ["kmeans"],
-        "clustering_params_file": "config/registry/params_clustering.json",
-        "fine_tuning": False,
-    }
-    with pytest.raises(ValueError, match="missing required field 'regress_out_volume'"):
         load_dim_reduction_clustering_config(_write(tmp_path, "drc.json", payload))
 
 

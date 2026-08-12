@@ -7,7 +7,6 @@
   "session_name": "s1.1_nc2",
   "overwrite": true,
   "fine_tuning": false,
-  "regress_out_volume": false,
   "color_by": ["dataset", "side", "volume", "nihss"],
   "viz_n_components": 2,
   "write_embeddings_grid": true,

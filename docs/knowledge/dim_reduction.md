@@ -34,10 +34,9 @@ Parametri, divisi per motivo — **non tutti riguardano la replica del paper**:
   - `early_exaggeration`, `learning_rate`, `max_iter` — parametri di ottimizzazione, **fissati** ai valori del paper, mai sweeppati.
   - `perplexity` — grosso modo, quanti vicini contano per punto (tipico 5-50, deve essere minore del numero di soggetti; troppo basso frammenta cluster reali in rumore, troppo alto fonde cluster distinti). **Sweeppato**, ma proprio perché è l'unico parametro che anche il materiale supplementare del paper fa variare — qui sweeppare *replica* il paper, non se ne discosta.
 - **Aggiunte proprie di NEMESIS, indipendenti dal paper** (introdotte in sessioni successive per un problema che il paper non affronta — su maschere di lesione binarie, la metrica euclidea di default è dominata dal volume della lesione più che dalla sua forma):
-  - `metric` — `euclidean` (default) è appunto dominato dal **volume**; `jaccard`/`dice` normalizzano invece per la dimensione della lesione di ciascun soggetto, così due lesioni piccole nello stesso posto e due lesioni grandi nello stesso posto risultano ugualmente vicine. Sweeppato.
-  - `regress_out_volume` — stesso meccanismo spiegato sotto per UMAP (toglie l'effetto del volume dall'embedding già calcolato, incompatibile con `metric: jaccard/dice`). Sweeppato.
+  - `metric` — `euclidean` (default) è dominato dal **volume** in modo pesante e illimitato (la differenza di volume tra due lesioni può dominare la distanza euclidea senza alcun limite superiore). `jaccard`/`dice` **attenuano ma non eliminano** questa dipendenza — **correzione (2026-08, verificata in letteratura)**: non è vero che rendono "ugualmente vicine" due lesioni di volume diverso nella stessa zona. Per costruzione, `Dice(A,B) ≤ 2·min(|A|,|B|)/(|A|+|B|)` — una lesione piccola e una grande nello stesso identico posto restano comunque a distanza significativa, proprio a causa della differenza di volume, non della posizione. È un bias noto e documentato (da cui varianti come nDSC, pensate apposta per correggerlo), non un'invenzione di questa nota. jaccard/dice restano comunque preferibili all'euclidea grezza (che non ha alcun limite superiore al bias-volume), ma vanno letti come "meno peggio", non come "risolto". Sweeppato.
 
-(`metric`/`regress_out_volume` sono organizzati come "parametri annidati" nel tuning — una sottocartella per valore invece di una griglia unica con `perplexity`; vedi `docs/knowledge/dim_reduction_tuning_guide.md`.)
+(`metric` è organizzato come "parametro annidato" nel tuning — una sottocartella per valore invece di una griglia unica con `perplexity`; vedi `docs/knowledge/dim_reduction_tuning_guide.md`.)
 
 ## UMAP
 
@@ -46,11 +45,10 @@ Anch'esso non lineare e basato sui vicini, ma con un fondamento matematico diver
 - Parametri chiave:
   - `n_neighbors` — analogo alla `perplexity` di t-SNE: quanti punti vicini definiscono il vicinato locale di un soggetto.
   - `min_dist` — quanto i punti possono impacchettarsi nello spazio di output. Basso = cluster più compatti e visivamente separati; alto = distribuzione più uniforme, utile per vedere gradienti continui invece di gruppi discreti.
-  - `metric` — stesso discorso di t-SNE sopra (euclidea dominata dal volume, jaccard/dice normalizzano per volume).
+  - `metric` — stesso discorso di t-SNE sopra: euclidea dominata pesantemente dal volume, jaccard/dice attenuano ma non eliminano quella dipendenza (vedi la correzione nella sezione t-SNE).
 - Stocastico: fissare `random_state`.
 - A differenza di t-SNE, si usa correntemente anche a più dimensioni (5-15) come step di preprocessing prima del clustering, non solo per la visualizzazione a 2D.
 - **La presunta superiorità di UMAP nel preservare la struttura globale è ridimensionata in letteratura**: gran parte del vantaggio percepito viene dalla sua inizializzazione di default (basata su spectral embedding), non dalla funzione di costo in sé (Kobak & Linderman 2021) — vedi `docs/knowledge/umap_tsne_guide.md` per i dettagli.
-- `regress_out_volume` (opzione di pipeline, non un parametro di UMAP): correzione opzionale applicata *dopo* aver calcolato l'embedding, che toglie l'effetto lineare del volume lesionale da ogni sua dimensione. **Incompatibile con `metric: jaccard`/`dice`** — quelle metriche già normalizzano per il volume di ciascun soggetto a livello di distanza; farlo anche qui toglierebbe segnale topografico vero, non solo un confondimento.
 
 ## PCA con rotazione varimax
 
@@ -60,6 +58,7 @@ Stessa base di PCA (autoscomposizione della matrice di covarianza), ma le compon
 - Richiede `n_components >= 2` — la rotazione avviene *tra* componenti, quindi serve almeno una coppia da ruotare.
 - Deterministico, come PCA normale — nessun `random_state`.
 - **Non ancora raggiungibile da config oggi**: implementato e testato nel codice, ma `params_reduction.json` non ha una entry per questo metodo — va aggiunta prima di poterlo usare dalla CLI.
+- **Bug corretto (2026-08)**: la rotazione varimax va applicata ai *loadings* (autovettore × radice dell'autovalore), non agli autovettori grezzi di `PCA.components_` — il codice faceva quest'ultimo, il che pesava ogni componente allo stesso modo indipendentemente da quanta varianza spiegasse davvero, e degradava silenziosamente il passo di "regressione multipla" successivo in una semplice proiezione. Corretto in `src/analysis/reduction.py::pca_varimax_embed` prima che il metodo fosse mai raggiungibile in produzione — nessun risultato esistente è quindi affetto.
 
 ## PaCMAP
 
@@ -68,6 +67,7 @@ Altro metodo non lineare basato sui vicini, pensato dai suoi autori per bilancia
 - Parametri chiave: `n_neighbors` (stesso ruolo di UMAP), `MN_ratio`/`FP_ratio` — controllano quante coppie medio-vicine/lontane campionare rispetto alle vicine (un `MN_ratio` più alto spinge verso più struttura globale preservata).
 - Stocastico: fissare `random_state`.
 - Serve un numero di soggetti sufficiente perché `n_neighbors` e le coppie derivate abbiano senso — su coorti molto piccole la proiezione non è affidabile.
+- **`apply_pca`** (reso esplicito in config, 2026-08 — prima lasciato al default della libreria): quando `true` (default di PaCMAP stesso), prima di costruire il grafo dei vicini viene applicata una PCA di preprocessing a 100 componenti — un passaggio non banale su dati binari ad alta dimensionalità come i voxel di lesione, mai stato visibile in `params_reduction.json` finché non è stato aggiunto qui esplicitamente (`code_standards.md` §5: nessun iperparametro implicito). Attenzione se si valuta `trustworthiness` sull'embedding: quest'ultima confronta i vicinati dell'embedding con quelli di `X` grezza, non con quelli dello spazio PCA-100 su cui PaCMAP ha effettivamente costruito il grafo — un disallineamento della stessa famiglia già corretto per UMAP/t-SNE (vedi sopra), non ancora affrontato per PaCMAP.
 
 ## Come scegliere tra i metodi
 
