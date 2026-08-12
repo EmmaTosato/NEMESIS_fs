@@ -1,2 +1,0 @@
-session,id,timestamp,params,output,notes
-s1.1,n5,23-07-26 18:43,"{""n_components"": 2, ""n_neighbors"": 5, ""MN_ratio"": 0.5, ""FP_ratio"": 2.0, ""random_state"": 0}",results/lesion/dim_reduction/pacmap/23-07_s1.1_n5,"PaCMAP production run on voxel-wise lesion matrix (21-07_s1.1), best params from tuning sweep (n_neighbors=5, trustworthiness=0.738)"

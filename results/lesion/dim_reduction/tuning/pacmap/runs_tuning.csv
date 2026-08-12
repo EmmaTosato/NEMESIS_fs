@@ -1,2 +1,0 @@
-session,id,timestamp,params,output,notes
-s1.1,pacmap_tune,23-07-26 18:41,"{""base_params"": {""n_components"": 2, ""n_neighbors"": 10, ""MN_ratio"": 0.5, ""FP_ratio"": 2.0, ""random_state"": 0}, ""tuning_grid"": {""n_neighbors"": [5, 10, 20, 50]}}",results/lesion/dim_reduction/pacmap/tuning/23-07_s1.1_pacmap_tune,"Fine-tuning n_neighbors on the voxel-wise lesion matrix (21-07_s1.1), trustworthiness criterion (same n_neighbors=10 used for the trustworthiness metric as UMAP's tuning)"

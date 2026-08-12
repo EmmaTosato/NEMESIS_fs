@@ -1,3 +1,0 @@
-session,id,timestamp,params,output,notes
-s1.1,c150,23-07-26 18:20,"{""n_components"": 150, ""random_state"": 0}",results/lesion/dim_reduction/pca/23-07_s1.1_c150,"PCA production run on voxel-wise lesion matrix (21-07_s1.1), n_components=150 (76% cumulative explained variance, max tested in the tuning sweep - 90% not reached on voxel-wise data)"
-s1.1,c2,26-07-26 16:25,"{""n_components"": 2, ""random_state"": 0}",results/lesion/dim_reduction/pca/26-07_s1.1_c2,"PCA n_components=2, run for consistency with the other 3 reductions (umap/pacmap/tsne already have a standalone embedding saved here) - see TUNING_ANALYSIS.md pca-2D control test for why this isn't the production PCA config (150 components stays the default)"
