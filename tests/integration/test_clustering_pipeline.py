@@ -205,6 +205,7 @@ def test_clustering_end_to_end_evidence_accumulation(tmp_path, monkeypatch):
                         "affinity": "nearest_neighbors",
                         "n_neighbors": 5,
                         "n_repeats": 10,
+                        "threshold": 0.5,
                         "base_seed": 0,
                     }
                 }
@@ -231,7 +232,11 @@ def test_clustering_end_to_end_evidence_accumulation(tmp_path, monkeypatch):
 
     out_dir = next(p for p in (output_root / "production" / "evidence_accumulation").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
-    assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
+    # unlike every other method, the number of clusters isn't a parameter
+    # here - it emerges from the threshold cut, so only the label shape/type
+    # is checked, not a specific bounded set of values
+    assert len(metadata["cluster_label"]) == 12
+    assert (metadata["cluster_label"] >= 0).all()
     assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
 

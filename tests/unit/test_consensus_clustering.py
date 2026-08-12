@@ -116,7 +116,7 @@ def test_compute_monti_stability_bounds():
 def test_assign_clusters_from_cooccurrence_recovers_well_separated_blobs():
     X = _two_blobs()
     cooccurrence = run_rsc_repeats("kmeans", X, {"n_clusters": 2, "n_init": "auto"}, n_repeats=20)
-    labels = assign_clusters_from_cooccurrence(cooccurrence, n_clusters=2)
+    labels = assign_clusters_from_cooccurrence(cooccurrence, threshold=0.5)
 
     assert labels.shape == (40,)
     assert set(labels.tolist()) == {0, 1}
@@ -127,7 +127,7 @@ def test_assign_clusters_from_cooccurrence_recovers_well_separated_blobs():
 
 def test_assign_clusters_from_cooccurrence_is_0_indexed():
     # a trivial 4x4 co-occurrence: {0,1} fully together, {2,3} fully together,
-    # the two pairs never co-occur - cut at 2 clusters should recover exactly that
+    # the two pairs never co-occur - a threshold cut should recover exactly that
     cooccurrence = np.array(
         [
             [1.0, 1.0, 0.0, 0.0],
@@ -136,7 +136,7 @@ def test_assign_clusters_from_cooccurrence_is_0_indexed():
             [0.0, 0.0, 1.0, 1.0],
         ]
     )
-    labels = assign_clusters_from_cooccurrence(cooccurrence, n_clusters=2)
+    labels = assign_clusters_from_cooccurrence(cooccurrence, threshold=0.5)
 
     assert set(labels.tolist()) == {0, 1}
     assert labels[0] == labels[1]
@@ -144,14 +144,40 @@ def test_assign_clusters_from_cooccurrence_is_0_indexed():
     assert labels[0] != labels[2]
 
 
+def test_assign_clusters_from_cooccurrence_cluster_count_emerges_from_threshold():
+    # the whole point of Fred & Jain's Merge step: the number of final
+    # clusters is never passed in - it comes out of the co-association
+    # structure itself. 3 clean blocks, no "3" anywhere in the call.
+    cooccurrence = np.array(
+        [
+            [1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 1.0, 1.0],
+            [0.0, 0.0, 0.0, 0.0, 1.0, 1.0],
+        ]
+    )
+    labels = assign_clusters_from_cooccurrence(cooccurrence, threshold=0.5)
+    assert len(set(labels.tolist())) == 3
+
+    # a looser threshold can legitimately merge blocks that co-occurred even
+    # a little (here: block {2,3} and {4,5} share weak co-association) -
+    # still no n_clusters passed in, the count just changes with the data
+    cooccurrence[2:4, 4:6] = 0.2
+    cooccurrence[4:6, 2:4] = 0.2
+    labels_loose = assign_clusters_from_cooccurrence(cooccurrence, threshold=0.1)
+    assert len(set(labels_loose.tolist())) == 2
+
+
 def test_assign_clusters_from_cooccurrence_rejects_non_square_matrix():
     with pytest.raises(ValueError, match="square"):
-        assign_clusters_from_cooccurrence(np.zeros((4, 5)), n_clusters=2)
+        assign_clusters_from_cooccurrence(np.zeros((4, 5)), threshold=0.5)
 
 
-def test_assign_clusters_from_cooccurrence_rejects_out_of_range_n_clusters():
+def test_assign_clusters_from_cooccurrence_rejects_out_of_range_threshold():
     cooccurrence = np.eye(4)
-    with pytest.raises(ValueError, match="n_clusters"):
-        assign_clusters_from_cooccurrence(cooccurrence, n_clusters=5)
-    with pytest.raises(ValueError, match="n_clusters"):
-        assign_clusters_from_cooccurrence(cooccurrence, n_clusters=0)
+    with pytest.raises(ValueError, match="threshold"):
+        assign_clusters_from_cooccurrence(cooccurrence, threshold=1.1)
+    with pytest.raises(ValueError, match="threshold"):
+        assign_clusters_from_cooccurrence(cooccurrence, threshold=-0.1)

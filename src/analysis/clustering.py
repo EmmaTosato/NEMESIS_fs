@@ -43,9 +43,20 @@ def evidence_accumulation_cluster(X: np.ndarray, params: dict) -> np.ndarray:
     times (only random_state varying), build a co-occurrence matrix from how
     often each pair of subjects ends up together, then derive final labels
     from that matrix - not from any single one of the N runs - via
-    src.analysis.consensus_clustering.assign_clusters_from_cooccurrence (see
-    that function's docstring for exactly which algorithm, incl. one
-    deliberate deviation from the paper's own cut criterion).
+    src.analysis.consensus_clustering.assign_clusters_from_cooccurrence.
+
+    Two design parameters, matching the paper's own "Split" and "Merge"
+    phases - deliberately *not* the same knob:
+    - `K_PARAM_NAME[base_method]` (e.g. `n_clusters` for kmeans/spectral,
+      `n_components` for gmm) is the **Split**-phase decomposition size fed
+      to each of the `n_repeats` runs - per the paper, this should be
+      *larger* than the true expected number of clusters (a large number of
+      small, compact clusters to combine), not the final cluster count.
+    - `threshold` (the paper's `t`, forwarded to
+      assign_clusters_from_cooccurrence) is the **Merge**-phase cut: two
+      subjects end up in the same final cluster iff their co-association
+      exceeds `t`. The final number of clusters is not chosen in advance -
+      it emerges from the data. Paper's own default: `t = 0.5`.
 
     Method-agnostic on purpose: `params["base_method"]` selects which of
     CONSENSUS_ELIGIBLE_METHODS (kmeans/gmm/spectral - the only 3 with genuine
@@ -56,15 +67,14 @@ def evidence_accumulation_cluster(X: np.ndarray, params: dict) -> np.ndarray:
     algorithm never fixes the base clusterer.
 
     params: {"base_method": one of CONSENSUS_ELIGIBLE_METHODS, "n_repeats":
-    int, "base_seed": int (optional, default 0), plus every hyperparameter
-    base_method's own CLUSTERING_METHODS function needs - including
-    K_PARAM_NAME[base_method] ("n_clusters" for kmeans/spectral,
-    "n_components" for gmm), used both for each repeat and for the final cut
-    of the co-occurrence matrix}. A fixed 'random_state' is rejected
-    explicitly, not silently overridden - each of the n_repeats runs gets
-    its own seed (base_seed + i) internally; a single shared one would make
-    every repeat identical, producing a degenerate (all-0/1) co-occurrence
-    matrix instead of a meaningful stability signal.
+    int, "threshold": float in [0, 1], "base_seed": int (optional, default
+    0), plus every hyperparameter base_method's own CLUSTERING_METHODS
+    function needs (incl. K_PARAM_NAME[base_method], for the Split phase
+    only - see above)}. A fixed 'random_state' is rejected explicitly, not
+    silently overridden - each of the n_repeats runs gets its own seed
+    (base_seed + i) internally; a single shared one would make every repeat
+    identical, producing a degenerate (all-0/1) co-occurrence matrix instead
+    of a meaningful stability signal.
 
     Local import below (not at module top) is deliberate: consensus_clustering
     imports CLUSTERING_METHODS from this module for its generic RSC/Monti
@@ -88,10 +98,18 @@ def evidence_accumulation_cluster(X: np.ndarray, params: dict) -> np.ndarray:
         raise ValueError("evidence_accumulation requires 'n_repeats' in params - how many base_method repeats build the co-occurrence matrix")
     n_repeats = params.pop("n_repeats")
     base_seed = params.pop("base_seed", 0)
+    if "threshold" not in params:
+        raise ValueError(
+            "evidence_accumulation requires 'threshold' in params - the co-association similarity cut (Fred & "
+            "Jain 2002's t) that determines how many clusters emerge in the Merge phase"
+        )
+    threshold = params.pop("threshold")
     k_param = K_PARAM_NAME[base_method]
     if k_param not in params:
-        raise ValueError(f"evidence_accumulation with base_method={base_method!r} requires {k_param!r} in params")
-    n_clusters = params[k_param]
+        raise ValueError(
+            f"evidence_accumulation with base_method={base_method!r} requires {k_param!r} in params (the "
+            "Split-phase decomposition size for each repeat, not the final cluster count)"
+        )
     if "random_state" in params:
         raise ValueError(
             "evidence_accumulation does not take a fixed 'random_state' - each of the n_repeats runs gets its own "
@@ -99,7 +117,7 @@ def evidence_accumulation_cluster(X: np.ndarray, params: dict) -> np.ndarray:
         )
 
     co_occurrence = run_rsc_repeats(base_method, X, params, n_repeats, base_seed=base_seed)
-    return assign_clusters_from_cooccurrence(co_occurrence, n_clusters)
+    return assign_clusters_from_cooccurrence(co_occurrence, threshold)
 
 
 CLUSTERING_METHODS: dict[str, Callable[[np.ndarray, dict], np.ndarray]] = {

@@ -164,7 +164,7 @@ def compute_monti_stability(consensus_matrix: np.ndarray, ambiguous_band: tuple[
     return 1.0 - proportion_ambiguous
 
 
-def assign_clusters_from_cooccurrence(co_occurrence_matrix: np.ndarray, n_clusters: int) -> np.ndarray:
+def assign_clusters_from_cooccurrence(co_occurrence_matrix: np.ndarray, threshold: float) -> np.ndarray:
     """Evidence Accumulation Clustering's final "Merge" step, per Fred & Jain
     (2002, ICPR - papers/sota/Fred et al - 2002 - Data clustering using
     evidence accumulation.md, the exact paper Zanola et al. 2026 cites for
@@ -174,25 +174,19 @@ def assign_clusters_from_cooccurrence(co_occurrence_matrix: np.ndarray, n_cluste
     came from repeated kmeans/gmm/spectral (see
     clustering.py::evidence_accumulation_cluster).
 
-    Implemented as **single-link** hierarchical clustering
-    (`scipy.cluster.hierarchy.linkage(..., method="single")`) on (1 -
-    co_occurrence_matrix) as a distance matrix - Fred & Jain's own Merge
-    step ("cutting weak links at a threshold t... equivalent to cutting the
-    dendrogram produced by the single link (SL) method"), not average
-    linkage. One deliberate deviation from the paper: it cuts that
-    single-link dendrogram at a fixed *threshold t* on the co-association
-    value (e.g. t=0.5 - however many clusters naturally emerge above that
-    similarity), whereas this cuts at a fixed *n_clusters* instead
-    (`fcluster(..., criterion="maxclust")`) - kept for consistency with
-    every other CLUSTERING_METHODS entry in this codebase, which all take
-    n_clusters/n_components upfront (K_PARAM_NAME, params_clustering.json's
-    tag_param convention); a threshold-based cut would need a differently-
-    shaped config entry (a similarity t, not a cluster count) inconsistent
-    with that. Zanola et al. 2026's RSC ("the final cluster assignment is
-    based on the co-occurrence matrix C") doesn't specify which of these two
-    cut criteria it uses either (deferred to Tshimanga et al. 2025, not
-    available in papers/) - this module implements the n_clusters variant
-    only, not Fred & Jain's threshold-t variant.
+    Implemented exactly as the paper's Merge step: **single-link**
+    hierarchical clustering (`scipy.cluster.hierarchy.linkage(...,
+    method="single")`) on `1 - co_occurrence_matrix` as a distance, cut at a
+    fixed similarity **threshold** `t` on the co-association value itself
+    ("cutting weak links at a threshold of t; equivalent to cutting the
+    dendrogram produced by the single link (SL) method... at threshold t") -
+    `fcluster(..., criterion="distance")` at distance `1 - threshold`, since
+    merging pairs with `co_assoc(i,j) > t` is exactly merging pairs with
+    `distance(i,j) < 1 - t`. The number of final clusters is **not** chosen
+    in advance - it emerges from how many connected components survive the
+    cut, per pattern pair (i,j): merged if co_assoc(i,j) > t. The paper's own
+    recommended default is `t = 0.5` ("patterns... co-located in a cluster
+    at least 50% of the times").
 
     Returns 0-indexed integer labels, the same convention every
     CLUSTERING_METHODS function uses (scipy's fcluster is 1-indexed).
@@ -200,11 +194,11 @@ def assign_clusters_from_cooccurrence(co_occurrence_matrix: np.ndarray, n_cluste
     n_samples = co_occurrence_matrix.shape[0]
     if co_occurrence_matrix.shape != (n_samples, n_samples):
         raise ValueError(f"co_occurrence_matrix must be square, got shape {co_occurrence_matrix.shape}")
-    if n_clusters < 1 or n_clusters > n_samples:
-        raise ValueError(f"n_clusters must be in [1, {n_samples}], got {n_clusters}")
+    if not (0.0 <= threshold <= 1.0):
+        raise ValueError(f"threshold must be in [0, 1] (a co-association value), got {threshold}")
 
     distance = 1.0 - co_occurrence_matrix
     np.fill_diagonal(distance, 0.0)  # self-co-occurrence is always 1.0; guard against float noise going negative
     linkage_matrix = linkage(squareform(distance, checks=False), method="single")
-    labels = fcluster(linkage_matrix, t=n_clusters, criterion="maxclust")
+    labels = fcluster(linkage_matrix, t=1.0 - threshold, criterion="distance")
     return labels - 1

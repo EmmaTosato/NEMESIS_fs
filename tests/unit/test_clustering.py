@@ -80,6 +80,7 @@ def test_evidence_accumulation_cluster_recovers_well_separated_blobs_with_spectr
             "affinity": "nearest_neighbors",
             "n_neighbors": 10,
             "n_repeats": 20,
+            "threshold": 0.5,
         },
     )
     assert labels.shape == (30,)
@@ -96,7 +97,7 @@ def test_evidence_accumulation_cluster_recovers_well_separated_blobs_with_kmeans
     # clusterer) - kmeans as base_method must work just as well as spectral
     X = _two_blobs()
     labels = evidence_accumulation_cluster(
-        X, {"base_method": "kmeans", "n_clusters": 2, "n_init": "auto", "n_repeats": 20}
+        X, {"base_method": "kmeans", "n_clusters": 2, "n_init": "auto", "n_repeats": 20, "threshold": 0.5}
     )
     assert labels.shape == (30,)
     assert set(labels.tolist()) == {0, 1}
@@ -108,27 +109,36 @@ def test_evidence_accumulation_cluster_recovers_well_separated_blobs_with_kmeans
 def test_evidence_accumulation_cluster_requires_base_method():
     X = _two_blobs()
     with pytest.raises(ValueError, match="base_method"):
-        evidence_accumulation_cluster(X, {"n_clusters": 2, "n_repeats": 20})
+        evidence_accumulation_cluster(X, {"n_clusters": 2, "n_repeats": 20, "threshold": 0.5})
 
 
 def test_evidence_accumulation_cluster_rejects_ineligible_base_method():
     X = _two_blobs()
     with pytest.raises(ValueError, match="base_method"):
-        evidence_accumulation_cluster(X, {"base_method": "hdbscan", "n_repeats": 20, "min_cluster_size": 3})
+        evidence_accumulation_cluster(
+            X, {"base_method": "hdbscan", "n_repeats": 20, "threshold": 0.5, "min_cluster_size": 3}
+        )
 
 
 def test_evidence_accumulation_cluster_requires_n_repeats():
     X = _two_blobs()
     with pytest.raises(ValueError, match="n_repeats"):
         evidence_accumulation_cluster(
-            X, {"base_method": "spectral", "n_clusters": 2, "affinity": "nearest_neighbors", "n_neighbors": 10}
+            X,
+            {"base_method": "spectral", "n_clusters": 2, "affinity": "nearest_neighbors", "n_neighbors": 10, "threshold": 0.5},
         )
+
+
+def test_evidence_accumulation_cluster_requires_threshold():
+    X = _two_blobs()
+    with pytest.raises(ValueError, match="threshold"):
+        evidence_accumulation_cluster(X, {"base_method": "kmeans", "n_clusters": 2, "n_init": "auto", "n_repeats": 20})
 
 
 def test_evidence_accumulation_cluster_requires_k_param_for_base_method():
     X = _two_blobs()
     with pytest.raises(ValueError, match="n_components"):
-        evidence_accumulation_cluster(X, {"base_method": "gmm", "n_repeats": 20})
+        evidence_accumulation_cluster(X, {"base_method": "gmm", "n_repeats": 20, "threshold": 0.5})
 
 
 def test_evidence_accumulation_cluster_rejects_fixed_random_state():
@@ -142,6 +152,7 @@ def test_evidence_accumulation_cluster_rejects_fixed_random_state():
                 "affinity": "nearest_neighbors",
                 "n_neighbors": 10,
                 "n_repeats": 20,
+                "threshold": 0.5,
                 "random_state": 0,
             },
         )
