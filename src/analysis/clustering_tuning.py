@@ -62,6 +62,7 @@ METHOD_METRIC_COLUMNS: dict[str, list[str]] = {
     "gmm": ["silhouette", "calinski_harabasz", "davies_bouldin", "bic", "aic"],
     "hdbscan": ["silhouette", "calinski_harabasz", "davies_bouldin", "noise_fraction"],
     "spectral": ["silhouette", "calinski_harabasz", "davies_bouldin"],
+    "rsc": ["silhouette", "calinski_harabasz", "davies_bouldin"],
 }
 
 STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral"}

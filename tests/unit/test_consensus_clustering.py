@@ -6,6 +6,7 @@ import pytest
 from src.analysis.consensus_clustering import (
     CONSENSUS_ELIGIBLE_METHODS,
     K_PARAM_NAME,
+    assign_clusters_from_cooccurrence,
     compute_monti_stability,
     compute_rsc_eigengap,
     run_monti_repeats,
@@ -110,3 +111,47 @@ def test_compute_monti_stability_bounds():
     score = compute_monti_stability(consensus)
 
     assert 0.0 <= score <= 1.0
+
+
+def test_assign_clusters_from_cooccurrence_recovers_well_separated_blobs():
+    X = _two_blobs()
+    cooccurrence = run_rsc_repeats("kmeans", X, {"n_clusters": 2, "n_init": "auto"}, n_repeats=20)
+    labels = assign_clusters_from_cooccurrence(cooccurrence, n_clusters=2)
+
+    assert labels.shape == (40,)
+    assert set(labels.tolist()) == {0, 1}
+    assert len(set(labels[:20].tolist())) == 1
+    assert len(set(labels[20:].tolist())) == 1
+    assert labels[0] != labels[20]
+
+
+def test_assign_clusters_from_cooccurrence_is_0_indexed():
+    # a trivial 4x4 co-occurrence: {0,1} fully together, {2,3} fully together,
+    # the two pairs never co-occur - cut at 2 clusters should recover exactly that
+    cooccurrence = np.array(
+        [
+            [1.0, 1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 1.0],
+            [0.0, 0.0, 1.0, 1.0],
+        ]
+    )
+    labels = assign_clusters_from_cooccurrence(cooccurrence, n_clusters=2)
+
+    assert set(labels.tolist()) == {0, 1}
+    assert labels[0] == labels[1]
+    assert labels[2] == labels[3]
+    assert labels[0] != labels[2]
+
+
+def test_assign_clusters_from_cooccurrence_rejects_non_square_matrix():
+    with pytest.raises(ValueError, match="square"):
+        assign_clusters_from_cooccurrence(np.zeros((4, 5)), n_clusters=2)
+
+
+def test_assign_clusters_from_cooccurrence_rejects_out_of_range_n_clusters():
+    cooccurrence = np.eye(4)
+    with pytest.raises(ValueError, match="n_clusters"):
+        assign_clusters_from_cooccurrence(cooccurrence, n_clusters=5)
+    with pytest.raises(ValueError, match="n_clusters"):
+        assign_clusters_from_cooccurrence(cooccurrence, n_clusters=0)

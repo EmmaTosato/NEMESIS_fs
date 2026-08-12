@@ -183,6 +183,55 @@ def test_clustering_end_to_end_spectral(tmp_path, monkeypatch):
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
 
 
+def test_clustering_end_to_end_rsc(tmp_path, monkeypatch):
+    """rsc (Repeated Spectral Clustering) chained through the full production
+    pipeline exactly like every other method - final labels come from
+    src.analysis.consensus_clustering.assign_clusters_from_cooccurrence, not
+    from a single spectral_cluster run (see clustering.py::rsc_cluster).
+    """
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "rsc": {
+                    "params": {
+                        "n_clusters": 3,
+                        "affinity": "nearest_neighbors",
+                        "n_neighbors": 5,
+                        "n_repeats": 10,
+                        "base_seed": 0,
+                    }
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["rsc"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    out_dir = next(p for p in (output_root / "production" / "rsc").iterdir() if p.is_dir())
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
+    assert (out_dir / "cluster_plot.png").stat().st_size > 0
+
+
 def test_clustering_end_to_end_hdbscan_reports_noise_separately(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")

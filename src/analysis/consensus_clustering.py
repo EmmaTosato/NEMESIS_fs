@@ -20,12 +20,24 @@ column per already-swept row.
   notions are directly comparable, though the resampling idea itself would
   apply to any method. See compute_monti_stability for one deliberate
   deviation from the literal 2003 formula (PAC instead of area-under-CDF).
+
+RSC also names a third, separate thing beyond the diagnostic above: a
+production clustering method in its own right (CLUSTERING_METHODS["rsc"],
+src/analysis/clustering.py::rsc_cluster) that derives its *final* cluster
+labels from the co-occurrence matrix, not from any single one of the N
+repeated spectral-clustering runs - "the final cluster assignment is based
+on the co-occurrence matrix C" (Zanola et al. 2026). Zanola's own text
+doesn't spell out that last step (deferred to Tshimanga et al. 2025, not
+available in papers/) - see assign_clusters_from_cooccurrence for the
+specific choice made here and why.
 """
 
 from __future__ import annotations
 
 import numpy as np
+from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.linalg import eigh
+from scipy.spatial.distance import squareform
 from scipy.sparse import csgraph
 
 from src.analysis.clustering import CLUSTERING_METHODS
@@ -146,3 +158,36 @@ def compute_monti_stability(consensus_matrix: np.ndarray, ambiguous_band: tuple[
     upper_triangle = consensus_matrix[np.triu_indices(n, k=1)]
     proportion_ambiguous = float(np.mean((upper_triangle > lower) & (upper_triangle < upper)))
     return 1.0 - proportion_ambiguous
+
+
+def assign_clusters_from_cooccurrence(co_occurrence_matrix: np.ndarray, n_clusters: int) -> np.ndarray:
+    """Final RSC cluster assignment, derived from the co-occurrence matrix C
+    itself - not from any single one of the N repeated runs that built it.
+    Matches Zanola et al. 2026: "the final cluster assignment is based on the
+    co-occurrence matrix C", but that text doesn't spell out *which*
+    algorithm turns C into labels (deferred to Tshimanga et al. 2025, not
+    available in papers/).
+
+    Implemented as hierarchical clustering (average linkage) on (1 -
+    co_occurrence_matrix) as a distance matrix, cut at n_clusters - the
+    standard "evidence accumulation clustering" final step from Fred & Jain
+    (2002), which is the exact reference Zanola cites for the "consensus
+    clustering" half of RSC's "blend of spectral clustering and consensus
+    clustering". A deliberate choice grounded in that reference, not a
+    literal reproduction of Tshimanga et al. 2025's own (undisclosed here)
+    implementation.
+
+    Returns 0-indexed integer labels, the same convention every
+    CLUSTERING_METHODS function uses (scipy's fcluster is 1-indexed).
+    """
+    n_samples = co_occurrence_matrix.shape[0]
+    if co_occurrence_matrix.shape != (n_samples, n_samples):
+        raise ValueError(f"co_occurrence_matrix must be square, got shape {co_occurrence_matrix.shape}")
+    if n_clusters < 1 or n_clusters > n_samples:
+        raise ValueError(f"n_clusters must be in [1, {n_samples}], got {n_clusters}")
+
+    distance = 1.0 - co_occurrence_matrix
+    np.fill_diagonal(distance, 0.0)  # self-co-occurrence is always 1.0; guard against float noise going negative
+    linkage_matrix = linkage(squareform(distance, checks=False), method="average")
+    labels = fcluster(linkage_matrix, t=n_clusters, criterion="maxclust")
+    return labels - 1
