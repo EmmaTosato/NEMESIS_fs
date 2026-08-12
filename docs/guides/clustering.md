@@ -56,7 +56,7 @@ Genera i cluster definitivi usando i parametri precedentemente scelti in `config
 | :--- | :--- | :--- |
 | **`project`** | *Stringa* | Nome del progetto (es. `"clinical_connectome"`). |
 | **`input_path`** | *Stringa* | Percorso della matrice di input. Dati grezzi (`data/derived/...`) o compressi (`results/lesion/dim_reduction/...`). DEVE esistere. |
-| **`clustering_methods`** | *Lista* | Algoritmi da usare. Opzioni: `"kmeans"`, `"agglomerative"`, `"gmm"`, `"hdbscan"`, `"spectral"`, `"rsc"`. È possibile metterne multipli per confrontarli. |
+| **`clustering_methods`** | *Lista* | Algoritmi da usare. Opzioni: `"kmeans"`, `"agglomerative"`, `"gmm"`, `"hdbscan"`, `"spectral"`, `"evidence_accumulation"`. È possibile metterne multipli per confrontarli. |
 | **`params_file`** | *Stringa* | File configurazione interna algoritmi (di norma `"config/registry/params_clustering.json"`). |
 | **`output_root`** | *Stringa* | Cartella radice per i risultati (es. `"results/lesion/clustering"`). |
 | **`session_name`** | *Stringa* | Nome esecuzione (es. `"test_gruppi_1"`). |
@@ -66,7 +66,7 @@ Genera i cluster definitivi usando i parametri precedentemente scelti in `config
 
 > **Nota su `params_clustering.json`**: Per la maggior parte dei metodi, bisogna specificare in questo file il numero di cluster voluti (es. `"n_clusters": 4`) prima di avviare l'esecuzione in produzione.
 
-> **Nota su `"rsc"`**: non va confuso con il blocco diagnostico `"consensus": {"rsc": {...}}` sopra (quello sweeppa la *stabilità* di un altro metodo). `"rsc"` come voce di `clustering_methods` è un metodo di produzione a sé, che ripete SpectralClustering `n_repeats` volte e deriva le etichette finali dalla matrice di co-occorrenza — vedi `docs/knowledge/clustering.md`. I suoi parametri in `params_clustering.json` sono quelli di `"spectral"` (`n_clusters`, `affinity`, `n_neighbors`/`gamma`) più `n_repeats` (obbligatorio) e `base_seed` (opzionale, default 0) — niente `random_state` fisso, viene rifiutato esplicitamente.
+> **Nota su `"evidence_accumulation"`**: non va confuso con il blocco diagnostico `"consensus": {"rsc": {...}}` sopra (quello sweeppa la *stabilità* di un altro metodo, senza produrre cluster). `"evidence_accumulation"` come voce di `clustering_methods` è un metodo di produzione a sé (Fred & Jain 2002), che ripete un metodo di base (`"base_method"`: `"kmeans"`/`"gmm"`/`"spectral"`) `n_repeats` volte e deriva le etichette finali dalla matrice di co-occorrenza — vedi `docs/knowledge/clustering.md`. Con `base_method="spectral"` è esattamente l'RSC di Zanola et al. 2026. I suoi parametri in `params_clustering.json` sono `"base_method"` + `"n_repeats"` (obbligatori) + `"base_seed"` (opzionale, default 0) + tutti i parametri del `base_method` scelto (es. per `"spectral"`: `n_clusters`, `affinity`, `n_neighbors`/`gamma`) — niente `random_state` fisso, viene rifiutato esplicitamente.
 
 ---
 

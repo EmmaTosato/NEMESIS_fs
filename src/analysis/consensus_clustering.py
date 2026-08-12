@@ -21,15 +21,19 @@ column per already-swept row.
   apply to any method. See compute_monti_stability for one deliberate
   deviation from the literal 2003 formula (PAC instead of area-under-CDF).
 
-RSC also names a third, separate thing beyond the diagnostic above: a
-production clustering method in its own right (CLUSTERING_METHODS["rsc"],
-src/analysis/clustering.py::rsc_cluster) that derives its *final* cluster
-labels from the co-occurrence matrix, not from any single one of the N
-repeated spectral-clustering runs - "the final cluster assignment is based
-on the co-occurrence matrix C" (Zanola et al. 2026). Zanola's own text
-doesn't spell out that last step (deferred to Tshimanga et al. 2025, not
-available in papers/) - see assign_clusters_from_cooccurrence for the
-specific choice made here and why.
+Beyond the diagnostic above, this module also backs a production clustering
+method in its own right (CLUSTERING_METHODS["evidence_accumulation"],
+src/analysis/clustering.py::evidence_accumulation_cluster) that derives
+*final* cluster labels from the co-occurrence matrix, not from any single
+one of the N repeated runs - Fred & Jain (2002)'s own algorithm, not tied to
+any one base method (kmeans/gmm/spectral, same CONSENSUS_ELIGIBLE_METHODS as
+the diagnostic above). Zanola et al. 2026's RSC ("the final cluster
+assignment is based on the co-occurrence matrix C") is exactly this recipe
+specialized to base_method="spectral" - not reproduced here as a separate
+branded "rsc" method, since the underlying algorithm is general. Zanola's
+own text doesn't spell out that last step either way (deferred to Tshimanga
+et al. 2025, not available in papers/) - see assign_clusters_from_cooccurrence
+for the specific choice made here and why.
 """
 
 from __future__ import annotations
@@ -161,21 +165,34 @@ def compute_monti_stability(consensus_matrix: np.ndarray, ambiguous_band: tuple[
 
 
 def assign_clusters_from_cooccurrence(co_occurrence_matrix: np.ndarray, n_clusters: int) -> np.ndarray:
-    """Final RSC cluster assignment, derived from the co-occurrence matrix C
-    itself - not from any single one of the N repeated runs that built it.
-    Matches Zanola et al. 2026: "the final cluster assignment is based on the
-    co-occurrence matrix C", but that text doesn't spell out *which*
-    algorithm turns C into labels (deferred to Tshimanga et al. 2025, not
-    available in papers/).
+    """Evidence Accumulation Clustering's final "Merge" step, per Fred & Jain
+    (2002, ICPR - papers/sota/Fred et al - 2002 - Data clustering using
+    evidence accumulation.md, the exact paper Zanola et al. 2026 cites for
+    RSC's "consensus clustering" half): derive cluster labels from the
+    co-occurrence matrix C itself - not from any single one of the N
+    repeated runs that built it. Method-agnostic: doesn't care whether C
+    came from repeated kmeans/gmm/spectral (see
+    clustering.py::evidence_accumulation_cluster).
 
-    Implemented as hierarchical clustering (average linkage) on (1 -
-    co_occurrence_matrix) as a distance matrix, cut at n_clusters - the
-    standard "evidence accumulation clustering" final step from Fred & Jain
-    (2002), which is the exact reference Zanola cites for the "consensus
-    clustering" half of RSC's "blend of spectral clustering and consensus
-    clustering". A deliberate choice grounded in that reference, not a
-    literal reproduction of Tshimanga et al. 2025's own (undisclosed here)
-    implementation.
+    Implemented as **single-link** hierarchical clustering
+    (`scipy.cluster.hierarchy.linkage(..., method="single")`) on (1 -
+    co_occurrence_matrix) as a distance matrix - Fred & Jain's own Merge
+    step ("cutting weak links at a threshold t... equivalent to cutting the
+    dendrogram produced by the single link (SL) method"), not average
+    linkage. One deliberate deviation from the paper: it cuts that
+    single-link dendrogram at a fixed *threshold t* on the co-association
+    value (e.g. t=0.5 - however many clusters naturally emerge above that
+    similarity), whereas this cuts at a fixed *n_clusters* instead
+    (`fcluster(..., criterion="maxclust")`) - kept for consistency with
+    every other CLUSTERING_METHODS entry in this codebase, which all take
+    n_clusters/n_components upfront (K_PARAM_NAME, params_clustering.json's
+    tag_param convention); a threshold-based cut would need a differently-
+    shaped config entry (a similarity t, not a cluster count) inconsistent
+    with that. Zanola et al. 2026's RSC ("the final cluster assignment is
+    based on the co-occurrence matrix C") doesn't specify which of these two
+    cut criteria it uses either (deferred to Tshimanga et al. 2025, not
+    available in papers/) - this module implements the n_clusters variant
+    only, not Fred & Jain's threshold-t variant.
 
     Returns 0-indexed integer labels, the same convention every
     CLUSTERING_METHODS function uses (scipy's fcluster is 1-indexed).
@@ -188,6 +205,6 @@ def assign_clusters_from_cooccurrence(co_occurrence_matrix: np.ndarray, n_cluste
 
     distance = 1.0 - co_occurrence_matrix
     np.fill_diagonal(distance, 0.0)  # self-co-occurrence is always 1.0; guard against float noise going negative
-    linkage_matrix = linkage(squareform(distance, checks=False), method="average")
+    linkage_matrix = linkage(squareform(distance, checks=False), method="single")
     labels = fcluster(linkage_matrix, t=n_clusters, criterion="maxclust")
     return labels - 1

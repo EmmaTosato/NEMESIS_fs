@@ -6,10 +6,10 @@ import pytest
 from src.analysis.clustering import (
     CLUSTERING_METHODS,
     agglomerative_cluster,
+    evidence_accumulation_cluster,
     gmm_cluster,
     hdbscan_cluster,
     kmeans_cluster,
-    rsc_cluster,
     spectral_cluster,
 )
 
@@ -27,13 +27,13 @@ def _two_blobs(n_per_blob=15):
 
 
 def test_registry_has_expected_methods():
-    assert set(CLUSTERING_METHODS) == {"kmeans", "agglomerative", "gmm", "hdbscan", "spectral", "rsc"}
+    assert set(CLUSTERING_METHODS) == {"kmeans", "agglomerative", "gmm", "hdbscan", "spectral", "evidence_accumulation"}
     assert CLUSTERING_METHODS["kmeans"] is kmeans_cluster
     assert CLUSTERING_METHODS["agglomerative"] is agglomerative_cluster
     assert CLUSTERING_METHODS["gmm"] is gmm_cluster
     assert CLUSTERING_METHODS["hdbscan"] is hdbscan_cluster
     assert CLUSTERING_METHODS["spectral"] is spectral_cluster
-    assert CLUSTERING_METHODS["rsc"] is rsc_cluster
+    assert CLUSTERING_METHODS["evidence_accumulation"] is evidence_accumulation_cluster
 
 
 def test_kmeans_cluster_shape_and_label_count():
@@ -70,10 +70,17 @@ def test_hdbscan_cluster_shape_and_noise_label():
     assert -1 in labels.tolist()
 
 
-def test_rsc_cluster_recovers_well_separated_blobs():
+def test_evidence_accumulation_cluster_recovers_well_separated_blobs_with_spectral_base():
     X = _two_blobs()
-    labels = rsc_cluster(
-        X, {"n_clusters": 2, "affinity": "nearest_neighbors", "n_neighbors": 10, "n_repeats": 20}
+    labels = evidence_accumulation_cluster(
+        X,
+        {
+            "base_method": "spectral",
+            "n_clusters": 2,
+            "affinity": "nearest_neighbors",
+            "n_neighbors": 10,
+            "n_repeats": 20,
+        },
     )
     assert labels.shape == (30,)
     assert set(labels.tolist()) == {0, 1}
@@ -84,22 +91,57 @@ def test_rsc_cluster_recovers_well_separated_blobs():
     assert labels[0] != labels[15]
 
 
-def test_rsc_cluster_requires_n_repeats():
+def test_evidence_accumulation_cluster_recovers_well_separated_blobs_with_kmeans_base():
+    # method-agnostic on purpose (Fred & Jain 2002 doesn't fix the base
+    # clusterer) - kmeans as base_method must work just as well as spectral
+    X = _two_blobs()
+    labels = evidence_accumulation_cluster(
+        X, {"base_method": "kmeans", "n_clusters": 2, "n_init": "auto", "n_repeats": 20}
+    )
+    assert labels.shape == (30,)
+    assert set(labels.tolist()) == {0, 1}
+    assert len(set(labels[:15].tolist())) == 1
+    assert len(set(labels[15:].tolist())) == 1
+    assert labels[0] != labels[15]
+
+
+def test_evidence_accumulation_cluster_requires_base_method():
+    X = _two_blobs()
+    with pytest.raises(ValueError, match="base_method"):
+        evidence_accumulation_cluster(X, {"n_clusters": 2, "n_repeats": 20})
+
+
+def test_evidence_accumulation_cluster_rejects_ineligible_base_method():
+    X = _two_blobs()
+    with pytest.raises(ValueError, match="base_method"):
+        evidence_accumulation_cluster(X, {"base_method": "hdbscan", "n_repeats": 20, "min_cluster_size": 3})
+
+
+def test_evidence_accumulation_cluster_requires_n_repeats():
     X = _two_blobs()
     with pytest.raises(ValueError, match="n_repeats"):
-        rsc_cluster(X, {"n_clusters": 2, "affinity": "nearest_neighbors", "n_neighbors": 10})
+        evidence_accumulation_cluster(
+            X, {"base_method": "spectral", "n_clusters": 2, "affinity": "nearest_neighbors", "n_neighbors": 10}
+        )
 
 
-def test_rsc_cluster_requires_n_clusters():
+def test_evidence_accumulation_cluster_requires_k_param_for_base_method():
     X = _two_blobs()
-    with pytest.raises(ValueError, match="n_clusters"):
-        rsc_cluster(X, {"affinity": "nearest_neighbors", "n_neighbors": 10, "n_repeats": 20})
+    with pytest.raises(ValueError, match="n_components"):
+        evidence_accumulation_cluster(X, {"base_method": "gmm", "n_repeats": 20})
 
 
-def test_rsc_cluster_rejects_fixed_random_state():
+def test_evidence_accumulation_cluster_rejects_fixed_random_state():
     X = _two_blobs()
     with pytest.raises(ValueError, match="random_state"):
-        rsc_cluster(
+        evidence_accumulation_cluster(
             X,
-            {"n_clusters": 2, "affinity": "nearest_neighbors", "n_neighbors": 10, "n_repeats": 20, "random_state": 0},
+            {
+                "base_method": "spectral",
+                "n_clusters": 2,
+                "affinity": "nearest_neighbors",
+                "n_neighbors": 10,
+                "n_repeats": 20,
+                "random_state": 0,
+            },
         )

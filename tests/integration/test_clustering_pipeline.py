@@ -183,11 +183,13 @@ def test_clustering_end_to_end_spectral(tmp_path, monkeypatch):
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
 
 
-def test_clustering_end_to_end_rsc(tmp_path, monkeypatch):
-    """rsc (Repeated Spectral Clustering) chained through the full production
-    pipeline exactly like every other method - final labels come from
-    src.analysis.consensus_clustering.assign_clusters_from_cooccurrence, not
-    from a single spectral_cluster run (see clustering.py::rsc_cluster).
+def test_clustering_end_to_end_evidence_accumulation(tmp_path, monkeypatch):
+    """evidence_accumulation (Fred & Jain 2002, base_method="spectral" here -
+    i.e. Zanola et al. 2026's RSC specifically) chained through the full
+    production pipeline exactly like every other method - final labels come
+    from src.analysis.consensus_clustering.assign_clusters_from_cooccurrence,
+    not from a single spectral_cluster run (see
+    clustering.py::evidence_accumulation_cluster).
     """
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
@@ -196,8 +198,9 @@ def test_clustering_end_to_end_rsc(tmp_path, monkeypatch):
     params_path.write_text(
         json.dumps(
             {
-                "rsc": {
+                "evidence_accumulation": {
                     "params": {
+                        "base_method": "spectral",
                         "n_clusters": 3,
                         "affinity": "nearest_neighbors",
                         "n_neighbors": 5,
@@ -213,7 +216,7 @@ def test_clustering_end_to_end_rsc(tmp_path, monkeypatch):
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
-        "clustering_methods": ["rsc"],
+        "clustering_methods": ["evidence_accumulation"],
         "params_file": str(params_path),
         "output_root": str(output_root),
         "session_name": "run1",
@@ -226,7 +229,7 @@ def test_clustering_end_to_end_rsc(tmp_path, monkeypatch):
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "production" / "rsc").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "evidence_accumulation").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
     assert (out_dir / "cluster_plot.png").stat().st_size > 0

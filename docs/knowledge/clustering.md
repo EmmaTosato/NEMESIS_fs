@@ -57,14 +57,15 @@ Costruisce un grafo di somiglianza tra soggetti (collega ogni soggetto ai suoi v
 - Il tuning produce un `eigengap_plot.png`: il `k` consigliato è dove c'è il salto più grande tra due autovalori consecutivi — un criterio più fondato teoricamente degli indici generici, specifico per questo metodo.
 - Più pesante computazionalmente di KMeans/Agglomerative — più pratico su coorti più piccole (es. le ~500 di Task 3) che sull'intera coorte lesioni.
 
-## RSC (Repeated Spectral Clustering)
+## Evidence Accumulation Clustering (consensus clustering "vero", non solo diagnostica)
 
-Non è un metodo indipendente da zero: è SpectralClustering (sopra) + un trucco preso dal "consensus clustering" (vedi sezione sotto), pubblicato da Tshimanga et al. (2025) e usato da Zanola et al. (2026, `papers/nemesis/Zanola et al - 2026...`) per raggruppare traiettorie di recupero post-ictus.
+Non è legato a un metodo di base fisso: prende **uno qualsiasi** tra KMeans/GMM/Spectral (`base_method` in config), lo ripete `n_repeats` volte con semi casuali diversi, e conta quante volte ogni coppia di soggetti finisce nello stesso cluster → matrice di co-occorrenza `C`. Le etichette finali **non** vengono da una singola delle `n_repeats` run, ma derivate da `C` stessa, con clustering gerarchico **single-link** su `1 - C`, tagliato a `n_clusters` — l'algoritmo di Fred & Jain (2002), "Data clustering using evidence accumulation" (`papers/sota/Fred et al - 2002...md`, verificato riga per riga contro lo pseudocodice del paper).
 
-- L'unico punto realmente casuale dentro SpectralClustering è il k-means finale (dopo aver trasformato i dati sugli autovettori del grafo — vedi sopra). RSC ripete **solo quel passo** `n_repeats` volte con semi diversi, e conta quante volte ogni coppia di soggetti finisce nello stesso cluster → matrice di co-occorrenza `C`.
-- Le etichette finali **non** vengono da una singola delle `n_repeats` run, ma derivate da `C` stessa — qui il paper di Zanola non specifica l'algoritmo esatto (rimanda a Tshimanga et al. 2025, non disponibile in `papers/`). Implementato come clustering gerarchico (average linkage) su `1 - C`, tagliato a `n_clusters` — lo step standard di letteratura per questo tipo di matrice (Fred & Jain 2002, la stessa referenza che Zanola cita per la parte "consensus" di RSC).
-- Per scegliere `n_clusters`: **non** si sweeppa `"rsc"` direttamente per questo — si sweeppa `"spectral"` con la diagnostica di stabilità RSC attiva (vedi sezione sotto), che implementa esattamente il criterio di Zanola (massimo spectral gap sulla matrice di co-occorrenza), poi si scrive il valore scelto nella config di `"rsc"`.
-- Più pesante di SpectralClustering da solo (rifà l'intera procedura `n_repeats` volte) — pratico su coorti piccole/medie, non sull'intera coorte lesioni.
+- **RSC (Zanola et al. 2026, `papers/nemesis/Zanola et al - 2026...`) è esattamente questo metodo con `base_method="spectral"`** — non un metodo a parte. Il paper di Zanola non specifica l'algoritmo esatto per l'ultimo passo ("l'assegnazione finale si basa sulla matrice C", senza dire come) — qui è implementato seguendo Fred & Jain (2002), la stessa referenza che Zanola cita per la parte "consensus" di RSC.
+- **Una differenza rispetto al paper originale**: Fred & Jain tagliano il dendrogramma a una **soglia di similarità `t`** (es. 0.5 — nello stesso cluster solo le coppie co-clusterizzate almeno il 50% delle volte, il numero di cluster finali emerge da solo), non a un numero di cluster fisso. Qui invece si taglia a `n_clusters` esplicito, per coerenza con tutti gli altri metodi della pipeline (che richiedono sempre `n_clusters`/`n_components` in anticipo).
+- L'unico punto realmente casuale dentro KMeans/GMM/SpectralClustering (il k-means finale, per Spectral — vedi sopra) è ciò che viene ripetuto `n_repeats` volte.
+- Per scegliere `n_clusters`: **non** si sweeppa `"evidence_accumulation"` direttamente per questo — si sweeppa il `base_method` scelto (es. `"spectral"`) con la diagnostica di stabilità RSC attiva (vedi sezione sotto), che implementa esattamente il criterio di Zanola (massimo spectral gap sulla matrice di co-occorrenza), poi si scrive il valore scelto nella config di `"evidence_accumulation"`.
+- Più pesante del metodo di base da solo (lo rifà `n_repeats` volte) — pratico su coorti piccole/medie, non sull'intera coorte lesioni.
 
 ## Come si scelgono gli iperparametri
 
@@ -79,4 +80,4 @@ Gli indici sopra dicono "quanto è buono" un singolo risultato di clustering. Du
 
 Disponibili solo per KMeans/GMM/Spectral (gli unici con vera casualità interna da sfruttare — Agglomerative/HDBSCAN sono deterministici, ripeterli non direbbe nulla di nuovo). Sono opzionali, si attivano aggiungendo un blocco `"consensus"` in config — vedi `docs/guides/clustering.md` per il formato JSON esatto.
 
-**Nota**: questa è solo la diagnostica ("quanto fidarsi di k"), calcolata dentro lo sweep di un altro metodo (tipicamente `"spectral"`). Il metodo `"rsc"` sopra è una cosa diversa: usa la stessa identica matrice di co-occorrenza, ma per produrre davvero le etichette finali dei cluster, non solo un punteggio di stabilità.
+**Nota**: questa è solo la diagnostica ("quanto fidarsi di k"), calcolata dentro lo sweep di un altro metodo (tipicamente `"spectral"`). Il metodo `"evidence_accumulation"` sopra è una cosa diversa: usa la stessa identica matrice di co-occorrenza, ma per produrre davvero le etichette finali dei cluster, non solo un punteggio di stabilità.
