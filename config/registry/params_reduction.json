@@ -30,10 +30,11 @@
     },
     "tuning_grid": {
       "metric": ["dice", "euclidean"],
+      "n_components": [2, 3],
       "n_neighbors": [5, 15, 30, 50, 100],
       "min_dist": [0.0, 0.01, 0.05, 0.1, 0.5, 1.0]
     },
-    "nested_params": ["metric"],
+    "nested_params": ["metric", "n_components"],
     "trustworthiness_n_neighbors": 10
   },
   "pacmap": {
