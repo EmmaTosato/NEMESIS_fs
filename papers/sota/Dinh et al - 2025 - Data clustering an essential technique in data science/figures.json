@@ -1,0 +1,135 @@
+[
+  {
+    "id": "1.1",
+    "caption": "A general structure of Knowledge discovery in databases Figure 1: A general structure of K nowledge D iscovery in D atabases",
+    "pdf_page": 2,
+    "doc_page": 2,
+    "svg": "figures/page_002.svg"
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 2,
+    "doc_page": 2,
+    "svg": "figures/page_002.svg"
+  },
+  {
+    "id": "3",
+    "caption": "A classification of clustering algorithms",
+    "pdf_page": 3,
+    "doc_page": 3,
+    "svg": "figures/page_003.svg"
+  },
+  {
+    "id": "4",
+    "caption": "P artitional C lustering",
+    "pdf_page": 3,
+    "doc_page": 3,
+    "svg": "figures/page_003.svg"
+  },
+  {
+    "id": "6",
+    "caption": "D ensity -based C lustering",
+    "pdf_page": 4,
+    "doc_page": 4,
+    "svg": "figures/page_004.svg"
+  },
+  {
+    "id": "7",
+    "caption": "M odel -based C lustering",
+    "pdf_page": 4,
+    "doc_page": 4,
+    "svg": "figures/page_004.svg"
+  },
+  {
+    "id": "8",
+    "caption": "S ubspace C lustering",
+    "pdf_page": 4,
+    "doc_page": 4,
+    "svg": "figures/page_004.svg"
+  },
+  {
+    "id": "9",
+    "caption": "G raph C lustering",
+    "pdf_page": 5,
+    "doc_page": 5,
+    "svg": "figures/page_005.svg"
+  },
+  {
+    "id": "10",
+    "caption": "D ata S tream C lustering",
+    "pdf_page": 5,
+    "doc_page": 5,
+    "svg": "figures/page_005.svg"
+  },
+  {
+    "id": "11",
+    "caption": "G enetic A lgorithm -based C lustering",
+    "pdf_page": 5,
+    "doc_page": 5,
+    "svg": "figures/page_005.svg"
+  },
+  {
+    "id": "12",
+    "caption": "E nsemble C lustering",
+    "pdf_page": 5,
+    "doc_page": 5,
+    "svg": "figures/page_005.svg"
+  },
+  {
+    "id": "13",
+    "caption": "A taxonomy of common evaluation metrics for clustering",
+    "pdf_page": 6,
+    "doc_page": 6,
+    "svg": "figures/page_006.svg"
+  },
+  {
+    "id": "14",
+    "caption": "A taxonomy of machine learning algorithms (MATLAB, 2025)",
+    "pdf_page": 6,
+    "doc_page": 6,
+    "svg": "figures/page_006.svg"
+  },
+  {
+    "id": "15",
+    "caption": "Timeline of common data clustering algorithms",
+    "pdf_page": 7,
+    "doc_page": 7,
+    "svg": "figures/page_007.svg"
+  },
+  {
+    "id": "16",
+    "caption": "Common tools, libraries and framework for clustering",
+    "pdf_page": 11,
+    "doc_page": 11,
+    "svg": "figures/page_011.svg"
+  },
+  {
+    "id": "18",
+    "caption": "A step-by-step action in the workflow of clustering",
+    "pdf_page": 12,
+    "doc_page": 12,
+    "svg": "figures/page_012.svg"
+  },
+  {
+    "id": "19",
+    "caption": "Applications of data clustering in di ff erent topics",
+    "pdf_page": 14,
+    "doc_page": 14,
+    "svg": "figures/page_014.svg"
+  },
+  {
+    "id": "20",
+    "caption": "K-M eans clustering for the Brown data set",
+    "pdf_page": 14,
+    "doc_page": 14,
+    "svg": "figures/page_014.svg"
+  },
+  {
+    "id": "21",
+    "caption": "Hierarchical clustering for Food Nutrition Information dataset",
+    "pdf_page": 15,
+    "doc_page": 15,
+    "svg": "figures/page_015.svg"
+  }
+]

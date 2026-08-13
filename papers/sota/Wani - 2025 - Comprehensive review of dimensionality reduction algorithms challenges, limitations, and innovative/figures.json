@@ -1,0 +1,58 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "3",
+    "caption": "Figure 3 Effect of K in k-nearest neighbors (KNN) imputation on PCA projections. PCA embeddings of the Iris dataset with 40% missing values imputed using KNN with k = 1, 3, 5, 7, 9. The top-left shows",
+    "pdf_page": 19,
+    "doc_page": 19,
+    "svg": "figures/page_019.svg"
+  },
+  {
+    "id": "4",
+    "caption": "Figure 4 Comparison of six dimensionality reduction methods -PCA, t-SNE, UMAP, Isomap, LLE, and MDS -on the Iris dataset, projecting digits into 2D. Nonlinear methods (t-SNE, UMAP) best separate class",
+    "pdf_page": 20,
+    "doc_page": 20,
+    "svg": "figures/page_020.svg"
+  },
+  {
+    "id": "5",
+    "caption": "Figure 5 Comparison of six dimensionality reduction techniques -on MNIST digit embeddings projected to 2D. t-SNE and UMAP produce well-separated clusters, preserving local structure and class distinct",
+    "pdf_page": 22,
+    "doc_page": 22,
+    "svg": "figures/page_022.svg"
+  },
+  {
+    "id": "6",
+    "caption": "Figure 6 Visualization of PCA on original and imputed datasets with varying percentages of missing values. Comparison of PCA embeddings of the original Iris dataset and versions with 10 -80% missing v",
+    "pdf_page": 23,
+    "doc_page": 23,
+    "svg": "figures/page_023.svg"
+  },
+  {
+    "id": "1_2",
+    "caption": "Figure 1 Comparison of /uniFB01 ve DR methods -on the 3D Swiss Roll projected to 2D. (A -F) PCA fails to unfold the nonlinear manifold. UMAP and Isomap preserve both local and global structures, with ",
+    "pdf_page": 3,
+    "doc_page": 3,
+    "svg": "figures/page_003.svg"
+  },
+  {
+    "id": "2_2",
+    "caption": "Figure 2 Effect of t-SNE hyperparameters on MNIST. t-SNE projections of MNIST under varying perplexity (rows: 5, 30, 90) and learning rates (columns: high vs . low). Low perplexity emphasizes local de",
+    "pdf_page": 17,
+    "doc_page": 17,
+    "svg": "figures/page_017.svg"
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 4,
+    "doc_page": 4,
+    "n_rows": 23,
+    "n_cols": 3
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 6,
+    "doc_page": 6,
+    "n_rows": 17,
+    "n_cols": 3
+  },
+  {
+    "id": "3",
+    "caption": "",
+    "pdf_page": 26,
+    "doc_page": 26,
+    "n_rows": 9,
+    "n_cols": 2
+  },
+  {
+    "id": "4",
+    "caption": "",
+    "pdf_page": 29,
+    "doc_page": 29,
+    "n_rows": 12,
+    "n_cols": 3
+  }
+]

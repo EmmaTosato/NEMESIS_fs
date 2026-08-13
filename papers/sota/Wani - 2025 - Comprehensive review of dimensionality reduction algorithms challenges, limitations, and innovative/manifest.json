@@ -1,0 +1,313 @@
+{
+  "source_pdf": "/Users/emmatosato/Local Projects/Local PhD Projects/NEMESIS_fs/papers/sota/Wani - 2025 - Comprehensive review of dimensionality reduction algorithms challenges, limitations, and innovative.pdf",
+  "extracted_at": "2026-08-13T16:22:07",
+  "pdf_metadata": {
+    "title": "Comprehensive review of dimensionality reduction algorithms: challenges, limitations, and innovative solutions",
+    "author": " Aasim Ayaz Wani",
+    "subject": "",
+    "keywords": "",
+    "producer": "Acrobat Distiller 9.0.0 (Windows)",
+    "creator": "Arbortext Advanced Print Publisher 9.1.510/W Unicode",
+    "creation_date": "D:20250702064821+05'30'",
+    "mod_date": "D:20250702092407+05'30'"
+  },
+  "page_offset": 0,
+  "pages": 34,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 34,
+    "png": 0,
+    "embedded_images": 6,
+    "classifications": {
+      "DIAGRAM": 34
+    },
+    "figures_in_index": 8,
+    "tables_in_index": 4,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 37,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_001.svg"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_002.svg"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 31,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_003.svg"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 32,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_004.svg"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_005.svg"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 32,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_006.svg"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_007.svg"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_008.svg"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_009.svg"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_010.svg"
+    },
+    {
+      "pdf_page": 11,
+      "doc_page": 11,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_011.svg"
+    },
+    {
+      "pdf_page": 12,
+      "doc_page": 12,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_012.svg"
+    },
+    {
+      "pdf_page": 13,
+      "doc_page": 13,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_013.svg"
+    },
+    {
+      "pdf_page": 14,
+      "doc_page": 14,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_014.svg"
+    },
+    {
+      "pdf_page": 15,
+      "doc_page": 15,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_015.svg"
+    },
+    {
+      "pdf_page": 16,
+      "doc_page": 16,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_016.svg"
+    },
+    {
+      "pdf_page": 17,
+      "doc_page": 17,
+      "drawings": 31,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_017.svg"
+    },
+    {
+      "pdf_page": 18,
+      "doc_page": 18,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_018.svg"
+    },
+    {
+      "pdf_page": 19,
+      "doc_page": 19,
+      "drawings": 31,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_019.svg"
+    },
+    {
+      "pdf_page": 20,
+      "doc_page": 20,
+      "drawings": 31,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_020.svg"
+    },
+    {
+      "pdf_page": 21,
+      "doc_page": 21,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_021.svg"
+    },
+    {
+      "pdf_page": 22,
+      "doc_page": 22,
+      "drawings": 31,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_022.svg"
+    },
+    {
+      "pdf_page": 23,
+      "doc_page": 23,
+      "drawings": 31,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_023.svg"
+    },
+    {
+      "pdf_page": 24,
+      "doc_page": 24,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_024.svg"
+    },
+    {
+      "pdf_page": 25,
+      "doc_page": 25,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_025.svg"
+    },
+    {
+      "pdf_page": 26,
+      "doc_page": 26,
+      "drawings": 32,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_026.svg"
+    },
+    {
+      "pdf_page": 27,
+      "doc_page": 27,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_027.svg"
+    },
+    {
+      "pdf_page": 28,
+      "doc_page": 28,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_028.svg"
+    },
+    {
+      "pdf_page": 29,
+      "doc_page": 29,
+      "drawings": 32,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_029.svg"
+    },
+    {
+      "pdf_page": 30,
+      "doc_page": 30,
+      "drawings": 29,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_030.svg"
+    },
+    {
+      "pdf_page": 31,
+      "doc_page": 31,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_031.svg"
+    },
+    {
+      "pdf_page": 32,
+      "doc_page": 32,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_032.svg"
+    },
+    {
+      "pdf_page": 33,
+      "doc_page": 33,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_033.svg"
+    },
+    {
+      "pdf_page": 34,
+      "doc_page": 34,
+      "drawings": 28,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_034.svg"
+    }
+  ]
+}

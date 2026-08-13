@@ -1,0 +1,1414 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" width="595.22" height="842" viewBox="0 0 595.22 842">
+<defs>
+<clipPath id="clip_1">
+<path transform="matrix(1,0,0,-1,0,842)" d="M140.22 721.4H252.72V735.98007H140.22Z"/>
+</clipPath>
+<clipPath id="clip_2">
+<path transform="matrix(1,0,0,-1,0,842)" d="M456.78 677H466.38V690.38H456.78Z"/>
+</clipPath>
+<clipPath id="clip_3">
+<path transform="matrix(1,0,0,-1,0,842)" d="M238.14 593H242.52V620.9H238.14Z"/>
+</clipPath>
+<clipPath id="clip_4">
+<path transform="matrix(1,0,0,-1,0,842)" d="M475.68 598.46H480.12V615.86007H475.68Z"/>
+</clipPath>
+<clipPath id="clip_5">
+<path transform="matrix(1,0,0,-1,0,842)" d="M450.72 600.26H483.12V613.82H450.72Z"/>
+</clipPath>
+<clipPath id="clip_6">
+<path transform="matrix(1,0,0,-1,0,842)" d="M527.76 600.32H554.76V613.88H527.76Z"/>
+</clipPath>
+<clipPath id="clip_7">
+<path transform="matrix(1,0,0,-1,0,842)" d="M46.62 562.7H80.64V577.4H46.62Z"/>
+</clipPath>
+<clipPath id="clip_8">
+<path transform="matrix(1,0,0,-1,0,842)" d="M430.8 562.7H464.4V577.4H430.8Z"/>
+</clipPath>
+<clipPath id="clip_9">
+<path transform="matrix(1,0,0,-1,0,842)" d="M292.2 531.68H296.58003V559.27999H292.2Z"/>
+</clipPath>
+<clipPath id="clip_10">
+<path transform="matrix(1,0,0,-1,0,842)" d="M362.22 531.68H366.6V559.27999H362.22Z"/>
+</clipPath>
+<clipPath id="clip_11">
+<path transform="matrix(1,0,0,-1,0,842)" d="M343.98 538.64H413.76V552.2H343.98Z"/>
+</clipPath>
+<clipPath id="clip_12">
+<path transform="matrix(1,0,0,-1,0,842)" d="M252 515.48H262.02V528.86H252Z"/>
+</clipPath>
+<clipPath id="clip_13">
+<path transform="matrix(1,0,0,-1,0,842)" d="M519.18 487.22H531.72V501.08H519.18Z"/>
+</clipPath>
+<clipPath id="clip_14">
+<path transform="matrix(1,0,0,-1,0,842)" d="M185.94 470.12H196.02V483.68H185.94Z"/>
+</clipPath>
+<clipPath id="clip_15">
+<path transform="matrix(1,0,0,-1,0,842)" d="M435.96 452H468.53999V465.56H435.96Z"/>
+</clipPath>
+<clipPath id="clip_16">
+<path transform="matrix(1,0,0,-1,0,842)" d="M265.98 426.68H277.68003V440.06H265.98Z"/>
+</clipPath>
+<clipPath id="clip_17">
+<path transform="matrix(1,0,0,-1,0,842)" d="M311.94 400.94H326.22V414.38H311.94Z"/>
+</clipPath>
+<clipPath id="clip_18">
+<path transform="matrix(1,0,0,-1,0,842)" d="M182.28 365.42H186V384.5H182.28Z"/>
+</clipPath>
+<clipPath id="clip_19">
+<path transform="matrix(1,0,0,-1,0,842)" d="M100.74 339.98H175.86V353.54H100.74Z"/>
+</clipPath>
+</defs>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-50.5403" x="286.2 289.5588">&#x2010;&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-50.5403" x="292.0205 297.60276">11</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-50.5403" x="303.18058 305.6401 309.05818">&#x00a0;&#x2010;&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.67977" x="40.560945 46.35509 52.127279 56.428144 61.90387 65.743579 70.71422 75.98132 79.66731 82.189418 87.98356 93.755748">observations</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.67977" x="98.10053">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0136" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-777.6803" x="102.36">x</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="110.7">,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="113.460369">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="119.220478 127.08215">we</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="132.60071">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="138.36081 146.2148 148.73252 151.25023">will</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="153.84041">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="159.60051 165.3716 170.71117 175.68071">have</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="181.13997">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="186.90007 190.5608">to</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="196.4406">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="202.2007 207.97399 212.27596">use</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="217.80109">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="223.56119 227.94002 233.75612 242.51816">some</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="247.98072">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="253.74082 259.0145 264.79328 270.57206 274.41835 280.21907 284.98768 287.51637 296.30366 301.57734 305.2699 307.79859 313.5993">approximation</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="319.44075">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="325.20085 331.01695">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="334.38124">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="340.20173 343.89649 349.67747">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="355.1422">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="360.9627 366.42857 371.1807 376.943 382.40885 387.05119 390.7273 396.06687 399.7276 402.30244 408.11854">expectation</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="413.883">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="419.6431 423.96153">so</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="429.78315">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="435.60365 439.28633 445.0552 450.31904">that</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="454.02369">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="459.84419 467.70588">we</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="473.164">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="478.9845 487.7542 493.01036 498.00297">make</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="503.52479">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="509.28489 513.0104 518.8221">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="524.28469">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="530.10519 534.7497 540.5142 544.34628 549.3092">curve</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-777.6803" x="554.76516">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="40.565187 45.21192 51.000577 56.767274 60.44777 62.964387 68.78049 74.54718 80.33584 86.10253 90.39791">continuous.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="93.18464">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="96.0043 101.40097 107.156688">The</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="112.624729">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="115.44439 119.11939 126.9668">two</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="132.84439">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="135.66405 144.45464 150.25867 154.56941">most</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="158.22356">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="161.1036 165.75144 171.54119 180.3175 189.09381 194.88356">common</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="200.70407">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="203.52373 208.16828 213.93277 219.71923 222.29404 226.93859 232.40662">choices</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="236.7042">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="239.52385 243.18459">to</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="249.00399">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="251.88404 260.65376 265.90989 270.9025">make</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="276.42433">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="279.244 282.93876 288.71974">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="294.18449">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="297.00416 301.66407 307.44395 311.29133 316.26966">curve</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="321.72453">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="324.60459 329.2491 335.03559 340.85169 344.51243 347.02687 352.79136 358.55586 364.34233 370.1068">continuous</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="374.46476">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="377.28443 382.5603 386.40879">are</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="391.92408">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="394.74375 399.7506 405.22966 409.07264 414.82835 420.30738">kernel</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="422.824">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="425.64369 431.12599 435.43345 439.126 441.6547 450.442 455.71568 459.40824 464.89054">estimates</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="469.20353">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="472.0232 477.8393">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="481.20359">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="484.02326 487.6884 493.4397">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="498.96376">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="501.78343 507.26026 512.0234 517.79666 523.27346 527.92678 531.61386 536.882 540.5691 543.0923 548.8875">expectation</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-764.30007" x="554.763">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="40.56305 45.829057 51.600145">and</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="57.36355">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="69.60405 73.29882 79.07979">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="84.54453">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="96.84433 102.617618 106.91958">use</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="112.38432">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="124.624828 130.44094">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="133.8052">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="146.04572 150.35207 156.12975 158.65735 161.18495 166.96263 172.44385 176.7502">splines.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="179.52594">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="191.76645 194.5872">In</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="200.34622">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="212.58673 215.98065 221.2851 225.90659 229.5673">fact,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="232.32657">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="244.56708 248.26184 254.04282">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="259.50758">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="271.80738 277.0097 282.8269 288.11708">goal</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="290.64686">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="302.88737 306.24507 312.01835 317.79164 322.44496 326.13203 328.6552 334.45048">function</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="340.20729">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="352.44779 358.2639">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="361.62818">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="373.86869 377.52943 383.34553">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="388.86848">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="401.10899 405.759 408.2789 413.54383 417.8425 422.14118 424.66108 429.3111 434.57603">classical</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="437.1091">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="449.4089 453.70539 462.4817 468.27146 474.06123 477.7428 483.5106 486.0283 491.79609">smoothing</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="496.98854">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="509.28834 513.5826 519.3482 521.8637 524.3792 530.14486">spline</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="535.62826">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="547.8687 550.3831">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-750.86056" x="554.76858">&#x00a0;</tspan></text>
+<path transform="matrix(1,0,0,-1,112.5,107.94)" stroke-width=".591" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.22"/>
+<path transform="matrix(1,0,0,-1,110.76,107.94)" stroke-width=".591" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.22"/>
+<path transform="matrix(1,0,0,-1,155.16,107.94)" stroke-width=".591" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.22"/>
+<path transform="matrix(1,0,0,-1,153.42,107.94)" stroke-width=".591" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.22"/>
+<text xml:space="preserve" transform="matrix(.6623072 0 -0 1.5098732 0 842)" font-size="17.8615" font-family="SymbolMT"><tspan y="-477.1926" x="133.26143 242.24335">&#xf07b;&#xf07d;</tspan></text>
+<path transform="matrix(1,0,0,-1,194.88,115.02002)" stroke-width=".591" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0H29.46"/>
+<path transform="matrix(1,0,0,-1,193.38,99.360019)" stroke-width=".591" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-31.38"/>
+<path transform="matrix(1,0,0,-1,191.64,99.360019)" stroke-width=".591" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-31.38"/>
+<path transform="matrix(1,0,0,-1,227.58,99.360019)" stroke-width=".591" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-31.38"/>
+<path transform="matrix(1,0,0,-1,225.84,99.360019)" stroke-width=".591" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-31.38"/>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9054" font-family="TimesNewRomanPSMT"><tspan y="-739.7603" x="228.78">2</tspan><tspan y="-731.18038" x="156.3603">2</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="11.9444" font-family="TimesNewRomanPSMT"><tspan y="-731.4803" x="207.3 219.84043">()</tspan><tspan y="-723.9804" x="93.60007 96.955249 102.96208 135.78171 148.38187">inf()</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9054" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-720.8603" x="49.2 51.902776 55.372049 57.308324 59.289484 62.758756">spline</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="11.9444" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-731.4803" x="195.66">d</tspan><tspan y="-723.9804" x="42.960405 79.62254 235.0837">JEd</tspan><tspan y="-714.6208" x="202.13985">d</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -.34202219 1 0 842)" font-size="6.9054" font-family="SymbolMT"><tspan y="-717.0803" x="-146.13736">&#xf063;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -.342018 1 0 842)" font-size="11.9444" font-family="SymbolMT"><tspan y="-731.4803" x="-38.199434">&#xf063;</tspan></text>
+<g clip-path="url(#clip_1)">
+<text xml:space="preserve" transform="matrix(1 0 -.342018 1 0 842)" font-size="11.9444" font-family="SymbolMT"><tspan y="-723.9803" x="-107.15428">&#xf063;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -.342018 1 0 842)" font-size="11.9444" font-family="SymbolMT"><tspan y="-723.9803" x="-71.214298 -5.0327608">&#xf06c;&#xf063;</tspan><tspan y="-714.62069" x="-34.773134">&#xf063;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="11.9444" font-family="SymbolMT"><tspan y="-723.9803" x="69.84 121.92236 167.76378">&#xf03d;&#xf02d;&#xf02b;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="17.9168" font-family="SymbolMT"><tspan y="-719.6603" x="184.32">&#xf0f2;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="11.9444" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-731.4803" x="201.66">f</tspan><tspan y="-723.9804" x="113.820888 130.14052">xf</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="252.72">,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="255.48038">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="258.72059 266.5658 272.3248 274.83375 279.47279">which</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="285.30097">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="288.54118 292.3721 297.83906 303.00953 308.77293 311.34776 316.60609 320.437 322.95036 327.28636 332.7533">regularizes</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="337.08155">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="340.32176 343.98689 349.7382">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="355.26225">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="358.50245 363.17774 368.973 372.83576 377.82948">curve</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="383.2821">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="386.5223 389.86573 392.37467 396.0475 399.7203 402.22926 408.04536">fitting</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="413.22239">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="416.4626 422.22709 426.1316 431.91807 437.68257 440.197 445.66505">problem</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="454.4424">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="457.68263 465.5421 468.0653 471.75239">with</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="477.54216">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="480.84165 484.5364 490.31739">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="495.78215">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="499.02235 503.67567 509.44895 513.28976 518.2615 523.52969 527.21676 532.99 536.8308">curvature</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="542.2824">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="545.5819 551.398">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-724.0403" x="554.76229">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="40.562318 44.22744 49.978765">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="55.502805">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="58.56293 63.216257 68.98954 72.830348 77.802089 83.27891">curve.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="86.10297">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="89.16309 95.5271">An</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="101.34321">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="104.403339 109.67923 115.4602 120.43963 125.715518 131.49649 135.19126 140.46715 145.6552">advantage</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="151.143">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="154.20313 160.01923">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="163.3835">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="166.44362 170.13838 175.91936">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="181.44339">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="184.50351 190.2768 194.57877">use</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="200.1039">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="203.16402 208.98012">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="212.34439">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="215.40451 219.78334 225.53905 228.05017 230.5613 236.3225 241.78725">splines</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="246.18474">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="249.24486 251.75928">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="256.0854">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="259.2059 262.87654 268.63334 274.0937 276.60044">their</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="280.506">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="283.56614 289.0287 292.3721 295.7155 298.29035 302.92939 305.43833 310.90089 316.71699 321.35603">efficiency</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="326.4057">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="329.46583 332.80705 336.4996 342.27839">(the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="347.76618">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="350.8263 356.09669 358.62208 363.80464 369.60206 373.44505 375.97044 379.6597 385.43519">algorithm</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="394.26649">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="397.387 401.21574 406.97694 412.73814">runs</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="417.06755">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="420.12767 425.40794">as</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.76077" x="429.72749">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.24" font-family="TimesNewRomanPSMT"><tspan y="-697.8803" x="442.8 457.20036">()</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.24" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-697.8803" x="433.67997 447.71803">ON</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.7603" x="463.56">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.7603" x="466.01954 471.2998">as</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.7603" x="475.61936">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.7603" x="478.67948 483.3185 489.195 497.96253 503.72154 508.97547 512.802 518.2645">compared</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.7603" x="524.09939">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.7603" x="527.1595 530.8202">to</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.7603" x="536.6989">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.7603" x="539.75906 543.48458 549.29629">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-697.7603" x="554.7588">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9776" font-family="TimesNewRomanPSMT"><tspan y="-685.1003" x="65.76">2</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0799" font-family="TimesNewRomanPSMT"><tspan y="-679.7003" x="51.06 70.619777">()</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0694" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-679.7003" x="42 55.977575">ON</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="76.86">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="79.31952 85.13563">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="88.49989">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="90.95941 94.624538 100.375858">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="105.899898">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="108.35941 113.34982 118.81237 122.71686 128.47257 133.93512">kernel</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="136.49897">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="138.95848 144.42214 148.71092 152.38483 154.89485 163.66349 169.00307 172.67697 178.14063 182.42942 185.75196">estimates).</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="188.5782">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="191.09812 197.94853 203.74488 211.60546 217.08338 222.05622 227.53414 231.37604">However,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="234.11775">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="236.57727 239.09169">it</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="242.75682">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="245.21634 247.73076">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="252.11617">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="254.57569 260.34458 262.86338 266.21669 269.56999 272.08879 276.7377 282.5066 285.0254">difficult</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="288.77619">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="291.23573 294.89646">to</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="300.71586">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="303.23576 307.90336 313.69093 319.50044 325.30995 329.62617">choose</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="335.0953">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="337.55485 341.21998 346.97129">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="352.43495">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="354.89448 358.79899 364.32414 369.499 375.26679 377.7845 383.0472 386.88255 389.40025 393.74064 399.00337 402.68495 405.20265 410.9924">regularization</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="416.81398">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="419.33387 427.18019 432.64384 435.15388 440.32106 446.08116 449.75508">weight,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="452.5736">&#x00a0;</tspan></text>
+<g clip-path="url(#clip_2)">
+<text xml:space="preserve" transform="matrix(1 0 -.34201969 1 0 842)" font-size="11.7771" font-family="SymbolMT"><tspan y="-679.5803" x="224.35016">&#xf06c;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="466.38">.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-679.6403" x="469.14039">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="49.62094 55.299798 59.134016 61.65063 67.41733 72.064067 74.58068 80.347377 85.60899">Principal</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="88.140979">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="91.98068 97.85059 103.63266 107.48225 112.462779 117.94839">Curves</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="122.28109">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="126.1208 130.76424 136.02256">can</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="141.78047">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="145.62018 151.3759">be</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="156.84064">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="160.74074 165.38967 171.18051 179.95792 185.7268 188.24562 194.01451 199.48694">combined</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="205.26024">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="209.09995 217.00774 219.52216 223.25756">with</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="229.01987">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="232.85958 236.5247 242.27603">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="247.73967">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="251.57938 254.15419 259.90989 265.37464">idea</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="270.65934">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="274.49903 280.31513">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="283.7387">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="287.5784 292.1911 297.97868 302.6243 307.88484 310.40034 312.91584 317.25404 322.72319">Localized</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="328.49867">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="332.33836 338.04246 343.98045">PCA</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="350.33787">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="354.17756 357.4935 362.12709 367.94319 373.69889 377.98109 381.6484 385.5529 391.3086 395.99046 399.65119 402.226 407.98173">(constructing</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="413.1577">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="416.9974 419.5184 425.31147 429.9626 435.2286">local</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="437.7573">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="441.597 446.8575 452.6231 458.3887 462.2932 468.08079 472.8362 475.35176 484.12586 489.38639 493.0658 495.5813 501.36888 507.13447">approximations</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="511.49678">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="515.3365 519.0565">to</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="524.877">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="528.71676 534.4736 539.7253 543.3959 548.6476 551.96688">data).</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-664.1607" x="554.7569">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="40.556947 45.898717 51.657728 54.166658">This</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="58.49717">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="63.057165 68.828258 74.09426">has</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="78.41708">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="82.97708 88.73499 94.19644 99.72157">been</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="105.477298">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="110.03729 115.80289 121.59045 127.35605">done</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="132.83727">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="137.39727 143.15299">by</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="148.19719">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="152.75719 157.06244 162.54256 167.5176 172.99771 176.84181 182.11331">several</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="184.61676">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="189.17676 194.44277 200.21385 203.89875 209.66983 215.54633 219.39043 223.6902">authors:</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="226.61637">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="231.17636 236.85523 240.68944 243.20606 248.97275 253.61948 256.13609 261.90278 267.1644">Principal</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="269.6964">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="274.3168 280.17683 285.949 289.7887 294.75935 300.23509">Curves</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="304.55683">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="309.11683 314.93293">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="318.2972">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="322.8572 330.12159 333.94923 336.45927 341.9229 347.683 351.35694 356.88209">Oriented</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="362.63667">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="367.19667 372.87553 378.66419 381.1808 386.94749 390.62797">Points</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="395.03645">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="399.59645 402.91239 408.6165 414.45787 421.71565 427.41975">(PCOP)</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="430.73683">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="435.2968 438.67866 445.44233 450.92137 453.44676 455.97215 460.62767 465.89805 471.67353 477.47096 483.0488 488.62666 494.2045 499.78236 503.16419">[Delicado2001],</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="505.91688">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="510.47688 515.74288 521.514">and</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="527.27737">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="531.83737 536.4566 542.25076 546.90298 552.17007">Local</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-650.7212" x="554.757">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-637.34097" x="40.557069 46.235925 50.07014 52.586759 58.353456 63.00019 65.51681 71.2835 76.54512">Principal</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-637.34097" x="79.0771">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-637.34097" x="81.53662 87.40653 93.1886 97.038188 102.018718 107.504329">Curves</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-637.34097" x="111.83703">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-637.34097" x="114.29655 117.61031 122.20874 127.91285 133.79045">(LPC)</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-637.34097" x="137.09651">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-637.34097" x="139.61643 142.99387 148.35869 150.8797 156.65079 162.42188 167.8965 172.54763 177.55011 183.12355 188.69699 194.27043 199.84387 203.22132">[Einbeck2005].</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-637.34097" x="206.03664">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="49.616655 54.954034 60.708654">The</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="66.17669">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="69.3565 75.04304 78.88494 81.40924 87.183628 91.83804 94.36234 100.13673 105.40603">Principal</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="107.996219">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="111.176029 117.03605 122.808238 126.64794 131.61859 137.09432">Curves</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="141.41605">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="144.59586 147.10588 152.86598 158.32964">idea</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="163.6758">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="166.916 171.55945 176.81777">can</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="182.57569">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="185.7555 191.5716">be</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="197.03525">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="200.21506 205.73799 210.47696 214.1377 219.66283 225.48223 231.23793 236.70267">extended</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="242.45511">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="245.69532 249.35605">to</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="255.17545">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="258.35527 267.13926 272.9367 276.7797">more</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="282.29496">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="285.53517 291.30076 293.81629 302.5904 308.05955 313.82514 318.11943 320.63496 326.42253 332.1881">dimensions</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="336.53507">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="339.77528 343.1143 347.41957 352.8997">(see</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="358.3754">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="361.5552 366.59175 369.10289 374.32606">Fig.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="377.0952">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="380.27503 385.91654 389.21385">6).</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="391.9753">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9014" x="395.15513 400.91963 404.76374 407.27488 413.03608 417.6773 420.18846 425.94966 431.20579">Principal</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9003" x="433.8">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9003" x="436.9798 441.27629 447.04408 450.8794 454.2316 459.49433 464.14216 469.6135">surfaces</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9003" x="473.93959">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9003" x="477.1194 482.39527 486.24375">are</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9003" x="491.69975">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9003" x="494.93995 498.60508 504.35639">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9003" x="509.88044">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9003" x="513.06027 516.4783 522.2461 528.0139 532.66177 536.3433 538.861 544.65078 550.4186">functions</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-623.9003" x="554.7601">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8407" x="40.56012 49.325456 51.832189 57.589 60.095735 68.86107 71.43588 75.7653 78.27203 84.08814">minimizing</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8407" x="89.28058">&#x00a0;</tspan></text>
+<path transform="matrix(1,0,0,-1,170.76,229.02002)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<path transform="matrix(1,0,0,-1,168.95999,229.02002)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<path transform="matrix(1,0,0,-1,232.85999,229.02002)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<path transform="matrix(1,0,0,-1,231.05998,229.02002)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<text xml:space="preserve" transform="matrix(.6498953 0 -0 1.5387094 0 842)" font-size="18.233399" font-family="SymbolMT"><tspan y="-389.40449" x="222.03577">&#xf07b;</tspan></text>
+<g clip-path="url(#clip_3)">
+<text xml:space="preserve" transform="matrix(.6498953 0 -0 1.5387094 0 842)" font-size="18.233399" font-family="SymbolMT"><tspan y="-389.40449" x="366.42826">&#xf07d;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="5.0412" font-family="TimesNewRomanPSMT"><tspan y="-594.0803" x="153.84 163.43996">12</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9054" font-family="TimesNewRomanPSMT"><tspan y="-610.1003" x="234">2</tspan><tspan y="-599.78018" x="205.08019 221.28026">12</tspan><tspan y="-595.94009" x="157.08007">,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0239" font-family="TimesNewRomanPSMT"><tspan y="-602.8403" x="150.72 154.06626 160.08182 193.98201 209.16219 226.08222">inf(,)</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9054" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-599.7803" x="101.58 104.28208 107.702327 110.4044 112.33999 115.80857 118.809658">surface</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0239" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-602.8403" x="95.34 135.66214">JE</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -.34202219 1 0 842)" font-size="6.9054" font-family="SymbolMT"><tspan y="-595.9403" x="-53.584794 -44.52353">&#xf063;&#xf063;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -.3420105 1 0 842)" font-size="12.0239" font-family="SymbolMT"><tspan y="-602.8403" x="-7.5177 7.84404">&#xf063;&#xf063;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0239" font-family="SymbolMT"><tspan y="-602.8403" x="125.94 180.1221">&#xf03d;&#xf02d;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0136" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-602.8403" x="172.08 188.34041">xf</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="246.78">.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="249.59966">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="256.4391 261.83576 267.59147">The</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="273.1188">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="279.95936 284.25694 290.0478 292.5666 298.33549 302.01817 304.53697 310.41346">solution</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="316.19886">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="323.0383 325.55274">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="329.93815">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="336.7776 342.0392 347.21299 352.4746 354.9912 360.7579">again,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="363.59736">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(.86956658 0 -0 1.1499982 0 842)" font-size="13.695674" font-family="SymbolMT"><tspan y="-523.42727" x="496.86827">&#xf07b;</tspan></text>
+<g clip-path="url(#clip_4)">
+<text xml:space="preserve" transform="matrix(.86956658 0 -0 1.1499982 0 842)" font-size="13.695674" font-family="SymbolMT"><tspan y="-523.42727" x="547.0312">&#xf07d;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9054" font-family="TimesNewRomanPSMT"><tspan y="-599.7203" x="385.62 401.94023">12</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0239" font-family="TimesNewRomanPSMT"><tspan y="-602.8403" x="374.4 389.76054 406.8008 445.98069 461.6382 472.1976">(,)|()</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0239" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-602.8403" x="423.42024">E</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -.3420105 1 0 842)" font-size="12.0239" font-family="SymbolMT"><tspan y="-602.8403" x="172.90229 188.50449">&#xf063;&#xf063;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0239" font-family="SymbolMT"><tspan y="-602.8403" x="413.58">&#xf03d;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9513" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-599.7203" x="457.02">f</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0136" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-602.8403" x="368.7 437.82026">fx</tspan></text>
+<g clip-path="url(#clip_5)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0136" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-602.8403" x="450.72">&#x03c7;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0136" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-602.8403" x="465.96">x</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="484.32">,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="487.02">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="493.86054 501.71015 507.47355 512.9405 516.845">where</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="522.3009">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0799" font-family="TimesNewRomanPSMT"><tspan y="-602.9003" x="538.5599 548.9401">()</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9837" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-599.7803" x="533.9399">f</tspan></text>
+<g clip-path="url(#clip_6)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0694" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-602.9003" x="527.7599">&#x03c7;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0694" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-602.9003" x="542.8199">x</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-602.8403" x="554.7599">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="40.559938 44.38976 49.855604 53.531709 59.294015 63.123838 68.88614">returns</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="73.20018">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="75.839778 79.5005 85.31661">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="90.78026">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="93.41985 99.19424 104.46354 108.30544 113.574748 122.35765 127.83557 131.52376 137.00168 140.84358">parameters</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="145.14005">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="147.77964 153.59574">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="156.96">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="159.5996 163.26473 169.01605">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="174.47969">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="177.11928 181.41796 187.18795 191.02545 194.37984 199.64475 204.29477">surface</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="209.75952">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="212.4595 218.22949 223.70302 229.17655 234.94654 240.42006">needed</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="246.17908">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="248.81867 252.18733 257.99357">for</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="261.83876">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="264.47834 268.1731 273.95408">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="279.47813">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="282.1177 287.8888 291.72743 297.52049 300.15129 305.62593 310.27705 313.9619 316.4829 322.27598">projection</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="328.0174">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="330.65699 336.47309">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.40048" x="339.89668">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0694" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-580.4003" x="344.16">x</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="352.38">.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="355.14039">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="357.77998 360.54804 366.31364 369.99305 375.75865 378.27418 381.95359 384.46913 389.5133 394.98246 397.498 402.47303">Intuitively,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="405.23994">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="407.87953 411.54466 417.29597">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="422.7596">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="425.3992 431.1626 434.99354 437.56837 443.32408 447.9675 450.48085 456.24424 461.50257">principal</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="464.0389">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="466.7389 471.03758 476.80757 480.64509 483.99949 489.2644 493.91444">surface</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="499.37916">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="502.01875 507.299">at</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="510.95866">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="513.59829 517.259 523.0751">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="528.53878">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="531.17837 536.94619 542.7359 545.2536 551.0214">point</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-580.4003" x="554.7579">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9776" font-family="TimesNewRomanPSMT"><tspan y="-562.2203" x="53.34 69.5999">12</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0799" font-family="TimesNewRomanPSMT"><tspan y="-565.3403" x="42.18 57.4804 74.40071">(,)</tspan></text>
+<g clip-path="url(#clip_7)">
+<text xml:space="preserve" transform="matrix(1 0 -.3420144 1 0 842)" font-size="12.0799" font-family="SymbolMT"><tspan y="-565.3403" x="-146.4945">&#xf063;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -.3420144 1 0 842)" font-size="12.0799" font-family="SymbolMT"><tspan y="-565.3403" x="-131.01451">&#xf063;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="80.7">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="83.159519 85.673938">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="90.00005">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="95.879848 99.54497 105.296298">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="110.75994">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="116.63973 121.90574 126.87529 132.34992 136.18852 141.52809 146.70626">average</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="152.16004">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="158.03983 163.85593">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="167.2202">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="173.09999 178.37039 180.8958">all</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="183.42009">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="189.29988 195.09403 200.86621 205.16709 210.6428 214.48252 219.45316 224.72026 228.40625 230.92836 236.7225 242.49469">observations</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="246.83948">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="252.71927 260.58424 266.363 272.16374 276.4712">whose</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="281.93925">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="287.81904 293.6154 297.45729 301.14546 306.91984 312.7162 317.89765 323.694 329.46839 334.73768">orthogonal</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="337.25868">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="343.13847 348.91505 352.75914 358.55766 361.19395 366.67408 371.3307 375.02107 377.54756 383.34608">projection</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="389.09855">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="394.97834 397.49278">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="401.81889">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="407.69868 412.97895">at</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="416.63859">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9776" font-family="TimesNewRomanPSMT"><tspan y="-562.2203" x="437.52 453.77989">12</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0799" font-family="TimesNewRomanPSMT"><tspan y="-565.3403" x="426.36 441.6604 458.58073">(,)</tspan></text>
+<g clip-path="url(#clip_8)">
+<text xml:space="preserve" transform="matrix(1 0 -.3420144 1 0 842)" font-size="12.0799" font-family="SymbolMT"><tspan y="-565.3403" x="237.6855">&#xf063;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -.3420144 1 0 842)" font-size="12.0799" font-family="SymbolMT"><tspan y="-565.3403" x="253.16548">&#xf063;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0694" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-565.3403" x="420.72">f</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="464.58">.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="467.34037">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="473.22016 478.61683 484.37254">The</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="489.84059">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="495.72038 501.1972 505.96034 509.6474 515.1242 520.89749 525.1994 527.7226 533.5178">extension</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="539.34066">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="545.2204 548.8811">to</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-565.2803" x="554.7609">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2198" x="40.560976 49.338388 54.6022 60.371095 62.889909 66.2432 72.03406 74.55287 80.32176">manifolds</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2198" x="84.66104">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2198" x="88.86089 91.37531">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2198" x="95.76073">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2198" x="100.020969 104.32183 108.00782 111.84753 117.11463 119.636737 124.816 130.5882 134.27419 137.63077 143.42491 147.26462 155.123 160.3901 164.22982">straightforward</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2198" x="169.98114">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2198" x="174.18099 177.56502 182.61801 191.4042 197.20384 199.73145 205.00405 210.58408 216.16411 221.74414 227.32418 230.7082">[Smola1999],</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2198" x="233.4609">&#x00a0;</tspan></text>
+<path transform="matrix(1,0,0,-1,316.44,290.64)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<path transform="matrix(1,0,0,-1,314.64,290.64)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<path transform="matrix(1,0,0,-1,356.94,290.64)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<path transform="matrix(1,0,0,-1,355.14,290.64)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<g clip-path="url(#clip_9)">
+<text xml:space="preserve" transform="matrix(.6566456 0 -0 1.5228917 0 842)" font-size="17.985653" font-family="SymbolMT"><tspan y="-353.06538" x="444.9889">&#xf07b;</tspan></text>
+</g>
+<g clip-path="url(#clip_10)">
+<text xml:space="preserve" transform="matrix(.6566456 0 -0 1.5228917 0 842)" font-size="17.985653" font-family="SymbolMT"><tspan y="-353.06538" x="551.6217">&#xf07d;</tspan></text>
+</g>
+<path transform="matrix(1,0,0,-1,389.4,290.64)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<path transform="matrix(1,0,0,-1,387.6,290.64)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<path transform="matrix(1,0,0,-1,406.68,290.64)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<path transform="matrix(1,0,0,-1,404.88,290.64)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9652" font-family="TimesNewRomanPSMT"><tspan y="-548.4803" x="358.08 407.82057">22</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0478" font-family="TimesNewRomanPSMT"><tspan y="-541.2203" x="297.48 300.82328 306.84117 339.66056 350.16023">inf()</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9652" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-538.1003" x="244.5 249.41883 252.89168 256.36454 258.2911 260.21769 263.69053 265.6171">manifold</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0478" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-541.2203" x="238.32 283.5619 391.08369">JEP</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -.34202097 1 0 842)" font-size="12.0478" font-family="SymbolMT"><tspan y="-541.2203" x="193.01132">&#xf06c;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0478" font-family="SymbolMT"><tspan y="-541.2203" x="273.84 325.80216 369.5441">&#xf03d;&#xf02d;&#xf02b;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9652" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-534.2603" x="303.42">&#x03c7;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0478" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-541.2203" x="317.7 334.01997">xf</tspan></text>
+<g clip-path="url(#clip_11)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0478" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-541.2203" x="343.98">&#x03c7;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0478" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-541.2203" x="398.4">f</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2203" x="413.76">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2203" x="416.21955 419.88468 425.636 430.97557">that</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2203" x="434.6396">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2203" x="438.83946 441.35389">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2203" x="445.7393">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2203" x="449.93916">a</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2203" x="455.21943">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2203" x="459.47969 464.83354 467.35453 472.35704 478.1281 483.92118 489.69227 495.48533">Tikhonov</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2203" x="500.45924">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2203" x="504.6591 508.50318 513.9833 519.16696 524.9435 527.47 532.74148 536.5856 539.11209 543.46127 548.94137">regularized</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-541.2203" x="554.7586">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="40.558656 45.53589 51.018205 54.8645 59.17195 61.700647 67.50138">version</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="73.258197">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="76.61807 82.43418">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="85.79845">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="89.158329 92.81905 98.63516">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="104.09881">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="107.45869 113.23417 119.03161">non</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="124.7983">&#x2010;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="128.15819 130.6781 133.25292 139.0229 144.49643 149.76134">linear</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="153.59775">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="157.01802 160.86212 166.34224 171.5259 175.37 180.85012 185.15537 189.46062 191.98712 197.78566">regression</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="203.51833">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="206.8782 212.6394 216.54389 222.32706 228.08826 230.59938 236.06414 244.83386">problem.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.46066" x="247.6184">&#x00a0;</tspan></text>
+<g clip-path="url(#clip_12)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.6277" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-517.5803" x="252.3">P</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="262.02">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="264.47953 266.99397">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="271.31898">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="274.67887">a</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="280.01844">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="283.37834 289.19444 295.01054 303.78465 309.5722 314.74488 320.21403 325.9796 331.76719 337.53279">homogenous</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="341.87867">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="345.23857 347.76506 353.54164 358.51667 363.78816 367.63224 370.15873 375.4302 381.2068">invariant</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="384.89833">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="388.2582 392.57228 397.23768 402.51795 405.05323 410.3335">scalar</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="414.17869">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="417.53858 423.3371 429.11369 434.5938 438.4379 443.70939 447.39976 453.19828">operator</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="457.01826">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="460.37815 466.15364 471.63267 477.40815 482.67854 485.20393 487.7293 492.0774 494.60279 500.37828">penalizing</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="505.55867">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="508.91856 514.7061 520.49368 524.8099 533.60598 539.41549 545.225 548.92636">unsmooth</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-517.4603" x="554.759">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="40.55902 43.916707 49.68999 55.463277 60.1166 63.803686 66.32689 72.12213 77.89542 82.19738">functions.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="84.95885">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="90.23913 95.57541 101.39151">The</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="106.85956">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="112.13984 115.484348 120.73937 125.37952">fact</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="129.06002">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="134.39958 138.08228 143.85117 149.11498">that</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="152.81963">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="158.09992 161.79468 167.57566">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="173.0404">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="178.3207 182.1593 187.63393 192.81209 198.58318 201.10419 206.3702 210.2088 212.72982 217.0735 222.41307 226.09796 228.61898 234.41202">regularization</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="240.18091">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="245.4612 247.97562">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="252.30175">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="257.58204 263.34654 269.133 277.906 283.7825 288.95408 294.42213 300.1866 305.65467 311.44114 317.20564">homogeneous</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="321.54164">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="326.8219 329.3385 335.1052 340.1494 345.42973 349.26396 351.78056 357.04219 362.80888">invariant</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="366.48167">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="371.76194 374.27198 383.0406 388.8007 391.37553 393.88557 399.4107">implies</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="403.74229">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="409.02256 412.70524 418.47413 423.73796">that</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="427.3822">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="432.66249 437.93287 440.45826">all</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="442.98258">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="448.26286 452.56703 458.3425 462.1855 465.54539 470.81578 475.47129 480.95033">surfaces</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="485.28303">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="490.5633 498.4239 504.19828 506.72257 511.37699">which</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="517.20297">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="522.4832 527.12667 532.38497">can</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="538.1429">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="543.42318 549.23928">be</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-504.0801" x="554.7633">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="40.563356 44.24824 48.08685 53.35286 59.123949 63.423715 66.779209 72.57225 76.41086 85.19047 90.66509">transformed</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="96.423007">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="99.36345 101.93826 107.69398 111.35471">into</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="117.18289">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="120.12334 125.61443 130.89691 135.56452">each</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="141.30376">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="144.2442 150.04604 153.7397 159.51958 165.00299">other</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="168.8438">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="171.78424 177.53997">by</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="182.52378">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="185.46422 189.30063 195.09148 198.77417 204.03798 207.72068 210.23949 216.11598 221.87169">rotations</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="226.2044">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="229.14485 234.42075 238.26924">are</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="243.72519">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="246.66564 252.13367 257.89817 263.66267 268.9221 271.43653 274.01136">equally</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="279.00614">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="281.94657 287.71437 293.1857 298.9535 304.21623 306.73393 309.25163 313.592 319.06336 324.83116">penalized.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="327.6662">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="330.66593">A</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="337.02555">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="339.96598 343.32038 348.7939 354.05885 358.3575 360.8774 366.6474 369.1673">feasible</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="374.6463">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="377.58674 385.44844 390.788">way</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="395.76634">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="398.70677 404.52287">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="407.88716">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="410.82759 416.58988 422.05574 425.40245 427.91468 433.67698 436.1892 442.0053">defining</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="447.18785">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="450.18757 453.8527 459.604">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="465.06767">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="468.0081 471.37345 477.15443 482.9354 487.5964 491.29118 493.82206 499.62498">function</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.74024" x="505.3884">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.24" font-family="TimesNewRomanPSMT"><tspan y="-489.8603" x="514.9199 525.35946">()</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.24" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-489.8603" x="509.3397">f</tspan></text>
+<g clip-path="url(#clip_13)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.24" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-489.8603" x="519.1799">&#x03c7;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.7403" x="531.72">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.7403" x="534.23989 536.7543">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.7403" x="541.0793">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.7403" x="544.0197 549.77548">by</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-489.7403" x="554.7593">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.64006" x="40.559328 45.210454 50.98154 56.77459 62.56764 66.86741 69.38842 75.15951">choosing</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.64006" x="80.33986">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.64006" x="83.10023">a</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.64006" x="88.38051">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.64006" x="91.14088 96.929538 102.68525 111.44729 117.203 122.6952">number</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.64006" x="126.54039">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.64006" x="129.30077 135.11687">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.64006" x="138.48114">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.64006" x="141.24152 143.76363 149.64012 154.29235 159.55945 163.24544 165.76755 171.56169 177.33388">locations</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.64006" x="181.68195">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9652" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-469.5803" x="192.12">i</tspan></text>
+<g clip-path="url(#clip_14)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0694" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-472.7003" x="185.94">&#x03c7;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="196.02">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="198.47953 201.82074 207.59952 213.40026 217.24655 226.03385 231.30754 233.83625 236.36493">(normally</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="241.37949">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="244.13986 249.90766 252.42537 256.72184 260.4034 264.23875 266.75645 272.52424 278.34034 282.0219 287.49327">distributed</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="293.27976">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="296.04014 301.85624">on</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="307.61964">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="310.38">a</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="315.66029">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="318.42066 322.25819 327.78334 332.9604 338.73039 341.30519 346.5701">regular</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="350.401">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="353.16139 358.33406 362.16719 364.68269">grid</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="370.4417">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="373.2021 378.4692 380.9913 384.67729 390.44947 396.24363 402.0158 407.19508">although</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="412.98265">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="415.743 419.43778 425.21876">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="430.6835">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="433.50318 442.2663 447.72447 451.39289 457.1475 463.024">method</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="468.78303">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="471.5434 474.05784">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="478.38285">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="481.14323 486.9187 492.71614">not</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="496.38346">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="499.14384 502.98027 508.4527 512.8315 516.4922 520.3286 522.8474 527.49636 531.179 536.6514">restricted</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="542.4643">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="545.2247 548.8854">to</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-472.6403" x="554.7652">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="40.565248 44.236959 49.99487 52.5027">this</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="56.82553">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="61.445917 66.08277 71.839588 77.618358 80.12509 84.76195 90.28709">choice)</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="93.66563">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="98.28601 103.55202 109.323108">and</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="115.08651">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="119.6465 125.17163 129.9106 135.6707 140.92574 146.68584 152.44594 155.02075 160.78086">expanding</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="165.96672">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="170.5871 174.2588 180.01673 182.52455">this</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="186.84738">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="191.40738 194.78044 200.56909 206.35774 211.02645 214.7289 217.26747 223.0781">function</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="228.84699">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="233.40699 238.68727">as</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="243.00679">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="247.56679">a</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="252.84708">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="257.40708 265.2523 270.71485 273.28968 278.45576 284.21476 287.88758 293.41273">weighted</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="299.1673">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="303.7273 308.0589 313.86183">sum</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="322.62718">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="327.18717 333.06367">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="336.42683">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="340.98683">a</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="346.2671">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="350.8271 355.8175 361.28007 365.18458 370.94029 376.40284">kernel</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="378.9666">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="383.5266 386.8843 392.6576 398.43089 403.0842 406.77128 409.29447 415.08973">function</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.52" x="420.90693">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0799" font-family="TimesNewRomanPSMT"><tspan y="-454.5803" x="431.64 462.48">()</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9652" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-451.4603" x="458.94">i</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0694" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-454.5803" x="425.22">k</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0799" font-family="SymbolMT"><tspan y="-454.5803" x="444.06">&#xf02d;</tspan></text>
+<g clip-path="url(#clip_15)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0694" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-454.5803" x="435.96 452.70146">&#x03c7;&#x03c7;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.5203" x="468.54 473.82029">at</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.5203" x="477.47993">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.5203" x="482.03993 485.70506 491.45637 497.33287 501.65129">those</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.5203" x="507.12043">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.5203" x="511.68043 514.2025 519.99667 524.64889 529.91598 533.6019 536.124 541.91818 547.6903 551.99118">locations,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-454.5203" x="554.76046">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.8803" font-family="TimesNewRomanPSMT"><tspan y="-417.3203" x="81.9">1</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="11.9011" font-family="TimesNewRomanPSMT"><tspan y="-428.6003" x="47.64 58.079645 104.39992 135.12023">()()</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.8803" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-440.7203" x="77.88">K</tspan><tspan y="-425.5403" x="95.28027 131.58142">ii</tspan><tspan y="-417.32044" x="76.02025">i</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="11.9011" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-428.6003" x="98.04">k</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.8803" font-family="SymbolMT"><tspan y="-417.3203" x="78.48">&#xf03d;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="11.9011" font-family="SymbolMT"><tspan y="-428.6003" x="64.8 116.7614">&#xf03d;&#xf02d;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="17.8516" font-family="SymbolMT"><tspan y="-425.9003" x="74.1">&#xf0e5;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="11.9222" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-428.6003" x="42">f</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="11.9222" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-428.6003" x="51.900197 88.141307 108.720218 125.34096">&#x03c7;&#x03b1;&#x03c7;&#x03c7;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="141.36">.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="144.12038">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="147.36058 152.69686 158.51297">The</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="163.981">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="167.2212 173.00986 178.76557 187.5276 193.3437 198.8359">number</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="202.68112">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="205.92133 211.73743">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="215.1017">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="218.3419 220.86402 226.65816 231.31038 236.57749 240.26348 242.78559 248.57973 254.35192 258.65278">locations,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="261.42195">&#x00a0;</tspan></text>
+<g clip-path="url(#clip_16)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.6277" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-428.7803" x="266.28">K</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="277.68">,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="280.44038">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="283.68058 288.3284 294.11817 299.88597 303.56755 307.40287 313.19264 315.71034">controls</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="320.04084">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="323.28105 326.9758 332.75679">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="338.28083">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="341.52104 346.15568 351.93226 360.69538 366.44999 369.0248 374.48957 379.234 381.80885 385.47727">complexity</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="390.48085">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="393.72105 399.59754">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="402.9607">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="406.2009 409.86604 415.61735">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="421.1414">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="424.3816 433.1612 438.42723 444.1983 446.7193 450.0748 455.86787 458.44267">manifold</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="464.22145">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="467.46165 472.72767 478.49876">and</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="484.32145">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="487.56166 491.22239 497.03849">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="502.50215">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="505.74235 510.71849 516.1997 520.8574 524.5489 530.3485 534.1937">vectors</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="538.50228">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9652" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-425.6003" x="550.14">i</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0694" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-428.7203" x="542.52">&#x03b1;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-428.6603" x="554.7599">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9199" x="40.559938 43.8726 51.709028 57.45925 60.03406 64.66433">(which</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9199" x="70.439807">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9199" x="75.35994 80.63583 84.48432">are</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9199" x="89.940288">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9199" x="94.86042 97.43523">in</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9199" x="103.20083">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9199" x="108.120967 111.78609 117.537418">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9199" x="123.00106">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9199" x="127.921199 132.23305 138.01622 143.29431 147.95752">space</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9199" x="153.42115">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9199" x="158.40167 164.21778">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9199" x="167.58205">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0478" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-402.9203" x="171.84">x</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="180.06">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="182.51952 187.77783 193.54123 199.30463">and,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="202.07929">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="206.99942 210.6898 216.46639 222.24297 226.54822">thus,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="229.31957">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="234.2397 240.01738 245.28998 250.26612">have</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="255.71988">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="260.64 266.4144 268.9387 277.7216 283.24674 289.02113 293.3242 295.84849 301.64485">dimension</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="307.44007">&#x00a0;</tspan></text>
+<g clip-path="url(#clip_17)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.683" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-403.0403" x="311.94">M</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="326.22">)</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="329.5195">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="334.43965 339.09626 344.89479 350.71089 354.3716 358.2157 364.01423">control</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="366.53968">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="371.4598 373.96546 377.63499">its</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="381.96">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="386.88014 391.1766 396.9444 402.20713 407.9749 413.44627">shape.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="416.2198">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="421.20033 428.05076 433.8471 441.7077 447.18565 452.15849 457.6364 461.4783">However,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="464.21998">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="469.1401 472.80085 478.61695">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="484.0806">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="489.00074 494.76634 497.28187 506.05598 511.58113 517.34677 521.641 524.1565 529.94406 535.70968 540.97018 543.48568 546.00119 549.68057">dimensionality</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-402.9203" x="554.76107">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="40.561098 44.400804 49.87653 55.648717 61.420904 66.07313 69.75912 72.28122 78.07536">reduction</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="83.8212">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="88.02105 90.53547">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="94.86159">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="99.121829 103.41611 107.095508 109.61102 112.12654">still</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="114.66182">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="118.86167 123.50841 129.29706 135.06375 138.74425 142.57846 148.36711 150.88373 153.40035 158.92548">controlled</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="164.70207">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="168.90192 174.65764">by</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="179.64145">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="183.8413 187.53606 193.31703">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="198.78179">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="202.98163 208.75052 211.32534 220.14667 225.6114 231.3803 235.67787 238.19669 243.98754">dimension</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="249.78168">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="253.98152 259.79765">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="263.1619">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="267.36177 271.0225 276.8386">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="282.30226">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="286.5021 291.47166 296.9463 301.5974 305.2823 311.07536">vector</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.54008" x="314.8821">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.683" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-389.8403" x="319.2">&#x03c7;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="327.42">.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="330.1804">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="334.38026 340.34019 345.67976 351.44206 353.95429 359.21153">Radial</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="361.7402">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="365.94007 371.71446 376.98377 381.28684 383.81114">basis</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="388.14054">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="392.3404 395.686 401.4472 407.2084 411.84965 415.52467 418.0358 423.81898 429.58018">functions</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="433.92057">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="438.12043 442.4213 448.19349 452.8457">such</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="458.70024">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="462.9001 468.18037">as</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="472.4999">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="476.69978 480.3649 486.1162">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="491.57987">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="495.77973 502.72569 508.00267 513.7847 518.09548 522.4062 524.9382 530.21517">Gaussian</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="535.9797">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="540.1795 545.4554 549.3039">are</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-389.5403" x="554.7598">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.58006" x="40.559877 45.20771 50.997465 59.773778 68.550098 74.33985">common</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.58006" x="80.09995">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.58006" x="85.13977 90.16641 95.6652 99.52796 105.283679 110.78246 113.32763">kernels</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.58006" x="117.599948">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.58006" x="122.63976">(</tspan></text>
+<path transform="matrix(1,0,0,-1,189.48,461.34)" stroke-width=".591" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.22"/>
+<path transform="matrix(1,0,0,-1,187.68,461.34)" stroke-width=".591" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.22"/>
+<path transform="matrix(1,0,0,-1,219.84,461.34)" stroke-width=".591" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.22"/>
+<path transform="matrix(1,0,0,-1,218.04,461.34)" stroke-width=".591" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.22"/>
+<g clip-path="url(#clip_18)">
+<text xml:space="preserve" transform="matrix(.8164055 0 -0 1.2248815 0 842)" font-size="14.45054" font-family="SymbolMT"><tspan y="-301.51515" x="223.27141">&#xf028;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(.8164055 0 -0 1.2248815 0 842)" font-size="14.45054" font-family="SymbolMT"><tspan y="-301.51515" x="271.11528">&#xf029;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="11.9444" font-family="TimesNewRomanPSMT"><tspan y="-370.5803" x="134.16 144.47997 158.69979">(,)</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9054" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-367.4603" x="155.22 213.66109">ii</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="11.9444" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-370.5803" x="127.8 174.7821">kk</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="11.9444" font-family="SymbolMT"><tspan y="-370.5803" x="165.42009 198.8417">&#xf03d;&#xf02d;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="11.9444" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-370.5803" x="138.4807 148.98221 190.80313 207.42375">&#x03c7;&#x03c7;&#x03c7;&#x03c7;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="226.8 230.09729">).</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="232.85987">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="237.89969 247.69605 250.23462 253.93708">With</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="259.74">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="264.77983 268.45155 274.20945 276.7173">this</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="281.0401">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="286.07994 291.54689 296.3001 302.0635 307.40309 313.16648 317.45857 319.9719 325.75727 331.52067">expansion,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="334.31947">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="339.35929 343.0244 348.77574">the</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="354.23939">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="359.2792 363.12 368.59684 373.7772 379.55049 382.07368 387.3419 391.18269 393.70588 398.05177 403.31999 407.00706 409.53025 415.3255">regularization</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="421.07905">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="426.11888 429.7862 435.24327 439.14775">term</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="447.8988">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="452.93864 458.69105 464.147 468.77949 474.65599 483.41694 488.8729">becomes</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="493.199">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="498.29924 501.67997 506.72969 515.5126 521.3089 523.8332 529.1025 534.6792 540.2559 545.83267 551.40939">[Smola1999]</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-370.5803" x="554.75949">&#x00a0;</tspan></text>
+<path transform="matrix(1,0,0,-1,44.64,489.3)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<path transform="matrix(1,0,0,-1,42.84,489.3)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<path transform="matrix(1,0,0,-1,61.98,489.3)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<path transform="matrix(1,0,0,-1,60.18,489.3)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0V-14.28"/>
+<path transform="matrix(1,0,0,-1,99.78,487.86)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0-2.88-8.58 0-17.1"/>
+<path transform="matrix(1,0,0,-1,128.64,487.86)" stroke-width=".593" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#000000" d="M0 0 2.88-8.58 0-17.1"/>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9054" font-family="TimesNewRomanPSMT"><tspan y="-349.8203" x="63.12">2</tspan><tspan y="-331.16056" x="82.31977 91.74012">,1</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0478" font-family="TimesNewRomanPSMT"><tspan y="-342.5604" x="111.24 140.34026 154.20005 170.09952">,(,)</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9054" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-354.8003" x="85.92">I</tspan><tspan y="-339.5007" x="107.93994 124.081317 150.90258 166.50394">ijij</tspan><tspan y="-331.16038" x="79.859828 85.681079">ij</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0478" font-family="TimesNewRomanPS" font-style="italic"><tspan y="-342.5604" x="46.32 133.92197">Pk</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="6.9059" font-family="SymbolMT"><tspan y="-331.1603" x="88.26">&#xf03d;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0478" font-family="SymbolMT"><tspan y="-342.5604" x="70.62">&#xf03d;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="18.0204" font-family="SymbolMT"><tspan y="-339.8004" x="80.94">&#xf0e5;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0478" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-342.5604" x="53.64">f</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0478" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-342.5604" x="100.73967 115.37895">&#x03b1;&#x03b1;</tspan></text>
+<g clip-path="url(#clip_19)">
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="12.0478" font-family="TimesNewRomanPS" font-weight="bold"><tspan y="-342.5604" x="144.66 158.76074">&#x03c7;&#x03c7;</tspan></text>
+</g>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="175.86">.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="178.62038">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="181.74089 188.1049">An</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="193.86061">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="196.98113 199.50104 205.27103 208.95482 214.42835 218.26586 223.73938 228.03806 231.72185 234.29666 240.05239">interesting</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="245.22066">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="248.34117 251.69226 257.1625 262.42414 266.1046 271.8713 275.70555">feature</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="281.1615">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="284.282 290.0981">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="293.52168">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="296.64219 300.3139 306.0718 308.57966">this</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="312.90248">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="316.02299 321.29997 327.08204 332.8641 336.71369 342.5177 347.79469 352.4568">approach</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="358.20265">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="361.32316 363.8376">is</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="368.1637">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="371.2842 374.9669 380.73579 385.9996">that</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="389.64387">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="392.76438 398.52009">by</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="403.5039">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="406.68373 412.4658 416.77656 419.30854 425.0906">using</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="430.26329">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="433.3838 439.15818 444.6361 448.478 451.0023 456.79866 462.57304 465.09733 469.75175 475.02107">periodical</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="477.54426">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="480.66477 485.66508 491.1375 494.97395 500.74284 506.21528 508.73408 513.0316">kernels,</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="515.7645">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="518.8851 524.6825 530.45797">one</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="535.9249">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="539.0455 543.6889 548.9472">can</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-342.5604" x="554.76559">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-317.12083" x="40.565614 43.08772 48.563447 53.83055 57.670259">learn</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-317.12083" x="63.425973">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-317.12083" x="65.88549 70.53223 73.04884 76.95333 81.574817 87.34151 89.85812 95.11974">circular</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-317.12083" x="98.945178">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-317.12083" x="101.46509 110.2458 115.5129 121.28509 123.80719 127.16377 132.95792 135.48003 141.25222 145.55309">manifolds.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri"><tspan y="-317.12083" x="148.38483">&#x00a0;</tspan><tspan y="-140.2407" x="420.96443">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="154.68405 159.72388 162.2383 167.88202 173.52574 177.29189">Figure</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="182.58423">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="185.04375 190.62598">6.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="193.38416">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="195.90407 201.25133 205.99469 211.69332 220.39276 226.0255 228.52893">Example</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="233.7642">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="236.22373 241.86196">of</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="245.28333">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="247.74285 253.37448 259.07313 262.73936">data</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="268.38307">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="270.90296 276.54667 279.0611 283.3323 287.01063 290.77677 293.2912 298.9898 304.62803 308.30635 313.55479">distributed</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="319.20289">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="321.6624 327.30284 329.87767 335.5071 341.14753">along</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="346.80223">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="349.26176 352.9664 360.84346">two</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="366.4817">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="368.94123 374.58384 378.34889 380.8622 386.56083 391.1801 393.69456 399.33717 404.97978">principal</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="407.52165">&#x00a0;</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="409.98118 414.27107 419.93345 423.71827 427.08583 432.7482 437.33454 442.55995 446.818">surfaces.</tspan></text>
+<text xml:space="preserve" transform="matrix(1 0 -0 1 0 842)" font-size="10.98" font-family="Calibri" font-style="italic"><tspan y="-119.720188" x="449.64094">&#x00a0;</tspan></text>
+<g transform="matrix(.48062829,0,0,.47900553,183.36,527.88)">
+<image id="image_20" width="495" height="362" xlink:href="data:image/jpeg;base64,
+/9j/7gAOQWRvYmUAZIAAAAAB/9sAhAAMCAgICQgMCQkMEQsKCxEVDwwMDxUYExMV
+ExMYFxIUFBQUEhcXGxweHBsXJCQnJyQkNTMzMzU7Ozs7Ozs7Ozs7AQ0LCw0ODRAO
+DhAUDg8OFBQQEREQFB0UFBUUFB0lGhcXFxcaJSAjHh4eIyAoKCUlKCgyMjAyMjs7
+Ozs7Ozs7Ozv/wAARCAFqAe8DASIAAhEBAxEB/8QBPwAAAQUBAQEBAQEAAAAAAAAA
+AwABAgQFBgcICQoLAQABBQEBAQEBAQAAAAAAAAABAAIDBAUGBwgJCgsQAAEEAQMC
+BAIFBwYIBQMMMwEAAhEDBCESMQVBUWETInGBMgYUkaGxQiMkFVLBYjM0coLRQwcl
+klPw4fFjczUWorKDJkSTVGRFwqN0NhfSVeJl8rOEw9N14/NGJ5SkhbSVxNTk9KW1
+xdXl9VZmdoaWprbG1ub2N0dXZ3eHl6e3x9fn9xEAAgIBAgQEAwQFBgcHBgU1AQAC
+EQMhMRIEQVFhcSITBTKBkRShsUIjwVLR8DMkYuFygpJDUxVjczTxJQYWorKDByY1
+wtJEk1SjF2RFVTZ0ZeLys4TD03Xj80aUpIW0lcTU5PSltcXV5fVWZnaGlqa2xtbm
+9ic3R1dnd4eXp7fH/9oADAMBAAIRAxEAPwD1VJJJJSkkkklKSSSSUpJJJJSkkkkl
+KSSSSUpJJJJSkkkklKSSSSUpJJJJSkkkklKSSSSUpJJJJSkkkklKSSSSUpJJJJSk
+kkxIAkmAkpdJR3gmACf9fNN+kPYN+OqSmaaRMTr4KOyfpEn8PHw+Khtb9oAiPZP/
+AEklJklDc5o9+o/eH8QppKUkkkkpSSSSSlJJJJKUkkkkpSSSSSlJJJJKUkkkkpSS
+SSSlJJJJKUkkkkpSSSSSlJJJJKUkkkkpSSSSSlJJJJKUkkkkpSSSSSlJJJJKUkkk
+kpSSSSSlJJJJKUkkkkpSSSSSlJJJJKUkol7R3k+A1/Im3OP0W/fp4pKZpiQNToE0
+PnV0eQH96ixjdZ90GBJnsElMvUb293w18f7kpeToIHmf7lJJJTDa4j3OPy0TNY0W
+GB2H/fvPzRFEfTd8B/HySUySSSSUpC/7Uf2P4oqF/wBqf7H8UlJVDaW/Q0/k9u/3
+aqaSSmIcCY4PgpJiAefioy5vMkDvyfmkpmkkkkpSSSSSlJJJJKUkkkkpSSSSSlJJ
+JJKUkkkkpSSSSSlJJJJKUkkkkpSSSSSlJJJJKUkkkkpSSSSSlJJJJKUkkkkpSSSS
+SlJJJJKUkkkkpSSYuDRJMJt8mACfw/KkpkkoE2bZ0bAmOUgzcPcSZ7cDv4R4pKZF
+zQYJAPgo7ydWtJ8+PyqQa0cCE6SmMWHkgfDU9/FRY0OAc6SedeOfBEUK/oD/AF/g
+ElMgABAEDyTpJJKUos5d/W/17lSUWT7p8UlMkkkklKUB/OO+A/ipqI+m74D+Pmkp
+kkkkkpSF/wBqf7H8UVC/7Uf2P4pKSpJJJKUkkkkpiWxqzTy7d0g4ExwfBSTEA8ie
+6Sl0lCXM59zR37/7VIEHUapKXSSSSUpJJJJSkkkklKSSSSUpJJJJSkkkklKSSSSU
+pJJJJSkkkklKSSSSUpJJJJSkkkklKSSSSUpJJR3t8Z+Gv5PikpkkoF7uzedBPz8J
+T7X93fIBJS5IGp0Cj6jfzfd8Pn/cnFbB2k+J1/L8FJJTBz3gF0AAeJ80thP0nH5a
+BPZ9A/6/khSSUxDGDUAT4/6/FSSSSUxf9B3wKdv0R8Ez/on4FOOB8ElLpJJJKUoV
+RsEf6/cpqNf0B/r+WUlMkkkklKUGcu/rf69lNRZy7+t/r3KSmSSSSSlKI+m74D+P
+kpKA/nHfAfxSUzSSTFzW8mElLoX/AGp/sfxU98/RBPnx+VC3PGQCQPoagGTyElJ0
+kwIIkahOkpSSSSSlJJJJKUolsas0Ph27qSSSmIcJg6FSTEA8iVH3MH7zR9/+1JTN
+JM1zXtDmmQeCE6SlJJJJKUkkkkpSSSSSlJJJJKUkkkkpSSSSSlJJJJKa78/DrymY
+b7mNybGl7aifdtby74JsLqOFnsdZh2i5rDtcRI8wdY0PY8FVup9LfnZWNYHBtVdd
+9dv70XM2Dbp2QOmdM6ljustufXVYKKMWkMJsaW45sO9+4Mjf6nA48UlOykq1OTYb
+DRdXtuaA72mWuaTG4Hn5FG/SHwb+Pgkpmol7QYJ18PwTbAfpEu+Pz8PipAAcCO6S
+mPqagASTqJ0njx17pRYeSB8Br38U5ne3wg/wUklMdjeT7u+uvmnAAEAQE6SSmD49
+v9YKai/83+t/r3CkkpSSSSSmNn0D/r/AqShb9Az/AK/eppKUkkkkpi/6Dvgf9e6d
+v0R8Ez/oO+BTt+iPgkpdJJJJSlGv6A/1/gFJQqjYI/1+5JSLOw8TMo9PLbvqY5ts
+SWw6sh7TLSOCFQp6lf6rna2NmX0EAPbJgBnHiBryZ1VrqVv6P0Q02btbGAwS3gD+
+07T4Ssk7XM3OJtrbO25mlrfEnvMEn4uEhMlLXRtYMIMCZC7d7HyaMlm+p27xHDhP
+iOQpsn3fFc+HGq45G4B50+1V+UjbYB+aDPyb2VrCzMlmXecu4eldsOO0sa2thDYd
+72kklxLdHd9ASiJXux5MBjrHUfi7CYkDU6JtrjqXfIaJCtnhJ8TqfBOYVeoO0n4D
+4/3KILzYdABA5M9/CURRH03fAfx8klLbCfpOJ+Gn5FINaOB/r/qU6SSlIX/aj+x/
+FFQv+1P9j+KSmZbJkaO8fv5+9IOMw4R59lJMQDykpdJQhzOJc0du/wAv9qkHA8JK
+XSSSSUpJJJJSkx4Tpjwkpi1pLQ4GHQNeZ076nx8U4drB0P5UmfQb8B/r2TkA8pKX
+SUIc3j3N7Dv+PKkCCJHCSl0kkklKSSSSUpJJJJSkkkklKSSSSUpJJJJSkkkklNT/
+AL1f+sf9/VtVP+9X/rH/AH9W0lKSSSSUwP8AON+B/h5KagY9RvwP8FNJSkkkklMX
+/m/FSUHx7f6ymkpSSSSSmNn0D/r+SFJRs+gf9f4FSSUpJJJJTF/0HfAp28D4KNjm
+tYZMaH8nzSa+QIBPGvH5YSUzSUP0h8G+XJT7AfpEu8idO/8AekpRe0aTr4fggvtu
+bivfRWH2tY5zG2EsBcBLQ5x3EAlJuXj/AG12A0OF7axcfY4M2ucWD3xtmRxMqGTY
+RQKwD7vpRyBOnYcnyQlLhBK6MeIgd3LddZdSMrLr2uLd1noEvcwho3MbAl0TtGnL
+uE27UXOfsc6C3IaPae43t40gn5CIRyBu374OsZDBofNzfHUn4kKJY5r9oDa7HaFv
+NbzP8IA+APKriVuhEgCugCEtcywe0VWffW86ANd4H6Lf87lMBB2t/ROcJcx2rHiC
+7c3zgl3xcNETYCCwNIadXUP1DmgEna74Gf6zuEwlzS0fpJ1dU8w5vJBB8Nwnnho1
+TgVx1H8v5fy3YdNzM3Dbd9otbZWLHvbjuHp+jSOGhxJnZDteIHZbWFnYmdQ2/Fsb
+bW9ocCD2cNwn5LELGvYQ5pvpbpr/ADrZhu0+M6N+buUmOFWyxr/0bQduRUAC1o1O
+5rdI5MR3bITxKmDJgEjY0L0agP5x3wH8VSx+qD2tygGl2jbWa1ntqfzdZHgYV4fT
+PhA/j5p4NtSUJRNEMkkkkVqkL/tT/Y/iioX/AGo/sfxSUlSSSSUpRLZ1GjvH+/71
+JJJTEOIMO08D2UklCCz6OrR+b8PBJTNJMHA8fcnSUpMeCnTHhJS1f0G/AKSiz6Df
+gP8AXupJKUols6jR3j9/P3qSSSmO6DDtPA9ipJKEOZ9HVo/N7/JJTNJMCCJCdJSk
+kkklKSSSSUpJJJJSkkkklKSSSSU1P+9X/rH/AH9W1U/71f8ArH/f1bSUpJJJJTEz
+vb8D/BSUD/ON+B/h5KaSlJJJJKYP/N/rf69wpqL/AM34pGxnjPw1/Ikpkkobnnhv
+36eKfa/u75AJKWtIFbi4gDxMR+Kf1G/m+4+Xz/uUXsaGExr4mSfDxRElMZeeAAPP
+/Ym2E/ScT4gaBTSSUwc1rWOIAGhk/ef4qTfoj4Jn/RPwKdvA+CSl0kkklLEgCTwF
+nOG4bjOvD2/9SR84+auXu02DvzH4Kuf3pgnh44PxHjr+Kq58ly4R0382bEK17oDu
+FhJIY4md/wDg3d5j5T8hyoFg+gGc6fZ3cEcQ0/h8zwrBbBIAA/kn6BPl934KDmab
+IJaNTWfpAD90/P7ymAs4kgLdzSBNjQJLXaPby7cD97vu1UC3c33A2NboHDR7Txtc
+OewafIHRHIJAJ94HDho5p518tJ+AUC1v0nEwdBa3uIiHjznb8SU4SZBL+X8v5eaB
+236bnmDJGSzuI/PHjBPzcOErA4P3uIpueR+nbrUQD3+bdJ7N0RXB7X7yQyx2oeBL
+Hk/nfHkj4BV8Y32Ut9XHGLe4kOwnuD2aGAGubpr7W6ecp4K7iGnkuWkEta30bHy0
+VO1Y/wDNLR5wQ3xkmU/TXMwHWDHkCxxuuoeSZkSX1l3Ahu6B7dQNE4DXMLAN9cDd
+U/6QEH3NnyJcPNwUYLgRHqN3fRM+pWR+Jgt+O1icCiUAQbF/y8Xcx8ujIHsdDwSH
+Vu0cCOQWlGXMPopdfTmlvq2Y8sxbxpdWHAbgdO4gHTlx0WjR12luQzFySTvrNjMt
+jT6Lg0wdzhLWHvE8aqQSHVqZMEo6x1H4ushf9qf7H8UQEESNQUOR9pjvs4+acwJU
+kkklKSSSSUpJJJJTEtnUaHxS3EaP+Tu3gpJJKUmPCjtLB7NR+7/cn3AyO/geUlKZ
+9BvwH+vZSUa/oN+AUklKSSSSUpJJJJTFzZ1GjvEfx+9LdBh2nge3h96kkkpSShDm
+/R1HZvH3KQcDx9xSUukkkkpSSSSSlJJJJKUkh5BuGPaaADcGONQdxuj2z81j9C6j
+kiu6nqttv2ultT7ha2nawW7gNjsaW7dzT9LUJKdH/vV/6x/39W1UBB6mCDIOPII/
+rq0XNbyQPikpdJR366AnzjT8U36Q+DfxSUo/zjfgf4Jy9oME6nt+CiWS8biXCDoe
+PwjxUwAOBCSmO8n6LSfjp+VKHnkgfAfHxU0klIn1tlu73e4ETrrz3RAABA0Ci/8A
+N/rf69wppKUkkkkpjZ9A/wCv8CpKFsbDP4/7VNJSkkkklMX/AEHfA/6907eB8Ez/
+AKDvgU7foj4JKXQsrHpyca3HyG76bmGuxkkS1wgiRBRUN7pO3w/10TMk+GN9eikF
+dLKqm1Vt211tDGAakACANZnhQbdTZZYyu1jrKiBaGkEguG4b2j6JIM6o/P8Arqht
+opre+1jGMsuINtjQAXkCAXxyQFn2dSfNlEmJb+aG/wBjsfgokBw7uA+Tx5/xUcvC
+ryhUx7rKxTa24NreWbnMOjSW8tPBCKR31McH84d/9qcCvEmpY/I+11sFIdjuY4vy
+g4AtcCA2t1cag+PaFDLyqcJgvyLBU17msFoBIc6w7W7g2YJLvxVyIM/9IcHyd+T7
+1EtjyLtT+67v8j3+5OEtl4KBzIOwANJ5rd9A6/m+Wn3NUCwOaWBpczvQ/wCmB/Jc
+fj97lOy2htzcRz2C+0EsxXuG4tZAca/EN0H3p4kAyXtafpcWN7z+M/EjlPBZBJDB
+Il36QM4cNHscJJP3gu+ACE51e9oc8Fzm7a3tIDtoiWOb8SAdI1crG0QCdDw21saQ
+fov8pEccNVe3Dxn5VWZZUz7TUHMqyoBJY8CWeILx+J5TgV4kqwQfUc7YToMlgkOB
+BMub4kS75t1SLXCzaIpvJ+jzU9xPH+cI/qt7qbgWkxFTyCSw61vJOpb8xPwbwmDB
+BqayRHvxbOdYbDD8IZ8Z4TwV2hCPFJpyzfU+2Sw1fYXWEVOAM76xxu1aJHJOsLXx
+76Mm4+kSHNb7mmQ4EuPPiOY7LJAlpGttbPzDpYzk7m+Me5w+LdSkCWkOaS8M0Dmy
+LK3RG0xqQIAPeGnRPEmDJgEr6F35LdHcdnfcNVNZFfWn1vprurddTaTOYzaGsAG4
+G0SI5aNNJK02xtD6iC0iQAfaR2hPBBakoSidQkSUQ4ExwR2PPMKSK1SSSSSlJJJJ
+KUouEjwI4IUkx4SUwY4hrQ7XQQ77hrqdURRZ9BvwH+vZNtLfoRH7vb5eCSmaSYOB
+8j4HlOkpSSSSSlJJJJKUouaDrwfEKSSSmIcQ4NdyZg/BSUXfTb8/9eVJJSkkkklK
+SSSSUsQCCCJB5CDi4OFh1mvEorx2OMubUwMBPiQ0BHSSU59eNVV1UiuWNdROwEho
+O/kDt8leDWjgf6/6lVv+9X/rH/f1bSUpJJJJTE/zjfgf4eSkoH+cb8D/AAU0lKSS
+SSUxf+b8VJQfHt/rBTSUpJJJJTGz6B/1/IQpKNn0D/r/AAKkkpSSSSSmL/oO+BTt
+4HwTP+g74H/XukCA2ToANUlKe7aPP/XVALg0EuMDnXjRO5xc4nw48QPJN93h5Kvl
+PEfAMZnZUx7bGNew7muALT5HUfJSn/f/AHqvmY7snFsx2XWYzniG3VECxv8AKYXA
+j8OEcaDmexd3/tBQSguEmGTazHx7bntc9lTC91bGl7iGiYY1upPgEqni6plzQ4B7
+Q8bgWvaHDd7mn8iICDxweB2+RQ8q2yrHttpqdkW1tLmUtIa57gJDQXaa+aYRTLGS
+iO/49j2g/kUXD4D+SfonvI/KiN3Oa1zhtcQJHPbg/kQmVXtutc+wOqftNVO2AyB7
+vd3k6oA/y/l/LzZBJg6ipz2vdWHvrBALgPUaDAIa7nXhDyDc2l1lLBbc0TWd2wyN
+YcYPx48FZLZ01IHb84KMa7p1/wBIPL94f68J4K4FCWkEHieHfmunQNd+T71BzY0+
+iTMtOrHTrI8+XfdoliYVOFT6NG4Mc57/ANI91m4vJc4S8k/nR80Qs02iB/wbuPGW
+n5T8AnAsgk1MnGORQ/GY99RcACxpAe2CP5txDh22/AHhDe7KN9Ta6xdie432l22+
+sgDZsbHunce/Lu6uFu4FsGxrdPTOj28CAfhp96i4AneXbto9t7eW6kkuHlq77k8S
+XgoD2e4yG6NuZy0g8OHg3b4cN4UXiNr3aQJFzYhwgQywfMA9pcdVHMzsLDm3Jvro
+LWybAQWlrQNHtEmBoD89Vnu+sOE6svxmvdu8IDLADAeDP50l0+YTrZYxlKqFukZa
+7cXCm55n1ea3ky4O+PL/AB+ik3MysOux2NSX3tBIwS4Na8zEVudoDJj+yZWFb17M
+c4topZXW6f0RAdyZ0mBGgERwFQusz72ht1jnNbBDC4uAiYkaAclOE6TLlpSBB0t9
+DxcynLaBrXcAHOpdG9sifnyjy5v0tR4/cNV5lfn9YrbSaL3t9K1j3EvgbJ9/uLd2
+vh3XU4H1jz8sMcWiqiiwfaLvTdbvrgtcxoaQQ7dHuAI5T45AdGpm5LJAGQFxD0wI
+Oo4TqvjZONk1i3DtZawiRtdI408YRg4EkcEdj9ykapBBoij4skkkkkKTHgp0x4SU
+tX9BvwCkos+g34D/AF5KkkpiWg/EcFKS3R2o7H8NVJJJSwIIkahOobSNWf5p4/2K
+QcDpwfDukpdJJJJSkkkklMXfTb81JQd9Nnz/ACKaSlJJJJKUkkkkpSSSSSmp/wB6
+v/WP+/q2qn/er/1j/v6tpKUkkkkpifpt+B/gpKJ/nG/A/wAPJSSUpJJJJTB/5v8A
+W/17hTUXz7fipJKUkkoeo3t7vhr5pKVb9Az+P+1TQ7C8sMDb5k/+RP8AFS2uPLvk
+NPBJS5IGpMfFR3j80Fx+Hx7/ACThjB218TqfvKa66mit1t9jaqm/Se8hrR21J0SU
+178t7MirGNNh9dr3es1u6tmwNMWO02l06J3OJ2gOLoiIj4THdEtt/Mb8zMfKVSy3
+Zgrb9jFRf6jA8XFzW+nu/SEbQSHbeOyPCaa+XKL4QfMtgduNeI4+Xgnnv9/+3yUe
+5/GefmmeHlsMdtdptJE/GFFKLGJJO35PBM9rXtcx4lrgWuHeDoQVFz2sa57yGtaC
+XOPAj95SH+4Dn+yVGYsgkwxsejEx6sXHYK6KWiuqsTtDWiAAT8Eafjpr5hRnvI1+
+75hLUad/D+5RmLIJMp7/AOvzSjt+B4VbFOXVhh3UHsfewONtlDXBsAmIYS530dE+
+Pn4t+LVlMftpvYLK/UBZLXaj2vgj4KKUK/l/L+XdliSTQ1Vi2X30CzIodjWS4Gou
+a5zQHEA7maHcNfmo3W5DMmhldJsqt3erkhzQ2vaJbuYdXbjpp4Id3WMZulQda7tH
+tj5lUL+pdRs+htqH/B6n/OP9yZxC+7bx8tlluOD+9p+DrWFrGkuIY3vu+iR8fH+K
+oZPWMKgbTut/kgcR4OP+sLJsZba6bHucfEkoWPhnHNgYXO9V5scLHEwXdhMw3yCQ
+yRbcOUgK4pcXgPS2cjr2Q8EU1BnIZY4kvA+UeapXZ2dkFxteXB30g32tjwhvw7p8
+2jKD8dlDSHXWgPfWze1rGgucHy4EbgIlH+zHdG06eKJy19W1D7vHSMBp13/Fzjj1
+vBAYT4gN/hoPxQbsfIhoo2h25u4P19k+4CODHC2RQ4aAwPBNZ0s54aw1tf6b22M1
+c2HNMg+3bwkM1kDr2C+WaIB28ya/FyLhXRW6y5zaq2/Sc4w0T4ko+PhW5J9geah9
+J7dGCOeNSVvV9JxCwjIb9orJ8PoxBj0yPhz4omVRa/0XsvON6Tw/16Q3a8An2WNc
+D7dPubpClhEn5jTFPnRqIRB7HxaFHRcegB9pFryRtv5rbB/PYSZG7SfAFX3e1wc4
+mlxH84NWOEcEfvbT8ZdyiOZDiNvpPMDbzW/SNp8/zfGSVFoOrWkMJ1dW/Vh5cXNP
+3v8A83RTRoaBrTmcmsjf8vs/Z5ObndNfkFj8W93Tc7c17rK/oWNadzhP8qHGeYhN
+i/WPruKRT1XHra4cepYAd0loDXgAO7eOui0A0nfWxgImDi2ctAgANPhIHyadQg5V
+GLkUFuRX9qxmFp9KwfpWEHc1wmNe8+LtETtYPD4osHScRljtUunkdw6OL9Y8G1/o
+2u9KwAEtOsA6N4118YV7CzWZgtLK7K202GoOsbtD9se+vU7mmdCuVZ07HbYb3MHr
+uaGOs7kCSATyYnurFTbaXB1DnMPlIVaPPgfMAfLdZk5HEdccjDwOo+16tMeFzrs/
+qYubkCwvdVVYxuOSGV2PdGx1hDXO9sdls4+fRcwbiGWEe5h4mNYJiVZx81hntIA9
+joWlk5fJDcWO8dQ2GfQb8B/r2UlFkem3wgfkUlOxKSSSSUpM5odz24PgnSSUxlzd
+DqOxH3JwQRIMg8FOolpGrDB8Dx/sSUySTB0mOCOydJTB302/P/XlTUXTvb81JJSk
+kkklKSSSSUpJMSAJPCBh9Qws5jrMO5l7GO2ucwyAUlMP+9X/AKx/39W1U/71f+sf
+9/VtJSkkkxc1vJhJTEx6jfgf4KaGXkvbtBI1k8DsniwjkN/FJTNRL2zE6+A1P+uq
+XptPMn4n4/3pwAOBCSkb3OO2G9xG7Tt8Cp7Xnl0fD5+KHlX049Jvve2qmr32WPIa
+1rQJJJJCIx7Hsa9hDmOALXDUEHghJSvTbyRJ89fD+5STOc1olxAHidFVv6gyqypj
+K3XNe4ix7C0Bgg+47iJk6aIiJOwtbLJCHzSEfMtmz6B/1/gVJZ9+e59bmUgNcRAc
+4boPY7RE/eqP7RyKMahvUcqsXv21GwRU2y13ZjZJ1PAlPGGR30a0+ewj5SZnwDuO
+sYz6bg34lZ+Tm9OzXX9OJryDWGnIpeA6A/Vm5jp5jSVXMmSZ/J28SmbDXFzQAXfS
+LRqY8XKQYAOttWfxCUrAjwA9jq2mWVv3Bjg7adjtpBII/NI8vAqGHmVZmO3Ip3Cs
+lzW72uY6WuLT7bADyODzyg4tOLjutNNTKTe82XbAAXvOhc7sTp/sU8p2WK2/ZG1v
+sL2B4sJAFZd79QDrt4B+9CUVsJg/77a8O2v+vwQ8ZtzKQ26z1rBJc/aGyCSWyweA
+7/NTnvz8Ofhr+QoOFkWZGMy62h+K90zRbG9usalhcBPxUZiyxkzxcrFzaRdi2tvp
+cS0PYQ4EtJa4A94IIRpHlB+Q/wBigNjPaAANTtiBPPA/gq/2x7sx2M2mxuxgsN72
+/o3biRsDuC4RJVbNlx474pa70NT9jYxY5z+UaXudkuNVdjst+0ZLsgmx7w+xrWlj
+HGRXDQAWtT2ZbGaBpd5dvvVbHd9rqFpZZXq5uy5pa72kiYPYoopI/iqGXnLJ4RXi
+dS3sfLQGs5cXgNA0MPLyXUvY3MGU5ltjXWjZub7ifSOz9wHb4qTqX2ElxBJ5mZPx
+VyvDqr3Cqpte9xe7YA2XHlxA5JUBiZf2zf6jPsnp7fR2e/1d07988bdIhVpZzIkk
+2G1CcID0xEfJzrOlY78gZFlc2is07pP0HGS2JhHGORxp+K0hT5mPJP6DUw5SdrXf
+eHMsxbXVO9Fw9badheJaHdpA26J24zw0bgN0Ddt4nvErR9FvdDysJuTjWY4ssoNo
+2+rQdtjfNroMIe4Tpt4o+8eLTGP8R8NFG/pteVS7HO8B8fRcWnn94HRaVlZrayGO
+t3ODCWxLQfz37iNB3hG2Bo2gAA9ux7f7FLjxTOsvSPx+nZaeYJ2c23pVF9RruLjJ
+B2scaz7TuBDmnyRa8Nld91wdY8WhgNRdpWWAthje27g+MIzbXuyLaDS9rKg1zbXR
+tcXSTs1n2x3Uy0eZjv8AnDyP5PvVuEREUB/L+X8gtOQyNktLNyRiVjJc2y0bmsD8
+dhe/3u27nsHYTuJ7Ijmlp4bW46TzW4zGvhxHwB5R3Dl0gE/4QfRPxH4/colhEtAD
+SdPTOrT2gf8AU/epAVwk1ywAFjRtnml2ocIP0T4wZ+J4UdhILdu8M5qd9Jp8Wu8J
+E/BvKNGhAlwGpY76Q5O5v/VfcoFgPILw0wCPpt7Q78B8iniS8SQlocIh1rWjtpay
+YG13eSCB/aPKXonIe2XNtaz3C1uhdqdCBpq73fIKOdkHHqbf6dmRL2sFuO0OfDzG
+5zJGg3Fx+I4WhSNjNQN7vc/aIEnsPhwoOcyyGPhh809Pp1RkziAGuvRo0xbdfU2u
+xhx3BrnPaWtdLQ6a3fnDVHGO7iBHmrO5BvyMiuyhtNBuZY/bc8Oa3027Sd5B+lqI
+gLL4cpOg/Fg+9juw+yn/AF4+5BtwLrLqLK7nVMqcTbU0NIsBaQGukSIOuivF5EAC
+QTrrwPFJ1rGjcTAHJOgS4MvSkHmx3a9+IMnFsxMgerjXDbZWSYI8NIP3FWXZuVW/
+HrqxhZW52294ft9NgaYcGkHdrAiU29OC4xAJnhT4cvN4zUCSP3T6gxyzY5bjXwSU
+dRpuGS4sspbiPcx7rWFocGtDi+v95uvIRKM3EvxasyuwHHvDXVWO9ocH/R+lHMqD
+aLTydv5VK3Bx8isVZTG5FbXNe1ljQ4BzDua4A9wRotbl82ef85i4P61/9ydVmnRs
+JJJKypSSSSSlnNDue3B8PgmlzdDqOxHKkkkpgS1zmEQQZg6Hspobh+kaQYmZHjp8
+URJSkkkklKSSSSUiyaBkY1uOTtFzHVlw5G4FsrK6V07qeO6y241UvbRj4tTWk2tc
+Mc2fpHaMjfv47eK2kklOfVbcepkW1Fj20RoQWu9/LT/er36Q9gB957Kt/wB6v/WP
++/q2kphskQ5xd4jj8ikGtHAA/wBZTpJKYn6bfgf4eSkoH+cb8D/BTSUsSBqVT6hm
+204z3YTa8jJBGyt7yxpG4B0vDXRAlGzMOnMp9G7ds3Nf7XFpljg4at8wqWZj/Z2P
+vdJqrBc52pLWgSdPgE/HGJPqNNfmcmbGLxwEh18PolyM2q1hqNYexwIc18EERwW6
+yEJ2Xdt2tIraNABDQIVSjIqyaKsih4dRc0PYRoHMcAQfHVK1+Qy2ltVAsre4i57n
+BhY2JDgCCXSdFYGOA6ftcyfM55kgzI8B6VzXuyDkF73OLdm3c7ZAO6Q0mJ8+VIlo
+InkmP3jz9yFl/a31D7GWesXsLjZJbs3DfwOY4RgGtnaA3cZMdye8DlOYT3Ju1fH8
+TA/BRdWx4bvYH7SHNlo0I4IJ7hTGmsR5nT/ahZOTTjUWZORYKqagTZYdGgfynFFA
+8N/xY5d1lFDraaHZVjS2Kq4LzJaCRvIboDKPE+Y8zp28E24EaEQdR30/IqThn5uJ
+RY0v6ZcLWvtreGPca2v91ehgbwOUEgDwHc/xH9jdHz+XtTuvFFTrbXBtdbS57jMB
+o1JUXva1jnvMVtEvPADRzLlT6RgdNx2CzpmlWS1hZD3WN2tb7dm8mNChIgAk0ABZ
+PZMfC7JoDu6tdrXsa9urXAbSO4I7f6/cljV5gtvOS9hrc4fZgxpD2s2gOFhJMmfB
+ErrbW3Qy6NXf3IWNmC/DZlXVPw9wLnV3w1zAD+fqQPvWNzXOZMhMcPohtxfpS/g6
+3L4BACWSpS/d6BsBjR8ktOyrvxKbMurMJcbaGPYyHuDYfG6WAweO4TU4mJRkX5NT
+Nl2UWm90n3Fo2tPMCAqHsE6km9/q2TnAFDRJl4uPmY1mLkt303NLLGglsg+bSCii
+GtDQIAEAeQVZuZU7LsxBu9WpjbHS1wbteXBsPjaT7fFI5uOMtuEXgZLqza2uDJYC
+Gl3hyfFPHLHbXvS05yyrybS64X1egxlgZS4uDvUaQPeANW6mIKNuKr05mNkPtZRa
+2x+O/wBO5rTOx4AO1w8YKWRWbgwCx9Wx7XksMFwafoHyPdOHK+FLDzHi2N0/3Kl1
+VtbsQ22Mut+zOF7asZxbY91Z3Bo2ubM+BOqO73+3U95BiIPdw4R62kfS1PMeHwT4
+8rRBqlozGR0Y1zYxr4NYcAYdyJ7EdijBoHA17+PyKae868T/AHp/KP7P9ykGCEdh
+qyCS89/x7/MJR+PbsVXoxRTfkZAtseclzXEPcXNZtbthjT9EHkwrA/1HYoSiyCTX
+zH5NVDn4tH2q5pbtp3iswSASHu00Gqm8tbG50SdrTMGf3fNF/wBfMIOTh42SanZF
+bbTjvFtL3CSx7QQHDzElNuh/L+X8ujIJKIjXQef5hnxQMvHuuxbMfHtONa9pDX7Q
+8tPi0P0P95Vt2kkwO5B+iUDGvxsuht+LY3Ix7BuY9hDgRxLXDlOB1tkBYFhcwtcS
+4xq7h7TH0hHwn5BBoxhjY9dPqWXCpuwX2HdYQBEWnudY+ZVsjudY4Pdvkf8AXsgZ
+FV7rKLK7vSbW4uuO2RazY4BpP5pl25OEtF4kwcAbBMT9Jz2n2uHYx5nX4AJsbNx8
+qlt+La26l8htjCHNMEtOo8CEmkOdDRD3mdo8fAI9PTrGtDQG1NHAbpE68BWDyt6y
+0Li5uZyZ8hOOJlEemJG1BibBtLiQANSewA8Umlzo2DdOojVTx+g9Mpx7sf0Q+rJc
+997HSWuNv05BPdXaaKceplNDG11VtDWMaIAAEAAJfdoMkcGQ6ylw/iWozGvd22jz
+/uTP6RXbkNvvte9ra3Vux5/QuDiDL2GQSI0WgmPCdHBjHRmjhjHvLzR1VVNY0hom
+BqiEAiEzPoN+A/11UlIABsK8mQADYUw9zf5Tfx7BSBBAI1B4TqJb+c3R35fiilkk
+ohwmDofNSSUpJJJJSkkkklMXTvb81JQd/OM+fh4feppKUkkkkpSSSSSlJJJJKan/
+AHq/9Y/7+raqf96v/WP+/q2kpSSSSSmJ+m34H+HkpKB/nG/A/wAFNJSkkkklNTJw
+2GHVexxOscLLxsinKx2ZNB3U2TscWuBO1206PAPIW4/83+t/r2KVlbLW7XiQpYZS
+NDqGnzHJQyXKHol+BceddfxP9yHeMj7PZ9lLReWn0jYIr3x7d0axPMI2YWYeRVU8
+tYzIO2l7nNG6zU+k1v0i6BPChqHTtG0AQSdZ78qwJCQ0cyeOeOVTFH+X2rV79jd+
+02QN+wEjdGsbuyHRiVUUGjc+1hLyfXebXHed23XtroEaZ8x5An8Ut23wb8/7kVl6
+Vel34IsrJ+y1tearbQ57WbamyRvdt3EfujuUzsfdlsyRbYBWxzPRaf0btxB3OBHI
+jRDBGKaWY1Nl1WRYTZYHgtZuBcbHeo4mCdParYJMaz5gfxKCdqWPnr8dZ5TV5D68
+yugUvcyxjnG7QMaW7Ya4TMunRDyLraaXWVUuyLBH6JhG50ntuLW6DVTsufQ1r21v
+t97Wljdsw4wXQSNGzJUXNQM8OSI34b+zVfglw5IS8a/3276msKGRTj5dD8bJrbdR
+aC2yt4kOB7EFMfDzQ2sa17nt+k/V2pPAgadli4nQnlITgNAAbADRAEaAJrHsY0vf
+7GtBLndgAJJVSqu2vIuude+xl20sqdGyvaIPp6fncmUf1R30kcHTlW4YgWCWcd1s
+fIpysevJxbBdRa0PrsYdC08EKcjt+P8ArChsYHBwkFo2tbw0fIadlF9NT7WXO3B1
+e4Nhx2ndzLZg8KePLjsxyy9ixvudjuqFeO6317Qyx1YbDJB/SPkjQbY01UrH5QyK
+GV0GyixzhfduA9MBshxafcQTpoisqBhziRB+jxr/AH/FSqyse2y2qq1r7cdwZaxp
+1Y4jcGn90wZgpxxALsdy1kNB/LVKxrWgBoj8v/mSl/E/j/A/xUdQRER3B0/3fFP+
+X+EfiEyUWzE0NOjL8o+//ag5eZViVNstDnMe9lYFbHP91hDQYYCWjxPYIvby7eHy
+PZOD3+8/+SCilBkjJfv5j7x8fFQsu9N9TNjni1xaXNEtbAJl57cR8VLcAQCdT9ET
+r/Z8U8/7f9qjMWQSZf6x/clPf8f70Ow2hn6MNL5EB5IESJgjyU5/Dk9x8Qo5RZBJ
+eBx49uxVbBoyacVtWW9ltrC73Us9JobuJZtbLuGqyPDx7dil/D7woiKZBJGR3+QI
+/I5SrqDydwlp+kPzT/rypbZ454n+BSw8nFyafVxbWXVbnNL6yHN3NJa8SPAhTcvD
+ilZ2jqulLSu+iU1sLdm0bfBR/SV8Dez/AKQ/vCIkrrGxY9r27mmQpKDq5O5h2P8A
+EcH4jumbbqG2Da46DwPwKSkiY8FOmPCSlq/oN+A/17KSjX9BvwH+vdSSUpJJJJSx
+APKYbm/yh+PZSSSUsCCJBkHgp1Et13N0d+B+KQfrDvae3mkpkkkkkpi6d7fmpKDv
+pt+f+vCmkpSSSSSlJJJJKUkkkkpqf96v/WP+/q2qn/er/wBY/wC/q2kpSSSSSmJ+
+m34H+HmpKJ+m34H+Hkk57GCXkNHidElMkkP1gfoNc/zAgfeYTTkO7NYPP3H8ISUy
+fHt/rBJ1lbPpOAPh3+5RNG76b3u8gdo/6MJNayrloH8oCPvSUs5zbC0in1Cw7mFw
+iDHI3azBVTqDcfHoszcu2vEpqG6yxx9oHEucYjnwWiouY17S14DmnQtIkFGMjE2C
+syY4ZBwzFhyLK3MPv78EmQQfCFBzA9rmPG5jgQ5sAAg8jzW0+tljdrxIWT9mzRdk
+GyhraWPAoeHhznsLQS5zdvth0iFYhlB0Oh/BzOY5KcLlC5R/5w/i1cS7DsY6vDex
+7Md3ouFfuDHMiWHwIClTk4977GVWtsdQ/wBO5oduLXwHbXAd4KbHyKrrL66Wua6i
+zZZNbmgvI3S0uA3c8owAaTtABcZPckx3jlSatQ0OhHbshbdkD1/VpLa6z+h2EONj
+Q0EnYBIMyIUTmf5POcyi136L1RjhkXH2zs2v4d5Kx27x9yrX5du+7GxWb8xlPq1b
+2vbSSfa0G2D3GoGqRUBfTbX6MsJ4diMycUWWsy3C8tvcdzG2AEgB4lu391GysnHx
+aLMjIsbVTS2bLHH2tHiT2Uq3O9IGyA8Ab4MgHv7tEKvDxK33211tnLcH3u+kHkND
+QT8gsgY+Gco9jTblMSAJ6hLuDhuaQQ4CCDMg8Kk77P0zGyb777DTuddY+1xcWNOp
+a0R9EdgEVt1GdVkUgPDWvfj2BwLJgQ7YdJGv0gpU010U149U+nW0MaCS47WjaJ3S
+TwruKLTyyre/JFh01YuJXTjOcamwKzY5znEEzqbJJ5Viqzc9zncNPt0790DJpouY
+xtzQ8MeLGA8B7TLTHxUmnKZfUxlQdjvY51124NLXiNoDSPdMlWwAIsOMmU7u6uRv
++WreFrAWtcQHOna0wCQPCf8AcptaxrnFrQ17yN5A1J/lTz8Cs2/7K3MxbLKfUv3P
+bRa2s2GsuadxLx9AECJV1loENOg8NFGYN2OQadGxPyj/AF/1B5ULqvVYG73Vw9r5
+YY+iQ6DzAdGvinBHiPCP9qgW5H2lrxa1tDWEOrj3F5Ih2+faAO0aqMxZ4zSUZFN7
+PUosbayS0uYQ8S07SDt0MEfeoZWbjYTG25D/AE2ueypjhJ99jtrAIBnVSpppoZ6d
+NbaqwXO2tAYA4mXH28EnlT+PzB/jH5QojFkEl4aSCQDHB7Tx8kLLfmtFX2StljjY
+0XC1xYW1H6bmw124gcBM37b9teXGv7H6bfTAB9X1JO/cfouZEeaP2j/cozFkEmXb
+tH4f7Eh89P8AOH96YE6+Pfx+YS0mPuE/9SVFKLIJMp+Gvft80/36du/yUZ7z8TH/
+AFQQ8qnJvxrKcW77Ne8fo7tos2H94NdoVGYXoyRk2Gtd9IdvHunqbWxuytorEklr
+RAk6u/EqbQQ0AmSBBKRaDz/r3VqEBCND6+bIukobnNHu1A/OH8QppylJnNa4FrhI
+PIKdJJSKH1/R97PDuPh5KbXte2WmfyhIvbMTJ8tfDw+KG9rn+5gLHRo7j7xrKSkj
+PoNnmApITH7A2uwbTwD+afh9yKkpSSSSSlJJJJKUmIlOkkphDm8e4eHfspAhwkag
+p1Et7t0d4/3+KSlnRvZ8/wAimoSd7QQRz8FNJSkkkklKSSSSU1s7NqxKtXN9ewOb
+jVOMGywCQxvmVQ6H1W/Iqe3qTxXlsFbn0OpfjlnqSG/zj37gXNIBB7LXc0OBB1BV
+CrpmNhVPZgY7HG8/pTa9zpAGm5z/AFHEDsElJf8AvV/6x/39WiQBJ0Cy6un52Nd9
+obaLG7Az7Kwbdond+je8uPyOnwVzHOLeNzZe5ujm2TuafNruOElJTfX+aS8+DRP4
+jRLdc76LA0eLj/AIiSSkLqbHQ51monRo2gz56u+4qTK6g7RsP8Tqfv1RExaHcj4e
+SSl0lD3N5lw8e/YKQIIkGQeCElLpJJJKYbS3Vn+b27nROHA+R8CpJi0HnnxSUuko
+biz6Wo/e/vU0lNe/Drt1Htd+H3LNsiq4473N9UNDywEA7TI3RzEjlbSq9Qrv+z2W
+4dFV+ZtDaxcdjSJBgva1xA7qSGUx0OoamfkoZPVH0T7jY+Ycxm+X79p1OzYD9GPz
+i7upefI8zP5FbvwrGjdX7mgfR5d8lmMLqclmHVjFmOKy4Xgja1wdAr2gzJmVYjIS
+FguXkwzxkxmK7dj5NY4XUH0ZeA61tlV1b/Syr4e7dY58sdS1rBsaCANVfx6mY+PV
+SwBrKmBrQ0bQA0AaRMBRyMrHxWsfkWCptj211l5DAXvJDWgeJRXd/u8P9iqZoVlv
+uLSZng7aoMU5hx2/bRWL5duFMlkSdv0oJMcqZ4+A45/Aoee0Ow8gF76ZrcPVqE2N
+EfSYIOo7aKFT23YTH12P22VtLbXiHgFujnNcAQe/CnxRa2U2CfGkTMpzupHCvaGA
+D1KHN3ODmtDd28lsMIcdBOquH1TkAAs9HZJmfU37tCJ9u2JVfplpsped77HVv9F1
+jg0FxrhpdLdNSrArqFpsDW+q4AF0bnloOgPkpz57LsYAjdfN/vCkkg9yfIf7EC/J
+NLqW+lY/13ismsAhkhx3v8G6JWXWsyKam0usrt3epduaG17RI3Nmfd5Jxe/7V9nF
+Nmz0/U9cANrmduyZ3F3fhNZP4L5NVt9Ta677MYtex5sZtktadxYd4d7XjQwj0Zfr
+XXVenZWKC1oteIY/c3d+jdOscHT7lDSfPy1PCFijMZWftdldlm9+1zWlrQzd7G7Z
+dqBygY2ujkoG9W2bsgZbKm0zjuY5zsjeBtcCNrNnOoJ8vmj/AA0I4jSPv4VdtxHI
+J8PH5f6/JNl4tObjux7i4VOgkseWO9rg4Q5hBAkeMeKjlFsQyA02vHwEeX4dk4P9
+5jn7u6gDoPLj5/k/in8Z8f8AX4fxUUossZI8J+W/Ha7MqZTfLprreXtgEhu15DeW
+wY7InpVet6xa31dpYXkQds7oPgnnU/jIn7/H4hDxch+RULH1WY7i57QyyN8NeWhw
+2kgh0SFHKLIJL2HN+1UioV/Zof65eT6oOmz04G0ifpSrtbNo8zyh1NaBveQB28NO
++qluc3RrS8Dt38OTyhGIBttYgas/RKkoAvdqIA7xrxH+1L0wfpEu/D8icyLl7QYJ
+18FCTzW0x4cA9/xlEAA4Ef7U6SkYL3aEhp8Bz8p+Klsb393x1805APKjLmfS1aPz
+v70lMgANAITpJJKWIBBBEg8gqG19f0Pcz908j4H+CIkkpix7XiWn4juPipKD6w47
+gS13Zw5/2pvULTFojwcPon+5JSRJJJJSkkkklKSSSSUwd9Nvz/14U1B302fP8imk
+pSSSSSlJJJJKaPWsUZfScrGLnsFtbgXVtL3/ACYPpfDuq31aZdXhWMfjtx6m2n0N
+tJxi9pa0l7qC52w7pHnErXSSUpAvxa7SLATXc36NrNHDy8x5FHSSU1Rk2UEMzAGg
+6NyG/QP9b9w/HTzVpMQHAtcJB0IPBCq+hfja4kOq747joP8Ai3fm/A6fBJTbSQqM
+mq8HbIe36dbhDmnzCKkpSiWnUt0cfuPxUkklMQ4TB0PgpJiAeU3ub/Kb+I4CSmSS
+YEOEjUFOkpSjtI1Z/m9u6kkkpiHTodD4KSYtB5/1hRkt+lJH73f5/wCxJTNAvxK7
+dR7X+I7/ABRgQeE6IJBsLZwjMcMhYcLOpycev2UC925u1shoidXbnzG0aqNpqNlQ
+e/a8uJrbu2lxAM6fnadluva1zSHAEeBWB9lscKLeoY1VeXUHPa1rvVFZdLTse5re
+WqQy46vcOVzXK+yOKJ9G3iCkcQBJgDkzpoFT6kcV+Bd9qh+M5jvVmXAsgz9H3cK2
+4CC0xAGoMx9yDjY9VLhXQwV1VgkNYABueZMEfFWMYoOWbMgATdjb+K+BRg1YrXYN
+ba8e39K2Glu7fruIIGp81MYuKMt2YGA5LqxU6wTJYCXBunmUXk+J/wA4/wByDkW5
+DBV6NPr77Gstl4YGMM7rPOPBJtWb069z+abjvEeGh/io2OLK3Paw2Oa0kNES4gcD
+cYkqQ40/AR28UHJutq9P06HZBfY1jthBLGu5sduI0b3hFA7fy+1hiNdaftrzew5F
+Vc4dpBbUQJ+i3QO192vZSzMiuipvqeo31LGVg1AucHOcIn0wYb4kotrG2VvreSGv
+BaYcWmHaabdQhVvxsQ4+B6sWOaW0Me79I8VgbjLzudA5KC67N9ew7MmPyTlWMdS0
+Ywa013bvc55J3tLCNI01VhlhHn8P70OWjXTxJGv4lQx8ijJpZkUWNuptEssa7c0j
+xG1KuiASNRp002bjHg99fw/1/wBSptcDJaQdsgkdlULxW3c52xumphokwByg0VPx
+chjMOqmvEsfbbl/SDza+CHMgR7jO6UyUWaGQbE0fwdOflHYaf7vyItVZedfo9+34
+ePwVazp1WZ6Tr2bhRY26qSWw9vBG34/DyWgwtjaBEfm+CgmRs38GEyqUtB2QY2Tj
+23ZFFbHtfiuax7nsc0EloeNjnD3CHdlZSSTG4xLZMjR3j8Eg6NHaHx7HhSSSUpJQ
+hzOPc0duT8lIEHUfD7klLpJJJKY7Y1bp4jt4pNdJg6O8P7lJMQCIPx+5JS6ShJZ9
+KXDx7/P/AGKQIPCSl0xAIg6g8hOkkpFsfX9A7m/uHt8D/BTZY1405HIPI+IUlB9b
+Xa8OHDhyElM0kP1HM0tEDs8fR+fgiJKUkkkkpi76bfmpKLvpt+f+vCkkpSSSSSlJ
+JJJKUkkkkpSSSSSlJJJJKQ341dxDjLLG/QtZo4fPw8johDJtx/bmAbeBkNHsP9cf
+mfkVtMQCIOoKSlAgiRqCnVU49uOd2HGzk47j7f7B/NP4IlGTXfIEtsb9Op2jm/Ef
+xSUmSSSSUxLe7dHeMc/FIO1g6HspJiAdCkpdJRgt4lw8O44CcEOEjgpKXSSSSUxL
+SNW6eXbukHAmOHeCkmIB0Ovf7klIc3Cxc/FfiZbPVotAD2EkTBnlpB5CI+ut7dr2
+hw8ClLm8+4ePf5gKRc0CSYA7/BJBAIoiwehcd3Shj5no4lNpqyjZfdkOs3Mrs9oD
+dr3bhu7bdAh5LDgVPuyfoDUuaHPnWNGtEn7lt7xw0E/6+aZzXPEOADTyDr4f7VLD
+NKOh1DTzfD8MyZxHBP8AD7HBqbljJu9W1j8d2z7NUxpDmwPfvMkGTxCezFpsvpyH
+yLMfd6cOIHvEGROuniFbzOl5Rtpsxr9tVbibqNoPqAggDdy2CZ0VX16ftBxRY37Q
+xosdUIDwwy0OIOsSFPGUZDRz8uHJikBIdNwkgc/iePxT6cST5D+4KFj2VsdZYQ1r
+RLnHWOPks3qHXK6Mex2JWcq5oG2snYwyQNXCY0lSRhKXygnyY4xJNAb/AGN/Iqss
+9M1XOx/TsD37Q0l7RINbtwMAz21U4pdaBDXWs1ExuAdIkTJ1XP5v1mzK3MZi4s73
+hjnt2u2g67j7mrLysu+66y57v0z2tqdY0BrywGdpmJ+lKnx8lkkdSI971Z4cvkkN
+aj22v8HqczOrxchlmRl01YgYQ+kgmx1hMsc0h3EA6Qs3J+sWLj5DPsjj9noreLMZ
+rGsDiYDCHaOEa6ALmzbW+2yprgbA5oewakD6WrH6+KFbltYzJe9lgZQWtMSZGjpY
+36caqf7lihrKRl+A8WzDko/pEnyFPoHRz0v6x4FhvYy0U27L8cw4NewteydPgVvs
+x6WcNEjudT+K47/F1ngjK6fe+sZZ25Dq2QJ09Jzo5j2jldqsjmQY5ZRvS9PI9G5j
+wYogcMB9dfzUmc0OHgexHbsnSUDKx3EGHajsQE4IIkcJ1HaRqz5g8dgkpkkotcDp
+wRyO6kkpSiWgmRo7x+HipJJKYhxGjtPPt2UkxAPKjBb9HUD83v8AL/akpmkmDgeE
+6SlKJbBluh7jsVJJJTEOnQ6O8P7lJMQCIOv+xR9zOZc3x7j+9JTNJMCDxqnSUtzo
+UPY5mterf3Dx8vD4IqSSmDLGvmNHD6TTyPipqL62vgnRw+i4cj4KHqPZpaNP328f
+MdklMnRvZ8/yKaiT7mxxqpJKUkkkkpSSSSSlJJJJKUkkkkpSSSSSlJJJJKUg341V
+8F0te36FjTte34FGSSU1PtF2Npl+6vtktGn/AFxv5vx4+CtAggEGQdQQnVU41lBL
+8MgN5djuMMP9U67D+HkkptJINGVXaSwg13N+nU/Rw8/MeYRklKUSzWW+13j/AHpF
+7RpOvgNT2/vTbnn6Lf8AOMJKX3QYdoTx4eSckDlRLXHl2ngBCYVhh0G4eBMkfRGk
+/BJS/qN/N939XVPLzwAB5/7E4IIkf3J0lMNrjy4/AaDt/cmFTW6sABHbx5/vREkl
+MQ6TB0PgpJiAeRPf7lGXM59zfHv+HKSmaC/ExX2+u6phtI2myBuLRqAT4IoIPGqd
+IEjZBiJCpAEeLWx8R1N+RYbn2V3lpZS7bsqDW7SGbWgw7kyqub0DpuVLjVsedS6s
+7DI17aHXxWmknQyTgeKMjE9wVGMSKIBDxV31IvxmOHT3i6s2OscywkPl2pEk7SJX
+OWMzG2hl2LbQxz362NLdayWQGO93aQQeF6uWgme479/FVs3Exc3FfiZ7Bbj2AbwZ
+AMQdSIjXzV7D8TywoTAlEdvSf4LPajuHytjWbg4AS8ue8gTxoJ/P0BTNtabxSCTY
+A66BqA2S2dzhLfmu/wCofUzpWUCcecSwjaNnuYP7J/gQuYzfqt1nH3OdUx7Q51NI
+3NJfP0S3Vp937uqvDn8GXaXAe09EcJCL6m5Ta+v1C2r0xc11O9wA9QPh7SNuhE8L
+0r3N/lD8e68jvdlYF5DD9lzWuYKBcNh3tO4ex/0vkvW6XF9LHlwcXNB3AQDI5AMw
+s7nx64yBuxX7f2r47MgQeE6iWiZGh8kg/UBwg/h8lSXMkkkklLOaHDX5HuO2iaXN
+Ouo8QpJJKWBBEjUHgp1EtIMt0J5HY8JNdOh0I5CSmSSSSSmJbOo0PiluI0fp/K7d
+h+KkkkpSShtLPoaj93+5SDgdByOySl0kkklMS0zLTB/BIOk7To7/AF4Ubb6KRuus
+bWPF7g0figHPrsEUU2ZAPBDNrdP5Vm0fckptpLOtt6s0Aiuuun88guutb57faD+P
+wKJXiVZDBZZkWZLHDSHbWH5VbfxSUmuzcSh2221rX/uTLv8ANGqH9sts0oxrH/yr
+Iqb89/u+5qPTj0UN201trHfaAJ+MIiSmiKupNd6gNQDZP2cbiDPhY7j5NhWqLvVZ
+uLHVuBhzHiCD+Q/EIizev5WZh9POTiPax1dlYfubulrrGsIGoj6XOqSnSSWVXfmn
+rrqK8gX4oY52RVsaBSfb6TQ8alztSQe3hpOqkpSSSSSlJJJJKUkkkkpSSSSSlJJJ
+JKUkkkkpSg66lljK32NbZZPpsJAc6NTtHdTXP9Y6bmXdQfbRQbX5DcdlOQNg+zmm
+11ljiXO3Dc135o1SU6eTh5WUYfaylrSfTfW2bWjxD3GAf7KW+3G0y5tq7ZA7f8Yw
+cfEafBXUklMW7C0FkbTqCOFJVXYr6SbMMhhOrqT/ADbvhH0T5j7lOjKZa41uBrua
+JdU7n4jxHmElJ0kkklMSwGSPa7xH8fFLdBh2k8Ht5KSbnQpKXSUYc36Oo/d8OOE7
+XB3H3HlJS6SSSSmJb3bofwPP96QdJgiCpJiAeRPf7klLpKHuYP3mj7/9qkCCJBke
+SSl0kkklMdpb9Hj937zp8UK7Gxcr0/tFTbTQ8W1B7Z22N4e2e4nlHTFoOvfxSU1c
+zpPTM6xtuZi1X2Vtcxj7Ghzmtd9INcdRMKxTTXRSymoba62hrGyTAGgGqW4tHv1H
+7396mjZquilJiARBEjwKdJBTH3N/lN7+Pc/NOCDwnUS0EzwfEJKZJKIcdA4QfLgq
+SSlJnNDhB+R7j4J0klMZc066jx8E4IIBGoPBTqpZnYbHlrLQ+zvXWDYZ05aySkpt
+pKg3qORdYaasV1VmpH2hwYCP3mhm8uRPs+bZ/PZOwfu0tDf+k/efyJKbLntY0ueQ
+1o5JMBVndQxXH9CXXuH+haX/AHub7fvKk3p2ICHPZ6zx+faTY75b5j5KwAAIGgHZ
+JTnPzuoNs2WY7caowGZFr9wJ8HNr0af7SP8AY7rNcjJe4fu1fom/9GX/APSVpzWu
+aWuALSIIOoIWWOtsb1wdFbSAQ0EO3gOjZv3CuPofmzPPZJTeqwsSk7q6mh/75Eu/
+znSUdJJJSlQzs6/Fy8KplTXU5dxqssLiHNOx9g2tjX6Hir6Dfi05DqX2t3Ox7PVq
+MkQ/a5k6eTikpzuj9avz7WNuqZW3JpOVi7CXH0g4MiyQPd7hwtdU8TpOFh3vyKGu
+Flg2+57nBjSdxZW1xIY2dYariSlKFtVVzDXawWMMEtcJGhkaHzCmkkpqs6V02vLO
+azFqbluJLrwwB5JEEl0TqFaSSSUpJJJJSkkkklKSSSSUpJJJJSkkkklKSSSSUpJJ
+JJSkkkklKQr8eq9oFg1aZY4aOafFrhqEVJJTU9XIxf6R+mpH+GaPc0f8I0flH3Ky
+17XtD2EOa7UOBkEKSrOxXVuNmIRW4mX1H+bd8h9E+Y+cpKbKSBTlssf6T2mq8amp
+/J82nhw+COkpSiWg6jQ+IUkklMd0GHd+D2UkybaW/R1H7p+XCSmSSi1wd5HuDyFJ
+JSlEt1lujvyxP96kkkpiHaw7QqSYgHkSo+5ni5v4j+9JTNJMCCJGoTpKUo7S3Vn+
+b27/AJVJJJTEOB04PgpJi0HlCtyasZu7IsaxgH03EDjx4/BJSZJVG9SptAdissym
+u1a+tvsI8RY8tYfkUp6lZ2qxx5za77hsH4lJTaIBEESD2KBdl42MYtua3+QT7u50
+bqSofYN/9Jvtv/k7tjf82rb+Mo1ONj0CKa21jvtACSmvX1L7Ru+yUWW7TtcXRUAf
+MPh3/RUvT6jZ9O2uhvhU0vd/n2QP+gjPx6n2tuIixnD2kgkeBjkeRQ8bqOHl5GTj
+Y799uG4MvABhrnDdE8H5JKW/Z2O7+fL8jytcXN/zNG/grDGMraGVtDGjhrRAHyCk
+kkphbTVaALGh20hzZ5BHcFVMDq1OffdXRW706HOZ65LNrnNcWODWhxfyDqWwVeWP
+036uU9PzzlVW/owLRVSGNaR67xbYbLB7rPcPbPCSnYSSSSUpZx6HjHP+2+rbHqjI
++zy30/WDPR9T6O/6Okbo8lopJKUkkkkpSSSSSlJJJJKUkkkkpSSSSSlJJJJKUkkk
+kpSSSSSlJJJJKUkkkkpSSSSSlJJJJKUkkkkpSSSSSlJJJJKR3UVXs2WNkAyDwQfF
+pGoKB6mRi6XTfQP8KB72j+W0cjzH3d1bSSUxY9ljA+twcx2ocDIKkqz8QscbcRwq
+sOrm81vP8pvY+YUqcpr3+ja0038+m7uB3Y7hw/1KSk6SSSSmLmg+R7EchLcQfcPg
+RwpJJKW51CdR2kfR4/dPHZJrgfIjkHkJKZJKtZ1DDY7Z6ofZ/o6wbHf5rA4qP2rL
+s/mcVwB/OucGD7m73fgkpslusgw7+6efvTGxrATaQwDlx0EfFV/s+dZ/PZIrH7tD
+Q3/pP3n7gEndKwLGkX1DJnn1ybfwskD5JKXPUsUkikuvI7UtLx/nD2/im9XqFmld
+DaB+9c7cf8yuR/0lOphxWu32j7O0S3fywDsXk6j4o7XNc0OaQWkSCNQQUlNX7JfZ
+/P5LyP3aoqH3iX/9JEqwcSk7mVN393n3PPxc6SjpJKazqqMTfk7zTU0F1rR9DTl2
+2ND8FLDzcXOp9fFsFlclpMEEEchzXQQfipZJyBj2HFa1+QGn0m2EtYXx7dxAJAlU
++iY2Xj4zxm1sZk22G257LDZ6j3AS8yxm3iAOwASU6KSSSSmL2lzHNDi0uBAcORPc
+SsronQrOk5GTYct+TVe2prGWNYC30wQSXMa3cTK10klKSSSSUpJJJJSkkkklKSSS
+SUpJJJJSkkkklKSSSSUpJJJJSkkkklKSSSSUpJJJJSkkkklKSSSSUpJJJJSkkkkl
+KSSSSUpJJJJSkkkklKSSSSUpJJJJSkO6mq9my1u5vI8QfEEagoihddVRU+65wZVU
+0vseeA1okk/AJKa+7JxfpzkUD88D9K0fygPpfLVWK7K7WCytwex3DhqFWozquo45
+s6fdADtpe+tw7To1+zx5QbOj73OsGTb6rtXidtb/AOvXVsn8qSm5dmYtBi61rHdm
+k+4/BvKF9tsf/R8eyzwe4Ctv/gkO+5qnh0Mqr0oZjvmHBkEHz3QCZ81YSU1NnUbP
+pWV448KwXu/znwP+ioW9Ixr2xkPtucDLXvedD4hrYZ/0VeSSUgxan01+m4MAafaa
+xtBHiW9ijqvl2ZDAwV0i6p0i87y1zWRyxrWuLz5aLL+q7aQzKfTRdiVW2NezEtrs
+rFY27f8ACgS50bnbf9qSncSSSSU5vXcWzJxKwys3tpurutxxBNjGOlzAHkNPwKl0
+Oi+jp7WXs9Emy17KTE11vsc+uv2ktG1pAgLQSSUpJJJJSkkkklKSSSSUpJJJJSkk
+kklKSSSSUpJJJJSkkkklKSSSSUpJJJJSkkkklKSSSSUpJJJJSkkkklKSSSSUpJJJ
+JSkkkklKSSSSUpJJJJSkkkklKSSSSUpJJJJSkkkklKSSSSUpVOo4dmZUavUIocyx
+l+PADbmvbt2OfBc0ebVbSSU5fRMHOxG3fanEVvLfQxzc/I9MNEO/TWta47j27LUS
+SSU0upZuXi1OOLh2Zb9jnN2FkBw+i0hz2u18lS+qt+XdgX/a/XNrMq9u7JAa4t3k
+iAC6GiYC2kklKSSSSUpJJJJSkkkklKSSSSUpJJJJSkkkklKSSSSUpJJJJSkkkklK
+SSSSUpJJJJSkkkklKSSSSUpJJJJSkkkklKSSSSUpJJJJT//Z"/>
+</g>
+</svg>
