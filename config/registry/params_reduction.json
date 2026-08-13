@@ -12,8 +12,8 @@
       "metric": "euclidean"
     },
     "tuning_grid": {
-      "metric": ["euclidean", "jaccard", "dice"],
-      "perplexity": [5, 15, 30, 50, 75]
+      "metric": ["dice", "euclidean"],
+      "perplexity": [5, 15, 30, 50, 75, 100, 200]
     },
     "nested_params": ["metric"],
     "trustworthiness_n_neighbors": 10

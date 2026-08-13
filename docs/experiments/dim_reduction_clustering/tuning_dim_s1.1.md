@@ -41,3 +41,16 @@
   - Griglia ridotta rispetto al run del 03-08 (`jaccard` escluso, solo dice/euclidean)
 - **Decisioni Aperte:**
 -
+
+---
+
+## 13-08-2026: Tuning t-SNE — griglia perplexity estesa, salvataggio embeddings
+
+- **Obiettivo:** ripetere per t-SNE lo stesso tuning già fatto per UMAP (drop `jaccard`, `regress_out_volume` rimosso repo-wide il 12-08, `lessons_learned.md` — feature dismessa perché la regola di incompatibilità con jaccard/dice non reggeva in letteratura), estendendo la griglia di `perplexity` e salvando per la prima volta `embeddings.npz`/`metadata.csv` (`save_tuning_embeddings: true`) per un futuro plot interattivo stile "Understanding UMAP" (vedi `dim_reduction_tuning_guide.md`).
+- **Configurazione e Dati:**
+  - **t-SNE (14 run):** [Vedi config.md](../../../results/lesion/dim_reduction/tuning/tsne/13-08_s1.1/config.md) | [Vedi tuning_results.csv](../../../results/lesion/dim_reduction/tuning/tsne/13-08_s1.1/tuning_results.csv)
+  - Griglia: `metric: [dice, euclidean]` × `perplexity: [5, 15, 30, 50, 75, 100, 200]`, `n_components` fisso a 2 (t-SNE non supporta bene oltre le 3 dimensioni, niente Barnes-Hut).
+- **Risultati (Trustworthiness):** stesso pattern già visto su UMAP il 03-08.
+  - *Dice*: 0.932–0.954, massimo a `perplexity=15` (0.9539) — ma `embeddings_grid_side.png` conferma lo stesso artefatto: split netto sinistra/destra a quasi ogni perplexity, non struttura topografica reale.
+  - *Euclidean*: 0.748–0.760, praticamente piatto su tutto il range, massimo a `perplexity=50` (0.7597) — gradiente continuo, nessuno split netto per lato lesione.
+- **Decisioni Aperte:** scegliere `perplexity` finale per produzione (range piatto 5–200, nessun valore domina chiaramente); confermare `euclidean` come metrica di produzione anche per t-SNE, coerentemente con la scelta già fatta su UMAP (dice scartato per l'artefatto lato lesione, non per il numero più basso).

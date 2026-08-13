@@ -1,7 +1,7 @@
 {
   "project": "clinical_connectome",
   "input_path": "data/derived/lesion_matrix/21-07_s1.1",
-  "reduction_method": "umap",
+  "reduction_method": "tsne",
   "params_file": "config/registry/params_reduction.json",
   "output_root": "results/lesion/dim_reduction",
   "session_name": "s1.1",
@@ -11,5 +11,5 @@
   "viz_n_components": 2,
   "write_embeddings_grid": true,
   "save_tuning_embeddings": true,
-  "run_notes": "new run with less metrics and embeddings saved."
+  "run_notes": "t-SNE tuning: metric x perplexity grid (dice, euclidean; perplexity 5-200), no regress_out_volume (feature removed repo-wide 12-08). save_tuning_embeddings=true to persist embeddings.npz for every combination."
 }

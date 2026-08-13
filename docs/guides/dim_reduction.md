@@ -35,7 +35,7 @@ Immagina una matrice *Voxel-wise*: ogni paziente è definito da centinaia di mig
 Gli algoritmi (come UMAP o t-SNE) richiedono parametri non universali, come `n_neighbors`. **Non esiste un valore giusto a priori.** 
 In modalità Tuning, lo script esegue esperimenti su una griglia di combinazioni (*grid search*) elencate in `config/registry/params_reduction.json`, producendo tabelle e grafici di affidabilità (Trustworthiness).
 
-- **Parametri Nested (`nested_params`)**: Con molteplici parametri (es. UMAP ha metric, regress, neighbors...), la visualizzazione esploderebbe. Il registry permette di specificare `nested_params`. I parametri primari (es. la metrica) generano sottocartelle, e il grid visuale (`embeddings_grid_unico.png`) viene mostrato solo sulle 1 o 2 variabili libere rimanenti.
+- **Parametri Nested (`nested_params`)**: Con molteplici parametri (es. UMAP ha metric, n_components, n_neighbors...), la visualizzazione esploderebbe. Il registry permette di specificare `nested_params`. I parametri primari (es. la metrica) generano sottocartelle, e il grid visuale (`embeddings_grid_unico.png`) viene mostrato solo sulle 1 o 2 variabili libere rimanenti.
 
 ### 2. Modalità Produzione (`"fine_tuning": false`)
 Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modalità produzione elaborerà il file finale da usare nei passaggi successivi.
