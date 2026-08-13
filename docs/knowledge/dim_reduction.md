@@ -10,7 +10,7 @@ Guida in linguaggio semplice a cosa fa ciascun metodo di riduzione dimensionale 
 
 ## Il problema
 
-Ogni soggetto ha centinaia di migliaia di voxel (o poche centinaia di parcelle, se parcellato) come feature — troppe per essere visualizzate o clusterizzate direttamente. La riduzione dimensionale comprime ogni soggetto in poche coordinate (2-30, tipicamente) che catturano il più possibile ciò che rende i soggetti diversi tra loro — o per visualizzarli su un plot 2D, o per dare un input più piccolo e meno rumoroso al clustering.
+Ogni soggetto ha centinaia di migliaia di voxel (o poche centinaia di parcelle, se parcellato) come feature — troppe per essere visualizzate o clusterizzate direttamente. La riduzione dimensionale comprime ogni soggetto in un numero di coordinate che catturano il più possibile ciò che rende i soggetti diversi tra loro — o per visualizzarli su un plot 2D, o per dare un input più piccolo e meno rumoroso al clustering. **Quante coordinate tenere non ha un default universale**: dipende dal metodo e dal caso specifico (vedi i criteri per ciascun metodo sotto) — nessun numero "tipico" è assunto qui in generale.
 
 ## PCA
 
@@ -47,8 +47,18 @@ Anch'esso non lineare e basato sui vicini, ma con un fondamento matematico diver
   - `min_dist` — quanto i punti possono impacchettarsi nello spazio di output. Basso = cluster più compatti e visivamente separati; alto = distribuzione più uniforme, utile per vedere gradienti continui invece di gruppi discreti.
   - `metric` — stesso discorso di t-SNE sopra: euclidea dominata pesantemente dal volume, jaccard/dice attenuano ma non eliminano quella dipendenza (vedi la correzione nella sezione t-SNE).
 - Stocastico: fissare `random_state`.
-- A differenza di t-SNE, si usa correntemente anche a più dimensioni (5-15) come step di preprocessing prima del clustering, non solo per la visualizzazione a 2D.
+- A differenza di t-SNE, può essere usato anche a più dimensioni come step di preprocessing prima del clustering, non solo per la visualizzazione a 2D — **quante, e con quali rischi, vedi la sezione dedicata subito sotto**.
 - **La presunta superiorità di UMAP nel preservare la struttura globale è ridimensionata in letteratura**: gran parte del vantaggio percepito viene dalla sua inizializzazione di default (basata su spectral embedding), non dalla funzione di costo in sé (Kobak & Linderman 2021) — vedi `docs/knowledge/umap_tsne_guide.md` per i dettagli.
+
+### UMAP e clustering: quante componenti?
+
+**Nessun numero fisso** — verificato su 4 fonti (2026-08 review), nessuna prescrive un default valido in generale:
+
+- **Talozzi et al. 2023** (paper di riferimento diretto per NEMESIS Task 2): usa UMAP a **2D**, esplicitamente. Definisce dimensionalità più alta come non ancora esplorata ("future research").
+- **de Bodt, Diaz-Papkovich, Kobak et al. 2025** (arXiv:2508.15929, review — McInnes tra gli autori): principio generale a favore di non clusterizzare su un embedding pensato solo per la viz 2D, ma la cifra 5-10D che riportano è presentata come pratica **emergente**, non consolidata ("more work is needed to validate this clustering approach"). Su cosa rappresentino davvero le componenti oltre la 2ª/3ª: **problema esplicitamente aperto** (§6.1) — solo un rimando concettuale, mai reso operativo, alla "dimensionalità intrinseca" dei dati (Levina & Bickel 2004; Camastra & Staiano 2016).
+- **Documentazione ufficiale `umap-learn`** (stessi autori della libreria): sì, si può ridurre a più di 2D per il clustering, ma **"in general you should explore different embedding dimension options"** — nessun default. Consiglia anche di cambiare `n_neighbors`/`min_dist` per un run orientato al clustering rispetto a uno orientato alla viz (non solo `n_components`). **Avvertimento esplicito degli stessi autori**: *"this is somewhat controversial, and should be attempted with care"* — UMAP non preserva bene la densità, può creare *"false tears"* (cluster più frammentati di quanto siano nei dati reali); raccomandano di validare sempre i cluster ottenuti.
+- Una critica indipendente (blog, non peer-reviewed, nessuna citazione — quindi non usabile come fonte a sé) solleva la stessa preoccupazione con più forza ("self-affirming bias": l'embedding crea la struttura che poi il clustering "conferma") — non aggiunge autorità, ma la sua tesi centrale coincide con l'avvertimento sopra, che viene dagli stessi autori di UMAP.
+
 
 ## PCA con rotazione varimax
 

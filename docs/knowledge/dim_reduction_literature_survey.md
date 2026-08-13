@@ -10,7 +10,7 @@ Dati con molte feature (D dimensioni) → rappresentazione in poche dimensioni (
 ## 1. Metodi lineari
 | Metodo | Cosa preserva | Note |
 |---|---|---|
-| **PCA** | Varianza / errore di ricostruzione | Proiezione su assi ortogonali; interpretabile; tipico per preprocessing (10–100D) o visualizzazione (2–3D) |
+| **PCA** | Varianza / errore di ricostruzione | Proiezione su assi ortogonali; interpretabile; nessun numero di componenti "tipico" assunto qui — si sceglie guardando la varianza cumulativa spiegata, caso per caso (vedi `docs/knowledge/dim_reduction.md`) |
 | **ICA** | Componenti indipendenti (non solo non correlate) | Usata per blind source separation (es. EEG) |
 
 ## 2. Metodi basati su distanze
@@ -38,7 +38,7 @@ Dati con molte feature (D dimensioni) → rappresentazione in poche dimensioni (
 | Metodo | Cosa preserva | Note |
 |---|---|---|
 | **t-SNE** | Solo i vicini più prossimi (non le distanze globali) | Meno sensibile a shortcut nel grafo; produce cluster ben separati; riferimento: **Thiebaut de Schotten 2020** |
-| **UMAP** | Vicini più prossimi, con attrazione più forte di t-SNE | Cluster più compatti; scalabile; usato anche come step di preprocessing (5–10D) prima di clustering (es. HDBSCAN); riferimento: **Talozzi 2023** |
+| **UMAP** | Vicini più prossimi, con attrazione più forte di t-SNE | Cluster più compatti; scalabile; nessun numero di componenti assunto qui — vedi `docs/knowledge/dim_reduction.md`, sezione "UMAP e clustering: quante componenti?" per la verifica completa (Talozzi 2023 usa 2D, **non** un precedente per componenti >2) |
 
 **Importante**: in entrambi (t-SNE, UMAP) le **distanze tra cluster** nell'embedding **non sono affidabili** — solo l'appartenenza/vicinanza locale lo è.
 
@@ -49,12 +49,12 @@ Dati con molte feature (D dimensioni) → rappresentazione in poche dimensioni (
 - **t-SNE / UMAP** → ottimi per **cluster locali**, struttura globale/distanze tra cluster non interpretabile
 - **Isomap / PHATE / Laplacian Eigenmaps** → compromesso, indicati per strutture **continue** (non solo cluster discreti)
 
-**Best practice del paper**: non fidarsi di un solo metodo — confrontare più embedding sullo stesso dataset (come usare microscopi diversi sullo stesso campione); non fare analisi downstream direttamente su embedding 2D; usare dimensionalità più alte (5–10D) se l'embedding serve da input per clustering o altre analisi a valle.
+**Best practice del paper** (de Bodt, Diaz-Papkovich, Kobak et al. 2025, arXiv:2508.15929, §5 — verificato sul testo completo, non solo sull'abstract): non fidarsi di un solo metodo — confrontare più embedding sullo stesso dataset (come usare microscopi diversi sullo stesso campione); *"2D embeddings are not suited for downstream computational analysis, as they can introduce distortions and artifacts that will be picked up downstream. It is usually more appropriate to perform regression, classification, or clustering on higher-dimensional data, and only use 2D embeddings for exploration and communication."* — **nessun numero di componenti "giusto" assunto qui per il clustering**: quanto serve dipende dal metodo e dal caso, va deciso volta per volta (non un default fisso, es. non "5-10D per ogni metodo"). L'unica cifra concreta che il paper riporta (5–10D, §3.5/§6.1) è specifica a UMAP, non generalizzata a t-SNE — vedi la riga UMAP sopra, ancora da rivedere separatamente per l'attribuzione corretta.
 
 ---
 
 ## Applicazione a NEMESIS — Task 1 (clustering lesioni, ~4000–5800 pazienti)
 - Obiettivo: separazione netta dei cluster topografici → **t-SNE/UMAP** più adatti di PCA/MDS
-- **UMAP** preferito per N grandi: 2D per visualizzazione, oppure 5–10D come input a HDBSCAN per il clustering
-- Attribuzione citazioni: **t-SNE → Thiebaut de Schotten 2020**, **UMAP → Talozzi 2023**
+- **UMAP** preferito per N grandi: 2D per visualizzazione; per componenti >2 come input al clustering, nessun default assunto — vedi `docs/knowledge/dim_reduction.md`
+- Attribuzione citazioni: **t-SNE → Thiebaut de Schotten 2020** (2D). UMAP nel progetto non ha un precedente diretto in letteratura per componenti >2 (Talozzi 2023 usa 2D — vedi sopra)
 - Caveat da mantenere: le distanze inter-cluster nell'embedding non vanno interpretate come significative
