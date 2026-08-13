@@ -30,3 +30,14 @@
   - **Fix Viz:** Ripristinata colorbar, corretti NaN, aggiunta scala logaritmica per il volume.
   - **Ottimizzazioni:** Aggiunto flag `write_embeddings_grid` per evitare calcoli e plot ridondanti.
   - **Letteratura:** Creati `dim_reduction_tuning_guide.md` e `umap_tsne_guide.md`.
+
+---
+
+## 13-08-2026: Estensione griglia — n_components 2 vs 3, verifica letteratura
+
+- **Obiettivo:** valutare se una terza componente UMAP aggiunge struttura reale (non solo rumore) rispetto a 2.
+- **Configurazione e Dati:**
+  - **UMAP (120 run):**  [Vedi config.md](../../../results/lesion/dim_reduction/tuning/umap/13-08_s1.1/config.md) | [Vedi tuning_results.csv](../../../results/lesion/dim_reduction/tuning/umap/13-08_s1.1/tuning_results.csv)
+  - Griglia ridotta rispetto al run del 03-08 (`jaccard` escluso, solo dice/euclidean)
+- **Decisioni Aperte:**
+-
