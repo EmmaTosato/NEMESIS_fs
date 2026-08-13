@@ -4,12 +4,12 @@
   "reduction_method": "umap",
   "params_file": "config/registry/params_reduction.json",
   "output_root": "results/lesion/dim_reduction",
-  "session_name": "s1.1_nc2",
+  "session_name": "s1.1",
   "overwrite": true,
-  "fine_tuning": false,
+  "fine_tuning": true,
   "color_by": ["dataset", "side", "volume", "nihss"],
   "viz_n_components": 2,
   "write_embeddings_grid": true,
   "save_tuning_embeddings": true,
-  "run_notes": "first production of dimensionality reduction after specialized tuning - metric=euclidean, n_components=2 (re-run 11-08, same params as the 23-07 run, so every production leaf shares the same session date)"
+  "run_notes": "new run with less metrics and embeddings saved."
 }
