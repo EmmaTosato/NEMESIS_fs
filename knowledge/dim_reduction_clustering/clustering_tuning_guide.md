@@ -6,7 +6,7 @@
 > - Orchestrazione in `src/pipeline/clustering.py` / `dim_reduction_clustering.py` quando `fine_tuning: true`.
 > 
 > **Guida d'uso:** `docs/guides/clustering.md`, `docs/guides/dim_reduction_clustering.md`.
-> **Cosa fanno i metodi**: `clustering.md`. **Rassegna della letteratura** (origine di Davies-Bouldin, Silhouette, Rand/Jaccard/Fowlkes-Mallows): `knowledge/dim_reduction_clustering/clustering_literature_survey.md`.
+> **Rassegna della letteratura** (origine di Davies-Bouldin, Silhouette, Rand/Jaccard/Fowlkes-Mallows, evidence accumulation): `knowledge/dim_reduction_clustering/clustering_literature_survey.md`. **Sfida "clusterizzare sopra un embedding"**: `knowledge/dim_reduction_clustering/challenge_of_clustering_after_dim_reduction.md`.
 
 ## Cos'è il tuning (e cosa NON è)
 
@@ -33,7 +33,7 @@ Ogni `tuning_plot.png` è una griglia quadrata (definita da `_square_grid_shape`
 
 > **Nota per HDBSCAN:** I punti classificati come rumore (label `-1`) sono **esclusi** da questi 3 indici, poiché non avrebbero senso per una "non-classe". La frazione di rumore è sempre riportata separatamente (`noise_fraction`), mai nascosta.
 
-> **Nota su `clustering.py` lanciato direttamente sulla matrice voxel grezza** (non sull'embedding, opzione permessa ma sconsigliata dalla guida d'uso): tutti e 3 gli indici usano di default la distanza **euclidea** (per Calinski-Harabasz/Davies-Bouldin non è nemmeno configurabile — sono definiti solo su quella geometria). Su voxel binari l'euclidea è dominata dal **volume** della lesione più che dalla sua forma/posizione, in modo pesante e senza alcun limite superiore — lo stesso identico problema per cui `dim_reduction.py` offre `metric: jaccard/dice`. Non è un disallineamento tra "come clusterizzo" e "come valuto" (KMeans/Agglomerative-ward/GMM sono anche loro intrinsecamente euclidei, quindi indice e algoritmo restano coerenti tra loro) — è che entrambi condividono lo stesso bias di fondo. Su un **embedding** (workflow raccomandato, `dim_reduction_clustering.py`) il bias è **attenuato**, non eliminato: anche se costruito con jaccard/dice, quelle metriche restano dipendenti dal volume per costruzione (`Dice(A,B) ≤ 2·min(|A|,|B|)/(|A|+|B|)` — vedi `dim_reduction.md`), quindi un residuo di segnale legato al volume può sopravvivere nell'embedding e propagarsi al clustering fatto sopra. Le coordinate finali sono comunque uno spazio continuo per costruzione, quindi l'euclidea lì resta la scelta geometricamente corretta (nessun disallineamento metrico) — solo il bias-volume a monte non è garantito essere del tutto sparito.
+> **Nota su `clustering.py` lanciato direttamente sulla matrice voxel grezza** (non sull'embedding, opzione permessa ma sconsigliata dalla guida d'uso): tutti e 3 gli indici usano di default la distanza **euclidea** (per Calinski-Harabasz/Davies-Bouldin non è nemmeno configurabile — sono definiti solo su quella geometria). Su voxel binari l'euclidea è dominata dal **volume** della lesione più che dalla sua forma/posizione, in modo pesante e senza alcun limite superiore — lo stesso identico problema per cui `dim_reduction.py` offre `metric: jaccard/dice`. Non è un disallineamento tra "come clusterizzo" e "come valuto" (KMeans/Agglomerative-ward/GMM sono anche loro intrinsecamente euclidei, quindi indice e algoritmo restano coerenti tra loro) — è che entrambi condividono lo stesso bias di fondo. Su un **embedding** (workflow raccomandato, `dim_reduction_clustering.py`) il bias è **attenuato**, non eliminato: anche se costruito con jaccard/dice, quelle metriche restano dipendenti dal volume per costruzione (`Dice(A,B) ≤ 2·min(|A|,|B|)/(|A|+|B|)` — vedi `dim_reduction_literature_survey.md`), quindi un residuo di segnale legato al volume può sopravvivere nell'embedding e propagarsi al clustering fatto sopra. Le coordinate finali sono comunque uno spazio continuo per costruzione, quindi l'euclidea lì resta la scelta geometricamente corretta (nessun disallineamento metrico) — solo il bias-volume a monte non è garantito essere del tutto sparito.
 
 **Come leggerli insieme:**
 - Se Silhouette, Calinski-Harabasz e Davies-Bouldin concordano tutti sullo stesso `k`, la scelta è solida.
@@ -56,6 +56,7 @@ Ogni `tuning_plot.png` è una griglia quadrata (definita da `_square_grid_shape`
   - Salto grande vicino alla radice (in cima) ➔ la struttura più forte è binaria (`k=2`).
   - Salto grande più in basso ➔ suggerisce un `k` maggiore.
 - **Attenzione:** Il colore dei rami (default matplotlib) segue una soglia automatica e non va interpretato come "numero di cluster consigliato". Ciò che conta è la dimensione dei salti sull'asse y.
+- **Forma del dendrogramma dipende dal `linkage` usato** — da tenere presente quando lo si legge: `ward` (default nel progetto) minimizza l'aumento di varianza interna e tende a fusioni più regolari, simili per forma a KMeans; `average`/`complete` sono meno vincolati nella forma dei cluster ma più sensibili a outlier; `single` in particolare tende a incatenare gruppi distinti attraverso pochi punti-ponte (*chaining effect*), producendo salti meno netti e un dendrogramma meno affidabile per scegliere `k` a colpo d'occhio.
 
 ### GMM — `bic` / `aic` (criteri basati su verosimiglianza)
 - **Dove:** Colonne aggiuntive nello stesso `tuning_plot.png`.
@@ -71,6 +72,15 @@ Ogni `tuning_plot.png` è una griglia quadrata (definita da `_square_grid_shape`
 - **Dove:** Diagnostica **standalone**, calcolata una sola volta e indipendente dal `k`.
 - **Cosa misura:** Si basa sugli autovalori del Laplaciano normalizzato del grafo di affinità tra i punti.
 - **Come si legge:** Il `k` consigliato è l'indice giusto prima del **salto più grande** tra due autovalori consecutivi (spesso marcato in rosso nel plot). È un criterio più fondato rispetto agli indici generici per lo spectral clustering, poiché riflette la connettività del grafo usata dall'algoritmo internamente.
+
+## Diagnostica di stabilità (RSC/Monti) — distinta dal tuning sopra
+
+Gli indici sopra dicono "quanto è buono" un singolo risultato di clustering a un dato `k`. Un blocco `"consensus"` opzionale in config (formato JSON in `docs/guides/clustering.md`) attiva invece due diagnostiche che dicono "quanto è **stabile**" un certo `k`, ripetendo il clustering più volte — disponibili solo per KMeans/GMM/Spectral (gli unici con vera casualità interna da sfruttare):
+
+- **RSC** — stessi dati, semi casuali diversi: quanto viene riprodotto lo stesso risultato al variare solo dell'inizializzazione.
+- **Monti** — sottocampioni casuali diversi di soggetti: quanto il risultato dipende da chi capita nel campione (dettagli letteratura: `clustering_literature_survey.md`).
+
+Entrambe usano la stessa matrice di co-associazione dell'evidence accumulation (`clustering_literature_survey.md` §3-4), ma qui restano un punteggio diagnostico — non producono etichette finali, a differenza del metodo `"evidence_accumulation"` che è un metodo di produzione a sé.
 
 ## File di output per una run di tuning
 

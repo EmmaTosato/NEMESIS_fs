@@ -1,7 +1,7 @@
 # Tuning della dim reduction — come leggere plot e indici
 
 > **Implementazione:** `src/analysis/tuning.py` (calcolo indici, sweep), `src/analysis/plotting.py` (`plot_tuning_curve`, `plot_embedding_grid_blocks`), `src/analysis/embedding_plots.py`/`embedding_coloring.py` (colorazione embedding). Orchestrazione in `src/pipeline/dim_reduction.py` quando `fine_tuning: true`.
-> **Guida d'uso:** `docs/guides/dim_reduction.md`. **Cosa fanno i metodi**: `dim_reduction.md`, `umap_tsne_guide.md`.
+> **Guida d'uso:** `docs/guides/dim_reduction.md`. **Meccanica dei metodi e letteratura**: `knowledge/dim_reduction_clustering/dim_reduction_literature_survey.md`. **Rischi di clusterizzare sopra l'embedding**: `knowledge/dim_reduction_clustering/challenge_of_clustering_after_dim_reduction.md`.
 
 ## Cos'è il tuning
 
@@ -26,6 +26,22 @@ Per `umap`/`tsne`/`pacmap`/`pca`/`pca_varimax`, il tuning esegue lo stesso metod
 ## Numero e plot, mai uno solo
 
 Il numero è cieco a *come* è fatto l'embedding — `dim_reduction.py` produce anche gli scatter reali (`embeddings_grid_*.png`, uno per parametro libero, meccanismo `nested_params` in `docs/guides/dim_reduction.md`). Il numero dice "quale combinazione preserva meglio il vicinato"; il plot dice "che forma ha l'embedding" — utile per scartare combinazioni tecnicamente valide ma degeneri, o per notare se una struttura netta coincide con dataset/lato/volume (confondimento) invece che un pattern reale. **Leggerli sempre insieme.**
+
+## Perché t-SNE sweeppa solo `perplexity`
+
+`early_exaggeration`/`learning_rate`/`max_iter` sono **fissati**, mai in griglia — non è una scorciatoia implementativa: il paper di riferimento diretto di NEMESIS (Thiebaut de Schotten et al. 2020) li fissa a sua volta, e il suo materiale supplementare fa variare solo `perplexity`. Sweeppare solo `perplexity` qui *replica* quel paper, non se ne discosta — coerente con van der Maaten stesso, che nel paper originale di t-SNE raccomanda di provare più valori di perplexity e non fidarsi mai di uno solo (dettagli in `dim_reduction_literature_survey.md`).
+
+`metric` (jaccard/dice vs euclidea) è invece un'aggiunta propria di NEMESIS, indipendente dal paper: su maschere di lesione binarie l'euclidea di default è dominata dal volume della lesione in modo illimitato; jaccard/dice attenuano ma non eliminano quella dipendenza (`Dice(A,B) ≤ 2·min(|A|,|B|)/(|A|+|B|)` — vedi `dim_reduction_literature_survey.md` per la derivazione). Per questo `metric` è organizzato come parametro "annidato" nel tuning — una sottocartella per valore, non una griglia unica con `perplexity`/`n_neighbors`.
+
+## Quante componenti per UMAP (`n_components`) prima del clustering
+
+**Nessun numero fisso** — nessuna fonte letta prescrive un default valido in generale (2026-08 review, approfondita in `challenge_of_clustering_after_dim_reduction.md`):
+
+- **Talozzi et al. 2023** (paper di riferimento diretto per NEMESIS Task 2) usa UMAP a **2D**, esplicitamente, definendo dimensionalità più alta come non ancora esplorata ("future research").
+- **de Bodt et al. 2025**: 5-10D è presentata come pratica **emergente**, non consolidata ("more work is needed to validate this clustering approach") — una delle loro 20 best practice è *"Do not perform downstream analysis on 2D embeddings"*, ma senza indicare un numero definitivo.
+- **Documentazione ufficiale `umap-learn`** (stessi autori della libreria): sì, si può ridurre a più di 2D per il clustering, ma *"in general you should explore different embedding dimension options"* — nessun default, e un avvertimento esplicito: *"this is somewhat controversial, and should be attempted with care"*. UMAP non preserva bene la densità e può creare *"false tears"* (cluster più frammentati di quanto siano nei dati reali).
+
+**Implicazione pratica per leggere `tuning_results.csv`**: la trustworthiness non è comparabile tra `n_components` diversi (vedi sopra) — quindi non esiste un modo puramente numerico per scegliere quante componenti tenere prima del clustering, va sempre incrociato con il pattern clinico/anatomico e con la diagnostica descritta in `challenge_of_clustering_after_dim_reduction.md`.
 
 ## File di output
 
