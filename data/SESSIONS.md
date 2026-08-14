@@ -4,7 +4,7 @@
 
 - Starting date 21-07
 - "UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR"
-- Data Modality: Lesion in 2D matrix
+- Data Modality: Lesion in 2D matrix volumetric
 
 ## Session 1.2
 
@@ -19,7 +19,6 @@
 - Data Modality: Features
   - FC matrices
   - stack in 2D
-
 
 ## Session 3
 

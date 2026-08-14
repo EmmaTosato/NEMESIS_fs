@@ -52,31 +52,6 @@ Ogni pagina contiene 5 figure, in due sezioni:
 
 ---
 
----
-
-## Versione interattiva (Dash)
-
-Accanto al report HTML statico esiste una versione interattiva basata su [Dash](https://dash.plotly.com/), pensata come strumento di esplorazione **locale** — non fa parte della pipeline pubblicabile, non genera file in `results/`, resta un'app da avviare a mano quando serve guardare i dati più da vicino.
-
-- **Script**: `src/pipeline/run_understanding_umap_dash.py`
-- **Logica**: `src/analysis/understanding_umap_dash.py` (riusa `TuningData`/`load_tuning_data` e i builder di figure da `understanding_umap_report.py` — stesso loader, stesse regole di validazione coorte, mai duplicato)
-
-### Esecuzione (solo locale, mai sbatch)
-```bash
-PYTHONPATH=. python -m src.pipeline.run_understanding_umap_dash \
-  --umap-tuning-dir results/lesion/dim_reduction/tuning/umap/13-08_s1.1 \
-  --tsne-tuning-dir results/lesion/dim_reduction/tuning/tsne/13-08_s1.1
-```
-Poi apri `http://127.0.0.1:8050` nel browser. `--port` per cambiare porta, `--debug` per il reload automatico di Dash durante lo sviluppo.
-
-Nessun `jobs/run_*.sh`: un'app interattiva non ha una forma "batch job" — deve restare aperta e rispondere a un browser, non produce un output e finisce.
-
-### Perché Dash e non solo l'HTML statico
-Il report HTML statico pre-calcola OGNI combinazione di parametri e la incorpora tutta nella pagina (un blob JSON dentro un `<script>`, letto da JS per animare gli slider via `Plotly.animate`) — funziona offline/senza server, ma richiede un workaround esplicito per il range degli assi (vedi i commenti su `build_slider_section` nel modulo). La versione Dash calcola una sola combinazione per volta, lato Python, ad ogni interazione — nessun blob JSON, nessun workaround sul range (il ridisegno di Dash lo ricalcola da solo). Il compromesso è che serve un processo Python sempre attivo.
-
-### Cosa copre
-Le stesse 5 figure del report statico, un solo processo per entrambe le metriche (`dice`/`euclidean`, selezionabili con un picker in alto — non più un file HTML per metrica).
-
 ## Note tecniche
 
 - **Nessun refit**: legge solo `tuning_results.csv`/`embeddings.npz`/`metadata.csv` già scritti — se una directory non ha `embeddings.npz` (perché `save_tuning_embeddings` era `false`), lo script fallisce con un errore chiaro invece di rieseguire UMAP/t-SNE.
