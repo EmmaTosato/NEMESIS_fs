@@ -1,0 +1,180 @@
+{
+  "source_pdf": "/Users/emmatosato/Local Projects/Local PhD Projects/NEMESIS_fs/knowledge/sota/2412.18760v2.pdf",
+  "extracted_at": "2026-08-13T15:44:21",
+  "pdf_metadata": {
+    "title": "Data clustering: an essential technique in data science",
+    "author": "Tai Dinh; Wong Hauchi; Daniil Lisik; Michal Koren; Dat Tran; Philip S. Yu; Joaqu\u00edn Torres-Sospedra; ",
+    "subject": "",
+    "keywords": "",
+    "producer": "pdfTeX-1.40.25",
+    "creator": "LaTeX with hyperref",
+    "creation_date": "D:20250203010929Z",
+    "mod_date": "D:20250203010929Z"
+  },
+  "page_offset": 0,
+  "pages": 17,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 12,
+    "png": 6,
+    "embedded_images": 48,
+    "classifications": {
+      "TEXT": 5,
+      "DIAGRAM": 6,
+      "ICON_TABLE": 6
+    },
+    "figures_in_index": 19,
+    "tables_in_index": 0,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 4,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 88,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_002.svg"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 141,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_003.svg",
+      "png": "tables_visual/page_003.png"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 156,
+      "images": 5,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_004.svg",
+      "png": "tables_visual/page_004.png"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 201,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_005.svg",
+      "png": "tables_visual/page_005.png"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 396,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_006.svg",
+      "png": "tables_visual/page_006.png"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 162,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_007.svg",
+      "png": "tables_visual/page_007.png"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 15,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_008.svg"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 20,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_009.svg"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 11,
+      "doc_page": 11,
+      "drawings": 74,
+      "images": 6,
+      "class": "DIAGRAM",
+      "svg": "figures/page_011.svg"
+    },
+    {
+      "pdf_page": 12,
+      "doc_page": 12,
+      "drawings": 25,
+      "images": 14,
+      "class": "DIAGRAM",
+      "svg": "figures/page_012.svg"
+    },
+    {
+      "pdf_page": 13,
+      "doc_page": 13,
+      "drawings": 2,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 14,
+      "doc_page": 14,
+      "drawings": 442,
+      "images": 22,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_014.svg",
+      "png": "tables_visual/page_014.png"
+    },
+    {
+      "pdf_page": 15,
+      "doc_page": 15,
+      "drawings": 74,
+      "images": 1,
+      "class": "DIAGRAM",
+      "svg": "figures/page_015.svg"
+    },
+    {
+      "pdf_page": 16,
+      "doc_page": 16,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 17,
+      "doc_page": 17,
+      "drawings": 0,
+      "images": 0,
+      "class": "TEXT"
+    }
+  ]
+}

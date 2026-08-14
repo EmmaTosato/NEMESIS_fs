@@ -21,7 +21,6 @@ from src.analysis.plotting import (
     plot_embedding_categorical,
     plot_embedding_continuous,
     plot_embedding_grid_blocks,
-    plot_embedding_interactive,
 )
 
 
@@ -39,25 +38,26 @@ def write_embedding_plots(
 ) -> None:
     """Writes `<file_prefix>_unico.png` (always, single color) plus, for each
     name in `color_by` (resolved via embedding_coloring.COLOR_MODES), a
-    static PNG (`<file_prefix>_<name>.png`) - and one combined interactive
-    HTML, `<file_prefix>_interactive.html`, with a dropdown to switch the
-    coloring between every mode in `color_by` that computed successfully,
-    instead of a separate HTML file per mode.
+    static PNG (`<file_prefix>_<name>.png`).
 
     `embedding` must have exactly 2 or 3 columns (this writes *visualization*
     embeddings, already reduced to a plottable size - see
     src/analysis/reduction.py::embedding_for_viz for how a caller gets one).
-    With 3 columns, no "unico" static PNG is written at all (only the
-    interactive plot renders a 3D embedding anywhere in this module) -
-    `zlabel` is required in that case.
+    With 3 columns, no static PNG is written at all - a non-rotatable 3D
+    scatter is unreadable, so a 3-component embedding gets no rendering from
+    this function; explore it interactively instead via
+    src.pipeline.embedding_app (docs/guides/embedding_app.md), which reads
+    the saved run directly and needs no static file regenerated per run
+    (2026-08-14: this used to also write a combined
+    `<file_prefix>_interactive.html` via plot_embedding_interactive, removed
+    on request - the live app supersedes it for every color mode, not just
+    the ones a given `color_by` config happened to list, and covers every
+    production run without a per-run file to keep in sync).
 
     Each static output is wrapped in its own try/except (broad Exception,
     logged as WARNING) - one bad coloring mode (e.g. a dataset with no
     resolvable participants.tsv for lesion_side) must not abort the whole
     run, same convention dim_reduction.py used before this function existed.
-    The combined interactive HTML is a single file covering every mode that
-    computed successfully, so it can only fail (or be skipped, if every mode
-    failed) as one unit - not per mode like the static PNGs.
     """
     n_dims = embedding.shape[1]
     if n_dims not in (2, 3):
@@ -65,14 +65,15 @@ def write_embedding_plots(
     if n_dims == 3 and zlabel is None:
         raise ValueError("write_embedding_plots needs zlabel for a 3-component embedding")
 
-    if n_dims == 2:
-        try:
-            plot_embedding_2d(embedding, output_dir / f"{file_prefix}_unico.png", xlabel, ylabel, title_fn(None))
-        except Exception as exc:
-            logging.warning("failed to generate 'unico' embedding plot: %s", exc)
+    if n_dims == 3:
+        # No static rendering exists for a 3-component embedding anywhere in this
+        # module (see docstring) - nothing left to compute color_by values for.
+        return
 
-    metadata_for_plot = metadata.copy()
-    interactive_color_options: list[tuple[str, str]] = []
+    try:
+        plot_embedding_2d(embedding, output_dir / f"{file_prefix}_unico.png", xlabel, ylabel, title_fn(None))
+    except Exception as exc:
+        logging.warning("failed to generate 'unico' embedding plot: %s", exc)
 
     for name in color_by:
         mode = resolve_color_mode(name)
@@ -84,41 +85,17 @@ def write_embedding_plots(
             logging.warning("failed to compute values for color_by mode %r: %s", name, exc)
             continue
 
-        if n_dims == 2:
-            static_path = output_dir / f"{file_prefix}_{name}.png"
-            try:
-                if mode.kind == "categorical":
-                    plot_embedding_categorical(embedding, values, static_path, xlabel, ylabel, title, legend_title=mode.label)
-                else:
-                    plot_embedding_continuous(
-                        embedding, values, static_path, xlabel, ylabel, title,
-                        colorbar_label=mode.label, log_scale=mode.log_scale,
-                    )
-            except Exception as exc:
-                logging.warning("failed to generate %r embedding plot: %s", name, exc)
-
-        metadata_for_plot[name] = values
-        interactive_color_options.append((mode.label, name))
-
-    # Interactive HTML stays linear-scale regardless of any mode's log_scale: plotly
-    # express has no direct LogNorm-style color-axis equivalent (it would mean
-    # log-transforming `values` and manually relabeling the colorbar ticks back
-    # to real units) - the static PNGs above are where log_scale actually matters,
-    # the interactive view's hover already surfaces each point's real value.
-    if interactive_color_options:
+        static_path = output_dir / f"{file_prefix}_{name}.png"
         try:
-            plot_embedding_interactive(
-                embedding,
-                metadata_for_plot,
-                interactive_color_options,
-                output_dir / f"{file_prefix}_interactive.html",
-                xlabel,
-                ylabel,
-                title_fn(None),
-                zlabel=zlabel,
-            )
+            if mode.kind == "categorical":
+                plot_embedding_categorical(embedding, values, static_path, xlabel, ylabel, title, legend_title=mode.label)
+            else:
+                plot_embedding_continuous(
+                    embedding, values, static_path, xlabel, ylabel, title,
+                    colorbar_label=mode.label, log_scale=mode.log_scale,
+                )
         except Exception as exc:
-            logging.warning("failed to generate interactive embedding plot: %s", exc)
+            logging.warning("failed to generate %r embedding plot: %s", name, exc)
 
 
 def write_embedding_grid(

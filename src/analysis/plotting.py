@@ -1,12 +1,14 @@
 """Minimal plotting for the modeling pipeline scripts - cluster separation and fine-tuning sweeps.
 
 Not a general visualization module: a handful of narrow-purpose functions.
-More than 2 dimensions is still out of scope. Per-dataset coloring and
-interactivity were explicitly deferred in the analysis pipeline v2 handoff,
-then un-deferred on request: plot_embedding_interactive/plot_clusters_interactive
-exist because a static PNG can't answer "which subject is that outlier
-point" - they need per-point hover identity, which only an interactive plot
-can give. plot_clusters_2d exists only because seeing clusters on a 2D
+More than 2 dimensions is still out of scope for the *static* functions here.
+Per-dataset coloring and interactivity were explicitly deferred in the
+analysis pipeline v2 handoff, then un-deferred on request: plot_clusters_interactive
+exists because a static PNG can't answer "which subject is that outlier
+point" - it needs per-point hover identity, which only an interactive plot
+can give (a 2D/3D interactive embedding view lives outside this module now,
+see src.analysis.embedding_app/src.pipeline.embedding_app -
+docs/guides/embedding_app.md - not a per-run static file anymore). plot_clusters_2d exists only because seeing clusters on a 2D
 scatter is the minimum needed to sanity-check a clustering run;
 plot_clusters_comparison_interactive extends the same per-point hover need to
 a multi-method comparison, one dropdown option per method instead of a
@@ -27,15 +29,13 @@ one generic multi-metric curve plus 2 method-specific standalone diagnostics
 standalone diagnostic, see clustering_tuning.py's module docstring), also
 with no automatic selection. plot_embedding_categorical/
 plot_embedding_continuous extend dim_reduction.py's production embedding plot
-beyond the single-color plot_embedding_2d and the dataset-only
-plot_embedding_interactive: any string category (dataset, lesion side) or
-continuous quantity (lesion volume) per subject can be the color axis, each
-written as its own embedding_plot_<name>.png - a static PNG only has one
-legend/colorbar, so combining more than one coloring on the same static image
-isn't attempted here (the interactive plot_embedding_interactive already
-answers "what if I want a different color" via a dropdown over color_options,
-one HTML file instead of one per mode, no separate function needed for that
-side). Cluster-vs-dataset coloring in
+beyond the single-color plot_embedding_2d: any string category (dataset,
+lesion side) or continuous quantity (lesion volume) per subject can be the
+color axis, each written as its own embedding_plot_<name>.png - a static PNG
+only has one legend/colorbar, so combining more than one coloring on the same
+static image isn't attempted here ("what if I want a different color"/3D is
+answered by the live embedding_app instead, see above, not a second static
+mechanism in this module). Cluster-vs-dataset coloring in
 plot_clusters_interactive was un-deferred and then re-deferred: a clustering
 plot's job is to show the cluster assignment, dataset coloring belongs to
 dim_reduction.py's own embedding_plot_dataset instead - keeping the two
@@ -420,125 +420,6 @@ def plot_embedding_continuous(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
-
-
-def plot_embedding_interactive(
-    X: np.ndarray,
-    metadata: pd.DataFrame,
-    color_options: list[tuple[str, str]],
-    output_path: Path,
-    xlabel: str,
-    ylabel: str,
-    title: str,
-    zlabel: str | None = None,
-) -> None:
-    """Interactive HTML scatter of the first 2 or 3 columns of X, with a
-    dropdown to switch the point coloring between each entry in
-    `color_options` - every metadata column shown on hover regardless of
-    which option is currently selected.
-
-    `color_options` is an ordered list of (dropdown_label, metadata_column)
-    pairs - the column must already be present in `metadata` (a caller
-    computes/joins the values itself, e.g. embedding_plots.py's
-    write_embedding_plots via embedding_coloring.COLOR_MODES; this function
-    has no opinion on where a value comes from, same separation of concerns
-    as plot_embedding_categorical/plot_embedding_continuous). One HTML file
-    for every coloring mode a caller wants, not one file per mode (2026-08
-    session, on request) - same dropdown mechanism as
-    plot_clusters_comparison_interactive (one full px.scatter/px.scatter_3d
-    trace set per option, all but the first hidden via `visible`, toggled by
-    an updatemenus button per option), but options come from metadata
-    columns instead of comparing cluster labels across methods.
-
-    Standalone self-contained HTML (plotly, no server) - open it directly in
-    a browser. Every subject_id/dataset stays attached to its point, unlike
-    plot_embedding_2d's anonymous dots, so an outlier or a cluster boundary
-    can be traced back to a specific subject by hovering, whichever option is
-    selected.
-
-    Branches on X.shape[1]: 2 columns -> px.scatter per option, 3 columns ->
-    px.scatter_3d per option (needs `zlabel`, since a 3D scene has a third
-    axis to label) - a 3D embedding gets no static-PNG counterpart anywhere
-    in this module (a non-rotatable 3D scatter is often unreadable), this
-    interactive plot is its only rendering.
-
-    Raises ValueError for any X.shape[1] other than 2 or 3, a metadata/X
-    row-count mismatch, an empty `color_options`, a 3-column X without
-    `zlabel`, or any option referencing a column not in `metadata`.
-    """
-    n_dims = X.shape[1]
-    if n_dims not in (2, 3):
-        raise ValueError(f"plot_embedding_interactive supports 2 or 3 columns, got shape {X.shape}")
-    if len(metadata) != X.shape[0]:
-        raise ValueError(f"X has {X.shape[0]} rows but metadata has {len(metadata)} rows - must match")
-    if n_dims == 3 and zlabel is None:
-        raise ValueError("plot_embedding_interactive needs zlabel for a 3-column embedding")
-    if not color_options:
-        raise ValueError("plot_embedding_interactive needs at least one entry in color_options")
-    unknown_columns = [column for _, column in color_options if column not in metadata.columns]
-    if unknown_columns:
-        raise ValueError(f"color_options references columns not in metadata: {unknown_columns!r}")
-
-    plot_df = metadata.copy()
-    plot_df["_dim1"] = X[:, 0]
-    plot_df["_dim2"] = X[:, 1]
-    if n_dims == 3:
-        plot_df["_dim3"] = X[:, 2]
-    hover_columns = list(metadata.columns)
-
-    traces_per_option = []
-    all_traces = []
-    for _, column in color_options:
-        if n_dims == 2:
-            fig_option = px.scatter(plot_df, x="_dim1", y="_dim2", color=column, hover_data=hover_columns)
-        else:
-            fig_option = px.scatter_3d(plot_df, x="_dim1", y="_dim2", z="_dim3", color=column, hover_data=hover_columns)
-        traces_per_option.append(len(fig_option.data))
-        all_traces.extend(fig_option.data)
-
-    first_option_trace_count = traces_per_option[0]
-    for trace in all_traces[first_option_trace_count:]:
-        trace.visible = False
-
-    buttons = []
-    offset = 0
-    for (label, _column), n_traces in zip(color_options, traces_per_option):
-        visibility = [False] * len(all_traces)
-        visibility[offset : offset + n_traces] = [True] * n_traces
-        buttons.append(
-            dict(
-                label=label,
-                method="update",
-                args=[{"visible": visibility}, {"title": f"{title} (colored by {label})"}],
-            )
-        )
-        offset += n_traces
-
-    fig = go.Figure(data=all_traces)
-    layout_kwargs = dict(
-        title=f"{title} (colored by {color_options[0][0]})",
-        updatemenus=[
-            dict(
-                type="dropdown",
-                direction="down",
-                showactive=True,
-                x=1.0,
-                xanchor="right",
-                y=1.15,
-                yanchor="top",
-                buttons=buttons,
-            )
-        ],
-    )
-    if n_dims == 2:
-        layout_kwargs["xaxis_title"] = xlabel
-        layout_kwargs["yaxis_title"] = ylabel
-    else:
-        layout_kwargs["scene"] = {"xaxis_title": xlabel, "yaxis_title": ylabel, "zaxis_title": zlabel}
-    fig.update_layout(**layout_kwargs)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(output_path)
 
 
 def plot_clusters_2d(

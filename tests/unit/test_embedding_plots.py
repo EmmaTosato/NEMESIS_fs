@@ -31,12 +31,6 @@ def test_write_embedding_plots_2d_writes_unico_and_color_by(tmp_path):
     assert (tmp_path / "embedding_plot_unico.png").exists()
     assert (tmp_path / "embedding_plot_dataset.png").exists()
     assert (tmp_path / "embedding_plot_volume.png").exists()
-    # one combined interactive HTML, not one per color_by mode - dropdown covers both
-    assert (tmp_path / "embedding_plot_interactive.html").exists()
-    assert not (tmp_path / "embedding_plot_dataset.html").exists()
-    assert not (tmp_path / "embedding_plot_volume.html").exists()
-    html = (tmp_path / "embedding_plot_interactive.html").read_text()
-    assert "updatemenus" in html
 
 
 def test_write_embedding_plots_empty_color_by_writes_only_unico(tmp_path):
@@ -48,14 +42,14 @@ def test_write_embedding_plots_empty_color_by_writes_only_unico(tmp_path):
     assert [f.name for f in files] == ["embedding_plot_unico.png"]
 
 
-def test_write_embedding_plots_3d_skips_unico_and_static_but_writes_interactive(tmp_path):
+def test_write_embedding_plots_3d_writes_nothing(tmp_path):
+    # No static rendering exists for a 3-component embedding anywhere in this module -
+    # explore it interactively instead via src.pipeline.embedding_app (docs/guides/embedding_app.md).
     embedding, metadata, X = _embedding_metadata_X(n_dims=3)
 
     write_embedding_plots(embedding, metadata, X, ["dataset"], tmp_path, "x", "y", _title_fn, zlabel="z")
 
-    assert not (tmp_path / "embedding_plot_unico.png").exists()
-    assert not (tmp_path / "embedding_plot_dataset.png").exists()
-    assert (tmp_path / "embedding_plot_interactive.html").exists()
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_write_embedding_plots_3d_without_zlabel_raises(tmp_path):
@@ -92,21 +86,16 @@ def test_write_embedding_plots_one_bad_color_mode_does_not_abort_the_others(tmp_
     assert not (tmp_path / "embedding_plot_side.png").exists()
     assert any("side" in record.message for record in caplog.records)
 
-    # the combined interactive HTML is still written (dataset succeeded) but the
-    # dropdown only offers the modes that actually computed - not the failed one
-    interactive_html = (tmp_path / "embedding_plot_interactive.html").read_text()
-    assert "dataset" in interactive_html
-    assert "lesion side" not in interactive_html
 
-
-def test_write_embedding_plots_all_color_modes_fail_writes_no_interactive_html(tmp_path, monkeypatch, caplog):
+def test_write_embedding_plots_all_color_modes_fail_writes_only_unico(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path / "no_such_metadata_root")
     embedding, metadata, X = _embedding_metadata_X()
 
     with caplog.at_level(logging.WARNING):
         write_embedding_plots(embedding, metadata, X, ["side"], tmp_path, "x", "y", _title_fn)
 
-    assert not (tmp_path / "embedding_plot_interactive.html").exists()
+    files = list(tmp_path.iterdir())
+    assert [f.name for f in files] == ["embedding_plot_unico.png"]
 
 
 def _blocks(n_per_cell=6):

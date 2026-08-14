@@ -5,7 +5,7 @@ diagnostic mode - params_clustering.json already sweeps exactly n_clusters/
 n_components for kmeans/gmm/spectral, so "how stable is this k" is one more
 column per already-swept row.
 
-- RSC (Tshimanga et al. 2025, cited by Zanola et al. 2026 - papers/Zanola et
+- RSC (Tshimanga et al. 2025, cited by Zanola et al. 2026 - knowledge/Zanola et
   al - 2026 - ...): "how stable is the assignment to random init, on the
   exact same data?" No resampling - N repeats of the same method on the full
   dataset, varying only the random seed. Only meaningful for methods with
@@ -32,7 +32,7 @@ assignment is based on the co-occurrence matrix C") is exactly this recipe
 specialized to base_method="spectral" - not reproduced here as a separate
 branded "rsc" method, since the underlying algorithm is general. Zanola's
 own text doesn't spell out that last step either way (deferred to Tshimanga
-et al. 2025, not available in papers/) - see assign_clusters_from_cooccurrence
+et al. 2025, not available in knowledge/) - see assign_clusters_from_cooccurrence
 for the specific choice made here and why.
 """
 
@@ -166,7 +166,7 @@ def compute_monti_stability(consensus_matrix: np.ndarray, ambiguous_band: tuple[
 
 def assign_clusters_from_cooccurrence(co_occurrence_matrix: np.ndarray, threshold: float) -> np.ndarray:
     """Evidence Accumulation Clustering's final "Merge" step, per Fred & Jain
-    (2002, ICPR - papers/sota/Fred et al - 2002 - Data clustering using
+    (2002, ICPR - knowledge/sota/Fred et al - 2002 - Data clustering using
     evidence accumulation.md, the exact paper Zanola et al. 2026 cites for
     RSC's "consensus clustering" half): derive cluster labels from the
     co-occurrence matrix C itself - not from any single one of the N

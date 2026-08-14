@@ -4,7 +4,7 @@ Used to join a lesion/FC feature matrix's subjects against behavioral deficit
 scores (NIHSS, ARAT, 9HPT, Boston naming, Clock, Corsi - see
 docs/guides/datasets.md) for the lesion-deficit vs FC-deficit prediction
 pipeline (src/pipeline/predict_deficit.py), reproducing Siegel et al. 2016
-(docs/knowledge/Siegel2016_Reproduction.md). join_lesion_side/join_nihss serve
+(docs/notes/Siegel2016_Reproduction.md). join_lesion_side/join_nihss serve
 a different consumer (dim_reduction.py's/dim_reduction_clustering.py's
 embedding_plot_side.*/embedding_plot_nihss.*, via
 enrich_metadata_with_lesion_info) but read the same per-dataset

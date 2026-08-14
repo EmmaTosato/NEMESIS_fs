@@ -37,7 +37,7 @@ def spectral_cluster(X: np.ndarray, params: dict) -> np.ndarray:
 
 def evidence_accumulation_cluster(X: np.ndarray, params: dict) -> np.ndarray:
     """Evidence Accumulation Clustering (Fred & Jain, 2002 - ICPR, "Data
-    clustering using evidence accumulation" - papers/sota/Fred et al - 2002
+    clustering using evidence accumulation" - knowledge/sota/Fred et al - 2002
     - Data clustering using evidence accumulation.md, the exact paper Zanola
     et al. 2026 cites for RSC): repeat a base clustering method `n_repeats`
     times (only random_state varying), build a co-occurrence matrix from how
@@ -61,7 +61,7 @@ def evidence_accumulation_cluster(X: np.ndarray, params: dict) -> np.ndarray:
     Method-agnostic on purpose: `params["base_method"]` selects which of
     CONSENSUS_ELIGIBLE_METHODS (kmeans/gmm/spectral - the only 3 with genuine
     internal stochasticity to repeat) gets repeated. Zanola et al. 2026's RSC
-    (Tshimanga et al. 2025, papers/nemesis/Zanola et al - 2026 - ...) is
+    (Tshimanga et al. 2025, knowledge/nemesis/Zanola et al - 2026 - ...) is
     exactly this recipe specialized to base_method="spectral" - not
     reproduced here as a separate branded method, since Fred & Jain's own
     algorithm never fixes the base clusterer.

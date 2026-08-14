@@ -4,13 +4,13 @@ Ultimo aggiornamento: 2026-08-11. **Snapshot dello stato attuale — non un log 
 
 ## Architettura / cosa è implementato
 
-Sintesi corrente in `README.md` ("What's implemented so far") — non ripetuta qui. Riferimento architetturale sviluppatore: `docs/dev/` (`retrieval.md`, `models.md`, `config.md`, `plotting.md`, `lesion_matrix.md`, `fc_matrix.md`, `design_patterns.md`). Note metodologiche/di letteratura ora tutte sotto `docs/knowledge/` (`docs/methods/` è stato rimosso e il suo contenuto — `clustering.md`, `dim_reduction.md` — fuso lì dentro, tradotto in italiano).
+Sintesi corrente in `README.md` ("What's implemented so far") — non ripetuta qui. Riferimento architetturale sviluppatore: `docs/dev/` (`retrieval.md`, `models.md`, `config.md`, `plotting.md`, `lesion_matrix.md`, `fc_matrix.md`, `design_patterns.md`). Note metodologiche/di letteratura ora tutte sotto `docs/notes/` (`docs/methods/` è stato rimosso e il suo contenuto — `clustering.md`, `dim_reduction.md` — fuso lì dentro, tradotto in italiano).
 
 ## Lavoro attivo / thread aperti
 
 - **Branch `fix/high-tuning-dir-reuse-and-stale-symlink`** pushato su `origin`, non ancora mergiato in `main` e senza PR aperta (link di GitHub per crearla già disponibile all'ultimo push). Contiene tutti e 4 i commit della deep code review conclusa questa sessione (2 CRITICAL, 3 HIGH, 5 MEDIUM, 5 LOW — vedi `docs/debugging/debug_11_08_26.md` per la narrativa completa) + il commit di questo stesso report. Suite: 572 passed, 12 skipped, 0 failed (esclusi i 2 file `bcblib`-dipendenti).
 - **Working tree condiviso con una sessione parallela** attiva su `docs/` e `.claude/` (non committata al momento di questo snapshot): `.claude/CLAUDE.md`/`code_standards.md` modificati (nuova regola "mai commit automatico senza richiesta esplicita", vedi sotto), `DOCS_AUDIT.md` eliminato (non committato), `management/notes/TODO.md` in riscrittura attiva dall'utente stesso. Non toccare questi file senza prima verificare `git status`/`git diff` — non sono di questa sessione.
-- **Stato dell'audit `docs/` (Tier 4/5, avviato sessioni precedenti) incerto**: il file di piano che lo tracciava (`.claude/plans/velvety-dazzling-lark.md`) non esiste più sul filesystem — non è chiaro dallo stato attuale se l'audit sia stato completato o il piano abbandonato/sostituito da altro lavoro (la sessione parallela ha nel frattempo riscritto/tradotto buona parte di `docs/guides/`+`docs/knowledge/`). Da chiarire con l'utente prima di riprenderlo.
+- **Stato dell'audit `docs/` (Tier 4/5, avviato sessioni precedenti) incerto**: il file di piano che lo tracciava (`.claude/plans/velvety-dazzling-lark.md`) non esiste più sul filesystem — non è chiaro dallo stato attuale se l'audit sia stato completato o il piano abbandonato/sostituito da altro lavoro (la sessione parallela ha nel frattempo riscritto/tradotto buona parte di `docs/guides/`+`docs/notes/`). Da chiarire con l'utente prima di riprenderlo.
 
 ## Vincoli/regole in vigore oggi
 

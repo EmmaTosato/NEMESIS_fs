@@ -45,6 +45,7 @@ import itertools
 import json
 import logging
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -151,6 +152,62 @@ def _read_base_n_components(tuning_dir: Path) -> int:
     return json.loads(match.group(1))["base_params"]["n_components"]
 
 
+def _categorical_color_map(categories) -> dict:
+    """category -> hex, cycling _CATEGORICAL_PALETTE in the given (already
+    sorted) category order - the fixed neutral gray always goes to
+    _MISSING_CATEGORY_LABEL, never a palette color, so it can't be mistaken
+    for a real category. Factored out of _color_values_for_mode so the
+    color_by legend (_legend_html_for_mode) builds its chips from the exact
+    same mapping the grid itself was colored with, rather than a second,
+    independently-cycled copy that could drift if ever called in a different
+    order.
+    """
+    colors = itertools.cycle(_CATEGORICAL_PALETTE)
+    color_map = {}
+    for cat in categories:
+        color_map[cat] = _MISSING_CATEGORY_COLOR if cat == _MISSING_CATEGORY_LABEL else next(colors)
+    return color_map
+
+
+# 6-stop approximation of Plotly/matplotlib's own Viridis colorscale (the
+# actual stops Plotly ships), used only for the continuous-mode legend's CSS
+# gradient bar - the grid/slider markers themselves are colored by Plotly's
+# real Viridis (via colorscale="Viridis" in _color_values_for_mode), this is
+# a static visual stand-in since a CSS linear-gradient can't call into
+# Plotly's own colorscale interpolation.
+_VIRIDIS_CSS_STOPS = "#440154, #414487, #2a788e, #22a884, #7ad151, #fde725"
+
+
+def _legend_html_for_mode(metadata: pd.DataFrame, mode: str) -> str:
+    """A small legend for whichever color_by mode is active - empty for
+    "none" (no color meaning to explain), one chip per category for
+    dataset/side (color from the exact same _categorical_color_map the grid
+    itself uses), a Viridis gradient bar with min/max labels for volume/nihss
+    (log10-scaled range for volume, matching how the grid itself is colored -
+    see _LOG_SCALE_MODES). Swapped into the page's #legend div by setColor()
+    every time the color_by picker changes, alongside the grid's own restyle.
+    """
+    if mode == "none":
+        return ""
+
+    column = _METADATA_COLUMN_BY_MODE[mode]
+    if mode in _CATEGORICAL_MODES:
+        categories = metadata[column].astype("category").cat.categories
+        color_map = _categorical_color_map(categories)
+        chips = "".join(f'<div class="category-chip" style="background-color:{color_map[c]}">{c}</div>' for c in categories)
+        return f'<div class="categories">{chips}</div>'
+
+    values = metadata[column].to_numpy(dtype=float)
+    finite = values[~np.isnan(values)]
+    lo, hi = float(finite.min()), float(finite.max())
+    unit = " voxels" if mode == "volume" else ""
+    return f"""<div class="gradient-legend">
+      <span>{lo:.3g}{unit}</span>
+      <div class="gradient-bar" style="background: linear-gradient(to right, {_VIRIDIS_CSS_STOPS});"></div>
+      <span>{hi:.3g}{unit}</span>
+    </div>"""
+
+
 def _color_values_for_mode(metadata: pd.DataFrame, mode: str) -> dict:
     """marker.color/colorscale/opacity for one view: "none" is the neutral
     single-color one (plot_embedding_2d's look), categorical modes map each
@@ -163,10 +220,7 @@ def _color_values_for_mode(metadata: pd.DataFrame, mode: str) -> dict:
     column = _METADATA_COLUMN_BY_MODE[mode]
     if mode in _CATEGORICAL_MODES:
         categories = metadata[column].astype("category")
-        colors = itertools.cycle(_CATEGORICAL_PALETTE)
-        color_map = {}
-        for cat in categories.cat.categories:
-            color_map[cat] = _MISSING_CATEGORY_COLOR if cat == _MISSING_CATEGORY_LABEL else next(colors)
+        color_map = _categorical_color_map(categories.cat.categories)
         return {"color": categories.map(color_map).tolist(), "colorscale": None, "opacity": 1.0}
 
     values = metadata[column].to_numpy(dtype=float)
@@ -787,8 +841,27 @@ body {{ font-family: -apple-system, "system-ui", "Segoe UI", Roboto, Oxygen-Sans
 .color-buttons button.active {{ border-color: #4a90d9; border-width: 2px; background: #f0f7fd; }}
 .params {{ line-height: 1.7; }}
 .params .name {{ font-weight: 600; }}
+/* Figure 1's color_by legend (#legend, populated/rebuilt by setColor() every
+   time the color_by picker changes) - sits right under .params, next to the
+   plot, on request (14-08-26: color_by picker had no legend at all, so
+   "dataset"/"side" colors had no explanation anywhere on the page). Empty
+   for the default "none" mode (nothing to explain), a chip row for
+   dataset/side, a gradient bar for volume/nihss - see
+   _legend_html_for_mode's own docstring. */
+#legend {{ margin-top: 18px; }}
+.categories {{ display: flex; flex-wrap: wrap; gap: 8px; }}
+.category-chip {{ padding: 4px 10px; border-radius: 3px; color: #fff; font-size: 13px; font-weight: 600; }}
+.gradient-legend {{ display: flex; align-items: center; gap: 8px; font-size: 13px; }}
+.gradient-bar {{ width: 140px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.15); }}
+/* max-width was none (PAIR's own caption is unconstrained) - fine on PAIR's own
+   page, where every figure is roughly the same width as the page itself. Once
+   body widened to 1450px for Figure 1/4's own wide grid, an unconstrained caption
+   wrapped at nearly the FULL page width regardless of how narrow its own figure
+   was (confirmed live: Figure 3's caption spanned all 1450px, edge to edge, zero
+   margin - "hai tolto i margini bianchi", 14-08-26) - capped here so every
+   caption keeps a comfortable, consistent margin regardless of page width. */
 .caption {{ text-align: center; font-style: italic; font-size: 13px; color: {_TEXT_COLOR};
-           margin: 20px 0; }}
+           margin: 20px auto; max-width: 900px; }}
 .caption .figure-number {{ font-weight: 600; }}
 code {{ background: #f2f2f2; padding: 1px 4px; border-radius: 3px; font-size: 13px; }}
 .dual-slider {{ display: flex; flex-direction: column; align-items: center; }}
@@ -866,7 +939,12 @@ def build_leaf_page(
 
     # color_by picker: plain HTML buttons driving Plotly.restyle on the grid -
     # one array per mode, broadcast to every cell (same subjects in all of them).
+    # legend_by_mode is the same idea for the #legend div - see
+    # _legend_html_for_mode's own docstring for why it isn't computed once
+    # up front but rebuilt (from a precomputed HTML string, not refit) every
+    # time the picker changes.
     colors_by_mode = {m: _color_values_for_mode(real_metadata, m) for m in COLOR_BY_MODES}
+    legend_by_mode = {m: _legend_html_for_mode(real_metadata, m) for m in COLOR_BY_MODES}
     button_parts = []
     for i, m in enumerate(COLOR_BY_MODES):
         active_class = ' class="active"' if i == 0 else ""
@@ -893,6 +971,7 @@ def build_leaf_page(
         <span class="name">subjects:</span> {len(real_metadata)}<br>
         <span class="name">combinations:</span> {len(results)}
       </div>
+      <div id="legend"></div>
     </div>
   </div>
   <div class="caption"><span class="figure-number">Figure 1:</span> UMAP projection of the lesion cohort with a variety of common
@@ -948,6 +1027,7 @@ def build_leaf_page(
 
 <script>
 const COLORS = {json.dumps({m: colors_by_mode[m] for m in COLOR_BY_MODES})};
+const LEGENDS = {json.dumps(legend_by_mode)};
 const N_CELLS = {n_cells};
 function setColor(mode, btn) {{
   const c = COLORS[mode];
@@ -955,6 +1035,7 @@ function setColor(mode, btn) {{
   Plotly.restyle('grid', {{'marker.color': idx.map(() => c.color),
                            'marker.colorscale': idx.map(() => c.colorscale),
                            'marker.opacity': idx.map(() => c.opacity)}}, idx);
+  document.getElementById('legend').innerHTML = LEGENDS[mode];
   document.querySelectorAll('.color-buttons button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 }}
@@ -966,13 +1047,31 @@ function setColor(mode, btn) {{
     logger.info("report written to %s", output_path)
 
 
-def generate_report(umap_tuning_dir: Path, tsne_tuning_dir: Path, output_dir: Path) -> list[Path]:
-    """Top-level entry point: one HTML page per metric leaf found under
-    umap_tuning_dir, written to output_dir. Raises ValueError if the UMAP and
-    t-SNE cohorts don't match (different subjects, order, or metadata
-    columns) - every figure on every page assumes row-for-row alignment
-    between the two, so a mismatch here would silently compare two different
-    populations under one legend on every page produced.
+@dataclass
+class TuningData:
+    """Everything both the static HTML report (build_leaf_page/generate_report)
+    and the interactive Dash app (src/analysis/understanding_umap_dash.py)
+    need, loaded and cohort-validated exactly once - see load_tuning_data.
+    """
+
+    umap_tuning_dir: Path
+    tsne_tuning_dir: Path
+    real_embeddings: dict
+    real_metadata: pd.DataFrame
+    n_components: int
+    tsne_embeddings: dict
+    metrics: list[str]
+
+
+def load_tuning_data(umap_tuning_dir: Path, tsne_tuning_dir: Path) -> TuningData:
+    """Loads + cohort-validates the UMAP/t-SNE tuning output shared by every
+    consumer of this module (the static report and the Dash app) - factored
+    out of generate_report so neither has to re-load or re-validate on its
+    own (and so the two can never silently drift on what "the same cohort"
+    means). Raises ValueError if the UMAP and t-SNE cohorts don't match
+    (different subjects, order, or metadata columns) - every figure in every
+    consumer assumes row-for-row alignment between the two, so a mismatch
+    here would silently compare two different populations under one legend.
     """
     if not umap_tuning_dir.exists():
         raise FileNotFoundError(f"umap_tuning_dir does not exist: {umap_tuning_dir}")
@@ -997,12 +1096,25 @@ def generate_report(umap_tuning_dir: Path, tsne_tuning_dir: Path, output_dir: Pa
     if not metrics:
         raise ValueError(f"no metric=* leaves found under {umap_tuning_dir}")
 
+    return TuningData(
+        umap_tuning_dir=umap_tuning_dir, tsne_tuning_dir=tsne_tuning_dir,
+        real_embeddings=real_embeddings, real_metadata=real_metadata, n_components=n_components,
+        tsne_embeddings=tsne_embeddings, metrics=metrics,
+    )
+
+
+def generate_report(umap_tuning_dir: Path, tsne_tuning_dir: Path, output_dir: Path) -> list[Path]:
+    """Top-level entry point: one HTML page per metric leaf found under
+    umap_tuning_dir, written to output_dir.
+    """
+    data = load_tuning_data(umap_tuning_dir, tsne_tuning_dir)
+
     output_paths = []
-    for metric in metrics:
+    for metric in data.metrics:
         output_path = output_dir / f"understanding_umap_{metric}.html"
         build_leaf_page(
-            metric, umap_tuning_dir, real_embeddings, real_metadata, n_components,
-            tsne_tuning_dir, tsne_embeddings, output_path,
+            metric, data.umap_tuning_dir, data.real_embeddings, data.real_metadata, data.n_components,
+            data.tsne_tuning_dir, data.tsne_embeddings, output_path,
         )
         output_paths.append(output_path)
     return output_paths

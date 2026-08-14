@@ -39,8 +39,6 @@ def test_replot_embedding_writes_one_pair_per_registered_color_mode(tmp_path):
     assert "embedding_plot_unico.png" in names
     for mode in ("dataset", "side", "volume", "nihss"):
         assert f"embedding_plot_{mode}.png" in names, f"missing static plot for {mode}"
-    # one combined interactive HTML with a dropdown, not one per mode
-    assert "embedding_plot_interactive.html" in names
     for path in output_paths:
         assert path.is_file()
         assert path.stat().st_size > 0
@@ -59,9 +57,6 @@ def test_replot_embedding_skips_missing_column_with_warning_not_crash(tmp_path, 
     assert "embedding_plot_nihss.png" not in names
     assert "embedding_plot_dataset.png" in names  # the rest still get plotted
     assert any("nihss" in record.message for record in caplog.records)
-    # the combined interactive HTML still gets written, just without a "nihss" option
-    interactive_html = (run_dir / "embedding_plot_interactive.html").read_text()
-    assert "NIHSS" not in interactive_html
 
 
 def test_replot_embedding_raises_for_missing_dataset_column(tmp_path):

@@ -1,4 +1,4 @@
-"""Unit tests for src/analysis/plotting.py - plot_embedding_interactive/plot_clusters_interactive/
+"""Unit tests for src/analysis/plotting.py - plot_clusters_interactive/
 plot_clusters_comparison_interactive/compose_run_title/compose_embedding_plot_title/
 plot_embedding_categorical/plot_embedding_continuous/plot_clustering_tuning_metrics/
 plot_dendrogram/plot_eigengap/plot_silhouette_analysis."""
@@ -21,7 +21,6 @@ from src.analysis.plotting import (
     plot_embedding_categorical,
     plot_embedding_continuous,
     plot_embedding_grid_blocks,
-    plot_embedding_interactive,
     plot_silhouette_analysis,
 )
 
@@ -75,104 +74,6 @@ def _embedding_and_cluster_metadata():
     metadata = metadata.copy()
     metadata["cluster_label"] = [0, 0, 1, -1]
     return X_2d, metadata
-
-
-def test_writes_html_file(tmp_path):
-    X_2d, metadata = _embedding_and_metadata()
-    output_path = tmp_path / "embedding_plot_interactive.html"
-
-    plot_embedding_interactive(X_2d, metadata, [("dataset", "dataset")], output_path, "dim 1", "dim 2", "test title")
-
-    assert output_path.exists()
-    html = output_path.read_text()
-    assert "plotly" in html
-    for subject_id in metadata["subject_id"]:
-        assert subject_id in html
-
-
-def test_writes_html_file_with_dropdown_for_multiple_color_options(tmp_path):
-    X_2d, metadata = _embedding_and_metadata()
-    metadata = metadata.copy()
-    metadata["volume"] = [10.0, 20.0, 30.0, 40.0]
-    output_path = tmp_path / "embedding_plot_interactive.html"
-
-    plot_embedding_interactive(
-        X_2d, metadata, [("dataset", "dataset"), ("lesion volume", "volume")], output_path, "dim 1", "dim 2", "test title"
-    )
-
-    assert output_path.exists()
-    html = output_path.read_text()
-    assert "plotly" in html
-    assert "updatemenus" in html
-    # both dropdown option labels appear in the figure JSON (button labels), not just one
-    assert "dataset" in html
-    assert "lesion volume" in html
-
-
-def test_raises_on_fewer_than_two_columns(tmp_path):
-    X_1d = np.array([[0.0], [1.0], [2.0], [3.0]])
-    _, metadata = _embedding_and_metadata()
-
-    with pytest.raises(ValueError, match="supports 2 or 3 columns"):
-        plot_embedding_interactive(X_1d, metadata, [("dataset", "dataset")], tmp_path / "out.html", "x", "y", "title")
-
-
-def test_raises_on_more_than_three_columns(tmp_path):
-    X_4d = np.zeros((4, 4))
-    _, metadata = _embedding_and_metadata()
-
-    with pytest.raises(ValueError, match="supports 2 or 3 columns"):
-        plot_embedding_interactive(X_4d, metadata, [("dataset", "dataset")], tmp_path / "out.html", "x", "y", "title")
-
-
-def test_writes_html_file_3d_scatter(tmp_path):
-    _, metadata = _embedding_and_metadata()
-    X_3d = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [2.0, 2.0, 2.0], [3.0, 3.0, 3.0]])
-    output_path = tmp_path / "embedding_plot_3d.html"
-
-    plot_embedding_interactive(
-        X_3d, metadata, [("dataset", "dataset")], output_path, "dim 1", "dim 2", "test title", zlabel="dim 3"
-    )
-
-    assert output_path.exists()
-    html = output_path.read_text()
-    assert "plotly" in html
-    for subject_id in metadata["subject_id"]:
-        assert subject_id in html
-
-
-def test_raises_without_zlabel_for_3d(tmp_path):
-    _, metadata = _embedding_and_metadata()
-    X_3d = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [2.0, 2.0, 2.0], [3.0, 3.0, 3.0]])
-
-    with pytest.raises(ValueError, match="needs zlabel"):
-        plot_embedding_interactive(X_3d, metadata, [("dataset", "dataset")], tmp_path / "out.html", "x", "y", "title")
-
-
-def test_raises_on_row_count_mismatch(tmp_path):
-    X_2d, metadata = _embedding_and_metadata()
-    mismatched_metadata = metadata.iloc[:-1]
-
-    with pytest.raises(ValueError, match="must match"):
-        plot_embedding_interactive(
-            X_2d, mismatched_metadata, [("dataset", "dataset")], tmp_path / "out.html", "x", "y", "title"
-        )
-
-
-def test_raises_on_empty_color_options(tmp_path):
-    X_2d, metadata = _embedding_and_metadata()
-
-    with pytest.raises(ValueError, match="at least one entry in color_options"):
-        plot_embedding_interactive(X_2d, metadata, [], tmp_path / "out.html", "x", "y", "title")
-
-
-def test_raises_on_unknown_color_column(tmp_path):
-    X_2d, metadata = _embedding_and_metadata()
-
-    with pytest.raises(ValueError, match="color_options references columns not in metadata"):
-        plot_embedding_interactive(
-            X_2d, metadata, [("not a column", "not_a_column")], tmp_path / "out.html", "x", "y", "title"
-        )
 
 
 def test_plot_embedding_categorical_writes_file(tmp_path):

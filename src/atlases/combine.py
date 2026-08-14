@@ -2,7 +2,7 @@
 subcortical structures from the Harvard-Oxford subcortical atlas into a single
 combined label volume - the parcellation used by Thiebaut de Schotten et al.
 2020 ahead of their varimax PCA (360 cortical + 12 subcortical = 372 regions;
-see papers/Thiebaut de Schotten et al - 2020 - .../markdown/_full.md,
+see knowledge/Thiebaut de Schotten et al - 2020 - .../markdown/_full.md,
 "Data compression").
 
 The paper states the 12 subcortical regions were "defined manually" without

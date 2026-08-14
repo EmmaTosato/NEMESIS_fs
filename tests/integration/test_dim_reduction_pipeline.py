@@ -153,8 +153,6 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
 
     for suffix in ("_unico", "_dataset", "_volume", "_side"):
         assert (out_dir / f"embedding_plot{suffix}.png").is_file()
-    # one combined interactive HTML with a dropdown, not one per color_by mode
-    assert (out_dir / "embedding_plot_interactive.html").is_file()
 
     runs_csv = (output_root / "production" / "pca" / "runs.csv").read_text()
     assert "run1" in runs_csv

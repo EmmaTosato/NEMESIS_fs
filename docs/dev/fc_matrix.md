@@ -2,7 +2,7 @@
 
 Audience: developers/agents working on `src/features/functional.py`, `src/pipeline/mask_fc.py`, and `src/pipeline/build_fc_matrix.py`.
 
-This file covers turning WashU's already-computed functional-connectivity CSVs into a lesion-masked feature matrix. For the equivalent lesion-matrix pipeline, see `docs/dev/lesion_matrix.md`. For the models that consume the final matrix, see `docs/dev/models.md`. For "how do I run this", see `docs/guides/fc_matrix_building.md`. For the theory/literature behind the masking method, see `docs/knowledge/fc_lesion_masking.md`.
+This file covers turning WashU's already-computed functional-connectivity CSVs into a lesion-masked feature matrix. For the equivalent lesion-matrix pipeline, see `docs/dev/lesion_matrix.md`. For the models that consume the final matrix, see `docs/dev/models.md`. For "how do I run this", see `docs/guides/fc_matrix_building.md`. For the theory/literature behind the masking method, see `docs/notes/fc_lesion_masking.md`.
 
 ## `src/features/functional.py` — FC lesion masking (implemented, two decoupled pipelines)
 

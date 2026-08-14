@@ -14,7 +14,7 @@ A partire dal 28 Luglio 2026, le seguenti cartelle su `server-pnc` sono state fo
 - `config/` (sia registry che pipelines; le config SDC sono state integrate nel main e poi spinte sul server)
 - `docs/`
 - `management/`
-- `papers/`
+- `knowledge/`
 - `scripts/`
 - `src/` (tutte le nuove logiche di clustering, covariate e distanze)
 - `summaries/` (esclusivamente stdout e referti in formato `.md`)

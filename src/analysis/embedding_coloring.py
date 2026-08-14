@@ -83,3 +83,25 @@ def resolve_color_mode(name: str) -> ColorMode:
     if name not in COLOR_MODES:
         raise ValueError(f"unknown color_by mode {name!r} - known: {sorted(COLOR_MODES)}")
     return COLOR_MODES[name]
+
+
+# color_by mode name -> metadata column written once, at production time, by
+# src.features.clinical.enrich_metadata_with_lesion_info ("dataset" is written earlier
+# still, by build_lesion_matrix.py). Any reader of an already-produced run.py's
+# metadata.csv (a replot script, the embedding_app, a notebook) should read the value
+# straight from this column rather than recomputing it via COLOR_MODES[name].compute -
+# that would either re-join "side"/"nihss" from participants.tsv as it exists *right
+# now* (silently drifting from what the run actually recorded), or, for "volume", need
+# the raw voxel feature matrix, which a read-only consumer of an existing run
+# deliberately never reloads. Single source of truth for this mapping - previously
+# duplicated privately in scripts/replot_dim_reduction.py and the exploratory notebook
+# (see docs/dev/plotting.md's "no silent fallback"/lessons_learned.md #12 on why a 3rd
+# private copy wasn't added instead). A mode with no entry here (e.g. a future
+# compute-only mode never persisted to metadata.csv) is the caller's own responsibility
+# to skip - this module has no opinion on how a missing column is handled.
+PERSISTED_COLUMN_BY_MODE: dict[str, str] = {
+    "dataset": "dataset",
+    "side": "lesion_side",
+    "volume": "lesion_volume_voxels",
+    "nihss": "nihss",
+}

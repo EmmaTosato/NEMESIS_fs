@@ -1,0 +1,8 @@
+## 3 . 7 Supervised methods
+
+All methods surveyed above are unsupervised : They do not use class labels that may be available in the dataset and focus on the faithful preservation of structure in the highdimensional data. In contrast, supervised dimensionality reduction looks for an embedding with high separation of predefined classes. These two goals may be conflicting if the most prominent high-dimensional structure is not driven by the class labels.
+
+A supervised linear method called linear discriminant analysis (LDA) (Rao, 1948 ) can be seen as a supervised version of PCA, seeking to maximize the separation between means of projected classes while minimizing variance within each projected class. Two-dimensional LDA scatter plots were in use even before PCA scatter plots (Rao, 1948 ; Jolicoeur, 1959 ). Related methods include demixed PCA (Kobak et al., 2016 ) for data with multiple sets of class labels, as well as canonical correlation analysis (Hotelling, 1936 ) and reduced-rank regression (Izenman, 1975 ) for data with multiple continuous labels.
+
+Another linear method, neighborhood component analysis (Goldberger et al., 2004 ) finds a projection that maximizes the k NN classification accuracy in the embedding. Other works use the class information to construct supervised pairwise distances and then feed them into unsupervised embedding methods (Venna et al., 2010 ; Bunte et al., 2012 b) - supervised variants of Isomap (Geng et al., 2005 ; Li and Guo, 2006 ) and PHATE (Rhodes et al., 2021 ) were developed following this principle. Similarly, class information can also be used to inform neighbor-embedding algorithms (Yu et al., 2017 ; Hajderanj et al., 2019 ; Cheng et al., 2021 ).
+

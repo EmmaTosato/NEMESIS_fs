@@ -36,11 +36,11 @@ Resource values in `jobs/` are conservative starting points (this is I/O-bound f
   - `README.md` (repo root) — project goal, hypothesis, Task 1-5 breakdown, and the current "what's implemented so far" picture
   - `docs/guides/` — user-facing "how do I run this" guides, one per pipeline (`retrieval.md`, `atlas_building.md`, `matrix_building.md`, `dim_reduction.md`, `clustering.md`, `dim_reduction_clustering.md`, `compute_sdc.md`) plus `datasets.md` (EBRAIN paths, per-dataset N, per-subject folder structure, `participants.tsv` conventions)
   - `docs/dev/` — developer-facing architecture/implementation reference per module (`retrieval.md`, `models.md`, `config.md`, `plotting.md`, `lesion_matrix.md`, `fc_matrix.md`, `design_patterns.md`), kept current as each piece lands — not a restatement of any original plan
-  - `docs/knowledge/` — informal, concise, Italian reference material for the project owner (non-technical audience): per-method guides (what each dimensionality-reduction/clustering method does, `clustering.md`/`dim_reduction.md` — merged in from the former `docs/methods/` on request, same folder now covers both plain-method explanations and literature/reproduction notes), tuning-output reading guides, decisions log — distinct from `docs/dev/`'s code-mapped technical detail
+  - `docs/notes/` — informal, concise, Italian reference material for the project owner (non-technical audience): per-method guides (what each dimensionality-reduction/clustering method does, `clustering.md`/`dim_reduction.md` — merged in from the former `docs/methods/` on request, same folder now covers both plain-method explanations and literature/reproduction notes), tuning-output reading guides, decisions log — distinct from `docs/dev/`'s code-mapped technical detail
   - `docs/debugging/` — dated, per-session debug reports (see `code_standards.md` §8)
   - `docs/setup.md` — environment setup instructions
 - `management/meetings/` — raw meeting notes (markdown, dated). Primary source for anything not yet reflected in `docs/` — check here when `docs/` seems incomplete or you need the original context/wording behind a decision. Prefer the most recent note over older ones when they conflict, and treat `docs/` as the up-to-date synthesis.
-- `papers/` — one subfolder per reference paper (named `<Author> et al - <Year> - <Title>`), extracted from PDFs via a docling-based pipeline. `papers/paper_lists.md` is the index of all papers with full citations.
+- `knowledge/` — one subfolder per reference paper (named `<Author> et al - <Year> - <Title>`), extracted from PDFs via a docling-based pipeline. `knowledge/paper_lists.md` is the index of all papers with full citations.
   - Within each paper folder: `markdown/_full.md` is the full extracted text (read this for paper content) — `manifest.json` and `figures.json` describe extraction metadata and page/figure mapping, `figures/` holds page-level SVG/PNG renders. Not every folder has a full docling extraction (e.g. `chunks.jsonl`, `tables.json`, `docling_document.json` referenced in `manifest.json` are frequently absent) — check what's actually present rather than assuming the full file set from the manifest.
 - `src/` — project source code: `retrieval/`, `atlases/`, `features/`, `sdc/`, `analysis/`, `utils/`, and `pipeline/` (CLI entry points).
 - `scripts/` — accessory/one-off scripts (data organization, setup utilities), not the main pipeline code.
@@ -48,8 +48,8 @@ Resource values in `jobs/` are conservative starting points (this is I/O-bound f
 
 ## Working in this repo
 
-- Treat `README.md` + `docs/guides/`/`docs/dev/` as the current-state synthesis of project goals/scope, and `management/meetings/` + `papers/*/markdown/_full.md` as the primary sources behind it — cross-reference the originals when reasoning about project design or when `docs/` doesn't cover something.
-- When new papers are added under `papers/`, add them to `papers/paper_lists.md` for consistency with the existing index.
+- Treat `README.md` + `docs/guides/`/`docs/dev/` as the current-state synthesis of project goals/scope, and `management/meetings/` + `knowledge/*/markdown/_full.md` as the primary sources behind it — cross-reference the originals when reasoning about project design or when `docs/` doesn't cover something.
+- When new papers are added under `knowledge/`, add them to `knowledge/paper_lists.md` for consistency with the existing index.
 - **Never make git commits automatically**. Do not run `git commit` unless explicitly requested by the user.
 
 ## Code standards

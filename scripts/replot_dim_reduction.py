@@ -18,17 +18,16 @@ instead.
 - dim_reduction run (metadata has no cluster_label column): embedding_plot_unico.png
   + one embedding_plot_<name>.png per src.analysis.embedding_coloring.COLOR_MODES
   entry whose backing column is present in this run's metadata.csv (today:
-  dataset/side/volume/nihss - see _PERSISTED_COLUMN_BY_MODE below for the
-  mode-name -> column mapping), plus a single combined
-  embedding_plot_interactive.html covering every one of those modes via a
-  dropdown (2026-08 session, on request - was one .html per mode before).
-  Every value is read directly from metadata.csv (persisted there by
-  dim_reduction.py's _run_production/enrich_metadata_with_lesion_info) -
-  never recomputed from the original feature matrix nor rejoined from
-  assets/metadata/participants.tsv. A mode whose column this run's
-  metadata.csv predates (e.g. an old run before "nihss" existed) is skipped
-  with a WARNING, not silently omitted and not a reason to fail the rest -
-  it also just doesn't get an entry in the combined HTML's dropdown.
+  dataset/side/volume/nihss - see embedding_coloring.PERSISTED_COLUMN_BY_MODE for
+  the mode-name -> column mapping). No interactive HTML here anymore (2026-08-14,
+  on request) - superseded by the live src.pipeline.embedding_app (any production
+  run, any color mode, no static file to regenerate per run - see
+  docs/guides/embedding_app.md). Every static PNG value is read directly from
+  metadata.csv (persisted there by dim_reduction.py's
+  _run_production/enrich_metadata_with_lesion_info) - never recomputed from the
+  original feature matrix nor rejoined from assets/metadata/participants.tsv. A
+  mode whose column this run's metadata.csv predates (e.g. an old run before
+  "nihss" existed) is skipped with a WARNING, not silently omitted.
 - dim_reduction_clustering run (metadata has cluster_label): cluster_plot.png
   + cluster_plot_interactive.html (2 files, cluster-colored only - no dataset
   coloring here, see plotting.py's plot_clusters_interactive).
@@ -46,7 +45,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.analysis.embedding_coloring import COLOR_MODES
+from src.analysis.embedding_coloring import COLOR_MODES, PERSISTED_COLUMN_BY_MODE
 from src.analysis.plotting import (
     compose_cluster_plot_title,
     compose_embedding_plot_title,
@@ -55,33 +54,10 @@ from src.analysis.plotting import (
     plot_embedding_2d,
     plot_embedding_categorical,
     plot_embedding_continuous,
-    plot_embedding_interactive,
 )
 from src.utils.artifacts import load_matrix
 
 CLUSTER_LABEL_COLUMN = "cluster_label"
-
-# color_by mode name (embedding_coloring.COLOR_MODES key) -> metadata column
-# written once, at production time, by
-# src.features.clinical.enrich_metadata_with_lesion_info ("dataset" is
-# written earlier still, by build_lesion_matrix.py). Read directly from
-# metadata here rather than via COLOR_MODES[name].compute(metadata, X): for
-# "side"/"nihss" that would re-join lesion_side/nihss from participants.tsv
-# as it exists *right now*, contradicting this script's whole point (replot
-# exactly what THIS run recorded at production time, never reload or
-# re-derive anything - see module docstring); for "volume" it would need the
-# raw feature matrix, which this script deliberately never reloads (X here
-# is the embedding, not the voxel matrix). kind/label/log_scale ARE reused
-# from COLOR_MODES, since those only describe how to render an already-known
-# value, not where it comes from. A mode with no entry here (e.g. a future
-# compute-only mode never persisted to metadata.csv) is skipped with a
-# warning, same as one whose column an older run's metadata.csv predates.
-_PERSISTED_COLUMN_BY_MODE = {
-    "dataset": "dataset",
-    "side": "lesion_side",
-    "volume": "lesion_volume_voxels",
-    "nihss": "nihss",
-}
 
 
 def replot(run_dir: Path) -> list[Path]:
@@ -133,10 +109,8 @@ def _replot_embedding(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> l
     plot_embedding_2d(X, static_path, xlabel, ylabel, compose_embedding_plot_title(run_dir, reduction_method))
     output_paths.append(static_path)
 
-    interactive_color_options: list[tuple[str, str]] = []
-
     for name, mode in COLOR_MODES.items():
-        column = _PERSISTED_COLUMN_BY_MODE.get(name)
+        column = PERSISTED_COLUMN_BY_MODE.get(name)
         if column is None or column not in metadata.columns:
             logging.warning(
                 "run %s: metadata.csv has no %r column for color_by mode %r - skipping this plot "
@@ -157,16 +131,6 @@ def _replot_embedding(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> l
                 colorbar_label=mode.label, log_scale=mode.log_scale,
             )
         output_paths.append(static_path)
-
-        interactive_color_options.append((mode.label, column))
-
-    if interactive_color_options:
-        interactive_path = run_dir / "embedding_plot_interactive.html"
-        plot_embedding_interactive(
-            X, metadata, interactive_color_options, interactive_path, xlabel, ylabel,
-            compose_embedding_plot_title(run_dir, reduction_method),
-        )
-        output_paths.append(interactive_path)
 
     return output_paths
 
