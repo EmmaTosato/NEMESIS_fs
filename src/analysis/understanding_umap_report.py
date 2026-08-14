@@ -578,6 +578,7 @@ def build_slider_section(
     include_plotlyjs: bool = True,
     title: str | None = None,
     canvas_px: int = _CANVAS_PX,
+    show_intro: bool = False,
 ) -> tuple[str, str, str]:
     """One view, N independent sliders (one per entry in `free_params`, e.g.
     ["n_neighbors", "min_dist"] for UMAP or just ["perplexity"] for t-SNE),
@@ -767,11 +768,21 @@ def build_slider_section(
     </script>"""
 
     options_lines = "".join(f"<span class='name'>{p} options:</span> {options[p]}<br>" for p in free_params)
-    description = (
-        f"<div class='params'>The same subjects, re-projected as you drag {'either' if len(free_params) == 2 else 'the'} "
+    # The "drag either slider..." explanation is only shown once on the page
+    # (Figure 2, the first place a human meets this interaction) - repeating
+    # it under every other slider figure (Figure 3's 2D/3D panels, Figure 5's
+    # UMAP/t-SNE panels) read as redundant once the mechanism's already been
+    # explained (on request, 14-08-26). show_intro=False is the default so
+    # every OTHER call site doesn't have to remember to suppress it - Figure
+    # 2's own call in build_leaf_page passes show_intro=True explicitly.
+    intro_html = (
+        f"The same subjects, re-projected as you drag {'either' if len(free_params) == 2 else 'the'} "
         f"slider{'s' if len(free_params) > 1 else ''} independently. "
-        f"Points move between positions instead of jumping, so a subject can be followed across settings."
-        f"<br><br><span class='name'>metric:</span> {metric}<br>"
+        f"Points move between positions instead of jumping, so a subject can be followed across settings.<br><br>"
+    ) if show_intro else ""
+    description = (
+        f"<div class='params'>{intro_html}"
+        f"<span class='name'>metric:</span> {metric}<br>"
         f"{options_lines}</div>"
     )
     return html, description, div_id
@@ -922,7 +933,7 @@ def build_leaf_page(
     slider_section_html, slider_description, _div_id = build_slider_section(
         real_leaf_dir, real_embeddings, real_metadata, free_params=["n_neighbors", "min_dist"],
         instance_id=metric, metric=metric, title=f"metric = {metric}", include_plotlyjs=False,
-        canvas_px=_CANVAS_PX,
+        canvas_px=_CANVAS_PX, show_intro=True,
     )
     twod_vs_3d_html = build_2d_vs_3d_section(
         metric, real_umap_dir, real_embeddings, real_metadata, instance_prefix=metric,
