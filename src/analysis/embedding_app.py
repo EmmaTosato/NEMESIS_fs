@@ -1,0 +1,701 @@
+"""Logic behind src.pipeline.embedding_app - a live Dash app to explore any already-written
+dim_reduction production run interactively (2D or 3D, color buttons instead of a dropdown,
+editorial styling), replacing the old per-run embedding_plot_interactive.html (removed
+2026-08-14, see src/analysis/plotting.py's module docstring and docs/guides/embedding_app.md).
+
+No refit, no server-side recomputation of the embedding itself - reads matrix.npy/metadata.csv
+straight off disk (src.utils.artifacts.load_matrix), same "replot, never re-fit" contract
+scripts/replot_dim_reduction.py already established, extended here to cover 3-component runs
+too (that script only ever handled 2). A run whose own saved embedding has more than 3
+columns (e.g. a real production run kept at its full n_components, no viz-only projection
+ever persisted to disk - see production_run_display_error's docstring) is reported as
+undisplayable rather than silently sliced to its first 2/3 columns - lessons_learned.md #16.
+
+Kept separate from src/analysis/understanding_umap_report.py / understanding_umap_dash.py on
+purpose: those read fine-tuning sweep output (tuning_results.csv/embeddings.npz across a whole
+metric x n_neighbors x min_dist grid) to explore *how a parameter choice shapes the embedding*;
+this module reads exactly one already-chosen production run at a time, to explore *the result
+production settled on* - same distinction the user drew explicitly (14-08-26): "questi fanno
+tuning, noi dobbiamo fare production". Two different questions, two different tools - not
+sharing a module just because both end up building Plotly figures.
+"""
+
+from __future__ import annotations
+
+import itertools
+import json
+import re
+from dataclasses import dataclass
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+from dash import ALL, Dash, Input, Output, State, ctx, dcc, html
+from dash.exceptions import PreventUpdate
+
+from src.analysis.embedding_coloring import COLOR_MODES, PERSISTED_COLUMN_BY_MODE
+from src.analysis.plotting import _CATEGORICAL_PALETTE, _NOISE_COLOR, compose_embedding_plot_title
+from src.utils.artifacts import MANIFEST_FILENAME, load_matrix
+
+# "neutro" first, same convention as embedding_coloring.COLOR_MODES/the notebook prototype -
+# the neutral single-color view is always available and always the default, every other
+# entry is a registered color_by mode name.
+NEUTRAL_MODE = "neutro"
+COLOR_MODE_ORDER: tuple[str, ...] = (NEUTRAL_MODE, *COLOR_MODES.keys())
+
+# Same measured design tokens as src/analysis/understanding_umap_report.py's own _CSS
+# (PAIR-style editorial report, 13/14-08-26 sessions) - not imported directly (that module's
+# _CSS is private and tightly coupled to its own grid/slider DOM, none of which this app has),
+# but deliberately the same values, so the two Dash tools in this repo read as one visual
+# family instead of two unrelated ones. _TEXT_COLOR = PAIR's own measured text color
+# (getComputedStyle on the live page = rgb(51,51,51)), font stack = system-ui/-apple-system
+# stack PAIR uses, _GRID_BORDER = PAIR's own .demo-data cell border.
+_TEXT_COLOR = "#333"
+_GRID_BORDER = "rgba(0,0,0,0.1)"
+_FONT_STACK = (
+    '-apple-system, "system-ui", "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, '
+    'Cantarell, "Helvetica Neue", sans-serif'
+)
+
+# Injected into the Dash app's index_string (src.pipeline.embedding_app.build_app) - ample
+# whitespace, no boxy borders/sidebars, a curated button-group instead of a framework dropdown
+# for color_by, Plotly's own modebar hidden by the figure config (not CSS) since Dash renders
+# it in an iframe-like shadow context CSS can't reach. See the design brief this was built
+# against (14-08-26, user-supplied "Senior Frontend/UI-UX" prompt referencing
+# pair-code.github.io/understanding-umap as the benchmark) - minimalism, differentiated H1/H2,
+# transparent plot background, curated palette, no default-Streamlit/default-Plotly look.
+CSS = f"""
+body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_COLOR}; }}
+.page {{ max-width: 1100px; margin: 0 auto; padding: 48px 32px 96px; }}
+.page-title {{ font-size: 32px; font-weight: 800; text-align: center; margin: 0 0 12px; }}
+.page-subtitle {{ font-size: 16px; color: #767676; text-align: center; margin: 0 0 56px; }}
+.controls {{ display: flex; flex-direction: column; align-items: center; gap: 24px; margin-bottom: 32px; }}
+/* One field per selection step (Dato -> Pipeline [fissa] -> Tipo di riduzione -> Giorno),
+   left-to-right in reading/decision order (14-08-26, on request) - wraps to multiple rows
+   on a narrow viewport instead of overflowing horizontally. */
+.picker-row {{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 20px; }}
+.picker-field {{ display: flex; flex-direction: column; gap: 6px; min-width: 200px; }}
+.picker-label {{ font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #767676; }}
+.picker-fixed {{
+    font-size: 15px; padding: 8px 12px; border-radius: 6px; background: #f5f5f5; color: {_TEXT_COLOR};
+    border: 1px solid transparent; /* same box height as the dropdowns beside it, no interactive affordance */
+}}
+.color-buttons {{ display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }}
+.color-buttons button {{
+    font-family: inherit; font-size: 13px; padding: 7px 16px; cursor: pointer;
+    border: 1px solid #ccc; border-radius: 999px; background: #fff; color: {_TEXT_COLOR};
+    transition: border-color 0.15s, background 0.15s;
+}}
+.color-buttons button:hover {{ border-color: #4a90d9; }}
+.color-buttons button.active {{ border-color: #4a90d9; border-width: 2px; background: #f0f7fd; font-weight: 600; }}
+/* width:100% + no Plotly config.responsive (see graph_content_for) - a stable CSS width set
+   once at mount, not a JS ResizeObserver reacting to every later layout event (scrolling
+   included) - that combination was the actual cause of the graph distorting on scroll. */
+.graph-wrap {{ display: flex; justify-content: center; width: 100%; }}
+.graph-wrap > div {{ width: 100%; }}
+.status-message {{ text-align: center; color: #767676; font-size: 15px; margin: 64px 0; }}
+"""
+
+
+@dataclass(frozen=True)
+class ProductionRun:
+    """One dim_reduction production run discovered under results/<modality>/dim_reduction/
+    production/<method>/<run_name> - path is the absolute run directory (what load_matrix
+    needs), modality/method/run_name are its own path segments (what the UI and
+    compose_embedding_plot_title need), kept apart rather than re-parsed from path every time.
+    """
+
+    modality: str
+    method: str
+    run_name: str
+    path: Path
+
+    @property
+    def key(self) -> str:
+        """Stable, unique-per-run string - used as a Dash dropdown option value (Dash
+        options need a hashable, JSON-serializable value, not a Path)."""
+        return f"{self.modality}/{self.method}/{self.run_name}"
+
+    @property
+    def results_relative_path(self) -> Path:
+        """<modality>/dim_reduction/production/<method>/<run_name>, prefixed with "results" -
+        compose_embedding_plot_title (src/analysis/plotting.py) derives the modality from an
+        output_dir's own path segments and expects a "results/..."-relative Path, not an
+        absolute one (an absolute path's first segment is "/", not "results" - see
+        notebooks/post-results_analysis's own fix for the identical issue, 13-08-26)."""
+        return Path("results") / self.modality / "dim_reduction" / "production" / self.method / self.run_name
+
+
+def discover_production_runs(results_root: Path) -> list[ProductionRun]:
+    """Scans results_root/*/dim_reduction/production/*/* for valid run directories (must
+    contain manifest.json - the same existence check src.utils.artifacts.load_matrix itself
+    uses to decide a run was actually completed, not left behind by an interrupted build).
+
+    Generic across modality/method on purpose (2026-08-14, on request: "Tutti, generico") -
+    today only lesion/umap (plus lesion/pca, lesion/tsne, lesion/pacmap) exist, but a future
+    modality (e.g. sdc) or method needs zero changes here to show up, since nothing about the
+    path shape is hardcoded beyond dim_reduction/production's own 2 fixed segments.
+
+    Returns an empty list if results_root doesn't exist or has no matching runs at all - not
+    an error: a completely fresh checkout with no pipeline ever run is a legitimate starting
+    state for this app (the caller/UI decides how to represent "nothing to show").
+    Sorted by (modality, method, run_name) for a deterministic dropdown order.
+    """
+    if not results_root.exists():
+        return []
+    runs = []
+    for path in results_root.glob("*/dim_reduction/production/*/*"):
+        if not (path.is_dir() and (path / MANIFEST_FILENAME).exists()):
+            continue
+        # relative_to(results_root)'s own parts, not raw negative indices into the absolute
+        # path - self-documenting (modality/dim_reduction/production/method/run_name) and
+        # correct regardless of how deep results_root's own absolute path happens to be.
+        modality, _dim_reduction, _production, method, run_name = path.relative_to(results_root).parts
+        runs.append(ProductionRun(modality=modality, method=method, run_name=run_name, path=path))
+    return sorted(runs, key=lambda run: (run.modality, run.method, run.run_name))
+
+
+# A run_name's own leading "DD-MM" (every run seen so far: "13-08_s1.1_nc3_m_dice",
+# "23-07_s1.1_c150", ...) - used only to order/default the "Giorno" picker chronologically
+# (most recent last), never to validate or reject a run_name that doesn't match: a run
+# without a recognizable date prefix still shows up, just sorted alphabetically after every
+# dated one instead of crashing the picker over a display-order nicety.
+_DATE_PREFIX_RE = re.compile(r"^(\d{2})-(\d{2})_")
+
+
+def _run_chronological_key(run: ProductionRun) -> tuple:
+    match = _DATE_PREFIX_RE.match(run.run_name)
+    if match is None:
+        return (1, 0, 0, run.run_name)
+    day, month = int(match.group(1)), int(match.group(2))
+    return (0, month, day, run.run_name)
+
+
+def modality_options(runs: list[ProductionRun]) -> list[str]:
+    """Distinct modalities across `runs`, sorted - step 1 of the picker ("Dato"). Only
+    "lesion" exists today; a future modality shows up here with zero code changes (same
+    generic-discovery contract as discover_production_runs itself)."""
+    return sorted({run.modality for run in runs})
+
+
+def method_options(runs: list[ProductionRun], modality: str) -> list[str]:
+    """Distinct reduction methods available for `modality`, sorted - step 3 of the picker
+    ("Tipo di riduzione"), after the fixed "Pipeline: dim_reduction · produzione" step 2 (not
+    a real choice - every run this app discovers already went through that exact pipeline in
+    that exact mode, see discover_production_runs)."""
+    return sorted({run.method for run in runs if run.modality == modality})
+
+
+def runs_for(runs: list[ProductionRun], modality: str, method: str) -> list[ProductionRun]:
+    """Runs matching (modality, method), chronologically ordered (oldest first, most recent
+    last) - the base scope every later picker step (Metrica/Componenti/Run) narrows further.
+    Scoped to one modality+method at a time is the whole point of the multi-step picker
+    (2026-08-14, on request): the original single flat dropdown mixed every method's runs
+    together, so picking a run meant scanning entries that weren't even the same reduction
+    method."""
+    return sorted((run for run in runs if run.modality == modality and run.method == method), key=_run_chronological_key)
+
+
+# Sentinel for "this method's own params have no 'metric' key at all" (PCA/PaCMAP today,
+# see config/registry/params_reduction.json - their base params dicts never include one,
+# unlike UMAP/t-SNE) - distinct from any real metric string, so the "Metrica" picker still
+# has exactly one, always-selectable option for those methods instead of an empty dropdown.
+NO_METRIC = "—"
+
+_PARAMS_USED_PREFIX = "Params used: "
+
+
+def run_params(run: ProductionRun) -> dict:
+    """The exact resolved params dict dim_reduction.py actually used to build `run`, read
+    from its own config.md ("Params used: {...}" line, json.dumps'd verbatim by
+    src.pipeline.dim_reduction._build_readme_lines - see that function for the exact
+    serialization). The single source of truth for "which metric/n_components did this run
+    actually use" - never re-derived by parsing the run_name's own free-text convention
+    (e.g. "nc3"/"m_dice" is a human-chosen session-name shorthand for umap specifically, not a
+    guaranteed, parseable field every method's run_name follows - pca/tsne/pacmap runs don't).
+
+    Raises ValueError if config.md is missing or has no "Params used:" line - every run this
+    app discovers was written by dim_reduction.py's own _run_production, which always writes
+    one; a run missing it predates that convention or was tampered with, either way a real
+    problem worth surfacing rather than guessing at empty params.
+    """
+    config_path = run.path / "config.md"
+    if not config_path.exists():
+        raise ValueError(f"Run {run.path} has no configuration available - cannot read its resolved params")
+    for line in config_path.read_text().splitlines():
+        if line.startswith(_PARAMS_USED_PREFIX):
+            return json.loads(line[len(_PARAMS_USED_PREFIX) :])
+    raise ValueError(f"run {run.path}'s config.md has no {_PARAMS_USED_PREFIX!r} line - unexpected format")
+
+
+def metric_options(runs: list[ProductionRun], modality: str, method: str) -> list[str]:
+    """Distinct `metric` values actually used by (modality, method)'s own runs, sorted -
+    NO_METRIC included if any of them has no 'metric' key in its own params at all."""
+    values = {run_params(run).get("metric", NO_METRIC) for run in runs_for(runs, modality, method)}
+    return sorted(values)
+
+
+def n_components_options(runs: list[ProductionRun], modality: str, method: str, metric: str) -> list[int]:
+    """Distinct `n_components` values among (modality, method, metric)'s own runs, sorted
+    ascending - includes every value actually used, even ones this app can't display (e.g.
+    150 for the full-dimensionality PCA production run): the picker's job is to reflect what
+    was actually run, not to pre-filter it down to what's displayable (graph_content_for
+    already reports that clearly per-run, see UndisplayableRunError)."""
+    values = {
+        run_params(run)["n_components"]
+        for run in runs_for(runs, modality, method)
+        if run_params(run).get("metric", NO_METRIC) == metric
+    }
+    return sorted(values)
+
+
+def runs_matching(runs: list[ProductionRun], modality: str, method: str, metric: str, n_components: int) -> list[ProductionRun]:
+    """Runs matching (modality, method, metric, n_components) exactly, chronologically ordered
+    - the final picker step ("Run"): today this is usually exactly one run (each combination
+    has only ever been produced once), but stays a list rather than assuming that - a rerun of
+    the same combination on a later date is a legitimate, real scenario this picker must keep
+    showing both of, not silently collapse to one."""
+    return [
+        run
+        for run in runs_for(runs, modality, method)
+        if run_params(run).get("metric", NO_METRIC) == metric and run_params(run).get("n_components") == n_components
+    ]
+
+
+class UndisplayableRunError(ValueError):
+    """A production run's saved embedding has more than 3 columns - no viz-only projection
+    was ever persisted for it (dim_reduction.py's viz_embedding is refit in-memory and used
+    only to write the now-removed embedding_plot_interactive.html/PNGs at production time,
+    never saved to disk on its own), and this app, like scripts/replot_dim_reduction.py, never
+    reloads the original feature matrix to refit one - slicing embedding[:, :3] instead would
+    be the exact mistake lessons_learned.md #16 documents (a UMAP/t-SNE/PaCMAP embedding's
+    columns carry no importance ordering, so a slice is an arbitrary cut, not a summary)."""
+
+
+def load_run(run: ProductionRun) -> tuple[np.ndarray, pd.DataFrame]:
+    """Loads `run`'s embedding + metadata via load_matrix, raising UndisplayableRunError (not
+    silently slicing) if the saved embedding has other than 2 or 3 columns."""
+    embedding, metadata, _extra_arrays = load_matrix(run.path)
+    n_dims = embedding.shape[1]
+    if n_dims not in (2, 3):
+        raise UndisplayableRunError(
+            f"Run {run.path} has a saved embedding with {n_dims} components - this app can only display an "
+            "already-2-or-3-component embedding: Rerun dim_reduction pipeline with viz_n_components 2 or 3 and, or pick a different run."
+        )
+    return embedding, metadata
+
+
+def _color_label(mode_name: str) -> str | None:
+    return None if mode_name == NEUTRAL_MODE else COLOR_MODES[mode_name].label
+
+
+def run_title(run: ProductionRun, mode_name: str) -> str:
+    """Same production-style title every other plot in this pipeline uses (e.g. "Lesions -
+    Umap - dataset") - compose_embedding_plot_title is the single source of truth for this
+    format, never re-derived by hand here."""
+    return compose_embedding_plot_title(run.results_relative_path, run.method, _color_label(mode_name))
+
+
+def _palette_for(categories: list[str], missing_label: str = "unknown") -> dict[str, str]:
+    palette: dict[str, str] = {}
+    colors = itertools.cycle(_CATEGORICAL_PALETTE)
+    for category in categories:
+        palette[category] = _NOISE_COLOR if category == missing_label else next(colors)
+    return palette
+
+
+def _log_decade_ticks(values: np.ndarray) -> tuple[list[float], list[str]]:
+    """Decade tick positions (in log10 space) spanning `values`' real (non-log) range, e.g.
+    [1, 10, 100, 1000] for a 1..2000 range - the same "one tick per order of magnitude" a
+    matplotlib LogNorm colorbar's default LogFormatter would pick, reimplemented here because
+    Plotly has no log-scale colorbar of its own (see build_embedding_figure's docstring)."""
+    lo = int(np.floor(np.log10(values.min())))
+    hi = int(np.ceil(np.log10(values.max())))
+    ticks = [10.0**exponent for exponent in range(lo, hi + 1)]
+    return [float(np.log10(tick)) for tick in ticks], [f"{tick:g}" for tick in ticks]
+
+
+def build_embedding_figure(
+    embedding: np.ndarray,
+    metadata: pd.DataFrame,
+    mode_name: str,
+    xlabel: str,
+    ylabel: str,
+    title: str,
+    zlabel: str | None = None,
+) -> go.Figure:
+    """Builds the Plotly figure for one (run, color mode) combination - 2D if `zlabel` is
+    None, 3D otherwise (branches on `embedding.shape[1]`/`zlabel` the same way the
+    post-results_analysis notebook's show_embedding_plotly prototype does, since this
+    function IS that prototype, promoted to reusable src/ code once the notebook exploration
+    settled on a final style - never a re-derivation by hand).
+
+    Unlike the removed plot_embedding_interactive, a continuous mode's log_scale is honored
+    here: values are log10-transformed for the marker color, with the colorbar's own ticks
+    relabeled back to real units (_log_decade_ticks) - plotly has no direct LogNorm-equivalent
+    color axis, so this is done by hand rather than left linear as the old function was.
+
+    Raises UndisplayableRunError-independent ValueErrors for a bad embedding/mode/metadata
+    combination (e.g. `mode_name` not in COLOR_MODE_ORDER) - a caller that only ever offers
+    COLOR_MODE_ORDER's own entries as UI choices should never actually hit these.
+    """
+    if mode_name not in COLOR_MODE_ORDER:
+        raise ValueError(f"Unknown color mode {mode_name!r} - known: {list(COLOR_MODE_ORDER)}")
+    is_3d = zlabel is not None
+    if is_3d and embedding.shape[1] != 3:
+        raise ValueError(f"zlabel given but embedding has {embedding.shape[1]} columns, not 3")
+    if not is_3d and embedding.shape[1] < 2:
+        raise ValueError(f"The figure needs at least 2 columns, got shape {embedding.shape}")
+
+    scatter_cls = go.Scatter3d if is_3d else go.Scatter
+    marker_kwargs = dict(
+        size=6,
+        opacity=1.0 if is_3d else 0.85,
+        line=dict(width=0.6, color="white") if is_3d else dict(width=0),
+    )
+    subject_ids = metadata["subject_id"].to_numpy() if "subject_id" in metadata.columns else None
+
+    def _trace_kwargs(mask: np.ndarray | None = None) -> dict:
+        idx = np.where(mask)[0] if mask is not None else np.arange(embedding.shape[0])
+        kw = dict(x=embedding[idx, 0], y=embedding[idx, 1])
+        if is_3d:
+            kw["z"] = embedding[idx, 2]
+        if subject_ids is not None:
+            kw["text"] = subject_ids[idx]
+            kw["hoverinfo"] = "text"
+        return kw
+
+    fig = go.Figure()
+
+    if mode_name == NEUTRAL_MODE:
+        fig.add_trace(scatter_cls(**_trace_kwargs(), mode="markers", marker=dict(color="#3aa9e0", **marker_kwargs)))
+    else:
+        mode = COLOR_MODES[mode_name]
+        column = PERSISTED_COLUMN_BY_MODE[mode_name]
+        if column not in metadata.columns:
+            raise ValueError(
+                f"metadata has no {column!r} column for color mode {mode_name!r} - rerun dim_reduction.py to add it"
+            )
+        values = metadata[column].to_numpy()
+
+        if mode.kind == "categorical":
+            unique_categories = sorted(pd.unique(values).tolist())
+            palette = _palette_for(unique_categories)
+            for category in unique_categories:
+                fig.add_trace(
+                    scatter_cls(
+                        **_trace_kwargs(values == category), mode="markers", name=str(category),
+                        marker=dict(color=palette[category], **marker_kwargs),
+                    )
+                )
+        else:
+            values = np.asarray(values, dtype=float)
+            is_missing = np.isnan(values)
+            color_values = values
+            colorbar_kwargs: dict = dict(title=mode.label)
+            if mode.log_scale:
+                non_missing = values[~is_missing]
+                if (non_missing <= 0).any():
+                    raise ValueError(
+                        f"Color mode {mode_name!r} is log_scale but has non-positive values - cannot log-transform"
+                    )
+                color_values = np.where(is_missing, values, np.log10(values))
+                if non_missing.size:
+                    tickvals, ticktext = _log_decade_ticks(non_missing)
+                    colorbar_kwargs = dict(title=mode.label, tickvals=tickvals, ticktext=ticktext)
+
+            if is_missing.any():
+                fig.add_trace(
+                    scatter_cls(
+                        **_trace_kwargs(is_missing), mode="markers", name="missing",
+                        marker=dict(color=_NOISE_COLOR, **marker_kwargs),
+                    )
+                )
+            fig.add_trace(
+                scatter_cls(
+                    **_trace_kwargs(~is_missing), mode="markers", name=mode.label,
+                    marker=dict(
+                        color=color_values[~is_missing], colorscale="Viridis", colorbar=colorbar_kwargs,
+                        **marker_kwargs,
+                    ),
+                )
+            )
+
+    axis_style = dict(showgrid=False, zeroline=False, showline=True, linewidth=1, linecolor=_GRID_BORDER)
+    layout_kwargs = dict(
+        title=dict(text=title, font=dict(size=18, family=_FONT_STACK, color=_TEXT_COLOR), x=0.02, xanchor="left"),
+        template="simple_white",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family=_FONT_STACK, color=_TEXT_COLOR),
+        margin=dict(l=10, r=10, t=70, b=10),
+        height=680 if is_3d else 560,
+    )
+    if is_3d:
+        thin_axis = dict(showbackground=False, showgrid=False, zeroline=True, linewidth=1, showline=True)
+        layout_kwargs["scene"] = dict(
+            xaxis=dict(title=xlabel, **thin_axis),
+            yaxis=dict(title=ylabel, **thin_axis),
+            zaxis=dict(title=zlabel, **thin_axis),
+            aspectmode="data",
+        )
+    else:
+        layout_kwargs["xaxis"] = dict(title=xlabel, **axis_style)
+        layout_kwargs["yaxis"] = dict(title=ylabel, **axis_style)
+
+    fig.update_layout(**layout_kwargs)
+    return fig
+
+
+_INDEX_STRING = f"""<!DOCTYPE html>
+<html>
+<head>
+{{%metas%}}
+<title>NEMESIS — Embedding Explorer</title>
+{{%favicon%}}
+{{%css%}}
+<style>{CSS}</style>
+</head>
+<body>
+{{%app_entry%}}
+<footer>{{%config%}}{{%scripts%}}{{%renderer%}}</footer>
+</body>
+</html>"""
+
+
+def graph_content_for(run: ProductionRun, mode_name: str) -> html.P | dcc.Graph:
+    """The graph-area.children Dash callback's actual body, pulled out as a plain function -
+    directly unit-testable (no Dash callback-context wrapping to fight, see
+    tests/unit/test_embedding_app.py) and kept as the single place this logic lives, not
+    duplicated between a callback closure and a test harness.
+
+    Returns an html.P status message (never raises) for a run that can't be displayed
+    (UndisplayableRunError from load_run, or a ValueError from build_embedding_figure - e.g. a
+    color mode's own persisted column missing from this particular run's metadata.csv), a
+    dcc.Graph otherwise. Modebar hidden via the Graph's own config (Plotly's modebar is
+    rendered inside the figure's own DOM subtree, unreachable by page-level CSS).
+
+    config has no "responsive": True (2026-08-14, on request: the graph "si sminchia" on
+    scroll) - Plotly's responsive mode attaches a ResizeObserver that recomputes the plot's
+    size on every layout event, not just an actual window resize; scrolling a page that
+    contains a WebGL scatter3d canvas is exactly the kind of layout event known to misfire
+    that observer (a corrupted/squished redraw, not a crash - easy to miss in isolated
+    testing, only visible once the page is tall enough to scroll). Sized instead by CSS
+    (.graph-wrap/.graph-wrap > div, width: 100%) applied once at mount - the graph still
+    fills the available width on load, it just doesn't keep re-measuring itself afterwards.
+    """
+    try:
+        embedding, metadata = load_run(run)
+    except UndisplayableRunError as exc:
+        return html.P(str(exc), className="status-message")
+
+    zlabel = f"{run.method} dim 3" if embedding.shape[1] == 3 else None
+    try:
+        figure = build_embedding_figure(
+            embedding, metadata, mode_name,
+            f"{run.method} dim 1", f"{run.method} dim 2", run_title(run, mode_name),
+            zlabel=zlabel,
+        )
+    except ValueError as exc:
+        return html.P(str(exc), className="status-message")
+
+    return dcc.Graph(figure=figure, config={"displayModeBar": False}, style={"width": "100%"})
+
+
+def _color_button_label(mode_name: str) -> str:
+    # Raw mode.label, not .capitalize()'d - "NIHSS (severity)".capitalize() would produce
+    # "Nihss (severity)" (str.capitalize lowercases every character but the first), the same
+    # trap the notebook prototype's _panel_title left uncorrected; sidestepped here by not
+    # reformatting the label's casing at all, same as compose_embedding_plot_title's own
+    
+    return "neutro" if mode_name == NEUTRAL_MODE else COLOR_MODES[mode_name].label
+
+
+def build_app(runs: list[ProductionRun]) -> Dash:
+    """Builds the Dash app: a run picker (dcc.Dropdown, one entry per discovered production
+    run) plus a color-mode button group (COLOR_MODE_ORDER, styled as a chip row via CSS, not
+    a second dropdown - the design brief this was built against, 14-08-26, asked for "bottoni"
+    explicitly) driving one dcc.Graph. No client-side state beyond which button is active
+    (dcc.Store) - the embedding/figure itself is rebuilt server-side on every run/color change
+    (load_run + build_embedding_figure), never cached: at this cohort size (~1150 subjects,
+    matrix.npy a few hundred KB at most) a fresh disk read + figure build is fast enough that
+    a cache would add complexity for no measurable benefit.
+
+    Raises ValueError if `runs` is empty - an app with a run picker offering nothing to pick
+    is a broken starting state, not a legitimate empty one (unlike
+    discover_production_runs itself, which legitimately can return an empty list for a fresh
+    checkout - the CLI entry point, src.pipeline.embedding_app, is what decides that's worth
+    failing loudly on before ever calling this).
+    """
+    if not runs:
+        raise ValueError("The app needs at least one production run - none were discovered, nothing to display")
+
+    runs_by_key = {run.key: run for run in runs}
+    default_modality = modality_options(runs)[0]
+
+    app = Dash(__name__)
+    app.index_string = _INDEX_STRING
+
+    color_buttons = [
+        html.Button(
+            _color_button_label(mode),
+            id={"type": "color-mode-btn", "mode": mode},
+            n_clicks=0,
+            className="active" if mode == NEUTRAL_MODE else "",
+        )
+        for mode in COLOR_MODE_ORDER
+    ]
+
+    # 6-step decision order, left to right (2026-08-14, on request - replaces the previous
+    # single flat "every run from every method mixed together" dropdown, then extended with
+    # explicit Metrica/Componenti steps rather than leaving them buried in the Run label's own
+    # free-text run_name): Dato (modality) -> Pipeline (fixed, not a real choice - informational
+    # only) -> Tipo di riduzione (method) -> Metrica -> Componenti -> Run (scoped by every
+    # step before it). Steps 3-6's own options are populated by the cascading callbacks below,
+    # empty at layout-build time.
+    def _picker_field(label: str, dropdown_id: str) -> html.Div:
+        return html.Div(
+            className="picker-field",
+            children=[html.Label(label, className="picker-label"), dcc.Dropdown(id=dropdown_id, clearable=False)],
+        )
+
+    app.layout = html.Div(
+        className="page",
+        children=[
+            html.H1("Embedding Explorer", className="page-title"),
+            html.P(
+                "Esplorazione interattiva degli embedding di produzione (dim_reduction.py) — "
+                "scegli un run e una colorazione.",
+                className="page-subtitle",
+            ),
+            html.Div(
+                className="controls",
+                children=[
+                    # Two rows (2026-08-14, on request): Pipeline/Dato/Tipo di riduzione
+                    # (the "which pipeline output" question) above, Metrica/Componenti/Run
+                    # (the "which exact combination that pipeline produced" question) below.
+                    html.Div(
+                        className="picker-row",
+                        children=[
+                            html.Div(
+                                className="picker-field",
+                                children=[
+                                    html.Label("Pipeline", className="picker-label"),
+                                    html.Div("Dim Reduction · Produzione", className="picker-fixed"),
+                                ],
+                            ),
+                            html.Div(
+                                className="picker-field",
+                                children=[
+                                    html.Label("Dato", className="picker-label"),
+                                    dcc.Dropdown(
+                                        id="modality-picker",
+                                        options=[{"label": m, "value": m} for m in modality_options(runs)],
+                                        value=default_modality,
+                                        clearable=False,
+                                    ),
+                                ],
+                            ),
+                            _picker_field("Tipo di riduzione", "method-picker"),
+                        ],
+                    ),
+                    html.Div(
+                        className="picker-row",
+                        children=[
+                            _picker_field("Metrica", "metric-picker"),
+                            _picker_field("Componenti", "n-components-picker"),
+                            _picker_field("Run", "run-picker"),
+                        ],
+                    ),
+                    html.Div(color_buttons, className="color-buttons"),
+                ],
+            ),
+            dcc.Store(id="selected-color-mode", data=NEUTRAL_MODE),
+            html.Div(id="graph-area", className="graph-wrap"),
+        ],
+    )
+
+    @app.callback(
+        Output("method-picker", "options"),
+        Output("method-picker", "value"),
+        Input("modality-picker", "value"),
+    )
+    def _update_method_picker(modality: str):
+        methods = method_options(runs, modality)
+        return [{"label": m, "value": m} for m in methods], methods[0]
+
+    @app.callback(
+        Output("metric-picker", "options"),
+        Output("metric-picker", "value"),
+        Input("modality-picker", "value"),
+        Input("method-picker", "value"),
+    )
+    def _update_metric_picker(modality: str, method: str | None):
+        if method is None:
+            raise PreventUpdate
+        metrics = metric_options(runs, modality, method)
+        return [{"label": m, "value": m} for m in metrics], metrics[0]
+
+    @app.callback(
+        Output("n-components-picker", "options"),
+        Output("n-components-picker", "value"),
+        Input("modality-picker", "value"),
+        Input("method-picker", "value"),
+        Input("metric-picker", "value"),
+    )
+    def _update_n_components_picker(modality: str, method: str | None, metric: str | None):
+        if method is None or metric is None:
+            raise PreventUpdate
+        n_components_values = n_components_options(runs, modality, method, metric)
+        options = [{"label": str(n), "value": n} for n in n_components_values]
+        return options, n_components_values[0]
+
+    @app.callback(
+        Output("run-picker", "options"),
+        Output("run-picker", "value"),
+        Input("modality-picker", "value"),
+        Input("method-picker", "value"),
+        Input("metric-picker", "value"),
+        Input("n-components-picker", "value"),
+    )
+    def _update_run_picker(modality: str, method: str | None, metric: str | None, n_components: int | None):
+        if method is None or metric is None or n_components is None:
+            # An upstream picker just changed and hasn't propagated its new value here yet -
+            # each cascading callback is a separate step in Dash's dependency graph, not a
+            # synchronous call chain.
+            raise PreventUpdate
+        matching = runs_matching(runs, modality, method, metric, n_components)
+        options = [{"label": run.run_name, "value": run.key} for run in matching]
+        default_run_key = matching[-1].key  # most recent by _run_chronological_key
+        return options, default_run_key
+
+    @app.callback(
+        Output("selected-color-mode", "data"),
+        Input({"type": "color-mode-btn", "mode": ALL}, "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def _select_color_mode(_all_n_clicks: list[int]) -> str:
+        if ctx.triggered_id is None:
+            raise PreventUpdate
+        return ctx.triggered_id["mode"]
+
+    @app.callback(
+        Output({"type": "color-mode-btn", "mode": ALL}, "className"),
+        Input("selected-color-mode", "data"),
+        State({"type": "color-mode-btn", "mode": ALL}, "id"),
+    )
+    def _highlight_active_button(selected_mode: str, ids: list[dict]) -> list[str]:
+        return ["active" if button_id["mode"] == selected_mode else "" for button_id in ids]
+
+    @app.callback(
+        Output("graph-area", "children"),
+        Input("run-picker", "value"),
+        Input("selected-color-mode", "data"),
+    )
+    def _update_graph(run_key: str | None, selected_mode: str):
+        if run_key is None:
+            raise PreventUpdate
+        return graph_content_for(runs_by_key[run_key], selected_mode)
+
+    return app

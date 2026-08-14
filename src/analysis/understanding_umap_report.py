@@ -1049,9 +1049,8 @@ function setColor(mode, btn) {{
 
 @dataclass
 class TuningData:
-    """Everything both the static HTML report (build_leaf_page/generate_report)
-    and the interactive Dash app (src/analysis/understanding_umap_dash.py)
-    need, loaded and cohort-validated exactly once - see load_tuning_data.
+    """Everything the static HTML report (build_leaf_page/generate_report)
+    needs, loaded and cohort-validated exactly once - see load_tuning_data.
     """
 
     umap_tuning_dir: Path
@@ -1064,14 +1063,12 @@ class TuningData:
 
 
 def load_tuning_data(umap_tuning_dir: Path, tsne_tuning_dir: Path) -> TuningData:
-    """Loads + cohort-validates the UMAP/t-SNE tuning output shared by every
-    consumer of this module (the static report and the Dash app) - factored
-    out of generate_report so neither has to re-load or re-validate on its
-    own (and so the two can never silently drift on what "the same cohort"
-    means). Raises ValueError if the UMAP and t-SNE cohorts don't match
-    (different subjects, order, or metadata columns) - every figure in every
-    consumer assumes row-for-row alignment between the two, so a mismatch
-    here would silently compare two different populations under one legend.
+    """Loads + cohort-validates the UMAP/t-SNE tuning output - factored out
+    of generate_report as its own step for readability. Raises ValueError if
+    the UMAP and t-SNE cohorts don't match (different subjects, order, or
+    metadata columns) - every figure assumes row-for-row alignment between
+    the two, so a mismatch here would silently compare two different
+    populations under one legend.
     """
     if not umap_tuning_dir.exists():
         raise FileNotFoundError(f"umap_tuning_dir does not exist: {umap_tuning_dir}")
