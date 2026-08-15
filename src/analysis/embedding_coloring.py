@@ -1,5 +1,8 @@
 """Registry of embedding-coloring modes shared between dim_reduction.py's
-production and fine-tuning output (src/analysis/embedding_plots.py).
+production and fine-tuning output (src/analysis/embedding_plots.py) and,
+since 15-08-26, src.pipeline.embedding_app's interactive explorer (which
+reads this registry directly to drive its color buttons, independent of any
+pipeline's own `color_by` config - see src/analysis/embedding_app.py).
 
 Adding a new way to color an embedding (e.g. a clinical score) means adding
 one entry here plus its name to a pipeline's `color_by` config list - no
@@ -9,7 +12,12 @@ continuous quantity (rendered with a colorbar, see
 plotting.plot_embedding_continuous), and how to compute one value per
 subject from (metadata, X) - X is the raw feature matrix, used only by modes
 that derive a value from it (volume); modes that only need metadata
-(dataset, side) ignore their X argument.
+(dataset, side, cluster_label) ignore their X argument. Not every mode is
+meaningful for every consumer's own metadata.csv (e.g. cluster_label only
+ever exists in clustering.py's output, never dim_reduction.py's) - a
+consumer reading a metadata.csv without a given mode's column gets a clear
+ValueError from build_embedding_figure/PERSISTED_COLUMN_BY_MODE lookup, not
+a silently blank plot.
 """
 
 from __future__ import annotations
@@ -72,6 +80,21 @@ COLOR_MODES: dict[str, ColorMode] = {
         # request, log_scale=False is the actual differentiator between the
         # two modes' plots, not the colormap.
     ),
+    # clustering.py's own production output (docs/dev/clustering_migration_plan.md §3,
+    # 15-08-26) - never consumed via a pipeline's `color_by` config (dim_reduction.py runs
+    # never have this column, clustering.py's own cluster_plot.png/cluster_plot_interactive.html
+    # color by cluster_labels directly, not through this registry, see docs/dev/plotting.md),
+    # only by src.pipeline.embedding_app, which reads whichever metadata.csv a run actually
+    # wrote and offers every registered mode that column supports. HDBSCAN's noise label (-1)
+    # is deliberately rendered as just another category here (no special gray treatment like
+    # plot_clusters_2d's _NOISE_COLOR) - this is a generic explorer over any metadata column,
+    # not the dedicated cluster-diagnostic plot; the legend still shows "-1" as its own entry,
+    # nothing is hidden.
+    "cluster_label": ColorMode(
+        kind="categorical",
+        compute=lambda metadata, X: metadata["cluster_label"].to_numpy(),
+        label="cluster",
+    ),
 }
 
 
@@ -104,4 +127,5 @@ PERSISTED_COLUMN_BY_MODE: dict[str, str] = {
     "side": "lesion_side",
     "volume": "lesion_volume_voxels",
     "nihss": "nihss",
+    "cluster_label": "cluster_label",
 }

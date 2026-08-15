@@ -1,7 +1,19 @@
 """Logic behind src.pipeline.embedding_app - a live Dash app to explore any already-written
-dim_reduction production run interactively (2D or 3D, color buttons instead of a dropdown,
-editorial styling), replacing the old per-run embedding_plot_interactive.html (removed
-2026-08-14, see src/analysis/plotting.py's module docstring and docs/guides/embedding_app.md).
+dim_reduction.py OR clustering.py production run interactively (2D or 3D, color buttons
+instead of a dropdown, editorial styling), replacing the old per-run
+embedding_plot_interactive.html (removed 2026-08-14, see src/analysis/plotting.py's module
+docstring and docs/guides/embedding_app.md).
+
+Extended 15-08-26 (docs/dev/clustering_migration_plan.md §3, the `X.shape[1] == 3` row) to
+also discover clustering.py's own production runs, not just dim_reduction.py's - both write
+the exact same on-disk shape (matrix.npy/metadata.csv/manifest.json under
+production/<method>/<run_name>, see src.utils.artifacts.save_matrix), so a single discovery
+pass generalizes over the `<pipeline>` path segment (`dim_reduction` or `clustering`) rather
+than needing two separate code paths. A clustering run's metadata.csv additionally has a
+`cluster_label` column (src.analysis.clustering_tuning appends it in production, see
+clustering.py::_run_one_method) - registered as its own COLOR_MODES entry
+(src/analysis/embedding_coloring.py), so this app can color a clustering run by cluster same
+as it colors any run by dataset/side/volume/nihss, all through the same generic mechanism.
 
 No refit, no server-side recomputation of the embedding itself - reads matrix.npy/metadata.csv
 straight off disk (src.utils.artifacts.load_matrix), same "replot, never re-fit" contract
@@ -98,15 +110,25 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 """
 
 
+# The 2 production pipelines this app knows how to discover/display, in preference order
+# (used only to pick a sensible default in the "Pipeline" picker - dim_reduction is the more
+# mature, more commonly explored pipeline, see README.md's "what's implemented so far" - not
+# an alphabetical accident like every other *_options helper below, so kept as its own
+# explicitly ordered constant rather than a set).
+PRODUCTION_PIPELINES: tuple[str, ...] = ("dim_reduction", "clustering")
+
+
 @dataclass(frozen=True)
 class ProductionRun:
-    """One dim_reduction production run discovered under results/<modality>/dim_reduction/
-    production/<method>/<run_name> - path is the absolute run directory (what load_matrix
-    needs), modality/method/run_name are its own path segments (what the UI and
-    compose_embedding_plot_title need), kept apart rather than re-parsed from path every time.
+    """One production run discovered under results/<modality>/<pipeline>/production/<method>/
+    <run_name> (pipeline is "dim_reduction" or "clustering", see PRODUCTION_PIPELINES) - path
+    is the absolute run directory (what load_matrix needs), modality/pipeline/method/run_name
+    are its own path segments (what the UI and compose_embedding_plot_title need), kept apart
+    rather than re-parsed from path every time.
     """
 
     modality: str
+    pipeline: str
     method: str
     run_name: str
     path: Path
@@ -115,45 +137,52 @@ class ProductionRun:
     def key(self) -> str:
         """Stable, unique-per-run string - used as a Dash dropdown option value (Dash
         options need a hashable, JSON-serializable value, not a Path)."""
-        return f"{self.modality}/{self.method}/{self.run_name}"
+        return f"{self.modality}/{self.pipeline}/{self.method}/{self.run_name}"
 
     @property
     def results_relative_path(self) -> Path:
-        """<modality>/dim_reduction/production/<method>/<run_name>, prefixed with "results" -
+        """<modality>/<pipeline>/production/<method>/<run_name>, prefixed with "results" -
         compose_embedding_plot_title (src/analysis/plotting.py) derives the modality from an
         output_dir's own path segments and expects a "results/..."-relative Path, not an
         absolute one (an absolute path's first segment is "/", not "results" - see
         notebooks/post-results_analysis's own fix for the identical issue, 13-08-26)."""
-        return Path("results") / self.modality / "dim_reduction" / "production" / self.method / self.run_name
+        return Path("results") / self.modality / self.pipeline / "production" / self.method / self.run_name
 
 
 def discover_production_runs(results_root: Path) -> list[ProductionRun]:
-    """Scans results_root/*/dim_reduction/production/*/* for valid run directories (must
-    contain manifest.json - the same existence check src.utils.artifacts.load_matrix itself
-    uses to decide a run was actually completed, not left behind by an interrupted build).
+    """Scans results_root/*/<pipeline>/production/*/* for valid run directories (must contain
+    manifest.json - the same existence check src.utils.artifacts.load_matrix itself uses to
+    decide a run was actually completed, not left behind by an interrupted build), across
+    every pipeline in PRODUCTION_PIPELINES.
 
     Generic across modality/method on purpose (2026-08-14, on request: "Tutti, generico") -
-    today only lesion/umap (plus lesion/pca, lesion/tsne, lesion/pacmap) exist, but a future
-    modality (e.g. sdc) or method needs zero changes here to show up, since nothing about the
-    path shape is hardcoded beyond dim_reduction/production's own 2 fixed segments.
+    today only lesion/umap (plus lesion/pca, lesion/tsne, lesion/pacmap, lesion/clustering's
+    various methods) exist, but a future modality (e.g. sdc) or method needs zero changes here
+    to show up, since nothing about the path shape is hardcoded beyond <pipeline>/production's
+    own 2 fixed segments. clustering.py's "comparison" pseudo-method directory (see
+    clustering.py::_comparison_dir) is naturally excluded here without any special-casing:
+    it only ever holds a config.md, never a manifest.json, so it fails the same existence
+    check every other incomplete/non-run directory does.
 
     Returns an empty list if results_root doesn't exist or has no matching runs at all - not
     an error: a completely fresh checkout with no pipeline ever run is a legitimate starting
     state for this app (the caller/UI decides how to represent "nothing to show").
-    Sorted by (modality, method, run_name) for a deterministic dropdown order.
+    Sorted by (modality, pipeline, method, run_name) for a deterministic dropdown order.
     """
     if not results_root.exists():
         return []
     runs = []
-    for path in results_root.glob("*/dim_reduction/production/*/*"):
-        if not (path.is_dir() and (path / MANIFEST_FILENAME).exists()):
-            continue
-        # relative_to(results_root)'s own parts, not raw negative indices into the absolute
-        # path - self-documenting (modality/dim_reduction/production/method/run_name) and
-        # correct regardless of how deep results_root's own absolute path happens to be.
-        modality, _dim_reduction, _production, method, run_name = path.relative_to(results_root).parts
-        runs.append(ProductionRun(modality=modality, method=method, run_name=run_name, path=path))
-    return sorted(runs, key=lambda run: (run.modality, run.method, run.run_name))
+    for pipeline in PRODUCTION_PIPELINES:
+        for path in results_root.glob(f"*/{pipeline}/production/*/*"):
+            if not (path.is_dir() and (path / MANIFEST_FILENAME).exists()):
+                continue
+            # relative_to(results_root)'s own parts, not raw negative indices into the
+            # absolute path - self-documenting (modality/pipeline/production/method/run_name)
+            # and correct regardless of how deep results_root's own absolute path happens to
+            # be.
+            modality, _pipeline_segment, _production, method, run_name = path.relative_to(results_root).parts
+            runs.append(ProductionRun(modality=modality, pipeline=pipeline, method=method, run_name=run_name, path=path))
+    return sorted(runs, key=lambda run: (run.modality, run.pipeline, run.method, run.run_name))
 
 
 # A run_name's own leading "DD-MM" (every run seen so far: "13-08_s1.1_nc3_m_dice",
@@ -179,29 +208,53 @@ def modality_options(runs: list[ProductionRun]) -> list[str]:
     return sorted({run.modality for run in runs})
 
 
-def method_options(runs: list[ProductionRun], modality: str) -> list[str]:
-    """Distinct reduction methods available for `modality`, sorted - step 3 of the picker
-    ("Tipo di riduzione"), after the fixed "Pipeline: dim_reduction · produzione" step 2 (not
-    a real choice - every run this app discovers already went through that exact pipeline in
-    that exact mode, see discover_production_runs)."""
-    return sorted({run.method for run in runs if run.modality == modality})
+def pipeline_options(runs: list[ProductionRun], modality: str) -> list[str]:
+    """Distinct pipelines available for `modality` - step 2 of the picker ("Pipeline"), now a
+    real choice (15-08-26) rather than the fixed "dim_reduction · produzione" label it used to
+    be, since this app discovers both dim_reduction.py and clustering.py runs. Ordered by
+    PRODUCTION_PIPELINES' own preference order, not alphabetically (dim_reduction first,
+    matching every other *_options helper's plain `sorted()` would put clustering first
+    instead - a worse default given dim_reduction is the more mature pipeline)."""
+    available = {run.pipeline for run in runs if run.modality == modality}
+    return [pipeline for pipeline in PRODUCTION_PIPELINES if pipeline in available]
 
 
-def runs_for(runs: list[ProductionRun], modality: str, method: str) -> list[ProductionRun]:
-    """Runs matching (modality, method), chronologically ordered (oldest first, most recent
-    last) - the base scope every later picker step (Metrica/Componenti/Run) narrows further.
-    Scoped to one modality+method at a time is the whole point of the multi-step picker
-    (2026-08-14, on request): the original single flat dropdown mixed every method's runs
-    together, so picking a run meant scanning entries that weren't even the same reduction
-    method."""
-    return sorted((run for run in runs if run.modality == modality and run.method == method), key=_run_chronological_key)
+def method_options(runs: list[ProductionRun], modality: str, pipeline: str) -> list[str]:
+    """Distinct methods available for (modality, pipeline), sorted - step 3 of the picker
+    ("Metodo": a dim_reduction method like umap/pca, or a clustering method like
+    kmeans/hdbscan, depending on the pipeline chosen in step 2)."""
+    return sorted({run.method for run in runs if run.modality == modality and run.pipeline == pipeline})
+
+
+def runs_for(runs: list[ProductionRun], modality: str, pipeline: str, method: str) -> list[ProductionRun]:
+    """Runs matching (modality, pipeline, method), chronologically ordered (oldest first, most
+    recent last) - the base scope every later picker step (Metrica/Componenti/Run) narrows
+    further. Scoped this tightly is the whole point of the multi-step picker (2026-08-14, on
+    request): the original single flat dropdown mixed every method's runs together, so picking
+    a run meant scanning entries that weren't even the same method."""
+    return sorted(
+        (run for run in runs if run.modality == modality and run.pipeline == pipeline and run.method == method),
+        key=_run_chronological_key,
+    )
 
 
 # Sentinel for "this method's own params have no 'metric' key at all" (PCA/PaCMAP today,
 # see config/registry/params_reduction.json - their base params dicts never include one,
 # unlike UMAP/t-SNE) - distinct from any real metric string, so the "Metrica" picker still
 # has exactly one, always-selectable option for those methods instead of an empty dropdown.
+# Also the only value clustering pipeline runs ever report (15-08-26) - a clustering method's
+# own params (kmeans' n_clusters, hdbscan's min_cluster_size, ...) have no "metric" axis in
+# this picker's sense at all, not just sometimes-missing like pca/pacmap's.
 NO_METRIC = "—"
+
+# Sibling sentinel for "this run's params have no 'n_components' key at all" - every
+# clustering pipeline run (15-08-26): clustering.py never resamples X's dimensionality, so its
+# own params dict has no n_components concept (the picker still shows the "Componenti" step
+# for a uniform layout across both pipelines, just with this one always-selectable option). An
+# int, not a string like NO_METRIC, to keep n_components_options' return type uniform
+# (list[int]) for its dim_reduction-pipeline case - -1 is safely distinct from any real
+# n_components value (always >= 1).
+NO_N_COMPONENTS = -1
 
 _PARAMS_USED_PREFIX = "Params used: "
 
