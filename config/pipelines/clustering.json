@@ -9,5 +9,6 @@
   "session_name": "",
   "overwrite": true,
   "fine_tuning": false,
+  "reduced_data": true,
   "run_notes": ""
 }

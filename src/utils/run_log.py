@@ -8,9 +8,8 @@ as summaries/logs, see docs/dev/design_patterns.md).
 
 Deliberately does not know about session *meaning* - what session "s1.1" was
 for, which datasets/modality it covers, etc. That's SESSIONS.md, hand-written
-by a human (data/derived/lesion_matrix/SESSIONS.md, symlinked at
-results/SESSIONS.md) - this module only ever appends a data row keyed by
-run_id, never reads or writes session descriptions.
+by a human (docs/experiments/SESSIONS.md) - this module only ever appends a
+data row keyed by run_id, never reads or writes session descriptions.
 """
 
 from __future__ import annotations
@@ -21,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-FIELDNAMES = ["session", "id", "timestamp", "params", "output", "notes"]
+FIELDNAMES = ["session", "id", "timestamp", "input_path", "params", "output", "notes"]
 
 RunType = Literal["production", "tuning"]
 _FILE_NAME_BY_RUN_TYPE: dict[RunType, str] = {"production": "runs.csv", "tuning": "runs_tuning.csv"}
@@ -35,6 +34,7 @@ def append_run_log_entry(
     params_summary: dict,
     output_dir: Path,
     run_notes: str | None,
+    input_path: Path,
     extra_columns: dict[str, str] | None = None,
 ) -> None:
     """Append one row to runs_csv_path, creating it (with a header) if absent.
@@ -48,11 +48,22 @@ def append_run_log_entry(
     two literal strings; a Literal-typed caller catches a typo at type-check
     time already, this is the runtime backstop).
 
+    input_path (14-08-26) is the source matrix this run was computed from -
+    every pipeline's own Config dataclass already carries this, so callers
+    just forward `config.input_path`, no new data to compute. Distinct from
+    `output_dir`: `output_dir` is where *this* run's own artifact ended up,
+    `input_path` is what it was built *from* - added specifically so a reader
+    of runs.csv (e.g. results/dim_reduction_strategies.csv's generator, or a
+    future "have I already computed this?" lookup helper) can tell whether two
+    rows with identical `params` were actually computed on the same underlying
+    data, not just assume it from a matching path string
+    (docs/dev/clustering_migration_plan.md §6-7).
+
     extra_columns prepends caller-specific leading columns (e.g. which of two
     axes a row belongs to, for a pipeline that shares one runs_csv_path
-    across more than one dimension - see dim_reduction_clustering.py, whose
-    runs.csv is shared by every clustering method run against a given
-    reduction). Every call writing to the *same* runs_csv_path must pass the
+    across more than one dimension - see build_fc_matrix.py/mask_fc.py, whose
+    runs.csv is shared across every atlas_combo run against a given dataset).
+    Every call writing to the *same* runs_csv_path must pass the
     same extra_columns keys, since the header is only written once, on the
     first call. Omitted (None) by every other caller today - keeps FIELDNAMES
     as the exact, unchanged schema for their files.
@@ -80,6 +91,7 @@ def append_run_log_entry(
                 "session": session,
                 "id": id_part,
                 "timestamp": now.strftime("%d-%m-%y %H:%M"),
+                "input_path": str(input_path),
                 "params": json.dumps(params_summary),
                 "output": str(output_dir),
                 "notes": run_notes or "",

@@ -54,6 +54,20 @@ def _build_matrix(tmp_path, monkeypatch, n_subjects=12):
     return next(p for p in output_root.iterdir() if p.is_dir())
 
 
+def _write_viz_embedding(tmp_path, name, subject_metadata):
+    """Builds a tiny 2D companion embedding artifact (see
+    clustering.py::_resolve_viz_embedding) covering the exact same subjects,
+    in the exact same order, as subject_metadata - the shape viz_embedding_path
+    must have to be accepted."""
+    from src.utils.artifacts import save_matrix
+
+    n = len(subject_metadata)
+    viz_X = np.random.default_rng(0).normal(size=(n, 2))
+    viz_dir = tmp_path / name
+    save_matrix(viz_dir, viz_X, subject_metadata.copy(), ["# viz embedding fixture"], overwrite=False)
+    return viz_dir
+
+
 def test_clustering_end_to_end(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
@@ -62,6 +76,8 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
     params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
 
     original_X = np.load(input_dir / "matrix.npy")
+    input_metadata = pd.read_csv(input_dir / "metadata.csv")
+    viz_dir = _write_viz_embedding(tmp_path, "viz_embedding", input_metadata)
 
     output_root = tmp_path / "cl_out"
     cfg = {
@@ -73,6 +89,8 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
+        "reduced_data": False,
+        "viz_embedding_path": str(viz_dir),
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -87,11 +105,120 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
     assert np.array_equal(X, original_X)  # unchanged, per design (no reduction happened)
     assert list(metadata.columns) == ["subject_id", "dataset", "cluster_label"]
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
+    # X has 57 raw voxel columns (not 2 or 3) - this plot only exists because
+    # viz_embedding_path was given (see _resolve_viz_embedding), not from a
+    # slice of X (lessons_learned.md #16).
     assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
     runs_csv = (output_root / "production" / "kmeans" / "runs.csv").read_text()
     assert "run1" in runs_csv
     assert not (output_root / "tuning" / "kmeans" / "runs_tuning.csv").exists()  # production/tuning are separate files, not a column
+
+
+def test_clustering_viz_embedding_path_wrong_n_components_raises(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
+
+    input_metadata = pd.read_csv(input_dir / "metadata.csv")
+    from src.utils.artifacts import save_matrix
+
+    bad_viz_dir = tmp_path / "bad_viz"
+    save_matrix(
+        bad_viz_dir,
+        np.random.default_rng(0).normal(size=(len(input_metadata), 5)),  # 5 components, not 2 or 3
+        input_metadata.copy(),
+        ["# bad viz fixture"],
+        overwrite=False,
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "reduced_data": False,
+        "viz_embedding_path": str(bad_viz_dir),
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 1
+
+
+def test_clustering_viz_embedding_path_mismatched_subjects_raises(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
+
+    input_metadata = pd.read_csv(input_dir / "metadata.csv")
+    shuffled_metadata = input_metadata.iloc[::-1].reset_index(drop=True)  # same subjects, different order
+    viz_dir = _write_viz_embedding(tmp_path, "shuffled_viz", shuffled_metadata)
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "reduced_data": False,
+        "viz_embedding_path": str(viz_dir),
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 1
+
+
+def test_clustering_end_to_end_no_viz_embedding_skips_plots(tmp_path, monkeypatch):
+    """Regression: X here has 57 raw voxel columns (not 2 or 3) and no
+    viz_embedding_path is given - every cluster-colored plot must be skipped
+    with a warning, never silently drawn from X[:, :2] (lessons_learned.md #16)."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "reduced_data": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    out_dir = next(p for p in (output_root / "production" / "kmeans").iterdir() if p.is_dir())
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}  # the artifact itself is still written
+    assert not (out_dir / "cluster_plot.png").exists()
+    assert not (out_dir / "cluster_plot_interactive.html").exists()
+    assert not (out_dir / "silhouette_plot.png").exists()
 
 
 def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):
@@ -111,6 +238,7 @@ def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
+        "reduced_data": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -140,6 +268,7 @@ def test_clustering_end_to_end_gmm(tmp_path, monkeypatch):
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
+        "reduced_data": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -171,6 +300,7 @@ def test_clustering_end_to_end_spectral(tmp_path, monkeypatch):
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
+        "reduced_data": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -223,6 +353,7 @@ def test_clustering_end_to_end_evidence_accumulation(tmp_path, monkeypatch):
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
+        "reduced_data": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -237,7 +368,9 @@ def test_clustering_end_to_end_evidence_accumulation(tmp_path, monkeypatch):
     # is checked, not a specific bounded set of values
     assert len(metadata["cluster_label"]) == 12
     assert (metadata["cluster_label"] >= 0).all()
-    assert (out_dir / "cluster_plot.png").stat().st_size > 0
+    # X has 57 raw voxel columns and no viz_embedding_path was given here - no
+    # cluster_plot.png, see test_clustering_end_to_end_no_viz_embedding_skips_plots.
+    assert not (out_dir / "cluster_plot.png").exists()
 
 
 def test_clustering_end_to_end_hdbscan_reports_noise_separately(tmp_path, monkeypatch):
@@ -257,6 +390,7 @@ def test_clustering_end_to_end_hdbscan_reports_noise_separately(tmp_path, monkey
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
+        "reduced_data": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -290,6 +424,9 @@ def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path,
         )
     )
 
+    input_metadata = pd.read_csv(input_dir / "metadata.csv")
+    viz_dir = _write_viz_embedding(tmp_path, "viz_embedding", input_metadata)
+
     output_root = tmp_path / "cl_out"
     cfg = {
         "project": "testproj",
@@ -300,6 +437,8 @@ def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path,
         "session_name": "run1",
         "overwrite": False,
         "fine_tuning": False,
+        "reduced_data": False,
+        "viz_embedding_path": str(viz_dir),
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -316,6 +455,7 @@ def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path,
 
     comparison_dir = next(p for p in (output_root / "production" / "comparison").iterdir() if p.is_dir())
     assert (comparison_dir / "cluster_comparison.png").stat().st_size > 0
+    assert (comparison_dir / "cluster_comparison_interactive.html").stat().st_size > 0
     comparison_readme = (comparison_dir / "config.md").read_text()
     assert "kmeans" in comparison_readme
     assert "agglomerative" in comparison_readme
@@ -347,6 +487,7 @@ def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monke
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
+        "reduced_data": False,
         "run_notes": "prova sweep n_clusters",
     }
     cfg_path = tmp_path / "cl.json"
@@ -396,6 +537,7 @@ def test_clustering_fine_tuning_two_swept_params_writes_heatmap(tmp_path, monkey
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
+        "reduced_data": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -434,6 +576,7 @@ def test_clustering_fine_tuning_overwrite_wipes_stale_plot_from_incompatible_pri
             "session_name": "tune_reuse",
             "overwrite": overwrite,
             "fine_tuning": True,
+            "reduced_data": False,
             "run_notes": None,
         }
 
@@ -504,6 +647,7 @@ def test_clustering_fine_tuning_kmeans_with_consensus_writes_rsc_monti_columns(t
         "session_name": "tune_consensus",
         "overwrite": False,
         "fine_tuning": True,
+        "reduced_data": False,
         "run_notes": "prova consensus/stability clustering",
     }
     cfg_path = tmp_path / "cl.json"
@@ -548,6 +692,7 @@ def test_clustering_fine_tuning_gmm_writes_bic_aic(tmp_path, monkeypatch):
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
+        "reduced_data": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -582,6 +727,7 @@ def test_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkey
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
+        "reduced_data": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -620,6 +766,7 @@ def test_clustering_fine_tuning_spectral_writes_eigengap(tmp_path, monkeypatch):
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
+        "reduced_data": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -651,6 +798,7 @@ def test_clustering_fine_tuning_hdbscan_writes_noise_fraction(tmp_path, monkeypa
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
+        "reduced_data": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -699,6 +847,7 @@ def test_clustering_fine_tuning_multiple_methods_stops_on_first_failure(tmp_path
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
+        "reduced_data": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -744,6 +893,7 @@ def test_clustering_fine_tuning_sweep_value_error_is_caught_not_propagated(tmp_p
         "session_name": "tune1",
         "overwrite": False,
         "fine_tuning": True,
+        "reduced_data": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl_valueerror.json"

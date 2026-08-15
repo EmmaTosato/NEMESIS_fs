@@ -222,7 +222,7 @@ def run_params(run: ProductionRun) -> dict:
     """
     config_path = run.path / "config.md"
     if not config_path.exists():
-        raise ValueError(f"Run {run.path} has no configuration available - cannot read its resolved params")
+        raise ValueError(f"Run {run.path} has no config.md - cannot read its resolved params")
     for line in config_path.read_text().splitlines():
         if line.startswith(_PARAMS_USED_PREFIX):
             return json.loads(line[len(_PARAMS_USED_PREFIX) :])
@@ -341,7 +341,7 @@ def build_embedding_figure(
     COLOR_MODE_ORDER's own entries as UI choices should never actually hit these.
     """
     if mode_name not in COLOR_MODE_ORDER:
-        raise ValueError(f"Unknown color mode {mode_name!r} - known: {list(COLOR_MODE_ORDER)}")
+        raise ValueError(f"unknown color mode {mode_name!r} - known: {list(COLOR_MODE_ORDER)}")
     is_3d = zlabel is not None
     if is_3d and embedding.shape[1] != 3:
         raise ValueError(f"zlabel given but embedding has {embedding.shape[1]} columns, not 3")

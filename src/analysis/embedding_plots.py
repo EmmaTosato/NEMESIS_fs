@@ -2,8 +2,7 @@
 fine-tuning output, built on plotting.py's primitives plus the
 embedding_coloring registry - the single place that knows how to turn "an
 embedding + a list of color_by names" into a set of files, so production and
-tuning (and, optionally, dim_reduction_clustering.py) never re-implement this
-loop themselves.
+tuning never re-implement this loop themselves.
 """
 
 from __future__ import annotations

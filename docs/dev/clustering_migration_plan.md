@@ -2,7 +2,7 @@
 
 > **Stato**: piano, non ancora implementato. Diverso dal resto di `docs/dev/` (che descrive
 > l'architettura *attuale*, mai un piano futuro) — questo file va aggiornato via via che i punti
-> vengono completati, e **cancellato o fuso in `clustering.md`/`docs/guides/clustering.md`** a
+> vengono completati, e **cancellato o fuso in `docs/guides/clustering.md`** a
 > migrazione conclusa, non lasciato a vivere accanto alla nuova architettura come doc parallela.
 >
 > Deciso in sessione 14-08-26 (discussione, non ancora eseguito). Contesto letteratura/gap
@@ -22,97 +22,84 @@ duplicazione CLI.
 
 ## 1. Come cambia il config
 
-`ClusteringConfig` (`src/analysis/model_config.py`) guadagna 4 campi nuovi, tutti opzionali salvo
-dove indicato:
+**Semplificato in sessione (14-08-26)**: niente `embed()` dentro `clustering.py`. Ricalcolare una
+riduzione al volo dentro `clustering.py` è stato scartato per ora come troppo complesso da
+implementare bene subito — `clustering.py` non chiama mai `embed()`, in nessun ramo. `reduced_data`
+resta, ma cambia scopo: non più "ricomputa la riduzione", solo **una dichiarazione esplicita di
+cosa rappresenta `input_path`** — coerente con "niente fallback silenziosi" (§0
+`code_standards.md`): il codice non deve indovinare se sta clusterizzando un embedding o una
+matrice grezza, l'operatore lo dichiara.
+
+`ClusteringConfig` (`src/analysis/model_config.py`) guadagna 2 campi nuovi:
 
 | Campo | Tipo | Obbligatorio se |
 |---|---|---|
-| `reduced_data` | `bool` | sempre presente, default `false` |
-| `reduction_method` | `str \| None` | **richiesto** se `reduced_data=true` |
-| `reduction_params_file` | `Path \| None` | **richiesto** se `reduced_data=true` |
-| `viz_n_components` | `int` | sempre presente, **deve essere 2 o 3** (validare, non assumere) |
+| `reduced_data` | `bool` | sempre presente, nessun default silenzioso — va dichiarato esplicitamente |
 | `color_by` | `tuple[str, ...]` | opzionale, default vuoto |
 
-Validazione esplicita in `load_clustering_config` (coerente con `code_standards.md` §0 — niente
-fallback silenziosi):
-- `reduced_data=true` senza `reduction_method`/`reduction_params_file` → `ValueError` chiaro.
-- `reduced_data=false` **con** `reduction_method`/`reduction_params_file` valorizzati → `ValueError`
-  (quasi certamente un errore di configurazione, non un campo da ignorare in silenzio).
-- `viz_n_components` fuori da `{2, 3}` → `ValueError` (vedi §3).
+- `reduced_data=true`: `input_path` punta a un embedding **già calcolato** (es. da
+  `dim_reduction.py`, con qualunque `n_components`). Nessun ricalcolo — `clustering.py` legge e
+  clusterizza `X` così com'è.
+- `reduced_data=false`: `input_path` punta a una matrice grezza, clusterizzata direttamente
+  (opzione permessa ma sconsigliata, già documentata in
+  `knowledge/dim_reduction_clustering/clustering_tuning_guide.md`).
+
+`~~reduction_method~~`/`~~reduction_params_file~~` **non servono più** — eliminati dal design,
+non solo dal config. `~~viz_n_components~~` come campo di config **non serve più**: la
+dimensionalità della viz non si configura, **si scopre dalla forma di `X` a runtime** (vedi §3) —
+un campo di config in meno da tenere sincronizzato con la realtà dell'embedding caricato.
 
 `config/pipelines/dim_reduction_clustering.json` **sparisce**. `config/pipelines/clustering.json`
-assorbe i suoi campi (`reduction_method`/`reduction_params_file`, stessi nomi/semantica di oggi).
-I registry per-metodo (`params_reduction.json`, `params_clustering.json`) restano invariati — solo
-`clustering.json` referenzia entrambi quando `reduced_data=true`.
+assorbe solo `reduced_data` + `color_by` — non due file di parametri di riduzione, il design non li
+prevede più. I registry per-metodo (`params_reduction.json`, `params_clustering.json`) restano
+invariati, ma `clustering.json` non referenzia più il primo in nessun caso.
 
 ## 2. Come si armonizza il codice sull'input
 
-Oggi il significato di `config.input_path` è ambiguo tra le due pipeline. Dopo la migrazione,
-`clustering.py` risolve **una sola volta**, all'inizio di `main()`, una coppia
-`(X_cluster, X_viz)` a seconda di `reduced_data`:
+**Molto più semplice del design iniziale**, ora che `embed()` non entra più in `clustering.py`:
+`load_matrix(config.input_path)` resta l'**unico** modo in cui `clustering.py` ottiene `X`, in
+entrambi i valori di `reduced_data` — nessun ramo di calcolo diverso. `reduced_data` non cambia
+*come* si carica `X`, cambia solo *come lo si dichiara/logga* e come si tratta la sua
+dimensionalità per la viz (§3).
 
-- **`reduced_data=true`**: `input_path` è la matrice **grezza pre-riduzione** (stesso significato
-  di oggi in `dim_reduction_clustering.py`). `X_cluster = embed(reduction_method, X, reduction_params,
-  distance_cache)`; `X_viz = embedding_for_viz(reduction_method, X, reduction_params, X_cluster,
-  viz_n_components, distance_cache)` — stessa logica di oggi, portata dentro `clustering.py`.
-- **`reduced_data=false`**: `input_path` è una matrice **già pronta da clusterizzare così com'è**
-  (grezza o un embedding già salvato da `dim_reduction.py` — `clustering.py` non lo sa e non gli
-  serve saperlo). `X_cluster = X`. Per `X_viz`:
-  - se `X.shape[1] == viz_n_components` → `X_viz = X` (nessun costo aggiuntivo, caso comune:
-    input già a 2D/3D).
-  - se `X.shape[1] != viz_n_components` → **`ValueError` esplicito**, non uno slicing silenzioso.
-    `clustering.py` non conosce il metodo/parametri che hanno prodotto questa matrice, quindi non
-    può rifittare una vista valida (lo stesso principio già applicato a
-    `scripts/replot_dim_reduction.py`, vedi `lessons_learned.md` #16) — un taglio `X[:, :2]` su un
-    embedding UMAP/t-SNE a N>2 dimensioni non è una proiezione valida. Il messaggio d'errore deve
-    suggerire l'alternativa: produrre un embedding a `viz_n_components` esatti via `dim_reduction.py`,
-    oppure usare `reduced_data=true` per lasciare che sia `clustering.py` a controllare la proiezione.
+`X_cluster = X`, sempre. Non esiste più un `X_viz` calcolato per rifit — vedi §3 per come si
+decide se e cosa disegnare, dato che questo è esattamente il punto lasciato aperto in sessione.
 
-  **Nota**: questo sostituisce l'uso attuale di `X[:, :2]` in `clustering.py` per
-  `cluster_plot.png` — oggi silenzioso e "innocuo per caso" solo perché finora `clustering.py` non
-  è mai stato usato in produzione su un embedding salvato a >2 componenti (nessun run reale sotto
-  `results/lesion/clustering/`, verificato). Va corretto comunque, non solo quando succede.
+Questo sostituisce comunque l'uso attuale di `X[:, :2]` in `clustering.py` per `cluster_plot.png`
+— oggi silenzioso e "innocuo per caso" solo perché finora `clustering.py` non è mai stato usato in
+produzione su un embedding salvato a >2 componenti (nessun run reale sotto
+`results/lesion/clustering/`, verificato). Va corretto comunque, non solo quando succede — vedi §3.
 
 ## 3. Comportamento con 2, 3 o più componenti
 
-Due concetti **indipendenti**, da non confondere nel codice come nella doc:
-- `n_components` del metodo di riduzione (dentro `reduction_params_file`) — quante dimensioni ha
-  l'embedding su cui *si clusterizza* (può essere 2, 10, 15... nessun vincolo).
-- `viz_n_components` — quante dimensioni ha la proiezione usata *solo per disegnare* i plot.
-  **Sempre 2 o 3**, mai di più (un plot a 4+ dimensioni non esiste).
+**Non più un campo di config** (`viz_n_components` rimosso, vedi §1) — la dimensionalità della viz
+si scopre a runtime da `X.shape[1]` dopo il caricamento, non si dichiara a priori.
 
-Verificato lo stato attuale prima di scrivere questo piano:
-`write_embedding_plots` (`src/analysis/embedding_plots.py`) già oggi **non produce PNG statici per
-un embedding a 3 componenti** ("a non-rotatable 3D scatter is unreadable") — l'esplorazione 3D
-passa dal nuovo `src.pipeline.embedding_app` (Dash, Plotly 3D interattivo, appena introdotto,
-commit `1da77e4`), che oggi però scopre solo run di produzione di `dim_reduction.py`
-(`discover_production_runs`, pattern `results/*/dim_reduction/production/*/*`) e non ha
-`cluster_label` come color mode.
+Verificato lo stato attuale prima di scrivere questo piano: `write_embedding_plots`
+(`src/analysis/embedding_plots.py`) già oggi **non produce PNG statici per un embedding a 3
+componenti** ("a non-rotatable 3D scatter is unreadable") — l'esplorazione 3D passa dal nuovo
+`src.pipeline.embedding_app` (Dash, Plotly 3D interattivo, appena introdotto, commit `1da77e4`),
+che oggi però scopre solo run di produzione di `dim_reduction.py` (`discover_production_runs`,
+pattern `results/*/dim_reduction/production/*/*`) e non ha `cluster_label` come color mode.
 
-`clustering.py` post-migrazione deve seguire la stessa regola, non reinventarne una diversa:
-
-| `viz_n_components` | Comportamento |
+| `X.shape[1]` | Comportamento |
 |---|---|
-| `2` | Comportamento di oggi: `cluster_plot.png`, `cluster_plot_interactive.html`, `silhouette_plot.png`, confronto statico e interattivo tra metodi — tutti invariati. |
-| `3` | **Nessun PNG statico colorato per cluster** (stessa regola di `write_embedding_plots`). Serve estendere `embedding_app.py`: (a) far scoprire anche i run di produzione di `clustering.py`/`clustering.py --reduced_data`, (b) aggiungere `cluster_label` al registro color mode (`embedding_coloring.py`). **Task esplicito da tracciare a parte**, non implicito nella migrazione — oggi l'app non sa nulla di clustering. |
-
-Il numero di componenti della riduzione (10, 15...) usato per il clustering vero e proprio non è
-mai vincolato da questa tabella — resta libero, `viz_n_components` proietta sempre e solo per la
-visualizzazione, indipendentemente da quante dimensioni ha `X_cluster`.
+| `2` | Come oggi: `cluster_plot.png`, `cluster_plot_interactive.html`, `silhouette_plot.png`, confronto statico e interattivo — invariati, si disegna direttamente su `X`. |
+| `3` | Nessun PNG statico colorato per cluster (stessa regola di `write_embedding_plots`). Estendere `embedding_app.py`: (a) fargli scoprire anche i run di `clustering.py`, (b) aggiungere `cluster_label` al registro color mode (`embedding_coloring.py`). **Task da tracciare a parte**, non implicito — oggi l'app non sa nulla di clustering. |
+| `> 3` (o `< 2`) | **Deciso e implementato (14-08-26)**: opzione (a). Nuovo campo config opzionale `viz_embedding_path` — un embedding "gemello" 2D/3D calcolato **a parte** dall'utente (es. via `dim_reduction.py`, stessi `random_state`/`n_neighbors`/`metric`, solo `n_components` diverso), sugli stessi soggetti nello stesso ordine. `clustering.py::_resolve_viz_embedding` lo carica e valida (numero componenti 2/3, stesso `subject_id` in stesso ordine di `input_path` — altrimenti `ValueError`); se `X.shape[1]` è già 2 o 3 lo ignora e usa `X` direttamente. Se né l'uno né l'altro vale, **nessun plot** (`cluster_plot.png`/`cluster_plot_interactive.html`/`silhouette_plot.png`/`cluster_comparison.png` tutti saltati con warning esplicito) — mai una slice di `X` (`lessons_learned.md` #16). Implementato in `src/pipeline/clustering.py`, testato in `tests/integration/test_clustering_pipeline.py`. |
 
 ## 4. Struttura output
 
-Stessa logica condizionale di `reduced_data` decide anche l'annidamento cartelle, senza
-introdurre un terzo schema:
-- `reduced_data=false`: schema piatto di oggi, `<output_root>/production/<method>/...`.
-- `reduced_data=true`: schema annidato di oggi (da `dim_reduction_clustering.py`),
-  `<output_root>/production/<reduction_method>/<method>/...`, un `runs.csv` condiviso per
-  riduzione (via `extra_columns`, come oggi).
+Senza più `reduction_method` in config (§1), non c'è più un campo da cui derivare
+automaticamente un annidamento a due livelli — **schema piatto sempre**,
+`<output_root>/production/<method>/...`, identico indipendentemente da `reduced_data`. Il
+raggruppamento "questi metodi vengono tutti dalla stessa riduzione" resta possibile solo tramite
+`session_name`/tag scelti dall'utente (come già oggi in `clustering.py`), non forzato dalla
+struttura di cartelle.
 
 I risultati storici sotto `results/lesion/dim_reduction_clustering/` **non vanno spostati/rinominati**
-- restano un archivio del vecchio pipeline. I nuovi run con `reduced_data=true` scrivono sotto un
-nuovo root (es. `results/lesion/clustering/production/<reduction_method>/<method>/...`), dominio
-distinto, nessuna collisione.
+— restano un archivio del vecchio pipeline. I nuovi run scrivono sotto un nuovo root
+(`results/lesion/clustering/production/<method>/...`), dominio distinto, nessuna collisione.
 
 ## 5. Checklist di eliminazione (ordine, non tutto insieme)
 
@@ -120,11 +107,14 @@ L'ordine conta: non si cancella `dim_reduction_clustering.py` finché `clusterin
 di feature *verificata da test*, altrimenti si perde temporaneamente lo script più usato del
 progetto senza sostituto funzionante.
 
-1. Estendere `ClusteringConfig`/`load_clustering_config` (§1).
-2. Implementare il ramo `reduced_data=true` in `clustering.py` (§2) — riusa `embed()`/
-   `embedding_for_viz()` da `src/analysis/reduction.py`, non li reimplementa.
-3. Portare `viz_n_components ∈ {2,3}` + la regola della tabella in §3 (incluso il task separato di
-   estendere `embedding_app.py` per il caso 3D+cluster).
+1. Estendere `ClusteringConfig`/`load_clustering_config` con `reduced_data`/`color_by` (§1).
+2. Nessuna logica di calcolo nuova da portare (§2) — `clustering.py` continua a usare solo
+   `load_matrix`, `reduced_data` è dichiarativo. Va solo aggiunto un log esplicito all'avvio
+   ("clustering su embedding già calcolato" / "clustering su matrice grezza") per rendere visibile
+   quale caso è in corso.
+3. **Decidere** (non ancora fatto, vedi §3) come gestire la viz quando `X.shape[1] > 3`, poi
+   implementare la regola della tabella in §3 (incluso il task separato di estendere
+   `embedding_app.py` per il caso 3D+cluster).
 4. Scrivere/portare test che coprano il nuovo ramo (mirror di
    `tests/integration/test_dim_reduction_clustering_pipeline.py` su `test_clustering_pipeline.py`)
    — parità dimostrata da test verdi, non da ispezione a occhio.
@@ -134,9 +124,10 @@ progetto senza sostituto funzionante.
    - eliminare `docs/guides/dim_reduction_clustering.md`, fondere le istruzioni d'uso rilevanti in
      `docs/guides/clustering.md`
    - eliminare `jobs/run_dim_reduction_clustering.sh`
-   - aggiornare ogni riferimento incrociato in `clustering.md`, `clustering_tuning_guide.md`,
-     `dim_reduction.md`, `docs/dev/config.md`, `docs/dev/models.md`, `README.md` ("what's
-     implemented so far")
+   - aggiornare ogni riferimento incrociato in `knowledge/dim_reduction_clustering/clustering_tuning_guide.md`,
+     `docs/dev/config.md`, `docs/dev/models.md`, `README.md` ("what's implemented so far") —
+     `clustering.md`/`dim_reduction.md` (root) non esistono più dal 14-08-26, contenuto già confluito
+     in `knowledge/dim_reduction_clustering/`
    - **non** rinominare `knowledge/dim_reduction_clustering/` né
      `docs/experiments/dim_reduction_clustering/` — sono cartelle sul *tema* (letteratura,
      esperimenti), non sul nome dello script; restano valide a prescindere dalla sua eliminazione.
@@ -196,13 +187,25 @@ lo schema attuale di `runs.csv`, aggiungendo la precisione di `input_path` come 
 
 ## 7. Colonna `input_path` in `runs.csv` (propedeutica al §6, non solo a lookup manuali)
 
-Discusso in sessione, non ancora implementato:
+**Fatto 14-08-26.** `scripts/backfill_runs_csv_input_path.py` (nuovo) ha eseguito il backfill:
+21 righe storiche esaminate, 9 recuperate da `config.md`, 12 lasciate vuote con warning esplicito
+(righe pre-riorganizzazione produzione/tuning la cui cartella `output` originale non esiste più
+allo stesso path — un gap storico pre-esistente, non introdotto qui, isolato per riga senza
+bloccare il resto del file, coerente con `lessons_learned.md` #21). Nota a parte: durante questo
+lavoro è emerso che `results/lesion/dim_reduction_clustering/` e le sottocartelle `pca`/`pacmap`
+di `results/lesion/dim_reduction/production/` **non esistono più su disco** rispetto a quanto
+verificato a inizio sessione — non causato da questo piano, segnalato all'utente separatamente
+(nessuna azione qui, `results/` non è tracciato da git quindi non c'è modo di verificarne la causa
+da qui).
+
+Dettagli implementativi:
 - `FIELDNAMES` in `src/utils/run_log.py`: `session, id, timestamp, input_path, params, output, notes`
   (nuova colonna tra `timestamp` e `params`).
 - `append_run_log_entry` guadagna un parametro `input_path: Path`, scritto nella riga — ogni
   `Config` dataclass del progetto ha già `input_path` disponibile, nessun dato nuovo da calcolare.
-- 6 call site da aggiornare: `dim_reduction.py`, `clustering.py`, `dim_reduction_clustering.py` (finché
-  esiste), `build_lesion_matrix.py`, `compute_sdc.py`, `mask_fc.py`, `build_fc_matrix.py`.
+- 6 call site da aggiornare (`dim_reduction_clustering.py` eliminato nel frattempo, §5 già fatto,
+  quindi non è più uno di questi): `dim_reduction.py`, `clustering.py`, `build_lesion_matrix.py`,
+  `compute_sdc.py`, `mask_fc.py`, `build_fc_matrix.py`.
 - **Backfill dei 15 `runs.csv`/`runs_tuning.csv` già su disco** (`results/lesion/dim_reduction*/`):
   per ognuno, leggere `output` → aprire `<output>/config.md` → estrarre `input_path` da lì →
   aggiungerlo come colonna. Script una tantum, non a mano riga per riga.
@@ -220,4 +223,4 @@ diversi; da tenere presente, non da risolvere subito.
 - Fase di **Evaluation** post-tuning (indici calcolati sul clustering di produzione scelto, non
   solo durante lo sweep) — vedi report di sessione 14-08-26.
 - Controllo di **cluster tendency** prima del clustering — gap dichiarato in
-  `clustering_literature_survey.md`/`clustering.md`, non ancora implementato.
+  `knowledge/dim_reduction_clustering/clustering_literature_survey.md`, non ancora implementato.
