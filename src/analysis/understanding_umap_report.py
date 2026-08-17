@@ -835,20 +835,25 @@ body {{ font-family: -apple-system, "system-ui", "Segoe UI", Roboto, Oxygen-Sans
                     justify-content: space-around; height: {_MIN_DIST_LABELS_H}px; }}
 .min-dist-labels div {{ text-align: center; }}
 .menu {{ display: flex; flex-direction: column; max-width: 320px; font-size: 16px; }}
-.color-buttons {{ display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }}
+/* .color-buttons and #legend (see below) sit side by side in this row, same
+   vertical height, instead of the legend stacking below the whole .params
+   text block - on request (16-08-26: legend read as disconnected from the
+   picker it explains, sitting a full paragraph away from it). Wraps to a
+   second line if the combined width doesn't fit (e.g. 4 dataset chips next
+   to 5 buttons) rather than clipping either. */
+.color-buttons-row {{ display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; }}
+.color-buttons {{ display: flex; flex-wrap: wrap; gap: 6px; }}
 .color-buttons button {{ font: inherit; font-size: 13px; padding: 6px 12px; cursor: pointer;
                         border: 1px solid #ccc; border-radius: 4px; background: #fff; }}
 .color-buttons button.active {{ border-color: #4a90d9; border-width: 2px; background: #f0f7fd; }}
 .params {{ line-height: 1.7; }}
 .params .name {{ font-weight: 600; }}
 /* Figure 1's color_by legend (#legend, populated/rebuilt by setColor() every
-   time the color_by picker changes) - sits right under .params, next to the
-   plot, on request (14-08-26: color_by picker had no legend at all, so
-   "dataset"/"side" colors had no explanation anywhere on the page). Empty
-   for the default "none" mode (nothing to explain), a chip row for
-   dataset/side, a gradient bar for volume/nihss - see
-   _legend_html_for_mode's own docstring. */
-#legend {{ margin-top: 18px; }}
+   time the color_by picker changes) - see .color-buttons-row above for why
+   it sits next to the buttons rather than below .params. Empty for the
+   default "none" mode (nothing to explain), a chip row for dataset/side, a
+   gradient bar for volume/nihss - see _legend_html_for_mode's own
+   docstring. */
 .categories {{ display: flex; flex-wrap: wrap; gap: 8px; }}
 .category-chip {{ padding: 4px 10px; border-radius: 3px; color: #fff; font-size: 13px; font-weight: 600; }}
 .gradient-legend {{ display: flex; align-items: center; gap: 8px; font-size: 13px; }}
@@ -963,7 +968,10 @@ def build_leaf_page(
   <div class="container below-menu">
     {grid_container_html}
     <div class="menu">
-      <div class="color-buttons">{buttons_html}</div>
+      <div class="color-buttons-row">
+        <div class="color-buttons">{buttons_html}</div>
+        <div id="legend"></div>
+      </div>
       <div class="params">
         Lesion embeddings of the same stroke cohort, projected with UMAP.<br><br>
         <span class="name">metric:</span> {metric}<br>
@@ -971,7 +979,6 @@ def build_leaf_page(
         <span class="name">subjects:</span> {len(real_metadata)}<br>
         <span class="name">combinations:</span> {len(results)}
       </div>
-      <div id="legend"></div>
     </div>
   </div>
   <div class="caption"><span class="figure-number">Figure 1:</span> UMAP projection of the lesion cohort with a variety of common
