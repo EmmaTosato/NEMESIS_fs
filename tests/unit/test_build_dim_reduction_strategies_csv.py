@@ -131,6 +131,46 @@ def test_build_strategies_table_dedupes_same_strategy_across_production_and_tuni
     assert list(table.columns) == ["session", "modality", "datasets", "reduction_method", "metric", "n_components"]
 
 
+def test_build_strategies_table_expands_tuning_row_over_swept_metric(tmp_path):
+    # Regression test (16-08-26): a tuning row whose tuning_grid actually swept "metric" must
+    # produce one strategy per swept value, not just base_params' single starting metric - a
+    # real tsne tuning run exploring {euclidean, jaccard, dice} was previously collapsed to
+    # "euclidean" only.
+    results_root = tmp_path / "results"
+    out_tuning = _existing_output(results_root, "lesion/dim_reduction/tuning/tsne/04-08_s1.1")
+    _write_runs_csv(
+        results_root / "lesion" / "dim_reduction" / "tuning" / "tsne" / "runs_tuning.csv",
+        [_tuning_row(
+            "s1.1", {"n_components": 2, "metric": "euclidean"},
+            {"metric": ["euclidean", "jaccard", "dice"], "perplexity": [5, 15, 30]}, out_tuning,
+        )],
+        fieldnames=("session", "id", "timestamp", "input_path", "params", "output", "notes"),
+    )
+
+    table = build_strategies_table(results_root, _write_sessions_md(tmp_path))
+
+    assert set(zip(table["metric"], table["n_components"])) == {("euclidean", 2), ("jaccard", 2), ("dice", 2)}
+
+
+def test_build_strategies_table_expands_tuning_row_over_swept_metric_and_n_components(tmp_path):
+    results_root = tmp_path / "results"
+    out_tuning = _existing_output(results_root, "lesion/dim_reduction/tuning/umap/03-08_s1.1")
+    _write_runs_csv(
+        results_root / "lesion" / "dim_reduction" / "tuning" / "umap" / "runs_tuning.csv",
+        [_tuning_row(
+            "s1.1", {"n_components": 2, "metric": "jaccard", "n_neighbors": 15},
+            {"metric": ["jaccard", "dice"], "n_components": [5, 10]}, out_tuning,
+        )],
+        fieldnames=("session", "id", "timestamp", "input_path", "params", "output", "notes"),
+    )
+
+    table = build_strategies_table(results_root, _write_sessions_md(tmp_path))
+
+    assert set(zip(table["metric"], table["n_components"])) == {
+        ("jaccard", 5), ("jaccard", 10), ("dice", 5), ("dice", 10),
+    }
+
+
 def test_build_strategies_table_distinguishes_different_metrics_and_n_components(tmp_path):
     results_root = tmp_path / "results"
     _write_runs_csv(

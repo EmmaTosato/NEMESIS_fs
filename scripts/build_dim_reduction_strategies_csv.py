@@ -9,9 +9,11 @@ files that remain the actual source of truth (never hand-edit it - lessons_learn
 hand-maintained summary drifts from what's really on disk).
 
 Two sources, joined on session:
-- results/<modality>/dim_reduction/{production,tuning}/<reduction_method>/runs*.csv - one row
-  per real run; modality/reduction_method read from the file's own path, metric/n_components
-  parsed from that row's own `params` JSON column.
+- results/<modality>/dim_reduction/{production,tuning}/<reduction_method>/runs*.csv - one
+  runs.csv row is exactly one production strategy; one runs_tuning.csv row can be *several*
+  strategies at once, whenever metric/n_components were themselves swept in that sweep's own
+  tuning_grid (see _strategy_variants) - modality/reduction_method read from the file's own
+  path, metric/n_components parsed from that row's own `params` JSON column.
 - docs/experiments/SESSIONS.md - hand-written narrative (datasets/modality) per session, keyed
   by the same session id runs.csv uses in its own "session" column (e.g. "s1.1").
 
@@ -158,17 +160,35 @@ def _output_dir_exists(output_value: str, results_root: Path) -> bool:
     return (results_root.parent / output_value).is_dir()
 
 
-def _extract_metric_and_n_components(params: dict, run_type: str) -> tuple[str, int]:
-    """Production rows: `params` is the resolved single-run hyperparameter dict, read
-    directly. Tuning rows: `params` is `{"base_params": {...}, "tuning_grid": {...}}` (see
-    dim_reduction.py's fine-tuning append_run_log_entry call) - metric/n_components are read
-    from base_params, the sweep's fixed starting point. If either is itself one of
-    tuning_grid's swept axes, this reports only that starting value, not every combination the
-    sweep actually tried - this file is an index (clustering_migration_plan.md §6), not a
-    substitute for that run's own tuning_results.csv.
+def _strategy_variants(params: dict, run_type: str) -> list[tuple[str, int]]:
+    """Every (metric, n_components) pair a single runs.csv/runs_tuning.csv row actually
+    covers. Production rows cover exactly one - `params` is the resolved single-run
+    hyperparameter dict, read directly.
+
+    Tuning rows can cover several: `params` is `{"base_params": {...}, "tuning_grid": {...}}`
+    (see dim_reduction.py's fine-tuning append_run_log_entry call), and `metric`/`n_components`
+    are themselves sometimes tuning_grid's own swept axes, not fixed like a production run's
+    params. Read straight from tuning_grid when a key is swept there - that's the authoritative
+    list of what was actually evaluated (dim_reduction.py's own `nested_params` only changes
+    *how* a sweep is organized into output subfolders, never *which* values get evaluated -
+    docs/dev/config.md) - falling back to base_params' single value when a key isn't swept.
+    Crossed as a full product (metric x n_components) when both are swept in the same row -
+    correct for a free/joint grid; slightly over-reports for a nested sweep where the two were
+    never jointly evaluated together (this file is an index, not a substitute for that run's
+    own tuning_results.csv - clustering_migration_plan.md §6).
+
+    Found 16-08-26 (regression): reading only base_params' fixed starting point for every
+    tuning row silently dropped every metric/n_components genuinely explored by that sweep
+    whenever either actually was swept - e.g. a tsne tuning run that explored `metric` in
+    {euclidean, jaccard, dice} was reported here as "euclidean" only, even though all 3 have
+    their own real `metric=<name>/` subfolder with results on disk.
     """
-    source = params["base_params"] if run_type == "tuning" else params
-    return source.get("metric", NO_METRIC), source["n_components"]
+    if run_type != "tuning":
+        return [(params.get("metric", NO_METRIC), params["n_components"])]
+    base_params, tuning_grid = params["base_params"], params["tuning_grid"]
+    metrics = tuning_grid["metric"] if "metric" in tuning_grid else [base_params.get("metric", NO_METRIC)]
+    n_components_values = tuning_grid["n_components"] if "n_components" in tuning_grid else [base_params["n_components"]]
+    return [(metric, n_components) for metric in metrics for n_components in n_components_values]
 
 
 def _reduction_run_files(results_root: Path) -> list[tuple[Path, str, str]]:
@@ -210,8 +230,8 @@ def _collect_strategy_keys(results_root: Path) -> set[StrategyKey]:
                     )
                     continue
                 params = json.loads(row["params"])
-                metric, n_components = _extract_metric_and_n_components(params, run_type)
-                keys.add(StrategyKey(session=row["session"], reduction_method=reduction_method, metric=metric, n_components=n_components))
+                for metric, n_components in _strategy_variants(params, run_type):
+                    keys.add(StrategyKey(session=row["session"], reduction_method=reduction_method, metric=metric, n_components=n_components))
     return keys
 
 

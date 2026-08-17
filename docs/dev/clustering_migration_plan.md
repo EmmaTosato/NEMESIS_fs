@@ -190,7 +190,16 @@ oggi legge solo `runs.csv`/`runs_tuning.csv` di `dim_reduction.py` (non il ramo 
 di `clustering.py`, che richiederebbe risolvere l'`input_path` di ogni run di clustering contro
 l'`output` del run di `dim_reduction.py` che lo ha prodotto — join reale, non ancora scritto,
 deliberatamente rimandato). Testato in `tests/unit/test_build_dim_reduction_strategies_csv.py`,
-girato una volta sui dati reali del progetto (10 righe, `results/lesion/dim_reduction/`).
+girato sui dati reali del progetto (14 righe, `results/lesion/dim_reduction/`) dopo 2 giri di
+correzione: (1) le righe di `runs.csv`/`runs_tuning.csv` il cui `output` non esiste più su
+disco vengono scartate, non contate come esistenti (`_output_dir_exists`, 16-08-26 - risolto
+anche `scripts/backfill_stale_tuning_output_paths.py`, che corregge i path di
+`runs_tuning.csv` rimasti sul vecchio layout `<metodo>/tuning/` pre-riorganizzazione, solo
+quando il path scambiato esiste davvero); (2) una riga di tuning il cui `tuning_grid` sweepa
+davvero `metric`/`n_components` genera una riga per ogni valore esplorato, non solo per il
+valore di partenza in `base_params` (`_strategy_variants`, 16-08-26 - il bug precedente faceva
+sparire dal CSV 2 metriche su 3 realmente esplorate per `tsne`, dato che i suoi run di
+produzione sono tutti orfani e l'unica prova della loro esistenza è nel tuning).
 
 ## 7. Colonna `input_path` in `runs.csv` (propedeutica al §6, non solo a lookup manuali)
 
