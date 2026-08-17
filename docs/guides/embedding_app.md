@@ -1,10 +1,10 @@
 # Guida all'Embedding Explorer (app Dash)
 
-App web live per esplorare interattivamente un embedding **di produzione** (`dim_reduction.py`, `fine_tuning: false`) - 2D o 3D, con un selettore di run e bottoni di colorazione (neutro/dataset/side/volume/nihss), stile editoriale. Sostituisce il vecchio `embedding_plot_interactive.html` scritto per-run (rimosso 2026-08-14): un solo processo copre **tutti** i run di produzione già scritti, non un file HTML da rigenerare ogni volta.
+App web live per esplorare interattivamente un run **di produzione** (`dim_reduction.py` o, dal 15-08-26, `clustering.py`, entrambi con `fine_tuning: false`) - 2D o 3D, con un selettore di run e bottoni di colorazione (neutro/dataset/side/volume/nihss/cluster), stile editoriale. Sostituisce il vecchio `embedding_plot_interactive.html` scritto per-run (rimosso 2026-08-14): un solo processo copre **tutti** i run di produzione già scritti, non un file HTML da rigenerare ogni volta.
 
 - **Script**: `src/pipeline/embedding_app.py`
 - **Logica**: `src/analysis/embedding_app.py`
-- **Input**: qualunque run di produzione già scritto sotto `results/*/dim_reduction/production/*/*` (nessun refit, legge solo `matrix.npy`/`metadata.csv` già su disco)
+- **Input**: qualunque run di produzione già scritto sotto `results/*/dim_reduction/production/*/*` **o** `results/*/clustering/production/*/*` (`src.analysis.embedding_app.PRODUCTION_PIPELINES`; nessun refit, legge solo `matrix.npy`/`metadata.csv` già su disco)
 
 ---
 
@@ -27,7 +27,7 @@ Poi apri `http://127.0.0.1:8060` nel browser. Opzioni:
 
 | Flag | Default | Descrizione |
 | :--- | :--- | :--- |
-| `--results-root` | `results` | Radice da scansionare (`<root>/*/dim_reduction/production/*/*`) |
+| `--results-root` | `results` | Radice da scansionare (`<root>/*/dim_reduction/production/*/*` e `<root>/*/clustering/production/*/*`) |
 | `--port` | `8060` | Porta locale (8050 è già usata dal Dash del report di tuning - le due app possono girare insieme) |
 | `--debug` | off | Modalità debug di Dash (auto-reload, overlay errori nel browser) |
 
@@ -35,19 +35,19 @@ Poi apri `http://127.0.0.1:8060` nel browser. Opzioni:
 
 ## Cosa mostra
 
-- **Selettore a 6 passi** (in ordine di decisione, 2026-08-14 su richiesta - sostituisce il precedente dropdown unico che mischiava i run di ogni metodo/metrica/dimensionalità insieme):
+- **Selettore a 6 passi** (in ordine di decisione, esteso 15-08-26 quando "Pipeline" è diventato un vero selettore invece di un'etichetta fissa - sostituisce il precedente dropdown unico che mischiava i run di ogni metodo/metrica/dimensionalità insieme):
   1. **Dato** - la modalità (oggi solo `lesion`).
-  2. **Pipeline** - campo informativo, non selezionabile: è sempre `dim_reduction · produzione` (l'unica combinazione che questa app scopre - vedi `discover_production_runs`).
-  3. **Tipo di riduzione** - il metodo (`umap`/`pca`/`tsne`/`pacmap`...), filtrato sulla modalità scelta.
-  4. **Metrica** - letta dai parametri realmente usati dal run (non dal nome della cartella - vedi sotto), `"—"` per i metodi/run che non hanno un parametro `metric` (pca/pacmap, e i run più vecchi di umap/tsne precedenti all'introduzione di dice/jaccard).
-  5. **Componenti** - `n_components` realmente usato, filtrato su metrica.
+  2. **Pipeline** - `dim_reduction` o `clustering` (le uniche 2 che questa app scopre - vedi `PRODUCTION_PIPELINES`/`discover_production_runs`), filtrata sulla modalità scelta; `dim_reduction` proposto per primo di default (pipeline più matura), non alfabeticamente.
+  3. **Metodo** - il metodo dentro quella pipeline (`umap`/`pca`/`tsne`/`pacmap`... per dim_reduction, `kmeans`/`hdbscan`/`spectral`/... per clustering), filtrato su modalità + pipeline.
+  4. **Metrica** - letta dai parametri realmente usati dal run (non dal nome della cartella - vedi sotto), `"—"` per i metodi/run che non hanno un parametro `metric` (pca/pacmap, i run più vecchi di umap/tsne precedenti all'introduzione di dice/jaccard, **e sempre** per la pipeline `clustering` - un metodo di clustering non ha un asse "metrica" in questo senso).
+  5. **Componenti** - `n_components` realmente usato, filtrato su metrica; sempre `"—"` per la pipeline `clustering` (non ricampiona mai la dimensionalità di X, non c'è un `n_components` da riportare).
   6. **Run** - il run vero e proprio (es. `13-08_s1.1_nc3_m_dice`), filtrato su tutti i passi precedenti e ordinato cronologicamente (dal prefisso `DD-MM` del nome), selezionato di default sul più recente - oggi quasi sempre un'unica opzione (ogni combinazione è stata prodotta una volta sola), ma il picker non lo assume: un secondo run della stessa combinazione in una data diversa comparirebbe qui, non sovrascriverebbe silenziosamente il primo.
 
-  Scoperta generica alla base (`results/*/dim_reduction/production/*/*`) - una futura modalità o metodo compare da solo nei passi 1/3, senza toccare il codice.
+  Scoperta generica alla base (`results/*/{dim_reduction,clustering}/production/*/*`) - una futura modalità o metodo compare da solo nei passi 1/3, senza toccare il codice. La cartella `comparison/` che `clustering.py` scrive sotto `production/` (il confronto multi-metodo, non un run di un singolo metodo) è esclusa automaticamente: non ha mai un `manifest.json`, lo stesso controllo che scarta qualunque cartella incompleta.
 
-  **Metrica/Componenti letti da `config.md`, non dal nome del run**: il nome (`13-08_s1.1_nc3_m_dice`) è una convenzione testuale scelta a mano da chi lancia la pipeline, non garantita per ogni metodo (pca/tsne/pacmap non seguono lo schema `nc<N>_m_<metrica>`) - `run_params` legge invece la riga `Params used: {...}` che `dim_reduction.py` scrive per davvero in ogni `config.md`, la stessa fonte usata per l'anteprima "Params used" già presente in ogni run.
-- **Bottoni di colorazione**: uno per "Neutro" più uno per ogni voce di `src.analysis.embedding_coloring.COLOR_MODES` (dataset/lesion side/lesion volume (voxels)/NIHSS (severity)) - lo stesso registro che usa `dim_reduction.py` in produzione, mai una copia.
-- **Il grafico**: 2D o 3D, deciso automaticamente dalla forma dell'embedding salvato per quel run (`embedding.shape[1]`) - mai uno slicing di un embedding con più componenti (vedi sotto).
+  **Metrica/Componenti letti da `config.md`, non dal nome del run**: il nome (`13-08_s1.1_nc3_m_dice`) è una convenzione testuale scelta a mano da chi lancia la pipeline, non garantita per ogni metodo (pca/tsne/pacmap/clustering non seguono lo schema `nc<N>_m_<metrica>`) - `run_params` legge invece la riga `Params used: {...}` che sia `dim_reduction.py` che `clustering.py` scrivono per davvero in ogni `config.md`, la stessa fonte usata per l'anteprima "Params used" già presente in ogni run.
+- **Bottoni di colorazione**: uno per "Neutro" più uno per ogni voce di `src.analysis.embedding_coloring.COLOR_MODES` (dataset/lesion side/lesion volume (voxels)/NIHSS (severity)/cluster) - lo stesso registro che usa `dim_reduction.py` in produzione, mai una copia. `cluster` è visibile solo per run che hanno davvero una colonna `cluster_label` in `metadata.csv` (cioè solo run `clustering.py`) - scegliere quel bottone su un run `dim_reduction.py` mostra un messaggio d'errore esplicito al posto del grafico, non un plot vuoto. Il label noise di HDBSCAN (`-1`) è mostrato come una categoria come le altre, senza colorazione grigia dedicata - a differenza del `cluster_plot.png` di produzione, questo è un esploratore generico su qualunque colonna di metadata, non il diagnostico dedicato al clustering.
+- **Il grafico**: 2D o 3D, deciso automaticamente dalla forma dell'embedding salvato per quel run (`embedding.shape[1]`) - mai uno slicing di un embedding con più componenti (vedi sotto). Per un run `clustering.py`, la matrice mostrata è quella usata per il clustering stesso (`clustering.py` non trasforma mai lo spazio delle feature) - se quel run è stato lanciato su un embedding già a 2/3 componenti si vede direttamente, altrimenti risulta "non mostrabile" come qualunque altro run oltre le 3 dimensioni (vedi sotto).
 
 ## Un run non mostrabile
 

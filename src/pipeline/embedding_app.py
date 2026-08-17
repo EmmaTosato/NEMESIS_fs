@@ -1,9 +1,10 @@
 """CLI entry point: launch the interactive embedding-explorer Dash app - a live, local-only
 replacement for the old per-run embedding_plot_interactive.html (removed 2026-08-14, see
-src/analysis/plotting.py's module docstring). Discovers every dim_reduction production run
-under --results-root, lets a human pick one from a dropdown and a color mode from a button
-group, and renders it as an interactive 2D or 3D Plotly scatter - see
-docs/guides/embedding_app.md.
+src/analysis/plotting.py's module docstring). Discovers every dim_reduction.py AND clustering.py
+production run under --results-root (src.analysis.embedding_app.PRODUCTION_PIPELINES, extended
+15-08-26 to cover clustering.py too - docs/dev/clustering_migration_plan.md §3), lets a human
+pick one from a dropdown and a color mode from a button group, and renders it as an interactive
+2D or 3D Plotly scatter - see docs/guides/embedding_app.md.
 
 Local dev tool, never sbatch (same reasoning as
 src.pipeline.run_understanding_umap_dash: an interactive app with no batch-job shape has
@@ -43,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     runs = discover_production_runs(Path(args.results_root))
     if not runs:
         logging.error(
-            "no dim_reduction production runs found under %s/*/dim_reduction/production/*/* - "
+            "no production runs found under %s/*/{dim_reduction,clustering}/production/*/* - "
             "run a pipeline in production mode first (e.g. python -m src.pipeline.dim_reduction, "
             "fine_tuning: false)",
             args.results_root,

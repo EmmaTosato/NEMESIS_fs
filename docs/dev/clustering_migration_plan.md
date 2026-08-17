@@ -85,7 +85,7 @@ pattern `results/*/dim_reduction/production/*/*`) e non ha `cluster_label` come 
 | `X.shape[1]` | Comportamento |
 |---|---|
 | `2` | Come oggi: `cluster_plot.png`, `cluster_plot_interactive.html`, `silhouette_plot.png`, confronto statico e interattivo — invariati, si disegna direttamente su `X`. |
-| `3` | Nessun PNG statico colorato per cluster (stessa regola di `write_embedding_plots`). Estendere `embedding_app.py`: (a) fargli scoprire anche i run di `clustering.py`, (b) aggiungere `cluster_label` al registro color mode (`embedding_coloring.py`). **Task da tracciare a parte**, non implicito — oggi l'app non sa nulla di clustering. |
+| `3` | Nessun PNG statico colorato per cluster (stessa regola di `write_embedding_plots`, invariato) — ma **deciso e implementato (15-08-26)** per l'esplorazione interattiva: `embedding_app.py` scopre ora anche i run di `clustering.py` (`PRODUCTION_PIPELINES = ("dim_reduction", "clustering")`, `discover_production_runs` generalizzato sul segmento `<pipeline>` del path — la cartella `comparison/` di `clustering.py` è esclusa automaticamente, non ha mai `manifest.json`), e `cluster_label` è stato aggiunto a `embedding_coloring.COLOR_MODES`. Il picker guadagna un passo "Pipeline" selezionabile (prima un'etichetta fissa); "Metrica"/"Componenti" restano visibili per uniformità ma collassano al loro sentinel `NO_METRIC`/`NO_N_COMPONENTS` per i run di clustering (nessun asse metrica/componenti in quel dominio — un metodo di clustering non ha `n_components` nei suoi `params`). Implementato in `src/analysis/embedding_app.py`/`embedding_coloring.py`, testato in `tests/unit/test_embedding_app.py`/`test_embedding_coloring.py`, documentato in `docs/guides/embedding_app.md`. |
 | `> 3` (o `< 2`) | **Deciso e implementato (14-08-26)**: opzione (a). Nuovo campo config opzionale `viz_embedding_path` — un embedding "gemello" 2D/3D calcolato **a parte** dall'utente (es. via `dim_reduction.py`, stessi `random_state`/`n_neighbors`/`metric`, solo `n_components` diverso), sugli stessi soggetti nello stesso ordine. `clustering.py::_resolve_viz_embedding` lo carica e valida (numero componenti 2/3, stesso `subject_id` in stesso ordine di `input_path` — altrimenti `ValueError`); se `X.shape[1]` è già 2 o 3 lo ignora e usa `X` direttamente. Se né l'uno né l'altro vale, **nessun plot** (`cluster_plot.png`/`cluster_plot_interactive.html`/`silhouette_plot.png`/`cluster_comparison.png` tutti saltati con warning esplicito) — mai una slice di `X` (`lessons_learned.md` #16). Implementato in `src/pipeline/clustering.py`, testato in `tests/integration/test_clustering_pipeline.py`. |
 
 ## 4. Struttura output
@@ -140,9 +140,10 @@ progetto senza sostituto funzionante.
 
 ## 6. `results/dim_reduction_strategies.csv` — indice degli embedding esistenti
 
-Problema: con la migrazione, gli embedding (prodotti da `dim_reduction.py` o da `clustering.py
---reduced_data`) cresceranno di numero — serve un modo per l'utente di vedere a colpo d'occhio
-"cosa esiste già" senza aprire N cartelle/`runs.csv`.
+**Fatto 15-08-26** (versione minima, vedi scope dichiarato sotto). Problema: con la migrazione,
+gli embedding (prodotti da `dim_reduction.py` o da `clustering.py --reduced_data`) cresceranno
+di numero — serve un modo per l'utente di vedere a colpo d'occhio "cosa esiste già" senza aprire
+N cartelle/`runs.csv`.
 
 **Non va scritto a mano** — un secondo file mantenuto manualmente accanto a `runs.csv` va
 inevitabilmente fuori sincrono con la realtà su disco (stesso pattern già visto in
@@ -150,40 +151,46 @@ inevitabilmente fuori sincrono con la realtà su disco (stesso pattern già vist
 uno script che legge tutti i `runs.csv`/`runs_tuning.csv` reali sotto `results/**/` + `SESSIONS.md`
 per il join su sessione.
 
-**Spostamento propedeutico**: `SESSIONS.md` si sposta da `data/SESSIONS.md` a
-`docs/experiments/SESSIONS.md` (narrativa umana su cosa significa una sessione, sta meglio lì che
-tra i dati grezzi) — il symlink `results/SESSIONS.md` viene rimosso, la sua informazione confluisce
-nelle colonne 1-3 del CSV generato. Da aggiornare in questo spostamento (grep già fatto in
-sessione): `docs/dev/config.md`, `docs/guides/dim_reduction.md`, `docs/dev/models.md`, il docstring
-di `src/utils/run_log.py` (che oggi cita anche un path leggermente sbagliato,
-`data/derived/lesion_matrix/SESSIONS.md` invece di `data/SESSIONS.md`).
+**Spostamento propedeutico (fatto 15-08-26)**: `SESSIONS.md` si è spostato da `data/SESSIONS.md`
+a `docs/experiments/SESSIONS.md` (narrativa umana su cosa significa una sessione, sta meglio lì
+che tra i dati grezzi) — il symlink `results/SESSIONS.md` è stato rimosso, la sua informazione
+confluisce nelle colonne 1-3 del CSV generato. Aggiornati in questo spostamento: `docs/dev/config.md`,
+`docs/guides/dim_reduction.md` (`docs/dev/models.md` e il docstring di `src/utils/run_log.py`
+citavano già il path nuovo, scritti in anticipo in una sessione precedente).
 
-Per essere parsabile da uno script, `SESSIONS.md` va irrigidito quel poco che basta: chiavi fisse
-per riga (`- Modality:`, `- Datasets:`) invece della prosa libera di oggi — resta scrivibile a
-mano, diventa anche regex-abile.
+Per essere parsabile da uno script, `SESSIONS.md` è stato irrigidito quel poco che basta: chiavi
+fisse per riga (`- Starting date:`, `- Datasets:`, `- Modality:`) invece della prosa libera di
+prima — resta scrivibile a mano, è anche regex-abile (`scripts/build_dim_reduction_strategies_csv.py::parse_sessions_md`,
+`ValueError` se manca una chiave o una sessione è documentata due volte).
 
 **Schema** (formato long/tidy, una riga per combinazione — non colonne con liste annidate, più
 facile da filtrare/pivotare con pandas):
 
 ```
-session | modality | datasets | reduction_method | metric | n_components | production_runs | tuning_runs
+session | modality | datasets | reduction_method | metric | n_components
 ```
 
 - `session`/`modality`/`datasets`: da `SESSIONS.md` (join su `session`).
 - `reduction_method`/`metric`/`n_components`: da `params` (JSON) nei `runs.csv`/`runs_tuning.csv`
   di `dim_reduction.py` (e, dopo la migrazione, dal ramo `reduced_data=true` di `clustering.py`).
-- `production_runs`/`tuning_runs`: conteggio righe corrispondenti in ciascun file — non un path
-  (niente colonna `latest_output`, deciso in sessione: per il path esatto si va sul `runs.csv`
-  puntuale, questo file resta un indice, non una scorciatoia verso i singoli risultati).
+- **Niente colonna `production_runs`/`tuning_runs`** (rimosse 16-08-26, su richiesta, dalla
+  versione inizialmente implementata) **né `latest_output`**: una riga per combinazione
+  esistente (produzione o tuning, deduplicata), non un conteggio né un path — per quello si va
+  sul `runs.csv` puntuale, questo file resta un indice di esistenza, non una scorciatoia verso i
+  singoli risultati o la loro storia.
 
 Il file vive in `results/dim_reduction_strategies.csv` (non uno per dominio) — un solo file
 generalizza già a `fc`/`sdc` quando quei domini avranno risultati sotto `results/`, non solo
 `lesion`.
 
 **Dipendenza**: per essere davvero completo (join affidabile "stessi parametri → stesso output
-riusabile"), beneficia della colonna `input_path` in `runs.csv` discussa in sessione (non ancora
-implementata, vedi §7) — ma non la richiede in senso stretto: lo script può partire anche solo con
-lo schema attuale di `runs.csv`, aggiungendo la precisione di `input_path` come miglioria successiva.
+riusabile"), beneficia della colonna `input_path` in `runs.csv` discussa in sessione (**fatta,
+§7**) — ma la versione implementata non la usa ancora: `scripts/build_dim_reduction_strategies_csv.py`
+oggi legge solo `runs.csv`/`runs_tuning.csv` di `dim_reduction.py` (non il ramo `reduced_data=true`
+di `clustering.py`, che richiederebbe risolvere l'`input_path` di ogni run di clustering contro
+l'`output` del run di `dim_reduction.py` che lo ha prodotto — join reale, non ancora scritto,
+deliberatamente rimandato). Testato in `tests/unit/test_build_dim_reduction_strategies_csv.py`,
+girato una volta sui dati reali del progetto (10 righe, `results/lesion/dim_reduction/`).
 
 ## 7. Colonna `input_path` in `runs.csv` (propedeutica al §6, non solo a lookup manuali)
 
