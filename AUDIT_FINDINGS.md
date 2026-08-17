@@ -48,7 +48,26 @@ prossimo run. Non è un bug di codice.
 propagato ai callback che le invocano → `TypeError` al primo click. Confermato: 22/33 test
 falliscono sul commit corrente di `main`.
 
-**Stato: Aperto.**
+**Causa esatta, verificata dal vivo** (17/08):
+`ProductionRun` è diventato a 5 campi (`modality, pipeline, method, run_name, path`) e
+`runs_for(runs, modality, pipeline, method)`/`method_options(runs, modality, pipeline)`
+richiedono `pipeline` — ma i loro chiamanti in `build_app` non sono stati aggiornati:
+- `_update_method_picker` chiama `method_options(runs, modality)` →
+  `TypeError: method_options() missing 1 required positional argument: 'pipeline'`
+- `metric_options`/`n_components_options`/`runs_matching` (che NON hanno `pipeline` nella
+  propria firma) passano `method` al posto di `pipeline` a `runs_for(runs, modality, method)` →
+  `TypeError: runs_for() missing 1 required positional argument: 'method'`
+- il layout (`build_app`) non ha mai un vero `pipeline-picker`: è ancora testo statico
+  `"Dim Reduction · Produzione"` — `pipeline_options()` esiste ma non è cablato a nessun
+  componente Dash.
+
+**Requisito confermato con l'utente (17/08)**: l'app deve funzionare sia per `dim_reduction`
+produzione sia per `clustering` produzione, sempre con dato `lesion`. **Nota di design
+esplicita**: questa è un'app incrementale — verranno aggiunte visualizzazioni/feature nel tempo,
+quindi anche il codice va scritto per essere esteso senza altre migrazioni a metà (es. un
+`pipeline` aggiunto ovunque insieme, non modulo per modulo).
+
+**Stato: Aperto** (analisi completa, fix non ancora implementato).
 
 ---
 
@@ -60,7 +79,17 @@ falliscono sul commit corrente di `main`.
 due immagini con la stessa shape ma affine diverso vengono trattate come già co-registrate,
 producendo un disallineamento anatomico silenzioso tra lesione e spazio di riferimento.
 
-**Stato: Aperto.**
+**Verificato sui dati reali (17/08)**, script in
+`scratchpad/repro_affine_only_check.py`: su 1150 file lesion mask della coorte attuale
+(config di produzione corrente), 202 hanno shape+affine identici al reference, 948 hanno shape
+diversa (correttamente resampiati dal codice attuale), **0 rientrano nella zona di bug** (shape
+uguale, affine diversa). Il difetto non produce quindi disallineamento osservabile *oggi* su
+questa coorte specifica, ma resta strutturale: un dataset futuro/aggiornato con stessa
+risoluzione voxel ma diversa origine/orientamento lo innescherebbe silenziosamente, senza log né
+eccezione.
+
+**Stato: Aperto** (fix di codice non ancora implementato — il rischio è confermato reale ma non
+osservato nella coorte odierna).
 
 ---
 
@@ -72,7 +101,16 @@ producendo un disallineamento anatomico silenzioso tra lesione e spazio di rifer
 dataset con nome/path sbagliato o non ancora recuperato da `retrieve_data.py` sparisce
 dall'intera coorte senza nessun segnale.
 
-**Stato: Aperto.**
+**Stato: Implementato (17/08).** `_discover_lesion_files` ora controlla `subject_dirs` (prima di
+applicare `group_filter`, per non confondere "dataset irraggiungibile" con "dataset
+legittimamente senza soggetti nel gruppo richiesto") e solleva `FileNotFoundError` se è vuoto —
+[src/features/lesion.py:192-206](src/features/lesion.py#L192). Test di regressione
+`test_build_lesion_matrix_missing_dataset_root_raises` in
+[tests/unit/test_features_lesion.py](tests/unit/test_features_lesion.py) — verificato fallire
+(`DID NOT RAISE`) sul codice pre-fix via `git stash`, passa col fix. Suite completa:
+`tests/unit/test_features_lesion.py` 16/16 passed; suite intera (esclusi i 2 file
+`bcblib`-dipendenti) 593 passed, 23 failed (tutti preesistenti — `embedding_app`/
+`embedding_coloring`, CRITICAL #2/HIGH #12, non toccati da questo fix), 12 skipped.
 
 ---
 
@@ -85,7 +123,28 @@ precedente restano e finiscono silenziosamente inclusi nella matrice finale di
 `build_fc_matrix.py`. Riprodotto empiricamente (lesson #18, già risolto altrove per un caso
 gemello).
 
-**Stato: Aperto.**
+**Esempio concreto (17/08)**: run 1 con `group_filter=None` include per errore soggetti HC
+"trapelati" sotto `manual_masks`/`features` (scenario reale, lesson #14). Ci si accorge
+dell'errore, si stringe la config a `group_filter=["ST"]`, si rilancia con `overwrite=True`
+sullo stesso `output_root`/`session_name`. Il nuovo run correttamente non ricalcola più gli HC —
+ma [src/pipeline/mask_fc.py:63](src/pipeline/mask_fc.py#L63) salta l'unico controllo esistente
+(`if not config.overwrite and any(...)`) senza mai fare pulizia, e
+[src/features/functional.py:260-273](src/features/functional.py#L260) scrive solo
+`{subject}_masked_fc.csv` per i soggetti del run corrente — i `sub-XXHCyyyy_masked_fc.csv` del
+run 1 restano fisicamente sul disco. `build_fc_matrix.py` legge poi *tutti* i
+`*_masked_fc.csv` presenti nella cartella (`discover_masked_fc_files`,
+[src/features/functional.py:280-286](src/features/functional.py#L280)) — reintroducendo
+silenziosamente esattamente la contaminazione che il fix del `group_filter` doveva eliminare,
+senza errore né warning.
+
+**Soluzione proposta (da confermare, non ancora implementata)**: stesso fix già applicato altrove
+per lo stesso pattern (lesson #18, `dim_reduction.py::_write_tuning_output`) — in
+`mask_fc.py`, quando `config.overwrite=True` e `output_dir` esiste già, `shutil.rmtree(output_dir)`
+prima di chiamare `mask_dataset_fc` (che poi ricrea la directory da zero via
+`mkdir(parents=True, exist_ok=True)`). Garantisce semantica "tutto o niente": o la directory non
+esiste ancora, o contiene esattamente i file scritti dal run corrente, mai un misto.
+
+**Stato: Aperto** (soluzione proposta, in attesa di conferma prima di implementare).
 
 ---
 
@@ -97,7 +156,24 @@ gemello).
 riproduzione della metodologia Thiebaut de Schotten 2020 (`pca_varimax`), che il README cita
 esplicitamente come motivazione dell'atlante combinato. Riprodotto end-to-end.
 
-**Stato: Aperto.**
+**Perché si rompe, nel dettaglio (17/08)**: `_run_production` ([src/pipeline/dim_reduction.py:135](src/pipeline/dim_reduction.py#L135))
+chiama `enrich_metadata_with_lesion_info(metadata, X)` **incondizionatamente**, per qualunque
+`reduction_method`. Quella funzione ([src/features/clinical.py:241-248](src/features/clinical.py#L241))
+valida esplicitamente `np.all((X == 0) | (X == 1))` e solleva `ValueError` altrimenti — corretto
+in isolamento (§0: `lesion_volume_voxels = X.sum(axis=1)` è un conteggio voxel solo se X è
+binaria), ma la produzione con `parcellate: true`/`parcel_aggregation: "fraction_lesioned"`
+(build_lesion_matrix.py) genera esattamente una matrice continua in [0,1] — che è il tipo di
+input che `pca_varimax` è *pensato* per ricevere (proporzione di danno per ROI, come nel paper).
+Risultato: la pipeline fallisce PRIMA di scrivere qualunque embedding/plot, anche se `embed()`
+stesso avrebbe funzionato perfettamente su quella X. Riprodotto dal vivo
+(`scratchpad/repro_parcellated_pca_varimax.py`):
+```
+ERROR: enrich_metadata_with_lesion_info requires a strictly binary (0/1) X - ...
+RETURN CODE: 1
+```
+
+**Stato: Aperto** (nessun fix implementato — serve decidere come, non solo se, gestire il caso
+non-binario: vedi anche finding #7, stesso nodo).
 
 ---
 
@@ -108,7 +184,50 @@ esplicitamente come motivazione dell'atlante combinato. Riprodotto end-to-end.
 **Difetto**: su dati continui (non binari) produce silenziosamente un numero sbagliato, nessuna
 eccezione. Riprodotto.
 
-**Stato: Aperto.**
+**Dove esattamente (17/08)**: `COLOR_MODES["volume"].compute = lambda metadata, X: X.sum(axis=1)`
+([src/analysis/embedding_coloring.py:58-70](src/analysis/embedding_coloring.py#L58)) — zero
+controllo di binarietà, a differenza di `enrich_metadata_with_lesion_info` che fa lo stesso
+identico calcolo con un guard esplicito (finding #6). Chiamato *live* su X da
+`write_embedding_plots`/`write_embedding_grid`
+([src/analysis/embedding_plots.py:83,131](src/analysis/embedding_plots.py#L83)) — non legge mai
+la colonna già persistita `lesion_volume_voxels`. Il tuning di default
+(`save_tuning_embeddings=False`, il caso comune) non chiama mai
+`enrich_metadata_with_lesion_info` (vedi [src/pipeline/dim_reduction.py:210-215](src/pipeline/dim_reduction.py#L210)) — quindi per un tuning `pca_varimax` con `color_by: ["volume"]`
+su matrice parcellata, questa è l'UNICA guardia che dovrebbe esistere e non esiste. Riprodotto
+(`scratchpad/repro_volume_mode_no_guard.py`, X continua random in [0,1], 372 colonne):
+```
+no exception raised. 'volume' values (meaningless for continuous X):
+[197.30484 188.96724 183.68463 ...]
+```
+Numeri plausibili come "voxel count" ma in realtà somma di frazioni casuali — plottati come
+"lesion volume (voxels)" su colorbar log-scale, senza nessun segnale che siano privi di senso.
+
+**Punto (a) — segnalare con eccezione**: proposta immediata, stesso guard di
+`enrich_metadata_with_lesion_info` dentro `"volume"`'s compute (o appena prima di chiamarlo in
+`embedding_plots.py`) — impedisce il numero silenziosamente sbagliato. Effetto collaterale: la
+colorazione "volume" diventerebbe sempre assente (catturata dal `try/except Exception` già
+presente in `write_embedding_plots`/`write_embedding_grid`, che logga WARNING e salta quel solo
+plot) per qualunque run parcellato — non fallisce l'intero run, ma "volume" non è mai
+disponibile per `pca_varimax`.
+
+**Punto (b) — gestione alternativa per il caso non binario (da decidere insieme)**: 3 opzioni,
+nessuna ancora scelta:
+  - **(A)** solo l'eccezione sopra — "volume" semplicemente non esiste mai per run parcellati.
+    Più semplice, ma perde una colorazione potenzialmente utile anche per `pca_varimax`.
+  - **(B)** disaccoppiare "volume" da X: farlo leggere `metadata["lesion_volume_voxels"]` già
+    persistita (come già fanno "dataset"/"side"), invece di ricalcolare da X — richiede che
+    `build_lesion_matrix.py` calcoli e persista `lesion_volume_voxels` nella metadata **anche**
+    quando `parcellate=True` (il dato binario voxel-wise esiste comunque un istante prima della
+    parcellazione, dentro `build_lesion_matrix()`). Consistente col resto del registro, valido
+    anche per `pca_varimax` in produzione.
+  - **(C)** vietare esplicitamente `"volume"` in `color_by` quando la config ha
+    `parcellate: true`, validato al caricamento della config (fail-fast esplicito invece di un
+    plot mancante silenzioso via except).
+  Opinione: (B) è la soluzione corretta a lungo termine (coerente con come "dataset"/"side" già
+  funzionano, nessuna dipendenza da quale X è stata usata per la riduzione), ma tocca
+  `build_lesion_matrix.py` oltre a `embedding_coloring.py` - da confermare prima di procedere.
+
+**Stato: Aperto** (nessun fix implementato).
 
 ---
 
@@ -117,11 +236,43 @@ eccezione. Riprodotto.
 **Pipeline**: `dim_reduction_clustering` — [src/analysis/reduction.py:172](src/analysis/reduction.py#L172)
 
 **Difetto**: la rotazione varimax non è "nested" come gli autovettori PCA grezzi — il refit a
-dimensionalità diversa non è matematicamente equivalente. Dormiente oggi (nessun run con
-`pca_varimax` e `n_components` diverso da `viz_n_components` ancora eseguito), esploderà al
-primo caso reale.
+dimensionalità diversa non è matematicamente equivalente. Dormiente oggi (`pca_varimax` non è
+nemmeno ancora presente in `config/registry/params_reduction.json` — nessun run, di tuning o
+produzione, esiste oggi), esploderà (in senso di risultato silenziosamente fuorviante, non di
+crash) al primo caso reale.
 
-**Stato: Aperto.**
+**Chiarimento importante (17/08, risposta diretta alla domanda "vale anche per UMAP/t-SNE?"):
+NO, il refit è corretto e voluto per UMAP/t-SNE/PaCMAP** — è precisamente il fix del pattern
+lesson #16 (mai `embedding[:, :2]`, sempre un refit reale). Per questi 3 metodi un secondo fit a
+`viz_n_components` con stessi `metric`/`n_neighbors`/`min_dist`/`random_state` è, per citare il
+docstring, "UMAP/t-SNE's own best-effort layout for exactly that many dimensions" - una vista
+onesta e indipendentemente valida, non tenuta a coincidere con il fit a piena dimensionalità (per
+questi metodi nessuno interpreta "dim 1"/"dim 2" come assi semanticamente fissi). Per `pca`
+semplice, il refit è anche matematicamente equivalente a uno slice (proprietà nested/greedy della
+varianza di PCA) - il docstring lo dice esplicitamente.
+
+**Il problema è specifico di `pca_varimax`**, per un motivo diverso da "non-nested" generico: la
+rotazione varimax ottimizza un criterio ("simple structure") *congiuntamente su tutti i K
+componenti trattenuti* — non è una rotazione asse-per-asse. Un refit a `viz_n_components=2` con
+`n_components` di produzione es. 10 non estrae "i primi 2 fattori ruotati veri" - risolve un
+problema di ottimizzazione completamente diverso (ruotare 2 assi vs ruotare 10), producendo 2
+fattori senza nessuna relazione con "fattore 1"/"fattore 2" della soluzione di produzione a 10
+componenti. A differenza di UMAP/t-SNE, qui l'interpretazione conta: l'intero punto della
+metodologia Thiebaut de Schotten 2020 è che ogni fattore ruotato ha un significato anatomico
+specifico (fattore 1 = un sistema, fattore 2 = un altro...) - un plot 2D etichettato
+"pca_varimax dim 1/dim 2" che in realtà mostra una rotazione a K=2 indipendente rischia di essere
+letto come "una vista dei fattori reali di produzione", quando non lo è affatto.
+
+**Fix non ancora deciso** - opzioni da discutere quando si arriva a `n_components` di produzione
+> 2 per `pca_varimax` (oggi non ancora configurato): (a) non offrire mai un refit-viz per
+`pca_varimax`, mostrare solo `unico.png`/nessun plot 2D quando `n_components != viz_n_components`,
+con messaggio esplicito del perché; (b) refittare ma etichettare chiaramente il plot come
+"proiezione 2D indipendente, non i fattori di produzione"; (c) restringere `viz_n_components`
+lato config a dover sempre coincidere con `n_components` per questo metodo specifico (nessun
+refit necessario, ma perde la possibilità di un preview 2D quando K è alto).
+
+**Stato: Aperto** (nessun fix implementato - dormiente, non urgente finché `pca_varimax` non ha
+una config di produzione reale con K>2).
 
 ---
 
