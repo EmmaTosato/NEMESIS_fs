@@ -1,6 +1,6 @@
 # Allineamento Branch (main vs server-pnc)
 
-*Ultimo aggiornamento: 2026-08-21*
+*Ultimo aggiornamento: 2026-08-21 (2)*
 
 Questo documento traccia la strategia di sincronizzazione tra il branch di sviluppo locale (`main`) e il branch di esecuzione sul cluster (`server-pnc`).
 
@@ -20,12 +20,12 @@ A partire dal 28 Luglio 2026 (estese il 21 Agosto 2026), le seguenti cartelle su
 - `src/` (tutte le nuove logiche di clustering, covariate e distanze)
 - `tests/`
 - `.claude/` *(dal 21/08)* — narrativa di sessione (`stato_progetto.md`/`stato_progetto_archive.md`/`lessons_learned.md`) verificata prima di ogni allineamento pieno: se `server-pnc` ha accumulato contenuto di sessione non ancora presente su `main`, va prima portato su `main` (append manuale, non sovrascrittura automatica) e solo dopo si esegue l'allineamento pieno — vedi nota sopra.
-- `jobs/` *(dal 21/08)* — stessa cautela di `.claude/`: script spesso modificati direttamente sul cluster per necessità operativa (fix urgenti durante un run), vanno controllati per contenuto esclusivo prima di sovrascrivere.
 - `notebooks/` *(dal 21/08)* — verificare prima che non ci siano notebook con output/celle uniche di `server-pnc` non ancora rifluiti su `main`.
 
-Due cartelle usano un allineamento **additivo** (si prende il contenuto di `main`, ma non si cancella nulla di esclusivo di `server-pnc`), non una sostituzione piena, perché possono contenere contenuto reale non ancora replicato altrove:
+Tre cartelle usano un allineamento **additivo** (si prende il contenuto di `main`, ma non si cancella nulla di esclusivo di `server-pnc`), non una sostituzione piena, perché possono contenere contenuto reale non ancora replicato altrove:
 - `management/` (note riunioni — verificare sempre se un file "esclusivo" di `server-pnc` è un vero contenuto originale o solo un duplicato/rinomina di qualcosa già su `main`)
 - `summaries/` (esclusivamente stdout e referti in formato `.md`)
+- `jobs/` *(riclassificata additiva il 21/08, dopo un secondo giro di sync)* — inizialmente trattata come sostituzione piena, ma `server-pnc` ha `jobs/run_dim_reduction_clustering.sh` senza equivalente su `main` (il `jobs/` di `main` si è ristretto man mano che l'esecuzione locale è diventata il default lì, ma `server-pnc` resta il branch di esecuzione cluster e continua a usare quello script via SLURM) — una sostituzione piena lo avrebbe cancellato. Controllare sempre contenuto esclusivo prima di ogni sync, non assumere che resti vuoto per sempre.
 
 ## Cartelle esplicitamente FUORI scope (non allineare)
 - `data/`, `logs/`, `results/` — dati/log/output locali o di cluster per design, mai versionati/sincronizzati. `results/` è stato allineato a questa policy il 21/08 (`git rm -r --cached`, aggiunto a `.gitignore`) — prima era ancora tracciato su `server-pnc` (243 file) nonostante `main` avesse già smesso (`chore: stop tracking results/ in git`); risolto scegliendo coerenza con `main` invece di tenerlo come eccezione permanente. I file restano su disco su entrambi i lati, solo non più in git.
