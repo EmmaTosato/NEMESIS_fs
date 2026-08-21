@@ -1792,7 +1792,8 @@ bastasse). Non un bug funzionale oggi, solo doppio lavoro e superficie di manute
 `except (OSError, ValueError, ImageFileError, pd.errors.ParserError)`. Nessun cambio di
 comportamento osservabile (solo il messaggio d'errore cambia leggermente, mai asserito da
 nessun test) — pura semplificazione, nessun test di regressione necessario. Suite
-`test_features_functional.py` riverificata verde (33/33, incl. il test del soggetto con
+`test_features_functional.py` riverificata verde (33/33 al momento di questo fix — 34/34 a
+fine sessione, dopo l'aggiunta del test di #55 allo stesso file; incl. il test del soggetto con
 node-order mismatch che esercita esattamente questo percorso).
 
 ### 51. `mask_fc`: test coverage di `load_mask_fc_config` limitata al solo `group_filter`
@@ -2164,7 +2165,8 @@ settava esplicitamente (era `_optional_str`, default "lesion" se assente) e ness
 cita più. Nessun test di regressione necessario (rimozione di codice/campo morto, nessun
 cambio di comportamento osservabile) — suite `test_build_config.py`/
 `test_build_lesion_matrix_pipeline.py`/`test_features_lesion.py` riverificata verde
-(75/75).
+(75/75 al momento di questo fix — 76/76 a fine sessione, dopo l'aggiunta del test di #68 a
+`test_features_lesion.py`).
 
 ### 67. `build_lesion_matrix`: guida dichiara un vincolo che il codice non applica
 
