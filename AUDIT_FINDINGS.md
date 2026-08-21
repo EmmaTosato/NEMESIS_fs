@@ -2221,6 +2221,40 @@ esplicito che nomina `binarize_threshold` come causa probabile. Test:
 
 ---
 
+### 69. `clustering`: `load_consensus_config`/`consensus_suggestion_lines`/`consensus_config` senza test unitari dedicati
+
+**Non un finding dell'audit del 15/08** — trovato il 22/08 mentre si verificava (su richiesta
+dell'utente) 2 voci `git stash` residue da mesi prima, riferite a commit non più raggiungibili
+dalla storia di `main` (`5b5a7b1`/`9beba89`). Gli stash contenevano un draft (doc + test) per la
+feature RSC/Monti consensus clustering — verificato che la feature stessa
+(`load_consensus_config` in `src/analysis/params.py`, `consensus_suggestion_lines`/
+`CONSENSUS_METRIC_COLUMNS` in `src/analysis/clustering_tuning.py`, wiring `consensus_config` in
+`run_clustering_tuning_sweep`) è **già implementata e in uso in produzione**
+(`src/pipeline/clustering.py`) — evidentemente completata per un'altra via, non da questi
+stash. Gli stash stessi non si applicano più puliti (`git apply --check` fallisce: 2 file
+target non esistono più — `docs/dev/analysis.md`/`docs/methods/clustering.md`, rimossi in
+riorganizzazioni successive; 3 file hanno conflitti, l'implementazione reale è cambiata da
+allora — es. `"dbscan"` non è più un metodo esistente, sostituito da `"hdbscan"`).
+
+**Verificato però un gap reale e vivo**: `grep` su `test_load_consensus_config`/
+`test_run_clustering_tuning_sweep_adds_rsc`/`consensus_suggestion_lines` in tutta `tests/`
+non restituiva nulla — la feature, già shippata e usata, non aveva **nessuna** copertura di
+test diretta (solo indiretta, se un config reale avesse mai impostato un blocco `"consensus"`
+— nessuno dei config di produzione committati lo fa).
+
+**Stato: Implementato (22/08).** Stash scartati (`git stash drop` su entrambi — contenuto
+superato, non applicabile). Test freschi scritti contro l'API attuale (non applicando il vecchio
+patch): 8 nuovi in `tests/unit/test_params.py` (`load_consensus_config` — assente→`None`,
+valido rsc+monti, solo rsc, metodo non eleggibile con `"hdbscan"` come esempio aggiornato,
+chiave sconosciuta, non-dict, `n_repeats`/`subsample_fraction` invalidi) + 6 nuovi in
+`tests/unit/test_clustering_tuning.py` (`consensus_config=None` invariato, metodo non
+eleggibile rifiutato, colonne rsc+monti aggiunte, solo rsc omette monti,
+`consensus_suggestion_lines` vuota/con suggerimenti). Nessun fix di codice (l'implementazione
+era già corretta) — solo copertura mancante colmata. Suite intera: **762 passed, 0 failed, 12
+skipped**.
+
+---
+
 ## Verificato e corretto
 
 **MEDIUM (#26-#49) — giro chiuso il 21/08/26.** 18 finding implementati con fix di
@@ -2244,6 +2278,12 @@ lavoro precedente al 15/08, `_resolve_viz_embedding`; #60 — targettava
 residua in CRITICAL #5 (testo "Aperto" mai aggiornato dopo la chiusura reale via HIGH #10).
 Suite intera riverificata verde: **748 passed, 0 failed, 12 skipped** (esclusi i 2 file
 `bcblib`-dipendenti).
+
+**#69 (fuori audit) — chiuso il 22/08/26.** Trovato mentre si verificavano 2 stash residui
+(non correlati alla sessione, richiesta esplicita dell'utente di verificarli prima di
+scartarli) — gap di test reale per una feature (RSC/Monti consensus clustering) già
+implementata e in uso, mai coperta da test diretti. Stash scartati, 14 nuovi test scritti
+contro l'API attuale. Suite intera riverificata verde: **762 passed, 0 failed, 12 skipped**.
 
 ## Lezioni apprese
 

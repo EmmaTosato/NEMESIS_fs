@@ -4,7 +4,13 @@ import json
 
 import pytest
 
-from src.analysis.params import load_method_params, load_nested_params, load_trustworthiness_n_neighbors, load_tuning_grid
+from src.analysis.params import (
+    load_consensus_config,
+    load_method_params,
+    load_nested_params,
+    load_trustworthiness_n_neighbors,
+    load_tuning_grid,
+)
 
 
 def _write(tmp_path, payload):
@@ -153,3 +159,74 @@ def test_load_nested_params_too_many_free_params_raises(tmp_path):
     path = _write(tmp_path, {"umap": {"params": {}, "tuning_grid": tuning_grid, "nested_params": ["metric"]}})
     with pytest.raises(ValueError, match="must be exactly 1 or 2"):
         load_nested_params(path, "umap", tuning_grid)
+
+
+# --- load_consensus_config -------------------------------------------------------
+# AUDIT_FINDINGS.md #69 (found 22/08 while triaging an unrelated stale git stash):
+# load_consensus_config/consensus_suggestion_lines/run_clustering_tuning_sweep's
+# consensus_config path are all already implemented and used in production
+# (src/analysis/consensus_clustering.py's RSC/Monti), but had no direct unit test
+# coverage at all before this - only indirectly exercised if a real config happened to
+# set a "consensus" block, which none of the checked-in production configs do.
+
+
+def test_load_consensus_config_absent_returns_none(tmp_path):
+    path = _write(tmp_path, {"kmeans": {"params": {}}})
+    assert load_consensus_config(path, "kmeans") is None
+
+
+def test_load_consensus_config_valid(tmp_path):
+    path = _write(
+        tmp_path,
+        {
+            "kmeans": {
+                "params": {},
+                "consensus": {"rsc": {"n_repeats": 200}, "monti": {"n_repeats": 200, "subsample_fraction": 0.8}},
+            }
+        },
+    )
+    consensus = load_consensus_config(path, "kmeans")
+    assert consensus == {"rsc": {"n_repeats": 200}, "monti": {"n_repeats": 200, "subsample_fraction": 0.8}}
+
+
+def test_load_consensus_config_rsc_only(tmp_path):
+    path = _write(tmp_path, {"spectral": {"params": {}, "consensus": {"rsc": {"n_repeats": 50}}}})
+    assert load_consensus_config(path, "spectral") == {"rsc": {"n_repeats": 50}}
+
+
+def test_load_consensus_config_rejects_ineligible_method(tmp_path):
+    """hdbscan (agglomerative/hdbscan's replacement for the deterministic-methods case,
+    lessons_learned.md #12) has no genuine internal stochasticity to repeat - a "consensus"
+    block for it must raise, not silently no-op or produce a degenerate co-occurrence
+    matrix."""
+    path = _write(tmp_path, {"hdbscan": {"params": {}, "consensus": {"rsc": {"n_repeats": 200}}}})
+    with pytest.raises(ValueError, match="only.*defined for"):
+        load_consensus_config(path, "hdbscan")
+
+
+def test_load_consensus_config_rejects_unknown_key(tmp_path):
+    path = _write(tmp_path, {"kmeans": {"params": {}, "consensus": {"bogus": {}}}})
+    with pytest.raises(ValueError, match="unknown key"):
+        load_consensus_config(path, "kmeans")
+
+
+def test_load_consensus_config_rejects_non_dict(tmp_path):
+    path = _write(tmp_path, {"kmeans": {"params": {}, "consensus": "not-a-dict"}})
+    with pytest.raises(ValueError, match="must be a non-empty JSON object"):
+        load_consensus_config(path, "kmeans")
+
+
+def test_load_consensus_config_rejects_bad_n_repeats(tmp_path):
+    path = _write(tmp_path, {"kmeans": {"params": {}, "consensus": {"rsc": {"n_repeats": 0}}}})
+    with pytest.raises(ValueError, match="n_repeats must be a positive integer"):
+        load_consensus_config(path, "kmeans")
+
+    path2 = _write(tmp_path, {"kmeans": {"params": {}, "consensus": {"rsc": {"n_repeats": True}}}})
+    with pytest.raises(ValueError, match="n_repeats must be a positive integer"):
+        load_consensus_config(path2, "kmeans")
+
+
+def test_load_consensus_config_rejects_bad_subsample_fraction(tmp_path):
+    path = _write(tmp_path, {"kmeans": {"params": {}, "consensus": {"monti": {"n_repeats": 5, "subsample_fraction": 1.5}}}})
+    with pytest.raises(ValueError, match="subsample_fraction must be in"):
+        load_consensus_config(path, "kmeans")

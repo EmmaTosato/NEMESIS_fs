@@ -11,6 +11,7 @@ Sintesi corrente in `README.md` ("What's implemented so far") — non ripetuta q
 - **Audit di correttezza teorica del 15/08/26**, tracciato in `AUDIT_FINDINGS.md` (repo root): **CRITICAL, HIGH, MEDIUM (#1-49) e LOW (#50-68) tutti chiusi/triageati** (sessioni 17-18/08, 21/08, 22/08). Restano deliberatamente aperti solo 2 finding HIGH pre-esistenti, mai nello scope delle sessioni MEDIUM/LOW: **HIGH #14** (`docs/dev/models.md` dichiara `assign_clusters_from_cooccurrence` tagliare a `n_clusters` fisso, il codice reale taglia a `threshold` — mismatch doc/codice) e **HIGH #15** (`clustering.py`'s comparison-plot in `main()` fuori da try/except). Nessun altro lavoro dell'audit resta da fare.
 - **`management/notes/TODO.md`**: rimozione della feature `parcellate` da `build_lesion_matrix.py`/`src/features/lesion.py` — decisione loggata 17/08, non implementata. Tensione esplicita e irrisolta: la produzione attuale (`config/pipelines/build_lesion_matrix.json`, sessione `yan300s1`) usa `parcellate: true` per riprodurre Thiebaut de Schotten 2020; va deciso se questa rimozione sostituisce l'obiettivo di replica prima di procedere.
 - **`docs/debugging/debug_22_08_26.md`**: scritto in questa sessione, copre ogni bug con un vero cambio di codice dei giri MEDIUM (#26-49) e LOW (#50-68) — un bug per sezione, criticità e lesson learned per ciascuno, per `code_standards.md` §8.
+- **`AUDIT_FINDINGS.md` #69** (fuori audit, chiuso 22/08): 2 vecchie voci `git stash` (mesi fa, non applicabili — 2 file target non esistono più, 3 in conflitto) hanno rivelato che la feature RSC/Monti consensus clustering, già implementata e in produzione, non aveva test diretti — 14 test nuovi scritti contro l'API attuale, stash scartati.
 
 ## Vincoli/regole in vigore oggi
 
@@ -23,4 +24,4 @@ Sintesi corrente in `README.md` ("What's implemented so far") — non ripetuta q
 
 ## Prossimo passo esatto
 
-Suite verde confermata (748 passed, 0 failed, 12 skipped, esclusi i 2 file `bcblib`-dipendenti) subito prima del commit di questa sessione. Nessuna azione bloccante in corso sull'audit — i thread realmente aperti sono solo quelli elencati sopra (HIGH #14/#15 lasciati deliberatamente, decisione `parcellate` in `management/notes/TODO.md`). Prossimo lavoro dipende dalla direzione dell'utente.
+Suite verde confermata (762 passed, 0 failed, 12 skipped, esclusi i 2 file `bcblib`-dipendenti) subito prima del commit di questa sessione. Nessuna azione bloccante in corso sull'audit — i thread realmente aperti sono solo quelli elencati sopra (HIGH #14/#15 lasciati deliberatamente, decisione `parcellate` in `management/notes/TODO.md`). Nessuno stash residuo (verificato `git stash list` vuoto). Prossimo lavoro dipende dalla direzione dell'utente.

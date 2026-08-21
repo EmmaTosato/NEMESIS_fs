@@ -4,12 +4,14 @@ import numpy as np
 import pytest
 
 from src.analysis.clustering_tuning import (
+    CONSENSUS_METRIC_COLUMNS,
     METHOD_METRIC_COLUMNS,
     STANDALONE_DIAGNOSTIC_METHODS,
     compute_clustering_metrics,
     compute_dendrogram_linkage,
     compute_eigengap,
     compute_silhouette_samples,
+    consensus_suggestion_lines,
     run_clustering_tuning_sweep,
 )
 
@@ -257,3 +259,68 @@ def test_compute_eigengap_raises_on_unsupported_affinity():
 
 def test_standalone_diagnostic_methods_covers_exactly_agglomerative_spectral():
     assert STANDALONE_DIAGNOSTIC_METHODS == {"agglomerative", "spectral"}
+
+
+# --- run_clustering_tuning_sweep(consensus_config=...) / consensus_suggestion_lines ---
+# AUDIT_FINDINGS.md #69 (found 22/08 while triaging an unrelated stale git stash):
+# consensus_config wiring and consensus_suggestion_lines are already implemented and used
+# in production (src/pipeline/clustering.py), but had no direct unit test coverage before
+# this.
+
+
+def test_run_clustering_tuning_sweep_consensus_config_none_is_unchanged():
+    X = _three_blobs()
+    df = run_clustering_tuning_sweep("kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3]})
+
+    assert not set(CONSENSUS_METRIC_COLUMNS) & set(df.columns)
+
+
+def test_run_clustering_tuning_sweep_consensus_config_rejects_ineligible_method():
+    X = _three_blobs()
+    with pytest.raises(ValueError, match="agglomerative"):
+        run_clustering_tuning_sweep(
+            "agglomerative", X, {"linkage": "ward"}, {"n_clusters": [2, 3]}, consensus_config={"rsc": {"n_repeats": 5}}
+        )
+
+
+def test_run_clustering_tuning_sweep_adds_rsc_and_monti_columns():
+    X = _three_blobs()
+    consensus_config = {"rsc": {"n_repeats": 5}, "monti": {"n_repeats": 30, "subsample_fraction": 0.8}}
+    df = run_clustering_tuning_sweep(
+        "kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3]}, consensus_config=consensus_config
+    )
+
+    assert set(CONSENSUS_METRIC_COLUMNS) <= set(df.columns)
+    assert df["rsc_eigengap"].notna().all()
+    assert df["monti_stability"].notna().all()
+
+
+def test_run_clustering_tuning_sweep_consensus_config_rsc_only_omits_monti_column():
+    X = _three_blobs()
+    df = run_clustering_tuning_sweep(
+        "kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3]}, consensus_config={"rsc": {"n_repeats": 5}}
+    )
+
+    assert "rsc_eigengap" in df.columns
+    assert "monti_stability" not in df.columns
+
+
+def test_consensus_suggestion_lines_empty_when_no_consensus_columns():
+    X = _three_blobs()
+    df = run_clustering_tuning_sweep("kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3]})
+
+    assert consensus_suggestion_lines(df, "kmeans") == []
+
+
+def test_consensus_suggestion_lines_report_argmax_k():
+    X = _three_blobs()
+    consensus_config = {"rsc": {"n_repeats": 5}, "monti": {"n_repeats": 30, "subsample_fraction": 0.8}}
+    df = run_clustering_tuning_sweep(
+        "kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3, 4]}, consensus_config=consensus_config
+    )
+
+    lines = consensus_suggestion_lines(df, "kmeans")
+
+    assert len(lines) == 2
+    assert lines[0].startswith("RSC suggests n_clusters=")
+    assert lines[1].startswith("Monti suggests n_clusters=")
