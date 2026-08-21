@@ -36,3 +36,36 @@ Tre cartelle usano un allineamento **additivo** (si prende il contenuto di `main
 - **`config/pipelines/retrieval_local.json`/`retrieval_server.json` e `config/registry/file_patterns_local.json`/`file_patterns_server.json`** *(dal 21/08)* — non sono config architetturali, sono la **richiesta di retrieval corrente** per quello specifico ambiente (quali dataset/oggetti scaricare *adesso*, con che filtro) — normale che divergano tra locale e server, ognuno riflette il lavoro in corso sul proprio lato. **Mai includerle in un allineamento pieno di `config/`**, nemmeno quando sembrano "in ritardo" rispetto a `main`. *Incidente reale*: durante la sync del 21/08, `config/pipelines/retrieval_server.json` è stato sovrascritto con la versione di `main` sopra una modifica locale non ancora committata (poi recuperata dallo stash) — capitato perché `config/` era trattato come un blocco unico senza questa eccezione esplicita.
 
 Se in futuro ci saranno altre differenze che **devono** rimanere tali tra il server e il locale (es. file di test specifici per l'ambiente EBRAIN, variazioni strutturali di `.gitignore`, o configurazioni che su Mac non girerebbero mai), andranno documentate in questa sezione. In tal caso, si eviteranno sovrascritture brutali (come un `git push --force`) a favore di merge chirurgici per salvaguardare queste eccezioni.
+
+## Procedura pratica: mantenere main e server-pnc riconciliati
+
+Casistica emersa più volte il 21/08: **modifiche fatte separatamente sui due branch nella stessa finestra di tempo** (non solo "server-pnc in ritardo"), quindi non basta un fast-forward in nessuna delle due direzioni. Passi verificati funzionare:
+
+**1. Aggiornare `main` da `origin` prima di qualunque cosa**
+```
+git checkout main
+git pull --ff-only origin main
+```
+`--ff-only` è deliberato: se fallisce (un'altra sessione/checkout ha pushato nel frattempo su `main`, capitato oggi), **non** creare un merge commit automatico — vuol dire che c'è altro lavoro reale arrivato lì, va guardato prima di integrarlo.
+
+**2. Portare su `main` il lavoro nato solo su `server-pnc`**
+Mai un merge diretto tra i due branch interi (porterebbe dentro anche `logs/`/dati/config per-ambiente). Invece, per ogni commit/file da portare:
+- Aprire un worktree separato su `main` (`git worktree add /tmp/<nome> main`) per non toccare il working tree di `server-pnc`, specialmente se ha modifiche in corso non committate.
+- Verificare se `main` ha *già* toccato nel frattempo gli stessi file per un motivo diverso (`git diff <path>` tra le due basi) — se sì, capire se il contenuto di `server-pnc` è ancora utile o è già stato assorbito altrove (è successo con `regress_out_volume`, rimosso da `main` in un secondo momento) prima di riapplicarlo alla cieca.
+- Se il file non è stato toccato da altro su `main`: `git cherry-pick <hash>` dal commit di `server-pnc` — pulito nella maggior parte dei casi (visto oggi su `lessons_learned.md`, `branch_alignment.md`).
+- Se `main` ha divergenza reale sullo stesso file (conflitto): risolvere a mano guardando entrambi i lati, mai prendere un lato per default.
+- Committare, poi pushare (`git push origin main`) — se rifiutato, tornare al punto 1 (rifare fetch/rebase), non forzare.
+- Rimuovere il worktree a lavoro finito (`git worktree remove /tmp/<nome>`).
+
+**3. Allineare `server-pnc` a `main` dopo**
+Cartella per cartella (vedi liste sopra), mai un merge/rebase dell'intero branch:
+```
+rm -rf <cartella>                    # solo per le cartelle a sostituzione piena
+git checkout main -- <cartella>
+git add -A -- <cartella>
+```
+Per le cartelle additive (`management/`, `summaries/`, `jobs/`): solo `git checkout main -- <cartella>` + `git add -A`, **senza** il `rm -rf` iniziale — così si aggiorna/aggiunge senza cancellare l'esclusivo di `server-pnc`. Prima di eseguire su una cartella a sostituzione piena, un controllo minimo:
+```
+diff <(git ls-tree -r --name-only HEAD -- <cartella>/ | sort) <(git ls-tree -r --name-only main -- <cartella>/ | sort)
+```
+se compaiono righe `<` (file esclusivi di `server-pnc`), fermarsi e valutare prima di sovrascrivere.
