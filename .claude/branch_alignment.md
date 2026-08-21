@@ -42,3 +42,13 @@ Non sono config architetturali ma la richiesta di retrieval *corrente* per quell
 ## Procedura: allineare server-pnc a main (per cartella)
 - Sostituzione piena: `rm -rf <cartella> && git checkout main -- <cartella> && git add -A -- <cartella>`
 - Additiva: `git checkout main -- <cartella> && git add -A -- <cartella>` (senza `rm -rf`)
+
+## Procedura: aggiornare un altro checkout locale (es. un clone sul Mac) dopo un push
+Le due procedure sopra aggiornano `main`/`server-pnc` **in un solo repo locale**. Un checkout diverso dello stesso branch (altra macchina, altra cartella) non li vede finché non fa lui stesso un pull da `origin`:
+```
+git status --short                    # se c'è lavoro non committato:
+git stash push -m "wip"
+git pull --ff-only origin <branch>    # main o server-pnc
+git stash pop
+```
+Se `pull --ff-only` fallisce (ci sono commit locali non ancora pushati su quel checkout), `git fetch origin && git rebase origin/<branch>` invece di forzare.
