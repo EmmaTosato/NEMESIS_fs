@@ -49,8 +49,17 @@ def load_tuning_grid(params_file: str | Path, method: str) -> dict[str, list]:
     """Load the tuning_grid dict registered for `method` in `params_file`.
 
     Raises ValueError if `method` has no "tuning_grid" entry (fine-tuning not
-    supported/configured for this method) or if it isn't a JSON object
-    mapping each hyperparameter name to a non-empty list of values to sweep.
+    supported/configured for this method), if it isn't a JSON object
+    mapping each hyperparameter name to a non-empty list of values to sweep,
+    or if any individual value in one of those lists is itself a JSON
+    array/object (AUDIT_FINDINGS.md #56 - lesson #8: run_tuning_sweep/
+    run_clustering_tuning_sweep build `combo = tuple(combo_values)` and use
+    it as a dict key - a nested list/dict value, e.g. a typo'd extra
+    bracket (`[5, 15, [30]]` instead of `[5, 15, 30]`), passes this
+    function's own list-of-values check but raises a cryptic
+    `TypeError: unhashable type` far downstream, the first time that value
+    is actually used as a key, instead of a clear config-validation error
+    here).
     """
     entry = _load_method_entry(params_file, method)
     if "tuning_grid" not in entry:
@@ -61,6 +70,13 @@ def load_tuning_grid(params_file: str | Path, method: str) -> dict[str, list]:
     for key, values in grid.items():
         if not isinstance(values, list) or not values:
             raise ValueError(f"{params_file}: {method!r}.tuning_grid[{key!r}] must be a non-empty list, got {values!r}")
+        for value in values:
+            if isinstance(value, (list, dict)):
+                raise ValueError(
+                    f"{params_file}: {method!r}.tuning_grid[{key!r}] has a non-hashable value {value!r} "
+                    "(a nested list/object) - every value must be a plain scalar (string/number/bool/null), "
+                    "it's later used as part of a dict key to look up this exact combination's embedding"
+                )
     return grid
 
 

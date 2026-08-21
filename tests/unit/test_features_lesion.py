@@ -53,6 +53,30 @@ def _make_lesion_subject_pipeline_first(data_root, dataset, subject_id, lesion_v
     nib.save(nib.Nifti1Image(volume, _AFFINE), subject_dir / f"{subject_id}_label-lesion_mask.nii.gz")
 
 
+def test_build_lesion_matrix_binarize_threshold_one_raises(tmp_path):
+    """AUDIT_FINDINGS.md #68 regression: binarize_threshold=1.0 passes config-load range
+    validation (0.0-1.0 inclusive) but is degenerate for a strict '>' comparison against
+    resampled lesion values typically in [0, 1] - every subject's mask binarizes to zero
+    voxels silently, with no error identifying binarize_threshold as the cause, until it
+    surfaces much later (e.g. X.shape[1] == 0 after _drop_constant_features)."""
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [(1, 1, 1)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+
+    with pytest.raises(ValueError, match="binarize_threshold"):
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob=_GLOB,
+            binarize_threshold=1.0,
+            resample_interpolation="nearest",
+            parcellate=False,
+            group_filter=None,
+        )
+
+
 def test_build_lesion_matrix_voxelwise(tmp_path):
     _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2)])
     _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [(1, 1, 1)])

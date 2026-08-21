@@ -168,7 +168,9 @@ prima di chiamare `mask_dataset_fc` (che poi ricrea la directory da zero via
 `mkdir(parents=True, exist_ok=True)`). Garantisce semantica "tutto o niente": o la directory non
 esiste ancora, o contiene esattamente i file scritti dal run corrente, mai un misto.
 
-**Stato: Aperto** (soluzione proposta, in attesa di conferma prima di implementare).
+**Stato: Chiuso, vedi HIGH #10 (18/08) — stessa soluzione proposta qui implementata lì, testo
+di stato non aggiornato in questa sezione fino ad ora (trovato per inconsistenza durante il
+giro LOW del 21/08).**
 
 ---
 
@@ -1783,7 +1785,15 @@ quello su `.columns` — il controllo esterno è ridondante (mai l'unico a blocc
 `mask_fc_by_lesion` lo rifà comunque) e al tempo stesso parziale (non copre `.columns`, che
 resta scoperto se mai qualcuno rimuovesse il controllo interno pensando che quello esterno
 bastasse). Non un bug funzionale oggi, solo doppio lavoro e superficie di manutenzione confusa.
-**Stato: Aperto.**
+
+**Stato: Implementato (22/08).** Rimosso il controllo ridondante/parziale in `mask_dataset_fc`
+(solo `.index`) — `mask_subject_fc` → `mask_fc_by_lesion` fa già il controllo completo
+(`.index` **e** `.columns`), stesso tipo di eccezione già catturato dallo stesso
+`except (OSError, ValueError, ImageFileError, pd.errors.ParserError)`. Nessun cambio di
+comportamento osservabile (solo il messaggio d'errore cambia leggermente, mai asserito da
+nessun test) — pura semplificazione, nessun test di regressione necessario. Suite
+`test_features_functional.py` riverificata verde (33/33, incl. il test del soggetto con
+node-order mismatch che esercita esattamente questo percorso).
 
 ### 51. `mask_fc`: test coverage di `load_mask_fc_config` limitata al solo `group_filter`
 
@@ -1793,7 +1803,12 @@ esattamente 3 test, tutti su `group_filter`
 `test_mask_fc_group_filter_restricts_to_declared_groups`,
 `test_mask_fc_group_filter_unknown_group_raises`) — nessun test dedicato per
 `min_coverage`/`atlas_combos`/`resample_interpolation`/`binarize_threshold`/`fc_glob_template`,
-tutti campi obbligatori dello stesso loader. **Stato: Aperto.**
+tutti campi obbligatori dello stesso loader.
+
+**Stato: Implementato (22/08).** 14 nuovi test in `tests/unit/test_build_config.py` (config
+valido, `atlas_combos` multipli, 9 casi invalidi parametrizzati coprendo tutti i campi
+elencati). Nessun fix di codice (`load_mask_fc_config` era già corretto) — solo copertura
+mancante colmata, stesso schema di #31.
 
 ### 52. `mask_fc`: docstring ambiguo su combo successive dopo errore
 
@@ -1809,7 +1824,13 @@ immediato dentro il `for combo in config.atlas_combos` in `main()`, righe 89-91)
 successivi non vengono mai nemmeno tentati, comportamento identico al finding #29 di
 `build_fc_matrix.py` ma qui non descritto affatto, lasciando la lettura ambigua tra "salta solo
 questo combo e continua" e "interrompe tutto da qui in poi" (la seconda è quella vera).
-**Stato: Aperto.**
+
+**Stato: Implementato (22/08).** Docstring di `mask_fc.py` esteso per dichiarare esplicitamente
+che un raise interrompe **tutti** i combo restanti nella stessa config, con una nota sul
+perché questo modulo non replica l'isolamento per-combo di `build_fc_matrix.py` (#29): un
+fallimento qui (atlante/lesione/FC) è più spesso un problema di config/dati che si ripeterebbe
+identico su ogni combo successivo, a differenza del gap genuinamente per-combo di
+`build_fc_matrix.py`. Nessun cambio di comportamento, solo doc.
 
 ### 53. `build_fc_matrix`: combo di riferimento `Yan200TianS2Buckner7N` assente dalle config di produzione
 
@@ -1818,7 +1839,15 @@ elencano esattamente gli stessi 11 `atlas_combos` — ogni combinazione `Yan{100
 TianS{1,2,3}Buckner7N` tranne **`Yan200TianS2Buckner7N`**, l'unico buco in una griglia altrimenti
 completa 4×3=12. Nessun commento nel config né in `docs/dev/fc_matrix.md` spiega l'esclusione
 (deliberata? un atlante mai scaricato su `assets/atlases/fmriprep/`? un errore di trascrizione
-one-off in un `sed`/copia-incolla che ha generato la lista?). **Stato: Aperto.**
+one-off in un `sed`/copia-incolla che ha generato la lista?).
+
+**Stato: Documentato, config non cambiato (22/08).** Riverificato dal vivo: l'atlante
+`atlas-Yan200TianS2Buckner7N` **esiste** su disco (`assets/atlases/fmriprep/`), escludendo
+"mai scaricato" come spiegazione — e questo stesso combo è citato in `docs/dev/fc_matrix.md`
+come quello verificato per primo contro dati WashU reali, rafforzando l'ipotesi di un gap di
+trascrizione accidentale piuttosto che un'esclusione deliberata. Nota aggiunta in
+`docs/dev/fc_matrix.md` con questa evidenza. Non aggiunto io stesso ai config di produzione:
+cambierebbe lo scope reale di run di ricerca già in uso, una decisione per l'utente.
 
 ### 54. `build_fc_matrix`: citazione "Griffis et al. 2021 LQT" non verificabile in `knowledge/`
 
@@ -1833,7 +1862,12 @@ Disconnections...` e `Griffis et al - 2020 - Damage to the shortest structural p
 `min_coverage=0.5` (il valore di default per ogni run di `mask_fc.py`) non ha un paper
 corrispondente estratto in `knowledge/`, quindi non è verificabile/rintracciabile da questo
 repo senza cercare la fonte altrove. Facile scambiarla per "già verificata" perché altri paper
-dello stesso autore sono effettivamente presenti. **Stato: Aperto.**
+dello stesso autore sono effettivamente presenti.
+
+**Stato: Documentato, non risolvibile da codice (22/08).** Riconfermato: `knowledge/` ha solo
+Griffis 2019/2020, nessun 2021. Nota aggiunta in `docs/dev/fc_matrix.md` che segnala
+esplicitamente la citazione come non verificabile da questo repo — recuperare/estrarre il
+paper reale è un task di letteratura, non un fix di codice.
 
 ### 55. `build_fc_matrix`: `drop_constant_edges` degenera con 1 solo soggetto nella cartella
 
@@ -1854,7 +1888,14 @@ stato rilanciato con `group_filter` ristretto a un solo soggetto per test rapido
 `build_fc_matrix.py` lanciato per errore sulla stessa cartella invece che su quella completa —
 il matrice risultante ha 0 (o quasi 0) edge, nessun errore esplicito segnala che la causa è "solo
 1 soggetto", solo un log generico "N edge dropped" che con N = quasi tutte le colonne
-sembrerebbe un problema nei dati piuttosto che nel numero di soggetti. **Stato: Aperto.**
+sembrerebbe un problema nei dati piuttosto che nel numero di soggetti.
+
+**Stato: Implementato (22/08).** `drop_constant_edges` ora rileva `X.shape[0] <= 1` all'inizio
+e ritorna `X` invariato (nessun edge scartato) con un `logging.warning` esplicito che nomina
+la causa reale, invece di far scattare il controllo "min==max" degenere. Test:
+`test_drop_constant_edges_single_subject_keeps_all_edges`
+(`tests/unit/test_features_functional.py`) — verificato fallire su codice pre-fix (0 edge
+sopravvissuti), passa col fix (tutti gli edge mantenuti, warning loggato).
 
 ### 56. `dim_reduction`: `load_tuning_grid` non valida valori hashable
 
@@ -1876,7 +1917,14 @@ battitura (`"n_neighbors": [5, 15, [30]]` invece di `[5, 15, 30]`, una parentesi
 troppo) supera `load_tuning_grid` (è comunque una lista non vuota) ma fa fallire
 `itertools.product`/`tuple(combo_values)` con `TypeError: unhashable type: 'list'` nel primo
 punto in cui quel valore viene usato come chiave — un errore criptico rispetto a un messaggio di
-validazione esplicito al caricamento del config. **Stato: Aperto.**
+validazione esplicito al caricamento del config.
+
+**Stato: Implementato (22/08).** `load_tuning_grid` verifica ora che ogni valore di ogni lista
+non sia una lista/dict annidati (`isinstance(value, (list, dict))`) — `ValueError` esplicito
+al caricamento, con la chiave e il valore incriminati. Test:
+`test_load_tuning_grid_nested_list_value_raises` + `test_load_tuning_grid_nested_dict_value_raises`
+(`tests/unit/test_params.py`) — entrambi verificati fallire su codice pre-fix
+(`DID NOT RAISE`), passano col fix.
 
 ### 57. `dim_reduction`: `evaluate_pca_varimax` fitta PCA due volte per combinazione
 
@@ -1897,7 +1945,16 @@ due volte per ogni combinazione del tuning, una volta solo per leggere
 `pca_varimax_embed`, se questa lo esponesse). **Esempio concreto**: un tuning `pca_varimax` con
 `n_components` che sweeppa `[2, 5, 10, 20]` su una matrice a 372 feature (parcellata) — ogni
 combinazione paga il costo di 2 decomposizioni SVD invece di 1, un raddoppio evitabile del tempo
-di calcolo per l'intero sweep. **Stato: Aperto.**
+di calcolo per l'intero sweep.
+
+**Stato: Implementato (22/08).** `pca_varimax_embed` refattorizzata: la logica condivisa
+(fit PCA + loadings scalati + rotazione varimax + regressione) isolata in una nuova
+`_pca_varimax_fit(X, params) -> (embedding, fitted_pca)`, riusata sia da `pca_varimax_embed`
+(ritorna solo l'embedding, contratto invariato per il registry `REDUCTION_METHODS`) sia da
+`evaluate_pca_varimax` (legge `fitted.explained_variance_ratio_` dallo stesso fit, mai un
+secondo `PCA(...).fit(X)` separato). Test: `test_evaluate_pca_varimax_fits_pca_only_once`
+(`tests/unit/test_tuning.py`, `PCA.fit` monkeypatchata con un contatore) — verificato fallire
+su codice pre-fix (2 chiamate), passa col fix (1 chiamata).
 
 ### 58. `clustering`: docstring `compute_rsc_eigengap` disallineato di un indice
 
@@ -1918,7 +1975,12 @@ k-esimo. Il codice è internamente coerente (usa `k`/`k-1` come indici 0-based i
 consistente con `subset_by_index=[0, k]`, che prende k+1 autovalori), ma la *descrizione a
 parole* nel docstring è sfalsata di una posizione rispetto a cosa il codice calcola realmente.
 Non un bug funzionale — solo una fonte di confusione per chi legge il docstring per capire
-l'indice esatto senza rileggere il codice. **Stato: Aperto.**
+l'indice esatto senza rileggere il codice.
+
+**Stato: Implementato (22/08).** Prima riga del docstring corretta da "k-th and (k-1)-th" a
+"(k+1)-th and k-th" — allineata alla frase, già corretta, due righe sotto ("difference between
+k+1-th and k-th ordered eigenvalues") che prima la contraddiceva. Solo testo, nessun cambio di
+codice (il codice era già internamente coerente).
 
 ### 59. `clustering`: plot sempre sulle prime 2 colonne grezze
 
@@ -1940,7 +2002,14 @@ already-computed dim_reduction embedding, this script doesn't care which") — `
 mostrerebbe le prime 2 delle 372 parcelle (probabilmente le prime 2 in ordine di label
 dell'atlante, senza nessun significato particolare), un plot "vero" ma privo di qualunque
 capacità diagnostica reale sulla struttura dei cluster nello spazio a 372 dimensioni.
-**Stato: Aperto.**
+
+**Stato: Moot (22/08).** Verificato dal vivo: `clustering.py`'s `_run_one_method` non chiama
+più `plot_clusters_2d(X[:, :2], ...)` — usa `_resolve_viz_embedding(X, metadata,
+viz_embedding_path)` (aggiunta in una sessione precedente al 15/08, 14-08-26 secondo
+`docs/dev/models.md`): riusa X se già 2/3 componenti, legge un embedding companion via
+`viz_embedding_path` se X ha altre dimensioni, altrimenti ritorna `None` e **salta** il plot
+con un warning — mai più uno slice di X. Il finding era già risolto come effetto collaterale
+di lavoro precedente a questa sessione di triage, non da un'azione di questo giro.
 
 ### 60. `dim_reduction_clustering`: asimmetria naming tag tra produzione e tuning
 
@@ -1954,7 +2023,14 @@ tag di riduzione — documentato esplicitamente nel docstring come scelta intenz
 reduction produced the embedding is already unambiguous from the enclosing
 `<reduction_method>/<method>/` folders"). Non un bug, solo un'asimmetria di naming tra i due
 modi della stessa pipeline che vale la pena notare per chi si aspetta convenzioni identiche tra
-`production/` e `tuning/`. **Stato: Aperto.**
+`production/` e `tuning/`.
+
+**Stato: Moot (22/08).** `src/pipeline/dim_reduction_clustering.py` non esiste più (rimosso
+14/08) — verificato `ls`, nessun file. L'asimmetria descritta era interna a quel modulo
+specifico (produzione vs. tuning dello stesso CLI combinato); `dim_reduction.py`/`clustering.py`
+sono ora due pipeline separate, ognuna con la propria convenzione di naming interna coerente
+(non un'asimmetria fra due modi della stessa pipeline, dato che quella pipeline combinata non
+esiste più). Nessuna azione.
 
 ### 61. `understanding_umap_report`: nessun test per la CLI (`main()`)
 
@@ -1964,7 +2040,12 @@ nessuna occorrenza — il test file copre le funzioni di `src/analysis/understan
 `src/pipeline/generate_understanding_umap_report.py::main()` (parsing argomenti, gestione
 `FileNotFoundError`/`ValueError` a livello CLI, messaggi di log). Un bug introdotto solo nel
 livello CLI (es. un argomento mal gestito, un cambio nell'except handling) non verrebbe
-intercettato da nessun test esistente. **Stato: Aperto.**
+intercettato da nessun test esistente.
+
+**Stato: Implementato (22/08).** Nuovo file `tests/unit/test_generate_understanding_umap_report_pipeline.py`
+— 3 test su `main()`: successo end-to-end, `--umap-tuning-dir` mancante (`FileNotFoundError` →
+`return 1`), mismatch di coorte fra UMAP e t-SNE (`ValueError` → `return 1`). Nessun fix di
+codice (`main()` era già corretto) — solo copertura mancante colmata, stesso schema di #31/#51.
 
 ### 62. `understanding_umap_report`: lista `metrics` non deduplicata
 
@@ -1979,7 +2060,14 @@ nome di cartella reale sul filesystem (intrinsecamente unico), ma la costruzione
 difensiva: se in futuro questa lista venisse costruita concatenando più sorgenti (es. unendo i
 metric di più `umap_tuning_dir` in un report aggregato), un duplicato non verrebbe scartato e
 `build_leaf_page` verrebbe chiamata due volte per lo stesso metric, sovrascrivendo il proprio
-output senza errore. **Stato: Aperto.**
+output senza errore.
+
+**Stato: Implementato (22/08).** `set()` esplicito prima di `sorted()`. Puramente difensivo —
+confermato ancora oggi innocuo (ogni elemento viene da un glob reale su filesystem,
+intrinsecamente unico) e non facilmente testabile senza mockare `Path.glob` per iniettare un
+duplicato artificiale che non può esistere su un filesystem reale — nessun test di regressione
+aggiunto per questo motivo (nessun bug attivo da riprodurre). Suite
+`test_understanding_umap_report.py` riverificata verde (16/16).
 
 ### 63. `understanding_umap_report`: README non menziona questa pipeline
 
@@ -1988,7 +2076,13 @@ masking/matrix building, SDC, dim_reduction/clustering — nessuna menzione di
 `generate_understanding_umap_report.py`/`understanding_umap_report.py`, nonostante sia una
 pipeline CLI completa (`src/pipeline/generate_understanding_umap_report.py`) con una propria
 guida implicita nel proprio docstring. Chi legge solo il README per farsi un'idea di "cosa c'è"
-non scoprirebbe che questo strumento esiste. **Stato: Aperto.**
+non scoprirebbe che questo strumento esiste.
+
+**Stato: Implementato (22/08).** Nuovo paragrafo "Embedding exploration tools" in `README.md`
+(dopo la sezione dim_reduction/clustering) che nomina esplicitamente sia `embedding_app.py`
+(app Dash live) sia `generate_understanding_umap_report.py` (report HTML statico), con
+puntatori alle rispettive guide (`docs/guides/embedding_app.md`/`understanding_umap_report.md`,
+entrambe già esistenti). Solo doc, nessun cambio di codice.
 
 ### 64. `embedding_app`: sentinella `-1` trapelerebbe in UI una volta ricollegata l'app
 
@@ -2006,7 +2100,15 @@ fix con `.get(..., NO_N_COMPONENTS)`), `n_components_values` contiene letteralme
 `{"label": str(-1), "value": -1}` mostra la stringa **"-1"** come opzione nel dropdown
 "Componenti" dell'app, un dettaglio implementativo interno (il sentinel) che finisce visibile
 nell'interfaccia utente senza nessuna etichetta più leggibile tipo "N/D"/"—" (come invece fa
-`NO_METRIC = "—"` per il caso analogo sulla metrica). **Stato: Aperto.**
+`NO_METRIC = "—"` per il caso analogo sulla metrica).
+
+**Stato: Implementato (22/08).** Nuovo helper `_n_components_option_label(n)` — ritorna
+`NO_METRIC` ("—") quando `n == NO_N_COMPONENTS`, altrimenti `str(n)` — usato dal callback
+`_update_n_components_picker` al posto di `str(n)` diretto. `value` del dropdown resta `-1`
+invariato (la logica di filtro a valle non cambia), solo la `label` mostrata cambia. Test:
+`test_n_components_option_label_maps_sentinel_to_readable_placeholder`
+(`tests/unit/test_embedding_app.py`) — verificato fallire su codice pre-fix
+(`ImportError`, la funzione non esisteva), passa col fix.
 
 ### 65. `embedding_app`: traccia Plotly vuota per color mode interamente NaN
 
@@ -2032,7 +2134,14 @@ interamente `NaN` per un sottoinsieme di dataset senza quel campo) — seleziona
 "nihss" nell'app, il grafico mostra correttamente la traccia "missing" con tutti i punti in
 grigio, ma la legenda include anche una voce fantasma "NIHSS (severity)" senza marker visibile,
 confusa per l'utente che si chiede perché ci sia una seconda voce di legenda che non corrisponde
-a nulla sul grafico. **Stato: Aperto.**
+a nulla sul grafico.
+
+**Stato: Implementato (22/08).** La seconda `add_trace` (la traccia colorata) è ora condizionata
+su `(~is_missing).any()` — se ogni valore è NaN, solo la traccia "missing" viene aggiunta,
+nessuna voce di legenda fantasma. Test:
+`test_build_embedding_figure_all_missing_skips_empty_colored_trace`
+(`tests/unit/test_embedding_app.py`) — verificato fallire su codice pre-fix (traccia
+"NIHSS (severity)" presente con 0 punti), passa col fix (solo "missing" in legenda).
 
 ### 66. `build_lesion_matrix`: campo config `data_modality` morto
 
@@ -2045,7 +2154,17 @@ ma non è mai passato a `build_lesion_matrix()` né usato per derivare `output_d
 alcun file. A differenza di quanto il nome suggerirebbe (distinguere lesion/SDC/FC quando quelle
 pipeline condivideranno lo stesso entry point), oggi non ha nessun effetto sul comportamento —
 cambiarlo in un valore diverso da `"lesion"` non altera l'output in nessun modo osservabile.
-**Stato: Aperto.**
+
+**Stato: Implementato (22/08).** Campo rimosso interamente: da `BuildMatrixConfig` (dataclass),
+da `load_build_matrix_config` (nessuna lettura/default residuo), da `_config_summary`
+(build_lesion_matrix.py), e dal config di produzione reale
+(`config/pipelines/build_lesion_matrix.json`) — coerente con code_standards §5 ("Niente campi
+di config non letti da nessun codice attivo"). Verificato via `grep -rn` che nessun test lo
+settava esplicitamente (era `_optional_str`, default "lesion" se assente) e nessuna doc lo
+cita più. Nessun test di regressione necessario (rimozione di codice/campo morto, nessun
+cambio di comportamento osservabile) — suite `test_build_config.py`/
+`test_build_lesion_matrix_pipeline.py`/`test_features_lesion.py` riverificata verde
+(75/75).
 
 ### 67. `build_lesion_matrix`: guida dichiara un vincolo che il codice non applica
 
@@ -2060,7 +2179,14 @@ forced regardless of the lesion masks' resample_interpolation"). Se la guida ute
 specificare che l'atlante ne è sempre escluso), un utente che imposta
 `resample_interpolation: "linear"` aspettandosi che valga anche per l'atlante otterrebbe un
 comportamento diverso da quanto la guida lascia intendere, anche se il codice è corretto (un
-atlante di label discrete non può essere interpolato linearmente senza inventare valori). **Stato: Aperto.**
+atlante di label discrete non può essere interpolato linearmente senza inventare valori).
+
+**Stato: Implementato (22/08).** Riga della tabella parametri in `docs/guides/matrix_building.md`
+riscritta: chiarisce che `resample_interpolation` governa **solo** il resampling delle
+maschere di lesione (valori validi: `linear`/`nearest`/`continuous`), mai l'atlante (sempre
+`nearest`, indipendentemente dal config, quando `parcellate: true`) — la vecchia riga
+("Deve sempre essere 'nearest'") era essa stessa fattualmente scorretta in un altro modo
+(il campo può legittimamente essere `linear`/`continuous` per le maschere). Solo doc.
 
 ### 68. `build_lesion_matrix`: `binarize_threshold=1.0` degenere senza messaggio chiaro
 
@@ -2084,7 +2210,14 @@ maschera di lesione binarizzata interamente a zero per **ogni** soggetto, silenz
 `_drop_constant_features` scarterebbe ogni colonna (tutte costanti a 0), producendo una matrice
 a 0 feature — un fallimento che si manifesterebbe altrove (es. `X.shape[1] == 0`) con un
 messaggio che non indica affatto la causa reale (`binarize_threshold` troppo alto).
-**Stato: Aperto.**
+
+**Stato: Implementato (22/08).** `_voxelwise_matrix_with_volume` verifica ora, in aggregato
+(non per singolo soggetto — un soggetto con 0 voxel lesi è un caso di dominio legittimo,
+lesson #6), se `lesion_volume_voxels` è 0 per **ogni** soggetto della coorte — `ValueError`
+esplicito che nomina `binarize_threshold` come causa probabile. Test:
+`test_build_lesion_matrix_binarize_threshold_one_raises`
+(`tests/unit/test_features_lesion.py`) — verificato fallire su codice pre-fix
+(`DID NOT RAISE`, matrice costruita silenziosamente a 0 voxel per tutti), passa col fix.
 
 ---
 
@@ -2096,7 +2229,21 @@ nessun bug], #34, #35, #36, #41, #43, #44, #45, #46, #48, #49), 4 di sola docume
 (#32, #33, #38, #42), 2 documentati senza cambiare valori scientifici su decisione utente
 (#37, #47), 2 chiusi in triage come moot/sussunti dalla rimozione di `dim_reduction_clustering.py`
 (#39, #40). Suite intera riverificata verde: **727 passed, 0 failed, 12 skipped** (esclusi i 2
-file `bcblib`-dipendenti). LOW (#50-68) non ancora affrontati.
+file `bcblib`-dipendenti).
+
+**LOW (#50-68) — giro chiuso il 22/08/26 (esecuzione autonoma, wakeup schedulato senza utente
+disponibile).** 19 finding triageati: 12 implementati con fix di codice reale + test di
+regressione (#55, #56, #57, #64, #65, #68 — bug veri; #50, #66 — semplificazione/rimozione
+codice morto, nessun test necessario, comportamento invariato; #52, #58, #63, #67 — solo
+documentazione), 3 di puro test-coverage senza bug (#51, #61, e #62 difensivo senza bug attivo
+né test aggiunto), 2 documentati senza modificare config/dati (#53 — combo atlante
+verosimilmente omesso per errore, verificato che l'atlante esiste comunque su disco; #54 —
+citazione non verificabile in `knowledge/`), 2 chiusi in triage come moot (#59 — già risolto da
+lavoro precedente al 15/08, `_resolve_viz_embedding`; #60 — targettava
+`dim_reduction_clustering.py`, rimosso). Trovata e corretta anche un'inconsistenza di stato
+residua in CRITICAL #5 (testo "Aperto" mai aggiornato dopo la chiusura reale via HIGH #10).
+Suite intera riverificata verde: **748 passed, 0 failed, 12 skipped** (esclusi i 2 file
+`bcblib`-dipendenti).
 
 ## Lezioni apprese
 
@@ -2104,3 +2251,7 @@ Aggiunta `lessons_learned.md` #28 (21/08): tightening di una validazione condivi
 livello (`group_of()` sempre chiamata, #26/#46) ha rotto 44 test in 5 file, tutti non
 correlati al codice toccato — il vero raggio d'impatto era invisibile leggendo solo il diff,
 visibile solo eseguendo la suite. Vedi `lessons_learned.md` per il testo completo.
+
+Nessun pattern genuinamente nuovo emerso durante il giro LOW (22/08) — i fix ricadono tutti in
+pattern già coperti (validazione mancante, error handling, doc stale, test coverage);
+`lessons_learned.md` non aggiornato per questo giro.

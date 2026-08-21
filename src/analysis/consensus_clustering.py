@@ -127,13 +127,22 @@ def run_monti_repeats(
 
 
 def compute_rsc_eigengap(cooccurrence_matrix: np.ndarray, k: int) -> float:
-    """Gap between the k-th and (k-1)-th (1-indexed) sorted eigenvalues of
+    """Gap between the (k+1)-th and k-th (1-indexed) sorted eigenvalues of
     the co-occurrence matrix's normalized Laplacian - not the biggest gap
     anywhere (that's the generic eigengap heuristic already in
     clustering_tuning.compute_eigengap), but specifically the gap at the
     position that matters for this candidate k, matching the paper's own
     "difference between k+1-th and k-th ordered eigenvalues" read across the
     different co-occurrence matrices built for each k attempted.
+
+    AUDIT_FINDINGS.md #58: previously worded "k-th and (k-1)-th (1-indexed)" -
+    off by one from what the code below actually computes. `eigenvalues` is
+    0-indexed, so `eigenvalues[k]` is the (k+1)-th value in 1-indexed terms
+    and `eigenvalues[k - 1]` is the k-th - i.e. exactly the "k+1-th and k-th"
+    phrasing already given two sentences above, which this opening line now
+    matches instead of contradicting. Purely a docstring wording fix - the
+    code itself was already internally consistent (0-based k/k-1 indices
+    matching `subset_by_index=[0, k]`, which requests k+1 eigenvalues).
     """
     if k < 1 or k >= cooccurrence_matrix.shape[0]:
         raise ValueError(f"k must be in [1, n_samples), got k={k} for a {cooccurrence_matrix.shape[0]}x... matrix")

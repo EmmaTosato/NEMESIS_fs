@@ -73,6 +73,23 @@ def test_load_tuning_grid_non_dict_raises(tmp_path):
         load_tuning_grid(path, "umap")
 
 
+def test_load_tuning_grid_nested_list_value_raises(tmp_path):
+    """AUDIT_FINDINGS.md #56 regression: a value list with a nested list/object element
+    (e.g. a typo'd extra bracket, [5, 15, [30]] instead of [5, 15, 30]) used to pass this
+    validation (it's still a non-empty list) and only fail much later with a cryptic
+    `TypeError: unhashable type: 'list'` from itertools.product/tuple(combo_values), the
+    first time that value was used as a dict key."""
+    path = _write(tmp_path, {"umap": {"params": {}, "tuning_grid": {"n_neighbors": [5, 15, [30]]}}})
+    with pytest.raises(ValueError, match="non-hashable value"):
+        load_tuning_grid(path, "umap")
+
+
+def test_load_tuning_grid_nested_dict_value_raises(tmp_path):
+    path = _write(tmp_path, {"umap": {"params": {}, "tuning_grid": {"metric": [{"bad": "value"}]}}})
+    with pytest.raises(ValueError, match="non-hashable value"):
+        load_tuning_grid(path, "umap")
+
+
 def test_load_trustworthiness_n_neighbors_valid(tmp_path):
     path = _write(tmp_path, {"umap": {"params": {}, "trustworthiness_n_neighbors": 10}})
     assert load_trustworthiness_n_neighbors(path, "umap") == 10

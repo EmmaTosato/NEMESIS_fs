@@ -255,6 +255,14 @@ NO_METRIC = "—"
 # n_components value (always >= 1).
 NO_N_COMPONENTS = -1
 
+def _n_components_option_label(n: int) -> str:
+    """Dropdown label for one n_components_options() value - AUDIT_FINDINGS.md #64:
+    NO_N_COMPONENTS (-1, the clustering-pipeline sentinel) gets NO_METRIC's own readable
+    placeholder ("—") instead of the literal string "-1", the same treatment NO_METRIC
+    already gets on the metric picker for the analogous case."""
+    return NO_METRIC if n == NO_N_COMPONENTS else str(n)
+
+
 _PARAMS_USED_PREFIX = "Params used: "
 
 
@@ -514,15 +522,21 @@ def build_embedding_figure(
                         marker=dict(color=_NOISE_COLOR, **marker_kwargs),
                     )
                 )
-            fig.add_trace(
-                scatter_cls(
-                    **_trace_kwargs(~is_missing), mode="markers", name=mode.label,
-                    marker=dict(
-                        color=color_values[~is_missing], colorscale="Viridis", colorbar=colorbar_kwargs,
-                        **marker_kwargs,
-                    ),
+            # AUDIT_FINDINGS.md #65: this trace used to be added unconditionally - when
+            # every value for this color mode is NaN (e.g. "nihss" on a dataset without
+            # enrich_lesion_metadata.py run yet), it got x=[]/y=[] (nothing to plot) but
+            # still showed up as a legend entry with mode.label and no visible marker,
+            # confusing next to the real "missing" trace that already explains the gap.
+            if (~is_missing).any():
+                fig.add_trace(
+                    scatter_cls(
+                        **_trace_kwargs(~is_missing), mode="markers", name=mode.label,
+                        marker=dict(
+                            color=color_values[~is_missing], colorscale="Viridis", colorbar=colorbar_kwargs,
+                            **marker_kwargs,
+                        ),
+                    )
                 )
-            )
 
     axis_style = dict(showgrid=False, zeroline=False, showline=True, linewidth=1, linecolor=_GRID_BORDER)
     layout_kwargs = dict(
@@ -762,7 +776,7 @@ def build_app(runs: list[ProductionRun]) -> Dash:
         if pipeline is None or method is None or metric is None:
             raise PreventUpdate
         n_components_values = n_components_options(runs, modality, pipeline, method, metric)
-        options = [{"label": str(n), "value": n} for n in n_components_values]
+        options = [{"label": _n_components_option_label(n), "value": n} for n in n_components_values]
         return options, n_components_values[0]
 
     @app.callback(

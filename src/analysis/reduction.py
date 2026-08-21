@@ -63,6 +63,17 @@ def pca_varimax_embed(X: np.ndarray, params: dict) -> np.ndarray:
     regression the paper describes ("Component scores were systematically
     extracted for all components... by means of multiple regression").
     """
+    embedding, _fitted = _pca_varimax_fit(X, params)
+    return embedding
+
+
+def _pca_varimax_fit(X: np.ndarray, params: dict) -> tuple[np.ndarray, PCA]:
+    """Shared implementation for pca_varimax_embed above and
+    tuning.py::evaluate_pca_varimax (AUDIT_FINDINGS.md #57) - also returns the
+    fitted PCA object so a caller that needs `explained_variance_ratio_` (the
+    tuning sweep's own score) doesn't have to fit a second, separate PCA on
+    the same X/n_components just to read it.
+    """
     if "n_components" not in params:
         raise ValueError("pca_varimax requires 'n_components' in params")
     if "rotation_max_iter" not in params:
@@ -81,7 +92,7 @@ def pca_varimax_embed(X: np.ndarray, params: dict) -> np.ndarray:
     # "component scores were... extracted... by means of multiple regression":
     # regress each centered row onto the rotated loadings -> (n_samples, n_components)
     scores, *_ = np.linalg.lstsq(rotated_loadings, X_centered.T, rcond=None)
-    return scores.T
+    return scores.T, fitted
 
 
 def pacmap_embed(X: np.ndarray, params: dict) -> np.ndarray:

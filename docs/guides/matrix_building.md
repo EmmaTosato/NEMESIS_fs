@@ -62,7 +62,7 @@ Spiegazione delle chiavi di `config/pipelines/build_lesion_matrix.json`:
 | **`reference_template_path`** | File MNI di riferimento spaziale per la "Deformazione/Resampling" di tutte le lesioni. |
 | **`lesion_glob`** | Il percorso fisso dei file (non toccare): `"manual_masks/*/anat/*_label-lesion_mask.nii.gz"`. |
 | **`binarize_threshold`** | (Solitamente `0.5`). Trasforma contorni grigi della deformazione spaziale in lesione netta (1 o 0). |
-| **`resample_interpolation`**| La matematica della deformazione spaziale. Deve sempre essere `"nearest"`. |
+| **`resample_interpolation`**| La matematica della deformazione spaziale **solo per le maschere di lesione** (`"linear"`/`"nearest"`/`"continuous"` — vedi `_KNOWN_INTERPOLATIONS` in `src/analysis/build_config.py`). **Non governa il resampling dell'atlante**: quando `parcellate: true`, l'atlante viene sempre resampiato con `"nearest"`, indipendentemente da questo valore (un atlante di label discrete non può essere interpolato linearmente senza inventare valori — vedi `docs/dev/lesion_matrix.md`/`AUDIT_FINDINGS.md` #67). |
 | **`parcellate`** | `true` (Categoria 2) o `false` (Categoria 1). |
 | **`atlas_path`** | Necessario solo se parcellate=true. Il NIfTI dell'atlante desiderato. |
 | **`parcel_aggregation`** | Attualmente supportato solo `"fraction_lesioned"`. |

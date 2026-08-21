@@ -18,6 +18,7 @@ from src.analysis.embedding_app import (
     PRODUCTION_PIPELINES,
     ProductionRun,
     UndisplayableRunError,
+    _n_components_option_label,
     build_app,
     build_embedding_figure,
     discover_production_runs,
@@ -245,6 +246,21 @@ def test_build_embedding_figure_continuous_with_missing_adds_missing_trace():
     names = {trace.name for trace in fig.data}
     assert "missing" in names
     assert "NIHSS (severity)" in names
+
+
+def test_build_embedding_figure_all_missing_skips_empty_colored_trace():
+    """AUDIT_FINDINGS.md #65 regression: the colored trace used to be added
+    unconditionally - with every value NaN (e.g. "nihss" on a dataset never enriched via
+    enrich_lesion_metadata.py), it got x=[]/y=[] but still showed up as a ghost legend
+    entry (mode.label) with no visible marker, alongside the real "missing" trace."""
+    embedding, metadata = _embedding_and_metadata()
+    metadata["nihss"] = np.nan
+
+    fig = build_embedding_figure(embedding, metadata, "nihss", "x", "y", "title")
+
+    names = [trace.name for trace in fig.data]
+    assert names == ["missing"]
+    assert "NIHSS (severity)" not in names
 
 
 def test_build_embedding_figure_log_scale_transforms_values_and_sets_decade_ticks():
@@ -494,6 +510,16 @@ def test_n_components_options_clustering_pipeline_returns_sentinel_only(tmp_path
     runs = [ProductionRun("lesion", "clustering", "kmeans", "run-a", dir_a)]
 
     assert n_components_options(runs, "lesion", "clustering", "kmeans", NO_METRIC) == [NO_N_COMPONENTS]
+
+
+def test_n_components_option_label_maps_sentinel_to_readable_placeholder():
+    """AUDIT_FINDINGS.md #64 regression: NO_N_COMPONENTS (-1) used to be labeled str(-1) -
+    the literal string "-1" would show up as a dropdown option in the "Componenti" picker
+    for any clustering.py run, instead of a readable placeholder like NO_METRIC already has
+    for the analogous metric-picker case."""
+    assert _n_components_option_label(NO_N_COMPONENTS) == NO_METRIC
+    assert _n_components_option_label(2) == "2"
+    assert _n_components_option_label(10) == "10"
 
 
 def test_runs_matching_scoped_to_metric_and_n_components(tmp_path):

@@ -37,7 +37,7 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import trustworthiness
 
 from src.analysis.distances import SUPPORTED_BINARY_METRICS, binary_pairwise_distance
-from src.analysis.reduction import pacmap_embed, pca_varimax_embed, tsne_embed, umap_embed
+from src.analysis.reduction import _pca_varimax_fit, pacmap_embed, tsne_embed, umap_embed
 
 TUNING_METRIC_NAMES = {
     "umap": "trustworthiness",
@@ -156,8 +156,11 @@ def evaluate_pca(X: np.ndarray, params: dict) -> tuple[np.ndarray, float]:
 
 
 def evaluate_pca_varimax(X: np.ndarray, params: dict) -> tuple[np.ndarray, float]:
-    fitted = PCA(n_components=params["n_components"]).fit(X)
-    embedding = pca_varimax_embed(X, params)
+    """AUDIT_FINDINGS.md #57: used to fit PCA twice per combination - once here just to
+    read explained_variance_ratio_, once again inside pca_varimax_embed for the actual
+    embedding. _pca_varimax_fit (shared with pca_varimax_embed) now fits once and returns
+    both."""
+    embedding, fitted = _pca_varimax_fit(X, params)
     score = float(fitted.explained_variance_ratio_.sum())
     return embedding, score
 

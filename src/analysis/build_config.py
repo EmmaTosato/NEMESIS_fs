@@ -33,7 +33,6 @@ class BuildMatrixConfig:
     atlas_path: Path | None
     parcel_aggregation: str | None
     save_parcellated_volumes: bool
-    data_modality: str
     output_root: Path
     session_name: str
     overwrite: bool
@@ -65,9 +64,6 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
     parcellate = _require_bool(raw, "parcellate")
     atlas_path, parcel_aggregation, save_parcellated_volumes = _validate_parcellation_fields(raw, parcellate)
 
-    # Optional for backward compatibility, default to "lesion" if missing since this is build_lesion_matrix
-    data_modality = _optional_str(raw, "data_modality") or "lesion"
-
     return BuildMatrixConfig(
         project=_require_str(raw, "project"),
         data_root=Path(_require_str(raw, "data_root")),
@@ -81,7 +77,6 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
         atlas_path=atlas_path,
         parcel_aggregation=parcel_aggregation,
         save_parcellated_volumes=save_parcellated_volumes,
-        data_modality=data_modality,
         output_root=Path(_require_str(raw, "output_root")),
         session_name=_require_str(raw, "session_name"),
         overwrite=_require_bool(raw, "overwrite"),

@@ -109,6 +109,28 @@ def test_evaluate_pca_varimax_returns_embedding_and_variance():
     assert 0.0 <= score <= 1.0
 
 
+def test_evaluate_pca_varimax_fits_pca_only_once(monkeypatch):
+    """AUDIT_FINDINGS.md #57 regression: evaluate_pca_varimax used to fit a standalone PCA
+    just to read explained_variance_ratio_, then call pca_varimax_embed which fitted its
+    own, separate, identical PCA internally - 2 SVD decompositions per combination instead
+    of 1."""
+    from sklearn.decomposition import PCA
+
+    call_count = 0
+    real_fit = PCA.fit
+
+    def _counting_fit(self, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        return real_fit(self, *args, **kwargs)
+
+    monkeypatch.setattr(PCA, "fit", _counting_fit)
+
+    evaluate_pca_varimax(_X, {"n_components": 3, "rotation_max_iter": 500})
+
+    assert call_count == 1, f"expected PCA.fit to run once, got {call_count}"
+
+
 def test_evaluate_pacmap_returns_embedding_and_trustworthiness():
     embedding, score = evaluate_pacmap(
         _X,

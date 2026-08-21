@@ -309,9 +309,11 @@ def mask_dataset_fc(
         try:
             lesion_img = nib.load(lesion_path)
             fc = pd.read_csv(fc_path, sep="\t", index_col=0)
-            if list(fc.index) != list(node_names):
-                raise ValueError(f"FC node order in {fc_path} does not match the atlas order")
-
+            # AUDIT_FINDINGS.md #50: no redundant/partial pre-check here anymore -
+            # mask_subject_fc -> mask_fc_by_lesion already raises ValueError for a node-order
+            # mismatch, checking BOTH .index and .columns (this call site used to recheck only
+            # .index, never blocking anything on its own since the inner check always ran too,
+            # while leaving .columns looking checked here when it never was).
             fc_masked, compromised_names = mask_subject_fc(
                 lesion_img, fc, atlas_img, label_ids, node_names, min_coverage, resample_interpolation, binarize_threshold
             )
@@ -365,7 +367,23 @@ def drop_constant_edges(X: np.ndarray, edge_names: list[str]) -> tuple[np.ndarra
     subject is unexpected for real data and worth a human look, not a
     routine no-op (unlike the binary lesion-matrix case, where constant
     all-zero columns are common and unremarkable).
+
+    AUDIT_FINDINGS.md #55: "constant across every subject" is undefined with
+    a single subject (every fully-observed edge trivially has min==max) - X
+    is returned unchanged (nothing dropped, dropped_info empty) rather than
+    silently discarding every edge, since dropping everything here isn't a
+    "no threshold, no subject excluded" decision like the rest of this
+    function, it's a degenerate input this check was never meant to answer.
     """
+    if X.shape[0] <= 1:
+        logging.warning(
+            "drop_constant_edges: only %d subject(s) in X - the constant-edge check is undefined "
+            "with a single subject (every fully-observed edge trivially has min==max), skipped "
+            "entirely rather than dropping every edge",
+            X.shape[0],
+        )
+        return X, list(edge_names), []
+
     fully_observed = ~np.isnan(X).any(axis=0)
     is_constant = np.zeros(X.shape[1], dtype=bool)
     if fully_observed.any():

@@ -453,6 +453,24 @@ def test_drop_constant_edges_none_found():
     np.testing.assert_array_equal(X_filtered, X)
 
 
+def test_drop_constant_edges_single_subject_keeps_all_edges(caplog):
+    """AUDIT_FINDINGS.md #55 regression: with a single subject, every fully-observed edge
+    trivially has min==max (only one value to compare) - used to be dropped entirely (0
+    edges surviving), silently, with only a generic "N edges dropped" log that didn't
+    identify the real cause (1 subject, not a data problem). Must keep every edge instead,
+    with an explicit warning naming the cause."""
+    edge_names = ["A__B", "A__C", "B__C"]
+    X = np.array([[0.1, 0.2, 0.3]])  # 1 subject x 3 edges
+
+    with caplog.at_level("WARNING"):
+        X_filtered, kept_names, dropped_info = drop_constant_edges(X, edge_names)
+
+    assert kept_names == edge_names
+    assert dropped_info == []
+    np.testing.assert_array_equal(X_filtered, X)
+    assert any("single subject" in message or "1 subject" in message for message in caplog.messages)
+
+
 # --- discover_masked_fc_files / build_fc_matrix_from_masked -------------------
 
 

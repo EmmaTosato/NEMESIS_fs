@@ -160,7 +160,6 @@ def _config_summary(config: BuildMatrixConfig) -> str:
     what the run actually used."""
     payload = {
         "project": config.project,
-        "data_modality": config.data_modality,
         "data_root": str(config.data_root),
         "datasets": config.datasets,
         "group_filter": config.group_filter,

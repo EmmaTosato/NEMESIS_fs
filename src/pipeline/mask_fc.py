@@ -13,7 +13,15 @@ Processes every atlas_combo listed in the config sequentially, one
 mask_dataset_fc() call per combo, each writing to its own subfolder under
 output_root - a subject-count mismatch or a missing atlas file for one combo
 stops that combo's processing (raises), but does not touch combos already
-written successfully earlier in the same run.
+written successfully earlier in the same run. AUDIT_FINDINGS.md #52: unlike
+build_fc_matrix.py (which isolates a not-yet-ready combo from its siblings,
+see #29), a raise here also aborts every *remaining* atlas_combo in the same
+config, in list order - main()'s per-combo loop returns 1 immediately on the
+first failure rather than continuing to the next combo. Deliberately not
+changed to match build_fc_matrix.py's isolation here - a mask_fc.py failure
+(atlas/lesion/FC data problem) is more often a config-wide issue likely to
+recur on every subsequent combo too, unlike build_fc_matrix.py's "this
+combo's masked_fc/ isn't ready yet" gap, which is genuinely per-combo.
 """
 
 from __future__ import annotations

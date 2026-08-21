@@ -158,6 +158,46 @@ def test_mask_fc_group_filter_unknown_group_raises(tmp_path):
         load_mask_fc_config(_write_mask_fc(tmp_path, {"group_filter": ["XX"]}))
 
 
+# AUDIT_FINDINGS.md #51: test coverage for load_mask_fc_config was limited to group_filter
+# only - min_coverage/atlas_combos/resample_interpolation/binarize_threshold/fc_glob_template
+# (all required fields of the same loader) had no dedicated test at all.
+
+
+def test_mask_fc_valid_config(tmp_path):
+    config = load_mask_fc_config(_write_mask_fc(tmp_path, {}))
+    assert config.min_coverage == 0.5
+    assert config.atlas_combos == ["Yan200TianS2Buckner7N"]
+    assert config.resample_interpolation == "nearest"
+    assert config.binarize_threshold == 0.5
+    assert config.fc_glob_template == "features/*/func/*_FC-pearson_atlas-{combo}.csv"
+
+
+def test_mask_fc_multiple_atlas_combos(tmp_path):
+    config = load_mask_fc_config(
+        _write_mask_fc(tmp_path, {"atlas_combos": ["Yan100TianS1Buckner7N", "Yan200TianS2Buckner7N"]})
+    )
+    assert config.atlas_combos == ["Yan100TianS1Buckner7N", "Yan200TianS2Buckner7N"]
+
+
+@pytest.mark.parametrize(
+    "overrides, match",
+    [
+        ({"atlas_combos": []}, "non-empty list"),
+        ({"atlas_combos": ["ComboX", "ComboX"]}, "duplicate entries"),
+        ({"min_coverage": 1.5}, "between 0.0 and 1.0"),
+        ({"min_coverage": -0.1}, "between 0.0 and 1.0"),
+        ({"resample_interpolation": "cubic"}, "resample_interpolation"),
+        ({"binarize_threshold": 5.0}, "between 0.0 and 1.0"),
+        ({"binarize_threshold": True}, "must be a number"),
+        ({"fc_glob_template": ""}, "non-empty string"),
+        ({"lesion_glob": ""}, "non-empty string"),
+    ],
+)
+def test_mask_fc_invalid_configs_raise_value_error(tmp_path, overrides, match):
+    with pytest.raises(ValueError, match=match):
+        load_mask_fc_config(_write_mask_fc(tmp_path, overrides))
+
+
 # --- load_build_fc_matrix_config ------------------------------------------------
 # AUDIT_FINDINGS.md #31: this loader had zero dedicated unit tests before (only
 # indirect coverage via tests/integration/test_build_fc_matrix_pipeline.py's

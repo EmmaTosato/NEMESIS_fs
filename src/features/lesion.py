@@ -116,6 +116,20 @@ def _voxelwise_matrix_with_volume(
     # currently does).
     metadata = metadata.copy()
     metadata["lesion_volume_voxels"] = X_voxelwise.sum(axis=1, dtype=np.int64)
+
+    # AUDIT_FINDINGS.md #68: binarize_threshold is range-validated at config load time
+    # (0.0-1.0 inclusive, src/analysis/build_config.py), but 1.0 itself is a valid-looking
+    # yet degenerate value - resampled lesion values are typically in [0, 1] and a strict
+    # `>` comparison means nothing ever exceeds exactly 1.0, silently binarizing every
+    # subject's mask to all-zero. Checked in aggregate (every subject, not one) since a
+    # single subject with 0 lesion voxels is a legitimate per-subject case (lesson #6) -
+    # the whole cohort having zero is not, for any real stroke (ST) cohort.
+    if (metadata["lesion_volume_voxels"] == 0).all():
+        raise ValueError(
+            f"every subject's lesion mask binarized to zero voxels (binarize_threshold={binarize_threshold!r}) - "
+            "resampled lesion values are typically in [0, 1], so a threshold of 1.0 (or higher) means the "
+            "'>' comparison never passes for any subject; check binarize_threshold in the config"
+        )
     return X_voxelwise, metadata, excluded_by_group
 
 

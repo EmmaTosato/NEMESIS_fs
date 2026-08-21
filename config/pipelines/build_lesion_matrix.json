@@ -18,7 +18,6 @@
   "atlas_path": "assets/atlases/fmriprep/atlas-Yan300TianS2Buckner7N/atlas-Yan300TianS2Buckner7N_space-MNI152NLin6Asym_res-2_dseg.nii.gz",
   "parcel_aggregation": "fraction_lesioned",
   "save_parcellated_volumes": false,
-  "data_modality": "lesion",
   "output_root": "data/derived/lesion_matrix",
   "session_name": "yan300s1",
   "overwrite": false,
