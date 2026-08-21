@@ -5,10 +5,14 @@
 Questo documento traccia la strategia di sincronizzazione tra il branch di sviluppo locale (`main`) e il branch di esecuzione sul cluster (`server-pnc`).
 
 ## Regola Aurea
-Prima di effettuare qualsiasi operazione manuale o sviluppo sul branch `server-pnc`, ricordati di **tirare giù le ultime modifiche da main** (es. `git pull origin main` oppure un merge controllato) per mantenere l'allineamento. 
-Il branch `server-pnc` è attualmente il target di esecuzione: dovrebbe ospitare solo nuovi dati generati e i file di log (`logs/slurm/`), non codice divergente. Le modifiche al codice o ai file di configurazione andrebbero idealmente sempre fatte prima in locale su `main` e poi sincronizzate verso il server.
 
-**Nota dal 21/08**: questa regola era già stata violata due volte prima di essere corretta — il fix `TASK_COUNT` in `jobs/run_compute_sdc.sh` (sessione produzione SDC dell'8/8) e i nuovi pattern in `lessons_learned.md`/`stato_progetto.md` erano nati direttamente su `server-pnc` e mai portati su `main`; `jobs/` inoltre non era mai stato incluso tra le cartelle sincronizzate qui sotto, nonostante contenga script reali (non solo log). Entrambi i gap sono stati chiusi in questa sessione (vedi sotto) — controllare periodicamente che non si riformino, in particolare per `jobs/` dato che gli script vengono spesso modificati/testati direttamente sul cluster per necessità.
+Le modifiche possono nascere su entrambi i lati — `main` (sviluppo) o `server-pnc` (spesso fix/operatività nate mentre si lavora sul cluster). La regola è la stessa in entrambe le direzioni: **non lasciare mai un lato indietro più del necessario.**
+
+**A. Prima di iniziare a lavorare su `server-pnc`**, allinealo da `main`: prendi il contenuto aggiornato di `main` per tutte le cartelle sincronizzate elencate sotto (sostituzione piena o additiva a seconda della cartella — mai un merge/rebase dell'intero branch). Le cartelle escluse per design (mai allineate) sono già elencate più sotto, non serve deciderle ogni volta.
+
+**B. Dopo aver lavorato su `server-pnc`**, se hai prodotto codice/config/doc reali (non solo dati o log del run) che devono restare anche su `main`: portali là **subito**, con la procedura in "Procedura pratica" più sotto — non lasciarli accumulare solo qui. Fanno eccezione, per design, i file/cartelle nella lista "Eccezioni e Divergenze" (es. `retrieval_local.json`/`retrieval_server.json`): quelli restano intenzionalmente diversi, non vanno mai portati su `main`.
+
+**Nota dal 21/08**: questa regola era già stata violata più volte prima di essere formalizzata così — il fix `TASK_COUNT` in `jobs/run_compute_sdc.sh`, i pattern in `lessons_learned.md`/`stato_progetto.md`, e `jobs/` mai incluso tra le cartelle sincronizzate nonostante contenga script reali. Tutti i gap trovati sono stati chiusi in questa sessione (vedi sotto).
 
 ## Cartelle Sincronizzate (server-pnc allineato a main)
 A partire dal 28 Luglio 2026 (estese il 21 Agosto 2026), le seguenti cartelle su `server-pnc` sono state forzatamente allineate a `main`, che funge da *Source of Truth*:
