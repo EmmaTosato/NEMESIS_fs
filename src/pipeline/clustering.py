@@ -4,27 +4,36 @@ Usage:
     python -m src.pipeline.clustering --config config/pipelines/clustering.json
 
 Reads a matrix artifact (input_path must already exist - either a raw/
-parcellated matrix or an already-computed dim_reduction embedding, this
-script doesn't care which). Two modes, chosen by `fine_tuning`, same
-convention as dim_reduction.py:
+parcellated matrix or an already-computed dim_reduction embedding). `reduced_data`
+is a required, declarative-only config flag (docs/dev/clustering_migration_plan.md
+§1) - this pipeline never calls embed() itself in either case, it only states
+explicitly which kind of matrix input_path is, for logging/documentation.
+
+Two modes, chosen by `fine_tuning`, same convention as dim_reduction.py:
 
 - fine_tuning=false (production): clusters with every method in
   clustering_methods (one or more) using that method's "params" from
   params_clustering.json, writing a new artifact per method: the same
   matrix (unchanged - clustering doesn't transform the feature space) as
-  matrix.npy, cluster_label appended to metadata.csv, a static 2D scatter
-  plot of the first 2 raw features colored by cluster (cluster_plot.png) -
-  a coarse sanity check only, since those 2 features are not a meaningful
-  projection (no reduction happened) - an interactive HTML version
-  (cluster_plot_interactive.html) with a dropdown to switch coloring
-  between cluster and dataset, hover showing every metadata column per
-  point, and a per-sample silhouette diagnostic (silhouette_plot.png,
-  computed on the full matrix used for clustering, not just the 2 display
-  features - see src/analysis/clustering_tuning.py::compute_silhouette_samples),
-  skipped with a warning if the chosen result is degenerate (fewer than 2
-  non-noise clusters). When more than one method is requested, an additional
-  side-by-side comparison plot is written to
-  <output_root>/production/comparison/<dd-mm>_<session_name>/cluster_comparison.png.
+  matrix.npy, cluster_label appended to metadata.csv, plus a set of
+  cluster-colored plots (cluster_plot.png, cluster_plot_interactive.html,
+  silhouette_plot.png) - all built on a *viz embedding* resolved once per run,
+  never a slice of X (see _resolve_viz_embedding/plan §3): reused directly
+  when X already has 2 or 3 components, or read from `viz_embedding_path` (a
+  companion 2D/3D embedding computed separately, e.g. via dim_reduction.py)
+  when X has any other number - every scatter plot is skipped with a clear
+  warning, not silently drawn from X[:, :2], when neither applies. The
+  interactive plot has a dropdown to switch coloring between cluster and
+  dataset, hover showing every metadata column per point; the silhouette
+  diagnostic (silhouette_plot.png) is computed on the full matrix used for
+  clustering, not the viz embedding - see
+  src/analysis/clustering_tuning.py::compute_silhouette_samples), skipped
+  with a warning if the chosen result is degenerate (fewer than 2 non-noise
+  clusters). When more than one method is requested, an additional
+  side-by-side comparison plot (static cluster_comparison.png + interactive
+  cluster_comparison_interactive.html, dropdown per method) is written to
+  <output_root>/production/comparison/<dd-mm>_<session_name>/
+  (also skipped when no viz embedding is available).
 - fine_tuning=true (manual hyperparameter search, every method in
   clustering_methods, one sweep each over that method's "tuning_grid"):
   since clustering has no ground truth to score against, every combination
@@ -76,6 +85,7 @@ from src.analysis.plotting import (
     compose_run_title,
     plot_clusters_2d,
     plot_clusters_comparison,
+    plot_clusters_comparison_interactive,
     plot_clusters_interactive,
     plot_clustering_tuning_heatmaps,
     plot_clustering_tuning_metrics,
@@ -119,42 +129,117 @@ def main(argv: list[str] | None = None) -> int:
         logging.error(str(exc))
         return 1
 
+    # reduced_data is declarative only (docs/dev/clustering_migration_plan.md §1) - loading is
+    # identical either way (load_matrix above, no embed() call in this pipeline). Logged so a run's
+    # log/console output always makes explicit which of the two the operator declared, rather than
+    # leaving it implicit in whatever input_path happens to point at.
+    if config.reduced_data:
+        logging.info("reduced_data=true - input_path treated as an already-computed embedding (%s, shape %s)", config.input_path, X.shape)
+    else:
+        logging.info("reduced_data=false - input_path treated as a raw feature matrix (%s, shape %s)", config.input_path, X.shape)
+
     if config.fine_tuning:
         return _run_fine_tuning(config, X, now, log_path)
 
+    try:
+        X_viz = _resolve_viz_embedding(X, metadata, config.viz_embedding_path)
+    except ValueError as exc:
+        logging.error(str(exc))
+        return 1
+    if X_viz is None:
+        logging.warning(
+            "X has %d components (not 2 or 3) and no viz_embedding_path was given - skipping every "
+            "cluster-colored plot (cluster_plot.png/cluster_plot_interactive.html/silhouette_plot.png/"
+            "cluster_comparison.png/cluster_comparison_interactive.html) for this run. If X has more "
+            "than 3 components, produce a companion 2D/3D embedding separately (dim_reduction.py, "
+            "same params as the one used for this input, only n_components different) and set "
+            "viz_embedding_path to plot - see docs/dev/clustering_migration_plan.md §3.",
+            X.shape[1],
+        )
+
     labels_by_method: dict[str, np.ndarray] = {}
     for method in config.clustering_methods:
-        cluster_labels = _run_one_method(config, method, X, metadata, now)
+        cluster_labels = _run_one_method(config, method, X, X_viz, metadata, now)
         if cluster_labels is None:
             return 1
         labels_by_method[method] = cluster_labels
 
-    if X.shape[1] >= 2:
+    if X_viz is not None:
         comparison_dir = _comparison_dir(config, now)
         plot_clusters_comparison(
-            X[:, :2],
+            X_viz,
             labels_by_method,
             comparison_dir / "cluster_comparison.png",
-            xlabel="feature 0 (raw)",
-            ylabel="feature 1 (raw)",
+            xlabel="viz dim 1",
+            ylabel="viz dim 2",
             suptitle=compose_comparison_title(comparison_dir, None),
         )
-        _write_comparison_readme(comparison_dir, config, now)
         logging.info("comparison plot written to %s", comparison_dir / "cluster_comparison.png")
-    else:
-        logging.warning("matrix has only %d feature(s) - skipping cluster_comparison.png (needs at least 2)", X.shape[1])
+
+        plot_clusters_comparison_interactive(
+            X_viz,
+            labels_by_method,
+            metadata,
+            comparison_dir / "cluster_comparison_interactive.html",
+            xlabel="viz dim 1",
+            ylabel="viz dim 2",
+            title=compose_run_title(comparison_dir, config.project),
+        )
+        logging.info("interactive comparison plot written to %s", comparison_dir / "cluster_comparison_interactive.html")
+
+        _write_comparison_readme(comparison_dir, config, now)
 
     logging.info("done - all %d method(s) written under %s, log written to %s", len(config.clustering_methods), config.output_root, log_path)
     return 0
 
 
+def _resolve_viz_embedding(X: np.ndarray, metadata: pd.DataFrame, viz_embedding_path: Path | None) -> np.ndarray | None:
+    """Resolves the 2D/3D coordinates used for every cluster-colored scatter plot in this
+    pipeline - always independent from X, whatever dimensionality clustering itself used.
+
+    - X already has 2 or 3 columns: reused as-is, zero extra cost - the common case (X is
+      already an embedding built for viz, or clustering.py is running directly on a small raw
+      matrix).
+    - X has any other number of columns (typically >3 - an embedding built for clustering, not
+      viewing): clustering.py never calls embed() itself (see
+      docs/dev/clustering_migration_plan.md §2), so it cannot refit a projection - a
+      viz_embedding_path must point at a companion embedding computed separately (same
+      random_state/n_neighbors/metric as whatever produced X, only n_components different - see
+      plan §3), covering the exact same subjects in the exact same order. Returns None (caller
+      skips every scatter plot, logging why once) when no such path was given - never sliced to
+      X[:, :2] regardless of X's own provenance (lessons_learned.md #16).
+    """
+    if X.shape[1] in (2, 3):
+        return X
+    if viz_embedding_path is None:
+        return None
+    viz_X, viz_metadata, _extra_arrays = load_matrix(viz_embedding_path)
+    if viz_X.shape[1] not in (2, 3):
+        raise ValueError(
+            f"viz_embedding_path {viz_embedding_path} has {viz_X.shape[1]} component(s) - "
+            "must be a 2D or 3D companion embedding, not another one clustering.py can't plot either"
+        )
+    if list(viz_metadata["subject_id"]) != list(metadata["subject_id"]):
+        raise ValueError(
+            f"viz_embedding_path {viz_embedding_path} does not cover the same subjects, in the "
+            "same order, as input_path - refusing to plot cluster labels onto mismatched points"
+        )
+    return viz_X
+
+
 def _run_one_method(
-    config: ClusteringConfig, method: str, X: np.ndarray, metadata: pd.DataFrame, now: datetime
+    config: ClusteringConfig, method: str, X: np.ndarray, X_viz: np.ndarray | None, metadata: pd.DataFrame, now: datetime
 ) -> np.ndarray | None:
     """Runs one clustering method end to end (params, artifact, plot,
     runs.csv). Returns the cluster_labels actually saved (for the comparison
     plot to reuse verbatim, rather than re-running the method a second time),
     or None if this method's run failed - the caller stops the whole run.
+
+    X_viz is the 2D/3D coordinates used for every scatter plot (see
+    _resolve_viz_embedding) - independent from X, whatever dimensionality
+    clustering itself used. None means no scatter plot can be honestly
+    produced for this run (already logged once by the caller) - every plot
+    call below is skipped, not silently drawn from a slice of X.
     """
     try:
         params, tag = load_method_params(config.params_file, method)
@@ -183,25 +268,25 @@ def _run_one_method(
         return None
     logging.info("[%s] clustered matrix written to %s (shape %s)", method, output_dir, X.shape)
 
-    if X.shape[1] >= 2:
+    if X_viz is not None:
         plot_title = compose_run_title(output_dir, config.project)
 
         plot_clusters_2d(
-            X[:, :2],
+            X_viz,
             cluster_labels,
             output_dir / "cluster_plot.png",
-            xlabel="feature 0 (raw)",
-            ylabel="feature 1 (raw)",
+            xlabel="viz dim 1",
+            ylabel="viz dim 2",
             title=plot_title,
         )
         logging.info("[%s] cluster plot written to %s", method, output_dir / "cluster_plot.png")
 
         plot_clusters_interactive(
-            X[:, :2],
+            X_viz,
             metadata_out,
             output_dir / "cluster_plot_interactive.html",
-            xlabel="feature 0 (raw)",
-            ylabel="feature 1 (raw)",
+            xlabel="viz dim 1",
+            ylabel="viz dim 2",
             title=plot_title,
         )
         logging.info("[%s] interactive cluster plot written to %s", method, output_dir / "cluster_plot_interactive.html")
@@ -211,11 +296,11 @@ def _run_one_method(
             plot_silhouette_analysis(
                 sample_labels,
                 sample_silhouette_values,
-                X[:, :2],
+                X_viz,
                 cluster_labels,
                 output_dir / "silhouette_plot.png",
-                xlabel="feature 0 (raw)",
-                ylabel="feature 1 (raw)",
+                xlabel="viz dim 1",
+                ylabel="viz dim 2",
                 title=plot_title,
             )
             logging.info("[%s] silhouette plot written to %s", method, output_dir / "silhouette_plot.png")
@@ -223,9 +308,9 @@ def _run_one_method(
             logging.warning("[%s] skipping silhouette_plot.png: %s", method, exc)
     else:
         logging.warning(
-            "[%s] matrix has only %d feature(s) - skipping cluster_plot.png/cluster_plot_interactive.html (needs at least 2)",
+            "[%s] no viz embedding available (see warning logged in main()) - skipping "
+            "cluster_plot.png/cluster_plot_interactive.html/silhouette_plot.png",
             method,
-            X.shape[1],
         )
 
     try:
@@ -237,6 +322,7 @@ def _run_one_method(
             params,
             output_dir,
             config.run_notes,
+            config.input_path,
         )
     except OSError as exc:
         logging.error("[%s] cannot write run log: %s", method, exc, exc_info=True)
@@ -271,6 +357,8 @@ def _config_summary(config: ClusteringConfig, method: str) -> str:
         "session_name": config.session_name,
         "overwrite": config.overwrite,
         "fine_tuning": config.fine_tuning,
+        "reduced_data": config.reduced_data,
+        "viz_embedding_path": str(config.viz_embedding_path) if config.viz_embedding_path else None,
         "run_notes": config.run_notes,
     }
     return json.dumps(payload, indent=2)
@@ -377,6 +465,7 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
             {"base_params": base_params, "tuning_grid": tuning_grid},
             output_dir,
             config.run_notes,
+            config.input_path,
         )
     except OSError as exc:
         logging.error("[%s] cannot write run log: %s", method, exc, exc_info=True)

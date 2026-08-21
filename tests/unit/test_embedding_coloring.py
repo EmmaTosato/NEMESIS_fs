@@ -13,7 +13,7 @@ def _metadata():
 
 
 def test_registry_has_expected_modes():
-    assert set(COLOR_MODES) == {"dataset", "side", "volume", "nihss"}
+    assert set(COLOR_MODES) == {"dataset", "side", "volume", "nihss", "cluster_label"}
 
 
 def test_dataset_mode_is_categorical_and_reads_metadata_column():
@@ -76,3 +76,17 @@ def test_nihss_mode_is_continuous_and_reads_participants_tsv(tmp_path, monkeypat
 def test_resolve_color_mode_unknown_raises():
     with pytest.raises(ValueError, match="unknown color_by mode 'bogus' - known:"):
         resolve_color_mode("bogus")
+
+
+def test_cluster_label_mode_is_categorical_and_reads_metadata_column():
+    mode = resolve_color_mode("cluster_label")
+    assert mode.kind == "categorical"
+    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2", "sub-3"], "cluster_label": [0, 1, -1]})
+    values = mode.compute(metadata, np.zeros((3, 5)))
+    assert list(values) == [0, 1, -1]
+
+
+def test_cluster_label_mode_uses_linear_scale_not_applicable_but_default_false():
+    # kind="categorical", so log_scale is irrelevant to rendering (see build_embedding_figure)
+    # - still asserted for consistency with every other mode's default.
+    assert resolve_color_mode("cluster_label").log_scale is False

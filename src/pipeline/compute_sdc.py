@@ -331,8 +331,18 @@ def _run_aggregate(config: SDCConfig, output_dir: Path, now: datetime) -> int:
         (output_dir / "config.md").write_text(
             _readme_text(config, counts, len(statuses), now, statuses, failed_status_files)
         )
+        # No single external input_path here (unlike dim_reduction.py/clustering.py's matrix
+        # artifacts) - aggregate mode merges per-task staging output into output_dir itself, so
+        # the staging root is the closest honest answer to "what was this row built from".
         append_run_log_entry(
-            config.output_root, config.session_name, now, "production", counts, output_dir, config.run_notes
+            config.output_root,
+            config.session_name,
+            now,
+            "production",
+            counts,
+            output_dir,
+            config.run_notes,
+            output_dir / "_work",
         )
     except OSError as exc:
         logging.error("aggregate: cannot write summary/run log: %s", exc, exc_info=True)

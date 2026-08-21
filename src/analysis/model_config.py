@@ -1,4 +1,4 @@
-"""Parsing/validation of dim_reduction.json, dim_reduction_clustering.json, clustering.json.
+"""Parsing/validation of dim_reduction.json, clustering.json.
 
 Same style as build_config.py / src/retrieval/config.py: hand-written
 _require_* helpers, every field validated upfront. reduction_method is
@@ -46,23 +46,8 @@ class ClusteringConfig:
     session_name: str
     overwrite: bool
     fine_tuning: bool
-    run_notes: str | None
-
-
-@dataclass(frozen=True)
-class DimReductionClusteringConfig:
-    project: str
-    input_path: Path
-    reduction_method: str
-    reduction_params_file: Path
-    clustering_methods: tuple[str, ...]
-    clustering_params_file: Path
-    output_root: Path
-    session_name: str
-    overwrite: bool
-    fine_tuning: bool
-    viz_n_components: int
-    color_by: tuple[str, ...]
+    reduced_data: bool
+    viz_embedding_path: Path | None
     run_notes: str | None
 
 
@@ -98,26 +83,17 @@ def load_clustering_config(path: str | Path) -> ClusteringConfig:
         session_name=session_name,
         overwrite=overwrite,
         fine_tuning=_require_bool(raw, "fine_tuning"),
-        run_notes=run_notes,
-    )
-
-
-def load_dim_reduction_clustering_config(path: str | Path) -> DimReductionClusteringConfig:
-    raw = _read_config(path)
-    project, input_path, output_root, session_name, overwrite, run_notes = _load_shared_fields(raw)
-    return DimReductionClusteringConfig(
-        project=project,
-        input_path=input_path,
-        reduction_method=_validate_method(_require_str(raw, "reduction_method"), REDUCTION_METHODS, "reduction_method"),
-        reduction_params_file=Path(_require_str(raw, "reduction_params_file")),
-        clustering_methods=_require_method_list(raw, "clustering_methods", CLUSTERING_METHODS),
-        clustering_params_file=Path(_require_str(raw, "clustering_params_file")),
-        output_root=output_root,
-        session_name=session_name,
-        overwrite=overwrite,
-        fine_tuning=_require_bool(raw, "fine_tuning"),
-        viz_n_components=_require_viz_n_components(raw),
-        color_by=_require_str_list_allow_empty(raw, "color_by"),
+        # Declarative only (docs/dev/clustering_migration_plan.md §1) - does not trigger any
+        # different loading/computation, clustering.py always just clusters whatever load_matrix
+        # returns for input_path. Forces every config to state explicitly whether input_path is
+        # an already-computed embedding or a raw feature matrix, instead of the code silently
+        # guessing from shape - matters for the viz-dimensionality handling in clustering.py.
+        reduced_data=_require_bool(raw, "reduced_data"),
+        # Optional (docs/dev/clustering_migration_plan.md §3) - only consulted when X has more
+        # than 3 components and there is a cluster-colored scatter to plot; a companion 2D/3D
+        # embedding computed separately (same reduction params as X's own, only n_components
+        # different), never recomputed by clustering.py itself.
+        viz_embedding_path=_optional_path(raw, "viz_embedding_path"),
         run_notes=run_notes,
     )
 
@@ -169,6 +145,11 @@ def _optional_str(raw: dict, key: str) -> str | None:
     if not isinstance(value, str) or not value:
         raise ValueError(f"config: field {key!r} must be a non-empty string when set, got {value!r}")
     return value
+
+
+def _optional_path(raw: dict, key: str) -> Path | None:
+    value = _optional_str(raw, key)
+    return Path(value) if value is not None else None
 
 
 def _validate_method(value: str, registry: dict, field_name: str) -> str:

@@ -116,9 +116,9 @@ def embed(
     metric="precomputed" (built as a *speed* optimization for sweeping many
     combinations, never ported to the single-run production path) - meaning
     the tuning table used to choose production hyperparameters was scored
-    against an exact neighbor graph, while dim_reduction.py/
-    dim_reduction_clustering.py's production path passed the metric string
-    straight to umap.UMAP/sklearn.TSNE on raw X. This project's cohort is
+    against an exact neighbor graph, while dim_reduction.py's production path
+    passed the metric string straight to umap.UMAP/sklearn.TSNE on raw X.
+    This project's cohort is
     currently under 4096 subjects, so umap-learn's own <4096 branch likely
     already computed an exact graph in production too - but Task 1's stated
     target is ~4000 subjects (README.md), right at that undocumented,

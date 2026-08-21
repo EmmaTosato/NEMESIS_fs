@@ -80,4 +80,4 @@ Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modal
 In cima a ciascun ramo (es. `results/lesion/dim_reduction/production/umap/` e `results/lesion/dim_reduction/tuning/umap/`) viene generato e alimentato in **append-only** un file:
 - `production/<metodo>/runs.csv` per le esecuzioni di produzione.
 - `tuning/<metodo>/runs_tuning.csv` per gli esperimenti di tuning.
-Questa traccia storica evita la perdita della memoria sulle configurazioni sperimentate. Non sono da confondere con `data/SESSIONS.md`, un documento scritto a mano dall'umano.
+Questa traccia storica evita la perdita della memoria sulle configurazioni sperimentate. Non sono da confondere con `docs/experiments/SESSIONS.md` (spostato da `data/SESSIONS.md` il 15-08-26), un documento scritto a mano dall'umano. Per una vista d'insieme di tutte le combinazioni già prodotte (senza aprire N `runs.csv` a mano), vedi `results/dim_reduction_strategies.csv`, generato da `scripts/build_dim_reduction_strategies_csv.py` — mai scritto a mano, va rigenerato dopo ogni run (`docs/dev/config.md`).

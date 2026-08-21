@@ -9,9 +9,7 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
 - fine_tuning=false (production): embeds with the method's "params" from
   params_reduction.json, writes a normal matrix artifact holding the
   embedding. metadata gains 3 columns not present on input, via
-  src/features/clinical.py's enrich_metadata_with_lesion_info (shared with
-  dim_reduction_clustering.py, so both pipelines always persist the same
-  enrichment regardless of which one produced a given result):
+  src/features/clinical.py's enrich_metadata_with_lesion_info:
   lesion_volume_voxels (X.sum(axis=1)), lesion_side ("unknown" for a
   subject/dataset the source participants.tsv can't resolve), and nihss
   (NaN under the same conditions - a continuous score has no "unknown"
@@ -174,6 +172,7 @@ def _run_production(
             params,
             output_dir,
             config.run_notes,
+            config.input_path,
         )
     except OSError as exc:
         logging.error("cannot write run log: %s", exc, exc_info=True)
@@ -250,6 +249,7 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, metadata: pd.Dat
             {"base_params": params, "tuning_grid": tuning_grid},
             output_dir,
             config.run_notes,
+            config.input_path,
         )
     except OSError as exc:
         logging.error("cannot write run log: %s", exc, exc_info=True)

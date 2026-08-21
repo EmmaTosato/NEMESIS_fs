@@ -129,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
                 {"n_subjects": X.shape[0], "n_edges": X.shape[1]},
                 output_dir,
                 config.run_notes,
+                input_dir,
                 extra_columns={"atlas_combo": combo},
             )
         except OSError as exc:

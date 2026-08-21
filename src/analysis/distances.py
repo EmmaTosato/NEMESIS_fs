@@ -33,8 +33,8 @@ def require_binary_matrix(X: np.ndarray, metric: str) -> None:
     2026-08 literature-validation review, before any parcellated run reached
     this code path). Called both by `binary_pairwise_distance` below
     (fine-tuning's precomputed-distance path) and directly by
-    `dim_reduction.py`/`dim_reduction_clustering.py`'s production path, which
-    passes `metric="jaccard"/"dice"` straight to `umap.UMAP`/`sklearn.TSNE`
+    `dim_reduction.py`'s production path, which passes
+    `metric="jaccard"/"dice"` straight to `umap.UMAP`/`sklearn.TSNE`
     on raw `X` without ever calling `binary_pairwise_distance` itself - both
     call sites must reject the same bad input, not just the precomputed one.
     """

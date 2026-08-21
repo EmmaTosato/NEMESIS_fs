@@ -83,16 +83,13 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 .page-title {{ font-size: 32px; font-weight: 800; text-align: center; margin: 0 0 12px; }}
 .page-subtitle {{ font-size: 16px; color: #767676; text-align: center; margin: 0 0 56px; }}
 .controls {{ display: flex; flex-direction: column; align-items: center; gap: 24px; margin-bottom: 32px; }}
-/* One field per selection step (Dato -> Pipeline [fissa] -> Tipo di riduzione -> Giorno),
-   left-to-right in reading/decision order (14-08-26, on request) - wraps to multiple rows
-   on a narrow viewport instead of overflowing horizontally. */
+/* One field per selection step (Dato -> Pipeline -> Metodo -> Metrica -> Componenti -> Run),
+   left-to-right in reading/decision order (2026-08, extended 15-08-26 when Pipeline became a
+   real dropdown, not a fixed label) - wraps to multiple rows on a narrow viewport instead of
+   overflowing horizontally. */
 .picker-row {{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 20px; }}
 .picker-field {{ display: flex; flex-direction: column; gap: 6px; min-width: 200px; }}
 .picker-label {{ font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #767676; }}
-.picker-fixed {{
-    font-size: 15px; padding: 8px 12px; border-radius: 6px; background: #f5f5f5; color: {_TEXT_COLOR};
-    border: 1px solid transparent; /* same box height as the dropdowns beside it, no interactive affordance */
-}}
 .color-buttons {{ display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }}
 .color-buttons button {{
     font-family: inherit; font-size: 13px; padding: 7px 16px; cursor: pointer;
@@ -260,58 +257,81 @@ _PARAMS_USED_PREFIX = "Params used: "
 
 
 def run_params(run: ProductionRun) -> dict:
-    """The exact resolved params dict dim_reduction.py actually used to build `run`, read
-    from its own config.md ("Params used: {...}" line, json.dumps'd verbatim by
-    src.pipeline.dim_reduction._build_readme_lines - see that function for the exact
-    serialization). The single source of truth for "which metric/n_components did this run
-    actually use" - never re-derived by parsing the run_name's own free-text convention
-    (e.g. "nc3"/"m_dice" is a human-chosen session-name shorthand for umap specifically, not a
-    guaranteed, parseable field every method's run_name follows - pca/tsne/pacmap runs don't).
+    """The exact resolved params dict the run's own pipeline (dim_reduction.py or
+    clustering.py) actually used, read from its own config.md ("Params used: {...}" line,
+    json.dumps'd verbatim by that pipeline's own writer - dim_reduction.py's
+    _build_readme_lines and clustering.py's _summary_lines both write the identical
+    "Params used: " prefix). The single source of truth for "which params did this run
+    actually use" - never re-derived by parsing the run_name's own free-text convention (e.g.
+    "nc3"/"m_dice" is a human-chosen session-name shorthand for umap specifically, not a
+    guaranteed, parseable field every method's run_name follows - pca/tsne/pacmap/clustering
+    runs don't).
 
     Raises ValueError if config.md is missing or has no "Params used:" line - every run this
-    app discovers was written by dim_reduction.py's own _run_production, which always writes
-    one; a run missing it predates that convention or was tampered with, either way a real
-    problem worth surfacing rather than guessing at empty params.
+    app discovers was written by one of the two pipelines' own production writer, which always
+    writes one; a run missing it predates that convention or was tampered with, either way a
+    real problem worth surfacing rather than guessing at empty params.
     """
     config_path = run.path / "config.md"
     if not config_path.exists():
-        raise ValueError(f"Run {run.path} has no configuration available - cannot read its resolved params")
+        raise ValueError(f"Run {run.path} has no config.md - cannot read its resolved params")
     for line in config_path.read_text().splitlines():
         if line.startswith(_PARAMS_USED_PREFIX):
             return json.loads(line[len(_PARAMS_USED_PREFIX) :])
     raise ValueError(f"run {run.path}'s config.md has no {_PARAMS_USED_PREFIX!r} line - unexpected format")
 
 
-def metric_options(runs: list[ProductionRun], modality: str, method: str) -> list[str]:
-    """Distinct `metric` values actually used by (modality, method)'s own runs, sorted -
-    NO_METRIC included if any of them has no 'metric' key in its own params at all."""
-    values = {run_params(run).get("metric", NO_METRIC) for run in runs_for(runs, modality, method)}
+def metric_options(runs: list[ProductionRun], modality: str, pipeline: str, method: str) -> list[str]:
+    """Distinct `metric` values actually used by (modality, pipeline, method)'s own runs,
+    sorted - NO_METRIC included if any of them has no 'metric' key in its own params at all.
+
+    Clustering pipeline runs always resolve to exactly [NO_METRIC]: a clustering method's own
+    params (kmeans' n_clusters, hdbscan's min_cluster_size, ...) never carry a 'metric' key in
+    this picker's sense at all - explicit branch, not a guess (see NO_METRIC's own docstring)."""
+    if pipeline == "clustering":
+        return [NO_METRIC]
+    values = {run_params(run).get("metric", NO_METRIC) for run in runs_for(runs, modality, pipeline, method)}
     return sorted(values)
 
 
-def n_components_options(runs: list[ProductionRun], modality: str, method: str, metric: str) -> list[int]:
-    """Distinct `n_components` values among (modality, method, metric)'s own runs, sorted
-    ascending - includes every value actually used, even ones this app can't display (e.g.
-    150 for the full-dimensionality PCA production run): the picker's job is to reflect what
-    was actually run, not to pre-filter it down to what's displayable (graph_content_for
-    already reports that clearly per-run, see UndisplayableRunError)."""
+def n_components_options(runs: list[ProductionRun], modality: str, pipeline: str, method: str, metric: str) -> list[int]:
+    """Distinct `n_components` values among (modality, pipeline, method, metric)'s own runs,
+    sorted ascending - includes every value actually used, even ones this app can't display
+    (e.g. 150 for the full-dimensionality PCA production run): the picker's job is to reflect
+    what was actually run, not to pre-filter it down to what's displayable (graph_content_for
+    already reports that clearly per-run, see UndisplayableRunError).
+
+    Clustering pipeline runs always resolve to exactly [NO_N_COMPONENTS] (see its docstring) -
+    clustering.py never resamples X's dimensionality, so there is no n_components axis to
+    report."""
+    if pipeline == "clustering":
+        return [NO_N_COMPONENTS]
     values = {
         run_params(run)["n_components"]
-        for run in runs_for(runs, modality, method)
+        for run in runs_for(runs, modality, pipeline, method)
         if run_params(run).get("metric", NO_METRIC) == metric
     }
     return sorted(values)
 
 
-def runs_matching(runs: list[ProductionRun], modality: str, method: str, metric: str, n_components: int) -> list[ProductionRun]:
-    """Runs matching (modality, method, metric, n_components) exactly, chronologically ordered
-    - the final picker step ("Run"): today this is usually exactly one run (each combination
-    has only ever been produced once), but stays a list rather than assuming that - a rerun of
-    the same combination on a later date is a legitimate, real scenario this picker must keep
-    showing both of, not silently collapse to one."""
+def runs_matching(
+    runs: list[ProductionRun], modality: str, pipeline: str, method: str, metric: str, n_components: int
+) -> list[ProductionRun]:
+    """Runs matching (modality, pipeline, method, metric, n_components) exactly,
+    chronologically ordered - the final picker step ("Run"): today this is usually exactly one
+    run (each combination has only ever been produced once), but stays a list rather than
+    assuming that - a rerun of the same combination on a later date is a legitimate, real
+    scenario this picker must keep showing both of, not silently collapse to one.
+
+    Clustering pipeline runs skip the metric/n_components filter entirely (both picker steps
+    only ever offer their one NO_METRIC/NO_N_COMPONENTS sentinel option for this pipeline, see
+    metric_options/n_components_options - filtering on them would be a no-op, not a real
+    narrowing) and return every run for (modality, pipeline, method) directly."""
+    if pipeline == "clustering":
+        return runs_for(runs, modality, pipeline, method)
     return [
         run
-        for run in runs_for(runs, modality, method)
+        for run in runs_for(runs, modality, pipeline, method)
         if run_params(run).get("metric", NO_METRIC) == metric and run_params(run).get("n_components") == n_components
     ]
 
@@ -394,7 +414,7 @@ def build_embedding_figure(
     COLOR_MODE_ORDER's own entries as UI choices should never actually hit these.
     """
     if mode_name not in COLOR_MODE_ORDER:
-        raise ValueError(f"Unknown color mode {mode_name!r} - known: {list(COLOR_MODE_ORDER)}")
+        raise ValueError(f"unknown color mode {mode_name!r} - known: {list(COLOR_MODE_ORDER)}")
     is_3d = zlabel is not None
     if is_3d and embedding.shape[1] != 3:
         raise ValueError(f"zlabel given but embedding has {embedding.shape[1]} columns, not 3")
@@ -603,10 +623,14 @@ def build_app(runs: list[ProductionRun]) -> Dash:
     # 6-step decision order, left to right (2026-08-14, on request - replaces the previous
     # single flat "every run from every method mixed together" dropdown, then extended with
     # explicit Metrica/Componenti steps rather than leaving them buried in the Run label's own
-    # free-text run_name): Dato (modality) -> Pipeline (fixed, not a real choice - informational
-    # only) -> Tipo di riduzione (method) -> Metrica -> Componenti -> Run (scoped by every
-    # step before it). Steps 3-6's own options are populated by the cascading callbacks below,
-    # empty at layout-build time.
+    # free-text run_name): Dato (modality) -> Pipeline -> Metodo -> Metrica -> Componenti ->
+    # Run (scoped by every step before it). Pipeline became a real choice, not a fixed label,
+    # 15-08-26 (docs/dev/clustering_migration_plan.md §3) once this app started discovering
+    # clustering.py runs too - Metrica/Componenti still show up for a clustering-pipeline run
+    # (uniform layout across both pipelines), just resolved to their one NO_METRIC/
+    # NO_N_COMPONENTS sentinel option each (see metric_options/n_components_options), since
+    # clustering method params have no metric/n_components axis to offer. Steps 2-6's own
+    # options are populated by the cascading callbacks below, empty at layout-build time.
     def _picker_field(label: str, dropdown_id: str) -> html.Div:
         return html.Div(
             className="picker-field",
@@ -618,26 +642,19 @@ def build_app(runs: list[ProductionRun]) -> Dash:
         children=[
             html.H1("Embedding Explorer", className="page-title"),
             html.P(
-                "Esplorazione interattiva degli embedding di produzione (dim_reduction.py) — "
+                "Esplorazione interattiva dei run di produzione (dim_reduction.py/clustering.py) — "
                 "scegli un run e una colorazione.",
                 className="page-subtitle",
             ),
             html.Div(
                 className="controls",
                 children=[
-                    # Two rows (2026-08-14, on request): Pipeline/Dato/Tipo di riduzione
-                    # (the "which pipeline output" question) above, Metrica/Componenti/Run
-                    # (the "which exact combination that pipeline produced" question) below.
+                    # Two rows (2026-08-14, on request): Dato/Pipeline/Metodo (the "which
+                    # pipeline output" question) above, Metrica/Componenti/Run (the "which
+                    # exact combination that pipeline produced" question) below.
                     html.Div(
                         className="picker-row",
                         children=[
-                            html.Div(
-                                className="picker-field",
-                                children=[
-                                    html.Label("Pipeline", className="picker-label"),
-                                    html.Div("Dim Reduction · Produzione", className="picker-fixed"),
-                                ],
-                            ),
                             html.Div(
                                 className="picker-field",
                                 children=[
@@ -650,7 +667,8 @@ def build_app(runs: list[ProductionRun]) -> Dash:
                                     ),
                                 ],
                             ),
-                            _picker_field("Tipo di riduzione", "method-picker"),
+                            _picker_field("Pipeline", "pipeline-picker"),
+                            _picker_field("Metodo", "method-picker"),
                         ],
                     ),
                     html.Div(
@@ -670,37 +688,51 @@ def build_app(runs: list[ProductionRun]) -> Dash:
     )
 
     @app.callback(
+        Output("pipeline-picker", "options"),
+        Output("pipeline-picker", "value"),
+        Input("modality-picker", "value"),
+    )
+    def _update_pipeline_picker(modality: str):
+        pipelines = pipeline_options(runs, modality)
+        return [{"label": p, "value": p} for p in pipelines], pipelines[0]
+
+    @app.callback(
         Output("method-picker", "options"),
         Output("method-picker", "value"),
         Input("modality-picker", "value"),
+        Input("pipeline-picker", "value"),
     )
-    def _update_method_picker(modality: str):
-        methods = method_options(runs, modality)
+    def _update_method_picker(modality: str, pipeline: str | None):
+        if pipeline is None:
+            raise PreventUpdate
+        methods = method_options(runs, modality, pipeline)
         return [{"label": m, "value": m} for m in methods], methods[0]
 
     @app.callback(
         Output("metric-picker", "options"),
         Output("metric-picker", "value"),
         Input("modality-picker", "value"),
+        Input("pipeline-picker", "value"),
         Input("method-picker", "value"),
     )
-    def _update_metric_picker(modality: str, method: str | None):
-        if method is None:
+    def _update_metric_picker(modality: str, pipeline: str | None, method: str | None):
+        if pipeline is None or method is None:
             raise PreventUpdate
-        metrics = metric_options(runs, modality, method)
+        metrics = metric_options(runs, modality, pipeline, method)
         return [{"label": m, "value": m} for m in metrics], metrics[0]
 
     @app.callback(
         Output("n-components-picker", "options"),
         Output("n-components-picker", "value"),
         Input("modality-picker", "value"),
+        Input("pipeline-picker", "value"),
         Input("method-picker", "value"),
         Input("metric-picker", "value"),
     )
-    def _update_n_components_picker(modality: str, method: str | None, metric: str | None):
-        if method is None or metric is None:
+    def _update_n_components_picker(modality: str, pipeline: str | None, method: str | None, metric: str | None):
+        if pipeline is None or method is None or metric is None:
             raise PreventUpdate
-        n_components_values = n_components_options(runs, modality, method, metric)
+        n_components_values = n_components_options(runs, modality, pipeline, method, metric)
         options = [{"label": str(n), "value": n} for n in n_components_values]
         return options, n_components_values[0]
 
@@ -708,17 +740,20 @@ def build_app(runs: list[ProductionRun]) -> Dash:
         Output("run-picker", "options"),
         Output("run-picker", "value"),
         Input("modality-picker", "value"),
+        Input("pipeline-picker", "value"),
         Input("method-picker", "value"),
         Input("metric-picker", "value"),
         Input("n-components-picker", "value"),
     )
-    def _update_run_picker(modality: str, method: str | None, metric: str | None, n_components: int | None):
-        if method is None or metric is None or n_components is None:
+    def _update_run_picker(
+        modality: str, pipeline: str | None, method: str | None, metric: str | None, n_components: int | None
+    ):
+        if pipeline is None or method is None or metric is None or n_components is None:
             # An upstream picker just changed and hasn't propagated its new value here yet -
             # each cascading callback is a separate step in Dash's dependency graph, not a
             # synchronous call chain.
             raise PreventUpdate
-        matching = runs_matching(runs, modality, method, metric, n_components)
+        matching = runs_matching(runs, modality, pipeline, method, metric, n_components)
         options = [{"label": run.run_name, "value": run.key} for run in matching]
         default_run_key = matching[-1].key  # most recent by _run_chronological_key
         return options, default_run_key

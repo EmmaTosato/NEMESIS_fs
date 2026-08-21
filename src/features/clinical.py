@@ -5,7 +5,7 @@ scores (NIHSS, ARAT, 9HPT, Boston naming, Clock, Corsi - see
 docs/guides/datasets.md) for the lesion-deficit vs FC-deficit prediction
 pipeline (src/pipeline/predict_deficit.py), reproducing Siegel et al. 2016
 (docs/notes/Siegel2016_Reproduction.md). join_lesion_side/join_nihss serve
-a different consumer (dim_reduction.py's/dim_reduction_clustering.py's
+a different consumer (dim_reduction.py's
 embedding_plot_side.*/embedding_plot_nihss.*, via
 enrich_metadata_with_lesion_info) but read the same per-dataset
 participants.tsv files, via the same load_participants.
@@ -213,11 +213,8 @@ def enrich_metadata_with_lesion_info(metadata: pd.DataFrame, X: np.ndarray) -> p
     """Adds lesion_volume_voxels/lesion_side/nihss to a copy of metadata.
 
     Single source of truth for the enrichment every embedding-producing
-    pipeline saves alongside its output, shared by dim_reduction.py and
-    dim_reduction_clustering.py so both always carry the same columns
-    forward in their metadata.csv, regardless of which one was run (before
-    this function existed, only dim_reduction.py did this - see
-    docs/dev/plotting.md). X must be the raw voxel-wise lesion matrix
+    pipeline saves alongside its output - currently only dim_reduction.py
+    (see docs/dev/plotting.md). X must be the raw voxel-wise lesion matrix
     (same row count/order as metadata, checked below) - lesion volume is
     X.sum(axis=1), a voxel count, not ml (a scalar rescaling, no need to
     convert here either) - only valid when X is strictly binary (checked

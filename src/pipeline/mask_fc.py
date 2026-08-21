@@ -129,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
                 {"min_coverage": config.min_coverage, "n_subjects": len(summary)},
                 output_dir,
                 config.run_notes,
+                config.data_root,
                 extra_columns={"atlas_combo": combo},
             )
         except OSError as exc:

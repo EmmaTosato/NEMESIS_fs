@@ -6,7 +6,6 @@ import pytest
 
 from src.analysis.model_config import (
     load_clustering_config,
-    load_dim_reduction_clustering_config,
     load_dim_reduction_config,
 )
 
@@ -164,10 +163,72 @@ def test_clustering_config_valid(tmp_path):
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
+        "reduced_data": False,
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.clustering_methods == ("kmeans",)
     assert config.fine_tuning is False
+    assert config.reduced_data is False
+
+
+def test_clustering_config_reduced_data_true_valid(tmp_path):
+    payload = {
+        **_SHARED,
+        "clustering_methods": ["kmeans"],
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
+        "reduced_data": True,
+    }
+    config = load_clustering_config(_write(tmp_path, "cl.json", payload))
+    assert config.reduced_data is True
+
+
+def test_clustering_config_missing_reduced_data_raises(tmp_path):
+    payload = {
+        **_SHARED,
+        "clustering_methods": ["kmeans"],
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
+    }
+    with pytest.raises(ValueError, match="missing required field 'reduced_data'"):
+        load_clustering_config(_write(tmp_path, "cl.json", payload))
+
+
+def test_clustering_config_reduced_data_non_bool_raises(tmp_path):
+    payload = {
+        **_SHARED,
+        "clustering_methods": ["kmeans"],
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
+        "reduced_data": "true",
+    }
+    with pytest.raises(ValueError, match="field 'reduced_data' must be a boolean"):
+        load_clustering_config(_write(tmp_path, "cl.json", payload))
+
+
+def test_clustering_config_viz_embedding_path_defaults_to_none(tmp_path):
+    payload = {
+        **_SHARED,
+        "clustering_methods": ["kmeans"],
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
+        "reduced_data": True,
+    }
+    config = load_clustering_config(_write(tmp_path, "cl.json", payload))
+    assert config.viz_embedding_path is None
+
+
+def test_clustering_config_viz_embedding_path_set(tmp_path):
+    payload = {
+        **_SHARED,
+        "clustering_methods": ["kmeans"],
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
+        "reduced_data": True,
+        "viz_embedding_path": "results/lesion/dim_reduction/production/umap/23-07_s1.1_d00",
+    }
+    config = load_clustering_config(_write(tmp_path, "cl.json", payload))
+    assert str(config.viz_embedding_path) == "results/lesion/dim_reduction/production/umap/23-07_s1.1_d00"
 
 
 def test_clustering_config_multiple_methods_valid(tmp_path):
@@ -176,6 +237,7 @@ def test_clustering_config_multiple_methods_valid(tmp_path):
         "clustering_methods": ["kmeans", "hdbscan", "gmm"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
+        "reduced_data": False,
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.clustering_methods == ("kmeans", "hdbscan", "gmm")
@@ -187,6 +249,7 @@ def test_clustering_config_fine_tuning_true(tmp_path):
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": True,
+        "reduced_data": False,
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.fine_tuning is True
@@ -240,39 +303,6 @@ def test_clustering_config_non_list_raises(tmp_path):
     }
     with pytest.raises(ValueError, match="non-empty list"):
         load_clustering_config(_write(tmp_path, "cl.json", payload))
-
-
-def test_dim_reduction_clustering_config_valid(tmp_path):
-    payload = {
-        **_SHARED,
-        "reduction_method": "tsne",
-        "reduction_params_file": "config/registry/params_reduction.json",
-        "clustering_methods": ["kmeans"],
-        "clustering_params_file": "config/registry/params_clustering.json",
-        "fine_tuning": False,
-        "viz_n_components": 2,
-        "color_by": [],
-    }
-    config = load_dim_reduction_clustering_config(_write(tmp_path, "drc.json", payload))
-    assert config.reduction_method == "tsne"
-    assert config.clustering_methods == ("kmeans",)
-    assert str(config.reduction_params_file) == "config/registry/params_reduction.json"
-    assert str(config.clustering_params_file) == "config/registry/params_clustering.json"
-    assert config.fine_tuning is False
-    assert config.viz_n_components == 2
-    assert config.color_by == ()
-
-
-def test_dim_reduction_clustering_config_missing_fine_tuning_raises(tmp_path):
-    payload = {
-        **_SHARED,
-        "reduction_method": "tsne",
-        "reduction_params_file": "config/registry/params_reduction.json",
-        "clustering_methods": ["kmeans"],
-        "clustering_params_file": "config/registry/params_clustering.json",
-    }
-    with pytest.raises(ValueError, match="missing required field 'fine_tuning'"):
-        load_dim_reduction_clustering_config(_write(tmp_path, "drc.json", payload))
 
 
 def test_missing_required_field_raises(tmp_path):

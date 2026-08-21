@@ -130,6 +130,7 @@ def main(argv: list[str] | None = None) -> int:
             {"parcellate": config.parcellate, "binarize_threshold": config.binarize_threshold},
             output_dir,
             config.run_notes,
+            config.data_root,
         )
     except OSError as exc:
         logging.error("cannot write report/run log: %s", exc, exc_info=True)
