@@ -457,7 +457,7 @@ def test_mask_dataset_fc_end_to_end(tmp_path):
         _make_fc(node_names).to_csv(fc_dir / f"{subject}_FC-pearson_atlas-{combo}.csv", sep="\t")
 
     output_dir = tmp_path / "out"
-    summary, missing_lesion, excluded_by_group = mask_dataset_fc(
+    summary, missing_lesion, excluded_by_group, failed = mask_dataset_fc(
         data_root=data_root,
         dataset="siteA",
         atlas_path=atlas_path,
@@ -474,6 +474,7 @@ def test_mask_dataset_fc_end_to_end(tmp_path):
 
     assert missing_lesion == []
     assert excluded_by_group == []
+    assert failed == {}
     assert set(summary["subject_id"]) == {"sub-01", "sub-02"}
     sub01_row = summary[summary["subject_id"] == "sub-01"].iloc[0]
     sub02_row = summary[summary["subject_id"] == "sub-02"].iloc[0]
@@ -481,3 +482,54 @@ def test_mask_dataset_fc_end_to_end(tmp_path):
     assert sub02_row["n_compromised_nodes"] == 0
     assert (output_dir / "sub-01_masked_fc.csv").is_file()
     assert (output_dir / "sub-02_masked_fc.csv").is_file()
+
+
+def test_mask_dataset_fc_one_bad_subject_does_not_abort_the_others(tmp_path):
+    """Regression (HIGH #9, 2026-08): a single subject with a mismatched FC node
+    order (or a corrupt lesion/FC file) used to raise straight out of the per-subject
+    loop, discarding every subject already masked earlier in the same call. Now
+    isolated per subject (lesson #21) - the good subject stays written, the bad one
+    is reported in `failed`, not silently dropped nor fatal."""
+    atlas_path = tmp_path / "atlas.nii.gz"
+    nib.save(_make_atlas_img(), atlas_path)
+    label_table_path = _make_label_table(tmp_path)
+    node_names = ["Region_A", "Region_B"]
+
+    data_root = tmp_path / "data"
+    combo = "ComboX"
+    for subject, lesioned in (("sub-01", True), ("sub-02", False)):
+        lesion_dir = data_root / "siteA" / "manual_masks" / subject / "anat"
+        lesion_dir.mkdir(parents=True, exist_ok=True)
+        voxels = _all_voxels_in_block(np.s_[0:7, 0:7, 0:7]) if lesioned else []
+        nib.save(_make_lesion_img(voxels), lesion_dir / f"{subject}_label-lesion_mask.nii.gz")
+
+        fc_dir = data_root / "siteA" / "features" / subject / "func"
+        fc_dir.mkdir(parents=True, exist_ok=True)
+        _make_fc(node_names).to_csv(fc_dir / f"{subject}_FC-pearson_atlas-{combo}.csv", sep="\t")
+
+    # sub-02's FC file has its node order scrambled relative to the atlas - the exact
+    # per-subject failure mode described in the audit finding.
+    bad_fc_path = data_root / "siteA" / "features" / "sub-02" / "func" / f"sub-02_FC-pearson_atlas-{combo}.csv"
+    _make_fc(list(reversed(node_names))).to_csv(bad_fc_path, sep="\t")
+
+    output_dir = tmp_path / "out"
+    summary, missing_lesion, excluded_by_group, failed = mask_dataset_fc(
+        data_root=data_root,
+        dataset="siteA",
+        atlas_path=atlas_path,
+        label_table_path=label_table_path,
+        atlas_combo=combo,
+        lesion_glob=_LESION_GLOB,
+        fc_glob_template=_FC_GLOB_TEMPLATE,
+        min_coverage=0.5,
+        resample_interpolation="nearest",
+        binarize_threshold=0.5,
+        output_dir=output_dir,
+        group_filter=None,
+    )
+
+    assert set(summary["subject_id"]) == {"sub-01"}
+    assert (output_dir / "sub-01_masked_fc.csv").is_file()
+    assert not (output_dir / "sub-02_masked_fc.csv").exists()
+    assert set(failed) == {"sub-02"}
+    assert "node order" in failed["sub-02"]

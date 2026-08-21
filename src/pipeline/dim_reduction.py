@@ -49,6 +49,7 @@ import argparse
 import json
 import logging
 import shutil
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -121,7 +122,15 @@ def _run_production(
     # refit right after share the same precomputed distance matrix instead of
     # recomputing it (see src/analysis/reduction.py::embed's docstring).
     distance_cache: dict[str, np.ndarray] = {}
-    embedding = embed(config.reduction_method, X, params, distance_cache)
+    try:
+        embedding = embed(config.reduction_method, X, params, distance_cache)
+    except (TypeError, ValueError) as exc:
+        # TypeError: an unrecognized hyperparameter in params_reduction.json (e.g. a typo'd
+        # key) reaches the estimator's own **params unpack and raises there, not from any
+        # validation this pipeline does itself. ValueError: a recognized but out-of-range
+        # value (e.g. n_neighbors >= n_samples).
+        logging.error("%s: cannot fit embedding with params %s: %s", config.reduction_method, params, exc)
+        return 1
 
     # Separate embedding for visualization only (2 or 3 components, config.viz_n_components) -
     # reused as-is when it already matches (every production config today: both are 2, zero
@@ -362,7 +371,15 @@ def _write_tuning_embeddings(output_dir: Path, embeddings_by_combo: dict[tuple, 
     §0/§5: no silent change to an existing run's output shape).
     """
     arrays = {_combo_key(keys, combo): embedding for combo, embedding in embeddings_by_combo.items()}
-    np.savez(output_dir / "embeddings.npz", **arrays)
+    final_path = output_dir / "embeddings.npz"
+    # Atomic (HIGH #24, 2026-08): np.savez wrote directly to the final path - a run killed
+    # mid-write (SLURM timeout, Ctrl+C) left a truncated embeddings.npz sitting next to an
+    # otherwise-complete tuning_results.csv/config.md, indistinguishable from a successful
+    # run until something actually tries to np.load it. Same temp-file-then-rename pattern
+    # as save_matrix (src/utils/artifacts.py), scaled down to one file instead of a directory.
+    tmp_path = output_dir / f".embeddings_tmp_{uuid.uuid4().hex}.npz"
+    np.savez(tmp_path, **arrays)
+    tmp_path.replace(final_path)
 
 
 # embeddings_grid.png is a static-only diagnostic (no interactive counterpart) - always 2

@@ -114,6 +114,28 @@ def test_build_lesion_matrix_group_filter_excludes_hc(tmp_path, monkeypatch):
     assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
 
 
+def test_build_lesion_matrix_corrupt_lesion_mask_returns_1_not_raw_traceback(tmp_path, monkeypatch):
+    """Regression (HIGH #20, 2026-08): nib.load raises nibabel.filebasedimages.ImageFileError
+    for a truncated/corrupt .nii.gz - not FileNotFoundError (the file exists) nor ValueError
+    (nibabel's own exception, not ours) - so it used to propagate as a raw traceback instead
+    of the usual logging.error + return 1."""
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
+
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    _make_lesion_subject(data_root, "siteA", "sub-00", [(1, 1, 1)])
+    # A real file, non-empty, but not a valid gzip/NIfTI stream.
+    bad_path = data_root / "siteA" / "sub-01" / "lesion" / "manual_masks" / "anat" / "sub-01_label-lesion_mask.nii.gz"
+    bad_path.parent.mkdir(parents=True, exist_ok=True)
+    bad_path.write_bytes(b"not a real nifti file, truncated mid-transfer")
+
+    config_path = _write_config(tmp_path, data_root, output_root)
+
+    assert build_lesion_matrix.main(["--config", str(config_path)]) == 1
+    assert not output_root.exists()
+
+
 def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, monkeypatch):
     monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")

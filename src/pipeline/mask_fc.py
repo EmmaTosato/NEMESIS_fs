@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -62,17 +63,28 @@ def main(argv: list[str] | None = None) -> int:
     combo_summaries: dict[str, pd.DataFrame] = {}
     for combo in config.atlas_combos:
         output_dir = config.output_root / combo
-        if not config.overwrite and any(output_dir.glob("*_masked_fc.csv")):
-            logging.error(
-                "output dir %s already has masked FC files and overwrite=False - "
-                "set overwrite=true or choose a different output_root",
-                output_dir,
-            )
-            return 1
+        if output_dir.exists():
+            if not config.overwrite:
+                logging.error(
+                    "output dir %s already has masked FC files and overwrite=False - "
+                    "set overwrite=true or choose a different output_root",
+                    output_dir,
+                )
+                return 1
+            # overwrite=True must mean "this combo's output is entirely from this run" -
+            # rmtree before mask_dataset_fc recreates it, otherwise a stale file from a
+            # previous run (e.g. subjects excluded by a since-tightened group_filter) would
+            # keep sitting in output_dir and get silently picked up downstream by
+            # build_fc_matrix.py's discover_masked_fc_files (lesson #18).
+            try:
+                shutil.rmtree(output_dir)
+            except OSError as exc:
+                logging.error("%s: cannot clear existing output dir %s: %s", combo, output_dir, exc, exc_info=True)
+                return 1
 
         atlas_path, label_table_path = resolve_atlas_paths(config.atlas_root, combo)
         try:
-            summary, missing_lesion, excluded_by_group = mask_dataset_fc(
+            summary, missing_lesion, excluded_by_group, failed = mask_dataset_fc(
                 data_root=config.data_root,
                 dataset=config.dataset,
                 atlas_path=atlas_path,
@@ -104,6 +116,10 @@ def main(argv: list[str] | None = None) -> int:
                 len(excluded_by_group),
                 config.group_filter,
                 excluded_by_group,
+            )
+        if failed:
+            logging.warning(
+                "%s: %d subject(s) could not be masked, skipped: %s", combo, len(failed), failed
             )
         logging.info(
             "%s: masked %d subjects (mean %.1f compromised nodes/subject)",

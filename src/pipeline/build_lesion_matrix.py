@@ -78,7 +78,11 @@ def main(argv: list[str] | None = None) -> int:
             atlas_path=config.atlas_path,
             parcel_aggregation=config.parcel_aggregation,
         )
-    except (FileNotFoundError, ValueError) as exc:
+    except (FileNotFoundError, ValueError, nib.filebasedimages.ImageFileError) as exc:
+        # ImageFileError (HIGH #20): a truncated/corrupt .nii.gz raises this from nib.load,
+        # for either the reference/atlas image or any subject's own lesion mask - neither
+        # FileNotFoundError (the file exists) nor ValueError (nibabel's own exception, not
+        # ours).
         logging.error(str(exc))
         return 1
 

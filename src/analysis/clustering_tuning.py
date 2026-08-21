@@ -67,8 +67,46 @@ METHOD_METRIC_COLUMNS: dict[str, list[str]] = {
 
 STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral"}
 
+# HIGH #13 (audit 15/08/26): silhouette/calinski_harabasz/davies_bouldin always score X
+# under sklearn's own default (Euclidean) - correct only as long as the clustering method
+# itself also treated X as a plain Euclidean feature space. Registered here (lesson #20,
+# explicit allow-list over a free-form guess) are every value known to still mean "X is a
+# plain feature matrix, Euclidean validation applies": None (key absent - most methods,
+# e.g. kmeans/gmm/hdbscan, don't have this concept at all), "nearest_neighbors"/"rbf" for
+# spectral's `affinity` (both build their graph from X via Euclidean distance internally,
+# same geometry the validation metrics assume), and "euclidean" for agglomerative's
+# `metric`. Anything else - most importantly `affinity="precomputed"` (X is itself a
+# distance/affinity matrix built under an arbitrary metric, e.g. Jaccard/Dice) or a
+# non-euclidean `metric` - makes X's own coordinates meaningless to a Euclidean index,
+# so compute_clustering_metrics refuses outright rather than silently scoring the wrong
+# geometry (dormant today: no production/tuning config sets either of these, see
+# AUDIT_FINDINGS.md #13).
+_EUCLIDEAN_SAFE_AFFINITY = frozenset({None, "nearest_neighbors", "rbf"})
+_EUCLIDEAN_SAFE_METRIC = frozenset({None, "euclidean"})
 
-def compute_clustering_metrics(X: np.ndarray, labels: np.ndarray) -> dict[str, float]:
+
+def _require_euclidean_compatible(combo_params: dict | None) -> None:
+    if combo_params is None:
+        return
+    affinity = combo_params.get("affinity")
+    if affinity not in _EUCLIDEAN_SAFE_AFFINITY:
+        raise ValueError(
+            f"compute_clustering_metrics assumes Euclidean geometry (sklearn's default for "
+            f"silhouette/calinski_harabasz/davies_bouldin), but affinity={affinity!r} means X is not a "
+            "plain Euclidean feature matrix - pass an explicit metric-aware score instead of calling this "
+            "function, or register affinity in _EUCLIDEAN_SAFE_AFFINITY if it's actually Euclidean-based"
+        )
+    metric = combo_params.get("metric")
+    if metric not in _EUCLIDEAN_SAFE_METRIC:
+        raise ValueError(
+            f"compute_clustering_metrics assumes Euclidean geometry (sklearn's default for "
+            f"silhouette/calinski_harabasz/davies_bouldin), but metric={metric!r} means clustering itself "
+            "did not use Euclidean distance - pass an explicit metric-aware score instead of calling this "
+            "function, or register metric in _EUCLIDEAN_SAFE_METRIC if it's actually Euclidean-equivalent"
+        )
+
+
+def compute_clustering_metrics(X: np.ndarray, labels: np.ndarray, combo_params: dict | None = None) -> dict[str, float]:
     """Generic internal-validation metrics for one (X, labels) clustering result.
 
     HDBSCAN-style noise (label -1) is excluded from silhouette/Calinski-Harabasz
@@ -79,7 +117,15 @@ def compute_clustering_metrics(X: np.ndarray, labels: np.ndarray) -> dict[str, f
     all - sklearn itself would raise; caught here and recorded as NaN with a
     warning rather than aborting the whole sweep, since a bad hyperparameter
     combination is expected information in a tuning sweep, not a bug.
+
+    combo_params (optional): the exact params dict the clustering method being scored was
+    given - when passed, raises ValueError upfront if it names a distance/affinity this
+    function's Euclidean assumption doesn't hold for (see _require_euclidean_compatible).
+    None (the default) skips the check - only run_clustering_tuning_sweep, which always
+    knows combo_params, is expected to pass it; a caller that already knows X is a plain
+    Euclidean feature matrix (e.g. a unit test) doesn't need to.
     """
+    _require_euclidean_compatible(combo_params)
     labels = np.asarray(labels)
     noise_mask = labels == -1
     noise_fraction = float(noise_mask.sum()) / len(labels)
@@ -200,7 +246,7 @@ def run_clustering_tuning_sweep(
         else:
             labels = CLUSTERING_METHODS[method](X, combo_params)
             extra_metrics = {}
-        generic_metrics = compute_clustering_metrics(X, labels)
+        generic_metrics = compute_clustering_metrics(X, labels, combo_params)
         consensus_metrics = _compute_consensus_metrics(method, X, combo_params, consensus_config)
         rows.append({**dict(zip(keys, combo)), **generic_metrics, **extra_metrics, **consensus_metrics})
 

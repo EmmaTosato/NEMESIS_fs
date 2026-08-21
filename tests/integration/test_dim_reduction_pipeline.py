@@ -271,6 +271,50 @@ def test_dim_reduction_fine_tuning_save_tuning_embeddings_writes_npz(tmp_path, m
     assert (metadata["lesion_volume_voxels"] > 0).all()
 
 
+def test_dim_reduction_save_tuning_embeddings_interrupted_write_leaves_no_truncated_npz(tmp_path, monkeypatch):
+    """Regression (HIGH #24, 2026-08): embeddings.npz used to be written directly via
+    np.savez(output_dir / "embeddings.npz", ...) - a run killed mid-write left a truncated
+    file sitting next to an otherwise-complete tuning_results.csv/config.md, indistinguishable
+    from a successful run until something tried to np.load it later. Now temp-file-then-rename
+    (save_matrix's own pattern): a failure partway through must leave no embeddings.npz at all,
+    never a truncated one."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    _add_clinical_columns(input_dir, [f"sub-{i:02d}" for i in range(8)])
+
+    real_savez = np.savez
+
+    def _savez_then_crash(file, **kwargs):
+        real_savez(file, **kwargs)  # the temp file is written (and left on disk) ...
+        raise OSError("simulated: killed mid-write before the rename")  # ... but never renamed
+
+    monkeypatch.setattr(dim_reduction.np, "savez", _savez_then_crash)
+
+    params_path = _write_params(tmp_path)
+    output_root = tmp_path / "dr_out"
+    dr_cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "umap",
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_emb",
+        "overwrite": False,
+        "fine_tuning": True,
+        "color_by": [],
+        "viz_n_components": 2,
+        "write_embeddings_grid": True,
+        "save_tuning_embeddings": True,
+        "run_notes": None,
+    }
+    dr_cfg_path = tmp_path / "dim_reduction_tuning_emb.json"
+    dr_cfg_path.write_text(json.dumps(dr_cfg))
+
+    assert dim_reduction.main(["--config", str(dr_cfg_path)]) == 1
+    tuning_dir = next(p for p in (output_root / "tuning" / "umap").iterdir() if p.is_dir())
+    assert not (tuning_dir / "embeddings.npz").exists()
+
+
 def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
@@ -466,6 +510,47 @@ def test_dim_reduction_jaccard_metric_on_non_binary_matrix_raises(tmp_path, monk
                 }
             }
         )
+    )
+    dr_cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "umap",
+        "params_file": str(params_path),
+        "output_root": str(tmp_path / "dr_out"),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "color_by": [],
+        "viz_n_components": 2,
+        "write_embeddings_grid": True,
+        "save_tuning_embeddings": False,
+        "run_notes": None,
+    }
+    dr_cfg_path = tmp_path / "dim_reduction.json"
+    dr_cfg_path.write_text(json.dumps(dr_cfg))
+
+    assert dim_reduction.main(["--config", str(dr_cfg_path)]) == 1
+    assert not (tmp_path / "dr_out").exists()
+
+
+def test_dim_reduction_unrecognized_hyperparameter_returns_1_not_raw_traceback(tmp_path, monkeypatch):
+    """Regression (HIGH #11, 2026-08): load_method_params/require_binary_matrix only
+    validate that params_reduction.json's method/file exist and (for binary metrics)
+    that X is binary - they never validate the *contents* of params. A typo'd
+    hyperparameter key (e.g. "n_neighbor" instead of "n_neighbors") reached
+    umap.UMAP(**params) unprotected and propagated as a raw TypeError traceback
+    instead of the usual logging.error + return 1."""
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+
+    input_dir = tmp_path / "matrix"
+    rng = np.random.default_rng(0)
+    X = (rng.random((8, 5)) > 0.5).astype(np.float64)
+    metadata = pd.DataFrame({"subject_id": [f"sub-{i:02d}" for i in range(8)], "dataset": "siteA"})
+    save_matrix(input_dir, X, metadata, ["# fixture"], overwrite=False)
+
+    params_path = tmp_path / "params_reduction.json"
+    params_path.write_text(
+        json.dumps({"umap": {"params": {"n_neighbor": 3, "min_dist": 0.1, "n_components": 2, "random_state": 0}}})
     )
     dr_cfg = {
         "project": "testproj",

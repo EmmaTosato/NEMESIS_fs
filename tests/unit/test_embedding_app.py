@@ -432,6 +432,24 @@ def test_metric_options_distinct_values(tmp_path):
     assert metric_options(runs, "lesion", "dim_reduction", "umap") == ["dice", "euclidean"]
 
 
+def test_metric_options_one_corrupt_run_does_not_hide_the_others(tmp_path, caplog):
+    """Regression (HIGH #25, 2026-08): a single run() with a truncated config.md (a
+    real-world "editor open on the results/ folder over a network mount" scenario) used
+    to raise straight out of the list-comprehension, making metric_options fail for
+    EVERY run of that (modality, pipeline, method), not just the corrupt one."""
+    results_root = tmp_path / "results"
+    dir_a = _make_run_dir(results_root, run_name="run-a", params={"metric": "euclidean", "n_components": 2})
+    dir_b = _make_run_dir(results_root, run_name="run-b", params={"metric": "dice", "n_components": 2})
+    (dir_b / "config.md").write_text('# test run\nParams used: {"metric": "dice", "n_com')  # truncated mid-write
+    runs = [
+        ProductionRun("lesion", "dim_reduction", "umap", "run-a", dir_a),
+        ProductionRun("lesion", "dim_reduction", "umap", "run-b", dir_b),
+    ]
+
+    assert metric_options(runs, "lesion", "dim_reduction", "umap") == ["euclidean"]
+    assert "run-b" in caplog.text
+
+
 def test_metric_options_clustering_pipeline_returns_sentinel_only(tmp_path):
     results_root = tmp_path / "results"
     dir_a = _make_run_dir(results_root, pipeline="clustering", method="kmeans", run_name="run-a", params={"n_clusters": 3})

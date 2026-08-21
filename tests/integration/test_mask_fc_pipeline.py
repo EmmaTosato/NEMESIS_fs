@@ -165,6 +165,41 @@ def test_mask_fc_group_filter_excludes_healthy_controls(tmp_path, monkeypatch):
     assert set(summary["subject_id"]) == {"sub-STUNIPD0001"}
 
 
+def test_mask_fc_overwrite_true_removes_stale_files_from_previous_run(tmp_path, monkeypatch):
+    """Regression (HIGH #10/CRITICAL #5, 2026-08): a first run with group_filter=None
+    writes a masked_fc.csv for a healthy-control subject that later gets excluded once
+    group_filter=["ST"] is set; a second run with overwrite=True must not leave that
+    stale file sitting in output_dir for build_fc_matrix.py to silently pick up."""
+    monkeypatch.setattr(mask_fc, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(mask_fc, "LOGS_ROOT", tmp_path / "logs")
+
+    data_root = tmp_path / "data"
+    atlas_root = tmp_path / "atlases"
+    output_root = tmp_path / "out"
+    node_names = ["Region_A", "Region_B"]
+    _make_atlas(atlas_root, "ComboX")
+    _make_subject(data_root, "siteA", "sub-STUNIPD0001", "ComboX", node_names, [])
+    # HC subject with its own (structurally-shouldn't-exist-but-does) lesion mask, so
+    # group_filter=None genuinely masks and writes it out - not just skips it as
+    # missing_lesion - and group_filter=["ST"] excludes it by group instead.
+    _make_subject(data_root, "siteA", "sub-STUNIPDHC0001", "ComboX", node_names, [])
+
+    # Run 1: group_filter=None (typo/oversight) - both ST and HC get masked.
+    config_path = _write_config(tmp_path, data_root, atlas_root, output_root, overrides={"group_filter": None})
+    assert mask_fc.main(["--config", str(config_path)]) == 0
+    combo_dir = output_root / "ComboX"
+    assert (combo_dir / "sub-STUNIPDHC0001_masked_fc.csv").is_file()
+
+    # Run 2: group_filter corrected to ["ST"], overwrite=True, same output_root.
+    config_path = _write_config(
+        tmp_path, data_root, atlas_root, output_root, overrides={"group_filter": ["ST"], "overwrite": True}
+    )
+    assert mask_fc.main(["--config", str(config_path)]) == 0
+
+    assert (combo_dir / "sub-STUNIPD0001_masked_fc.csv").is_file()
+    assert not (combo_dir / "sub-STUNIPDHC0001_masked_fc.csv").is_file()
+
+
 def test_mask_fc_missing_lesion_subject_skipped_not_fatal(tmp_path, monkeypatch):
     monkeypatch.setattr(mask_fc, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(mask_fc, "LOGS_ROOT", tmp_path / "logs")

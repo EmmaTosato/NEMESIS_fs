@@ -45,6 +45,7 @@ import itertools
 import json
 import logging
 import re
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -149,7 +150,17 @@ def _read_base_n_components(tuning_dir: Path) -> int:
     match = re.search(r"```json\n(.*?)\n```", config_md, re.DOTALL)
     if match is None:
         raise ValueError(f"{tuning_dir}/config.md has no fenced ```json``` block - can't read base_params.n_components")
-    return json.loads(match.group(1))["base_params"]["n_components"]
+    payload = json.loads(match.group(1))
+    try:
+        return payload["base_params"]["n_components"]
+    except (KeyError, TypeError) as exc:
+        # KeyError: the fenced block parses but is missing base_params/n_components (e.g. a
+        # future _write_tuning_output format change). TypeError: the fenced block isn't even
+        # a JSON object (lesson #7 - top-level shape unvalidated before indexing into it).
+        # Neither is a ValueError sklearn/this module's other callers already catch.
+        raise ValueError(
+            f"{tuning_dir}/config.md's fenced json block has no base_params.n_components: {exc}"
+        ) from exc
 
 
 def _categorical_color_map(categories) -> dict:
@@ -213,6 +224,18 @@ def _color_values_for_mode(metadata: pd.DataFrame, mode: str) -> dict:
     single-color one (plot_embedding_2d's look), categorical modes map each
     category to a fixed hex, continuous modes hand over numeric values (log10
     for the log_scale ones, see _LOG_SCALE_MODES) plus a colorscale.
+
+    A continuous mode's per-subject NaN (HIGH #21, 2026-08 - e.g. "nihss" for a
+    PASPORT subject, a dataset with no baseline NIHSS at all) is converted to
+    Python None here, never left as a raw float NaN: json.dumps(None) is valid
+    JSON ("null"), json.dumps(nan) is not (JavaScript's JSON.parse rejects a
+    bare NaN token) - confirmed on real production data, 139 literal NaN
+    occurrences in one report's embedded JSON before this fix. Plotly.js
+    renders a null marker.color entry by simply not drawing that point, rather
+    than an arbitrary/wrong color - not the dedicated gray "missing" trace
+    embedding_app.py uses for the same mode (a bigger redesign of this
+    module's client-side setColor()/legend, out of scope for this fix), but no
+    longer silently wrong either.
     """
     if mode == "none":
         return {"color": _NEUTRAL_COLOR, "colorscale": None, "opacity": _NEUTRAL_OPACITY}
@@ -232,7 +255,8 @@ def _color_values_for_mode(metadata: pd.DataFrame, mode: str) -> dict:
         if (positive <= 0).any():
             raise ValueError(f"mode {mode!r} is log-scaled but has non-positive values - cannot map onto a log color scale")
         values = np.log10(values)
-    return {"color": values.tolist(), "colorscale": CONTINUOUS_COLORSCALE, "opacity": 1.0}
+    color = [None if np.isnan(v) else float(v) for v in values]
+    return {"color": color, "colorscale": CONTINUOUS_COLORSCALE, "opacity": 1.0}
 
 
 def build_grid_figure(
@@ -1080,6 +1104,19 @@ class TuningData:
     metrics: list[str]
 
 
+def _load_embeddings_npz(path: Path) -> np.lib.npyio.NpzFile:
+    """np.load(path), with np.savez's own failure modes (HIGH #24, 2026-08) turned into a
+    ValueError every caller up the chain (load_tuning_data -> generate_report -> main())
+    already catches - a run interrupted mid-write (SLURM timeout, Ctrl+C) during
+    dim_reduction.py's np.savez leaves embeddings.npz truncated on disk, which np.load
+    raises zipfile.BadZipFile or OSError for, neither of which is a ValueError.
+    """
+    try:
+        return np.load(path)
+    except (OSError, zipfile.BadZipFile) as exc:
+        raise ValueError(f"{path}: cannot read embeddings - file is missing, empty, or corrupt ({exc})") from exc
+
+
 def load_tuning_data(umap_tuning_dir: Path, tsne_tuning_dir: Path) -> TuningData:
     """Loads + cohort-validates the UMAP/t-SNE tuning output - factored out
     of generate_report as its own step for readability. Raises ValueError if
@@ -1093,12 +1130,12 @@ def load_tuning_data(umap_tuning_dir: Path, tsne_tuning_dir: Path) -> TuningData
     if not tsne_tuning_dir.exists():
         raise FileNotFoundError(f"tsne_tuning_dir does not exist: {tsne_tuning_dir}")
 
-    real_data = np.load(umap_tuning_dir / "embeddings.npz")
+    real_data = _load_embeddings_npz(umap_tuning_dir / "embeddings.npz")
     real_embeddings = {key: real_data[key] for key in real_data.files}
     real_metadata = pd.read_csv(umap_tuning_dir / "metadata.csv")
     n_components = _read_base_n_components(umap_tuning_dir)
 
-    tsne_data = np.load(tsne_tuning_dir / "embeddings.npz")
+    tsne_data = _load_embeddings_npz(tsne_tuning_dir / "embeddings.npz")
     tsne_embeddings = {key: tsne_data[key] for key in tsne_data.files}
     tsne_metadata = pd.read_csv(tsne_tuning_dir / "metadata.csv")
     if not real_metadata.equals(tsne_metadata):
@@ -1121,15 +1158,29 @@ def load_tuning_data(umap_tuning_dir: Path, tsne_tuning_dir: Path) -> TuningData
 def generate_report(umap_tuning_dir: Path, tsne_tuning_dir: Path, output_dir: Path) -> list[Path]:
     """Top-level entry point: one HTML page per metric leaf found under
     umap_tuning_dir, written to output_dir.
+
+    All-or-nothing (HIGH #22, 2026-08): if any metric's build_leaf_page fails partway
+    through the sweep (e.g. a tuning sweep interrupted before reaching a later
+    n_components leaf), every understanding_umap_<metric>.html written so far in *this*
+    call is removed before re-raising - a caller re-running after fixing the cause must
+    never find a report that looks complete but is silently missing one metric's page.
+    output_dir is typically umap_tuning_dir itself (see generate_understanding_umap_report.py),
+    so cleanup only ever removes the specific HTML files this function itself wrote, never
+    the tuning output (tuning_results.csv/embeddings.npz/config.md) sitting beside them.
     """
     data = load_tuning_data(umap_tuning_dir, tsne_tuning_dir)
 
     output_paths = []
     for metric in data.metrics:
         output_path = output_dir / f"understanding_umap_{metric}.html"
-        build_leaf_page(
-            metric, data.umap_tuning_dir, data.real_embeddings, data.real_metadata, data.n_components,
-            data.tsne_tuning_dir, data.tsne_embeddings, output_path,
-        )
+        try:
+            build_leaf_page(
+                metric, data.umap_tuning_dir, data.real_embeddings, data.real_metadata, data.n_components,
+                data.tsne_tuning_dir, data.tsne_embeddings, output_path,
+            )
+        except (ValueError, OSError):
+            for written_path in output_paths:
+                written_path.unlink(missing_ok=True)
+            raise
         output_paths.append(output_path)
     return output_paths

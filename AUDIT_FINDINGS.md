@@ -435,7 +435,15 @@ altrove, es. `src/sdc/status.py::read_all_statuses`).
 combo: i 249 soggetti già mascherati correttamente in questo stesso ciclo `for` vengono comunque
 scartati (mai scritti su disco, dato che `mask_dataset_fc` ritorna solo a fine loop) — un singolo
 file malformato costa il ricalcolo completo della combo, non solo di quel soggetto.
-**Stato: Aperto.**
+
+**Stato: Implementato (18/08).** `mask_dataset_fc` ora avvolge il corpo per-soggetto in
+`try/except (OSError, ValueError, ImageFileError, pd.errors.ParserError)`, accumula i
+fallimenti in un dict `failed: dict[str, str]` (subject_id -> motivo) e continua con gli altri
+— firma cambiata a `(summary, missing_lesion, excluded_by_group, failed)`, `mask_fc.py`
+aggiornato per loggare `failed` come WARNING. Test: `test_mask_dataset_fc_one_bad_subject_does_not_abort_the_others`
+(`tests/unit/test_features_functional.py`) — un soggetto con FC node order scrambled, verificato
+fallire su codice pre-fix (l'intero `ValueError` si propagava, `sub-01` mai scritto), passa col
+fix (`sub-01` scritto, `sub-02` in `failed` con motivo).
 
 ### 10. `mask_fc`: output dir non ripulita con `overwrite=True`
 
@@ -464,7 +472,15 @@ config e si rilancia con `overwrite=True` sullo stesso `output_root`/`session_na
 run scrive solo i file `*_masked_fc.csv` dei soggetti ST — ma i `sub-HCUNIPD*_masked_fc.csv`
 del run 1 restano fisicamente in `masked_fc/<combo>/`, pronti per essere raccolti dal
 `build_fc_matrix.py` (CRITICAL #5) o da qualunque altra ispezione manuale della cartella.
-**Stato: Aperto.**
+
+**Stato: Implementato (18/08) — chiude anche CRITICAL #5, stesso gap.** `mask_fc.py`'s
+`main()` ora fa `shutil.rmtree(output_dir)` prima di richiamare `mask_dataset_fc` quando
+`output_dir.exists()` e `config.overwrite=True` (semantica "tutto o niente", identica al
+pattern già usato altrove per lo stesso problema, lesson #18). Test:
+`test_mask_fc_overwrite_true_removes_stale_files_from_previous_run`
+(`tests/integration/test_mask_fc_pipeline.py`) — run 1 con `group_filter=None` include un
+soggetto HC, run 2 con `group_filter=["ST"]`+`overwrite=True` sullo stesso `output_root`;
+verificato fallire su codice pre-fix (il file HC restava), passa col fix (rimosso).
 
 ### 11. `dim_reduction`: `TypeError` da iperparametro non riconosciuto non catturato
 
@@ -497,7 +513,16 @@ modulo `logging`: il file di log esiste (creato vuoto da `attach_file_handler`) 
 nulla, mentre il processo termina con un traceback su console — violazione diretta di §6
 ("ogni eccezione loggata con contesto completo"). Un job SLURM che redirige solo lo stderr di
 sistema in `-e` lo vedrebbe comunque, ma chi si aspetta di trovare la causa nel `.log`
-dedicato del pipeline resterebbe senza risposta. **Stato: Aperto.**
+dedicato del pipeline resterebbe senza risposta.
+
+**Stato: Implementato (18/08).** La chiamata a `embed()` in `_run_production` è ora avvolta
+in `try/except (TypeError, ValueError)`, `logging.error` + `return 1`, con il messaggio che
+include `params` per riconoscere subito la chiave errata. Test:
+`test_dim_reduction_unrecognized_hyperparameter_returns_1_not_raw_traceback`
+(`tests/integration/test_dim_reduction_pipeline.py`) — `params_reduction.json` con
+`"n_neighbor"` invece di `"n_neighbors"`, verificato fallire su codice pre-fix
+(`TypeError` grezzo da `umap.UMAP(**params)`), passa col fix (`return 1`, nessun `dr_out/`
+creato).
 
 ### 12. `dim_reduction`: suite rossa al momento dell'audit
 
@@ -511,7 +536,10 @@ tests/unit/test_embedding_coloring.py::test_registry_has_expected_modes -q` → 
 fix del CRITICAL #7 (`ColorMode` con `column`, registro con `cluster_label` incluso, test
 riscritto) ha risolto questo finding come effetto collaterale — **non riproducibile più sullo
 stato attuale del branch**, andrebbe chiuso in triage invece di restare "Aperto" senza verifica.
-**Stato: Aperto** (ma non più riprodotto — vedi nota sopra).
+
+**Stato: Chiuso in triage (18/08).** Suite intera confermata verde end-to-end del lavoro di
+questa sessione (merge `docs/dr-clustering-literature-migration` + tutti i fix HIGH sotto):
+**698 passed, 0 failed, 12 skipped**. Nessuna azione di codice necessaria.
 
 ### 13. `clustering`: metriche di validazione sempre euclidee
 
@@ -539,7 +567,30 @@ partizionamento che separa bene i soggetti secondo l'overlap di voxel (Jaccard) 
 punteggio euclideo mediocre (e viceversa) — il tuning finisce per scegliere l'iperparametro che
 sembra migliore secondo un metro diverso da quello che il clustering ha effettivamente usato,
 silenziosamente, un numero plausibile senza nessun segnale che sia calcolato contro il metro
-sbagliato. **Stato: Aperto.**
+sbagliato.
+
+**Verificato sui dati reali (18/08)**: produzione `clustering.json` gira sempre con
+`reduced_data: true` su un embedding PaCMAP (spazio Euclideo per costruzione) e `spectral` usa
+`affinity="nearest_neighbors"` (mai `"precomputed"`) — nessun mismatch attivo oggi, a
+differenza dell'esempio ipotetico sopra. Rimane comunque un difetto reale, dormiente.
+
+**Decisione presa con l'utente (18/08)**: a differenza di `dim_reduction`'s `metric` (lesson
+#15, una singola chiave uniforme presente su ogni metodo), il clustering non ha un campo
+"metric" uniforme — KMeans/Ward/GMM/HDBSCAN non hanno affatto questo concetto (Ward *richiede*
+Euclidea). Scelto quindi un **guard esplicito** (opzione più semplice delle 3 proposte) invece
+di un thread-through generico.
+
+**Stato: Implementato (18/08).** `compute_clustering_metrics` prende ora un `combo_params:
+dict | None = None` opzionale; `_require_euclidean_compatible` (nuovo helper) solleva
+`ValueError` esplicito se `combo_params.get("affinity")` non è in un allow-list registrato
+(`None`/`"nearest_neighbors"`/`"rbf"`, lesson #20) o se `combo_params.get("metric")` non è
+`None`/`"euclidean"` — mai un guess silenzioso. `run_clustering_tuning_sweep` passa sempre
+`combo_params`, già protetto dal `try/except ValueError` esistente in `clustering.py`'s
+`_run_one_method_tuning`. Test: 3 nuovi in `tests/unit/test_clustering_tuning.py`
+(`affinity="precomputed"`/`metric` non-euclideo → `ValueError`; valori noti-sicuri passano;
+propagazione end-to-end attraverso `run_clustering_tuning_sweep`) — verificati fallire su
+codice pre-fix (`TypeError`: `combo_params` non ancora un parametro accettato). Suite intera:
+698 passed, 0 failed.
 
 ### 14. `clustering`/`dim_reduction_clustering`: doc `assign_clusters_from_cooccurrence` invertita
 
@@ -624,7 +675,15 @@ correttamente su ogni singolo metodo già esistente (`FileExistsError` da `save_
 `overwrite=False`) — ma se anche solo uno dei metodi genuinamente nuovi va a buon fine e il loop
 arriva al blocco comparison, quel blocco sovrascrive silenziosamente il plot/report del run
 precedente, l'unico artefatto di questa pipeline che `overwrite=False` non protegge affatto.
-**Stato: Aperto.**
+
+**Stato: Implementato (18/08), stesso fix di #15.** Aggiunto il guard `if comparison_dir.exists()
+and not config.overwrite: logging.error(...); return 1` prima di scrivere qualunque file di
+comparison — stessa semantica di `save_matrix`/`_write_tuning_output`. Test:
+`test_clustering_comparison_dir_overwrite_false_rerun_fails_without_clobbering`
+(`tests/integration/test_clustering_pipeline.py`) — run 1 con `["kmeans"]`, run 2 stesso
+`session_name` con `["agglomerative"]` (metodo genuinamente nuovo, quindi supera il proprio
+`save_matrix`); verificato fallire su codice pre-fix (comparison sovrascritto silenziosamente,
+`return 0`), passa col fix (`return 1`, `config.md` del run 1 invariato byte-per-byte).
 
 ### 17. `clustering`: non produce mai l'HTML interattivo del confronto
 
@@ -642,7 +701,15 @@ che genera sia `cluster_comparison.png` che `cluster_comparison_interactive.html
 aprire `cluster_comparison_interactive.html` (hover sui punti, dropdown per metodo) lancia
 `clustering.py` con 3 metodi aspettandosi lo stesso file — non lo trova, solo il PNG statico,
 senza nessun errore o avviso che segnali la mancanza rispetto a quanto la doc promette per
-"the comparison output" in generale. **Stato: Aperto.**
+"the comparison output" in generale.
+
+**Stato: Già risolto, non da questa sessione.** Il merge di `docs/dr-clustering-literature-migration`
+(18/08) ha portato `clustering.py` a chiamare già `plot_clusters_comparison_interactive`
+subito dopo `plot_clusters_comparison` (vedi `src/pipeline/clustering.py`, blocco comparison) —
+confermato dal vivo: `comparison_dir / "cluster_comparison_interactive.html"` scritto e testato
+in `test_clustering_end_to_end_multiple_methods_writes_comparison_plot`. Nessuna azione
+necessaria in questa sessione oltre ad avvolgerlo in try/except + overwrite guard (#15/#16
+sopra).
 
 ### 18. `dim_reduction_clustering`: `embed`/clustering non protette da try/except
 
@@ -673,7 +740,21 @@ dentro `_run_one_method` (riga 263).
 scritto a mano) — `HDBSCAN(**params).fit_predict(X)` solleva `TypeError`/`ValueError` interno
 di sklearn non previsto da nessun `except` circostante in `_run_one_method`, che propaga fuori
 da `main()` come traceback grezzo dopo che l'embedding (potenzialmente costoso, un fit UMAP su
-1150 soggetti) è già stato calcolato e scartato senza essere mai salvato. **Stato: Aperto.**
+1150 soggetti) è già stato calcolato e scartato senza essere mai salvato.
+
+**Stato: parte moot, parte Implementato (18/08).** `embed()` (riga 147 del finding originale)
+era specifico a `dim_reduction_clustering.py`, eliminato nel merge di
+`docs/dr-clustering-literature-migration` — moot, nessuna azione. `CLUSTERING_METHODS[method](...)`
+non protetta invece **non era affatto specifico a quel file**: lo stesso identico gap esiste
+tuttora in `src/pipeline/clustering.py::_run_one_method` (produzione) e in
+`src/analysis/clustering_tuning.py`'s `run_clustering_tuning_sweep` (tuning, chiamata da
+`_run_one_method_tuning`) — trovato durante questa sessione controllando se il finding fosse
+davvero interamente moot. Entrambi ora avvolti in `try/except (TypeError, ValueError)`,
+`logging.error` + `return None`/`False` (stesso pattern di #11). Test:
+`test_clustering_unrecognized_hyperparameter_returns_1_not_raw_traceback`
+(`tests/integration/test_clustering_pipeline.py`) — `params_clustering.json` con `"n_cluster"`
+invece di `"n_clusters"`, verificato fallire su codice pre-fix (`TypeError` grezzo da
+`KMeans(**params)`), passa col fix (`return 1`, nessun `cl_out/` creato).
 
 ### 19. `build_lesion_matrix`: `discover_files_by_subject` non incrocia subject_id con la cartella
 
@@ -699,7 +780,19 @@ parziale, un file lesion mask di `sub-STUNIPD0042` viene copiato per errore dent
 `discover_files_by_subject` lo assocerebbe comunque a `sub-STUNIPD0042` (dal nome del file), non
 segnalando affatto che il file fisicamente non vive più nella cartella del soggetto che
 dichiara — un disallineamento cartella/nome-file che passerebbe silenzioso attraverso l'intera
-pipeline. **Stato: Aperto.**
+pipeline.
+
+**Stato: Implementato (18/08).** Nuovo helper `_subject_dir_segment_index(glob_pattern)` trova
+il segmento bare `"*"` di `glob_pattern` (la posizione della cartella soggetto, es. indice 1 in
+`"manual_masks/*/anat/..."`) — solleva `ValueError` se ce n'è più di uno (ambiguo, lesson #3,
+mai il primo per default). Per ogni file scoperto, il `subject_id` derivato dal nome viene
+confrontato con quello derivato dalla cartella (`f.relative_to(dataset_root).parts[index]`);
+un mismatch solleva `ValueError` con entrambi i valori. Pattern senza segmento `"*"` bare (es.
+i glob "flat" già usati da alcuni test) restano non verificabili — `None`, non un errore, dato
+che non c'è nulla da incrociare. Test: `test_discover_files_by_subject_folder_filename_mismatch_raises`
++ `test_discover_files_by_subject_nested_glob_folder_matches_filename` (`tests/unit/test_subject_discovery.py`)
+— verificato fallire su codice pre-fix (`DID NOT RAISE`), passa col fix. Suite mask_fc/lesion
+completa riverificata verde dopo il cambio (55 test).
 
 ### 20. `build_lesion_matrix`: `nibabel.ImageFileError` non coperto dal boundary
 
@@ -725,7 +818,14 @@ ImageFileError` per un file `.nii.gz` troncato/corrotto, un'eccezione che non è
 gzip è incompleto). Un run successivo di `build_lesion_matrix.py` su quella coorte arriva a
 quel soggetto in `_stack_voxel_matrix` e `nib.load` solleva `ImageFileError: ... not a gzip
 file` — non catturato da `except (FileNotFoundError, ValueError)`, propaga come traceback
-grezzo invece del consueto `logging.error` + `return 1`. **Stato: Aperto.**
+grezzo invece del consueto `logging.error` + `return 1`.
+
+**Stato: Implementato (18/08).** `nib.filebasedimages.ImageFileError` aggiunta alla tupla di
+eccezioni catturate in `build_lesion_matrix.py`'s `main()`. Test:
+`test_build_lesion_matrix_corrupt_lesion_mask_returns_1_not_raw_traceback`
+(`tests/integration/test_build_lesion_matrix_pipeline.py`) — un file `.nii.gz` con contenuto
+non valido ("not a gzip file", esattamente il messaggio dell'esempio sopra), verificato fallire
+su codice pre-fix (`ImageFileError` grezza), passa col fix (`return 1`, nessun `out/` creato).
 
 ### 21. `understanding_umap_report`: NaN nel color mode "nihss" mai gestiti
 
@@ -752,7 +852,19 @@ produzione — coerente con PASPORT (uno dei 4 dataset) che non ha NIHSS nel pro
 soggetto PASPORT genera un `NaN` qui. `json.dumps({"nihss": [...NaN...]})` produce JSON non
 standard (JavaScript `JSON.parse` rifiuta `NaN` nudo) — a seconda di come Plotly.js gestisce
 quello specifico punto della color list, il punto può sparire silenziosamente dal grafico o
-colorarsi in modo indefinito, senza nessun errore visibile nella pagina. **Stato: Aperto.**
+colorarsi in modo indefinito, senza nessun errore visibile nella pagina.
+
+**Stato: Implementato (18/08), scope ridotto rispetto a embedding_app.py — vedi nota.**
+`_color_values_for_mode` converte ora ogni `NaN` in `None` prima di restituire la lista
+`"color"` (`json.dumps(None)` → `null`, JSON valido; `json.dumps(nan)` → token `NaN`, non
+valido). **Non replica** il trace "missing" separato/grigio di `embedding_app.py` (questo
+modulo genera HTML statico con un solo trace per cella + color-switch via JS `setColor()`,
+condiviso da tutte le celle della griglia — sdoppiare in 2 trace per modo avrebbe richiesto
+un refactor del JS/legend fuori scope per questo fix) — Plotly.js gestisce un `null` in
+`marker.color` non disegnando quel punto, non più con un colore arbitrariamente sbagliato.
+Test: `test_color_values_for_mode_continuous_nan_becomes_json_safe_none`
+(`tests/unit/test_understanding_umap_report.py`) — verificato fallire su codice pre-fix
+(`color[2] is nan`, non `None`), passa col fix.
 
 ### 22. `understanding_umap_report`: report multi-metrica scritto parzialmente se un metric fallisce
 
@@ -780,7 +892,18 @@ si interrompe, ma `understanding_umap_dice.html` resta sul disco come se il repo
 completo. Un secondo lancio della CLI dopo aver corretto il tuning per `euclidean` rigenera
 `understanding_umap_dice.html` da capo (nessuna vera perdita), ma nel frattempo chiunque apra
 la cartella vede un report "a metà" che sembra completo senza nessun indicatore che manchi
-`understanding_umap_euclidean.html`. **Stato: Aperto.**
+`understanding_umap_euclidean.html`.
+
+**Stato: Implementato (18/08).** `generate_report` avvolge ora ogni `build_leaf_page` in
+`try/except (ValueError, OSError)`: al primo fallimento, ogni `understanding_umap_<metric>.html`
+già scritto in *questa stessa chiamata* viene rimosso (`Path.unlink(missing_ok=True)`) prima di
+ri-sollevare — tutto-o-niente, mai un report che sembra completo ma non lo è. Cleanup mirato
+(solo i file HTML scritti da questa funzione, mai `rmtree` di `output_dir`, che spesso coincide
+con `umap_tuning_dir` stesso e conterrebbe anche `tuning_results.csv`/`embeddings.npz`). Test:
+`test_generate_report_removes_partial_output_when_a_later_metric_fails`
+(`tests/unit/test_understanding_umap_report.py`) — 2 metriche, la seconda fallisce via
+`build_leaf_page` monkeypatchata; verificato fallire su codice pre-fix (l'HTML della prima
+metrica restava), passa col fix (entrambi assenti).
 
 ### 23. `understanding_umap_report`: `KeyError` non catturato invece di `ValueError`
 
@@ -806,7 +929,15 @@ una vera config, vedi CRITICAL #8) ha un blocco JSON con `base_params` ma senza
 solleva `KeyError: 'n_components'`, non catturato da nessun `except ValueError` nella catena di
 chiamata (`load_tuning_data` → `generate_report` → `main()` in
 `generate_understanding_umap_report.py`, che cattura solo `(FileNotFoundError, ValueError)`) —
-propaga come traceback grezzo. **Stato: Aperto.**
+propaga come traceback grezzo.
+
+**Stato: Implementato (18/08).** L'indicizzazione è ora dentro un `try/except (KeyError,
+TypeError)` (`TypeError` in più: se il blocco fenced non è nemmeno un oggetto JSON, es. una
+lista — lesson #7), che ri-solleva `ValueError` con un messaggio che nomina il file e cosa
+manca. Test: `test_read_base_n_components_raises_valueerror_not_keyerror_when_key_missing` +
+`test_read_base_n_components_raises_valueerror_when_block_is_not_an_object`
+(`tests/unit/test_understanding_umap_report.py`) — verificati fallire su codice pre-fix
+(`KeyError`/`TypeError` grezze), passano col fix.
 
 ### 24. `understanding_umap_report`: `embeddings.npz` non atomico + `np.load` senza try/except
 
@@ -833,7 +964,22 @@ resta troncato/corrotto sul disco, ma la directory esiste già con `tuning_resul
 `generate_understanding_umap_report.py` su quella stessa cartella arriva a
 `np.load(embeddings.npz)`, che solleva `zipfile.BadZipFile`/`OSError: Failed to interpret file`
 — non `FileNotFoundError` né `ValueError`, propaga come traceback grezzo invece del consueto
-`logging.error`+`return 1`. **Stato: Aperto.**
+`logging.error`+`return 1`.
+
+**Stato: Implementato (18/08), entrambi i lati.** Scrittura: `_write_tuning_embeddings`
+(`dim_reduction.py`) ora scrive `np.savez` su un file temporaneo (`.embeddings_tmp_<uuid>.npz`,
+stessa directory) e fa `Path.replace()` verso `embeddings.npz` solo a scrittura completata —
+stesso pattern di `save_matrix`, già protetto dal `try/except (FileExistsError, OSError,
+ValueError)` esistente attorno a `_write_tuning_output`. Lettura: nuovo helper
+`_load_embeddings_npz(path)` in `understanding_umap_report.py`, usato da entrambe le chiamate
+in `load_tuning_data`, cattura `(OSError, zipfile.BadZipFile)` e ri-solleva `ValueError`. Test:
+`test_dim_reduction_save_tuning_embeddings_interrupted_write_leaves_no_truncated_npz`
+(`tests/integration/test_dim_reduction_pipeline.py`, `np.savez` monkeypatchato per scrivere e
+poi sollevare `OSError` — verificato fallire su codice pre-fix, `embeddings.npz` restava
+troncato, passa col fix: nessun file) +
+`test_generate_report_raises_valueerror_on_corrupt_embeddings_npz` (`tests/unit/test_understanding_umap_report.py`,
+npz reale troncato a metà — verificato riprodurre `zipfile.BadZipFile` grezzo su codice pre-fix,
+`ValueError` pulito col fix).
 
 ### 25. `embedding_app`: un solo run con `config.md` corrotto nasconde tutti gli altri
 
@@ -864,7 +1010,16 @@ per errore mentre l'app Dash teneva il file in lettura — scenario realistico s
 `metric_options(...)`, che itera su tutti gli 8 run e solleva `json.JSONDecodeError` sull'unico
 run corrotto — il dropdown "Metrica" fallisce a popolarsi per **tutti e 8** i run `umap`, non
 solo per quello corrotto, rendendo l'intero metodo `umap` inesplorabile nell'app finché quel
-singolo `config.md` non viene riparato o rimosso a mano. **Stato: Aperto.**
+singolo `config.md` non viene riparato o rimosso a mano.
+
+**Stato: Implementato (18/08).** Nuovo helper `_run_params_or_none(run)` avvolge `run_params(run)`
+in `try/except ValueError` (che copre anche `json.JSONDecodeError`, sottoclasse di `ValueError`),
+logga un WARNING col path del run e ritorna `None` invece di propagare — `metric_options`/
+`n_components_options`/`runs_matching` filtrano i `None` invece di lasciarli interrompere la
+comprehension. Test: `test_metric_options_one_corrupt_run_does_not_hide_the_others`
+(`tests/unit/test_embedding_app.py`) — un `config.md` troncato a metà su un run, verificato
+fallire su codice pre-fix (`JSONDecodeError` grezzo, entrambi i run persi), passa col fix
+(`run-a` resta visibile, WARNING loggato per `run-b`).
 
 ---
 

@@ -2,6 +2,7 @@
 _read_base_n_components, _color_values_for_mode, and an E2E generate_report
 run over a tiny real-shaped (synthetic, small) tuning-output fixture."""
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -99,6 +100,24 @@ def test_read_base_n_components_raises_without_fenced_json_block(tmp_path):
         _read_base_n_components(tmp_path)
 
 
+def test_read_base_n_components_raises_valueerror_not_keyerror_when_key_missing(tmp_path):
+    """Regression (HIGH #23, 2026-08): the fenced json block's own keys were indexed
+    directly (["base_params"]["n_components"]) with no validation - a config.md whose
+    fenced block parses but is missing either key raised a raw KeyError, not caught by
+    any caller's `except ValueError` (load_tuning_data -> generate_report -> main())."""
+    (tmp_path / "config.md").write_text('# run\n\n```json\n{"base_params": {"rotation_max_iter": 500}}\n```\n')
+
+    with pytest.raises(ValueError, match="n_components"):
+        _read_base_n_components(tmp_path)
+
+
+def test_read_base_n_components_raises_valueerror_when_block_is_not_an_object(tmp_path):
+    (tmp_path / "config.md").write_text("# run\n\n```json\n[1, 2, 3]\n```\n")
+
+    with pytest.raises(ValueError, match="n_components"):
+        _read_base_n_components(tmp_path)
+
+
 def test_color_values_for_mode_none_is_neutral_single_color():
     colors = _color_values_for_mode(_metadata(), "none")
 
@@ -127,6 +146,20 @@ def test_color_values_for_mode_continuous_not_log_scale_keeps_raw_values():
 
     assert colors["colorscale"] == "Viridis"
     assert colors["color"][0] == 4.0
+
+
+def test_color_values_for_mode_continuous_nan_becomes_json_safe_none():
+    """Regression (HIGH #21, 2026-08): a continuous mode's per-subject NaN (subject 3's
+    "nihss" in _metadata - a real PASPORT-like structural gap) used to be embedded verbatim
+    as a raw float NaN, which json.dumps serializes as the bare token `NaN` - not valid JSON
+    (JavaScript's JSON.parse rejects it). Must be Python None (-> JSON `null`) instead, and
+    the whole colors dict must be JSON-serializable end to end."""
+    colors = _color_values_for_mode(_metadata(), "nihss")
+
+    assert colors["color"][2] is None
+    # json.dumps allows a raw float NaN by default (Python-only extension, invalid per the
+    # JSON spec) without raising - the only real check is that the token never appears.
+    assert "NaN" not in json.dumps(colors)
 
 
 def test_generate_report_writes_one_html_per_metric(tmp_path):
@@ -158,3 +191,52 @@ def test_generate_report_raises_on_cohort_mismatch(tmp_path):
 def test_generate_report_raises_filenotfounderror_on_missing_umap_dir(tmp_path):
     with pytest.raises(FileNotFoundError):
         generate_report(tmp_path / "does-not-exist", tmp_path / "tsne", tmp_path / "out")
+
+
+def test_generate_report_raises_valueerror_on_corrupt_embeddings_npz(tmp_path):
+    """Regression (HIGH #24, 2026-08): a run interrupted mid-write (SLURM timeout,
+    Ctrl+C) during dim_reduction.py's np.savez leaves embeddings.npz truncated - np.load
+    raised zipfile.BadZipFile/OSError, neither caught by generate_understanding_umap_report.py's
+    `except (FileNotFoundError, ValueError)`, so it propagated as a raw traceback."""
+    umap_dir = _write_umap_tuning_dir(tmp_path / "umap")
+    tsne_dir = _write_tsne_tuning_dir(tmp_path / "tsne")
+    # A genuinely truncated npz (real npz files are zip archives) - not just an arbitrary
+    # byte string, to actually exercise zipfile.BadZipFile, not numpy's own unrelated
+    # "looks like a pickle" ValueError for a file that never looked like a zip at all.
+    npz_bytes = (umap_dir / "embeddings.npz").read_bytes()
+    (umap_dir / "embeddings.npz").write_bytes(npz_bytes[: len(npz_bytes) // 2])
+
+    with pytest.raises(ValueError, match="cannot read embeddings"):
+        generate_report(umap_dir, tsne_dir, tmp_path / "out")
+
+
+def test_generate_report_removes_partial_output_when_a_later_metric_fails(tmp_path, monkeypatch):
+    """Regression (HIGH #22, 2026-08): a report with 2+ metrics used to leave the earlier
+    metric's understanding_umap_<metric>.html on disk even when a later metric's
+    build_leaf_page failed partway through the sweep - a second run afterwards would look
+    complete (both files eventually exist) but a run that's interrupted and never retried
+    would leave a report that silently looks finished while missing one metric's page."""
+    import src.analysis.understanding_umap_report as report_module
+
+    umap_dir = _write_umap_tuning_dir(tmp_path / "umap", metric="dice")
+    # A second metric leaf, just enough for load_tuning_data's own metrics discovery
+    # (glob("metric=*")) to see 2 metrics - build_leaf_page itself is monkeypatched below,
+    # so its own tuning_results.csv/embeddings.npz content never needs to be real.
+    (umap_dir / "metric=euclidean" / "n_components=2").mkdir(parents=True)
+    tsne_dir = _write_tsne_tuning_dir(tmp_path / "tsne", metric="dice")
+    output_dir = tmp_path / "out"
+    output_dir.mkdir(parents=True)
+
+    def _fake_build_leaf_page(metric, *args, **kwargs):
+        output_path = args[-1]
+        if metric == "euclidean":
+            raise ValueError("simulated failure: no n_components=3 leaf for this metric")
+        output_path.write_text("<html>fake report</html>")
+
+    monkeypatch.setattr(report_module, "build_leaf_page", _fake_build_leaf_page)
+
+    with pytest.raises(ValueError, match="simulated failure"):
+        report_module.generate_report(umap_dir, tsne_dir, output_dir)
+
+    assert not (output_dir / "understanding_umap_dice.html").exists()
+    assert not (output_dir / "understanding_umap_euclidean.html").exists()

@@ -118,6 +118,40 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
     assert not (output_root / "tuning" / "kmeans" / "runs_tuning.csv").exists()  # production/tuning are separate files, not a column
 
 
+def test_clustering_unrecognized_hyperparameter_returns_1_not_raw_traceback(tmp_path, monkeypatch):
+    """Regression (HIGH #18, 2026-08 - the same gap #11 fixed in dim_reduction.py, found here
+    in clustering.py's own production path during the same audit, against a config that no
+    longer exists after dim_reduction_clustering.py's removal): load_method_params only
+    validates that the file/method exist, never the *contents* of params - a typo'd
+    hyperparameter key reached CLUSTERING_METHODS[method](X, params) unprotected and
+    propagated as a raw TypeError instead of logging.error + return 1."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({"kmeans": {"params": {"n_cluster": 3, "random_state": 0, "n_init": "auto"}}}))
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "reduced_data": False,
+        "viz_embedding_path": None,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 1
+    assert not output_root.exists()
+
+
 def test_clustering_viz_embedding_path_wrong_n_components_raises(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
@@ -462,6 +496,104 @@ def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path,
     comparison_readme = (comparison_dir / "config.md").read_text()
     assert "kmeans" in comparison_readme
     assert "agglomerative" in comparison_readme
+
+
+def test_clustering_comparison_dir_overwrite_false_rerun_fails_without_clobbering(tmp_path, monkeypatch):
+    """Regression (HIGH #16, 2026-08): unlike save_matrix (per-method output) and
+    _write_tuning_output, comparison/ never checked config.overwrite at all - a second run
+    with the same session_name but a genuinely different clustering_methods list (one
+    already-existing method fails fast via save_matrix's own overwrite=False, but if even
+    one genuinely new method succeeds, the comparison block used to silently overwrite the
+    first run's cluster_comparison.png/config.md, the one artifact overwrite=False was
+    supposed to protect."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}},
+                "agglomerative": {"params": {"n_clusters": 3, "linkage": "ward"}},
+            }
+        )
+    )
+
+    input_metadata = pd.read_csv(input_dir / "metadata.csv")
+    viz_dir = _write_viz_embedding(tmp_path, "viz_embedding", input_metadata)
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "reduced_data": False,
+        "viz_embedding_path": str(viz_dir),
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    comparison_dir = next(p for p in (output_root / "production" / "comparison").iterdir() if p.is_dir())
+    original_readme = (comparison_dir / "config.md").read_text()
+    assert "agglomerative" not in original_readme
+
+    # Second run, same session_name/day (so same comparison_dir), a different method list -
+    # overwrite stays False.
+    cfg["clustering_methods"] = ["agglomerative"]
+    cfg_path.write_text(json.dumps(cfg))
+    assert clustering.main(["--config", str(cfg_path)]) == 1
+
+    # comparison/ from the first run must be untouched, not silently overwritten.
+    assert (comparison_dir / "config.md").read_text() == original_readme
+
+
+def test_clustering_comparison_plot_failure_returns_1_not_raw_traceback(tmp_path, monkeypatch):
+    """Regression (HIGH #15, 2026-08): unlike save_matrix/append_run_log_entry elsewhere in
+    this same main(), the comparison-plot block had no try/except at all - an OSError while
+    writing cluster_comparison.png (e.g. disk full) propagated as a raw traceback even
+    though every per-method run before it had already completed and been saved
+    successfully."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    def _raise_disk_full(*args, **kwargs):
+        raise OSError("No space left on device")
+
+    monkeypatch.setattr(clustering, "plot_clusters_comparison", _raise_disk_full)
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
+
+    input_metadata = pd.read_csv(input_dir / "metadata.csv")
+    viz_dir = _write_viz_embedding(tmp_path, "viz_embedding", input_metadata)
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "reduced_data": False,
+        "viz_embedding_path": str(viz_dir),
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 1
+    # the per-method output, already written before the comparison block, survives.
+    assert (output_root / "production" / "kmeans").exists()
 
 
 def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monkeypatch):

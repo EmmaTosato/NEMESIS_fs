@@ -37,6 +37,51 @@ def test_compute_clustering_metrics_on_well_separated_clusters():
     assert metrics["noise_fraction"] == 0.0
 
 
+@pytest.mark.parametrize("combo_params", [{"affinity": "precomputed"}, {"metric": "manhattan"}, {"metric": "cosine"}])
+def test_compute_clustering_metrics_raises_for_non_euclidean_combo_params(combo_params):
+    """Regression (HIGH #13, 2026-08): silhouette/calinski_harabasz/davies_bouldin always
+    scored X under sklearn's default Euclidean distance, with no check that the clustering
+    method being scored actually used Euclidean geometry too (e.g. spectral with
+    affinity="precomputed" fed a Jaccard/Dice distance matrix, or agglomerative with a
+    non-euclidean metric). Must now raise explicitly instead of silently scoring the wrong
+    geometry (lesson #15's dim_reduction/trustworthiness pattern, applied here as a guard
+    since clustering has no single uniform 'metric' key to thread through generically)."""
+    X = _three_blobs()
+    labels = np.array([0] * 15 + [1] * 15 + [2] * 15)
+
+    with pytest.raises(ValueError, match="Euclidean"):
+        compute_clustering_metrics(X, labels, combo_params)
+
+
+@pytest.mark.parametrize(
+    "combo_params", [None, {}, {"affinity": "nearest_neighbors"}, {"affinity": "rbf"}, {"metric": "euclidean"}]
+)
+def test_compute_clustering_metrics_allows_known_euclidean_compatible_combo_params(combo_params):
+    X = _three_blobs()
+    labels = np.array([0] * 15 + [1] * 15 + [2] * 15)
+
+    metrics = compute_clustering_metrics(X, labels, combo_params)
+
+    assert metrics["silhouette"] > 0.8
+
+
+def test_run_clustering_tuning_sweep_raises_for_non_euclidean_affinity():
+    """The guard is wired all the way through the sweep entry point, not just
+    compute_clustering_metrics in isolation - a real spectral tuning_grid with
+    affinity="precomputed" must fail the sweep, not silently score it wrong."""
+    rng = np.random.default_rng(0)
+    affinity = rng.random((45, 45))
+    affinity = (affinity + affinity.T) / 2  # a precomputed affinity matrix must be symmetric
+
+    with pytest.raises(ValueError, match="Euclidean"):
+        run_clustering_tuning_sweep(
+            "spectral",
+            affinity,
+            {"n_clusters": 3, "affinity": "precomputed", "random_state": 0},
+            {"n_clusters": [2, 3]},
+        )
+
+
 def test_compute_clustering_metrics_excludes_noise():
     X = _three_blobs()
     labels = np.array([0] * 15 + [1] * 15 + [-1] * 15)

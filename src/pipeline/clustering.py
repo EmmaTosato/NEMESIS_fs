@@ -166,28 +166,43 @@ def main(argv: list[str] | None = None) -> int:
 
     if X_viz is not None:
         comparison_dir = _comparison_dir(config, now)
-        plot_clusters_comparison(
-            X_viz,
-            labels_by_method,
-            comparison_dir / "cluster_comparison.png",
-            xlabel="viz dim 1",
-            ylabel="viz dim 2",
-            suptitle=compose_comparison_title(comparison_dir, None),
-        )
-        logging.info("comparison plot written to %s", comparison_dir / "cluster_comparison.png")
+        if comparison_dir.exists() and not config.overwrite:
+            logging.error(
+                "comparison dir %s already exists and overwrite=False - set overwrite=true, "
+                "choose a different session_name, or remove it first",
+                comparison_dir,
+            )
+            return 1
+        try:
+            plot_clusters_comparison(
+                X_viz,
+                labels_by_method,
+                comparison_dir / "cluster_comparison.png",
+                xlabel="viz dim 1",
+                ylabel="viz dim 2",
+                suptitle=compose_comparison_title(comparison_dir, None),
+            )
+            logging.info("comparison plot written to %s", comparison_dir / "cluster_comparison.png")
 
-        plot_clusters_comparison_interactive(
-            X_viz,
-            labels_by_method,
-            metadata,
-            comparison_dir / "cluster_comparison_interactive.html",
-            xlabel="viz dim 1",
-            ylabel="viz dim 2",
-            title=compose_run_title(comparison_dir, config.project),
-        )
-        logging.info("interactive comparison plot written to %s", comparison_dir / "cluster_comparison_interactive.html")
+            plot_clusters_comparison_interactive(
+                X_viz,
+                labels_by_method,
+                metadata,
+                comparison_dir / "cluster_comparison_interactive.html",
+                xlabel="viz dim 1",
+                ylabel="viz dim 2",
+                title=compose_run_title(comparison_dir, config.project),
+            )
+            logging.info(
+                "interactive comparison plot written to %s", comparison_dir / "cluster_comparison_interactive.html"
+            )
 
-        _write_comparison_readme(comparison_dir, config, now)
+            _write_comparison_readme(comparison_dir, config, now)
+        except OSError as exc:
+            # Every per-method run above is already written and logged to runs.csv by this
+            # point - only the comparison artifact itself is at risk here (lesson #9).
+            logging.error("cannot write comparison output to %s: %s", comparison_dir, exc, exc_info=True)
+            return 1
 
     logging.info("done - all %d method(s) written under %s, log written to %s", len(config.clustering_methods), config.output_root, log_path)
     return 0
@@ -247,7 +262,14 @@ def _run_one_method(
         logging.error(str(exc))
         return None
 
-    cluster_labels = CLUSTERING_METHODS[method](X, params)
+    try:
+        cluster_labels = CLUSTERING_METHODS[method](X, params)
+    except (TypeError, ValueError) as exc:
+        # Same gap as HIGH #11 (dim_reduction.py's embed()), found here during the same
+        # audit under #18 - load_method_params validates the file/method exist, never the
+        # *contents* of params (e.g. a typo'd key, or a value sklearn's constructor rejects).
+        logging.error("[%s] cannot fit with params %s: %s", method, params, exc)
+        return None
 
     metadata_out = metadata.copy()
     metadata_out["cluster_label"] = cluster_labels
@@ -444,7 +466,9 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
 
     try:
         results = run_clustering_tuning_sweep(method, X, base_params, tuning_grid, consensus_config)
-    except ValueError as exc:
+    except (TypeError, ValueError) as exc:
+        # TypeError: a bad tuning_grid value reaches the estimator's own **params unpack
+        # (same gap as _run_one_method's production path above, HIGH #11/#18).
         logging.error("[%s] %s", method, exc)
         return False
 

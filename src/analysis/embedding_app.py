@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -282,6 +283,21 @@ def run_params(run: ProductionRun) -> dict:
     raise ValueError(f"run {run.path}'s config.md has no {_PARAMS_USED_PREFIX!r} line - unexpected format")
 
 
+def _run_params_or_none(run: ProductionRun) -> dict | None:
+    """run_params(run), isolated per-run (HIGH #25, 2026-08 - lesson #21). The 3 picker
+    helpers below each call this once per run in a comprehension - a single run with a
+    corrupt/truncated config.md must not take down every other run's picker options with
+    it (e.g. metric_options iterating 8 runs for one method, one has a bad config.md ->
+    the whole method used to become unexplorable in the app, not just that one run).
+    None on failure, logged as a warning - callers filter it out and keep going.
+    """
+    try:
+        return run_params(run)
+    except ValueError as exc:
+        logging.warning("%s: cannot read resolved params, excluding this run from picker options: %s", run.path, exc)
+        return None
+
+
 def metric_options(runs: list[ProductionRun], modality: str, pipeline: str, method: str) -> list[str]:
     """Distinct `metric` values actually used by (modality, pipeline, method)'s own runs,
     sorted - NO_METRIC included if any of them has no 'metric' key in its own params at all.
@@ -291,7 +307,11 @@ def metric_options(runs: list[ProductionRun], modality: str, pipeline: str, meth
     this picker's sense at all - explicit branch, not a guess (see NO_METRIC's own docstring)."""
     if pipeline == "clustering":
         return [NO_METRIC]
-    values = {run_params(run).get("metric", NO_METRIC) for run in runs_for(runs, modality, pipeline, method)}
+    values = {
+        params.get("metric", NO_METRIC)
+        for run in runs_for(runs, modality, pipeline, method)
+        if (params := _run_params_or_none(run)) is not None
+    }
     return sorted(values)
 
 
@@ -308,9 +328,9 @@ def n_components_options(runs: list[ProductionRun], modality: str, pipeline: str
     if pipeline == "clustering":
         return [NO_N_COMPONENTS]
     values = {
-        run_params(run)["n_components"]
+        params["n_components"]
         for run in runs_for(runs, modality, pipeline, method)
-        if run_params(run).get("metric", NO_METRIC) == metric
+        if (params := _run_params_or_none(run)) is not None and params.get("metric", NO_METRIC) == metric
     }
     return sorted(values)
 
@@ -330,11 +350,12 @@ def runs_matching(
     narrowing) and return every run for (modality, pipeline, method) directly."""
     if pipeline == "clustering":
         return runs_for(runs, modality, pipeline, method)
-    return [
-        run
-        for run in runs_for(runs, modality, pipeline, method)
-        if run_params(run).get("metric", NO_METRIC) == metric and run_params(run).get("n_components") == n_components
-    ]
+    matches = []
+    for run in runs_for(runs, modality, pipeline, method):
+        params = _run_params_or_none(run)
+        if params is not None and params.get("metric", NO_METRIC) == metric and params.get("n_components") == n_components:
+            matches.append(run)
+    return matches
 
 
 class UndisplayableRunError(ValueError):

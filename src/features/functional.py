@@ -27,11 +27,13 @@ parcels - both handled explicitly in compute_parcel_coverage below).
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import nibabel as nib
 import numpy as np
 import pandas as pd
+from nibabel.filebasedimages import ImageFileError
 from nilearn.image import resample_to_img
 from nilearn.maskers import NiftiLabelsMasker
 
@@ -239,14 +241,18 @@ def mask_dataset_fc(
     binarize_threshold: float,
     output_dir: Path,
     group_filter: list[str] | None,
-) -> tuple[pd.DataFrame, list[str], list[str]]:
+) -> tuple[pd.DataFrame, list[str], list[str], dict[str, str]]:
     """Mask every discoverable subject's FC matrix and write it to output_dir.
 
-    Returns (summary, missing_lesion, excluded_by_group) - summary has one
-    row per masked subject (subject_id, n_compromised_nodes), missing_lesion
-    is the list of subjects skipped for lacking a lesion mask, excluded_by_group
-    is the list of subjects skipped because their naming-derived group isn't
-    in group_filter (see discover_subject_files for the ST-vs-HC rationale).
+    Returns (summary, missing_lesion, excluded_by_group, failed) - summary has
+    one row per masked subject (subject_id, n_compromised_nodes),
+    missing_lesion is the list of subjects skipped for lacking a lesion mask,
+    excluded_by_group is the list of subjects skipped because their
+    naming-derived group isn't in group_filter (see discover_subject_files for
+    the ST-vs-HC rationale), and failed is subject_id -> reason for any
+    subject whose own lesion/FC file couldn't be read or masked (truncated
+    image, malformed CSV, node-order mismatch) - isolated per-subject (lesson
+    #21) so one bad file costs only that subject, not the whole combo/run.
     """
     atlas_img, label_table = load_atlas(atlas_path, label_table_path)
     label_ids = label_table["index"].tolist()
@@ -261,20 +267,29 @@ def mask_dataset_fc(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     rows = []
+    failed: dict[str, str] = {}
     for subject, (lesion_path, fc_path) in subject_files.items():
-        lesion_img = nib.load(lesion_path)
-        fc = pd.read_csv(fc_path, sep="\t", index_col=0)
-        if list(fc.index) != list(node_names):
-            raise ValueError(f"{subject}: FC node order in {fc_path} does not match the atlas order")
+        # One bad subject (truncated lesion mask, malformed FC csv, node-order mismatch)
+        # must not cost the whole combo - subjects already masked earlier in this same
+        # loop stay written, and failed reports exactly which subject/why (lesson #21).
+        try:
+            lesion_img = nib.load(lesion_path)
+            fc = pd.read_csv(fc_path, sep="\t", index_col=0)
+            if list(fc.index) != list(node_names):
+                raise ValueError(f"FC node order in {fc_path} does not match the atlas order")
 
-        fc_masked, compromised_names = mask_subject_fc(
-            lesion_img, fc, atlas_img, label_ids, node_names, min_coverage, resample_interpolation, binarize_threshold
-        )
-        fc_masked.to_csv(output_dir / f"{subject}_masked_fc.csv")
+            fc_masked, compromised_names = mask_subject_fc(
+                lesion_img, fc, atlas_img, label_ids, node_names, min_coverage, resample_interpolation, binarize_threshold
+            )
+            fc_masked.to_csv(output_dir / f"{subject}_masked_fc.csv")
+        except (OSError, ValueError, ImageFileError, pd.errors.ParserError) as exc:
+            logging.warning("%s: skipped, could not be masked: %s", subject, exc)
+            failed[subject] = str(exc)
+            continue
         rows.append({"subject_id": subject, "n_compromised_nodes": len(compromised_names)})
 
     summary = pd.DataFrame(rows).sort_values("subject_id").reset_index(drop=True)
-    return summary, missing_lesion, excluded_by_group
+    return summary, missing_lesion, excluded_by_group, failed
 
 
 def discover_masked_fc_files(masked_fc_dir: Path) -> dict[str, Path]:
