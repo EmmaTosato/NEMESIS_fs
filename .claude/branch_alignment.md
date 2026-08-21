@@ -13,7 +13,7 @@ Il branch `server-pnc` è attualmente il target di esecuzione: dovrebbe ospitare
 ## Cartelle Sincronizzate (server-pnc allineato a main)
 A partire dal 28 Luglio 2026 (estese il 21 Agosto 2026), le seguenti cartelle su `server-pnc` sono state forzatamente allineate a `main`, che funge da *Source of Truth*:
 - `assets/` (inclusi i dataset summaries spostati qui)
-- `config/` (sia registry che pipelines; le config SDC sono state integrate nel main e poi spinte sul server)
+- `config/` (sia registry che pipelines; le config SDC sono state integrate nel main e poi spinte sul server) — **eccetto** `config/pipelines/retrieval_local.json`/`retrieval_server.json` e `config/registry/file_patterns_local.json`/`file_patterns_server.json`, vedi "Eccezioni e Divergenze" sotto
 - `docs/`
 - `knowledge/`
 - `scripts/`
@@ -33,6 +33,6 @@ Due cartelle usano un allineamento **additivo** (si prende il contenuto di `main
 - `TODO.md` — file singolo (non una cartella), lista di lavoro viva aggiornata indipendentemente su entrambi i lati; si sincronizzano solo voci puntuali quando serve, non l'intero file.
 
 ## Eccezioni e Divergenze Future (Da Mantenere)
-*Nessuna al momento.*
+- **`config/pipelines/retrieval_local.json`/`retrieval_server.json` e `config/registry/file_patterns_local.json`/`file_patterns_server.json`** *(dal 21/08)* — non sono config architetturali, sono la **richiesta di retrieval corrente** per quello specifico ambiente (quali dataset/oggetti scaricare *adesso*, con che filtro) — normale che divergano tra locale e server, ognuno riflette il lavoro in corso sul proprio lato. **Mai includerle in un allineamento pieno di `config/`**, nemmeno quando sembrano "in ritardo" rispetto a `main`. *Incidente reale*: durante la sync del 21/08, `config/pipelines/retrieval_server.json` è stato sovrascritto con la versione di `main` sopra una modifica locale non ancora committata (poi recuperata dallo stash) — capitato perché `config/` era trattato come un blocco unico senza questa eccezione esplicita.
 
-Se in futuro ci saranno differenze che **devono** rimanere tali tra il server e il locale (es. file di test specifici per l'ambiente EBRAIN, variazioni strutturali di `.gitignore`, o configurazioni che su Mac non girerebbero mai), andranno documentate in questa sezione. In tal caso, si eviteranno sovrascritture brutali (come un `git push --force`) a favore di merge chirurgici per salvaguardare queste eccezioni.
+Se in futuro ci saranno altre differenze che **devono** rimanere tali tra il server e il locale (es. file di test specifici per l'ambiente EBRAIN, variazioni strutturali di `.gitignore`, o configurazioni che su Mac non girerebbero mai), andranno documentate in questa sezione. In tal caso, si eviteranno sovrascritture brutali (come un `git push --force`) a favore di merge chirurgici per salvaguardare queste eccezioni.
