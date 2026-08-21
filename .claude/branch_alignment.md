@@ -2,37 +2,53 @@
 
 *Ultimo aggiornamento: 2026-08-21*
 
-Questo documento traccia la strategia di sincronizzazione tra il branch di sviluppo locale (`main`) e il branch di esecuzione sul cluster (`server-pnc`).
+Sincronizzazione tra `main` (sviluppo) e `server-pnc` (esecuzione cluster).
 
 ## Regola Aurea
-Prima di effettuare qualsiasi operazione manuale o sviluppo sul branch `server-pnc`, ricordati di **tirare giù le ultime modifiche da main** (es. `git pull origin main` oppure un merge controllato) per mantenere l'allineamento. 
-Il branch `server-pnc` è attualmente il target di esecuzione: dovrebbe ospitare solo nuovi dati generati e i file di log (`logs/slurm/`), non codice divergente. Le modifiche al codice o ai file di configurazione andrebbero idealmente sempre fatte prima in locale su `main` e poi sincronizzate verso il server.
+- **Prima di lavorare su `server-pnc`**: allinealo da `main` (cartelle sotto — sostituzione piena o additiva a seconda della cartella, mai un merge/rebase dell'intero branch).
+- **Dopo aver lavorato su `server-pnc`**: se il risultato è codice/config/doc reale (non solo dati/log del run), portalo subito su `main` con la procedura sotto — non lasciarlo accumulare solo qui. Eccezione: le voci in "Eccezioni" restano intenzionalmente divergenti, mai sincronizzarle.
 
-**Nota dal 21/08**: questa regola era già stata violata due volte prima di essere corretta — il fix `TASK_COUNT` in `jobs/run_compute_sdc.sh` (sessione produzione SDC dell'8/8) e i nuovi pattern in `lessons_learned.md`/`stato_progetto.md` erano nati direttamente su `server-pnc` e mai portati su `main`; `jobs/` inoltre non era mai stato incluso tra le cartelle sincronizzate qui sotto, nonostante contenga script reali (non solo log). Entrambi i gap sono stati chiusi in questa sessione (vedi sotto) — controllare periodicamente che non si riformino, in particolare per `jobs/` dato che gli script vengono spesso modificati/testati direttamente sul cluster per necessità.
+## Cartelle — sostituzione piena (main è source of truth)
+`assets/`, `config/` (eccetto retrieval_local/server.json e file_patterns_local/server.json, vedi Eccezioni), `docs/`, `knowledge/`, `scripts/`, `src/`, `tests/`, `.claude/`, `notebooks/`
 
-## Cartelle Sincronizzate (server-pnc allineato a main)
-A partire dal 28 Luglio 2026 (estese il 21 Agosto 2026), le seguenti cartelle su `server-pnc` sono state forzatamente allineate a `main`, che funge da *Source of Truth*:
-- `assets/` (inclusi i dataset summaries spostati qui)
-- `config/` (sia registry che pipelines; le config SDC sono state integrate nel main e poi spinte sul server) — **eccetto** `config/pipelines/retrieval_local.json`/`retrieval_server.json` e `config/registry/file_patterns_local.json`/`file_patterns_server.json`, vedi "Eccezioni e Divergenze" sotto
-- `docs/`
-- `knowledge/`
-- `scripts/`
-- `src/` (tutte le nuove logiche di clustering, covariate e distanze)
-- `tests/`
-- `.claude/` *(dal 21/08)* — narrativa di sessione (`stato_progetto.md`/`stato_progetto_archive.md`/`lessons_learned.md`) verificata prima di ogni allineamento pieno: se `server-pnc` ha accumulato contenuto di sessione non ancora presente su `main`, va prima portato su `main` (append manuale, non sovrascrittura automatica) e solo dopo si esegue l'allineamento pieno — vedi nota sopra.
-- `jobs/` *(dal 21/08)* — stessa cautela di `.claude/`: script spesso modificati direttamente sul cluster per necessità operativa (fix urgenti durante un run), vanno controllati per contenuto esclusivo prima di sovrascrivere.
-- `notebooks/` *(dal 21/08)* — verificare prima che non ci siano notebook con output/celle uniche di `server-pnc` non ancora rifluiti su `main`.
+## Cartelle — additive (si aggiunge il contenuto di main, non si cancella nulla di esclusivo di server-pnc)
+- `management/` — note riunioni
+- `summaries/` — referti `.md` per-run
+- `jobs/` — `server-pnc` ha script SLURM (es. `run_dim_reduction_clustering.sh`) senza equivalente su `main`, che si è ristretto man mano che l'esecuzione locale è diventata il default lì
 
-Due cartelle usano un allineamento **additivo** (si prende il contenuto di `main`, ma non si cancella nulla di esclusivo di `server-pnc`), non una sostituzione piena, perché possono contenere contenuto reale non ancora replicato altrove:
-- `management/` (note riunioni — verificare sempre se un file "esclusivo" di `server-pnc` è un vero contenuto originale o solo un duplicato/rinomina di qualcosa già su `main`)
-- `summaries/` (esclusivamente stdout e referti in formato `.md`)
+Prima di una sostituzione piena su una cartella non ancora verificata, controllare che non abbia contenuto esclusivo:
+```
+diff <(git ls-tree -r --name-only HEAD -- <cartella>/ | sort) <(git ls-tree -r --name-only main -- <cartella>/ | sort)
+```
+righe `<` = file solo di `server-pnc` → fermarsi e valutare prima di sovrascrivere.
 
-## Cartelle esplicitamente FUORI scope (non allineare)
-- `data/`, `logs/`, `results/` — dati/log/output locali o di cluster per design, mai versionati/sincronizzati. `results/` è stato allineato a questa policy il 21/08 (`git rm -r --cached`, aggiunto a `.gitignore`) — prima era ancora tracciato su `server-pnc` (243 file) nonostante `main` avesse già smesso (`chore: stop tracking results/ in git`); risolto scegliendo coerenza con `main` invece di tenerlo come eccezione permanente. I file restano su disco su entrambi i lati, solo non più in git.
-- `notebooks/` non era qui prima del 21/08 proprio perché i notebook sono spesso modificati in sessioni parallele sullo stesso `.ipynb` — ora inclusa sopra, ma solo dopo aver verificato l'assenza di lavoro esclusivo non recuperabile.
-- `TODO.md` — file singolo (non una cartella), lista di lavoro viva aggiornata indipendentemente su entrambi i lati; si sincronizzano solo voci puntuali quando serve, non l'intero file.
+## Fuori scope (mai allineate tra i branch)
+- `data/`, `results/` — mai tracciati in git (`.gitignore`), locali per design
+- `logs/` — tracciato in git ma mai sincronizzato tra branch: artefatti per-run, restano dove sono stati generati
+- `TODO.md` — file singolo, lista di lavoro viva indipendente sui due lati; si sincronizzano solo voci puntuali quando serve
 
-## Eccezioni e Divergenze Future (Da Mantenere)
-- **`config/pipelines/retrieval_local.json`/`retrieval_server.json` e `config/registry/file_patterns_local.json`/`file_patterns_server.json`** *(dal 21/08)* — non sono config architetturali, sono la **richiesta di retrieval corrente** per quello specifico ambiente (quali dataset/oggetti scaricare *adesso*, con che filtro) — normale che divergano tra locale e server, ognuno riflette il lavoro in corso sul proprio lato. **Mai includerle in un allineamento pieno di `config/`**, nemmeno quando sembrano "in ritardo" rispetto a `main`. *Incidente reale*: durante la sync del 21/08, `config/pipelines/retrieval_server.json` è stato sovrascritto con la versione di `main` sopra una modifica locale non ancora committata (poi recuperata dallo stash) — capitato perché `config/` era trattato come un blocco unico senza questa eccezione esplicita.
+## Eccezioni (divergenza voluta, mai sincronizzare)
+- `config/pipelines/retrieval_local.json`/`retrieval_server.json`
+- `config/registry/file_patterns_local.json`/`file_patterns_server.json`
 
-Se in futuro ci saranno altre differenze che **devono** rimanere tali tra il server e il locale (es. file di test specifici per l'ambiente EBRAIN, variazioni strutturali di `.gitignore`, o configurazioni che su Mac non girerebbero mai), andranno documentate in questa sezione. In tal caso, si eviteranno sovrascritture brutali (come un `git push --force`) a favore di merge chirurgici per salvaguardare queste eccezioni.
+Non sono config architetturali ma la richiesta di retrieval *corrente* per quell'ambiente (quali dataset scaricare adesso) — normale che divergano.
+
+## Procedura: portare lavoro da server-pnc a main
+1. `git checkout main && git pull --ff-only origin main` — se fallisce, non forzare: c'è lavoro nuovo su `origin/main`, va guardato prima (fetch + rebase).
+2. `git worktree add /tmp/main-work main` (non tocca il working tree di `server-pnc`).
+3. Nel worktree: `git cherry-pick <hash>` se il commit è pulito; altrimenti copia selettiva dei soli file rilevanti (`git checkout server-pnc -- <file>`) quando il commit mischia roba da escludere (log, config per-ambiente).
+4. Commit, `git push origin main`, poi `git worktree remove /tmp/main-work`.
+
+## Procedura: allineare server-pnc a main (per cartella)
+- Sostituzione piena: `rm -rf <cartella> && git checkout main -- <cartella> && git add -A -- <cartella>`
+- Additiva: `git checkout main -- <cartella> && git add -A -- <cartella>` (senza `rm -rf`)
+
+## Procedura: aggiornare un altro checkout locale (es. un clone sul Mac) dopo un push
+Le due procedure sopra aggiornano `main`/`server-pnc` **in un solo repo locale**. Un checkout diverso dello stesso branch (altra macchina, altra cartella) non li vede finché non fa lui stesso un pull da `origin`:
+```
+git status --short                    # se c'è lavoro non committato:
+git stash push -m "wip"
+git pull --ff-only origin <branch>    # main o server-pnc
+git stash pop
+```
+Se `pull --ff-only` fallisce (ci sono commit locali non ancora pushati su quel checkout), `git fetch origin && git rebase origin/<branch>` invece di forzare.

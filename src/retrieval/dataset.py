@@ -2,9 +2,10 @@
 
 Assumes the BIDS-like convention observed in Clinical_connectome:
 sub-<DISEASE><SITE>[HC]<NUM>/anat/..., derivatives/manual_masks/... . This
-holds for the 4 in-scope stroke datasets (UNIPD/WashU, UNIPD/PASPORT,
-UNIPD/PSP, UKLFR/stroke_UKLFR). NEMESIS is not covered - its structure is
-different and will be addressed separately when that work starts.
+holds for the 5 in-scope stroke datasets (UNIPD/WashU, UNIPD/PASPORT,
+UNIPD/PSP, UKLFR/stroke_UKLFR, UCL-UK/UCLStrokeData). NEMESIS is not
+covered - its structure is different and will be addressed separately
+when that work starts.
 
 Nothing here trusts a fixed root per `object` - `lesion` and `feature` each
 have their own `project_root` (see config.FilePatterns), and even within one
@@ -25,16 +26,17 @@ import pandas as pd
 
 from src.retrieval.config import FilePatterns, RetrieveItem
 
-# Every site code seen across the 4 in-scope datasets' real subject IDs
-# (UNIPD houses WashU/PASPORT/PSP under one site code, UKLFR its own).
-# Deliberately a closed, explicit list, not `[A-Z]+?` free-form matching: a
-# lazy regex can't tell "site code that happens to end in HC" apart from
-# "site code + HC (healthy control) marker" - e.g. a hypothetical future
-# site "MONTREALHC" would always be mis-split into site="MONTREAL"+hc=True,
-# silently misclassifying every stroke patient from that site as a healthy
-# control. Adding a new site requires adding it here explicitly - an
-# unregistered site raises (see group_of), it is never guessed.
-KNOWN_SITES = ("UNIPD", "UKLFR")
+# Every site code seen across the 5 in-scope datasets' real subject IDs
+# (UNIPD houses WashU/PASPORT/PSP under one site code, UKLFR and UCL-UK
+# each their own). Deliberately a closed, explicit list, not `[A-Z]+?`
+# free-form matching: a lazy regex can't tell "site code that happens to
+# end in HC" apart from "site code + HC (healthy control) marker" - e.g. a
+# hypothetical future site "MONTREALHC" would always be mis-split into
+# site="MONTREAL"+hc=True, silently misclassifying every stroke patient
+# from that site as a healthy control. Adding a new site requires adding
+# it here explicitly - an unregistered site raises (see group_of), it is
+# never guessed.
+KNOWN_SITES = ("UNIPD", "UKLFR", "UCLUK")
 _SITE_ALTERNATION = "|".join(sorted(KNOWN_SITES, key=len, reverse=True))
 _SUBJECT_RE = re.compile(rf"^sub-(?P<disease>ST|PD|GM)(?P<site>{_SITE_ALTERNATION})(?P<hc>HC)?(?P<num>\d+)$")
 
