@@ -36,6 +36,13 @@ set -euo pipefail
 PROJECT_ROOT="/home/etosato/Projects/NEMESIS_fs"
 CONDA_ENV="nemesis"
 CONFIG_FILE="${PROJECT_ROOT}/config/pipelines/compute_sdc.json"
+# Fixed at the manifest's total chunk count (575, see --array comment above),
+# NOT ${SLURM_ARRAY_TASK_COUNT} - that reflects how many elements are in
+# *this* sbatch submission, which is wrong the moment --array is overridden
+# to a subset (e.g. `sbatch --array=250-574%3` to retry only failed task
+# IDs): task-count must stay 575 for select_chunk()'s stride slice to keep
+# mapping each task-id to the same subjects it always has.
+TASK_COUNT=575
 
 set +u
 source /home/etosato/miniconda3/etc/profile.d/conda.sh
@@ -44,10 +51,10 @@ set -u
 
 cd "${PROJECT_ROOT}"
 
-echo "---- Starting compute_sdc task ${SLURM_ARRAY_TASK_ID}/${SLURM_ARRAY_TASK_COUNT} at $(date) ----"
+echo "---- Starting compute_sdc task ${SLURM_ARRAY_TASK_ID}/${TASK_COUNT} at $(date) ----"
 python -m src.pipeline.compute_sdc \
   --config "${CONFIG_FILE}" \
   --mode run \
   --task-id "${SLURM_ARRAY_TASK_ID}" \
-  --task-count "${SLURM_ARRAY_TASK_COUNT}"
+  --task-count "${TASK_COUNT}"
 echo "---- Completed at $(date) ----"
