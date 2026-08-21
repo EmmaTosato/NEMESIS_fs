@@ -28,11 +28,11 @@ Due cartelle usano un allineamento **additivo** (si prende il contenuto di `main
 - `summaries/` (esclusivamente stdout e referti in formato `.md`)
 
 ## Cartelle esplicitamente FUORI scope (non allineare)
-- `data/`, `logs/` — dati e log locali/di cluster per design, mai versionati/sincronizzati.
+- `data/`, `logs/`, `results/` — dati/log/output locali o di cluster per design, mai versionati/sincronizzati. `results/` è stato allineato a questa policy il 21/08 (`git rm -r --cached`, aggiunto a `.gitignore`) — prima era ancora tracciato su `server-pnc` (243 file) nonostante `main` avesse già smesso (`chore: stop tracking results/ in git`); risolto scegliendo coerenza con `main` invece di tenerlo come eccezione permanente. I file restano su disco su entrambi i lati, solo non più in git.
 - `notebooks/` non era qui prima del 21/08 proprio perché i notebook sono spesso modificati in sessioni parallele sullo stesso `.ipynb` — ora inclusa sopra, ma solo dopo aver verificato l'assenza di lavoro esclusivo non recuperabile.
 - `TODO.md` — file singolo (non una cartella), lista di lavoro viva aggiornata indipendentemente su entrambi i lati; si sincronizzano solo voci puntuali quando serve, non l'intero file.
 
 ## Eccezioni e Divergenze Future (Da Mantenere)
-- **`results/`** — su `main` non è più tracciato in git (`chore: stop tracking results/ in git`, ora in `.gitignore`); su `server-pnc` risulta invece ancora tracciato (243 file al 21/08). Non ancora deciso se `server-pnc` deve smettere di tracciarlo per coerenza, o se la divergenza è voluta (output locale reale del cluster, utile tenerlo lì). **Da decidere**, non ancora risolto.
+*Nessuna al momento.*
 
-Se in futuro ci saranno altre differenze che **devono** rimanere tali tra il server e il locale (es. file di test specifici per l'ambiente EBRAIN, variazioni strutturali di `.gitignore`, o configurazioni che su Mac non girerebbero mai), andranno documentate in questa sezione. In tal caso, si eviteranno sovrascritture brutali (come un `git push --force`) a favore di merge chirurgici per salvaguardare queste eccezioni.
+Se in futuro ci saranno differenze che **devono** rimanere tali tra il server e il locale (es. file di test specifici per l'ambiente EBRAIN, variazioni strutturali di `.gitignore`, o configurazioni che su Mac non girerebbero mai), andranno documentate in questa sezione. In tal caso, si eviteranno sovrascritture brutali (come un `git push --force`) a favore di merge chirurgici per salvaguardare queste eccezioni.
