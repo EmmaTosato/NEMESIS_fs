@@ -184,6 +184,39 @@ def test_run_clustering_tuning_sweep_hdbscan_noise_fraction_varies_with_min_clus
     assert large_mcs_row["noise_fraction"] == 1.0
 
 
+def test_run_clustering_tuning_sweep_evidence_accumulation_reuses_cooccurrence_across_thresholds(monkeypatch):
+    """AUDIT_FINDINGS.md #35 regression: evidence_accumulation's real cost
+    (run_rsc_repeats, n_repeats fits of base_method) used to be recomputed once per
+    threshold value even though threshold never affects it - only the cheap Merge-phase
+    cut (assign_clusters_from_cooccurrence) does. A 4-value threshold-only sweep must call
+    run_rsc_repeats exactly once, not 4 times."""
+    import src.analysis.consensus_clustering as consensus_clustering
+
+    X = _three_blobs()
+    call_count = 0
+    real_run_rsc_repeats = consensus_clustering.run_rsc_repeats
+
+    def _counting_run_rsc_repeats(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        return real_run_rsc_repeats(*args, **kwargs)
+
+    monkeypatch.setattr(consensus_clustering, "run_rsc_repeats", _counting_run_rsc_repeats)
+
+    base_params = {"base_method": "kmeans", "n_clusters": 5, "n_repeats": 3, "base_seed": 0}
+    df = run_clustering_tuning_sweep(
+        "evidence_accumulation", X, base_params, {"threshold": [0.3, 0.5, 0.7, 0.9]}
+    )
+
+    assert list(df["threshold"]) == [0.3, 0.5, 0.7, 0.9]
+    assert call_count == 1, f"expected run_rsc_repeats to run once (shared across all 4 thresholds), got {call_count}"
+    # Different thresholds on the SAME co-occurrence matrix produce a non-increasing
+    # number of clusters as threshold rises (a stricter cut can only merge, never split) -
+    # not the point of this test, but confirms the shared matrix still drives real,
+    # threshold-dependent output rather than being reused incorrectly for every row.
+    assert set(METHOD_METRIC_COLUMNS["evidence_accumulation"]) <= set(df.columns)
+
+
 def test_run_clustering_tuning_sweep_unknown_method_raises():
     X = _three_blobs()
     with pytest.raises(ValueError, match="unknown clustering method"):

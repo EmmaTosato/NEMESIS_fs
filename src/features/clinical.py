@@ -3,8 +3,13 @@
 Used to join a lesion/FC feature matrix's subjects against behavioral deficit
 scores (NIHSS, ARAT, 9HPT, Boston naming, Clock, Corsi - see
 docs/guides/datasets.md) for the lesion-deficit vs FC-deficit prediction
-pipeline (src/pipeline/predict_deficit.py), reproducing Siegel et al. 2016
-(docs/notes/Siegel2016_Reproduction.md). join_lesion_side/join_nihss also
+pipeline (src/pipeline/predict_deficit.py, not written yet - see
+src/analysis/prediction.py's own module docstring for the reproduction's
+current status), reproducing Siegel et al. 2016 (knowledge/nemesis/Siegel et
+al - 2016 - .../Siegel et al - 2016.md for the paper itself; no dedicated
+NEMESIS-specific reproduction-notes doc exists - docs/notes/
+Siegel2016_Reproduction.md was deliberately deleted, not migrated, per
+.claude/stato_progetto_archive.md). join_lesion_side/join_nihss also
 back src.pipeline.enrich_lesion_metadata's lesion_side/NIHSS columns (see
 that module and src/analysis/embedding_coloring.py's color_values for the
 consumers that read them back out of metadata.csv - never recomputed live),

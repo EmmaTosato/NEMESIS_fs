@@ -20,7 +20,7 @@ def _build_matrix(tmp_path, monkeypatch, n_subjects=12):
     data_root = tmp_path / "data"
     rng = np.random.default_rng(4)
     for i in range(n_subjects):
-        subject_id = f"sub-{i:02d}"
+        subject_id = f"sub-STUNIPD{i:04d}"
         subject_dir = data_root / "siteA" / subject_id / "lesion" / "manual_masks" / "anat"
         subject_dir.mkdir(parents=True, exist_ok=True)
         volume = np.zeros(_SHAPE, dtype=np.float32)

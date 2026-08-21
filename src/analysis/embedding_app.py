@@ -374,9 +374,21 @@ def load_run(run: ProductionRun) -> tuple[np.ndarray, pd.DataFrame]:
     embedding, metadata, _extra_arrays = load_matrix(run.path)
     n_dims = embedding.shape[1]
     if n_dims not in (2, 3):
+        # AUDIT_FINDINGS.md #43/#44: this message used to always point at dim_reduction.py's
+        # viz_n_components, even for a clustering.py run - clustering.py has no such config
+        # field (it never reduces dimensionality itself, see docs/dev/models.md's
+        # "reduced_data (declarative-only)" section) and rerunning it would leave matrix.npy's
+        # dimensionality unchanged either way, so that advice would not fix anything there.
+        if run.pipeline == "dim_reduction":
+            fix_hint = "rerun dim_reduction.py with viz_n_components 2 or 3, or pick a different run"
+        else:
+            fix_hint = (
+                f"{run.pipeline}.py does not reduce dimensionality itself - point its input_path at an "
+                "already-2-or-3-component matrix (e.g. a dim_reduction.py production embedding), or pick a different run"
+            )
         raise UndisplayableRunError(
             f"Run {run.path} has a saved embedding with {n_dims} components - this app can only display an "
-            "already-2-or-3-component embedding: Rerun dim_reduction pipeline with viz_n_components 2 or 3 and, or pick a different run."
+            f"already-2-or-3-component embedding: {fix_hint}."
         )
     return embedding, metadata
 

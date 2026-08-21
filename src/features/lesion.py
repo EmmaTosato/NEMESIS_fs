@@ -264,8 +264,14 @@ def _discover_lesion_files(
                 f"{subject_glob!r} - check 'datasets'/'data_root' in the config, or run "
                 "retrieve_data.py first if this dataset hasn't been retrieved yet"
             )
+        # AUDIT_FINDINGS.md #46: group_of() must validate every subject_dirs entry's
+        # naming regardless of group_filter (lesson #4/#26's twin gap here) - skipping
+        # the call whenever group_filter is None (the common "this dataset doesn't mix
+        # groups" case) let a malformed folder name (e.g. "sub_STUNIPD0099", underscore
+        # instead of a dash) through silently instead of raising.
+        dir_groups = {s: group_of(s) for s in subject_dirs}
         if group_filter is not None:
-            subject_dirs = [s for s in subject_dirs if group_of(s) in group_filter]
+            subject_dirs = [s for s in subject_dirs if dir_groups[s] in group_filter]
         # one lesion mask expected per (group-filtered) subject dir; stop on mismatch
         # rather than silently proceeding with missing or duplicated data
         if len(by_subject) != len(subject_dirs):

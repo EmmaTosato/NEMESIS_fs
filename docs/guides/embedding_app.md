@@ -10,7 +10,7 @@ App web live per esplorare interattivamente un run **di produzione** (`dim_reduc
 
 ## Cosa NON è
 
-Non è il report "Understanding UMAP" (`src.pipeline.generate_understanding_umap_report`/`run_understanding_umap_dash` - se presente) - quello esplora una **griglia di tuning** (come cambia l'embedding al variare di `n_neighbors`/`min_dist`/`perplexity`), questo esplora **un risultato di produzione già scelto**. Due domande diverse, due strumenti diversi.
+Non è il report "Understanding UMAP" (`src.pipeline.generate_understanding_umap_report`, vedi `docs/guides/understanding_umap_report.md`) - quello esplora una **griglia di tuning** (come cambia l'embedding al variare di `n_neighbors`/`min_dist`/`perplexity`) via HTML statico pre-generato, questo esplora **un risultato di produzione già scelto** via un'app Dash live. Due domande diverse, due strumenti diversi.
 
 ---
 
@@ -28,7 +28,7 @@ Poi apri `http://127.0.0.1:8060` nel browser. Opzioni:
 | Flag | Default | Descrizione |
 | :--- | :--- | :--- |
 | `--results-root` | `results` | Radice da scansionare (`<root>/*/dim_reduction/production/*/*` e `<root>/*/clustering/production/*/*`) |
-| `--port` | `8060` | Porta locale (8050 è già usata dal Dash del report di tuning - le due app possono girare insieme) |
+| `--port` | `8060` | Porta locale (non l'8050 di default di Dash, per non collidere con un'altra istanza Dash locale già in esecuzione) |
 | `--debug` | off | Modalità debug di Dash (auto-reload, overlay errori nel browser) |
 
 ---

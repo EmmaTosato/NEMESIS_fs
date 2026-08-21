@@ -92,6 +92,39 @@ def test_load_atlas_valid(tmp_path):
     assert list(label_table["label"]) == ["Region_A", "Region_B"]
 
 
+def test_load_atlas_duplicate_index_raises(tmp_path):
+    """AUDIT_FINDINGS.md #28 regression: label_table["index"] duplicates used to be
+    collapsed silently into id_to_name (a plain dict keyed on it, mask_dataset_fc) -
+    lesson #5. A dseg.tsv with two rows sharing the same index (e.g. a merge of two
+    partial atlases with unreconciled numbering) must raise instead."""
+    atlas_path = tmp_path / "atlas.nii.gz"
+    nib.save(_make_atlas_img(), atlas_path)
+    bad_table = tmp_path / "dup.tsv"
+    pd.DataFrame({"index": [1, 1, 2], "label": ["Region_A", "Region_A_dup", "Region_B"]}).to_csv(
+        bad_table, sep="\t", index=False
+    )
+
+    with pytest.raises(ValueError, match="duplicate 'index'"):
+        load_atlas(atlas_path, bad_table)
+
+
+def test_load_atlas_index_absent_from_volume_raises(tmp_path):
+    """AUDIT_FINDINGS.md #27 regression: an 'index' present in the tsv but absent from
+    the atlas volume (e.g. a version update that renumbers labels without updating the
+    paired volume) used to only surface later as a raw KeyError from
+    compute_parcel_coverage's total_by_label[lbl] lookup - now caught explicitly at
+    load time, before that index is ever used to index into anything."""
+    atlas_path = tmp_path / "atlas.nii.gz"
+    nib.save(_make_atlas_img(), atlas_path)  # volume only has labels {1, 2}
+    stale_table = tmp_path / "stale.tsv"
+    pd.DataFrame({"index": [1, 2, 3], "label": ["Region_A", "Region_B", "Region_C"]}).to_csv(
+        stale_table, sep="\t", index=False
+    )
+
+    with pytest.raises(ValueError, match=r"\[3\].*absent from the atlas volume"):
+        load_atlas(atlas_path, stale_table)
+
+
 # --- compute_parcel_coverage (+ the two regression bugs) --------------------
 
 
@@ -187,6 +220,32 @@ def test_vectorize_upper_triangle():
     assert list(vector.values) == pytest.approx([0.2, 0.3, 0.4])
 
 
+def test_vectorize_upper_triangle_tolerates_symmetric_nan_from_masking():
+    """A compromised node's row/col is NaN-ed symmetrically by mask_fc_by_lesion -
+    equal_nan=True must not treat that expected, symmetric NaN pattern as an asymmetry."""
+    node_names = np.array(["A", "B", "C"])
+    values = np.array([[1.0, np.nan, 0.3], [np.nan, np.nan, np.nan], [0.3, np.nan, 1.0]])
+    fc = pd.DataFrame(values, index=node_names, columns=node_names)
+
+    vector = vectorize_upper_triangle(fc, node_names)
+    assert list(vector.index) == ["A__B", "A__C", "B__C"]
+    assert np.isnan(vector["A__B"])
+    assert vector["A__C"] == pytest.approx(0.3)
+
+
+def test_vectorize_upper_triangle_asymmetric_matrix_raises():
+    """AUDIT_FINDINGS.md #30 regression: vectorize_upper_triangle used to assume
+    symmetry without ever checking it - an asymmetric matrix (e.g. a future mask_fc.py
+    bug, or a hand-edited debug file) would silently discard the (differing) lower
+    triangle instead of raising."""
+    node_names = np.array(["A", "B", "C"])
+    values = np.array([[1.0, 0.2, 0.3], [0.9, 1.0, 0.4], [0.3, 0.4, 1.0]])  # A__B != B__A
+    fc = pd.DataFrame(values, index=node_names, columns=node_names)
+
+    with pytest.raises(ValueError, match="not symmetric"):
+        vectorize_upper_triangle(fc, node_names)
+
+
 # --- mask_subject_fc (end-to-end, single subject) ---------------------------
 
 
@@ -240,21 +299,21 @@ _FC_GLOB_TEMPLATE = "features/*/func/*_FC-pearson_atlas-{combo}.csv"
 def test_discover_subject_files_skips_subjects_missing_lesion(tmp_path):
     _make_dataset_dir(
         tmp_path, "siteA",
-        subjects_with_lesion=["sub-01", "sub-02"],
-        subjects_with_fc=["sub-01", "sub-02", "sub-03"],
+        subjects_with_lesion=["sub-STUNIPD0001", "sub-STUNIPD0002"],
+        subjects_with_fc=["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUNIPD0003"],
         combo="ComboX",
     )
 
     subject_files, missing_lesion, excluded_by_group = discover_subject_files(
         tmp_path, "siteA", "ComboX", _LESION_GLOB, _FC_GLOB_TEMPLATE, group_filter=None
     )
-    assert set(subject_files) == {"sub-01", "sub-02"}
-    assert missing_lesion == ["sub-03"]
+    assert set(subject_files) == {"sub-STUNIPD0001", "sub-STUNIPD0002"}
+    assert missing_lesion == ["sub-STUNIPD0003"]
     assert excluded_by_group == []
 
 
 def test_discover_subject_files_none_usable_raises(tmp_path):
-    _make_dataset_dir(tmp_path, "siteA", subjects_with_lesion=[], subjects_with_fc=["sub-01"], combo="ComboX")
+    _make_dataset_dir(tmp_path, "siteA", subjects_with_lesion=[], subjects_with_fc=["sub-STUNIPD0001"], combo="ComboX")
 
     with pytest.raises(ValueError, match="no subject"):
         discover_subject_files(tmp_path, "siteA", "ComboX", _LESION_GLOB, _FC_GLOB_TEMPLATE, group_filter=None)
@@ -446,7 +505,7 @@ def test_mask_dataset_fc_end_to_end(tmp_path):
 
     data_root = tmp_path / "data"
     combo = "ComboX"
-    for subject, lesioned in [("sub-01", True), ("sub-02", False)]:
+    for subject, lesioned in [("sub-STUNIPD0001", True), ("sub-STUNIPD0002", False)]:
         lesion_dir = data_root / "siteA" / "manual_masks" / subject / "anat"
         lesion_dir.mkdir(parents=True, exist_ok=True)
         voxels = _all_voxels_in_block(np.s_[0:7, 0:7, 0:7]) if lesioned else []
@@ -475,13 +534,13 @@ def test_mask_dataset_fc_end_to_end(tmp_path):
     assert missing_lesion == []
     assert excluded_by_group == []
     assert failed == {}
-    assert set(summary["subject_id"]) == {"sub-01", "sub-02"}
-    sub01_row = summary[summary["subject_id"] == "sub-01"].iloc[0]
-    sub02_row = summary[summary["subject_id"] == "sub-02"].iloc[0]
+    assert set(summary["subject_id"]) == {"sub-STUNIPD0001", "sub-STUNIPD0002"}
+    sub01_row = summary[summary["subject_id"] == "sub-STUNIPD0001"].iloc[0]
+    sub02_row = summary[summary["subject_id"] == "sub-STUNIPD0002"].iloc[0]
     assert sub01_row["n_compromised_nodes"] == 1
     assert sub02_row["n_compromised_nodes"] == 0
-    assert (output_dir / "sub-01_masked_fc.csv").is_file()
-    assert (output_dir / "sub-02_masked_fc.csv").is_file()
+    assert (output_dir / "sub-STUNIPD0001_masked_fc.csv").is_file()
+    assert (output_dir / "sub-STUNIPD0002_masked_fc.csv").is_file()
 
 
 def test_mask_dataset_fc_one_bad_subject_does_not_abort_the_others(tmp_path):
@@ -497,7 +556,7 @@ def test_mask_dataset_fc_one_bad_subject_does_not_abort_the_others(tmp_path):
 
     data_root = tmp_path / "data"
     combo = "ComboX"
-    for subject, lesioned in (("sub-01", True), ("sub-02", False)):
+    for subject, lesioned in (("sub-STUNIPD0001", True), ("sub-STUNIPD0002", False)):
         lesion_dir = data_root / "siteA" / "manual_masks" / subject / "anat"
         lesion_dir.mkdir(parents=True, exist_ok=True)
         voxels = _all_voxels_in_block(np.s_[0:7, 0:7, 0:7]) if lesioned else []
@@ -507,9 +566,11 @@ def test_mask_dataset_fc_one_bad_subject_does_not_abort_the_others(tmp_path):
         fc_dir.mkdir(parents=True, exist_ok=True)
         _make_fc(node_names).to_csv(fc_dir / f"{subject}_FC-pearson_atlas-{combo}.csv", sep="\t")
 
-    # sub-02's FC file has its node order scrambled relative to the atlas - the exact
-    # per-subject failure mode described in the audit finding.
-    bad_fc_path = data_root / "siteA" / "features" / "sub-02" / "func" / f"sub-02_FC-pearson_atlas-{combo}.csv"
+    # sub-STUNIPD0002's FC file has its node order scrambled relative to the atlas - the
+    # exact per-subject failure mode described in the audit finding.
+    bad_fc_path = (
+        data_root / "siteA" / "features" / "sub-STUNIPD0002" / "func" / f"sub-STUNIPD0002_FC-pearson_atlas-{combo}.csv"
+    )
     _make_fc(list(reversed(node_names))).to_csv(bad_fc_path, sep="\t")
 
     output_dir = tmp_path / "out"
@@ -528,8 +589,8 @@ def test_mask_dataset_fc_one_bad_subject_does_not_abort_the_others(tmp_path):
         group_filter=None,
     )
 
-    assert set(summary["subject_id"]) == {"sub-01"}
-    assert (output_dir / "sub-01_masked_fc.csv").is_file()
-    assert not (output_dir / "sub-02_masked_fc.csv").exists()
-    assert set(failed) == {"sub-02"}
-    assert "node order" in failed["sub-02"]
+    assert set(summary["subject_id"]) == {"sub-STUNIPD0001"}
+    assert (output_dir / "sub-STUNIPD0001_masked_fc.csv").is_file()
+    assert not (output_dir / "sub-STUNIPD0002_masked_fc.csv").exists()
+    assert set(failed) == {"sub-STUNIPD0002"}
+    assert "node order" in failed["sub-STUNIPD0002"]

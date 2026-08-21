@@ -121,9 +121,18 @@ def discover_files_by_subject(
 
     by_subject = {subject: paths[0] for subject, paths in matches_by_subject.items()}
 
+    # AUDIT_FINDINGS.md #26: group_of() (which also validates the ST/HC/PD/GM naming
+    # convention itself) must run for every subject regardless of group_filter - lesson
+    # #4, the most common branch (group_filter=None, "this dataset/config doesn't mix
+    # groups") is exactly the one a naming-validation call must not skip, or a malformed
+    # subject_id (e.g. a hand-copied file with a typo'd "sub_" instead of "sub-") would
+    # pass through silently whenever no filter happens to be set, and only raise once one
+    # is.
+    groups = {s: group_of(s) for s in by_subject}
+
     excluded_by_group: list[str] = []
     if group_filter is not None:
-        excluded_by_group = sorted(s for s in by_subject if group_of(s) not in group_filter)
-        by_subject = {s: p for s, p in by_subject.items() if group_of(s) in group_filter}
+        excluded_by_group = sorted(s for s in by_subject if groups[s] not in group_filter)
+        by_subject = {s: p for s, p in by_subject.items() if groups[s] in group_filter}
 
     return by_subject, excluded_by_group

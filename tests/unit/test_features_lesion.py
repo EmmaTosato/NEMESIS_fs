@@ -54,9 +54,9 @@ def _make_lesion_subject_pipeline_first(data_root, dataset, subject_id, lesion_v
 
 
 def test_build_lesion_matrix_voxelwise(tmp_path):
-    _make_lesion_subject(tmp_path, "siteA", "sub-01", [(1, 1, 1), (1, 1, 2)])
-    _make_lesion_subject(tmp_path, "siteA", "sub-02", [(1, 1, 1)])
-    _make_lesion_subject(tmp_path, "siteA", "sub-03", [(5, 5, 5)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [(1, 1, 1)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0003", [(5, 5, 5)])
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
@@ -73,15 +73,16 @@ def test_build_lesion_matrix_voxelwise(tmp_path):
 
     assert excluded_by_group == []
     assert parcel_ids is None
-    assert list(metadata["subject_id"]) == ["sub-01", "sub-02", "sub-03"]
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUNIPD0003"]
     assert X.shape[0] == 3
     assert non_constant_mask.sum() == X.shape[1]
     # 3 distinct lesioned voxels across all subjects survive the constant-feature drop
     assert X.shape[1] == 3
-    # sub-01 has 2 lesioned voxels, sub-02 has 1, sub-03 has 1 (see _make_lesion_subject
-    # calls above) - lesion_volume_voxels must reflect the real per-subject voxel count,
-    # not X's own post-constant-drop column count (X.shape[1] == 3 is a coincidence of
-    # this fixture, not what lesion_volume_voxels means for any individual subject).
+    # sub-STUNIPD0001 has 2 lesioned voxels, sub-STUNIPD0002 has 1, sub-STUNIPD0003 has 1
+    # (see _make_lesion_subject calls above) - lesion_volume_voxels must reflect the real
+    # per-subject voxel count, not X's own post-constant-drop column count (X.shape[1] == 3
+    # is a coincidence of this fixture, not what lesion_volume_voxels means for any
+    # individual subject).
     assert list(metadata["lesion_volume_voxels"]) == [2, 1, 1]
 
 
@@ -90,8 +91,8 @@ def test_build_lesion_matrix_voxelwise_pipeline_first_layout(tmp_path):
     sit from lesion_glob itself, not assume they're dataset_root's immediate
     children - the real local layout is pipeline-first
     (<pipeline>/<subject_id>/...) today, not subject-first."""
-    _make_lesion_subject_pipeline_first(tmp_path, "siteA", "sub-01", [(1, 1, 1), (1, 1, 2)])
-    _make_lesion_subject_pipeline_first(tmp_path, "siteA", "sub-02", [(1, 1, 1)])
+    _make_lesion_subject_pipeline_first(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2)])
+    _make_lesion_subject_pipeline_first(tmp_path, "siteA", "sub-STUNIPD0002", [(1, 1, 1)])
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
@@ -108,7 +109,7 @@ def test_build_lesion_matrix_voxelwise_pipeline_first_layout(tmp_path):
 
     assert excluded_by_group == []
     assert parcel_ids is None
-    assert list(metadata["subject_id"]) == ["sub-01", "sub-02"]
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0002"]
     assert X.shape[0] == 2
 
 
@@ -141,12 +142,37 @@ def test_build_lesion_matrix_group_filter_excludes_hc(tmp_path):
 
 
 def test_build_lesion_matrix_subject_count_mismatch_raises(tmp_path):
-    _make_lesion_subject(tmp_path, "siteA", "sub-01", [(1, 1, 1)])
-    (tmp_path / "siteA" / "sub-02").mkdir(parents=True)  # subject dir with no lesion file
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    (tmp_path / "siteA" / "sub-STUNIPD0002").mkdir(parents=True)  # subject dir with no lesion file
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
     with pytest.raises(ValueError, match="subject dirs"):
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob=_GLOB,
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            parcellate=False,
+            group_filter=None,
+        )
+
+
+def test_build_lesion_matrix_malformed_subject_dir_name_raises_even_without_group_filter(tmp_path):
+    """AUDIT_FINDINGS.md #46 regression (twin gap of #26, here in _discover_lesion_files'
+    own subject_dirs sanity check): group_of() used to validate subject_dirs naming only
+    when group_filter was set - a malformed subject folder (here missing the dash after
+    "sub", a realistic hand-copy typo) with no lesion file at all inside it used to surface
+    only as a generic subject-count mismatch, never as the actual naming problem, whenever
+    group_filter=None (lesson #4)."""
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    (tmp_path / "siteA" / "sub_STUNIPD9999").mkdir(parents=True)  # malformed name, no lesion file
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+
+    with pytest.raises(ValueError, match="does not match expected naming"):
         build_lesion_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
@@ -196,7 +222,7 @@ def test_build_lesion_matrix_missing_dataset_root_raises(tmp_path):
     [] with no exception, and 0 subject_dirs == 0 lesion masks passed the
     existing count-mismatch check undetected. Now raises FileNotFoundError
     instead, before the group_filter/count-mismatch checks ever run."""
-    _make_lesion_subject_pipeline_first(tmp_path, "siteA", "sub-01", [(1, 1, 1)])
+    _make_lesion_subject_pipeline_first(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
@@ -214,9 +240,9 @@ def test_build_lesion_matrix_missing_dataset_root_raises(tmp_path):
 
 
 def test_build_lesion_matrix_parcellated_fraction_lesioned(tmp_path):
-    _make_lesion_subject(tmp_path, "siteA", "sub-01", [(1, 1, 1), (1, 1, 2)])
-    _make_lesion_subject(tmp_path, "siteA", "sub-02", [(1, 1, 1)])
-    _make_lesion_subject(tmp_path, "siteA", "sub-03", [(5, 5, 5)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [(1, 1, 1)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0003", [(5, 5, 5)])
 
     atlas_path = tmp_path / "atlas.nii.gz"
     block_a = np.s_[0:5, 0:5, 0:5]

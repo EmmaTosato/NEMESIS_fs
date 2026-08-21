@@ -30,7 +30,7 @@ def _make_dataset(data_root, n_subjects=5):
     rng = np.random.default_rng(1)
     for i in range(n_subjects):
         voxels = [tuple(rng.integers(0, 10, size=3)) for _ in range(5)]
-        _make_lesion_subject(data_root, "siteA", f"sub-{i:02d}", voxels)
+        _make_lesion_subject(data_root, "siteA", f"sub-STUNIPD{i:04d}", voxels)
 
 
 def _make_reference_template(path):
@@ -113,6 +113,35 @@ def test_build_lesion_matrix_group_filter_excludes_hc(tmp_path, monkeypatch):
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
 
+    # AUDIT_FINDINGS.md #48 regression: excluded_by_group used to be logged only (logs/,
+    # not a permanent artifact) - config.md (a permanent artifact next to matrix.npy) must
+    # also record which subjects were excluded and why, not just the final subject count.
+    config_md = (out_dir / "config.md").read_text()
+    assert "sub-STUNIPDHC0001" in config_md
+    assert "Excluded by group_filter" in config_md
+
+
+def test_build_lesion_matrix_config_md_has_params_used_line(tmp_path, monkeypatch):
+    """AUDIT_FINDINGS.md #49 regression: build_lesion_matrix.py's config.md used to have
+    only the generic full-config JSON dump, never the single-line "Params used: {...}"
+    form dim_reduction.py/clustering.py already standardize on (and
+    embedding_app.py::run_params already parses, for those two pipelines)."""
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
+
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    _make_dataset(data_root)
+    config_path = _write_config(tmp_path, data_root, output_root)
+
+    assert build_lesion_matrix.main(["--config", str(config_path)]) == 0
+
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    config_md = (out_dir / "config.md").read_text()
+    assert 'Params used: {"parcellate": false, "binarize_threshold": 0.5}' in config_md
+    assert "Excluded by group_filter" in config_md
+    assert "None." in config_md  # no group_filter set -> nothing excluded
+
 
 def test_build_lesion_matrix_corrupt_lesion_mask_returns_1_not_raw_traceback(tmp_path, monkeypatch):
     """Regression (HIGH #20, 2026-08): nib.load raises nibabel.filebasedimages.ImageFileError
@@ -124,9 +153,17 @@ def test_build_lesion_matrix_corrupt_lesion_mask_returns_1_not_raw_traceback(tmp
 
     data_root = tmp_path / "data"
     output_root = tmp_path / "out"
-    _make_lesion_subject(data_root, "siteA", "sub-00", [(1, 1, 1)])
+    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
     # A real file, non-empty, but not a valid gzip/NIfTI stream.
-    bad_path = data_root / "siteA" / "sub-01" / "lesion" / "manual_masks" / "anat" / "sub-01_label-lesion_mask.nii.gz"
+    bad_path = (
+        data_root
+        / "siteA"
+        / "sub-STUNIPD0002"
+        / "lesion"
+        / "manual_masks"
+        / "anat"
+        / "sub-STUNIPD0002_label-lesion_mask.nii.gz"
+    )
     bad_path.parent.mkdir(parents=True, exist_ok=True)
     bad_path.write_bytes(b"not a real nifti file, truncated mid-transfer")
 

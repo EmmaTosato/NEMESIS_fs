@@ -237,11 +237,23 @@ def run_clustering_tuning_sweep(
     total = len(combinations)
     logging.info("Starting clustering fine-tuning sweep for %s (%d combinations)", method, total)
 
+    # AUDIT_FINDINGS.md #35: evidence_accumulation's real cost (run_rsc_repeats, n_repeats
+    # fits of base_method) depends only on base_method/n_repeats/base_seed/the Split-phase
+    # K_PARAM_NAME[base_method] - never on threshold, which only drives the separate, cheap
+    # Merge-phase cut (assign_clusters_from_cooccurrence). Combinations that agree on
+    # everything except threshold share one already-computed co-occurrence matrix instead
+    # of each recomputing run_rsc_repeats from scratch - a 7-value threshold-only sweep
+    # goes from 7*n_repeats fits down to n_repeats.
+    cooccurrence_cache: dict[tuple, np.ndarray] = {} if method == "evidence_accumulation" else None
+
     rows = []
     for i, combo in enumerate(combinations, 1):
         combo_params = {**base_params, **dict(zip(keys, combo))}
         logging.info("Evaluating combination %d/%d: %s", i, total, dict(zip(keys, combo)))
-        if method in _EXTRA_METRICS_EVALUATORS:
+        if method == "evidence_accumulation":
+            labels = _evidence_accumulation_labels(X, combo_params, cooccurrence_cache)
+            extra_metrics = {}
+        elif method in _EXTRA_METRICS_EVALUATORS:
             labels, extra_metrics = _EXTRA_METRICS_EVALUATORS[method](X, combo_params)
         else:
             labels = CLUSTERING_METHODS[method](X, combo_params)
@@ -251,6 +263,24 @@ def run_clustering_tuning_sweep(
         rows.append({**dict(zip(keys, combo)), **generic_metrics, **extra_metrics, **consensus_metrics})
 
     return pd.DataFrame(rows)
+
+
+def _evidence_accumulation_labels(X: np.ndarray, combo_params: dict, cooccurrence_cache: dict[tuple, np.ndarray]) -> np.ndarray:
+    """evidence_accumulation_cluster(X, combo_params), but reusing run_rsc_repeats' result
+    across combinations that share everything except threshold (see the cache-existence
+    comment in run_clustering_tuning_sweep above) - cache_key is exactly the subset of
+    combo_params that run_rsc_repeats actually reads (split_params, plus base_method/
+    n_repeats/base_seed), so two combinations differing only in threshold always collide
+    on the same key and only the first ever calls run_rsc_repeats.
+    """
+    from src.analysis.clustering import _validate_evidence_accumulation_params
+    from src.analysis.consensus_clustering import assign_clusters_from_cooccurrence, run_rsc_repeats
+
+    base_method, split_params, n_repeats, base_seed, threshold = _validate_evidence_accumulation_params(combo_params)
+    cache_key = (base_method, n_repeats, base_seed, tuple(sorted(split_params.items())))
+    if cache_key not in cooccurrence_cache:
+        cooccurrence_cache[cache_key] = run_rsc_repeats(base_method, X, split_params, n_repeats, base_seed=base_seed)
+    return assign_clusters_from_cooccurrence(cooccurrence_cache[cache_key], threshold)
 
 
 def _compute_consensus_metrics(method: str, X: np.ndarray, combo_params: dict, consensus_config: dict | None) -> dict[str, float]:

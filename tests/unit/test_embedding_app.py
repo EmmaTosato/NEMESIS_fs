@@ -178,6 +178,21 @@ def test_load_run_rejects_embeddings_with_wrong_dimensionality(tmp_path, n_dims)
         load_run(ProductionRun("lesion", "dim_reduction", "umap", "run-bad", run_dir))
 
 
+def test_load_run_undisplayable_clustering_run_does_not_suggest_viz_n_components(tmp_path):
+    """AUDIT_FINDINGS.md #43/#44 regression: the error message used to always say "Rerun
+    dim_reduction pipeline with viz_n_components 2 or 3" regardless of which pipeline
+    produced the run - clustering.py has no viz_n_components field at all (it never
+    reduces dimensionality itself), so that advice is actionable only for a real
+    dim_reduction.py run, never for a clustering.py one."""
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(results_root, run_name="run-bad", n_dims=10)
+
+    with pytest.raises(UndisplayableRunError, match="can only display") as exc_info:
+        load_run(ProductionRun("lesion", "clustering", "kmeans", "run-bad", run_dir))
+    assert "viz_n_components" not in str(exc_info.value)
+    assert "clustering.py does not reduce dimensionality" in str(exc_info.value)
+
+
 def _embedding_and_metadata(n=4):
     embedding = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0]])[:n]
     metadata = pd.DataFrame(

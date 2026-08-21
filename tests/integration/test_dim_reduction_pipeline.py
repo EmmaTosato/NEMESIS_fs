@@ -6,6 +6,7 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 
+import src.analysis.reduction as reduction
 from src.pipeline import build_lesion_matrix, dim_reduction
 from src.utils.artifacts import save_matrix
 
@@ -35,7 +36,7 @@ def _add_clinical_columns(input_dir, subject_ids):
 def _make_dataset(data_root, n_subjects=8):
     rng = np.random.default_rng(2)
     for i in range(n_subjects):
-        subject_id = f"sub-{i:02d}"
+        subject_id = f"sub-STUNIPD{i:04d}"
         subject_dir = data_root / "siteA" / subject_id / "lesion" / "manual_masks" / "anat"
         subject_dir.mkdir(parents=True, exist_ok=True)
         volume = np.zeros(_SHAPE, dtype=np.float32)
@@ -115,7 +116,7 @@ def _write_params(tmp_path):
 def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
-    _add_clinical_columns(input_dir, [f"sub-{i:02d}" for i in range(8)])
+    _add_clinical_columns(input_dir, [f"sub-STUNIPD{i:04d}" for i in range(8)])
 
     params_path = _write_params(tmp_path)
     output_root = tmp_path / "dr_out"
@@ -224,7 +225,7 @@ def test_dim_reduction_fine_tuning_save_tuning_embeddings_writes_npz(tmp_path, m
     """
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
-    _add_clinical_columns(input_dir, [f"sub-{i:02d}" for i in range(8)])
+    _add_clinical_columns(input_dir, [f"sub-STUNIPD{i:04d}" for i in range(8)])
 
     params_path = _write_params(tmp_path)
     output_root = tmp_path / "dr_out"
@@ -280,7 +281,7 @@ def test_dim_reduction_save_tuning_embeddings_interrupted_write_leaves_no_trunca
     never a truncated one."""
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
-    _add_clinical_columns(input_dir, [f"sub-{i:02d}" for i in range(8)])
+    _add_clinical_columns(input_dir, [f"sub-STUNIPD{i:04d}" for i in range(8)])
 
     real_savez = np.savez
 
@@ -432,7 +433,7 @@ def _make_varying_volume_dataset(data_root, n_subjects=8):
     """
     rng = np.random.default_rng(42)
     for i in range(n_subjects):
-        subject_id = f"sub-{i:02d}"
+        subject_id = f"sub-STUNIPD{i:04d}"
         subject_dir = data_root / "siteA" / subject_id / "lesion" / "manual_masks" / "anat"
         subject_dir.mkdir(parents=True, exist_ok=True)
         n_voxels = 3 + i
@@ -856,3 +857,71 @@ def test_dim_reduction_fine_tuning_nested_n_components_refits_viz(tmp_path, monk
     leaf_dir = tuning_dir / "n_components=3"
     assert leaf_dir.is_dir()
     assert (leaf_dir / "embeddings_grid_unico.png").is_file()
+
+
+def test_dim_reduction_fine_tuning_grid_refit_reuses_distance_cache_across_cells(tmp_path, monkeypatch):
+    """AUDIT_FINDINGS.md #34 regression: _build_grid_blocks used to call embedding_for_viz
+    without a distance_cache - for a jaccard/dice metric, every refit cell in the same leaf
+    recomputed binary_pairwise_distance from scratch instead of sharing it (the same sharing
+    _run_production/_run_fine_tuning's main sweep already had). Here nested_params=["n_components"]
+    with metric="jaccard" fixed forces a refit for every free_params cell in the n_components=3
+    leaf (2 values of n_neighbors) - without the shared cache that's 2 separate
+    binary_pairwise_distance calls for the exact same X/metric; with it, at most 1."""
+    input_dir = _build_matrix_varying_volume(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+
+    params_path = tmp_path / "params_nested_ncomp_jaccard.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "umap": {
+                    "params": {"n_neighbors": 3, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "jaccard"},
+                    "tuning_grid": {
+                        "n_components": [2, 3],
+                        "n_neighbors": [2, 3, 4],
+                    },
+                    "nested_params": ["n_components"],
+                    "trustworthiness_n_neighbors": 2,
+                }
+            }
+        )
+    )
+    output_root = tmp_path / "dr_out_ncomp_jaccard"
+    dr_cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "umap",
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_nested_ncomp_jaccard",
+        "overwrite": False,
+        "fine_tuning": True,
+        "color_by": [],
+        "viz_n_components": 2,
+        "write_embeddings_grid": True,
+        "save_tuning_embeddings": False,
+        "run_notes": None,
+    }
+    dr_cfg_path = tmp_path / "dim_reduction_tuning_nested_ncomp_jaccard.json"
+    dr_cfg_path.write_text(json.dumps(dr_cfg))
+
+    call_count = 0
+    real_binary_pairwise_distance = reduction.binary_pairwise_distance
+
+    def _counting_binary_pairwise_distance(X, metric):
+        nonlocal call_count
+        call_count += 1
+        return real_binary_pairwise_distance(X, metric)
+
+    monkeypatch.setattr(reduction, "binary_pairwise_distance", _counting_binary_pairwise_distance)
+
+    exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
+    assert exit_code == 0
+
+    tuning_dir = next(p for p in (output_root / "tuning" / "umap").iterdir() if p.is_dir())
+    assert (tuning_dir / "n_components=3" / "embeddings_grid_unico.png").is_file()
+    # n_components=3 leaf has 3 free-param cells (n_neighbors=2,3,4), all needing a refit at
+    # the grid's fixed viz n_components=2, all at the same metric="jaccard" - the whole
+    # _write_nested_tuning_leaves pass (both leaves) must reuse one cached matrix, not
+    # recompute it once per refit cell.
+    assert call_count <= 1, f"expected the jaccard distance matrix to be computed at most once, got {call_count} calls"

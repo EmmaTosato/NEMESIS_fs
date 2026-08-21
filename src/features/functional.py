@@ -58,8 +58,13 @@ def load_atlas(atlas_path: Path, label_table_path: Path) -> tuple[nib.Nifti1Imag
     """Load a combined label volume and its BIDS dseg.tsv (index/label) lookup.
 
     Raises FileNotFoundError if either file is missing, ValueError if the
-    label table doesn't have the expected columns - never a partial/guessed
-    read.
+    label table doesn't have the expected columns, has a duplicate 'index'
+    value (AUDIT_FINDINGS.md #28 - lesson #5, silently collapsed by a dict
+    keyed on it otherwise), or has an 'index' value absent from the volume
+    itself (AUDIT_FINDINGS.md #27 - lesson #7, would otherwise only surface
+    later as a raw KeyError from compute_parcel_coverage's total_by_label
+    lookup, once the return value is actually indexed into) - never a
+    partial/guessed read.
     """
     atlas_path = Path(atlas_path)
     label_table_path = Path(label_table_path)
@@ -73,6 +78,23 @@ def load_atlas(atlas_path: Path, label_table_path: Path) -> tuple[nib.Nifti1Imag
     if not {"index", "label"}.issubset(label_table.columns):
         raise ValueError(
             f"label table {label_table_path} must have 'index' and 'label' columns, got {list(label_table.columns)}"
+        )
+
+    duplicated_indices = sorted(label_table.loc[label_table["index"].duplicated(), "index"].unique().tolist())
+    if duplicated_indices:
+        raise ValueError(
+            f"label table {label_table_path} has duplicate 'index' value(s) {duplicated_indices} - "
+            "expected exactly one row per parcel index"
+        )
+
+    volume_indices = set(np.unique(atlas_img.get_fdata()).astype(int).tolist()) - {0}  # 0 is background, not a parcel
+    tsv_indices = set(int(i) for i in label_table["index"])
+    missing_from_volume = sorted(tsv_indices - volume_indices)
+    if missing_from_volume:
+        raise ValueError(
+            f"label table {label_table_path} has {len(missing_from_volume)} index value(s) "
+            f"{missing_from_volume} absent from the atlas volume {atlas_path} "
+            f"({len(volume_indices)} parcel label(s) found there) - tsv/volume are out of sync"
         )
     return atlas_img, label_table
 
@@ -149,12 +171,24 @@ def vectorize_upper_triangle(matrix_df: pd.DataFrame, node_names: np.ndarray) ->
 
     The FC matrix is symmetric (A-B == B-A) with a non-informative diagonal
     (self-correlation = 1.0) - keeping the full matrix would duplicate every
-    edge and add uninformative columns.
+    edge and add uninformative columns. AUDIT_FINDINGS.md #30: that symmetry
+    was previously just assumed, never checked - raises ValueError if the
+    lower triangle actually disagrees with the upper one (equal_nan=True:
+    mask_fc_by_lesion's NaN-ing of a compromised node's row/col is applied
+    symmetrically by construction, so a NaN there is expected on both sides,
+    not itself a symmetry violation), instead of silently discarding
+    whichever half the lower triangle held.
     """
+    values_matrix = matrix_df.values
+    if not np.allclose(values_matrix, values_matrix.T, equal_nan=True):
+        raise ValueError(
+            "matrix_df is not symmetric - refusing to vectorize only its upper triangle, "
+            "which would silently discard real information in the (differing) lower triangle"
+        )
     n = len(node_names)
     row_idx, col_idx = np.triu_indices(n, k=1)
     edge_names = [f"{node_names[i]}__{node_names[j]}" for i, j in zip(row_idx, col_idx)]
-    values = matrix_df.values[row_idx, col_idx]
+    values = values_matrix[row_idx, col_idx]
     return pd.Series(values, index=edge_names)
 
 

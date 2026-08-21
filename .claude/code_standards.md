@@ -119,5 +119,4 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 ## Riferimenti
 
 - [`.claude/CLAUDE.md`](../.claude/CLAUDE.md) — struttura repo e convenzioni generali NEMESIS
-- [`docs/notes/architecture_draft.md`](notes/architecture_draft.md) — bozza architettura pipeline (non normativa)
-- [`src/retrieval.py`](../src/retrieval.py) — esempio attuale di gestione errori conforme al §0
+- [`src/retrieval/dataset.py`](../src/retrieval/dataset.py) — esempio attuale di gestione errori conforme al §0

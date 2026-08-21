@@ -13,7 +13,13 @@ docstring for why).
 
 Processes every atlas_combo listed in the config sequentially, one
 build_fc_matrix_from_masked() call per combo, each writing its own matrix
-artifact under output_root/<combo>/.
+artifact under output_root/<combo>/. atlas_combos are independent (each
+reads its own masked_fc/<combo>/ folder) - a combo whose input isn't ready
+yet is skipped (logged + recorded in the report's "Skipped" section), never
+aborting the other, already-ready combos in the same run (AUDIT_FINDINGS.md
+#29). main() returns 1 only if every configured combo failed - a partial
+run (>=1 combo built) still returns 0, with failures visible in the log and
+report.
 """
 
 from __future__ import annotations
@@ -63,13 +69,22 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     combo_reports: dict[str, dict] = {}
+    failed_combos: dict[str, str] = {}
     for combo in config.atlas_combos:
         input_dir = config.masked_fc_root / combo
+        # AUDIT_FINDINGS.md #29: atlas_combos are independent (each reads its own
+        # masked_fc/<combo>/ folder) - a combo whose input isn't ready yet (mask_fc.py
+        # not rerun for it, e.g. after a min_coverage change) must not block the other,
+        # already-ready combos in the same config. Isolated per-combo (lesson #21);
+        # save_matrix/append_run_log_entry failures below stay fatal (return 1) since
+        # those are infra-level faults (disk full, permissions) likely to recur on every
+        # remaining combo, not a per-combo input gap.
         try:
             X, metadata, edge_names, dropped_info = build_fc_matrix_from_masked(input_dir)
         except (FileNotFoundError, ValueError) as exc:
-            logging.error("%s: %s", combo, exc)
-            return 1
+            logging.warning("%s: skipped, could not be built: %s", combo, exc)
+            failed_combos[combo] = str(exc)
+            continue
 
         if dropped_info:
             logging.warning(
@@ -136,15 +151,27 @@ def main(argv: list[str] | None = None) -> int:
             logging.error("%s: cannot write run log: %s", combo, exc, exc_info=True)
             return 1
 
+    if not combo_reports:
+        logging.error("every configured atlas_combo failed - nothing built: %s", failed_combos)
+        return 1
+
     try:
-        report_path = _write_report(config, combo_reports, now)
+        report_path = _write_report(config, combo_reports, failed_combos, now)
     except OSError as exc:
         logging.error("cannot write report: %s", exc, exc_info=True)
         return 1
 
+    if failed_combos:
+        logging.warning(
+            "%d/%d atlas combo(s) could not be built, skipped: %s",
+            len(failed_combos),
+            len(config.atlas_combos),
+            failed_combos,
+        )
     logging.info(
-        "done - matrices written under %s (%d combo(s)), report written to %s, log written to %s",
+        "done - matrices written under %s (%d/%d combo(s)), report written to %s, log written to %s",
         config.output_root,
+        len(combo_reports),
         len(config.atlas_combos),
         report_path,
         log_path,
@@ -187,7 +214,7 @@ def _build_readme_lines(
     return lines
 
 
-def _write_report(config: BuildFcMatrixConfig, combo_reports: dict[str, dict], now: datetime) -> Path:
+def _write_report(config: BuildFcMatrixConfig, combo_reports: dict[str, dict], failed_combos: dict[str, str], now: datetime) -> Path:
     lines = [
         f"# {config.project}_{now.strftime('%d-%m-%y')}",
         f"## {now.strftime('%H:%M')}",
@@ -210,6 +237,13 @@ def _write_report(config: BuildFcMatrixConfig, combo_reports: dict[str, dict], n
             f"| {combo} | {shape} | {report['n_dropped_constant_edges']} | "
             f"{int(nan_per_subject.min())}/{nan_per_subject.mean():.1f}/{int(nan_per_subject.max())} |"
         )
+    # AUDIT_FINDINGS.md #29: a combo skipped for lacking a ready masked_fc/<combo>/ input
+    # (or any other per-combo build failure) is recorded here, not just logged - config.md
+    # would otherwise look complete while silently missing some configured combos.
+    if failed_combos:
+        lines += ["", "## Skipped (build failed)", ""]
+        for combo, reason in failed_combos.items():
+            lines.append(f"- **{combo}**: {reason}")
 
     report_dir = REPORTS_ROOT / config.project
     report_dir.mkdir(parents=True, exist_ok=True)

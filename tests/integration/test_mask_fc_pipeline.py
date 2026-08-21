@@ -84,25 +84,25 @@ def test_mask_fc_end_to_end(tmp_path, monkeypatch):
     output_root = tmp_path / "out"
     node_names = ["Region_A", "Region_B"]
     _make_atlas(atlas_root, "ComboX")
-    _make_subject(data_root, "siteA", "sub-01", "ComboX", node_names, _all_voxels_in_block(np.s_[0:5, 0:5, 0:5]))
-    _make_subject(data_root, "siteA", "sub-02", "ComboX", node_names, [])
+    _make_subject(data_root, "siteA", "sub-STUNIPD0001", "ComboX", node_names, _all_voxels_in_block(np.s_[0:5, 0:5, 0:5]))
+    _make_subject(data_root, "siteA", "sub-STUNIPD0002", "ComboX", node_names, [])
 
     config_path = _write_config(tmp_path, data_root, atlas_root, output_root)
     exit_code = mask_fc.main(["--config", str(config_path)])
     assert exit_code == 0
 
     combo_dir = output_root / "ComboX"
-    assert (combo_dir / "sub-01_masked_fc.csv").is_file()
-    assert (combo_dir / "sub-02_masked_fc.csv").is_file()
+    assert (combo_dir / "sub-STUNIPD0001_masked_fc.csv").is_file()
+    assert (combo_dir / "sub-STUNIPD0002_masked_fc.csv").is_file()
 
-    sub01 = pd.read_csv(combo_dir / "sub-01_masked_fc.csv", index_col=0)
+    sub01 = pd.read_csv(combo_dir / "sub-STUNIPD0001_masked_fc.csv", index_col=0)
     assert sub01.loc["Region_A"].isna().all()  # fully lesioned parcel
 
-    sub02 = pd.read_csv(combo_dir / "sub-02_masked_fc.csv", index_col=0)
+    sub02 = pd.read_csv(combo_dir / "sub-STUNIPD0002_masked_fc.csv", index_col=0)
     assert not sub02.isna().any().any()  # no lesion at all
 
     summary = pd.read_csv(combo_dir / "mask_summary.csv")
-    assert set(summary["subject_id"]) == {"sub-01", "sub-02"}
+    assert set(summary["subject_id"]) == {"sub-STUNIPD0001", "sub-STUNIPD0002"}
 
     reports = list((tmp_path / "summaries" / "testproj").glob("*.md"))
     logs = list((tmp_path / "logs" / "testproj").glob("*.log"))
@@ -123,7 +123,7 @@ def test_mask_fc_overwrite_false_rerun_fails(tmp_path, monkeypatch):
     output_root = tmp_path / "out"
     node_names = ["Region_A", "Region_B"]
     _make_atlas(atlas_root, "ComboX")
-    _make_subject(data_root, "siteA", "sub-01", "ComboX", node_names, [])
+    _make_subject(data_root, "siteA", "sub-STUNIPD0001", "ComboX", node_names, [])
 
     config_path = _write_config(tmp_path, data_root, atlas_root, output_root)
     assert mask_fc.main(["--config", str(config_path)]) == 0
@@ -209,13 +209,13 @@ def test_mask_fc_missing_lesion_subject_skipped_not_fatal(tmp_path, monkeypatch)
     output_root = tmp_path / "out"
     node_names = ["Region_A", "Region_B"]
     _make_atlas(atlas_root, "ComboX")
-    _make_subject(data_root, "siteA", "sub-01", "ComboX", node_names, [])
+    _make_subject(data_root, "siteA", "sub-STUNIPD0001", "ComboX", node_names, [])
 
-    # sub-02 has an FC file but no lesion mask - a known, legitimate per-subject gap
-    fc_dir = data_root / "siteA" / "features" / "sub-02" / "func"
+    # sub-STUNIPD0002 has an FC file but no lesion mask - a known, legitimate per-subject gap
+    fc_dir = data_root / "siteA" / "features" / "sub-STUNIPD0002" / "func"
     fc_dir.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(np.eye(2), index=node_names, columns=node_names).to_csv(
-        fc_dir / "sub-02_FC-pearson_atlas-ComboX.csv", sep="\t"
+        fc_dir / "sub-STUNIPD0002_FC-pearson_atlas-ComboX.csv", sep="\t"
     )
 
     config_path = _write_config(tmp_path, data_root, atlas_root, output_root)
@@ -223,5 +223,5 @@ def test_mask_fc_missing_lesion_subject_skipped_not_fatal(tmp_path, monkeypatch)
     assert exit_code == 0
 
     combo_dir = output_root / "ComboX"
-    assert (combo_dir / "sub-01_masked_fc.csv").is_file()
-    assert not (combo_dir / "sub-02_masked_fc.csv").is_file()
+    assert (combo_dir / "sub-STUNIPD0001_masked_fc.csv").is_file()
+    assert not (combo_dir / "sub-STUNIPD0002_masked_fc.csv").is_file()

@@ -1049,7 +1049,24 @@ gruppi, es. un dataset futuro tutto-ST) — un file rinominato a mano
 comunque `discover_files_by_subject` come soggetto valido (il naming malformato non viene mai
 controllato), mentre lo stesso identico file con `group_filter=["ST"]` impostato farebbe
 fallire `group_of()` con un errore esplicito. Lo stesso identico input, comportamento diverso a
-seconda del branch di config. **Stato: Aperto.**
+seconda del branch di config.
+
+**Stato: Implementato (21/08).** `discover_files_by_subject` costruisce ora
+`groups = {s: group_of(s) for s in by_subject}` **incondizionatamente**, prima del branch
+`if group_filter is not None` — la validazione del naming avviene sempre, il filtro (quando
+impostato) legge poi da quel dizionario già calcolato invece di richiamare `group_of()` una
+seconda volta. **Impatto collaterale rilevante, non previsto dalla stima iniziale del
+finding**: 44 test in tutta la suite usavano ID soggetto sintetici tipo `sub-01`/`sub-00`
+(mai conformi alla naming convention ST/HC/...) che passavano solo perché `group_filter=None`
+saltava la validazione — la fix li ha rotti tutti. Sistemati sostituendo gli ID sintetici con
+ID realistici (`sub-STUNIPD0001` ecc.) nei fixture helper di 5 file di test
+(`test_clustering_pipeline.py`, `test_dim_reduction_pipeline.py`,
+`test_build_lesion_matrix_pipeline.py`, `test_mask_fc_pipeline.py`,
+`test_features_functional.py`), non nei singoli test. Nuova lezione aggiunta a
+`lessons_learned.md` (#28) per questo pattern. Test:
+`test_discover_files_by_subject_malformed_name_raises_even_without_group_filter`
+(`tests/unit/test_subject_discovery.py`) — verificato fallire su codice pre-fix
+(`DID NOT RAISE`), passa col fix. Suite intera: 727 passed, 0 failed, 12 skipped.
 
 ### 27. `mask_fc`: `load_atlas` non valida index tsv↔volume prima di indicizzare
 
@@ -1072,7 +1089,15 @@ proprio `.nii.gz` (es. un aggiornamento di versione dell'atlante che rinumera le
 aggiornare il volume in coppia) — un `index` presente nel tsv ma assente dal volume produce
 `KeyError` diretto su `total_by_label[lbl]`, un traceback poco informativo rispetto a un
 controllo esplicito al caricamento che direbbe "atlas X ha N label nel tsv ma M nel volume".
-**Stato: Aperto.**
+
+**Stato: Implementato (21/08).** `load_atlas` calcola ora `np.unique(atlas_img.get_fdata())`
+(esclude lo 0, background) e verifica che ogni `index` del tsv sia un sottoinsieme delle
+label realmente presenti nel volume — `ValueError` esplicito con gli index mancanti e il
+conteggio label del volume, altrimenti nessun impatto (0 index fuori sync sui 12 atlanti
+reali). Chiude anche #28 nello stesso punto (stesso `load_atlas`, unica sorgente di
+`label_table`). Test: `test_load_atlas_index_absent_from_volume_raises`
+(`tests/unit/test_features_functional.py`) — verificato fallire su codice pre-fix
+(`DID NOT RAISE`), passa col fix.
 
 ### 28. `mask_fc`: `label_table["index"]` duplicati non validati
 
@@ -1091,7 +1116,13 @@ Nessun controllo di unicità su `label_table["index"]` prima di costruire `id_to
 di generazione a monte (es. un merge di due atlanti parziali con numerazione non
 riconciliata) — `id_to_name` mantiene solo l'ultima delle due (`dict` sovrascrive), `node_names`
 finisce con un nome ripetuto due volte per lo stesso indice reale invece di due nomi distinti,
-gonfiando artificialmente il conteggio di parcelle senza nessun errore. **Stato: Aperto.**
+gonfiando artificialmente il conteggio di parcelle senza nessun errore.
+
+**Stato: Implementato (21/08), stesso fix di #27.** `load_atlas` verifica
+`label_table["index"].duplicated()` prima di ritornare — `ValueError` esplicito con gli
+index duplicati, unica sorgente di `label_table` per `mask_dataset_fc`. Test:
+`test_load_atlas_duplicate_index_raises` (`tests/unit/test_features_functional.py`) —
+verificato fallire su codice pre-fix (`DID NOT RAISE`), passa col fix.
 
 ### 29. `build_fc_matrix`: loop su `atlas_combos` non isolato
 
@@ -1116,7 +1147,20 @@ alfabetico. `Yan100TianS1Buckner7N` (il primo) non ha ancora `masked_fc/` popola
 non è stato ancora rilanciato per quella combo dopo un cambio di `min_coverage`) —
 `discover_masked_fc_files` solleva `FileNotFoundError`, il run si interrompe immediatamente:
 gli altri 10 combo, tutti pronti e completi, non vengono processati affatto in questo lancio,
-anche se non hanno nulla in comune con il combo mancante. **Stato: Aperto.**
+anche se non hanno nulla in comune con il combo mancante.
+
+**Stato: Implementato (21/08).** Il `try/except (FileNotFoundError, ValueError)` attorno a
+`build_fc_matrix_from_masked` ora fa `continue` (accumulando in `failed_combos: dict[str,
+str]`) invece di `return 1` — lesson #21, stesso schema di HIGH #9. `save_matrix`/
+`append_run_log_entry` restano invece fatali (`return 1`) per quel combo: sono guasti
+infrastrutturali (disco pieno, permessi) verosimilmente ricorrenti su ogni combo successivo,
+non un gap di input per-combo. `main()` ritorna 1 solo se **tutti** i combo falliscono
+(nessun output prodotto); un run parziale ritorna 0, con `failed_combos` loggato (WARNING) e
+persistito in una nuova sezione "Skipped (build failed)" del report. Test:
+`test_build_fc_matrix_one_combo_not_ready_does_not_abort_the_others`
+(`tests/integration/test_build_fc_matrix_pipeline.py`) — 2 combo, uno pronto uno mai
+processato da mask_fc.py; verificato fallire su codice pre-fix (`exit_code == 1`, nessun
+output), passa col fix (`exit_code == 0`, `ComboReady` scritto, `ComboMissing` nel report).
 
 ### 30. `build_fc_matrix`: nessuna verifica di simmetria prima di estrarre il triangolo superiore
 
@@ -1140,7 +1184,17 @@ una versione futura di `mask_fc.py`, o per un errore di scrittura manuale durant
 `vectorize_upper_triangle` scarta silenziosamente il triangolo inferiore (che nel caso rotto
 conterrebbe valori diversi), producendo un vettore di edge "valido" nella forma ma che ignora
 metà dell'informazione realmente presente nel file, senza nessun segnale che la matrice non
-fosse effettivamente simmetrica. **Stato: Aperto.**
+fosse effettivamente simmetrica.
+
+**Stato: Implementato (21/08).** `np.allclose(matrix, matrix.T, equal_nan=True)` (equal_nan
+perché `mask_fc_by_lesion` NaN-a righe/colonne compromesse simmetricamente per costruzione —
+un NaN su entrambi i lati è atteso, non un'asimmetria) prima di estrarre il triangolo
+superiore — `ValueError` esplicito se falso. Test:
+`test_vectorize_upper_triangle_asymmetric_matrix_raises` +
+`test_vectorize_upper_triangle_tolerates_symmetric_nan_from_masking`
+(`tests/unit/test_features_functional.py`) — il primo verificato fallire su codice pre-fix
+(`DID NOT RAISE`), passa col fix; il secondo conferma che il NaN simmetrico da masking non
+fa scattare il nuovo controllo.
 
 ### 31. `build_fc_matrix`: `load_build_fc_matrix_config` senza test unitari dedicati
 
@@ -1155,7 +1209,14 @@ solo copertura indiretta via `tests/integration/test_*` che passano un config va
 `BuildFcMatrixConfig` (es. `min_edges_expected`) può rompere silenziosamente la validazione
 (o dimenticare di validarlo affatto) senza che nessun test unitario lo segnali — solo un test
 di integrazione che carica per caso un config privo di quel campo lo scoprirebbe, e solo se il
-comportamento di default scelto produce un errore visibile a valle. **Stato: Aperto.**
+comportamento di default scelto produce un errore visibile a valle.
+
+**Stato: Implementato (21/08).** 13 nuovi test in `tests/unit/test_build_config.py` (config
+valido, `atlas_combos` multipli, `run_notes` passthrough, file mancante, top-level non-oggetto,
+7 casi di config invalida parametrizzati: stringhe vuote, `atlas_combos` vuoto/duplicato,
+`overwrite` non-bool) — stesso schema di `load_build_matrix_config`/`load_mask_fc_config`
+sopra. Nessun fix di codice (`load_build_fc_matrix_config` era già corretto) — solo copertura
+mancante colmata, come richiesto dal finding.
 
 ### 32. `dim_reduction`: riferimenti stale a `docs/notes/` sparsi in README/CLAUDE.md/docs/dev/docstring
 
@@ -1169,7 +1230,26 @@ esplicitamente `docs/notes/` come cartella esistente ("guide per-metodo... `clus
 aprire `docs/notes/dim_reduction.md` per il razionale della metodologia Thiebaut de Schotten
 2020 trova una cartella inesistente — la sostanza di quel contenuto può darsi viva altrove
 (`knowledge/dim_reduction_clustering/`?), ma nessun rimando lo dice esplicitamente, quindi la
-ricerca si conclude in un vicolo cieco invece che con un redirect. **Stato: Aperto.**
+ricerca si conclude in un vicolo cieco invece che con un redirect.
+
+**Stato: Implementato (21/08), insieme a #38 (stesso gap).** Verificato riferimento per
+riferimento (`grep -rln "docs/notes"`) invece di fidarsi del titolo del finding — trovati e
+corretti 6 riferimenti stale reali: `.claude/CLAUDE.md` (elenco struttura repo, riscritto per
+dichiarare `docs/notes/` dissolta con redirect a `knowledge/dim_reduction_clustering/`/
+`knowledge/neuroimaging/`), `docs/guides/clustering.md`/`dim_reduction.md`, `docs/dev/
+fc_matrix.md`/`models.md` (redirect ai file successori reali già presenti su disco:
+`clustering_literature_survey.md`, `dim_reduction_tuning_guide.md`,
+`knowledge/neuroimaging/fc_lesion_masking.md`), `src/features/clinical.py` (riferimento a
+`docs/notes/Siegel2016_Reproduction.md`, verificato in `.claude/stato_progetto_archive.md`
+come **eliminato deliberatamente, non migrato** — nessun successore da linkare, il docstring
+lo dice esplicitamente ora). `management/notes/TODO.md` (voce diversa da `docs/notes/`, stesso
+gap) corretta allo stesso modo. **Nuovo, trovato solo verificando i file citati esistano
+ancora** (non nel finding originale): `knowledge/dim_reduction_clustering/
+clustering_tuning_guide.md` citava ancora `docs/guides/dim_reduction_clustering.md` (guida
+rimossa) e `dim_reduction_clustering.py` come "workflow raccomandato" — entrambi corretti.
+`docs/dev/lesion_matrix.md`'s riferimento a `docs/notes/analysis_pipeline_v2_handoff.md`
+lasciato invariato: è esplicitamente dichiarato "intentionally-frozen historical snapshot",
+non manutenuto per scelta. Nessun test (fix di sola documentazione).
 
 ### 33. `dim_reduction`: `docs/dev/models.md` dichiara `metric=jaccard` per UMAP produzione, registry reale ha `euclidean`
 
@@ -1190,7 +1270,13 @@ s1.1's 26-07 tuning round".
 di tuning del 26/07 ma il registry è stato aggiornato successivamente (o mai allineato) senza
 aggiornare la doc. Chiunque legga `docs/dev/models.md` per capire con quale metrica la
 produzione UMAP attuale è stata imbastita (es. per interpretare i plot di produzione, o per
-riprodurre lo stesso embedding altrove) userebbe il valore sbagliato. **Stato: Aperto.**
+riprodurre lo stesso embedding altrove) userebbe il valore sbagliato.
+
+**Stato: Implementato (21/08).** Riverificato che il registry ha tuttora `metric="euclidean"`
+per `umap` **e** `tsne` — riscritta la frase in `docs/dev/models.md` per riflettere lo stato
+reale odierno, con nota esplicita che il valore `jaccard` è stato reimpostato dopo il round
+s1.1 senza aggiornare questa doc (riferimento a questo finding per la prossima volta). Nessun
+test (fix di sola documentazione).
 
 ### 34. `dim_reduction`: refit di viz nella griglia di tuning non riusa `distance_cache`
 
@@ -1219,7 +1305,18 @@ per `embedding_for_viz`, che essendo `n_components` sempre diverso da 2 in quest
 rifitta *ogni singola cella* chiamando `embed()` senza cache: la matrice di distanza Jaccard
 (n_subjects² per la coorte, es. 1150×1150 float64 ≈ 10.5 MB, ma il *calcolo* è O(n²·n_features))
 viene ricalcolata identica 30 volte invece di una sola, un costo evitabile puramente per un
-parametro di funzione mancante. **Stato: Aperto.**
+parametro di funzione mancante.
+
+**Stato: Implementato (21/08).** `distance_cache: dict[str, np.ndarray] = {}` creato una
+sola volta in `_write_nested_tuning_leaves` (condiviso tra **tutte** le foglie della griglia,
+non uno per foglia — un `metric` può ripetersi tra foglie diverse quando `nested_params`
+include anche `n_components`), passato a `_build_grid_blocks` e da lì a ogni chiamata
+`embedding_for_viz`. Stesso pattern già usato da `_run_production`/`_run_fine_tuning`. Test:
+`test_dim_reduction_fine_tuning_grid_refit_reuses_distance_cache_across_cells`
+(`tests/integration/test_dim_reduction_pipeline.py`) — sweep `nested_params=["n_components"]`
+con `metric="jaccard"` fisso, 3 valori di `n_neighbors` nella foglia `n_components=3` (tutti
+richiedono un refit) — `binary_pairwise_distance` monkeypatchata con un contatore; verificato
+fallire su codice pre-fix (3 chiamate), passa col fix (≤1 chiamata).
 
 ### 35. `clustering`: tuning `evidence_accumulation` — 350 fit invece di 50
 
@@ -1248,7 +1345,25 @@ invece dei 50 realmente necessari (calcolare la co-occurrence una volta, applica
 "spectral"`, `n_neighbors=50` — ogni fit `spectral` su una matrice di quella dimensione richiede
 qualche secondo; 350 fit invece di 50 significa un tuning che impiega ~7× più tempo del
 necessario, un run che potrebbe durare 10 minuti invece di ~90 secondi, puramente per come lo
-sweep genérico ignora che `threshold` è "a valle" del costo reale. **Stato: Aperto.**
+sweep genérico ignora che `threshold` è "a valle" del costo reale.
+
+**Stato: Implementato (21/08), chiude anche #40 (stesso meccanismo, call site gemello ormai
+rimosso — vedi sotto).** `evidence_accumulation_cluster` refattorizzata: la
+validazione/estrazione parametri (`base_method`, `split_params`, `n_repeats`, `base_seed`,
+`threshold`) isolata in `_validate_evidence_accumulation_params` (nuova funzione condivisa in
+`clustering.py`), riusata sia dalla funzione originale sia dal nuovo fast path del sweep.
+`run_clustering_tuning_sweep` ora, solo per `method == "evidence_accumulation"`, raggruppa le
+combinazioni per la chiave `(base_method, n_repeats, base_seed, split_params)` — tutto ciò che
+`run_rsc_repeats` legge davvero, **mai** `threshold` — e riusa la matrice di co-occurrence già
+calcolata per ogni combinazione che condivide quella chiave, chiamando
+`assign_clusters_from_cooccurrence` (economico) per ognuna. Generalizza correttamente anche se
+in futuro venissero sweeppati altri parametri oltre a `threshold` (raggruppa comunque per
+tutto tranne `threshold`). Test:
+`test_run_clustering_tuning_sweep_evidence_accumulation_reuses_cooccurrence_across_thresholds`
+(`tests/unit/test_clustering_tuning.py`) — sweep a 4 valori di `threshold`,
+`run_rsc_repeats` monkeypatchata con un contatore; verificato fallire su codice pre-fix (4
+chiamate), passa col fix (1 chiamata). Suite `clustering`/`clustering_tuning`/`consensus_
+clustering` intera riverificata verde (78 test).
 
 ### 36. `clustering`: `tag_param` di `spectral` non corrisponde al parametro realmente swept
 
@@ -1275,7 +1390,13 @@ modo previsto per scegliere il valore dopo un tuning) generano lo **stesso ident
 (`nn50`, dato che `n_neighbors` non cambia mai) — le due cartelle di output finiscono con
 `effective_session_name` identico se `session_name` di base è lo stesso, collidendo su disco
 (`FileExistsError` con `overwrite=False`, o sovrascrittura silenziosa con `overwrite=True`)
-anche se rappresentano due configurazioni di clustering genuinamente diverse. **Stato: Aperto.**
+anche se rappresentano due configurazioni di clustering genuinamente diverse.
+
+**Stato: Implementato (21/08).** `config/registry/params_clustering.json`'s `"spectral"`:
+`tag_param` da `"n_neighbors"` a `"n_clusters"`, `tag_prefix` da `"nn"` a `"n_clust"` (stessa
+convenzione già usata da `"agglomerative"` per lo stesso parametro) — allineato a ciò che il
+`tuning_grid` sweeppa realmente. Fix di puro config, nessun codice toccato (nessun test
+asseriva il vecchio `tag_param`/`tag_prefix`, verificato via `grep -rn`).
 
 ### 37. `clustering`: budget split di `evidence_accumulation` (6) coincide col K finale
 
@@ -1303,14 +1424,25 @@ fini di 6 gruppi, il passo Merge (`threshold`) può solo *fondere* quei 6 gruppi
 finali, mai risolvere più dettaglio. Se il vero numero di cluster atteso nella coorte è
 effettivamente ~6, il metodo Evidence Accumulation degenera a "kmeans/spectral ripetuto 50 volte
 e quasi sempre d'accordo con se stesso" — perdendo l'intero vantaggio del metodo (scoprire
-struttura più fine tramite tanti micro-cluster, poi fusi solo dove davvero stabili). **Stato: Aperto.**
+struttura più fine tramite tanti micro-cluster, poi fusi solo dove davvero stabili).
+
+**Stato: Documentato, valore non cambiato (21/08, decisione utente).** Scelta di parametro
+scientifico, non un bug di codice — non modificabile a mia discrezione senza una decisione
+esplicita su quale nuovo valore usare (impatterebbe risultati di ricerca reali). Nota aggiunta
+in `docs/dev/models.md` (sezione evidence_accumulation) che documenta esplicitamente il
+problema e rimanda a questo finding — resta un promemoria per chi riprende in mano il tuning
+di `evidence_accumulation`, nessun cambiamento silenzioso ai risultati.
 
 ### 38. `clustering`: `docs/notes/` (incl. `clustering.md`) non esiste pur essendo citata come obbligatoria
 
 **Target**: stesso gap di #32, applicato a `docs/notes/clustering.md` — citata da
 `README.md`'s "What's implemented so far" ("methodology: `docs/notes/dim_reduction.md`/
 `clustering.md`") e da CLAUDE.md come sede delle "guide per-metodo... decisions log". Confermato
-`docs/notes/` assente sul disco (vedi #32). **Stato: Aperto.**
+`docs/notes/` assente sul disco (vedi #32).
+
+**Stato: Implementato (21/08) — vedi #32, stesso giro di fix.** `README.md` verificato: già
+punta a `knowledge/dim_reduction_clustering/` (non a `docs/notes/`), nessuna azione lì
+necessaria — il riferimento stale era solo in `.claude/CLAUDE.md`, corretto insieme a #32.
 
 ### 39. `dim_reduction_clustering`: `viz_embedding` calcolato incondizionatamente anche in `fine_tuning`, mai usato lì
 
@@ -1342,7 +1474,16 @@ lancio del tuning di clustering (che deve solo sweeppare gli iperparametri di cl
 sull'embedding a 10 componenti già fissato) paga comunque il costo di un secondo fit UMAP a 2
 componenti (il refit di `embedding_for_viz`) il cui risultato non viene mai letto in nessun
 punto del percorso `fine_tuning`, raddoppiando inutilmente il tempo di avvio di ogni sweep di
-clustering-tuning. **Stato: Aperto.**
+clustering-tuning.
+
+**Stato: Moot (21/08).** `dim_reduction_clustering.py` non esiste più (rimosso 14/08). La
+struttura che causava lo spreco (calcolo di `viz_embedding` prima del branch `if
+config.fine_tuning`, poi ignorato in quel branch) non ha un gemello vivo: `dim_reduction.py`
+(`main()`) biforca in `_run_fine_tuning`/`_run_production` **prima** di calcolare qualunque
+`viz_embedding` — nessuno spreco strutturalmente possibile. `clustering.py`, per design, non
+chiama mai `embed()`/`embedding_for_viz()` (vedi `docs/dev/models.md`'s sezione
+"reduced_data"). Verificato leggendo entrambi i moduli riga per riga prima di chiudere, non
+solo confidando nel titolo del finding. Nessuna azione.
 
 ### 40. `dim_reduction_clustering`: stesso spreco `evidence_accumulation` del #35
 
@@ -1350,7 +1491,13 @@ clustering-tuning. **Stato: Aperto.**
 (`_run_one_method_tuning`) → stessa `run_clustering_tuning_sweep` di #35, qui applicata
 all'embedding invece che alla matrice grezza. Stesso meccanismo, stesso fix mancante (separare
 il costo di `run_rsc_repeats` da quello di `assign_clusters_from_cooccurrence` per riusare la
-co-occurrence tra i valori di `threshold`). **Stato: Aperto.**
+co-occurrence tra i valori di `threshold`).
+
+**Stato: Chiuso, sussunto da #35 (21/08).** `dim_reduction_clustering.py` non esiste più —
+nessun call site separato da correggere. Il fix di #35 (`run_clustering_tuning_sweep` in
+`clustering_tuning.py`, condiviso da `clustering.py`'s tuning e — prima della rimozione — da
+`dim_reduction_clustering.py`'s tuning) copre per intero ciò che questo finding avrebbe
+richiesto. Nessuna azione separata.
 
 ### 41. `understanding_umap_report`: nessun caveat comunicato su come leggere UMAP/t-SNE
 
@@ -1368,7 +1515,18 @@ visivamente vicini nella Figure 1 e conclude che i due gruppi di pazienti sono "
 nessun avviso sulla pagina che le distanze tra cluster in UMAP non sono generalmente
 interpretabili in quel modo, un'inferenza clinica plausibile ma metodologicamente scorretta che
 il report stesso non fa nulla per prevenire, a differenza della pagina PAIR che lo dice
-esplicitamente proprio per questo motivo. **Stato: Aperto.**
+esplicitamente proprio per questo motivo.
+
+**Stato: Implementato (21/08).** Box `.caveats` aggiunto subito sotto il titolo della pagina
+(prima di "UMAP across parameters"), con i 3 avvertimenti PAIR tradotti/adattati verbatim nel
+contenuto ("Cluster sizes... mean nothing", "Distances between clusters might not mean
+anything", "You may need more than one plot" — quest'ultimo riformulato per collegarsi
+esplicitamente alla Figure 1 di questo stesso report). Non rimuove l'ambiguità interpretativa
+di UMAP/t-SNE in sé (nessun codice può farlo), ma la rende esplicita per il lettore non
+tecnico a cui il report è indirizzato. Test:
+`test_generate_report_includes_umap_interpretation_caveats`
+(`tests/unit/test_understanding_umap_report.py`) — verificato fallire su codice pre-fix
+(testo assente dall'HTML generato), passa col fix.
 
 ### 42. `understanding_umap_report`: riferimenti morti a `run_understanding_umap_dash`
 
@@ -1395,7 +1553,17 @@ presente"). Lesson #12.
 default è 8060 (non 8050) segue il riferimento a `src.pipeline.run_understanding_umap_dash` per
 vedere l'altra app e capire il conflitto di porta che l'8060 evita — il modulo non esiste più
 sotto `src/pipeline/`, la spiegazione del "perché 8060" fa riferimento a un fatto non più
-verificabile nel codice attuale. **Stato: Aperto.**
+verificabile nel codice attuale.
+
+**Stato: Implementato (21/08).** Entrambi i riferimenti rimossi. `embedding_app.py`'s
+docstring/commento riscritti senza menzionare `run_understanding_umap_dash` (che non è mai
+esistito come modulo sorgente in `src/pipeline/`, solo un residuo di bytecode `.pyc`) — il
+motivo "niente sbatch" resta (vero indipendentemente), il motivo "porta 8060 non-default"
+riformulato in modo generico ("per non collidere con un'altra istanza Dash locale già in
+esecuzione", vero anche senza citare un secondo tool specifico). `docs/guides/embedding_app.md`
+aggiornato per rimandare al vero tool sibling (`generate_understanding_umap_report.py`, HTML
+statico pre-generato, non un'app Dash — `docs/guides/understanding_umap_report.md`), non più
+citato come "se presente". Nessun test (fix di sola documentazione/docstring).
 
 ### 43. `embedding_app`: messaggio errore per embedding >3D indica il campo di config sbagliato
 
@@ -1425,7 +1593,9 @@ vede il messaggio "Rerun dim_reduction pipeline with viz_n_components 2 or 3" �
 `clustering.json` non ha affatto un campo `viz_n_components` da impostare, e anche rilanciando
 `clustering.py` la dimensionalità di `matrix.npy` resterebbe quella di X (fissata a monte da
 `build_lesion_matrix.py`, non da nessuna opzione di `clustering.py`): il messaggio indica
-un'azione che non risolverebbe il problema. **Stato: Aperto.**
+un'azione che non risolverebbe il problema.
+
+**Stato: Implementato (21/08) — vedi #44, stesso fix nello stesso punto.**
 
 ### 44. `embedding_app`: messaggio "rerun dim_reduction pipeline" impreciso per un run `clustering.py`
 
@@ -1436,7 +1606,17 @@ risalva inalterato) genera lo stesso messaggio fuorviante — "Rerun dim_reducti
 implica che la pipeline produttrice sia `dim_reduction.py`, quando in questo scenario è
 `clustering.py` a non aver mai avuto motivo/modo di ridurre la dimensionalità. Lesson #12
 (messaggio scritto per un solo consumatore, mai aggiornato quando l'app è stata estesa
-all'altro). **Stato: Aperto.**
+all'altro).
+
+**Stato: Implementato (21/08), stesso fix di #43.** `load_run` biforca ora sul `run.pipeline`
+del run indisplayable: per `"dim_reduction"` il messaggio resta quello originale
+("rerun dim_reduction.py with viz_n_components 2 or 3"); per ogni altra pipeline (oggi solo
+`"clustering"`) il messaggio dice esplicitamente che quella pipeline non riduce la
+dimensionalità da sé, e suggerisce di puntare `input_path` a una matrice già 2-o-3
+componenti (es. un output `dim_reduction.py`). Test:
+`test_load_run_undisplayable_clustering_run_does_not_suggest_viz_n_components`
+(`tests/unit/test_embedding_app.py`) — verificato fallire su codice pre-fix (messaggio
+conteneva `viz_n_components`), passa col fix.
 
 ### 45. `embedding_app`: `app.run()` non protetto da try/except
 
@@ -1454,7 +1634,17 @@ Lesson #9: nessuna protezione attorno alla chiamata che avvia il server Dash/Fla
 dell'app aperta in un altro terminale, o `run_understanding_umap_dash`/un altro servizio locale
 usa quella porta) — `app.run(...)` solleva `OSError: [Errno 48] Address already in use` come
 traceback grezzo, invece di un messaggio chiaro tipo "porta 8060 già in uso, scegli
-`--port` diverso o chiudi l'istanza precedente" con `return 1` pulito. **Stato: Aperto.**
+`--port` diverso o chiudi l'istanza precedente" con `return 1` pulito.
+
+**Stato: Implementato (21/08).** `app.run(...)` avvolta in `try/except OSError` →
+`logging.error` + `return 1`. `KeyboardInterrupt` (Ctrl+C, il meccanismo di stop documentato
+dell'app) deliberatamente **non** catturato — uno shutdown pulito, non un fallimento da
+segnalare. Nuovo file di test (`src/pipeline/embedding_app.py::main()` non aveva alcuna
+copertura diretta prima d'ora, solo `src/analysis/embedding_app.py` era testato):
+`tests/unit/test_pipeline_embedding_app.py` — 3 test (nessun run trovato, `build_app`
+ValueError, e la regressione `test_main_server_port_in_use_returns_1_not_raw_traceback`,
+`app.run()` monkeypatchato per sollevare `OSError`) — verificato fallire su codice pre-fix
+(`OSError` grezza), passa col fix (`return 1`).
 
 ### 46. `build_lesion_matrix`: `group_filter=None` salta la validazione naming soggetto
 
@@ -1470,7 +1660,20 @@ if group_filter is not None:
 concreto**: identico al #26 ma per `build_lesion_matrix.py`: con `group_filter=null`, un nome
 di cartella soggetto malformato (`sub_STUNIPD0099` invece di `sub-STUNIPD0099`, trattino
 sostituito da underscore in una copia manuale) non viene mai validato da `group_of`, entra
-silenziosamente nella matrice come se fosse un soggetto valido. **Stato: Aperto.**
+silenziosamente nella matrice come se fosse un soggetto valido.
+
+**Stato: Implementato (21/08), stesso giro di #26.** `_discover_lesion_files` costruisce ora
+`dir_groups = {s: group_of(s) for s in subject_dirs}` incondizionatamente, prima del branch
+`if group_filter is not None` — stesso schema esatto di #26, qui applicato a `subject_dirs`
+(che `discover_files_by_subject` non copre, essendo popolato da un glob di cartelle
+indipendente). Nota: per una cartella soggetto senza alcun file lesione al suo interno (0
+contributo a `by_subject`), il gap era comunque già parzialmente coperto dal controllo
+esistente "N subject dirs ma M lesion masks" (`ValueError` generico) — il fix rende
+l'errore specifico ("does not match expected naming") invece che un mismatch di conteggio
+poco informativo. Test:
+`test_build_lesion_matrix_malformed_subject_dir_name_raises_even_without_group_filter`
+(`tests/unit/test_features_lesion.py`) — verificato fallire su codice pre-fix (messaggio
+generico di mismatch, non la naming), passa col fix (messaggio esplicito sul naming).
 
 ### 47. `build_lesion_matrix`: `reference_template_path` di produzione è la maschera di un singolo paziente
 
@@ -1492,7 +1695,13 @@ quell'aspettativa, anche se lo spazio (`MNI152NLin6Asym`) è coerente.
 qualità dei dati, o il dataset WashU riorganizzato), l'intera griglia voxel di produzione
 dipenderebbe dal file di un singolo paziente che potrebbe non esistere più — un fallimento
 inatteso (`FileNotFoundError` su un percorso che sembra "template", non "soggetto specifico")
-per chiunque non sappia che quel path punta in realtà a dati di un paziente reale. **Stato: Aperto.**
+per chiunque non sappia che quel path punta in realtà a dati di un paziente reale.
+
+**Stato: Documentato, valore non cambiato (21/08, decisione utente).** Scelta di dato/config,
+non un bug di codice — cambiare a un vero template MNI152 altererebbe la griglia voxel di
+ogni matrice di produzione futura, una decisione che non mi compete prendere da solo. Nota
+aggiunta in `docs/dev/lesion_matrix.md` che documenta esplicitamente il rischio e rimanda a
+questo finding — promemoria per chi tocca `build_lesion_matrix.json` la prossima volta.
 
 ### 48. `build_lesion_matrix`: `excluded_by_group` mai persistito in `config.md`/manifest
 
@@ -1513,7 +1722,15 @@ soggetti invece dei ~1200 attesi per quei 4 dataset — il `config.md` non menzi
 soggetti sono stati esclusi da `group_filter` né chi erano, l'unica fonte è il file di log
 grezzo sotto `logs/build_lesion_matrix/`, che potrebbe essere stato pulito/ruotato nel
 frattempo (i log non sono un artefatto "permanente" allo stesso titolo di `config.md`).
-**Stato: Aperto.**
+
+**Stato: Implementato (21/08), insieme a #49 (stesso file, stesso giro di edit).**
+`_summary_lines` ora aggiunge sempre una sezione "## Excluded by group_filter" — lista i
+subject_id esclusi (con `config.group_filter` per contesto) o "None." se nessuno escluso.
+`excluded_by_group` propagato attraverso `_build_readme_lines`/`_build_report`/`_write_report`
+(nuovo parametro in ciascuna). Test:
+`test_build_lesion_matrix_group_filter_excludes_hc` (`tests/integration/
+test_build_lesion_matrix_pipeline.py`, esteso con nuove assert) — verificato fallire su
+codice pre-fix (`config.md` senza traccia dell'esclusione), passa col fix.
 
 ### 49. `build_lesion_matrix`: `params_summary` più povero dei sibling
 
@@ -1527,7 +1744,17 @@ programmatico da `embedding_app.py::run_params`, vedi finding #25), `build_lesio
 (che include già `binarize_threshold`/`resample_interpolation`/etc., quindi l'informazione
 *c'è*, ma non nella forma "Params used: {...}" a riga singola che gli altri script standardizzano
 e che un consumatore automatico potrebbe cercare per coerenza tra le 4 pipeline di modellazione.
-**Stato: Aperto.**
+
+**Stato: Implementato (21/08), vedi #48.** Nuovo helper `_params_used(config)` — stesso dict
+già passato ad `append_run_log_entry` (`{"parcellate": ..., "binarize_threshold": ...}`, i
+campi che davvero controllano la costruzione della matrice) — esposto anche come riga
+`f"Params used: {json.dumps(...)}"` in `_summary_lines`, stessa convenzione a riga singola di
+`dim_reduction.py`/`clustering.py`. `embedding_app.py::run_params` non scopre comunque run
+`build_lesion_matrix.py` oggi (`PRODUCTION_PIPELINES` include solo `dim_reduction`/
+`clustering`) — questo fix è per coerenza tra le 4 pipeline, non chiude un gap funzionale
+attivo. Test: `test_build_lesion_matrix_config_md_has_params_used_line`
+(`tests/integration/test_build_lesion_matrix_pipeline.py`) — verificato fallire su codice
+pre-fix (riga assente), passa col fix.
 
 ---
 
@@ -1863,9 +2090,17 @@ messaggio che non indica affatto la causa reale (`binarize_threshold` troppo alt
 
 ## Verificato e corretto
 
-(da riempire a lavoro concluso)
+**MEDIUM (#26-#49) — giro chiuso il 21/08/26.** 18 finding implementati con fix di
+codice/config + test di regressione (#26, #27, #28, #29, #30, #31 [solo test coverage,
+nessun bug], #34, #35, #36, #41, #43, #44, #45, #46, #48, #49), 4 di sola documentazione
+(#32, #33, #38, #42), 2 documentati senza cambiare valori scientifici su decisione utente
+(#37, #47), 2 chiusi in triage come moot/sussunti dalla rimozione di `dim_reduction_clustering.py`
+(#39, #40). Suite intera riverificata verde: **727 passed, 0 failed, 12 skipped** (esclusi i 2
+file `bcblib`-dipendenti). LOW (#50-68) non ancora affrontati.
 
 ## Lezioni apprese
 
-(da appendere a `.claude/lessons_learned.md` solo per pattern genuinamente nuovi emersi durante i
-fix — non ancora applicabile, nessun fix implementato in questa sessione)
+Aggiunta `lessons_learned.md` #28 (21/08): tightening di una validazione condivisa e a basso
+livello (`group_of()` sempre chiamata, #26/#46) ha rotto 44 test in 5 file, tutti non
+correlati al codice toccato — il vero raggio d'impatto era invisibile leggendo solo il diff,
+visibile solo eseguendo la suite. Vedi `lessons_learned.md` per il testo completo.

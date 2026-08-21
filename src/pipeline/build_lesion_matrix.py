@@ -104,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
             output_dir,
             X,
             metadata,
-            _build_readme_lines(config, X, metadata, parcel_ids, now),
+            _build_readme_lines(config, X, metadata, parcel_ids, excluded_by_group, now),
             overwrite=config.overwrite,
             extra_arrays=extra_arrays,
         )
@@ -125,7 +125,7 @@ def main(argv: list[str] | None = None) -> int:
         logging.info("parcellated QC volumes written to %s", output_dir / "parcellated_volumes")
 
     try:
-        report_path = _write_report(config, X, metadata, parcel_ids, now)
+        report_path = _write_report(config, X, metadata, parcel_ids, excluded_by_group, now)
         append_run_log_entry(
             config.output_root,
             config.session_name,
@@ -180,11 +180,26 @@ def _config_summary(config: BuildMatrixConfig) -> str:
     return json.dumps(payload, indent=2)
 
 
+def _params_used(config: BuildMatrixConfig) -> dict:
+    """Same params dict passed to append_run_log_entry (main()) - the fields that actually
+    control matrix construction. AUDIT_FINDINGS.md #49: exposed here too as a single
+    "Params used: {...}" line (_summary_lines below), the same line-per-run convention
+    dim_reduction.py/clustering.py already standardize on (and embedding_app.py's
+    run_params already parses for those two pipelines) - this pipeline had only the
+    generic full-config JSON dump, never that single-line form."""
+    return {"parcellate": config.parcellate, "binarize_threshold": config.binarize_threshold}
+
+
 def _summary_lines(
-    config: BuildMatrixConfig, X: np.ndarray, metadata: pd.DataFrame, parcel_ids: np.ndarray | None
+    config: BuildMatrixConfig,
+    X: np.ndarray,
+    metadata: pd.DataFrame,
+    parcel_ids: np.ndarray | None,
+    excluded_by_group: list[str],
 ) -> list[str]:
     lines = ["## Config", "", "```json", _config_summary(config), "```", "", "## Summary", ""]
     lines.append(f"Matrix shape: {X.shape[0]} subjects x {X.shape[1]} features")
+    lines.append(f"Params used: {json.dumps(_params_used(config))}")
     if parcel_ids is not None:
         lines.append(f"Parcellated: true ({parcel_ids.shape[0]} atlas parcels survived the constant-feature drop)")
     else:
@@ -192,33 +207,58 @@ def _summary_lines(
     lines += ["", "| dataset | subjects |", "|---|---|"]
     for name, count in _dataset_counts(metadata).items():
         lines.append(f"| {name} | {count} |")
+    # AUDIT_FINDINGS.md #48: excluded_by_group used to be logged only (logs/ isn't a
+    # permanent artifact the way config.md is) - now persisted here too, so "why does this
+    # matrix have fewer subjects than expected" is answerable from config.md alone, months
+    # later, without the run's original log file.
+    lines += ["", "## Excluded by group_filter", ""]
+    if excluded_by_group:
+        lines.append(f"{len(excluded_by_group)} subject(s) excluded (group_filter={config.group_filter}):")
+        lines += [f"- {subject_id}" for subject_id in excluded_by_group]
+    else:
+        lines.append("None.")
     return lines
 
 
 def _build_readme_lines(
-    config: BuildMatrixConfig, X: np.ndarray, metadata: pd.DataFrame, parcel_ids: np.ndarray | None, now: datetime
+    config: BuildMatrixConfig,
+    X: np.ndarray,
+    metadata: pd.DataFrame,
+    parcel_ids: np.ndarray | None,
+    excluded_by_group: list[str],
+    now: datetime,
 ) -> list[str]:
     return [f"# {config.project} lesion matrix — {now.strftime('%d-%m-%y %H:%M')}", ""] + _summary_lines(
-        config, X, metadata, parcel_ids
+        config, X, metadata, parcel_ids, excluded_by_group
     )
 
 
 def _build_report(
-    config: BuildMatrixConfig, X: np.ndarray, metadata: pd.DataFrame, parcel_ids: np.ndarray | None, now: datetime
+    config: BuildMatrixConfig,
+    X: np.ndarray,
+    metadata: pd.DataFrame,
+    parcel_ids: np.ndarray | None,
+    excluded_by_group: list[str],
+    now: datetime,
 ) -> str:
     lines = [f"# {config.project}_{now.strftime('%d-%m-%y')}", f"## {now.strftime('%H:%M')}", ""] + _summary_lines(
-        config, X, metadata, parcel_ids
+        config, X, metadata, parcel_ids, excluded_by_group
     )
     return "\n".join(lines)
 
 
 def _write_report(
-    config: BuildMatrixConfig, X: np.ndarray, metadata: pd.DataFrame, parcel_ids: np.ndarray | None, now: datetime
+    config: BuildMatrixConfig,
+    X: np.ndarray,
+    metadata: pd.DataFrame,
+    parcel_ids: np.ndarray | None,
+    excluded_by_group: list[str],
+    now: datetime,
 ) -> Path:
     report_dir = REPORTS_ROOT / config.project
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.md"
-    report_path.write_text(_build_report(config, X, metadata, parcel_ids, now))
+    report_path.write_text(_build_report(config, X, metadata, parcel_ids, excluded_by_group, now))
     return report_path
 
 

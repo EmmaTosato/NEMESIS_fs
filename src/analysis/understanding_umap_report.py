@@ -822,7 +822,17 @@ body {{ font-family: -apple-system, "system-ui", "Segoe UI", Roboto, Oxygen-Sans
        /* Plain white page, no dark-mode variant - explicit here so the page doesn't
        inherit a dark host background when left unset. */
        background: #fff; }}
-.page-title {{ font-size: 32px; font-weight: 800; text-align: center; margin: 8px 0 48px; }}
+.page-title {{ font-size: 32px; font-weight: 800; text-align: center; margin: 8px 0 8px; }}
+/* AUDIT_FINDINGS.md #41: the pair-code.github.io/understanding-umap page this report's
+   layout is modeled on carries explicit interpretive warnings ("Cluster sizes in a UMAP
+   plot mean nothing", "Distances between clusters might not mean anything", "You may need
+   more than one plot") that this report's own figures never reproduced in any form -
+   easy to misread as "these clusters look close, so these patient groups are similar",
+   a plausible but methodologically wrong inference this box exists to head off. */
+.caveats {{ max-width: 900px; margin: 0 auto 48px; padding: 16px 24px; border-radius: 8px;
+            background: #fff8e6; border: 1px solid #f0dca0; font-size: 14px; line-height: 1.6; }}
+.caveats .caveats-title {{ font-weight: 700; margin-bottom: 6px; }}
+.caveats ul {{ margin: 4px 0 0; padding-left: 20px; }}
 .section-title {{ font-size: 20px; font-weight: 700; text-align: center; color: {_TEXT_COLOR};
                   margin: 64px 0 32px; }}
 /* Bumped from 13px (illegible next to the 20px section-title above it, on request
@@ -995,6 +1005,21 @@ def build_leaf_page(
 <style>{_CSS}</style></head><body>
 
 <div class="page-title">Understanding UMAP</div>
+
+<div class="caveats">
+  <div class="caveats-title">Before reading these plots</div>
+  <ul>
+    <li><b>Cluster sizes in a UMAP/t-SNE plot mean nothing.</b> These methods don't preserve density - a visually
+      large group of points is not necessarily a larger patient group, and a tight group is not necessarily more
+      homogeneous.</li>
+    <li><b>Distances between clusters might not mean anything.</b> Two groups drawn close together are not
+      necessarily more clinically similar than two groups drawn far apart - global distances in these embeddings
+      are not generally interpretable that way.</li>
+    <li><b>You may need more than one plot.</b> A single UMAP/t-SNE run at one hyperparameter setting is one
+      possible view of the data, not the definitive one - that's the entire reason this report shows a grid of
+      settings (Figure 1) rather than a single image.</li>
+  </ul>
+</div>
 
 <div class="section-title">UMAP across parameters</div>
 <div class="section-note">Real data - {len(real_metadata)} lesion subjects, production tuning run</div>

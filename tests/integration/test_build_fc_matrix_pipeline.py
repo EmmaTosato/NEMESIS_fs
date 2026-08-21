@@ -106,3 +106,39 @@ def test_build_fc_matrix_missing_input_raises(tmp_path, monkeypatch):
     config_path = _write_config(tmp_path, tmp_path / "does_not_exist", tmp_path / "out")
     exit_code = build_fc_matrix.main(["--config", str(config_path)])
     assert exit_code == 1
+
+
+def test_build_fc_matrix_one_combo_not_ready_does_not_abort_the_others(tmp_path, monkeypatch):
+    """AUDIT_FINDINGS.md #29 regression: atlas_combos are independent - a combo whose
+    masked_fc/<combo>/ input isn't ready yet (e.g. mask_fc.py not rerun for it) must not
+    abort combos that ARE ready in the same run. Pre-fix, the first combo in config order
+    (alphabetically "ComboMissing" < "ComboReady") aborted main() via return 1 before
+    "ComboReady" - genuinely complete - was ever processed.
+    """
+    monkeypatch.setattr(build_fc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_fc_matrix, "LOGS_ROOT", tmp_path / "logs")
+
+    masked_fc_root = tmp_path / "masked_fc"
+    output_root = tmp_path / "out"
+    node_names = ["A", "B", "C"]
+    fc1 = pd.DataFrame([[1.0, 0.1, 0.2], [0.1, 1.0, 0.3], [0.2, 0.3, 1.0]], index=node_names, columns=node_names)
+    fc2 = pd.DataFrame([[1.0, 0.5, 0.2], [0.5, 1.0, 0.6], [0.2, 0.6, 1.0]], index=node_names, columns=node_names)
+    _write_masked_fc(masked_fc_root, "ComboReady", "sub-01", fc1)
+    _write_masked_fc(masked_fc_root, "ComboReady", "sub-02", fc2)
+    # "ComboMissing" never got a masked_fc/ folder at all (mask_fc.py hasn't been run for it).
+
+    config_path = _write_config(
+        tmp_path, masked_fc_root, output_root, overrides={"atlas_combos": ["ComboMissing", "ComboReady"]}
+    )
+    exit_code = build_fc_matrix.main(["--config", str(config_path)])
+    assert exit_code == 0
+
+    combo_out_dirs = [p for p in (output_root / "ComboReady").iterdir() if p.is_dir()]
+    assert len(combo_out_dirs) == 1
+    assert not (output_root / "ComboMissing").exists()
+
+    report_path = next((tmp_path / "summaries" / "testproj").glob("*.md"))
+    report_text = report_path.read_text()
+    assert "ComboReady" in report_text
+    assert "Skipped" in report_text
+    assert "ComboMissing" in report_text

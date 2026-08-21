@@ -58,6 +58,18 @@ def test_discover_files_by_subject_applies_group_filter(tmp_path):
     assert excluded == ["sub-STUNIPDHC0001"]
 
 
+def test_discover_files_by_subject_malformed_name_raises_even_without_group_filter(tmp_path):
+    """AUDIT_FINDINGS.md #26 regression: group_of() (which validates the ST/HC/PD/GM
+    naming convention) used to run only when group_filter was set - a malformed
+    subject_id (here missing the dash after "sub") passed through silently whenever
+    group_filter=None, the most common config (lesson #4)."""
+    dataset_root = tmp_path / "siteA"
+    _touch(dataset_root / "subSTUNIPD9999_label-lesion_mask.nii.gz")
+
+    with pytest.raises(ValueError, match="subSTUNIPD9999"):
+        discover_files_by_subject(tmp_path, "siteA", "*_label-lesion_mask.nii.gz", None)
+
+
 def test_discover_files_by_subject_nested_glob_folder_matches_filename(tmp_path):
     """Real production glob shape (manual_masks/*/anat/...) - the subject directory
     segment must be cross-checked against the filename, not just used to discover files."""

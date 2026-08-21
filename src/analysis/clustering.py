@@ -81,12 +81,24 @@ def evidence_accumulation_cluster(X: np.ndarray, params: dict) -> np.ndarray:
     diagnostics, so a module-level import here in the other direction would
     be circular.
     """
-    from src.analysis.consensus_clustering import (
-        CONSENSUS_ELIGIBLE_METHODS,
-        K_PARAM_NAME,
-        assign_clusters_from_cooccurrence,
-        run_rsc_repeats,
-    )
+    from src.analysis.consensus_clustering import assign_clusters_from_cooccurrence, run_rsc_repeats
+
+    base_method, split_params, n_repeats, base_seed, threshold = _validate_evidence_accumulation_params(params)
+    co_occurrence = run_rsc_repeats(base_method, X, split_params, n_repeats, base_seed=base_seed)
+    return assign_clusters_from_cooccurrence(co_occurrence, threshold)
+
+
+def _validate_evidence_accumulation_params(params: dict) -> tuple[str, dict, int, int, float]:
+    """Parsing/validation shared between evidence_accumulation_cluster above and its
+    tuning-sweep fast path (clustering_tuning.py - AUDIT_FINDINGS.md #35): split into its
+    own function so both call sites raise identically instead of duplicating this logic.
+    Returns (base_method, split_params, n_repeats, base_seed, threshold) - split_params is
+    `params` with base_method/n_repeats/base_seed/threshold popped, i.e. exactly what
+    run_rsc_repeats needs (base_method's own hyperparameters, including the Split-phase
+    K_PARAM_NAME[base_method]) - never threshold, which only drives the separate,
+    cheap Merge-phase cut (assign_clusters_from_cooccurrence).
+    """
+    from src.analysis.consensus_clustering import CONSENSUS_ELIGIBLE_METHODS, K_PARAM_NAME
 
     params = dict(params)
     if "base_method" not in params:
@@ -115,9 +127,7 @@ def evidence_accumulation_cluster(X: np.ndarray, params: dict) -> np.ndarray:
             "evidence_accumulation does not take a fixed 'random_state' - each of the n_repeats runs gets its own "
             "seed (base_seed + i) internally; a single shared random_state would make every repeat identical"
         )
-
-    co_occurrence = run_rsc_repeats(base_method, X, params, n_repeats, base_seed=base_seed)
-    return assign_clusters_from_cooccurrence(co_occurrence, threshold)
+    return base_method, params, n_repeats, base_seed, threshold
 
 
 CLUSTERING_METHODS: dict[str, Callable[[np.ndarray, dict], np.ndarray]] = {

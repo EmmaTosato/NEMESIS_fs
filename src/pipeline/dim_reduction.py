@@ -418,8 +418,16 @@ def _write_nested_tuning_leaves(
     n_components=_TUNING_GRID_N_COMPONENTS leaf to be redundant with - the
     refit is otherwise the only way to see this leaf's neighborhood structure
     in 2D at all.
+
+    AUDIT_FINDINGS.md #34: distance_cache is created once here (shared across
+    every leaf's own _build_grid_blocks call, not per-leaf) so a
+    jaccard/dice binary_pairwise_distance matrix is computed at most once per
+    metric value for the whole embeddings_grid pass, not once per refit cell
+    - the same sharing _run_production/_run_fine_tuning's main sweep already
+    get, previously missing only from this post-hoc grid-plot refit.
     """
     keys = list(tuning_grid.keys())
+    distance_cache: dict[str, np.ndarray] = {}
     for group_key, group in results.groupby(nested_params, sort=False):
         raw_values = group_key if isinstance(group_key, tuple) else (group_key,)
         leaf = {name: (value.item() if hasattr(value, "item") else value) for name, value in zip(nested_params, raw_values)}
@@ -433,7 +441,9 @@ def _write_nested_tuning_leaves(
         if not config.write_embeddings_grid:
             continue
 
-        blocks = _build_grid_blocks(free_params, tuning_grid, keys, leaf, base_params, embeddings_by_combo, config, X)
+        blocks = _build_grid_blocks(
+            free_params, tuning_grid, keys, leaf, base_params, embeddings_by_combo, config, X, distance_cache
+        )
         leaf_title = compose_tuning_leaf_title(output_dir, config.reduction_method, leaf)
         write_embedding_grid(
             blocks,
@@ -455,6 +465,7 @@ def _build_grid_blocks(
     embeddings_by_combo: dict[tuple, np.ndarray],
     config: DimReductionConfig,
     X: np.ndarray,
+    distance_cache: dict[str, np.ndarray],
 ) -> list[tuple[str, list[tuple[str, np.ndarray]]]]:
     """For each free parameter, one cell per value it can take - every other
     free parameter held at base_params' own value (must be one of that
@@ -495,7 +506,7 @@ def _build_grid_blocks(
             embedding = embeddings_by_combo[combo]
             combo_params = {**base_params, **dict(zip(keys, combo))}
             viz_embedding = embedding_for_viz(
-                config.reduction_method, X, combo_params, embedding, _TUNING_GRID_N_COMPONENTS
+                config.reduction_method, X, combo_params, embedding, _TUNING_GRID_N_COMPONENTS, distance_cache
             )
             cells.append((str(value), viz_embedding))
         blocks.append((varying, cells))

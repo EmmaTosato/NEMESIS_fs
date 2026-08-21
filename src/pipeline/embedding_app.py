@@ -6,9 +6,8 @@ production run under --results-root (src.analysis.embedding_app.PRODUCTION_PIPEL
 pick one from a dropdown and a color mode from a button group, and renders it as an interactive
 2D or 3D Plotly scatter - see docs/guides/embedding_app.md.
 
-Local dev tool, never sbatch (same reasoning as
-src.pipeline.run_understanding_umap_dash: an interactive app with no batch-job shape has
-nothing for SLURM to do - it just needs a browser pointed at whichever machine runs this).
+Local dev tool, never sbatch - an interactive app with no batch-job shape has nothing for
+SLURM to do, it just needs a browser pointed at whichever machine runs this.
 
 Usage:
     conda activate nemesis
@@ -31,10 +30,8 @@ from src.analysis.embedding_app import build_app, discover_production_runs
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--results-root", default="results", help="Root results/ directory to scan (default: results)")
-    # 8060, not Dash's own default 8050 - src.pipeline.run_understanding_umap_dash already
-    # binds 8050 by default, and the two apps are meant to run side by side (one explores
-    # production runs, the other explores tuning sweeps - see src/analysis/embedding_app.py's
-    # module docstring for why they're separate tools), not fight over the same port.
+    # 8060, not Dash's own default 8050 - deliberately non-default so this app doesn't collide
+    # with another local Dash instance a developer might already have running on 8050.
     parser.add_argument("--port", type=int, default=8060, help="Local port to serve on (default: 8060)")
     parser.add_argument("--debug", action="store_true", help="Enable Dash's debug mode (auto-reload, in-browser error overlay)")
     args = parser.parse_args(argv)
@@ -58,7 +55,16 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     logging.info("serving %d run(s) on http://127.0.0.1:%d - Ctrl+C to stop", len(runs), args.port)
-    app.run(debug=args.debug, port=args.port)
+    try:
+        # AUDIT_FINDINGS.md #45: OSError (e.g. "Address already in use" from a
+        # leftover instance on the same --port) used to propagate as a raw traceback.
+        # KeyboardInterrupt (Ctrl+C, this app's own documented stop mechanism, logged
+        # above) is deliberately NOT caught here - that's a normal, clean shutdown, not
+        # a failure to report.
+        app.run(debug=args.debug, port=args.port)
+    except OSError as exc:
+        logging.error("cannot start the server on port %d: %s", args.port, exc, exc_info=True)
+        return 1
     return 0
 
 

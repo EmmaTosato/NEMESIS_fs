@@ -176,6 +176,24 @@ def test_generate_report_writes_one_html_per_metric(tmp_path):
     assert f"subjects:</span> {len(_SUBJECT_IDS)}" in html
 
 
+def test_generate_report_includes_umap_interpretation_caveats(tmp_path):
+    """AUDIT_FINDINGS.md #41 regression: the page reproduces pair-code.github.io/
+    understanding-umap's layout (grid/slider/UMAP-vs-t-SNE comparison) but used to drop
+    that page's own explicit interpretive warnings entirely - a non-technical reader could
+    see two visually close clusters and wrongly conclude the underlying patient groups are
+    clinically similar, exactly what those warnings exist to prevent."""
+    umap_dir = _write_umap_tuning_dir(tmp_path / "umap")
+    tsne_dir = _write_tsne_tuning_dir(tmp_path / "tsne")
+    output_dir = tmp_path / "out"
+
+    output_paths = generate_report(umap_dir, tsne_dir, output_dir)
+    html = output_paths[0].read_text()
+
+    assert "Cluster sizes" in html and "mean nothing" in html
+    assert "Distances between clusters" in html
+    assert "more than one plot" in html
+
+
 def test_generate_report_raises_on_cohort_mismatch(tmp_path):
     umap_dir = _write_umap_tuning_dir(tmp_path / "umap")
     tsne_dir = _write_tsne_tuning_dir(tmp_path / "tsne")
