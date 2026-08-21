@@ -46,7 +46,8 @@ import plotly.graph_objects as go
 from dash import ALL, Dash, Input, Output, State, ctx, dcc, html
 from dash.exceptions import PreventUpdate
 
-from src.analysis.embedding_coloring import COLOR_MODES, PERSISTED_COLUMN_BY_MODE
+from src.analysis.embedding_coloring import COLOR_MODES
+from src.analysis.embedding_coloring import color_values as read_color_values
 from src.analysis.plotting import _CATEGORICAL_PALETTE, _NOISE_COLOR, compose_embedding_plot_title
 from src.utils.artifacts import MANIFEST_FILENAME, load_matrix
 
@@ -445,12 +446,7 @@ def build_embedding_figure(
         fig.add_trace(scatter_cls(**_trace_kwargs(), mode="markers", marker=dict(color="#3aa9e0", **marker_kwargs)))
     else:
         mode = COLOR_MODES[mode_name]
-        column = PERSISTED_COLUMN_BY_MODE[mode_name]
-        if column not in metadata.columns:
-            raise ValueError(
-                f"metadata has no {column!r} column for color mode {mode_name!r} - rerun dim_reduction.py to add it"
-            )
-        values = metadata[column].to_numpy()
+        values = read_color_values(metadata, mode_name)
 
         if mode.kind == "categorical":
             unique_categories = sorted(pd.unique(values).tolist())

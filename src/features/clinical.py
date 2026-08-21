@@ -4,20 +4,31 @@ Used to join a lesion/FC feature matrix's subjects against behavioral deficit
 scores (NIHSS, ARAT, 9HPT, Boston naming, Clock, Corsi - see
 docs/guides/datasets.md) for the lesion-deficit vs FC-deficit prediction
 pipeline (src/pipeline/predict_deficit.py), reproducing Siegel et al. 2016
-(docs/notes/Siegel2016_Reproduction.md). join_lesion_side/join_nihss serve
-a different consumer (dim_reduction.py's
-embedding_plot_side.*/embedding_plot_nihss.*, via
-enrich_metadata_with_lesion_info) but read the same per-dataset
-participants.tsv files, via the same load_participants.
+(docs/notes/Siegel2016_Reproduction.md). join_lesion_side/join_nihss also
+back src.pipeline.enrich_lesion_metadata's lesion_side/NIHSS columns (see
+that module and src/analysis/embedding_coloring.py's color_values for the
+consumers that read them back out of metadata.csv - never recomputed live),
+reading the same per-dataset participants.tsv files via load_participants.
 
 participants.tsv's own subject-id column is "participant_id" - renamed to
 "subject_id" here, to match the join key already used by every matrix
 artifact's metadata.csv (src/utils/artifacts.py).
+
+check_participant_variable_coverage/join_participant_variables (2026-08-17) generalize
+join_lesion_side/join_nihss's per-dataset join to an arbitrary, caller-chosen column list
+(age, sex, education, lesion_side, clinical_date, NIHSS, ...) instead of those two
+hardcoded ones - the mechanism src.pipeline.enrich_lesion_metadata uses to build an
+enriched clinical metadata table. join_lesion_side/join_nihss are kept as their own
+functions (not rewritten as thin wrappers around the generic one) since their
+"unknown"-string/NaN-float missing-value conventions are real, depended-upon contracts for
+their own consumers (embedding_coloring.py's categorical/continuous plotting) - the generic
+joiner makes no such per-variable type assumption.
 """
 
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -209,42 +220,144 @@ def join_nihss(metadata: pd.DataFrame) -> pd.Series:
     return metadata["subject_id"].map(nihss_by_subject)
 
 
-def enrich_metadata_with_lesion_info(metadata: pd.DataFrame, X: np.ndarray) -> pd.DataFrame:
-    """Adds lesion_volume_voxels/lesion_side/nihss to a copy of metadata.
+@dataclass(frozen=True)
+class VariableCoverageReport:
+    """What join_participant_variables would do for (metadata, variables), computed once
+    and shared by both the human-readable report writer (src.pipeline.enrich_lesion_metadata)
+    and the join itself - so the report shown to a human before writing anything can never
+    disagree with what the join actually does.
 
-    Single source of truth for the enrichment every embedding-producing
-    pipeline saves alongside its output - currently only dim_reduction.py
-    (see docs/dev/plotting.md). X must be the raw voxel-wise lesion matrix
-    (same row count/order as metadata, checked below) - lesion volume is
-    X.sum(axis=1), a voxel count, not ml (a scalar rescaling, no need to
-    convert here either) - only valid when X is strictly binary (checked
-    below).
+    datasets: every distinct metadata["dataset"] value, sorted.
+    missing_dataset_files: dataset -> expected participants.tsv path that doesn't exist at
+      all - a hard problem (wrong dataset name, or genuinely not onboarded yet).
+    missing_subjects_by_dataset: dataset -> subject_ids present in metadata but absent from
+      that dataset's own (existing) participants.tsv - a hard problem (data mismatch between
+      the matrix and the clinical registry, never a legitimate "missing" case).
+    missing_variable_by_dataset: dataset -> requested variables that dataset's participants.tsv
+      doesn't have as a column at all - a known, structural per-dataset gap (e.g. PASPORT has
+      no baseline NIHSS, no lesion_side), NOT a hard problem: every subject in that dataset
+      gets NaN for that column.
+    n_subjects_by_dataset: dataset -> subject count in metadata, for the report's own totals.
 
-    Raises ValueError if X and metadata don't have matching row counts, if X
-    isn't strictly binary (2026-08, literature-validation review:
-    build_lesion_matrix.py can produce a continuous matrix in [0, 1] instead
-    of a binary one when parcellate=True/parcel_aggregation="fraction_lesioned"
-    - X.sum(axis=1) on that input is a sum of per-parcel fractions, neither a
-    voxel count nor proportional to lesion volume in ml, so the resulting
-    "lesion_volume_voxels" column and its regress_out_volume/color_by="volume"
-    consumers would be silently wrong), and propagates join_lesion_side's/
-    join_nihss's own FileNotFoundError/ValueError verbatim - an unresolvable
-    dataset or subject is a real data problem, never swallowed here.
+    A report is safe to join from (write metadata.csv) iff both
+    missing_dataset_files and missing_subjects_by_dataset are empty - see
+    join_participant_variables/src.pipeline.enrich_lesion_metadata's own gating on this.
     """
-    if X.shape[0] != len(metadata):
+
+    datasets: list[str]
+    missing_dataset_files: dict[str, Path]
+    missing_subjects_by_dataset: dict[str, list[str]]
+    missing_variable_by_dataset: dict[str, list[str]]
+    n_subjects_by_dataset: dict[str, int]
+
+    @property
+    def has_hard_failures(self) -> bool:
+        return bool(self.missing_dataset_files) or bool(self.missing_subjects_by_dataset)
+
+
+def _participants_tsv_path(dataset: str) -> Path:
+    return METADATA_ROOT / f"{dataset.replace('/', '_')}_participants_lesions.tsv"
+
+
+def check_participant_variable_coverage(metadata: pd.DataFrame, variables: list[str]) -> VariableCoverageReport:
+    """Checks, for every dataset in `metadata`, whether its participants.tsv exists, whether
+    every metadata subject has a row in it, and which of `variables` that dataset's tsv
+    actually has as a column - without joining or raising itself (see join_participant_variables
+    for the version that acts on this). Read-only, safe to call purely to build a report.
+
+    Raises ValueError if `metadata` lacks "subject_id"/"dataset" (same contract as
+    join_lesion_side/join_nihss - every matrix artifact's metadata.csv already has both).
+    """
+    if "subject_id" not in metadata.columns or "dataset" not in metadata.columns:
         raise ValueError(
-            f"X has {X.shape[0]} rows but metadata has {len(metadata)} rows - must match"
+            f"check_participant_variable_coverage needs 'subject_id' and 'dataset' columns, "
+            f"got {list(metadata.columns)}"
         )
-    if not np.all((X == 0) | (X == 1)):
-        raise ValueError(
-            "enrich_metadata_with_lesion_info requires a strictly binary (0/1) X - "
-            "lesion_volume_voxels is computed as X.sum(axis=1), which is only a real voxel "
-            "count (and only proportional to lesion volume in ml) for a binary voxel-wise "
-            "matrix. A parcellated 'fraction_lesioned' matrix (continuous in [0, 1]) would "
-            "silently produce a value that is neither - pass the raw voxel-wise matrix instead"
+
+    datasets = sorted(metadata["dataset"].unique())
+    missing_dataset_files: dict[str, Path] = {}
+    missing_subjects_by_dataset: dict[str, list[str]] = {}
+    missing_variable_by_dataset: dict[str, list[str]] = {}
+    n_subjects_by_dataset: dict[str, int] = {}
+
+    for dataset in datasets:
+        subject_ids = metadata.loc[metadata["dataset"] == dataset, "subject_id"]
+        n_subjects_by_dataset[dataset] = len(subject_ids)
+        path = _participants_tsv_path(dataset)
+        if not path.is_file():
+            missing_dataset_files[dataset] = path
+            continue
+
+        participants = load_participants(path)
+        missing_subjects = sorted(set(subject_ids) - set(participants["subject_id"]))
+        if missing_subjects:
+            missing_subjects_by_dataset[dataset] = missing_subjects
+
+        missing_variables = sorted(v for v in variables if v not in participants.columns)
+        if missing_variables:
+            missing_variable_by_dataset[dataset] = missing_variables
+
+    return VariableCoverageReport(
+        datasets=datasets,
+        missing_dataset_files=missing_dataset_files,
+        missing_subjects_by_dataset=missing_subjects_by_dataset,
+        missing_variable_by_dataset=missing_variable_by_dataset,
+        n_subjects_by_dataset=n_subjects_by_dataset,
+    )
+
+
+def join_participant_variables(metadata: pd.DataFrame, variables: list[str]) -> pd.DataFrame:
+    """Adds one column per name in `variables` to a copy of metadata, joined per-dataset from
+    assets/metadata/*_participants_lesions.tsv - the same per-dataset join join_lesion_side/
+    join_nihss already do, generalized to an arbitrary, config-driven column list (age, sex,
+    education, lesion_side, clinical_date, NIHSS, or any other column a dataset's own
+    participants.tsv has) instead of those two hardcoded ones.
+
+    Values are copied as-is (participants.tsv is read as dtype=str throughout this module -
+    see load_participants) after normalizing the "n/a" sentinel to a real NaN
+    (_normalize_missing) - no numeric/categorical coercion is attempted here, unlike
+    join_nihss's own float() cast, since this function has no fixed idea of what kind of
+    value a caller-chosen variable holds; a consumer that needs a specific dtype converts it
+    itself.
+
+    Raises FileNotFoundError if a dataset in metadata has no participants.tsv at all, or
+    ValueError if a subject has no row at all in its dataset's participants.tsv (both re-derived
+    from check_participant_variable_coverage, so this function is safe to call on its own -
+    it does not trust a caller to have checked first). A variable missing from one dataset's
+    own tsv (a structural gap) is NOT an error: every subject in that dataset gets NaN for
+    that column, logged once at WARNING - same convention as join_lesion_side/join_nihss.
+    """
+    coverage = check_participant_variable_coverage(metadata, variables)
+    if coverage.missing_dataset_files:
+        details = "; ".join(f"{d}: expected {p}" for d, p in sorted(coverage.missing_dataset_files.items()))
+        raise FileNotFoundError(f"missing participants.tsv for {len(coverage.missing_dataset_files)} dataset(s): {details}")
+    if coverage.missing_subjects_by_dataset:
+        details = "; ".join(
+            f"{d}: {subjects}" for d, subjects in sorted(coverage.missing_subjects_by_dataset.items())
         )
+        raise ValueError(f"subject(s) not found in their dataset's participants.tsv: {details}")
+
+    values_by_variable: dict[str, dict[str, object]] = {variable: {} for variable in variables}
+    for dataset in coverage.datasets:
+        subject_ids = metadata.loc[metadata["dataset"] == dataset, "subject_id"]
+        participants = load_participants(_participants_tsv_path(dataset))
+
+        for variable in variables:
+            if variable in coverage.missing_variable_by_dataset.get(dataset, []):
+                logging.warning(
+                    "dataset=%s: participants file has no %r column - %d subject(s) marked NaN",
+                    dataset, variable, len(subject_ids),
+                )
+                for subject_id in subject_ids:
+                    values_by_variable[variable][subject_id] = np.nan
+                continue
+
+            lookup = participants.set_index("subject_id")[variable]
+            for subject_id in subject_ids:
+                value = _normalize_missing(lookup.loc[subject_id])
+                values_by_variable[variable][subject_id] = np.nan if pd.isna(value) else value
+
     metadata_out = metadata.copy()
-    metadata_out["lesion_volume_voxels"] = X.sum(axis=1)
-    metadata_out["lesion_side"] = join_lesion_side(metadata)
-    metadata_out["nihss"] = join_nihss(metadata)
+    for variable in variables:
+        metadata_out[variable] = metadata_out["subject_id"].map(values_by_variable[variable])
     return metadata_out

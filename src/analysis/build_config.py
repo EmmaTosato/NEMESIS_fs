@@ -255,6 +255,58 @@ def load_build_fc_matrix_config(path: str | Path) -> BuildFcMatrixConfig:
     )
 
 
+@dataclass(frozen=True)
+class EnrichLesionMetadataConfig:
+    project: str
+    metadata_path: Path
+    compute_volume: bool
+    variables: list[str]
+    output_root: Path
+    session_name: str
+    overwrite: bool
+    run_notes: str | None
+
+
+def load_enrich_lesion_metadata_config(path: str | Path) -> EnrichLesionMetadataConfig:
+    """Load and validate an enrich_lesion_metadata.json file.
+
+    metadata_path is read-only - any CSV with subject_id/dataset columns (typically, but not
+    necessarily, a build_lesion_matrix.py output's own metadata.csv), the source of the
+    subject list to enrich. Never written to - the result always lands in a brand-new
+    output_root/<dd-mm>_<session_name> directory, same input->output separation as every
+    other pipeline in this repo.
+
+    compute_volume=true has no config fields of its own: it sums the matrix.npy that
+    src.utils.artifacts.save_matrix always writes next to metadata_path's own metadata.csv
+    (see src.pipeline.enrich_lesion_metadata) - deliberately only for a strictly binary,
+    voxel-wise matrix. A parcellated matrix (continuous fraction_lesioned values) has already
+    lost the voxel-level information a real voxel count needs, and there is no config-driven
+    fallback here to recompute one from raw lesion masks (2026-08-17, on request: dropped
+    after review - the only real consumer of this tool, a voxel-wise run, never needed it,
+    and re-deriving from raw masks tied this tool's correctness to lesion-discovery
+    parameters that can drift from the current retrieval layout over time).
+    """
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"config file not found: {path}")
+
+    with path.open() as f:
+        raw = json.load(f)
+    if not isinstance(raw, dict):
+        raise ValueError(f"config: top-level content must be a JSON object, got {raw!r}")
+
+    return EnrichLesionMetadataConfig(
+        project=_require_str(raw, "project"),
+        metadata_path=Path(_require_str(raw, "metadata_path")),
+        compute_volume=_require_bool(raw, "compute_volume"),
+        variables=_require_unique_str_list(raw, "variables"),
+        output_root=Path(_require_str(raw, "output_root")),
+        session_name=_require_str(raw, "session_name"),
+        overwrite=_require_bool(raw, "overwrite"),
+        run_notes=_optional_str(raw, "run_notes"),
+    )
+
+
 def _validate_parcellation_fields(raw: dict, parcellate: bool) -> tuple[Path | None, str | None, bool]:
     atlas_path_str = _optional_str(raw, "atlas_path")
     parcel_aggregation = _optional_str(raw, "parcel_aggregation")

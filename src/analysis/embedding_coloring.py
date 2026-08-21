@@ -1,35 +1,47 @@
 """Registry of embedding-coloring modes shared between dim_reduction.py's
-production and fine-tuning output (src/analysis/embedding_plots.py) and,
-since 15-08-26, src.pipeline.embedding_app's interactive explorer (which
-reads this registry directly to drive its color buttons, independent of any
-pipeline's own `color_by` config - see src/analysis/embedding_app.py).
+production and fine-tuning output (src/analysis/embedding_plots.py) and
+src.pipeline.embedding_app's interactive explorer (which reads this registry
+directly to drive its color buttons, independent of any pipeline's own
+`color_by` config).
 
 Adding a new way to color an embedding (e.g. a clinical score) means adding
 one entry here plus its name to a pipeline's `color_by` config list - no
 other code changes. Each mode declares whether its values are a category
 (rendered with a legend, see plotting.plot_embedding_categorical) or a
 continuous quantity (rendered with a colorbar, see
-plotting.plot_embedding_continuous), and how to compute one value per
-subject from (metadata, X) - X is the raw feature matrix, used only by modes
-that derive a value from it (volume); modes that only need metadata
-(dataset, side, cluster_label) ignore their X argument. Not every mode is
-meaningful for every consumer's own metadata.csv (e.g. cluster_label only
-ever exists in clustering.py's output, never dim_reduction.py's) - a
-consumer reading a metadata.csv without a given mode's column gets a clear
-ValueError from build_embedding_figure/PERSISTED_COLUMN_BY_MODE lookup, not
-a silently blank plot.
+plotting.plot_embedding_continuous), and which metadata.csv column holds its
+values.
+
+Single source of truth, read-only (2026-08-17 - collapsed from two separate,
+independently-maintained mechanisms: a `compute(metadata, X)` callable that
+recomputed a value live for the production/tuning plot writers, and a
+`PERSISTED_COLUMN_BY_MODE` mapping used only by embedding_app's read-only
+explorer to read the same value already sitting in metadata.csv. The two
+were meant to agree but had no way to be checked against each other - the
+"volume" mode's live `compute` did `X.sum(axis=1)` with zero guard against a
+parcellated (continuous, non-binary) X, silently producing a meaningless
+number, while the persisted `lesion_volume_voxels` column right there in the
+same metadata.csv was already correct. Every mode now reads its own column
+straight from metadata via `color_values` below - never recomputed from X,
+never rejoined from participants.tsv live - so a color always matches
+exactly what was actually persisted for that run, and a consumer that reads
+a metadata.csv without a given mode's column gets a clear ValueError, not a
+silently wrong or blank plot. `X` is no longer needed by any color mode: the
+raw feature matrix a reduction/clustering pipeline uses to build its
+embedding has no role in coloring points by dataset/side/volume/nihss/
+cluster - those are per-subject facts already resolved once, upstream, by
+src.features.lesion.build_lesion_matrix (lesion_volume_voxels) and
+src.pipeline.enrich_lesion_metadata (lesion_side/nihss/other clinical
+fields), not derived at plot time.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np
 import pandas as pd
-
-from src.features.clinical import join_lesion_side, join_nihss
 
 ColorKind = Literal["categorical", "continuous"]
 
@@ -37,7 +49,7 @@ ColorKind = Literal["categorical", "continuous"]
 @dataclass(frozen=True)
 class ColorMode:
     kind: ColorKind
-    compute: Callable[[pd.DataFrame, np.ndarray], np.ndarray]
+    column: str  # metadata.csv column this mode reads - the only place its values come from
     label: str
     # continuous only - see plot_embedding_continuous/plot_embedding_grid_blocks's
     # own log_scale param. Ignored for categorical modes.
@@ -45,21 +57,14 @@ class ColorMode:
 
 
 COLOR_MODES: dict[str, ColorMode] = {
-    "dataset": ColorMode(
-        kind="categorical",
-        compute=lambda metadata, X: metadata["dataset"].to_numpy(),
-        label="dataset",
-    ),
-    "side": ColorMode(
-        kind="categorical",
-        compute=lambda metadata, X: join_lesion_side(metadata).to_numpy(),
-        label="lesion side",
-    ),
+    "dataset": ColorMode(kind="categorical", column="dataset", label="dataset"),
+    # "unknown" sentinel for an unresolvable subject (dataset-wide gap, e.g. PASPORT has no
+    # lesion_side column at all, or a per-subject missing cell) - written by
+    # src.features.clinical.join_lesion_side, via src.pipeline.enrich_lesion_metadata.
+    "side": ColorMode(kind="categorical", column="lesion_side", label="lesion side"),
     "volume": ColorMode(
         kind="continuous",
-        # Same quantity metadata's lesion_volume_voxels column already uses -
-        # voxel count, not ml (a scalar rescaling, no need to convert here either).
-        compute=lambda metadata, X: X.sum(axis=1),
+        column="lesion_volume_voxels",
         label="lesion volume (voxels)",
         # Heavily right-skewed (a handful of large-lesion outliers otherwise
         # stretch a linear scale so far that almost every other point looks
@@ -68,12 +73,12 @@ COLOR_MODES: dict[str, ColorMode] = {
         # readable again.
         log_scale=True,
     ),
+    # NaN for subjects with no resolvable NIHSS (dataset-wide gap, e.g. PASPORT, or a
+    # per-subject missing cell) - see src.features.clinical.join_nihss and
+    # plot_embedding_continuous's NaN handling (rendered neutral gray).
     "nihss": ColorMode(
         kind="continuous",
-        # NaN for subjects with no resolvable NIHSS (dataset-wide gap, e.g.
-        # PASPORT, or a per-subject missing cell) - see join_nihss and
-        # plot_embedding_continuous's NaN handling (rendered neutral gray).
-        compute=lambda metadata, X: join_nihss(metadata).to_numpy(),
+        column="nihss",
         label="NIHSS (severity)",
         # Linear: less skewed than volume, and kept on the same viridis
         # palette as volume (not a second hue family) - deliberately, on
@@ -90,11 +95,7 @@ COLOR_MODES: dict[str, ColorMode] = {
     # plot_clusters_2d's _NOISE_COLOR) - this is a generic explorer over any metadata column,
     # not the dedicated cluster-diagnostic plot; the legend still shows "-1" as its own entry,
     # nothing is hidden.
-    "cluster_label": ColorMode(
-        kind="categorical",
-        compute=lambda metadata, X: metadata["cluster_label"].to_numpy(),
-        label="cluster",
-    ),
+    "cluster_label": ColorMode(kind="categorical", column="cluster_label", label="cluster"),
 }
 
 
@@ -108,24 +109,23 @@ def resolve_color_mode(name: str) -> ColorMode:
     return COLOR_MODES[name]
 
 
-# color_by mode name -> metadata column written once, at production time, by
-# src.features.clinical.enrich_metadata_with_lesion_info ("dataset" is written earlier
-# still, by build_lesion_matrix.py). Any reader of an already-produced run.py's
-# metadata.csv (a replot script, the embedding_app, a notebook) should read the value
-# straight from this column rather than recomputing it via COLOR_MODES[name].compute -
-# that would either re-join "side"/"nihss" from participants.tsv as it exists *right
-# now* (silently drifting from what the run actually recorded), or, for "volume", need
-# the raw voxel feature matrix, which a read-only consumer of an existing run
-# deliberately never reloads. Single source of truth for this mapping - previously
-# duplicated privately in scripts/replot_dim_reduction.py and the exploratory notebook
-# (see docs/dev/plotting.md's "no silent fallback"/lessons_learned.md #12 on why a 3rd
-# private copy wasn't added instead). A mode with no entry here (e.g. a future
-# compute-only mode never persisted to metadata.csv) is the caller's own responsibility
-# to skip - this module has no opinion on how a missing column is handled.
-PERSISTED_COLUMN_BY_MODE: dict[str, str] = {
-    "dataset": "dataset",
-    "side": "lesion_side",
-    "volume": "lesion_volume_voxels",
-    "nihss": "nihss",
-    "cluster_label": "cluster_label",
-}
+def color_values(metadata: pd.DataFrame, mode_name: str) -> np.ndarray:
+    """The one place every embedding-coloring consumer in this repo (dim_reduction.py's
+    production/tuning plots via embedding_plots.py, src.pipeline.embedding_app's interactive
+    explorer) reads a color mode's actual values - straight from metadata's own column
+    (resolve_color_mode(mode_name).column), never recomputed.
+
+    Raises ValueError if metadata doesn't have that column - a caller offering this mode
+    without metadata actually carrying it (e.g. "volume" before build_lesion_matrix.py added
+    lesion_volume_voxels, or "side"/"nihss" before src.pipeline.enrich_lesion_metadata.py was
+    ever run against this metadata.csv) needs to know that explicitly, not get a silently
+    blank/wrong plot.
+    """
+    mode = resolve_color_mode(mode_name)
+    if mode.column not in metadata.columns:
+        raise ValueError(
+            f"metadata has no {mode.column!r} column for color mode {mode_name!r} - "
+            "run the pipeline step that produces it first (build_lesion_matrix.py for "
+            "'volume', src.pipeline.enrich_lesion_metadata for 'side'/'nihss')"
+        )
+    return metadata[mode.column].to_numpy()

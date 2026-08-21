@@ -8,16 +8,17 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
 
 - fine_tuning=false (production): embeds with the method's "params" from
   params_reduction.json, writes a normal matrix artifact holding the
-  embedding. metadata gains 3 columns not present on input, via
-  src/features/clinical.py's enrich_metadata_with_lesion_info:
-  lesion_volume_voxels (X.sum(axis=1)), lesion_side ("unknown" for a
-  subject/dataset the source participants.tsv can't resolve), and nihss
-  (NaN under the same conditions - a continuous score has no "unknown"
-  category to fall into). All three exist to color
-  embedding_plot_volume.*/embedding_plot_side.*/embedding_plot_nihss.* (see
-  plotting.py) and are persisted, not just computed ad hoc, so
-  scripts/replot_dim_reduction.py can regenerate every plot from metadata.csv
-  alone, without reloading the original feature matrix.
+  embedding. metadata is passed through unchanged from input_path (2026-08-17:
+  this pipeline no longer enriches it itself) - lesion_volume_voxels is
+  always already there, written once by build_lesion_matrix.py
+  (src/features/lesion.py); lesion_side/nihss/other clinical fields are
+  there only if src.pipeline.enrich_lesion_metadata.py was run against
+  input_path first (a color_by entry for a mode whose column isn't present
+  raises a clear error at plot time - src/analysis/embedding_coloring.py's
+  color_values - rather than silently recomputing something possibly wrong).
+  scripts/replot_dim_reduction.py regenerates every plot from metadata.csv
+  alone, without reloading the original feature matrix, same as this
+  pipeline's own plotting.
 - fine_tuning=true (manual hyperparameter search, umap/tsne/pca/pca_varimax/
   pacmap - t-SNE only sweeps perplexity, its other params still come from
   Thiebaut de Schotten et al. 2020): evaluates every combination in the
@@ -61,7 +62,6 @@ from src.analysis.params import load_method_params, load_nested_params, load_tru
 from src.analysis.plotting import compose_embedding_plot_title, compose_run_title, compose_tuning_leaf_title, plot_tuning_curve
 from src.analysis.reduction import embed, embedding_for_viz
 from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
-from src.features.clinical import enrich_metadata_with_lesion_info
 from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler
 from src.utils.run_log import append_run_log_entry
@@ -125,14 +125,15 @@ def _run_production(
 
     # Separate embedding for visualization only (2 or 3 components, config.viz_n_components) -
     # reused as-is when it already matches (every production config today: both are 2, zero
-    # extra cost); refit from raw X otherwise, since slicing embedding[:, :viz_n_components]
-    # out of a higher-dimensional umap/tsne/pacmap fit is not a meaningful projection (see
-    # src/analysis/reduction.py::embedding_for_viz's docstring).
-    viz_embedding = embedding_for_viz(config.reduction_method, X, params, embedding, config.viz_n_components, distance_cache)
-
+    # extra cost); refit from raw X otherwise for umap/tsne only, since slicing
+    # embedding[:, :viz_n_components] out of a higher-dimensional fit is not a meaningful
+    # projection (see src/analysis/reduction.py::embedding_for_viz's docstring) - pca/
+    # pca_varimax/pacmap raise instead of a silent slice or an invalid refit.
     try:
-        metadata_out = enrich_metadata_with_lesion_info(metadata, X)
-    except (FileNotFoundError, ValueError) as exc:
+        viz_embedding = embedding_for_viz(
+            config.reduction_method, X, params, embedding, config.viz_n_components, distance_cache
+        )
+    except ValueError as exc:
         logging.error(str(exc))
         return 1
 
@@ -140,7 +141,7 @@ def _run_production(
         save_matrix(
             output_dir,
             embedding,
-            metadata_out,
+            metadata,
             _build_readme_lines(config, X, embedding, params, now),
             overwrite=config.overwrite,
         )
@@ -153,8 +154,7 @@ def _run_production(
     zlabel = f"{config.reduction_method} dim 3" if viz_embedding.shape[1] == 3 else None
     write_embedding_plots(
         viz_embedding,
-        metadata_out,
-        X,
+        metadata,
         list(config.color_by),
         output_dir,
         xlabel,
@@ -196,22 +196,6 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, metadata: pd.Dat
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return 1
-
-    # Only when embeddings are actually being persisted (save_tuning_embeddings):
-    # a future replot of embeddings.npz needs metadata.csv self-contained (literal
-    # lesion_volume_voxels/lesion_side/nihss columns), the same enrichment
-    # _run_production always applies, so it never has to reload X or hit the
-    # participants.tsv registry again. Every other tuning run (the default,
-    # save_tuning_embeddings=False) keeps metadata exactly as loaded - unchanged
-    # behavior, since embeddings_grid_*.png's own color modes already compute
-    # side/nihss/volume live (src/analysis/embedding_coloring.py) without needing
-    # this enrichment.
-    if config.save_tuning_embeddings:
-        try:
-            metadata = enrich_metadata_with_lesion_info(metadata, X)
-        except (FileNotFoundError, ValueError) as exc:
-            logging.error(str(exc))
-            return 1
 
     try:
         results, embeddings_by_combo = run_tuning_sweep(method, X, params, tuning_grid, trustworthiness_n_neighbors)
@@ -437,7 +421,6 @@ def _write_nested_tuning_leaves(
         write_embedding_grid(
             blocks,
             metadata,
-            X,
             list(config.color_by),
             leaf_dir,
             f"{config.reduction_method} dim 1",

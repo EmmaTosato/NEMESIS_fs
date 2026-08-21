@@ -19,17 +19,17 @@ to begin with (see clustering.py::_resolve_viz_embedding), so this script never
 sees one for that case.
 - dim_reduction run (metadata has no cluster_label column): embedding_plot_unico.png
   + one embedding_plot_<name>.png per src.analysis.embedding_coloring.COLOR_MODES
-  entry whose backing column is present in this run's metadata.csv (today:
-  dataset/side/volume/nihss - see embedding_coloring.PERSISTED_COLUMN_BY_MODE for
-  the mode-name -> column mapping). No interactive HTML here anymore (2026-08-14,
-  on request) - superseded by the live src.pipeline.embedding_app (any production
-  run, any color mode, no static file to regenerate per run - see
-  docs/guides/embedding_app.md). Every static PNG value is read directly from
-  metadata.csv (persisted there by dim_reduction.py's
-  _run_production/enrich_metadata_with_lesion_info) - never recomputed from the
-  original feature matrix nor rejoined from assets/metadata/participants.tsv. A
-  mode whose column this run's metadata.csv predates (e.g. an old run before
-  "nihss" existed) is skipped with a WARNING, not silently omitted.
+  entry whose own backing column (ColorMode.column) is present in this run's
+  metadata.csv (today: dataset/side/volume/nihss). No interactive HTML here
+  anymore (2026-08-14, on request) - superseded by the live
+  src.pipeline.embedding_app (any production run, any color mode, no static file
+  to regenerate per run - see docs/guides/embedding_app.md). Every static PNG
+  value is read directly from metadata.csv via
+  embedding_coloring.color_values - never recomputed from the original feature
+  matrix nor rejoined from assets/metadata/participants.tsv. A mode whose column
+  this run's metadata.csv doesn't have (e.g. lesion_side/nihss before
+  src.pipeline.enrich_lesion_metadata.py was ever run against this lesion_matrix)
+  is skipped with a WARNING, not silently omitted.
 - clustering run (metadata has cluster_label): cluster_plot.png
   + cluster_plot_interactive.html (2 files, cluster-colored only - no dataset
   coloring here, see plotting.py's plot_clusters_interactive). Axis labels
@@ -54,7 +54,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.analysis.embedding_coloring import COLOR_MODES, PERSISTED_COLUMN_BY_MODE
+from src.analysis.embedding_coloring import COLOR_MODES, color_values
 from src.analysis.plotting import (
     compose_cluster_plot_title,
     compose_embedding_plot_title,
@@ -139,16 +139,16 @@ def _replot_embedding(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> l
     output_paths.append(static_path)
 
     for name, mode in COLOR_MODES.items():
-        column = PERSISTED_COLUMN_BY_MODE.get(name)
-        if column is None or column not in metadata.columns:
+        if mode.column not in metadata.columns:
             logging.warning(
                 "run %s: metadata.csv has no %r column for color_by mode %r - skipping this plot "
-                "(rerun src.pipeline.dim_reduction to add it)",
-                run_dir, column, name,
+                "(rerun src.pipeline.dim_reduction, or src.pipeline.enrich_lesion_metadata for "
+                "side/nihss, to add it)",
+                run_dir, mode.column, name,
             )
             continue
 
-        values = metadata[column].to_numpy()
+        values = color_values(metadata, name)
         title = compose_embedding_plot_title(run_dir, reduction_method, mode.label)
 
         static_path = run_dir / f"embedding_plot_{name}.png"

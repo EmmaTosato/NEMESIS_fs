@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from src.analysis.build_config import load_build_matrix_config, load_mask_fc_config
+from src.analysis.build_config import load_build_matrix_config, load_enrich_lesion_metadata_config, load_mask_fc_config
 
 _BASE = {
     "project": "clinical_connectome",
@@ -151,3 +151,38 @@ def test_mask_fc_group_filter_restricts_to_declared_groups(tmp_path):
 def test_mask_fc_group_filter_unknown_group_raises(tmp_path):
     with pytest.raises(ValueError, match="unknown group"):
         load_mask_fc_config(_write_mask_fc(tmp_path, {"group_filter": ["XX"]}))
+
+
+_ENRICH_BASE = {
+    "project": "clinical_connectome",
+    "metadata_path": "data/derived/lesion_matrix/21-07_s1.1/metadata.csv",
+    "compute_volume": False,
+    "variables": ["age", "sex"],
+    "output_root": "data/derived/clinical_metadata",
+    "session_name": "s1",
+    "overwrite": False,
+}
+
+
+def _write_enrich(tmp_path, overrides):
+    cfg = {**_ENRICH_BASE, **overrides}
+    path = tmp_path / "enrich_cfg.json"
+    path.write_text(json.dumps(cfg))
+    return path
+
+
+def test_enrich_lesion_metadata_valid_config(tmp_path):
+    config = load_enrich_lesion_metadata_config(_write_enrich(tmp_path, {}))
+    assert config.compute_volume is False
+    assert config.variables == ["age", "sex"]
+    assert str(config.metadata_path) == "data/derived/lesion_matrix/21-07_s1.1/metadata.csv"
+
+
+def test_enrich_lesion_metadata_compute_volume_true_needs_no_extra_field(tmp_path):
+    config = load_enrich_lesion_metadata_config(_write_enrich(tmp_path, {"compute_volume": True}))
+    assert config.compute_volume is True
+
+
+def test_enrich_lesion_metadata_variables_must_be_unique(tmp_path):
+    with pytest.raises(ValueError, match="duplicate entries"):
+        load_enrich_lesion_metadata_config(_write_enrich(tmp_path, {"variables": ["age", "age"]}))

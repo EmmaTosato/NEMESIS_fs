@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.analysis.embedding_coloring import resolve_color_mode
+from src.analysis.embedding_coloring import color_values, resolve_color_mode
 from src.analysis.plotting import (
     plot_embedding_2d,
     plot_embedding_categorical,
@@ -26,7 +26,6 @@ from src.analysis.plotting import (
 def write_embedding_plots(
     embedding: np.ndarray,
     metadata: pd.DataFrame,
-    X: np.ndarray,
     color_by: list[str],
     output_dir: Path,
     xlabel: str,
@@ -79,9 +78,9 @@ def write_embedding_plots(
         title = title_fn(mode.label)
 
         try:
-            values = mode.compute(metadata, X)
+            values = color_values(metadata, name)
         except Exception as exc:
-            logging.warning("failed to compute values for color_by mode %r: %s", name, exc)
+            logging.warning("failed to read values for color_by mode %r: %s", name, exc)
             continue
 
         static_path = output_dir / f"{file_prefix}_{name}.png"
@@ -100,7 +99,6 @@ def write_embedding_plots(
 def write_embedding_grid(
     blocks: list[tuple[str, list[tuple[str, np.ndarray]]]],
     metadata: pd.DataFrame,
-    X: np.ndarray,
     color_by: list[str],
     output_dir: Path,
     xlabel: str,
@@ -127,7 +125,7 @@ def write_embedding_grid(
     for name in color_by:
         mode = resolve_color_mode(name)
         try:
-            values = mode.compute(metadata, X)
+            values = color_values(metadata, name)
             plot_embedding_grid_blocks(
                 blocks,
                 output_dir / f"{file_prefix}_{name}.png",

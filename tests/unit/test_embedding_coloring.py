@@ -1,33 +1,43 @@
 """Unit tests for src/analysis/embedding_coloring.py."""
 
-import numpy as np
 import pandas as pd
 import pytest
 
-from src.analysis.embedding_coloring import COLOR_MODES, resolve_color_mode
-from src.features import clinical
-
-
-def _metadata():
-    return pd.DataFrame({"subject_id": ["sub-1", "sub-2", "sub-3"], "dataset": ["UNIPD/WashU", "UNIPD/WashU", "UKLFR/stroke_UKLFR"]})
+from src.analysis.embedding_coloring import COLOR_MODES, color_values, resolve_color_mode
 
 
 def test_registry_has_expected_modes():
+    # cluster_label added 15-08-26 (docs/dev/clustering_migration_plan.md §3) - clustering.py's
+    # own production output, never consumed via a pipeline's color_by config (see this
+    # module's own docstring), only by src.pipeline.embedding_app.
     assert set(COLOR_MODES) == {"dataset", "side", "volume", "nihss", "cluster_label"}
+
+
+def test_registry_column_mapping():
+    assert resolve_color_mode("dataset").column == "dataset"
+    assert resolve_color_mode("side").column == "lesion_side"
+    assert resolve_color_mode("volume").column == "lesion_volume_voxels"
+    assert resolve_color_mode("nihss").column == "nihss"
+    assert resolve_color_mode("cluster_label").column == "cluster_label"
 
 
 def test_dataset_mode_is_categorical_and_reads_metadata_column():
     mode = resolve_color_mode("dataset")
     assert mode.kind == "categorical"
-    values = mode.compute(_metadata(), np.zeros((3, 5)))
+    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2", "sub-3"], "dataset": ["UNIPD/WashU", "UNIPD/WashU", "UKLFR/stroke_UKLFR"]})
+    values = color_values(metadata, "dataset")
     assert list(values) == ["UNIPD/WashU", "UNIPD/WashU", "UKLFR/stroke_UKLFR"]
 
 
-def test_volume_mode_is_continuous_and_sums_X_rows():
+def test_volume_mode_is_continuous_and_reads_persisted_column():
+    """Regression (2026-08-17): "volume" used to recompute X.sum(axis=1) live, with no
+    binarity guard - silently wrong for a parcellated (continuous) X. Now reads the already-
+    computed lesion_volume_voxels column instead, same as every other mode - never touches X
+    at all."""
     mode = resolve_color_mode("volume")
     assert mode.kind == "continuous"
-    X = np.array([[1, 1, 0], [1, 0, 0], [1, 1, 1]])
-    values = mode.compute(_metadata(), X)
+    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2", "sub-3"], "lesion_volume_voxels": [2, 1, 3]})
+    values = color_values(metadata, "volume")
     assert list(values) == [2, 1, 3]
 
 
@@ -44,33 +54,27 @@ def test_categorical_modes_default_log_scale_false():
     assert resolve_color_mode("side").log_scale is False
 
 
-def test_side_mode_is_categorical_and_reads_participants_tsv(tmp_path, monkeypatch):
-    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
-    path = tmp_path / "UNIPD_WashU_participants_lesions.tsv"
-    pd.DataFrame([{"participant_id": "sub-1", "lesion_side": "left"}, {"participant_id": "sub-2", "lesion_side": "right"}]).to_csv(
-        path, sep="\t", index=False
-    )
-    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "dataset": ["UNIPD/WashU", "UNIPD/WashU"]})
-
+def test_side_mode_is_categorical_and_reads_persisted_column():
     mode = resolve_color_mode("side")
     assert mode.kind == "categorical"
-    values = mode.compute(metadata, np.zeros((2, 3)))
+    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "lesion_side": ["left", "right"]})
+    values = color_values(metadata, "side")
     assert list(values) == ["left", "right"]
 
 
-def test_nihss_mode_is_continuous_and_reads_participants_tsv(tmp_path, monkeypatch):
-    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
-    path = tmp_path / "UNIPD_WashU_participants_lesions.tsv"
-    pd.DataFrame([{"participant_id": "sub-1", "NIHSS": "4"}, {"participant_id": "sub-2", "NIHSS": "n/a"}]).to_csv(
-        path, sep="\t", index=False
-    )
-    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "dataset": ["UNIPD/WashU", "UNIPD/WashU"]})
-
+def test_nihss_mode_is_continuous_and_reads_persisted_column():
     mode = resolve_color_mode("nihss")
     assert mode.kind == "continuous"
-    values = mode.compute(metadata, np.zeros((2, 3)))
+    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "nihss": [4.0, float("nan")]})
+    values = color_values(metadata, "nihss")
     assert values[0] == 4.0
-    assert np.isnan(values[1])
+    assert pd.isna(values[1])
+
+
+def test_color_values_missing_column_raises():
+    metadata = pd.DataFrame({"subject_id": ["sub-1"], "dataset": ["UNIPD/WashU"]})
+    with pytest.raises(ValueError, match="metadata has no 'lesion_volume_voxels' column"):
+        color_values(metadata, "volume")
 
 
 def test_resolve_color_mode_unknown_raises():
@@ -82,7 +86,7 @@ def test_cluster_label_mode_is_categorical_and_reads_metadata_column():
     mode = resolve_color_mode("cluster_label")
     assert mode.kind == "categorical"
     metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2", "sub-3"], "cluster_label": [0, 1, -1]})
-    values = mode.compute(metadata, np.zeros((3, 5)))
+    values = color_values(metadata, "cluster_label")
     assert list(values) == [0, 1, -1]
 
 

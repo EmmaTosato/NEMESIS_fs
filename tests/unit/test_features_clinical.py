@@ -2,16 +2,16 @@
 
 import logging
 
-import numpy as np
 import pandas as pd
 import pytest
 
 from src.features import clinical
 from src.features.clinical import (
-    enrich_metadata_with_lesion_info,
+    check_participant_variable_coverage,
     extract_target,
     join_lesion_side,
     join_nihss,
+    join_participant_variables,
     load_participants,
 )
 
@@ -222,43 +222,107 @@ def test_join_nihss_raises_on_missing_required_columns():
         join_nihss(pd.DataFrame({"dataset": ["UNIPD/WashU"]}))
 
 
-def test_enrich_metadata_with_lesion_info_adds_all_three_columns(tmp_path, monkeypatch):
+def test_check_participant_variable_coverage_reports_everything_at_once(tmp_path, monkeypatch):
+    """The report must surface every problem in one pass (missing dataset file, missing
+    subject, missing variable) rather than stopping at the first - that's the whole point of
+    a pre-flight report a human reads before anything is written."""
     monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
     _write_dataset_participants(
         tmp_path, "UNIPD/WashU",
-        [{"participant_id": "sub-1", "lesion_side": "left", "NIHSS": "4"},
-         {"participant_id": "sub-2", "lesion_side": "right", "NIHSS": "9"}],
+        [{"participant_id": "sub-1", "age": "70", "sex": "F"}],
+    )
+    metadata = pd.DataFrame(
+        {
+            "subject_id": ["sub-1", "sub-2", "sub-3"],
+            "dataset": ["UNIPD/WashU", "UNIPD/WashU", "UNIPD/PASPORT"],  # PASPORT has no tsv here
+        }
+    )
+
+    report = check_participant_variable_coverage(metadata, ["age", "sex", "education"])
+
+    assert report.datasets == ["UNIPD/PASPORT", "UNIPD/WashU"]
+    assert report.missing_dataset_files == {"UNIPD/PASPORT": tmp_path / "UNIPD_PASPORT_participants_lesions.tsv"}
+    assert report.missing_subjects_by_dataset == {"UNIPD/WashU": ["sub-2"]}
+    assert report.missing_variable_by_dataset == {"UNIPD/WashU": ["education"]}
+    assert report.n_subjects_by_dataset == {"UNIPD/WashU": 2, "UNIPD/PASPORT": 1}
+    assert report.has_hard_failures is True
+
+
+def test_check_participant_variable_coverage_clean_case_has_no_hard_failures(tmp_path, monkeypatch):
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    _write_dataset_participants(
+        tmp_path, "UNIPD/WashU",
+        [{"participant_id": "sub-1", "age": "70"}, {"participant_id": "sub-2", "age": "65"}],
     )
     metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "dataset": ["UNIPD/WashU", "UNIPD/WashU"]})
-    X = np.array([[1, 1, 0], [1, 0, 0]])
 
-    enriched = enrich_metadata_with_lesion_info(metadata, X)
+    report = check_participant_variable_coverage(metadata, ["age"])
 
-    assert list(enriched.columns) == ["subject_id", "dataset", "lesion_volume_voxels", "lesion_side", "nihss"]
-    assert enriched["lesion_volume_voxels"].tolist() == [2, 1]
-    assert enriched["lesion_side"].tolist() == ["left", "right"]
-    assert enriched["nihss"].tolist() == [4.0, 9.0]
+    assert report.missing_dataset_files == {}
+    assert report.missing_subjects_by_dataset == {}
+    assert report.missing_variable_by_dataset == {}
+    assert report.has_hard_failures is False
+
+
+def test_join_participant_variables_joins_multiple_columns(tmp_path, monkeypatch):
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    _write_dataset_participants(
+        tmp_path, "UNIPD/WashU",
+        [
+            {"participant_id": "sub-1", "age": "70", "sex": "F", "education": "12"},
+            {"participant_id": "sub-2", "age": "65", "sex": "M", "education": "16"},
+        ],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "dataset": ["UNIPD/WashU", "UNIPD/WashU"]})
+
+    joined = join_participant_variables(metadata, ["age", "sex", "education"])
+
+    assert joined["age"].tolist() == ["70", "65"]
+    assert joined["sex"].tolist() == ["F", "M"]
+    assert joined["education"].tolist() == ["12", "16"]
     # original metadata untouched
     assert list(metadata.columns) == ["subject_id", "dataset"]
 
 
-def test_enrich_metadata_with_lesion_info_row_count_mismatch_raises():
+def test_join_participant_variables_per_row_missing_value_becomes_nan(tmp_path, monkeypatch):
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    _write_dataset_participants(
+        tmp_path, "UNIPD/WashU",
+        [{"participant_id": "sub-1", "age": "70"}, {"participant_id": "sub-2", "age": "n/a"}],
+    )
     metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "dataset": ["UNIPD/WashU", "UNIPD/WashU"]})
-    X = np.array([[1, 1, 0]])
 
-    with pytest.raises(ValueError, match="must match"):
-        enrich_metadata_with_lesion_info(metadata, X)
+    joined = join_participant_variables(metadata, ["age"])
+
+    assert joined["age"].tolist()[0] == "70"
+    assert pd.isna(joined["age"].tolist()[1])
 
 
-def test_enrich_metadata_with_lesion_info_non_binary_matrix_raises():
-    """Regression test (2026-08, literature-validation review): a parcellated
-    'fraction_lesioned' matrix (continuous in [0, 1], as build_lesion_matrix.py
-    produces when parcellate=True) used to silently produce a
-    lesion_volume_voxels value that is neither a voxel count nor proportional
-    to lesion volume in ml - must now raise instead.
-    """
+def test_join_participant_variables_dataset_wide_missing_column_becomes_nan_and_warns(tmp_path, monkeypatch, caplog):
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    _write_dataset_participants(tmp_path, "UNIPD/PASPORT", [{"participant_id": "sub-1", "age": "70"}])
+    metadata = pd.DataFrame({"subject_id": ["sub-1"], "dataset": ["UNIPD/PASPORT"]})
+
+    with caplog.at_level(logging.WARNING):
+        joined = join_participant_variables(metadata, ["age", "lesion_side"])
+
+    assert joined["age"].tolist() == ["70"]
+    assert pd.isna(joined["lesion_side"].tolist()[0])
+    assert "no 'lesion_side' column" in caplog.text
+
+
+def test_join_participant_variables_unresolvable_dataset_raises_file_not_found(tmp_path, monkeypatch):
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    metadata = pd.DataFrame({"subject_id": ["sub-1"], "dataset": ["UNIPD/NotARealDataset"]})
+
+    with pytest.raises(FileNotFoundError):
+        join_participant_variables(metadata, ["age"])
+
+
+def test_join_participant_variables_subject_missing_from_participants_raises(tmp_path, monkeypatch):
+    monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path)
+    _write_dataset_participants(tmp_path, "UNIPD/WashU", [{"participant_id": "sub-1", "age": "70"}])
     metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "dataset": ["UNIPD/WashU", "UNIPD/WashU"]})
-    X = np.array([[0.3, 0.8, 0.0], [1.0, 0.0, 0.5]])
 
-    with pytest.raises(ValueError, match="strictly binary"):
-        enrich_metadata_with_lesion_info(metadata, X)
+    with pytest.raises(ValueError, match="sub-2"):
+        join_participant_variables(metadata, ["age"])

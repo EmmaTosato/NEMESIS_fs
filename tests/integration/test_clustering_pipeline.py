@@ -103,7 +103,10 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
     X = np.load(out_dir / "matrix.npy")
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert np.array_equal(X, original_X)  # unchanged, per design (no reduction happened)
-    assert list(metadata.columns) == ["subject_id", "dataset", "cluster_label"]
+    # lesion_volume_voxels is now always computed by build_lesion_matrix.py (2026-08-17) -
+    # inherited unchanged through clustering.py's own metadata pass-through, alongside the
+    # cluster_label this pipeline itself appends.
+    assert list(metadata.columns) == ["subject_id", "dataset", "lesion_volume_voxels", "cluster_label"]
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
     # X has 57 raw voxel columns (not 2 or 3) - this plot only exists because
     # viz_embedding_path was given (see _resolve_viz_embedding), not from a

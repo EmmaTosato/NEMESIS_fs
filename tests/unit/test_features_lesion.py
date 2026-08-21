@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from src.features.lesion import (
+    _load_and_binarize_lesion,
     build_lesion_matrix,
     load_and_resample_atlas,
     load_reference_image,
@@ -77,6 +78,11 @@ def test_build_lesion_matrix_voxelwise(tmp_path):
     assert non_constant_mask.sum() == X.shape[1]
     # 3 distinct lesioned voxels across all subjects survive the constant-feature drop
     assert X.shape[1] == 3
+    # sub-01 has 2 lesioned voxels, sub-02 has 1, sub-03 has 1 (see _make_lesion_subject
+    # calls above) - lesion_volume_voxels must reflect the real per-subject voxel count,
+    # not X's own post-constant-drop column count (X.shape[1] == 3 is a coincidence of
+    # this fixture, not what lesion_volume_voxels means for any individual subject).
+    assert list(metadata["lesion_volume_voxels"]) == [2, 1, 1]
 
 
 def test_build_lesion_matrix_voxelwise_pipeline_first_layout(tmp_path):
@@ -153,6 +159,60 @@ def test_build_lesion_matrix_subject_count_mismatch_raises(tmp_path):
         )
 
 
+def test_load_and_binarize_lesion_resamples_when_affine_differs_but_shape_matches(tmp_path):
+    """Regression: previously only img.shape != reference_img.shape triggered
+    a resample - a lesion mask with the SAME shape but a DIFFERENT affine
+    (different physical origin at the same resolution, a real scenario e.g.
+    across slightly different acquisition/registration steps) was treated as
+    'already aligned' and used as-is, silently misplacing the lesion in
+    physical space. Now the affine is compared too (_needs_resample)."""
+    reference_img = nib.Nifti1Image(np.zeros(_SHAPE, dtype=np.float32), _AFFINE)
+
+    # Same shape, origin shifted by one voxel (2mm, this affine's own voxel
+    # size) along x relative to the reference.
+    shifted_affine = _AFFINE.copy()
+    shifted_affine[0, 3] += 2.0
+    volume = np.zeros(_SHAPE, dtype=np.float32)
+    volume[0, 0, 0] = 1.0
+    lesion_path = tmp_path / "sub-01_lesion.nii.gz"
+    nib.save(nib.Nifti1Image(volume, shifted_affine), lesion_path)
+
+    data = _load_and_binarize_lesion(lesion_path, reference_img, "nearest", 0.5)
+    resampled = data.reshape(_SHAPE)
+
+    # A shape-only check would skip resampling entirely and return the raw
+    # array unchanged - the lesioned voxel would still sit at (0, 0, 0). The
+    # physically correct position, after resampling onto the reference's own
+    # (unshifted) grid, is (1, 0, 0) - one voxel over, matching the real 2mm
+    # origin offset (verified independently via nilearn.resample_to_img).
+    assert resampled[0, 0, 0] == 0
+    assert resampled[1, 0, 0] == 1
+    assert resampled.sum() == 1
+
+
+def test_build_lesion_matrix_missing_dataset_root_raises(tmp_path):
+    """Regression: a dataset with a wrong/not-yet-retrieved path used to
+    silently contribute 0 subjects - Path.glob on a missing directory returns
+    [] with no exception, and 0 subject_dirs == 0 lesion masks passed the
+    existing count-mismatch check undetected. Now raises FileNotFoundError
+    instead, before the group_filter/count-mismatch checks ever run."""
+    _make_lesion_subject_pipeline_first(tmp_path, "siteA", "sub-01", [(1, 1, 1)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+
+    with pytest.raises(FileNotFoundError, match="siteB"):
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA", "siteB"],  # siteB directory never created (typo/not retrieved)
+            reference_template_path=template_path,
+            lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            parcellate=False,
+            group_filter=None,
+        )
+
+
 def test_build_lesion_matrix_parcellated_fraction_lesioned(tmp_path):
     _make_lesion_subject(tmp_path, "siteA", "sub-01", [(1, 1, 1), (1, 1, 2)])
     _make_lesion_subject(tmp_path, "siteA", "sub-02", [(1, 1, 1)])
@@ -183,6 +243,12 @@ def test_build_lesion_matrix_parcellated_fraction_lesioned(tmp_path):
     assert X.shape == (3, 2)
     parcel_a_size = 5 * 5 * 5
     assert X[0, 0] == pytest.approx(2 / parcel_a_size)
+    # Regression: lesion_volume_voxels must be the real voxel count (2, 1, 1 - same
+    # subjects as the voxel-wise test above) computed from X_voxelwise BEFORE
+    # parcellation, never X.sum(axis=1) on the parcellated (continuous, fraction-valued)
+    # output - the exact quantity enrich_metadata_with_lesion_info used to refuse to
+    # compute at all for a parcellated matrix (finding #6/AUDIT_FINDINGS.md).
+    assert list(metadata["lesion_volume_voxels"]) == [2, 1, 1]
     assert X[1, 0] == pytest.approx(1 / parcel_a_size)
     assert X[2, 0] == 0
     assert X[2, 1] == pytest.approx(1 / parcel_a_size)

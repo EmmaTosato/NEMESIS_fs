@@ -6,7 +6,6 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 
-from src.features import clinical
 from src.pipeline import build_lesion_matrix, dim_reduction
 from src.utils.artifacts import save_matrix
 
@@ -15,22 +14,22 @@ _AFFINE[3, 3] = 1
 _SHAPE = (10, 10, 10)
 
 
-def _write_lesion_side_registry(tmp_path, monkeypatch, subject_ids, dataset="siteA"):
-    """Fixture participants.tsv under a monkeypatched METADATA_ROOT, so
-    dim_reduction.py's enrich_metadata_with_lesion_info (src/features/clinical.py,
-    join_lesion_side + join_nihss) can resolve lesion_side/nihss for the
-    synthetic "siteA" dataset these tests build, the same way it would for a
-    real UNIPD/WashU-style dataset name.
+def _add_clinical_columns(input_dir, subject_ids):
+    """Directly patches an existing build_lesion_matrix.py output's metadata.csv with
+    lesion_side/nihss columns - simulating what src.pipeline.enrich_lesion_metadata.py would
+    produce against it (that tool's own join/coverage-report contract is tested separately,
+    tests/integration/test_enrich_lesion_metadata_pipeline.py). dim_reduction.py no longer
+    enriches metadata itself (2026-08-17 - see src/analysis/embedding_coloring.py's own
+    module docstring for why) - these tests only need to verify it reads/passes through
+    whatever metadata.csv already has, not re-exercise the enrichment tool.
     """
-    metadata_root = tmp_path / "metadata_registry"
-    metadata_root.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
-    sides = [("left", "right")[i % 2] for i in range(len(subject_ids))]
-    rows = [
-        {"participant_id": sid, "lesion_side": side, "NIHSS": str(4 + i)}
-        for i, (sid, side) in enumerate(zip(subject_ids, sides))
-    ]
-    pd.DataFrame(rows).to_csv(metadata_root / f"{dataset}_participants_lesions.tsv", sep="\t", index=False)
+    metadata_path = input_dir / "metadata.csv"
+    metadata = pd.read_csv(metadata_path)
+    sides = {sid: ("left", "right")[i % 2] for i, sid in enumerate(subject_ids)}
+    nihss = {sid: float(4 + i) for i, sid in enumerate(subject_ids)}
+    metadata["lesion_side"] = metadata["subject_id"].map(sides)
+    metadata["nihss"] = metadata["subject_id"].map(nihss)
+    metadata.to_csv(metadata_path, index=False)
 
 
 def _make_dataset(data_root, n_subjects=8):
@@ -116,7 +115,7 @@ def _write_params(tmp_path):
 def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
-    _write_lesion_side_registry(tmp_path, monkeypatch, [f"sub-{i:02d}" for i in range(8)])
+    _add_clinical_columns(input_dir, [f"sub-{i:02d}" for i in range(8)])
 
     params_path = _write_params(tmp_path)
     output_root = tmp_path / "dr_out"
@@ -217,15 +216,15 @@ def test_dim_reduction_fine_tuning_save_tuning_embeddings_writes_npz(tmp_path, m
     self-describing 'k1=v1,k2=v2,...' string built from tuning_grid's own key
     order - the same names/values each tuning_results.csv row already carries,
     so a caller rebuilds the exact key from any row without a separate index
-    file (docs/dev/models.md). Also writes a self-contained metadata.csv
-    (same enrich_metadata_with_lesion_info as production - needs the
-    lesion_side/nihss registry fixture, unlike the sibling test above which
-    doesn't enrich at all) so a later reader never needs X or the
-    participants.tsv registry again to color/label a saved embedding.
+    file (docs/dev/models.md). Also writes a metadata.csv - whatever input_path's
+    own metadata.csv already had (2026-08-17: no enrichment of its own anymore,
+    see _add_clinical_columns) - so a later reader never needs X again to
+    color/label a saved embedding, provided input_path was itself already
+    enriched (lesion_side/nihss here) before this run.
     """
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
-    _write_lesion_side_registry(tmp_path, monkeypatch, [f"sub-{i:02d}" for i in range(8)])
+    _add_clinical_columns(input_dir, [f"sub-{i:02d}" for i in range(8)])
 
     params_path = _write_params(tmp_path)
     output_root = tmp_path / "dr_out"
@@ -385,7 +384,7 @@ def _make_varying_volume_dataset(data_root, n_subjects=8):
     tie every subject's lesion volume at the same count), each subject here
     gets a strictly increasing, non-overlapping voxel count - guarantees the
     lesion-volume covariate actually varies (used by tests that check
-    lesion_volume_voxels/enrich_metadata_with_lesion_info downstream).
+    build_lesion_matrix.py's own lesion_volume_voxels downstream).
     """
     rng = np.random.default_rng(42)
     for i in range(n_subjects):
@@ -728,7 +727,6 @@ def test_dim_reduction_fine_tuning_nested_n_components_refits_viz(tmp_path, monk
     """
     input_dir = _build_matrix_varying_volume(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
-    _write_lesion_side_registry(tmp_path, monkeypatch, [f"sub-{i:02d}" for i in range(8)])
 
     params_path = tmp_path / "params_nested_ncomp.json"
     params_path.write_text(

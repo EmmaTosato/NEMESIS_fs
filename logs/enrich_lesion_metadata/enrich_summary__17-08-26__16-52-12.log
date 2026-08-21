@@ -1,0 +1,1 @@
+ERROR: UNIPD/WashU: no subject directories found under data/clinical_connectome/UNIPD/WashU matching '*' - check 'datasets'/'data_root' in the config, or run retrieve_data.py first if this dataset hasn't been retrieved yet

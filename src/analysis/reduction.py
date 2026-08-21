@@ -153,6 +153,33 @@ def embed(
     return REDUCTION_METHODS[reduction_method](X, params)
 
 
+# Methods where a same-metric/same-n_neighbors/same-random_state refit at a
+# different n_components is each method's own honest "best-effort layout for
+# exactly that many dimensions" (lessons_learned.md #16 - never a slice), not
+# required to relate to the original fit's own structure: nobody assigns a
+# fixed meaning to "dim 1"/"dim 2" for umap/tsne, so an independent fit at the
+# viz dimensionality is a legitimate view in its own right. Deliberately
+# narrow (2026-08-17, on request) - every other REDUCTION_METHODS entry is
+# excluded, not just pca_varimax:
+# - pca_varimax: varimax rotates *jointly* across however many components are
+#   retained - a refit at a different K solves a different optimization
+#   problem, not "the same K rotated factors, fewer of them" (see
+#   pca_varimax_embed's own docstring). A 2D refit would show factors with no
+#   relationship to the production run's own interpretable factors (the whole
+#   point of the Thiebaut de Schotten et al. 2020 methodology this reproduces
+#   is that each rotated factor has a specific anatomical meaning).
+# - pca (plain): the refit would in fact be mathematically equivalent to
+#   slicing (greedy variance ordering means the top components don't change
+#   when more are requested) - but kept out of this set anyway rather than
+#   silently reintroduced, since no real config has ever needed a mismatched
+#   viz_n_components for pca and this function should not guess at intent.
+# - pacmap: itself neighbor-graph-based, same reasoning as umap/tsne would in
+#   principle apply - excluded explicitly anyway (2026-08-17, on request)
+#   rather than inferred, since getting this wrong changes a real production
+#   method's behavior silently.
+_REFITTABLE_FOR_VIZ: frozenset[str] = frozenset({"umap", "tsne"})
+
+
 def embedding_for_viz(
     reduction_method: str,
     X: np.ndarray,
@@ -167,24 +194,37 @@ def embedding_for_viz(
     zero extra cost), otherwise refit from scratch on the same raw `X` with
     only `n_components` overridden to `viz_n_components` (via `embed` above,
     so a jaccard/dice refit gets the same precomputed-distance treatment as
-    the original fit).
+    the original fit) - but only for `reduction_method` in _REFITTABLE_FOR_VIZ
+    (umap/tsne).
 
-    Why a refit and not embedding[:, :viz_n_components]: for umap/tsne/pacmap,
-    the output dimensions of a single fit have no ordering by importance
-    (unlike PCA's variance-ranked components) - they're jointly optimized to
-    satisfy one objective in the full n_components-dimensional space, so
-    slicing 2 or 3 of them out is an arbitrary cut, not a meaningful summary,
-    and can make a real cluster structure look artificially merged or split.
-    A second fit at n_components=viz_n_components, same metric/n_neighbors/
-    min_dist/random_state, shares the same neighbor graph as the original fit
-    (that graph depends only on metric/n_neighbors, not n_components) and is
-    UMAP/t-SNE's own best-effort layout for exactly that many dimensions. For
-    PCA this second fit is mathematically equivalent to slicing (greedy
-    variance ordering means the top components don't change when more are
-    requested), so the same rule is correct for every REDUCTION_METHODS
-    entry without a per-method branch.
+    Why a refit and not embedding[:, :viz_n_components] for those two: the
+    output dimensions of a single fit have no ordering by importance (unlike
+    PCA's variance-ranked components) - they're jointly optimized to satisfy
+    one objective in the full n_components-dimensional space, so slicing 2 or
+    3 of them out is an arbitrary cut, not a meaningful summary, and can make
+    a real cluster structure look artificially merged or split. A second fit
+    at n_components=viz_n_components, same metric/n_neighbors/min_dist/
+    random_state, shares the same neighbor graph as the original fit (that
+    graph depends only on metric/n_neighbors, not n_components) and is
+    UMAP/t-SNE's own best-effort layout for exactly that many dimensions.
+
+    Raises ValueError if `reduction_method` isn't in _REFITTABLE_FOR_VIZ and
+    `embedding` doesn't already have viz_n_components columns - no silent
+    slice, no silent refit for a method where neither is a mathematically
+    honest view of the production embedding (see _REFITTABLE_FOR_VIZ's own
+    comment for why each excluded method is excluded). The caller must rerun
+    with viz_n_components == n_components for that method instead.
     """
     if embedding.shape[1] == viz_n_components:
         return embedding
+    if reduction_method not in _REFITTABLE_FOR_VIZ:
+        raise ValueError(
+            f"{reduction_method!r} has no valid viz-refit at a different dimensionality - "
+            f"the production embedding has {embedding.shape[1]} components but "
+            f"viz_n_components={viz_n_components} was requested. Only {sorted(_REFITTABLE_FOR_VIZ)} "
+            "support a same-metric refit at a different n_components (see this function's own "
+            "docstring for why pca/pca_varimax/pacmap don't) - rerun with viz_n_components equal "
+            "to n_components for this method instead"
+        )
     viz_params = {**reduction_params, "n_components": viz_n_components}
     return embed(reduction_method, X, viz_params, distance_cache)

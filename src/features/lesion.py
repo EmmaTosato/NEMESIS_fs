@@ -60,17 +60,27 @@ def build_lesion_matrix(
     isn't in group_filter - see _discover_lesion_files. group_filter=None
     means no restriction (only correct for datasets known not to mix
     groups - see src/features/subject_discovery.py).
+
+    metadata always gains one column beyond subject_id/dataset:
+    lesion_volume_voxels (a real voxel count, computed from the voxel-wise
+    matrix before any parcellation - see below). No other clinical/derived
+    field is added here - lesion_side/NIHSS/age/... come from a separate,
+    dedicated join tool against this function's own output (see
+    src/pipeline/enrich_lesion_metadata.py), not from this function.
     """
     _validate_parcellation_args(parcellate, atlas_path, parcel_aggregation)
 
-    lesion_files, excluded_by_group = _discover_lesion_files(data_root, datasets, lesion_glob, group_filter)
-    reference_img = load_reference_image(reference_template_path)
-    X_voxelwise, metadata = _stack_voxel_matrix(
-        lesion_files, reference_img, resample_interpolation, binarize_threshold
+    X_voxelwise, metadata, excluded_by_group = _voxelwise_matrix_with_volume(
+        data_root, datasets, reference_template_path, lesion_glob, binarize_threshold,
+        resample_interpolation, group_filter,
     )
 
     parcel_ids: np.ndarray | None = None
     if parcellate:
+        # Reloaded rather than threaded through _voxelwise_matrix_with_volume's return -
+        # cheap (a single nib.load), and keeps that shared helper's signature focused on what
+        # both its callers (this function, recompute_lesion_volume) actually need.
+        reference_img = load_reference_image(reference_template_path)
         atlas_labels, parcel_ids = load_and_resample_atlas(atlas_path, reference_img)
         aggregation_fn = PARCEL_AGGREGATIONS[parcel_aggregation]
         X_raw = _parcellate_matrix(X_voxelwise, atlas_labels, parcel_ids, aggregation_fn)
@@ -84,6 +94,50 @@ def build_lesion_matrix(
     return X, metadata, non_constant_mask, parcel_ids, excluded_by_group
 
 
+def _voxelwise_matrix_with_volume(
+    data_root: Path,
+    datasets: list[str],
+    reference_template_path: Path,
+    lesion_glob: str,
+    binarize_threshold: float,
+    resample_interpolation: str,
+    group_filter: list[str] | None,
+) -> tuple[np.ndarray, pd.DataFrame, list[str]]:
+    """Discovery + binarization + lesion_volume_voxels - the first half of
+    build_lesion_matrix(), before the optional parcellation branch."""
+    lesion_files, excluded_by_group = _discover_lesion_files(data_root, datasets, lesion_glob, group_filter)
+    reference_img = load_reference_image(reference_template_path)
+    X_voxelwise, metadata = _stack_voxel_matrix(
+        lesion_files, reference_img, resample_interpolation, binarize_threshold
+    )
+    # Always a real voxel count (X_voxelwise is strictly binary, pre-parcellation) - explicit
+    # dtype=int64 rather than relying on numpy's own upcasting of a uint8 sum
+    # (lessons_learned.md #13 - never assume a reduction upcasts on its own, even where it
+    # currently does).
+    metadata = metadata.copy()
+    metadata["lesion_volume_voxels"] = X_voxelwise.sum(axis=1, dtype=np.int64)
+    return X_voxelwise, metadata, excluded_by_group
+
+
+# Tolerance for the affine comparison below - looser than float equality (nibabel
+# round-trips affines through float32 headers on some writers, and a "same grid"
+# affine can differ by sub-micron rounding noise that carries no real physical
+# meaning), tight enough that no real registration/resampling difference (always
+# at least whole fractions of a mm) could pass unnoticed.
+_AFFINE_ATOL = 1e-3
+
+
+def _needs_resample(img: nib.Nifti1Image, reference_img: nib.Nifti1Image) -> bool:
+    """True if `img` is not already on `reference_img`'s exact voxel grid -
+    same shape AND same affine, not shape alone (see docstrings below: two
+    images can share a shape while their affines place that same array of
+    voxels at different physical coordinates - e.g. a different origin or
+    orientation at the same resolution - which a shape-only check silently
+    treats as 'already aligned').
+    """
+    return img.shape != reference_img.shape or not np.allclose(img.affine, reference_img.affine, atol=_AFFINE_ATOL)
+
+
 def load_and_resample_atlas(
     atlas_path: Path, reference_img: nib.Nifti1Image
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -93,13 +147,18 @@ def load_and_resample_atlas(
     a label atlas holds discrete parcel ids, not continuous intensities - any
     other interpolation would invent label values that match no real parcel.
 
+    Resamples whenever the atlas isn't already on reference_img's exact grid
+    (_needs_resample: shape AND affine, not shape alone - a same-shape atlas
+    with a different affine would otherwise be used as-is, silently
+    mislabeling every voxel against the wrong physical location).
+
     Returns (atlas_labels, parcel_ids): atlas_labels is the resampled 3D
     integer label volume; parcel_ids is the sorted list of non-zero labels
     found in it (0 is background, excluded), which fixes the column order
     used everywhere else in this module.
     """
     atlas_img = nib.load(atlas_path)
-    if atlas_img.shape != reference_img.shape:
+    if _needs_resample(atlas_img, reference_img):
         atlas_img = resample_to_img(
             atlas_img, reference_img, interpolation="nearest", force_resample=True, copy_header=True
         )
@@ -190,6 +249,21 @@ def _discover_lesion_files(
         excluded_by_group.extend(excluded)
 
         subject_dirs = [p.name for p in dataset_root.glob(subject_glob) if p.is_dir()]
+        # Checked before group_filter narrows the list: an empty result here means the
+        # dataset itself is unreachable (wrong path/name in config, or never retrieved),
+        # not a legitimate "this dataset has 0 subjects in the requested group" - that
+        # case is only distinguishable *after* filtering, and stays silent-safe (a dataset
+        # that genuinely has none of the requested group contributes 0 rows, same as
+        # today). Path.glob on a missing/empty directory returns [] with no exception, so
+        # without this check a typo'd dataset name silently contributes 0 subjects instead
+        # of failing loudly (both by_subject and subject_dirs land on the same empty list,
+        # so the len-mismatch check below never fires either).
+        if not subject_dirs:
+            raise FileNotFoundError(
+                f"{dataset}: no subject directories found under {dataset_root} matching "
+                f"{subject_glob!r} - check 'datasets'/'data_root' in the config, or run "
+                "retrieve_data.py first if this dataset hasn't been retrieved yet"
+            )
         if group_filter is not None:
             subject_dirs = [s for s in subject_dirs if group_of(s) in group_filter]
         # one lesion mask expected per (group-filtered) subject dir; stop on mismatch
@@ -207,7 +281,10 @@ def load_reference_image(reference_template_path: Path) -> nib.Nifti1Image:
     """Load the explicit reference template that fixes the common voxel grid.
 
     Every subject's lesion mask (and, when parcellate=True, the atlas) is
-    resampled onto this image's grid if its own shape differs. Caller-supplied
+    resampled onto this image's grid if its own shape or affine differs (see
+    _needs_resample) - shape alone isn't enough: two images can share a shape
+    while their affines place that voxel array at different physical
+    coordinates. Caller-supplied
     on purpose - picking "the first lesion file found" as an implicit
     reference silently ties the common grid to whichever file happens to sort
     first, with no guarantee it's the resolution/space actually wanted (e.g.
@@ -226,7 +303,7 @@ def _load_and_binarize_lesion(
     path: Path, reference_img: nib.Nifti1Image, resample_interpolation: str, binarize_threshold: float
 ) -> np.ndarray:
     img = nib.load(path)
-    if img.shape != reference_img.shape:
+    if _needs_resample(img, reference_img):
         img = resample_to_img(
             img, reference_img, interpolation=resample_interpolation, force_resample=True, copy_header=True
         )

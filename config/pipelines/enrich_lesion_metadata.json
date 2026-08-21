@@ -1,0 +1,10 @@
+{
+  "project": "clinical_connectome",
+  "metadata_path": "data/derived/lesion_matrix/21-07_s1.1/metadata.csv",
+  "compute_volume": true,
+  "variables": ["age", "sex", "education", "lesion_side", "clinical_date", "NIHSS"],
+  "output_root": "data/derived/clinical_metadata",
+  "session_name": "s1",
+  "overwrite": false,
+  "run_notes": null
+}

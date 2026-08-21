@@ -194,13 +194,36 @@ def test_embedding_for_viz_refit_matches_direct_call_with_same_params():
     assert np.allclose(viz_embedding, direct_2d)
 
 
-def test_embedding_for_viz_pca_refit_equivalent_to_slicing():
-    # PCA's greedy variance ordering means the top components don't change
-    # when more are requested - refitting at fewer components should give the
-    # same result as slicing, unlike umap/tsne/pacmap.
-    params = {"n_components": 5}
-    embedding = pca_embed(_X, params)
+def test_embedding_for_viz_tsne_refits_when_dimensions_differ():
+    params = {"perplexity": 5, "n_components": 3, "random_state": 0}
+    embedding = tsne_embed(_X, params)
+    assert embedding.shape == (30, 3)
 
-    viz_embedding = embedding_for_viz("pca", _X, params, embedding, viz_n_components=2)
+    viz_embedding = embedding_for_viz("tsne", _X, params, embedding, viz_n_components=2)
 
-    assert np.allclose(np.abs(viz_embedding), np.abs(embedding[:, :2]))
+    assert viz_embedding.shape == (30, 2)
+
+
+@pytest.mark.parametrize("method", ["pca", "pca_varimax", "pacmap"])
+def test_embedding_for_viz_raises_for_non_refittable_methods_when_dimensions_differ(method):
+    """Regression (2026-08-17, on request): pca/pca_varimax/pacmap must never
+    silently slice (invalid for pacmap/pca_varimax, see reduction.py's own
+    docstring) nor silently refit (mathematically meaningless for
+    pca_varimax's jointly-optimized rotation) when the production embedding's
+    own dimensionality doesn't already match viz_n_components - only
+    umap/tsne refit. A 5-column embedding is a plausible stand-in for any of
+    the 3 excluded methods' real output shape (this test only exercises
+    embedding_for_viz's own dispatch, not each method's own embed function)."""
+    embedding = np.random.default_rng(3).random((30, 5))
+    with pytest.raises(ValueError, match="no valid viz-refit"):
+        embedding_for_viz(method, _X, {"n_components": 5}, embedding, viz_n_components=2)
+
+
+@pytest.mark.parametrize("method", ["pca", "pca_varimax", "pacmap"])
+def test_embedding_for_viz_reuses_non_refittable_methods_when_already_matching(method):
+    """The exclusion from _REFITTABLE_FOR_VIZ only matters when a refit would
+    actually be needed - the cheap "already the right shape" path stays
+    available for every method, refittable or not."""
+    embedding = np.random.default_rng(4).random((30, 2))
+    viz_embedding = embedding_for_viz(method, _X, {"n_components": 2}, embedding, viz_n_components=2)
+    assert viz_embedding is embedding
