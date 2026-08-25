@@ -138,6 +138,55 @@ def test_embed_jaccard_matches_precomputed_binary_pairwise_distance():
     assert np.allclose(via_embed, direct)
 
 
+def test_embed_euclidean_metric_for_umap_uses_precomputed_distance_matrix():
+    """Regression (2026-08-25, docs/debugging/debug_25_08_26.md): embed() used to pass
+    metric="euclidean" straight through to umap.UMAP on raw X regardless of reduction_method,
+    recomputing umap-learn's own neighbor search on every call - for reduction_method="umap"
+    specifically, embed() must now match the same precomputed-distance path tuning.py's
+    evaluate_umap already takes (bit-identical output, not just "a valid embedding")."""
+    from src.analysis.distances import euclidean_pairwise_distance
+
+    params = {"n_neighbors": 5, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "euclidean"}
+    via_embed = embed("umap", _X, params)
+
+    distance_matrix = euclidean_pairwise_distance(_X)
+    precomputed_params = {k: v for k, v in params.items() if k != "metric"}
+    precomputed_params["metric"] = "precomputed"
+    direct = umap_embed(distance_matrix, precomputed_params)
+
+    assert np.allclose(via_embed, direct)
+
+
+def test_embed_euclidean_metric_for_tsne_uses_precomputed_distance_matrix():
+    """Regression (2026-08-25, docs/debugging/debug_25_08_26.md): extended from umap-only to
+    tsne too, on request - embed("tsne", ..., metric="euclidean") must now match the same
+    precomputed-distance path tuning.py's evaluate_tsne already takes, same as the umap test
+    above (bit-identical output). sklearn's TSNE forces init="random" whenever metric is
+    switched to "precomputed" (its own default "pca" needs raw X, not a distance matrix)."""
+    from src.analysis.distances import euclidean_pairwise_distance
+
+    params = {"n_components": 2, "perplexity": 5, "random_state": 0, "metric": "euclidean"}
+    via_embed = embed("tsne", _X, params)
+
+    distance_matrix = euclidean_pairwise_distance(_X)
+    precomputed_params = {k: v for k, v in params.items() if k != "metric"}
+    precomputed_params["metric"] = "precomputed"
+    precomputed_params["init"] = "random"
+    direct = tsne_embed(distance_matrix, precomputed_params)
+
+    assert np.allclose(via_embed, direct)
+
+
+def test_embed_euclidean_distance_cache_reused_across_calls_for_umap():
+    params = {"n_neighbors": 5, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "euclidean"}
+    cache: dict[str, np.ndarray] = {}
+    embed("umap", _X, params, cache)
+    assert "euclidean" in cache
+    cached_matrix = cache["euclidean"]
+    embed("umap", _X, {**params, "n_neighbors": 10}, cache)
+    assert cache["euclidean"] is cached_matrix
+
+
 def test_embed_dice_forces_tsne_init_random():
     # sklearn's TSNE default init="pca" cannot run on a distance matrix -
     # embed() must override it whenever metric is precomputed.
@@ -162,6 +211,62 @@ def test_embed_distance_cache_reused_across_calls():
     embed("umap", _X_BINARY, {**params, "n_neighbors": 10}, cache)
     # Same object reused, not recomputed, for a second call at the same metric.
     assert cache["jaccard"] is cached_matrix
+
+
+def test_embed_precompute_distance_metric_false_passes_metric_through_unchanged(monkeypatch):
+    """precompute_distance_metric=False (2026-08-25, on request, docs/debugging/debug_25_08_26.md):
+    embed() must skip precomputed_distance entirely and behave exactly like a "vanilla" umap.UMAP
+    call - reproducibility against literature/external UMAP runs that never precompute anything."""
+    import src.analysis.reduction as reduction_module
+
+    call_count = 0
+    real_precomputed_distance = reduction_module.precomputed_distance
+
+    def _counting_precomputed_distance(X, metric):
+        nonlocal call_count
+        call_count += 1
+        return real_precomputed_distance(X, metric)
+
+    monkeypatch.setattr(reduction_module, "precomputed_distance", _counting_precomputed_distance)
+
+    params = {"n_neighbors": 5, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "euclidean"}
+    via_embed = embed("umap", _X, params, None, False)
+    direct = umap_embed(_X, params)
+
+    assert call_count == 0, f"expected precomputed_distance to never run with precompute_distance_metric=False, got {call_count} calls"
+    assert np.allclose(via_embed, direct)
+
+
+def test_embed_precompute_distance_metric_false_still_validates_binary_matrix():
+    """require_binary_matrix is a data-validity check (jaccard/dice are meaningless on non-binary
+    data), independent of whether the distance matrix is actually precomputed - must still raise
+    even with precompute_distance_metric=False."""
+    X_continuous = np.random.default_rng(2).random((30, 20))
+    params = {"n_neighbors": 5, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "jaccard"}
+    with pytest.raises(ValueError, match="strictly binary"):
+        embed("umap", X_continuous, params, None, False)
+
+
+def test_embedding_for_viz_forwards_precompute_distance_metric_to_refit(monkeypatch):
+    """precompute_distance_metric must propagate from embedding_for_viz's own refit call to embed
+    - otherwise the viz refit could silently precompute while the main fit didn't (or vice versa)."""
+    import src.analysis.reduction as reduction_module
+
+    call_count = 0
+    real_precomputed_distance = reduction_module.precomputed_distance
+
+    def _counting_precomputed_distance(X, metric):
+        nonlocal call_count
+        call_count += 1
+        return real_precomputed_distance(X, metric)
+
+    monkeypatch.setattr(reduction_module, "precomputed_distance", _counting_precomputed_distance)
+
+    params = {"n_neighbors": 5, "min_dist": 0.1, "n_components": 3, "random_state": 0, "metric": "euclidean"}
+    embedding = umap_embed(_X, params)
+    embedding_for_viz("umap", _X, params, embedding, 2, None, False)
+
+    assert call_count == 0, f"expected the refit to skip precomputed_distance too, got {call_count} calls"
 
 
 def test_embedding_for_viz_reuses_when_already_matching_dimensions():

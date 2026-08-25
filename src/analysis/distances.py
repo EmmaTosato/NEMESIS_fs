@@ -1,40 +1,35 @@
-"""Fast pairwise distance matrices for binary feature data (e.g. voxel-wise lesion masks).
+"""Fast precomputed pairwise distance matrices for umap/tsne fine-tuning and
+production (src/analysis/tuning.py, src/analysis/reduction.py::embed) -
+jaccard/dice/euclidean are all far faster as one precomputed matrix (BLAS)
+than left to scipy/umap-learn/sklearn's own per-call machinery. See
+docs/dev/models.md ("src/analysis/distances.py" section) for the measured
+numbers and the two distinct root causes behind that (jaccard/dice: scipy's
+own pairwise distance is slow; euclidean: umap-learn/sklearn's per-fit
+neighbor search is slow, not the distance itself).
 
-scipy.spatial.distance.pdist's boolean metrics (jaccard, dice) compute one
-pair at a time - on high-dimensional sparse binary data (e.g. 254865 voxel
-features) this is prohibitively slow (~19 minutes extrapolated for 1150
-subjects, measured directly). Binary overlap is instead a matrix
-multiplication (X @ X.T counts shared 1s for every pair at once, via BLAS) -
-same result, seconds instead of minutes.
+SUPPORTED_BINARY_METRICS (jaccard/dice, validated by require_binary_matrix)
+vs. PRECOMPUTABLE_METRICS (every metric this module can precompute at all) -
+tuning.py/reduction.py check PRECOMPUTABLE_METRICS to decide when to take
+this path.
 """
 
 from __future__ import annotations
 
 import numpy as np
+from sklearn.metrics.pairwise import euclidean_distances
 
 SUPPORTED_BINARY_METRICS = {"jaccard", "dice"}
+PRECOMPUTABLE_METRICS = SUPPORTED_BINARY_METRICS | {"euclidean"}
 
 
 def require_binary_matrix(X: np.ndarray, metric: str) -> None:
-    """Raises ValueError if X has any value outside {0, 1}.
-
-    Jaccard/Dice (both here and umap/sklearn's own native "jaccard"/"dice"
-    implementations) are defined on set/boolean overlap - the intersection
-    count `X @ X.T` this module relies on is meaningless once a "1" can mean
-    "partial membership" rather than "present". Nothing upstream of this
-    point guarantees binarity: `build_lesion_matrix.py` only ever produces a
-    strictly binary voxel-wise matrix, but `dim_reduction.py` reads any
-    matrix.npy artifact regardless of what pipeline wrote it - a continuous
-    matrix in [0, 1] (e.g. FC data from build_fc_matrix.py, or a future
-    atlas-based fractional-damage summary) fed to jaccard/dice would
-    otherwise silently compute numbers that look like valid distances but
-    aren't Jaccard/Dice at all (found during a 2026-08 literature-validation
-    review). Called both by `binary_pairwise_distance` below (fine-tuning's
-    precomputed-distance path) and directly by `dim_reduction.py`'s
-    production path, which passes `metric="jaccard"/"dice"` straight to
-    `umap.UMAP`/`sklearn.TSNE` on raw `X` without ever calling
-    `binary_pairwise_distance` itself - both call sites must reject the same
-    bad input, not just the precomputed one.
+    """Raises ValueError if X has any value outside {0, 1} - jaccard/dice's
+    set-overlap definition is meaningless on non-binary data (see
+    docs/dev/models.md). Called both by binary_pairwise_distance below and
+    directly by dim_reduction.py's production path, which passes
+    metric="jaccard"/"dice" straight to umap.UMAP/sklearn.TSNE without going
+    through binary_pairwise_distance - both call sites must reject the same
+    bad input.
     """
     if not np.all((X == 0) | (X == 1)):
         raise ValueError(
@@ -76,3 +71,29 @@ def binary_pairwise_distance(X: np.ndarray, metric: str) -> np.ndarray:
 
     np.fill_diagonal(distance, 0.0)
     return distance
+
+
+def euclidean_pairwise_distance(X: np.ndarray) -> np.ndarray:
+    """Pairwise Euclidean distance matrix for a (n_samples, n_features) array.
+
+    No binary/domain restriction, unlike binary_pairwise_distance - any real-
+    valued matrix is valid input. See this module's docstring for why this
+    exists (umap-learn/sklearn's own per-fit neighbor search, not the
+    distance computation, is the bottleneck at this project's scale).
+    """
+    return euclidean_distances(X.astype(np.float64))
+
+
+def precomputed_distance(X: np.ndarray, metric: str) -> np.ndarray:
+    """Dispatches to binary_pairwise_distance or euclidean_pairwise_distance by
+    metric name - the single entry point tuning.py/reduction.py use once
+    metric is known to be in PRECOMPUTABLE_METRICS.
+
+    Raises ValueError for any metric outside PRECOMPUTABLE_METRICS (mirrors
+    binary_pairwise_distance's own error for an unsupported binary metric).
+    """
+    if metric in SUPPORTED_BINARY_METRICS:
+        return binary_pairwise_distance(X, metric)
+    if metric == "euclidean":
+        return euclidean_pairwise_distance(X)
+    raise ValueError(f"unsupported metric {metric!r} for precomputed_distance - supported: {sorted(PRECOMPUTABLE_METRICS)}")

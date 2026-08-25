@@ -51,6 +51,36 @@ def test_evaluate_umap_with_dice_metric_returns_valid_embedding_and_score():
     assert 0.0 <= score <= 1.0
 
 
+def test_evaluate_umap_euclidean_metric_uses_distance_cache(monkeypatch):
+    """Regression (docs/debugging/debug_25_08_26.md): metric="euclidean" used to always
+    fall through to umap-learn's own per-fit neighbor search on raw X, recomputed from
+    scratch on every call - 17-35 minutes per n_neighbors/min_dist combination on the
+    project's real 5269x264274 lesion matrix, vs. 88s to precompute the whole distance
+    matrix once (measured directly). Now goes through the same precomputed-distance +
+    distance_cache path as jaccard/dice: two calls sharing one distance_cache compute the
+    distance matrix once, not twice. Fails on the pre-fix code (evaluate_umap never
+    imported/called src.analysis.tuning.precomputed_distance for any metric)."""
+    import src.analysis.tuning as tuning_module
+
+    call_count = 0
+    real_precomputed_distance = tuning_module.precomputed_distance
+
+    def _counting_precomputed_distance(X, metric):
+        nonlocal call_count
+        call_count += 1
+        return real_precomputed_distance(X, metric)
+
+    monkeypatch.setattr(tuning_module, "precomputed_distance", _counting_precomputed_distance)
+
+    distance_cache: dict = {}
+    params = {"n_neighbors": 5, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "euclidean"}
+    evaluate_umap(_X, params, trustworthiness_n_neighbors=5, distance_cache=distance_cache)
+    evaluate_umap(_X, params, trustworthiness_n_neighbors=5, distance_cache=distance_cache)
+
+    assert call_count == 1, f"expected precomputed_distance to run once for euclidean with a shared cache, got {call_count}"
+    assert "euclidean" in distance_cache
+
+
 def test_evaluate_umap_binary_metric_scored_against_matching_metric_not_euclidean():
     # Same embedding, scored two ways: evaluate_umap's own path (trustworthiness
     # against the jaccard distance matrix) vs. naively against raw-X euclidean
@@ -94,6 +124,31 @@ def test_evaluate_tsne_with_dice_metric_returns_valid_embedding_and_score():
     )
     assert embedding.shape == (40, 2)
     assert 0.0 <= score <= 1.0
+
+
+def test_evaluate_tsne_euclidean_metric_uses_distance_cache(monkeypatch):
+    """Regression (2026-08-25, docs/debugging/debug_25_08_26.md): extended from umap-only to
+    tsne too, on request - same shape of test as
+    test_evaluate_umap_euclidean_metric_uses_distance_cache above."""
+    import src.analysis.tuning as tuning_module
+
+    call_count = 0
+    real_precomputed_distance = tuning_module.precomputed_distance
+
+    def _counting_precomputed_distance(X, metric):
+        nonlocal call_count
+        call_count += 1
+        return real_precomputed_distance(X, metric)
+
+    monkeypatch.setattr(tuning_module, "precomputed_distance", _counting_precomputed_distance)
+
+    distance_cache: dict = {}
+    params = {"n_components": 2, "perplexity": 10, "random_state": 0, "metric": "euclidean"}
+    evaluate_tsne(_X, params, trustworthiness_n_neighbors=5, distance_cache=distance_cache)
+    evaluate_tsne(_X, params, trustworthiness_n_neighbors=5, distance_cache=distance_cache)
+
+    assert call_count == 1, f"expected precomputed_distance to run once for euclidean with a shared cache, got {call_count}"
+    assert "euclidean" in distance_cache
 
 
 def test_evaluate_tsne_binary_metric_scored_against_matching_metric_not_euclidean():

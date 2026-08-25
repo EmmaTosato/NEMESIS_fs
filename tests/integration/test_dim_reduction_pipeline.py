@@ -130,6 +130,7 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch, caplog):
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction.json"
@@ -178,6 +179,7 @@ def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, mon
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
         "run_notes": "prova sweep",
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning.json"
@@ -245,6 +247,7 @@ def test_dim_reduction_fine_tuning_save_tuning_embeddings_writes_npz(tmp_path, m
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": True,
+        "precompute_distance_metric": True,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning_emb.json"
@@ -309,6 +312,7 @@ def test_dim_reduction_save_tuning_embeddings_interrupted_write_leaves_no_trunca
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": True,
+        "precompute_distance_metric": True,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning_emb.json"
@@ -338,6 +342,7 @@ def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_pa
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning.json"
@@ -374,6 +379,7 @@ def test_dim_reduction_fine_tuning_pacmap_writes_sweep_not_embedding(tmp_path, m
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning.json"
@@ -410,6 +416,7 @@ def test_dim_reduction_fine_tuning_tsne_writes_sweep_not_embedding(tmp_path, mon
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning.json"
@@ -524,6 +531,7 @@ def test_dim_reduction_jaccard_metric_on_non_binary_matrix_raises(tmp_path, monk
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction.json"
@@ -565,6 +573,7 @@ def test_dim_reduction_unrecognized_hyperparameter_returns_1_not_raw_traceback(t
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction.json"
@@ -595,6 +604,7 @@ def test_dim_reduction_missing_input_path_raises(tmp_path, monkeypatch):
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction.json"
@@ -643,6 +653,7 @@ def test_dim_reduction_fine_tuning_nested_params_writes_leaf_folders_and_embeddi
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning_nested.json"
@@ -718,6 +729,7 @@ def test_dim_reduction_fine_tuning_overwrite_wipes_leaves_from_incompatible_prio
             "viz_n_components": 2,
             "write_embeddings_grid": True,
             "save_tuning_embeddings": False,
+            "precompute_distance_metric": True,
             "run_notes": None,
         }
 
@@ -786,6 +798,7 @@ def test_dim_reduction_fine_tuning_write_embeddings_grid_false_skips_plots_keeps
         "viz_n_components": 2,
         "write_embeddings_grid": False,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning_nested_no_grid.json"
@@ -847,6 +860,7 @@ def test_dim_reduction_fine_tuning_nested_n_components_refits_viz(tmp_path, monk
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning_nested_ncomp.json"
@@ -865,11 +879,12 @@ def test_dim_reduction_fine_tuning_nested_n_components_refits_viz(tmp_path, monk
 def test_dim_reduction_fine_tuning_grid_refit_reuses_distance_cache_across_cells(tmp_path, monkeypatch):
     """AUDIT_FINDINGS.md #34 regression: _build_grid_blocks used to call embedding_for_viz
     without a distance_cache - for a jaccard/dice metric, every refit cell in the same leaf
-    recomputed binary_pairwise_distance from scratch instead of sharing it (the same sharing
-    _run_production/_run_fine_tuning's main sweep already had). Here nested_params=["n_components"]
-    with metric="jaccard" fixed forces a refit for every free_params cell in the n_components=3
-    leaf (2 values of n_neighbors) - without the shared cache that's 2 separate
-    binary_pairwise_distance calls for the exact same X/metric; with it, at most 1."""
+    recomputed its precomputed distance matrix from scratch instead of sharing it (the same
+    sharing _run_production/_run_fine_tuning's main sweep already had). Here
+    nested_params=["n_components"] with metric="jaccard" fixed forces a refit for every
+    free_params cell in the n_components=3 leaf (2 values of n_neighbors) - without the shared
+    cache that's 2 separate precomputed_distance calls for the exact same X/metric; with it,
+    at most 1."""
     input_dir = _build_matrix_varying_volume(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
@@ -903,20 +918,21 @@ def test_dim_reduction_fine_tuning_grid_refit_reuses_distance_cache_across_cells
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
         "run_notes": None,
     }
     dr_cfg_path = tmp_path / "dim_reduction_tuning_nested_ncomp_jaccard.json"
     dr_cfg_path.write_text(json.dumps(dr_cfg))
 
     call_count = 0
-    real_binary_pairwise_distance = reduction.binary_pairwise_distance
+    real_precomputed_distance = reduction.precomputed_distance
 
-    def _counting_binary_pairwise_distance(X, metric):
+    def _counting_precomputed_distance(X, metric):
         nonlocal call_count
         call_count += 1
-        return real_binary_pairwise_distance(X, metric)
+        return real_precomputed_distance(X, metric)
 
-    monkeypatch.setattr(reduction, "binary_pairwise_distance", _counting_binary_pairwise_distance)
+    monkeypatch.setattr(reduction, "precomputed_distance", _counting_precomputed_distance)
 
     exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
     assert exit_code == 0

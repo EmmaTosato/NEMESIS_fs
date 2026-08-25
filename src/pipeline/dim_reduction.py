@@ -126,7 +126,7 @@ def _run_production(
     # recomputing it (see src/analysis/reduction.py::embed's docstring).
     distance_cache: dict[str, np.ndarray] = {}
     try:
-        embedding = embed(config.reduction_method, X, params, distance_cache)
+        embedding = embed(config.reduction_method, X, params, distance_cache, config.precompute_distance_metric)
     except (TypeError, ValueError) as exc:
         # TypeError: an unrecognized hyperparameter in params_reduction.json (e.g. a typo'd
         # key) reaches the estimator's own **params unpack and raises there, not from any
@@ -143,7 +143,7 @@ def _run_production(
     # pca_varimax/pacmap raise instead of a silent slice or an invalid refit.
     try:
         viz_embedding = embedding_for_viz(
-            config.reduction_method, X, params, embedding, config.viz_n_components, distance_cache
+            config.reduction_method, X, params, embedding, config.viz_n_components, distance_cache, config.precompute_distance_metric
         )
     except ValueError as exc:
         logging.error(str(exc))

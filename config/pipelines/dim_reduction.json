@@ -5,11 +5,12 @@
   "params_file": "config/registry/params_reduction.json",
   "output_root": "results/lesion/dim_reduction",
   "session_name": "s1.2",
-  "overwrite": false,
+  "overwrite": true,
   "fine_tuning": true,
   "color_by": ["dataset", "side", "volume", "nihss"],
   "viz_n_components": 2,
   "write_embeddings_grid": true,
   "save_tuning_embeddings": true,
-  "run_notes": "umap tuning on s1.2 matrix (5269 subjects, +UCL-UK/UCLStrokeData) - same tuning_grid as the last s1.1 sweep"
+  "precompute_distance_metric": true,
+  "run_notes": "umap tuning on s1.2 matrix (5269 subjects, +UCL-UK/UCLStrokeData) - same tuning_grid as the last s1.1 sweep. "
 }

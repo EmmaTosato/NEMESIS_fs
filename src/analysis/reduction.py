@@ -19,7 +19,7 @@ from factor_analyzer import Rotator
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
-from src.analysis.distances import SUPPORTED_BINARY_METRICS, binary_pairwise_distance, require_binary_matrix
+from src.analysis.distances import PRECOMPUTABLE_METRICS, SUPPORTED_BINARY_METRICS, precomputed_distance, require_binary_matrix
 
 
 def umap_embed(X: np.ndarray, params: dict) -> np.ndarray:
@@ -109,13 +109,17 @@ REDUCTION_METHODS: dict[str, Callable[[np.ndarray, dict], np.ndarray]] = {
 
 
 def embed(
-    reduction_method: str, X: np.ndarray, params: dict, distance_cache: dict[str, np.ndarray] | None = None
+    reduction_method: str,
+    X: np.ndarray,
+    params: dict,
+    distance_cache: dict[str, np.ndarray] | None = None,
+    precompute_distance_metric: bool = True,
 ) -> np.ndarray:
     """Wraps REDUCTION_METHODS[reduction_method], replacing X with its
-    precomputed Jaccard/Dice distance matrix (src/analysis/distances.py)
-    whenever params["metric"] is one of SUPPORTED_BINARY_METRICS - no effect
-    for any other metric/method (pca, pacmap, or umap/tsne at
-    metric="euclidean"), X/params pass through unchanged.
+    precomputed distance matrix (src/analysis/distances.py) whenever
+    params["metric"] is one of PRECOMPUTABLE_METRICS - no effect for any
+    other metric (pca/pca_varimax/pacmap never have a "metric" key in their
+    params to begin with), X/params pass through unchanged.
 
     Why this exists (2026-08, literature-validation review): umap-learn only
     computes an *exact* k-NN graph itself for datasets under 4096 samples
@@ -123,7 +127,7 @@ def embed(
     - see umap/umap_.py in the umap-learn source); above that threshold it
     silently switches to the approximate NNDescent/pynndescent search. Before
     this function existed, only src/analysis/tuning.py's fine-tuning sweep
-    (evaluate_umap/evaluate_tsne) went through binary_pairwise_distance +
+    (evaluate_umap/evaluate_tsne) went through a precomputed distance matrix +
     metric="precomputed" (built as a *speed* optimization for sweeping many
     combinations, never ported to the single-run production path) - meaning
     the tuning table used to choose production hyperparameters was scored
@@ -138,6 +142,18 @@ def embed(
     production is guaranteed to use the exact same neighbor graph the tuning
     sweep it was chosen from actually evaluated, regardless of cohort size.
 
+    2026-08-25 (docs/debugging/debug_25_08_26.md): PRECOMPUTABLE_METRICS
+    widened from jaccard/dice to also include euclidean, for both umap and
+    tsne (mirrors tuning.py's evaluate_umap/evaluate_tsne, same
+    src/analysis/distances.py dispatcher) - euclidean specifically is also a
+    large speed win at this project's scale, not just an exactness guarantee
+    (umap-learn/sklearn's own per-fit neighbor search on a 264274-voxel
+    matrix is the actual bottleneck, not the distance computation itself -
+    see distances.py's module docstring; measured directly for umap, 88s to
+    precompute vs. 17-35 min per uncached fit - not independently measured
+    for tsne, see evaluate_tsne's own docstring). pca/pca_varimax/pacmap are
+    unaffected either way, since their params never carry a "metric" key.
+
     sklearn's TSNE additionally requires init != "pca" (its own default)
     whenever metric="precomputed" ("pca" needs the raw feature matrix, not a
     distance matrix) - forced to "random" here for reduction_method="tsne",
@@ -147,14 +163,32 @@ def embed(
     caller that computes an embedding and then a viz refit (embedding_for_viz
     below) at the same metric reuse the same precomputed matrix instead of
     recomputing it. None (default) always recomputes.
+
+    `precompute_distance_metric` (2026-08-25, on request, `docs/debugging/
+    debug_25_08_26.md`): set False to skip the whole precomputed-distance
+    path above and pass `params["metric"]` straight to `REDUCTION_METHODS`
+    on raw `X` - a "vanilla" umap.UMAP/sklearn.TSNE call with no precompute
+    machinery involved at all, for reproducibility against literature/
+    external UMAP runs that never precompute anything (this also means
+    umap-learn's own undocumented <4096-samples exact/approximate threshold
+    applies again, unlike the precomputed path above). `require_binary_matrix`
+    still runs regardless of this flag - jaccard/dice being meaningless on
+    non-binary data is a fact about the data, not about which computation
+    path is chosen. Defaults to `True` (today's behavior, unchanged for any
+    caller not passing this explicitly) - `dim_reduction.py`'s production
+    path exposes it via `DimReductionConfig.precompute_distance_metric`;
+    `tuning.py`'s own `evaluate_umap`/`evaluate_tsne` are a separate
+    implementation (never call `embed`) and always precompute, no toggle
+    there - a slow fine-tuning sweep has no upside.
     """
     metric = params.get("metric")
     if metric in SUPPORTED_BINARY_METRICS:
         require_binary_matrix(X, metric)
+    if precompute_distance_metric and metric in PRECOMPUTABLE_METRICS:
         if distance_cache is not None and metric in distance_cache:
             X = distance_cache[metric]
         else:
-            X = binary_pairwise_distance(X, metric)
+            X = precomputed_distance(X, metric)
             if distance_cache is not None:
                 distance_cache[metric] = X
         params = {k: v for k, v in params.items() if k != "metric"}
@@ -198,6 +232,7 @@ def embedding_for_viz(
     embedding: np.ndarray,
     viz_n_components: int,
     distance_cache: dict[str, np.ndarray] | None = None,
+    precompute_distance_metric: bool = True,
 ) -> np.ndarray:
     """Returns an embedding with exactly `viz_n_components` columns, suitable
     to plot - reused unmodified if `embedding` already has that many columns
@@ -225,6 +260,10 @@ def embedding_for_viz(
     honest view of the production embedding (see _REFITTABLE_FOR_VIZ's own
     comment for why each excluded method is excluded). The caller must rerun
     with viz_n_components == n_components for that method instead.
+
+    `precompute_distance_metric` is forwarded as-is to `embed` above (see its
+    own docstring) - the refit follows the same raw-vs-precomputed choice as
+    the original fit, never a mismatched one.
     """
     if embedding.shape[1] == viz_n_components:
         return embedding
@@ -238,4 +277,4 @@ def embedding_for_viz(
             "to n_components for this method instead"
         )
     viz_params = {**reduction_params, "n_components": viz_n_components}
-    return embed(reduction_method, X, viz_params, distance_cache)
+    return embed(reduction_method, X, viz_params, distance_cache, precompute_distance_metric)

@@ -3,7 +3,13 @@
 import numpy as np
 import pytest
 
-from src.analysis.distances import SUPPORTED_BINARY_METRICS, binary_pairwise_distance
+from src.analysis.distances import (
+    PRECOMPUTABLE_METRICS,
+    SUPPORTED_BINARY_METRICS,
+    binary_pairwise_distance,
+    euclidean_pairwise_distance,
+    precomputed_distance,
+)
 
 # A=[1,1,0,0], B=[1,0,1,0], C=[1,1,1,1] - hand-computed below
 _X = np.array(
@@ -52,3 +58,30 @@ def test_all_zero_row_raises():
 
 def test_supported_binary_metrics_is_jaccard_and_dice():
     assert SUPPORTED_BINARY_METRICS == {"jaccard", "dice"}
+
+
+def test_precomputable_metrics_is_jaccard_dice_euclidean():
+    assert PRECOMPUTABLE_METRICS == {"jaccard", "dice", "euclidean"}
+
+
+def test_euclidean_pairwise_distance_matches_hand_computed_values():
+    dist = euclidean_pairwise_distance(_X)
+    # A=[1,1,0,0], B=[1,0,1,0]: sqrt(0+1+1+0) = sqrt(2)
+    assert dist[0, 1] == pytest.approx(np.sqrt(2))
+    # A=[1,1,0,0], C=[1,1,1,1]: sqrt(0+0+1+1) = sqrt(2)
+    assert dist[0, 2] == pytest.approx(np.sqrt(2))
+    # B=[1,0,1,0], C=[1,1,1,1]: sqrt(0+1+0+1) = sqrt(2)
+    assert dist[1, 2] == pytest.approx(np.sqrt(2))
+    assert np.allclose(np.diag(dist), 0.0)
+    assert np.allclose(dist, dist.T)
+
+
+def test_precomputed_distance_dispatches_by_metric():
+    assert np.allclose(precomputed_distance(_X, "euclidean"), euclidean_pairwise_distance(_X))
+    assert np.allclose(precomputed_distance(_X, "jaccard"), binary_pairwise_distance(_X, "jaccard"))
+    assert np.allclose(precomputed_distance(_X, "dice"), binary_pairwise_distance(_X, "dice"))
+
+
+def test_precomputed_distance_unsupported_metric_raises():
+    with pytest.raises(ValueError, match="unsupported metric 'cosine'"):
+        precomputed_distance(_X, "cosine")

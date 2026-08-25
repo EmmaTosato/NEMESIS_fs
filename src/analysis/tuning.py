@@ -36,7 +36,7 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.manifold import trustworthiness
 
-from src.analysis.distances import SUPPORTED_BINARY_METRICS, binary_pairwise_distance
+from src.analysis.distances import PRECOMPUTABLE_METRICS, precomputed_distance
 from src.analysis.reduction import _pca_varimax_fit, pacmap_embed, tsne_embed, umap_embed
 
 TUNING_METRIC_NAMES = {
@@ -49,13 +49,15 @@ TUNING_METRIC_NAMES = {
 
 METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS = {"umap", "tsne", "pacmap"}
 
-# umap/tsne are the only evaluators that can request a precomputed binary
-# distance matrix (jaccard/dice) - run_tuning_sweep passes each a shared
-# per-sweep cache (keyed by metric name) so a sweep with N combinations at
-# the same metric computes that matrix once, not N times (X.astype(float64)
-# alone allocates a full-size copy of the feature matrix, plus an O(n^2)
-# matmul - see binary_pairwise_distance - neither depends on n_neighbors/
-# min_dist/n_components, so redoing it per combination is pure waste).
+# umap/tsne are the only evaluators that can request a precomputed distance
+# matrix (jaccard/dice/euclidean, see src/analysis/distances.py) -
+# run_tuning_sweep passes each a shared per-sweep cache (keyed by metric
+# name) so a sweep with N combinations at the same metric computes that
+# matrix once, not N times - none of jaccard/dice/euclidean's precomputed
+# distance depends on n_neighbors/min_dist/n_components, so redoing it per
+# combination is pure waste (for euclidean specifically, that waste is
+# umap-learn's own neighbor search, not the distance computation itself -
+# see distances.py's module docstring).
 METHODS_WITH_DISTANCE_CACHE = {"umap", "tsne"}
 
 
@@ -65,20 +67,24 @@ def evaluate_umap(
     """Embed with UMAP, then score with trustworthiness(X, embedding).
 
     trustworthiness needs its own notion of "how close were these points
-    originally" - if params requests a binary metric (jaccard/dice), that
-    notion must be the *same* metric the embedding was actually built with,
-    not trustworthiness's own euclidean default (comparing a jaccard-built
-    embedding against euclidean neighborhoods isn't a fair test of it, see
-    docs/dev/models.md). For those metrics X is replaced by its precomputed
-    binary_pairwise_distance matrix for both the embedding and the score, and
-    umap's own metric is switched to "precomputed" accordingly - this also
-    guarantees an *exact* neighbor graph (umap-learn only computes exact
-    k-NN itself for datasets under 4096 samples - `n_index_samples < 4096`
-    in `UMAP.fit()`, https://github.com/lmcinnes/umap/blob/master/umap/umap_.py
-    - above that it silently switches to the approximate NNDescent/pynndescent
-    search; precomputing avoids depending on that undocumented, version-
-    dependent threshold at all - see dim_reduction.py's production path,
-    which now goes through the same precomputed branch for the same reason).
+    originally" - if params requests a precomputable metric (jaccard/dice/
+    euclidean, see src/analysis/distances.py), that notion must be the
+    *same* metric the embedding was actually built with, not
+    trustworthiness's own euclidean default computed on raw X (comparing a
+    jaccard-built embedding against raw-X euclidean neighborhoods isn't a
+    fair test of it, see docs/dev/models.md). For those metrics X is
+    replaced by its precomputed distance matrix for both the embedding and
+    the score, and umap's own metric is switched to "precomputed"
+    accordingly - this also guarantees an *exact* neighbor graph (umap-learn
+    only computes exact k-NN itself for datasets under 4096 samples -
+    `n_index_samples < 4096` in `UMAP.fit()`,
+    https://github.com/lmcinnes/umap/blob/master/umap/umap_.py - above that
+    it silently switches to the approximate NNDescent/pynndescent search;
+    precomputing avoids depending on that undocumented, version-dependent
+    threshold at all - see dim_reduction.py's production path, which now
+    goes through the same precomputed branch for the same reason). For
+    metric="euclidean" specifically this is also, separately, a large speed
+    win at this project's scale - see distances.py's module docstring.
 
     `distance_cache`, when given, is read/written by metric name - a repeat
     call for the same metric (e.g. the next n_neighbors/min_dist combination
@@ -87,11 +93,11 @@ def evaluate_umap(
     recomputes - never stale, just uncached.
     """
     metric = params.get("metric", "euclidean")
-    if metric in SUPPORTED_BINARY_METRICS:
+    if metric in PRECOMPUTABLE_METRICS:
         if distance_cache is not None and metric in distance_cache:
             X_input = distance_cache[metric]
         else:
-            X_input = binary_pairwise_distance(X, metric)
+            X_input = precomputed_distance(X, metric)
             if distance_cache is not None:
                 distance_cache[metric] = X_input
         umap_params = {k: v for k, v in params.items() if k != "metric"}
@@ -112,26 +118,37 @@ def evaluate_tsne(
 ) -> tuple[np.ndarray, float]:
     """Embed with t-SNE, then score with trustworthiness(X, embedding).
 
-    Same binary-metric handling as evaluate_umap, for the same reason: on
-    binary voxel data, euclidean is dominated by lesion volume rather than
-    topography, so jaccard/dice (precomputed, see binary_pairwise_distance)
-    are swept alongside perplexity - both the embedding and its
-    trustworthiness score use that same precomputed matrix. sklearn's TSNE
-    additionally requires init != "pca" (its own default) whenever
-    metric="precomputed" - "pca" needs the raw feature matrix, not a distance
-    matrix - so init is forced to "random" in that case, never left at the
-    default for a precomputed run.
+    Same precomputed-metric handling as evaluate_umap, for the same reasons
+    (see its docstring): jaccard/dice/euclidean (precomputed, see
+    src/analysis/distances.py) are swept alongside perplexity - both the
+    embedding and its trustworthiness score use that same precomputed
+    matrix. sklearn's TSNE additionally requires init != "pca" (its own
+    default) whenever metric="precomputed" - "pca" needs the raw feature
+    matrix, not a distance matrix - so init is forced to "random" in that
+    case, never left at the default for a precomputed run.
+
+    2026-08-25 (docs/debugging/debug_25_08_26.md): metric="euclidean"
+    extended to the same precomputed path as evaluate_umap, on request -
+    unlike evaluate_umap's fix, the redundant-recomputation cost for t-SNE
+    specifically was never independently measured (no live timing run on the
+    real project matrix, only "sklearn's TSNE also runs its own per-fit
+    neighbor search, likely the same shape of waste") - the fix itself is
+    still correct and safe either way (the precomputed-distance +
+    metric="precomputed" path already existed and was already validated for
+    jaccard/dice here, this only widens which metrics use it), but the exact
+    speedup magnitude for t-SNE is unverified, unlike UMAP's measured 88s vs.
+    17-35 min.
 
     `distance_cache` behaves exactly as in evaluate_umap - reused by metric
     name across calls within the same sweep, None (default) always
     recomputes.
     """
     metric = params.get("metric", "euclidean")
-    if metric in SUPPORTED_BINARY_METRICS:
+    if metric in PRECOMPUTABLE_METRICS:
         if distance_cache is not None and metric in distance_cache:
             X_input = distance_cache[metric]
         else:
-            X_input = binary_pairwise_distance(X, metric)
+            X_input = precomputed_distance(X, metric)
             if distance_cache is not None:
                 distance_cache[metric] = X_input
         tsne_params = {k: v for k, v in params.items() if k != "metric"}

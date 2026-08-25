@@ -34,6 +34,7 @@ def test_dim_reduction_config_valid(tmp_path):
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
     }
     config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
     assert config.reduction_method == "umap"
@@ -42,6 +43,7 @@ def test_dim_reduction_config_valid(tmp_path):
     assert config.viz_n_components == 2
     assert config.write_embeddings_grid is True
     assert config.save_tuning_embeddings is False
+    assert config.precompute_distance_metric is True
     assert config.run_notes is None
 
 
@@ -55,6 +57,7 @@ def test_dim_reduction_config_with_run_notes(tmp_path):
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
         "run_notes": "provo n_neighbors piu alto",
     }
     config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
@@ -89,6 +92,7 @@ def _dr_payload(**overrides):
         "viz_n_components": 2,
         "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
+        "precompute_distance_metric": True,
     }
     payload.update(overrides)
     return payload
@@ -155,6 +159,23 @@ def test_dim_reduction_config_missing_save_tuning_embeddings_raises(tmp_path):
 def test_dim_reduction_config_save_tuning_embeddings_non_bool_raises(tmp_path):
     with pytest.raises(ValueError, match="field 'save_tuning_embeddings' must be a boolean"):
         load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(save_tuning_embeddings="true")))
+
+
+def test_dim_reduction_config_missing_precompute_distance_metric_raises(tmp_path):
+    payload = _dr_payload()
+    del payload["precompute_distance_metric"]
+    with pytest.raises(ValueError, match="missing required field 'precompute_distance_metric'"):
+        load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
+
+
+def test_dim_reduction_config_precompute_distance_metric_non_bool_raises(tmp_path):
+    with pytest.raises(ValueError, match="field 'precompute_distance_metric' must be a boolean"):
+        load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(precompute_distance_metric="true")))
+
+
+def test_dim_reduction_config_precompute_distance_metric_false_valid(tmp_path):
+    config = load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(precompute_distance_metric=False)))
+    assert config.precompute_distance_metric is False
 
 
 def test_clustering_config_valid(tmp_path):
