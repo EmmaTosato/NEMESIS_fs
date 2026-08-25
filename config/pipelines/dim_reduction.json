@@ -1,15 +1,15 @@
 {
   "project": "clinical_connectome",
-  "input_path": "data/derived/lesion_matrix/21-07_s1.1",
-  "reduction_method": "tsne",
+  "input_path": "data/derived/lesion_matrix/25-08_s1.2",
+  "reduction_method": "umap",
   "params_file": "config/registry/params_reduction.json",
   "output_root": "results/lesion/dim_reduction",
-  "session_name": "s1.1",
-  "overwrite": true,
+  "session_name": "s1.2",
+  "overwrite": false,
   "fine_tuning": true,
   "color_by": ["dataset", "side", "volume", "nihss"],
   "viz_n_components": 2,
   "write_embeddings_grid": true,
   "save_tuning_embeddings": true,
-  "run_notes": "t-SNE tuning: metric x perplexity grid (dice, euclidean; perplexity 5-200), no regress_out_volume (feature removed repo-wide 12-08). save_tuning_embeddings=true to persist embeddings.npz for every combination."
+  "run_notes": "umap tuning on s1.2 matrix (5269 subjects, +UCL-UK/UCLStrokeData) - same tuning_grid as the last s1.1 sweep"
 }
