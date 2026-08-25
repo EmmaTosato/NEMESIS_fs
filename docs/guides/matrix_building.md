@@ -21,17 +21,13 @@ all'aggiunta/rimozione di una coorte — solo il campo `datasets` nel config.
 ## Esecuzione
 
 ### 1. Sul Server (tramite SLURM)
-L'esecuzione tramite SLURM previene interruzioni dovute alla chiusura della connessione.
-La config di produzione copre tutte le coorti in-scope (N in `docs/guides/datasets.md`) —
-scala sufficiente da richiedere **sempre SLURM**, non l'esecuzione in locale:
+L'esecuzione tramite SLURM previene interruzioni dovute alla chiusura della connessione:
 ```bash
 sbatch jobs/run_build_lesion_matrix.sh
 ```
 
 ### 2. In Locale
-Dal PC locale, dopo aver attivato l'ambiente `nemesis` — indicato solo per config ridotte
-(subset di `datasets`/`group_filter`, o iterazione rapida su pochi soggetti), non per la
-config di produzione a piena scala:
+Dal PC locale, dopo aver attivato l'ambiente `nemesis`:
 ```bash
 python -m src.pipeline.build_lesion_matrix --config config/pipelines/build_lesion_matrix.json
 ```

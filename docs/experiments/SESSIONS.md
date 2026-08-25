@@ -25,8 +25,9 @@ Non aggiungere una quarta chiave senza aggiornare anche il parser dello script.
 ## Session 1.2
 
 - Starting date:
-- Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR
-- Modality: Lesion in 2D matrix parcellated
+- Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR, UCL-UK StrokeData
+- Modality: Lesion in 2D matrix volumetric
+- Notes: + dataset more,
 
 ## Session 2
 
