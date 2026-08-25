@@ -36,7 +36,7 @@ import pandas as pd
 from src.analysis.build_config import BuildFcMatrixConfig, load_build_fc_matrix_config
 from src.features.functional import build_fc_matrix_from_masked
 from src.utils.artifacts import save_matrix
-from src.utils.logging_setup import attach_file_handler
+from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
 
 REPORTS_ROOT = Path("summaries") / "build_fc_matrix"
@@ -62,121 +62,124 @@ def main(argv: list[str] | None = None) -> int:
 
     now = datetime.now()
     try:
-        log_path = _log_path(config, now)
-        attach_file_handler(log_path)
-    except OSError as exc:
-        logging.error("cannot set up log file: %s", exc, exc_info=True)
-        return 1
-
-    combo_reports: dict[str, dict] = {}
-    failed_combos: dict[str, str] = {}
-    for combo in config.atlas_combos:
-        input_dir = config.masked_fc_root / combo
-        # AUDIT_FINDINGS.md #29: atlas_combos are independent (each reads its own
-        # masked_fc/<combo>/ folder) - a combo whose input isn't ready yet (mask_fc.py
-        # not rerun for it, e.g. after a min_coverage change) must not block the other,
-        # already-ready combos in the same config. Isolated per-combo (lesson #21);
-        # save_matrix/append_run_log_entry failures below stay fatal (return 1) since
-        # those are infra-level faults (disk full, permissions) likely to recur on every
-        # remaining combo, not a per-combo input gap.
         try:
-            X, metadata, edge_names, dropped_info = build_fc_matrix_from_masked(input_dir)
-        except (FileNotFoundError, ValueError) as exc:
-            logging.warning("%s: skipped, could not be built: %s", combo, exc)
-            failed_combos[combo] = str(exc)
-            continue
-
-        if dropped_info:
-            logging.warning(
-                "%s: %d edge(s) had an identical value across every subject and were dropped "
-                "(unexpected for continuous FC data, verify upstream computation): %s",
-                combo,
-                len(dropped_info),
-                dropped_info,
-            )
-        else:
-            logging.info("%s: constant-edge check complete - 0 constant edges found, %d/%d kept", combo, len(edge_names), len(edge_names))
-
-        nan_per_subject = pd.Series(np.isnan(X).sum(axis=1), index=metadata["subject_id"])
-        nan_per_edge = pd.Series(np.isnan(X).sum(axis=0), index=edge_names)
-        logging.info(
-            "%s: matrix built (%d subjects x %d edges) - NaN per subject: min=%d max=%d mean=%.1f",
-            combo,
-            X.shape[0],
-            X.shape[1],
-            int(nan_per_subject.min()),
-            int(nan_per_subject.max()),
-            float(nan_per_subject.mean()),
-        )
-
-        output_dir = config.output_root / combo / f"{now.strftime('%d-%m')}_{config.session_name}"
-        readme_lines = _build_readme_lines(config, combo, X, dropped_info, now)
-        try:
-            save_matrix(
-                output_dir,
-                X,
-                metadata,
-                readme_lines,
-                overwrite=config.overwrite,
-                # np.array(edge_names) without dtype=object: a plain unicode array, loadable via
-                # np.load without allow_pickle=True - an object-dtype array would require it.
-                extra_arrays={"edge_names": np.array(edge_names)},
-            )
-        except (FileExistsError, ValueError, OSError) as exc:
-            logging.error("%s: %s", combo, exc)
-            return 1
-        logging.info("%s: matrix written to %s (shape %s)", combo, output_dir, X.shape)
-
-        combo_reports[combo] = {
-            "output_dir": output_dir,
-            "shape": X.shape,
-            "n_dropped_constant_edges": len(dropped_info),
-            "nan_per_subject": nan_per_subject,
-            "nan_per_edge": nan_per_edge,
-        }
-
-        try:
-            append_run_log_entry(
-                config.output_root,
-                config.session_name,
-                now,
-                "production",
-                {"n_subjects": X.shape[0], "n_edges": X.shape[1]},
-                output_dir,
-                config.run_notes,
-                input_dir,
-                extra_columns={"atlas_combo": combo},
-            )
+            log_path = _log_path(config, now)
+            attach_file_handler(log_path)
         except OSError as exc:
-            logging.error("%s: cannot write run log: %s", combo, exc, exc_info=True)
+            logging.error("cannot set up log file: %s", exc, exc_info=True)
             return 1
 
-    if not combo_reports:
-        logging.error("every configured atlas_combo failed - nothing built: %s", failed_combos)
-        return 1
+        combo_reports: dict[str, dict] = {}
+        failed_combos: dict[str, str] = {}
+        for combo in config.atlas_combos:
+            input_dir = config.masked_fc_root / combo
+            # AUDIT_FINDINGS.md #29: atlas_combos are independent (each reads its own
+            # masked_fc/<combo>/ folder) - a combo whose input isn't ready yet (mask_fc.py
+            # not rerun for it, e.g. after a min_coverage change) must not block the other,
+            # already-ready combos in the same config. Isolated per-combo (lesson #21);
+            # save_matrix/append_run_log_entry failures below stay fatal (return 1) since
+            # those are infra-level faults (disk full, permissions) likely to recur on every
+            # remaining combo, not a per-combo input gap.
+            try:
+                X, metadata, edge_names, dropped_info = build_fc_matrix_from_masked(input_dir)
+            except (FileNotFoundError, ValueError) as exc:
+                logging.warning("%s: skipped, could not be built: %s", combo, exc)
+                failed_combos[combo] = str(exc)
+                continue
 
-    try:
-        report_path = _write_report(config, combo_reports, failed_combos, now)
-    except OSError as exc:
-        logging.error("cannot write report: %s", exc, exc_info=True)
-        return 1
+            if dropped_info:
+                logging.warning(
+                    "%s: %d edge(s) had an identical value across every subject and were dropped "
+                    "(unexpected for continuous FC data, verify upstream computation): %s",
+                    combo,
+                    len(dropped_info),
+                    dropped_info,
+                )
+            else:
+                logging.info("%s: constant-edge check complete - 0 constant edges found, %d/%d kept", combo, len(edge_names), len(edge_names))
 
-    if failed_combos:
-        logging.warning(
-            "%d/%d atlas combo(s) could not be built, skipped: %s",
-            len(failed_combos),
+            nan_per_subject = pd.Series(np.isnan(X).sum(axis=1), index=metadata["subject_id"])
+            nan_per_edge = pd.Series(np.isnan(X).sum(axis=0), index=edge_names)
+            logging.info(
+                "%s: matrix built (%d subjects x %d edges) - NaN per subject: min=%d max=%d mean=%.1f",
+                combo,
+                X.shape[0],
+                X.shape[1],
+                int(nan_per_subject.min()),
+                int(nan_per_subject.max()),
+                float(nan_per_subject.mean()),
+            )
+
+            output_dir = config.output_root / combo / f"{now.strftime('%d-%m')}_{config.session_name}"
+            readme_lines = _build_readme_lines(config, combo, X, dropped_info, now)
+            try:
+                save_matrix(
+                    output_dir,
+                    X,
+                    metadata,
+                    readme_lines,
+                    overwrite=config.overwrite,
+                    # np.array(edge_names) without dtype=object: a plain unicode array, loadable via
+                    # np.load without allow_pickle=True - an object-dtype array would require it.
+                    extra_arrays={"edge_names": np.array(edge_names)},
+                )
+            except (FileExistsError, ValueError, OSError) as exc:
+                logging.error("%s: %s", combo, exc)
+                return 1
+            logging.info("%s: matrix written to %s (shape %s)", combo, output_dir, X.shape)
+
+            combo_reports[combo] = {
+                "output_dir": output_dir,
+                "shape": X.shape,
+                "n_dropped_constant_edges": len(dropped_info),
+                "nan_per_subject": nan_per_subject,
+                "nan_per_edge": nan_per_edge,
+            }
+
+            try:
+                append_run_log_entry(
+                    config.output_root,
+                    config.session_name,
+                    now,
+                    "production",
+                    {"n_subjects": X.shape[0], "n_edges": X.shape[1]},
+                    output_dir,
+                    config.run_notes,
+                    input_dir,
+                    extra_columns={"atlas_combo": combo},
+                )
+            except OSError as exc:
+                logging.error("%s: cannot write run log: %s", combo, exc, exc_info=True)
+                return 1
+
+        if not combo_reports:
+            logging.error("every configured atlas_combo failed - nothing built: %s", failed_combos)
+            return 1
+
+        try:
+            report_path = _write_report(config, combo_reports, failed_combos, now)
+        except OSError as exc:
+            logging.error("cannot write report: %s", exc, exc_info=True)
+            return 1
+
+        if failed_combos:
+            logging.warning(
+                "%d/%d atlas combo(s) could not be built, skipped: %s",
+                len(failed_combos),
+                len(config.atlas_combos),
+                failed_combos,
+            )
+        logging.info(
+            "done - matrices written under %s (%d/%d combo(s)), report written to %s, log written to %s",
+            config.output_root,
+            len(combo_reports),
             len(config.atlas_combos),
-            failed_combos,
+            report_path,
+            log_path,
         )
-    logging.info(
-        "done - matrices written under %s (%d/%d combo(s)), report written to %s, log written to %s",
-        config.output_root,
-        len(combo_reports),
-        len(config.atlas_combos),
-        report_path,
-        log_path,
-    )
-    return 0
+        return 0
+    finally:
+        log_duration(now)
 
 
 def _config_summary(config: BuildFcMatrixConfig) -> str:

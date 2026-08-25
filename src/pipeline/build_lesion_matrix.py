@@ -26,7 +26,7 @@ import pandas as pd
 from src.analysis.build_config import BuildMatrixConfig, load_build_matrix_config
 from src.features.lesion import build_lesion_matrix
 from src.utils.artifacts import save_matrix
-from src.utils.logging_setup import attach_file_handler
+from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
 
 REPORTS_ROOT = Path("summaries") / "build_lesion_matrix"
@@ -52,77 +52,80 @@ def main(argv: list[str] | None = None) -> int:
 
     now = datetime.now()
     try:
-        log_path = _log_path(config, now)
-        attach_file_handler(log_path)
-    except OSError as exc:
-        # No file handler yet at this point - this still reaches the console
-        # StreamHandler from basicConfig() above.
-        logging.error("cannot set up log file: %s", exc, exc_info=True)
-        return 1
+        try:
+            log_path = _log_path(config, now)
+            attach_file_handler(log_path)
+        except OSError as exc:
+            # No file handler yet at this point - this still reaches the console
+            # StreamHandler from basicConfig() above.
+            logging.error("cannot set up log file: %s", exc, exc_info=True)
+            return 1
 
-    try:
-        X, metadata, non_constant_mask, excluded_by_group = build_lesion_matrix(
-            data_root=config.data_root,
-            datasets=config.datasets,
-            reference_template_path=config.reference_template_path,
-            lesion_glob=config.lesion_glob,
-            binarize_threshold=config.binarize_threshold,
-            resample_interpolation=config.resample_interpolation,
-            group_filter=config.group_filter,
-        )
-    except (FileNotFoundError, ValueError, nib.filebasedimages.ImageFileError) as exc:
-        # ImageFileError (HIGH #20): a truncated/corrupt .nii.gz raises this from nib.load,
-        # for either the reference/atlas image or any subject's own lesion mask - neither
-        # FileNotFoundError (the file exists) nor ValueError (nibabel's own exception, not
-        # ours).
-        logging.error(str(exc))
-        return 1
+        try:
+            X, metadata, non_constant_mask, excluded_by_group = build_lesion_matrix(
+                data_root=config.data_root,
+                datasets=config.datasets,
+                reference_template_path=config.reference_template_path,
+                lesion_glob=config.lesion_glob,
+                binarize_threshold=config.binarize_threshold,
+                resample_interpolation=config.resample_interpolation,
+                group_filter=config.group_filter,
+            )
+        except (FileNotFoundError, ValueError, nib.filebasedimages.ImageFileError) as exc:
+            # ImageFileError (HIGH #20): a truncated/corrupt .nii.gz raises this from nib.load,
+            # for either the reference/atlas image or any subject's own lesion mask - neither
+            # FileNotFoundError (the file exists) nor ValueError (nibabel's own exception, not
+            # ours).
+            logging.error(str(exc))
+            return 1
 
-    if excluded_by_group:
+        if excluded_by_group:
+            logging.info(
+                "%d subject(s) excluded by group_filter=%s: %s",
+                len(excluded_by_group),
+                config.group_filter,
+                excluded_by_group,
+            )
+
+        output_dir = _output_dir(config, now)
+        extra_arrays = {"non_constant_mask": non_constant_mask}
+
+        try:
+            save_matrix(
+                output_dir,
+                X,
+                metadata,
+                _build_readme_lines(config, X, metadata, excluded_by_group, now),
+                overwrite=config.overwrite,
+                extra_arrays=extra_arrays,
+            )
+        except (FileExistsError, ValueError, OSError) as exc:
+            logging.error(str(exc))
+            return 1
+        logging.info("matrix written to %s (shape %s)", output_dir, X.shape)
+
+        try:
+            report_path = _write_report(config, X, metadata, excluded_by_group, now)
+            append_run_log_entry(
+                config.output_root,
+                config.session_name,
+                now,
+                "production",
+                {"binarize_threshold": config.binarize_threshold},
+                output_dir,
+                config.run_notes,
+                config.data_root,
+            )
+        except OSError as exc:
+            logging.error("cannot write report/run log: %s", exc, exc_info=True)
+            return 1
+
         logging.info(
-            "%d subject(s) excluded by group_filter=%s: %s",
-            len(excluded_by_group),
-            config.group_filter,
-            excluded_by_group,
+            "done - matrix written to %s, report written to %s, log written to %s", output_dir, report_path, log_path
         )
-
-    output_dir = _output_dir(config, now)
-    extra_arrays = {"non_constant_mask": non_constant_mask}
-
-    try:
-        save_matrix(
-            output_dir,
-            X,
-            metadata,
-            _build_readme_lines(config, X, metadata, excluded_by_group, now),
-            overwrite=config.overwrite,
-            extra_arrays=extra_arrays,
-        )
-    except (FileExistsError, ValueError, OSError) as exc:
-        logging.error(str(exc))
-        return 1
-    logging.info("matrix written to %s (shape %s)", output_dir, X.shape)
-
-    try:
-        report_path = _write_report(config, X, metadata, excluded_by_group, now)
-        append_run_log_entry(
-            config.output_root,
-            config.session_name,
-            now,
-            "production",
-            {"binarize_threshold": config.binarize_threshold},
-            output_dir,
-            config.run_notes,
-            config.data_root,
-        )
-    except OSError as exc:
-        logging.error("cannot write report/run log: %s", exc, exc_info=True)
-        return 1
-
-    logging.info(
-        "done - matrix written to %s, report written to %s, log written to %s", output_dir, report_path, log_path
-    )
-    return 0
+        return 0
+    finally:
+        log_duration(now)
 
 
 def _output_dir(config: BuildMatrixConfig, now: datetime) -> Path:

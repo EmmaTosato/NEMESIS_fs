@@ -58,7 +58,7 @@ from src.features.clinical import (
     join_participant_variables,
 )
 from src.utils.artifacts import MANIFEST_FILENAME, MATRIX_FILENAME, METADATA_FILENAME, README_FILENAME
-from src.utils.logging_setup import attach_file_handler
+from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
 
 # lesion_side has its own established join (join_lesion_side, "unknown" sentinel) reused as-is
@@ -98,93 +98,96 @@ def main(argv: list[str] | None = None) -> int:
 
     now = datetime.now()
     try:
-        log_path = _log_path(config, now)
-        attach_file_handler(log_path)
-    except OSError as exc:
-        logging.error("cannot set up log file: %s", exc, exc_info=True)
-        return 1
-
-    try:
-        metadata = _read_metadata(config.metadata_path)
-    except (FileNotFoundError, ValueError) as exc:
-        logging.error(str(exc))
-        return 1
-
-    if config.compute_volume:
         try:
-            metadata = _refresh_lesion_volume(config.metadata_path, metadata)
+            log_path = _log_path(config, now)
+            attach_file_handler(log_path)
+        except OSError as exc:
+            logging.error("cannot set up log file: %s", exc, exc_info=True)
+            return 1
+
+        try:
+            metadata = _read_metadata(config.metadata_path)
         except (FileNotFoundError, ValueError) as exc:
             logging.error(str(exc))
             return 1
-        logging.info("lesion_volume_voxels recomputed from %s", config.metadata_path.parent / MATRIX_FILENAME)
 
-    try:
-        report = check_participant_variable_coverage(metadata, config.variables)
-    except ValueError as exc:
-        logging.error(str(exc))
-        return 1
+        if config.compute_volume:
+            try:
+                metadata = _refresh_lesion_volume(config.metadata_path, metadata)
+            except (FileNotFoundError, ValueError) as exc:
+                logging.error(str(exc))
+                return 1
+            logging.info("lesion_volume_voxels recomputed from %s", config.metadata_path.parent / MATRIX_FILENAME)
 
-    try:
-        report_path = _write_report(config, report, now)
-    except OSError as exc:
-        logging.error("cannot write coverage report: %s", exc, exc_info=True)
-        return 1
-    logging.info("coverage report written to %s", report_path)
+        try:
+            report = check_participant_variable_coverage(metadata, config.variables)
+        except ValueError as exc:
+            logging.error(str(exc))
+            return 1
 
-    if report.has_hard_failures:
-        logging.error(
-            "coverage check failed - %d dataset(s) with no participants.tsv, %d dataset(s) with "
-            "unresolvable subject(s); see %s for the full detail. Nothing written.",
-            len(report.missing_dataset_files),
-            len(report.missing_subjects_by_dataset),
-            report_path,
-        )
-        return 1
+        try:
+            report_path = _write_report(config, report, now)
+        except OSError as exc:
+            logging.error("cannot write coverage report: %s", exc, exc_info=True)
+            return 1
+        logging.info("coverage report written to %s", report_path)
 
-    for dataset, missing in sorted(report.missing_variable_by_dataset.items()):
-        fallback_by_variable = {v: ("'unknown'" if v == _LESION_SIDE_VARIABLE else "NaN") for v in missing}
-        logging.warning(
-            "%s: not in this dataset's participants.tsv, will be filled per-variable: %s",
-            dataset, fallback_by_variable,
-        )
+        if report.has_hard_failures:
+            logging.error(
+                "coverage check failed - %d dataset(s) with no participants.tsv, %d dataset(s) with "
+                "unresolvable subject(s); see %s for the full detail. Nothing written.",
+                len(report.missing_dataset_files),
+                len(report.missing_subjects_by_dataset),
+                report_path,
+            )
+            return 1
 
-    if args.dry_run:
-        logging.info("--dry-run: coverage check passed, nothing written")
+        for dataset, missing in sorted(report.missing_variable_by_dataset.items()):
+            fallback_by_variable = {v: ("'unknown'" if v == _LESION_SIDE_VARIABLE else "NaN") for v in missing}
+            logging.warning(
+                "%s: not in this dataset's participants.tsv, will be filled per-variable: %s",
+                dataset, fallback_by_variable,
+            )
+
+        if args.dry_run:
+            logging.info("--dry-run: coverage check passed, nothing written")
+            return 0
+
+        try:
+            metadata_out = _join_variables(metadata, config.variables)
+        except (FileNotFoundError, ValueError) as exc:
+            # Re-derives the same checks check_participant_variable_coverage already ran - only
+            # reachable here if the tsv files changed between the report above and this call.
+            logging.error("join failed after a clean coverage report - tsv files changed mid-run? %s", exc)
+            return 1
+
+        output_dir = _output_dir(config, now)
+        try:
+            _write_artifact(output_dir, metadata_out, config, now, overwrite=config.overwrite)
+        except (FileExistsError, OSError) as exc:
+            logging.error(str(exc))
+            return 1
+        logging.info("enriched metadata written to %s (%d subjects, columns %s)", output_dir, len(metadata_out), list(metadata_out.columns))
+
+        try:
+            append_run_log_entry(
+                config.output_root,
+                config.session_name,
+                now,
+                "production",
+                {"compute_volume": config.compute_volume, "variables": config.variables},
+                output_dir,
+                config.run_notes,
+                config.metadata_path,
+            )
+        except OSError as exc:
+            logging.error("cannot write run log: %s", exc, exc_info=True)
+            return 1
+
+        logging.info("done - output written to %s, report written to %s, log written to %s", output_dir, report_path, log_path)
         return 0
-
-    try:
-        metadata_out = _join_variables(metadata, config.variables)
-    except (FileNotFoundError, ValueError) as exc:
-        # Re-derives the same checks check_participant_variable_coverage already ran - only
-        # reachable here if the tsv files changed between the report above and this call.
-        logging.error("join failed after a clean coverage report - tsv files changed mid-run? %s", exc)
-        return 1
-
-    output_dir = _output_dir(config, now)
-    try:
-        _write_artifact(output_dir, metadata_out, config, now, overwrite=config.overwrite)
-    except (FileExistsError, OSError) as exc:
-        logging.error(str(exc))
-        return 1
-    logging.info("enriched metadata written to %s (%d subjects, columns %s)", output_dir, len(metadata_out), list(metadata_out.columns))
-
-    try:
-        append_run_log_entry(
-            config.output_root,
-            config.session_name,
-            now,
-            "production",
-            {"compute_volume": config.compute_volume, "variables": config.variables},
-            output_dir,
-            config.run_notes,
-            config.metadata_path,
-        )
-    except OSError as exc:
-        logging.error("cannot write run log: %s", exc, exc_info=True)
-        return 1
-
-    logging.info("done - output written to %s, report written to %s, log written to %s", output_dir, report_path, log_path)
-    return 0
+    finally:
+        log_duration(now)
 
 
 def _read_metadata(metadata_path: Path) -> pd.DataFrame:

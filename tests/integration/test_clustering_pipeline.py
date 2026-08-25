@@ -1,6 +1,7 @@
 """Integration test: clustering.py (no reduction) chained onto a build_lesion_matrix.py output."""
 
 import json
+import logging
 
 import nibabel as nib
 import numpy as np
@@ -64,7 +65,7 @@ def _write_viz_embedding(tmp_path, name, subject_metadata):
     return viz_dir
 
 
-def test_clustering_end_to_end(tmp_path, monkeypatch):
+def test_clustering_end_to_end(tmp_path, monkeypatch, caplog):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
@@ -92,8 +93,11 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
     cfg_path = tmp_path / "cl.json"
     cfg_path.write_text(json.dumps(cfg))
 
-    exit_code = clustering.main(["--config", str(cfg_path)])
+    with caplog.at_level(logging.INFO):
+        exit_code = clustering.main(["--config", str(cfg_path)])
     assert exit_code == 0
+    # docs/debugging/debug_25_08_26.md: a run's duration must be logged, success or not.
+    assert "run duration:" in caplog.text
 
     out_dir = next(p for p in (output_root / "production" / "kmeans").iterdir() if p.is_dir())
     X = np.load(out_dir / "matrix.npy")
@@ -114,7 +118,7 @@ def test_clustering_end_to_end(tmp_path, monkeypatch):
     assert not (output_root / "tuning" / "kmeans" / "runs_tuning.csv").exists()  # production/tuning are separate files, not a column
 
 
-def test_clustering_unrecognized_hyperparameter_returns_1_not_raw_traceback(tmp_path, monkeypatch):
+def test_clustering_unrecognized_hyperparameter_returns_1_not_raw_traceback(tmp_path, monkeypatch, caplog):
     """Regression (HIGH #18, 2026-08 - the same gap #11 fixed in dim_reduction.py, found here
     in clustering.py's own production path during the same audit, against a config that no
     longer exists after dim_reduction_clustering.py's removal): load_method_params only
@@ -144,8 +148,14 @@ def test_clustering_unrecognized_hyperparameter_returns_1_not_raw_traceback(tmp_
     cfg_path = tmp_path / "cl.json"
     cfg_path.write_text(json.dumps(cfg))
 
-    assert clustering.main(["--config", str(cfg_path)]) == 1
+    with caplog.at_level(logging.INFO):
+        exit_code = clustering.main(["--config", str(cfg_path)])
+    assert exit_code == 1
     assert not output_root.exists()
+    # Duration must be logged on the error path too, not just on success. This error is
+    # raised deep in the per-method loop (_run_one_method) - confirms the finally in main()
+    # still fires through that nesting, not just for the flat early-return paths.
+    assert "run duration:" in caplog.text
 
 
 def test_clustering_viz_embedding_path_wrong_n_components_raises(tmp_path, monkeypatch):
@@ -592,7 +602,7 @@ def test_clustering_comparison_plot_failure_returns_1_not_raw_traceback(tmp_path
     assert (output_root / "production" / "kmeans").exists()
 
 
-def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monkeypatch):
+def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monkeypatch, caplog):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
@@ -624,7 +634,11 @@ def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monke
     cfg_path = tmp_path / "cl.json"
     cfg_path.write_text(json.dumps(cfg))
 
-    assert clustering.main(["--config", str(cfg_path)]) == 0
+    with caplog.at_level(logging.INFO):
+        exit_code = clustering.main(["--config", str(cfg_path)])
+    assert exit_code == 0
+    # fine-tuning's own completion point (separate from production's) must log duration too.
+    assert "run duration:" in caplog.text
 
     tuning_dir = next(p for p in (output_root / "tuning" / "kmeans").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_results.csv").is_file()

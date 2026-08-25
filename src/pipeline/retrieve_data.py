@@ -41,6 +41,7 @@ from src.retrieval import verify
 from src.retrieval.config import RetrievalConfig, RetrieveItem, load_config
 from src.retrieval.dataset import Dataset
 from src.retrieval.output_layout import local_dataset_root, local_relative_path
+from src.utils.logging_setup import log_duration
 
 REPORTS_ROOT = Path("summaries") / "data_retrieval"
 LOGS_ROOT = Path("logs") / "data_retrieval"
@@ -702,47 +703,50 @@ def main(argv: list[str] | None = None) -> int:
 
     now = datetime.now()
     try:
-        log_path = _log_path(config, now)
-        _attach_file_handler(log_path)
-    except OSError as exc:
-        # No file handler yet at this point - this still reaches the console
-        # StreamHandler from basicConfig() above.
-        logging.error("cannot set up log file: %s", exc, exc_info=True)
-        return 1
+        try:
+            log_path = _log_path(config, now)
+            _attach_file_handler(log_path)
+        except OSError as exc:
+            # No file handler yet at this point - this still reaches the console
+            # StreamHandler from basicConfig() above.
+            logging.error("cannot set up log file: %s", exc, exc_info=True)
+            return 1
 
-    try:
-        datasets = _build_datasets(config)
-        _validate_upfront(datasets, config)
-    except (FileNotFoundError, ValueError) as exc:
-        logging.error(str(exc))
-        return 1
+        try:
+            datasets = _build_datasets(config)
+            _validate_upfront(datasets, config)
+        except (FileNotFoundError, ValueError) as exc:
+            logging.error(str(exc))
+            return 1
 
-    stats = _retrieve_all(datasets, config)
+        stats = _retrieve_all(datasets, config)
 
-    try:
-        report_path = _write_report(config, stats, now)
-    except OSError as exc:
-        logging.error("cannot write report: %s", exc, exc_info=True)
-        return 1
+        try:
+            report_path = _write_report(config, stats, now)
+        except OSError as exc:
+            logging.error("cannot write report: %s", exc, exc_info=True)
+            return 1
 
-    total_verification_errors = sum(
-        len(s.mismatched) + len(s.missing_locally) for s in stats.values()
-    )
-    if total_verification_errors:
-        logging.error(
-            "post-copy verification found %d problem(s) against source - see report: %s",
-            total_verification_errors,
-            report_path,
+        total_verification_errors = sum(
+            len(s.mismatched) + len(s.missing_locally) for s in stats.values()
         )
-    fatal_datasets = [name for name, s in stats.items() if s.fatal_error is not None]
-    if fatal_datasets:
-        logging.error(
-            "retrieval aborted partway through for dataset(s) %s - see report: %s",
-            fatal_datasets,
-            report_path,
-        )
-    logging.info("done - report written to %s, log written to %s", report_path, log_path)
-    return 1 if fatal_datasets else 0
+        if total_verification_errors:
+            logging.error(
+                "post-copy verification found %d problem(s) against source - see report: %s",
+                total_verification_errors,
+                report_path,
+            )
+        fatal_datasets = [name for name, s in stats.items() if s.fatal_error is not None]
+        if fatal_datasets:
+            logging.error(
+                "retrieval aborted partway through for dataset(s) %s - see report: %s",
+                fatal_datasets,
+                report_path,
+            )
+        logging.info("done - report written to %s, log written to %s", report_path, log_path)
+        return 1 if fatal_datasets else 0
+    finally:
+        log_duration(now)
 
 
 if __name__ == "__main__":

@@ -94,7 +94,7 @@ from src.analysis.plotting import (
     plot_silhouette_analysis,
 )
 from src.utils.artifacts import load_matrix, save_matrix
-from src.utils.logging_setup import attach_file_handler
+from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
 
 LOGS_ROOT = Path("logs") / "clustering"
@@ -117,95 +117,98 @@ def main(argv: list[str] | None = None) -> int:
 
     now = datetime.now()
     try:
-        log_path = _log_path(config, now)
-        attach_file_handler(log_path)
-    except OSError as exc:
-        logging.error("cannot set up log file: %s", exc, exc_info=True)
-        return 1
-
-    try:
-        X, metadata, _extra_arrays = load_matrix(config.input_path)
-    except (FileNotFoundError, ValueError) as exc:
-        logging.error(str(exc))
-        return 1
-
-    # reduced_data is declarative only (docs/dev/clustering_migration_plan.md §1) - loading is
-    # identical either way (load_matrix above, no embed() call in this pipeline). Logged so a run's
-    # log/console output always makes explicit which of the two the operator declared, rather than
-    # leaving it implicit in whatever input_path happens to point at.
-    if config.reduced_data:
-        logging.info("reduced_data=true - input_path treated as an already-computed embedding (%s, shape %s)", config.input_path, X.shape)
-    else:
-        logging.info("reduced_data=false - input_path treated as a raw feature matrix (%s, shape %s)", config.input_path, X.shape)
-
-    if config.fine_tuning:
-        return _run_fine_tuning(config, X, now, log_path)
-
-    try:
-        X_viz = _resolve_viz_embedding(X, metadata, config.viz_embedding_path)
-    except ValueError as exc:
-        logging.error(str(exc))
-        return 1
-    if X_viz is None:
-        logging.warning(
-            "X has %d components (not 2 or 3) and no viz_embedding_path was given - skipping every "
-            "cluster-colored plot (cluster_plot.png/cluster_plot_interactive.html/silhouette_plot.png/"
-            "cluster_comparison.png/cluster_comparison_interactive.html) for this run. If X has more "
-            "than 3 components, produce a companion 2D/3D embedding separately (dim_reduction.py, "
-            "same params as the one used for this input, only n_components different) and set "
-            "viz_embedding_path to plot - see docs/dev/clustering_migration_plan.md §3.",
-            X.shape[1],
-        )
-
-    labels_by_method: dict[str, np.ndarray] = {}
-    for method in config.clustering_methods:
-        cluster_labels = _run_one_method(config, method, X, X_viz, metadata, now)
-        if cluster_labels is None:
-            return 1
-        labels_by_method[method] = cluster_labels
-
-    if X_viz is not None:
-        comparison_dir = _comparison_dir(config, now)
-        if comparison_dir.exists() and not config.overwrite:
-            logging.error(
-                "comparison dir %s already exists and overwrite=False - set overwrite=true, "
-                "choose a different session_name, or remove it first",
-                comparison_dir,
-            )
-            return 1
         try:
-            plot_clusters_comparison(
-                X_viz,
-                labels_by_method,
-                comparison_dir / "cluster_comparison.png",
-                xlabel="viz dim 1",
-                ylabel="viz dim 2",
-                suptitle=compose_comparison_title(comparison_dir, None),
-            )
-            logging.info("comparison plot written to %s", comparison_dir / "cluster_comparison.png")
-
-            plot_clusters_comparison_interactive(
-                X_viz,
-                labels_by_method,
-                metadata,
-                comparison_dir / "cluster_comparison_interactive.html",
-                xlabel="viz dim 1",
-                ylabel="viz dim 2",
-                title=compose_run_title(comparison_dir, config.project),
-            )
-            logging.info(
-                "interactive comparison plot written to %s", comparison_dir / "cluster_comparison_interactive.html"
-            )
-
-            _write_comparison_readme(comparison_dir, config, now)
+            log_path = _log_path(config, now)
+            attach_file_handler(log_path)
         except OSError as exc:
-            # Every per-method run above is already written and logged to runs.csv by this
-            # point - only the comparison artifact itself is at risk here (lesson #9).
-            logging.error("cannot write comparison output to %s: %s", comparison_dir, exc, exc_info=True)
+            logging.error("cannot set up log file: %s", exc, exc_info=True)
             return 1
 
-    logging.info("done - all %d method(s) written under %s, log written to %s", len(config.clustering_methods), config.output_root, log_path)
-    return 0
+        try:
+            X, metadata, _extra_arrays = load_matrix(config.input_path)
+        except (FileNotFoundError, ValueError) as exc:
+            logging.error(str(exc))
+            return 1
+
+        # reduced_data is declarative only (docs/dev/clustering_migration_plan.md §1) - loading is
+        # identical either way (load_matrix above, no embed() call in this pipeline). Logged so a run's
+        # log/console output always makes explicit which of the two the operator declared, rather than
+        # leaving it implicit in whatever input_path happens to point at.
+        if config.reduced_data:
+            logging.info("reduced_data=true - input_path treated as an already-computed embedding (%s, shape %s)", config.input_path, X.shape)
+        else:
+            logging.info("reduced_data=false - input_path treated as a raw feature matrix (%s, shape %s)", config.input_path, X.shape)
+
+        if config.fine_tuning:
+            return _run_fine_tuning(config, X, now, log_path)
+
+        try:
+            X_viz = _resolve_viz_embedding(X, metadata, config.viz_embedding_path)
+        except ValueError as exc:
+            logging.error(str(exc))
+            return 1
+        if X_viz is None:
+            logging.warning(
+                "X has %d components (not 2 or 3) and no viz_embedding_path was given - skipping every "
+                "cluster-colored plot (cluster_plot.png/cluster_plot_interactive.html/silhouette_plot.png/"
+                "cluster_comparison.png/cluster_comparison_interactive.html) for this run. If X has more "
+                "than 3 components, produce a companion 2D/3D embedding separately (dim_reduction.py, "
+                "same params as the one used for this input, only n_components different) and set "
+                "viz_embedding_path to plot - see docs/dev/clustering_migration_plan.md §3.",
+                X.shape[1],
+            )
+
+        labels_by_method: dict[str, np.ndarray] = {}
+        for method in config.clustering_methods:
+            cluster_labels = _run_one_method(config, method, X, X_viz, metadata, now)
+            if cluster_labels is None:
+                return 1
+            labels_by_method[method] = cluster_labels
+
+        if X_viz is not None:
+            comparison_dir = _comparison_dir(config, now)
+            if comparison_dir.exists() and not config.overwrite:
+                logging.error(
+                    "comparison dir %s already exists and overwrite=False - set overwrite=true, "
+                    "choose a different session_name, or remove it first",
+                    comparison_dir,
+                )
+                return 1
+            try:
+                plot_clusters_comparison(
+                    X_viz,
+                    labels_by_method,
+                    comparison_dir / "cluster_comparison.png",
+                    xlabel="viz dim 1",
+                    ylabel="viz dim 2",
+                    suptitle=compose_comparison_title(comparison_dir, None),
+                )
+                logging.info("comparison plot written to %s", comparison_dir / "cluster_comparison.png")
+
+                plot_clusters_comparison_interactive(
+                    X_viz,
+                    labels_by_method,
+                    metadata,
+                    comparison_dir / "cluster_comparison_interactive.html",
+                    xlabel="viz dim 1",
+                    ylabel="viz dim 2",
+                    title=compose_run_title(comparison_dir, config.project),
+                )
+                logging.info(
+                    "interactive comparison plot written to %s", comparison_dir / "cluster_comparison_interactive.html"
+                )
+
+                _write_comparison_readme(comparison_dir, config, now)
+            except OSError as exc:
+                # Every per-method run above is already written and logged to runs.csv by this
+                # point - only the comparison artifact itself is at risk here (lesson #9).
+                logging.error("cannot write comparison output to %s: %s", comparison_dir, exc, exc_info=True)
+                return 1
+
+        logging.info("done - all %d method(s) written under %s, log written to %s", len(config.clustering_methods), config.output_root, log_path)
+        return 0
+    finally:
+        log_duration(now)
 
 
 def _resolve_viz_embedding(X: np.ndarray, metadata: pd.DataFrame, viz_embedding_path: Path | None) -> np.ndarray | None:

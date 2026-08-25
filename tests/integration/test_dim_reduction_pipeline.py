@@ -1,6 +1,7 @@
 """Integration test: dim_reduction.py chained onto a build_lesion_matrix.py output, on synthetic data."""
 
 import json
+import logging
 
 import nibabel as nib
 import numpy as np
@@ -109,7 +110,7 @@ def _write_params(tmp_path):
     return params_path
 
 
-def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
+def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch, caplog):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
     _add_clinical_columns(input_dir, [f"sub-STUNIPD{i:04d}" for i in range(8)])
@@ -134,8 +135,11 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
     dr_cfg_path = tmp_path / "dim_reduction.json"
     dr_cfg_path.write_text(json.dumps(dr_cfg))
 
-    exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
+    with caplog.at_level(logging.INFO):
+        exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
     assert exit_code == 0
+    # docs/debugging/debug_25_08_26.md: a run's duration must be logged, success or not.
+    assert "run duration:" in caplog.text
 
     out_dir = next(p for p in (output_root / "production" / "pca").iterdir() if p.is_dir())
     embedding = np.load(out_dir / "matrix.npy")
@@ -155,7 +159,7 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch):
     assert not (output_root / "tuning" / "pca" / "runs_tuning.csv").exists()  # production/tuning are separate files, not a column
 
 
-def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, monkeypatch):
+def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, monkeypatch, caplog):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
@@ -179,8 +183,11 @@ def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, mon
     dr_cfg_path = tmp_path / "dim_reduction_tuning.json"
     dr_cfg_path.write_text(json.dumps(dr_cfg))
 
-    exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
+    with caplog.at_level(logging.INFO):
+        exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
     assert exit_code == 0
+    # fine-tuning's own completion point (separate from production's) must log duration too.
+    assert "run duration:" in caplog.text
 
     tuning_dir = next(p for p in (output_root / "tuning" / "umap").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_results.csv").is_file()
@@ -526,7 +533,7 @@ def test_dim_reduction_jaccard_metric_on_non_binary_matrix_raises(tmp_path, monk
     assert not (tmp_path / "dr_out").exists()
 
 
-def test_dim_reduction_unrecognized_hyperparameter_returns_1_not_raw_traceback(tmp_path, monkeypatch):
+def test_dim_reduction_unrecognized_hyperparameter_returns_1_not_raw_traceback(tmp_path, monkeypatch, caplog):
     """Regression (HIGH #11, 2026-08): load_method_params/require_binary_matrix only
     validate that params_reduction.json's method/file exist and (for binary metrics)
     that X is binary - they never validate the *contents* of params. A typo'd
@@ -563,8 +570,12 @@ def test_dim_reduction_unrecognized_hyperparameter_returns_1_not_raw_traceback(t
     dr_cfg_path = tmp_path / "dim_reduction.json"
     dr_cfg_path.write_text(json.dumps(dr_cfg))
 
-    assert dim_reduction.main(["--config", str(dr_cfg_path)]) == 1
+    with caplog.at_level(logging.INFO):
+        exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
+    assert exit_code == 1
     assert not (tmp_path / "dr_out").exists()
+    # Duration must be logged on the error path too, not just on success.
+    assert "run duration:" in caplog.text
 
 
 def test_dim_reduction_missing_input_path_raises(tmp_path, monkeypatch):

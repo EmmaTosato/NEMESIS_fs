@@ -64,7 +64,7 @@ from src.analysis.plotting import compose_embedding_plot_title, compose_run_titl
 from src.analysis.reduction import embed, embedding_for_viz
 from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
 from src.utils.artifacts import load_matrix, save_matrix
-from src.utils.logging_setup import attach_file_handler
+from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
 
 LOGS_ROOT = Path("logs") / "dim_reduction"
@@ -87,21 +87,24 @@ def main(argv: list[str] | None = None) -> int:
 
     now = datetime.now()
     try:
-        log_path = _log_path(config, now)
-        attach_file_handler(log_path)
-    except OSError as exc:
-        logging.error("cannot set up log file: %s", exc, exc_info=True)
-        return 1
+        try:
+            log_path = _log_path(config, now)
+            attach_file_handler(log_path)
+        except OSError as exc:
+            logging.error("cannot set up log file: %s", exc, exc_info=True)
+            return 1
 
-    try:
-        X, metadata, _extra_arrays = load_matrix(config.input_path)
-    except (FileNotFoundError, ValueError) as exc:
-        logging.error(str(exc))
-        return 1
+        try:
+            X, metadata, _extra_arrays = load_matrix(config.input_path)
+        except (FileNotFoundError, ValueError) as exc:
+            logging.error(str(exc))
+            return 1
 
-    if config.fine_tuning:
-        return _run_fine_tuning(config, X, metadata, now, log_path)
-    return _run_production(config, X, metadata, now, log_path)
+        if config.fine_tuning:
+            return _run_fine_tuning(config, X, metadata, now, log_path)
+        return _run_production(config, X, metadata, now, log_path)
+    finally:
+        log_duration(now)
 
 
 def _run_production(

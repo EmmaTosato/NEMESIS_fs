@@ -5,6 +5,7 @@ a pure tmp_path E2E, always runs (no skipif).
 """
 
 import json
+import logging
 
 import nibabel as nib
 import numpy as np
@@ -75,7 +76,7 @@ def _all_voxels_in_block(block):
     return [(x, y, z) for x in xs for y in ys for z in zs]
 
 
-def test_mask_fc_end_to_end(tmp_path, monkeypatch):
+def test_mask_fc_end_to_end(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(mask_fc, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(mask_fc, "LOGS_ROOT", tmp_path / "logs")
 
@@ -88,8 +89,11 @@ def test_mask_fc_end_to_end(tmp_path, monkeypatch):
     _make_subject(data_root, "siteA", "sub-STUNIPD0002", "ComboX", node_names, [])
 
     config_path = _write_config(tmp_path, data_root, atlas_root, output_root)
-    exit_code = mask_fc.main(["--config", str(config_path)])
+    with caplog.at_level(logging.INFO):
+        exit_code = mask_fc.main(["--config", str(config_path)])
     assert exit_code == 0
+    # docs/debugging/debug_25_08_26.md: a run's duration must be logged, success or not.
+    assert "run duration:" in caplog.text
 
     combo_dir = output_root / "ComboX"
     assert (combo_dir / "sub-STUNIPD0001_masked_fc.csv").is_file()
@@ -114,7 +118,7 @@ def test_mask_fc_end_to_end(tmp_path, monkeypatch):
     assert "ComboX" in runs_csv
 
 
-def test_mask_fc_overwrite_false_rerun_fails(tmp_path, monkeypatch):
+def test_mask_fc_overwrite_false_rerun_fails(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(mask_fc, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(mask_fc, "LOGS_ROOT", tmp_path / "logs")
 
@@ -127,7 +131,11 @@ def test_mask_fc_overwrite_false_rerun_fails(tmp_path, monkeypatch):
 
     config_path = _write_config(tmp_path, data_root, atlas_root, output_root)
     assert mask_fc.main(["--config", str(config_path)]) == 0
-    assert mask_fc.main(["--config", str(config_path)]) == 1
+    with caplog.at_level(logging.INFO):
+        exit_code = mask_fc.main(["--config", str(config_path)])
+    assert exit_code == 1
+    # Duration must be logged on the error path too, not just on success.
+    assert "run duration:" in caplog.text
 
 
 def test_mask_fc_group_filter_excludes_healthy_controls(tmp_path, monkeypatch):

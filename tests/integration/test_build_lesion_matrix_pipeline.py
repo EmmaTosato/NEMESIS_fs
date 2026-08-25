@@ -5,6 +5,7 @@ so this is a pure tmp_path E2E, always runs (no skipif).
 """
 
 import json
+import logging
 
 import nibabel as nib
 import numpy as np
@@ -58,7 +59,7 @@ def _write_config(tmp_path, data_root, output_root, overrides=None):
     return path
 
 
-def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch):
+def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
@@ -67,8 +68,11 @@ def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch):
     _make_dataset(data_root)
     config_path = _write_config(tmp_path, data_root, output_root)
 
-    exit_code = build_lesion_matrix.main(["--config", str(config_path)])
+    with caplog.at_level(logging.INFO):
+        exit_code = build_lesion_matrix.main(["--config", str(config_path)])
     assert exit_code == 0
+    # docs/debugging/debug_25_08_26.md: a run's duration must be logged, success or not.
+    assert "run duration:" in caplog.text
 
     run_dirs = [p for p in output_root.iterdir() if p.is_dir()]
     assert len(run_dirs) == 1
@@ -139,7 +143,7 @@ def test_build_lesion_matrix_config_md_has_params_used_line(tmp_path, monkeypatc
     assert "None." in config_md  # no group_filter set -> nothing excluded
 
 
-def test_build_lesion_matrix_corrupt_lesion_mask_returns_1_not_raw_traceback(tmp_path, monkeypatch):
+def test_build_lesion_matrix_corrupt_lesion_mask_returns_1_not_raw_traceback(tmp_path, monkeypatch, caplog):
     """Regression (HIGH #20, 2026-08): nib.load raises nibabel.filebasedimages.ImageFileError
     for a truncated/corrupt .nii.gz - not FileNotFoundError (the file exists) nor ValueError
     (nibabel's own exception, not ours) - so it used to propagate as a raw traceback instead
@@ -165,8 +169,14 @@ def test_build_lesion_matrix_corrupt_lesion_mask_returns_1_not_raw_traceback(tmp
 
     config_path = _write_config(tmp_path, data_root, output_root)
 
-    assert build_lesion_matrix.main(["--config", str(config_path)]) == 1
+    with caplog.at_level(logging.INFO):
+        exit_code = build_lesion_matrix.main(["--config", str(config_path)])
+    assert exit_code == 1
     assert not output_root.exists()
+    # Duration must be logged on the error path too, not just on success (lesson from
+    # docs/debugging/debug_25_08_26.md - a slow run that fails is exactly when knowing how
+    # long it ran before failing matters most).
+    assert "run duration:" in caplog.text
 
 
 def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, monkeypatch):

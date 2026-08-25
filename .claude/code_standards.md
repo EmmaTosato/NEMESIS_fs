@@ -93,6 +93,7 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 - Mai dati sensibili (credenziali, path con auth) nei log
 - Ogni eccezione loggata con contesto completo (`exc_info=True`), mai in silenzio
 - Livelli usati coerentemente: INFO (milestone), DEBUG (dettagli verbosi), WARNING (recuperabile), ERROR (richiede attenzione)
+- Ogni entry point di pipeline (`src/pipeline/*.py`) logga la durata del run (`src/utils/logging_setup.py::log_duration`, chiamata da un `finally` che avvolge il corpo di `main()` da quando lo start time è catturato in poi) - così la durata è nota sia sul path di successo sia su un `return` anticipato per errore, non solo quando il run completa pulito (vedi `docs/debugging/debug_25_08_26.md`)
 
 ---
 

@@ -6,6 +6,7 @@ runs (no skipif).
 """
 
 import json
+import logging
 
 import numpy as np
 import pandas as pd
@@ -35,7 +36,7 @@ def _write_config(tmp_path, masked_fc_root, output_root, overrides=None):
     return path
 
 
-def test_build_fc_matrix_end_to_end(tmp_path, monkeypatch):
+def test_build_fc_matrix_end_to_end(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(build_fc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_fc_matrix, "LOGS_ROOT", tmp_path / "logs")
 
@@ -51,8 +52,11 @@ def test_build_fc_matrix_end_to_end(tmp_path, monkeypatch):
     _write_masked_fc(masked_fc_root, "ComboX", "sub-02", fc2)
 
     config_path = _write_config(tmp_path, masked_fc_root, output_root)
-    exit_code = build_fc_matrix.main(["--config", str(config_path)])
+    with caplog.at_level(logging.INFO):
+        exit_code = build_fc_matrix.main(["--config", str(config_path)])
     assert exit_code == 0
+    # docs/debugging/debug_25_08_26.md: a run's duration must be logged, success or not.
+    assert "run duration:" in caplog.text
 
     combo_out_dirs = [p for p in (output_root / "ComboX").iterdir() if p.is_dir()]
     assert len(combo_out_dirs) == 1
@@ -99,13 +103,16 @@ def test_build_fc_matrix_drops_constant_edge(tmp_path, monkeypatch):
     assert X.shape == (2, 2)
 
 
-def test_build_fc_matrix_missing_input_raises(tmp_path, monkeypatch):
+def test_build_fc_matrix_missing_input_raises(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(build_fc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_fc_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     config_path = _write_config(tmp_path, tmp_path / "does_not_exist", tmp_path / "out")
-    exit_code = build_fc_matrix.main(["--config", str(config_path)])
+    with caplog.at_level(logging.INFO):
+        exit_code = build_fc_matrix.main(["--config", str(config_path)])
     assert exit_code == 1
+    # Duration must be logged on the error path too, not just on success.
+    assert "run duration:" in caplog.text
 
 
 def test_build_fc_matrix_one_combo_not_ready_does_not_abort_the_others(tmp_path, monkeypatch):

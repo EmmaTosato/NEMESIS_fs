@@ -6,6 +6,7 @@ already-local matrix.npy sitting next to metadata.csv.
 """
 
 import json
+import logging
 
 import numpy as np
 import pandas as pd
@@ -47,7 +48,7 @@ def _write_config(tmp_path, metadata_path, output_root, variables, compute_volum
     return cfg_path
 
 
-def test_enrich_lesion_metadata_end_to_end(tmp_path, monkeypatch):
+def test_enrich_lesion_metadata_end_to_end(tmp_path, monkeypatch, caplog):
     metadata_root = tmp_path / "assets_metadata"
     monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
     _make_participants_tsv(
@@ -65,9 +66,12 @@ def test_enrich_lesion_metadata_end_to_end(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     cfg_path = _write_config(tmp_path, metadata_path, output_root, ["age", "sex"])
 
-    rc = enrich_lesion_metadata.main(["--config", str(cfg_path)])
+    with caplog.at_level(logging.INFO):
+        rc = enrich_lesion_metadata.main(["--config", str(cfg_path)])
 
     assert rc == 0
+    # docs/debugging/debug_25_08_26.md: a run's duration must be logged, success or not.
+    assert "run duration:" in caplog.text
     out_dir = next(output_root.glob("*_run1"))
     metadata_out = pd.read_csv(out_dir / "metadata.csv")
     assert list(metadata_out.columns) == ["subject_id", "dataset", "lesion_volume_voxels", "age", "sex"]
@@ -110,16 +114,19 @@ def test_enrich_lesion_metadata_compute_volume_sums_matrix_next_to_metadata(tmp_
     assert metadata_out.loc["sub-2", "lesion_volume_voxels"] == 1
 
 
-def test_enrich_lesion_metadata_compute_volume_missing_matrix_raises(tmp_path, monkeypatch):
+def test_enrich_lesion_metadata_compute_volume_missing_matrix_raises(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path / "assets_metadata")
     metadata_path = _write_metadata_csv(tmp_path, [{"subject_id": "sub-1", "dataset": "siteA", "lesion_volume_voxels": 1}])
     # no matrix.npy written next to metadata_path
     monkeypatch.chdir(tmp_path)
     cfg_path = _write_config(tmp_path, metadata_path, tmp_path / "clinical_metadata", ["age"], compute_volume=True)
 
-    rc = enrich_lesion_metadata.main(["--config", str(cfg_path)])
+    with caplog.at_level(logging.INFO):
+        rc = enrich_lesion_metadata.main(["--config", str(cfg_path)])
 
     assert rc == 1
+    # Duration must be logged on the error path too, not just on success.
+    assert "run duration:" in caplog.text
 
 
 def test_enrich_lesion_metadata_compute_volume_parcellated_matrix_raises(tmp_path, monkeypatch):

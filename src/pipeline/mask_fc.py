@@ -37,7 +37,7 @@ import pandas as pd
 
 from src.analysis.build_config import MaskFcConfig, load_mask_fc_config
 from src.features.functional import mask_dataset_fc, resolve_atlas_paths
-from src.utils.logging_setup import attach_file_handler
+from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
 
 REPORTS_ROOT = Path("summaries") / "mask_fc"
@@ -62,118 +62,121 @@ def main(argv: list[str] | None = None) -> int:
 
     now = datetime.now()
     try:
-        log_path = _log_path(config, now)
-        attach_file_handler(log_path)
-    except OSError as exc:
-        logging.error("cannot set up log file: %s", exc, exc_info=True)
-        return 1
+        try:
+            log_path = _log_path(config, now)
+            attach_file_handler(log_path)
+        except OSError as exc:
+            logging.error("cannot set up log file: %s", exc, exc_info=True)
+            return 1
 
-    combo_summaries: dict[str, pd.DataFrame] = {}
-    for combo in config.atlas_combos:
-        output_dir = config.output_root / combo
-        if output_dir.exists():
-            if not config.overwrite:
-                logging.error(
-                    "output dir %s already has masked FC files and overwrite=False - "
-                    "set overwrite=true or choose a different output_root",
-                    output_dir,
-                )
-                return 1
-            # overwrite=True must mean "this combo's output is entirely from this run" -
-            # rmtree before mask_dataset_fc recreates it, otherwise a stale file from a
-            # previous run (e.g. subjects excluded by a since-tightened group_filter) would
-            # keep sitting in output_dir and get silently picked up downstream by
-            # build_fc_matrix.py's discover_masked_fc_files (lesson #18).
+        combo_summaries: dict[str, pd.DataFrame] = {}
+        for combo in config.atlas_combos:
+            output_dir = config.output_root / combo
+            if output_dir.exists():
+                if not config.overwrite:
+                    logging.error(
+                        "output dir %s already has masked FC files and overwrite=False - "
+                        "set overwrite=true or choose a different output_root",
+                        output_dir,
+                    )
+                    return 1
+                # overwrite=True must mean "this combo's output is entirely from this run" -
+                # rmtree before mask_dataset_fc recreates it, otherwise a stale file from a
+                # previous run (e.g. subjects excluded by a since-tightened group_filter) would
+                # keep sitting in output_dir and get silently picked up downstream by
+                # build_fc_matrix.py's discover_masked_fc_files (lesson #18).
+                try:
+                    shutil.rmtree(output_dir)
+                except OSError as exc:
+                    logging.error("%s: cannot clear existing output dir %s: %s", combo, output_dir, exc, exc_info=True)
+                    return 1
+
+            atlas_path, label_table_path = resolve_atlas_paths(config.atlas_root, combo)
             try:
-                shutil.rmtree(output_dir)
-            except OSError as exc:
-                logging.error("%s: cannot clear existing output dir %s: %s", combo, output_dir, exc, exc_info=True)
+                summary, missing_lesion, excluded_by_group, failed = mask_dataset_fc(
+                    data_root=config.data_root,
+                    dataset=config.dataset,
+                    atlas_path=atlas_path,
+                    label_table_path=label_table_path,
+                    atlas_combo=combo,
+                    lesion_glob=config.lesion_glob,
+                    fc_glob_template=config.fc_glob_template,
+                    min_coverage=config.min_coverage,
+                    resample_interpolation=config.resample_interpolation,
+                    binarize_threshold=config.binarize_threshold,
+                    output_dir=output_dir,
+                    group_filter=config.group_filter,
+                )
+            except (FileNotFoundError, ValueError) as exc:
+                logging.error("%s: %s", combo, exc)
                 return 1
 
-        atlas_path, label_table_path = resolve_atlas_paths(config.atlas_root, combo)
-        try:
-            summary, missing_lesion, excluded_by_group, failed = mask_dataset_fc(
-                data_root=config.data_root,
-                dataset=config.dataset,
-                atlas_path=atlas_path,
-                label_table_path=label_table_path,
-                atlas_combo=combo,
-                lesion_glob=config.lesion_glob,
-                fc_glob_template=config.fc_glob_template,
-                min_coverage=config.min_coverage,
-                resample_interpolation=config.resample_interpolation,
-                binarize_threshold=config.binarize_threshold,
-                output_dir=output_dir,
-                group_filter=config.group_filter,
-            )
-        except (FileNotFoundError, ValueError) as exc:
-            logging.error("%s: %s", combo, exc)
-            return 1
-
-        if missing_lesion:
-            logging.warning(
-                "%s: %d subject(s) have an FC matrix but no lesion mask, skipped: %s",
-                combo,
-                len(missing_lesion),
-                missing_lesion,
-            )
-        if excluded_by_group:
+            if missing_lesion:
+                logging.warning(
+                    "%s: %d subject(s) have an FC matrix but no lesion mask, skipped: %s",
+                    combo,
+                    len(missing_lesion),
+                    missing_lesion,
+                )
+            if excluded_by_group:
+                logging.info(
+                    "%s: %d subject(s) excluded by group_filter=%s: %s",
+                    combo,
+                    len(excluded_by_group),
+                    config.group_filter,
+                    excluded_by_group,
+                )
+            if failed:
+                logging.warning(
+                    "%s: %d subject(s) could not be masked, skipped: %s", combo, len(failed), failed
+                )
             logging.info(
-                "%s: %d subject(s) excluded by group_filter=%s: %s",
+                "%s: masked %d subjects (mean %.1f compromised nodes/subject)",
                 combo,
-                len(excluded_by_group),
-                config.group_filter,
-                excluded_by_group,
+                len(summary),
+                summary["n_compromised_nodes"].mean(),
             )
-        if failed:
-            logging.warning(
-                "%s: %d subject(s) could not be masked, skipped: %s", combo, len(failed), failed
-            )
+
+            try:
+                summary.to_csv(output_dir / SUMMARY_FILENAME, index=False)
+            except OSError as exc:
+                logging.error("%s: cannot write %s: %s", combo, SUMMARY_FILENAME, exc, exc_info=True)
+                return 1
+
+            combo_summaries[combo] = summary
+
+            try:
+                append_run_log_entry(
+                    config.output_root,
+                    config.session_name,
+                    now,
+                    "production",
+                    {"min_coverage": config.min_coverage, "n_subjects": len(summary)},
+                    output_dir,
+                    config.run_notes,
+                    config.data_root,
+                    extra_columns={"atlas_combo": combo},
+                )
+            except OSError as exc:
+                logging.error("%s: cannot write run log: %s", combo, exc, exc_info=True)
+                return 1
+
+        try:
+            report_path = _write_report(config, combo_summaries, now)
+        except OSError as exc:
+            logging.error("cannot write report: %s", exc, exc_info=True)
+            return 1
+
         logging.info(
-            "%s: masked %d subjects (mean %.1f compromised nodes/subject)",
-            combo,
-            len(summary),
-            summary["n_compromised_nodes"].mean(),
+            "done - masked FC written under %s (%d combo(s)), report written to %s, log written to %s",
+            config.output_root,
+            len(config.atlas_combos),
+            report_path,
+            log_path,
         )
-
-        try:
-            summary.to_csv(output_dir / SUMMARY_FILENAME, index=False)
-        except OSError as exc:
-            logging.error("%s: cannot write %s: %s", combo, SUMMARY_FILENAME, exc, exc_info=True)
-            return 1
-
-        combo_summaries[combo] = summary
-
-        try:
-            append_run_log_entry(
-                config.output_root,
-                config.session_name,
-                now,
-                "production",
-                {"min_coverage": config.min_coverage, "n_subjects": len(summary)},
-                output_dir,
-                config.run_notes,
-                config.data_root,
-                extra_columns={"atlas_combo": combo},
-            )
-        except OSError as exc:
-            logging.error("%s: cannot write run log: %s", combo, exc, exc_info=True)
-            return 1
-
-    try:
-        report_path = _write_report(config, combo_summaries, now)
-    except OSError as exc:
-        logging.error("cannot write report: %s", exc, exc_info=True)
-        return 1
-
-    logging.info(
-        "done - masked FC written under %s (%d combo(s)), report written to %s, log written to %s",
-        config.output_root,
-        len(config.atlas_combos),
-        report_path,
-        log_path,
-    )
-    return 0
+        return 0
+    finally:
+        log_duration(now)
 
 
 def _config_summary(config: MaskFcConfig) -> str:
