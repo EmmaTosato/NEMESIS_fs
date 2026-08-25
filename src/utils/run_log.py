@@ -81,6 +81,17 @@ def append_run_log_entry(
     runs_csv_path.parent.mkdir(parents=True, exist_ok=True)
     write_header = not runs_csv_path.is_file()
 
+    if not write_header:
+        with runs_csv_path.open("r", newline="") as f:
+            existing_header = next(csv.reader(f), None)
+        if existing_header != fieldnames:
+            raise ValueError(
+                f"{runs_csv_path} has header {existing_header}, but the current schema is "
+                f"{fieldnames} - FIELDNAMES (or this caller's extra_columns) changed since this "
+                "file was created. Appending would silently misalign every column after the "
+                "mismatch. Migrate the file to the new schema by hand before running this again."
+            )
+
     with runs_csv_path.open("a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         if write_header:
