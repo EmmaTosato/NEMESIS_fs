@@ -17,6 +17,7 @@ Attualmente sono gestite 5 coorti. Sebbene sia in corso un processo di armonizza
 | **`UNIPD/PASPORT`** | ~97 | 1.0 mm | Presente (maggior parte) |
 | **`UKLFR/stroke_UKLFR`**| ~735 | 1.5 mm | Presente (quasi totalità) |
 | **`UCL-UK/UCLStrokeData`** | 4119 | 2.0 mm | Presente (verificato 21/08: 4119/4119 soggetti) |
+| **`UKE/WAKEUP_acute`** | ~451 | — | Registrato solo per l'oggetto `sdc` (vedi punto 5 sotto) — nessuna maschera manuale/lesion retrieval definita per questo dataset oggi |
 
 > **Nota vitale per la matrice lesionale**: 
 > Data la disparità del Voxel Size (da 1 a 2 mm), durante l'esecuzione di `build_lesion_matrix` viene effettuato un **resampling spaziale**. Le lesioni vengono "deformate" e allineate su un'unica griglia omogenea (il `reference_template_path`), tipicamente a 2mm per rispettare lo standard MNI152 di FSL.
@@ -52,3 +53,10 @@ La pipeline *Retrieve Data* pesca "oggetti" da sorgenti asimmetriche. Questo sig
 ### 4. Lesioni Grezze (Raw)
 - **Descrizione**: Lesioni in spazio nativo non normalizzato (path logico: `lesion/raw/anat/lesion_roi`).
 - **Disponibilità Locale**: Pur esistendo sul server, per decisione architetturale **non vengono mai copiate nel workspace locale**. Tutto il nostro studio richiede tassativamente coordinate spaziali omogenee.
+
+### 5. Structural Disconnectome calcolato esternamente (`sdc`)
+- **Path logico**: `sdc/dwi/{disconnectome,lesion}-{map,mapstats,LF}`
+- **Descrizione**: Output Stage1+2 di BCBToolKit — la stessa computazione che fa la nostra `compute_sdc.py`/`src/sdc/`, ma questo run specifico non è passato dalla nostra CLI (`--mode manifest/run/aggregate`), quindi non ha `manifest.csv`/`_status/`/riga in `runs.csv` scritti da noi per questo run. Include il volume di disconnessione voxel-wise (`res-1_desc-disconnectome.nii.gz`), le statistiche aggregate (`mapstats.tsv`) e le parcellazioni per 15 atlanti (`LF-disconnectome_atlas-*.csv`), più gli equivalenti per la lesione stessa ricampionata (`LF-lesion_atlas-*.csv`, 16 atlanti — include anche `yeh_hcp1065_streamline`).
+- **Disponibilità**: `UNIPD/WashU` (195), `UNIPD/PASPORT` (83), `UNIPD/PSP` (168), `UKLFR/stroke_UKLFR` (705), `UKE/WAKEUP_acute` (451) — tutti solo pazienti stroke (nessun HC in queste cartelle). Sorgente: `Clinical_connectome/features/Clinical_connectome_stroke/<dataset>/lesion/{subject_id}/...` (un `project_root` diverso da quello di `lesion`/`feature`, vedi `docs/dev/retrieval.md`).
+- **Locale**: copiato via `config/pipelines/retrieval_sdc.json` sotto `sdc/` (stessa struttura pipeline-first di `lesion`/`feature`, vedi `docs/dev/retrieval.md`).
+- **Peso** (1602 soggetti, tutti e 5 i dataset, verificato 26/08): `disconnectome-map` (.nii.gz voxel-wise) 61% del totale, `disconnectome-LF` (15 CSV parcellati) 25%, `lesion-map` (.nii.gz maschera ricampionata) 12%, `lesion-LF` (16 CSV) 2%, mapstats trascurabile — totale ~3 GB. Per scaricare solo un sottoinsieme (es. solo i CSV già parcellati, ~793 MB, sufficienti per una matrice tipo `build_lesion_matrix.py`), usa `scripts/download_sdc.py --categories disconnectome-LF lesion-LF ...` invece della config completa — vedi `docs/guides/retrieval.md`.

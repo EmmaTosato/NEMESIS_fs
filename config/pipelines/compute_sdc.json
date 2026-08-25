@@ -9,7 +9,7 @@
   "stage2_ebrains": true,
   "stage2_presets": [],
   "output_root": "data/derived/sdc",
-  "session_name": "s1",
+  "session_name": "s1.2",
   "overwrite": false,
   "run_notes": "tracks_dir aggiornato al 23/07/26 all'atlante completo (178 soggetti, HCP 7T, 1mm) estratto da tracks7T.zip in /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T (integrita' zip verificata con unzip -t, nessun errore CRC su 181 file testati)."
 }

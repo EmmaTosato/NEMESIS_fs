@@ -180,6 +180,51 @@ def test_retrieve_item_pipeline_present_for_feature_raises(tmp_path):
         load_config(path)
 
 
+def test_retrieve_item_pipeline_present_for_sdc_raises(tmp_path):
+    """`sdc` (externally-computed disconnectome, see file_patterns_server.json)
+    forbids `pipeline` exactly like `feature` - no discoverable BIDS-
+    Derivatives pipeline name at the source for either."""
+    file_patterns = {
+        **VALID_FILE_PATTERNS,
+        "sdc": {
+            "project_root": "/data/corbetta/Clinical_connectome/features/Clinical_connectome_stroke",
+            "dwi": {"disconnectome-map": ["lesion/{subject_id}/{subject_id}_desc-disconnectome.nii.gz"]},
+        },
+    }
+    file_patterns_path = _write_file_patterns(tmp_path, data=file_patterns)
+    data = {
+        **VALID_CONFIG,
+        "file_patterns": str(file_patterns_path),
+        "retrieve": [
+            {"object": "sdc", "pipeline": "bogus", "datatype": "dwi", "suffix": "disconnectome-map"}
+        ],
+    }
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="pipeline"):
+        load_config(path)
+
+
+def test_retrieve_item_sdc_without_pipeline_loads(tmp_path):
+    file_patterns = {
+        **VALID_FILE_PATTERNS,
+        "sdc": {
+            "project_root": "/data/corbetta/Clinical_connectome/features/Clinical_connectome_stroke",
+            "dwi": {"disconnectome-map": ["lesion/{subject_id}/{subject_id}_desc-disconnectome.nii.gz"]},
+        },
+    }
+    file_patterns_path = _write_file_patterns(tmp_path, data=file_patterns)
+    data = {
+        **VALID_CONFIG,
+        "file_patterns": str(file_patterns_path),
+        "retrieve": [{"object": "sdc", "datatype": "dwi", "suffix": "disconnectome-map"}],
+    }
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(data))
+    config = load_config(path)
+    assert config.retrieve == [RetrieveItem(object="sdc", pipeline=None, datatype="dwi", suffix="disconnectome-map")]
+
+
 def test_unknown_group_in_group_filter_raises(tmp_path):
     path = _write_config(tmp_path, {"group_filter": ["ST", "BOGUS"]})
     with pytest.raises(ValueError, match="group_filter"):

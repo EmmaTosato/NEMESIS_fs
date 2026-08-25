@@ -682,33 +682,29 @@ def _attach_file_handler(log_path: Path) -> None:
     root_logger.addHandler(handler)
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Retrieve lesion/feature data and metadata into the local workspace."
-    )
-    parser.add_argument("--config", required=True, help="Path to a retrieval_local.json/retrieval_server.json file")
-    args = parser.parse_args(argv)
+def run(config: RetrievalConfig, now: datetime) -> int:
+    """Runs the full retrieval flow for an already-built RetrievalConfig: log
+    file setup, upfront validation, copy, post-copy verification, report.
+    Returns the process exit code (0 success, 1 on any STOP/FATAL/
+    verification mismatch) - same contract as main(), which is now a thin
+    CLI wrapper around this (config parsed from a retrieval_*.json file).
 
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    # basicConfig() is a no-op if the root logger already has a handler (e.g. under
-    # pytest, or a second call in the same interpreter) - set the level explicitly
-    # so INFO records still reach our FileHandler even when that happens.
-    logging.getLogger().setLevel(logging.INFO)
-
-    try:
-        config = load_config(args.config)
-    except (FileNotFoundError, ValueError) as exc:
-        logging.error(str(exc))
-        return 1
-
-    now = datetime.now()
+    Factored out so a `RetrievalConfig` built programmatically from CLI flags
+    instead of a JSON file - see scripts/download_sdc.py, which has no
+    config/pipelines/*.json of its own by design (its run-specific options
+    are argparse flags; only the file_patterns *registry*, not a run config,
+    is reused) - can drive the exact same engine main() does, instead of
+    duplicating validation/copy/report logic. Duration-logged on every exit
+    (see log_duration below) since this is also the persisted-log entry point
+    scripts/download_sdc.py drives - unlike other scripts/ entry points with
+    no log file of their own, this one has one via _log_path/_attach_file_handler."""
     try:
         try:
             log_path = _log_path(config, now)
             _attach_file_handler(log_path)
         except OSError as exc:
             # No file handler yet at this point - this still reaches the console
-            # StreamHandler from basicConfig() above.
+            # StreamHandler set up by the caller (basicConfig()).
             logging.error("cannot set up log file: %s", exc, exc_info=True)
             return 1
 
@@ -747,6 +743,28 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if fatal_datasets else 0
     finally:
         log_duration(now)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Retrieve lesion/feature data and metadata into the local workspace."
+    )
+    parser.add_argument("--config", required=True, help="Path to a retrieval_local.json/retrieval_server.json file")
+    args = parser.parse_args(argv)
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    # basicConfig() is a no-op if the root logger already has a handler (e.g. under
+    # pytest, or a second call in the same interpreter) - set the level explicitly
+    # so INFO records still reach our FileHandler even when that happens.
+    logging.getLogger().setLevel(logging.INFO)
+
+    try:
+        config = load_config(args.config)
+    except (FileNotFoundError, ValueError) as exc:
+        logging.error(str(exc))
+        return 1
+
+    return run(config, datetime.now())
 
 
 if __name__ == "__main__":

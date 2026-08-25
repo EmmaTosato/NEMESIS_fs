@@ -21,6 +21,42 @@ Dal PC locale, per recuperare file da un mount di rete (es. copia locale).
 python -m src.pipeline.retrieve_data --config config/pipelines/retrieval_local.json
 ```
 
+Per l'SDC (vedi sotto), stessa CLI ma con la config dedicata (scarica tutto, 5 dataset × 6 categorie, ~3 GB):
+```bash
+python -m src.pipeline.retrieve_data --config config/pipelines/retrieval_sdc.json
+```
+Su SLURM: `sbatch jobs/run_retrieve_sdc.sh`.
+
+**In alternativa**, per scaricare solo un sottoinsieme (dataset e/o categorie di file — vedi la tabella pesi/categorie in `docs/guides/datasets.md`), c'è uno script standalone dedicato, `scripts/download_sdc.py` — niente file di config in `config/`, tutte le opzioni sono flag CLI (riusa comunque la stessa registry `file_patterns_server.json` e lo stesso motore di `retrieve_data.py`, non duplica nulla):
+```bash
+PYTHONPATH=. python scripts/download_sdc.py \
+    --datasets UNIPD/WashU UKLFR/stroke_UKLFR \
+    --categories disconnectome-LF lesion-LF \
+    --output-root data/
+# --overwrite per riscaricare file già presenti; --help per l'elenco completo
+```
+Su SLURM: `sbatch jobs/run_download_sdc.sh` (modifica le variabili `DATASETS`/`CATEGORIES`/`OVERWRITE` in cima allo script prima di sottomettere).
+
+### 3. Scaricare sul proprio Mac (dal server, via rsync)
+`download_sdc.py`/`retrieve_data.py` girano *sul server* (dove il mount EBRAIN è visibile) — non copiano nulla sul tuo Mac. Per portare in locale solo un sottoinsieme, senza tirarti dietro tutto `data/`:
+
+1. **Sul server**, scarica in una cartella temporanea e piatta, isolata dal resto (già gitignored via `data/*`, nessuna modifica necessaria):
+   ```bash
+   PYTHONPATH=. python scripts/download_sdc.py \
+       --datasets UNIPD/WashU UKLFR/stroke_UKLFR \
+       --categories disconnectome-LF lesion-LF \
+       --output-root data/_sdc_staging
+   ```
+2. **Dal Mac**, `rsync` tira giù solo quella cartella (la struttura interna è già quella che userebbe `retrieval_local.json`, quindi puoi farla atterrare direttamente sotto `data/clinical_connectome/derivatives/`):
+   ```bash
+   rsync -avz etosato@<host-server>:/home/etosato/Projects/NEMESIS_fs/data/_sdc_staging/ \
+       "/Users/emmatosato/Local Projects/Local PhD Projects/NEMESIS_fs/data/_sdc_staging/"
+   ```
+3. **Sul server**, ripulisci la cartella temporanea:
+   ```bash
+   rm -rf data/_sdc_staging
+   ```
+
 ---
 
 ## Flusso e Funzionamento dello Script
@@ -61,6 +97,15 @@ I parametri decidono esattamente cosa e per chi estrarre.
 - **Per dati QA/Controllo Movimento Paziente (Motion)**
   ```json
   { "object": "feature", "datatype": "func", "suffix": "motion" }
+  ```
+- **Per l'SDC (Structural Disconnectome)** (NB: stesso output Stage1+Stage2 di BCBToolKit che produce la nostra `compute_sdc.py` — questo run specifico però non è passato dalla nostra CLI (`--mode manifest/run/aggregate`), quindi non ha `manifest.csv`/`_status/`/riga in `runs.csv` scritti da noi. Arriva in locale sotto `sdc/`). Config dedicata: `config/pipelines/retrieval_sdc.json` (5 dataset: `UNIPD/WashU`, `UNIPD/PASPORT`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`, `UKE/WAKEUP_acute`).
+  ```json
+  { "object": "sdc", "datatype": "dwi", "suffix": "disconnectome-map" }
+  { "object": "sdc", "datatype": "dwi", "suffix": "disconnectome-mapstats" }
+  { "object": "sdc", "datatype": "dwi", "suffix": "disconnectome-LF" }
+  { "object": "sdc", "datatype": "dwi", "suffix": "lesion-map" }
+  { "object": "sdc", "datatype": "dwi", "suffix": "lesion-mapstats" }
+  { "object": "sdc", "datatype": "dwi", "suffix": "lesion-LF" }
   ```
 
 ---

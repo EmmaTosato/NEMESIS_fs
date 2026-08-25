@@ -49,6 +49,17 @@ def test_local_relative_path_feature_uses_stand_in_pipeline_label():
     )
 
 
+def test_local_relative_path_sdc_uses_its_own_stand_in_pipeline_label():
+    """`sdc` also has no real pipeline name at the source - it's the same
+    Stage1+Stage2 BCBToolKit output src/sdc/runner.py itself produces, just
+    not run through our own `compute_sdc.py` orchestration for this
+    particular run (no `manifest.csv`/`_status/` written by us for it)."""
+    item = RetrieveItem(object="sdc", pipeline=None, datatype="dwi", suffix="disconnectome-map")
+    assert local_relative_path(item, "sub-STUNIPD0001", "sub-STUNIPD0001_desc-disconnectome.nii.gz") == Path(
+        "sdc", "sub-STUNIPD0001", "dwi", "sub-STUNIPD0001_desc-disconnectome.nii.gz"
+    )
+
+
 def test_pipeline_first_ordering_puts_pipeline_before_subject_id():
     """Regression for the switch from subject-first to pipeline-first: the
     pipeline/stand-in label must be the first path segment, subject_id the

@@ -29,12 +29,16 @@ from pathlib import Path
 from src.retrieval.config import RetrievalConfig, RetrieveItem
 
 # Real BIDS-Derivatives pipeline names (e.g. `manual_masks`) are used as-is
-# via item.pipeline. Objects forbidding a pipeline (today: `feature`) have no
-# such name at the source (see docs/dev/retrieval.md), so we choose one
-# ourselves for local organization purposes only - not a claim that this is
-# the pipeline name the source would use. Every object in
+# via item.pipeline. Objects forbidding a pipeline (today: `feature`, `sdc`)
+# have no such name at the source (see docs/dev/retrieval.md), so we choose
+# one ourselves for local organization purposes only - not a claim that this
+# is the pipeline name the source would use. `sdc` is the same Stage1+Stage2
+# BCBToolKit output src/sdc/runner.py itself produces - just not run through
+# our own `compute_sdc.py --mode manifest/run/aggregate` orchestration for
+# this particular run, so it has no `manifest.csv`/`_status/` written by us
+# (see docs/dev/retrieval.md). Every object in
 # config._OBJECTS_FORBIDDING_PIPELINE must have an entry here.
-_LOCAL_PIPELINE_LABEL_FOR_OBJECT = {"feature": "features"}
+_LOCAL_PIPELINE_LABEL_FOR_OBJECT = {"feature": "features", "sdc": "sdc"}
 
 
 def local_dataset_root(config: RetrievalConfig, dataset_name: str) -> Path:

@@ -1,0 +1,18 @@
+{
+  "output_root": "data/",
+  "project": "clinical_connectome",
+  "file_patterns": "config/registry/file_patterns_server.json",
+  "datasets": ["UNIPD/WashU", "UNIPD/PASPORT", "UNIPD/PSP", "UKLFR/stroke_UKLFR", "UKE/WAKEUP_acute"],
+  "group_filter": ["ST"],
+  "subjects": null,
+  "retrieve": [
+    { "object": "sdc", "datatype": "dwi", "suffix": "disconnectome-map" },
+    { "object": "sdc", "datatype": "dwi", "suffix": "disconnectome-mapstats" },
+    { "object": "sdc", "datatype": "dwi", "suffix": "disconnectome-LF" },
+    { "object": "sdc", "datatype": "dwi", "suffix": "lesion-map" },
+    { "object": "sdc", "datatype": "dwi", "suffix": "lesion-mapstats" },
+    { "object": "sdc", "datatype": "dwi", "suffix": "lesion-LF" }
+  ],
+  "include_tabular_data": false,
+  "overwrite": false
+}

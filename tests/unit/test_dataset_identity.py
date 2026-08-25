@@ -119,6 +119,14 @@ def test_group_of_recognizes_uklfr_site(tmp_path):
     assert ds.group_of("sub-STUKLFR0001") == "ST"
 
 
+def test_group_of_recognizes_uke_site(tmp_path):
+    """UKE/WAKEUP_acute - registered only for the `sdc` object (externally
+    computed disconnectome, see file_patterns_server.json), not lesion/
+    feature - but group_of() itself is generic over any known site."""
+    ds = Dataset("UKE/WAKEUP_acute", _make_patterns(tmp_path))
+    assert ds.group_of("sub-STUKE0058") == "ST"
+
+
 def test_group_of_unregistered_site_ending_in_hc_raises_instead_of_misclassifying(tmp_path):
     """Regression: the old [A-Z]+? lazy regex accepted ANY site code,
     always preferring to split a trailing "HC" into the healthy-control

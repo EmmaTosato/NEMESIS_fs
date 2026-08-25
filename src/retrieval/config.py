@@ -14,17 +14,22 @@ from dataclasses import dataclass
 from pathlib import Path
 
 KNOWN_GROUPS = ("ST", "HC", "PD", "GM")
-KNOWN_OBJECTS = ("lesion", "feature")
+KNOWN_OBJECTS = ("lesion", "feature", "sdc")
 
 # Whether an object's file_patterns.json leaves nest under a BIDS-Derivatives
 # pipeline name (e.g. lesion/manual_masks/anat/lesion_mask) or not (e.g.
 # feature/func/FC-pearson - our features/ tree has no dataset_description.json
-# anywhere and no discoverable pipeline name, so we don't invent one). Every
-# object in KNOWN_OBJECTS must be in exactly one of these two sets - the
-# asserts catch a new object added to KNOWN_OBJECTS without updating them,
-# at import time; RetrieveItem.__post_init__ catches it defensively too.
+# anywhere and no discoverable pipeline name, so we don't invent one). `sdc`
+# is externally-computed structural disconnectome output (BCBToolKit, run by
+# a collaborator, not by src/sdc/) mirrored under
+# Clinical_connectome/features/Clinical_connectome_stroke/<dataset>/lesion/ -
+# same reasoning as `feature`: no discoverable BIDS-Derivatives pipeline name
+# at the source, so no pipeline is invented for it either. Every object in
+# KNOWN_OBJECTS must be in exactly one of these two sets - the asserts catch
+# a new object added to KNOWN_OBJECTS without updating them, at import time;
+# RetrieveItem.__post_init__ catches it defensively too.
 _OBJECTS_REQUIRING_PIPELINE = frozenset({"lesion"})
-_OBJECTS_FORBIDDING_PIPELINE = frozenset({"feature"})
+_OBJECTS_FORBIDDING_PIPELINE = frozenset({"feature", "sdc"})
 assert _OBJECTS_REQUIRING_PIPELINE | _OBJECTS_FORBIDDING_PIPELINE == set(KNOWN_OBJECTS)
 assert not (_OBJECTS_REQUIRING_PIPELINE & _OBJECTS_FORBIDDING_PIPELINE)
 
@@ -107,9 +112,10 @@ class RetrieveItem:
     `pipeline` is a BIDS-Derivatives pipeline name (e.g. `manual_masks`) -
     required and non-empty for objects in _OBJECTS_REQUIRING_PIPELINE
     (today: `lesion`), and must be None for objects in
-    _OBJECTS_FORBIDDING_PIPELINE (today: `feature` - our features/ tree has
-    no discoverable pipeline name, so we don't invent one; BIDS itself
-    defines no formal "pipeline" entity either, see docs/dev/retrieval.md).
+    _OBJECTS_FORBIDDING_PIPELINE (today: `feature`, `sdc` - neither has a
+    discoverable pipeline name at the source, so we don't invent one; BIDS
+    itself defines no formal "pipeline" entity either, see
+    docs/dev/retrieval.md).
     `datatype` is the BIDS-official content type (anat/dwi/func). `suffix` is
     the BIDS-official term for what this project used to call "modality" -
     BIDS reserves "modality" for acquisition technology (MRI/PET/...), a

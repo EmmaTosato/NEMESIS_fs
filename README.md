@@ -54,7 +54,7 @@ conda activate nemesis
 
 ## What's implemented so far
 
-**Data retrieval** (`src/retrieval/`, `src/pipeline/retrieve_data.py`): copies lesion data and `participants.tsv` from the in-scope stroke datasets (see [`docs/guides/datasets.md`](docs/guides/datasets.md) for the current list) into `data/`, driven by `config/pipelines/retrieval_local.json`/[`retrieval_server.json`](config/pipelines/retrieval_server.json) (per-run request, one per environment) and `config/registry/file_patterns_local.json`/[`file_patterns_server.json`](config/registry/file_patterns_server.json) (naming registry, per `object` — `lesion` today, `feature` reserved for later):
+**Data retrieval** (`src/retrieval/`, `src/pipeline/retrieve_data.py`): copies lesion data and `participants.tsv` from the in-scope stroke datasets (see [`docs/guides/datasets.md`](docs/guides/datasets.md) for the current list) into `data/`, driven by `config/pipelines/retrieval_local.json`/[`retrieval_server.json`](config/pipelines/retrieval_server.json) (per-run request, one per environment) and `config/registry/file_patterns_local.json`/[`file_patterns_server.json`](config/registry/file_patterns_server.json) (naming registry, per `object` — `lesion`, `feature`, and `sdc`, see below). A dedicated `config/pipelines/retrieval_sdc.json` retrieves structural disconnectome output (the same BCBToolKit Stage1+Stage2 computation `src/sdc/`/`compute_sdc.py` itself performs, just not run through our own `--mode manifest/run/aggregate` orchestration for this particular run) for `UNIPD/WashU`, `UNIPD/PASPORT`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`, and a new 6th site, `UKE/WAKEUP_acute` — lands locally under `sdc/` (see `docs/dev/retrieval.md`, `docs/guides/datasets.md`):
 
 ```bash
 conda activate nemesis

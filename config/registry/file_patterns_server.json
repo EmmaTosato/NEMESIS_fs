@@ -35,5 +35,57 @@
         "{subject_id}/func/{subject_id}_desc-outliers.json"
       ]
     }
+  },
+  "sdc": {
+    "project_root": "/data/corbetta/Clinical_connectome/features/Clinical_connectome_stroke",
+    "dwi": {
+      "disconnectome-map": [
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_res-1_desc-disconnectome.nii.gz"
+      ],
+      "disconnectome-mapstats": [
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_desc-disconnectome_mapstats.tsv"
+      ],
+      "disconnectome-LF": [
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-aal.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-buckner_7n.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-rojkova.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_200_7n.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_200_tian_s1.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_200_tian_s2.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_300_7n.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_300_tian_s1.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_300_tian_s2.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_400_7n.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_400_tian_s1.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_400_tian_s2.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-tian_s1.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-tian_s2.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-yeh_hcp1065.csv"
+      ],
+      "lesion-map": [
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz"
+      ],
+      "lesion-mapstats": [
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_desc-lesion_mapstats.tsv"
+      ],
+      "lesion-LF": [
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-aal.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-buckner_7n.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-rojkova.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_200_7n.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_200_tian_s1.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_200_tian_s2.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_300_7n.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_300_tian_s1.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_300_tian_s2.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_400_7n.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_400_tian_s1.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_400_tian_s2.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-tian_s1.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-tian_s2.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-yeh_hcp1065.csv",
+        "lesion/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-yeh_hcp1065_streamline.csv"
+      ]
+    }
   }
 }
