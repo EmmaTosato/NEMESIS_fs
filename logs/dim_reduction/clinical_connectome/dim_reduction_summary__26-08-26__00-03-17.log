@@ -1,0 +1,2 @@
+INFO: Starting fine-tuning sweep for umap (120 combinations)
+INFO: Evaluating combination 1/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 5, 'min_dist': 0.0}
