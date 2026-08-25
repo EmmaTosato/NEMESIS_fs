@@ -1,2 +1,0 @@
-WARNING: 8791 voxel(s) belonged to both a cortical and a subcortical label - cortical label kept (see src/atlases/combine.py:merge_cortical_subcortical)
-INFO: done - atlas written to assets/atlases/glasser_hcp_harvardoxford_subcortical_372.nii.gz (372 labels), label table written to assets/atlases/glasser_hcp_harvardoxford_subcortical_372_labels.csv, report written to reports/build_combined_atlas/build_summary__21-07-26__11-03.md, log written to logs/build_combined_atlas/build_summary__21-07-26__11-03.log

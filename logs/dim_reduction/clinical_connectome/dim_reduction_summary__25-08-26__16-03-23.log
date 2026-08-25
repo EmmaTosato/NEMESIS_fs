@@ -13,3 +13,13 @@ INFO: Evaluating combination 11/120: {'metric': 'dice', 'n_components': 2, 'n_ne
 INFO: Evaluating combination 12/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 15, 'min_dist': 1.0}
 INFO: Evaluating combination 13/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 30, 'min_dist': 0.0}
 INFO: Evaluating combination 14/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 30, 'min_dist': 0.01}
+INFO: Evaluating combination 15/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 30, 'min_dist': 0.05}
+INFO: Evaluating combination 16/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 30, 'min_dist': 0.1}
+INFO: Evaluating combination 17/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 30, 'min_dist': 0.5}
+INFO: Evaluating combination 18/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 30, 'min_dist': 1.0}
+INFO: Evaluating combination 19/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 50, 'min_dist': 0.0}
+INFO: Evaluating combination 20/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 50, 'min_dist': 0.01}
+INFO: Evaluating combination 21/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 50, 'min_dist': 0.05}
+INFO: Evaluating combination 22/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 50, 'min_dist': 0.1}
+INFO: Evaluating combination 23/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 50, 'min_dist': 0.5}
+INFO: Evaluating combination 24/120: {'metric': 'dice', 'n_components': 2, 'n_neighbors': 50, 'min_dist': 1.0}
