@@ -5,18 +5,32 @@ Questa guida illustra in modo dettagliato come utilizzare la pipeline `build_les
 - **Script**: `src/pipeline/build_lesion_matrix.py`
 - **Configurazione**: `config/pipelines/build_lesion_matrix.json` *(usata sia per locale che server)*
 
+La produzione attuale (`session_name: "yan300s2"`) copre tutte e 5 le coorti in-scope, incluso
+`UCL-UK/UCLStrokeData` (4119 soggetti stroke, retrieved e verificati 21/08/26) — elenco completo
+e dettagli per-coorte in [`docs/guides/datasets.md`](datasets.md), non ripetuti qui. Struttura dati
+identica su tutte e 5 (`manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz`,
+stesso spazio MNI152NLin6Asym), quindi nessun cambio di logica nella pipeline dovuto al nuovo
+dataset — solo un `datasets` più lungo nel config. Atlante usato in produzione: `Yan300TianS2Buckner7N`
+(339 regioni), non l'atlante combinato Glasser+Harvard-Oxford (372 regioni) usato come esempio nella
+sezione "Categoria 2" sotto — entrambi esistono in `assets/atlases/` e sono intercambiabili via
+`atlas_path`, la scelta di produzione è solo quella indicata da `atlas_path` nel config corrente.
+
 ---
 
 ## Esecuzione
 
 ### 1. Sul Server (tramite SLURM)
 L'esecuzione tramite SLURM previene interruzioni dovute alla chiusura della connessione.
+Con l'aggiunta di UCL-UK la coorte totale sale da ~1150 a ~5270 soggetti stroke — **eseguire
+sempre via SLURM**, non in locale, con questa configurazione:
 ```bash
 sbatch jobs/run_build_lesion_matrix.sh
 ```
 
 ### 2. In Locale
-Dal PC locale, dopo aver attivato l'ambiente `nemesis`:
+Dal PC locale, dopo aver attivato l'ambiente `nemesis` — indicato solo per config ridotte
+(subset di `datasets`/`group_filter`, o iterazione rapida su pochi soggetti), non per la
+config di produzione a 5 coorti:
 ```bash
 python -m src.pipeline.build_lesion_matrix --config config/pipelines/build_lesion_matrix.json
 ```
