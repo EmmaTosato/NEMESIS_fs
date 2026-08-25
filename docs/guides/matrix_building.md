@@ -5,12 +5,12 @@ Questa guida illustra in modo dettagliato come utilizzare la pipeline `build_les
 - **Script**: `src/pipeline/build_lesion_matrix.py`
 - **Configurazione**: `config/pipelines/build_lesion_matrix.json` *(usata sia per locale che server)*
 
-La produzione attuale (`session_name: "voxelwise_s2"`) copre tutte e 5 le coorti in-scope, incluso
-`UCL-UK/UCLStrokeData` (4119 soggetti stroke, retrieved e verificati 21/08/26) — elenco completo
-e dettagli per-coorte in [`docs/guides/datasets.md`](datasets.md), non ripetuti qui. Struttura dati
-identica su tutte e 5 (`manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz`,
-stesso spazio MNI152NLin6Asym), quindi nessun cambio di logica nella pipeline dovuto al nuovo
-dataset — solo un `datasets` più lungo nel config.
+La produzione attuale (`session_name: "voxelwise_s2"`) copre tutte le coorti in-scope — elenco
+completo, N e dettagli per-coorte in [`docs/guides/datasets.md`](datasets.md), non ripetuti qui
+(così un dataset aggiunto/rimosso non richiede modifiche a questa guida). Struttura dati identica
+su ogni coorte in-scope (`manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz`,
+stesso spazio MNI152NLin6Asym), quindi nessun cambio di logica nella pipeline dovuto
+all'aggiunta/rimozione di una coorte — solo il campo `datasets` nel config.
 
 > **Nota (25/08/26)**: la modalità *parcellated* (matrice per macro-aree anatomiche via atlante) è
 > stata rimossa — vedi `management/notes/TODO.md`. `build_lesion_matrix.py` produce oggi solo
@@ -22,8 +22,8 @@ dataset — solo un `datasets` più lungo nel config.
 
 ### 1. Sul Server (tramite SLURM)
 L'esecuzione tramite SLURM previene interruzioni dovute alla chiusura della connessione.
-Con l'aggiunta di UCL-UK la coorte totale sale da ~1150 a ~5270 soggetti stroke — **eseguire
-sempre via SLURM**, non in locale, con questa configurazione:
+La config di produzione copre tutte le coorti in-scope (N in `docs/guides/datasets.md`) —
+scala sufficiente da richiedere **sempre SLURM**, non l'esecuzione in locale:
 ```bash
 sbatch jobs/run_build_lesion_matrix.sh
 ```
@@ -31,7 +31,7 @@ sbatch jobs/run_build_lesion_matrix.sh
 ### 2. In Locale
 Dal PC locale, dopo aver attivato l'ambiente `nemesis` — indicato solo per config ridotte
 (subset di `datasets`/`group_filter`, o iterazione rapida su pochi soggetti), non per la
-config di produzione a 5 coorti:
+config di produzione a piena scala:
 ```bash
 python -m src.pipeline.build_lesion_matrix --config config/pipelines/build_lesion_matrix.json
 ```

@@ -14,7 +14,7 @@ Lista di lavoro derivata **alla lettera** dalla struttura di [`Research_Proposal
 
 ## 0. Prerequisiti trasversali
 
-- [ ] ⛔ **Copertura dati incompleta rispetto alla N target**: Il retrieval copre oggi solo 4 dataset (N: 1150). Amburgo, UCL, Santiago in attesa.
+- [ ] ⛔ **Copertura dati incompleta rispetto alla N target**: elenco/N aggiornati in `docs/guides/datasets.md` (non ripetuti qui - evita che questa riga vada stale ad ogni dataset aggiunto/rimosso). UCL-UK aggiunta 21/08/26. Amburgo, Santiago in attesa.
 - [ ] ⛔ **Copertura longitudinale non determinata**: Da chiarire quali dataset abbiano più timepoint e a quali distanze.
 - [ ] ⛔ **SDC in produzione (Task 2)**: Installato e validato su 1 soggetto, ma il run di produzione su scala completa non è partito.
   - [ ] 🔄 installazione condivisa di `bcblib` sul server — in arrivo.

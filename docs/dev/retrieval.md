@@ -2,11 +2,11 @@
 
 Audience: developers/agents working on `src/retrieval/` and `src/pipeline/retrieve_data.py`. For "how do I run this", see `docs/guides/retrieval.md`. For the named design patterns used throughout (Registry, boundary validation, immutable value objects, ...), see `docs/dev/design_patterns.md`.
 
-Scope today: 4 stroke datasets in `Clinical_connectome` (`UNIPD/WashU`, `UNIPD/PASPORT`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`). NEMESIS_BIDS is a different source with a different layout (sessions, different subject-ID convention) and is **not** covered by this module — deliberately deferred, most likely a second class alongside `Dataset` when that work starts, not a speculative generalization of this one.
+Scope today: the in-scope stroke datasets in `Clinical_connectome` (see `docs/guides/datasets.md` for the current list — kept there so this file doesn't need editing every time a dataset is added/removed). NEMESIS_BIDS is a different source with a different layout (sessions, different subject-ID convention) and is **not** covered by this module — deliberately deferred, most likely a second class alongside `Dataset` when that work starts, not a speculative generalization of this one.
 
 **Two config variants, not one**: `config/pipelines/retrieval.json` and `config/registry/file_patterns.json` are placeholder names throughout this doc for whichever concrete file you pass via `--config`/`file_patterns` — in practice there is no plain `retrieval.json`/`file_patterns.json` on disk, only `_local.json` (for a local machine/mount) and `_server.json` (the real EBRAIN mount path, used in production via `jobs/run_retrieve_data.sh`). The two `retrieval_*.json` are kept with identical `datasets`/`group_filter`/`retrieve` content by convention — work happens locally first, then syncs to the server — so only their `file_patterns` pointer differs; each registry's own `project_root` is what actually differs between the two environments. Both variants must be kept in sync by hand when a leaf/retrieve item changes — there is no code that derives one from the other.
 
-**`feature` is not available for every dataset**: unlike `lesion` (present for all 4 in-scope datasets), the `features/` tree on EBRAIN today only exists for `UNIPD/WashU` (225 subject folders locally: 169 stroke + 56 healthy controls, see `docs/guides/datasets.md`). `PASPORT`, `PSP`, `UKLFR` have no `features/` tree at all. A `retrieval.json` that requests only `feature` items must therefore list `datasets: ["UNIPD/WashU"]` — listing a dataset with zero applicable `feature` leaves is a STOP, not a WARNING (see the STOP/WARNING matrix below: "a dataset supports none of the requested retrieve items at all").
+**`feature` is not available for every dataset**: unlike `lesion` (present for every in-scope dataset), the `features/` tree on EBRAIN is populated only for a subset of datasets today (see `docs/guides/datasets.md` for exactly which ones and current counts — that set can grow independently of this module's code, e.g. once Padova/Freiburg FC is retrieved). A `retrieval.json` that requests only `feature` items must list only dataset(s) that actually have a `features/` tree — listing one that doesn't is a STOP, not a WARNING (see the STOP/WARNING matrix below: "a dataset supports none of the requested retrieve items at all").
 
 ## The `object` axis, and why field *shape* varies by object
 
@@ -49,7 +49,7 @@ scripts/
 └── data_summary.py       # accessory: standalone, read-only data_summary CSVs (see matrix.py)
 ```
 
-Single-class design: **one** `Dataset` class is instantiated once per requested dataset name (`Dataset("UNIPD/WashU", file_patterns)` — no `project_root` argument), not a subclass per dataset or per object. The 4 in-scope datasets share the same on-disk convention exactly; differences between them (which pipelines/leaves exist, presence of `participants.tsv`) are discovered from disk at runtime (`available()`, `has_object()`), never hardcoded per dataset name.
+Single-class design: **one** `Dataset` class is instantiated once per requested dataset name (`Dataset("UNIPD/WashU", file_patterns)` — no `project_root` argument), not a subclass per dataset or per object. The in-scope datasets (`docs/guides/datasets.md`) share the same on-disk convention exactly; differences between them (which pipelines/leaves exist, presence of `participants.tsv`) are discovered from disk at runtime (`available()`, `has_object()`), never hardcoded per dataset name.
 
 ### `Dataset` construction is lazy — no filesystem I/O at all
 

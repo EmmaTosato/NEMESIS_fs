@@ -54,7 +54,7 @@ conda activate nemesis
 
 ## What's implemented so far
 
-**Data retrieval** (`src/retrieval/`, `src/pipeline/retrieve_data.py`): copies lesion data and `participants.tsv` from the 4 in-scope stroke datasets (`UNIPD/WashU`, `UNIPD/PASPORT`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`) into `data/`, driven by `config/pipelines/retrieval_local.json`/[`retrieval_server.json`](config/pipelines/retrieval_server.json) (per-run request, one per environment) and `config/registry/file_patterns_local.json`/[`file_patterns_server.json`](config/registry/file_patterns_server.json) (naming registry, per `object` — `lesion` today, `feature` reserved for later):
+**Data retrieval** (`src/retrieval/`, `src/pipeline/retrieve_data.py`): copies lesion data and `participants.tsv` from the in-scope stroke datasets (see [`docs/guides/datasets.md`](docs/guides/datasets.md) for the current list) into `data/`, driven by `config/pipelines/retrieval_local.json`/[`retrieval_server.json`](config/pipelines/retrieval_server.json) (per-run request, one per environment) and `config/registry/file_patterns_local.json`/[`file_patterns_server.json`](config/registry/file_patterns_server.json) (naming registry, per `object` — `lesion` today, `feature` reserved for later):
 
 ```bash
 conda activate nemesis
