@@ -15,9 +15,10 @@ handed to bcb-lf-preprocess already sits on a shape it recognises (the
 canonical grid itself), sidestepping the bug entirely. See
 docs/debugging/debug_23_07_26.md.
 
-Uses the same nilearn.image.resample_to_img + forced nearest-neighbour
-pattern already established for discrete/binary volumes in
-src/features/lesion.py (load_and_resample_atlas, _load_and_binarize_lesion).
+Uses the same nilearn.image.resample_to_img pattern already established for
+discrete/binary volumes in src/features/lesion.py (_load_and_binarize_lesion),
+forcing nearest-neighbour interpolation here since lesion masks are
+discrete/binary.
 """
 
 from __future__ import annotations

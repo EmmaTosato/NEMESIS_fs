@@ -63,13 +63,6 @@ python -m src.pipeline.retrieve_data --config config/pipelines/retrieval_server.
 
 Every run writes a summary (`summaries/`) and a matching log (`logs/`) summarizing what was copied and flagging anything that needs a human look (missing files, non-conforming subject folders). A separate, read-only `scripts/data_summary.py` gives the full per-subject availability picture across every registered modality, independent of any one run. Full usage guide: [`docs/guides/retrieval.md`](docs/guides/retrieval.md). Architecture/design rationale: [`docs/dev/retrieval.md`](docs/dev/retrieval.md).
 
-**Combined parcellation atlas** (`src/atlases/`, `src/pipeline/build_combined_atlas.py`): merges the Glasser MMP cortical atlas (360 parcels) with 12 manually-selected Harvard-Oxford subcortical structures (thalamus, caudate, putamen, pallidum, hippocampus, amygdala — left/right) into a single 372-region label volume, reproducing the parcellation used by Thiebaut de Schotten et al. 2020 ahead of their varimax PCA (their own 12 subcortical ROIs were hand-drawn and not published as a reusable atlas — Harvard-Oxford is a documented practical substitute, not a faithful reproduction):
-
-```bash
-conda activate nemesis
-python -m src.pipeline.build_combined_atlas --config config/pipelines/build_combined_atlas.json
-```
-
 Writes the combined atlas (`assets/atlases/glasser_hcp_harvardoxford_subcortical_372.nii.gz`) and a label lookup CSV (`..._372_labels.csv`, value/name/hemisphere/source), ready to use as-is via any pipeline's `atlas_path` config field.
 
 **FC lesion masking and matrix building** (`src/features/functional.py`, `src/pipeline/mask_fc.py` + `build_fc_matrix.py`): two deliberately decoupled pipelines that turn the WashU functional-connectivity CSVs (already computed via XCP-D, 12 atlas combos) into a subjects × edges feature matrix ready for `dim_reduction.py`. `mask_fc.py` marks as missing (`NaN`, not zero — see [`docs/dev/fc_matrix.md`](docs/dev/fc_matrix.md) for why) any FC node whose territory is substantially lesioned (`nilearn`-based coverage check, same `min_coverage` scheme as XCP-D's own BOLD-coverage thresholding), writing one masked matrix per subject to `data/derived/features/masked_fc/`; `build_fc_matrix.py` reads only that already-masked output, vectorizes and stacks it into `data/derived/features/fc_matrix/`. The per-subject exclusion threshold question is settled (no threshold, no subject excluded); NaN-imputation remains deliberately open, pending an empirical look at the full cohort (`docs/dev/fc_matrix.md`).

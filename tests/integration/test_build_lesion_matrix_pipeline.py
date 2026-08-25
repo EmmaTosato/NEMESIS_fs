@@ -48,10 +48,6 @@ def _write_config(tmp_path, data_root, output_root, overrides=None):
         "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
         "binarize_threshold": 0.5,
         "resample_interpolation": "nearest",
-        "parcellate": False,
-        "atlas_path": None,
-        "parcel_aggregation": None,
-        "save_parcellated_volumes": False,
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
@@ -138,7 +134,7 @@ def test_build_lesion_matrix_config_md_has_params_used_line(tmp_path, monkeypatc
 
     out_dir = next(p for p in output_root.iterdir() if p.is_dir())
     config_md = (out_dir / "config.md").read_text()
-    assert 'Params used: {"parcellate": false, "binarize_threshold": 0.5}' in config_md
+    assert 'Params used: {"binarize_threshold": 0.5}' in config_md
     assert "Excluded by group_filter" in config_md
     assert "None." in config_md  # no group_filter set -> nothing excluded
 
@@ -189,38 +185,3 @@ def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, 
     exit_code = build_lesion_matrix.main(["--config", str(config_path)])
     assert exit_code == 1
     assert (out_dir / "manifest.json").read_text() == manifest_before  # untouched
-
-
-def test_parcellate_with_save_parcellated_volumes(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
-    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
-
-    data_root = tmp_path / "data"
-    output_root = tmp_path / "out"
-    _make_dataset(data_root, n_subjects=3)
-
-    atlas = np.zeros(_SHAPE, dtype=np.int32)
-    atlas[0:5, 0:5, 0:5] = 1
-    atlas[5:10, 5:10, 5:10] = 2
-    atlas_path = tmp_path / "atlas.nii.gz"
-    nib.save(nib.Nifti1Image(atlas, _AFFINE), atlas_path)
-
-    config_path = _write_config(
-        tmp_path,
-        data_root,
-        output_root,
-        overrides={
-            "parcellate": True,
-            "atlas_path": str(atlas_path),
-            "parcel_aggregation": "fraction_lesioned",
-            "save_parcellated_volumes": True,
-        },
-    )
-
-    exit_code = build_lesion_matrix.main(["--config", str(config_path)])
-    assert exit_code == 0
-
-    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
-    assert (out_dir / "parcel_ids.npy").is_file()
-    volumes = list((out_dir / "parcellated_volumes").glob("*.nii.gz"))
-    assert len(volumes) == 3

@@ -13,7 +13,6 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.features.lesion import PARCEL_AGGREGATIONS
 from src.retrieval.config import KNOWN_GROUPS
 
 _KNOWN_INTERPOLATIONS = frozenset({"linear", "nearest", "continuous"})
@@ -29,10 +28,6 @@ class BuildMatrixConfig:
     lesion_glob: str
     binarize_threshold: float
     resample_interpolation: str
-    parcellate: bool
-    atlas_path: Path | None
-    parcel_aggregation: str | None
-    save_parcellated_volumes: bool
     output_root: Path
     session_name: str
     overwrite: bool
@@ -43,8 +38,7 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
     """Load and validate a build_lesion_matrix.json file.
 
     Raises ValueError identifying the offending field for any structural
-    problem (missing field, wrong type, out-of-domain value, an impossible
-    parcellate/atlas_path/parcel_aggregation combination).
+    problem (missing field, wrong type, out-of-domain value).
     """
     path = Path(path)
     if not path.is_file():
@@ -61,9 +55,6 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
     resample_interpolation = _validate_resample_interpolation(_require_str(raw, "resample_interpolation"))
     binarize_threshold = _require_float_in_range(raw, "binarize_threshold", 0.0, 1.0)
 
-    parcellate = _require_bool(raw, "parcellate")
-    atlas_path, parcel_aggregation, save_parcellated_volumes = _validate_parcellation_fields(raw, parcellate)
-
     return BuildMatrixConfig(
         project=_require_str(raw, "project"),
         data_root=Path(_require_str(raw, "data_root")),
@@ -73,10 +64,6 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
         lesion_glob=_require_str(raw, "lesion_glob"),
         binarize_threshold=binarize_threshold,
         resample_interpolation=resample_interpolation,
-        parcellate=parcellate,
-        atlas_path=atlas_path,
-        parcel_aggregation=parcel_aggregation,
-        save_parcellated_volumes=save_parcellated_volumes,
         output_root=Path(_require_str(raw, "output_root")),
         session_name=_require_str(raw, "session_name"),
         overwrite=_require_bool(raw, "overwrite"),
@@ -300,26 +287,3 @@ def load_enrich_lesion_metadata_config(path: str | Path) -> EnrichLesionMetadata
         overwrite=_require_bool(raw, "overwrite"),
         run_notes=_optional_str(raw, "run_notes"),
     )
-
-
-def _validate_parcellation_fields(raw: dict, parcellate: bool) -> tuple[Path | None, str | None, bool]:
-    atlas_path_str = _optional_str(raw, "atlas_path")
-    parcel_aggregation = _optional_str(raw, "parcel_aggregation")
-    save_parcellated_volumes = _require_bool(raw, "save_parcellated_volumes")
-
-    if parcellate:
-        if atlas_path_str is None or parcel_aggregation is None:
-            raise ValueError("config: atlas_path and parcel_aggregation are both required when parcellate=true")
-        if parcel_aggregation not in PARCEL_AGGREGATIONS:
-            raise ValueError(
-                f"config: unknown parcel_aggregation {parcel_aggregation!r} - "
-                f"known: {sorted(PARCEL_AGGREGATIONS)}"
-            )
-    else:
-        if atlas_path_str is not None or parcel_aggregation is not None:
-            raise ValueError("config: atlas_path/parcel_aggregation must not be set when parcellate=false")
-        if save_parcellated_volumes:
-            raise ValueError("config: save_parcellated_volumes must be false when parcellate=false")
-
-    atlas_path = Path(atlas_path_str) if atlas_path_str is not None else None
-    return atlas_path, parcel_aggregation, save_parcellated_volumes

@@ -123,8 +123,9 @@ def test_enrich_lesion_metadata_compute_volume_missing_matrix_raises(tmp_path, m
 
 
 def test_enrich_lesion_metadata_compute_volume_parcellated_matrix_raises(tmp_path, monkeypatch):
-    """A continuous (non-binary) matrix - what build_lesion_matrix.py produces with
-    parcellate=true - must raise, never silently sum fractions as if they were voxel counts."""
+    """A continuous (non-binary) matrix - e.g. an atlas-based fractional-damage summary, or
+    any other non-voxel-wise source - must raise, never silently sum fractions as if they
+    were voxel counts."""
     monkeypatch.setattr(clinical, "METADATA_ROOT", tmp_path / "assets_metadata")
     metadata_path = _write_metadata_csv(
         tmp_path,

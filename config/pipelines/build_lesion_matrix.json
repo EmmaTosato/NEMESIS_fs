@@ -15,12 +15,8 @@
   "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",
   "binarize_threshold": 0.5,
   "resample_interpolation": "nearest",
-  "parcellate": true,
-  "atlas_path": "assets/atlases/fmriprep/atlas-Yan300TianS2Buckner7N/atlas-Yan300TianS2Buckner7N_space-MNI152NLin6Asym_res-2_dseg.nii.gz",
-  "parcel_aggregation": "fraction_lesioned",
-  "save_parcellated_volumes": false,
   "output_root": "data/derived/lesion_matrix",
-  "session_name": "yan300s2",
+  "session_name": "voxelwise_s2",
   "overwrite": false,
-  "run_notes": "yan300s1 + UCL-UK/UCLStrokeData (4119 subjects, retrieved and verified 21/08/26) - new session_name, not an overwrite of yan300s1, since the subject population changes substantially."
+  "run_notes": "parcellate removed from build_lesion_matrix.py (25/08/26) - voxel-wise is now the only output shape. Successor of voxel-wise session s1.1 (21-07-26), not an overwrite of it: adds UNIPD/PASPORT+PSP, UKLFR/stroke_UKLFR and UCL-UK/UCLStrokeData (4119 subjects, retrieved and verified 21/08/26)."
 }

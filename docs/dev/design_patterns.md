@@ -12,7 +12,7 @@ REDUCTION_METHODS: dict[str, Callable[[np.ndarray, dict], np.ndarray]] = {
 }
 ```
 
-Used for: `REDUCTION_METHODS`/`CLUSTERING_METHODS` (`src/analysis/reduction.py`/`clustering.py`), `PARCEL_AGGREGATIONS` (`src/features/lesion.py`).
+Used for: `REDUCTION_METHODS`/`CLUSTERING_METHODS` (`src/analysis/reduction.py`/`clustering.py`).
 
 Implemented as a **plain `dict[str, Callable]`**, not classes/interfaces/ABCs — each strategy is a pure function (`(X, params) -> array`), no shared base class, no state. This is a deliberate simplification over the textbook OOP version of Strategy: with no per-strategy state or lifecycle to manage, a class hierarchy would add indirection without buying anything. Same shape as the **Registry** pattern below because a `dict[str, Callable]` *is* simultaneously a strategy-selection table and a registry — the two patterns coincide here rather than layering on top of each other.
 
@@ -55,10 +55,10 @@ Every `load_*_config` function returns one of these (`RetrievalConfig`, `Retriev
 
 `src/utils/artifacts.py`'s `save_matrix`: write every file (`matrix.npy`, `metadata.csv`, extra arrays, `config.md`, `manifest.json` last) into a temporary sibling directory, then `rename()` it into place as the final step. A crash or interruption at any point before the rename leaves only an orphaned temp directory - the real output path never exists in a partial state. `load_matrix` relies on this: it treats "no `manifest.json`" as "this artifact was never successfully built," which is only a valid inference because of the atomic swap.
 
-Contrast with the pipeline scripts' own `summaries/`/`logs/` writes, and `build_lesion_matrix.py`'s QC-volume writing (`_write_parcellated_volumes`) - both **not** atomic, deliberately: they're secondary/informational outputs written after the real artifact already landed successfully, so a partial write there doesn't corrupt anything that matters (see `docs/dev/lesion_matrix.md`, "QC-volume writing is intentionally not atomic").
+Contrast with the pipeline scripts' own `summaries/`/`logs/` writes - **not** atomic, deliberately: they're secondary/informational outputs written after the real artifact already landed successfully, so a partial write there doesn't corrupt anything that matters.
 
 ## Layered architecture
 
 **`utils` → `retrieval`/`features` → `analysis` → `pipeline`. Higher layers depend on lower ones, never the reverse.**
 
-Stated in `code_standards.md` §1 and enforced by convention rather than tooling. Concrete example of the rule in action: `src/analysis/build_config.py` importing `PARCEL_AGGREGATIONS` from `src/features/lesion.py` is a legal downward dependency (`analysis` sits above `features`); the reverse (`features` importing from `analysis`) would violate it and was avoided throughout - `features/lesion.py` has no knowledge that `analysis`/`pipeline` exist at all.
+Stated in `code_standards.md` §1 and enforced by convention rather than tooling. Concrete example of the rule in action: `src/analysis/build_config.py` importing `KNOWN_GROUPS` from `src/retrieval/config.py` is a legal downward dependency (`analysis` sits above `retrieval`); the reverse (`retrieval`/`features` importing from `analysis`) would violate it and was avoided throughout - `features/lesion.py` has no knowledge that `analysis`/`pipeline` exist at all.

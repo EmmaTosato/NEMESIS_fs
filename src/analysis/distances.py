@@ -22,28 +22,26 @@ def require_binary_matrix(X: np.ndarray, metric: str) -> None:
     implementations) are defined on set/boolean overlap - the intersection
     count `X @ X.T` this module relies on is meaningless once a "1" can mean
     "partial membership" rather than "present". Nothing upstream of this
-    point guarantees binarity: `build_lesion_matrix.py` can produce a
-    strictly binary voxel-wise matrix (`parcellate: false`) or a continuous
-    one in [0, 1] (`parcellate: true`, `parcel_aggregation: "fraction_lesioned"`
-    - each column is a per-parcel proportion of damage, not a 0/1 flag) from
-    the *same* pipeline depending on config - a config that switches
-    `parcellate` on without also dropping jaccard/dice from that method's
-    `tuning_grid`/`params` would otherwise silently compute numbers that look
-    like valid distances but aren't Jaccard/Dice at all (found during a
-    2026-08 literature-validation review, before any parcellated run reached
-    this code path). Called both by `binary_pairwise_distance` below
-    (fine-tuning's precomputed-distance path) and directly by
-    `dim_reduction.py`'s production path, which passes
-    `metric="jaccard"/"dice"` straight to `umap.UMAP`/`sklearn.TSNE`
-    on raw `X` without ever calling `binary_pairwise_distance` itself - both
-    call sites must reject the same bad input, not just the precomputed one.
+    point guarantees binarity: `build_lesion_matrix.py` only ever produces a
+    strictly binary voxel-wise matrix, but `dim_reduction.py` reads any
+    matrix.npy artifact regardless of what pipeline wrote it - a continuous
+    matrix in [0, 1] (e.g. FC data from build_fc_matrix.py, or a future
+    atlas-based fractional-damage summary) fed to jaccard/dice would
+    otherwise silently compute numbers that look like valid distances but
+    aren't Jaccard/Dice at all (found during a 2026-08 literature-validation
+    review). Called both by `binary_pairwise_distance` below (fine-tuning's
+    precomputed-distance path) and directly by `dim_reduction.py`'s
+    production path, which passes `metric="jaccard"/"dice"` straight to
+    `umap.UMAP`/`sklearn.TSNE` on raw `X` without ever calling
+    `binary_pairwise_distance` itself - both call sites must reject the same
+    bad input, not just the precomputed one.
     """
     if not np.all((X == 0) | (X == 1)):
         raise ValueError(
             f"metric={metric!r} requires a strictly binary (0/1) matrix - X has value(s) outside "
-            "{0, 1} (e.g. a parcellated 'fraction_lesioned' matrix is continuous in [0, 1] and not "
-            "a valid input for jaccard/dice - use a different metric, e.g. euclidean, or a "
-            "weighted/Ruzicka-style overlap metric for continuous data instead)"
+            "{0, 1} (e.g. a continuous matrix in [0, 1] is not a valid input for jaccard/dice - "
+            "use a different metric, e.g. euclidean, or a weighted/Ruzicka-style overlap metric "
+            "for continuous data instead)"
         )
 
 

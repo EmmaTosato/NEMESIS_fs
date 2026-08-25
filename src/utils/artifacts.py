@@ -62,8 +62,9 @@ def save_matrix(
     # No shape relationship to X is assumed or checked here: an extra array can be
     # subject-aligned (X.shape[0]), feature-aligned (X.shape[1], or the pre-drop
     # feature count), or something else entirely - that meaning belongs to the
-    # caller (e.g. build_lesion_matrix.py's non_constant_mask is feature-aligned,
-    # parcel_ids is aligned to X's post-drop columns).
+    # caller (e.g. build_lesion_matrix.py's non_constant_mask is feature-aligned
+    # to the pre-drop count, build_fc_matrix.py's edge_names is aligned to X's
+    # post-drop columns).
 
     output_dir.parent.mkdir(parents=True, exist_ok=True)
     tmp_dir = Path(tempfile.mkdtemp(prefix=f".{output_dir.name}_tmp_", dir=output_dir.parent))

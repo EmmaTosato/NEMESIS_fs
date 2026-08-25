@@ -63,10 +63,6 @@ def _build_matrix(tmp_path, monkeypatch):
         "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
         "binarize_threshold": 0.5,
         "resample_interpolation": "nearest",
-        "parcellate": False,
-        "atlas_path": None,
-        "parcel_aggregation": None,
-        "save_parcellated_volumes": False,
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
@@ -460,10 +456,6 @@ def _build_matrix_varying_volume(tmp_path, monkeypatch):
         "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
         "binarize_threshold": 0.5,
         "resample_interpolation": "nearest",
-        "parcellate": False,
-        "atlas_path": None,
-        "parcel_aggregation": None,
-        "save_parcellated_volumes": False,
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
@@ -479,14 +471,14 @@ def _build_matrix_varying_volume(tmp_path, monkeypatch):
 def test_dim_reduction_jaccard_metric_on_non_binary_matrix_raises(tmp_path, monkeypatch):
     """Regression test for the binarity-validation gap (2026-08,
     literature-validation review): jaccard/dice are only defined on strictly
-    binary data - a parcellated 'fraction_lesioned' matrix (continuous in
-    [0, 1], as build_lesion_matrix.py produces when parcellate=True) fed to
-    metric="jaccard" used to silently compute numbers that look like valid
-    distances but aren't Jaccard/Dice at all. Production must now reject this
-    upfront, before any output directory is created. Built directly via
-    save_matrix (not build_lesion_matrix.py, which would need a real atlas
-    fixture to actually parcellate) - only the continuous-valued matrix.npy
-    matters for this test, not how it was produced.
+    binary data - a continuous matrix in [0, 1] (e.g. an atlas-based
+    fractional-damage summary, or FC data) fed to metric="jaccard" used to
+    silently compute numbers that look like valid distances but aren't
+    Jaccard/Dice at all. Production must now reject this upfront, before any
+    output directory is created. Built directly via save_matrix (not
+    build_lesion_matrix.py, which only ever produces a strictly binary
+    voxel-wise matrix) - only the continuous-valued matrix.npy matters for
+    this test, not how it was produced.
     """
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
