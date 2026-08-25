@@ -1,0 +1,43 @@
+INFO: stage1: 2 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_489/staging --output-dir data/derived/sdc/s1/_work/task_489/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T
+INFO: stage1 stdout:
+Preprocessing lesions [BIDS mode] → data/derived/sdc/s1/_work/task_489/prep
+  [1/2] sub-STUKLFR0040 ... done (0.2s)
+  [2/2] sub-STUKLFR0648 ...
+════════════════════════════════════════════════════════
+  BCBToolKit — Disconnectome Maps
+────────────────────────────────────────────────────────
+  Subjects : 2
+  Tracks   : 178 *.trk files
+  Atlas    : /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T
+  Threshold: 0
+  Jobs     : 4 parallel
+  Temp dir : /tmp/bcb_disco_5128
+────────────────────────────────────────────────────────
+  INPUT                                               OUTPUT STEM
+────────────────────────────────────────────────────────
+  …-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz  …_space-MNI152NLin6Asym_res-1_desc-disconnectome
+  …-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz  …_space-MNI152NLin6Asym_res-1_desc-disconnectome
+════════════════════════════════════════════════════════
+
+  [done]  sub-STUKLFR0648_space-MNI152NLin6Asym_res-1_desc-disconnectome  (12m25s)
+  [done]  sub-STUKLFR0040_space-MNI152NLin6Asym_res-1_desc-disconnectome  (15m36s)
+
+════════════════════════════════════════════════════════
+  Completed successfully: 2 / 2 subjects
+  Total time: 15m36s
+════════════════════════════════════════════════════════
+
+ done (0.2s)
+Preprocessed 2 subject(s).
+Running disconnectome computation for 2 subject(s)...
+Moved 2 disconnectome(s) into BIDS structure.
+Done.
+
+INFO: stage2: command: bcb-lesion-features --prep-dir data/derived/sdc/s1/_work/task_489/validated_prep --output-dir data/derived/sdc/s1/_work/task_489/validated_prep --assume-yes --skip-existing --ebrains
+INFO: stage2 stdout:
+Extracting features from data/derived/sdc/s1/_work/task_489/validated_prep → data/derived/sdc/s1/_work/task_489/validated_prep
+  [1/2] sub-STUKLFR0040 ... done (787.6s, 1 file(s))
+  [2/2] sub-STUKLFR0648 ... done (631.7s, 1 file(s))
+Processed 2 subject(s).
+
+INFO: task 489: 2/2 subject(s) completed successfully

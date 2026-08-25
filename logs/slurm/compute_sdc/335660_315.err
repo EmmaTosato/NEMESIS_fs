@@ -1,0 +1,47 @@
+INFO: stage1: 3 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_315/staging --output-dir data/derived/sdc/s1/_work/task_315/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T
+INFO: stage1 stdout:
+Preprocessing lesions [BIDS mode] → data/derived/sdc/s1/_work/task_315/prep
+  [1/3] sub-STUKLFR0200 ... done (0.2s)
+  [2/3] sub-STUKLFR0546 ... done (0.2s)
+  [3/3] sub-STUNIPD0284 ...
+════════════════════════════════════════════════════════
+  BCBToolKit — Disconnectome Maps
+────────────────────────────────────────────────────────
+  Subjects : 3
+  Tracks   : 178 *.trk files
+  Atlas    : /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T
+  Threshold: 0
+  Jobs     : 4 parallel
+  Temp dir : /tmp/bcb_disco_110243
+────────────────────────────────────────────────────────
+  INPUT                                               OUTPUT STEM
+────────────────────────────────────────────────────────
+  …-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz  …_space-MNI152NLin6Asym_res-1_desc-disconnectome
+  …-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz  …_space-MNI152NLin6Asym_res-1_desc-disconnectome
+  …-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz  …_space-MNI152NLin6Asym_res-1_desc-disconnectome
+════════════════════════════════════════════════════════
+
+  [done]  sub-STUKLFR0546_space-MNI152NLin6Asym_res-1_desc-disconnectome  (14m57s)
+  [done]  sub-STUKLFR0200_space-MNI152NLin6Asym_res-1_desc-disconnectome  (15m27s)
+  [done]  sub-STUNIPD0284_space-MNI152NLin6Asym_res-1_desc-disconnectome  (18m16s)
+
+════════════════════════════════════════════════════════
+  Completed successfully: 3 / 3 subjects
+  Total time: 18m16s
+════════════════════════════════════════════════════════
+
+ done (0.4s)
+Preprocessed 3 subject(s).
+Running disconnectome computation for 3 subject(s)...
+Moved 3 disconnectome(s) into BIDS structure.
+Done.
+
+INFO: stage2: command: bcb-lesion-features --prep-dir data/derived/sdc/s1/_work/task_315/validated_prep --output-dir data/derived/sdc/s1/_work/task_315/validated_prep --assume-yes --skip-existing --ebrains
+INFO: stage2 stdout:
+Extracting features from data/derived/sdc/s1/_work/task_315/validated_prep → data/derived/sdc/s1/_work/task_315/validated_prep
+  [1/3] sub-STUKLFR0200 ... done (624.5s, 1 file(s))
+  [2/3] sub-STUKLFR0546 ... done (515.1s, 1 file(s))
+  [3/3] sub-STUNIPD0284 ... done (716.1s, 1 file(s))
+Processed 3 subject(s).
+
+INFO: task 315: 3/3 subject(s) completed successfully

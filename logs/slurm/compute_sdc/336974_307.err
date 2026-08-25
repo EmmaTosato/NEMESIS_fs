@@ -1,0 +1,43 @@
+INFO: stage1: 2 subject(s), command: bcb-lf-preprocess --bids-dir data/derived/sdc/s1/_work/task_307/staging --output-dir data/derived/sdc/s1/_work/task_307/prep --bcbtoolkit /data/etosato/tools/BCBToolKit --ncores 4 --skip-existing --tracks-dir /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T
+INFO: stage1 stdout:
+Preprocessing lesions [BIDS mode] → data/derived/sdc/s1/_work/task_307/prep
+  [1/2] sub-STUKLFR0459 ... done (0.2s)
+  [2/2] sub-STUNIPD0276 ...
+════════════════════════════════════════════════════════
+  BCBToolKit — Disconnectome Maps
+────────────────────────────────────────────────────────
+  Subjects : 2
+  Tracks   : 178 *.trk files
+  Atlas    : /data/corbetta/Clinical_connectome/BCBToolkit/TRK/tracks7T
+  Threshold: 0
+  Jobs     : 4 parallel
+  Temp dir : /tmp/bcb_disco_88334
+────────────────────────────────────────────────────────
+  INPUT                                               OUTPUT STEM
+────────────────────────────────────────────────────────
+  …-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz  …_space-MNI152NLin6Asym_res-1_desc-disconnectome
+  …-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz  …_space-MNI152NLin6Asym_res-1_desc-disconnectome
+════════════════════════════════════════════════════════
+
+  [done]  sub-STUNIPD0276_space-MNI152NLin6Asym_res-1_desc-disconnectome  (11m50s)
+  [done]  sub-STUKLFR0459_space-MNI152NLin6Asym_res-1_desc-disconnectome  (12m37s)
+
+════════════════════════════════════════════════════════
+  Completed successfully: 2 / 2 subjects
+  Total time: 12m37s
+════════════════════════════════════════════════════════
+
+ done (0.4s)
+Preprocessed 2 subject(s).
+Running disconnectome computation for 2 subject(s)...
+Moved 2 disconnectome(s) into BIDS structure.
+Done.
+
+INFO: stage2: command: bcb-lesion-features --prep-dir data/derived/sdc/s1/_work/task_307/validated_prep --output-dir data/derived/sdc/s1/_work/task_307/validated_prep --assume-yes --skip-existing --ebrains
+INFO: stage2 stdout:
+Extracting features from data/derived/sdc/s1/_work/task_307/validated_prep → data/derived/sdc/s1/_work/task_307/validated_prep
+  [1/2] sub-STUKLFR0459 ... done (654.3s, 1 file(s))
+  [2/2] sub-STUNIPD0276 ... done (560.8s, 1 file(s))
+Processed 2 subject(s).
+
+INFO: task 307: 2/2 subject(s) completed successfully
