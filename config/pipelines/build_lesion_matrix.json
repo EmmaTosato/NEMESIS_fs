@@ -5,7 +5,8 @@
     "UNIPD/WashU",
     "UNIPD/PASPORT",
     "UNIPD/PSP",
-    "UKLFR/stroke_UKLFR"
+    "UKLFR/stroke_UKLFR",
+    "UCL-UK/UCLStrokeData"
   ],
   "group_filter": [
     "ST"
@@ -19,7 +20,7 @@
   "parcel_aggregation": "fraction_lesioned",
   "save_parcellated_volumes": false,
   "output_root": "data/derived/lesion_matrix",
-  "session_name": "yan300s1",
+  "session_name": "yan300s2",
   "overwrite": false,
-  "run_notes": ""
+  "run_notes": "yan300s1 + UCL-UK/UCLStrokeData (4119 subjects, retrieved and verified 21/08/26) - new session_name, not an overwrite of yan300s1, since the subject population changes substantially."
 }
