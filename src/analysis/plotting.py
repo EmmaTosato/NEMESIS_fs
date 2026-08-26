@@ -26,6 +26,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import seaborn as sns
 from scipy.cluster.hierarchy import dendrogram
+from sklearn.neighbors import NearestNeighbors
 
 # Pink/azzurro/green categorical palette (5 tones, user-requested hue
 # families) - CVD-safe on every pairwise combination, verified (OKLab/
@@ -51,12 +52,33 @@ _AXIS_PADDING_FRACTION = 0.08
 # (dim_reduction.py's production embedding plots) - a solid, opaque marker at
 # _MARKER_SIZE overlaps into one indistinguishable blob at the ~5000+ subject
 # scale these plots run at today (validated visually on the real 5269-subject
-# 26-08_s1.2 cohort). Smaller + partly transparent reveals density texture
-# instead. Deliberately not applied to _MARKER_SIZE's other consumers
+# 26-08_s1.2 cohort). Smaller reveals density texture; _declutter_points below
+# does the heavy lifting on the overlap itself, so alpha only needs a light
+# touch (0.9, not the much lower value tried during exploration) once that's
+# in place. Deliberately not applied to _MARKER_SIZE's other consumers
 # (plot_clusters_2d/plot_clusters_comparison/plot_silhouette_analysis) - out
 # of scope for this fix, left for a future pass if the same problem is hit there.
 _EMBEDDING_MARKER_SIZE = 6
-_EMBEDDING_MARKER_ALPHA = 0.35
+_EMBEDDING_MARKER_ALPHA = 0.9
+# Must match the dpi these 3 functions actually savefig() at - _declutter_points
+# converts data units to screen pixels using this value, so a mismatch would
+# dose the declutter against a marker footprint that isn't the one actually
+# rendered.
+_EMBEDDING_DPI = 150
+
+# _declutter_points dosing (26-08-26, same validation session as the constants
+# above): visually compared on the real 5269-subject cohort at several doses -
+# 1 marker diameter stops literal marker-on-marker occlusion while leaving
+# genuinely tight sub-clusters (e.g. one dataset's subjects sitting very close
+# together) visually intact; 2-3 diameters starts dissolving those sub-clusters
+# into the surrounding cloud, misrepresenting how close those subjects actually
+# are in the embedding - see docs/dev/plotting.md. _DECLUTTER_ITERATIONS>1
+# because resolving one crowded pair can create a new one with a third point
+# that was fine on the previous pass.
+_DECLUTTER_MARKER_DIAMETERS = 1.0
+_DECLUTTER_ITERATIONS = 3
+_DECLUTTER_STRENGTH = 0.8
+_DECLUTTER_RANDOM_STATE = 0
 
 _COMPARISON_SUBPLOT_WIDTH = 7.0
 _COMPARISON_SUBPLOT_HEIGHT = 5.5
@@ -200,6 +222,66 @@ def compose_tuning_leaf_title(output_dir: Path, reduction_method: str, leaf: dic
     return " - ".join(parts)
 
 
+def _declutter_points(
+    X_2d: np.ndarray, xlim: tuple[float, float], ylim: tuple[float, float], figsize: tuple[float, float], marker_size: float
+) -> np.ndarray:
+    """Pushes points that would literally overlap on screen apart by just
+    enough to stop occluding each other, dosed to _DECLUTTER_MARKER_DIAMETERS
+    marker diameters (see that constant's comment for why this specific dose
+    and not more) - never touches a pair already farther apart on screen than
+    that. Distance is computed in screen pixels (via xlim/ylim/figsize/
+    _EMBEDDING_DPI), not raw data units, since the two axes can have very
+    different data ranges - "close" only means anything in the space the
+    marker itself is drawn in.
+
+    Runs _DECLUTTER_ITERATIONS passes of "push each still-crowded point
+    directly away from its current nearest neighbor by the shortfall",
+    since resolving one pair's overlap can create a new one with a third
+    point. An exact-duplicate pair (0 pixel distance) is pushed apart in a
+    deterministic random direction (_DECLUTTER_RANDOM_STATE) - there's no
+    "away from" direction to compute otherwise.
+
+    Returns a new array in the same data-coordinate space as X_2d (never
+    mutates it) - callers plot the result exactly like the original.
+    """
+    if X_2d.shape[1] != 2:
+        raise ValueError(f"_declutter_points needs exactly 2 columns, got shape {X_2d.shape}")
+    if X_2d.shape[0] < 2:
+        # Nothing can overlap with fewer than 2 points - a legitimate no-op,
+        # not a degenerate input (NearestNeighbors(n_neighbors=2) itself
+        # would raise on a single row).
+        return X_2d.copy()
+
+    px_per_unit = np.array(
+        [figsize[0] * _EMBEDDING_DPI / (xlim[1] - xlim[0]), figsize[1] * _EMBEDDING_DPI / (ylim[1] - ylim[0])]
+    )
+    marker_diameter_px = 2 * math.sqrt(marker_size / math.pi) / 72 * _EMBEDDING_DPI
+    tau_px = _DECLUTTER_MARKER_DIAMETERS * marker_diameter_px
+
+    rng = np.random.default_rng(_DECLUTTER_RANDOM_STATE)
+    X_px = X_2d * px_per_unit
+    for _ in range(_DECLUTTER_ITERATIONS):
+        dist, idx = NearestNeighbors(n_neighbors=2).fit(X_px).kneighbors(X_px)
+        nearest_dist, nearest_idx = dist[:, 1], idx[:, 1]
+        crowded = nearest_dist < tau_px
+        if not crowded.any():
+            break
+
+        direction = X_px[crowded] - X_px[nearest_idx[crowded]]
+        norms = np.linalg.norm(direction, axis=1)
+        zero_distance = norms < 1e-9
+        if zero_distance.any():
+            angles = rng.uniform(0, 2 * math.pi, size=int(zero_distance.sum()))
+            direction[zero_distance] = np.column_stack([np.cos(angles), np.sin(angles)])
+            norms[zero_distance] = 1.0
+        unit_direction = direction / norms[:, None]
+
+        magnitude = np.clip((tau_px - nearest_dist[crowded]) * _DECLUTTER_STRENGTH, 0, tau_px)
+        X_px[crowded] += unit_direction * magnitude[:, None]
+
+    return X_px / px_per_unit
+
+
 def plot_embedding_2d(
     X_2d: np.ndarray, output_path: Path, xlabel: str, ylabel: str, title: str
 ) -> None:
@@ -216,17 +298,21 @@ def plot_embedding_2d(
     y_min, y_max = X_2d[:, 1].min(), X_2d[:, 1].max()
     x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
     y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
+    xlim = (x_min - x_pad, x_max + x_pad)
+    ylim = (y_min - y_pad, y_max + y_pad)
+    figsize = (_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT)
+    X_2d = _declutter_points(X_2d, xlim, ylim, figsize, _EMBEDDING_MARKER_SIZE)
 
-    fig, ax = plt.subplots(figsize=(_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT))
+    fig, ax = plt.subplots(figsize=figsize)
     ax.scatter(X_2d[:, 0], X_2d[:, 1], alpha=_EMBEDDING_MARKER_ALPHA, s=_EMBEDDING_MARKER_SIZE, edgecolor="none")
-    ax.set_xlim(x_min - x_pad, x_max + x_pad)
-    ax.set_ylim(y_min - y_pad, y_max + y_pad)
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    fig.savefig(output_path, dpi=_EMBEDDING_DPI, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -272,9 +358,13 @@ def plot_embedding_categorical(
     y_min, y_max = X_2d[:, 1].min(), X_2d[:, 1].max()
     x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
     y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
+    xlim = (x_min - x_pad, x_max + x_pad)
+    ylim = (y_min - y_pad, y_max + y_pad)
+    figsize = (_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT)
     unique_categories = sorted(pd.unique(categories).tolist())
+    X_2d = _declutter_points(X_2d, xlim, ylim, figsize, _EMBEDDING_MARKER_SIZE)
 
-    fig, ax = plt.subplots(figsize=(_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT))
+    fig, ax = plt.subplots(figsize=figsize)
     sns.scatterplot(
         x=X_2d[:, 0],
         y=X_2d[:, 1],
@@ -287,8 +377,8 @@ def plot_embedding_categorical(
         legend="full",
         ax=ax,
     )
-    ax.set_xlim(x_min - x_pad, x_max + x_pad)
-    ax.set_ylim(y_min - y_pad, y_max + y_pad)
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
@@ -303,7 +393,7 @@ def plot_embedding_categorical(
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    fig.savefig(output_path, dpi=_EMBEDDING_DPI, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -340,6 +430,9 @@ def plot_embedding_continuous(
     y_min, y_max = X_2d[:, 1].min(), X_2d[:, 1].max()
     x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
     y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
+    xlim = (x_min - x_pad, x_max + x_pad)
+    ylim = (y_min - y_pad, y_max + y_pad)
+    figsize = (_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT)
 
     values = np.asarray(values, dtype=float)
     is_missing = np.isnan(values)
@@ -355,7 +448,9 @@ def plot_embedding_continuous(
         if present_values.size:
             norm = mcolors.LogNorm(vmin=present_values.min(), vmax=present_values.max())
 
-    fig, ax = plt.subplots(figsize=(_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT))
+    X_2d = _declutter_points(X_2d, xlim, ylim, figsize, _EMBEDDING_MARKER_SIZE)
+
+    fig, ax = plt.subplots(figsize=figsize)
     if is_missing.any():
         ax.scatter(
             X_2d[is_missing, 0], X_2d[is_missing, 1],
@@ -366,8 +461,8 @@ def plot_embedding_continuous(
         c=values[~is_missing], cmap="viridis", norm=norm,
         s=_EMBEDDING_MARKER_SIZE, alpha=_EMBEDDING_MARKER_ALPHA, edgecolor="none",
     )
-    ax.set_xlim(x_min - x_pad, x_max + x_pad)
-    ax.set_ylim(y_min - y_pad, y_max + y_pad)
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
@@ -376,7 +471,7 @@ def plot_embedding_continuous(
         ax.legend(loc="upper right", framealpha=0.9)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    fig.savefig(output_path, dpi=_EMBEDDING_DPI, bbox_inches="tight")
     plt.close(fig)
 
 

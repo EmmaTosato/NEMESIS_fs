@@ -1,8 +1,9 @@
 """Unit tests for src/analysis/plotting.py - plot_clusters_interactive/
 plot_clusters_comparison_interactive/compose_run_title/compose_embedding_plot_title/
-plot_embedding_categorical/plot_embedding_continuous/plot_clustering_tuning_metrics/
-plot_dendrogram/plot_eigengap/plot_silhouette_analysis."""
+plot_embedding_2d/plot_embedding_categorical/plot_embedding_continuous/_declutter_points/
+plot_clustering_tuning_metrics/plot_dendrogram/plot_eigengap/plot_silhouette_analysis."""
 
+import math
 from pathlib import Path
 
 import numpy as np
@@ -10,6 +11,9 @@ import pandas as pd
 import pytest
 
 from src.analysis.plotting import (
+    _DECLUTTER_MARKER_DIAMETERS,
+    _EMBEDDING_DPI,
+    _declutter_points,
     compose_embedding_plot_title,
     compose_run_title,
     plot_clustering_tuning_heatmaps,
@@ -18,6 +22,7 @@ from src.analysis.plotting import (
     plot_clusters_interactive,
     plot_dendrogram,
     plot_eigengap,
+    plot_embedding_2d,
     plot_embedding_categorical,
     plot_embedding_continuous,
     plot_embedding_grid_blocks,
@@ -74,6 +79,97 @@ def _embedding_and_cluster_metadata():
     metadata = metadata.copy()
     metadata["cluster_label"] = [0, 0, 1, -1]
     return X_2d, metadata
+
+
+def _tau_px(figsize, xlim, ylim, marker_size):
+    px_per_unit = np.array(
+        [figsize[0] * _EMBEDDING_DPI / (xlim[1] - xlim[0]), figsize[1] * _EMBEDDING_DPI / (ylim[1] - ylim[0])]
+    )
+    marker_diameter_px = 2 * math.sqrt(marker_size / math.pi) / 72 * _EMBEDDING_DPI
+    return _DECLUTTER_MARKER_DIAMETERS * marker_diameter_px, px_per_unit
+
+
+def test_declutter_points_separates_exact_duplicate_pair():
+    X_2d = np.array([[5.0, 5.0], [5.0, 5.0]])
+    xlim, ylim, figsize, marker_size = (0.0, 10.0), (0.0, 10.0), (7.5, 5.5), 6
+
+    result = _declutter_points(X_2d, xlim, ylim, figsize, marker_size)
+
+    assert not np.allclose(result[0], result[1])
+    # An exact duplicate has no "away from" direction to push along, so each
+    # point gets its own independent random kick (see _declutter_points'
+    # zero-distance branch) - the resulting separation isn't capped at tau_px
+    # itself (that only bounds one point's per-iteration displacement), just
+    # at roughly 2x it (both points kicked in opposite directions).
+    tau_px, px_per_unit = _tau_px(figsize, xlim, ylim, marker_size)
+    separation_px = np.linalg.norm((result[0] - result[1]) * px_per_unit)
+    assert 0 < separation_px <= 2 * tau_px + 1e-6
+
+
+def test_declutter_points_leaves_well_separated_points_unchanged():
+    """Points already farther apart on screen than the marker footprint must
+    not move at all - the declutter should never touch structure that isn't
+    actually occluded."""
+    X_2d = np.array([[0.0, 0.0], [100.0, 100.0]])
+    xlim, ylim, figsize, marker_size = (0.0, 200.0), (0.0, 200.0), (7.5, 5.5), 6
+
+    result = _declutter_points(X_2d, xlim, ylim, figsize, marker_size)
+
+    np.testing.assert_allclose(result, X_2d)
+
+
+def test_declutter_points_raises_on_fewer_than_two_columns():
+    X_1d = np.array([[0.0], [1.0]])
+
+    with pytest.raises(ValueError, match="exactly 2 columns"):
+        _declutter_points(X_1d, (0.0, 1.0), (0.0, 1.0), (7.5, 5.5), 6)
+
+
+def test_declutter_points_noop_with_fewer_than_two_points():
+    X_2d = np.array([[3.0, 4.0]])
+
+    result = _declutter_points(X_2d, (0.0, 10.0), (0.0, 10.0), (7.5, 5.5), 6)
+
+    np.testing.assert_array_equal(result, X_2d)
+
+
+def test_declutter_points_does_not_mutate_input():
+    X_2d = np.array([[5.0, 5.0], [5.0, 5.0]])
+    original = X_2d.copy()
+
+    _declutter_points(X_2d, (0.0, 10.0), (0.0, 10.0), (7.5, 5.5), 6)
+
+    np.testing.assert_array_equal(X_2d, original)
+
+
+def test_plot_embedding_2d_writes_file(tmp_path):
+    X_2d, _ = _embedding_and_metadata()
+    output_path = tmp_path / "embedding_plot_unico.png"
+
+    plot_embedding_2d(X_2d, output_path, "x", "y", "title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_embedding_2d_raises_on_fewer_than_two_columns(tmp_path):
+    X_1d = np.array([[0.0], [1.0], [2.0], [3.0]])
+
+    with pytest.raises(ValueError, match="at least 2 columns"):
+        plot_embedding_2d(X_1d, tmp_path / "out.png", "x", "y", "title")
+
+
+def test_plot_embedding_2d_handles_duplicate_coordinates(tmp_path):
+    """Regression guard for the declutter integration: two subjects landing on
+    the exact same embedding coordinate must not crash the production plot -
+    _declutter_points's zero-distance branch is what's actually exercised here."""
+    X_2d = np.array([[1.0, 1.0], [1.0, 1.0], [5.0, 5.0], [9.0, 9.0]])
+    output_path = tmp_path / "embedding_plot_unico.png"
+
+    plot_embedding_2d(X_2d, output_path, "x", "y", "title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
 
 
 def test_plot_embedding_categorical_writes_file(tmp_path):
