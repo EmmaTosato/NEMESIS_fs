@@ -1,0 +1,3 @@
+INFO: coverage report written to summaries/enrich_lesion_metadata/enrich_summary__26-08-26__10-38-16.md
+ERROR: coverage check failed - 0 dataset(s) with no participants.tsv, 1 dataset(s) with unresolvable subject(s); see summaries/enrich_lesion_metadata/enrich_summary__26-08-26__10-38-16.md for the full detail. Nothing written.
+INFO: run duration: 0:00:00

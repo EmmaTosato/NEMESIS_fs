@@ -1,0 +1,22 @@
+INFO: Starting fine-tuning sweep for tsne (14 combinations)
+INFO: Evaluating combination 1/14: {'metric': 'dice', 'perplexity': 5}
+INFO: Evaluating combination 2/14: {'metric': 'dice', 'perplexity': 15}
+INFO: Evaluating combination 3/14: {'metric': 'dice', 'perplexity': 30}
+INFO: Evaluating combination 4/14: {'metric': 'dice', 'perplexity': 50}
+INFO: Evaluating combination 5/14: {'metric': 'dice', 'perplexity': 75}
+INFO: Evaluating combination 6/14: {'metric': 'dice', 'perplexity': 100}
+INFO: Evaluating combination 7/14: {'metric': 'dice', 'perplexity': 200}
+INFO: Evaluating combination 8/14: {'metric': 'euclidean', 'perplexity': 5}
+INFO: Evaluating combination 9/14: {'metric': 'euclidean', 'perplexity': 15}
+INFO: Evaluating combination 10/14: {'metric': 'euclidean', 'perplexity': 30}
+INFO: Evaluating combination 11/14: {'metric': 'euclidean', 'perplexity': 50}
+INFO: Evaluating combination 12/14: {'metric': 'euclidean', 'perplexity': 75}
+INFO: Evaluating combination 13/14: {'metric': 'euclidean', 'perplexity': 100}
+INFO: Evaluating combination 14/14: {'metric': 'euclidean', 'perplexity': 200}
+WARNING: failed to generate 'side' embedding grid: metadata has no 'lesion_side' column for color mode 'side' - run the pipeline step that produces it first (build_lesion_matrix.py for 'volume', src.pipeline.enrich_lesion_metadata for 'side'/'nihss')
+WARNING: failed to generate 'nihss' embedding grid: metadata has no 'nihss' column for color mode 'nihss' - run the pipeline step that produces it first (build_lesion_matrix.py for 'volume', src.pipeline.enrich_lesion_metadata for 'side'/'nihss')
+WARNING: failed to generate 'side' embedding grid: metadata has no 'lesion_side' column for color mode 'side' - run the pipeline step that produces it first (build_lesion_matrix.py for 'volume', src.pipeline.enrich_lesion_metadata for 'side'/'nihss')
+WARNING: failed to generate 'nihss' embedding grid: metadata has no 'nihss' column for color mode 'nihss' - run the pipeline step that produces it first (build_lesion_matrix.py for 'volume', src.pipeline.enrich_lesion_metadata for 'side'/'nihss')
+INFO: tuning results written to results/lesion/dim_reduction/tuning/tsne/26-08_s1.2 (14 combinations evaluated)
+INFO: done - tuning results written to results/lesion/dim_reduction/tuning/tsne/26-08_s1.2, log written to logs/dim_reduction/clinical_connectome/dim_reduction_summary__26-08-26__10-28-44.log
+INFO: run duration: 0:07:09
