@@ -10,24 +10,31 @@ Questa guida illustra il funzionamento della pipeline di Retrieval. L'obiettivo 
 ## Esecuzione
 
 ### 1. Sul Server (tramite SLURM)
+
 Questa è l'esecuzione di Produzione, lavora direttamente sulla master source.
+
 ```bash
 sbatch jobs/run_retrieve_data.sh
 ```
 
 ### 2. In Locale
+
 Dal PC locale, per recuperare file da un mount di rete (es. copia locale).
+
 ```bash
 python -m src.pipeline.retrieve_data --config config/pipelines/retrieval_local.json
 ```
 
 Per l'SDC (vedi sotto), stessa CLI ma con la config dedicata (scarica tutto, 5 dataset × 6 categorie, ~3 GB):
+
 ```bash
 python -m src.pipeline.retrieve_data --config config/pipelines/retrieval_sdc.json
 ```
+
 Su SLURM: `sbatch jobs/run_retrieve_sdc.sh`.
 
 **In alternativa**, per scaricare solo un sottoinsieme (dataset e/o categorie di file — vedi la tabella pesi/categorie in `docs/guides/datasets.md`), c'è uno script standalone dedicato, `scripts/download_sdc.py` — niente file di config in `config/`, tutte le opzioni sono flag CLI (riusa comunque la stessa registry `file_patterns_server.json` e lo stesso motore di `retrieve_data.py`, non duplica nulla):
+
 ```bash
 PYTHONPATH=. python scripts/download_sdc.py \
     --datasets UNIPD/WashU UKLFR/stroke_UKLFR \
@@ -35,9 +42,11 @@ PYTHONPATH=. python scripts/download_sdc.py \
     --output-root data/
 # --overwrite per riscaricare file già presenti; --help per l'elenco completo
 ```
+
 Su SLURM: `sbatch jobs/run_download_sdc.sh` (modifica le variabili `DATASETS`/`CATEGORIES`/`OVERWRITE` in cima allo script prima di sottomettere).
 
 ### 3. Scaricare sul proprio Mac (dal server, via rsync)
+
 `download_sdc.py`/`retrieve_data.py` girano *sul server* (dove il mount EBRAIN è visibile) — non copiano nulla sul tuo Mac. Per portare in locale solo un sottoinsieme, senza tirarti dietro tutto `data/`:
 
 1. **Sul server**, scarica in una cartella temporanea e piatta, isolata dal resto (già gitignored via `data/*`, nessuna modifica necessaria):
@@ -49,8 +58,8 @@ Su SLURM: `sbatch jobs/run_download_sdc.sh` (modifica le variabili `DATASETS`/`C
    ```
 2. **Dal Mac**, `rsync` tira giù solo quella cartella (la struttura interna è già quella che userebbe `retrieval_local.json`, quindi puoi farla atterrare direttamente sotto `data/clinical_connectome/derivatives/`):
    ```bash
-   rsync -avz etosato@<host-server>:/home/etosato/Projects/NEMESIS_fs/data/_sdc_staging/ \
-       "/Users/emmatosato/Local Projects/Local PhD Projects/NEMESIS_fs/data/_sdc_staging/"
+   rsync -avz etosato@147.162.114.111://home/etosato/Projects/NEMESIS_fs/sdc_downloads/ \
+       "/Users/emmatosato/Local Projects/Local PhD Projects/NEMESIS_fs/sdc_download"
    ```
 3. **Sul server**, ripulisci la cartella temporanea:
    ```bash
@@ -62,7 +71,7 @@ Su SLURM: `sbatch jobs/run_download_sdc.sh` (modifica le variabili `DATASETS`/`C
 ## Flusso e Funzionamento dello Script
 
 Lo script consulta le regole passate nel JSON e scansiona il mount indicato in cerca delle informazioni (Es. Maschere di lesione o Matrici FC).
-Non si "interrompe in errore" se a un paziente mancano dei file; bensì estrae tutto il possibile e genera un solido e utilissimo report log per l'umano indicante chi manca all'appello. 
+Non si "interrompe in errore" se a un paziente mancano dei file; bensì estrae tutto il possibile e genera un solido e utilissimo report log per l'umano indicante chi manca all'appello.
 
 Tutti i dati estratti sono considerati "Derivati" in quanto soggetti ad elaborazione e non raw scans.
 
@@ -72,18 +81,18 @@ Tutti i dati estratti sono considerati "Derivati" in quanto soggetti ad elaboraz
 
 I parametri decidono esattamente cosa e per chi estrarre.
 
-| Parametro | Descrizione |
-| :--- | :--- |
-| **`output_root`** | La directory radice locale. Solitamente `"data/"`. |
-| **`project`** | Nome progetto. Salva in `data/<project>/derivatives/<dataset>/...`. |
-| **`file_patterns`** | Regole di scansione logica file (Non alterare - `"file_patterns_server.json"`). |
-| **`datasets`** | Le coorti su cui scansionare (Es. `["UNIPD/WashU", ...]`). |
-| **`group_filter`** | Seleziona Pazienti Malati (`["ST"]`), Sani (`["HC"]`) o tutti (`null`). |
-| **`subjects`** | (Opzionale). Permette di recuperare 1 solo paziente (passando il `["sub-id"]`). `null` li scansiona tutti. |
-| **`include_tabular_data`** | Se `true` estrae anche il `participants.tsv` (età, sesso, punteggi clinici). |
-| **`overwrite`** | Se `false` non riscarica file già localmente presenti, saltandoli istantaneamente (Ottimo e Veloce). `true` pialla e ricopia forzatamente la sorgente. |
+| Parametro                          | Descrizione                                                                                                   |
+| :--------------------------------- | :------------------------------------------------------------------------------------------------------------ |
+| **`output_root`**          | La directory radice locale. Solitamente`"data/"`.                                                           |
+| **`project`**              | Nome progetto. Salva in`data/<project>/derivatives/<dataset>/...`.                                          |
+| **`file_patterns`**        | Regole di scansione logica file (Non alterare -`"file_patterns_server.json"`).                              |
+| **`datasets`**             | Le coorti su cui scansionare (Es.`["UNIPD/WashU", ...]`).                                                   |
+| **`group_filter`**         | Seleziona Pazienti Malati (`["ST"]`), Sani (`["HC"]`) o tutti (`null`).                                 |
+| **`subjects`**             | (Opzionale). Permette di recuperare 1 solo paziente (passando il`["sub-id"]`). `null` li scansiona tutti. |
+| **`include_tabular_data`** | Se`true` estrae anche il `participants.tsv` (età, sesso, punteggi clinici).                              |
 
 ### La Chiave Maestra: `retrieve`
+
 È il blocco (lista di dizionari `{}`) dove indichi gli elementi specifici (objects) di cui hai bisogno:
 
 - **Per le Lesioni Manuali**
