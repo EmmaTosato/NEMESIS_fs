@@ -9,13 +9,13 @@ Strumento aggiunto per il visual testing interattivo delle run: `scripts/plot_tu
 
 ## Lavoro attivo / thread aperti
 
-- **Audit di correttezza teorica del 15/08/26**, tracciato in `AUDIT_FINDINGS.md` (repo root): Restano deliberatamente aperti solo 2 finding HIGH pre-esistenti: **HIGH #14** (`docs/dev/models.md` dichiara `assign_clusters_from_cooccurrence` tagliare a `n_clusters` fisso, il codice reale taglia a `threshold` — mismatch doc/codice) e **HIGH #15** (`clustering.py`'s comparison-plot in `main()` fuori da try/except). Nessun altro lavoro dell'audit resta da fare.
+- **Audit di correttezza teorica del 15/08/26**, tracciato in `AUDIT_FINDINGS.md` (repo root): **tutti i finding CRITICAL/HIGH/MEDIUM/LOW (#1-68) ora chiusi/triageati**, inclusi gli ultimi 2 HIGH pre-esistenti (sessione 26/08): **HIGH #14** era un mismatch doc/codice (`docs/dev/models.md` dichiarava `assign_clusters_from_cooccurrence` tagliare a `n_clusters` fisso, il codice — corretto, fedele a Fred & Jain 2002 — taglia a `threshold`); fix solo di documentazione. **HIGH #15** (`clustering.py`'s comparison-plot fuori da try/except) risultava già implementato dal 18/08 (stesso fix di #16) ma il suo status-line in `AUDIT_FINDINGS.md` non era mai stato aggiornato da "Aperto" — riallineato, test di regressione già esistente. Nessun altro lavoro dell'audit resta da fare.
 - **`management/notes/TODO.md`**: rimozione della feature `parcellate` da `build_lesion_matrix.py`/`src/features/lesion.py` — decisione loggata 17/08, non implementata. Tensione esplicita e irrisolta: la produzione attuale (`config/pipelines/build_lesion_matrix.json`, sessione `yan300s1`) usa `parcellate: true` per riprodurre Thiebaut de Schotten 2020; va deciso se questa rimozione sostituisce l'obiettivo di replica prima di procedere.
 - **Visualizzazione > 2D**: `n_components > 2` non emette più un diagnostic grid schiacciato in 2D. Lo scarto dei plot generici è voluto, l'ispezione si fa ora on-demand tramite `scripts/plot_tuning_embedding_3d.py`.
 
 ## Vincoli/regole in vigore oggi
 
-- **`AUDIT_FINDINGS.md` è la fonte di verità sullo stato dei finding dell'audit 15/08** — ora interamente chiuso/triageato tranne HIGH #14/#15.
+- **`AUDIT_FINDINGS.md` è la fonte di verità sullo stato dei finding dell'audit 15/08** — ora interamente chiuso/triageato (HIGH #14/#15 chiusi in sessione 26/08).
 - **Commit automatici**: solo su richiesta esplicita dell'utente (`.claude/CLAUDE.md`, `code_standards.md` §9).
 - **Esecuzione locale vs SLURM**: locale diretto è il default, non proporre `sbatch`/jobs cluster senza richiesta esplicita.
 - **`src/sdc/`/`src/pipeline/compute_sdc.py`** non eseguibili/testabili in locale (richiedono `bcblib`) — `pytest --ignore` su `tests/unit/test_sdc_staging_and_check.py`/`tests/integration/test_compute_sdc_pipeline.py` fuori dal cluster.
@@ -23,4 +23,4 @@ Strumento aggiunto per il visual testing interattivo delle run: `scripts/plot_tu
 
 ## Prossimo passo esatto
 
-Il working tree è stato committato ed è in linea (esclusi artefatti ignorati di log/summary). I thread operativi diretti per la ripresa dei lavori sono il fixing di HIGH #14 e HIGH #15 (in AUDIT_FINDINGS.md) e la chiusura della disputa concettuale del `parcellate` in TODO.md. Un nuovo agente può fare affidamento totale su questo snapshot, su `TODO.md` e sul `git log` recente per orientarsi.
+HIGH #14/#15 chiusi in questa sessione (fix di documentazione, nessun cambio di codice) — restano da committare insieme al resto del working tree. Il thread operativo diretto per la ripresa dei lavori è la chiusura della disputa concettuale del `parcellate` in TODO.md, più la discussione in corso su tuning/evaluation del clustering (vedi conversazione). Un nuovo agente può fare affidamento totale su questo snapshot, su `TODO.md` e sul `git log` recente per orientarsi.

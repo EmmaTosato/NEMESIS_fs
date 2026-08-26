@@ -624,7 +624,16 @@ dice di *non* aver implementato. Confermato anche in `config/registry/params_clu
 si aspetterebbe di dover passare `n_clusters` a `assign_clusters_from_cooccurrence` — ma la
 funzione richiede `threshold` e solleverebbe `TypeError`/comportamento diverso da quanto letto,
 un'ora persa a ricapire perché il codice "non corrisponde alla doc" che invece descrive il design
-mai adottato. **Stato: Aperto.**
+mai adottato.
+
+**Stato: Implementato (26/08) — fix di documentazione, nessun cambio di codice.** Verificato che
+il codice (`consensus_clustering.py:176` e il proprio docstring, `clustering.py`'s
+`evidence_accumulation_cluster` e il proprio docstring) era già corretto e fedele a Fred & Jain
+2002 (taglio a `threshold` via single-link + `criterion="distance"`, non `n_clusters`/
+`maxclust`) — solo `docs/dev/models.md` (il paragrafo su `assign_clusters_from_cooccurrence` e
+la frase su come `evidence_accumulation_cluster` usa `K_PARAM_NAME[base_method]`) descriveva
+l'opposto. Riscritti entrambi i passaggi per riflettere il comportamento reale, nessun test
+nuovo necessario (nessun cambio di comportamento).
 
 ### 15. `clustering`: comparison-plot in `main()` fuori da try/except
 
@@ -648,7 +657,21 @@ proprio mentre `plot_clusters_comparison` scrive `cluster_comparison.png` (`matp
 `OSError: [Errno 28] No space left on device`) — l'eccezione non è tra quelle catturate da
 nessun `except` in quella funzione, propaga fuori da `main()` come traceback grezzo, anche se i
 3 run individuali (l'output "vero" della pipeline) sono già scritti correttamente su disco e
-loggati in `runs.csv`. **Stato: Aperto.**
+loggati in `runs.csv`.
+
+**Stato: Implementato (18/08), stesso fix di #16.** Il blocco comparison di `main()` (oggi
+[clustering.py:177-206](src/pipeline/clustering.py#L177), spostato e riscritto nel frattempo
+per usare `X_viz`/`_resolve_viz_embedding` invece dello slice `X[:, :2]` mostrato sopra, lesson
+#16) è ora avvolto in `try/except OSError`, con lo stesso `logging.error(..., exc_info=True)` +
+`return 1` di `save_matrix`. Test di regressione dedicato:
+`test_clustering_comparison_plot_failure_returns_1_not_raw_traceback`
+(`tests/integration/test_clustering_pipeline.py:563`) — inietta un `OSError("No space left on
+device")` in `plot_clusters_comparison`, verifica `main() == 1` (non un traceback grezzo) e che
+l'output per-metodo già scritto (`production/kmeans/`) sopravviva intatto. **Nota di correzione
+(sessione 26/08)**: questa sezione era rimasta con `Stato: Aperto` nonostante la nota di #16
+("stesso fix di #15") indicasse già l'implementazione al 18/08 — riallineato qui; vedi anche
+`.claude/stato_progetto.md`, che va aggiornato di conseguenza (elenca ancora #14/#15 insieme
+come "lasciati deliberatamente aperti").
 
 ### 16. `clustering`: `comparison/` ignora `config.overwrite`
 
