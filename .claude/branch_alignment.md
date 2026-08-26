@@ -1,67 +1,40 @@
-# Allineamento Branch (main vs server-pnc)
+# Allineamento checkout (main unico, server + locale)
 
-*Ultimo aggiornamento: 2026-08-22*
+*Ultimo aggiornamento: 2026-08-26*
 
-Sincronizzazione tra `main` (sviluppo) e `server-pnc` (esecuzione cluster).
+Non esistono più due branch (`server-pnc` è stato eliminato) — un solo `main`, lavorato **contemporaneamente da due checkout**: il server (cluster) e il PC locale. Nessuna eccezione di file/cartelle da gestire: è lo stesso identico branch, quindi la sincronizzazione è pura questione di `git pull`/`git push` tenuti allineati tra i due checkout.
 
 ## Regola Aurea
-- **Prima di lavorare su `server-pnc`**: allinealo da `main` (sostituzione piena delle cartelle sotto).
-- **Dopo aver lavorato su `server-pnc`**: se il risultato è codice/config/doc reale (qualunque cosa fuori dalle eccezioni sotto), portalo subito su `main` con la procedura in fondo — non lasciarlo accumulare solo qui.
 
-## Regola verificabile
+- **Prima di iniziare a lavorare** (su uno qualsiasi dei due lati): `git pull` — potresti non avere l'ultima modifica fatta dall'altro lato.
+- **Appena finito di lavorare** (anche a metà, prima di spostarti sull'altro lato): `git push` — non lasciare commit locali non pushati mentre lavori dall'altra macchina, altrimenti l'altro lato non li vede e rischia di divergere.
 
-**Tutto il repository deve essere identico tra `main` e `server-pnc`**, tranne:
-- `TODO.md`
-- `data/`
-- `results/`
-- `.gitignore`
-- `logs/`
-- `summaries/`
-- `config/pipelines/retrieval_local.json`/`retrieval_server.json`
-- `config/registry/file_patterns_local.json`/`file_patterns_server.json`
+In pratica: ogni volta che si passa da un lato all'altro (server ↔ locale), **pull in entrata, push in uscita**. Se te ne dimentichi e provi a pushare con l'altro lato avanti, `git push` fallisce (non fast-forward) — non forzare, vedi sotto.
 
-Verifica:
+## Se `git pull` fallisce (non fast-forward / conflitti)
+
+Significa che entrambi i lati hanno commit non condivisi.
+
 ```bash
-git diff --stat main server-pnc -- \
-  ':!TODO.md' ':!data' ':!results' ':!.gitignore' ':!logs' ':!summaries' \
-  ':!config/pipelines/retrieval_local.json' ':!config/pipelines/retrieval_server.json' \
-  ':!config/registry/file_patterns_local.json' ':!config/registry/file_patterns_server.json'
+git status --short          # lavoro non committato? mettilo da parte prima
+git stash push -m "wip"     # se serve
+git fetch origin
+git rebase origin/main       # riallinea i tuoi commit sopra quelli remoti
+git stash pop                # se avevi stashato
 ```
-**Vuoto = allineati.** Se non è vuoto, `server-pnc` è indietro rispetto a `main` (o viceversa) — va risolto, non è un'eccezione da aggiungere alla lista.
 
-## Perché proprio queste eccezioni
+Se il rebase produce conflitti, risolverli manualmente file per file — non usare `git rebase --skip` per buttare via modifiche senza guardarle.
 
-- **`TODO.md`** — lista di lavoro viva, aggiornata indipendentemente sui due lati.
-- **`data/`, `results/`** — mai tracciati in git (`.gitignore`), locali per design.
-- **`.gitignore`** — può divergere leggermente per differenze di ambiente.
-- **`logs/`, `summaries/`** — artefatti **generativi**: ogni run di pipeline (su un lato o sull'altro) scrive un file nuovo, con timestamp nel nome, solo lì. Non convergeranno mai stabilmente — anche dopo un sync perfetto, il prossimo run su un lato qualsiasi li fa tornare a divergere. Non è un ritardo da chiudere, è strutturale.
-- **`config/pipelines/retrieval_local.json`/`retrieval_server.json`, `config/registry/file_patterns_local.json`/`file_patterns_server.json`** — non sono config architetturali, sono la richiesta di retrieval *corrente* per quell'ambiente (quali dataset scaricare adesso) — normale che divergano. *Incidente reale (21/08)*: una di queste è stata sovrascritta da un sync pieno di `config/` trattato come blocco unico, perdendo una modifica locale non ancora committata (recuperata dallo stash) — da qui l'esclusione esplicita.
+## Se hai lavorato senza pull/push per un po' (entrambi i lati con commit propri)
 
-Ogni altro file/cartella (inclusi `management/`, `jobs/` — non più eccezioni dal 22/08, il loro contenuto esclusivo è stato portato su `main` una volta per tutte) deve essere **byte-per-byte identico**.
-
-## Procedura: portare lavoro da server-pnc a main
-1. `git checkout main && git pull --ff-only origin main` — se fallisce, non forzare: c'è lavoro nuovo su `origin/main`, va guardato prima (`git fetch` + `git rebase origin/main`).
-2. `git worktree add /tmp/main-work main` (non tocca il working tree di `server-pnc`).
-3. Nel worktree: `git cherry-pick <hash>` se il commit è pulito; altrimenti copia selettiva dei soli file rilevanti (`git checkout server-pnc -- <file>`) quando il commit mischia roba da escludere (log, config per-ambiente).
-4. Commit, `git push origin main`, poi `git worktree remove /tmp/main-work`.
-
-## Procedura: allineare server-pnc a main
-Per ogni cartella nella "Regola verificabile" sopra (tutte a sostituzione piena ora):
 ```bash
-rm -rf <cartella> && git checkout main -- <cartella> && git add -A -- <cartella>
+git fetch origin
+git log --oneline main..origin/main    # cosa c'è di nuovo sull'altro lato
+git log --oneline origin/main..main    # cosa hai tu che l'altro lato non ha
+git rebase origin/main
+git push origin main
 ```
-Prima di farlo su una cartella non controllata di recente, verifica che non abbia contenuto esclusivo:
-```bash
-diff <(git ls-tree -r --name-only HEAD -- <cartella>/ | sort) <(git ls-tree -r --name-only main -- <cartella>/ | sort)
-```
-righe `<` = file solo di `server-pnc` → fermarsi, portarlo su `main` prima di sovrascrivere (procedura sopra), non cancellarlo alla cieca.
 
-## Procedura: aggiornare un altro checkout locale (es. un clone sul Mac) dopo un push
-Le due procedure sopra aggiornano `main`/`server-pnc` **in un solo repo locale**. Un checkout diverso dello stesso branch (altra macchina, altra cartella) non li vede finché non fa lui stesso un pull da `origin`:
-```bash
-git status --short                    # se c'è lavoro non committato:
-git stash push -m "wip"
-git pull --ff-only origin <branch>    # main o server-pnc
-git stash pop
-```
-Se `pull --ff-only` fallisce (ci sono commit locali non ancora pushati su quel checkout), `git fetch origin && git rebase origin/<branch>` invece di forzare.
+## Nota
+
+Niente più eccezioni "regola verificabile" (quelle esistevano solo per la divergenza strutturale tra due branch diversi). `data/`, `results/`, `logs/`, `summaries/` restano comunque gitignored come sempre (non sono nemmeno tracciati, quindi non c'entrano con l'allineamento tra checkout) — vedi `.gitignore`.
