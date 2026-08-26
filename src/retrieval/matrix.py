@@ -26,17 +26,13 @@ PRESENT_CELL = "present"
 class CellStatus:
     """One subject's status for one registered leaf combination: how many of
     the combination's registered templates matched on disk (`matched`), out
-    of how many are registered in total (`total`) - a leaf like
-    `feature/func/FC-pearson` registers 12 per-atlas templates as alternates
-    that are all expected to coexist per subject (see FilePatterns
-    docstring), not naming variants of a single file. `filename` is the
-    first matched file's name, kept for reference (e.g. debugging which
-    template matched), or None if nothing matched.
+    of how many are registered in total (`total`) - see docs/dev/retrieval.md
+    for why this isn't just a binary present/missing. `filename` is the
+    first matched file's name, or None if nothing matched.
 
     marker() collapses this into the three-state presence used by the CSV:
-    matched == 0 -> missing; 0 < matched < total -> incomplete (some but not
-    all of the registered files exist for this subject); matched == total ->
-    present."""
+    matched == 0 -> missing; 0 < matched < total -> incomplete; matched ==
+    total -> present."""
 
     matched: int
     total: int
@@ -86,16 +82,11 @@ def _discovery_keys(ds: Dataset, config: RetrievalConfig) -> set[tuple[str, str 
 def select_all_subjects(ds: Dataset, config: RetrievalConfig) -> list[str]:
     """Every subject visible under ANY (object, pipeline) the registry knows
     about for this dataset, filtered by group_filter/subjects the same way a
-    normal run would - broader than retrieve_data._select_subjects, which
-    only looks at the exact (object, pipeline) pairs a run's `retrieve` list
-    requests. This is the full picture, independent of what's being
-    retrieved.
-
-    Skips objects this dataset structurally doesn't have at all (e.g. no
-    `features/` tree yet - see Dataset.has_object) rather than raising: that
-    is a legitimate "nothing to report for this object here", not a
-    failure. Call validate_subject_filters first to distinguish that from a
-    group_filter/subjects that matches nothing by config mistake."""
+    normal run would - broader than retrieve_data._select_subjects (see
+    docs/dev/retrieval.md), the full picture independent of what's being
+    retrieved. Skips objects this dataset structurally doesn't have (rather
+    than raising) - call validate_subject_filters first to distinguish that
+    from a group_filter/subjects that matches nothing by config mistake."""
     discovery_keys = _discovery_keys(ds, config)
     if config.subjects is not None:
         found = {s for object_, pipeline in discovery_keys for s in ds.subjects(object_, pipeline)}
@@ -115,16 +106,14 @@ def select_all_subjects(ds: Dataset, config: RetrievalConfig) -> list[str]:
 def validate_subject_filters(ds: Dataset, config: RetrievalConfig, dataset_name: str) -> None:
     """Raise ValueError if group_filter/subjects would silently select zero
     subjects for this dataset - the same "structurally impossible request"
-    check src.pipeline.retrieve_data._validate_upfront makes for a run's own
-    (narrower) `retrieve`-scoped subject set, scoped here instead to the
-    full (object, pipeline) picture select_all_subjects itself draws from
-    (this report is independent of `retrieve`, see module docstring, so
-    retrieve_data's own validators - scoped to _known_object_pipelines -
-    would check the wrong set of subjects if reused directly here).
+    check retrieve_data._validate_upfront makes for a run's own narrower
+    subject set, scoped here to the full (object, pipeline) picture
+    select_all_subjects draws from instead (see docs/dev/retrieval.md for
+    why retrieve_data's own validators can't be reused directly here).
 
-    A dataset that genuinely has zero subjects at all (no filter applied) is
-    not an error here - that is select_all_subjects' own documented
-    "nothing to report for this object" case, not a config mistake."""
+    A dataset with genuinely zero subjects (no filter applied) is not an
+    error here - select_all_subjects' own documented "nothing to report"
+    case, not a config mistake."""
     if config.subjects is None and config.group_filter is None:
         return
     discovery_keys = _discovery_keys(ds, config)
@@ -144,20 +133,12 @@ def validate_subject_filters(ds: Dataset, config: RetrievalConfig, dataset_name:
 
 def build_matrix(ds: Dataset, subjects: list[str], combinations: list[tuple[str, ...]]) -> list[MatrixRow]:
     """One MatrixRow per subject, one CellStatus per registered leaf
-    combination, carrying how many of that combination's registered
-    templates matched (out of how many are registered) - not just a binary
-    present/missing, since a leaf like `feature/func/FC-pearson` registers 12
-    per-atlas templates that are all expected to be present per subject, and
-    a subject with only some of them is a distinct, reportable state
-    (CellStatus.marker() -> INCOMPLETE_CELL), not indistinguishable from
-    "fully present".
-
-    A column whose object this dataset doesn't structurally have at all
-    (e.g. no `features/` tree yet - see Dataset.has_object) gets matched=0
-    for every subject, without calling resolve() at all - that would raise,
-    since resolve() is for a specifically-requested object where a missing
-    root is a real error, not "this object doesn't apply here". `total` is
-    still the registered template count, derived from the registry alone."""
+    combination (see CellStatus's own docstring / docs/dev/retrieval.md for
+    why this isn't just binary present/missing). A column whose object this
+    dataset doesn't structurally have gets matched=0 for every subject
+    without calling resolve() at all - that would raise, since resolve() is
+    for a specifically-requested object where a missing root is a real
+    error, not "this object doesn't apply here"."""
     rows = []
     for subject_id in subjects:
         cells = {}

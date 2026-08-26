@@ -39,34 +39,20 @@ def append_run_log_entry(
 ) -> None:
     """Append one row to runs_csv_path, creating it (with a header) if absent.
 
-    run_type picks which of two files the row goes to - runs.csv for
-    "production", runs_tuning.csv for "tuning" - so a fine-tuning sweep and a
-    production run never land in the same file, even though they share this
-    same append/schema logic. Raises ValueError for anything else - a typo'd
-    or new-but-unregistered run_type must not silently fall into one of the
-    two files by accident (every call site in this repo passes one of these
-    two literal strings; a Literal-typed caller catches a typo at type-check
-    time already, this is the runtime backstop).
+    run_type picks which of two files the row goes to (runs.csv for
+    "production", runs_tuning.csv for "tuning") - raises ValueError for
+    anything else, the runtime backstop for a typo'd run_type.
 
-    input_path (14-08-26) is the source matrix this run was computed from -
-    every pipeline's own Config dataclass already carries this, so callers
-    just forward `config.input_path`, no new data to compute. Distinct from
-    `output_dir`: `output_dir` is where *this* run's own artifact ended up,
-    `input_path` is what it was built *from* - added specifically so a reader
-    of runs.csv (e.g. results/dim_reduction_strategies.csv's generator, or a
-    future "have I already computed this?" lookup helper) can tell whether two
-    rows with identical `params` were actually computed on the same underlying
-    data, not just assume it from a matching path string
-    (docs/dev/clustering_migration_plan.md §6-7).
+    input_path is the source matrix this run was computed from - distinct
+    from output_dir (where *this* run's own artifact landed), so a reader of
+    runs.csv can tell whether two rows with identical params were actually
+    computed on the same underlying data (see docs/dev/config.md).
 
-    extra_columns prepends caller-specific leading columns (e.g. which of two
-    axes a row belongs to, for a pipeline that shares one runs_csv_path
-    across more than one dimension - see build_fc_matrix.py/mask_fc.py, whose
-    runs.csv is shared across every atlas_combo run against a given dataset).
-    Every call writing to the *same* runs_csv_path must pass the
-    same extra_columns keys, since the header is only written once, on the
-    first call. Omitted (None) by every other caller today - keeps FIELDNAMES
-    as the exact, unchanged schema for their files.
+    extra_columns prepends caller-specific leading columns, for a pipeline
+    that shares one runs_csv_path across more than one dimension (e.g.
+    atlas_combo for build_fc_matrix.py/mask_fc.py) - every call writing to
+    the same runs_csv_path must pass the same extra_columns keys, since the
+    header is only written once, on the first call.
     """
     if "_" in run_id:
         session, id_part = run_id.split("_", 1)

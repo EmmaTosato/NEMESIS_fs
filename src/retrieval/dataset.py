@@ -1,23 +1,17 @@
 """A single dataset (one collection/name pair) inside a project.
 
 Assumes the BIDS-like convention observed in Clinical_connectome:
-sub-<DISEASE><SITE>[HC]<NUM>/anat/..., derivatives/manual_masks/... . This
-holds for the 5 in-scope stroke datasets (UNIPD/WashU, UNIPD/PASPORT,
-UNIPD/PSP, UKLFR/stroke_UKLFR, UCL-UK/UCLStrokeData) for the `lesion`/
-`feature` objects, plus a 6th, UKE/WAKEUP_acute, registered only for the
-`sdc` object (externally-computed structural disconnectome, no lesion/
-feature retrieval defined for it yet). NEMESIS is not covered - its
-structure is different and will be addressed separately when that work
-starts.
+sub-<DISEASE><SITE>[HC]<NUM>/anat/..., derivatives/manual_masks/... - see
+docs/dev/retrieval.md for the exact in-scope datasets. NEMESIS is not
+covered - its structure is different and will be addressed separately when
+that work starts.
 
 Nothing here trusts a fixed root per `object` - `lesion` and `feature` each
-have their own `project_root` (see config.FilePatterns), and even within one
-object, different `pipeline` values can have their subject folders living
-under different sub-paths (e.g. `lesion` subjects sit under
-`derivatives/manual_masks/{subject_id}/...`; `feature` has no pipeline at
-all, and its subjects sit directly under `{subject_id}/...`). Where subject
-folders for an (object, pipeline) actually live is derived from the
-registered templates themselves, never assumed - see _subject_container().
+have their own `project_root` (see config.FilePatterns), and different
+`pipeline` values can have their subject folders living under different
+sub-paths. Where subject folders for an (object, pipeline) actually live is
+derived from the registered templates themselves, never assumed - see
+_subject_container().
 """
 
 from __future__ import annotations
@@ -29,33 +23,22 @@ import pandas as pd
 
 from src.retrieval.config import FilePatterns, RetrieveItem
 
-# Every site code seen across the 6 in-scope datasets' real subject IDs
-# (UNIPD houses WashU/PASPORT/PSP under one site code, UKLFR/UCL-UK/UKE each
-# their own - UKE is sdc-only today, see module docstring). Deliberately a
-# closed, explicit list, not `[A-Z]+?` free-form matching: a lazy regex can't
-# tell "site code that happens to end in HC" apart from "site code + HC
-# (healthy control) marker" - e.g. a hypothetical future site "MONTREALHC"
-# would always be mis-split into site="MONTREAL"+hc=True, silently
-# misclassifying every stroke patient from that site as a healthy control.
-# Adding a new site requires adding it here explicitly - an unregistered
-# site raises (see group_of), it is never guessed.
+# Every site code seen across the in-scope datasets' real subject IDs -
+# deliberately a closed, explicit list, not `[A-Z]+?` free-form matching
+# (see docs/dev/retrieval.md's "Subject-group naming" section for why).
 KNOWN_SITES = ("UNIPD", "UKLFR", "UCLUK", "UKE")
 _SITE_ALTERNATION = "|".join(sorted(KNOWN_SITES, key=len, reverse=True))
 _SUBJECT_RE = re.compile(rf"^sub-(?P<disease>ST|PD|GM)(?P<site>{_SITE_ALTERNATION})(?P<hc>HC)?(?P<num>\d+)$")
 
 
 def group_of(subject_id: str) -> str:
-    """Group of a subject_id ('ST' | 'HC' | 'PD' | 'GM'), from its naming.
-
-    Module-level (not just Dataset.group_of) so any layer that discovers
-    subjects by globbing a folder directly - e.g. src/features/functional.py,
-    which does not go through Dataset - can still tell a healthy control from
-    a patient without duplicating _SUBJECT_RE.
-
-    Raises ValueError both for a structurally malformed subject_id and for
-    one whose site code isn't in KNOWN_SITES - the latter is deliberate: a
-    genuinely new site must be added to KNOWN_SITES by a human, never
-    silently inferred from the ID alone (see KNOWN_SITES docstring above).
+    """Group of a subject_id ('ST' | 'HC' | 'PD' | 'GM'), from its naming -
+    module-level (not just Dataset.group_of) so any layer that discovers
+    subjects by globbing directly (e.g. src/features/functional.py) can
+    still tell a healthy control from a patient without duplicating
+    _SUBJECT_RE. Raises ValueError both for a malformed subject_id and for
+    one whose site code isn't in KNOWN_SITES (see docs/dev/retrieval.md) -
+    a genuinely new site must be added by a human, never inferred.
     """
     match = _SUBJECT_RE.match(subject_id)
     if match is None:
@@ -182,14 +165,10 @@ class Dataset:
         lack the file (see resolve() for that case, surfaced as a
         per-subject miss, not a dataset-level failure).
 
-        A template with {subject_id} in more than one path segment (true for
-        every registered lesion_mask/feature template today - both a
-        directory and the filename) requires every occurrence to bind to the
-        SAME subject, checked via _subject_id_pattern's backreferenced
-        regex - not independent glob wildcards, which would happily treat
-        e.g. sub-A/anat/sub-B_label-lesion_mask.nii.gz (a real-world mis-copy,
-        folder and filename disagreeing on subject) as "available", even
-        though no real subject would ever produce that path via resolve()."""
+        A template with {subject_id} in more than one path segment requires
+        every occurrence to bind to the SAME subject, checked via
+        _subject_id_pattern's backreferenced regex, not independent glob
+        wildcards (see docs/dev/retrieval.md, lesson #22)."""
         root = self._root_for(item.object)
         templates = self.file_patterns.templates_for(*item.path_key())
         for template in templates:
@@ -212,19 +191,14 @@ class Dataset:
 
     def resolve(self, subject_id: str, item: RetrieveItem) -> list[Path]:
         """Every existing file for this subject matching any template
-        registered for item.path_key() - not just the first found. There is
-        no priority/ambiguity concept: if more than one registered template
-        exists for this subject, all of them are returned (and, by the
-        caller, all of them copied) - see FilePatterns docstring. Empty list
-        if the subject has none of them; this covers both "subject exists
-        but lacks this file" and "subject doesn't exist at all in this
-        object/pipeline's container" identically, since both simply produce
-        no matching path on disk - resolve() never needs to check subject
+        registered for item.path_key() - not just the first found, no
+        priority/ambiguity concept (see docs/dev/retrieval.md). Empty list
+        covers both "subject exists but lacks this file" and "subject
+        doesn't exist at all" identically - resolve() never checks subject
         existence separately.
 
-        Raises ValueError if item.path_key() is not a registered combination
-        at all - a request the registry has no answer for, regardless of
-        subject. Should never be reachable in the normal CLI flow
+        Raises ValueError if item.path_key() isn't a registered combination
+        at all - should never be reachable in the normal CLI flow
         (config._require_known_combinations already rejects this at load
         time); defensive for direct/programmatic use.
         """

@@ -1,39 +1,24 @@
 """Consensus/stability clustering: two literature methods answering different
 questions about how much a candidate `k` can be trusted, both reusing the
 existing per-k sweep in clustering_tuning.py rather than being a separate
-diagnostic mode - params_clustering.json already sweeps exactly n_clusters/
-n_components for kmeans/gmm/spectral, so "how stable is this k" is one more
-column per already-swept row.
+diagnostic mode.
 
-- RSC (Tshimanga et al. 2025, cited by Zanola et al. 2026 - knowledge/Zanola et
-  al - 2026 - ...): "how stable is the assignment to random init, on the
-  exact same data?" No resampling - N repeats of the same method on the full
-  dataset, varying only the random seed. Only meaningful for methods with
-  genuine internal stochasticity (k-means centroid init, GMM init, spectral
-  clustering's internal k-means step) - agglomerative/hdbscan are
-  deterministic given the same data, so a repeat with a different seed
-  reproduces the identical partition (a degenerate, uninformative
-  co-occurrence matrix). See compute_rsc_eigengap.
-- Monti et al. 2003: "how stable is the assignment to who's in the sample?"
-  N repeats on a random subsample of subjects each time. Restricted here to
-  the same 3 methods (CONSENSUS_ELIGIBLE_METHODS) so the two stability
-  notions are directly comparable, though the resampling idea itself would
-  apply to any method. See compute_monti_stability for one deliberate
-  deviation from the literal 2003 formula (PAC instead of area-under-CDF).
+- RSC (Tshimanga et al. 2025, cited by Zanola et al. 2026): stability to
+  random init on the same data - N repeats varying only the seed. Only
+  meaningful for CONSENSUS_ELIGIBLE_METHODS (kmeans/gmm/spectral, the only 3
+  with genuine internal stochasticity) - agglomerative/hdbscan are
+  deterministic given the same data, so a repeat would be degenerate.
+- Monti et al. 2003: stability to who's in the sample - N repeats on a
+  random subsample each time. See compute_monti_stability's own docstring
+  for the one deliberate deviation from the literal 2003 formula.
 
 Beyond the diagnostic above, this module also backs a production clustering
-method in its own right (CLUSTERING_METHODS["evidence_accumulation"],
-src/analysis/clustering.py::evidence_accumulation_cluster) that derives
-*final* cluster labels from the co-occurrence matrix, not from any single
-one of the N repeated runs - Fred & Jain (2002)'s own algorithm, not tied to
-any one base method (kmeans/gmm/spectral, same CONSENSUS_ELIGIBLE_METHODS as
-the diagnostic above). Zanola et al. 2026's RSC ("the final cluster
-assignment is based on the co-occurrence matrix C") is exactly this recipe
-specialized to base_method="spectral" - not reproduced here as a separate
-branded "rsc" method, since the underlying algorithm is general. Zanola's
-own text doesn't spell out that last step either way (deferred to Tshimanga
-et al. 2025, not available in knowledge/) - see assign_clusters_from_cooccurrence
-for the specific choice made here and why.
+method in its own right (CLUSTERING_METHODS["evidence_accumulation"]) that
+derives *final* cluster labels from the co-occurrence matrix rather than any
+single repeated run - Fred & Jain (2002)'s own algorithm. See docs/dev/models.md
+for the full literature background and the Zanola et al. 2026 RSC connection,
+and assign_clusters_from_cooccurrence's own docstring for the specific cut
+criterion used here.
 """
 
 from __future__ import annotations
@@ -129,20 +114,11 @@ def run_monti_repeats(
 def compute_rsc_eigengap(cooccurrence_matrix: np.ndarray, k: int) -> float:
     """Gap between the (k+1)-th and k-th (1-indexed) sorted eigenvalues of
     the co-occurrence matrix's normalized Laplacian - not the biggest gap
-    anywhere (that's the generic eigengap heuristic already in
-    clustering_tuning.compute_eigengap), but specifically the gap at the
-    position that matters for this candidate k, matching the paper's own
-    "difference between k+1-th and k-th ordered eigenvalues" read across the
-    different co-occurrence matrices built for each k attempted.
-
-    AUDIT_FINDINGS.md #58: previously worded "k-th and (k-1)-th (1-indexed)" -
-    off by one from what the code below actually computes. `eigenvalues` is
-    0-indexed, so `eigenvalues[k]` is the (k+1)-th value in 1-indexed terms
-    and `eigenvalues[k - 1]` is the k-th - i.e. exactly the "k+1-th and k-th"
-    phrasing already given two sentences above, which this opening line now
-    matches instead of contradicting. Purely a docstring wording fix - the
-    code itself was already internally consistent (0-based k/k-1 indices
-    matching `subset_by_index=[0, k]`, which requests k+1 eigenvalues).
+    anywhere (that's clustering_tuning.compute_eigengap's generic heuristic),
+    but specifically the position that matters for this candidate k, matching
+    the paper's own selection criterion (see docs/dev/models.md; wording
+    fixed for an off-by-one per AUDIT_FINDINGS.md #58 - the code itself was
+    already correct).
     """
     if k < 1 or k >= cooccurrence_matrix.shape[0]:
         raise ValueError(f"k must be in [1, n_samples), got k={k} for a {cooccurrence_matrix.shape[0]}x... matrix")

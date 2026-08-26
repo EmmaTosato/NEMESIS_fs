@@ -22,6 +22,10 @@ Migrated from `notebooks/lesion_analysis.ipynb` (voxel-wise path, cells 4-8): sa
 
 Each subject is a flattened binarized lesion volume, resampled onto `reference_template_path`'s grid when its native resolution differs. `_drop_constant_features` then drops columns (voxels) that are identical across every subject - they carry no information for downstream PCA/UMAP/clustering. `non_constant_mask` records which columns survived (against the pre-drop feature count) so the mask can be reapplied to related data (e.g. re-running with a different subject selection).
 
+`_discover_lesion_files(data_root, datasets, lesion_glob, group_filter)` derives the subject-folder glob from `lesion_glob` itself (the last bare `"*"` path segment) rather than assuming subject folders are `dataset_root`'s immediate children (true only under the older subject-first retrieval layout, see `docs/dev/retrieval.md`) - works for either local layout without hardcoding one. Raises `FileNotFoundError` if the subject-folder glob itself finds nothing (an unreachable dataset - wrong path/name in config, or never retrieved) before `group_filter` narrows the list, since `Path.glob` on a missing directory returns `[]` with no exception and a typo'd dataset name would otherwise silently contribute 0 subjects rather than fail loudly. `group_of()` validates every discovered subject-dir name unconditionally, not only when `group_filter` is set (`AUDIT_FINDINGS.md` #46, `lessons_learned.md` #4/#28) - skipping that check for the common "this dataset doesn't mix groups" case let a malformed folder name through silently instead of raising.
+
+`load_reference_image(reference_template_path)` requires an explicit, caller-supplied file rather than deriving one implicitly (e.g. "the first lesion file found") - see `AUDIT_FINDINGS.md` #47 above for the known, still-open gap in what that file currently points to in production.
+
 ### Validation
 
 `binarize_threshold`/`resample_interpolation` are cross-validated at the config layer (`src/analysis/build_config.py`) before `build_lesion_matrix()` is ever called - see below.

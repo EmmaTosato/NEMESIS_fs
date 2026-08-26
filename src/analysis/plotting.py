@@ -1,46 +1,12 @@
 """Minimal plotting for the modeling pipeline scripts - cluster separation and fine-tuning sweeps.
 
-Not a general visualization module: a handful of narrow-purpose functions.
-More than 2 dimensions is still out of scope for the *static* functions here.
-Per-dataset coloring and interactivity were explicitly deferred in the
-analysis pipeline v2 handoff, then un-deferred on request: plot_clusters_interactive
-exists because a static PNG can't answer "which subject is that outlier
-point" - it needs per-point hover identity, which only an interactive plot
-can give (a 2D/3D interactive embedding view lives outside this module now,
-see src.analysis.embedding_app/src.pipeline.embedding_app -
-docs/guides/embedding_app.md - not a per-run static file anymore). plot_clusters_2d exists only because seeing clusters on a 2D
-scatter is the minimum needed to sanity-check a clustering run;
-plot_clusters_comparison_interactive extends the same per-point hover need to
-a multi-method comparison, one dropdown option per method instead of a
-static side-by-side grid. plot_silhouette_analysis is the per-cluster
-breakdown of that same sanity check, for one already-chosen production
-result - a single aggregate silhouette number (reported during fine_tuning,
-see clustering_tuning.compute_clustering_metrics) can hide a bad cluster
-averaged out by good ones; this plots every sample's own coefficient,
-grouped by cluster, next to the same 2D scatter. plot_tuning_curve exists because a human has to eyeball a
-fine-tuning sweep to pick parameters by hand (src/analysis/tuning.py) - no
-automatic selection; a 2+-parameter dim_reduction.py sweep gets no plot at
-all, only tuning_results.csv (no heatmap here - removed on request, kept for
-clustering_tuning.py below). plot_clustering_tuning_metrics/plot_dendrogram/
-plot_eigengap are the same "human eyeballs a sweep" idea applied to
-clustering.py's own fine-tuning mode (src/analysis/clustering_tuning.py) -
-one generic multi-metric curve plus 2 method-specific standalone diagnostics
-(dendrogram for agglomerative, eigengap for spectral - HDBSCAN gets no
-standalone diagnostic, see clustering_tuning.py's module docstring), also
-with no automatic selection. plot_embedding_categorical/
-plot_embedding_continuous extend dim_reduction.py's production embedding plot
-beyond the single-color plot_embedding_2d: any string category (dataset,
-lesion side) or continuous quantity (lesion volume) per subject can be the
-color axis, each written as its own embedding_plot_<name>.png - a static PNG
-only has one legend/colorbar, so combining more than one coloring on the same
-static image isn't attempted here ("what if I want a different color"/3D is
-answered by the live embedding_app instead, see above, not a second static
-mechanism in this module). Cluster-vs-dataset coloring in
-plot_clusters_interactive was un-deferred and then re-deferred: a clustering
-plot's job is to show the cluster assignment, dataset coloring belongs to
-dim_reduction.py's own embedding_plot_dataset instead - keeping the two
-concerns in the two places that already own them, rather than one function
-answering both.
+Not a general visualization module: a handful of narrow-purpose functions,
+each existing to answer one specific "a human eyeballs a sweep/result, no
+automatic selection" need. Static functions here stay 2D-only - a 2D/3D
+interactive view lives outside this module in
+src.analysis.embedding_app/src.pipeline.embedding_app
+(docs/guides/embedding_app.md), not a per-run static file. See
+docs/dev/plotting.md for what each function is for and why.
 """
 
 from __future__ import annotations
@@ -62,13 +28,10 @@ import seaborn as sns
 from scipy.cluster.hierarchy import dendrogram
 
 # Pink/azzurro/green categorical palette (5 tones, user-requested hue
-# families) - CVD-safe on EVERY pairwise combination (not just neighbors,
-# relevant since scatter points from different clusters sit next to each
-# other anywhere on the plot, not just adjacent in a legend), verified with
-# a Python port of the dataviz skill's validate_palette.js (same OKLab/
-# Machado-CVD math, same thresholds - worst all-pairs CVD dE 8.6, worst
-# normal-vision dE 18.3, both clear of the 8.0/15.0 gates). Colors cycle
-# past 5 clusters (an inherent limit of a validated-safe set, not a bug).
+# families) - CVD-safe on every pairwise combination, verified (OKLab/
+# Machado-CVD math, dataviz skill's validate_palette.js - see
+# docs/dev/plotting.md before changing these colors). Cycles past 5
+# clusters (an inherent limit of a validated-safe set, not a bug).
 _CATEGORICAL_PALETTE = [
     "#e87ba4",  # pink
     "#3aa9e0",  # azzurro (sky blue)
@@ -147,13 +110,9 @@ def compose_run_title(output_dir: Path, project: str) -> str:
 
     Single source of truth for "which run is this": output_dir is the same
     Path every pipeline script already builds for save_matrix/logging, so the
-    title can never drift out of sync with it, and stays correct no matter
-    how deep results/ ends up nested (modality/pipeline/method/session/tag -
-    see docs/dev/plotting.md) without this function needing to know about any
-    of those axes individually. Drops a leading "results" path segment for
-    readability (every pipeline's output_root today starts with "results/");
-    falls back to the full path if it doesn't, rather than raising - a
-    cosmetic difference only, not a broken title.
+    title can never drift out of sync with it (see docs/dev/plotting.md).
+    Drops a leading "results" path segment for readability; falls back to
+    the full path if there isn't one, rather than raising.
     """
     parts = output_dir.parts
     if parts and parts[0] == "results":
@@ -211,17 +170,13 @@ def compose_embedding_plot_title(output_dir: Path, reduction_method: str, color_
 
 
 def compose_tuning_leaf_title(output_dir: Path, reduction_method: str, leaf: dict) -> str:
-    """Title for one nested-tuning leaf's embeddings_grid_*.png
-    (dim_reduction.py's fine-tuning mode, nested_params declared):
+    """Title for one nested-tuning leaf's embeddings_grid_*.png:
     "<Modality> - <ReductionMethod> - <Metric> - <N> Components", same
-    capitalization convention as
-    compose_cluster_plot_title/compose_embedding_plot_title so every plot
-    family in this pipeline reads as one style instead of a path dump.
-
-    `leaf` is one real nested-parameter combination (e.g. {"metric":
-    "euclidean", "n_components": 2}) - only the keys actually present are
-    rendered, so this works for any nested_params subset (e.g. tsne's leaf
-    has no "n_components").
+    capitalization convention as compose_cluster_plot_title/
+    compose_embedding_plot_title. `leaf` is one real nested-parameter
+    combination - only the keys actually present are rendered, so this
+    works for any nested_params subset (e.g. tsne's leaf has no
+    "n_components").
     """
     modality_title = _modality_title(output_dir)
     parts = [modality_title, reduction_method.capitalize()]
@@ -353,28 +308,18 @@ def plot_embedding_continuous(
     """Scatter the first 2 columns of X_2d, colored by a continuous value per
     point (e.g. lesion volume in voxels), with a colorbar, to output_path.
 
-    Same figure size/marker size/axis padding/bold-padded-title conventions
-    as plot_clusters_2d/plot_embedding_categorical - a continuous quantity
-    has no legend entries to place, so a colorbar takes that role instead.
+    A NaN in values (e.g. an unresolvable NIHSS score) is drawn in the same
+    fixed neutral gray as the categorical plots' missing/noise bucket
+    (_NOISE_COLOR), never left to matplotlib's default invisible/transparent
+    point - see docs/dev/plotting.md. The colorbar's range is fit to the
+    non-NaN values only.
 
-    A NaN in values (e.g. a subject with no resolvable NIHSS score, see
-    join_nihss) is drawn in the same fixed neutral gray as the categorical
-    plots' missing/noise bucket (_NOISE_COLOR), underneath the colored
-    points, rather than left to matplotlib's own default (fully transparent
-    - the point silently vanishes with no visual sign it's missing, not
-    just "no data here"). The colorbar's range is fit to the non-NaN values
-    only, so a handful of missing subjects never compresses the color scale
-    for everyone else.
-
-    log_scale=True (used for "volume", a heavily right-skewed voxel count -
-    see embedding_coloring.py's COLOR_MODES) maps color via matplotlib's
-    LogNorm instead of the default linear normalization: on a linear scale a
-    handful of large-lesion outliers stretch the scale so far that almost
-    every other point looks the same dark color, log-scale spreads the whole
-    cohort back out. Raises ValueError if any non-missing value is <= 0 -
-    LogNorm can't represent that, and silently masking it out (matplotlib's
-    own behavior) would misrepresent a real "zero volume" subject as if its
-    value were unresolvable, the same category as a genuinely missing NIHSS.
+    log_scale=True (used for "volume" - see embedding_coloring.py's
+    COLOR_MODES) maps color via matplotlib's LogNorm instead of linear
+    normalization, so right-skewed outliers don't flatten the whole scale.
+    Raises ValueError if any non-missing value is <= 0 - LogNorm can't
+    represent it, and silently masking it out would misrepresent a real
+    "zero volume" subject as unresolvable (same doc for why).
     """
     if X_2d.shape[1] < 2:
         raise ValueError(f"plot_embedding_continuous needs at least 2 columns, got shape {X_2d.shape}")
@@ -487,24 +432,16 @@ def plot_silhouette_analysis(
     title: str,
 ) -> None:
     """The classic sklearn-style two-panel silhouette diagnostic for one
-    already-chosen production clustering result.
-
-    Left: one filled horizontal band per cluster, its members' individual
-    silhouette coefficients sorted ascending within the band - a wide,
-    uniformly high band reads as a well-separated cluster; a band dipping
-    below 0 means those members sit, on average, closer to a neighboring
-    cluster than their own. A dashed line marks the mean over all bands,
-    which equals compute_clustering_metrics's aggregate "silhouette" number
-    exactly (silhouette_score is defined as that mean) - this plot is a
-    breakdown of that single number, not a different metric. Right: the same
-    2D scatter as plot_clusters_2d, for a side-by-side spatial read.
+    already-chosen production clustering result - left: one filled band per
+    cluster, members' coefficients sorted ascending, dashed line at the mean
+    (equals compute_clustering_metrics's aggregate "silhouette" exactly);
+    right: the same 2D scatter as plot_clusters_2d. See docs/dev/plotting.md
+    for the full reading guide.
 
     sample_labels/sample_silhouette_values come from
-    clustering_tuning.compute_silhouette_samples - noise (-1) already
-    excluded there, since silhouette is undefined for a "cluster" that isn't
-    one. display_labels is the FULL label vector (noise included, grayed out
-    by _palette_for_labels) so the scatter panel still shows where noise
-    points physically sit, even though they have no band on the left.
+    clustering_tuning.compute_silhouette_samples (noise already excluded);
+    display_labels is the FULL label vector (noise included, grayed out) so
+    the scatter panel still shows where noise points physically sit.
     """
     if X_2d.shape[1] < 2:
         raise ValueError(f"plot_silhouette_analysis needs at least 2 columns in X_2d, got shape {X_2d.shape}")
@@ -612,15 +549,10 @@ def plot_clusters_comparison(
 ) -> None:
     """Square grid of subplots (see _square_grid_shape), one per method, same
     X_2d, colored by that method's own cluster_labels via the validated
-    categorical palette (_palette_for_labels) - noise label -1 always gray.
-
-    Shared x/y limits (with a fixed padding fraction beyond the data's own
-    min/max, so edge points aren't clipped by their own marker radius) across
-    every subplot so the comparison is visually honest - a method that
-    spreads points wider isn't allowed to look more "spread out" just
-    because matplotlib auto-scaled its own axes differently. Each subplot's
-    legend is anchored just outside its own axes (never over the data) -
-    subplots are widened and spaced out accordingly.
+    categorical palette. Shared x/y limits across every subplot so the
+    comparison is visually honest - a method isn't allowed to look more
+    "spread out" just from independent axis auto-scaling (see
+    docs/dev/plotting.md).
     """
     if X_2d.shape[1] < 2:
         raise ValueError(f"plot_clusters_comparison needs at least 2 columns, got shape {X_2d.shape}")
@@ -781,39 +713,22 @@ def plot_embedding_grid_blocks(
 ) -> None:
     """One row of small scatter subplots per entry in `blocks` - each entry
     is (block_title, [(cell_title, embedding_2d), ...]), e.g. block_title=
-    "n_neighbors", one cell per swept n_neighbors value while every other
-    grid parameter stays at its production/base value (the caller - see
-    src/analysis/embedding_plots.py::write_embedding_grid - decides which
-    embeddings go in which cell; this function only lays them out).
+    "n_neighbors", one cell per swept value while every other grid parameter
+    stays at its base value (the caller, src/analysis/embedding_plots.py::
+    write_embedding_grid, decides which embeddings go where; this function
+    only lays them out). Shows the *real* embeddings side by side, so a
+    human can see how the point cloud's shape changes, not just one
+    aggregate metric moving - see docs/dev/plotting.md for the full layout
+    rationale.
 
-    Shows the *real* embeddings side by side (unlike plot_tuning_curve's
-    single numeric score), so a human can see how the point cloud's shape
-    actually changes with a parameter, not just how one aggregate metric
-    moves. A dedicated label row (own axis, text only) sits above each
-    block's scatter row, and a blank spacer row separates one block from the
-    next - real whitespace, not just subplot padding, so multiple blocks in
-    one figure read as visually distinct sections.
-
-    Each cell auto-scales to its *own* embedding's min/max (padded the same
-    way as plot_embedding_2d) rather than sharing one axis range across every
-    cell - two UMAP/t-SNE fits with different hyperparameters have no shared
-    coordinate frame to begin with (absolute position/scale is arbitrary per
-    fit, `.claude/lessons_learned.md` #16), so forcing a shared range only
-    shrinks every cell to whatever corner of a mostly-empty canvas its fit
-    happened to land in, without buying any real comparability. Coloring is
-    shared, though: `color_values`/`color_kind` is None/None for "unico"
-    (single color, same convention as plot_embedding_2d), or a color_by
-    mode's per-subject values plus "categorical"/"continuous" (same two
-    renderings as plot_embedding_categorical/plot_embedding_continuous) -
-    every cell is a fit of the same subjects, so one shared legend/colorbar
-    for the whole figure is enough, taken from the first cell only. A NaN in
-    `color_values` (continuous mode only, e.g. a subject with no resolvable
-    NIHSS) is drawn in the same fixed neutral gray as plot_embedding_continuous's
-    missing bucket, with its own small "missing" legend entry - same reasoning,
-    never left transparent/invisible. log_scale=True (continuous mode only,
-    "volume" - see embedding_coloring.py) colors via LogNorm instead of linear;
-    raises ValueError if any non-missing value is <= 0, same as
-    plot_embedding_continuous.
+    Each cell auto-scales to its *own* embedding's min/max rather than
+    sharing one axis range - two UMAP/t-SNE fits with different
+    hyperparameters have no shared coordinate frame to begin with
+    (`.claude/lessons_learned.md` #16). Coloring is shared though: one
+    legend/colorbar for the whole figure, taken from the first cell only -
+    `color_values`/`color_kind`/`log_scale` behave exactly as in
+    plot_embedding_categorical/plot_embedding_continuous, including the
+    same NaN/missing-value handling.
     """
     if not blocks:
         raise ValueError("plot_embedding_grid_blocks needs at least one block")
@@ -985,16 +900,10 @@ def plot_clustering_tuning_heatmaps(
 
 def plot_clustering_tuning_metrics(df: pd.DataFrame, param_col: str, metric_cols: list[str], output_path: Path, title: str) -> None:
     """One line-plot subplot per metric in metric_cols, all sharing param_col
-    on the x-axis - the clustering-tuning equivalent of plot_tuning_curve, but
-    for more than one metric at once. Silhouette ([-1, 1]), Calinski-Harabasz
-    (unbounded positive, grows with cluster count) and Davies-Bouldin
-    (unbounded positive, lower is better) live on incomparable scales -
-    overlaying them on one shared axis would be misleading, so each gets its
-    own subplot instead.
-
-    Laid out on the smallest square grid that fits all metrics (see
-    _square_grid_shape), not a single row - a single row of 4-5 subplots
-    compresses each one so much that axis labels/ticks collide.
+    on the x-axis - the clustering-tuning equivalent of plot_tuning_curve for
+    more than one metric at once, each on its own subplot since silhouette/
+    Calinski-Harabasz/Davies-Bouldin live on incomparable scales. Laid out
+    on the smallest square grid that fits all metrics (see docs/dev/plotting.md).
     """
     if not metric_cols:
         raise ValueError("plot_clustering_tuning_metrics needs at least one metric column")

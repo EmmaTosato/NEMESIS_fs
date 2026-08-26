@@ -35,27 +35,17 @@ def write_embedding_plots(
     file_prefix: str = "embedding_plot",
 ) -> None:
     """Writes `<file_prefix>_unico.png` (always, single color) plus, for each
-    name in `color_by` (resolved via embedding_coloring.COLOR_MODES), a
-    static PNG (`<file_prefix>_<name>.png`).
+    name in `color_by`, a static PNG (`<file_prefix>_<name>.png`).
 
-    `embedding` must have exactly 2 or 3 columns (this writes *visualization*
-    embeddings, already reduced to a plottable size - see
-    src/analysis/reduction.py::embedding_for_viz for how a caller gets one).
-    With 3 columns, no static PNG is written at all - a non-rotatable 3D
-    scatter is unreadable, so a 3-component embedding gets no rendering from
-    this function; explore it interactively instead via
-    src.pipeline.embedding_app (docs/guides/embedding_app.md), which reads
-    the saved run directly and needs no static file regenerated per run
-    (2026-08-14: this used to also write a combined
-    `<file_prefix>_interactive.html` via plot_embedding_interactive, removed
-    on request - the live app supersedes it for every color mode, not just
-    the ones a given `color_by` config happened to list, and covers every
-    production run without a per-run file to keep in sync).
+    `embedding` must have exactly 2 or 3 columns (see
+    src/analysis/reduction.py::embedding_for_viz for how a caller gets one
+    reduced to a plottable size). With 3 columns, no static PNG is written -
+    explore it interactively instead via src.pipeline.embedding_app
+    (docs/guides/embedding_app.md, see docs/dev/plotting.md for why no
+    static 3D rendering exists here).
 
     Each static output is wrapped in its own try/except (broad Exception,
-    logged as WARNING) - one bad coloring mode (e.g. a dataset with no
-    resolvable participants.tsv for lesion_side) must not abort the whole
-    run, same convention dim_reduction.py used before this function existed.
+    logged as WARNING) - one bad coloring mode must not abort the whole run.
     """
     n_dims = embedding.shape[1]
     if n_dims not in (2, 3):

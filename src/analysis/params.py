@@ -48,18 +48,12 @@ def load_method_params(params_file: str | Path, method: str) -> tuple[dict, str 
 def load_tuning_grid(params_file: str | Path, method: str) -> dict[str, list]:
     """Load the tuning_grid dict registered for `method` in `params_file`.
 
-    Raises ValueError if `method` has no "tuning_grid" entry (fine-tuning not
-    supported/configured for this method), if it isn't a JSON object
-    mapping each hyperparameter name to a non-empty list of values to sweep,
-    or if any individual value in one of those lists is itself a JSON
-    array/object (AUDIT_FINDINGS.md #56 - lesson #8: run_tuning_sweep/
-    run_clustering_tuning_sweep build `combo = tuple(combo_values)` and use
-    it as a dict key - a nested list/dict value, e.g. a typo'd extra
-    bracket (`[5, 15, [30]]` instead of `[5, 15, 30]`), passes this
-    function's own list-of-values check but raises a cryptic
-    `TypeError: unhashable type` far downstream, the first time that value
-    is actually used as a key, instead of a clear config-validation error
-    here).
+    Raises ValueError if `method` has no "tuning_grid" entry, if it isn't a
+    JSON object mapping each hyperparameter to a non-empty list of values,
+    or if any value in one of those lists is itself a nested list/object -
+    such a value is later used as part of a dict key (AUDIT_FINDINGS.md #56,
+    lesson #8) and would otherwise raise a cryptic TypeError far downstream
+    instead of a clear error here.
     """
     entry = _load_method_entry(params_file, method)
     if "tuning_grid" not in entry:
@@ -82,20 +76,16 @@ def load_tuning_grid(params_file: str | Path, method: str) -> dict[str, list]:
 
 def load_nested_params(params_file: str | Path, method: str, tuning_grid: dict[str, list]) -> list[str]:
     """Load the ordered "nested_params" list registered for `method` in
-    `params_file` - the tuning_grid keys fixed one-at-a-time (nested output
-    folders, outermost first), as opposed to the "free" keys left over
-    (tuning_grid minus nested_params) that get swept jointly as the real
-    grid search (see src/pipeline/dim_reduction.py's _write_tuning_output).
+    `params_file` - the tuning_grid keys fixed one-at-a-time in nested output
+    folders, outermost first, as opposed to the "free" keys left over that
+    get swept jointly (see docs/dev/models.md's `_write_nested_tuning_leaves`
+    entry). Absent -> [] (no nesting), a legitimate case for a method with
+    <= 2 total swept parameters (e.g. pacmap/pca today).
 
-    Absent -> [] (no nesting - every tuning_grid key is a free/grid
-    parameter), a legitimate case for a method with <= 2 total swept
-    parameters (e.g. pacmap/pca today).
-
-    Raises ValueError if nested_params isn't a list of strings, if any name
-    isn't a key of `tuning_grid` (an ambiguous/impossible reference - e.g. a
-    typo), or if the free parameters left over (tuning_grid keys minus
-    nested_params) aren't exactly 1 or 2 (0 = nothing left to visualize in a
-    leaf folder, >2 = not representable by the 2-block embedding grid).
+    Raises ValueError if nested_params isn't a list of strings, references a
+    name not in tuning_grid, or leaves anything other than 1 or 2 free
+    parameters (0 = nothing to visualize, >2 = not representable by the
+    2-block embedding grid).
     """
     entry = _load_method_entry(params_file, method)
     if "nested_params" not in entry:
@@ -124,16 +114,13 @@ def load_nested_params(params_file: str | Path, method: str, tuning_grid: dict[s
 
 def load_consensus_config(params_file: str | Path, method: str) -> dict | None:
     """Load the optional "consensus" block registered for `method` in
-    `params_file` (see src/analysis/consensus_clustering.py). Absent -> None,
-    a legitimate "consensus/stability clustering not requested for this run"
-    case, not an error.
+    `params_file` (see docs/dev/models.md's consensus_clustering.py section).
+    Absent -> None, a legitimate "not requested" case.
 
     Raises ValueError if `method` isn't in CONSENSUS_ELIGIBLE_METHODS but a
-    "consensus" entry is present anyway (e.g. added under "hdbscan" by
-    mistake - an impossible config, must fail loudly), or if the block's
-    shape is wrong: only "rsc"/"monti" keys allowed, "rsc" needs an int
-    "n_repeats" >= 1, "monti" needs those plus a "subsample_fraction" in
-    (0, 1).
+    "consensus" entry is present anyway, or if the block's shape is wrong:
+    only "rsc"/"monti" keys allowed, "rsc" needs an int "n_repeats" >= 1,
+    "monti" needs those plus a "subsample_fraction" in (0, 1).
     """
     entry = _load_method_entry(params_file, method)
     if "consensus" not in entry:

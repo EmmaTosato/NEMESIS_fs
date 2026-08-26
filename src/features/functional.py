@@ -2,27 +2,17 @@
 subjects x edges feature matrix from the masked output.
 
 Two-stage pipeline, deliberately decoupled (config included) between two
-pipeline scripts:
-1. `src/pipeline/mask_fc.py` (this module's `mask_dataset_fc`): per subject,
-   mark FC rows/cols of lesion-compromised parcels as NaN - never a concrete
-   fill value here. NaN is the honest representation of "not computable";
-   a fill value belongs only immediately before a method that cannot accept
-   missing values (PCA/UMAP), i.e. next to `src/analysis/reduction.py`, not
-   here - see docs/dev/fc_matrix.md for the literature behind this split
-   (Griffis et al. 2019: "the PLSC approach cannot accommodate missing
-   values ... set to 0" - the fill value is a downstream necessity, not part
-   of the masking step itself).
-2. `src/pipeline/build_fc_matrix.py` (this module's `build_fc_matrix_from_masked`):
-   across subjects, vectorize (upper triangle only, the matrix is symmetric
-   with a non-informative diagonal) and stack into one X (subjects x edges)
-   matrix - reads only the already-masked CSVs written by stage 1, never the
-   raw lesion/FC data again.
+pipeline scripts: `src/pipeline/mask_fc.py` (this module's `mask_dataset_fc`)
+marks FC rows/cols of lesion-compromised parcels as NaN - never a concrete
+fill value, which belongs only immediately before a method that cannot
+accept missing values (see docs/dev/fc_matrix.md for the literature behind
+this split). `src/pipeline/build_fc_matrix.py` (this module's
+`build_fc_matrix_from_masked`) reads only the already-masked CSVs stage 1
+wrote, never the raw lesion/FC data again.
 
 Migrated from notebooks/fc_lesion_masking.ipynb, validated against real
-WashU subjects before landing here - see docs/dev/fc_matrix.md and
-docs/debugging/debug_23_07_26.md for the two nilearn pitfalls found during
-that validation (uint8 counting overflow, disappearing fully-lesioned
-parcels - both handled explicitly in compute_parcel_coverage below).
+WashU subjects before landing here - see docs/dev/fc_matrix.md for the
+nilearn pitfalls found during that validation.
 """
 
 from __future__ import annotations
@@ -59,12 +49,8 @@ def load_atlas(atlas_path: Path, label_table_path: Path) -> tuple[nib.Nifti1Imag
 
     Raises FileNotFoundError if either file is missing, ValueError if the
     label table doesn't have the expected columns, has a duplicate 'index'
-    value (AUDIT_FINDINGS.md #28 - lesson #5, silently collapsed by a dict
-    keyed on it otherwise), or has an 'index' value absent from the volume
-    itself (AUDIT_FINDINGS.md #27 - lesson #7, would otherwise only surface
-    later as a raw KeyError from compute_parcel_coverage's total_by_label
-    lookup, once the return value is actually indexed into) - never a
-    partial/guessed read.
+    value, or has an 'index' value absent from the volume itself - see
+    docs/dev/fc_matrix.md for why each check exists.
     """
     atlas_path = Path(atlas_path)
     label_table_path = Path(label_table_path)
@@ -167,17 +153,11 @@ def mask_fc_by_lesion(fc: pd.DataFrame, node_names: np.ndarray, compromised_name
 
 
 def vectorize_upper_triangle(matrix_df: pd.DataFrame, node_names: np.ndarray) -> pd.Series:
-    """Upper triangle (diagonal excluded) as a named 1D vector.
-
-    The FC matrix is symmetric (A-B == B-A) with a non-informative diagonal
-    (self-correlation = 1.0) - keeping the full matrix would duplicate every
-    edge and add uninformative columns. AUDIT_FINDINGS.md #30: that symmetry
-    was previously just assumed, never checked - raises ValueError if the
-    lower triangle actually disagrees with the upper one (equal_nan=True:
-    mask_fc_by_lesion's NaN-ing of a compromised node's row/col is applied
-    symmetrically by construction, so a NaN there is expected on both sides,
-    not itself a symmetry violation), instead of silently discarding
-    whichever half the lower triangle held.
+    """Upper triangle (diagonal excluded) as a named 1D vector - the FC
+    matrix is symmetric with a non-informative diagonal (self-correlation
+    1.0). Raises ValueError if the lower triangle actually disagrees with
+    the upper one, instead of silently discarding whichever half the lower
+    triangle held - see docs/dev/fc_matrix.md.
     """
     values_matrix = matrix_df.values
     if not np.allclose(values_matrix, values_matrix.T, equal_nan=True):
@@ -227,16 +207,10 @@ def discover_subject_files(
 
     Returns ({subject_id: (lesion_path, fc_path)}, subjects_missing_lesion,
     subjects_excluded_by_group). group_filter restricts by each subject's
-    naming-derived group (src.retrieval.dataset.group_of) BEFORE the
-    lesion/FC intersection is computed - required because a dataset's
-    `features/` tree can hold both patients (ST) and healthy controls (HC)
-    side by side (e.g. WashU), and an HC subject is not a "missing lesion
-    mask" gap (that reporting is reserved for a patient whose mask genuinely
-    wasn't drawn) but a structurally different population this
-    lesion-masking pipeline does not apply to (a healthy control has no
-    lesion to mask). group_filter=None means no restriction - only correct
-    for a dataset/config known not to mix groups, never the default for one
-    that does.
+    naming-derived group BEFORE the lesion/FC intersection is computed - an
+    HC subject (e.g. WashU) is not a "missing lesion mask" gap but a
+    structurally different population this pipeline doesn't apply to (see
+    docs/dev/fc_matrix.md). group_filter=None means no restriction.
 
     Raises ValueError if no subject has both, within group_filter (likely a
     config error - wrong dataset/atlas_combo/group_filter).
@@ -278,15 +252,12 @@ def mask_dataset_fc(
 ) -> tuple[pd.DataFrame, list[str], list[str], dict[str, str]]:
     """Mask every discoverable subject's FC matrix and write it to output_dir.
 
-    Returns (summary, missing_lesion, excluded_by_group, failed) - summary has
-    one row per masked subject (subject_id, n_compromised_nodes),
-    missing_lesion is the list of subjects skipped for lacking a lesion mask,
-    excluded_by_group is the list of subjects skipped because their
-    naming-derived group isn't in group_filter (see discover_subject_files for
-    the ST-vs-HC rationale), and failed is subject_id -> reason for any
-    subject whose own lesion/FC file couldn't be read or masked (truncated
-    image, malformed CSV, node-order mismatch) - isolated per-subject (lesson
-    #21) so one bad file costs only that subject, not the whole combo/run.
+    Returns (summary, missing_lesion, excluded_by_group, failed) - summary
+    has one row per masked subject (subject_id, n_compromised_nodes),
+    missing_lesion/excluded_by_group as in discover_subject_files, and
+    failed is subject_id -> reason for any subject whose own lesion/FC file
+    couldn't be read or masked - isolated per-subject (lesson #21) so one
+    bad file costs only that subject, not the whole combo/run.
     """
     atlas_img, label_table = load_atlas(atlas_path, label_table_path)
     label_ids = label_table["index"].tolist()
@@ -309,11 +280,9 @@ def mask_dataset_fc(
         try:
             lesion_img = nib.load(lesion_path)
             fc = pd.read_csv(fc_path, sep="\t", index_col=0)
-            # AUDIT_FINDINGS.md #50: no redundant/partial pre-check here anymore -
             # mask_subject_fc -> mask_fc_by_lesion already raises ValueError for a node-order
-            # mismatch, checking BOTH .index and .columns (this call site used to recheck only
-            # .index, never blocking anything on its own since the inner check always ran too,
-            # while leaving .columns looking checked here when it never was).
+            # mismatch (checking both .index/.columns) - no redundant pre-check here
+            # (AUDIT_FINDINGS.md #50, see docs/dev/fc_matrix.md).
             fc_masked, compromised_names = mask_subject_fc(
                 lesion_img, fc, atlas_img, label_ids, node_names, min_coverage, resample_interpolation, binarize_threshold
             )
@@ -359,21 +328,14 @@ def drop_constant_edges(X: np.ndarray, edge_names: list[str]) -> tuple[np.ndarra
 
     An edge with any NaN is never evaluated for constancy - kept
     unconditionally (the per-subject/per-edge exclusion threshold question
-    is settled, not open: no threshold, no subject excluded, see
-    docs/dev/fc_matrix.md). Returns
-    (X_filtered, kept_edge_names, dropped_info), where dropped_info is
-    [(edge_name, shared_value), ...] - the caller (build_fc_matrix.py) logs
-    this explicitly: an exactly-identical continuous FC value across every
-    subject is unexpected for real data and worth a human look, not a
-    routine no-op (unlike the binary lesion-matrix case, where constant
-    all-zero columns are common and unremarkable).
+    is settled, not open - see docs/dev/fc_matrix.md). Returns
+    (X_filtered, kept_edge_names, dropped_info) - the caller (build_fc_matrix.py)
+    logs dropped_info explicitly, since an exactly-identical continuous FC
+    value across every subject is unexpected and worth a human look.
 
-    AUDIT_FINDINGS.md #55: "constant across every subject" is undefined with
-    a single subject (every fully-observed edge trivially has min==max) - X
-    is returned unchanged (nothing dropped, dropped_info empty) rather than
-    silently discarding every edge, since dropping everything here isn't a
-    "no threshold, no subject excluded" decision like the rest of this
-    function, it's a degenerate input this check was never meant to answer.
+    A single-subject X is a degenerate input this check was never meant to
+    answer (AUDIT_FINDINGS.md #55, see docs/dev/fc_matrix.md) - X is
+    returned unchanged rather than silently discarding every edge.
     """
     if X.shape[0] <= 1:
         logging.warning(

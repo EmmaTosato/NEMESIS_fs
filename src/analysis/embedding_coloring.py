@@ -1,38 +1,13 @@
 """Registry of embedding-coloring modes shared between dim_reduction.py's
-production and fine-tuning output (src/analysis/embedding_plots.py) and
-src.pipeline.embedding_app's interactive explorer (which reads this registry
-directly to drive its color buttons, independent of any pipeline's own
-`color_by` config).
+production/fine-tuning output (src/analysis/embedding_plots.py) and
+src.pipeline.embedding_app's interactive explorer. Adding a new way to color
+an embedding means adding one entry here plus its name to a pipeline's
+`color_by` config list - no other code changes.
 
-Adding a new way to color an embedding (e.g. a clinical score) means adding
-one entry here plus its name to a pipeline's `color_by` config list - no
-other code changes. Each mode declares whether its values are a category
-(rendered with a legend, see plotting.plot_embedding_categorical) or a
-continuous quantity (rendered with a colorbar, see
-plotting.plot_embedding_continuous), and which metadata.csv column holds its
-values.
-
-Single source of truth, read-only (2026-08-17 - collapsed from two separate,
-independently-maintained mechanisms: a `compute(metadata, X)` callable that
-recomputed a value live for the production/tuning plot writers, and a
-`PERSISTED_COLUMN_BY_MODE` mapping used only by embedding_app's read-only
-explorer to read the same value already sitting in metadata.csv. The two
-were meant to agree but had no way to be checked against each other - the
-"volume" mode's live `compute` did `X.sum(axis=1)` with zero guard against a
-parcellated (continuous, non-binary) X, silently producing a meaningless
-number, while the persisted `lesion_volume_voxels` column right there in the
-same metadata.csv was already correct. Every mode now reads its own column
-straight from metadata via `color_values` below - never recomputed from X,
-never rejoined from participants.tsv live - so a color always matches
-exactly what was actually persisted for that run, and a consumer that reads
-a metadata.csv without a given mode's column gets a clear ValueError, not a
-silently wrong or blank plot. `X` is no longer needed by any color mode: the
-raw feature matrix a reduction/clustering pipeline uses to build its
-embedding has no role in coloring points by dataset/side/volume/nihss/
-cluster - those are per-subject facts already resolved once, upstream, by
-src.features.lesion.build_lesion_matrix (lesion_volume_voxels) and
-src.pipeline.enrich_lesion_metadata (lesion_side/nihss/other clinical
-fields), not derived at plot time.
+Single source of truth, read-only: every mode reads its own value straight
+from an already-persisted metadata.csv column (see color_values below),
+never recomputed from X or rejoined from participants.tsv live - see
+docs/dev/plotting.md for why (a real bug this design replaced).
 """
 
 from __future__ import annotations

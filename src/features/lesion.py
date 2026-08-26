@@ -37,19 +37,12 @@ def build_lesion_matrix(
 ) -> tuple[np.ndarray, pd.DataFrame, np.ndarray, list[str]]:
     """Build X (n_subjects x n_features), row-aligned metadata, and drop-mask.
 
-    Returns (X, metadata, non_constant_mask, excluded_by_group).
-    excluded_by_group is the list of subjects skipped because their
-    naming-derived group (src.retrieval.dataset.group_of) isn't in
-    group_filter - see _discover_lesion_files. group_filter=None means no
-    restriction (only correct for datasets known not to mix groups - see
-    src/features/subject_discovery.py).
-
-    metadata always gains one column beyond subject_id/dataset:
-    lesion_volume_voxels (a real voxel count, computed from the voxel-wise
-    matrix - see below). No other clinical/derived field is added here -
-    lesion_side/NIHSS/age/... come from a separate, dedicated join tool
-    against this function's own output (see
-    src/pipeline/enrich_lesion_metadata.py), not from this function.
+    Returns (X, metadata, non_constant_mask, excluded_by_group) - see
+    docs/dev/lesion_matrix.md. excluded_by_group is subjects skipped because
+    their naming-derived group isn't in group_filter (None means no
+    restriction). metadata always gains one column beyond subject_id/dataset:
+    lesion_volume_voxels - no other clinical/derived field is added here,
+    see src/pipeline/enrich_lesion_metadata.py for that.
     """
     X_voxelwise, metadata, excluded_by_group = _voxelwise_matrix_with_volume(
         data_root, datasets, reference_template_path, lesion_glob, binarize_threshold,
@@ -122,21 +115,9 @@ def _discover_lesion_files(
 ) -> tuple[dict[str, dict[str, Path]], list[str]]:
     """One entry per dataset: {subject_id: lesion_path}, restricted to
     group_filter, sanity-checked against how many (group-filtered) subject
-    folders actually exist. Where subject folders sit relative to
-    dataset_root differs by local retrieval layout (subject-first vs
-    pipeline-first, see src.retrieval.output_layout) - rather than assuming
-    they're dataset_root's immediate children (true only for the older
-    subject-first layout), the subject-folder glob is derived from
-    lesion_glob itself: the last path segment that is exactly "*" (the
-    subject-id wildcard, not a compound filename pattern like
-    "*_label-lesion_mask.nii.gz").
-
-    The subject-dir count used for the sanity check is itself restricted to
-    group_filter (see src.features.subject_discovery) - comparing against
-    every folder regardless of group would break as soon as a dataset mixes
-    groups under this pipeline/object (not the case today for manual_masks -
-    a healthy control has no lesion to mask - but not a guarantee this code
-    should silently assume).
+    folders actually exist - see docs/dev/lesion_matrix.md for how the
+    subject-folder glob is derived and why group_of() validates
+    unconditionally here.
 
     Returns (lesion_files, excluded_by_group) - excluded_by_group merges the
     per-dataset exclusion lists, for the caller to log explicitly.
@@ -158,26 +139,16 @@ def _discover_lesion_files(
         excluded_by_group.extend(excluded)
 
         subject_dirs = [p.name for p in dataset_root.glob(subject_glob) if p.is_dir()]
-        # Checked before group_filter narrows the list: an empty result here means the
-        # dataset itself is unreachable (wrong path/name in config, or never retrieved),
-        # not a legitimate "this dataset has 0 subjects in the requested group" - that
-        # case is only distinguishable *after* filtering, and stays silent-safe (a dataset
-        # that genuinely has none of the requested group contributes 0 rows, same as
-        # today). Path.glob on a missing/empty directory returns [] with no exception, so
-        # without this check a typo'd dataset name silently contributes 0 subjects instead
-        # of failing loudly (both by_subject and subject_dirs land on the same empty list,
-        # so the len-mismatch check below never fires either).
+        # Checked before group_filter narrows the list (unreachable dataset vs. a
+        # legitimate 0-subjects-in-group case - see docs/dev/lesion_matrix.md).
         if not subject_dirs:
             raise FileNotFoundError(
                 f"{dataset}: no subject directories found under {dataset_root} matching "
                 f"{subject_glob!r} - check 'datasets'/'data_root' in the config, or run "
                 "retrieve_data.py first if this dataset hasn't been retrieved yet"
             )
-        # AUDIT_FINDINGS.md #46: group_of() must validate every subject_dirs entry's
-        # naming regardless of group_filter (lesson #4/#26's twin gap here) - skipping
-        # the call whenever group_filter is None (the common "this dataset doesn't mix
-        # groups" case) let a malformed folder name (e.g. "sub_STUNIPD0099", underscore
-        # instead of a dash) through silently instead of raising.
+        # group_of() validates unconditionally, not only when group_filter is set -
+        # AUDIT_FINDINGS.md #46, see docs/dev/lesion_matrix.md.
         dir_groups = {s: group_of(s) for s in subject_dirs}
         if group_filter is not None:
             subject_dirs = [s for s in subject_dirs if dir_groups[s] in group_filter]
@@ -196,16 +167,10 @@ def load_reference_image(reference_template_path: Path) -> nib.Nifti1Image:
     """Load the explicit reference template that fixes the common voxel grid.
 
     Every subject's lesion mask is resampled onto this image's grid if its
-    own shape or affine differs (see _needs_resample) - shape alone isn't
-    enough: two images can share a shape while their affines place that voxel
-    array at different physical coordinates. Caller-supplied on purpose -
-    picking "the first lesion file found" as an implicit reference silently
-    ties the common grid to whichever file happens to sort first, with no
-    guarantee it's the resolution/space actually wanted (e.g. a canonical
-    MNI152 2mm template).
-
-    Public so callers that only need the grid don't have to re-run full
-    lesion discovery/validation via build_lesion_matrix.
+    own shape or affine differs (see _needs_resample). Caller-supplied on
+    purpose, not derived implicitly (see docs/dev/lesion_matrix.md). Public
+    so callers that only need the grid don't have to re-run full lesion
+    discovery/validation via build_lesion_matrix.
     """
     if not reference_template_path.is_file():
         raise FileNotFoundError(f"reference_template_path not found: {reference_template_path}")

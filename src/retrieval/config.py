@@ -37,30 +37,13 @@ assert not (_OBJECTS_REQUIRING_PIPELINE & _OBJECTS_FORBIDDING_PIPELINE)
 @dataclass(frozen=True)
 class FilePatterns:
     """Registry of where to find a file on disk, for a given `object` and the
-    path of keys below it.
-
-    Loaded from a JSON file (see load_file_patterns) nested first by
-    `object` (`lesion`/`feature` - a true structural invariant, see
-    KNOWN_OBJECTS), then by however many levels that object's own data needs
-    down to an ordered list of path templates (relative to that object's own
-    `project_root`, with `{subject_id}` as the only placeholder). `lesion`
-    nests three levels below object (pipeline, then datatype, then suffix -
-    e.g. `lesion.manual_masks.anat.lesion_mask`); `feature` nests two levels
-    (datatype, then suffix - e.g. `feature.func.FC-pearson`), since it has no
-    pipeline (see _OBJECTS_FORBIDDING_PIPELINE). Depth genuinely varies by
-    object - read from the JSON, never assumed by this class. See
+    path of keys below it - loaded from a JSON file (see load_file_patterns).
+    Depth genuinely varies by object (`lesion` nests 3 levels, `feature` 2 -
+    see docs/dev/retrieval.md) - read from the JSON, never assumed here. See
     RetrieveItem.path_key()/from_path() for the one place that maps between
-    this tuple shape and typed fields.
-
-    Each object has its own `project_root`, since `lesion` and `feature` live
-    under different directory trees at the source (see
-    `Clinical_connectome/features/` vs `Clinical_connectome/<dataset>/`).
-
-    More than one template under the same leaf key means "grab every one of
-    these that exists for this subject" (e.g. `lesion_roi` named with or
-    without an explicit `_space-T1w_` tag, depending on which pipeline
-    produced it) - all of them, not just the first found. See
-    Dataset.resolve().
+    this tuple shape and typed fields. More than one template under the same
+    leaf key means "grab every one that exists for this subject", not just
+    the first found - see Dataset.resolve().
     """
 
     project_roots: dict[str, Path]
@@ -89,37 +72,23 @@ class FilePatterns:
 
     def subject_discovery_keys(self) -> set[tuple[str, str | None]]:
         """Every distinct (object, pipeline) pair registered anywhere in this
-        registry - pipeline is None for objects that don't use one (see
-        _OBJECTS_FORBIDDING_PIPELINE). This is the axis subject folders are
-        discovered under: for `lesion`/`manual_masks`, {subject_id} sits
-        right after the `manual_masks` path segment, before `datatype` even
-        appears; for `feature`, {subject_id} is the very first segment (no
-        pipeline at all). Two leaves sharing the same (object, pipeline) are
-        assumed to share the same subject-folder location - true by the
-        BIDS-Derivatives convention this registry follows
-        (derivatives/<pipeline>/sub-*/... vs sub-*/... directly). Used by
-        matrix.select_all_subjects and retrieve_data._known_object_pipelines
-        to discover subjects across every pipeline of a requested object, not
-        just the exact (object, pipeline) pairs a run's `retrieve` list
-        happens to name."""
+        registry - pipeline is None for objects that don't use one. The axis
+        subject folders are discovered under (see docs/dev/retrieval.md).
+        Used by matrix.select_all_subjects and
+        retrieve_data._known_object_pipelines to discover subjects across
+        every pipeline of a requested object, not just the exact
+        (object, pipeline) pairs a run's `retrieve` list happens to name."""
         return {(combo[0], RetrieveItem.from_path(*combo).pipeline) for combo in self.patterns}
 
 
 @dataclass(frozen=True)
 class RetrieveItem:
-    """One (object, *path) leaf to retrieve, in BIDS-aligned vocabulary.
-
-    `pipeline` is a BIDS-Derivatives pipeline name (e.g. `manual_masks`) -
-    required and non-empty for objects in _OBJECTS_REQUIRING_PIPELINE
-    (today: `lesion`), and must be None for objects in
-    _OBJECTS_FORBIDDING_PIPELINE (today: `feature`, `sdc` - neither has a
-    discoverable pipeline name at the source, so we don't invent one; BIDS
-    itself defines no formal "pipeline" entity either, see
-    docs/dev/retrieval.md).
-    `datatype` is the BIDS-official content type (anat/dwi/func). `suffix` is
-    the BIDS-official term for what this project used to call "modality" -
-    BIDS reserves "modality" for acquisition technology (MRI/PET/...), a
-    different, higher-level concept this project doesn't need.
+    """One (object, *path) leaf to retrieve, in BIDS-aligned vocabulary -
+    `pipeline` required for objects in _OBJECTS_REQUIRING_PIPELINE, forbidden
+    for _OBJECTS_FORBIDDING_PIPELINE (see docs/dev/retrieval.md for why
+    "pipeline" isn't a formal BIDS entity). `datatype`/`suffix` are the
+    BIDS-official terms (`suffix` is what this project used to call
+    "modality" - BIDS reserves that word for acquisition technology).
 
     Field *shape* is not the same for every object - see path_key()/
     from_path() for the one place that maps between this and the flat tuple
@@ -131,18 +100,15 @@ class RetrieveItem:
     suffix: str
 
     def __post_init__(self) -> None:
-        """Only `object` is a true structural constant (see KNOWN_OBJECTS) -
-        validated directly. `pipeline`'s required-or-forbidden-ness is also
-        validated here since it's a per-object rule known statically (see
-        _OBJECTS_REQUIRING_PIPELINE/_OBJECTS_FORBIDDING_PIPELINE), unlike
-        `datatype`/`suffix`, whose *validity* depends on the external
-        file_patterns registry and can't reasonably be checked at
-        construction time - see _require_known_combinations, which
-        cross-validates config.retrieve against config.file_patterns once in
-        load_config. The explicit if/elif/else: raise (not a 2-branch
-        if/else) means a 3rd object added to KNOWN_OBJECTS without updating
-        the two pipeline-requirement sets fails loudly here too, not just via
-        the module-level assert."""
+        """Only `object` is a true structural constant, validated directly.
+        `pipeline`'s required-or-forbidden-ness is also validated here (a
+        per-object rule known statically) - unlike `datatype`/`suffix`,
+        whose *validity* depends on the external file_patterns registry and
+        can't be checked at construction time (see _require_known_combinations
+        in load_config). The explicit if/elif/else: raise (not a 2-branch
+        if/else, lesson #1) means a 3rd object added to KNOWN_OBJECTS
+        without updating the two pipeline-requirement sets fails loudly here
+        too, not just via the module-level assert."""
         if self.object not in KNOWN_OBJECTS:
             raise ValueError(f"RetrieveItem: unknown object {self.object!r} (known: {KNOWN_OBJECTS})")
         if self.object in _OBJECTS_REQUIRING_PIPELINE:

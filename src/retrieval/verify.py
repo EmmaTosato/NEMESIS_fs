@@ -2,17 +2,11 @@
 
 Re-derives, for a given subject selection, the same source file
 Dataset.resolve() would pick, and compares it byte-for-byte (sha256) against
-the corresponding local file. Never trusts a successful copy or a pre-existing
-destination as proof the content is right: a copy can be corrupted mid-write,
-and a local file that was correct when first retrieved may no longer match if
-the source changed upstream since (e.g. a corrected lesion mask).
-
-Shared by two callers, on purpose - one algorithm, not two:
-- src.pipeline.retrieve_data: runs this automatically as the pipeline's last
-  phase, once every requested dataset has finished copying (never
-  interleaved with the copy phase of any dataset).
-- scripts/verify_retrieval.py: standalone, on-demand re-check of data/
-  against source, without running a retrieval at all.
+the corresponding local file. Never trusts a successful copy or a
+pre-existing destination as proof the content is right - see
+docs/dev/retrieval.md's "Checksum verification" section for why, and for the
+2 callers this module is shared between (src.pipeline.retrieve_data's own
+post-copy phase, scripts/verify_retrieval.py standalone).
 """
 
 from __future__ import annotations

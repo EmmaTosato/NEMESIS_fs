@@ -35,33 +35,20 @@ def pca_embed(X: np.ndarray, params: dict) -> np.ndarray:
 
 
 def pca_varimax_embed(X: np.ndarray, params: dict) -> np.ndarray:
-    """PCA (covariance-matrix eigendecomposition) + varimax-rotated loadings +
-    component scores via multiple regression - Thiebaut de Schotten et al. 2020
-    methodology ("Data compression", knowledge/nemesis/Thiebaut de Schotten et al -
-    2020 - .../Thiebaut de Schotten et al - 2020.md).
+    """PCA + varimax-rotated loadings + component scores via multiple
+    regression - Thiebaut de Schotten et al. 2020's "Data compression"
+    methodology (see docs/dev/models.md for the full derivation).
 
     Unlike the other strategies here, params is not unpacked blindly into a
     single constructor: this wraps two distinct estimators (PCA, then
     Rotator), so 'n_components'/'rotation_max_iter' are read explicitly.
 
-    Loadings vs. raw eigenvectors (bug fixed 2026-08, caught during a
-    literature-validation review before this method ever had a
-    params_reduction.json entry, so no production run is affected):
-    `PCA.components_` are unit-norm eigenvectors, NOT factor loadings - the
-    quantity `Rotator(method="varimax")` expects (its own docs: "The factor
-    loading matrix, shape (n_features, n_factors)", same convention as
-    `FactorAnalyzer.loadings_`) is `components_.T * sqrt(explained_variance_)`.
-    Varimax maximizes the variance of squared loadings *across variables*;
-    fed unit-norm eigenvectors instead, every component is weighted as if it
-    explained equal variance, so the rotation found is not the one the
-    paper's methodology (or SPSS/R, which always rotate scaled loadings)
-    would produce. A second, silent consequence of the same bug: since
-    `components_` is orthonormal and varimax is an orthogonal rotation, the
-    *unscaled* `rotated_loadings.T @ rotated_loadings == I`, which collapses
-    the "multiple regression" step below into a plain projection (`Λᵀ X`) -
-    with real loadings `ΛᵀΛ != I`, and `lstsq` performs the actual multiple
-    regression the paper describes ("Component scores were systematically
-    extracted for all components... by means of multiple regression").
+    Loadings passed to Rotator are `components_.T * sqrt(explained_variance_)`
+    (factor loadings), never the raw `components_` (unit-norm eigenvectors) -
+    using the latter silently both mis-weights the rotation and degrades the
+    "multiple regression" score step below into a plain projection (bug
+    fixed 2026-08, before any production run - see docs/dev/models.md and
+    tests/unit/test_reduction.py::test_pca_varimax_embed_rotates_scaled_loadings_not_raw_eigenvectors).
     """
     embedding, _fitted = _pca_varimax_fit(X, params)
     return embedding
@@ -115,71 +102,30 @@ def embed(
     distance_cache: dict[str, np.ndarray] | None = None,
     precompute_distance_metric: bool = True,
 ) -> np.ndarray:
-    """Wraps REDUCTION_METHODS[reduction_method], replacing X with its
-    precomputed distance matrix (src/analysis/distances.py) whenever
-    params["metric"] is one of PRECOMPUTABLE_METRICS - no effect for any
-    other metric (pca/pca_varimax/pacmap never have a "metric" key in their
-    params to begin with), X/params pass through unchanged.
-
-    Why this exists (2026-08, literature-validation review): umap-learn only
-    computes an *exact* k-NN graph itself for datasets under 4096 samples
-    (`n_index_samples < 4096` in `UMAP.fit()`, sets `self._small_data = True`
-    - see umap/umap_.py in the umap-learn source); above that threshold it
-    silently switches to the approximate NNDescent/pynndescent search. Before
-    this function existed, only src/analysis/tuning.py's fine-tuning sweep
-    (evaluate_umap/evaluate_tsne) went through a precomputed distance matrix +
-    metric="precomputed" (built as a *speed* optimization for sweeping many
-    combinations, never ported to the single-run production path) - meaning
-    the tuning table used to choose production hyperparameters was scored
-    against an exact neighbor graph, while dim_reduction.py's production path
-    passed the metric string straight to umap.UMAP/sklearn.TSNE on raw X.
-    This project's cohort is
-    currently under 4096 subjects, so umap-learn's own <4096 branch likely
-    already computed an exact graph in production too - but Task 1's stated
-    target is ~4000 subjects (README.md), right at that undocumented,
-    version-dependent threshold. Routing every REDUCTION_METHODS call through
-    this function removes the dependency on that threshold entirely, so
-    production is guaranteed to use the exact same neighbor graph the tuning
-    sweep it was chosen from actually evaluated, regardless of cohort size.
-
-    2026-08-25 (docs/debugging/debug_25_08_26.md): PRECOMPUTABLE_METRICS
-    widened from jaccard/dice to also include euclidean, for both umap and
-    tsne (mirrors tuning.py's evaluate_umap/evaluate_tsne, same
-    src/analysis/distances.py dispatcher) - euclidean specifically is also a
-    large speed win at this project's scale, not just an exactness guarantee
-    (umap-learn/sklearn's own per-fit neighbor search on a 264274-voxel
-    matrix is the actual bottleneck, not the distance computation itself -
-    see distances.py's module docstring; measured directly for umap, 88s to
-    precompute vs. 17-35 min per uncached fit - not independently measured
-    for tsne, see evaluate_tsne's own docstring). pca/pca_varimax/pacmap are
-    unaffected either way, since their params never carry a "metric" key.
-
-    sklearn's TSNE additionally requires init != "pca" (its own default)
-    whenever metric="precomputed" ("pca" needs the raw feature matrix, not a
-    distance matrix) - forced to "random" here for reduction_method="tsne",
-    same as tuning.py's evaluate_tsne.
+    """Wraps REDUCTION_METHODS[reduction_method]. When precompute_distance_metric
+    is True (default) and params["metric"] is in PRECOMPUTABLE_METRICS
+    (jaccard/dice/euclidean), X is replaced by its precomputed distance
+    matrix (src/analysis/distances.py) and metric switched to "precomputed" -
+    guarantees an exact neighbor graph regardless of cohort size and, for
+    euclidean specifically, is also a large speed win at this project's scale
+    (see docs/dev/models.md for why and the measured numbers). No effect for
+    pca/pca_varimax/pacmap, whose params never carry a "metric" key. Forces
+    init="random" for reduction_method="tsne" when precomputing - sklearn's
+    own default init="pca" can't run on a distance matrix.
 
     `distance_cache`, when given, is read/written by metric name - lets a
     caller that computes an embedding and then a viz refit (embedding_for_viz
     below) at the same metric reuse the same precomputed matrix instead of
     recomputing it. None (default) always recomputes.
 
-    `precompute_distance_metric` (2026-08-25, on request, `docs/debugging/
-    debug_25_08_26.md`): set False to skip the whole precomputed-distance
-    path above and pass `params["metric"]` straight to `REDUCTION_METHODS`
-    on raw `X` - a "vanilla" umap.UMAP/sklearn.TSNE call with no precompute
-    machinery involved at all, for reproducibility against literature/
-    external UMAP runs that never precompute anything (this also means
-    umap-learn's own undocumented <4096-samples exact/approximate threshold
-    applies again, unlike the precomputed path above). `require_binary_matrix`
-    still runs regardless of this flag - jaccard/dice being meaningless on
-    non-binary data is a fact about the data, not about which computation
-    path is chosen. Defaults to `True` (today's behavior, unchanged for any
-    caller not passing this explicitly) - `dim_reduction.py`'s production
-    path exposes it via `DimReductionConfig.precompute_distance_metric`;
-    `tuning.py`'s own `evaluate_umap`/`evaluate_tsne` are a separate
-    implementation (never call `embed`) and always precompute, no toggle
-    there - a slow fine-tuning sweep has no upside.
+    `precompute_distance_metric=False` skips the whole precomputed-distance
+    path and passes params["metric"] straight to REDUCTION_METHODS on raw X -
+    a "vanilla" call with no precompute machinery, for reproducibility
+    against literature/external UMAP runs (see docs/dev/config.md's
+    `precompute_distance_metric` entry for the full rationale/default).
+    `require_binary_matrix` still runs regardless of this flag - jaccard/dice
+    being meaningless on non-binary data is a fact about the data, not about
+    which computation path is chosen.
     """
     metric = params.get("metric")
     if metric in SUPPORTED_BINARY_METRICS:
@@ -199,29 +145,12 @@ def embed(
 
 
 # Methods where a same-metric/same-n_neighbors/same-random_state refit at a
-# different n_components is each method's own honest "best-effort layout for
-# exactly that many dimensions" (lessons_learned.md #16 - never a slice), not
-# required to relate to the original fit's own structure: nobody assigns a
-# fixed meaning to "dim 1"/"dim 2" for umap/tsne, so an independent fit at the
-# viz dimensionality is a legitimate view in its own right. Deliberately
-# narrow (2026-08-17, on request) - every other REDUCTION_METHODS entry is
-# excluded, not just pca_varimax:
-# - pca_varimax: varimax rotates *jointly* across however many components are
-#   retained - a refit at a different K solves a different optimization
-#   problem, not "the same K rotated factors, fewer of them" (see
-#   pca_varimax_embed's own docstring). A 2D refit would show factors with no
-#   relationship to the production run's own interpretable factors (the whole
-#   point of the Thiebaut de Schotten et al. 2020 methodology this reproduces
-#   is that each rotated factor has a specific anatomical meaning).
-# - pca (plain): the refit would in fact be mathematically equivalent to
-#   slicing (greedy variance ordering means the top components don't change
-#   when more are requested) - but kept out of this set anyway rather than
-#   silently reintroduced, since no real config has ever needed a mismatched
-#   viz_n_components for pca and this function should not guess at intent.
-# - pacmap: itself neighbor-graph-based, same reasoning as umap/tsne would in
-#   principle apply - excluded explicitly anyway (2026-08-17, on request)
-#   rather than inferred, since getting this wrong changes a real production
-#   method's behavior silently.
+# different n_components is a legitimate view in its own right (umap/tsne's
+# output dimensions have no fixed meaning - lessons_learned.md #16, never a
+# slice). Deliberately narrow (2026-08-17, on request) - pca_varimax, pca and
+# pacmap are all excluded too, each for a different reason - see
+# docs/dev/models.md's embedding_for_viz entry for the full per-method
+# rationale.
 _REFITTABLE_FOR_VIZ: frozenset[str] = frozenset({"umap", "tsne"})
 
 
@@ -234,36 +163,23 @@ def embedding_for_viz(
     distance_cache: dict[str, np.ndarray] | None = None,
     precompute_distance_metric: bool = True,
 ) -> np.ndarray:
-    """Returns an embedding with exactly `viz_n_components` columns, suitable
-    to plot - reused unmodified if `embedding` already has that many columns
-    (every production config today: n_components == viz_n_components == 2,
-    zero extra cost), otherwise refit from scratch on the same raw `X` with
-    only `n_components` overridden to `viz_n_components` (via `embed` above,
-    so a jaccard/dice refit gets the same precomputed-distance treatment as
-    the original fit) - but only for `reduction_method` in _REFITTABLE_FOR_VIZ
-    (umap/tsne).
-
-    Why a refit and not embedding[:, :viz_n_components] for those two: the
-    output dimensions of a single fit have no ordering by importance (unlike
-    PCA's variance-ranked components) - they're jointly optimized to satisfy
-    one objective in the full n_components-dimensional space, so slicing 2 or
-    3 of them out is an arbitrary cut, not a meaningful summary, and can make
-    a real cluster structure look artificially merged or split. A second fit
-    at n_components=viz_n_components, same metric/n_neighbors/min_dist/
-    random_state, shares the same neighbor graph as the original fit (that
-    graph depends only on metric/n_neighbors, not n_components) and is
-    UMAP/t-SNE's own best-effort layout for exactly that many dimensions.
+    """Returns an embedding with exactly `viz_n_components` columns, for
+    plotting - reused unmodified if `embedding` already has that many columns
+    (zero extra cost), otherwise refit from scratch via `embed` above with
+    only `n_components` overridden - but only for `reduction_method` in
+    _REFITTABLE_FOR_VIZ (umap/tsne). Never `embedding[:, :viz_n_components]`:
+    a single fit's output dimensions have no ordering by importance (unlike
+    PCA's variance-ranked components), so a slice is an arbitrary cut that
+    can make real cluster structure look artificially merged or split - see
+    lessons_learned.md #16 and docs/dev/models.md.
 
     Raises ValueError if `reduction_method` isn't in _REFITTABLE_FOR_VIZ and
-    `embedding` doesn't already have viz_n_components columns - no silent
-    slice, no silent refit for a method where neither is a mathematically
-    honest view of the production embedding (see _REFITTABLE_FOR_VIZ's own
-    comment for why each excluded method is excluded). The caller must rerun
-    with viz_n_components == n_components for that method instead.
-
-    `precompute_distance_metric` is forwarded as-is to `embed` above (see its
-    own docstring) - the refit follows the same raw-vs-precomputed choice as
-    the original fit, never a mismatched one.
+    `embedding` doesn't already have viz_n_components columns (see that
+    frozenset's own comment for why each excluded method is excluded) - the
+    caller must rerun with viz_n_components == n_components for that method
+    instead. `precompute_distance_metric` is forwarded as-is to `embed`
+    above, so the refit follows the same raw-vs-precomputed choice as the
+    original fit.
     """
     if embedding.shape[1] == viz_n_components:
         return embedding

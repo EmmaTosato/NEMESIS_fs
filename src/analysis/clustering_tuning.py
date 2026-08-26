@@ -1,31 +1,17 @@
 """Manual fine-tuning sweep for clustering methods (kmeans, agglomerative, gmm,
 hdbscan, spectral) - mirrors src/analysis/tuning.py's dim-reduction sweep, but
 clustering has no ground truth to score against: every generic metric here is
-an *internal* validation index computed straight from (X, cluster_labels) -
-silhouette / Calinski-Harabasz / Davies-Bouldin, identically for every
-method's own swept tuning_grid (never compared across methods - these indices
-aren't meaningful cross-method, only within one method's own grid). No
-automatic selection, same philosophy as tuning.py: a human reads
-tuning_results.csv/tuning_plot.png and picks a value by hand.
+an *internal* validation index computed straight from (X, cluster_labels),
+meaningful only within one method's own swept grid, never compared across
+methods. No automatic selection, same philosophy as tuning.py.
 
-Two kinds of extras beyond the 3 generic metrics, see METHOD_METRIC_COLUMNS:
-- Per-combination scalar columns, added to the same sweep row when the method
-  exposes one after fitting: kmeans' inertia_ (elbow criterion), gmm's
-  bic_/aic_ (likelihood-based criteria, unlike the other 3 which are purely
-  geometric). HDBSCAN's noise_fraction is generic (computed for every method)
-  but only ever non-zero for HDBSCAN, so it's only surfaced as a plotted
-  metric there (see clustering.py's _write_tuning_output).
-- Standalone, single-fit diagnostics independent of which n_clusters ends up
-  chosen - not a function of the swept grid, so they don't belong as sweep
-  columns: agglomerative's dendrogram (the full merge hierarchy, computed
-  from base_params - see compute_dendrogram_linkage), spectral's eigengap
-  (biggest gap between consecutive eigenvalues of the affinity graph's
-  Laplacian - the eigengap heuristic, a more principled criterion for
-  spectral clustering than the generic geometric indices - see
-  compute_eigengap). HDBSCAN gets no standalone diagnostic - unlike DBSCAN
-  (replaced here), it has no single distance threshold (eps) to read off a
-  plot by eye; min_cluster_size is judged directly from the swept
-  noise_fraction/silhouette columns instead.
+Two kinds of extras beyond the 3 generic metrics, see METHOD_METRIC_COLUMNS -
+per-combination scalar columns for methods that expose one after fitting
+(kmeans' inertia_, gmm's bic_/aic_), and standalone single-fit diagnostics
+independent of which n_clusters ends up chosen (agglomerative's dendrogram,
+spectral's eigengap) - see docs/dev/models.md for the full rationale,
+including why HDBSCAN gets neither a standalone diagnostic nor a plotted
+inertia/bic-style column.
 """
 
 from __future__ import annotations
@@ -67,20 +53,12 @@ METHOD_METRIC_COLUMNS: dict[str, list[str]] = {
 
 STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral"}
 
-# HIGH #13 (audit 15/08/26): silhouette/calinski_harabasz/davies_bouldin always score X
-# under sklearn's own default (Euclidean) - correct only as long as the clustering method
-# itself also treated X as a plain Euclidean feature space. Registered here (lesson #20,
-# explicit allow-list over a free-form guess) are every value known to still mean "X is a
-# plain feature matrix, Euclidean validation applies": None (key absent - most methods,
-# e.g. kmeans/gmm/hdbscan, don't have this concept at all), "nearest_neighbors"/"rbf" for
-# spectral's `affinity` (both build their graph from X via Euclidean distance internally,
-# same geometry the validation metrics assume), and "euclidean" for agglomerative's
-# `metric`. Anything else - most importantly `affinity="precomputed"` (X is itself a
-# distance/affinity matrix built under an arbitrary metric, e.g. Jaccard/Dice) or a
-# non-euclidean `metric` - makes X's own coordinates meaningless to a Euclidean index,
-# so compute_clustering_metrics refuses outright rather than silently scoring the wrong
-# geometry (dormant today: no production/tuning config sets either of these, see
-# AUDIT_FINDINGS.md #13).
+# HIGH #13 (audit 15/08/26): the 3 geometric metrics below always score X under
+# sklearn's own default (Euclidean) - only valid if the clustering method itself also
+# treated X as Euclidean. Explicit allow-list (lesson #20) of every affinity/metric
+# value that still means that; anything else (most importantly affinity="precomputed")
+# makes compute_clustering_metrics refuse rather than silently score the wrong
+# geometry - see docs/dev/models.md for the full rationale (dormant today, AUDIT_FINDINGS.md #13).
 _EUCLIDEAN_SAFE_AFFINITY = frozenset({None, "nearest_neighbors", "rbf"})
 _EUCLIDEAN_SAFE_METRIC = frozenset({None, "euclidean"})
 
@@ -113,17 +91,14 @@ def compute_clustering_metrics(X: np.ndarray, labels: np.ndarray, combo_params: 
     /Davies-Bouldin (undefined for a "cluster" that isn't one), but
     noise_fraction is always reported so the exclusion is visible, not silent.
     A degenerate combination (fewer than 2 non-noise clusters, or every
-    non-noise point its own cluster) can't have these 3 metrics computed at
-    all - sklearn itself would raise; caught here and recorded as NaN with a
-    warning rather than aborting the whole sweep, since a bad hyperparameter
-    combination is expected information in a tuning sweep, not a bug.
+    non-noise point its own cluster) is recorded as NaN with a logged warning
+    rather than aborting the whole sweep - a bad hyperparameter combination is
+    expected information in a tuning sweep, not a bug.
 
-    combo_params (optional): the exact params dict the clustering method being scored was
-    given - when passed, raises ValueError upfront if it names a distance/affinity this
-    function's Euclidean assumption doesn't hold for (see _require_euclidean_compatible).
-    None (the default) skips the check - only run_clustering_tuning_sweep, which always
-    knows combo_params, is expected to pass it; a caller that already knows X is a plain
-    Euclidean feature matrix (e.g. a unit test) doesn't need to.
+    combo_params (optional, see _require_euclidean_compatible/docs/dev/models.md):
+    when given, raises ValueError upfront if it names a distance/affinity this
+    function's Euclidean assumption doesn't hold for. None (default) skips the
+    check - only run_clustering_tuning_sweep always knows combo_params to pass.
     """
     _require_euclidean_compatible(combo_params)
     labels = np.asarray(labels)
@@ -159,18 +134,15 @@ def compute_silhouette_samples(X: np.ndarray, labels: np.ndarray) -> tuple[np.nd
     """Per-sample silhouette coefficients for one (X, labels) clustering result -
     the production-time, per-cluster-breakdown counterpart of
     compute_clustering_metrics's single aggregate "silhouette" number (their
-    mean is exactly that number, since silhouette_score is defined as the mean
-    of silhouette_samples). Feeds plotting.plot_silhouette_analysis.
+    mean is exactly that number). Feeds plotting.plot_silhouette_analysis.
 
     HDBSCAN-style noise (label -1) is excluded, same convention as
-    compute_clustering_metrics - silhouette is undefined for a "cluster" that
-    isn't one. Returns (non_noise_labels, sample_silhouette_values), same
-    length and order (noise rows dropped from both). Raises ValueError if
-    fewer than 2 non-noise clusters remain (degenerate combination, nothing
-    meaningful to plot) - unlike compute_clustering_metrics's NaN-and-warn
-    (built for an unattended sweep over many combinations), this runs once
-    for the single already-chosen production result, so the caller decides
-    whether to skip the plot.
+    compute_clustering_metrics. Returns (non_noise_labels,
+    sample_silhouette_values), same length/order (noise dropped from both).
+    Raises ValueError if fewer than 2 non-noise clusters remain - unlike
+    compute_clustering_metrics's NaN-and-warn (built for an unattended
+    sweep), this runs once for the already-chosen production result, so the
+    caller decides whether to skip the plot.
     """
     labels = np.asarray(labels)
     noise_mask = labels == -1
@@ -208,21 +180,18 @@ def run_clustering_tuning_sweep(
 ) -> pd.DataFrame:
     """Evaluate every combination in the Cartesian product of tuning_grid.
 
-    Each combination overrides base_params for the swept keys only (unswept
-    keys, e.g. random_state, stay fixed at base_params' value). Returns one
-    row per combination: the swept parameter values, the 3 generic metrics +
-    noise_fraction (compute_clustering_metrics), plus any method-specific
-    extra column (see METHOD_METRIC_COLUMNS/_EXTRA_METRICS_EVALUATORS).
+    Each combination overrides base_params for the swept keys only. Returns
+    one row per combination: swept values, the 3 generic metrics +
+    noise_fraction, plus any method-specific extra column (see
+    METHOD_METRIC_COLUMNS/_EXTRA_METRICS_EVALUATORS).
 
     consensus_config, when given, is {"rsc": {"n_repeats": int}, "monti":
     {"n_repeats": int, "subsample_fraction": float}} (either/both keys) -
-    adds "rsc_eigengap"/"monti_stability" columns per row (see
-    src/analysis/consensus_clustering.py). None (the default) leaves output
-    unchanged from before consensus/stability clustering existed. Raises
-    ValueError immediately if given for a method outside
-    CONSENSUS_ELIGIBLE_METHODS (agglomerative/hdbscan are deterministic given
-    the same data - a stability sweep for them would be degenerate/silent
-    garbage, not just unsupported).
+    adds "rsc_eigengap"/"monti_stability" columns (see consensus_clustering.py,
+    docs/dev/models.md). None (default) leaves output unchanged. Raises
+    ValueError if given for a method outside CONSENSUS_ELIGIBLE_METHODS -
+    agglomerative/hdbscan are deterministic given the same data, so a
+    stability sweep for them would be degenerate.
     """
     if method not in CLUSTERING_METHODS:
         raise ValueError(f"unknown clustering method {method!r} - known: {sorted(CLUSTERING_METHODS)}")
@@ -351,16 +320,12 @@ def compute_dendrogram_linkage(X: np.ndarray, params: dict) -> np.ndarray:
 
 def compute_eigengap(X: np.ndarray, params: dict, max_k: int = 20) -> np.ndarray:
     """Builds the same affinity graph SpectralClustering would from `params`
-    ("nearest_neighbors" or "rbf", matching src/analysis/clustering.py's
-    spectral_cluster), computes the normalized graph Laplacian, and returns
-    its smallest `max_k` eigenvalues sorted ascending - plotting.plot_eigengap
-    reads the eigengap heuristic's suggested cluster count off the biggest
-    gap between consecutive values here. Independent of `params["n_clusters"]`
-    - the affinity graph itself doesn't depend on how many clusters you'd cut
-    it into.
-
-    Raises ValueError for any affinity other than "nearest_neighbors"/"rbf" -
-    those are the only two spectral_cluster actually supports today.
+    ("nearest_neighbors" or "rbf", matching spectral_cluster), computes the
+    normalized graph Laplacian, and returns its smallest `max_k` eigenvalues
+    sorted ascending - plotting.plot_eigengap reads the eigengap heuristic's
+    suggested cluster count off the biggest gap between consecutive values.
+    Independent of `params["n_clusters"]`. Raises ValueError for any affinity
+    other than "nearest_neighbors"/"rbf".
     """
     affinity = params.get("affinity", "rbf")
     if affinity == "nearest_neighbors":
