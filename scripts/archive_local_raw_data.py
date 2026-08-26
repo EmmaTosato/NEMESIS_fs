@@ -63,6 +63,10 @@ _MASKED_FC_RESTORE_HINT = (
 class SubjectDirsTarget:
     root: Path
     restore_hint: str = _EBRAIN_RESTORE_HINT
+    # Subject IDs that must always stay in the kept sample, regardless of sort order - e.g. a
+    # subject hardcoded elsewhere in the repo as a fixed path (config, docs). Never rely on
+    # "happens to sort first" for this: pin it explicitly here instead.
+    must_keep: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -72,7 +76,12 @@ class AtlasComboGroupsTarget:
 
 
 TARGETS: list[SubjectDirsTarget | AtlasComboGroupsTarget] = [
-    SubjectDirsTarget(Path("data/clinical_connectome/derivatives/UNIPD/WashU/manual_masks")),
+    SubjectDirsTarget(
+        Path("data/clinical_connectome/derivatives/UNIPD/WashU/manual_masks"),
+        # config/pipelines/build_lesion_matrix.json's reference_template_path hardcodes this
+        # subject's mask as the resampling reference - must never be archived away.
+        must_keep=frozenset({"sub-STUNIPD0001"}),
+    ),
     SubjectDirsTarget(Path("data/clinical_connectome/derivatives/UNIPD/PSP/manual_masks")),
     SubjectDirsTarget(Path("data/clinical_connectome/derivatives/UNIPD/PASPORT/manual_masks")),
     SubjectDirsTarget(Path("data/clinical_connectome/derivatives/UKLFR/stroke_UKLFR/manual_masks")),
@@ -97,9 +106,15 @@ def list_subject_dir_ids(root: Path) -> list[str]:
     return ids
 
 
-def select_sample_ids(subject_ids: Sequence[str], n_sample: int) -> tuple[list[str], list[str]]:
-    """Splits `subject_ids` (deduplicated, sorted ascending) into (sample, to_archive) - the
-    first `n_sample` IDs are kept, the rest are archived."""
+def select_sample_ids(
+    subject_ids: Sequence[str], n_sample: int, must_keep: frozenset[str] = frozenset()
+) -> tuple[list[str], list[str]]:
+    """Splits `subject_ids` (deduplicated, sorted ascending) into (sample, to_archive).
+
+    Every ID in `must_keep` is always in the sample - explicit, not incidental to sort order.
+    The remaining sample slots are filled with the next IDs in sorted order (excluding
+    `must_keep`). Raises if any `must_keep` ID isn't actually present, or if there are more of
+    them than `n_sample` allows."""
     if n_sample <= 0:
         raise ValueError(f"n_sample must be positive, got {n_sample}")
     unique_sorted = sorted(set(subject_ids))
@@ -107,7 +122,17 @@ def select_sample_ids(subject_ids: Sequence[str], n_sample: int) -> tuple[list[s
         raise ValueError("subject_ids contains duplicates - fix the upstream listing before archiving")
     if n_sample >= len(unique_sorted):
         raise ValueError(f"n_sample={n_sample} >= total subjects ({len(unique_sorted)}) - nothing would be archived")
-    return unique_sorted[:n_sample], unique_sorted[n_sample:]
+    unrecognized = must_keep - set(unique_sorted)
+    if unrecognized:
+        raise ValueError(f"must_keep subject(s) not found among the {len(unique_sorted)} discovered: {sorted(unrecognized)}")
+    if len(must_keep) > n_sample:
+        raise ValueError(f"must_keep has {len(must_keep)} subject(s), more than n_sample={n_sample} can hold")
+
+    remaining_pool = [sid for sid in unique_sorted if sid not in must_keep]
+    n_fill = n_sample - len(must_keep)
+    sample = sorted(must_keep | set(remaining_pool[:n_fill]))
+    to_archive = remaining_pool[n_fill:]
+    return sample, to_archive
 
 
 # --- "subject_dirs" shape: archive + delete + readme ------------------------------------------
@@ -257,7 +282,7 @@ def write_archive_readme(root: Path, archive_path: Path, sample_ids: Sequence[st
 
 def _process_subject_dirs_target(target: SubjectDirsTarget, *, n_sample: int, execute: bool, overwrite: bool) -> None:
     subject_ids = list_subject_dir_ids(target.root)
-    sample, to_archive = select_sample_ids(subject_ids, n_sample)
+    sample, to_archive = select_sample_ids(subject_ids, n_sample, must_keep=target.must_keep)
     archive_path = target.root.with_name(target.root.name + "_archive.tar.gz")
     logging.info(
         "%s: %d subject(s) total, keeping %d as sample, archiving %d -> %s",

@@ -24,6 +24,22 @@ Attualmente sono gestite 5 coorti. Sebbene sia in corso un processo di armonizza
 
 ---
 
+## Copie Locali: Campione Ridotto (dal 26/08/26)
+
+Le matrici finali (`build_lesion_matrix.py`; `mask_fc.py`+`build_fc_matrix.py`) sono già calcolate a partire da questi dati grezzi — tenerli integri in locale non serve più per l'uso quotidiano, solo occupa spazio. `scripts/archive_local_raw_data.py` ha ridotto in locale le seguenti cartelle a **10 soggetti campione** (per notebook/esplorazione), comprimendo il resto in un `.tar.gz` verificato (contenuto riletto e confrontato con quanto tarrato, prima di cancellare l'originale) accanto alla cartella stessa:
+
+- I 5 `manual_masks/` di questa pagina (WashU, PSP, PASPORT, UKLFR, UCL-UK)
+- `UNIPD/WashU/features/`
+- `data/derived/features/masked_fc/` (10 soggetti comuni a tutte e 12 le combinazioni di atlante — `mask_summary.csv`/`runs.csv`/`demo/` non toccati)
+
+Ogni cartella toccata ha un `README_ARCHIVE.md` con l'elenco esatto dei soggetti tenuti e il comando di ripristino (`tar -xzf <nome>_archive.tar.gz -C .`). Per `manual_masks`/`features` i dati completi restano comunque sempre recuperabili da EBRAIN via `retrieve_data.py` (vedi `docs/guides/retrieval.md`) — `masked_fc` non è su EBRAIN (è output calcolato da `mask_fc.py`), quindi lì il ripristino è: decomprimere l'archivio, oppure rilanciare `mask_fc.py` da zero (vedi `docs/guides/fc_matrix_building.md`).
+
+`sub-STUNIPD0001` (WashU) è garantito sempre presente in chiaro, non per coincidenza d'ordinamento: è il `reference_template_path` hardcoded in `config/pipelines/build_lesion_matrix.json` (pinned esplicitamente in `scripts/archive_local_raw_data.py`).
+
+> Se rilanci una di queste pipeline sull'intera coorte (non solo il campione locale), la discovery vedrà solo i soggetti superstiti per questi dataset finché non decomprimi l'archivio pertinente o non ri-recuperi da EBRAIN.
+
+---
+
 ## Tipi di Dato (Objects) Esistenti
 
 La pipeline *Retrieve Data* pesca "oggetti" da sorgenti asimmetriche. Questo significa che non tutte le informazioni esistono contemporaneamente per ogni dataset.

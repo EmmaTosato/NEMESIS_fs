@@ -80,6 +80,23 @@ def test_select_sample_ids_raises_on_duplicates():
         select_sample_ids(["sub-A", "sub-A", "sub-B"], n_sample=1)
 
 
+def test_select_sample_ids_always_keeps_must_keep_even_if_it_sorts_last():
+    sample, to_archive = select_sample_ids(["sub-A", "sub-B", "sub-C", "sub-Z"], n_sample=2, must_keep=frozenset({"sub-Z"}))
+
+    assert sample == ["sub-A", "sub-Z"]
+    assert to_archive == ["sub-B", "sub-C"]
+
+
+def test_select_sample_ids_raises_if_must_keep_subject_not_found():
+    with pytest.raises(ValueError, match="must_keep subject.*not found"):
+        select_sample_ids(["sub-A", "sub-B"], n_sample=1, must_keep=frozenset({"sub-GONE"}))
+
+
+def test_select_sample_ids_raises_if_must_keep_exceeds_n_sample():
+    with pytest.raises(ValueError, match="more than n_sample"):
+        select_sample_ids(["sub-A", "sub-B", "sub-C"], n_sample=1, must_keep=frozenset({"sub-A", "sub-B"}))
+
+
 # --- subject_dirs archive/delete regression (the core "no silent data loss" behavior) ----------
 
 
@@ -230,6 +247,22 @@ def test_main_execute_archives_and_prunes_leaving_readme(tmp_path, monkeypatch):
     assert remaining == ["sub-000", "sub-001"]
     assert (root.parent / "manual_masks_archive.tar.gz").exists()
     assert (root / "README_ARCHIVE.md").exists()
+
+
+def test_main_execute_keeps_must_keep_subject_even_when_it_sorts_last(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    root = tmp_path / "manual_masks"
+    root.mkdir()
+    _make_subject_dirs(root, [f"sub-{i:03d}" for i in range(5)] + ["sub-ZZZ"])
+    import scripts.archive_local_raw_data as module
+
+    monkeypatch.setattr(module, "TARGETS", [SubjectDirsTarget(root, must_keep=frozenset({"sub-ZZZ"}))])
+
+    exit_code = main(["--n-sample", "2", "--execute"])
+
+    assert exit_code == 0
+    remaining = sorted(p.name for p in root.iterdir() if p.is_dir())
+    assert remaining == ["sub-000", "sub-ZZZ"]
 
 
 def test_main_returns_1_and_touches_nothing_if_a_target_root_is_missing(tmp_path, monkeypatch):
