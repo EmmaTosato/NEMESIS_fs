@@ -10,6 +10,7 @@ directory is never left half-written.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import tempfile
 from datetime import datetime, timezone
@@ -24,6 +25,9 @@ METADATA_FILENAME = "metadata.csv"
 README_FILENAME = "config.md"
 
 _RESERVED_EXTRA_ARRAY_NAMES = {"matrix", "metadata", "manifest", "README"}
+
+_PARAMS_USED_PREFIX = "Params used: "
+_DIM_REDUCTION_TITLE_RE = re.compile(r" dim_reduction \((?P<method>[^)]+)\)")
 
 
 def save_matrix(
@@ -117,3 +121,59 @@ def load_matrix(input_dir: Path) -> tuple[np.ndarray, pd.DataFrame, dict[str, np
     }
 
     return X, metadata, extra_arrays
+
+
+def read_run_params(run_dir: Path) -> dict:
+    """The exact resolved params dict a dim_reduction.py or clustering.py production run
+    actually used, read from its own config.md ("Params used: {...}" line, json.dumps'd
+    verbatim by that pipeline's own writer - dim_reduction.py's _build_readme_lines and
+    clustering.py's _summary_lines both write the identical "Params used: " prefix). Single
+    source of truth for "which params did this run actually use" - reused by
+    embedding_app.py's run_params (keyed on a ProductionRun) and
+    clustering.py's viz_embedding_path cross-check (keyed on a plain path, see
+    docs/dev/clustering_migration_plan.md §3).
+
+    Raises ValueError if config.md is missing or has no "Params used:" line - every run
+    written by dim_reduction.py/clustering.py's own production writer always has one; a run
+    missing it predates that convention, isn't one of those two pipelines' output, or was
+    tampered with - either way a real problem worth surfacing rather than guessing at empty
+    params.
+    """
+    config_path = run_dir / README_FILENAME
+    if not config_path.exists():
+        raise ValueError(f"run {run_dir} has no {README_FILENAME} - cannot read its resolved params")
+    for line in config_path.read_text().splitlines():
+        if line.startswith(_PARAMS_USED_PREFIX):
+            return json.loads(line[len(_PARAMS_USED_PREFIX) :])
+    raise ValueError(f"run {run_dir}'s {README_FILENAME} has no {_PARAMS_USED_PREFIX!r} line - unexpected format")
+
+
+def read_dim_reduction_method(run_dir: Path) -> str:
+    """The reduction method name a dim_reduction.py production run's config.md declares in
+    its own title line (dim_reduction.py::_build_readme_lines: "# <project> dim_reduction
+    (<method>) — <timestamp>") - read back from that title rather than re-derived from
+    run_dir's own path: a run_dir isn't guaranteed to sit under a
+    <output_root>/production/<method>/ convention (fine-tuning output, or a caller-supplied
+    ad-hoc path, might not), so the path segment isn't a safe source of truth here the way
+    embedding_app.py's discover_production_runs can rely on it (there the path shape is
+    guaranteed by construction, since it comes from globbing that exact convention).
+
+    Raises ValueError if config.md is missing, empty, or its title line doesn't match the
+    "... dim_reduction (<method>) ..." shape - a run missing it either predates the
+    convention or isn't a dim_reduction.py run at all (e.g. a raw feature matrix from a
+    different pipeline - see clustering.py's reduced_data-gated cross-check, which only
+    calls this when input_path is itself declared to be a dim_reduction.py run).
+    """
+    config_path = run_dir / README_FILENAME
+    if not config_path.exists():
+        raise ValueError(f"run {run_dir} has no {README_FILENAME} - cannot read its reduction method")
+    lines = config_path.read_text().splitlines()
+    title = lines[0] if lines else ""
+    match = _DIM_REDUCTION_TITLE_RE.search(title)
+    if match is None:
+        raise ValueError(
+            f"run {run_dir}'s {README_FILENAME} title line does not match the "
+            f"'... dim_reduction (<method>) ...' shape written by dim_reduction.py "
+            f"(got {title!r}) - is this actually a dim_reduction.py production run?"
+        )
+    return match.group("method")

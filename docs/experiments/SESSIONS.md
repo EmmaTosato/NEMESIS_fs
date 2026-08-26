@@ -27,16 +27,16 @@ Non aggiungere una quarta chiave senza aggiornare anche il parser dello script.
 - Starting date:
 - Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR, UCL-UK StrokeData
 - Modality: Lesion in 2D matrix volumetric
-- Notes: + dataset more,
+- Notes: one dataset more (UCL)
 
 ## Session 2
+
+- Starting date: 26-08
+- Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR
+- Modality: SDC
+
+## Session 3
 
 - Starting date: 26-07
 - Datasets: UNIPD/WashU
 - Modality: Features (FC matrices, stacked in 2D)
-
-## Session 3
-
-- Starting date:
-- Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR
-- Modality: SDC

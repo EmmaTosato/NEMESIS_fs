@@ -62,6 +62,7 @@ Genera i cluster definitivi usando i parametri precedentemente scelti in `config
 | **`session_name`** | *Stringa* | Nome esecuzione (es. `"test_gruppi_1"`). |
 | **`overwrite`** | *Booleano* | Se `true`, sovrascrive esecuzioni precedenti con lo stesso nome. |
 | **`fine_tuning`** | *Booleano* | `true` per tuning, `false` per produzione. |
+| **`save_tuning_clusterings`** | *Booleano* | Solo in Fine-Tuning: se `true`, salva le etichette di cluster di *ogni* combinazione testata (non solo i punteggi in `tuning_results.csv`) in `clusterings.npz` + `metadata.csv`, per poterle rileggere senza ripetere lo sweep. `false` di default — obbligatorio dichiararlo comunque, anche in produzione. |
 | **`run_notes`** | *Stringa* | Note libere sull'esecuzione. |
 
 > **Nota su `params_clustering.json`**: Per la maggior parte dei metodi, bisogna specificare in questo file il numero di cluster voluti (es. `"n_clusters": 4`) prima di avviare l'esecuzione in produzione.
@@ -85,6 +86,7 @@ A seconda della modalità, vengono generati risultati diversi. **Dal 2026-08, pr
 1. **`tuning_results.csv`**: Risultati numerici dello sweep parametri.
 2. **`tuning_plot.png`**: Sottografici per metrica calcolata.
 3. Grafici diagnostici aggiuntivi (se supportati, es. dendrogramma).
+4. **`clusterings.npz` & `metadata.csv`**: solo se `"save_tuning_clusterings": true` — un array di etichette per ogni combinazione testata (chiave `<param>=<valore>,...`), più la tabella soggetti corrispondente.
 *(Non vengono salvati `matrix.npy` o grafici di assegnazione).*
 
 ### Diari di Bordo

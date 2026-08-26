@@ -35,7 +35,6 @@ sharing a module just because both end up building Plotly figures.
 from __future__ import annotations
 
 import itertools
-import json
 import logging
 import re
 from dataclasses import dataclass
@@ -50,7 +49,7 @@ from dash.exceptions import PreventUpdate
 from src.analysis.embedding_coloring import COLOR_MODES
 from src.analysis.embedding_coloring import color_values as read_color_values
 from src.analysis.plotting import _CATEGORICAL_PALETTE, _NOISE_COLOR, compose_embedding_plot_title
-from src.utils.artifacts import MANIFEST_FILENAME, load_matrix
+from src.utils.artifacts import MANIFEST_FILENAME, load_matrix, read_run_params
 
 # "neutro" first, same convention as embedding_coloring.COLOR_MODES/the notebook prototype -
 # the neutral single-color view is always available and always the default, every other
@@ -263,32 +262,17 @@ def _n_components_option_label(n: int) -> str:
     return NO_METRIC if n == NO_N_COMPONENTS else str(n)
 
 
-_PARAMS_USED_PREFIX = "Params used: "
-
-
 def run_params(run: ProductionRun) -> dict:
     """The exact resolved params dict the run's own pipeline (dim_reduction.py or
-    clustering.py) actually used, read from its own config.md ("Params used: {...}" line,
-    json.dumps'd verbatim by that pipeline's own writer - dim_reduction.py's
-    _build_readme_lines and clustering.py's _summary_lines both write the identical
-    "Params used: " prefix). The single source of truth for "which params did this run
-    actually use" - never re-derived by parsing the run_name's own free-text convention (e.g.
-    "nc3"/"m_dice" is a human-chosen session-name shorthand for umap specifically, not a
-    guaranteed, parseable field every method's run_name follows - pca/tsne/pacmap/clustering
-    runs don't).
-
-    Raises ValueError if config.md is missing or has no "Params used:" line - every run this
-    app discovers was written by one of the two pipelines' own production writer, which always
-    writes one; a run missing it predates that convention or was tampered with, either way a
-    real problem worth surfacing rather than guessing at empty params.
+    clustering.py) actually used - never re-derived by parsing the run_name's own free-text
+    convention (e.g. "nc3"/"m_dice" is a human-chosen session-name shorthand for umap
+    specifically, not a guaranteed, parseable field every method's run_name follows -
+    pca/tsne/pacmap/clustering runs don't). Thin wrapper over
+    src.utils.artifacts.read_run_params (single source of truth, also reused by
+    clustering.py's viz_embedding_path cross-check) - see that function's docstring for the
+    exact contract/error cases.
     """
-    config_path = run.path / "config.md"
-    if not config_path.exists():
-        raise ValueError(f"Run {run.path} has no config.md - cannot read its resolved params")
-    for line in config_path.read_text().splitlines():
-        if line.startswith(_PARAMS_USED_PREFIX):
-            return json.loads(line[len(_PARAMS_USED_PREFIX) :])
-    raise ValueError(f"run {run.path}'s config.md has no {_PARAMS_USED_PREFIX!r} line - unexpected format")
+    return read_run_params(run.path)
 
 
 def _run_params_or_none(run: ProductionRun) -> dict | None:

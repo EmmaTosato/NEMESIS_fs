@@ -177,13 +177,20 @@ _EXTRA_METRICS_EVALUATORS: dict[str, Callable[[np.ndarray, dict], tuple[np.ndarr
 
 def run_clustering_tuning_sweep(
     method: str, X: np.ndarray, base_params: dict, tuning_grid: dict[str, list], consensus_config: dict | None = None
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, dict[tuple, np.ndarray]]:
     """Evaluate every combination in the Cartesian product of tuning_grid.
 
     Each combination overrides base_params for the swept keys only. Returns
-    one row per combination: swept values, the 3 generic metrics +
-    noise_fraction, plus any method-specific extra column (see
-    METHOD_METRIC_COLUMNS/_EXTRA_METRICS_EVALUATORS).
+    (results, labels_by_combo) - same shape as tuning.py::run_tuning_sweep's
+    (results, embeddings_by_combo): results is one row per combination (swept
+    values, the 3 generic metrics + noise_fraction, plus any method-specific
+    extra column - see METHOD_METRIC_COLUMNS/_EXTRA_METRICS_EVALUATORS), the
+    only thing written to tuning_results.csv; labels_by_combo keys each
+    combination's actual cluster-label array by its exact `combo` tuple,
+    in-memory only - already computed to score the metrics above, so
+    returning it too is free (never a second fit) - lets a caller that needs
+    to *persist* a combination's labels (clustering.py's save_tuning_clusterings)
+    avoid recomputing it.
 
     consensus_config, when given, is {"rsc": {"n_repeats": int}, "monti":
     {"n_repeats": int, "subsample_fraction": float}} (either/both keys) -
@@ -216,6 +223,7 @@ def run_clustering_tuning_sweep(
     cooccurrence_cache: dict[tuple, np.ndarray] = {} if method == "evidence_accumulation" else None
 
     rows = []
+    labels_by_combo: dict[tuple, np.ndarray] = {}
     for i, combo in enumerate(combinations, 1):
         combo_params = {**base_params, **dict(zip(keys, combo))}
         logging.info("Evaluating combination %d/%d: %s", i, total, dict(zip(keys, combo)))
@@ -230,8 +238,9 @@ def run_clustering_tuning_sweep(
         generic_metrics = compute_clustering_metrics(X, labels, combo_params)
         consensus_metrics = _compute_consensus_metrics(method, X, combo_params, consensus_config)
         rows.append({**dict(zip(keys, combo)), **generic_metrics, **extra_metrics, **consensus_metrics})
+        labels_by_combo[combo] = labels
 
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows), labels_by_combo
 
 
 def _evidence_accumulation_labels(X: np.ndarray, combo_params: dict, cooccurrence_cache: dict[tuple, np.ndarray]) -> np.ndarray:

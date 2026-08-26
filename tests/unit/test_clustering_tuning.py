@@ -154,7 +154,7 @@ def test_compute_silhouette_samples_raises_when_all_noise():
 
 def test_run_clustering_tuning_sweep_kmeans_includes_inertia():
     X = _three_blobs()
-    df = run_clustering_tuning_sweep("kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3, 4]})
+    df, _ = run_clustering_tuning_sweep("kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3, 4]})
 
     assert list(df["n_clusters"]) == [2, 3, 4]
     assert set(METHOD_METRIC_COLUMNS["kmeans"]) <= set(df.columns)
@@ -165,7 +165,7 @@ def test_run_clustering_tuning_sweep_kmeans_includes_inertia():
 
 def test_run_clustering_tuning_sweep_gmm_includes_bic_aic():
     X = _three_blobs()
-    df = run_clustering_tuning_sweep("gmm", X, {"random_state": 0}, {"n_components": [2, 3, 4]})
+    df, _ = run_clustering_tuning_sweep("gmm", X, {"random_state": 0}, {"n_components": [2, 3, 4]})
 
     assert set(METHOD_METRIC_COLUMNS["gmm"]) <= set(df.columns)
     assert df["bic"].notna().all()
@@ -174,7 +174,7 @@ def test_run_clustering_tuning_sweep_gmm_includes_bic_aic():
 
 def test_run_clustering_tuning_sweep_hdbscan_noise_fraction_varies_with_min_cluster_size():
     X = _three_blobs()
-    df = run_clustering_tuning_sweep("hdbscan", X, {}, {"min_cluster_size": [2, 20]})
+    df, _ = run_clustering_tuning_sweep("hdbscan", X, {}, {"min_cluster_size": [2, 20]})
 
     # min_cluster_size=2 is small enough to absorb this data's sparse edges into
     # the 3 (15-point) blobs -> some noise but not total; min_cluster_size=20
@@ -206,7 +206,7 @@ def test_run_clustering_tuning_sweep_evidence_accumulation_reuses_cooccurrence_a
     monkeypatch.setattr(consensus_clustering, "run_rsc_repeats", _counting_run_rsc_repeats)
 
     base_params = {"base_method": "kmeans", "n_clusters": 5, "n_repeats": 3, "base_seed": 0}
-    df = run_clustering_tuning_sweep(
+    df, _ = run_clustering_tuning_sweep(
         "evidence_accumulation", X, base_params, {"threshold": [0.3, 0.5, 0.7, 0.9]}
     )
 
@@ -217,6 +217,21 @@ def test_run_clustering_tuning_sweep_evidence_accumulation_reuses_cooccurrence_a
     # not the point of this test, but confirms the shared matrix still drives real,
     # threshold-dependent output rather than being reused incorrectly for every row.
     assert set(METHOD_METRIC_COLUMNS["evidence_accumulation"]) <= set(df.columns)
+
+
+def test_run_clustering_tuning_sweep_returns_labels_by_combo_matching_results():
+    """Regression (26-08-26, save_tuning_clusterings feature): the sweep must return the
+    actual cluster-label array it already computed for every combination, keyed by the exact
+    same combo tuple results.itertuples would rebuild - never recomputed, never a subset."""
+    X = _three_blobs()
+    df, labels_by_combo = run_clustering_tuning_sweep(
+        "kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3, 4]}
+    )
+
+    assert set(labels_by_combo.keys()) == {(2,), (3,), (4,)}
+    for combo, labels in labels_by_combo.items():
+        assert labels.shape == (X.shape[0],)
+        assert len(set(labels)) == combo[0]
 
 
 def test_run_clustering_tuning_sweep_unknown_method_raises():
@@ -270,7 +285,7 @@ def test_standalone_diagnostic_methods_covers_exactly_agglomerative_spectral():
 
 def test_run_clustering_tuning_sweep_consensus_config_none_is_unchanged():
     X = _three_blobs()
-    df = run_clustering_tuning_sweep("kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3]})
+    df, _ = run_clustering_tuning_sweep("kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3]})
 
     assert not set(CONSENSUS_METRIC_COLUMNS) & set(df.columns)
 
@@ -286,7 +301,7 @@ def test_run_clustering_tuning_sweep_consensus_config_rejects_ineligible_method(
 def test_run_clustering_tuning_sweep_adds_rsc_and_monti_columns():
     X = _three_blobs()
     consensus_config = {"rsc": {"n_repeats": 5}, "monti": {"n_repeats": 30, "subsample_fraction": 0.8}}
-    df = run_clustering_tuning_sweep(
+    df, _ = run_clustering_tuning_sweep(
         "kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3]}, consensus_config=consensus_config
     )
 
@@ -297,7 +312,7 @@ def test_run_clustering_tuning_sweep_adds_rsc_and_monti_columns():
 
 def test_run_clustering_tuning_sweep_consensus_config_rsc_only_omits_monti_column():
     X = _three_blobs()
-    df = run_clustering_tuning_sweep(
+    df, _ = run_clustering_tuning_sweep(
         "kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3]}, consensus_config={"rsc": {"n_repeats": 5}}
     )
 
@@ -307,7 +322,7 @@ def test_run_clustering_tuning_sweep_consensus_config_rsc_only_omits_monti_colum
 
 def test_consensus_suggestion_lines_empty_when_no_consensus_columns():
     X = _three_blobs()
-    df = run_clustering_tuning_sweep("kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3]})
+    df, _ = run_clustering_tuning_sweep("kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3]})
 
     assert consensus_suggestion_lines(df, "kmeans") == []
 
@@ -315,7 +330,7 @@ def test_consensus_suggestion_lines_empty_when_no_consensus_columns():
 def test_consensus_suggestion_lines_report_argmax_k():
     X = _three_blobs()
     consensus_config = {"rsc": {"n_repeats": 5}, "monti": {"n_repeats": 30, "subsample_fraction": 0.8}}
-    df = run_clustering_tuning_sweep(
+    df, _ = run_clustering_tuning_sweep(
         "kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3, 4]}, consensus_config=consensus_config
     )
 

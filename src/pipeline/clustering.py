@@ -5,9 +5,12 @@ Usage:
 
 Reads a matrix artifact (input_path must already exist - either a raw/
 parcellated matrix or an already-computed dim_reduction embedding). `reduced_data`
-is a required, declarative-only config flag (docs/dev/clustering_migration_plan.md
-§1) - this pipeline never calls embed() itself in either case, it only states
-explicitly which kind of matrix input_path is, for logging/documentation.
+is a required config flag (docs/dev/clustering_migration_plan.md §1) - this pipeline
+never calls embed() itself in either case, so loading is identical regardless; the
+one place it does gate real behavior (26-08-26) is _require_matching_reduction_run
+below, which only runs when reduced_data is True (input_path is then itself a
+dim_reduction.py run, so it has a reduction method/params to cross-check a
+viz_embedding_path against - see below).
 
 Two modes, chosen by `fine_tuning`, same convention as dim_reduction.py:
 
@@ -20,7 +23,10 @@ Two modes, chosen by `fine_tuning`, same convention as dim_reduction.py:
   silhouette_plot.png) - all built on a *viz embedding* resolved once per run,
   never a slice of X (see _resolve_viz_embedding/plan §3): reused directly
   when X already has 2 or 3 components, or read from `viz_embedding_path` (a
-  companion 2D/3D embedding computed separately, e.g. via dim_reduction.py)
+  companion 2D/3D embedding computed separately, e.g. via dim_reduction.py,
+  same random_state/n_neighbors/metric as whatever produced X, only
+  n_components different - checked, not just documented, whenever
+  reduced_data is True: see _require_matching_reduction_run)
   when X has any other number - every scatter plot is skipped with a clear
   warning, not silently drawn from X[:, :2], when neither applies. The
   interactive plot has a dropdown to switch coloring between cluster and
@@ -46,7 +52,13 @@ Two modes, chosen by `fine_tuning`, same convention as dim_reduction.py:
   the swept grid: agglomerative's dendrogram.png, spectral's
   eigengap_plot.png. No automatic selection -
   a human reads the outputs and picks parameters by hand, writes them into
-  params_clustering.json's "params", and re-runs with fine_tuning=false.
+  params_clustering.json's "params", and re-runs with fine_tuning=false. The
+  sweep can also persist every combination's actual cluster-label array (not
+  just its scores) into <output_root>/tuning/<method>/<dd-mm>_<session_name>/
+  clusterings.npz, plus a self-contained metadata.csv, when
+  config.save_tuning_clusterings is true (opt-in, off by default, mirrors
+  dim_reduction.py's save_tuning_embeddings) - so a later reader can inspect
+  any evaluated combination's labels without recomputing the sweep.
 
 Output lives under two separate branches of output_root, never mixed:
 <output_root>/production/<method>/ (production, runs.csv) and
@@ -61,6 +73,7 @@ import argparse
 import json
 import logging
 import shutil
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -93,7 +106,7 @@ from src.analysis.plotting import (
     plot_eigengap,
     plot_silhouette_analysis,
 )
-from src.utils.artifacts import load_matrix, save_matrix
+from src.utils.artifacts import load_matrix, read_dim_reduction_method, read_run_params, save_matrix
 from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
 
@@ -140,10 +153,10 @@ def main(argv: list[str] | None = None) -> int:
             logging.info("reduced_data=false - input_path treated as a raw feature matrix (%s, shape %s)", config.input_path, X.shape)
 
         if config.fine_tuning:
-            return _run_fine_tuning(config, X, now, log_path)
+            return _run_fine_tuning(config, X, metadata, now, log_path)
 
         try:
-            X_viz = _resolve_viz_embedding(X, metadata, config.viz_embedding_path)
+            X_viz = _resolve_viz_embedding(X, metadata, config.viz_embedding_path, config.input_path, config.reduced_data)
         except ValueError as exc:
             logging.error(str(exc))
             return 1
@@ -211,7 +224,13 @@ def main(argv: list[str] | None = None) -> int:
         log_duration(now)
 
 
-def _resolve_viz_embedding(X: np.ndarray, metadata: pd.DataFrame, viz_embedding_path: Path | None) -> np.ndarray | None:
+def _resolve_viz_embedding(
+    X: np.ndarray,
+    metadata: pd.DataFrame,
+    viz_embedding_path: Path | None,
+    input_path: Path,
+    reduced_data: bool,
+) -> np.ndarray | None:
     """Resolves the 2D/3D coordinates used for every cluster-colored scatter plot in this
     pipeline - always independent from X, whatever dimensionality clustering itself used.
 
@@ -226,6 +245,17 @@ def _resolve_viz_embedding(X: np.ndarray, metadata: pd.DataFrame, viz_embedding_
       plan §3), covering the exact same subjects in the exact same order. Returns None (caller
       skips every scatter plot, logging why once) when no such path was given - never sliced to
       X[:, :2] regardless of X's own provenance (lessons_learned.md #16).
+
+    Two structural checks (shape, subject order) alone don't guarantee the companion is
+    actually a twin of X's own embedding - it could be structurally valid and still come from
+    an unrelated reduction method or a different metric/n_neighbors/random_state, producing a
+    geometrically unrelated layout that plots real cluster labels onto a misleading picture,
+    with no error to notice it by (found in discussion, 26-08-26). When reduced_data is True
+    (input_path is itself a dim_reduction.py production run, so it has something comparable to
+    check), _require_matching_reduction_run additionally verifies the companion was built by
+    the same method with the same params (n_components excepted). Skipped when reduced_data is
+    False - input_path is then a raw feature matrix from a different pipeline, whose config.md
+    has nothing comparable to a reduction method/params to check against.
     """
     if X.shape[1] in (2, 3):
         return X
@@ -242,7 +272,57 @@ def _resolve_viz_embedding(X: np.ndarray, metadata: pd.DataFrame, viz_embedding_
             f"viz_embedding_path {viz_embedding_path} does not cover the same subjects, in the "
             "same order, as input_path - refusing to plot cluster labels onto mismatched points"
         )
+    if reduced_data:
+        _require_matching_reduction_run(input_path, viz_embedding_path)
     return viz_X
+
+
+def _require_matching_reduction_run(input_path: Path, viz_embedding_path: Path) -> None:
+    """Guards against a viz_embedding_path that passes _resolve_viz_embedding's structural
+    checks (same subjects, same order, 2/3 components) but was actually built by a different
+    reduction method or with different hyperparameters than input_path's own run - a companion
+    like that plots real cluster labels onto an unrelated geometry, a misleading plot rather
+    than a missing one, so this always raises rather than warning (unlike a missing
+    viz_embedding_path, which is a documented "no plot" case, not a wrong one).
+
+    Only called when reduced_data is True, i.e. input_path is itself a dim_reduction.py
+    production run - viz_embedding_path always is one too, by construction (it's the only way
+    to get a 2D/3D companion of an embedding space).
+
+    Two checks, both content-based (never derived from either path's own directory structure -
+    unlike embedding_app.py's discover_production_runs, neither path here is guaranteed to sit
+    under a <production>/<method>/ convention):
+    - same reduction method (read_dim_reduction_method, each run's own config.md title line) -
+      needed on top of the params comparison below, since two different methods' params dicts
+      could otherwise share no conflicting keys (e.g. pca has very few) and go undetected.
+    - every resolved param except n_components identical (read_run_params, each run's own
+      "Params used" dict) - generic dict comparison, no per-method special-casing, symmetric
+      (a key present in only one run's dict is exactly as much a mismatch as a differing
+      value).
+    """
+    input_method = read_dim_reduction_method(input_path)
+    viz_method = read_dim_reduction_method(viz_embedding_path)
+    if input_method != viz_method:
+        raise ValueError(
+            f"viz_embedding_path {viz_embedding_path} was built with reduction method "
+            f"{viz_method!r}, but input_path {input_path} was built with {input_method!r} - "
+            "a companion embedding must come from the same reduction method"
+        )
+
+    input_params = read_run_params(input_path)
+    viz_params = read_run_params(viz_embedding_path)
+    compared_keys = (set(input_params) | set(viz_params)) - {"n_components"}
+    mismatched = {
+        key: (input_params.get(key, "<missing>"), viz_params.get(key, "<missing>"))
+        for key in compared_keys
+        if input_params.get(key, "<missing>") != viz_params.get(key, "<missing>")
+    }
+    if mismatched:
+        details = ", ".join(f"{key} (input={inp!r}, viz={viz!r})" for key, (inp, viz) in sorted(mismatched.items()))
+        raise ValueError(
+            f"viz_embedding_path {viz_embedding_path} does not share input_path {input_path}'s "
+            f"reduction params (only n_components may differ) - mismatched: {details}"
+        )
 
 
 def _run_one_method(
@@ -439,9 +519,9 @@ def _write_comparison_readme(comparison_dir: Path, config: ClusteringConfig, now
     (comparison_dir / "config.md").write_text("\n".join(lines) + "\n")
 
 
-def _run_fine_tuning(config: ClusteringConfig, X: np.ndarray, now: datetime, log_path: Path) -> int:
+def _run_fine_tuning(config: ClusteringConfig, X: np.ndarray, metadata: pd.DataFrame, now: datetime, log_path: Path) -> int:
     for method in config.clustering_methods:
-        if not _run_one_method_tuning(config, method, X, now):
+        if not _run_one_method_tuning(config, method, X, metadata, now):
             return 1
 
     logging.info(
@@ -453,7 +533,7 @@ def _run_fine_tuning(config: ClusteringConfig, X: np.ndarray, now: datetime, log
     return 0
 
 
-def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray, now: datetime) -> bool:
+def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray, metadata: pd.DataFrame, now: datetime) -> bool:
     """Runs one method's fine-tuning sweep end to end (sweep, tuning_results.csv,
     plot(s), config.md, runs.csv). Returns False if this method's tuning
     failed - the caller stops the whole run, no partial-failure tolerance,
@@ -468,7 +548,7 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
         return False
 
     try:
-        results = run_clustering_tuning_sweep(method, X, base_params, tuning_grid, consensus_config)
+        results, labels_by_combo = run_clustering_tuning_sweep(method, X, base_params, tuning_grid, consensus_config)
     except (TypeError, ValueError) as exc:
         # TypeError: a bad tuning_grid value reaches the estimator's own **params unpack
         # (same gap as _run_one_method's production path above, HIGH #11/#18).
@@ -477,7 +557,7 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
 
     output_dir = _tuning_output_dir(config, method, now)
     try:
-        _write_tuning_output(output_dir, results, tuning_grid, method, X, base_params, config, now)
+        _write_tuning_output(output_dir, results, labels_by_combo, tuning_grid, method, X, metadata, base_params, config, now)
     except (FileExistsError, OSError) as exc:
         logging.error("[%s] %s", method, exc)
         return False
@@ -508,9 +588,11 @@ def _tuning_output_dir(config: ClusteringConfig, method: str, now: datetime) -> 
 def _write_tuning_output(
     output_dir: Path,
     results: pd.DataFrame,
+    labels_by_combo: dict[tuple, np.ndarray],
     tuning_grid: dict[str, list],
     method: str,
     X: np.ndarray,
+    metadata: pd.DataFrame,
     base_params: dict,
     config: ClusteringConfig,
     now: datetime,
@@ -531,6 +613,13 @@ def _write_tuning_output(
     results.to_csv(output_dir / "tuning_results.csv", index=False)
 
     swept_params = list(tuning_grid.keys())
+    if config.save_tuning_clusterings:
+        _write_tuning_clusterings(output_dir, labels_by_combo, swept_params)
+        # Same subjects/row order for every combination in this sweep (one X/metadata for the
+        # whole run) - written once at the top, not per combination. Self-contained so a later
+        # reader never needs to reload X or rerun the sweep, just this file + clusterings.npz
+        # (mirrors dim_reduction.py::_write_tuning_output's metadata.csv next to embeddings.npz).
+        metadata.to_csv(output_dir / "metadata.csv", index=False)
     title = compose_run_title(output_dir, config.project)
     metric_cols = METHOD_METRIC_COLUMNS[method] + [c for c in CONSENSUS_METRIC_COLUMNS if c in results.columns]
     if len(swept_params) == 1:
@@ -582,6 +671,38 @@ def _write_tuning_output(
         (output_dir / "consensus_suggestions.md").write_text(
             "\n".join([f"# {title} — consensus/stability suggestions", ""] + suggestion_lines) + "\n"
         )
+
+
+def _combo_key(keys: list[str], combo: tuple) -> str:
+    """Self-describing string key for one tuning combination, e.g.
+    'n_clusters=3,random_state=0' - same names/order as tuning_grid.keys() for
+    that run (matches labels_by_combo's own combo tuple, see
+    run_clustering_tuning_sweep), so it's identical, character for character,
+    to the string a caller rebuilds from that same row's own values in
+    tuning_results.csv - no separate index file needed to join the two.
+    Twin of dim_reduction.py's own _combo_key (not shared - each pipeline
+    keeps its own private tuning-output helpers, same convention as the rest
+    of this module's _write_tuning_output/_tuning_output_dir pair).
+    """
+    return ",".join(f"{key}={value}" for key, value in zip(keys, combo))
+
+
+def _write_tuning_clusterings(output_dir: Path, labels_by_combo: dict[tuple, np.ndarray], keys: list[str]) -> None:
+    """Serializes every combination's cluster-label array actually computed by the sweep
+    (the full Cartesian product, not just what tuning_plot.png shows) into a single
+    clusterings.npz, keyed by _combo_key. Opt-in via config.save_tuning_clusterings - before
+    this flag existed no tuning run ever wrote this file, so it stays off by default
+    (code_standards.md §0/§5: no silent change to an existing run's output shape).
+    """
+    arrays = {_combo_key(keys, combo): labels for combo, labels in labels_by_combo.items()}
+    final_path = output_dir / "clusterings.npz"
+    # Atomic (same rationale as dim_reduction.py::_write_tuning_embeddings, HIGH #24, 2026-08):
+    # np.savez writing directly to the final path would leave a truncated clusterings.npz
+    # sitting next to an otherwise-complete tuning_results.csv/config.md if the run were killed
+    # mid-write (SLURM timeout, Ctrl+C) - temp-file-then-rename, same pattern as save_matrix.
+    tmp_path = output_dir / f".clusterings_tmp_{uuid.uuid4().hex}.npz"
+    np.savez(tmp_path, **arrays)
+    tmp_path.replace(final_path)
 
 
 def _write_standalone_diagnostic(output_dir: Path, method: str, X: np.ndarray, base_params: dict, title: str) -> None:

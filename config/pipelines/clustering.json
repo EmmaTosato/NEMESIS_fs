@@ -1,14 +1,16 @@
 {
   "project": "clinical_connectome",
   "input_path": "results/lesion/dim_reduction/production/pacmap/23-07_s1.1_n5",
+  "output_root": "results/lesion/clustering",
+  "viz_embedding_path": null,
+  "params_file": "config/registry/params_clustering.json",
   "clustering_methods": [
     "spectral"
   ],
-  "params_file": "config/registry/params_clustering.json",
-  "output_root": "results/lesion/clustering",
   "session_name": "",
   "overwrite": true,
   "fine_tuning": false,
   "reduced_data": true,
+  "save_tuning_clusterings": false,
   "run_notes": ""
 }

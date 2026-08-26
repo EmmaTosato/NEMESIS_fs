@@ -1,10 +1,12 @@
 """Unit tests for src/utils/artifacts.py - save_matrix/load_matrix roundtrip and error paths."""
 
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
 
-from src.utils.artifacts import load_matrix, save_matrix
+from src.utils.artifacts import load_matrix, read_dim_reduction_method, read_run_params, save_matrix
 
 
 def _matrix_and_metadata():
@@ -83,3 +85,67 @@ def test_no_leftover_tmp_dir_after_save(tmp_path):
 
     leftovers = [p for p in tmp_path.iterdir() if p.name.startswith(".")]
     assert leftovers == []
+
+
+def _dim_reduction_readme_lines(method: str, params: dict) -> list[str]:
+    """Mirrors dim_reduction.py::_build_readme_lines' exact shape (title line + "Params
+    used: {...}" as the last line) - the contract read_run_params/read_dim_reduction_method
+    are built against."""
+    return [
+        f"# testproj dim_reduction ({method}) — 26-08-26 10:00",
+        "",
+        "## Summary",
+        "",
+        f"Params used: {json.dumps(params)}",
+    ]
+
+
+def test_read_run_params_reads_the_params_used_line(tmp_path):
+    X, metadata = _matrix_and_metadata()
+    save_matrix(
+        tmp_path / "run1", X, metadata,
+        _dim_reduction_readme_lines("umap", {"n_neighbors": 15, "n_components": 5, "random_state": 0}),
+        overwrite=False,
+    )
+
+    assert read_run_params(tmp_path / "run1") == {"n_neighbors": 15, "n_components": 5, "random_state": 0}
+
+
+def test_read_run_params_missing_config_md_raises(tmp_path):
+    with pytest.raises(ValueError, match="config.md"):
+        read_run_params(tmp_path / "does_not_exist")
+
+
+def test_read_run_params_missing_params_line_raises(tmp_path):
+    X, metadata = _matrix_and_metadata()
+    save_matrix(tmp_path / "run1", X, metadata, ["# readme with no params line"], overwrite=False)
+
+    with pytest.raises(ValueError, match="Params used"):
+        read_run_params(tmp_path / "run1")
+
+
+def test_read_dim_reduction_method_reads_the_title_line(tmp_path):
+    X, metadata = _matrix_and_metadata()
+    save_matrix(
+        tmp_path / "run1", X, metadata,
+        _dim_reduction_readme_lines("pacmap", {"n_components": 2}),
+        overwrite=False,
+    )
+
+    assert read_dim_reduction_method(tmp_path / "run1") == "pacmap"
+
+
+def test_read_dim_reduction_method_missing_config_md_raises(tmp_path):
+    with pytest.raises(ValueError, match="config.md"):
+        read_dim_reduction_method(tmp_path / "does_not_exist")
+
+
+def test_read_dim_reduction_method_wrong_title_shape_raises(tmp_path):
+    """A run whose config.md isn't a dim_reduction.py production run (e.g. a raw feature
+    matrix from build_lesion_matrix.py) has no "... dim_reduction (<method>) ..." title -
+    must raise, never guess a method."""
+    X, metadata = _matrix_and_metadata()
+    save_matrix(tmp_path / "run1", X, metadata, ["# testproj build_lesion_matrix — 26-08-26"], overwrite=False)
+
+    with pytest.raises(ValueError, match="dim_reduction"):
+        read_dim_reduction_method(tmp_path / "run1")

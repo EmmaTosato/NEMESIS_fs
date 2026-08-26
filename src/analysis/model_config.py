@@ -49,6 +49,7 @@ class ClusteringConfig:
     fine_tuning: bool
     reduced_data: bool
     viz_embedding_path: Path | None
+    save_tuning_clusterings: bool
     run_notes: str | None
 
 
@@ -96,6 +97,13 @@ def load_clustering_config(path: str | Path) -> ClusteringConfig:
         # embedding computed separately (same reduction params as X's own, only n_components
         # different), never recomputed by clustering.py itself.
         viz_embedding_path=_optional_path(raw, "viz_embedding_path"),
+        # Required, off-by-default opt-in (mirrors DimReductionConfig.save_tuning_embeddings) -
+        # forces every config to state explicitly whether a fine-tuning sweep should persist
+        # every combination's actual cluster labels (not just its scores) into clusterings.npz,
+        # rather than the pipeline silently deciding on its own (code_standards.md §0). Read only
+        # in fine-tuning mode (_write_tuning_output) - a production run never sweeps combinations,
+        # so it has nothing to persist here regardless of this flag's value.
+        save_tuning_clusterings=_require_bool(raw, "save_tuning_clusterings"),
         run_notes=run_notes,
     )
 
