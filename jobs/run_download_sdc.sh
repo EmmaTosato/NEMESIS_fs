@@ -17,7 +17,7 @@ CONDA_ENV="nemesis"
 DATASETS=""       # empty = all 5 registered sdc datasets (UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR, UKE/WAKEUP_acute)
 CATEGORIES="disconnectome-LF lesion-LF"  # already-parcellated per-atlas CSVs only (~793MB/~26.5% of the full 3GB - see docs/guides/datasets.md) - skips the voxel-wise .nii.gz volumes
 OVERWRITE="false" # "true" to re-copy files that already exist locally
-OUTPUT_ROOT="data/"
+OUTPUT_ROOT="/home/etosato/Projects/NEMESIS_fs/sdc_downloads"  # where to store the downloaded SDC datasets
 
 set +u
 source /home/etosato/miniconda3/etc/profile.d/conda.sh
