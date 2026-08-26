@@ -315,7 +315,7 @@ def _write_tuning_output(
             )
     else:
         _write_nested_tuning_leaves(
-            output_dir, results, embeddings_by_combo, base_params, tuning_grid, nested_params, free_params, config, X, metadata
+            output_dir, results, embeddings_by_combo, base_params, tuning_grid, nested_params, free_params, config, metadata
         )
 
     readme_lines = [
@@ -386,8 +386,16 @@ def _write_tuning_embeddings(output_dir: Path, embeddings_by_combo: dict[tuple, 
 
 
 # embeddings_grid.png is a static-only diagnostic (no interactive counterpart) - always 2
-# components regardless of config.viz_n_components, which governs production/interactive
-# plots that can legitimately be 3D (see plot_embedding_grid_blocks, 2D-only by construction).
+# components, never a refit. Any leaf/cell whose own n_components isn't this value gets no
+# embeddings_grid output at all as of 26-08-26 (see _write_nested_tuning_leaves/
+# _build_grid_blocks) - a static image (PNG) or one-off interactive HTML was judged not worth
+# producing at all for a >2-component embedding, tuning or production alike, now that
+# src.pipeline.embedding_app (a live Dash app) already covers exactly that case for any
+# already-written run. Production's own embedding_plots.py::write_embedding_plots follows the
+# same rule for n_dims==3 (no PNG, no HTML - see its own docstring). To look at one specific
+# >2-component tuning combination on demand, use scripts/plot_tuning_embedding_3d.py against
+# this run's own embeddings.npz - a manual, on-request tool, not something this pipeline ever
+# generates automatically for every leaf/color mode.
 _TUNING_GRID_N_COMPONENTS = 2
 
 
@@ -400,37 +408,32 @@ def _write_nested_tuning_leaves(
     nested_params: list[str],
     free_params: list[str],
     config: DimReductionConfig,
-    X: np.ndarray,
     metadata: pd.DataFrame,
 ) -> None:
     """Groups `results` by nested_params (one subfolder per real combination
-    actually present), writing each leaf's own
-    filtered tuning_results.csv plus, unless `config.write_embeddings_grid` is
-    False, embeddings_grid_<color>.png (see
-    src/analysis/embedding_plots.py::write_embedding_grid): one row per free
-    parameter, holding every other free parameter at base_params' own value.
+    actually present), writing each leaf's own filtered tuning_results.csv
+    always, plus, unless `config.write_embeddings_grid` is False or every
+    cell this leaf could show turns out to have n_components !=
+    _TUNING_GRID_N_COMPONENTS (see `_build_grid_blocks`), embeddings_grid_<color>.png
+    (see src/analysis/embedding_plots.py::write_embedding_grid): one row per
+    free parameter, holding every other free parameter at base_params' own
+    value.
 
-    `write_embeddings_grid=False` is a manual opt-out, not an automatic one -
-    when a leaf's own n_components differs from _TUNING_GRID_N_COMPONENTS,
-    _build_grid_blocks refits at 2 components for the plot, and that refit
-    uses the exact same metric/n_neighbors/min_dist/random_state as whatever
-    other leaf already swept those same free-parameter values at
-    n_components=2 - with a fixed random_state, umap/tsne are deterministic,
-    so the two are pixel-identical, not just visually similar. Skip the flag
-    (leave it True) unless you already know this run's tuning_grid has no
-    n_components=_TUNING_GRID_N_COMPONENTS leaf to be redundant with - the
-    refit is otherwise the only way to see this leaf's neighborhood structure
-    in 2D at all.
-
-    AUDIT_FINDINGS.md #34: distance_cache is created once here (shared across
-    every leaf's own _build_grid_blocks call, not per-leaf) so a
-    jaccard/dice binary_pairwise_distance matrix is computed at most once per
-    metric value for the whole embeddings_grid pass, not once per refit cell
-    - the same sharing _run_production/_run_fine_tuning's main sweep already
-    get, previously missing only from this post-hoc grid-plot refit.
+    No cell is ever refit to _TUNING_GRID_N_COMPONENTS (26-08-26, on
+    request) - a cell whose own combination has some other n_components is
+    just left out, never rendered as a static image at all, since it would
+    only ever add a distorted/incomplete view on top of what
+    scripts/plot_tuning_embedding_3d.py already gives on demand for that
+    exact combination. If a leaf's own n_components (checked upfront here
+    only when "n_components" is itself one of `nested_params`, i.e. fixed
+    for the whole leaf) already isn't _TUNING_GRID_N_COMPONENTS, every cell
+    in every block would be dropped this same way - skipped here instead,
+    without ever calling `_build_grid_blocks` at all, so this is a
+    fast-path special case of the same rule, not a second one.
+    `config.write_embeddings_grid` stays a separate, coarser manual opt-out -
+    disabling the whole pass for every leaf regardless of n_components.
     """
     keys = list(tuning_grid.keys())
-    distance_cache: dict[str, np.ndarray] = {}
     for group_key, group in results.groupby(nested_params, sort=False):
         raw_values = group_key if isinstance(group_key, tuple) else (group_key,)
         leaf = {name: (value.item() if hasattr(value, "item") else value) for name, value in zip(nested_params, raw_values)}
@@ -444,9 +447,25 @@ def _write_nested_tuning_leaves(
         if not config.write_embeddings_grid:
             continue
 
-        blocks = _build_grid_blocks(
-            free_params, tuning_grid, keys, leaf, base_params, embeddings_by_combo, config, X, distance_cache
-        )
+        leaf_n_components = leaf.get("n_components")
+        if leaf_n_components is not None and leaf_n_components != _TUNING_GRID_N_COMPONENTS:
+            logging.info(
+                "skipping embeddings_grid for %s: n_components=%s (only n_components=%d combinations get "
+                "this diagnostic - see scripts/plot_tuning_embedding_3d.py for an on-demand 3D view of a "
+                "specific combination)",
+                leaf_dir, leaf_n_components, _TUNING_GRID_N_COMPONENTS,
+            )
+            continue
+
+        blocks = _build_grid_blocks(free_params, tuning_grid, keys, leaf, base_params, embeddings_by_combo, leaf_dir)
+        if not blocks:
+            logging.info(
+                "skipping embeddings_grid for %s: every combination this leaf could show has "
+                "n_components != %d - nothing left to plot",
+                leaf_dir, _TUNING_GRID_N_COMPONENTS,
+            )
+            continue
+
         leaf_title = compose_tuning_leaf_title(output_dir, config.reduction_method, leaf)
         write_embedding_grid(
             blocks,
@@ -466,20 +485,26 @@ def _build_grid_blocks(
     leaf: dict,
     base_params: dict,
     embeddings_by_combo: dict[tuple, np.ndarray],
-    config: DimReductionConfig,
-    X: np.ndarray,
-    distance_cache: dict[str, np.ndarray],
+    leaf_dir: Path,
 ) -> list[tuple[str, list[tuple[str, np.ndarray]]]]:
     """For each free parameter, one cell per value it can take - every other
     free parameter held at base_params' own value (must be one of that
     parameter's own tuning_grid values, else raises: the embedding for that
     exact combination was never computed by run_tuning_sweep - fix by adding
-    the base_params value to that parameter's tuning_grid list). Each cell's
-    embedding is reduced to _TUNING_GRID_N_COMPONENTS via embedding_for_viz
-    when the combination's own n_components differs (e.g. a leaf whose
-    n_components is itself in nested_params, or is a free parameter with a
-    swept value other than 2) - the sweep's own embeddings are at whatever
-    dimensionality that combination actually used.
+    the base_params value to that parameter's tuning_grid list).
+
+    A cell whose own combination's embedding doesn't already have exactly
+    _TUNING_GRID_N_COMPONENTS columns is dropped, never refit (26-08-26, on
+    request - see _write_nested_tuning_leaves) - this only actually happens
+    when "n_components" is a *free* parameter (not nested, so not caught by
+    that function's own upfront leaf-level check) with a swept value other
+    than _TUNING_GRID_N_COMPONENTS; every other free parameter's cells stay
+    at whatever n_components `leaf`/`base_params` already fixes, which is
+    _TUNING_GRID_N_COMPONENTS whenever this function is even reached (the
+    caller already skipped the leaf otherwise). A block left with zero cells
+    after dropping is omitted from the returned list entirely rather than
+    appended empty - the caller skips writing anything at all if every block
+    ends up omitted this way.
     """
     blocks = []
     for varying in free_params:
@@ -507,12 +532,16 @@ def _build_grid_blocks(
                     "for the embeddings_grid plot to hold it there"
                 )
             embedding = embeddings_by_combo[combo]
-            combo_params = {**base_params, **dict(zip(keys, combo))}
-            viz_embedding = embedding_for_viz(
-                config.reduction_method, X, combo_params, embedding, _TUNING_GRID_N_COMPONENTS, distance_cache
-            )
-            cells.append((str(value), viz_embedding))
-        blocks.append((varying, cells))
+            if embedding.shape[1] != _TUNING_GRID_N_COMPONENTS:
+                logging.info(
+                    "skipping embeddings_grid cell %s in %s (%s=%s): n_components=%d, not %d - "
+                    "see scripts/plot_tuning_embedding_3d.py for an on-demand 3D view of this combination",
+                    dict(zip(keys, combo)), leaf_dir, varying, value, embedding.shape[1], _TUNING_GRID_N_COMPONENTS,
+                )
+                continue
+            cells.append((str(value), embedding))
+        if cells:
+            blocks.append((varying, cells))
     return blocks
 
 

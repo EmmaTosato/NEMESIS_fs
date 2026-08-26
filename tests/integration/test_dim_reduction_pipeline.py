@@ -7,7 +7,6 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 
-import src.analysis.reduction as reduction
 from src.pipeline import build_lesion_matrix, dim_reduction
 from src.utils.artifacts import save_matrix
 
@@ -816,16 +815,16 @@ def test_dim_reduction_fine_tuning_write_embeddings_grid_false_skips_plots_keeps
     assert not any(tuning_dir.rglob("embeddings_grid_*.png"))
 
 
-def test_dim_reduction_fine_tuning_nested_n_components_refits_viz(tmp_path, monkeypatch):
-    """Regression coverage for embedding_for_viz's refit branch: a
-    nested_params sweep that varies n_components forces
-    _build_grid_blocks/embedding_for_viz to actually refit (a leaf's own
-    n_components=3 != the grid's fixed viz n_components=2), not take the
-    "already the right shape, reuse as-is" early-return path - a branch that
-    stays untested by construction as long as every leaf's n_components
-    happens to already equal 2 (lessons_learned.md #17: the first real input
-    that finally makes the early-return condition false is the first real
-    test that branch has ever had).
+def test_dim_reduction_fine_tuning_nested_n_components_skips_embeddings_grid_for_non_viz_leaf(tmp_path, monkeypatch):
+    """26-08-26, on request: a leaf whose own n_components (nested_params) isn't
+    _TUNING_GRID_N_COMPONENTS (2) gets NO embeddings_grid output at all - not a refit-to-2D
+    diagnostic like before (see git history for the pre-26-08-26 version of this test, which
+    asserted the opposite: that a refit WAS produced). A refit-to-2D diagnostic for a
+    >2-component leaf was judged not worth having (always pixel-identical to whichever other
+    leaf already covers n_components=2 at the same free-parameter values, deterministic
+    umap/tsne) - scripts/plot_tuning_embedding_3d.py is the manual, on-demand replacement for
+    actually seeing such a leaf's real dimensionality. The n_components=2 leaf, still at
+    _TUNING_GRID_N_COMPONENTS, is unaffected and still gets its own embeddings_grid.
     """
     input_dir = _build_matrix_varying_volume(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
@@ -870,48 +869,53 @@ def test_dim_reduction_fine_tuning_nested_n_components_refits_viz(tmp_path, monk
     assert exit_code == 0
 
     tuning_dir = next(p for p in (output_root / "tuning" / "umap").iterdir() if p.is_dir())
-    # n_components=3 forces a refit (2 != the grid's fixed viz n_components).
-    leaf_dir = tuning_dir / "n_components=3"
-    assert leaf_dir.is_dir()
-    assert (leaf_dir / "embeddings_grid_unico.png").is_file()
+    ncomp3_leaf = tuning_dir / "n_components=3"
+    assert ncomp3_leaf.is_dir()
+    assert (ncomp3_leaf / "tuning_results.csv").is_file()
+    assert not any(ncomp3_leaf.glob("embeddings_grid_*.png"))
+
+    ncomp2_leaf = tuning_dir / "n_components=2"
+    assert (ncomp2_leaf / "embeddings_grid_unico.png").is_file()
 
 
-def test_dim_reduction_fine_tuning_grid_refit_reuses_distance_cache_across_cells(tmp_path, monkeypatch):
-    """AUDIT_FINDINGS.md #34 regression: _build_grid_blocks used to call embedding_for_viz
-    without a distance_cache - for a jaccard/dice metric, every refit cell in the same leaf
-    recomputed its precomputed distance matrix from scratch instead of sharing it (the same
-    sharing _run_production/_run_fine_tuning's main sweep already had). Here
-    nested_params=["n_components"] with metric="jaccard" fixed forces a refit for every
-    free_params cell in the n_components=3 leaf (2 values of n_neighbors) - without the shared
-    cache that's 2 separate precomputed_distance calls for the exact same X/metric; with it,
-    at most 1."""
+def test_dim_reduction_fine_tuning_free_n_components_drops_non_viz_cells(tmp_path, monkeypatch, caplog):
+    """26-08-26, on request: _build_grid_blocks never refits a cell to _TUNING_GRID_N_COMPONENTS
+    any more (the pre-26-08-26 version of this test asserted the opposite - see git history).
+    n_components swept as a *free* parameter (not nested_params - the leaf-level skip covers
+    only the nested case, see the test above) means the "n_components" block's own cells can
+    have a real embedding at n_components != 2: that cell is dropped, logged, never rendered -
+    while its sibling cell at n_components=2, and every cell of the "n_neighbors" block (held
+    at n_components=2 throughout), survive and still get plotted. embeddings_grid_unico.png is
+    still written for this leaf, since at least one cell in at least one block survives.
+    """
     input_dir = _build_matrix_varying_volume(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
-    params_path = tmp_path / "params_nested_ncomp_jaccard.json"
+    params_path = tmp_path / "params_free_ncomp.json"
     params_path.write_text(
         json.dumps(
             {
                 "umap": {
-                    "params": {"n_neighbors": 3, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "jaccard"},
+                    "params": {"n_neighbors": 3, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "euclidean"},
                     "tuning_grid": {
+                        "metric": ["euclidean"],
                         "n_components": [2, 3],
-                        "n_neighbors": [2, 3, 4],
+                        "n_neighbors": [2, 3],
                     },
-                    "nested_params": ["n_components"],
+                    "nested_params": ["metric"],
                     "trustworthiness_n_neighbors": 2,
                 }
             }
         )
     )
-    output_root = tmp_path / "dr_out_ncomp_jaccard"
+    output_root = tmp_path / "dr_out_free_ncomp"
     dr_cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
         "reduction_method": "umap",
         "params_file": str(params_path),
         "output_root": str(output_root),
-        "session_name": "tune_nested_ncomp_jaccard",
+        "session_name": "tune_free_ncomp",
         "overwrite": False,
         "fine_tuning": True,
         "color_by": [],
@@ -921,26 +925,17 @@ def test_dim_reduction_fine_tuning_grid_refit_reuses_distance_cache_across_cells
         "precompute_distance_metric": True,
         "run_notes": None,
     }
-    dr_cfg_path = tmp_path / "dim_reduction_tuning_nested_ncomp_jaccard.json"
+    dr_cfg_path = tmp_path / "dim_reduction_tuning_free_ncomp.json"
     dr_cfg_path.write_text(json.dumps(dr_cfg))
 
-    call_count = 0
-    real_precomputed_distance = reduction.precomputed_distance
-
-    def _counting_precomputed_distance(X, metric):
-        nonlocal call_count
-        call_count += 1
-        return real_precomputed_distance(X, metric)
-
-    monkeypatch.setattr(reduction, "precomputed_distance", _counting_precomputed_distance)
-
-    exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
+    with caplog.at_level(logging.INFO):
+        exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
     assert exit_code == 0
 
     tuning_dir = next(p for p in (output_root / "tuning" / "umap").iterdir() if p.is_dir())
-    assert (tuning_dir / "n_components=3" / "embeddings_grid_unico.png").is_file()
-    # n_components=3 leaf has 3 free-param cells (n_neighbors=2,3,4), all needing a refit at
-    # the grid's fixed viz n_components=2, all at the same metric="jaccard" - the whole
-    # _write_nested_tuning_leaves pass (both leaves) must reuse one cached matrix, not
-    # recompute it once per refit cell.
-    assert call_count <= 1, f"expected the jaccard distance matrix to be computed at most once, got {call_count} calls"
+    # n_components isn't nested here (nested_params=["metric"]) - the leaf still gets its
+    # embeddings_grid, built only from cells that already have n_components=2.
+    leaf_dir = tuning_dir / "metric=euclidean"
+    assert (leaf_dir / "embeddings_grid_unico.png").is_file()
+    assert "skipping embeddings_grid cell" in caplog.text
+    assert "n_components=3, not 2" in caplog.text

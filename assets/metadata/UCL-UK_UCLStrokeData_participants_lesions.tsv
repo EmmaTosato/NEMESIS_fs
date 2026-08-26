@@ -1,4 +1,4 @@
-participant_id	age	sex	disease_id	center_id	dataset	subject	feature/func/FC-pearson	feature/func/motion	feature/func/outliers	lesion/manual_masks/anat/lesion_mask
+original_id	age	sex	disease_id	center_id	dataset	participant_id	feature/func/FC-pearson	feature/func/motion	feature/func/outliers	lesion/manual_masks/anat/lesion_mask
 ST_UCL-UK_0001			ST	UCL-UK	UCLStrokeData	sub-STUCLUK0001	missing	missing	missing	present
 ST_UCL-UK_0002	83.0	M	ST	UCL-UK	UCLStrokeData	sub-STUCLUK0002	missing	missing	missing	present
 ST_UCL-UK_0003			ST	UCL-UK	UCLStrokeData	sub-STUCLUK0003	missing	missing	missing	present

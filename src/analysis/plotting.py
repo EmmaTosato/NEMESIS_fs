@@ -47,6 +47,17 @@ _NOISE_COLOR = "#9e9d98"
 _MARKER_SIZE = 18
 _AXIS_PADDING_FRACTION = 0.08
 
+# plot_embedding_2d/plot_embedding_categorical/plot_embedding_continuous only
+# (dim_reduction.py's production embedding plots) - a solid, opaque marker at
+# _MARKER_SIZE overlaps into one indistinguishable blob at the ~5000+ subject
+# scale these plots run at today (validated visually on the real 5269-subject
+# 26-08_s1.2 cohort). Smaller + partly transparent reveals density texture
+# instead. Deliberately not applied to _MARKER_SIZE's other consumers
+# (plot_clusters_2d/plot_clusters_comparison/plot_silhouette_analysis) - out
+# of scope for this fix, left for a future pass if the same problem is hit there.
+_EMBEDDING_MARKER_SIZE = 6
+_EMBEDDING_MARKER_ALPHA = 0.35
+
 _COMPARISON_SUBPLOT_WIDTH = 7.0
 _COMPARISON_SUBPLOT_HEIGHT = 5.5
 _COMPARISON_WSPACE = 0.65
@@ -207,7 +218,7 @@ def plot_embedding_2d(
     y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
 
     fig, ax = plt.subplots(figsize=(_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT))
-    ax.scatter(X_2d[:, 0], X_2d[:, 1], alpha=0.5, s=_MARKER_SIZE, edgecolor="none")
+    ax.scatter(X_2d[:, 0], X_2d[:, 1], alpha=_EMBEDDING_MARKER_ALPHA, s=_EMBEDDING_MARKER_SIZE, edgecolor="none")
     ax.set_xlim(x_min - x_pad, x_max + x_pad)
     ax.set_ylim(y_min - y_pad, y_max + y_pad)
     ax.set_xlabel(xlabel)
@@ -270,7 +281,8 @@ def plot_embedding_categorical(
         hue=categories,
         hue_order=unique_categories,
         palette=_palette_for_categories(unique_categories, missing_label),
-        s=_MARKER_SIZE,
+        s=_EMBEDDING_MARKER_SIZE,
+        alpha=_EMBEDDING_MARKER_ALPHA,
         edgecolor="none",
         legend="full",
         ax=ax,
@@ -347,11 +359,12 @@ def plot_embedding_continuous(
     if is_missing.any():
         ax.scatter(
             X_2d[is_missing, 0], X_2d[is_missing, 1],
-            c=_NOISE_COLOR, s=_MARKER_SIZE, edgecolor="none", label="missing",
+            c=_NOISE_COLOR, s=_EMBEDDING_MARKER_SIZE, alpha=_EMBEDDING_MARKER_ALPHA, edgecolor="none", label="missing",
         )
     scatter = ax.scatter(
         X_2d[~is_missing, 0], X_2d[~is_missing, 1],
-        c=values[~is_missing], cmap="viridis", norm=norm, s=_MARKER_SIZE, edgecolor="none",
+        c=values[~is_missing], cmap="viridis", norm=norm,
+        s=_EMBEDDING_MARKER_SIZE, alpha=_EMBEDDING_MARKER_ALPHA, edgecolor="none",
     )
     ax.set_xlim(x_min - x_pad, x_max + x_pad)
     ax.set_ylim(y_min - y_pad, y_max + y_pad)
