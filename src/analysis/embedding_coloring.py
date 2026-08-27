@@ -62,8 +62,8 @@ COLOR_MODES: dict[str, ColorMode] = {
     ),
     # clustering.py's own production output (docs/dev/clustering_migration_plan.md §3,
     # 15-08-26) - never consumed via a pipeline's `color_by` config (dim_reduction.py runs
-    # never have this column, clustering.py's own cluster_plot.png/cluster_plot_interactive.html
-    # color by cluster_labels directly, not through this registry, see docs/dev/plotting.md),
+    # never have this column, clustering.py's own cluster_plot.png colors by
+    # cluster_labels directly, not through this registry, see docs/dev/plotting.md),
     # only by src.pipeline.embedding_app, which reads whichever metadata.csv a run actually
     # wrote and offers every registered mode that column supports. HDBSCAN's noise label (-1)
     # is deliberately rendered as just another category here (no special gray treatment like

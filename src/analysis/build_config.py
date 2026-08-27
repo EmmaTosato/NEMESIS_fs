@@ -13,6 +13,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from src.features.sdc import KNOWN_OBJECTS, KNOWN_VALUE_COLUMNS
 from src.retrieval.config import KNOWN_GROUPS
 
 _KNOWN_INTERPOLATIONS = frozenset({"linear", "nearest", "continuous"})

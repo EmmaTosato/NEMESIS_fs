@@ -30,10 +30,11 @@ sees one for that case.
   this run's metadata.csv doesn't have (e.g. lesion_side/nihss before
   src.pipeline.enrich_lesion_metadata.py was ever run against this lesion_matrix)
   is skipped with a WARNING, not silently omitted.
-- clustering run (metadata has cluster_label): cluster_plot.png
-  + cluster_plot_interactive.html (2 files, cluster-colored only - no dataset
-  coloring here, see plotting.py's plot_clusters_interactive). Axis labels
-  come from the reduction method name when one can be inferred from the path
+- clustering run (metadata has cluster_label): cluster_plot.png (cluster-colored
+  only - no dataset coloring here, see plotting.py's plot_clusters_2d). No
+  interactive HTML here either (2026-08-27, on request) - same rationale as
+  the dim_reduction case above, superseded by the live src.pipeline.embedding_app.
+  Axis labels come from the reduction method name when one can be inferred from the path
   (legacy dim_reduction_clustering.py runs, nested one level deeper than
   today's flat clustering.py output - see _reduction_method_label_for);
   a flat clustering.py run has no reduction method to infer (it never knew
@@ -59,7 +60,6 @@ from src.analysis.plotting import (
     compose_cluster_plot_title,
     compose_embedding_plot_title,
     plot_clusters_2d,
-    plot_clusters_interactive,
     plot_embedding_2d,
     plot_embedding_categorical,
     plot_embedding_continuous,
@@ -116,9 +116,7 @@ def _replot_clustering(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> 
 
     static_path = run_dir / "cluster_plot.png"
     plot_clusters_2d(X, metadata[CLUSTER_LABEL_COLUMN].to_numpy(), static_path, xlabel, ylabel, title)
-    interactive_path = run_dir / "cluster_plot_interactive.html"
-    plot_clusters_interactive(X, metadata, interactive_path, xlabel, ylabel, title)
-    return [static_path, interactive_path]
+    return [static_path]
 
 
 def _replot_embedding(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> list[Path]:

@@ -32,7 +32,6 @@ def test_dim_reduction_config_valid(tmp_path):
         "fine_tuning": False,
         "color_by": ["dataset", "volume"],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
     }
@@ -41,7 +40,6 @@ def test_dim_reduction_config_valid(tmp_path):
     assert config.fine_tuning is False
     assert config.color_by == ("dataset", "volume")
     assert config.viz_n_components == 2
-    assert config.write_embeddings_grid is True
     assert config.save_tuning_embeddings is False
     assert config.precompute_distance_metric is True
     assert config.run_notes is None
@@ -55,7 +53,6 @@ def test_dim_reduction_config_with_run_notes(tmp_path):
         "fine_tuning": True,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "run_notes": "provo n_neighbors piu alto",
@@ -90,7 +87,6 @@ def _dr_payload(**overrides):
         "fine_tuning": False,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
     }
@@ -135,18 +131,6 @@ def test_dim_reduction_config_viz_n_components_must_be_2_or_3(tmp_path):
 def test_dim_reduction_config_viz_n_components_rejects_bool(tmp_path):
     with pytest.raises(ValueError, match="field 'viz_n_components' must be 2 or 3"):
         load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(viz_n_components=True)))
-
-
-def test_dim_reduction_config_missing_write_embeddings_grid_raises(tmp_path):
-    payload = _dr_payload()
-    del payload["write_embeddings_grid"]
-    with pytest.raises(ValueError, match="missing required field 'write_embeddings_grid'"):
-        load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
-
-
-def test_dim_reduction_config_write_embeddings_grid_non_bool_raises(tmp_path):
-    with pytest.raises(ValueError, match="field 'write_embeddings_grid' must be a boolean"):
-        load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(write_embeddings_grid="true")))
 
 
 def test_dim_reduction_config_missing_save_tuning_embeddings_raises(tmp_path):

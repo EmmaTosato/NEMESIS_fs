@@ -475,8 +475,18 @@ def plot_embedding_continuous(
     plt.close(fig)
 
 
+_POINT_SIZE_FLOOR = _MARKER_SIZE * 0.3
+_POINT_SIZE_SCALE = _MARKER_SIZE * 2.5
+
+
 def plot_clusters_2d(
-    X_2d: np.ndarray, cluster_labels: np.ndarray, output_path: Path, xlabel: str, ylabel: str, title: str
+    X_2d: np.ndarray,
+    cluster_labels: np.ndarray,
+    output_path: Path,
+    xlabel: str,
+    ylabel: str,
+    title: str,
+    point_sizes: np.ndarray | None = None,
 ) -> None:
     """Scatter the first 2 columns of X_2d, colored by cluster_labels, to output_path.
 
@@ -487,6 +497,18 @@ def plot_clusters_2d(
     categorical palette, legend anchored outside the axes (never over the
     data), axis limits padded beyond the data's own min/max so edge points
     aren't clipped by their own marker radius, extra title padding.
+
+    `point_sizes` (project-clustering-tuning-redesign memory, 26-08-26 -
+    hdbscan's `probabilities_`, membership confidence in [0, 1]): `None`
+    (default) is byte-for-byte the original behavior, one fixed
+    `_MARKER_SIZE` for every point. When given, each point's marker area
+    scales with its own value instead, floored at `_POINT_SIZE_FLOOR` so even
+    a 0-probability point (e.g. HDBSCAN noise, always probability 0) stays
+    visible rather than collapsing to an invisible zero-size marker.
+    `sns.scatterplot`'s own legend-building breaks when `s` is array-like (it
+    tries to reuse the array verbatim as a single legend marker size) - the
+    array branch below builds the categorical legend by hand via
+    `plt.Line2D` instead, matplotlib's own `ax.scatter` has no such issue.
     """
     if X_2d.shape[1] < 2:
         raise ValueError(f"plot_clusters_2d needs at least 2 columns, got shape {X_2d.shape}")
@@ -496,25 +518,36 @@ def plot_clusters_2d(
     x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
     y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
     unique_labels = sorted(np.unique(cluster_labels).tolist())
+    palette = _palette_for_labels(unique_labels)
+    sizes = _MARKER_SIZE if point_sizes is None else _POINT_SIZE_FLOOR + _POINT_SIZE_SCALE * point_sizes
 
     fig, ax = plt.subplots(figsize=(_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT))
-    sns.scatterplot(
-        x=X_2d[:, 0],
-        y=X_2d[:, 1],
-        hue=cluster_labels,
-        hue_order=unique_labels,
-        palette=_palette_for_labels(unique_labels),
-        s=_MARKER_SIZE,
-        edgecolor="none",
-        legend="full",
-        ax=ax,
-    )
+    if point_sizes is None:
+        sns.scatterplot(
+            x=X_2d[:, 0],
+            y=X_2d[:, 1],
+            hue=cluster_labels,
+            hue_order=unique_labels,
+            palette=palette,
+            s=sizes,
+            edgecolor="none",
+            legend="full",
+            ax=ax,
+        )
+        handles, legend_labels = ax.get_legend_handles_labels()
+    else:
+        colors = [palette[label] for label in cluster_labels]
+        ax.scatter(X_2d[:, 0], X_2d[:, 1], c=colors, s=sizes, edgecolors="none")
+        handles = [
+            plt.Line2D([0], [0], marker="o", linestyle="", color=palette[label], label=str(label))
+            for label in unique_labels
+        ]
+        legend_labels = [str(label) for label in unique_labels]
     ax.set_xlim(x_min - x_pad, x_max + x_pad)
     ax.set_ylim(y_min - y_pad, y_max + y_pad)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
-    handles, legend_labels = ax.get_legend_handles_labels()
     ax.legend(
         handles,
         legend_labels,
@@ -608,45 +641,6 @@ def plot_silhouette_analysis(
     plt.close(fig)
 
 
-def plot_clusters_interactive(
-    X_2d: np.ndarray,
-    metadata: pd.DataFrame,
-    output_path: Path,
-    xlabel: str,
-    ylabel: str,
-    title: str,
-    cluster_column: str = "cluster_label",
-) -> None:
-    """Interactive HTML scatter of the first 2 columns of X_2d, colored by
-    cluster_column, with every metadata column shown on hover.
-
-    Cluster-only coloring on purpose (no dataset/site toggle here - a
-    clustering plot's job is to inspect the cluster assignment; dataset
-    coloring lives on dim_reduction.py's own embedding_plot_dataset instead,
-    see plotting.py's module docstring / docs/dev/plotting.md).
-    """
-    if X_2d.shape[1] < 2:
-        raise ValueError(f"plot_clusters_interactive needs at least 2 columns, got shape {X_2d.shape}")
-    if len(metadata) != X_2d.shape[0]:
-        raise ValueError(
-            f"X_2d has {X_2d.shape[0]} rows but metadata has {len(metadata)} rows - must match"
-        )
-    if cluster_column not in metadata.columns:
-        raise ValueError(f"column {cluster_column!r} not found in metadata columns {list(metadata.columns)}")
-
-    plot_df = metadata.copy()
-    plot_df["_dim1"] = X_2d[:, 0]
-    plot_df["_dim2"] = X_2d[:, 1]
-    plot_df["_cluster_str"] = plot_df[cluster_column].astype(str)
-
-    hover_columns = list(metadata.columns)
-    fig = px.scatter(plot_df, x="_dim1", y="_dim2", color="_cluster_str", hover_data=hover_columns, title=title)
-    fig.update_layout(xaxis_title=xlabel, yaxis_title=ylabel, legend_title=cluster_column)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(output_path)
-
-
 def plot_clusters_comparison(
     X_2d: np.ndarray,
     labels_by_method: dict[str, np.ndarray],
@@ -738,10 +732,9 @@ def plot_clusters_comparison_interactive(
     own cluster assignment - every metadata column shown on hover regardless
     of which method is selected.
 
-    Same dropdown mechanism as plot_clusters_interactive (one full trace set
-    per option, toggled via `visible`), but with one option per method
-    instead of a fixed cluster/dataset pair: same 2D layout, same points,
-    only which method's labels color them changes - answers "do these two
+    Dropdown-toggled trace set (one full trace per option, toggled via
+    `visible`), one option per method: same 2D layout, same points, only
+    which method's labels color them changes - answers "do these two
     methods agree on this boundary" without opening N separate HTML files.
     """
     if X_2d.shape[1] < 2:
@@ -1034,6 +1027,170 @@ def plot_clustering_tuning_metrics(df: pd.DataFrame, param_col: str, metric_cols
     for i in range(len(metric_cols), nrows * ncols):
         axes[i // ncols][i % ncols].set_visible(False)
     fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_stability_analysis(
+    df: pd.DataFrame, target_param: str, nuisance_param: str, metric_col: str, output_path: Path, title: str
+) -> None:
+    """One panel per unique target_param value (e.g. n_clusters/n_components),
+    errorbar mean +/- std(metric_col) vs n_init, one line per nuisance_param
+    value (e.g. init/init_params) - kmeans/gmm's stability-analysis diagnostic
+    (clustering_tuning.compute_stability_sweep), modeled on sklearn's
+    plot_kmeans_stability_low_dim_dense.html, faceted across the representative
+    target values instead of a single one. Purpose: validate the nuisance
+    init/n_init parameter is stable *before* trusting the plain tuning sweep's
+    per-target scores - see docs/dev/models.md.
+    """
+    target_values = sorted(df[target_param].unique())
+    fig, axes = plt.subplots(
+        1, len(target_values), figsize=(5 * len(target_values), 4), squeeze=False, gridspec_kw={"wspace": 0.4}
+    )
+
+    for i, target in enumerate(target_values):
+        ax = axes[0][i]
+        subset = df[df[target_param] == target]
+        for nuisance in sorted(subset[nuisance_param].unique()):
+            nuisance_subset = subset[subset[nuisance_param] == nuisance]
+            stats = nuisance_subset.groupby("n_init")[metric_col].agg(["mean", "std"]).reset_index()
+            ax.errorbar(stats["n_init"], stats["mean"], yerr=stats["std"], marker="o", capsize=3, label=str(nuisance))
+        ax.set_title(f"{target_param}={target}")
+        ax.set_xlabel("n_init")
+        ax.set_ylabel(metric_col)
+        ax.legend()
+
+    fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", y=1.05)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_interclass_distance_matrix(
+    results_by_metric: dict[str, tuple[list, np.ndarray]], output_path: Path, title: str
+) -> None:
+    """One heatmap subplot per candidate metric (agglomerative's metric-selection pre-check,
+    clustering_tuning.compute_interclass_distance_matrix - project-clustering-tuning-redesign
+    memory, 26-08-26, modeled on sklearn's plot_agglomerative_clustering_metrics.html): diagonal
+    cells are within-proxy-group spread, off-diagonal cells are between-group separation - a
+    metric that keeps the diagonal low and off-diagonal high is a better candidate for that
+    metric's own tuning_grid sweep. `results_by_metric` maps each metric name to its own
+    (groups, matrix) pair from compute_interclass_distance_matrix, not computed here - this
+    function only lays them out.
+    """
+    if not results_by_metric:
+        raise ValueError("plot_interclass_distance_matrix needs at least one metric")
+
+    metrics = list(results_by_metric)
+    fig, axes = plt.subplots(
+        1, len(metrics), figsize=(4.5 * len(metrics), 4), squeeze=False, gridspec_kw={"wspace": 0.5}
+    )
+
+    for i, metric in enumerate(metrics):
+        groups, matrix = results_by_metric[metric]
+        ax = axes[0][i]
+        image = ax.imshow(matrix, cmap="viridis")
+        ax.set_xticks(range(len(groups)))
+        ax.set_yticks(range(len(groups)))
+        ax.set_xticklabels([str(g) for g in groups], rotation=45, ha="right")
+        ax.set_yticklabels([str(g) for g in groups])
+        for a in range(len(groups)):
+            for b in range(len(groups)):
+                ax.text(b, a, f"{matrix[a, b]:.2f}", ha="center", va="center", color="white")
+        ax.set_title(f"metric={metric}")
+        fig.colorbar(image, ax=ax, fraction=0.046)
+
+    fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", y=1.05)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_grouped_tuning_metrics(
+    df: pd.DataFrame, x_param: str, group_param: str, metric_cols: list[str], output_path: Path, title: str
+) -> None:
+    """One subplot per metric in metric_cols, `x_param` on the x-axis, one line per unique
+    value of `group_param` - the shared layout behind spectral's `(affinity, hyperparameter)`
+    grouping and evidence_accumulation's Split-phase-`k` grouping (project-clustering-tuning-
+    redesign memory, 26-08-26): both need "one line per group" instead of
+    `plot_clustering_tuning_metrics`'s single line, or a heatmap.
+    """
+    if not metric_cols:
+        raise ValueError("plot_grouped_tuning_metrics needs at least one metric column")
+
+    nrows, ncols = _square_grid_shape(len(metric_cols))
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(_TUNING_METRICS_SUBPLOT_WIDTH * ncols, _TUNING_METRICS_SUBPLOT_HEIGHT * nrows),
+        squeeze=False,
+        gridspec_kw={"wspace": _TUNING_METRICS_WSPACE, "hspace": _TUNING_METRICS_HSPACE},
+    )
+    for i, metric_col in enumerate(metric_cols):
+        ax = axes[i // ncols][i % ncols]
+        for group_value in sorted(df[group_param].unique(), key=str):
+            subset = df[df[group_param] == group_value].sort_values(x_param)
+            ax.plot(subset[x_param], subset[metric_col], marker="o", markersize=4, label=str(group_value))
+        ax.set_xlabel(x_param)
+        ax.set_ylabel(metric_col)
+        ax.legend(fontsize=7)
+    for i in range(len(metric_cols), nrows * ncols):
+        axes[i // ncols][i % ncols].set_visible(False)
+    fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_spectral_tuning(df: pd.DataFrame, param_col: str, metric_cols: list[str], output_path: Path, title: str) -> None:
+    """One subplot per metric in metric_cols (`param_col`, typically `"n_clusters"`, on the
+    x-axis), one line per `(affinity, hyperparameter)` combination - the tuning-plot
+    counterpart of `clustering_tuning.run_spectral_affinity_aware_sweep`'s concatenated
+    DataFrame (project-clustering-tuning-redesign memory, 26-08-26), where `"n_neighbors"`/
+    `"gamma"` are each populated only for their own affinity's rows (`NaN` on the other
+    affinity's rows, from `pd.concat`). Builds one label per row from whichever of the two is
+    actually set for that row's `"affinity"` value, then delegates the actual layout to
+    `plot_grouped_tuning_metrics`.
+    """
+    if not metric_cols:
+        raise ValueError("plot_spectral_tuning needs at least one metric column")
+
+    def _combo_label(row: pd.Series) -> str:
+        if row["affinity"] == "nearest_neighbors" and "n_neighbors" in df.columns and pd.notna(row.get("n_neighbors")):
+            return f"nearest_neighbors (n_neighbors={row['n_neighbors']:g})"
+        if row["affinity"] == "rbf" and "gamma" in df.columns and pd.notna(row.get("gamma")):
+            return f"rbf (gamma={row['gamma']:g})"
+        return str(row["affinity"])
+
+    df = df.copy()
+    df["_combo_label"] = df.apply(_combo_label, axis=1)
+    plot_grouped_tuning_metrics(df, param_col, "_combo_label", metric_cols, output_path, title)
+
+
+def plot_consensus_matrix_heatmap(co_occurrence: np.ndarray, labels: np.ndarray, output_path: Path, title: str) -> None:
+    """Monti et al. 2003's own headline visualization for evidence_accumulation
+    (project-clustering-tuning-redesign memory, 26-08-26): the co-occurrence matrix
+    (`consensus_clustering.run_rsc_repeats`'s output) with subjects reordered by their final
+    cluster assignment (`consensus_clustering.assign_clusters_from_cooccurrence`'s output) -
+    block-diagonal = confident/clean clusters at this threshold, fuzzy = an ambiguous cut.
+    """
+    if co_occurrence.shape[0] != co_occurrence.shape[1]:
+        raise ValueError(f"co_occurrence must be square, got shape {co_occurrence.shape}")
+    if len(labels) != co_occurrence.shape[0]:
+        raise ValueError(f"labels has {len(labels)} entries but co_occurrence is {co_occurrence.shape[0]}x{co_occurrence.shape[0]}")
+
+    order = np.argsort(labels)
+    reordered = co_occurrence[np.ix_(order, order)]
+
+    fig, ax = plt.subplots(figsize=(6, 5.5))
+    image = ax.imshow(reordered, cmap="viridis", vmin=0, vmax=1)
+    ax.set_xlabel("subjects (reordered by final cluster)")
+    ax.set_ylabel("subjects (reordered by final cluster)")
+    ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
+    fig.colorbar(image, ax=ax, label="co-occurrence frequency")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")

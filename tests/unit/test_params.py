@@ -8,6 +8,7 @@ from src.analysis.params import (
     load_consensus_config,
     load_method_params,
     load_nested_params,
+    load_stability_config,
     load_trustworthiness_n_neighbors,
     load_tuning_grid,
 )
@@ -230,3 +231,62 @@ def test_load_consensus_config_rejects_bad_subsample_fraction(tmp_path):
     path = _write(tmp_path, {"kmeans": {"params": {}, "consensus": {"monti": {"n_repeats": 5, "subsample_fraction": 1.5}}}})
     with pytest.raises(ValueError, match="subsample_fraction must be in"):
         load_consensus_config(path, "kmeans")
+
+
+# --- load_stability_config ---------------------------------------------------------
+# project-clustering-tuning-redesign memory (26-08-26): kmeans/gmm's init/n_init
+# stability-analysis diagnostic config block.
+
+
+def test_load_stability_config_absent_returns_none(tmp_path):
+    path = _write(tmp_path, {"kmeans": {"params": {}}})
+    assert load_stability_config(path, "kmeans") is None
+
+
+def test_load_stability_config_valid(tmp_path):
+    path = _write(
+        tmp_path,
+        {"kmeans": {"params": {}, "stability": {"nuisance_values": ["k-means++", "random"], "n_init_range": [1, 5, 10], "n_repeats": 5}}},
+    )
+    assert load_stability_config(path, "kmeans") == {
+        "nuisance_values": ["k-means++", "random"],
+        "n_init_range": [1, 5, 10],
+        "n_repeats": 5,
+    }
+
+
+def test_load_stability_config_rejects_ineligible_method(tmp_path):
+    path = _write(
+        tmp_path,
+        {"agglomerative": {"params": {}, "stability": {"nuisance_values": ["a"], "n_init_range": [1], "n_repeats": 1}}},
+    )
+    with pytest.raises(ValueError, match="only.*defined for"):
+        load_stability_config(path, "agglomerative")
+
+
+def test_load_stability_config_rejects_unknown_key(tmp_path):
+    path = _write(tmp_path, {"kmeans": {"params": {}, "stability": {"bogus": 1}}})
+    with pytest.raises(ValueError, match="unknown key"):
+        load_stability_config(path, "kmeans")
+
+
+def test_load_stability_config_rejects_bad_nuisance_values(tmp_path):
+    path = _write(tmp_path, {"kmeans": {"params": {}, "stability": {"nuisance_values": [], "n_init_range": [1], "n_repeats": 1}}})
+    with pytest.raises(ValueError, match="nuisance_values must be a non-empty list"):
+        load_stability_config(path, "kmeans")
+
+
+def test_load_stability_config_rejects_bad_n_init_range(tmp_path):
+    path = _write(
+        tmp_path, {"kmeans": {"params": {}, "stability": {"nuisance_values": ["random"], "n_init_range": [0], "n_repeats": 1}}}
+    )
+    with pytest.raises(ValueError, match="n_init_range must be a non-empty list of positive integers"):
+        load_stability_config(path, "kmeans")
+
+
+def test_load_stability_config_rejects_bad_n_repeats(tmp_path):
+    path = _write(
+        tmp_path, {"kmeans": {"params": {}, "stability": {"nuisance_values": ["random"], "n_init_range": [1], "n_repeats": 0}}}
+    )
+    with pytest.raises(ValueError, match="n_repeats must be a positive integer"):
+        load_stability_config(path, "kmeans")

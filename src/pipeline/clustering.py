@@ -19,8 +19,8 @@ Two modes, chosen by `fine_tuning`, same convention as dim_reduction.py:
   params_clustering.json, writing a new artifact per method: the same
   matrix (unchanged - clustering doesn't transform the feature space) as
   matrix.npy, cluster_label appended to metadata.csv, plus a set of
-  cluster-colored plots (cluster_plot.png, cluster_plot_interactive.html,
-  silhouette_plot.png) - all built on a *viz embedding* resolved once per run,
+  cluster-colored plots (cluster_plot.png, silhouette_plot.png) - all
+  built on a *viz embedding* resolved once per run,
   never a slice of X (see _resolve_viz_embedding/plan §3): reused directly
   when X already has 2 or 3 components, or read from `viz_embedding_path` (a
   companion 2D/3D embedding computed separately, e.g. via dim_reduction.py,
@@ -28,9 +28,9 @@ Two modes, chosen by `fine_tuning`, same convention as dim_reduction.py:
   n_components different - checked, not just documented, whenever
   reduced_data is True: see _require_matching_reduction_run)
   when X has any other number - every scatter plot is skipped with a clear
-  warning, not silently drawn from X[:, :2], when neither applies. The
-  interactive plot has a dropdown to switch coloring between cluster and
-  dataset, hover showing every metadata column per point; the silhouette
+  warning, not silently drawn from X[:, :2], when neither applies.
+  Single-run interactivity is covered by src.pipeline.embedding_app, not by
+  a plot written here; the silhouette
   diagnostic (silhouette_plot.png) is computed on the full matrix used for
   clustering, not the viz embedding - see
   src/analysis/clustering_tuning.py::compute_silhouette_samples), skipped
@@ -80,31 +80,46 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.analysis.clustering import CLUSTERING_METHODS
+from src.analysis.clustering import CLUSTERING_METHODS, _validate_evidence_accumulation_params
 from src.analysis.clustering_tuning import (
     CONSENSUS_METRIC_COLUMNS,
     METHOD_METRIC_COLUMNS,
+    STABILITY_ELIGIBLE_METHODS,
+    STABILITY_METRIC_NAME,
+    STABILITY_NUISANCE_PARAM,
+    STABILITY_TARGET_PARAM,
     STANDALONE_DIAGNOSTIC_METHODS,
     compute_dendrogram_linkage,
     compute_eigengap,
+    compute_interclass_distance_matrix,
     compute_silhouette_samples,
+    compute_stability_sweep,
     consensus_suggestion_lines,
+    hdbscan_labels_and_probabilities,
+    representative_values,
     run_clustering_tuning_sweep,
+    run_spectral_affinity_aware_sweep,
 )
+from src.analysis.consensus_clustering import assign_clusters_from_cooccurrence, compute_evidence_accumulation_convergence, run_rsc_repeats
 from src.analysis.model_config import ClusteringConfig, load_clustering_config
-from src.analysis.params import load_consensus_config, load_method_params, load_tuning_grid
+from src.analysis.params import load_consensus_config, load_method_params, load_stability_config, load_tuning_grid
 from src.analysis.plotting import (
     compose_comparison_title,
     compose_run_title,
     plot_clusters_2d,
     plot_clusters_comparison,
     plot_clusters_comparison_interactive,
-    plot_clusters_interactive,
     plot_clustering_tuning_heatmaps,
     plot_clustering_tuning_metrics,
+    plot_consensus_matrix_heatmap,
     plot_dendrogram,
     plot_eigengap,
+    plot_grouped_tuning_metrics,
+    plot_interclass_distance_matrix,
     plot_silhouette_analysis,
+    plot_spectral_tuning,
+    plot_stability_analysis,
+    plot_tuning_curve,
 )
 from src.utils.artifacts import load_matrix, read_dim_reduction_method, read_run_params, save_matrix
 from src.utils.logging_setup import attach_file_handler, log_duration
@@ -163,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
         if X_viz is None:
             logging.warning(
                 "X has %d components (not 2 or 3) and no viz_embedding_path was given - skipping every "
-                "cluster-colored plot (cluster_plot.png/cluster_plot_interactive.html/silhouette_plot.png/"
+                "cluster-colored plot (cluster_plot.png/silhouette_plot.png/"
                 "cluster_comparison.png/cluster_comparison_interactive.html) for this run. If X has more "
                 "than 3 components, produce a companion 2D/3D embedding separately (dim_reduction.py, "
                 "same params as the one used for this input, only n_components different) and set "
@@ -346,7 +361,15 @@ def _run_one_method(
         return None
 
     try:
-        cluster_labels = CLUSTERING_METHODS[method](X, params)
+        if method == "hdbscan":
+            # project-clustering-tuning-redesign memory (26-08-26): probabilities_ (per-point
+            # membership confidence) is only reachable from the fitted estimator, not from
+            # CLUSTERING_METHODS["hdbscan"]'s labels-only contract - refit directly here to size
+            # cluster_plot.png's markers by it below.
+            cluster_labels, membership_probabilities = hdbscan_labels_and_probabilities(X, params)
+        else:
+            cluster_labels = CLUSTERING_METHODS[method](X, params)
+            membership_probabilities = None
     except (TypeError, ValueError) as exc:
         # Same gap as HIGH #11 (dim_reduction.py's embed()), found here during the same
         # audit under #18 - load_method_params validates the file/method exist, never the
@@ -383,18 +406,9 @@ def _run_one_method(
             xlabel="viz dim 1",
             ylabel="viz dim 2",
             title=plot_title,
+            point_sizes=membership_probabilities,
         )
         logging.info("[%s] cluster plot written to %s", method, output_dir / "cluster_plot.png")
-
-        plot_clusters_interactive(
-            X_viz,
-            metadata_out,
-            output_dir / "cluster_plot_interactive.html",
-            xlabel="viz dim 1",
-            ylabel="viz dim 2",
-            title=plot_title,
-        )
-        logging.info("[%s] interactive cluster plot written to %s", method, output_dir / "cluster_plot_interactive.html")
 
         try:
             sample_labels, sample_silhouette_values = compute_silhouette_samples(X, cluster_labels)
@@ -414,7 +428,7 @@ def _run_one_method(
     else:
         logging.warning(
             "[%s] no viz embedding available (see warning logged in main()) - skipping "
-            "cluster_plot.png/cluster_plot_interactive.html/silhouette_plot.png",
+            "cluster_plot.png/silhouette_plot.png",
             method,
         )
 
@@ -543,12 +557,31 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
         base_params, _ = load_method_params(config.params_file, method)
         tuning_grid = load_tuning_grid(config.params_file, method)
         consensus_config = load_consensus_config(config.params_file, method)
+        stability_config = load_stability_config(config.params_file, method)
     except (FileNotFoundError, ValueError) as exc:
         logging.error("[%s] %s", method, exc)
         return False
 
+    if method == "spectral" and "affinity" in tuning_grid and config.save_tuning_clusterings:
+        # run_spectral_affinity_aware_sweep's labels_by_combo keys are (affinity, *sub_combo) -
+        # sub_combo's own key order varies per affinity sub-sweep (each restricted to its own
+        # hyperparameter alone), so it never lines up with the full tuning_grid.keys() order
+        # _write_tuning_clusterings/_combo_key assume for every other method - refusing rather
+        # than silently writing misaligned keys into clusterings.npz.
+        logging.error(
+            "[%s] save_tuning_clusterings is not supported together with a swept 'affinity' - "
+            "disable save_tuning_clusterings or don't sweep 'affinity' for this run",
+            method,
+        )
+        return False
+
     try:
-        results, labels_by_combo = run_clustering_tuning_sweep(method, X, base_params, tuning_grid, consensus_config)
+        if method == "spectral" and "affinity" in tuning_grid:
+            # project-clustering-tuning-redesign memory (26-08-26): n_neighbors/gamma only
+            # apply to their own affinity - avoid wasting half the sweep on the irrelevant one.
+            results, labels_by_combo = run_spectral_affinity_aware_sweep(X, base_params, tuning_grid, consensus_config)
+        else:
+            results, labels_by_combo = run_clustering_tuning_sweep(method, X, base_params, tuning_grid, consensus_config)
     except (TypeError, ValueError) as exc:
         # TypeError: a bad tuning_grid value reaches the estimator's own **params unpack
         # (same gap as _run_one_method's production path above, HIGH #11/#18).
@@ -562,6 +595,15 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
         logging.error("[%s] %s", method, exc)
         return False
     logging.info("[%s] tuning results written to %s (%d combination(s) evaluated)", method, output_dir, len(results))
+
+    if stability_config is not None:
+        title = compose_run_title(output_dir, config.project)
+        try:
+            _write_stability_output(output_dir, method, X, tuning_grid, stability_config, title)
+        except (ValueError, TypeError, OSError) as exc:
+            logging.error("[%s] stability analysis failed: %s", method, exc)
+            return False
+        logging.info("[%s] stability analysis written to %s", method, output_dir)
 
     try:
         append_run_log_entry(
@@ -622,7 +664,29 @@ def _write_tuning_output(
         metadata.to_csv(output_dir / "metadata.csv", index=False)
     title = compose_run_title(output_dir, config.project)
     metric_cols = METHOD_METRIC_COLUMNS[method] + [c for c in CONSENSUS_METRIC_COLUMNS if c in results.columns]
-    if len(swept_params) == 1:
+    if method == "spectral" and "affinity" in tuning_grid:
+        # project-clustering-tuning-redesign memory (26-08-26): the affinity-aware sweep's own
+        # x-axis is whatever other key was actually swept (typically n_clusters) - "affinity"
+        # itself and its own hyperparameter (n_neighbors/gamma) become the per-line grouping
+        # inside plot_spectral_tuning, not a plot axis.
+        other_params = [key for key in swept_params if key not in ("affinity", "n_neighbors", "gamma")]
+        if len(other_params) == 1:
+            plot_spectral_tuning(results, other_params[0], metric_cols, output_dir / "tuning_plot.png", title)
+        else:
+            logging.warning(
+                "[%s] affinity-aware sweep has %d parameter(s) besides affinity/n_neighbors/gamma - "
+                "no metric plot generated (plot_spectral_tuning needs exactly 1)",
+                method,
+                len(other_params),
+            )
+    elif method == "evidence_accumulation" and "threshold" in tuning_grid and len(swept_params) == 2:
+        # project-clustering-tuning-redesign memory (26-08-26): threshold x Split-phase k -
+        # one line per Split-phase k value, x=threshold (never a heatmap for this pair - lets a
+        # human read whether the Merge-phase result is sensitive to "how much larger than
+        # expected" the Split decomposition was).
+        split_k_param = next(key for key in swept_params if key != "threshold")
+        plot_grouped_tuning_metrics(results, "threshold", split_k_param, metric_cols, output_dir / "tuning_plot.png", title)
+    elif len(swept_params) == 1:
         plot_clustering_tuning_metrics(results, swept_params[0], metric_cols, output_dir / "tuning_plot.png", title)
     elif len(swept_params) == 2:
         plot_clustering_tuning_heatmaps(
@@ -636,7 +700,7 @@ def _write_tuning_output(
         )
 
     if method in STANDALONE_DIAGNOSTIC_METHODS:
-        _write_standalone_diagnostic(output_dir, method, X, base_params, title)
+        _write_standalone_diagnostic(output_dir, method, X, base_params, tuning_grid, metadata, title)
 
     readme_lines = [
         f"# {title}",
@@ -705,21 +769,128 @@ def _write_tuning_clusterings(output_dir: Path, labels_by_combo: dict[tuple, np.
     tmp_path.replace(final_path)
 
 
-def _write_standalone_diagnostic(output_dir: Path, method: str, X: np.ndarray, base_params: dict, title: str) -> None:
-    """Diagnostic plot independent of the swept tuning_grid, computed once
-    from base_params - see src/analysis/clustering_tuning.py's module
-    docstring for why these 2 (and only these 2) methods get one.
+def _write_stability_output(
+    output_dir: Path, method: str, X: np.ndarray, tuning_grid: dict[str, list], stability_config: dict, title: str
+) -> None:
+    """kmeans/gmm's init/n_init stability-analysis diagnostic (see
+    src/analysis/clustering_tuning.py::compute_stability_sweep) - writes
+    stability_results.csv + stability_plot.png into the same tuning output_dir
+    as the plain sweep. Representative target values (n_clusters/n_components)
+    are derived from this run's own tuning_grid, not declared separately in
+    stability_config - raises ValueError if STABILITY_TARGET_PARAM[method]
+    isn't a swept key in this tuning_grid, since there's nothing to derive
+    them from otherwise.
+    """
+    if method not in STABILITY_ELIGIBLE_METHODS:
+        raise ValueError(f"stability analysis is only defined for {sorted(STABILITY_ELIGIBLE_METHODS)}, got {method!r}")
+    target_param = STABILITY_TARGET_PARAM[method]
+    if target_param not in tuning_grid:
+        raise ValueError(f"[{method}] stability analysis needs {target_param!r} in tuning_grid to pick representative values")
+
+    target_values = representative_values(tuning_grid[target_param])
+    stability_df = compute_stability_sweep(
+        method, X, target_values, stability_config["nuisance_values"], stability_config["n_init_range"], stability_config["n_repeats"]
+    )
+    stability_df.to_csv(output_dir / "stability_results.csv", index=False)
+    plot_stability_analysis(
+        stability_df, target_param, STABILITY_NUISANCE_PARAM[method], STABILITY_METRIC_NAME[method], output_dir / "stability_plot.png", title
+    )
+
+
+def _write_standalone_diagnostic(
+    output_dir: Path, method: str, X: np.ndarray, base_params: dict, tuning_grid: dict[str, list], metadata: pd.DataFrame, title: str
+) -> None:
+    """Diagnostic plot(s) independent of which value in the swept grid ends up chosen - see
+    src/analysis/clustering_tuning.py's module docstring for why these 3 (and only these 3)
+    methods get one.
     """
     if method == "agglomerative":
-        linkage_matrix = compute_dendrogram_linkage(X, base_params)
-        plot_dendrogram(linkage_matrix, output_dir / "dendrogram.png", title)
-        logging.info("[%s] dendrogram written to %s", method, output_dir / "dendrogram.png")
+        _write_agglomerative_diagnostics(output_dir, X, base_params, tuning_grid, metadata, title)
     elif method == "spectral":
         eigenvalues = compute_eigengap(X, base_params)
         plot_eigengap(eigenvalues, output_dir / "eigengap_plot.png", title)
         logging.info("[%s] eigengap plot written to %s", method, output_dir / "eigengap_plot.png")
+    elif method == "evidence_accumulation":
+        _write_evidence_accumulation_diagnostics(output_dir, X, base_params, title)
     else:
         raise ValueError(f"no standalone diagnostic wired for method {method!r}")
+
+
+def _default_convergence_checkpoints(n_repeats: int) -> list[int]:
+    """5 evenly-spaced checkpoints up to base_params' own n_repeats (10%/25%/50%/75%/100%,
+    floored at 1, deduplicated and sorted) - a reasonable default sweep of "how many repeats"
+    to score convergence at, without requiring a separate config field for it.
+    """
+    fractions = (0.1, 0.25, 0.5, 0.75, 1.0)
+    return sorted({max(1, round(n_repeats * fraction)) for fraction in fractions})
+
+
+def _write_evidence_accumulation_diagnostics(output_dir: Path, X: np.ndarray, base_params: dict, title: str) -> None:
+    """evidence_accumulation's 2 new standalone diagnostics (project-clustering-tuning-redesign
+    memory, 26-08-26), both built directly on consensus_clustering.py's existing machinery, both
+    computed once from base_params (independent of the swept tuning_grid, same "standalone"
+    convention as agglomerative's dendrogram/spectral's eigengap):
+
+    - n_repeats_convergence.csv/.png: does the co-occurrence matrix actually stabilize as
+      n_repeats grows, or is base_params' own n_repeats arbitrary? (compute_evidence_
+      accumulation_convergence, incremental checkpoints, never refit from scratch per value).
+    - consensus_matrix_heatmap.png: Monti et al. 2003's own headline visualization, at
+      base_params' own n_repeats/threshold - the co-occurrence matrix reordered by the final
+      cluster assignment it actually produces.
+    """
+    base_method, split_params, n_repeats, base_seed, threshold = _validate_evidence_accumulation_params(base_params)
+
+    checkpoints = _default_convergence_checkpoints(n_repeats)
+    convergence_df = compute_evidence_accumulation_convergence(base_method, X, split_params, checkpoints, base_seed=base_seed)
+    convergence_df.to_csv(output_dir / "n_repeats_convergence.csv", index=False)
+    plot_tuning_curve(convergence_df, "n_repeats", "stability_score", output_dir / "n_repeats_convergence.png", title)
+    logging.info("[evidence_accumulation] n_repeats convergence written to %s", output_dir / "n_repeats_convergence.png")
+
+    co_occurrence = run_rsc_repeats(base_method, X, split_params, n_repeats, base_seed=base_seed)
+    final_labels = assign_clusters_from_cooccurrence(co_occurrence, threshold)
+    heatmap_path = output_dir / "consensus_matrix_heatmap.png"
+    plot_consensus_matrix_heatmap(co_occurrence, final_labels, heatmap_path, title)
+    logging.info("[evidence_accumulation] consensus matrix heatmap written to %s", heatmap_path)
+
+
+def _write_agglomerative_diagnostics(
+    output_dir: Path, X: np.ndarray, base_params: dict, tuning_grid: dict[str, list], metadata: pd.DataFrame, title: str
+) -> None:
+    """One dendrogram per swept `linkage` value when linkage is actually swept (project-
+    clustering-tuning-redesign memory, 26-08-26 - a single dendrogram.png would otherwise
+    silently show only one linkage's tree once linkage becomes a swept parameter), falling back
+    to the original single dendrogram.png when it isn't (unchanged behavior for every existing
+    tuning_grid without a "linkage" key). Plus a metric-selection pre-check, independent of any
+    fit: one interclass-distance heatmap per swept `metric` value (or the base_params/default
+    "euclidean" metric alone when metric isn't swept), using "dataset" as the weak
+    ground-truth proxy grouping - skipped with a warning (not a sweep failure) when metadata has
+    no "dataset" column to use as one.
+    """
+    linkages = list(dict.fromkeys(tuning_grid["linkage"])) if "linkage" in tuning_grid else None
+    if linkages:
+        for linkage in linkages:
+            linkage_matrix = compute_dendrogram_linkage(X, {**base_params, "linkage": linkage})
+            dendrogram_path = output_dir / f"dendrogram_{linkage}.png"
+            plot_dendrogram(linkage_matrix, dendrogram_path, f"{title} ({linkage})")
+            logging.info("[agglomerative] dendrogram written to %s", dendrogram_path)
+    else:
+        linkage_matrix = compute_dendrogram_linkage(X, base_params)
+        plot_dendrogram(linkage_matrix, output_dir / "dendrogram.png", title)
+        logging.info("[agglomerative] dendrogram written to %s", output_dir / "dendrogram.png")
+
+    if "dataset" not in metadata.columns:
+        logging.warning(
+            "[agglomerative] metadata has no 'dataset' column - skipping interclass_distance_matrix.png "
+            "(no weak ground-truth proxy grouping available)"
+        )
+        return
+
+    metrics = list(dict.fromkeys(tuning_grid["metric"])) if "metric" in tuning_grid else [base_params.get("metric", "euclidean")]
+    proxy_labels = metadata["dataset"].to_numpy()
+    results_by_metric = {metric: compute_interclass_distance_matrix(X, proxy_labels, metric) for metric in metrics}
+    interclass_path = output_dir / "interclass_distance_matrix.png"
+    plot_interclass_distance_matrix(results_by_metric, interclass_path, title)
+    logging.info("[agglomerative] interclass distance matrix written to %s", interclass_path)
 
 
 def _log_path(config: ClusteringConfig, now: datetime) -> Path:

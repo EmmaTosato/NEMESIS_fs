@@ -6,13 +6,21 @@ import pytest
 from src.analysis.clustering_tuning import (
     CONSENSUS_METRIC_COLUMNS,
     METHOD_METRIC_COLUMNS,
+    STABILITY_ELIGIBLE_METHODS,
     STANDALONE_DIAGNOSTIC_METHODS,
     compute_clustering_metrics,
+    compute_clustering_metrics_metric_aware,
     compute_dendrogram_linkage,
     compute_eigengap,
+    compute_interclass_distance_matrix,
     compute_silhouette_samples,
+    compute_stability_sweep,
     consensus_suggestion_lines,
+    dunn_index,
+    hdbscan_labels_and_probabilities,
+    representative_values,
     run_clustering_tuning_sweep,
+    run_spectral_affinity_aware_sweep,
 )
 
 
@@ -152,6 +160,40 @@ def test_compute_silhouette_samples_raises_when_all_noise():
         compute_silhouette_samples(X, labels)
 
 
+def test_dunn_index_well_separated_clusters_is_positive_and_greater_than_bad_split():
+    X = _three_blobs()
+    good_labels = np.array([0] * 15 + [1] * 15 + [2] * 15)
+    # a deliberately bad split: cuts straight through one of the well-separated blobs,
+    # so both its intra-cluster diameter and inter-cluster separation get worse
+    bad_labels = np.array([0] * 7 + [1] * 8 + [2] * 15 + [0] * 15)
+
+    assert dunn_index(X, good_labels) > dunn_index(X, bad_labels) > 0
+
+
+def test_dunn_index_excludes_noise():
+    X = _three_blobs()
+    labels = np.array([0] * 15 + [1] * 15 + [-1] * 15)  # 3rd blob relabeled as noise
+
+    # only 2 non-noise clusters left (the well-separated first two blobs) -> still defined
+    assert dunn_index(X, labels) > 0
+
+
+def test_dunn_index_raises_on_degenerate_single_cluster():
+    X = _three_blobs()
+    labels = np.zeros(45, dtype=int)
+
+    with pytest.raises(ValueError, match="non-noise cluster"):
+        dunn_index(X, labels)
+
+
+def test_dunn_index_raises_when_every_cluster_is_a_singleton():
+    X = _three_blobs()[:3]  # 3 points
+    labels = np.array([0, 1, 2])  # each its own cluster: every diameter is 0.0
+
+    with pytest.raises(ValueError, match="singleton"):
+        dunn_index(X, labels)
+
+
 def test_run_clustering_tuning_sweep_kmeans_includes_inertia():
     X = _three_blobs()
     df, _ = run_clustering_tuning_sweep("kmeans", X, {"random_state": 0, "n_init": "auto"}, {"n_clusters": [2, 3, 4]})
@@ -272,8 +314,203 @@ def test_compute_eigengap_raises_on_unsupported_affinity():
         compute_eigengap(X, {"affinity": "precomputed"})
 
 
-def test_standalone_diagnostic_methods_covers_exactly_agglomerative_spectral():
-    assert STANDALONE_DIAGNOSTIC_METHODS == {"agglomerative", "spectral"}
+# --- spectral affinity-aware sweep (project-clustering-tuning-redesign memory, 26-08-26) ----
+
+
+def test_run_spectral_affinity_aware_sweep_concatenates_both_affinities():
+    X = _three_blobs()
+    tuning_grid = {"n_clusters": [2, 3], "affinity": ["nearest_neighbors", "rbf"], "n_neighbors": [5, 10], "gamma": [0.5, 1.0]}
+
+    df, labels_by_combo = run_spectral_affinity_aware_sweep(
+        X, {"assign_labels": "cluster_qr", "random_state": 0}, tuning_grid
+    )
+
+    # 2 n_clusters x 2 n_neighbors (nearest_neighbors) + 2 n_clusters x 2 gamma (rbf) = 8
+    assert len(df) == 8
+    assert set(df["affinity"]) == {"nearest_neighbors", "rbf"}
+    nn_rows = df[df["affinity"] == "nearest_neighbors"]
+    rbf_rows = df[df["affinity"] == "rbf"]
+    assert nn_rows["n_neighbors"].notna().all()
+    assert nn_rows["gamma"].isna().all()
+    assert rbf_rows["gamma"].notna().all()
+    assert rbf_rows["n_neighbors"].isna().all()
+    assert len(labels_by_combo) == 8
+
+
+def test_run_spectral_affinity_aware_sweep_requires_affinity_key():
+    X = _three_blobs()
+    with pytest.raises(ValueError, match="requires 'affinity'"):
+        run_spectral_affinity_aware_sweep(X, {}, {"n_clusters": [2, 3]})
+
+
+def test_hdbscan_labels_and_probabilities_shapes_and_noise_has_zero_probability():
+    X = _three_blobs()
+    labels, probabilities = hdbscan_labels_and_probabilities(X, {"min_cluster_size": 5})
+
+    assert labels.shape == (45,)
+    assert probabilities.shape == (45,)
+    assert ((probabilities >= 0) & (probabilities <= 1)).all()
+    assert (probabilities[labels == -1] == 0).all()
+
+
+def test_standalone_diagnostic_methods_covers_exactly_agglomerative_spectral_evidence_accumulation():
+    assert STANDALONE_DIAGNOSTIC_METHODS == {"agglomerative", "spectral", "evidence_accumulation"}
+
+
+# --- representative_values / compute_stability_sweep (kmeans/gmm stability analysis,
+# project-clustering-tuning-redesign memory, 26-08-26) ---------------------------------
+
+
+def test_representative_values_picks_min_median_max():
+    assert representative_values([2, 3, 4, 5, 6, 8, 10]) == [2, 5, 10]
+
+
+def test_representative_values_dedups_small_lists():
+    assert representative_values([3]) == [3]
+    assert representative_values([3, 5]) == [3, 5]
+
+
+def test_representative_values_raises_on_empty():
+    with pytest.raises(ValueError, match="at least one value"):
+        representative_values([])
+
+
+def test_stability_eligible_methods_covers_exactly_kmeans_gmm():
+    assert STABILITY_ELIGIBLE_METHODS == {"kmeans", "gmm"}
+
+
+def test_compute_stability_sweep_kmeans_shape_and_columns():
+    X = _three_blobs()
+    df = compute_stability_sweep("kmeans", X, [2, 3], ["k-means++", "random"], [1, 5], n_repeats=2)
+
+    assert len(df) == 2 * 2 * 2 * 2  # targets x nuisance x n_init x repeats
+    assert set(df.columns) == {"n_clusters", "init", "n_init", "repeat", "inertia"}
+    assert set(df["n_clusters"]) == {2, 3}
+    assert set(df["init"]) == {"k-means++", "random"}
+    assert (df["inertia"] > 0).all()
+
+
+def test_compute_stability_sweep_gmm_shape_and_columns():
+    X = _three_blobs()
+    df = compute_stability_sweep("gmm", X, [2, 3], ["kmeans", "random"], [1, 3], n_repeats=2)
+
+    assert len(df) == 2 * 2 * 2 * 2
+    assert set(df.columns) == {"n_components", "init_params", "n_init", "repeat", "bic"}
+    assert df["bic"].notna().all()
+
+
+def test_compute_stability_sweep_rejects_ineligible_method():
+    X = _three_blobs()
+    with pytest.raises(ValueError, match="only defined for"):
+        compute_stability_sweep("agglomerative", X, [2, 3], ["k-means++"], [1], n_repeats=1)
+
+
+# --- agglomerative metric-aware sweep (project-clustering-tuning-redesign memory, 26-08-26) --
+
+
+def _binary_toy_groups():
+    """3 groups with a distinct high-probability "core" feature subset each - binary, required
+    for jaccard/dice metrics (require_binary_matrix)."""
+    rng = np.random.default_rng(0)
+    n_per_group, n_features, core_size = 10, 40, 8
+    rows, groups = [], []
+    for g in range(3):
+        core = rng.choice(n_features, size=core_size, replace=False)
+        for _ in range(n_per_group):
+            row = (rng.random(n_features) < 0.03).astype(float)
+            row[core] = (rng.random(core_size) < 0.85).astype(float)
+            rows.append(row)
+            groups.append(f"group{g}")
+    return np.array(rows), np.array(groups)
+
+
+def test_compute_clustering_metrics_metric_aware_euclidean_computes_all_four():
+    X = _three_blobs()
+    labels = np.array([0] * 15 + [1] * 15 + [2] * 15)
+
+    metrics = compute_clustering_metrics_metric_aware(X, labels, "euclidean")
+
+    assert metrics["silhouette"] > 0.8
+    assert not np.isnan(metrics["calinski_harabasz"])
+    assert not np.isnan(metrics["davies_bouldin"])
+    assert metrics["noise_fraction"] == 0.0
+
+
+def test_compute_clustering_metrics_metric_aware_non_euclidean_skips_ch_db():
+    X, groups = _binary_toy_groups()
+    labels = np.array([0] * 10 + [1] * 10 + [2] * 10)
+
+    metrics = compute_clustering_metrics_metric_aware(X, labels, "cosine")
+
+    assert not np.isnan(metrics["silhouette"])
+    assert np.isnan(metrics["calinski_harabasz"])
+    assert np.isnan(metrics["davies_bouldin"])
+
+
+def test_compute_clustering_metrics_metric_aware_dice_computes_silhouette():
+    X, groups = _binary_toy_groups()
+    labels = np.array([0] * 10 + [1] * 10 + [2] * 10)
+
+    metrics = compute_clustering_metrics_metric_aware(X, labels, "dice")
+
+    assert metrics["silhouette"] > 0.0  # well-separated groups, precomputed dice distance
+    assert np.isnan(metrics["calinski_harabasz"])
+
+
+def test_run_clustering_tuning_sweep_agglomerative_skips_invalid_ward_metric_combos(caplog):
+    import logging
+
+    X = _three_blobs()
+    with caplog.at_level(logging.WARNING):
+        df, labels_by_combo = run_clustering_tuning_sweep(
+            "agglomerative",
+            X,
+            {"n_clusters": 3},
+            {"linkage": ["ward", "average"], "metric": ["euclidean", "cosine"]},
+        )
+
+    # ward+cosine is invalid and skipped - only 3 of the 4 combinations survive
+    assert len(df) == 3
+    assert len(labels_by_combo) == 3
+    assert not ((df["linkage"] == "ward") & (df["metric"] == "cosine")).any()
+    assert "skipping invalid combination" in caplog.text
+
+
+def test_run_clustering_tuning_sweep_agglomerative_non_euclidean_has_nan_ch_db():
+    X, groups = _binary_toy_groups()
+    df, _ = run_clustering_tuning_sweep(
+        "agglomerative", X, {"n_clusters": 3}, {"linkage": ["average"], "metric": ["cosine", "dice"]}
+    )
+
+    assert df["calinski_harabasz"].isna().all()
+    assert df["davies_bouldin"].isna().all()
+    assert df["silhouette"].notna().all()
+
+
+def test_compute_interclass_distance_matrix_within_group_lower_than_between():
+    X, groups = _binary_toy_groups()
+
+    unique_groups, matrix = compute_interclass_distance_matrix(X, groups, "dice")
+
+    assert unique_groups == ["group0", "group1", "group2"]
+    assert matrix.shape == (3, 3)
+    # within-group (diagonal) distance should be lower than between-group (off-diagonal) -
+    # the 3 groups were built with disjoint "core" feature subsets specifically for this
+    for i in range(3):
+        for j in range(3):
+            if i != j:
+                assert matrix[i, i] < matrix[i, j]
+
+
+def test_compute_interclass_distance_matrix_single_member_group_is_nan():
+    X, groups = _binary_toy_groups()
+    groups = groups.astype(object)  # avoid numpy fixed-width string truncation on the next line
+    groups[0] = "singleton"  # only 1 subject now belongs to "singleton"
+
+    unique_groups, matrix = compute_interclass_distance_matrix(X, groups, "euclidean")
+
+    singleton_idx = unique_groups.index("singleton")
+    assert np.isnan(matrix[singleton_idx, singleton_idx])
 
 
 # --- run_clustering_tuning_sweep(consensus_config=...) / consensus_suggestion_lines ---

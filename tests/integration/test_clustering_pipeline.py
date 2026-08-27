@@ -288,7 +288,6 @@ def test_clustering_end_to_end_no_viz_embedding_skips_plots(tmp_path, monkeypatc
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}  # the artifact itself is still written
     assert not (out_dir / "cluster_plot.png").exists()
-    assert not (out_dir / "cluster_plot_interactive.html").exists()
     assert not (out_dir / "silhouette_plot.png").exists()
 
 
@@ -484,6 +483,85 @@ def test_clustering_end_to_end_hdbscan_reports_noise_separately(tmp_path, monkey
     readme = (out_dir / "config.md").read_text()
     assert "Clusters found: 0" in readme
     assert "12 noise points, label -1" in readme
+
+
+def test_clustering_end_to_end_hdbscan_cluster_plot_sized_by_probabilities(tmp_path, monkeypatch):
+    """project-clustering-tuning-redesign memory (26-08-26): the production cluster_plot.png
+    for hdbscan must be produced via the probabilities_-aware path
+    (hdbscan_labels_and_probabilities), not the plain labels-only CLUSTERING_METHODS["hdbscan"]
+    every other method still uses."""
+    input_dir = _build_matrix(tmp_path, monkeypatch, n_subjects=30)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({"hdbscan": {"params": {"min_cluster_size": 3}}}))
+
+    input_metadata = pd.read_csv(input_dir / "metadata.csv")
+    viz_dir = _write_viz_embedding(tmp_path, "viz_embedding", input_metadata)
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["hdbscan"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+        "viz_embedding_path": str(viz_dir),
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    out_dir = next(p for p in (output_root / "production" / "hdbscan").iterdir() if p.is_dir())
+    assert (out_dir / "cluster_plot.png").stat().st_size > 0
+
+
+def test_clustering_fine_tuning_hdbscan_min_samples_joint_sweep_writes_heatmap(tmp_path, monkeypatch):
+    """project-clustering-tuning-redesign memory (26-08-26): min_cluster_size x min_samples
+    reuses the existing 2-swept-param heatmap mechanism, in a single sweep run (no repeated/
+    sequential tuning runs)."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {"hdbscan": {"params": {}, "tuning_grid": {"min_cluster_size": [2, 5], "min_samples": [2, 5]}}}
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["hdbscan"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_joint",
+        "overwrite": False,
+        "fine_tuning": True,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (output_root / "tuning" / "hdbscan").iterdir() if p.is_dir())
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0  # heatmap, 2 swept params
+
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert len(results) == 4
+    assert set(results["min_samples"]) == {2, 5}
 
 
 def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path, monkeypatch):
@@ -942,6 +1020,114 @@ def test_clustering_fine_tuning_kmeans_with_consensus_writes_rsc_monti_columns(t
     assert "Monti suggests n_clusters=" in suggestions
 
 
+def test_clustering_fine_tuning_agglomerative_metric_aware_sweep_writes_new_diagnostics(tmp_path, monkeypatch):
+    """project-clustering-tuning-redesign memory (26-08-26): a swept linkage x metric grid must
+    (1) skip the invalid ward+non-euclidean combinations rather than crash, (2) write one
+    dendrogram per swept linkage value (not a single stale dendrogram.png), (3) write
+    interclass_distance_matrix.png, one heatmap per swept metric value, using the fixture's own
+    "dataset" metadata column as the weak ground-truth proxy grouping."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "agglomerative": {
+                    "params": {"n_clusters": 3},
+                    "tuning_grid": {
+                        "n_clusters": [2, 3],
+                        "linkage": ["ward", "average"],
+                        "metric": ["euclidean", "cosine"],
+                    },
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["agglomerative"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_metric_aware",
+        "overwrite": False,
+        "fine_tuning": True,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (output_root / "tuning" / "agglomerative").iterdir() if p.is_dir())
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    # 2 n_clusters x 2 linkage x 2 metric = 8, minus the 2 invalid ward+cosine combos
+    assert len(results) == 6
+    assert not ((results["linkage"] == "ward") & (results["metric"] == "cosine")).any()
+    assert results.loc[results["metric"] == "cosine", "calinski_harabasz"].isna().all()
+    assert results.loc[results["metric"] == "euclidean", "calinski_harabasz"].notna().all()
+
+    assert (tuning_dir / "dendrogram_ward.png").stat().st_size > 0
+    assert (tuning_dir / "dendrogram_average.png").stat().st_size > 0
+    assert not (tuning_dir / "dendrogram.png").exists()  # replaced by the per-linkage files
+
+    assert (tuning_dir / "interclass_distance_matrix.png").stat().st_size > 0
+
+
+def test_clustering_fine_tuning_kmeans_with_stability_writes_stability_output(tmp_path, monkeypatch):
+    """project-clustering-tuning-redesign memory (26-08-26): an opt-in "stability" config
+    block must produce stability_results.csv/stability_plot.png alongside the plain sweep,
+    at the 3 representative n_clusters values derived from tuning_grid (min/median/max of
+    [2, 3, 4] -> [2, 3, 4])."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "kmeans": {
+                    "params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"},
+                    "tuning_grid": {"n_clusters": [2, 3, 4]},
+                    "stability": {"nuisance_values": ["k-means++", "random"], "n_init_range": [1, 3], "n_repeats": 2},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_stability",
+        "overwrite": False,
+        "fine_tuning": True,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans").iterdir() if p.is_dir())
+    assert (tuning_dir / "stability_plot.png").stat().st_size > 0
+
+    stability = pd.read_csv(tuning_dir / "stability_results.csv")
+    assert set(stability["n_clusters"]) == {2, 3, 4}
+    assert set(stability["init"]) == {"k-means++", "random"}
+    assert (stability["inertia"] > 0).all()
+
+
 def test_clustering_fine_tuning_gmm_writes_bic_aic(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
@@ -976,6 +1162,102 @@ def test_clustering_fine_tuning_gmm_writes_bic_aic(tmp_path, monkeypatch):
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert "bic" in results.columns
     assert "aic" in results.columns
+
+
+def test_clustering_fine_tuning_gmm_covariance_type_joint_sweep_writes_heatmap(tmp_path, monkeypatch):
+    """project-clustering-tuning-redesign memory (26-08-26): n_components x covariance_type is
+    a legitimate joint sweep (AIC/BIC are the correct model-selection tool for it), needing
+    zero change to run_clustering_tuning_sweep - covariance_type reaches GaussianMixture(**params)
+    like any other swept key."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "gmm": {
+                    "params": {"n_components": 3, "random_state": 0},
+                    "tuning_grid": {"n_components": [2, 3], "covariance_type": ["full", "diag"]},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["gmm"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_covariance",
+        "overwrite": False,
+        "fine_tuning": True,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (output_root / "tuning" / "gmm").iterdir() if p.is_dir())
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0  # heatmap, 2 swept params
+
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert len(results) == 4
+    assert set(results["covariance_type"]) == {"full", "diag"}
+    assert results["bic"].notna().all()
+    assert results["aic"].notna().all()
+
+
+def test_clustering_fine_tuning_gmm_with_stability_writes_stability_output(tmp_path, monkeypatch):
+    """gmm inherits kmeans's stability analysis (project-clustering-tuning-redesign memory,
+    26-08-26) - on its own knobs (n_init/init_params) and its own metric (bic)."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "gmm": {
+                    "params": {"n_components": 3, "random_state": 0},
+                    "tuning_grid": {"n_components": [2, 3, 4]},
+                    "stability": {"nuisance_values": ["kmeans", "random"], "n_init_range": [1, 3], "n_repeats": 2},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["gmm"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_gmm_stability",
+        "overwrite": False,
+        "fine_tuning": True,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (output_root / "tuning" / "gmm").iterdir() if p.is_dir())
+    assert (tuning_dir / "stability_plot.png").stat().st_size > 0
+
+    stability = pd.read_csv(tuning_dir / "stability_results.csv")
+    assert set(stability["n_components"]) == {2, 3, 4}
+    assert set(stability["init_params"]) == {"kmeans", "random"}
+    assert stability["bic"].notna().all()
 
 
 def test_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkeypatch):
@@ -1053,6 +1335,95 @@ def test_clustering_fine_tuning_spectral_writes_eigengap(tmp_path, monkeypatch):
     assert (tuning_dir / "eigengap_plot.png").stat().st_size > 0  # standalone diagnostic, spectral-only
 
 
+def test_clustering_fine_tuning_spectral_affinity_aware_sweep_writes_combined_plot(tmp_path, monkeypatch):
+    """project-clustering-tuning-redesign memory (26-08-26): a swept 'affinity' runs the
+    affinity-aware sweep (2 sub-sweeps, n_neighbors/gamma each only applying to their own
+    affinity) and writes the combined plot_spectral_tuning tuning_plot.png, not the generic
+    line/heatmap dispatch."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "spectral": {
+                    "params": {"n_clusters": 3, "assign_labels": "cluster_qr", "random_state": 0},
+                    "tuning_grid": {
+                        "n_clusters": [2, 3],
+                        "affinity": ["nearest_neighbors", "rbf"],
+                        "n_neighbors": [5, 10],
+                        "gamma": [0.5, 1.0],
+                    },
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["spectral"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_affinity",
+        "overwrite": False,
+        "fine_tuning": True,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (output_root / "tuning" / "spectral").iterdir() if p.is_dir())
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
+    assert (tuning_dir / "eigengap_plot.png").stat().st_size > 0  # standalone diagnostic, unchanged
+
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert len(results) == 8
+    assert set(results["affinity"]) == {"nearest_neighbors", "rbf"}
+
+
+def test_clustering_fine_tuning_spectral_affinity_aware_sweep_rejects_save_tuning_clusterings(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "spectral": {
+                    "params": {"n_clusters": 3, "assign_labels": "cluster_qr", "random_state": 0},
+                    "tuning_grid": {"n_clusters": [2, 3], "affinity": ["nearest_neighbors", "rbf"], "n_neighbors": [5], "gamma": [1.0]},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["spectral"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_affinity_reject",
+        "overwrite": False,
+        "fine_tuning": True,
+        "reduced_data": False,
+        "save_tuning_clusterings": True,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 1
+
+
 def test_clustering_fine_tuning_hdbscan_writes_noise_fraction(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
@@ -1088,6 +1459,66 @@ def test_clustering_fine_tuning_hdbscan_writes_noise_fraction(tmp_path, monkeypa
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert "noise_fraction" in results.columns
+
+
+def test_clustering_fine_tuning_evidence_accumulation_threshold_split_k_sweep_writes_new_diagnostics(tmp_path, monkeypatch):
+    """project-clustering-tuning-redesign memory (26-08-26): threshold x Split-phase n_clusters
+    joint sweep (grouped line plot, not a heatmap) + n_repeats convergence check + consensus
+    matrix heatmap, all in one fine-tuning run."""
+    input_dir = _build_matrix(tmp_path, monkeypatch, n_subjects=15)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "evidence_accumulation": {
+                    "params": {
+                        "base_method": "kmeans",
+                        "n_clusters": 6,
+                        "n_init": "auto",
+                        "n_repeats": 10,
+                        "threshold": 0.5,
+                        "base_seed": 0,
+                    },
+                    "tuning_grid": {"threshold": [0.3, 0.5, 0.7], "n_clusters": [4, 6]},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "clustering_methods": ["evidence_accumulation"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_ea",
+        "overwrite": False,
+        "fine_tuning": True,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (output_root / "tuning" / "evidence_accumulation").iterdir() if p.is_dir())
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert len(results) == 6  # 3 thresholds x 2 split-k
+    assert set(results["n_clusters"]) == {4, 6}
+
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0  # grouped line plot, not a heatmap
+
+    assert (tuning_dir / "n_repeats_convergence.png").stat().st_size > 0
+    convergence = pd.read_csv(tuning_dir / "n_repeats_convergence.csv")
+    assert list(convergence.columns) == ["n_repeats", "stability_score"]
+    assert len(convergence) > 0
+
+    assert (tuning_dir / "consensus_matrix_heatmap.png").stat().st_size > 0
 
 
 def test_clustering_fine_tuning_multiple_methods_stops_on_first_failure(tmp_path, monkeypatch):

@@ -7,10 +7,12 @@ from src.analysis.consensus_clustering import (
     CONSENSUS_ELIGIBLE_METHODS,
     K_PARAM_NAME,
     assign_clusters_from_cooccurrence,
+    compute_evidence_accumulation_convergence,
     compute_monti_stability,
     compute_rsc_eigengap,
     run_monti_repeats,
     run_rsc_repeats,
+    subsampling_stability_index,
 )
 
 
@@ -78,6 +80,41 @@ def test_run_monti_repeats_on_well_separated_blobs_is_near_binary():
     across_blobs = consensus[:20, 20:]
     assert (within_blob > 0.9).all()
     assert (across_blobs < 0.1).all()
+
+
+def test_subsampling_stability_index_high_on_well_separated_blobs():
+    X = _two_blobs()
+    index = subsampling_stability_index("kmeans", X, {"n_clusters": 2, "n_init": "auto"}, subsample_fraction=0.8)
+
+    assert index > 0.9  # well-separated blobs: the 80% subsample recovers the same partition
+
+
+def test_subsampling_stability_index_works_for_deterministic_method_too():
+    """Unlike run_rsc_repeats/run_monti_repeats, subsampling_stability_index is not restricted
+    to CONSENSUS_ELIGIBLE_METHODS - agglomerative is deterministic but the comparison is still
+    meaningful (does a smaller sample change the deterministic result?)."""
+    X = _two_blobs()
+    index = subsampling_stability_index("agglomerative", X, {"n_clusters": 2, "linkage": "ward"}, subsample_fraction=0.8)
+
+    assert index > 0.9
+
+
+def test_subsampling_stability_index_rejects_unknown_method():
+    X = _two_blobs()
+    with pytest.raises(ValueError, match="unknown clustering method"):
+        subsampling_stability_index("not_a_method", X, {}, subsample_fraction=0.8)
+
+
+def test_subsampling_stability_index_rejects_invalid_subsample_fraction():
+    X = _two_blobs()
+    with pytest.raises(ValueError, match="subsample_fraction"):
+        subsampling_stability_index("kmeans", X, {"n_clusters": 2, "n_init": "auto"}, subsample_fraction=1.5)
+
+
+def test_subsampling_stability_index_rejects_too_small_subsample():
+    X = _two_blobs(n_per_blob=2)  # 4 points total
+    with pytest.raises(ValueError, match="too small"):
+        subsampling_stability_index("kmeans", X, {"n_clusters": 2, "n_init": "auto"}, subsample_fraction=0.1)
 
 
 def test_compute_rsc_eigengap_larger_for_true_k_than_wrong_k():
@@ -181,3 +218,43 @@ def test_assign_clusters_from_cooccurrence_rejects_out_of_range_threshold():
         assign_clusters_from_cooccurrence(cooccurrence, threshold=1.1)
     with pytest.raises(ValueError, match="threshold"):
         assign_clusters_from_cooccurrence(cooccurrence, threshold=-0.1)
+
+
+# --- compute_evidence_accumulation_convergence (project-clustering-tuning-redesign memory,
+# 26-08-26) ---------------------------------------------------------------------------------
+
+
+def test_compute_evidence_accumulation_convergence_shape_and_columns():
+    X = _two_blobs()
+    df = compute_evidence_accumulation_convergence("kmeans", X, {"n_clusters": 2, "n_init": "auto"}, [5, 10, 20])
+
+    assert list(df.columns) == ["n_repeats", "stability_score"]
+    assert list(df["n_repeats"]) == [5, 10, 20]
+    assert ((df["stability_score"] >= 0.0) & (df["stability_score"] <= 1.0)).all()
+
+
+def test_compute_evidence_accumulation_convergence_well_separated_blobs_converges_high():
+    X = _two_blobs()
+    df = compute_evidence_accumulation_convergence("kmeans", X, {"n_clusters": 2, "n_init": "auto"}, [20])
+
+    # well-separated blobs: k-means finds the same 2 clusters regardless of init, so
+    # the co-occurrence matrix should already be stable (near 1.0) by 20 repeats
+    assert df["stability_score"].iloc[0] > 0.95
+
+
+def test_compute_evidence_accumulation_convergence_rejects_ineligible_method():
+    X = _two_blobs()
+    with pytest.raises(ValueError, match="gmm.*kmeans.*spectral"):
+        compute_evidence_accumulation_convergence("agglomerative", X, {"n_clusters": 2, "linkage": "ward"}, [5])
+
+
+def test_compute_evidence_accumulation_convergence_rejects_empty_checkpoints():
+    X = _two_blobs()
+    with pytest.raises(ValueError, match="non-empty"):
+        compute_evidence_accumulation_convergence("kmeans", X, {"n_clusters": 2, "n_init": "auto"}, [])
+
+
+def test_compute_evidence_accumulation_convergence_rejects_non_positive_checkpoint():
+    X = _two_blobs()
+    with pytest.raises(ValueError, match=">= 1"):
+        compute_evidence_accumulation_convergence("kmeans", X, {"n_clusters": 2, "n_init": "auto"}, [0, 5])

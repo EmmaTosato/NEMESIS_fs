@@ -127,7 +127,6 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch, caplog):
         "fine_tuning": False,
         "color_by": ["dataset", "volume", "side"],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "run_notes": None,
@@ -176,7 +175,6 @@ def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, mon
         "fine_tuning": True,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "run_notes": "prova sweep",
@@ -244,7 +242,6 @@ def test_dim_reduction_fine_tuning_save_tuning_embeddings_writes_npz(tmp_path, m
         "fine_tuning": True,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": True,
         "precompute_distance_metric": True,
         "run_notes": None,
@@ -309,7 +306,6 @@ def test_dim_reduction_save_tuning_embeddings_interrupted_write_leaves_no_trunca
         "fine_tuning": True,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": True,
         "precompute_distance_metric": True,
         "run_notes": None,
@@ -339,7 +335,6 @@ def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_pa
         "fine_tuning": True,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "run_notes": None,
@@ -376,7 +371,6 @@ def test_dim_reduction_fine_tuning_pacmap_writes_sweep_not_embedding(tmp_path, m
         "fine_tuning": True,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "run_notes": None,
@@ -413,7 +407,6 @@ def test_dim_reduction_fine_tuning_tsne_writes_sweep_not_embedding(tmp_path, mon
         "fine_tuning": True,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "run_notes": None,
@@ -528,7 +521,6 @@ def test_dim_reduction_jaccard_metric_on_non_binary_matrix_raises(tmp_path, monk
         "fine_tuning": False,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "run_notes": None,
@@ -570,7 +562,6 @@ def test_dim_reduction_unrecognized_hyperparameter_returns_1_not_raw_traceback(t
         "fine_tuning": False,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "run_notes": None,
@@ -601,7 +592,6 @@ def test_dim_reduction_missing_input_path_raises(tmp_path, monkeypatch):
         "fine_tuning": False,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "run_notes": None,
@@ -650,7 +640,6 @@ def test_dim_reduction_fine_tuning_nested_params_writes_leaf_folders_and_embeddi
         "fine_tuning": True,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "run_notes": None,
@@ -726,7 +715,6 @@ def test_dim_reduction_fine_tuning_overwrite_wipes_leaves_from_incompatible_prio
             "fine_tuning": True,
             "color_by": [],
             "viz_n_components": 2,
-            "write_embeddings_grid": True,
             "save_tuning_embeddings": False,
             "precompute_distance_metric": True,
             "run_notes": None,
@@ -751,68 +739,6 @@ def test_dim_reduction_fine_tuning_overwrite_wipes_leaves_from_incompatible_prio
 
     assert not stale_leaf.exists(), "leaf folder from the prior, incompatible nested_params must not survive overwrite=True"
     assert (tuning_dir / "metric=euclidean" / "tuning_results.csv").is_file()
-
-
-def test_dim_reduction_fine_tuning_write_embeddings_grid_false_skips_plots_keeps_csv(tmp_path, monkeypatch):
-    """write_embeddings_grid=False is a manual opt-out (2026-08 session): each
-    leaf's tuning_results.csv is still written (cheap, always useful), but
-    _build_grid_blocks/write_embedding_grid - and every umap refit that
-    mechanism would trigger - is skipped entirely. Useful when a sweep's
-    tuning_grid varies n_components: the refit for any leaf whose own
-    n_components != 2 is otherwise guaranteed redundant with whichever other
-    leaf already covers n_components=2 at the same free-parameter values
-    (same metric/n_neighbors/min_dist/random_state, umap is deterministic).
-    """
-    input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
-
-    params_path = tmp_path / "params_nested_no_grid.json"
-    params_path.write_text(
-        json.dumps(
-            {
-                "umap": {
-                    "params": {"n_neighbors": 3, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "euclidean"},
-                    "tuning_grid": {
-                        "metric": ["euclidean", "cosine"],
-                        "n_neighbors": [2, 3],
-                        "min_dist": [0.1, 0.5],
-                    },
-                    "nested_params": ["metric"],
-                    "trustworthiness_n_neighbors": 2,
-                }
-            }
-        )
-    )
-    output_root = tmp_path / "dr_out"
-    dr_cfg = {
-        "project": "testproj",
-        "input_path": str(input_dir),
-        "reduction_method": "umap",
-        "params_file": str(params_path),
-        "output_root": str(output_root),
-        "session_name": "tune_nested_no_grid",
-        "overwrite": False,
-        "fine_tuning": True,
-        "color_by": [],
-        "viz_n_components": 2,
-        "write_embeddings_grid": False,
-        "save_tuning_embeddings": False,
-        "precompute_distance_metric": True,
-        "run_notes": None,
-    }
-    dr_cfg_path = tmp_path / "dim_reduction_tuning_nested_no_grid.json"
-    dr_cfg_path.write_text(json.dumps(dr_cfg))
-
-    exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
-    assert exit_code == 0
-
-    tuning_dir = next(p for p in (output_root / "tuning" / "umap").iterdir() if p.is_dir())
-    assert (tuning_dir / "tuning_results.csv").is_file()
-    for metric in ("euclidean", "cosine"):
-        leaf_dir = tuning_dir / f"metric={metric}"
-        assert (leaf_dir / "tuning_results.csv").is_file()
-        assert not (leaf_dir / "embeddings_grid_unico.png").exists()
-    assert not any(tuning_dir.rglob("embeddings_grid_*.png"))
 
 
 def test_dim_reduction_fine_tuning_nested_n_components_skips_embeddings_grid_for_non_viz_leaf(tmp_path, monkeypatch):
@@ -857,7 +783,6 @@ def test_dim_reduction_fine_tuning_nested_n_components_skips_embeddings_grid_for
         "fine_tuning": True,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "run_notes": None,
@@ -920,7 +845,6 @@ def test_dim_reduction_fine_tuning_free_n_components_drops_non_viz_cells(tmp_pat
         "fine_tuning": True,
         "color_by": [],
         "viz_n_components": 2,
-        "write_embeddings_grid": True,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "run_notes": None,

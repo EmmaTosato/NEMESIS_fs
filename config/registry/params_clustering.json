@@ -3,14 +3,21 @@
     "tag_param": "n_clusters",
     "tag_prefix": "k",
     "params": { "n_clusters": 6, "random_state": 0, "n_init": "auto" },
-    "tuning_grid": { "n_clusters": [2, 3, 4, 5, 6, 8, 10] }
+    "tuning_grid": { "n_clusters": [2, 3, 4, 5, 6, 8, 10] },
+    "stability": {
+      "nuisance_values": ["k-means++", "random"],
+      "n_init_range": [1, 5, 10, 15, 20],
+      "n_repeats": 5
+    }
   },
   "agglomerative": {
     "tag_param": "n_clusters",
     "tag_prefix": "n_clust",
     "params": { "n_clusters": 2, "linkage": "ward" },
     "tuning_grid": {
-      "n_clusters": [2, 3, 4, 5, 6, 8, 10]
+      "n_clusters": [2, 3, 4, 5, 6, 8, 10],
+      "linkage": ["ward", "average", "complete", "single"],
+      "metric": ["euclidean", "cosine", "manhattan", "dice"]
     }
   },
   "gmm": {
@@ -18,7 +25,13 @@
     "tag_prefix": "n_comp",
     "params": { "n_components": 6, "random_state": 0 },
     "tuning_grid": {
-      "n_components": [2, 3, 4, 5, 6, 8, 10]
+      "n_components": [2, 3, 4, 5, 6, 8, 10],
+      "covariance_type": ["full", "tied", "diag", "spherical"]
+    },
+    "stability": {
+      "nuisance_values": ["kmeans", "random"],
+      "n_init_range": [1, 5, 10, 15, 20],
+      "n_repeats": 5
     }
   },
   "hdbscan": {
@@ -26,15 +39,19 @@
     "tag_prefix": "mcs",
     "params": { "min_cluster_size": 5 },
     "tuning_grid": {
-      "min_cluster_size": [5, 10, 15, 20, 30, 50]
+      "min_cluster_size": [5, 10, 15, 20, 30, 50],
+      "min_samples": [5, 10, 20]
     }
   },
   "spectral": {
     "tag_param": "n_clusters",
     "tag_prefix": "n_clust",
-    "params": { "n_clusters": 5, "affinity": "nearest_neighbors", "n_neighbors": 50, "random_state": 0 },
+    "params": { "n_clusters": 5, "affinity": "nearest_neighbors", "n_neighbors": 50, "assign_labels": "cluster_qr", "random_state": 0 },
     "tuning_grid": {
-      "n_clusters": [2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15]
+      "n_clusters": [2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15],
+      "affinity": ["nearest_neighbors", "rbf"],
+      "n_neighbors": [10, 30, 50],
+      "gamma": [0.1, 1.0, 5.0]
     }
   },
   "evidence_accumulation": {
@@ -45,12 +62,14 @@
       "n_clusters": 6,
       "affinity": "nearest_neighbors",
       "n_neighbors": 50,
+      "assign_labels": "cluster_qr",
       "n_repeats": 50,
       "threshold": 0.5,
       "base_seed": 0
     },
     "tuning_grid": {
-      "threshold": [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+      "threshold": [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+      "n_clusters": [8, 12, 16]
     }
   }
 }

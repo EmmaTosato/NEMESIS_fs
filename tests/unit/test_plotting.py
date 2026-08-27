@@ -1,5 +1,5 @@
-"""Unit tests for src/analysis/plotting.py - plot_clusters_interactive/
-plot_clusters_comparison_interactive/compose_run_title/compose_embedding_plot_title/
+"""Unit tests for src/analysis/plotting.py - plot_clusters_comparison_interactive/
+compose_run_title/compose_embedding_plot_title/
 plot_embedding_2d/plot_embedding_categorical/plot_embedding_continuous/_declutter_points/
 plot_clustering_tuning_metrics/plot_dendrogram/plot_eigengap/plot_silhouette_analysis."""
 
@@ -18,15 +18,20 @@ from src.analysis.plotting import (
     compose_run_title,
     plot_clustering_tuning_heatmaps,
     plot_clustering_tuning_metrics,
+    plot_clusters_2d,
     plot_clusters_comparison_interactive,
-    plot_clusters_interactive,
+    plot_consensus_matrix_heatmap,
+    plot_grouped_tuning_metrics,
     plot_dendrogram,
     plot_eigengap,
     plot_embedding_2d,
     plot_embedding_categorical,
     plot_embedding_continuous,
     plot_embedding_grid_blocks,
+    plot_interclass_distance_matrix,
     plot_silhouette_analysis,
+    plot_spectral_tuning,
+    plot_stability_analysis,
 )
 
 
@@ -276,43 +281,6 @@ def test_plot_embedding_continuous_raises_on_fewer_than_two_columns(tmp_path):
         plot_embedding_continuous(X_1d, values, tmp_path / "out.png", "x", "y", "title", colorbar_label="volume")
 
 
-def test_clusters_interactive_writes_html_colored_by_cluster(tmp_path):
-    X_2d, metadata = _embedding_and_cluster_metadata()
-    output_path = tmp_path / "cluster_plot_interactive.html"
-
-    plot_clusters_interactive(X_2d, metadata, output_path, "dim 1", "dim 2", "test title")
-
-    assert output_path.exists()
-    html = output_path.read_text()
-    assert "plotly" in html
-    assert "Color by" not in html  # no dataset/cluster toggle - cluster-only coloring, no dropdown buttons
-    for subject_id in metadata["subject_id"]:
-        assert subject_id in html
-
-
-def test_clusters_interactive_raises_on_fewer_than_two_columns(tmp_path):
-    X_1d = np.array([[0.0], [1.0], [2.0], [3.0]])
-    _, metadata = _embedding_and_cluster_metadata()
-
-    with pytest.raises(ValueError, match="at least 2 columns"):
-        plot_clusters_interactive(X_1d, metadata, tmp_path / "out.html", "x", "y", "title")
-
-
-def test_clusters_interactive_raises_on_row_count_mismatch(tmp_path):
-    X_2d, metadata = _embedding_and_cluster_metadata()
-    mismatched_metadata = metadata.iloc[:-1]
-
-    with pytest.raises(ValueError, match="must match"):
-        plot_clusters_interactive(X_2d, mismatched_metadata, tmp_path / "out.html", "x", "y", "title")
-
-
-def test_clusters_interactive_raises_on_missing_cluster_column(tmp_path):
-    X_2d, metadata = _embedding_and_metadata()
-
-    with pytest.raises(ValueError, match="cluster_label"):
-        plot_clusters_interactive(X_2d, metadata, tmp_path / "out.html", "x", "y", "title")
-
-
 def _labels_by_method():
     return {
         "kmeans": np.array([0, 0, 1, 1]),
@@ -436,6 +404,133 @@ def test_plot_eigengap_marks_largest_gap(tmp_path):
 def test_plot_eigengap_raises_on_fewer_than_two_eigenvalues(tmp_path):
     with pytest.raises(ValueError, match="at least 2 eigenvalues"):
         plot_eigengap(np.array([0.0]), tmp_path / "out.png", "title")
+
+
+def test_plot_clusters_2d_writes_file_without_point_sizes(tmp_path):
+    X = np.vstack([np.zeros((5, 2)), np.ones((5, 2)) * 5])
+    labels = np.array([0] * 5 + [1] * 5)
+    output_path = tmp_path / "cluster_plot.png"
+
+    plot_clusters_2d(X, labels, output_path, "x", "y", "title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_clusters_2d_writes_file_with_point_sizes(tmp_path):
+    """project-clustering-tuning-redesign memory (26-08-26): hdbscan's probabilities_ path -
+    a 0-probability point (noise) must not crash the array-based `s=` legend-building branch."""
+    X = np.vstack([np.zeros((5, 2)), np.ones((5, 2)) * 5])
+    labels = np.array([-1] * 5 + [0] * 5)
+    point_sizes = np.array([0.0] * 5 + [0.8] * 5)  # noise always probability 0
+    output_path = tmp_path / "cluster_plot_sized.png"
+
+    plot_clusters_2d(X, labels, output_path, "x", "y", "title", point_sizes=point_sizes)
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_interclass_distance_matrix_writes_one_panel_per_metric(tmp_path):
+    results_by_metric = {
+        "euclidean": (["a", "b"], np.array([[0.1, 0.9], [0.9, 0.1]])),
+        "cosine": (["a", "b"], np.array([[0.2, 0.8], [0.8, 0.2]])),
+    }
+    output_path = tmp_path / "interclass_distance_matrix.png"
+
+    plot_interclass_distance_matrix(results_by_metric, output_path, "test title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_interclass_distance_matrix_raises_on_empty_dict(tmp_path):
+    with pytest.raises(ValueError, match="at least one metric"):
+        plot_interclass_distance_matrix({}, tmp_path / "out.png", "title")
+
+
+def test_plot_grouped_tuning_metrics_writes_one_panel_per_metric(tmp_path):
+    df = pd.DataFrame(
+        {
+            "threshold": [0.3, 0.5, 0.7, 0.3, 0.5, 0.7],
+            "n_clusters": [8, 8, 8, 12, 12, 12],
+            "silhouette": [0.4, 0.5, 0.45, 0.3, 0.4, 0.35],
+        }
+    )
+    output_path = tmp_path / "grouped_tuning_plot.png"
+
+    plot_grouped_tuning_metrics(df, "threshold", "n_clusters", ["silhouette"], output_path, "test title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_grouped_tuning_metrics_raises_on_empty_metric_cols(tmp_path):
+    df = pd.DataFrame({"threshold": [0.3], "n_clusters": [8], "silhouette": [0.4]})
+    with pytest.raises(ValueError, match="at least one metric column"):
+        plot_grouped_tuning_metrics(df, "threshold", "n_clusters", [], tmp_path / "out.png", "title")
+
+
+def test_plot_consensus_matrix_heatmap_writes_file(tmp_path):
+    co_occurrence = np.array([[1.0, 0.9, 0.1, 0.1], [0.9, 1.0, 0.1, 0.1], [0.1, 0.1, 1.0, 0.8], [0.1, 0.1, 0.8, 1.0]])
+    labels = np.array([0, 0, 1, 1])
+    output_path = tmp_path / "consensus_matrix_heatmap.png"
+
+    plot_consensus_matrix_heatmap(co_occurrence, labels, output_path, "test title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_consensus_matrix_heatmap_rejects_non_square():
+    with pytest.raises(ValueError, match="square"):
+        plot_consensus_matrix_heatmap(np.zeros((4, 5)), np.zeros(4), Path("unused.png"), "title")
+
+
+def test_plot_consensus_matrix_heatmap_rejects_mismatched_labels_length():
+    with pytest.raises(ValueError, match="labels has"):
+        plot_consensus_matrix_heatmap(np.eye(4), np.zeros(3), Path("unused.png"), "title")
+
+
+def test_plot_spectral_tuning_writes_one_panel_per_metric(tmp_path):
+    df = pd.DataFrame(
+        {
+            "n_clusters": [2, 3, 2, 3, 2, 3],
+            "affinity": ["nearest_neighbors", "nearest_neighbors", "nearest_neighbors", "nearest_neighbors", "rbf", "rbf"],
+            "n_neighbors": [5, 5, 10, 10, np.nan, np.nan],
+            "gamma": [np.nan, np.nan, np.nan, np.nan, 1.0, 1.0],
+            "silhouette": [0.5, 0.6, 0.4, 0.55, 0.3, 0.35],
+        }
+    )
+    output_path = tmp_path / "spectral_tuning_plot.png"
+
+    plot_spectral_tuning(df, "n_clusters", ["silhouette"], output_path, "test title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_spectral_tuning_raises_on_empty_metric_cols(tmp_path):
+    df = pd.DataFrame({"n_clusters": [2], "affinity": ["rbf"], "gamma": [1.0], "silhouette": [0.5]})
+    with pytest.raises(ValueError, match="at least one metric column"):
+        plot_spectral_tuning(df, "n_clusters", [], tmp_path / "out.png", "title")
+
+
+def test_plot_stability_analysis_writes_one_panel_per_target(tmp_path):
+    df = pd.DataFrame(
+        {
+            "n_clusters": [2, 2, 2, 2, 3, 3, 3, 3],
+            "init": ["k-means++", "k-means++", "random", "random"] * 2,
+            "n_init": [1, 5, 1, 5] * 2,
+            "inertia": [10.0, 9.0, 11.0, 9.5, 20.0, 18.0, 22.0, 19.0],
+        }
+    )
+    output_path = tmp_path / "stability_plot.png"
+
+    plot_stability_analysis(df, "n_clusters", "init", "inertia", output_path, "test title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
 
 
 def _three_blobs_2d():

@@ -12,6 +12,13 @@ diagnostic mode.
   random subsample each time. See compute_monti_stability's own docstring
   for the one deliberate deviation from the literal 2003 formula.
 
+subsampling_stability_index is a lighter sibling of the Monti idea above (a
+single full-vs-one-subsample ARI comparison, not an N-repeat ensemble) -
+meaningful for any CLUSTERING_METHODS entry, not restricted to
+CONSENSUS_ELIGIBLE_METHODS. Used by the cross-run evaluation notebook
+(notebooks/exploration/clustering_evaluation.ipynb, docs/guides/evaluation.md),
+not wired into clustering_tuning.py's sweep.
+
 Beyond the diagnostic above, this module also backs a production clustering
 method in its own right (CLUSTERING_METHODS["evidence_accumulation"]) that
 derives *final* cluster labels from the co-occurrence matrix rather than any
@@ -24,10 +31,12 @@ criterion used here.
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.linalg import eigh
 from scipy.spatial.distance import squareform
 from scipy.sparse import csgraph
+from sklearn.metrics import adjusted_rand_score
 
 from src.analysis.clustering import CLUSTERING_METHODS
 
@@ -109,6 +118,85 @@ def run_monti_repeats(
         )
 
     return co_clustered / co_sampled
+
+
+def subsampling_stability_index(method: str, X: np.ndarray, params: dict, subsample_fraction: float, base_seed: int = 0) -> float:
+    """Adjusted Rand Index between a clustering fit on all of X and the same method/params
+    refit on one random subsample_fraction subsample (without replacement) of X - do the
+    same subjects land in matching clusters, or does the result depend on the exact sample
+    drawn (e.g. a few outliers)? See project-clustering-tuning-evaluation-tables memory.
+
+    Distinct from run_rsc_repeats/run_monti_repeats above: those build an n_repeats
+    co-occurrence *ensemble*, meaningful only for CONSENSUS_ELIGIBLE_METHODS (methods with
+    genuine internal stochasticity - repeating a deterministic method gives an identical
+    result every time). This is a single full-vs-one-subsample comparison scored once via
+    ARI, meaningful for any CLUSTERING_METHODS entry (deterministic or not), so it is not
+    restricted to CONSENSUS_ELIGIBLE_METHODS. Reuses only CLUSTERING_METHODS and the same
+    rng.choice draw-without-replacement shape as run_monti_repeats above, not its
+    co-occurrence-matrix machinery - a different output shape for a different question, not
+    worth duplicating that machinery for.
+
+    Raises ValueError if `method` isn't a registered CLUSTERING_METHODS entry, if
+    subsample_fraction isn't in (0, 1), or if the resulting subsample has fewer than 2
+    points (too small to compare a clustering against).
+    """
+    if method not in CLUSTERING_METHODS:
+        raise ValueError(f"unknown clustering method {method!r} - known: {sorted(CLUSTERING_METHODS)}")
+    if not (0.0 < subsample_fraction < 1.0):
+        raise ValueError(f"subsample_fraction must be in (0, 1), got {subsample_fraction}")
+
+    n_samples = X.shape[0]
+    subsample_size = round(subsample_fraction * n_samples)
+    if subsample_size < 2:
+        raise ValueError(
+            f"subsample_fraction={subsample_fraction} on n_samples={n_samples} yields a subsample of "
+            f"{subsample_size} point(s) - too small to compare clusterings"
+        )
+
+    full_labels = CLUSTERING_METHODS[method](X, params)
+
+    rng = np.random.default_rng(base_seed)
+    subsample = rng.choice(n_samples, size=subsample_size, replace=False)
+    subsample_labels = CLUSTERING_METHODS[method](X[subsample], params)
+
+    return float(adjusted_rand_score(full_labels[subsample], subsample_labels))
+
+
+def compute_evidence_accumulation_convergence(
+    base_method: str, X: np.ndarray, split_params: dict, checkpoints: list[int], base_seed: int = 0
+) -> pd.DataFrame:
+    """Does evidence_accumulation's co-occurrence matrix actually stabilize as `n_repeats`
+    grows, or is a fixed default (e.g. 50) arbitrary (project-clustering-tuning-redesign
+    memory, 26-08-26)? Builds the co-occurrence matrix incrementally, one `base_method` fit at a
+    time (never refitting from scratch per checkpoint - same efficiency principle as
+    clustering_tuning.py's own threshold-only sweep cache, AUDIT_FINDINGS #35), scoring
+    `compute_monti_stability`'s PAC-style stability at each requested value in `checkpoints`.
+    Returns one row per checkpoint: `{"n_repeats", "stability_score"}` (`plotting.plot_tuning_curve`
+    plots it directly, same `(param_col, metric_col)` shape it already supports).
+
+    `split_params` is `base_method`'s own hyperparameters for the Split phase (same role as
+    `run_rsc_repeats`'s `params` - the Split-phase decomposition size, `K_PARAM_NAME[base_method]`,
+    included), never `threshold` (the separate, cheap Merge-phase cut this function doesn't
+    touch at all).
+    """
+    _check_eligible(base_method)
+    if not checkpoints:
+        raise ValueError("checkpoints must be a non-empty list of positive n_repeats values to score")
+    if any(c < 1 for c in checkpoints):
+        raise ValueError(f"every checkpoint must be >= 1, got {checkpoints}")
+
+    n_samples = X.shape[0]
+    cooccurrence_sum = np.zeros((n_samples, n_samples), dtype=float)
+    checkpoint_set = set(checkpoints)
+    rows = []
+    for i in range(max(checkpoints)):
+        labels = CLUSTERING_METHODS[base_method](X, {**split_params, "random_state": base_seed + i})
+        cooccurrence_sum += labels[:, None] == labels[None, :]
+        if (i + 1) in checkpoint_set:
+            co_matrix = cooccurrence_sum / (i + 1)
+            rows.append({"n_repeats": i + 1, "stability_score": compute_monti_stability(co_matrix)})
+
+    return pd.DataFrame(rows)
 
 
 def compute_rsc_eigengap(cooccurrence_matrix: np.ndarray, k: int) -> float:

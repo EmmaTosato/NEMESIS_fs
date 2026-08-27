@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from src.analysis.clustering_tuning import STABILITY_ELIGIBLE_METHODS
 from src.analysis.consensus_clustering import CONSENSUS_ELIGIBLE_METHODS
 
 
@@ -155,6 +156,53 @@ def _validate_n_repeats(params_file: str | Path, method: str, key: str, block: o
     n_repeats = block.get("n_repeats")
     if isinstance(n_repeats, bool) or not isinstance(n_repeats, int) or n_repeats < 1:
         raise ValueError(f"{params_file}: {method!r}.consensus.{key}.n_repeats must be a positive integer, got {n_repeats!r}")
+
+
+def load_stability_config(params_file: str | Path, method: str) -> dict | None:
+    """Load the optional "stability" block registered for `method` in `params_file`
+    (project-clustering-tuning-redesign memory, 26-08-26 - kmeans/gmm's init/n_init
+    stability-analysis diagnostic, src/analysis/clustering_tuning.py::compute_stability_sweep).
+    Absent -> None, a legitimate "not requested" case.
+
+    Raises ValueError if `method` isn't in STABILITY_ELIGIBLE_METHODS but a "stability" entry
+    is present anyway, or if the block's shape is wrong: "nuisance_values" must be a non-empty
+    list of strings (the init/init_params candidates), "n_init_range" a non-empty list of
+    positive ints, "n_repeats" a positive int. The representative target values (n_clusters/
+    n_components) are deliberately NOT part of this block - they're derived from the method's
+    own tuning_grid (clustering_tuning.representative_values), not declared separately.
+    """
+    entry = _load_method_entry(params_file, method)
+    if "stability" not in entry:
+        return None
+    if method not in STABILITY_ELIGIBLE_METHODS:
+        raise ValueError(
+            f"{params_file}: {method!r} has a 'stability' entry, but stability analysis is only "
+            f"defined for {sorted(STABILITY_ELIGIBLE_METHODS)}"
+        )
+
+    stability = entry["stability"]
+    if not isinstance(stability, dict):
+        raise ValueError(f"{params_file}: {method!r}.stability must be a JSON object, got {stability!r}")
+    unknown_keys = set(stability) - {"nuisance_values", "n_init_range", "n_repeats"}
+    if unknown_keys:
+        raise ValueError(
+            f"{params_file}: {method!r}.stability has unknown key(s) {sorted(unknown_keys)} - only "
+            "'nuisance_values'/'n_init_range'/'n_repeats' allowed"
+        )
+
+    nuisance_values = stability.get("nuisance_values")
+    if not isinstance(nuisance_values, list) or not nuisance_values or not all(isinstance(v, str) for v in nuisance_values):
+        raise ValueError(f"{params_file}: {method!r}.stability.nuisance_values must be a non-empty list of strings, got {nuisance_values!r}")
+
+    n_init_range = stability.get("n_init_range")
+    if not isinstance(n_init_range, list) or not n_init_range or not all(isinstance(v, int) and not isinstance(v, bool) and v >= 1 for v in n_init_range):
+        raise ValueError(f"{params_file}: {method!r}.stability.n_init_range must be a non-empty list of positive integers, got {n_init_range!r}")
+
+    n_repeats = stability.get("n_repeats")
+    if isinstance(n_repeats, bool) or not isinstance(n_repeats, int) or n_repeats < 1:
+        raise ValueError(f"{params_file}: {method!r}.stability.n_repeats must be a positive integer, got {n_repeats!r}")
+
+    return stability
 
 
 def load_trustworthiness_n_neighbors(params_file: str | Path, method: str) -> int:

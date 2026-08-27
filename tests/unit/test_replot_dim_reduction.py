@@ -84,4 +84,4 @@ def test_replot_clustering_run_colors_by_cluster_only(tmp_path):
     output_paths = replot_dim_reduction.replot(run_dir)
 
     names = {p.name for p in output_paths}
-    assert names == {"cluster_plot.png", "cluster_plot_interactive.html"}
+    assert names == {"cluster_plot.png"}

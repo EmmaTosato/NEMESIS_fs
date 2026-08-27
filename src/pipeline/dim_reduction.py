@@ -412,12 +412,11 @@ def _write_nested_tuning_leaves(
 ) -> None:
     """Groups `results` by nested_params (one subfolder per real combination
     actually present), writing each leaf's own filtered tuning_results.csv
-    always, plus, unless `config.write_embeddings_grid` is False or every
-    cell this leaf could show turns out to have n_components !=
-    _TUNING_GRID_N_COMPONENTS (see `_build_grid_blocks`), embeddings_grid_<color>.png
-    (see src/analysis/embedding_plots.py::write_embedding_grid): one row per
-    free parameter, holding every other free parameter at base_params' own
-    value.
+    always, plus, unless every cell this leaf could show turns out to have
+    n_components != _TUNING_GRID_N_COMPONENTS (see `_build_grid_blocks`),
+    embeddings_grid_<color>.png (see
+    src/analysis/embedding_plots.py::write_embedding_grid): one row per free
+    parameter, holding every other free parameter at base_params' own value.
 
     No cell is ever refit to _TUNING_GRID_N_COMPONENTS (26-08-26, on
     request) - a cell whose own combination has some other n_components is
@@ -430,8 +429,6 @@ def _write_nested_tuning_leaves(
     in every block would be dropped this same way - skipped here instead,
     without ever calling `_build_grid_blocks` at all, so this is a
     fast-path special case of the same rule, not a second one.
-    `config.write_embeddings_grid` stays a separate, coarser manual opt-out -
-    disabling the whole pass for every leaf regardless of n_components.
     """
     keys = list(tuning_grid.keys())
     for group_key, group in results.groupby(nested_params, sort=False):
@@ -443,9 +440,6 @@ def _write_nested_tuning_leaves(
             leaf_dir = leaf_dir / f"{name}={leaf[name]}"
         leaf_dir.mkdir(parents=True, exist_ok=True)
         group.to_csv(leaf_dir / "tuning_results.csv", index=False)
-
-        if not config.write_embeddings_grid:
-            continue
 
         leaf_n_components = leaf.get("n_components")
         if leaf_n_components is not None and leaf_n_components != _TUNING_GRID_N_COMPONENTS:

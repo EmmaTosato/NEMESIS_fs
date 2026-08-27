@@ -1,17 +1,19 @@
 """Manual fine-tuning sweep for clustering methods (kmeans, agglomerative, gmm,
-hdbscan, spectral) - mirrors src/analysis/tuning.py's dim-reduction sweep, but
-clustering has no ground truth to score against: every generic metric here is
-an *internal* validation index computed straight from (X, cluster_labels),
-meaningful only within one method's own swept grid, never compared across
-methods. No automatic selection, same philosophy as tuning.py.
+hdbscan, spectral, evidence_accumulation) - mirrors src/analysis/tuning.py's
+dim-reduction sweep, but clustering has no ground truth to score against:
+every generic metric here is an *internal* validation index computed straight
+from (X, cluster_labels), meaningful only within one method's own swept grid,
+never compared across methods. No automatic selection, same philosophy as
+tuning.py.
 
 Two kinds of extras beyond the 3 generic metrics, see METHOD_METRIC_COLUMNS -
 per-combination scalar columns for methods that expose one after fitting
 (kmeans' inertia_, gmm's bic_/aic_), and standalone single-fit diagnostics
-independent of which n_clusters ends up chosen (agglomerative's dendrogram,
-spectral's eigengap) - see docs/dev/models.md for the full rationale,
-including why HDBSCAN gets neither a standalone diagnostic nor a plotted
-inertia/bic-style column.
+independent of which n_clusters ends up chosen (agglomerative's dendrogram +
+interclass distance matrix, spectral's eigengap, evidence_accumulation's
+n_repeats convergence check + consensus matrix heatmap) - see
+docs/dev/models.md for the full rationale, including why HDBSCAN gets neither
+a standalone diagnostic nor a plotted inertia/bic-style column.
 """
 
 from __future__ import annotations
@@ -24,8 +26,8 @@ import numpy as np
 import pandas as pd
 from scipy.linalg import eigh
 from scipy.sparse import csgraph
-from sklearn.cluster import AgglomerativeClustering, KMeans
-from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, silhouette_samples, silhouette_score
+from sklearn.cluster import HDBSCAN, AgglomerativeClustering, KMeans
+from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, pairwise_distances, silhouette_samples, silhouette_score
 from sklearn.metrics.pairwise import rbf_kernel
 from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import kneighbors_graph
@@ -39,8 +41,23 @@ from src.analysis.consensus_clustering import (
     run_monti_repeats,
     run_rsc_repeats,
 )
+from src.analysis.distances import SUPPORTED_BINARY_METRICS, precomputed_distance
 
 CONSENSUS_METRIC_COLUMNS = ("rsc_eigengap", "monti_stability")
+
+# Stability analysis (project-clustering-tuning-redesign memory, 26-08-26): kmeans/gmm are
+# the only 2 CLUSTERING_METHODS whose result depends on a random init the tuning sweep never
+# validates on its own - k/n_components is the real target hyperparameter, init/n_init is a
+# nuisance parameter that needs checking *before* trusting the plain sweep, never a joint
+# k x init grid (that heatmap was explicitly rejected - see the memory). One shared, generic
+# stability sweep (below) serves both methods: only the estimator/param names/scored metric
+# differ, the (target x nuisance x n_init x repeat) loop shape is identical.
+STABILITY_TARGET_PARAM = {"kmeans": "n_clusters", "gmm": "n_components"}
+STABILITY_NUISANCE_PARAM = {"kmeans": "init", "gmm": "init_params"}
+STABILITY_METRIC_NAME = {"kmeans": "inertia", "gmm": "bic"}
+STABILITY_ELIGIBLE_METHODS = set(STABILITY_TARGET_PARAM)
+
+_STABILITY_ESTIMATORS: dict[str, Callable] = {"kmeans": KMeans, "gmm": GaussianMixture}
 
 METHOD_METRIC_COLUMNS: dict[str, list[str]] = {
     "kmeans": ["silhouette", "calinski_harabasz", "davies_bouldin", "inertia"],
@@ -51,7 +68,7 @@ METHOD_METRIC_COLUMNS: dict[str, list[str]] = {
     "evidence_accumulation": ["silhouette", "calinski_harabasz", "davies_bouldin"],
 }
 
-STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral"}
+STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral", "evidence_accumulation"}
 
 # HIGH #13 (audit 15/08/26): the 3 geometric metrics below always score X under
 # sklearn's own default (Euclidean) - only valid if the clustering method itself also
@@ -61,6 +78,13 @@ STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral"}
 # geometry - see docs/dev/models.md for the full rationale (dormant today, AUDIT_FINDINGS.md #13).
 _EUCLIDEAN_SAFE_AFFINITY = frozenset({None, "nearest_neighbors", "rbf"})
 _EUCLIDEAN_SAFE_METRIC = frozenset({None, "euclidean"})
+
+# agglomerative-only metric-aware sweep (project-clustering-tuning-redesign memory, 26-08-26):
+# unlike every other method, agglomerative is deterministic (no random_state) and sklearn
+# itself restricts linkage="ward" to euclidean/l2 geometry - see
+# _is_invalid_ward_metric_combo/_agglomerative_fit_metric_aware/compute_clustering_metrics_metric_aware
+# below, and run_clustering_tuning_sweep's dedicated branch.
+_WARD_SAFE_METRICS = frozenset({"euclidean", "l2"})
 
 
 def _require_euclidean_compatible(combo_params: dict | None) -> None:
@@ -158,6 +182,172 @@ def compute_silhouette_samples(X: np.ndarray, labels: np.ndarray) -> tuple[np.nd
     return non_noise_labels, silhouette_samples(non_noise_X, non_noise_labels)
 
 
+def dunn_index(X: np.ndarray, labels: np.ndarray) -> float:
+    """Dunn Index (Dunn 1974): ratio of the smallest inter-cluster distance to the largest
+    intra-cluster diameter - unlike Davies-Bouldin (min is better), a *higher* Dunn Index
+    means clusters are compact and well separated. Never implemented in this repo before
+    (project-clustering-tuning-evaluation-tables memory, 25-08-26) - no sklearn/scipy
+    built-in exists, so this is a from-scratch implementation on top of sklearn's own
+    pairwise_distances (Euclidean by default, same assumption as compute_clustering_metrics -
+    not metric-aware like compute_clustering_metrics_metric_aware, since the exploratory
+    evaluation notebook that consumes this only ever runs it on plain-Euclidean data).
+
+    HDBSCAN-style noise (label -1) is excluded, same convention as compute_clustering_metrics.
+    Raises ValueError for fewer than 2 non-noise clusters (undefined), or if every non-noise
+    cluster is a singleton (every intra-cluster diameter is 0.0, which would make the ratio a
+    division by zero rather than a meaningful score).
+    """
+    labels = np.asarray(labels)
+    noise_mask = labels == -1
+    non_noise_X = X[~noise_mask]
+    non_noise_labels = labels[~noise_mask]
+    unique = np.unique(non_noise_labels)
+    if len(unique) < 2:
+        raise ValueError(f"dunn_index needs >= 2 non-noise clusters, found {len(unique)}")
+
+    distances = pairwise_distances(non_noise_X)
+
+    diameters = [
+        distances[np.ix_(idx, idx)].max() if len(idx) >= 2 else 0.0
+        for idx in (np.where(non_noise_labels == cluster)[0] for cluster in unique)
+    ]
+    max_diameter = max(diameters)
+    if max_diameter == 0.0:
+        raise ValueError("dunn_index undefined: every non-noise cluster is a singleton (intra-cluster diameter 0)")
+
+    min_inter_cluster = np.inf
+    for i, cluster_a in enumerate(unique):
+        idx_a = np.where(non_noise_labels == cluster_a)[0]
+        for cluster_b in unique[i + 1 :]:
+            idx_b = np.where(non_noise_labels == cluster_b)[0]
+            min_inter_cluster = min(min_inter_cluster, distances[np.ix_(idx_a, idx_b)].min())
+
+    return float(min_inter_cluster / max_diameter)
+
+
+def _is_invalid_ward_metric_combo(combo_params: dict) -> bool:
+    """True iff this agglomerative combination pairs linkage="ward" (sklearn's default) with a
+    metric other than euclidean/l2 - an invalid sklearn combination
+    (AgglomerativeClustering's own `metric` docstring: "If linkage is 'ward', only 'euclidean'
+    and 'l2' are accepted"). Checked upfront in run_clustering_tuning_sweep so such a
+    combination is skipped with a logged warning, never let through to raise sklearn's own
+    ValueError mid-sweep.
+    """
+    linkage = combo_params.get("linkage", "ward")
+    metric = combo_params.get("metric", "euclidean")
+    return linkage == "ward" and metric not in _WARD_SAFE_METRICS
+
+
+def _agglomerative_fit_metric_aware(X: np.ndarray, params: dict) -> tuple[np.ndarray, str]:
+    """Fits AgglomerativeClustering honoring an arbitrary `metric` (default "euclidean",
+    sklearn's own default) - native sklearn metric strings (euclidean/cosine/manhattan/...) go
+    straight into the estimator; jaccard/dice (SUPPORTED_BINARY_METRICS, no native sklearn
+    string for them) are precomputed first via distances.py::precomputed_distance and fit with
+    metric="precomputed" (same reuse as the umap/t-SNE fine-tuning path, lesson #29 - no new
+    precompute machinery needed). Returns (labels, metric) so the caller can score every
+    generic metric with the exact same metric/distance that was actually clustered on.
+    """
+    params = dict(params)
+    metric = params.pop("metric", "euclidean")
+    if metric in SUPPORTED_BINARY_METRICS:
+        distance_matrix = precomputed_distance(X, metric)
+        labels = AgglomerativeClustering(**params, metric="precomputed").fit_predict(distance_matrix)
+    else:
+        labels = AgglomerativeClustering(**params, metric=metric).fit_predict(X)
+    return labels, metric
+
+
+def compute_clustering_metrics_metric_aware(X: np.ndarray, labels: np.ndarray, metric: str) -> dict[str, float]:
+    """Agglomerative-only counterpart of compute_clustering_metrics, for a `metric` that may not
+    be euclidean (project-clustering-tuning-redesign memory, 26-08-26 - the redesign this
+    replaces compute_clustering_metrics's blanket `_require_euclidean_compatible` abort with,
+    for agglomerative specifically): Silhouette is always computable for any metric
+    (sklearn's silhouette_score accepts a metric string or "precomputed" - lesson #15, thread
+    the same metric used for clustering into scoring), so it's always kept. Calinski-Harabasz/
+    Davies-Bouldin are mathematically euclidean-only (centroid-based, no `metric` parameter
+    exists for them at all) - skipped (NaN) for any non-euclidean metric, not aborted.
+
+    Agglomerative never produces the HDBSCAN-style noise label -1 (no stochastic/density
+    rejection step) - noise_fraction is always 0.0, kept in the returned dict only for the same
+    column shape as compute_clustering_metrics. A degenerate combination (fewer than 2, or more
+    than n-1, clusters - possible if n_clusters approaches n_samples) is recorded as NaN with a
+    logged warning, same convention as compute_clustering_metrics.
+    """
+    labels = np.asarray(labels)
+    n_unique = len(np.unique(labels))
+    if n_unique < 2 or n_unique > len(labels) - 1:
+        logging.warning(
+            "cannot compute silhouette/calinski_harabasz/davies_bouldin: %d cluster(s) found (need 2..n-1) "
+            "- degenerate combination, recording NaN",
+            n_unique,
+        )
+        return {"silhouette": float("nan"), "calinski_harabasz": float("nan"), "davies_bouldin": float("nan"), "noise_fraction": 0.0}
+
+    if metric in SUPPORTED_BINARY_METRICS:
+        distance_matrix = precomputed_distance(X, metric)
+        silhouette = float(silhouette_score(distance_matrix, labels, metric="precomputed"))
+    else:
+        silhouette = float(silhouette_score(X, labels, metric=metric))
+
+    metrics = {"silhouette": silhouette, "noise_fraction": 0.0}
+    if metric == "euclidean":
+        metrics["calinski_harabasz"] = float(calinski_harabasz_score(X, labels))
+        metrics["davies_bouldin"] = float(davies_bouldin_score(X, labels))
+    else:
+        metrics["calinski_harabasz"] = float("nan")
+        metrics["davies_bouldin"] = float("nan")
+    return metrics
+
+
+def compute_interclass_distance_matrix(X: np.ndarray, proxy_labels: np.ndarray, metric: str) -> tuple[list, np.ndarray]:
+    """Average pairwise distance within/between proxy groups for one candidate `metric` -
+    independent of any clustering fit (project-clustering-tuning-redesign memory: a
+    metric-selection pre-check, modeled on sklearn's plot_agglomerative_clustering_metrics.html
+    "interclass distance matrix" panel; doubles as the substitute diagnostic for combinations
+    where compute_clustering_metrics_metric_aware skipped Calinski-Harabasz/Davies-Bouldin,
+    non-euclidean metrics).
+
+    `proxy_labels` is a weak ground-truth grouping (e.g. dataset/site, lesion side, vascular
+    territory - see docs/dev/models.md) - not a clustering result. Returns (sorted unique
+    groups, matrix) where matrix[a, b] is the mean pairwise distance between group a and group
+    b (diagonal = within-group spread, off-diagonal = between-group separation). A group with
+    fewer than 2 members has an undefined within-group spread - recorded as NaN, not 0.0 (which
+    would misrepresent "no data" as "identical").
+    """
+    proxy_labels = np.asarray(proxy_labels)
+    groups = sorted(pd.unique(proxy_labels).tolist())
+    distance_matrix = precomputed_distance(X, metric) if metric in SUPPORTED_BINARY_METRICS else pairwise_distances(X, metric=metric)
+
+    matrix = np.zeros((len(groups), len(groups)))
+    for a, group_a in enumerate(groups):
+        idx_a = np.where(proxy_labels == group_a)[0]
+        for b, group_b in enumerate(groups):
+            idx_b = np.where(proxy_labels == group_b)[0]
+            sub = distance_matrix[np.ix_(idx_a, idx_b)]
+            if group_a == group_b:
+                if len(idx_a) < 2:
+                    matrix[a, b] = float("nan")
+                else:
+                    matrix[a, b] = sub[np.triu_indices(len(idx_a), k=1)].mean()
+            else:
+                matrix[a, b] = sub.mean()
+    return groups, matrix
+
+
+def hdbscan_labels_and_probabilities(X: np.ndarray, params: dict) -> tuple[np.ndarray, np.ndarray]:
+    """Fits HDBSCAN and returns (labels_, probabilities_) - unlike CLUSTERING_METHODS["hdbscan"]
+    (hdbscan_cluster, labels only, the uniform contract every generic caller relies on),
+    `probabilities_` (per-point membership confidence in [0, 1], always 0 for noise) is only
+    reachable from the fitted estimator itself. Used by clustering.py's production path
+    (project-clustering-tuning-redesign memory, 26-08-26) to size cluster_plot.png's markers by
+    confidence (plotting.plot_clusters_2d's `point_sizes`) - sklearn's own official HDBSCAN
+    example's diagnostic (plot_hdbscan.html), not DBCV/condensation tree (see docs/dev/models.md
+    for why those were dropped).
+    """
+    fitted = HDBSCAN(**params).fit(X)
+    return fitted.labels_, fitted.probabilities_
+
+
 def _kmeans_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.ndarray, dict[str, float]]:
     fitted = KMeans(**params).fit(X)
     return fitted.labels_, {"inertia": float(fitted.inertia_)}
@@ -225,22 +415,83 @@ def run_clustering_tuning_sweep(
     rows = []
     labels_by_combo: dict[tuple, np.ndarray] = {}
     for i, combo in enumerate(combinations, 1):
-        combo_params = {**base_params, **dict(zip(keys, combo))}
-        logging.info("Evaluating combination %d/%d: %s", i, total, dict(zip(keys, combo)))
+        combo_dict = dict(zip(keys, combo))
+        combo_params = {**base_params, **combo_dict}
+
+        # Agglomerative-only (project-clustering-tuning-redesign memory, 26-08-26): linkage="ward"
+        # + a non-euclidean metric is an invalid sklearn combination - filtered out of the sweep
+        # here, with a logged warning, never let through to raise sklearn's own ValueError mid-sweep.
+        if method == "agglomerative" and _is_invalid_ward_metric_combo(combo_params):
+            logging.warning(
+                "[agglomerative] skipping invalid combination %s: linkage='ward' requires metric in %s",
+                combo_dict,
+                sorted(_WARD_SAFE_METRICS),
+            )
+            continue
+
+        logging.info("Evaluating combination %d/%d: %s", i, total, combo_dict)
         if method == "evidence_accumulation":
             labels = _evidence_accumulation_labels(X, combo_params, cooccurrence_cache)
             extra_metrics = {}
+            generic_metrics = compute_clustering_metrics(X, labels, combo_params)
+        elif method == "agglomerative":
+            labels, metric = _agglomerative_fit_metric_aware(X, combo_params)
+            extra_metrics = {}
+            generic_metrics = compute_clustering_metrics_metric_aware(X, labels, metric)
         elif method in _EXTRA_METRICS_EVALUATORS:
             labels, extra_metrics = _EXTRA_METRICS_EVALUATORS[method](X, combo_params)
+            generic_metrics = compute_clustering_metrics(X, labels, combo_params)
         else:
             labels = CLUSTERING_METHODS[method](X, combo_params)
             extra_metrics = {}
-        generic_metrics = compute_clustering_metrics(X, labels, combo_params)
+            generic_metrics = compute_clustering_metrics(X, labels, combo_params)
+
         consensus_metrics = _compute_consensus_metrics(method, X, combo_params, consensus_config)
-        rows.append({**dict(zip(keys, combo)), **generic_metrics, **extra_metrics, **consensus_metrics})
+        rows.append({**combo_dict, **generic_metrics, **extra_metrics, **consensus_metrics})
         labels_by_combo[combo] = labels
 
     return pd.DataFrame(rows), labels_by_combo
+
+
+SPECTRAL_AFFINITY_HYPERPARAM = {"nearest_neighbors": "n_neighbors", "rbf": "gamma"}
+
+
+def run_spectral_affinity_aware_sweep(
+    X: np.ndarray, base_params: dict, tuning_grid: dict[str, list], consensus_config: dict | None = None
+) -> tuple[pd.DataFrame, dict[tuple, np.ndarray]]:
+    """Affinity-aware sweep for spectral (project-clustering-tuning-redesign memory, 26-08-26):
+    `"n_neighbors"` only applies to `affinity="nearest_neighbors"`, `"gamma"` only to
+    `affinity="rbf"` - sklearn silently ignores whichever doesn't apply to the chosen affinity
+    rather than raising, so a full Cartesian product over both would waste half the sweep
+    re-fitting duplicate combinations. Runs `run_clustering_tuning_sweep` once per swept
+    `"affinity"` value (`tuning_grid["affinity"]`), restricting each sub-sweep's grid to every
+    swept key that isn't `SPECTRAL_AFFINITY_HYPERPARAM`'s `n_neighbors`/`gamma` pair, plus that
+    affinity's own hyperparameter alone when it's present in `tuning_grid` - then concatenates
+    the results with an explicit `"affinity"` column. Requires `"affinity"` to be a `tuning_grid`
+    key; the plain `n_clusters`-only sweep (no `"affinity"` swept) is unaffected, still goes
+    through `run_clustering_tuning_sweep` directly (see `clustering.py::_run_one_method_tuning`).
+    """
+    if "affinity" not in tuning_grid:
+        raise ValueError("run_spectral_affinity_aware_sweep requires 'affinity' in tuning_grid")
+
+    all_results = []
+    labels_by_combo: dict[tuple, np.ndarray] = {}
+    for affinity in tuning_grid["affinity"]:
+        own_hyperparam = SPECTRAL_AFFINITY_HYPERPARAM.get(affinity)
+        sub_grid = {
+            key: values
+            for key, values in tuning_grid.items()
+            if key not in ("affinity", "n_neighbors", "gamma") or key == own_hyperparam
+        }
+        sub_base_params = {**base_params, "affinity": affinity}
+        sub_results, sub_labels = run_clustering_tuning_sweep("spectral", X, sub_base_params, sub_grid, consensus_config)
+        sub_results = sub_results.copy()
+        sub_results["affinity"] = affinity
+        all_results.append(sub_results)
+        for combo, labels in sub_labels.items():
+            labels_by_combo[(affinity, *combo)] = labels
+
+    return pd.concat(all_results, ignore_index=True), labels_by_combo
 
 
 def _evidence_accumulation_labels(X: np.ndarray, combo_params: dict, cooccurrence_cache: dict[tuple, np.ndarray]) -> np.ndarray:
@@ -298,6 +549,72 @@ def consensus_suggestion_lines(results: pd.DataFrame, method: str) -> list[str]:
         best_row = results.loc[results["monti_stability"].idxmax()]
         lines.append(f"Monti suggests {k_param}={int(best_row[k_param])} (highest 1-PAC stability score)")
     return lines
+
+
+def representative_values(values: list[int]) -> list[int]:
+    """Min/median/max of a swept list of ints, deduplicated and sorted - the 3
+    representative target values (n_clusters for kmeans, n_components for gmm)
+    a stability analysis validates init/n_init against (project-clustering-
+    tuning-redesign memory, 26-08-26): instability generally grows with the
+    target value, so checking one point of tuning_grid doesn't generalize
+    across its whole swept range. Raises ValueError on an empty list - there
+    is no representative value of nothing.
+    """
+    if not values:
+        raise ValueError("representative_values needs at least one value")
+    sorted_values = sorted(values)
+    return sorted({sorted_values[0], sorted_values[len(sorted_values) // 2], sorted_values[-1]})
+
+
+def _stability_metric(method: str, fitted, X: np.ndarray) -> float:
+    if method == "kmeans":
+        return float(fitted.inertia_)
+    return float(fitted.bic(X))  # gmm
+
+
+def compute_stability_sweep(
+    method: str, X: np.ndarray, target_values: list[int], nuisance_values: list[str], n_init_range: list[int], n_repeats: int
+) -> pd.DataFrame:
+    """Repeats a fit at each (target, nuisance, n_init) combination `n_repeats` times,
+    varying only random_state, and records the method's own convergence metric
+    (STABILITY_METRIC_NAME) - modeled on sklearn's plot_kmeans_stability_low_dim_dense.html,
+    generalized to gmm's own knobs (init_params instead of init, bic instead of inertia - both
+    converge to a local optimum the same way, see the project-clustering-tuning-redesign
+    memory). One row per (target, nuisance, n_init, repeat), long-form - aggregated at plot
+    time (plotting.plot_stability_analysis), not here.
+
+    `target_values` is typically representative_values(tuning_grid[STABILITY_TARGET_PARAM[method]]),
+    not the full swept range - the caller decides that, this function only runs the grid it's
+    given. Raises ValueError for a method outside STABILITY_ELIGIBLE_METHODS - agglomerative/
+    hdbscan/spectral have no comparable init/n_init nuisance parameter to validate this way
+    (spectral's own k-means-inherited instability is instead removed at the source, by fixing
+    assign_labels="cluster_qr" - see docs/dev/models.md).
+    """
+    if method not in STABILITY_ELIGIBLE_METHODS:
+        raise ValueError(f"stability analysis is only defined for {sorted(STABILITY_ELIGIBLE_METHODS)}, got {method!r}")
+
+    target_param = STABILITY_TARGET_PARAM[method]
+    nuisance_param = STABILITY_NUISANCE_PARAM[method]
+    metric_name = STABILITY_METRIC_NAME[method]
+    estimator_cls = _STABILITY_ESTIMATORS[method]
+
+    rows = []
+    for target in target_values:
+        for nuisance in nuisance_values:
+            for n_init in n_init_range:
+                for repeat in range(n_repeats):
+                    params = {target_param: target, nuisance_param: nuisance, "n_init": n_init, "random_state": repeat}
+                    fitted = estimator_cls(**params).fit(X)
+                    rows.append(
+                        {
+                            target_param: target,
+                            nuisance_param: nuisance,
+                            "n_init": n_init,
+                            "repeat": repeat,
+                            metric_name: _stability_metric(method, fitted, X),
+                        }
+                    )
+    return pd.DataFrame(rows)
 
 
 def compute_dendrogram_linkage(X: np.ndarray, params: dict) -> np.ndarray:

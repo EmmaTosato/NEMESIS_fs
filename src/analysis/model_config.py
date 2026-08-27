@@ -31,7 +31,6 @@ class DimReductionConfig:
     fine_tuning: bool
     color_by: tuple[str, ...]
     viz_n_components: int
-    write_embeddings_grid: bool
     save_tuning_embeddings: bool
     precompute_distance_metric: bool
     run_notes: str | None
@@ -67,7 +66,6 @@ def load_dim_reduction_config(path: str | Path) -> DimReductionConfig:
         fine_tuning=_require_bool(raw, "fine_tuning"),
         color_by=_require_str_list_allow_empty(raw, "color_by"),
         viz_n_components=_require_viz_n_components(raw),
-        write_embeddings_grid=_require_bool(raw, "write_embeddings_grid"),
         save_tuning_embeddings=_require_bool(raw, "save_tuning_embeddings"),
         precompute_distance_metric=_require_bool(raw, "precompute_distance_metric"),
         run_notes=run_notes,
