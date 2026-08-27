@@ -15,7 +15,7 @@
   "value_column": "mean_overlap",
   "reference_labels_path": "assets/atlases/sdc_labels/schaefer_200_tian_s2.csv",
   "output_root": "data/derived/sdc_matrix",
-  "session_name": "s1.1",
+  "session_name": "s2.1",
   "overwrite": false,
-  "run_notes": "prima run di produzione, atlante schaefer_200_tian_s2, value_column=mean_overlap, nessun drop di colonne costanti; lesion mask presence risolta da participants.tsv, non da manual_masks/ su disco"
+  "run_notes": "prima run di produzione, atlante schaefer_200_tian_s2, nessun drop di colonne costanti"
 }
