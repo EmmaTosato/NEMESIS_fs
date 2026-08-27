@@ -239,6 +239,67 @@ def load_build_fc_matrix_config(path: str | Path) -> BuildFcMatrixConfig:
 
 
 @dataclass(frozen=True)
+class SdcMatrixConfig:
+    project: str
+    data_root: Path
+    datasets: list[str]
+    group_filter: list[str] | None
+    lesion_glob: str
+    object: str
+    atlas: str
+    value_column: str
+    reference_labels_path: Path
+    output_root: Path
+    session_name: str
+    overwrite: bool
+    run_notes: str | None
+
+
+def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
+    """Load and validate a build_sdc_matrix.json file.
+
+    object/value_column are validated against src.features.sdc's known sets
+    upfront - a typo here would otherwise only surface after the first
+    subject's CSV is read (object) or column-indexed (value_column), possibly
+    after hundreds of files have already been discovered.
+    """
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"config file not found: {path}")
+
+    with path.open() as f:
+        raw = json.load(f)
+    if not isinstance(raw, dict):
+        raise ValueError(f"config: top-level content must be a JSON object, got {raw!r}")
+
+    object_ = _require_str(raw, "object")
+    if object_ not in KNOWN_OBJECTS:
+        raise ValueError(f"config: field 'object' must be one of {sorted(KNOWN_OBJECTS)}, got {object_!r}")
+
+    value_column = _require_str(raw, "value_column")
+    if value_column not in KNOWN_VALUE_COLUMNS:
+        raise ValueError(
+            f"config: field 'value_column' must be one of {sorted(KNOWN_VALUE_COLUMNS)}, got {value_column!r}"
+        )
+
+    return SdcMatrixConfig(
+        project=_require_str(raw, "project"),
+        data_root=Path(_require_str(raw, "data_root")),
+        datasets=_require_unique_str_list(raw, "datasets"),
+        group_filter=_optional_group_filter(raw),
+        lesion_glob=_require_str(raw, "lesion_glob"),
+        object=object_,
+        atlas=_require_str(raw, "atlas"),
+        value_column=value_column,
+        reference_labels_path=Path(_require_str(raw, "reference_labels_path")),
+        output_root=Path(_require_str(raw, "output_root")),
+        session_name=_require_str(raw, "session_name"),
+        overwrite=_require_bool(raw, "overwrite"),
+        run_notes=_optional_str(raw, "run_notes"),
+    )
+
+
+@dataclass(frozen=True)
 class EnrichLesionMetadataConfig:
     project: str
     metadata_path: Path

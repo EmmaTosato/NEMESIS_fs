@@ -1,0 +1,22 @@
+{
+  "project": "clinical_connectome",
+  "data_root": "data/clinical_connectome/derivatives",
+  "datasets": [
+    "UNIPD/WashU",
+    "UNIPD/PASPORT",
+    "UNIPD/PSP",
+    "UKLFR/stroke_UKLFR"
+  ],
+  "group_filter": [
+    "ST"
+  ],
+  "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",
+  "object": "disconnectome",
+  "atlas": "schaefer_200_tian_s2",
+  "value_column": "mean_overlap",
+  "reference_labels_path": "assets/atlases/sdc_labels/schaefer_200_tian_s2.csv",
+  "output_root": "data/derived/sdc_matrix",
+  "session_name": "s1.1",
+  "overwrite": false,
+  "run_notes": "prima run di produzione, atlante schaefer_200_tian_s2, value_column=mean_overlap, nessun drop di colonne costanti"
+}
