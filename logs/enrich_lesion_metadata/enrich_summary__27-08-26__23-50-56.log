@@ -1,0 +1,7 @@
+INFO: coverage report written to summaries/enrich_lesion_metadata/enrich_summary__27-08-26__23-50-56.md
+WARNING: UNIPD/PASPORT: not in this dataset's participants.tsv, will be filled per-variable: {'NIHSS': 'NaN', 'lesion_side': "'unknown'"}
+WARNING: dataset=UNIPD/PASPORT: participants file has no 'NIHSS' column - 83 subject(s) marked NaN
+WARNING: dataset=UNIPD/PASPORT: participants file assets/metadata/UNIPD_PASPORT_participants_lesions.tsv has no lesion_side column - 83 subject(s) marked 'unknown'
+INFO: enriched metadata written to data/derived/clinical_metadata/27-08_sdc_s2.1 (1119 subjects, columns ['subject_id', 'dataset', 'lesion_side', 'nihss'])
+INFO: done - output written to data/derived/clinical_metadata/27-08_sdc_s2.1, report written to summaries/enrich_lesion_metadata/enrich_summary__27-08-26__23-50-56.md, log written to logs/enrich_lesion_metadata/enrich_summary__27-08-26__23-50-56.log
+INFO: run duration: 0:00:00
