@@ -1,6 +1,0 @@
-WARNING: dataset=UNIPD/PASPORT: participants file assets/metadata/UNIPD_PASPORT_participants_lesions.tsv has no lesion_side column - 83 subject(s) marked 'unknown'
-WARNING: dataset=UNIPD/PASPORT: participants file assets/metadata/UNIPD_PASPORT_participants_lesions.tsv has no NIHSS column - 83 subject(s) marked NaN
-INFO: embedding written to results/lesion/dim_reduction/production/umap/11-08_s1.1_nc10_m_dice (shape (1150, 10))
-WARNING: dataset=UNIPD/PASPORT: participants file assets/metadata/UNIPD_PASPORT_participants_lesions.tsv has no lesion_side column - 83 subject(s) marked 'unknown'
-WARNING: dataset=UNIPD/PASPORT: participants file assets/metadata/UNIPD_PASPORT_participants_lesions.tsv has no NIHSS column - 83 subject(s) marked NaN
-INFO: done - embedding written to results/lesion/dim_reduction/production/umap/11-08_s1.1_nc10_m_dice, log written to logs/dim_reduction/clinical_connectome/dim_reduction_summary__11-08-26__20-37-53.log

@@ -1,3 +1,0 @@
-INFO: embedding written to results/dim_reduction/tsne/21-07_tsne_mmp372_run1 (shape (1150, 2))
-INFO: embedding plot written to results/dim_reduction/tsne/21-07_tsne_mmp372_run1/embedding_plot.png
-INFO: done - embedding written to results/dim_reduction/tsne/21-07_tsne_mmp372_run1, report written to reports/dim_reduction/clinical_connectome/dim_reduction_summary__21-07-26__14-20.md, log written to logs/dim_reduction/clinical_connectome/dim_reduction_summary__21-07-26__14-20.log

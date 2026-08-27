@@ -126,7 +126,7 @@ from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
 
 LOGS_ROOT = Path("logs") / "clustering"
-REPORT_FILENAME_PREFIX = "clustering_summary"
+LOG_FILENAME_PREFIX = "clustering"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -896,7 +896,7 @@ def _write_agglomerative_diagnostics(
 def _log_path(config: ClusteringConfig, now: datetime) -> Path:
     log_dir = LOGS_ROOT / config.project
     log_dir.mkdir(parents=True, exist_ok=True)
-    return log_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.log"
+    return log_dir / f"{LOG_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.log"
 
 
 if __name__ == "__main__":

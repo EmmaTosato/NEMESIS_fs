@@ -1,6 +1,0 @@
-INFO: Starting fine-tuning sweep for umap (270 combinations)
-INFO: Evaluating combination 1/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 5, 'min_dist': 0.0}
-INFO: Evaluating combination 2/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 5, 'min_dist': 0.1}
-INFO: Evaluating combination 3/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 5, 'min_dist': 0.25}
-INFO: Evaluating combination 4/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 15, 'min_dist': 0.0}
-INFO: Evaluating combination 5/270: {'metric': 'euclidean', 'n_components': 2, 'regress_out_volume': False, 'n_neighbors': 15, 'min_dist': 0.1}

@@ -1,4 +1,0 @@
-INFO: embedding written to results/lesion/dim_reduction/tsne/23-07_s1.1_p40 (shape (1150, 2))
-INFO: embedding plot written to results/lesion/dim_reduction/tsne/23-07_s1.1_p40/embedding_plot.png
-INFO: interactive embedding plot written to results/lesion/dim_reduction/tsne/23-07_s1.1_p40/embedding_plot_interactive.html
-INFO: done - embedding written to results/lesion/dim_reduction/tsne/23-07_s1.1_p40, report written to reports/dim_reduction/clinical_connectome/dim_reduction_summary__23-07-26__18-31.md, log written to logs/dim_reduction/clinical_connectome/dim_reduction_summary__23-07-26__18-31.log
