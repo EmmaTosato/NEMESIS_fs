@@ -5,16 +5,12 @@
   "viz_embedding_path": null,
   "params_file": "config/registry/params_clustering.json",
   "clustering_methods": [
-    "kmeans",
-    "agglomerative",
-    "gmm",
-    "hdbscan",
     "spectral"
   ],
   "session_name": "s1.1",
   "overwrite": false,
   "fine_tuning": true,
   "reduced_data": true,
-  "save_tuning_clusterings": true,
-  "run_notes": "clustering tuning on UMAP reduced data - 2 components - euclidean"
+  "save_tuning_clusterings": false,
+  "run_notes": "clustering tuning on UMAP reduced data - 2 components - euclidean (spectral only, save_tuning_clusterings disabled: incompatible with swept affinity)"
 }
