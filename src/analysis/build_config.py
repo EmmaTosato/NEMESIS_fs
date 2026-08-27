@@ -244,7 +244,6 @@ class SdcMatrixConfig:
     data_root: Path
     datasets: list[str]
     group_filter: list[str] | None
-    lesion_glob: str
     object: str
     atlas: str
     value_column: str
@@ -262,6 +261,11 @@ def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
     upfront - a typo here would otherwise only surface after the first
     subject's CSV is read (object) or column-indexed (value_column), possibly
     after hundreds of files have already been discovered.
+
+    No lesion_glob field - unlike build_lesion_matrix.json, lesion mask
+    presence is resolved from assets/metadata/*_participants_lesions.tsv
+    (src.features.clinical), not from a glob against data_root - see
+    docs/dev/sdc_matrix.md.
     """
     path = Path(path)
     if not path.is_file():
@@ -287,7 +291,6 @@ def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
         data_root=Path(_require_str(raw, "data_root")),
         datasets=_require_unique_str_list(raw, "datasets"),
         group_filter=_optional_group_filter(raw),
-        lesion_glob=_require_str(raw, "lesion_glob"),
         object=object_,
         atlas=_require_str(raw, "atlas"),
         value_column=value_column,

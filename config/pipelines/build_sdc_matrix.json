@@ -10,7 +10,6 @@
   "group_filter": [
     "ST"
   ],
-  "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",
   "object": "disconnectome",
   "atlas": "schaefer_200_tian_s2",
   "value_column": "mean_overlap",
@@ -18,5 +17,5 @@
   "output_root": "data/derived/sdc_matrix",
   "session_name": "s1.1",
   "overwrite": false,
-  "run_notes": "prima run di produzione, atlante schaefer_200_tian_s2, value_column=mean_overlap, nessun drop di colonne costanti"
+  "run_notes": "prima run di produzione, atlante schaefer_200_tian_s2, value_column=mean_overlap, nessun drop di colonne costanti; lesion mask presence risolta da participants.tsv, non da manual_masks/ su disco"
 }

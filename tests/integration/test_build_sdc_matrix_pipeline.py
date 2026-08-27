@@ -1,7 +1,8 @@
 """Integration test: full build_sdc_matrix.py CLI run (main()) on synthetic data.
 
-No EBRAIN mount needed - build_sdc_matrix operates on already-local files, so
-this is a pure tmp_path E2E, always runs (no skipif).
+No EBRAIN mount needed - build_sdc_matrix operates on already-local files
+(SDC CSVs) plus a synthetic participants.tsv registry, so this is a pure
+tmp_path E2E, always runs (no skipif).
 """
 
 import json
@@ -10,17 +11,22 @@ import logging
 import numpy as np
 import pandas as pd
 
+from src.features import clinical
 from src.pipeline import build_sdc_matrix
 
 _ATLAS = "test_atlas"
 _OBJECT = "disconnectome"
 _VALUE_COLUMN = "mean_overlap"
+_LESION_MASK_COLUMN = "lesion/manual_masks/anat/lesion_mask"
 
 
-def _make_lesion_mask(data_root, dataset, subject_id):
-    subject_dir = data_root / dataset / "manual_masks" / subject_id / "anat"
-    subject_dir.mkdir(parents=True, exist_ok=True)
-    (subject_dir / f"{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz").write_bytes(b"dummy")
+def _register_lesion_mask(metadata_root, dataset, subject_id):
+    metadata_root.mkdir(parents=True, exist_ok=True)
+    path = metadata_root / f"{dataset.replace('/', '_')}_participants_lesions.tsv"
+    if not path.is_file():
+        path.write_text(f"participant_id\t{_LESION_MASK_COLUMN}\n")
+    with path.open("a") as f:
+        f.write(f"{subject_id}\tpresent\n")
 
 
 def _make_sdc_csv(data_root, dataset, subject_id, rows):
@@ -36,11 +42,11 @@ def _make_reference_labels(path, region_names):
     path.write_text("\n".join(["region_name"] + list(region_names)) + "\n")
 
 
-def _make_dataset(data_root, n_subjects=5):
+def _make_dataset(data_root, metadata_root, n_subjects=5):
     rng = np.random.default_rng(1)
     for i in range(n_subjects):
         subject_id = f"sub-STUNIPD{i:04d}"
-        _make_lesion_mask(data_root, "siteA", subject_id)
+        _register_lesion_mask(metadata_root, "siteA", subject_id)
         rows = {region: round(float(rng.random()), 3) for region in ["A", "B", "C"] if rng.random() > 0.3}
         _make_sdc_csv(data_root, "siteA", subject_id, rows)
 
@@ -52,7 +58,6 @@ def _write_config(tmp_path, data_root, output_root, overrides=None):
         "project": "testproj",
         "data_root": str(data_root),
         "datasets": ["siteA"],
-        "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",
         "object": _OBJECT,
         "atlas": _ATLAS,
         "value_column": _VALUE_COLUMN,
@@ -70,10 +75,12 @@ def _write_config(tmp_path, data_root, output_root, overrides=None):
 def test_build_sdc_matrix_end_to_end(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
 
     data_root = tmp_path / "data"
     output_root = tmp_path / "out"
-    _make_dataset(data_root)
+    _make_dataset(data_root, metadata_root)
     config_path = _write_config(tmp_path, data_root, output_root)
 
     with caplog.at_level(logging.INFO):
@@ -108,15 +115,17 @@ def test_build_sdc_matrix_end_to_end(tmp_path, monkeypatch, caplog):
 def test_build_sdc_matrix_excluded_subjects_recorded_in_config_md(tmp_path, monkeypatch):
     monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
 
     data_root = tmp_path / "data"
     output_root = tmp_path / "out"
-    _make_lesion_mask(data_root, "siteA", "sub-STUNIPD0001")
+    _register_lesion_mask(metadata_root, "siteA", "sub-STUNIPD0001")
     _make_sdc_csv(data_root, "siteA", "sub-STUNIPD0001", {"A": 0.5})
-    # sub-STUNIPD0002 has SDC output but no lesion mask - must be excluded, not zero-filled
+    # sub-STUNIPD0002 has SDC output but is never registered with a lesion mask
     _make_sdc_csv(data_root, "siteA", "sub-STUNIPD0002", {"A": 0.9})
-    # sub-STUNIPD0003 has a lesion mask but no SDC output yet
-    _make_lesion_mask(data_root, "siteA", "sub-STUNIPD0003")
+    # sub-STUNIPD0003 is registered with a lesion mask but has no SDC output yet
+    _register_lesion_mask(metadata_root, "siteA", "sub-STUNIPD0003")
 
     config_path = _write_config(tmp_path, data_root, output_root)
 
@@ -136,10 +145,12 @@ def test_build_sdc_matrix_excluded_subjects_recorded_in_config_md(tmp_path, monk
 def test_build_sdc_matrix_config_md_has_params_used_line(tmp_path, monkeypatch):
     monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
 
     data_root = tmp_path / "data"
     output_root = tmp_path / "out"
-    _make_dataset(data_root)
+    _make_dataset(data_root, metadata_root)
     config_path = _write_config(tmp_path, data_root, output_root)
 
     assert build_sdc_matrix.main(["--config", str(config_path)]) == 0
@@ -153,10 +164,12 @@ def test_build_sdc_matrix_config_md_has_params_used_line(tmp_path, monkeypatch):
 def test_invalid_config_returns_1_not_raw_traceback(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
 
     data_root = tmp_path / "data"
     output_root = tmp_path / "out"
-    _make_dataset(data_root)
+    _make_dataset(data_root, metadata_root)
     config_path = _write_config(tmp_path, data_root, output_root, overrides={"object": "not_a_real_object"})
 
     with caplog.at_level(logging.INFO):
@@ -168,10 +181,12 @@ def test_invalid_config_returns_1_not_raw_traceback(tmp_path, monkeypatch, caplo
 def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, monkeypatch):
     monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
 
     data_root = tmp_path / "data"
     output_root = tmp_path / "out"
-    _make_dataset(data_root)
+    _make_dataset(data_root, metadata_root)
     config_path = _write_config(tmp_path, data_root, output_root)
 
     assert build_sdc_matrix.main(["--config", str(config_path)]) == 0

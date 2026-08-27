@@ -22,12 +22,20 @@ constant across every admitted subject - the project decision here is that
 column j always means the same region regardless of which subjects a given
 run includes (2026-08-27, on request).
 
-A subject is only admitted into X if it has BOTH a real lesion mask
-(lesion_glob, cross-checked the same way build_lesion_matrix.py discovers
-lesion files) and the requested SDC CSV - a subject present in sdc/ without a
-lesion mask (a real case found in this cohort, see docs/dev/sdc_matrix.md) is
-excluded explicitly (excluded_no_lesion_mask), never silently included as an
-all-zero row indistinguishable from a genuine "no disconnection" observation.
+A subject is only admitted into X if it has BOTH a lesion mask registered in
+its dataset's participants.tsv AND the requested SDC CSV - a subject present
+in sdc/ without a lesion mask (a real case found in this cohort, see
+docs/dev/sdc_matrix.md) is excluded explicitly (excluded_no_lesion_mask),
+never silently included as an all-zero row indistinguishable from a genuine
+"no disconnection" observation.
+
+"Has a lesion mask" is resolved against `assets/metadata/<dataset>_participants_lesions.tsv`
+(via src.features.clinical), NOT by globbing manual_masks/ on disk directly
+(unlike build_lesion_matrix.py) - a local `data/` copy can be a partial
+retrieval sample (found 2026-08-27: this Mac had only 10 lesion masks per
+dataset physically present, vs. 195-705 in sdc/), while participants.tsv is
+the authoritative registry of which subjects genuinely have a lesion mask
+regardless of what's currently retrieved on any one machine.
 """
 
 from __future__ import annotations
@@ -37,7 +45,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from src.features.clinical import load_participants, participants_tsv_path
 from src.features.subject_discovery import discover_files_by_subject
+from src.retrieval.dataset import group_of
 
 KNOWN_OBJECTS = frozenset({"disconnectome", "lesion"})
 KNOWN_VALUE_COLUMNS = frozenset({
@@ -45,11 +55,13 @@ KNOWN_VALUE_COLUMNS = frozenset({
     "sum_overlap", "p90_overlap", "p95_overlap",
 })
 
+_LESION_MASK_COLUMN = "lesion/manual_masks/anat/lesion_mask"
+_LESION_MASK_PRESENT_VALUE = "present"
+
 
 def build_sdc_matrix(
     data_root: Path,
     datasets: list[str],
-    lesion_glob: str,
     object_: str,
     atlas: str,
     value_column: str,
@@ -62,7 +74,8 @@ def build_sdc_matrix(
     Returns (X, metadata, region_names, excluded_by_group,
     excluded_no_lesion_mask, sdc_not_yet_computed) - see module docstring and
     docs/dev/sdc_matrix.md. excluded_by_group merges the group-filter
-    exclusions from both the lesion-mask and the SDC-file discovery passes.
+    exclusions from both the lesion-mask-registry and the SDC-file discovery
+    passes.
     """
     if object_ not in KNOWN_OBJECTS:
         raise ValueError(f"object_ must be one of {sorted(KNOWN_OBJECTS)}, got {object_!r}")
@@ -71,7 +84,7 @@ def build_sdc_matrix(
 
     region_names = load_reference_regions(reference_labels_path)
 
-    lesion_subjects, excluded_lesion = _discover_by_dataset(data_root, datasets, lesion_glob, group_filter)
+    lesion_subjects, excluded_lesion = _subjects_with_lesion_mask(datasets, group_filter)
     sdc_glob = f"sdc/*/dwi/*_LF-{object_}_atlas-{atlas}.csv"
     sdc_files, excluded_sdc = _discover_by_dataset(data_root, datasets, sdc_glob, group_filter)
     excluded_by_group = sorted(set(excluded_lesion) | set(excluded_sdc))
@@ -90,9 +103,9 @@ def build_sdc_matrix(
 
     if not subject_dfs:
         raise ValueError(
-            "no subjects admitted - the intersection of subjects with a lesion mask "
-            f"(lesion_glob={lesion_glob!r}) and subjects with an SDC file (object={object_!r}, "
-            f"atlas={atlas!r}) is empty; check 'datasets'/'data_root' in the config"
+            "no subjects admitted - the intersection of subjects with a registered lesion mask "
+            f"(assets/metadata/*_participants_lesions.tsv) and subjects with an SDC file "
+            f"(object={object_!r}, atlas={atlas!r}) is empty; check 'datasets'/'data_root' in the config"
         )
 
     X, metadata = _stack_aligned_matrix(subject_dfs, region_names, value_column)
@@ -122,16 +135,48 @@ def _discover_by_dataset(
 ) -> tuple[dict[str, dict[str, Path]], list[str]]:
     """discover_files_by_subject run once per dataset, merged into one dict.
 
-    Used both for lesion_glob (does this subject have a real lesion mask?)
-    and for the SDC glob (does this subject have this object/atlas's CSV?) -
-    same discovery machinery, different glob, see module docstring for why
-    both passes are needed.
+    Used for the SDC glob only (does this subject have this object/atlas's
+    CSV?) - lesion mask presence is resolved from participants.tsv instead,
+    see _subjects_with_lesion_mask and the module docstring for why.
     """
     by_dataset: dict[str, dict[str, Path]] = {}
     excluded: list[str] = []
     for dataset in datasets:
         by_subject, excluded_here = discover_files_by_subject(data_root, dataset, glob_pattern, group_filter)
         by_dataset[dataset] = by_subject
+        excluded.extend(excluded_here)
+    return by_dataset, excluded
+
+
+def _subjects_with_lesion_mask(
+    datasets: list[str], group_filter: list[str] | None
+) -> tuple[dict[str, dict[str, None]], list[str]]:
+    """Which subjects have a lesion mask, per dataset - from
+    assets/metadata/<dataset>_participants_lesions.tsv, not from disk (see
+    module docstring). Return shape matches _discover_by_dataset's
+    {dataset: {subject_id: ...}} so both feed the same intersection logic in
+    build_sdc_matrix - the per-subject value here carries no information
+    (unlike _discover_by_dataset's Path), only the key set matters.
+
+    Raises ValueError if a dataset's participants.tsv has no
+    _LESION_MASK_COLUMN at all - a structural gap in the registry this
+    pipeline depends on for its core admission criterion, not something to
+    silently treat as "nobody has a lesion mask".
+    """
+    by_dataset: dict[str, dict[str, None]] = {}
+    excluded: list[str] = []
+    for dataset in datasets:
+        path = participants_tsv_path(dataset)
+        participants = load_participants(path)
+        if _LESION_MASK_COLUMN not in participants.columns:
+            raise ValueError(f"{path}: missing {_LESION_MASK_COLUMN!r} column - cannot resolve lesion mask presence")
+
+        has_mask = participants.loc[participants[_LESION_MASK_COLUMN] == _LESION_MASK_PRESENT_VALUE, "subject_id"]
+        groups = {s: group_of(s) for s in has_mask}
+        excluded_here = sorted(s for s in has_mask if group_filter is not None and groups[s] not in group_filter)
+        admitted = {s: None for s in has_mask if group_filter is None or groups[s] in group_filter}
+
+        by_dataset[dataset] = admitted
         excluded.extend(excluded_here)
     return by_dataset, excluded
 

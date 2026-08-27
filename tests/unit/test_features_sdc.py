@@ -1,22 +1,29 @@
-"""Unit tests for src/features/sdc.py - synthetic CSV fixtures, no real data required."""
+"""Unit tests for src/features/sdc.py - synthetic CSV/TSV fixtures, no real data required."""
 
 import numpy as np
 import pytest
 
+from src.features import clinical
 from src.features.sdc import build_sdc_matrix, load_reference_regions
 
 _ATLAS = "test_atlas"
 _OBJECT = "disconnectome"
 _VALUE_COLUMN = "mean_overlap"
 
+_LESION_MASK_COLUMN = "lesion/manual_masks/anat/lesion_mask"
 
-def _make_lesion_mask(data_root, dataset, subject_id):
-    """Content is irrelevant - build_sdc_matrix only checks the file's existence
-    (same as build_lesion_matrix.py's own discovery, reused here) to decide
-    whether a subject is admitted, never its content."""
-    subject_dir = data_root / dataset / "manual_masks" / subject_id / "anat"
-    subject_dir.mkdir(parents=True, exist_ok=True)
-    (subject_dir / f"{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz").write_bytes(b"dummy")
+
+def _register_lesion_mask(metadata_root, dataset, subject_id):
+    """Appends one row to <dataset>_participants_lesions.tsv - lesion mask
+    presence is resolved from this registry, not from disk (see
+    src/features/sdc.py's module docstring for why: a local `data/` copy can
+    be a partial retrieval sample, this file is not)."""
+    metadata_root.mkdir(parents=True, exist_ok=True)
+    path = metadata_root / f"{dataset.replace('/', '_')}_participants_lesions.tsv"
+    if not path.is_file():
+        path.write_text(f"participant_id\t{_LESION_MASK_COLUMN}\n")
+    with path.open("a") as f:
+        f.write(f"{subject_id}\tpresent\n")
 
 
 def _make_sdc_csv(data_root, dataset, subject_id, object_, atlas, rows, value_column=_VALUE_COLUMN):
@@ -37,23 +44,31 @@ def _make_reference_labels(path, region_names):
     path.write_text("\n".join(lines) + "\n")
 
 
-def test_build_sdc_matrix_reindexes_missing_regions_to_zero(tmp_path):
+@pytest.fixture(autouse=True)
+def _metadata_root(tmp_path, monkeypatch):
+    """Every test gets its own isolated participants.tsv root - never touches
+    the real assets/metadata/."""
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    return metadata_root
+
+
+def test_build_sdc_matrix_reindexes_missing_regions_to_zero(tmp_path, _metadata_root):
     """The core alignment behaviour: BCBToolKit omits regions at zero overlap
     instead of writing them explicitly - reindex must restore them as 0.0,
     not drop the subject or shrink the column count."""
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A", "B", "C"])
 
-    _make_lesion_mask(tmp_path, "siteA", "sub-STUNIPD0001")
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {"A": 0.5, "C": 0.2})  # B omitted
 
-    _make_lesion_mask(tmp_path, "siteA", "sub-STUNIPD0002")
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0002")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0002", _OBJECT, _ATLAS, {"A": 0.1, "B": 0.9, "C": 0.3})
 
     X, metadata, region_names, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed = build_sdc_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
-        lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
         object_=_OBJECT,
         atlas=_ATLAS,
         value_column=_VALUE_COLUMN,
@@ -70,22 +85,21 @@ def test_build_sdc_matrix_reindexes_missing_regions_to_zero(tmp_path):
     assert sdc_not_yet_computed == []
 
 
-def test_build_sdc_matrix_no_column_dropped_even_if_constant(tmp_path):
+def test_build_sdc_matrix_no_column_dropped_even_if_constant(tmp_path, _metadata_root):
     """2026-08-27 project decision: unlike build_lesion_matrix.py's
     _drop_constant_features, a column here always means the same region
     regardless of which subjects a given run includes - no drop, ever."""
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A", "B"])
 
-    _make_lesion_mask(tmp_path, "siteA", "sub-STUNIPD0001")
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {"A": 0.5})  # B always omitted
-    _make_lesion_mask(tmp_path, "siteA", "sub-STUNIPD0002")
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0002")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0002", _OBJECT, _ATLAS, {"A": 0.7})
 
     X, _, region_names, *_ = build_sdc_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
-        lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
         object_=_OBJECT,
         atlas=_ATLAS,
         value_column=_VALUE_COLUMN,
@@ -97,20 +111,20 @@ def test_build_sdc_matrix_no_column_dropped_even_if_constant(tmp_path):
     assert list(region_names) == ["A", "B"]
 
 
-def test_build_sdc_matrix_empty_csv_becomes_zero_vector(tmp_path):
-    """A subject with a real lesion mask and a real (but header-only) SDC CSV
-    is a legitimate domain case (BCBToolKit found zero disconnected regions),
-    distinct from a missing lesion mask (excluded entirely, see next test)."""
+def test_build_sdc_matrix_empty_csv_becomes_zero_vector(tmp_path, _metadata_root):
+    """A subject with a registered lesion mask and a real (but header-only)
+    SDC CSV is a legitimate domain case (BCBToolKit found zero disconnected
+    regions), distinct from a missing lesion mask (excluded entirely, see
+    next test)."""
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A", "B"])
 
-    _make_lesion_mask(tmp_path, "siteA", "sub-STUNIPD0001")
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {})  # header only, no rows
 
     X, metadata, region_names, *_ = build_sdc_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
-        lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
         object_=_OBJECT,
         atlas=_ATLAS,
         value_column=_VALUE_COLUMN,
@@ -122,23 +136,23 @@ def test_build_sdc_matrix_empty_csv_becomes_zero_vector(tmp_path):
     np.testing.assert_array_equal(X[0], [0.0, 0.0])
 
 
-def test_build_sdc_matrix_excludes_subject_without_lesion_mask(tmp_path):
-    """Real case found in the cohort (sub-STUKLFR0671, docs/dev/sdc_matrix.md):
-    a subject with SDC output but no lesion mask is excluded entirely, not
-    silently kept as an all-zero row indistinguishable from a genuine
-    zero-disconnection observation."""
+def test_build_sdc_matrix_excludes_subject_without_lesion_mask(tmp_path, _metadata_root):
+    """Real case confirmed in the cohort (sub-STUKLFR0005, absent from
+    UKLFR_stroke_UKLFR_participants_lesions.tsv - docs/dev/sdc_matrix.md):
+    a subject with SDC output but no lesion mask registered in
+    participants.tsv is excluded entirely, not silently kept as an all-zero
+    row indistinguishable from a genuine zero-disconnection observation."""
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A", "B"])
 
-    _make_lesion_mask(tmp_path, "siteA", "sub-STUNIPD0001")
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {"A": 0.5, "B": 0.1})
-    # sub-STUNIPD0002 has SDC output but no lesion mask at all
+    # sub-STUNIPD0002 has SDC output but is never registered as having a lesion mask
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0002", _OBJECT, _ATLAS, {"A": 0.9})
 
     X, metadata, _, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed = build_sdc_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
-        lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
         object_=_OBJECT,
         atlas=_ATLAS,
         value_column=_VALUE_COLUMN,
@@ -152,21 +166,20 @@ def test_build_sdc_matrix_excludes_subject_without_lesion_mask(tmp_path):
     assert excluded_by_group == []
 
 
-def test_build_sdc_matrix_tracks_lesion_mask_without_sdc_yet(tmp_path):
-    """A subject with a lesion mask but no SDC file yet (not yet computed
-    upstream) is excluded from X and tracked separately - distinct from
-    excluded_no_lesion_mask, opposite direction of the gap."""
+def test_build_sdc_matrix_tracks_lesion_mask_without_sdc_yet(tmp_path, _metadata_root):
+    """A subject registered with a lesion mask but no SDC file yet (not yet
+    computed upstream) is excluded from X and tracked separately - distinct
+    from excluded_no_lesion_mask, opposite direction of the gap."""
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A"])
 
-    _make_lesion_mask(tmp_path, "siteA", "sub-STUNIPD0001")
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {"A": 0.5})
-    _make_lesion_mask(tmp_path, "siteA", "sub-STUNIPD0002")  # no SDC CSV at all
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0002")  # no SDC CSV at all
 
     X, metadata, _, _, excluded_no_lesion_mask, sdc_not_yet_computed = build_sdc_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
-        lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
         object_=_OBJECT,
         atlas=_ATLAS,
         value_column=_VALUE_COLUMN,
@@ -179,19 +192,18 @@ def test_build_sdc_matrix_tracks_lesion_mask_without_sdc_yet(tmp_path):
     assert sdc_not_yet_computed == ["sub-STUNIPD0002"]
 
 
-def test_build_sdc_matrix_group_filter_excludes_hc(tmp_path):
+def test_build_sdc_matrix_group_filter_excludes_hc(tmp_path, _metadata_root):
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A"])
 
-    _make_lesion_mask(tmp_path, "siteA", "sub-STUNIPD0001")
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {"A": 0.5})
-    _make_lesion_mask(tmp_path, "siteA", "sub-STUNIPDHC0001")
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPDHC0001")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPDHC0001", _OBJECT, _ATLAS, {"A": 0.1})
 
     X, metadata, _, excluded_by_group, _, _ = build_sdc_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
-        lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
         object_=_OBJECT,
         atlas=_ATLAS,
         value_column=_VALUE_COLUMN,
@@ -203,21 +215,18 @@ def test_build_sdc_matrix_group_filter_excludes_hc(tmp_path):
     assert excluded_by_group == ["sub-STUNIPDHC0001"]
 
 
-def test_build_sdc_matrix_unknown_region_raises(tmp_path):
-    """A region_name in a subject's CSV that isn't in the reference label set
-    is a hard error (atlas mismatch or corrupt file), never silently ignored
-    or added as an extra column."""
+def test_build_sdc_matrix_missing_participants_tsv_raises(tmp_path, _metadata_root):
+    """A dataset with no participants.tsv at all is a real configuration
+    problem (wrong dataset name, or genuinely not onboarded) - never
+    silently treated as "zero subjects have a lesion mask"."""
     reference_path = tmp_path / "labels.csv"
-    _make_reference_labels(reference_path, ["A", "B"])
+    _make_reference_labels(reference_path, ["A"])
+    _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {"A": 0.5})
 
-    _make_lesion_mask(tmp_path, "siteA", "sub-STUNIPD0001")
-    _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {"A": 0.5, "Z": 0.9})  # "Z" unknown
-
-    with pytest.raises(ValueError, match="not in the reference label set"):
+    with pytest.raises(FileNotFoundError, match="participants.tsv not found"):
         build_sdc_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
-            lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
             object_=_OBJECT,
             atlas=_ATLAS,
             value_column=_VALUE_COLUMN,
@@ -226,11 +235,55 @@ def test_build_sdc_matrix_unknown_region_raises(tmp_path):
         )
 
 
-def test_build_sdc_matrix_duplicate_region_name_raises(tmp_path):
+def test_build_sdc_matrix_participants_tsv_missing_lesion_mask_column_raises(tmp_path, _metadata_root):
+    """A structural gap in the registry this pipeline depends on for its core
+    admission criterion - never silently treated as "nobody has a lesion
+    mask", raises instead."""
+    reference_path = tmp_path / "labels.csv"
+    _make_reference_labels(reference_path, ["A"])
+    _metadata_root.mkdir(parents=True, exist_ok=True)
+    (_metadata_root / "siteA_participants_lesions.tsv").write_text("participant_id\nsub-STUNIPD0001\n")
+    _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {"A": 0.5})
+
+    with pytest.raises(ValueError, match=_LESION_MASK_COLUMN):
+        build_sdc_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            object_=_OBJECT,
+            atlas=_ATLAS,
+            value_column=_VALUE_COLUMN,
+            reference_labels_path=reference_path,
+            group_filter=None,
+        )
+
+
+def test_build_sdc_matrix_unknown_region_raises(tmp_path, _metadata_root):
+    """A region_name in a subject's CSV that isn't in the reference label set
+    is a hard error (atlas mismatch or corrupt file), never silently ignored
+    or added as an extra column."""
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A", "B"])
 
-    _make_lesion_mask(tmp_path, "siteA", "sub-STUNIPD0001")
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
+    _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {"A": 0.5, "Z": 0.9})  # "Z" unknown
+
+    with pytest.raises(ValueError, match="not in the reference label set"):
+        build_sdc_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            object_=_OBJECT,
+            atlas=_ATLAS,
+            value_column=_VALUE_COLUMN,
+            reference_labels_path=reference_path,
+            group_filter=None,
+        )
+
+
+def test_build_sdc_matrix_duplicate_region_name_raises(tmp_path, _metadata_root):
+    reference_path = tmp_path / "labels.csv"
+    _make_reference_labels(reference_path, ["A", "B"])
+
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
     subject_dir = tmp_path / "siteA" / "sdc" / "sub-STUNIPD0001" / "dwi"
     subject_dir.mkdir(parents=True, exist_ok=True)
     path = subject_dir / f"sub-STUNIPD0001_space-MNI152NLin6Asym_LF-{_OBJECT}_atlas-{_ATLAS}.csv"
@@ -240,7 +293,6 @@ def test_build_sdc_matrix_duplicate_region_name_raises(tmp_path):
         build_sdc_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
-            lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
             object_=_OBJECT,
             atlas=_ATLAS,
             value_column=_VALUE_COLUMN,
@@ -249,14 +301,13 @@ def test_build_sdc_matrix_duplicate_region_name_raises(tmp_path):
         )
 
 
-def test_build_sdc_matrix_invalid_object_raises(tmp_path):
+def test_build_sdc_matrix_invalid_object_raises(tmp_path, _metadata_root):
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A"])
     with pytest.raises(ValueError, match="object_ must be one of"):
         build_sdc_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
-            lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
             object_="not_a_real_object",
             atlas=_ATLAS,
             value_column=_VALUE_COLUMN,
@@ -265,14 +316,13 @@ def test_build_sdc_matrix_invalid_object_raises(tmp_path):
         )
 
 
-def test_build_sdc_matrix_invalid_value_column_raises(tmp_path):
+def test_build_sdc_matrix_invalid_value_column_raises(tmp_path, _metadata_root):
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A"])
     with pytest.raises(ValueError, match="value_column must be one of"):
         build_sdc_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
-            lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
             object_=_OBJECT,
             atlas=_ATLAS,
             value_column="not_a_real_column",
@@ -281,16 +331,15 @@ def test_build_sdc_matrix_invalid_value_column_raises(tmp_path):
         )
 
 
-def test_build_sdc_matrix_no_admitted_subjects_raises(tmp_path):
+def test_build_sdc_matrix_no_admitted_subjects_raises(tmp_path, _metadata_root):
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A"])
-    _make_lesion_mask(tmp_path, "siteA", "sub-STUNIPD0001")  # no SDC file for anyone
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")  # no SDC file for anyone
 
     with pytest.raises(ValueError, match="no subjects admitted"):
         build_sdc_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
-            lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
             object_=_OBJECT,
             atlas=_ATLAS,
             value_column=_VALUE_COLUMN,

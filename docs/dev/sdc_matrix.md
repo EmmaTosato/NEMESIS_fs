@@ -29,7 +29,7 @@ Cardinalities for atlases not yet backed by a reference file are **not** derived
 
 ## `src/features/sdc.py`
 
-`build_sdc_matrix(data_root, datasets, lesion_glob, object_, atlas, value_column, reference_labels_path, group_filter) -> (X, metadata, region_names, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed)`
+`build_sdc_matrix(data_root, datasets, object_, atlas, value_column, reference_labels_path, group_filter) -> (X, metadata, region_names, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed)`
 
 - **`object_`**: `"disconnectome"` or `"lesion"` - which of the two parcellated CSV families to read (`docs/guides/sdc_matrix_building.md` for the difference). Validated against `KNOWN_OBJECTS`.
 - **`value_column`**: which per-region statistic to extract - `"fraction_covered"`, `"mean_overlap"`, `"weighted_mean_overlap"`, `"sum_overlap"`, `"p90_overlap"`, or `"p95_overlap"` (`KNOWN_VALUE_COLUMNS`; these 6 are the columns common to all 14 in-scope atlases - `buckner_7n`/`rojkova`/`yeh_hcp1065` additionally have `sum_atlas_in_tract`/`pwll_normalised`/`max_atlas_prob_in_overlap`/`continuous_dice`, not currently exposed here).
@@ -38,12 +38,20 @@ Cardinalities for atlases not yet backed by a reference file are **not** derived
 ### Subject admission: two discovery passes, one intersection
 
 A subject is admitted into `X` only if it has **both**:
-1. A real lesion mask (`lesion_glob`, same glob `build_lesion_matrix.json` uses, discovered the same way via `discover_files_by_subject`).
-2. The requested `object_`/`atlas` SDC CSV (`sdc/*/dwi/*_LF-{object_}_atlas-{atlas}.csv`).
+1. A lesion mask **registered** in its dataset's `assets/metadata/<dataset>_participants_lesions.tsv` (column `lesion/manual_masks/anat/lesion_mask == "present"`, via `src.features.clinical.load_participants`/`participants_tsv_path`) - not a glob against `manual_masks/` on disk (see "Why participants.tsv, not `manual_masks/` on disk" below).
+2. The requested `object_`/`atlas` SDC CSV (`sdc/*/dwi/*_LF-{object_}_atlas-{atlas}.csv`, discovered via `discover_files_by_subject` same as `build_lesion_matrix.py`).
 
-This is not a redundant check: a real subject in this cohort (`sub-STUKLFR0671`) has SDC output (both `lesion` and `disconnectome` CSVs, empty - header only) but **no lesion mask at all** in `manual_masks/` - almost certainly a retrieval/upstream gap, not a genuine "zero disconnection" clinical observation. Admitting it as an all-zero row would be indistinguishable, downstream, from a subject who genuinely has no disconnected regions - the two are not the same claim. `excluded_no_lesion_mask` tracks subjects like this explicitly (logged and persisted to `config.md`, never silently dropped); `sdc_not_yet_computed` tracks the opposite gap (a lesion mask exists but SDC hasn't been computed for that subject yet - not an error, just work not yet done upstream).
+`excluded_no_lesion_mask` tracks subjects with SDC output but no registered lesion mask (logged and persisted to `config.md`, never silently dropped or zero-filled); `sdc_not_yet_computed` tracks the opposite gap (a registered lesion mask but SDC not computed for that subject yet - not an error, just work not yet done upstream).
 
 If the intersection is empty across every dataset, `build_sdc_matrix` raises `ValueError` rather than returning an empty matrix.
+
+### Why `participants.tsv`, not `manual_masks/` on disk (found 27-08-26)
+
+The first version of this pipeline resolved "has a lesion mask" by globbing `manual_masks/` directly (same glob `build_lesion_matrix.py` uses) - this is wrong whenever a local `data/` copy is a **partial retrieval sample**: on this Mac, `manual_masks/` held only 10 subjects per dataset while `sdc/` held the full retrieved cohort (195/83/168/705), so a local run only ever admitted the 40-subject intersection available on disk, and (confirmed by re-checking `assets/metadata/UKLFR_stroke_UKLFR_participants_lesions.tsv` directly) at least one subject flagged as "no lesion mask" this way (`sub-STUKLFR0671`) in fact **does** have one registered - the local `manual_masks/` gap was a retrieval sampling artifact, not a genuine missing-lesion case.
+
+Fixed by resolving lesion-mask presence from each dataset's `assets/metadata/<dataset>_participants_lesions.tsv` instead - the authoritative registry of which subjects have a lesion mask at all, independent of what's currently retrieved on any one machine. Every row in these files already has `lesion/manual_masks/anat/lesion_mask == "present"` (subjects without a mask simply aren't rows at all, as of 27-08-26) - a genuine `excluded_no_lesion_mask` case is now a subject_id that doesn't appear as a row in the tsv at all (verified real example: `sub-STUKLFR0005`, confirmed absent from the registry, not just locally unretrieved). `_subjects_with_lesion_mask` raises `ValueError` if a dataset's tsv is missing the `lesion/manual_masks/anat/lesion_mask` column entirely - a structural registry gap this pipeline's core admission criterion depends on, never silently treated as "nobody has a lesion mask".
+
+A full local retrieval run before this fix admitted 40/1151 subjects; after the fix, the same local run (SDC CSVs untouched, only the admission criterion changed) admits 1119/1151 - the remaining 32 exclusions are all genuine registry gaps (subject_id absent from `UKLFR_stroke_UKLFR_participants_lesions.tsv`), confirmed individually, not local-retrieval artifacts.
 
 ### Per-CSV validation (`_load_and_validate_csv`)
 
@@ -57,7 +65,7 @@ A header-only (zero-row) CSV is a legitimate domain case handled by `_stack_alig
 
 ## `src/analysis/build_config.py` — `build_sdc_matrix.json` parsing
 
-`load_build_sdc_matrix_config(path) -> SdcMatrixConfig`, same style as `load_build_matrix_config`/`load_config`: hand-written `_require_*`/`_optional_*` helpers, every field validated upfront. `object`/`value_column` are validated against `src.features.sdc.KNOWN_OBJECTS`/`KNOWN_VALUE_COLUMNS` at config-load time - a typo here would otherwise only surface after the first subject's CSV is opened (`object`) or column-indexed (`value_column`), potentially after hundreds of files have already been read.
+`load_build_sdc_matrix_config(path) -> SdcMatrixConfig`, same style as `load_build_matrix_config`/`load_config`: hand-written `_require_*`/`_optional_*` helpers, every field validated upfront. `object`/`value_column` are validated against `src.features.sdc.KNOWN_OBJECTS`/`KNOWN_VALUE_COLUMNS` at config-load time - a typo here would otherwise only surface after the first subject's CSV is opened (`object`) or column-indexed (`value_column`), potentially after hundreds of files have already been read. No `lesion_glob` field - unlike `build_lesion_matrix.json`, lesion mask presence is resolved from `assets/metadata/*_participants_lesions.tsv`, not from a glob against `data_root`.
 
 ## `src/pipeline/build_sdc_matrix.py` — CLI entry point
 
@@ -66,7 +74,3 @@ A header-only (zero-row) CSV is a legitimate domain case handled by `_stack_alig
 - `extra_arrays` holds `region_names` (the column labels, `str` dtype) instead of a boolean drop-mask - there is no drop mask, since no column is ever dropped.
 - `config.md`/the report add two sections beyond `build_lesion_matrix.py`'s single "Excluded by group_filter": **"Excluded (SDC output present but no lesion mask)"** and **"Have a lesion mask but no SDC output yet"** - both persisted, not just logged (same reasoning as `AUDIT_FINDINGS.md #48` for `build_lesion_matrix.py`'s `excluded_by_group`: "why does this matrix have fewer subjects than expected" must be answerable from `config.md` alone).
 - `Params used:` records `{"object": ..., "atlas": ..., "value_column": ...}` instead of `{"binarize_threshold": ...}`.
-
-## Known local-environment caveat (found 27-08-26)
-
-On this Mac, `manual_masks/` (lesion masks) holds only a small local sample (10 subjects per dataset) while `sdc/` holds the full retrieved cohort (195/83/168/705 across the 4 in-scope datasets) - confirmed via a raw `Path.glob` independent of this module's own code, not a bug in subject-ID parsing/matching. A local test run therefore only ever admits the intersection available locally (40 subjects, verified 27-08-26) - a full production run (server, or after a full local retrieval) is expected to admit close to the full cohort, modulo the few genuine `excluded_no_lesion_mask` cases like `sub-STUKLFR0671`.

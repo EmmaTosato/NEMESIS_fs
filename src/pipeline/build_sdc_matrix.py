@@ -62,7 +62,6 @@ def main(argv: list[str] | None = None) -> int:
                 build_sdc_matrix(
                     data_root=config.data_root,
                     datasets=config.datasets,
-                    lesion_glob=config.lesion_glob,
                     object_=config.object,
                     atlas=config.atlas,
                     value_column=config.value_column,
@@ -147,7 +146,6 @@ def _config_summary(config: SdcMatrixConfig) -> str:
         "data_root": str(config.data_root),
         "datasets": config.datasets,
         "group_filter": config.group_filter,
-        "lesion_glob": config.lesion_glob,
         "object": config.object,
         "atlas": config.atlas,
         "value_column": config.value_column,

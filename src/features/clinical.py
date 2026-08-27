@@ -260,7 +260,12 @@ class VariableCoverageReport:
         return bool(self.missing_dataset_files) or bool(self.missing_subjects_by_dataset)
 
 
-def _participants_tsv_path(dataset: str) -> Path:
+def participants_tsv_path(dataset: str) -> Path:
+    """Public since 2026-08-27: src.features.sdc reuses this to locate the same
+    per-dataset participants.tsv, as the authoritative registry of which
+    subjects have a lesion mask at all (see that module for why - a
+    dataset's local `manual_masks/` retrieval can be a partial sample, this
+    file is not)."""
     return METADATA_ROOT / f"{dataset.replace('/', '_')}_participants_lesions.tsv"
 
 
@@ -288,7 +293,7 @@ def check_participant_variable_coverage(metadata: pd.DataFrame, variables: list[
     for dataset in datasets:
         subject_ids = metadata.loc[metadata["dataset"] == dataset, "subject_id"]
         n_subjects_by_dataset[dataset] = len(subject_ids)
-        path = _participants_tsv_path(dataset)
+        path = participants_tsv_path(dataset)
         if not path.is_file():
             missing_dataset_files[dataset] = path
             continue
@@ -345,7 +350,7 @@ def join_participant_variables(metadata: pd.DataFrame, variables: list[str]) -> 
     values_by_variable: dict[str, dict[str, object]] = {variable: {} for variable in variables}
     for dataset in coverage.datasets:
         subject_ids = metadata.loc[metadata["dataset"] == dataset, "subject_id"]
-        participants = load_participants(_participants_tsv_path(dataset))
+        participants = load_participants(participants_tsv_path(dataset))
 
         for variable in variables:
             if variable in coverage.missing_variable_by_dataset.get(dataset, []):
