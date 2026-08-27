@@ -1,16 +1,20 @@
 {
   "project": "clinical_connectome",
-  "input_path": "results/lesion/dim_reduction/production/pacmap/23-07_s1.1_n5",
   "output_root": "results/lesion/clustering",
+  "input_path": "results/lesion/dim_reduction/production/umap/11-08_s1.1_nc2_m_euclidean",
   "viz_embedding_path": null,
   "params_file": "config/registry/params_clustering.json",
   "clustering_methods": [
+    "kmeans",
+    "agglomerative",
+    "gmm",
+    "hdbscan",
     "spectral"
   ],
-  "session_name": "",
-  "overwrite": true,
-  "fine_tuning": false,
+  "session_name": "s1.1",
+  "overwrite": false,
+  "fine_tuning": true,
   "reduced_data": true,
-  "save_tuning_clusterings": false,
-  "run_notes": ""
+  "save_tuning_clusterings": true,
+  "run_notes": "clustering tuning on UMAP reduced data - 2 components - euclidean"
 }
