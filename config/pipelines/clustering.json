@@ -1,16 +1,16 @@
 {
   "project": "clinical_connectome",
   "output_root": "results/lesion/clustering",
-  "input_path": "results/lesion/dim_reduction/production/umap/11-08_s1.1_nc2_m_euclidean",
+  "input_path": "results/lesion/dim_reduction/production/umap/11-08_s1.1_nc10_m_euclidean",
   "viz_embedding_path": null,
   "params_file": "config/registry/params_clustering.json",
   "clustering_methods": [
     "spectral"
   ],
-  "session_name": "s1.1",
+  "session_name": "s1.1_euclidean_n10",
   "overwrite": false,
   "fine_tuning": true,
   "reduced_data": true,
   "save_tuning_clusterings": false,
-  "run_notes": "clustering tuning on UMAP reduced data - 2 components - euclidean (spectral only, save_tuning_clusterings disabled: incompatible with swept affinity)"
+  "run_notes": "clustering tuning on UMAP reduced data - 10 components - euclidean (spectral only, save_tuning_clusterings disabled: incompatible with swept affinity)"
 }
