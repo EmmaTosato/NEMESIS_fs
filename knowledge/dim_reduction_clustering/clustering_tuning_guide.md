@@ -62,6 +62,7 @@ Calcolati per tutti e 6 i metodi, sempre nello stesso file (`tuning_plot.png`), 
   - Salto grande più in basso → suggerisce un numero di cluster maggiore.
 - **Attenzione**: il colore dei rami non indica il numero di cluster consigliato — conta solo l'altezza dei salti.
 - **Confronta i linkage tra loro**: `ward` tende a fusioni regolari, simili a KMeans. `average`/`complete` sono più sensibili agli outlier. `single` tende a incatenare gruppi distinti attraverso pochi punti-ponte, producendo un dendrogramma meno affidabile per la scelta del numero di cluster.
+- **Attenzione — calcolato sempre a `metric="euclidean"`**: anche quando `metric` è sweepata (`cosine`/`manhattan`), il dendrogramma per ogni `linkage` resta calcolato con la metrica di default/`base_params` (euclidea), mai con quella iterata nella sweep (`clustering.py::_write_agglomerative_diagnostics`). Per una sweep `metric`-mista, quindi, il dendrogramma è una diagnostica valida solo per giudicare `linkage` nella geometria euclidea — per `cosine`/`manhattan` l'unico segnale su `linkage` resta `tuning_results.csv` (solo Silhouette, dato che CH/DB sono vuoti per quelle righe).
 
 ### Agglomerative — matrice di distanza interclasse
 
