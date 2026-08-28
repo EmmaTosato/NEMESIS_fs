@@ -48,6 +48,25 @@ Parametri scelti a valle del tuning ([`dim_reduction_tuning_s1.md`](dim_reductio
 
 ---
 
-## s1.2 — nessuna produzione ancora
+## 28-08-2026 — s1.2
+#### Prima produzione UMAP (6 embedding, replica esatta della struttura s1.1)
 
-Solo tuning lanciato finora su s1.2 (vedi [`dim_reduction_tuning_s1.md`](dim_reduction_tuning_s1.md), 26-08); parametri di produzione ancora da fissare.
+**Obiettivo:** riprodurre su s1.2 (5269 soggetti) gli stessi 6 embedding di produzione già fatti su s1.1 (`{dice,euclidean}×{2,3,10}`), stessi `n_neighbors`/`min_dist` per combo — non ri-derivati dallo sweep `26-08_s1.2`, replicati identici a s1.1 su richiesta esplicita.
+
+**Prerequisito:** `data/derived/lesion_matrix/25-08_s1.2/metadata.csv` non aveva mai `lesion_side`/`nihss` in place (solo una copia separata in `data/derived/clinical_metadata/26-08_s1.2/`, non utilizzabile come `input_path`) — arricchito in place con `enrich_lesion_metadata.py --write_in_place true` (feature aggiunta lo stesso giorno) prima di lanciare le 6 run.
+
+| ID | metric | n_neighbors | min_dist | n_components | Link |
+| --- | --- | --- | --- | --- | --- |
+| nc2_m_dice | dice | 15 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_nc2_m_dice/config.md) |
+| nc2_m_euclidean | euclidean | 5 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_nc2_m_euclidean/config.md) |
+| nc3_m_dice | dice | 30 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_nc3_m_dice/config.md) |
+| nc3_m_euclidean | euclidean | 5 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_nc3_m_euclidean/config.md) |
+| nc10_m_dice | dice | 30 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_nc10_m_dice/config.md) |
+| nc10_m_euclidean | euclidean | 30 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_nc10_m_euclidean/config.md) |
+
+**Note:**
+- `nc10_*`: nessuno sweep di tuning ha mai coperto `n_components=10` (né s1.1 né s1.2) — `n_neighbors` estrapolato da `nc3`, stesso valore di s1.1.
+- Stesso caveat noto per `dice`: alto trustworthiness, split artificiale per `lesion_side` (vedi [`dim_reduction_tuning_s1.md`](dim_reduction_tuning_s1.md), 03-08).
+- Tutte e 4 le `color_by` (`dataset`/`side`/`volume`/`nihss`) popolate.
+
+**t-SNE, s1.2:** parametri ancora da fissare (perplexity=15/dice, perplexity=30/euclidean emergono come argmax nello sweep `26-08_s1.2`, ma nessuna produzione lanciata).
