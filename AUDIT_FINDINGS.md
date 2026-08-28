@@ -1542,16 +1542,14 @@ interpretabili in quel modo, un'inferenza clinica plausibile ma metodologicament
 il report stesso non fa nulla per prevenire, a differenza della pagina PAIR che lo dice
 esplicitamente proprio per questo motivo.
 
-**Stato: Implementato (21/08).** Box `.caveats` aggiunto subito sotto il titolo della pagina
-(prima di "UMAP across parameters"), con i 3 avvertimenti PAIR tradotti/adattati verbatim nel
-contenuto ("Cluster sizes... mean nothing", "Distances between clusters might not mean
-anything", "You may need more than one plot" — quest'ultimo riformulato per collegarsi
-esplicitamente alla Figure 1 di questo stesso report). Non rimuove l'ambiguità interpretativa
-di UMAP/t-SNE in sé (nessun codice può farlo), ma la rende esplicita per il lettore non
-tecnico a cui il report è indirizzato. Test:
-`test_generate_report_includes_umap_interpretation_caveats`
-(`tests/unit/test_understanding_umap_report.py`) — verificato fallire su codice pre-fix
-(testo assente dall'HTML generato), passa col fix.
+**Stato: Implementato (21/08), rimosso su richiesta esplicita dell'utente (28/08).** Box
+`.caveats` aggiunto subito sotto il titolo della pagina (prima di "UMAP across parameters"),
+con i 3 avvertimenti PAIR tradotti/adattati verbatim; rimosso interamente il 28/08 (CSS,
+markup HTML e test di regressione `test_generate_report_includes_umap_interpretation_caveats`
+in `tests/unit/test_understanding_umap_report.py`), inclusa la ripulitura manuale dei 2 report
+già generati sotto `results/lesion/dim_reduction/tuning/umap/26-08_s1.2/`. Nessuna
+sostituzione: il report non comunica più questi avvertimenti in nessuna forma — decisione
+esplicita dell'utente, non una regressione da correggere in una sessione futura.
 
 ### 42. `understanding_umap_report`: riferimenti morti a `run_understanding_umap_dash`
 
