@@ -1,15 +1,15 @@
 {
   "project": "clinical_connectome",
-  "input_path": "data/derived/lesion_matrix/25-08_s1.2",
-  "output_root": "results/lesion/dim_reduction",
-  "params_file": "config/registry/params_reduction.json",
-  "reduction_method": "tsne",
-  "session_name": "s1.2",
+  "input_path": "data/derived/sdc_matrix/27-08_s2.1",
+  "output_root": "results/sdc/dim_reduction",
+  "params_file": "config/registry/params_reduction_sdc.json",
+  "reduction_method": "umap",
+  "session_name": "s2.2",
   "overwrite": false,
   "fine_tuning": true,
-  "color_by": ["dataset", "side", "volume", "nihss"],
+  "color_by": ["dataset", "side", "nihss"],
   "viz_n_components": 2,
   "precompute_distance_metric": true,
   "save_tuning_embeddings": true,
-  "run_notes": "tsne tuning on s1.2 matrix (5269 subjects, +UCL-UK/UCLStrokeData) - same tuning_grid as the last s1.1 sweep (metric x perplexity, nested on metric). First real measurement of whether the euclidean precompute fix (extended to tsne 25-08 without independent timing, see docs/debugging/debug_25_08_26.md) actually helps for t-SNE, not just UMAP."
+  "run_notes": "atlante schaefer_200_tian_s2"
 }

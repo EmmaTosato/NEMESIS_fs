@@ -6,5 +6,6 @@
   "output_root": "data/derived/clinical_metadata",
   "session_name": "sdc_s2.1",
   "overwrite": false,
-  "run_notes": "enrich sdc_matrix 27-08_s2.1 metadata with lesion_side/nihss - needed for color_by in dim_reduction s2.2 (umap tuning on SDC schaefer_200_tian_s2); compute_volume=false since the SDC matrix is continuous (mean_overlap), not the binary lesion matrix compute_volume needs"
+  "write_in_place": true,
+  "run_notes": "enrich sdc_matrix 27-08_s2.1 metadata in place with lesion_side/nihss - so it's directly usable as dim_reduction's input_path (color_by for s2.2, umap tuning on SDC schaefer_200_tian_s2); compute_volume=false since the SDC matrix is continuous (mean_overlap), not the binary lesion matrix compute_volume needs"
 }
