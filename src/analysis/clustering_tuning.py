@@ -82,7 +82,7 @@ _EUCLIDEAN_SAFE_METRIC = frozenset({None, "euclidean"})
 # agglomerative-only metric-aware sweep (project-clustering-tuning-redesign memory, 26-08-26):
 # unlike every other method, agglomerative is deterministic (no random_state) and sklearn
 # itself restricts linkage="ward" to euclidean/l2 geometry - see
-# _is_invalid_ward_metric_combo/_agglomerative_fit_metric_aware/compute_clustering_metrics_metric_aware
+# is_invalid_ward_metric_combo/_agglomerative_fit_metric_aware/compute_clustering_metrics_metric_aware
 # below, and run_clustering_tuning_sweep's dedicated branch.
 _WARD_SAFE_METRICS = frozenset({"euclidean", "l2"})
 
@@ -225,7 +225,7 @@ def dunn_index(X: np.ndarray, labels: np.ndarray) -> float:
     return float(min_inter_cluster / max_diameter)
 
 
-def _is_invalid_ward_metric_combo(combo_params: dict) -> bool:
+def is_invalid_ward_metric_combo(combo_params: dict) -> bool:
     """True iff this agglomerative combination pairs linkage="ward" (sklearn's default) with a
     metric other than euclidean/l2 - an invalid sklearn combination
     (AgglomerativeClustering's own `metric` docstring: "If linkage is 'ward', only 'euclidean'
@@ -421,7 +421,7 @@ def run_clustering_tuning_sweep(
         # Agglomerative-only (project-clustering-tuning-redesign memory, 26-08-26): linkage="ward"
         # + a non-euclidean metric is an invalid sklearn combination - filtered out of the sweep
         # here, with a logged warning, never let through to raise sklearn's own ValueError mid-sweep.
-        if method == "agglomerative" and _is_invalid_ward_metric_combo(combo_params):
+        if method == "agglomerative" and is_invalid_ward_metric_combo(combo_params):
             logging.warning(
                 "[agglomerative] skipping invalid combination %s: linkage='ward' requires metric in %s",
                 combo_dict,
@@ -622,7 +622,7 @@ def compute_dendrogram_linkage(X: np.ndarray, params: dict) -> np.ndarray:
     (n_clusters=None, distance_threshold=0 forces every merge down to
     singleton leaves; compute_distances=True records each merge's distance),
     then converts sklearn's children_/distances_ into a scipy linkage matrix
-    - the format plotting.plot_dendrogram (scipy.cluster.hierarchy.dendrogram)
+    - the format plotting.plot_dendrograms_grid (scipy.cluster.hierarchy.dendrogram)
     expects. Ignores any n_clusters/distance_threshold already in `params` -
     the full hierarchy doesn't depend on which cut you'd eventually pick,
     that's the whole point of looking at it before deciding on one.
@@ -648,7 +648,7 @@ def compute_eigengap(X: np.ndarray, params: dict, max_k: int = 20) -> np.ndarray
     """Builds the same affinity graph SpectralClustering would from `params`
     ("nearest_neighbors" or "rbf", matching spectral_cluster), computes the
     normalized graph Laplacian, and returns its smallest `max_k` eigenvalues
-    sorted ascending - plotting.plot_eigengap reads the eigengap heuristic's
+    sorted ascending - plotting.plot_eigengaps_grid reads the eigengap heuristic's
     suggested cluster count off the biggest gap between consecutive values.
     Independent of `params["n_clusters"]`. Raises ValueError for any affinity
     other than "nearest_neighbors"/"rbf".

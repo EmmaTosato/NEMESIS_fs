@@ -1072,9 +1072,12 @@ def test_clustering_fine_tuning_agglomerative_metric_aware_sweep_writes_new_diag
     assert results.loc[results["metric"] == "cosine", "calinski_harabasz"].isna().all()
     assert results.loc[results["metric"] == "euclidean", "calinski_harabasz"].notna().all()
 
-    assert (tuning_dir / "dendrogram_ward.png").stat().st_size > 0
-    assert (tuning_dir / "dendrogram_average.png").stat().st_size > 0
-    assert not (tuning_dir / "dendrogram.png").exists()  # replaced by the per-linkage files
+    # ward+cosine is invalid (skipped), so dendrogram_metric=euclidean.png has 2 linkage
+    # subplots (ward, average) but dendrogram_metric=cosine.png only has 1 (average)
+    assert (tuning_dir / "dendrogram_metric=euclidean.png").stat().st_size > 0
+    assert (tuning_dir / "dendrogram_metric=cosine.png").stat().st_size > 0
+    assert not (tuning_dir / "dendrogram.png").exists()  # replaced by the per-metric files
+    assert not (tuning_dir / "dendrogram_ward.png").exists()  # replaced by the per-metric files
 
     assert (tuning_dir / "interclass_distance_matrix.png").stat().st_size > 0
 
@@ -1292,7 +1295,8 @@ def test_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkey
 
     tuning_dir = next(p for p in (output_root / "tuning" / "agglomerative").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
-    assert (tuning_dir / "dendrogram.png").stat().st_size > 0  # standalone diagnostic, agglomerative-only
+    # linkage/metric not swept -> base_params defaults (ward, euclidean), single-subplot file
+    assert (tuning_dir / "dendrogram_metric=euclidean.png").stat().st_size > 0  # standalone diagnostic, agglomerative-only
 
 
 def test_clustering_fine_tuning_spectral_writes_eigengap(tmp_path, monkeypatch):
@@ -1332,7 +1336,8 @@ def test_clustering_fine_tuning_spectral_writes_eigengap(tmp_path, monkeypatch):
 
     tuning_dir = next(p for p in (output_root / "tuning" / "spectral").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
-    assert (tuning_dir / "eigengap_plot.png").stat().st_size > 0  # standalone diagnostic, spectral-only
+    # affinity not swept -> base_params' own affinity (nearest_neighbors), single-subplot file
+    assert (tuning_dir / "eigengap_affinity=nearest_neighbors.png").stat().st_size > 0  # standalone diagnostic, spectral-only
 
 
 def test_clustering_fine_tuning_spectral_affinity_aware_sweep_writes_combined_plot(tmp_path, monkeypatch):
@@ -1381,7 +1386,12 @@ def test_clustering_fine_tuning_spectral_affinity_aware_sweep_writes_combined_pl
 
     tuning_dir = next(p for p in (output_root / "tuning" / "spectral").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
-    assert (tuning_dir / "eigengap_plot.png").stat().st_size > 0  # standalone diagnostic, unchanged
+    # affinity swept (nearest_neighbors, rbf) -> one eigengap file per affinity, each with a
+    # subplot per swept value of its own hyperparameter (found 28-08-26: the old single
+    # eigengap_plot.png never reflected this, always computed from base_params alone)
+    assert (tuning_dir / "eigengap_affinity=nearest_neighbors.png").stat().st_size > 0
+    assert (tuning_dir / "eigengap_affinity=rbf.png").stat().st_size > 0
+    assert not (tuning_dir / "eigengap_plot.png").exists()  # replaced by the per-affinity files
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert len(results) == 8

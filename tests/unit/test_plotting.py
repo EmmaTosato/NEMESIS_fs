@@ -1,7 +1,7 @@
 """Unit tests for src/analysis/plotting.py - plot_clusters_comparison_interactive/
 compose_run_title/compose_embedding_plot_title/
 plot_embedding_2d/plot_embedding_categorical/plot_embedding_continuous/_declutter_points/
-plot_clustering_tuning_metrics/plot_dendrogram/plot_eigengap/plot_silhouette_analysis."""
+plot_clustering_tuning_metrics/plot_dendrograms_grid/plot_eigengaps_grid/plot_silhouette_analysis."""
 
 import math
 from pathlib import Path
@@ -22,8 +22,8 @@ from src.analysis.plotting import (
     plot_clusters_comparison_interactive,
     plot_consensus_matrix_heatmap,
     plot_grouped_tuning_metrics,
-    plot_dendrogram,
-    plot_eigengap,
+    plot_dendrograms_grid,
+    plot_eigengaps_grid,
     plot_embedding_2d,
     plot_embedding_categorical,
     plot_embedding_continuous,
@@ -377,33 +377,49 @@ def test_plot_clustering_tuning_heatmaps_raises_on_empty_metric_cols(tmp_path):
         plot_clustering_tuning_heatmaps(df, "eps", "min_samples", [], tmp_path / "out.png", "title")
 
 
-def test_plot_dendrogram_writes_file(tmp_path):
+def test_plot_dendrograms_grid_writes_file(tmp_path):
     from src.analysis.clustering_tuning import compute_dendrogram_linkage
 
     rng = np.random.default_rng(0)
     X = np.vstack([rng.normal(loc=[0, 0], size=(10, 2)), rng.normal(loc=[5, 5], size=(10, 2))])
-    linkage_matrix = compute_dendrogram_linkage(X, {"linkage": "ward"})
-    output_path = tmp_path / "dendrogram.png"
+    linkage_matrices = {
+        "ward": compute_dendrogram_linkage(X, {"linkage": "ward"}),
+        "average": compute_dendrogram_linkage(X, {"linkage": "average"}),
+    }
+    output_path = tmp_path / "dendrogram_metric=euclidean.png"
 
-    plot_dendrogram(linkage_matrix, output_path, "test title")
-
-    assert output_path.exists()
-    assert output_path.stat().st_size > 0
-
-
-def test_plot_eigengap_marks_largest_gap(tmp_path):
-    eigenvalues = np.array([0.0, 0.01, 0.02, 0.5, 0.6, 0.7])
-    output_path = tmp_path / "eigengap_plot.png"
-
-    plot_eigengap(eigenvalues, output_path, "test title")
+    plot_dendrograms_grid(linkage_matrices, output_path, "test title")
 
     assert output_path.exists()
     assert output_path.stat().st_size > 0
 
 
-def test_plot_eigengap_raises_on_fewer_than_two_eigenvalues(tmp_path):
+def test_plot_dendrograms_grid_raises_on_empty_dict(tmp_path):
+    with pytest.raises(ValueError, match="at least one linkage"):
+        plot_dendrograms_grid({}, tmp_path / "out.png", "title")
+
+
+def test_plot_eigengaps_grid_marks_largest_gap(tmp_path):
+    eigenvalues_by_label = {
+        "n_neighbors=10": np.array([0.0, 0.01, 0.02, 0.5, 0.6, 0.7]),
+        "n_neighbors=30": np.array([0.0, 0.02, 0.03, 0.4, 0.5, 0.6]),
+    }
+    output_path = tmp_path / "eigengap_affinity=nearest_neighbors.png"
+
+    plot_eigengaps_grid(eigenvalues_by_label, output_path, "test title")
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_plot_eigengaps_grid_raises_on_empty_dict(tmp_path):
+    with pytest.raises(ValueError, match="at least one set of eigenvalues"):
+        plot_eigengaps_grid({}, tmp_path / "out.png", "title")
+
+
+def test_plot_eigengaps_grid_raises_on_fewer_than_two_eigenvalues(tmp_path):
     with pytest.raises(ValueError, match="at least 2 eigenvalues"):
-        plot_eigengap(np.array([0.0]), tmp_path / "out.png", "title")
+        plot_eigengaps_grid({"n_neighbors=10": np.array([0.0])}, tmp_path / "out.png", "title")
 
 
 def test_plot_clusters_2d_writes_file_without_point_sizes(tmp_path):

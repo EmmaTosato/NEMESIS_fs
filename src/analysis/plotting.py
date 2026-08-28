@@ -1197,46 +1197,73 @@ def plot_consensus_matrix_heatmap(co_occurrence: np.ndarray, labels: np.ndarray,
     plt.close(fig)
 
 
-def plot_dendrogram(linkage_matrix: np.ndarray, output_path: Path, title: str, truncate_last_p: int = 30) -> None:
-    """Truncated dendrogram (scipy) from a linkage matrix built by
-    clustering_tuning.compute_dendrogram_linkage - a full tree over hundreds
-    or thousands of subjects is unreadable, so only the last `truncate_last_p`
-    merges are shown (truncate_mode="lastp"), with each collapsed branch
-    annotated by how many original subjects it represents.
+def plot_dendrograms_grid(
+    linkage_matrices_by_linkage: dict[str, np.ndarray], output_path: Path, title: str, truncate_last_p: int = 30
+) -> None:
+    """One truncated dendrogram (scipy) subplot per `linkage` value, laid out side by side -
+    counterpart to plot_interclass_distance_matrix's per-metric grid. Replaces the old
+    single-panel plot_dendrogram (found 28-08-26 to always be computed at a fixed `metric`,
+    never reflecting a swept `metric` - see clustering_tuning_guide.md): the caller now groups
+    diagnostics by `metric` (one file per metric value) and passes every valid `linkage` for
+    that metric here as the subplot axis, so every swept (linkage, metric) combination gets its
+    own dendrogram, not just linkage. A full tree over hundreds/thousands of subjects is
+    unreadable, so only the last `truncate_last_p` merges are shown per subplot (truncate_mode
+    ="lastp"), each collapsed branch annotated by how many original subjects it represents.
     """
-    fig, ax = plt.subplots(figsize=(10, 6))
-    dendrogram(linkage_matrix, truncate_mode="lastp", p=truncate_last_p, ax=ax, show_contracted=True)
-    ax.set_xlabel(f"cluster size (or subject index if a leaf) - truncated to last {truncate_last_p} merges")
-    ax.set_ylabel("merge distance")
-    ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
+    if not linkage_matrices_by_linkage:
+        raise ValueError("plot_dendrograms_grid needs at least one linkage")
 
+    linkages = list(linkage_matrices_by_linkage)
+    fig, axes = plt.subplots(1, len(linkages), figsize=(7 * len(linkages), 6), squeeze=False)
+
+    for i, linkage in enumerate(linkages):
+        ax = axes[0][i]
+        dendrogram(linkage_matrices_by_linkage[linkage], truncate_mode="lastp", p=truncate_last_p, ax=ax, show_contracted=True)
+        ax.set_xlabel(f"cluster size (or subject index) - last {truncate_last_p} merges")
+        ax.set_ylabel("merge distance")
+        ax.set_title(f"linkage={linkage}")
+        ax.tick_params(axis="x", labelrotation=45)
+
+    fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", y=1.05)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
-def plot_eigengap(eigenvalues: np.ndarray, output_path: Path, title: str) -> None:
-    """Sorted eigenvalues of the affinity graph's Laplacian
-    (clustering_tuning.compute_eigengap), with the single biggest gap between
-    consecutive eigenvalues marked - the eigengap heuristic for picking
-    SpectralClustering's n_clusters: the suggested k is the index right
-    before the biggest jump (a Laplacian's near-zero eigenvalues approximate
-    the number of well-separated graph components).
+def plot_eigengaps_grid(eigenvalues_by_label: dict[str, np.ndarray], output_path: Path, title: str) -> None:
+    """One eigengap subplot per label (typically one per value of the affinity's own
+    hyperparameter - `n_neighbors` for `nearest_neighbors`, `gamma` for `rbf`), laid out side
+    by side - counterpart to plot_interclass_distance_matrix's per-metric grid. Replaces the
+    old single-panel plot_eigengap (found 28-08-26 to always be computed from `base_params`
+    alone, never reflecting a swept `affinity`/hyperparameter - same gap already documented for
+    agglomerative's dendrogram): the caller groups diagnostics by `affinity` (one file per
+    affinity value) and passes every swept value of that affinity's hyperparameter here. Each
+    subplot marks the single biggest gap between consecutive sorted eigenvalues of the
+    affinity graph's Laplacian (clustering_tuning.compute_eigengap) - the eigengap heuristic's
+    suggested `n_clusters` is the index right before that jump.
     """
-    if len(eigenvalues) < 2:
-        raise ValueError(f"plot_eigengap needs at least 2 eigenvalues to compute a gap, got {len(eigenvalues)}")
+    if not eigenvalues_by_label:
+        raise ValueError("plot_eigengaps_grid needs at least one set of eigenvalues")
 
-    gaps = np.diff(eigenvalues)
-    best_gap_idx = int(np.argmax(gaps))
+    labels = list(eigenvalues_by_label)
+    fig, axes = plt.subplots(1, len(labels), figsize=(6 * len(labels), 5), squeeze=False)
 
-    fig, ax = plt.subplots(figsize=(6, 5))
-    ax.plot(range(1, len(eigenvalues) + 1), eigenvalues, marker="o")
-    ax.axvline(best_gap_idx + 1, color="red", linestyle="--", label=f"largest gap after eigenvalue {best_gap_idx + 1}")
-    ax.set_xlabel("eigenvalue index")
-    ax.set_ylabel("eigenvalue")
-    ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
-    ax.legend()
+    for i, label in enumerate(labels):
+        eigenvalues = eigenvalues_by_label[label]
+        if len(eigenvalues) < 2:
+            raise ValueError(f"plot_eigengaps_grid needs at least 2 eigenvalues per entry, got {len(eigenvalues)} for {label!r}")
+        gaps = np.diff(eigenvalues)
+        best_gap_idx = int(np.argmax(gaps))
 
+        ax = axes[0][i]
+        ax.plot(range(1, len(eigenvalues) + 1), eigenvalues, marker="o")
+        ax.axvline(best_gap_idx + 1, color="red", linestyle="--", label=f"largest gap after eigenvalue {best_gap_idx + 1}")
+        ax.set_xlabel("eigenvalue index")
+        ax.set_ylabel("eigenvalue")
+        ax.set_title(label)
+        ax.legend()
+
+    fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", y=1.05)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)

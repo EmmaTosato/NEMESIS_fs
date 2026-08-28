@@ -55,14 +55,13 @@ Calcolati per tutti e 6 i metodi, sempre nello stesso file (`tuning_plot.png`), 
 
 ### Agglomerative — dendrogramma
 
-- **Dove**: un file a parte per ogni `linkage` testato, indipendente dal numero di cluster scelto.
+- **Dove**: un file `dendrogram_metric=<metric>.png` per ogni `metric` testata, con un subplot per ogni `linkage` valido per quella metrica (`ward` con metrica non euclidea è scartato, stessa regola della sweep) — indipendente dal numero di cluster scelto. **Fix 28-08-26**: prima calcolava il dendrogramma sempre a `metric="euclidean"` fissa, anche per le sweep `cosine`/`manhattan` — ora ogni file riflette davvero la propria metrica.
 - **Come si legge**: dal basso verso l'alto. Ogni fusione verticale unisce due sotto-gruppi all'altezza (asse y) della loro distanza di fusione.
 - **Cosa cercare**: il salto verticale più grande tra due fusioni consecutive indica il taglio più naturale.
   - Salto grande vicino alla cima → la struttura più forte è binaria (2 cluster).
   - Salto grande più in basso → suggerisce un numero di cluster maggiore.
 - **Attenzione**: il colore dei rami non indica il numero di cluster consigliato — conta solo l'altezza dei salti.
 - **Confronta i linkage tra loro**: `ward` tende a fusioni regolari, simili a KMeans. `average`/`complete` sono più sensibili agli outlier. `single` tende a incatenare gruppi distinti attraverso pochi punti-ponte, producendo un dendrogramma meno affidabile per la scelta del numero di cluster.
-- **Attenzione — calcolato sempre a `metric="euclidean"`**: anche quando `metric` è sweepata (`cosine`/`manhattan`), il dendrogramma per ogni `linkage` resta calcolato con la metrica di default/`base_params` (euclidea), mai con quella iterata nella sweep (`clustering.py::_write_agglomerative_diagnostics`). Per una sweep `metric`-mista, quindi, il dendrogramma è una diagnostica valida solo per giudicare `linkage` nella geometria euclidea — per `cosine`/`manhattan` l'unico segnale su `linkage` resta `tuning_results.csv` (solo Silhouette, dato che CH/DB sono vuoti per quelle righe).
 
 ### Agglomerative — matrice di distanza interclasse
 
@@ -91,7 +90,7 @@ Entrambe calcolate una sola volta, indipendenti dalla soglia (`threshold`) sweep
 
 ### Spectral — eigengap
 
-- **Dove**: file a parte, calcolato una volta sola, indipendente dal numero di cluster.
+- **Dove**: un file `eigengap_affinity=<affinity>.png` per ogni `affinity` testata (`nearest_neighbors`/`rbf`), con un subplot per ogni valore sweepato del suo iperparametro (`n_neighbors` o `gamma`) — indipendente dal numero di cluster. **Fix 28-08-26**: prima calcolava l'eigengap una sola volta, sempre con l'`affinity`/iperparametro di default (`base_params`), anche quando `affinity` era sweepata — stesso identico problema del dendrogramma sopra, trovato subito dopo aver corretto quello.
 - **Cosa misura**: gli autovalori del grafo di affinità tra i punti.
 - **Come si legge**: il numero di cluster consigliato è l'indice giusto prima del salto più grande tra due autovalori consecutivi (spesso marcato visivamente nel plot). È un criterio più fondato dei 3 indici generici per questo metodo, perché riflette direttamente la connettività del grafo che l'algoritmo usa internamente.
 
@@ -132,9 +131,9 @@ Diagnostiche standalone (indipendenti dal valore scelto), solo per il metodo ind
 
 | File | Metodo | Sempre presente? |
 |---|---|---|
-| Dendrogramma (uno per `linkage`) | Agglomerative | Sì |
+| Dendrogramma (uno per `metric`, subplot per `linkage`) | Agglomerative | Sì |
 | Matrice di distanza interclasse | Agglomerative | Solo se è disponibile un raggruppamento noto a priori nei metadati |
-| Eigengap | Spectral | Sì |
+| Eigengap (uno per `affinity`, subplot per il suo iperparametro) | Spectral | Sì |
 | Convergenza + matrice di consenso | Evidence Accumulation | Sì |
 
 Output opzionali, solo se attivati in config:
