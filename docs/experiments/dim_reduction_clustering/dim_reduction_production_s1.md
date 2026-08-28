@@ -1,0 +1,53 @@
+# Log Esperimenti: Dimensionality Reduction — Produzione
+
+**Pipeline:** `dim_reduction`
+**Dati:** Matrice lesionale voxel-wise:
+- s1.1 = 1150 soggetti (`data/derived/lesion_matrix/21-07_s1.1`)
+- s1.2 = 5269 soggetti (`data/derived/lesion_matrix/25-08_s1.2`) — + UCL-UK/UCLStrokeData (4119 soggetti)
+
+Parametri scelti a valle del tuning ([`dim_reduction_tuning_s1.md`](dim_reduction_tuning_s1.md)).
+
+---
+
+## 11-08-2026 — s1.1
+#### Prima produzione UMAP (n_components 2 e 10)
+
+**Obiettivo:** produrre i primi embedding UMAP dopo il tuning (03/04-08), fissando i parametri migliori per ogni combo metric × n_components.
+
+| ID | metric | n_neighbors | min_dist | n_components | Link |
+| --- | --- | --- | --- | --- | --- |
+| nc2_m_dice | dice | 15 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/11-08_s1.1_nc2_m_dice/config.md) |
+| nc2_m_euclidean | euclidean | 5 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/11-08_s1.1_nc2_m_euclidean/config.md) |
+| nc10_m_dice | dice | 30 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/11-08_s1.1_nc10_m_dice/config.md) |
+| nc10_m_euclidean | euclidean | 30 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/11-08_s1.1_nc10_m_euclidean/config.md) |
+
+**Nota:** `nc2_m_euclidean` è un re-run dell'embedding 2D del 23-07 (stessi parametri) — per questo condivide la data di sessione con le altre 3 run.
+
+---
+
+## 13-08-2026 — s1.1
+#### Produzione UMAP 3D (n_components=3)
+
+**Obiettivo:** produrre l'embedding UMAP a 3 componenti per visualizzazione 3D.
+
+| ID | metric | n_neighbors | min_dist | n_components | Link |
+| --- | --- | --- | --- | --- | --- |
+| nc3_m_euclidean | euclidean | 5 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/13-08_s1.1_nc3_m_euclidean/config.md) |
+| nc3_m_dice | dice | 30 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/13-08_s1.1_nc3_m_dice/config.md) |
+
+**Note:**
+- `nc3_m_euclidean` — stessi parametri baseline della produzione 2D euclidean (11-08), solo `n_components` cambiato.
+- `nc3_m_dice` — combo a trustworthiness migliore per dice+n_components=3 nel tuning del 13-08 (0.9509), `min_dist` fissato a 0.0 (non l'argmax 0.1/0.9519) per coerenza con la run euclidean gemella.
+- Scelto euclidean come baseline nonostante trustworthiness più bassa del dice: lo split artificiale per lato lesione di dice è documentato in [`dim_reduction_tuning_s1.md`](dim_reduction_tuning_s1.md) (03-08).
+
+---
+
+## Stale — da verificare prima di riusare
+
+**t-SNE, s1.1 (23-07-2026):** 4 run loggate in `results/lesion/dim_reduction/production/tsne/runs.csv` (`p30`/`p40`/`p60`/`p80`, perplexity 30/40/60/80) puntano a `results/lesion/dim_reduction/tsne/23-07_s1.1_p*` — path non presente su disco (verificato 28-08, probabilmente pre-riorganizzazione in `production/`). Non trattare come output valido senza prima ricontrollare/rilanciare.
+
+---
+
+## s1.2 — nessuna produzione ancora
+
+Solo tuning lanciato finora su s1.2 (vedi [`dim_reduction_tuning_s1.md`](dim_reduction_tuning_s1.md), 26-08); parametri di produzione ancora da fissare.
