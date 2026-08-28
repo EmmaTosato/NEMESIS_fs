@@ -1,0 +1,11 @@
+INFO: Starting fine-tuning sweep for tsne (7 combinations)
+INFO: Evaluating combination 1/7: {'metric': 'euclidean', 'perplexity': 5}
+INFO: Evaluating combination 2/7: {'metric': 'euclidean', 'perplexity': 15}
+INFO: Evaluating combination 3/7: {'metric': 'euclidean', 'perplexity': 30}
+INFO: Evaluating combination 4/7: {'metric': 'euclidean', 'perplexity': 50}
+INFO: Evaluating combination 5/7: {'metric': 'euclidean', 'perplexity': 75}
+INFO: Evaluating combination 6/7: {'metric': 'euclidean', 'perplexity': 100}
+INFO: Evaluating combination 7/7: {'metric': 'euclidean', 'perplexity': 200}
+INFO: tuning results written to results/sdc/dim_reduction/tuning/tsne/28-08_s2.1 (7 combinations evaluated)
+INFO: done - tuning results written to results/sdc/dim_reduction/tuning/tsne/28-08_s2.1, log written to logs/dim_reduction/clinical_connectome/dim_reduction__28-08-26__16-53-58.log
+INFO: run duration: 0:00:18

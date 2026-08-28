@@ -69,4 +69,22 @@ Parametri scelti a valle del tuning ([`dim_reduction_tuning_s1.md`](dim_reductio
 - Stesso caveat noto per `dice`: alto trustworthiness, split artificiale per `lesion_side` (vedi [`dim_reduction_tuning_s1.md`](dim_reduction_tuning_s1.md), 03-08).
 - Tutte e 4 le `color_by` (`dataset`/`side`/`volume`/`nihss`) popolate.
 
-**t-SNE, s1.2:** parametri ancora da fissare (perplexity=15/dice, perplexity=30/euclidean emergono come argmax nello sweep `26-08_s1.2`, ma nessuna produzione lanciata).
+---
+
+## 28-08-2026 — s1.1 + s1.2
+#### Prima produzione t-SNE reale (4 embedding, dice+euclidean × s1.1/s1.2)
+
+**Obiettivo:** prima produzione t-SNE valida per entrambe le coorti — i 4 run del 23-07 (`p30`/`p40`/`p60`/`p80`) sono stale/assenti su disco (vedi sopra).
+
+**Verifica preliminare (su richiesta):** l'argmax trustworthiness per `dice` è `perplexity=15` in tutti e 3 gli sweep storici, ma i grid `embeddings_grid_side.png` (backfillati su `26-08_s1.2` con `lesion_side` ora disponibile — non esistevano al momento dello sweep) mostrano lo stesso artefatto già noto su UMAP: con `dice`, i soggetti `right`/`left` si separano in due bande nette, stabili a **ogni** valore di perplexity testato (5→200) — non è un effetto della perplexity, è strutturale alla metrica. Con `euclidean` nessuna banda, `left`/`right` interspersi.
+
+**Decisione:** `perplexity=30` per **entrambe** le metriche (non l'argmax per-metrica) — coerenza tra le due run compagne, stessa logica del `min_dist=0.0` condiviso in produzione UMAP.
+
+| ID | metric | perplexity | coorte | Link |
+| --- | --- | --- | --- | --- |
+| s1.2_m_dice | dice | 30 | 25-08_s1.2 (5269 sog.) | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_m_dice/config.md) |
+| s1.2_m_euclidean | euclidean | 30 | 25-08_s1.2 (5269 sog.) | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_m_euclidean/config.md) |
+| s1.1_m_dice | dice | 30 | 21-07_s1.1 (1150 sog.) | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_m_dice/config.md) |
+| s1.1_m_euclidean | euclidean | 30 | 21-07_s1.1 (1150 sog.) | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_m_euclidean/config.md) |
+
+**Note:** tutte e 4 le `color_by` popolate su tutti e 4 i run; stesso caveat `dice`/`lesion_side` di UMAP, qui confermato visivamente (non solo per analogia).

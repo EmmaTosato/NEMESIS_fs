@@ -3,13 +3,13 @@
   "input_path": "data/derived/sdc_matrix/27-08_s2.1",
   "output_root": "results/sdc/dim_reduction",
   "params_file": "config/registry/params_reduction_sdc.json",
-  "reduction_method": "umap",
-  "session_name": "s2.2",
+  "reduction_method": "tsne",
+  "session_name": "s2.1",
   "overwrite": false,
   "fine_tuning": true,
   "color_by": ["dataset", "side", "nihss"],
   "viz_n_components": 2,
   "precompute_distance_metric": true,
   "save_tuning_embeddings": true,
-  "run_notes": "atlante schaefer_200_tian_s2"
+  "run_notes": "tsne tuning on SDC schaefer_200_tian_s2 (27-08_s2.1) - stessa coorte/ordine di s2.1 (umap) e parametri di tsne/13-08_s1.1"
 }
