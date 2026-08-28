@@ -311,17 +311,33 @@ class EnrichLesionMetadataConfig:
     output_root: Path
     session_name: str
     overwrite: bool
+    write_in_place: bool
     run_notes: str | None
 
 
 def load_enrich_lesion_metadata_config(path: str | Path) -> EnrichLesionMetadataConfig:
     """Load and validate an enrich_lesion_metadata.json file.
 
-    metadata_path is read-only - any CSV with subject_id/dataset columns (typically, but not
-    necessarily, a build_lesion_matrix.py output's own metadata.csv), the source of the
-    subject list to enrich. Never written to - the result always lands in a brand-new
-    output_root/<dd-mm>_<session_name> directory, same input->output separation as every
-    other pipeline in this repo.
+    metadata_path's own directory is read-only for every OTHER pipeline in this repo (a
+    build_*_matrix.py output is never mutated after being written) - this is the one
+    designated exception, gated by write_in_place, see below.
+
+    write_in_place=false (the ordinary case): the enriched result lands in a brand-new
+    output_root/<dd-mm>_<session_name> directory - metadata.csv-only, no matrix.npy, so this
+    output cannot itself be read back as a dim_reduction.py/clustering.py input_path (see
+    src.utils.artifacts.load_matrix) - it's for src.pipeline.replot_dim_reduction.py-style
+    consumers that only ever need metadata.csv, not the feature matrix.
+
+    write_in_place=true: metadata_path must sit inside an existing, complete matrix artifact
+    (a manifest.json and a matrix.npy next to it, e.g. a build_sdc_matrix.py/
+    build_lesion_matrix.py output) - the enriched columns are written back into that SAME
+    directory's own metadata.csv/manifest.json, in place, so it becomes directly usable as a
+    dim_reduction.py input_path afterwards (2026-08-28, on request: this is the one pipeline
+    granted the authority to write into data/derived/ output directories after they've
+    already been written - every other pipeline still only ever writes brand-new,
+    never-touched-again output). output_root/session_name are still used for this run's own
+    entry in output_root/runs.csv - only the enriched artifact itself lands in metadata_path's
+    directory instead. See src.pipeline.enrich_lesion_metadata._write_in_place.
 
     compute_volume=true has no config fields of its own: it sums the matrix.npy that
     src.utils.artifacts.save_matrix always writes next to metadata_path's own metadata.csv
@@ -350,5 +366,6 @@ def load_enrich_lesion_metadata_config(path: str | Path) -> EnrichLesionMetadata
         output_root=Path(_require_str(raw, "output_root")),
         session_name=_require_str(raw, "session_name"),
         overwrite=_require_bool(raw, "overwrite"),
+        write_in_place=_require_bool(raw, "write_in_place"),
         run_notes=_optional_str(raw, "run_notes"),
     )

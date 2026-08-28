@@ -32,7 +32,7 @@ def _make_participants_tsv(metadata_root, dataset, rows):
     return path
 
 
-def _write_config(tmp_path, metadata_path, output_root, variables, compute_volume=False, overwrite=False):
+def _write_config(tmp_path, metadata_path, output_root, variables, compute_volume=False, overwrite=False, write_in_place=False):
     cfg = {
         "project": "testproj",
         "metadata_path": str(metadata_path),
@@ -41,6 +41,7 @@ def _write_config(tmp_path, metadata_path, output_root, variables, compute_volum
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": overwrite,
+        "write_in_place": write_in_place,
         "run_notes": None,
     }
     cfg_path = tmp_path / "enrich.json"
@@ -263,3 +264,120 @@ def test_enrich_lesion_metadata_rejects_missing_metadata_path(tmp_path, monkeypa
     rc = enrich_lesion_metadata.main(["--config", str(cfg_path)])
 
     assert rc == 1
+
+
+def _write_full_matrix_artifact(tmp_path, subject_rows, X):
+    """A minimal but complete matrix artifact (metadata.csv + matrix.npy + manifest.json +
+    config.md) - the shape write_in_place=true requires metadata_path to sit inside."""
+    artifact_dir = tmp_path / "matrix_artifact"
+    artifact_dir.mkdir()
+    metadata_path = artifact_dir / "metadata.csv"
+    pd.DataFrame(subject_rows).to_csv(metadata_path, index=False)
+    np.save(artifact_dir / "matrix.npy", X)
+    (artifact_dir / "manifest.json").write_text(
+        json.dumps({"created_at": "2026-01-01T00:00:00+00:00", "matrix_shape": list(X.shape), "metadata_columns": list(subject_rows[0].keys())})
+    )
+    (artifact_dir / "config.md").write_text("# original build\n\nsome pre-existing content.\n")
+    return metadata_path
+
+
+def test_enrich_lesion_metadata_write_in_place_updates_matrix_artifact_directory(tmp_path, monkeypatch):
+    """Regression (2026-08-28): write_in_place=true writes the enriched columns back into
+    metadata_path's own directory - matrix.npy/config.md's original content untouched,
+    manifest.json's metadata_columns refreshed and an enrichment_history entry appended."""
+    metadata_root = tmp_path / "assets_metadata"
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    _make_participants_tsv(metadata_root, "siteA", [{"participant_id": "sub-1", "age": "70"}, {"participant_id": "sub-2", "age": "65"}])
+    X = np.array([[0.1, 0.2], [0.3, 0.4]])
+    metadata_path = _write_full_matrix_artifact(
+        tmp_path, [{"subject_id": "sub-1", "dataset": "siteA"}, {"subject_id": "sub-2", "dataset": "siteA"}], X
+    )
+    monkeypatch.chdir(tmp_path)
+    cfg_path = _write_config(tmp_path, metadata_path, tmp_path / "clinical_metadata", ["age"], write_in_place=True)
+
+    rc = enrich_lesion_metadata.main(["--config", str(cfg_path)])
+
+    assert rc == 0
+    artifact_dir = metadata_path.parent
+    metadata_out = pd.read_csv(artifact_dir / "metadata.csv")
+    assert list(metadata_out.columns) == ["subject_id", "dataset", "age"]
+    assert metadata_out["age"].tolist() == [70, 65]
+    # matrix.npy untouched
+    np.testing.assert_array_equal(np.load(artifact_dir / "matrix.npy"), X)
+    manifest = json.loads((artifact_dir / "manifest.json").read_text())
+    assert manifest["metadata_columns"] == ["subject_id", "dataset", "age"]
+    assert manifest["enrichment_history"][0]["variables"] == ["age"]
+    # config.md kept its original content, with the new section appended, not replaced
+    config_md = (artifact_dir / "config.md").read_text()
+    assert "some pre-existing content." in config_md
+    assert "## Enrichment" in config_md
+    # no brand-new dated session artifact written - only the run log (runs.csv) lands under
+    # output_root, this run's actual output only ever touched the matrix artifact itself
+    assert not list((tmp_path / "clinical_metadata").glob("*_run1"))
+    assert (tmp_path / "clinical_metadata" / "runs.csv").is_file()
+
+
+def test_enrich_lesion_metadata_write_in_place_row_mismatch_raises(tmp_path, monkeypatch):
+    metadata_root = tmp_path / "assets_metadata"
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    _make_participants_tsv(metadata_root, "siteA", [{"participant_id": "sub-1", "age": "70"}])
+    # matrix.npy has 2 rows, metadata.csv only 1 - a corrupt/mismatched artifact
+    X = np.array([[0.1], [0.2]])
+    metadata_path = _write_full_matrix_artifact(tmp_path, [{"subject_id": "sub-1", "dataset": "siteA"}], X)
+    monkeypatch.chdir(tmp_path)
+    cfg_path = _write_config(tmp_path, metadata_path, tmp_path / "clinical_metadata", ["age"], write_in_place=True)
+
+    rc = enrich_lesion_metadata.main(["--config", str(cfg_path)])
+
+    assert rc == 1
+
+
+def test_enrich_lesion_metadata_write_in_place_requires_a_full_matrix_artifact(tmp_path, monkeypatch):
+    """write_in_place=true against a bare metadata.csv (no matrix.npy/manifest.json next to
+    it, e.g. the output of a previous non-in-place enrichment run) must raise, not silently
+    do nothing or crash with a confusing error."""
+    metadata_root = tmp_path / "assets_metadata"
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    _make_participants_tsv(metadata_root, "siteA", [{"participant_id": "sub-1", "age": "70"}])
+    metadata_path = _write_metadata_csv(tmp_path, [{"subject_id": "sub-1", "dataset": "siteA"}])
+    monkeypatch.chdir(tmp_path)
+    cfg_path = _write_config(tmp_path, metadata_path, tmp_path / "clinical_metadata", ["age"], write_in_place=True)
+
+    rc = enrich_lesion_metadata.main(["--config", str(cfg_path)])
+
+    assert rc == 1
+
+
+def test_enrich_lesion_metadata_write_in_place_existing_column_without_overwrite_fails(tmp_path, monkeypatch):
+    metadata_root = tmp_path / "assets_metadata"
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    _make_participants_tsv(metadata_root, "siteA", [{"participant_id": "sub-1", "age": "70"}])
+    X = np.array([[0.1]])
+    metadata_path = _write_full_matrix_artifact(
+        tmp_path, [{"subject_id": "sub-1", "dataset": "siteA", "age": 999}], X  # "age" already present
+    )
+    monkeypatch.chdir(tmp_path)
+    cfg_path = _write_config(tmp_path, metadata_path, tmp_path / "clinical_metadata", ["age"], write_in_place=True, overwrite=False)
+
+    rc = enrich_lesion_metadata.main(["--config", str(cfg_path)])
+
+    assert rc == 1
+    # untouched on rejection
+    assert pd.read_csv(metadata_path)["age"].tolist() == [999]
+
+
+def test_enrich_lesion_metadata_write_in_place_existing_column_with_overwrite_replaces_it(tmp_path, monkeypatch):
+    metadata_root = tmp_path / "assets_metadata"
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    _make_participants_tsv(metadata_root, "siteA", [{"participant_id": "sub-1", "age": "70"}])
+    X = np.array([[0.1]])
+    metadata_path = _write_full_matrix_artifact(
+        tmp_path, [{"subject_id": "sub-1", "dataset": "siteA", "age": 999}], X
+    )
+    monkeypatch.chdir(tmp_path)
+    cfg_path = _write_config(tmp_path, metadata_path, tmp_path / "clinical_metadata", ["age"], write_in_place=True, overwrite=True)
+
+    rc = enrich_lesion_metadata.main(["--config", str(cfg_path)])
+
+    assert rc == 0
+    assert pd.read_csv(metadata_path)["age"].tolist() == [70]

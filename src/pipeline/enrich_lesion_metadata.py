@@ -7,9 +7,19 @@ Usage:
     python -m src.pipeline.enrich_lesion_metadata --config config/pipelines/enrich_lesion_metadata.json
 
 `metadata_path` (any CSV with subject_id/dataset columns - typically, but not necessarily,
-a build_lesion_matrix.py output's own metadata.csv) is read-only, never mutated: the
-enriched result always lands in a brand-new `output_root/<dd-mm>_<session_name>` directory,
-the same input->output separation as every other pipeline in this repo.
+a build_lesion_matrix.py/build_sdc_matrix.py output's own metadata.csv) is read-only by
+default: the enriched result lands in a brand-new `output_root/<dd-mm>_<session_name>`
+directory, the same input->output separation as every other pipeline in this repo - this
+metadata-only output has no matrix.npy next to it, so it cannot itself be used as a
+dim_reduction.py/clustering.py `input_path` (src.utils.artifacts.load_matrix requires one);
+it's for scripts/replot_dim_reduction.py-style consumers that only need metadata.csv.
+
+`write_in_place=true` is the one designated exception (2026-08-28, on request): metadata_path
+must then sit inside an existing, complete matrix artifact (a manifest.json and a matrix.npy
+already next to it), and the enriched columns are written back into THAT SAME directory's own
+metadata.csv/manifest.json instead - see _write_in_place. This is the only pipeline in this
+repo allowed to mutate an already-written data/derived/ output directory; every other one
+only ever creates brand-new, never-touched-again output.
 
 compute_volume=true sums the matrix.npy that src.utils.artifacts.save_matrix always writes
 right next to metadata_path's own metadata.csv - deliberately only for a strictly binary
@@ -42,6 +52,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import shutil
 import tempfile
 from datetime import datetime, timezone
@@ -161,12 +172,20 @@ def main(argv: list[str] | None = None) -> int:
             logging.error("join failed after a clean coverage report - tsv files changed mid-run? %s", exc)
             return 1
 
-        output_dir = _output_dir(config, now)
-        try:
-            _write_artifact(output_dir, metadata_out, config, now, overwrite=config.overwrite)
-        except (FileExistsError, OSError) as exc:
-            logging.error(str(exc))
-            return 1
+        if config.write_in_place:
+            output_dir = config.metadata_path.parent
+            try:
+                _write_in_place(output_dir, metadata_out, config, now, overwrite=config.overwrite)
+            except (FileNotFoundError, FileExistsError, ValueError, OSError) as exc:
+                logging.error(str(exc))
+                return 1
+        else:
+            output_dir = _output_dir(config, now)
+            try:
+                _write_artifact(output_dir, metadata_out, config, now, overwrite=config.overwrite)
+            except (FileExistsError, OSError) as exc:
+                logging.error(str(exc))
+                return 1
         logging.info("enriched metadata written to %s (%d subjects, columns %s)", output_dir, len(metadata_out), list(metadata_out.columns))
 
         try:
@@ -267,6 +286,7 @@ def _config_summary(config: EnrichLesionMetadataConfig) -> dict:
         "output_root": str(config.output_root),
         "session_name": config.session_name,
         "overwrite": config.overwrite,
+        "write_in_place": config.write_in_place,
         "run_notes": config.run_notes,
     }
 
@@ -313,6 +333,90 @@ def _write_artifact(
     except Exception:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
+
+
+def _write_in_place(
+    target_dir: Path, metadata: pd.DataFrame, config: EnrichLesionMetadataConfig, now: datetime, overwrite: bool
+) -> None:
+    """Writes the enriched metadata.csv back into target_dir (metadata_path's own directory,
+    an existing matrix artifact) instead of a brand-new output_dir - see
+    EnrichLesionMetadataConfig.write_in_place's docstring for why this is the one sanctioned
+    exception to "pipeline output directories are never mutated after being written".
+
+    Requires target_dir to already be a complete matrix artifact (manifest.json + matrix.npy)
+    - raises FileNotFoundError otherwise, since write_in_place has nothing meaningful to do to
+    a directory that isn't one. Requires the enriched row count to match matrix.npy's row
+    count exactly - raises ValueError otherwise, since metadata.csv and matrix.npy must stay
+    row-aligned (the single invariant every load_matrix consumer depends on). Requires none of
+    the newly-enriched columns to already exist in the on-disk metadata.csv unless
+    overwrite=True - raises FileExistsError otherwise, so a second accidental run doesn't
+    silently duplicate/overwrite columns nobody asked to replace.
+
+    metadata.csv and manifest.json are each replaced via write-to-temp-file-then-os.replace
+    (atomic per file, POSIX rename semantics) - not a single atomic operation across both
+    files simultaneously, since target_dir already holds matrix.npy/extra arrays that must
+    stay untouched throughout, unlike _write_artifact's whole-new-directory rename. A crash
+    between the two replace() calls leaves metadata.csv enriched but manifest.json not yet
+    reflecting it - recoverable (this function is safely re-runnable with overwrite=True), not
+    silently corrupting either file mid-write.
+
+    config.md, if present, gets an appended "## Enrichment" section rather than being replaced
+    - it documents the artifact's original build (e.g. build_sdc_matrix.py's own summary),
+    which this function has no business overwriting.
+    """
+    manifest_path = target_dir / MANIFEST_FILENAME
+    matrix_path = target_dir / MATRIX_FILENAME
+    if not manifest_path.is_file() or not matrix_path.is_file():
+        raise FileNotFoundError(
+            f"write_in_place=true but {target_dir} is not a complete matrix artifact - "
+            f"missing {MANIFEST_FILENAME if not manifest_path.is_file() else MATRIX_FILENAME}; "
+            "metadata_path must point at an existing build_lesion_matrix.py/build_sdc_matrix.py "
+            "(or similar) output, not a standalone metadata table"
+        )
+
+    manifest = json.loads(manifest_path.read_text())
+    existing_metadata = pd.read_csv(target_dir / METADATA_FILENAME)
+    matrix_n_rows = np.load(matrix_path, mmap_mode="r").shape[0]
+    if matrix_n_rows != len(metadata):
+        raise ValueError(
+            f"{matrix_path} has {matrix_n_rows} rows but the enriched metadata has {len(metadata)} "
+            "rows - must match, metadata.csv and matrix.npy must stay row-aligned"
+        )
+
+    new_columns = [c for c in metadata.columns if c not in existing_metadata.columns]
+    already_present = [c for c in metadata.columns if c in existing_metadata.columns and c not in ("subject_id", "dataset")]
+    if already_present and not overwrite:
+        raise FileExistsError(
+            f"{target_dir / METADATA_FILENAME} already has column(s) {already_present} - "
+            "set overwrite=true to replace them, or remove them from 'variables' if this is a "
+            "repeat run"
+        )
+
+    def _atomic_replace_text(path: Path, text: str) -> None:
+        fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}_tmp_", dir=path.parent)
+        os.close(fd)
+        Path(tmp_name).write_text(text)
+        os.replace(tmp_name, path)
+
+    _atomic_replace_text(target_dir / METADATA_FILENAME, metadata.to_csv(index=False))
+
+    manifest["metadata_columns"] = list(metadata.columns)
+    enrichment_history = manifest.get("enrichment_history", [])
+    enrichment_history.append(
+        {"enriched_at": now.astimezone(timezone.utc).isoformat(), "variables": config.variables, "columns_added": new_columns}
+    )
+    manifest["enrichment_history"] = enrichment_history
+    _atomic_replace_text(manifest_path, json.dumps(manifest, indent=2))
+
+    readme_path = target_dir / README_FILENAME
+    if readme_path.is_file():
+        section = [
+            "",
+            f"## Enrichment ({now.strftime('%d-%m-%y %H:%M:%S')})",
+            "",
+            f"variables: {config.variables}, columns added/updated: {new_columns}",
+        ]
+        _atomic_replace_text(readme_path, readme_path.read_text().rstrip("\n") + "\n" + "\n".join(section) + "\n")
 
 
 def _report_lines(config: EnrichLesionMetadataConfig, report: VariableCoverageReport, now: datetime) -> list[str]:

@@ -260,6 +260,7 @@ _ENRICH_BASE = {
     "output_root": "data/derived/clinical_metadata",
     "session_name": "s1",
     "overwrite": False,
+    "write_in_place": False,
 }
 
 
@@ -285,3 +286,10 @@ def test_enrich_lesion_metadata_compute_volume_true_needs_no_extra_field(tmp_pat
 def test_enrich_lesion_metadata_variables_must_be_unique(tmp_path):
     with pytest.raises(ValueError, match="duplicate entries"):
         load_enrich_lesion_metadata_config(_write_enrich(tmp_path, {"variables": ["age", "age"]}))
+
+
+def test_enrich_lesion_metadata_write_in_place_defaults_false_but_is_required(tmp_path):
+    config = load_enrich_lesion_metadata_config(_write_enrich(tmp_path, {"write_in_place": True}))
+    assert config.write_in_place is True
+    with pytest.raises(ValueError, match="write_in_place"):
+        load_enrich_lesion_metadata_config(_write_enrich(tmp_path, {"write_in_place": "__delete__"}))
