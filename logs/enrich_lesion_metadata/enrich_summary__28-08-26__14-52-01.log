@@ -1,0 +1,5 @@
+INFO: coverage report written to summaries/enrich_lesion_metadata/enrich_summary__28-08-26__14-52-01.md
+WARNING: UCL-UK/UCLStrokeData: not in this dataset's participants.tsv, will be filled per-variable: {'clinical_date': 'NaN', 'education': 'NaN'}
+WARNING: UNIPD/PASPORT: not in this dataset's participants.tsv, will be filled per-variable: {'clinical_date': 'NaN'}
+INFO: --dry-run: coverage check passed, nothing written
+INFO: run duration: 0:00:00

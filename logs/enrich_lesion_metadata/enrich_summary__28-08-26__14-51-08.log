@@ -1,0 +1,5 @@
+INFO: lesion_volume_voxels recomputed from data/derived/lesion_matrix/21-07_s1.1/matrix.npy
+INFO: coverage report written to summaries/enrich_lesion_metadata/enrich_summary__28-08-26__14-51-08.md
+WARNING: UNIPD/PASPORT: not in this dataset's participants.tsv, will be filled per-variable: {'NIHSS': 'NaN', 'clinical_date': 'NaN', 'lesion_side': "'unknown'"}
+INFO: --dry-run: coverage check passed, nothing written
+INFO: run duration: 0:00:01
