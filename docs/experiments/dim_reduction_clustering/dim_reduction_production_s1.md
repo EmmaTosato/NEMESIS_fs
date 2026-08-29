@@ -42,16 +42,33 @@ Parametri scelti a valle del tuning ([`dim_reduction_tuning_s1.md`](dim_reductio
 
 ---
 
-## Stale — da verificare prima di riusare
+## 23-07-2026 — s1.1
+#### t-SNE — stale, da riverificare
 
-**t-SNE, s1.1 (23-07-2026):** 4 run loggate in `results/lesion/dim_reduction/production/tsne/runs.csv` (`p30`/`p40`/`p60`/`p80`, perplexity 30/40/60/80) puntano a `results/lesion/dim_reduction/tsne/23-07_s1.1_p*` — path non presente su disco (verificato 28-08, probabilmente pre-riorganizzazione in `production/`). Non trattare come output valido senza prima ricontrollare/rilanciare.
+4 run loggate in `results/lesion/dim_reduction/production/tsne/runs.csv` (`p30`/`p40`/`p60`/`p80`, perplexity 30/40/60/80) puntano a `results/lesion/dim_reduction/tsne/23-07_s1.1_p*` — path non presente su disco (verificato 28-08, probabilmente pre-riorganizzazione in `production/`). Non trattare come output valido senza prima ricontrollare/rilanciare. Sostituite dalla produzione reale sotto (28-08).
+
+---
+
+## 28-08-2026 — s1.1
+#### Prima produzione t-SNE reale
+
+**Obiettivo:** prima produzione t-SNE valida per s1.1 — i 4 run del 23-07 sono stale/assenti su disco (vedi sopra).
+
+**Decisione:** `perplexity=30` per entrambe le metriche (non l'argmax per-metrica) — coerenza tra le due run compagne, stessa logica del `min_dist=0.0` condiviso in produzione UMAP. Verifica visiva dell'artefatto `dice`/`lesion_side` eseguita sulla coorte s1.2 (vedi sotto), non ripetuta separatamente su s1.1 — stessa metrica, stesso pattern già noto per UMAP su questa coorte (`dim_reduction_tuning_s1.md`, 03-08).
+
+| ID | metric | perplexity | Link |
+| --- | --- | --- | --- |
+| s1.1_m_dice | dice | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_m_dice/config.md) |
+| s1.1_m_euclidean | euclidean | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_m_euclidean/config.md) |
+
+**Note:** tutte e 4 le `color_by` popolate su entrambi i run.
 
 ---
 
 ## 28-08-2026 — s1.2
 #### Prima produzione UMAP (6 embedding, replica esatta della struttura s1.1)
 
-**Obiettivo:** riprodurre su s1.2 (5269 soggetti) gli stessi 6 embedding di produzione già fatti su s1.1 (`{dice,euclidean}×{2,3,10}`), stessi `n_neighbors`/`min_dist` per combo — non ri-derivati dallo sweep `26-08_s1.2`, replicati identici a s1.1 su richiesta esplicita.
+**Obiettivo:** riprodurre su s1.2 gli stessi 6 embedding di produzione già fatti su s1.1 (`{dice,euclidean}×{2,3,10}`), stessi `n_neighbors`/`min_dist` per combo — non ri-derivati dallo sweep `26-08_s1.2`, replicati identici a s1.1 su richiesta esplicita.
 
 **Prerequisito:** `data/derived/lesion_matrix/25-08_s1.2/metadata.csv` non aveva mai `lesion_side`/`nihss` in place (solo una copia separata in `data/derived/clinical_metadata/26-08_s1.2/`, non utilizzabile come `input_path`) — arricchito in place con `enrich_lesion_metadata.py --write_in_place true` (feature aggiunta lo stesso giorno) prima di lanciare le 6 run.
 
@@ -71,20 +88,18 @@ Parametri scelti a valle del tuning ([`dim_reduction_tuning_s1.md`](dim_reductio
 
 ---
 
-## 28-08-2026 — s1.1 + s1.2
-#### Prima produzione t-SNE reale (4 embedding, dice+euclidean × s1.1/s1.2)
+## 28-08-2026 — s1.2
+#### Prima produzione t-SNE reale
 
-**Obiettivo:** prima produzione t-SNE valida per entrambe le coorti — i 4 run del 23-07 (`p30`/`p40`/`p60`/`p80`) sono stale/assenti su disco (vedi sopra).
+**Obiettivo:** prima produzione t-SNE valida per s1.2 (nessuna produzione precedente esisteva per questa coorte — solo tuning, `26-08_s1.2`).
 
 **Verifica preliminare (su richiesta):** l'argmax trustworthiness per `dice` è `perplexity=15` in tutti e 3 gli sweep storici, ma i grid `embeddings_grid_side.png` (backfillati su `26-08_s1.2` con `lesion_side` ora disponibile — non esistevano al momento dello sweep) mostrano lo stesso artefatto già noto su UMAP: con `dice`, i soggetti `right`/`left` si separano in due bande nette, stabili a **ogni** valore di perplexity testato (5→200) — non è un effetto della perplexity, è strutturale alla metrica. Con `euclidean` nessuna banda, `left`/`right` interspersi.
 
-**Decisione:** `perplexity=30` per **entrambe** le metriche (non l'argmax per-metrica) — coerenza tra le due run compagne, stessa logica del `min_dist=0.0` condiviso in produzione UMAP.
+**Decisione:** `perplexity=30` per entrambe le metriche (non l'argmax per-metrica) — coerenza tra le due run compagne, stessa logica del `min_dist=0.0` condiviso in produzione UMAP.
 
-| ID | metric | perplexity | coorte | Link |
-| --- | --- | --- | --- | --- |
-| s1.2_m_dice | dice | 30 | 25-08_s1.2 (5269 sog.) | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_m_dice/config.md) |
-| s1.2_m_euclidean | euclidean | 30 | 25-08_s1.2 (5269 sog.) | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_m_euclidean/config.md) |
-| s1.1_m_dice | dice | 30 | 21-07_s1.1 (1150 sog.) | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_m_dice/config.md) |
-| s1.1_m_euclidean | euclidean | 30 | 21-07_s1.1 (1150 sog.) | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_m_euclidean/config.md) |
+| ID | metric | perplexity | Link |
+| --- | --- | --- | --- |
+| s1.2_m_dice | dice | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_m_dice/config.md) |
+| s1.2_m_euclidean | euclidean | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_m_euclidean/config.md) |
 
-**Note:** tutte e 4 le `color_by` popolate su tutti e 4 i run; stesso caveat `dice`/`lesion_side` di UMAP, qui confermato visivamente (non solo per analogia).
+**Note:** tutte e 4 le `color_by` popolate su entrambi i run; stesso caveat `dice`/`lesion_side` di UMAP, qui confermato visivamente (non solo per analogia).

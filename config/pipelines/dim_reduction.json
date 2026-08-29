@@ -3,13 +3,13 @@
   "input_path": "data/derived/sdc_matrix/27-08_s2.1",
   "output_root": "results/sdc/dim_reduction",
   "params_file": "config/registry/params_reduction_sdc.json",
-  "reduction_method": "tsne",
+  "reduction_method": "umap",
   "session_name": "s2.1",
-  "overwrite": false,
+  "overwrite": true,
   "fine_tuning": true,
   "color_by": ["dataset", "side", "nihss"],
   "viz_n_components": 2,
   "precompute_distance_metric": true,
   "save_tuning_embeddings": true,
-  "run_notes": "tsne tuning on SDC schaefer_200_tian_s2 (27-08_s2.1) - stessa coorte/ordine di s2.1 (umap) e parametri di tsne/13-08_s1.1"
+  "run_notes": "atlante schaefer_200_tian_s2 - re-run (overwrite) per catturare il metadata.csv aggiornato (age/sex/education/clinical_date aggiunti dopo la prima run di oggi), necessario per allinearsi a tsne/28-08_s2.1 e generare understanding_umap_report"
 }
