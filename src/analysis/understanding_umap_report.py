@@ -983,10 +983,21 @@ def build_leaf_page(
     # _legend_html_for_mode's own docstring for why it isn't computed once
     # up front but rebuilt (from a precomputed HTML string, not refit) every
     # time the picker changes.
-    colors_by_mode = {m: _color_values_for_mode(real_metadata, m) for m in COLOR_BY_MODES}
-    legend_by_mode = {m: _legend_html_for_mode(real_metadata, m) for m in COLOR_BY_MODES}
+    #
+    # available_color_modes, not the fixed COLOR_BY_MODES, drives every loop
+    # below: COLOR_BY_MODES was written for the lesion pipeline, where every
+    # tuning run's metadata.csv always has all 4 columns - "volume"
+    # (lesion_volume_voxels) has no equivalent for a non-voxel-wise matrix
+    # (e.g. build_sdc_matrix.py's continuous mean_overlap output has no
+    # meaningful per-subject "volume"), and this offers only whichever modes
+    # this run's own metadata.csv actually backs, same domain-legitimate
+    # "absent, not broken" treatment src.analysis.embedding_coloring.py's
+    # color_values already gives dim_reduction.py's own plots (2026-08-28).
+    available_color_modes = [m for m in COLOR_BY_MODES if m == "none" or _METADATA_COLUMN_BY_MODE[m] in real_metadata.columns]
+    colors_by_mode = {m: _color_values_for_mode(real_metadata, m) for m in available_color_modes}
+    legend_by_mode = {m: _legend_html_for_mode(real_metadata, m) for m in available_color_modes}
     button_parts = []
-    for i, m in enumerate(COLOR_BY_MODES):
+    for i, m in enumerate(available_color_modes):
         active_class = ' class="active"' if i == 0 else ""
         button_parts.append(f"<button onclick=\"setColor('{m}', this)\"{active_class}>{m}</button>")
     buttons_html = "".join(button_parts)
@@ -1068,7 +1079,7 @@ def build_leaf_page(
 </div>
 
 <script>
-const COLORS = {json.dumps({m: colors_by_mode[m] for m in COLOR_BY_MODES})};
+const COLORS = {json.dumps({m: colors_by_mode[m] for m in available_color_modes})};
 const LEGENDS = {json.dumps(legend_by_mode)};
 const N_CELLS = {n_cells};
 function setColor(mode, btn) {{

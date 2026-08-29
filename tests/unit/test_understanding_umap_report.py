@@ -31,13 +31,21 @@ def _metadata() -> pd.DataFrame:
     )
 
 
-def _write_umap_tuning_dir(root: Path, metric: str = "dice") -> Path:
+def _sdc_metadata() -> pd.DataFrame:
+    """Same subjects/order as _metadata(), but shaped like a build_sdc_matrix.py-derived
+    tuning run's metadata.csv - no lesion_volume_voxels, since a continuous disconnectome
+    matrix has no meaningful per-subject "volume" (see docs/dev/sdc_matrix.md)."""
+    metadata = _metadata()
+    return metadata.drop(columns=["lesion_volume_voxels"])
+
+
+def _write_umap_tuning_dir(root: Path, metric: str = "dice", metadata: pd.DataFrame | None = None) -> Path:
     """A tiny nested_params=["metric", "n_components"] UMAP tuning dir, same
     shape as src.pipeline.dim_reduction's real output - one metric, 2
     n_components leaves (2 and 3), 2 n_neighbors x 2 min_dist combos each.
     """
     root.mkdir(parents=True)
-    metadata = _metadata()
+    metadata = _metadata() if metadata is None else metadata
     metadata.to_csv(root / "metadata.csv", index=False)
     (root / "config.md").write_text(
         "# fake tuning run\n\n```json\n"
@@ -60,12 +68,12 @@ def _write_umap_tuning_dir(root: Path, metric: str = "dice") -> Path:
     return root
 
 
-def _write_tsne_tuning_dir(root: Path, metric: str = "dice") -> Path:
+def _write_tsne_tuning_dir(root: Path, metric: str = "dice", metadata: pd.DataFrame | None = None) -> Path:
     """A tiny nested_params=["metric"] t-SNE tuning dir (always 2D), same
     subject cohort/order as _write_umap_tuning_dir.
     """
     root.mkdir(parents=True)
-    metadata = _metadata()
+    metadata = _metadata() if metadata is None else metadata
     metadata.to_csv(root / "metadata.csv", index=False)
 
     leaf = root / f"metric={metric}"
@@ -174,6 +182,26 @@ def test_generate_report_writes_one_html_per_metric(tmp_path):
     assert "Figure 1:" in html and "Figure 5:" in html
     assert "Figure 6:" not in html
     assert f"subjects:</span> {len(_SUBJECT_IDS)}" in html
+
+
+def test_generate_report_omits_color_modes_missing_from_metadata(tmp_path):
+    """Regression (2026-08-28): a tuning run whose metadata.csv has no lesion_volume_voxels
+    (e.g. a build_sdc_matrix.py-derived matrix, which has no meaningful per-subject "volume")
+    used to crash with KeyError: 'lesion_volume_voxels' - COLOR_BY_MODES always included
+    "volume" regardless of what the real metadata.csv actually has. Must now succeed,
+    offering only the color modes this run's own metadata actually backs."""
+    sdc_metadata = _sdc_metadata()
+    umap_dir = _write_umap_tuning_dir(tmp_path / "umap", metadata=sdc_metadata)
+    tsne_dir = _write_tsne_tuning_dir(tmp_path / "tsne", metadata=sdc_metadata)
+
+    output_paths = generate_report(umap_dir, tsne_dir, tmp_path / "out")
+
+    html = output_paths[0].read_text()
+    assert 'onclick="setColor(\'dataset\'' in html
+    assert 'onclick="setColor(\'side\'' in html
+    assert 'onclick="setColor(\'nihss\'' in html
+    assert 'onclick="setColor(\'volume\'' not in html
+    assert '"volume":' not in html.split("const COLORS = ")[1].split(";")[0]
 
 
 def test_generate_report_raises_on_cohort_mismatch(tmp_path):
