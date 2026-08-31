@@ -8,12 +8,12 @@ Il tuning **non sceglie mai il valore migliore per te**. Per ogni valore testato
 
 Ogni sweep testa un solo iperparametro principale per metodo:
 
-| Metodo | Parametro testato |
-|---|---|
-| KMeans, Agglomerative, Spectral | `n_clusters` |
-| GMM | `n_components` |
-| HDBSCAN | `min_cluster_size` |
-| Evidence Accumulation | `threshold` |
+| Metodo                          | Parametro testato    |
+| ------------------------------- | -------------------- |
+| KMeans, Agglomerative, Spectral | `n_clusters`       |
+| GMM                             | `n_components`     |
+| HDBSCAN                         | `min_cluster_size` |
+| Evidence Accumulation           | `threshold`        |
 
 Agglomerative in più testa `linkage` e `metric` insieme a `n_clusters`. Non tutte le combinazioni sono valide: `linkage="ward"` accetta solo la metrica euclidea, quindi ogni combinazione che li accoppia diversamente viene scartata in automatico (con un avviso in log), non silenziosamente.
 
@@ -23,11 +23,11 @@ Agglomerative in più testa `linkage` e `metric` insieme a `n_clusters`. Non tut
 
 Calcolati per tutti e 6 i metodi, sempre nello stesso file (`tuning_plot.png`), uno per sotto-grafico.
 
-| Indice | Range | Direzione | Come leggerlo |
-|---|---|---|---|
-| **Silhouette** | −1 → 1 | più alto = meglio | Vicino a 1: cluster compatti e separati. Vicino a 0: cluster che si sovrappongono. Negativo: punti probabilmente nel cluster sbagliato. È l'unico dei tre con un valore assoluto interpretabile da solo — gli altri due si leggono solo per confronto tra valori diversi dello stesso sweep. |
-| **Calinski-Harabasz** | 0 → +∞ | più alto = meglio | Rapporto tra separazione fra i cluster e compattezza dentro ciascun cluster. Tende quasi sempre a crescere insieme al numero di cluster: da solo non basta per scegliere il numero di cluster, usalo come conferma. |
-| **Davies-Bouldin** | 0 → +∞ | più basso = meglio | Media di quanto ogni cluster è disperso rispetto a quanto è vicino al suo "vicino" più simile. È l'unico dei tre che penalizza esplicitamente due cluster troppo ravvicinati — per questo a volte non è d'accordo con Silhouette. |
+| Indice                      | Range    | Direzione           | Come leggerlo                                                                                                                                                                                                                                                                                  |
+| --------------------------- | -------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Silhouette**        | −1 → 1 | più alto = meglio  | Vicino a 1: cluster compatti e separati. Vicino a 0: cluster che si sovrappongono. Negativo: punti probabilmente nel cluster sbagliato. È l'unico dei tre con un valore assoluto interpretabile da solo — gli altri due si leggono solo per confronto tra valori diversi dello stesso sweep. |
+| **Calinski-Harabasz** | 0 → +∞ | più alto = meglio  | Rapporto tra separazione fra i cluster e compattezza dentro ciascun cluster. Tende quasi sempre a crescere insieme al numero di cluster: da solo non basta per scegliere il numero di cluster, usalo come conferma.                                                                            |
+| **Davies-Bouldin**    | 0 → +∞ | più basso = meglio | Media di quanto ogni cluster è disperso rispetto a quanto è vicino al suo "vicino" più simile. È l'unico dei tre che penalizza esplicitamente due cluster troppo ravvicinati — per questo a volte non è d'accordo con Silhouette.                                                        |
 
 **Come decidere:**
 
@@ -121,26 +121,26 @@ Entrambe restano un punteggio diagnostico per ogni valore testato: non producono
 
 Generati sempre:
 
-| File | Contenuto |
-|---|---|
-| `tuning_results.csv` | Una riga per ogni valore testato, con tutti gli indici calcolati. |
-| `tuning_plot.png` | Griglia di sotto-grafici, uno per indice — **solo se la sweep varia 1 o 2 parametri**. Con 3 o più parametri sweepati non viene generato un plot aggregato (solo un avviso in log): il CSV e le diagnostiche standalone del metodo restano l'unico modo di leggere quella sweep. |
-| `config.md` | Snapshot dei parametri usati per quella run. |
+| File                   | Contenuto                                                                                                                                                                                                                                                                               |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tuning_results.csv` | Una riga per ogni valore testato, con tutti gli indici calcolati.                                                                                                                                                                                                                       |
+| `tuning_plot.png`    | Griglia di sotto-grafici, uno per indice —**solo se la sweep varia 1 o 2 parametri**. Con 3 o più parametri sweepati non viene generato un plot aggregato (solo un avviso in log): il CSV e le diagnostiche standalone del metodo restano l'unico modo di leggere quella sweep. |
+| `config.md`          | Snapshot dei parametri usati per quella run.                                                                                                                                                                                                                                            |
 
 Diagnostiche standalone (indipendenti dal valore scelto), solo per il metodo indicato:
 
-| File | Metodo | Sempre presente? |
-|---|---|---|
-| Dendrogramma (uno per `metric`, subplot per `linkage`) | Agglomerative | Sì |
-| Matrice di distanza interclasse | Agglomerative | Solo se è disponibile un raggruppamento noto a priori nei metadati |
-| Eigengap (uno per `affinity`, subplot per il suo iperparametro) | Spectral | Sì |
-| Convergenza + matrice di consenso | Evidence Accumulation | Sì |
+| File                                                             | Metodo                | Sempre presente?                                                    |
+| ---------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------- |
+| Dendrogramma (uno per`metric`, subplot per `linkage`)        | Agglomerative         | Sì                                                                 |
+| Matrice di distanza interclasse                                  | Agglomerative         | Solo se è disponibile un raggruppamento noto a priori nei metadati |
+| Eigengap (uno per`affinity`, subplot per il suo iperparametro) | Spectral              | Sì                                                                 |
+| Convergenza + matrice di consenso                                | Evidence Accumulation | Sì                                                                 |
 
 Output opzionali, solo se attivati in config:
 
-| File | Metodo | Attivato da |
-|---|---|---|
-| Grafico e tabella di stabilità dell'inizializzazione | KMeans, GMM | opzione "stability" |
+| File                                                           | Metodo                | Attivato da         |
+| -------------------------------------------------------------- | --------------------- | ------------------- |
+| Grafico e tabella di stabilità dell'inizializzazione          | KMeans, GMM           | opzione "stability" |
 | Colonne di stabilità del numero di cluster nel CSV principale | KMeans, GMM, Spectral | opzione "consensus" |
 
 Un'opzione aggiuntiva permette di salvare anche le etichette effettive prodotte da ogni combinazione testata, per riutilizzarle senza dover ricalcolare. Non è supportata quando Spectral viene testato variando anche il tipo di grafo di affinità.
