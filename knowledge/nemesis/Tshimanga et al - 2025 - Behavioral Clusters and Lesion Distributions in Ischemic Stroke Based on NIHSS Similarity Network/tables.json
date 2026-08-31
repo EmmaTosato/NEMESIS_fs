@@ -1,0 +1,26 @@
+[
+  {
+    "id": "1",
+    "caption": "Table 1 Mean (M) and standard deviation (SD) calculated for every NIHSS item, calculated for all 308 ischemic subjects",
+    "pdf_page": 18,
+    "doc_page": 18,
+    "n_rows": 15,
+    "n_cols": 3
+  },
+  {
+    "id": "2",
+    "caption": "Table 2 Mean (M) and standard deviation (SD) calculated for every NIHSS item and calculated for the 172 ischemic subjects considered for clustering",
+    "pdf_page": 19,
+    "doc_page": 19,
+    "n_rows": 15,
+    "n_cols": 3
+  },
+  {
+    "id": "3",
+    "caption": "Table 3 Number of subjects, for each cluster, for all the possible combinations of k and normalization used",
+    "pdf_page": 20,
+    "doc_page": 20,
+    "n_rows": 9,
+    "n_cols": 4
+  }
+]

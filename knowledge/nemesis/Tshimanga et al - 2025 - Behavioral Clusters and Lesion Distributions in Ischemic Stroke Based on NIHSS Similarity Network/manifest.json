@@ -1,0 +1,324 @@
+{
+  "source_pdf": "/Users/emmatosato/Downloads/s41666-025-00197-6.pdf",
+  "extracted_at": "2026-08-31T14:52:21",
+  "pdf_metadata": {
+    "title": "",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "producer": "Acrobat Distiller 22.0 (Windows)",
+    "creator": "LaTeX with hyperref package",
+    "creation_date": "D:20250721062253Z",
+    "mod_date": "D:20250721063701Z"
+  },
+  "page_offset": 0,
+  "pages": 36,
+  "files": {
+    "docling_document": "docling_document.json",
+    "markdown_dir": "markdown/",
+    "chunks": "chunks.jsonl",
+    "figures_dir": "figures/",
+    "tables_visual_dir": "tables_visual/",
+    "figures_index": "figures.json",
+    "tables_index": "tables.json",
+    "requirements": "requirements.json",
+    "glossary": "glossary.json"
+  },
+  "stats": {
+    "svg": 15,
+    "png": 13,
+    "embedded_images": 70,
+    "classifications": {
+      "DIAGRAM": 2,
+      "TEXT": 18,
+      "BITMAP": 3,
+      "ICON_TABLE": 13
+    },
+    "figures_in_index": 55,
+    "tables_in_index": 3,
+    "requirements_count": 0,
+    "glossary_terms": 0
+  },
+  "page_records": [
+    {
+      "pdf_page": 1,
+      "doc_page": 1,
+      "drawings": 32,
+      "images": 0,
+      "class": "DIAGRAM",
+      "svg": "figures/page_001.svg"
+    },
+    {
+      "pdf_page": 2,
+      "doc_page": 2,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 3,
+      "doc_page": 3,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 4,
+      "doc_page": 4,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 5,
+      "doc_page": 5,
+      "drawings": 5,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 6,
+      "doc_page": 6,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 7,
+      "doc_page": 7,
+      "drawings": 10,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 8,
+      "doc_page": 8,
+      "drawings": 9,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 9,
+      "doc_page": 9,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 10,
+      "doc_page": 10,
+      "drawings": 1092,
+      "images": 2,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_010.svg",
+      "png": "tables_visual/page_010.png"
+    },
+    {
+      "pdf_page": 11,
+      "doc_page": 11,
+      "drawings": 6251,
+      "images": 10,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_011.svg",
+      "png": "tables_visual/page_011.png"
+    },
+    {
+      "pdf_page": 12,
+      "doc_page": 12,
+      "drawings": 2056,
+      "images": 21,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_012.svg",
+      "png": "tables_visual/page_012.png"
+    },
+    {
+      "pdf_page": 13,
+      "doc_page": 13,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 14,
+      "doc_page": 14,
+      "drawings": 2,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 15,
+      "doc_page": 15,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 16,
+      "doc_page": 16,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 17,
+      "doc_page": 17,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 18,
+      "doc_page": 18,
+      "drawings": 4,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 19,
+      "doc_page": 19,
+      "drawings": 83,
+      "images": 5,
+      "class": "DIAGRAM",
+      "svg": "figures/page_019.svg"
+    },
+    {
+      "pdf_page": 20,
+      "doc_page": 20,
+      "drawings": 4,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 21,
+      "doc_page": 21,
+      "drawings": 131,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_021.svg",
+      "png": "tables_visual/page_021.png"
+    },
+    {
+      "pdf_page": 22,
+      "doc_page": 22,
+      "drawings": 754,
+      "images": 3,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_022.svg",
+      "png": "tables_visual/page_022.png"
+    },
+    {
+      "pdf_page": 23,
+      "doc_page": 23,
+      "drawings": 120,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_023.svg",
+      "png": "tables_visual/page_023.png"
+    },
+    {
+      "pdf_page": 24,
+      "doc_page": 24,
+      "drawings": 276,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_024.svg",
+      "png": "tables_visual/page_024.png"
+    },
+    {
+      "pdf_page": 25,
+      "doc_page": 25,
+      "drawings": 193,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_025.svg",
+      "png": "tables_visual/page_025.png"
+    },
+    {
+      "pdf_page": 26,
+      "doc_page": 26,
+      "drawings": 48329,
+      "images": 3,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_026.svg",
+      "png": "tables_visual/page_026.png"
+    },
+    {
+      "pdf_page": 27,
+      "doc_page": 27,
+      "drawings": 114,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_027.svg",
+      "png": "tables_visual/page_027.png"
+    },
+    {
+      "pdf_page": 28,
+      "doc_page": 28,
+      "drawings": 6958,
+      "images": 22,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_028.svg",
+      "png": "tables_visual/page_028.png"
+    },
+    {
+      "pdf_page": 29,
+      "doc_page": 29,
+      "drawings": 1320,
+      "images": 1,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_029.svg",
+      "png": "tables_visual/page_029.png"
+    },
+    {
+      "pdf_page": 30,
+      "doc_page": 30,
+      "drawings": 2,
+      "images": 1,
+      "class": "BITMAP"
+    },
+    {
+      "pdf_page": 31,
+      "doc_page": 31,
+      "drawings": 808,
+      "images": 0,
+      "class": "ICON_TABLE",
+      "svg": "figures/page_031.svg",
+      "png": "tables_visual/page_031.png"
+    },
+    {
+      "pdf_page": 32,
+      "doc_page": 32,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 33,
+      "doc_page": 33,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 34,
+      "doc_page": 34,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 35,
+      "doc_page": 35,
+      "drawings": 1,
+      "images": 0,
+      "class": "TEXT"
+    },
+    {
+      "pdf_page": 36,
+      "doc_page": 36,
+      "drawings": 9,
+      "images": 0,
+      "class": "TEXT"
+    }
+  ]
+}

@@ -20,3 +20,4 @@
 18. 2024 - Volpi et al - *The brain’s “dark energy” puzzle How strongly is glucose metabolism linked to resting-state brain a*
 19. 2025 - Volpi et al - *The brain’s “dark energy” puzzle upgraded [18F]FDG uptake, delivery and phosphorylation, and their*
 20. 2026 - Santoro et al - *Individual connectome fingerprints reveal early stabilization and long-term circuit remodeling after*
+21. 2025 - Tshimanga et al - *Behavioral Clusters and Lesion Distributions in Ischemic Stroke, Based on NIHSS Similarity Network*

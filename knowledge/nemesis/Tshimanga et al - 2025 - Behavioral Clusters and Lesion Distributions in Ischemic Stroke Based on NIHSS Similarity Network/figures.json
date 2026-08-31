@@ -1,0 +1,363 @@
+[
+  {
+    "id": "1",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "2",
+    "caption": "",
+    "pdf_page": 1,
+    "doc_page": 1,
+    "svg": "figures/page_001.svg"
+  },
+  {
+    "id": "3",
+    "caption": "",
+    "pdf_page": 2,
+    "doc_page": 2
+  },
+  {
+    "id": "4",
+    "caption": "",
+    "pdf_page": 3,
+    "doc_page": 3
+  },
+  {
+    "id": "5",
+    "caption": "",
+    "pdf_page": 4,
+    "doc_page": 4
+  },
+  {
+    "id": "7",
+    "caption": "",
+    "pdf_page": 5,
+    "doc_page": 5
+  },
+  {
+    "id": "8",
+    "caption": "",
+    "pdf_page": 6,
+    "doc_page": 6
+  },
+  {
+    "id": "9",
+    "caption": "",
+    "pdf_page": 7,
+    "doc_page": 7
+  },
+  {
+    "id": "10",
+    "caption": "",
+    "pdf_page": 8,
+    "doc_page": 8
+  },
+  {
+    "id": "11",
+    "caption": "",
+    "pdf_page": 9,
+    "doc_page": 9
+  },
+  {
+    "id": "12",
+    "caption": "Fig. 12 Comparison of matrix W and matrix C . A The similarity matrix W for the 172 patients considered for the clustering analysis. B The clustering co-occurrence matrix C . C The same as A , but sub",
+    "pdf_page": 26,
+    "doc_page": 26,
+    "svg": "figures/page_026.svg"
+  },
+  {
+    "id": "13",
+    "caption": "",
+    "pdf_page": 10,
+    "doc_page": 10,
+    "svg": "figures/page_010.svg"
+  },
+  {
+    "id": "14",
+    "caption": "",
+    "pdf_page": 11,
+    "doc_page": 11,
+    "svg": "figures/page_011.svg"
+  },
+  {
+    "id": "15",
+    "caption": "",
+    "pdf_page": 11,
+    "doc_page": 11,
+    "svg": "figures/page_011.svg"
+  },
+  {
+    "id": "16",
+    "caption": "",
+    "pdf_page": 12,
+    "doc_page": 12,
+    "svg": "figures/page_012.svg"
+  },
+  {
+    "id": "18",
+    "caption": "",
+    "pdf_page": 13,
+    "doc_page": 13
+  },
+  {
+    "id": "20",
+    "caption": "",
+    "pdf_page": 14,
+    "doc_page": 14
+  },
+  {
+    "id": "21",
+    "caption": "",
+    "pdf_page": 15,
+    "doc_page": 15
+  },
+  {
+    "id": "22",
+    "caption": "",
+    "pdf_page": 16,
+    "doc_page": 16
+  },
+  {
+    "id": "23",
+    "caption": "",
+    "pdf_page": 17,
+    "doc_page": 17
+  },
+  {
+    "id": "24",
+    "caption": "",
+    "pdf_page": 18,
+    "doc_page": 18
+  },
+  {
+    "id": "25",
+    "caption": "",
+    "pdf_page": 19,
+    "doc_page": 19,
+    "svg": "figures/page_019.svg"
+  },
+  {
+    "id": "26",
+    "caption": "",
+    "pdf_page": 19,
+    "doc_page": 19,
+    "svg": "figures/page_019.svg"
+  },
+  {
+    "id": "27",
+    "caption": "",
+    "pdf_page": 20,
+    "doc_page": 20
+  },
+  {
+    "id": "28",
+    "caption": "",
+    "pdf_page": 21,
+    "doc_page": 21,
+    "svg": "figures/page_021.svg"
+  },
+  {
+    "id": "29",
+    "caption": "",
+    "pdf_page": 21,
+    "doc_page": 21,
+    "svg": "figures/page_021.svg"
+  },
+  {
+    "id": "31",
+    "caption": "",
+    "pdf_page": 22,
+    "doc_page": 22,
+    "svg": "figures/page_022.svg"
+  },
+  {
+    "id": "33",
+    "caption": "",
+    "pdf_page": 23,
+    "doc_page": 23,
+    "svg": "figures/page_023.svg"
+  },
+  {
+    "id": "35",
+    "caption": "",
+    "pdf_page": 24,
+    "doc_page": 24,
+    "svg": "figures/page_024.svg"
+  },
+  {
+    "id": "37",
+    "caption": "",
+    "pdf_page": 25,
+    "doc_page": 25,
+    "svg": "figures/page_025.svg"
+  },
+  {
+    "id": "39",
+    "caption": "",
+    "pdf_page": 26,
+    "doc_page": 26,
+    "svg": "figures/page_026.svg"
+  },
+  {
+    "id": "41",
+    "caption": "",
+    "pdf_page": 27,
+    "doc_page": 27,
+    "svg": "figures/page_027.svg"
+  },
+  {
+    "id": "43",
+    "caption": "",
+    "pdf_page": 28,
+    "doc_page": 28,
+    "svg": "figures/page_028.svg"
+  },
+  {
+    "id": "45",
+    "caption": "",
+    "pdf_page": 29,
+    "doc_page": 29,
+    "svg": "figures/page_029.svg"
+  },
+  {
+    "id": "46",
+    "caption": "",
+    "pdf_page": 29,
+    "doc_page": 29,
+    "svg": "figures/page_029.svg"
+  },
+  {
+    "id": "47",
+    "caption": "",
+    "pdf_page": 30,
+    "doc_page": 30
+  },
+  {
+    "id": "48",
+    "caption": "",
+    "pdf_page": 30,
+    "doc_page": 30
+  },
+  {
+    "id": "50",
+    "caption": "",
+    "pdf_page": 31,
+    "doc_page": 31,
+    "svg": "figures/page_031.svg"
+  },
+  {
+    "id": "51",
+    "caption": "",
+    "pdf_page": 32,
+    "doc_page": 32
+  },
+  {
+    "id": "52",
+    "caption": "",
+    "pdf_page": 33,
+    "doc_page": 33
+  },
+  {
+    "id": "53",
+    "caption": "",
+    "pdf_page": 34,
+    "doc_page": 34
+  },
+  {
+    "id": "54",
+    "caption": "",
+    "pdf_page": 35,
+    "doc_page": 35
+  },
+  {
+    "id": "55",
+    "caption": "",
+    "pdf_page": 36,
+    "doc_page": 36
+  },
+  {
+    "id": "10_2",
+    "caption": "Fig. 10 Comparison between histograms of the inertia in the case n init = 1 ( a ) and n init = 4 ( b ). The total number of runs is thus fixed to N \u2217 n init = 4000",
+    "pdf_page": 24,
+    "doc_page": 24,
+    "svg": "figures/page_024.svg"
+  },
+  {
+    "id": "11_2",
+    "caption": "Fig. 11 Computational time required by the proposed pipeline. In blue, the time required by the GDM (matrix of distances). In orange, the time required by the RSC (clustering algorithm)",
+    "pdf_page": 25,
+    "doc_page": 25,
+    "svg": "figures/page_025.svg"
+  },
+  {
+    "id": "13_2",
+    "caption": "Fig. 13 Spectral-gaps obtained from matrix C for various k , obtained by the RSC procedure applied to the 172 selected patients",
+    "pdf_page": 27,
+    "doc_page": 27,
+    "svg": "figures/page_027.svg"
+  },
+  {
+    "id": "14_2",
+    "caption": "Fig. 14 Effects of different k on the graphs induced by the matrix C . For visualization purposed, edges less then 1% of the repetitions ( N = 1000) have been removed, as it can be noted in the colorb",
+    "pdf_page": 28,
+    "doc_page": 28,
+    "svg": "figures/page_028.svg"
+  },
+  {
+    "id": "15_2",
+    "caption": "Fig. 15 Comparison of patient cluster assignments derived from separate cohorts (PD/SL) versus combined cohorts (PD+SL). PD stands for Padua, SL for St. Louis",
+    "pdf_page": 29,
+    "doc_page": 29,
+    "svg": "figures/page_029.svg"
+  },
+  {
+    "id": "18_2",
+    "caption": "Fig. 18 Pair-wise similarities distributions, for six different distances used. GSM stays for General Similarity Measure; EUC stays for Euclidean; MAN stays for Manhattan; MAL stays for Mahalanobis; P",
+    "pdf_page": 31,
+    "doc_page": 31,
+    "svg": "figures/page_031.svg"
+  },
+  {
+    "id": "1_2",
+    "caption": "Fig. 1 Patient selection workflow. Red marks patients taken into account for clustering. Abbreviations: M, male; F, female",
+    "pdf_page": 5,
+    "doc_page": 5
+  },
+  {
+    "id": "2_2",
+    "caption": "Fig. 2 A Table visualization of deficits co-occurrences of every item. Intense red for higher number of deficit co-occurrences. Empty blocks represent zero deficit co-occurrences. B Bar graph indicati",
+    "pdf_page": 10,
+    "doc_page": 10,
+    "svg": "figures/page_010.svg"
+  },
+  {
+    "id": "4_2",
+    "caption": "Fig. 4 Radar charts and lesion heat maps for the clusters obtained from RSC. In the radar plots the lines represent (in blue) the minimum, (in green) the median, and (in red) the maximum of the NIHSS ",
+    "pdf_page": 12,
+    "doc_page": 12,
+    "svg": "figures/page_012.svg"
+  },
+  {
+    "id": "5_2",
+    "caption": "Fig. 5 Significant voxels found from the voxel-wise analysis with FWER at \u03b1 = 0 . 05. At the top-left A in orange, Cluster 0 (left motor deficits), at the top-right B in green, Cluster 2 (right motor ",
+    "pdf_page": 14,
+    "doc_page": 14
+  },
+  {
+    "id": "8_2",
+    "caption": "Fig. 8 Graphical summary of how spectral clustering works in the case of k = 3. Starting from a , the GSM matrix visualized as a graph, b then the matrix U is computed with its respective Euclidean em",
+    "pdf_page": 22,
+    "doc_page": 22,
+    "svg": "figures/page_022.svg"
+  },
+  {
+    "id": "9_2",
+    "caption": "Fig. 9 Toy example of how the C matrix is built. Here, different data points are clustered together differently for each run of the k -means. At the end the C matrix is obtained by counting the number",
+    "pdf_page": 23,
+    "doc_page": 23,
+    "svg": "figures/page_023.svg"
+  }
+]
