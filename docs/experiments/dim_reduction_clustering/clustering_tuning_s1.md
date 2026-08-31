@@ -7,6 +7,8 @@
 
 ## 27/28-08-2026 — s1.1
 
+*Plot rigenerati 31-08-2026 (stessi parametri/griglia/dati - solo naming/titoli/spaziatura dei plot aggiornati dopo l'audit naming clustering; nessuna nuova run scientifica, nessuna cifra sotto cambiata).*
+
 #### Tuning agglomerative su 6 embedding UMAP (metric × n_components)
 
 **Obiettivo:**
