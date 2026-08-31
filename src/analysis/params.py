@@ -22,11 +22,25 @@ from src.analysis.consensus_clustering import CONSENSUS_ELIGIBLE_METHODS
 
 
 def load_method_params(params_file: str | Path, method: str) -> tuple[dict, str | None]:
-    """Load the params dict and the optional tag registered for `method`.
+    """Load the params dict and the optional production-folder tag registered
+    for `method`.
 
     Raises FileNotFoundError if params_file doesn't exist, ValueError if its
     top-level shape isn't a JSON object, if `method` has no entry, or if that
     entry's "params" isn't itself a JSON object.
+
+    The tag is built from the entry's optional "tag_param"/"tag_prefix" -
+    parallel, same-length lists of hyperparameter names and short prefixes
+    (e.g. tag_param=["n_clusters", "linkage"], tag_prefix=["n_clust", "link"]
+    -> tag "n_clust4_linkward" for params {"n_clusters": 4, "linkage": "ward",
+    ...}). Only ever read by *production* runs (`_run_production` in
+    dim_reduction.py/clustering.py) - fine-tuning discards this return value,
+    it builds its own output-folder shape from `session_name`/`nested_params`
+    instead (docs/dev/config.md). Absent "tag_param" -> tag is None (no
+    suffix). Raises ValueError if "tag_param"/"tag_prefix" aren't both lists
+    of strings of the same length, or if "tag_param" names a key not present
+    in "params" (a registry typo, not a legitimate absence - every declared
+    tag_param is expected to always be a real hyperparameter of that method).
     """
     entry = _load_method_entry(params_file, method)
     if "params" not in entry:
@@ -34,15 +48,25 @@ def load_method_params(params_file: str | Path, method: str) -> tuple[dict, str 
     params = entry["params"]
     if not isinstance(params, dict):
         raise ValueError(f"{params_file}: {method!r}.params must be a JSON object, got {params!r}")
-        
+
     tag_param = entry.get("tag_param")
-    tag_prefix = entry.get("tag_prefix", "")
-    
     tag_str = None
-    if tag_param and tag_param in params:
-        val_str = str(params[tag_param]).replace(".", "")
-        tag_str = f"{tag_prefix}{val_str}"
-        
+    if tag_param is not None:
+        tag_prefix = entry.get("tag_prefix")
+        if not isinstance(tag_param, list) or not all(isinstance(name, str) for name in tag_param):
+            raise ValueError(f"{params_file}: {method!r}.tag_param must be a list of strings, got {tag_param!r}")
+        if not isinstance(tag_prefix, list) or not all(isinstance(prefix, str) for prefix in tag_prefix):
+            raise ValueError(f"{params_file}: {method!r}.tag_prefix must be a list of strings, got {tag_prefix!r}")
+        if len(tag_param) != len(tag_prefix):
+            raise ValueError(
+                f"{params_file}: {method!r}.tag_param and tag_prefix must have the same length, "
+                f"got {len(tag_param)} and {len(tag_prefix)}"
+            )
+        missing = [key for key in tag_param if key not in params]
+        if missing:
+            raise ValueError(f"{params_file}: {method!r}.tag_param references {missing!r}, not present in params")
+        tag_str = "_".join(f"{prefix}{str(params[key]).replace('.', '')}" for key, prefix in zip(tag_param, tag_prefix))
+
     return params, tag_str
 
 
