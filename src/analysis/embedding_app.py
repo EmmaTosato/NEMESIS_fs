@@ -210,7 +210,7 @@ def discover_production_runs(results_root: Path) -> list[ProductionRun]:
     return sorted(runs, key=lambda run: (run.modality, run.pipeline, run.method, run.reduction_method or "", run.run_name))
 
 
-# A run_name's own leading "DD-MM" (every run seen so far: "13-08_s1.1_nc3_m_dice",
+# A run_name's own leading "DD-MM" (every run seen so far: "13-08_s1.1_m_dice_nc3",
 # "23-07_s1.1_c150", ...) - used only to order/default the "Giorno" picker chronologically
 # (most recent last), never to validate or reject a run_name that doesn't match: a run
 # without a recognizable date prefix still shows up, just sorted alphabetically after every

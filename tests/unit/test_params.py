@@ -9,6 +9,7 @@ from src.analysis.params import (
     load_method_params,
     load_nested_params,
     load_stability_config,
+    load_tag_params,
     load_trustworthiness_n_neighbors,
     load_tuning_grid,
 )
@@ -126,6 +127,25 @@ def test_load_method_params_tag_param_missing_from_params_raises(tmp_path):
     )
     with pytest.raises(ValueError, match="not present in params"):
         load_method_params(path, "hdbscan")
+
+
+def test_load_tag_params_absent_returns_empty_list(tmp_path):
+    path = _write(tmp_path, {"pacmap": {"params": {"n_neighbors": 5}}})
+    assert load_tag_params(path, "pacmap") == []
+
+
+def test_load_tag_params_valid(tmp_path):
+    path = _write(
+        tmp_path,
+        {"agglomerative": {"params": {"n_clusters": 4, "linkage": "ward"}, "tag_param": ["n_clusters", "linkage"]}},
+    )
+    assert load_tag_params(path, "agglomerative") == ["n_clusters", "linkage"]
+
+
+def test_load_tag_params_not_a_list_raises(tmp_path):
+    path = _write(tmp_path, {"kmeans": {"params": {"n_clusters": 4}, "tag_param": "n_clusters"}})
+    with pytest.raises(ValueError, match="tag_param must be a list of strings"):
+        load_tag_params(path, "kmeans")
 
 
 def test_load_tuning_grid_valid(tmp_path):

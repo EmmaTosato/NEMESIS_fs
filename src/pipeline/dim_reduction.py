@@ -59,7 +59,7 @@ import pandas as pd
 from src.analysis.distances import SUPPORTED_BINARY_METRICS, require_binary_matrix
 from src.analysis.embedding_plots import write_embedding_grid, write_embedding_plots
 from src.analysis.model_config import DimReductionConfig, load_dim_reduction_config
-from src.analysis.params import load_method_params, load_nested_params, load_trustworthiness_n_neighbors, load_tuning_grid
+from src.analysis.params import load_method_params, load_nested_params, load_tag_params, load_trustworthiness_n_neighbors, load_tuning_grid
 from src.analysis.plotting import compose_embedding_plot_title, compose_run_title, compose_tuning_leaf_title, plot_tuning_curve
 from src.analysis.reduction import embed, embedding_for_viz
 from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
@@ -176,6 +176,11 @@ def _run_production(
     )
 
     try:
+        # One extra column per tag_param key (31-08-26, mirrors clustering.py's own
+        # runs.csv columns) - exploded from `params` rather than re-parsing the joined tag
+        # string, so a reader gets each hyperparameter as its own filterable column instead
+        # of having to split "m_dice_nc2" back apart by hand.
+        run_log_columns = {key: str(params[key]) for key in load_tag_params(config.params_file, config.reduction_method)}
         append_run_log_entry(
             config.output_root / "production" / config.reduction_method,
             effective_session_name,
@@ -185,6 +190,7 @@ def _run_production(
             output_dir,
             config.run_notes,
             config.input_path,
+            extra_columns=run_log_columns,
         )
     except OSError as exc:
         logging.error("cannot write run log: %s", exc, exc_info=True)

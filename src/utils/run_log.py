@@ -48,11 +48,14 @@ def append_run_log_entry(
     runs.csv can tell whether two rows with identical params were actually
     computed on the same underlying data (see docs/dev/config.md).
 
-    extra_columns prepends caller-specific leading columns, for a pipeline
-    that shares one runs_csv_path across more than one dimension (e.g.
-    atlas_combo for build_fc_matrix.py/mask_fc.py) - every call writing to
-    the same runs_csv_path must pass the same extra_columns keys, since the
-    header is only written once, on the first call.
+    extra_columns inserts caller-specific columns right after "id" (31-08-26 -
+    previously prepended before "session", moved so "session"/"id" always
+    stay the row's leading identity columns regardless of what a given
+    caller adds), for a pipeline that shares one runs_csv_path across more
+    than one dimension (e.g. atlas_combo for build_fc_matrix.py/mask_fc.py,
+    or reduction_method/exploded tag_param values for clustering.py) - every
+    call writing to the same runs_csv_path must pass the same extra_columns
+    keys, since the header is only written once, on the first call.
     """
     if "_" in run_id:
         session, id_part = run_id.split("_", 1)
@@ -63,7 +66,7 @@ def append_run_log_entry(
         raise ValueError(f"run_type must be one of {sorted(_FILE_NAME_BY_RUN_TYPE)}, got {run_type!r}")
     runs_csv_path = log_dir / _FILE_NAME_BY_RUN_TYPE[run_type]
 
-    fieldnames = list(extra_columns) + FIELDNAMES if extra_columns else FIELDNAMES
+    fieldnames = FIELDNAMES[:2] + list(extra_columns) + FIELDNAMES[2:] if extra_columns else FIELDNAMES
     runs_csv_path.parent.mkdir(parents=True, exist_ok=True)
     write_header = not runs_csv_path.is_file()
 

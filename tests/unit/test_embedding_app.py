@@ -42,12 +42,21 @@ def _make_run_dir(
     modality="lesion",
     pipeline="dim_reduction",
     method="umap",
+    reduction_method=None,
     run_name="10-08_s1",
     n_dims=2,
     params=None,
     extra_metadata=None,
 ):
-    run_dir = results_root / modality / pipeline / "production" / method / run_name
+    # clustering.py's own production tree has one extra <reduction_method> segment
+    # (31-08-26) that dim_reduction.py's doesn't - default it here so every existing
+    # pipeline="clustering" call site keeps working without having to name it explicitly.
+    if pipeline == "clustering" and reduction_method is None:
+        reduction_method = "umap"
+    run_dir = results_root / modality / pipeline / "production" / method
+    if reduction_method is not None:
+        run_dir = run_dir / reduction_method
+    run_dir = run_dir / run_name
     X = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 0.5], [3.0, 2.0]])[:, :n_dims] if n_dims <= 2 else np.hstack(
         [np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 0.5], [3.0, 2.0]]), np.zeros((4, n_dims - 2))]
     )
@@ -113,11 +122,13 @@ def test_discover_production_runs_finds_clustering_runs_too(tmp_path):
 
     runs = discover_production_runs(results_root)
 
-    # Alphabetical by (modality, pipeline, method, run_name) - same plain sort every other
-    # discovery/options helper in this module uses; "clustering" < "dim_reduction".
-    assert [(r.modality, r.pipeline, r.method, r.run_name) for r in runs] == [
-        ("lesion", "clustering", "kmeans", "run-b"),
-        ("lesion", "dim_reduction", "umap", "run-a"),
+    # Alphabetical by (modality, pipeline, method, reduction_method, run_name) - same plain
+    # sort every other discovery/options helper in this module uses; "clustering" <
+    # "dim_reduction". Clustering's own reduction_method defaults to "umap" in
+    # _make_run_dir (31-08-26 extra path segment); dim_reduction has none (None).
+    assert [(r.modality, r.pipeline, r.method, r.reduction_method, r.run_name) for r in runs] == [
+        ("lesion", "clustering", "kmeans", "umap", "run-b"),
+        ("lesion", "dim_reduction", "umap", None, "run-a"),
     ]
 
 
@@ -127,7 +138,7 @@ def test_discover_production_runs_excludes_clustering_comparison_dir(tmp_path):
     # special-cased directory-name check.
     results_root = tmp_path / "results"
     _make_run_dir(results_root, pipeline="clustering", method="kmeans", run_name="run-a")
-    comparison_dir = results_root / "lesion" / "clustering" / "production" / "comparison" / "10-08_s1"
+    comparison_dir = results_root / "lesion" / "clustering" / "production" / "comparison" / "umap" / "10-08_s1"
     comparison_dir.mkdir(parents=True)
     (comparison_dir / "config.md").write_text("# comparison\n")
 
@@ -144,6 +155,19 @@ def test_production_run_properties():
 
 
 def test_production_run_properties_clustering_pipeline():
+    run = ProductionRun(
+        modality="lesion", pipeline="clustering", method="kmeans", run_name="10-08_s1", path=None, reduction_method="umap"
+    )
+
+    assert run.key == "lesion/clustering/kmeans/umap/10-08_s1"
+    assert run.results_relative_path == Path("results/lesion/clustering/production/kmeans/umap/10-08_s1")
+
+
+def test_production_run_properties_clustering_pipeline_reduction_method_none():
+    """reduction_method absent (e.g. a hand-built ProductionRun in older test code, or a
+    theoretical clustering run indexed before this field existed) falls back to the flat,
+    no-extra-segment shape - same as a dim_reduction run, never a crash or a spurious
+    'None' path component."""
     run = ProductionRun(modality="lesion", pipeline="clustering", method="kmeans", run_name="10-08_s1", path=None)
 
     assert run.key == "lesion/clustering/kmeans/10-08_s1"

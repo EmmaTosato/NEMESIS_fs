@@ -68,6 +68,7 @@ Genera i cluster definitivi usando i parametri precedentemente scelti in `config
 | :--- | :--- | :--- |
 | **`project`** | *Stringa* | Nome del progetto (es. `"clinical_connectome"`). |
 | **`input_path`** | *Stringa* | Percorso della matrice di input. Dati grezzi (`data/derived/...`) o compressi (`results/lesion/dim_reduction/...`). DEVE esistere. |
+| **`reduction_method`** | *Stringa* | (31-08-26) Dichiara quale metodo di dim reduction ha prodotto `input_path` (`"umap"`, `"tsne"`, `"pca"`, `"pacmap"`) — o `"raw"` se `input_path` è una matrice non ridotta. Obbligatorio, mai dedotto dal testo di `input_path`. Determina un livello in più nell'albero di output (vedi sotto), così risultati da embedding diversi non finiscono mai nella stessa cartella. |
 | **`clustering_methods`** | *Lista* | Algoritmi da usare. Opzioni: `"kmeans"`, `"agglomerative"`, `"gmm"`, `"hdbscan"`, `"spectral"`, `"evidence_accumulation"`. È possibile metterne multipli per confrontarli. |
 | **`params_file`** | *Stringa* | File configurazione interna algoritmi (di norma `"config/registry/params_clustering.json"`). |
 | **`output_root`** | *Stringa* | Cartella radice per i risultati (es. `"results/lesion/clustering"`). |
@@ -87,16 +88,16 @@ Genera i cluster definitivi usando i parametri precedentemente scelti in `config
 
 ## Output e Grafici
 
-A seconda della modalità, vengono generati risultati diversi. **Dal 2026-08, produzione e tuning vivono in due rami separati sotto `output_root`**, mai mescolati: `results/lesion/clustering/production/<metodo>/...` e `results/lesion/clustering/tuning/<metodo>/...`.
+A seconda della modalità, vengono generati risultati diversi. **Dal 2026-08, produzione e tuning vivono in due rami separati sotto `output_root`**, mai mescolati: `results/lesion/clustering/production/<metodo>/<reduction_method>/...` e `results/lesion/clustering/tuning/<metodo>/<reduction_method>/...` — il segmento `<reduction_method>` (31-08-26, da `reduction_method` in `clustering.json`) separa i risultati per embedding sorgente, es. `production/kmeans/umap/...` vs un ipotetico `production/kmeans/raw/...`.
 
-### Se in "Produzione" (`production/<metodo>/`, es. `production/kmeans/` o `production/hdbscan/`)
+### Se in "Produzione" (`production/<metodo>/<reduction_method>/`, es. `production/kmeans/umap/` o `production/hdbscan/umap/`)
 1. **`matrix.npy`**: Copia della matrice di partenza.
 2. **`metadata.csv`**: File arricchito con la colonna **`cluster_label`**.
 3. **`cluster_plot.png` & `.html`**: Grafico 2D (prime 2 colonne) colorato per cluster. La versione HTML è interattiva.
 4. **`silhouette_plot.png`**: Grafico di qualità del clustering paziente per paziente.
-5. **Cartella `production/comparison/`**: (Solo se si usano più metodi) Affianca i risultati visivi degli algoritmi scelti (es. `cluster_plot_comparison.png`), utilissimo per decidere quale metodo "taglia" meglio i dati.
+5. **Cartella `production/comparison/<reduction_method>/`**: (Solo se si usano più metodi) Affianca i risultati visivi degli algoritmi scelti (es. `cluster_plot_comparison.png`), utilissimo per decidere quale metodo "taglia" meglio i dati.
 
-### Se in "Fine-Tuning" (`tuning/<metodo>/`)
+### Se in "Fine-Tuning" (`tuning/<metodo>/<reduction_method>/`)
 1. **`tuning_results.csv`**: Risultati numerici dello sweep parametri.
 2. **`tuning_plot.png`**: Sottografici per metrica calcolata.
 3. Grafici diagnostici aggiuntivi (se supportati, es. dendrogramma).
@@ -104,6 +105,6 @@ A seconda della modalità, vengono generati risultati diversi. **Dal 2026-08, pr
 *(Non vengono salvati `matrix.npy` o grafici di assegnazione).*
 
 ### Diari di Bordo
-Ogni metodo mantiene uno storico delle esecuzioni mai sovrascritto, in cima al proprio ramo:
-- `production/<metodo>/runs.csv` per Produzione.
-- `tuning/<metodo>/runs_tuning.csv` per Fine-Tuning.
+Ogni metodo mantiene uno storico delle esecuzioni mai sovrascritto, in cima al proprio ramo (**non** per `<reduction_method>` — un solo file per metodo, copre tutti i `reduction_method`):
+- `production/<metodo>/runs.csv` per Produzione — colonne `session, id, reduction_method, <una per ogni chiave di tag_param del metodo>, timestamp, input_path, params, output, notes` (es. per agglomerative: `..., reduction_method, n_clusters, linkage, timestamp, ...`).
+- `tuning/<metodo>/runs_tuning.csv` per Fine-Tuning — colonne `session, id, reduction_method, timestamp, input_path, params, output, notes` (nessuna colonna per singolo parametro: un run di tuning sweeppa tutta la griglia, non sceglie un solo valore).

@@ -15,9 +15,9 @@ Parametri scelti a valle del tuning ([`dim_reduction_tuning_s2.md`](dim_reductio
 
 | ID | Metodo | n_neighbors | min_dist | perplexity | n_components | Link |
 | --- | --- | --- | --- | --- | --- | --- |
-| s2.1_nc2 | UMAP | 15 | 0.0 | — | 2 | [config.md](../../../results/sdc/dim_reduction/production/umap/31-08_s2.1_nc2_m_euclidean/config.md) |
-| s2.1_nc3 | UMAP | 15 | 0.0 | — | 3 | [config.md](../../../results/sdc/dim_reduction/production/umap/31-08_s2.1_nc3_m_euclidean/config.md) |
-| s2.1 | t-SNE | — | — | 30 | 2 | [config.md](../../../results/sdc/dim_reduction/production/tsne/31-08_s2.1_m_euclidean/config.md) |
+| s2.1_nc2 | UMAP | 15 | 0.0 | — | 2 | [config.md](../../../results/sdc/dim_reduction/production/umap/31-08_s2.1_m_euclidean_nc2/config.md) |
+| s2.1_nc3 | UMAP | 15 | 0.0 | — | 3 | [config.md](../../../results/sdc/dim_reduction/production/umap/31-08_s2.1_m_euclidean_nc3/config.md) |
+| s2.1 | t-SNE | — | — | 30 | 2 | [config.md](../../../results/sdc/dim_reduction/production/tsne/31-08_s2.1_m_euclidean_p_30/config.md) |
 
 **Note:**
 - `s2.1_nc3`: stessi parametri baseline della run 2D gemella (`s2.1_nc2`), non ri-derivati dall'argmax nc=3 proprio — vedi `dim_reduction_tuning_s2.md` per il motivo (argmax mai ispezionato visivamente).

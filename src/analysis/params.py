@@ -70,6 +70,27 @@ def load_method_params(params_file: str | Path, method: str) -> tuple[dict, str 
     return params, tag_str
 
 
+def load_tag_params(params_file: str | Path, method: str) -> list[str]:
+    """Load the raw, ordered "tag_param" key list registered for `method` - the exploded
+    form load_method_params' own tag string is built from, for a caller that wants each
+    hyperparameter as its own value (e.g. clustering.py's runs.csv extra_columns, one column
+    per tag_param key) rather than the pre-joined "n_clust4_linkward" string. Absent -> []
+    (no tag configured for this method).
+
+    Raises ValueError if "tag_param" is present but isn't a list of strings - same check
+    load_method_params applies when actually building the tag, kept in sync deliberately so
+    a caller of either function sees the same registry contents rejected/accepted the same
+    way.
+    """
+    entry = _load_method_entry(params_file, method)
+    tag_param = entry.get("tag_param")
+    if tag_param is None:
+        return []
+    if not isinstance(tag_param, list) or not all(isinstance(name, str) for name in tag_param):
+        raise ValueError(f"{params_file}: {method!r}.tag_param must be a list of strings, got {tag_param!r}")
+    return tag_param
+
+
 def load_tuning_grid(params_file: str | Path, method: str) -> dict[str, list]:
     """Load the tuning_grid dict registered for `method` in `params_file`.
 

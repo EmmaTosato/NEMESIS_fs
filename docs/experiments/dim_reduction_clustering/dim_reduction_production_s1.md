@@ -16,10 +16,10 @@ Parametri scelti a valle del tuning ([`dim_reduction_tuning_s1.md`](dim_reductio
 
 | ID | metric | n_neighbors | min_dist | n_components | Link |
 | --- | --- | --- | --- | --- | --- |
-| nc2_m_dice | dice | 15 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/11-08_s1.1_nc2_m_dice/config.md) |
-| nc2_m_euclidean | euclidean | 5 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/11-08_s1.1_nc2_m_euclidean/config.md) |
-| nc10_m_dice | dice | 30 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/11-08_s1.1_nc10_m_dice/config.md) |
-| nc10_m_euclidean | euclidean | 30 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/11-08_s1.1_nc10_m_euclidean/config.md) |
+| nc2_m_dice | dice | 15 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/11-08_s1.1_m_dice_nc2/config.md) |
+| nc2_m_euclidean | euclidean | 5 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/11-08_s1.1_m_euclidean_nc2/config.md) |
+| nc10_m_dice | dice | 30 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/11-08_s1.1_m_dice_nc10/config.md) |
+| nc10_m_euclidean | euclidean | 30 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/11-08_s1.1_m_euclidean_nc10/config.md) |
 
 **Nota:** `nc2_m_euclidean` è un re-run dell'embedding 2D del 23-07 (stessi parametri) — per questo condivide la data di sessione con le altre 3 run.
 
@@ -32,8 +32,8 @@ Parametri scelti a valle del tuning ([`dim_reduction_tuning_s1.md`](dim_reductio
 
 | ID | metric | n_neighbors | min_dist | n_components | Link |
 | --- | --- | --- | --- | --- | --- |
-| nc3_m_euclidean | euclidean | 5 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/13-08_s1.1_nc3_m_euclidean/config.md) |
-| nc3_m_dice | dice | 30 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/13-08_s1.1_nc3_m_dice/config.md) |
+| nc3_m_euclidean | euclidean | 5 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/13-08_s1.1_m_euclidean_nc3/config.md) |
+| nc3_m_dice | dice | 30 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/13-08_s1.1_m_dice_nc3/config.md) |
 
 **Note:**
 - `nc3_m_euclidean` — stessi parametri baseline della produzione 2D euclidean (11-08), solo `n_components` cambiato.
@@ -58,8 +58,8 @@ Parametri scelti a valle del tuning ([`dim_reduction_tuning_s1.md`](dim_reductio
 
 | ID | metric | perplexity | Link |
 | --- | --- | --- | --- |
-| s1.1_m_dice | dice | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_p_30_m_dice/config.md) |
-| s1.1_m_euclidean | euclidean | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_p_30_m_euclidean/config.md) |
+| s1.1_m_dice | dice | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_m_dice_p_30/config.md) |
+| s1.1_m_euclidean | euclidean | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_m_euclidean_p_30/config.md) |
 
 **Note:** tutte e 4 le `color_by` popolate su entrambi i run.
 
@@ -74,12 +74,12 @@ Parametri scelti a valle del tuning ([`dim_reduction_tuning_s1.md`](dim_reductio
 
 | ID | metric | n_neighbors | min_dist | n_components | Link |
 | --- | --- | --- | --- | --- | --- |
-| nc2_m_dice | dice | 15 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_nc2_m_dice/config.md) |
-| nc2_m_euclidean | euclidean | 5 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_nc2_m_euclidean/config.md) |
-| nc3_m_dice | dice | 30 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_nc3_m_dice/config.md) |
-| nc3_m_euclidean | euclidean | 5 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_nc3_m_euclidean/config.md) |
-| nc10_m_dice | dice | 30 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_nc10_m_dice/config.md) |
-| nc10_m_euclidean | euclidean | 30 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_nc10_m_euclidean/config.md) |
+| nc2_m_dice | dice | 15 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_m_dice_nc2/config.md) |
+| nc2_m_euclidean | euclidean | 5 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_m_euclidean_nc2/config.md) |
+| nc3_m_dice | dice | 30 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_m_dice_nc3/config.md) |
+| nc3_m_euclidean | euclidean | 5 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_m_euclidean_nc3/config.md) |
+| nc10_m_dice | dice | 30 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_m_dice_nc10/config.md) |
+| nc10_m_euclidean | euclidean | 30 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/28-08_s1.2_m_euclidean_nc10/config.md) |
 
 **Note:**
 - `nc10_*`: nessuno sweep di tuning ha mai coperto `n_components=10` (né s1.1 né s1.2) — `n_neighbors` estrapolato da `nc3`, stesso valore di s1.1.
@@ -99,7 +99,7 @@ Parametri scelti a valle del tuning ([`dim_reduction_tuning_s1.md`](dim_reductio
 
 | ID | metric | perplexity | Link |
 | --- | --- | --- | --- |
-| s1.2_m_dice | dice | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_p_30_m_dice/config.md) |
-| s1.2_m_euclidean | euclidean | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_p_30_m_euclidean/config.md) |
+| s1.2_m_dice | dice | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_m_dice_p_30/config.md) |
+| s1.2_m_euclidean | euclidean | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_m_euclidean_p_30/config.md) |
 
 **Note:** tutte e 4 le `color_by` popolate su entrambi i run; stesso caveat `dice`/`lesion_side` di UMAP, qui confermato visivamente (non solo per analogia).

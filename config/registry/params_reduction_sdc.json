@@ -1,7 +1,7 @@
 {
   "tsne": {
-    "tag_param": ["perplexity", "metric"],
-    "tag_prefix": ["p_", "m_"],
+    "tag_param": ["metric", "perplexity"],
+    "tag_prefix": ["m_", "p_"],
     "params": {
       "n_components": 2,
       "perplexity": 30,
