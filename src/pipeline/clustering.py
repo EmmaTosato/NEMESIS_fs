@@ -107,7 +107,7 @@ from src.analysis.clustering_tuning import (
 )
 from src.analysis.consensus_clustering import assign_clusters_from_cooccurrence, compute_evidence_accumulation_convergence, run_rsc_repeats
 from src.analysis.model_config import ClusteringConfig, load_clustering_config
-from src.analysis.params import load_consensus_config, load_method_params, load_stability_config, load_tuning_grid
+from src.analysis.params import load_consensus_config, load_method_params, load_stability_config, load_tag_params, load_tuning_grid
 from src.analysis.plotting import (
     compose_comparison_title,
     compose_run_title,
@@ -386,8 +386,10 @@ def _run_one_method(
     metadata_out["cluster_label"] = cluster_labels
     
     effective_session_name = f"{config.session_name}_{tag}" if tag else config.session_name
-    output_dir = config.output_root / "production" / method / f"{now.strftime('%d-%m')}_{effective_session_name}"
-    
+    output_dir = (
+        config.output_root / "production" / method / config.reduction_method / f"{now.strftime('%d-%m')}_{effective_session_name}"
+    )
+
     try:
         save_matrix(
             output_dir,
@@ -438,6 +440,12 @@ def _run_one_method(
         )
 
     try:
+        # reduction_method always logged; one extra column per tag_param key (31-08-26),
+        # exploded from `params` rather than re-parsing the joined tag string - a reader of
+        # runs.csv gets each hyperparameter as its own filterable column instead of having
+        # to split "n_clust4_linkward" back apart by hand.
+        run_log_columns = {"reduction_method": config.reduction_method}
+        run_log_columns.update({key: str(params[key]) for key in load_tag_params(config.params_file, method)})
         append_run_log_entry(
             _run_log_dir(config, method, "production"),
             effective_session_name,
@@ -447,6 +455,7 @@ def _run_one_method(
             output_dir,
             config.run_notes,
             config.input_path,
+            extra_columns=run_log_columns,
         )
     except OSError as exc:
         logging.error("[%s] cannot write run log: %s", method, exc, exc_info=True)
@@ -458,8 +467,17 @@ def _run_one_method(
 
 def _comparison_dir(config: ClusteringConfig, now: datetime) -> Path:
     # comparison/ is a production-only artifact (it compares saved cluster_label
-    # results across methods) - always under the production/ branch, never tuning/.
-    return config.output_root / "production" / "comparison" / f"{now.strftime('%d-%m')}_{config.session_name}"
+    # results across methods) - always under the production/ branch, never tuning/. Nested
+    # under reduction_method too (31-08-26), same as every real method's own output_dir -
+    # every method compared in one run shares config.input_path, so they share exactly one
+    # reduction_method too.
+    return (
+        config.output_root
+        / "production"
+        / "comparison"
+        / config.reduction_method
+        / f"{now.strftime('%d-%m')}_{config.session_name}"
+    )
 
 
 def _run_log_dir(config: ClusteringConfig, method: str, branch: str) -> Path:
@@ -620,6 +638,7 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
             output_dir,
             config.run_notes,
             config.input_path,
+            extra_columns={"reduction_method": config.reduction_method},
         )
     except OSError as exc:
         logging.error("[%s] cannot write run log: %s", method, exc, exc_info=True)
@@ -629,7 +648,7 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
 
 
 def _tuning_output_dir(config: ClusteringConfig, method: str, now: datetime) -> Path:
-    return config.output_root / "tuning" / method / f"{now.strftime('%d-%m')}_{config.session_name}"
+    return config.output_root / "tuning" / method / config.reduction_method / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
 def _write_tuning_output(

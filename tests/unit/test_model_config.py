@@ -165,6 +165,7 @@ def test_dim_reduction_config_precompute_distance_metric_false_valid(tmp_path):
 def test_clustering_config_valid(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
@@ -173,13 +174,61 @@ def test_clustering_config_valid(tmp_path):
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.clustering_methods == ("kmeans",)
+    assert config.reduction_method == "umap"
     assert config.fine_tuning is False
     assert config.reduced_data is False
+
+
+def test_clustering_config_reduction_method_raw_valid(tmp_path):
+    """"raw" is the explicit sentinel for clustering directly on an un-reduced feature
+    matrix (docs/dev/clustering_migration_plan.md §1's reduced_data=False case) - not yet
+    a real scenario in this project (every clustering run so far reduces first), but the
+    field must accept it since it's the documented escape hatch, not just REDUCTION_METHODS'
+    own entries."""
+    payload = {
+        **_SHARED,
+        "reduction_method": "raw",
+        "clustering_methods": ["kmeans"],
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+    }
+    config = load_clustering_config(_write(tmp_path, "cl.json", payload))
+    assert config.reduction_method == "raw"
+
+
+def test_clustering_config_missing_reduction_method_raises(tmp_path):
+    payload = {
+        **_SHARED,
+        "clustering_methods": ["kmeans"],
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+    }
+    with pytest.raises(ValueError, match="missing required field 'reduction_method'"):
+        load_clustering_config(_write(tmp_path, "cl.json", payload))
+
+
+def test_clustering_config_unknown_reduction_method_raises(tmp_path):
+    payload = {
+        **_SHARED,
+        "reduction_method": "bogus",
+        "clustering_methods": ["kmeans"],
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+    }
+    with pytest.raises(ValueError, match="unknown reduction_method"):
+        load_clustering_config(_write(tmp_path, "cl.json", payload))
 
 
 def test_clustering_config_reduced_data_true_valid(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
@@ -193,6 +242,7 @@ def test_clustering_config_reduced_data_true_valid(tmp_path):
 def test_clustering_config_missing_reduced_data_raises(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
@@ -204,6 +254,7 @@ def test_clustering_config_missing_reduced_data_raises(tmp_path):
 def test_clustering_config_reduced_data_non_bool_raises(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
@@ -216,6 +267,7 @@ def test_clustering_config_reduced_data_non_bool_raises(tmp_path):
 def test_clustering_config_viz_embedding_path_defaults_to_none(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
@@ -229,6 +281,7 @@ def test_clustering_config_viz_embedding_path_defaults_to_none(tmp_path):
 def test_clustering_config_viz_embedding_path_set(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
@@ -243,6 +296,7 @@ def test_clustering_config_viz_embedding_path_set(tmp_path):
 def test_clustering_config_save_tuning_clusterings_true_valid(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": True,
@@ -256,6 +310,7 @@ def test_clustering_config_save_tuning_clusterings_true_valid(tmp_path):
 def test_clustering_config_missing_save_tuning_clusterings_raises(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
@@ -268,6 +323,7 @@ def test_clustering_config_missing_save_tuning_clusterings_raises(tmp_path):
 def test_clustering_config_save_tuning_clusterings_non_bool_raises(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
@@ -281,6 +337,7 @@ def test_clustering_config_save_tuning_clusterings_non_bool_raises(tmp_path):
 def test_clustering_config_multiple_methods_valid(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans", "hdbscan", "gmm"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
@@ -294,6 +351,7 @@ def test_clustering_config_multiple_methods_valid(tmp_path):
 def test_clustering_config_fine_tuning_true(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": True,
@@ -305,7 +363,7 @@ def test_clustering_config_fine_tuning_true(tmp_path):
 
 
 def test_clustering_config_missing_fine_tuning_raises(tmp_path):
-    payload = {**_SHARED, "clustering_methods": ["kmeans"], "params_file": "config/registry/params_clustering.json"}
+    payload = {**_SHARED, "reduction_method": "umap", "clustering_methods": ["kmeans"], "params_file": "config/registry/params_clustering.json"}
     with pytest.raises(ValueError, match="missing required field 'fine_tuning'"):
         load_clustering_config(_write(tmp_path, "cl.json", payload))
 
@@ -313,6 +371,7 @@ def test_clustering_config_missing_fine_tuning_raises(tmp_path):
 def test_clustering_config_unknown_method_raises(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": ["bogus"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
@@ -324,6 +383,7 @@ def test_clustering_config_unknown_method_raises(tmp_path):
 def test_clustering_config_duplicate_methods_raises(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans", "kmeans"],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
@@ -335,6 +395,7 @@ def test_clustering_config_duplicate_methods_raises(tmp_path):
 def test_clustering_config_empty_list_raises(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": [],
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,
@@ -346,6 +407,7 @@ def test_clustering_config_empty_list_raises(tmp_path):
 def test_clustering_config_non_list_raises(tmp_path):
     payload = {
         **_SHARED,
+        "reduction_method": "umap",
         "clustering_methods": "kmeans",
         "params_file": "config/registry/params_clustering.json",
         "fine_tuning": False,

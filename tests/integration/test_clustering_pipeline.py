@@ -103,6 +103,7 @@ def test_clustering_end_to_end(tmp_path, monkeypatch, caplog):
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -123,7 +124,7 @@ def test_clustering_end_to_end(tmp_path, monkeypatch, caplog):
     # docs/debugging/debug_25_08_26.md: a run's duration must be logged, success or not.
     assert "run duration:" in caplog.text
 
-    out_dir = next(p for p in (output_root / "production" / "kmeans").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "kmeans" / "umap").iterdir() if p.is_dir())
     X = np.load(out_dir / "matrix.npy")
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert np.array_equal(X, original_X)  # unchanged, per design (no reduction happened)
@@ -159,6 +160,7 @@ def test_clustering_unrecognized_hyperparameter_returns_1_not_raw_traceback(tmp_
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -206,6 +208,7 @@ def test_clustering_viz_embedding_path_wrong_n_components_raises(tmp_path, monke
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -238,6 +241,7 @@ def test_clustering_viz_embedding_path_mismatched_subjects_raises(tmp_path, monk
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -269,6 +273,7 @@ def test_clustering_end_to_end_no_viz_embedding_skips_plots(tmp_path, monkeypatc
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -284,7 +289,7 @@ def test_clustering_end_to_end_no_viz_embedding_skips_plots(tmp_path, monkeypatc
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "production" / "kmeans").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "kmeans" / "umap").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}  # the artifact itself is still written
     assert not (out_dir / "cluster_plot.png").exists()
@@ -302,6 +307,7 @@ def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["agglomerative"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -317,7 +323,7 @@ def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "production" / "agglomerative").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "agglomerative" / "umap").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
 
@@ -333,6 +339,7 @@ def test_clustering_end_to_end_gmm(tmp_path, monkeypatch):
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["gmm"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -348,7 +355,7 @@ def test_clustering_end_to_end_gmm(tmp_path, monkeypatch):
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "production" / "gmm").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "gmm" / "umap").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
 
@@ -366,6 +373,7 @@ def test_clustering_end_to_end_spectral(tmp_path, monkeypatch):
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["spectral"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -381,7 +389,7 @@ def test_clustering_end_to_end_spectral(tmp_path, monkeypatch):
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "production" / "spectral").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "spectral" / "umap").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
 
@@ -420,6 +428,7 @@ def test_clustering_end_to_end_evidence_accumulation(tmp_path, monkeypatch):
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["evidence_accumulation"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -435,7 +444,7 @@ def test_clustering_end_to_end_evidence_accumulation(tmp_path, monkeypatch):
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "production" / "evidence_accumulation").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "evidence_accumulation" / "umap").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
     # unlike every other method, the number of clusters isn't a parameter
     # here - it emerges from the threshold cut, so only the label shape/type
@@ -458,6 +467,7 @@ def test_clustering_end_to_end_hdbscan_reports_noise_separately(tmp_path, monkey
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["hdbscan"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -473,7 +483,7 @@ def test_clustering_end_to_end_hdbscan_reports_noise_separately(tmp_path, monkey
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "production" / "hdbscan").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "hdbscan" / "umap").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
     # this sparse raw-voxel synthetic fixture (min_cluster_size=5 on 12 subjects)
     # puts every subject in the noise bucket - a real exercise of the -1 path,
@@ -503,6 +513,7 @@ def test_clustering_end_to_end_hdbscan_cluster_plot_sized_by_probabilities(tmp_p
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["hdbscan"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -519,7 +530,7 @@ def test_clustering_end_to_end_hdbscan_cluster_plot_sized_by_probabilities(tmp_p
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    out_dir = next(p for p in (output_root / "production" / "hdbscan").iterdir() if p.is_dir())
+    out_dir = next(p for p in (output_root / "production" / "hdbscan" / "umap").iterdir() if p.is_dir())
     assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
 
@@ -541,6 +552,7 @@ def test_clustering_fine_tuning_hdbscan_min_samples_joint_sweep_writes_heatmap(t
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["hdbscan"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -556,7 +568,7 @@ def test_clustering_fine_tuning_hdbscan_min_samples_joint_sweep_writes_heatmap(t
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "hdbscan").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "hdbscan" / "umap").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0  # heatmap, 2 swept params
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
@@ -585,6 +597,7 @@ def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path,
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans", "agglomerative"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -603,12 +616,12 @@ def test_clustering_end_to_end_multiple_methods_writes_comparison_plot(tmp_path,
 
     # both methods get their own full artifact, unchanged from the single-method case
     for method in ("kmeans", "agglomerative"):
-        out_dir = next(p for p in (output_root / "production" / method).iterdir() if p.is_dir())
+        out_dir = next(p for p in (output_root / "production" / method / "umap").iterdir() if p.is_dir())
         metadata = pd.read_csv(out_dir / "metadata.csv")
         assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
         assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
-    comparison_dir = next(p for p in (output_root / "production" / "comparison").iterdir() if p.is_dir())
+    comparison_dir = next(p for p in (output_root / "production" / "comparison" / "umap").iterdir() if p.is_dir())
     assert (comparison_dir / "cluster_comparison.png").stat().st_size > 0
     assert (comparison_dir / "cluster_comparison_interactive.html").stat().st_size > 0
     comparison_readme = (comparison_dir / "config.md").read_text()
@@ -644,6 +657,7 @@ def test_clustering_comparison_dir_overwrite_false_rerun_fails_without_clobberin
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -659,7 +673,7 @@ def test_clustering_comparison_dir_overwrite_false_rerun_fails_without_clobberin
     cfg_path.write_text(json.dumps(cfg))
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    comparison_dir = next(p for p in (output_root / "production" / "comparison").iterdir() if p.is_dir())
+    comparison_dir = next(p for p in (output_root / "production" / "comparison" / "umap").iterdir() if p.is_dir())
     original_readme = (comparison_dir / "config.md").read_text()
     assert "agglomerative" not in original_readme
 
@@ -697,6 +711,7 @@ def test_clustering_comparison_plot_failure_returns_1_not_raw_traceback(tmp_path
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -736,6 +751,7 @@ def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monke
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -755,7 +771,7 @@ def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monke
     # fine-tuning's own completion point (separate from production's) must log duration too.
     assert "run duration:" in caplog.text
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans" / "umap").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_results.csv").is_file()
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
     assert not (tuning_dir / "matrix.npy").exists()  # a sweep is not a matrix artifact
@@ -795,6 +811,7 @@ def test_clustering_fine_tuning_save_tuning_clusterings_true_writes_clusterings_
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -810,7 +827,7 @@ def test_clustering_fine_tuning_save_tuning_clusterings_true_writes_clusterings_
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans" / "umap").iterdir() if p.is_dir())
     npz = np.load(tuning_dir / "clusterings.npz")
     assert set(npz.files) == {"n_clusters=2", "n_clusters=3", "n_clusters=4"}
     for key, expected_n_clusters in [("n_clusters=2", 2), ("n_clusters=3", 3), ("n_clusters=4", 4)]:
@@ -837,6 +854,7 @@ def test_clustering_fine_tuning_save_tuning_clusterings_false_skips_clusterings_
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -852,7 +870,7 @@ def test_clustering_fine_tuning_save_tuning_clusterings_false_skips_clusterings_
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans" / "umap").iterdir() if p.is_dir())
     assert not (tuning_dir / "clusterings.npz").exists()
     assert not (tuning_dir / "metadata.csv").exists()
 
@@ -877,6 +895,7 @@ def test_clustering_fine_tuning_two_swept_params_writes_heatmap(tmp_path, monkey
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["agglomerative"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -892,7 +911,7 @@ def test_clustering_fine_tuning_two_swept_params_writes_heatmap(tmp_path, monkey
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "agglomerative").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "agglomerative" / "umap").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0  # heatmap, not the 1-param line plot
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
@@ -917,6 +936,7 @@ def test_clustering_fine_tuning_overwrite_wipes_stale_plot_from_incompatible_pri
         return {
             "project": "testproj",
             "input_path": str(input_dir),
+            "reduction_method": "umap",
             "clustering_methods": ["kmeans"],
             "params_file": str(params_path),
             "output_root": str(output_root),
@@ -943,7 +963,7 @@ def test_clustering_fine_tuning_overwrite_wipes_stale_plot_from_incompatible_pri
     cfg_path.write_text(json.dumps(_cfg(overwrite=False)))
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans" / "umap").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
 
     # Run 2: same output_dir, overwrite=True, but 3 swept params - no plot
@@ -989,6 +1009,7 @@ def test_clustering_fine_tuning_kmeans_with_consensus_writes_rsc_monti_columns(t
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1004,7 +1025,7 @@ def test_clustering_fine_tuning_kmeans_with_consensus_writes_rsc_monti_columns(t
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans" / "umap").iterdir() if p.is_dir())
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert "rsc_eigengap" in results.columns
     assert "monti_stability" in results.columns
@@ -1049,6 +1070,7 @@ def test_clustering_fine_tuning_agglomerative_metric_aware_sweep_writes_new_diag
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["agglomerative"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1064,7 +1086,7 @@ def test_clustering_fine_tuning_agglomerative_metric_aware_sweep_writes_new_diag
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "agglomerative").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "agglomerative" / "umap").iterdir() if p.is_dir())
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     # 2 n_clusters x 2 linkage x 2 metric = 8, minus the 2 invalid ward+cosine combos
     assert len(results) == 6
@@ -1107,6 +1129,7 @@ def test_clustering_fine_tuning_kmeans_with_stability_writes_stability_output(tm
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1122,7 +1145,7 @@ def test_clustering_fine_tuning_kmeans_with_stability_writes_stability_output(tm
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans" / "umap").iterdir() if p.is_dir())
     assert (tuning_dir / "stability_plot.png").stat().st_size > 0
 
     stability = pd.read_csv(tuning_dir / "stability_results.csv")
@@ -1146,6 +1169,7 @@ def test_clustering_fine_tuning_gmm_writes_bic_aic(tmp_path, monkeypatch):
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["gmm"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1161,7 +1185,7 @@ def test_clustering_fine_tuning_gmm_writes_bic_aic(tmp_path, monkeypatch):
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "gmm").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "gmm" / "umap").iterdir() if p.is_dir())
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert "bic" in results.columns
     assert "aic" in results.columns
@@ -1191,6 +1215,7 @@ def test_clustering_fine_tuning_gmm_covariance_type_joint_sweep_writes_heatmap(t
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["gmm"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1206,7 +1231,7 @@ def test_clustering_fine_tuning_gmm_covariance_type_joint_sweep_writes_heatmap(t
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "gmm").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "gmm" / "umap").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0  # heatmap, 2 swept params
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
@@ -1239,6 +1264,7 @@ def test_clustering_fine_tuning_gmm_with_stability_writes_stability_output(tmp_p
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["gmm"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1254,7 +1280,7 @@ def test_clustering_fine_tuning_gmm_with_stability_writes_stability_output(tmp_p
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "gmm").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "gmm" / "umap").iterdir() if p.is_dir())
     assert (tuning_dir / "stability_plot.png").stat().st_size > 0
 
     stability = pd.read_csv(tuning_dir / "stability_results.csv")
@@ -1278,6 +1304,7 @@ def test_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkey
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["agglomerative"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1293,7 +1320,7 @@ def test_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkey
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "agglomerative").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "agglomerative" / "umap").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
     # linkage/metric not swept -> base_params defaults (ward, euclidean), single-subplot file
     assert (tuning_dir / "dendrogram_metric=euclidean.png").stat().st_size > 0  # standalone diagnostic, agglomerative-only
@@ -1319,6 +1346,7 @@ def test_clustering_fine_tuning_spectral_writes_eigengap(tmp_path, monkeypatch):
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["spectral"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1334,7 +1362,7 @@ def test_clustering_fine_tuning_spectral_writes_eigengap(tmp_path, monkeypatch):
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "spectral").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "spectral" / "umap").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
     # affinity not swept -> base_params' own affinity (nearest_neighbors), single-subplot file
     assert (tuning_dir / "eigengap_affinity=nearest_neighbors.png").stat().st_size > 0  # standalone diagnostic, spectral-only
@@ -1369,6 +1397,7 @@ def test_clustering_fine_tuning_spectral_affinity_aware_sweep_writes_combined_pl
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["spectral"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1384,7 +1413,7 @@ def test_clustering_fine_tuning_spectral_affinity_aware_sweep_writes_combined_pl
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "spectral").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "spectral" / "umap").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
     # affinity swept (nearest_neighbors, rbf) -> one eigengap file per affinity, each with a
     # subplot per swept value of its own hyperparameter (found 28-08-26: the old single
@@ -1418,6 +1447,7 @@ def test_clustering_fine_tuning_spectral_affinity_aware_sweep_rejects_save_tunin
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["spectral"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1447,6 +1477,7 @@ def test_clustering_fine_tuning_hdbscan_writes_noise_fraction(tmp_path, monkeypa
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["hdbscan"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1464,7 +1495,7 @@ def test_clustering_fine_tuning_hdbscan_writes_noise_fraction(tmp_path, monkeypa
 
     # HDBSCAN gets no standalone diagnostic (unlike agglomerative/spectral) -
     # no eps to read off a plot by eye, see clustering_tuning.py's module docstring
-    tuning_dir = next(p for p in (output_root / "tuning" / "hdbscan").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "hdbscan" / "umap").iterdir() if p.is_dir())
     assert not (tuning_dir / "k_distance_plot.png").exists()
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
@@ -1501,6 +1532,7 @@ def test_clustering_fine_tuning_evidence_accumulation_threshold_split_k_sweep_wr
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["evidence_accumulation"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1516,7 +1548,7 @@ def test_clustering_fine_tuning_evidence_accumulation_threshold_split_k_sweep_wr
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "evidence_accumulation").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "evidence_accumulation" / "umap").iterdir() if p.is_dir())
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert len(results) == 6  # 3 thresholds x 2 split-k
     assert set(results["n_clusters"]) == {4, 6}
@@ -1557,6 +1589,7 @@ def test_clustering_fine_tuning_multiple_methods_stops_on_first_failure(tmp_path
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans", "agglomerative"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1604,6 +1637,7 @@ def test_clustering_fine_tuning_sweep_value_error_is_caught_not_propagated(tmp_p
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1642,6 +1676,7 @@ def test_clustering_viz_embedding_matching_reduction_run_succeeds(tmp_path, monk
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(output_root),
@@ -1657,7 +1692,7 @@ def test_clustering_viz_embedding_matching_reduction_run_succeeds(tmp_path, monk
     cfg_path.write_text(json.dumps(cfg))
 
     assert clustering.main(["--config", str(cfg_path)]) == 0
-    run_dir = next(p for p in (output_root / "production" / "kmeans").iterdir() if p.is_dir())
+    run_dir = next(p for p in (output_root / "production" / "kmeans" / "umap").iterdir() if p.is_dir())
     assert (run_dir / "cluster_plot.png").exists()
 
 
@@ -1682,6 +1717,7 @@ def test_clustering_viz_embedding_different_reduction_method_raises(tmp_path, mo
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(tmp_path / "cl_out"),
@@ -1721,6 +1757,7 @@ def test_clustering_viz_embedding_mismatched_param_raises(tmp_path, monkeypatch,
     cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
+        "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
         "output_root": str(tmp_path / "cl_out"),

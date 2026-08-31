@@ -100,7 +100,9 @@ def test_input_path_recorded_distinct_from_output(tmp_path):
     assert row["input_path"] != row["output"]
 
 
-def test_extra_columns_prepended_to_header_and_row(tmp_path):
+def test_extra_columns_inserted_after_id_in_header_and_row(tmp_path):
+    """31-08-26: extra_columns used to be prepended before "session" - moved to right after
+    "id" so session/id always stay the row's leading identity columns."""
     append_run_log_entry(
         tmp_path,
         "s1_run1",
@@ -114,7 +116,7 @@ def test_extra_columns_prepended_to_header_and_row(tmp_path):
     )
 
     header = (tmp_path / "runs.csv").read_text().splitlines()[0]
-    assert header == "reduction_method,clustering_method,session,id,timestamp,input_path,params,output,notes"
+    assert header == "session,id,reduction_method,clustering_method,timestamp,input_path,params,output,notes"
     row = _read_rows(tmp_path / "runs.csv")[0]
     assert row["reduction_method"] == "pca"
     assert row["clustering_method"] == "kmeans"
@@ -148,7 +150,7 @@ def test_extra_columns_shared_across_appends_to_same_file(tmp_path):
     rows = _read_rows(tmp_path / "runs.csv")
     assert [row["clustering_method"] for row in rows] == ["kmeans", "agglomerative"]
     # header only written once, even after 2 appends
-    assert (tmp_path / "runs.csv").read_text().count("reduction_method,clustering_method,session") == 1
+    assert (tmp_path / "runs.csv").read_text().count("session,id,reduction_method,clustering_method") == 1
 
 
 def test_production_and_tuning_write_separate_files(tmp_path):

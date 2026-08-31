@@ -119,10 +119,16 @@ PRODUCTION_PIPELINES: tuple[str, ...] = ("dim_reduction", "clustering")
 @dataclass(frozen=True)
 class ProductionRun:
     """One production run discovered under results/<modality>/<pipeline>/production/<method>/
-    <run_name> (pipeline is "dim_reduction" or "clustering", see PRODUCTION_PIPELINES) - path
-    is the absolute run directory (what load_matrix needs), modality/pipeline/method/run_name
-    are its own path segments (what the UI and compose_embedding_plot_title need), kept apart
-    rather than re-parsed from path every time.
+    [<reduction_method>/]<run_name> (pipeline is "dim_reduction" or "clustering", see
+    PRODUCTION_PIPELINES) - path is the absolute run directory (what load_matrix needs), the
+    rest are its own path segments (what the UI and compose_embedding_plot_title need), kept
+    apart rather than re-parsed from path every time.
+
+    reduction_method is None for a dim_reduction.py run (no such segment exists in its path -
+    method there already *is* the reduction method) and a real value (e.g. "umap", or "raw" for
+    clustering directly on an un-reduced matrix) for a clustering.py run (31-08-26,
+    src.analysis.model_config.ClusteringConfig.reduction_method) - the extra segment exists so
+    clustering results from different source embeddings never land in the same folder.
     """
 
     modality: str
@@ -130,60 +136,81 @@ class ProductionRun:
     method: str
     run_name: str
     path: Path
+    reduction_method: str | None = None
 
     @property
     def key(self) -> str:
         """Stable, unique-per-run string - used as a Dash dropdown option value (Dash
         options need a hashable, JSON-serializable value, not a Path)."""
-        return f"{self.modality}/{self.pipeline}/{self.method}/{self.run_name}"
+        parts = [self.modality, self.pipeline, self.method]
+        if self.reduction_method is not None:
+            parts.append(self.reduction_method)
+        parts.append(self.run_name)
+        return "/".join(parts)
 
     @property
     def results_relative_path(self) -> Path:
-        """<modality>/<pipeline>/production/<method>/<run_name>, prefixed with "results" -
-        compose_embedding_plot_title (src/analysis/plotting.py) derives the modality from an
-        output_dir's own path segments and expects a "results/..."-relative Path, not an
-        absolute one (an absolute path's first segment is "/", not "results" - see
+        """<modality>/<pipeline>/production/<method>/[<reduction_method>/]<run_name>, prefixed
+        with "results" - compose_embedding_plot_title (src/analysis/plotting.py) derives the
+        modality from an output_dir's own path segments and expects a "results/..."-relative
+        Path, not an absolute one (an absolute path's first segment is "/", not "results" - see
         notebooks/post-results_analysis's own fix for the identical issue, 13-08-26)."""
-        return Path("results") / self.modality / self.pipeline / "production" / self.method / self.run_name
+        base = Path("results") / self.modality / self.pipeline / "production" / self.method
+        if self.reduction_method is not None:
+            base = base / self.reduction_method
+        return base / self.run_name
 
 
 def discover_production_runs(results_root: Path) -> list[ProductionRun]:
-    """Scans results_root/*/<pipeline>/production/*/* for valid run directories (must contain
-    manifest.json - the same existence check src.utils.artifacts.load_matrix itself uses to
-    decide a run was actually completed, not left behind by an interrupted build), across
-    every pipeline in PRODUCTION_PIPELINES.
+    """Scans results_root/*/<pipeline>/production/*/* (dim_reduction) or
+    results_root/*/<pipeline>/production/*/*/* (clustering, one extra <reduction_method>
+    segment - 31-08-26) for valid run directories (must contain manifest.json - the same
+    existence check src.utils.artifacts.load_matrix itself uses to decide a run was actually
+    completed, not left behind by an interrupted build), across every pipeline in
+    PRODUCTION_PIPELINES.
 
     Generic across modality/method on purpose (2026-08-14, on request: "Tutti, generico") -
     today only lesion/umap (plus lesion/pca, lesion/tsne, lesion/pacmap, lesion/clustering's
     various methods) exist, but a future modality (e.g. sdc) or method needs zero changes here
     to show up, since nothing about the path shape is hardcoded beyond <pipeline>/production's
-    own 2 fixed segments. clustering.py's "comparison" pseudo-method directory (see
-    clustering.py::_comparison_dir) is naturally excluded here without any special-casing:
-    it only ever holds a config.md, never a manifest.json, so it fails the same existence
-    check every other incomplete/non-run directory does.
+    own fixed segments. clustering.py's "comparison" pseudo-method directory (see
+    clustering.py::_comparison_dir, itself nested one <reduction_method> segment deep too) is
+    naturally excluded here without any special-casing: it only ever holds a config.md, never a
+    manifest.json, so it fails the same existence check every other incomplete/non-run
+    directory does.
 
     Returns an empty list if results_root doesn't exist or has no matching runs at all - not
     an error: a completely fresh checkout with no pipeline ever run is a legitimate starting
     state for this app (the caller/UI decides how to represent "nothing to show").
-    Sorted by (modality, pipeline, method, run_name) for a deterministic dropdown order.
+    Sorted by (modality, pipeline, method, reduction_method, run_name) for a deterministic
+    dropdown order.
     """
     if not results_root.exists():
         return []
     runs = []
     for pipeline in PRODUCTION_PIPELINES:
-        for path in results_root.glob(f"*/{pipeline}/production/*/*"):
+        glob_pattern = f"*/{pipeline}/production/*/*/*" if pipeline == "clustering" else f"*/{pipeline}/production/*/*"
+        for path in results_root.glob(glob_pattern):
             if not (path.is_dir() and (path / MANIFEST_FILENAME).exists()):
                 continue
             # relative_to(results_root)'s own parts, not raw negative indices into the
-            # absolute path - self-documenting (modality/pipeline/production/method/run_name)
-            # and correct regardless of how deep results_root's own absolute path happens to
-            # be.
-            modality, _pipeline_segment, _production, method, run_name = path.relative_to(results_root).parts
-            runs.append(ProductionRun(modality=modality, pipeline=pipeline, method=method, run_name=run_name, path=path))
-    return sorted(runs, key=lambda run: (run.modality, run.pipeline, run.method, run.run_name))
+            # absolute path - self-documenting and correct regardless of how deep
+            # results_root's own absolute path happens to be.
+            parts = path.relative_to(results_root).parts
+            if pipeline == "clustering":
+                modality, _pipeline_segment, _production, method, reduction_method, run_name = parts
+            else:
+                modality, _pipeline_segment, _production, method, run_name = parts
+                reduction_method = None
+            runs.append(
+                ProductionRun(
+                    modality=modality, pipeline=pipeline, method=method, reduction_method=reduction_method, run_name=run_name, path=path
+                )
+            )
+    return sorted(runs, key=lambda run: (run.modality, run.pipeline, run.method, run.reduction_method or "", run.run_name))
 
 
-# A run_name's own leading "DD-MM" (every run seen so far: "13-08_s1.1_nc3_m_dice",
+# A run_name's own leading "DD-MM" (every run seen so far: "13-08_s1.1_m_dice_nc3",
 # "23-07_s1.1_c150", ...) - used only to order/default the "Giorno" picker chronologically
 # (most recent last), never to validate or reject a run_name that doesn't match: a run
 # without a recognizable date prefix still shows up, just sorted alphabetically after every

@@ -1,7 +1,7 @@
 {
   "tsne": {
-    "tag_param": "metric",
-    "tag_prefix": "m_",
+    "tag_param": ["metric", "perplexity"],
+    "tag_prefix": ["m_", "p_"],
     "params": {
       "n_components": 2,
       "perplexity": 30,
@@ -19,8 +19,8 @@
     "trustworthiness_n_neighbors": 10
   },
   "umap": {
-    "tag_param": "metric",
-    "tag_prefix": "m_",
+    "tag_param": ["metric", "n_components"],
+    "tag_prefix": ["m_", "nc"],
     "params": {
       "n_neighbors": 15,
       "min_dist": 0.0,
@@ -38,8 +38,8 @@
     "trustworthiness_n_neighbors": 10
   },
   "pacmap": {
-    "tag_param": "n_neighbors",
-    "tag_prefix": "n",
+    "tag_param": ["n_neighbors"],
+    "tag_prefix": ["n"],
     "params": {
       "n_components": 2,
       "n_neighbors": 5,
@@ -54,8 +54,8 @@
     "trustworthiness_n_neighbors": 10
   },
   "pca": {
-    "tag_param": "n_components",
-    "tag_prefix": "c",
+    "tag_param": ["n_components"],
+    "tag_prefix": ["c"],
     "params": {
       "n_components": 150,
       "random_state": 0

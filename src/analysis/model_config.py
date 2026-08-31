@@ -18,6 +18,10 @@ from pathlib import Path
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.reduction import REDUCTION_METHODS
 
+# ClusteringConfig.reduction_method's valid values: any real dim_reduction method, plus the
+# "raw" sentinel for clustering directly on an un-reduced feature matrix.
+RAW_OR_REDUCTION_METHODS = set(REDUCTION_METHODS) | {"raw"}
+
 
 @dataclass(frozen=True)
 class DimReductionConfig:
@@ -40,6 +44,7 @@ class DimReductionConfig:
 class ClusteringConfig:
     project: str
     input_path: Path
+    reduction_method: str
     clustering_methods: tuple[str, ...]
     params_file: Path
     output_root: Path
@@ -78,6 +83,15 @@ def load_clustering_config(path: str | Path) -> ClusteringConfig:
     return ClusteringConfig(
         project=project,
         input_path=input_path,
+        # Declares which dim_reduction method (if any) produced input_path's embedding - used
+        # only to key an extra output-tree segment (production/tuning/<clustering_method>/
+        # <reduction_method>/..., src/pipeline/clustering.py) so results from different source
+        # embeddings never land in the same folder. "raw" is the explicit sentinel for
+        # clustering directly on an un-reduced feature matrix (docs/dev/clustering_migration_plan.md
+        # §1's reduced_data=False case) - required rather than inferred from input_path's own
+        # path text (lessons_learned.md #20/#22: never parse structure back out of a path,
+        # every caller declares it).
+        reduction_method=_validate_method(_require_str(raw, "reduction_method"), RAW_OR_REDUCTION_METHODS, "reduction_method"),
         clustering_methods=_require_method_list(raw, "clustering_methods", CLUSTERING_METHODS),
         params_file=Path(_require_str(raw, "params_file")),
         output_root=output_root,
@@ -160,7 +174,7 @@ def _optional_path(raw: dict, key: str) -> Path | None:
     return Path(value) if value is not None else None
 
 
-def _validate_method(value: str, registry: dict, field_name: str) -> str:
+def _validate_method(value: str, registry: dict | set[str], field_name: str) -> str:
     if value not in registry:
         raise ValueError(f"config: unknown {field_name} {value!r} - known: {sorted(registry)}")
     return value

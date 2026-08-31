@@ -9,6 +9,7 @@ from src.analysis.params import (
     load_method_params,
     load_nested_params,
     load_stability_config,
+    load_tag_params,
     load_trustworthiness_n_neighbors,
     load_tuning_grid,
 )
@@ -54,6 +55,97 @@ def test_non_dict_top_level_raises(tmp_path):
     path.write_text(json.dumps(["not", "a", "dict"]))
     with pytest.raises(ValueError, match="top-level content must be a JSON object"):
         load_method_params(path, "umap")
+
+
+def test_load_method_params_tag_single_param(tmp_path):
+    path = _write(
+        tmp_path,
+        {"kmeans": {"params": {"n_clusters": 4}, "tag_param": ["n_clusters"], "tag_prefix": ["k"]}},
+    )
+    assert load_method_params(path, "kmeans") == ({"n_clusters": 4}, "k4")
+
+
+def test_load_method_params_tag_multi_param(tmp_path):
+    path = _write(
+        tmp_path,
+        {
+            "agglomerative": {
+                "params": {"n_clusters": 4, "linkage": "ward"},
+                "tag_param": ["n_clusters", "linkage"],
+                "tag_prefix": ["n_clust", "link"],
+            }
+        },
+    )
+    assert load_method_params(path, "agglomerative") == ({"n_clusters": 4, "linkage": "ward"}, "n_clust4_linkward")
+
+
+def test_load_method_params_tag_strips_dots(tmp_path):
+    path = _write(
+        tmp_path,
+        {"pca": {"params": {"n_components": 2.5}, "tag_param": ["n_components"], "tag_prefix": ["c"]}},
+    )
+    assert load_method_params(path, "pca") == ({"n_components": 2.5}, "c25")
+
+
+def test_load_method_params_tag_param_not_list_raises(tmp_path):
+    path = _write(
+        tmp_path,
+        {"kmeans": {"params": {"n_clusters": 4}, "tag_param": "n_clusters", "tag_prefix": ["k"]}},
+    )
+    with pytest.raises(ValueError, match="tag_param must be a list of strings"):
+        load_method_params(path, "kmeans")
+
+
+def test_load_method_params_tag_prefix_not_list_raises(tmp_path):
+    path = _write(
+        tmp_path,
+        {"kmeans": {"params": {"n_clusters": 4}, "tag_param": ["n_clusters"], "tag_prefix": "k"}},
+    )
+    with pytest.raises(ValueError, match="tag_prefix must be a list of strings"):
+        load_method_params(path, "kmeans")
+
+
+def test_load_method_params_tag_length_mismatch_raises(tmp_path):
+    path = _write(
+        tmp_path,
+        {
+            "agglomerative": {
+                "params": {"n_clusters": 4, "linkage": "ward"},
+                "tag_param": ["n_clusters", "linkage"],
+                "tag_prefix": ["n_clust"],
+            }
+        },
+    )
+    with pytest.raises(ValueError, match="must have the same length"):
+        load_method_params(path, "agglomerative")
+
+
+def test_load_method_params_tag_param_missing_from_params_raises(tmp_path):
+    path = _write(
+        tmp_path,
+        {"hdbscan": {"params": {"min_cluster_size": 5}, "tag_param": ["min_cluster_size", "min_samples"], "tag_prefix": ["mcs", "ms"]}},
+    )
+    with pytest.raises(ValueError, match="not present in params"):
+        load_method_params(path, "hdbscan")
+
+
+def test_load_tag_params_absent_returns_empty_list(tmp_path):
+    path = _write(tmp_path, {"pacmap": {"params": {"n_neighbors": 5}}})
+    assert load_tag_params(path, "pacmap") == []
+
+
+def test_load_tag_params_valid(tmp_path):
+    path = _write(
+        tmp_path,
+        {"agglomerative": {"params": {"n_clusters": 4, "linkage": "ward"}, "tag_param": ["n_clusters", "linkage"]}},
+    )
+    assert load_tag_params(path, "agglomerative") == ["n_clusters", "linkage"]
+
+
+def test_load_tag_params_not_a_list_raises(tmp_path):
+    path = _write(tmp_path, {"kmeans": {"params": {"n_clusters": 4}, "tag_param": "n_clusters"}})
+    with pytest.raises(ValueError, match="tag_param must be a list of strings"):
+        load_tag_params(path, "kmeans")
 
 
 def test_load_tuning_grid_valid(tmp_path):
