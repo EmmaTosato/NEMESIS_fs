@@ -47,6 +47,7 @@ class ClusteringConfig:
     reduction_method: str
     clustering_methods: tuple[str, ...]
     params_file: Path
+    reduction_params_file: Path | None
     output_root: Path
     session_name: str
     overwrite: bool
@@ -80,30 +81,57 @@ def load_dim_reduction_config(path: str | Path) -> DimReductionConfig:
 def load_clustering_config(path: str | Path) -> ClusteringConfig:
     raw = _read_config(path)
     project, input_path, output_root, session_name, overwrite, run_notes = _load_shared_fields(raw)
+
+    # Declares which dim_reduction method (if any) produced input_path's embedding - used
+    # only to key an extra output-tree segment (production/tuning/<clustering_method>/
+    # <reduction_method>/..., src/pipeline/clustering.py) so results from different source
+    # embeddings never land in the same folder. "raw" is the explicit sentinel for
+    # clustering directly on an un-reduced feature matrix (docs/dev/clustering_migration_plan.md
+    # §1's reduced_data=False case) - required rather than inferred from input_path's own
+    # path text (lessons_learned.md #20/#22: never parse structure back out of a path,
+    # every caller declares it).
+    reduction_method = _validate_method(_require_str(raw, "reduction_method"), RAW_OR_REDUCTION_METHODS, "reduction_method")
+    clustering_methods = _require_method_list(raw, "clustering_methods", CLUSTERING_METHODS)
+    params_file = Path(_require_str(raw, "params_file"))
+    fine_tuning = _require_bool(raw, "fine_tuning")
+
+    # Declarative only (docs/dev/clustering_migration_plan.md §1) - does not trigger any
+    # different loading/computation, clustering.py always just clusters whatever load_matrix
+    # returns for input_path. Forces every config to state explicitly whether input_path is
+    # an already-computed embedding or a raw feature matrix, instead of the code silently
+    # guessing from shape - matters for the viz-dimensionality handling in clustering.py.
+    reduced_data = _require_bool(raw, "reduced_data")
+
+    # Points at the config/registry/params_reduction*.json that produced input_path (31-08-26,
+    # tag-params-multi-key session) - lets clustering.py read input_path's own tag_param/
+    # tag_prefix and rebuild its embedding tag (e.g. "m_euclidean_nc2") from input_path's real,
+    # already-recorded hyperparameters (read_run_params) instead of that string being hand-typed
+    # into session_name, where it could silently drift from the real input_path (see
+    # docs/experiments/dim_reduction_clustering/clustering_production_s1.md naming discussion).
+    # Required exactly when reduced_data is True (input_path is then itself a dim_reduction.py
+    # run with its own tag_param registry to consult); forbidden otherwise (a raw feature matrix
+    # has no embedding tag to derive - a value here would sit unread, code_standards.md §5).
+    # Which of the two registries (lesion vs sdc) is never inferred from input_path's own path
+    # text (lessons_learned.md #20/#22, same discipline as reduction_method above) - the config
+    # states it explicitly, one file per modality.
+    reduction_params_file = _optional_path(raw, "reduction_params_file")
+    if reduced_data and reduction_params_file is None:
+        raise ValueError("clustering config: 'reduction_params_file' is required when reduced_data=true")
+    if not reduced_data and reduction_params_file is not None:
+        raise ValueError("clustering config: 'reduction_params_file' must be omitted when reduced_data=false (input_path has no embedding tag to derive)")
+
     return ClusteringConfig(
         project=project,
         input_path=input_path,
-        # Declares which dim_reduction method (if any) produced input_path's embedding - used
-        # only to key an extra output-tree segment (production/tuning/<clustering_method>/
-        # <reduction_method>/..., src/pipeline/clustering.py) so results from different source
-        # embeddings never land in the same folder. "raw" is the explicit sentinel for
-        # clustering directly on an un-reduced feature matrix (docs/dev/clustering_migration_plan.md
-        # §1's reduced_data=False case) - required rather than inferred from input_path's own
-        # path text (lessons_learned.md #20/#22: never parse structure back out of a path,
-        # every caller declares it).
-        reduction_method=_validate_method(_require_str(raw, "reduction_method"), RAW_OR_REDUCTION_METHODS, "reduction_method"),
-        clustering_methods=_require_method_list(raw, "clustering_methods", CLUSTERING_METHODS),
-        params_file=Path(_require_str(raw, "params_file")),
+        reduction_method=reduction_method,
+        clustering_methods=clustering_methods,
+        params_file=params_file,
+        reduction_params_file=reduction_params_file,
         output_root=output_root,
         session_name=session_name,
         overwrite=overwrite,
-        fine_tuning=_require_bool(raw, "fine_tuning"),
-        # Declarative only (docs/dev/clustering_migration_plan.md §1) - does not trigger any
-        # different loading/computation, clustering.py always just clusters whatever load_matrix
-        # returns for input_path. Forces every config to state explicitly whether input_path is
-        # an already-computed embedding or a raw feature matrix, instead of the code silently
-        # guessing from shape - matters for the viz-dimensionality handling in clustering.py.
-        reduced_data=_require_bool(raw, "reduced_data"),
+        fine_tuning=fine_tuning,
+        reduced_data=reduced_data,
         # Optional (docs/dev/clustering_migration_plan.md §3) - only consulted when X has more
         # than 3 components and there is a cluster-colored scatter to plot; a companion 2D/3D
         # embedding computed separately (same reduction params as X's own, only n_components

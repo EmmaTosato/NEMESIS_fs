@@ -12,7 +12,7 @@
   },
   "agglomerative": {
     "tag_param": ["n_clusters", "linkage"],
-    "tag_prefix": ["n_clust", "link"],
+    "tag_prefix": ["k", "link"],
     "params": { "n_clusters": 2, "linkage": "ward" },
     "tuning_grid": {
       "n_clusters": [2, 3, 4, 5, 6, 8, 10],
@@ -45,7 +45,7 @@
   },
   "spectral": {
     "tag_param": ["n_clusters", "affinity"],
-    "tag_prefix": ["n_clust", "aff"],
+    "tag_prefix": ["k", "aff"],
     "params": { "n_clusters": 5, "affinity": "nearest_neighbors", "n_neighbors": 50, "assign_labels": "cluster_qr", "random_state": 0 },
     "tuning_grid": {
       "n_clusters": [2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15],
@@ -56,7 +56,7 @@
   },
   "evidence_accumulation": {
     "tag_param": ["threshold", "n_clusters"],
-    "tag_prefix": ["t", "n_clust"],
+    "tag_prefix": ["t", "k"],
     "params": {
       "base_method": "spectral",
       "n_clusters": 6,

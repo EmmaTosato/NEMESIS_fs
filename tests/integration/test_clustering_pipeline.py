@@ -2,6 +2,7 @@
 
 import json
 import logging
+from datetime import datetime
 
 import nibabel as nib
 import numpy as np
@@ -86,6 +87,16 @@ def _write_dim_reduction_run(tmp_path, name, n_subjects, n_components, method, p
     run_dir = tmp_path / name
     save_matrix(run_dir, X, metadata, readme_lines, overwrite=False)
     return run_dir
+
+
+def _write_reduction_params_registry(tmp_path, methods=("umap",)):
+    """Minimal config/registry/params_reduction*.json-shaped registry (31-08-26,
+    tag-params-multi-key session) - only tag_param/tag_prefix matter for clustering.py's
+    _embedding_tag (load_tag_spec doesn't require a "params" key), so that's all this writes."""
+    registry_path = tmp_path / "params_reduction.json"
+    entries = {method: {"tag_param": ["metric", "n_components"], "tag_prefix": ["m_", "nc"]} for method in methods}
+    registry_path.write_text(json.dumps(entries))
+    return registry_path
 
 
 def test_clustering_end_to_end(tmp_path, monkeypatch, caplog):
@@ -1671,6 +1682,7 @@ def test_clustering_viz_embedding_matching_reduction_run_succeeds(tmp_path, monk
 
     params_path = tmp_path / "params_clustering.json"
     params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
+    reduction_params_path = _write_reduction_params_registry(tmp_path)
 
     output_root = tmp_path / "cl_out"
     cfg = {
@@ -1679,6 +1691,7 @@ def test_clustering_viz_embedding_matching_reduction_run_succeeds(tmp_path, monk
         "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
+        "reduction_params_file": str(reduction_params_path),
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
@@ -1696,6 +1709,83 @@ def test_clustering_viz_embedding_matching_reduction_run_succeeds(tmp_path, monk
     assert (run_dir / "cluster_plot.png").exists()
 
 
+def test_clustering_production_output_dir_includes_auto_derived_embedding_tag(tmp_path, monkeypatch):
+    """Regression (31-08-26, tag-params-multi-key session): the embedding tag (e.g.
+    "m_euclidean_nc5") must be derived automatically from input_path's own recorded params
+    (read_run_params) and folded into the output folder name - session_name only needs to
+    hold the bare session id, never the embedding hand-typed into it."""
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+    input_dir = _write_dim_reduction_run(
+        tmp_path, "input_5d", n_subjects=12, n_components=5, method="umap",
+        params={"n_neighbors": 15, "metric": "euclidean", "random_state": 0, "n_components": 5},
+    )
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
+    reduction_params_path = _write_reduction_params_registry(tmp_path)
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "umap",
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "reduction_params_file": str(reduction_params_path),
+        "output_root": str(output_root),
+        "session_name": "s1.1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "reduced_data": True,
+        "save_tuning_clusterings": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl_autotag.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+    run_dir = next(p for p in (output_root / "production" / "kmeans" / "umap").iterdir() if p.is_dir())
+    assert "m_euclidean_nc5" in run_dir.name
+    assert run_dir.name.startswith(f"{datetime.now().strftime('%d-%m')}_s1.1_m_euclidean_nc5")
+
+
+def test_clustering_tuning_output_dir_includes_auto_derived_embedding_tag(tmp_path, monkeypatch):
+    """Regression (31-08-26, tag-params-multi-key session): fine_tuning=True + reduced_data=True
+    is a previously untested branch (lessons_learned.md #17 shape) - a tuning run has no
+    tag_param of its own (it sweeps the whole grid), so without the embedding tag folded in,
+    two tuning runs sharing session_name against different source embeddings would collide."""
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+    input_dir = _write_dim_reduction_run(
+        tmp_path, "input_5d", n_subjects=12, n_components=5, method="umap",
+        params={"n_neighbors": 15, "metric": "dice", "random_state": 0, "n_components": 5},
+    )
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({"kmeans": {"params": {"random_state": 0, "n_init": "auto"}, "tuning_grid": {"n_clusters": [2, 3]}}}))
+    reduction_params_path = _write_reduction_params_registry(tmp_path)
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "umap",
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "reduction_params_file": str(reduction_params_path),
+        "output_root": str(output_root),
+        "session_name": "s1.1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "reduced_data": True,
+        "save_tuning_clusterings": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl_tune_autotag.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+    tuning_dir = next(p for p in (output_root / "tuning" / "kmeans" / "umap").iterdir() if p.is_dir())
+    assert tuning_dir.name == f"{datetime.now().strftime('%d-%m')}_s1.1_m_dice_nc5"
+
+
 def test_clustering_reduced_data_logs_reduction_columns(tmp_path, monkeypatch):
     """Regression (31-08-26): runs.csv/config.md must record the *source embedding's* own
     metric/n_components (reduction_n_components/reduction_metric, prefixed to avoid colliding
@@ -1709,6 +1799,7 @@ def test_clustering_reduced_data_logs_reduction_columns(tmp_path, monkeypatch):
 
     params_path = tmp_path / "params_clustering.json"
     params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
+    reduction_params_path = _write_reduction_params_registry(tmp_path)
 
     output_root = tmp_path / "cl_out"
     cfg = {
@@ -1717,6 +1808,7 @@ def test_clustering_reduced_data_logs_reduction_columns(tmp_path, monkeypatch):
         "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
+        "reduction_params_file": str(reduction_params_path),
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
@@ -1759,6 +1851,7 @@ def test_clustering_gmm_reduction_n_components_does_not_collide_with_gmm_own_n_c
     params_path.write_text(
         json.dumps({"gmm": {"tag_param": ["n_components"], "tag_prefix": ["k"], "params": {"n_components": 3, "random_state": 0}}})
     )
+    reduction_params_path = _write_reduction_params_registry(tmp_path)
 
     output_root = tmp_path / "cl_out"
     cfg = {
@@ -1767,6 +1860,7 @@ def test_clustering_gmm_reduction_n_components_does_not_collide_with_gmm_own_n_c
         "reduction_method": "umap",
         "clustering_methods": ["gmm"],
         "params_file": str(params_path),
+        "reduction_params_file": str(reduction_params_path),
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
@@ -1840,6 +1934,7 @@ def test_clustering_viz_embedding_different_reduction_method_raises(tmp_path, mo
 
     params_path = tmp_path / "params_clustering.json"
     params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
+    reduction_params_path = _write_reduction_params_registry(tmp_path)
 
     cfg = {
         "project": "testproj",
@@ -1847,6 +1942,7 @@ def test_clustering_viz_embedding_different_reduction_method_raises(tmp_path, mo
         "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
+        "reduction_params_file": str(reduction_params_path),
         "output_root": str(tmp_path / "cl_out"),
         "session_name": "run1",
         "overwrite": False,
@@ -1880,6 +1976,7 @@ def test_clustering_viz_embedding_mismatched_param_raises(tmp_path, monkeypatch,
 
     params_path = tmp_path / "params_clustering.json"
     params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
+    reduction_params_path = _write_reduction_params_registry(tmp_path)
 
     cfg = {
         "project": "testproj",
@@ -1887,6 +1984,7 @@ def test_clustering_viz_embedding_mismatched_param_raises(tmp_path, monkeypatch,
         "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": str(params_path),
+        "reduction_params_file": str(reduction_params_path),
         "output_root": str(tmp_path / "cl_out"),
         "session_name": "run1",
         "overwrite": False,

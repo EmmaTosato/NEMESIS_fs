@@ -189,6 +189,19 @@ def compose_cluster_plot_title(output_dir: Path, reduction_method: str, clusteri
     return f"{modality_title} - {reduction_method.capitalize()} - {clustering_method.capitalize()}"
 
 
+def compose_clustering_tuning_title(output_dir: Path, method: str) -> str:
+    """Title for clustering.py's fine-tuning output (tuning_plot.png and every standalone
+    diagnostic built from the same `title` - dendrogram/eigengap/interclass-distance/
+    stability/consensus/n_repeats-convergence): "<Modality> - Clustering Tuning -
+    <Method>", same capitalization convention as compose_cluster_plot_title. Deliberately
+    shorter than compose_run_title's full output_dir path dump (which this replaces here,
+    31-08-26) - a tuning sweep's own reduction_method/session_name are already legible from
+    the run's own directory/config.md, they don't need repeating inside every plot title too.
+    """
+    modality_title = _modality_title(output_dir)
+    return f"{modality_title} - Clustering Tuning - {method.capitalize()}"
+
+
 def compose_embedding_plot_title(output_dir: Path, reduction_method: str, color_by: str | None = None) -> str:
     """Title for a dim_reduction.py embedding scatter: "<Modality> -
     <ReductionMethod>" (embedding_plot_unico.png, single color) or "<Modality>
@@ -1084,8 +1097,13 @@ def plot_interclass_distance_matrix(
         raise ValueError("plot_interclass_distance_matrix needs at least one metric")
 
     metrics = list(results_by_metric)
+    # wspace=1.1 (up from 0.5, 31-08-26): each subplot draws its own y-tick labels (the
+    # group names, unabbreviated - e.g. "UKLFR/stroke_UKLFR"), not shared with its
+    # neighbor's, so the gap needs to fit one subplot's colorbar *and* the next
+    # subplot's label text - 0.5 let the two collide (verified visually on real
+    # dataset-name-length labels).
     fig, axes = plt.subplots(
-        1, len(metrics), figsize=(4.5 * len(metrics), 4), squeeze=False, gridspec_kw={"wspace": 0.5}
+        1, len(metrics), figsize=(5.2 * len(metrics), 4), squeeze=False, gridspec_kw={"wspace": 1.1}
     )
 
     for i, metric in enumerate(metrics):
@@ -1100,7 +1118,7 @@ def plot_interclass_distance_matrix(
             for b in range(len(groups)):
                 ax.text(b, a, f"{matrix[a, b]:.2f}", ha="center", va="center", color="white")
         ax.set_title(f"metric={metric}")
-        fig.colorbar(image, ax=ax, fraction=0.046)
+        fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
 
     fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", y=1.05)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1214,7 +1232,10 @@ def plot_dendrograms_grid(
         raise ValueError("plot_dendrograms_grid needs at least one linkage")
 
     linkages = list(linkage_matrices_by_linkage)
-    fig, axes = plt.subplots(1, len(linkages), figsize=(7 * len(linkages), 6), squeeze=False)
+    # wspace=0.35 (explicit, 31-08-26 - was matplotlib's default ~0.2, cramped once real
+    # subject-index tick labels are rotated 45deg): same spacing convention as
+    # plot_interclass_distance_matrix/plot_eigengaps_grid below, not left to the default.
+    fig, axes = plt.subplots(1, len(linkages), figsize=(7 * len(linkages), 6), squeeze=False, gridspec_kw={"wspace": 0.35})
 
     for i, linkage in enumerate(linkages):
         ax = axes[0][i]
@@ -1246,7 +1267,9 @@ def plot_eigengaps_grid(eigenvalues_by_label: dict[str, np.ndarray], output_path
         raise ValueError("plot_eigengaps_grid needs at least one set of eigenvalues")
 
     labels = list(eigenvalues_by_label)
-    fig, axes = plt.subplots(1, len(labels), figsize=(6 * len(labels), 5), squeeze=False)
+    # wspace=0.35 (explicit, 31-08-26 - same spacing convention as plot_dendrograms_grid/
+    # plot_interclass_distance_matrix above, not left to matplotlib's default ~0.2).
+    fig, axes = plt.subplots(1, len(labels), figsize=(6 * len(labels), 5), squeeze=False, gridspec_kw={"wspace": 0.35})
 
     for i, label in enumerate(labels):
         eigenvalues = eigenvalues_by_label[label]

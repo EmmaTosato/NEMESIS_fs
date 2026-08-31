@@ -1,7 +1,7 @@
 {
   "tsne": {
     "tag_param": ["metric", "perplexity"],
-    "tag_prefix": ["m_", "p_"],
+    "tag_prefix": ["m_", "p"],
     "params": {
       "n_components": 2,
       "perplexity": 30,
@@ -20,7 +20,7 @@
   },
   "umap": {
     "tag_param": ["metric", "n_components"],
-    "tag_prefix": ["m_", "nc"],
+    "tag_prefix": ["m_", "n"],
     "params": {
       "n_neighbors": 5,
       "min_dist": 0.0,

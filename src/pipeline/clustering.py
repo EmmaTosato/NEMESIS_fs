@@ -107,10 +107,19 @@ from src.analysis.clustering_tuning import (
 )
 from src.analysis.consensus_clustering import assign_clusters_from_cooccurrence, compute_evidence_accumulation_convergence, run_rsc_repeats
 from src.analysis.model_config import ClusteringConfig, load_clustering_config
-from src.analysis.params import load_consensus_config, load_method_params, load_stability_config, load_tag_params, load_tuning_grid
+from src.analysis.params import (
+    build_tag_from_values,
+    load_consensus_config,
+    load_method_params,
+    load_stability_config,
+    load_tag_params,
+    load_tag_spec,
+    load_tuning_grid,
+)
 from src.analysis.plotting import (
+    compose_cluster_plot_title,
+    compose_clustering_tuning_title,
     compose_comparison_title,
-    compose_run_title,
     plot_clusters_2d,
     plot_clusters_comparison,
     plot_clusters_comparison_interactive,
@@ -172,8 +181,14 @@ def main(argv: list[str] | None = None) -> int:
         else:
             logging.info("reduced_data=false - input_path treated as a raw feature matrix (%s, shape %s)", config.input_path, X.shape)
 
+        try:
+            embedding_tag = _embedding_tag(config)
+        except (FileNotFoundError, ValueError) as exc:
+            logging.error(str(exc))
+            return 1
+
         if config.fine_tuning:
-            return _run_fine_tuning(config, X, metadata, now, log_path)
+            return _run_fine_tuning(config, X, metadata, now, log_path, embedding_tag)
 
         try:
             X_viz = _resolve_viz_embedding(X, metadata, config.viz_embedding_path, config.input_path, config.reduced_data)
@@ -193,13 +208,13 @@ def main(argv: list[str] | None = None) -> int:
 
         labels_by_method: dict[str, np.ndarray] = {}
         for method in config.clustering_methods:
-            cluster_labels = _run_one_method(config, method, X, X_viz, metadata, now)
+            cluster_labels = _run_one_method(config, method, X, X_viz, metadata, now, embedding_tag)
             if cluster_labels is None:
                 return 1
             labels_by_method[method] = cluster_labels
 
         if X_viz is not None:
-            comparison_dir = _comparison_dir(config, now)
+            comparison_dir = _comparison_dir(config, now, embedding_tag)
             if comparison_dir.exists() and not config.overwrite:
                 logging.error(
                     "comparison dir %s already exists and overwrite=False - set overwrite=true, "
@@ -214,7 +229,7 @@ def main(argv: list[str] | None = None) -> int:
                     comparison_dir / "cluster_comparison.png",
                     xlabel="viz dim 1",
                     ylabel="viz dim 2",
-                    suptitle=compose_comparison_title(comparison_dir, None),
+                    suptitle=compose_comparison_title(comparison_dir, config.reduction_method),
                 )
                 logging.info("comparison plot written to %s", comparison_dir / "cluster_comparison.png")
 
@@ -225,7 +240,7 @@ def main(argv: list[str] | None = None) -> int:
                     comparison_dir / "cluster_comparison_interactive.html",
                     xlabel="viz dim 1",
                     ylabel="viz dim 2",
-                    title=compose_run_title(comparison_dir, config.project),
+                    title=compose_comparison_title(comparison_dir, config.reduction_method),
                 )
                 logging.info(
                     "interactive comparison plot written to %s", comparison_dir / "cluster_comparison_interactive.html"
@@ -346,7 +361,13 @@ def _require_matching_reduction_run(input_path: Path, viz_embedding_path: Path) 
 
 
 def _run_one_method(
-    config: ClusteringConfig, method: str, X: np.ndarray, X_viz: np.ndarray | None, metadata: pd.DataFrame, now: datetime
+    config: ClusteringConfig,
+    method: str,
+    X: np.ndarray,
+    X_viz: np.ndarray | None,
+    metadata: pd.DataFrame,
+    now: datetime,
+    embedding_tag: str | None,
 ) -> np.ndarray | None:
     """Runs one clustering method end to end (params, artifact, plot,
     runs.csv). Returns the cluster_labels actually saved (for the comparison
@@ -358,6 +379,11 @@ def _run_one_method(
     clustering itself used. None means no scatter plot can be honestly
     produced for this run (already logged once by the caller) - every plot
     call below is skipped, not silently drawn from a slice of X.
+
+    embedding_tag (from _embedding_tag, computed once per run by the caller) is input_path's
+    own tag (e.g. "m_euclidean_nc2") - None when reduced_data is False or the source method has
+    no tag_param. Folded into the output folder name so it never has to be hand-typed into
+    session_name (31-08-26, tag-params-multi-key session).
     """
     try:
         params, tag = load_method_params(config.params_file, method)
@@ -385,7 +411,11 @@ def _run_one_method(
     metadata_out = metadata.copy()
     metadata_out["cluster_label"] = cluster_labels
     
-    effective_session_name = f"{config.session_name}_{tag}" if tag else config.session_name
+    effective_session_name = config.session_name
+    if embedding_tag:
+        effective_session_name = f"{effective_session_name}_{embedding_tag}"
+    if tag:
+        effective_session_name = f"{effective_session_name}_{tag}"
     output_dir = (
         config.output_root / "production" / method / config.reduction_method / f"{now.strftime('%d-%m')}_{effective_session_name}"
     )
@@ -404,7 +434,7 @@ def _run_one_method(
     logging.info("[%s] clustered matrix written to %s (shape %s)", method, output_dir, X.shape)
 
     if X_viz is not None:
-        plot_title = compose_run_title(output_dir, config.project)
+        plot_title = compose_cluster_plot_title(output_dir, config.reduction_method, method)
 
         plot_clusters_2d(
             X_viz,
@@ -471,6 +501,32 @@ def _run_one_method(
     return cluster_labels
 
 
+def _embedding_tag(config: ClusteringConfig) -> str | None:
+    """Builds input_path's own embedding tag (e.g. "m_euclidean_nc2"), so a production output
+    folder never needs that hand-typed into session_name - previously the only way to make a
+    folder name show which embedding it came from, with nothing checking that string against
+    the real input_path (see docs/experiments/dim_reduction_clustering/clustering_production_s1.md
+    naming discussion, 31-08-26).
+
+    None when reduced_data is False (input_path is a raw feature matrix, no embedding
+    hyperparameters to tag) or when config.reduction_method has no "tag_param" declared in
+    reduction_params_file - a legitimate "nothing to tag" case, same as load_method_params' own
+    tag_str=None.
+
+    Reads the *actual* hyperparameters input_path was built with (read_run_params, from its own
+    config.md) rather than reduction_params_file's current registered defaults for that method -
+    so the tag always matches the real artifact, even if the registry's defaults changed since
+    input_path was produced.
+    """
+    if not config.reduced_data:
+        return None
+    tag_param, tag_prefix = load_tag_spec(config.reduction_params_file, config.reduction_method)
+    if tag_param is None:
+        return None
+    actual_params = read_run_params(config.input_path)
+    return build_tag_from_values(config.reduction_params_file, config.reduction_method, tag_param, tag_prefix, actual_params)
+
+
 def _reduction_extra_columns(config: ClusteringConfig) -> dict[str, str]:
     """The 3 flat extra_columns runs.csv/runs_tuning.csv/config.md always log about
     clustering's input embedding: reduction_method (required regardless of reduced_data - the
@@ -517,18 +573,22 @@ def _reduction_extra_columns(config: ClusteringConfig) -> dict[str, str]:
     return columns
 
 
-def _comparison_dir(config: ClusteringConfig, now: datetime) -> Path:
+def _comparison_dir(config: ClusteringConfig, now: datetime, embedding_tag: str | None) -> Path:
     # comparison/ is a production-only artifact (it compares saved cluster_label
     # results across methods) - always under the production/ branch, never tuning/. Nested
     # under reduction_method too (31-08-26), same as every real method's own output_dir -
     # every method compared in one run shares config.input_path, so they share exactly one
-    # reduction_method too.
+    # reduction_method too. embedding_tag folded in the same way as each method's own
+    # output_dir (31-08-26, tag-params-multi-key session) - two invocations sharing session_name
+    # but pointing at different input_path embeddings would otherwise collide here (comparison/
+    # has no per-method tag_param to fall back on, unlike the per-method folders below).
+    session = f"{config.session_name}_{embedding_tag}" if embedding_tag else config.session_name
     return (
         config.output_root
         / "production"
         / "comparison"
         / config.reduction_method
-        / f"{now.strftime('%d-%m')}_{config.session_name}"
+        / f"{now.strftime('%d-%m')}_{session}"
     )
 
 
@@ -614,9 +674,11 @@ def _write_comparison_readme(comparison_dir: Path, config: ClusteringConfig, now
     (comparison_dir / "config.md").write_text("\n".join(lines) + "\n")
 
 
-def _run_fine_tuning(config: ClusteringConfig, X: np.ndarray, metadata: pd.DataFrame, now: datetime, log_path: Path) -> int:
+def _run_fine_tuning(
+    config: ClusteringConfig, X: np.ndarray, metadata: pd.DataFrame, now: datetime, log_path: Path, embedding_tag: str | None
+) -> int:
     for method in config.clustering_methods:
-        if not _run_one_method_tuning(config, method, X, metadata, now):
+        if not _run_one_method_tuning(config, method, X, metadata, now, embedding_tag):
             return 1
 
     logging.info(
@@ -628,11 +690,19 @@ def _run_fine_tuning(config: ClusteringConfig, X: np.ndarray, metadata: pd.DataF
     return 0
 
 
-def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray, metadata: pd.DataFrame, now: datetime) -> bool:
+def _run_one_method_tuning(
+    config: ClusteringConfig, method: str, X: np.ndarray, metadata: pd.DataFrame, now: datetime, embedding_tag: str | None
+) -> bool:
     """Runs one method's fine-tuning sweep end to end (sweep, tuning_results.csv,
     plot(s), config.md, runs.csv). Returns False if this method's tuning
     failed - the caller stops the whole run, no partial-failure tolerance,
     consistent with the production loop's own fail-fast behavior.
+
+    embedding_tag (from _embedding_tag, computed once by the caller) is folded into the output
+    folder name the same way production does (31-08-26, tag-params-multi-key session) - a
+    tuning run has no tag_param of its own (it sweeps a whole grid, not one value), so without
+    this, two tuning runs of the same session_name against different source embeddings would
+    collide in tuning/<method>/<reduction_method>/ instead of ending up in separate folders.
     """
     try:
         base_params, _ = load_method_params(config.params_file, method)
@@ -673,7 +743,8 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
         logging.error("[%s] %s", method, exc)
         return False
 
-    output_dir = _tuning_output_dir(config, method, now)
+    effective_session_name = f"{config.session_name}_{embedding_tag}" if embedding_tag else config.session_name
+    output_dir = _tuning_output_dir(config, method, now, embedding_tag)
     try:
         _write_tuning_output(
             output_dir, results, labels_by_combo, tuning_grid, method, X, metadata, base_params, config, now, run_log_columns
@@ -684,7 +755,7 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
     logging.info("[%s] tuning results written to %s (%d combination(s) evaluated)", method, output_dir, len(results))
 
     if stability_config is not None:
-        title = compose_run_title(output_dir, config.project)
+        title = compose_clustering_tuning_title(output_dir, method)
         try:
             _write_stability_output(output_dir, method, X, tuning_grid, stability_config, title)
         except (ValueError, TypeError, OSError) as exc:
@@ -695,7 +766,7 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
     try:
         append_run_log_entry(
             _run_log_dir(config, method, "tuning"),
-            config.session_name,
+            effective_session_name,
             now,
             "tuning",
             {"base_params": base_params, "tuning_grid": tuning_grid},
@@ -711,8 +782,12 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
     return True
 
 
-def _tuning_output_dir(config: ClusteringConfig, method: str, now: datetime) -> Path:
-    return config.output_root / "tuning" / method / config.reduction_method / f"{now.strftime('%d-%m')}_{config.session_name}"
+def _tuning_output_dir(config: ClusteringConfig, method: str, now: datetime, embedding_tag: str | None) -> Path:
+    # embedding_tag folded in (31-08-26, tag-params-multi-key session) - a tuning run has no
+    # tag_param of its own to disambiguate different source embeddings sharing the same
+    # session_name, unlike production's per-method tag (see _run_one_method_tuning docstring).
+    session = f"{config.session_name}_{embedding_tag}" if embedding_tag else config.session_name
+    return config.output_root / "tuning" / method / config.reduction_method / f"{now.strftime('%d-%m')}_{session}"
 
 
 def _write_tuning_output(
@@ -751,7 +826,7 @@ def _write_tuning_output(
         # reader never needs to reload X or rerun the sweep, just this file + clusterings.npz
         # (mirrors dim_reduction.py::_write_tuning_output's metadata.csv next to embeddings.npz).
         metadata.to_csv(output_dir / "metadata.csv", index=False)
-    title = compose_run_title(output_dir, config.project)
+    title = compose_clustering_tuning_title(output_dir, method)
     metric_cols = METHOD_METRIC_COLUMNS[method] + [c for c in CONSENSUS_METRIC_COLUMNS if c in results.columns]
     if method == "spectral" and "affinity" in tuning_grid:
         # project-clustering-tuning-redesign memory (26-08-26): the affinity-aware sweep's own

@@ -65,9 +65,58 @@ def load_method_params(params_file: str | Path, method: str) -> tuple[dict, str 
         missing = [key for key in tag_param if key not in params]
         if missing:
             raise ValueError(f"{params_file}: {method!r}.tag_param references {missing!r}, not present in params")
-        tag_str = "_".join(f"{prefix}{str(params[key]).replace('.', '')}" for key, prefix in zip(tag_param, tag_prefix))
+        tag_str = _join_tag(tag_param, tag_prefix, params)
 
     return params, tag_str
+
+
+def load_tag_spec(params_file: str | Path, method: str) -> tuple[list[str], list[str]] | tuple[None, None]:
+    """Load the "tag_param"/"tag_prefix" pair registered for `method` in `params_file`,
+    validated the same way load_method_params validates them - but without requiring a
+    "params" key, for a caller that supplies its own values dict instead of this file's own
+    registered defaults (e.g. clustering.py's _embedding_tag, reading a source embedding's
+    *actual* hyperparameters from its own config.md rather than params_reduction*.json's
+    current registered values, which could have changed since that embedding was built).
+
+    Returns (None, None) if `method` has no "tag_param" declared - a legitimate "no tag for
+    this method" case, same as load_method_params' own tag_str=None. Raises ValueError for a
+    malformed tag_param/tag_prefix (wrong type, mismatched length) - same checks and messages
+    as load_method_params, kept in sync deliberately.
+    """
+    entry = _load_method_entry(params_file, method)
+    tag_param = entry.get("tag_param")
+    if tag_param is None:
+        return None, None
+    tag_prefix = entry.get("tag_prefix")
+    if not isinstance(tag_param, list) or not all(isinstance(name, str) for name in tag_param):
+        raise ValueError(f"{params_file}: {method!r}.tag_param must be a list of strings, got {tag_param!r}")
+    if not isinstance(tag_prefix, list) or not all(isinstance(prefix, str) for prefix in tag_prefix):
+        raise ValueError(f"{params_file}: {method!r}.tag_prefix must be a list of strings, got {tag_prefix!r}")
+    if len(tag_param) != len(tag_prefix):
+        raise ValueError(
+            f"{params_file}: {method!r}.tag_param and tag_prefix must have the same length, "
+            f"got {len(tag_param)} and {len(tag_prefix)}"
+        )
+    return tag_param, tag_prefix
+
+
+def build_tag_from_values(params_file: str | Path, method: str, tag_param: list[str], tag_prefix: list[str], values: dict) -> str:
+    """Join a (tag_param, tag_prefix) pair from load_tag_spec with an externally-supplied
+    `values` dict into the same "prefix+value" tag string load_method_params builds from its
+    own registered "params" - same formula (_join_tag), so the two can never drift apart.
+
+    Raises ValueError if any tag_param key is missing from `values` - e.g. clustering.py's
+    embedding tag when the source run's own config.md doesn't record that hyperparameter (a
+    real registry/artifact mismatch worth surfacing, never silently skipped).
+    """
+    missing = [key for key in tag_param if key not in values]
+    if missing:
+        raise ValueError(f"{params_file}: {method!r}.tag_param references {missing!r}, not present in the supplied values {values!r}")
+    return _join_tag(tag_param, tag_prefix, values)
+
+
+def _join_tag(tag_param: list[str], tag_prefix: list[str], values: dict) -> str:
+    return "_".join(f"{prefix}{str(values[key]).replace('.', '')}" for key, prefix in zip(tag_param, tag_prefix))
 
 
 def load_tag_params(params_file: str | Path, method: str) -> list[str]:

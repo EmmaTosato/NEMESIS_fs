@@ -231,12 +231,49 @@ def test_clustering_config_reduced_data_true_valid(tmp_path):
         "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
+        "reduction_params_file": "config/registry/params_reduction.json",
         "fine_tuning": False,
         "reduced_data": True,
         "save_tuning_clusterings": False,
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.reduced_data is True
+    assert str(config.reduction_params_file) == "config/registry/params_reduction.json"
+
+
+def test_clustering_config_reduced_data_true_missing_reduction_params_file_raises(tmp_path):
+    """reduction_params_file is required exactly when reduced_data is True (31-08-26,
+    tag-params-multi-key session) - without it, clustering.py has no registry to read
+    input_path's own tag_param/tag_prefix from for the embedding tag."""
+    payload = {
+        **_SHARED,
+        "reduction_method": "umap",
+        "clustering_methods": ["kmeans"],
+        "params_file": "config/registry/params_clustering.json",
+        "fine_tuning": False,
+        "reduced_data": True,
+        "save_tuning_clusterings": False,
+    }
+    with pytest.raises(ValueError, match="'reduction_params_file' is required when reduced_data=true"):
+        load_clustering_config(_write(tmp_path, "cl.json", payload))
+
+
+def test_clustering_config_reduced_data_false_with_reduction_params_file_raises(tmp_path):
+    """The reverse case: reduction_params_file has nothing to describe when reduced_data is
+    False (input_path is a raw feature matrix) - forbidden rather than silently ignored, so
+    the field never sits unread (code_standards.md §5)."""
+    payload = {
+        **_SHARED,
+        "reduction_method": "raw",
+        "clustering_methods": ["kmeans"],
+        "params_file": "config/registry/params_clustering.json",
+        "reduction_params_file": "config/registry/params_reduction.json",
+        "fine_tuning": False,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+    }
+    with pytest.raises(ValueError, match="'reduction_params_file' must be omitted when reduced_data=false"):
+        load_clustering_config(_write(tmp_path, "cl.json", payload))
 
 
 def test_clustering_config_missing_reduced_data_raises(tmp_path):
@@ -270,6 +307,7 @@ def test_clustering_config_viz_embedding_path_defaults_to_none(tmp_path):
         "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
+        "reduction_params_file": "config/registry/params_reduction.json",
         "fine_tuning": False,
         "reduced_data": True,
         "save_tuning_clusterings": False,
@@ -284,6 +322,7 @@ def test_clustering_config_viz_embedding_path_set(tmp_path):
         "reduction_method": "umap",
         "clustering_methods": ["kmeans"],
         "params_file": "config/registry/params_clustering.json",
+        "reduction_params_file": "config/registry/params_reduction.json",
         "fine_tuning": False,
         "reduced_data": True,
         "save_tuning_clusterings": False,
