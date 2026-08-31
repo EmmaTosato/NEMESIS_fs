@@ -5,11 +5,13 @@ import json
 import pytest
 
 from src.analysis.params import (
+    build_tag_from_values,
     load_consensus_config,
     load_method_params,
     load_nested_params,
     load_stability_config,
     load_tag_params,
+    load_tag_spec,
     load_trustworthiness_n_neighbors,
     load_tuning_grid,
 )
@@ -146,6 +148,44 @@ def test_load_tag_params_not_a_list_raises(tmp_path):
     path = _write(tmp_path, {"kmeans": {"params": {"n_clusters": 4}, "tag_param": "n_clusters"}})
     with pytest.raises(ValueError, match="tag_param must be a list of strings"):
         load_tag_params(path, "kmeans")
+
+
+def test_load_tag_spec_absent_returns_none_none(tmp_path):
+    path = _write(tmp_path, {"pacmap": {"params": {"n_neighbors": 5}}})
+    assert load_tag_spec(path, "pacmap") == (None, None)
+
+
+def test_load_tag_spec_valid_no_params_key_required(tmp_path):
+    """load_tag_spec doesn't need "params" at all - unlike load_method_params, a caller
+    (clustering.py's _embedding_tag) supplies its own values dict separately."""
+    path = _write(tmp_path, {"umap": {"tag_param": ["metric", "n_components"], "tag_prefix": ["m_", "nc"]}})
+    assert load_tag_spec(path, "umap") == (["metric", "n_components"], ["m_", "nc"])
+
+
+def test_load_tag_spec_length_mismatch_raises(tmp_path):
+    path = _write(tmp_path, {"umap": {"tag_param": ["metric", "n_components"], "tag_prefix": ["m_"]}})
+    with pytest.raises(ValueError, match="must have the same length"):
+        load_tag_spec(path, "umap")
+
+
+def test_build_tag_from_values_matches_load_method_params_formula(tmp_path):
+    """build_tag_from_values must produce byte-identical output to load_method_params' own
+    tag-building for the same tag_param/tag_prefix/values - both go through the same shared
+    _join_tag helper (31-08-26, tag-params-multi-key session)."""
+    path = _write(
+        tmp_path,
+        {"agglomerative": {"params": {"n_clusters": 4, "linkage": "ward"}, "tag_param": ["n_clusters", "linkage"], "tag_prefix": ["n_clust", "link"]}},
+    )
+    _, expected_tag = load_method_params(path, "agglomerative")
+    tag_param, tag_prefix = load_tag_spec(path, "agglomerative")
+    assert build_tag_from_values(path, "agglomerative", tag_param, tag_prefix, {"n_clusters": 4, "linkage": "ward"}) == expected_tag
+
+
+def test_build_tag_from_values_missing_key_raises(tmp_path):
+    path = _write(tmp_path, {"umap": {"tag_param": ["metric", "n_components"], "tag_prefix": ["m_", "nc"]}})
+    tag_param, tag_prefix = load_tag_spec(path, "umap")
+    with pytest.raises(ValueError, match="not present in the supplied values"):
+        build_tag_from_values(path, "umap", tag_param, tag_prefix, {"metric": "euclidean"})
 
 
 def test_load_tuning_grid_valid(tmp_path):

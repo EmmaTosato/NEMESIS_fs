@@ -5,6 +5,7 @@
   "reduction_method": "umap",
   "viz_embedding_path": null,
   "params_file": "config/registry/params_clustering.json",
+  "reduction_params_file": "config/registry/params_reduction_sdc.json",
   "clustering_methods": ["kmeans", "agglomerative", "gmm", "hdbscan"],
   "session_name": "s2.1_nc3_umap",
   "overwrite": false,
