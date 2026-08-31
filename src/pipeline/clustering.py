@@ -386,8 +386,10 @@ def _run_one_method(
     metadata_out["cluster_label"] = cluster_labels
     
     effective_session_name = f"{config.session_name}_{tag}" if tag else config.session_name
-    output_dir = config.output_root / "production" / method / f"{now.strftime('%d-%m')}_{effective_session_name}"
-    
+    output_dir = (
+        config.output_root / "production" / method / config.reduction_method / f"{now.strftime('%d-%m')}_{effective_session_name}"
+    )
+
     try:
         save_matrix(
             output_dir,
@@ -629,7 +631,7 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
 
 
 def _tuning_output_dir(config: ClusteringConfig, method: str, now: datetime) -> Path:
-    return config.output_root / "tuning" / method / f"{now.strftime('%d-%m')}_{config.session_name}"
+    return config.output_root / "tuning" / method / config.reduction_method / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
 def _write_tuning_output(

@@ -58,8 +58,8 @@ Parametri scelti a valle del tuning ([`dim_reduction_tuning_s1.md`](dim_reductio
 
 | ID | metric | perplexity | Link |
 | --- | --- | --- | --- |
-| s1.1_m_dice | dice | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_m_dice/config.md) |
-| s1.1_m_euclidean | euclidean | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_m_euclidean/config.md) |
+| s1.1_m_dice | dice | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_p_30_m_dice/config.md) |
+| s1.1_m_euclidean | euclidean | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.1_p_30_m_euclidean/config.md) |
 
 **Note:** tutte e 4 le `color_by` popolate su entrambi i run.
 
@@ -99,7 +99,7 @@ Parametri scelti a valle del tuning ([`dim_reduction_tuning_s1.md`](dim_reductio
 
 | ID | metric | perplexity | Link |
 | --- | --- | --- | --- |
-| s1.2_m_dice | dice | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_m_dice/config.md) |
-| s1.2_m_euclidean | euclidean | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_m_euclidean/config.md) |
+| s1.2_m_dice | dice | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_p_30_m_dice/config.md) |
+| s1.2_m_euclidean | euclidean | 30 | [config.md](../../../results/lesion/dim_reduction/production/tsne/28-08_s1.2_p_30_m_euclidean/config.md) |
 
 **Note:** tutte e 4 le `color_by` popolate su entrambi i run; stesso caveat `dice`/`lesion_side` di UMAP, qui confermato visivamente (non solo per analogia).

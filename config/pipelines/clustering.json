@@ -1,16 +1,14 @@
 {
   "project": "clinical_connectome",
-  "output_root": "results/lesion/clustering",
-  "input_path": "results/lesion/dim_reduction/production/umap/11-08_s1.1_nc10_m_dice",
+  "output_root": "results/sdc/clustering",
+  "input_path": "results/sdc/dim_reduction/production/umap/31-08_s2.1_nc2_m_euclidean",
   "viz_embedding_path": null,
   "params_file": "config/registry/params_clustering.json",
-  "clustering_methods": [
-    "spectral"
-  ],
-  "session_name": "s1.1_dice_n10",
+  "clustering_methods": ["kmeans", "agglomerative", "gmm", "hdbscan", "spectral"],
+  "session_name": "s2.1_nc2_umap",
   "overwrite": false,
   "fine_tuning": true,
   "reduced_data": true,
   "save_tuning_clusterings": false,
-  "run_notes": "clustering tuning on UMAP reduced data - 10 components - dice (spectral only, save_tuning_clusterings disabled: incompatible with swept affinity)"
+  "run_notes": "clustering tuning on UMAP reduced SDC data (s2.1) - n_components=2, metric=euclidean - stesso tuning applicato a lesion (s1), 5 metodi, no evidence_accumulation (non presente in s1)"
 }
