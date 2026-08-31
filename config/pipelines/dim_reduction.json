@@ -1,15 +1,20 @@
 {
   "project": "clinical_connectome",
-  "input_path": "data/derived/sdc_matrix/27-08_s2.1",
   "output_root": "results/sdc/dim_reduction",
+  "input_path": "data/derived/sdc_matrix/27-08_s2.1",
   "params_file": "config/registry/params_reduction_sdc.json",
-  "reduction_method": "tsne",
+  
   "session_name": "s2.1",
-  "overwrite": true,
+  "reduction_method": "tsne",
+
   "fine_tuning": false,
   "save_tuning_embeddings": false,
+  "overwrite": true,
+  "precompute_distance_metric": true,
+
+
   "color_by": ["dataset", "side", "nihss"],
   "viz_n_components": 2,
-  "precompute_distance_metric": true,
+  
   "run_notes": "prima produzione t-SNE SDC (s2.1) - metric=euclidean, perplexity=30 (valore standard di letteratura, non l'argmax stretto perplexity=15 - scarto trascurabile, 0.0007 - vedi dim_reduction_tuning_s2.md)"
 }

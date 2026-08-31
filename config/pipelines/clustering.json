@@ -2,15 +2,18 @@
   "project": "clinical_connectome",
   "output_root": "results/sdc/clustering",
   "input_path": "results/sdc/dim_reduction/production/umap/31-08_s2.1_m_euclidean_nc3",
-  "reduction_method": "umap",
-  "viz_embedding_path": null,
   "params_file": "config/registry/params_clustering.json",
-  "reduction_params_file": "config/registry/params_reduction_sdc.json",
+
+  "session_name": "s2.1",
   "clustering_methods": ["kmeans", "agglomerative", "gmm", "hdbscan"],
-  "session_name": "s2.1_nc3_umap",
-  "overwrite": false,
-  "fine_tuning": true,
   "reduced_data": true,
+  "reduction_method": "umap",
+
+  "fine_tuning": true,
   "save_tuning_clusterings": true,
+  "overwrite": false,
+
+  "viz_embedding_path": null,  
+
   "run_notes": "clustering tuning on UMAP reduced SDC data (s2.1) - n_components=3, metric=euclidean - stesso tuning applicato a lesion (s1). spectral escluso da questo run: save_tuning_clusterings=true non supportato insieme ad affinity sweeppata - lanciato a parte"
 }
