@@ -13,7 +13,7 @@
 
 - Sweep `n_clusters` × `linkage` × `metric` per agglomerative su tutti e 6 gli embedding UMAP di produzione (`dice`/`euclidean` × `n_components`∈{2,3,10}).
 - Verificare se un `k` di produzione emerge in modo robusto, e se è indipendente da confondenti noti (`lesion_side`, `dataset`, volume).
-- GMM/KMeans/HDBSCAN analizzate (vedi sotto). Spectral: sweep lanciata (27-08) sugli stessi 6 embedding, non ancora analizzata in dettaglio.
+- Tutti e 5 i metodi (agglomerative, GMM, KMeans, HDBSCAN, Spectral) analizzati (vedi sotto).
 
 **Strategie testate**
 
@@ -26,7 +26,7 @@
 | GMM                            | 6×28 | `n_components`∈{2,3,4,5,6,8,10} × `covariance_type`∈{full,tied,diag,spherical}                                          | [tuning/gmm/](../../../results/lesion/clustering/tuning/gmm/)                     |
 | KMeans                         | 6×7  | `n_clusters`∈{2,3,4,5,6,8,10}                                                                                            | [tuning/kmeans/](../../../results/lesion/clustering/tuning/kmeans/)               |
 | HDBSCAN                        | 6×18 | `min_cluster_size`∈{5,10,15,20,30,50} × `min_samples`∈{5,10,20}                                                       | [tuning/hdbscan/](../../../results/lesion/clustering/tuning/hdbscan/)             |
-| Spectral                       | —    | vedi`tuning_grid` per metodo in `params_clustering.json`                                                                | [tuning/](../../../results/lesion/clustering/tuning/) — non ancora analizzato    |
+| Spectral                       | 6×72 | `n_clusters`∈{2..15} × `affinity`∈{nearest_neighbors,rbf} (`n_neighbors`∈{10,30,50} / `gamma`∈{0.1,1,5})           | [tuning/spectral/](../../../results/lesion/clustering/tuning/spectral/)           |
 
 **Risultati**
 
@@ -77,10 +77,19 @@ Struttura ricorrente in ogni k candidato: 1-2 cluster quasi puri per lato lesion
 | Crosstab `lesion_side`, `(20,10)`              | 7 cluster su 8 quasi puri per lato; 1 misto (left=176/right=114/unknown=56) ma **è il cluster più grande** (346 soggetti) — a differenza degli altri metodi, dove il misto è il più piccolo |
 | Rumore (`-1`)                                  | Composizione non stabile tra combinazioni: sbilanciato `right` a `(15,10)`, `left` a `(20,10)` — da non sovra-interpretare        |
 
+**Risultati (Spectral)**
+
+| Check                                                    | Esito                                                                                                                                        |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Silhouette per combinazione                              | `nearest_neighbors(n_neighbors=10)` instabile/erratico (silhouette giù fino a 0.10-0.15) — grafo da scartare. Le altre convergono in una fascia 0.40-0.50, picco a `n_clusters`=4-8 |
+| Miglior candidato (Silhouette)                           | `rbf`, `n_clusters`=8 (0.502) — alternativa con DB migliore: `nearest_neighbors(n_neighbors=30)`, `n_clusters`=5 (silhouette 0.494, DB 0.628, il più basso della tabella) |
+| Eigengap vs Silhouette                                   | **Disaccordo netto**: eigengap suggerisce `n_clusters`≈10-14 (10 per `n_neighbors`=30, 11 per 50, 14 per 10) contro il picco Silhouette 4-8 — nessuna regola meccanica per risolverlo |
+| Crosstab (`n_clusters=6, nearest_neighbors, n_neighbors=50`) vs `lesion_side` | 5 cluster su 6 quasi puri per lato; 1 misto (392 soggetti) — di nuovo il cluster più grande, come HDBSCAN                                    |
+
 **Decisioni aperte:**
 
 - `n_components` e k vanno decisi insieme — non convergono (tabella sopra). Assi possibili, nessuno ancora scelto: (A) convergenza cross-metodo a parità di `n_components`, (B) consenso/stabilità RSC/Monti su coorte reale (`management/notes/TODO.md`), (C) regressare `lesion_side`/volume pre-clustering, (D) criterio clinico.
-- **Asse (A), 4 conferme indipendenti**: l'artefatto `lesion_side` si ripete in agglomerative, GMM, KMeans e HDBSCAN — è la struttura dei dati/embedding a portarlo, non un artefatto di un singolo algoritmo.
-- Prossimo: stesso check crosstab su `diag`@4/`tied`@6 (GMM); poi stesso schema (diagnostica → tuning → crosstab) su Spectral, ultimo metodo mancante.
+- **Asse (A) chiuso, 5/5 conferme**: l'artefatto `lesion_side` si ripete in tutti e 5 i metodi (agglomerative, GMM, KMeans, HDBSCAN, Spectral) — è la struttura dei dati/embedding a portarlo, non un artefatto di un singolo algoritmo. Nessun metodo dà un candidato "pulito" a k basso.
+- **Esplorazione tuning completa per tutti e 5 i metodi.** Prossimo passo: non più un check per-metodo, ma decidere tra (B) consenso/stabilità su coorte reale, (C) regressione di `lesion_side`/volume pre-clustering, o (D) criterio clinico — per arrivare a una config di produzione che non sia solo il re-splitting del lato lesione.
 
 **Strumenti:** [`clustering_tuning_explorer.ipynb`](../../../notebooks/post-results_analysis/clustering_tuning_explorer.ipynb) — esplorazione `tuning_results.csv` + diagnostiche, ARI/NMI tra combinazioni, Subsampling Stability Index.

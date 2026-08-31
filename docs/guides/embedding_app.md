@@ -27,17 +27,18 @@ python -m src.pipeline.embedding_app
 
 Poi apri `http://127.0.0.1:8060` nel browser. Opzioni:
 
-| Flag | Default | Descrizione |
-| :--- | :--- | :--- |
-| `--results-root` | `results` | Radice da scansionare (`<root>/*/dim_reduction/production/*/*` e `<root>/*/clustering/production/*/*`) |
-| `--port` | `8060` | Porta locale (non l'8050 di default di Dash, per non collidere con un'altra istanza Dash locale già in esecuzione) |
-| `--debug` | off | Modalità debug di Dash (auto-reload, overlay errori nel browser) |
+| Flag               | Default     | Descrizione                                                                                                         |
+| :----------------- | :---------- | :------------------------------------------------------------------------------------------------------------------ |
+| `--results-root` | `results` | Radice da scansionare (`<root>/*/dim_reduction/production/*/*` e `<root>/*/clustering/production/*/*`)          |
+| `--port`         | `8060`    | Porta locale (non l'8050 di default di Dash, per non collidere con un'altra istanza Dash locale già in esecuzione) |
+| `--debug`        | off         | Modalità debug di Dash (auto-reload, overlay errori nel browser)                                                   |
 
 ---
 
 ## Cosa mostra
 
 - **Selettore a 6 passi** (in ordine di decisione, esteso 15-08-26 quando "Pipeline" è diventato un vero selettore invece di un'etichetta fissa - sostituisce il precedente dropdown unico che mischiava i run di ogni metodo/metrica/dimensionalità insieme):
+
   1. **Dato** - la modalità (oggi solo `lesion`).
   2. **Pipeline** - `dim_reduction` o `clustering` (le uniche 2 che questa app scopre - vedi `PRODUCTION_PIPELINES`/`discover_production_runs`), filtrata sulla modalità scelta; `dim_reduction` proposto per primo di default (pipeline più matura), non alfabeticamente.
   3. **Metodo** - il metodo dentro quella pipeline (`umap`/`pca`/`tsne`/`pacmap`... per dim_reduction, `kmeans`/`hdbscan`/`spectral`/... per clustering), filtrato su modalità + pipeline.
