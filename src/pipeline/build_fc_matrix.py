@@ -148,7 +148,11 @@ def main(argv: list[str] | None = None) -> int:
                     input_dir,
                     extra_columns={"atlas_combo": combo},
                 )
-            except OSError as exc:
+            except (OSError, ValueError) as exc:
+                # ValueError: append_run_log_entry's own header-guard, raised if this
+                # runs.csv's on-disk header doesn't match the current FIELDNAMES/extra_columns
+                # shape (lessons_learned.md #12 - a schema drift not caught before this
+                # pipeline's next real run otherwise propagated as a raw, unhandled traceback).
                 logging.error("%s: cannot write run log: %s", combo, exc, exc_info=True)
                 return 1
 

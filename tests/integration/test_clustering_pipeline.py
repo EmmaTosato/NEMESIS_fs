@@ -1696,6 +1696,133 @@ def test_clustering_viz_embedding_matching_reduction_run_succeeds(tmp_path, monk
     assert (run_dir / "cluster_plot.png").exists()
 
 
+def test_clustering_reduced_data_logs_reduction_columns(tmp_path, monkeypatch):
+    """Regression (31-08-26): runs.csv/config.md must record the *source embedding's* own
+    metric/n_components (reduction_n_components/reduction_metric, prefixed to avoid colliding
+    with a clustering method's own same-named hyperparameter - gmm has its own "n_components")
+    resolved from input_path's config.md, not left blank just because reduced_data=True."""
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+    input_dir = _write_dim_reduction_run(
+        tmp_path, "input_5d", n_subjects=12, n_components=5, method="umap",
+        params={"n_neighbors": 15, "metric": "dice", "random_state": 0, "n_components": 5},
+    )
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "umap",
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "reduced_data": True,
+        "save_tuning_clusterings": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    runs_csv = pd.read_csv(output_root / "production" / "kmeans" / "runs.csv")
+    row = runs_csv.iloc[0]
+    assert row["reduction_method"] == "umap"
+    assert row["reduction_n_components"] == 5
+    assert row["reduction_metric"] == "dice"
+    assert "id" not in runs_csv.columns
+
+    run_dir = next(p for p in (output_root / "production" / "kmeans" / "umap").iterdir() if p.is_dir())
+    config_payload = json.loads((run_dir / "config.md").read_text().split("```json\n")[1].split("\n```")[0])
+    assert config_payload["reduction_method"] == "umap"
+    assert config_payload["reduction_n_components"] == "5"
+    assert config_payload["reduction_metric"] == "dice"
+
+
+def test_clustering_gmm_reduction_n_components_does_not_collide_with_gmm_own_n_components(tmp_path, monkeypatch):
+    """Regression (31-08-26): gmm's own tag_param is literally "n_components" (its mixture
+    component count) - runs.csv's reduction_n_components (the *embedding's* n_components,
+    resolved from input_path's config.md) must stay a distinct column, never silently
+    overwritten by/overwriting gmm's own same-named hyperparameter in the same row."""
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+    input_dir = _write_dim_reduction_run(
+        tmp_path, "input_5d", n_subjects=12, n_components=5, method="umap",
+        params={"n_neighbors": 15, "metric": "euclidean", "random_state": 0, "n_components": 5},
+    )
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps({"gmm": {"tag_param": ["n_components"], "tag_prefix": ["k"], "params": {"n_components": 3, "random_state": 0}}})
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "umap",
+        "clustering_methods": ["gmm"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "reduced_data": True,
+        "save_tuning_clusterings": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    runs_csv = pd.read_csv(output_root / "production" / "gmm" / "runs.csv")
+    row = runs_csv.iloc[0]
+    assert row["n_components"] == 3  # gmm's own mixture component count
+    assert row["reduction_n_components"] == 5  # the source umap embedding's own n_components
+
+
+def test_clustering_raw_data_leaves_reduction_columns_blank(tmp_path, monkeypatch):
+    """reduced_data=False: reduction_method stays whatever the config declares (usually "raw"),
+    but reduction_n_components/reduction_metric have nothing to resolve (no source config.md to
+    read) - "" (not omitted, see _reduction_extra_columns), not a crash."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({"kmeans": {"params": {"n_clusters": 3, "random_state": 0, "n_init": "auto"}}}))
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "raw",
+        "clustering_methods": ["kmeans"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    runs_csv = pd.read_csv(output_root / "production" / "kmeans" / "runs.csv", keep_default_na=False)
+    row = runs_csv.iloc[0]
+    assert row["reduction_method"] == "raw"
+    assert row["reduction_n_components"] == ""
+    assert row["reduction_metric"] == ""
+
+
 def test_clustering_viz_embedding_different_reduction_method_raises(tmp_path, monkeypatch, caplog):
     """Regression (26-08-26): a companion built with a different reduction method than
     input_path must be rejected, even though it passes every structural check (same

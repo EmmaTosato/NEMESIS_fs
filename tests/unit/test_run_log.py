@@ -30,7 +30,7 @@ def test_creates_file_with_header_on_first_entry(tmp_path):
     rows = _read_rows(log_dir / "runs.csv")
     assert len(rows) == 1
     assert rows[0]["session"] == "s1.1"
-    assert rows[0]["id"] == "run1"
+    assert "id" not in rows[0]
     assert rows[0]["timestamp"] == "20-07-26 16:30"
     assert rows[0]["input_path"] == "data/matrix_in"
     assert rows[0]["params"] == '{"n_neighbors": 15}'
@@ -38,13 +38,12 @@ def test_creates_file_with_header_on_first_entry(tmp_path):
     assert rows[0]["notes"] == ""  # run_notes=None -> empty field, not "None"
 
 
-def test_run_id_without_underscore_has_empty_id(tmp_path):
+def test_run_id_without_underscore_is_its_own_session(tmp_path):
     append_run_log_entry(
         tmp_path, "run1", datetime(2026, 7, 20, 16, 30), "production", {}, Path("out/run1"), None, Path("in")
     )
     rows = _read_rows(tmp_path / "runs.csv")
     assert rows[0]["session"] == "run1"
-    assert rows[0]["id"] == ""
 
 
 def test_appends_without_overwriting_previous_entries(tmp_path):
@@ -63,10 +62,10 @@ def test_appends_without_overwriting_previous_entries(tmp_path):
     )
 
     rows = _read_rows(tmp_path / "runs.csv")
-    assert [row["id"] for row in rows] == ["run1", "run2"]
+    assert [row["session"] for row in rows] == ["s1", "s1"]
     assert rows[1]["notes"] == "picked from sweep"
     # header only written once, even after 2 appends
-    assert (tmp_path / "runs.csv").read_text().count("session,id,timestamp,input_path,params,output,notes") == 1
+    assert (tmp_path / "runs.csv").read_text().count("session,timestamp,input_path,params,output,notes") == 1
 
 
 def test_run_notes_included_when_provided(tmp_path):
@@ -100,9 +99,9 @@ def test_input_path_recorded_distinct_from_output(tmp_path):
     assert row["input_path"] != row["output"]
 
 
-def test_extra_columns_inserted_after_id_in_header_and_row(tmp_path):
-    """31-08-26: extra_columns used to be prepended before "session" - moved to right after
-    "id" so session/id always stay the row's leading identity columns."""
+def test_extra_columns_inserted_after_session_in_header_and_row(tmp_path):
+    """31-08-26: extra_columns used to be inserted right after "id" - now right after
+    "session" (id's own removal), always the row's leading identity column."""
     append_run_log_entry(
         tmp_path,
         "s1_run1",
@@ -116,11 +115,10 @@ def test_extra_columns_inserted_after_id_in_header_and_row(tmp_path):
     )
 
     header = (tmp_path / "runs.csv").read_text().splitlines()[0]
-    assert header == "session,id,reduction_method,clustering_method,timestamp,input_path,params,output,notes"
+    assert header == "session,reduction_method,clustering_method,timestamp,input_path,params,output,notes"
     row = _read_rows(tmp_path / "runs.csv")[0]
     assert row["reduction_method"] == "pca"
     assert row["clustering_method"] == "kmeans"
-    assert row["id"] == "run1"
 
 
 def test_extra_columns_shared_across_appends_to_same_file(tmp_path):
@@ -150,7 +148,7 @@ def test_extra_columns_shared_across_appends_to_same_file(tmp_path):
     rows = _read_rows(tmp_path / "runs.csv")
     assert [row["clustering_method"] for row in rows] == ["kmeans", "agglomerative"]
     # header only written once, even after 2 appends
-    assert (tmp_path / "runs.csv").read_text().count("session,id,reduction_method,clustering_method") == 1
+    assert (tmp_path / "runs.csv").read_text().count("session,reduction_method,clustering_method") == 1
 
 
 def test_production_and_tuning_write_separate_files(tmp_path):
@@ -163,8 +161,8 @@ def test_production_and_tuning_write_separate_files(tmp_path):
 
     assert (tmp_path / "runs.csv").is_file()
     assert (tmp_path / "runs_tuning.csv").is_file()
-    assert _read_rows(tmp_path / "runs.csv")[0]["id"] == "run1"
-    assert _read_rows(tmp_path / "runs_tuning.csv")[0]["id"] == "tune1"
+    assert _read_rows(tmp_path / "runs.csv")[0]["session"] == "s1"
+    assert _read_rows(tmp_path / "runs_tuning.csv")[0]["session"] == "s1"
 
 
 def test_unknown_run_type_raises_instead_of_silently_writing_to_tuning_file(tmp_path):

@@ -216,7 +216,9 @@ da qui).
 
 Dettagli implementativi:
 - `FIELDNAMES` in `src/utils/run_log.py`: `session, id, timestamp, input_path, params, output, notes`
-  (nuova colonna tra `timestamp` e `params`).
+  (nuova colonna tra `timestamp` e `params`). **Nota (31-08-26, superseded)**: `id` è stata
+  rimossa (ridondante, nessun lettore la usava - vedi `docs/dev/config.md`); schema attuale
+  `session, timestamp, input_path, params, output, notes`.
 - `append_run_log_entry` guadagna un parametro `input_path: Path`, scritto nella riga — ogni
   `Config` dataclass del progetto ha già `input_path` disponibile, nessun dato nuovo da calcolare.
 - 6 call site da aggiornare (`dim_reduction_clustering.py` eliminato nel frattempo, §5 già fatto,

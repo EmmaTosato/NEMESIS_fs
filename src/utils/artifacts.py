@@ -40,7 +40,7 @@ def save_matrix(
 ) -> Path:
     """Atomically write a matrix artifact to output_dir.
 
-    Writes    `matrix.npy` (or `.npz`), `metadata.parquet`, optionally `extra_arrays.npz`,
+    Writes `matrix.npy`, `metadata.csv`, optionally one `.npy` per extra_arrays entry,
     config.md, and manifest.json (last) to a temporary sibling directory, then
     renames it into place - output_dir either doesn't exist, or exists fully
     written, never partially.
