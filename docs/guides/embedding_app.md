@@ -39,7 +39,7 @@ Poi apri `http://127.0.0.1:8060` nel browser. Opzioni:
 
 - **Selettore a 6 passi** (in ordine di decisione, esteso 15-08-26 quando "Pipeline" è diventato un vero selettore invece di un'etichetta fissa - sostituisce il precedente dropdown unico che mischiava i run di ogni metodo/metrica/dimensionalità insieme):
 
-  1. **Dato** - la modalità (oggi solo `lesion`).
+  1. **Dato** - la modalità (`lesion`, e dal 31-08-26 anche `sdc` - nessuna modifica di codice richiesta, discovery generica su `results/*/...`).
   2. **Pipeline** - `dim_reduction` o `clustering` (le uniche 2 che questa app scopre - vedi `PRODUCTION_PIPELINES`/`discover_production_runs`), filtrata sulla modalità scelta; `dim_reduction` proposto per primo di default (pipeline più matura), non alfabeticamente.
   3. **Metodo** - il metodo dentro quella pipeline (`umap`/`pca`/`tsne`/`pacmap`... per dim_reduction, `kmeans`/`hdbscan`/`spectral`/... per clustering), filtrato su modalità + pipeline.
   4. **Metrica** - letta dai parametri realmente usati dal run (non dal nome della cartella - vedi sotto), `"—"` per i metodi/run che non hanno un parametro `metric` (pca/pacmap, i run più vecchi di umap/tsne precedenti all'introduzione di dice/jaccard, **e sempre** per la pipeline `clustering` - un metodo di clustering non ha un asse "metrica" in questo senso).
