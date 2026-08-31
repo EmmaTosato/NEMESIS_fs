@@ -68,7 +68,7 @@ def test_parse_sessions_md_field_before_header_raises(tmp_path):
         parse_sessions_md(_write_sessions_md(tmp_path, content))
 
 
-def _write_runs_csv(path, rows, fieldnames=("session", "id", "timestamp", "input_path", "params", "output", "notes")):
+def _write_runs_csv(path, rows, fieldnames=("session", "timestamp", "input_path", "params", "output", "notes")):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(fieldnames))
@@ -85,16 +85,16 @@ def _existing_output(results_root, relative_path):
     return f"results/{relative_path}"
 
 
-def _production_row(session, params, output, run_id="a"):
+def _production_row(session, params, output):
     return {
-        "session": session, "id": run_id, "timestamp": "01-01-26 00:00", "input_path": "in",
+        "session": session, "timestamp": "01-01-26 00:00", "input_path": "in",
         "params": json.dumps(params), "output": output, "notes": "",
     }
 
 
 def _tuning_row(session, base_params, tuning_grid, output):
     return {
-        "session": session, "id": "", "timestamp": "01-01-26 00:00", "input_path": "in",
+        "session": session, "timestamp": "01-01-26 00:00", "input_path": "in",
         "params": json.dumps({"base_params": base_params, "tuning_grid": tuning_grid}), "output": output, "notes": "",
     }
 
@@ -106,13 +106,13 @@ def test_build_strategies_table_dedupes_same_strategy_across_production_and_tuni
     out_tuning = _existing_output(results_root, "lesion/dim_reduction/tuning/umap/tuning-run")
     _write_runs_csv(
         results_root / "lesion" / "dim_reduction" / "production" / "umap" / "runs.csv",
-        [_production_row("s1.1", {"n_components": 2, "metric": "euclidean"}, out_a, "a"),
-         _production_row("s1.1", {"n_components": 2, "metric": "euclidean"}, out_b, "b")],
+        [_production_row("s1.1", {"n_components": 2, "metric": "euclidean"}, out_a),
+         _production_row("s1.1", {"n_components": 2, "metric": "euclidean"}, out_b)],
     )
     _write_runs_csv(
         results_root / "lesion" / "dim_reduction" / "tuning" / "umap" / "runs_tuning.csv",
         [_tuning_row("s1.1", {"n_components": 2, "metric": "euclidean"}, {"n_neighbors": [5, 15]}, out_tuning)],
-        fieldnames=("session", "id", "timestamp", "input_path", "params", "output", "notes"),
+        fieldnames=("session", "timestamp", "input_path", "params", "output", "notes"),
     )
 
     table = build_strategies_table(results_root, _write_sessions_md(tmp_path))
@@ -144,7 +144,7 @@ def test_build_strategies_table_expands_tuning_row_over_swept_metric(tmp_path):
             "s1.1", {"n_components": 2, "metric": "euclidean"},
             {"metric": ["euclidean", "jaccard", "dice"], "perplexity": [5, 15, 30]}, out_tuning,
         )],
-        fieldnames=("session", "id", "timestamp", "input_path", "params", "output", "notes"),
+        fieldnames=("session", "timestamp", "input_path", "params", "output", "notes"),
     )
 
     table = build_strategies_table(results_root, _write_sessions_md(tmp_path))
@@ -161,7 +161,7 @@ def test_build_strategies_table_expands_tuning_row_over_swept_metric_and_n_compo
             "s1.1", {"n_components": 2, "metric": "jaccard", "n_neighbors": 15},
             {"metric": ["jaccard", "dice"], "n_components": [5, 10]}, out_tuning,
         )],
-        fieldnames=("session", "id", "timestamp", "input_path", "params", "output", "notes"),
+        fieldnames=("session", "timestamp", "input_path", "params", "output", "notes"),
     )
 
     table = build_strategies_table(results_root, _write_sessions_md(tmp_path))
@@ -176,9 +176,9 @@ def test_build_strategies_table_distinguishes_different_metrics_and_n_components
     _write_runs_csv(
         results_root / "lesion" / "dim_reduction" / "production" / "umap" / "runs.csv",
         [
-            _production_row("s1.1", {"n_components": 2, "metric": "euclidean"}, _existing_output(results_root, "a"), "a"),
-            _production_row("s1.1", {"n_components": 3, "metric": "euclidean"}, _existing_output(results_root, "b"), "b"),
-            _production_row("s1.1", {"n_components": 2, "metric": "dice"}, _existing_output(results_root, "c"), "c"),
+            _production_row("s1.1", {"n_components": 2, "metric": "euclidean"}, _existing_output(results_root, "a")),
+            _production_row("s1.1", {"n_components": 3, "metric": "euclidean"}, _existing_output(results_root, "b")),
+            _production_row("s1.1", {"n_components": 2, "metric": "dice"}, _existing_output(results_root, "c")),
         ],
     )
 
@@ -192,7 +192,7 @@ def test_build_strategies_table_no_metric_sentinel_for_pca(tmp_path):
     results_root = tmp_path / "results"
     _write_runs_csv(
         results_root / "lesion" / "dim_reduction" / "production" / "pca" / "runs.csv",
-        [_production_row("s1.1", {"n_components": 150}, _existing_output(results_root, "a"), "a")],
+        [_production_row("s1.1", {"n_components": 150}, _existing_output(results_root, "a"))],
     )
 
     table = build_strategies_table(results_root, _write_sessions_md(tmp_path))
@@ -204,7 +204,7 @@ def test_build_strategies_table_undocumented_session_gets_placeholder(tmp_path, 
     results_root = tmp_path / "results"
     _write_runs_csv(
         results_root / "lesion" / "dim_reduction" / "production" / "umap" / "runs.csv",
-        [_production_row("s99", {"n_components": 2, "metric": "euclidean"}, _existing_output(results_root, "a"), "a")],
+        [_production_row("s99", {"n_components": 2, "metric": "euclidean"}, _existing_output(results_root, "a"))],
     )
 
     with caplog.at_level(logging.WARNING):
@@ -222,7 +222,7 @@ def test_build_strategies_table_skips_row_with_missing_output_dir(tmp_path, capl
     results_root = tmp_path / "results"
     _write_runs_csv(
         results_root / "lesion" / "dim_reduction" / "production" / "umap" / "runs.csv",
-        [_production_row("s1.1", {"n_components": 2}, "results/lesion/dim_reduction/umap/23-07_s1.1_d00", "d00")],
+        [_production_row("s1.1", {"n_components": 2}, "results/lesion/dim_reduction/umap/23-07_s1.1_d00")],
     )
 
     with caplog.at_level(logging.WARNING):
@@ -236,7 +236,7 @@ def test_build_strategies_table_output_not_prefixed_with_results_raises(tmp_path
     results_root = tmp_path / "results"
     _write_runs_csv(
         results_root / "lesion" / "dim_reduction" / "production" / "umap" / "runs.csv",
-        [_production_row("s1.1", {"n_components": 2, "metric": "euclidean"}, "some/other/path", "a")],
+        [_production_row("s1.1", {"n_components": 2, "metric": "euclidean"}, "some/other/path")],
     )
 
     with pytest.raises(ValueError, match="doesn't start with 'results/'"):
@@ -257,7 +257,7 @@ def test_main_writes_csv_to_results_root(tmp_path):
     results_root = tmp_path / "results"
     _write_runs_csv(
         results_root / "lesion" / "dim_reduction" / "production" / "umap" / "runs.csv",
-        [_production_row("s1.1", {"n_components": 2, "metric": "euclidean"}, _existing_output(results_root, "a"), "a")],
+        [_production_row("s1.1", {"n_components": 2, "metric": "euclidean"}, _existing_output(results_root, "a"))],
     )
     sessions_md = _write_sessions_md(tmp_path)
 

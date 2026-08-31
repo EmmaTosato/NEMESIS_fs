@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-FIELDNAMES = ["session", "id", "timestamp", "input_path", "params", "output", "notes"]
+FIELDNAMES = ["session", "timestamp", "input_path", "params", "output", "notes"]
 
 RunType = Literal["production", "tuning"]
 _FILE_NAME_BY_RUN_TYPE: dict[RunType, str] = {"production": "runs.csv", "tuning": "runs_tuning.csv"}
@@ -46,27 +46,44 @@ def append_run_log_entry(
     input_path is the source matrix this run was computed from - distinct
     from output_dir (where *this* run's own artifact landed), so a reader of
     runs.csv can tell whether two rows with identical params were actually
-    computed on the same underlying data (see docs/dev/config.md).
+    computed on the same underlying data (see docs/dev/config.md). Always a
+    plain path string - a caller whose input can itself be a dim_reduction.py
+    run (clustering.py, reduced_data-aware) records what that embedding
+    actually used via its own flat extra_columns instead (reduction_method/
+    reduction_n_components/reduction_metric, src/pipeline/clustering.py's
+    _reduction_extra_columns) rather than nesting it inside this column.
 
-    extra_columns inserts caller-specific columns right after "id" (31-08-26 -
-    previously prepended before "session", moved so "session"/"id" always
-    stay the row's leading identity columns regardless of what a given
-    caller adds), for a pipeline that shares one runs_csv_path across more
-    than one dimension (e.g. atlas_combo for build_fc_matrix.py/mask_fc.py,
-    or reduction_method/exploded tag_param values for clustering.py) - every
+    run_id's only remaining role (31-08-26, since "id" was dropped as a
+    column - it duplicated data already recoverable from output_dir's own
+    name and, for dim_reduction.py/clustering.py production rows, from their
+    own exploded tag_param extra_columns; no reader ever parsed it back
+    apart) is naming this row's session: everything before its first "_" (a
+    bare run_id with no "_" - e.g. a session_name with no production tag -
+    is the whole session, same as before).
+
+    extra_columns inserts caller-specific columns right after "session"
+    (31-08-26, follows "id"'s removal - previously right after "id"), for a
+    pipeline that shares one runs_csv_path across more than one dimension
+    (e.g. atlas_combo for build_fc_matrix.py/mask_fc.py, or exploded
+    tag_param/reduction_* values for dim_reduction.py/clustering.py) - every
     call writing to the same runs_csv_path must pass the same extra_columns
-    keys, since the header is only written once, on the first call.
+    keys, since the header is only written once, on the first call. A
+    runs_csv_path shared across more than one distinct source (e.g. one
+    clustering method's runs_tuning.csv receiving rows sourced from more
+    than one reduction_method over its lifetime) must keep that key *set*
+    identical on every call regardless of which source a given row actually
+    has - fill with "" for a key that doesn't apply to this particular row
+    rather than omitting it (clustering.py's reduction_n_components/
+    reduction_metric do exactly this for a source method with no such
+    hyperparameter, e.g. pca has no "metric").
     """
-    if "_" in run_id:
-        session, id_part = run_id.split("_", 1)
-    else:
-        session, id_part = run_id, ""
+    session = run_id.split("_", 1)[0]
 
     if run_type not in _FILE_NAME_BY_RUN_TYPE:
         raise ValueError(f"run_type must be one of {sorted(_FILE_NAME_BY_RUN_TYPE)}, got {run_type!r}")
     runs_csv_path = log_dir / _FILE_NAME_BY_RUN_TYPE[run_type]
 
-    fieldnames = FIELDNAMES[:2] + list(extra_columns) + FIELDNAMES[2:] if extra_columns else FIELDNAMES
+    fieldnames = FIELDNAMES[:1] + list(extra_columns) + FIELDNAMES[1:] if extra_columns else FIELDNAMES
     runs_csv_path.parent.mkdir(parents=True, exist_ok=True)
     write_header = not runs_csv_path.is_file()
 
@@ -89,7 +106,6 @@ def append_run_log_entry(
         row.update(
             {
                 "session": session,
-                "id": id_part,
                 "timestamp": now.strftime("%d-%m-%y %H:%M"),
                 "input_path": str(input_path),
                 "params": json.dumps(params_summary),

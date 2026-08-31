@@ -440,11 +440,17 @@ def _run_one_method(
         )
 
     try:
-        # reduction_method always logged; one extra column per tag_param key (31-08-26),
+        run_log_columns = _reduction_extra_columns(config)
+    except ValueError as exc:
+        logging.error("[%s] cannot describe run log input: %s", method, exc)
+        return None
+
+    try:
+        # reduction_method/reduction_n_components/reduction_metric always logged
+        # (_reduction_extra_columns); one extra column per tag_param key on top (31-08-26),
         # exploded from `params` rather than re-parsing the joined tag string - a reader of
-        # runs.csv gets each hyperparameter as its own filterable column instead of having
-        # to split "n_clust4_linkward" back apart by hand.
-        run_log_columns = {"reduction_method": config.reduction_method}
+        # runs.csv gets each hyperparameter as its own filterable column instead of having to
+        # split "n_clust4_linkward" back apart by hand.
         run_log_columns.update({key: str(params[key]) for key in load_tag_params(config.params_file, method)})
         append_run_log_entry(
             _run_log_dir(config, method, "production"),
@@ -463,6 +469,52 @@ def _run_one_method(
 
     logging.info("[%s] done - output written to %s", method, output_dir)
     return cluster_labels
+
+
+def _reduction_extra_columns(config: ClusteringConfig) -> dict[str, str]:
+    """The 3 flat extra_columns runs.csv/runs_tuning.csv/config.md always log about
+    clustering's input embedding: reduction_method (required regardless of reduced_data - the
+    "raw" sentinel when reduced_data is False, docs/dev/config.md), reduction_n_components,
+    reduction_metric.
+
+    Prefixed "reduction_" (not the bare "n_components"/"metric" the embedding's own config.md
+    uses) to avoid colliding with a clustering method's *own* tag_param of the same name for
+    the exact same row - gmm's own hyperparameter is literally "n_components" (its mixture
+    component count, params_clustering.json) and would otherwise silently collide with the
+    embedding's n_components in the same runs.csv row.
+
+    reduction_n_components/reduction_metric are "" (not omitted - see below) when reduced_data
+    is False, or when reduced_data is True but the source method has no such hyperparameter
+    (pca/pacmap have no "metric") - read straight from input_path's own config.md via
+    read_run_params, the single source of truth for "what did this embedding actually use",
+    never re-declared as a separate ClusteringConfig field (would drift if that run were ever
+    redone with different params). Always all 3 keys present (never conditionally omitted):
+    one runs.csv/runs_tuning.csv is shared across every reduction_method that ever feeds a
+    given clustering method (_run_log_dir has no reduction_method segment), so the
+    extra_columns key *set* must stay identical across every row - append_run_log_entry's
+    header-guard raises otherwise.
+
+    Cross-checks config.reduction_method (declared, never inferred from path text) against
+    input_path's own config.md title (read_dim_reduction_method) whenever reduced_data is True
+    - same "config vs. artifact reality" discipline _require_matching_reduction_run already
+    applies to viz_embedding_path. Raises ValueError on a mismatch, and propagates
+    read_dim_reduction_method's/read_run_params' own ValueError when input_path's config.md is
+    missing or malformed.
+    """
+    columns = {"reduction_method": config.reduction_method, "reduction_n_components": "", "reduction_metric": ""}
+    if config.reduced_data:
+        actual_method = read_dim_reduction_method(config.input_path)
+        if actual_method != config.reduction_method:
+            raise ValueError(
+                f"config.input_path {config.input_path} was built with reduction method "
+                f"{actual_method!r}, but config declares reduction_method={config.reduction_method!r}"
+            )
+        reduction_params = read_run_params(config.input_path)
+        if "n_components" in reduction_params:
+            columns["reduction_n_components"] = str(reduction_params["n_components"])
+        if "metric" in reduction_params:
+            columns["reduction_metric"] = str(reduction_params["metric"])
+    return columns
 
 
 def _comparison_dir(config: ClusteringConfig, now: datetime) -> Path:
@@ -503,6 +555,12 @@ def _config_summary(config: ClusteringConfig, method: str) -> str:
         "viz_embedding_path": str(config.viz_embedding_path) if config.viz_embedding_path else None,
         "run_notes": config.run_notes,
     }
+    # reduction_method/reduction_n_components/reduction_metric (31-08-26) - same 3 values
+    # runs.csv's own extra_columns log for this run (_reduction_extra_columns), previously
+    # entirely absent from this config.md even though config.reduction_method has always been
+    # a required field - a reader of one run's own report couldn't see which embedding
+    # variant it was built from without cross-referencing runs.csv or the output path itself.
+    payload.update(_reduction_extra_columns(config))
     return json.dumps(payload, indent=2)
 
 
@@ -581,6 +639,10 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
         tuning_grid = load_tuning_grid(config.params_file, method)
         consensus_config = load_consensus_config(config.params_file, method)
         stability_config = load_stability_config(config.params_file, method)
+        # Resolved once, up front (fails before running the sweep, not after) - reused for
+        # both this run's own config.md (_write_tuning_output) and runs_tuning.csv's
+        # extra_columns below, instead of recomputing/re-reading input_path's config.md twice.
+        run_log_columns = _reduction_extra_columns(config)
     except (FileNotFoundError, ValueError) as exc:
         logging.error("[%s] %s", method, exc)
         return False
@@ -613,7 +675,9 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
 
     output_dir = _tuning_output_dir(config, method, now)
     try:
-        _write_tuning_output(output_dir, results, labels_by_combo, tuning_grid, method, X, metadata, base_params, config, now)
+        _write_tuning_output(
+            output_dir, results, labels_by_combo, tuning_grid, method, X, metadata, base_params, config, now, run_log_columns
+        )
     except (FileExistsError, OSError) as exc:
         logging.error("[%s] %s", method, exc)
         return False
@@ -638,7 +702,7 @@ def _run_one_method_tuning(config: ClusteringConfig, method: str, X: np.ndarray,
             output_dir,
             config.run_notes,
             config.input_path,
-            extra_columns={"reduction_method": config.reduction_method},
+            extra_columns=run_log_columns,
         )
     except OSError as exc:
         logging.error("[%s] cannot write run log: %s", method, exc, exc_info=True)
@@ -662,6 +726,7 @@ def _write_tuning_output(
     base_params: dict,
     config: ClusteringConfig,
     now: datetime,
+    reduction_columns: dict[str, str],
 ) -> None:
     if output_dir.exists():
         if not config.overwrite:
@@ -737,8 +802,19 @@ def _write_tuning_output(
                 "project": config.project,
                 "input_path": str(config.input_path),
                 "clustering_method": method,
+                "clustering_methods_requested": list(config.clustering_methods),
                 "params_file": str(config.params_file),
+                "output_root": str(config.output_root),
                 "session_name": config.session_name,
+                "overwrite": config.overwrite,
+                "fine_tuning": config.fine_tuning,
+                "reduced_data": config.reduced_data,
+                "save_tuning_clusterings": config.save_tuning_clusterings,
+                "run_notes": config.run_notes,
+                # viz_embedding_path deliberately absent (unlike _config_summary's production
+                # payload) - never read during fine-tuning, main() returns via _run_fine_tuning
+                # before _resolve_viz_embedding is ever called, so it plays no role in this run.
+                **reduction_columns,
             },
             indent=2,
         ),
