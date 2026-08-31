@@ -22,9 +22,9 @@
     "tag_param": "metric",
     "tag_prefix": "m_",
     "params": {
-      "n_neighbors": 5,
+      "n_neighbors": 15,
       "min_dist": 0.0,
-      "n_components": 2,
+      "n_components": 3,
       "random_state": 0,
       "metric": "euclidean"
     },
