@@ -11,7 +11,8 @@ results/
 
 sub_BCB_example/
 
-logs/compute_sdc/
+logs/
+summaries/
 
 .claude/dim_reduction_clustering/*
 
