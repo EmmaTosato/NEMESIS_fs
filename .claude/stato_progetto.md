@@ -13,7 +13,7 @@ Sintesi corrente in `README.md` ("What's implemented so far") — non ripetuta q
 ## Lavoro attivo / thread aperti
 
 - **Lesion clustering produzione s1.1**: 6 opzioni di k lanciate (`results/lesion/clustering/production/*/umap/01-09_s1.1_*`: A k4, B k5, C k6, D k8-solo-spectral, E/F hdbscan). **Nessuna scelta finale del k di produzione ancora fatta** — decisione dell'utente. La cartella `comparison/` condivisa (stesso `session_name`+embedding per tutte le opzioni) contiene solo l'ultima run (F, hdbscan) — le altre sono state sovrascritte di proposito; il confronto cross-opzione è demandato a un notebook (non ancora scritto) che mixa liberamente le cartelle per-metodo.
-- **Lesion clustering tuning s1.2** (5269 soggetti) e **SDC clustering tuning s2.1** (nc2+nc3): entrambi completi, tutti e 5 i metodi. Risultati s1.2 documentati in `docs/experiments/dim_reduction_clustering/clustering_tuning_s1.md` (sezione `01-09-2026 — s1.2`); s2.1/nc3 **non ancora documentato** in un file esperimenti analogo per SDC.
+- **Lesion clustering tuning s1.2** (5269 soggetti) e **SDC clustering tuning s2.1** (nc2+nc3): entrambi completi, tutti e 5 i metodi. Risultati s1.2 documentati in `docs/experiments/clustering/s1_tuning.md` (sezione `01-09-2026 — s1.2`); s2.1/nc3 **non ancora documentato** in un file esperimenti analogo per SDC.
 - **Audit naming plot-level**: ancora aperto, non toccato in questa sessione (prompt preparato in una sessione precedente, non lanciato).
 - **File non correlati modificati nella working tree** (non toccati in questa sessione): `config/pipelines/enrich_lesion_metadata.json`, `docs/dev/models.md`, `notebooks/post-results_analysis/clustering_evaluation.ipynb` — lavoro dell'utente in un'altra finestra/sessione, non ancora committato.
 

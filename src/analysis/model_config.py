@@ -107,7 +107,7 @@ def load_clustering_config(path: str | Path) -> ClusteringConfig:
     # tag_prefix and rebuild its embedding tag (e.g. "m_euclidean_nc2") from input_path's real,
     # already-recorded hyperparameters (read_run_params) instead of that string being hand-typed
     # into session_name, where it could silently drift from the real input_path (see
-    # docs/experiments/dim_reduction_clustering/clustering_production_s1.md naming discussion).
+    # docs/experiments/clustering/s1_production.md naming discussion).
     # Required exactly when reduced_data is True (input_path is then itself a dim_reduction.py
     # run with its own tag_param registry to consult); forbidden otherwise (a raw feature matrix
     # has no embedding tag to derive - a value here would sit unread, code_standards.md §5).

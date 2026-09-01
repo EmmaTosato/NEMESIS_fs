@@ -457,7 +457,7 @@ def _embedding_tag(config: ClusteringConfig) -> str | None:
     """Builds input_path's own embedding tag (e.g. "m_euclidean_nc2"), so a production output
     folder never needs that hand-typed into session_name - previously the only way to make a
     folder name show which embedding it came from, with nothing checking that string against
-    the real input_path (see docs/experiments/dim_reduction_clustering/clustering_production_s1.md
+    the real input_path (see docs/experiments/clustering/s1_production.md
     naming discussion, 31-08-26).
 
     None when reduced_data is False (input_path is a raw feature matrix, no embedding
