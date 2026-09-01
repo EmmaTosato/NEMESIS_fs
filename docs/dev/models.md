@@ -170,6 +170,51 @@ Same shape as `build_lesion_matrix.py` (`docs/dev/lesion_matrix.md`: `main(argv)
 
 **`clustering.py` gets one more segment** (31-08-26, `ClusteringConfig.reduction_method`, `docs/dev/config.md`): `<output_root>/production/<method>/<reduction_method>/<dd-mm>_<session_name>/`, `<output_root>/tuning/<method>/<reduction_method>/<dd-mm>_<session_name>/`, and `<output_root>/production/comparison/<reduction_method>/<dd-mm>_<session_name>/` - `dim_reduction.py` has no equivalent (its own `method` segment already *is* the reduction method, there's no separate "which embedding" axis to key). `runs.csv`/`runs_tuning.csv` are unaffected - `_run_log_dir` still returns `<output_root>/<branch>/<method>/`, one history file per clustering method spanning every `reduction_method` it's ever been run against, not one per `reduction_method`. `src/analysis/embedding_app.py::discover_production_runs` glob depth is pipeline-conditional because of this (3 segments after `production/` for `clustering`, 2 for `dim_reduction`).
 
+### File inventory per run, and how to roll one back
+
+Everything either CLI ever writes to disk, for one single invocation - the reference to answer "delete everything this run produced" or "undo this run" precisely, without missing a file or deleting something shared with other runs.
+
+**Exclusively owned by one run** (safe to `rm -rf` the whole directory, nothing else reads it):
+
+```
+logs/dim_reduction/<project>/dim_reduction__<dd-mm-yy>__<HH-MM-SS>.log
+logs/clustering/<project>/clustering__<dd-mm-yy>__<HH-MM-SS>.log
+
+results/<project>/dim_reduction/production/<method>/<dd-mm>_<session_name>/
+├── matrix.npy, metadata.csv, config.md, manifest.json
+└── *.png                                  (embedding + silhouette plots)
+
+results/<project>/dim_reduction/tuning/<method>/<dd-mm>_<session_name>/
+└── tuning_results.csv, tuning_plot.png, config.md
+    (+ embeddings.npz, metadata.csv iff save_tuning_embeddings=true;
+      <param>=<value>/ nested leaves iff nested_params declared)
+
+results/<project>/clustering/production/<method>/<reduction_method>/<dd-mm>_<session_name>/
+├── matrix.npy, metadata.csv, config.md, manifest.json
+└── *.png                                  (cluster_plot.png, silhouette_plot.png)
+
+results/<project>/clustering/tuning/<method>/<reduction_method>/<dd-mm>_<session_name>/
+└── tuning_results.csv, tuning_plot.png, config.md
+    (+ stability_results.csv, stability_plot.png iff method in kmeans/gmm;
+      + <diagnostic>.png iff method in STANDALONE_DIAGNOSTIC_METHODS;
+      + clusterings.npz, metadata.csv iff save_tuning_clusterings=true)
+```
+
+Note the `<method>`/`<reduction_method>` segments must be resolved to their actual values (e.g. `umap`, `agglomerative`) - `<method>` alone is never a real path.
+
+**Shared, append-only** - a run adds exactly one row here; deleting the run means removing that one row, never the file itself (other runs' history lives in the same file):
+
+```
+results/<project>/dim_reduction/production/<method>/runs.csv
+results/<project>/dim_reduction/tuning/<method>/runs_tuning.csv
+results/<project>/clustering/production/<method>/<reduction_method>/runs.csv
+results/<project>/clustering/tuning/<method>/<reduction_method>/runs_tuning.csv
+```
+
+Each row is identified by its `run_id`/`session`+`timestamp` columns (`docs/dev/config.md`) - match on those, not on position.
+
+**Shared, in-place, not owned by any single run** (`clustering.py` only) - `results/<project>/clustering/production/comparison/<reduction_method>/<dd-mm>_<session_name>/`: written once per `clustering.py` invocation from the labels of *every* method that invocation ran, and overwritten wholesale by the next invocation using the same `session_name`+`reduction_method` (`overwrite: true` required to bypass the collision, `stato_progetto.md`). Deleting one method's own run directory above does **not** retroactively fix `comparison/` - it stays showing that method's now-deleted labels until the next `clustering.py` run regenerates it. Treat it as disposable, not as part of any one method's own output.
+
 **`clustering.py` runs every method in `clustering_methods` in a loop, not just one**: a private `_run_one_method(config, method, ...)` helper does the full per-method flow (params → cluster → `save_matrix` → `cluster_plot.png` → `runs.csv`) and returns the `cluster_labels` it actually saved (or `None` on failure, which stops the whole run - no partial-failure tolerance, consistent with the rest of this pipeline's fail-fast error handling). `main()` collects `{method: cluster_labels}` across the loop and reuses those exact arrays for the comparison plot below - never re-runs a method a second time just to get labels for the plot (would be wasteful, and for a method without a fixed `random_state` could silently produce labels inconsistent with what was actually saved to `matrix.npy`/`metadata.csv`).
 
 **No `summaries/` report for these 2 modeling CLIs** (`dim_reduction.py`/`clustering.py`) - removed on request: it duplicated the same config JSON/summary lines already written to each run's own `config.md` (production: via `save_matrix`'s readme; fine-tuning: `_write_tuning_output`'s `config.md`), just in a second, flat location (`summaries/<pipeline>/<project>/`). `runs.csv` already gives the flat, cross-run chronological view that duplication was half-providing (see `docs/dev/config.md`). Each script keeps a `LOG_FILENAME_PREFIX` (`"dim_reduction"`/`"clustering"`, renamed 27-08-26 from `REPORT_FILENAME_PREFIX`/`"..._summary"` once it stopped naming anything but the log file) purely as the log filename prefix (`logs/<pipeline>/<project>/<prefix>__<timestamp>.log`) - unrelated to the removed report. `build_lesion_matrix.py`/`mask_fc.py`/`build_fc_matrix.py`/`compute_sdc.py`/`retrieve_data.py` keep their own `summaries/` reports unchanged - out of scope for this removal.

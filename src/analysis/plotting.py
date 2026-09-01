@@ -22,8 +22,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import seaborn as sns
 from scipy.cluster.hierarchy import dendrogram
 from sklearn.neighbors import NearestNeighbors
@@ -55,14 +53,16 @@ _CATEGORICAL_PALETTE = [
 # categorical set so it never impersonates a real cluster.
 _NOISE_COLOR = "#9e9d98"
 
-# Shared between plot_clusters_2d (single method), plot_clusters_comparison
-# (grid) and plot_silhouette_analysis (scatter panel). Was 18/opaque/no
-# declutter - same overplotting problem already fixed for the embedding
-# plots (see _EMBEDDING_MARKER_SIZE below) was flagged there as "plausible
-# here too, out of scope for that fix" and hit in practice 01-09-26 on
-# HDBSCAN production plots (1150+ subjects, small markers overlapping into
-# a blob) - same fix applied here now: smaller size, light transparency,
-# _declutter_points.
+# Shared between plot_clusters_2d (single method) and plot_silhouette_analysis
+# (scatter panel). Was 18/opaque/no declutter - same overplotting problem
+# already fixed for the embedding plots (see _EMBEDDING_MARKER_SIZE below)
+# was flagged there as "plausible here too, out of scope for that fix" and
+# hit in practice 01-09-26 on HDBSCAN production plots (1150+ subjects,
+# small markers overlapping into a blob) - same fix applied here now:
+# smaller size, light transparency, _declutter_points. Was also applied to
+# plot_clusters_comparison before that function was removed (01-09-26,
+# see plot_clusters_2d's docstring below - the comparison plot was
+# dropped entirely, not just this fix).
 _MARKER_SIZE = 6
 _MARKER_ALPHA = 0.9
 _AXIS_PADDING_FRACTION = 0.08
@@ -75,8 +75,8 @@ _AXIS_PADDING_FRACTION = 0.08
 # does the heavy lifting on the overlap itself, so alpha only needs a light
 # touch (0.9, not the much lower value tried during exploration) once that's
 # in place. Deliberately not applied to _MARKER_SIZE's other consumers
-# (plot_clusters_2d/plot_clusters_comparison/plot_silhouette_analysis) - out
-# of scope for this fix, left for a future pass if the same problem is hit there.
+# (plot_clusters_2d/plot_silhouette_analysis) - out of scope for this fix,
+# left for a future pass if the same problem is hit there.
 _EMBEDDING_MARKER_SIZE = 6
 _EMBEDDING_MARKER_ALPHA = 0.9
 # Must match the dpi these 3 functions actually savefig() at - _declutter_points
@@ -98,12 +98,6 @@ _DECLUTTER_MARKER_DIAMETERS = 1.0
 _DECLUTTER_ITERATIONS = 3
 _DECLUTTER_STRENGTH = 0.8
 _DECLUTTER_RANDOM_STATE = 0
-
-_COMPARISON_SUBPLOT_WIDTH = 7.0
-_COMPARISON_SUBPLOT_HEIGHT = 5.5
-_COMPARISON_WSPACE = 0.65
-_COMPARISON_HSPACE = 0.55
-_COMPARISON_TITLE_FONTSIZE = 15
 
 _SINGLE_PLOT_WIDTH = 7.5
 _SINGLE_PLOT_HEIGHT = 5.5
@@ -185,18 +179,6 @@ def _modality_title(output_dir: Path) -> str:
     if not parts:
         raise ValueError(f"cannot derive a modality from output_dir {output_dir} - no path segments after 'results'")
     return parts[0][0].upper() + parts[0][1:] + "s"
-
-
-def compose_comparison_title(output_dir: Path, reduction_method: str | None) -> str:
-    """Suptitle for a cluster-method comparison plot:
-    "Clustering comparison - <Modality> - <reduction_method>" (or without the
-    trailing segment when reduction_method is None, e.g. clustering.py's
-    comparison, which clusters a matrix directly with no reduction step).
-    """
-    modality_title = _modality_title(output_dir)
-    if reduction_method:
-        return f"Clustering comparison - {modality_title} - {reduction_method}"
-    return f"Clustering comparison - {modality_title}"
 
 
 def compose_cluster_plot_title(output_dir: Path, reduction_method: str, clustering_method: str) -> str:
@@ -525,10 +507,17 @@ def plot_clusters_2d(
     Callers pass whatever 2D array is actually meaningful for their case
     (a dimensionality-reduction embedding, or raw features when there's no
     reduction) - this function has no opinion on where X_2d came from. Same
-    treatment as plot_clusters_comparison's per-panel styling: validated
-    categorical palette, legend anchored outside the axes (never over the
-    data), axis limits padded beyond the data's own min/max so edge points
-    aren't clipped by their own marker radius, extra title padding.
+    styling used everywhere else in this module: validated categorical
+    palette, legend anchored outside the axes (never over the data), axis
+    limits padded beyond the data's own min/max so edge points aren't
+    clipped by their own marker radius, extra title padding.
+
+    `plot_clusters_comparison`/`plot_clusters_comparison_interactive` (a
+    side-by-side grid across `clustering.py`'s `clustering_methods`, plus
+    `compose_comparison_title`) were removed 01-09-26 on request - decided
+    to stop producing the `production/comparison/` artifact entirely, not
+    just narrow when it's written (`docs/dev/models.md`,
+    `docs/guides/clustering.md`).
 
     `point_sizes` (project-clustering-tuning-redesign memory, 26-08-26 -
     hdbscan's `probabilities_`, membership confidence in [0, 1]): `None`
@@ -687,171 +676,6 @@ def plot_silhouette_analysis(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
-
-
-def plot_clusters_comparison(
-    X_2d: np.ndarray,
-    labels_by_method: dict[str, np.ndarray],
-    output_path: Path,
-    xlabel: str,
-    ylabel: str,
-    suptitle: str,
-) -> None:
-    """Square grid of subplots (see _square_grid_shape), one per method, same
-    X_2d, colored by that method's own cluster_labels via the validated
-    categorical palette. Shared x/y limits across every subplot so the
-    comparison is visually honest - a method isn't allowed to look more
-    "spread out" just from independent axis auto-scaling (see
-    docs/dev/plotting.md).
-    """
-    if X_2d.shape[1] < 2:
-        raise ValueError(f"plot_clusters_comparison needs at least 2 columns, got shape {X_2d.shape}")
-    if not labels_by_method:
-        raise ValueError("plot_clusters_comparison needs at least one method in labels_by_method")
-
-    methods = list(labels_by_method)
-    nrows, ncols = _square_grid_shape(len(methods))
-
-    x_min, x_max = X_2d[:, 0].min(), X_2d[:, 0].max()
-    y_min, y_max = X_2d[:, 1].min(), X_2d[:, 1].max()
-    x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
-    y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
-    xlim = (x_min - x_pad, x_max + x_pad)
-    ylim = (y_min - y_pad, y_max + y_pad)
-    # Same X_2d/xlim/ylim/marker_size for every subplot (only the labels/
-    # colors differ per method) - decluttered once and reused, not
-    # recomputed per subplot. Dosed against one subplot's own rendered size.
-    X_2d = _declutter_points(X_2d, xlim, ylim, (_COMPARISON_SUBPLOT_WIDTH, _COMPARISON_SUBPLOT_HEIGHT), _MARKER_SIZE)
-
-    fig, axes = plt.subplots(
-        nrows,
-        ncols,
-        figsize=(_COMPARISON_SUBPLOT_WIDTH * ncols, _COMPARISON_SUBPLOT_HEIGHT * nrows),
-        squeeze=False,
-        gridspec_kw={"wspace": _COMPARISON_WSPACE, "hspace": _COMPARISON_HSPACE},
-    )
-    for i, method in enumerate(methods):
-        ax = axes[i // ncols][i % ncols]
-        labels = labels_by_method[method]
-        unique_labels = sorted(np.unique(labels).tolist())
-        sns.scatterplot(
-            x=X_2d[:, 0],
-            y=X_2d[:, 1],
-            hue=labels,
-            hue_order=unique_labels,
-            palette=_palette_for_labels(unique_labels),
-            s=_MARKER_SIZE,
-            alpha=_MARKER_ALPHA,
-            edgecolor="none",
-            legend="full",
-            ax=ax,
-        )
-        ax.set_xlim(xlim)
-        ax.set_ylim(ylim)
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        ax.set_title(method, fontsize=_COMPARISON_TITLE_FONTSIZE, fontweight="bold")
-        handles, legend_labels = ax.get_legend_handles_labels()
-        ax.legend(
-            handles,
-            legend_labels,
-            title="cluster",
-            loc="upper left",
-            bbox_to_anchor=(1.02, 1.0),
-            borderaxespad=0.0,
-            fontsize="small",
-            title_fontsize="small",
-        )
-    for i in range(len(methods), nrows * ncols):
-        axes[i // ncols][i % ncols].set_visible(False)
-    fig.suptitle(suptitle, fontsize=_COMPARISON_TITLE_FONTSIZE + 2, fontweight="bold")
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-
-
-def plot_clusters_comparison_interactive(
-    X_2d: np.ndarray,
-    labels_by_method: dict[str, np.ndarray],
-    metadata: pd.DataFrame,
-    output_path: Path,
-    xlabel: str,
-    ylabel: str,
-    title: str,
-) -> None:
-    """Interactive HTML scatter of the first 2 columns of X_2d, with a
-    dropdown to switch the point coloring between each clustering method's
-    own cluster assignment - every metadata column shown on hover regardless
-    of which method is selected.
-
-    Dropdown-toggled trace set (one full trace per option, toggled via
-    `visible`), one option per method: same 2D layout, same points, only
-    which method's labels color them changes - answers "do these two
-    methods agree on this boundary" without opening N separate HTML files.
-    """
-    if X_2d.shape[1] < 2:
-        raise ValueError(f"plot_clusters_comparison_interactive needs at least 2 columns, got shape {X_2d.shape}")
-    if len(metadata) != X_2d.shape[0]:
-        raise ValueError(
-            f"X_2d has {X_2d.shape[0]} rows but metadata has {len(metadata)} rows - must match"
-        )
-    if not labels_by_method:
-        raise ValueError("plot_clusters_comparison_interactive needs at least one method in labels_by_method")
-
-    plot_df = metadata.copy()
-    plot_df["_dim1"] = X_2d[:, 0]
-    plot_df["_dim2"] = X_2d[:, 1]
-    hover_columns = list(metadata.columns)
-
-    methods = list(labels_by_method)
-    traces_per_method = []
-    all_traces = []
-    for method in methods:
-        plot_df["_cluster_str"] = pd.Series(labels_by_method[method], index=plot_df.index).astype(str)
-        fig_method = px.scatter(plot_df, x="_dim1", y="_dim2", color="_cluster_str", hover_data=hover_columns)
-        traces_per_method.append(len(fig_method.data))
-        all_traces.extend(fig_method.data)
-
-    first_method_trace_count = traces_per_method[0]
-    for trace in all_traces[first_method_trace_count:]:
-        trace.visible = False
-
-    buttons = []
-    offset = 0
-    for method, n_traces in zip(methods, traces_per_method):
-        visibility = [False] * len(all_traces)
-        visibility[offset : offset + n_traces] = [True] * n_traces
-        buttons.append(
-            dict(
-                label=method,
-                method="update",
-                args=[{"visible": visibility}, {"title": f"{title} (colored by {method})"}],
-            )
-        )
-        offset += n_traces
-
-    fig = go.Figure(data=all_traces)
-    fig.update_layout(
-        title=f"{title} (colored by {methods[0]})",
-        xaxis_title=xlabel,
-        yaxis_title=ylabel,
-        updatemenus=[
-            dict(
-                type="dropdown",
-                direction="down",
-                showactive=True,
-                x=1.0,
-                xanchor="right",
-                y=1.15,
-                yanchor="top",
-                buttons=buttons,
-            )
-        ],
-    )
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(output_path)
 
 
 def plot_embedding_grid_blocks(
