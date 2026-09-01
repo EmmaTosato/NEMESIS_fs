@@ -4,7 +4,8 @@ src/analysis/plotting.py's module docstring). Discovers every dim_reduction.py A
 production run under --results-root (src.analysis.embedding_app.PRODUCTION_PIPELINES, extended
 15-08-26 to cover clustering.py too - docs/dev/clustering_migration_plan.md §3), lets a human
 pick one from a dropdown and a color mode from a button group, and renders it as an interactive
-2D or 3D Plotly scatter - see docs/guides/embedding_app.md.
+2D or 3D Plotly scatter - see docs/guides/embedding_app.md. Extended 01-09-26 with two anatomy
+panels (single-subject lesion viewer, per-cluster overlap map) backed by --lesion-config.
 
 Local dev tool, never sbatch - an interactive app with no batch-job shape has nothing for
 SLURM to do, it just needs a browser pointed at whichever machine runs this.
@@ -24,12 +25,27 @@ import argparse
 import logging
 from pathlib import Path
 
-from src.analysis.embedding_app import build_app, discover_production_runs
+from src.analysis.build_config import load_build_matrix_config
+from src.analysis.embedding_app import LesionViewerConfig, build_app, discover_production_runs
+from src.features.lesion import load_reference_image
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--results-root", default="results", help="Root results/ directory to scan (default: results)")
+    parser.add_argument(
+        "--lesion-config",
+        default="config/pipelines/build_lesion_matrix.json",
+        help="build_lesion_matrix.json-shaped config backing the anatomy panels "
+        "(data_root/lesion_glob/reference_template_path/binarize_threshold/resample_interpolation) "
+        "(default: config/pipelines/build_lesion_matrix.json)",
+    )
+    parser.add_argument(
+        "--clustering-params-file",
+        default="config/registry/params_clustering.json",
+        help="params_clustering.json-shaped registry backing the picker's clustering-pipeline "
+        "'Parametri' step (each method's own tag_param list) (default: config/registry/params_clustering.json)",
+    )
     # 8060, not Dash's own default 8050 - deliberately non-default so this app doesn't collide
     # with another local Dash instance a developer might already have running on 8050.
     parser.add_argument("--port", type=int, default=8060, help="Local port to serve on (default: 8060)")
@@ -48,8 +64,22 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
+    # Reuses build_lesion_matrix.py's own config loader/validation (single source of truth) -
+    # fails fast (FileNotFoundError/ValueError) if the config or its reference template is
+    # missing, same as build_lesion_matrix.py itself would, rather than deferring the failure
+    # to the first click on a point (code_standards.md §0).
+    lesion_matrix_config = load_build_matrix_config(args.lesion_config)
+    reference_img = load_reference_image(lesion_matrix_config.reference_template_path)
+    lesion_cfg = LesionViewerConfig(
+        data_root=lesion_matrix_config.data_root,
+        lesion_glob=lesion_matrix_config.lesion_glob,
+        reference_img=reference_img,
+        binarize_threshold=lesion_matrix_config.binarize_threshold,
+        resample_interpolation=lesion_matrix_config.resample_interpolation,
+    )
+
     try:
-        app = build_app(runs)
+        app = build_app(runs, lesion_cfg, args.clustering_params_file)
     except ValueError as exc:
         logging.error(str(exc))
         return 1

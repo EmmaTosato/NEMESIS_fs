@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.utils.artifacts import load_matrix, read_dim_reduction_method, read_run_params, save_matrix
+from src.utils.artifacts import load_matrix, read_dim_reduction_method, read_run_config, read_run_params, save_matrix
 
 
 def _matrix_and_metadata():
@@ -149,3 +149,41 @@ def test_read_dim_reduction_method_wrong_title_shape_raises(tmp_path):
 
     with pytest.raises(ValueError, match="dim_reduction"):
         read_dim_reduction_method(tmp_path / "run1")
+
+
+def _clustering_readme_lines(config: dict, params: dict) -> list[str]:
+    """Mirrors clustering.py::_summary_lines' exact shape (a "## Config" fenced json block
+    followed later by "Params used: {...}") - the contract read_run_config is built against."""
+    return [
+        "# testproj clustering (kmeans) — 01-09-26 00:00",
+        "",
+        "## Config",
+        "```json",
+        json.dumps(config, indent=2),
+        "```",
+        "",
+        "## Summary",
+        "",
+        f"Params used: {json.dumps(params)}",
+    ]
+
+
+def test_read_run_config_reads_the_fenced_json_block(tmp_path):
+    X, metadata = _matrix_and_metadata()
+    config = {"reduction_method": "umap", "reduction_n_components": "2", "reduction_metric": "euclidean"}
+    save_matrix(tmp_path / "run1", X, metadata, _clustering_readme_lines(config, {"n_clusters": 4}), overwrite=False)
+
+    assert read_run_config(tmp_path / "run1") == config
+
+
+def test_read_run_config_missing_config_md_raises(tmp_path):
+    with pytest.raises(ValueError, match="config.md"):
+        read_run_config(tmp_path / "does_not_exist")
+
+
+def test_read_run_config_missing_block_raises(tmp_path):
+    X, metadata = _matrix_and_metadata()
+    save_matrix(tmp_path / "run1", X, metadata, ["# just a title, no Config block"], overwrite=False)
+
+    with pytest.raises(ValueError, match="## Config"):
+        read_run_config(tmp_path / "run1")

@@ -30,6 +30,16 @@ this module reads exactly one already-chosen production run at a time, to explor
 production settled on* - same distinction the user drew explicitly (14-08-26): "questi fanno
 tuning, noi dobbiamo fare production". Two different questions, two different tools - not
 sharing a module just because both end up building Plotly figures.
+
+Extended 01-09-26 with two anatomy panels, both promoted from exploratory notebook prototypes
+(notebooks/post-results_analysis/embeddings_analysis.ipynb §4,
+embedding_to_anatomy_mapping.ipynb §2 - the latter's own docstring already flagged this
+promotion as its natural next step) onto src.analysis.anatomical_maps: clicking a point in the
+embedding shows that subject's real lesion in an interactive nilearn 3D viewer
+(lesion_viewer_content_for), and any clustering.py run (metadata has cluster_label) additionally
+gets a per-cluster lesion overlap/frequency map (overlap_map_content_for). Same "no caching,
+always a fresh disk read + rebuild" philosophy as the rest of this module - see build_app's own
+docstring.
 """
 
 from __future__ import annotations
@@ -37,19 +47,25 @@ from __future__ import annotations
 import itertools
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+import nibabel as nib
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from dash import ALL, Dash, Input, Output, State, ctx, dcc, html
 from dash.exceptions import PreventUpdate
+from nilearn import plotting as nilearn_plotting
+from nilearn.plotting.html_stat_map import StatMapView
 
+from src.analysis.anatomical_maps import build_overlap_map, resolve_lesion_paths
 from src.analysis.embedding_coloring import COLOR_MODES
 from src.analysis.embedding_coloring import color_values as read_color_values
+from src.analysis.params import load_tag_params
 from src.analysis.plotting import _CATEGORICAL_PALETTE, _NOISE_COLOR, compose_embedding_plot_title
-from src.utils.artifacts import MANIFEST_FILENAME, load_matrix, read_run_params
+from src.utils.artifacts import MANIFEST_FILENAME, load_matrix, read_run_config, read_run_params
 
 # "neutro" first, same convention as embedding_coloring.COLOR_MODES/the notebook prototype -
 # the neutral single-color view is always available and always the default, every other
@@ -82,7 +98,11 @@ CSS = f"""
 body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_COLOR}; }}
 .page {{ max-width: 1100px; margin: 0 auto; padding: 48px 32px 96px; }}
 .page-title {{ font-size: 32px; font-weight: 800; text-align: center; margin: 0 0 12px; }}
-.page-subtitle {{ font-size: 16px; color: #767676; text-align: center; margin: 0 0 56px; }}
+/* 01-09-26 feedback: the descriptive/status texts across the app (this subtitle, .status-message,
+   .anatomy-caption) read "troppo chiaro e scritto in piccolo" - all 3 bumped in size and to a
+   darker gray, still clearly secondary to any heading (kept well under .section-heading/
+   .anatomy-subject-title's own sizes) but no longer near-illegible. */
+.page-subtitle {{ font-size: 18px; color: #595959; text-align: center; margin: 0 0 56px; }}
 .controls {{ display: flex; flex-direction: column; align-items: center; gap: 24px; margin-bottom: 32px; }}
 /* One field per selection step (Dato -> Pipeline -> Metodo -> Metrica -> Componenti -> Run),
    left-to-right in reading/decision order (2026-08, extended 15-08-26 when Pipeline became a
@@ -104,7 +124,41 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
    included) - that combination was the actual cause of the graph distorting on scroll. */
 .graph-wrap {{ display: flex; justify-content: center; width: 100%; }}
 .graph-wrap > div {{ width: 100%; }}
-.status-message {{ text-align: center; color: #767676; font-size: 15px; margin: 64px 0; }}
+.status-message {{ text-align: center; color: #595959; font-size: 17px; margin: 64px 0; }}
+/* Shared by all 3 section headings (Embedding Visualization / Anatomia lesionale / Overlap map
+   per cluster, 01-09-26) - a class of its own rather than a nesting-based ".anatomy-panel h2"
+   selector, since "Embedding Visualization" sits above the scatter, outside any .anatomy-panel.
+   Same weight/scale family as .page-title (32px) - a real section header, not the 20px
+   subheading this panel used to read as (feedback: "va scritto più grande" / "un pelo più
+   grande" on a follow-up pass). */
+.section-heading {{ font-size: 30px; font-weight: 800; margin: 40px 0 20px; text-align: center; }}
+/* Anatomy panels (lesion viewer / cluster overlap map, 01-09-26) - same page-width container as
+   .page itself (not .graph-wrap's centered flex, these are full-width blocks with their own
+   heading), separated from the picker/scatter above by a thin rule instead of a boxy border. */
+.anatomy-panel {{ margin-top: 56px; padding-top: 32px; border-top: 1px solid {_GRID_BORDER}; }}
+/* A further bump over .section-heading's own 30px (01-09-26, follow-up feedback: "un po' più
+   grandi") - kept scoped to the two anatomy panels, not "Embedding Visualization" above, since
+   only these two were called out this time. */
+.anatomy-panel .section-heading {{ margin-top: 0; font-size: 34px; }}
+.anatomy-controls {{ display: flex; flex-wrap: wrap; align-items: flex-end; gap: 20px; margin-bottom: 20px; }}
+/* The subject/cluster heading and its color-legend caption are ordinary HTML we render
+   ourselves (01-09-26) - nilearn's own `title`/colorbar labels are drawn straight onto a
+   <canvas> with no width check or line-wrapping, silently overflowing past the panel edge for
+   anything longer than a few characters (see lesion_viewer_content_for's docstring). Rendering
+   them here instead means they're never truncated and take this page's own font, not the
+   browser's plain default the embedded nilearn page has no styling for at all. */
+.anatomy-subject-title {{ font-size: 18px; font-weight: 600; margin: 0 0 4px; text-align: center; }}
+.anatomy-caption {{ font-size: 15px; color: #595959; text-align: center; margin: 0 0 16px; }}
+.anatomy-viewer-wrap {{ display: flex; justify-content: center; }}
+.anatomy-viewer-wrap iframe {{ border: none; }}
+/* Same pill shape as .color-buttons button - one save action per panel reads as the same
+   family of control, not a second, differently-styled button style. */
+.save-btn {{
+    display: block; font-family: inherit; font-size: 13px; padding: 7px 16px; cursor: pointer;
+    border: 1px solid #ccc; border-radius: 999px; background: #fff; color: {_TEXT_COLOR};
+    transition: border-color 0.15s, background 0.15s; margin: 16px auto 0;
+}}
+.save-btn:hover {{ border-color: #4a90d9; }}
 """
 
 
@@ -159,6 +213,22 @@ class ProductionRun:
         if self.reduction_method is not None:
             base = base / self.reduction_method
         return base / self.run_name
+
+
+@dataclass(frozen=True)
+class LesionViewerConfig:
+    """Everything src.analysis.anatomical_maps needs to resolve/build a lesion anatomy map,
+    bundled so callbacks don't carry 5 loose params (same reasoning as ProductionRun itself).
+    Built once at startup by src.pipeline.embedding_app from build_lesion_matrix.json (via
+    src.analysis.build_config.load_build_matrix_config) - the same config/loader
+    build_lesion_matrix.py itself uses, never re-parsed by hand here.
+    """
+
+    data_root: Path
+    lesion_glob: str
+    reference_img: nib.Nifti1Image
+    binarize_threshold: float
+    resample_interpolation: str
 
 
 def discover_production_runs(results_root: Path) -> list[ProductionRun]:
@@ -263,22 +333,17 @@ def runs_for(runs: list[ProductionRun], modality: str, pipeline: str, method: st
     )
 
 
-# Sentinel for "this method's own params have no 'metric' key at all" (PCA/PaCMAP today,
-# see config/registry/params_reduction.json - their base params dicts never include one,
-# unlike UMAP/t-SNE) - distinct from any real metric string, so the "Metrica" picker still
-# has exactly one, always-selectable option for those methods instead of an empty dropdown.
-# Also the only value clustering pipeline runs ever report (15-08-26) - a clustering method's
-# own params (kmeans' n_clusters, hdbscan's min_cluster_size, ...) have no "metric" axis in
-# this picker's sense at all, not just sometimes-missing like pca/pacmap's.
+# Sentinel for "this axis doesn't apply to this run at all" - shared across all 3 narrowing
+# axes this app offers (Metrica/Componenti: PCA/PaCMAP dim_reduction runs have no 'metric' key,
+# config/registry/params_reduction.json; Parametri: a clustering run built directly on
+# un-reduced data, reduction_method="raw", has no upstream-embedding metric/n_components; a
+# clustering method with no tag_param registered at all - none today). One shared "—" rather
+# than a separate sentinel per axis, so the picker's placeholder reads identically everywhere.
 NO_METRIC = "—"
 
-# Sibling sentinel for "this run's params have no 'n_components' key at all" - every
-# clustering pipeline run (15-08-26): clustering.py never resamples X's dimensionality, so its
-# own params dict has no n_components concept (the picker still shows the "Componenti" step
-# for a uniform layout across both pipelines, just with this one always-selectable option). An
+# Sibling sentinel for "this run's own axis has no 'n_components' value" (see NO_METRIC) - an
 # int, not a string like NO_METRIC, to keep n_components_options' return type uniform
-# (list[int]) for its dim_reduction-pipeline case - -1 is safely distinct from any real
-# n_components value (always >= 1).
+# (list[int]) - -1 is safely distinct from any real n_components value (always >= 1).
 NO_N_COMPONENTS = -1
 
 def _n_components_option_label(n: int) -> str:
@@ -302,6 +367,16 @@ def run_params(run: ProductionRun) -> dict:
     return read_run_params(run.path)
 
 
+def run_metadata(run: ProductionRun) -> pd.DataFrame:
+    """run's own metadata.csv (subject_id/dataset/... columns), independent of the embedding's
+    own dimensionality - unlike load_run, this never raises UndisplayableRunError: the anatomy
+    panels (lesion_viewer_content_for, cluster_options) only need metadata's columns, not a
+    2-or-3-component embedding to plot, so a run with e.g. n_components=10 still exposes them.
+    """
+    _matrix, metadata, _extra_arrays = load_matrix(run.path)
+    return metadata
+
+
 def _run_params_or_none(run: ProductionRun) -> dict | None:
     """run_params(run), isolated per-run (HIGH #25, 2026-08 - lesson #21). The 3 picker
     helpers below each call this once per run in a comprehension - a single run with a
@@ -317,64 +392,148 @@ def _run_params_or_none(run: ProductionRun) -> dict | None:
         return None
 
 
+def run_reduction_axis(run: ProductionRun) -> tuple[str, int]:
+    """(metric, n_components) of the embedding actually behind this run's own points.
+
+    For a dim_reduction.py run that's the run's own resolved params (run_params). For a
+    clustering.py run that's the *upstream* embedding's own metric/n_components (config.md's
+    "## Config" fenced block - reduction_metric/reduction_n_components, 31-08-26 -
+    src.utils.artifacts.read_run_config - never the clustering method's own hyperparameters,
+    which have no metric/n_components concept at all, see tag_param_options for those).
+    01-09-26: real clustering runs are built from more than one source embedding (different
+    metric/n_components), so this app must let that vary per run here too, not collapse every
+    clustering run to one sentinel the way it used to.
+
+    NO_METRIC/NO_N_COMPONENTS when a run genuinely has neither (pca/pacmap for dim_reduction; a
+    clustering run built directly on raw un-reduced data - reduction_method="raw" - config.md
+    then records reduction_metric/reduction_n_components as "", not a real value).
+    """
+    if run.pipeline == "dim_reduction":
+        params = run_params(run)
+        return params.get("metric", NO_METRIC), params.get("n_components", NO_N_COMPONENTS)
+    config = read_run_config(run.path)
+    metric = config.get("reduction_metric") or NO_METRIC
+    raw_n_components = config.get("reduction_n_components") or None
+    n_components = int(raw_n_components) if raw_n_components else NO_N_COMPONENTS
+    return metric, n_components
+
+
+def _run_reduction_axis_or_none(run: ProductionRun) -> tuple[str, int] | None:
+    """run_reduction_axis(run), isolated per-run (same reasoning as _run_params_or_none) - a
+    single run with a corrupt/truncated config.md must not take down every other run's picker
+    options with it."""
+    try:
+        return run_reduction_axis(run)
+    except ValueError as exc:
+        logging.warning("%s: cannot read resolved reduction axis, excluding this run from picker options: %s", run.path, exc)
+        return None
+
+
+def _runs_for_reduction_axis(
+    runs: list[ProductionRun], modality: str, pipeline: str, method: str, metric: str, n_components: int
+) -> list[ProductionRun]:
+    """runs_for(...) further narrowed to runs whose own run_reduction_axis equals
+    (metric, n_components) - the shared filter metric_options/n_components_options/
+    tag_param_options/runs_matching all build on, so "which embedding is this run on" is
+    computed in exactly one place. Order preserved from runs_for's own chronological sort."""
+    return [
+        run
+        for run in runs_for(runs, modality, pipeline, method)
+        if (axis := _run_reduction_axis_or_none(run)) is not None and axis == (metric, n_components)
+    ]
+
+
 def metric_options(runs: list[ProductionRun], modality: str, pipeline: str, method: str) -> list[str]:
     """Distinct `metric` values actually used by (modality, pipeline, method)'s own runs,
-    sorted - NO_METRIC included if any of them has no 'metric' key in its own params at all.
-
-    Clustering pipeline runs always resolve to exactly [NO_METRIC]: a clustering method's own
-    params (kmeans' n_clusters, hdbscan's min_cluster_size, ...) never carry a 'metric' key in
-    this picker's sense at all - explicit branch, not a guess (see NO_METRIC's own docstring)."""
-    if pipeline == "clustering":
-        return [NO_METRIC]
+    sorted - NO_METRIC included if any of them has no metric axis at all (run_reduction_axis).
+    For a clustering.py run this is the *upstream embedding's* own metric, not the clustering
+    method's hyperparameters (see tag_param_options for those)."""
     values = {
-        params.get("metric", NO_METRIC)
+        axis[0]
         for run in runs_for(runs, modality, pipeline, method)
-        if (params := _run_params_or_none(run)) is not None
+        if (axis := _run_reduction_axis_or_none(run)) is not None
     }
     return sorted(values)
 
 
 def n_components_options(runs: list[ProductionRun], modality: str, pipeline: str, method: str, metric: str) -> list[int]:
-    """Distinct `n_components` values among (modality, pipeline, method, metric)'s own runs,
+    """Distinct `n_components` values among (modality, pipeline, method, metric)'s own runs
+    (metric being run_reduction_axis's own upstream-embedding metric, see metric_options),
     sorted ascending - includes every value actually used, even ones this app can't display
     (e.g. 150 for the full-dimensionality PCA production run): the picker's job is to reflect
     what was actually run, not to pre-filter it down to what's displayable (graph_content_for
-    already reports that clearly per-run, see UndisplayableRunError).
-
-    Clustering pipeline runs always resolve to exactly [NO_N_COMPONENTS] (see its docstring) -
-    clustering.py never resamples X's dimensionality, so there is no n_components axis to
-    report."""
-    if pipeline == "clustering":
-        return [NO_N_COMPONENTS]
+    already reports that clearly per-run, see UndisplayableRunError)."""
     values = {
-        params["n_components"]
+        axis[1]
         for run in runs_for(runs, modality, pipeline, method)
-        if (params := _run_params_or_none(run)) is not None and params.get("metric", NO_METRIC) == metric
+        if (axis := _run_reduction_axis_or_none(run)) is not None and axis[0] == metric
     }
     return sorted(values)
 
 
+def _run_tag_param_label(run: ProductionRun, tag_param: list[str]) -> str | None:
+    """Human-readable "key=value, key2=value2" combination of `run`'s own values for
+    `tag_param` (params_clustering.json's registered hyperparameter names for this method, in
+    their own declared order) - doubles as the tag_param picker's own option value (two runs
+    with the same combination share the same label by construction, no separate encode/decode
+    step needed). None if `run`'s own params can't be read, or don't actually carry one of the
+    registered keys (a registry/artifact mismatch - excluded, not guessed)."""
+    params = _run_params_or_none(run)
+    if params is None:
+        return None
+    try:
+        values = {key: params[key] for key in tag_param}
+    except KeyError as exc:
+        logging.warning("%s: params missing tag_param key %s, excluding this run from picker options", run.path, exc)
+        return None
+    return ", ".join(f"{key}={value}" for key, value in values.items())
+
+
+def tag_param_options(
+    runs: list[ProductionRun], modality: str, pipeline: str, method: str, metric: str, n_components: int,
+    clustering_params_file: str | Path,
+) -> list[str]:
+    """Distinct combinations of `method`'s own registered tag_param values
+    (config/registry/params_clustering.json, e.g. n_clusters+linkage for agglomerative,
+    min_cluster_size+min_samples for hdbscan) actually run among (modality, pipeline, method)'s
+    runs on the (metric, n_components) upstream embedding - 01-09-26, on request: a flat "Run"
+    dropdown mixing every k/linkage combination together, with no way to narrow by them, was the
+    exact complaint that prompted this step.
+
+    dim_reduction pipeline runs, and any clustering method with no tag_param registered at all
+    (none today - every params_clustering.json entry declares at least one), always resolve to
+    exactly [NO_METRIC] (this axis's own "doesn't apply" sentinel - reused rather than a
+    redundant third one, see NO_METRIC's own docstring)."""
+    if pipeline != "clustering":
+        return [NO_METRIC]
+    tag_param = load_tag_params(clustering_params_file, method)
+    if not tag_param:
+        return [NO_METRIC]
+    labels = {
+        label
+        for run in _runs_for_reduction_axis(runs, modality, pipeline, method, metric, n_components)
+        if (label := _run_tag_param_label(run, tag_param)) is not None
+    }
+    return sorted(labels)
+
+
 def runs_matching(
-    runs: list[ProductionRun], modality: str, pipeline: str, method: str, metric: str, n_components: int
+    runs: list[ProductionRun], modality: str, pipeline: str, method: str, metric: str, n_components: int,
+    tag_params_label: str, clustering_params_file: str | Path,
 ) -> list[ProductionRun]:
-    """Runs matching (modality, pipeline, method, metric, n_components) exactly,
-    chronologically ordered - the final picker step ("Run"): today this is usually exactly one
-    run (each combination has only ever been produced once), but stays a list rather than
-    assuming that - a rerun of the same combination on a later date is a legitimate, real
+    """Runs matching (modality, pipeline, method, metric, n_components, tag_params_label)
+    exactly, chronologically ordered - the final picker step ("Run"): today this is usually
+    exactly one run (each combination has only ever been produced once), but stays a list rather
+    than assuming that - a rerun of the same combination on a later date is a legitimate, real
     scenario this picker must keep showing both of, not silently collapse to one.
 
-    Clustering pipeline runs skip the metric/n_components filter entirely (both picker steps
-    only ever offer their one NO_METRIC/NO_N_COMPONENTS sentinel option for this pipeline, see
-    metric_options/n_components_options - filtering on them would be a no-op, not a real
-    narrowing) and return every run for (modality, pipeline, method) directly."""
-    if pipeline == "clustering":
-        return runs_for(runs, modality, pipeline, method)
-    matches = []
-    for run in runs_for(runs, modality, pipeline, method):
-        params = _run_params_or_none(run)
-        if params is not None and params.get("metric", NO_METRIC) == metric and params.get("n_components") == n_components:
-            matches.append(run)
-    return matches
+    dim_reduction pipeline runs (tag_params_label always NO_METRIC there, see tag_param_options)
+    skip the tag_params_label filter entirely - it's a no-op for them, not a real narrowing."""
+    candidates = _runs_for_reduction_axis(runs, modality, pipeline, method, metric, n_components)
+    if pipeline != "clustering" or tag_params_label == NO_METRIC:
+        return candidates
+    tag_param = load_tag_params(clustering_params_file, method)
+    return [run for run in candidates if _run_tag_param_label(run, tag_param) == tag_params_label]
 
 
 class UndisplayableRunError(ValueError):
@@ -627,7 +786,166 @@ def graph_content_for(run: ProductionRun, mode_name: str) -> html.P | dcc.Graph:
     except ValueError as exc:
         return html.P(str(exc), className="status-message")
 
-    return dcc.Graph(figure=figure, config={"displayModeBar": False}, style={"width": "100%"})
+    # modeBarButtons (not modeBarButtonsToRemove): an explicit whitelist survives 2D<->3D
+    # unchanged (Plotly's default button set differs between them - a removal-list would need
+    # its own 3D variant to actually hide everything else), and "toImage" is the one save
+    # affordance this app offers per plot (01-09-26, on request) - still hidden until hover
+    # (Plotly's own default displayModeBar="hover"), so the minimal look from 14-08-26 holds.
+    config = {"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False}
+    return dcc.Graph(id="embedding-graph", figure=figure, config=config, style={"width": "100%"})
+
+
+# nilearn.plotting.view_img's own default (600px) reads narrow inside this page's 1100px-wide
+# .page container, next to the 34px anatomy-panel headings (01-09-26 feedback) - both anatomy
+# viewers pass this explicitly instead. Height scales with it automatically (nilearn's own
+# _json_view_size keeps the sagittal/coronal/axial aspect ratio, never distorted by width_view).
+_ANATOMY_VIEWER_WIDTH = 900
+
+
+def cluster_options(metadata: pd.DataFrame) -> list[int]:
+    """Sorted distinct cluster_label values in `metadata` - only meaningful for a clustering.py
+    run (dim_reduction.py runs never have this column, see ProductionRun.pipeline). HDBSCAN's
+    noise label (-1) is included like any other value - the same treatment
+    COLOR_MODES["cluster_label"] already gives it, never hidden."""
+    column = COLOR_MODES["cluster_label"].column
+    return sorted(int(value) for value in pd.unique(metadata[column]))
+
+
+def _resolve_subject_dataset(metadata: pd.DataFrame, subject_id: str) -> str:
+    matches = metadata.loc[metadata["subject_id"] == subject_id, "dataset"]
+    if matches.empty:
+        raise ValueError(f"{subject_id!r} not found in this run's metadata")
+    return matches.iloc[0]
+
+
+def _style_nilearn_html(html_page: str) -> str:
+    """nilearn's view_img HTML has no <style> block at all (verified against a real generated
+    page, 01-09-26) - the only ordinary, CSS-reachable text it has (the "Opacity" label/slider)
+    renders in the browser's plain default font instead of this app's own (feedback: "Opacity
+    deve rispettare lo stesso font"). Injected once, right before </head> (present exactly once
+    in every nilearn-generated page), reused for both the embedded iframe and the "Salva HTML"
+    download - both should look the same."""
+    style_block = f"<style>body {{ font-family: {_FONT_STACK}; color: {_TEXT_COLOR}; font-size: 14px; }}</style>"
+    return html_page.replace("</head>", f"{style_block}\n</head>", 1)
+
+
+def _anatomy_viewer(view: StatMapView, heading: str, caption: str) -> html.Div:
+    """Shared layout for both anatomy panels: a heading + a one-line color-legend caption, both
+    ordinary HTML we render ourselves (never nilearn's own `title`/colorbar text - see
+    _build_subject_lesion_view's docstring for why), above the iframe sized to the view's own
+    exact pixel dimensions (view.width/height) and centered, instead of stretching a fixed-height
+    iframe to the panel's full width and leaving the rest as dead space (01-09-26 feedback: the
+    scatter's own .graph-wrap already established this "centered, content-sized" pattern).
+
+    key=heading on the Iframe (01-09-26 bug fix - "se cambio il cluster non mi si cambia la
+    mappa"): a browser doesn't reliably re-navigate an <iframe> just because its own `srcDoc`
+    attribute value changed in place - React/Dash's default diffing patches the attribute on the
+    *same* DOM node, which several browsers then leave showing their stale, already-rendered
+    content. `key` forces Dash's front-end to unmount+remount the node instead of patching it in
+    place whenever `heading` changes - and `heading` (a subject_id or "Cluster N (n=...)") is
+    already guaranteed to change whenever the actual content does, so no separate id is needed.
+    """
+    return html.Div(
+        [
+            html.H3(heading, className="anatomy-subject-title"),
+            html.P(caption, className="anatomy-caption"),
+            html.Div(
+                html.Iframe(
+                    key=heading, srcDoc=_style_nilearn_html(view.html),
+                    style={"width": f"{view.width}px", "height": f"{view.height}px"},
+                ),
+                className="anatomy-viewer-wrap",
+            ),
+        ]
+    )
+
+
+def _build_subject_lesion_view(
+    run: ProductionRun, subject_id: str, metadata: pd.DataFrame, lesion_cfg: LesionViewerConfig
+) -> tuple[StatMapView, str]:
+    """Returns (view, dataset) - dataset is needed by the caller to build its own subject-name
+    heading, since title=None below (nilearn draws `title` straight onto its <canvas>, with no
+    width check or line-wrapping at all - a moderately long subject_id silently overflows past
+    the panel edge with no way to fix it via CSS; see _anatomy_viewer). colorbar=False: this is
+    a binary lesion mask (voxel is lesioned or not) - a 0/1 colorbar conveys no real gradient
+    information, unlike the cluster overlap map below.
+
+    Raises ValueError (never silently) if subject_id/dataset/lesion file can't be resolved -
+    see resolve_lesion_paths. threshold reuses lesion_cfg.binarize_threshold rather than a
+    second hardcoded 0.5, so the viewer shows exactly the same binarization the source feature
+    matrix used, not an independently-chosen display threshold."""
+    dataset = _resolve_subject_dataset(metadata, subject_id)
+    lesion_paths = resolve_lesion_paths([subject_id], {subject_id: dataset}, lesion_cfg.data_root, lesion_cfg.lesion_glob)
+    view = nilearn_plotting.view_img(
+        str(lesion_paths[subject_id]), bg_img="MNI152", black_bg=False, threshold=lesion_cfg.binarize_threshold,
+        cmap="autumn", symmetric_cmap=False, title=None, colorbar=False, width_view=_ANATOMY_VIEWER_WIDTH,
+    )
+    return view, dataset
+
+
+def lesion_viewer_content_for(
+    run: ProductionRun, subject_id: str, metadata: pd.DataFrame, lesion_cfg: LesionViewerConfig
+) -> html.Div | html.P:
+    """graph_content_for's own never-raises contract, extended to this panel: an html.P status
+    message on any resolution failure (subject not in this run, dataset unresolvable, lesion
+    file missing on disk) instead of crashing the click callback - a single bad subject must
+    not take down the whole app (lesson #21's isolation principle, applied per-click here)."""
+    try:
+        view, dataset = _build_subject_lesion_view(run, subject_id, metadata, lesion_cfg)
+    except ValueError as exc:
+        return html.P(str(exc), className="status-message")
+    return _anatomy_viewer(view, f"{subject_id} ({dataset})", "Giallo = voxel lesionato")
+
+
+def _build_cluster_overlap_view(
+    run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig
+) -> tuple[StatMapView, int]:
+    """Returns (view, n_subjects) - n_subjects is needed by the caller to build its own heading
+    (title=None here, same reasoning as _build_subject_lesion_view). colorbar stays on (unlike
+    the subject viewer): the overlap percentage is a genuinely continuous, informative value.
+
+    Raises ValueError if cluster_label has no subjects in this run's metadata, or any of them
+    can't be resolved to a lesion file (see resolve_lesion_paths/build_overlap_map). threshold
+    is a near-zero epsilon (not lesion_cfg.binarize_threshold, which binarizes each individual
+    subject's mask before counting - see build_overlap_map) so every voxel with any real overlap
+    (>0%) is shown, not just voxels above some display-only cutoff."""
+    column = COLOR_MODES["cluster_label"].column
+    cluster_metadata = metadata.loc[metadata[column] == cluster_label]
+    if cluster_metadata.empty:
+        raise ValueError(f"no subjects with {column}={cluster_label!r} in this run's metadata")
+    dataset_by_subject = dict(zip(cluster_metadata["subject_id"], cluster_metadata["dataset"]))
+    lesion_paths = resolve_lesion_paths(list(dataset_by_subject), dataset_by_subject, lesion_cfg.data_root, lesion_cfg.lesion_glob)
+    _count_img, percentage_img = build_overlap_map(
+        lesion_paths, lesion_cfg.reference_img, lesion_cfg.binarize_threshold, lesion_cfg.resample_interpolation
+    )
+    view = nilearn_plotting.view_img(
+        percentage_img, bg_img="MNI152", black_bg=False, threshold=1e-6, cmap="hot", symmetric_cmap=False, title=None,
+        width_view=_ANATOMY_VIEWER_WIDTH,
+    )
+    return view, len(lesion_paths)
+
+
+def overlap_map_content_for(
+    run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig,
+    build_view: Callable[[ProductionRun, pd.DataFrame, int, LesionViewerConfig], tuple[StatMapView, int]] = _build_cluster_overlap_view,
+) -> html.Div | html.P:
+    """Same never-raises contract as lesion_viewer_content_for - an empty/unresolvable cluster
+    shows a status message in the panel, not a crashed callback.
+
+    build_view defaults to the always-fresh _build_cluster_overlap_view (what every test calls
+    this with) - build_app passes its own cached wrapper instead (01-09-26 perf fix: measured
+    ~40ms/subject, dominating the whole panel's response time for a real several-hundred-subject
+    cluster - see anatomical_maps.build_overlap_map's own docstring), so switching back to an
+    already-viewed cluster in the running app is instant, without this function itself needing
+    to know anything about caching."""
+    try:
+        view, n_subjects = build_view(run, metadata, cluster_label, lesion_cfg)
+    except ValueError as exc:
+        return html.P(str(exc), className="status-message")
+    return _anatomy_viewer(
+        view, f"Cluster {cluster_label} (n={n_subjects})",
+        "Colore = % di soggetti del cluster con lesione in quel voxel (0-100%)",
+    )
 
 
 def _color_button_label(mode_name: str) -> str:
@@ -639,7 +957,10 @@ def _color_button_label(mode_name: str) -> str:
     return "neutro" if mode_name == NEUTRAL_MODE else COLOR_MODES[mode_name].label
 
 
-def build_app(runs: list[ProductionRun]) -> Dash:
+_LESION_PLACEHOLDER = html.P("Clicca un punto nell'embedding per vedere la lesione.", className="status-message")
+
+
+def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, clustering_params_file: str | Path) -> Dash:
     """Builds the Dash app: a run picker (dcc.Dropdown, one entry per discovered production
     run) plus a color-mode button group (COLOR_MODE_ORDER, styled as a chip row via CSS, not
     a second dropdown - the design brief this was built against, 14-08-26, asked for "bottoni"
@@ -647,7 +968,22 @@ def build_app(runs: list[ProductionRun]) -> Dash:
     (dcc.Store) - the embedding/figure itself is rebuilt server-side on every run/color change
     (load_run + build_embedding_figure), never cached: at this cohort size (~1150 subjects,
     matrix.npy a few hundred KB at most) a fresh disk read + figure build is fast enough that
-    a cache would add complexity for no measurable benefit.
+    a cache would add complexity for no measurable benefit. Same philosophy holds for the
+    single-subject lesion viewer added 01-09-26 (one small NIfTI, also fast enough uncached) -
+    but *not* for the per-cluster overlap map (same panel-family, very different cost: measured
+    ~40ms/subject to load+resample, dominating the whole panel's response time for a real
+    several-hundred-subject cluster), which this app does cache in-process
+    (cluster_view_cache/_cached_cluster_overlap_view below, 01-09-26 perf fix).
+
+    suppress_callback_exceptions=True (01-09-26): the anatomy panels' own callbacks reference
+    component ids ("embedding-graph") that only exist once graph_content_for actually renders a
+    Graph into graph-area's children - never part of the static app.layout tree itself - the
+    standard Dash idiom for wiring a callback to a dynamically-created component.
+
+    clustering_params_file (01-09-26): config/registry/params_clustering.json (or an equivalent
+    test fixture) - the picker's own "Parametri" step (tag_param_options/runs_matching) reads
+    each clustering method's registered tag_param list from it, so a run can be narrowed by its
+    own n_clusters/linkage/etc., not just by the upstream embedding's metric/n_components.
 
     Raises ValueError if `runs` is empty - an app with a run picker offering nothing to pick
     is a broken starting state, not a legitimate empty one (unlike
@@ -661,7 +997,24 @@ def build_app(runs: list[ProductionRun]) -> Dash:
     runs_by_key = {run.key: run for run in runs}
     default_modality = modality_options(runs)[0]
 
-    app = Dash(__name__)
+    # Cluster-overlap-map cache (01-09-26 perf fix) - process-lifetime, in-memory, scoped to
+    # this one app instance (a plain closure variable, not a module-level global -
+    # code_standards.md §1 "no stato globale"). Keyed by (run.key, cluster_label): switching
+    # back to an already-viewed cluster (or re-viewing it via the "Salva HTML" button after
+    # already looking at it) is then instant instead of re-loading+resampling every subject's
+    # real NIfTI mask from disk again. A failed build (ValueError - an unresolvable subject) is
+    # never cached, so a transient/fixable problem can be retried on the next click.
+    cluster_view_cache: dict[tuple[str, int], tuple[StatMapView, int]] = {}
+
+    def _cached_cluster_overlap_view(
+        run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig
+    ) -> tuple[StatMapView, int]:
+        cache_key = (run.key, cluster_label)
+        if cache_key not in cluster_view_cache:
+            cluster_view_cache[cache_key] = _build_cluster_overlap_view(run, metadata, cluster_label, lesion_cfg)
+        return cluster_view_cache[cache_key]
+
+    app = Dash(__name__, suppress_callback_exceptions=True)
     app.index_string = _INDEX_STRING
 
     color_buttons = [
@@ -730,6 +1083,13 @@ def build_app(runs: list[ProductionRun]) -> Dash:
                         children=[
                             _picker_field("Metrica", "metric-picker"),
                             _picker_field("Componenti", "n-components-picker"),
+                            # "Parametri" (01-09-26, on request): real clustering runs vary by
+                            # more than just the upstream embedding's metric/n_components - each
+                            # method's own hyperparameters (n_clusters/linkage for agglomerative,
+                            # etc.) do too. NO_METRIC-only for dim_reduction (see
+                            # tag_param_options) - kept in this same row so the picker still
+                            # reads as one uniform 4-step sequence across both pipelines.
+                            _picker_field("Parametri", "tag-params-picker"),
                             _picker_field("Run", "run-picker"),
                         ],
                     ),
@@ -737,7 +1097,44 @@ def build_app(runs: list[ProductionRun]) -> Dash:
                 ],
             ),
             dcc.Store(id="selected-color-mode", data=NEUTRAL_MODE),
+            html.H2("Embedding Visualization", className="section-heading"),
             html.Div(id="graph-area", className="graph-wrap"),
+            # Always-visible (per design decision, 01-09-26 - not an appear-on-click popup):
+            # placeholder until a point is clicked, subject's nilearn viewer afterward.
+            html.Div(
+                className="anatomy-panel",
+                children=[
+                    html.H2("Anatomia lesionale", className="section-heading"),
+                    html.Div(id="lesion-viewer-content", children=_LESION_PLACEHOLDER),
+                    html.Button("Salva HTML", id="lesion-save-btn", n_clicks=0, className="save-btn"),
+                    dcc.Download(id="lesion-download"),
+                ],
+            ),
+            # Hidden by default (style toggled by _update_cluster_picker below) - only a
+            # clustering.py run (metadata has cluster_label) ever shows this panel.
+            html.Div(
+                id="cluster-map-panel",
+                className="anatomy-panel",
+                style={"display": "none"},
+                children=[
+                    html.H2("Overlap map per cluster", className="section-heading"),
+                    html.Div(
+                        className="anatomy-controls",
+                        children=[
+                            html.Div(
+                                className="picker-field",
+                                children=[
+                                    html.Label("Cluster", className="picker-label"),
+                                    dcc.Dropdown(id="cluster-picker", clearable=False),
+                                ],
+                            ),
+                        ],
+                    ),
+                    html.Div(id="cluster-map-content"),
+                    html.Button("Salva HTML", id="cluster-save-btn", n_clicks=0, className="save-btn"),
+                    dcc.Download(id="cluster-download"),
+                ],
+            ),
         ],
     )
 
@@ -791,6 +1188,23 @@ def build_app(runs: list[ProductionRun]) -> Dash:
         return options, n_components_values[0]
 
     @app.callback(
+        Output("tag-params-picker", "options"),
+        Output("tag-params-picker", "value"),
+        Input("modality-picker", "value"),
+        Input("pipeline-picker", "value"),
+        Input("method-picker", "value"),
+        Input("metric-picker", "value"),
+        Input("n-components-picker", "value"),
+    )
+    def _update_tag_params_picker(
+        modality: str, pipeline: str | None, method: str | None, metric: str | None, n_components: int | None
+    ):
+        if pipeline is None or method is None or metric is None or n_components is None:
+            raise PreventUpdate
+        labels = tag_param_options(runs, modality, pipeline, method, metric, n_components, clustering_params_file)
+        return [{"label": label, "value": label} for label in labels], labels[0]
+
+    @app.callback(
         Output("run-picker", "options"),
         Output("run-picker", "value"),
         Input("modality-picker", "value"),
@@ -798,16 +1212,18 @@ def build_app(runs: list[ProductionRun]) -> Dash:
         Input("method-picker", "value"),
         Input("metric-picker", "value"),
         Input("n-components-picker", "value"),
+        Input("tag-params-picker", "value"),
     )
     def _update_run_picker(
-        modality: str, pipeline: str | None, method: str | None, metric: str | None, n_components: int | None
+        modality: str, pipeline: str | None, method: str | None, metric: str | None, n_components: int | None,
+        tag_params_label: str | None,
     ):
-        if pipeline is None or method is None or metric is None or n_components is None:
+        if pipeline is None or method is None or metric is None or n_components is None or tag_params_label is None:
             # An upstream picker just changed and hasn't propagated its new value here yet -
             # each cascading callback is a separate step in Dash's dependency graph, not a
             # synchronous call chain.
             raise PreventUpdate
-        matching = runs_matching(runs, modality, pipeline, method, metric, n_components)
+        matching = runs_matching(runs, modality, pipeline, method, metric, n_components, tag_params_label, clustering_params_file)
         options = [{"label": run.run_name, "value": run.key} for run in matching]
         default_run_key = matching[-1].key  # most recent by _run_chronological_key
         return options, default_run_key
@@ -839,5 +1255,92 @@ def build_app(runs: list[ProductionRun]) -> Dash:
         if run_key is None:
             raise PreventUpdate
         return graph_content_for(runs_by_key[run_key], selected_mode)
+
+    @app.callback(
+        Output("lesion-viewer-content", "children"),
+        Input("embedding-graph", "clickData"),
+        Input("run-picker", "value"),
+    )
+    def _update_lesion_viewer(click_data: dict | None, run_key: str | None):
+        if run_key is None:
+            raise PreventUpdate
+        # A run change resets to the placeholder (ctx.triggered_id tells the two Inputs apart) -
+        # a subject clicked on a previous run must not linger once the picker moves on.
+        if ctx.triggered_id == "run-picker" or click_data is None:
+            return _LESION_PLACEHOLDER
+        subject_id = click_data["points"][0].get("text")
+        if subject_id is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        return lesion_viewer_content_for(run, subject_id, run_metadata(run), lesion_cfg)
+
+    @app.callback(
+        Output("lesion-download", "data"),
+        Input("lesion-save-btn", "n_clicks"),
+        State("embedding-graph", "clickData"),
+        State("run-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_lesion_html(_n_clicks: int, click_data: dict | None, run_key: str | None):
+        if click_data is None or run_key is None:
+            raise PreventUpdate
+        subject_id = click_data["points"][0].get("text")
+        if subject_id is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        try:
+            view, _dataset = _build_subject_lesion_view(run, subject_id, run_metadata(run), lesion_cfg)
+        except ValueError:
+            # The visible panel already reports this via lesion_viewer_content_for - the save
+            # button simply has nothing to offer, not a second error surface.
+            raise PreventUpdate
+        return dcc.send_string(_style_nilearn_html(view.html), filename=f"{subject_id}_lesion_3d.html")
+
+    @app.callback(
+        Output("cluster-picker", "options"),
+        Output("cluster-picker", "value"),
+        Output("cluster-map-panel", "style"),
+        Input("run-picker", "value"),
+    )
+    def _update_cluster_picker(run_key: str | None):
+        if run_key is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if run.pipeline != "clustering":
+            return [], None, {"display": "none"}
+        clusters = cluster_options(run_metadata(run))
+        return [{"label": str(cluster_label), "value": cluster_label} for cluster_label in clusters], clusters[0], {}
+
+    @app.callback(
+        Output("cluster-map-content", "children"),
+        Input("run-picker", "value"),
+        Input("cluster-picker", "value"),
+    )
+    def _update_cluster_map(run_key: str | None, cluster_label: int | None):
+        if run_key is None or cluster_label is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if run.pipeline != "clustering":
+            raise PreventUpdate
+        return overlap_map_content_for(run, run_metadata(run), cluster_label, lesion_cfg, build_view=_cached_cluster_overlap_view)
+
+    @app.callback(
+        Output("cluster-download", "data"),
+        Input("cluster-save-btn", "n_clicks"),
+        State("run-picker", "value"),
+        State("cluster-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_cluster_html(_n_clicks: int, run_key: str | None, cluster_label: int | None):
+        if run_key is None or cluster_label is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if run.pipeline != "clustering":
+            raise PreventUpdate
+        try:
+            view, _n_subjects = _cached_cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
+        except ValueError:
+            raise PreventUpdate
+        return dcc.send_string(_style_nilearn_html(view.html), filename=f"cluster_{cluster_label}_overlap_map.html")
 
     return app
