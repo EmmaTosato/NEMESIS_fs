@@ -1,11 +1,16 @@
 {
   "project": "clinical_connectome",
   "data_root": "data/clinical_connectome/derivatives",
+  "output_root": "data/derived/features/masked_fc",
+  "atlas_root": "assets/atlases/fmriprep",
+  "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",
+  "fc_glob_template": "features/*/func/*_FC-pearson_atlas-{combo}.csv",
+
+  "session_name": "s2",
   "dataset": "UNIPD/WashU",
   "group_filter": [
     "ST"
   ],
-  "atlas_root": "assets/atlases/fmriprep",
   "atlas_combos": [
     "Yan100TianS1Buckner7N",
     "Yan100TianS2Buckner7N",
@@ -19,13 +24,12 @@
     "Yan400TianS2Buckner7N",
     "Yan400TianS3Buckner7N"
   ],
-  "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",
-  "fc_glob_template": "features/*/func/*_FC-pearson_atlas-{combo}.csv",
+
   "min_coverage": 0.5,
   "resample_interpolation": "nearest",
   "binarize_threshold": 0.5,
-  "output_root": "data/derived/features/masked_fc",
-  "session_name": "s2",
+  
   "overwrite": false,
+
   "run_notes": ""
 }
