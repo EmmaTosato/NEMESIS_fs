@@ -4,11 +4,14 @@
 
 **Dati:** Matrice raw (feature matrix, pre-riduzione)
 
-**Sessione:** s2 (vedi SESSIONS.md)
+**Sessione:** s2
 
 **Tipo di dati**: Structural Disconnection (SDC) Data
 
 **Origine**: data/derived/sdc_matrix
+
+**Note**
+- Vedi SESSIONS.md per specifica sulle sessioni
 
 ---
 

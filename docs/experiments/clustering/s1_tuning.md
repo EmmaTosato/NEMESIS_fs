@@ -4,11 +4,14 @@
 
 **Dati:** Low dimensional embedding o dati raw
 
-**Sessione:** s1 (vedi SESSIONS.md)
+**Sessione:** s1
 
 **Tipo di dati**: Lesion Data (matrice voxel-wise volumetrica)
 
 **Origine**: data/derived/lesion_matrix
+
+**Note**
+- Vedi SESSIONS.md per specifica sulle sessioni
 
 ---
 
