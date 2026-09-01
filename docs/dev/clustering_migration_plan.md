@@ -128,9 +128,11 @@ progetto senza sostituto funzionante.
      `docs/dev/config.md`, `docs/dev/models.md`, `README.md` ("what's implemented so far") —
      `clustering.md`/`dim_reduction.md` (root) non esistono più dal 14-08-26, contenuto già confluito
      in `knowledge/dim_reduction_clustering/`
-   - **non** rinominare `knowledge/dim_reduction_clustering/` né
-     `docs/experiments/dim_reduction_clustering/` — sono cartelle sul *tema* (letteratura,
-     esperimenti), non sul nome dello script; restano valide a prescindere dalla sua eliminazione.
+   - **non** rinominare `knowledge/dim_reduction_clustering/` — è una cartella sul *tema*
+     (letteratura), non sul nome dello script; resta valida a prescindere dalla sua eliminazione.
+     (`docs/experiments/dim_reduction_clustering/` è stata invece riorganizzata il 01-09-26, non
+     per questa migrazione ma per uno standard di stile dei diari — vedi `docs/experiments/dim_reduction/`
+     e `docs/experiments/clustering/`.)
 6. Eliminare `src/pipeline/dim_reduction_clustering.py` e
    `tests/integration/test_dim_reduction_clustering_pipeline.py`.
 7. **Grep finale di verifica** (pattern #12 di `lessons_learned.md`): `grep -rn
