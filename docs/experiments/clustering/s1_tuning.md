@@ -11,7 +11,7 @@
 **Origine**: data/derived/lesion_matrix
 
 **Note**
-- Vedi session_data.md per specifica sulle sessioni
+- Vedi data_sessions.md per specifica sulle sessioni
 
 ---
 

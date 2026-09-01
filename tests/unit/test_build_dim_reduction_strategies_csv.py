@@ -30,7 +30,7 @@ _SESSIONS_MD = """# Sessions — clinical_connectome
 
 
 def _write_sessions_md(tmp_path, content=_SESSIONS_MD):
-    path = tmp_path / "SESSIONS.md"
+    path = tmp_path / "data_sessions.md"
     path.write_text(content)
     return path
 

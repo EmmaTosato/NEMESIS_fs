@@ -14,7 +14,7 @@ Two sources, joined on session:
   strategies at once, whenever metric/n_components were themselves swept in that sweep's own
   tuning_grid (see _strategy_variants) - modality/reduction_method read from the file's own
   path, metric/n_components parsed from that row's own `params` JSON column.
-- docs/experiments/SESSIONS.md - hand-written narrative (datasets/modality) per session, keyed
+- docs/experiments/data_sessions.md - hand-written narrative (datasets/modality) per session, keyed
   by the same session id runs.csv uses in its own "session" column (e.g. "s1.1").
 
 Deliberately no per-row output path column (no "latest_output", decided in session 14-08-26)
@@ -57,7 +57,7 @@ _SESSION_FIELD_RE = re.compile(r"^- (Starting date|Datasets|Modality):\s*(.*)$")
 _REQUIRED_SESSION_FIELDS = ("Starting date", "Datasets", "Modality")
 
 # runs.csv's own "session" column always starts with a lowercase "s" followed by the session
-# number SESSIONS.md documents under "## Session <number>" (e.g. runs.csv "s1.1" <-> SESSIONS.md
+# number data_sessions.md documents under "## Session <number>" (e.g. runs.csv "s1.1" <-> data_sessions.md
 # "## Session 1.1") - see src/utils/run_log.py's append_run_log_entry, which splits run_id on
 # its first "_" to get this value. Anything not matching this convention is a real problem
 # (typo'd session_name, or a naming convention this script doesn't know about yet) worth
@@ -82,12 +82,12 @@ class SessionInfo:
 
 
 def parse_sessions_md(path: Path) -> dict[str, SessionInfo]:
-    """Parses docs/experiments/SESSIONS.md's fixed-key format (`## Session <id>` header,
+    """Parses docs/experiments/data_sessions.md's fixed-key format (`## Session <id>` header,
     `- Starting date:`/`- Datasets:`/`- Modality:` fields) into {session_id: SessionInfo}.
 
     Raises ValueError for a session missing any of the 3 required fields, a duplicate session
     id (lessons_learned.md #5), or a field line appearing before any session header - a
-    malformed SESSIONS.md should stop this script loudly, not silently produce a half-joined
+    malformed data_sessions.md should stop this script loudly, not silently produce a half-joined
     table.
     """
     if not path.is_file():
@@ -129,7 +129,7 @@ def _session_lookup_key(runs_csv_session: str) -> str:
     if not match:
         raise ValueError(
             f"runs.csv session id {runs_csv_session!r} doesn't match the expected 's<number>' "
-            "convention (e.g. 's1.1') - cannot look it up in SESSIONS.md"
+            "convention (e.g. 's1.1') - cannot look it up in data_sessions.md"
         )
     return match.group(1)
 
@@ -238,9 +238,9 @@ def _collect_strategy_keys(results_root: Path) -> set[StrategyKey]:
 def build_strategies_table(results_root: Path, sessions_md_path: Path) -> pd.DataFrame:
     """Builds the full results/dim_reduction_strategies.csv table: one row per distinct
     (session, reduction_method, metric, n_components) combination actually run, with
-    modality/datasets joined in from SESSIONS.md.
+    modality/datasets joined in from data_sessions.md.
 
-    A session referenced by a runs.csv row but undocumented in SESSIONS.md doesn't abort the
+    A session referenced by a runs.csv row but undocumented in data_sessions.md doesn't abort the
     whole table (lessons_learned.md #21 - one bad/missing item shouldn't hide every other,
     already-resolvable row) - its modality/datasets columns get an explicit "undocumented"
     placeholder and the gap is logged loudly, never silently blanked.
@@ -273,7 +273,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--results-root", default="results", help="Root results/ directory to scan (default: results)")
     parser.add_argument(
-        "--sessions-md", default="docs/experiments/SESSIONS.md", help="Path to SESSIONS.md (default: docs/experiments/SESSIONS.md)"
+        "--sessions-md", default="docs/experiments/data_sessions.md", help="Path to data_sessions.md (default: docs/experiments/data_sessions.md)"
     )
     args = parser.parse_args(argv)
 

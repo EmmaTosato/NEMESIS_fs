@@ -150,17 +150,17 @@ N cartelle/`runs.csv`.
 **Non va scritto a mano** — un secondo file mantenuto manualmente accanto a `runs.csv` va
 inevitabilmente fuori sincrono con la realtà su disco (stesso pattern già visto in
 `lessons_learned.md` #18, un riepilogo che smette di riflettere i run veri). Va **generato** da
-uno script che legge tutti i `runs.csv`/`runs_tuning.csv` reali sotto `results/**/` + `SESSIONS.md`
+uno script che legge tutti i `runs.csv`/`runs_tuning.csv` reali sotto `results/**/` + `data_sessions.md`
 per il join su sessione.
 
-**Spostamento propedeutico (fatto 15-08-26)**: `SESSIONS.md` si è spostato da `data/SESSIONS.md`
-a `docs/experiments/SESSIONS.md` (narrativa umana su cosa significa una sessione, sta meglio lì
-che tra i dati grezzi) — il symlink `results/SESSIONS.md` è stato rimosso, la sua informazione
+**Spostamento propedeutico (fatto 15-08-26)**: `data_sessions.md` si è spostato da `data/data_sessions.md`
+a `docs/experiments/data_sessions.md` (narrativa umana su cosa significa una sessione, sta meglio lì
+che tra i dati grezzi) — il symlink `results/data_sessions.md` è stato rimosso, la sua informazione
 confluisce nelle colonne 1-3 del CSV generato. Aggiornati in questo spostamento: `docs/dev/config.md`,
 `docs/guides/dim_reduction.md` (`docs/dev/models.md` e il docstring di `src/utils/run_log.py`
 citavano già il path nuovo, scritti in anticipo in una sessione precedente).
 
-Per essere parsabile da uno script, `SESSIONS.md` è stato irrigidito quel poco che basta: chiavi
+Per essere parsabile da uno script, `data_sessions.md` è stato irrigidito quel poco che basta: chiavi
 fisse per riga (`- Starting date:`, `- Datasets:`, `- Modality:`) invece della prosa libera di
 prima — resta scrivibile a mano, è anche regex-abile (`scripts/build_dim_reduction_strategies_csv.py::parse_sessions_md`,
 `ValueError` se manca una chiave o una sessione è documentata due volte).
@@ -172,7 +172,7 @@ facile da filtrare/pivotare con pandas):
 session | modality | datasets | reduction_method | metric | n_components
 ```
 
-- `session`/`modality`/`datasets`: da `SESSIONS.md` (join su `session`).
+- `session`/`modality`/`datasets`: da `data_sessions.md` (join su `session`).
 - `reduction_method`/`metric`/`n_components`: da `params` (JSON) nei `runs.csv`/`runs_tuning.csv`
   di `dim_reduction.py` (e, dopo la migrazione, dal ramo `reduced_data=true` di `clustering.py`).
 - **Niente colonna `production_runs`/`tuning_runs`** (rimosse 16-08-26, su richiesta, dalla

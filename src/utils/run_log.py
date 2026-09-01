@@ -7,8 +7,8 @@ Never overwritten, never atomic (a log, not a primary artifact - same tier
 as summaries/logs, see docs/dev/design_patterns.md).
 
 Deliberately does not know about session *meaning* - what session "s1.1" was
-for, which datasets/modality it covers, etc. That's SESSIONS.md, hand-written
-by a human (docs/experiments/SESSIONS.md) - this module only ever appends a
+for, which datasets/modality it covers, etc. That's data_sessions.md, hand-written
+by a human (docs/experiments/data_sessions.md) - this module only ever appends a
 data row keyed by run_id, never reads or writes session descriptions.
 """
 

@@ -12,11 +12,10 @@
 
 **Note**
 - Parametri scelti a valle del tuning ([`s2_tuning.md`](s2_tuning.md)).
-- Vedi session_data.md per specifica sulle sessioni
+- Vedi data_sessions.md per specifica sulle sessioni
 
 ---
 
-_Nessuna run di produzione ancora loggata — s2.1 è ferma al tuning (vedi `s2_tuning.md`), in attesa di estendere l'analisi a `nc3` e di decidere la config di produzione. Struttura entry da usare una volta deciso:_
 
 ```
 ## DD-MM-YYYY — sX.X
