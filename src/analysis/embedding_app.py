@@ -243,11 +243,11 @@ def discover_production_runs(results_root: Path) -> list[ProductionRun]:
     today only lesion/umap (plus lesion/pca, lesion/tsne, lesion/pacmap, lesion/clustering's
     various methods) exist, but a future modality (e.g. sdc) or method needs zero changes here
     to show up, since nothing about the path shape is hardcoded beyond <pipeline>/production's
-    own fixed segments. clustering.py's "comparison" pseudo-method directory (see
-    clustering.py::_comparison_dir, itself nested one <reduction_method> segment deep too) is
-    naturally excluded here without any special-casing: it only ever holds a config.md, never a
-    manifest.json, so it fails the same existence check every other incomplete/non-run
-    directory does.
+    own fixed segments. `clustering.py`'s old "comparison" pseudo-method directory (its own
+    generation removed 01-09-26, docs/dev/models.md - existing ones from before that date can
+    still sit on disk) is naturally excluded here without any special-casing: it only ever held
+    a config.md, never a manifest.json, so it fails the same existence check every other
+    incomplete/non-run directory does.
 
     Returns an empty list if results_root doesn't exist or has no matching runs at all - not
     an error: a completely fresh checkout with no pipeline ever run is a legitimate starting

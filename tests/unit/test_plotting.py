@@ -1,5 +1,4 @@
-"""Unit tests for src/analysis/plotting.py - plot_clusters_comparison_interactive/
-compose_run_title/compose_embedding_plot_title/
+"""Unit tests for src/analysis/plotting.py - compose_run_title/compose_embedding_plot_title/
 plot_embedding_2d/plot_embedding_categorical/plot_embedding_continuous/_declutter_points/
 plot_clustering_tuning_metrics/plot_dendrograms_grid/plot_eigengaps_grid/plot_silhouette_analysis."""
 
@@ -19,7 +18,6 @@ from src.analysis.plotting import (
     plot_clustering_tuning_heatmaps,
     plot_clustering_tuning_metrics,
     plot_clusters_2d,
-    plot_clusters_comparison_interactive,
     plot_consensus_matrix_heatmap,
     plot_grouped_tuning_metrics,
     plot_dendrograms_grid,
@@ -279,54 +277,6 @@ def test_plot_embedding_continuous_raises_on_fewer_than_two_columns(tmp_path):
 
     with pytest.raises(ValueError, match="at least 2 columns"):
         plot_embedding_continuous(X_1d, values, tmp_path / "out.png", "x", "y", "title", colorbar_label="volume")
-
-
-def _labels_by_method():
-    return {
-        "kmeans": np.array([0, 0, 1, 1]),
-        "agglomerative": np.array([0, 1, 1, 0]),
-    }
-
-
-def test_clusters_comparison_interactive_writes_html_with_dropdown(tmp_path):
-    X_2d, metadata = _embedding_and_metadata()
-    output_path = tmp_path / "cluster_comparison_interactive.html"
-
-    plot_clusters_comparison_interactive(X_2d, _labels_by_method(), metadata, output_path, "dim 1", "dim 2", "test title")
-
-    assert output_path.exists()
-    html = output_path.read_text()
-    assert "plotly" in html
-    assert "updatemenus" in html
-    assert "kmeans" in html
-    assert "agglomerative" in html
-    for subject_id in metadata["subject_id"]:
-        assert subject_id in html
-
-
-def test_clusters_comparison_interactive_raises_on_fewer_than_two_columns(tmp_path):
-    X_1d = np.array([[0.0], [1.0], [2.0], [3.0]])
-    _, metadata = _embedding_and_metadata()
-
-    with pytest.raises(ValueError, match="at least 2 columns"):
-        plot_clusters_comparison_interactive(X_1d, _labels_by_method(), metadata, tmp_path / "out.html", "x", "y", "title")
-
-
-def test_clusters_comparison_interactive_raises_on_row_count_mismatch(tmp_path):
-    X_2d, metadata = _embedding_and_metadata()
-    mismatched_metadata = metadata.iloc[:-1]
-
-    with pytest.raises(ValueError, match="must match"):
-        plot_clusters_comparison_interactive(
-            X_2d, _labels_by_method(), mismatched_metadata, tmp_path / "out.html", "x", "y", "title"
-        )
-
-
-def test_clusters_comparison_interactive_raises_on_empty_labels_by_method(tmp_path):
-    X_2d, metadata = _embedding_and_metadata()
-
-    with pytest.raises(ValueError, match="at least one method"):
-        plot_clusters_comparison_interactive(X_2d, {}, metadata, tmp_path / "out.html", "x", "y", "title")
 
 
 def test_plot_clustering_tuning_metrics_writes_one_subplot_per_metric(tmp_path):

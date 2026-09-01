@@ -98,7 +98,8 @@ A seconda della modalità, vengono generati risultati diversi. **Dal 2026-08, pr
 2. **`metadata.csv`**: File arricchito con la colonna **`cluster_label`**.
 3. **`cluster_plot.png`**: Grafico 2D/3D statico colorato per cluster (titolo `"<Modality> - <ReductionMethod> - <ClusteringMethod>"`, es. `"Lesions - Umap - Kmeans"`). Nessuna versione `.html` per-run — `plot_clusters_interactive` è stato rimosso il 27-08-26: la vista interattiva di un singolo run vive ora in `src.pipeline.embedding_app` (vedi `docs/guides/embedding_app.md`), che legge questo stesso `matrix.npy`/`metadata.csv` senza bisogno di un file HTML da rigenerare.
 4. **`silhouette_plot.png`**: Grafico di qualità del clustering paziente per paziente.
-5. **Cartella `production/comparison/<reduction_method>/`**: (Solo se si usano più metodi) Affianca i risultati visivi degli algoritmi scelti — `cluster_comparison.png` (statico) e `cluster_comparison_interactive.html` (interattivo, un dropdown per metodo — questo sì ancora generato, a differenza del punto 3: mostra più metodi insieme, una vista che l'embedding_app non copre), utilissimo per decidere quale metodo "taglia" meglio i dati.
+
+Nessuna cartella `production/comparison/` — la generazione del plot di confronto cross-metodo (`cluster_comparison.png`/`cluster_comparison_interactive.html`) è stata rimossa il 01-09-26 su richiesta: per confrontare più metodi si aprono i `cluster_plot.png` di ciascuno, o si usa `embedding_app.py` (un run alla volta).
 
 ### Se in "Fine-Tuning" (`tuning/<metodo>/<reduction_method>/`)
 1. **`tuning_results.csv`**: Risultati numerici dello sweep parametri.

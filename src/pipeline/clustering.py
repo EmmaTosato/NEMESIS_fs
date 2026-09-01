@@ -194,59 +194,16 @@ def main(argv: list[str] | None = None) -> int:
         if X_viz is None:
             logging.warning(
                 "X has %d components (not 2 or 3) and no viz_embedding_path was given - skipping every "
-                "cluster-colored plot (cluster_plot.png/silhouette_plot.png/"
-                "cluster_comparison.png/cluster_comparison_interactive.html) for this run. If X has more "
+                "cluster-colored plot (cluster_plot.png/silhouette_plot.png) for this run. If X has more "
                 "than 3 components, produce a companion 2D/3D embedding separately (dim_reduction.py, "
                 "same params as the one used for this input, only n_components different) and set "
                 "viz_embedding_path to plot - see docs/dev/clustering_migration_plan.md §3.",
                 X.shape[1],
             )
 
-        labels_by_method: dict[str, np.ndarray] = {}
         for method in config.clustering_methods:
             cluster_labels = _run_one_method(config, method, X, X_viz, metadata, now, embedding_tag)
             if cluster_labels is None:
-                return 1
-            labels_by_method[method] = cluster_labels
-
-        if X_viz is not None:
-            comparison_dir = _comparison_dir(config, now, embedding_tag)
-            if comparison_dir.exists() and not config.overwrite:
-                logging.error(
-                    "comparison dir %s already exists and overwrite=False - set overwrite=true, "
-                    "choose a different session_name, or remove it first",
-                    comparison_dir,
-                )
-                return 1
-            try:
-                plot_clusters_comparison(
-                    X_viz,
-                    labels_by_method,
-                    comparison_dir / "cluster_comparison.png",
-                    xlabel="viz dim 1",
-                    ylabel="viz dim 2",
-                    suptitle=compose_comparison_title(comparison_dir, config.reduction_method),
-                )
-                logging.info("comparison plot written to %s", comparison_dir / "cluster_comparison.png")
-
-                plot_clusters_comparison_interactive(
-                    X_viz,
-                    labels_by_method,
-                    metadata,
-                    comparison_dir / "cluster_comparison_interactive.html",
-                    xlabel="viz dim 1",
-                    ylabel="viz dim 2",
-                    title=compose_comparison_title(comparison_dir, config.reduction_method),
-                )
-                logging.info(
-                    "interactive comparison plot written to %s", comparison_dir / "cluster_comparison_interactive.html"
-                )
-
-                _write_comparison_readme(comparison_dir, config, now)
-            except OSError as exc:
-                # Every per-method run above is already written and logged to runs.csv by this
-                # point - only the comparison artifact itself is at risk here (lesson #9).
-                logging.error("cannot write comparison output to %s: %s", comparison_dir, exc, exc_info=True)
                 return 1
 
         logging.info("done - all %d method(s) written under %s, log written to %s", len(config.clustering_methods), config.output_root, log_path)
@@ -366,9 +323,8 @@ def _run_one_method(
     embedding_tag: str | None,
 ) -> np.ndarray | None:
     """Runs one clustering method end to end (params, artifact, plot,
-    runs.csv). Returns the cluster_labels actually saved (for the comparison
-    plot to reuse verbatim, rather than re-running the method a second time),
-    or None if this method's run failed - the caller stops the whole run.
+    runs.csv). Returns the cluster_labels actually saved, or None if this
+    method's run failed - the caller stops the whole run.
 
     X_viz is the 2D/3D coordinates used for every scatter plot (see
     _resolve_viz_embedding) - independent from X, whatever dimensionality
@@ -569,25 +525,6 @@ def _reduction_extra_columns(config: ClusteringConfig) -> dict[str, str]:
     return columns
 
 
-def _comparison_dir(config: ClusteringConfig, now: datetime, embedding_tag: str | None) -> Path:
-    # comparison/ is a production-only artifact (it compares saved cluster_label
-    # results across methods) - always under the production/ branch, never tuning/. Nested
-    # under reduction_method too (31-08-26), same as every real method's own output_dir -
-    # every method compared in one run shares config.input_path, so they share exactly one
-    # reduction_method too. embedding_tag folded in the same way as each method's own
-    # output_dir (31-08-26, tag-params-multi-key session) - two invocations sharing session_name
-    # but pointing at different input_path embeddings would otherwise collide here (comparison/
-    # has no per-method tag_param to fall back on, unlike the per-method folders below).
-    session = f"{config.session_name}_{embedding_tag}" if embedding_tag else config.session_name
-    return (
-        config.output_root
-        / "production"
-        / "comparison"
-        / config.reduction_method
-        / f"{now.strftime('%d-%m')}_{session}"
-    )
-
-
 def _run_log_dir(config: ClusteringConfig, method: str, branch: str) -> Path:
     """branch is "production" or "tuning" (same literal each caller also passes
     as append_run_log_entry's own run_type) - the two runs.csv/runs_tuning.csv
@@ -654,20 +591,6 @@ def _build_readme_lines(
 ) -> list[str]:
     title = f"# {config.project} clustering ({method}) — {now.strftime('%d-%m-%y %H:%M')}"
     return [title, ""] + _summary_lines(config, method, X, cluster_labels, params)
-
-
-def _write_comparison_readme(comparison_dir: Path, config: ClusteringConfig, now: datetime) -> None:
-    dated_run = f"{now.strftime('%d-%m')}_{config.session_name}"
-    lines = [
-        f"# {config.project} clustering method comparison — {now.strftime('%d-%m-%y %H:%M')}",
-        "",
-        f"Methods compared: {list(config.clustering_methods)}",
-        "",
-        "Individual outputs:",
-    ]
-    lines += [f"- `{config.output_root / 'production' / m / dated_run}`" for m in config.clustering_methods]
-    comparison_dir.mkdir(parents=True, exist_ok=True)
-    (comparison_dir / "config.md").write_text("\n".join(lines) + "\n")
 
 
 def _run_fine_tuning(

@@ -191,9 +191,10 @@ def test_discover_production_runs_finds_clustering_runs_too(tmp_path):
 
 
 def test_discover_production_runs_excludes_clustering_comparison_dir(tmp_path):
-    # clustering.py's _comparison_dir writes only a config.md, never a manifest.json - must be
-    # excluded by the same existence check every other incomplete directory fails, not by a
-    # special-cased directory-name check.
+    # clustering.py's old comparison/ writer (generation removed 01-09-26, docs/dev/models.md)
+    # only ever wrote a config.md, never a manifest.json - a leftover directory from before that
+    # date must be excluded by the same existence check every other incomplete directory fails,
+    # not by a special-cased directory-name check.
     results_root = tmp_path / "results"
     _make_run_dir(results_root, pipeline="clustering", method="kmeans", run_name="run-a")
     comparison_dir = results_root / "lesion" / "clustering" / "production" / "comparison" / "umap" / "10-08_s1"
