@@ -35,11 +35,10 @@ Two modes, chosen by `fine_tuning`, same convention as dim_reduction.py:
   clustering, not the viz embedding - see
   src/analysis/clustering_tuning.py::compute_silhouette_samples), skipped
   with a warning if the chosen result is degenerate (fewer than 2 non-noise
-  clusters). When more than one method is requested, an additional
-  side-by-side comparison plot (static cluster_comparison.png + interactive
-  cluster_comparison_interactive.html, dropdown per method) is written to
-  <output_root>/production/comparison/<dd-mm>_<session_name>/
-  (also skipped when no viz embedding is available).
+  clusters). No cross-method comparison artifact is written any more - the
+  side-by-side production/comparison/ plot (static + interactive) was
+  removed 01-09-26 on request (docs/dev/models.md); comparing methods means
+  opening each method's own cluster_plot.png/embedding_app.py run.
 - fine_tuning=true (manual hyperparameter search, every method in
   clustering_methods, one sweep each over that method's "tuning_grid"):
   since clustering has no ground truth to score against, every combination
@@ -119,10 +118,7 @@ from src.analysis.params import (
 from src.analysis.plotting import (
     compose_cluster_plot_title,
     compose_clustering_tuning_title,
-    compose_comparison_title,
     plot_clusters_2d,
-    plot_clusters_comparison,
-    plot_clusters_comparison_interactive,
     plot_clustering_tuning_heatmaps,
     plot_clustering_tuning_metrics,
     plot_consensus_matrix_heatmap,
