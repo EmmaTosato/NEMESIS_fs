@@ -28,6 +28,7 @@ _RESERVED_EXTRA_ARRAY_NAMES = {"matrix", "metadata", "manifest", "README"}
 
 _PARAMS_USED_PREFIX = "Params used: "
 _DIM_REDUCTION_TITLE_RE = re.compile(r" dim_reduction \((?P<method>[^)]+)\)")
+_CONFIG_BLOCK_RE = re.compile(r"## Config\s*\n```json\s*\n(?P<json>.*?)\n```", re.S)
 
 
 def save_matrix(
@@ -146,6 +147,28 @@ def read_run_params(run_dir: Path) -> dict:
         if line.startswith(_PARAMS_USED_PREFIX):
             return json.loads(line[len(_PARAMS_USED_PREFIX) :])
     raise ValueError(f"run {run_dir}'s {README_FILENAME} has no {_PARAMS_USED_PREFIX!r} line - unexpected format")
+
+
+def read_run_config(run_dir: Path) -> dict:
+    """The full resolved top-level Config a dim_reduction.py or clustering.py production run
+    was built from, read from its own config.md ("## Config" fenced ```json block, json.dumps'd
+    verbatim by that pipeline's own _config_summary/_summary_lines writer) - distinct from
+    read_run_params (the "Params used:" line, the underlying model's own hyperparameters only).
+    Carries fields "Params used:" never has - e.g. clustering.py's own reduction_method/
+    reduction_n_components/reduction_metric (31-08-26), the *upstream embedding's* own
+    hyperparameters, not the clustering model's. Reused by embedding_app.py's picker to narrow
+    clustering runs by which embedding they were built from (docs/guides/embedding_app.md).
+
+    Raises ValueError if config.md is missing or has no "## Config" fenced json block - every
+    run written by dim_reduction.py/clustering.py's own production writer always has one.
+    """
+    config_path = run_dir / README_FILENAME
+    if not config_path.exists():
+        raise ValueError(f"run {run_dir} has no {README_FILENAME} - cannot read its resolved config")
+    match = _CONFIG_BLOCK_RE.search(config_path.read_text())
+    if match is None:
+        raise ValueError(f"run {run_dir}'s {README_FILENAME} has no '## Config' fenced json block - unexpected format")
+    return json.loads(match.group("json"))
 
 
 def read_dim_reduction_method(run_dir: Path) -> str:
