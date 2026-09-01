@@ -1,4 +1,4 @@
-# Sessions — clinical_connectome
+
 
 Narrativa su cosa significa ogni sessione  scritta a mano, mai generata.
 
