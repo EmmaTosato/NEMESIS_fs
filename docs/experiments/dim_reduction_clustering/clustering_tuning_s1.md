@@ -1,7 +1,7 @@
 # Log Esperimenti: Clustering — Tuning
 
 **Pipeline:** `clustering`
-**Dati:** Embedding UMAP di produzione, sessione lesion matrix s1.1 (1150 soggetti).
+**Dati:** Embedding UMAP di produzione, sessione lesion matrix s1.1 (1150 soggetti) e s1.2 (5269 soggetti).
 
 ---
 
@@ -95,3 +95,19 @@ Struttura ricorrente in ogni k candidato: 1-2 cluster quasi puri per lato lesion
 - **Esplorazione tuning completa per tutti e 5 i metodi.** Prossimo passo: non più un check per-metodo, ma decidere tra (B) consenso/stabilità su coorte reale, (C) regressione di `lesion_side`/volume pre-clustering, o (D) criterio clinico — per arrivare a una config di produzione che non sia solo il re-splitting del lato lesione.
 
 **Strumenti:** [`clustering_tuning_explorer.ipynb`](../../../notebooks/post-results_analysis/clustering_tuning_explorer.ipynb) — esplorazione `tuning_results.csv` + diagnostiche, ARI/NMI tra combinazioni, Subsampling Stability Index.
+
+---
+
+## 01-09-2026 — s1.2
+
+**Obiettivo:** stesso tuning di s1.1, ripetuto sulla coorte estesa (5269 soggetti, embedding UMAP `euclidean_nc2`), per verificare se i candidati reggono a scala maggiore.
+
+| Metodo         | Griglia                                                                                   | Miglior combo (silhouette)                              | Link                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| KMeans         | `n_clusters`∈{2,3,4,5,6,8,10}                                                            | `k=5` (0.443)                                            | [tuning/kmeans/](../../../results/lesion/clustering/tuning/kmeans/umap/01-09_s1.2_m_euclidean_n2/)         |
+| Agglomerative  | `n_clusters`×`linkage`×`metric` (70/84 valutate, 14 saltate: `ward`+metrica non euclidea) | `k=2, average, cosine` (0.761)                            | [tuning/agglomerative/](../../../results/lesion/clustering/tuning/agglomerative/umap/01-09_s1.2_m_euclidean_n2/) |
+| GMM            | `n_components`×`covariance_type`                                                        | `n_components=5, full` (0.447)                            | [tuning/gmm/](../../../results/lesion/clustering/tuning/gmm/umap/01-09_s1.2_m_euclidean_n2/)               |
+| HDBSCAN        | `min_cluster_size`×`min_samples`                                                         | `mcs=5, ms=10` (0.613, noise 0.32)                         | [tuning/hdbscan/](../../../results/lesion/clustering/tuning/hdbscan/umap/01-09_s1.2_m_euclidean_n2/)       |
+| Spectral       | `n_clusters`×`affinity`(`n_neighbors`/`gamma`)                                          | `rbf, k=5, gamma=1.0` (0.426)                              | [tuning/spectral/](../../../results/lesion/clustering/tuning/spectral/umap/01-09_s1.2_m_euclidean_n2/)     |
+
+**Note:** `k=2` di agglomerative è quasi certamente lo stesso artefatto `lesion_side` visto in s1.1 (silhouette anomalo, come il k=2 già scartato lì). Miglior silhouette assoluto di HDBSCAN arriva con `noise_fraction`=0.32 (quasi 1/3 scartato come rumore) — combinazioni a noise più basso (`mcs=30, ms=5`: noise 0.14) scendono a silhouette 0.34, stesso trade-off già visto in s1.1.

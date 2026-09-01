@@ -28,24 +28,43 @@ import seaborn as sns
 from scipy.cluster.hierarchy import dendrogram
 from sklearn.neighbors import NearestNeighbors
 
-# Pink/azzurro/green categorical palette (5 tones, user-requested hue
-# families) - CVD-safe on every pairwise combination, verified (OKLab/
-# Machado-CVD math, dataviz skill's validate_palette.js - see
-# docs/dev/plotting.md before changing these colors). Cycles past 5
-# clusters (an inherent limit of a validated-safe set, not a bug).
+# Categorical palette (10 tones) - CVD-safe on every *adjacent* pairwise
+# combination, verified (OKLab/Machado-CVD math, dataviz skill's
+# validate_palette.js - see docs/dev/plotting.md before changing these
+# colors). Extended from the original 5 (pink/azzurro/green families) to
+# 10 on 01-09-26 after HDBSCAN production runs routinely produced 8-20
+# real clusters (excl. noise) - 5 colors cycled too often to read. Still
+# only adjacent-pair validated, not all-pairs (a scatter/all-pairs-safe
+# categorical caps at ~3-4 slots per the dataviz skill - out of reach for
+# an 8-20 cluster count regardless of palette size) - past 10 clusters
+# this still cycles, just less often than before. Cycles past 10
+# clusters (an inherent limit of a validated set, not a bug).
 _CATEGORICAL_PALETTE = [
     "#e87ba4",  # pink
     "#3aa9e0",  # azzurro (sky blue)
     "#008300",  # green
     "#b03d68",  # pink (deep rose)
     "#1a6bab",  # azzurro (navy)
+    "#d97a29",  # orange
+    "#7b4fa0",  # purple
+    "#a8890a",  # gold/olive
+    "#0d9488",  # teal
+    "#a13d2a",  # red-brown
 ]
 # Fixed neutral gray for the HDBSCAN/OPTICS noise label -1, kept out of the
 # categorical set so it never impersonates a real cluster.
 _NOISE_COLOR = "#9e9d98"
 
-# Shared between plot_clusters_2d (single method) and plot_clusters_comparison (grid).
-_MARKER_SIZE = 18
+# Shared between plot_clusters_2d (single method), plot_clusters_comparison
+# (grid) and plot_silhouette_analysis (scatter panel). Was 18/opaque/no
+# declutter - same overplotting problem already fixed for the embedding
+# plots (see _EMBEDDING_MARKER_SIZE below) was flagged there as "plausible
+# here too, out of scope for that fix" and hit in practice 01-09-26 on
+# HDBSCAN production plots (1150+ subjects, small markers overlapping into
+# a blob) - same fix applied here now: smaller size, light transparency,
+# _declutter_points.
+_MARKER_SIZE = 6
+_MARKER_ALPHA = 0.9
 _AXIS_PADDING_FRACTION = 0.08
 
 # plot_embedding_2d/plot_embedding_categorical/plot_embedding_continuous only
@@ -530,11 +549,18 @@ def plot_clusters_2d(
     y_min, y_max = X_2d[:, 1].min(), X_2d[:, 1].max()
     x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
     y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
+    xlim = (x_min - x_pad, x_max + x_pad)
+    ylim = (y_min - y_pad, y_max + y_pad)
     unique_labels = sorted(np.unique(cluster_labels).tolist())
     palette = _palette_for_labels(unique_labels)
     sizes = _MARKER_SIZE if point_sizes is None else _POINT_SIZE_FLOOR + _POINT_SIZE_SCALE * point_sizes
+    # Dosed against the base _MARKER_SIZE even when point_sizes varies per point
+    # (hdbscan probabilities) - same "not a precise spacing guarantee" tradeoff
+    # _declutter_points already documents for exact-duplicate pairs.
+    figsize = (_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT)
+    X_2d = _declutter_points(X_2d, xlim, ylim, figsize, _MARKER_SIZE)
 
-    fig, ax = plt.subplots(figsize=(_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT))
+    fig, ax = plt.subplots(figsize=figsize)
     if point_sizes is None:
         sns.scatterplot(
             x=X_2d[:, 0],
@@ -543,6 +569,7 @@ def plot_clusters_2d(
             hue_order=unique_labels,
             palette=palette,
             s=sizes,
+            alpha=_MARKER_ALPHA,
             edgecolor="none",
             legend="full",
             ax=ax,
@@ -550,14 +577,14 @@ def plot_clusters_2d(
         handles, legend_labels = ax.get_legend_handles_labels()
     else:
         colors = [palette[label] for label in cluster_labels]
-        ax.scatter(X_2d[:, 0], X_2d[:, 1], c=colors, s=sizes, edgecolors="none")
+        ax.scatter(X_2d[:, 0], X_2d[:, 1], c=colors, s=sizes, alpha=_MARKER_ALPHA, edgecolors="none")
         handles = [
             plt.Line2D([0], [0], marker="o", linestyle="", color=palette[label], label=str(label))
             for label in unique_labels
         ]
         legend_labels = [str(label) for label in unique_labels]
-    ax.set_xlim(x_min - x_pad, x_max + x_pad)
-    ax.set_ylim(y_min - y_pad, y_max + y_pad)
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", pad=_SINGLE_PLOT_TITLE_PAD)
@@ -628,6 +655,13 @@ def plot_silhouette_analysis(
     y_min, y_max = X_2d[:, 1].min(), X_2d[:, 1].max()
     x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
     y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
+    xlim = (x_min - x_pad, x_max + x_pad)
+    ylim = (y_min - y_pad, y_max + y_pad)
+    # Dosed against ax_scatter's own rendered size (one subplot), not the
+    # full 2-panel figure - _declutter_points converts data units to screen
+    # pixels via figsize, so it needs the axes that will actually display
+    # these points, not the whole canvas.
+    X_2d = _declutter_points(X_2d, xlim, ylim, (_SILHOUETTE_SUBPLOT_WIDTH, _SILHOUETTE_HEIGHT), _MARKER_SIZE)
     sns.scatterplot(
         x=X_2d[:, 0],
         y=X_2d[:, 1],
@@ -635,12 +669,13 @@ def plot_silhouette_analysis(
         hue_order=display_unique,
         palette=palette,
         s=_MARKER_SIZE,
+        alpha=_MARKER_ALPHA,
         edgecolor="none",
         legend="full",
         ax=ax_scatter,
     )
-    ax_scatter.set_xlim(x_min - x_pad, x_max + x_pad)
-    ax_scatter.set_ylim(y_min - y_pad, y_max + y_pad)
+    ax_scatter.set_xlim(xlim)
+    ax_scatter.set_ylim(ylim)
     ax_scatter.set_xlabel(xlabel)
     ax_scatter.set_ylabel(ylabel)
     handles, legend_labels = ax_scatter.get_legend_handles_labels()
@@ -683,6 +718,10 @@ def plot_clusters_comparison(
     y_pad = (y_max - y_min) * _AXIS_PADDING_FRACTION
     xlim = (x_min - x_pad, x_max + x_pad)
     ylim = (y_min - y_pad, y_max + y_pad)
+    # Same X_2d/xlim/ylim/marker_size for every subplot (only the labels/
+    # colors differ per method) - decluttered once and reused, not
+    # recomputed per subplot. Dosed against one subplot's own rendered size.
+    X_2d = _declutter_points(X_2d, xlim, ylim, (_COMPARISON_SUBPLOT_WIDTH, _COMPARISON_SUBPLOT_HEIGHT), _MARKER_SIZE)
 
     fig, axes = plt.subplots(
         nrows,
@@ -702,6 +741,7 @@ def plot_clusters_comparison(
             hue_order=unique_labels,
             palette=_palette_for_labels(unique_labels),
             s=_MARKER_SIZE,
+            alpha=_MARKER_ALPHA,
             edgecolor="none",
             legend="full",
             ax=ax,

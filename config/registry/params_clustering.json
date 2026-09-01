@@ -12,8 +12,8 @@
   },
   "agglomerative": {
     "tag_param": ["n_clusters", "linkage"],
-    "tag_prefix": ["k", "link"],
-    "params": { "n_clusters": 2, "linkage": "ward" },
+    "tag_prefix": ["k", "link_"],
+    "params": { "n_clusters": 6, "linkage": "average" },
     "tuning_grid": {
       "n_clusters": [2, 3, 4, 5, 6, 8, 10],
       "linkage": ["ward", "average", "complete", "single"],
@@ -22,7 +22,7 @@
   },
   "gmm": {
     "tag_param": ["n_components", "covariance_type"],
-    "tag_prefix": ["n_comp", "cov"],
+    "tag_prefix": ["n_comp", "cov_"],
     "params": { "n_components": 6, "covariance_type": "full", "random_state": 0 },
     "tuning_grid": {
       "n_components": [2, 3, 4, 5, 6, 8, 10],
@@ -37,7 +37,7 @@
   "hdbscan": {
     "tag_param": ["min_cluster_size", "min_samples"],
     "tag_prefix": ["mcs", "ms"],
-    "params": { "min_cluster_size": 5, "min_samples": 5 },
+    "params": { "min_cluster_size": 15, "min_samples": 5 },
     "tuning_grid": {
       "min_cluster_size": [5, 10, 15, 20, 30, 50],
       "min_samples": [5, 10, 20]
@@ -45,8 +45,8 @@
   },
   "spectral": {
     "tag_param": ["n_clusters", "affinity"],
-    "tag_prefix": ["k", "aff"],
-    "params": { "n_clusters": 5, "affinity": "nearest_neighbors", "n_neighbors": 50, "assign_labels": "cluster_qr", "random_state": 0 },
+    "tag_prefix": ["k", "aff_"],
+    "params": { "n_clusters": 8, "affinity": "rbf", "gamma": 1.0, "assign_labels": "cluster_qr", "random_state": 0 },
     "tuning_grid": {
       "n_clusters": [2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15],
       "affinity": ["nearest_neighbors", "rbf"],

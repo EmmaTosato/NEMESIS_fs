@@ -12,5 +12,5 @@
   "save_tuning_clusterings": false,
   "overwrite": true,
   "viz_embedding_path": null,
-  "run_notes": "Scope 1 - opzione F (hdbscan B): min_cluster_size=15, min_samples=5 - confronto con opzione E. overwrite=true solo per bypassare la comparison/ collision - comparison gestita a posteriori da notebook, non conta come output"
+  "run_notes": "Scope 1 - opzione F (hdbscan B) RIGENERATA 01-09-26 dopo fix palette 10 colori + marker size/declutter (plotting.py) - stessi parametri, solo cluster_plot.png/silhouette_plot.png cambiati"
 }
