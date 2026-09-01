@@ -11,7 +11,7 @@
 **Origine**: data/derived/sdc_matrix
 
 **Note**
-- Vedi SESSIONS.md per specifica sulle sessioni
+- Vedi session_data.md per specifica sulle sessioni
 
 ---
 

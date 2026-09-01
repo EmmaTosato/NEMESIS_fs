@@ -12,7 +12,7 @@
 
 **Note**
 - Parametri scelti a valle del tuning ([`s1_tuning.md`](s1_tuning.md)).
-- Vedi SESSIONS.md per specifica sulle sessioni
+- Vedi session_data.md per specifica sulle sessioni
 
 ---
 
