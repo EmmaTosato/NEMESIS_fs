@@ -29,6 +29,18 @@ from nilearn.maskers import NiftiLabelsMasker
 
 from src.features.subject_discovery import discover_files_by_subject
 
+# Single source of truth for the per-combo summary filename mask_fc.py writes
+# (subject_id/dataset/n_compromised_nodes) - src.pipeline.mask_fc imports this rather than
+# holding its own copy of the literal, and build_fc_matrix_from_masked reads it back to learn
+# each subject's dataset (2026-09-02: build_fc_matrix.py's metadata.csv never carried a
+# "dataset" column at all - stack_fc_vectors used to write subject_id only. dataset is only
+# ever genuinely known where mask_fc.py's own config declares it, not something
+# build_fc_matrix_from_masked can infer from a masked_fc/<combo>/ folder's own contents -
+# reading it back from mask_summary.csv, rather than accepting a single per-run config value
+# here, stays correct even if a combo folder is ever populated by more than one dataset's
+# mask_fc.py run - lessons_learned.md #14/#20, never trust a folder's incidental structure).
+MASK_SUMMARY_FILENAME = "mask_summary.csv"
+
 
 def resolve_atlas_paths(atlas_root: Path, combo: str) -> tuple[Path, Path]:
     """Resolve the BIDS-Derivatives nii.gz + tsv paths for one atlas combo folder.
@@ -253,7 +265,7 @@ def mask_dataset_fc(
     """Mask every discoverable subject's FC matrix and write it to output_dir.
 
     Returns (summary, missing_lesion, excluded_by_group, failed) - summary
-    has one row per masked subject (subject_id, n_compromised_nodes),
+    has one row per masked subject (subject_id, dataset, n_compromised_nodes),
     missing_lesion/excluded_by_group as in discover_subject_files, and
     failed is subject_id -> reason for any subject whose own lesion/FC file
     couldn't be read or masked - isolated per-subject (lesson #21) so one
@@ -291,7 +303,7 @@ def mask_dataset_fc(
             logging.warning("%s: skipped, could not be masked: %s", subject, exc)
             failed[subject] = str(exc)
             continue
-        rows.append({"subject_id": subject, "n_compromised_nodes": len(compromised_names)})
+        rows.append({"subject_id": subject, "dataset": dataset, "n_compromised_nodes": len(compromised_names)})
 
     summary = pd.DataFrame(rows).sort_values("subject_id").reset_index(drop=True)
     return summary, missing_lesion, excluded_by_group, failed
@@ -306,21 +318,52 @@ def discover_masked_fc_files(masked_fc_dir: Path) -> dict[str, Path]:
     return {f.name.removesuffix("_masked_fc.csv"): f for f in files}
 
 
-def stack_fc_vectors(vectors: dict[str, pd.Series]) -> tuple[np.ndarray, pd.DataFrame, list[str]]:
+def stack_fc_vectors(vectors: dict[str, pd.Series], dataset_by_subject: dict[str, str]) -> tuple[np.ndarray, pd.DataFrame, list[str]]:
     """Stack per-subject edge vectors into X (subjects x edges) + metadata.
+
+    dataset_by_subject must have an entry for every subject in vectors - raises ValueError
+    listing whichever are missing, rather than writing a metadata.csv with a blank/guessed
+    dataset for some subjects (code_standards.md §0).
 
     Raises ValueError if any subject's edge labels/order differ from the
     first subject's - never stacked by position across mismatched subjects.
     """
     subject_ids = list(vectors)
+    missing_dataset = [s for s in subject_ids if s not in dataset_by_subject]
+    if missing_dataset:
+        raise ValueError(f"no 'dataset' entry for {len(missing_dataset)} subject(s): {missing_dataset}")
+
     reference_edges = list(vectors[subject_ids[0]].index)
     for subject_id in subject_ids[1:]:
         if list(vectors[subject_id].index) != reference_edges:
             raise ValueError(f"{subject_id}: edge labels do not match the reference subject {subject_ids[0]!r}")
 
     X = np.stack([vectors[subject_id].values for subject_id in subject_ids])
-    metadata = pd.DataFrame({"subject_id": subject_ids})
+    metadata = pd.DataFrame({"subject_id": subject_ids, "dataset": [dataset_by_subject[s] for s in subject_ids]})
     return X, metadata, reference_edges
+
+
+def _load_dataset_by_subject(masked_fc_dir: Path) -> dict[str, str]:
+    """Reads {subject_id: dataset} from masked_fc_dir's own mask_summary.csv (mask_fc.py's
+    output, written from its own config.dataset - see MASK_SUMMARY_FILENAME).
+
+    Raises FileNotFoundError if mask_summary.csv is absent (masked_fc_dir wasn't produced by
+    mask_fc.py, or predates 2026-09-02's dataset column and needs a one-off backfill instead
+    of a silent guess here) - same for a "dataset" column missing from an old-format file.
+    """
+    summary_path = masked_fc_dir / MASK_SUMMARY_FILENAME
+    if not summary_path.is_file():
+        raise FileNotFoundError(
+            f"{summary_path} not found - build_fc_matrix_from_masked needs mask_fc.py's own "
+            f"{MASK_SUMMARY_FILENAME} to know each subject's dataset, not just the *_masked_fc.csv files"
+        )
+    summary = pd.read_csv(summary_path, dtype=str)
+    if "dataset" not in summary.columns:
+        raise ValueError(
+            f"{summary_path} has no 'dataset' column - either re-run mask_fc.py, or this is an "
+            "artifact from before 2026-09-02 and needs a one-off backfill, not a silent guess here"
+        )
+    return dict(zip(summary["subject_id"], summary["dataset"]))
 
 
 def drop_constant_edges(X: np.ndarray, edge_names: list[str]) -> tuple[np.ndarray, list[str], list[tuple[str, float]]]:
@@ -370,7 +413,9 @@ def build_fc_matrix_from_masked(masked_fc_dir: Path) -> tuple[np.ndarray, pd.Dat
     NaN in it (compromised edges); imputation is a separate, later step
     (src/analysis/, not here - see module docstring).
     """
+    masked_fc_dir = Path(masked_fc_dir)
     subject_files = discover_masked_fc_files(masked_fc_dir)
+    dataset_by_subject = _load_dataset_by_subject(masked_fc_dir)
 
     vectors: dict[str, pd.Series] = {}
     reference_node_names: np.ndarray | None = None
@@ -384,6 +429,6 @@ def build_fc_matrix_from_masked(masked_fc_dir: Path) -> tuple[np.ndarray, pd.Dat
             raise ValueError(f"{subject}: node order in {path} does not match the reference subject's order")
         vectors[subject] = vectorize_upper_triangle(fc_masked, reference_node_names)
 
-    X, metadata, edge_names = stack_fc_vectors(vectors)
+    X, metadata, edge_names = stack_fc_vectors(vectors, dataset_by_subject)
     X_filtered, kept_edge_names, dropped_info = drop_constant_edges(X, edge_names)
     return X_filtered, metadata, kept_edge_names, dropped_info

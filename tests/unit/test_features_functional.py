@@ -394,9 +394,10 @@ def test_stack_fc_vectors():
         "sub-01": pd.Series([0.1, 0.2], index=["A__B", "A__C"]),
         "sub-02": pd.Series([0.3, np.nan], index=["A__B", "A__C"]),
     }
-    X, metadata, edge_names = stack_fc_vectors(vectors)
+    X, metadata, edge_names = stack_fc_vectors(vectors, {"sub-01": "siteA", "sub-02": "siteA"})
     assert edge_names == ["A__B", "A__C"]
     assert list(metadata["subject_id"]) == ["sub-01", "sub-02"]
+    assert list(metadata["dataset"]) == ["siteA", "siteA"]
     assert X.shape == (2, 2)
     assert np.isnan(X[1, 1])
 
@@ -407,7 +408,13 @@ def test_stack_fc_vectors_misaligned_edges_raises():
         "sub-02": pd.Series([0.3, 0.4], index=["A__C", "A__B"]),  # different order
     }
     with pytest.raises(ValueError, match="do not match"):
-        stack_fc_vectors(vectors)
+        stack_fc_vectors(vectors, {"sub-01": "siteA", "sub-02": "siteA"})
+
+
+def test_stack_fc_vectors_missing_dataset_entry_raises():
+    vectors = {"sub-01": pd.Series([0.1], index=["A__B"])}
+    with pytest.raises(ValueError, match="no 'dataset' entry.*sub-01"):
+        stack_fc_vectors(vectors, {})
 
 
 # --- drop_constant_edges -------------------------------------------------------
@@ -479,6 +486,10 @@ def test_discover_masked_fc_files_missing_raises(tmp_path):
         discover_masked_fc_files(tmp_path)
 
 
+def _write_mask_summary(tmp_path, rows):
+    pd.DataFrame(rows).to_csv(tmp_path / "mask_summary.csv", index=False)
+
+
 def test_build_fc_matrix_from_masked_end_to_end(tmp_path):
     node_names = ["A", "B", "C"]
     fc1 = pd.DataFrame([[1.0, 0.1, 0.2], [0.1, 1.0, 0.3], [0.2, 0.3, 1.0]], index=node_names, columns=node_names)
@@ -488,10 +499,12 @@ def test_build_fc_matrix_from_masked_end_to_end(tmp_path):
 
     fc1.to_csv(tmp_path / "sub-01_masked_fc.csv")
     fc2.to_csv(tmp_path / "sub-02_masked_fc.csv")
+    _write_mask_summary(tmp_path, [{"subject_id": "sub-01", "dataset": "siteA"}, {"subject_id": "sub-02", "dataset": "siteA"}])
 
     X, metadata, edge_names, dropped_info = build_fc_matrix_from_masked(tmp_path)
 
     assert list(metadata["subject_id"]) == ["sub-01", "sub-02"]
+    assert list(metadata["dataset"]) == ["siteA", "siteA"]
     assert edge_names == ["A__B", "A__C", "B__C"]
     assert X.shape == (2, 3)
     assert np.isnan(X[1, 0]) and np.isnan(X[1, 2])  # A__B, B__C for sub-02
@@ -507,8 +520,24 @@ def test_build_fc_matrix_from_masked_node_mismatch_raises(tmp_path):
     fc2 = pd.DataFrame([[1.0, 0.1], [0.1, 1.0]], index=node_names_b, columns=node_names_b)
     fc1.to_csv(tmp_path / "sub-01_masked_fc.csv")
     fc2.to_csv(tmp_path / "sub-02_masked_fc.csv")
+    _write_mask_summary(tmp_path, [{"subject_id": "sub-01", "dataset": "siteA"}, {"subject_id": "sub-02", "dataset": "siteA"}])
 
     with pytest.raises(ValueError, match="does not match the reference subject"):
+        build_fc_matrix_from_masked(tmp_path)
+
+
+def test_build_fc_matrix_from_masked_missing_mask_summary_raises(tmp_path):
+    pd.DataFrame([[1.0]], index=["A"], columns=["A"]).to_csv(tmp_path / "sub-01_masked_fc.csv")
+    with pytest.raises(FileNotFoundError, match="mask_summary.csv"):
+        build_fc_matrix_from_masked(tmp_path)
+
+
+def test_build_fc_matrix_from_masked_mask_summary_without_dataset_column_raises(tmp_path):
+    """A mask_summary.csv predating the 2026-09-02 dataset column must raise, not be
+    silently treated as if every subject's dataset were unknowable/blank."""
+    pd.DataFrame([[1.0]], index=["A"], columns=["A"]).to_csv(tmp_path / "sub-01_masked_fc.csv")
+    pd.DataFrame([{"subject_id": "sub-01", "n_compromised_nodes": 0}]).to_csv(tmp_path / "mask_summary.csv", index=False)
+    with pytest.raises(ValueError, match="no 'dataset' column"):
         build_fc_matrix_from_masked(tmp_path)
 
 
@@ -557,6 +586,7 @@ def test_mask_dataset_fc_end_to_end(tmp_path):
     sub02_row = summary[summary["subject_id"] == "sub-STUNIPD0002"].iloc[0]
     assert sub01_row["n_compromised_nodes"] == 1
     assert sub02_row["n_compromised_nodes"] == 0
+    assert set(summary["dataset"]) == {"siteA"}
     assert (output_dir / "sub-STUNIPD0001_masked_fc.csv").is_file()
     assert (output_dir / "sub-STUNIPD0002_masked_fc.csv").is_file()
 

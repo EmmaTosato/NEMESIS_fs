@@ -1,11 +1,11 @@
 participant_id	original_id	center_id	disease_id	disease_notes	dataset	age	sex	education	time_follow_up_(days)	lesion_volume_ml	NIHSS_24H	NIHSS_at_presentation	NIHSS_3m	mRS_pre_stroke	mRS_3m	subject	feature/func/FC-pearson	feature/func/motion	feature/func/outliers	lesion/manual_masks/anat/lesion_mask
-sub-STUNIPD0489	1	UNIPD	ST	Stroke patients	PASPORT	84.0	F		90.0	197.1	26.0	25.0	20.0	0.0	6.0	sub-STUNIPD0489	missing	missing	missing	present
-sub-STUNIPD0490	4	UNIPD	ST	Stroke patients	PASPORT	83.0	M		90.0	11.96	3.0	3.0	2.0	0.0	1.0	sub-STUNIPD0490	missing	missing	missing	present
-sub-STUNIPD0491	39	UNIPD	ST	Stroke patients	PASPORT	76.0	F		41.0	8.38	1.0	3.0	1.0	0.0	0.0	sub-STUNIPD0491	missing	missing	missing	present
-sub-STUNIPD0492	40	UNIPD	ST	Stroke patients	PASPORT	59.0	M		104.0	21.2	2.0	3.0	1.0	0.0	1.0	sub-STUNIPD0492	missing	missing	missing	present
-sub-STUNIPD0493	67	UNIPD	ST	Stroke patients	PASPORT	76.0	M		90.0	86.5	19.0	20.0	10.0	0.0	4.0	sub-STUNIPD0493	missing	missing	missing	present
-sub-STUNIPD0494	93	UNIPD	ST	Stroke patients	PASPORT	63.0	F		54.0	6.72	5.0	16.0	1.0	0.0	0.0	sub-STUNIPD0494	missing	missing	missing	present
-sub-STUNIPD0495	97	UNIPD	ST	Stroke patients	PASPORT	48.0	M		240.0	54.04	14.0	20.0	2.0	0.0	4.0	sub-STUNIPD0495	missing	missing	missing	present
+sub-STUNIPD0489	001	UNIPD	ST	Stroke patients	PASPORT	84.0	F		90.0	197.1	26.0	25.0	20.0	0.0	6.0	sub-STUNIPD0489	missing	missing	missing	present
+sub-STUNIPD0490	004	UNIPD	ST	Stroke patients	PASPORT	83.0	M		90.0	11.96	3.0	3.0	2.0	0.0	1.0	sub-STUNIPD0490	missing	missing	missing	present
+sub-STUNIPD0491	039	UNIPD	ST	Stroke patients	PASPORT	76.0	F		41.0	8.38	1.0	3.0	1.0	0.0	0.0	sub-STUNIPD0491	missing	missing	missing	present
+sub-STUNIPD0492	040	UNIPD	ST	Stroke patients	PASPORT	59.0	M		104.0	21.2	2.0	3.0	1.0	0.0	1.0	sub-STUNIPD0492	missing	missing	missing	present
+sub-STUNIPD0493	067	UNIPD	ST	Stroke patients	PASPORT	76.0	M		90.0	86.5	19.0	20.0	10.0	0.0	4.0	sub-STUNIPD0493	missing	missing	missing	present
+sub-STUNIPD0494	093	UNIPD	ST	Stroke patients	PASPORT	63.0	F		54.0	6.72	5.0	16.0	1.0	0.0	0.0	sub-STUNIPD0494	missing	missing	missing	present
+sub-STUNIPD0495	097	UNIPD	ST	Stroke patients	PASPORT	48.0	M		240.0	54.04	14.0	20.0	2.0	0.0	4.0	sub-STUNIPD0495	missing	missing	missing	present
 sub-STUNIPD0496	107	UNIPD	ST	Stroke patients	PASPORT	78.0	F		90.0	95.57	20.0	17.0	17.0	1.0	6.0	sub-STUNIPD0496	missing	missing	missing	present
 sub-STUNIPD0497	108	UNIPD	ST	Stroke patients	PASPORT	65.0	M		90.0	3.168	1.0	5.0	1.0	0.0	0.0	sub-STUNIPD0497	missing	missing	missing	present
 sub-STUNIPD0498	111	UNIPD	ST	Stroke patients	PASPORT	84.0	F		90.0	137.9		16.0	12.0	0.0	6.0	sub-STUNIPD0498	missing	missing	missing	present

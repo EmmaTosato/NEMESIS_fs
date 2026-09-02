@@ -1,14 +1,14 @@
 {
   "project": "clinical_connectome",
   "metadata_path": "data/derived/sdc_matrix/27-08_s2.1/metadata.csv",
-  "output_root": "data/derived/clinical_metadata",
+  "copy_output_path": null,
 
-  "session_name": "sdc_s2.1",
+  "session_name": "s2.1-schaefer-200-tian-s2",
   "compute_volume": false,
-  "variables": ["age", "sex", "education", "clinical_date"],
+  "variables": ["lesion_side", "NIHSS", "age", "sex", "education", "clinical_date"],
 
   "overwrite": true,
   "write_in_place": true,
-  
-  "run_notes": "enrich sdc_matrix 27-08_s2.1 metadata in place with age/sex/education/clinical_date - already had lesion_side/nihss from the 28-08 write_in_place run, this completes the same clinical variable set as results/lesion/dim_reduction/production/umap/11-08_s1.1_m_dice_nc2/metadata.csv's enrichment (lesion_volume_voxels intentionally excluded - not meaningful for a continuous SDC mean_overlap matrix, same reasoning as compute_volume=false on every prior enrichment of this artifact)"
+
+  "run_notes": "refresh 02-09-26 - age/education stale su UKLFR (stesso drift pre-fix), riallineati"
 }

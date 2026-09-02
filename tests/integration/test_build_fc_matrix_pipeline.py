@@ -15,10 +15,17 @@ from src.pipeline import build_fc_matrix
 from src.utils.artifacts import load_matrix
 
 
-def _write_masked_fc(masked_fc_root, combo, subject, fc):
+def _write_masked_fc(masked_fc_root, combo, subject, fc, dataset="siteA"):
+    """Writes the masked FC csv plus this subject's row in the combo's own mask_summary.csv
+    (2026-09-02: build_fc_matrix_from_masked now reads dataset back from there, mirroring
+    mask_fc.py's real output shape - see src.features.functional.MASK_SUMMARY_FILENAME)."""
     combo_dir = masked_fc_root / combo
     combo_dir.mkdir(parents=True, exist_ok=True)
     fc.to_csv(combo_dir / f"{subject}_masked_fc.csv")
+    summary_path = combo_dir / "mask_summary.csv"
+    rows = pd.read_csv(summary_path).to_dict("records") if summary_path.is_file() else []
+    rows.append({"subject_id": subject, "dataset": dataset, "n_compromised_nodes": 0})
+    pd.DataFrame(rows).to_csv(summary_path, index=False)
 
 
 def _write_config(tmp_path, masked_fc_root, output_root, overrides=None):

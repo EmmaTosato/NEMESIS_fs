@@ -36,14 +36,13 @@ from pathlib import Path
 import pandas as pd
 
 from src.analysis.build_config import MaskFcConfig, load_mask_fc_config
-from src.features.functional import mask_dataset_fc, resolve_atlas_paths
+from src.features.functional import MASK_SUMMARY_FILENAME, mask_dataset_fc, resolve_atlas_paths
 from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
 
 REPORTS_ROOT = Path("summaries") / "mask_fc"
 LOGS_ROOT = Path("logs") / "mask_fc"
 REPORT_FILENAME_PREFIX = "mask_summary"
-SUMMARY_FILENAME = "mask_summary.csv"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -138,9 +137,9 @@ def main(argv: list[str] | None = None) -> int:
             )
 
             try:
-                summary.to_csv(output_dir / SUMMARY_FILENAME, index=False)
+                summary.to_csv(output_dir / MASK_SUMMARY_FILENAME, index=False)
             except OSError as exc:
-                logging.error("%s: cannot write %s: %s", combo, SUMMARY_FILENAME, exc, exc_info=True)
+                logging.error("%s: cannot write %s: %s", combo, MASK_SUMMARY_FILENAME, exc, exc_info=True)
                 return 1
 
             combo_summaries[combo] = summary

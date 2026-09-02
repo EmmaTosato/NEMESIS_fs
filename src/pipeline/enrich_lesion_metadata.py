@@ -7,12 +7,14 @@ Usage:
     python -m src.pipeline.enrich_lesion_metadata --config config/pipelines/enrich_lesion_metadata.json
 
 `metadata_path` (any CSV with subject_id/dataset columns - typically, but not necessarily,
-a build_lesion_matrix.py/build_sdc_matrix.py output's own metadata.csv) is read-only by
-default: the enriched result lands in a brand-new `output_root/<dd-mm>_<session_name>`
-directory, the same input->output separation as every other pipeline in this repo - this
-metadata-only output has no matrix.npy next to it, so it cannot itself be used as a
-dim_reduction.py/clustering.py `input_path` (src.utils.artifacts.load_matrix requires one);
-it's for scripts/replot_dim_reduction.py-style consumers that only need metadata.csv.
+a build_lesion_matrix.py/build_sdc_matrix.py output's own metadata.csv) is read-only unless
+write_in_place=true. When false, the enriched result lands exactly at `copy_output_path` - a
+full destination the caller writes into the config by hand (2026-09-02: no more auto-derived
+`output_root/<dd-mm>_<session_name>` - see src.analysis.build_config.EnrichLesionMetadataConfig
+for why an implicit, unrequested standalone copy was itself the problem). This metadata-only
+output has no matrix.npy next to it, so it cannot itself be used as a dim_reduction.py/
+clustering.py `input_path` (src.utils.artifacts.load_matrix requires one); it's for
+scripts/replot_dim_reduction.py-style consumers that only need metadata.csv.
 
 `write_in_place=true` is the one designated exception (2026-08-28, on request): metadata_path
 must then sit inside an existing, complete matrix artifact (a manifest.json and a matrix.npy
@@ -84,6 +86,13 @@ _OUTPUT_COLUMN_RENAME = {"NIHSS": "nihss"}
 
 REPORTS_ROOT = Path("summaries") / "enrich_lesion_metadata"
 LOGS_ROOT = Path("logs") / "enrich_lesion_metadata"
+# Fixed, non-configurable home for this pipeline's own runs.csv (2026-09-02) - not a real
+# per-run choice once both write_in_place branches fully determine the enriched artifact's own
+# location themselves (metadata_path's own directory when true, copy_output_path when false),
+# so it's no longer a config field (see EnrichLesionMetadataConfig). Replaces the old
+# output_root-driven data/derived/clinical_metadata/, deleted along with this change - it held
+# nothing but this run log plus orphaned pre-write_in_place standalone copies nobody consumed.
+RUNS_LOG_ROOT = Path("data") / "derived" / "enrich_lesion_metadata"
 REPORT_FILENAME_PREFIX = "enrich_summary"
 
 
@@ -180,7 +189,7 @@ def main(argv: list[str] | None = None) -> int:
                 logging.error(str(exc))
                 return 1
         else:
-            output_dir = _output_dir(config, now)
+            output_dir = config.copy_output_path
             try:
                 _write_artifact(output_dir, metadata_out, config, now, overwrite=config.overwrite)
             except (FileExistsError, OSError) as exc:
@@ -190,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
 
         try:
             append_run_log_entry(
-                config.output_root,
+                RUNS_LOG_ROOT,
                 config.session_name,
                 now,
                 "production",
@@ -256,25 +265,44 @@ def _join_variables(metadata: pd.DataFrame, variables: list[str]) -> pd.DataFram
     (join_lesion_side) and renaming NIHSS->nihss on output - see this module's own docstring
     for why those two aren't just handled generically like every other variable.
 
-    Output columns are ordered as (metadata's own columns) + (variables in the order they
-    were requested, post-rename) - not however _join_variables happens to compute them
-    internally (lesion_side is filled in separately from the rest) - so the result's column
-    order matches config.variables regardless of that implementation detail. Matters
-    concretely: matching the exact column order every existing
+    Output columns are ordered as (metadata's own columns, minus any being refreshed by this
+    call) + (variables in the order they were requested, post-rename) - not however
+    _join_variables happens to compute them internally (lesion_side is filled in separately
+    from the rest) - so the result's column order matches config.variables regardless of that
+    implementation detail. Matters concretely: matching the exact column order every existing
     results/lesion/dim_reduction/**/metadata.csv already has makes a manual merge into those
     files a straight column-append, not a reorder.
+
+    Regression (2026-09-02, two layers - the first fix below was incomplete on its own):
+    metadata can already have a column with the same FINAL name as a requested variable - not
+    just the write_in_place=true "refresh already-enriched columns" case this was first found
+    in, but also a first-time run whose metadata_path happens to already carry a same-named
+    column from an earlier, unrelated step.
+
+    1. The output *selection* must never list a name twice - fixed by excluding those names
+       from metadata's own preserved columns (the old `list(metadata.columns) +
+       ordered_variable_columns` silently did, whenever a name was present in both).
+    2. NIHSS's own case-only rename can *independently* collide even after (1): metadata_out
+       starts as a copy of metadata (which already has a lowercase "nihss" from a prior run),
+       then join_participant_variables adds a *new*, distinctly-named "NIHSS" (uppercase,
+       generic_variables is never renamed until the very next line) - `.rename({"NIHSS":
+       "nihss"})` then collides that fresh "NIHSS" onto the still-present stale "nihss",
+       producing two "nihss" columns even though (1) alone would only ever see one "nihss" in
+       metadata.columns. Fixed by stripping every to-be-refreshed column (by its final,
+       post-rename name) from the join's own starting point first, so
+       join_participant_variables/join_lesion_side always start from a base with zero
+       pre-existing same-named column to collide with, regardless of a mid-flight rename.
     """
+    ordered_variable_columns = [_OUTPUT_COLUMN_RENAME.get(v, v) for v in variables]
+    base = metadata.drop(columns=[c for c in ordered_variable_columns if c in metadata.columns])
+
     generic_variables = [v for v in variables if v != _LESION_SIDE_VARIABLE]
-    metadata_out = join_participant_variables(metadata, generic_variables) if generic_variables else metadata.copy()
+    metadata_out = join_participant_variables(base, generic_variables) if generic_variables else base.copy()
     if _LESION_SIDE_VARIABLE in variables:
         metadata_out[_LESION_SIDE_VARIABLE] = join_lesion_side(metadata)
     metadata_out = metadata_out.rename(columns=_OUTPUT_COLUMN_RENAME)
-    ordered_variable_columns = [_OUTPUT_COLUMN_RENAME.get(v, v) for v in variables]
-    return metadata_out[list(metadata.columns) + ordered_variable_columns]
-
-
-def _output_dir(config: EnrichLesionMetadataConfig, now: datetime) -> Path:
-    return config.output_root / f"{now.strftime('%d-%m')}_{config.session_name}"
+    preserved_columns = [c for c in metadata.columns if c not in ordered_variable_columns]
+    return metadata_out[preserved_columns + ordered_variable_columns]
 
 
 def _config_summary(config: EnrichLesionMetadataConfig) -> dict:
@@ -283,7 +311,7 @@ def _config_summary(config: EnrichLesionMetadataConfig) -> dict:
         "metadata_path": str(config.metadata_path),
         "compute_volume": config.compute_volume,
         "variables": config.variables,
-        "output_root": str(config.output_root),
+        "copy_output_path": str(config.copy_output_path) if config.copy_output_path is not None else None,
         "session_name": config.session_name,
         "overwrite": config.overwrite,
         "write_in_place": config.write_in_place,

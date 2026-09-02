@@ -257,7 +257,7 @@ _ENRICH_BASE = {
     "metadata_path": "data/derived/lesion_matrix/21-07_s1.1/metadata.csv",
     "compute_volume": False,
     "variables": ["age", "sex"],
-    "output_root": "data/derived/clinical_metadata",
+    "copy_output_path": "data/derived/lesion_matrix/s1_copy",
     "session_name": "s1",
     "overwrite": False,
     "write_in_place": False,
@@ -288,8 +288,21 @@ def test_enrich_lesion_metadata_variables_must_be_unique(tmp_path):
         load_enrich_lesion_metadata_config(_write_enrich(tmp_path, {"variables": ["age", "age"]}))
 
 
-def test_enrich_lesion_metadata_write_in_place_defaults_false_but_is_required(tmp_path):
-    config = load_enrich_lesion_metadata_config(_write_enrich(tmp_path, {"write_in_place": True}))
+def test_enrich_lesion_metadata_write_in_place_is_required(tmp_path):
+    config = load_enrich_lesion_metadata_config(_write_enrich(tmp_path, {"write_in_place": True, "copy_output_path": None}))
     assert config.write_in_place is True
+    assert config.copy_output_path is None
     with pytest.raises(ValueError, match="write_in_place"):
         load_enrich_lesion_metadata_config(_write_enrich(tmp_path, {"write_in_place": "__delete__"}))
+
+
+def test_enrich_lesion_metadata_copy_output_path_required_when_not_write_in_place(tmp_path):
+    with pytest.raises(ValueError, match="copy_output_path.*required"):
+        load_enrich_lesion_metadata_config(_write_enrich(tmp_path, {"write_in_place": False, "copy_output_path": None}))
+
+
+def test_enrich_lesion_metadata_copy_output_path_forbidden_when_write_in_place(tmp_path):
+    with pytest.raises(ValueError, match="copy_output_path.*omitted"):
+        load_enrich_lesion_metadata_config(
+            _write_enrich(tmp_path, {"write_in_place": True, "copy_output_path": "data/derived/clinical_metadata/s1_copy"})
+        )

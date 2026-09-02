@@ -24,17 +24,16 @@ Attualmente sono gestite 5 coorti. Sebbene sia in corso un processo di armonizza
 
 ---
 
-## Copie Locali: Campione Ridotto (dal 26/08/26)
+## Copie Locali: Campione Ridotto
 
-Le matrici finali (`build_lesion_matrix.py`; `mask_fc.py`+`build_fc_matrix.py`) sono già calcolate a partire da questi dati grezzi — tenerli integri in locale non serve più per l'uso quotidiano, solo occupa spazio. `scripts/archive_local_raw_data.py` ha ridotto in locale le seguenti cartelle a **10 soggetti campione** (per notebook/esplorazione), comprimendo il resto in un `.tar.gz` verificato (contenuto riletto e confrontato con quanto tarrato, prima di cancellare l'originale) accanto alla cartella stessa:
+Le matrici finali (`build_lesion_matrix.py`; `mask_fc.py`+`build_fc_matrix.py`) sono già calcolate a partire da questi dati grezzi — tenerli integri in locale non serve più per l'uso quotidiano, solo occupa spazio. `scripts/archive_local_raw_data.py` (26/08/26) aveva ridotto in locale più cartelle a **10 soggetti campione** (per notebook/esplorazione), comprimendo il resto in un `.tar.gz` verificato (contenuto riletto e confrontato con quanto tarrato, prima di cancellare l'originale) accanto alla cartella stessa. I 5 `manual_masks/` di questa pagina (WashU, PSP, PASPORT, UKLFR, UCL-UK) sono stati **riscompattati per intero il 01-09-26** — restano ridotte solo:
 
-- I 5 `manual_masks/` di questa pagina (WashU, PSP, PASPORT, UKLFR, UCL-UK)
 - `UNIPD/WashU/features/`
 - `data/derived/features/masked_fc/` (10 soggetti comuni a tutte e 12 le combinazioni di atlante — `mask_summary.csv`/`runs.csv`/`demo/` non toccati)
 
-Ogni cartella toccata ha un `README_ARCHIVE.md` con l'elenco esatto dei soggetti tenuti e il comando di ripristino (`tar -xzf <nome>_archive.tar.gz -C .`). Per `manual_masks`/`features` i dati completi restano comunque sempre recuperabili da EBRAIN via `retrieve_data.py` (vedi `docs/guides/retrieval.md`) — `masked_fc` non è su EBRAIN (è output calcolato da `mask_fc.py`), quindi lì il ripristino è: decomprimere l'archivio, oppure rilanciare `mask_fc.py` da zero (vedi `docs/guides/fc_matrix_building.md`).
+Ogni cartella ancora ridotta ha un `README_ARCHIVE.md` con l'elenco esatto dei soggetti tenuti e il comando di ripristino (`tar -xzf <nome>_archive.tar.gz -C .`). Per `features` i dati completi restano comunque sempre recuperabili da EBRAIN via `retrieve_data.py` (vedi `docs/guides/retrieval.md`) — `masked_fc` non è su EBRAIN (è output calcolato da `mask_fc.py`), quindi lì il ripristino è: decomprimere l'archivio, oppure rilanciare `mask_fc.py` da zero (vedi `docs/guides/fc_matrix_building.md`).
 
-`sub-STUNIPD0001` (WashU) è garantito sempre presente in chiaro, non per coincidenza d'ordinamento: è il `reference_template_path` hardcoded in `config/pipelines/build_lesion_matrix.json` (pinned esplicitamente in `scripts/archive_local_raw_data.py`).
+`sub-STUNIPD0001` (WashU) è garantito sempre presente in chiaro nelle cartelle ancora ridotte, non per coincidenza d'ordinamento: è il `reference_template_path` hardcoded in `config/pipelines/build_lesion_matrix.json` (pinned esplicitamente in `scripts/archive_local_raw_data.py`).
 
 > Se rilanci una di queste pipeline sull'intera coorte (non solo il campione locale), la discovery vedrà solo i soggetti superstiti per questi dataset finché non decomprimi l'archivio pertinente o non ri-recuperi da EBRAIN.
 
@@ -51,6 +50,7 @@ La pipeline *Retrieve Data* pesca "oggetti" da sorgenti asimmetriche. Questo sig
 ### 2. Dati Clinici e Anagrafici
 - **Path logico**: `participants.tsv`
 - **Descrizione**: Informazioni sui pazienti. Disponibile per tutti e 5 i dataset (incluso WashU con 319 pazienti; per UCL-UK/UCLStrokeData 4119 righe, verificato 21/08).
+- **UCL-UK, unica eccezione sul formato ID**: negli altri 4 dataset `participant_id` è già nel formato canonico `sub-*` usato ovunque nel progetto. Solo UCL-UK ha `participant_id` grezzo nel formato legacy del sito (`ST_UCL-UK_0001`) — vedi `docs/dev/metadata.md` per come questo viene riconciliato in `assets/metadata/`.
 - **Campi Principali**: `age`, `sex`, `handedness`, `education`, `lesion_side`.
 - **Gruppo soggetto (`disease_id`)**: `ST` (Stroke) e `HC` (Healthy Controls). 
 - **Punteggi Clinici (solo WashU)**: 
