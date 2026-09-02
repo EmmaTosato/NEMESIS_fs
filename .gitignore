@@ -9,8 +9,6 @@ data/*
 
 results/
 
-sub_BCB_example/
-
 logs/
 summaries/
 
