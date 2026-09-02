@@ -15,7 +15,7 @@
   "value_column": "mean_overlap",
   "reference_labels_path": "assets/atlases/sdc_labels/schaefer_200_tian_s2.csv",
   "output_root": "data/derived/sdc_matrix",
-  "session_name": "s2.1",
+  "session_name": "s2.1-schaefer-200-tian-s2",
   "overwrite": false,
   "run_notes": "prima run di produzione, atlante schaefer_200_tian_s2, nessun drop di colonne costanti"
 }

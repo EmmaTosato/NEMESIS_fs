@@ -110,7 +110,13 @@ def main(argv: list[str] | None = None) -> int:
                 float(nan_per_subject.mean()),
             )
 
-            output_dir = config.output_root / combo / f"{now.strftime('%d-%m')}_{config.session_name}"
+            # config.session_name is only the base cohort ("s3.1") - the atlas_combo is
+            # appended here (dash, not underscore - session_name itself must never contain "_",
+            # see src/utils/run_log.py::append_run_log_entry) so two atlas_combos of the same
+            # cohort never collide on the same output_dir/runs.csv session id, same pattern
+            # dim_reduction.py/clustering.py already use for their own downstream tags.
+            effective_session_name = f"{config.session_name}-{combo}"
+            output_dir = config.output_root / combo / f"{now.strftime('%d-%m')}_{effective_session_name}"
             readme_lines = _build_readme_lines(config, combo, X, dropped_info, now)
             try:
                 save_matrix(
@@ -139,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 append_run_log_entry(
                     config.output_root,
-                    config.session_name,
+                    effective_session_name,
                     now,
                     "production",
                     {"n_subjects": X.shape[0], "n_edges": X.shape[1]},

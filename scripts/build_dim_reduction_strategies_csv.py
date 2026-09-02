@@ -15,7 +15,7 @@ Two sources, joined on session:
   tuning_grid (see _strategy_variants) - modality/reduction_method read from the file's own
   path, metric/n_components parsed from that row's own `params` JSON column.
 - docs/experiments/data_sessions.md - hand-written narrative (datasets/modality) per session, keyed
-  by the same session id runs.csv uses in its own "session" column (e.g. "s1.1").
+  by the same session id runs.csv uses in its own "session" column (e.g. "s1.1-vol").
 
 Deliberately no per-row output path column (no "latest_output", decided in session 14-08-26)
 and no run-count columns either (production_runs/tuning_runs dropped 16-08-26, on request):
@@ -52,13 +52,13 @@ from pathlib import Path
 
 import pandas as pd
 
-_SESSION_HEADER_RE = re.compile(r"^## Session (\S+)\s*$")
+_SESSION_HEADER_RE = re.compile(r"^### Session (\S+)\s*$")
 _SESSION_FIELD_RE = re.compile(r"^- (Starting date|Datasets|Modality):\s*(.*)$")
 _REQUIRED_SESSION_FIELDS = ("Starting date", "Datasets", "Modality")
 
 # runs.csv's own "session" column always starts with a lowercase "s" followed by the session
-# number data_sessions.md documents under "## Session <number>" (e.g. runs.csv "s1.1" <-> data_sessions.md
-# "## Session 1.1") - see src/utils/run_log.py's append_run_log_entry, which splits run_id on
+# number data_sessions.md documents under "### Session <number>" (e.g. runs.csv "s1.1-vol" <-> data_sessions.md
+# "### Session 1.1-vol") - see src/utils/run_log.py's append_run_log_entry, which splits run_id on
 # its first "_" to get this value. Anything not matching this convention is a real problem
 # (typo'd session_name, or a naming convention this script doesn't know about yet) worth
 # surfacing, not guessing past.
@@ -82,7 +82,7 @@ class SessionInfo:
 
 
 def parse_sessions_md(path: Path) -> dict[str, SessionInfo]:
-    """Parses docs/experiments/data_sessions.md's fixed-key format (`## Session <id>` header,
+    """Parses docs/experiments/data_sessions.md's fixed-key format (`### Session <id>` header,
     `- Starting date:`/`- Datasets:`/`- Modality:` fields) into {session_id: SessionInfo}.
 
     Raises ValueError for a session missing any of the 3 required fields, a duplicate session
@@ -118,7 +118,7 @@ def parse_sessions_md(path: Path) -> dict[str, SessionInfo]:
         field_match = _SESSION_FIELD_RE.match(line)
         if field_match:
             if current_id is None:
-                raise ValueError(f"{path}: field line {line!r} appears before any '## Session' header")
+                raise ValueError(f"{path}: field line {line!r} appears before any '### Session' header")
             fields[field_match.group(1)] = field_match.group(2).strip()
     _flush_current_session()
     return sessions

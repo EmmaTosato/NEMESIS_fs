@@ -1,6 +1,6 @@
 {
   "project": "clinical_connectome",
-  "metadata_path": "data/derived/sdc_matrix/27-08_s2.1/metadata.csv",
+  "metadata_path": "data/derived/sdc_matrix/27-08_s2.1-schaefer-200-tian-s2/metadata.csv",
   "copy_output_path": null,
 
   "session_name": "s2.1-schaefer-200-tian-s2",

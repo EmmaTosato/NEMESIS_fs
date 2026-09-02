@@ -15,31 +15,31 @@
 
 ---
 
-## 01-09-2026 — s2.1 (nc2)
+## 01-09-2026 — s2.1-schaefer-200-tian-s2 (nc2)
 
 ### Tuning SDC - 5 metodi SOTA
 
 ##### Input
-- s2.1
+- s2.1-schaefer-200-tian-s2
 - Embedding: UMAP `euclidean`, n_components=2
-- Path Embedding: `31-08_s2.1_m_euclidean_nc2`
-- Dati originali: `data/derived/sdc_matrix/27-08_s2.1`
+- Path Embedding: `31-08_s2.1-schaefer-200-tian-s2_m_euclidean_nc2`
+- Dati originali: `data/derived/sdc_matrix/27-08_s2.1-schaefer-200-tian-s2`
 - 1119 soggetti
 ##### Metodi
 Agglomerative, gmm, kmeans, hdbscan, spectral
 
 ##### Obiettivo
-- Verificare se l'artefatto di lateralizzazione (`lesion_side`) e le metriche di silhouette seguono lo stesso andamento visto per i lesion embeddings (s1.1 e s1.2)
+- Verificare se l'artefatto di lateralizzazione (`lesion_side`) e le metriche di silhouette seguono lo stesso andamento visto per i lesion embeddings (s1.1-vol e s1.2-vol)
 
 ##### Risultati
 
 | Metodo | Miglior combo (silhouette) | Link |
 | --- | --- | --- |
-| Agglomerative | `k=3, average/ward/complete, euclidean` (~0.481) | [tuning/agglomerative/](../../../results/sdc/clustering/tuning/agglomerative/umap/01-09_s2.1_m_euclidean_nc2/) |
-| GMM | `n_components=4, full` (0.496) | [tuning/gmm/](../../../results/sdc/clustering/tuning/gmm/umap/01-09_s2.1_m_euclidean_nc2/) |
-| KMeans | `k=4` (0.497) | [tuning/kmeans/](../../../results/sdc/clustering/tuning/kmeans/umap/01-09_s2.1_m_euclidean_nc2/) |
-| HDBSCAN | `mcs=20, ms=10` (0.475, noise 0.08) *[1]* | [tuning/hdbscan/](../../../results/sdc/clustering/tuning/hdbscan/umap/01-09_s2.1_m_euclidean_nc2/) |
-| Spectral | `n_clusters=8, rbf, gamma=1.0` (0.502) | [tuning/spectral/](../../../results/sdc/clustering/tuning/spectral/umap/01-09_s2.1_m_euclidean_nc2/) |
+| Agglomerative | `k=3, average/ward/complete, euclidean` (~0.481) | [tuning/agglomerative/](../../../results/sdc/clustering/tuning/agglomerative/umap/01-09_s2.1-schaefer-200-tian-s2_m_euclidean_nc2/) |
+| GMM | `n_components=4, full` (0.496) | [tuning/gmm/](../../../results/sdc/clustering/tuning/gmm/umap/01-09_s2.1-schaefer-200-tian-s2_m_euclidean_nc2/) |
+| KMeans | `k=4` (0.497) | [tuning/kmeans/](../../../results/sdc/clustering/tuning/kmeans/umap/01-09_s2.1-schaefer-200-tian-s2_m_euclidean_nc2/) |
+| HDBSCAN | `mcs=20, ms=10` (0.475, noise 0.08) *[1]* | [tuning/hdbscan/](../../../results/sdc/clustering/tuning/hdbscan/umap/01-09_s2.1-schaefer-200-tian-s2_m_euclidean_nc2/) |
+| Spectral | `n_clusters=8, rbf, gamma=1.0` (0.502) | [tuning/spectral/](../../../results/sdc/clustering/tuning/spectral/umap/01-09_s2.1-schaefer-200-tian-s2_m_euclidean_nc2/) |
 
 *[1] Filtrato per `noise_fraction ≤ 0.1` per evitare la soluzione degenere a 0.608 con ~25% di dati marcati come rumore.*
 
@@ -50,4 +50,4 @@ Agglomerative, gmm, kmeans, hdbscan, spectral
 
 ##### Decisioni
 
-- Estendere l'analisi esplorativa all'altra versione di embedding (`nc3`) generata per s2.1, per confermare se l'incremento di dimensionalità mitiga o conferma questi risultati, per poi decidere come uniformare la configurazione di produzione.
+- Estendere l'analisi esplorativa all'altra versione di embedding (`nc3`) generata per s2.1-schaefer-200-tian-s2, per confermare se l'incremento di dimensionalità mitiga o conferma questi risultati, per poi decidere come uniformare la configurazione di produzione.

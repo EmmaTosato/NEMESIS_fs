@@ -114,8 +114,10 @@ def test_mask_fc_end_to_end(tmp_path, monkeypatch, caplog):
     assert len(logs) == 1
 
     runs_csv = (output_root / "runs.csv").read_text()
-    assert "s1" in runs_csv
-    assert "ComboX" in runs_csv
+    # effective_session_name = f"{config.session_name}-{combo}" (02-09-26) - config.session_name
+    # is only the base cohort, the combo is appended before it reaches runs.csv's "session"
+    # column even though output_dir itself (output_root/<combo>) never carries session_name.
+    assert "s1-ComboX" in runs_csv
 
 
 def test_mask_fc_overwrite_false_rerun_fails(tmp_path, monkeypatch, caplog):
@@ -233,3 +235,30 @@ def test_mask_fc_missing_lesion_subject_skipped_not_fatal(tmp_path, monkeypatch)
     combo_dir = output_root / "ComboX"
     assert (combo_dir / "sub-STUNIPD0001_masked_fc.csv").is_file()
     assert not (combo_dir / "sub-STUNIPD0002_masked_fc.csv").is_file()
+
+
+def test_mask_fc_two_combos_get_distinct_runs_csv_session_names(tmp_path, monkeypatch):
+    """02-09-26 session-naming migration regression: config.session_name is only the base
+    cohort ("s1" here) - mask_fc.py must append each combo to it (effective_session_name)
+    before it reaches runs.csv's "session" column, or two atlas_combos processed the same run
+    would be indistinguishable there (output_dir itself is unaffected - output_root/<combo> -
+    same as build_fc_matrix_pipeline's sibling regression test)."""
+    monkeypatch.setattr(mask_fc, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(mask_fc, "LOGS_ROOT", tmp_path / "logs")
+
+    data_root = tmp_path / "data"
+    atlas_root = tmp_path / "atlases"
+    output_root = tmp_path / "out"
+    node_names = ["Region_A", "Region_B"]
+    _make_atlas(atlas_root, "ComboA")
+    _make_atlas(atlas_root, "ComboB")
+    _make_subject(data_root, "siteA", "sub-STUNIPD0001", "ComboA", node_names, [])
+    _make_subject(data_root, "siteA", "sub-STUNIPD0001", "ComboB", node_names, [])
+
+    config_path = _write_config(tmp_path, data_root, atlas_root, output_root, overrides={"atlas_combos": ["ComboA", "ComboB"]})
+    exit_code = mask_fc.main(["--config", str(config_path)])
+    assert exit_code == 0
+
+    runs_csv = (output_root / "runs.csv").read_text()
+    assert "s1-ComboA" in runs_csv
+    assert "s1-ComboB" in runs_csv

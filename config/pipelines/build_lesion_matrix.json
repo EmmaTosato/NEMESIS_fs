@@ -16,7 +16,7 @@
   "binarize_threshold": 0.5,
   "resample_interpolation": "nearest",
   "output_root": "data/derived/lesion_matrix",
-  "session_name": "s1.2",
+  "session_name": "s1.2-vol",
   "overwrite": false,
   "run_notes": "parcellate removed from build_lesion_matrix.py (25/08/26). Adds  UCL-UK/UCLStrokeData (4119 subjects, retrieved and verified 21/08/26)."
 }

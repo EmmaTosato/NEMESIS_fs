@@ -71,7 +71,7 @@ jobs/run_compute_sdc_no_slurm.sh config/pipelines/compute_sdc.json
 | **`stage2_ebrains`** | *Booleano* | `true` usa tutti e 15 gli atlanti EBRAINS predefiniti. |
 | **`stage2_presets`** | *Lista* | Preset atlas aggiuntivi desiderati. |
 | **`output_root`** | *Stringa* | Dove salvare (es. `"data/derived/sdc"`). |
-| **`session_name`** | *Stringa* | Etichetta dell'elaborazione (es. `"s1.1"`). Nessuna data automatica. |
+| **`session_name`** | *Stringa* | Etichetta dell'elaborazione (es. `"s1.1-vol"`). Nessuna data automatica. |
 | **`overwrite`** | *Booleano* | Se `false`, la fase `manifest` fallisce se il csv esiste già. |
 
 ---

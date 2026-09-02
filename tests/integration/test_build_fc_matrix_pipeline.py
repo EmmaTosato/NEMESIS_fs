@@ -68,7 +68,11 @@ def test_build_fc_matrix_end_to_end(tmp_path, monkeypatch, caplog):
     combo_out_dirs = [p for p in (output_root / "ComboX").iterdir() if p.is_dir()]
     assert len(combo_out_dirs) == 1
     out_dir = combo_out_dirs[0]
-    assert out_dir.name.endswith("_s1")
+    # effective_session_name = f"{config.session_name}-{combo}" (02-09-26) - the atlas_combo
+    # is appended to the base session so two combos of the same cohort never collide on the
+    # same output_dir/runs.csv session id (see test_build_fc_matrix_two_combos_get_distinct_
+    # session_names_and_dont_collide below for the regression this actually guards against).
+    assert out_dir.name.endswith("_s1-ComboX")
 
     X, metadata, extra_arrays = load_matrix(out_dir)
     assert list(metadata["subject_id"]) == ["sub-01", "sub-02"]
@@ -156,3 +160,35 @@ def test_build_fc_matrix_one_combo_not_ready_does_not_abort_the_others(tmp_path,
     assert "ComboReady" in report_text
     assert "Skipped" in report_text
     assert "ComboMissing" in report_text
+
+
+def test_build_fc_matrix_two_combos_get_distinct_session_names_and_dont_collide(tmp_path, monkeypatch):
+    """02-09-26 session-naming migration regression: config.session_name is only the base
+    cohort ("s1" here) - build_fc_matrix.py must append each combo to it
+    (effective_session_name) before using it in output_dir/runs.csv, or two atlas_combos
+    processed the same day would produce dim_reduction.py-incompatible output (that pipeline's
+    own output path is only .../<method>/<date>_<session_name>/, no atlas-dedicated subfolder
+    like this one has - a bare shared "s1" would collide there even though it doesn't here)."""
+    monkeypatch.setattr(build_fc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_fc_matrix, "LOGS_ROOT", tmp_path / "logs")
+
+    masked_fc_root = tmp_path / "masked_fc"
+    output_root = tmp_path / "out"
+    node_names = ["A", "B", "C"]
+    fc = pd.DataFrame([[1.0, 0.1, 0.2], [0.1, 1.0, 0.3], [0.2, 0.3, 1.0]], index=node_names, columns=node_names)
+    _write_masked_fc(masked_fc_root, "ComboA", "sub-01", fc)
+    _write_masked_fc(masked_fc_root, "ComboB", "sub-01", fc)
+
+    config_path = _write_config(tmp_path, masked_fc_root, output_root, overrides={"atlas_combos": ["ComboA", "ComboB"]})
+    exit_code = build_fc_matrix.main(["--config", str(config_path)])
+    assert exit_code == 0
+
+    out_dir_a = next((output_root / "ComboA").iterdir())
+    out_dir_b = next((output_root / "ComboB").iterdir())
+    assert out_dir_a.name.endswith("_s1-ComboA")
+    assert out_dir_b.name.endswith("_s1-ComboB")
+    assert out_dir_a != out_dir_b
+
+    runs_csv = (output_root / "runs.csv").read_text()
+    assert "s1-ComboA" in runs_csv
+    assert "s1-ComboB" in runs_csv

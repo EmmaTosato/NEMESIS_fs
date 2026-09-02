@@ -71,7 +71,7 @@ _AXIS_PADDING_FRACTION = 0.08
 # (dim_reduction.py's production embedding plots) - a solid, opaque marker at
 # _MARKER_SIZE overlaps into one indistinguishable blob at the ~5000+ subject
 # scale these plots run at today (validated visually on the real 5269-subject
-# 26-08_s1.2 cohort). Smaller reveals density texture; _declutter_points below
+# 26-08_s1.2-vol cohort). Smaller reveals density texture; _declutter_points below
 # does the heavy lifting on the overlap itself, so alpha only needs a light
 # touch (0.9, not the much lower value tried during exploration) once that's
 # in place. Deliberately not applied to _MARKER_SIZE's other consumers

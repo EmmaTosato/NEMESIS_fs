@@ -28,8 +28,8 @@ sbatch jobs/run_generate_understanding_umap_report.sh
 Dal PC locale, dopo aver attivato l'ambiente `nemesis`:
 ```bash
 PYTHONPATH=. python -m src.pipeline.generate_understanding_umap_report \
-  --umap-tuning-dir results/lesion/dim_reduction/tuning/umap/13-08_s1.1 \
-  --tsne-tuning-dir results/lesion/dim_reduction/tuning/tsne/13-08_s1.1
+  --umap-tuning-dir results/lesion/dim_reduction/tuning/umap/13-08_s1.1-vol \
+  --tsne-tuning-dir results/lesion/dim_reduction/tuning/tsne/13-08_s1.1-vol
 ```
 
 ---

@@ -1,10 +1,10 @@
 {
   "project": "clinical_connectome",
   "output_root": "results/sdc/dim_reduction",
-  "input_path": "data/derived/sdc_matrix/27-08_s2.1",
+  "input_path": "data/derived/sdc_matrix/27-08_s2.1-schaefer-200-tian-s2",
   "params_file": "config/registry/params_reduction_sdc.json",
   
-  "session_name": "s2.1",
+  "session_name": "s2.1-schaefer-200-tian-s2",
   "reduction_method": "tsne",
 
   "fine_tuning": false,
@@ -16,5 +16,5 @@
   "color_by": ["dataset", "side", "nihss"],
   "viz_n_components": 2,
   
-  "run_notes": "prima produzione t-SNE SDC (s2.1) - metric=euclidean, perplexity=30 (valore standard di letteratura, non l'argmax stretto perplexity=15 - scarto trascurabile, 0.0007 - vedi dim_reduction_tuning_s2.md)"
+  "run_notes": "prima produzione t-SNE SDC (s2.1-schaefer-200-tian-s2) - metric=euclidean, perplexity=30 (valore standard di letteratura, non l'argmax stretto perplexity=15 - scarto trascurabile, 0.0007 - vedi dim_reduction_tuning_s2.md)"
 }

@@ -48,7 +48,7 @@ Ogni soggetto ha, per un dato atlante, un CSV `LF-disconnectome` (probabilità d
 | **`value_column`** | Quale statistica per-regione estrarre: `"fraction_covered"`, `"mean_overlap"` (default consigliato), `"weighted_mean_overlap"`, `"sum_overlap"`, `"p90_overlap"`, `"p95_overlap"`. |
 | **`reference_labels_path`** | File con l'elenco autoritativo e fisso delle regioni per l'atlante scelto, es. `"assets/atlases/sdc_labels/schaefer_200_tian_s2.csv"` — vedi sotto per aggiungerne uno nuovo. |
 | **`output_root`** | Sede output (default: `"data/derived/sdc_matrix"`). |
-| **`session_name`** | Nome univoco per il batch, es. `"s1.1"`. |
+| **`session_name`** | Nome univoco per il batch, es. `"s1.1-vol"`. |
 | **`overwrite`** | `true` sovrascrive output di run passati. |
 
 ### Atlanti attualmente supportati

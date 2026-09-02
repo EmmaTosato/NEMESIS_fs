@@ -15,13 +15,13 @@ from scripts.build_dim_reduction_strategies_csv import (
 
 _SESSIONS_MD = """# Sessions — clinical_connectome
 
-## Session 1.1
+### Session 1.1
 
 - Starting date: 21-07
 - Datasets: UNIPD/WashU, UNIPD/PASPORT
 - Modality: Lesion in 2D matrix volumetric
 
-## Session 2
+### Session 2
 
 - Starting date:
 - Datasets: UNIPD/WashU
@@ -51,19 +51,19 @@ def test_parse_sessions_md_missing_file_raises(tmp_path):
 
 
 def test_parse_sessions_md_missing_field_raises(tmp_path):
-    content = "## Session 1.1\n\n- Starting date: 21-07\n- Datasets: UNIPD/WashU\n"  # no Modality
+    content = "### Session 1.1\n\n- Starting date: 21-07\n- Datasets: UNIPD/WashU\n"  # no Modality
     with pytest.raises(ValueError, match="missing field"):
         parse_sessions_md(_write_sessions_md(tmp_path, content))
 
 
 def test_parse_sessions_md_duplicate_session_raises(tmp_path):
-    content = _SESSIONS_MD + "\n## Session 1.1\n\n- Starting date: 01-01\n- Datasets: x\n- Modality: y\n"
+    content = _SESSIONS_MD + "\n### Session 1.1\n\n- Starting date: 01-01\n- Datasets: x\n- Modality: y\n"
     with pytest.raises(ValueError, match="more than once"):
         parse_sessions_md(_write_sessions_md(tmp_path, content))
 
 
 def test_parse_sessions_md_field_before_header_raises(tmp_path):
-    content = "- Starting date: 21-07\n\n## Session 1.1\n- Datasets: x\n- Modality: y\n"
+    content = "- Starting date: 21-07\n\n### Session 1.1\n- Datasets: x\n- Modality: y\n"
     with pytest.raises(ValueError, match="before any"):
         parse_sessions_md(_write_sessions_md(tmp_path, content))
 

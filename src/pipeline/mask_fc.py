@@ -71,6 +71,14 @@ def main(argv: list[str] | None = None) -> int:
         combo_summaries: dict[str, pd.DataFrame] = {}
         for combo in config.atlas_combos:
             output_dir = config.output_root / combo
+            # config.session_name is only the base cohort ("s3.1") - the atlas_combo is
+            # appended here so each combo's runs.csv row gets its own distinct session id
+            # (never a bare "-" free-text combo string, since src/utils/run_log.py::
+            # append_run_log_entry derives "session" by splitting run_id on its first "_").
+            # output_dir itself never carries session_name (masked_fc/<combo> only) - this
+            # only affects the runs.csv row below, same convention docs/dev/fc_matrix.md
+            # documents for build_fc_matrix.py's own output_dir.
+            effective_session_name = f"{config.session_name}-{combo}"
             if output_dir.exists():
                 if not config.overwrite:
                     logging.error(
@@ -147,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 append_run_log_entry(
                     config.output_root,
-                    config.session_name,
+                    effective_session_name,
                     now,
                     "production",
                     {"min_coverage": config.min_coverage, "n_subjects": len(summary)},

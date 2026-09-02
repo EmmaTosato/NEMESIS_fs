@@ -11,11 +11,11 @@ set -euo pipefail
 
 PROJECT_ROOT="/home/etosato/Projects/NEMESIS_fs"
 CONDA_ENV="nemesis"
-EMBEDDINGS_NPZ="${PROJECT_ROOT}/results/lesion/dim_reduction/tuning/umap/26-08_s1.2/embeddings.npz"
-METADATA_CSV="${PROJECT_ROOT}/results/lesion/dim_reduction/tuning/umap/26-08_s1.2/metadata.csv"
+EMBEDDINGS_NPZ="${PROJECT_ROOT}/results/lesion/dim_reduction/tuning/umap/26-08_s1.2-vol/embeddings.npz"
+METADATA_CSV="${PROJECT_ROOT}/results/lesion/dim_reduction/tuning/umap/26-08_s1.2-vol/metadata.csv"
 COMBO_KEY="metric=dice,n_components=3,n_neighbors=5,min_dist=0.0"
 REDUCTION_METHOD="umap"
-OUTPUT_DIR="${PROJECT_ROOT}/results/lesion/dim_reduction/tuning/umap/26-08_s1.2/metric=dice/n_components=3"
+OUTPUT_DIR="${PROJECT_ROOT}/results/lesion/dim_reduction/tuning/umap/26-08_s1.2-vol/metric=dice/n_components=3"
 
 set +u
 source /home/etosato/miniconda3/etc/profile.d/conda.sh

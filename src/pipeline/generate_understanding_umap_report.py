@@ -4,8 +4,8 @@ convention as scripts/replot_dim_reduction.py.
 
 Usage:
     PYTHONPATH=. conda run -n nemesis python -m src.pipeline.generate_understanding_umap_report \\
-        --umap-tuning-dir results/lesion/dim_reduction/tuning/umap/13-08_s1.1 \\
-        --tsne-tuning-dir results/lesion/dim_reduction/tuning/tsne/13-08_s1.1
+        --umap-tuning-dir results/lesion/dim_reduction/tuning/umap/13-08_s1.1-vol \\
+        --tsne-tuning-dir results/lesion/dim_reduction/tuning/tsne/13-08_s1.1-vol
 
 Both directories must be `fine_tuning=true` output from src.pipeline.dim_reduction
 with save_tuning_embeddings=true (so embeddings.npz exists, not just

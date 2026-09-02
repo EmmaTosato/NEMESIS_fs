@@ -2,9 +2,9 @@
 
 > Nota scratch, non un'analisi definitiva: range di valori "competitivi" (vicini al massimo Silhouette,
 > letti a occhio dai `tuning_results.csv`, nessuna soglia formale) per ciascun metodo, sui 3 embedding
-> UMAP euclidean di produzione (`n2`/`n3`/`n10`, run `27-08_s1.1`, coorte lesion s1.1 - 1150 soggetti).
+> UMAP euclidean di produzione (`n2`/`n3`/`n10`, run `31-08_s1.1-vol`, coorte lesion s1.1-vol - 1150 soggetti).
 > Non un confronto/interpretazione — solo i numeri grezzi, da riprendere quando si arriva alla decisione
-> di produzione. Fonte: `results/lesion/clustering/tuning/<metodo>/umap/27-08_s1.1_euclidean_n{2,3,10}/tuning_results.csv`.
+> di produzione. Fonte: `results/lesion/clustering/tuning/<metodo>/umap/31-08_s1.1-vol_euclidean_n{2,3,10}/tuning_results.csv`.
 
 ## Agglomerative (euclidean, `linkage`≠single)
 

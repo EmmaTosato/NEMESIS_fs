@@ -11,8 +11,8 @@ set -euo pipefail
 
 PROJECT_ROOT="/home/etosato/Projects/NEMESIS_fs"
 CONDA_ENV="nemesis"
-UMAP_TUNING_DIR="${PROJECT_ROOT}/results/lesion/dim_reduction/tuning/umap/13-08_s1.1"
-TSNE_TUNING_DIR="${PROJECT_ROOT}/results/lesion/dim_reduction/tuning/tsne/13-08_s1.1"
+UMAP_TUNING_DIR="${PROJECT_ROOT}/results/lesion/dim_reduction/tuning/umap/13-08_s1.1-vol"
+TSNE_TUNING_DIR="${PROJECT_ROOT}/results/lesion/dim_reduction/tuning/tsne/13-08_s1.1-vol"
 
 set +u
 source /home/etosato/miniconda3/etc/profile.d/conda.sh

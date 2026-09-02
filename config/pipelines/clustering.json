@@ -1,11 +1,11 @@
 {
   "project": "clinical_connectome",
   "output_root": "results/lesion/clustering",
-  "input_path": "results/lesion/dim_reduction/production/umap/11-08_s1.1_m_euclidean_nc2",
+  "input_path": "results/lesion/dim_reduction/production/umap/11-08_s1.1-vol_m_euclidean_nc2",
   "reduction_method": "umap",
   "reduction_params_file": "config/registry/params_reduction.json",
   "params_file": "config/registry/params_clustering.json",
-  "session_name": "s1.1",
+  "session_name": "s1.1-vol",
   "clustering_methods": ["hdbscan"],
   "reduced_data": true,
   "fine_tuning": false,
