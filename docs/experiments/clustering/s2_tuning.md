@@ -17,19 +17,21 @@
 
 ## 01-09-2026 — s2.1 (nc2)
 
-#### Tuning SDC, tutti e 5 i metodi
+### Tuning SDC - 5 metodi SOTA
 
-- **Input:**
-    - s2.1
-    - Embedding: UMAP `euclidean`, n_components=2
-    - Path: `01-09_s2.1_m_euclidean_nc2`
-    - Dati originali: `data/derived/sdc_matrix/27-08_s2.1`
-    - 1119 soggetti
-- **Metodi:** agglomerative, gmm, kmeans, hdbscan, spectral
-- **Obiettivo:**
-    - Verificare se l'artefatto di lateralizzazione (`lesion_side`) e le metriche di silhouette seguono lo stesso andamento visto per i lesion embeddings (s1.1 e s1.2)
+##### Input
+- s2.1
+- Embedding: UMAP `euclidean`, n_components=2
+- Path Embedding: `31-08_s2.1_m_euclidean_nc2`
+- Dati originali: `data/derived/sdc_matrix/27-08_s2.1`
+- 1119 soggetti
+##### Metodi
+Agglomerative, gmm, kmeans, hdbscan, spectral
 
-**Risultati**
+##### Obiettivo
+- Verificare se l'artefatto di lateralizzazione (`lesion_side`) e le metriche di silhouette seguono lo stesso andamento visto per i lesion embeddings (s1.1 e s1.2)
+
+##### Risultati
 
 | Metodo | Miglior combo (silhouette) | Link |
 | --- | --- | --- |
@@ -46,6 +48,6 @@
 - Forte e sistematico sbilanciamento su `lesion_side`, replica specularmente l'artefatto già noto sulle matrici di lesione — in tutte le configurazioni ottimali (crosstab, es. `k=4` di KMeans o GMM) la partizione restituisce quasi sempre cluster puri per emisfero (gruppi da oltre 200 soggetti interamente "left" o "right") e alcuni piccoli cluster misti. In Spectral e HDBSCAN i cluster misti concentrano più soggetti, ma la frammentazione sui lati resta predominante.
 - Conferma che la struttura SDC, derivata direttamente dalla maschera di lesione, ne eredita pesantemente la lateralizzazione — nessuno degli algoritmi standard esplorati riesce a raggruppare i profili di disconnessione prescindendo spontaneamente dall'emisfero colpito.
 
-**Decisioni**
+##### Decisioni
 
 - Estendere l'analisi esplorativa all'altra versione di embedding (`nc3`) generata per s2.1, per confermare se l'incremento di dimensionalità mitiga o conferma questi risultati, per poi decidere come uniformare la configurazione di produzione.

@@ -16,27 +16,30 @@
 
 ---
 
+_Nessuna run di produzione ancora loggata — s2.1 è ferma al tuning (vedi `s2_tuning.md`), in attesa di estendere l'analisi a `nc3` e di decidere la config di produzione. Struttura entry da usare una volta deciso:_
 
 ```
 ## DD-MM-YYYY — sX.X
 
-#### <titolo>
+### <titolo>
 
-- **Input:**
-    - sX.X
-    - Embedding: <metodo, parametri>
-    - Path: <tag embedding usato come input_path>
-    - Dati originali: data/derived/sdc_matrix/<...>
-    - N soggetti
-- **Metodi:** <metodo scelto>
-- **Obiettivo:**
-    - ...
+##### Input
+- sX.X
+- Embedding: <metodo, parametri>
+- Path Embedding: <cartella `input_path` in `dim_reduction/production/`, es. `31-08_s2.1_m_euclidean_nc2` — NON la cartella di output di clustering stesso>
+- Dati originali: data/derived/sdc_matrix/<...>
+- N soggetti
+##### Metodi
+<metodo scelto>
 
-**Risultati**
+##### Obiettivo
+- ...
+
+##### Risultati
 
 <tabella o descrizione>
 
-**Decisioni**
+##### Decisioni
 
 - ...
 ```

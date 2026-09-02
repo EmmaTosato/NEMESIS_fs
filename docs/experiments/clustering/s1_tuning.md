@@ -15,25 +15,32 @@
 
 ---
 
-## 27/28-08-2026 — s1.1
+## 31-08-2026 — s1.1
 
-#### Tuning su 6 embedding UMAP (metric × n_components) — tutti e 5 i metodi
+### Tuning su coorte originale - 5 metodi SOTA
 
-*Plot rigenerati 31-08-2026 (stessi parametri/griglia/dati — solo naming/titoli/spaziatura dei plot aggiornati dopo l'audit naming clustering; nessuna nuova run scientifica, nessuna cifra sotto cambiata).*
+##### Input
+- s1.1
+- Embedding:
+    - UMAP
+    - 6 combinazioni (`dice`/`euclidean` × `n_components`∈{2,3,10})
+- Path Embedding:
+    - `11-08_s1.1_m_dice_nc2`
+    - `11-08_s1.1_m_euclidean_nc2`
+    - `13-08_s1.1_m_dice_nc3`
+    - `13-08_s1.1_m_euclidean_nc3`
+    - `11-08_s1.1_m_dice_nc10`
+    - `11-08_s1.1_m_euclidean_nc10`
+- Dati originali: `data/derived/lesion_matrix/21-07_s1.1`
+- 1150 soggetti
+##### Metodi
+Agglomerative, gmm, kmeans, hdbscan, spectral
 
-- **Input:**
-    - s1.1
-    - Embedding: UMAP, 6 varianti (`dice`/`euclidean` × `n_components`∈{2,3,10})
-    - Path: vedi [`s1_production.md`](../dim_reduction/s1_production.md) (dim_reduction)
-    - Dati originali: `data/derived/lesion_matrix/21-07_s1.1`
-    - 1150 soggetti
-- **Metodi:** agglomerative, gmm, kmeans, hdbscan, spectral
-- **Obiettivo:**
-    - Sweep `n_clusters` × `linkage` × `metric` per agglomerative su tutti e 6 gli embedding UMAP di produzione
-    - Verificare se un `k` di produzione emerge in modo robusto, e se è indipendente da confondenti noti (`lesion_side`, `dataset`, volume)
-    - Tutti e 5 i metodi (agglomerative, GMM, KMeans, HDBSCAN, Spectral) analizzati
+##### Obiettivo
+- Sweep `n_clusters` × `linkage` × `metric` per agglomerative su tutti e 6 gli embedding UMAP di produzione
+- Verificare se un `k` di produzione emerge in modo robusto, e se è indipendente da confondenti noti (`lesion_side`, `dataset`, volume)
 
-**Risultati**
+##### Risultati
 
 | Metodo | Run | Griglia | Link |
 | --- | --- | --- | --- |
@@ -101,31 +108,29 @@ Struttura ricorrente in ogni k candidato: 1-2 cluster quasi puri per lato lesion
 | Eigengap vs Silhouette | **Disaccordo netto**: eigengap suggerisce `n_clusters`≈10-14 (10 per `n_neighbors`=30, 11 per 50, 14 per 10) contro il picco Silhouette 4-8 — nessuna regola meccanica per risolverlo |
 | Crosstab (`n_clusters=6, nearest_neighbors, n_neighbors=50`) vs `lesion_side` | 5 cluster su 6 quasi puri per lato; 1 misto (392 soggetti) — di nuovo il cluster più grande, come HDBSCAN |
 
-**Decisioni**
+##### Decisioni
 
-- `n_components` e k vanno decisi insieme — non convergono (tabella sopra). Assi possibili, nessuno ancora scelto: (A) convergenza cross-metodo a parità di `n_components`, (B) consenso/stabilità RSC/Monti su coorte reale (`management/notes/TODO.md`), (C) regressare `lesion_side`/volume pre-clustering, (D) criterio clinico.
-- **Asse (A) chiuso, 5/5 conferme**: l'artefatto `lesion_side` si ripete in tutti e 5 i metodi (agglomerative, GMM, KMeans, HDBSCAN, Spectral) — è la struttura dei dati/embedding a portarlo, non un artefatto di un singolo algoritmo. Nessun metodo dà un candidato "pulito" a k basso.
-- **Esplorazione tuning completa per tutti e 5 i metodi.** Prossimo passo: non più un check per-metodo, ma decidere tra (B) consenso/stabilità su coorte reale, (C) regressione di `lesion_side`/volume pre-clustering, o (D) criterio clinico — per arrivare a una config di produzione che non sia solo il re-splitting del lato lesione.
-
-**Strumenti:** [`clustering_tuning_explorer.ipynb`](../../../notebooks/post-results_analysis/clustering_tuning_explorer.ipynb) — esplorazione `tuning_results.csv` + diagnostiche, ARI/NMI tra combinazioni, Subsampling Stability Index.
+- Vedi production del 1 settembre (o la prima successiva nel caso venisse eliminata)
 
 ---
 
 ## 01-09-2026 — s1.2
 
-#### Stesso tuning su coorte estesa (5269 soggetti), tutti e 5 i metodi
+### Stesso tuning su coorte estesa (5269 soggetti) - Metodi SOTA
 
-- **Input:**
-    - s1.2
-    - Embedding: UMAP `euclidean`, n_components=2
-    - Path: `01-09_s1.2_m_euclidean_n2`
-    - Dati originali: `data/derived/lesion_matrix/25-08_s1.2`
-    - 5269 soggetti
-- **Metodi:** agglomerative, gmm, kmeans, hdbscan, spectral
-- **Obiettivo:**
-    - Ripetere il tuning di s1.1 sulla coorte estesa, per verificare se i candidati reggono a scala maggiore
+##### Input
+- s1.2
+- Embedding: UMAP `euclidean`, n_components=2
+- Path Embedding: `28-08_s1.2_m_euclidean_nc2`
+- Dati originali: `data/derived/lesion_matrix/25-08_s1.2`
+- 5269 soggetti
+##### Metodi
+agglomerative, gmm, kmeans, hdbscan, spectral
 
-**Risultati**
+##### Obiettivo
+- Ripetere il tuning di s1.1 sulla coorte estesa, per verificare se i candidati reggono a scala maggiore
+
+##### Risultati
 
 | Metodo | Griglia | Miglior combo (silhouette) | Link |
 | --- | --- | --- | --- |

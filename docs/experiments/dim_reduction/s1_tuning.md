@@ -17,18 +17,20 @@
 
 ## 03/04-08-2026 — s1.1
 
-#### Tuning iniziale
+### Tuning iniziale UMAP + t-sne
 
-- **Input:**
-    - s1.1
-    - Dati raw: matrice lesionale voxel-wise
-    - Path: `data/derived/lesion_matrix/21-07_s1.1`
-    - 1150 soggetti
-- **Metodi:** umap, tsne
-- **Obiettivo:**
-    - Valutare metriche di distanza (euclidean/dice/jaccard) e `n_components` su UMAP/t-SNE
+##### Input
+- s1.1
+- Dati raw: matrice lesionale voxel-wise
+- Path: `data/derived/lesion_matrix/21-07_s1.1`
+- 1150 soggetti
+##### Metodi
+umap, tsne
 
-**Risultati**
+##### Obiettivo
+- Valutare metriche di distanza (euclidean/dice/jaccard) e `n_components` su UMAP/t-SNE
+
+##### Risultati
 
 | Metodo | Run | Griglia | Link |
 | --- | --- | --- | --- |
@@ -37,7 +39,7 @@
 
 - Trustworthiness: *euclidean* bassa (~0.72) ma struttura continua realistica ("a ragno"); *jaccard/dice* alta (~0.93) ma cluster spaccati artificialmente per lato lesione.
 
-**Decisioni**
+##### Decisioni
 
 - Fissare i parametri per produzione (`n_neighbors`, `min_dist`, `perplexity`, `n_components`, `metric`).
 
@@ -45,20 +47,22 @@
 
 ## 13-08-2026 — s1.1
 
-#### Estensione griglia UMAP (n_components 2 vs 3) + tuning t-SNE
+### Estensione griglia UMAP (n_components 2 vs 3) + tuning t-SNE
 
-- **Input:**
-    - s1.1
-    - Dati raw: matrice lesionale voxel-wise
-    - Path: `data/derived/lesion_matrix/21-07_s1.1`
-    - 1150 soggetti
-- **Metodi:** umap, tsne
-- **Obiettivo:**
-    - UMAP — aggiungere `n_components`=3 per visualizzazioni 3D, verifica letteratura
-    - t-SNE — ripetere il tuning già fatto per UMAP, con griglia `perplexity` estesa
-    - Nota: `jaccard` escluso da entrambe le griglie rispetto al 03-08 (solo dice/euclidean); `regress_out_volume` rimosso repo-wide il 12-08
+##### Input
+- s1.1
+- Dati raw: matrice lesionale voxel-wise
+- Path: `data/derived/lesion_matrix/21-07_s1.1`
+- 1150 soggetti
+##### Metodi
+umap, tsne
 
-**Risultati**
+##### Obiettivo
+- UMAP — aggiungere `n_components`=3 per visualizzazioni 3D, verifica letteratura
+- t-SNE — ripetere il tuning già fatto per UMAP, con griglia `perplexity` estesa
+- Nota: `jaccard` escluso da entrambe le griglie rispetto al 03-08 (solo dice/euclidean); `regress_out_volume` rimosso repo-wide il 12-08
+
+##### Risultati
 
 | Metodo | Run | Griglia | Link |
 | --- | --- | --- | --- |
@@ -66,23 +70,28 @@
 | t-SNE | 14 | `metric`∈{dice,euclidean} × `perplexity`∈{5,15,30,50,75,100,200}, `n_components`=2 fisso (niente Barnes-Hut oltre le 3D) | [config.md](../../../results/lesion/dim_reduction/tuning/tsne/13-08_s1.1/config.md) · [tuning_results.csv](../../../results/lesion/dim_reduction/tuning/tsne/13-08_s1.1/tuning_results.csv) |
 
 - Trustworthiness: stesso pattern già visto il 03-08 (euclidean basso, dice alto).
+##### Decisioni
+
+- Fissare i parametri di produzione (`n_neighbors`, `min_dist`, `perplexity`, `n_components`, `metric`).
 
 ---
 
 ## 26-08-2026 — s1.2
 
-#### Prima griglia su coorte estesa (5269 soggetti)
+### Tuning su coorte estesa UMAP + t-sne (n=5269 )
 
-- **Input:**
-    - s1.2
-    - Dati raw: matrice lesionale voxel-wise (+ UCL-UK/UCLStrokeData)
-    - Path: `data/derived/lesion_matrix/25-08_s1.2`
-    - 5269 soggetti
-- **Metodi:** umap, tsne
-- **Obiettivo:**
-    - Ripetere il tuning UMAP/t-SNE già fatto su s1.1 sulla matrice estesa, per verificare se il pattern trustworthiness euclidean-vs-dice si conferma a coorte estesa (4.6x più grande)
+##### Input
+- s1.2
+- Dati raw: matrice lesionale voxel-wise (+ UCL-UK/UCLStrokeData)
+- Path: `data/derived/lesion_matrix/25-08_s1.2`
+- 5269 soggetti
+##### Metodi
+umap, tsne
 
-**Risultati**
+##### Obiettivo
+- Ripetere il tuning UMAP/t-SNE già fatto su s1.1 sulla matrice estesa, per verificare se il pattern trustworthiness euclidean-vs-dice si conferma a coorte estesa (4.6x più grande)
+
+##### Risultati
 
 | Metodo | Run | Griglia | Link |
 | --- | --- | --- | --- |
@@ -96,6 +105,6 @@
 | UMAP (n_components 2 vs 3) | ~0.67–0.71 | ~0.93–0.95 |
 | t-SNE | ~0.73 | ~0.96 |
 
-**Decisioni**
+##### Decisioni
 
-- Invariate — fissare i parametri di produzione (`n_neighbors`, `min_dist`, `perplexity`, `n_components`, `metric`).
+- Fissare i parametri di produzione (`n_neighbors`, `min_dist`, `perplexity`, `n_components`, `metric`).
