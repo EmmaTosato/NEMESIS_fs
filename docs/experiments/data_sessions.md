@@ -15,7 +15,7 @@ Narrativa su cosa significa ogni sessione  scritta a mano.
 - Starting date: 27-07
 - Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR, UCL-UK StrokeData
 - Modality: Lesion in 2D matrix volumetric
-- Notes: one dataset more (UCL)
+- Notes: one dataset more (UCL-UK StrokeData)
 
 ---
 
@@ -35,4 +35,4 @@ Narrativa su cosa significa ogni sessione  scritta a mano.
 
 - Starting date: 26-07
 - Datasets: UNIPD/WashU
-- Modality: Features (FC matrices, stacked in 2D)
+- Modality: FC matrices, stacked in 2D matrixsL
