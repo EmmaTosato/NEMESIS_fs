@@ -1,6 +1,6 @@
 
 
-Narrativa su cosa significa ogni sessione  scritta a mano, mai generata.
+Narrativa su cosa significa ogni sessione  scritta a mano.
 
 # Session 1
 
