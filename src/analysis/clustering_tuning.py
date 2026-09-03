@@ -63,7 +63,7 @@ METHOD_METRIC_COLUMNS: dict[str, list[str]] = {
     "kmeans": ["silhouette", "calinski_harabasz", "davies_bouldin", "inertia"],
     "agglomerative": ["silhouette", "calinski_harabasz", "davies_bouldin"],
     "gmm": ["silhouette", "calinski_harabasz", "davies_bouldin", "bic", "aic"],
-    "hdbscan": ["silhouette", "calinski_harabasz", "davies_bouldin", "noise_fraction"],
+    "hdbscan": ["silhouette", "calinski_harabasz", "davies_bouldin", "noise_fraction", "n_clusters_found"],
     "spectral": ["silhouette", "calinski_harabasz", "davies_bouldin"],
     "evidence_accumulation": ["silhouette", "calinski_harabasz", "davies_bouldin"],
 }
@@ -359,9 +359,25 @@ def _gmm_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.ndarray, di
     return labels, {"bic": float(fitted.bic(X)), "aic": float(fitted.aic(X))}
 
 
+def _hdbscan_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.ndarray, dict[str, float]]:
+    """Unlike kmeans'/gmm's own n_clusters/n_components (already a swept parameter, known
+    without inspecting the fit), HDBSCAN's number of clusters is an *output* of
+    min_cluster_size/min_samples, never surfaced anywhere in a tuning sweep before this - a
+    combination could silently produce a degenerate/over-fragmented result (e.g. min_cluster_size
+    too low relative to the cohort size) invisible in tuning_results.csv until it was already
+    running in production (see docs/experiments/clustering/s1_production.md, s1.2-vol: 143
+    clusters found only at production time for a combination silhouette/noise_fraction alone
+    looked reasonable for). label -1 (noise) is excluded, same convention as noise_fraction.
+    """
+    labels = CLUSTERING_METHODS["hdbscan"](X, params)
+    n_clusters_found = float(len(np.unique(labels[labels != -1])))
+    return labels, {"n_clusters_found": n_clusters_found}
+
+
 _EXTRA_METRICS_EVALUATORS: dict[str, Callable[[np.ndarray, dict], tuple[np.ndarray, dict[str, float]]]] = {
     "kmeans": _kmeans_with_extra_metrics,
     "gmm": _gmm_with_extra_metrics,
+    "hdbscan": _hdbscan_with_extra_metrics,
 }
 
 

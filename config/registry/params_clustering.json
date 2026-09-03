@@ -17,7 +17,7 @@
     "tuning_grid": {
       "n_clusters": [2, 3, 4, 5, 6, 8, 10],
       "linkage": ["ward", "average", "complete", "single"],
-      "metric": ["euclidean", "cosine", "manhattan"]
+      "metric": ["euclidean", "jaccard", "dice"]
     }
   },
   "gmm": {
@@ -37,16 +37,16 @@
   "hdbscan": {
     "tag_param": ["min_cluster_size", "min_samples"],
     "tag_prefix": ["mcs", "ms"],
-    "params": { "min_cluster_size": 15, "min_samples": 5 },
+    "params": { "min_cluster_size": 75, "min_samples": 20 },
     "tuning_grid": {
-      "min_cluster_size": [5, 10, 15, 20, 30, 50],
+      "min_cluster_size": [10, 20, 30, 50, 75, 100],
       "min_samples": [5, 10, 20]
     }
   },
   "spectral": {
     "tag_param": ["n_clusters", "affinity"],
     "tag_prefix": ["k", "aff_"],
-    "params": { "n_clusters": 8, "affinity": "rbf", "gamma": 1.0, "assign_labels": "cluster_qr", "random_state": 0 },
+    "params": { "n_clusters": 6, "affinity": "rbf", "gamma": 0.1, "assign_labels": "cluster_qr", "random_state": 0 },
     "tuning_grid": {
       "n_clusters": [2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15],
       "affinity": ["nearest_neighbors", "rbf"],

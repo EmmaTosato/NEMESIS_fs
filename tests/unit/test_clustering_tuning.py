@@ -228,6 +228,34 @@ def test_run_clustering_tuning_sweep_hdbscan_noise_fraction_varies_with_min_clus
     assert large_mcs_row["noise_fraction"] == 1.0
 
 
+def test_run_clustering_tuning_sweep_hdbscan_reports_n_clusters_found():
+    """Regression: n_clusters_found used to be invisible in tuning_results.csv (only
+    silhouette/calinski_harabasz/davies_bouldin/noise_fraction were computed for hdbscan) -
+    a combination could look reasonable on silhouette/noise_fraction alone while actually
+    fragmenting the data into far more clusters than intended, only discovered at
+    production time (docs/experiments/clustering/s1_production.md, s1.2-vol: 143 clusters
+    for a combination that looked fine in tuning)."""
+    X = _three_blobs()
+    df, labels_by_combo = run_clustering_tuning_sweep("hdbscan", X, {}, {"min_cluster_size": [2, 20]})
+
+    assert "n_clusters_found" in METHOD_METRIC_COLUMNS["hdbscan"]
+    assert set(METHOD_METRIC_COLUMNS["hdbscan"]) <= set(df.columns)
+
+    small_mcs_row = df[df["min_cluster_size"] == 2].iloc[0]
+    large_mcs_row = df[df["min_cluster_size"] == 20].iloc[0]
+    # Cross-checked against the actual labels this same sweep produced (labels_by_combo),
+    # not a hardcoded expectation - min_cluster_size=2 over-fragments this fixture well
+    # beyond the 3 real blobs (exactly the invisible-fragmentation failure mode this column
+    # exists to surface), min_cluster_size=20 exceeds every blob's own size so no cluster
+    # can ever form (0 clusters, all noise).
+    small_labels = labels_by_combo[(2,)]
+    large_labels = labels_by_combo[(20,)]
+    assert small_mcs_row["n_clusters_found"] == len(np.unique(small_labels[small_labels != -1]))
+    assert large_mcs_row["n_clusters_found"] == len(np.unique(large_labels[large_labels != -1]))
+    assert small_mcs_row["n_clusters_found"] > 3  # over-fragments well past the 3 real blobs
+    assert large_mcs_row["n_clusters_found"] == 0
+
+
 def test_run_clustering_tuning_sweep_evidence_accumulation_reuses_cooccurrence_across_thresholds(monkeypatch):
     """AUDIT_FINDINGS.md #35 regression: evidence_accumulation's real cost
     (run_rsc_repeats, n_repeats fits of base_method) used to be recomputed once per

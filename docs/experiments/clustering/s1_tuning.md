@@ -142,3 +142,43 @@ agglomerative, gmm, kmeans, hdbscan, spectral
 
 - `k=2` di agglomerative è quasi certamente lo stesso artefatto `lesion_side` visto in s1.1-vol (silhouette anomalo, come il k=2 già scartato lì).
 - Miglior silhouette assoluto di HDBSCAN arriva con `noise_fraction`=0.32 (quasi 1/3 scartato come rumore) — combinazioni a noise più basso (`mcs=30, ms=5`: noise 0.14) scendono a silhouette 0.34, stesso trade-off già visto in s1.1-vol.
+- **Gap scoperto in produzione** (vedi `s1_production.md`, 03-09-2026): questo tuning non riportava il numero di cluster trovati da HDBSCAN — solo silhouette/CH/DB/noise_fraction. `mcs=5, ms=10` (il candidato scelto per la produzione, opzione E) è risultato avere **143 cluster** (+1706 noise), invisibile qui. Corretto sotto (`n_clusters_found` aggiunto a `METHOD_METRIC_COLUMNS["hdbscan"]`, `src/analysis/clustering_tuning.py`).
+
+---
+
+## 03-09-2026 — s1.2-vol (re-tuning HDBSCAN)
+
+### Stesso tuning, colonna `n_clusters_found` aggiunta + griglia `min_cluster_size` alzata
+
+##### Input
+- Stesso embedding di sopra (`28-08_s1.2-vol_m_euclidean_nc2`, 5269 soggetti)
+##### Motivazione
+- `n_clusters_found` non era mai stato calcolato per HDBSCAN durante il tuning (solo in produzione, via `len(np.unique(labels))`) — la scelta dei candidati era alla cieca sul numero di cluster risultante
+- `min_cluster_size` alzato da `[5,10,15,20,30,50]` a `[10,20,30,50,75,100]`: `mcs=5` (non più nella griglia) aveva già mostrato in produzione 143 cluster su questa coorte, chiaramente troppo fine
+
+##### Risultati
+
+| `min_cluster_size` | `min_samples` | Silhouette | Noise | `n_clusters_found` |
+| --- | --- | --- | --- | --- |
+| 10 | 5 | 0.561 | 0.226 | 149 |
+| 10 | 10 | 0.612 | 0.308 | 121 |
+| 10 | 20 | 0.385 | 0.247 | 57 |
+| 20 | 5 | 0.532 | 0.211 | 93 |
+| 20 | 10 | 0.349 | 0.161 | 62 |
+| 20 | 20 | 0.404 | 0.228 | 46 |
+| 30 | 5 | 0.341 | 0.143 | 53 |
+| 30 | 10 | 0.348 | 0.145 | 45 |
+| 30 | 20 | 0.398 | 0.214 | 38 |
+| 50 | 5 | 0.366 | 0.163 | 34 |
+| 50 | 10 | 0.416 | 0.165 | 26 |
+| 50 | 20 | 0.417 | 0.195 | 25 |
+| 75 | 5 | 0.359 | 0.156 | 18 |
+| 75 | 10 | 0.405 | 0.168 | 20 |
+| 75 | 20 | **0.449** | 0.231 | 19 |
+| 100 | 5 | 0.341 | 0.173 | 13 |
+| 100 | 10 | 0.384 | 0.221 | 15 |
+| 100 | 20 | **0.464** | 0.245 | 15 |
+
+- Anche `mcs=10` (il valore più basso ora ammesso) produce 121-149 cluster — la frammentazione forte non è specifica di `mcs=5`, serve `mcs`≥50 per scendere sotto i ~30 cluster.
+- Candidati più in linea con la granularità scelta in s1.1-vol (8-20 cluster su 1150 soggetti): `mcs=75, ms=20` (19 cluster, silhouette 0.449, noise 0.231) o `mcs=100, ms=20` (15 cluster, silhouette 0.464 — il migliore dell'intera griglia, noise 0.245). `mcs=50, ms=20` (25 cluster, silhouette 0.417, noise più basso 0.195) resta un'alternativa a granularità intermedia.
+- I due candidati già lanciati in produzione (opzioni E `mcs=5,ms=10`→143 cluster ed F `mcs=30,ms=5`→53 cluster) erano entrambi più frammentati di queste nuove alternative — **rifatte lo stesso giorno** con `mcs=100,ms=20` (E, 15 cluster) e `mcs=75,ms=20` (F, 19 cluster), vedi `s1_production.md`.
