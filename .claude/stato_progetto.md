@@ -1,6 +1,6 @@
 # Stato progetto — NEMESIS
 
-Ultimo aggiornamento: 2026-09-02. **Snapshot dello stato attuale — non un log cronologico.** Riscritto in place a ogni sessione (nessuna sezione per-sessione, nessun accumulo): descrive solo ciò che è vero *oggi*. La narrativa di cosa è successo sessione per sessione **non vive più qui** — è coperta da git log/commit message, `docs/debugging/` (narrativa completa per sessione di debug), `.claude/lessons_learned.md` (pattern di errore generalizzabili, deduplicati), `runs.csv`/`runs_tuning.csv` + `logs/`/`summaries/` (provenienza di ogni esecuzione pipeline). Le sessioni registrate prima della conversione a snapshot (10/08) restano, congelate, in `.claude/stato_progetto_archive.md` (sola lettura, non più aggiornato).
+Ultimo aggiornamento: 2026-09-03. **Snapshot dello stato attuale — non un log cronologico.** Riscritto in place a ogni sessione (nessuna sezione per-sessione, nessun accumulo): descrive solo ciò che è vero *oggi*. La narrativa di cosa è successo sessione per sessione **non vive più qui** — è coperta da git log/commit message, `docs/debugging/` (narrativa completa per sessione di debug), `.claude/lessons_learned.md` (pattern di errore generalizzabili, deduplicati), `runs.csv`/`runs_tuning.csv` + `logs/`/`summaries/` (provenienza di ogni esecuzione pipeline). Le sessioni registrate prima della conversione a snapshot (10/08) restano, congelate, in `.claude/stato_progetto_archive.md` (sola lettura, non più aggiornato).
 
 ## Architettura / cosa è implementato
 
@@ -32,4 +32,4 @@ Sintesi corrente in `README.md` ("What's implemented so far") — non ripetuta q
 
 ## Prossimo passo esatto
 
-Riscrivere `README.md` (root) per leggibilità/struttura — ultimo deliverable della sessione 02-09-26 sulla naming convention, non ancora fatto. In alternativa: decidere il k di produzione finale per lesion s1.1-vol (`docs/experiments/clustering/s1_production.md`), estendere l'analisi SDC s2.1-schaefer-200-tian-s2 a `nc3`, riprendere l'audit naming a livello di plot, o continuare a provare renderer alternativi per i pannelli di anatomia (branch `viz-niivue`).
+Sessione naming convention conclusa (2 commit `e734f5d`/`4e892e5`, README.md riscritto, `stato_progetto.md`/`lessons_learned.md` aggiornati). Prossimo lavoro, a scelta: decidere il k di produzione finale per lesion s1.1-vol (`docs/experiments/clustering/s1_production.md`), estendere l'analisi SDC s2.1-schaefer-200-tian-s2 a `nc3`, riprendere l'audit naming a livello di plot, o continuare a provare renderer alternativi per i pannelli di anatomia (branch `viz-niivue`).
