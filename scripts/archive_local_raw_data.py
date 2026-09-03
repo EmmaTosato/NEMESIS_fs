@@ -270,12 +270,18 @@ def delete_archived_group_files(to_archive: dict[Path, list[str]]) -> None:
 
 
 def write_archive_readme(root: Path, archive_path: Path, sample_ids: Sequence[str], n_archived: int, restore_hint: str) -> None:
+    """archive_path is always a *sibling* of root (built via root.with_name(...) - see
+    _process_subject_dirs_target/_process_atlas_combo_groups_target), never inside it, while this
+    README is written inside root itself - the restore command below must account for that one
+    directory level, or running it from root (the natural place to read the README from) fails to
+    find the archive."""
     (root / "README_ARCHIVE.md").write_text(
         "# Locally pruned by scripts/archive_local_raw_data.py\n\n"
         f"Kept {len(sample_ids)} sample subject(s) in place for notebooks/exploration: {', '.join(sample_ids)}.\n\n"
-        f"{n_archived} file(s) moved into `{archive_path.name}` (same directory), verified against disk before "
-        "deletion. Restore with:\n\n"
-        f"```bash\ntar -xzf {archive_path.name} -C .\n```\n\n"
+        f"{n_archived} file(s) moved into `../{archive_path.name}` (one level up, next to this "
+        f"directory - not inside it), verified against disk before deletion. Restore with (run from "
+        "this directory):\n\n"
+        f"```bash\ntar -xzf ../{archive_path.name} -C .\n```\n\n"
         f"{restore_hint}\n"
     )
 

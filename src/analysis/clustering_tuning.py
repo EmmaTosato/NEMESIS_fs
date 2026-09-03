@@ -41,7 +41,7 @@ from src.analysis.consensus_clustering import (
     run_monti_repeats,
     run_rsc_repeats,
 )
-from src.analysis.distances import SUPPORTED_BINARY_METRICS, precomputed_distance
+from src.analysis.distances import PRECOMPUTABLE_METRICS, SUPPORTED_BINARY_METRICS, precomputed_distance
 
 CONSENSUS_METRIC_COLUMNS = ("rsc_eigengap", "monti_stability")
 
@@ -242,26 +242,39 @@ def _agglomerative_fit_metric_aware(
     X: np.ndarray, params: dict, distance_cache: dict[str, np.ndarray] | None = None
 ) -> tuple[np.ndarray, str]:
     """Fits AgglomerativeClustering honoring an arbitrary `metric` (default "euclidean",
-    sklearn's own default) - native sklearn metric strings (euclidean/cosine/manhattan/...) go
-    straight into the estimator; jaccard/dice (SUPPORTED_BINARY_METRICS, no native sklearn
-    string for them) are precomputed first via distances.py::precomputed_distance and fit with
+    sklearn's own default). Any metric in distances.py::PRECOMPUTABLE_METRICS (jaccard/dice/
+    euclidean) is precomputed first via distances.py::precomputed_distance and fit with
     metric="precomputed" (same reuse as the umap/t-SNE fine-tuning path, lesson #29 - no new
-    precompute machinery needed). Returns (labels, metric) so the caller can score every
-    generic metric with the exact same metric/distance that was actually clustered on.
+    precompute machinery needed) - unless `linkage` is "ward", which sklearn only accepts with
+    the literal metric="euclidean"/"l2", never "precomputed" (checked directly here, since
+    is_invalid_ward_metric_combo upstream only filters ward+*non-euclidean*, leaving
+    ward+euclidean - a valid, common combination - to reach this function). Every other native
+    sklearn metric string (cosine/manhattan/...) goes straight into the estimator on raw X, same
+    as before. Returns (labels, metric) so the caller can score every generic metric with the
+    exact same metric/distance that was actually clustered on.
 
-    distance_cache (optional, keyed by metric name): the jaccard/dice distance matrix depends
-    only on (X, metric), never on the swept n_clusters/linkage - on a high-dimensional raw
-    matrix (e.g. a 264274-voxel lesion matrix, unlike the 2-3 column embeddings this function
-    was originally written for) recomputing it per combination is the sweep's actual
-    bottleneck, not the fit itself. When given, computed once per metric and reused for every
-    later combination sharing it, instead of once per (n_clusters, linkage, metric) combo.
-    `ward` linkage never reaches this branch (sklearn only accepts metric="euclidean"/"l2" for
-    ward, not "precomputed" - is_invalid_ward_metric_combo already filters that combination out
-    upstream), so the cache never has to account for it.
+    **03-09-26, widened from jaccard/dice-only to include euclidean**: found while running this
+    sweep directly on a raw, high-dimensional matrix (`25-08_s1.2-vol`, 5269 subjects x 264274
+    voxels) - `AgglomerativeClustering(metric="euclidean")` fit directly on raw X does *not* use
+    the same BLAS-optimized route `distances.py::euclidean_pairwise_distance`/`sklearn.metrics.
+    pairwise.euclidean_distances` does; measured directly on a 1000-subject subsample of this
+    same matrix: 8.3s to precompute the full distance matrix vs. 48.7s for a direct fit on raw X
+    (~6x), vs. 0.0s to then fit on the already-precomputed matrix. Invisible on a 2-3 column
+    embedding (both paths are near-instant there); the dominant cost of the whole sweep on a raw
+    voxel matrix, same root shape as lesson #29's original UMAP/t-SNE finding, just found later
+    for agglomerative specifically.
+
+    distance_cache (optional, keyed by metric name): a given metric's precomputed distance
+    matrix depends only on (X, metric), never on the swept n_clusters/linkage - recomputing it
+    per combination (rather than once per metric) was the original, narrower 03-09-26 fix this
+    docstring describes above. When given, computed once per metric and reused for every later
+    combination sharing it (still excluding `ward`, per the check above - `ward` combinations
+    are never cached, always fit directly on raw X).
     """
     params = dict(params)
     metric = params.pop("metric", "euclidean")
-    if metric in SUPPORTED_BINARY_METRICS:
+    linkage = params.get("linkage", "ward")
+    if metric in PRECOMPUTABLE_METRICS and linkage != "ward":
         if distance_cache is not None and metric in distance_cache:
             distance_matrix = distance_cache[metric]
         else:
@@ -274,7 +287,9 @@ def _agglomerative_fit_metric_aware(
     return labels, metric
 
 
-def compute_clustering_metrics_metric_aware(X: np.ndarray, labels: np.ndarray, metric: str) -> dict[str, float]:
+def compute_clustering_metrics_metric_aware(
+    X: np.ndarray, labels: np.ndarray, metric: str, distance_cache: dict[str, np.ndarray] | None = None
+) -> dict[str, float]:
     """Agglomerative-only counterpart of compute_clustering_metrics, for a `metric` that may not
     be euclidean (project-clustering-tuning-redesign memory, 26-08-26 - the redesign this
     replaces compute_clustering_metrics's blanket `_require_euclidean_compatible` abort with,
@@ -289,6 +304,20 @@ def compute_clustering_metrics_metric_aware(X: np.ndarray, labels: np.ndarray, m
     column shape as compute_clustering_metrics. A degenerate combination (fewer than 2, or more
     than n-1, clusters - possible if n_clusters approaches n_samples) is recorded as NaN with a
     logged warning, same convention as compute_clustering_metrics.
+
+    distance_cache (03-09-26, optional, keyed by metric name): without it, silhouette's own
+    distance matrix was computed *again* here for any metric in PRECOMPUTABLE_METRICS - entirely
+    independent of, and not reusing, whatever `_agglomerative_fit_metric_aware` already computed
+    (and possibly already cached) for the fit itself. For `euclidean` specifically this was the
+    same non-BLAS-optimized `sklearn.metrics.silhouette_score(X, labels, metric="euclidean")`
+    internal computation `_agglomerative_fit_metric_aware`'s own docstring found slow - found
+    here as a second, separate instance of the same gap, still present after that fix, because
+    scoring was never routed through the same cache the fit was (a real sweep on
+    `25-08_s1.2-vol` still stalled per-combination after the fit-side fix alone, which is what
+    surfaced this). When `distance_cache` is given (the caller passes the same
+    `agglomerative_distance_cache` `run_clustering_tuning_sweep` already threads into the fit),
+    the exact same precomputed matrix is reused for scoring too - one computation per metric,
+    shared between fit and score, not two.
     """
     labels = np.asarray(labels)
     n_unique = len(np.unique(labels))
@@ -300,8 +329,13 @@ def compute_clustering_metrics_metric_aware(X: np.ndarray, labels: np.ndarray, m
         )
         return {"silhouette": float("nan"), "calinski_harabasz": float("nan"), "davies_bouldin": float("nan"), "noise_fraction": 0.0}
 
-    if metric in SUPPORTED_BINARY_METRICS:
-        distance_matrix = precomputed_distance(X, metric)
+    if metric in PRECOMPUTABLE_METRICS:
+        if distance_cache is not None and metric in distance_cache:
+            distance_matrix = distance_cache[metric]
+        else:
+            distance_matrix = precomputed_distance(X, metric)
+            if distance_cache is not None:
+                distance_cache[metric] = distance_matrix
         silhouette = float(silhouette_score(distance_matrix, labels, metric="precomputed"))
     else:
         silhouette = float(silhouette_score(X, labels, metric=metric))
@@ -475,7 +509,7 @@ def run_clustering_tuning_sweep(
         elif method == "agglomerative":
             labels, metric = _agglomerative_fit_metric_aware(X, combo_params, agglomerative_distance_cache)
             extra_metrics = {}
-            generic_metrics = compute_clustering_metrics_metric_aware(X, labels, metric)
+            generic_metrics = compute_clustering_metrics_metric_aware(X, labels, metric, agglomerative_distance_cache)
         elif method in _EXTRA_METRICS_EVALUATORS:
             labels, extra_metrics = _EXTRA_METRICS_EVALUATORS[method](X, combo_params)
             generic_metrics = compute_clustering_metrics(X, labels, combo_params)
@@ -667,21 +701,27 @@ def compute_dendrogram_linkage(
     the full hierarchy doesn't depend on which cut you'd eventually pick,
     that's the whole point of looking at it before deciding on one.
 
-    metric-aware the same way _agglomerative_fit_metric_aware is: jaccard/dice
-    (SUPPORTED_BINARY_METRICS) go through distances.py::precomputed_distance and fit with
-    metric="precomputed", instead of letting AgglomerativeClustering fall back to
-    scipy.spatial.distance.cdist's one-pair-at-a-time computation on raw X - on a
-    high-dimensional raw matrix that fallback is the actual bottleneck (minutes to hours,
-    not the fit itself). distance_cache (optional, keyed by metric name), same role as
+    metric-aware the same way _agglomerative_fit_metric_aware is: any metric in
+    distances.py::PRECOMPUTABLE_METRICS (jaccard/dice/euclidean) goes through
+    distances.py::precomputed_distance and fits with metric="precomputed", instead of letting
+    AgglomerativeClustering fall back to its own, much slower internal computation on raw X -
+    scipy.spatial.distance.cdist's one-pair-at-a-time path for jaccard/dice (minutes to hours on
+    a high-dimensional raw matrix), and a similarly slow non-BLAS-optimized path for euclidean
+    (measured ~6x slower than precomputing, 03-09-26 - see _agglomerative_fit_metric_aware's own
+    docstring for the numbers). Skipped when `linkage` is "ward" (sklearn only accepts
+    metric="euclidean"/"l2" for ward, never "precomputed") - checked directly here for the same
+    reason _agglomerative_fit_metric_aware does: is_invalid_ward_metric_combo upstream only
+    filters ward+*non-euclidean*, leaving ward+euclidean (a valid combination) to reach this
+    function. distance_cache (optional, keyed by metric name), same role as
     _agglomerative_fit_metric_aware's own cache: the caller (clustering.py's
     _write_agglomerative_diagnostics) calls this once per (metric, linkage) combination, so
     without it the same metric's distance matrix would be recomputed for every linkage sharing
-    it. `params["linkage"]` is never "ward" when metric is jaccard/dice - the caller already
-    filters that invalid combination out (is_invalid_ward_metric_combo) before calling this.
+    it.
     """
     tree_params = {k: v for k, v in params.items() if k not in ("n_clusters", "distance_threshold", "metric")}
     metric = params.get("metric", "euclidean")
-    if metric in SUPPORTED_BINARY_METRICS:
+    linkage = params.get("linkage", "ward")
+    if metric in PRECOMPUTABLE_METRICS and linkage != "ward":
         if distance_cache is not None and metric in distance_cache:
             distance_matrix = distance_cache[metric]
         else:

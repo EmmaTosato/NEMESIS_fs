@@ -1,5 +1,6 @@
 """Unit tests for scripts/archive_local_raw_data.py."""
 
+import subprocess
 import tarfile
 
 import pytest
@@ -247,6 +248,30 @@ def test_main_execute_archives_and_prunes_leaving_readme(tmp_path, monkeypatch):
     assert remaining == ["sub-000", "sub-001"]
     assert (root.parent / "manual_masks_archive.tar.gz").exists()
     assert (root / "README_ARCHIVE.md").exists()
+
+
+def test_readme_restore_command_actually_restores_the_archived_subjects(tmp_path, monkeypatch):
+    """Regression: write_archive_readme used to instruct `tar -xzf <archive>.tar.gz -C .` run from
+    root - but archive_path is a *sibling* of root (one level up), not inside it, so that exact
+    command failed to find the archive when run, as documented, from root itself. This test
+    literally runs the README's own restore command (not a paraphrase of it) and checks the
+    archived subject actually comes back."""
+    monkeypatch.chdir(tmp_path)
+    root = tmp_path / "manual_masks"
+    root.mkdir()
+    _make_subject_dirs(root, [f"sub-{i:03d}" for i in range(5)])
+    import scripts.archive_local_raw_data as module
+
+    monkeypatch.setattr(module, "TARGETS", [SubjectDirsTarget(root)])
+    exit_code = main(["--n-sample", "2", "--execute"])
+    assert exit_code == 0
+    assert not (root / "sub-004").exists()  # archived away
+
+    readme = (root / "README_ARCHIVE.md").read_text()
+    restore_command = readme.split("```bash\n")[1].split("\n```")[0]
+    subprocess.run(restore_command, shell=True, cwd=root, check=True)
+
+    assert (root / "sub-004" / "anat" / "sub-004_mask.nii.gz").exists()
 
 
 def test_main_execute_keeps_must_keep_subject_even_when_it_sorts_last(tmp_path, monkeypatch):
