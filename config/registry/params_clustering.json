@@ -37,7 +37,7 @@
   "hdbscan": {
     "tag_param": ["min_cluster_size", "min_samples"],
     "tag_prefix": ["mcs", "ms"],
-    "params": { "min_cluster_size": 75, "min_samples": 20 },
+    "params": { "min_cluster_size": 200, "min_samples": 5 },
     "tuning_grid": {
       "min_cluster_size": [10, 20, 30, 50, 75, 100],
       "min_samples": [5, 10, 20]

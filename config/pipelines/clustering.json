@@ -12,5 +12,5 @@
   "save_tuning_clusterings": false,
   "overwrite": false,
   "viz_embedding_path": null,
-  "run_notes": "Scope 1 - opzione F (hdbscan B, rifatta 03-09): dal nuovo tuning con n_clusters_found, seconda miglior silhouette a granularità comparabile a s1.1-vol"
+  "run_notes": "Scope 1 - opzione G (hdbscan C): terzo punto di vista complementare a E/F, per avvicinarsi allo spirito esplorativo multi-opzione di s1.1-vol - granularità più grossolana (7 cluster), non sostituisce E/F"
 }
