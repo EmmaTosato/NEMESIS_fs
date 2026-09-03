@@ -238,7 +238,9 @@ def is_invalid_ward_metric_combo(combo_params: dict) -> bool:
     return linkage == "ward" and metric not in _WARD_SAFE_METRICS
 
 
-def _agglomerative_fit_metric_aware(X: np.ndarray, params: dict) -> tuple[np.ndarray, str]:
+def _agglomerative_fit_metric_aware(
+    X: np.ndarray, params: dict, distance_cache: dict[str, np.ndarray] | None = None
+) -> tuple[np.ndarray, str]:
     """Fits AgglomerativeClustering honoring an arbitrary `metric` (default "euclidean",
     sklearn's own default) - native sklearn metric strings (euclidean/cosine/manhattan/...) go
     straight into the estimator; jaccard/dice (SUPPORTED_BINARY_METRICS, no native sklearn
@@ -246,11 +248,26 @@ def _agglomerative_fit_metric_aware(X: np.ndarray, params: dict) -> tuple[np.nda
     metric="precomputed" (same reuse as the umap/t-SNE fine-tuning path, lesson #29 - no new
     precompute machinery needed). Returns (labels, metric) so the caller can score every
     generic metric with the exact same metric/distance that was actually clustered on.
+
+    distance_cache (optional, keyed by metric name): the jaccard/dice distance matrix depends
+    only on (X, metric), never on the swept n_clusters/linkage - on a high-dimensional raw
+    matrix (e.g. a 264274-voxel lesion matrix, unlike the 2-3 column embeddings this function
+    was originally written for) recomputing it per combination is the sweep's actual
+    bottleneck, not the fit itself. When given, computed once per metric and reused for every
+    later combination sharing it, instead of once per (n_clusters, linkage, metric) combo.
+    `ward` linkage never reaches this branch (sklearn only accepts metric="euclidean"/"l2" for
+    ward, not "precomputed" - is_invalid_ward_metric_combo already filters that combination out
+    upstream), so the cache never has to account for it.
     """
     params = dict(params)
     metric = params.pop("metric", "euclidean")
     if metric in SUPPORTED_BINARY_METRICS:
-        distance_matrix = precomputed_distance(X, metric)
+        if distance_cache is not None and metric in distance_cache:
+            distance_matrix = distance_cache[metric]
+        else:
+            distance_matrix = precomputed_distance(X, metric)
+            if distance_cache is not None:
+                distance_cache[metric] = distance_matrix
         labels = AgglomerativeClustering(**params, metric="precomputed").fit_predict(distance_matrix)
     else:
         labels = AgglomerativeClustering(**params, metric=metric).fit_predict(X)
@@ -428,6 +445,11 @@ def run_clustering_tuning_sweep(
     # goes from 7*n_repeats fits down to n_repeats.
     cooccurrence_cache: dict[tuple, np.ndarray] = {} if method == "evidence_accumulation" else None
 
+    # See _agglomerative_fit_metric_aware's distance_cache docstring: the jaccard/dice distance
+    # matrix depends only on (X, metric), not on n_clusters/linkage - shared across every combo
+    # in this sweep that requests the same metric, instead of recomputed per combo.
+    agglomerative_distance_cache: dict[str, np.ndarray] = {} if method == "agglomerative" else None
+
     rows = []
     labels_by_combo: dict[tuple, np.ndarray] = {}
     for i, combo in enumerate(combinations, 1):
@@ -451,7 +473,7 @@ def run_clustering_tuning_sweep(
             extra_metrics = {}
             generic_metrics = compute_clustering_metrics(X, labels, combo_params)
         elif method == "agglomerative":
-            labels, metric = _agglomerative_fit_metric_aware(X, combo_params)
+            labels, metric = _agglomerative_fit_metric_aware(X, combo_params, agglomerative_distance_cache)
             extra_metrics = {}
             generic_metrics = compute_clustering_metrics_metric_aware(X, labels, metric)
         elif method in _EXTRA_METRICS_EVALUATORS:

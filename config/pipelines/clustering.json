@@ -1,16 +1,15 @@
 {
   "project": "clinical_connectome",
   "output_root": "results/lesion/clustering",
-  "input_path": "results/lesion/dim_reduction/production/umap/28-08_s1.2-vol_m_euclidean_nc2",
-  "reduction_method": "umap",
-  "reduction_params_file": "config/registry/params_reduction.json",
+  "input_path": "data/derived/lesion_matrix/25-08_s1.2-vol",
+  "reduction_method": "raw",
   "params_file": "config/registry/params_clustering.json",
   "session_name": "s1.2-vol",
-  "clustering_methods": ["hdbscan"],
-  "reduced_data": true,
-  "fine_tuning": false,
+  "clustering_methods": ["agglomerative"],
+  "reduced_data": false,
+  "fine_tuning": true,
   "save_tuning_clusterings": false,
   "overwrite": false,
   "viz_embedding_path": null,
-  "run_notes": "Scope 1 - opzione G (hdbscan C): terzo punto di vista complementare a E/F, per avvicinarsi allo spirito esplorativo multi-opzione di s1.1-vol - granularità più grossolana (7 cluster), non sostituisce E/F"
+  "run_notes": "Tuning agglomerative diretto su matrice raw (5269x264274 voxel), niente dim reduction - metric sweep euclidean/jaccard/dice (precomputed_distance)"
 }
