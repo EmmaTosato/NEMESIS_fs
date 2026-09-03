@@ -11,6 +11,7 @@
     "ST"
   ],
   "object": "disconnectome",
+  "representation": "parcellated",
   "atlas": "schaefer_200_tian_s2",
   "value_column": "mean_overlap",
   "reference_labels_path": "assets/atlases/sdc_labels/schaefer_200_tian_s2.csv",

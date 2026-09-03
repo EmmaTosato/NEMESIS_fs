@@ -14,3 +14,5 @@ summaries/
 
 .claude/dim_reduction_clustering/*
 
+sdc_download/*
+

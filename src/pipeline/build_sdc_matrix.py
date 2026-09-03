@@ -1,13 +1,17 @@
-"""CLI entry point: build an SDC (parcellated) feature matrix from retrieved SDC output.
+"""CLI entry point: build an SDC feature matrix from retrieved SDC output.
 
 Usage:
     python -m src.pipeline.build_sdc_matrix --config config/pipelines/build_sdc_matrix.json
 
-Same shape as build_lesion_matrix.py: build_sdc_matrix() (src/features/sdc.py)
-either succeeds for the admitted subjects or raises - no per-subject error
-accumulation beyond the two explicit exclusion lists it already returns
-(excluded_no_lesion_mask, sdc_not_yet_computed), both persisted to config.md
-alongside the group_filter exclusion (see docs/dev/sdc_matrix.md).
+Two representations, picked by config.representation (see
+src.analysis.build_config.load_build_sdc_matrix_config / src/features/sdc.py):
+"parcellated" (build_sdc_matrix, the original one, per-atlas region CSVs) or
+"voxelwise" (build_sdc_voxelwise_matrix, added 03/09, the disconnectome-map
+.nii.gz directly). Same shape as build_lesion_matrix.py either way:
+either builder succeeds for the admitted subjects or raises - no per-subject
+error accumulation beyond the two explicit exclusion lists both builders
+return (excluded_no_lesion_mask, sdc_not_yet_computed), persisted to
+config.md alongside the group_filter exclusion (see docs/dev/sdc_matrix.md).
 """
 
 from __future__ import annotations
@@ -18,11 +22,12 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
+import nibabel as nib
 import numpy as np
 import pandas as pd
 
 from src.analysis.build_config import SdcMatrixConfig, load_build_sdc_matrix_config
-from src.features.sdc import build_sdc_matrix
+from src.features.sdc import build_sdc_matrix, build_sdc_voxelwise_matrix
 from src.utils.artifacts import save_matrix
 from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
@@ -34,7 +39,7 @@ REPORT_FILENAME_PREFIX = "build_summary"
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Build a parcellated SDC feature matrix from retrieved SDC output."
+        description="Build an SDC feature matrix (parcellated or voxelwise) from retrieved SDC output."
     )
     parser.add_argument("--config", required=True, help="Path to a build_sdc_matrix.json file")
     args = parser.parse_args(argv)
@@ -58,18 +63,34 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
         try:
-            X, metadata, region_names, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed = (
-                build_sdc_matrix(
-                    data_root=config.data_root,
-                    datasets=config.datasets,
-                    object_=config.object,
-                    atlas=config.atlas,
-                    value_column=config.value_column,
-                    reference_labels_path=config.reference_labels_path,
-                    group_filter=config.group_filter,
+            if config.representation == "parcellated":
+                X, metadata, column_labels, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed = (
+                    build_sdc_matrix(
+                        data_root=config.data_root,
+                        datasets=config.datasets,
+                        object_=config.object,
+                        atlas=config.atlas,
+                        value_column=config.value_column,
+                        reference_labels_path=config.reference_labels_path,
+                        group_filter=config.group_filter,
+                    )
                 )
-            )
-        except (FileNotFoundError, ValueError) as exc:
+            else:
+                X, metadata, column_labels, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed = (
+                    build_sdc_voxelwise_matrix(
+                        data_root=config.data_root,
+                        datasets=config.datasets,
+                        object_=config.object,
+                        reference_template_path=config.reference_template_path,
+                        resample_interpolation=config.resample_interpolation,
+                        group_filter=config.group_filter,
+                    )
+                )
+        except (FileNotFoundError, ValueError, nib.filebasedimages.ImageFileError) as exc:
+            # ImageFileError (voxelwise only): a truncated/corrupt .nii.gz raises this from
+            # nib.load, for either the reference template or a subject's own disconnectome-map -
+            # neither FileNotFoundError (the file exists) nor ValueError (nibabel's own
+            # exception, not ours) - same reasoning as build_lesion_matrix.py.
             logging.error(str(exc))
             return 1
 
@@ -90,7 +111,14 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         output_dir = _output_dir(config, now)
-        extra_arrays = {"region_names": region_names.astype(str)}
+        # "region_names" (str labels) for parcellated, "non_constant_mask" (bool drop-mask,
+        # same convention as build_lesion_matrix.py) for voxelwise - there is no drop mask in
+        # the parcellated case (no column is ever dropped, see src/features/sdc.py).
+        extra_arrays = (
+            {"region_names": column_labels.astype(str)}
+            if config.representation == "parcellated"
+            else {"non_constant_mask": column_labels}
+        )
 
         try:
             save_matrix(
@@ -140,6 +168,10 @@ def _dataset_counts(metadata: pd.DataFrame) -> dict[str, int]:
     return {name: int(count) for name, count in metadata["dataset"].value_counts().sort_index().items()}
 
 
+def _column_kind(config: SdcMatrixConfig) -> str:
+    return "regions" if config.representation == "parcellated" else "voxels"
+
+
 def _config_summary(config: SdcMatrixConfig) -> str:
     payload = {
         "project": config.project,
@@ -147,19 +179,29 @@ def _config_summary(config: SdcMatrixConfig) -> str:
         "datasets": config.datasets,
         "group_filter": config.group_filter,
         "object": config.object,
-        "atlas": config.atlas,
-        "value_column": config.value_column,
-        "reference_labels_path": str(config.reference_labels_path),
+        "representation": config.representation,
         "output_root": str(config.output_root),
         "session_name": config.session_name,
         "overwrite": config.overwrite,
         "run_notes": config.run_notes,
     }
+    # Only the fields relevant to the representation actually used - the other mode's
+    # fields are None on this config and would otherwise show up as the misleading
+    # string "None" rather than being absent.
+    if config.representation == "parcellated":
+        payload["atlas"] = config.atlas
+        payload["value_column"] = config.value_column
+        payload["reference_labels_path"] = str(config.reference_labels_path)
+    else:
+        payload["reference_template_path"] = str(config.reference_template_path)
+        payload["resample_interpolation"] = config.resample_interpolation
     return json.dumps(payload, indent=2)
 
 
 def _params_used(config: SdcMatrixConfig) -> dict:
-    return {"object": config.object, "atlas": config.atlas, "value_column": config.value_column}
+    if config.representation == "parcellated":
+        return {"object": config.object, "atlas": config.atlas, "value_column": config.value_column}
+    return {"object": config.object, "representation": config.representation}
 
 
 def _summary_lines(
@@ -171,7 +213,7 @@ def _summary_lines(
     sdc_not_yet_computed: list[str],
 ) -> list[str]:
     lines = ["## Config", "", "```json", _config_summary(config), "```", "", "## Summary", ""]
-    lines.append(f"Matrix shape: {X.shape[0]} subjects x {X.shape[1]} regions")
+    lines.append(f"Matrix shape: {X.shape[0]} subjects x {X.shape[1]} {_column_kind(config)}")
     lines.append(f"Params used: {json.dumps(_params_used(config))}")
     lines += ["", "| dataset | subjects |", "|---|---|"]
     for name, count in _dataset_counts(metadata).items():

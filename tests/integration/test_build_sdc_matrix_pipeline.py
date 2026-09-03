@@ -8,6 +8,7 @@ tmp_path E2E, always runs (no skipif).
 import json
 import logging
 
+import nibabel as nib
 import numpy as np
 import pandas as pd
 
@@ -18,6 +19,10 @@ _ATLAS = "test_atlas"
 _OBJECT = "disconnectome"
 _VALUE_COLUMN = "mean_overlap"
 _LESION_MASK_COLUMN = "lesion/manual_masks/anat/lesion_mask"
+
+_VOXELWISE_AFFINE = np.eye(4) * 2
+_VOXELWISE_AFFINE[3, 3] = 1
+_VOXELWISE_SHAPE = (4, 4, 4)
 
 
 def _register_lesion_mask(metadata_root, dataset, subject_id):
@@ -59,9 +64,38 @@ def _write_config(tmp_path, data_root, output_root, overrides=None):
         "data_root": str(data_root),
         "datasets": ["siteA"],
         "object": _OBJECT,
+        "representation": "parcellated",
         "atlas": _ATLAS,
         "value_column": _VALUE_COLUMN,
         "reference_labels_path": str(reference_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+    }
+    cfg.update(overrides or {})
+    path = tmp_path / "build_sdc_matrix.json"
+    path.write_text(json.dumps(cfg))
+    return path
+
+
+def _make_disconnectome_map(data_root, dataset, subject_id, volume):
+    subject_dir = data_root / dataset / "sdc" / subject_id / "dwi"
+    subject_dir.mkdir(parents=True, exist_ok=True)
+    path = subject_dir / f"{subject_id}_space-MNI152NLin6Asym_res-1_desc-disconnectome.nii.gz"
+    nib.save(nib.Nifti1Image(volume.astype(np.float32), _VOXELWISE_AFFINE), path)
+
+
+def _write_voxelwise_config(tmp_path, data_root, output_root, overrides=None):
+    template_path = tmp_path / "reference_template.nii.gz"
+    nib.save(nib.Nifti1Image(np.zeros(_VOXELWISE_SHAPE, dtype=np.float32), _VOXELWISE_AFFINE), template_path)
+    cfg = {
+        "project": "testproj",
+        "data_root": str(data_root),
+        "datasets": ["siteA"],
+        "object": _OBJECT,
+        "representation": "voxelwise",
+        "reference_template_path": str(template_path),
+        "resample_interpolation": "nearest",
         "output_root": str(output_root),
         "session_name": "run1",
         "overwrite": False,
@@ -196,3 +230,64 @@ def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, 
     exit_code = build_sdc_matrix.main(["--config", str(config_path)])
     assert exit_code == 1
     assert (out_dir / "manifest.json").read_text() == manifest_before
+
+
+def test_build_sdc_matrix_voxelwise_end_to_end(tmp_path, monkeypatch, caplog):
+    """representation='voxelwise' (added 03/09): same CLI, disconnectome-map
+    .nii.gz directly instead of the per-atlas CSVs - extra_arrays holds
+    non_constant_mask, not region_names (no atlas involved)."""
+    monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    for i, value in enumerate([0.5, 0.2, 0.0]):
+        subject_id = f"sub-STUNIPD{i:04d}"
+        _register_lesion_mask(metadata_root, "siteA", subject_id)
+        volume = np.zeros(_VOXELWISE_SHAPE, dtype=np.float32)
+        volume[0, 0, 0] = value
+        _make_disconnectome_map(data_root, "siteA", subject_id, volume)
+    config_path = _write_voxelwise_config(tmp_path, data_root, output_root)
+
+    with caplog.at_level(logging.INFO):
+        exit_code = build_sdc_matrix.main(["--config", str(config_path)])
+    assert exit_code == 0
+    assert "run duration:" in caplog.text
+
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    matrix = np.load(out_dir / "matrix.npy")
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    non_constant_mask = np.load(out_dir / "non_constant_mask.npy")
+
+    assert len(metadata) == 3
+    assert not (out_dir / "region_names.npy").exists()
+    # only voxel [0,0,0] varies (0.5/0.2/0.0) across the 3 subjects - every other voxel is
+    # constant at 0.0 and gets dropped.
+    assert matrix.shape == (3, 1)
+    assert non_constant_mask.sum() == 1
+
+    config_md = (out_dir / "config.md").read_text()
+    assert '"representation": "voxelwise"' in config_md
+    assert "3 subjects x 1 voxels" in config_md
+
+
+def test_build_sdc_matrix_voxelwise_object_lesion_rejected_at_config_load(tmp_path, monkeypatch, caplog):
+    """representation='voxelwise' only supports object='disconnectome' - see
+    src/features/sdc.py module docstring. Caught at config-load time (fails
+    before any file discovery), not deep inside build_sdc_voxelwise_matrix."""
+    monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    config_path = _write_voxelwise_config(tmp_path, data_root, output_root, overrides={"object": "lesion"})
+
+    with caplog.at_level(logging.INFO):
+        exit_code = build_sdc_matrix.main(["--config", str(config_path)])
+    assert exit_code == 1
+    assert "voxelwise" in caplog.text
+    assert not output_root.exists()

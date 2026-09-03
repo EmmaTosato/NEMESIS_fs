@@ -655,7 +655,9 @@ def compute_stability_sweep(
     return pd.DataFrame(rows)
 
 
-def compute_dendrogram_linkage(X: np.ndarray, params: dict) -> np.ndarray:
+def compute_dendrogram_linkage(
+    X: np.ndarray, params: dict, distance_cache: dict[str, np.ndarray] | None = None
+) -> np.ndarray:
     """Fits AgglomerativeClustering with the full merge tree exposed
     (n_clusters=None, distance_threshold=0 forces every merge down to
     singleton leaves; compute_distances=True records each merge's distance),
@@ -664,9 +666,35 @@ def compute_dendrogram_linkage(X: np.ndarray, params: dict) -> np.ndarray:
     expects. Ignores any n_clusters/distance_threshold already in `params` -
     the full hierarchy doesn't depend on which cut you'd eventually pick,
     that's the whole point of looking at it before deciding on one.
+
+    metric-aware the same way _agglomerative_fit_metric_aware is: jaccard/dice
+    (SUPPORTED_BINARY_METRICS) go through distances.py::precomputed_distance and fit with
+    metric="precomputed", instead of letting AgglomerativeClustering fall back to
+    scipy.spatial.distance.cdist's one-pair-at-a-time computation on raw X - on a
+    high-dimensional raw matrix that fallback is the actual bottleneck (minutes to hours,
+    not the fit itself). distance_cache (optional, keyed by metric name), same role as
+    _agglomerative_fit_metric_aware's own cache: the caller (clustering.py's
+    _write_agglomerative_diagnostics) calls this once per (metric, linkage) combination, so
+    without it the same metric's distance matrix would be recomputed for every linkage sharing
+    it. `params["linkage"]` is never "ward" when metric is jaccard/dice - the caller already
+    filters that invalid combination out (is_invalid_ward_metric_combo) before calling this.
     """
-    tree_params = {k: v for k, v in params.items() if k not in ("n_clusters", "distance_threshold")}
-    fitted = AgglomerativeClustering(n_clusters=None, distance_threshold=0, compute_distances=True, **tree_params).fit(X)
+    tree_params = {k: v for k, v in params.items() if k not in ("n_clusters", "distance_threshold", "metric")}
+    metric = params.get("metric", "euclidean")
+    if metric in SUPPORTED_BINARY_METRICS:
+        if distance_cache is not None and metric in distance_cache:
+            distance_matrix = distance_cache[metric]
+        else:
+            distance_matrix = precomputed_distance(X, metric)
+            if distance_cache is not None:
+                distance_cache[metric] = distance_matrix
+        fitted = AgglomerativeClustering(
+            n_clusters=None, distance_threshold=0, compute_distances=True, metric="precomputed", **tree_params
+        ).fit(distance_matrix)
+    else:
+        fitted = AgglomerativeClustering(
+            n_clusters=None, distance_threshold=0, compute_distances=True, metric=metric, **tree_params
+        ).fit(X)
 
     n_samples = len(fitted.labels_)
     counts = np.zeros(fitted.children_.shape[0])

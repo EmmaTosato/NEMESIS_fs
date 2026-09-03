@@ -999,13 +999,17 @@ def _write_agglomerative_diagnostics(
     linkages = list(dict.fromkeys(tuning_grid["linkage"])) if "linkage" in tuning_grid else [base_params.get("linkage", "ward")]
     metrics = list(dict.fromkeys(tuning_grid["metric"])) if "metric" in tuning_grid else [base_params.get("metric", "euclidean")]
 
+    # See compute_dendrogram_linkage's distance_cache docstring: a jaccard/dice distance matrix
+    # depends only on (X, metric), not on linkage - shared here across every linkage sharing the
+    # same metric, instead of recomputed once per (metric, linkage) combination.
+    distance_cache: dict[str, np.ndarray] = {}
     for metric in metrics:
         linkage_matrices = {}
         for linkage in linkages:
             combo_params = {**base_params, "linkage": linkage, "metric": metric}
             if is_invalid_ward_metric_combo(combo_params):
                 continue  # same skip the sweep itself applies - ward requires euclidean/l2
-            linkage_matrices[linkage] = compute_dendrogram_linkage(X, combo_params)
+            linkage_matrices[linkage] = compute_dendrogram_linkage(X, combo_params, distance_cache)
 
         dendrogram_path = output_dir / f"dendrogram_metric={metric}.png"
         plot_dendrograms_grid(linkage_matrices, dendrogram_path, f"{title} (metric={metric})")

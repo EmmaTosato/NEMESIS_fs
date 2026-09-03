@@ -2,7 +2,7 @@
 
 Audience: developers/agents working on `src/features/sdc.py`, `src/analysis/build_config.py` (the `build_sdc_matrix.json`-parsing half), and `src/pipeline/build_sdc_matrix.py`.
 
-This file covers turning retrieved, atlas-parcellated SDC output (`sdc/<subject_id>/dwi/*.csv`, produced upstream by `src/sdc/`/`compute_sdc.py`'s BCBToolKit Stage 1+2) into a feature matrix ready for dimensionality reduction. For the equivalent lesion (voxel-wise) pipeline, see `docs/dev/lesion_matrix.md`. For "how do I run this", see `docs/guides/sdc_matrix_building.md`.
+This file covers turning retrieved SDC output (`sdc/<subject_id>/dwi/*`, produced upstream by `src/sdc/`/`compute_sdc.py`'s BCBToolKit Stage 1+2) into a feature matrix ready for dimensionality reduction, in either of two representations picked by `config.representation` (added 03/09): **parcellated** (`build_sdc_matrix`, the original one - one CSV per atlas, `LF-{object}_atlas-*.csv`) or **voxelwise** (`build_sdc_voxelwise_matrix` - the pre-parcellation `disconnectome-map` `.nii.gz` directly, same resampling-onto-a-common-grid approach as the lesion pipeline). For the equivalent lesion (voxel-wise) pipeline, see `docs/dev/lesion_matrix.md`. For "how do I run this", see `docs/guides/sdc_matrix_building.md`.
 
 ## Why this pipeline looks different from `build_lesion_matrix.py`
 
@@ -63,14 +63,37 @@ For every admitted subject's CSV:
 
 A header-only (zero-row) CSV is a legitimate domain case handled by `_stack_aligned_matrix`: the subject's vector is all-zero, same result as if every reference region had been individually omitted.
 
+## `build_sdc_voxelwise_matrix` — the voxel-wise representation (added 03/09)
+
+`build_sdc_voxelwise_matrix(data_root, datasets, object_, reference_template_path, resample_interpolation, group_filter) -> (X, metadata, non_constant_mask, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed)`
+
+Reads the `disconnectome-map` `.nii.gz` directly (`sdc/*/dwi/*_res-1_desc-{object_}.nii.gz`) instead of the parcellated CSVs - the same pre-parcellation volume `build_sdc_matrix`'s CSVs are themselves derived from. Same two-pass admission criterion as `build_sdc_matrix` (a lesion mask registered in `assets/metadata/*_participants_lesions.tsv` **and** the requested SDC file present).
+
+- **Deliberately restricted to `object_="disconnectome"`** - `object_="lesion"` raises `ValueError` immediately (both here and, redundantly, at config-load time - see below). The `lesion-map` `.nii.gz` (the resampled *input* lesion mask BCBToolKit used, not a retrieval of the real mask) would duplicate `build_lesion_matrix.py`'s own job from a less authoritative source; `manual_masks/` (via `assets/metadata/*_participants_lesions.tsv`) stays the one place a lesion mask is built from.
+- **Never binarized** - disconnection values are a continuous [0, 1] probability, unlike `build_lesion_matrix.py`'s binary lesion mask. No `binarize_threshold` field exists for this representation.
+- **Resampling**: reuses the same `nibabel`/`nilearn.image.resample_to_img` pattern as `src/features/lesion.py` (own local `_needs_resample`, same `_AFFINE_ATOL` tolerance - not imported cross-module, see the code comment on why), onto `reference_template_path`'s grid, with `resample_interpolation` chosen by the caller (typically `"linear"`/`"continuous"` for a continuous field, not `"nearest"` - unlike a binary mask, nothing here forces a discrete interpolation).
+- **Constant-column drop**: unlike the parcellated representation (never drops a column - see above), voxels outside every admitted subject's brain are identically `0.0` and get dropped via the same `_drop_constant_features` as `build_lesion_matrix.py`, keeping `X`'s size manageable. `non_constant_mask` is persisted (`extra_arrays`) so the drop is always recoverable - this doesn't contradict the parcellated representation's "column always means the same thing" decision, since that reasoning was specifically about atlas *region identity* staying comparable across differently-scoped runs, not about voxel grids (whose meaning is already pinned by `reference_template_path`, independent of which subjects a given run admits).
+
 ## `src/analysis/build_config.py` — `build_sdc_matrix.json` parsing
 
-`load_build_sdc_matrix_config(path) -> SdcMatrixConfig`, same style as `load_build_matrix_config`/`load_config`: hand-written `_require_*`/`_optional_*` helpers, every field validated upfront. `object`/`value_column` are validated against `src.features.sdc.KNOWN_OBJECTS`/`KNOWN_VALUE_COLUMNS` at config-load time - a typo here would otherwise only surface after the first subject's CSV is opened (`object`) or column-indexed (`value_column`), potentially after hundreds of files have already been read. No `lesion_glob` field - unlike `build_lesion_matrix.json`, lesion mask presence is resolved from `assets/metadata/*_participants_lesions.tsv`, not from a glob against `data_root`.
+`load_build_sdc_matrix_config(path) -> SdcMatrixConfig`, same style as `load_build_matrix_config`/`load_config`: hand-written `_require_*`/`_optional_*` helpers, every field validated upfront. `object`/`value_column`/`representation` are validated against `src.features.sdc`'s known sets at config-load time - a typo here would otherwise only surface after the first subject's file is opened (`object`) or column-indexed (`value_column`), potentially after hundreds of files have already been read. No `lesion_glob` field - unlike `build_lesion_matrix.json`, lesion mask presence is resolved from `assets/metadata/*_participants_lesions.tsv`, not from a glob against `data_root`.
+
+**`representation`** (`"parcellated"` or `"voxelwise"`, required, added 03/09) picks which builder runs and which of the remaining fields are required - never a silent default for the unused mode's fields, never required-but-ignored:
+
+| Field | `"parcellated"` | `"voxelwise"` |
+|---|---|---|
+| `atlas` | required | not read (must be omitted from the config, or simply ignored if present - not validated either way) |
+| `value_column` | required, validated against `KNOWN_VALUE_COLUMNS` | not read |
+| `reference_labels_path` | required | not read |
+| `reference_template_path` | not read | required |
+| `resample_interpolation` | not read | required, validated against the same `_KNOWN_INTERPOLATIONS` set `build_lesion_matrix.json` uses |
+
+`representation="voxelwise"` combined with `object="lesion"` raises `ValueError` at config-load time already (before `src.features.sdc.build_sdc_voxelwise_matrix` would raise the same thing again at call time) - see "the voxel-wise representation" above for why.
 
 ## `src/pipeline/build_sdc_matrix.py` — CLI entry point
 
-`python -m src.pipeline.build_sdc_matrix --config config/pipelines/build_sdc_matrix.json`. Same shape as `build_lesion_matrix.py` (staged `try`/`except` per phase, `summaries/build_sdc_matrix/<project>/` + `logs/build_sdc_matrix/<project>/` written every run, `output_root/<dd-mm>_<session_name>/` via `save_matrix`). Differences:
+`python -m src.pipeline.build_sdc_matrix --config config/pipelines/build_sdc_matrix.json`. Same shape as `build_lesion_matrix.py` (staged `try`/`except` per phase, `summaries/build_sdc_matrix/<project>/` + `logs/build_sdc_matrix/<project>/` written every run, `output_root/<dd-mm>_<session_name>/` via `save_matrix`). Dispatches on `config.representation`:
 
-- `extra_arrays` holds `region_names` (the column labels, `str` dtype) instead of a boolean drop-mask - there is no drop mask, since no column is ever dropped.
-- `config.md`/the report add two sections beyond `build_lesion_matrix.py`'s single "Excluded by group_filter": **"Excluded (SDC output present but no lesion mask)"** and **"Have a lesion mask but no SDC output yet"** - both persisted, not just logged (same reasoning as `AUDIT_FINDINGS.md #48` for `build_lesion_matrix.py`'s `excluded_by_group`: "why does this matrix have fewer subjects than expected" must be answerable from `config.md` alone).
-- `Params used:` records `{"object": ..., "atlas": ..., "value_column": ...}` instead of `{"binarize_threshold": ...}`.
+- **`"parcellated"`**: `extra_arrays` holds `region_names` (the column labels, `str` dtype) - no drop mask, no column is ever dropped. `Params used:` records `{"object": ..., "atlas": ..., "value_column": ...}`.
+- **`"voxelwise"`**: `extra_arrays` holds `non_constant_mask` (boolean drop-mask, same convention as `build_lesion_matrix.py` - `region_names.npy` is not written in this mode). `Params used:` records `{"object": ..., "representation": ...}`. `nib.filebasedimages.ImageFileError` is caught alongside `FileNotFoundError`/`ValueError` (a truncated/corrupt `.nii.gz`, same reasoning as `build_lesion_matrix.py`) - the parcellated path never touches `nibabel` at all, so that exception type is only reachable via this mode.
+- Both modes: `config.md`/the report add two sections beyond `build_lesion_matrix.py`'s single "Excluded by group_filter": **"Excluded (SDC output present but no lesion mask)"** and **"Have a lesion mask but no SDC output yet"** - both persisted, not just logged (same reasoning as `AUDIT_FINDINGS.md #48` for `build_lesion_matrix.py`'s `excluded_by_group`).

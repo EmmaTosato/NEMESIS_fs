@@ -13,7 +13,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.features.sdc import KNOWN_OBJECTS, KNOWN_VALUE_COLUMNS
+from src.features.sdc import KNOWN_OBJECTS, KNOWN_REPRESENTATIONS, KNOWN_VALUE_COLUMNS
 from src.retrieval.config import KNOWN_GROUPS
 
 _KNOWN_INTERPOLATIONS = frozenset({"linear", "nearest", "continuous"})
@@ -245,9 +245,14 @@ class SdcMatrixConfig:
     datasets: list[str]
     group_filter: list[str] | None
     object: str
-    atlas: str
-    value_column: str
-    reference_labels_path: Path
+    representation: str
+    # parcellated-only (None when representation="voxelwise")
+    atlas: str | None
+    value_column: str | None
+    reference_labels_path: Path | None
+    # voxelwise-only (None when representation="parcellated")
+    reference_template_path: Path | None
+    resample_interpolation: str | None
     output_root: Path
     session_name: str
     overwrite: bool
@@ -257,10 +262,23 @@ class SdcMatrixConfig:
 def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
     """Load and validate a build_sdc_matrix.json file.
 
-    object/value_column are validated against src.features.sdc's known sets
-    upfront - a typo here would otherwise only surface after the first
-    subject's CSV is read (object) or column-indexed (value_column), possibly
-    after hundreds of files have already been discovered.
+    `representation` ("parcellated" or "voxelwise", added 03/09) picks which
+    of the two src.features.sdc builders runs - see that module's docstring.
+    Each representation has its own required fields, validated only for the
+    representation actually requested (never a silent default for the other
+    mode's fields, never required-but-unused):
+    - "parcellated": atlas, value_column, reference_labels_path.
+    - "voxelwise": reference_template_path, resample_interpolation - same
+      field names as build_lesion_matrix.json's own voxel-wise config, no
+      binarize_threshold (disconnectome values are continuous, never
+      binarized - see src.features.sdc.build_sdc_voxelwise_matrix).
+
+    object/value_column/representation are validated against
+    src.features.sdc's known sets upfront - a typo here would otherwise only
+    surface after the first subject's file is opened, possibly after
+    hundreds have already been discovered. "voxelwise" additionally rejects
+    object="lesion" here too (src.features.sdc raises the same check again at
+    call time - config-load time just fails faster).
 
     No lesion_glob field - unlike build_lesion_matrix.json, lesion mask
     presence is resolved from assets/metadata/*_participants_lesions.tsv
@@ -280,11 +298,35 @@ def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
     if object_ not in KNOWN_OBJECTS:
         raise ValueError(f"config: field 'object' must be one of {sorted(KNOWN_OBJECTS)}, got {object_!r}")
 
-    value_column = _require_str(raw, "value_column")
-    if value_column not in KNOWN_VALUE_COLUMNS:
+    representation = _require_str(raw, "representation")
+    if representation not in KNOWN_REPRESENTATIONS:
         raise ValueError(
-            f"config: field 'value_column' must be one of {sorted(KNOWN_VALUE_COLUMNS)}, got {value_column!r}"
+            f"config: field 'representation' must be one of {sorted(KNOWN_REPRESENTATIONS)}, got {representation!r}"
         )
+
+    if representation == "voxelwise" and object_ != "disconnectome":
+        raise ValueError(
+            "config: representation='voxelwise' only supports object='disconnectome' - the lesion-map "
+            f"equivalent is already built by build_lesion_matrix.json from its own authoritative source, "
+            f"got object={object_!r}"
+        )
+
+    if representation == "parcellated":
+        value_column = _require_str(raw, "value_column")
+        if value_column not in KNOWN_VALUE_COLUMNS:
+            raise ValueError(
+                f"config: field 'value_column' must be one of {sorted(KNOWN_VALUE_COLUMNS)}, got {value_column!r}"
+            )
+        atlas = _require_str(raw, "atlas")
+        reference_labels_path = Path(_require_str(raw, "reference_labels_path"))
+        reference_template_path = None
+        resample_interpolation = None
+    else:
+        atlas = None
+        value_column = None
+        reference_labels_path = None
+        reference_template_path = Path(_require_str(raw, "reference_template_path"))
+        resample_interpolation = _validate_resample_interpolation(_require_str(raw, "resample_interpolation"))
 
     return SdcMatrixConfig(
         project=_require_str(raw, "project"),
@@ -292,9 +334,12 @@ def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
         datasets=_require_unique_str_list(raw, "datasets"),
         group_filter=_optional_group_filter(raw),
         object=object_,
-        atlas=_require_str(raw, "atlas"),
+        representation=representation,
+        atlas=atlas,
         value_column=value_column,
-        reference_labels_path=Path(_require_str(raw, "reference_labels_path")),
+        reference_labels_path=reference_labels_path,
+        reference_template_path=reference_template_path,
+        resample_interpolation=resample_interpolation,
         output_root=Path(_require_str(raw, "output_root")),
         session_name=_require_str(raw, "session_name"),
         overwrite=_require_bool(raw, "overwrite"),

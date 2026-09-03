@@ -15,9 +15,9 @@
     "tag_prefix": ["k", "link_"],
     "params": { "n_clusters": 6, "linkage": "average" },
     "tuning_grid": {
-      "n_clusters": [2, 3, 4, 5, 6, 8, 10],
-      "linkage": ["ward", "average", "complete", "single"],
-      "metric": ["euclidean", "jaccard", "dice"]
+      "n_clusters": [2, 3, 4, 5, 6],
+      "linkage": ["average", "complete"],
+      "metric": ["euclidean", "dice"]
     }
   },
   "gmm": {

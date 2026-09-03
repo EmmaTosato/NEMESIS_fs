@@ -3,7 +3,7 @@
 App web live per esplorare interattivamente un run **di produzione** (`dim_reduction.py` o, dal 15-08-26, `clustering.py`, entrambi con `fine_tuning: false`) - 2D o 3D, con un selettore di run e bottoni di colorazione (neutro/dataset/side/volume/nihss/cluster), stile editoriale. Sostituisce il vecchio `embedding_plot_interactive.html` scritto per-run (rimosso 2026-08-14): un solo processo copre **tutti** i run di produzione già scritti, non un file HTML da rigenerare ogni volta. Dal 01-09-26, cliccando un punto si vede anche la vera anatomia lesionale di quel paziente, e per un run `clustering.py` si può vedere la overlap map di ciascun cluster - vedi "Anatomia lesionale" e "Overlap map per cluster" più sotto.
 
 - **Script**: `src/pipeline/embedding_app.py`
-- **Logica**: `src/analysis/embedding_app.py`, `src/analysis/anatomical_maps.py` (risoluzione path lesione + overlap map)
+- **Logica**: `src/analysis/embedding_app.py`, `src/analysis/anatomical_maps.py` (risoluzione path lesione + overlap map) — architettura/dettagli implementativi: `docs/dev/anatomical_maps.md`
 - **Input**: qualunque run di produzione già scritto sotto `results/*/dim_reduction/production/*/*` **o** `results/*/clustering/production/*/*/*` (`clustering.py` ha un livello in più, `<reduction_method>`, 31-08-26 - vedi `docs/guides/clustering.md`; `src.analysis.embedding_app.PRODUCTION_PIPELINES`; nessun refit, legge solo `matrix.npy`/`metadata.csv` già su disco) più `config/pipelines/build_lesion_matrix.json` (`--lesion-config`, per i due pannelli di anatomia)
 
 ---
