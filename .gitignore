@@ -15,4 +15,7 @@ summaries/
 .claude/dim_reduction_clustering/*
 
 sdc_download/*
+!sdc_download/lesion/
+sdc_download/lesion/*
+!sdc_download/lesion/README.md
 
