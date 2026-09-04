@@ -9,7 +9,7 @@
   "reduced_data": false,
   "fine_tuning": true,
   "save_tuning_clusterings": true,
-  "overwrite": false,
+  "overwrite": true,
   "viz_embedding_path": null,
   "run_notes": "Tuning agglomerative diretto su matrice raw (5269x264274 voxel), niente dim reduction - metric sweep euclidean/jaccard/dice (precomputed_distance)"
 }

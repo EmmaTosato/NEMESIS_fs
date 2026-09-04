@@ -373,26 +373,6 @@ def test_file_patterns_combinations_for_returns_only_that_object(tmp_path):
     assert patterns.combinations_for("feature") == [("feature", "func", "FC-pearson")]
 
 
-def test_file_patterns_subject_discovery_keys(tmp_path):
-    path = _write_file_patterns(
-        tmp_path,
-        {
-            "lesion": {
-                "project_root": "/data/corbetta/Clinical_connectome",
-                "manual_masks": {
-                    "anat": {"lesion_mask": ["derivatives/manual_masks/{subject_id}/anat/{subject_id}_lesion_mask.nii.gz"]}
-                },
-            },
-            "feature": {
-                "project_root": "/data/corbetta/Clinical_connectome/features",
-                "func": {"FC-pearson": ["{subject_id}/func/{subject_id}_FC-pearson.csv"]},
-            },
-        },
-    )
-    patterns = load_file_patterns(path)
-    assert patterns.subject_discovery_keys() == {("lesion", "manual_masks"), ("feature", None)}
-
-
 def test_file_patterns_templates_for_unknown_combination_raises(tmp_path):
     path = _write_file_patterns(tmp_path)
     patterns = load_file_patterns(path)

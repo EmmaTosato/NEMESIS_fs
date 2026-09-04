@@ -1090,7 +1090,22 @@ def plot_dendrograms_grid(
     that metric here as the subplot axis, so every swept (linkage, metric) combination gets its
     own dendrogram, not just linkage. A full tree over hundreds/thousands of subjects is
     unreadable, so only the last `truncate_last_p` merges are shown per subplot (truncate_mode
-    ="lastp"), each collapsed branch annotated by how many original subjects it represents.
+    ="lastp").
+
+    `show_contracted` is deliberately **not** passed (scipy's own default, `False`) - found
+    03-09-26 that `True` (this function's original setting, annotating each collapsed branch
+    with how many original subjects it represents) drives scipy's `dendrogram()` into a
+    genuinely recursive tree walk (`_append_contraction_marks`, one Python stack frame per level
+    of the *sub*tree being collapsed, not bounded by `truncate_last_p`) - harmless on a shallow/
+    balanced tree, but a real `RecursionError` (Python's default 1000-frame limit) on a deep,
+    chained tree, which a raw high-dimensional matrix (e.g. `25-08_s1.2-vol`, 264274 voxels) is
+    far more prone to producing than a low-dimensional embedding - confirmed by comparison: the
+    exact same subject count (5269) on a 2D UMAP embedding never triggered this, only the raw
+    matrix did, meaning it's the tree's *shape*, not `n`, that matters. The annotation itself is
+    a minor legibility nicety, not load-bearing for reading the dendrogram - not worth a fragile
+    `sys.setrecursionlimit` bump (risks a C stack overflow, not a clean exception, at real
+    scale) or a try/except RecursionError around one specific subplot - dropping the annotation
+    outright is a deliberate, permanent choice, not a per-run fallback.
     """
     if not linkage_matrices_by_linkage:
         raise ValueError("plot_dendrograms_grid needs at least one linkage")
@@ -1103,7 +1118,7 @@ def plot_dendrograms_grid(
 
     for i, linkage in enumerate(linkages):
         ax = axes[0][i]
-        dendrogram(linkage_matrices_by_linkage[linkage], truncate_mode="lastp", p=truncate_last_p, ax=ax, show_contracted=True)
+        dendrogram(linkage_matrices_by_linkage[linkage], truncate_mode="lastp", p=truncate_last_p, ax=ax)
         ax.set_xlabel(f"cluster size (or subject index) - last {truncate_last_p} merges")
         ax.set_ylabel("merge distance")
         ax.set_title(f"linkage={linkage}")

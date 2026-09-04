@@ -19,10 +19,7 @@ whose `object` a specific dataset structurally lacks entirely (e.g. no
 `features/` tree at all - see Dataset.has_object) is a per-dataset WARNING,
 not a STOP - that item is skipped for that dataset only, logged and reported
 (see _report_skipped_retrieve_items), while every other dataset and item
-still runs normally. This mirrors a pattern src.retrieval.matrix already
-implements (select_all_subjects/build_matrix skip objects a dataset lacks
-via has_object()) - bringing this module in line with it, rather than
-inventing a new rule. A dataset contributing literally zero effective items
+still runs normally. A dataset contributing literally zero effective items
 this way (none of its `retrieve` items apply at all) IS still a STOP - see
 _validate_retrieve_items.
 """
@@ -109,10 +106,7 @@ def _retrieve_items_for_dataset(ds: Dataset, config: RetrievalConfig) -> list[Re
     for. A dataset structurally lacking an entire object tree (e.g. no
     features/ at all) skips that item for THIS dataset only - see
     _report_skipped_retrieve_items for where this is surfaced as a WARNING,
-    not silently. Mirrors src.retrieval.matrix.select_all_subjects's existing
-    has_object()-based skip (see its docstring) - this brings retrieve_data
-    in line with a pattern matrix.py already established, rather than
-    inventing a new one."""
+    not silently."""
     return [item for item in config.retrieve if ds.has_object(item.object)]
 
 
@@ -121,12 +115,9 @@ def _known_object_pipelines(ds: Dataset, config: RetrievalConfig) -> set[tuple[s
     for AND that this dataset actually has (see _retrieve_items_for_dataset)
     - nothing broader. A subject who only exists under some *other* pipeline
     of the same object is not a member of this run at all: not selected, not
-    counted, not reported as missing. Whether that subject has data in some
-    other object/pipeline is a separate question, answered by the
-    data_summary report (see src.retrieval.matrix), not this pipeline (see
-    also _missing_message, _retrieve_participants) - copy_summary only ever
-    explains the gaps for exactly what was asked for and applies to this
-    dataset."""
+    counted, not reported as missing (see also _missing_message,
+    _retrieve_participants) - copy_summary only ever explains the gaps for
+    exactly what was asked for and applies to this dataset."""
     return {(item.object, item.pipeline) for item in _retrieve_items_for_dataset(ds, config)}
 
 
@@ -277,9 +268,9 @@ def _missing_message(ds: Dataset, name: str, subject_id: str, item: RetrieveItem
     matched - "empty folder" (the directory that would hold the file exists
     but has nothing in it - the file was simply never produced for this
     subject) vs "not found" (every other case) - see Dataset.describe_absence.
-    Whether this subject has data in some *other* combination is a separate
-    question, answered by the data_summary report (src.retrieval.matrix), not
-    here."""
+    Whether this subject has data in some *other* combination is out of
+    scope for this report, which only ever explains gaps for exactly what
+    was requested."""
     reason = ds.describe_absence(subject_id, item)
     group = "/".join(item.path_key())
     return ReportEntry(group=group, line=f"{name}: {subject_id} - no {group} ({reason})")
@@ -343,8 +334,7 @@ def _retrieve_participants(name: str, ds: Dataset, config: RetrievalConfig, stat
     is metadata, not a lesion mask or feature file, and mixing it into those
     counts made them off-by-one against the real number of data files).
     Absence at source (e.g. WashU has none) is a legitimate per-dataset fact,
-    not tracked here - see the data_summary report (src.retrieval.matrix)
-    for what each dataset does/doesn't have."""
+    not tracked here - out of scope for this report."""
     source = ds.participants_tsv_path()
     if source is None:
         return

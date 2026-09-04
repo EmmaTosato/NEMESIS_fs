@@ -65,20 +65,10 @@ class FilePatterns:
 
     def combinations_for(self, object_: str) -> list[tuple[str, ...]]:
         """Every full (object, *path) leaf combination registered under this
-        object, whatever their depth - used to enumerate all columns of the
-        dataset-wide availability report (src.retrieval.matrix), independent
-        of what any specific retrieval run's `retrieve` list asks for."""
+        object, whatever their depth - used by dataset.py/verify.py to
+        enumerate every registered leaf, independent of what any specific
+        retrieval run's `retrieve` list asks for."""
         return sorted(key for key in self.patterns if key[0] == object_)
-
-    def subject_discovery_keys(self) -> set[tuple[str, str | None]]:
-        """Every distinct (object, pipeline) pair registered anywhere in this
-        registry - pipeline is None for objects that don't use one. The axis
-        subject folders are discovered under (see docs/dev/retrieval.md).
-        Used by matrix.select_all_subjects and
-        retrieve_data._known_object_pipelines to discover subjects across
-        every pipeline of a requested object, not just the exact
-        (object, pipeline) pairs a run's `retrieve` list happens to name."""
-        return {(combo[0], RetrieveItem.from_path(*combo).pipeline) for combo in self.patterns}
 
 
 @dataclass(frozen=True)

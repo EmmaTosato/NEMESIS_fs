@@ -231,9 +231,8 @@ def test_subject_known_only_via_feature_is_not_reported_as_missing_for_lesion(tm
     all) must not be selected, counted, or reported as missing. The
     file_patterns registry knows about `feature` (a real WashU subject has a
     feature file), but since `retrieve` never asks for it, that subject stays
-    entirely invisible to this run - the broader "what does this dataset have
-    everywhere" picture is data_summary's job (src.retrieval.matrix), not
-    this report's."""
+    entirely invisible to this run - out of scope for this report, which
+    only ever explains gaps for exactly what was asked for."""
     project_root = _make_washu_like(tmp_path)
     feature_root = tmp_path / "features"
     _touch(feature_root / "UNIPD" / "WashU" / "sub-STUNIPD0099" / "func" / "sub-STUNIPD0099_FC-pearson.csv")
@@ -370,8 +369,7 @@ def test_validate_retrieve_items_raises_when_no_item_applies_to_dataset_at_all(t
 def test_retrieve_dataset_warns_and_skips_when_object_absent_from_dataset(tmp_path):
     """WARNING, not STOP: a retrieve item whose object this dataset
     structurally lacks (feature has no root here) is skipped for this
-    dataset only - the lesion item still runs normally. Mirrors the pattern
-    src.retrieval.matrix already implements for the data_summary report."""
+    dataset only - the lesion item still runs normally."""
     project_root = _make_washu_like(tmp_path)
     feature_root = tmp_path / "features"  # never populated for UNIPD/WashU
     config = _make_config(
