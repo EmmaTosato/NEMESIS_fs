@@ -56,8 +56,18 @@ def test_local_relative_path_sdc_uses_its_own_stand_in_pipeline_label():
     particular run (no `manifest.csv`/`_status/` written by us for it)."""
     item = RetrieveItem(object="sdc", pipeline=None, datatype="dwi", suffix="disconnectome-map")
     assert local_relative_path(item, "sub-STUNIPD0001", "sub-STUNIPD0001_desc-disconnectome.nii.gz") == Path(
-        "sdc", "sub-STUNIPD0001", "dwi", "sub-STUNIPD0001_desc-disconnectome.nii.gz"
+        "sdc", "sub-STUNIPD0001", "sub-STUNIPD0001_desc-disconnectome.nii.gz"
     )
+
+
+def test_local_relative_path_sdc_skips_the_datatype_folder():
+    """`sdc`'s `datatype` ("dwi") isn't a real folder at the source (unlike
+    lesion's `anat`/feature's `func`) - the local layout must not fabricate
+    one either (_OBJECTS_WITHOUT_DATATYPE_FOLDER)."""
+    item = RetrieveItem(object="sdc", pipeline=None, datatype="dwi", suffix="lesion-map")
+    path = local_relative_path(item, "sub-STUKE0001", "sub-STUKE0001_desc-lesion.nii.gz")
+    assert "dwi" not in path.parts
+    assert path == Path("sdc", "sub-STUKE0001", "sub-STUKE0001_desc-lesion.nii.gz")
 
 
 def test_pipeline_first_ordering_puts_pipeline_before_subject_id():

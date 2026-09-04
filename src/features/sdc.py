@@ -1,6 +1,6 @@
 """Build a 2D feature matrix (n_subjects x n_regions) from parcellated SDC output.
 
-Each subject's disconnectome (or lesion) CSV under sdc/<subject>/dwi/ holds one
+Each subject's disconnectome (or lesion) CSV under sdc/<subject>/ holds one
 row per brain region disconnected/damaged above zero for a given atlas -
 BCBToolKit omits rows for regions at zero overlap rather than writing them
 explicitly (verified empirically on the real cohort: zero rows with an
@@ -47,7 +47,7 @@ binarized (unlike a lesion mask). Deliberately restricted to
 `object_="disconnectome"` only: the equivalent for `object_="lesion"` (the
 `lesion-map` .nii.gz, itself just the resampled input lesion mask BCBToolKit
 used) would duplicate `build_lesion_matrix.py`'s own job from a different,
-less authoritative source (`manual_masks/` is the real source; `sdc/dwi/`
+less authoritative source (`manual_masks/` is the real source; `sdc/`
 only carries a copy of it as SDC's own computation input) - not built here,
 raises explicitly if requested.
 """
@@ -117,7 +117,7 @@ def build_sdc_matrix(
     region_names = load_reference_regions(reference_labels_path)
 
     lesion_subjects, excluded_lesion = _subjects_with_lesion_mask(datasets, group_filter)
-    sdc_glob = f"sdc/*/dwi/*_LF-{object_}_atlas-{atlas}.csv"
+    sdc_glob = f"sdc/*/*_LF-{object_}_atlas-{atlas}.csv"
     sdc_files, excluded_sdc = _discover_by_dataset(data_root, datasets, sdc_glob, group_filter)
     excluded_by_group = sorted(set(excluded_lesion) | set(excluded_sdc))
 
@@ -175,7 +175,7 @@ def build_sdc_voxelwise_matrix(
         )
 
     lesion_subjects, excluded_lesion = _subjects_with_lesion_mask(datasets, group_filter)
-    sdc_glob = f"sdc/*/dwi/*_res-1_desc-{object_}.nii.gz"
+    sdc_glob = f"sdc/*/*_res-1_desc-{object_}.nii.gz"
     sdc_files, excluded_sdc = _discover_by_dataset(data_root, datasets, sdc_glob, group_filter)
     excluded_by_group = sorted(set(excluded_lesion) | set(excluded_sdc))
 

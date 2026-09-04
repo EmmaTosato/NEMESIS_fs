@@ -40,51 +40,51 @@
     "project_root": "/Users/emmatosato/Local Projects/Local PhD Projects/NEMESIS_fs/data/clinical_connectome/derivatives",
     "dwi": {
       "disconnectome-map": [
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_res-1_desc-disconnectome.nii.gz"
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_res-1_desc-disconnectome.nii.gz"
       ],
       "disconnectome-mapstats": [
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_desc-disconnectome_mapstats.tsv"
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_desc-disconnectome_mapstats.tsv"
       ],
       "disconnectome-LF": [
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-aal.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-buckner_7n.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-rojkova.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_200_7n.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_200_tian_s1.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_200_tian_s2.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_300_7n.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_300_tian_s1.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_300_tian_s2.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_400_7n.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_400_tian_s1.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_400_tian_s2.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-tian_s1.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-tian_s2.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-yeh_hcp1065.csv"
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-aal.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-buckner_7n.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-rojkova.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_200_7n.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_200_tian_s1.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_200_tian_s2.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_300_7n.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_300_tian_s1.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_300_tian_s2.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_400_7n.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_400_tian_s1.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-schaefer_400_tian_s2.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-tian_s1.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-tian_s2.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-disconnectome_atlas-yeh_hcp1065.csv"
       ],
       "lesion-map": [
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz"
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz"
       ],
       "lesion-mapstats": [
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_desc-lesion_mapstats.tsv"
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_desc-lesion_mapstats.tsv"
       ],
       "lesion-LF": [
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-aal.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-buckner_7n.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-rojkova.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_200_7n.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_200_tian_s1.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_200_tian_s2.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_300_7n.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_300_tian_s1.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_300_tian_s2.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_400_7n.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_400_tian_s1.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_400_tian_s2.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-tian_s1.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-tian_s2.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-yeh_hcp1065.csv",
-        "sdc/{subject_id}/dwi/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-yeh_hcp1065_streamline.csv"
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-aal.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-buckner_7n.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-rojkova.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_200_7n.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_200_tian_s1.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_200_tian_s2.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_300_7n.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_300_tian_s1.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_300_tian_s2.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_400_7n.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_400_tian_s1.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-schaefer_400_tian_s2.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-tian_s1.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-tian_s2.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-yeh_hcp1065.csv",
+        "sdc/{subject_id}/{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-yeh_hcp1065_streamline.csv"
       ]
     }
   }

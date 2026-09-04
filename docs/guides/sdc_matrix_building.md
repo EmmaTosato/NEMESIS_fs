@@ -1,8 +1,8 @@
 # Guida al Matrix Building (Costruzione della Matrice SDC)
 
-Questa guida illustra come usare `build_sdc_matrix.py` per trasformare l'output SDC (`sdc/<subject_id>/dwi/*`, prodotto a monte da `compute_sdc.py`) in una matrice numerica pronta per `dim_reduction.py` (Task 2), in una di due **rappresentazioni** scelte dal campo `representation` della config (aggiunto 03/09):
+Questa guida illustra come usare `build_sdc_matrix.py` per trasformare l'output SDC (`sdc/<subject_id>/*`, prodotto a monte da `compute_sdc.py`) in una matrice numerica pronta per `dim_reduction.py` (Task 2), in una di due **rappresentazioni** scelte dal campo `representation` della config (aggiunto 03/09):
 
-- **`parcellated`** (originale): un CSV per atlante già parcellato (`sdc/<subject_id>/dwi/*.csv`) → matrice **soggetti × regioni**, allineamento per **nome regione**, non per posizione (righe non in ordine stabile tra soggetti — verificato sui dati reali). A differenza di `build_lesion_matrix.py`, nessuna colonna viene mai scartata.
+- **`parcellated`** (originale): un CSV per atlante già parcellato (`sdc/<subject_id>/*.csv`) → matrice **soggetti × regioni**, allineamento per **nome regione**, non per posizione (righe non in ordine stabile tra soggetti — verificato sui dati reali). A differenza di `build_lesion_matrix.py`, nessuna colonna viene mai scartata.
 - **`voxelwise`**: il `disconnectome-map` `.nii.gz` non ancora parcellato → matrice **soggetti × voxel**, stesso approccio di `build_lesion_matrix.py` (resampling su griglia comune), ma valori **continui** (probabilità di disconnessione 0-1), mai binarizzati. Colonne costanti (voxel fuori dal cervello di ogni soggetto ammesso) vengono scartate come in `build_lesion_matrix.py`.
 
 - **Script**: `src/pipeline/build_sdc_matrix.py` (stesso entry point per entrambe le modalità)

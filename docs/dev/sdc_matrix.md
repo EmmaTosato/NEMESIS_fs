@@ -2,7 +2,7 @@
 
 Audience: developers/agents working on `src/features/sdc.py`, `src/analysis/build_config.py` (the `build_sdc_matrix.json`-parsing half), and `src/pipeline/build_sdc_matrix.py`.
 
-This file covers turning retrieved SDC output (`sdc/<subject_id>/dwi/*`, produced upstream by `src/sdc/`/`compute_sdc.py`'s BCBToolKit Stage 1+2) into a feature matrix ready for dimensionality reduction, in either of two representations picked by `config.representation` (added 03/09): **parcellated** (`build_sdc_matrix`, the original one - one CSV per atlas, `LF-{object}_atlas-*.csv`) or **voxelwise** (`build_sdc_voxelwise_matrix` - the pre-parcellation `disconnectome-map` `.nii.gz` directly, same resampling-onto-a-common-grid approach as the lesion pipeline). For the equivalent lesion (voxel-wise) pipeline, see `docs/dev/lesion_matrix.md`. For "how do I run this", see `docs/guides/sdc_matrix_building.md`.
+This file covers turning retrieved SDC output (`sdc/<subject_id>/*`, produced upstream by `src/sdc/`/`compute_sdc.py`'s BCBToolKit Stage 1+2) into a feature matrix ready for dimensionality reduction, in either of two representations picked by `config.representation` (added 03/09): **parcellated** (`build_sdc_matrix`, the original one - one CSV per atlas, `LF-{object}_atlas-*.csv`) or **voxelwise** (`build_sdc_voxelwise_matrix` - the pre-parcellation `disconnectome-map` `.nii.gz` directly, same resampling-onto-a-common-grid approach as the lesion pipeline). For the equivalent lesion (voxel-wise) pipeline, see `docs/dev/lesion_matrix.md`. For "how do I run this", see `docs/guides/sdc_matrix_building.md`.
 
 ## Why this pipeline looks different from `build_lesion_matrix.py`
 
@@ -39,7 +39,7 @@ Cardinalities for atlases not yet backed by a reference file are **not** derived
 
 A subject is admitted into `X` only if it has **both**:
 1. A lesion mask **registered** in its dataset's `assets/metadata/<dataset>_participants_lesions.tsv` (column `lesion/manual_masks/anat/lesion_mask == "present"`, via `src.features.clinical.load_participants`/`participants_tsv_path`) - not a glob against `manual_masks/` on disk (see "Why participants.tsv, not `manual_masks/` on disk" below).
-2. The requested `object_`/`atlas` SDC CSV (`sdc/*/dwi/*_LF-{object_}_atlas-{atlas}.csv`, discovered via `discover_files_by_subject` same as `build_lesion_matrix.py`).
+2. The requested `object_`/`atlas` SDC CSV (`sdc/*/*_LF-{object_}_atlas-{atlas}.csv`, discovered via `discover_files_by_subject` same as `build_lesion_matrix.py`).
 
 `excluded_no_lesion_mask` tracks subjects with SDC output but no registered lesion mask (logged and persisted to `config.md`, never silently dropped or zero-filled); `sdc_not_yet_computed` tracks the opposite gap (a registered lesion mask but SDC not computed for that subject yet - not an error, just work not yet done upstream).
 
@@ -67,7 +67,7 @@ A header-only (zero-row) CSV is a legitimate domain case handled by `_stack_alig
 
 `build_sdc_voxelwise_matrix(data_root, datasets, object_, reference_template_path, resample_interpolation, group_filter) -> (X, metadata, non_constant_mask, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed)`
 
-Reads the `disconnectome-map` `.nii.gz` directly (`sdc/*/dwi/*_res-1_desc-{object_}.nii.gz`) instead of the parcellated CSVs - the same pre-parcellation volume `build_sdc_matrix`'s CSVs are themselves derived from. Same two-pass admission criterion as `build_sdc_matrix` (a lesion mask registered in `assets/metadata/*_participants_lesions.tsv` **and** the requested SDC file present).
+Reads the `disconnectome-map` `.nii.gz` directly (`sdc/*/*_res-1_desc-{object_}.nii.gz`) instead of the parcellated CSVs - the same pre-parcellation volume `build_sdc_matrix`'s CSVs are themselves derived from. Same two-pass admission criterion as `build_sdc_matrix` (a lesion mask registered in `assets/metadata/*_participants_lesions.tsv` **and** the requested SDC file present).
 
 - **Deliberately restricted to `object_="disconnectome"`** - `object_="lesion"` raises `ValueError` immediately (both here and, redundantly, at config-load time - see below). The `lesion-map` `.nii.gz` (the resampled *input* lesion mask BCBToolKit used, not a retrieval of the real mask) would duplicate `build_lesion_matrix.py`'s own job from a less authoritative source; `manual_masks/` (via `assets/metadata/*_participants_lesions.tsv`) stays the one place a lesion mask is built from.
 - **Never binarized** - disconnection values are a continuous [0, 1] probability, unlike `build_lesion_matrix.py`'s binary lesion mask. No `binarize_threshold` field exists for this representation.

@@ -9,7 +9,10 @@ file (or none at all). No filesystem dependency.
 Layout is pipeline-first, mirroring real BIDS-Derivatives
 (`<dataset>/derivatives/<pipeline>/sub-XXX/<datatype>/<file>`) - see
 docs/dev/retrieval.md's "Output layout" section for the full rationale and
-the trade-off this makes against the earlier subject-first layout.
+the trade-off this makes against the earlier subject-first layout. One
+exception: `sdc`'s `<datatype>` segment ("dwi") isn't a real folder at the
+source, so it's omitted for that object - see
+_OBJECTS_WITHOUT_DATATYPE_FOLDER below.
 """
 
 from __future__ import annotations
@@ -29,6 +32,14 @@ from src.retrieval.config import RetrievalConfig, RetrieveItem
 # (see docs/dev/retrieval.md). Every object in
 # config._OBJECTS_FORBIDDING_PIPELINE must have an entry here.
 _LOCAL_PIPELINE_LABEL_FOR_OBJECT = {"feature": "features", "sdc": "sdc"}
+
+# `sdc`'s `datatype` ("dwi") is a BIDS content-type *label* only, not a real
+# folder at the source: file_patterns_server.json's sdc templates land the
+# file directly under `lesion/{subject_id}/`, with no `dwi/` segment (unlike
+# lesion's `anat`/feature's `func`, which ARE real source folders) - so the
+# local layout doesn't fabricate one either. Every object here skips the
+# datatype path segment; anything not listed keeps it.
+_OBJECTS_WITHOUT_DATATYPE_FOLDER = frozenset({"sdc"})
 
 
 def local_dataset_root(config: RetrievalConfig, dataset_name: str) -> Path:
@@ -63,5 +74,10 @@ def local_relative_path(item: RetrieveItem, subject_id: str, filename: str) -> P
     """<pipeline-or-stand-in>/<subject_id>/<datatype>/<filename> - pipeline
     first, then subject, matching real BIDS-Derivatives ordering (see module
     docstring), unlike the dataset-root prefix from local_dataset_root()
-    which groups by dataset, not by pipeline."""
+    which groups by dataset, not by pipeline. Objects in
+    _OBJECTS_WITHOUT_DATATYPE_FOLDER (today: `sdc`) skip the datatype
+    segment entirely - their `datatype` has no real folder at the source, so
+    the file sits directly under <subject_id>/."""
+    if item.object in _OBJECTS_WITHOUT_DATATYPE_FOLDER:
+        return Path(pipeline_folder(item), subject_id, filename)
     return Path(pipeline_folder(item), subject_id, item.datatype, filename)
