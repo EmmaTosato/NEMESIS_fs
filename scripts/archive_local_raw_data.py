@@ -95,13 +95,20 @@ TARGETS: list[SubjectDirsTarget | AtlasComboGroupsTarget] = [
 
 
 def list_subject_dir_ids(root: Path) -> list[str]:
-    """Sorted `sub-<ID>` subdirectory names directly under `root`. Raises if a top-level entry
-    doesn't match that shape - an unrecognized entry needs a human look, not a silent skip or an
-    accidental sweep into the archive."""
+    """Sorted `sub-<ID>` subdirectory names directly under `root`.
+
+    Top-level *files* are ignored: this script writes README_ARCHIVE.md into `root` itself, so
+    treating any non-subject entry as fatal made the script unable to run a second time over its
+    own output (and equally over a hand-written manifest sitting beside it). Only a non-subject
+    *directory* still raises - that's genuinely unexpected structure, and silently skipping it
+    would either sweep it into the archive or drop it from the sample without anyone noticing.
+    """
     ids = []
     for entry in sorted(root.iterdir()):
-        if not entry.is_dir() or not _SUBJECT_DIR_RE.match(entry.name):
-            raise ValueError(f"{root}: unexpected top-level entry {entry.name!r} (expected a sub-<ID> directory)")
+        if not entry.is_dir():
+            continue
+        if not _SUBJECT_DIR_RE.match(entry.name):
+            raise ValueError(f"{root}: unexpected top-level directory {entry.name!r} (expected a sub-<ID> directory)")
         ids.append(entry.name)
     return ids
 
@@ -269,18 +276,62 @@ def delete_archived_group_files(to_archive: dict[Path, list[str]]) -> None:
 # --- readme + orchestration --------------------------------------------------------------------
 
 
-def write_archive_readme(root: Path, archive_path: Path, sample_ids: Sequence[str], n_archived: int, restore_hint: str) -> None:
-    """archive_path is always a *sibling* of root (built via root.with_name(...) - see
+def manifest_path(root: Path) -> Path:
+    return root / f"{root.name}_archive_subjects.tsv"
+
+
+def write_archive_manifest(root: Path, sample_ids: Sequence[str], archived_ids: Sequence[str]) -> Path:
+    """The machine-readable record of the *real* population: one row per subject, with
+    source="kept_in_place" or "archive".
+
+    Exists because a pruned directory is indistinguishable from a genuinely small one by a
+    filesystem scan alone - scripts/populate_metadata.py reported 10 WashU feature subjects
+    instead of 225 for exactly that reason. Anything needing the true set reads this file
+    instead of decompressing gigabytes.
+
+    Deliberately only subject_id + source: a subject's group (ST/HC/...) is derivable from the
+    id itself (src.retrieval.dataset.group_of), and storing it here would couple this
+    disk-space utility to the project's subject-naming registry - it would then fail outright
+    on any directory whose subjects don't follow that convention.
+    """
+    rows = [(subject_id, "kept_in_place") for subject_id in sample_ids]
+    rows += [(subject_id, "archive") for subject_id in archived_ids]
+    path = manifest_path(root)
+    path.write_text("subject_id\tsource\n" + "".join(f"{s}\t{source}\n" for s, source in sorted(rows)))
+    return path
+
+
+def write_archive_readme(
+    root: Path,
+    archive_path: Path,
+    sample_ids: Sequence[str],
+    archived_ids: Sequence[str],
+    n_archived_files: int,
+    restore_hint: str,
+) -> None:
+    """Human-facing counterpart to write_archive_manifest: the totals a person needs at a
+    glance, plus a pointer to the manifest for the per-subject detail - deliberately NOT a
+    second copy of the subject lists, which would be free to drift from the manifest.
+
+    archive_path is always a *sibling* of root (built via root.with_name(...) - see
     _process_subject_dirs_target/_process_atlas_combo_groups_target), never inside it, while this
     README is written inside root itself - the restore command below must account for that one
     directory level, or running it from root (the natural place to read the README from) fails to
     find the archive."""
     (root / "README_ARCHIVE.md").write_text(
         "# Locally pruned by scripts/archive_local_raw_data.py\n\n"
-        f"Kept {len(sample_ids)} sample subject(s) in place for notebooks/exploration: {', '.join(sample_ids)}.\n\n"
-        f"{n_archived} file(s) moved into `../{archive_path.name}` (one level up, next to this "
-        f"directory - not inside it), verified against disk before deletion. Restore with (run from "
-        "this directory):\n\n"
+        f"**{len(sample_ids) + len(archived_ids)} subject(s) in total**: "
+        f"{len(sample_ids)} kept in place, {len(archived_ids)} inside the archive "
+        f"({n_archived_files} file(s)).\n\n"
+        "**The archived subjects are NOT on disk right now** - anything scanning this directory "
+        f"sees only the {len(sample_ids)} kept below, not the real population. The full per-subject "
+        f"list is in `{manifest_path(root).name}` (same directory), one row per subject with "
+        "`source` = `kept_in_place` or `archive`.\n\n"
+        f"## Kept in place ({len(sample_ids)}, for notebooks/exploration)\n\n"
+        f"{', '.join(sample_ids)}\n\n"
+        "## Restore\n\n"
+        f"The archive is `../{archive_path.name}` - one level up, next to this directory, not "
+        "inside it. Verified against disk before deletion. Run from this directory:\n\n"
         f"```bash\ntar -xzf ../{archive_path.name} -C .\n```\n\n"
         f"{restore_hint}\n"
     )
@@ -296,9 +347,11 @@ def _process_subject_dirs_target(target: SubjectDirsTarget, *, n_sample: int, ex
     )
     if not execute:
         return
+    n_files = len(files_under_subject_dirs(target.root, to_archive))
     archive_subject_dirs(target.root, to_archive, archive_path, overwrite=overwrite)
     delete_subject_dirs(target.root, to_archive)
-    write_archive_readme(target.root, archive_path, sample, len(to_archive), target.restore_hint)
+    write_archive_manifest(target.root, sample, to_archive)
+    write_archive_readme(target.root, archive_path, sample, to_archive, n_files, target.restore_hint)
 
 
 def _process_atlas_combo_groups_target(target: AtlasComboGroupsTarget, *, n_sample: int, execute: bool, overwrite: bool) -> None:
@@ -314,9 +367,11 @@ def _process_atlas_combo_groups_target(target: AtlasComboGroupsTarget, *, n_samp
     )
     if not execute:
         return
+    archived_ids = [sid for sid in common_ids if sid not in set(sample)]
     archive_atlas_combo_groups(target.root, to_archive, archive_path, overwrite=overwrite)
     delete_archived_group_files(to_archive)
-    write_archive_readme(target.root, archive_path, sample, n_files, target.restore_hint)
+    write_archive_manifest(target.root, sample, archived_ids)
+    write_archive_readme(target.root, archive_path, sample, archived_ids, n_files, target.restore_hint)
 
 
 def main(argv: list[str] | None = None) -> int:

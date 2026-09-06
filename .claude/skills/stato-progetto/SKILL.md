@@ -10,10 +10,10 @@ description: Aggiorna .claude/stato_progetto.md con uno snapshot tecnico dello s
 **La narrativa di cosa è successo sessione per sessione non va qui.** È già coperta altrove — non duplicarla:
 - **git log / commit message** — cosa è cambiato nel codice, quando, perché (a livello di dettaglio tecnico di un singolo cambio).
 - **`docs/debugging/debug_DD_MM_YY.md`** — narrativa completa di una sessione di debug con bug reali trovati.
-- **`.claude/decision_log.md`** — solo i pivot strategici/architetturali di alto livello (mai lavoro ordinario, mai bug minori: vedi la sua stessa intestazione).
+- **`.claude/history/`** — l'archivio: cosa è successo ai dati, ai metodi, all'impianto del progetto (vedi la skill `history`).
 - **`.claude/lessons_learned.md`** — pattern di errore generalizzabili, deduplicati.
 - **`runs.csv`/`runs_tuning.csv` + `logs/`/`summaries/`** — provenienza di ogni esecuzione di pipeline (parametri, output, log grezzo), già machine-written.
-- **`.claude/stato_progetto_archive.md`** — storico congelato delle sessioni registrate prima del 2026-08-10 (quando questo file era ancora un log cronologico); sola lettura, non toccarlo.
+- **`.claude/history/stato_progetto_archive.md`** — storico congelato delle sessioni registrate prima del 2026-08-10 (quando questo file era ancora un log cronologico); sola lettura, non toccarlo.
 
 Se un'informazione ha già una casa in uno di questi posti, in `stato_progetto.md` ci va **solo un puntatore**, non il contenuto.
 
@@ -50,4 +50,4 @@ Se un'informazione ha già una casa in uno di questi posti, in `stato_progetto.m
 
 5. **Sii tecnico e conciso**: questo file lo legge un agente, non un umano che vuole prosa piacevole. Ometti sezioni vuote invece di scrivere "nessuno". Se una sezione esistente è ormai falsa/superata (thread chiuso, vincolo caduto), **cancellala**, non annotarla come storica — per quello c'è l'archivio/git log.
 
-6. Se in questa sessione sono emersi **pattern di errore generalizzabili** (non specifici al task del giorno, ma riutilizzabili — es. un tipo di bug che potrebbe ripetersi altrove), verifica se vanno aggiunti a `.claude/lessons_learned.md`. Se è emerso un **vero pivot strategico/architetturale** (cambio di direzione motivato, non un fix), verifica se va aggiunto a `.claude/decision_log.md`. Non duplicare contenuto tra questi file e lo snapshot.
+6. Se in questa sessione sono emersi **pattern di errore generalizzabili** (non specifici al task del giorno, ma riutilizzabili — es. un tipo di bug che potrebbe ripetersi altrove), verifica se vanno aggiunti a `.claude/lessons_learned.md`. Se è successo qualcosa che va **archiviato** (ai dati, ai metodi, all'impianto del progetto), usa la skill `history`. Non duplicare contenuto tra questi file e lo snapshot.

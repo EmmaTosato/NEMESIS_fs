@@ -67,7 +67,7 @@ Solo per `representation: "voxelwise"`:
 | Parametro | Descrizione |
 | :--- | :--- |
 | **`reference_template_path`** | Immagine `.nii.gz` che fissa la griglia comune di ricampionamento (stesso campo/ruolo di `build_lesion_matrix.json`). |
-| **`resample_interpolation`** | `"linear"`, `"nearest"` o `"continuous"` — per un campo continuo come il disconnectome, tipicamente `"linear"`/`"continuous"`, non `"nearest"`. |
+| **`resample_interpolation`** | `"linear"`, `"nearest"` o `"continuous"`. **Si usa `"nearest"`**, coerentemente con le altre pipeline che ricampionano (`build_lesion_matrix.py`, `mask_fc.py`, `src/sdc/resample.py`): sui 5 dataset SDC attuali le griglie sono tutte allineate (1mm isotropo, solo flip d'asse e shift interi), quindi `"nearest"` e `"linear"` danno output bit-identici. **Non usare `"continuous"`**: lascia rumore di arrotondamento (~1e-17) attorno allo zero che impedisce a `_drop_constant_features` di scartare i voxel costanti — vedi [`docs/dev/sdc_matrix.md`](../dev/sdc_matrix.md). |
 
 ### Atlanti attualmente supportati (solo `parcellated`)
 Solo quelli con un file di reference in `assets/atlases/sdc_labels/`: `schaefer_200_tian_s2` (232 regioni), `schaefer_400_tian_s2` (432 regioni). Per aggiungerne un altro, vedi `docs/dev/sdc_matrix.md` § "Adding a new atlas". **Esclusi strutturalmente**: `buckner_7n` (il CSV ha una sola riga per soggetto, non parcellato per network — anomalia nota) e `yeh_hcp1065_streamline` (schema completamente diverso, tratti invece di regioni).

@@ -90,10 +90,14 @@ Writes the combined atlas (`assets/atlases/glasser_hcp_harvardoxford_subcortical
 
 📖 Guide: [`docs/guides/sdc_matrix_building.md`](docs/guides/sdc_matrix_building.md) · Architecture: [`docs/dev/sdc_matrix.md`](docs/dev/sdc_matrix.md)
 
-### Clinical metadata enrichment
-`src/features/clinical.py`, `src/pipeline/enrich_lesion_metadata.py` — joins clinical/demographic variables (age, sex, education, clinical_date, lesion_side, NIHSS) from `assets/metadata/*_participants_lesions.tsv` into an existing matrix's `metadata.csv` — the mechanism that makes `color_by`/coverage-dependent plotting work in `dim_reduction.py`/`clustering.py`. `write_in_place=true` (the normal case) enriches a `build_lesion_matrix.py`/`build_sdc_matrix.py` output in place; `write_in_place=false` writes a standalone metadata-only copy to a caller-chosen `copy_output_path` instead.
+### Clinical metadata (mid-redesign, 04-09-26)
+The project is consolidating every clinical/demographic value into one checked-in source of truth, `assets/metadata/participants.csv`, instead of the previous per-dataset curated tsvs joined into each matrix's own `metadata.csv`.
 
-📖 Three metadata layers (raw retrieval, curated `assets/metadata/`, per-matrix enriched) and how they relate: [`docs/dev/metadata.md`](docs/dev/metadata.md)
+`scripts/populate_metadata.py` (done) writes who exists: it joins each dataset's raw `participants.tsv` (`data/clinical_connectome/metadata_tsv/`, paths declared in `config/registry/metadata_sources.json`) against the subject folders actually on disk, one row per subject with `has_lesion`/`has_sdc`/`has_features` flags. `enrich_metadata.py` (not written yet) will add the attributes — age, sex, NIHSS, lesion_side, plus lesion volume and a geometrically computed lesion side.
+
+Until it lands, `src/features/clinical.py`/`src/pipeline/enrich_lesion_metadata.py` still join the old per-dataset `assets/metadata/*_participants_lesions.tsv` into each matrix's `metadata.csv` — that's what `color_by` plotting in `dim_reduction.py`/`clustering.py` currently reads.
+
+📖 Target design, what's on disk today, and what still has to be dismantled: [`docs/dev/metadata.md`](docs/dev/metadata.md)
 
 ### Dimensionality reduction and clustering
 `src/analysis/`, `src/pipeline/dim_reduction.py`/`clustering.py` — reduces a feature matrix (lesion voxels today) to a low-dimensional embedding (`umap`/`tsne`/`pca`/`pca_varimax`/`pacmap`) and/or clusters it (`kmeans`/`agglomerative`/`gmm`/`hdbscan`/`spectral`/`evidence_accumulation`) — two separate steps (`clustering.py --reduced_data true` on a `dim_reduction.py` output). Each script has a manual fine-tuning mode (`fine_tuning: true` — sweeps hyperparameters, writes a comparison table/plot, never picks automatically) and a production mode; production output includes static/interactive embedding and cluster scatter plots (`dim_reduction.py`: configurable coloring by dataset/lesion side/volume; `clustering.py`: cluster-colored only), a per-sample silhouette diagnostic, and a per-method `runs.csv` run history.

@@ -48,6 +48,14 @@ Resource values in `jobs/` are conservative starting points (this is I/O-bound f
 
 ## Working in this repo
 
+- **`docs/` describes the present tense, never the past.** Everything under `docs/guides/`/`docs/dev/` (and `README.md`) states what is true *now*: no "fino al 04/09...", no "il primo tentativo è fallito", no "prima stava qui", no "questa pagina prima diceva". If a past event still matters, express its *consequence* as a current fact (e.g. "queste maschere sono derivate dall'SDC, non disegnate a mano" — not "il 03/09 sono state copiate e rinominate"). Docs recall past state only when the user explicitly asks for it. The dated exception is `docs/debugging/`, which is by definition a per-session historical record.
+- **Where history goes instead** — `.claude/history/` is the archive, and the **`history` skill** does the routing (read it before writing there):
+  - `data_changelog.md` — the bytes under `data/` changed (transfers, prunings/restores, moves, renames, in-place corrections; also a pipeline producing wrong output *because of the state of the data*). Exists because `data/` is gitignored, so `git log` knows none of it.
+  - `methods_changelog.md` — a decision about *how we analyse* (a proxy for a missing variable, a computed feature, a threshold, adopting/dropping a method), with the alternatives rejected.
+  - `project_changelog.md` — a decision about *how the repo is organised* (one source of truth instead of N files, retiring a pipeline, a naming convention, an artifact format).
+  - `stato_progetto_archive.md` — frozen per-session narrative from before `stato_progetto.md` became a snapshot. Read-only, never appended to.
+  - **Write the entry in the same turn as the action, never at the end of a session** — reconstructing it later from memory is exactly how details get lost.
+  - Elsewhere: code history is already in `git log` (never duplicate it); a pipeline run in `runs.csv` + `logs/`/`summaries/`; generalizable error patterns in `.claude/lessons_learned.md`; per-session debugging narratives in `docs/debugging/`; experiment results in `docs/experiments/`; the current project snapshot in `.claude/stato_progetto.md`.
 - Treat `README.md` + `docs/guides/`/`docs/dev/` as the current-state synthesis of project goals/scope, and `management/meetings/` + `knowledge/*/markdown/_full.md` as the primary sources behind it — cross-reference the originals when reasoning about project design or when `docs/` doesn't cover something.
 - When new papers are added under `knowledge/`, add them to `knowledge/paper_lists.md` for consistency with the existing index.
 - **Never make git commits automatically**. Do not run `git commit` unless explicitly requested by the user.

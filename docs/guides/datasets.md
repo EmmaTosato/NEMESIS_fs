@@ -1,81 +1,145 @@
 # Guida ai Dataset
 
-Questa guida chiarisce quali sono i Dataset (coorti cliniche) utilizzati nel progetto NEMESIS, come sono composti e cosa viene effettivamente trasferito nel workspace locale per l'analisi.
+Quali coorti cliniche usa NEMESIS, quanti soggetti hanno **davvero**, quali tipi di dato esistono per ciascuna e cosa di tutto questo è presente nel workspace locale.
 
-I dati grezzi e processati risiedono sul server **EBRAIN**, accessibili tramite il punto di montaggio remoto `/data/corbetta/Clinical_connectome`.
+I dati risiedono sul server **EBRAIN** (`/data/corbetta/Clinical_connectome`) e vengono copiati in locale sotto `data/clinical_connectome/derivatives/<centro>/<coorte>/` dalla pipeline di retrieval.
 
----
+Tutti i numeri di questa pagina sono **verificati sul disco e sui tsv il 06-09-26**, non stimati. 
 
-## Coorti Cliniche Supportate
 
-Attualmente sono gestite 5 coorti. Sebbene sia in corso un processo di armonizzazione (usando lo standard `BIDS`), storicamente derivano da acquisizioni diverse. Le risoluzioni geometriche differiscono tra gli ospedali.
 
-| Dataset | Soggetti stroke stimati | Voxel Size (Ris. 3D) | Maschera Manuale Normalizzata |
-| :--- | :---: | :--- | :---: |
-| **`UNIPD/WashU`** | ~251 | 2.0 mm | Presente (maggior parte) |
-| **`UNIPD/PSP`** | ~237 | 1.0 mm | Presente (maggior parte) |
-| **`UNIPD/PASPORT`** | ~97 | 1.0 mm | Presente (maggior parte) |
-| **`UKLFR/stroke_UKLFR`**| ~735 | 1.5 mm | Presente (quasi totalità) |
-| **`UCL-UK/UCLStrokeData`** | 4119 | 2.0 mm | Presente (verificato 21/08: 4119/4119 soggetti) |
-| **`UKE/WAKEUP_acute`** | 451 | — | Presente (verificato 03/09), ma **non retrieved**: derivata localmente dal `lesion-map` dell'oggetto `sdc` — vedi punto 1 e punto 5 sotto |
-
-> **Nota vitale per la matrice lesionale**: 
-> Data la disparità del Voxel Size (da 1 a 2 mm), durante l'esecuzione di `build_lesion_matrix` viene effettuato un **resampling spaziale**. Le lesioni vengono "deformate" e allineate su un'unica griglia omogenea (il `reference_template_path`), tipicamente a 2mm per rispettare lo standard MNI152 di FSL.
+Per rigenerarli: `notebooks/exploration/dataset_exploration.ipynb` (esplorazione diretta del filesystem) o `assets/metadata/participants.csv` (vedi sotto).
 
 ---
 
-## Copie Locali: Campione Ridotto
+## Le 6 coorti, in numeri
 
-Le matrici finali (`build_lesion_matrix.py`; `mask_fc.py`+`build_fc_matrix.py`) sono già calcolate a partire da questi dati grezzi — tenerli integri in locale non serve più per l'uso quotidiano, solo occupa spazio. `scripts/archive_local_raw_data.py` (26/08/26) aveva ridotto in locale più cartelle a **10 soggetti campione** (per notebook/esplorazione), comprimendo il resto in un `.tar.gz` verificato (contenuto riletto e confrontato con quanto tarrato, prima di cancellare l'originale) accanto alla cartella stessa. I 5 `manual_masks/` di questa pagina (WashU, PSP, PASPORT, UKLFR, UCL-UK) sono stati **riscompattati per intero il 01-09-26** — restano ridotte solo:
+| Dataset | Registro clinico (`participants_*.tsv`) | `manual_masks` | `sdc` | `features` (FC) | Voxel |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **`UCL-UK/UCLStrokeData`** | 4119 (4119 ST) | **4119** | — | — | 2.0 mm |
+| **`UKLFR/stroke_UKLFR`** | 735 (735 ST) | 697 | 705 | — | 1.5 mm |
+| **`UKE/WAKEUP_acute`** | 503 (503 ST) | 451 ️ | 451 | — | 1.0 mm |
+| **`UNIPD/WashU`** | 319 (251 ST + 68 HC) | 202 | 195 | **225** (169 ST + 56 HC) | 2.0 mm |
+| **`UNIPD/PSP`** | 237 (237 ST) | 168 | 168 | — | 1.0 mm |
+| **`UNIPD/PASPORT`** | 97 (97 ST) | 83 | 83 | — | 1.0 mm |
 
-- `UNIPD/WashU/features/`
-- `data/derived/features/masked_fc/` (10 soggetti comuni a tutte e 12 le combinazioni di atlante — `mask_summary.csv`/`runs.csv`/`demo/` non toccati)
+Voxel size verificati leggendo gli header NIfTI delle maschere (campione di 15 soggetti per dataset: uniformi entro ogni dataset). Tutte le maschere sono in spazio `MNI152NLin6Asym`; a cambiare è solo la risoluzione.
 
-Ogni cartella ancora ridotta ha un `README_ARCHIVE.md` con l'elenco esatto dei soggetti tenuti e il comando di ripristino (`tar -xzf <nome>_archive.tar.gz -C .`). Per `features` i dati completi restano comunque sempre recuperabili da EBRAIN via `retrieve_data.py` (vedi `docs/guides/retrieval.md`) — `masked_fc` non è su EBRAIN (è output calcolato da `mask_fc.py`), quindi lì il ripristino è: decomprimere l'archivio, oppure rilanciare `mask_fc.py` da zero (vedi `docs/guides/fc_matrix_building.md`).
+### Perché le colonne non coincidono
 
-`sub-STUNIPD0001` (WashU) è garantito sempre presente in chiaro nelle cartelle ancora ridotte, non per coincidenza d'ordinamento: è il `reference_template_path` hardcoded in `config/pipelines/build_lesion_matrix.json` (pinned esplicitamente in `scripts/archive_local_raw_data.py`).
+Il registro clinico e i dati su disco rispondono a due domande diverse, e vanno tenute separate:
 
-> Se rilanci una di queste pipeline sull'intera coorte (non solo il campione locale), la discovery vedrà solo i soggetti superstiti per questi dataset finché non decomprimi l'archivio pertinente o non ri-recuperi da EBRAIN.
+- **Registro clinico** = quante persone sono arruolate nella coorte e hanno una riga di dati clinici. 
+- **`manual_masks`/`sdc`/`features`** = per quanti di quei soggetti abbiamo effettivamente quel tipo di dato in locale.
+
+Le differenze non sono errori, sono la realtà del dato. Due esempi concreti:
+
+- **WashU**: 251 pazienti nel registro, 202 con maschera. Dei 202, **195 hanno anche l'SDC e 7 no**. Le FC coprono 225 soggetti (169 pazienti + 56 controlli sani) — un insieme che si sovrappone solo in parte a chi ha la maschera.
+- **UKLFR**: 697 con maschera, 705 con SDC, ma non sono sottoinsiemi l'uno dell'altro: **673 hanno entrambi, 24 hanno solo la maschera, 32 hanno solo l'SDC** (in tutto 729 soggetti con almeno un dato).
+
+### Il conteggio unico: `assets/metadata/participants.csv`
+
+Un soggetto per riga, con le colonne `has_lesion`/`has_sdc`/`has_features`, per i soli pazienti stroke presenti su disco — **5752 in totale**. È la fonte da interrogare invece di ricontare a mano; generata da `scripts/populate_metadata.py`, vedi `docs/dev/metadata.md`.
+
 
 ---
 
-## Tipi di Dato (Objects) Esistenti
+## Tipi di dato
 
-La pipeline *Retrieve Data* pesca "oggetti" da sorgenti asimmetriche. Questo significa che non tutte le informazioni esistono contemporaneamente per ogni dataset.
+Ogni tipo vive in una sottocartella dedicata dentro `derivatives/<centro>/<coorte>/`, con un numero fisso di file per soggetto.
 
-### 1. Maschere Manuali delle Lesioni (`lesion`)
-- **Path logico**: `lesion/manual_masks/anat/lesion_mask`
-- **Descrizione**: L'oggetto centrale del progetto. Sono state disegnate a mano e collocate nello spazio MNI. Presenti trasversalmente su **tutti e 5 i dataset** retrieved da EBRAIN tramite questo oggetto.
-- **`UKE/WAKEUP_acute`, eccezione locale (03/09)**: non ha un oggetto `lesion` registrato sul server (`file_patterns_server.json` non ha un `project_root` per `lesion` su UKE — nessun vero retrieval possibile). `manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz` esiste comunque in locale per tutti e 451 i soggetti, ma **derivato**, non retrieved: è una copia rinominata del `lesion-map` dell'oggetto `sdc` (la lesione ricampionata usata come input al calcolo SDC, non un retrieval indipendente della maschera manuale) — rimossa dopo la copia dal suo posto originale in `sdc/{subject_id}/` (quel leaf risulta quindi assente per UKE, deliberatamente).
+### 1. Maschere di lesione — `manual_masks/` (1 file per soggetto)
 
-### 2. Dati Clinici e Anagrafici
-- **Path logico**: `participants.tsv`
-- **Descrizione**: Informazioni sui pazienti. Disponibile per tutti e 5 i dataset (incluso WashU con 319 pazienti; per UCL-UK/UCLStrokeData 4119 righe, verificato 21/08).
-- **UCL-UK, unica eccezione sul formato ID**: negli altri 4 dataset `participant_id` è già nel formato canonico `sub-*` usato ovunque nel progetto. Solo UCL-UK ha `participant_id` grezzo nel formato legacy del sito (`ST_UCL-UK_0001`) — vedi `docs/dev/metadata.md` per come questo viene riconciliato in `assets/metadata/`.
-- **Campi Principali**: `age`, `sex`, `handedness`, `education`, `lesion_side`.
-- **Gruppo soggetto (`disease_id`)**: `ST` (Stroke) e `HC` (Healthy Controls). 
-- **Punteggi Clinici (solo WashU)**: 
-  - *Gravità Globale*: `NIHSS` e suoi sotto-item (copertura ~73%).
-  - *Motorio*: `ARAT_L/R` (~98%), `9HPT_L/R` (~66%).
-  - *Linguaggio*: `Boston_nam` (~96%).
-  - *Cognitivo*: `Clock` (~66%), `Corsi` (~34%).
-  - *(GDS_15 assente per questa specifica coorte FC).*
+- **Path logico retrieval**: `lesion/manual_masks/anat/lesion_mask`
+- **File**: `manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz`
+- L'oggetto centrale del progetto: maschere disegnate a mano e normalizzate in spazio MNI. Presenti per tutti e 6 i dataset.
 
-### 3. Matrici di Connettività Funzionale (`feature`)
-- **Path logico**: `feature/func/FC-pearson`
-- **Descrizione**: Dati sulle connessioni sinaptiche/funzionali dei pazienti espresse come matrici numeriche.
-- **Disponibilità**: Attualmente, esistono sul server **SOLO per la coorte WashU**.
-- Se il *Retrieval Data* richiede le `feature` per tutti e 5 i dataset, agirà "in modo intelligente" scaricando solo WashU e restituendo dei Warning per i restanti quattro, senza fermarsi in errore.
+### 2. Dati clinici e anagrafici — `data/clinical_connectome/metadata_tsv/participants_*.tsv`
 
-### 4. Lesioni Grezze (Raw)
-- **Descrizione**: Lesioni in spazio nativo non normalizzato (path logico: `lesion/raw/anat/lesion_roi`).
-- **Disponibilità Locale**: Pur esistendo sul server, per decisione architetturale **non vengono mai copiate nel workspace locale**. Tutto il nostro studio richiede tassativamente coordinate spaziali omogenee.
+Un file per dataset.
 
-### 5. Structural Disconnectome calcolato esternamente (`sdc`)
-- **Path logico**: `sdc/{disconnectome,lesion}-{map,mapstats,LF}` (`datatype="dwi"` è solo un'etichetta di categorizzazione BIDS nello schema di `file_patterns.json` — non una cartella reale né alla sorgente né in locale, vedi `docs/dev/retrieval.md`)
-- **Descrizione**: Output Stage1+2 di BCBToolKit — la stessa computazione che fa la nostra `compute_sdc.py`/`src/sdc/`, ma questo run specifico non è passato dalla nostra CLI (`--mode manifest/run/aggregate`), quindi non ha `manifest.csv`/`_status/`/riga in `runs.csv` scritti da noi per questo run. Include il volume di disconnessione voxel-wise (`res-1_desc-disconnectome.nii.gz`), le statistiche aggregate (`mapstats.tsv`) e le parcellazioni per 15 atlanti (`LF-disconnectome_atlas-*.csv`), più gli equivalenti per la lesione stessa ricampionata (`LF-lesion_atlas-*.csv`, 16 atlanti — include anche `yeh_hcp1065_streamline`).
-- **Disponibilità**: `UNIPD/WashU` (195), `UNIPD/PASPORT` (83), `UNIPD/PSP` (168), `UKLFR/stroke_UKLFR` (705), `UKE/WAKEUP_acute` (451) — tutti solo pazienti stroke (nessun HC in queste cartelle). Sorgente: `Clinical_connectome/features/Clinical_connectome_stroke/<dataset>/lesion/{subject_id}/...` (un `project_root` diverso da quello di `lesion`/`feature`, vedi `docs/dev/retrieval.md`).
-- **Locale**: copiato via `config/pipelines/retrieval_sdc.json` sotto `sdc/` (stessa struttura pipeline-first di `lesion`/`feature`, vedi `docs/dev/retrieval.md`). **Completo per tutti e 5 i dataset (verificato 03/09)**: fino a questa data, la copia locale conteneva solo `disconnectome-LF`/`lesion-LF` (i CSV parcellati) per `UNIPD/WashU`/`PASPORT`/`PSP` e `UKLFR/stroke_UKLFR`, e nessun dato per `UKE/WAKEUP_acute`. In una prima passata (03/09, mattina) sono stati aggiunti i soli `disconnectome-map` (.nii.gz voxel-wise) mancanti per i 4 dataset già presenti, più un primo tentativo di copia completa per `UKE/WAKEUP_acute` via `scripts/download_sdc.py` + rsync — **quel primo trasferimento UKE è risultato incompleto/corrotto** (rsync interrotto: 221/451 soggetti con tutti i file a 0 byte, scoperto e bloccato prima di toccare `derivatives/` grazie a un controllo di stabilità size-nel-tempo, non da un errore esplicito). Rifatto lo stesso giorno con `scp -r` diretto da `/data/corbetta/Clinical_connectome/features/Clinical_connectome_stroke/UKE/WAKEUP_acute/lesion` (più stabile su questa rete), verificato stavolta al 100% (451 soggetti × 35 file, nessuno a 0 byte, dimensione totale stabile su ricontrolli ripetuti) prima di sostituire `derivatives/UKE/WAKEUP_acute/sdc` per intero.
-- **`UKE/WAKEUP_acute`, promozione locale del `lesion-map` a `manual_masks` (03/09)**: su richiesta esplicita, il file `lesion-map` (`{subject_id}_space-MNI152NLin6Asym_res-1_label-lesion_mask.nii.gz`) di ciascun soggetto è stato copiato e **rinominato** (tolto `res-1`, per combaciare col template fisso `lesion/manual_masks/anat/lesion_mask` che `Dataset.resolve()` cerca — non basta che il file esista sul disco, il nome deve combaciare esattamente) sotto `manual_masks/{subject_id}/anat/`, poi **rimosso** dal suo posto originale in `sdc/{subject_id}/` (non più duplicato) — vedi punto 1 sopra per il dettaglio/caveat sulla provenienza.
-- **Layout locale senza cartella `dwi/` (04/09)**: fino a questa data la copia locale annidava ogni file sotto `sdc/{subject_id}/dwi/{subject_id}_...` (una cartella `dwi/` fabbricata dal layout locale, non presente alla sorgente — vedi `docs/dev/retrieval.md`). Tutti i file dei 1602 soggetti nei 5 dataset sono stati spostati su di un livello (`sdc/{subject_id}/{subject_id}_...`) e le cartelle `dwi/` vuote rimosse.
-- **Peso** (1602 soggetti, tutti e 5 i dataset, verificato 26/08): `disconnectome-map` (.nii.gz voxel-wise) 61% del totale, `disconnectome-LF` (15 CSV parcellati) 25%, `lesion-map` (.nii.gz maschera ricampionata) 12%, `lesion-LF` (16 CSV) 2%, mapstats trascurabile — totale ~3 GB. Per scaricare solo un sottoinsieme (es. solo i CSV già parcellati, ~793 MB, sufficienti per una matrice tipo `build_lesion_matrix.py`), usa `scripts/download_sdc.py --categories disconnectome-LF lesion-LF ...` invece della config completa — vedi `docs/guides/retrieval.md`.
+**Campi comuni a tutti e 6**: `participant_id`, `dataset`, `center_id`, `disease_id`, `age`, `sex`.
+
+**`disease_id`**: `ST` (stroke) o `HC` (controlli sani). Solo WashU ha controlli sani (68 nel registro, 56 con FC).
+
+**Copertura dei campi principali** (% sulle sole righe ST del tsv):
+
+| Dataset | n (ST) | age | sex | handedness | education | lesion_side | NIHSS | clinical_date |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| UCL-UK | 4119 | 85% | 84% | assente | assente | assente | assente | assente |
+| UKLFR | 735 | 100% | 100% | 68% | 72% | 99% | 99% | 32% |
+| UKE | 503 | 100% | 100% | 0% | 0% | 95% | 100% | assente |
+| WashU | 251 | 99% | 100% | 99% | 98% | 84% | 74% | 80% |
+| PSP | 237 | 100% | 100% | 93% | 90% | 47% | 87% | 96% |
+| PASPORT | 97 | 100% | 100% | assente | 0% | assente | assente | assente |
+
+"assente" = la colonna non esiste proprio in quel tsv; `0%` = la colonna c'è ma è vuota per tutti.
+
+Due conseguenze pratiche, entrambe gestite in `docs/dev/metadata.md`:
+- **PASPORT non ha `NIHSS`** (solo `NIHSS_at_presentation`/`_24H`/`_3m`) né `lesion_side`; **UCL-UK non ha nessuno dei due**, e nemmeno una colonna sostitutiva.
+- **`lesion_side` è incompleto anche dove esiste** (PSP 47%, WashU 84%): per questo verrà calcolato geometricamente dalla maschera dove manca.
+
+**Punteggi comportamentali — solo WashU** (% sui 251 ST): `ARAT_L`/`ARAT_R` 94%, `Boston_nam` 92%, `NIHSS` 74%, `9HPT_L`/`9HPT_R` 65%, `Clock` 65%, `Corsi` 34%. `GDS_15` esiste come colonna ma è vuota al 100% per questa coorte.
+
+**UCL-UK, unica eccezione sul formato ID**: negli altri 5 dataset `participant_id` è già nel formato canonico `sub-*`. UCL-UK ha il formato legacy del sito (`ST_UCL-UK_0001`), riconciliato in `participants.csv` (`subject_id` canonico + `original_id` col valore grezzo).
+
+### 3. Connettività funzionale — `features/` (16 file per soggetto)
+
+- **Path logico retrieval**: `feature/func/FC-pearson`
+- **Disponibile solo per WashU** (225 soggetti: 169 ST + 56 HC). I 16 file per soggetto sono le 12 matrici FC (una per combinazione di atlante `Yan<n>TianS<n>Buckner7N`) più i sidecar di motion/outliers.
+- Se una config di retrieval chiede `feature` per tutti i dataset, la pipeline scarica solo WashU e segnala gli altri con un WARNING, senza fermarsi (vedi `docs/dev/retrieval.md`).
+
+### 4. Structural disconnectome — `sdc/` (34 file per soggetto)
+
+- **Path logico retrieval**: `sdc/{disconnectome,lesion}-{map,mapstats,LF}` (`datatype="dwi"` è solo un'etichetta BIDS nello schema di `file_patterns.json`, non una cartella reale)
+- Output Stage1+2 di BCBToolKit.
+- I 34 file per soggetto: 
+  - il volume di disconnessione voxel-wise (`res-1_desc-disconnectome.nii.gz`),
+  - le parcellazioni per 15 atlanti (`LF-disconnectome_atlas-*.csv`),
+  - gli equivalenti per la lesione ricampionata (`LF-lesion_atlas-*.csv`, 16 atlanti — include `yeh_hcp1065_streamline`),
+  - i 2 `mapstats.tsv`.
+- **Disponibile per 5 dataset su 6** (manca UCL-UK), solo pazienti stroke.
+- Sorgente: `Clinical_connectome/features/Clinical_connectome_stroke/<dataset>/lesion/{subject_id}/...` — un `project_root` diverso da quello di `lesion`/`feature`.
+
+### 5. Lesioni grezze (raw) — mai copiate
+
+Le lesioni in spazio nativo non normalizzato (`lesion/raw/anat/lesion_roi`) esistono sul server ma **per decisione architetturale non entrano mai nel workspace locale**: tutta l'analisi richiede coordinate spaziali omogenee.
+
+---
+
+## Copie locali ridotte
+
+Le matrici finali (`build_lesion_matrix.py`; `mask_fc.py`+`build_fc_matrix.py`) sono già calcolate a partire dai dati grezzi, che quindi in locale servono solo per notebook/esplorazione. `scripts/archive_local_raw_data.py` riduce una cartella a **10 soggetti campione**, comprimendo il resto in un `.tar.gz` verificato (contenuto riletto e confrontato con quanto tarrato, prima di cancellare gli originali).
+
+Le 5 `manual_masks/` sono complete. Restano ridotte solo due cartelle:
+
+| Cartella | Popolazione reale | In chiaro | Nell'archivio |
+| :--- | :---: | :---: | :---: |
+| `UNIPD/WashU/features/` | 225 | 10 | 215 |
+| `data/derived/features/masked_fc/` | 169 | 10 | 159 |
+
+Ogni cartella ridotta contiene due file, entrambi generati dallo script:
+
+- **`<nome>_archive_subjects.tsv`** — il registro macchina-leggibile della popolazione reale: una riga per soggetto con `source` = `kept_in_place` o `archive`. Serve a sapere chi esiste davvero **senza decomprimere niente**. Il gruppo del soggetto non è memorizzato perché derivabile: `group_of(subject_id)`.
+- **`README_ARCHIVE.md`** — la versione per umani: totali, elenco dei soggetti in chiaro, comando di ripristino.
+
+**Ripristino** (l'archivio sta *un livello sopra* la cartella, quindi si lancia da dentro la cartella stessa):
+
+```bash
+tar -xzf ../<nome>_archive.tar.gz -C .
+```
+
+`sub-STUNIPD0001` (WashU) resta sempre in chiaro, non per coincidenza d'ordinamento: è il `reference_template_path` hardcoded in `config/pipelines/build_lesion_matrix.json`, pinnato esplicitamente nello script.
+
+## Ingombro su disco (locale, 06-09-26)
+
+`data/clinical_connectome/derivatives/` pesa **5.0 GB** in totale:
+
+| Tipo | Peso |
+| :--- | ---: |
+| `sdc/` (5 dataset, 1602 soggetti) | ~2.6 GB |
+| `features_archive.tar.gz` (i 215 soggetti WashU compressi) | 2.1 GB |
+| `features/` (solo WashU, i 10 soggetti in chiaro) | 222 MB |
+| `manual_masks/` (6 dataset, 5720 soggetti) | ~169 MB |
+
+Dentro l'SDC, il peso è dominato dai `.nii.gz`: `disconnectome-map` ~61% del totale, `disconnectome-LF` (15 CSV) ~25%, `lesion-map` ~12%, `lesion-LF` (16 CSV) ~2%, mapstats trascurabile. Per scaricarne solo un sottoinsieme (es. i soli CSV parcellati, ~793 MB, sufficienti per una matrice tipo `build_sdc_matrix.py`) usa `scripts/download_sdc.py --categories disconnectome-LF lesion-LF ...` invece della config completa — vedi `docs/guides/retrieval.md`.

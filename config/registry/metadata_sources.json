@@ -1,0 +1,26 @@
+{
+  "UNIPD/WashU": {
+    "participants_tsv": "data/clinical_connectome/metadata_tsv/participants_WashU.tsv",
+    "derivatives_dir": "data/clinical_connectome/derivatives/UNIPD/WashU"
+  },
+  "UNIPD/PSP": {
+    "participants_tsv": "data/clinical_connectome/metadata_tsv/participants_PSP.tsv",
+    "derivatives_dir": "data/clinical_connectome/derivatives/UNIPD/PSP"
+  },
+  "UNIPD/PASPORT": {
+    "participants_tsv": "data/clinical_connectome/metadata_tsv/participants_PASPORT.tsv",
+    "derivatives_dir": "data/clinical_connectome/derivatives/UNIPD/PASPORT"
+  },
+  "UKLFR/stroke_UKLFR": {
+    "participants_tsv": "data/clinical_connectome/metadata_tsv/participants_UKLFR.tsv",
+    "derivatives_dir": "data/clinical_connectome/derivatives/UKLFR/stroke_UKLFR"
+  },
+  "UCL-UK/UCLStrokeData": {
+    "participants_tsv": "data/clinical_connectome/metadata_tsv/participants_UCL.tsv",
+    "derivatives_dir": "data/clinical_connectome/derivatives/UCL-UK/UCLStrokeData"
+  },
+  "UKE/WAKEUP_acute": {
+    "participants_tsv": "data/clinical_connectome/metadata_tsv/participants_UKE.tsv",
+    "derivatives_dir": "data/clinical_connectome/derivatives/UKE/WAKEUP_acute"
+  }
+}

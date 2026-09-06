@@ -57,7 +57,7 @@ Spiegazione delle chiavi di `config/pipelines/build_lesion_matrix.json`:
 | **`reference_template_path`** | File MNI di riferimento spaziale per la "Deformazione/Resampling" di tutte le lesioni. |
 | **`lesion_glob`** | Il percorso fisso dei file (non toccare): `"manual_masks/*/anat/*_label-lesion_mask.nii.gz"`. |
 | **`binarize_threshold`** | (Solitamente `0.5`). Trasforma contorni grigi della deformazione spaziale in lesione netta (1 o 0). |
-| **`resample_interpolation`**| La matematica della deformazione spaziale (`"linear"`/`"nearest"`/`"continuous"` — vedi `_KNOWN_INTERPOLATIONS` in `src/analysis/build_config.py`). |
+| **`resample_interpolation`**| La matematica della deformazione spaziale (`"linear"`/`"nearest"`/`"continuous"` — vedi `_KNOWN_INTERPOLATIONS` in `src/analysis/build_config.py`). **Per una maschera binaria si usa `"nearest"`** — motivazione, sfumature del downsampling e interazione con `binarize_threshold` in [`knowledge/neuroimaging/lesion_resampling.md`](../../knowledge/neuroimaging/lesion_resampling.md). |
 | **`output_root`** | Sede file (di base: `"data/derived/lesion_matrix"`). |
 | **`session_name`** | Nome univoco per distinguere i batch es. `"voxelwise_s2"`. |
 | **`overwrite`** | `true` sovrascrive output di run passati. |

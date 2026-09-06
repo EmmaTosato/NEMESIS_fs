@@ -1,0 +1,18 @@
+{
+  "project": "clinical_connectome",
+  "metadata_sources": "config/registry/metadata_sources.json",
+  "datasets": [
+    "UNIPD/WashU",
+    "UNIPD/PSP",
+    "UNIPD/PASPORT",
+    "UKLFR/stroke_UKLFR",
+    "UCL-UK/UCLStrokeData",
+    "UKE/WAKEUP_acute"
+  ],
+  "group_filter": [
+    "ST"
+  ],
+  "output_path": "assets/metadata/participants.csv",
+  "overwrite": false,
+  "run_notes": "rebuild con features WashU decompresse (has_features corretto)"
+}

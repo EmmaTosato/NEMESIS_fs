@@ -182,3 +182,72 @@ agglomerative, gmm, kmeans, hdbscan, spectral
 - Anche `mcs=10` (il valore più basso ora ammesso) produce 121-149 cluster — la frammentazione forte non è specifica di `mcs=5`, serve `mcs`≥50 per scendere sotto i ~30 cluster.
 - Candidati più in linea con la granularità scelta in s1.1-vol (8-20 cluster su 1150 soggetti): `mcs=75, ms=20` (19 cluster, silhouette 0.449, noise 0.231) o `mcs=100, ms=20` (15 cluster, silhouette 0.464 — il migliore dell'intera griglia, noise 0.245). `mcs=50, ms=20` (25 cluster, silhouette 0.417, noise più basso 0.195) resta un'alternativa a granularità intermedia.
 - I due candidati già lanciati in produzione (opzioni E `mcs=5,ms=10`→143 cluster ed F `mcs=30,ms=5`→53 cluster) erano entrambi più frammentati di queste nuove alternative — **rifatte lo stesso giorno** con `mcs=100,ms=20` (E, 15 cluster) e `mcs=75,ms=20` (F, 19 cluster), vedi `s1_production.md`.
+
+---
+
+## 03-09-2026 — s1.2-vol (agglomerative su matrice raw)
+
+### Clustering diretto sui voxel, senza dimensionality reduction
+
+##### Input
+- Dati originali: `data/derived/lesion_matrix/25-08_s1.2-vol` — matrice raw **5269 × 264274 voxel**
+- Nessun embedding (`reduced_data: false`, `reduction_method: "raw"`)
+
+##### Metodi
+agglomerative
+
+##### Obiettivo
+- Verificare se la struttura topografica emerge clusterizzando i voxel nativi, senza la distorsione introdotta da UMAP
+- Confrontare una metrica binaria volume-normalizzata (`dice`) contro `euclidean` sullo stesso dato
+- Abilitato da `ce4e749`: cache della distanza precomputata per metrica, condivisa tra fit e scoring — senza, lo sweep su questa matrice non era praticabile
+
+##### Risultati
+
+Griglia `n_clusters`∈{2..6} × `linkage`∈{average, complete} × `metric`∈{euclidean, dice} — 20 combinazioni, [tuning/agglomerative/raw/](../../../results/lesion/clustering/tuning/agglomerative/raw/03-09_s1.2-vol/).
+
+**Tutte e 20 le combinazioni sono degeneri**: il cluster maggiore contiene tra il 90.9% e il 100% dei soggetti, il resto sono micro-cluster (spesso singoletti).
+
+| metrica | linkage | silhouette (k=2→6) | partizione a k=6 |
+| --- | --- | --- | --- |
+| euclidean | average | 0.734 → 0.706 | `[5257, 5, 2, 2, 2, 1]` |
+| euclidean | complete | 0.474 → 0.465 | `[4790, 330, 119, 19, 6, 5]` |
+| dice | average | ~0.0107 (costante) | `[5264, 1, 1, 1, 1, 1]` |
+| dice | complete | 0.006 → −0.028 | `[5118, 75, 23, 22, 19, 12]` |
+
+- **Il silhouette è qui attivamente fuorviante**: il valore più alto dell'intera griglia (0.734) corrisponde alla partizione `[5262, 7]`. È alto perché 5262 punti sono mutuamente vicini *rispetto* a 7 outlier, non perché esista struttura.
+- CH/DB sono vuoti per tutte le righe `dice`: sono centroid-based, definiti solo in geometria euclidea, quindi `compute_clustering_metrics_metric_aware` restituisce NaN invece di un numero sbagliato. Il silhouette `dice` è invece calcolato metric-aware sulla matrice di distanza dice, quindi lo 0.0107 è un valore genuino.
+
+##### Diagnosi — due fallimenti opposti
+
+Misurato sulla matrice raw (occupazione media 0.8% dei voxel, volume lesionale mediano 460 su 264274):
+
+- **`euclidean` misura il volume, non la topografia.** `corr(distanza euclidea, somma dei volumi lesionali) = 0.942` — con overlap quasi nullo, √(|A|+|B|−2|A∩B|) ≈ √(|A|+|B|). I 5 cluster di `complete, k=5` sono infatti ordinati monotonicamente per volume mediano (351 → 5852 → 15136 → 20233 → 40274 voxel): è uno stratificatore di volume, non un clustering topografico.
+- **`dice` misura la cosa giusta ma non ha segnale globale.** L'**86.1% delle coppie ha distanza esattamente 1.0** (zero voxel in comune), mediana = 1.0. La matrice di distanza è un plateau: a(i) ≈ b(i) ≈ 1 per quasi tutti i punti → silhouette ≈ 0 e costante rispetto a k. Coerentemente i cluster `dice` *non* sono ordinati per volume: dice fa il suo lavoro, semplicemente non c'è gradiente globale da clusterizzare.
+
+##### Conseguenza: perché la dim reduction non è una comodità computazionale
+
+Il segnale di overlap esiste, ma solo **localmente**: il soggetto mediano ha ~778 partner con overlap non nullo su 5268, e solo lo 0.1% non ne ha nessuno.
+
+Agglomerative consuma la matrice di distanza **completa** — tutte le ~13.9M di coppie, di cui l'86% sono pareggi a distanza massima che dominano per numerosità pura. UMAP guarda solo i k vicini di ogni punto: il grafo k-NN seleziona per costruzione la frazione informativa e il plateau non entra mai nel calcolo.
+
+Confronto diretto, stesso metodo/coorte/k=6, cambia solo l'input:
+
+| Input | `average` | `complete` | `ward` |
+| --- | --- | --- | --- |
+| Raw (264274 voxel) | `[5257, 5, 2, 2, 2, 1]` — 99.8% | `[4790, 330, 119, 19, 6, 5]` — 90.9% | n/d |
+| UMAP 2D (`28-08_s1.2-vol_m_euclidean_nc2`) | `[2464, 956, 777, 559, 304, 209]` — 46.8% | `[1043, 957, 954, 866, 825, 624]` — 19.8% | `[1530, 1095, 941, 851, 547, 305]` — 29.0% |
+
+Non è la stessa risposta ottenuta più in fretta: è una partizione inutilizzabile contro una bilanciata. UMAP non comprime informazione esistente — **ricostruisce per transitività una geometria globale che nel dato di partenza non esiste**: nell'embedding due lesioni senza alcun voxel in comune hanno comunque una distanza sensata, mediata da catene di soggetti parzialmente sovrapposti, mentre nello spazio raw quella distanza è 1.0 per tutte e indistinguibile.
+
+Due precisazioni: `single` linkage resta degenere anche sull'embedding (`[5128, 79, 37, 16, 8, 1]`) — è il chaining di single linkage, indipendente dalla rappresentazione; e "non degenere" non significa "biologicamente valido" (il k=2 su embedding resta il sospetto artefatto `lesion_side`).
+
+##### Il punto
+
+- **Chiude un ramo.** La domanda era "serve davvero UMAP, o passandoci attraverso perdiamo qualcosa?". Risposta misurata: no. Il clustering gerarchico diretto sui voxel non è un'alternativa praticabile, per motivi strutturali e non di tuning — non serve tornarci.
+- **Dà una difesa metodologica.** "Usiamo la dim reduction prima di clusterizzare" passa da convenzione a scelta giustificata da due numeri (86% di coppie a overlap zero, `corr` = 0.942 tra distanza euclidea e volume). È la risposta pronta a chi chiede perché non si è clusterizzato il dato nativo.
+- **Non dà nulla sulle decisioni aperte**: nessun candidato di produzione, nessuna indicazione sul k di s1.1-vol né sull'SDC.
+
+##### Decisione
+- Nessun candidato di produzione da questa run.
+- Il percorso `reduced_data: false` è **chiuso per agglomerative** su dati lesionali voxel-wise a questa scala.
+- La diagnosi è però *metrica-specifica, non metodo-specifica*, e non va estesa alla cieca: qualsiasi metodo che consumi la matrice `dice`/`jaccard` globale incontra lo stesso plateau, e qualsiasi metodo euclideo su binario raw (es. kmeans) stratifica per volume. I metodi a densità locale (hdbscan) non sono coperti da questa run — userebbero solo il vicinato, come UMAP.

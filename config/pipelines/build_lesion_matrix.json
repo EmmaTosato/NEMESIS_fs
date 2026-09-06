@@ -6,7 +6,8 @@
     "UNIPD/PASPORT",
     "UNIPD/PSP",
     "UKLFR/stroke_UKLFR",
-    "UCL-UK/UCLStrokeData"
+    "UCL-UK/UCLStrokeData",
+    "UKE/WAKEUP_acute"
   ],
   "group_filter": [
     "ST"
@@ -16,7 +17,7 @@
   "binarize_threshold": 0.5,
   "resample_interpolation": "nearest",
   "output_root": "data/derived/lesion_matrix",
-  "session_name": "s1.2-vol",
+  "session_name": "s1.3-vol",
   "overwrite": false,
-  "run_notes": "parcellate removed from build_lesion_matrix.py (25/08/26). Adds  UCL-UK/UCLStrokeData (4119 subjects, retrieved and verified 21/08/26)."
+  "run_notes": "Adds UKE/WAKEUP_acute (451 subjects) to s1.2-vol's 5 datasets -> 5720. "
 }

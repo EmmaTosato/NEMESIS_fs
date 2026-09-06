@@ -28,3 +28,30 @@ UKLFR, 2mm per WashU — vedi la conversazione che ha portato a questo
 re-naming per il dettaglio). Nessuna sostituzione dei file in `manual_masks/`
 è stata fatta: questa cartella resta una copia separata, non ancora unita a
 `data/`.
+
+## Confronto con `data/clinical_connectome/derivatives/<dataset>/manual_masks/` (04/09/26)
+
+Dopo il re-naming sopra, i filename combaciano esattamente tra le due
+cartelle. Confronto soggetto-per-soggetto e voxel-per-voxel (tutti i
+soggetti, non un campione):
+
+| Dataset | `manual_masks/` | qui | Solo in `manual_masks` | Solo qui | Contenuto |
+|---|---|---|---|---|---|
+| UKE/WAKEUP_acute | 451 | 451 | 0 | 0 | **451/451 identici** (voxel+affine, 1mm) |
+| UNIPD/PASPORT | 83 | 83 | 0 | 0 | **83/83 identici** |
+| UNIPD/PSP | 168 | 168 | 0 | 0 | **168/168 identici** |
+| UKLFR/stroke_UKLFR | 697 | 705 | 24 | 32 | **Diversi**: `manual_masks` a 1.5mm (121×145×121) vs qui a 1mm (182×218×182) |
+| UNIPD/WashU | 202 | 195 | 7 | 0 | **Diversi**: `manual_masks` a 2mm (91×109×91) vs qui a 1mm (182×218×182) |
+
+- **UKE/PASPORT/PSP**: stessa identica maschera (verificato array voxel + affine
+  su tutti i soggetti) — solo il checksum SHA256 del file grezzo differisce
+  (metadati header/contenitore gzip, non i dati).
+- **UKLFR (24 solo in `manual_masks`) e WashU (7 solo in `manual_masks`)**:
+  soggetti ST con maschera manuale ma nessun dato SDC — lacuna nota, non
+  introdotta da questo download.
+- **UKLFR (32 solo qui)**: soggetti con dati in `sdc/` ma senza voce in
+  `manual_masks/` — tra questi `sub-STUKLFR0005`, già noto (`docs/dev/sdc_matrix.md`)
+  come assente dal registro `participants.tsv`, non solo "non recuperato
+  localmente".
+- **UKLFR e WashU**: qui la risoluzione è più fine (1mm) di quella nativa già
+  in `manual_masks/` (1.5mm/2mm) — nessuna sostituzione fatta, vedi sopra.

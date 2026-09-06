@@ -48,11 +48,23 @@ def test_list_subject_dir_ids_returns_sorted_names(tmp_path):
     assert list_subject_dir_ids(tmp_path) == ["sub-A001", "sub-B002", "sub-C003"]
 
 
-def test_list_subject_dir_ids_raises_on_unexpected_top_level_entry(tmp_path):
+def test_list_subject_dir_ids_ignores_top_level_files(tmp_path):
+    """Regression: files alongside the subject dirs used to be fatal - including
+    README_ARCHIVE.md, which this very script writes there, so a second run over its own
+    output always crashed. A hand-written manifest beside it broke it the same way."""
     _make_subject_dirs(tmp_path, ["sub-A001"])
     (tmp_path / ".DS_Store").write_text("")
+    (tmp_path / "README_ARCHIVE.md").write_text("# pruned")
+    (tmp_path / "features_archive_subjects.tsv").write_text("subject_id\tsource\n")
 
-    with pytest.raises(ValueError, match="unexpected top-level entry"):
+    assert list_subject_dir_ids(tmp_path) == ["sub-A001"]
+
+
+def test_list_subject_dir_ids_still_raises_on_unexpected_directory(tmp_path):
+    _make_subject_dirs(tmp_path, ["sub-A001"])
+    (tmp_path / "leftovers").mkdir()
+
+    with pytest.raises(ValueError, match="unexpected top-level directory"):
         list_subject_dir_ids(tmp_path)
 
 
@@ -248,6 +260,47 @@ def test_main_execute_archives_and_prunes_leaving_readme(tmp_path, monkeypatch):
     assert remaining == ["sub-000", "sub-001"]
     assert (root.parent / "manual_masks_archive.tar.gz").exists()
     assert (root / "README_ARCHIVE.md").exists()
+
+
+def test_pruning_records_the_true_population_in_a_manifest(tmp_path, monkeypatch):
+    """A pruned directory is indistinguishable from a genuinely small one by a filesystem scan
+    alone - scripts/populate_metadata.py's has_* flags reported 10 WashU feature subjects instead
+    of 225 for exactly this reason. The manifest is the machine-readable record of who really
+    exists, readable without decompressing anything."""
+    monkeypatch.chdir(tmp_path)
+    root = tmp_path / "features"
+    root.mkdir()
+    _make_subject_dirs(root, [f"sub-{i:03d}" for i in range(5)])
+    import scripts.archive_local_raw_data as module
+
+    monkeypatch.setattr(module, "TARGETS", [SubjectDirsTarget(root)])
+    assert main(["--n-sample", "2", "--execute"]) == 0
+
+    manifest = root / "features_archive_subjects.tsv"
+    rows = [line.split("\t") for line in manifest.read_text().splitlines()[1:]]
+    assert {subject_id for subject_id, source in rows if source == "kept_in_place"} == {"sub-000", "sub-001"}
+    assert {subject_id for subject_id, source in rows if source == "archive"} == {"sub-002", "sub-003", "sub-004"}
+    # the archived subjects are genuinely gone from disk - the manifest is the only local record
+    assert not (root / "sub-004").exists()
+
+
+def test_readme_reports_the_true_total_and_points_at_the_manifest(tmp_path, monkeypatch):
+    """The README is the human-facing summary: totals plus a pointer to the manifest,
+    deliberately not a second copy of the subject lists (which would be free to drift)."""
+    monkeypatch.chdir(tmp_path)
+    root = tmp_path / "features"
+    root.mkdir()
+    _make_subject_dirs(root, [f"sub-{i:03d}" for i in range(5)])
+    import scripts.archive_local_raw_data as module
+
+    monkeypatch.setattr(module, "TARGETS", [SubjectDirsTarget(root)])
+    assert main(["--n-sample", "2", "--execute"]) == 0
+
+    readme = (root / "README_ARCHIVE.md").read_text()
+    assert "5 subject(s) in total" in readme
+    assert "2 kept in place, 3 inside the archive" in readme
+    assert "features_archive_subjects.tsv" in readme
+    assert "sub-004" not in readme  # the archived list lives in the manifest, not here
 
 
 def test_readme_restore_command_actually_restores_the_archived_subjects(tmp_path, monkeypatch):
