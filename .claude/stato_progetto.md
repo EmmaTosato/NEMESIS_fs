@@ -13,7 +13,7 @@ Sintesi corrente in `README.md` ("What's implemented so far") — non ripetuta q
 ## Lavoro attivo / thread aperti
 
 - **Renderer anatomia**: `main` resta su nilearn. Il branch `viz-niivue` è stato eliminato il 07-09-26 (recuperabile da `facef6f` finché dura il reflog).
-- **Lesion clustering produzione s1.1-vol**: opzioni di k lanciate e documentate (`docs/experiments/clustering/s1_production.md`); la scelta del k è stata fatta, ma le sezioni `Decisioni` del doc sono ancora vuote — vedi `.claude/open_problems.md`.
+- **Lesion clustering produzione s1.1-vol/s1.2-vol**: chiuso. La decisione registrata (`docs/experiments/clustering/s1_production.md`, sezioni `Decisioni`) è che *non* si elegge un k unico — le granularità restano aperte in parallelo e si confrontano nel notebook di valutazione.
 - **SDC clustering tuning s2.1-schaefer-200-tian-s2**: nc2 documentato (`docs/experiments/clustering/s2_tuning.md`) — forte lateralizzazione su `lesion_side` confermata. Prossimo step già scritto nel doc: estendere a `nc3`.
 - **Audit naming plot-level**: ancora aperto, non toccato di recente.
 

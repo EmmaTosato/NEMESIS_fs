@@ -47,6 +47,24 @@ One more, for fine-tuning sweeps (`tuning.py`, `docs/dev/models.md`): `plot_tuni
 
 **Subplot spacing, all 3 side-by-side grids (31-08-26)**: `plot_interclass_distance_matrix`'s `wspace` raised `0.5` -> `1.1` (plus `pad=0.04` on each subplot's own colorbar) after visually finding real dataset-name labels (`"UKLFR/stroke_UKLFR"`) overlapping the previous subplot's colorbar - each subplot draws its own y-tick labels (not shared with its neighbor's), so the gap has to fit one subplot's colorbar *and* the next subplot's label text, not just the two axes. `plot_dendrograms_grid`/`plot_eigengaps_grid` had no explicit `wspace` at all (matplotlib's default ~0.2, tight but not overlapping for their shorter labels) - given an explicit `wspace=0.35` for the same "always a deliberate value here, never the default" convention.
 
+## Naming dei file di plot
+
+Ogni file di plot vive dentro la directory della sua run, che porta già metodo, sessione e iperparametri (`03-09_s1.2-vol_m_euclidean_n2_k5`). Il **nome del file identifica quindi solo cosa mostra**, non la run: non va ripetuto lì ciò che il path dice già.
+
+Tre forme, in ordine di specificità. Un plot nuovo deve rientrare in una di queste.
+
+| Forma | Quando | Esempi |
+| :--- | :--- | :--- |
+| `<cosa>.png` | c'è un solo file di quel tipo per run | `cluster_plot.png`, `silhouette_plot.png`, `tuning_plot.png`, `stability_plot.png`, `interclass_distance_matrix.png`, `consensus_matrix_heatmap.png`, `n_repeats_convergence.png` |
+| `<cosa>_<variante>.png` | un file per variante di una dimensione **chiusa e nota** (i color mode di `COLOR_MODES`) | `embedding_plot_side.png`, `embeddings_grid_nihss.png` |
+| `<cosa>_<parametro>=<valore>.png` | un file per valore di un iperparametro **spazzato dalla run** | `dendrogram_metric=cosine.png`, `eigengap_affinity=rbf.png` |
+
+Note sulle scelte, per non rimetterle in discussione ogni volta:
+
+- **`=` nel nome è deliberato**, non una svista. Segnala che il segmento è una coppia parametro/valore proveniente dalla griglia di tuning, e non un pezzo fisso del nome: `dendrogram_metric=cosine` si legge senza ambiguità, `dendrogram_cosine` no. Sono nati così quando dendrogramma ed eigengap sono passati da un file unico a uno per valore dell'asse spazzato (`.claude/lessons_learned.md` #31).
+- **Singolare vs plurale è informativo**: `embedding_plot_*` è un singolo embedding (produzione), `embeddings_grid_*` è una griglia di embedding (tuning). Non sono due nomi per la stessa cosa.
+- **Il suffisso non è uniforme** (`_plot`, `_heatmap`, oppure niente) e resta così: ogni nome è già inequivocabile dentro la sua directory, e uniformarlo significherebbe rinominare artefatti referenziati da decine di file tra doc, test e risultati già prodotti — costo reale, guadagno nullo. La regola per i nomi **nuovi** è: usare `_plot` solo quando il nome da solo non direbbe che è un'immagine (`cluster` → `cluster_plot`), ometterlo quando lo dice già (`consensus_matrix_heatmap`, `dendrogram`).
+
 ## `src/analysis/embedding_coloring.py` / `embedding_plots.py` — pluggable embedding coloring (2026-08 session)
 
 Replaces `dim_reduction.py`'s old hardcoded `for color_by, column in (("Dataset", "dataset"), ("Side", "lesion_side")):` + a separate copy-pasted Volume block (~45 lines) with a small registry plus a shared writer, so adding a new coloring mode is one dict entry, not a new hand-written block - and the same writer is reused by both `dim_reduction.py`'s production and fine-tuning (`nested_params`) output.

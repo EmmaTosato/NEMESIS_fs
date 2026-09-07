@@ -10,13 +10,21 @@ Elenco vivo di ciò che è **aperto adesso**: problemi noti non risolti, decisio
 
 ## 🔴 Problemi di dati
 
-### Lato della lesione invertito in ~6% di WashU
+### Lato della lesione invertito in ~6% di WashU — *non risolvibile internamente*
 
 Su 120 soggetti WashU controllati, **7 hanno il `lesion_side` clinico opposto alla geometria della maschera**, e non sono casi dubbi: sono inversioni piene (lesione interamente dal lato contrario). Confermati: `sub-STUNIPD0002`, `0026`, `0077`, `0179`, `0187`, `0056`, `0151`.
 
-Il tasso negli altri dataset è ~0% (UKLFR 0/120, UKE 1/120, PSP 1/95), quindi non è rumore di misura: o sono errori di etichetta, o un sottoinsieme di WashU segue una convenzione di lato invertita.
+Il tasso negli altri dataset è ~0% (UKLFR 0/120, UKE 1/120, PSP 1/95), quindi non è rumore di misura: o sono errori di etichetta all'origine, o un sottoinsieme di WashU segue una convenzione di lato invertita.
 
-**Impatto**: qualunque analisi che usi `lesion_side` di WashU è sospetta finché non si chiarisce. Da capire anche se il problema riguarda solo i 120 campionati o tutti i 166 etichettati.
+**Il dato arriva così dalla sorgente**: `data/clinical_connectome/metadata_tsv/participants_WashU.tsv`. Non è correggibile da questo repo — va segnalato a chi cura quei metadati. Fino ad allora resta un limite noto, non un lavoro in coda.
+
+**Mitigazione pratica**: non usare il `lesion_side` clinico di WashU come verità. La geometria della maschera è disponibile e concorda con l'etichetta nel 98% dei casi complessivi, quindi è il riferimento più affidabile per questo dataset — è anche il motivo in più per implementare il `lesion_side` geometrico qui sotto. Da chiarire anche se il problema riguardi solo i 120 campionati o tutti i 166 etichettati.
+
+### `sub-STUKLFR0671`: SDC vuoto con lesione grande
+
+Nella matrice `sdc_matrix` s2.2-vol questo soggetto è una riga interamente nulla. La causa è a monte: la sua mappa `disconnectome-map` ha **0 voxel non nulli** pur avendo una lesione da **56.785 voxel**. Output degenere di BCBToolKit, non una proprietà del soggetto.
+
+Unico caso su 1570. Per risolverlo va rilanciato `compute_sdc.py` per quel soggetto, **che gira solo sul cluster**. Nel frattempo va escluso a valle.
 
 ---
 
@@ -39,33 +47,13 @@ Contesto completo: `.claude/history/methods_changelog.md`.
 
 ---
 
-## 🔵 Lavori pronti ma non lanciati
-
-### Build SDC voxelwise `s2.2-vol`
-
-Il config `config/pipelines/build_sdc_matrix.json` è pronto e validato: `representation: voxelwise`, disconnettoma, 5 dataset (con UKE), griglia 2mm, `nearest`. Attesi **1570 soggetti** (WashU 195, PASPORT 83, PSP 168, UKLFR 673, UKE 451).
-
-Prima di lanciare: aggiungere la entry `### Session 2.2-vol` in `docs/experiments/data_sessions.md`, come fatto per s1.3-vol.
-
-### Clustering SDC s2.1: estensione a `nc3`
-
-`docs/experiments/clustering/s2_tuning.md` documenta `nc2` e indica `nc3` come passo successivo. Non fatto.
-
----
-
-## ⚪ Piccole cose
-
-### Le sezioni "Decisioni" di `s1_production.md` sono vuote
-
-La scelta del k di produzione per il clustering lesionale **è stata fatta**, ma entrambe le sezioni `##### Decisioni` di `docs/experiments/clustering/s1_production.md` (s1.1-vol e s1.2-vol) sono vuote: la decisione non risulta scritta da nessuna parte. Da riportarci quale opzione è stata scelta e perché.
-
-### Audit naming a livello di plot
-
-Aperto da tempo, mai affrontato.
-
----
-
 ## Note
+
+- **Build SDC `s2.2-vol`**: **eseguita** il 07-09-26 — 1570 × 290940, `float32` continua, stessa griglia 2mm di s1.3-vol. Composizione ed esclusioni in `docs/experiments/processing/matrices.md`.
+
+- **Sezioni "Decisioni" di `s1_production.md`**: **compilate** il 07-09-26 per s1.1-vol e s1.2-vol. La decisione registrata è che *non* si sceglie un k unico: tenere aperte più granularità in parallelo è la scelta, perché nessun criterio interno converge e k va deciso insieme a `n_components`.
+
+- **Audit naming dei plot**: **chiuso** il 07-09-26 senza rinominare niente. Inventariati tutti i nomi di file di plot prodotti: sono formalmente disomogenei (tre suffissi diversi) ma ognuno è inequivocabile dentro la propria directory, e ogni nome è referenziato in 5-15 file tra doc, test e risultati — rinominare sarebbe costo puro. La convenzione è ora scritta in `docs/dev/plotting.md` ("Naming dei file di plot") e vale per i nomi nuovi.
 
 - **Righe tutte-zero in `s1.3-vol`** (`sub-STUKE0146`, `sub-STUKE0201`): **non** è un problema aperto — deciso il 07-09-26 di lasciarle, 2 su 5720. Documentate in `docs/experiments/processing/matrices.md`; vanno filtrate a valle da chi ne ha bisogno, soprattutto sotto metriche binarie.
 - **Branch `viz-niivue`** eliminato il 07-09-26 con i suoi 4 commit non mergeati (renderer alternativo per i pannelli di anatomia). Recuperabile da `facef6f` finché il reflog lo tiene: `git checkout -b viz-niivue facef6f`.

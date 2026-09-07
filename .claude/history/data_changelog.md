@@ -10,6 +10,30 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 07-09-26 — `sub-STUKLFR0671`: mappa di disconnessione vuota nonostante una lesione grande
+
+Emerso costruendo `sdc_matrix` s2.2-vol (prima run voxel-wise): il soggetto entra in matrice come riga interamente nulla.
+
+Non è un artefatto del ricampionamento. Il file sorgente
+`UKLFR/stroke_UKLFR/sdc/sub-STUKLFR0671/..._res-1_desc-disconnectome.nii.gz` ha
+**0 voxel non nulli su 7.221.032**, mentre la sua maschera di lesione ne ha
+**56.785**. Una lesione di quelle dimensioni che produce zero disconnessione non è
+plausibile: è output degenere di BCBToolKit, non una proprietà del soggetto.
+
+È l'unico caso tra i 1570 soggetti ammessi. Non è stato ricalcolato (`compute_sdc.py`
+gira solo sul cluster) né rimosso dalla matrice.
+
+Nota: lo stesso soggetto compare in `docs/dev/sdc_matrix.md` come l'esempio verificato
+di chi *ha* una maschera registrata pur mancando dal `manual_masks/` locale — quel
+fatto resta vero e non c'entra con questo. Qui il problema è a valle: la maschera c'è,
+l'SDC è stato calcolato, ma il risultato è vuoto.
+
+Conseguenza ancora vera oggi: chi usa `07-09_s2.2-vol` deve escluderlo, o accettare una
+riga a zero indistinguibile da "nessuna disconnessione" — con metriche di distanza è un
+outlier garantito.
+
+---
+
 ## 06-09-26 — `lesion_matrix` s1.3-vol: 2 soggetti UKE entrano come righe tutte-zero
 
 `build_lesion_matrix.py` (run `06-09_s1.3-vol`, 5720 soggetti) ha ammesso in matrice

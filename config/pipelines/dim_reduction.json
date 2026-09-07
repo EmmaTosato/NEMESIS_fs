@@ -1,20 +1,19 @@
 {
   "project": "clinical_connectome",
   "output_root": "results/sdc/dim_reduction",
-  "input_path": "data/derived/sdc_matrix/27-08_s2.1-schaefer-200-tian-s2",
+  "input_path": "data/derived/sdc_matrix/07-09_s2.2-vol",
   "params_file": "config/registry/params_reduction_sdc.json",
-  
-  "session_name": "s2.1-schaefer-200-tian-s2",
-  "reduction_method": "tsne",
 
-  "fine_tuning": false,
+  "session_name": "s2.2-vol",
+  "reduction_method": "umap",
+
+  "fine_tuning": true,
   "save_tuning_embeddings": false,
   "overwrite": true,
   "precompute_distance_metric": true,
 
-
   "color_by": ["dataset", "side", "nihss"],
   "viz_n_components": 2,
-  
-  "run_notes": "prima produzione t-SNE SDC (s2.1-schaefer-200-tian-s2) - metric=euclidean, perplexity=30 (valore standard di letteratura, non l'argmax stretto perplexity=15 - scarto trascurabile, 0.0007 - vedi dim_reduction_tuning_s2.md)"
+
+  "run_notes": "Primo tuning UMAP su SDC voxel-wise (s2.2-vol, 1570 x 290940). Stessa griglia usata per s2.1-schaefer-200-tian-s2, per confrontare parcellato vs voxel-wise a parita' di iperparametri. Solo metric=euclidean: i valori sono probabilita' di disconnessione continue, dice/jaccard non applicabili."
 }
