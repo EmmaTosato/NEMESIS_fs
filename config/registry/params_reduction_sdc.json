@@ -1,7 +1,13 @@
 {
   "tsne": {
-    "tag_param": ["metric", "perplexity"],
-    "tag_prefix": ["m_", "p_"],
+    "tag_param": [
+      "metric",
+      "perplexity"
+    ],
+    "tag_prefix": [
+      "m_",
+      "p_"
+    ],
     "params": {
       "n_components": 2,
       "perplexity": 30,
@@ -12,34 +18,77 @@
       "metric": "euclidean"
     },
     "tuning_grid": {
-      "metric": ["euclidean"],
-      "perplexity": [5, 15, 30, 50, 75, 100, 200]
+      "metric": [
+        "euclidean"
+      ],
+      "perplexity": [
+        5,
+        15,
+        30,
+        50,
+        75,
+        100,
+        200
+      ]
     },
-    "nested_params": ["metric"],
+    "nested_params": [
+      "metric"
+    ],
     "trustworthiness_n_neighbors": 10
   },
   "umap": {
-    "tag_param": ["metric", "n_components"],
-    "tag_prefix": ["m_", "nc"],
+    "tag_param": [
+      "metric",
+      "n_components"
+    ],
+    "tag_prefix": [
+      "m_",
+      "nc"
+    ],
     "params": {
       "n_neighbors": 15,
       "min_dist": 0.0,
-      "n_components": 3,
+      "n_components": 2,
       "random_state": 0,
       "metric": "euclidean"
     },
     "tuning_grid": {
-      "metric": ["euclidean"],
-      "n_components": [2, 3],
-      "n_neighbors": [5, 15, 30, 50, 100],
-      "min_dist": [0.0, 0.01, 0.05, 0.1, 0.5, 1.0]
+      "metric": [
+        "euclidean"
+      ],
+      "n_components": [
+        2,
+        3
+      ],
+      "n_neighbors": [
+        5,
+        15,
+        30,
+        50,
+        100
+      ],
+      "min_dist": [
+        0.0,
+        0.01,
+        0.05,
+        0.1,
+        0.5,
+        1.0
+      ]
     },
-    "nested_params": ["metric", "n_components"],
+    "nested_params": [
+      "metric",
+      "n_components"
+    ],
     "trustworthiness_n_neighbors": 10
   },
   "pacmap": {
-    "tag_param": ["n_neighbors"],
-    "tag_prefix": ["n"],
+    "tag_param": [
+      "n_neighbors"
+    ],
+    "tag_prefix": [
+      "n"
+    ],
     "params": {
       "n_components": 2,
       "n_neighbors": 5,
@@ -49,19 +98,49 @@
       "apply_pca": true
     },
     "tuning_grid": {
-      "n_neighbors": [5, 10, 20, 50]
+      "n_neighbors": [
+        5,
+        10,
+        20,
+        50
+      ]
     },
     "trustworthiness_n_neighbors": 10
   },
   "pca": {
-    "tag_param": ["n_components"],
-    "tag_prefix": ["c"],
+    "tag_param": [
+      "n_components"
+    ],
+    "tag_prefix": [
+      "c"
+    ],
     "params": {
       "n_components": 150,
       "random_state": 0
     },
     "tuning_grid": {
-      "n_components": [2, 5, 10, 15, 20, 25, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 75, 100, 150]
+      "n_components": [
+        2,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        32,
+        34,
+        36,
+        38,
+        40,
+        42,
+        44,
+        46,
+        48,
+        50,
+        75,
+        100,
+        150
+      ]
     }
   }
 }
