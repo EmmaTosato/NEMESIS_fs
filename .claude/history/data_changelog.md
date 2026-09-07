@@ -10,6 +10,37 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 06-09-26 — `lesion_matrix` s1.3-vol: 2 soggetti UKE entrano come righe tutte-zero
+
+`build_lesion_matrix.py` (run `06-09_s1.3-vol`, 5720 soggetti) ha ammesso in matrice
+`sub-STUKE0146` e `sub-STUKE0201` con `lesion_volume_voxels = 0`: righe interamente
+nulle, indistinguibili da "nessuna lesione" pur essendo pazienti stroke.
+
+Causa: sono le due lesioni piu' piccole della coorte. Le maschere raw sono valide
+(1mm isotropo, 182x218x182, valori binari 0/1) ma contengono rispettivamente **16 e
+3 voxel**. Il template di riferimento e' a 2mm (91x109x91, la maschera WashU
+`sub-STUNIPD0001`) e `resample_interpolation` e' `nearest`, che campiona invece di
+mediare: una lesione da 3 voxel a 1mm non sopravvive al ricampionamento se non cade
+su un punto della griglia 2mm. Nessun altro dataset era finora sceso sotto questa
+soglia, quindi il caso non si era mai presentato: s1.2-vol (5269 soggetti, gli stessi
+dataset meno UKE) ha 0 righe nulle, con volume minimo 1 voxel (`sub-STUNIPD0208`) —
+verificato ricalcolando le somme di riga da `25-08_s1.2-vol/matrix.npy`, che non ha
+la colonna `lesion_volume_voxels` (aggiunta dopo quella run).
+
+Non e' un bug di codice: e' perdita di segnale legittima del downsampling su lesioni
+sotto-risoluzione. **Non e' stata presa alcuna decisione** su come trattarli — i due
+soggetti restano in `06-09_s1.3-vol/matrix.npy`. Alternative sul tavolo, nessuna
+adottata: escluderli in fase di build (il builder SDC ha gia' un guard-rail
+equivalente, esclude esplicitamente chi non ha lesion mask registrata invece di
+inserire una riga a zero; quello lesionale no), oppure tenerli e filtrarli a valle.
+
+Conseguenza ancora vera oggi: chiunque usi `06-09_s1.3-vol` per dim reduction o
+clustering ha 2 righe identicamente nulle nella matrice. Con metriche binarie
+(jaccard/dice) una riga tutta-zero ha distanza indefinita o massima da chiunque —
+vanno gestite prima, non dopo aver visto un outlier strano nell'embedding.
+
+---
+
 ## 05-09-26 — `populate_metadata.py`: conteggi FC sbagliati per cartella potata
 
 Prima run di `scripts/populate_metadata.py`: ha scritto `has_features=False` per 192 soggetti WashU che le FC ce l'hanno, perché `UNIPD/WashU/features/` era potata al campione di 10 e una scansione del disco non vede dentro un `.tar.gz`.

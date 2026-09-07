@@ -694,7 +694,7 @@ def build_embedding_figure(
                 )
             # AUDIT_FINDINGS.md #65: this trace used to be added unconditionally - when
             # every value for this color mode is NaN (e.g. "nihss" on a dataset without
-            # enrich_lesion_metadata.py run yet), it got x=[]/y=[] (nothing to plot) but
+            # not enriched in the registry yet), it got x=[]/y=[] (nothing to plot) but
             # still showed up as a legend entry with mode.label and no visible marker,
             # confusing next to the real "missing" trace that already explains the gap.
             if (~is_missing).any():

@@ -94,3 +94,106 @@ def test_cluster_label_mode_uses_linear_scale_not_applicable_but_default_false()
     # kind="categorical", so log_scale is irrelevant to rendering (see build_embedding_figure)
     # - still asserted for consistency with every other mode's default.
     assert resolve_color_mode("cluster_label").log_scale is False
+
+
+# --- resolution from the subject registry (06-09-26) -------------------------------------
+#
+# side/nihss stopped being copied into each run's own metadata.csv when the per-run
+# enrichment step was retired; they now resolve from assets/metadata/participants.csv,
+# so a run whose metadata carries only subject_id/dataset can still be coloured by them.
+
+_REGISTRY_COLUMNS = ["subject_id", "original_id", "dataset", "disease_id",
+                     "has_lesion", "has_sdc", "has_features"]
+
+
+def _write_registry(metadata_root, rows, extra_columns):
+    metadata_root.mkdir(parents=True, exist_ok=True)
+    header = [*_REGISTRY_COLUMNS, *extra_columns]
+    lines = [",".join(header)] + [",".join(r) for r in rows]
+    (metadata_root / "participants.csv").write_text("\n".join(lines) + "\n")
+
+
+@pytest.fixture
+def _registry_root(tmp_path, monkeypatch):
+    from src.utils import participants as participants_registry
+
+    root = tmp_path / "metadata"
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", root)
+    return root
+
+
+def test_side_resolves_from_registry_when_run_metadata_lacks_it(_registry_root):
+    _write_registry(
+        _registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "left"],
+         ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", "right"]],
+        ["lesion_side"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0002", "sub-STUNIPD0001"]})
+    assert list(color_values(metadata, "side")) == ["right", "left"]
+
+
+def test_side_unresolved_becomes_unknown_not_nan(_registry_root):
+    """A categorical mode's values are sorted as plain strings downstream - a NaN would
+    raise TypeError, so an empty registry cell must become the explicit bucket."""
+    _write_registry(
+        _registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", ""]],
+        ["lesion_side"],
+    )
+    values = color_values(pd.DataFrame({"subject_id": ["sub-STUNIPD0001"]}), "side")
+    assert list(values) == ["unknown"]
+    assert sorted(set(values))  # sortable as strings, which is the actual contract
+
+
+def test_nihss_resolves_from_registry_as_numeric(_registry_root):
+    _write_registry(
+        _registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "7"],
+         ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", ""]],
+        ["NIHSS"],
+    )
+    values = color_values(pd.DataFrame({"subject_id": ["sub-STUNIPD0001", "sub-STUNIPD0002"]}), "nihss")
+    assert values[0] == 7.0
+    assert pd.isna(values[1])
+
+
+def test_run_metadata_column_wins_over_the_registry(_registry_root):
+    """A run that already carries the column (every run enriched before the rewiring)
+    keeps using its own value - the registry is only consulted when it doesn't."""
+    _write_registry(
+        _registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "right"]],
+        ["lesion_side"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001"], "lesion_side": ["left"]})
+    assert list(color_values(metadata, "side")) == ["left"]
+
+
+def test_registry_without_the_variable_raises(_registry_root):
+    """The registry exists but was never enriched with that variable - the caller is told
+    which pipeline populates it, instead of getting a blank plot."""
+    _write_registry(
+        _registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False"]],
+        [],
+    )
+    with pytest.raises(ValueError, match="enrich_metadata"):
+        color_values(pd.DataFrame({"subject_id": ["sub-STUNIPD0001"]}), "side")
+
+
+def test_subject_absent_from_registry_raises(_registry_root):
+    _write_registry(
+        _registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "left"]],
+        ["lesion_side"],
+    )
+    with pytest.raises(ValueError, match="no row in the subject registry"):
+        color_values(pd.DataFrame({"subject_id": ["sub-STUNIPD0009"]}), "side")
+
+
+def test_non_registry_mode_still_raises_on_missing_column(_registry_root):
+    """volume/dataset/cluster_label are run-level facts with no registry counterpart -
+    they must keep failing loudly rather than silently reaching for the registry."""
+    with pytest.raises(ValueError, match="metadata has no 'lesion_volume_voxels' column"):
+        color_values(pd.DataFrame({"subject_id": ["sub-STUNIPD0001"]}), "volume")

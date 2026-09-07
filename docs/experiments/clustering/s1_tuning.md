@@ -222,13 +222,13 @@ Griglia `n_clusters`∈{2..6} × `linkage`∈{average, complete} × `metric`∈{
 Misurato sulla matrice raw (occupazione media 0.8% dei voxel, volume lesionale mediano 460 su 264274):
 
 - **`euclidean` misura il volume, non la topografia.** `corr(distanza euclidea, somma dei volumi lesionali) = 0.942` — con overlap quasi nullo, √(|A|+|B|−2|A∩B|) ≈ √(|A|+|B|). I 5 cluster di `complete, k=5` sono infatti ordinati monotonicamente per volume mediano (351 → 5852 → 15136 → 20233 → 40274 voxel): è uno stratificatore di volume, non un clustering topografico.
-- **`dice` misura la cosa giusta ma non ha segnale globale.** L'**86.1% delle coppie ha distanza esattamente 1.0** (zero voxel in comune), mediana = 1.0. La matrice di distanza è un plateau: a(i) ≈ b(i) ≈ 1 per quasi tutti i punti → silhouette ≈ 0 e costante rispetto a k. Coerentemente i cluster `dice` *non* sono ordinati per volume: dice fa il suo lavoro, semplicemente non c'è gradiente globale da clusterizzare.
+- **`dice` misura la cosa giusta ma non ha segnale globale.** Una *coppia* sono due soggetti qualsiasi: con 5269 soggetti le coppie possibili sono ~13.9M, e la matrice di distanza ne contiene una per ciascuna (0 = stessa lesione, 1 = nessun voxel in comune). L'**86.1% delle coppie sta esattamente a 1.0**: presi due pazienti a caso, 86 volte su 100 le loro lesioni non si toccano affatto. La matrice è quindi un plateau — per quasi ogni soggetto tutti gli altri sono "alla stessa massima distanza", quindi a(i) ≈ b(i) ≈ 1 → silhouette ≈ 0 e costante rispetto a k. Coerentemente i cluster `dice` *non* sono ordinati per volume: dice fa il suo lavoro, semplicemente non c'è gradiente globale da clusterizzare.
 
 ##### Conseguenza: perché la dim reduction non è una comodità computazionale
 
 Il segnale di overlap esiste, ma solo **localmente**: il soggetto mediano ha ~778 partner con overlap non nullo su 5268, e solo lo 0.1% non ne ha nessuno.
 
-Agglomerative consuma la matrice di distanza **completa** — tutte le ~13.9M di coppie, di cui l'86% sono pareggi a distanza massima che dominano per numerosità pura. UMAP guarda solo i k vicini di ogni punto: il grafo k-NN seleziona per costruzione la frazione informativa e il plateau non entra mai nel calcolo.
+Agglomerative consuma la matrice di distanza **completa**, tutte le ~13.9M di coppie: l'86% che sta a 1.0 domina per pura numerosità e schiaccia il segnale del restante 14%. UMAP guarda solo i k vicini di ogni punto: il grafo k-NN seleziona per costruzione la frazione informativa e il plateau non entra mai nel calcolo.
 
 Confronto diretto, stesso metodo/coorte/k=6, cambia solo l'input:
 

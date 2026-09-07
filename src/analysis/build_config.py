@@ -281,8 +281,8 @@ def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
     call time - config-load time just fails faster).
 
     No lesion_glob field - unlike build_lesion_matrix.json, lesion mask
-    presence is resolved from assets/metadata/*_participants_lesions.tsv
-    (src.features.clinical), not from a glob against data_root - see
+    presence is resolved from assets/metadata/participants.csv (has_lesion)
+    (src.utils.participants), not from a glob against data_root - see
     docs/dev/sdc_matrix.md.
     """
     path = Path(path)
@@ -343,95 +343,5 @@ def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
         output_root=Path(_require_str(raw, "output_root")),
         session_name=_require_str(raw, "session_name"),
         overwrite=_require_bool(raw, "overwrite"),
-        run_notes=_optional_str(raw, "run_notes"),
-    )
-
-
-@dataclass(frozen=True)
-class EnrichLesionMetadataConfig:
-    project: str
-    metadata_path: Path
-    compute_volume: bool
-    variables: list[str]
-    copy_output_path: Path | None
-    session_name: str
-    overwrite: bool
-    write_in_place: bool
-    run_notes: str | None
-
-
-def load_enrich_lesion_metadata_config(path: str | Path) -> EnrichLesionMetadataConfig:
-    """Load and validate an enrich_lesion_metadata.json file.
-
-    metadata_path's own directory is read-only for every OTHER pipeline in this repo (a
-    build_*_matrix.py output is never mutated after being written) - this is the one
-    designated exception, gated by write_in_place, see below.
-
-    write_in_place=false: the enriched result lands at copy_output_path exactly as given - a
-    full, explicit destination directory the caller decides by hand, not an auto-derived
-    output_root/<dd-mm>_<session_name> (dropped 2026-09-02: an auto-named standalone copy
-    nobody remembers requesting is exactly how data/derived/clinical_metadata/ accumulated
-    orphaned runs with no consumer - see docs/debugging - forcing an explicit path makes that
-    impossible by construction). copy_output_path is required exactly when write_in_place is
-    false, and forbidden (must be omitted/null) when it's true - same required-exactly-when
-    pattern as ClusteringConfig.reduction_params_file/reduced_data. metadata.csv-only, no
-    matrix.npy, so this output cannot itself be read back as a dim_reduction.py/clustering.py
-    input_path (see src.utils.artifacts.load_matrix) - it's for
-    src.pipeline.replot_dim_reduction.py-style consumers that only ever need metadata.csv, not
-    the feature matrix.
-
-    write_in_place=true: metadata_path must sit inside an existing, complete matrix artifact
-    (a manifest.json and a matrix.npy next to it, e.g. a build_sdc_matrix.py/
-    build_lesion_matrix.py output) - the enriched columns are written back into that SAME
-    directory's own metadata.csv/manifest.json, in place, so it becomes directly usable as a
-    dim_reduction.py input_path afterwards (2026-08-28, on request: this is the one pipeline
-    granted the authority to write into data/derived/ output directories after they've
-    already been written - every other pipeline still only ever writes brand-new,
-    never-touched-again output). See src.pipeline.enrich_lesion_metadata._write_in_place.
-
-    No output_root field (2026-09-02, dropped along with data/derived/clinical_metadata/,
-    which existed only as this field's value): this run's own entry in runs.csv always lands
-    at src.pipeline.enrich_lesion_metadata.RUNS_LOG_ROOT, a fixed location - same
-    non-configurable-constant pattern that module's REPORTS_ROOT/LOGS_ROOT already use - since
-    an output_root config field has nothing left to do once both write_in_place branches fully
-    determine the enriched artifact's own location themselves (metadata_path's own directory
-    when true, copy_output_path when false); the only thing output_root ever still located was
-    the run log, not a real per-run choice worth exposing in config.
-
-    compute_volume=true has no config fields of its own: it sums the matrix.npy that
-    src.utils.artifacts.save_matrix always writes next to metadata_path's own metadata.csv
-    (see src.pipeline.enrich_lesion_metadata) - deliberately only for a strictly binary,
-    voxel-wise matrix. A parcellated matrix (continuous fraction_lesioned values) has already
-    lost the voxel-level information a real voxel count needs, and there is no config-driven
-    fallback here to recompute one from raw lesion masks (2026-08-17, on request: dropped
-    after review - the only real consumer of this tool, a voxel-wise run, never needed it,
-    and re-deriving from raw masks tied this tool's correctness to lesion-discovery
-    parameters that can drift from the current retrieval layout over time).
-    """
-    path = Path(path)
-    if not path.is_file():
-        raise FileNotFoundError(f"config file not found: {path}")
-
-    with path.open() as f:
-        raw = json.load(f)
-    if not isinstance(raw, dict):
-        raise ValueError(f"config: top-level content must be a JSON object, got {raw!r}")
-
-    write_in_place = _require_bool(raw, "write_in_place")
-    copy_output_path_str = _optional_str(raw, "copy_output_path")
-    if not write_in_place and copy_output_path_str is None:
-        raise ValueError("config: field 'copy_output_path' is required when write_in_place=false")
-    if write_in_place and copy_output_path_str is not None:
-        raise ValueError("config: field 'copy_output_path' must be omitted/null when write_in_place=true")
-
-    return EnrichLesionMetadataConfig(
-        project=_require_str(raw, "project"),
-        metadata_path=Path(_require_str(raw, "metadata_path")),
-        compute_volume=_require_bool(raw, "compute_volume"),
-        variables=_require_unique_str_list(raw, "variables"),
-        copy_output_path=Path(copy_output_path_str) if copy_output_path_str is not None else None,
-        session_name=_require_str(raw, "session_name"),
-        overwrite=_require_bool(raw, "overwrite"),
-        write_in_place=write_in_place,
         run_notes=_optional_str(raw, "run_notes"),
     )

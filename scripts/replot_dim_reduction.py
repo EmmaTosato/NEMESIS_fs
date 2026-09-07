@@ -28,7 +28,7 @@ sees one for that case.
   embedding_coloring.color_values - never recomputed from the original feature
   matrix nor rejoined from assets/metadata/participants.tsv. A mode whose column
   this run's metadata.csv doesn't have (e.g. lesion_side/nihss before
-  src.pipeline.enrich_lesion_metadata.py was ever run against this lesion_matrix)
+  src.pipeline.enrich_metadata.py has populated the subject registry)
   is skipped with a WARNING, not silently omitted.
 - clustering run (metadata has cluster_label): cluster_plot.png (cluster-colored
   only - no dataset coloring here, see plotting.py's plot_clusters_2d). No
@@ -140,7 +140,7 @@ def _replot_embedding(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> l
         if mode.column not in metadata.columns:
             logging.warning(
                 "run %s: metadata.csv has no %r column for color_by mode %r - skipping this plot "
-                "(rerun src.pipeline.dim_reduction, or src.pipeline.enrich_lesion_metadata for "
+                "(rerun src.pipeline.dim_reduction, or src.pipeline.enrich_metadata for "
                 "side/nihss, to add it)",
                 run_dir, mode.column, name,
             )

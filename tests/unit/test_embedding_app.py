@@ -334,7 +334,7 @@ def test_build_embedding_figure_continuous_with_missing_adds_missing_trace():
 def test_build_embedding_figure_all_missing_skips_empty_colored_trace():
     """AUDIT_FINDINGS.md #65 regression: the colored trace used to be added
     unconditionally - with every value NaN (e.g. "nihss" on a dataset never enriched via
-    enrich_lesion_metadata.py), it got x=[]/y=[] but still showed up as a ghost legend
+    with no NIHSS recorded at all), it got x=[]/y=[] but still showed up as a ghost legend
     entry (mode.label) with no visible marker, alongside the real "missing" trace."""
     embedding, metadata = _embedding_and_metadata()
     metadata["nihss"] = np.nan
@@ -384,12 +384,32 @@ def test_build_embedding_figure_unknown_mode_raises():
         build_embedding_figure(embedding, metadata, "bogus", "x", "y", "title")
 
 
-def test_build_embedding_figure_missing_persisted_column_raises():
+def test_build_embedding_figure_missing_persisted_column_raises(tmp_path, monkeypatch):
+    """A colour mode whose values can't be resolved anywhere must raise, never plot blanks.
+
+    Since 06-09-26 'nihss' falls back to the subject registry when the run's own metadata
+    doesn't carry it, so the unresolvable case is now "not in the run AND not in the
+    registry either". METADATA_ROOT is redirected at an empty dir so this stays a unit
+    test - it must never depend on the real assets/metadata/participants.csv.
+    """
+    from src.utils import participants as participants_registry
+
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", tmp_path / "empty")
     embedding, metadata = _embedding_and_metadata()
     metadata = metadata.drop(columns=["nihss"])
 
-    with pytest.raises(ValueError, match="no 'nihss' column"):
+    with pytest.raises(FileNotFoundError, match="subject registry not found"):
         build_embedding_figure(embedding, metadata, "nihss", "x", "y", "title")
+
+
+def test_build_embedding_figure_missing_run_only_column_raises():
+    """'volume' has no registry counterpart (it's a property of the run's own matrix),
+    so it must keep failing on the run's metadata alone."""
+    embedding, metadata = _embedding_and_metadata()
+    metadata = metadata.drop(columns=["lesion_volume_voxels"])
+
+    with pytest.raises(ValueError, match="no 'lesion_volume_voxels' column"):
+        build_embedding_figure(embedding, metadata, "volume", "x", "y", "title")
 
 
 def test_color_mode_order_starts_with_neutro():

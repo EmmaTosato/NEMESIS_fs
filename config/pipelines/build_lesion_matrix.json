@@ -19,5 +19,5 @@
   "output_root": "data/derived/lesion_matrix",
   "session_name": "s1.3-vol",
   "overwrite": false,
-  "run_notes": "Adds UKE/WAKEUP_acute (451 subjects) to s1.2-vol's 5 datasets -> 5720. "
+  "run_notes": "Adds UKE/WAKEUP_acute (451 subjects) to s1.2-vol's 5 datasets -> 5720."
 }

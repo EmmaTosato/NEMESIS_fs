@@ -17,12 +17,11 @@ _SHAPE = (10, 10, 10)
 
 def _add_clinical_columns(input_dir, subject_ids):
     """Directly patches an existing build_lesion_matrix.py output's metadata.csv with
-    lesion_side/nihss columns - simulating what src.pipeline.enrich_lesion_metadata.py would
-    produce against it (that tool's own join/coverage-report contract is tested separately,
-    tests/integration/test_enrich_lesion_metadata_pipeline.py). dim_reduction.py no longer
-    enriches metadata itself (2026-08-17 - see src/analysis/embedding_coloring.py's own
+    lesion_side/nihss columns - simulating a run enriched before those columns moved out
+    of per-run metadata and into the subject registry (06-09-26). dim_reduction.py does
+    not enrich metadata itself (2026-08-17 - see src/analysis/embedding_coloring.py's own
     module docstring for why) - these tests only need to verify it reads/passes through
-    whatever metadata.csv already has, not re-exercise the enrichment tool.
+    whatever metadata.csv already has, not re-exercise where those values come from.
     """
     metadata_path = input_dir / "metadata.csv"
     metadata = pd.read_csv(metadata_path)

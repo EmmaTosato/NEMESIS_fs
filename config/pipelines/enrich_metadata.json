@@ -1,0 +1,12 @@
+{
+  "project": "clinical_connectome",
+  "metadata_sources": "config/registry/metadata_sources.json",
+  "participants_path": "assets/metadata/participants.csv",
+
+  "datasets": null,
+  "variables": ["age", "sex", "education", "lesion_side", "NIHSS", "clinical_date"],
+  "lesion_volume_from": "data/derived/lesion_matrix/06-09_s1.3-vol",
+
+  "fill": false,
+  "run_notes": "Prima run di enrich_metadata: sostituisce enrich_lesion_metadata, scrive le colonne cliniche direttamente in participants.csv."
+}

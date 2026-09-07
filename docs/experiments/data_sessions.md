@@ -27,6 +27,13 @@ Tag chiuso, condiviso tra track (mai un `_` al suo interno - vedi `src/utils/run
 - Modality: Lesion in 2D matrix volumetric
 - Notes: one dataset more (UCL-UK StrokeData)
 
+### Session 1.3-vol
+
+- Starting date: 06-09
+- Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR, UCL-UK StrokeData, UKE/WAKEUP_acute
+- Modality: Lesion in 2D matrix volumetric
+- Notes: one dataset more (UKE/WAKEUP_acute, 451 soggetti) -> 5720 soggetti totali
+
 ---
 
 # Session 2

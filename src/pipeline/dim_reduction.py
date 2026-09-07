@@ -11,11 +11,12 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
   embedding. metadata is passed through unchanged from input_path (2026-08-17:
   this pipeline no longer enriches it itself) - lesion_volume_voxels is
   always already there, written once by build_lesion_matrix.py
-  (src/features/lesion.py); lesion_side/nihss/other clinical fields are
-  there only if src.pipeline.enrich_lesion_metadata.py was run against
-  input_path first (a color_by entry for a mode whose column isn't present
-  raises a clear error at plot time - src/analysis/embedding_coloring.py's
-  color_values - rather than silently recomputing something possibly wrong).
+  (src/features/lesion.py); lesion_side/nihss are NOT in metadata at all -
+  they are subject-level clinical facts resolved at plot time from the
+  subject registry, assets/metadata/participants.csv
+  (src/analysis/embedding_coloring.py's color_values). A color_by entry the
+  registry can't resolve raises a clear error there rather than silently
+  recomputing something possibly wrong.
   scripts/replot_dim_reduction.py regenerates every plot from metadata.csv
   alone, without reloading the original feature matrix, same as this
   pipeline's own plotting.

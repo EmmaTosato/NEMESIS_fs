@@ -5,18 +5,18 @@
     "UNIPD/WashU",
     "UNIPD/PASPORT",
     "UNIPD/PSP",
-    "UKLFR/stroke_UKLFR"
+    "UKLFR/stroke_UKLFR",
+    "UKE/WAKEUP_acute"
   ],
   "group_filter": [
     "ST"
   ],
   "object": "disconnectome",
-  "representation": "parcellated",
-  "atlas": "schaefer_200_tian_s2",
-  "value_column": "mean_overlap",
-  "reference_labels_path": "assets/atlases/sdc_labels/schaefer_200_tian_s2.csv",
+  "representation": "voxelwise",
+  "reference_template_path": "data/clinical_connectome/derivatives/UNIPD/WashU/manual_masks/sub-STUNIPD0001/anat/sub-STUNIPD0001_space-MNI152NLin6Asym_label-lesion_mask.nii.gz",
+  "resample_interpolation": "nearest",
   "output_root": "data/derived/sdc_matrix",
-  "session_name": "s2.1-schaefer-200-tian-s2",
+  "session_name": "s2.2-vol",
   "overwrite": false,
-  "run_notes": "prima run di produzione, atlante schaefer_200_tian_s2, nessun drop di colonne costanti"
+  "run_notes": "Prima run SDC voxelwise: disconnectome-map .nii.gz non parcellati, valori continui 0-1. Aggiunge UKE/WAKEUP_acute ai 4 dataset di s2.1 -> 1570 soggetti ammessi attesi. Griglia 2mm del template lesionale, allineata a lesion_matrix s1.3-vol."
 }

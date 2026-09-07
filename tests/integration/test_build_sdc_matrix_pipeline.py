@@ -12,26 +12,30 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 
-from src.features import clinical
+from src.utils import participants as participants_registry
 from src.pipeline import build_sdc_matrix
 
 _ATLAS = "test_atlas"
 _OBJECT = "disconnectome"
 _VALUE_COLUMN = "mean_overlap"
-_LESION_MASK_COLUMN = "lesion/manual_masks/anat/lesion_mask"
 
 _VOXELWISE_AFFINE = np.eye(4) * 2
 _VOXELWISE_AFFINE[3, 3] = 1
 _VOXELWISE_SHAPE = (4, 4, 4)
 
 
+_REGISTRY_HEADER = "subject_id,original_id,dataset,disease_id,has_lesion,has_sdc,has_features"
+
+
 def _register_lesion_mask(metadata_root, dataset, subject_id):
+    """Appends one has_lesion=True row to participants.csv (the registry
+    build_sdc_matrix resolves lesion mask presence from)."""
     metadata_root.mkdir(parents=True, exist_ok=True)
-    path = metadata_root / f"{dataset.replace('/', '_')}_participants_lesions.tsv"
+    path = metadata_root / "participants.csv"
     if not path.is_file():
-        path.write_text(f"participant_id\t{_LESION_MASK_COLUMN}\n")
+        path.write_text(_REGISTRY_HEADER + "\n")
     with path.open("a") as f:
-        f.write(f"{subject_id}\tpresent\n")
+        f.write(f"{subject_id},{subject_id},{dataset},ST,True,True,False\n")
 
 
 def _make_sdc_csv(data_root, dataset, subject_id, rows):
@@ -110,7 +114,7 @@ def test_build_sdc_matrix_end_to_end(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
     metadata_root = tmp_path / "metadata"
-    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
 
     data_root = tmp_path / "data"
     output_root = tmp_path / "out"
@@ -150,7 +154,7 @@ def test_build_sdc_matrix_excluded_subjects_recorded_in_config_md(tmp_path, monk
     monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
     metadata_root = tmp_path / "metadata"
-    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
 
     data_root = tmp_path / "data"
     output_root = tmp_path / "out"
@@ -180,7 +184,7 @@ def test_build_sdc_matrix_config_md_has_params_used_line(tmp_path, monkeypatch):
     monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
     metadata_root = tmp_path / "metadata"
-    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
 
     data_root = tmp_path / "data"
     output_root = tmp_path / "out"
@@ -199,7 +203,7 @@ def test_invalid_config_returns_1_not_raw_traceback(tmp_path, monkeypatch, caplo
     monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
     metadata_root = tmp_path / "metadata"
-    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
 
     data_root = tmp_path / "data"
     output_root = tmp_path / "out"
@@ -216,7 +220,7 @@ def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, 
     monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
     metadata_root = tmp_path / "metadata"
-    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
 
     data_root = tmp_path / "data"
     output_root = tmp_path / "out"
@@ -239,7 +243,7 @@ def test_build_sdc_matrix_voxelwise_end_to_end(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
     metadata_root = tmp_path / "metadata"
-    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
 
     data_root = tmp_path / "data"
     output_root = tmp_path / "out"
@@ -280,7 +284,7 @@ def test_build_sdc_matrix_voxelwise_object_lesion_rejected_at_config_load(tmp_pa
     monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
     metadata_root = tmp_path / "metadata"
-    monkeypatch.setattr(clinical, "METADATA_ROOT", metadata_root)
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
 
     data_root = tmp_path / "data"
     output_root = tmp_path / "out"

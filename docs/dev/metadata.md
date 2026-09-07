@@ -1,10 +1,10 @@
 # Metadati clinici — riferimento tecnico
 
-Audience: chi lavora su `scripts/populate_metadata.py`, `src/pipeline/enrich_lesion_metadata.py`, `src/features/clinical.py`, o chi deve capire dove vive un dato valore clinico/anagrafico (age, sex, NIHSS, lesion_side...) e come ci è arrivato.
+Audience: chi lavora su `scripts/populate_metadata.py`, `src/pipeline/enrich_metadata.py`, `src/utils/participants.py`, o chi deve capire dove vive un dato valore clinico/anagrafico (age, sex, NIHSS, lesion_side...) e come ci è arrivato.
 
-**Il modulo è in ridisegno.** Qui sotto: prima il disegno di arrivo, poi cosa esiste davvero adesso, poi cosa resta da smantellare — i tre non coincidono ancora. Per quali campi esistono in quale dataset, vedi `docs/guides/datasets.md`.
+Il ridisegno è **in vigore**: la fonte di verità unica esiste e i consumatori la leggono. Resta una sola cosa non implementata, il `lesion_side` calcolato geometricamente (vedi in fondo). Per quali campi esistono in quale dataset, vedi `docs/guides/datasets.md`.
 
-## Disegno di arrivo
+## Come funziona
 
 Una sola fonte di verità: **`assets/metadata/participants.csv`**, una riga per soggetto, versionata in git. Due script la scrivono, ognuno risponde a una domanda diversa, e nient'altro nel repo ricalcola valori clinici per conto proprio.
 
@@ -15,13 +15,13 @@ data/clinical_connectome/derivatives/<dataset>/{manual_masks,sdc,features}/   (c
         ▼
 assets/metadata/participants.csv
         ▲
-        │  src/pipeline/enrich_metadata.py       — cosa sappiamo di lui  [DA SCRIVERE]
+        │  src/pipeline/enrich_metadata.py       — cosa sappiamo di lui
         │
 data/derived/lesion_matrix/<sessione>/matrix.npy                (volume lesionale)
 data/clinical_connectome/derivatives/<dataset>/manual_masks/    (lato lesione, calcolato)
 ```
 
-| | `populate_metadata.py` (fatto) | `enrich_metadata.py` (da scrivere) |
+| | `populate_metadata.py` | `enrich_metadata.py` |
 |---|---|---|
 | Domanda | chi esiste | cosa sappiamo di lui |
 | Scrive | `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` | `age`, `sex`, `lesion_side`, `lesion_side_source`, `NIHSS`, `education`, `clinical_date`, `lesion_volume_voxels` |
@@ -43,33 +43,49 @@ Registry condiviso: **`config/registry/metadata_sources.json`** — per ogni dat
 
 Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv` (`subject_id`, `source` ∈ {`kept_in_place`, `archive`}), scritto da `archive_local_raw_data.py`: il registro macchina-leggibile della popolazione reale, leggibile senza decomprimere gigabyte. `populate_metadata.py` deliberatamente **non** lo legge: la potatura è una misura temporanea di spazio locale, non una proprietà permanente del progetto, e cablarla nella pipeline significherebbe incastonare un workaround nel contratto.
 
-**Quindi: dopo aver lanciato `populate_metadata.py` (e più avanti `enrich_metadata.py`), controlla se qualche cartella è potata e correggi a mano i `has_*` interessati** — oppure decomprimi prima e lancia con `overwrite=true`. Le cartelle potate oggi sono `UNIPD/WashU/features/` e `data/derived/features/masked_fc/`. Il gruppo del soggetto non è memorizzato nel manifest perché derivabile: `group_of(subject_id)`.
+**Quindi: dopo aver lanciato `populate_metadata.py` o `enrich_metadata.py`, controlla se qualche cartella è potata e correggi a mano i `has_*` interessati** — oppure decomprimi prima e lancia con `overwrite=true`. Le cartelle potate oggi sono `UNIPD/WashU/features/` e `data/derived/features/masked_fc/`. Il gruppo del soggetto non è memorizzato nel manifest perché derivabile: `group_of(subject_id)`.
 
 ## Cosa esiste davvero adesso
 
-- **`assets/metadata/participants.csv`** — 5752 soggetti stroke, scritto da `populate_metadata.py`. Ci sono solo le colonne di populate; quelle di enrich non ancora.
-- **`assets/metadata/<DATASET>_participants_{lesions,features,join}.tsv`** — la generazione precedente di file curati, ora ferma: nessuno li rigenera più. Sono però ancora ciò che leggono `src/features/clinical.py` e `src/features/sdc.py`, motivo per cui non sono stati cancellati — vedi "Da smantellare".
-- **`data/derived/<pipeline>/<sessione>/metadata.csv`** e **`results/**/metadata.csv`** — portano ancora le colonne cliniche unite dal vecchio meccanismo.
+- **`assets/metadata/participants.csv`** — 5752 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels` (enrich).
+- **I tsv per-dataset `assets/metadata/<DATASET>_participants_*.tsv` non esistono più**: cancellati. Ogni consumatore è stato spostato sul file unico.
+- **`data/derived/<pipeline>/<sessione>/metadata.csv`** — contiene solo ciò che appartiene alla run (`subject_id`, `dataset`, `lesion_volume_voxels`); i valori clinici non ci vengono più copiati. Le run vecchie li hanno ancora, per storia: chi legge preferisce la colonna della run quando c'è, e altrimenti va al registro.
 
-### Due eccezioni che enrich dovrà codificare esplicitamente
+### Chi legge il registro
 
-- **Proxy NIHSS per PASPORT.** `NIHSS_at_presentation` viene usato come sostituto del `NIHSS` baseline, che PASPORT non ha. Questo contraddice `src/features/clinical.py::join_nihss`, che si rifiuta deliberatamente di farlo ("un'assunzione di equivalenza clinica che questa funzione non ha basi per fare"). È una **eccezione consapevole e rivedibile**, non una regola generale che i proxy vadano bene. UCL-UK resta comunque vuoto: non ha nessuna colonna NIHSS-correlata.
-- **`lesion_side` calcolato dove il clinico manca**, geometricamente dalla maschera (conteggio voxel ai due lati della midline MNI, x=0), con una soglia "bilaterale" calibrata sui 4 dataset che hanno l'etichetta clinica (i 30 `both` di UKE inclusi) prima di applicarla a PASPORT/UCL. `lesion_side_source` (`clinical`/`computed`) registra da dove viene ogni cella — serve perché il buco è per-soggetto, non solo per-dataset (~230 soggetti tra WashU e PSP).
-
-## Da smantellare
-
-Quando `enrich_metadata.py` esiste, tutto ciò che risolve valori clinici per conto proprio sparisce — il senso di una fonte unica è che nessun consumer ricalcoli niente:
-
-| Dove | Cosa |
+| Consumatore | Cosa ci prende |
 |---|---|
-| `src/features/clinical.py` | `join_lesion_side`, `join_nihss`, `join_participant_variables`, `check_participant_variable_coverage`, `VariableCoverageReport`, `participants_tsv_path`, `load_participants`, `extract_target` |
-| `src/features/sdc.py` | legge `has_lesion` da `participants.csv` invece che da `<DATASET>_participants_lesions.tsv` |
-| `src/analysis/build_config.py` | `EnrichLesionMetadataConfig` riscritta sul nuovo schema di config |
-| `src/analysis/embedding_coloring.py` | `color_values()` smette di leggere colonne cliniche dal `metadata.csv` di un run |
-| `src/pipeline/dim_reduction.py` | via la chiamata a `enrich_metadata_with_lesion_info` in produzione |
+| `src/features/sdc.py` | `has_lesion`, criterio di ammissione di `build_sdc_matrix.py` |
+| `src/analysis/embedding_coloring.py` | `lesion_side`/`NIHSS` per i color mode `side`/`nihss`, risolti al momento del plot |
+| `notebooks/post-results_analysis/clustering_evaluation.ipynb` | age/sex/NIHSS per le demografiche per cluster |
+
+Il join con i tsv grezzi avviene su **`original_id`**, non su `subject_id`: il `participant_id` grezzo è l'id canonico per quasi tutti i dataset ma è l'id legacy di sito per UCL-UK (`ST_UCL-UK_0001`). `participants.csv` fa da ponte perché li contiene entrambi — vedi `.claude/lessons_learned.md` #30.
+
+I valori mancanti sono una **cella vuota**, uniformemente. Il registro non è un input di plotting: chi ha bisogno di una sentinella categorica (`"unknown"` per una legenda) se la applica in lettura. L'unica colonna che porta informazione in più è `lesion_side_source`.
+
+### Sostituzioni di colonna registrate
+
+Quando una variabile non esiste con il suo nome canonico in un dataset, `enrich_metadata.py` la legge da un'altra colonna **solo** se la sostituzione è scritta a mano in `VARIABLE_SOURCE_OVERRIDES`; non viene mai dedotta da un nome simile. Ogni sostituzione applicata finisce nel log a `WARNING` e in una sezione dedicata del report di run, perché è un'assunzione di equivalenza clinica e non deve restare invisibile.
+
+Una sola oggi:
+
+| Dataset | Variabile | Letta da | Perché |
+|---|---|---|---|
+| `UNIPD/PASPORT` | `NIHSS` | `NIHSS_at_presentation` | PASPORT non ha un NIHSS baseline, solo at_presentation/24H/3m |
+
+UCL-UK resta comunque vuoto: non ha nessuna colonna NIHSS-correlata.
+
+## Cosa manca ancora
+
+**`lesion_side` calcolato geometricamente.** Oggi `lesion_side` è popolato solo dove il dato clinico esiste (`lesion_side_source = "clinical"`); PASPORT e UCL-UK non hanno affatto la colonna, e ~230 soggetti tra WashU e PSP hanno la cella vuota pur avendo il dataset la colonna. Il calcolo dalla maschera (conteggio voxel ai due lati della midline MNI, x=0) è meccanico, ma la soglia oltre cui una lesione è "bilaterale" va **calibrata** sui 4 dataset che hanno l'etichetta clinica (i 30 `both` di UKE inclusi) prima di poterla applicare agli altri. Finché quella calibrazione non è fatta, la variabile non viene scritta: inventare una soglia darebbe un valore dall'aria plausibile e senza basi. `lesion_side_source` esiste già per distinguere le due provenienze quando arriverà.
+
+## Smantellato (per riferimento)
+
+Il vecchio meccanismo — una join per-dataset ripetuta dentro il `metadata.csv` di ogni run — è stato rimosso il 06-09-26:
+
+| Cosa | Fine |
+|---|---|
+| `src/pipeline/enrich_lesion_metadata.py` + config + job | cancellati, sostituiti da `enrich_metadata.py` |
+| `src/features/clinical.py` (`join_lesion_side`, `join_nihss`, `join_participant_variables`, `check_participant_variable_coverage`, `participants_tsv_path`, `load_participants`, `extract_target`) | cancellato; la parte ancora viva (lettura del registro) è in `src/utils/participants.py` |
+| `EnrichLesionMetadataConfig` in `src/analysis/build_config.py` | cancellata |
 | `assets/metadata/*_participants_*.tsv` | cancellati |
-| `data/derived/**/metadata.csv`, `results/**/metadata.csv` | ridotti a `subject_id`, `dataset` (+ `cluster_label` dove il clustering ne ha scritto uno) — l'ordine delle righe accanto a `matrix.npy` è l'unica cosa che sono strutturalmente obbligati a portare (`src/utils/artifacts.py::save_matrix` lo verifica) |
-
-## Report e log
-
-`populate_metadata.py` scrive un report per run in `summaries/populate_metadata/` e il log corrispondente in `logs/populate_metadata/`: i conteggi per dataset più, soggetto per soggetto, tutto ciò che è stato escluso (solo nel tsv, solo su disco, filtrato per gruppo) e ogni disaccordo su `disease_id`. **Non c'è nessun `runs.csv`**: è una pipeline di metadati, non un run di analisi, e il suo output è versionato in git dove il diff è leggibile.

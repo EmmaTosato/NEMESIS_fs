@@ -42,7 +42,8 @@ def build_lesion_matrix(
     their naming-derived group isn't in group_filter (None means no
     restriction). metadata always gains one column beyond subject_id/dataset:
     lesion_volume_voxels - no other clinical/derived field is added here,
-    see src/pipeline/enrich_lesion_metadata.py for that.
+    see src/pipeline/enrich_metadata.py, which writes them into the subject
+    registry (assets/metadata/participants.csv), not into this matrix.
     """
     X_voxelwise, metadata, excluded_by_group = _voxelwise_matrix_with_volume(
         data_root, datasets, reference_template_path, lesion_glob, binarize_threshold,

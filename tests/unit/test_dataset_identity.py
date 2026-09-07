@@ -37,7 +37,7 @@ def test_has_object_true_when_root_exists(tmp_path):
 def test_has_object_false_when_root_missing(tmp_path):
     """Unlike _root_for/resolve() (which raise for a specifically-requested
     object), has_object() is for callers checking many objects at once (e.g.
-    matrix.select_all_subjects) where a dataset simply not having a
+    subject discovery) where a dataset simply not having a
     features/ tree yet is a legitimate outcome, not a failure."""
     ds = Dataset("UNIPD/WashU", _make_patterns(tmp_path))  # tmp_path/UNIPD/WashU never created
     assert ds.has_object("lesion") is False

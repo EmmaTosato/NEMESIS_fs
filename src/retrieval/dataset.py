@@ -92,7 +92,7 @@ class Dataset:
         specifically-requested object, a missing root is a real error
         (_root_for raises) - this method is for callers that iterate every
         object the registry knows about regardless of relevance (e.g.
-        matrix.select_all_subjects/build_matrix), where "this object simply
+        subject-discovery callers), where "this object simply
         doesn't apply to this dataset" is a legitimate outcome, not a
         failure."""
         try:

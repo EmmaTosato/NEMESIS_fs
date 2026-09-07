@@ -51,6 +51,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.retrieval.dataset import group_of
+from src.utils.metadata_sources import DatasetSource, load_metadata_sources
 from src.utils.logging_setup import attach_file_handler, log_duration
 
 # Structural, not configurable: the three data-type trees a dataset can hold under
@@ -70,12 +71,6 @@ _SUBJECT_DIR_RE = re.compile(r"^sub-[A-Za-z0-9]+$")
 # A raw, non-canonical participant_id like "ST_UCL-UK_0001" (UCL-UK's shape):
 # {disease}_{site, possibly hyphenated}_{numeric id}.
 _RAW_PARTICIPANT_ID_RE = re.compile(r"^(?P<disease>[A-Z]+)_(?P<site>[A-Za-z-]+)_(?P<num>\d+)$")
-
-
-@dataclass(frozen=True)
-class DatasetSource:
-    participants_tsv: Path
-    derivatives_dir: Path
 
 
 @dataclass(frozen=True)
@@ -102,22 +97,6 @@ class DatasetOutcome:
 
 
 # --- config ---------------------------------------------------------------------------------
-
-
-def load_metadata_sources(path: Path) -> dict[str, DatasetSource]:
-    """Parse the shared dataset->paths registry, validating its shape before use."""
-    raw = json.loads(Path(path).read_text())
-    if not isinstance(raw, dict) or not raw:
-        raise ValueError(f"{path}: expected a non-empty JSON object of dataset -> paths")
-    sources = {}
-    for dataset, entry in raw.items():
-        if not isinstance(entry, dict):
-            raise ValueError(f"{path}: {dataset!r} must map to an object, got {type(entry).__name__}")
-        for key in ("participants_tsv", "derivatives_dir"):
-            if not isinstance(entry.get(key), str):
-                raise ValueError(f"{path}: {dataset!r} is missing a string {key!r}")
-        sources[dataset] = DatasetSource(Path(entry["participants_tsv"]), Path(entry["derivatives_dir"]))
-    return sources
 
 
 def load_config(path: str) -> PopulateMetadataConfig:
