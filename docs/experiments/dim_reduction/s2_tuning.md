@@ -84,6 +84,7 @@ umap
 | Metodo | Run | Griglia | Link |
 | --- | --- | --- | --- |
 | UMAP | 60 | `metric`=euclidean × `n_components`∈{2,3} × `n_neighbors`∈{5,15,30,50,100} × `min_dist`∈{0.0,0.01,0.05,0.1,0.5,1.0} | [config.md](../../../results/sdc/dim_reduction/tuning/umap/07-09_s2.2-vol/config.md) · [tuning_results.csv](../../../results/sdc/dim_reduction/tuning/umap/07-09_s2.2-vol/tuning_results.csv) |
+| t-SNE | 7 | `metric`=euclidean × `perplexity`∈{5,15,30,50,75,100,200} × `n_components`=2 fisso | [config.md](../../../results/sdc/dim_reduction/tuning/tsne/07-09_s2.2-vol/config.md) · [tuning_results.csv](../../../results/sdc/dim_reduction/tuning/tsne/07-09_s2.2-vol/tuning_results.csv) |
 
 Trustworthiness alta e stabile su tutta la griglia, con lo stesso profilo di s2.1:
 
@@ -91,6 +92,7 @@ Trustworthiness alta e stabile su tutta la griglia, con lo stesso profilo di s2.
 | --- | --- | --- |
 | UMAP n_components=2 | 0.940–0.980 | 0.951–0.979 |
 | UMAP n_components=3 | 0.974–0.983 | 0.971–0.983 |
+| t-SNE | 0.979–0.985 | 0.974–0.985 |
 
 - **Stesso ottimo di s2.1**: `n_components=3, n_neighbors=15, min_dist∈[0.05,0.5]` (~0.983). Anche l'andamento per `n_neighbors` coincide — 15 è il massimo, poi si degrada monotonicamente fino a 100.
 - Ispezione visiva coerente con s2.1: `n_neighbors=5` frammenta, da 50 in su la struttura si impasta; `min_dist` ha effetto marginale fino a 0.1, da 0.5 collassa in un blob.
@@ -99,5 +101,10 @@ Trustworthiness alta e stabile su tutta la griglia, con lo stesso profilo di s2.
 - Durata: **2m54s** per 60 combinazioni, grazie alla matrice di distanze precalcolata una volta sola (`precompute_distance_metric: true`). Senza, il tuning su 290.940 feature non sarebbe praticabile in locale.
 
 ⚠️ **La trustworthiness di s2.2-vol e quella di s2.1 non sono confrontabili tra loro.** Ognuna misura quanto l'embedding preserva i vicinati *del proprio spazio di input*, e i due spazi di input sono diversi. Numeri uguali non significano "stessa informazione": significano che entrambe le riduzioni sono ugualmente fedeli a ciò da cui partono. Se il voxel-wise aggiunga qualcosa rispetto al parcellato è una domanda aperta, a cui rispondono il confronto strutturale degli embedding e il clustering a valle — non questa metrica.
+
+**t-SNE** (7 combinazioni, 41s):
+
+- Il massimo non è un picco ma un **plateau**: `perplexity`∈{15,30,50} stanno tutte a ~0.985, con uno scarto totale di **0.00024** tra le tre. L'argmax stretto è 50, ma la differenza è a livello di rumore e non giustifica da sola una scelta — la stessa situazione di s2.1, dove per la produzione era stato scelto 30 (valore standard di letteratura) invece dell'argmax 15.
+- Ispezione visiva: la separazione `lesion_side` è pulita da `perplexity=5` a `50`; a **75 si confonde** nonostante una trustworthiness ancora buona (0.9836), e a 100–200 la struttura collassa in un gradiente diagonale. Il plateau metrico e quello visivo coincidono quindi solo fino a 50 — un buon motivo per non leggere l'argmax da solo.
 
 ##### Decisioni
