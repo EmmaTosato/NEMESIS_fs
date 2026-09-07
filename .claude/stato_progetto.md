@@ -12,10 +12,12 @@ Sintesi corrente in `README.md` ("What's implemented so far") — non ripetuta q
 
 ## Lavoro attivo / thread aperti
 
-- **Renderer alternativo per i pannelli di anatomia (niivue)**: esplorazione su branch `viz-niivue` (4 commit, non mergeato — `main` resta su nilearn). Nessuna decisione presa su quale renderer tenere. Per riprendere: `git checkout viz-niivue`, `python -m src.pipeline.embedding_app`.
-- **Lesion clustering produzione s1.1-vol**: 6 opzioni di k lanciate e documentate (`docs/experiments/clustering/s1_production.md`). Nessuna scelta finale del k di produzione ancora fatta.
+- **Renderer anatomia**: `main` resta su nilearn. Il branch `viz-niivue` è stato eliminato il 07-09-26 (recuperabile da `facef6f` finché dura il reflog).
+- **Lesion clustering produzione s1.1-vol**: opzioni di k lanciate e documentate (`docs/experiments/clustering/s1_production.md`); la scelta del k è stata fatta, ma le sezioni `Decisioni` del doc sono ancora vuote — vedi `.claude/open_problems.md`.
 - **SDC clustering tuning s2.1-schaefer-200-tian-s2**: nc2 documentato (`docs/experiments/clustering/s2_tuning.md`) — forte lateralizzazione su `lesion_side` confermata. Prossimo step già scritto nel doc: estendere a `nc3`.
 - **Audit naming plot-level**: ancora aperto, non toccato di recente.
+
+L'elenco completo di problemi aperti e cose da fare sta in **`.claude/open_problems.md`**.
 
 ## Vincoli/regole in vigore oggi
 
