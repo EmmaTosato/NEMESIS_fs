@@ -13,7 +13,7 @@ flowchart LR
         R12["s1.2-vol<br/>lesion_matrix<br/>25-08<br/>5269 subj."]
         R12R["s1.2-vol<br/>lesion_matrix<br/>25-08<br/>5269 subj."]
         R21["s2.1-schaefer-200-tian-s2<br/>sdc_matrix<br/>27-08<br/>1119 subj."]
-        R21V["s2.1-vol<br/>sdc_matrix<br/>06-09<br/>n subj."]
+        R22["s2.2-vol<br/>sdc_matrix<br/>07-09<br/>1570 subj."]
     end
 
     subgraph COL1["Dim Reduction — Tuning"]
@@ -22,7 +22,7 @@ flowchart LR
         T12["26-08<hr/>UMAP dice/euclidean<br/>nc2/nc3<hr/>t-SNE dice/euclidean<br/>nc2"]
         T12R["no dim reduction"]
         T21["28-08<hr/>UMAP euclidean<br/>nc2/nc3<hr/>t-SNE euclidean<br/>nc2"]
-        T21V[" "]
+        T22["07-09<hr/>UMAP euclidean<br/>nc2/nc3<hr/>t-SNE euclidean<br/>nc2"]
     end
 
     subgraph COL2["Dim Reduction — Production"]
@@ -31,7 +31,7 @@ flowchart LR
         P12["28-08<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<hr/>t-SNE dice/euclidean<br/>nc2"]
         P12R["no dim reduction"]
         P21["31-08<hr/>UMAP euclidean<br/>nc2/nc3<hr/>t-SNE euclidean<br/>nc2"]
-        P21V[" "]
+        P22["07-09<hr/>UMAP euclidean<br/>nc2/nc3<hr/>t-SNE euclidean<br/>nc2"]
     end
 
     subgraph COL3["Clustering — Tuning"]
@@ -40,7 +40,7 @@ flowchart LR
         CT12["01-09<hr/>UMAP euclidean<br/>nc2"]
         CT12R["03-09<hr/>raw dice/euclidean<br/>264274 voxel<br/>agglomerative"]
         CT21["01-09<hr/>UMAP euclidean<br/>nc2/nc3"]
-        CT21V[" "]
+        CT22["10-09<hr/>UMAP euclidean<br/>nc2/nc3"]
     end
 
     subgraph COL4["Clustering — Production"]
@@ -49,14 +49,14 @@ flowchart LR
         CP12["03-09<hr/>UMAP euclidean nc2<br/>"]
         CP12R["run degenere"]:::pending
         CP21["non ancora lanciata"]:::pending
-        CP21V[" "]
+        CP22["10-09<hr/>UMAP euclidean nc2<br/>8 opzioni k"]
     end
 
     R11 --> T11 --> P11 --> CT11 --> CP11
     R12 --> T12 --> P12 --> CT12 --> CP12
     R12R --> T12R --> P12R --> CT12R -.-> CP12R
     R21 --> T21 --> P21 --> CT21 -.-> CP21
-    R21V --> T21V --> P21V --> CT21V --> CP21V
+    R22 --> T22 --> P22 --> CT22 --> CP22
 ```
 
 

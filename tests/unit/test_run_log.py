@@ -176,3 +176,30 @@ def test_unknown_run_type_raises_instead_of_silently_writing_to_tuning_file(tmp_
         )
     assert not (tmp_path / "runs.csv").exists()
     assert not (tmp_path / "runs_tuning.csv").exists()
+
+
+def test_append_to_file_missing_its_trailing_newline_does_not_glue_two_rows(tmp_path):
+    """Regression: append_run_log_entry opened the file in "a" mode and let
+    csv.writer emit its row terminator only *after* the row, so a file whose
+    last line had no trailing newline got the new row glued onto it - one
+    physical line holding both rows' fields, read back as a single over-wide
+    row with the second row's values in the restkey. Nothing raised: the
+    header check only inspects line 1.
+
+    Seen for real in results/sdc/dim_reduction/tuning/{umap,tsne}/runs_tuning.csv,
+    where the 07-09-26 s2.2-vol row landed inside the previous run's notes cell.
+    """
+    append_run_log_entry(
+        tmp_path, "s1_run1", datetime(2026, 7, 24, 10, 0), "tuning", {}, Path("out/a"), "first", Path("in")
+    )
+    runs_csv = tmp_path / "runs_tuning.csv"
+    runs_csv.write_bytes(runs_csv.read_bytes().rstrip(b"\r\n"))  # strip it, as a hand edit would
+
+    append_run_log_entry(
+        tmp_path, "s2_run1", datetime(2026, 7, 24, 11, 0), "tuning", {}, Path("out/b"), "second", Path("in")
+    )
+
+    rows = _read_rows(runs_csv)
+    assert [row["session"] for row in rows] == ["s1", "s2"]
+    assert [row["notes"] for row in rows] == ["first", "second"]
+    assert all(row.get(None) is None for row in rows)

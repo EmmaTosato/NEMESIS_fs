@@ -98,6 +98,22 @@ def append_run_log_entry(
                 "mismatch. Migrate the file to the new schema by hand before running this again."
             )
 
+    # csv.writer emits a row terminator *after* each row, never before, so appending
+    # to a file whose last line has no trailing newline glues the new row onto it -
+    # one physical line holding two rows' fields, which csv then reads back as a
+    # single over-wide row (the second row's values land in the restkey). Nothing
+    # raises: the header check above only inspects line 1. A file can lose its final
+    # newline outside this module (a hand edit, an editor that strips it, a run
+    # killed mid-write), so re-establish the invariant here rather than trusting
+    # every past writer to have upheld it.
+    if not write_header and runs_csv_path.stat().st_size:
+        with runs_csv_path.open("rb") as f:
+            f.seek(-1, 2)
+            needs_newline = f.read(1) != b"\n"
+        if needs_newline:
+            with runs_csv_path.open("a", newline="") as f:
+                f.write("\r\n")
+
     with runs_csv_path.open("a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         if write_header:
