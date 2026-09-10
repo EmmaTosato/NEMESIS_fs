@@ -20,7 +20,7 @@
   },
   "umap": {
     "tag_param": ["metric", "n_components"],
-    "tag_prefix": ["m_", "n"],
+    "tag_prefix": ["m_", "nc"],
     "params": {
       "n_neighbors": 5,
       "min_dist": 0.0,

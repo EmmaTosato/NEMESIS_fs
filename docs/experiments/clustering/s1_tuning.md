@@ -56,7 +56,7 @@ Agglomerative, gmm, kmeans, hdbscan, spectral
 | --- | --- |
 | k=2 | Artefatto `lesion_side`, su tutti e 6 gli embedding |
 | Interclass matrix (proxy `dataset`) | Piatta su `euclidean` — nessuna metrica separa i siti. Eccezione: PSP ~12% più compatto internamente |
-| Dendrogramma (`euclidean_n2`) | `single` scartato (chaining); `ward`/`average` concordano solo al primo taglio (k=2) |
+| Dendrogramma (`euclidean_nc2`) | `single` scartato (chaining); `ward`/`average` concordano solo al primo taglio (k=2) |
 | k migliore oltre k=2 (`ward`/`average`, `euclidean`) | **Non converge tra `n_components`** — vedi tabella sotto |
 | `dataset` nei k candidati | Non confondente, ben distribuito |
 | `average` vs `ward` a k=5 fisso (`n3`) | ARI 0.68 / NMI 0.81 — accordo parziale, entrambi stabili (SSI 1.00 / 0.96) |
@@ -134,11 +134,11 @@ agglomerative, gmm, kmeans, hdbscan, spectral
 
 | Metodo | Griglia | Miglior combo (silhouette) | Link |
 | --- | --- | --- | --- |
-| KMeans | `n_clusters`∈{2,3,4,5,6,8,10} | `k=5` (0.443) | [tuning/kmeans/](../../../results/lesion/clustering/tuning/kmeans/umap/01-09_s1.2-vol_m_euclidean_n2/) |
-| Agglomerative | `n_clusters`×`linkage`×`metric` (70/84 valutate, 14 saltate: `ward`+metrica non euclidea) | `k=2, average, cosine` (0.761) | [tuning/agglomerative/](../../../results/lesion/clustering/tuning/agglomerative/umap/01-09_s1.2-vol_m_euclidean_n2/) |
-| GMM | `n_components`×`covariance_type` | `n_components=5, full` (0.447) | [tuning/gmm/](../../../results/lesion/clustering/tuning/gmm/umap/01-09_s1.2-vol_m_euclidean_n2/) |
-| HDBSCAN | `min_cluster_size`×`min_samples` | `mcs=5, ms=10` (0.613, noise 0.32) | [tuning/hdbscan/](../../../results/lesion/clustering/tuning/hdbscan/umap/01-09_s1.2-vol_m_euclidean_n2/) |
-| Spectral | `n_clusters`×`affinity` (`n_neighbors`/`gamma`) | `rbf, k=5, gamma=1.0` (0.426) | [tuning/spectral/](../../../results/lesion/clustering/tuning/spectral/umap/01-09_s1.2-vol_m_euclidean_n2/) |
+| KMeans | `n_clusters`∈{2,3,4,5,6,8,10} | `k=5` (0.443) | [tuning/kmeans/](../../../results/lesion/clustering/tuning/kmeans/umap/01-09_s1.2-vol_m_euclidean_nc2/) |
+| Agglomerative | `n_clusters`×`linkage`×`metric` (70/84 valutate, 14 saltate: `ward`+metrica non euclidea) | `k=2, average, cosine` (0.761) | [tuning/agglomerative/](../../../results/lesion/clustering/tuning/agglomerative/umap/01-09_s1.2-vol_m_euclidean_nc2/) |
+| GMM | `n_components`×`covariance_type` | `n_components=5, full` (0.447) | [tuning/gmm/](../../../results/lesion/clustering/tuning/gmm/umap/01-09_s1.2-vol_m_euclidean_nc2/) |
+| HDBSCAN | `min_cluster_size`×`min_samples` | `mcs=5, ms=10` (0.613, noise 0.32) | [tuning/hdbscan/](../../../results/lesion/clustering/tuning/hdbscan/umap/01-09_s1.2-vol_m_euclidean_nc2/) |
+| Spectral | `n_clusters`×`affinity` (`n_neighbors`/`gamma`) | `rbf, k=5, gamma=1.0` (0.426) | [tuning/spectral/](../../../results/lesion/clustering/tuning/spectral/umap/01-09_s1.2-vol_m_euclidean_nc2/) |
 
 - `k=2` di agglomerative è quasi certamente lo stesso artefatto `lesion_side` visto in s1.1-vol (silhouette anomalo, come il k=2 già scartato lì).
 - Miglior silhouette assoluto di HDBSCAN arriva con `noise_fraction`=0.32 (quasi 1/3 scartato come rumore) — combinazioni a noise più basso (`mcs=30, ms=5`: noise 0.14) scendono a silhouette 0.34, stesso trade-off già visto in s1.1-vol.
