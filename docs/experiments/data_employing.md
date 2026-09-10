@@ -46,7 +46,7 @@ flowchart LR
     subgraph COL4["Clustering — Production"]
         direction TB
         CP11["01-09<hr/>UMAP euclidean nc2<br/>6 opzioni k"]
-        CP12["03-09<hr/>UMAP euclidean nc2<br/>"]
+        CP12["03-09<hr/>UMAP euclidean nc2<br/>6 opzioni k"]
         CP12R["run degenere"]:::pending
         CP21["non ancora lanciata"]:::pending
         CP22["10-09<hr/>UMAP euclidean nc2<br/>8 opzioni k"]
