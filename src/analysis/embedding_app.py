@@ -44,6 +44,7 @@ docstring.
 
 from __future__ import annotations
 
+import io
 import itertools
 import logging
 import re
@@ -151,12 +152,15 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 .anatomy-caption {{ font-size: 15px; color: #595959; text-align: center; margin: 0 0 16px; }}
 .anatomy-viewer-wrap {{ display: flex; justify-content: center; }}
 .anatomy-viewer-wrap iframe {{ border: none; }}
-/* Same pill shape as .color-buttons button - one save action per panel reads as the same
-   family of control, not a second, differently-styled button style. */
+/* Same pill shape as .color-buttons button - the save actions per panel read as the same
+   family of control, not a second, differently-styled button style. Two buttons per panel
+   now ("Salva HTML" + "Salva PNG", 11-09-26) - .save-btn-row lays them out side by side instead
+   of each carrying its own centering margin. */
+.save-btn-row {{ display: flex; justify-content: center; gap: 12px; margin-top: 16px; }}
 .save-btn {{
     display: block; font-family: inherit; font-size: 13px; padding: 7px 16px; cursor: pointer;
     border: 1px solid #ccc; border-radius: 999px; background: #fff; color: {_TEXT_COLOR};
-    transition: border-color 0.15s, background 0.15s; margin: 16px auto 0;
+    transition: border-color 0.15s, background 0.15s;
 }}
 .save-btn:hover {{ border-color: #4a90d9; }}
 """
@@ -829,6 +833,31 @@ def _style_nilearn_html(html_page: str) -> str:
     return html_page.replace("</head>", f"{style_block}\n</head>", 1)
 
 
+def _static_png_bytes(stat_map_img: str | nib.Nifti1Image, *, threshold: float, cmap: str, colorbar: bool) -> bytes:
+    """Non-interactive PNG counterpart to the "Salva HTML" download (11-09-26, on request) -
+    view_img's own HTML page has no static-image export, so this renders the same stat_map_img
+    a second time via nilearn.plotting.plot_stat_map instead, matching the interactive view's own
+    bg_img/threshold/cmap/colorbar choices (see _build_subject_lesion_view/
+    _build_cluster_overlap_view) rather than an independently-styled second rendering.
+    symmetric_cbar=False mirrors view_img's own symmetric_cmap=False: both maps this app ever
+    passes here are non-negative (a binary lesion mask, or a 0-100% overlap percentage), so
+    nilearn's "auto" guess is unnecessary to rely on. No bg_img passed - unlike view_img,
+    plot_stat_map's own `bg_img` default already *is* an MNI152 template object, not a string
+    shortcut (view_img's own "MNI152" string raises `ValueError: File not found` if passed here,
+    confirmed against the installed nilearn version rather than assumed). Matplotlib's Agg
+    backend is already active process-wide by the time this runs (src.analysis.plotting, imported
+    by this module, sets it at import time) - no figure ever reaches a GUI backend."""
+    display = nilearn_plotting.plot_stat_map(
+        stat_map_img, black_bg=False, threshold=threshold, cmap=cmap, colorbar=colorbar, title=None,
+        symmetric_cbar=False,
+    )
+    buffer = io.BytesIO()
+    display.savefig(buffer, dpi=150)
+    display.close()
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
 def _anatomy_viewer(view: StatMapView, heading: str, caption: str) -> html.Div:
     """Shared layout for both anatomy panels: a heading + a one-line color-legend caption, both
     ordinary HTML we render ourselves (never nilearn's own `title`/colorbar text - see
@@ -899,10 +928,13 @@ def lesion_viewer_content_for(
 
 def _build_cluster_overlap_view(
     run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig
-) -> tuple[StatMapView, int]:
-    """Returns (view, n_subjects) - n_subjects is needed by the caller to build its own heading
-    (title=None here, same reasoning as _build_subject_lesion_view). colorbar stays on (unlike
-    the subject viewer): the overlap percentage is a genuinely continuous, informative value.
+) -> tuple[StatMapView, int, nib.Nifti1Image]:
+    """Returns (view, n_subjects, percentage_img) - n_subjects is needed by the caller to build
+    its own heading (title=None here, same reasoning as _build_subject_lesion_view);
+    percentage_img (the same image the view itself renders) is returned alongside it (11-09-26)
+    so the "Salva PNG" download can reuse it rather than paying build_overlap_map's per-subject
+    load+resample cost a second time. colorbar stays on (unlike the subject viewer): the overlap
+    percentage is a genuinely continuous, informative value.
 
     Raises ValueError if cluster_label has no subjects in this run's metadata, or any of them
     can't be resolved to a lesion file (see resolve_lesion_paths/build_overlap_map). threshold
@@ -922,12 +954,14 @@ def _build_cluster_overlap_view(
         percentage_img, bg_img="MNI152", black_bg=False, threshold=1e-6, cmap="hot", symmetric_cmap=False, title=None,
         width_view=_ANATOMY_VIEWER_WIDTH,
     )
-    return view, len(lesion_paths)
+    return view, len(lesion_paths), percentage_img
 
 
 def overlap_map_content_for(
     run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig,
-    build_view: Callable[[ProductionRun, pd.DataFrame, int, LesionViewerConfig], tuple[StatMapView, int]] = _build_cluster_overlap_view,
+    build_view: Callable[
+        [ProductionRun, pd.DataFrame, int, LesionViewerConfig], tuple[StatMapView, int, nib.Nifti1Image]
+    ] = _build_cluster_overlap_view,
 ) -> html.Div | html.P:
     """Same never-raises contract as lesion_viewer_content_for - an empty/unresolvable cluster
     shows a status message in the panel, not a crashed callback.
@@ -939,7 +973,7 @@ def overlap_map_content_for(
     already-viewed cluster in the running app is instant, without this function itself needing
     to know anything about caching."""
     try:
-        view, n_subjects = build_view(run, metadata, cluster_label, lesion_cfg)
+        view, n_subjects, _percentage_img = build_view(run, metadata, cluster_label, lesion_cfg)
     except ValueError as exc:
         return html.P(str(exc), className="status-message")
     return _anatomy_viewer(
@@ -1004,11 +1038,11 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
     # already looking at it) is then instant instead of re-loading+resampling every subject's
     # real NIfTI mask from disk again. A failed build (ValueError - an unresolvable subject) is
     # never cached, so a transient/fixable problem can be retried on the next click.
-    cluster_view_cache: dict[tuple[str, int], tuple[StatMapView, int]] = {}
+    cluster_view_cache: dict[tuple[str, int], tuple[StatMapView, int, nib.Nifti1Image]] = {}
 
     def _cached_cluster_overlap_view(
         run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig
-    ) -> tuple[StatMapView, int]:
+    ) -> tuple[StatMapView, int, nib.Nifti1Image]:
         cache_key = (run.key, cluster_label)
         if cache_key not in cluster_view_cache:
             cluster_view_cache[cache_key] = _build_cluster_overlap_view(run, metadata, cluster_label, lesion_cfg)
@@ -1106,8 +1140,15 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
                 children=[
                     html.H2("Anatomia lesionale", className="section-heading"),
                     html.Div(id="lesion-viewer-content", children=_LESION_PLACEHOLDER),
-                    html.Button("Salva HTML", id="lesion-save-btn", n_clicks=0, className="save-btn"),
+                    html.Div(
+                        className="save-btn-row",
+                        children=[
+                            html.Button("Salva HTML", id="lesion-save-btn", n_clicks=0, className="save-btn"),
+                            html.Button("Salva PNG", id="lesion-png-btn", n_clicks=0, className="save-btn"),
+                        ],
+                    ),
                     dcc.Download(id="lesion-download"),
+                    dcc.Download(id="lesion-png-download"),
                 ],
             ),
             # Hidden by default (style toggled by _update_cluster_picker below) - only a
@@ -1131,8 +1172,15 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
                         ],
                     ),
                     html.Div(id="cluster-map-content"),
-                    html.Button("Salva HTML", id="cluster-save-btn", n_clicks=0, className="save-btn"),
+                    html.Div(
+                        className="save-btn-row",
+                        children=[
+                            html.Button("Salva HTML", id="cluster-save-btn", n_clicks=0, className="save-btn"),
+                            html.Button("Salva PNG", id="cluster-png-btn", n_clicks=0, className="save-btn"),
+                        ],
+                    ),
                     dcc.Download(id="cluster-download"),
+                    dcc.Download(id="cluster-png-download"),
                 ],
             ),
         ],
@@ -1297,6 +1345,34 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
         return dcc.send_string(_style_nilearn_html(view.html), filename=f"{subject_id}_lesion_3d.html")
 
     @app.callback(
+        Output("lesion-png-download", "data"),
+        Input("lesion-png-btn", "n_clicks"),
+        State("embedding-graph", "clickData"),
+        State("run-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_lesion_png(_n_clicks: int, click_data: dict | None, run_key: str | None):
+        if click_data is None or run_key is None:
+            raise PreventUpdate
+        subject_id = click_data["points"][0].get("text")
+        if subject_id is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        try:
+            # Resolves the subject's real lesion mask path directly - no need to build the
+            # interactive view_img (_build_subject_lesion_view) just to render a static PNG.
+            dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
+            lesion_paths = resolve_lesion_paths([subject_id], {subject_id: dataset}, lesion_cfg.data_root, lesion_cfg.lesion_glob)
+        except ValueError:
+            # Same never-raises-into-the-callback contract as _download_lesion_html: the visible
+            # panel already reports this, the save button simply has nothing to offer.
+            raise PreventUpdate
+        png_bytes = _static_png_bytes(
+            str(lesion_paths[subject_id]), threshold=lesion_cfg.binarize_threshold, cmap="autumn", colorbar=False,
+        )
+        return dcc.send_bytes(png_bytes, filename=f"{subject_id}_lesion.png")
+
+    @app.callback(
         Output("cluster-picker", "options"),
         Output("cluster-picker", "value"),
         Output("cluster-map-panel", "style"),
@@ -1338,9 +1414,32 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
         if run.pipeline != "clustering":
             raise PreventUpdate
         try:
-            view, _n_subjects = _cached_cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
+            view, _n_subjects, _percentage_img = _cached_cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
         except ValueError:
             raise PreventUpdate
         return dcc.send_string(_style_nilearn_html(view.html), filename=f"cluster_{cluster_label}_overlap_map.html")
+
+    @app.callback(
+        Output("cluster-png-download", "data"),
+        Input("cluster-png-btn", "n_clicks"),
+        State("run-picker", "value"),
+        State("cluster-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_cluster_png(_n_clicks: int, run_key: str | None, cluster_label: int | None):
+        if run_key is None or cluster_label is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if run.pipeline != "clustering":
+            raise PreventUpdate
+        try:
+            # Reuses the same process-lifetime cache the HTML download/panel display already
+            # populate - percentage_img is the exact image the interactive view itself renders,
+            # not a second build_overlap_map pass (see _build_cluster_overlap_view's docstring).
+            _view, _n_subjects, percentage_img = _cached_cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
+        except ValueError:
+            raise PreventUpdate
+        png_bytes = _static_png_bytes(percentage_img, threshold=1e-6, cmap="hot", colorbar=True)
+        return dcc.send_bytes(png_bytes, filename=f"cluster_{cluster_label}_overlap_map.png")
 
     return app

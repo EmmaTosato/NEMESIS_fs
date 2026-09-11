@@ -21,7 +21,9 @@ from src.analysis.embedding_app import (
     ProductionRun,
     UndisplayableRunError,
     _FONT_STACK,
+    _build_cluster_overlap_view,
     _n_components_option_label,
+    _static_png_bytes,
     build_app,
     build_embedding_figure,
     cluster_options,
@@ -798,6 +800,52 @@ def test_overlap_map_content_for_empty_cluster_returns_status_message(tmp_path):
 
     assert isinstance(content, html.P)
     assert "99" in content.children
+
+
+def test_static_png_bytes_from_lesion_mask_path_returns_valid_png(tmp_path):
+    # str path input, exactly what _download_lesion_png passes (lesion_paths[subject_id]) - not
+    # bg_img="MNI152" (view_img's own shortcut, see _static_png_bytes's docstring): passing that
+    # string to plot_stat_map raises ValueError: File not found: 'MNI152', caught only by this
+    # end-to-end call, not by a mocked plot_stat_map.
+    data_root = tmp_path / "data"
+    _make_lesion_subject(data_root, "UNIPD/WashU", "sub-STUNIPD0001", [(1, 1, 1)])
+    lesion_path = data_root / "UNIPD/WashU" / "manual_masks" / "sub-STUNIPD0001" / "anat" / "sub-STUNIPD0001_label-lesion_mask.nii.gz"
+
+    png_bytes = _static_png_bytes(str(lesion_path), threshold=0.5, cmap="autumn", colorbar=False)
+
+    assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_build_cluster_overlap_view_returns_percentage_img_for_static_png(tmp_path):
+    # Regression for the new 3rd return value (11-09-26): percentage_img must be the exact image
+    # the interactive view itself renders, not a separately-built one, and must itself be a valid
+    # input to _static_png_bytes (would have failed loudly before the bg_img="MNI152" fix above).
+    # 4 subjects (the fixture's own default row count) - cluster 0 has 2 of them, only one
+    # lesioned at (1, 1, 1), same shape as test_overlap_map_content_for_valid_cluster_returns_iframe.
+    subject_ids = ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUKLFR0001", "sub-STUKLFR0002"]
+    data_root = tmp_path / "data"
+    _make_lesion_subject(data_root, "UNIPD/WashU", subject_ids[0], [(1, 1, 1)])
+    _make_lesion_subject(data_root, "UNIPD/WashU", subject_ids[1], [])
+    _make_lesion_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[2], [(2, 2, 2)])
+    _make_lesion_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[3], [(2, 2, 2)])
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, pipeline="clustering", run_name="run-a",
+        extra_metadata={"subject_id": subject_ids, "cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("lesion", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+    metadata = run_metadata(run)
+
+    view, n_subjects, percentage_img = _build_cluster_overlap_view(run, metadata, 0, _lesion_cfg(data_root))
+
+    assert n_subjects == 2
+    assert percentage_img.shape == _LESION_SHAPE
+    # 1 of 2 subjects lesioned at (1, 1, 1) - 50% overlap there, 0% everywhere else.
+    assert percentage_img.get_fdata()[1, 1, 1] == pytest.approx(50.0)
+    assert percentage_img.get_fdata()[0, 0, 0] == pytest.approx(0.0)
+
+    png_bytes = _static_png_bytes(percentage_img, threshold=1e-6, cmap="hot", colorbar=True)
+    assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
 
 
 def test_overlap_map_content_for_valid_cluster_returns_iframe(tmp_path):

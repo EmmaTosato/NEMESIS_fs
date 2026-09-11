@@ -76,7 +76,7 @@ Visibile solo per un run **`clustering.py`** (cioè con una colonna `cluster_lab
 Ogni plot interattivo ha un modo di salvarlo:
 
 - **Scatter dell'embedding**: passandoci sopra col mouse compare un'unica icona nella modebar di Plotly (fotocamera, "toImage") - esporta un PNG dello stato attuale (run/colorazione correnti). Il resto della modebar di Plotly resta nascosto (stile minimale invariato dal 14-08-26).
-- **Viewer 3D lesionale / overlap map**: bottone "Salva HTML" sotto ciascun pannello - scarica l'HTML autonomo del viewer (stesso file che il browser sta già mostrando nell'iframe), riapribile offline con l'interattività intatta. Non è ancora disponibile un export PNG statico per questi due viewer - prima iterazione volutamente minimale, un export PNG (`nilearn.plotting.plot_stat_map`/`plot_glass_brain`) è un'estensione naturale una volta validata la resa interattiva.
+- **Viewer 3D lesionale / overlap map**: due bottoni sotto ciascun pannello. "Salva HTML" scarica l'HTML autonomo del viewer (stesso file che il browser sta già mostrando nell'iframe), riapribile offline con l'interattività intatta. "Salva PNG" scarica invece un'immagine statica (`nilearn.plotting.plot_stat_map`, stessa soglia/colormap/colorbar del viewer interattivo) - utile per incollare la vista in un documento o una presentazione, dove l'interattività non serve.
 
 ---
 
