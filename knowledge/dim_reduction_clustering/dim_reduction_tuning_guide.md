@@ -1,7 +1,7 @@
 # Tuning della dim reduction — come leggere plot e indici
 
 > **Implementazione:** `src/analysis/tuning.py` (calcolo indici, sweep), `src/analysis/plotting.py` (`plot_tuning_curve`, `plot_embedding_grid_blocks`), `src/analysis/embedding_plots.py`/`embedding_coloring.py` (colorazione embedding). Orchestrazione in `src/pipeline/dim_reduction.py` quando `fine_tuning: true`.
-> **Guida d'uso:** `docs/guides/dim_reduction.md`. **Meccanica dei metodi e letteratura**: `knowledge/dim_reduction_clustering/dim_reduction_literature_survey.md`. **Rischi di clusterizzare sopra l'embedding**: `knowledge/dim_reduction_clustering/challenge_of_clustering_after_dim_reduction.md`.
+> **Guida d'uso:** `docs/guides/dim_reduction.md`. **Tassonomia/letteratura generale**: `knowledge/dim_reduction_clustering/dim_reduction_literature_survey.md`. **Meccanica di t-SNE/UMAP**: `knowledge/dim_reduction_clustering/employed_dim_reduction_methods.md`. **Rischi di clusterizzare sopra l'embedding**: `knowledge/dim_reduction_clustering/challenge_of_clustering_after_dim_reduction.md`.
 
 ## Cos'è il tuning
 
@@ -61,9 +61,9 @@ Il numero è cieco a *come* è fatto l'embedding — `dim_reduction.py` produce 
 
 ## Perché t-SNE sweeppa solo `perplexity`
 
-`early_exaggeration`/`learning_rate`/`max_iter` sono **fissati**, mai in griglia — non è una scorciatoia implementativa: il paper di riferimento diretto di NEMESIS (Thiebaut de Schotten et al. 2020) li fissa a sua volta, e il suo materiale supplementare fa variare solo `perplexity`. Sweeppare solo `perplexity` qui *replica* quel paper, non se ne discosta — coerente con van der Maaten stesso, che nel paper originale di t-SNE raccomanda di provare più valori di perplexity e non fidarsi mai di uno solo (dettagli in `dim_reduction_literature_survey.md`).
+`early_exaggeration`/`learning_rate`/`max_iter` sono **fissati**, mai in griglia — non è una scorciatoia implementativa: il paper di riferimento diretto di NEMESIS (Thiebaut de Schotten et al. 2020) li fissa a sua volta, e il suo materiale supplementare fa variare solo `perplexity`. Sweeppare solo `perplexity` qui *replica* quel paper, non se ne discosta — coerente con van der Maaten stesso, che nel paper originale di t-SNE raccomanda di provare più valori di perplexity e non fidarsi mai di uno solo (dettagli in `employed_dim_reduction_methods.md`).
 
-`metric` (jaccard/dice vs euclidea) è invece un'aggiunta propria di NEMESIS, indipendente dal paper: su maschere di lesione binarie l'euclidea di default è dominata dal volume della lesione in modo illimitato; jaccard/dice attenuano ma non eliminano quella dipendenza (`Dice(A,B) ≤ 2·min(|A|,|B|)/(|A|+|B|)` — vedi `dim_reduction_literature_survey.md` per la derivazione). Per questo `metric` è organizzato come parametro "annidato" nel tuning — una sottocartella per valore, non una griglia unica con `perplexity`/`n_neighbors`.
+`metric` (jaccard/dice vs euclidea) è invece un'aggiunta propria di NEMESIS, indipendente dal paper: su maschere di lesione binarie l'euclidea di default è dominata dal volume della lesione in modo illimitato; jaccard/dice attenuano ma non eliminano quella dipendenza (`Dice(A,B) ≤ 2·min(|A|,|B|)/(|A|+|B|)` — vedi `employed_dim_reduction_methods.md` per la derivazione). Per questo `metric` è organizzato come parametro "annidato" nel tuning — una sottocartella per valore, non una griglia unica con `perplexity`/`n_neighbors`.
 
 ## Quante componenti per UMAP (`n_components`) prima del clustering
 
