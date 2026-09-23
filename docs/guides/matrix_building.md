@@ -12,9 +12,8 @@ su ogni coorte in-scope (`manual_masks/{subject_id}/anat/{subject_id}_space-MNI1
 stesso spazio MNI152NLin6Asym), quindi nessun cambio di logica nella pipeline dovuto
 all'aggiunta/rimozione di una coorte — solo il campo `datasets` nel config.
 
-> **Nota (25/08/26)**: la modalità *parcellated* (matrice per macro-aree anatomiche via atlante) è
-> stata rimossa — vedi `management/notes/TODO.md`. `build_lesion_matrix.py` produce oggi solo
-> matrici voxel-wise.
+> **Nota**: `build_lesion_matrix.py` produce solo matrici voxel-wise — non esiste una modalità
+> *parcellated* (matrice per macro-aree anatomiche via atlante) per questa pipeline.
 
 ---
 

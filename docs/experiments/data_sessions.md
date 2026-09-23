@@ -20,7 +20,7 @@ Tag chiuso, condiviso tra track (mai un `_` al suo interno - vedi `src/utils/run
 
 - Starting date: 21-07
 - Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR
-- Modality: Lesionm voxel-wise
+- Modality: Lesion, voxel-wise
 - Soggetti: 1150
 
 ### Session 1.2-vol

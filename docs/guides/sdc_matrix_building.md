@@ -1,6 +1,6 @@
 # Guida al Matrix Building (Costruzione della Matrice SDC)
 
-Questa guida illustra come usare `build_sdc_matrix.py` per trasformare l'output SDC (`sdc/<subject_id>/*`, prodotto a monte da `compute_sdc.py`) in una matrice numerica pronta per `dim_reduction.py` (Task 2), in una di due **rappresentazioni** scelte dal campo `representation` della config (aggiunto 03/09):
+Questa guida illustra come usare `build_sdc_matrix.py` per trasformare l'output SDC (`sdc/<subject_id>/*`, prodotto a monte da `compute_sdc.py`) in una matrice numerica pronta per `dim_reduction.py` (Task 2), in una di due **rappresentazioni** scelte dal campo `representation` della config:
 
 - **`parcellated`** (originale): un CSV per atlante già parcellato (`sdc/<subject_id>/*.csv`) → matrice **soggetti × regioni**, allineamento per **nome regione**, non per posizione (righe non in ordine stabile tra soggetti — verificato sui dati reali). A differenza di `build_lesion_matrix.py`, nessuna colonna viene mai scartata.
 - **`voxelwise`**: il `disconnectome-map` `.nii.gz` non ancora parcellato → matrice **soggetti × voxel**, stesso approccio di `build_lesion_matrix.py` (resampling su griglia comune), ma valori **continui** (probabilità di disconnessione 0-1), mai binarizzati. Colonne costanti (voxel fuori dal cervello di ogni soggetto ammesso) vengono scartate come in `build_lesion_matrix.py`.
@@ -34,7 +34,7 @@ python -m src.pipeline.build_sdc_matrix --config config/pipelines/build_sdc_matr
 
 **Modalità `voxelwise`**: per ogni soggetto ammesso, il `disconnectome-map` `.nii.gz` viene ricampionato (se serve) sulla griglia di `reference_template_path`, appiattito e impilato in una matrice **soggetti × voxel** — mai binarizzato (a differenza della lesion mask di `build_lesion_matrix.py`, qui i valori sono una probabilità continua 0-1). I voxel costanti (fuori dal cervello per ogni soggetto ammesso) vengono scartati, con `non_constant_mask` salvato per recuperare la mappatura.
 
-**Ammissione soggetti (uguale per entrambe le modalità)**: un soggetto entra nella matrice solo se ha **entrambi**: una lesion mask **registrata** nel registro soggetti (`assets/metadata/participants.csv`, colonna `has_lesion == True`) e il file SDC richiesto (CSV o `.nii.gz` a seconda della modalità). Non si controlla `manual_masks/` su disco direttamente — un retrieval locale parziale renderebbe quel controllo inaffidabile (trovato 27/08/26). Un soggetto con output SDC ma senza lesion mask registrata viene escluso esplicitamente, non trattato come "disconnessione zero" — vedi `docs/dev/sdc_matrix.md`.
+**Ammissione soggetti (uguale per entrambe le modalità)**: un soggetto entra nella matrice solo se ha **entrambi**: una lesion mask **registrata** nel registro soggetti (`assets/metadata/participants.csv`, colonna `has_lesion == True`) e il file SDC richiesto (CSV o `.nii.gz` a seconda della modalità). Non si controlla `manual_masks/` su disco direttamente — un retrieval locale parziale renderebbe quel controllo inaffidabile. Un soggetto con output SDC ma senza lesion mask registrata viene escluso esplicitamente, non trattato come "disconnessione zero" — vedi `docs/dev/sdc_matrix.md`.
 
 ---
 
@@ -83,9 +83,3 @@ L'output vive in `data/derived/sdc_matrix/<GIORNO-MESE>_<session_name>/`:
 3. **`region_names.npy`** (solo `parcellated`) o **`non_constant_mask.npy`** (solo `voxelwise`, come in `build_lesion_matrix.py`) — mai entrambi nella stessa run.
 4. **`manifest.json`**: certificato di integrità della run.
 5. **`config.md`**: config completa + esclusioni tracciate esplicitamente (per `group_filter`, per mancanza di lesion mask, e soggetti con lesion mask ma SDC non ancora calcolato).
-
----
-
-## Nota (27/08/26): perché il controllo è sul TSV clinico, non su `manual_masks/`
-
-Su questa macchina locale, `manual_masks/` (lesion mask) contiene solo un piccolo campione (10 soggetti per dataset), mentre `sdc/` è già completo — un controllo basato sul disco locale ammetteva quindi solo 40 soggetti su 1151, ed escludeva erroneamente soggetti che in realtà hanno una lesion mask reale (solo non ancora retrievata su questa macchina). Risolto controllando `assets/metadata/participants.csv` invece del disco: con questo criterio la run reale ammette 1119/1151 soggetti, e i 32 esclusi sono confermati genuinamente assenti dal registro clinico (non un artefatto di retrieval locale).

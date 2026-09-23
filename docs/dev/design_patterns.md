@@ -9,6 +9,7 @@ Cross-cutting reference: the recurring design patterns/idioms used across `src/`
 ```python
 REDUCTION_METHODS: dict[str, Callable[[np.ndarray, dict], np.ndarray]] = {
     "umap": umap_embed, "tsne": tsne_embed, "pca": pca_embed,
+    "pca_varimax": pca_varimax_embed, "pacmap": pacmap_embed,
 }
 ```
 

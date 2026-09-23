@@ -106,14 +106,14 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 
 ## 8. Debug report
 
-- Un file per sessione di debug (`docs/debugging/debug_DD_MM_YY.md` se/quando la cartella esiste)
+- Un file per sessione di debug (`docs/debugging/debug_DD_MM_YY.md`)
 - Un bug per sezione, con livello di criticità e "lessons learned" obbligatorio (azionabile, non una parafrasi del bug) (`lesson_learned.md`)
 
 ---
 
 ## 9. Git e Automazione
 
-- **Nessun commit automatico da parte dell'AI**: L'assistente non deve mai creare o eseguire commit in modo automatico senza una esplicita richiesta dell'utente. Le modifiche vanno solo apportate ai file.
+- **Nessun commit automatico da parte dell'AI** (fonte unica di questa regola — `.claude/CLAUDE.md` vi rimanda): L'assistente non deve mai creare o eseguire commit in modo automatico senza una esplicita richiesta dell'utente. Le modifiche vanno solo apportate ai file.
 
 ---
 

@@ -4,7 +4,7 @@ Audience: developers/agents working on `src/analysis/plotting.py`, `embedding_co
 
 This file covers how a computed embedding/clustering result gets turned into PNG/HTML output. For the models that produce the arrays being plotted, and the 2 CLIs that call into this layer, see `docs/dev/models.md`. For the config fields that select which plots get made (`color_by`, `viz_n_components`), see `docs/dev/config.md`.
 
-> `src/pipeline/dim_reduction_clustering.py` was retired 14-08-26 - see `docs/dev/clustering_migration_plan.md`. Every reference to it below has been updated; its own `color_by`/embedding-coloring integration was not carried over to `clustering.py`, which today only ever produces cluster-colored plots (`plot_clusters_2d`), never dataset/volume/side-colored ones.
+> `src/pipeline/dim_reduction_clustering.py` no longer exists (see `.claude/history/project_changelog.md`). Every reference to it below has been updated; its own `color_by`/embedding-coloring integration was not carried over to `clustering.py`, which today only ever produces cluster-colored plots (`plot_clusters_2d`), never dataset/volume/side-colored ones.
 
 ## `src/analysis/plotting.py` — minimal cluster visualization
 

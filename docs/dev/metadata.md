@@ -78,14 +78,3 @@ UCL-UK resta comunque vuoto: non ha nessuna colonna NIHSS-correlata.
 ## Cosa manca ancora
 
 **`lesion_side` calcolato geometricamente.** Oggi `lesion_side` è popolato solo dove il dato clinico esiste (`lesion_side_source = "clinical"`); PASPORT e UCL-UK non hanno affatto la colonna, e ~230 soggetti tra WashU e PSP hanno la cella vuota pur avendo il dataset la colonna. Il calcolo dalla maschera (conteggio voxel ai due lati della midline MNI, x=0) è meccanico, ma la soglia oltre cui una lesione è "bilaterale" va **calibrata** sui 4 dataset che hanno l'etichetta clinica (i 30 `both` di UKE inclusi) prima di poterla applicare agli altri. Finché quella calibrazione non è fatta, la variabile non viene scritta: inventare una soglia darebbe un valore dall'aria plausibile e senza basi. `lesion_side_source` esiste già per distinguere le due provenienze quando arriverà.
-
-## Smantellato (per riferimento)
-
-Il vecchio meccanismo — una join per-dataset ripetuta dentro il `metadata.csv` di ogni run — è stato rimosso il 06-09-26:
-
-| Cosa | Fine |
-|---|---|
-| `src/pipeline/enrich_lesion_metadata.py` + config + job | cancellati, sostituiti da `enrich_metadata.py` |
-| `src/features/clinical.py` (`join_lesion_side`, `join_nihss`, `join_participant_variables`, `check_participant_variable_coverage`, `participants_tsv_path`, `load_participants`, `extract_target`) | cancellato; la parte ancora viva (lettura del registro) è in `src/utils/participants.py` |
-| `EnrichLesionMetadataConfig` in `src/analysis/build_config.py` | cancellata |
-| `assets/metadata/*_participants_*.tsv` | cancellati |

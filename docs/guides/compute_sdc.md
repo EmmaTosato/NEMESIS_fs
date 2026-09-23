@@ -47,8 +47,8 @@ sbatch jobs/run_compute_sdc.sh
 sbatch jobs/run_compute_sdc_aggregate.sh
 ```
 
-### In Locale (Senza SLURM)
-Per test rapidi o PC locali. Concatena le 3 fasi in un colpo solo.
+### Su un nodo del cluster, senza SLURM
+Per test rapidi *sul server* (dove `bcblib`/BCBToolKit sono installati) senza sottomettere un job SLURM — non eseguibile su un PC locale/Mac, che non ha `bcblib` (vedi `.claude/CLAUDE.md`, sezione Environment). Concatena le 3 fasi in un colpo solo.
 ```bash
 conda activate nemesis
 jobs/run_compute_sdc_no_slurm.sh config/pipelines/compute_sdc.json

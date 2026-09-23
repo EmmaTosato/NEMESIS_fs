@@ -45,7 +45,7 @@ Ogni pagina contiene 5 figure, in due sezioni:
 2. Stesso spazio, ma con due slider trascinabili al posto della griglia fissa.
 3. UMAP 2D vs UMAP 3D affiancati, ciascuno con i propri slider — il 3D è un fit realmente separato (`n_components=3`), non una proiezione 2D con una coordinata aggiunta.
 
-**UMAP vs t-SNE** (dati reali dal 13-08-26; prima di allora un fixture sintetico, finché non è arrivato un run t-SNE sulla stessa coorte):
+**UMAP vs t-SNE** (dati reali):
 
 4. Griglia statica a 2 righe (t-SNE per `perplexity`, UMAP per `n_neighbors` a `min_dist` fisso) — un valore sweepato da un solo metodo lascia la cella dell'altro vuota, dichiarato in didascalia, mai inventato.
 5. Stesso confronto ma con slider live, un pannello per metodo.
