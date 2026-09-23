@@ -10,6 +10,38 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 23-09-26 — Aggiunti 2 dataset nuovi, sostituite le lesion mask di 6 dataset esistenti
+
+**2 dataset nuovi aggiunti a `data/clinical_connectome/derivatives/`**: UKE/SFB936_ses01
+(56 soggetti) e UNIPD/NEMESIS_T0 (76 soggetti), copiati da `sdc_download/lesion/` —
+`manual_masks/<sub>/anat/` (solo lesion mask, `res-1` rimosso) + `sdc/<sub>/` (disconnectome
+map con `res-1` mantenuto, 2 mapstats.tsv, 30 CSV parcellati per atlante). Output SDC già
+completo per entrambi, nessun run di `compute_sdc.py` necessario. **Non ancora in-scope**:
+assenti da `docs/guides/datasets.md`, `config/registry/`, `assets/metadata/participants.csv`
+— onboarding non fatto, `participants.tsv` reali non ancora recuperati (a carico dell'utente).
+
+**Lesion mask sostituite per 6 dataset esistenti** (`manual_masks/*/anat/`, vecchi file
+eliminati prima della sostituzione, sorgente una copia `rsync` fresca in `sdc_download/`,
+`res-1` rimosso): UCL-UK/UCLStrokeData 4119→4119, UKE/WAKEUP_acute 451→451,
+UKLFR/stroke_UKLFR 697→705, UNIPD/PASPORT 83→83, UNIPD/PSP 168→168, UNIPD/WashU 202→195.
+
+UKLFR non è un semplice swap 1:1: persi 24 soggetti con maschera manuale ma senza dato SDC,
+guadagnati 32 nuovi. WashU perde 7 soggetti senza sostituto disponibile (accettato
+esplicitamente dall'utente) — verificato che nessuno dei 7 è HC (nessun soggetto HC esiste
+per WashU in `manual_masks/`, `features/`, `sdc/` né in `participants.csv`, solo ST).
+
+`sdc_download/lesion/`: i 2 dataset nuovi mantengono la propria copia (sorgente di verità,
+non spostata); i 6 dataset solo-maschera sono stati spostati (`mv`), quindi `sdc_download`
+non ne contiene più i file — dettagli di rinomina in `sdc_download/lesion/README.md`.
+
+Conseguenza ancora vera oggi: `assets/metadata/participants.csv` non riflette ancora questi
+cambiamenti (né i 2 dataset nuovi, né il delta di UKLFR/WashU) — va rigenerato. Risoluzione
+voxel di UKLFR/WashU passata da 1.5mm/2.0mm nativo a 1mm (stessa fonte dell'SDC) — ha esposto
+una fragilità di `reference_template_path` risolta lo stesso giorno, vedi `project_changelog.md`
+23-09-26.
+
+---
+
 ## 07-09-26 — `sub-STUKLFR0671`: mappa di disconnessione vuota nonostante una lesione grande
 
 Emerso costruendo `sdc_matrix` s2.2-vol (prima run voxel-wise): il soggetto entra in matrice come riga interamente nulla.

@@ -76,12 +76,7 @@ class AtlasComboGroupsTarget:
 
 
 TARGETS: list[SubjectDirsTarget | AtlasComboGroupsTarget] = [
-    SubjectDirsTarget(
-        Path("data/clinical_connectome/derivatives/UNIPD/WashU/manual_masks"),
-        # config/pipelines/build_lesion_matrix.json's reference_template_path hardcodes this
-        # subject's mask as the resampling reference - must never be archived away.
-        must_keep=frozenset({"sub-STUNIPD0001"}),
-    ),
+    SubjectDirsTarget(Path("data/clinical_connectome/derivatives/UNIPD/WashU/manual_masks")),
     SubjectDirsTarget(Path("data/clinical_connectome/derivatives/UNIPD/PSP/manual_masks")),
     SubjectDirsTarget(Path("data/clinical_connectome/derivatives/UNIPD/PASPORT/manual_masks")),
     SubjectDirsTarget(Path("data/clinical_connectome/derivatives/UKLFR/stroke_UKLFR/manual_masks")),

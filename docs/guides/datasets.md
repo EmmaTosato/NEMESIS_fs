@@ -4,7 +4,7 @@ Quali coorti cliniche usa NEMESIS, quanti soggetti hanno **davvero**, quali tipi
 
 I dati risiedono sul server **EBRAIN** (`/data/corbetta/Clinical_connectome`) e vengono copiati in locale sotto `data/clinical_connectome/derivatives/<centro>/<coorte>/` dalla pipeline di retrieval.
 
-Tutti i numeri di questa pagina sono **verificati sul disco e sui tsv il 06-09-26**, non stimati. 
+Tutti i numeri di questa pagina sono **verificati sul disco e sui tsv il 23-09-26**, non stimati. 
 
 
 
@@ -17,13 +17,15 @@ Per rigenerarli: `notebooks/exploration/dataset_exploration.ipynb` (esplorazione
 | Dataset | Registro clinico (`participants_*.tsv`) | `manual_masks` | `sdc` | `features` (FC) | Voxel |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **`UCL-UK/UCLStrokeData`** | 4119 (4119 ST) | **4119** | — | — | 2.0 mm |
-| **`UKLFR/stroke_UKLFR`** | 735 (735 ST) | 697 | 705 | — | 1.5 mm |
+| **`UKLFR/stroke_UKLFR`** | 735 (735 ST) | 705 | 705 | — | 1.0 mm |
 | **`UKE/WAKEUP_acute`** | 503 (503 ST) | 451 ️ | 451 | — | 1.0 mm |
-| **`UNIPD/WashU`** | 319 (251 ST + 68 HC) | 202 | 195 | **225** (169 ST + 56 HC) | 2.0 mm |
+| **`UNIPD/WashU`** | 319 (251 ST + 68 HC) | 195 | 195 | **225** (169 ST + 56 HC) | 1.0 mm |
 | **`UNIPD/PSP`** | 237 (237 ST) | 168 | 168 | — | 1.0 mm |
 | **`UNIPD/PASPORT`** | 97 (97 ST) | 83 | 83 | — | 1.0 mm |
 
 Voxel size verificati leggendo gli header NIfTI delle maschere (campione di 15 soggetti per dataset: uniformi entro ogni dataset). Tutte le maschere sono in spazio `MNI152NLin6Asym`; a cambiare è solo la risoluzione.
+
+**UKLFR e WashU sono passati a 1mm il 23-09-26** (prima 1.5mm/2.0mm nativo): `manual_masks/` è stata ri-sincronizzata da una copia fresca della stessa sorgente usata per l'SDC (`Clinical_connectome_stroke/<dataset>/lesion/`, già a 1mm), che ora coincide esattamente con `sdc/` per questi due dataset (0 discrepanze, vedi sotto) invece di essere un sottoinsieme diverso.
 
 ### Perché le colonne non coincidono
 
@@ -34,13 +36,16 @@ Il registro clinico e i dati su disco rispondono a due domande diverse, e vanno 
 
 Le differenze non sono errori, sono la realtà del dato. Due esempi concreti:
 
-- **WashU**: 251 pazienti nel registro, 202 con maschera. Dei 202, **195 hanno anche l'SDC e 7 no**. Le FC coprono 225 soggetti (169 pazienti + 56 controlli sani) — un insieme che si sovrappone solo in parte a chi ha la maschera.
-- **UKLFR**: 697 con maschera, 705 con SDC, ma non sono sottoinsiemi l'uno dell'altro: **673 hanno entrambi, 24 hanno solo la maschera, 32 hanno solo l'SDC** (in tutto 729 soggetti con almeno un dato).
+- **WashU**: 251 pazienti nel registro, 195 con maschera — **tutti e 195 hanno anche l'SDC** (corrispondenza esatta dal 23-09-26, prima 202 maschere di cui solo 195 con SDC). Le FC coprono 225 soggetti (169 pazienti + 56 controlli sani) — un insieme che si sovrappone solo in parte a chi ha la maschera.
+- **UKLFR**: 705 con maschera, 705 con SDC — **corrispondenza esatta dal 23-09-26** (prima 697 maschere/705 SDC, con solo 673 in comune, 24 solo-maschera e 32 solo-SDC).
 
 ### Il conteggio unico: `assets/metadata/participants.csv`
 
-Un soggetto per riga, con le colonne `has_lesion`/`has_sdc`/`has_features`, per i soli pazienti stroke presenti su disco — **5752 in totale**. È la fonte da interrogare invece di ricontare a mano; generata da `scripts/populate_metadata.py`, vedi `docs/dev/metadata.md`.
+Un soggetto per riga, con le colonne `has_lesion`/`has_sdc`/`has_features`, per i soli pazienti stroke presenti su disco — **5752 in totale**. È la fonte da interrogare invece di ricontare a mano; generata da `scripts/populate_metadata.py`, vedi `docs/dev/metadata.md`. Non riflette ancora i 2 dataset sotto (onboarding non fatto) né il delta UKLFR/WashU del 23-09-26 — va rigenerata.
 
+### 2 dataset aggiuntivi, non ancora onboarded
+
+`UKE/SFB936_ses01` (56 soggetti) e `UNIPD/NEMESIS_T0` (76 soggetti) sono presenti in locale (`manual_masks/` + `sdc/` completo, 1mm, stesso schema di file degli altri) dal 23-09-26, ma **non fanno parte delle "6 coorti" sopra**: assenti da `config/registry/`, `assets/metadata/participants.csv` e dalla tabella dei tipi di dato sopra. Mancano ancora i `participants_*.tsv` clinici reali. Dettagli in `.claude/history/data_changelog.md` (23-09-26).
 
 ---
 
@@ -129,17 +134,17 @@ Ogni cartella ridotta contiene due file, entrambi generati dallo script:
 tar -xzf ../<nome>_archive.tar.gz -C .
 ```
 
-`sub-STUNIPD0001` (WashU) resta sempre in chiaro, non per coincidenza d'ordinamento: è il `reference_template_path` hardcoded in `config/pipelines/build_lesion_matrix.json`, pinnato esplicitamente nello script.
+## Ingombro su disco (locale, 23-09-26)
 
-## Ingombro su disco (locale, 06-09-26)
-
-`data/clinical_connectome/derivatives/` pesa **5.0 GB** in totale:
+`data/clinical_connectome/derivatives/` pesa **6.0 GB** in totale:
 
 | Tipo | Peso |
 | :--- | ---: |
-| `sdc/` (5 dataset, 1602 soggetti) | ~2.6 GB |
+| `sdc/` (7 dataset, 1734 soggetti) | ~2.8 GB |
 | `features_archive.tar.gz` (i 215 soggetti WashU compressi) | 2.1 GB |
 | `features/` (solo WashU, i 10 soggetti in chiaro) | 222 MB |
-| `manual_masks/` (6 dataset, 5720 soggetti) | ~169 MB |
+| `manual_masks/` (8 dataset, 5853 soggetti) | ~919 MB |
+
+Il salto di `manual_masks/` (da ~169 MB a ~919 MB) non è un errore: UKLFR e WashU sono passati a 1mm (vedi sopra), file molto più pesanti della loro risoluzione nativa precedente.
 
 Dentro l'SDC, il peso è dominato dai `.nii.gz`: `disconnectome-map` ~61% del totale, `disconnectome-LF` (15 CSV) ~25%, `lesion-map` ~12%, `lesion-LF` (16 CSV) ~2%, mapstats trascurabile. Per scaricarne solo un sottoinsieme (es. i soli CSV parcellati, ~793 MB, sufficienti per una matrice tipo `build_sdc_matrix.py`) usa `scripts/download_sdc.py --categories disconnectome-LF lesion-LF ...` invece della config completa — vedi `docs/guides/retrieval.md`.

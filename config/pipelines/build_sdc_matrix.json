@@ -13,7 +13,7 @@
   ],
   "object": "disconnectome",
   "representation": "voxelwise",
-  "reference_template_path": "data/clinical_connectome/derivatives/UNIPD/WashU/manual_masks/sub-STUNIPD0001/anat/sub-STUNIPD0001_space-MNI152NLin6Asym_label-lesion_mask.nii.gz",
+  "reference_template_path": "assets/templates/tpl-MNI152NLin6Asym_res-1_T1w.nii.gz",
   "resample_interpolation": "nearest",
   "output_root": "data/derived/sdc_matrix",
   "session_name": "s2.2-vol",

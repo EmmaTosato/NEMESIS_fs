@@ -8,6 +8,55 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 23-09-26 — `reference_template_path` sostituito con un vero template MNI152 versionato
+
+**Cosa è cambiato**: `config/pipelines/build_lesion_matrix.json` e `build_sdc_matrix.json`
+puntavano entrambi `reference_template_path` alla lesion mask di un singolo paziente
+(`sub-STUNIPD0001`, WashU, sotto `data/`, gitignored) — funzionava solo perché shape/affine
+di quel file coincidevano con una griglia MNI152 nota. Sostituito con due template reali,
+versionati, sotto `assets/templates/` (`tpl-MNI152NLin6Asym_res-1_T1w.nii.gz` 1mm e
+`_res-2_T1w.nii.gz` 2mm, scaricati da TemplateFlow, shape/affine verificati contro i dati del
+progetto). Entrambi i config ora puntano al `_res-1_` (1mm). Nessuna modifica a codice:
+`load_reference_image`/`resample_to_img` leggono solo shape+affine, mai il contenuto voxel —
+un template T1w funziona in modo identico a una maschera binaria come riferimento di griglia.
+Rimosso anche il pin `must_keep={"sub-STUNIPD0001"}` in `scripts/archive_local_raw_data.py`,
+non più necessario. Scaricate anche le brain mask corrispondenti (`_res-1_desc-brain_mask.nii.gz`/
+`_res-2_desc-brain_mask.nii.gz`, stessa fonte, griglia/affine verificati identici alle T1w) — non
+ancora usate da nessun codice, disponibili sotto `assets/templates/` per quando servirà.
+
+**Perché**: fragilità già segnalata come TODO aperta (`docs/dev/lesion_matrix.md`, sezione
+"Known open question") — l'intera griglia voxel di produzione dipendeva dalla sopravvivenza
+di un file paziente specifico, non versionato. Il rischio si è concretizzato lo stesso giorno:
+una sostituzione non correlata delle lesion mask WashU/UKLFR (vedi `data_changelog.md`,
+23-09-26) ha cambiato silenziosamente quel file da 2mm a 1mm, quindi la griglia di riferimento
+per *ogni* dataset in ogni run futuro — scoperto solo verificando la risoluzione dei nuovi
+file prima di aggiornare `docs/guides/datasets.md`, non da un errore/crash.
+
+**Alternative scartate**: patchare l'affine del template scaricato per farlo combaciare
+bit-per-bit con la griglia post-swap di `sub-STUNIPD0001` (origin -90 invece di -91) — scartata
+perché quella griglia non era mai stata "la" griglia canonica del progetto, solo un artefatto
+incidentale di un file paziente; adottare la griglia autoritativa TemplateFlow è più corretto,
+e `resample_to_img` riallinea comunque correttamente qualunque sorgente al nuovo riferimento.
+
+**Conseguenza ancora vera oggi**: le matrici già costruite in passato non sono toccate (la loro
+griglia era fissata al momento del build); solo i nuovi run raccolgono il nuovo riferimento. La
+scelta 1mm/2mm è un edit di config (`reference_template_path` punta a `_res-1_` o `_res-2_`),
+non richiede codice.
+
+---
+
+## 23-09-26 — `main` riportato al passo e adottato come branch di lavoro di default
+
+**Cosa è cambiato**: `main` era rimasto indietro di 121 file (+16516/-21005 righe) rispetto al lavoro reale, che da settimane continuava solo su branch di task mai rimersi. Fast-forward di `main` sulla punta di `fix/sdc-drop-dwi-folder` (nessun conflitto: `main` non aveva nemmeno un commit unico non già contenuto nel branch), pushato su `origin/main`. Ripuliti 6 branch locali: 4 già completamente mergeati (`clustering-embedding-tag-naming`, `clustering-runs-csv-reduction-columns`, `embedding-app-anatomy-panels`, `tag-params-multi-key` — cancellazione sicura), `fix/sdc-drop-dwi-folder` stesso (ridondante dopo il fast-forward, cancellato anche dal remoto), e `backup-pre-split` (non mergeato — 2 commit isolati su un punto vecchio pre-refactor "split", cancellazione forzata).
+
+**Perché**: nessuno rimergeva mai i branch di task in `main`, che restava una fotografia vecchia mentre il lavoro vero viveva altrove — scoperto controllando lo stato reale dei branch dopo che `.claude/stato_progetto.md` è risultato disallineato (citava un branch, `metadata-restructuring`, che non era nemmeno più il checkout corrente).
+
+**Decisione per il futuro**: si lavora su `main` di default; un branch nasce solo per un task specifico e viene mergeato/cancellato appena concluso — mai tenuto in vita come branch parallelo permanente. Vedi `.claude/branch_alignment.md`.
+
+**Conseguenza ancora vera oggi**: `main` locale e `origin/main` sono allineati (stesso commit). `backup-pre-split` è recuperabile da `068d2ff` (`git checkout -b backup-pre-split 068d2ff`) finché il reflog lo conserva.
+
+---
+
 ## 07-09-26 — Eliminato il branch `viz-niivue`
 
 Esplorazione di **niivue** come renderer alternativo ai pannelli di anatomia di `embedding_app.py` (oggi su nilearn), 4 commit mai mergeati: prova iniziale, fix dell'hang al caricamento del volume (mancava l'hint di formato), template MNI152 anatomico reale come sfondo, fix del canvas che collassava a 150px.
