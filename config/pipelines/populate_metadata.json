@@ -7,7 +7,8 @@
     "UNIPD/PASPORT",
     "UKLFR/stroke_UKLFR",
     "UCL-UK/UCLStrokeData",
-    "UKE/WAKEUP_acute"
+    "UKE/WAKEUP_acute",
+    "UKE/SFB936_ses01"
   ],
   "group_filter": [
     "ST"

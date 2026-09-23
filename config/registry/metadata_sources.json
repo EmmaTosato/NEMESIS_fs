@@ -22,5 +22,13 @@
   "UKE/WAKEUP_acute": {
     "participants_tsv": "data/clinical_connectome/metadata_tsv/participants_UKE.tsv",
     "derivatives_dir": "data/clinical_connectome/derivatives/UKE/WAKEUP_acute"
+  },
+  "UKE/SFB936_ses01": {
+    "participants_tsv": "data/clinical_connectome/metadata_tsv/participants_UKE_SFB.tsv",
+    "derivatives_dir": "data/clinical_connectome/derivatives/UKE/SFB936_ses01"
+  },
+  "UNIPD/NEMESIS_T0": {
+    "participants_tsv": "data/clinical_connectome/metadata_tsv/participants_NEMESIS_T0.tsv",
+    "derivatives_dir": "data/clinical_connectome/derivatives/UNIPD/NEMESIS_T0"
   }
 }

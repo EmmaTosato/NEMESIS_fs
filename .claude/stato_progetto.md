@@ -21,7 +21,7 @@ L'elenco completo di problemi aperti e cose da fare sta in **`.claude/open_probl
 
 ## Vincoli/regole in vigore oggi
 
-- **Branch**: lavoro corrente su `metadata-restructuring` (non `main`, non ancora mergeato/pushato). `TODO.md` ha una modifica non committata dell'utente, precedente alla sessione odierna — non toccata.
+- **Branch**: si lavora su `main` (default d'ora in poi — un branch nasce solo per un task specifico, mergeato/cancellato appena concluso, mai tenuto in vita in parallelo, vedi `.claude/branch_alignment.md`). `main` locale e `origin/main` sono allineati: 6 branch di task accumulati nelle settimane precedenti sono stati mergeati/ripuliti il 23-09-26 (`.claude/history/project_changelog.md`). `TODO.md` ha una modifica non committata dell'utente, precedente alla sessione odierna — non toccata.
 - **`config/registry/params_clustering.json`**: lasciato ai valori dell'ultima opzione lanciata per metodo — non sono i default "canonici", sono lo stato dell'ultima run reale.
 - **`clustering.py` non genera più `comparison/`** (rimosso 01-09-26): cartelle `comparison/` residue da run precedenti restano su disco ma non vengono più rigenerate.
 - **Esecuzione locale vs SLURM**: locale diretto è il default, non proporre `sbatch`/jobs cluster senza richiesta esplicita.
