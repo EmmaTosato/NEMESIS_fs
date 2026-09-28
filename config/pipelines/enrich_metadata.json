@@ -5,8 +5,8 @@
 
   "datasets": null,
   "variables": ["age", "sex", "education", "lesion_side", "NIHSS", "clinical_date"],
-  "lesion_volume_from": "data/derived/lesion_matrix/06-09_s1.3-vol",
+  "lesion_volume_config": "config/pipelines/build_lesion_matrix.json",
 
   "fill": false,
-  "run_notes": "Prima run di enrich_metadata: sostituisce enrich_lesion_metadata, scrive le colonne cliniche direttamente in participants.csv."
+  "run_notes": "lesion_volume_voxels ora ricalcolato fresco dalle maschere (config/pipelines/build_lesion_matrix.json, griglia 2mm) invece di essere copiato da un artefatto build_lesion_matrix.py specifico - vedi .claude/history/methods_changelog.md, 28-09-26."
 }

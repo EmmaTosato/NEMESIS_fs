@@ -42,13 +42,21 @@ Su cluster: `sbatch jobs/run_enrich_metadata.sh` (la cartella `logs/slurm/enrich
 | **`participants_path`** | Il file da arricchire (`assets/metadata/participants.csv`). Deve esistere già: lo crea `populate_metadata.py`. |
 | **`datasets`** | Lista di dataset da processare, oppure `null` per tutti quelli presenti nel file. Un dataset fuori scope **non viene toccato**: le sue celle restano quelle che erano. |
 | **`variables`** | Quali variabili scrivere. Ammesse: `age`, `sex`, `education`, `lesion_side`, `NIHSS`, `clinical_date`. Un nome non in elenco fa fallire il config subito. |
-| **`lesion_volume_from`** | Cartella di un artefatto `build_lesion_matrix.py` da cui copiare `lesion_volume_voxels`, oppure `null` per non scrivere quella colonna. |
+| **`lesion_volume_config`** | Path a un config `build_lesion_matrix.json`-shaped (di norma `config/pipelines/build_lesion_matrix.json` stesso) da cui ricalcolare `lesion_volume_voxels` **fresco dalle maschere** — non più copiato da un artefatto già costruito (vedi sotto). `null` non tocca quella colonna in questa run (è il "flag" per evitare di ripagare il calcolo costoso a ogni lancio quando serve solo aggiornare le variabili cliniche). |
 | **`fill`** | `true`: scrive **solo** le celle vuote, ogni valore già presente resta intatto. `false`: ricalcola tutto il richiesto. |
 | **`run_notes`** | Nota libera, finisce nel report. |
 
 ### Quando usare `fill: true`
 
 Se hai corretto a mano una cella in `participants.csv` e vuoi che sopravviva a una rilanciata. Con `fill: false` verrebbe sovrascritta col valore del tsv grezzo.
+
+### `lesion_volume_config`: perché non più un artefatto
+
+Fino al 28-09-26 `lesion_volume_voxels` veniva copiato dal `metadata.csv` di uno specifico artefatto `build_lesion_matrix.py` già costruito — scelta presa per evitare "una seconda definizione della stessa quantità". Si è rivelata l'opposto: quell'artefatto usava una griglia diversa da quella corrente (`build_lesion_matrix.json` era passato da 1mm a 2mm nel frattempo, e l'artefatto non era stato ricostruito), e il confronto sui dati reali ha mostrato 900/5721 soggetti (15.7%) con un valore diverso tra le due fonti, fino a 38x. Ora `enrich_metadata.py` ricalcola `lesion_volume_voxels` fresco dalle maschere, riusando la stessa funzione (`src.features.lesion.compute_lesion_volumes`) di `build_lesion_matrix.py` e `scripts/check_lesion_quality.py` — un'unica implementazione, tre chiamanti, mai due fonti indipendenti che possono scivolare.
+
+`lesion_volume_config` punta a un config `build_lesion_matrix.json`-shaped (di norma lo stesso file di produzione) da cui si leggono `data_root`/`reference_template_path`/`lesion_glob`/`binarize_threshold`/`resample_interpolation` — solo i dataset in comune tra lo scope di questa run e la lista `datasets` di quel config vengono ricalcolati; gli altri restano intoccati (warning nel log, non un errore).
+
+**Costo**: un caricamento+resampling nibabel per soggetto — pochi minuti sull'intera coorte. Per questo `null` è il default sensato per un lancio che aggiorna solo le variabili cliniche (età, sesso, NIHSS, ...): il volume non viene ricalcolato a meno di impostarlo esplicitamente.
 
 ---
 

@@ -17,9 +17,11 @@ assets/metadata/participants.csv
         ▲
         │  src/pipeline/enrich_metadata.py       — cosa sappiamo di lui
         │
-data/derived/lesion_matrix/<sessione>/matrix.npy                (volume lesionale)
-data/clinical_connectome/derivatives/<dataset>/manual_masks/    (lato lesione, calcolato)
+data/clinical_connectome/derivatives/<dataset>/manual_masks/    (lesion_volume_voxels, calcolato fresco;
+                                                                   lato lesione, ancora da implementare)
 ```
+
+`lesion_volume_voxels` è calcolato **fresco dalle maschere** (`src.features.lesion.compute_lesion_volumes`, `config.lesion_volume_config` punta a un `build_lesion_matrix.json`), non più copiato da un artefatto `data/derived/lesion_matrix/<sessione>/` già costruito — quella scelta si è rivelata generare esattamente la seconda fonte di verità che voleva evitare (28-09-26, `.claude/history/methods_changelog.md`: 900/5721 soggetti con valore diverso tra le due fonti, fino a 38x, dopo che la griglia era cambiata senza ricostruire l'artefatto).
 
 | | `populate_metadata.py` | `enrich_metadata.py` |
 |---|---|---|
@@ -49,7 +51,7 @@ Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv`
 
 - **`assets/metadata/participants.csv`** — 5752 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels` (enrich).
 - **I tsv per-dataset `assets/metadata/<DATASET>_participants_*.tsv` non esistono più**: cancellati. Ogni consumatore è stato spostato sul file unico.
-- **`data/derived/<pipeline>/<sessione>/metadata.csv`** — contiene solo ciò che appartiene alla run (`subject_id`, `dataset`, `lesion_volume_voxels`); i valori clinici non ci vengono più copiati. Le run vecchie li hanno ancora, per storia: chi legge preferisce la colonna della run quando c'è, e altrimenti va al registro.
+- **`data/derived/<pipeline>/<sessione>/metadata.csv`** — contiene solo ciò che appartiene a quella run (`subject_id`, `dataset`, `lesion_volume_voxels` per `build_lesion_matrix.py`). Non è più la fonte da cui `enrich_metadata.py` copia `lesion_volume_voxels` in `participants.csv` (fino al 28-09-26 lo era, vedi sopra) — resta solo l'artefatto della run stessa, la sua colonna può differire da quella nel registro se le due griglie non coincidono.
 
 ### Chi legge il registro
 

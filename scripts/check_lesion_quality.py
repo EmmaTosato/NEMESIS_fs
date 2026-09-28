@@ -1,14 +1,21 @@
-"""CLI entry point: compute per-subject lesion-quality metrics (lesion volume, fraction
-of lesion voxels outside the brain) for every subject with a discoverable lesion mask,
-and cache them to a CSV under assets/metadata/.
+"""CLI entry point: compute the per-subject fraction of lesion voxels falling outside
+the brain for every subject with a discoverable lesion mask, and cache it to a CSV
+under assets/metadata/.
 
-A diagnostic companion to build_lesion_matrix.py's own
-min_lesion_volume_voxels/max_out_of_brain_fraction admission filters
-(src/features/lesion.py::compute_lesion_quality_metrics does the actual work, no
-threshold applied here - every discovered subject is reported) - useful for inspecting
-the real distribution and picking those thresholds *before* committing to a production
-run, since an already-built data/derived/lesion_matrix/<session>/ can never be filtered
-after the fact (see docs/dev/lesion_matrix.md).
+A diagnostic companion to build_lesion_matrix.py's own max_out_of_brain_fraction
+admission filter (src/features/lesion.py::compute_lesion_quality_metrics does the
+actual work, no threshold applied here - every discovered subject is reported) -
+useful for inspecting the real distribution and picking that threshold *before*
+committing to a production run, since an already-built
+data/derived/lesion_matrix/<session>/ can never be filtered after the fact (see
+docs/dev/lesion_matrix.md).
+
+Deliberately does NOT write lesion_volume_voxels (unlike an earlier version of this
+script) - assets/metadata/participants.csv is the one place for that value
+(src.pipeline.enrich_metadata, via src.features.lesion.compute_lesion_volumes); a
+second, independently computed copy here drifted from it by up to 38x for some
+subjects before this was fixed (found 28-09-26, see
+.claude/history/methods_changelog.md).
 
 Reuses config/pipelines/build_lesion_matrix.json for how to discover/load/resample
 lesion masks (data_root, datasets, reference_template_path, lesion_glob,
@@ -188,11 +195,6 @@ def _report_lines(
     for name, count in _dataset_counts(metadata).items():
         lines.append(f"| {name} | {count} |")
     lines += [
-        "",
-        "## lesion_volume_voxels",
-        "",
-        f"min={metadata['lesion_volume_voxels'].min()} · median={metadata['lesion_volume_voxels'].median():.0f} · "
-        f"max={metadata['lesion_volume_voxels'].max()}",
         "",
         "## out_of_brain_fraction",
         "",

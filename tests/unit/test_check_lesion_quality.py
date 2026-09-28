@@ -81,8 +81,8 @@ def test_check_lesion_quality_end_to_end(tmp_path, monkeypatch, caplog):
 
     metrics = pd.read_csv(output_path)
     assert list(metrics["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0002"]
-    assert list(metrics["lesion_volume_voxels"]) == [1, 1]
     assert list(metrics["out_of_brain_fraction"]) == [0.0, 1.0]
+    assert "lesion_volume_voxels" not in metrics.columns  # participants.csv is the one source for it
 
     reports = list((tmp_path / "summaries").glob("*.md"))
     logs = list((tmp_path / "logs").glob("*.log"))
@@ -101,7 +101,7 @@ def test_check_lesion_quality_skips_when_output_exists_and_no_overwrite(tmp_path
     _make_brain_mask(brain_mask_path, [(1, 1, 1)])
     config_path = _write_config(tmp_path, data_root, brain_mask_path)
     output_path = tmp_path / "lesion_quality_metrics.csv"
-    output_path.write_text("subject_id,dataset,lesion_volume_voxels,out_of_brain_fraction\nsub-fake,siteA,1,0.0\n")
+    output_path.write_text("subject_id,dataset,out_of_brain_fraction\nsub-fake,siteA,0.0\n")
     before = output_path.read_text()
 
     exit_code = check_lesion_quality.main(["--config", str(config_path), "--output-path", str(output_path)])
@@ -121,7 +121,7 @@ def test_check_lesion_quality_overwrite_recomputes(tmp_path, monkeypatch):
     _make_brain_mask(brain_mask_path, [(1, 1, 1)])
     config_path = _write_config(tmp_path, data_root, brain_mask_path)
     output_path = tmp_path / "lesion_quality_metrics.csv"
-    output_path.write_text("subject_id,dataset,lesion_volume_voxels,out_of_brain_fraction\nsub-fake,siteA,1,0.0\n")
+    output_path.write_text("subject_id,dataset,out_of_brain_fraction\nsub-fake,siteA,0.0\n")
 
     exit_code = check_lesion_quality.main(
         ["--config", str(config_path), "--output-path", str(output_path), "--overwrite"]
