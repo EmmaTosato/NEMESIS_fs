@@ -11,3 +11,5 @@ People: Sebastiano and Antonio
 - [ ] Computare i volumi
 - [ ] Fare una descrizione dei cluster per demografica, clincal score etc
 - [ ] Valutare anche altri outliers a livello di soggetti
+- [ ] Prova come imput le streamlines (87 valori)
+-  

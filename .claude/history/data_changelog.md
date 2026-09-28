@@ -10,6 +10,47 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 23-09-26 — `UNIPD/NEMESIS_T0`: subject id grezzi rinominati in forma canonica
+
+**Perché era necessario**: i subject id grezzi di NEMESIS_T0 (`sub-p001`, `sub-c002`, ...)
+non rispettano la convenzione `sub-<ST|PD|GM><SITE>[HC]<NUM>` che `group_of()`
+(`src/retrieval/dataset.py`) richiede — ogni modulo che scopre i soggetti scandendo
+`sub-*` direttamente (`src/features/lesion.py`, `sdc.py`, `subject_discovery.py`)
+chiama `group_of()` senza condizioni e solleverebbe `ValueError` sul primo soggetto.
+
+**Cosa è cambiato**: script one-off `scripts/rename_nemesis_t0_subjects.py` (dry-run di
+default, `--execute` per scrivere). Copre l'unione dei `sub-p*` visti nel tsv grezzo e su
+disco (82 id distinti: 72 in comune, 6 solo nel tsv, 4 solo su disco — non un semplice
+sottoinsieme). Numerazione: `UNIPD` è un contatore unico condiviso da WashU/PSP/PASPORT
+(0001-0585 già occupati, verificato su disco senza buchi riusati), quindi i nuovi id
+continuano da 0586. Assegnati in ordine crescente del numero originale.
+
+Eseguito su:
+- **76 cartelle** rinominate sia sotto `manual_masks/` che sotto `sdc/` (`sub-p001`→
+  `sub-STUNIPD0586` ... `sub-p090`→`sub-STUNIPD0666`, più `sub-p123`→`sub-STUNIPD0667`),
+  ogni file dentro ciascuna cartella rinominato di conseguenza (prefisso del nome file).
+- **`data/clinical_connectome/metadata_tsv/participants_NEMESIS_T0.tsv`**: colonna
+  `participant_id` riscritta in forma canonica per le 82 righe `sub-p*`; l'id grezzo
+  originale preservato in una nuova colonna `participant_id_dmp` (stesso schema già usato
+  dal tsv di `UKE_SFB`). Aggiunte anche **4 righe mancanti** (`sub-p010`, `sub-p047`,
+  `sub-p076`, `sub-p077`) per soggetti che avevano la scansione su disco ma nessuna riga
+  clinica nel tsv originale — età/sesso/gruppo lasciati vuoti, nessun dato clinico noto
+  per loro. Le **6 righe rimaste solo-tsv** (`sub-p032`, `sub-p033`, `sub-p053`,
+  `sub-p081`, `sub-p084`, `sub-p123`) non hanno scansione sul disco: nessuna azione
+  possibile, restano escluse dal join di `populate_metadata.py` (comportamento atteso,
+  riportato nel report del run, non un errore).
+- I 22 `sub-c*` (controlli sani) **non toccati**: nessun dato su disco per loro (0
+  cartelle), e comunque fuori scope per `group_filter: ["ST"]` come ogni altro HC del
+  progetto (`docs/dev/metadata.md`).
+
+**Conseguenza ancora vera oggi**: `config/registry/metadata_sources.json` ha già la voce
+`UNIPD/NEMESIS_T0`, ma il dataset **non è ancora** in `datasets` di
+`config/pipelines/populate_metadata.json` — `assets/metadata/participants.csv` non
+riflette ancora questi 76 (o 72, al netto dei 6 solo-tsv) soggetti finché quella run non
+viene lanciata.
+
+---
+
 ## 23-09-26 — Aggiunti 2 dataset nuovi, sostituite le lesion mask di 6 dataset esistenti
 
 **2 dataset nuovi aggiunti a `data/clinical_connectome/derivatives/`**: UKE/SFB936_ses01
