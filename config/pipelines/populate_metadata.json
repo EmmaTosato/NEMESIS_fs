@@ -8,12 +8,13 @@
     "UKLFR/stroke_UKLFR",
     "UCL-UK/UCLStrokeData",
     "UKE/WAKEUP_acute",
-    "UKE/SFB936_ses01"
+    "UKE/SFB936_ses01",
+    "UNIPD/NEMESIS_T0"
   ],
   "group_filter": [
     "ST"
   ],
   "output_path": "assets/metadata/participants.csv",
   "overwrite": false,
-  "run_notes": "rebuild con features WashU decompresse (has_features corretto)"
+  "run_notes": "onboarding UKE/SFB936_ses01 e UNIPD/NEMESIS_T0 + resync has_lesion/has_sdc/has_features su tutti i dataset (WashU/UKLFR erano stale rispetto al resync manual_masks 1mm del 23-09-26, mai propagato con overwrite:true da allora - lanciato una tantum, poi riportato a false)"
 }

@@ -7,6 +7,7 @@ import pytest
 from src.features.lesion import (
     _load_and_binarize_lesion,
     build_lesion_matrix,
+    compute_lesion_quality_metrics,
     load_reference_image,
 )
 
@@ -26,6 +27,15 @@ def _make_lesion_subject(data_root, dataset, subject_id, lesion_voxels):
 
 def _make_reference_template(path):
     nib.save(nib.Nifti1Image(np.zeros(_SHAPE, dtype=np.float32), _AFFINE), path)
+
+
+def _make_brain_mask(path, brain_voxels):
+    """Binary brain mask on the same grid as _make_reference_template - brain_voxels is
+    the set of voxel coordinates considered inside the brain, everything else is 'outside'."""
+    volume = np.zeros(_SHAPE, dtype=np.float32)
+    for voxel in brain_voxels:
+        volume[voxel] = 1.0
+    nib.save(nib.Nifti1Image(volume, _AFFINE), path)
 
 
 _GLOB = "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz"
@@ -64,6 +74,9 @@ def test_build_lesion_matrix_binarize_threshold_one_raises(tmp_path):
             binarize_threshold=1.0,
             resample_interpolation="nearest",
             group_filter=None,
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=None,
+            brain_mask_path=None,
         )
 
 
@@ -74,17 +87,24 @@ def test_build_lesion_matrix_voxelwise(tmp_path):
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
-    X, metadata, non_constant_mask, excluded_by_group = build_lesion_matrix(
-        data_root=tmp_path,
-        datasets=["siteA"],
-        reference_template_path=template_path,
-        lesion_glob=_GLOB,
-        binarize_threshold=0.5,
-        resample_interpolation="nearest",
-        group_filter=None,
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob=_GLOB,
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            group_filter=None,
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=None,
+            brain_mask_path=None,
+        )
     )
 
     assert excluded_by_group == []
+    assert excluded_by_min_volume == []
+    assert excluded_by_out_of_brain == []
     assert list(metadata["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUNIPD0003"]
     assert X.shape[0] == 3
     assert non_constant_mask.sum() == X.shape[1]
@@ -96,6 +116,7 @@ def test_build_lesion_matrix_voxelwise(tmp_path):
     # is a coincidence of this fixture, not what lesion_volume_voxels means for any
     # individual subject).
     assert list(metadata["lesion_volume_voxels"]) == [2, 1, 1]
+    assert "out_of_brain_fraction" not in metadata.columns  # threshold disabled -> column not computed
 
 
 def test_build_lesion_matrix_voxelwise_pipeline_first_layout(tmp_path):
@@ -108,14 +129,19 @@ def test_build_lesion_matrix_voxelwise_pipeline_first_layout(tmp_path):
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
-    X, metadata, non_constant_mask, excluded_by_group = build_lesion_matrix(
-        data_root=tmp_path,
-        datasets=["siteA"],
-        reference_template_path=template_path,
-        lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
-        binarize_threshold=0.5,
-        resample_interpolation="nearest",
-        group_filter=None,
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            group_filter=None,
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=None,
+            brain_mask_path=None,
+        )
     )
 
     assert excluded_by_group == []
@@ -135,14 +161,19 @@ def test_build_lesion_matrix_group_filter_excludes_hc(tmp_path):
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
-    X, metadata, non_constant_mask, excluded_by_group = build_lesion_matrix(
-        data_root=tmp_path,
-        datasets=["siteA"],
-        reference_template_path=template_path,
-        lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
-        binarize_threshold=0.5,
-        resample_interpolation="nearest",
-        group_filter=["ST"],
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            group_filter=["ST"],
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=None,
+            brain_mask_path=None,
+        )
     )
 
     assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
@@ -165,6 +196,9 @@ def test_build_lesion_matrix_subject_count_mismatch_raises(tmp_path):
             binarize_threshold=0.5,
             resample_interpolation="nearest",
             group_filter=None,
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=None,
+            brain_mask_path=None,
         )
 
 
@@ -189,6 +223,9 @@ def test_build_lesion_matrix_malformed_subject_dir_name_raises_even_without_grou
             binarize_threshold=0.5,
             resample_interpolation="nearest",
             group_filter=None,
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=None,
+            brain_mask_path=None,
         )
 
 
@@ -242,6 +279,9 @@ def test_build_lesion_matrix_missing_dataset_root_raises(tmp_path):
             binarize_threshold=0.5,
             resample_interpolation="nearest",
             group_filter=None,
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=None,
+            brain_mask_path=None,
         )
 
 
@@ -255,3 +295,211 @@ def test_load_reference_image_valid(tmp_path):
     _make_reference_template(template_path)
     reference_img = load_reference_image(template_path)
     assert reference_img.shape == _SHAPE
+
+
+def test_build_lesion_matrix_min_volume_threshold_excludes_small_lesion(tmp_path):
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2), (1, 1, 3)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [(5, 5, 5)])  # 1 voxel, below threshold
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob=_GLOB,
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            group_filter=None,
+            min_lesion_volume_voxels=2,
+            max_out_of_brain_fraction=None,
+            brain_mask_path=None,
+        )
+    )
+
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
+    assert excluded_by_min_volume == ["sub-STUNIPD0002"]
+    assert excluded_by_out_of_brain == []
+
+
+def test_build_lesion_matrix_out_of_brain_threshold_excludes_contaminated_subject(tmp_path):
+    # sub-0001: 2 voxels, both inside the brain mask -> fraction 0.0, kept.
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2)])
+    # sub-0002: 2 voxels, both outside the brain mask -> fraction 1.0, excluded.
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [(9, 9, 9), (9, 9, 8)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+    brain_mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_brain_mask(brain_mask_path, [(1, 1, 1), (1, 1, 2), (1, 1, 3)])
+
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob=_GLOB,
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            group_filter=None,
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=0.5,
+            brain_mask_path=brain_mask_path,
+        )
+    )
+
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
+    assert excluded_by_out_of_brain == ["sub-STUNIPD0002"]
+    assert metadata.loc[metadata["subject_id"] == "sub-STUNIPD0001", "out_of_brain_fraction"].iloc[0] == 0.0
+
+
+def test_build_lesion_matrix_out_of_brain_fraction_partial(tmp_path):
+    """1 of 2 lesion voxels outside the brain mask -> fraction 0.5, kept at threshold 0.5."""
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (9, 9, 9)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+    brain_mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_brain_mask(brain_mask_path, [(1, 1, 1)])
+
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob=_GLOB,
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            group_filter=None,
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=0.5,
+            brain_mask_path=brain_mask_path,
+        )
+    )
+
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
+    assert excluded_by_out_of_brain == []
+    assert metadata["out_of_brain_fraction"].iloc[0] == 0.5
+
+
+def test_build_lesion_matrix_out_of_brain_threshold_without_brain_mask_path_raises(tmp_path):
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+
+    with pytest.raises(ValueError, match="brain_mask_path"):
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob=_GLOB,
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            group_filter=None,
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=0.5,
+            brain_mask_path=None,
+        )
+
+
+def test_build_lesion_matrix_all_subjects_excluded_by_min_volume_raises(tmp_path):
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+
+    with pytest.raises(ValueError, match="no subjects remain"):
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob=_GLOB,
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            group_filter=None,
+            min_lesion_volume_voxels=100,
+            max_out_of_brain_fraction=None,
+            brain_mask_path=None,
+        )
+
+
+def test_compute_lesion_quality_metrics_no_threshold_all_subjects_included(tmp_path):
+    """Unlike build_lesion_matrix, no subject is ever dropped here - the function only
+    reports metrics, it never decides admission."""
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])  # inside brain mask
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [(9, 9, 9)])  # outside brain mask
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0003", [])  # zero-volume, legitimate case
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+    brain_mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_brain_mask(brain_mask_path, [(1, 1, 1)])
+
+    metadata, excluded_by_group = compute_lesion_quality_metrics(
+        data_root=tmp_path,
+        datasets=["siteA"],
+        reference_template_path=template_path,
+        lesion_glob=_GLOB,
+        binarize_threshold=0.5,
+        resample_interpolation="nearest",
+        group_filter=None,
+        brain_mask_path=brain_mask_path,
+    )
+
+    assert excluded_by_group == []
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUNIPD0003"]
+    assert list(metadata["lesion_volume_voxels"]) == [1, 1, 0]
+    assert list(metadata["out_of_brain_fraction"]) == [0.0, 1.0, 0.0]
+
+
+def test_compute_lesion_quality_metrics_group_filter_excludes_hc(tmp_path):
+    _make_lesion_subject_pipeline_first(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    _make_lesion_subject_pipeline_first(tmp_path, "siteA", "sub-STUNIPDHC0001", [(5, 5, 5)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+    brain_mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_brain_mask(brain_mask_path, [(1, 1, 1)])
+
+    metadata, excluded_by_group = compute_lesion_quality_metrics(
+        data_root=tmp_path,
+        datasets=["siteA"],
+        reference_template_path=template_path,
+        lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
+        binarize_threshold=0.5,
+        resample_interpolation="nearest",
+        group_filter=["ST"],
+        brain_mask_path=brain_mask_path,
+    )
+
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
+    assert excluded_by_group == ["sub-STUNIPDHC0001"]
+
+
+def test_build_lesion_matrix_zero_volume_subject_out_of_brain_fraction_is_zero(tmp_path):
+    """A subject binarized to 0 lesion voxels (legitimate per-subject case) gets
+    out_of_brain_fraction=0.0, not NaN/undefined - vacuously true, and never wrongly
+    excluded by max_out_of_brain_fraction on that basis alone."""
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [])  # empty mask -> 0 voxels
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+    brain_mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_brain_mask(brain_mask_path, [(1, 1, 1)])
+
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob=_GLOB,
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            group_filter=None,
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=0.1,
+            brain_mask_path=brain_mask_path,
+        )
+    )
+
+    assert set(metadata["subject_id"]) == {"sub-STUNIPD0001", "sub-STUNIPD0002"}
+    assert excluded_by_out_of_brain == []
+    zero_volume_row = metadata.loc[metadata["subject_id"] == "sub-STUNIPD0002"].iloc[0]
+    assert zero_volume_row["lesion_volume_voxels"] == 0
+    assert zero_volume_row["out_of_brain_fraction"] == 0.0

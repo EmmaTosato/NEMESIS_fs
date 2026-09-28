@@ -38,6 +38,13 @@ def _make_reference_template(path):
     nib.save(nib.Nifti1Image(np.zeros(_SHAPE, dtype=np.float32), _AFFINE), path)
 
 
+def _make_brain_mask(path, brain_voxels):
+    volume = np.zeros(_SHAPE, dtype=np.float32)
+    for voxel in brain_voxels:
+        volume[voxel] = 1.0
+    nib.save(nib.Nifti1Image(volume, _AFFINE), path)
+
+
 def _write_config(tmp_path, data_root, output_root, overrides=None):
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
@@ -138,7 +145,10 @@ def test_build_lesion_matrix_config_md_has_params_used_line(tmp_path, monkeypatc
 
     out_dir = next(p for p in output_root.iterdir() if p.is_dir())
     config_md = (out_dir / "config.md").read_text()
-    assert 'Params used: {"binarize_threshold": 0.5}' in config_md
+    assert (
+        'Params used: {"binarize_threshold": 0.5, "min_lesion_volume_voxels": null, '
+        '"max_out_of_brain_fraction": null}' in config_md
+    )
     assert "Excluded by group_filter" in config_md
     assert "None." in config_md  # no group_filter set -> nothing excluded
 
@@ -177,6 +187,59 @@ def test_build_lesion_matrix_corrupt_lesion_mask_returns_1_not_raw_traceback(tmp
     # docs/debugging/debug_25_08_26.md - a slow run that fails is exactly when knowing how
     # long it ran before failing matters most).
     assert "run duration:" in caplog.text
+
+
+def test_build_lesion_matrix_min_volume_threshold_excludes_and_reports(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
+
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2), (1, 1, 3)])
+    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0002", [(5, 5, 5)])  # 1 voxel, below threshold
+    config_path = _write_config(tmp_path, data_root, output_root, overrides={"min_lesion_volume_voxels": 2})
+
+    exit_code = build_lesion_matrix.main(["--config", str(config_path)])
+    assert exit_code == 0
+
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
+
+    config_md = (out_dir / "config.md").read_text()
+    assert "## Excluded by min_lesion_volume_voxels" in config_md
+    assert "sub-STUNIPD0002" in config_md
+    assert "## Excluded by max_out_of_brain_fraction" in config_md  # section present even when unused ("None.")
+
+
+def test_build_lesion_matrix_out_of_brain_threshold_excludes_and_reports(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
+
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])  # inside brain mask
+    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0002", [(9, 9, 9)])  # outside brain mask
+    brain_mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_brain_mask(brain_mask_path, [(1, 1, 1)])
+    config_path = _write_config(
+        tmp_path,
+        data_root,
+        output_root,
+        overrides={"max_out_of_brain_fraction": 0.5, "brain_mask_path": str(brain_mask_path)},
+    )
+
+    exit_code = build_lesion_matrix.main(["--config", str(config_path)])
+    assert exit_code == 0
+
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
+    assert metadata["out_of_brain_fraction"].iloc[0] == 0.0
+
+    config_md = (out_dir / "config.md").read_text()
+    assert "## Excluded by max_out_of_brain_fraction" in config_md
+    assert "sub-STUNIPD0002" in config_md
 
 
 def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, monkeypatch):

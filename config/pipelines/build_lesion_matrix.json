@@ -12,10 +12,13 @@
   "group_filter": [
     "ST"
   ],
-  "reference_template_path": "assets/templates/tpl-MNI152NLin6Asym_res-1_T1w.nii.gz",
+  "reference_template_path": "assets/templates/tpl-MNI152NLin6Asym_res-2_T1w.nii.gz",
   "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",
   "binarize_threshold": 0.5,
   "resample_interpolation": "nearest",
+  "min_lesion_volume_voxels": null,
+  "max_out_of_brain_fraction": null,
+  "brain_mask_path": "assets/templates/tpl-MNI152NLin6Asym_res-2_desc-brain_mask.nii.gz",
   "output_root": "data/derived/lesion_matrix",
   "session_name": "s1.3-vol",
   "overwrite": false,

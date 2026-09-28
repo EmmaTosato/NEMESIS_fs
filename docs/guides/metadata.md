@@ -12,6 +12,8 @@ Lo scrivono due script, che rispondono a due domande diverse e non si sovrascriv
 - **Dettagli architetturali/perché è fatto così**: [`docs/dev/metadata.md`](../dev/metadata.md)
 - **Quali campi esistono in quale dataset**: [`docs/guides/datasets.md`](datasets.md)
 
+`assets/metadata/` contiene anche `lesion_quality_metrics.csv`, un file **separato** (non una colonna di `participants.csv`): volume della lesione e frazione fuori dal brain per ogni soggetto, prodotto da `scripts/check_lesion_quality.py` — non "chi esiste"/"cosa sappiamo di lui", ma una cache diagnostica per decidere le soglie `min_lesion_volume_voxels`/`max_out_of_brain_fraction` di `build_lesion_matrix.py` prima di lanciare una run di produzione. Dettagli in [`docs/dev/lesion_matrix.md`](../dev/lesion_matrix.md), come lanciarlo in [`docs/guides/matrix_building.md`](matrix_building.md).
+
 ---
 
 ## Come si lancia

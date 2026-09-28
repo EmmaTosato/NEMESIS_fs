@@ -8,6 +8,16 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 28-09-26 — Nuovo script `scripts/check_lesion_quality.py` + cache `assets/metadata/lesion_quality_metrics.csv`
+
+**Cosa è cambiato**: `src/features/lesion.py` guadagna `compute_lesion_quality_metrics` (pubblica, senza soglie di ammissione - riusa `_voxelwise_matrix_with_volume`/`_load_and_binarize_brain_mask`/`_out_of_brain_fractions`, già scritte per `build_lesion_matrix.py`'s `min_lesion_volume_voxels`/`max_out_of_brain_fraction`, vedi voce del 28-09-26 in `methods_changelog.md`). Due nuovi consumatori la chiamano invece di ricalcolare da zero: `scripts/check_lesion_quality.py` (CLI, riusa `config/pipelines/build_lesion_matrix.json` come sorgente di configurazione, scrive `assets/metadata/lesion_quality_metrics.csv` in modo atomico, `--overwrite` per forzare il ricalcolo) e la sezione "Lesione fuori dal brain" di `notebooks/exploration/dataset_exploration.ipynb`, che prima usava una propria implementazione copiata (con `nilearn.datasets.load_mni152_brain_mask()`, una maschera MNI generica scaricata da internet, non l'asset di progetto) - ora importa la stessa funzione e usa lo stesso `assets/templates/tpl-MNI152NLin6Asym_res-1_desc-brain_mask.nii.gz` della pipeline di produzione, quindi notebook e script vedono esattamente gli stessi numeri. Aggiunto anche `jobs/run_check_lesion_quality.sh`.
+
+**Perché**: il calcolo (un caricamento+resampling nibabel/nilearn per soggetto) è costoso - minuti sull'intera coorte di ~5700 soggetti, verificato eseguendo la vecchia versione nel notebook. Serve poterlo eseguire una volta sola e riusare il risultato, sia da script standalone sia da notebook, senza duplicare la logica di calcolo (solo il calcolo, non l'I/O: la cache CSV è nel chiamante, `compute_lesion_quality_metrics` resta puro, nessuna scrittura su disco).
+
+**Conseguenza ancora vera oggi**: `assets/metadata/lesion_quality_metrics.csv` è una cache diagnostica per scegliere le soglie prima di una run di produzione - deliberatamente separata da `participants.csv` (la cui `lesion_volume_voxels` ha una provenienza diversa: copiata da uno specifico lesion matrix già costruito, non ricalcolata fresca). Di default lo script non ricalcola se il file esiste già (va passato `--overwrite`).
+
+---
+
 ## 23-09-26 — `reference_template_path` sostituito con un vero template MNI152 versionato
 
 **Cosa è cambiato**: `config/pipelines/build_lesion_matrix.json` e `build_sdc_matrix.json`

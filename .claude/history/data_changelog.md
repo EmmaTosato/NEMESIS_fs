@@ -10,6 +10,18 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 28-09-26 — Rimossa `data/derived/enrich_lesion_metadata/`
+
+Cancellata la directory (conteneva solo un `runs.csv` residuo, 2.9KB, mtime 02-09-26) —
+leftover della pipeline `enrich_lesion_metadata.py`, cancellata durante il ridisegno
+metadati del 06-09-26 e sostituita da `src/pipeline/enrich_metadata.py`, che scrive
+direttamente in `assets/metadata/participants.csv` senza produrre un proprio artefatto
+sotto `data/derived/`.
+
+Verificato con `grep -rn` prima della cancellazione: nessun codice/config attivo
+referenziava più quel path — solo menzioni narrative in `docs/debugging/`,
+`lessons_learned.md` e `stato_progetto.md`. Rimozione confermata dall'utente.
+
 ## 23-09-26 — `UNIPD/NEMESIS_T0`: subject id grezzi rinominati in forma canonica
 
 **Perché era necessario**: i subject id grezzi di NEMESIS_T0 (`sub-p001`, `sub-c002`, ...)

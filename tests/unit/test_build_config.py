@@ -69,6 +69,64 @@ def test_missing_file_raises(tmp_path):
         load_build_matrix_config(tmp_path / "nope.json")
 
 
+def test_lesion_quality_thresholds_default_to_none_when_absent(tmp_path):
+    config = load_build_matrix_config(_write(tmp_path, {}))
+    assert config.min_lesion_volume_voxels is None
+    assert config.max_out_of_brain_fraction is None
+    assert config.brain_mask_path is None
+
+
+def test_min_lesion_volume_voxels_parsed(tmp_path):
+    config = load_build_matrix_config(_write(tmp_path, {"min_lesion_volume_voxels": 50}))
+    assert config.min_lesion_volume_voxels == 50
+
+
+def test_min_lesion_volume_voxels_negative_raises(tmp_path):
+    with pytest.raises(ValueError, match="min_lesion_volume_voxels"):
+        load_build_matrix_config(_write(tmp_path, {"min_lesion_volume_voxels": -1}))
+
+
+def test_min_lesion_volume_voxels_non_integer_raises(tmp_path):
+    with pytest.raises(ValueError, match="min_lesion_volume_voxels"):
+        load_build_matrix_config(_write(tmp_path, {"min_lesion_volume_voxels": 1.5}))
+
+
+def test_max_out_of_brain_fraction_requires_brain_mask_path(tmp_path):
+    with pytest.raises(ValueError, match="brain_mask_path"):
+        load_build_matrix_config(_write(tmp_path, {"max_out_of_brain_fraction": 0.5}))
+
+
+def test_max_out_of_brain_fraction_with_brain_mask_path_parsed(tmp_path):
+    config = load_build_matrix_config(
+        _write(tmp_path, {"max_out_of_brain_fraction": 0.5, "brain_mask_path": "/templates/brain_mask.nii.gz"})
+    )
+    assert config.max_out_of_brain_fraction == 0.5
+    assert str(config.brain_mask_path) == "/templates/brain_mask.nii.gz"
+
+
+def test_max_out_of_brain_fraction_out_of_range_raises(tmp_path):
+    with pytest.raises(ValueError, match="max_out_of_brain_fraction"):
+        load_build_matrix_config(
+            _write(tmp_path, {"max_out_of_brain_fraction": 1.5, "brain_mask_path": "/templates/brain_mask.nii.gz"})
+        )
+
+
+def test_brain_mask_path_readable_when_max_out_of_brain_fraction_absent(tmp_path):
+    """Unlike SdcMatrixConfig's representation-specific fields, brain_mask_path stays
+    readable even with no threshold set - scripts/check_lesion_quality.py needs it
+    regardless of whether build_lesion_matrix.py's own filter is active (it's exactly
+    how a real max_out_of_brain_fraction value gets picked in the first place)."""
+    config = load_build_matrix_config(_write(tmp_path, {"brain_mask_path": "/templates/brain_mask.nii.gz"}))
+    assert config.max_out_of_brain_fraction is None
+    assert str(config.brain_mask_path) == "/templates/brain_mask.nii.gz"
+
+
+def test_brain_mask_path_absent_when_nothing_set(tmp_path):
+    config = load_build_matrix_config(_write(tmp_path, {}))
+    assert config.brain_mask_path is None
+    assert config.brain_mask_path is None
+
+
 @pytest.mark.parametrize(
     "overrides, match",
     [
