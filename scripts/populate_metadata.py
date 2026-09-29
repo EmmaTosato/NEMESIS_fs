@@ -272,7 +272,7 @@ def build_table(config: PopulateMetadataConfig) -> tuple[pd.DataFrame, list[Data
 # --- merge with what's already on disk -------------------------------------------------------
 
 
-def merge_with_existing(fresh: pd.DataFrame, output_path: Path, overwrite: bool) -> pd.DataFrame:
+def merge_with_existing(fresh: pd.DataFrame, output_path: Path, overwrite: bool) -> tuple[pd.DataFrame, list[str]]:
     """Combine freshly computed rows with an already-written participants file.
 
     overwrite=False: existing rows are returned untouched, only genuinely new subjects
@@ -281,9 +281,16 @@ def merge_with_existing(fresh: pd.DataFrame, output_path: Path, overwrite: bool)
     overwrite=True: this script's own columns are recomputed for every surviving subject,
     while any other script's columns are carried over by subject_id - a subject no longer
     admitted is dropped entirely.
+
+    Returns (table, dropped) - dropped is always [] when overwrite is False (nothing is
+    ever dropped on that path). The log line truncates a long `dropped` to the first 5 for
+    readability, but the full list is always returned here for the caller to persist in
+    full in the run report - a truncated log line is not a substitute for the complete
+    list (found 29-09-26 auditing this pipeline's own logging: a run that dropped 31
+    subjects logged only 5 of them, with the rest unrecoverable from any artifact on disk).
     """
     if not output_path.is_file():
-        return fresh
+        return fresh, []
     existing = pd.read_csv(output_path, dtype=str)
     if "subject_id" not in existing.columns:
         raise ValueError(f"{output_path}: existing file has no 'subject_id' column - refusing to merge into it")
@@ -291,15 +298,18 @@ def merge_with_existing(fresh: pd.DataFrame, output_path: Path, overwrite: bool)
     if not overwrite:
         new_rows = fresh.loc[~fresh["subject_id"].isin(set(existing["subject_id"]))]
         logging.info("overwrite=false: %d existing row(s) untouched, %d new subject(s) appended", len(existing), len(new_rows))
-        return pd.concat([existing, new_rows], ignore_index=True)
+        return pd.concat([existing, new_rows], ignore_index=True), []
 
     foreign_columns = [c for c in existing.columns if c not in OWN_COLUMNS]
     merged = fresh.merge(existing[["subject_id", *foreign_columns]], on="subject_id", how="left")
     dropped = sorted(set(existing["subject_id"]) - set(fresh["subject_id"]))
     if dropped:
-        logging.warning("overwrite=true: %d subject(s) no longer admitted, dropped: %s", len(dropped), dropped[:5])
+        logging.warning(
+            "overwrite=true: %d subject(s) no longer admitted, dropped: %s%s",
+            len(dropped), dropped[:5], " ... (full list in the run report)" if len(dropped) > 5 else "",
+        )
     logging.info("overwrite=true: rebuilt %d row(s), carried over column(s) %s", len(merged), foreign_columns)
-    return merged
+    return merged, dropped
 
 
 def write_table(table: pd.DataFrame, output_path: Path) -> None:
@@ -319,7 +329,9 @@ def write_table(table: pd.DataFrame, output_path: Path) -> None:
 # --- report ---------------------------------------------------------------------------------
 
 
-def report_lines(config: PopulateMetadataConfig, outcomes: list[DatasetOutcome], n_written: int, now: datetime) -> list[str]:
+def report_lines(
+    config: PopulateMetadataConfig, outcomes: list[DatasetOutcome], dropped: list[str], n_written: int, now: datetime
+) -> list[str]:
     lines = [
         f"# populate_metadata — {now.strftime('%d-%m-%y %H:%M:%S')}",
         "",
@@ -335,13 +347,15 @@ def report_lines(config: PopulateMetadataConfig, outcomes: list[DatasetOutcome],
             f"| {outcome.dataset} | {len(outcome.rows)} | {len(outcome.only_in_tsv)} | {len(outcome.only_on_disk)} | "
             f"{len(outcome.excluded_by_group)} | {len(outcome.disease_id_mismatch)} |"
         )
-    lines += _anomaly_sections(outcomes)
+    lines += _anomaly_sections(outcomes, dropped)
     return lines
 
 
-def _anomaly_sections(outcomes: list[DatasetOutcome]) -> list[str]:
+def _anomaly_sections(outcomes: list[DatasetOutcome], dropped: list[str]) -> list[str]:
     """One section per anomaly kind, listing the subjects behind the counts above -
-    omitted entirely when there's nothing to report."""
+    omitted entirely when there's nothing to report. Every list here is written out in
+    full, never truncated - unlike the console/file log, this report is the one place
+    a later reader can recover exactly who was affected and why, months after the run."""
     sections = {
         "Only in participants.tsv (no data on disk - excluded)": {o.dataset: o.only_in_tsv for o in outcomes},
         "Only on disk (absent from participants.tsv - excluded)": {o.dataset: o.only_on_disk for o in outcomes},
@@ -356,6 +370,16 @@ def _anomaly_sections(outcomes: list[DatasetOutcome]) -> list[str]:
         for dataset, subjects in entries.items():
             lines.append(f"- **{dataset}** ({len(subjects)}): {', '.join(subjects)}")
 
+    if dropped:
+        lines += [
+            "",
+            "## Dropped by overwrite=true (no longer admitted)",
+            "",
+            f"{len(dropped)} subject(s) present in the previous output file but not recomputed by this run - "
+            "removed entirely, including any column enrich_metadata had written for them:",
+        ]
+        lines += [f"- {subject_id}" for subject_id in dropped]
+
     mismatches = {o.dataset: o.disease_id_mismatch for o in outcomes if o.disease_id_mismatch}
     if mismatches:
         lines += ["", "## disease_id mismatch (participants.tsv vs. subject id)", ""]
@@ -365,10 +389,12 @@ def _anomaly_sections(outcomes: list[DatasetOutcome]) -> list[str]:
     return lines
 
 
-def write_report(config: PopulateMetadataConfig, outcomes: list[DatasetOutcome], n_written: int, now: datetime) -> Path:
+def write_report(
+    config: PopulateMetadataConfig, outcomes: list[DatasetOutcome], dropped: list[str], n_written: int, now: datetime
+) -> Path:
     REPORTS_ROOT.mkdir(parents=True, exist_ok=True)
     report_path = REPORTS_ROOT / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.md"
-    report_path.write_text("\n".join(report_lines(config, outcomes, n_written, now)) + "\n")
+    report_path.write_text("\n".join(report_lines(config, outcomes, dropped, n_written, now)) + "\n")
     return report_path
 
 
@@ -398,14 +424,14 @@ def main(argv: list[str] | None = None) -> int:
 
         try:
             fresh, outcomes = build_table(config)
-            table = merge_with_existing(fresh, config.output_path, config.overwrite)
+            table, dropped = merge_with_existing(fresh, config.output_path, config.overwrite)
         except (FileNotFoundError, ValueError) as exc:
             logging.error(str(exc))
             return 1
 
         try:
             write_table(table, config.output_path)
-            report_path = write_report(config, outcomes, len(table), now)
+            report_path = write_report(config, outcomes, dropped, len(table), now)
         except OSError as exc:
             logging.error("cannot write output: %s", exc, exc_info=True)
             return 1

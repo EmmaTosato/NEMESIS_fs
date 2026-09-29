@@ -331,7 +331,7 @@ def test_build_lesion_matrix_min_volume_threshold_excludes_small_lesion(tmp_path
     )
 
     assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
-    assert excluded_by_min_volume == ["sub-STUNIPD0002"]
+    assert excluded_by_min_volume == [("sub-STUNIPD0002", 1)]
     assert excluded_by_out_of_brain == []
 
 
@@ -362,7 +362,7 @@ def test_build_lesion_matrix_out_of_brain_threshold_excludes_contaminated_subjec
     )
 
     assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
-    assert excluded_by_out_of_brain == ["sub-STUNIPD0002"]
+    assert excluded_by_out_of_brain == [("sub-STUNIPD0002", 1.0)]
     assert metadata.loc[metadata["subject_id"] == "sub-STUNIPD0001", "out_of_brain_fraction"].iloc[0] == 0.0
 
 
@@ -577,7 +577,7 @@ def test_build_lesion_matrix_correct_out_of_brain_zeroes_voxels_and_reports_corr
         )
     )
 
-    assert corrected_subjects == ["sub-STUNIPD0001"]
+    assert corrected_subjects == [("sub-STUNIPD0001", 1)]
     assert excluded_by_out_of_brain == []  # correction fixes it, never excludes
     row1 = metadata.loc[metadata["subject_id"] == "sub-STUNIPD0001"].iloc[0]
     assert row1["lesion_volume_voxels"] == 1  # the out-of-brain voxel was zeroed, not counted

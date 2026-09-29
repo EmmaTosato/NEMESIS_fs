@@ -2,6 +2,7 @@
 
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
 
 import nibabel as nib
@@ -10,12 +11,14 @@ import pandas as pd
 import pytest
 
 from src.pipeline.enrich_metadata import (
+    DatasetCoverage,
     EnrichMetadataConfig,
     LesionMetricsConfig,
     compute_fresh_lesion_volumes,
     compute_geometric_lesion_sides,
     enrich,
     load_config,
+    report_lines,
     resolve_dataset_values,
     source_column_for,
 )
@@ -546,6 +549,52 @@ def test_geometric_fallback_fills_only_missing_lesion_side(tmp_path):
     assert by_id.loc["sub-STUNIPD0003", ["lesion_side", "lesion_side_source"]].tolist() == ["right", "geometric"]
 
 
+def test_still_missing_lesion_side_warning_names_final_subjects_with_cause(tmp_path, caplog):
+    """Regression (found 29-09-26 auditing this pipeline's logging, docs/dev/metadata.md):
+    compute_geometric_lesion_sides's 'undefined laterality_index' warning lists dataset-wide
+    candidates, which can include subjects that already have a clinical lesion_side and never
+    needed the fallback at all - in a real run, 3 of 6 candidates were exactly this kind of
+    false positive. enrich() must log the FINAL, per-subject set that still lacks lesion_side
+    after the fallback, with a cause, and must never include an already-resolved subject in
+    that final warning."""
+    data_root = tmp_path / "data"
+    tsv = _write_tsv(
+        tmp_path / "a.tsv", ["participant_id", "lesion_side"],
+        [["sub-STUNIPD0001", "left"], ["sub-STUNIPD0002", "n/a"], ["sub-STUNIPD0003", "n/a"]],
+    )
+    # sub-0001 already has a clinical value but its mask is empty (undefined laterality) - a
+    # false-positive candidate that must NOT show up in the final "remain without" warning.
+    _make_lesion_mask(data_root, "UNIPD/WashU", "sub-STUNIPD0001", [])
+    # sub-0002 has no clinical value and an empty mask -> genuinely stuck, must be named.
+    _make_lesion_mask(data_root, "UNIPD/WashU", "sub-STUNIPD0002", [])
+    # sub-0003 has no clinical value but a real, classifiable mask -> resolved geometrically.
+    _make_lesion_mask(data_root, "UNIPD/WashU", "sub-STUNIPD0003", [(1, 1, 1)])
+    matrix_config_path = _write_lesion_matrix_config(tmp_path, data_root, ["UNIPD/WashU"])
+    sources = {"UNIPD/WashU": DatasetSource(tsv, tmp_path)}
+    registry = _registry([
+        [f"sub-STUNIPD000{i}", f"sub-STUNIPD000{i}", "UNIPD/WashU", "ST", "True", "True", "False"]
+        for i in (1, 2, 3)
+    ])
+
+    with caplog.at_level(logging.WARNING):
+        out, _ = enrich(
+            registry,
+            _config(tmp_path, sources, ["lesion_side"], lesion_metrics=_side_only_metrics(matrix_config_path)),
+        )
+
+    remain_lines = [line for line in caplog.text.splitlines() if "remain without lesion_side" in line]
+    assert len(remain_lines) == 1
+    assert "sub-STUNIPD0002" in remain_lines[0]
+    assert "undefined laterality_index" in remain_lines[0]
+    assert "sub-STUNIPD0001" not in remain_lines[0]  # already clinical, never a candidate here
+    assert "sub-STUNIPD0003" not in remain_lines[0]  # resolved geometrically
+
+    by_id = out.set_index("subject_id")
+    assert by_id.loc["sub-STUNIPD0001", "lesion_side"] == "left"
+    assert pd.isna(by_id.loc["sub-STUNIPD0002", "lesion_side"])
+    assert by_id.loc["sub-STUNIPD0003", "lesion_side"] == "right"
+
+
 _TRANSLATED_AFFINE = np.array(
     [[2.0, 0.0, 0.0, -10.0], [0.0, 2.0, 0.0, -10.0], [0.0, 0.0, 2.0, -10.0], [0.0, 0.0, 0.0, 1.0]]
 )  # world_x(i) = 2*i - 10: index 1 is anatomical-left, index 8 is anatomical-right
@@ -583,15 +632,17 @@ def test_geometric_fallback_applies_out_of_brain_correction(tmp_path):
         "brain_mask_path": str(brain_mask_path),
     }))
 
-    uncorrected = compute_geometric_lesion_sides(
+    uncorrected, uncorrected_undefined = compute_geometric_lesion_sides(
         matrix_config_path, ["UNIPD/WashU"], threshold=0.1, correct_out_of_brain=False
     )
-    corrected = compute_geometric_lesion_sides(
+    corrected, corrected_undefined = compute_geometric_lesion_sides(
         matrix_config_path, ["UNIPD/WashU"], threshold=0.1, correct_out_of_brain=True
     )
 
     assert uncorrected == {"sub-STUNIPD0001": "right"}
     assert corrected == {"sub-STUNIPD0001": "left"}
+    assert uncorrected_undefined == set()
+    assert corrected_undefined == set()
 
 
 def test_compute_geometric_lesion_sides_skips_datasets_outside_matrix_config(tmp_path, caplog):
@@ -600,11 +651,12 @@ def test_compute_geometric_lesion_sides_skips_datasets_outside_matrix_config(tmp
     matrix_config_path = _write_lesion_matrix_config(tmp_path, data_root, ["UNIPD/WashU"])
 
     with caplog.at_level(logging.WARNING):
-        sides = compute_geometric_lesion_sides(
+        sides, undefined = compute_geometric_lesion_sides(
             matrix_config_path, ["UKE/WAKEUP_acute"], threshold=0.2, correct_out_of_brain=False
         )
 
     assert sides == {}
+    assert undefined == set()
     assert "UKE/WAKEUP_acute" in caplog.text
 
 
@@ -619,9 +671,61 @@ def test_compute_geometric_lesion_sides_warns_on_partial_coverage(tmp_path, capl
     matrix_config_path = _write_lesion_matrix_config(tmp_path, data_root, ["UNIPD/WashU"])
 
     with caplog.at_level(logging.WARNING):
-        sides = compute_geometric_lesion_sides(
+        sides, undefined = compute_geometric_lesion_sides(
             matrix_config_path, ["UNIPD/WashU", "UNIPD/NEMESIS_T0"], threshold=0.2, correct_out_of_brain=False
         )
 
     assert "UNIPD/NEMESIS_T0" in caplog.text  # the uncovered dataset must be named, not just implied
     assert sides == {"sub-STUNIPD0001": "right"}  # UNIPD/WashU still computed despite the partial miss
+    assert undefined == set()
+
+
+# --- report ---------------------------------------------------------------------------------
+
+
+def test_report_lines_dumps_lesion_metrics_as_json_not_dataclass_repr(tmp_path):
+    """Regression: report_lines used to interpolate LesionMetricsConfig's own repr()
+    (e.g. "LesionMetricsConfig(build_matrix_config=PosixPath('...'), ...)") straight into
+    the markdown report - illegible, and inconsistent with build_lesion_matrix.py's own
+    JSON config dump (found 29-09-26 auditing this pipeline's logging)."""
+    sources = {"UNIPD/WashU": DatasetSource(tmp_path / "a.tsv", tmp_path)}
+    config = _config(
+        tmp_path, sources, ["lesion_side"],
+        lesion_metrics=LesionMetricsConfig(
+            build_matrix_config=Path("config/pipelines/build_lesion_matrix.json"),
+            correct_out_of_brain=False, compute_volume=True, compute_side=True, side_threshold=0.2,
+        ),
+    )
+    coverage = DatasetCoverage(
+        dataset="UNIPD/WashU", n_subjects=1, missing_variables=[], substituted={}, n_missing_cells={},
+    )
+
+    lines = report_lines(config, [coverage], datetime(2026, 9, 29, 12, 0, 0))
+    text = "\n".join(lines)
+
+    assert "LesionMetricsConfig(" not in text  # no raw dataclass repr
+    assert "PosixPath(" not in text
+    json_start = lines.index("```json") + 1
+    json_end = lines.index("```", json_start)
+    parsed = json.loads("\n".join(lines[json_start:json_end]))
+    assert parsed == {
+        "build_matrix_config": "config/pipelines/build_lesion_matrix.json",
+        "correct_out_of_brain": False,
+        "compute_volume": True,
+        "compute_side": True,
+        "side_threshold": 0.2,
+    }
+
+
+def test_report_lines_lesion_metrics_null_when_disabled(tmp_path):
+    sources = {"UNIPD/WashU": DatasetSource(tmp_path / "a.tsv", tmp_path)}
+    config = _config(tmp_path, sources, ["age"], lesion_metrics=None)
+    coverage = DatasetCoverage(
+        dataset="UNIPD/WashU", n_subjects=1, missing_variables=[], substituted={}, n_missing_cells={},
+    )
+
+    lines = report_lines(config, [coverage], datetime(2026, 9, 29, 12, 0, 0))
+
+    json_start = lines.index("```json") + 1
+    json_end = lines.index("```", json_start)
+    assert lines[json_start:json_end] == ["null"]

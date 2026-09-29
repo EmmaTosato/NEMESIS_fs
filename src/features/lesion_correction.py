@@ -15,13 +15,16 @@ import numpy as np
 def zero_out_of_brain_voxels(X_voxelwise: np.ndarray, brain_mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Zero every lesion voxel falling outside brain_mask, for every subject.
 
-    Returns (X_corrected, was_corrected) - was_corrected[i] is True iff subject
-    i had at least one voxel actually zeroed (genuinely contaminated). A
-    subject with 0 lesion voxels, or whose lesion lies entirely inside
-    brain_mask, is left untouched and not flagged.
+    Returns (X_corrected, n_corrected_voxels) - n_corrected_voxels[i] is the
+    count of subject i's lesion voxels that were actually zeroed (0 for a
+    subject with no lesion voxels outside brain_mask, i.e. "not corrected").
+    A count rather than a boolean flag, so a caller can report not just who
+    was corrected but how much - collapsing to a boolean (n_corrected_voxels
+    > 0) loses that, so callers that only need "was this subject touched at
+    all" derive it explicitly rather than this function deciding for them.
     """
     outside_brain = ~brain_mask
-    was_corrected = (X_voxelwise.astype(bool) & outside_brain).any(axis=1)
+    n_corrected_voxels = (X_voxelwise.astype(bool) & outside_brain).sum(axis=1)
     X_corrected = X_voxelwise.copy()
     X_corrected[:, outside_brain] = 0
-    return X_corrected, was_corrected
+    return X_corrected, n_corrected_voxels

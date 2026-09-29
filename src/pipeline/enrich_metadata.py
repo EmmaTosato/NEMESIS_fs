@@ -453,7 +453,7 @@ def compute_fresh_lesion_volumes(
 
 def compute_geometric_lesion_sides(
     build_matrix_config: Path, datasets: list[str], threshold: float, correct_out_of_brain: bool
-) -> dict[str, str]:
+) -> tuple[dict[str, str], set[str]]:
     """left/right/both per subject, computed fresh from the raw lesion masks via
     src.features.lesion.compute_lesion_laterality_metrics/lesion_side_from_laterality_index
     - same discovery/resampling/correction machinery compute_fresh_lesion_volumes
@@ -468,10 +468,22 @@ def compute_geometric_lesion_sides(
     dropped from a total miss, and must be exactly as loud (same regression as
     compute_fresh_lesion_volumes above, 28-09-26, .claude/history/methods_changelog.md).
 
-    A subject whose laterality_index is undefined (zero lesion voxels on both sides
-    of the midline - see compute_lesion_laterality_metrics) is left out of the
-    returned mapping entirely, logged at WARNING - a legitimate, rare domain case,
-    not an error.
+    Runs dataset-wide (every subject of `datasets`, not just the ones actually
+    missing lesion_side - mask discovery has no concept of "just these subjects"),
+    so a subject with an undefined laterality_index here is NOT necessarily a
+    subject that still needs a value - most of the time it already has a clinical
+    one. The WARNING below names every such candidate but never claims their cell
+    is empty; `undefined_ids` (the second return value) lets enrich() intersect
+    against its own `missing_ids` to find out which of them genuinely still lack a
+    value, and log that final, precise set separately (see enrich(), and
+    lessons_learned.md-style note in docs/dev/metadata.md: an aggregate/candidate
+    log is not a substitute for the final per-subject state).
+
+    Returns (computed, undefined_ids): `computed` is {subject_id: left/right/both}
+    for every subject with a defined laterality_index; `undefined_ids` is every
+    subject_id whose laterality_index came back NaN (zero lesion voxels on both
+    sides of the midline - see compute_lesion_laterality_metrics), a legitimate,
+    rare domain case, not an error.
     """
     matrix_config = load_build_matrix_config(build_matrix_config)
     in_scope = [d for d in datasets if d in matrix_config.datasets]
@@ -483,7 +495,7 @@ def compute_geometric_lesion_sides(
             uncovered, build_matrix_config, matrix_config.datasets,
         )
     if not in_scope:
-        return {}
+        return {}, set()
     if correct_out_of_brain and matrix_config.brain_mask_path is None:
         raise ValueError(
             f"lesion_metrics.correct_out_of_brain is true but {build_matrix_config}'s own brain_mask_path is "
@@ -502,17 +514,20 @@ def compute_geometric_lesion_sides(
         brain_mask_path=matrix_config.brain_mask_path,
     )
     undefined = metadata["laterality_index"].isna()
-    if undefined.any():
+    undefined_ids = set(metadata.loc[undefined, "subject_id"])
+    if undefined_ids:
         logging.warning(
-            "lesion_metrics: %d subject(s) have an undefined laterality_index (zero lesion voxels on "
-            "both sides of the midline), left empty: %s",
-            int(undefined.sum()), sorted(metadata.loc[undefined, "subject_id"]),
+            "lesion_metrics: %d subject(s) in %s have an undefined laterality_index (zero lesion voxels on "
+            "both sides of the midline) - no geometric lesion_side computed for them (most likely already "
+            "have a clinical value; see enrich()'s own 'lesion_side still empty' warning below for exactly "
+            "who, if anyone, is still empty because of this): %s",
+            len(undefined_ids), in_scope, sorted(undefined_ids),
         )
     computed = metadata.loc[~undefined]
     return {
         row.subject_id: lesion_side_from_laterality_index(row.laterality_index, threshold)
         for row in computed.itertuples()
-    }
+    }, undefined_ids
 
 
 # --- assembling the enriched table ------------------------------------------------------------
@@ -565,7 +580,7 @@ def enrich(registry: pd.DataFrame, config: EnrichMetadataConfig) -> tuple[pd.Dat
                 logging.info("lesion_metrics: no in-scope subject needs a geometric lesion_side fallback")
             else:
                 target_datasets = sorted(set(out.loc[missing, "dataset"]))
-                computed = compute_geometric_lesion_sides(
+                computed, undefined_ids = compute_geometric_lesion_sides(
                     metrics.build_matrix_config, target_datasets, metrics.side_threshold, metrics.correct_out_of_brain
                 )
                 # compute_geometric_lesion_sides works dataset-wide (mask discovery has no
@@ -589,6 +604,28 @@ def enrich(registry: pd.DataFrame, config: EnrichMetadataConfig) -> tuple[pd.Dat
                     "lesion_metrics: %d/%d subject(s) missing lesion_side filled geometrically (threshold=%.2f)",
                     len(sides), int(missing.sum()), metrics.side_threshold,
                 )
+                # The final, per-subject state - not a candidate/pre-filter count like the
+                # "undefined laterality_index" warning above, which can include subjects that
+                # already had a clinical value and never needed filling. Split by cause so
+                # "why is this subject still empty" never needs cross-referencing two warnings
+                # and participants.csv by hand (found 29-09-26 while auditing this pipeline's
+                # own logging - see docs/dev/metadata.md).
+                still_missing_ids = missing_ids - set(sides)
+                if still_missing_ids:
+                    undefined_and_still_missing = sorted(still_missing_ids & undefined_ids)
+                    if undefined_and_still_missing:
+                        logging.warning(
+                            "lesion_metrics: %d subject(s) remain without lesion_side - undefined "
+                            "laterality_index (zero lesion voxels on both sides of the midline): %s",
+                            len(undefined_and_still_missing), undefined_and_still_missing,
+                        )
+                    other_still_missing = sorted(still_missing_ids - undefined_ids)
+                    if other_still_missing:
+                        logging.warning(
+                            "lesion_metrics: %d subject(s) remain without lesion_side - dataset not covered "
+                            "by %s (no clinical value and no geometric fallback attempted): %s",
+                            len(other_still_missing), metrics.build_matrix_config, other_still_missing,
+                        )
 
         if metrics.compute_volume:
             volumes = compute_fresh_lesion_volumes(metrics.build_matrix_config, datasets, metrics.correct_out_of_brain)
@@ -642,12 +679,33 @@ def write_table(table: pd.DataFrame, output_path: Path) -> None:
 # --- report ---------------------------------------------------------------------------------
 
 
+def _lesion_metrics_summary(lesion_metrics: LesionMetricsConfig | None) -> str:
+    """JSON dump of lesion_metrics (or 'null'), not the dataclass's own repr() -
+    the latter (e.g. "LesionMetricsConfig(build_matrix_config=PosixPath('...'), ...)")
+    is illegible in a report meant to be read as a document, not a Python session."""
+    if lesion_metrics is None:
+        return "null"
+    payload = {
+        "build_matrix_config": str(lesion_metrics.build_matrix_config),
+        "correct_out_of_brain": lesion_metrics.correct_out_of_brain,
+        "compute_volume": lesion_metrics.compute_volume,
+        "compute_side": lesion_metrics.compute_side,
+        "side_threshold": lesion_metrics.side_threshold,
+    }
+    return json.dumps(payload, indent=2)
+
+
 def report_lines(config: EnrichMetadataConfig, coverages: list[DatasetCoverage], now: datetime) -> list[str]:
     lines = [
         f"# enrich_metadata — {now.strftime('%d-%m-%y %H:%M:%S')}",
         "",
         f"file: `{config.participants_path}` · fill: {config.fill} · variables: {', '.join(config.variables)}",
-        f"lesion_metrics: {config.lesion_metrics or '-'}",
+        "",
+        "lesion_metrics:",
+        "```json",
+        _lesion_metrics_summary(config.lesion_metrics),
+        "```",
+        "",
         f"notes: {config.run_notes}",
         "",
         "## Celle vuote per dataset e variabile",

@@ -1,6 +1,7 @@
 """Unit tests for scripts/populate_metadata.py - synthetic fixtures, no EBRAIN mount needed."""
 
 import json
+from datetime import datetime
 
 import pandas as pd
 import pytest
@@ -179,12 +180,13 @@ def test_merge_without_overwrite_appends_only_new_subjects_and_keeps_enriched_co
         ]
     )
 
-    merged = pm.merge_with_existing(fresh, output_path, overwrite=False)
+    merged, dropped = pm.merge_with_existing(fresh, output_path, overwrite=False)
 
     assert list(merged["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0002"]
     assert merged.loc[merged["subject_id"] == "sub-STUNIPD0001", "has_lesion"].item() == "True"  # untouched
     assert merged.loc[merged["subject_id"] == "sub-STUNIPD0001", "age"].item() == "54"
     assert pd.isna(merged.loc[merged["subject_id"] == "sub-STUNIPD0002", "age"].item())
+    assert dropped == []
 
 
 def test_merge_with_overwrite_recomputes_own_columns_but_carries_over_enriched_ones(tmp_path):
@@ -197,11 +199,47 @@ def test_merge_with_overwrite_recomputes_own_columns_but_carries_over_enriched_o
     ).to_csv(output_path, index=False)
     fresh = pd.DataFrame([{"subject_id": "sub-STUNIPD0001", "dataset": _DATASET, "has_lesion": False}])
 
-    merged = pm.merge_with_existing(fresh, output_path, overwrite=True)
+    merged, dropped = pm.merge_with_existing(fresh, output_path, overwrite=True)
 
     assert list(merged["subject_id"]) == ["sub-STUNIPD0001"]  # no longer admitted -> dropped
     assert not merged.iloc[0]["has_lesion"]  # own column recomputed
     assert merged.iloc[0]["age"] == "54"  # enrich's column preserved
+    assert dropped == ["sub-STUNIPD0009"]
+
+
+def test_merge_with_overwrite_dropped_list_is_not_truncated(tmp_path):
+    """Regression: the WARNING log line truncates `dropped` to the first 5 for
+    readability, but merge_with_existing's own return value must carry the full list -
+    found 29-09-26 auditing this pipeline's logging: a real run dropped 31 subjects and
+    only 5 were recoverable from any artifact on disk (neither the log nor the report
+    persisted the rest)."""
+    output_path = tmp_path / "participants.csv"
+    dropped_ids = [f"sub-STUNIPD{i:04d}" for i in range(20)]
+    pd.DataFrame(
+        [{"subject_id": sid, "dataset": _DATASET, "has_lesion": True} for sid in dropped_ids]
+        + [{"subject_id": "sub-STUNIPD9999", "dataset": _DATASET, "has_lesion": True}]
+    ).to_csv(output_path, index=False)
+    fresh = pd.DataFrame([{"subject_id": "sub-STUNIPD9999", "dataset": _DATASET, "has_lesion": True}])
+
+    _, dropped = pm.merge_with_existing(fresh, output_path, overwrite=True)
+
+    assert dropped == dropped_ids  # all 20, not just the first 5 shown in the log line
+
+
+def test_report_lines_lists_every_dropped_subject_not_truncated(tmp_path):
+    config = _config(tmp_path, overwrite=True)
+    outcome = pm.DatasetOutcome(
+        dataset=_DATASET, rows=pd.DataFrame({"subject_id": []}),
+        only_in_tsv=[], only_on_disk=[], excluded_by_group=[], disease_id_mismatch=[],
+    )
+    dropped_ids = [f"sub-STUNIPD{i:04d}" for i in range(20)]
+
+    lines = pm.report_lines(config, [outcome], dropped_ids, n_written=0, now=datetime(2026, 9, 29))
+    text = "\n".join(lines)
+
+    assert f"{len(dropped_ids)} subject(s)" in text
+    for subject_id in dropped_ids:
+        assert subject_id in text
 
 
 def test_write_table_is_atomic_and_roundtrips_as_strings(tmp_path):

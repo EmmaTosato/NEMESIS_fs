@@ -39,7 +39,9 @@ def build_lesion_matrix(
     max_out_of_brain_fraction: float | None,
     correct_out_of_brain: bool,
     brain_mask_path: Path | None,
-) -> tuple[np.ndarray, pd.DataFrame, np.ndarray, list[str], list[str], list[str], list[str]]:
+) -> tuple[
+    np.ndarray, pd.DataFrame, np.ndarray, list[str], list[tuple[str, int]], list[tuple[str, float]], list[tuple[str, int]]
+]:
     """Build X (n_subjects x n_features), row-aligned metadata, and drop-mask.
 
     Returns (X, metadata, non_constant_mask, excluded_by_group,
@@ -47,11 +49,12 @@ def build_lesion_matrix(
     see docs/dev/lesion_matrix.md. excluded_by_group is subjects skipped
     because their naming-derived group isn't in group_filter (None means no
     restriction). excluded_by_min_volume/excluded_by_out_of_brain are
-    subjects dropped by the two optional exclusion thresholds below - empty
-    list when the corresponding threshold is None (no filtering applied),
-    never conflated with excluded_by_group. corrected_subjects is the
-    subjects whose lesion mask actually had a voxel zeroed by
-    correct_out_of_brain (empty when that flag is False). metadata always
+    (subject_id, metric_value) pairs for subjects dropped by the two optional
+    exclusion thresholds below - empty list when the corresponding threshold
+    is None (no filtering applied), never conflated with excluded_by_group.
+    corrected_subjects is (subject_id, n_voxels_corrected) pairs for subjects
+    whose lesion mask actually had a voxel zeroed by correct_out_of_brain
+    (empty when that flag is False). metadata always
     gains lesion_volume_voxels (reflecting correction, when applied), plus
     out_of_brain_fraction when max_out_of_brain_fraction is not None - no
     other clinical/derived field is added here, see
@@ -346,7 +349,7 @@ def _apply_out_of_brain_correction(
     reference_img: nib.Nifti1Image,
     correct_out_of_brain: bool,
     brain_mask_path: Path | None,
-) -> tuple[np.ndarray, pd.DataFrame, list[str]]:
+) -> tuple[np.ndarray, pd.DataFrame, list[tuple[str, int]]]:
     """Zero out-of-brain lesion voxels for every subject (src.features.lesion_correction)
     when correct_out_of_brain is True, recomputing lesion_volume_voxels for the corrected
     data - a no-op (metadata/lesion_volume_voxels untouched, empty corrected_subjects)
@@ -356,6 +359,11 @@ def _apply_out_of_brain_correction(
     corrected volume, not the pre-correction one - the two are never in tension since
     correct_out_of_brain and max_out_of_brain_fraction are mutually exclusive (checked in
     build_lesion_matrix).
+
+    corrected_subjects is (subject_id, n_voxels_corrected) pairs, not subject_id alone -
+    "who was corrected" without "how many voxels" isn't enough to judge whether a
+    correction was a 1-voxel edge artifact or a large registration problem worth
+    investigating (see docs/dev/lesion_matrix.md).
     """
     if not correct_out_of_brain:
         return X_voxelwise, metadata, []
@@ -365,10 +373,13 @@ def _apply_out_of_brain_correction(
             "cannot zero out-of-brain voxels without a brain mask"
         )
     brain_mask = _load_and_binarize_brain_mask(brain_mask_path, reference_img)
-    X_corrected, was_corrected = zero_out_of_brain_voxels(X_voxelwise, brain_mask)
+    X_corrected, n_corrected_voxels = zero_out_of_brain_voxels(X_voxelwise, brain_mask)
     metadata = metadata.copy()
     metadata["lesion_volume_voxels"] = X_corrected.sum(axis=1, dtype=np.int64)
-    corrected_subjects = sorted(metadata.loc[was_corrected, "subject_id"])
+    was_corrected = n_corrected_voxels > 0
+    corrected_subjects = sorted(
+        zip(metadata.loc[was_corrected, "subject_id"], n_corrected_voxels[was_corrected].astype(int).tolist())
+    )
     return X_corrected, metadata, corrected_subjects
 
 
@@ -379,7 +390,7 @@ def _filter_by_lesion_quality(
     min_lesion_volume_voxels: int | None,
     max_out_of_brain_fraction: float | None,
     brain_mask_path: Path | None,
-) -> tuple[np.ndarray, pd.DataFrame, list[str], list[str]]:
+) -> tuple[np.ndarray, pd.DataFrame, list[tuple[str, int]], list[tuple[str, float]]]:
     """Drop subjects failing either optional lesion-quality threshold.
 
     Runs on the full pre-constant-drop voxel grid - out_of_brain_fraction
@@ -392,15 +403,25 @@ def _filter_by_lesion_quality(
     respective check entirely, not just relaxes it to a permissive default.
     Raises ValueError if every subject is filtered out (an empty matrix would
     otherwise proceed silently into _drop_constant_features/save_matrix).
+
+    excluded_by_min_volume/excluded_by_out_of_brain carry each excluded
+    subject's own metric value alongside its id ((subject_id,
+    lesion_volume_voxels) / (subject_id, out_of_brain_fraction)) - the
+    subject_id alone doesn't say whether it missed the threshold by one voxel
+    or was nowhere close, and that value is otherwise unrecoverable from the
+    resulting matrix (see docs/dev/lesion_matrix.md).
     """
     metadata = metadata.reset_index(drop=True)
     keep = np.ones(len(metadata), dtype=bool)
-    excluded_by_min_volume: list[str] = []
-    excluded_by_out_of_brain: list[str] = []
+    excluded_by_min_volume: list[tuple[str, int]] = []
+    excluded_by_out_of_brain: list[tuple[str, float]] = []
 
     if min_lesion_volume_voxels is not None:
-        too_small = metadata["lesion_volume_voxels"].to_numpy() < min_lesion_volume_voxels
-        excluded_by_min_volume = sorted(metadata.loc[too_small, "subject_id"])
+        volumes = metadata["lesion_volume_voxels"].to_numpy()
+        too_small = volumes < min_lesion_volume_voxels
+        excluded_by_min_volume = sorted(
+            zip(metadata.loc[too_small, "subject_id"], volumes[too_small].astype(int).tolist())
+        )
         keep &= ~too_small
 
     if max_out_of_brain_fraction is not None:
@@ -414,7 +435,9 @@ def _filter_by_lesion_quality(
         metadata = metadata.copy()
         metadata["out_of_brain_fraction"] = fractions
         too_contaminated = fractions > max_out_of_brain_fraction
-        excluded_by_out_of_brain = sorted(metadata.loc[too_contaminated, "subject_id"])
+        excluded_by_out_of_brain = sorted(
+            zip(metadata.loc[too_contaminated, "subject_id"], fractions[too_contaminated].tolist())
+        )
         keep &= ~too_contaminated
 
     X_voxelwise = X_voxelwise[keep]

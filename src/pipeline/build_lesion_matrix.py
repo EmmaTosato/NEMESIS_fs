@@ -95,21 +95,21 @@ def main(argv: list[str] | None = None) -> int:
             )
         if excluded_by_min_volume:
             logging.info(
-                "%d subject(s) excluded by min_lesion_volume_voxels=%s: %s",
+                "%d subject(s) excluded by min_lesion_volume_voxels=%s (subject_id, lesion_volume_voxels): %s",
                 len(excluded_by_min_volume),
                 config.min_lesion_volume_voxels,
                 excluded_by_min_volume,
             )
         if excluded_by_out_of_brain:
             logging.info(
-                "%d subject(s) excluded by max_out_of_brain_fraction=%s: %s",
+                "%d subject(s) excluded by max_out_of_brain_fraction=%s (subject_id, out_of_brain_fraction): %s",
                 len(excluded_by_out_of_brain),
                 config.max_out_of_brain_fraction,
                 excluded_by_out_of_brain,
             )
         if corrected_subjects:
             logging.info(
-                "%d subject(s) corrected by correct_out_of_brain (out-of-brain voxels zeroed): %s",
+                "%d subject(s) corrected by correct_out_of_brain (subject_id, n_voxels_corrected): %s",
                 len(corrected_subjects),
                 corrected_subjects,
             )
@@ -214,9 +214,9 @@ def _summary_lines(
     X: np.ndarray,
     metadata: pd.DataFrame,
     excluded_by_group: list[str],
-    excluded_by_min_volume: list[str],
-    excluded_by_out_of_brain: list[str],
-    corrected_subjects: list[str],
+    excluded_by_min_volume: list[tuple[str, int]],
+    excluded_by_out_of_brain: list[tuple[str, float]],
+    corrected_subjects: list[tuple[str, int]],
 ) -> list[str]:
     lines = ["## Config", "", "```json", _config_summary(config), "```", "", "## Summary", ""]
     lines.append(f"Matrix shape: {X.shape[0]} subjects x {X.shape[1]} features")
@@ -241,7 +241,7 @@ def _summary_lines(
             f"{len(excluded_by_min_volume)} subject(s) excluded "
             f"(lesion_volume_voxels < {config.min_lesion_volume_voxels}):"
         )
-        lines += [f"- {subject_id}" for subject_id in excluded_by_min_volume]
+        lines += [f"- {subject_id} (lesion_volume_voxels={volume})" for subject_id, volume in excluded_by_min_volume]
     else:
         lines.append("None.")
     lines += ["", "## Excluded by max_out_of_brain_fraction", ""]
@@ -250,13 +250,16 @@ def _summary_lines(
             f"{len(excluded_by_out_of_brain)} subject(s) excluded "
             f"(out_of_brain_fraction > {config.max_out_of_brain_fraction}):"
         )
-        lines += [f"- {subject_id}" for subject_id in excluded_by_out_of_brain]
+        lines += [
+            f"- {subject_id} (out_of_brain_fraction={fraction:.3f})"
+            for subject_id, fraction in excluded_by_out_of_brain
+        ]
     else:
         lines.append("None.")
     lines += ["", "## Corrected by correct_out_of_brain", ""]
     if corrected_subjects:
         lines.append(f"{len(corrected_subjects)} subject(s) had out-of-brain lesion voxels zeroed:")
-        lines += [f"- {subject_id}" for subject_id in corrected_subjects]
+        lines += [f"- {subject_id} (n_voxels_corrected={n})" for subject_id, n in corrected_subjects]
     else:
         lines.append("None.")
     return lines
@@ -267,9 +270,9 @@ def _build_readme_lines(
     X: np.ndarray,
     metadata: pd.DataFrame,
     excluded_by_group: list[str],
-    excluded_by_min_volume: list[str],
-    excluded_by_out_of_brain: list[str],
-    corrected_subjects: list[str],
+    excluded_by_min_volume: list[tuple[str, int]],
+    excluded_by_out_of_brain: list[tuple[str, float]],
+    corrected_subjects: list[tuple[str, int]],
     now: datetime,
 ) -> list[str]:
     return [f"# {config.project} lesion matrix — {now.strftime('%d-%m-%y %H:%M')}", ""] + _summary_lines(
@@ -282,9 +285,9 @@ def _build_report(
     X: np.ndarray,
     metadata: pd.DataFrame,
     excluded_by_group: list[str],
-    excluded_by_min_volume: list[str],
-    excluded_by_out_of_brain: list[str],
-    corrected_subjects: list[str],
+    excluded_by_min_volume: list[tuple[str, int]],
+    excluded_by_out_of_brain: list[tuple[str, float]],
+    corrected_subjects: list[tuple[str, int]],
     now: datetime,
 ) -> str:
     lines = [f"# {config.project}_{now.strftime('%d-%m-%y')}", f"## {now.strftime('%H:%M')}", ""] + _summary_lines(
@@ -298,9 +301,9 @@ def _write_report(
     X: np.ndarray,
     metadata: pd.DataFrame,
     excluded_by_group: list[str],
-    excluded_by_min_volume: list[str],
-    excluded_by_out_of_brain: list[str],
-    corrected_subjects: list[str],
+    excluded_by_min_volume: list[tuple[str, int]],
+    excluded_by_out_of_brain: list[tuple[str, float]],
+    corrected_subjects: list[tuple[str, int]],
     now: datetime,
 ) -> Path:
     report_dir = REPORTS_ROOT / config.project
