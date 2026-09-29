@@ -35,7 +35,7 @@ src/
 ├── analysis/       # dimensionality reduction, clustering, plotting, exploration apps
 ├── utils/          # shared I/O, logging, run-history helpers
 └── pipeline/       # CLI entry points, one per pipeline
-scripts/          # accessory/one-off scripts, not the main pipeline
+scripts/          # accessory utilities (cache maintenance, tables, derived indices), never analysis steps
 jobs/             # one sbatch job script per pipeline, for cluster runs
 tests/
 ├── unit/          # synthetic fixtures, no external data required
@@ -92,11 +92,15 @@ Retired along with `build_combined_atlas.py`/`src/atlases/` (see `management/not
 ### Clinical metadata
 Every clinical/demographic value lives in one checked-in source of truth, `assets/metadata/participants.csv` — one row per subject, written by two scripts that never overwrite each other's columns.
 
-`scripts/populate_metadata.py` writes **who exists**: it joins each dataset's raw `participants.tsv` (`data/clinical_connectome/metadata_tsv/`, paths declared in `config/registry/metadata_sources.json`) against the subject folders actually on disk, one row per subject with `has_lesion`/`has_sdc`/`has_features` flags. `src/pipeline/enrich_metadata.py` adds **what we know about them** — age, sex, education, lesion_side, NIHSS, clinical_date, plus lesion_volume_voxels copied from a built lesion matrix. The join onto the raw tsvs goes through `original_id`, since UCL-UK's raw `participant_id` is a legacy site id rather than the canonical subject id.
+`src/pipeline/populate_metadata.py` writes **who exists**: it joins each dataset's raw `participants.tsv` (`data/clinical_connectome/metadata_tsv/`, paths declared in `config/registry/metadata_sources.json`) against the subject folders actually on disk, one row per subject with `has_lesion`/`has_sdc`/`has_features` flags. `src/pipeline/enrich_metadata.py` adds **what we know about them** — age, sex, education, lesion_side, NIHSS, clinical_date, plus `lesion_volume_voxels_2mm`. The join onto the raw tsvs goes through `original_id`, since UCL-UK's raw `participant_id` is a legacy site id rather than the canonical subject id.
+
+`enrich_metadata.py` computes nothing from imaging: it is a **join**. Everything measured on a lesion mask comes from a third file, `assets/metadata/lesion_metadata.csv`, written by `src/pipeline/compute_lesion_metadata.py` — one row per subject with a mask, and four columns per voxel grid (`lesion_volume_voxels_<g>`, `out_of_brain_fraction_<g>`, `laterality_index_<g>`, `lesion_side_<g>`), measured on both the 1mm grid the masks are natively on and the 2mm production grid. A fourth file, `assets/metadata/excluded_subjects.csv`, is written **by hand** from `notebooks/exploration/lesion_quality.ipynb` and is the single admission list both matrix pipelines read, so they exclude exactly the same subjects.
+
+📖 Guide: [`docs/guides/metadata.md`](docs/guides/metadata.md) · Architecture: [`docs/dev/metadata.md`](docs/dev/metadata.md)
 
 Consumers read the registry directly rather than carrying copies: `build_sdc_matrix.py` takes its `has_lesion` admission criterion from it, and `dim_reduction.py`/`clustering.py`'s `side`/`nihss` colouring resolves against it at plot time — so a run gets those colours whether or not any enrichment step was ever applied to it.
 
-Still open: `lesion_side` is populated only where a dataset records it clinically. Computing it geometrically for the rest needs a "bilateral" threshold calibrated against the datasets that do have the label — deliberately not guessed at.
+`lesion_side` carries its own provenance in `lesion_side_source`: `"clinical"` where a dataset records it, `"geometric"` where it is filled from the mask's own laterality index against a threshold calibrated on 1445 clinically-labelled subjects (97.4% agreement on the 2mm grid). A clinical value is never overwritten by a geometric one. Still open: that threshold is verified on the 2mm grid only, so the 1mm side column is indicative until it is re-calibrated there ([`knowledge/neuroimaging/lesion_laterality.md`](knowledge/neuroimaging/lesion_laterality.md)).
 
 📖 How it works, what's in the file, and what's left: [`docs/dev/metadata.md`](docs/dev/metadata.md) · Guide: [`docs/guides/metadata.md`](docs/guides/metadata.md)
 
