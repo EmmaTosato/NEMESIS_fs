@@ -1,6 +1,6 @@
+# Sessioni dati
 
-
-Narrativa su cosa significa ogni sessione  scritta a mano.
+Narrativa su cosa significa ogni sessione, scritta a mano.
 
 `Soggetti` = righe effettive della matrice prodotta (soggetti **ammessi**), non quanti ne esistono su disco: le due cose non coincidono per l'SDC, dove un soggetto entra solo se ha *sia* la maschera registrata nel registro *sia* l'output SDC richiesto. Conteggi verificati sui `metadata.csv` degli artefatti.
 
@@ -11,8 +11,9 @@ Tag chiuso, condiviso tra track (mai un `_` al suo interno - vedi `src/utils/run
 | Tag | Significato |
 |---|---|
 | `vol` | Matrice 2D volumetrica (voxel-wise, non parcellata) — vale per qualunque track: lesione (s1.x) o disconnettoma (s2.x) |
+| `stream` | Streamline per tratto (`LF-lesion_atlas-yeh_hcp1065_streamline.csv`), un valore per tratto |
 | `schaefer-200-tian-s2` | Parcellato sull'atlante Schaefer-200 + Tian S2 |
-| `Yan100TianS1Buckner7N` … `Yan400TianS3Buckner7N` (12 combo) | FC parcellata su uno dei 12 atlas_combo Yan/Tian/Buckner - un tag per combo, vedi Session 3 sotto |
+| `Yan100TianS1Buckner7N` … `Yan400TianS3Buckner7N` (12 combo) | FC parcellata su uno dei 12 atlas_combo Yan/Tian/Buckner - un tag per combo |
 
 # Session 1
 
@@ -39,6 +40,14 @@ Tag chiuso, condiviso tra track (mai un `_` al suo interno - vedi `src/utils/run
 - Soggetti: 5720
 - Notes: one dataset more (UKE/WAKEUP_acute, 451 soggetti)
 
+### Session 1.4-vol
+
+- Starting date: TBD (data della build)
+- Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR, UCL-UK StrokeData, UKE/WAKEUP_acute, UNIPD/NEMESIS_T0, UKE/SFB936_ses01
+- Modality: Lesion, voxel-wise, griglia 2mm
+- Soggetti: 5853
+- Notes: rispetto a s1.3-vol, dati mancanti recuperati e due dataset in più (NEMESIS_T0, SFB936_ses01)
+
 ---
 
 # Session 2
@@ -54,97 +63,26 @@ Tag chiuso, condiviso tra track (mai un `_` al suo interno - vedi `src/utils/run
 
 - Starting date: 07-09
 - Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR, UKE/WAKEUP_acute
-- Modality: SDC, voxel-wise (mappe `disconnectome-map` non parcellate, valori continui 0-1)
+- Modality: SDC, voxel-wise (mappe `disconnectome-map`, valori continui 0-1)
 - Soggetti: 1570
 - Notes: primo SDC non parcellato; un dataset in più rispetto a s2.1 (UKE/WAKEUP_acute). Stessa griglia 2mm della track lesionale, quindi allineata voxel per voxel a s1.3-vol
+
+### Session 2.3-stream
+
+- Starting date: TBD (data della build)
+- Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR, UKE/WAKEUP_acute, UNIPD/NEMESIS_T0, UKE/SFB936_ses01
+- Modality: SDC, streamline per tratto (atlante `yeh_hcp1065_streamline`, famiglia `LF-lesion`)
+- Soggetti: TBD (dalla matrice prodotta)
+- Notes: dati non ancora completi per tutti i soggetti (UCL-UK non ha il CSV streamline), da cui il numero 2.3, che precede 2.4 nell'ordine di lavoro, non nella completezza
+
+### Session 2.4-vol
+
+- Starting date: TBD (data della build)
+- Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR, UCL-UK StrokeData, UKE/WAKEUP_acute, UNIPD/NEMESIS_T0, UKE/SFB936_ses01
+- Modality: SDC, voxel-wise (mappe `disconnectome-map`, valori continui 0-1), griglia 2mm
+- Soggetti: 5853
+- Notes: speculare a s1.4-vol (stessi 8 dataset, lato disconnettoma); allineata voxel per voxel a s1.4-vol
 
 ---
 
 # Session 3
-
-FC, un'entry per atlas_combo (`mask_fc.py`/`build_fc_matrix.py` processano tutti e 12 i combo in un solo run, ognuno nella sua sottocartella - vedi `docs/dev/fc_matrix.md`). Stessa coorte/datasets per tutti e 12.
-
-### Session 3.1-Yan100TianS1Buckner7N
-
-- Starting date: 27-07
-- Datasets: UNIPD/WashU
-- Modality: FC, parcellata (atlas_combo Yan100TianS1Buckner7N)
-- Soggetti: 169
-
-### Session 3.1-Yan100TianS2Buckner7N
-
-- Starting date: 27-07
-- Datasets: UNIPD/WashU
-- Modality: FC, parcellata (atlas_combo Yan100TianS2Buckner7N)
-- Soggetti: 169
-
-### Session 3.1-Yan100TianS3Buckner7N
-
-- Starting date: 27-07
-- Datasets: UNIPD/WashU
-- Modality: FC, parcellata (atlas_combo Yan100TianS3Buckner7N)
-- Soggetti: 169
-
-### Session 3.1-Yan200TianS1Buckner7N
-
-- Starting date: 27-07
-- Datasets: UNIPD/WashU
-- Modality: FC, parcellata (atlas_combo Yan200TianS1Buckner7N)
-- Soggetti: 169
-
-### Session 3.1-Yan200TianS2Buckner7N
-
-- Starting date: 24-07
-- Datasets: UNIPD/WashU
-- Modality: FC, parcellata (atlas_combo Yan200TianS2Buckner7N)
-- Soggetti: 169
-- Notes: prima combo processata (data reale diversa dalle altre 11, mai riconciliata)
-
-### Session 3.1-Yan200TianS3Buckner7N
-
-- Starting date: 27-07
-- Datasets: UNIPD/WashU
-- Modality: FC, parcellata (atlas_combo Yan200TianS3Buckner7N)
-- Soggetti: 169
-
-### Session 3.1-Yan300TianS1Buckner7N
-
-- Starting date: 27-07
-- Datasets: UNIPD/WashU
-- Modality: FC, parcellata (atlas_combo Yan300TianS1Buckner7N)
-- Soggetti: 169
-
-### Session 3.1-Yan300TianS2Buckner7N
-
-- Starting date: 27-07
-- Datasets: UNIPD/WashU
-- Modality: FC, parcellata (atlas_combo Yan300TianS2Buckner7N)
-- Soggetti: 169
-
-### Session 3.1-Yan300TianS3Buckner7N
-
-- Starting date: 27-07
-- Datasets: UNIPD/WashU
-- Modality: FC, parcellata (atlas_combo Yan300TianS3Buckner7N)
-- Soggetti: 169
-
-### Session 3.1-Yan400TianS1Buckner7N
-
-- Starting date: 27-07
-- Datasets: UNIPD/WashU
-- Modality: FC, parcellata (atlas_combo Yan400TianS1Buckner7N)
-- Soggetti: 169
-
-### Session 3.1-Yan400TianS2Buckner7N
-
-- Starting date: 27-07
-- Datasets: UNIPD/WashU
-- Modality: FC, parcellata (atlas_combo Yan400TianS2Buckner7N)
-- Soggetti: 169
-
-### Session 3.1-Yan400TianS3Buckner7N
-
-- Starting date: 27-07
-- Datasets: UNIPD/WashU
-- Modality: FC, parcellata (atlas_combo Yan400TianS3Buckner7N)
-- Soggetti: 169
