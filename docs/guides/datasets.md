@@ -41,7 +41,7 @@ Le differenze non sono errori, sono la realtà del dato. Due esempi concreti:
 
 ### Il conteggio unico: `assets/metadata/participants.csv`
 
-Un soggetto per riga, con le colonne `has_lesion`/`has_sdc`/`has_features`, per i soli pazienti stroke presenti su disco — **5752 in totale**. È la fonte da interrogare invece di ricontare a mano; generata da `scripts/populate_metadata.py`, vedi `docs/dev/metadata.md`. Non riflette ancora i 2 dataset sotto (onboarding non fatto) né il delta UKLFR/WashU del 23-09-26 — va rigenerata.
+Un soggetto per riga, con le colonne `has_lesion`/`has_sdc`/`has_features`, per i soli pazienti stroke presenti su disco — **5752 in totale**. È la fonte da interrogare invece di ricontare a mano; generata da `src/pipeline/populate_metadata.py`, vedi `docs/dev/metadata.md`. Non riflette ancora i 2 dataset sotto (onboarding non fatto) né il delta UKLFR/WashU del 23-09-26 — va rigenerata.
 
 ### 2 dataset aggiuntivi, non ancora onboarded
 
@@ -147,4 +147,4 @@ tar -xzf ../<nome>_archive.tar.gz -C .
 
 Il salto di `manual_masks/` (da ~169 MB a ~919 MB) non è un errore: UKLFR e WashU sono passati a 1mm (vedi sopra), file molto più pesanti della loro risoluzione nativa precedente.
 
-Dentro l'SDC, il peso è dominato dai `.nii.gz`: `disconnectome-map` ~61% del totale, `disconnectome-LF` (15 CSV) ~25%, `lesion-map` ~12%, `lesion-LF` (16 CSV) ~2%, mapstats trascurabile. Per scaricarne solo un sottoinsieme (es. i soli CSV parcellati, ~793 MB, sufficienti per una matrice tipo `build_sdc_matrix.py`) usa `scripts/download_sdc.py --categories disconnectome-LF lesion-LF ...` invece della config completa — vedi `docs/guides/retrieval.md`.
+Dentro l'SDC, il peso è dominato dai `.nii.gz`: `disconnectome-map` ~61% del totale, `disconnectome-LF` (15 CSV) ~25%, `lesion-map` ~12%, `lesion-LF` (16 CSV) ~2%, mapstats trascurabile. Per scaricarne solo un sottoinsieme (es. i soli CSV parcellati, ~793 MB, sufficienti per una matrice tipo `build_sdc_matrix.py`) copia `config/pipelines/retrieval_sdc.json` riducendone la lista `retrieve` alle sole categorie che ti servono — vedi `docs/guides/retrieval.md`.
