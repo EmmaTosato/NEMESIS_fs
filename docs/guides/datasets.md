@@ -8,7 +8,7 @@ Tutti i numeri di questa pagina sono **verificati sul disco e sui tsv il 23-09-2
 
 
 
-Per rigenerarli: `notebooks/exploration/dataset_exploration.ipynb` (esplorazione diretta del filesystem) o `assets/metadata/participants.csv` (vedi sotto).
+Per rigenerarli: `notebooks/exploration/dataset_availability.ipynb` (esplorazione diretta del filesystem) o `assets/metadata/participants.csv` (vedi sotto).
 
 ---
 
