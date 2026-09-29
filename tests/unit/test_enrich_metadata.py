@@ -1,22 +1,31 @@
 """Unit tests for src/pipeline/enrich_metadata.py - synthetic tsv/csv fixtures, no real data."""
 
 import json
+import logging
+from pathlib import Path
 
+import nibabel as nib
 import numpy as np
 import pandas as pd
 import pytest
 
 from src.pipeline.enrich_metadata import (
     EnrichMetadataConfig,
+    LesionMetricsConfig,
+    compute_fresh_lesion_volumes,
+    compute_geometric_lesion_sides,
     enrich,
     load_config,
-    load_lesion_volumes,
     resolve_dataset_values,
     source_column_for,
 )
 from src.utils.metadata_sources import DatasetSource
 
 _REGISTRY_COLUMNS = ["subject_id", "original_id", "dataset", "disease_id", "has_lesion", "has_sdc", "has_features"]
+
+_AFFINE = np.eye(4) * 2
+_AFFINE[3, 3] = 1
+_SHAPE = (10, 10, 10)
 
 
 def _registry(rows):
@@ -30,17 +39,58 @@ def _write_tsv(path, columns, rows):
     return path
 
 
-def _config(tmp_path, sources, variables, fill=False, lesion_volume_from=None, datasets=None):
+def _config(tmp_path, sources, variables, fill=False, lesion_metrics=None, datasets=None):
     return EnrichMetadataConfig(
         project="test",
         sources=sources,
         participants_path=tmp_path / "participants.csv",
         datasets=datasets,
         variables=variables,
-        lesion_volume_from=lesion_volume_from,
+        lesion_metrics=lesion_metrics,
         fill=fill,
         run_notes="test",
     )
+
+
+def _make_lesion_mask(data_root, dataset, subject_id, lesion_voxels):
+    subject_dir = data_root / dataset / "manual_masks" / subject_id / "anat"
+    subject_dir.mkdir(parents=True, exist_ok=True)
+    volume = np.zeros(_SHAPE, dtype=np.float32)
+    for voxel in lesion_voxels:
+        volume[voxel] = 1.0
+    nib.save(nib.Nifti1Image(volume, _AFFINE), subject_dir / f"{subject_id}_label-lesion_mask.nii.gz")
+
+
+def _write_lesion_matrix_config(tmp_path, data_root, datasets, brain_voxels=None):
+    """A build_lesion_matrix.json-shaped config, the shape compute_fresh_lesion_volumes/
+    compute_geometric_lesion_sides (via load_build_matrix_config) expect for
+    lesion_metrics.build_matrix_config. brain_voxels, if given, also writes a brain
+    mask and sets brain_mask_path - needed by any test exercising
+    correct_out_of_brain=True."""
+    template_path = tmp_path / "reference_template.nii.gz"
+    nib.save(nib.Nifti1Image(np.zeros(_SHAPE, dtype=np.float32), _AFFINE), template_path)
+    cfg = {
+        "project": "test",
+        "data_root": str(data_root),
+        "datasets": datasets,
+        "reference_template_path": str(template_path),
+        "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",
+        "binarize_threshold": 0.5,
+        "resample_interpolation": "nearest",
+        "output_root": str(tmp_path / "unused_matrix_output"),
+        "session_name": "unused",
+        "overwrite": False,
+    }
+    if brain_voxels is not None:
+        brain_mask_path = tmp_path / "brain_mask.nii.gz"
+        volume = np.zeros(_SHAPE, dtype=np.float32)
+        for voxel in brain_voxels:
+            volume[voxel] = 1.0
+        nib.save(nib.Nifti1Image(volume, _AFFINE), brain_mask_path)
+        cfg["brain_mask_path"] = str(brain_mask_path)
+    path = tmp_path / "build_lesion_matrix.json"
+    path.write_text(json.dumps(cfg))
+    return path
 
 
 def test_joins_on_original_id_not_subject_id(tmp_path):
@@ -209,51 +259,91 @@ def test_out_of_scope_dataset_keeps_its_values(tmp_path):
     assert list(out["age"]) == ["70", "44"]
 
 
-def test_load_lesion_volumes_requires_the_column(tmp_path):
-    """An artifact predating lesion_volume_voxels raises, naming it - the value is
-    never re-derived here under a second definition."""
-    artifact = tmp_path / "art"
-    artifact.mkdir()
-    pd.DataFrame({"subject_id": ["sub-STUNIPD0001"], "dataset": ["UNIPD/WashU"]}).to_csv(
-        artifact / "metadata.csv", index=False
+def _volume_only_metrics(build_matrix_config, correct_out_of_brain=False):
+    return LesionMetricsConfig(
+        build_matrix_config=build_matrix_config,
+        correct_out_of_brain=correct_out_of_brain,
+        compute_volume=True,
+        compute_side=False,
+        side_threshold=0.2,
     )
-    with pytest.raises(ValueError, match="lesion_volume_voxels"):
-        load_lesion_volumes(artifact)
+
+
+def _side_only_metrics(build_matrix_config, threshold=0.1, correct_out_of_brain=False):
+    return LesionMetricsConfig(
+        build_matrix_config=build_matrix_config,
+        correct_out_of_brain=correct_out_of_brain,
+        compute_volume=False,
+        compute_side=True,
+        side_threshold=threshold,
+    )
+
+
+def test_compute_fresh_lesion_volumes_reads_from_masks(tmp_path):
+    data_root = tmp_path / "data"
+    _make_lesion_mask(data_root, "UNIPD/WashU", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2)])
+    matrix_config_path = _write_lesion_matrix_config(tmp_path, data_root, ["UNIPD/WashU"])
+
+    volumes = compute_fresh_lesion_volumes(matrix_config_path, ["UNIPD/WashU"], correct_out_of_brain=False)
+
+    assert volumes == {"sub-STUNIPD0001": 2}
+
+
+def test_compute_fresh_lesion_volumes_applies_out_of_brain_correction(tmp_path):
+    """Regression: compute_fresh_lesion_volumes used to bypass build_lesion_matrix()'s
+    own out-of-brain correction entirely - a subject's lesion_volume_voxels here could
+    silently disagree with a production matrix built with correct_out_of_brain=true."""
+    data_root = tmp_path / "data"
+    # 2 voxels inside the brain mask, 1 outside - only the 2 inside should survive.
+    _make_lesion_mask(data_root, "UNIPD/WashU", "sub-STUNIPD0001", [(1, 1, 1), (1, 2, 1), (5, 5, 5)])
+    matrix_config_path = _write_lesion_matrix_config(
+        tmp_path, data_root, ["UNIPD/WashU"], brain_voxels=[(1, 1, 1), (1, 2, 1)]
+    )
+
+    volumes = compute_fresh_lesion_volumes(matrix_config_path, ["UNIPD/WashU"], correct_out_of_brain=True)
+
+    assert volumes == {"sub-STUNIPD0001": 2}
+
+
+def test_compute_fresh_lesion_volumes_skips_datasets_outside_matrix_config(tmp_path, caplog):
+    """An enrich_metadata run can legitimately be scoped wider than any one
+    build_lesion_matrix.json happens to cover - a dataset outside the intersection is
+    skipped (warned), not an error."""
+    data_root = tmp_path / "data"
+    _make_lesion_mask(data_root, "UNIPD/WashU", "sub-STUNIPD0001", [(1, 1, 1)])
+    matrix_config_path = _write_lesion_matrix_config(tmp_path, data_root, ["UNIPD/WashU"])
+
+    with caplog.at_level(logging.WARNING):
+        volumes = compute_fresh_lesion_volumes(matrix_config_path, ["UKE/WAKEUP_acute"], correct_out_of_brain=False)
+
+    assert volumes == {}
+    assert "UKE/WAKEUP_acute" in caplog.text
 
 
 def test_lesion_volume_is_written_as_an_integer_not_a_float(tmp_path):
-    """A voxel count must never be serialized as "4616.0": an unmatched subject
+    """A voxel count must never be serialized as "4.0": a subject with no lesion mask
     introduces a NaN, which would promote the whole column to float64."""
     tsv = _write_tsv(
         tmp_path / "a.tsv", ["participant_id", "age"],
         [["sub-STUNIPD0001", "70"], ["sub-STUNIPD0002", "55"]],
     )
-    artifact = tmp_path / "art"
-    artifact.mkdir()
-    pd.DataFrame({"subject_id": ["sub-STUNIPD0001"], "lesion_volume_voxels": [4616]}).to_csv(
-        artifact / "metadata.csv", index=False
-    )
+    data_root = tmp_path / "data"
+    _make_lesion_mask(data_root, "UNIPD/WashU", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2), (1, 1, 3), (1, 1, 4)])
+    matrix_config_path = _write_lesion_matrix_config(tmp_path, data_root, ["UNIPD/WashU"])
     sources = {"UNIPD/WashU": DatasetSource(tsv, tmp_path)}
     registry = _registry([
         [f"sub-STUNIPD000{i}", f"sub-STUNIPD000{i}", "UNIPD/WashU", "ST", "True", "True", "False"]
         for i in (1, 2)
     ])
 
-    out, _ = enrich(registry, _config(tmp_path, sources, ["age"], lesion_volume_from=artifact))
+    out, _ = enrich(
+        registry, _config(tmp_path, sources, ["age"], lesion_metrics=_volume_only_metrics(matrix_config_path))
+    )
     path = tmp_path / "out.csv"
     out.to_csv(path, index=False)
     written = pd.read_csv(path, dtype=str)["lesion_volume_voxels"]
-    assert written[0] == "4616"
+    assert written[0] == "4"  # sub-STUNIPD0002 has no manual_masks entry at all
     assert pd.isna(written[1])
-
-
-def test_load_lesion_volumes_reads_the_artifact_column(tmp_path):
-    artifact = tmp_path / "art"
-    artifact.mkdir()
-    pd.DataFrame(
-        {"subject_id": ["sub-STUNIPD0001"], "lesion_volume_voxels": [1234]}
-    ).to_csv(artifact / "metadata.csv", index=False)
-    assert load_lesion_volumes(artifact) == {"sub-STUNIPD0001": 1234}
 
 
 def test_load_config_rejects_unknown_variable(tmp_path):
@@ -323,28 +413,215 @@ def test_rerun_over_already_enriched_file_is_idempotent(tmp_path):
 
 
 def test_rerun_with_lesion_volume_over_enriched_file(tmp_path):
-    """Same branch, for the numeric column: a subject absent from the lesion matrix maps
-    to NaN, which must survive being written back into an existing str-dtype column."""
+    """Same branch, for the numeric column: a subject with no lesion mask maps to NaN,
+    which must survive being written back into an existing str-dtype column."""
     tsv = _write_tsv(
         tmp_path / "a.tsv", ["participant_id", "age"],
         [["sub-STUNIPD0001", "70"], ["sub-STUNIPD0002", "55"]],
     )
-    artifact = tmp_path / "art"
-    artifact.mkdir()
-    pd.DataFrame({"subject_id": ["sub-STUNIPD0001"], "lesion_volume_voxels": [1234]}).to_csv(
-        artifact / "metadata.csv", index=False
-    )
+    data_root = tmp_path / "data"
+    _make_lesion_mask(data_root, "UNIPD/WashU", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2), (1, 1, 3), (1, 1, 4)])
+    matrix_config_path = _write_lesion_matrix_config(tmp_path, data_root, ["UNIPD/WashU"])
     sources = {"UNIPD/WashU": DatasetSource(tsv, tmp_path)}
     registry = _registry([
         [f"sub-STUNIPD000{i}", f"sub-STUNIPD000{i}", "UNIPD/WashU", "ST", "True", "True", "False"]
         for i in (1, 2)
     ])
-    config = _config(tmp_path, sources, ["age"], lesion_volume_from=artifact)
+    config = _config(tmp_path, sources, ["age"], lesion_metrics=_volume_only_metrics(matrix_config_path))
 
     first, _ = enrich(registry, config)
     path = tmp_path / "participants.csv"
     first.to_csv(path, index=False)
     second, _ = enrich(pd.read_csv(path, dtype=str), config)
 
-    assert str(second.loc[0, "lesion_volume_voxels"]) == "1234"  # non "1234.0"
+    assert str(second.loc[0, "lesion_volume_voxels"]) == "4"  # non "4.0"
     assert pd.isna(second.loc[1, "lesion_volume_voxels"])
+
+
+# --- lesion_metrics config validation -----------------------------------------------------------
+
+
+def test_load_config_lesion_metrics_requires_lesion_side_when_compute_side_true(tmp_path):
+    sources_path = tmp_path / "sources.json"
+    sources_path.write_text(json.dumps({"UNIPD/WashU": {"participants_tsv": "a.tsv", "derivatives_dir": "d"}}))
+    config_path = tmp_path / "c.json"
+    config_path.write_text(json.dumps({
+        "project": "p", "metadata_sources": str(sources_path), "participants_path": "x.csv",
+        "variables": ["age"], "fill": False, "run_notes": "n",
+        "lesion_metrics": {
+            "build_matrix_config": "m.json", "correct_out_of_brain": False,
+            "compute_volume": False, "compute_side": True, "side_threshold": 0.2,
+        },
+    }))
+    with pytest.raises(ValueError, match="compute_side"):
+        load_config(config_path)
+
+
+def test_load_config_lesion_metrics_rejects_both_compute_flags_false(tmp_path):
+    sources_path = tmp_path / "sources.json"
+    sources_path.write_text(json.dumps({"UNIPD/WashU": {"participants_tsv": "a.tsv", "derivatives_dir": "d"}}))
+    config_path = tmp_path / "c.json"
+    config_path.write_text(json.dumps({
+        "project": "p", "metadata_sources": str(sources_path), "participants_path": "x.csv",
+        "variables": ["age"], "fill": False, "run_notes": "n",
+        "lesion_metrics": {
+            "build_matrix_config": "m.json", "correct_out_of_brain": False,
+            "compute_volume": False, "compute_side": False, "side_threshold": 0.2,
+        },
+    }))
+    with pytest.raises(ValueError, match="nothing to compute"):
+        load_config(config_path)
+
+
+def test_load_config_lesion_metrics_rejects_out_of_range_side_threshold(tmp_path):
+    sources_path = tmp_path / "sources.json"
+    sources_path.write_text(json.dumps({"UNIPD/WashU": {"participants_tsv": "a.tsv", "derivatives_dir": "d"}}))
+    config_path = tmp_path / "c.json"
+    config_path.write_text(json.dumps({
+        "project": "p", "metadata_sources": str(sources_path), "participants_path": "x.csv",
+        "variables": ["lesion_side"], "fill": False, "run_notes": "n",
+        "lesion_metrics": {
+            "build_matrix_config": "m.json", "correct_out_of_brain": False,
+            "compute_volume": False, "compute_side": True, "side_threshold": 1.5,
+        },
+    }))
+    with pytest.raises(ValueError, match="side_threshold"):
+        load_config(config_path)
+
+
+def test_load_config_lesion_metrics_parses_valid_block(tmp_path):
+    sources_path = tmp_path / "sources.json"
+    sources_path.write_text(json.dumps({"UNIPD/WashU": {"participants_tsv": "a.tsv", "derivatives_dir": "d"}}))
+    config_path = tmp_path / "c.json"
+    config_path.write_text(json.dumps({
+        "project": "p", "metadata_sources": str(sources_path), "participants_path": "x.csv",
+        "variables": ["lesion_side"], "fill": False, "run_notes": "n",
+        "lesion_metrics": {
+            "build_matrix_config": "m.json", "correct_out_of_brain": True,
+            "compute_volume": True, "compute_side": True, "side_threshold": 0.2,
+        },
+    }))
+    config = load_config(config_path)
+    assert config.lesion_metrics == LesionMetricsConfig(
+        build_matrix_config=Path("m.json"), correct_out_of_brain=True,
+        compute_volume=True, compute_side=True, side_threshold=0.2,
+    )
+
+
+# --- geometric lesion_side fallback -------------------------------------------------------------
+
+
+def _make_side_registry_and_tsv(tmp_path, data_root):
+    """3 UNIPD/WashU subjects: 0001 has a clinical lesion_side (never touched by the
+    fallback), 0002/0003 don't and each have a real mask lesioned only at voxel index
+    >= 1 - anatomical-right for the module-level _AFFINE (no translation, index 0 is
+    the exact midline) - so both are unambiguously classifiable as 'right'."""
+    tsv = _write_tsv(
+        tmp_path / "a.tsv", ["participant_id", "lesion_side"],
+        [["sub-STUNIPD0001", "left"], ["sub-STUNIPD0002", "n/a"], ["sub-STUNIPD0003", "n/a"]],
+    )
+    _make_lesion_mask(data_root, "UNIPD/WashU", "sub-STUNIPD0002", [(1, 1, 1), (1, 2, 1)])
+    _make_lesion_mask(data_root, "UNIPD/WashU", "sub-STUNIPD0003", [(1, 1, 1)])
+    registry = _registry([
+        [f"sub-STUNIPD000{i}", f"sub-STUNIPD000{i}", "UNIPD/WashU", "ST", "True", "True", "False"]
+        for i in (1, 2, 3)
+    ])
+    return tsv, registry
+
+
+def test_geometric_fallback_fills_only_missing_lesion_side(tmp_path):
+    data_root = tmp_path / "data"
+    tsv, registry = _make_side_registry_and_tsv(tmp_path, data_root)
+    matrix_config_path = _write_lesion_matrix_config(tmp_path, data_root, ["UNIPD/WashU"])
+    sources = {"UNIPD/WashU": DatasetSource(tsv, tmp_path)}
+
+    out, _ = enrich(
+        registry,
+        _config(tmp_path, sources, ["lesion_side"], lesion_metrics=_side_only_metrics(matrix_config_path)),
+    )
+
+    by_id = out.set_index("subject_id")
+    assert by_id.loc["sub-STUNIPD0001", ["lesion_side", "lesion_side_source"]].tolist() == ["left", "clinical"]
+    assert by_id.loc["sub-STUNIPD0002", ["lesion_side", "lesion_side_source"]].tolist() == ["right", "geometric"]
+    assert by_id.loc["sub-STUNIPD0003", ["lesion_side", "lesion_side_source"]].tolist() == ["right", "geometric"]
+
+
+_TRANSLATED_AFFINE = np.array(
+    [[2.0, 0.0, 0.0, -10.0], [0.0, 2.0, 0.0, -10.0], [0.0, 0.0, 2.0, -10.0], [0.0, 0.0, 0.0, 1.0]]
+)  # world_x(i) = 2*i - 10: index 1 is anatomical-left, index 8 is anatomical-right
+   # (module-level _AFFINE has no translation, so it can only ever produce "right" -
+   # not usable for a test that needs the correction to flip the classified side).
+
+
+def test_geometric_fallback_applies_out_of_brain_correction(tmp_path):
+    """Same regression as compute_fresh_lesion_volumes, for the laterality side: 3
+    left-side lesion voxels sit inside the brain, 5 right-side voxels sit outside it.
+    Uncorrected, right dominates (5 > 3) -> 'right'. Corrected, the 5 out-of-brain
+    voxels are zeroed and only the 3 left-side ones remain -> 'left'."""
+    data_root = tmp_path / "data"
+    subject_dir = data_root / "UNIPD/WashU" / "manual_masks" / "sub-STUNIPD0001" / "anat"
+    subject_dir.mkdir(parents=True, exist_ok=True)
+    volume = np.zeros(_SHAPE, dtype=np.float32)
+    for voxel in [(1, 1, 1), (1, 2, 1), (1, 3, 1), (8, 1, 1), (8, 2, 1), (8, 3, 1), (8, 4, 1), (8, 5, 1)]:
+        volume[voxel] = 1.0
+    nib.save(nib.Nifti1Image(volume, _TRANSLATED_AFFINE), subject_dir / "sub-STUNIPD0001_label-lesion_mask.nii.gz")
+
+    template_path = tmp_path / "reference_template.nii.gz"
+    nib.save(nib.Nifti1Image(np.zeros(_SHAPE, dtype=np.float32), _TRANSLATED_AFFINE), template_path)
+    brain_mask_path = tmp_path / "brain_mask.nii.gz"
+    brain_volume = np.zeros(_SHAPE, dtype=np.float32)
+    for voxel in [(1, 1, 1), (1, 2, 1), (1, 3, 1)]:
+        brain_volume[voxel] = 1.0
+    nib.save(nib.Nifti1Image(brain_volume, _TRANSLATED_AFFINE), brain_mask_path)
+    matrix_config_path = tmp_path / "build_lesion_matrix.json"
+    matrix_config_path.write_text(json.dumps({
+        "project": "test", "data_root": str(data_root), "datasets": ["UNIPD/WashU"],
+        "reference_template_path": str(template_path),
+        "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",
+        "binarize_threshold": 0.5, "resample_interpolation": "nearest",
+        "output_root": str(tmp_path / "unused"), "session_name": "unused", "overwrite": False,
+        "brain_mask_path": str(brain_mask_path),
+    }))
+
+    uncorrected = compute_geometric_lesion_sides(
+        matrix_config_path, ["UNIPD/WashU"], threshold=0.1, correct_out_of_brain=False
+    )
+    corrected = compute_geometric_lesion_sides(
+        matrix_config_path, ["UNIPD/WashU"], threshold=0.1, correct_out_of_brain=True
+    )
+
+    assert uncorrected == {"sub-STUNIPD0001": "right"}
+    assert corrected == {"sub-STUNIPD0001": "left"}
+
+
+def test_compute_geometric_lesion_sides_skips_datasets_outside_matrix_config(tmp_path, caplog):
+    data_root = tmp_path / "data"
+    _make_lesion_mask(data_root, "UNIPD/WashU", "sub-STUNIPD0001", [(1, 1, 1)])
+    matrix_config_path = _write_lesion_matrix_config(tmp_path, data_root, ["UNIPD/WashU"])
+
+    with caplog.at_level(logging.WARNING):
+        sides = compute_geometric_lesion_sides(
+            matrix_config_path, ["UKE/WAKEUP_acute"], threshold=0.2, correct_out_of_brain=False
+        )
+
+    assert sides == {}
+    assert "UKE/WAKEUP_acute" in caplog.text
+
+
+def test_compute_geometric_lesion_sides_warns_on_partial_coverage(tmp_path, caplog):
+    """Regression: a dataset uncovered by build_matrix_config must be named in the log
+    even when *some* other requested dataset IS covered - a partial drop is exactly as
+    silent as a total one otherwise (found 28-09-26, in a real dry-run: NEMESIS_T0
+    dropped with zero log line naming it, because UKLFR/WashU/etc. in the same call
+    made the old 'is in_scope empty at all' check pass)."""
+    data_root = tmp_path / "data"
+    _make_lesion_mask(data_root, "UNIPD/WashU", "sub-STUNIPD0001", [(1, 1, 1)])
+    matrix_config_path = _write_lesion_matrix_config(tmp_path, data_root, ["UNIPD/WashU"])
+
+    with caplog.at_level(logging.WARNING):
+        sides = compute_geometric_lesion_sides(
+            matrix_config_path, ["UNIPD/WashU", "UNIPD/NEMESIS_T0"], threshold=0.2, correct_out_of_brain=False
+        )
+
+    assert "UNIPD/NEMESIS_T0" in caplog.text  # the uncovered dataset must be named, not just implied
+    assert sides == {"sub-STUNIPD0001": "right"}  # UNIPD/WashU still computed despite the partial miss

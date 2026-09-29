@@ -23,5 +23,5 @@ cd "${PROJECT_ROOT}"
 export PYTHONPATH="${PROJECT_ROOT}"
 
 echo "---- Starting check_lesion_quality at $(date) ----"
-python scripts/check_lesion_quality.py --config "${CONFIG_FILE}" --output-path "${OUTPUT_PATH}"
+python -m src.pipeline.check_lesion_quality --config "${CONFIG_FILE}" --output-path "${OUTPUT_PATH}"
 echo "---- Completed at $(date) ----"

@@ -113,7 +113,7 @@ def test_max_out_of_brain_fraction_out_of_range_raises(tmp_path):
 
 def test_brain_mask_path_readable_when_max_out_of_brain_fraction_absent(tmp_path):
     """Unlike SdcMatrixConfig's representation-specific fields, brain_mask_path stays
-    readable even with no threshold set - scripts/check_lesion_quality.py needs it
+    readable even with no threshold set - src/pipeline/check_lesion_quality.py needs it
     regardless of whether build_lesion_matrix.py's own filter is active (it's exactly
     how a real max_out_of_brain_fraction value gets picked in the first place)."""
     config = load_build_matrix_config(_write(tmp_path, {"brain_mask_path": "/templates/brain_mask.nii.gz"}))

@@ -1,7 +1,10 @@
-"""Unit tests for scripts/check_lesion_quality.py - synthetic .nii.gz fixtures, no EBRAIN
-mount needed. Full main() CLI runs, same convention as
+"""Unit tests for src/pipeline/check_lesion_quality.py - synthetic .nii.gz fixtures, no
+EBRAIN mount needed. Full main() CLI runs, same convention as
 tests/integration/test_build_lesion_matrix_pipeline.py, kept under tests/unit/ to match
-scripts/populate_metadata.py's own test file location."""
+scripts/populate_metadata.py's own test file location. Moved from scripts/ to
+src/pipeline/ 29-09-26 (code_standards.md §1, "Entry point centralizzati") - it's a real
+pipeline entry point (a quality-control step), not an accessory/one-off script, see
+.claude/history/project_changelog.md."""
 
 import json
 import logging
@@ -10,7 +13,7 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 
-from scripts import check_lesion_quality
+from src.pipeline import check_lesion_quality
 
 _AFFINE = np.eye(4) * 2
 _AFFINE[3, 3] = 1

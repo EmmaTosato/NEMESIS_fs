@@ -28,7 +28,7 @@ a matrix goes.
 
 Usage:
     conda activate nemesis
-    PYTHONPATH=. python scripts/check_lesion_quality.py \
+    python -m src.pipeline.check_lesion_quality \
         --config config/pipelines/build_lesion_matrix.json \
         --output-path assets/metadata/lesion_quality_metrics.csv
 

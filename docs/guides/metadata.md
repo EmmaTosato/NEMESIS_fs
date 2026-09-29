@@ -12,7 +12,7 @@ Lo scrivono due script, che rispondono a due domande diverse e non si sovrascriv
 - **Dettagli architetturali/perché è fatto così**: [`docs/dev/metadata.md`](../dev/metadata.md)
 - **Quali campi esistono in quale dataset**: [`docs/guides/datasets.md`](datasets.md)
 
-`assets/metadata/` contiene anche `lesion_quality_metrics.csv`, un file **separato** (non una colonna di `participants.csv`): volume della lesione e frazione fuori dal brain per ogni soggetto, prodotto da `scripts/check_lesion_quality.py` — non "chi esiste"/"cosa sappiamo di lui", ma una cache diagnostica per decidere le soglie `min_lesion_volume_voxels`/`max_out_of_brain_fraction` di `build_lesion_matrix.py` prima di lanciare una run di produzione. Dettagli in [`docs/dev/lesion_matrix.md`](../dev/lesion_matrix.md), come lanciarlo in [`docs/guides/matrix_building.md`](matrix_building.md).
+`assets/metadata/` contiene anche `lesion_quality_metrics.csv`, un file **separato** (non una colonna di `participants.csv`): volume della lesione e frazione fuori dal brain per ogni soggetto, prodotto da `src/pipeline/check_lesion_quality.py` — non "chi esiste"/"cosa sappiamo di lui", ma una cache diagnostica per decidere le soglie `min_lesion_volume_voxels`/`max_out_of_brain_fraction` di `build_lesion_matrix.py` prima di lanciare una run di produzione. Dettagli in [`docs/dev/lesion_matrix.md`](../dev/lesion_matrix.md), come lanciarlo in [`docs/guides/matrix_building.md`](matrix_building.md).
 
 ---
 
@@ -42,7 +42,7 @@ Su cluster: `sbatch jobs/run_enrich_metadata.sh` (la cartella `logs/slurm/enrich
 | **`participants_path`** | Il file da arricchire (`assets/metadata/participants.csv`). Deve esistere già: lo crea `populate_metadata.py`. |
 | **`datasets`** | Lista di dataset da processare, oppure `null` per tutti quelli presenti nel file. Un dataset fuori scope **non viene toccato**: le sue celle restano quelle che erano. |
 | **`variables`** | Quali variabili scrivere. Ammesse: `age`, `sex`, `education`, `lesion_side`, `NIHSS`, `clinical_date`. Un nome non in elenco fa fallire il config subito. |
-| **`lesion_volume_config`** | Path a un config `build_lesion_matrix.json`-shaped (di norma `config/pipelines/build_lesion_matrix.json` stesso) da cui ricalcolare `lesion_volume_voxels` **fresco dalle maschere** — non più copiato da un artefatto già costruito (vedi sotto). `null` non tocca quella colonna in questa run (è il "flag" per evitare di ripagare il calcolo costoso a ogni lancio quando serve solo aggiornare le variabili cliniche). |
+| **`lesion_metrics`** | Oggetto opzionale (`null` disattiva tutto) — tutto ciò che si calcola fresco dalle maschere: `lesion_volume_voxels` e, in fallback, `lesion_side`. Vedi sotto. |
 | **`fill`** | `true`: scrive **solo** le celle vuote, ogni valore già presente resta intatto. `false`: ricalcola tutto il richiesto. |
 | **`run_notes`** | Nota libera, finisce nel report. |
 
@@ -50,13 +50,29 @@ Su cluster: `sbatch jobs/run_enrich_metadata.sh` (la cartella `logs/slurm/enrich
 
 Se hai corretto a mano una cella in `participants.csv` e vuoi che sopravviva a una rilanciata. Con `fill: false` verrebbe sovrascritta col valore del tsv grezzo.
 
-### `lesion_volume_config`: perché non più un artefatto
+### `lesion_metrics`: tutto ciò che si calcola fresco dalle maschere
 
-Fino al 28-09-26 `lesion_volume_voxels` veniva copiato dal `metadata.csv` di uno specifico artefatto `build_lesion_matrix.py` già costruito — scelta presa per evitare "una seconda definizione della stessa quantità". Si è rivelata l'opposto: quell'artefatto usava una griglia diversa da quella corrente (`build_lesion_matrix.json` era passato da 1mm a 2mm nel frattempo, e l'artefatto non era stato ricostruito), e il confronto sui dati reali ha mostrato 900/5721 soggetti (15.7%) con un valore diverso tra le due fonti, fino a 38x. Ora `enrich_metadata.py` ricalcola `lesion_volume_voxels` fresco dalle maschere, riusando la stessa funzione (`src.features.lesion.compute_lesion_volumes`) di `build_lesion_matrix.py` e `scripts/check_lesion_quality.py` — un'unica implementazione, tre chiamanti, mai due fonti indipendenti che possono scivolare.
+```json
+"lesion_metrics": {
+  "build_matrix_config": "config/pipelines/build_lesion_matrix.json",
+  "correct_out_of_brain": false,
+  "compute_volume": true,
+  "compute_side": true,
+  "side_threshold": 0.2
+}
+```
 
-`lesion_volume_config` punta a un config `build_lesion_matrix.json`-shaped (di norma lo stesso file di produzione) da cui si leggono `data_root`/`reference_template_path`/`lesion_glob`/`binarize_threshold`/`resample_interpolation` — solo i dataset in comune tra lo scope di questa run e la lista `datasets` di quel config vengono ricalcolati; gli altri restano intoccati (warning nel log, non un errore).
+Un unico blocco (invece di un config per metadato) perché tutto viene dalla stessa fonte — le maschere — e condivide la stessa scelta di correzione:
 
-**Costo**: un caricamento+resampling nibabel per soggetto — pochi minuti sull'intera coorte. Per questo `null` è il default sensato per un lancio che aggiorna solo le variabili cliniche (età, sesso, NIHSS, ...): il volume non viene ricalcolato a meno di impostarlo esplicitamente.
+- **`build_matrix_config`**: config `build_lesion_matrix.json`-shaped (di norma lo stesso file di produzione) da cui si leggono `data_root`/`reference_template_path`/`lesion_glob`/`binarize_threshold`/`resample_interpolation`/`brain_mask_path`. Un dataset fuori dalla sua lista `datasets` non riceve né volume né lato — `WARNING` nel log per nome, mai un errore.
+- **`correct_out_of_brain`**: azzera i voxel di lesione fuori dal cervello prima di contare — stessa correzione che `build_lesion_matrix.py` applica alla matrice di produzione (`correct_out_of_brain` nel suo stesso config), ma è una flag **indipendente**: non c'è alcun obbligo di tenerla allineata a quella di `build_lesion_matrix.json`. Le due pipeline hanno scopi diversi — questo registro serve per colorare i plot e per la demografia, `build_lesion_matrix.py` costruisce l'input per l'embedding, e può essere rilanciato più volte con `session_name`/impostazioni diverse tra loro. Non è come il caso del 28-09-26 (sotto): lì un valore veniva *copiato* da un artefatto vecchio spacciandolo per aggiornato; qui entrambe le pipeline calcolano il proprio valore fresco, con la propria configurazione esplicita — differire è una scelta legittima, non un bug.
+- **`compute_volume`**: scrive `lesion_volume_voxels`. Fino al 28-09-26 questo valore veniva copiato dal `metadata.csv` di uno specifico artefatto `build_lesion_matrix.py` già costruito — scelta presa per evitare "una seconda definizione della stessa quantità", rivelatasi l'opposto (quell'artefatto usava una griglia ormai diversa da quella corrente, 900/5721 soggetti con un valore diverso tra le due fonti, fino a 38x). Ora si ricalcola fresco (`src.features.lesion.compute_lesion_volumes`), riusata anche da `build_lesion_matrix.py` e `src/pipeline/check_lesion_quality.py`.
+- **`compute_side`**: riempie `lesion_side` **solo** per i soggetti ancora vuoti dopo la risoluzione clinica — un valore clinico non viene mai sovrascritto. Per ognuno, conta i voxel di lesione a sinistra/destra della midline MNI dalla sua maschera e calcola un indice di lateralità; sopra `side_threshold` classifica `left`/`right`, sotto classifica `both` (bilaterale). Il risultato è marcato `lesion_side_source = "geometric"`, distinguibile per sempre da un valore clinico. Richiede `lesion_side` in `variables`.
+- **`side_threshold`**: **0.20 in produzione, calibrato, non inventato** — riproduce il 97.4% di 1445 soggetti con etichetta clinica vera (metodo, letteratura di riferimento e limiti in [`knowledge/neuroimaging/lesion_laterality.md`](../../knowledge/neuroimaging/lesion_laterality.md)). Non cambiarlo senza aver ricalibrato con `scripts/calibrate_lesion_side_threshold.py`.
+
+**Nessuna lista di esclusione per soggetto.** Se in analisi trovi un valore inaffidabile (volume o lato), correggilo **a mano direttamente in `participants.csv`** — `fill: true` alla run successiva lo lascia intatto, come qualunque altra cella corretta manualmente.
+
+**Costo**: un caricamento+resampling nibabel per soggetto — pochi minuti sull'intera coorte quando entrambe le flag sono `true`. `lesion_metrics: null` è il default sensato per un lancio che aggiorna solo le variabili cliniche (età, sesso, NIHSS, ...).
 
 ---
 

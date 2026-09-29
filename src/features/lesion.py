@@ -106,23 +106,36 @@ def compute_lesion_volumes(
     binarize_threshold: float,
     resample_interpolation: str,
     group_filter: list[str] | None,
+    correct_out_of_brain: bool = False,
+    brain_mask_path: Path | None = None,
 ) -> tuple[pd.DataFrame, list[str]]:
     """Per-subject lesion_volume_voxels for every subject discovered under
     data_root/datasets (after group_filter) - the volume-only counterpart of
     compute_lesion_quality_metrics, for a consumer that doesn't need
-    out_of_brain_fraction (no brain_mask_path needed, so it skips that load/resample
-    entirely). The single computation src.pipeline.enrich_metadata relies on for its
-    own lesion_volume_voxels column - see that module's docstring for why it no
+    out_of_brain_fraction (no brain_mask_path needed unless correct_out_of_brain is
+    set, so it skips that load/resample entirely when it isn't). The single
+    computation src.pipeline.enrich_metadata relies on for its own
+    lesion_volume_voxels column - see that module's docstring for why it no
     longer copies the value from a separately-built build_lesion_matrix.py artifact
     (a second, independently-drifting definition of the same quantity - found
     28-09-26, .claude/history/methods_changelog.md).
 
+    correct_out_of_brain/brain_mask_path (default: disabled) apply the same
+    out-of-brain voxel correction build_lesion_matrix() does
+    (_apply_out_of_brain_correction) before counting - so a caller that wants this
+    volume to match a production matrix built with correct_out_of_brain=true gets
+    the corrected count, not a second, uncorrected definition of the same subject's
+    lesion (see enrich_metadata.py's own lesion_metrics.correct_out_of_brain).
+
     Returns (metadata, excluded_by_group). metadata has subject_id, dataset,
     lesion_volume_voxels.
     """
-    _, metadata, excluded_by_group, _ = _voxelwise_matrix_with_volume(
+    X_voxelwise, metadata, excluded_by_group, reference_img = _voxelwise_matrix_with_volume(
         data_root, datasets, reference_template_path, lesion_glob, binarize_threshold,
         resample_interpolation, group_filter,
+    )
+    _, metadata, _ = _apply_out_of_brain_correction(
+        X_voxelwise, metadata, reference_img, correct_out_of_brain, brain_mask_path,
     )
     return metadata, excluded_by_group
 
@@ -142,7 +155,7 @@ def compute_lesion_quality_metrics(
     unlike build_lesion_matrix()'s _filter_by_lesion_quality. Meant for inspecting
     the full distribution before picking max_out_of_brain_fraction, or for caching
     this metric (expensive: one nibabel load + resample per subject) into a CSV for
-    reuse - see scripts/check_lesion_quality.py.
+    reuse - see src/pipeline/check_lesion_quality.py.
 
     Returns (metadata, excluded_by_group). metadata does NOT carry
     lesion_volume_voxels (computed internally as a byproduct of discovery, but
@@ -169,6 +182,8 @@ def compute_lesion_laterality_metrics(
     binarize_threshold: float,
     resample_interpolation: str,
     group_filter: list[str] | None,
+    correct_out_of_brain: bool = False,
+    brain_mask_path: Path | None = None,
 ) -> tuple[pd.DataFrame, list[str]]:
     """Per-subject hemisphere voxel counts and laterality index for every subject
     discovered under data_root/datasets (after group_filter) - no side classification
@@ -185,12 +200,20 @@ def compute_lesion_laterality_metrics(
     expected for a real ST subject, but not excluded here either - literally no
     lesion) - a legitimate, explicit domain case, not an error.
 
+    correct_out_of_brain/brain_mask_path (default: disabled): same out-of-brain
+    voxel correction as compute_lesion_volumes/build_lesion_matrix() - a stray
+    out-of-brain voxel counted toward left_voxels/right_voxels could otherwise bias
+    laterality_index for no anatomical reason.
+
     Returns (metadata, excluded_by_group). metadata carries subject_id, dataset,
     lesion_volume_voxels, left_voxels, right_voxels, laterality_index.
     """
     X_voxelwise, metadata, excluded_by_group, reference_img = _voxelwise_matrix_with_volume(
         data_root, datasets, reference_template_path, lesion_glob, binarize_threshold,
         resample_interpolation, group_filter,
+    )
+    X_voxelwise, metadata, _ = _apply_out_of_brain_correction(
+        X_voxelwise, metadata, reference_img, correct_out_of_brain, brain_mask_path,
     )
     left_mask, right_mask = _hemisphere_masks(reference_img)
     X_bool = X_voxelwise.astype(bool)

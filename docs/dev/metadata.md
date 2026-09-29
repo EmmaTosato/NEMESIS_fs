@@ -2,7 +2,7 @@
 
 Audience: chi lavora su `scripts/populate_metadata.py`, `src/pipeline/enrich_metadata.py`, `src/utils/participants.py`, o chi deve capire dove vive un dato valore clinico/anagrafico (age, sex, NIHSS, lesion_side...) e come ci è arrivato.
 
-Il ridisegno è **in vigore**: la fonte di verità unica esiste e i consumatori la leggono. Resta una sola cosa non implementata, il `lesion_side` calcolato geometricamente (vedi in fondo). Per quali campi esistono in quale dataset, vedi `docs/guides/datasets.md`.
+Il ridisegno è **in vigore**: la fonte di verità unica esiste e i consumatori la leggono. Per quali campi esistono in quale dataset, vedi `docs/guides/datasets.md`.
 
 ## Come funziona
 
@@ -17,11 +17,11 @@ assets/metadata/participants.csv
         ▲
         │  src/pipeline/enrich_metadata.py       — cosa sappiamo di lui
         │
-data/clinical_connectome/derivatives/<dataset>/manual_masks/    (lesion_volume_voxels, calcolato fresco;
-                                                                   lato lesione, ancora da implementare)
+data/clinical_connectome/derivatives/<dataset>/manual_masks/    (lesion_volume_voxels e, in fallback,
+                                                                   lesion_side geometrico - entrambi calcolati fresco)
 ```
 
-`lesion_volume_voxels` è calcolato **fresco dalle maschere** (`src.features.lesion.compute_lesion_volumes`, `config.lesion_volume_config` punta a un `build_lesion_matrix.json`), non più copiato da un artefatto `data/derived/lesion_matrix/<sessione>/` già costruito — quella scelta si è rivelata generare esattamente la seconda fonte di verità che voleva evitare (28-09-26, `.claude/history/methods_changelog.md`: 900/5721 soggetti con valore diverso tra le due fonti, fino a 38x, dopo che la griglia era cambiata senza ricostruire l'artefatto).
+`lesion_volume_voxels` e, in fallback, `lesion_side` sono calcolati **freschi dalle maschere** (`config.lesion_metrics`, vedi sotto), non più copiati da un artefatto `data/derived/lesion_matrix/<sessione>/` già costruito — quella scelta si è rivelata generare esattamente la seconda fonte di verità che voleva evitare (28-09-26, `.claude/history/methods_changelog.md`: 900/5721 soggetti con valore diverso tra le due fonti, fino a 38x, dopo che la griglia era cambiata senza ricostruire l'artefatto).
 
 | | `populate_metadata.py` | `enrich_metadata.py` |
 |---|---|---|
@@ -49,7 +49,7 @@ Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv`
 
 ## Cosa esiste davvero adesso
 
-- **`assets/metadata/participants.csv`** — 5752 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels` (enrich).
+- **`assets/metadata/participants.csv`** — 5853 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels` (enrich).
 - **I tsv per-dataset `assets/metadata/<DATASET>_participants_*.tsv` non esistono più**: cancellati. Ogni consumatore è stato spostato sul file unico.
 - **`data/derived/<pipeline>/<sessione>/metadata.csv`** — contiene solo ciò che appartiene a quella run (`subject_id`, `dataset`, `lesion_volume_voxels` per `build_lesion_matrix.py`). Non è più la fonte da cui `enrich_metadata.py` copia `lesion_volume_voxels` in `participants.csv` (fino al 28-09-26 lo era, vedi sopra) — resta solo l'artefatto della run stessa, la sua colonna può differire da quella nel registro se le due griglie non coincidono.
 
@@ -77,6 +77,22 @@ Una sola oggi:
 
 UCL-UK resta comunque vuoto: non ha nessuna colonna NIHSS-correlata.
 
-## Cosa manca ancora
+## `lesion_metrics`: tutto ciò che si calcola fresco dalle maschere
 
-**`lesion_side` calcolato geometricamente.** Oggi `lesion_side` è popolato solo dove il dato clinico esiste (`lesion_side_source = "clinical"`); PASPORT e UCL-UK non hanno affatto la colonna, e ~230 soggetti tra WashU e PSP hanno la cella vuota pur avendo il dataset la colonna. Il calcolo dalla maschera (conteggio voxel ai due lati della midline MNI, x=0) è meccanico, ma la soglia oltre cui una lesione è "bilaterale" va **calibrata** sui 4 dataset che hanno l'etichetta clinica (i 30 `both` di UKE inclusi) prima di poterla applicare agli altri. Finché quella calibrazione non è fatta, la variabile non viene scritta: inventare una soglia darebbe un valore dall'aria plausibile e senza basi. `lesion_side_source` esiste già per distinguere le due provenienze quando arriverà.
+Un unico blocco di config (opzionale, `null` disattiva tutto), non un campo separato per metadato — condivide una sola fonte (`build_matrix_config`, un `build_lesion_matrix.json`) e una sola impostazione di correzione, invece di duplicarle per ogni metrica:
+
+| Chiave | Effetto |
+|---|---|
+| `build_matrix_config` | Config `build_lesion_matrix.json`-shaped da cui leggere `data_root`/`datasets`/`reference_template_path`/`lesion_glob`/`binarize_threshold`/`resample_interpolation`/`brain_mask_path`. |
+| `correct_out_of_brain` | Azzera i voxel di lesione fuori dal cervello (`src.features.lesion_correction.zero_out_of_brain_voxels`) **prima** di calcolare qualunque metrica sotto — stessa correzione che `build_lesion_matrix.py` applica alla matrice di produzione, ma flag indipendente: le due pipeline hanno scopi diversi (questo registro serve a plot/demografia, `build_lesion_matrix.py` costruisce l'input dell'embedding, rilanciabile più volte con impostazioni proprie) e possono avere valori diversi per scelta, senza che vada considerato un disallineamento da correggere. |
+| `compute_volume` | Scrive `lesion_volume_voxels`. |
+| `compute_side` | Riempie `lesion_side` **solo** dove il passaggio clinico l'ha lasciato vuoto (un valore clinico non viene mai toccato) — richiede `lesion_side` in `variables`. |
+| `side_threshold` | Soglia di bilateralità per `compute_side` — vedi sotto. |
+
+`lesion_side` ha quindi due fonti possibili, mai in conflitto perché la seconda scrive solo dove la prima non ha scritto nulla: **clinica** (dal tsv grezzo, `lesion_side_source = "clinical"`) e **geometrica** (`compute_side`, `lesion_side_source = "geometric"`) — conta i voxel di lesione ai due lati della midline MNI (world-x, non indice di voxel grezzo — vedi `src/features/lesion.py::_hemisphere_masks`) e calcola `laterality_index = (left − right) / (left + right)`; sopra `side_threshold` in valore assoluto → `left`/`right` (a seconda del segno), sotto → `both`.
+
+La soglia (`0.20` in produzione) non è inventata: è calibrata contro 1445 soggetti con etichetta clinica vera (97.4% di accordo) — dettagli, letteratura di riferimento e limiti (la classe "bilaterale" resta debole, 3/24 corretti a qualunque soglia) in `knowledge/neuroimaging/lesion_laterality.md` e `.claude/history/methods_changelog.md` (28-09-26).
+
+Un dataset fuori dalla lista `datasets` di `build_matrix_config` non riceve né volume né lato, con un `WARNING` nel log per nome, mai un errore — un'`enrich_metadata.py` può legittimamente avere uno scope più ampio di quello che un dato `build_lesion_matrix.json` copre oggi.
+
+**Nessuna lista di esclusione per soggetto** (rimossa 29-09-26, `.claude/history/project_changelog.md`): un valore che risultasse inaffidabile in analisi si corregge **a mano direttamente in `participants.csv`** (un CSV versionato in git) — `fill: true` alla run successiva lo lascia intatto. Più semplice di un ciclo config-modifica/rilancia per un giudizio caso-per-caso che appartiene all'analisi, non alla configurazione di questa pipeline.

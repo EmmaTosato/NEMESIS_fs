@@ -60,7 +60,7 @@ Spiegazione delle chiavi di `config/pipelines/build_lesion_matrix.json`:
 | **`min_lesion_volume_voxels`** | `null` (default, nessun filtro) oppure un intero ≥ 0: i soggetti con `lesion_volume_voxels` sotto questa soglia vengono esclusi dalla matrice. |
 | **`max_out_of_brain_fraction`** | `null` (default, nessun filtro) oppure un valore in `[0.0, 1.0]`: i soggetti con più di questa frazione di voxel di lesione fuori dalla maschera cerebrale vengono esclusi. Richiede `brain_mask_path`. Non combinabile con `correct_out_of_brain` (vedi sotto). |
 | **`correct_out_of_brain`** | `false` (default) oppure `true`: invece di escludere il soggetto, azzera i suoi voxel di lesione fuori dalla maschera cerebrale e lo tiene nella matrice. Richiede `brain_mask_path`. Non combinabile con `max_out_of_brain_fraction`. |
-| **`brain_mask_path`** | Maschera cerebrale MNI di riferimento, sulla stessa griglia di `reference_template_path` (es. `assets/templates/tpl-MNI152NLin6Asym_res-2_desc-brain_mask.nii.gz` per la griglia a 2mm attualmente in uso). **Obbligatoria** se `max_out_of_brain_fraction` non è `null` oppure `correct_out_of_brain` è `true`, ma resta letta (non ignorata) anche quando entrambi sono disattivati — la usa anche `scripts/check_lesion_quality.py`, indipendentemente da questi due campi. |
+| **`brain_mask_path`** | Maschera cerebrale MNI di riferimento, sulla stessa griglia di `reference_template_path` (es. `assets/templates/tpl-MNI152NLin6Asym_res-2_desc-brain_mask.nii.gz` per la griglia a 2mm attualmente in uso). **Obbligatoria** se `max_out_of_brain_fraction` non è `null` oppure `correct_out_of_brain` è `true`, ma resta letta (non ignorata) anche quando entrambi sono disattivati — la usa anche `src/pipeline/check_lesion_quality.py`, indipendentemente da questi due campi. |
 | **`output_root`** | Sede file (di base: `"data/derived/lesion_matrix"`). |
 | **`session_name`** | Nome univoco per distinguere i batch es. `"voxelwise_s2"`. |
 | **`overwrite`** | `true` sovrascrive output di run passati. |
@@ -91,10 +91,10 @@ Tutti e tre sono disattivati di default (`null`/`false`, nessun effetto). I sogg
 
 **Una matrice già costruita non viene mai filtrata a posteriori**: cambiare queste soglie non ha alcun effetto su un `data/derived/lesion_matrix/<sessione>/` già scritto su disco — modificherebbe silenziosamente le basi di analisi a valle già eseguite su quell'output. Se ci si accorge di aver dimenticato di impostare una soglia, la run va rifatta da capo (cancellare la cartella di output e la relativa riga in `runs.csv`, poi rilanciare la pipeline con il config corretto), mai patchata in-place.
 
-**Prima di fissare una soglia**, conviene ispezionare la distribuzione reale invece di indovinare un valore: `scripts/check_lesion_quality.py` calcola `lesion_volume_voxels`/`out_of_brain_fraction` per ogni soggetto (stesso config `build_lesion_matrix.json`, nessuna soglia applicata) e li salva in `assets/metadata/lesion_quality_metrics.csv`:
+**Prima di fissare una soglia**, conviene ispezionare la distribuzione reale invece di indovinare un valore: `src/pipeline/check_lesion_quality.py` calcola `lesion_volume_voxels`/`out_of_brain_fraction` per ogni soggetto (stesso config `build_lesion_matrix.json`, nessuna soglia applicata) e li salva in `assets/metadata/lesion_quality_metrics.csv`:
 
 ```bash
-PYTHONPATH="$PROJECT_ROOT" python scripts/check_lesion_quality.py --config config/pipelines/build_lesion_matrix.json
+python -m src.pipeline.check_lesion_quality --config config/pipelines/build_lesion_matrix.json
 ```
 
 Il calcolo è costoso (minuti sull'intera coorte) — di default, se `assets/metadata/lesion_quality_metrics.csv` esiste già, lo script non ricalcola nulla; `--overwrite` forza il ricalcolo. La stessa esplorazione, con grafici della distribuzione, è in `notebooks/exploration/dataset_exploration.ipynb` ("Lesione fuori dal brain"), che legge/scrive lo stesso file.

@@ -63,7 +63,7 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
     # Lesion-quality filters (added for subject-admission thresholds): each independently
     # optional (None = filter disabled). brain_mask_path is always read if present - unlike
     # SdcMatrixConfig's representation-specific fields (truly unused outside their own
-    # branch), brain_mask_path is also read by scripts/check_lesion_quality.py regardless
+    # branch), brain_mask_path is also read by src/pipeline/check_lesion_quality.py regardless
     # of whether build_lesion_matrix.py's own max_out_of_brain_fraction filter is active
     # (that script is exactly how a real max_out_of_brain_fraction value gets picked in the
     # first place - forcing it to None here would make the field unreachable until after
