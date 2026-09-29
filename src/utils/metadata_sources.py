@@ -1,6 +1,6 @@
 """Parsing of config/registry/metadata_sources.json - the dataset -> paths registry.
 
-Shared by scripts/populate_metadata.py and src/pipeline/enrich_metadata.py so
+Shared by src/pipeline/populate_metadata.py and src/pipeline/enrich_metadata.py so
 the mapping from a dataset name to its raw participants.tsv and its derivatives
 directory exists in exactly one place. It is not mechanically derivable
 (`participants_UCL.tsv` <-> `UCL-UK/UCLStrokeData`), so it has to be declared.

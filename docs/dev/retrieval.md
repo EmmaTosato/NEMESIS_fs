@@ -40,11 +40,9 @@ src/retrieval/
 ├── config.py          # parsing/validation of both JSON files - no filesystem I/O
 ├── dataset.py          # Dataset class - resolves paths for one dataset, does touch the filesystem
 ├── output_layout.py    # single source of truth for the LOCAL output path shape - shared by retrieve_data.py and verify.py
-└── verify.py            # post-copy checksum verification - shared by retrieve_data.py and scripts/verify_retrieval.py
+└── verify.py            # post-copy checksum verification, driven by retrieve_data.py
 src/pipeline/
 └── retrieve_data.py   # CLI entry point: validate upfront, copy, verify, write the copy_summary report
-scripts/
-└── verify_retrieval.py   # accessory: standalone, on-demand re-check of data/ against source
 ```
 
 Single-class design: **one** `Dataset` class is instantiated once per requested dataset name (`Dataset("UNIPD/WashU", file_patterns)` — no `project_root` argument), not a subclass per dataset or per object. The in-scope datasets (`docs/guides/datasets.md`) share the same on-disk convention exactly; differences between them (which pipelines/leaves exist, presence of `participants.tsv`) are discovered from disk at runtime (`available()`, `has_object()`), never hardcoded per dataset name.
@@ -233,10 +231,7 @@ Known groups: `ST`, `HC`, `PD`, `GM`. Known objects: `lesion`, `feature`, `sdc` 
 
 `shutil.copy2` succeeding, or a destination already existing (`skipped (exists)`), used to be treated as proof the local file was correct. Neither actually is: a copy can be truncated by a disk-full mid-write without raising, and a file already present locally may have been copied from a source that has since changed upstream — `overwrite=false` would then keep serving stale content silently forever.
 
-This is closed by `src/retrieval/verify.py` (`verify_dataset(name, ds, subjects, config) -> VerificationResult`), shared by two callers:
-
-- `src/pipeline/retrieve_data.py` — `_retrieve_all` runs the copy phase for **every** requested dataset first, then, only once that loop has fully completed, runs a second loop calling `_verify_dataset_copies` per dataset. Never interleaved with any dataset's copy phase.
-- `scripts/verify_retrieval.py` — a standalone, read-only, on-demand re-check that calls the exact same `verify.verify_dataset`, without running a retrieval at all.
+This is closed by `src/retrieval/verify.py` (`verify_dataset(name, ds, subjects, config) -> VerificationResult`), driven by `src/pipeline/retrieve_data.py`: `_retrieve_all` runs the copy phase for **every** requested dataset first, then, only once that loop has fully completed, runs a second loop calling `_verify_dataset_copies` per dataset. Never interleaved with any dataset's copy phase.
 
 `verify_dataset` re-resolves the source file(s) for every `(subject, retrieve item)` via `ds.resolve(subject_id, item)`, skipping items whose object this dataset structurally lacks (`ds.has_object(item.object)` false — the same items `_report_skipped_retrieve_items` already skipped at copy time, so they were never expected to land locally either) and items where `resolve()` returns `[]` (source doesn't have it either — covered by `stats.missing`, not a verification concern), and for each remaining resolved path:
 - if `data/` doesn't have the corresponding local file at all → `VerificationResult.missing_locally`,
@@ -302,14 +297,6 @@ Instead, `Dataset.describe_absence(subject_id, item)` (called only once `resolve
 `main()` writes the full narrative to `logs/data_retrieval/<project>/copy_summary__<dd-mm-yy>__<hh-mm-ss>.log`, timestamp-paired with the report.
 
 `_attach_file_handler` removes any `FileHandler` left on the root logger by a previous `main()` call in the same process before attaching a new one (see `test_main_does_not_leak_log_lines_across_runs`).
-
-## Standalone accessory scripts
-
-**`scripts/verify_retrieval.py`** — not part of the pipeline entry point, reuses `retrieve_data._select_subjects` directly (accessory scripts aren't a layered module). On-demand, read-only re-check of `data/` against source. Calls the exact same `verify.verify_dataset` the pipeline's post-copy phase uses.
-
-```bash
-PYTHONPATH=. conda run -n nemesis python scripts/verify_retrieval.py --config config/pipelines/retrieval_server.json
-```
 
 ## Testing
 

@@ -4,9 +4,8 @@ Re-derives, for a given subject selection, the same source file
 Dataset.resolve() would pick, and compares it byte-for-byte (sha256) against
 the corresponding local file. Never trusts a successful copy or a
 pre-existing destination as proof the content is right - see
-docs/dev/retrieval.md's "Checksum verification" section for why, and for the
-2 callers this module is shared between (src.pipeline.retrieve_data's own
-post-copy phase, scripts/verify_retrieval.py standalone).
+docs/dev/retrieval.md's "Checksum verification" section for why, and for how
+src.pipeline.retrieve_data's post-copy phase drives it.
 """
 
 from __future__ import annotations

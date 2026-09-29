@@ -33,28 +33,35 @@ python -m src.pipeline.retrieve_data --config config/pipelines/retrieval_sdc.jso
 
 Su SLURM: `sbatch jobs/run_retrieve_sdc.sh`.
 
-**In alternativa**, per scaricare solo un sottoinsieme (dataset e/o categorie di file — vedi la tabella pesi/categorie in `docs/guides/datasets.md`), c'è uno script standalone dedicato, `scripts/download_sdc.py` — niente file di config in `config/`, tutte le opzioni sono flag CLI (riusa comunque la stessa registry `file_patterns_server.json` e lo stesso motore di `retrieve_data.py`, non duplica nulla):
+Per scaricarne solo un sottoinsieme (dataset e/o categorie di file — vedi la tabella pesi/categorie in `docs/guides/datasets.md`), copia `retrieval_sdc.json` e riduci `datasets` e/o `retrieve` nella copia: stessa CLI, nessuno script a parte. Ad esempio, i soli CSV parcellati di due dataset:
 
-```bash
-PYTHONPATH=. python scripts/download_sdc.py \
-    --datasets UNIPD/WashU UKLFR/stroke_UKLFR \
-    --categories disconnectome-LF lesion-LF \
-    --output-root data/
-# --overwrite per riscaricare file già presenti; --help per l'elenco completo
+```json
+{
+  "output_root": "data/",
+  "project": "clinical_connectome",
+  "file_patterns": "config/registry/file_patterns_server.json",
+  "datasets": ["UNIPD/WashU", "UKLFR/stroke_UKLFR"],
+  "group_filter": ["ST"],
+  "subjects": null,
+  "retrieve": [
+    { "object": "sdc", "datatype": "dwi", "suffix": "disconnectome-LF" },
+    { "object": "sdc", "datatype": "dwi", "suffix": "lesion-LF" }
+  ],
+  "include_tabular_data": false,
+  "overwrite": false
+}
 ```
 
-Su SLURM: `sbatch jobs/run_download_sdc.sh` (modifica le variabili `DATASETS`/`CATEGORIES`/`OVERWRITE` in cima allo script prima di sottomettere).
+`overwrite: true` riscarica i file già presenti.
 
 ### 3. Scaricare sul proprio Mac (dal server, via rsync)
 
-`download_sdc.py`/`retrieve_data.py` girano *sul server* (dove il mount EBRAIN è visibile) — non copiano nulla sul tuo Mac. Per portare in locale solo un sottoinsieme, senza tirarti dietro tutto `data/`:
+`retrieve_data.py` gira *sul server* (dove il mount EBRAIN è visibile) — non copiano nulla sul tuo Mac. Per portare in locale solo un sottoinsieme, senza tirarti dietro tutto `data/`:
 
 1. **Sul server**, scarica in una cartella temporanea e piatta, isolata dal resto (già gitignored via `data/*`, nessuna modifica necessaria):
    ```bash
-   PYTHONPATH=. python scripts/download_sdc.py \
-       --datasets UNIPD/WashU UKLFR/stroke_UKLFR \
-       --categories disconnectome-LF lesion-LF \
-       --output-root data/_sdc_staging
+   # stessa config del sottoinsieme qui sopra, con "output_root": "data/_sdc_staging"
+   python -m src.pipeline.retrieve_data --config config/pipelines/retrieval_sdc_staging.json
    ```
 2. **Dal Mac**, `rsync` tira giù solo quella cartella (la struttura interna è già quella che userebbe `retrieval_local.json`, quindi puoi farla atterrare direttamente sotto `data/clinical_connectome/derivatives/`):
    ```bash
