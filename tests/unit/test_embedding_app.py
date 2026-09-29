@@ -19,14 +19,19 @@ from src.analysis.embedding_app import (
     PRODUCTION_PIPELINES,
     LesionViewerConfig,
     ProductionRun,
+    SdcViewerConfig,
     UndisplayableRunError,
     _FONT_STACK,
+    _build_cluster_disconnection_view,
     _build_cluster_overlap_view,
     _n_components_option_label,
+    _static_glass_brain_png_bytes,
     _static_png_bytes,
     build_app,
     build_embedding_figure,
     cluster_options,
+    disconnectome_viewer_content_for,
+    disconnection_map_content_for,
     discover_production_runs,
     graph_content_for,
     lesion_viewer_content_for,
@@ -70,6 +75,26 @@ def _lesion_cfg(data_root):
         data_root=data_root, lesion_glob=_LESION_GLOB, reference_img=reference_img,
         binarize_threshold=0.5, resample_interpolation="nearest",
     )
+
+
+_DISCONNECTOME_GLOB = "sdc/*/*_res-1_desc-disconnectome.nii.gz"
+
+
+def _sdc_cfg(data_root):
+    reference_img = nib.Nifti1Image(np.zeros(_LESION_SHAPE, dtype=np.float32), _LESION_AFFINE)
+    return SdcViewerConfig(
+        data_root=data_root, disconnectome_glob=_DISCONNECTOME_GLOB, reference_img=reference_img,
+        resample_interpolation="nearest",
+    )
+
+
+def _make_disconnectome_subject(data_root, dataset, subject_id, voxel_values):
+    subject_dir = data_root / dataset / "sdc" / subject_id
+    subject_dir.mkdir(parents=True, exist_ok=True)
+    volume = np.zeros(_LESION_SHAPE, dtype=np.float32)
+    for voxel, value in voxel_values.items():
+        volume[voxel] = value
+    nib.save(nib.Nifti1Image(volume, _LESION_AFFINE), subject_dir / f"{subject_id}_res-1_desc-disconnectome.nii.gz")
 
 
 def _clustering_params_file(tmp_path, methods=("kmeans",)):
@@ -448,7 +473,7 @@ def test_graph_content_for_undisplayable_run_returns_status_message(tmp_path):
 
 def test_build_app_raises_on_empty_runs(tmp_path):
     with pytest.raises(ValueError, match="at least one production run"):
-        build_app([], _lesion_cfg(tmp_path), _clustering_params_file(tmp_path))
+        build_app([], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path))
 
 
 def _runs(*specs):
@@ -724,7 +749,7 @@ def test_build_app_layout_has_one_button_per_color_mode(tmp_path):
     run_dir = _make_run_dir(results_root, run_name="run-2d", n_dims=2)
     run = ProductionRun("lesion", "dim_reduction", "umap", "run-2d", run_dir)
 
-    app = build_app([run], _lesion_cfg(tmp_path), _clustering_params_file(tmp_path))
+    app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path))
 
     # .controls' children: [picker-row-1 (Dato/Pipeline/Metodo), picker-row-2
     # (Metrica/Componenti/Run), color-buttons] - color-buttons is the last one, not a fixed
@@ -816,6 +841,19 @@ def test_static_png_bytes_from_lesion_mask_path_returns_valid_png(tmp_path):
     assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
 
 
+def test_static_glass_brain_png_bytes_from_lesion_mask_path_returns_valid_png(tmp_path):
+    # "Salva PNG (glass brain)" button's own helper (29-09-26, on request) - same str-path input
+    # shape as _download_lesion_glass_png passes (lesion_paths[subject_id]), autumn/no-colorbar
+    # matching that callback's own choice for a binary mask (see its docstring).
+    data_root = tmp_path / "data"
+    _make_lesion_subject(data_root, "UNIPD/WashU", "sub-STUNIPD0001", [(1, 1, 1)])
+    lesion_path = data_root / "UNIPD/WashU" / "manual_masks" / "sub-STUNIPD0001" / "anat" / "sub-STUNIPD0001_label-lesion_mask.nii.gz"
+
+    png_bytes = _static_glass_brain_png_bytes(str(lesion_path), threshold=0.5, cmap="autumn", colorbar=False)
+
+    assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+
+
 def test_build_cluster_overlap_view_returns_percentage_img_for_static_png(tmp_path):
     # Regression for the new 3rd return value (11-09-26): percentage_img must be the exact image
     # the interactive view itself renders, not a separately-built one, and must itself be a valid
@@ -873,6 +911,127 @@ def test_overlap_map_content_for_valid_cluster_returns_iframe(tmp_path):
     assert isinstance(viewer_wrap.children, html.Iframe)
 
 
+def test_disconnectome_viewer_content_for_unresolvable_subject_returns_status_message(tmp_path):
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(results_root, modality="sdc", run_name="run-a")
+    run = ProductionRun("sdc", "dim_reduction", "umap", "run-a", run_dir)
+    metadata = run_metadata(run)
+
+    content = disconnectome_viewer_content_for(run, "sub-does-not-exist", metadata, _sdc_cfg(tmp_path))
+
+    assert isinstance(content, html.P)
+    assert "sub-does-not-exist" in content.children
+
+
+def test_disconnectome_viewer_content_for_valid_subject_returns_iframe(tmp_path):
+    data_root = tmp_path / "data"
+    _make_disconnectome_subject(data_root, "UNIPD/WashU", "sub-STUNIPD0001", {(1, 1, 1): 0.8})
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, modality="sdc", run_name="run-a",
+        extra_metadata={"subject_id": ["sub-STUNIPD0001", "sub-2", "sub-3", "sub-4"]},
+    )
+    run = ProductionRun("sdc", "dim_reduction", "umap", "run-a", run_dir)
+    metadata = run_metadata(run)
+
+    content = disconnectome_viewer_content_for(run, "sub-STUNIPD0001", metadata, _sdc_cfg(data_root))
+
+    assert isinstance(content, html.Div)
+    heading, _caption, viewer_wrap = content.children
+    assert heading.children == "sub-STUNIPD0001 (UNIPD/WashU)"
+    iframe = viewer_wrap.children
+    assert isinstance(iframe, html.Iframe)
+    assert _FONT_STACK in iframe.srcDoc
+
+
+def test_disconnection_map_content_for_empty_cluster_returns_status_message(tmp_path):
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, modality="sdc", pipeline="clustering", run_name="run-a",
+        extra_metadata={"cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("sdc", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+    metadata = run_metadata(run)
+
+    content = disconnection_map_content_for(run, metadata, 99, _sdc_cfg(tmp_path))
+
+    assert isinstance(content, html.P)
+    assert "99" in content.children
+
+
+def test_build_cluster_disconnection_view_returns_mean_img_for_static_png(tmp_path):
+    # Mirrors test_build_cluster_overlap_view_returns_percentage_img_for_static_png - continuous
+    # mean instead of binarized percentage: cluster 0 has 2 subjects, disconnection 0.8/0.4 at
+    # (1,1,1) -> mean 0.6, one of them also 0.2 at (2,2,2) -> mean 0.1 (divided by both subjects,
+    # not just the one with a nonzero value there - build_mean_map's own contract).
+    subject_ids = ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUKLFR0001", "sub-STUKLFR0002"]
+    data_root = tmp_path / "data"
+    _make_disconnectome_subject(data_root, "UNIPD/WashU", subject_ids[0], {(1, 1, 1): 0.8, (2, 2, 2): 0.2})
+    _make_disconnectome_subject(data_root, "UNIPD/WashU", subject_ids[1], {(1, 1, 1): 0.4})
+    _make_disconnectome_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[2], {(3, 3, 3): 0.5})
+    _make_disconnectome_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[3], {(3, 3, 3): 0.5})
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, modality="sdc", pipeline="clustering", run_name="run-a",
+        extra_metadata={"subject_id": subject_ids, "cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("sdc", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+    metadata = run_metadata(run)
+
+    view, n_subjects, mean_img = _build_cluster_disconnection_view(run, metadata, 0, _sdc_cfg(data_root))
+
+    assert n_subjects == 2
+    assert mean_img.shape == _LESION_SHAPE
+    assert mean_img.get_fdata()[1, 1, 1] == pytest.approx(0.6)
+    assert mean_img.get_fdata()[2, 2, 2] == pytest.approx(0.1)
+    assert mean_img.get_fdata()[0, 0, 0] == pytest.approx(0.0)
+
+    png_bytes = _static_png_bytes(mean_img, threshold=1e-6, cmap="magma", colorbar=True)
+    assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_static_glass_brain_png_bytes_from_disconnectome_path_returns_valid_png(tmp_path):
+    # "Salva PNG (glass brain)" button's own helper for the SDC panel (29-09-26, on request) -
+    # threshold=0.1/alpha=0.9 matching _download_disconnectome_glass_png's own constants
+    # (_DISCONNECTOME_GLASS_BRAIN_THRESHOLD/_ALPHA), picked to hide the near-zero noise streaks
+    # a glass-brain projection would otherwise show (see that function's own docstring).
+    data_root = tmp_path / "data"
+    _make_disconnectome_subject(data_root, "UNIPD/WashU", "sub-STUNIPD0001", {(1, 1, 1): 0.8})
+    disconnectome_path = (
+        data_root / "UNIPD/WashU" / "sdc" / "sub-STUNIPD0001" / "sub-STUNIPD0001_res-1_desc-disconnectome.nii.gz"
+    )
+
+    png_bytes = _static_glass_brain_png_bytes(
+        str(disconnectome_path), threshold=0.1, cmap="magma", colorbar=True, alpha=0.9,
+    )
+
+    assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_disconnection_map_content_for_valid_cluster_returns_iframe(tmp_path):
+    subject_ids = ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUKLFR0001", "sub-STUKLFR0002"]
+    data_root = tmp_path / "data"
+    _make_disconnectome_subject(data_root, "UNIPD/WashU", subject_ids[0], {(1, 1, 1): 0.6})
+    _make_disconnectome_subject(data_root, "UNIPD/WashU", subject_ids[1], {(1, 1, 1): 0.4})
+    _make_disconnectome_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[2], {(2, 2, 2): 0.5})
+    _make_disconnectome_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[3], {(2, 2, 2): 0.5})
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, modality="sdc", pipeline="clustering", run_name="run-a",
+        extra_metadata={"subject_id": subject_ids, "cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("sdc", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+    metadata = run_metadata(run)
+
+    content = disconnection_map_content_for(run, metadata, 0, _sdc_cfg(data_root))
+
+    assert isinstance(content, html.Div)
+    heading, caption, viewer_wrap = content.children
+    assert heading.children == "Cluster 0 (n=2)"
+    assert "probabilità" in caption.children
+    assert isinstance(viewer_wrap.children, html.Iframe)
+
+
 def test_run_reduction_axis_dim_reduction_reads_own_params(tmp_path):
     results_root = tmp_path / "results"
     run_dir = _make_run_dir(results_root, run_name="run-a", params={"metric": "dice", "n_components": 3})
@@ -921,3 +1080,168 @@ def test_tag_param_options_distinct_combinations_for_clustering(tmp_path):
     labels = tag_param_options(runs, "lesion", "clustering", "kmeans", "euclidean", 2, params_file)
 
     assert labels == ["n_clusters=3", "n_clusters=5"]
+
+
+def test_tag_param_options_method_missing_from_registry_returns_sentinel_not_raise(tmp_path, caplog):
+    # Regression: a clustering method with real production runs on disk but no entry in
+    # params_clustering.json (a registry/artifact mismatch, e.g. a method renamed/dropped from
+    # the registry after its output was written - lessons_learned.md #12, "dbscan" -> "hdbscan"
+    # for real) used to propagate load_tag_params' own ValueError straight out of
+    # tag_param_options, crashing the "Parametri" picker step (500) the moment this method was
+    # selected - with the old code this test fails with an uncaught ValueError.
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, pipeline="clustering", method="dbscan", run_name="run-a",
+        params={"eps": 0.5}, reduction_metric="euclidean", reduction_n_components=2,
+    )
+    runs = [ProductionRun("lesion", "clustering", "dbscan", "run-a", run_dir, reduction_method="umap")]
+    # Registry only knows "kmeans" - "dbscan" is unregistered, same shape as a dropped method.
+    params_file = _clustering_params_file(tmp_path, methods=("kmeans",))
+
+    with caplog.at_level("WARNING"):
+        labels = tag_param_options(runs, "lesion", "clustering", "dbscan", "euclidean", 2, params_file)
+
+    assert labels == [NO_METRIC]
+    assert "dbscan" in caplog.text
+
+
+def test_runs_matching_method_missing_from_registry_returns_empty_not_raise(tmp_path):
+    # Same registry gap as above, exercised through runs_matching's own separate
+    # load_tag_params call site (line ~539) - tag_param_options being fixed doesn't protect this
+    # second, independent call site, since a caller could reach it with a non-NO_METRIC label
+    # (e.g. a stale dropdown value from before the registry was edited mid-session).
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, pipeline="clustering", method="dbscan", run_name="run-a",
+        params={"eps": 0.5}, reduction_metric="euclidean", reduction_n_components=2,
+    )
+    runs = [ProductionRun("lesion", "clustering", "dbscan", "run-a", run_dir, reduction_method="umap")]
+    params_file = _clustering_params_file(tmp_path, methods=("kmeans",))
+
+    matching = runs_matching(runs, "lesion", "clustering", "dbscan", "euclidean", 2, "eps=0.5", params_file)
+
+    assert matching == []
+
+
+def test_lesion_save_buttons_do_not_use_stale_clickdata_after_run_switch(tmp_path):
+    # Regression (01-09-26 bug fix): embedding-graph.clickData is a client-side prop that does
+    # NOT reset just because run-picker switches to a different run (graph-area's children get
+    # replaced, but Dash/React patches the same-id Graph node rather than remounting it) - only
+    # lesion-viewer-content.children used to reset to the placeholder (via ctx.triggered_id ==
+    # "run-picker"). The Save buttons read clickData directly via State, so with the old code
+    # pressing "Salva HTML"/"Salva PNG" right after switching runs - without clicking a new point
+    # on the new run - silently downloaded the *previous* run's clicked subject, with the visible
+    # panel already showing "Clicca un punto..." and no indication of what was actually
+    # downloaded. Exercised through the real Dash callbacks (Flask test client), not the
+    # underlying pure functions, since the bug lived in the callback wiring itself (which State
+    # each callback reads), not in graph_content_for/lesion_viewer_content_for.
+    data_root = tmp_path / "data"
+    _make_lesion_subject(data_root, "UNIPD/WashU", "sub-STUNIPD0001", [(1, 1, 1)])
+    results_root = tmp_path / "results"
+    shared_subject_metadata = {"subject_id": ["sub-STUNIPD0001", "sub-2", "sub-3", "sub-4"]}
+    dir_a = _make_run_dir(results_root, run_name="run-a", extra_metadata=shared_subject_metadata)
+    dir_b = _make_run_dir(results_root, run_name="run-b", extra_metadata=shared_subject_metadata)
+    run_a = ProductionRun("lesion", "dim_reduction", "umap", "run-a", dir_a)
+    run_b = ProductionRun("lesion", "dim_reduction", "umap", "run-b", dir_b)
+    app = build_app([run_a, run_b], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path))
+    app.server.config["TESTING"] = True
+    client = app.server.test_client()
+
+    def post(output_id_props, inputs, changed, state=None):
+        outputs = [{"id": i, "property": p} for i, p in output_id_props]
+        if len(outputs) > 1:
+            output = ".." + "...".join(f"{i}.{p}" for i, p in output_id_props) + ".."
+        else:
+            output = f"{output_id_props[0][0]}.{output_id_props[0][1]}"
+            outputs = outputs[0]  # a genuinely single output needs a bare dict, not a list-of-one
+            # (a list-of-one is misread as a wildcard multi-output spec by this Dash version -
+            # confirmed against its own _validate.validate_multi_return while investigating the
+            # original bug report).
+        body = {"output": output, "outputs": outputs, "inputs": inputs, "changedPropIds": changed, "state": state or []}
+        resp = client.post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
+        return resp
+
+    click_data = {"points": [{"text": "sub-STUNIPD0001"}]}
+
+    # 1) Click the subject while run-a is selected - the Store records it.
+    resp = post(
+        [("lesion-viewer-content", "children"), ("lesion-viewer-subject", "data")],
+        [
+            {"id": "embedding-graph", "property": "clickData", "value": click_data},
+            {"id": "run-picker", "property": "value", "value": run_a.key},
+        ],
+        ["embedding-graph.clickData"],
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["response"]["lesion-viewer-subject"]["data"] == "sub-STUNIPD0001"
+
+    # 2) Switch to run-b (clickData itself would still be the stale value client-side, exactly
+    # as in the real browser bug) - the Store must reset to None, same as the visible placeholder.
+    resp = post(
+        [("lesion-viewer-content", "children"), ("lesion-viewer-subject", "data")],
+        [
+            {"id": "embedding-graph", "property": "clickData", "value": click_data},
+            {"id": "run-picker", "property": "value", "value": run_b.key},
+        ],
+        ["run-picker.value"],
+    )
+    assert resp.status_code == 200
+    response = resp.get_json()["response"]
+    assert response["lesion-viewer-subject"]["data"] is None
+    assert "Clicca un punto" in json.dumps(response["lesion-viewer-content"]["children"])
+
+    # 3) Press "Salva HTML" without clicking a new point on run-b - the Save callback now reads
+    # the just-reset Store (None), not the still-stale embedding-graph.clickData, so it must not
+    # produce a download at all (PreventUpdate -> 204, no "lesion-download" key in the response).
+    resp = post(
+        [("lesion-download", "data")],
+        [{"id": "lesion-save-btn", "property": "n_clicks", "value": 1}],
+        ["lesion-save-btn.n_clicks"],
+        state=[
+            {"id": "lesion-viewer-subject", "property": "data", "value": None},
+            {"id": "run-picker", "property": "value", "value": run_b.key},
+        ],
+    )
+    assert resp.status_code == 204
+
+
+def test_sdc_panels_visible_only_for_sdc_modality_runs(tmp_path):
+    # The two new SDC anatomy panels (disconnectome-panel, disconnection-map-panel) must stay
+    # hidden for a "lesion" modality run (no disconnectome-map.nii.gz to show at all) and only
+    # appear for a "sdc" one - disconnection-map-panel additionally needs pipeline="clustering"
+    # (a cluster_label to group by), unlike disconnectome-panel which works for any pipeline.
+    data_root = tmp_path / "data"
+    results_root = tmp_path / "results"
+    lesion_dir = _make_run_dir(results_root, modality="lesion", run_name="lesion-run")
+    sdc_dim_reduction_dir = _make_run_dir(results_root, modality="sdc", run_name="sdc-dr-run")
+    sdc_clustering_dir = _make_run_dir(
+        results_root, modality="sdc", pipeline="clustering", run_name="sdc-cl-run",
+        extra_metadata={"cluster_label": [0, 0, 1, 1]},
+    )
+    lesion_run = ProductionRun("lesion", "dim_reduction", "umap", "lesion-run", lesion_dir)
+    sdc_dr_run = ProductionRun("sdc", "dim_reduction", "umap", "sdc-dr-run", sdc_dim_reduction_dir)
+    sdc_cl_run = ProductionRun("sdc", "clustering", "kmeans", "sdc-cl-run", sdc_clustering_dir, reduction_method="umap")
+    app = build_app([lesion_run, sdc_dr_run, sdc_cl_run], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path))
+    app.server.config["TESTING"] = True
+    client = app.server.test_client()
+
+    def panel_style(output_id, run_key):
+        body = {
+            "output": f"{output_id}.style",
+            "outputs": {"id": output_id, "property": "style"},
+            "inputs": [{"id": "run-picker", "property": "value", "value": run_key}],
+            "changedPropIds": ["run-picker.value"],
+            "state": [],
+        }
+        resp = client.post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
+        assert resp.status_code == 200
+        return resp.get_json()["response"][output_id]["style"]
+
+    assert panel_style("disconnectome-panel", lesion_run.key) == {"display": "none"}
+    assert panel_style("disconnectome-panel", sdc_dr_run.key) == {}
+    assert panel_style("disconnectome-panel", sdc_cl_run.key) == {}
+
+    assert panel_style("disconnection-map-panel", lesion_run.key) == {"display": "none"}
+    # sdc modality but dim_reduction pipeline (no cluster_label) - still hidden.
+    assert panel_style("disconnection-map-panel", sdc_dr_run.key) == {"display": "none"}
+    assert panel_style("disconnection-map-panel", sdc_cl_run.key) == {}

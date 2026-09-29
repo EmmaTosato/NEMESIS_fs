@@ -5,7 +5,9 @@ production run under --results-root (src.analysis.embedding_app.PRODUCTION_PIPEL
 15-08-26 to cover clustering.py too - docs/dev/clustering_migration_plan.md §3), lets a human
 pick one from a dropdown and a color mode from a button group, and renders it as an interactive
 2D or 3D Plotly scatter - see docs/guides/embedding_app.md. Extended 01-09-26 with two anatomy
-panels (single-subject lesion viewer, per-cluster overlap map) backed by --lesion-config.
+panels (single-subject lesion viewer, per-cluster overlap map) backed by --lesion-config, and
+29-09-26 with their SDC disconnectome counterparts (single-subject viewer, per-cluster mean
+disconnection map) backed by --sdc-config.
 
 Local dev tool, never sbatch - an interactive app with no batch-job shape has nothing for
 SLURM to do, it just needs a browser pointed at whichever machine runs this.
@@ -25,8 +27,14 @@ import argparse
 import logging
 from pathlib import Path
 
-from src.analysis.build_config import load_build_matrix_config
-from src.analysis.embedding_app import LesionViewerConfig, build_app, discover_production_runs
+from src.analysis.build_config import load_build_matrix_config, load_build_sdc_matrix_config
+from src.analysis.embedding_app import (
+    SDC_DISCONNECTOME_GLOB,
+    LesionViewerConfig,
+    SdcViewerConfig,
+    build_app,
+    discover_production_runs,
+)
 from src.features.lesion import load_reference_image
 
 
@@ -39,6 +47,14 @@ def main(argv: list[str] | None = None) -> int:
         help="build_lesion_matrix.json-shaped config backing the anatomy panels "
         "(data_root/lesion_glob/reference_template_path/binarize_threshold/resample_interpolation) "
         "(default: config/pipelines/build_lesion_matrix.json)",
+    )
+    parser.add_argument(
+        "--sdc-config",
+        default="config/pipelines/build_sdc_matrix.json",
+        help="build_sdc_matrix.json-shaped config backing the SDC disconnectome anatomy panels "
+        "(data_root/reference_template_path/resample_interpolation - must have "
+        "representation='voxelwise', the only representation with a raw disconnectome-map.nii.gz "
+        "to visualize) (default: config/pipelines/build_sdc_matrix.json)",
     )
     parser.add_argument(
         "--clustering-params-file",
@@ -78,8 +94,29 @@ def main(argv: list[str] | None = None) -> int:
         resample_interpolation=lesion_matrix_config.resample_interpolation,
     )
 
+    # Same fail-fast reasoning as lesion_matrix_config above. representation must be "voxelwise"
+    # - "parcellated" has no reference_template_path/resample_interpolation at all (None, see
+    # SdcMatrixConfig's own docstring) and no raw disconnectome-map.nii.gz for these panels to
+    # read in the first place, only per-atlas region CSVs.
+    sdc_matrix_config = load_build_sdc_matrix_config(args.sdc_config)
+    if sdc_matrix_config.representation != "voxelwise":
+        logging.error(
+            "%s: representation=%r, but the SDC disconnectome anatomy panels need the raw "
+            "disconnectome-map.nii.gz only 'voxelwise' resolves (reference_template_path/"
+            "resample_interpolation) - point --sdc-config at a voxelwise build_sdc_matrix.json",
+            args.sdc_config, sdc_matrix_config.representation,
+        )
+        return 1
+    sdc_reference_img = load_reference_image(sdc_matrix_config.reference_template_path)
+    sdc_cfg = SdcViewerConfig(
+        data_root=sdc_matrix_config.data_root,
+        disconnectome_glob=SDC_DISCONNECTOME_GLOB,
+        reference_img=sdc_reference_img,
+        resample_interpolation=sdc_matrix_config.resample_interpolation,
+    )
+
     try:
-        app = build_app(runs, lesion_cfg, args.clustering_params_file)
+        app = build_app(runs, lesion_cfg, sdc_cfg, args.clustering_params_file)
     except ValueError as exc:
         logging.error(str(exc))
         return 1

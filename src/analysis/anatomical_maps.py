@@ -1,19 +1,25 @@
-"""Subject-level and cluster-level lesion anatomy maps, in MNI space.
+"""Subject-level and cluster-level anatomy maps (lesion and SDC disconnectome), in MNI space.
 
-Two independently useful building blocks, both promoted (01-09-26) from the exploratory prototype
-in notebooks/post-results_analysis/embedding_to_anatomy_mapping.ipynb §2 - same algorithm, given
-type hints and tests, no behavior change:
+Building blocks, promoted (01-09-26) from the exploratory prototype in
+notebooks/post-results_analysis/embedding_to_anatomy_mapping.ipynb §2 - same algorithm, given
+type hints and tests, no behavior change; build_mean_map added later (see its own docstring) for
+the same notebook's SDC extension:
 
-- resolve_lesion_paths: subject_id -> real lesion mask path, under the retrieval layout of today
-  (never a historical run's own config.md - see that notebook's "Configurazione" cell for why a
-  run's own recorded layout can be stale).
-- build_overlap_map: a set of already-resolved lesion masks -> (count_img, percentage_img), voxel-
-  wise across the given subjects - resampled/binarized with the exact same parameters used to build
-  whatever feature matrix the caller's subject selection came from (otherwise the map wouldn't
-  faithfully represent what that matrix, and any embedding built from it, actually saw).
+- resolve_lesion_paths: subject_id -> real file path (a lesion mask OR, despite the name, any
+  other per-subject NIfTI glob - e.g. an SDC disconnectome-map.nii.gz, see
+  src.analysis.embedding_app.SDC_DISCONNECTOME_GLOB), under the retrieval layout of today (never
+  a historical run's own config.md - see that notebook's "Configurazione" cell for why a run's
+  own recorded layout can be stale).
+- build_overlap_map: a set of already-resolved *binary* lesion masks -> (count_img,
+  percentage_img), voxelwise across the given subjects - resampled/binarized with the exact same
+  parameters used to build whatever feature matrix the caller's subject selection came from
+  (otherwise the map wouldn't faithfully represent what that matrix, and any embedding built from
+  it, actually saw).
+- build_mean_map: the *continuous*-data counterpart - a set of already-resolved images (e.g. SDC
+  disconnectome maps, a [0, 1] per-voxel probability, never binarized) -> their voxelwise mean.
 
-Consumed by src.pipeline.embedding_app (single-subject lesion viewer, per-cluster overlap map) - see
-docs/guides/embedding_app.md.
+Consumed by src.pipeline.embedding_app (single-subject lesion/disconnectome viewers, per-cluster
+lesion overlap map and disconnection mean map) - see docs/guides/embedding_app.md.
 """
 
 from __future__ import annotations
@@ -65,13 +71,17 @@ def resolve_lesion_paths(
     return resolved
 
 
-def _load_and_binarize(
-    path: Path, reference_img: nib.Nifti1Image, resample_interpolation: str, binarize_threshold: float
-) -> np.ndarray:
+def _load_and_resample(path: Path, reference_img: nib.Nifti1Image, resample_interpolation: str) -> np.ndarray:
     img = nib.load(path)
     if img.shape != reference_img.shape:
         img = resample_to_img(img, reference_img, interpolation=resample_interpolation, force_resample=True, copy_header=True)
-    return img.get_fdata() > binarize_threshold
+    return img.get_fdata()
+
+
+def _load_and_binarize(
+    path: Path, reference_img: nib.Nifti1Image, resample_interpolation: str, binarize_threshold: float
+) -> np.ndarray:
+    return _load_and_resample(path, reference_img, resample_interpolation) > binarize_threshold
 
 
 def build_overlap_map(
@@ -114,3 +124,38 @@ def build_overlap_map(
     count_img = nib.Nifti1Image(counts, reference_img.affine)
     percentage_img = nib.Nifti1Image(percentage, reference_img.affine)
     return count_img, percentage_img
+
+
+def build_mean_map(
+    image_paths: dict[str, Path],
+    reference_img: nib.Nifti1Image,
+    resample_interpolation: str,
+) -> nib.Nifti1Image:
+    """Voxelwise mean across every image in image_paths, on reference_img's grid - the
+    continuous-data counterpart of build_overlap_map, for a map that is never binarized (e.g.
+    SDC's own disconnectome-map.nii.gz, a [0, 1] per-voxel disconnection probability - see
+    src/features/sdc.py's module docstring). No binarize_threshold/count_img here: there is no
+    "how many subjects crossed a threshold" concept for a continuous value, only the sample mean
+    itself - the value at each voxel is exactly what it says, the average disconnection
+    probability across the given subjects at that voxel.
+
+    Same resample-only contract as _load_and_resample (no thresholding), same per-call thread
+    pool as build_overlap_map (identical perf reasoning - I/O- and SciPy-C-level-bound per-file
+    work, releases the GIL), same failure semantics (the first subject that raises aborts the
+    whole map - no per-subject isolation here, resolve_lesion_paths already surfaces "which
+    subject is missing" explicitly before any loading is attempted). Raises ValueError on an
+    empty image_paths - there is no meaningful mean map over zero subjects.
+    """
+    if not image_paths:
+        raise ValueError("build_mean_map got an empty subject list - nothing to average")
+
+    total = np.zeros(reference_img.shape, dtype=np.float64)
+    with ThreadPoolExecutor() as executor:
+        for values in executor.map(
+            lambda path: _load_and_resample(path, reference_img, resample_interpolation),
+            image_paths.values(),
+        ):
+            total += values
+
+    mean = (total / len(image_paths)).astype(np.float32)
+    return nib.Nifti1Image(mean, reference_img.affine)

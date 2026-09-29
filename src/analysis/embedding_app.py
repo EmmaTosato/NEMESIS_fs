@@ -61,7 +61,7 @@ from dash.exceptions import PreventUpdate
 from nilearn import plotting as nilearn_plotting
 from nilearn.plotting.html_stat_map import StatMapView
 
-from src.analysis.anatomical_maps import build_overlap_map, resolve_lesion_paths
+from src.analysis.anatomical_maps import build_mean_map, build_overlap_map, resolve_lesion_paths
 from src.analysis.embedding_coloring import COLOR_MODES
 from src.analysis.embedding_coloring import color_values as read_color_values
 from src.analysis.params import load_tag_params
@@ -232,6 +232,39 @@ class LesionViewerConfig:
     lesion_glob: str
     reference_img: nib.Nifti1Image
     binarize_threshold: float
+    resample_interpolation: str
+
+
+# Same fixed pattern as src.features.sdc.build_sdc_voxelwise_matrix's own
+# f"sdc/*/*_res-1_desc-{object_}.nii.gz" with object_="disconnectome" - this app only ever wants
+# the disconnectome map itself (never "lesion", SDC's own other known object, see
+# src.features.sdc.KNOWN_OBJECTS - that one is already covered by the lesion viewer above,
+# reading straight from manual_masks/ instead of sdc/), so the pattern is inlined as a plain
+# constant here rather than threading an unused object_ parameter through SdcViewerConfig.
+SDC_DISCONNECTOME_GLOB = "sdc/*/*_res-1_desc-disconnectome.nii.gz"
+
+
+@dataclass(frozen=True)
+class SdcViewerConfig:
+    """Everything the SDC disconnectome anatomy panels need - same bundling reasoning as
+    LesionViewerConfig. Built once at startup by src.pipeline.embedding_app from
+    build_sdc_matrix.json's own voxelwise fields (via
+    src.analysis.build_config.load_build_sdc_matrix_config) - the same config/loader
+    build_sdc_matrix.py itself uses for its 'voxelwise' representation, never re-parsed by hand
+    here. Its own reference_img/resample_interpolation are loaded separately from
+    LesionViewerConfig's (never reused across the two - build_sdc_matrix.json's own
+    reference_template_path is a different grid, res-1, from build_lesion_matrix.json's res-2,
+    confirmed by reading both configs rather than assumed identical).
+
+    No binarize_threshold, unlike LesionViewerConfig: disconnectome values are a continuous
+    [0, 1] probability, never binarized (see src.features.sdc's own module docstring) - both
+    anatomy panels below use a near-zero display threshold instead (same reasoning as the lesion
+    cluster-overlap map's own 1e-6, see overlap_map_content_for).
+    """
+
+    data_root: Path
+    disconnectome_glob: str
+    reference_img: nib.Nifti1Image
     resample_interpolation: str
 
 
@@ -493,6 +526,27 @@ def _run_tag_param_label(run: ProductionRun, tag_param: list[str]) -> str | None
     return ", ".join(f"{key}={value}" for key, value in values.items())
 
 
+def _load_tag_params_or_none(clustering_params_file: str | Path, method: str) -> list[str] | None:
+    """load_tag_params(clustering_params_file, method), isolated the same way
+    _run_params_or_none isolates a single run's own corrupt config.md (lesson #21) - but here
+    the failure isn't per-run, it's per-method: `method` has production runs on disk (that's
+    the only way this app ever offers it as a choice, see method_options) yet has no entry at
+    all in clustering_params_file (config/registry/params_clustering.json) - a real
+    registry/artifact mismatch, e.g. a method renamed/dropped from the registry after its
+    production output was already written (lessons_learned.md #12 - this happened for real,
+    dbscan -> hdbscan). None on failure, logged as a warning - callers treat it the same as "no
+    tag_param declared for this method" (NO_METRIC), never a raw crash of the Parametri picker
+    step."""
+    try:
+        return load_tag_params(clustering_params_file, method)
+    except ValueError as exc:
+        logging.warning(
+            "%s: method %r has production runs but no entry in the clustering params registry, "
+            "cannot resolve its tag_param combinations: %s", clustering_params_file, method, exc,
+        )
+        return None
+
+
 def tag_param_options(
     runs: list[ProductionRun], modality: str, pipeline: str, method: str, metric: str, n_components: int,
     clustering_params_file: str | Path,
@@ -504,13 +558,16 @@ def tag_param_options(
     dropdown mixing every k/linkage combination together, with no way to narrow by them, was the
     exact complaint that prompted this step.
 
-    dim_reduction pipeline runs, and any clustering method with no tag_param registered at all
-    (none today - every params_clustering.json entry declares at least one), always resolve to
-    exactly [NO_METRIC] (this axis's own "doesn't apply" sentinel - reused rather than a
-    redundant third one, see NO_METRIC's own docstring)."""
+    dim_reduction pipeline runs, any clustering method with no tag_param registered at all (none
+    today - every params_clustering.json entry declares at least one), and a clustering method
+    missing from the registry entirely (_load_tag_params_or_none) all resolve to exactly
+    [NO_METRIC] (this axis's own "doesn't apply" sentinel - reused rather than a redundant third
+    one, see NO_METRIC's own docstring) - the last case still logs a warning naming the real
+    cause, so a registry/artifact mismatch is never silently indistinguishable from "this method
+    genuinely has no tag_param" in the logs, even though the picker UI reads the same either way."""
     if pipeline != "clustering":
         return [NO_METRIC]
-    tag_param = load_tag_params(clustering_params_file, method)
+    tag_param = _load_tag_params_or_none(clustering_params_file, method)
     if not tag_param:
         return [NO_METRIC]
     labels = {
@@ -532,11 +589,19 @@ def runs_matching(
     scenario this picker must keep showing both of, not silently collapse to one.
 
     dim_reduction pipeline runs (tag_params_label always NO_METRIC there, see tag_param_options)
-    skip the tag_params_label filter entirely - it's a no-op for them, not a real narrowing."""
+    skip the tag_params_label filter entirely - it's a no-op for them, not a real narrowing. Same
+    for a clustering method missing from the registry (_load_tag_params_or_none) - tag_param_options
+    already collapses that case to NO_METRIC too, so this filter is consistently a no-op for it here,
+    never a second crash site for the same registry gap (this function has its own direct
+    load_tag_params call, a separate caller from tag_param_options - see AUDIT_FINDINGS-style
+    isolation, both call sites of the same registry lookup need the same isolation, not just the
+    first one found)."""
     candidates = _runs_for_reduction_axis(runs, modality, pipeline, method, metric, n_components)
     if pipeline != "clustering" or tag_params_label == NO_METRIC:
         return candidates
-    tag_param = load_tag_params(clustering_params_file, method)
+    tag_param = _load_tag_params_or_none(clustering_params_file, method)
+    if not tag_param:
+        return []
     return [run for run in candidates if _run_tag_param_label(run, tag_param) == tag_params_label]
 
 
@@ -805,6 +870,15 @@ def graph_content_for(run: ProductionRun, mode_name: str) -> html.P | dcc.Graph:
 # _json_view_size keeps the sagittal/coronal/axial aspect ratio, never distorted by width_view).
 _ANATOMY_VIEWER_WIDTH = 900
 
+# Display-only threshold/alpha for the SDC glass-brain static download (29-09-26, on request) -
+# deliberately not the same 1e-6 epsilon the SDC ortho/interactive views use elsewhere (see
+# _static_glass_brain_png_bytes' own docstring for why a glass-brain projection needs a higher
+# threshold). Picked by comparing 1e-6/0.05/0.1/0.2 against real subject data
+# (tmp/anatomy_rendering/90_disconnectome_glass_lyrz_magma_alpha90_thr*.png) and confirmed by the
+# user - 0.1 hides the near-zero noise streaks without cutting into the real signal.
+_DISCONNECTOME_GLASS_BRAIN_THRESHOLD = 0.1
+_DISCONNECTOME_GLASS_BRAIN_ALPHA = 0.9
+
 
 def cluster_options(metadata: pd.DataFrame) -> list[int]:
     """Sorted distinct cluster_label values in `metadata` - only meaningful for a clustering.py
@@ -831,6 +905,35 @@ def _style_nilearn_html(html_page: str) -> str:
     download - both should look the same."""
     style_block = f"<style>body {{ font-family: {_FONT_STACK}; color: {_TEXT_COLOR}; font-size: 14px; }}</style>"
     return html_page.replace("</head>", f"{style_block}\n</head>", 1)
+
+
+def _static_glass_brain_png_bytes(
+    stat_map_img: str | nib.Nifti1Image, *, threshold: float, cmap: str, colorbar: bool, alpha: float = 1.0
+) -> bytes:
+    """Glass-brain counterpart to _static_png_bytes' plot_stat_map rendering (29-09-26, on
+    request) - a single transparent-brain projection (nilearn.plotting.plot_glass_brain,
+    display_mode="lyrz") instead of 3 flat ortho slices, for each anatomy panel's own "Salva PNG
+    (glass brain)" button. black_bg=False/plot_abs=False mirror _static_png_bytes' own
+    white-background, non-negative-data choices.
+
+    Unlike plot_stat_map, plot_glass_brain projects (sums) along the full depth of the volume -
+    a near-zero display threshold (e.g. the 1e-6 epsilon _build_subject_disconnectome_view uses
+    to show "any real disconnection probability") makes faint background noise visible as thin
+    dark streaks across the whole silhouette, confirmed on real disconnectome data (tmp/
+    anatomy_rendering/, 29-09-26). Each caller passes a threshold picked for its own data -
+    _DISCONNECTOME_GLASS_BRAIN_THRESHOLD for the SDC panels, lesion_cfg.binarize_threshold for
+    the lesion panel (already clean at that threshold - a binary mask has no near-zero noise to
+    hide) - never a shared default that would silently reintroduce the streaking for one caller
+    while being wrong for the other."""
+    display = nilearn_plotting.plot_glass_brain(
+        stat_map_img, threshold=threshold, cmap=cmap, colorbar=colorbar, black_bg=False,
+        display_mode="lyrz", plot_abs=False, alpha=alpha,
+    )
+    buffer = io.BytesIO()
+    display.savefig(buffer, dpi=150)
+    display.close()
+    buffer.seek(0)
+    return buffer.getvalue()
 
 
 def _static_png_bytes(stat_map_img: str | nib.Nifti1Image, *, threshold: float, cmap: str, colorbar: bool) -> bytes:
@@ -902,12 +1005,17 @@ def _build_subject_lesion_view(
     Raises ValueError (never silently) if subject_id/dataset/lesion file can't be resolved -
     see resolve_lesion_paths. threshold reuses lesion_cfg.binarize_threshold rather than a
     second hardcoded 0.5, so the viewer shows exactly the same binarization the source feature
-    matrix used, not an independently-chosen display threshold."""
+    matrix used, not an independently-chosen display threshold.
+
+    cmap="magma" (29-09-26, on request - was "autumn"; see _download_lesion_png for the matching
+    static-PNG change and the new glass-brain download's own separate "autumn" choice, kept
+    there because a binary mask has no gradient to show and reads better as a flat highlight
+    color on that projection)."""
     dataset = _resolve_subject_dataset(metadata, subject_id)
     lesion_paths = resolve_lesion_paths([subject_id], {subject_id: dataset}, lesion_cfg.data_root, lesion_cfg.lesion_glob)
     view = nilearn_plotting.view_img(
         str(lesion_paths[subject_id]), bg_img="MNI152", black_bg=False, threshold=lesion_cfg.binarize_threshold,
-        cmap="autumn", symmetric_cmap=False, title=None, colorbar=False, width_view=_ANATOMY_VIEWER_WIDTH,
+        cmap="magma", symmetric_cmap=False, title=None, colorbar=False, width_view=_ANATOMY_VIEWER_WIDTH,
     )
     return view, dataset
 
@@ -923,7 +1031,7 @@ def lesion_viewer_content_for(
         view, dataset = _build_subject_lesion_view(run, subject_id, metadata, lesion_cfg)
     except ValueError as exc:
         return html.P(str(exc), className="status-message")
-    return _anatomy_viewer(view, f"{subject_id} ({dataset})", "Giallo = voxel lesionato")
+    return _anatomy_viewer(view, f"{subject_id} ({dataset})", "Giallo chiaro = voxel lesionato")
 
 
 def _build_cluster_overlap_view(
@@ -982,6 +1090,94 @@ def overlap_map_content_for(
     )
 
 
+def _build_subject_disconnectome_view(
+    run: ProductionRun, subject_id: str, metadata: pd.DataFrame, sdc_cfg: SdcViewerConfig
+) -> tuple[StatMapView, str]:
+    """Returns (view, dataset) - same reasoning as _build_subject_lesion_view (single-source
+    title, resolved via resolve_lesion_paths against sdc_cfg's own disconnectome_glob rather
+    than lesion_cfg's lesion_glob). colorbar=True (unlike the lesion viewer): disconnectome
+    values are a genuinely continuous [0, 1] probability per voxel, not a binary mask - a
+    colorbar conveys real information here. threshold is a near-zero epsilon, not a binarize
+    threshold (disconnectome values are never binarized, see src.features.sdc's module
+    docstring) - every voxel with any real disconnection probability is shown.
+
+    Raises ValueError (never silently) if subject_id/dataset/disconnectome file can't be
+    resolved - see resolve_lesion_paths."""
+    dataset = _resolve_subject_dataset(metadata, subject_id)
+    disconnectome_paths = resolve_lesion_paths(
+        [subject_id], {subject_id: dataset}, sdc_cfg.data_root, sdc_cfg.disconnectome_glob
+    )
+    view = nilearn_plotting.view_img(
+        str(disconnectome_paths[subject_id]), bg_img="MNI152", black_bg=False, threshold=1e-6,
+        cmap="magma", symmetric_cmap=False, title=None, colorbar=True, width_view=_ANATOMY_VIEWER_WIDTH,
+    )
+    return view, dataset
+
+
+def disconnectome_viewer_content_for(
+    run: ProductionRun, subject_id: str, metadata: pd.DataFrame, sdc_cfg: SdcViewerConfig
+) -> html.Div | html.P:
+    """lesion_viewer_content_for's own never-raises contract, for the SDC disconnectome panel -
+    an html.P status message on any resolution failure instead of crashing the click callback."""
+    try:
+        view, dataset = _build_subject_disconnectome_view(run, subject_id, metadata, sdc_cfg)
+    except ValueError as exc:
+        return html.P(str(exc), className="status-message")
+    return _anatomy_viewer(view, f"{subject_id} ({dataset})", "Colore = probabilità di disconnessione per voxel (0-1)")
+
+
+def _build_cluster_disconnection_view(
+    run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig
+) -> tuple[StatMapView, int, nib.Nifti1Image]:
+    """Returns (view, n_subjects, mean_img) - same reasoning as _build_cluster_overlap_view, but
+    the continuous-data counterpart: build_mean_map's voxelwise mean instead of
+    build_overlap_map's binarized count/percentage (there is no "binarize each subject then
+    count" step for a value that's already a continuous probability, see build_mean_map's own
+    docstring). mean_img is returned alongside the view (same reasoning as percentage_img above)
+    so the "Salva PNG" download can reuse it rather than paying build_mean_map's per-subject
+    load+resample cost a second time.
+
+    Raises ValueError if cluster_label has no subjects in this run's metadata, or any of them
+    can't be resolved to a disconnectome file (see resolve_lesion_paths/build_mean_map)."""
+    column = COLOR_MODES["cluster_label"].column
+    cluster_metadata = metadata.loc[metadata[column] == cluster_label]
+    if cluster_metadata.empty:
+        raise ValueError(f"no subjects with {column}={cluster_label!r} in this run's metadata")
+    dataset_by_subject = dict(zip(cluster_metadata["subject_id"], cluster_metadata["dataset"]))
+    disconnectome_paths = resolve_lesion_paths(
+        list(dataset_by_subject), dataset_by_subject, sdc_cfg.data_root, sdc_cfg.disconnectome_glob
+    )
+    mean_img = build_mean_map(disconnectome_paths, sdc_cfg.reference_img, sdc_cfg.resample_interpolation)
+    view = nilearn_plotting.view_img(
+        mean_img, bg_img="MNI152", black_bg=False, threshold=1e-6, cmap="magma", symmetric_cmap=False, title=None,
+        width_view=_ANATOMY_VIEWER_WIDTH,
+    )
+    return view, len(disconnectome_paths), mean_img
+
+
+def disconnection_map_content_for(
+    run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig,
+    build_view: Callable[
+        [ProductionRun, pd.DataFrame, int, SdcViewerConfig], tuple[StatMapView, int, nib.Nifti1Image]
+    ] = _build_cluster_disconnection_view,
+) -> html.Div | html.P:
+    """Same never-raises contract as overlap_map_content_for - an empty/unresolvable cluster
+    shows a status message in the panel, not a crashed callback.
+
+    build_view defaults to the always-fresh _build_cluster_disconnection_view (what every test
+    calls this with) - build_app passes its own cached wrapper instead, same perf reasoning as
+    overlap_map_content_for's own cache (per-subject load+resample dominates the panel's response
+    time for a real several-hundred-subject cluster)."""
+    try:
+        view, n_subjects, _mean_img = build_view(run, metadata, cluster_label, sdc_cfg)
+    except ValueError as exc:
+        return html.P(str(exc), className="status-message")
+    return _anatomy_viewer(
+        view, f"Cluster {cluster_label} (n={n_subjects})",
+        "Colore = probabilità media di disconnessione del cluster in quel voxel (0-1)",
+    )
+
+
 def _color_button_label(mode_name: str) -> str:
     # Raw mode.label, not .capitalize()'d - "NIHSS (severity)".capitalize() would produce
     # "Nihss (severity)" (str.capitalize lowercases every character but the first), the same
@@ -992,9 +1188,14 @@ def _color_button_label(mode_name: str) -> str:
 
 
 _LESION_PLACEHOLDER = html.P("Clicca un punto nell'embedding per vedere la lesione.", className="status-message")
+_DISCONNECTOME_PLACEHOLDER = html.P(
+    "Clicca un punto nell'embedding per vedere il disconnettoma.", className="status-message"
+)
 
 
-def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, clustering_params_file: str | Path) -> Dash:
+def build_app(
+    runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, sdc_cfg: SdcViewerConfig, clustering_params_file: str | Path
+) -> Dash:
     """Builds the Dash app: a run picker (dcc.Dropdown, one entry per discovered production
     run) plus a color-mode button group (COLOR_MODE_ORDER, styled as a chip row via CSS, not
     a second dropdown - the design brief this was built against, 14-08-26, asked for "bottoni"
@@ -1007,7 +1208,11 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
     but *not* for the per-cluster overlap map (same panel-family, very different cost: measured
     ~40ms/subject to load+resample, dominating the whole panel's response time for a real
     several-hundred-subject cluster), which this app does cache in-process
-    (cluster_view_cache/_cached_cluster_overlap_view below, 01-09-26 perf fix).
+    (cluster_view_cache/_cached_cluster_overlap_view below, 01-09-26 perf fix). The two SDC
+    disconnectome panels added 29-09-26 (single-subject viewer, per-cluster mean-disconnection
+    map) mirror this exact split - single-subject uncached, per-cluster cached
+    (disconnection_view_cache/_cached_cluster_disconnection_view) - same per-subject cost shape,
+    just averaging instead of counting (build_mean_map vs build_overlap_map).
 
     suppress_callback_exceptions=True (01-09-26): the anatomy panels' own callbacks reference
     component ids ("embedding-graph") that only exist once graph_content_for actually renders a
@@ -1047,6 +1252,21 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
         if cache_key not in cluster_view_cache:
             cluster_view_cache[cache_key] = _build_cluster_overlap_view(run, metadata, cluster_label, lesion_cfg)
         return cluster_view_cache[cache_key]
+
+    # Same caching reasoning as cluster_view_cache above, for the SDC per-cluster mean
+    # disconnection map (29-09-26) - a separate dict/cache_key namespace since a (run.key,
+    # cluster_label) pair for a clustering run could in principle collide across the two if
+    # they shared one dict (a clustering run's own key doesn't encode which of the two anatomy
+    # families produced a given cache entry).
+    disconnection_view_cache: dict[tuple[str, int], tuple[StatMapView, int, nib.Nifti1Image]] = {}
+
+    def _cached_cluster_disconnection_view(
+        run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig
+    ) -> tuple[StatMapView, int, nib.Nifti1Image]:
+        cache_key = (run.key, cluster_label)
+        if cache_key not in disconnection_view_cache:
+            disconnection_view_cache[cache_key] = _build_cluster_disconnection_view(run, metadata, cluster_label, sdc_cfg)
+        return disconnection_view_cache[cache_key]
 
     app = Dash(__name__, suppress_callback_exceptions=True)
     app.index_string = _INDEX_STRING
@@ -1140,15 +1360,65 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
                 children=[
                     html.H2("Anatomia lesionale", className="section-heading"),
                     html.Div(id="lesion-viewer-content", children=_LESION_PLACEHOLDER),
+                    # Single source of truth for "which subject is actually visible in the panel
+                    # above right now" (01-09-26 bug fix) - set atomically with
+                    # lesion-viewer-content.children by the same callback below, never derived
+                    # separately from embedding-graph.clickData again downstream. clickData is a
+                    # client-side prop that does NOT reset just because a *different* dcc.Graph
+                    # instance with the same id gets mounted in its place (switching run-picker
+                    # replaces graph-area's children, but React/Dash patches the same-id node
+                    # rather than remounting it) - the Save buttons below used to read clickData
+                    # directly via State, so after a run change they kept silently offering a
+                    # download for the *previous* run's clicked subject even though this panel
+                    # had already reset to the placeholder, with no visible link between what was
+                    # shown and what got downloaded. None whenever the panel shows the placeholder
+                    # or an unresolvable-subject error, so a stale/absent selection can never be
+                    # downloaded regardless of what embedding-graph.clickData still holds.
+                    dcc.Store(id="lesion-viewer-subject", data=None),
                     html.Div(
                         className="save-btn-row",
                         children=[
                             html.Button("Salva HTML", id="lesion-save-btn", n_clicks=0, className="save-btn"),
                             html.Button("Salva PNG", id="lesion-png-btn", n_clicks=0, className="save-btn"),
+                            html.Button(
+                                "Salva PNG (glass brain)", id="lesion-glass-png-btn", n_clicks=0, className="save-btn"
+                            ),
                         ],
                     ),
                     dcc.Download(id="lesion-download"),
                     dcc.Download(id="lesion-png-download"),
+                    dcc.Download(id="lesion-glass-png-download"),
+                ],
+            ),
+            # Hidden by default (style toggled by _update_disconnectome_panel_visibility below) -
+            # only a modality="sdc" run (its subjects have a disconnectome-map.nii.gz on disk,
+            # see SDC_DISCONNECTOME_GLOB) ever shows this panel; a "lesion" run has no such file,
+            # showing it there would be either empty or a crash on every single click (01-09-26 -
+            # 29-09-26 SDC extension, on request: "come per le lesioni ... plottare anche la
+            # frequency map con la disconnessione").
+            html.Div(
+                id="disconnectome-panel",
+                className="anatomy-panel",
+                style={"display": "none"},
+                children=[
+                    html.H2("Disconnessione (SDC)", className="section-heading"),
+                    html.Div(id="disconnectome-viewer-content", children=_DISCONNECTOME_PLACEHOLDER),
+                    # Same clickData-persistence fix as lesion-viewer-subject above, same reasoning.
+                    dcc.Store(id="disconnectome-viewer-subject", data=None),
+                    html.Div(
+                        className="save-btn-row",
+                        children=[
+                            html.Button("Salva HTML", id="disconnectome-save-btn", n_clicks=0, className="save-btn"),
+                            html.Button("Salva PNG", id="disconnectome-png-btn", n_clicks=0, className="save-btn"),
+                            html.Button(
+                                "Salva PNG (glass brain)", id="disconnectome-glass-png-btn", n_clicks=0,
+                                className="save-btn",
+                            ),
+                        ],
+                    ),
+                    dcc.Download(id="disconnectome-download"),
+                    dcc.Download(id="disconnectome-png-download"),
+                    dcc.Download(id="disconnectome-glass-png-download"),
                 ],
             ),
             # Hidden by default (style toggled by _update_cluster_picker below) - only a
@@ -1181,6 +1451,31 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
                     ),
                     dcc.Download(id="cluster-download"),
                     dcc.Download(id="cluster-png-download"),
+                ],
+            ),
+            # Hidden by default (style toggled by _update_disconnection_map_panel_visibility
+            # below) - needs BOTH a modality="sdc" run (a disconnectome file to average) AND a
+            # clustering.py run (a cluster_label to group by), unlike disconnectome-panel above
+            # which only needs the former. Reuses cluster-picker itself (no separate "Cluster"
+            # dropdown here) - the same clustering run has exactly one set of clusters regardless
+            # of which map family (lesion overlap vs disconnection mean) is being viewed, so a
+            # second dropdown would only ever show the identical options as the first.
+            html.Div(
+                id="disconnection-map-panel",
+                className="anatomy-panel",
+                style={"display": "none"},
+                children=[
+                    html.H2("Frequency map disconnessione per cluster", className="section-heading"),
+                    html.Div(id="disconnection-map-content"),
+                    html.Div(
+                        className="save-btn-row",
+                        children=[
+                            html.Button("Salva HTML", id="disconnection-save-btn", n_clicks=0, className="save-btn"),
+                            html.Button("Salva PNG", id="disconnection-png-btn", n_clicks=0, className="save-btn"),
+                        ],
+                    ),
+                    dcc.Download(id="disconnection-download"),
+                    dcc.Download(id="disconnection-png-download"),
                 ],
             ),
         ],
@@ -1306,6 +1601,7 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
 
     @app.callback(
         Output("lesion-viewer-content", "children"),
+        Output("lesion-viewer-subject", "data"),
         Input("embedding-graph", "clickData"),
         Input("run-picker", "value"),
     )
@@ -1313,27 +1609,27 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
         if run_key is None:
             raise PreventUpdate
         # A run change resets to the placeholder (ctx.triggered_id tells the two Inputs apart) -
-        # a subject clicked on a previous run must not linger once the picker moves on.
+        # a subject clicked on a previous run must not linger once the picker moves on. The
+        # Store resets to None in lockstep, so the Save buttons below (reading it, not
+        # embedding-graph.clickData directly) can never offer a stale cross-run download - see
+        # the Store's own docstring in app.layout for the clickData-persistence bug this fixes.
         if ctx.triggered_id == "run-picker" or click_data is None:
-            return _LESION_PLACEHOLDER
+            return _LESION_PLACEHOLDER, None
         subject_id = click_data["points"][0].get("text")
         if subject_id is None:
             raise PreventUpdate
         run = runs_by_key[run_key]
-        return lesion_viewer_content_for(run, subject_id, run_metadata(run), lesion_cfg)
+        return lesion_viewer_content_for(run, subject_id, run_metadata(run), lesion_cfg), subject_id
 
     @app.callback(
         Output("lesion-download", "data"),
         Input("lesion-save-btn", "n_clicks"),
-        State("embedding-graph", "clickData"),
+        State("lesion-viewer-subject", "data"),
         State("run-picker", "value"),
         prevent_initial_call=True,
     )
-    def _download_lesion_html(_n_clicks: int, click_data: dict | None, run_key: str | None):
-        if click_data is None or run_key is None:
-            raise PreventUpdate
-        subject_id = click_data["points"][0].get("text")
-        if subject_id is None:
+    def _download_lesion_html(_n_clicks: int, subject_id: str | None, run_key: str | None):
+        if subject_id is None or run_key is None:
             raise PreventUpdate
         run = runs_by_key[run_key]
         try:
@@ -1347,15 +1643,12 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
     @app.callback(
         Output("lesion-png-download", "data"),
         Input("lesion-png-btn", "n_clicks"),
-        State("embedding-graph", "clickData"),
+        State("lesion-viewer-subject", "data"),
         State("run-picker", "value"),
         prevent_initial_call=True,
     )
-    def _download_lesion_png(_n_clicks: int, click_data: dict | None, run_key: str | None):
-        if click_data is None or run_key is None:
-            raise PreventUpdate
-        subject_id = click_data["points"][0].get("text")
-        if subject_id is None:
+    def _download_lesion_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
+        if subject_id is None or run_key is None:
             raise PreventUpdate
         run = runs_by_key[run_key]
         try:
@@ -1368,9 +1661,129 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
             # panel already reports this, the save button simply has nothing to offer.
             raise PreventUpdate
         png_bytes = _static_png_bytes(
-            str(lesion_paths[subject_id]), threshold=lesion_cfg.binarize_threshold, cmap="autumn", colorbar=False,
+            str(lesion_paths[subject_id]), threshold=lesion_cfg.binarize_threshold, cmap="magma", colorbar=False,
         )
         return dcc.send_bytes(png_bytes, filename=f"{subject_id}_lesion.png")
+
+    @app.callback(
+        Output("lesion-glass-png-download", "data"),
+        Input("lesion-glass-png-btn", "n_clicks"),
+        State("lesion-viewer-subject", "data"),
+        State("run-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_lesion_glass_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
+        if subject_id is None or run_key is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        try:
+            dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
+            lesion_paths = resolve_lesion_paths([subject_id], {subject_id: dataset}, lesion_cfg.data_root, lesion_cfg.lesion_glob)
+        except ValueError:
+            # Same never-raises-into-the-callback contract as _download_lesion_png.
+            raise PreventUpdate
+        # cmap="autumn" (not magma, unlike the ortho views above): a binary lesion mask has no
+        # gradient to show, and a flat glass-brain highlight reads more clearly in autumn than in
+        # magma's dark-to-pale-yellow range (confirmed against real data, tmp/anatomy_rendering/
+        # 10_lesion_glass_lyrz_autumn_whitebg.png, 29-09-26).
+        png_bytes = _static_glass_brain_png_bytes(
+            str(lesion_paths[subject_id]), threshold=lesion_cfg.binarize_threshold, cmap="autumn", colorbar=False,
+        )
+        return dcc.send_bytes(png_bytes, filename=f"{subject_id}_lesion_glass.png")
+
+    @app.callback(
+        Output("disconnectome-panel", "style"),
+        Input("run-picker", "value"),
+    )
+    def _update_disconnectome_panel_visibility(run_key: str | None):
+        if run_key is None:
+            raise PreventUpdate
+        return {} if runs_by_key[run_key].modality == "sdc" else {"display": "none"}
+
+    @app.callback(
+        Output("disconnectome-viewer-content", "children"),
+        Output("disconnectome-viewer-subject", "data"),
+        Input("embedding-graph", "clickData"),
+        Input("run-picker", "value"),
+    )
+    def _update_disconnectome_viewer(click_data: dict | None, run_key: str | None):
+        if run_key is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        # Same run-change reset as _update_lesion_viewer, plus a modality gate: a "lesion" run's
+        # subjects don't have a disconnectome-map.nii.gz to resolve at all (this panel stays
+        # hidden for them via _update_disconnectome_panel_visibility, but its own content must
+        # still reset rather than linger/attempt a doomed resolution on every click).
+        if run.modality != "sdc" or ctx.triggered_id == "run-picker" or click_data is None:
+            return _DISCONNECTOME_PLACEHOLDER, None
+        subject_id = click_data["points"][0].get("text")
+        if subject_id is None:
+            raise PreventUpdate
+        return disconnectome_viewer_content_for(run, subject_id, run_metadata(run), sdc_cfg), subject_id
+
+    @app.callback(
+        Output("disconnectome-download", "data"),
+        Input("disconnectome-save-btn", "n_clicks"),
+        State("disconnectome-viewer-subject", "data"),
+        State("run-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_disconnectome_html(_n_clicks: int, subject_id: str | None, run_key: str | None):
+        if subject_id is None or run_key is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        try:
+            view, _dataset = _build_subject_disconnectome_view(run, subject_id, run_metadata(run), sdc_cfg)
+        except ValueError:
+            raise PreventUpdate
+        return dcc.send_string(_style_nilearn_html(view.html), filename=f"{subject_id}_disconnectome.html")
+
+    @app.callback(
+        Output("disconnectome-png-download", "data"),
+        Input("disconnectome-png-btn", "n_clicks"),
+        State("disconnectome-viewer-subject", "data"),
+        State("run-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_disconnectome_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
+        if subject_id is None or run_key is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        try:
+            dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
+            disconnectome_paths = resolve_lesion_paths(
+                [subject_id], {subject_id: dataset}, sdc_cfg.data_root, sdc_cfg.disconnectome_glob
+            )
+        except ValueError:
+            raise PreventUpdate
+        png_bytes = _static_png_bytes(
+            str(disconnectome_paths[subject_id]), threshold=1e-6, cmap="magma", colorbar=True,
+        )
+        return dcc.send_bytes(png_bytes, filename=f"{subject_id}_disconnectome.png")
+
+    @app.callback(
+        Output("disconnectome-glass-png-download", "data"),
+        Input("disconnectome-glass-png-btn", "n_clicks"),
+        State("disconnectome-viewer-subject", "data"),
+        State("run-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_disconnectome_glass_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
+        if subject_id is None or run_key is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        try:
+            dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
+            disconnectome_paths = resolve_lesion_paths(
+                [subject_id], {subject_id: dataset}, sdc_cfg.data_root, sdc_cfg.disconnectome_glob
+            )
+        except ValueError:
+            raise PreventUpdate
+        png_bytes = _static_glass_brain_png_bytes(
+            str(disconnectome_paths[subject_id]), threshold=_DISCONNECTOME_GLASS_BRAIN_THRESHOLD, cmap="magma",
+            colorbar=True, alpha=_DISCONNECTOME_GLASS_BRAIN_ALPHA,
+        )
+        return dcc.send_bytes(png_bytes, filename=f"{subject_id}_disconnectome_glass.png")
 
     @app.callback(
         Output("cluster-picker", "options"),
@@ -1441,5 +1854,74 @@ def build_app(runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, cluster
             raise PreventUpdate
         png_bytes = _static_png_bytes(percentage_img, threshold=1e-6, cmap="hot", colorbar=True)
         return dcc.send_bytes(png_bytes, filename=f"cluster_{cluster_label}_overlap_map.png")
+
+    @app.callback(
+        Output("disconnection-map-panel", "style"),
+        Input("run-picker", "value"),
+    )
+    def _update_disconnection_map_panel_visibility(run_key: str | None):
+        if run_key is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        return {} if (run.modality == "sdc" and run.pipeline == "clustering") else {"display": "none"}
+
+    @app.callback(
+        Output("disconnection-map-content", "children"),
+        Input("run-picker", "value"),
+        Input("cluster-picker", "value"),
+    )
+    def _update_disconnection_map(run_key: str | None, cluster_label: int | None):
+        if run_key is None or cluster_label is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if run.modality != "sdc" or run.pipeline != "clustering":
+            raise PreventUpdate
+        return disconnection_map_content_for(
+            run, run_metadata(run), cluster_label, sdc_cfg, build_view=_cached_cluster_disconnection_view
+        )
+
+    @app.callback(
+        Output("disconnection-download", "data"),
+        Input("disconnection-save-btn", "n_clicks"),
+        State("run-picker", "value"),
+        State("cluster-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_disconnection_html(_n_clicks: int, run_key: str | None, cluster_label: int | None):
+        if run_key is None or cluster_label is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if run.modality != "sdc" or run.pipeline != "clustering":
+            raise PreventUpdate
+        try:
+            view, _n_subjects, _mean_img = _cached_cluster_disconnection_view(run, run_metadata(run), cluster_label, sdc_cfg)
+        except ValueError:
+            raise PreventUpdate
+        return dcc.send_string(
+            _style_nilearn_html(view.html), filename=f"cluster_{cluster_label}_disconnection_mean_map.html"
+        )
+
+    @app.callback(
+        Output("disconnection-png-download", "data"),
+        Input("disconnection-png-btn", "n_clicks"),
+        State("run-picker", "value"),
+        State("cluster-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_disconnection_png(_n_clicks: int, run_key: str | None, cluster_label: int | None):
+        if run_key is None or cluster_label is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if run.modality != "sdc" or run.pipeline != "clustering":
+            raise PreventUpdate
+        try:
+            # Reuses the same process-lifetime cache the HTML download/panel display already
+            # populate - mean_img is the exact image the interactive view itself renders, not a
+            # second build_mean_map pass (see _build_cluster_disconnection_view's docstring).
+            _view, _n_subjects, mean_img = _cached_cluster_disconnection_view(run, run_metadata(run), cluster_label, sdc_cfg)
+        except ValueError:
+            raise PreventUpdate
+        png_bytes = _static_png_bytes(mean_img, threshold=1e-6, cmap="magma", colorbar=True)
+        return dcc.send_bytes(png_bytes, filename=f"cluster_{cluster_label}_disconnection_mean_map.png")
 
     return app

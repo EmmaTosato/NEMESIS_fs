@@ -1,10 +1,10 @@
 # Guida all'Embedding Explorer (app Dash)
 
-App web live per esplorare interattivamente un run **di produzione** (`dim_reduction.py` o `clustering.py`, entrambi con `fine_tuning: false`) - 2D o 3D, con un selettore di run e bottoni di colorazione (neutro/dataset/side/volume/nihss/cluster), stile editoriale. Un solo processo copre **tutti** i run di produzione già scritti, non un file HTML da rigenerare ogni volta. Cliccando un punto si vede anche la vera anatomia lesionale di quel paziente, e per un run `clustering.py` si può vedere la overlap map di ciascun cluster - vedi "Anatomia lesionale" e "Overlap map per cluster" più sotto.
+App web live per esplorare interattivamente un run **di produzione** (`dim_reduction.py` o `clustering.py`, entrambi con `fine_tuning: false`) - 2D o 3D, con un selettore di run e bottoni di colorazione (neutro/dataset/side/volume/nihss/cluster), stile editoriale. Un solo processo copre **tutti** i run di produzione già scritti, non un file HTML da rigenerare ogni volta. Cliccando un punto si vede anche la vera anatomia lesionale di quel paziente; per un run di modalità `sdc` si vede anche il suo disconnettoma; per un run `clustering.py` si può vedere la overlap map (lesione) e/o la frequency map (disconnessione) di ciascun cluster - vedi "Anatomia lesionale", "Disconnessione (SDC)", "Overlap map per cluster" e "Frequency map disconnessione per cluster" più sotto.
 
 - **Script**: `src/pipeline/embedding_app.py`
-- **Logica**: `src/analysis/embedding_app.py`, `src/analysis/anatomical_maps.py` (risoluzione path lesione + overlap map) — architettura/dettagli implementativi: `docs/dev/anatomical_maps.md`
-- **Input**: qualunque run di produzione già scritto sotto `results/*/dim_reduction/production/*/*` **o** `results/*/clustering/production/*/*/*` (`clustering.py` ha un livello in più, `<reduction_method>` - vedi `docs/guides/clustering.md`; `src.analysis.embedding_app.PRODUCTION_PIPELINES`; nessun refit, legge solo `matrix.npy`/`metadata.csv` già su disco) più `config/pipelines/build_lesion_matrix.json` (`--lesion-config`, per i due pannelli di anatomia)
+- **Logica**: `src/analysis/embedding_app.py`, `src/analysis/anatomical_maps.py` (risoluzione path + overlap/mean map) — architettura/dettagli implementativi: `docs/dev/anatomical_maps.md`
+- **Input**: qualunque run di produzione già scritto sotto `results/*/dim_reduction/production/*/*` **o** `results/*/clustering/production/*/*/*` (`clustering.py` ha un livello in più, `<reduction_method>` - vedi `docs/guides/clustering.md`; `src.analysis.embedding_app.PRODUCTION_PIPELINES`; nessun refit, legge solo `matrix.npy`/`metadata.csv` già su disco) più `config/pipelines/build_lesion_matrix.json` (`--lesion-config`, pannelli di anatomia lesionale) e `config/pipelines/build_sdc_matrix.json` (`--sdc-config`, pannelli di anatomia SDC - deve avere `representation: "voxelwise"`, l'unica con il `disconnectome-map.nii.gz` grezzo da visualizzare)
 
 ---
 
@@ -30,7 +30,8 @@ Poi apri `http://127.0.0.1:8060` nel browser. Opzioni:
 | Flag               | Default     | Descrizione                                                                                                         |
 | :----------------- | :---------- | :------------------------------------------------------------------------------------------------------------------ |
 | `--results-root` | `results` | Radice da scansionare (`<root>/*/dim_reduction/production/*/*` e `<root>/*/clustering/production/*/*/*`)          |
-| `--lesion-config` | `config/pipelines/build_lesion_matrix.json` | Config (stessa forma usata da `build_lesion_matrix.py`) che risolve `data_root`/`lesion_glob`/`reference_template_path`/`binarize_threshold`/`resample_interpolation` per i due pannelli di anatomia sotto - caricato/validato con lo stesso loader (`load_build_matrix_config`), fallisce subito all'avvio se il config o il template di riferimento mancano |
+| `--lesion-config` | `config/pipelines/build_lesion_matrix.json` | Config (stessa forma usata da `build_lesion_matrix.py`) che risolve `data_root`/`lesion_glob`/`reference_template_path`/`binarize_threshold`/`resample_interpolation` per i pannelli di anatomia lesionale sotto - caricato/validato con lo stesso loader (`load_build_matrix_config`), fallisce subito all'avvio se il config o il template di riferimento mancano |
+| `--sdc-config` | `config/pipelines/build_sdc_matrix.json` | Config (stessa forma usata da `build_sdc_matrix.py`) che risolve `data_root`/`reference_template_path`/`resample_interpolation` per i pannelli di anatomia SDC sotto - deve avere `representation: "voxelwise"` (fallisce subito all'avvio altrimenti, `representation: "parcellated"` non ha un `disconnectome-map.nii.gz` grezzo da mostrare) |
 | `--clustering-params-file` | `config/registry/params_clustering.json` | Registry (stesso file che usa `clustering.py`) da cui il passo "Parametri" del selettore legge il `tag_param` di ciascun metodo di clustering (`n_clusters`/`linkage` per agglomerative, ecc. - `load_tag_params`) |
 | `--port`         | `8060`    | Porta locale (non l'8050 di default di Dash, per non collidere con un'altra istanza Dash locale già in esecuzione) |
 | `--debug`        | off         | Modalità debug di Dash (auto-reload, overlay errori nel browser)                                                   |
@@ -63,7 +64,7 @@ Un run il cui embedding salvato ha **più di 3 componenti** (es. un run lanciato
 
 ## Anatomia lesionale
 
-Pannello sempre visibile sotto il grafico, indipendentemente dal run scelto: mostra un messaggio ("Clicca un punto...") finché non si clicca un punto dell'embedding, poi la vera lesione di quel paziente in un visualizzatore 3D interattivo `nilearn` (`nilearn.plotting.view_img`, sfondo MNI152, `black_bg=False` → pagina bianca, ruotabile/zoomabile nel browser).
+Pannello sempre visibile sotto il grafico, indipendentemente dal run scelto: mostra un messaggio ("Clicca un punto...") finché non si clicca un punto dell'embedding, poi la vera lesione di quel paziente in un visualizzatore 3D interattivo `nilearn` (`nilearn.plotting.view_img`, sfondo MNI152, `black_bg=False` → pagina bianca, ruotabile/zoomabile nel browser, colormap `magma`).
 
 Il paziente è risolto tramite `subject_id`/`dataset` del run corrente (colonne già in `metadata.csv`) più `data_root`/`lesion_glob` di `--lesion-config` (`src.analysis.anatomical_maps.resolve_lesion_paths`, la stessa logica già validata in `notebooks/post-results_analysis/embeddings_analysis.ipynb` §4) - se il file non si trova sul disco locale (es. subset di retrieval parziale), il pannello mostra un messaggio d'errore esplicito al posto del viewer, mai un grafico vuoto/sbagliato. La soglia di binarizzazione usata per la visualizzazione è la stessa `binarize_threshold` del config (non un valore scelto a parte), così il viewer mostra esattamente ciò che la pipeline a monte ha effettivamente binarizzato.
 
@@ -71,12 +72,23 @@ Il paziente è risolto tramite `subject_id`/`dataset` del run corrente (colonne 
 
 Visibile solo per un run **`clustering.py`** (cioè con una colonna `cluster_label` in `metadata.csv`) - per un run `dim_reduction.py` il pannello resta nascosto. Un dropdown "Cluster" (una mappa alla volta, non una griglia con tutti i cluster insieme) fa vedere, per i pazienti di quel cluster, la percentuale di sovrapposizione lesionale voxel per voxel (`src.analysis.anatomical_maps.build_overlap_map`, promossa da `notebooks/post-results_analysis/embedding_to_anatomy_mapping.ipynb` §2) - stesso viewer `nilearn.plotting.view_img` (sfondo bianco) del pannello sopra, colormap `hot`, titolo con il numero di soggetti nel cluster.
 
+## Disconnessione (SDC)
+
+Pannello visibile solo per un run di modalità **`sdc`** (un run `lesion` non ha un disconnettoma da mostrare - il pannello resta nascosto, non vuoto). Stesso comportamento del pannello "Anatomia lesionale": mostra un messaggio finché non si clicca un punto, poi il vero disconnettoma di quel paziente (`nilearn.plotting.view_img`, sfondo MNI152, colormap `magma`, colorbar attiva - a differenza della maschera di lesione binaria, il disconnettoma è una probabilità continua [0, 1] per voxel, mai binarizzata, quindi la colorbar è informativa).
+
+Il paziente è risolto tramite `subject_id`/`dataset` del run corrente più `data_root`/`--sdc-config`'s `reference_template_path` (`src.analysis.anatomical_maps.resolve_lesion_paths`, stessa funzione del pannello lesionale, riusata su un glob diverso) - se il file non si trova sul disco locale, messaggio d'errore esplicito, mai un grafico vuoto.
+
+## Frequency map disconnessione per cluster
+
+Visibile solo per un run che è **sia** `sdc` **sia** `clustering.py` insieme - riusa lo stesso dropdown "Cluster" del pannello "Overlap map per cluster" sopra (un run di clustering ha un solo insieme di cluster, indipendentemente da quale mappa si sta guardando). Per i pazienti del cluster scelto, mostra la probabilità *media* di disconnessione voxel per voxel (`src.analysis.anatomical_maps.build_mean_map` - la media continua, non una percentuale di soggetti sopra soglia come per la lesione, dato che il disconnettoma è già una probabilità continua per soggetto) - stesso viewer, colormap `magma`, colorbar attiva.
+
 ## Salvare un grafico
 
 Ogni plot interattivo ha un modo di salvarlo:
 
 - **Scatter dell'embedding**: passandoci sopra col mouse compare un'unica icona nella modebar di Plotly (fotocamera, "toImage") - esporta un PNG dello stato attuale (run/colorazione correnti). Il resto della modebar di Plotly resta nascosto (stile minimale).
-- **Viewer 3D lesionale / overlap map**: due bottoni sotto ciascun pannello. "Salva HTML" scarica l'HTML autonomo del viewer (stesso file che il browser sta già mostrando nell'iframe), riapribile offline con l'interattività intatta. "Salva PNG" scarica invece un'immagine statica (`nilearn.plotting.plot_stat_map`, stessa soglia/colormap/colorbar del viewer interattivo) - utile per incollare la vista in un documento o una presentazione, dove l'interattività non serve.
+- **Ognuno dei 4 pannelli di anatomia**: "Salva HTML" scarica l'HTML autonomo del viewer (stesso file che il browser sta già mostrando nell'iframe), riapribile offline con l'interattività intatta. "Salva PNG" scarica invece un'immagine statica (`nilearn.plotting.plot_stat_map`, stessa soglia/colormap/colorbar del viewer interattivo) - utile per incollare la vista in un documento o una presentazione, dove l'interattività non serve.
+- **Solo i 2 pannelli a singolo soggetto** ("Anatomia lesionale", "Disconnessione (SDC)"): un terzo bottone, "Salva PNG (glass brain)" - una singola silhouette trasparente del cervello (`nilearn.plotting.plot_glass_brain`) invece delle 3 fette piatte di "Salva PNG". Per la lesione usa `autumn` (una maschera binaria non ha un gradiente da mostrare - un colore pieno si legge meglio del giallo pallido di `magma` su questa proiezione); per il disconnettoma usa `magma` con una soglia più alta (0.1 invece di ~0) e leggera trasparenza - una proiezione glass-brain somma il segnale lungo tutta la profondità del volume, quindi a soglia quasi zero il rumore di fondo diventa visibile come sottili striature scure.
 
 ---
 
