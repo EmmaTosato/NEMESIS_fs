@@ -10,6 +10,16 @@ import pandas as pd
 
 from src.pipeline import build_lesion_matrix, clustering
 
+
+def _empty_exclusion_list(tmp_path):
+    """A header-only assets/metadata/excluded_subjects.csv: the explicit way to say "exclude
+    nobody" (src.utils.participants.load_excluded_subjects refuses a MISSING file, since that is
+    indistinguishable from "never written"). Header-only short-circuits before the registry
+    lookup, so no participants.csv fixture is needed."""
+    path = tmp_path / "excluded_subjects.csv"
+    path.write_text("subject_id,dataset,reason,value\n")
+    return str(path)
+
 _AFFINE = np.eye(4) * 2
 _AFFINE[3, 3] = 1
 _SHAPE = (10, 10, 10)
@@ -37,6 +47,7 @@ def _build_matrix(tmp_path, monkeypatch, n_subjects=12):
         "project": "testproj",
         "data_root": str(data_root),
         "datasets": ["siteA"],
+        "excluded_subjects_path": _empty_exclusion_list(tmp_path),
         "reference_template_path": str(template_path),
         "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
         "binarize_threshold": 0.5,
