@@ -11,7 +11,18 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 
+import src.utils.participants as participants_registry
 from src.pipeline import build_lesion_matrix
+
+
+def _empty_exclusion_list(tmp_path):
+    """A header-only assets/metadata/excluded_subjects.csv: the explicit way to say "exclude
+    nobody" (src.utils.participants.load_excluded_subjects refuses a MISSING file, since that is
+    indistinguishable from "never written"). Header-only short-circuits before the registry
+    lookup, so no participants.csv fixture is needed."""
+    path = tmp_path / "excluded_subjects.csv"
+    path.write_text("subject_id,dataset,reason,value\n")
+    return str(path)
 
 _AFFINE = np.eye(4) * 2
 _AFFINE[3, 3] = 1
@@ -52,6 +63,7 @@ def _write_config(tmp_path, data_root, output_root, overrides=None):
         "project": "testproj",
         "data_root": str(data_root),
         "datasets": ["siteA"],
+        "excluded_subjects_path": _empty_exclusion_list(tmp_path),
         "reference_template_path": str(template_path),
         "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
         "binarize_threshold": 0.5,
@@ -145,10 +157,9 @@ def test_build_lesion_matrix_config_md_has_params_used_line(tmp_path, monkeypatc
 
     out_dir = next(p for p in output_root.iterdir() if p.is_dir())
     config_md = (out_dir / "config.md").read_text()
-    assert (
-        'Params used: {"binarize_threshold": 0.5, "min_lesion_volume_voxels": null, '
-        '"max_out_of_brain_fraction": null, "correct_out_of_brain": false}' in config_md
-    )
+    assert '"binarize_threshold": 0.5' in config_md
+    assert '"correct_out_of_brain": false' in config_md
+    assert '"excluded_subjects_path":' in config_md
     assert "Excluded by group_filter" in config_md
     assert "None." in config_md  # no group_filter set -> nothing excluded
 
@@ -187,60 +198,6 @@ def test_build_lesion_matrix_corrupt_lesion_mask_returns_1_not_raw_traceback(tmp
     # docs/debugging/debug_25_08_26.md - a slow run that fails is exactly when knowing how
     # long it ran before failing matters most).
     assert "run duration:" in caplog.text
-
-
-def test_build_lesion_matrix_min_volume_threshold_excludes_and_reports(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
-    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
-
-    data_root = tmp_path / "data"
-    output_root = tmp_path / "out"
-    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2), (1, 1, 3)])
-    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0002", [(5, 5, 5)])  # 1 voxel, below threshold
-    config_path = _write_config(tmp_path, data_root, output_root, overrides={"min_lesion_volume_voxels": 2})
-
-    exit_code = build_lesion_matrix.main(["--config", str(config_path)])
-    assert exit_code == 0
-
-    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
-    metadata = pd.read_csv(out_dir / "metadata.csv")
-    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
-
-    config_md = (out_dir / "config.md").read_text()
-    assert "## Excluded by min_lesion_volume_voxels" in config_md
-    assert "sub-STUNIPD0002" in config_md
-    assert "## Excluded by max_out_of_brain_fraction" in config_md  # section present even when unused ("None.")
-    assert "## Corrected by correct_out_of_brain" in config_md  # section present even when unused ("None.")
-
-
-def test_build_lesion_matrix_out_of_brain_threshold_excludes_and_reports(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
-    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
-
-    data_root = tmp_path / "data"
-    output_root = tmp_path / "out"
-    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])  # inside brain mask
-    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0002", [(9, 9, 9)])  # outside brain mask
-    brain_mask_path = tmp_path / "brain_mask.nii.gz"
-    _make_brain_mask(brain_mask_path, [(1, 1, 1)])
-    config_path = _write_config(
-        tmp_path,
-        data_root,
-        output_root,
-        overrides={"max_out_of_brain_fraction": 0.5, "brain_mask_path": str(brain_mask_path)},
-    )
-
-    exit_code = build_lesion_matrix.main(["--config", str(config_path)])
-    assert exit_code == 0
-
-    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
-    metadata = pd.read_csv(out_dir / "metadata.csv")
-    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
-    assert metadata["out_of_brain_fraction"].iloc[0] == 0.0
-
-    config_md = (out_dir / "config.md").read_text()
-    assert "## Excluded by max_out_of_brain_fraction" in config_md
-    assert "sub-STUNIPD0002" in config_md
 
 
 def test_build_lesion_matrix_correct_out_of_brain_zeroes_voxels_and_reports(tmp_path, monkeypatch):
@@ -289,3 +246,63 @@ def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, 
     exit_code = build_lesion_matrix.main(["--config", str(config_path)])
     assert exit_code == 1
     assert (out_dir / "manifest.json").read_text() == manifest_before  # untouched
+
+
+def test_build_lesion_matrix_excluded_subjects_list_drops_and_records_reason(tmp_path, monkeypatch):
+    """The hand-curated list replaces the two thresholds this pipeline used to apply itself. The
+    reason and value go into config.md, not just the id: a matrix whose cohort cannot be
+    explained months later is not reviewable (and config.md is the only permanent record - logs/
+    is not an artifact)."""
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
+
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2), (1, 1, 3)])
+    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0002", [(5, 5, 5)])
+
+    # A populated list is validated against the registry, so both subjects must be registered.
+    metadata_root.mkdir(parents=True, exist_ok=True)
+    (metadata_root / "participants.csv").write_text(
+        "subject_id,original_id,dataset,disease_id,has_lesion,has_sdc,has_features\n"
+        "sub-STUNIPD0001,sub-STUNIPD0001,siteA,ST,True,True,False\n"
+        "sub-STUNIPD0002,sub-STUNIPD0002,siteA,ST,True,True,False\n"
+    )
+    excluded_path = tmp_path / "excluded.csv"
+    excluded_path.write_text(
+        "subject_id,dataset,reason,value\nsub-STUNIPD0002,siteA,lesion_too_small,1\n"
+    )
+    config_path = _write_config(
+        tmp_path, data_root, output_root, overrides={"excluded_subjects_path": str(excluded_path)}
+    )
+
+    assert build_lesion_matrix.main(["--config", str(config_path)]) == 0
+
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
+
+    config_md = (out_dir / "config.md").read_text()
+    assert "sub-STUNIPD0002 (lesion_too_small, value=1)" in config_md
+    assert "## Corrected by correct_out_of_brain" in config_md  # section present even when unused
+
+
+def test_build_lesion_matrix_missing_excluded_subjects_file_returns_1(tmp_path, monkeypatch):
+    """A MISSING list is an error, not "exclude nobody": the two are indistinguishable, and
+    silently building a production matrix with every borderline subject in it is what the list
+    exists to prevent. Saying "nobody" is done with a header-only file."""
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
+
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    _make_dataset(data_root)
+    config_path = _write_config(
+        tmp_path, data_root, output_root,
+        overrides={"excluded_subjects_path": str(tmp_path / "never_written.csv")},
+    )
+
+    assert build_lesion_matrix.main(["--config", str(config_path)]) == 1
+    assert not output_root.exists()  # stopped before any mask was read

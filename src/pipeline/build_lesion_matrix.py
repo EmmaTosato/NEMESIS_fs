@@ -26,6 +26,7 @@ import pandas as pd
 from src.analysis.build_config import BuildMatrixConfig, load_build_matrix_config
 from src.features.lesion import build_lesion_matrix
 from src.utils.artifacts import save_matrix
+from src.utils.participants import load_excluded_subjects
 from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
 
@@ -61,10 +62,19 @@ def main(argv: list[str] | None = None) -> int:
             logging.error("cannot set up log file: %s", exc, exc_info=True)
             return 1
 
+        # Its own error boundary, not folded into the build below: a missing/malformed
+        # exclusion list is a config-level problem, and it must stop the run BEFORE any mask is
+        # read (lessons_learned.md #9 - a later-added phase is not covered by its neighbour's).
+        try:
+            excluded_subjects = load_excluded_subjects(config.excluded_subjects_path)
+        except (FileNotFoundError, ValueError) as exc:
+            logging.error(str(exc))
+            return 1
+
         try:
             (
                 X, metadata, non_constant_mask, excluded_by_group,
-                excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects,
+                excluded_by_list, corrected_subjects,
             ) = build_lesion_matrix(
                 data_root=config.data_root,
                 datasets=config.datasets,
@@ -73,8 +83,7 @@ def main(argv: list[str] | None = None) -> int:
                 binarize_threshold=config.binarize_threshold,
                 resample_interpolation=config.resample_interpolation,
                 group_filter=config.group_filter,
-                min_lesion_volume_voxels=config.min_lesion_volume_voxels,
-                max_out_of_brain_fraction=config.max_out_of_brain_fraction,
+                excluded_subjects=frozenset(excluded_subjects["subject_id"]),
                 correct_out_of_brain=config.correct_out_of_brain,
                 brain_mask_path=config.brain_mask_path,
             )
@@ -93,19 +102,11 @@ def main(argv: list[str] | None = None) -> int:
                 config.group_filter,
                 excluded_by_group,
             )
-        if excluded_by_min_volume:
+        excluded_rows = _excluded_rows(excluded_subjects, excluded_by_list)
+        if excluded_rows:
             logging.info(
-                "%d subject(s) excluded by min_lesion_volume_voxels=%s (subject_id, lesion_volume_voxels): %s",
-                len(excluded_by_min_volume),
-                config.min_lesion_volume_voxels,
-                excluded_by_min_volume,
-            )
-        if excluded_by_out_of_brain:
-            logging.info(
-                "%d subject(s) excluded by max_out_of_brain_fraction=%s (subject_id, out_of_brain_fraction): %s",
-                len(excluded_by_out_of_brain),
-                config.max_out_of_brain_fraction,
-                excluded_by_out_of_brain,
+                "%d subject(s) excluded by %s (subject_id, reason, value): %s",
+                len(excluded_rows), config.excluded_subjects_path, excluded_rows,
             )
         if corrected_subjects:
             logging.info(
@@ -122,10 +123,7 @@ def main(argv: list[str] | None = None) -> int:
                 output_dir,
                 X,
                 metadata,
-                _build_readme_lines(
-                    config, X, metadata, excluded_by_group, excluded_by_min_volume,
-                    excluded_by_out_of_brain, corrected_subjects, now,
-                ),
+                _build_readme_lines(config, X, metadata, excluded_by_group, excluded_rows, corrected_subjects, now),
                 overwrite=config.overwrite,
                 extra_arrays=extra_arrays,
             )
@@ -136,8 +134,7 @@ def main(argv: list[str] | None = None) -> int:
 
         try:
             report_path = _write_report(
-                config, X, metadata, excluded_by_group, excluded_by_min_volume,
-                excluded_by_out_of_brain, corrected_subjects, now,
+                config, X, metadata, excluded_by_group, excluded_rows, corrected_subjects, now
             )
             append_run_log_entry(
                 config.output_root,
@@ -165,6 +162,20 @@ def _output_dir(config: BuildMatrixConfig, now: datetime) -> Path:
     return config.output_root / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
+def _excluded_rows(
+    excluded_subjects: pd.DataFrame, excluded_by_list: list[str]
+) -> list[tuple[str, str, float]]:
+    """(subject_id, reason, value) for each subject this run actually dropped via the list.
+
+    Joined here rather than inside build_lesion_matrix: the library returns ids, and the reason
+    a subject is on the list is the file's business, not the matrix builder's."""
+    by_id = excluded_subjects.set_index("subject_id")
+    return [
+        (subject_id, str(by_id.loc[subject_id, "reason"]), float(by_id.loc[subject_id, "value"]))
+        for subject_id in excluded_by_list
+    ]
+
+
 def _dataset_counts(metadata: pd.DataFrame) -> dict[str, int]:
     return {name: int(count) for name, count in metadata["dataset"].value_counts().sort_index().items()}
 
@@ -182,8 +193,7 @@ def _config_summary(config: BuildMatrixConfig) -> str:
         "lesion_glob": config.lesion_glob,
         "binarize_threshold": config.binarize_threshold,
         "resample_interpolation": config.resample_interpolation,
-        "min_lesion_volume_voxels": config.min_lesion_volume_voxels,
-        "max_out_of_brain_fraction": config.max_out_of_brain_fraction,
+        "excluded_subjects_path": str(config.excluded_subjects_path),
         "correct_out_of_brain": config.correct_out_of_brain,
         "brain_mask_path": str(config.brain_mask_path) if config.brain_mask_path is not None else None,
         "output_root": str(config.output_root),
@@ -203,8 +213,7 @@ def _params_used(config: BuildMatrixConfig) -> dict:
     generic full-config JSON dump, never that single-line form."""
     return {
         "binarize_threshold": config.binarize_threshold,
-        "min_lesion_volume_voxels": config.min_lesion_volume_voxels,
-        "max_out_of_brain_fraction": config.max_out_of_brain_fraction,
+        "excluded_subjects_path": str(config.excluded_subjects_path),
         "correct_out_of_brain": config.correct_out_of_brain,
     }
 
@@ -214,8 +223,7 @@ def _summary_lines(
     X: np.ndarray,
     metadata: pd.DataFrame,
     excluded_by_group: list[str],
-    excluded_by_min_volume: list[tuple[str, int]],
-    excluded_by_out_of_brain: list[tuple[str, float]],
+    excluded_rows: list[tuple[str, str, float]],
     corrected_subjects: list[tuple[str, int]],
 ) -> list[str]:
     lines = ["## Config", "", "```json", _config_summary(config), "```", "", "## Summary", ""]
@@ -227,33 +235,21 @@ def _summary_lines(
     # AUDIT_FINDINGS.md #48: excluded_by_group used to be logged only (logs/ isn't a
     # permanent artifact the way config.md is) - now persisted here too, so "why does this
     # matrix have fewer subjects than expected" is answerable from config.md alone, months
-    # later, without the run's original log file. excluded_by_min_volume/excluded_by_out_of_brain
-    # follow the same convention (never logs-only) for the two lesion-quality thresholds.
+    # later, without the run's original log file. excluded_rows follows the same convention
+    # (never logs-only) for the hand-curated exclusion list.
     lines += ["", "## Excluded by group_filter", ""]
     if excluded_by_group:
         lines.append(f"{len(excluded_by_group)} subject(s) excluded (group_filter={config.group_filter}):")
         lines += [f"- {subject_id}" for subject_id in excluded_by_group]
     else:
         lines.append("None.")
-    lines += ["", "## Excluded by min_lesion_volume_voxels", ""]
-    if excluded_by_min_volume:
-        lines.append(
-            f"{len(excluded_by_min_volume)} subject(s) excluded "
-            f"(lesion_volume_voxels < {config.min_lesion_volume_voxels}):"
-        )
-        lines += [f"- {subject_id} (lesion_volume_voxels={volume})" for subject_id, volume in excluded_by_min_volume]
-    else:
-        lines.append("None.")
-    lines += ["", "## Excluded by max_out_of_brain_fraction", ""]
-    if excluded_by_out_of_brain:
-        lines.append(
-            f"{len(excluded_by_out_of_brain)} subject(s) excluded "
-            f"(out_of_brain_fraction > {config.max_out_of_brain_fraction}):"
-        )
-        lines += [
-            f"- {subject_id} (out_of_brain_fraction={fraction:.3f})"
-            for subject_id, fraction in excluded_by_out_of_brain
-        ]
+    # The reason/value of each exclusion, not just the id: "sub-X was dropped" cannot be
+    # reviewed months later, "sub-X was dropped at 2 voxels" can. Only the subjects this run
+    # actually discovered appear - the list itself covers every dataset.
+    lines += ["", f"## Excluded by `{config.excluded_subjects_path}`", ""]
+    if excluded_rows:
+        lines.append(f"{len(excluded_rows)} subject(s) excluded by the hand-curated admission list:")
+        lines += [f"- {subject_id} ({reason}, value={value:g})" for subject_id, reason, value in excluded_rows]
     else:
         lines.append("None.")
     lines += ["", "## Corrected by correct_out_of_brain", ""]
@@ -270,13 +266,12 @@ def _build_readme_lines(
     X: np.ndarray,
     metadata: pd.DataFrame,
     excluded_by_group: list[str],
-    excluded_by_min_volume: list[tuple[str, int]],
-    excluded_by_out_of_brain: list[tuple[str, float]],
+    excluded_rows: list[tuple[str, str, float]],
     corrected_subjects: list[tuple[str, int]],
     now: datetime,
 ) -> list[str]:
     return [f"# {config.project} lesion matrix — {now.strftime('%d-%m-%y %H:%M')}", ""] + _summary_lines(
-        config, X, metadata, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects
+        config, X, metadata, excluded_by_group, excluded_rows, corrected_subjects
     )
 
 
@@ -285,13 +280,12 @@ def _build_report(
     X: np.ndarray,
     metadata: pd.DataFrame,
     excluded_by_group: list[str],
-    excluded_by_min_volume: list[tuple[str, int]],
-    excluded_by_out_of_brain: list[tuple[str, float]],
+    excluded_rows: list[tuple[str, str, float]],
     corrected_subjects: list[tuple[str, int]],
     now: datetime,
 ) -> str:
     lines = [f"# {config.project}_{now.strftime('%d-%m-%y')}", f"## {now.strftime('%H:%M')}", ""] + _summary_lines(
-        config, X, metadata, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects
+        config, X, metadata, excluded_by_group, excluded_rows, corrected_subjects
     )
     return "\n".join(lines)
 
@@ -301,8 +295,7 @@ def _write_report(
     X: np.ndarray,
     metadata: pd.DataFrame,
     excluded_by_group: list[str],
-    excluded_by_min_volume: list[tuple[str, int]],
-    excluded_by_out_of_brain: list[tuple[str, float]],
+    excluded_rows: list[tuple[str, str, float]],
     corrected_subjects: list[tuple[str, int]],
     now: datetime,
 ) -> Path:
@@ -311,8 +304,7 @@ def _write_report(
     report_path = report_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.md"
     report_path.write_text(
         _build_report(
-            config, X, metadata, excluded_by_group, excluded_by_min_volume,
-            excluded_by_out_of_brain, corrected_subjects, now,
+            config, X, metadata, excluded_by_group, excluded_rows, corrected_subjects, now
         )
     )
     return report_path

@@ -1,6 +1,6 @@
 # Lato della lesione (lesion_side) calcolato geometricamente — regola, calibrazione, stato reale in NEMESIS
 
-> Fonte: Wilke & Lidzba (LI-toolbox, la convenzione standard di *laterality index* in letteratura fMRI/lesione), il protocollo "Calculating the Laterality Index Using FSL for Stroke Neuroimaging" (Rorden e colleghi, *GigaScience* 2016) — stessa formula applicata qui a maschere di lesione binarie invece che a mappe di attivazione statistica. Implementazione: `src/features/lesion.py` (`compute_lesion_laterality_metrics`, `_hemisphere_masks`, `lesion_side_from_laterality_index`). Calibrazione empirica: `scripts/calibrate_lesion_side_threshold.py`, misure in questo documento.
+> Fonte: Wilke & Lidzba (LI-toolbox, la convenzione standard di *laterality index* in letteratura fMRI/lesione), il protocollo "Calculating the Laterality Index Using FSL for Stroke Neuroimaging" (Rorden e colleghi, *GigaScience* 2016) — stessa formula applicata qui a maschere di lesione binarie invece che a mappe di attivazione statistica. Implementazione: `src/features/lesion.py` (`compute_lesion_laterality_metrics`, `_hemisphere_masks`, `lesion_side_from_laterality_index`). Calibrazione empirica: `src/pipeline/calibrate_lesion_side_threshold.py`, misure in questo documento.
 
 Il documento è in tre parti:
 
@@ -58,7 +58,7 @@ Un soggetto con **zero voxel di lesione su entrambi i lati** (lesione confinata 
 
 ## 8. La calibrazione vera (28-09-26)
 
-Eseguita con `scripts/calibrate_lesion_side_threshold.py` sui 5 dataset che hanno `lesion_side` clinico in `assets/metadata/participants.csv` (`lesion_side_source == "clinical"`): `UNIPD/WashU`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`, `UKE/WAKEUP_acute`, `UKE/SFB936_ses01` (quest'ultimo onboardato lo stesso giorno — la nota di `docs/dev/metadata.md` di sessioni precedenti parlava di "4 dataset", ora sono 5).
+Eseguita con `src/pipeline/calibrate_lesion_side_threshold.py` sui 5 dataset che hanno `lesion_side` clinico in `assets/metadata/participants.csv` (`lesion_side_source == "clinical"`): `UNIPD/WashU`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`, `UKE/WAKEUP_acute`, `UKE/SFB936_ses01` (quest'ultimo onboardato lo stesso giorno — la nota di `docs/dev/metadata.md` di sessioni precedenti parlava di "4 dataset", ora sono 5).
 
 **1445 soggetti** utilizzabili (3 esclusi, `laterality_index` indefinito — § 6). Distribuzione etichette vere: 816 `left`, 605 `right`, 24 `both`.
 
@@ -83,15 +83,17 @@ Matrice di confusione a soglia 0.20 (righe = etichetta clinica, colonne = prediz
 
 ## 10. Cosa succede oggi, per dataset
 
-`enrich_metadata.py`'s `lesion_metrics.compute_side` (config, vedi `docs/guides/metadata.md`) applica il fallback dataset per dataset, con l'ambito determinato dalla lista `datasets` di `config/pipelines/build_lesion_matrix.json` (`build_matrix_config`, condiviso anche da `compute_volume`) — tutti gli 8 dataset ST del progetto sono coperti (`s1.5-vol`, 29-09-26), `UNIPD/NEMESIS_T0`/`UKE/SFB936_ses01` inclusi.
+Il lato geometrico è attribuito da `compute_lesion_metadata.py` per **ogni** soggetto con maschera e per ogni griglia dichiarata (`lesion_side_1mm`, `lesion_side_2mm` in `assets/metadata/lesion_metadata.csv`), indipendentemente da quale sia il suo dato clinico. `enrich_metadata.py` ne copia una griglia nel registro (`lesion_metadata.lesion_side_from`, in produzione `lesion_side_2mm`) **solo** dove la risoluzione clinica ha lasciato la cella vuota, marcando `lesion_side_source = "geometric"` — vedi `docs/guides/metadata.md`. L'ambito è la lista `datasets` di `config/pipelines/compute_lesion_metadata.json`: tutti gli 8 dataset ST del progetto sono coperti.
 
 - **UCL-UK, PASPORT, UNIPD/NEMESIS_T0**: mai avuto `lesion_side` clinico — ogni soggetto ammesso riceve il fallback geometrico.
 - **WashU, PSP, UKLFR, UKE/WAKEUP_acute, UKE/SFB936_ses01**: quasi completi clinicamente — il fallback copre solo le celle residue vuote (~230 soggetti tra WashU/PSP, verificato in `docs/dev/metadata.md`).
 
 ## 11. Riferimento rapido
 
-- Config: `config/pipelines/enrich_metadata.json` → `lesion_metrics.side_threshold`/`.compute_side`/`.correct_out_of_brain`/`.build_matrix_config`.
-- Codice: `src/features/lesion.py` (`compute_lesion_laterality_metrics`, `_hemisphere_masks`, `lesion_side_from_laterality_index`), `src/pipeline/enrich_metadata.py` (`compute_geometric_lesion_sides`).
-- Calibrazione: `scripts/calibrate_lesion_side_threshold.py` — riusabile per ricalibrare se arrivano più dataset con etichetta clinica.
+- Config: `config/pipelines/compute_lesion_metadata.json` → `side_threshold`, `grids`, `correct_out_of_brain`. In `config/pipelines/enrich_metadata.json` → `lesion_metadata.lesion_side_from`, che sceglie quale griglia alimenta il registro.
+- Codice: `src/features/lesion.py` (`compute_lesion_metadata`, `_laterality_index`, `_hemisphere_masks`, `lesion_side_from_laterality_index`).
+- Calibrazione: `src/pipeline/calibrate_lesion_side_threshold.py --grid <nome>` — legge `laterality_index_<grid>` dal csv e non apre nessuna maschera, quindi ricalibrare su un'altra griglia è un cambio di argomento.
+
+**Attenzione: la calibrazione qui sopra vale per la griglia a 2 mm.** La stessa soglia è applicata anche a 1 mm, dove non è verificata. Non è ovvio che trasferisca: il piano mediano escluso da entrambi gli emisferi è spesso 1 mm su una griglia e 2 mm sull'altra (la griglia a 1 mm ha 91 fette a sinistra e 90 a destra, quella a 2 mm 45 e 45), quindi per una lesione quasi tutta mediana i due indici non sono interscambiabili. Finché non si esegue `--grid 1mm`, `lesion_side_1mm` è indicativa.
 - Architettura del registro: `docs/dev/metadata.md`. Guida utente: `docs/guides/metadata.md`.
 - Decisione registrata: `.claude/history/methods_changelog.md`, 28-09-26.

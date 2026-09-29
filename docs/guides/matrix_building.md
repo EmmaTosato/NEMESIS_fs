@@ -57,10 +57,9 @@ Spiegazione delle chiavi di `config/pipelines/build_lesion_matrix.json`:
 | **`lesion_glob`** | Il percorso fisso dei file (non toccare): `"manual_masks/*/anat/*_label-lesion_mask.nii.gz"`. |
 | **`binarize_threshold`** | (Solitamente `0.5`). Trasforma contorni grigi della deformazione spaziale in lesione netta (1 o 0). |
 | **`resample_interpolation`**| La matematica della deformazione spaziale (`"linear"`/`"nearest"`/`"continuous"` — vedi `_KNOWN_INTERPOLATIONS` in `src/analysis/build_config.py`). **Per una maschera binaria si usa `"nearest"`** — motivazione, sfumature del downsampling e interazione con `binarize_threshold` in [`knowledge/neuroimaging/lesion_resampling.md`](../../knowledge/neuroimaging/lesion_resampling.md). |
-| **`min_lesion_volume_voxels`** | `null` (default, nessun filtro) oppure un intero ≥ 0: i soggetti con `lesion_volume_voxels` sotto questa soglia vengono esclusi dalla matrice. |
-| **`max_out_of_brain_fraction`** | `null` (default, nessun filtro) oppure un valore in `[0.0, 1.0]`: i soggetti con più di questa frazione di voxel di lesione fuori dalla maschera cerebrale vengono esclusi. Richiede `brain_mask_path`. Non combinabile con `correct_out_of_brain` (vedi sotto). |
-| **`correct_out_of_brain`** | `false` (default) oppure `true`: invece di escludere il soggetto, azzera i suoi voxel di lesione fuori dalla maschera cerebrale e lo tiene nella matrice. Richiede `brain_mask_path`. Non combinabile con `max_out_of_brain_fraction`. |
-| **`brain_mask_path`** | Maschera cerebrale MNI di riferimento, sulla stessa griglia di `reference_template_path` (es. `assets/templates/tpl-MNI152NLin6Asym_res-2_desc-brain_mask.nii.gz` per la griglia a 2mm attualmente in uso). **Obbligatoria** se `max_out_of_brain_fraction` non è `null` oppure `correct_out_of_brain` è `true`, ma resta letta (non ignorata) anche quando entrambi sono disattivati — la usa anche `src/pipeline/check_lesion_quality.py`, indipendentemente da questi due campi. |
+| **`excluded_subjects_path`** | La lista dei soggetti da tenere fuori (`assets/metadata/excluded_subjects.csv`). **Obbligatorio.** Vedi sotto. |
+| **`correct_out_of_brain`** | `false` (default) oppure `true`: azzera i voxel di lesione fuori dalla maschera cerebrale e tiene il soggetto nella matrice, con `lesion_volume_voxels` ricalcolato sui dati corretti. Richiede `brain_mask_path`. |
+| **`brain_mask_path`** | Maschera cerebrale MNI di riferimento, sulla stessa griglia di `reference_template_path` (es. `assets/templates/tpl-MNI152NLin6Asym_res-2_desc-brain_mask.nii.gz` per la griglia a 2mm attualmente in uso). **Obbligatoria** se `correct_out_of_brain` è `true`, ignorata altrimenti. |
 | **`output_root`** | Sede file (di base: `"data/derived/lesion_matrix"`). |
 | **`session_name`** | Nome univoco per distinguere i batch es. `"voxelwise_s2"`. |
 | **`overwrite`** | `true` sovrascrive output di run passati. |
@@ -75,26 +74,41 @@ L'output vive in `data/derived/lesion_matrix/<GIORNO-MESE>_<session_name>/` e co
 2. **`metadata.csv`**: L'anagrafica che relaziona ogni riga della matrice al paziente (Es. Riga 5 della matrice appartiene a Sub-ID-X).
 3. **`non_constant_mask.npy`**: Le lesioni su migliaia di pazienti hanno zone in cui "nessuno ha mai avuto un danno". Vengono tolte dalla matrice per tagliare dimensioni inutili di calcolo. Questo array ricorda quali colonne esatte sono state tagliate, per riposizionarle al momento dei report visivi su immagini del cervello.
 4. **`manifest.json`**: Il "Certificato di Integrità". Se manca, la pipeline ha fallito.
-5. **`config.md`**: File riassuntivo stampabile dei settaggi di questa sessione — include sempre tre sezioni "Excluded by ..." (`group_filter`, `min_lesion_volume_voxels`, `max_out_of_brain_fraction`) e una sezione "Corrected by correct_out_of_brain", con l'elenco dei soggetti esclusi/corretti da ciascun criterio ("None." se il filtro/correzione non è attivo o non ha toccato nessuno).
+5. **`config.md`**: File riassuntivo stampabile dei settaggi di questa sessione — include sempre due sezioni "Excluded by ..." (`group_filter` e la lista degli esclusi, quest'ultima con motivo e valore per ogni soggetto) e una sezione "Corrected by correct_out_of_brain", con l'elenco dei soggetti esclusi/corretti da ciascun criterio ("None." se non ha toccato nessuno).
 
 ---
 
-## Filtri di qualità della lesione (soglie opzionali)
+## Chi entra nella matrice
 
-`min_lesion_volume_voxels`, `max_out_of_brain_fraction` e `correct_out_of_brain` sono criteri opzionali valutati per ogni soggetto prima di scrivere la matrice finale:
+Due criteri, valutati prima di scrivere la matrice:
 
-- **`min_lesion_volume_voxels`**: esclude i soggetti con lesione troppo piccola (in voxel, sulla griglia comune di `reference_template_path`).
-- **`max_out_of_brain_fraction`**: esclude i soggetti con troppi voxel di lesione fuori dalla maschera cerebrale (`brain_mask_path`) — un indizio di errore di normalizzazione/segmentazione.
-- **`correct_out_of_brain`**: invece di escludere il soggetto, azzera i suoi voxel di lesione fuori dalla maschera cerebrale (`src/features/lesion_correction.py`) e lo mantiene nella matrice — stessa diagnosi di `max_out_of_brain_fraction`, ma corregge invece di escludere. **Non combinabile** con `max_out_of_brain_fraction`: usarli insieme renderebbe quella soglia silenziosamente inutile (dopo la correzione la frazione fuori dal brain è quasi sempre 0), quindi il config lo rifiuta esplicitamente.
+- **`group_filter`**: chi non appartiene ai gruppi richiesti (es. i controlli sani con `["ST"]`) viene saltato in fase di scoperta.
+- **`excluded_subjects_path`**: la lista curata a mano dei soggetti da tenere fuori, `assets/metadata/excluded_subjects.csv`. La maschera di un soggetto escluso **non viene nemmeno letta**.
 
-Tutti e tre sono disattivati di default (`null`/`false`, nessun effetto). I soggetti risultanti dopo l'applicazione di esclusioni/correzione sono quelli che compaiono in `metadata.csv`; chi viene escluso o corretto è elencato per nome nelle sezioni "Excluded by ..."/"Corrected by ..." di `config.md` e nei `summaries/build_lesion_matrix/<project>/build_summary__*.md`.
+Chi viene escluso è elencato per nome nelle sezioni "Excluded by ..." di `config.md` e nei `summaries/build_lesion_matrix/<project>/build_summary__*.md`, con motivo e valore per gli esclusi da lista.
 
-**Una matrice già costruita non viene mai filtrata a posteriori**: cambiare queste soglie non ha alcun effetto su un `data/derived/lesion_matrix/<sessione>/` già scritto su disco — modificherebbe silenziosamente le basi di analisi a valle già eseguite su quell'output. Se ci si accorge di aver dimenticato di impostare una soglia, la run va rifatta da capo (cancellare la cartella di output e la relativa riga in `runs.csv`, poi rilanciare la pipeline con il config corretto), mai patchata in-place.
+### La lista degli esclusi
 
-**Prima di fissare una soglia**, conviene ispezionare la distribuzione reale invece di indovinare un valore: `src/pipeline/check_lesion_quality.py` calcola `lesion_volume_voxels`/`out_of_brain_fraction` per ogni soggetto (stesso config `build_lesion_matrix.json`, nessuna soglia applicata) e li salva in `assets/metadata/lesion_quality_metrics.csv`:
+**Non ci sono soglie di qualità in questo config, di proposito.** I dati non hanno un salto naturale su cui metterne una, e quale soggetto limite valga la pena di scartare è un giudizio caso per caso che appartiene all'analisi, non alla configurazione di una pipeline.
+
+Il file lo scrivi **a mano**, dopo aver guardato le distribuzioni in `assets/metadata/lesion_metadata.csv` dal notebook `notebooks/exploration/lesion_quality.ipynb` — formato, vocabolario dei motivi e validazioni in [`docs/guides/metadata.md`](metadata.md).
+
+Lo stesso file è letto anche da `build_sdc_matrix.py`, quindi **le due matrici escludono gli stessi soggetti per costruzione**: senza di questo un confronto lesione/SDC confronterebbe due coorti diverse.
+
+Un file **assente ferma la run**: "mai scritto" e "nessuna esclusione" sono indistinguibili, e la seconda si dichiara tenendo il file con la sola intestazione.
+
+### `correct_out_of_brain`: correggere invece di escludere
+
+`correct_out_of_brain: true` azzera i voxel di lesione che cadono fuori dalla maschera cerebrale (`src/features/lesion_correction.py`) e mantiene il soggetto nella matrice, con `lesion_volume_voxels` ricalcolato sui dati corretti. È l'unico uso di `brain_mask_path` in questa pipeline.
+
+È una **correzione**, non un criterio di ammissione: chi va escluso del tutto perché troppo contaminato va in `excluded_subjects.csv` con motivo `out_of_brain_fraction_too_high`. Le due cose sono compatibili, e la frazione su cui basare quella decisione sta in `lesion_metadata.csv`, misurata sulla maschera grezza.
+
+**Una matrice già costruita non viene mai filtrata a posteriori**: aggiungere un soggetto alla lista non ha alcun effetto su un `data/derived/lesion_matrix/<sessione>/` già scritto su disco — modificherebbe silenziosamente le basi di analisi a valle già eseguite su quell'output. Se ci si accorge di aver dimenticato un'esclusione, la run va rifatta da capo (cancellare la cartella di output e la relativa riga in `runs.csv`, poi rilanciare), mai patchata in-place.
+
+**Prima di decidere le esclusioni** serve `assets/metadata/lesion_metadata.csv`, che per ogni soggetto e ogni griglia contiene volume, frazione fuori dal brain, indice di lateralità e lato:
 
 ```bash
-python -m src.pipeline.check_lesion_quality --config config/pipelines/build_lesion_matrix.json
+python -m src.pipeline.compute_lesion_metadata --config config/pipelines/compute_lesion_metadata.json
 ```
 
-Il calcolo è costoso (minuti sull'intera coorte) — di default, se `assets/metadata/lesion_quality_metrics.csv` esiste già, lo script non ricalcola nulla; `--overwrite` forza il ricalcolo. La stessa esplorazione, con grafici della distribuzione, è in `notebooks/exploration/dataset_exploration.ipynb` ("Lesione fuori dal brain"), che legge/scrive lo stesso file.
+Il calcolo è costoso (una lettura per soggetto, un ricampionamento per griglia) — con `overwrite: false` nel config, se il csv esiste già la run esce subito senza ricalcolare. Le distribuzioni con i grafici sono in `notebooks/exploration/lesion_quality.ipynb`, che legge quello stesso file.

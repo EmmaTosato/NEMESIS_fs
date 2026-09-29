@@ -29,17 +29,21 @@ Cardinalities for atlases not yet backed by a reference file are **not** derived
 
 ## `src/features/sdc.py`
 
-`build_sdc_matrix(data_root, datasets, object_, atlas, value_column, reference_labels_path, group_filter) -> (X, metadata, region_names, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed)`
+`build_sdc_matrix(data_root, datasets, object_, atlas, value_column, reference_labels_path, group_filter, excluded_subjects) -> (X, metadata, region_names, excluded_by_group, excluded_by_list, excluded_no_lesion_mask, sdc_not_yet_computed)`
 
 - **`object_`**: `"disconnectome"` or `"lesion"` - which of the two parcellated CSV families to read (`docs/guides/sdc_matrix_building.md` for the difference). Validated against `KNOWN_OBJECTS`.
 - **`value_column`**: which per-region statistic to extract - `"fraction_covered"`, `"mean_overlap"`, `"weighted_mean_overlap"`, `"sum_overlap"`, `"p90_overlap"`, or `"p95_overlap"` (`KNOWN_VALUE_COLUMNS`; these 6 are the columns common to all 14 in-scope atlases - `buckner_7n`/`rojkova`/`yeh_hcp1065` additionally have `sum_atlas_in_tract`/`pwll_normalised`/`max_atlas_prob_in_overlap`/`continuous_dice`, not currently exposed here).
 - **`X` never drops a constant column** - unlike `build_lesion_matrix.py`'s `_drop_constant_features`, column `j` always names the same region regardless of which subjects a given run admits (2026-08-27, project decision: keeps `X`'s shape - and therefore its meaning - stable across runs with different subject selections, at the cost of carrying always-zero columns for regions no admitted subject ever disconnects).
 
-### Subject admission: two discovery passes, one intersection
+### Subject admission: two discovery passes, one intersection, one curated list
 
 A subject is admitted into `X` only if it has **both**:
 1. A lesion mask **registered** in `assets/metadata/participants.csv` (column `has_lesion == True`, via `src.utils.participants.load_participants_registry`) - not a glob against `manual_masks/` on disk (see "Why participants.tsv, not `manual_masks/` on disk" below).
 2. The requested `object_`/`atlas` SDC CSV (`sdc/*/*_LF-{object_}_atlas-{atlas}.csv`, discovered via `discover_files_by_subject` same as `build_lesion_matrix.py`).
+
+...and is not in `excluded_subjects`, the hand-curated admission list (`assets/metadata/excluded_subjects.csv`, resolved by the pipeline via `src.utils.participants.load_excluded_subjects` and passed in as an id set). Applied inside `_subjects_with_lesion_mask`, which is the one place **both** representations resolve their admitted subjects - so one call site covers `build_sdc_matrix` and `build_sdc_voxelwise_matrix`, and the SDC matrices drop exactly the subjects the lesion matrix drops (`src/features/lesion.py::_drop_excluded_subjects`). Without that guarantee a lesion-vs-SDC comparison would silently compare two different cohorts, which is why the list is one shared file rather than one per pipeline - and why this module can honour it at all despite never loading a raw lesion mask: the list is subject ids, not imaging.
+
+Applied **after** `group_filter`, so a subject is never reported twice: an HC subject that also appears on the list is `excluded_by_group`, not `excluded_by_list`. `excluded_by_list` names only the subjects in scope for this run, never the whole file.
 
 `excluded_no_lesion_mask` tracks subjects with SDC output but no registered lesion mask (logged and persisted to `config.md`, never silently dropped or zero-filled); `sdc_not_yet_computed` tracks the opposite gap (a registered lesion mask but SDC not computed for that subject yet - not an error, just work not yet done upstream).
 
@@ -65,9 +69,9 @@ A header-only (zero-row) CSV is a legitimate domain case handled by `_stack_alig
 
 ## `build_sdc_voxelwise_matrix` — the voxel-wise representation (added 03/09)
 
-`build_sdc_voxelwise_matrix(data_root, datasets, object_, reference_template_path, resample_interpolation, group_filter) -> (X, metadata, non_constant_mask, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed)`
+`build_sdc_voxelwise_matrix(data_root, datasets, object_, reference_template_path, resample_interpolation, group_filter, excluded_subjects) -> (X, metadata, non_constant_mask, excluded_by_group, excluded_by_list, excluded_no_lesion_mask, sdc_not_yet_computed)`
 
-Reads the `disconnectome-map` `.nii.gz` directly (`sdc/*/*_res-1_desc-{object_}.nii.gz`) instead of the parcellated CSVs - the same pre-parcellation volume `build_sdc_matrix`'s CSVs are themselves derived from. Same two-pass admission criterion as `build_sdc_matrix` (a lesion mask registered in `assets/metadata/participants.csv` **and** the requested SDC file present).
+Reads the `disconnectome-map` `.nii.gz` directly (`sdc/*/*_res-1_desc-{object_}.nii.gz`) instead of the parcellated CSVs - the same pre-parcellation volume `build_sdc_matrix`'s CSVs are themselves derived from. Same admission criterion as `build_sdc_matrix` (a lesion mask registered in `assets/metadata/participants.csv`, not on the exclusion list, **and** the requested SDC file present) - both go through the same `_subjects_with_lesion_mask`.
 
 - **Deliberately restricted to `object_="disconnectome"`** - `object_="lesion"` raises `ValueError` immediately (both here and, redundantly, at config-load time - see below). The `lesion-map` `.nii.gz` (the resampled *input* lesion mask BCBToolKit used, not a retrieval of the real mask) would duplicate `build_lesion_matrix.py`'s own job from a less authoritative source; `manual_masks/` (via the `has_lesion` registry flag) stays the one place a lesion mask is built from.
 - **Never binarized** - disconnection values are a continuous [0, 1] probability, unlike `build_lesion_matrix.py`'s binary lesion mask. No `binarize_threshold` field exists for this representation.
@@ -97,4 +101,4 @@ Reads the `disconnectome-map` `.nii.gz` directly (`sdc/*/*_res-1_desc-{object_}.
 
 - **`"parcellated"`**: `extra_arrays` holds `region_names` (the column labels, `str` dtype) - no drop mask, no column is ever dropped. `Params used:` records `{"object": ..., "atlas": ..., "value_column": ...}`.
 - **`"voxelwise"`**: `extra_arrays` holds `non_constant_mask` (boolean drop-mask, same convention as `build_lesion_matrix.py` - `region_names.npy` is not written in this mode). `Params used:` records `{"object": ..., "representation": ...}`. `nib.filebasedimages.ImageFileError` is caught alongside `FileNotFoundError`/`ValueError` (a truncated/corrupt `.nii.gz`, same reasoning as `build_lesion_matrix.py`) - the parcellated path never touches `nibabel` at all, so that exception type is only reachable via this mode.
-- Both modes: `config.md`/the report add two sections beyond `build_lesion_matrix.py`'s single "Excluded by group_filter": **"Excluded (SDC output present but no lesion mask)"** and **"Have a lesion mask but no SDC output yet"** - both persisted, not just logged (same reasoning as for `build_lesion_matrix.py`'s `excluded_by_group`).
+- Both modes: `config.md`/the report carry four exclusion sections - **"Excluded by group_filter"**, **"Excluded by `<excluded_subjects_path>`"** (shared with `build_lesion_matrix.py`), **"Excluded (SDC output present but no lesion mask)"** and **"Have a lesion mask but no SDC output yet"** - all persisted, not just logged (same reasoning as for `excluded_by_group`).

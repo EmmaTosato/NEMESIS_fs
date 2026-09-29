@@ -98,15 +98,18 @@ def build_sdc_matrix(
     value_column: str,
     reference_labels_path: Path,
     group_filter: list[str] | None,
-) -> tuple[np.ndarray, pd.DataFrame, np.ndarray, list[str], list[str], list[str]]:
+    excluded_subjects: frozenset[str],
+) -> tuple[np.ndarray, pd.DataFrame, np.ndarray, list[str], list[str], list[str], list[str]]:
     """Build X (n_subjects x n_regions, fixed = len(region_names)), row-aligned
     metadata, and the region names naming each column.
 
-    Returns (X, metadata, region_names, excluded_by_group,
+    Returns (X, metadata, region_names, excluded_by_group, excluded_by_list,
     excluded_no_lesion_mask, sdc_not_yet_computed) - see module docstring and
     docs/dev/sdc_matrix.md. excluded_by_group merges the group-filter
     exclusions from both the lesion-mask-registry and the SDC-file discovery
-    passes.
+    passes. excluded_by_list is the hand-curated admission list
+    (src.utils.participants.load_excluded_subjects), the same one the lesion
+    matrix applies - restricted to the subjects in scope for this run.
     """
     if object_ not in KNOWN_OBJECTS:
         raise ValueError(f"object_ must be one of {sorted(KNOWN_OBJECTS)}, got {object_!r}")
@@ -115,7 +118,9 @@ def build_sdc_matrix(
 
     region_names = load_reference_regions(reference_labels_path)
 
-    lesion_subjects, excluded_lesion = _subjects_with_lesion_mask(datasets, group_filter)
+    lesion_subjects, excluded_lesion, excluded_by_list = _subjects_with_lesion_mask(
+        datasets, group_filter, excluded_subjects
+    )
     sdc_glob = f"sdc/*/*_LF-{object_}_atlas-{atlas}.csv"
     sdc_files, excluded_sdc = _discover_by_dataset(data_root, datasets, sdc_glob, group_filter)
     excluded_by_group = sorted(set(excluded_lesion) | set(excluded_sdc))
@@ -140,7 +145,10 @@ def build_sdc_matrix(
         )
 
     X, metadata = _stack_aligned_matrix(subject_dfs, region_names, value_column)
-    return X, metadata, region_names, excluded_by_group, sorted(excluded_no_lesion_mask), sorted(sdc_not_yet_computed)
+    return (
+        X, metadata, region_names, excluded_by_group, excluded_by_list,
+        sorted(excluded_no_lesion_mask), sorted(sdc_not_yet_computed),
+    )
 
 
 def build_sdc_voxelwise_matrix(
@@ -150,21 +158,23 @@ def build_sdc_voxelwise_matrix(
     reference_template_path: Path,
     resample_interpolation: str,
     group_filter: list[str] | None,
-) -> tuple[np.ndarray, pd.DataFrame, np.ndarray, list[str], list[str], list[str]]:
+    excluded_subjects: frozenset[str],
+) -> tuple[np.ndarray, pd.DataFrame, np.ndarray, list[str], list[str], list[str], list[str]]:
     """Build X (n_subjects x n_voxels) from the `disconnectome-map` .nii.gz -
     the pre-parcellation volume `build_sdc_matrix`'s CSVs are themselves
     derived from. Continuous [0, 1] disconnection probability per voxel,
     never binarized - see module docstring.
 
-    Same two-pass admission criterion as build_sdc_matrix (a lesion mask
-    registered in assets/metadata/participants.csv (has_lesion) AND the
-    requested SDC file present), and the same constant-column drop as
+    Same admission criterion as build_sdc_matrix (a lesion mask registered in
+    assets/metadata/participants.csv (has_lesion), not on the hand-curated
+    exclusion list, AND the requested SDC file present), and the same
+    constant-column drop as
     build_lesion_matrix.py (voxels outside every admitted subject's brain
     are identically 0.0 - dropped to keep X a manageable size, recoverable
     via non_constant_mask).
 
     Returns (X, metadata, non_constant_mask, excluded_by_group,
-    excluded_no_lesion_mask, sdc_not_yet_computed).
+    excluded_by_list, excluded_no_lesion_mask, sdc_not_yet_computed).
     """
     if object_ not in _VOXELWISE_SUPPORTED_OBJECTS:
         raise ValueError(
@@ -173,7 +183,9 @@ def build_sdc_voxelwise_matrix(
             f"authoritative manual_masks/ source), got {object_!r}"
         )
 
-    lesion_subjects, excluded_lesion = _subjects_with_lesion_mask(datasets, group_filter)
+    lesion_subjects, excluded_lesion, excluded_by_list = _subjects_with_lesion_mask(
+        datasets, group_filter, excluded_subjects
+    )
     sdc_glob = f"sdc/*/*_res-1_desc-{object_}.nii.gz"
     sdc_files, excluded_sdc = _discover_by_dataset(data_root, datasets, sdc_glob, group_filter)
     excluded_by_group = sorted(set(excluded_lesion) | set(excluded_sdc))
@@ -200,7 +212,10 @@ def build_sdc_voxelwise_matrix(
     reference_img = load_reference_image(reference_template_path)
     X_voxelwise, metadata = _stack_voxelwise_matrix(admitted, reference_img, resample_interpolation)
     X, non_constant_mask = _drop_constant_features(X_voxelwise)
-    return X, metadata, non_constant_mask, excluded_by_group, sorted(excluded_no_lesion_mask), sorted(sdc_not_yet_computed)
+    return (
+        X, metadata, non_constant_mask, excluded_by_group, excluded_by_list,
+        sorted(excluded_no_lesion_mask), sorted(sdc_not_yet_computed),
+    )
 
 
 def load_reference_regions(reference_labels_path: Path) -> np.ndarray:
@@ -240,14 +255,23 @@ def _discover_by_dataset(
 
 
 def _subjects_with_lesion_mask(
-    datasets: list[str], group_filter: list[str] | None
-) -> tuple[dict[str, dict[str, None]], list[str]]:
+    datasets: list[str], group_filter: list[str] | None, excluded_subjects: frozenset[str]
+) -> tuple[dict[str, dict[str, None]], list[str], list[str]]:
     """Which subjects have a lesion mask, per dataset - from
     assets/metadata/participants.csv's has_lesion flag, not from disk (see
     module docstring). Return shape matches _discover_by_dataset's
     {dataset: {subject_id: ...}} so both feed the same intersection logic in
     build_sdc_matrix - the per-subject value here carries no information
     (unlike _discover_by_dataset's Path), only the key set matters.
+
+    Returns (by_dataset, excluded_by_group, excluded_by_list). This is the one
+    place BOTH SDC representations resolve their admitted subjects, so applying
+    the hand-curated exclusion list here covers build_sdc_matrix and
+    build_sdc_voxelwise_matrix at once - and guarantees the SDC matrices drop
+    exactly the subjects the lesion matrix drops (src.features.lesion's own
+    _drop_excluded_subjects), which is the reason that list is a single file.
+    excluded_by_list names only subjects in scope for this run, never the whole
+    list.
 
     Raises ValueError if a requested dataset has no row at all in the
     registry - a structural gap in the file this pipeline depends on for its
@@ -265,16 +289,21 @@ def _subjects_with_lesion_mask(
 
     by_dataset: dict[str, dict[str, None]] = {}
     excluded: list[str] = []
+    excluded_by_list: list[str] = []
     for dataset in datasets:
         in_dataset = registry["dataset"] == dataset
         has_mask = registry.loc[in_dataset & registry[_LESION_FLAG_COLUMN], "subject_id"]
         groups = {s: group_of(s) for s in has_mask}
         excluded_here = sorted(s for s in has_mask if group_filter is not None and groups[s] not in group_filter)
-        admitted = {s: None for s in has_mask if group_filter is None or groups[s] in group_filter}
+        in_group = [s for s in has_mask if group_filter is None or groups[s] in group_filter]
+        # Applied after group_filter so a subject is never reported twice: an HC subject on the
+        # exclusion list is excluded by group, not by the list.
+        excluded_by_list.extend(s for s in in_group if s in excluded_subjects)
+        admitted = {s: None for s in in_group if s not in excluded_subjects}
 
         by_dataset[dataset] = admitted
         excluded.extend(excluded_here)
-    return by_dataset, excluded
+    return by_dataset, excluded, sorted(excluded_by_list)
 
 
 def _load_and_validate_csv(path: Path, region_names: np.ndarray, value_column: str) -> pd.DataFrame:

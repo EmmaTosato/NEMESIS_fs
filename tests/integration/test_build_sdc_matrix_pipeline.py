@@ -15,6 +15,16 @@ import pandas as pd
 from src.utils import participants as participants_registry
 from src.pipeline import build_sdc_matrix
 
+
+def _empty_exclusion_list(tmp_path):
+    """A header-only assets/metadata/excluded_subjects.csv: the explicit way to say "exclude
+    nobody" (src.utils.participants.load_excluded_subjects refuses a MISSING file, since that is
+    indistinguishable from "never written"). Header-only short-circuits before the registry
+    lookup, so no participants.csv fixture is needed."""
+    path = tmp_path / "excluded_subjects.csv"
+    path.write_text("subject_id,dataset,reason,value\n")
+    return str(path)
+
 _ATLAS = "test_atlas"
 _OBJECT = "disconnectome"
 _VALUE_COLUMN = "mean_overlap"
@@ -67,6 +77,7 @@ def _write_config(tmp_path, data_root, output_root, overrides=None):
         "project": "testproj",
         "data_root": str(data_root),
         "datasets": ["siteA"],
+        "excluded_subjects_path": _empty_exclusion_list(tmp_path),
         "object": _OBJECT,
         "representation": "parcellated",
         "atlas": _ATLAS,
@@ -96,6 +107,7 @@ def _write_voxelwise_config(tmp_path, data_root, output_root, overrides=None):
         "project": "testproj",
         "data_root": str(data_root),
         "datasets": ["siteA"],
+        "excluded_subjects_path": _empty_exclusion_list(tmp_path),
         "object": _OBJECT,
         "representation": "voxelwise",
         "reference_template_path": str(template_path),

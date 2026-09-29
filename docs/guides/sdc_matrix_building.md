@@ -34,7 +34,9 @@ python -m src.pipeline.build_sdc_matrix --config config/pipelines/build_sdc_matr
 
 **Modalità `voxelwise`**: per ogni soggetto ammesso, il `disconnectome-map` `.nii.gz` viene ricampionato (se serve) sulla griglia di `reference_template_path`, appiattito e impilato in una matrice **soggetti × voxel** — mai binarizzato (a differenza della lesion mask di `build_lesion_matrix.py`, qui i valori sono una probabilità continua 0-1). I voxel costanti (fuori dal cervello per ogni soggetto ammesso) vengono scartati, con `non_constant_mask` salvato per recuperare la mappatura.
 
-**Ammissione soggetti (uguale per entrambe le modalità)**: un soggetto entra nella matrice solo se ha **entrambi**: una lesion mask **registrata** nel registro soggetti (`assets/metadata/participants.csv`, colonna `has_lesion == True`) e il file SDC richiesto (CSV o `.nii.gz` a seconda della modalità). Non si controlla `manual_masks/` su disco direttamente — un retrieval locale parziale renderebbe quel controllo inaffidabile. Un soggetto con output SDC ma senza lesion mask registrata viene escluso esplicitamente, non trattato come "disconnessione zero" — vedi `docs/dev/sdc_matrix.md`.
+**Ammissione soggetti (uguale per entrambe le modalità)**: un soggetto entra nella matrice solo se ha **entrambi**: una lesion mask **registrata** nel registro soggetti (`assets/metadata/participants.csv`, colonna `has_lesion == True`) e il file SDC richiesto (CSV o `.nii.gz` a seconda della modalità), **e** non compare nella lista degli esclusi (`excluded_subjects_path`, obbligatorio nel config: `assets/metadata/excluded_subjects.csv`). Non si controlla `manual_masks/` su disco direttamente — un retrieval locale parziale renderebbe quel controllo inaffidabile. Un soggetto con output SDC ma senza lesion mask registrata viene escluso esplicitamente, non trattato come "disconnessione zero" — vedi `docs/dev/sdc_matrix.md`.
+
+La lista degli esclusi è **la stessa** che legge `build_lesion_matrix.py`, quindi le due matrici tengono fuori gli stessi soggetti per costruzione: senza di questo un confronto lesione/SDC confronterebbe due coorti diverse. Formato e validazioni in [`docs/guides/metadata.md`](metadata.md); un file assente ferma la run, "nessuna esclusione" si dichiara tenendolo con la sola intestazione.
 
 ---
 
@@ -46,7 +48,7 @@ Comuni a entrambe le modalità:
 | :--- | :--- |
 | **`project`** | Nome del progetto (es. `"clinical_connectome"`). |
 | **`data_root`** | Sede dei dati grezzi estratti (es. `"data/clinical_connectome/derivatives"`). |
-| **`datasets`** | Lista delle coorti da includere — solo quelle con `sdc/` (oggi: WashU, PASPORT, PSP, stroke_UKLFR, UKE/WAKEUP_acute; **non** UCL-UK, che non ha SDC calcolato). |
+| **`datasets`** | Lista delle coorti da includere — solo quelle con `sdc/` (oggi tutti e 8 i dataset stroke: WashU, PASPORT, PSP, stroke_UKLFR, UCL-UK, UKE/WAKEUP_acute, NEMESIS_T0, SFB936_ses01; il CSV streamline `yeh_hcp1065_streamline` manca solo a UCL-UK). |
 | **`group_filter`** | Lista per filtrare i pazienti sani vs malati (`["ST"]` = solo stroke). `null` non applica filtri. |
 | **`object`** | `"disconnectome"` (probabilità di disconnessione) o `"lesion"` (proporzione di danno diretto, parcellata) — solo `"disconnectome"` è valido con `representation: "voxelwise"`. |
 | **`representation`** | `"parcellated"` o `"voxelwise"` — sceglie quali campi sotto sono richiesti. |

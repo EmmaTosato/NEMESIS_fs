@@ -29,6 +29,7 @@ import pandas as pd
 from src.analysis.build_config import SdcMatrixConfig, load_build_sdc_matrix_config
 from src.features.sdc import build_sdc_matrix, build_sdc_voxelwise_matrix
 from src.utils.artifacts import save_matrix
+from src.utils.participants import load_excluded_subjects
 from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
 
@@ -62,29 +63,43 @@ def main(argv: list[str] | None = None) -> int:
             logging.error("cannot set up log file: %s", exc, exc_info=True)
             return 1
 
+        # Its own error boundary, before any SDC file is opened (lessons_learned.md #9). The
+        # same list the lesion matrix reads: both matrices must drop the same subjects, or a
+        # lesion-vs-SDC comparison silently compares two different cohorts.
+        try:
+            excluded_subjects = load_excluded_subjects(config.excluded_subjects_path)
+        except (FileNotFoundError, ValueError) as exc:
+            logging.error(str(exc))
+            return 1
+        excluded_ids = frozenset(excluded_subjects["subject_id"])
+
         try:
             if config.representation == "parcellated":
-                X, metadata, column_labels, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed = (
-                    build_sdc_matrix(
-                        data_root=config.data_root,
-                        datasets=config.datasets,
-                        object_=config.object,
-                        atlas=config.atlas,
-                        value_column=config.value_column,
-                        reference_labels_path=config.reference_labels_path,
-                        group_filter=config.group_filter,
-                    )
+                (
+                    X, metadata, column_labels, excluded_by_group, excluded_by_list,
+                    excluded_no_lesion_mask, sdc_not_yet_computed,
+                ) = build_sdc_matrix(
+                    data_root=config.data_root,
+                    datasets=config.datasets,
+                    object_=config.object,
+                    atlas=config.atlas,
+                    value_column=config.value_column,
+                    reference_labels_path=config.reference_labels_path,
+                    group_filter=config.group_filter,
+                    excluded_subjects=excluded_ids,
                 )
             else:
-                X, metadata, column_labels, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed = (
-                    build_sdc_voxelwise_matrix(
-                        data_root=config.data_root,
-                        datasets=config.datasets,
-                        object_=config.object,
-                        reference_template_path=config.reference_template_path,
-                        resample_interpolation=config.resample_interpolation,
-                        group_filter=config.group_filter,
-                    )
+                (
+                    X, metadata, column_labels, excluded_by_group, excluded_by_list,
+                    excluded_no_lesion_mask, sdc_not_yet_computed,
+                ) = build_sdc_voxelwise_matrix(
+                    data_root=config.data_root,
+                    datasets=config.datasets,
+                    object_=config.object,
+                    reference_template_path=config.reference_template_path,
+                    resample_interpolation=config.resample_interpolation,
+                    group_filter=config.group_filter,
+                    excluded_subjects=excluded_ids,
                 )
         except (FileNotFoundError, ValueError, nib.filebasedimages.ImageFileError) as exc:
             # ImageFileError (voxelwise only): a truncated/corrupt .nii.gz raises this from
@@ -98,6 +113,11 @@ def main(argv: list[str] | None = None) -> int:
             logging.info(
                 "%d subject(s) excluded by group_filter=%s: %s",
                 len(excluded_by_group), config.group_filter, excluded_by_group,
+            )
+        if excluded_by_list:
+            logging.info(
+                "%d subject(s) excluded by %s: %s",
+                len(excluded_by_list), config.excluded_subjects_path, excluded_by_list,
             )
         if excluded_no_lesion_mask:
             logging.info(
@@ -125,8 +145,10 @@ def main(argv: list[str] | None = None) -> int:
                 output_dir,
                 X,
                 metadata,
-                _build_readme_lines(config, X, metadata, excluded_by_group, excluded_no_lesion_mask,
-                                     sdc_not_yet_computed, now),
+                _build_readme_lines(
+                    config, X, metadata, excluded_by_group, excluded_by_list,
+                    excluded_no_lesion_mask, sdc_not_yet_computed, now,
+                ),
                 overwrite=config.overwrite,
                 extra_arrays=extra_arrays,
             )
@@ -136,8 +158,10 @@ def main(argv: list[str] | None = None) -> int:
         logging.info("matrix written to %s (shape %s)", output_dir, X.shape)
 
         try:
-            report_path = _write_report(config, X, metadata, excluded_by_group, excluded_no_lesion_mask,
-                                         sdc_not_yet_computed, now)
+            report_path = _write_report(
+                config, X, metadata, excluded_by_group, excluded_by_list,
+                excluded_no_lesion_mask, sdc_not_yet_computed, now,
+            )
             append_run_log_entry(
                 config.output_root,
                 config.session_name,
@@ -178,6 +202,7 @@ def _config_summary(config: SdcMatrixConfig) -> str:
         "data_root": str(config.data_root),
         "datasets": config.datasets,
         "group_filter": config.group_filter,
+        "excluded_subjects_path": str(config.excluded_subjects_path),
         "object": config.object,
         "representation": config.representation,
         "output_root": str(config.output_root),
@@ -209,6 +234,7 @@ def _summary_lines(
     X: np.ndarray,
     metadata: pd.DataFrame,
     excluded_by_group: list[str],
+    excluded_by_list: list[str],
     excluded_no_lesion_mask: list[str],
     sdc_not_yet_computed: list[str],
 ) -> list[str]:
@@ -223,6 +249,12 @@ def _summary_lines(
     if excluded_by_group:
         lines.append(f"{len(excluded_by_group)} subject(s) excluded (group_filter={config.group_filter}):")
         lines += [f"- {subject_id}" for subject_id in excluded_by_group]
+    else:
+        lines.append("None.")
+    lines += ["", f"## Excluded by `{config.excluded_subjects_path}`", ""]
+    if excluded_by_list:
+        lines.append(f"{len(excluded_by_list)} subject(s) excluded by the hand-curated admission list:")
+        lines += [f"- {subject_id}" for subject_id in excluded_by_list]
     else:
         lines.append("None.")
 
@@ -248,12 +280,14 @@ def _build_readme_lines(
     X: np.ndarray,
     metadata: pd.DataFrame,
     excluded_by_group: list[str],
+    excluded_by_list: list[str],
     excluded_no_lesion_mask: list[str],
     sdc_not_yet_computed: list[str],
     now: datetime,
 ) -> list[str]:
     return [f"# {config.project} sdc matrix — {now.strftime('%d-%m-%y %H:%M')}", ""] + _summary_lines(
-        config, X, metadata, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed
+        config, X, metadata, excluded_by_group, excluded_by_list, excluded_no_lesion_mask,
+        sdc_not_yet_computed,
     )
 
 
@@ -262,12 +296,14 @@ def _build_report(
     X: np.ndarray,
     metadata: pd.DataFrame,
     excluded_by_group: list[str],
+    excluded_by_list: list[str],
     excluded_no_lesion_mask: list[str],
     sdc_not_yet_computed: list[str],
     now: datetime,
 ) -> str:
     lines = [f"# {config.project}_{now.strftime('%d-%m-%y')}", f"## {now.strftime('%H:%M')}", ""] + _summary_lines(
-        config, X, metadata, excluded_by_group, excluded_no_lesion_mask, sdc_not_yet_computed
+        config, X, metadata, excluded_by_group, excluded_by_list, excluded_no_lesion_mask,
+        sdc_not_yet_computed,
     )
     return "\n".join(lines)
 
@@ -277,6 +313,7 @@ def _write_report(
     X: np.ndarray,
     metadata: pd.DataFrame,
     excluded_by_group: list[str],
+    excluded_by_list: list[str],
     excluded_no_lesion_mask: list[str],
     sdc_not_yet_computed: list[str],
     now: datetime,
@@ -284,8 +321,12 @@ def _write_report(
     report_dir = REPORTS_ROOT / config.project
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.md"
-    report_path.write_text(_build_report(config, X, metadata, excluded_by_group, excluded_no_lesion_mask,
-                                          sdc_not_yet_computed, now))
+    report_path.write_text(
+        _build_report(
+            config, X, metadata, excluded_by_group, excluded_by_list, excluded_no_lesion_mask,
+            sdc_not_yet_computed, now,
+        )
+    )
     return report_path
 
 

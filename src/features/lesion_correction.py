@@ -1,8 +1,10 @@
 """Zero lesion voxels falling outside a brain mask.
 
-The "correct" counterpart to build_lesion_matrix.py's max_out_of_brain_fraction
-admission filter (src/features/lesion.py), which only measures/excludes a
-contaminated subject, never modifies voxels. Supersedes scripts/lesion_fix.py
+The "correct" counterpart to excluding a contaminated subject outright
+(assets/metadata/excluded_subjects.csv): it keeps the subject and removes only the
+offending voxels. Used by build_lesion_matrix.py (correct_out_of_brain) before
+counting a matrix row's volume, and by compute_lesion_metadata.py before counting
+volume and laterality on each grid. Supersedes scripts/lesion_fix.py
 (a standalone, never-integrated script with a hardcoded path to another user's
 machine - deleted 29-09-26, see .claude/history/project_changelog.md).
 """

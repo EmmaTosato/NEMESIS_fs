@@ -15,6 +15,7 @@ exploratory reference.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import nibabel as nib
@@ -35,221 +36,163 @@ def build_lesion_matrix(
     binarize_threshold: float,
     resample_interpolation: str,
     group_filter: list[str] | None,
-    min_lesion_volume_voxels: int | None,
-    max_out_of_brain_fraction: float | None,
+    excluded_subjects: frozenset[str],
     correct_out_of_brain: bool,
     brain_mask_path: Path | None,
-) -> tuple[
-    np.ndarray, pd.DataFrame, np.ndarray, list[str], list[tuple[str, int]], list[tuple[str, float]], list[tuple[str, int]]
-]:
+) -> tuple[np.ndarray, pd.DataFrame, np.ndarray, list[str], list[str], list[tuple[str, int]]]:
     """Build X (n_subjects x n_features), row-aligned metadata, and drop-mask.
 
     Returns (X, metadata, non_constant_mask, excluded_by_group,
-    excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects) -
-    see docs/dev/lesion_matrix.md. excluded_by_group is subjects skipped
-    because their naming-derived group isn't in group_filter (None means no
-    restriction). excluded_by_min_volume/excluded_by_out_of_brain are
-    (subject_id, metric_value) pairs for subjects dropped by the two optional
-    exclusion thresholds below - empty list when the corresponding threshold
-    is None (no filtering applied), never conflated with excluded_by_group.
-    corrected_subjects is (subject_id, n_voxels_corrected) pairs for subjects
-    whose lesion mask actually had a voxel zeroed by correct_out_of_brain
-    (empty when that flag is False). metadata always
-    gains lesion_volume_voxels (reflecting correction, when applied), plus
-    out_of_brain_fraction when max_out_of_brain_fraction is not None - no
-    other clinical/derived field is added here, see
-    src/pipeline/enrich_metadata.py, which writes them into the subject
-    registry (assets/metadata/participants.csv), not into this matrix.
+    excluded_by_list, corrected_subjects) - see docs/dev/lesion_matrix.md.
+    excluded_by_group is subjects skipped because their naming-derived group
+    isn't in group_filter (None means no restriction). excluded_by_list is the
+    subjects skipped because they appear in `excluded_subjects`, restricted to
+    the ones actually discovered here - never conflated with
+    excluded_by_group, and never the whole list (most of it belongs to
+    datasets this run didn't touch). corrected_subjects is (subject_id,
+    n_voxels_corrected) pairs for subjects whose lesion mask actually had a
+    voxel zeroed by correct_out_of_brain (empty when that flag is False).
+    metadata gains lesion_volume_voxels (reflecting correction, when applied)
+    and no other clinical/derived field - see src/pipeline/enrich_metadata.py,
+    which writes those into the subject registry
+    (assets/metadata/participants.csv), not into this matrix.
 
-    min_lesion_volume_voxels/max_out_of_brain_fraction are quality filters
-    applied after discovery/group_filter, using metrics computed from this
-    run's own resampled/binarized voxel data (not from the subject registry,
-    which may reflect a different run's grid/binarize_threshold) - None
-    disables the corresponding filter entirely. correct_out_of_brain zeroes
-    out-of-brain lesion voxels instead of excluding the subject - the "fix"
-    counterpart to max_out_of_brain_fraction's "exclude", applied before
-    min_lesion_volume_voxels so that filter sees the corrected volume.
-    Raises ValueError if both correct_out_of_brain and
-    max_out_of_brain_fraction are active (never combined - see
-    _apply_out_of_brain_correction; also enforced at config-load time,
-    src/analysis/build_config.py, but re-checked here since this function is
-    callable directly, lessons_learned.md #2). brain_mask_path is read
-    whenever either max_out_of_brain_fraction or correct_out_of_brain is
-    active (ignored otherwise, same conditional-field convention as
-    SdcMatrixConfig's representation-specific fields,
-    src/analysis/build_config.py).
+    excluded_subjects is the hand-curated admission list
+    (src.utils.participants.load_excluded_subjects), applied right after
+    discovery/group_filter so an excluded subject's mask is never even read.
+    There is deliberately no threshold-based filter here any more: which
+    borderline subject to drop is decided once, by looking at
+    assets/metadata/lesion_metadata.csv, and recorded in that one list which
+    the SDC matrix reads too - so the two matrices cannot disagree about who
+    is in (see .claude/history/methods_changelog.md).
+
+    correct_out_of_brain zeroes out-of-brain lesion voxels, keeping the
+    subject in the matrix with lesion_volume_voxels recomputed from the
+    corrected data; brain_mask_path is read only when it is active (ignored
+    otherwise, same conditional-field convention as SdcMatrixConfig's
+    representation-specific fields, src/analysis/build_config.py).
     """
-    if correct_out_of_brain and max_out_of_brain_fraction is not None:
-        raise ValueError(
-            "correct_out_of_brain and max_out_of_brain_fraction cannot both be set - "
-            "pick one admission strategy (zero the offending voxels, or exclude the subject)"
-        )
-    X_voxelwise, metadata, excluded_by_group, reference_img = _voxelwise_matrix_with_volume(
+    X_voxelwise, metadata, excluded_by_group, excluded_by_list, reference_img = _voxelwise_matrix_with_volume(
         data_root, datasets, reference_template_path, lesion_glob, binarize_threshold,
-        resample_interpolation, group_filter,
+        resample_interpolation, group_filter, excluded_subjects,
     )
     X_voxelwise, metadata, corrected_subjects = _apply_out_of_brain_correction(
         X_voxelwise, metadata, reference_img, correct_out_of_brain, brain_mask_path,
     )
-    X_voxelwise, metadata, excluded_by_min_volume, excluded_by_out_of_brain = _filter_by_lesion_quality(
-        X_voxelwise, metadata, reference_img, min_lesion_volume_voxels, max_out_of_brain_fraction, brain_mask_path,
-    )
     X, non_constant_mask = _drop_constant_features(X_voxelwise)
-    return (
-        X, metadata, non_constant_mask, excluded_by_group,
-        excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects,
-    )
+    return X, metadata, non_constant_mask, excluded_by_group, excluded_by_list, corrected_subjects
 
 
-def compute_lesion_volumes(
+@dataclass(frozen=True)
+class LesionGrid:
+    """One voxel grid the lesion masks are measured on, for compute_lesion_metadata.
+
+    `name` becomes the suffix of every column this grid produces
+    ("2mm" -> lesion_volume_voxels_2mm, out_of_brain_fraction_2mm, ...), so it must be
+    alphanumeric: a name carrying a comma/quote would corrupt the CSV those columns are
+    written to. The vocabulary is deliberately open (not a fixed {"1mm", "2mm"}) - adding a
+    third grid is a config entry, not a code change.
+
+    brain_mask_path is required, not optional: it is what both the out-of-brain fraction and
+    the out-of-brain correction are measured against, and those are the whole point of
+    measuring a mask on a grid at all. It must be on this same grid (resampled with
+    nearest-neighbour if it isn't, see _load_and_binarize_brain_mask).
+    """
+
+    name: str
+    reference_template_path: Path
+    brain_mask_path: Path
+
+
+def compute_lesion_metadata(
     data_root: Path,
     datasets: list[str],
-    reference_template_path: Path,
     lesion_glob: str,
     binarize_threshold: float,
     resample_interpolation: str,
     group_filter: list[str] | None,
-    correct_out_of_brain: bool = False,
-    brain_mask_path: Path | None = None,
+    grids: list[LesionGrid],
+    correct_out_of_brain: bool,
+    side_threshold: float,
 ) -> tuple[pd.DataFrame, list[str]]:
-    """Per-subject lesion_volume_voxels for every subject discovered under
-    data_root/datasets (after group_filter) - the volume-only counterpart of
-    compute_lesion_quality_metrics, for a consumer that doesn't need
-    out_of_brain_fraction (no brain_mask_path needed unless correct_out_of_brain is
-    set, so it skips that load/resample entirely when it isn't). The single
-    computation src.pipeline.enrich_metadata relies on for its own
-    lesion_volume_voxels column - see that module's docstring for why it no
-    longer copies the value from a separately-built build_lesion_matrix.py artifact
-    (a second, independently-drifting definition of the same quantity - found
-    28-09-26, .claude/history/methods_changelog.md).
+    """Every mask-derived per-subject metric, on every grid in `grids`, in one pass.
 
-    correct_out_of_brain/brain_mask_path (default: disabled) apply the same
-    out-of-brain voxel correction build_lesion_matrix() does
-    (_apply_out_of_brain_correction) before counting - so a caller that wants this
-    volume to match a production matrix built with correct_out_of_brain=true gets
-    the corrected count, not a second, uncorrected definition of the same subject's
-    lesion (see enrich_metadata.py's own lesion_metrics.correct_out_of_brain).
+    The single computation src.pipeline.compute_lesion_metadata writes to
+    assets/metadata/lesion_metadata.csv - see that module's docstring for the file's role.
 
-    Returns (metadata, excluded_by_group). metadata has subject_id, dataset,
-    lesion_volume_voxels.
+    Returns (metadata, excluded_by_group). metadata carries subject_id, dataset, and four
+    columns per grid, suffixed with that grid's own name:
+    lesion_volume_voxels_<g>, out_of_brain_fraction_<g>, laterality_index_<g>, lesion_side_<g>.
+
+    Streaming, one subject at a time - deliberately NOT built on _voxelwise_matrix_with_volume
+    like build_lesion_matrix() is. That function stacks every subject's flattened volume in
+    memory before computing anything, which costs ~5.3 GB on the 2mm grid (902_629 voxels x
+    5853 subjects, uint8) and ~42 GB on the 1mm grid - the latter simply not runnable. Here only
+    scalars are kept per subject, so the peak is one mask plus the per-grid masks (tens of MB),
+    independent of cohort size.
+
+    Each mask is read from disk once and resampled once per grid (only where _needs_resample
+    says its own grid differs - the manual masks are natively 1mm, so a 1mm grid resamples
+    nothing, while a 2mm grid is a nearest-neighbour subsample in which a very small lesion can
+    shrink or vanish; comparing the two volumes tells a genuinely empty mask from a lesion lost
+    in the resampling).
+
+    Per grid, in this order: binarize, measure out_of_brain_fraction on the RAW mask, then
+    (when correct_out_of_brain) zero the out-of-brain voxels, then count volume and laterality
+    on the corrected mask. The fraction is deliberately pre-correction: correction drives it to
+    0 by construction, so measuring it afterwards would make the column useless for deciding
+    which subjects to exclude - which is what it exists for. Volume and laterality are
+    deliberately post-correction: a voxel outside the brain is not lesion, so it must not be
+    counted, nor bias the left/right split.
     """
-    X_voxelwise, metadata, excluded_by_group, reference_img = _voxelwise_matrix_with_volume(
-        data_root, datasets, reference_template_path, lesion_glob, binarize_threshold,
-        resample_interpolation, group_filter,
-    )
-    _, metadata, _ = _apply_out_of_brain_correction(
-        X_voxelwise, metadata, reference_img, correct_out_of_brain, brain_mask_path,
-    )
+    validate_lesion_grids(grids)
+    contexts = [_grid_context(grid) for grid in grids]
+    lesion_files, excluded_by_group = _discover_lesion_files(data_root, datasets, lesion_glob, group_filter)
+
+    rows: list[dict[str, object]] = []
+    for dataset in datasets:
+        for subject_id, path in sorted(lesion_files[dataset].items()):
+            # One disk read per subject: nibabel caches the data array on first access, so the
+            # per-grid resampling below reuses it instead of re-reading the file per grid.
+            img = nib.load(path)
+            row: dict[str, object] = {"subject_id": subject_id, "dataset": dataset}
+            for context in contexts:
+                row.update(
+                    _metrics_on_grid(
+                        img, context, resample_interpolation, binarize_threshold,
+                        correct_out_of_brain, side_threshold,
+                    )
+                )
+            rows.append(row)
+
+    metadata = pd.DataFrame(rows, columns=_metadata_columns(grids))
+    if metadata.empty:
+        raise ValueError(
+            f"no subjects discovered under {data_root} for datasets={datasets} "
+            f"(group_filter={group_filter!r}) - nothing to compute"
+        )
+    _check_some_mask_is_non_empty(metadata, grids, binarize_threshold, correct_out_of_brain)
     return metadata, excluded_by_group
-
-
-def compute_lesion_quality_metrics(
-    data_root: Path,
-    datasets: list[str],
-    reference_template_path: Path,
-    lesion_glob: str,
-    binarize_threshold: float,
-    resample_interpolation: str,
-    group_filter: list[str] | None,
-    brain_mask_path: Path,
-) -> tuple[pd.DataFrame, list[str]]:
-    """Per-subject out_of_brain_fraction for every subject discovered under
-    data_root/datasets (after group_filter) - no admission threshold applied here,
-    unlike build_lesion_matrix()'s _filter_by_lesion_quality. Meant for inspecting
-    the full distribution before picking max_out_of_brain_fraction, or for caching
-    this metric (expensive: one nibabel load + resample per subject) into a CSV for
-    reuse - see src/pipeline/check_lesion_quality.py.
-
-    Returns (metadata, excluded_by_group). metadata does NOT carry
-    lesion_volume_voxels (computed internally as a byproduct of discovery, but
-    dropped before returning) - assets/metadata/participants.csv (written by
-    src.pipeline.enrich_metadata, via compute_lesion_volumes) is the one place to
-    get that value, never a second copy here (found 28-09-26: the two had drifted
-    by up to 38x for some subjects, see .claude/history/methods_changelog.md).
-    """
-    X_voxelwise, metadata, excluded_by_group, reference_img = _voxelwise_matrix_with_volume(
-        data_root, datasets, reference_template_path, lesion_glob, binarize_threshold,
-        resample_interpolation, group_filter,
-    )
-    brain_mask = _load_and_binarize_brain_mask(brain_mask_path, reference_img)
-    metadata = metadata.drop(columns=["lesion_volume_voxels"]).copy()
-    metadata["out_of_brain_fraction"] = _out_of_brain_fractions(X_voxelwise, brain_mask)
-    return metadata, excluded_by_group
-
-
-def compute_lesion_laterality_metrics(
-    data_root: Path,
-    datasets: list[str],
-    reference_template_path: Path,
-    lesion_glob: str,
-    binarize_threshold: float,
-    resample_interpolation: str,
-    group_filter: list[str] | None,
-    correct_out_of_brain: bool = False,
-    brain_mask_path: Path | None = None,
-) -> tuple[pd.DataFrame, list[str]]:
-    """Per-subject hemisphere voxel counts and laterality index for every subject
-    discovered under data_root/datasets (after group_filter) - no side classification
-    (left/right/both) applied here, only the raw counts/index a bilaterality
-    threshold is calibrated and applied against downstream (see
-    scripts/calibrate_lesion_side_threshold.py).
-
-    laterality_index = (left_voxels - right_voxels) / (left_voxels + right_voxels)
-    - the standard formula from the lesion/fMRI laterality-index literature
-    (e.g. Wilke & Lidzba's LI-toolbox convention, applied to stroke lesion masks
-    in Rorden's Gigascience LI protocol): positive means left-dominant, negative
-    right-dominant, magnitude near 0 means bilateral. NaN when both counts are 0
-    (a lesion confined entirely to the single midline voxel plane, or - not
-    expected for a real ST subject, but not excluded here either - literally no
-    lesion) - a legitimate, explicit domain case, not an error.
-
-    correct_out_of_brain/brain_mask_path (default: disabled): same out-of-brain
-    voxel correction as compute_lesion_volumes/build_lesion_matrix() - a stray
-    out-of-brain voxel counted toward left_voxels/right_voxels could otherwise bias
-    laterality_index for no anatomical reason.
-
-    Returns (metadata, excluded_by_group). metadata carries subject_id, dataset,
-    lesion_volume_voxels, left_voxels, right_voxels, laterality_index.
-    """
-    X_voxelwise, metadata, excluded_by_group, reference_img = _voxelwise_matrix_with_volume(
-        data_root, datasets, reference_template_path, lesion_glob, binarize_threshold,
-        resample_interpolation, group_filter,
-    )
-    X_voxelwise, metadata, _ = _apply_out_of_brain_correction(
-        X_voxelwise, metadata, reference_img, correct_out_of_brain, brain_mask_path,
-    )
-    left_mask, right_mask = _hemisphere_masks(reference_img)
-    X_bool = X_voxelwise.astype(bool)
-    metadata = metadata.copy()
-    metadata["left_voxels"] = (X_bool & left_mask).sum(axis=1, dtype=np.int64)
-    metadata["right_voxels"] = (X_bool & right_mask).sum(axis=1, dtype=np.int64)
-    total = (metadata["left_voxels"] + metadata["right_voxels"]).to_numpy()
-    difference = (metadata["left_voxels"] - metadata["right_voxels"]).to_numpy()
-    metadata["laterality_index"] = np.where(total > 0, difference / np.where(total > 0, total, 1), np.nan)
-    return metadata, excluded_by_group
-
-
-KNOWN_LESION_SIDES = ("left", "right", "both")
 
 
 def lesion_side_from_laterality_index(laterality_index: float, threshold: float) -> str:
     """left/right/both from a laterality_index and a bilaterality threshold -
     calibrated against clinical lesion_side labels in
-    scripts/calibrate_lesion_side_threshold.py (28-09-26: threshold=0.20, the
-    literature default, reproduces 97.4% of 1445 clinically-labelled subjects -
-    see that script's own report and .claude/history/methods_changelog.md).
+    src/pipeline/calibrate_lesion_side_threshold.py (28-09-26: threshold=0.20, the
+    literature default, reproduces 97.4% of 1445 clinically-labelled subjects on the
+    2mm grid - see that script's own report and .claude/history/methods_changelog.md).
 
-    Shared by the calibration script and src.pipeline.enrich_metadata's own
-    geometric fallback - one definition, not two independently-drifting copies.
+    Shared by the calibration script and compute_lesion_metadata's per-grid side
+    attribution - one definition, not two independently-drifting copies.
 
     Raises ValueError for a NaN laterality_index - a subject with no computable
-    laterality_index (see compute_lesion_laterality_metrics) must be filtered out
-    by the caller before reaching this function, never silently classified.
+    laterality_index (see _laterality_index) must be filtered out by the caller
+    before reaching this function, never silently classified.
     """
     if np.isnan(laterality_index):
         raise ValueError(
             "lesion_side_from_laterality_index() called with a NaN laterality_index - "
-            "filter these out before classifying (see compute_lesion_laterality_metrics)"
+            "filter these out before classifying (see _laterality_index)"
         )
     if abs(laterality_index) < threshold:
         return "both"
@@ -309,13 +252,26 @@ def _voxelwise_matrix_with_volume(
     binarize_threshold: float,
     resample_interpolation: str,
     group_filter: list[str] | None,
-) -> tuple[np.ndarray, pd.DataFrame, list[str], nib.Nifti1Image]:
+    excluded_subjects: frozenset[str],
+) -> tuple[np.ndarray, pd.DataFrame, list[str], list[str], nib.Nifti1Image]:
     """Discovery + binarization + lesion_volume_voxels - everything
-    build_lesion_matrix() needs before the lesion-quality filters and
+    build_lesion_matrix() needs before the out-of-brain correction and
     dropping constant features. Also returns reference_img (the loaded,
-    not-yet-resampled reference grid) - _filter_by_lesion_quality needs it to
-    resample brain_mask_path onto the same grid as X_voxelwise's columns."""
+    not-yet-resampled reference grid) - _apply_out_of_brain_correction needs it
+    to resample brain_mask_path onto the same grid as X_voxelwise's columns.
+
+    excluded_subjects is dropped after discovery but BEFORE any mask is read
+    (_stack_voxel_matrix below), so an excluded subject costs nothing. The
+    drop happens after _discover_lesion_files' own mask-count consistency
+    check, which must still see the complete set: a subject deliberately kept
+    out of a matrix is not a subject whose mask is missing from disk."""
     lesion_files, excluded_by_group = _discover_lesion_files(data_root, datasets, lesion_glob, group_filter)
+    lesion_files, excluded_by_list = _drop_excluded_subjects(lesion_files, excluded_subjects)
+    if not lesion_files or not any(lesion_files.values()):
+        raise ValueError(
+            f"no subjects left to build a matrix from: every discovered subject was excluded "
+            f"(group_filter={group_filter!r}, {len(excluded_by_list)} on the excluded-subjects list)"
+        )
     reference_img = load_reference_image(reference_template_path)
     X_voxelwise, metadata = _stack_voxel_matrix(
         lesion_files, reference_img, resample_interpolation, binarize_threshold
@@ -340,7 +296,23 @@ def _voxelwise_matrix_with_volume(
             "resampled lesion values are typically in [0, 1], so a threshold of 1.0 (or higher) means the "
             "'>' comparison never passes for any subject; check binarize_threshold in the config"
         )
-    return X_voxelwise, metadata, excluded_by_group, reference_img
+    return X_voxelwise, metadata, excluded_by_group, excluded_by_list, reference_img
+
+
+def _drop_excluded_subjects(
+    lesion_files: dict[str, dict[str, Path]], excluded_subjects: frozenset[str]
+) -> tuple[dict[str, dict[str, Path]], list[str]]:
+    """Remove the hand-curated exclusions from the discovered masks.
+
+    Returns (kept, dropped) - `dropped` is only the subjects actually present here, not the
+    whole list: the list covers every dataset, while a run usually scopes a few, so reporting
+    the whole list as "excluded by this run" would misstate what this matrix contains."""
+    kept: dict[str, dict[str, Path]] = {}
+    dropped: list[str] = []
+    for dataset, by_subject in lesion_files.items():
+        kept[dataset] = {s: path for s, path in by_subject.items() if s not in excluded_subjects}
+        dropped.extend(s for s in by_subject if s in excluded_subjects)
+    return kept, sorted(dropped)
 
 
 def _apply_out_of_brain_correction(
@@ -354,11 +326,6 @@ def _apply_out_of_brain_correction(
     when correct_out_of_brain is True, recomputing lesion_volume_voxels for the corrected
     data - a no-op (metadata/lesion_volume_voxels untouched, empty corrected_subjects)
     when correct_out_of_brain is False.
-
-    Runs before _filter_by_lesion_quality so min_lesion_volume_voxels (if set) sees the
-    corrected volume, not the pre-correction one - the two are never in tension since
-    correct_out_of_brain and max_out_of_brain_fraction are mutually exclusive (checked in
-    build_lesion_matrix).
 
     corrected_subjects is (subject_id, n_voxels_corrected) pairs, not subject_id alone -
     "who was corrected" without "how many voxels" isn't enough to judge whether a
@@ -383,77 +350,6 @@ def _apply_out_of_brain_correction(
     return X_corrected, metadata, corrected_subjects
 
 
-def _filter_by_lesion_quality(
-    X_voxelwise: np.ndarray,
-    metadata: pd.DataFrame,
-    reference_img: nib.Nifti1Image,
-    min_lesion_volume_voxels: int | None,
-    max_out_of_brain_fraction: float | None,
-    brain_mask_path: Path | None,
-) -> tuple[np.ndarray, pd.DataFrame, list[tuple[str, int]], list[tuple[str, float]]]:
-    """Drop subjects failing either optional lesion-quality threshold.
-
-    Runs on the full pre-constant-drop voxel grid - out_of_brain_fraction
-    needs X_voxelwise's columns at their real spatial positions, which
-    _drop_constant_features would otherwise already have removed/reindexed.
-
-    Both thresholds are admission boundaries (a subject is kept iff
-    lesion_volume_voxels >= min_lesion_volume_voxels and
-    out_of_brain_fraction <= max_out_of_brain_fraction) - None disables the
-    respective check entirely, not just relaxes it to a permissive default.
-    Raises ValueError if every subject is filtered out (an empty matrix would
-    otherwise proceed silently into _drop_constant_features/save_matrix).
-
-    excluded_by_min_volume/excluded_by_out_of_brain carry each excluded
-    subject's own metric value alongside its id ((subject_id,
-    lesion_volume_voxels) / (subject_id, out_of_brain_fraction)) - the
-    subject_id alone doesn't say whether it missed the threshold by one voxel
-    or was nowhere close, and that value is otherwise unrecoverable from the
-    resulting matrix (see docs/dev/lesion_matrix.md).
-    """
-    metadata = metadata.reset_index(drop=True)
-    keep = np.ones(len(metadata), dtype=bool)
-    excluded_by_min_volume: list[tuple[str, int]] = []
-    excluded_by_out_of_brain: list[tuple[str, float]] = []
-
-    if min_lesion_volume_voxels is not None:
-        volumes = metadata["lesion_volume_voxels"].to_numpy()
-        too_small = volumes < min_lesion_volume_voxels
-        excluded_by_min_volume = sorted(
-            zip(metadata.loc[too_small, "subject_id"], volumes[too_small].astype(int).tolist())
-        )
-        keep &= ~too_small
-
-    if max_out_of_brain_fraction is not None:
-        if brain_mask_path is None:
-            raise ValueError(
-                "max_out_of_brain_fraction is set but brain_mask_path is None - "
-                "cannot compute out_of_brain_fraction without a brain mask"
-            )
-        brain_mask = _load_and_binarize_brain_mask(brain_mask_path, reference_img)
-        fractions = _out_of_brain_fractions(X_voxelwise, brain_mask)
-        metadata = metadata.copy()
-        metadata["out_of_brain_fraction"] = fractions
-        too_contaminated = fractions > max_out_of_brain_fraction
-        excluded_by_out_of_brain = sorted(
-            zip(metadata.loc[too_contaminated, "subject_id"], fractions[too_contaminated].tolist())
-        )
-        keep &= ~too_contaminated
-
-    X_voxelwise = X_voxelwise[keep]
-    metadata = metadata.loc[keep].reset_index(drop=True)
-
-    if len(metadata) == 0:
-        raise ValueError(
-            "no subjects remain after applying lesion-quality filters "
-            f"(min_lesion_volume_voxels={min_lesion_volume_voxels!r}, "
-            f"max_out_of_brain_fraction={max_out_of_brain_fraction!r}) - relax the threshold(s), "
-            "or check that they aren't misconfigured"
-        )
-
-    return X_voxelwise, metadata, excluded_by_min_volume, excluded_by_out_of_brain
-
-
 def _load_and_binarize_brain_mask(brain_mask_path: Path, reference_img: nib.Nifti1Image) -> np.ndarray:
     """Boolean brain-mask array on reference_img's grid, flattened.
 
@@ -471,21 +367,159 @@ def _load_and_binarize_brain_mask(brain_mask_path: Path, reference_img: nib.Nift
     return (img.get_fdata() > 0.5).ravel()
 
 
-def _out_of_brain_fractions(X_voxelwise: np.ndarray, brain_mask: np.ndarray) -> np.ndarray:
-    """Fraction of each subject's lesion voxels falling outside brain_mask.
+# The four metrics compute_lesion_metadata produces per grid. Each one's column name is this
+# prefix plus that grid's own name - one place, so the writer, the column order and the
+# emptiness check below can never disagree about what a grid contributes.
+_GRID_METRIC_PREFIXES = ("lesion_volume_voxels", "out_of_brain_fraction", "laterality_index", "lesion_side")
 
-    0.0 for a subject with zero lesion voxels (a legitimate per-subject case,
-    see _voxelwise_matrix_with_volume) - vacuously true, since no lesion
-    voxels means none are outside the brain either; never NaN, so the result
-    is always safe to compare against max_out_of_brain_fraction.
+
+def validate_lesion_grids(grids: list[LesionGrid]) -> None:
+    """At least one grid, alphanumeric names, no duplicates.
+
+    Public because src.analysis.build_config calls it at config-load time, so a bad grid name
+    is rejected before any mask is opened - one definition of what makes a grid name usable,
+    living next to the code that turns it into a column suffix.
+
+    Duplicate names are rejected rather than silently collapsed: two grids sharing a name
+    would write the same four columns twice, the second overwriting the first, so a
+    copy-pasted config entry would look like it had been honoured (lessons_learned.md #5).
     """
-    outside_brain = ~brain_mask
-    lesion_voxel_counts = X_voxelwise.sum(axis=1)
-    outside_counts = (X_voxelwise.astype(bool) & outside_brain).sum(axis=1)
-    fractions = np.zeros(X_voxelwise.shape[0], dtype=np.float64)
-    has_lesion = lesion_voxel_counts > 0
-    fractions[has_lesion] = outside_counts[has_lesion] / lesion_voxel_counts[has_lesion]
-    return fractions
+    if not grids:
+        raise ValueError("grids is empty - compute_lesion_metadata needs at least one voxel grid")
+    non_alphanumeric = sorted({grid.name for grid in grids if not grid.name.isalnum()})
+    if non_alphanumeric:
+        raise ValueError(
+            f"grid name(s) {non_alphanumeric} are not alphanumeric - a grid name becomes a CSV "
+            "column suffix, so it cannot carry a separator or quote"
+        )
+    names = [grid.name for grid in grids]
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    if duplicates:
+        raise ValueError(f"duplicate grid name(s): {duplicates} - each grid writes its own columns")
+
+
+@dataclass(frozen=True, eq=False)
+class _GridContext:
+    """Everything derived once per grid and reused for every subject: the grid itself, its
+    brain mask and its two hemisphere masks. Computed once because each is a full-volume array
+    (tens of MB at 1mm) whose derivation does not depend on any subject.
+
+    eq=False: the fields are numpy arrays, whose element-wise __eq__ would make a generated
+    __eq__/__hash__ either raise or return an array instead of a bool.
+    """
+
+    name: str
+    reference_img: nib.Nifti1Image
+    brain_mask: np.ndarray
+    left_mask: np.ndarray
+    right_mask: np.ndarray
+
+
+def _grid_context(grid: LesionGrid) -> _GridContext:
+    reference_img = load_reference_image(grid.reference_template_path)
+    left_mask, right_mask = _hemisphere_masks(reference_img)
+    return _GridContext(
+        name=grid.name,
+        reference_img=reference_img,
+        brain_mask=_load_and_binarize_brain_mask(grid.brain_mask_path, reference_img),
+        left_mask=left_mask,
+        right_mask=right_mask,
+    )
+
+
+def _metrics_on_grid(
+    img: nib.Nifti1Image,
+    context: _GridContext,
+    resample_interpolation: str,
+    binarize_threshold: float,
+    correct_out_of_brain: bool,
+    side_threshold: float,
+) -> dict[str, object]:
+    """One subject's four metrics on one grid - see compute_lesion_metadata for why the
+    fraction is measured before the correction and the counts after it.
+
+    lesion_side is NaN (an empty cell, the same missing-value convention as every other
+    metadata column) exactly when laterality_index is: zero lesion voxels on both sides of the
+    midline, so there is no side to attribute. lesion_side_from_laterality_index is never
+    called with that NaN - it raises by design rather than classify it.
+    """
+    lesion = _binarize_on_grid(img, context.reference_img, resample_interpolation, binarize_threshold)
+    fraction = _out_of_brain_fraction(lesion, context.brain_mask)
+    if correct_out_of_brain:
+        corrected, _ = zero_out_of_brain_voxels(lesion[None, :], context.brain_mask)
+        lesion = corrected[0]
+    left_voxels = int((lesion & context.left_mask).sum())
+    right_voxels = int((lesion & context.right_mask).sum())
+    index = _laterality_index(left_voxels, right_voxels)
+    return {
+        f"lesion_volume_voxels_{context.name}": int(lesion.sum()),
+        f"out_of_brain_fraction_{context.name}": fraction,
+        f"laterality_index_{context.name}": index,
+        f"lesion_side_{context.name}": (
+            np.nan if np.isnan(index) else lesion_side_from_laterality_index(index, side_threshold)
+        ),
+    }
+
+
+def _metadata_columns(grids: list[LesionGrid]) -> list[str]:
+    """The explicit column order, grids in declaration order - also what fixes the columns of
+    an empty frame, which a plain DataFrame(rows) could not know."""
+    columns = ["subject_id", "dataset"]
+    for grid in grids:
+        columns += [f"{prefix}_{grid.name}" for prefix in _GRID_METRIC_PREFIXES]
+    return columns
+
+
+def _check_some_mask_is_non_empty(
+    metadata: pd.DataFrame, grids: list[LesionGrid], binarize_threshold: float, correct_out_of_brain: bool
+) -> None:
+    """Raise if EVERY subject's volume is 0 on some grid - the same aggregate safety net
+    _voxelwise_matrix_with_volume applies, per grid. A single subject with 0 voxels is a
+    legitimate per-subject case (lessons_learned.md #6); a whole cohort at 0 is not, for any
+    real stroke cohort, and points at a misconfigured threshold or a mask on the wrong grid.
+    """
+    for grid in grids:
+        column = f"lesion_volume_voxels_{grid.name}"
+        if not (metadata[column] == 0).all():
+            continue
+        causes = [
+            f"binarize_threshold={binarize_threshold!r} (resampled lesion values are typically in "
+            "[0, 1], so 1.0 or higher means the '>' comparison never passes for anyone)"
+        ]
+        if correct_out_of_brain:
+            causes.append(
+                f"brain_mask_path={grid.brain_mask_path} not covering this grid's brain (correction "
+                "would then zero every lesion voxel)"
+            )
+        raise ValueError(
+            f"every subject's lesion mask is empty on grid {grid.name!r} - check " + "; or ".join(causes)
+        )
+
+
+def _laterality_index(left_voxels: int, right_voxels: int) -> float:
+    """(left - right) / (left + right) - the standard laterality-index convention from the
+    lesion/fMRI literature (Wilke & Lidzba's LI-toolbox; Rorden's Gigascience LI protocol applied
+    to stroke lesion masks): positive means left-dominant, negative right-dominant, magnitude near
+    0 means bilateral. NaN when both counts are 0 (a lesion confined to the single midline voxel
+    plane, or an empty mask): a legitimate, explicit domain case the caller must handle, not an
+    error."""
+    total = left_voxels + right_voxels
+    if total == 0:
+        return float("nan")
+    return (left_voxels - right_voxels) / total
+
+
+def _out_of_brain_fraction(lesion: np.ndarray, brain_mask: np.ndarray) -> float:
+    """Fraction of ONE subject's lesion voxels falling outside brain_mask.
+
+    NaN for an empty mask, deliberately: "none of its voxels are outside the brain" is a
+    different fact from "it has no voxels", and reporting 0.0 would put an empty mask among the
+    cleanest subjects in the very distribution used to pick an exclusion threshold.
+    """
+    lesion_voxels = int(lesion.sum())
+    if lesion_voxels == 0:
+        return float("nan")
+    return int((lesion & ~brain_mask).sum()) / lesion_voxels
 
 
 # Tolerance for the affine comparison below - looser than float equality (nibabel
@@ -574,17 +608,35 @@ def load_reference_image(reference_template_path: Path) -> nib.Nifti1Image:
     return nib.load(reference_template_path)
 
 
-def _load_and_binarize_lesion(
-    path: Path, reference_img: nib.Nifti1Image, resample_interpolation: str, binarize_threshold: float
+def _binarize_on_grid(
+    img: nib.Nifti1Image, reference_img: nib.Nifti1Image, resample_interpolation: str, binarize_threshold: float
 ) -> np.ndarray:
-    img = nib.load(path)
+    """One already-loaded mask, resampled onto reference_img's grid if it isn't already on it
+    (_needs_resample) and binarized, raveled in the same C order as _hemisphere_masks and
+    _load_and_binarize_brain_mask - boolean, so it combines with those directly.
+
+    Takes a loaded image rather than a path because compute_lesion_metadata measures the same
+    mask on several grids and must not re-read it once per grid.
+
+    The re-binarization is not redundant with the source mask already being binary:
+    interpolation/registration leave near-1/near-0 values that have to be thresholded again.
+    """
     if _needs_resample(img, reference_img):
         img = resample_to_img(
             img, reference_img, interpolation=resample_interpolation, force_resample=True, copy_header=True
         )
-    # re-binarize: interpolation/registration can leave near-1/near-0 values
-    data = img.get_fdata() > binarize_threshold
-    return data.ravel().astype(np.uint8)
+    return (img.get_fdata() > binarize_threshold).ravel()
+
+
+def _load_and_binarize_lesion(
+    path: Path, reference_img: nib.Nifti1Image, resample_interpolation: str, binarize_threshold: float
+) -> np.ndarray:
+    """uint8 (not bool) for stacking into a voxel matrix - see _stack_voxel_matrix. The
+    binarization itself is _binarize_on_grid's, shared with compute_lesion_metadata rather
+    than written twice."""
+    return _binarize_on_grid(nib.load(path), reference_img, resample_interpolation, binarize_threshold).astype(
+        np.uint8
+    )
 
 
 def _stack_voxel_matrix(

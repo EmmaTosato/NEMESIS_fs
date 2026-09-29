@@ -1,4 +1,5 @@
-"""Parsing/validation of build_lesion_matrix.json (and future build_*_matrix.json configs).
+"""Parsing/validation of the pipeline configs that read subject imaging off disk
+(build_lesion_matrix.json, build_*_matrix.json, compute_lesion_metadata.json).
 
 Same style as src/retrieval/config.py: hand-written _require_*/_optional_*
 helpers, every field validated upfront so a bad config is rejected before any
@@ -13,6 +14,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from src.features.lesion import LesionGrid, validate_lesion_grids
 from src.features.sdc import KNOWN_OBJECTS, KNOWN_REPRESENTATIONS, KNOWN_VALUE_COLUMNS
 from src.retrieval.config import KNOWN_GROUPS
 
@@ -29,8 +31,7 @@ class BuildMatrixConfig:
     lesion_glob: str
     binarize_threshold: float
     resample_interpolation: str
-    min_lesion_volume_voxels: int | None
-    max_out_of_brain_fraction: float | None
+    excluded_subjects_path: Path
     correct_out_of_brain: bool
     brain_mask_path: Path | None
     output_root: Path
@@ -60,34 +61,17 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
     resample_interpolation = _validate_resample_interpolation(_require_str(raw, "resample_interpolation"))
     binarize_threshold = _require_float_in_range(raw, "binarize_threshold", 0.0, 1.0)
 
-    # Lesion-quality filters (added for subject-admission thresholds): each independently
-    # optional (None = filter disabled). brain_mask_path is always read if present - unlike
-    # SdcMatrixConfig's representation-specific fields (truly unused outside their own
-    # branch), brain_mask_path is also read by src/pipeline/check_lesion_quality.py regardless
-    # of whether build_lesion_matrix.py's own max_out_of_brain_fraction filter is active
-    # (that script is exactly how a real max_out_of_brain_fraction value gets picked in the
-    # first place - forcing it to None here would make the field unreachable until after
-    # the threshold decision it's meant to inform). Only required, not just read, when
-    # max_out_of_brain_fraction is set.
-    min_lesion_volume_voxels = _optional_non_negative_int(raw, "min_lesion_volume_voxels")
-    max_out_of_brain_fraction = _optional_float_in_range(raw, "max_out_of_brain_fraction", 0.0, 1.0)
-    # correct_out_of_brain (added 29-09-26): zeroes out-of-brain lesion voxels instead of
-    # excluding the subject - the "fix" counterpart to max_out_of_brain_fraction's "exclude".
-    # Deliberately mutually exclusive with it (never both active): combining them would leave
-    # max_out_of_brain_fraction checking a fraction that correction has already driven to ~0,
-    # making the threshold silently vacuous - see docs/dev/lesion_matrix.md.
+    # correct_out_of_brain zeroes a subject's out-of-brain lesion voxels and keeps the subject.
+    # It is the only use of brain_mask_path here, so that field is required exactly when it is
+    # active. There is no threshold-based admission filter in this config any more: which
+    # borderline subject to drop is decided from assets/metadata/lesion_metadata.csv and
+    # recorded in excluded_subjects_path, read by the SDC matrix too - see
+    # docs/dev/lesion_matrix.md and .claude/history/methods_changelog.md.
     correct_out_of_brain = _optional_bool(raw, "correct_out_of_brain")
     brain_mask_path_raw = _optional_str(raw, "brain_mask_path")
     brain_mask_path = Path(brain_mask_path_raw) if brain_mask_path_raw is not None else None
-    if max_out_of_brain_fraction is not None and brain_mask_path is None:
-        raise ValueError("config: max_out_of_brain_fraction is set but brain_mask_path is missing")
     if correct_out_of_brain and brain_mask_path is None:
         raise ValueError("config: correct_out_of_brain is set but brain_mask_path is missing")
-    if correct_out_of_brain and max_out_of_brain_fraction is not None:
-        raise ValueError(
-            "config: correct_out_of_brain and max_out_of_brain_fraction cannot both be set - "
-            "pick one admission strategy (zero the offending voxels, or exclude the subject)"
-        )
 
     return BuildMatrixConfig(
         project=_require_str(raw, "project"),
@@ -98,8 +82,7 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
         lesion_glob=_require_str(raw, "lesion_glob"),
         binarize_threshold=binarize_threshold,
         resample_interpolation=resample_interpolation,
-        min_lesion_volume_voxels=min_lesion_volume_voxels,
-        max_out_of_brain_fraction=max_out_of_brain_fraction,
+        excluded_subjects_path=Path(_require_str(raw, "excluded_subjects_path")),
         correct_out_of_brain=correct_out_of_brain,
         brain_mask_path=brain_mask_path,
         output_root=Path(_require_str(raw, "output_root")),
@@ -157,29 +140,6 @@ def _require_float_in_range(raw: dict, key: str, lo: float, hi: float) -> float:
     value = float(value)
     if not (lo <= value <= hi):
         raise ValueError(f"config: field {key!r} must be between {lo} and {hi}, got {value}")
-    return value
-
-
-def _optional_float_in_range(raw: dict, key: str, lo: float, hi: float) -> float | None:
-    if key not in raw or raw[key] is None:
-        return None
-    value = raw[key]
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ValueError(f"config: field {key!r} must be a number when set, got {value!r}")
-    value = float(value)
-    if not (lo <= value <= hi):
-        raise ValueError(f"config: field {key!r} must be between {lo} and {hi}, got {value}")
-    return value
-
-
-def _optional_non_negative_int(raw: dict, key: str) -> int | None:
-    if key not in raw or raw[key] is None:
-        return None
-    value = raw[key]
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise ValueError(f"config: field {key!r} must be an integer when set, got {value!r}")
-    if value < 0:
-        raise ValueError(f"config: field {key!r} must be >= 0, got {value}")
     return value
 
 
@@ -313,6 +273,7 @@ class SdcMatrixConfig:
     data_root: Path
     datasets: list[str]
     group_filter: list[str] | None
+    excluded_subjects_path: Path
     object: str
     representation: str
     # parcellated-only (None when representation="voxelwise")
@@ -402,6 +363,7 @@ def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
         data_root=Path(_require_str(raw, "data_root")),
         datasets=_require_unique_str_list(raw, "datasets"),
         group_filter=_optional_group_filter(raw),
+        excluded_subjects_path=Path(_require_str(raw, "excluded_subjects_path")),
         object=object_,
         representation=representation,
         atlas=atlas,
@@ -414,3 +376,116 @@ def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
         overwrite=_require_bool(raw, "overwrite"),
         run_notes=_optional_str(raw, "run_notes"),
     )
+
+
+@dataclass(frozen=True)
+class LesionMetadataConfig:
+    """Config for src/pipeline/compute_lesion_metadata.py.
+
+    Shares its mask-handling fields with BuildMatrixConfig (data_root/datasets/group_filter/
+    lesion_glob/binarize_threshold/resample_interpolation) because it reads the same masks the
+    same way - but deliberately as its own file, not by reading build_lesion_matrix.json: the
+    metrics registry describes every subject with a mask, while a matrix run describes one
+    chosen cohort, and coupling the two is what previously made "the volume" ambiguous
+    (.claude/history/project_changelog.md, 29-09-26).
+
+    `grids` replaces BuildMatrixConfig's single reference_template_path/brain_mask_path pair:
+    every metric is computed once per grid, and each grid's name becomes the suffix of the four
+    columns it produces (see src.features.lesion.compute_lesion_metadata).
+    """
+
+    project: str
+    data_root: Path
+    datasets: list[str]
+    group_filter: list[str] | None
+    lesion_glob: str
+    binarize_threshold: float
+    resample_interpolation: str
+    grids: list[LesionGrid]
+    correct_out_of_brain: bool
+    side_threshold: float
+    output_path: Path
+    overwrite: bool
+    run_notes: str | None
+
+
+def load_compute_lesion_metadata_config(path: str | Path) -> LesionMetadataConfig:
+    """Load and validate a compute_lesion_metadata.json file.
+
+    `grids` is an object of {name: {reference_template_path, brain_mask_path}}, both required
+    for every grid - unlike build_lesion_matrix.json, where brain_mask_path is optional because
+    the correction it feeds is optional. Here there is no run without it: the out-of-brain
+    fraction and the correction are the reason a grid exists.
+
+    Grid names are validated by src.features.lesion.validate_lesion_grids (non-empty, alphanumeric,
+    unique) rather than re-checked here - one definition of what makes a grid name usable,
+    living next to the code that turns it into a column suffix.
+
+    `side_threshold` is range-checked here but its *calibration* is a separate concern
+    (src/pipeline/calibrate_lesion_side_threshold.py): 0.20 reproduces 97.4% of 1445
+    clinically-labelled subjects on the 2mm grid, and that calibration does not automatically
+    transfer to a finer grid - see knowledge/neuroimaging/lesion_laterality.md.
+    """
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"config file not found: {path}")
+
+    with path.open() as f:
+        raw = json.load(f)
+    if not isinstance(raw, dict):
+        raise ValueError(f"config: top-level content must be a JSON object, got {raw!r}")
+
+    grids = _require_lesion_grids(raw)
+    # Validated here, at config-load time, rather than only inside compute_lesion_metadata:
+    # a duplicate/unusable grid name must be rejected before any mask is opened.
+    validate_lesion_grids(grids)
+
+    return LesionMetadataConfig(
+        project=_require_str(raw, "project"),
+        data_root=Path(_require_str(raw, "data_root")),
+        datasets=_require_unique_str_list(raw, "datasets"),
+        group_filter=_optional_group_filter(raw),
+        lesion_glob=_require_str(raw, "lesion_glob"),
+        binarize_threshold=_require_float_in_range(raw, "binarize_threshold", 0.0, 1.0),
+        resample_interpolation=_validate_resample_interpolation(_require_str(raw, "resample_interpolation")),
+        grids=grids,
+        correct_out_of_brain=_require_bool(raw, "correct_out_of_brain"),
+        # Upper bound exclusive: a threshold of 1.0 would classify every subject "both",
+        # including a strictly unilateral lesion (|index| == 1.0 is not < 1.0 - but nothing
+        # can exceed it either, so no subject could ever be left/right).
+        side_threshold=_require_float_in_range(raw, "side_threshold", 0.0, 1.0),
+        output_path=Path(_require_str(raw, "output_path")),
+        overwrite=_require_bool(raw, "overwrite"),
+        run_notes=_optional_str(raw, "run_notes"),
+    )
+
+
+def _require_lesion_grids(raw: dict) -> list[LesionGrid]:
+    """Parse 'grids': {name: {reference_template_path, brain_mask_path}}, preserving the file's
+    own key order (that order is the column order of the resulting CSV)."""
+    if "grids" not in raw:
+        raise ValueError("config: missing required field 'grids'")
+    value = raw["grids"]
+    if not isinstance(value, dict) or not value:
+        raise ValueError(f"config: field 'grids' must be a non-empty object, got {value!r}")
+
+    grids: list[LesionGrid] = []
+    for name, entry in value.items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"config: field 'grids.{name}' must be an object, got {entry!r}")
+        for field in ("reference_template_path", "brain_mask_path"):
+            if field not in entry:
+                raise ValueError(
+                    f"config: field 'grids.{name}' is missing {field!r} - both are required for every "
+                    "grid (the out-of-brain fraction and the correction are why a grid is measured)"
+                )
+            if not isinstance(entry[field], str) or not entry[field]:
+                raise ValueError(f"config: field 'grids.{name}.{field}' must be a non-empty string")
+        grids.append(
+            LesionGrid(
+                name=name,
+                reference_template_path=Path(entry["reference_template_path"]),
+                brain_mask_path=Path(entry["brain_mask_path"]),
+            )
+        )
+    return grids

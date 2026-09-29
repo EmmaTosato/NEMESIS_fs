@@ -11,6 +11,8 @@
   "group_filter": [
     "ST"
   ],
+
+  "excluded_subjects_path": "assets/metadata/excluded_subjects.csv",
   "object": "disconnectome",
   "representation": "voxelwise",
   "reference_template_path": "assets/templates/tpl-MNI152NLin6Asym_res-1_T1w.nii.gz",
