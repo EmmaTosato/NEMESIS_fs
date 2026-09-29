@@ -1,36 +1,37 @@
-"""One-off CLI: calibrate the bilaterality threshold for a future geometric lesion_side
-computation, against the clinical lesion_side labels already in assets/metadata/participants.csv.
+"""CLI: calibrate the bilaterality threshold used for the geometric lesion_side, against the
+clinical lesion_side labels already in assets/metadata/participants.csv.
 
-Context (see docs/dev/metadata.md): lesion_side is populated only where a dataset records
-it clinically; a geometric fallback (voxel counts either side of the MNI midline) is a
-known open item, deliberately not implemented yet because the threshold above which a
-lesion counts as "both" (bilateral) needs to be calibrated against real ground truth
-first, not guessed (code_standards.md §0).
+The geometric side is attributed by src.pipeline.compute_lesion_metadata, which classifies
+laterality_index against `side_threshold`. This script is how that threshold is chosen with
+evidence rather than guessed (code_standards.md §0): it reads the laterality_index ALREADY
+computed per grid in assets/metadata/lesion_metadata.csv, compares candidate thresholds against
+the real clinical labels, and writes a report.
 
-This script does NOT write lesion_side_source="geometric" anywhere, does NOT touch
-participants.csv, and does NOT decide a final threshold - it only computes
-laterality_index (src.features.lesion.compute_lesion_laterality_metrics) for every
-subject in a clinically-labelled dataset, compares candidate thresholds against the real
-labels, and writes a report so a threshold can be chosen with evidence.
+It reads no lesion mask and opens no NIfTI file - the per-subject index it needs is already in
+that CSV, for every grid. That is also what makes re-calibrating on a different grid a change of
+--grid rather than a second full pass over 5853 masks.
 
-laterality_index = (left_voxels - right_voxels) / (left_voxels + right_voxels) - the
-standard lesion/fMRI laterality-index convention (Wilke & Lidzba LI-toolbox; Rorden's
-Gigascience LI protocol for stroke lesion masks). A literature-typical bilaterality
-threshold is |LI| < 0.2; this script checks that value AND grid-searches for the
-threshold that best reproduces our own clinical labels, so both can be compared.
+This script does NOT write anything into participants.csv and does NOT decide the final
+threshold: `side_threshold` in config/pipelines/compute_lesion_metadata.json is where the chosen
+value lives.
+
+laterality_index = (left_voxels - right_voxels) / (left_voxels + right_voxels) - the standard
+lesion/fMRI laterality-index convention (Wilke & Lidzba LI-toolbox; Rorden's Gigascience LI
+protocol for stroke lesion masks). A literature-typical bilaterality threshold is |LI| < 0.2;
+this script checks that value AND grid-searches for the threshold that best reproduces our own
+clinical labels, so both can be compared.
 
 Usage:
     conda activate nemesis
     PYTHONPATH=. python scripts/calibrate_lesion_side_threshold.py \
-        --config config/pipelines/build_lesion_matrix.json \
+        --grid 2mm \
         --datasets UNIPD/WashU UNIPD/PSP UKLFR/stroke_UKLFR UKE/WAKEUP_acute UKE/SFB936_ses01
 
---datasets overrides the config's own `datasets` list for this run only (the production
-build_lesion_matrix.json doesn't yet include every dataset that has clinical lesion_side
-labels, e.g. UKE/SFB936_ses01 - see .claude/history/data_changelog.md 28-09-26) - every
-other imaging parameter (data_root, reference_template_path, lesion_glob,
-binarize_threshold, resample_interpolation, group_filter) is still read from --config, a
-single source of truth shared with build_lesion_matrix.py/check_lesion_quality.py.
+--datasets restricts the calibration to datasets that actually carry clinical lesion_side
+labels; every one of them must have at least one, or the run stops. --grid picks which grid's
+laterality_index to calibrate on: the threshold in use today was calibrated on 2mm, and it does
+NOT automatically transfer to a finer grid, which is exactly what re-running this with
+--grid 1mm answers.
 """
 
 from __future__ import annotations
@@ -44,8 +45,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.analysis.build_config import load_build_matrix_config
-from src.features.lesion import KNOWN_LESION_SIDES, compute_lesion_laterality_metrics, lesion_side_from_laterality_index
+from src.features.lesion import KNOWN_LESION_SIDES, lesion_side_from_laterality_index
 from src.utils.logging_setup import attach_file_handler, log_duration
 
 REPORTS_ROOT = Path("summaries") / "calibrate_lesion_side_threshold"
@@ -106,18 +106,44 @@ def load_ground_truth(participants_path: Path, datasets: list[str]) -> pd.DataFr
     return labelled[["subject_id", "dataset", "lesion_side"]].reset_index(drop=True)
 
 
+def load_laterality_index(lesion_metadata_path: Path, grid: str) -> pd.DataFrame:
+    """subject_id/dataset/laterality_index for one grid, from assets/metadata/lesion_metadata.csv.
+
+    The column is named after the grid (laterality_index_<grid>) - the CSV carries one per grid
+    that src.pipeline.compute_lesion_metadata was configured with, so an unknown --grid names the
+    available ones instead of failing with a bare KeyError."""
+    if not lesion_metadata_path.is_file():
+        raise FileNotFoundError(
+            f"{lesion_metadata_path} not found - it is written by src.pipeline.compute_lesion_metadata"
+        )
+    measured = pd.read_csv(lesion_metadata_path, dtype={"subject_id": str, "dataset": str})
+    column = f"laterality_index_{grid}"
+    if column not in measured.columns:
+        available = sorted(
+            c.removeprefix("laterality_index_") for c in measured.columns if c.startswith("laterality_index_")
+        )
+        raise ValueError(
+            f"{lesion_metadata_path} has no {column!r} column - available grid(s): {available or 'none'}"
+        )
+    return measured[["subject_id", "dataset", column]].rename(columns={column: "laterality_index"})
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Calibrate the bilaterality threshold for a future geometric lesion_side, "
         "against clinical labels already in participants.csv."
     )
-    parser.add_argument("--config", required=True, help="Path to a build_lesion_matrix.json-shaped config")
+    parser.add_argument(
+        "--grid", required=True,
+        help="Which grid's laterality_index to calibrate on (e.g. 2mm), as named in --lesion-metadata-path",
+    )
     parser.add_argument(
         "--datasets", required=True, nargs="+",
-        help="Datasets to calibrate on (overrides --config's own 'datasets' for this run) - "
-        "every one of them must have clinically-sourced lesion_side in --participants-path",
+        help="Datasets to calibrate on - every one of them must have clinically-sourced "
+        "lesion_side in --participants-path",
     )
     parser.add_argument("--participants-path", default="assets/metadata/participants.csv")
+    parser.add_argument("--lesion-metadata-path", default="assets/metadata/lesion_metadata.csv")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -125,8 +151,8 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         try:
-            config = load_build_matrix_config(args.config)
             ground_truth = load_ground_truth(Path(args.participants_path), args.datasets)
+            measured = load_laterality_index(Path(args.lesion_metadata_path), args.grid)
         except (FileNotFoundError, ValueError) as exc:
             logging.error(str(exc))
             return 1
@@ -138,30 +164,21 @@ def main(argv: list[str] | None = None) -> int:
             logging.error("cannot set up log file: %s", exc, exc_info=True)
             return 1
 
-        logging.info("computing laterality_index for %s (this reads/resamples every lesion mask - can take minutes)", args.datasets)
-        try:
-            metadata, excluded_by_group = compute_lesion_laterality_metrics(
-                data_root=config.data_root,
-                datasets=args.datasets,
-                reference_template_path=config.reference_template_path,
-                lesion_glob=config.lesion_glob,
-                binarize_threshold=config.binarize_threshold,
-                resample_interpolation=config.resample_interpolation,
-                group_filter=config.group_filter,
-            )
-        except (FileNotFoundError, ValueError) as exc:
-            logging.error(str(exc))
-            return 1
-        if excluded_by_group:
-            logging.info("%d subject(s) excluded by group_filter=%s", len(excluded_by_group), config.group_filter)
-
-        merged = ground_truth.merge(metadata, on=["subject_id", "dataset"], how="inner")
+        logging.info(
+            "calibrating on grid=%s for %s, from %s", args.grid, args.datasets, args.lesion_metadata_path
+        )
+        merged = ground_truth.merge(measured, on=["subject_id", "dataset"], how="inner")
         unmatched = sorted(set(ground_truth["subject_id"]) - set(merged["subject_id"]))
         if unmatched:
-            raise ValueError(
-                f"{len(unmatched)} labelled subject(s) not found among computed masks (e.g. {unmatched[:5]}) - "
-                "participants.csv and the disk are out of sync, see docs/dev/metadata.md"
-            )
+            try:
+                raise ValueError(
+                    f"{len(unmatched)} clinically-labelled subject(s) have no row in "
+                    f"{args.lesion_metadata_path} (e.g. {unmatched[:5]}) - that file is stale; re-run "
+                    "src.pipeline.compute_lesion_metadata"
+                )
+            except ValueError as exc:
+                logging.error(str(exc))
+                return 1
 
         undefined = merged["laterality_index"].isna()
         if undefined.any():
@@ -177,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
         literature = next(r for r in results if abs(r.threshold - LITERATURE_DEFAULT_THRESHOLD) < 1e-9)
 
         try:
-            report_path = _write_report(config, args.datasets, merged, results, best, literature, now)
+            report_path = _write_report(args.grid, args.datasets, merged, results, best, literature, now)
         except OSError as exc:
             logging.error("cannot write report: %s", exc, exc_info=True)
             return 1
@@ -202,12 +219,13 @@ def _dataframe_to_markdown(df: pd.DataFrame) -> list[str]:
 
 
 def _write_report(
-    config, datasets: list[str], merged: pd.DataFrame, results: list[ThresholdResult],
+    grid: str, datasets: list[str], merged: pd.DataFrame, results: list[ThresholdResult],
     best: ThresholdResult, literature: ThresholdResult, now: datetime,
 ) -> Path:
     lines = [
         f"# calibrate_lesion_side_threshold — {now.strftime('%d-%m-%y %H:%M:%S')}",
         "",
+        f"grid: {grid}",
         f"datasets: {datasets}",
         f"subjects with a usable clinical label + computable laterality_index: {len(merged)}",
         f"ground-truth label distribution: {merged['lesion_side'].value_counts().to_dict()}",
@@ -236,7 +254,7 @@ def _write_report(
         "## Per-subject laterality_index (first 20 rows, for spot-checking)",
         "",
         *_dataframe_to_markdown(
-            merged[["subject_id", "dataset", "lesion_side", "left_voxels", "right_voxels", "laterality_index"]].head(20)
+            merged[["subject_id", "dataset", "lesion_side", "laterality_index"]].head(20)
         ),
     ]
 
