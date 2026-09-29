@@ -31,6 +31,7 @@ class BuildMatrixConfig:
     resample_interpolation: str
     min_lesion_volume_voxels: int | None
     max_out_of_brain_fraction: float | None
+    correct_out_of_brain: bool
     brain_mask_path: Path | None
     output_root: Path
     session_name: str
@@ -70,10 +71,23 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
     # max_out_of_brain_fraction is set.
     min_lesion_volume_voxels = _optional_non_negative_int(raw, "min_lesion_volume_voxels")
     max_out_of_brain_fraction = _optional_float_in_range(raw, "max_out_of_brain_fraction", 0.0, 1.0)
+    # correct_out_of_brain (added 29-09-26): zeroes out-of-brain lesion voxels instead of
+    # excluding the subject - the "fix" counterpart to max_out_of_brain_fraction's "exclude".
+    # Deliberately mutually exclusive with it (never both active): combining them would leave
+    # max_out_of_brain_fraction checking a fraction that correction has already driven to ~0,
+    # making the threshold silently vacuous - see docs/dev/lesion_matrix.md.
+    correct_out_of_brain = _optional_bool(raw, "correct_out_of_brain")
     brain_mask_path_raw = _optional_str(raw, "brain_mask_path")
     brain_mask_path = Path(brain_mask_path_raw) if brain_mask_path_raw is not None else None
     if max_out_of_brain_fraction is not None and brain_mask_path is None:
         raise ValueError("config: max_out_of_brain_fraction is set but brain_mask_path is missing")
+    if correct_out_of_brain and brain_mask_path is None:
+        raise ValueError("config: correct_out_of_brain is set but brain_mask_path is missing")
+    if correct_out_of_brain and max_out_of_brain_fraction is not None:
+        raise ValueError(
+            "config: correct_out_of_brain and max_out_of_brain_fraction cannot both be set - "
+            "pick one admission strategy (zero the offending voxels, or exclude the subject)"
+        )
 
     return BuildMatrixConfig(
         project=_require_str(raw, "project"),
@@ -86,6 +100,7 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
         resample_interpolation=resample_interpolation,
         min_lesion_volume_voxels=min_lesion_volume_voxels,
         max_out_of_brain_fraction=max_out_of_brain_fraction,
+        correct_out_of_brain=correct_out_of_brain,
         brain_mask_path=brain_mask_path,
         output_root=Path(_require_str(raw, "output_root")),
         session_name=_require_str(raw, "session_name"),
@@ -165,6 +180,15 @@ def _optional_non_negative_int(raw: dict, key: str) -> int | None:
         raise ValueError(f"config: field {key!r} must be an integer when set, got {value!r}")
     if value < 0:
         raise ValueError(f"config: field {key!r} must be >= 0, got {value}")
+    return value
+
+
+def _optional_bool(raw: dict, key: str) -> bool:
+    if key not in raw or raw[key] is None:
+        return False
+    value = raw[key]
+    if not isinstance(value, bool):
+        raise ValueError(f"config: field {key!r} must be a boolean when set, got {value!r}")
     return value
 
 

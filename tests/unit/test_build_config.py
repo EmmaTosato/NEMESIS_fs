@@ -121,6 +121,44 @@ def test_brain_mask_path_readable_when_max_out_of_brain_fraction_absent(tmp_path
     assert str(config.brain_mask_path) == "/templates/brain_mask.nii.gz"
 
 
+def test_correct_out_of_brain_defaults_to_false_when_absent(tmp_path):
+    config = load_build_matrix_config(_write(tmp_path, {}))
+    assert config.correct_out_of_brain is False
+
+
+def test_correct_out_of_brain_requires_brain_mask_path(tmp_path):
+    with pytest.raises(ValueError, match="brain_mask_path"):
+        load_build_matrix_config(_write(tmp_path, {"correct_out_of_brain": True}))
+
+
+def test_correct_out_of_brain_with_brain_mask_path_parsed(tmp_path):
+    config = load_build_matrix_config(
+        _write(tmp_path, {"correct_out_of_brain": True, "brain_mask_path": "/templates/brain_mask.nii.gz"})
+    )
+    assert config.correct_out_of_brain is True
+
+
+def test_correct_out_of_brain_non_bool_raises(tmp_path):
+    with pytest.raises(ValueError, match="correct_out_of_brain"):
+        load_build_matrix_config(
+            _write(tmp_path, {"correct_out_of_brain": "true", "brain_mask_path": "/templates/brain_mask.nii.gz"})
+        )
+
+
+def test_correct_out_of_brain_and_max_out_of_brain_fraction_mutually_exclusive(tmp_path):
+    with pytest.raises(ValueError, match="cannot both be set"):
+        load_build_matrix_config(
+            _write(
+                tmp_path,
+                {
+                    "correct_out_of_brain": True,
+                    "max_out_of_brain_fraction": 0.5,
+                    "brain_mask_path": "/templates/brain_mask.nii.gz",
+                },
+            )
+        )
+
+
 def test_brain_mask_path_absent_when_nothing_set(tmp_path):
     config = load_build_matrix_config(_write(tmp_path, {}))
     assert config.brain_mask_path is None

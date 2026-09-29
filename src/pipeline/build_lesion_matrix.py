@@ -62,19 +62,21 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
         try:
-            X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
-                build_lesion_matrix(
-                    data_root=config.data_root,
-                    datasets=config.datasets,
-                    reference_template_path=config.reference_template_path,
-                    lesion_glob=config.lesion_glob,
-                    binarize_threshold=config.binarize_threshold,
-                    resample_interpolation=config.resample_interpolation,
-                    group_filter=config.group_filter,
-                    min_lesion_volume_voxels=config.min_lesion_volume_voxels,
-                    max_out_of_brain_fraction=config.max_out_of_brain_fraction,
-                    brain_mask_path=config.brain_mask_path,
-                )
+            (
+                X, metadata, non_constant_mask, excluded_by_group,
+                excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects,
+            ) = build_lesion_matrix(
+                data_root=config.data_root,
+                datasets=config.datasets,
+                reference_template_path=config.reference_template_path,
+                lesion_glob=config.lesion_glob,
+                binarize_threshold=config.binarize_threshold,
+                resample_interpolation=config.resample_interpolation,
+                group_filter=config.group_filter,
+                min_lesion_volume_voxels=config.min_lesion_volume_voxels,
+                max_out_of_brain_fraction=config.max_out_of_brain_fraction,
+                correct_out_of_brain=config.correct_out_of_brain,
+                brain_mask_path=config.brain_mask_path,
             )
         except (FileNotFoundError, ValueError, nib.filebasedimages.ImageFileError) as exc:
             # ImageFileError (HIGH #20): a truncated/corrupt .nii.gz raises this from nib.load,
@@ -105,6 +107,12 @@ def main(argv: list[str] | None = None) -> int:
                 config.max_out_of_brain_fraction,
                 excluded_by_out_of_brain,
             )
+        if corrected_subjects:
+            logging.info(
+                "%d subject(s) corrected by correct_out_of_brain (out-of-brain voxels zeroed): %s",
+                len(corrected_subjects),
+                corrected_subjects,
+            )
 
         output_dir = _output_dir(config, now)
         extra_arrays = {"non_constant_mask": non_constant_mask}
@@ -115,7 +123,8 @@ def main(argv: list[str] | None = None) -> int:
                 X,
                 metadata,
                 _build_readme_lines(
-                    config, X, metadata, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, now
+                    config, X, metadata, excluded_by_group, excluded_by_min_volume,
+                    excluded_by_out_of_brain, corrected_subjects, now,
                 ),
                 overwrite=config.overwrite,
                 extra_arrays=extra_arrays,
@@ -127,7 +136,8 @@ def main(argv: list[str] | None = None) -> int:
 
         try:
             report_path = _write_report(
-                config, X, metadata, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, now
+                config, X, metadata, excluded_by_group, excluded_by_min_volume,
+                excluded_by_out_of_brain, corrected_subjects, now,
             )
             append_run_log_entry(
                 config.output_root,
@@ -174,6 +184,7 @@ def _config_summary(config: BuildMatrixConfig) -> str:
         "resample_interpolation": config.resample_interpolation,
         "min_lesion_volume_voxels": config.min_lesion_volume_voxels,
         "max_out_of_brain_fraction": config.max_out_of_brain_fraction,
+        "correct_out_of_brain": config.correct_out_of_brain,
         "brain_mask_path": str(config.brain_mask_path) if config.brain_mask_path is not None else None,
         "output_root": str(config.output_root),
         "session_name": config.session_name,
@@ -194,6 +205,7 @@ def _params_used(config: BuildMatrixConfig) -> dict:
         "binarize_threshold": config.binarize_threshold,
         "min_lesion_volume_voxels": config.min_lesion_volume_voxels,
         "max_out_of_brain_fraction": config.max_out_of_brain_fraction,
+        "correct_out_of_brain": config.correct_out_of_brain,
     }
 
 
@@ -204,6 +216,7 @@ def _summary_lines(
     excluded_by_group: list[str],
     excluded_by_min_volume: list[str],
     excluded_by_out_of_brain: list[str],
+    corrected_subjects: list[str],
 ) -> list[str]:
     lines = ["## Config", "", "```json", _config_summary(config), "```", "", "## Summary", ""]
     lines.append(f"Matrix shape: {X.shape[0]} subjects x {X.shape[1]} features")
@@ -240,6 +253,12 @@ def _summary_lines(
         lines += [f"- {subject_id}" for subject_id in excluded_by_out_of_brain]
     else:
         lines.append("None.")
+    lines += ["", "## Corrected by correct_out_of_brain", ""]
+    if corrected_subjects:
+        lines.append(f"{len(corrected_subjects)} subject(s) had out-of-brain lesion voxels zeroed:")
+        lines += [f"- {subject_id}" for subject_id in corrected_subjects]
+    else:
+        lines.append("None.")
     return lines
 
 
@@ -250,10 +269,11 @@ def _build_readme_lines(
     excluded_by_group: list[str],
     excluded_by_min_volume: list[str],
     excluded_by_out_of_brain: list[str],
+    corrected_subjects: list[str],
     now: datetime,
 ) -> list[str]:
     return [f"# {config.project} lesion matrix — {now.strftime('%d-%m-%y %H:%M')}", ""] + _summary_lines(
-        config, X, metadata, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain
+        config, X, metadata, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects
     )
 
 
@@ -264,10 +284,11 @@ def _build_report(
     excluded_by_group: list[str],
     excluded_by_min_volume: list[str],
     excluded_by_out_of_brain: list[str],
+    corrected_subjects: list[str],
     now: datetime,
 ) -> str:
     lines = [f"# {config.project}_{now.strftime('%d-%m-%y')}", f"## {now.strftime('%H:%M')}", ""] + _summary_lines(
-        config, X, metadata, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain
+        config, X, metadata, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects
     )
     return "\n".join(lines)
 
@@ -279,13 +300,17 @@ def _write_report(
     excluded_by_group: list[str],
     excluded_by_min_volume: list[str],
     excluded_by_out_of_brain: list[str],
+    corrected_subjects: list[str],
     now: datetime,
 ) -> Path:
     report_dir = REPORTS_ROOT / config.project
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.md"
     report_path.write_text(
-        _build_report(config, X, metadata, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, now)
+        _build_report(
+            config, X, metadata, excluded_by_group, excluded_by_min_volume,
+            excluded_by_out_of_brain, corrected_subjects, now,
+        )
     )
     return report_path
 

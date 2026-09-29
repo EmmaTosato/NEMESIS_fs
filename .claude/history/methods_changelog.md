@@ -8,6 +8,30 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 29-09-26 — `correct_out_of_brain`: correggere (azzerare i voxel) invece di escludere il soggetto
+
+**Decisione**: `build_lesion_matrix.json`/`BuildMatrixConfig` guadagna `correct_out_of_brain` (bool, default `false`) — invece di escludere un soggetto contaminato (`max_out_of_brain_fraction`), azzera i suoi voxel di lesione fuori dalla maschera cerebrale (`src/features/lesion_correction.py::zero_out_of_brain_voxels`) e lo mantiene nella matrice, con `lesion_volume_voxels` ricalcolato dai dati corretti. Applicato in `src/features/lesion.py::_apply_out_of_brain_correction`, eseguito **prima** di `min_lesion_volume_voxels` così quel filtro vede il volume già corretto, non quello grezzo. **Mutuamente esclusivo con `max_out_of_brain_fraction`**: entrambi attivi sollevano `ValueError`, sia a config-load (`src/analysis/build_config.py`) sia dentro `build_lesion_matrix` stesso (`lessons_learned.md` #2, validazione non ancorata a un solo punto di chiamata).
+
+**Perché**: combinare le due strategie sullo stesso soggetto sarebbe ambiguo — se si corregge prima e si esclude dopo, la soglia `max_out_of_brain_fraction` controllerebbe una frazione già portata a ~0 dalla correzione, diventando silenziosamente inutile; se si esclude prima sulla frazione grezza, la correzione non avrebbe più nulla da fare sui sopravvissuti in caso di soglie strette. Richiesto esplicitamente dall'utente come alternativa all'esclusione pura introdotta nella voce del 28-09-26 in questo stesso file.
+
+**Alternativa scartata**: combinare i due meccanismi (esclusione sulla frazione grezza + correzione sui sopravvissuti). Scartata su richiesta esplicita dell'utente per restare più semplice e priva di ambiguità — un solo criterio di ammissione attivo alla volta, mai due che interagiscono implicitamente.
+
+**Conseguenza ancora vera oggi**: `config/pipelines/build_lesion_matrix.json` ha `correct_out_of_brain: false` — comportamento di produzione invariato, nessuna matrice già costruita è affetta (i thresholds/la correzione contano solo per run non ancora fatte, stessa nota della voce del 28-09-26). Il vecchio script standalone `scripts/lesion_fix.py`, che faceva la stessa correzione ma non era mai integrato in nessuna pipeline, è stato eliminato in questa stessa sessione (vedi `project_changelog.md`).
+
+---
+
+## 28-09-26 — `lesion_side` geometrico: soglia di bilateralità 0.20, dal protocollo standard di letteratura
+
+**Decisione**: implementato il fallback geometrico per `lesion_side` (per i soggetti privi di dato clinico), con soglia di bilateralità **0.20** sul laterality index `LI = (left_voxels - right_voxels) / (left_voxels + right_voxels)` — la formula/soglia standard in letteratura per lesioni/attivazione fMRI (LI-toolbox di Wilke & Lidzba; protocollo Rorden/GigaScience per lesioni stroke), non calcolata da zero per questo progetto.
+
+**Perché**: prima di questa sessione la variabile era esplicitamente non implementata (`docs/dev/metadata.md`), in attesa di una calibrazione della soglia contro dati clinici veri (`code_standards.md` §0 — mai un valore "dall'aria plausibile"). Calibrazione eseguita (`scripts/calibrate_lesion_side_threshold.py`) su 1445 soggetti con `lesion_side` clinico nei 5 dataset che lo hanno (`UNIPD/WashU`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`, `UKE/WAKEUP_acute`, `UKE/SFB936_ses01` - quest'ultimo onboardato nella stessa sessione, portando il set di calibrazione da 4 a 5 dataset): 0.20 riproduce il 97.4% delle etichette vere. Dettagli completi, matrice di confusione e letteratura in `knowledge/neuroimaging/lesion_laterality.md`.
+
+**Alternativa scartata**: la soglia "ottimale" trovata per grid search sui nostri dati (0.36, accuratezza 97.5%, +2 soggetti su 1445 rispetto a 0.20). Scartata perché il guadagno è marginale e rischierebbe di overfittare sui soli 24 esempi di `both` (la classe bilaterale) disponibili nel set di calibrazione — usare il valore di letteratura resta anche più difendibile in caso di pubblicazione.
+
+**Conseguenza ancora vera oggi**: la classe `both` resta debole a qualunque soglia testata (3/24 corretti anche alla soglia ottimale) - non un difetto della soglia scelta, un limite intrinseco del metodo per una lesione bilaterale che comunque pende leggermente da un lato nel conteggio voxel. `UNIPD/NEMESIS_T0` (onboardato lo stesso giorno, nessun `lesion_side` clinico) non riceve ancora il fallback: `build_lesion_matrix.json` non include questo dataset nella propria lista `datasets` (stesso gap già noto per `lesion_volume_voxels`, task separato non ancora fatto) - il fallback lo salta con un `WARNING`, non un errore, finché quella lista non viene estesa.
+
+---
+
 ## 28-09-26 — `build_lesion_matrix.json` riportato alla griglia a 2mm, era scivolato a 1mm
 
 **Decisione**: `reference_template_path`/`brain_mask_path` in `config/pipelines/build_lesion_matrix.json` passati da `tpl-MNI152NLin6Asym_res-1_*` (1mm) a `tpl-MNI152NLin6Asym_res-2_*` (2mm). Aggiornati anche i due path hardcoded nella sezione "Lesione fuori dal brain" di `notebooks/exploration/dataset_exploration.ipynb`, per restare sulla stessa griglia della produzione.

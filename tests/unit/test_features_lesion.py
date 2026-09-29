@@ -5,9 +5,13 @@ import numpy as np
 import pytest
 
 from src.features.lesion import (
+    _hemisphere_masks,
     _load_and_binarize_lesion,
     build_lesion_matrix,
+    compute_lesion_laterality_metrics,
     compute_lesion_quality_metrics,
+    compute_lesion_volumes,
+    lesion_side_from_laterality_index,
     load_reference_image,
 )
 
@@ -76,6 +80,7 @@ def test_build_lesion_matrix_binarize_threshold_one_raises(tmp_path):
             group_filter=None,
             min_lesion_volume_voxels=None,
             max_out_of_brain_fraction=None,
+            correct_out_of_brain=False,
             brain_mask_path=None,
         )
 
@@ -87,7 +92,7 @@ def test_build_lesion_matrix_voxelwise(tmp_path):
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
-    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects = (
         build_lesion_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
@@ -98,6 +103,7 @@ def test_build_lesion_matrix_voxelwise(tmp_path):
             group_filter=None,
             min_lesion_volume_voxels=None,
             max_out_of_brain_fraction=None,
+            correct_out_of_brain=False,
             brain_mask_path=None,
         )
     )
@@ -129,7 +135,7 @@ def test_build_lesion_matrix_voxelwise_pipeline_first_layout(tmp_path):
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
-    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects = (
         build_lesion_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
@@ -140,6 +146,7 @@ def test_build_lesion_matrix_voxelwise_pipeline_first_layout(tmp_path):
             group_filter=None,
             min_lesion_volume_voxels=None,
             max_out_of_brain_fraction=None,
+            correct_out_of_brain=False,
             brain_mask_path=None,
         )
     )
@@ -161,7 +168,7 @@ def test_build_lesion_matrix_group_filter_excludes_hc(tmp_path):
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
-    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects = (
         build_lesion_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
@@ -172,6 +179,7 @@ def test_build_lesion_matrix_group_filter_excludes_hc(tmp_path):
             group_filter=["ST"],
             min_lesion_volume_voxels=None,
             max_out_of_brain_fraction=None,
+            correct_out_of_brain=False,
             brain_mask_path=None,
         )
     )
@@ -198,6 +206,7 @@ def test_build_lesion_matrix_subject_count_mismatch_raises(tmp_path):
             group_filter=None,
             min_lesion_volume_voxels=None,
             max_out_of_brain_fraction=None,
+            correct_out_of_brain=False,
             brain_mask_path=None,
         )
 
@@ -225,6 +234,7 @@ def test_build_lesion_matrix_malformed_subject_dir_name_raises_even_without_grou
             group_filter=None,
             min_lesion_volume_voxels=None,
             max_out_of_brain_fraction=None,
+            correct_out_of_brain=False,
             brain_mask_path=None,
         )
 
@@ -281,6 +291,7 @@ def test_build_lesion_matrix_missing_dataset_root_raises(tmp_path):
             group_filter=None,
             min_lesion_volume_voxels=None,
             max_out_of_brain_fraction=None,
+            correct_out_of_brain=False,
             brain_mask_path=None,
         )
 
@@ -303,7 +314,7 @@ def test_build_lesion_matrix_min_volume_threshold_excludes_small_lesion(tmp_path
     template_path = tmp_path / "reference_template.nii.gz"
     _make_reference_template(template_path)
 
-    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects = (
         build_lesion_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
@@ -314,6 +325,7 @@ def test_build_lesion_matrix_min_volume_threshold_excludes_small_lesion(tmp_path
             group_filter=None,
             min_lesion_volume_voxels=2,
             max_out_of_brain_fraction=None,
+            correct_out_of_brain=False,
             brain_mask_path=None,
         )
     )
@@ -333,7 +345,7 @@ def test_build_lesion_matrix_out_of_brain_threshold_excludes_contaminated_subjec
     brain_mask_path = tmp_path / "brain_mask.nii.gz"
     _make_brain_mask(brain_mask_path, [(1, 1, 1), (1, 1, 2), (1, 1, 3)])
 
-    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects = (
         build_lesion_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
@@ -344,6 +356,7 @@ def test_build_lesion_matrix_out_of_brain_threshold_excludes_contaminated_subjec
             group_filter=None,
             min_lesion_volume_voxels=None,
             max_out_of_brain_fraction=0.5,
+            correct_out_of_brain=False,
             brain_mask_path=brain_mask_path,
         )
     )
@@ -361,7 +374,7 @@ def test_build_lesion_matrix_out_of_brain_fraction_partial(tmp_path):
     brain_mask_path = tmp_path / "brain_mask.nii.gz"
     _make_brain_mask(brain_mask_path, [(1, 1, 1)])
 
-    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects = (
         build_lesion_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
@@ -372,6 +385,7 @@ def test_build_lesion_matrix_out_of_brain_fraction_partial(tmp_path):
             group_filter=None,
             min_lesion_volume_voxels=None,
             max_out_of_brain_fraction=0.5,
+            correct_out_of_brain=False,
             brain_mask_path=brain_mask_path,
         )
     )
@@ -397,6 +411,7 @@ def test_build_lesion_matrix_out_of_brain_threshold_without_brain_mask_path_rais
             group_filter=None,
             min_lesion_volume_voxels=None,
             max_out_of_brain_fraction=0.5,
+            correct_out_of_brain=False,
             brain_mask_path=None,
         )
 
@@ -417,8 +432,32 @@ def test_build_lesion_matrix_all_subjects_excluded_by_min_volume_raises(tmp_path
             group_filter=None,
             min_lesion_volume_voxels=100,
             max_out_of_brain_fraction=None,
+            correct_out_of_brain=False,
             brain_mask_path=None,
         )
+
+
+def test_compute_lesion_volumes_no_brain_mask_needed(tmp_path):
+    """The volume-only counterpart of compute_lesion_quality_metrics - no
+    brain_mask_path parameter at all, cheaper (skips the brain-mask load/resample)."""
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (1, 1, 2)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [(5, 5, 5)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+
+    metadata, excluded_by_group = compute_lesion_volumes(
+        data_root=tmp_path,
+        datasets=["siteA"],
+        reference_template_path=template_path,
+        lesion_glob=_GLOB,
+        binarize_threshold=0.5,
+        resample_interpolation="nearest",
+        group_filter=None,
+    )
+
+    assert excluded_by_group == []
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0002"]
+    assert list(metadata["lesion_volume_voxels"]) == [2, 1]
 
 
 def test_compute_lesion_quality_metrics_no_threshold_all_subjects_included(tmp_path):
@@ -445,8 +484,11 @@ def test_compute_lesion_quality_metrics_no_threshold_all_subjects_included(tmp_p
 
     assert excluded_by_group == []
     assert list(metadata["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUNIPD0003"]
-    assert list(metadata["lesion_volume_voxels"]) == [1, 1, 0]
     assert list(metadata["out_of_brain_fraction"]) == [0.0, 1.0, 0.0]
+    # lesion_volume_voxels is deliberately NOT in this output - assets/metadata/participants.csv
+    # (via compute_lesion_volumes/enrich_metadata.py) is the one place to get it, never a second
+    # copy here (found 28-09-26: the two had drifted by up to 38x for some subjects).
+    assert "lesion_volume_voxels" not in metadata.columns
 
 
 def test_compute_lesion_quality_metrics_group_filter_excludes_hc(tmp_path):
@@ -483,7 +525,7 @@ def test_build_lesion_matrix_zero_volume_subject_out_of_brain_fraction_is_zero(t
     brain_mask_path = tmp_path / "brain_mask.nii.gz"
     _make_brain_mask(brain_mask_path, [(1, 1, 1)])
 
-    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain = (
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects = (
         build_lesion_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
@@ -494,6 +536,7 @@ def test_build_lesion_matrix_zero_volume_subject_out_of_brain_fraction_is_zero(t
             group_filter=None,
             min_lesion_volume_voxels=None,
             max_out_of_brain_fraction=0.1,
+            correct_out_of_brain=False,
             brain_mask_path=brain_mask_path,
         )
     )
@@ -503,3 +546,209 @@ def test_build_lesion_matrix_zero_volume_subject_out_of_brain_fraction_is_zero(t
     zero_volume_row = metadata.loc[metadata["subject_id"] == "sub-STUNIPD0002"].iloc[0]
     assert zero_volume_row["lesion_volume_voxels"] == 0
     assert zero_volume_row["out_of_brain_fraction"] == 0.0
+
+
+def test_build_lesion_matrix_correct_out_of_brain_zeroes_voxels_and_reports_corrected_subjects(tmp_path):
+    """correct_out_of_brain zeroes each subject's out-of-brain voxels in place (rather than
+    excluding the subject) and recomputes lesion_volume_voxels from the corrected data -
+    only the genuinely contaminated subject is listed in corrected_subjects."""
+    # sub-0001: 1 voxel inside the brain mask, 1 outside -> the outside one gets zeroed.
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (9, 9, 9)])
+    # sub-0002: fully inside the brain mask -> untouched, not corrected.
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [(1, 1, 1)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+    brain_mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_brain_mask(brain_mask_path, [(1, 1, 1)])
+
+    X, metadata, non_constant_mask, excluded_by_group, excluded_by_min_volume, excluded_by_out_of_brain, corrected_subjects = (
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob=_GLOB,
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            group_filter=None,
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=None,
+            correct_out_of_brain=True,
+            brain_mask_path=brain_mask_path,
+        )
+    )
+
+    assert corrected_subjects == ["sub-STUNIPD0001"]
+    assert excluded_by_out_of_brain == []  # correction fixes it, never excludes
+    row1 = metadata.loc[metadata["subject_id"] == "sub-STUNIPD0001"].iloc[0]
+    assert row1["lesion_volume_voxels"] == 1  # the out-of-brain voxel was zeroed, not counted
+    row2 = metadata.loc[metadata["subject_id"] == "sub-STUNIPD0002"].iloc[0]
+    assert row2["lesion_volume_voxels"] == 1
+
+
+def test_build_lesion_matrix_correct_out_of_brain_feeds_min_lesion_volume_voxels_filter(tmp_path):
+    """min_lesion_volume_voxels must see the corrected volume, not the pre-correction one -
+    correction runs before that filter (src.features.lesion._apply_out_of_brain_correction)."""
+    # 3 voxels total, 2 outside the brain mask -> corrected volume is 1, below threshold 2.
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (9, 9, 9), (9, 9, 8)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+    brain_mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_brain_mask(brain_mask_path, [(1, 1, 1)])
+
+    with pytest.raises(ValueError, match="no subjects remain"):
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob=_GLOB,
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            group_filter=None,
+            min_lesion_volume_voxels=2,
+            max_out_of_brain_fraction=None,
+            correct_out_of_brain=True,
+            brain_mask_path=brain_mask_path,
+        )
+
+
+def test_build_lesion_matrix_correct_out_of_brain_requires_brain_mask_path(tmp_path):
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+
+    with pytest.raises(ValueError, match="brain_mask_path"):
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob=_GLOB,
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            group_filter=None,
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=None,
+            correct_out_of_brain=True,
+            brain_mask_path=None,
+        )
+
+
+def test_build_lesion_matrix_correct_out_of_brain_and_max_out_of_brain_fraction_mutually_exclusive(tmp_path):
+    """Combining the two would leave max_out_of_brain_fraction checking a fraction that
+    correction has already driven to ~0, making the threshold silently vacuous - rejected
+    outright instead (see src.features.lesion.build_lesion_matrix docstring)."""
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+    brain_mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_brain_mask(brain_mask_path, [(1, 1, 1)])
+
+    with pytest.raises(ValueError, match="cannot both be set"):
+        build_lesion_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            reference_template_path=template_path,
+            lesion_glob=_GLOB,
+            binarize_threshold=0.5,
+            resample_interpolation="nearest",
+            group_filter=None,
+            min_lesion_volume_voxels=None,
+            max_out_of_brain_fraction=0.5,
+            correct_out_of_brain=True,
+            brain_mask_path=brain_mask_path,
+        )
+
+
+# --- laterality --------------------------------------------------------------------------------
+
+# A genuine MNI-like affine with a real negative half (unlike module-level _AFFINE, which has no
+# translation and therefore no world-negative voxels at all) - world_x(i) = 2*i - 10, so i=0..4 is
+# anatomical-left, i=5 is the exact midline, i=6..9 is anatomical-right.
+_LATERALITY_AFFINE = np.array(
+    [[2.0, 0.0, 0.0, -10.0], [0.0, 2.0, 0.0, -10.0], [0.0, 0.0, 2.0, -10.0], [0.0, 0.0, 0.0, 1.0]]
+)
+
+
+def _make_lesion_subject_with_affine(data_root, dataset, subject_id, lesion_voxels, affine):
+    subject_dir = data_root / dataset / "manual_masks" / subject_id / "anat"
+    subject_dir.mkdir(parents=True, exist_ok=True)
+    volume = np.zeros(_SHAPE, dtype=np.float32)
+    for voxel in lesion_voxels:
+        volume[voxel] = 1.0
+    nib.save(nib.Nifti1Image(volume, affine), subject_dir / f"{subject_id}_label-lesion_mask.nii.gz")
+
+
+def test_hemisphere_masks_splits_left_right_excludes_midline():
+    reference_img = nib.Nifti1Image(np.zeros(_SHAPE, dtype=np.float32), _LATERALITY_AFFINE)
+    left_mask, right_mask = _hemisphere_masks(reference_img)
+
+    left_3d = left_mask.reshape(_SHAPE)
+    right_3d = right_mask.reshape(_SHAPE)
+    assert left_3d[:5].all() and not left_3d[5:].any()
+    assert right_3d[6:].all() and not right_3d[:6].any()
+
+
+def test_hemisphere_masks_raises_on_off_diagonal_affine():
+    affine = _LATERALITY_AFFINE.copy()
+    affine[0, 1] = 1.0  # rotation/shear term on the first row
+    reference_img = nib.Nifti1Image(np.zeros(_SHAPE, dtype=np.float32), affine)
+    with pytest.raises(ValueError, match="off-diagonal"):
+        _hemisphere_masks(reference_img)
+
+
+def test_hemisphere_masks_raises_on_wrong_first_axis_orientation():
+    """A degenerate first row (affine[0, :3] all zero - world_x has no dependency on
+    ANY voxel axis, not even axis 0) passes the off-diagonal check (0 == 0) but leaves
+    axis 0 with no well-defined left-right correspondence at all - nib.aff2axcodes
+    reports 'A' for it here, not 'R'/'L'. A corrupt/degenerate reference header, not a
+    realistic MNI grid - hemisphere classification must refuse to guess rather than
+    silently split a meaningless axis."""
+    affine = np.array([[0.0, 0.0, 0.0, -10.0], [5.0, 2.0, 0.0, -10.0], [0.0, 0.0, 2.0, -10.0], [0.0, 0.0, 0.0, 1.0]])
+    reference_img = nib.Nifti1Image(np.zeros(_SHAPE, dtype=np.float32), affine)
+    with pytest.raises(ValueError, match="orientation"):
+        _hemisphere_masks(reference_img)
+
+
+def test_compute_lesion_laterality_metrics_left_right_and_undefined(tmp_path):
+    # left-dominant: 3 voxels at i=1 (left), 1 voxel at i=7 (right) -> LI = (3-1)/4 = 0.5
+    _make_lesion_subject_with_affine(
+        tmp_path, "siteA", "sub-STUNIPD0001",
+        [(1, 1, 1), (1, 2, 1), (1, 3, 1), (7, 1, 1)], _LATERALITY_AFFINE,
+    )
+    # confined entirely to the midline plane (i=5) -> both counts 0 -> laterality_index NaN
+    _make_lesion_subject_with_affine(
+        tmp_path, "siteA", "sub-STUNIPD0002", [(5, 1, 1), (5, 2, 1)], _LATERALITY_AFFINE,
+    )
+    template_path = tmp_path / "reference_template.nii.gz"
+    nib.save(nib.Nifti1Image(np.zeros(_SHAPE, dtype=np.float32), _LATERALITY_AFFINE), template_path)
+
+    metadata, excluded_by_group = compute_lesion_laterality_metrics(
+        data_root=tmp_path,
+        datasets=["siteA"],
+        reference_template_path=template_path,
+        lesion_glob="manual_masks/*/anat/*_label-lesion_mask.nii.gz",
+        binarize_threshold=0.5,
+        resample_interpolation="nearest",
+        group_filter=None,
+    )
+
+    assert excluded_by_group == []
+    row1 = metadata.loc[metadata["subject_id"] == "sub-STUNIPD0001"].iloc[0]
+    assert (row1["left_voxels"], row1["right_voxels"]) == (3, 1)
+    assert row1["laterality_index"] == pytest.approx(0.5)
+
+    row2 = metadata.loc[metadata["subject_id"] == "sub-STUNIPD0002"].iloc[0]
+    assert (row2["left_voxels"], row2["right_voxels"]) == (0, 0)
+    assert np.isnan(row2["laterality_index"])
+
+
+def test_lesion_side_from_laterality_index_classifies_by_threshold():
+    assert lesion_side_from_laterality_index(0.5, threshold=0.2) == "left"
+    assert lesion_side_from_laterality_index(-0.5, threshold=0.2) == "right"
+    assert lesion_side_from_laterality_index(0.1, threshold=0.2) == "both"
+    assert lesion_side_from_laterality_index(-0.19, threshold=0.2) == "both"
+    assert lesion_side_from_laterality_index(0.2, threshold=0.2) == "left"  # strict '<', boundary is not "both"
+
+
+def test_lesion_side_from_laterality_index_raises_on_nan():
+    with pytest.raises(ValueError, match="NaN"):
+        lesion_side_from_laterality_index(float("nan"), threshold=0.2)

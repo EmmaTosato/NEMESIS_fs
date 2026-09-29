@@ -30,6 +30,7 @@ def _fake_build_matrix_config() -> BuildMatrixConfig:
         resample_interpolation="nearest",
         min_lesion_volume_voxels=None,
         max_out_of_brain_fraction=None,
+        correct_out_of_brain=False,
         brain_mask_path=None,
         output_root=Path("unused"),
         session_name="test",

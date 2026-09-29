@@ -1,26 +1,34 @@
 {
   "project": "clinical_connectome",
   "data_root": "data/clinical_connectome/derivatives",
+  "output_root": "data/derived/lesion_matrix",
+
   "datasets": [
     "UNIPD/WashU",
     "UNIPD/PASPORT",
     "UNIPD/PSP",
     "UKLFR/stroke_UKLFR",
     "UCL-UK/UCLStrokeData",
-    "UKE/WAKEUP_acute"
+    "UKE/WAKEUP_acute",
+    "UNIPD/NEMESIS_T0",
+    "UKE/SFB936_ses01"
   ],
   "group_filter": [
     "ST"
   ],
+  
   "reference_template_path": "assets/templates/tpl-MNI152NLin6Asym_res-2_T1w.nii.gz",
+  "brain_mask_path": "assets/templates/tpl-MNI152NLin6Asym_res-2_desc-brain_mask.nii.gz",
   "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",
+
   "binarize_threshold": 0.5,
   "resample_interpolation": "nearest",
+
   "min_lesion_volume_voxels": null,
   "max_out_of_brain_fraction": null,
-  "brain_mask_path": "assets/templates/tpl-MNI152NLin6Asym_res-2_desc-brain_mask.nii.gz",
-  "output_root": "data/derived/lesion_matrix",
-  "session_name": "s1.3-vol",
+  "correct_out_of_brain": false,
+
+  "session_name": "s1.5-vol",
   "overwrite": false,
-  "run_notes": "Adds UKE/WAKEUP_acute (451 subjects) to s1.2-vol's 5 datasets -> 5720."
+  "run_notes": "Adds UNIPD/NEMESIS_T0 (76 subjects) and UKE/SFB936_ses01 (56 subjects) to s1.3-vol's 6 datasets (5721 today, post WashU/UKLFR 1mm resync) -> 5853, tutti gli 8 dataset ST in assets/metadata/participants.csv ora coperti. Onboarding 28-09-26 (.claude/history/data_changelog.md); needed for enrich_metadata.py's lesion_volume_config/lesion_side_geometric, which read this file's 'datasets' directly (fresh per-subject computation, no built matrix session required for that use)."
 }

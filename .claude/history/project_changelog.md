@@ -8,6 +8,16 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 29-09-26 — Eliminato `scripts/lesion_fix.py`, superseduto da `src/features/lesion_correction.py`
+
+**Cosa è cambiato**: rimosso `scripts/lesion_fix.py` — script standalone mai integrato in nessuna pipeline (nessun riferimento da `src/`/test), con un path hardcoded a `/Users/sebastiano/fsl/data/standard/MNI152_T1_2mm_brain_mask.nii.gz` (macchina di un altro utente, mai esistito su questo repo). Faceva esattamente la stessa correzione (azzerare i voxel di lesione fuori da una maschera cerebrale) ora implementata correttamente, testata e wired nella pipeline dal nuovo `src/features/lesion_correction.py`, attivabile via `correct_out_of_brain` — vedi la voce del 29-09-26 in `methods_changelog.md` per la decisione metodologica.
+
+**Perché**: codice morto per `code_standards.md` §2 (nessun chiamante reale, path rotto) una volta che la stessa funzionalità esiste come modulo proprio, testato e raggiungibile da config.
+
+**Conseguenza ancora vera oggi**: nessuna — la correzione va fatta tramite `correct_out_of_brain` in `build_lesion_matrix.json`, non più tramite quello script.
+
+---
+
 ## 28-09-26 — Nuovo script `scripts/check_lesion_quality.py` + cache `assets/metadata/lesion_quality_metrics.csv`
 
 **Cosa è cambiato**: `src/features/lesion.py` guadagna `compute_lesion_quality_metrics` (pubblica, senza soglie di ammissione - riusa `_voxelwise_matrix_with_volume`/`_load_and_binarize_brain_mask`/`_out_of_brain_fractions`, già scritte per `build_lesion_matrix.py`'s `min_lesion_volume_voxels`/`max_out_of_brain_fraction`, vedi voce del 28-09-26 in `methods_changelog.md`). Due nuovi consumatori la chiamano invece di ricalcolare da zero: `scripts/check_lesion_quality.py` (CLI, riusa `config/pipelines/build_lesion_matrix.json` come sorgente di configurazione, scrive `assets/metadata/lesion_quality_metrics.csv` in modo atomico, `--overwrite` per forzare il ricalcolo) e la sezione "Lesione fuori dal brain" di `notebooks/exploration/dataset_exploration.ipynb`, che prima usava una propria implementazione copiata (con `nilearn.datasets.load_mni152_brain_mask()`, una maschera MNI generica scaricata da internet, non l'asset di progetto) - ora importa la stessa funzione e usa lo stesso `assets/templates/tpl-MNI152NLin6Asym_res-1_desc-brain_mask.nii.gz` della pipeline di produzione, quindi notebook e script vedono esattamente gli stessi numeri. Aggiunto anche `jobs/run_check_lesion_quality.sh`.

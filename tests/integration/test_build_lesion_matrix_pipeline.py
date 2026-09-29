@@ -147,7 +147,7 @@ def test_build_lesion_matrix_config_md_has_params_used_line(tmp_path, monkeypatc
     config_md = (out_dir / "config.md").read_text()
     assert (
         'Params used: {"binarize_threshold": 0.5, "min_lesion_volume_voxels": null, '
-        '"max_out_of_brain_fraction": null}' in config_md
+        '"max_out_of_brain_fraction": null, "correct_out_of_brain": false}' in config_md
     )
     assert "Excluded by group_filter" in config_md
     assert "None." in config_md  # no group_filter set -> nothing excluded
@@ -210,6 +210,7 @@ def test_build_lesion_matrix_min_volume_threshold_excludes_and_reports(tmp_path,
     assert "## Excluded by min_lesion_volume_voxels" in config_md
     assert "sub-STUNIPD0002" in config_md
     assert "## Excluded by max_out_of_brain_fraction" in config_md  # section present even when unused ("None.")
+    assert "## Corrected by correct_out_of_brain" in config_md  # section present even when unused ("None.")
 
 
 def test_build_lesion_matrix_out_of_brain_threshold_excludes_and_reports(tmp_path, monkeypatch):
@@ -240,6 +241,36 @@ def test_build_lesion_matrix_out_of_brain_threshold_excludes_and_reports(tmp_pat
     config_md = (out_dir / "config.md").read_text()
     assert "## Excluded by max_out_of_brain_fraction" in config_md
     assert "sub-STUNIPD0002" in config_md
+
+
+def test_build_lesion_matrix_correct_out_of_brain_zeroes_voxels_and_reports(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
+
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    # 1 voxel inside the brain mask, 1 outside -> the outside one is zeroed, subject kept.
+    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (9, 9, 9)])
+    brain_mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_brain_mask(brain_mask_path, [(1, 1, 1)])
+    config_path = _write_config(
+        tmp_path,
+        data_root,
+        output_root,
+        overrides={"correct_out_of_brain": True, "brain_mask_path": str(brain_mask_path)},
+    )
+
+    exit_code = build_lesion_matrix.main(["--config", str(config_path)])
+    assert exit_code == 0
+
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]  # corrected, not excluded
+    assert metadata["lesion_volume_voxels"].iloc[0] == 1  # the out-of-brain voxel was zeroed
+
+    config_md = (out_dir / "config.md").read_text()
+    assert "## Corrected by correct_out_of_brain" in config_md
+    assert "sub-STUNIPD0001" in config_md
 
 
 def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, monkeypatch):
