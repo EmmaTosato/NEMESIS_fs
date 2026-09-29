@@ -177,16 +177,19 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
    gradient and a low shadow to lift it off the page. */
 .anatomy-warning {{
     font-size: 16px; line-height: 1.55; color: {_TEXT_COLOR}; text-align: left;
-    background: linear-gradient(180deg, #fff8ec 0%, #fffdf8 100%);
-    border: 1px solid #f0ddb8; border-left: 5px solid #e08a00; border-radius: 10px;
-    padding: 16px 20px; margin: 0 0 22px; box-shadow: 0 2px 6px rgba(80, 55, 0, 0.08);
+    background: #f4f4f3; border: 1px solid #e4e4e2; border-left: 5px solid #c26a00;
+    border-radius: 10px; padding: 16px 20px; margin: 0 0 22px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }}
+/* The one vivid element: the label alone says "not routine caption text", so the surface can
+   stay a neutral grey a shade off the white page (29-09-26, on request: the amber wash read as
+   a colored block of its own rather than as a quiet callout). */
 .anatomy-warning .warning-label {{
     display: block; font-size: 13px; font-weight: 800; letter-spacing: 0.10em;
     text-transform: uppercase; color: #c26a00; margin-bottom: 6px;
 }}
 /* The subject ids that follow the message - long, scannable, and not prose. */
-.anatomy-warning .warning-detail {{ display: block; margin-top: 8px; font-size: 14.5px; color: #5c5346; word-break: break-word; }}
+.anatomy-warning .warning-detail {{ display: block; margin-top: 8px; font-size: 14.5px; color: #5f5f5c; word-break: break-word; }}
 /* Cross-cluster comparison table under the "Descrizione del cluster" figure (29-09-26, on
    request: "statistiche numeriche, più sotto, a confronto tra tutti i vari cluster"). A table,
    not a second chart, on purpose: the ask was for the numbers themselves, and 5-8 clusters x 5
@@ -894,9 +897,14 @@ def _add_cluster_centroids_trace(figure: go.Figure, embedding: np.ndarray, metad
     (cluster_centroids_with_nearest_subject) on top of `figure`'s own point traces - same
     circled-centroid style as notebooks/post-results_analysis/clustering_evaluation.ipynb's
     plot_embedding_with_centroids (29-09-26, on request), added as an extra Plotly trace on
-    the live interactive scatter instead of a separate static matplotlib plot. A no-op for a
-    dim_reduction.py run (no cluster_label column) - mutates `figure` in place, nothing to
-    return."""
+    the live interactive scatter instead of a separate static matplotlib plot.
+
+    The trace starts hidden (visible="legendonly", 29-09-26 on request): the circles sit on top
+    of the points and are a deliberate lookup ("where is cluster 3 centred"), not the default
+    view. Clicking its legend entry turns it on.
+
+    A no-op for a dim_reduction.py run (no cluster_label column) - mutates `figure` in place,
+    nothing to return."""
     column = COLOR_MODES["cluster_label"].column
     if column not in metadata.columns:
         return
@@ -919,6 +927,12 @@ def _add_cluster_centroids_trace(figure: go.Figure, embedding: np.ndarray, metad
                 for label, row in centroids.iterrows()
             ],
             hoverinfo="text",
+            # Off until the reader asks for it from the legend (29-09-26, on request).
+            # "legendonly" is the one way to do this that keeps the trace in the legend as a
+            # dimmed, clickable entry - visible=False would drop it from the legend entirely,
+            # leaving no way to turn it back on.
+            visible="legendonly",
+            showlegend=True,
         )
     )
 
@@ -1298,7 +1312,7 @@ def _unregistered_subjects_warning(unregistered: list[str]) -> html.Div | None:
     return _warning_box(
         f"{len(unregistered)} soggetti di questo cluster non hanno una riga nel registro "
         f"(assets/metadata/participants.csv). Contano nel totale di ogni variabile, ma non "
-        f"portano alcun valore. Per aggiungerli, rilancia src/pipeline/populate_metadata.py.",
+        f"portano alcun valore.",
         detail=", ".join(unregistered),
     )
 

@@ -1423,6 +1423,28 @@ def test_cluster_centroids_with_nearest_subject_finds_true_nearest_point():
     assert result.loc[0, "distance_to_centroid"] == pytest.approx(expected_distance)
 
 
+def test_cluster_centroids_trace_starts_hidden_but_stays_in_the_legend():
+    """29-09-26, on request: "fai in modo che di default siano deselezionati i centroidi sul
+    plot, solo quando selezionati dalla legenda diventano attivi". visible="legendonly" is the
+    only setting that does both - visible=False would drop the trace from the legend entirely,
+    leaving the reader no way to switch it back on."""
+    from src.analysis.embedding_app import _add_cluster_centroids_trace
+
+    figure = go.Figure()
+    embedding = np.array([[0.0, 0.0], [1.0, 1.0], [5.0, 5.0], [6.0, 6.0]])
+    metadata = pd.DataFrame({
+        "subject_id": ["sub-a", "sub-b", "sub-c", "sub-d"],
+        "cluster_label": [0, 0, 1, 1],
+    })
+
+    _add_cluster_centroids_trace(figure, embedding, metadata)
+
+    trace = figure.data[-1]
+    assert trace.name == "centroide"
+    assert trace.visible == "legendonly"
+    assert trace.showlegend is True
+
+
 def test_cluster_centroids_with_nearest_subject_raises_without_cluster_label_column():
     embedding = np.array([[0.0, 0.0], [1.0, 1.0]])
     metadata = pd.DataFrame({"subject_id": ["sub-a", "sub-b"]})
