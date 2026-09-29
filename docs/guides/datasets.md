@@ -16,7 +16,7 @@ Per rigenerarli: `notebooks/exploration/dataset_exploration.ipynb` (esplorazione
 
 | Dataset | Registro clinico (`participants_*.tsv`) | `manual_masks` | `sdc` | `features` (FC) | Voxel |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **`UCL-UK/UCLStrokeData`** | 4119 (4119 ST) | **4119** | — | — | 2.0 mm |
+| **`UCL-UK/UCLStrokeData`** | 4119 (4119 ST) | **4119** | 4119 | — | 2.0 mm |
 | **`UKLFR/stroke_UKLFR`** | 735 (735 ST) | 705 | 705 | — | 1.0 mm |
 | **`UKE/WAKEUP_acute`** | 503 (503 ST) | 451 ️ | 451 | — | 1.0 mm |
 | **`UNIPD/WashU`** | 319 (251 ST + 68 HC) | 195 | 195 | **225** (169 ST + 56 HC) | 1.0 mm |
@@ -103,7 +103,7 @@ Due conseguenze pratiche, entrambe gestite in `docs/dev/metadata.md`:
   - le parcellazioni per 15 atlanti (`LF-disconnectome_atlas-*.csv`),
   - gli equivalenti per la lesione ricampionata (`LF-lesion_atlas-*.csv`, 16 atlanti — include `yeh_hcp1065_streamline`),
   - i 2 `mapstats.tsv`.
-- **Disponibile per 5 dataset su 6** (manca UCL-UK), solo pazienti stroke.
+- **Disponibile per tutti e 6 i dataset** (UCL-UK incluso dal 29-09-26), solo pazienti stroke.
 - Sorgente: `Clinical_connectome/features/Clinical_connectome_stroke/<dataset>/lesion/{subject_id}/...` — un `project_root` diverso da quello di `lesion`/`feature`.
 
 ### 5. Lesioni grezze (raw) — mai copiate
@@ -134,13 +134,13 @@ Ogni cartella ridotta contiene due file, entrambi generati dallo script:
 tar -xzf ../<nome>_archive.tar.gz -C .
 ```
 
-## Ingombro su disco (locale, 23-09-26)
+## Ingombro su disco (locale, 29-09-26)
 
-`data/clinical_connectome/derivatives/` pesa **6.0 GB** in totale:
+`data/clinical_connectome/derivatives/` pesa **10 GB** in totale:
 
 | Tipo | Peso |
 | :--- | ---: |
-| `sdc/` (7 dataset, 1734 soggetti) | ~2.8 GB |
+| `sdc/` (8 dataset, 5853 soggetti) | ~6.9 GB |
 | `features_archive.tar.gz` (i 215 soggetti WashU compressi) | 2.1 GB |
 | `features/` (solo WashU, i 10 soggetti in chiaro) | 222 MB |
 | `manual_masks/` (8 dataset, 5853 soggetti) | ~919 MB |
