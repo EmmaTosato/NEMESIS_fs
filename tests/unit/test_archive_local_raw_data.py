@@ -264,7 +264,7 @@ def test_main_execute_archives_and_prunes_leaving_readme(tmp_path, monkeypatch):
 
 def test_pruning_records_the_true_population_in_a_manifest(tmp_path, monkeypatch):
     """A pruned directory is indistinguishable from a genuinely small one by a filesystem scan
-    alone - scripts/populate_metadata.py's has_* flags reported 10 WashU feature subjects instead
+    alone - src/pipeline/populate_metadata.py's has_* flags reported 10 WashU feature subjects instead
     of 225 for exactly this reason. The manifest is the machine-readable record of who really
     exists, readable without decompressing anything."""
     monkeypatch.chdir(tmp_path)

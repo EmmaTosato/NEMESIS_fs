@@ -14,7 +14,7 @@ file. See docs/dev/metadata.md.
 
 Usage:
     conda activate nemesis
-    PYTHONPATH=. python scripts/populate_metadata.py --config config/pipelines/populate_metadata.json
+    python -m src.pipeline.populate_metadata --config config/pipelines/populate_metadata.json
 
 Admission rule: a subject is written only if it appears BOTH in its dataset's
 participants.tsv AND as a sub-* folder under at least one of the registered

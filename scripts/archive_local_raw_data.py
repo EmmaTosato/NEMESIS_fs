@@ -280,7 +280,7 @@ def write_archive_manifest(root: Path, sample_ids: Sequence[str], archived_ids: 
     source="kept_in_place" or "archive".
 
     Exists because a pruned directory is indistinguishable from a genuinely small one by a
-    filesystem scan alone - scripts/populate_metadata.py reported 10 WashU feature subjects
+    filesystem scan alone - src/pipeline/populate_metadata.py reported 10 WashU feature subjects
     instead of 225 for exactly that reason. Anything needing the true set reads this file
     instead of decompressing gigabytes.
 

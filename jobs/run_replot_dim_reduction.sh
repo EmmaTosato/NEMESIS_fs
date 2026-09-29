@@ -19,8 +19,7 @@ conda activate "${CONDA_ENV}"
 set -u
 
 cd "${PROJECT_ROOT}"
-export PYTHONPATH="${PROJECT_ROOT}"
 
 echo "---- Starting replot at $(date) ----"
-python scripts/replot_dim_reduction.py --run-dir "${RUN_DIR}"
+python -m src.pipeline.replot_dim_reduction --run-dir "${RUN_DIR}"
 echo "---- Completed at $(date) ----"

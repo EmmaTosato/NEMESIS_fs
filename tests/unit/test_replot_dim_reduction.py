@@ -1,10 +1,10 @@
-"""Unit tests for scripts/replot_dim_reduction.py - synthetic fixtures, no real run needed."""
+"""Unit tests for src/pipeline/replot_dim_reduction.py - synthetic fixtures, no real run needed."""
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from scripts import replot_dim_reduction
+from src.pipeline import replot_dim_reduction
 from src.utils.artifacts import save_matrix
 
 

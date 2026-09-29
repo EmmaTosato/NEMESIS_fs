@@ -17,7 +17,7 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
   (src/analysis/embedding_coloring.py's color_values). A color_by entry the
   registry can't resolve raises a clear error there rather than silently
   recomputing something possibly wrong.
-  scripts/replot_dim_reduction.py regenerates every plot from metadata.csv
+  src/pipeline/replot_dim_reduction.py regenerates every plot from metadata.csv
   alone, without reloading the original feature matrix, same as this
   pipeline's own plotting.
 - fine_tuning=true (manual hyperparameter search, umap/tsne/pca/pca_varimax/
@@ -400,7 +400,7 @@ def _write_tuning_embeddings(output_dir: Path, embeddings_by_combo: dict[tuple, 
 # src.pipeline.embedding_app (a live Dash app) already covers exactly that case for any
 # already-written run. Production's own embedding_plots.py::write_embedding_plots follows the
 # same rule for n_dims==3 (no PNG, no HTML - see its own docstring). To look at one specific
-# >2-component tuning combination on demand, use scripts/plot_tuning_embedding_3d.py against
+# >2-component tuning combination on demand, use src/pipeline/plot_tuning_embedding_3d.py against
 # this run's own embeddings.npz - a manual, on-request tool, not something this pipeline ever
 # generates automatically for every leaf/color mode.
 _TUNING_GRID_N_COMPONENTS = 2
@@ -429,7 +429,7 @@ def _write_nested_tuning_leaves(
     request) - a cell whose own combination has some other n_components is
     just left out, never rendered as a static image at all, since it would
     only ever add a distorted/incomplete view on top of what
-    scripts/plot_tuning_embedding_3d.py already gives on demand for that
+    src/pipeline/plot_tuning_embedding_3d.py already gives on demand for that
     exact combination. If a leaf's own n_components (checked upfront here
     only when "n_components" is itself one of `nested_params`, i.e. fixed
     for the whole leaf) already isn't _TUNING_GRID_N_COMPONENTS, every cell
@@ -452,7 +452,7 @@ def _write_nested_tuning_leaves(
         if leaf_n_components is not None and leaf_n_components != _TUNING_GRID_N_COMPONENTS:
             logging.info(
                 "skipping embeddings_grid for %s: n_components=%s (only n_components=%d combinations get "
-                "this diagnostic - see scripts/plot_tuning_embedding_3d.py for an on-demand 3D view of a "
+                "this diagnostic - see src/pipeline/plot_tuning_embedding_3d.py for an on-demand 3D view of a "
                 "specific combination)",
                 leaf_dir, leaf_n_components, _TUNING_GRID_N_COMPONENTS,
             )
@@ -536,7 +536,7 @@ def _build_grid_blocks(
             if embedding.shape[1] != _TUNING_GRID_N_COMPONENTS:
                 logging.info(
                     "skipping embeddings_grid cell %s in %s (%s=%s): n_components=%d, not %d - "
-                    "see scripts/plot_tuning_embedding_3d.py for an on-demand 3D view of this combination",
+                    "see src/pipeline/plot_tuning_embedding_3d.py for an on-demand 3D view of this combination",
                     dict(zip(keys, combo)), leaf_dir, varying, value, embedding.shape[1], _TUNING_GRID_N_COMPONENTS,
                 )
                 continue

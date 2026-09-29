@@ -19,8 +19,7 @@ conda activate "${CONDA_ENV}"
 set -u
 
 cd "${PROJECT_ROOT}"
-export PYTHONPATH="${PROJECT_ROOT}"
 
 echo "---- Starting populate_metadata at $(date) ----"
-python scripts/populate_metadata.py --config "${CONFIG_FILE}"
+python -m src.pipeline.populate_metadata --config "${CONFIG_FILE}"
 echo "---- Completed at $(date) ----"

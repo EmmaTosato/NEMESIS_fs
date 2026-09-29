@@ -1,6 +1,6 @@
 """CLI entry point: build an "Understanding UMAP" style HTML report from
 already-computed UMAP and t-SNE tuning output - no refit, read-only, same
-convention as scripts/replot_dim_reduction.py.
+convention as src/pipeline/replot_dim_reduction.py.
 
 Usage:
     PYTHONPATH=. conda run -n nemesis python -m src.pipeline.generate_understanding_umap_report \\

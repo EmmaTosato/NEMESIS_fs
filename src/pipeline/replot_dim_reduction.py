@@ -43,7 +43,7 @@ sees one for that case.
   itself uses).
 
 Usage:
-    PYTHONPATH=. conda run -n nemesis python scripts/replot_dim_reduction.py --run-dir results/lesion/dim_reduction/umap/21-07_s1_d01
+    python -m src.pipeline.replot_dim_reduction --run-dir results/lesion/dim_reduction/umap/21-07_s1_d01
 """
 
 from __future__ import annotations

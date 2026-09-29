@@ -1,4 +1,4 @@
-"""Unit tests for scripts/populate_metadata.py - synthetic fixtures, no EBRAIN mount needed."""
+"""Unit tests for src/pipeline/populate_metadata.py - synthetic fixtures, no EBRAIN mount needed."""
 
 import json
 from datetime import datetime
@@ -6,7 +6,7 @@ from datetime import datetime
 import pandas as pd
 import pytest
 
-from scripts import populate_metadata as pm
+from src.pipeline import populate_metadata as pm
 
 _DATASET = "UNIPD/WashU"
 

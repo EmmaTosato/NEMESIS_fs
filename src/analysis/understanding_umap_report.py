@@ -1,6 +1,6 @@
 """Builds an "Understanding UMAP" style HTML report from already-computed
 dim_reduction tuning output - no refit, read-only over tuning_results.csv/
-embeddings.npz/metadata.csv, same convention as scripts/replot_dim_reduction.py.
+embeddings.npz/metadata.csv, same convention as src/pipeline/replot_dim_reduction.py.
 
 Replicates pair-code.github.io/understanding-umap's Figures 2, 4, 5 and 7
 LAYOUT (not their content - our own lesion embeddings, not toy datasets) as

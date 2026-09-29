@@ -23,7 +23,7 @@ clinical labels, so both can be compared.
 
 Usage:
     conda activate nemesis
-    PYTHONPATH=. python scripts/calibrate_lesion_side_threshold.py \
+    python -m src.pipeline.calibrate_lesion_side_threshold \
         --grid 2mm \
         --datasets UNIPD/WashU UNIPD/PSP UKLFR/stroke_UKLFR UKE/WAKEUP_acute UKE/SFB936_ses01
 

@@ -16,7 +16,7 @@ production-run concept baked in) to answer "let me actually see this one 3-compo
 combination in 3D", without extending either of those two tools' documented scope.
 
 Reads embeddings.npz + metadata.csv straight off disk (same "replot, never re-fit" contract as
-scripts/replot_dim_reduction.py) - --combo-key must name an entry in embeddings.npz whose
+src/pipeline/replot_dim_reduction.py) - --combo-key must name an entry in embeddings.npz whose
 embedding has exactly 3 columns (raises ValueError otherwise, never silently sliced - see
 .claude/lessons_learned.md #16).
 
@@ -25,7 +25,7 @@ src.analysis.embedding_coloring.COLOR_MODES entry whose own backing column is pr
 --metadata-csv (skipped with a WARNING otherwise, same convention as replot_dim_reduction.py).
 
 Usage:
-    PYTHONPATH=. conda run -n nemesis python scripts/plot_tuning_embedding_3d.py \\
+    python -m src.pipeline.plot_tuning_embedding_3d \\
         --embeddings-npz results/lesion/dim_reduction/tuning/umap/26-08_s1.2/embeddings.npz \\
         --metadata-csv results/lesion/dim_reduction/tuning/umap/26-08_s1.2/metadata.csv \\
         --combo-key "metric=dice,n_components=3,n_neighbors=5,min_dist=0.0" \\

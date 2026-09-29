@@ -23,10 +23,9 @@ conda activate "${CONDA_ENV}"
 set -u
 
 cd "${PROJECT_ROOT}"
-export PYTHONPATH="${PROJECT_ROOT}"
 
 echo "---- Starting plot_tuning_embedding_3d at $(date) ----"
-python scripts/plot_tuning_embedding_3d.py \
+python -m src.pipeline.plot_tuning_embedding_3d \
   --embeddings-npz "${EMBEDDINGS_NPZ}" \
   --metadata-csv "${METADATA_CSV}" \
   --combo-key "${COMBO_KEY}" \
