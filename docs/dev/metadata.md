@@ -1,6 +1,6 @@
 # Metadati clinici — riferimento tecnico
 
-Audience: chi lavora su `scripts/populate_metadata.py`, `src/pipeline/enrich_metadata.py`, `src/utils/participants.py`, o chi deve capire dove vive un dato valore clinico/anagrafico (age, sex, NIHSS, lesion_side...) e come ci è arrivato.
+Audience: chi lavora su `src/pipeline/populate_metadata.py`, `src/pipeline/compute_lesion_metadata.py`, `src/pipeline/enrich_metadata.py`, `src/utils/participants.py`, o chi deve capire dove vive un dato valore clinico/anagrafico (age, sex, NIHSS, lesion_side...) o derivato dalle maschere (volume, lato) e come ci è arrivato.
 
 Il ridisegno è **in vigore**: la fonte di verità unica esiste e i consumatori la leggono. Per quali campi esistono in quale dataset, vedi `docs/guides/datasets.md`.
 
@@ -11,22 +11,31 @@ Una sola fonte di verità: **`assets/metadata/participants.csv`**, una riga per 
 ```
 data/clinical_connectome/metadata_tsv/participants_*.tsv        (grezzi, uno per dataset, gitignored)
 data/clinical_connectome/derivatives/<dataset>/{manual_masks,sdc,features}/   (cosa c'è su disco)
-        │  scripts/populate_metadata.py          — chi esiste
+        │  src/pipeline/populate_metadata.py               — chi esiste
         ▼
-assets/metadata/participants.csv
-        ▲
-        │  src/pipeline/enrich_metadata.py       — cosa sappiamo di lui
-        │
-data/clinical_connectome/derivatives/<dataset>/manual_masks/    (lesion_volume_voxels e, in fallback,
-                                                                   lesion_side geometrico - entrambi calcolati fresco)
+assets/metadata/participants.csv ◄──────────────┐
+                                                │  src/pipeline/enrich_metadata.py
+                                                │  — cosa sappiamo di lui (un JOIN, non un calcolo)
+        ┌───────────────────────────────────────┴───────────┐
+        │                                                   │
+data/clinical_connectome/metadata_tsv/*.tsv       assets/metadata/lesion_metadata.csv
+   (variabili cliniche)                              ▲
+                                                     │  src/pipeline/compute_lesion_metadata.py
+                                                     │  — cosa misurano le maschere
+                                          data/clinical_connectome/derivatives/<dataset>/manual_masks/
+
+assets/metadata/excluded_subjects.csv   — chi resta fuori dalle matrici (scritto a mano)
+        │  letto da build_lesion_matrix.py e build_sdc_matrix.py, non da enrich
 ```
 
-`lesion_volume_voxels` e, in fallback, `lesion_side` sono calcolati **freschi dalle maschere** (`config.lesion_metrics`, vedi sotto), non più copiati da un artefatto `data/derived/lesion_matrix/<sessione>/` già costruito — quella scelta si è rivelata generare esattamente la seconda fonte di verità che voleva evitare (28-09-26, `.claude/history/methods_changelog.md`: 900/5721 soggetti con valore diverso tra le due fonti, fino a 38x, dopo che la griglia era cambiata senza ricostruire l'artefatto).
+**Quattro file, quattro domande.** Il registro (`participants.csv`) risponde a "chi esiste" e "cosa sappiamo di lui"; `lesion_metadata.csv` a "cosa misurano le sue maschere"; `excluded_subjects.csv` a "chi entra in analisi".
+
+`enrich_metadata.py` **non apre nessun file NIfTI**: i valori derivati dalle maschere li copia da `lesion_metadata.csv`. Non li copia più nemmeno da un artefatto `data/derived/lesion_matrix/<sessione>/` già costruito — quella scelta, più vecchia, generava esattamente la seconda fonte di verità che voleva evitare (28-09-26, `.claude/history/methods_changelog.md`: 900/5721 soggetti con valore diverso tra le due fonti, fino a 38x, dopo che la griglia era cambiata senza ricostruire l'artefatto). Il punto fisso attuale è diverso: il valore nasce **in un posto solo**, la pipeline che misura le maschere, e il registro ne tiene una copia dichiarata.
 
 | | `populate_metadata.py` | `enrich_metadata.py` |
 |---|---|---|
 | Domanda | chi esiste | cosa sappiamo di lui |
-| Scrive | `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` | `age`, `sex`, `lesion_side`, `lesion_side_source`, `NIHSS`, `education`, `clinical_date`, `lesion_volume_voxels` |
+| Scrive | `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` | `age`, `sex`, `lesion_side`, `lesion_side_source`, `NIHSS`, `education`, `clinical_date`, `lesion_volume_voxels_2mm` |
 | Flag di idempotenza | `overwrite` — false: aggiunge solo soggetti nuovi, righe esistenti intatte; true: ricalcola le proprie colonne preservando quelle dell'altro script | `fill` — true: riempie solo le celle vuote delle variabili richieste; false: ricalcola tutto il richiesto |
 
 Registry condiviso: **`config/registry/metadata_sources.json`** — per ogni dataset, il path del tsv grezzo e quello della cartella derivatives. Lo leggono entrambi gli script, così la corrispondenza dataset↔path esiste in un posto solo (non è derivabile meccanicamente: `participants_UCL.tsv` ↔ `UCL-UK/UCLStrokeData`).
@@ -49,7 +58,9 @@ Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv`
 
 ## Cosa esiste davvero adesso
 
-- **`assets/metadata/participants.csv`** — 5853 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels` (enrich).
+- **`assets/metadata/participants.csv`** — 5853 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_2mm` (enrich).
+- **`assets/metadata/lesion_metadata.csv`** — una riga per soggetto con maschera, quattro colonne per griglia (`lesion_volume_voxels_<g>`, `out_of_brain_fraction_<g>`, `laterality_index_<g>`, `lesion_side_<g>`), più `lesion_metadata.config.json` accanto: il config della run che l'ha prodotto.
+- **`assets/metadata/excluded_subjects.csv`** — `subject_id, dataset, reason, value`, scritto a mano. Oggi solo l'intestazione.
 - **I tsv per-dataset `assets/metadata/<DATASET>_participants_*.tsv` non esistono più**: cancellati. Ogni consumatore è stato spostato sul file unico.
 - **`data/derived/<pipeline>/<sessione>/metadata.csv`** — contiene solo ciò che appartiene a quella run (`subject_id`, `dataset`, `lesion_volume_voxels` per `build_lesion_matrix.py`). Non è più la fonte da cui `enrich_metadata.py` copia `lesion_volume_voxels` in `participants.csv` (fino al 28-09-26 lo era, vedi sopra) — resta solo l'artefatto della run stessa, la sua colonna può differire da quella nel registro se le due griglie non coincidono.
 
@@ -59,6 +70,7 @@ Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv`
 |---|---|
 | `src/features/sdc.py` | `has_lesion`, criterio di ammissione di `build_sdc_matrix.py` |
 | `src/analysis/embedding_coloring.py` | `lesion_side`/`NIHSS` per i color mode `side`/`nihss`, risolti al momento del plot |
+| `src/analysis/cluster_description.py` | age/sex/education/NIHSS/`lesion_volume_voxels_2mm` per la composizione dei cluster nel pannello di `embedding_app.py` |
 | `notebooks/post-results_analysis/clustering_evaluation.ipynb` | age/sex/NIHSS per le demografiche per cluster |
 
 Il join con i tsv grezzi avviene su **`original_id`**, non su `subject_id`: il `participant_id` grezzo è l'id canonico per quasi tutti i dataset ma è l'id legacy di sito per UCL-UK (`ST_UCL-UK_0001`). `participants.csv` fa da ponte perché li contiene entrambi — vedi `.claude/lessons_learned.md` #30.
@@ -77,22 +89,86 @@ Una sola oggi:
 
 UCL-UK resta comunque vuoto: non ha nessuna colonna NIHSS-correlata.
 
-## `lesion_metrics`: tutto ciò che si calcola fresco dalle maschere
+## `lesion_metadata.csv`: il livello delle misure sulle maschere
 
-Un unico blocco di config (opzionale, `null` disattiva tutto), non un campo separato per metadato — condivide una sola fonte (`build_matrix_config`, un `build_lesion_matrix.json`) e una sola impostazione di correzione, invece di duplicarle per ogni metrica:
+Prodotto da `src/pipeline/compute_lesion_metadata.py`, config `config/pipelines/compute_lesion_metadata.json`. Una riga per **ogni** soggetto con maschera discoverabile, nessuna soglia applicata: le esclusioni sono un livello a parte.
+
+È **agnostico del clinico**: non apre nessun `participants.tsv`, non sa cosa sia un NIHSS. Questa separazione è il motivo per cui esiste come pipeline propria e non come blocco di `enrich_metadata`: leggere imaging e leggere tsv clinici sono due lavori diversi, e prima della separazione le metriche derivate dalle maschere erano sparse su tre posti (una cache diagnostica, due colonne nel registro, una colonna nel `metadata.csv` di ogni matrice) senza che nessuno le avesse tutte.
+
+### Quattro colonne per griglia
+
+| Colonna | Cosa è | Misurata |
+|---|---|---|
+| `lesion_volume_voxels_<g>` | voxel di lesione | **dopo** l'azzeramento fuori dal brain |
+| `out_of_brain_fraction_<g>` | quota di voxel fuori dalla maschera cerebrale | **prima** dell'azzeramento |
+| `laterality_index_<g>` | `(sinistra − destra) / (sinistra + destra)` | dopo l'azzeramento |
+| `lesion_side_<g>` | `left`/`right`/`both` da `lesion_side_from_laterality_index` | dopo l'azzeramento |
+
+Il nome della griglia diventa il suffisso, quindi `validate_lesion_grids` pretende che sia alfanumerico e unico. Il vocabolario delle griglie è **aperto**: aggiungerne una terza è una voce nel config, non una modifica al codice.
+
+L'ordine "frazione prima, conteggi dopo" non è un dettaglio: la correzione porta la frazione a 0 per costruzione, quindi misurarla dopo renderebbe inutile la sola colonna che serve a scegliere le esclusioni; viceversa un voxel fuori dal cervello non è lesione, quindi non va contato nel volume né deve poter decidere il lato (verificato: senza correzione, 3 voxel di destra fuori dal brain contro 2 di sinistra dentro danno indice −0.2 e lato `right`; con la correzione, +1.0 e `left`).
+
+`NaN` sono casi di dominio espliciti, non buchi: una maschera senza voxel non ha una frazione (0.0 la metterebbe tra i soggetti più puliti della distribuzione usata per scegliere le soglie), e una lesione confinata al piano mediano ha entrambi i conteggi a 0 — quel piano non appartiene a nessuno dei due emisferi (`_hemisphere_masks`), quindi non c'è lato da attribuire pur essendoci un volume reale.
+
+### Perché due griglie, e perché il calcolo è in streaming
+
+Le maschere manuali hanno voxel di 1 mm (verificato sugli header di tutte e 5853: `182x218x182`). Una maschera già sulla griglia richiesta non viene ricampionata (`_needs_resample`), quindi il conteggio a 1 mm è nativo ed esatto. A 2 mm il ricampionamento è `nearest`: ogni voxel prende il valore di uno solo degli 8 sottostanti, quindi il volume a 2 mm è un sottocampionamento e **non** `volume nativo / 8` — una lesione di pochi voxel può ridursi o sparire, e 0 voxel a 2 mm non implica maschera vuota nel file originale. Le due colonne insieme distinguono i due casi.
+
+`compute_lesion_metadata` in `src/features/lesion.py` è **streaming**, un soggetto per volta, e deliberatamente **non** passa per `_voxelwise_matrix_with_volume` come fa `build_lesion_matrix`. Quella funzione impila in memoria il volume appiattito di ogni soggetto: circa 5,3 GB sulla griglia a 2 mm (902.629 voxel × 5853 soggetti, uint8) e circa **42 GB** su quella a 1 mm, che non è eseguibile. Qui restano solo scalari per soggetto, quindi il picco è una maschera più le maschere per griglia — decine di MB, indipendenti da quanti soggetti ci sono. Chi in futuro volesse "riusare la funzione che c'è già" per aggiungere una griglia fine sbatterebbe esattamente lì.
+
+Il costo che scala è il tempo, non la memoria: una lettura da disco per soggetto (la maschera è letta **una volta** e ricampionata una volta per griglia, non riletta per griglia) più un ricampionamento per griglia.
+
+### La soglia del lato
+
+`side_threshold` (`0.20` in produzione) non è inventata: è calibrata contro 1445 soggetti con etichetta clinica vera, 97.4% di accordo, **sulla griglia a 2 mm** — dettagli, letteratura e limiti (la classe "bilaterale" resta debole, 3/24 corretti a qualunque soglia) in `knowledge/neuroimaging/lesion_laterality.md` e `.claude/history/methods_changelog.md`.
+
+La stessa soglia è applicata anche a 1 mm, dove **non è verificata**: `lesion_side_1mm` è indicativa finché non si esegue `src/pipeline/calibrate_lesion_side_threshold.py --grid 1mm`. Il motivo per cui non è ovvio che trasferisca: il piano mediano escluso da entrambi gli emisferi è spesso 1 mm su una griglia e 2 mm sull'altra (la griglia a 1 mm ha 91 fette a sinistra e 90 a destra, quella a 2 mm 45 e 45), quindi per una lesione quasi tutta mediana i due indici non sono interscambiabili.
+
+Quello script ora legge `laterality_index_<grid>` dal csv e **non apre nessuna maschera**: ricalibrare su un'altra griglia è un cambio di `--grid`, non un secondo passaggio su 5853 maschere.
+
+## `enrich_metadata`: il join
+
+`lesion_metadata` (config, opzionale, `null` salta del tutto le colonne derivate dalle maschere) ha tre chiavi:
 
 | Chiave | Effetto |
 |---|---|
-| `build_matrix_config` | Config `build_lesion_matrix.json`-shaped da cui leggere `data_root`/`datasets`/`reference_template_path`/`lesion_glob`/`binarize_threshold`/`resample_interpolation`/`brain_mask_path`. |
-| `correct_out_of_brain` | Azzera i voxel di lesione fuori dal cervello (`src.features.lesion_correction.zero_out_of_brain_voxels`) **prima** di calcolare qualunque metrica sotto — stessa correzione che `build_lesion_matrix.py` applica alla matrice di produzione, ma flag indipendente: le due pipeline hanno scopi diversi (questo registro serve a plot/demografia, `build_lesion_matrix.py` costruisce l'input dell'embedding, rilanciabile più volte con impostazioni proprie) e possono avere valori diversi per scelta, senza che vada considerato un disallineamento da correggere. |
-| `compute_volume` | Scrive `lesion_volume_voxels`. |
-| `compute_side` | Riempie `lesion_side` **solo** dove il passaggio clinico l'ha lasciato vuoto (un valore clinico non viene mai toccato) — richiede `lesion_side` in `variables`. |
-| `side_threshold` | Soglia di bilateralità per `compute_side` — vedi sotto. |
+| `path` | Il csv da cui copiare. |
+| `copy_columns` | Colonne copiate **con lo stesso nome**, per ogni soggetto in scope, sovrascrivendo. Ogni nome deve esistere nel csv e non può essere una colonna di `populate_metadata.py`. |
+| `lesion_side_from` | Quale colonna del csv riempie `lesion_side`: **solo dove la risoluzione clinica ha lasciato la cella vuota**, scrivendo anche `lesion_side_source = "geometric"`. `null` disattiva. Richiede `lesion_side` in `variables`. |
 
-`lesion_side` ha quindi due fonti possibili, mai in conflitto perché la seconda scrive solo dove la prima non ha scritto nulla: **clinica** (dal tsv grezzo, `lesion_side_source = "clinical"`) e **geometrica** (`compute_side`, `lesion_side_source = "geometric"`) — conta i voxel di lesione ai due lati della midline MNI (world-x, non indice di voxel grezzo — vedi `src/features/lesion.py::_hemisphere_masks`) e calcola `laterality_index = (left − right) / (left + right)`; sopra `side_threshold` in valore assoluto → `left`/`right` (a seconda del segno), sotto → `both`.
+Le due chiavi sono separate perché le regole di scrittura sono diverse, e la seconda scrive anche in una colonna ulteriore. Metterle nella stessa lista avrebbe richiesto che il codice conoscesse per nome la voce speciale — una regola implicita invece che dichiarata.
 
-La soglia (`0.20` in produzione) non è inventata: è calibrata contro 1445 soggetti con etichetta clinica vera (97.4% di accordo) — dettagli, letteratura di riferimento e limiti (la classe "bilaterale" resta debole, 3/24 corretti a qualunque soglia) in `knowledge/neuroimaging/lesion_laterality.md` e `.claude/history/methods_changelog.md` (28-09-26).
+`lesion_side` nel registro resta **senza suffisso di griglia** anche se nel csv le colonne sono `lesion_side_1mm`/`lesion_side_2mm`: per i circa 1445 soggetti con etichetta clinica quel valore non viene da nessuna griglia, quindi un suffisso sarebbe falso per la maggioranza delle celle. `lesion_side_from` registra da quale griglia viene la parte geometrica; `lesion_side_source` dice, per ogni soggetto, quale delle due provenienze ha vinto. Le due fonti non sono mai in conflitto perché la seconda scrive solo dove la prima non ha scritto nulla.
 
-Un dataset fuori dalla lista `datasets` di `build_matrix_config` non riceve né volume né lato, con un `WARNING` nel log per nome, mai un errore — un'`enrich_metadata.py` può legittimamente avere uno scope più ampio di quello che un dato `build_lesion_matrix.json` copre oggi.
+### Il join è stretto nei due sensi
 
-**Nessuna lista di esclusione per soggetto** (rimossa 29-09-26, `.claude/history/project_changelog.md`): un valore che risultasse inaffidabile in analisi si corregge **a mano direttamente in `participants.csv`** (un CSV versionato in git) — `fill: true` alla run successiva lo lascia intatto. Più semplice di un ciclo config-modifica/rilancia per un giudizio caso-per-caso che appartiene all'analisi, non alla configurazione di questa pipeline.
+| Situazione | Esito |
+|---|---|
+| soggetto in scope, `has_lesion=True`, nessuna riga nel csv | `ValueError` — il csv è vecchio |
+| riga nel csv per un `subject_id` che il registro non conosce | `ValueError` — disaccordo su chi esiste |
+| riga nel csv per un soggetto con `has_lesion=False` | `ValueError` — disaccordo su chi ha una maschera |
+| soggetto con `has_lesion=False` e nessuna riga nel csv | caso normale |
+
+Il primo controllo è limitato ai `datasets` della run (arricchire un sottoinsieme della coorte è legittimo); gli altri due sono globali, perché una riga che non corrisponde a nessuno è sbagliata indipendentemente da quali dataset questa run tocchi.
+
+`main()` legge il registro tramite `src.utils.participants.load_participants_registry`, non con un `pd.read_csv(dtype=str)` grezzo: il join ha bisogno di `has_lesion` come booleano vero. Su una colonna di stringhe un `astype(bool)` mapperebbe `"False"` a `True` — qualunque stringa non vuota è vera — invertendo silenziosamente tutti e tre i controlli. `_check_agrees_with_registry` pretende quindi dtype booleano e solleva altrimenti, invece di convertire per conto proprio.
+
+### Le colonne derivate dalle maschere non si correggono a mano
+
+`fill: true` protegge una cella **clinica** corretta a mano; le colonne copiate da `lesion_metadata.csv` vengono sovrascritte a ogni run, quindi `_apply` le scrive con `fill=False` indipendentemente da `config.fill`. Onorare `fill: true` anche per quelle congelerebbe in silenzio un numero vecchio dopo che le maschere sono cambiate.
+
+La conseguenza è deliberata: un volume o un lato inaffidabile ha la sua causa nella maschera, non nel registro. Si sistema la maschera e si ricalcola, oppure il soggetto va in `excluded_subjects.csv`. Un meccanismo per proteggere singole celle significherebbe due fonti di verità per lo stesso numero, senza nulla che dica quale vince.
+
+## `excluded_subjects.csv`: chi entra in analisi
+
+`subject_id, dataset, reason, value`, scritto **a mano** dal notebook `notebooks/exploration/lesion_quality.ipynb`. Letto da `src/utils/participants.py::load_excluded_subjects`, e da lì da `build_lesion_matrix.py` e `build_sdc_matrix.py` tramite il campo `excluded_subjects_path` dei loro config — vedi `docs/dev/lesion_matrix.md`.
+
+Nessuna pipeline lo genera: i dati non hanno un salto naturale su cui mettere una soglia (su 5853 soggetti, 3 maschere a 0 voxel a 2 mm, 132 con volume ≤ 10 voxel, coda continua; 234 soggetti sopra il 5% di frazione fuori dal brain, 73 sopra il 10%), e quale soggetto limite valga la pena di scartare è un giudizio che appartiene all'analisi.
+
+`reason` ha un vocabolario chiuso in `KNOWN_EXCLUSION_REASONS` (`empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`), pensato per crescere: aggiungerne uno è una voce lì più una riga in `docs/guides/metadata.md`. Chiuso e non libero perché il file è scritto a mano e un motivo con un typo diventerebbe in silenzio una categoria nuova che nessuno conta.
+
+Un file **assente solleva**; con la sola intestazione è valido e significa "nessuna esclusione, deliberatamente". Le due cose non sono lo stesso fatto, e trattare un file mai scritto come "non escludere nessuno" produce esattamente la matrice di produzione con tutti i soggetti limite dentro che la lista esiste per evitare.
+
+Ogni riga è validata contro il registro (ID inesistente, ID duplicato, `subject_id` vuoto, `dataset` in disaccordo, motivo non registrato, `value` non numerico sollevano): il file è scritto a mano, e i dati ridondanti scritti a mano divergono. Il `dataset` è ridondante col registro proprio per questo viene controllato invece che ignorato.
+
+I soggetti esclusi **restano** in `participants.csv` con `has_lesion`/`has_sdc` intatti e restano in `lesion_metadata.csv`: l'esclusione riguarda solo cosa entra in una matrice.

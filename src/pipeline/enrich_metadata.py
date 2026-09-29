@@ -1,7 +1,7 @@
 """CLI entry point: add clinical/demographic attributes to the project's single
 participant table - what we know about each subject.
 
-The counterpart of scripts/populate_metadata.py (which answers "who exists"):
+The counterpart of src/pipeline/populate_metadata.py (which answers "who exists"):
 this script writes further columns into that SAME file, assets/metadata/participants.csv.
 Neither script ever destroys the other's columns. See docs/dev/metadata.md.
 
@@ -16,22 +16,11 @@ Where each value comes from:
   (data/clinical_connectome/metadata_tsv/, paths in
   config/registry/metadata_sources.json) - the same registry populate_metadata
   reads, so the dataset -> path mapping exists in exactly one place.
-- lesion_volume_voxels and, as a fallback, lesion_side are computed fresh from
-  the raw lesion masks (config.lesion_metrics, a single block shared by both -
-  see below) - src.features.lesion.compute_lesion_volumes/
-  compute_lesion_laterality_metrics do the actual work, the same functions
-  build_lesion_matrix.py and src/pipeline/check_lesion_quality.py already share.
-
-  Previously copied lesion_volume_voxels from a specific already-built
-  lesion_matrix artifact's own metadata.csv instead, on the reasoning that
-  recomputing it here would create "a second, independently-drifting
-  definition of the same quantity" - reversed 28-09-26 (see
-  .claude/history/methods_changelog.md): that artifact's own grid/config is
-  itself just as capable of drifting from what build_lesion_matrix.json
-  currently says (confirmed - 900/5721 subjects, up to 38x apart, after the
-  grid moved from 1mm to 2mm and the referenced artifact didn't). One fresh
-  computation, reused by every consumer, is more stable than trusting whichever
-  artifact happens to be named in the config.
+- Everything derived from a lesion mask (the volume, and as a fallback the lesion
+  side) is COPIED from assets/metadata/lesion_metadata.csv
+  (config.lesion_metadata - see below), written by
+  src.pipeline.compute_lesion_metadata. This pipeline opens no NIfTI file of its
+  own: it is a join between the raw clinical tsvs and that CSV.
 
 The join is on `original_id`, NOT on `subject_id`: a raw tsv's participant_id is
 the canonical subject id for most datasets but the legacy site id for UCL-UK
@@ -44,41 +33,40 @@ is a registry, not a plotting input: a consumer that needs a categorical
 sentinel (e.g. "unknown" for a colour legend) applies its own on read. The one
 exception carrying extra information is lesion_side_source, which records where
 a lesion_side value came from - "clinical" (the raw tsv) or "geometric" (a
-subject with no clinical value, filled from its own lesion mask - see
-config.lesion_metrics below and knowledge/neuroimaging/lesion_laterality.md).
+subject with no clinical value, filled from the geometry of its own lesion mask -
+see config.lesion_metadata below and knowledge/neuroimaging/lesion_laterality.md).
 A clinical value is never overwritten by a geometric one.
 
-lesion_metrics (config, optional, null disables every mask-derived metric this
-run): one shared block for everything computed fresh from the lesion masks,
-rather than one config field per metric (a second metric would otherwise mean
-a second copy of the same data_root/reference_template_path/... path).
+lesion_metadata (config, optional, null skips the mask-derived columns entirely):
+the join onto assets/metadata/lesion_metadata.csv.
 
-- `build_matrix_config`: a build_lesion_matrix.json-shaped config supplying
-  data_root/datasets/reference_template_path/lesion_glob/binarize_threshold/
-  resample_interpolation/brain_mask_path.
-- `correct_out_of_brain`: zero lesion voxels falling outside the brain mask
-  (src.features.lesion_correction.zero_out_of_brain_voxels, the same
-  correction build_lesion_matrix.py's own correct_out_of_brain applies) before
-  computing anything below - so a subject's lesion_volume_voxels/lesion_side
-  here always matches what a production matrix built with the same setting
-  would show for them, never a second, uncorrected definition of the same
-  subject's lesion.
-- `compute_volume`: write lesion_volume_voxels.
-- `compute_side`: fill lesion_side (only where the clinical resolution above
-  left it empty - a clinical value is never touched), classified from
-  laterality_index = (left_voxels - right_voxels) / (left_voxels + right_voxels)
-  against `side_threshold` (src.features.lesion.lesion_side_from_laterality_index)
-  - calibrated 28-09-26 against 1445 clinically-labelled subjects (97.4%
-  agreement at the literature-default threshold 0.20, see
-  scripts/calibrate_lesion_side_threshold.py and
-  .claude/history/methods_changelog.md). Requires `lesion_side` in `variables`.
+- `path`: that CSV. Written by src.pipeline.compute_lesion_metadata, which owns
+  every decision about HOW a mask is measured (which voxel grids, whether
+  out-of-brain voxels are zeroed, the laterality threshold). None of those
+  settings appear here: this pipeline copies numbers, it does not compute them.
+- `copy_columns`: columns copied across under the SAME name, for every in-scope
+  subject, overwriting whatever was there. Each must exist in the CSV and must
+  not be a column src/pipeline/populate_metadata.py owns.
+- `lesion_side_from`: which CSV column fills `lesion_side`. Its rule differs from
+  copy_columns, which is why it is a separate key: it writes ONLY where the
+  clinical resolution above left the cell empty, and it also writes
+  lesion_side_source="geometric". A clinical value is never overwritten. It also
+  records which grid the registry's side comes from (e.g. "lesion_side_2mm"),
+  since the CSV carries one per grid. null disables the fill, leaving lesion_side
+  clinical-only. Requires `lesion_side` in `variables`.
 
-No per-subject exclusion list for either metric: a value later found unreliable
-in analysis is corrected by hand directly in participants.csv (a git-versioned
-CSV) - `fill: true` on the next run leaves a hand-corrected cell untouched,
-same as any other manually-fixed value. Simpler than a config-editing round
-trip for a case-by-case judgement call that belongs in analysis, not in this
-pipeline's config.
+The join is on subject_id and is strict in both directions: a subject with
+has_lesion=True but no row in the CSV means the CSV is stale (re-run
+compute_lesion_metadata), and a row in the CSV for a subject the registry does not
+know - or knows as has_lesion=False - means the two files disagree about who has a
+mask. Both raise rather than being silently skipped.
+
+Mask-derived columns are NOT hand-correctable in participants.csv: every run
+copies them over. A value found unreliable in analysis is fixed at the source (the
+mask, then re-run compute_lesion_metadata) or the subject goes into
+assets/metadata/excluded_subjects.csv - never by editing a cell that the next run
+will overwrite anyway. The clinical columns read from the raw tsvs keep the `fill`
+semantics below.
 
 Two kinds of gap are reported and are NOT errors:
 - a variable absent from one dataset's tsv entirely (structural per-dataset gap,
@@ -107,13 +95,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-import nibabel as nib
 import numpy as np
 import pandas as pd
 
-from src.analysis.build_config import load_build_matrix_config
-from src.features.lesion import compute_lesion_laterality_metrics, compute_lesion_volumes, lesion_side_from_laterality_index
 from src.utils.metadata_sources import DatasetSource, load_metadata_sources
+from src.utils.participants import load_participants_registry
 from src.utils.logging_setup import attach_file_handler, log_duration
 
 REPORTS_ROOT = Path("summaries") / "enrich_metadata"
@@ -127,7 +113,13 @@ LESION_SIDE_VARIABLE = "lesion_side"
 LESION_SIDE_SOURCE_COLUMN = "lesion_side_source"
 LESION_SIDE_SOURCE_CLINICAL = "clinical"
 LESION_SIDE_SOURCE_GEOMETRIC = "geometric"
-LESION_VOLUME_COLUMN = "lesion_volume_voxels"
+_LESION_METADATA_KEY_COLUMNS = ("subject_id", "dataset")
+# Columns src/pipeline/populate_metadata.py owns - "who exists". A lesion_metadata column may never be
+# copied onto one of them: the two scripts never overwrite each other's work (see module
+# docstring), and a copy_columns entry naming one of these would silently break that rule.
+_REGISTRY_OWNED_COLUMNS = ("subject_id", "original_id", "dataset", "disease_id",
+                           "has_lesion", "has_sdc", "has_features")
+_LESION_FLAG_COLUMN = "has_lesion"
 
 # The only missing-value sentinel observed in the real participants.tsv files
 # (verified 27/07/26); a genuinely empty field is already NaN from read_csv.
@@ -145,16 +137,16 @@ VARIABLE_SOURCE_OVERRIDES: dict[tuple[str, str], str] = {
 
 
 @dataclass(frozen=True)
-class LesionMetricsConfig:
-    """Config for the metadata computed fresh from the lesion masks
-    (docs/dev/metadata.md, knowledge/neuroimaging/lesion_laterality.md) - one
-    shared mask source/correction setting, two independent per-metric flags."""
+class LesionMetadataJoin:
+    """How to join assets/metadata/lesion_metadata.csv onto the registry - see module docstring.
 
-    build_matrix_config: Path
-    correct_out_of_brain: bool
-    compute_volume: bool
-    compute_side: bool
-    side_threshold: float
+    copy_columns are copied under their own name for every in-scope subject, overwriting.
+    lesion_side_from (optional) has a different rule - fill-only-where-empty, plus
+    lesion_side_source - which is why it is not just another entry in copy_columns."""
+
+    path: Path
+    copy_columns: list[str]
+    lesion_side_from: str | None
 
 
 @dataclass(frozen=True)
@@ -164,7 +156,7 @@ class EnrichMetadataConfig:
     participants_path: Path
     datasets: list[str] | None
     variables: list[str]
-    lesion_metrics: LesionMetricsConfig | None
+    lesion_metadata: LesionMetadataJoin | None
     fill: bool
     run_notes: str
 
@@ -217,7 +209,7 @@ def load_config(path: str | Path) -> EnrichMetadataConfig:
         if missing:
             raise ValueError(f"{path}: dataset(s) not in {raw['metadata_sources']}: {missing}")
 
-    lesion_metrics = _load_lesion_metrics_config(raw.get("lesion_metrics"), variables, path)
+    lesion_metadata = _load_lesion_metadata_config(raw.get("lesion_metadata"), variables, path)
 
     return EnrichMetadataConfig(
         project=str(raw["project"]),
@@ -225,58 +217,61 @@ def load_config(path: str | Path) -> EnrichMetadataConfig:
         participants_path=Path(str(raw["participants_path"])),
         datasets=datasets,
         variables=variables,
-        lesion_metrics=lesion_metrics,
+        lesion_metadata=lesion_metadata,
         fill=raw["fill"],
         run_notes=str(raw["run_notes"]),
     )
 
 
-def _load_lesion_metrics_config(raw_block: object, variables: list[str], path: Path) -> LesionMetricsConfig | None:
-    """Parse the optional 'lesion_metrics' block - null (the default) disables every
-    mask-derived metric this run. Only shape/type validated here (build_matrix_config
-    isn't resolved until it's actually used) - see compute_fresh_lesion_volumes/
-    compute_geometric_lesion_sides for what happens with a bad path."""
+def _load_lesion_metadata_config(raw_block: object, variables: list[str], path: Path) -> LesionMetadataJoin | None:
+    """Parse the optional 'lesion_metadata' block - null (the default) skips the CSV entirely.
+
+    Shape/type validated here; whether each named column actually exists is checked against the
+    CSV itself (read_lesion_metadata), because the CSV's metric columns are named after the
+    grids src.pipeline.compute_lesion_metadata was configured with - so there is no fixed
+    vocabulary to check against at config-load time, only the real file.
+    """
     if raw_block is None:
         return None
     if not isinstance(raw_block, dict):
-        raise ValueError(f"{path}: 'lesion_metrics' must be an object or null")
-    for key in ("build_matrix_config", "correct_out_of_brain", "compute_volume", "compute_side", "side_threshold"):
+        raise ValueError(f"{path}: 'lesion_metadata' must be an object or null")
+    for key in ("path", "copy_columns", "lesion_side_from"):
         if key not in raw_block:
-            raise ValueError(f"{path}: 'lesion_metrics' is missing required key {key!r}")
+            raise ValueError(f"{path}: 'lesion_metadata' is missing required key {key!r}")
+    if not isinstance(raw_block["path"], str) or not raw_block["path"]:
+        raise ValueError(f"{path}: 'lesion_metadata.path' must be a non-empty string")
 
-    build_matrix_config = raw_block["build_matrix_config"]
-    if not isinstance(build_matrix_config, str) or not build_matrix_config:
-        raise ValueError(f"{path}: 'lesion_metrics.build_matrix_config' must be a non-empty string")
-
-    for flag_key in ("correct_out_of_brain", "compute_volume", "compute_side"):
-        if not isinstance(raw_block[flag_key], bool):
-            raise ValueError(f"{path}: 'lesion_metrics.{flag_key}' must be a boolean")
-    compute_volume, compute_side = raw_block["compute_volume"], raw_block["compute_side"]
-    if not compute_volume and not compute_side:
+    copy_columns = _unique_str_list(raw_block["copy_columns"], "lesion_metadata.copy_columns", path)
+    owned = [c for c in copy_columns if c in _REGISTRY_OWNED_COLUMNS]
+    if owned:
         raise ValueError(
-            f"{path}: 'lesion_metrics' is set but both 'compute_volume' and 'compute_side' are false - "
-            "nothing to compute; use null to disable the block entirely"
-        )
-    if compute_side and LESION_SIDE_VARIABLE not in variables:
-        raise ValueError(
-            f"{path}: 'lesion_metrics.compute_side' is true but {LESION_SIDE_VARIABLE!r} is not in 'variables' - "
-            "the fallback has nothing to fill without it"
+            f"{path}: 'lesion_metadata.copy_columns' names column(s) {owned} owned by "
+            "src/pipeline/populate_metadata.py - the two scripts never overwrite each other's columns"
         )
 
-    side_threshold = raw_block["side_threshold"]
-    if (
-        not isinstance(side_threshold, (int, float))
-        or isinstance(side_threshold, bool)
-        or not (0.0 <= side_threshold < 1.0)
-    ):
-        raise ValueError(f"{path}: 'lesion_metrics.side_threshold' must be a number in [0.0, 1.0)")
+    lesion_side_from = raw_block["lesion_side_from"]
+    if lesion_side_from is not None:
+        if not isinstance(lesion_side_from, str) or not lesion_side_from:
+            raise ValueError(f"{path}: 'lesion_metadata.lesion_side_from' must be a non-empty string or null")
+        if LESION_SIDE_VARIABLE not in variables:
+            raise ValueError(
+                f"{path}: 'lesion_metadata.lesion_side_from' is set but {LESION_SIDE_VARIABLE!r} is not in "
+                "'variables' - there is no clinical resolution for it to fill the gaps of"
+            )
+        if lesion_side_from in copy_columns:
+            raise ValueError(
+                f"{path}: {lesion_side_from!r} is both 'lesion_side_from' and in 'copy_columns' - it would be "
+                f"copied verbatim AND used to fill {LESION_SIDE_VARIABLE!r}, writing the same fact twice under "
+                "two names with two different rules"
+            )
+    if not copy_columns and lesion_side_from is None:
+        raise ValueError(
+            f"{path}: 'lesion_metadata' is set but 'copy_columns' is empty and 'lesion_side_from' is null - "
+            "nothing to copy; use null to disable the block entirely"
+        )
 
-    return LesionMetricsConfig(
-        build_matrix_config=Path(build_matrix_config),
-        correct_out_of_brain=raw_block["correct_out_of_brain"],
-        compute_volume=compute_volume,
-        compute_side=compute_side,
-        side_threshold=float(side_threshold),
+    return LesionMetadataJoin(
+        path=Path(raw_block["path"]), copy_columns=copy_columns, lesion_side_from=lesion_side_from
     )
 
 
@@ -401,133 +396,97 @@ def resolve_dataset_values(
     return values, coverage
 
 
-def compute_fresh_lesion_volumes(
-    build_matrix_config: Path, datasets: list[str], correct_out_of_brain: bool
-) -> dict[str, int]:
-    """lesion_volume_voxels per subject, computed fresh from the raw lesion masks -
-    reuses src.features.lesion.compute_lesion_volumes (the same discovery/
-    resampling/binarization/correction build_lesion_matrix.py and
-    src/pipeline/check_lesion_quality.py already share), driven by a
-    build_lesion_matrix.json-shaped config rather than a second,
-    independently-shaped config for this one field.
+def read_lesion_metadata(
+    join: LesionMetadataJoin, registry: pd.DataFrame, datasets: list[str]
+) -> pd.DataFrame:
+    """Read assets/metadata/lesion_metadata.csv and check it agrees with the registry.
 
-    Only the intersection of `datasets` (this run's own scope) and the referenced
-    config's own `datasets` (the cohorts it actually knows have masks) is computed -
-    every uncovered dataset is logged at WARNING by name, whether the intersection is
-    empty or just partial (regression: NEMESIS_T0 silently dropped from a real
-    dry-run with zero log line naming it, 28-09-26, because the intersection wasn't
-    empty overall - see .claude/history/methods_changelog.md), never raising: an
-    enrich_metadata run can legitimately be scoped wider than any one
-    build_lesion_matrix.json happens to cover.
+    Returned frame is indexed by subject_id, carrying only the columns this run copies.
+    subject_id/dataset are read as str (never let pandas strip a leading zero); the metric
+    columns keep their own inferred types, so a voxel count stays an integer.
+
+    Three disagreements raise, none is skipped (see module docstring for why each is a real
+    inconsistency rather than a missing value):
+
+    - an in-scope subject with has_lesion=True and no row in the CSV -> the CSV is stale;
+    - a row whose subject_id is not in the registry at all -> a spurious row;
+    - a row for a subject the registry records as has_lesion=False -> the two files disagree
+      about who has a mask.
+
+    The first check is scoped to `datasets` (a run may legitimately enrich a subset of the
+    cohort); the other two are global, since a row that matches nobody is wrong regardless of
+    which datasets this run happens to touch.
     """
-    matrix_config = load_build_matrix_config(build_matrix_config)
-    in_scope = [d for d in datasets if d in matrix_config.datasets]
-    uncovered = sorted(set(datasets) - set(in_scope))
-    if uncovered:
-        logging.warning(
-            "lesion_metrics: dataset(s) %s are not covered by %s's own 'datasets' %s - "
-            "lesion_volume_voxels left untouched for them",
-            uncovered, build_matrix_config, matrix_config.datasets,
+    if not join.path.is_file():
+        raise FileNotFoundError(
+            f"{join.path} not found - it is written by src.pipeline.compute_lesion_metadata; "
+            "run that first, or set 'lesion_metadata' to null to skip the mask-derived columns"
         )
-    if not in_scope:
-        return {}
-    if correct_out_of_brain and matrix_config.brain_mask_path is None:
+    key_dtypes = {column: str for column in _LESION_METADATA_KEY_COLUMNS}
+    lesion_metadata = pd.read_csv(join.path, dtype=key_dtypes)
+
+    missing_keys = [c for c in _LESION_METADATA_KEY_COLUMNS if c not in lesion_metadata.columns]
+    if missing_keys:
+        raise ValueError(f"{join.path}: missing required column(s) {missing_keys}")
+    requested = list(join.copy_columns) + ([] if join.lesion_side_from is None else [join.lesion_side_from])
+    absent = [c for c in requested if c not in lesion_metadata.columns]
+    if absent:
         raise ValueError(
-            f"lesion_metrics.correct_out_of_brain is true but {build_matrix_config}'s own brain_mask_path is "
-            "null - cannot zero out-of-brain voxels without a brain mask"
+            f"{join.path}: column(s) {absent} requested by 'lesion_metadata' are not in the file; "
+            f"it has {list(lesion_metadata.columns)}"
         )
+    duplicated = sorted(lesion_metadata.loc[lesion_metadata["subject_id"].duplicated(), "subject_id"])
+    if duplicated:
+        raise ValueError(f"{join.path}: duplicate subject_id row(s): {duplicated}")
 
-    metadata, _ = compute_lesion_volumes(
-        data_root=matrix_config.data_root,
-        datasets=in_scope,
-        reference_template_path=matrix_config.reference_template_path,
-        lesion_glob=matrix_config.lesion_glob,
-        binarize_threshold=matrix_config.binarize_threshold,
-        resample_interpolation=matrix_config.resample_interpolation,
-        group_filter=None,
-        correct_out_of_brain=correct_out_of_brain,
-        brain_mask_path=matrix_config.brain_mask_path,
-    )
-    return dict(zip(metadata["subject_id"], metadata[LESION_VOLUME_COLUMN].astype(int)))
+    _check_agrees_with_registry(join.path, lesion_metadata, registry, datasets)
+    return lesion_metadata.set_index("subject_id")[requested]
 
 
-def compute_geometric_lesion_sides(
-    build_matrix_config: Path, datasets: list[str], threshold: float, correct_out_of_brain: bool
-) -> tuple[dict[str, str], set[str]]:
-    """left/right/both per subject, computed fresh from the raw lesion masks via
-    src.features.lesion.compute_lesion_laterality_metrics/lesion_side_from_laterality_index
-    - same discovery/resampling/correction machinery compute_fresh_lesion_volumes
-    above already shares with build_lesion_matrix.py.
-
-    Only the intersection of `datasets` (the ones that still have a subject missing
-    lesion_side) and the referenced config's own `datasets` is computed - an
-    enrich_metadata run can legitimately need a fallback for a dataset no
-    build_lesion_matrix.json happens to cover yet. Every uncovered dataset is logged
-    at WARNING by name, whether the intersection is empty or just partial - a
-    dataset silently dropped from a *partial* overlap is exactly as invisible as one
-    dropped from a total miss, and must be exactly as loud (same regression as
-    compute_fresh_lesion_volumes above, 28-09-26, .claude/history/methods_changelog.md).
-
-    Runs dataset-wide (every subject of `datasets`, not just the ones actually
-    missing lesion_side - mask discovery has no concept of "just these subjects"),
-    so a subject with an undefined laterality_index here is NOT necessarily a
-    subject that still needs a value - most of the time it already has a clinical
-    one. The WARNING below names every such candidate but never claims their cell
-    is empty; `undefined_ids` (the second return value) lets enrich() intersect
-    against its own `missing_ids` to find out which of them genuinely still lack a
-    value, and log that final, precise set separately (see enrich(), and
-    lessons_learned.md-style note in docs/dev/metadata.md: an aggregate/candidate
-    log is not a substitute for the final per-subject state).
-
-    Returns (computed, undefined_ids): `computed` is {subject_id: left/right/both}
-    for every subject with a defined laterality_index; `undefined_ids` is every
-    subject_id whose laterality_index came back NaN (zero lesion voxels on both
-    sides of the midline - see compute_lesion_laterality_metrics), a legitimate,
-    rare domain case, not an error.
-    """
-    matrix_config = load_build_matrix_config(build_matrix_config)
-    in_scope = [d for d in datasets if d in matrix_config.datasets]
-    uncovered = sorted(set(datasets) - set(in_scope))
-    if uncovered:
-        logging.warning(
-            "lesion_metrics: dataset(s) %s are not covered by %s's own 'datasets' %s - "
-            "lesion_side left untouched for them",
-            uncovered, build_matrix_config, matrix_config.datasets,
-        )
-    if not in_scope:
-        return {}, set()
-    if correct_out_of_brain and matrix_config.brain_mask_path is None:
+def _check_agrees_with_registry(
+    path: Path, lesion_metadata: pd.DataFrame, registry: pd.DataFrame, datasets: list[str]
+) -> None:
+    """The three strict join checks of read_lesion_metadata, kept apart from the parsing."""
+    if _LESION_FLAG_COLUMN not in registry.columns:
         raise ValueError(
-            f"lesion_metrics.correct_out_of_brain is true but {build_matrix_config}'s own brain_mask_path is "
-            "null - cannot zero out-of-brain voxels without a brain mask"
+            f"registry has no {_LESION_FLAG_COLUMN!r} column - it is written by "
+            "src/pipeline/populate_metadata.py and is what says which subjects have a mask at all"
+        )
+    has_mask = registry[_LESION_FLAG_COLUMN]
+    if not pd.api.types.is_bool_dtype(has_mask):
+        # NOT astype(bool): on a str-dtype registry (participants.csv is read with dtype=str)
+        # that maps the string "False" to True, since any non-empty string is truthy - the
+        # checks below would then silently invert. The registry must arrive already parsed,
+        # which is what src.utils.participants.load_participants_registry is for.
+        raise ValueError(
+            f"registry column {_LESION_FLAG_COLUMN!r} has dtype {has_mask.dtype} instead of bool - "
+            "read participants.csv through src.utils.participants.load_participants_registry, "
+            "which parses the has_* flags explicitly"
+        )
+    measured = set(lesion_metadata["subject_id"])
+
+    in_scope = registry["dataset"].isin(datasets)
+    expected = set(registry.loc[in_scope & has_mask, "subject_id"])
+    stale = sorted(expected - measured)
+    if stale:
+        raise ValueError(
+            f"{path}: {len(stale)} in-scope subject(s) with {_LESION_FLAG_COLUMN}=True have no row "
+            f"(e.g. {stale[:5]}) - the file predates them; re-run src.pipeline.compute_lesion_metadata"
         )
 
-    metadata, _ = compute_lesion_laterality_metrics(
-        data_root=matrix_config.data_root,
-        datasets=in_scope,
-        reference_template_path=matrix_config.reference_template_path,
-        lesion_glob=matrix_config.lesion_glob,
-        binarize_threshold=matrix_config.binarize_threshold,
-        resample_interpolation=matrix_config.resample_interpolation,
-        group_filter=None,
-        correct_out_of_brain=correct_out_of_brain,
-        brain_mask_path=matrix_config.brain_mask_path,
-    )
-    undefined = metadata["laterality_index"].isna()
-    undefined_ids = set(metadata.loc[undefined, "subject_id"])
-    if undefined_ids:
-        logging.warning(
-            "lesion_metrics: %d subject(s) in %s have an undefined laterality_index (zero lesion voxels on "
-            "both sides of the midline) - no geometric lesion_side computed for them (most likely already "
-            "have a clinical value; see enrich()'s own 'lesion_side still empty' warning below for exactly "
-            "who, if anyone, is still empty because of this): %s",
-            len(undefined_ids), in_scope, sorted(undefined_ids),
+    unknown = sorted(measured - set(registry["subject_id"]))
+    if unknown:
+        raise ValueError(
+            f"{path}: {len(unknown)} subject(s) have no row in the registry (e.g. {unknown[:5]}) - "
+            "the two files disagree about who exists"
         )
-    computed = metadata.loc[~undefined]
-    return {
-        row.subject_id: lesion_side_from_laterality_index(row.laterality_index, threshold)
-        for row in computed.itertuples()
-    }, undefined_ids
+    without_mask = sorted(measured & set(registry.loc[~has_mask, "subject_id"]))
+    if without_mask:
+        raise ValueError(
+            f"{path}: {len(without_mask)} subject(s) are measured here but recorded as "
+            f"{_LESION_FLAG_COLUMN}=False in the registry (e.g. {without_mask[:5]}) - the two files "
+            "disagree about who has a lesion mask"
+        )
 
 
 # --- assembling the enriched table ------------------------------------------------------------
@@ -571,73 +530,77 @@ def enrich(registry: pd.DataFrame, config: EnrichMetadataConfig) -> tuple[pd.Dat
             out.get(LESION_SIDE_SOURCE_COLUMN), source, in_scope, config.fill
         )
 
-    if config.lesion_metrics is not None:
-        metrics = config.lesion_metrics
+    if config.lesion_metadata is not None:
+        join = config.lesion_metadata
+        measured = read_lesion_metadata(join, registry, datasets)
 
-        if metrics.compute_side:
+        for column in join.copy_columns:
+            values = measured[column]
+            fresh = out["subject_id"].map(values)
+            # Nullable Int64 for an integer source column, not the float64 a plain map() yields:
+            # subjects outside this run's scope are absent from `values`, introducing a NaN that
+            # promotes the whole column to float and would write a voxel *count* as "4616.0".
+            # Int64 keeps NA and stays integral (the out-of-scope rows are dropped by _apply
+            # anyway, but the dtype is decided before that).
+            if pd.api.types.is_integer_dtype(values):
+                fresh = fresh.astype("Int64")
+            # fill=False regardless of config.fill: a mask-derived value is never hand-corrected
+            # in participants.csv (see module docstring), so there is nothing to preserve - and
+            # honouring fill=True would silently freeze a stale number after the masks changed.
+            out[column] = _apply(out.get(column), fresh, in_scope, fill=False)
+            logging.info(
+                "lesion_metadata: %d/%d subject(s) matched for %s (from %s)",
+                int(fresh.notna().sum()), len(out), column, join.path,
+            )
+
+        if join.lesion_side_from is not None:
             missing = in_scope & out[LESION_SIDE_VARIABLE].isna()
             if not missing.any():
-                logging.info("lesion_metrics: no in-scope subject needs a geometric lesion_side fallback")
+                logging.info("lesion_metadata: every in-scope subject already has a clinical lesion_side")
             else:
-                target_datasets = sorted(set(out.loc[missing, "dataset"]))
-                computed, undefined_ids = compute_geometric_lesion_sides(
-                    metrics.build_matrix_config, target_datasets, metrics.side_threshold, metrics.correct_out_of_brain
-                )
-                # compute_geometric_lesion_sides works dataset-wide (mask discovery has no
-                # concept of "just these subjects"), so `computed` can include subjects
-                # outside `missing` (already clinical) - restrict to exactly who needed it
-                # before writing anything, or an already-resolved subject sharing a
-                # dataset with a genuinely missing one would get overwritten too.
+                # Restricted to exactly the subjects whose cell is empty: the CSV has a side for
+                # every measured subject, so an unrestricted copy would overwrite the clinical
+                # values too - the one thing this branch must never do.
                 missing_ids = set(out.loc[missing, "subject_id"])
-                sides = {sid: side for sid, side in computed.items() if sid in missing_ids}
+                sides = {
+                    subject_id: side
+                    for subject_id, side in measured[join.lesion_side_from].items()
+                    if subject_id in missing_ids and pd.notna(side)
+                }
                 # fill=True regardless of config.fill: `missing` already restricts this to
-                # currently-empty cells, so this branch only ever writes into a gap the
-                # clinical resolution above left behind - never a value config.fill=false's
-                # full-recompute semantics would otherwise expect this branch to overwrite.
-                fresh_side = out["subject_id"].map(sides)
-                out[LESION_SIDE_VARIABLE] = _apply(out.get(LESION_SIDE_VARIABLE), fresh_side, in_scope, fill=True)
-                fresh_source = out["subject_id"].map({sid: LESION_SIDE_SOURCE_GEOMETRIC for sid in sides})
+                # currently-empty cells, so this only ever writes into a gap the clinical
+                # resolution left behind.
+                out[LESION_SIDE_VARIABLE] = _apply(
+                    out.get(LESION_SIDE_VARIABLE), out["subject_id"].map(sides), in_scope, fill=True
+                )
                 out[LESION_SIDE_SOURCE_COLUMN] = _apply(
-                    out.get(LESION_SIDE_SOURCE_COLUMN), fresh_source, in_scope, fill=True
+                    out.get(LESION_SIDE_SOURCE_COLUMN),
+                    out["subject_id"].map({s: LESION_SIDE_SOURCE_GEOMETRIC for s in sides}),
+                    in_scope,
+                    fill=True,
                 )
                 logging.info(
-                    "lesion_metrics: %d/%d subject(s) missing lesion_side filled geometrically (threshold=%.2f)",
-                    len(sides), int(missing.sum()), metrics.side_threshold,
+                    "lesion_metadata: %d/%d subject(s) missing lesion_side filled from %s",
+                    len(sides), int(missing.sum()), join.lesion_side_from,
                 )
-                # The final, per-subject state - not a candidate/pre-filter count like the
-                # "undefined laterality_index" warning above, which can include subjects that
-                # already had a clinical value and never needed filling. Split by cause so
-                # "why is this subject still empty" never needs cross-referencing two warnings
-                # and participants.csv by hand (found 29-09-26 while auditing this pipeline's
-                # own logging - see docs/dev/metadata.md).
-                still_missing_ids = missing_ids - set(sides)
-                if still_missing_ids:
-                    undefined_and_still_missing = sorted(still_missing_ids & undefined_ids)
-                    if undefined_and_still_missing:
+                # The final per-subject state, split by cause, so "why is this subject still
+                # empty" never needs cross-referencing two warnings and participants.csv by hand.
+                still_missing = missing_ids - set(sides)
+                if still_missing:
+                    no_side = sorted(s for s in still_missing if s in measured.index)
+                    if no_side:
                         logging.warning(
-                            "lesion_metrics: %d subject(s) remain without lesion_side - undefined "
-                            "laterality_index (zero lesion voxels on both sides of the midline): %s",
-                            len(undefined_and_still_missing), undefined_and_still_missing,
+                            "lesion_metadata: %d subject(s) remain without lesion_side - measured, but "
+                            "%s is empty for them (no side attributable to their mask): %s",
+                            len(no_side), join.lesion_side_from, no_side,
                         )
-                    other_still_missing = sorted(still_missing_ids - undefined_ids)
-                    if other_still_missing:
+                    unmeasured = sorted(s for s in still_missing if s not in measured.index)
+                    if unmeasured:
                         logging.warning(
-                            "lesion_metrics: %d subject(s) remain without lesion_side - dataset not covered "
-                            "by %s (no clinical value and no geometric fallback attempted): %s",
-                            len(other_still_missing), metrics.build_matrix_config, other_still_missing,
+                            "lesion_metadata: %d subject(s) remain without lesion_side - no clinical value "
+                            "and no row in %s (they have no lesion mask): %s",
+                            len(unmeasured), join.path, unmeasured,
                         )
-
-        if metrics.compute_volume:
-            volumes = compute_fresh_lesion_volumes(metrics.build_matrix_config, datasets, metrics.correct_out_of_brain)
-            # Nullable Int64, not the float64 a plain map() produces: a subject absent from
-            # the fresh computation introduces a NaN, which would promote the whole column to
-            # float and write a voxel *count* as "4616.0". Int64 keeps NA and stays integral.
-            fresh = out["subject_id"].map(volumes).astype("Int64")
-            out[LESION_VOLUME_COLUMN] = _apply(out.get(LESION_VOLUME_COLUMN), fresh, in_scope, config.fill)
-            logging.info(
-                "lesion_metrics: %d/%d subject(s) matched for lesion_volume_voxels (config=%s)",
-                int(fresh.notna().sum()), len(out), metrics.build_matrix_config,
-            )
 
     return out, coverages
 
@@ -679,18 +642,15 @@ def write_table(table: pd.DataFrame, output_path: Path) -> None:
 # --- report ---------------------------------------------------------------------------------
 
 
-def _lesion_metrics_summary(lesion_metrics: LesionMetricsConfig | None) -> str:
-    """JSON dump of lesion_metrics (or 'null'), not the dataclass's own repr() -
-    the latter (e.g. "LesionMetricsConfig(build_matrix_config=PosixPath('...'), ...)")
-    is illegible in a report meant to be read as a document, not a Python session."""
-    if lesion_metrics is None:
+def _lesion_metadata_summary(join: LesionMetadataJoin | None) -> str:
+    """JSON dump of the lesion_metadata block (or 'null'), not the dataclass's own repr() -
+    the latter is illegible in a report meant to be read as a document."""
+    if join is None:
         return "null"
     payload = {
-        "build_matrix_config": str(lesion_metrics.build_matrix_config),
-        "correct_out_of_brain": lesion_metrics.correct_out_of_brain,
-        "compute_volume": lesion_metrics.compute_volume,
-        "compute_side": lesion_metrics.compute_side,
-        "side_threshold": lesion_metrics.side_threshold,
+        "path": str(join.path),
+        "copy_columns": join.copy_columns,
+        "lesion_side_from": join.lesion_side_from,
     }
     return json.dumps(payload, indent=2)
 
@@ -701,9 +661,9 @@ def report_lines(config: EnrichMetadataConfig, coverages: list[DatasetCoverage],
         "",
         f"file: `{config.participants_path}` · fill: {config.fill} · variables: {', '.join(config.variables)}",
         "",
-        "lesion_metrics:",
+        "lesion_metadata:",
         "```json",
-        _lesion_metrics_summary(config.lesion_metrics),
+        _lesion_metadata_summary(config.lesion_metadata),
         "```",
         "",
         f"notes: {config.run_notes}",
@@ -763,18 +723,14 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
         try:
-            if not config.participants_path.is_file():
-                raise FileNotFoundError(
-                    f"{config.participants_path} not found - run scripts/populate_metadata.py first "
-                    "(it creates the file this script enriches)"
-                )
-            registry = pd.read_csv(config.participants_path, dtype=str)
+            # Through src.utils.participants, not a raw read_csv: it is the module that owns this
+            # file, and it validates the has_* flags into real bools - which the lesion_metadata
+            # join below needs (has_lesion is what says who should have a row in the CSV).
+            registry = load_participants_registry(config.participants_path)
             table, coverages = enrich(registry, config)
-        except (FileNotFoundError, ValueError, nib.filebasedimages.ImageFileError) as exc:
-            # ImageFileError (see build_lesion_matrix.py's own handling): reachable here
-            # too, from compute_fresh_lesion_volumes/compute_geometric_lesion_sides,
-            # whenever config.lesion_metrics is set and a subject's .nii.gz is
-            # truncated/corrupt.
+        except (FileNotFoundError, ValueError) as exc:
+            # No ImageFileError any more: this pipeline opens no NIfTI file at all since the
+            # mask-derived columns became a join onto assets/metadata/lesion_metadata.csv.
             logging.error(str(exc))
             return 1
 

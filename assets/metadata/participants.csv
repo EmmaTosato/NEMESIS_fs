@@ -1,4 +1,4 @@
-subject_id,original_id,dataset,disease_id,has_lesion,has_sdc,has_features,age,sex,education,lesion_side,NIHSS,clinical_date,lesion_side_source,lesion_volume_voxels
+subject_id,original_id,dataset,disease_id,has_lesion,has_sdc,has_features,age,sex,education,lesion_side,NIHSS,clinical_date,lesion_side_source,lesion_volume_voxels_2mm
 sub-STUNIPD0001,sub-STUNIPD0001,UNIPD/WashU,ST,True,True,False,48.0,F,12.0,right,23.0,2008/05/20,clinical,5061
 sub-STUNIPD0002,sub-STUNIPD0002,UNIPD/WashU,ST,True,True,True,39.0,M,12.0,left,2.0,2008/06/11,clinical,5175
 sub-STUNIPD0003,sub-STUNIPD0003,UNIPD/WashU,ST,True,True,True,43.0,F,12.0,left,20.0,2008/06/23,clinical,7180
