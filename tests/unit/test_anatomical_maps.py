@@ -4,7 +4,12 @@ import nibabel as nib
 import numpy as np
 import pytest
 
-from src.analysis.anatomical_maps import build_mean_map, build_overlap_map, resolve_lesion_paths
+from src.analysis.anatomical_maps import (
+    build_mean_map,
+    build_overlap_map,
+    resolve_available_lesion_paths,
+    resolve_lesion_paths,
+)
 
 _AFFINE = np.eye(4) * 2
 _AFFINE[3, 3] = 1
@@ -73,6 +78,52 @@ def test_resolve_lesion_paths_subject_missing_from_dataset_map_raises(tmp_path):
 
     with pytest.raises(ValueError, match="sub-STUNIPD0001"):
         resolve_lesion_paths(["sub-STUNIPD0001"], {}, tmp_path, _LESION_GLOB)
+
+
+def test_resolve_available_lesion_paths_skips_unresolvable_subjects_and_warns(tmp_path, caplog):
+    # 29-09-26, on request: a per-cluster aggregate map (unlike a single-subject viewer) should
+    # proceed with whatever subjects ARE resolvable, not fail entirely over one gap.
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [(2, 2, 2)])
+
+    with caplog.at_level("WARNING"):
+        resolved, missing = resolve_available_lesion_paths(
+            ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUNIPD9999"],
+            {"sub-STUNIPD0001": "siteA", "sub-STUNIPD0002": "siteA", "sub-STUNIPD9999": "siteA"},
+            tmp_path,
+            _LESION_GLOB,
+        )
+
+    assert set(resolved) == {"sub-STUNIPD0001", "sub-STUNIPD0002"}
+    assert missing == ["sub-STUNIPD9999"]
+    assert any("sub-STUNIPD9999" in record.message for record in caplog.records)
+
+
+def test_resolve_available_lesion_paths_no_missing_returns_empty_list(tmp_path, caplog):
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+
+    with caplog.at_level("WARNING"):
+        resolved, missing = resolve_available_lesion_paths(
+            ["sub-STUNIPD0001"], {"sub-STUNIPD0001": "siteA"}, tmp_path, _LESION_GLOB,
+        )
+
+    assert set(resolved) == {"sub-STUNIPD0001"}
+    assert missing == []
+    assert caplog.records == []
+
+
+def test_resolve_available_lesion_paths_raises_if_none_resolvable(tmp_path):
+    with pytest.raises(ValueError, match="none of the 1 requested"):
+        resolve_available_lesion_paths(
+            ["sub-STUNIPD9999"], {"sub-STUNIPD9999": "siteA"}, tmp_path, _LESION_GLOB,
+        )
+
+
+def test_resolve_available_lesion_paths_subject_missing_from_dataset_map_raises(tmp_path):
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+
+    with pytest.raises(ValueError, match="sub-STUNIPD0001"):
+        resolve_available_lesion_paths(["sub-STUNIPD0001"], {}, tmp_path, _LESION_GLOB)
 
 
 def test_build_overlap_map_counts_and_percentage(tmp_path):

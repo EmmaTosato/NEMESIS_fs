@@ -29,6 +29,8 @@ from src.analysis.embedding_app import (
     _static_png_bytes,
     build_app,
     build_embedding_figure,
+    cluster_centroids_with_nearest_subject,
+    cluster_description_content_for,
     cluster_options,
     disconnectome_viewer_content_for,
     disconnection_map_content_for,
@@ -42,6 +44,7 @@ from src.analysis.embedding_app import (
     n_components_options,
     overlap_map_content_for,
     pipeline_options,
+    representative_subject_content_for,
     run_metadata,
     run_params,
     run_reduction_axis,
@@ -874,9 +877,10 @@ def test_build_cluster_overlap_view_returns_percentage_img_for_static_png(tmp_pa
     run = ProductionRun("lesion", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
     metadata = run_metadata(run)
 
-    view, n_subjects, percentage_img = _build_cluster_overlap_view(run, metadata, 0, _lesion_cfg(data_root))
+    view, n_subjects, percentage_img, missing = _build_cluster_overlap_view(run, metadata, 0, _lesion_cfg(data_root))
 
     assert n_subjects == 2
+    assert missing == []
     assert percentage_img.shape == _LESION_SHAPE
     # 1 of 2 subjects lesioned at (1, 1, 1) - 50% overlap there, 0% everywhere else.
     assert percentage_img.get_fdata()[1, 1, 1] == pytest.approx(50.0)
@@ -908,6 +912,58 @@ def test_overlap_map_content_for_valid_cluster_returns_iframe(tmp_path):
     heading, caption, viewer_wrap = content.children
     assert heading.children == "Cluster 0 (n=2)"
     assert "%" in caption.children
+    assert isinstance(viewer_wrap.children, html.Iframe)
+
+
+def test_build_cluster_overlap_view_skips_unresolvable_subject_and_reports_it(tmp_path):
+    # 29-09-26, on request: a cluster with one member missing on disk (e.g. after the 23-09-26
+    # lesion-mask swap, .claude/history/data_changelog.md) still produces a map over the
+    # subjects that ARE resolvable, instead of failing the whole panel - sub-STUNIPD0002 is in
+    # this cluster's metadata but has no lesion file created for it below.
+    subject_ids = ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUKLFR0001", "sub-STUKLFR0002"]
+    data_root = tmp_path / "data"
+    _make_lesion_subject(data_root, "UNIPD/WashU", subject_ids[0], [(1, 1, 1)])
+    # subject_ids[1] deliberately has no lesion file on disk at all.
+    _make_lesion_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[2], [(2, 2, 2)])
+    _make_lesion_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[3], [(2, 2, 2)])
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, pipeline="clustering", run_name="run-a",
+        extra_metadata={"subject_id": subject_ids, "cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("lesion", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+    metadata = run_metadata(run)
+
+    view, n_subjects, percentage_img, missing = _build_cluster_overlap_view(run, metadata, 0, _lesion_cfg(data_root))
+
+    assert n_subjects == 1
+    assert missing == ["sub-STUNIPD0002"]
+    # 1 of 1 *resolved* subjects lesioned at (1, 1, 1) - 100%, not 50% (the missing subject is
+    # excluded from the denominator entirely, not counted as "not lesioned").
+    assert percentage_img.get_fdata()[1, 1, 1] == pytest.approx(100.0)
+
+
+def test_overlap_map_content_for_partial_cluster_shows_warning(tmp_path):
+    subject_ids = ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUKLFR0001", "sub-STUKLFR0002"]
+    data_root = tmp_path / "data"
+    _make_lesion_subject(data_root, "UNIPD/WashU", subject_ids[0], [(1, 1, 1)])
+    _make_lesion_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[2], [(2, 2, 2)])
+    _make_lesion_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[3], [(2, 2, 2)])
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, pipeline="clustering", run_name="run-a",
+        extra_metadata={"subject_id": subject_ids, "cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("lesion", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+    metadata = run_metadata(run)
+
+    content = overlap_map_content_for(run, metadata, 0, _lesion_cfg(data_root))
+
+    assert isinstance(content, html.Div)
+    heading, caption, warning, viewer_wrap = content.children
+    assert heading.children == "Cluster 0 (n=1)"
+    assert warning.className == "anatomy-warning"
+    assert "sub-STUNIPD0002" in _warning_text(warning)
     assert isinstance(viewer_wrap.children, html.Iframe)
 
 
@@ -978,9 +1034,10 @@ def test_build_cluster_disconnection_view_returns_mean_img_for_static_png(tmp_pa
     run = ProductionRun("sdc", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
     metadata = run_metadata(run)
 
-    view, n_subjects, mean_img = _build_cluster_disconnection_view(run, metadata, 0, _sdc_cfg(data_root))
+    view, n_subjects, mean_img, missing = _build_cluster_disconnection_view(run, metadata, 0, _sdc_cfg(data_root))
 
     assert n_subjects == 2
+    assert missing == []
     assert mean_img.shape == _LESION_SHAPE
     assert mean_img.get_fdata()[1, 1, 1] == pytest.approx(0.6)
     assert mean_img.get_fdata()[2, 2, 2] == pytest.approx(0.1)
@@ -988,6 +1045,55 @@ def test_build_cluster_disconnection_view_returns_mean_img_for_static_png(tmp_pa
 
     png_bytes = _static_png_bytes(mean_img, threshold=1e-6, cmap="magma", colorbar=True)
     assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_build_cluster_disconnection_view_skips_unresolvable_subject_and_reports_it(tmp_path):
+    # Same skip-and-warn behavior as test_build_cluster_overlap_view_skips_unresolvable_subject_
+    # and_reports_it, for the continuous SDC mean map - subject_ids[1] has no disconnectome file.
+    subject_ids = ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUKLFR0001", "sub-STUKLFR0002"]
+    data_root = tmp_path / "data"
+    _make_disconnectome_subject(data_root, "UNIPD/WashU", subject_ids[0], {(1, 1, 1): 0.8})
+    _make_disconnectome_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[2], {(3, 3, 3): 0.5})
+    _make_disconnectome_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[3], {(3, 3, 3): 0.5})
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, modality="sdc", pipeline="clustering", run_name="run-a",
+        extra_metadata={"subject_id": subject_ids, "cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("sdc", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+    metadata = run_metadata(run)
+
+    view, n_subjects, mean_img, missing = _build_cluster_disconnection_view(run, metadata, 0, _sdc_cfg(data_root))
+
+    assert n_subjects == 1
+    assert missing == ["sub-STUNIPD0002"]
+    # Mean over the 1 resolved subject only (0.8), not divided by 2 as if the missing subject
+    # contributed a 0 - it's excluded from the denominator entirely.
+    assert mean_img.get_fdata()[1, 1, 1] == pytest.approx(0.8)
+
+
+def test_disconnection_map_content_for_partial_cluster_shows_warning(tmp_path):
+    subject_ids = ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUKLFR0001", "sub-STUKLFR0002"]
+    data_root = tmp_path / "data"
+    _make_disconnectome_subject(data_root, "UNIPD/WashU", subject_ids[0], {(1, 1, 1): 0.8})
+    _make_disconnectome_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[2], {(3, 3, 3): 0.5})
+    _make_disconnectome_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[3], {(3, 3, 3): 0.5})
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, modality="sdc", pipeline="clustering", run_name="run-a",
+        extra_metadata={"subject_id": subject_ids, "cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("sdc", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+    metadata = run_metadata(run)
+
+    content = disconnection_map_content_for(run, metadata, 0, _sdc_cfg(data_root))
+
+    assert isinstance(content, html.Div)
+    heading, caption, warning, viewer_wrap = content.children
+    assert heading.children == "Cluster 0 (n=1)"
+    assert warning.className == "anatomy-warning"
+    assert "sub-STUNIPD0002" in _warning_text(warning)
+    assert isinstance(viewer_wrap.children, html.Iframe)
 
 
 def test_static_glass_brain_png_bytes_from_disconnectome_path_returns_valid_png(tmp_path):
@@ -1245,3 +1351,370 @@ def test_sdc_panels_visible_only_for_sdc_modality_runs(tmp_path):
     # sdc modality but dim_reduction pipeline (no cluster_label) - still hidden.
     assert panel_style("disconnection-map-panel", sdc_dr_run.key) == {"display": "none"}
     assert panel_style("disconnection-map-panel", sdc_cl_run.key) == {}
+
+
+def test_representative_subject_panel_visible_only_for_clustering_runs(tmp_path):
+    # representative-subject-panel's style is one of 5 Outputs on the same
+    # _update_cluster_picker callback (options/value/cluster-map-panel style/this one/
+    # cluster-description-panel style) - all 5 must be requested together (Dash's raw endpoint
+    # 500s on a subset of a registered multi-output callback's own Outputs, confirmed while
+    # writing this test).
+    data_root = tmp_path / "data"
+    results_root = tmp_path / "results"
+    dr_dir = _make_run_dir(results_root, run_name="dr-run")
+    cl_dir = _make_run_dir(
+        results_root, pipeline="clustering", run_name="cl-run", extra_metadata={"cluster_label": [0, 0, 1, 1]},
+    )
+    dr_run = ProductionRun("lesion", "dim_reduction", "umap", "dr-run", dr_dir)
+    cl_run = ProductionRun("lesion", "clustering", "kmeans", "cl-run", cl_dir, reduction_method="umap")
+    app = build_app([dr_run, cl_run], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path))
+    app.server.config["TESTING"] = True
+    client = app.server.test_client()
+
+    output_id_props = [
+        ("cluster-picker", "options"), ("cluster-picker", "value"),
+        ("cluster-map-panel", "style"), ("representative-subject-panel", "style"),
+        ("cluster-description-panel", "style"),
+    ]
+
+    def cluster_picker_outputs(run_key):
+        body = {
+            "output": ".." + "...".join(f"{i}.{p}" for i, p in output_id_props) + "..",
+            "outputs": [{"id": i, "property": p} for i, p in output_id_props],
+            "inputs": [{"id": "run-picker", "property": "value", "value": run_key}],
+            "changedPropIds": ["run-picker.value"],
+            "state": [],
+        }
+        resp = client.post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
+        assert resp.status_code == 200
+        return resp.get_json()["response"]
+
+    assert cluster_picker_outputs(dr_run.key)["representative-subject-panel"]["style"] == {"display": "none"}
+    assert cluster_picker_outputs(cl_run.key)["representative-subject-panel"]["style"] == {}
+
+
+def test_cluster_centroids_with_nearest_subject_finds_true_nearest_point():
+    # 3 points per cluster (not 2) - a 2-point cluster is always exactly equidistant from its
+    # own mean, which would make "nearest" an untested tie rather than a real computation.
+    # Cluster 0: sub-b is a far outlier that pulls the mean away from sub-a, past sub-c -
+    # sub-c ends up strictly closer to the mean than sub-a despite starting nearer the origin.
+    embedding = np.array([
+        [0.0, 0.0],    # sub-a
+        [10.0, 10.0],  # sub-b (outlier)
+        [0.1, 0.1],    # sub-c - true nearest to cluster 0's centroid
+        [5.0, 5.0],    # sub-d
+        [5.2, 5.1],    # sub-e - true nearest to cluster 1's centroid
+        [20.0, 20.0],  # sub-f (outlier)
+    ])
+    metadata = pd.DataFrame({
+        "subject_id": ["sub-a", "sub-b", "sub-c", "sub-d", "sub-e", "sub-f"],
+        "cluster_label": [0, 0, 0, 1, 1, 1],
+    })
+
+    result = cluster_centroids_with_nearest_subject(embedding, metadata)
+
+    assert list(result.index) == [0, 1]
+    assert result.loc[0, "dim0"] == pytest.approx(10.1 / 3)
+    assert result.loc[0, "dim1"] == pytest.approx(10.1 / 3)
+    assert result.loc[0, "nearest_subject_id"] == "sub-c"
+    assert result.loc[1, "nearest_subject_id"] == "sub-e"
+    # sub-c's own distance to (10.1/3, 10.1/3), computed independently of the function under test.
+    expected_distance = float(np.linalg.norm([0.1 - 10.1 / 3, 0.1 - 10.1 / 3]))
+    assert result.loc[0, "distance_to_centroid"] == pytest.approx(expected_distance)
+
+
+def test_cluster_centroids_with_nearest_subject_raises_without_cluster_label_column():
+    embedding = np.array([[0.0, 0.0], [1.0, 1.0]])
+    metadata = pd.DataFrame({"subject_id": ["sub-a", "sub-b"]})
+
+    with pytest.raises(ValueError, match="cluster_label"):
+        cluster_centroids_with_nearest_subject(embedding, metadata)
+
+
+def test_cluster_centroids_with_nearest_subject_raises_on_mismatched_row_counts():
+    embedding = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]])
+    metadata = pd.DataFrame({"subject_id": ["sub-a", "sub-b"], "cluster_label": [0, 0]})
+
+    with pytest.raises(ValueError, match="rows"):
+        cluster_centroids_with_nearest_subject(embedding, metadata)
+
+
+def test_representative_subject_content_for_lesion_modality_returns_iframe(tmp_path):
+    # Default _make_run_dir fixture: index-0/index-1 subjects at (0,0)/(1,1) in cluster 0, both
+    # dataset UNIPD/WashU - centroid (0.5, 0.5) is exactly equidistant from both (a symmetric
+    # 2-point cluster, see test_cluster_centroids_with_nearest_subject_finds_true_nearest_point's
+    # own docstring for why that's a tie) - only the index-0 subject needs a real lesion file
+    # since numpy's argmin deterministically returns the first index on an exact tie. subject_id
+    # overridden to a real site-prefixed name (lessons_learned.md #28) only for that one subject.
+    data_root = tmp_path / "data"
+    _make_lesion_subject(data_root, "UNIPD/WashU", "sub-STUNIPD0001", [(1, 1, 1)])
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, pipeline="clustering", run_name="run-a",
+        extra_metadata={"subject_id": ["sub-STUNIPD0001", "sub-2", "sub-3", "sub-4"], "cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("lesion", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+    embedding, metadata = load_run(run)
+
+    content = representative_subject_content_for(run, embedding, metadata, 0, _lesion_cfg(data_root), _sdc_cfg(data_root))
+
+    assert isinstance(content, html.Div)
+    heading, caption, viewer_wrap = content.children
+    assert "Cluster 0" in heading.children
+    assert "sub-STUNIPD0001" in heading.children
+    assert "distanza=" in caption.children
+    assert isinstance(viewer_wrap.children, html.Iframe)
+
+
+def test_representative_subject_content_for_sdc_modality_dispatches_to_disconnectome_view(tmp_path):
+    # Same tie reasoning as the lesion test above - the index-0 subject wins cluster 0's tie
+    # deterministically.
+    data_root = tmp_path / "data"
+    _make_disconnectome_subject(data_root, "UNIPD/WashU", "sub-STUNIPD0001", {(1, 1, 1): 0.8})
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, modality="sdc", pipeline="clustering", run_name="run-a",
+        extra_metadata={"subject_id": ["sub-STUNIPD0001", "sub-2", "sub-3", "sub-4"], "cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("sdc", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+    embedding, metadata = load_run(run)
+
+    content = representative_subject_content_for(run, embedding, metadata, 0, _lesion_cfg(data_root), _sdc_cfg(data_root))
+
+    assert isinstance(content, html.Div)
+    heading, _caption, viewer_wrap = content.children
+    assert "sub-STUNIPD0001" in heading.children
+    assert isinstance(viewer_wrap.children, html.Iframe)
+
+
+def test_representative_subject_content_for_unknown_cluster_returns_status_message(tmp_path):
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, pipeline="clustering", run_name="run-a", extra_metadata={"cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("lesion", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+    embedding, metadata = load_run(run)
+
+    content = representative_subject_content_for(run, embedding, metadata, 99, _lesion_cfg(tmp_path), _sdc_cfg(tmp_path))
+
+    assert isinstance(content, html.P)
+    assert "99" in content.children
+
+
+def test_graph_content_for_adds_centroid_trace_for_clustering_run(tmp_path):
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, pipeline="clustering", run_name="run-a", extra_metadata={"cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("lesion", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+
+    content = graph_content_for(run, NEUTRAL_MODE)
+
+    assert isinstance(content, dcc.Graph)
+    trace_names = [trace.name for trace in content.figure.data]
+    assert "centroide" in trace_names
+
+
+def test_graph_content_for_no_centroid_trace_for_dim_reduction_run(tmp_path):
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(results_root, pipeline="dim_reduction", run_name="run-a")
+    run = ProductionRun("lesion", "dim_reduction", "umap", "run-a", run_dir)
+
+    content = graph_content_for(run, NEUTRAL_MODE)
+
+    assert isinstance(content, dcc.Graph)
+    trace_names = [trace.name for trace in content.figure.data]
+    assert "centroide" not in trace_names
+
+
+_PARTICIPANTS_REGISTRY_COLUMNS = ["subject_id", "original_id", "dataset", "disease_id", "has_lesion", "has_sdc", "has_features"]
+
+
+def _write_participants_registry(metadata_root, rows, extra_columns):
+    """Same shape as tests/unit/test_embedding_coloring.py's/test_cluster_description.py's own
+    _write_registry - a minimal assets/metadata/participants.csv, monkeypatched via
+    _participants_registry_root below."""
+    metadata_root.mkdir(parents=True, exist_ok=True)
+    header = [*_PARTICIPANTS_REGISTRY_COLUMNS, *extra_columns]
+    lines = [",".join(header)] + [",".join(r) for r in rows]
+    (metadata_root / "participants.csv").write_text("\n".join(lines) + "\n")
+
+
+@pytest.fixture
+def _participants_registry_root(tmp_path, monkeypatch):
+    from src.utils import participants as participants_registry
+
+    root = tmp_path / "metadata"
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", root)
+    return root
+
+
+def test_cluster_description_content_for_valid_cluster_returns_graph(_participants_registry_root):
+    _write_participants_registry(
+        _participants_registry_root,
+        [
+            ["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "60.0", "F", "12.0", "5.0", "1000"],
+            ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", "70.0", "M", "16.0", "10.0", "2000"],
+        ],
+        ["age", "sex", "education", "NIHSS", "lesion_volume_voxels_2mm"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001", "sub-STUNIPD0002"], "cluster_label": [0, 0]})
+
+    content = cluster_description_content_for(metadata, 0)
+
+    # The panel is always a Div now (29-09-26): the figure, plus the cross-cluster comparison
+    # table under it. No warning paragraph here - every subject is in the registry.
+    assert isinstance(content, html.Div)
+    graph, table_wrap = content.children
+    assert isinstance(graph, dcc.Graph)
+    assert isinstance(table_wrap, html.Div)
+
+
+def test_cluster_description_content_for_empty_cluster_returns_status_message(_participants_registry_root):
+    _write_participants_registry(
+        _participants_registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "60.0", "F", "12.0", "5.0", "1000"]],
+        ["age", "sex", "education", "NIHSS", "lesion_volume_voxels_2mm"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001"], "cluster_label": [0]})
+
+    content = cluster_description_content_for(metadata, 99)
+
+    assert isinstance(content, html.P)
+    assert "99" in content.children
+
+
+def test_cluster_description_content_for_unregistered_subjects_renders_graph_with_warning(
+    _participants_registry_root,
+):
+    """29-09-26 regression (behaviour change, on request): a cluster containing subjects absent
+    from participants.csv used to render only an html.P error and no figure at all. It now
+    renders the figure over the whole cluster, preceded by a warning line naming the missing
+    subjects - same partial-result shape the two anatomy panels already use."""
+    _write_participants_registry(
+        _participants_registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "60.0", "F", "12.0", "5.0", "1000"]],
+        ["age", "sex", "education", "NIHSS", "lesion_volume_voxels_2mm"],
+    )
+    metadata = pd.DataFrame(
+        {"subject_id": ["sub-STUNIPD0001", "sub-STUKLFR0062"], "cluster_label": [0, 0]}
+    )
+
+    content = cluster_description_content_for(metadata, 0)
+
+    assert isinstance(content, html.Div)
+    warning, graph, table_wrap = content.children
+    assert isinstance(warning, html.Div) and warning.className == "anatomy-warning"
+    assert "sub-STUKLFR0062" in _warning_text(warning)
+    # The vivid label is a separate element from the black body text - that split is the whole
+    # point of the box (see _warning_box), so it is asserted, not left to CSS alone.
+    assert warning.children[0].className == "warning-label"
+    assert isinstance(graph, dcc.Graph)
+    assert isinstance(table_wrap, html.Div)
+
+
+def _warning_text(box):
+    """Flatten a _warning_box Div to plain text - it is a label Span + the message + an optional
+    detail Span, not a bare string, since 29-09-26 ("warning tipo questo devono essere
+    renderizzati un po' meglio")."""
+    out = []
+    for child in box.children:
+        out.append(child.children if isinstance(child, html.Span) else child)
+    return " ".join(str(x) for x in out)
+
+
+def _table_rows(content):
+    """The <tr> list of the comparison table inside a cluster_description_content_for result."""
+    table = next(c for c in content.children if isinstance(c, html.Div)).children[0]
+    return table.children[1].children
+
+
+def test_cluster_description_table_compares_every_cluster_and_marks_the_selected_one(
+    _participants_registry_root,
+):
+    """29-09-26, on request ("statistiche numeriche a confronto tra tutti i vari cluster"): the
+    table lists EVERY cluster of the run, not just the one picked in the dropdown, and the
+    picked one is the only row flagged `selected`."""
+    _write_participants_registry(
+        _participants_registry_root,
+        [
+            ["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "60.0", "F", "12.0", "5.0", "1000"],
+            ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", "70.0", "M", "16.0", "10.0", "2000"],
+            ["sub-STUNIPD0003", "sub-STUNIPD0003", "UNIPD/WashU", "ST", "True", "True", "False", "80.0", "M", "8.0", "3.0", "3000"],
+        ],
+        ["age", "sex", "education", "NIHSS", "lesion_volume_voxels_2mm"],
+    )
+    metadata = pd.DataFrame({
+        "subject_id": ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUNIPD0003"],
+        "cluster_label": [0, 1, 1],
+    })
+
+    rows = _table_rows(cluster_description_content_for(metadata, 1))
+
+    assert len(rows) == 2
+    assert [r.className for r in rows] == ["", "selected"]
+
+
+def test_cluster_description_table_labels_the_noise_bucket_not_as_a_cluster(_participants_registry_root):
+    """hdbscan's -1 is every unassigned subject, not a cluster called "-1" - it must be listed
+    (it is a real group of this run's subjects) but named for what it is."""
+    _write_participants_registry(
+        _participants_registry_root,
+        [
+            ["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "60.0", "F", "12.0", "5.0", "1000"],
+            ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", "70.0", "M", "16.0", "10.0", "2000"],
+        ],
+        ["age", "sex", "education", "NIHSS", "lesion_volume_voxels_2mm"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001", "sub-STUNIPD0002"], "cluster_label": [-1, 0]})
+
+    rows = _table_rows(cluster_description_content_for(metadata, 0))
+
+    assert rows[0].children[0].children.children[1] == "Rumore"
+    assert rows[1].children[0].children.children[1] == "Cluster 0"
+
+
+def test_cluster_description_table_cells_are_numbers_only(_participants_registry_root):
+    """29-09-26, on request ("non voglio quelle righe colorate nella tabella, mi confondono la
+    lettura"): in-cell bars were tried and removed. A cell is the value plus, only where the
+    variable is incomplete, its coverage note - nothing else."""
+    _write_participants_registry(
+        _participants_registry_root,
+        [
+            ["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "25.0", "F", "10.0", "2.0", "1000"],
+            ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", "75.0", "M", "10.0", "2.0", "3000"],
+        ],
+        ["age", "sex", "education", "NIHSS", "lesion_volume_voxels_2mm"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001", "sub-STUNIPD0002"], "cluster_label": [0, 0]})
+
+    row = _table_rows(cluster_description_content_for(metadata, 0))[0]
+
+    age_cell = row.children[2]
+    assert len(age_cell.children) == 2            # value + coverage slot, no bar
+    assert age_cell.children[1] is None           # 2/2 covered, so no note either
+    assert age_cell.children[0].className == "stat-value"
+    # Italian formatting: '.' groups thousands, ',' is the decimal separator.
+    assert age_cell.children[0].children[0] == "50,0"
+    assert row.children[6].children[0].children[0] == "2.000"
+
+
+def test_cluster_description_table_prints_coverage_only_where_incomplete(_participants_registry_root):
+    """The n_available/n_total note used to sit under every cell - 25 near-identical fractions
+    drowning the values they annotate. Printed only where the variable really is incomplete, it
+    goes back to being a signal."""
+    _write_participants_registry(
+        _participants_registry_root,
+        [
+            ["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "60.0", "F", "", "5.0", "1000"],
+            ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", "70.0", "M", "16.0", "10.0", "2000"],
+        ],
+        ["age", "sex", "education", "NIHSS", "lesion_volume_voxels_2mm"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001", "sub-STUNIPD0002"], "cluster_label": [0, 0]})
+
+    row = _table_rows(cluster_description_content_for(metadata, 0))[0]
+
+    age_cell, education_cell = row.children[2], row.children[4]
+    assert age_cell.children[1] is None                      # 2/2 - nothing to say
+    assert education_cell.children[1].children == "1/2"      # genuinely incomplete

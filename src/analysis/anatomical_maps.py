@@ -9,7 +9,10 @@ the same notebook's SDC extension:
   other per-subject NIfTI glob - e.g. an SDC disconnectome-map.nii.gz, see
   src.analysis.embedding_app.SDC_DISCONNECTOME_GLOB), under the retrieval layout of today (never
   a historical run's own config.md - see that notebook's "Configurazione" cell for why a run's
-  own recorded layout can be stale).
+  own recorded layout can be stale). Raises if ANY requested subject can't be resolved.
+- resolve_available_lesion_paths (29-09-26): same resolution, for a caller that can proceed with
+  fewer subjects than requested - returns (resolved, missing) instead of raising for an
+  individual gap, logging a WARNING naming what's excluded.
 - build_overlap_map: a set of already-resolved *binary* lesion masks -> (count_img,
   percentage_img), voxelwise across the given subjects - resampled/binarized with the exact same
   parameters used to build whatever feature matrix the caller's subject selection came from
@@ -24,6 +27,7 @@ lesion overlap map and disconnection mean map) - see docs/guides/embedding_app.m
 
 from __future__ import annotations
 
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -34,19 +38,20 @@ from nilearn.image import resample_to_img
 from src.features.subject_discovery import discover_files_by_subject
 
 
-def resolve_lesion_paths(
+def _resolve_lesion_paths_partial(
     subject_ids: list[str],
     dataset_by_subject: dict[str, str],
     data_root: Path,
     lesion_glob: str,
-) -> dict[str, Path]:
-    """subject_id -> its lesion mask path, resolved under data_root/lesion_glob.
+) -> tuple[dict[str, Path], list[str]]:
+    """Shared resolution core for resolve_lesion_paths/resolve_available_lesion_paths - returns
+    (resolved, missing) without deciding what "missing" means for the caller (hard-fail vs.
+    skip-and-report); that decision belongs to whichever of the two public functions calls this.
 
     One discover_files_by_subject call per distinct dataset among subject_ids (not one per
-    subject - cheap, globs once per dataset). Raises ValueError naming every subject_id that
-    couldn't be resolved (missing from dataset_by_subject, or not found on disk) - never a map
-    silently smaller than requested (code_standards.md §0).
-    """
+    subject - cheap, globs once per dataset). Raises ValueError if a subject_id has no entry in
+    dataset_by_subject at all - a caller bug (a subject genuinely missing from the metadata this
+    request came from), never silently treated the same as "missing on disk"."""
     requested_by_dataset: dict[str, list[str]] = {}
     for subject_id in subject_ids:
         if subject_id not in dataset_by_subject:
@@ -62,13 +67,68 @@ def resolve_lesion_paths(
                 resolved[subject_id] = found_by_subject[subject_id]
             else:
                 missing.append(subject_id)
+    return resolved, missing
 
+
+def resolve_lesion_paths(
+    subject_ids: list[str],
+    dataset_by_subject: dict[str, str],
+    data_root: Path,
+    lesion_glob: str,
+) -> dict[str, Path]:
+    """subject_id -> its lesion mask path, resolved under data_root/lesion_glob.
+
+    Raises ValueError naming every subject_id that couldn't be resolved (missing from
+    dataset_by_subject, or not found on disk) - never a map silently smaller than requested
+    (code_standards.md §0). Used where a partial result is never legitimate - a single-subject
+    viewer has no meaningful "show it anyway, minus the one subject that failed" mode. For a
+    caller that CAN legitimately proceed with fewer subjects than requested (a per-cluster
+    aggregate map), see resolve_available_lesion_paths instead.
+    """
+    resolved, missing = _resolve_lesion_paths_partial(subject_ids, dataset_by_subject, data_root, lesion_glob)
     if missing:
         raise ValueError(
             f"{len(missing)}/{len(subject_ids)} requested subject(s) not found on disk under "
             f"{data_root} (glob={lesion_glob!r}): {sorted(missing)}"
         )
     return resolved
+
+
+def resolve_available_lesion_paths(
+    subject_ids: list[str],
+    dataset_by_subject: dict[str, str],
+    data_root: Path,
+    lesion_glob: str,
+) -> tuple[dict[str, Path], list[str]]:
+    """Like resolve_lesion_paths, but for a caller that can legitimately build its result from
+    whichever subjects ARE resolvable, instead of needing every single one requested (29-09-26,
+    on request - a per-cluster overlap/mean map, unlike a single-subject viewer, is still a
+    meaningful map over however many of its subjects have local data, e.g. after a lesion-mask
+    swap left some cluster members' raw files no longer retrieved on this machine, see
+    .claude/history/data_changelog.md 23-09-26). Returns (resolved, missing) and never raises
+    for an individual unresolvable subject - logs a WARNING naming every excluded one instead
+    (code_standards.md §6), so the gap is visible in the server log even if a caller forgets to
+    surface `missing` itself in its own UI.
+
+    Still raises ValueError if a subject_id has no known dataset in `dataset_by_subject` at all
+    (see _resolve_lesion_paths_partial) - a different kind of problem than "not found on disk",
+    never silently absorbed into `missing` either.
+
+    Raises ValueError if EVERY requested subject is unresolvable - an aggregate map built from
+    zero subjects is not a legitimate partial result, just an empty one dressed up as a warning.
+    """
+    resolved, missing = _resolve_lesion_paths_partial(subject_ids, dataset_by_subject, data_root, lesion_glob)
+    if missing:
+        logging.warning(
+            "%d/%d requested subject(s) not found on disk under %s (glob=%r), excluded from this "
+            "map: %s", len(missing), len(subject_ids), data_root, lesion_glob, sorted(missing),
+        )
+    if not resolved:
+        raise ValueError(
+            f"none of the {len(subject_ids)} requested subject(s) were found on disk under "
+            f"{data_root} (glob={lesion_glob!r})"
+        )
+    return resolved, missing
 
 
 def _load_and_resample(path: Path, reference_img: nib.Nifti1Image, resample_interpolation: str) -> np.ndarray:

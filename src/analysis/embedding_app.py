@@ -17,7 +17,7 @@ as it colors any run by dataset/side/volume/nihss, all through the same generic 
 
 No refit, no server-side recomputation of the embedding itself - reads matrix.npy/metadata.csv
 straight off disk (src.utils.artifacts.load_matrix), same "replot, never re-fit" contract
-scripts/replot_dim_reduction.py already established, extended here to cover 3-component runs
+src/pipeline/replot_dim_reduction.py already established, extended here to cover 3-component runs
 too (that script only ever handled 2). A run whose own saved embedding has more than 3
 columns (e.g. a real production run kept at its full n_components, no viz-only projection
 ever persisted to disk - see production_run_display_error's docstring) is reported as
@@ -61,11 +61,29 @@ from dash.exceptions import PreventUpdate
 from nilearn import plotting as nilearn_plotting
 from nilearn.plotting.html_stat_map import StatMapView
 
-from src.analysis.anatomical_maps import build_mean_map, build_overlap_map, resolve_lesion_paths
+from src.analysis.anatomical_maps import (
+    build_mean_map,
+    build_overlap_map,
+    resolve_available_lesion_paths,
+    resolve_lesion_paths,
+)
+from src.analysis.cluster_description import (
+    CLUSTER_DESCRIPTION_VARIABLES,
+    ClusterDescriptionVariable,
+    ClusterStats,
+    build_cluster_description_figure,
+    cluster_composition,
+    clusters_comparison_stats,
+)
 from src.analysis.embedding_coloring import COLOR_MODES
 from src.analysis.embedding_coloring import color_values as read_color_values
 from src.analysis.params import load_tag_params
-from src.analysis.plotting import _CATEGORICAL_PALETTE, _NOISE_COLOR, compose_embedding_plot_title
+from src.analysis.plotting import (
+    _CATEGORICAL_PALETTE,
+    _NOISE_COLOR,
+    _palette_for_labels,
+    compose_embedding_plot_title,
+)
 from src.utils.artifacts import MANIFEST_FILENAME, load_matrix, read_run_config, read_run_params
 
 # "neutro" first, same convention as embedding_coloring.COLOR_MODES/the notebook prototype -
@@ -103,7 +121,7 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
    .anatomy-caption) read "troppo chiaro e scritto in piccolo" - all 3 bumped in size and to a
    darker gray, still clearly secondary to any heading (kept well under .section-heading/
    .anatomy-subject-title's own sizes) but no longer near-illegible. */
-.page-subtitle {{ font-size: 18px; color: #595959; text-align: center; margin: 0 0 56px; }}
+.page-subtitle {{ font-size: 19px; color: #595959; text-align: center; margin: 0 0 56px; }}
 .controls {{ display: flex; flex-direction: column; align-items: center; gap: 24px; margin-bottom: 32px; }}
 /* One field per selection step (Dato -> Pipeline -> Metodo -> Metrica -> Componenti -> Run),
    left-to-right in reading/decision order (2026-08, extended 15-08-26 when Pipeline became a
@@ -111,10 +129,10 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
    overflowing horizontally. */
 .picker-row {{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 20px; }}
 .picker-field {{ display: flex; flex-direction: column; gap: 6px; min-width: 200px; }}
-.picker-label {{ font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #767676; }}
+.picker-label {{ font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #767676; }}
 .color-buttons {{ display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }}
 .color-buttons button {{
-    font-family: inherit; font-size: 13px; padding: 7px 16px; cursor: pointer;
+    font-family: inherit; font-size: 14px; padding: 8px 18px; cursor: pointer;
     border: 1px solid #ccc; border-radius: 999px; background: #fff; color: {_TEXT_COLOR};
     transition: border-color 0.15s, background 0.15s;
 }}
@@ -125,7 +143,7 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
    included) - that combination was the actual cause of the graph distorting on scroll. */
 .graph-wrap {{ display: flex; justify-content: center; width: 100%; }}
 .graph-wrap > div {{ width: 100%; }}
-.status-message {{ text-align: center; color: #595959; font-size: 17px; margin: 64px 0; }}
+.status-message {{ text-align: center; color: #595959; font-size: 18px; margin: 64px 0; }}
 /* Shared by all 3 section headings (Embedding Visualization / Anatomia lesionale / Overlap map
    per cluster, 01-09-26) - a class of its own rather than a nesting-based ".anatomy-panel h2"
    selector, since "Embedding Visualization" sits above the scatter, outside any .anatomy-panel.
@@ -148,8 +166,60 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
    anything longer than a few characters (see lesion_viewer_content_for's docstring). Rendering
    them here instead means they're never truncated and take this page's own font, not the
    browser's plain default the embedded nilearn page has no styling for at all. */
-.anatomy-subject-title {{ font-size: 18px; font-weight: 600; margin: 0 0 4px; text-align: center; }}
-.anatomy-caption {{ font-size: 15px; color: #595959; text-align: center; margin: 0 0 16px; }}
+.anatomy-subject-title {{ font-size: 20px; font-weight: 600; margin: 0 0 4px; text-align: center; }}
+.anatomy-caption {{ font-size: 16px; color: #595959; text-align: center; margin: 0 0 16px; }}
+/* 29-09-26: a per-cluster map built from fewer subjects than the cluster actually has (some
+   unresolvable on disk, see resolve_available_lesion_paths) - visually distinct (amber) from
+   the plain gray .anatomy-caption above it, so a real data gap doesn't read as routine text. */
+/* 29-09-26 feedback: a real data gap was a thin amber line that read as routine caption text.
+   Now a boxed callout - vivid label, BLACK body text (the body is the information; coloring it
+   would make the whole block read as decoration and cost contrast), a colored left rule, a soft
+   gradient and a low shadow to lift it off the page. */
+.anatomy-warning {{
+    font-size: 16px; line-height: 1.55; color: {_TEXT_COLOR}; text-align: left;
+    background: linear-gradient(180deg, #fff8ec 0%, #fffdf8 100%);
+    border: 1px solid #f0ddb8; border-left: 5px solid #e08a00; border-radius: 10px;
+    padding: 16px 20px; margin: 0 0 22px; box-shadow: 0 2px 6px rgba(80, 55, 0, 0.08);
+}}
+.anatomy-warning .warning-label {{
+    display: block; font-size: 13px; font-weight: 800; letter-spacing: 0.10em;
+    text-transform: uppercase; color: #c26a00; margin-bottom: 6px;
+}}
+/* The subject ids that follow the message - long, scannable, and not prose. */
+.anatomy-warning .warning-detail {{ display: block; margin-top: 8px; font-size: 14.5px; color: #5c5346; word-break: break-word; }}
+/* Cross-cluster comparison table under the "Descrizione del cluster" figure (29-09-26, on
+   request: "statistiche numeriche, più sotto, a confronto tra tutti i vari cluster"). A table,
+   not a second chart, on purpose: the ask was for the numbers themselves, and 5-8 clusters x 5
+   variables is past the point where color classes stay distinguishable. tabular-nums so the
+   digits line up down a column, which is the whole reason to read it as a table. */
+.stats-table-wrap {{ margin-top: 36px; overflow-x: auto; }}
+.stats-table {{ border-collapse: collapse; width: 100%; }}
+.stats-table th {{
+    font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    color: #6e6e6e; text-align: right; padding: 0 16px 11px; white-space: nowrap;
+    border-bottom: 2px solid #d8d8d8;
+}}
+.stats-table th:first-child, .stats-table td:first-child {{ text-align: left; }}
+.stats-table td {{ padding: 17px 16px 15px; text-align: right; border-bottom: 1px solid #f2f2f2; vertical-align: top; }}
+.stats-table tbody tr:last-child td {{ border-bottom: none; }}
+.stats-table tr.selected td {{ background: #f4f9fd; }}
+.stats-cluster {{ display: flex; align-items: center; gap: 10px; white-space: nowrap; font-weight: 600; font-size: 16px; }}
+/* Same color this cluster has in the embedding scatter (plotting._palette_for_labels) - this
+   column's only use of color, and it encodes identity, nothing else. */
+.stats-swatch {{ width: 13px; height: 13px; border-radius: 3px; flex: none; }}
+/* The value carries the weight; the ± spread is secondary ink beside it, not a second number
+   competing for attention. tabular-nums so digits line up down a column. */
+.stat-value {{
+    font-size: 17px; font-weight: 600; color: {_TEXT_COLOR}; font-variant-numeric: tabular-nums;
+    line-height: 1.3; white-space: nowrap;
+}}
+.stat-sd {{ font-size: 14px; font-weight: 400; color: #8a8a8a; margin-left: 3px; }}
+.stat-empty {{ color: #b8b8b8; font-weight: 400; }}
+/* Coverage, printed under the value only where the variable does not cover the whole
+   cluster (_coverage_note). */
+.stats-n {{ display: block; font-size: 12.5px; color: #a0a0a0; margin-top: 6px; font-weight: 400; font-variant-numeric: tabular-nums; }}
+.stats-caption {{ font-size: 14.5px; line-height: 1.75; color: #6e6e6e; margin: 20px 0 0; }}
+.stats-caption b {{ color: {_TEXT_COLOR}; font-weight: 600; }}
 .anatomy-viewer-wrap {{ display: flex; justify-content: center; }}
 .anatomy-viewer-wrap iframe {{ border: none; }}
 /* Same pill shape as .color-buttons button - the save actions per panel read as the same
@@ -609,7 +679,7 @@ class UndisplayableRunError(ValueError):
     """A production run's saved embedding has more than 3 columns - no viz-only projection
     was ever persisted for it (dim_reduction.py's viz_embedding is refit in-memory and used
     only to write the now-removed embedding_plot_interactive.html/PNGs at production time,
-    never saved to disk on its own), and this app, like scripts/replot_dim_reduction.py, never
+    never saved to disk on its own), and this app, like src/pipeline/replot_dim_reduction.py, never
     reloads the original feature matrix to refit one - slicing embedding[:, :3] instead would
     be the exact mistake lessons_learned.md #16 documents (a UMAP/t-SNE/PaCMAP embedding's
     columns carry no importance ordering, so a slice is an arbitrary cut, not a summary)."""
@@ -819,6 +889,40 @@ _INDEX_STRING = f"""<!DOCTYPE html>
 </html>"""
 
 
+def _add_cluster_centroids_trace(figure: go.Figure, embedding: np.ndarray, metadata: pd.DataFrame) -> None:
+    """Overlays a black-outlined circle + cluster_label text at each cluster's centroid
+    (cluster_centroids_with_nearest_subject) on top of `figure`'s own point traces - same
+    circled-centroid style as notebooks/post-results_analysis/clustering_evaluation.ipynb's
+    plot_embedding_with_centroids (29-09-26, on request), added as an extra Plotly trace on
+    the live interactive scatter instead of a separate static matplotlib plot. A no-op for a
+    dim_reduction.py run (no cluster_label column) - mutates `figure` in place, nothing to
+    return."""
+    column = COLOR_MODES["cluster_label"].column
+    if column not in metadata.columns:
+        return
+    centroids = cluster_centroids_with_nearest_subject(embedding, metadata)
+    dim_columns = [c for c in centroids.columns if c.startswith("dim")]
+    is_3d = len(dim_columns) == 3
+    scatter_cls = go.Scatter3d if is_3d else go.Scatter
+    coords_kwargs = dict(x=centroids[dim_columns[0]], y=centroids[dim_columns[1]])
+    if is_3d:
+        coords_kwargs["z"] = centroids[dim_columns[2]]
+    figure.add_trace(
+        scatter_cls(
+            **coords_kwargs, mode="markers+text", name="centroide",
+            text=[str(label) for label in centroids.index],
+            textposition="middle center",
+            textfont=dict(color="black", size=11, family=_FONT_STACK),
+            marker=dict(size=18 if is_3d else 22, color="rgba(0,0,0,0)", line=dict(width=2, color="black")),
+            hovertext=[
+                f"cluster {label} - rappresentante: {row.nearest_subject_id}"
+                for label, row in centroids.iterrows()
+            ],
+            hoverinfo="text",
+        )
+    )
+
+
 def graph_content_for(run: ProductionRun, mode_name: str) -> html.P | dcc.Graph:
     """The graph-area.children Dash callback's actual body, pulled out as a plain function -
     directly unit-testable (no Dash callback-context wrapping to fight, see
@@ -854,6 +958,7 @@ def graph_content_for(run: ProductionRun, mode_name: str) -> html.P | dcc.Graph:
         )
     except ValueError as exc:
         return html.P(str(exc), className="status-message")
+    _add_cluster_centroids_trace(figure, embedding, metadata)
 
     # modeBarButtons (not modeBarButtonsToRemove): an explicit whitelist survives 2D<->3D
     # unchanged (Plotly's default button set differs between them - a removal-list would need
@@ -870,10 +975,29 @@ def graph_content_for(run: ProductionRun, mode_name: str) -> html.P | dcc.Graph:
 # _json_view_size keeps the sagittal/coronal/axial aspect ratio, never distorted by width_view).
 _ANATOMY_VIEWER_WIDTH = 900
 
+# Display cmap/threshold shared by every ortho/interactive SDC disconnectome view (single-subject
+# viewer, per-cluster mean map, and their own static-PNG downloads - never the glass-brain
+# download, which has its own separate threshold/alpha below). cmap="magma" - briefly changed to
+# "nipy_spectral" on 29-09-26 (to match Thiebaut de Schotten et al. 2020's own Fig. 1 colormap),
+# reverted the same day ("non mi piace la palette arcobaleno") in favor of a sequential,
+# single-hue-family colormap - plasma/viridis were also compared on real data
+# (tmp/anatomy_rendering/130_cluster_disconnection_*, 131_disconnectome_single_*) before settling
+# back on magma, already used elsewhere in this app (glass-brain download below, cluster overlap's
+# sibling "hot"). threshold=0.02 (was the near-zero epsilon 1e-6, kept across both colormap
+# choices) - at 1e-6, near-zero disconnection-probability noise renders in the colormap's own
+# near-black floor color, scattered as ugly black speckle across the brain on both the
+# single-subject map and, worse, the per-cluster mean map ("troppo nero" feedback, 29-09-26) -
+# confirmed clean at 0.02 against a real 975-subject cluster mean and a real single-subject map
+# (tmp/anatomy_rendering/110_cluster_disconnection_*, 120_disconnectome_single_*). Distinct
+# problem from the glass-brain streaking below (that one is specific to projecting/summing along
+# the full volume depth), but the same fix shape - raise the near-zero epsilon to a real floor.
+_DISCONNECTOME_CMAP = "magma"
+_DISCONNECTOME_DISPLAY_THRESHOLD = 0.02
+
 # Display-only threshold/alpha for the SDC glass-brain static download (29-09-26, on request) -
-# deliberately not the same 1e-6 epsilon the SDC ortho/interactive views use elsewhere (see
-# _static_glass_brain_png_bytes' own docstring for why a glass-brain projection needs a higher
-# threshold). Picked by comparing 1e-6/0.05/0.1/0.2 against real subject data
+# deliberately not the same threshold the SDC ortho/interactive views use above (see
+# _static_glass_brain_png_bytes' own docstring for why a glass-brain projection needs its own,
+# higher threshold). Picked by comparing 1e-6/0.05/0.1/0.2 against real subject data
 # (tmp/anatomy_rendering/90_disconnectome_glass_lyrz_magma_alpha90_thr*.png) and confirmed by the
 # user - 0.1 hides the near-zero noise streaks without cutting into the real signal.
 _DISCONNECTOME_GLASS_BRAIN_THRESHOLD = 0.1
@@ -887,6 +1011,51 @@ def cluster_options(metadata: pd.DataFrame) -> list[int]:
     COLOR_MODES["cluster_label"] already gives it, never hidden."""
     column = COLOR_MODES["cluster_label"].column
     return sorted(int(value) for value in pd.unique(metadata[column]))
+
+
+def cluster_centroids_with_nearest_subject(embedding: np.ndarray, metadata: pd.DataFrame) -> pd.DataFrame:
+    """Per-cluster centroid (mean of that cluster's own embedding coordinates) plus the real
+    subject_id closest to it in that same embedding space (Euclidean distance) - promoted
+    29-09-26 from notebooks/post-results_analysis/clustering_evaluation.ipynb's own
+    cluster_centroids/nearest_subject_to_centroid (same algorithm, adapted to read `metadata`
+    directly instead of a notebook-local extended_runs dict). A centroid is a mean point, not
+    a real subject - this is the closest real one, used both to overlay circled centroids on
+    the embedding scatter (graph_content_for) and to pick which real subject's anatomy the
+    "Soggetto rappresentativo del cluster" panel shows (representative_subject_content_for).
+
+    Distance is computed in the reduced embedding space (the same dim0/dim1[/dim2] coordinates
+    plotted), not the original pre-reduction feature space - consistent with where the
+    centroid circle itself is drawn (see docs/dev/anatomical_maps.md).
+
+    Returns one row per cluster_label, indexed by it, with columns dim0..dim{n-1} (centroid
+    coordinates), nearest_subject_id, distance_to_centroid.
+
+    Raises ValueError if `metadata` has no cluster_label column (only a clustering.py run has
+    one - dim_reduction.py runs never reach this) or if `embedding`/`metadata` have mismatched
+    row counts (would silently misalign points to the wrong subject_id otherwise)."""
+    column = COLOR_MODES["cluster_label"].column
+    if column not in metadata.columns:
+        raise ValueError(f"metadata has no {column!r} column - centroids only apply to a clustering.py run")
+    if len(embedding) != len(metadata):
+        raise ValueError(f"embedding has {len(embedding)} rows but metadata has {len(metadata)} - can't align them")
+
+    dim_columns = [f"dim{i}" for i in range(embedding.shape[1])]
+    coords = pd.DataFrame(embedding, columns=dim_columns)
+    coords[column] = metadata[column].to_numpy()
+    coords["subject_id"] = metadata["subject_id"].to_numpy()
+
+    rows = []
+    for cluster_label, group in coords.groupby(column):
+        centroid = group[dim_columns].mean()
+        distances = np.linalg.norm(group[dim_columns].to_numpy() - centroid.to_numpy(), axis=1)
+        nearest_position = distances.argmin()
+        rows.append({
+            column: cluster_label,
+            **centroid.to_dict(),
+            "nearest_subject_id": group["subject_id"].iloc[nearest_position],
+            "distance_to_centroid": float(distances[nearest_position]),
+        })
+    return pd.DataFrame(rows).set_index(column)
 
 
 def _resolve_subject_dataset(metadata: pd.DataFrame, subject_id: str) -> str:
@@ -961,13 +1130,19 @@ def _static_png_bytes(stat_map_img: str | nib.Nifti1Image, *, threshold: float, 
     return buffer.getvalue()
 
 
-def _anatomy_viewer(view: StatMapView, heading: str, caption: str) -> html.Div:
+def _anatomy_viewer(view: StatMapView, heading: str, caption: str, warning: str | None = None) -> html.Div:
     """Shared layout for both anatomy panels: a heading + a one-line color-legend caption, both
     ordinary HTML we render ourselves (never nilearn's own `title`/colorbar text - see
     _build_subject_lesion_view's docstring for why), above the iframe sized to the view's own
     exact pixel dimensions (view.width/height) and centered, instead of stretching a fixed-height
     iframe to the panel's full width and leaving the rest as dead space (01-09-26 feedback: the
     scatter's own .graph-wrap already established this "centered, content-sized" pattern).
+
+    warning (29-09-26, on request): an optional extra line, rendered between the caption and the
+    iframe, for a cluster-level map built from fewer subjects than the cluster actually has (see
+    overlap_map_content_for/disconnection_map_content_for) - omitted (no 3rd `<p>` at all, not an
+    empty one) when every requested subject resolved, so a panel with nothing to report keeps
+    exactly its original 2-paragraph shape.
 
     key=heading on the Iframe (01-09-26 bug fix - "se cambio il cluster non mi si cambia la
     mappa"): a browser doesn't reliably re-navigate an <iframe> just because its own `srcDoc`
@@ -977,19 +1152,22 @@ def _anatomy_viewer(view: StatMapView, heading: str, caption: str) -> html.Div:
     place whenever `heading` changes - and `heading` (a subject_id or "Cluster N (n=...)") is
     already guaranteed to change whenever the actual content does, so no separate id is needed.
     """
-    return html.Div(
-        [
-            html.H3(heading, className="anatomy-subject-title"),
-            html.P(caption, className="anatomy-caption"),
-            html.Div(
-                html.Iframe(
-                    key=heading, srcDoc=_style_nilearn_html(view.html),
-                    style={"width": f"{view.width}px", "height": f"{view.height}px"},
-                ),
-                className="anatomy-viewer-wrap",
+    children = [
+        html.H3(heading, className="anatomy-subject-title"),
+        html.P(caption, className="anatomy-caption"),
+    ]
+    if warning is not None:
+        children.append(_warning_box(warning))
+    children.append(
+        html.Div(
+            html.Iframe(
+                key=heading, srcDoc=_style_nilearn_html(view.html),
+                style={"width": f"{view.width}px", "height": f"{view.height}px"},
             ),
-        ]
+            className="anatomy-viewer-wrap",
+        )
     )
+    return html.Div(children)
 
 
 def _build_subject_lesion_view(
@@ -1007,15 +1185,18 @@ def _build_subject_lesion_view(
     second hardcoded 0.5, so the viewer shows exactly the same binarization the source feature
     matrix used, not an independently-chosen display threshold.
 
-    cmap="magma" (29-09-26, on request - was "autumn"; see _download_lesion_png for the matching
-    static-PNG change and the new glass-brain download's own separate "autumn" choice, kept
-    there because a binary mask has no gradient to show and reads better as a flat highlight
-    color on that projection)."""
+    cmap="autumn" (briefly changed to "magma" on 29-09-26, reverted same day - magma's top color
+    for a binary mask is a near-white pale yellow, "troppo pallido" against the white background
+    on real data; autumn's is a solid bright yellow, confirmed against several alternatives -
+    hot/inferno/plasma equally or more washed out, Reds/YlOrRd a legible but duller dark red -
+    tmp/anatomy_rendering/100_lesion_ortho_*.png). See _download_lesion_png for the matching
+    static-PNG cmap and _download_lesion_glass_png for the glass-brain download's own (same)
+    "autumn" choice."""
     dataset = _resolve_subject_dataset(metadata, subject_id)
     lesion_paths = resolve_lesion_paths([subject_id], {subject_id: dataset}, lesion_cfg.data_root, lesion_cfg.lesion_glob)
     view = nilearn_plotting.view_img(
         str(lesion_paths[subject_id]), bg_img="MNI152", black_bg=False, threshold=lesion_cfg.binarize_threshold,
-        cmap="magma", symmetric_cmap=False, title=None, colorbar=False, width_view=_ANATOMY_VIEWER_WIDTH,
+        cmap="autumn", symmetric_cmap=False, title=None, colorbar=False, width_view=_ANATOMY_VIEWER_WIDTH,
     )
     return view, dataset
 
@@ -1031,30 +1212,41 @@ def lesion_viewer_content_for(
         view, dataset = _build_subject_lesion_view(run, subject_id, metadata, lesion_cfg)
     except ValueError as exc:
         return html.P(str(exc), className="status-message")
-    return _anatomy_viewer(view, f"{subject_id} ({dataset})", "Giallo chiaro = voxel lesionato")
+    return _anatomy_viewer(view, f"{subject_id} ({dataset})", "Giallo = voxel lesionato")
 
 
 def _build_cluster_overlap_view(
     run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig
-) -> tuple[StatMapView, int, nib.Nifti1Image]:
-    """Returns (view, n_subjects, percentage_img) - n_subjects is needed by the caller to build
-    its own heading (title=None here, same reasoning as _build_subject_lesion_view);
-    percentage_img (the same image the view itself renders) is returned alongside it (11-09-26)
-    so the "Salva PNG" download can reuse it rather than paying build_overlap_map's per-subject
-    load+resample cost a second time. colorbar stays on (unlike the subject viewer): the overlap
-    percentage is a genuinely continuous, informative value.
+) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
+    """Returns (view, n_subjects, percentage_img, missing_subjects) - n_subjects is needed by
+    the caller to build its own heading (title=None here, same reasoning as
+    _build_subject_lesion_view); percentage_img (the same image the view itself renders) is
+    returned alongside it (11-09-26) so the "Salva PNG" download can reuse it rather than paying
+    build_overlap_map's per-subject load+resample cost a second time. colorbar stays on (unlike
+    the subject viewer): the overlap percentage is a genuinely continuous, informative value.
 
-    Raises ValueError if cluster_label has no subjects in this run's metadata, or any of them
-    can't be resolved to a lesion file (see resolve_lesion_paths/build_overlap_map). threshold
-    is a near-zero epsilon (not lesion_cfg.binarize_threshold, which binarizes each individual
-    subject's mask before counting - see build_overlap_map) so every voxel with any real overlap
-    (>0%) is shown, not just voxels above some display-only cutoff."""
+    missing_subjects (29-09-26, on request) lists cluster members whose lesion mask isn't
+    resolvable on disk right now (resolve_available_lesion_paths) - excluded from the map
+    instead of failing the whole panel over them (a real, already-documented local data gap,
+    e.g. after a lesion-mask swap left some subjects' raw files no longer retrieved on this
+    machine - .claude/history/data_changelog.md 23-09-26). n_subjects counts only the resolved
+    subjects actually used - the same denominator build_overlap_map's percentage is computed
+    against, never the cluster's full nominal size.
+
+    Raises ValueError if cluster_label has no subjects in this run's metadata, or if EVERY one
+    of them is unresolvable (see resolve_available_lesion_paths/build_overlap_map) - a map with
+    zero subjects behind it is not a legitimate partial result. threshold is a near-zero epsilon
+    (not lesion_cfg.binarize_threshold, which binarizes each individual subject's mask before
+    counting - see build_overlap_map) so every voxel with any real overlap (>0%) is shown, not
+    just voxels above some display-only cutoff."""
     column = COLOR_MODES["cluster_label"].column
     cluster_metadata = metadata.loc[metadata[column] == cluster_label]
     if cluster_metadata.empty:
         raise ValueError(f"no subjects with {column}={cluster_label!r} in this run's metadata")
     dataset_by_subject = dict(zip(cluster_metadata["subject_id"], cluster_metadata["dataset"]))
-    lesion_paths = resolve_lesion_paths(list(dataset_by_subject), dataset_by_subject, lesion_cfg.data_root, lesion_cfg.lesion_glob)
+    lesion_paths, missing_subjects = resolve_available_lesion_paths(
+        list(dataset_by_subject), dataset_by_subject, lesion_cfg.data_root, lesion_cfg.lesion_glob
+    )
     _count_img, percentage_img = build_overlap_map(
         lesion_paths, lesion_cfg.reference_img, lesion_cfg.binarize_threshold, lesion_cfg.resample_interpolation
     )
@@ -1062,17 +1254,66 @@ def _build_cluster_overlap_view(
         percentage_img, bg_img="MNI152", black_bg=False, threshold=1e-6, cmap="hot", symmetric_cmap=False, title=None,
         width_view=_ANATOMY_VIEWER_WIDTH,
     )
-    return view, len(lesion_paths), percentage_img
+    return view, len(lesion_paths), percentage_img, missing_subjects
+
+
+def _warning_box(message: str, detail: str | None = None) -> html.Div:
+    """The shared boxed callout for every "partial result" warning on the page (29-09-26
+    feedback: "warning tipo questo devono essere renderizzati un po' meglio").
+
+    An uppercase vivid label carries the alarm; the message itself stays BLACK body text. That
+    split is deliberate: coloring the whole block would make the information read as decoration
+    and cost it contrast, while the label alone is enough to say "this is not routine caption
+    text" - which is exactly how the previous thin amber line failed.
+
+    detail: the long, non-prose tail (a list of subject ids), set apart from the sentence so the
+    sentence stays readable when the tail runs to a dozen ids."""
+    children: list = [html.Span("Attenzione", className="warning-label"), message]
+    if detail is not None:
+        children.append(html.Span(detail, className="warning-detail"))
+    return html.Div(children, className="anatomy-warning")
+
+
+def _missing_subjects_warning(missing_subjects: list[str]) -> str | None:
+    """Shared warning text for overlap_map_content_for/disconnection_map_content_for (29-09-26)
+    - None (no warning line at all, see _anatomy_viewer's own `warning` param) when every
+    requested subject resolved."""
+    if not missing_subjects:
+        return None
+    return (
+        f"{len(missing_subjects)} soggetti del cluster esclusi dalla mappa (dato non trovato su disco): "
+        f"{', '.join(sorted(missing_subjects))}"
+    )
+
+
+def _unregistered_subjects_warning(unregistered: list[str]) -> html.Div | None:
+    """Sibling of _missing_subjects_warning for cluster_description_content_for (29-09-26) - a
+    DIFFERENT gap, deliberately worded so the two are never confused: _missing_subjects_warning
+    is about a subject whose lesion/disconnectome FILE isn't on disk (excluded from that map),
+    this one is about a subject with no row in assets/metadata/participants.csv at all (still
+    counted in the panel's own n/total, just with no value for any variable). None when every
+    subject of the cluster resolved."""
+    if not unregistered:
+        return None
+    return _warning_box(
+        f"{len(unregistered)} soggetti di questo cluster non hanno una riga nel registro "
+        f"(assets/metadata/participants.csv). Contano nel totale di ogni variabile, ma non "
+        f"portano alcun valore. Per aggiungerli, rilancia src/pipeline/populate_metadata.py.",
+        detail=", ".join(unregistered),
+    )
 
 
 def overlap_map_content_for(
     run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig,
     build_view: Callable[
-        [ProductionRun, pd.DataFrame, int, LesionViewerConfig], tuple[StatMapView, int, nib.Nifti1Image]
+        [ProductionRun, pd.DataFrame, int, LesionViewerConfig], tuple[StatMapView, int, nib.Nifti1Image, list[str]]
     ] = _build_cluster_overlap_view,
 ) -> html.Div | html.P:
-    """Same never-raises contract as lesion_viewer_content_for - an empty/unresolvable cluster
-    shows a status message in the panel, not a crashed callback.
+    """Same never-raises contract as lesion_viewer_content_for - a cluster with zero resolvable
+    subjects shows a status message in the panel, not a crashed callback. A cluster with *some*
+    (not all) unresolvable subjects instead renders the map over its available subjects, with an
+    extra warning line naming which ones were excluded (_missing_subjects_warning) - never a
+    silent partial result.
 
     build_view defaults to the always-fresh _build_cluster_overlap_view (what every test calls
     this with) - build_app passes its own cached wrapper instead (01-09-26 perf fix: measured
@@ -1081,12 +1322,13 @@ def overlap_map_content_for(
     already-viewed cluster in the running app is instant, without this function itself needing
     to know anything about caching."""
     try:
-        view, n_subjects, _percentage_img = build_view(run, metadata, cluster_label, lesion_cfg)
+        view, n_subjects, _percentage_img, missing_subjects = build_view(run, metadata, cluster_label, lesion_cfg)
     except ValueError as exc:
         return html.P(str(exc), className="status-message")
     return _anatomy_viewer(
         view, f"Cluster {cluster_label} (n={n_subjects})",
         "Colore = % di soggetti del cluster con lesione in quel voxel (0-100%)",
+        warning=_missing_subjects_warning(missing_subjects),
     )
 
 
@@ -1097,9 +1339,9 @@ def _build_subject_disconnectome_view(
     title, resolved via resolve_lesion_paths against sdc_cfg's own disconnectome_glob rather
     than lesion_cfg's lesion_glob). colorbar=True (unlike the lesion viewer): disconnectome
     values are a genuinely continuous [0, 1] probability per voxel, not a binary mask - a
-    colorbar conveys real information here. threshold is a near-zero epsilon, not a binarize
-    threshold (disconnectome values are never binarized, see src.features.sdc's module
-    docstring) - every voxel with any real disconnection probability is shown.
+    colorbar conveys real information here. threshold=_DISCONNECTOME_DISPLAY_THRESHOLD, not a
+    binarize threshold (disconnectome values are never binarized, see src.features.sdc's module
+    docstring) - see that constant's own docstring for why it isn't a near-zero epsilon.
 
     Raises ValueError (never silently) if subject_id/dataset/disconnectome file can't be
     resolved - see resolve_lesion_paths."""
@@ -1108,8 +1350,9 @@ def _build_subject_disconnectome_view(
         [subject_id], {subject_id: dataset}, sdc_cfg.data_root, sdc_cfg.disconnectome_glob
     )
     view = nilearn_plotting.view_img(
-        str(disconnectome_paths[subject_id]), bg_img="MNI152", black_bg=False, threshold=1e-6,
-        cmap="magma", symmetric_cmap=False, title=None, colorbar=True, width_view=_ANATOMY_VIEWER_WIDTH,
+        str(disconnectome_paths[subject_id]), bg_img="MNI152", black_bg=False,
+        threshold=_DISCONNECTOME_DISPLAY_THRESHOLD, cmap=_DISCONNECTOME_CMAP, symmetric_cmap=False,
+        title=None, colorbar=True, width_view=_ANATOMY_VIEWER_WIDTH,
     )
     return view, dataset
 
@@ -1128,54 +1371,277 @@ def disconnectome_viewer_content_for(
 
 def _build_cluster_disconnection_view(
     run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig
-) -> tuple[StatMapView, int, nib.Nifti1Image]:
-    """Returns (view, n_subjects, mean_img) - same reasoning as _build_cluster_overlap_view, but
-    the continuous-data counterpart: build_mean_map's voxelwise mean instead of
-    build_overlap_map's binarized count/percentage (there is no "binarize each subject then
-    count" step for a value that's already a continuous probability, see build_mean_map's own
-    docstring). mean_img is returned alongside the view (same reasoning as percentage_img above)
-    so the "Salva PNG" download can reuse it rather than paying build_mean_map's per-subject
-    load+resample cost a second time.
+) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
+    """Returns (view, n_subjects, mean_img, missing_subjects) - same reasoning as
+    _build_cluster_overlap_view (including missing_subjects - see its own docstring), but the
+    continuous-data counterpart: build_mean_map's voxelwise mean instead of build_overlap_map's
+    binarized count/percentage (there is no "binarize each subject then count" step for a value
+    that's already a continuous probability, see build_mean_map's own docstring). mean_img is
+    returned alongside the view (same reasoning as percentage_img above) so the "Salva PNG"
+    download can reuse it rather than paying build_mean_map's per-subject load+resample cost a
+    second time.
 
-    Raises ValueError if cluster_label has no subjects in this run's metadata, or any of them
-    can't be resolved to a disconnectome file (see resolve_lesion_paths/build_mean_map)."""
+    Raises ValueError if cluster_label has no subjects in this run's metadata, or if EVERY one
+    of them is unresolvable (see resolve_available_lesion_paths/build_mean_map)."""
     column = COLOR_MODES["cluster_label"].column
     cluster_metadata = metadata.loc[metadata[column] == cluster_label]
     if cluster_metadata.empty:
         raise ValueError(f"no subjects with {column}={cluster_label!r} in this run's metadata")
     dataset_by_subject = dict(zip(cluster_metadata["subject_id"], cluster_metadata["dataset"]))
-    disconnectome_paths = resolve_lesion_paths(
+    disconnectome_paths, missing_subjects = resolve_available_lesion_paths(
         list(dataset_by_subject), dataset_by_subject, sdc_cfg.data_root, sdc_cfg.disconnectome_glob
     )
     mean_img = build_mean_map(disconnectome_paths, sdc_cfg.reference_img, sdc_cfg.resample_interpolation)
     view = nilearn_plotting.view_img(
-        mean_img, bg_img="MNI152", black_bg=False, threshold=1e-6, cmap="magma", symmetric_cmap=False, title=None,
-        width_view=_ANATOMY_VIEWER_WIDTH,
+        mean_img, bg_img="MNI152", black_bg=False, threshold=_DISCONNECTOME_DISPLAY_THRESHOLD,
+        cmap=_DISCONNECTOME_CMAP, symmetric_cmap=False, title=None, width_view=_ANATOMY_VIEWER_WIDTH,
     )
-    return view, len(disconnectome_paths), mean_img
+    return view, len(disconnectome_paths), mean_img, missing_subjects
 
 
 def disconnection_map_content_for(
     run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig,
     build_view: Callable[
-        [ProductionRun, pd.DataFrame, int, SdcViewerConfig], tuple[StatMapView, int, nib.Nifti1Image]
+        [ProductionRun, pd.DataFrame, int, SdcViewerConfig], tuple[StatMapView, int, nib.Nifti1Image, list[str]]
     ] = _build_cluster_disconnection_view,
 ) -> html.Div | html.P:
-    """Same never-raises contract as overlap_map_content_for - an empty/unresolvable cluster
-    shows a status message in the panel, not a crashed callback.
+    """Same never-raises contract as overlap_map_content_for (including the same skip-and-warn
+    behavior for a cluster with *some* unresolvable subjects, _missing_subjects_warning) - a
+    cluster with zero resolvable subjects shows a status message in the panel, not a crashed
+    callback.
 
     build_view defaults to the always-fresh _build_cluster_disconnection_view (what every test
     calls this with) - build_app passes its own cached wrapper instead, same perf reasoning as
     overlap_map_content_for's own cache (per-subject load+resample dominates the panel's response
     time for a real several-hundred-subject cluster)."""
     try:
-        view, n_subjects, _mean_img = build_view(run, metadata, cluster_label, sdc_cfg)
+        view, n_subjects, _mean_img, missing_subjects = build_view(run, metadata, cluster_label, sdc_cfg)
     except ValueError as exc:
         return html.P(str(exc), className="status-message")
     return _anatomy_viewer(
         view, f"Cluster {cluster_label} (n={n_subjects})",
         "Colore = probabilità media di disconnessione del cluster in quel voxel (0-1)",
+        warning=_missing_subjects_warning(missing_subjects),
     )
+
+
+def representative_subject_content_for(
+    run: ProductionRun, embedding: np.ndarray, metadata: pd.DataFrame, cluster_label: int,
+    lesion_cfg: LesionViewerConfig, sdc_cfg: SdcViewerConfig,
+) -> html.Div | html.P:
+    """Panel "Soggetto rappresentativo del cluster" (29-09-26, on request), shown after the
+    two per-cluster map panels: the real subject closest to `cluster_label`'s centroid in the
+    embedding space (cluster_centroids_with_nearest_subject) - a centroid is a mean point, not
+    a real subject, this shows the closest real one instead. Dispatches to the lesion or SDC
+    disconnectome viewer by `run.modality` (mirroring notebooks/post-results_analysis/
+    clustering_evaluation.ipynb's plot_representative_map, which dispatches by parsing
+    `input_path` instead - this app already has modality as a first-class ProductionRun field,
+    no string-matching needed).
+
+    Same never-raises contract as every other *_content_for function here: an empty/
+    unresolvable cluster, or a representative subject whose file can't be resolved on disk,
+    renders an html.P status message instead of crashing the callback."""
+    try:
+        centroids = cluster_centroids_with_nearest_subject(embedding, metadata)
+    except ValueError as exc:
+        return html.P(str(exc), className="status-message")
+    if cluster_label not in centroids.index:
+        column = COLOR_MODES["cluster_label"].column
+        return html.P(f"no subjects with {column}={cluster_label!r} in this run's metadata", className="status-message")
+    subject_id = centroids.loc[cluster_label, "nearest_subject_id"]
+    distance = centroids.loc[cluster_label, "distance_to_centroid"]
+
+    try:
+        if run.modality == "lesion":
+            view, dataset = _build_subject_lesion_view(run, subject_id, metadata, lesion_cfg)
+        else:
+            view, dataset = _build_subject_disconnectome_view(run, subject_id, metadata, sdc_cfg)
+    except ValueError as exc:
+        return html.P(str(exc), className="status-message")
+    return _anatomy_viewer(
+        view, f"Cluster {cluster_label} — rappresentante: {subject_id} ({dataset})",
+        f"Soggetto reale più vicino al centroide del cluster nello spazio embedding (distanza={distance:.3f})",
+    )
+
+
+def _format_number(value: float, decimals: int) -> str:
+    """Italian number formatting: '.' groups thousands, ',' is the decimal separator -
+    5265.4 -> '5.265,4' (29-09-26 feedback: "i numeri non sono ben scritti, non si capisce
+    molto bene"). The whole app is in Italian, so English-formatted numbers ('5 265.4') read
+    as a foreign convention exactly where the reader is scanning fastest.
+
+    Done by swapping Python's own grouped format rather than with `locale`: locale is process
+    global, depends on what happens to be installed on the machine, and would silently change
+    every other number this process formats."""
+    grouped = f"{value:,.{decimals}f}"          # 5,265.4
+    return grouped.translate(str.maketrans({",": ".", ".": ","}))
+
+
+def _format_continuous_cell(summary: dict, variable: ClusterDescriptionVariable) -> html.Td:
+    """`media ± ds` at this variable's own declared precision, plus the coverage note where the
+    variable does not cover the whole cluster.
+
+    No in-cell bar (29-09-26, on request: "non voglio quelle righe colorate nella tabella, mi
+    confondono la lettura"). The cross-cluster comparison is carried by the numbers alone -
+    which is what the Italian formatting and the larger type are for - while the figure above
+    stays the visual read.
+
+    An empty cell is "—", never "nan ± nan" and never a blank that could read as a rendering gap.
+    """
+    if summary["n_available"] == 0:
+        return html.Td([html.Div("—", className="stat-value stat-empty")])
+
+    decimals = variable.decimals
+    mean = _format_number(summary["mean"], decimals)
+    # std is None for a single subject: a standard deviation of one value does not exist, which
+    # is a different statement from "0".
+    spread = None if summary["std"] is None else f"± {_format_number(summary['std'], decimals)}"
+
+    value = [mean] if spread is None else [mean, " ", html.Span(spread, className="stat-sd")]
+    return html.Td(
+        [html.Div(value, className="stat-value"), _coverage_note(summary)],
+        # Hover detail only - median/min/max enhance, they never gate: the headline number and
+        # the coverage are both readable without hovering.
+        title=(
+            f"mediana {_format_number(summary['median'], decimals)} · "
+            f"min {_format_number(summary['min'], decimals)} · "
+            f"max {_format_number(summary['max'], decimals)}"
+        ),
+    )
+
+
+def _format_categorical_cell(summary: dict) -> html.Td:
+    """Counts per category, sorted by name so a category keeps the same position in every row
+    and the column can be read downwards. No proportion bar (29-09-26, on request) - the
+    figure's own bar chart above carries that."""
+    if summary["n_available"] == 0:
+        return html.Td([html.Div("—", className="stat-value stat-empty")])
+
+    label = " · ".join(f"{c} {summary['counts'][c]}" for c in sorted(summary["counts"]))
+    return html.Td([html.Div(label, className="stat-value"), _coverage_note(summary)])
+
+
+def _coverage_note(summary: dict) -> html.Span | None:
+    """The n_available/n_total line, shown ONLY where the variable is actually incomplete.
+
+    It used to sit under every cell: 25 near-identical fractions competing with the values they
+    were annotating, which is how a coverage note stops being read at all. Printed only when it
+    says something, it goes back to being a signal. Full coverage is not silently assumed
+    either - the caption under the table states the rule."""
+    if summary["n_available"] == summary["n_total"]:
+        return None
+    return html.Span(f"{summary['n_available']}/{summary['n_total']}", className="stat-n")
+
+
+def _clusters_comparison_table(stats: list[ClusterStats], selected_cluster: int) -> html.Div:
+    """The cross-cluster comparison table rendered under the selected cluster's own figure
+    (29-09-26, on request) - one row per cluster, one column per CLUSTER_DESCRIPTION_VARIABLES
+    entry, so a variable is read down a column across clusters rather than by flipping the
+    dropdown between them.
+
+    A table rather than a second figure: the ask was for the numbers themselves, and a 5-8
+    cluster x 5 variable grid is past the point where a reader can hold that many color classes
+    apart. It doubles as the table view the figure's own fills require for accessibility. In-cell
+    bars were tried and removed on request (29-09-26) - they competed with the digits rather
+    than supporting them.
+
+    Every cluster of the run is listed, including the selected one (highlighted) and hdbscan's
+    noise bucket (-1, labelled as such rather than shown as a cluster named "-1")."""
+    palette = _palette_for_labels([stat.cluster_label for stat in stats])
+    # Plain headers: the per-variable colored underline was dropped on request (29-09-26). The
+    # figure above still colors each variable and the in-cell bars carry the same hue, so the
+    # column/panel tie survives without a second colored rule competing with the header text.
+    header = html.Tr([
+        html.Th("Cluster"), html.Th("Soggetti"),
+        *[html.Th(variable.label) for variable in CLUSTER_DESCRIPTION_VARIABLES],
+    ])
+
+    rows = []
+    for stat in stats:
+        name = "Rumore" if stat.cluster_label == -1 else f"Cluster {stat.cluster_label}"
+        size = [html.Div(_format_number(stat.n_total, 0), className="stat-value")]
+        if stat.n_unregistered:
+            size.append(html.Span(f"{stat.n_unregistered} fuori registro", className="stat-n"))
+        cells = [
+            _format_categorical_cell(stat.summaries[v.name]) if v.kind == "categorical"
+            else _format_continuous_cell(stat.summaries[v.name], v)
+            for v in CLUSTER_DESCRIPTION_VARIABLES
+        ]
+        rows.append(
+            html.Tr(
+                [
+                    html.Td(html.Div([
+                        html.Span(className="stats-swatch", style={"background": palette[stat.cluster_label]}),
+                        name,
+                    ], className="stats-cluster")),
+                    html.Td(size),
+                    *cells,
+                ],
+                className="selected" if stat.cluster_label == selected_cluster else "",
+            )
+        )
+
+    return html.Div(
+        [
+            html.Table([html.Thead(header), html.Tbody(rows)], className="stats-table"),
+            html.P(
+                [
+                    html.B("Valori: "),
+                    "media ± deviazione standard.",
+                    html.Br(),
+                    html.B("Sesso: "),
+                    "conteggio per categoria.",
+                    html.Br(),
+                    html.B("Numero sotto il valore: "),
+                    "soggetti che hanno quella variabile, sul totale del cluster. Compare solo "
+                    "dove la variabile non copre tutto il cluster.",
+                    html.Br(),
+                    html.B("Mouse su una cella: "),
+                    "mediana, minimo e massimo.",
+                ],
+                className="stats-caption",
+            ),
+        ],
+        className="stats-table-wrap",
+    )
+
+
+def cluster_description_content_for(metadata: pd.DataFrame, cluster_label: int) -> dcc.Graph | html.Div | html.P:
+    """Panel "Descrizione del cluster" (29-09-26, on request), shown after the two frequency-map
+    panels - age/sex/education/NIHSS/lesion-volume composition of `cluster_label`'s subjects
+    (src.analysis.cluster_description.cluster_composition/build_cluster_description_figure),
+    every one of them read from assets/metadata/participants.csv (see that module's own
+    docstring for why, not a run's own metadata.csv). Visible for any clustering.py run
+    regardless of modality - unlike the two frequency-map panels, this doesn't need a
+    disconnectome/lesion mask file at all, only the subject registry.
+
+    Same never-raises contract as every other *_content_for function here: an empty cluster
+    renders an html.P status message instead of crashing the callback. A cluster whose subjects
+    are only *partly* in the registry is not an error at all (29-09-26, on request): the figure
+    is built over everyone, with the unregistered subjects counted in each variable's n_total
+    but contributing no value, and an _unregistered_subjects_warning line naming them is
+    rendered above it - the same "partial result, never silent" shape the two anatomy panels
+    already use for a subject whose mask file is missing. Rendered as a plain dcc.Graph (Plotly's own "toImage"
+    camera icon is this panel's only export, same as the main embedding scatter) - no Salva
+    HTML/PNG buttons, those exist only for the nilearn iframe-based anatomy panels above, which
+    have no built-in export of their own."""
+    try:
+        composition, unregistered = cluster_composition(metadata, cluster_label)
+        stats = clusters_comparison_stats(metadata)
+    except ValueError as exc:
+        return html.P(str(exc), className="status-message")
+
+    palette = _palette_for_labels([stat.cluster_label for stat in stats])
+    figure = build_cluster_description_figure(composition, cluster_label, color=palette.get(cluster_label))
+    config = {"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False}
+
+    children: list = []
+    warning = _unregistered_subjects_warning(unregistered)
+    if warning is not None:
+        children.append(warning)
+    children.append(dcc.Graph(figure=figure, config=config, style={"width": "100%"}))
+    children.append(_clusters_comparison_table(stats, cluster_label))
+    return html.Div(children)
 
 
 def _color_button_label(mode_name: str) -> str:
@@ -1243,11 +1709,11 @@ def build_app(
     # already looking at it) is then instant instead of re-loading+resampling every subject's
     # real NIfTI mask from disk again. A failed build (ValueError - an unresolvable subject) is
     # never cached, so a transient/fixable problem can be retried on the next click.
-    cluster_view_cache: dict[tuple[str, int], tuple[StatMapView, int, nib.Nifti1Image]] = {}
+    cluster_view_cache: dict[tuple[str, int], tuple[StatMapView, int, nib.Nifti1Image, list[str]]] = {}
 
     def _cached_cluster_overlap_view(
         run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig
-    ) -> tuple[StatMapView, int, nib.Nifti1Image]:
+    ) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
         cache_key = (run.key, cluster_label)
         if cache_key not in cluster_view_cache:
             cluster_view_cache[cache_key] = _build_cluster_overlap_view(run, metadata, cluster_label, lesion_cfg)
@@ -1258,11 +1724,11 @@ def build_app(
     # cluster_label) pair for a clustering run could in principle collide across the two if
     # they shared one dict (a clustering run's own key doesn't encode which of the two anatomy
     # families produced a given cache entry).
-    disconnection_view_cache: dict[tuple[str, int], tuple[StatMapView, int, nib.Nifti1Image]] = {}
+    disconnection_view_cache: dict[tuple[str, int], tuple[StatMapView, int, nib.Nifti1Image, list[str]]] = {}
 
     def _cached_cluster_disconnection_view(
         run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig
-    ) -> tuple[StatMapView, int, nib.Nifti1Image]:
+    ) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
         cache_key = (run.key, cluster_label)
         if cache_key not in disconnection_view_cache:
             disconnection_view_cache[cache_key] = _build_cluster_disconnection_view(run, metadata, cluster_label, sdc_cfg)
@@ -1478,6 +1944,45 @@ def build_app(
                     dcc.Download(id="disconnection-png-download"),
                 ],
             ),
+            # Hidden by default (style toggled by _update_cluster_picker below, same condition
+            # as cluster-map-panel/disconnection-map-panel - run.pipeline == "clustering") -
+            # 29-09-26, on request: shown *after* the two per-cluster map panels above (moved
+            # there the same day, from its first position above them), driven by the *same*
+            # "Cluster" dropdown they already share (cluster-picker itself is defined inside
+            # cluster-map-panel above - Dash resolves callbacks by component id regardless of
+            # where in the tree that id physically lives).
+            html.Div(
+                id="representative-subject-panel",
+                className="anatomy-panel",
+                style={"display": "none"},
+                children=[
+                    html.H2("Soggetto rappresentativo del cluster", className="section-heading"),
+                    html.Div(id="representative-subject-content"),
+                    html.Div(
+                        className="save-btn-row",
+                        children=[
+                            html.Button("Salva HTML", id="representative-save-btn", n_clicks=0, className="save-btn"),
+                            html.Button("Salva PNG", id="representative-png-btn", n_clicks=0, className="save-btn"),
+                        ],
+                    ),
+                    dcc.Download(id="representative-download"),
+                    dcc.Download(id="representative-png-download"),
+                ],
+            ),
+            # Hidden by default (style toggled by _update_cluster_picker below, same condition
+            # as cluster-map-panel - run.pipeline == "clustering") - 29-09-26, on request: last
+            # of the per-cluster panels, driven by the same shared cluster-picker. Visible for
+            # any clustering.py run regardless of modality (age/sex/education/NIHSS/lesion
+            # volume come from the subject registry, not from a disconnectome/lesion file).
+            html.Div(
+                id="cluster-description-panel",
+                className="anatomy-panel",
+                style={"display": "none"},
+                children=[
+                    html.H2("Descrizione del cluster", className="section-heading"),
+                    html.Div(id="cluster-description-content"),
+                ],
+            ),
         ],
     )
 
@@ -1661,7 +2166,7 @@ def build_app(
             # panel already reports this, the save button simply has nothing to offer.
             raise PreventUpdate
         png_bytes = _static_png_bytes(
-            str(lesion_paths[subject_id]), threshold=lesion_cfg.binarize_threshold, cmap="magma", colorbar=False,
+            str(lesion_paths[subject_id]), threshold=lesion_cfg.binarize_threshold, cmap="autumn", colorbar=False,
         )
         return dcc.send_bytes(png_bytes, filename=f"{subject_id}_lesion.png")
 
@@ -1682,10 +2187,9 @@ def build_app(
         except ValueError:
             # Same never-raises-into-the-callback contract as _download_lesion_png.
             raise PreventUpdate
-        # cmap="autumn" (not magma, unlike the ortho views above): a binary lesion mask has no
-        # gradient to show, and a flat glass-brain highlight reads more clearly in autumn than in
-        # magma's dark-to-pale-yellow range (confirmed against real data, tmp/anatomy_rendering/
-        # 10_lesion_glass_lyrz_autumn_whitebg.png, 29-09-26).
+        # cmap="autumn" - same choice as _build_subject_lesion_view's own ortho view (see its
+        # docstring): a binary mask has no gradient to show, autumn's solid bright yellow reads
+        # clearly on both the ortho and this glass-brain projection.
         png_bytes = _static_glass_brain_png_bytes(
             str(lesion_paths[subject_id]), threshold=lesion_cfg.binarize_threshold, cmap="autumn", colorbar=False,
         )
@@ -1757,7 +2261,8 @@ def build_app(
         except ValueError:
             raise PreventUpdate
         png_bytes = _static_png_bytes(
-            str(disconnectome_paths[subject_id]), threshold=1e-6, cmap="magma", colorbar=True,
+            str(disconnectome_paths[subject_id]), threshold=_DISCONNECTOME_DISPLAY_THRESHOLD,
+            cmap=_DISCONNECTOME_CMAP, colorbar=True,
         )
         return dcc.send_bytes(png_bytes, filename=f"{subject_id}_disconnectome.png")
 
@@ -1789,6 +2294,8 @@ def build_app(
         Output("cluster-picker", "options"),
         Output("cluster-picker", "value"),
         Output("cluster-map-panel", "style"),
+        Output("representative-subject-panel", "style"),
+        Output("cluster-description-panel", "style"),
         Input("run-picker", "value"),
     )
     def _update_cluster_picker(run_key: str | None):
@@ -1796,9 +2303,12 @@ def build_app(
             raise PreventUpdate
         run = runs_by_key[run_key]
         if run.pipeline != "clustering":
-            return [], None, {"display": "none"}
+            return [], None, {"display": "none"}, {"display": "none"}, {"display": "none"}
         clusters = cluster_options(run_metadata(run))
-        return [{"label": str(cluster_label), "value": cluster_label} for cluster_label in clusters], clusters[0], {}
+        return (
+            [{"label": str(cluster_label), "value": cluster_label} for cluster_label in clusters],
+            clusters[0], {}, {}, {},
+        )
 
     @app.callback(
         Output("cluster-map-content", "children"),
@@ -1814,6 +2324,106 @@ def build_app(
         return overlap_map_content_for(run, run_metadata(run), cluster_label, lesion_cfg, build_view=_cached_cluster_overlap_view)
 
     @app.callback(
+        Output("representative-subject-content", "children"),
+        Input("run-picker", "value"),
+        Input("cluster-picker", "value"),
+    )
+    def _update_representative_subject(run_key: str | None, cluster_label: int | None):
+        if run_key is None or cluster_label is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if run.pipeline != "clustering":
+            raise PreventUpdate
+        try:
+            embedding, metadata = load_run(run)
+        except UndisplayableRunError as exc:
+            # Same never-raises-into-the-callback contract as every other *_content_for
+            # panel - the main graph above already shows this same error for this run.
+            return html.P(str(exc), className="status-message")
+        return representative_subject_content_for(run, embedding, metadata, cluster_label, lesion_cfg, sdc_cfg)
+
+    @app.callback(
+        Output("cluster-description-content", "children"),
+        Input("run-picker", "value"),
+        Input("cluster-picker", "value"),
+    )
+    def _update_cluster_description(run_key: str | None, cluster_label: int | None):
+        if run_key is None or cluster_label is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if run.pipeline != "clustering":
+            raise PreventUpdate
+        return cluster_description_content_for(run_metadata(run), cluster_label)
+
+    @app.callback(
+        Output("representative-download", "data"),
+        Input("representative-save-btn", "n_clicks"),
+        State("run-picker", "value"),
+        State("cluster-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_representative_html(_n_clicks: int, run_key: str | None, cluster_label: int | None):
+        if run_key is None or cluster_label is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if run.pipeline != "clustering":
+            raise PreventUpdate
+        try:
+            embedding, metadata = load_run(run)
+            centroids = cluster_centroids_with_nearest_subject(embedding, metadata)
+            subject_id = centroids.loc[cluster_label, "nearest_subject_id"]
+            if run.modality == "lesion":
+                view, _dataset = _build_subject_lesion_view(run, subject_id, metadata, lesion_cfg)
+            else:
+                view, _dataset = _build_subject_disconnectome_view(run, subject_id, metadata, sdc_cfg)
+        except (ValueError, KeyError):
+            # Same never-raises-into-the-callback contract as _download_lesion_html: the
+            # visible panel already reports this, the save button simply has nothing to offer.
+            # ValueError also covers UndisplayableRunError (its own subclass) from load_run.
+            raise PreventUpdate
+        return dcc.send_string(
+            _style_nilearn_html(view.html), filename=f"cluster_{cluster_label}_representative_{subject_id}.html"
+        )
+
+    @app.callback(
+        Output("representative-png-download", "data"),
+        Input("representative-png-btn", "n_clicks"),
+        State("run-picker", "value"),
+        State("cluster-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_representative_png(_n_clicks: int, run_key: str | None, cluster_label: int | None):
+        if run_key is None or cluster_label is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if run.pipeline != "clustering":
+            raise PreventUpdate
+        try:
+            embedding, metadata = load_run(run)
+            centroids = cluster_centroids_with_nearest_subject(embedding, metadata)
+            subject_id = centroids.loc[cluster_label, "nearest_subject_id"]
+            dataset = _resolve_subject_dataset(metadata, subject_id)
+            if run.modality == "lesion":
+                lesion_paths = resolve_lesion_paths(
+                    [subject_id], {subject_id: dataset}, lesion_cfg.data_root, lesion_cfg.lesion_glob
+                )
+                png_bytes = _static_png_bytes(
+                    str(lesion_paths[subject_id]), threshold=lesion_cfg.binarize_threshold, cmap="autumn",
+                    colorbar=False,
+                )
+            else:
+                disconnectome_paths = resolve_lesion_paths(
+                    [subject_id], {subject_id: dataset}, sdc_cfg.data_root, sdc_cfg.disconnectome_glob
+                )
+                png_bytes = _static_png_bytes(
+                    str(disconnectome_paths[subject_id]), threshold=_DISCONNECTOME_DISPLAY_THRESHOLD,
+                    cmap=_DISCONNECTOME_CMAP, colorbar=True,
+                )
+        except (ValueError, KeyError):
+            raise PreventUpdate
+        return dcc.send_bytes(png_bytes, filename=f"cluster_{cluster_label}_representative_{subject_id}.png")
+
+    @app.callback(
         Output("cluster-download", "data"),
         Input("cluster-save-btn", "n_clicks"),
         State("run-picker", "value"),
@@ -1827,7 +2437,7 @@ def build_app(
         if run.pipeline != "clustering":
             raise PreventUpdate
         try:
-            view, _n_subjects, _percentage_img = _cached_cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
+            view, _n_subjects, _percentage_img, _missing = _cached_cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
         except ValueError:
             raise PreventUpdate
         return dcc.send_string(_style_nilearn_html(view.html), filename=f"cluster_{cluster_label}_overlap_map.html")
@@ -1849,7 +2459,7 @@ def build_app(
             # Reuses the same process-lifetime cache the HTML download/panel display already
             # populate - percentage_img is the exact image the interactive view itself renders,
             # not a second build_overlap_map pass (see _build_cluster_overlap_view's docstring).
-            _view, _n_subjects, percentage_img = _cached_cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
+            _view, _n_subjects, percentage_img, _missing = _cached_cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
         except ValueError:
             raise PreventUpdate
         png_bytes = _static_png_bytes(percentage_img, threshold=1e-6, cmap="hot", colorbar=True)
@@ -1894,7 +2504,7 @@ def build_app(
         if run.modality != "sdc" or run.pipeline != "clustering":
             raise PreventUpdate
         try:
-            view, _n_subjects, _mean_img = _cached_cluster_disconnection_view(run, run_metadata(run), cluster_label, sdc_cfg)
+            view, _n_subjects, _mean_img, _missing = _cached_cluster_disconnection_view(run, run_metadata(run), cluster_label, sdc_cfg)
         except ValueError:
             raise PreventUpdate
         return dcc.send_string(
@@ -1918,10 +2528,12 @@ def build_app(
             # Reuses the same process-lifetime cache the HTML download/panel display already
             # populate - mean_img is the exact image the interactive view itself renders, not a
             # second build_mean_map pass (see _build_cluster_disconnection_view's docstring).
-            _view, _n_subjects, mean_img = _cached_cluster_disconnection_view(run, run_metadata(run), cluster_label, sdc_cfg)
+            _view, _n_subjects, mean_img, _missing = _cached_cluster_disconnection_view(run, run_metadata(run), cluster_label, sdc_cfg)
         except ValueError:
             raise PreventUpdate
-        png_bytes = _static_png_bytes(mean_img, threshold=1e-6, cmap="magma", colorbar=True)
+        png_bytes = _static_png_bytes(
+            mean_img, threshold=_DISCONNECTOME_DISPLAY_THRESHOLD, cmap=_DISCONNECTOME_CMAP, colorbar=True,
+        )
         return dcc.send_bytes(png_bytes, filename=f"cluster_{cluster_label}_disconnection_mean_map.png")
 
     return app

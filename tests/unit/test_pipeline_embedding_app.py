@@ -28,8 +28,7 @@ def _fake_build_matrix_config() -> BuildMatrixConfig:
         lesion_glob="*/manual_masks/*/anat/*_label-lesion_mask.nii.gz",
         binarize_threshold=0.5,
         resample_interpolation="nearest",
-        min_lesion_volume_voxels=None,
-        max_out_of_brain_fraction=None,
+        excluded_subjects_path=Path("unused.csv"),
         correct_out_of_brain=False,
         brain_mask_path=None,
         output_root=Path("unused"),
@@ -45,6 +44,7 @@ def _fake_sdc_matrix_config() -> SdcMatrixConfig:
         data_root=Path("unused"),
         datasets=["siteA"],
         group_filter=None,
+        excluded_subjects_path=Path("unused.csv"),
         object="disconnectome",
         representation="voxelwise",
         atlas=None,
@@ -129,6 +129,7 @@ def test_main_sdc_config_not_voxelwise_returns_1(tmp_path, monkeypatch):
     _patch_lesion_config(monkeypatch)
     parcellated_config = SdcMatrixConfig(
         project="test", data_root=Path("unused"), datasets=["siteA"], group_filter=None,
+        excluded_subjects_path=Path("unused.csv"),
         object="disconnectome", representation="parcellated", atlas="schaefer_200_7n",
         value_column="value", reference_labels_path=Path("unused.csv"), reference_template_path=None,
         resample_interpolation=None, output_root=Path("unused"), session_name="test", overwrite=False,
