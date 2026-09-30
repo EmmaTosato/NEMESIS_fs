@@ -1,4 +1,11 @@
 
+Date: 25/08/2026
+
+
+People: Seba
+
+# 
+
 # STATEMENTS
 - ST e HC Washu hanno scanner diversi ---> usare neurocombat 
 - acquisition.tsv
