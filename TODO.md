@@ -7,11 +7,12 @@
 - [ ] Autoencoder
 - [ ] Nuovo metodo di dimensionalità
 - [ ] Visualizzazione cluster
+- [ ] Fare anche QUALITA DISCONNESSIOne
 - [ ] Nuove run: 
 	- nuove implementazioni
 	- nuove dimensionalità
 	- fissa algoritmi gerarchici
 	- studio della metrica applicata
 
-
+  	
 
