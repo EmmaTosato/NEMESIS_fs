@@ -798,3 +798,41 @@ def test_build_sdc_streamline_matrix_no_admitted_subjects_raises(tmp_path, _meta
             group_filter=None,
             excluded_subjects=frozenset(),
         )
+
+
+# --- a subject on the exclusion list is not "missing its lesion mask" ------------
+
+
+def test_excluded_subject_is_not_also_reported_as_missing_its_lesion_mask(tmp_path, _metadata_root):
+    """The exclusion list removes a subject from the lesion-mask set on purpose, so a naive
+    `sdc_ids - lesion_ids` re-reported it under "SDC output present but no lesion mask" - false,
+    it has the mask. Asserted for all three builders (the same line was copy-pasted into each)."""
+    labels = tmp_path / "labels.csv"
+    _make_reference_labels(labels, ["A"])
+    tracts = tmp_path / "tracts.csv"
+    _make_reference_tracts(tracts, ["AF_L"])
+    template = tmp_path / "reference_template.nii.gz"
+    _make_voxelwise_reference_template(template)
+
+    for subject_id in ("sub-STUNIPD0001", "sub-STUNIPD0002"):
+        _register_lesion_mask(_metadata_root, "siteA", subject_id)
+        _make_sdc_csv(tmp_path, "siteA", subject_id, _OBJECT, _ATLAS, {"A": 0.5})
+        _make_streamline_csv(tmp_path, "siteA", subject_id, {"AF_L": 0.5})
+        volume = np.zeros(_VOXELWISE_SHAPE, dtype=np.float32)
+        volume[0, 0, 0] = 0.5 if subject_id.endswith("1") else 0.2
+        _make_disconnectome_map(tmp_path, "siteA", subject_id, volume)
+
+    common = dict(data_root=tmp_path, datasets=["siteA"], group_filter=None,
+                  excluded_subjects=frozenset({"sub-STUNIPD0002"}))
+    results = {
+        "parcellated": build_sdc_matrix(
+            object_=_OBJECT, atlas=_ATLAS, value_column=_VALUE_COLUMN, reference_labels_path=labels, **common),
+        "voxelwise": build_sdc_voxelwise_matrix(
+            object_=_OBJECT, reference_template_path=template, resample_interpolation="nearest", **common),
+        "streamline": build_sdc_streamline_matrix(
+            object_="lesion", reference_labels_path=tracts, **common),
+    }
+
+    for name, (_, _, _, _, excluded_by_list, excluded_no_lesion_mask, _) in results.items():
+        assert excluded_by_list == ["sub-STUNIPD0002"], name
+        assert excluded_no_lesion_mask == [], name

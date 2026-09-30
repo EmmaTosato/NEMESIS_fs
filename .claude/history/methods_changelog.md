@@ -20,6 +20,18 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 30-09-26 — Lista delle esclusioni con `scope`: un soggetto può essere inutilizzabile in una sola rappresentazione
+
+**Decisione**: `assets/metadata/excluded_subjects.csv` ha una colonna in più, `scope` (vocabolario chiuso: `all`, `lesion`, `sdc-parcellated`, `sdc-voxelwise`, `sdc-streamline`), e un nuovo motivo `all_zero_features` (la riga di feature del soggetto è tutta zero nella rappresentazione dello scope). `load_excluded_subjects(path, scope)` restituisce le righe `all` più quelle del proprio scope; lo scope è un argomento obbligatorio, senza default. `build_lesion_matrix.py` chiede `lesion`, `build_sdc_matrix.py` chiede `sdc-<representation>`. Prima riga scritta: `sub-STUKLFR0671` (`empty_mask`, `all` — maschera a 0 voxel, vuoto ovunque) più 14 soggetti `all_zero_features` / `sdc-streamline`, cioè 15 escluse da `s2.3-stream` (5853 → 5838).
+
+**Perché**: 14 soggetti hanno il CSV streamline interamente a zero mentre la loro mappa di disconnessione voxelwise non è vuota (10.498–214.149 voxel, lesioni fino a 284 voxel). Non è un difetto del calcolo: `streamline_ratio` conta le streamline effettivamente intersecate, e in quei soggetti la lesione tocca solo la frangia probabilistica dei tratti (probabilità massima dell'atlante 0,001–0,55, contro 0,997–1,000 nei soggetti con streamline non nullo). Sono misure vere ("nessuna streamline tagliata"), inutilizzabili nello spazio dei tratti perché una riga tutta zero è massimamente distante da tutte le altre, ma validi nella matrice lesionale e in quella voxelwise. Una lista globale li avrebbe fatti sparire da entrambe.
+
+**Alternative scartate**: (a) una lista di esclusioni per pipeline — due file che divergono; (b) uno scope grossolano `lesion`/`sdc` — un'esclusione `sdc` toglierebbe i 14 anche da `s2.4-vol`, dove hanno disconnessione reale; (c) non escludere in fase di build e toglierli a valle nel notebook — sposta la decisione fuori dall'artefatto, che non dice più da solo chi contiene.
+
+**Conseguenza ancora vera oggi**: la garanzia "le matrici lesione e SDC escludono gli stessi soggetti per costruzione" vale ora per le righe `all`; una riga con scope stretto restringe volutamente il confronto a un solo spazio di feature, e `config.md` di ogni matrice registra lo scope usato (`excluded_subjects_scope`). La validazione del file copre l'intero file, non solo le righe dello scope richiesto, così un refuso destinato a un'altra matrice fa fallire anche questa.
+
+---
+
 ## 30-09-26 — Streamline per tratto come terza rappresentazione SDC, nella track s2.x
 
 **Decisione**: `build_sdc_matrix.json` accetta `representation: "streamline"`, che legge `sdc/<subject>/*_LF-lesion_atlas-yeh_hcp1065_streamline.csv` (colonne `tract,streamline_ratio`) in una matrice soggetti x 87 tratti di sostanza bianca — un valore per tratto, la quota delle sue streamline colpite. Nuovo builder dedicato (`src.features.sdc.build_sdc_streamline_matrix`), non un parametro di quello parcellato. Lista autoritativa dei tratti in `assets/atlases/sdc_labels/yeh_hcp1065_streamline.csv` (colonna `tract`, 87 righe), derivata dall'unione su tutti i 1734 file reali. Il dato appartiene alla track **s2.x** (disconnettoma), non s1.x, nonostante il nome `LF-lesion`: quello che misura è una disconnessione, cioè streamline interrotte dalla lesione, non danno diretto al tessuto. Prima sessione: `s2.3-stream`, 7 dataset (UCL-UK non ha questo CSV).

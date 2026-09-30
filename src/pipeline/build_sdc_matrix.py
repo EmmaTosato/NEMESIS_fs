@@ -65,11 +65,14 @@ def main(argv: list[str] | None = None) -> int:
             logging.error("cannot set up log file: %s", exc, exc_info=True)
             return 1
 
-        # Its own error boundary, before any SDC file is opened (lessons_learned.md #9). The
-        # same list the lesion matrix reads: both matrices must drop the same subjects, or a
-        # lesion-vs-SDC comparison silently compares two different cohorts.
+        # Its own error boundary, before any SDC file is opened (lessons_learned.md #9). The same
+        # list the lesion matrix reads, asked for this representation's scope: rows scoped "all"
+        # apply to every matrix, so a lesion-vs-SDC comparison still shares one cohort unless a
+        # row deliberately narrows itself to one feature space.
         try:
-            excluded_subjects = load_excluded_subjects(config.excluded_subjects_path)
+            excluded_subjects = load_excluded_subjects(
+                config.excluded_subjects_path, _exclusion_scope(config)
+            )
         except (FileNotFoundError, ValueError) as exc:
             logging.error(str(exc))
             return 1
@@ -191,6 +194,16 @@ def main(argv: list[str] | None = None) -> int:
         log_duration(now)
 
 
+def _exclusion_scope(config: SdcMatrixConfig) -> str:
+    """Which rows of the exclusion list this run obeys: its own representation's, plus "all".
+
+    Derived from `representation` rather than hardcoded per branch, so a fourth representation
+    cannot silently inherit another one's exclusions - src.utils.participants validates the
+    result against KNOWN_EXCLUSION_SCOPES and raises on an unregistered one.
+    """
+    return f"sdc-{config.representation}"
+
+
 def _output_dir(config: SdcMatrixConfig, now: datetime) -> Path:
     return config.output_root / f"{now.strftime('%d-%m')}_{config.session_name}"
 
@@ -241,6 +254,7 @@ def _config_summary(config: SdcMatrixConfig) -> str:
         "datasets": config.datasets,
         "group_filter": config.group_filter,
         "excluded_subjects_path": str(config.excluded_subjects_path),
+        "excluded_subjects_scope": _exclusion_scope(config),
         "object": config.object,
         "representation": config.representation,
         "output_root": str(config.output_root),

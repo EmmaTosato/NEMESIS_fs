@@ -21,7 +21,7 @@ def _empty_exclusion_list(tmp_path):
     indistinguishable from "never written"). Header-only short-circuits before the registry
     lookup, so no participants.csv fixture is needed."""
     path = tmp_path / "excluded_subjects.csv"
-    path.write_text("subject_id,dataset,reason,value\n")
+    path.write_text("subject_id,dataset,reason,scope,value\n")
     return str(path)
 
 _AFFINE = np.eye(4) * 2
@@ -272,7 +272,7 @@ def test_build_lesion_matrix_excluded_subjects_list_drops_and_records_reason(tmp
     )
     excluded_path = tmp_path / "excluded.csv"
     excluded_path.write_text(
-        "subject_id,dataset,reason,value\nsub-STUNIPD0002,siteA,lesion_too_small,1\n"
+        "subject_id,dataset,reason,scope,value\nsub-STUNIPD0002,siteA,lesion_too_small,all,1\n"
     )
     config_path = _write_config(
         tmp_path, data_root, output_root, overrides={"excluded_subjects_path": str(excluded_path)}
@@ -306,3 +306,40 @@ def test_build_lesion_matrix_missing_excluded_subjects_file_returns_1(tmp_path, 
 
     assert build_lesion_matrix.main(["--config", str(config_path)]) == 1
     assert not output_root.exists()  # stopped before any mask was read
+
+
+def test_build_lesion_matrix_ignores_rows_scoped_to_an_sdc_representation(tmp_path, monkeypatch):
+    """The reason `scope` exists: a subject whose streamline row is all zeros is a valid lesion
+    subject. The lesion matrix must keep it, while still dropping what is scoped "lesion"."""
+    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
+
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    for subject_id, voxel in [("sub-STUNIPD0001", (1, 1, 1)), ("sub-STUNIPD0002", (5, 5, 5)), ("sub-STUNIPD0003", (2, 2, 2))]:
+        _make_lesion_subject(data_root, "siteA", subject_id, [voxel])
+
+    metadata_root.mkdir(parents=True, exist_ok=True)
+    (metadata_root / "participants.csv").write_text(
+        "subject_id,original_id,dataset,disease_id,has_lesion,has_sdc,has_features\n"
+        + "".join(f"sub-STUNIPD000{i},sub-STUNIPD000{i},siteA,ST,True,True,False\n" for i in (1, 2, 3))
+    )
+    excluded_path = tmp_path / "excluded.csv"
+    excluded_path.write_text(
+        "subject_id,dataset,reason,scope,value\n"
+        "sub-STUNIPD0002,siteA,lesion_too_small,lesion,1\n"
+        "sub-STUNIPD0003,siteA,all_zero_features,sdc-streamline,0\n"
+    )
+    config_path = _write_config(
+        tmp_path, data_root, output_root, overrides={"excluded_subjects_path": str(excluded_path)}
+    )
+
+    assert build_lesion_matrix.main(["--config", str(config_path)]) == 0
+
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    # 0002 is dropped (scope lesion); 0003 stays (its row is scoped to a matrix this is not)
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0003"]
+    assert '"excluded_subjects_scope": "lesion"' in (out_dir / "config.md").read_text()

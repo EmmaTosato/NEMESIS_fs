@@ -1,1 +1,16 @@
-subject_id,dataset,reason,value
+subject_id,dataset,reason,scope,value
+sub-STUKLFR0671,UKLFR/stroke_UKLFR,empty_mask,all,0
+sub-STUCLUK0383,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
+sub-STUCLUK0661,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
+sub-STUCLUK0797,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
+sub-STUCLUK0907,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
+sub-STUCLUK1508,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
+sub-STUCLUK2160,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
+sub-STUCLUK2359,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
+sub-STUCLUK2664,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
+sub-STUCLUK2846,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
+sub-STUCLUK2951,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
+sub-STUCLUK3025,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
+sub-STUCLUK3108,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
+sub-STUCLUK3453,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
+sub-STUNIPD0222,UNIPD/WashU,all_zero_features,sdc-streamline,0

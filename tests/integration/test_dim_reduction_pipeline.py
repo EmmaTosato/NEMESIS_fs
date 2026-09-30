@@ -17,7 +17,7 @@ def _empty_exclusion_list(tmp_path):
     indistinguishable from "never written"). Header-only short-circuits before the registry
     lookup, so no participants.csv fixture is needed."""
     path = tmp_path / "excluded_subjects.csv"
-    path.write_text("subject_id,dataset,reason,value\n")
+    path.write_text("subject_id,dataset,reason,scope,value\n")
     return str(path)
 
 _AFFINE = np.eye(4) * 2

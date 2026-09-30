@@ -34,6 +34,11 @@ REPORTS_ROOT = Path("summaries") / "build_lesion_matrix"
 LOGS_ROOT = Path("logs") / "build_lesion_matrix"
 REPORT_FILENAME_PREFIX = "build_summary"
 
+# Which rows of the exclusion list this pipeline obeys: those scoped "lesion" plus those scoped
+# "all" (src.utils.participants.load_excluded_subjects). A subject excluded only from an SDC
+# representation stays in this matrix - see docs/guides/metadata.md.
+_EXCLUSION_SCOPE = "lesion"
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
@@ -66,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
         # exclusion list is a config-level problem, and it must stop the run BEFORE any mask is
         # read (lessons_learned.md #9 - a later-added phase is not covered by its neighbour's).
         try:
-            excluded_subjects = load_excluded_subjects(config.excluded_subjects_path)
+            excluded_subjects = load_excluded_subjects(config.excluded_subjects_path, _EXCLUSION_SCOPE)
         except (FileNotFoundError, ValueError) as exc:
             logging.error(str(exc))
             return 1
@@ -194,6 +199,7 @@ def _config_summary(config: BuildMatrixConfig) -> str:
         "binarize_threshold": config.binarize_threshold,
         "resample_interpolation": config.resample_interpolation,
         "excluded_subjects_path": str(config.excluded_subjects_path),
+        "excluded_subjects_scope": _EXCLUSION_SCOPE,
         "correct_out_of_brain": config.correct_out_of_brain,
         "brain_mask_path": str(config.brain_mask_path) if config.brain_mask_path is not None else None,
         "output_root": str(config.output_root),
@@ -214,6 +220,7 @@ def _params_used(config: BuildMatrixConfig) -> dict:
     return {
         "binarize_threshold": config.binarize_threshold,
         "excluded_subjects_path": str(config.excluded_subjects_path),
+        "excluded_subjects_scope": _EXCLUSION_SCOPE,
         "correct_out_of_brain": config.correct_out_of_brain,
     }
 

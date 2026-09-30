@@ -160,7 +160,9 @@ def build_sdc_matrix(
     for dataset in datasets:
         lesion_ids = set(lesion_subjects.get(dataset, {}))
         sdc_ids = set(sdc_files.get(dataset, {}))
-        excluded_no_lesion_mask.extend(sorted(sdc_ids - lesion_ids))
+        # A subject on the exclusion list has its mask (it was removed from lesion_ids on purpose,
+        # by _subjects_with_lesion_mask), so it must not be re-reported as "no lesion mask".
+        excluded_no_lesion_mask.extend(sorted(sdc_ids - lesion_ids - set(excluded_by_list)))
         sdc_not_yet_computed.extend(sorted(lesion_ids - sdc_ids))
         for subject_id in sorted(lesion_ids & sdc_ids):
             path = sdc_files[dataset][subject_id]
@@ -225,7 +227,9 @@ def build_sdc_voxelwise_matrix(
     for dataset in datasets:
         lesion_ids = set(lesion_subjects.get(dataset, {}))
         sdc_ids = set(sdc_files.get(dataset, {}))
-        excluded_no_lesion_mask.extend(sorted(sdc_ids - lesion_ids))
+        # A subject on the exclusion list has its mask (it was removed from lesion_ids on purpose,
+        # by _subjects_with_lesion_mask), so it must not be re-reported as "no lesion mask".
+        excluded_no_lesion_mask.extend(sorted(sdc_ids - lesion_ids - set(excluded_by_list)))
         sdc_not_yet_computed.extend(sorted(lesion_ids - sdc_ids))
         for subject_id in sorted(lesion_ids & sdc_ids):
             admitted[(dataset, subject_id)] = sdc_files[dataset][subject_id]
@@ -293,7 +297,9 @@ def build_sdc_streamline_matrix(
     for dataset in datasets:
         lesion_ids = set(lesion_subjects.get(dataset, {}))
         sdc_ids = set(sdc_files.get(dataset, {}))
-        excluded_no_lesion_mask.extend(sorted(sdc_ids - lesion_ids))
+        # A subject on the exclusion list has its mask (it was removed from lesion_ids on purpose,
+        # by _subjects_with_lesion_mask), so it must not be re-reported as "no lesion mask".
+        excluded_no_lesion_mask.extend(sorted(sdc_ids - lesion_ids - set(excluded_by_list)))
         sdc_not_yet_computed.extend(sorted(lesion_ids - sdc_ids))
         for subject_id in sorted(lesion_ids & sdc_ids):
             path = sdc_files[dataset][subject_id]

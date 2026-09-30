@@ -87,16 +87,17 @@ Accanto al csv viene scritto `lesion_metadata.config.json`, il config esatto del
 Lo scrivi **a mano**, dopo aver guardato le distribuzioni di `lesion_metadata.csv` dal notebook. Non lo genera nessuna pipeline: i dati non hanno un salto naturale su cui mettere una soglia, e quale soggetto limite valga la pena di scartare è un giudizio, non un confronto numerico.
 
 ```csv
-subject_id,dataset,reason,value
-sub-STUKE0146,UKE/WAKEUP_acute,empty_mask,0
-sub-STUNIPD0222,UNIPD/WashU,lesion_too_small,2
+subject_id,dataset,reason,scope,value
+sub-STUKE0146,UKE/WAKEUP_acute,empty_mask,all,0
+sub-STUCLUK2160,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
 ```
 
-- **`reason`** ha un vocabolario chiuso: `empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`. Un motivo non in elenco fa fallire la run.
+- **`reason`** ha un vocabolario chiuso: `empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`, `all_zero_features` (la riga di feature del soggetto è tutta zero nella rappresentazione indicata da `scope`: sotto qualunque distanza risulta indistinguibile o massimamente lontana dagli altri). Un motivo non in elenco fa fallire la run.
+- **`scope`** dice a quale matrice si applica la riga, con vocabolario chiuso: `all`, `lesion`, `sdc-parcellated`, `sdc-voxelwise`, `sdc-streamline`. Serve perché un soggetto può essere inutilizzabile in uno spazio di feature e perfettamente valido negli altri: uno zero nel CSV streamline può essere una misura vera (una lesione che non interseca nessuna streamline di nessun tratto), non un dato rotto, e non deve far sparire il soggetto dalla matrice lesionale né da quella voxelwise. `all` dichiara esplicitamente "ovunque"; un soggetto con una riga `all` **non può** averne anche una più stretta (le due righe si contraddirebbero).
 - **`value`** è la metrica che ha motivato l'esclusione. Serve a rivedere la decisione a mesi di distanza: "sub-X escluso" non si può giudicare, "sub-X escluso a 2 voxel" sì.
-- **Ogni riga è validata** contro il registro: ID inesistente, ID duplicato, `dataset` in disaccordo col registro, `value` non numerico fanno fallire la run.
+- **Ogni riga è validata** contro il registro: ID inesistente, coppia (ID, scope) duplicata, `dataset` in disaccordo col registro, `scope` o `reason` non registrati, `value` non numerico fanno fallire la run. La validazione copre **tutto il file**, non solo le righe della matrice che sta girando: un refuso in una riga destinata a un'altra matrice fa fallire anche questa, invece di restare dormiente fino a quando qualcuno costruisce quell'altra.
 
-Questo file è **l'unica fonte** letta sia da `build_lesion_matrix.py` sia da `build_sdc_matrix.py` (campo `excluded_subjects_path` nei due config), quindi le due matrici escludono gli stessi soggetti per costruzione — senza cui un confronto lesione/SDC confronterebbe due coorti diverse.
+Il file è **l'unica fonte** letta sia da `build_lesion_matrix.py` sia da `build_sdc_matrix.py` (campo `excluded_subjects_path` nei due config). Ogni matrice legge le righe `all` più quelle del proprio scope: `build_lesion_matrix.py` quelle `lesion`, `build_sdc_matrix.py` quelle `sdc-<representation>`. Le righe `all` sono quindi ciò che garantisce la stessa coorte tra lesione e SDC; una riga più stretta restringe volutamente il confronto a un solo spazio di feature, e `config.md` di ogni matrice registra lo scope usato (`excluded_subjects_scope`).
 
 **Un file assente è un errore, non "nessuna esclusione"**: le due cose sono indistinguibili, e costruire una matrice con tutti i soggetti limite dentro è ciò che questa lista esiste per evitare. Per dire "nessuna esclusione" si tiene il file con la sola intestazione.
 

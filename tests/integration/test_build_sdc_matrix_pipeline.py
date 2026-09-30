@@ -22,7 +22,7 @@ def _empty_exclusion_list(tmp_path):
     indistinguishable from "never written"). Header-only short-circuits before the registry
     lookup, so no participants.csv fixture is needed."""
     path = tmp_path / "excluded_subjects.csv"
-    path.write_text("subject_id,dataset,reason,value\n")
+    path.write_text("subject_id,dataset,reason,scope,value\n")
     return str(path)
 
 _ATLAS = "test_atlas"
@@ -392,3 +392,42 @@ def test_build_sdc_matrix_streamline_object_disconnectome_rejected_at_config_loa
         exit_code = build_sdc_matrix.main(["--config", str(config_path)])
     assert exit_code == 1
     assert "only supports object='lesion'" in caplog.text
+
+
+def test_build_sdc_matrix_streamline_obeys_only_its_own_scope_and_all(tmp_path, monkeypatch):
+    """Four subjects, one exclusion row each, one per scope that could apply: only the "all" row
+    and the "sdc-streamline" row may drop anyone from the streamline matrix. A lesion-scoped and a
+    voxelwise-scoped row must leave their subjects in."""
+    monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
+
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    subjects = [f"sub-STUNIPD{i:04d}" for i in range(4)]
+    for subject_id in subjects:
+        _register_lesion_mask(metadata_root, "siteA", subject_id)
+        _make_streamline_csv(data_root, "siteA", subject_id, {"AF_L": 0.5, "AF_R": 0.1, "CST_L": 0.2})
+
+    excluded_path = tmp_path / "excluded.csv"
+    excluded_path.write_text(
+        "subject_id,dataset,reason,scope,value\n"
+        f"{subjects[0]},siteA,empty_mask,all,0\n"
+        f"{subjects[1]},siteA,all_zero_features,sdc-streamline,0\n"
+        f"{subjects[2]},siteA,lesion_too_small,lesion,2\n"
+        f"{subjects[3]},siteA,all_zero_features,sdc-voxelwise,0\n"
+    )
+    config_path = _write_streamline_config(
+        tmp_path, data_root, output_root, overrides={"excluded_subjects_path": str(excluded_path)}
+    )
+
+    assert build_sdc_matrix.main(["--config", str(config_path)]) == 0
+
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    assert list(metadata["subject_id"]) == [subjects[2], subjects[3]]
+
+    config_md = (out_dir / "config.md").read_text()
+    assert '"excluded_subjects_scope": "sdc-streamline"' in config_md
+    assert "2 subject(s) excluded by the hand-curated admission list" in config_md
