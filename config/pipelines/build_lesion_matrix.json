@@ -24,11 +24,12 @@
   "binarize_threshold": 0.5,
   "resample_interpolation": "nearest",
 
-  "excluded_subjects_path": "assets/metadata/excluded_subjects.csv",
-
-  "correct_out_of_brain": true,
+  "min_lesion_volume_voxels": null,
+  
+  "max_out_of_brain_fraction": null,
+  "correct_out_of_brain": false,
 
   "session_name": "s1.4-vol",
   "overwrite": false,
-  "run_notes": "first run after re-doing dataset"
+  "run_notes": "Adds UNIPD/NEMESIS_T0 (76 subjects) and UKE/SFB936_ses01 (56 subjects) to s1.3-vol's 6 datasets (5721 today, post WashU/UKLFR 1mm resync) -> 5853, tutti gli 8 dataset ST in assets/metadata/participants.csv ora coperti. Onboarding 28-09-26 (.claude/history/data_changelog.md); needed for enrich_metadata.py's lesion_volume_config/lesion_side_geometric, which read this file's 'datasets' directly (fresh per-subject computation, no built matrix session required for that use)."
 }
