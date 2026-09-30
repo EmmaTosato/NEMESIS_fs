@@ -137,7 +137,9 @@ Raises `ValueError` if `metadata` has no `cluster_label` column at all.
 
 Every "partial result" warning on the page goes through one boxed callout (29-09-26: *"warning tipo questo devono essere renderizzati un po' meglio"*): an uppercase vivid **ATTENZIONE** label, then the message in **black** body text, then the long non-prose tail (the subject ids) set apart in `.warning-detail`.
 
-The label/body color split is deliberate. Coloring the whole block would make the information read as decoration and cost it contrast — the label alone is enough to say "this is not routine caption text", which is exactly how the previous thin amber line failed. The box carries a 5px left rule, a soft gradient and a low shadow to lift it off the page.
+The label/body color split is deliberate. Coloring the whole block would make the information read as decoration and cost it contrast — the label alone is enough to say "this is not routine caption text", which is exactly how the previous thin amber line failed.
+
+The surface is a **neutral grey one shade off the white page** (`#f4f4f3`), not an amber wash (29-09-26, on request): a tinted background made the box read as a colored block of its own rather than as a quiet callout. The vivid color survives in exactly two places — the label and the 5px left rule — with a low shadow to lift the box off the page.
 
 Shared with the two anatomy panels: `_anatomy_viewer` renders its own `warning` string through the same box, so a data gap looks identical wherever it appears.
 

@@ -307,3 +307,88 @@ def test_build_sdc_matrix_voxelwise_object_lesion_rejected_at_config_load(tmp_pa
     assert exit_code == 1
     assert "voxelwise" in caplog.text
     assert not output_root.exists()
+
+
+def _make_streamline_csv(data_root, dataset, subject_id, rows, object_="lesion"):
+    subject_dir = data_root / dataset / "sdc" / subject_id
+    subject_dir.mkdir(parents=True, exist_ok=True)
+    path = subject_dir / f"{subject_id}_space-MNI152NLin6Asym_LF-{object_}_atlas-yeh_hcp1065_streamline.csv"
+    lines = ["tract,streamline_ratio"] + [f"{tract},{value}" for tract, value in rows.items()]
+    path.write_text("\n".join(lines) + "\n")
+
+
+def _write_streamline_config(tmp_path, data_root, output_root, overrides=None):
+    reference_path = tmp_path / "tracts.csv"
+    reference_path.write_text("\n".join(["tract", "AF_L", "AF_R", "CST_L"]) + "\n")
+    cfg = {
+        "project": "testproj",
+        "data_root": str(data_root),
+        "datasets": ["siteA"],
+        "excluded_subjects_path": _empty_exclusion_list(tmp_path),
+        "object": "lesion",
+        "representation": "streamline",
+        "reference_labels_path": str(reference_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+    }
+    cfg.update(overrides or {})
+    path = tmp_path / "build_sdc_matrix.json"
+    path.write_text(json.dumps(cfg))
+    return path
+
+
+def test_build_sdc_matrix_streamline_end_to_end(tmp_path, monkeypatch, caplog):
+    """representation='streamline' (added 30/09): one streamline_ratio per
+    tract. extra_arrays holds tract_names - no non_constant_mask (no column is
+    ever dropped) and no region_names (different schema)."""
+    monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
+
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    # AF_R is constant at 0.0 across every subject - it must survive anyway.
+    for i, (af_l, cst_l) in enumerate([(0.5, 0.25), (0.1, 0.75), (0.0, 0.3)]):
+        subject_id = f"sub-STUNIPD{i:04d}"
+        _register_lesion_mask(metadata_root, "siteA", subject_id)
+        _make_streamline_csv(data_root, "siteA", subject_id, {"AF_L": af_l, "AF_R": 0.0, "CST_L": cst_l})
+    config_path = _write_streamline_config(tmp_path, data_root, output_root)
+
+    with caplog.at_level(logging.INFO):
+        exit_code = build_sdc_matrix.main(["--config", str(config_path)])
+    assert exit_code == 0
+    assert "run duration:" in caplog.text
+
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    matrix = np.load(out_dir / "matrix.npy")
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    tract_names = np.load(out_dir / "tract_names.npy")
+
+    assert len(metadata) == 3
+    assert matrix.shape == (3, 3)
+    assert list(tract_names) == ["AF_L", "AF_R", "CST_L"]
+    assert not (out_dir / "non_constant_mask.npy").exists()
+    assert not (out_dir / "region_names.npy").exists()
+    np.testing.assert_allclose(matrix, [[0.5, 0.0, 0.25], [0.1, 0.0, 0.75], [0.0, 0.0, 0.3]])
+
+    config_md = (out_dir / "config.md").read_text()
+    assert '"representation": "streamline"' in config_md
+    assert '"atlas": "yeh_hcp1065_streamline"' in config_md
+    assert "3 subjects x 3 tracts" in config_md
+
+
+def test_build_sdc_matrix_streamline_object_disconnectome_rejected_at_config_load(tmp_path, monkeypatch, caplog):
+    """representation='streamline' only supports object='lesion' - rejected at
+    config-load time, before any file discovery."""
+    monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
+    config_path = _write_streamline_config(
+        tmp_path, tmp_path / "data", tmp_path / "out", overrides={"object": "disconnectome"}
+    )
+
+    with caplog.at_level(logging.ERROR):
+        exit_code = build_sdc_matrix.main(["--config", str(config_path)])
+    assert exit_code == 1
+    assert "only supports object='lesion'" in caplog.text

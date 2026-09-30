@@ -77,24 +77,26 @@ def test_write_embedding_plots_unknown_color_by_raises(tmp_path):
 
 
 def test_write_embedding_plots_one_bad_color_mode_does_not_abort_the_others(tmp_path, caplog):
-    # "side" reads metadata's own lesion_side column - absent here, so color_values raises
-    # ValueError for this mode specifically, without touching participants.tsv at all
-    # (2026-08-17: "side" no longer recomputes live - see src/analysis/embedding_coloring.py).
+    # "cluster_label" is a run-only mode: it has no registry counterpart, so with the column
+    # absent from metadata color_values raises for this mode specifically and the registry is
+    # never consulted. It replaced "side" here on 30-09-26, when side/nihss/volume started
+    # resolving from participants.csv - "side" no longer fails on a run that lacks the column,
+    # which is the whole point of that change, so it stopped being a usable "bad mode".
     embedding, metadata = _embedding_metadata()
 
     with caplog.at_level(logging.WARNING):
-        write_embedding_plots(embedding, metadata, ["dataset", "side"], tmp_path, "x", "y", _title_fn)
+        write_embedding_plots(embedding, metadata, ["dataset", "cluster_label"], tmp_path, "x", "y", _title_fn)
 
     assert (tmp_path / "embedding_plot_dataset.png").exists()
-    assert not (tmp_path / "embedding_plot_side.png").exists()
-    assert any("side" in record.message for record in caplog.records)
+    assert not (tmp_path / "embedding_plot_cluster_label.png").exists()
+    assert any("cluster_label" in record.message for record in caplog.records)
 
 
 def test_write_embedding_plots_all_color_modes_fail_writes_only_unico(tmp_path, caplog):
     embedding, metadata = _embedding_metadata()
 
     with caplog.at_level(logging.WARNING):
-        write_embedding_plots(embedding, metadata, ["side"], tmp_path, "x", "y", _title_fn)
+        write_embedding_plots(embedding, metadata, ["cluster_label"], tmp_path, "x", "y", _title_fn)
 
     files = list(tmp_path.iterdir())
     assert [f.name for f in files] == ["embedding_plot_unico.png"]
@@ -139,11 +141,11 @@ def test_write_embedding_grid_empty_color_by_writes_only_unico(tmp_path):
 
 
 def test_write_embedding_grid_bad_color_mode_does_not_abort_the_others(tmp_path, caplog):
-    metadata = _grid_metadata()  # no lesion_side column
+    metadata = _grid_metadata()  # no cluster_label column
 
     with caplog.at_level(logging.WARNING):
-        write_embedding_grid(_blocks(), metadata, ["dataset", "side"], tmp_path, "x", "y", _title_fn)
+        write_embedding_grid(_blocks(), metadata, ["dataset", "cluster_label"], tmp_path, "x", "y", _title_fn)
 
     assert (tmp_path / "embeddings_grid_dataset.png").exists()
-    assert not (tmp_path / "embeddings_grid_side.png").exists()
-    assert any("side" in record.message for record in caplog.records)
+    assert not (tmp_path / "embeddings_grid_cluster_label.png").exists()
+    assert any("cluster_label" in record.message for record in caplog.records)

@@ -50,6 +50,25 @@ used) would duplicate `build_lesion_matrix.py`'s own job from a different,
 less authoritative source (`manual_masks/` is the real source; `sdc/`
 only carries a copy of it as SDC's own computation input) - not built here,
 raises explicitly if requested.
+
+A third representation (`build_sdc_streamline_matrix`, added 30/09) reads the
+`yeh_hcp1065_streamline` CSV (`tract,streamline_ratio`) - one value per white
+matter tract, the proportion of its streamlines affected. Its schema shares
+nothing with the parcellated CSVs above (no `region_name`, no choice of
+value column), which is why it is its own builder rather than a parameter of
+`build_sdc_matrix`. Restricted to `object_="lesion"`: BCBToolKit writes this
+file only in the `LF-lesion` family, there is no `LF-disconnectome` variant
+of it. Despite that name the quantity is a disconnection measure, which is
+why it belongs to the s2.x (disconnectome) track - see
+docs/experiments/data_sessions.md.
+
+Unlike the parcellated CSVs, this one writes **every** tract explicitly,
+zeros included (verified on the full local cohort, 30/09: all 1734 files
+across the 7 datasets that have it carry the same 87 tracts in the same
+order, 2-42 of them non-zero per subject). A tract missing from a subject's
+CSV is therefore not the legitimate "omitted because zero" case it is for
+the parcellated builder - it means a truncated or corrupt file, and raises
+instead of being filled with 0.0.
 """
 
 from __future__ import annotations
@@ -71,8 +90,18 @@ KNOWN_VALUE_COLUMNS = frozenset({
     "fraction_covered", "mean_overlap", "weighted_mean_overlap",
     "sum_overlap", "p90_overlap", "p95_overlap",
 })
-KNOWN_REPRESENTATIONS = frozenset({"parcellated", "voxelwise"})
+KNOWN_REPRESENTATIONS = frozenset({"parcellated", "voxelwise", "streamline"})
 _VOXELWISE_SUPPORTED_OBJECTS = frozenset({"disconnectome"})
+# The streamline CSV exists only in the LF-lesion family - BCBToolKit writes no
+# LF-disconnectome variant of it (see module docstring).
+_STREAMLINE_SUPPORTED_OBJECTS = frozenset({"lesion"})
+
+# Fixed by the source file's own schema, not a config choice: this CSV has
+# exactly one identifier column and one value column, unlike the parcellated
+# CSVs' 6 interchangeable statistics (KNOWN_VALUE_COLUMNS above).
+STREAMLINE_ATLAS = "yeh_hcp1065_streamline"
+_STREAMLINE_TRACT_COLUMN = "tract"
+_STREAMLINE_VALUE_COLUMN = "streamline_ratio"
 
 _LESION_FLAG_COLUMN = "has_lesion"
 
@@ -218,8 +247,80 @@ def build_sdc_voxelwise_matrix(
     )
 
 
-def load_reference_regions(reference_labels_path: Path) -> np.ndarray:
+def build_sdc_streamline_matrix(
+    data_root: Path,
+    datasets: list[str],
+    object_: str,
+    reference_labels_path: Path,
+    group_filter: list[str] | None,
+    excluded_subjects: frozenset[str],
+) -> tuple[np.ndarray, pd.DataFrame, np.ndarray, list[str], list[str], list[str], list[str]]:
+    """Build X (n_subjects x n_tracts, fixed = len(tract_names)) from the
+    `yeh_hcp1065_streamline` CSV - one streamline_ratio per white matter
+    tract. See module docstring.
+
+    Same admission criterion as the other two builders. Alignment is by tract
+    name against the fixed reference list, never by row position - the rows
+    happen to be in a stable order across the whole local cohort, but nothing
+    in the format guarantees it (lessons_learned.md #3).
+
+    No column is ever dropped, even if constant across every admitted
+    subject - same reasoning as build_sdc_matrix: column j must always name
+    the same tract regardless of which subjects a run admits.
+
+    Returns (X, metadata, tract_names, excluded_by_group, excluded_by_list,
+    excluded_no_lesion_mask, sdc_not_yet_computed).
+    """
+    if object_ not in _STREAMLINE_SUPPORTED_OBJECTS:
+        raise ValueError(
+            f"object_ must be one of {sorted(_STREAMLINE_SUPPORTED_OBJECTS)} for "
+            f"representation='streamline' (BCBToolKit writes the {STREAMLINE_ATLAS} CSV only in the "
+            f"LF-lesion family), got {object_!r}"
+        )
+
+    tract_names = load_reference_regions(reference_labels_path, column=_STREAMLINE_TRACT_COLUMN)
+
+    lesion_subjects, excluded_lesion, excluded_by_list = _subjects_with_lesion_mask(
+        datasets, group_filter, excluded_subjects
+    )
+    sdc_glob = f"sdc/*/*_LF-{object_}_atlas-{STREAMLINE_ATLAS}.csv"
+    sdc_files, excluded_sdc = _discover_by_dataset(data_root, datasets, sdc_glob, group_filter)
+    excluded_by_group = sorted(set(excluded_lesion) | set(excluded_sdc))
+
+    subject_series: dict[tuple[str, str], pd.Series] = {}
+    excluded_no_lesion_mask: list[str] = []
+    sdc_not_yet_computed: list[str] = []
+    for dataset in datasets:
+        lesion_ids = set(lesion_subjects.get(dataset, {}))
+        sdc_ids = set(sdc_files.get(dataset, {}))
+        excluded_no_lesion_mask.extend(sorted(sdc_ids - lesion_ids))
+        sdc_not_yet_computed.extend(sorted(lesion_ids - sdc_ids))
+        for subject_id in sorted(lesion_ids & sdc_ids):
+            path = sdc_files[dataset][subject_id]
+            subject_series[(dataset, subject_id)] = _load_and_validate_streamline_csv(path, tract_names)
+
+    if not subject_series:
+        raise ValueError(
+            "no subjects admitted - the intersection of subjects with a registered lesion mask "
+            f"(assets/metadata/participants.csv, has_lesion) and subjects with an SDC file "
+            f"(object={object_!r}, representation='streamline') is empty; check 'datasets'/'data_root' "
+            "in the config"
+        )
+
+    X, metadata = _stack_streamline_matrix(subject_series, tract_names)
+    return (
+        X, metadata, tract_names, excluded_by_group, excluded_by_list,
+        sorted(excluded_no_lesion_mask), sorted(sdc_not_yet_computed),
+    )
+
+
+def load_reference_regions(reference_labels_path: Path, column: str = "region_name") -> np.ndarray:
     """Load the authoritative, fixed region list for one atlas.
+
+    `column` names the identifier column in the reference file: "region_name"
+    for the parcellated atlases, "tract" for yeh_hcp1065_streamline (whose
+    source CSVs use that name - the reference file mirrors its own atlas's
+    schema rather than renaming it).
 
     Public so callers that only need the region set (e.g. a sanity check
     against a freshly-retrieved atlas combo) don't have to run full matrix
@@ -228,11 +329,11 @@ def load_reference_regions(reference_labels_path: Path) -> np.ndarray:
     if not reference_labels_path.is_file():
         raise FileNotFoundError(f"reference_labels_path not found: {reference_labels_path}")
     df = pd.read_csv(reference_labels_path)
-    if "region_name" not in df.columns:
-        raise ValueError(f"{reference_labels_path}: missing 'region_name' column")
-    regions = df["region_name"].tolist()
+    if column not in df.columns:
+        raise ValueError(f"{reference_labels_path}: missing {column!r} column")
+    regions = df[column].tolist()
     if len(set(regions)) != len(regions):
-        raise ValueError(f"{reference_labels_path}: duplicate region_name entries in reference file")
+        raise ValueError(f"{reference_labels_path}: duplicate {column} entries in reference file")
     return np.array(sorted(regions))
 
 
@@ -345,6 +446,62 @@ def _stack_aligned_matrix(
             # see module docstring).
             vector = series.reindex(region_names, fill_value=0.0).values
         features.append(vector)
+        subject_ids.append(subject_id)
+        dataset_labels.append(dataset)
+    X = np.stack(features)
+    metadata = pd.DataFrame({"subject_id": subject_ids, "dataset": dataset_labels})
+    return X, metadata
+
+
+def _load_and_validate_streamline_csv(path: Path, tract_names: np.ndarray) -> pd.Series:
+    """Read one subject's streamline CSV into a tract -> streamline_ratio
+    Series, validated against the reference tract list.
+
+    Unlike _load_and_validate_csv, a **missing** tract raises instead of being
+    filled with 0.0: this file writes every tract explicitly, zeros included,
+    so an incomplete one is truncated or corrupt, not a legitimate omission
+    (see module docstring).
+    """
+    df = pd.read_csv(path)
+    for column in (_STREAMLINE_TRACT_COLUMN, _STREAMLINE_VALUE_COLUMN):
+        if column not in df.columns:
+            raise ValueError(f"{path}: missing {column!r} column - unexpected file shape")
+
+    dup = df[_STREAMLINE_TRACT_COLUMN].duplicated()
+    if dup.any():
+        raise ValueError(
+            f"{path}: {int(dup.sum())} duplicate {_STREAMLINE_TRACT_COLUMN} value(s): "
+            f"{df.loc[dup, _STREAMLINE_TRACT_COLUMN].tolist()}"
+        )
+
+    found = set(df[_STREAMLINE_TRACT_COLUMN])
+    expected = set(tract_names)
+    unknown = found - expected
+    if unknown:
+        raise ValueError(
+            f"{path}: {len(unknown)} {_STREAMLINE_TRACT_COLUMN} value(s) not in the reference tract set: "
+            f"{sorted(unknown)} - check that the reference file matches this atlas"
+        )
+    missing = expected - found
+    if missing:
+        raise ValueError(
+            f"{path}: {len(missing)} tract(s) missing from a file expected to list all "
+            f"{len(tract_names)}: {sorted(missing)} - truncated or corrupt file, not an omitted "
+            "zero (see src/features/sdc.py's module docstring)"
+        )
+    return df.set_index(_STREAMLINE_TRACT_COLUMN)[_STREAMLINE_VALUE_COLUMN]
+
+
+def _stack_streamline_matrix(
+    subject_series: dict[tuple[str, str], pd.Series], tract_names: np.ndarray
+) -> tuple[np.ndarray, pd.DataFrame]:
+    features = []
+    subject_ids: list[str] = []
+    dataset_labels: list[str] = []
+    for (dataset, subject_id), series in sorted(subject_series.items()):
+        # Reordering only - completeness is already guaranteed by
+        # _load_and_validate_streamline_csv, so no fill value can apply here.
+        features.append(series.reindex(tract_names).values)
         subject_ids.append(subject_id)
         dataset_labels.append(dataset)
     X = np.stack(features)

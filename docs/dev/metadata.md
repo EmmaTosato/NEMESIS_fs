@@ -118,6 +118,8 @@ Le maschere manuali hanno voxel di 1 mm (verificato sugli header di tutte e 5853
 
 Il costo che scala è il tempo, non la memoria: una lettura da disco per soggetto (la maschera è letta **una volta** e ricampionata una volta per griglia, non riletta per griglia) più un ricampionamento per griglia.
 
+**La colonna a 1 mm è ridondante per 5 dataset su 8.** `manual_masks/` contiene la lesione già ricampionata da BCBToolKit su griglia 1 mm (`docs/dev/retrieval.md`), e per i dataset segmentati originariamente a 2 mm i voxel risultano costanti in blocchi 2x2x2 allineati: `lesion_volume_voxels_1mm` è esattamente `8 x lesion_volume_voxels_2mm`, e il conteggio a 2 mm **ricostruisce esattamente** la maschera nativa, quindi nessuna lesione può sparire. Sono 5150 soggetti su 5853 (UCL-UK, UKLFR, WashU, NEMESIS_T0, SFB936); le due colonne portano informazione diversa solo per i 702 di PASPORT, PSP e WAKEUP. Verificato su tutti i soggetti, uniforme dentro ogni dataset - tabella e metodo in `docs/guides/datasets.md`. Il disegno a due griglie resta giustificato proprio da quei 702: 2 dei 4 soggetti con volume 0 sulla griglia di produzione stanno in WAKEUP e hanno una lesione reale di 8 e 3 voxel.
+
 ### La soglia del lato
 
 `side_threshold` (`0.20` in produzione) non è inventata: è calibrata contro 1445 soggetti con etichetta clinica vera, 97.4% di accordo, **sulla griglia a 2 mm** — dettagli, letteratura e limiti (la classe "bilaterale" resta debole, 3/24 corretti a qualunque soglia) in `knowledge/neuroimaging/lesion_laterality.md` e `.claude/history/methods_changelog.md`.

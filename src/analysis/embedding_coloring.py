@@ -8,20 +8,33 @@ Read-only: no mode ever recomputes a value from X - see docs/dev/plotting.md
 for why (a real bug this design replaced). A mode's values come from one of
 two persisted places, never from a live recomputation:
 
-- the run's own metadata.csv, for facts that belong to that run (`dataset`,
-  `lesion_volume_voxels`, `cluster_label`);
-- assets/metadata/participants.csv, the project's subject registry, for
-  clinical facts about a subject that are true regardless of which run is
-  being plotted (`lesion_side`, `NIHSS`) - see docs/dev/metadata.md.
+- assets/metadata/participants.csv, the project's subject registry, for facts
+  about a SUBJECT that are true regardless of which run is being plotted
+  (`lesion_side`, `NIHSS`, lesion volume) - see docs/dev/metadata.md;
+- the run's own metadata.csv, only for facts that belong to that RUN and
+  exist nowhere else (`dataset`, `cluster_label`).
 
 The registry lookup (2026-09-06) replaced a per-run enrichment step that used
 to copy those clinical columns into every run's own metadata.csv: they now
 have exactly one home, and a run plotted today gets them whether or not that
 step was ever applied to it.
+
+**The registry wins** whenever a mode declares a registry_column (30-09-26, on
+request: "dash deve prendere da participants o, se sono info specifiche
+dell'embedding, dal suo relativo metadata.csv"). Until then the order was the
+other way round - the run's own column first - so an old run still carrying a
+stale `lesion_side`/`nihss`/`lesion_volume_voxels` column from before the
+2026-09-06 migration was silently coloured from that copy instead of from the
+registry, and two runs of the same subjects could disagree. Lesion volume in
+particular is per-run in a way that is NOT comparable: each run's own
+`lesion_volume_voxels` counts voxels on whatever grid that build_lesion_matrix
+call used, while the registry's `lesion_volume_voxels_2mm`/`_1mm` are computed
+once, on one fixed grid, for every subject.
 """
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Literal
 
@@ -51,6 +64,41 @@ class ColorMode:
     log_scale: bool = False
 
 
+# Lesion volume is measured on a voxel grid, and the registry holds one column per grid
+# (src/pipeline/enrich_metadata.py's lesion_metrics.grids). The app offers whichever of these
+# actually exists in participants.csv today (available_volume_grids) as a small button row of
+# its own, so the choice of grid is explicit instead of buried in whichever column a run
+# happened to write. A closed vocabulary: an unknown grid raises rather than being looked up.
+VOLUME_MODE = "volume"
+DEFAULT_VOLUME_GRID = "2mm"
+_VOLUME_GRID_COLUMNS: dict[str, str] = {
+    "2mm": "lesion_volume_voxels_2mm",
+    "1mm": "lesion_volume_voxels_1mm",
+}
+
+
+def volume_grid_column(grid: str) -> str:
+    """The participants.csv column holding lesion volume on `grid`.
+
+    Raises ValueError for an unregistered grid - a typo'd grid must fail with the known list,
+    never resolve to a column name built by string interpolation."""
+    if grid not in _VOLUME_GRID_COLUMNS:
+        raise ValueError(f"unknown volume grid {grid!r} - known: {sorted(_VOLUME_GRID_COLUMNS)}")
+    return _VOLUME_GRID_COLUMNS[grid]
+
+
+def available_volume_grids() -> list[str]:
+    """The grids the registry can actually serve right now, in _VOLUME_GRID_COLUMNS order.
+
+    Read from participants.csv rather than declared, because the 1mm column only exists once
+    enrich_metadata.py has been run with a "1mm" grid in its own config - the app must offer
+    what is there, not what is theoretically supported, and must not offer a button that would
+    raise when clicked. DEFAULT_VOLUME_GRID first if present, so the default is always offered.
+    """
+    registry = load_participants_registry()
+    return [grid for grid, column in _VOLUME_GRID_COLUMNS.items() if column in registry.columns]
+
+
 COLOR_MODES: dict[str, ColorMode] = {
     "dataset": ColorMode(kind="categorical", column="dataset", label="dataset"),
     # "unknown" sentinel for an unresolvable subject (dataset-wide gap, e.g. PASPORT has no
@@ -63,6 +111,7 @@ COLOR_MODES: dict[str, ColorMode] = {
     "volume": ColorMode(
         kind="continuous",
         column="lesion_volume_voxels",
+        registry_column=_VOLUME_GRID_COLUMNS[DEFAULT_VOLUME_GRID],
         label="lesion volume (voxels)",
         # Heavily right-skewed (a handful of large-lesion outliers otherwise
         # stretch a linear scale so far that almost every other point looks
@@ -108,31 +157,40 @@ def resolve_color_mode(name: str) -> ColorMode:
     return COLOR_MODES[name]
 
 
-def color_values(metadata: pd.DataFrame, mode_name: str) -> np.ndarray:
+def color_values(
+    metadata: pd.DataFrame, mode_name: str, registry_column: str | None = None
+) -> np.ndarray:
     """The one place every embedding-coloring consumer in this repo (dim_reduction.py's
     production/tuning plots via embedding_plots.py, src.pipeline.embedding_app's interactive
     explorer) reads a color mode's actual values - straight from metadata's own column
     (resolve_color_mode(mode_name).column), never recomputed.
 
-    Resolution order: the run's own metadata.csv column if present, otherwise the subject
-    registry for modes that declare a registry_column. A mode that can be resolved from
-    neither raises - a caller offering a mode whose values don't exist anywhere (e.g.
-    "volume" before build_lesion_matrix.py added lesion_volume_voxels) needs to know that
-    explicitly, not get a silently blank/wrong plot.
+    Resolution order (30-09-26, inverted on request - see this module's docstring): the
+    subject registry for any mode that declares a registry_column, and the run's own
+    metadata.csv only for modes that declare none (`dataset`, `cluster_label`), which exist
+    nowhere else. A mode that can be resolved from neither raises - a caller offering a mode
+    whose values don't exist anywhere needs to know that explicitly, not get a silently
+    blank/wrong plot.
+
+    registry_column overrides which registry column this mode reads - used by the app to
+    switch the "volume" mode between the 2mm and 1mm grids (volume_grid_column) without a
+    second, near-identical ColorMode entry per grid.
     """
     mode = resolve_color_mode(mode_name)
+    column = mode.registry_column if registry_column is None else registry_column
+    if column is not None:
+        return _values_from_registry(metadata, mode, mode_name, column)
     if mode.column in metadata.columns:
         return metadata[mode.column].to_numpy()
-    if mode.registry_column is not None:
-        return _values_from_registry(metadata, mode, mode_name)
     raise ValueError(
         f"metadata has no {mode.column!r} column for color mode {mode_name!r} - "
-        "run the pipeline step that produces it first (build_lesion_matrix.py for "
-        "'volume', clustering.py for 'cluster_label')"
+        "run the pipeline step that produces it first (clustering.py for 'cluster_label')"
     )
 
 
-def _values_from_registry(metadata: pd.DataFrame, mode: ColorMode, mode_name: str) -> np.ndarray:
+def _values_from_registry(
+    metadata: pd.DataFrame, mode: ColorMode, mode_name: str, registry_column: str
+) -> np.ndarray:
     """Resolve a subject-level clinical mode from assets/metadata/participants.csv.
 
     Used when the run's own metadata.csv doesn't carry the column - which is the normal
@@ -140,9 +198,16 @@ def _values_from_registry(metadata: pd.DataFrame, mode: ColorMode, mode_name: st
     Reached only for modes that declare a registry_column, never as a blanket fallback.
 
     Raises ValueError if the registry hasn't been enriched with that variable yet
-    (src/pipeline/enrich_metadata.py), or if a plotted subject has no registry row at
-    all - a run whose subjects aren't in the registry is a real mismatch, not a
-    legitimately missing colour.
+    (src/pipeline/enrich_metadata.py).
+
+    A plotted subject with NO registry row is NOT an error (30-09-26): it gets the same
+    missing value as a subject that has a row with an empty cell - NaN for a continuous mode
+    (drawn neutral gray by plot_embedding_continuous), the "unknown" bucket for a categorical
+    one - and the count is logged once. For a colour, "absent from the registry" and "present
+    but blank" are the same fact: there is no value to paint with. Raising instead would make
+    a whole run unplottable because a handful of its subjects predate the last
+    populate_metadata.py pass, which is the same trade the cluster-description panel settled
+    the same way (src/analysis/cluster_description.py::cluster_composition).
     """
     if "subject_id" not in metadata.columns:
         raise ValueError(
@@ -150,23 +215,28 @@ def _values_from_registry(metadata: pd.DataFrame, mode: ColorMode, mode_name: st
             f"'subject_id' column in metadata; got {list(metadata.columns)}"
         )
     registry = load_participants_registry()
-    if mode.registry_column not in registry.columns:
+    if registry_column not in registry.columns:
         raise ValueError(
-            f"the subject registry has no {mode.registry_column!r} column for color mode "
+            f"the subject registry has no {registry_column!r} column for color mode "
             f"{mode_name!r} - run src/pipeline/enrich_metadata.py to populate it"
         )
 
-    lookup = registry.set_index("subject_id")[mode.registry_column]
-    unknown = sorted(set(metadata["subject_id"]) - set(lookup.index))
-    if unknown:
-        raise ValueError(
-            f"color mode {mode_name!r}: {len(unknown)} subject(s) of this run have no row in "
-            f"the subject registry: {unknown[:5]}"
+    lookup = registry.set_index("subject_id")[registry_column]
+    unregistered = sorted(set(metadata["subject_id"]) - set(lookup.index))
+    if unregistered:
+        logging.warning(
+            "color mode %r: %d/%d subject(s) have no row in the subject registry - drawn as "
+            "missing (%s): %s",
+            mode_name, len(unregistered), len(metadata),
+            "gray" if mode.kind == "continuous" else UNKNOWN_CATEGORICAL, unregistered[:5],
         )
 
+    # .map leaves an unregistered subject as NaN, which is exactly the missing value an
+    # empty registry cell already produces - handled identically below.
     values = metadata["subject_id"].map(lookup)
     if mode.kind == "categorical":
         # This mode's values get sorted as plain strings downstream - a NaN would raise
         # TypeError, so an unresolved subject becomes the explicit "unknown" bucket.
         return values.fillna(UNKNOWN_CATEGORICAL).to_numpy()
-    return pd.to_numeric(values, errors="raise").to_numpy()
+    # coerce, not raise: an unregistered subject (or a blank cell) is NaN here by design.
+    return pd.to_numeric(values, errors="coerce").to_numpy()

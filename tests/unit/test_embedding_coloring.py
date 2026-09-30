@@ -29,16 +29,26 @@ def test_dataset_mode_is_categorical_and_reads_metadata_column():
     assert list(values) == ["UNIPD/WashU", "UNIPD/WashU", "UKLFR/stroke_UKLFR"]
 
 
-def test_volume_mode_is_continuous_and_reads_persisted_column():
+def test_volume_mode_is_continuous_and_reads_the_registry(_registry_root):
     """Regression (2026-08-17): "volume" used to recompute X.sum(axis=1) live, with no
-    binarity guard - silently wrong for a parcellated (continuous) X. Now reads the already-
-    computed lesion_volume_voxels column instead, same as every other mode - never touches X
-    at all."""
+    binarity guard - silently wrong for a parcellated (continuous) X. It then read the run's
+    own lesion_volume_voxels column; since 30-09-26 it reads the REGISTRY's
+    lesion_volume_voxels_2mm, which is computed once on one fixed grid for every subject and
+    is therefore comparable across runs (a run's own column counts voxels on whatever grid
+    that build_lesion_matrix call used)."""
     mode = resolve_color_mode("volume")
     assert mode.kind == "continuous"
-    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2", "sub-3"], "lesion_volume_voxels": [2, 1, 3]})
-    values = color_values(metadata, "volume")
-    assert list(values) == [2, 1, 3]
+    assert mode.registry_column == "lesion_volume_voxels_2mm"
+    _write_registry(
+        _registry_root,
+        [
+            ["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "2"],
+            ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", "1"],
+        ],
+        ["lesion_volume_voxels_2mm"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001", "sub-STUNIPD0002"]})
+    assert list(color_values(metadata, "volume")) == [2, 1]
 
 
 def test_volume_mode_uses_log_scale():
@@ -54,26 +64,48 @@ def test_categorical_modes_default_log_scale_false():
     assert resolve_color_mode("side").log_scale is False
 
 
-def test_side_mode_is_categorical_and_reads_persisted_column():
+def test_side_mode_is_categorical_and_reads_the_registry(_registry_root):
     mode = resolve_color_mode("side")
     assert mode.kind == "categorical"
-    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "lesion_side": ["left", "right"]})
-    values = color_values(metadata, "side")
-    assert list(values) == ["left", "right"]
+    _write_registry(
+        _registry_root,
+        [
+            ["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "left"],
+            ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", "right"],
+        ],
+        ["lesion_side"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001", "sub-STUNIPD0002"]})
+    assert list(color_values(metadata, "side")) == ["left", "right"]
 
 
-def test_nihss_mode_is_continuous_and_reads_persisted_column():
+def test_nihss_mode_is_continuous_and_reads_the_registry(_registry_root):
     mode = resolve_color_mode("nihss")
     assert mode.kind == "continuous"
-    metadata = pd.DataFrame({"subject_id": ["sub-1", "sub-2"], "nihss": [4.0, float("nan")]})
+    _write_registry(
+        _registry_root,
+        [
+            ["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "4.0"],
+            ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", ""],
+        ],
+        ["NIHSS"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001", "sub-STUNIPD0002"]})
     values = color_values(metadata, "nihss")
     assert values[0] == 4.0
     assert pd.isna(values[1])
 
 
-def test_color_values_missing_column_raises():
-    metadata = pd.DataFrame({"subject_id": ["sub-1"], "dataset": ["UNIPD/WashU"]})
-    with pytest.raises(ValueError, match="metadata has no 'lesion_volume_voxels' column"):
+def test_color_values_registry_without_the_volume_column_raises(_registry_root):
+    """The registry is now volume's only source, so a registry that was never enriched with
+    it must say exactly that - not fall back to whatever a run happens to carry."""
+    _write_registry(
+        _registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False"]],
+        [],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001"]})
+    with pytest.raises(ValueError, match="no 'lesion_volume_voxels_2mm' column"):
         color_values(metadata, "volume")
 
 
@@ -158,16 +190,19 @@ def test_nihss_resolves_from_registry_as_numeric(_registry_root):
     assert pd.isna(values[1])
 
 
-def test_run_metadata_column_wins_over_the_registry(_registry_root):
-    """A run that already carries the column (every run enriched before the rewiring)
-    keeps using its own value - the registry is only consulted when it doesn't."""
+def test_registry_wins_over_a_stale_run_metadata_column(_registry_root):
+    """30-09-26, INVERTED on request ("dash deve prendere da participants"). A run enriched
+    before the 2026-09-06 migration still carries its own copy of these clinical columns; that
+    copy is a snapshot and can disagree with the registry. The registry is now the source of
+    truth for any mode that declares a registry_column, so two runs of the same subjects can
+    never be coloured differently."""
     _write_registry(
         _registry_root,
         [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "right"]],
         ["lesion_side"],
     )
     metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001"], "lesion_side": ["left"]})
-    assert list(color_values(metadata, "side")) == ["left"]
+    assert list(color_values(metadata, "side")) == ["right"]
 
 
 def test_registry_without_the_variable_raises(_registry_root):
@@ -182,18 +217,31 @@ def test_registry_without_the_variable_raises(_registry_root):
         color_values(pd.DataFrame({"subject_id": ["sub-STUNIPD0001"]}), "side")
 
 
-def test_subject_absent_from_registry_raises(_registry_root):
+def test_subject_absent_from_registry_is_drawn_as_missing_not_raised(_registry_root, caplog):
+    """30-09-26 behaviour change: a subject with no registry row used to make the whole mode
+    raise, so one run with a handful of subjects predating the last populate_metadata.py pass
+    was entirely unplottable. For a COLOUR, "absent from the registry" and "present but blank"
+    are the same fact - there is no value to paint with - so it now becomes the same missing
+    value, and the count is logged. Same trade cluster_composition settled the same way."""
+    import logging
+
     _write_registry(
         _registry_root,
         [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "left"]],
         ["lesion_side"],
     )
-    with pytest.raises(ValueError, match="no row in the subject registry"):
-        color_values(pd.DataFrame({"subject_id": ["sub-STUNIPD0009"]}), "side")
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001", "sub-STUNIPD0009"]})
+
+    with caplog.at_level(logging.WARNING):
+        values = color_values(metadata, "side")
+
+    assert list(values) == ["left", "unknown"]
+    assert "sub-STUNIPD0009" in caplog.text
 
 
-def test_non_registry_mode_still_raises_on_missing_column(_registry_root):
-    """volume/dataset/cluster_label are run-level facts with no registry counterpart -
-    they must keep failing loudly rather than silently reaching for the registry."""
-    with pytest.raises(ValueError, match="metadata has no 'lesion_volume_voxels' column"):
-        color_values(pd.DataFrame({"subject_id": ["sub-STUNIPD0001"]}), "volume")
+def test_run_only_mode_still_raises_on_missing_column(_registry_root):
+    """dataset/cluster_label are run-level facts with no registry counterpart (volume stopped
+    being one on 30-09-26) - they must keep failing loudly rather than reaching for a registry
+    column that does not exist for them."""
+    with pytest.raises(ValueError, match="metadata has no 'cluster_label' column"):
+        color_values(pd.DataFrame({"subject_id": ["sub-STUNIPD0001"]}), "cluster_label")

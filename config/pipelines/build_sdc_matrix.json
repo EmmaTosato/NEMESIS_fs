@@ -6,19 +6,20 @@
     "UNIPD/PASPORT",
     "UNIPD/PSP",
     "UKLFR/stroke_UKLFR",
-    "UKE/WAKEUP_acute"
+    "UKE/WAKEUP_acute",
+    "UNIPD/NEMESIS_T0",
+    "UKE/SFB936_ses01"
   ],
   "group_filter": [
     "ST"
   ],
 
   "excluded_subjects_path": "assets/metadata/excluded_subjects.csv",
-  "object": "disconnectome",
-  "representation": "voxelwise",
-  "reference_template_path": "assets/templates/tpl-MNI152NLin6Asym_res-1_T1w.nii.gz",
-  "resample_interpolation": "nearest",
+  "object": "lesion",
+  "representation": "streamline",
+  "reference_labels_path": "assets/atlases/sdc_labels/yeh_hcp1065_streamline.csv",
   "output_root": "data/derived/sdc_matrix",
-  "session_name": "s2.2-vol",
+  "session_name": "s2.3-stream",
   "overwrite": false,
-  "run_notes": "Prima run SDC voxelwise: disconnectome-map .nii.gz non parcellati, valori continui 0-1. Aggiunge UKE/WAKEUP_acute ai 4 dataset di s2.1 -> 1570 soggetti ammessi attesi. Griglia 2mm del template lesionale, allineata a lesion_matrix s1.3-vol."
+  "run_notes": "first run after re-doing dataset"
 }

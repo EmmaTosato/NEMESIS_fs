@@ -2,7 +2,7 @@
 
 Audience: developers/agents working on `src/features/sdc.py`, `src/analysis/build_config.py` (the `build_sdc_matrix.json`-parsing half), and `src/pipeline/build_sdc_matrix.py`.
 
-This file covers turning retrieved SDC output (`sdc/<subject_id>/*`, produced upstream by `src/sdc/`/`compute_sdc.py`'s BCBToolKit Stage 1+2) into a feature matrix ready for dimensionality reduction, in either of two representations picked by `config.representation` (added 03/09): **parcellated** (`build_sdc_matrix`, the original one - one CSV per atlas, `LF-{object}_atlas-*.csv`) or **voxelwise** (`build_sdc_voxelwise_matrix` - the pre-parcellation `disconnectome-map` `.nii.gz` directly, same resampling-onto-a-common-grid approach as the lesion pipeline). For the equivalent lesion (voxel-wise) pipeline, see `docs/dev/lesion_matrix.md`. For "how do I run this", see `docs/guides/sdc_matrix_building.md`.
+This file covers turning retrieved SDC output (`sdc/<subject_id>/*`, produced upstream by `src/sdc/`/`compute_sdc.py`'s BCBToolKit Stage 1+2) into a feature matrix ready for dimensionality reduction, in any of three representations picked by `config.representation`: **parcellated** (`build_sdc_matrix`, the original one - one CSV per atlas, `LF-{object}_atlas-*.csv`), **voxelwise** (`build_sdc_voxelwise_matrix`, added 03/09 - the pre-parcellation `disconnectome-map` `.nii.gz` directly, same resampling-onto-a-common-grid approach as the lesion pipeline) or **streamline** (`build_sdc_streamline_matrix`, added 30/09 - the `yeh_hcp1065_streamline` CSV, one `streamline_ratio` per white matter tract). For the equivalent lesion (voxel-wise) pipeline, see `docs/dev/lesion_matrix.md`. For "how do I run this", see `docs/guides/sdc_matrix_building.md`.
 
 ## Why this pipeline looks different from `build_lesion_matrix.py`
 
@@ -19,11 +19,11 @@ The set of columns (regions) `build_sdc_matrix()` produces for a given atlas is 
 
 Cardinalities for atlases not yet backed by a reference file are **not** derived from an empirical proxy (an earlier draft of this design used "max rows observed in a single subject" - dropped once the reference-file approach was adopted, since it can only ever be a lower bound, not the true cardinality). Adding support for a new atlas means adding its reference file first (see "Adding a new atlas" below).
 
-**A known atlas anomaly, not currently supported**: `buckner_7n`'s CSV holds exactly one row per subject, with `region_name` set to the atlas's own filename (`atl-Buckner7_space-MNI_dseg`) rather than one row per cerebellar network - its CSV structure doesn't match the other 14 atlases and is excluded from this pipeline for now (2026-08-27, on request - not currently a target atlas). `yeh_hcp1065_streamline` (lesion-side only) is a different schema entirely (`tract,streamline_ratio`, no `region_name`) and is likewise out of scope.
+**A known atlas anomaly, not currently supported**: `buckner_7n`'s CSV holds exactly one row per subject, with `region_name` set to the atlas's own filename (`atl-Buckner7_space-MNI_dseg`) rather than one row per cerebellar network - its CSV structure doesn't match the other 14 atlases and is excluded from this pipeline for now (2026-08-27, on request - not currently a target atlas). `yeh_hcp1065_streamline` (lesion-side only) is a different schema entirely (`tract,streamline_ratio`, no `region_name`) and is out of scope **for this builder** - it has its own, `representation: "streamline"` (see below), rather than being forced into the parcellated one.
 
 ### Adding a new atlas
 
-1. Confirm the atlas isn't `buckner_7n` or `yeh_hcp1065_streamline` (see above).
+1. Confirm the atlas isn't `buckner_7n` (see above) or `yeh_hcp1065_streamline` (which has its own representation, not a reference file added here).
 2. Derive the reference region list from the full local cohort (same approach as `schaefer_200_tian_s2`/`schaefer_400_tian_s2`): union every `region_name` across every subject's CSV for that atlas, across all in-scope datasets, and confirm the union reaches the atlas's known/expected cardinality (published value, or a locally-verified fmriprep `dseg.tsv` for atlas combos that include one - see `assets/atlases/fmriprep/atlas-Yan<N>Tian<Sx>Buckner7N/*_dseg.tsv`, whose additive structure - e.g. 200 Schaefer + 16 Tian S1 + 7 Buckner = 223 - helped cross-check the individual-component cardinalities used here).
 3. Write the confirmed list, one `region_name` per row (header included), to `assets/atlases/sdc_labels/<atlas>.csv`.
 
@@ -79,26 +79,43 @@ Reads the `disconnectome-map` `.nii.gz` directly (`sdc/*/*_res-1_desc-{object_}.
   - **Do not use `"continuous"`** (cubic spline): its kernel has negative lobes, so in the background - where the true value is exactly 0 - the ~64 weighted products fail to cancel in the last bits, leaving symmetric ±1 ULP noise (measured min `-2.0e-17`, 1.90M negative voxels, none beyond `-1e-12`). That noise is not an accuracy problem in itself, but it defeats `_drop_constant_features`' exact `min != max` test: voxels that are identically zero for every subject stop being constant and survive the drop. Measured on a 4-subject sample, 3.56M of the 5.57M surviving columns (64%) were pure rounding noise. `"nearest"` and `"linear"` both leave an exact `0.0` minimum and are unaffected.
 - **Constant-column drop**: unlike the parcellated representation (never drops a column - see above), voxels outside every admitted subject's brain are identically `0.0` and get dropped via the same `_drop_constant_features` as `build_lesion_matrix.py`, keeping `X`'s size manageable. `non_constant_mask` is persisted (`extra_arrays`) so the drop is always recoverable - this doesn't contradict the parcellated representation's "column always means the same thing" decision, since that reasoning was specifically about atlas *region identity* staying comparable across differently-scoped runs, not about voxel grids (whose meaning is already pinned by `reference_template_path`, independent of which subjects a given run admits).
 
+## `build_sdc_streamline_matrix` — the streamline representation (added 30/09)
+
+`build_sdc_streamline_matrix(data_root, datasets, object_, reference_labels_path, group_filter, excluded_subjects) -> (X, metadata, tract_names, excluded_by_group, excluded_by_list, excluded_no_lesion_mask, sdc_not_yet_computed)`
+
+Reads `sdc/*/*_LF-lesion_atlas-yeh_hcp1065_streamline.csv` (columns `tract,streamline_ratio`) into a subjects x 87 tracts matrix - one value per white matter tract, the proportion of its streamlines affected. Same admission criterion as the other two builders, via the same `_subjects_with_lesion_mask`.
+
+**Why its own builder, not a parameter of `build_sdc_matrix`.** The schema shares nothing with the parcellated CSVs: no `region_name` column, and exactly one value column instead of the 6 interchangeable statistics in `KNOWN_VALUE_COLUMNS`. Generalising the parcellated builder to take configurable identifier/value column names would have put a rarely-varying parameter on the hot path of the representation every existing run uses, for no gain.
+
+- **Deliberately restricted to `object_="lesion"`** - BCBToolKit writes this file only in the `LF-lesion` family; there is no `LF-disconnectome` variant of it. `object_="disconnectome"` raises immediately (and, redundantly, at config-load time). Despite the `LF-lesion` name the quantity *is* a disconnection measure (streamlines of a tract interrupted by the lesion), which is why a run of it belongs to the s2.x track in `docs/experiments/data_sessions.md`, not s1.x.
+- **A missing tract raises, it is not filled with `0.0`** - the one real behavioural difference from `build_sdc_matrix`. That builder fills omitted regions with `0.0` because BCBToolKit genuinely omits zero-overlap regions there; this file instead writes **every** tract explicitly, zeros included. Verified on the full local cohort (30-09-26): all 1734 files across the 7 datasets that have one carry the same 87 tracts in the same order, with 2-42 non-zero per subject. An incomplete file is therefore truncated or corrupt, and filling it would be exactly the silent fallback `code_standards.md` §0 rules out. An *unknown* tract raises too, same as the parcellated builder.
+- **Alignment is by tract name anyway** - `reindex` against the reference list, even though the row order happens to be stable across the whole cohort. Nothing in the format guarantees it (`lessons_learned.md` #3), and after the completeness check above the reindex can only ever reorder, never fill.
+- **No constant-column drop** - same rule as the parcellated representation: column `j` must always name the same tract regardless of which subjects a run admits.
+- **No `atlas`/`value_column` config field** - there is exactly one streamline file per subject and one value column in it, so neither is a choice (`code_standards.md` §5: no unread config fields). `atlas` is pinned to `src.features.sdc.STREAMLINE_ATLAS` and recorded in `config.md` anyway, so a written matrix still states which file it came from.
+
+The reference tract list lives at `assets/atlases/sdc_labels/yeh_hcp1065_streamline.csv`, alongside the parcellated atlases' own reference files but with a `tract` column instead of `region_name` (`load_reference_regions`' `column` parameter) - the reference file mirrors its own atlas's schema rather than renaming it. Derived 30-09-26 as the union of every tract across all 1734 real files, which reached exactly 87.
+
 ## `src/analysis/build_config.py` — `build_sdc_matrix.json` parsing
 
 `load_build_sdc_matrix_config(path) -> SdcMatrixConfig`, same style as `load_build_matrix_config`/`load_config`: hand-written `_require_*`/`_optional_*` helpers, every field validated upfront. `object`/`value_column`/`representation` are validated against `src.features.sdc`'s known sets at config-load time - a typo here would otherwise only surface after the first subject's file is opened (`object`) or column-indexed (`value_column`), potentially after hundreds of files have already been read. No `lesion_glob` field - unlike `build_lesion_matrix.json`, lesion mask presence is resolved from `assets/metadata/participants.csv`, not from a glob against `data_root`.
 
-**`representation`** (`"parcellated"` or `"voxelwise"`, required, added 03/09) picks which builder runs and which of the remaining fields are required - never a silent default for the unused mode's fields, never required-but-ignored:
+**`representation`** (`"parcellated"`, `"voxelwise"` (03/09) or `"streamline"` (30/09), required) picks which builder runs and which of the remaining fields are required - never a silent default for an unused mode's fields, never required-but-ignored:
 
-| Field | `"parcellated"` | `"voxelwise"` |
-|---|---|---|
-| `atlas` | required | not read (must be omitted from the config, or simply ignored if present - not validated either way) |
-| `value_column` | required, validated against `KNOWN_VALUE_COLUMNS` | not read |
-| `reference_labels_path` | required | not read |
-| `reference_template_path` | not read | required |
-| `resample_interpolation` | not read | required, validated against the same `_KNOWN_INTERPOLATIONS` set `build_lesion_matrix.json` uses |
+| Field | `"parcellated"` | `"voxelwise"` | `"streamline"` |
+|---|---|---|---|
+| `atlas` | required | not read (must be omitted from the config, or simply ignored if present - not validated either way) | not read (pinned to `STREAMLINE_ATLAS`) |
+| `value_column` | required, validated against `KNOWN_VALUE_COLUMNS` | not read | not read (the CSV has exactly one) |
+| `reference_labels_path` | required | not read | required |
+| `reference_template_path` | not read | required | not read (nothing is resampled) |
+| `resample_interpolation` | not read | required, validated against the same `_KNOWN_INTERPOLATIONS` set `build_lesion_matrix.json` uses | not read |
 
-`representation="voxelwise"` combined with `object="lesion"` raises `ValueError` at config-load time already (before `src.features.sdc.build_sdc_voxelwise_matrix` would raise the same thing again at call time) - see "the voxel-wise representation" above for why.
+Each representation also constrains `object`, raising `ValueError` at config-load time before the builder would raise the same thing again at call time: `"voxelwise"` requires `object="disconnectome"`, `"streamline"` requires `object="lesion"` - see the two sections above for why.
 
 ## `src/pipeline/build_sdc_matrix.py` — CLI entry point
 
 `python -m src.pipeline.build_sdc_matrix --config config/pipelines/build_sdc_matrix.json`. Same shape as `build_lesion_matrix.py` (staged `try`/`except` per phase, `summaries/build_sdc_matrix/<project>/` + `logs/build_sdc_matrix/<project>/` written every run, `output_root/<dd-mm>_<session_name>/` via `save_matrix`). Dispatches on `config.representation`:
 
 - **`"parcellated"`**: `extra_arrays` holds `region_names` (the column labels, `str` dtype) - no drop mask, no column is ever dropped. `Params used:` records `{"object": ..., "atlas": ..., "value_column": ...}`.
+- **`"streamline"`**: `extra_arrays` holds `tract_names` (the column labels, `str` dtype) - no drop mask, same as parcellated. `Params used:` records `{"object": ..., "representation": ..., "atlas": ...}`.
 - **`"voxelwise"`**: `extra_arrays` holds `non_constant_mask` (boolean drop-mask, same convention as `build_lesion_matrix.py` - `region_names.npy` is not written in this mode). `Params used:` records `{"object": ..., "representation": ...}`. `nib.filebasedimages.ImageFileError` is caught alongside `FileNotFoundError`/`ValueError` (a truncated/corrupt `.nii.gz`, same reasoning as `build_lesion_matrix.py`) - the parcellated path never touches `nibabel` at all, so that exception type is only reachable via this mode.
-- Both modes: `config.md`/the report carry four exclusion sections - **"Excluded by group_filter"**, **"Excluded by `<excluded_subjects_path>`"** (shared with `build_lesion_matrix.py`), **"Excluded (SDC output present but no lesion mask)"** and **"Have a lesion mask but no SDC output yet"** - all persisted, not just logged (same reasoning as for `excluded_by_group`).
+- Every mode: `config.md`/the report carry four exclusion sections - **"Excluded by group_filter"**, **"Excluded by `<excluded_subjects_path>`"** (shared with `build_lesion_matrix.py`), **"Excluded (SDC output present but no lesion mask)"** and **"Have a lesion mask but no SDC output yet"** - all persisted, not just logged (same reasoning as for `excluded_by_group`).

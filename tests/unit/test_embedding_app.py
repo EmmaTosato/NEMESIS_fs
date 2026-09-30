@@ -11,6 +11,8 @@ import pytest
 
 from dash import dcc, html
 
+from src.analysis.embedding_app import DISCONNECTION_PROBABILITY_THRESHOLD
+from src.analysis.embedding_coloring import DEFAULT_VOLUME_GRID, available_volume_grids
 from src.analysis.embedding_app import (
     COLOR_MODE_ORDER,
     NEUTRAL_MODE,
@@ -321,6 +323,24 @@ def _embedding_and_metadata(n=4):
     return embedding, metadata
 
 
+def _registry_for_embedding_fixture(metadata_root, n=4):
+    """Registry rows matching _embedding_and_metadata's own subjects (30-09-26): side/nihss/
+    volume all resolve from participants.csv now, so a figure test for one of those modes has
+    to supply the registry, not just the run's metadata."""
+    metadata_root.mkdir(parents=True, exist_ok=True)
+    header = [*_PARTICIPANTS_REGISTRY_COLUMNS, "lesion_side", "NIHSS", "lesion_volume_voxels_2mm"]
+    volumes = ["10", "100", "1000", "10000"][:n]
+    nihss = ["1.0", "", "5.0", "9.0"][:n]
+    sides = ["left", "right", "left", "right"][:n]
+    rows = [
+        [f"sub-{i}", f"sub-{i}", "UNIPD/WashU", "ST", "True", "True", "False", sides[i], nihss[i], volumes[i]]
+        for i in range(n)
+    ]
+    (metadata_root / "participants.csv").write_text(
+        "\n".join([",".join(header)] + [",".join(r) for r in rows]) + "\n"
+    )
+
+
 def test_build_embedding_figure_neutro_2d_single_trace():
     embedding, metadata = _embedding_and_metadata()
 
@@ -351,8 +371,9 @@ def test_build_embedding_figure_cluster_label_mode_one_trace_per_cluster():
     assert names == {"0", "1", "-1"}
 
 
-def test_build_embedding_figure_continuous_with_missing_adds_missing_trace():
+def test_build_embedding_figure_continuous_with_missing_adds_missing_trace(_participants_registry_root):
     embedding, metadata = _embedding_and_metadata()
+    _registry_for_embedding_fixture(_participants_registry_root)
 
     fig = build_embedding_figure(embedding, metadata, "nihss", "x", "y", "title")
 
@@ -376,8 +397,11 @@ def test_build_embedding_figure_all_missing_skips_empty_colored_trace():
     assert "NIHSS (severity)" not in names
 
 
-def test_build_embedding_figure_log_scale_transforms_values_and_sets_decade_ticks():
+def test_build_embedding_figure_log_scale_transforms_values_and_sets_decade_ticks(
+    _participants_registry_root,
+):
     embedding, metadata = _embedding_and_metadata()
+    _registry_for_embedding_fixture(_participants_registry_root)
 
     fig = build_embedding_figure(embedding, metadata, "volume", "x", "y", "title")
 
@@ -433,13 +457,40 @@ def test_build_embedding_figure_missing_persisted_column_raises(tmp_path, monkey
 
 
 def test_build_embedding_figure_missing_run_only_column_raises():
-    """'volume' has no registry counterpart (it's a property of the run's own matrix),
-    so it must keep failing on the run's metadata alone."""
+    """'cluster_label' has no registry counterpart (it belongs to a clustering run, nowhere
+    else), so it must keep failing on the run's own metadata alone. 'volume' left this group
+    on 30-09-26 - it now resolves from the registry."""
     embedding, metadata = _embedding_and_metadata()
-    metadata = metadata.drop(columns=["lesion_volume_voxels"])
+    metadata = metadata.drop(columns=["cluster_label"])
 
-    with pytest.raises(ValueError, match="no 'lesion_volume_voxels' column"):
-        build_embedding_figure(embedding, metadata, "volume", "x", "y", "title")
+    with pytest.raises(ValueError, match="no 'cluster_label' column"):
+        build_embedding_figure(embedding, metadata, "cluster_label", "x", "y", "title")
+
+
+def test_build_embedding_figure_volume_zero_is_drawn_missing_not_refused(_participants_registry_root):
+    """30-09-26: a 2mm volume of 0 is legitimate (nearest-neighbour resampling of a 1mm mask
+    can drop a small lesion to 0 voxels without the mask being empty, docs/dev/metadata.md).
+    log10(0) has no position on the scale, so that subject is drawn as missing - refusing the
+    whole plot over it made the mode unusable on real cohorts. A NEGATIVE count would still
+    raise: that is corrupt data, not a legitimate value."""
+    embedding, metadata = _embedding_and_metadata()
+    _participants_registry_root.mkdir(parents=True, exist_ok=True)
+    header = [*_PARTICIPANTS_REGISTRY_COLUMNS, "lesion_volume_voxels_2mm"]
+    rows = [
+        [f"sub-{i}", f"sub-{i}", "UNIPD/WashU", "ST", "True", "True", "False", v]
+        for i, v in enumerate(["0", "100", "1000", "10000"])
+    ]
+    (_participants_registry_root / "participants.csv").write_text(
+        "\n".join([",".join(header)] + [",".join(r) for r in rows]) + "\n"
+    )
+
+    fig = build_embedding_figure(embedding, metadata, "volume", "x", "y", "title")
+
+    assert "missing" in {trace.name for trace in fig.data}
+    volume_trace = next(t for t in fig.data if t.name == "lesion volume (voxels)")
+    # Ticks are built from the values actually on the scale - the 0 must not drag the lower
+    # bound to log10(0) = -inf.
+    assert list(volume_trace.marker.colorbar.ticktext) == ["100", "1000", "10000"]
 
 
 def test_color_mode_order_starts_with_neutro():
@@ -758,9 +809,18 @@ def test_build_app_layout_has_one_button_per_color_mode(tmp_path):
     # (Metrica/Componenti/Run), color-buttons] - color-buttons is the last one, not a fixed
     # index, so this doesn't silently break the next time a row is added/reordered.
     controls_children = app.layout.children[2].children
-    color_buttons_div = controls_children[-1]
+    color_buttons_div = controls_children[-2]  # -1 is the volume-grid row below it
     assert len(color_buttons_div.children) == len(COLOR_MODE_ORDER)
     assert color_buttons_div.children[0].className == "active"  # neutro selected by default
+
+    # The volume-grid row: hidden until "volume" is picked, one button per grid the registry
+    # can actually serve, the default one pre-selected (30-09-26).
+    grid_row = controls_children[-1]
+    assert grid_row.id == "volume-grid-row"
+    assert grid_row.style == {"display": "none"}
+    grid_buttons = grid_row.children[1:]  # children[0] is the "Griglia volume" label
+    assert [b.id["grid"] for b in grid_buttons] == available_volume_grids()
+    assert [b.className for b in grid_buttons if b.id["grid"] == DEFAULT_VOLUME_GRID] == ["active"]
 
 
 def test_run_metadata_reads_metadata_csv_regardless_of_dimensionality(tmp_path):
@@ -1015,6 +1075,56 @@ def test_disconnection_map_content_for_empty_cluster_returns_status_message(tmp_
     assert "99" in content.children
 
 
+def test_build_cluster_disconnection_percent_mode_counts_subjects_over_the_threshold(tmp_path):
+    """30-09-26, on request: "percent" makes the disconnection map the SAME quantity as the
+    lesion overlap map - % of the cluster's subjects affected in a voxel - by binarizing each
+    subject at DISCONNECTION_PROBABILITY_THRESHOLD before averaging, instead of averaging the
+    continuous probabilities.
+
+    Same fixture as the mean test below, which is the point: at (1,1,1) two subjects hold 0.8
+    and 0.4, so the MEAN is 0.6 while the PERCENT is 50% (only the 0.8 exceeds 0.5). The two
+    numbers answer different questions, and 0.6 must never be read as "60% of the cluster"."""
+    subject_ids = ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUKLFR0001", "sub-STUKLFR0002"]
+    data_root = tmp_path / "data"
+    _make_disconnectome_subject(data_root, "UNIPD/WashU", subject_ids[0], {(1, 1, 1): 0.8, (2, 2, 2): 0.2})
+    _make_disconnectome_subject(data_root, "UNIPD/WashU", subject_ids[1], {(1, 1, 1): 0.4})
+    _make_disconnectome_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[2], {(3, 3, 3): 0.9})
+    _make_disconnectome_subject(data_root, "UKLFR/stroke_UKLFR", subject_ids[3], {(3, 3, 3): 0.9})
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(
+        results_root, modality="sdc", pipeline="clustering", run_name="run-a",
+        extra_metadata={"subject_id": subject_ids, "cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("sdc", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+
+    _view, n_subjects, percent_img, missing = _build_cluster_disconnection_view(
+        run, run_metadata(run), 0, _sdc_cfg(data_root), map_mode="percent"
+    )
+
+    assert (n_subjects, missing) == (2, [])
+    values = percent_img.get_fdata()
+    assert values[1, 1, 1] == pytest.approx(50.0)   # 1 of 2 subjects above 0.5
+    assert values[2, 2, 2] == pytest.approx(0.0)    # 0.2 is below the threshold for everyone
+    assert values[0, 0, 0] == pytest.approx(0.0)
+
+
+def test_build_cluster_disconnection_view_rejects_an_unknown_map_mode(tmp_path):
+    """A typo'd mode must fail with the known list, never silently fall through to one of the
+    two real maps - they answer different questions."""
+    subject_ids = ["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUKLFR0001", "sub-STUKLFR0002"]
+    data_root = tmp_path / "data"
+    for dataset, sid in zip(["UNIPD/WashU"] * 2 + ["UKLFR/stroke_UKLFR"] * 2, subject_ids):
+        _make_disconnectome_subject(data_root, dataset, sid, {(1, 1, 1): 0.8})
+    run_dir = _make_run_dir(
+        tmp_path / "results", modality="sdc", pipeline="clustering", run_name="run-a",
+        extra_metadata={"subject_id": subject_ids, "cluster_label": [0, 0, 1, 1]},
+    )
+    run = ProductionRun("sdc", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
+
+    with pytest.raises(ValueError, match="unknown disconnection map mode"):
+        _build_cluster_disconnection_view(run, run_metadata(run), 0, _sdc_cfg(data_root), map_mode="bogus")
+
+
 def test_build_cluster_disconnection_view_returns_mean_img_for_static_png(tmp_path):
     # Mirrors test_build_cluster_overlap_view_returns_percentage_img_for_static_png - continuous
     # mean instead of binarized percentage: cluster 0 has 2 subjects, disconnection 0.8/0.4 at
@@ -1034,7 +1144,9 @@ def test_build_cluster_disconnection_view_returns_mean_img_for_static_png(tmp_pa
     run = ProductionRun("sdc", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
     metadata = run_metadata(run)
 
-    view, n_subjects, mean_img, missing = _build_cluster_disconnection_view(run, metadata, 0, _sdc_cfg(data_root))
+    view, n_subjects, mean_img, missing = _build_cluster_disconnection_view(
+        run, metadata, 0, _sdc_cfg(data_root), map_mode="mean"
+    )
 
     assert n_subjects == 2
     assert missing == []
@@ -1063,7 +1175,9 @@ def test_build_cluster_disconnection_view_skips_unresolvable_subject_and_reports
     run = ProductionRun("sdc", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
     metadata = run_metadata(run)
 
-    view, n_subjects, mean_img, missing = _build_cluster_disconnection_view(run, metadata, 0, _sdc_cfg(data_root))
+    view, n_subjects, mean_img, missing = _build_cluster_disconnection_view(
+        run, metadata, 0, _sdc_cfg(data_root), map_mode="mean"
+    )
 
     assert n_subjects == 1
     assert missing == ["sub-STUNIPD0002"]
@@ -1134,7 +1248,12 @@ def test_disconnection_map_content_for_valid_cluster_returns_iframe(tmp_path):
     assert isinstance(content, html.Div)
     heading, caption, viewer_wrap = content.children
     assert heading.children == "Cluster 0 (n=2)"
-    assert "probabilità" in caption.children
+    # The caption is [sentence, <span class="anatomy-note">] since 30-09-26: what the colour
+    # means on the first line, why the map is built this way on a quieter second one.
+    sentence, note = caption.children
+    assert "%" in sentence and "0-100%" in sentence     # default mode is "percent"
+    assert note.className == "anatomy-note"
+    assert f"{DISCONNECTION_PROBABILITY_THRESHOLD:g}" in note.children
     assert isinstance(viewer_wrap.children, html.Iframe)
 
 
@@ -1354,11 +1473,12 @@ def test_sdc_panels_visible_only_for_sdc_modality_runs(tmp_path):
 
 
 def test_representative_subject_panel_visible_only_for_clustering_runs(tmp_path):
-    # representative-subject-panel's style is one of 5 Outputs on the same
-    # _update_cluster_picker callback (options/value/cluster-map-panel style/this one/
-    # cluster-description-panel style) - all 5 must be requested together (Dash's raw endpoint
-    # 500s on a subset of a registered multi-output callback's own Outputs, confirmed while
-    # writing this test).
+    # representative-subject-panel's style is one of 6 Outputs on the same
+    # _update_cluster_picker callback (options/value/clustering-section style/cluster-map-panel
+    # style/this one/cluster-description-panel style) - all 6 must be requested together
+    # (Dash's raw endpoint 500s on a subset of a registered multi-output callback's own
+    # Outputs, confirmed while writing this test). clustering-section joined the group on
+    # 30-09-26, when the cluster chooser was lifted into its own section header.
     data_root = tmp_path / "data"
     results_root = tmp_path / "results"
     dr_dir = _make_run_dir(results_root, run_name="dr-run")
@@ -1373,8 +1493,8 @@ def test_representative_subject_panel_visible_only_for_clustering_runs(tmp_path)
 
     output_id_props = [
         ("cluster-picker", "options"), ("cluster-picker", "value"),
-        ("cluster-map-panel", "style"), ("representative-subject-panel", "style"),
-        ("cluster-description-panel", "style"),
+        ("clustering-section", "style"), ("cluster-map-panel", "style"),
+        ("representative-subject-panel", "style"), ("cluster-description-panel", "style"),
     ]
 
     def cluster_picker_outputs(run_key):

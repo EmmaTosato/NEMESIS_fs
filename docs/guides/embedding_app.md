@@ -1,10 +1,36 @@
 # Guida all'Embedding Explorer (app Dash)
 
-App web live per esplorare interattivamente un run **di produzione** (`dim_reduction.py` o `clustering.py`, entrambi con `fine_tuning: false`) - 2D o 3D, con un selettore di run e bottoni di colorazione (neutro/dataset/side/volume/nihss/cluster), stile editoriale. Un solo processo copre **tutti** i run di produzione già scritti, non un file HTML da rigenerare ogni volta. Cliccando un punto si vede anche la vera anatomia lesionale di quel paziente; per un run di modalità `sdc` si vede anche il suo disconnettoma; per un run `clustering.py` lo scatter mostra anche i centroidi dei cluster cerchiati, e si può vedere la overlap map (lesione), la frequency map (disconnessione), il soggetto rappresentativo e la composizione demografica/clinica di ciascun cluster - vedi "Anatomia lesionale", "Disconnessione (SDC)", "Overlap map per cluster", "Frequency map disconnessione per cluster", "Soggetto rappresentativo del cluster" e "Descrizione del cluster" più sotto.
+App web live per esplorare interattivamente un run **di produzione** (`dim_reduction.py` o `clustering.py`, entrambi con `fine_tuning: false`) - 2D o 3D, con un selettore di run e bottoni di colorazione (neutro/dataset/side/volume/nihss/cluster), stile editoriale. Un solo processo copre **tutti** i run di produzione già scritti, non un file HTML da rigenerare ogni volta. Cliccando un punto si vede anche la vera anatomia lesionale di quel paziente; per un run di modalità `sdc` si vede anche il suo disconnettoma; per un run `clustering.py` lo scatter può mostrare anche i centroidi dei cluster cerchiati (spenti di default, si accendono dalla legenda), e si può vedere la overlap map (lesione), la mappa di disconnessione, il soggetto rappresentativo e la composizione demografica/clinica di ciascun cluster - vedi "Anatomia lesionale", "Disconnessione (SDC)", "Overlap map per cluster", "Disconnessione per cluster", "Soggetto rappresentativo del cluster" e "Descrizione del cluster" più sotto.
 
 - **Script**: `src/pipeline/embedding_app.py`
 - **Logica**: `src/analysis/embedding_app.py`, `src/analysis/anatomical_maps.py` (risoluzione path + overlap/mean map) — architettura/dettagli implementativi: `docs/dev/anatomical_maps.md`
 - **Input**: qualunque run di produzione già scritto sotto `results/*/dim_reduction/production/*/*` **o** `results/*/clustering/production/*/*/*` (`clustering.py` ha un livello in più, `<reduction_method>` - vedi `docs/guides/clustering.md`; `src.analysis.embedding_app.PRODUCTION_PIPELINES`; nessun refit, legge solo `matrix.npy`/`metadata.csv` già su disco) più `config/pipelines/build_lesion_matrix.json` (`--lesion-config`, pannelli di anatomia lesionale) e `config/pipelines/build_sdc_matrix.json` (`--sdc-config`, pannelli di anatomia SDC - deve avere `representation: "voxelwise"`, l'unica con il `disconnectome-map.nii.gz` grezzo da visualizzare)
+
+---
+
+## Da dove vengono i valori di colorazione
+
+Regola unica (30-09-26): **un dato del soggetto viene da `assets/metadata/participants.csv`, un dato del run dal `metadata.csv` di quel run.**
+
+| Bottone | Fonte | Colonna |
+|---|---|---|
+| `side` | participants.csv | `lesion_side` |
+| `nihss` | participants.csv | `NIHSS` |
+| `volume` | participants.csv | `lesion_volume_voxels_2mm` (o `_1mm`, vedi sotto) |
+| `dataset` | metadata.csv del run | `dataset` |
+| `cluster` | metadata.csv del run | `cluster_label` |
+
+Prima l'ordine era invertito: si guardava prima il `metadata.csv` del run. Un run costruito prima del 06/09/26 porta ancora una **copia** di quelle colonne cliniche, e quella copia poteva divergere dal registro — due run degli stessi soggetti si coloravano in modo diverso. Ora il registro vince sempre.
+
+Sul volume la differenza è sostanziale: il `lesion_volume_voxels` di un run conta i voxel sulla griglia che *quel* `build_lesion_matrix` ha usato, mentre le colonne del registro sono calcolate una volta sola su una griglia fissa per tutti i soggetti — le uniche confrontabili fra run.
+
+### Griglia del volume
+
+Quando il colore attivo è **volume**, sotto ai bottoni compare una riga **Griglia volume**. Mostra le griglie che il registro ha davvero (oggi solo `2mm`, che è il default); `1mm` appare da sé appena `enrich_metadata.py` scrive `lesion_volume_voxels_1mm`.
+
+Un soggetto con volume **0** su quella griglia è disegnato in grigio come "missing": a 2 mm il ricampionamento può azzerare una lesione piccola (`docs/dev/metadata.md`), e 0 non ha posizione su una scala logaritmica. Un valore negativo invece è un errore e blocca il grafico.
+
+Un soggetto **senza riga nel registro** è disegnato in grigio (o `unknown` per una variabile categorica), non fa più fallire l'intero grafico: il conteggio finisce nei log.
 
 ---
 
@@ -68,6 +94,16 @@ Pannello sempre visibile sotto il grafico, indipendentemente dal run scelto: mos
 
 Il paziente è risolto tramite `subject_id`/`dataset` del run corrente (colonne già in `metadata.csv`) più `data_root`/`lesion_glob` di `--lesion-config` (`src.analysis.anatomical_maps.resolve_lesion_paths`, la stessa logica già validata in `notebooks/post-results_analysis/embeddings_analysis.ipynb` §4) - se il file non si trova sul disco locale (es. subset di retrieval parziale), il pannello mostra un messaggio d'errore esplicito al posto del viewer, mai un grafico vuoto/sbagliato. La soglia di binarizzazione usata per la visualizzazione è la stessa `binarize_threshold` del config (non un valore scelto a parte), così il viewer mostra esattamente ciò che la pipeline a monte ha effettivamente binarizzato.
 
+## Clustering Exploring
+
+Per un run `clustering.py` la pagina si divide in due, separate da una riga netta e da questo titolo: **sopra** tutto ciò che riguarda l'intero run o un singolo soggetto (scatter, anatomia lesionale, disconnettoma), **sotto** tutto ciò che riguarda un cluster alla volta.
+
+La prima cosa della sezione è il selettore **Cluster**, centrato: pilota *tutti* i pannelli che seguono (overlap map, frequency map, soggetto rappresentativo, descrizione del cluster). Fino al 30/09/26 viveva dentro il primo pannello, il che lo faceva sembrare un controllo di quel pannello soltanto.
+
+Per un run `dim_reduction.py` l'intera sezione è nascosta.
+
+---
+
 ## Overlap map per cluster
 
 Visibile solo per un run **`clustering.py`** (cioè con una colonna `cluster_label` in `metadata.csv`) - per un run `dim_reduction.py` il pannello resta nascosto. Un dropdown "Cluster" (una mappa alla volta, non una griglia con tutti i cluster insieme) fa vedere, per i pazienti di quel cluster, la percentuale di sovrapposizione lesionale voxel per voxel (`src.analysis.anatomical_maps.build_overlap_map`, promossa da `notebooks/post-results_analysis/embedding_to_anatomy_mapping.ipynb` §2) - stesso viewer `nilearn.plotting.view_img` (sfondo bianco) del pannello sopra, colormap `hot`, titolo con il numero di soggetti nel cluster.
@@ -80,15 +116,31 @@ Pannello visibile solo per un run di modalità **`sdc`** (un run `lesion` non ha
 
 Il paziente è risolto tramite `subject_id`/`dataset` del run corrente più `data_root`/`--sdc-config`'s `reference_template_path` (`src.analysis.anatomical_maps.resolve_lesion_paths`, stessa funzione del pannello lesionale, riusata su un glob diverso) - se il file non si trova sul disco locale, messaggio d'errore esplicito, mai un grafico vuoto.
 
-## Frequency map disconnessione per cluster
+## Disconnessione per cluster
 
-Visibile solo per un run che è **sia** `sdc` **sia** `clustering.py` insieme - riusa lo stesso dropdown "Cluster" del pannello "Overlap map per cluster" sopra (un run di clustering ha un solo insieme di cluster, indipendentemente da quale mappa si sta guardando). Per i pazienti del cluster scelto, mostra la probabilità *media* di disconnessione voxel per voxel (`src.analysis.anatomical_maps.build_mean_map` - la media continua, non una percentuale di soggetti sopra soglia come per la lesione, dato che il disconnettoma è già una probabilità continua per soggetto) - stesso viewer, colormap `magma`, colorbar attiva, stessa soglia 0.02 del pannello sopra (essenziale qui: senza soglia, la media su centinaia di soggetti mostra ancora più puntinato nero di rumore di fondo).
+Visibile solo per un run che è **sia** `sdc` **sia** `clustering.py` insieme. Usa il selettore "Cluster" della sezione.
 
-Stesso avviso arancione del pannello "Overlap map per cluster" sopra se qualche soggetto del cluster non ha il disconnettoma su disco - escluso dalla media, non causa di un pannello che fallisce.
+Due letture degli **stessi** soggetti, scelte da un bottone:
+
+### % soggetti disconnessi (default)
+
+Per ogni voxel, la percentuale dei soggetti del cluster il cui disconnettoma supera **0,5** in quel voxel. È la **stessa identica quantità** della overlap map lesionale — stessa funzione (`build_overlap_map`), stessa scala 0-100% — quindi le due mappe si confrontano direttamente: "il 40% del cluster ha una lesione qui, ma il 70% è disconnesso qui".
+
+La soglia 0,5 significa "più probabile che no", la stessa convenzione usata per binarizzare una maschera lesionale probabilistica. È una costante dichiarata (`DISCONNECTION_PROBABILITY_THRESHOLD`), non un cursore: una soglia regolabile invita a cercare il valore che fa sembrare separabile un cluster.
+
+### Probabilità media
+
+La media continua delle probabilità, voxel per voxel — il comportamento precedente.
+
+⚠️ **Non è una percentuale di soggetti.** Un voxel a 0,6 può voler dire "tutti i soggetti a 0,6" oppure "il 60% a 1,0 e il 40% a 0,0": indistinguibili. Non si può leggere come "il 60% del cluster è disconnesso qui".
+
+Serve comunque: usa **tutta** l'informazione continua invece di buttarla via a una soglia, quindi vede una disconnessione diffusa e sotto-soglia che la mappa a percentuale mostra vuota. Le due insieme dicono cose diverse: la percentuale dice *quanti* pazienti, la media dice *quanto* forte.
+
+Stesso avviso arancione se qualche soggetto del cluster non ha il disconnettoma su disco.
 
 ## Soggetto rappresentativo del cluster
 
-Visibile solo per un run **`clustering.py`** (qualunque modalità), dopo i due pannelli di mappa per cluster sopra - riusa lo stesso dropdown "Cluster" di "Overlap map per cluster" (il widget vero e proprio si trova fisicamente in quel pannello, ma pilota anche questo). Per il cluster scelto, mostra il soggetto reale più vicino al suo centroide nello spazio embedding (lo stesso cerchio nero visto nel grafico in cima alla pagina) - non un punto medio astratto, ma il paziente che più gli somiglia. Mostra la lesione di quel soggetto per un run di modalità `lesion`, il suo disconnettoma per un run `sdc` - stesso viewer interattivo, stessi bottoni "Salva HTML"/"Salva PNG" dei due pannelli a singolo soggetto sopra (senza il terzo bottone glass brain).
+Visibile solo per un run **`clustering.py`** (qualunque modalità), dopo i due pannelli di mappa per cluster sopra - usa il selettore "Cluster" in cima alla sezione. Per il cluster scelto, mostra il soggetto reale più vicino al suo centroide nello spazio embedding (lo stesso cerchio nero visto nel grafico in cima alla pagina) - non un punto medio astratto, ma il paziente che più gli somiglia. Mostra la lesione di quel soggetto per un run di modalità `lesion`, il suo disconnettoma per un run `sdc` - stesso viewer interattivo, stessi bottoni "Salva HTML"/"Salva PNG" dei due pannelli a singolo soggetto sopra (senza il terzo bottone glass brain).
 
 ## Descrizione del cluster
 

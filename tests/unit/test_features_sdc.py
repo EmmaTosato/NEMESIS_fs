@@ -5,7 +5,12 @@ import numpy as np
 import pytest
 
 from src.utils import participants as participants_registry
-from src.features.sdc import build_sdc_matrix, build_sdc_voxelwise_matrix, load_reference_regions
+from src.features.sdc import (
+    build_sdc_matrix,
+    build_sdc_streamline_matrix,
+    build_sdc_voxelwise_matrix,
+    load_reference_regions,
+)
 
 _VOXELWISE_AFFINE = np.eye(4) * 2
 _VOXELWISE_AFFINE[3, 3] = 1
@@ -629,3 +634,167 @@ def test_excluded_subject_out_of_group_is_reported_as_group_not_list(tmp_path, _
     assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
     assert excluded_by_group == ["sub-STUNIPDHC0001"]
     assert excluded_by_list == []
+
+
+# --- build_sdc_streamline_matrix (added 30/09) --------------------------------
+
+_STREAMLINE_ATLAS_SUFFIX = "yeh_hcp1065_streamline"
+
+
+def _make_streamline_csv(data_root, dataset, subject_id, rows, object_="lesion"):
+    """rows: dict[tract, streamline_ratio]. Unlike _make_sdc_csv, a real file
+    always lists every tract (zeros included) - an incomplete dict here is the
+    corrupt-file case, not an omitted zero."""
+    subject_dir = data_root / dataset / "sdc" / subject_id
+    subject_dir.mkdir(parents=True, exist_ok=True)
+    path = subject_dir / f"{subject_id}_space-MNI152NLin6Asym_LF-{object_}_atlas-{_STREAMLINE_ATLAS_SUFFIX}.csv"
+    lines = ["tract,streamline_ratio"] + [f"{tract},{value}" for tract, value in rows.items()]
+    path.write_text("\n".join(lines) + "\n")
+
+
+def _make_reference_tracts(path, tract_names):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(["tract"] + list(tract_names)) + "\n")
+
+
+def test_build_sdc_streamline_matrix_aligns_by_tract_name_not_row_order(tmp_path, _metadata_root):
+    """The two subjects' CSVs list the same tracts in a different order: X must
+    be aligned by name, so column j means the same tract for both rows."""
+    reference_path = tmp_path / "tracts.csv"
+    _make_reference_tracts(reference_path, ["AF_L", "AF_R", "CST_L"])
+
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
+    _make_streamline_csv(tmp_path, "siteA", "sub-STUNIPD0001", {"AF_L": 0.5, "AF_R": 0.0, "CST_L": 0.25})
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0002")
+    _make_streamline_csv(tmp_path, "siteA", "sub-STUNIPD0002", {"CST_L": 0.75, "AF_L": 0.1, "AF_R": 1.0})
+
+    X, metadata, tract_names, *_ = build_sdc_streamline_matrix(
+        data_root=tmp_path,
+        datasets=["siteA"],
+        object_="lesion",
+        reference_labels_path=reference_path,
+        group_filter=None,
+        excluded_subjects=frozenset(),
+    )
+
+    assert list(tract_names) == ["AF_L", "AF_R", "CST_L"]
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0002"]
+    np.testing.assert_allclose(X, [[0.5, 0.0, 0.25], [0.1, 1.0, 0.75]])
+
+
+def test_build_sdc_streamline_matrix_missing_tract_raises(tmp_path, _metadata_root):
+    """The deliberate difference from build_sdc_matrix: a tract absent from the
+    CSV is a truncated/corrupt file, never filled with 0.0 - this file writes
+    every tract explicitly (verified on all 1734 real files, 30/09)."""
+    reference_path = tmp_path / "tracts.csv"
+    _make_reference_tracts(reference_path, ["AF_L", "AF_R", "CST_L"])
+
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
+    _make_streamline_csv(tmp_path, "siteA", "sub-STUNIPD0001", {"AF_L": 0.5, "CST_L": 0.25})  # AF_R missing
+
+    with pytest.raises(ValueError, match="AF_R"):
+        build_sdc_streamline_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            object_="lesion",
+            reference_labels_path=reference_path,
+            group_filter=None,
+            excluded_subjects=frozenset(),
+        )
+
+
+def test_build_sdc_streamline_matrix_unknown_tract_raises(tmp_path, _metadata_root):
+    reference_path = tmp_path / "tracts.csv"
+    _make_reference_tracts(reference_path, ["AF_L", "AF_R"])
+
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
+    _make_streamline_csv(tmp_path, "siteA", "sub-STUNIPD0001", {"AF_L": 0.5, "AF_R": 0.1, "ZZZ": 0.9})
+
+    with pytest.raises(ValueError, match="ZZZ"):
+        build_sdc_streamline_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            object_="lesion",
+            reference_labels_path=reference_path,
+            group_filter=None,
+            excluded_subjects=frozenset(),
+        )
+
+
+def test_build_sdc_streamline_matrix_no_column_dropped_even_if_constant(tmp_path, _metadata_root):
+    """Same rule as build_sdc_matrix: column j always names the same tract,
+    regardless of which subjects a run admits."""
+    reference_path = tmp_path / "tracts.csv"
+    _make_reference_tracts(reference_path, ["AF_L", "AF_R"])
+
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
+    _make_streamline_csv(tmp_path, "siteA", "sub-STUNIPD0001", {"AF_L": 0.5, "AF_R": 0.0})
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0002")
+    _make_streamline_csv(tmp_path, "siteA", "sub-STUNIPD0002", {"AF_L": 0.7, "AF_R": 0.0})
+
+    X, _, tract_names, *_ = build_sdc_streamline_matrix(
+        data_root=tmp_path,
+        datasets=["siteA"],
+        object_="lesion",
+        reference_labels_path=reference_path,
+        group_filter=None,
+        excluded_subjects=frozenset(),
+    )
+
+    assert X.shape == (2, 2)
+    assert list(tract_names) == ["AF_L", "AF_R"]
+
+
+def test_build_sdc_streamline_matrix_object_disconnectome_raises(tmp_path, _metadata_root):
+    """BCBToolKit writes this CSV only in the LF-lesion family - there is no
+    LF-disconnectome variant to read."""
+    reference_path = tmp_path / "tracts.csv"
+    _make_reference_tracts(reference_path, ["AF_L"])
+
+    with pytest.raises(ValueError, match="lesion"):
+        build_sdc_streamline_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            object_="disconnectome",
+            reference_labels_path=reference_path,
+            group_filter=None,
+            excluded_subjects=frozenset(),
+        )
+
+
+def test_build_sdc_streamline_matrix_excludes_subject_without_lesion_mask(tmp_path, _metadata_root):
+    reference_path = tmp_path / "tracts.csv"
+    _make_reference_tracts(reference_path, ["AF_L"])
+
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
+    _make_streamline_csv(tmp_path, "siteA", "sub-STUNIPD0001", {"AF_L": 0.5})
+    _make_streamline_csv(tmp_path, "siteA", "sub-STUNIPD0002", {"AF_L": 0.9})  # never registered
+
+    X, metadata, _, _, _, excluded_no_lesion_mask, _ = build_sdc_streamline_matrix(
+        data_root=tmp_path,
+        datasets=["siteA"],
+        object_="lesion",
+        reference_labels_path=reference_path,
+        group_filter=None,
+        excluded_subjects=frozenset(),
+    )
+
+    assert X.shape[0] == 1
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
+    assert excluded_no_lesion_mask == ["sub-STUNIPD0002"]
+
+
+def test_build_sdc_streamline_matrix_no_admitted_subjects_raises(tmp_path, _metadata_root):
+    reference_path = tmp_path / "tracts.csv"
+    _make_reference_tracts(reference_path, ["AF_L"])
+    _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")  # no streamline CSV at all
+
+    with pytest.raises(ValueError, match="no subjects admitted"):
+        build_sdc_streamline_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            object_="lesion",
+            reference_labels_path=reference_path,
+            group_filter=None,
+            excluded_subjects=frozenset(),
+        )

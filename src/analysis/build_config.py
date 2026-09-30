@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from src.features.lesion import LesionGrid, validate_lesion_grids
-from src.features.sdc import KNOWN_OBJECTS, KNOWN_REPRESENTATIONS, KNOWN_VALUE_COLUMNS
+from src.features.sdc import KNOWN_OBJECTS, KNOWN_REPRESENTATIONS, KNOWN_VALUE_COLUMNS, STREAMLINE_ATLAS
 from src.retrieval.config import KNOWN_GROUPS
 
 _KNOWN_INTERPOLATIONS = frozenset({"linear", "nearest", "continuous"})
@@ -276,11 +276,13 @@ class SdcMatrixConfig:
     excluded_subjects_path: Path
     object: str
     representation: str
-    # parcellated-only (None when representation="voxelwise")
+    # None when representation="voxelwise". atlas/reference_labels_path are also set for
+    # "streamline" (atlas pinned to STREAMLINE_ATLAS, not read from the config); value_column
+    # is parcellated-only.
     atlas: str | None
     value_column: str | None
     reference_labels_path: Path | None
-    # voxelwise-only (None when representation="parcellated")
+    # voxelwise-only (None for both other representations)
     reference_template_path: Path | None
     resample_interpolation: str | None
     output_root: Path
@@ -292,23 +294,28 @@ class SdcMatrixConfig:
 def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
     """Load and validate a build_sdc_matrix.json file.
 
-    `representation` ("parcellated" or "voxelwise", added 03/09) picks which
-    of the two src.features.sdc builders runs - see that module's docstring.
-    Each representation has its own required fields, validated only for the
-    representation actually requested (never a silent default for the other
-    mode's fields, never required-but-unused):
+    `representation` ("parcellated", "voxelwise" (03/09) or "streamline"
+    (30/09)) picks which of the three src.features.sdc builders runs - see
+    that module's docstring. Each representation has its own required fields,
+    validated only for the representation actually requested (never a silent
+    default for the other modes' fields, never required-but-unused):
     - "parcellated": atlas, value_column, reference_labels_path.
     - "voxelwise": reference_template_path, resample_interpolation - same
       field names as build_lesion_matrix.json's own voxel-wise config, no
       binarize_threshold (disconnectome values are continuous, never
       binarized - see src.features.sdc.build_sdc_voxelwise_matrix).
+    - "streamline": reference_labels_path only. No atlas (there is exactly
+      one streamline file per subject, so the field would carry no choice -
+      it is pinned to src.features.sdc.STREAMLINE_ATLAS) and no value_column
+      (that CSV has exactly one).
 
     object/value_column/representation are validated against
     src.features.sdc's known sets upfront - a typo here would otherwise only
     surface after the first subject's file is opened, possibly after
     hundreds have already been discovered. "voxelwise" additionally rejects
-    object="lesion" here too (src.features.sdc raises the same check again at
-    call time - config-load time just fails faster).
+    object="lesion" here, and "streamline" rejects everything but it
+    (src.features.sdc raises the same checks again at call time - config-load
+    time just fails faster).
 
     No lesion_glob field - unlike build_lesion_matrix.json, lesion mask
     presence is resolved from assets/metadata/participants.csv (has_lesion)
@@ -340,6 +347,11 @@ def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
             f"equivalent is already built by build_lesion_matrix.json from its own authoritative source, "
             f"got object={object_!r}"
         )
+    if representation == "streamline" and object_ != "lesion":
+        raise ValueError(
+            f"config: representation='streamline' only supports object='lesion' - BCBToolKit writes the "
+            f"{STREAMLINE_ATLAS} CSV only in the LF-lesion family, got object={object_!r}"
+        )
 
     if representation == "parcellated":
         value_column = _require_str(raw, "value_column")
@@ -348,6 +360,15 @@ def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
                 f"config: field 'value_column' must be one of {sorted(KNOWN_VALUE_COLUMNS)}, got {value_column!r}"
             )
         atlas = _require_str(raw, "atlas")
+        reference_labels_path = Path(_require_str(raw, "reference_labels_path"))
+        reference_template_path = None
+        resample_interpolation = None
+    elif representation == "streamline":
+        # No 'atlas' and no 'value_column': this representation has exactly one
+        # source file per subject and one value column in it, so neither is a
+        # choice the config can make (code_standards.md §5 - no unread fields).
+        atlas = STREAMLINE_ATLAS
+        value_column = None
         reference_labels_path = Path(_require_str(raw, "reference_labels_path"))
         reference_template_path = None
         resample_interpolation = None

@@ -76,6 +76,12 @@ from src.analysis.cluster_description import (
     clusters_comparison_stats,
 )
 from src.analysis.embedding_coloring import COLOR_MODES
+from src.analysis.embedding_coloring import (
+    DEFAULT_VOLUME_GRID,
+    VOLUME_MODE,
+    available_volume_grids,
+    volume_grid_column,
+)
 from src.analysis.embedding_coloring import color_values as read_color_values
 from src.analysis.params import load_tag_params
 from src.analysis.plotting import (
@@ -138,6 +144,16 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 }}
 .color-buttons button:hover {{ border-color: #4a90d9; }}
 .color-buttons button.active {{ border-color: #4a90d9; border-width: 2px; background: #f0f7fd; font-weight: 600; }}
+/* The volume-grid chooser, shown under the colour chips only while "volume" is active
+   (30-09-26, on request). Same chip family as the row above, one step quieter, with a label
+   so a lone "2mm" button is not a mystery. */
+.grid-row {{ margin-top: 10px; align-items: center; }}
+/* Inside an anatomy panel the same chooser sits between a section heading and the content it
+   scopes, so it needs room on BOTH sides - as a bare 10px-top row it read as glued to the
+   heading above and to the cluster title below (30-09-26). */
+.anatomy-panel .grid-row {{ justify-content: center; margin: 26px 0 34px; }}
+.grid-row-label {{ font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #767676; margin-right: 4px; }}
+.grid-row button {{ font-size: 13px; padding: 5px 14px; }}
 /* width:100% + no Plotly config.responsive (see graph_content_for) - a stable CSS width set
    once at mount, not a JS ResizeObserver reacting to every later layout event (scrolling
    included) - that combination was the actual cause of the graph distorting on scroll. */
@@ -155,6 +171,21 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
    .page itself (not .graph-wrap's centered flex, these are full-width blocks with their own
    heading), separated from the picker/scatter above by a thin rule instead of a boxy border. */
 .anatomy-panel {{ margin-top: 56px; padding-top: 32px; border-top: 1px solid {_GRID_BORDER}; }}
+/* The per-subject -> per-cluster break (30-09-26). A heavier rule than .anatomy-panel's own
+   hairline, because this separates two kinds of question, not two panels of the same kind. */
+.section-divider {{ margin-top: 88px; padding-top: 52px; border-top: 3px solid {_TEXT_COLOR}; }}
+.section-title {{ font-size: 40px; font-weight: 800; text-align: center; margin: 0 0 10px; }}
+.section-intro {{ font-size: 17px; color: #595959; text-align: center; margin: 0 0 28px; }}
+/* The chooser that scopes every panel below: centred and wider than a picker-row field, so it
+   reads as this section's own control rather than as one more form field. */
+.cluster-chooser {{
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    max-width: 260px; margin: 0 auto 8px;
+}}
+.cluster-chooser > div {{ width: 100%; }}
+.cluster-chooser .picker-label {{ font-size: 14px; }}
+/* The panel directly under the chooser must not re-draw the section break with its own rule. */
+.section-divider + .anatomy-panel {{ margin-top: 40px; border-top: none; padding-top: 0; }}
 /* A further bump over .section-heading's own 30px (01-09-26, follow-up feedback: "un po' più
    grandi") - kept scoped to the two anatomy panels, not "Embedding Visualization" above, since
    only these two were called out this time. */
@@ -166,8 +197,17 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
    anything longer than a few characters (see lesion_viewer_content_for's docstring). Rendering
    them here instead means they're never truncated and take this page's own font, not the
    browser's plain default the embedded nilearn page has no styling for at all. */
-.anatomy-subject-title {{ font-size: 20px; font-weight: 600; margin: 0 0 4px; text-align: center; }}
-.anatomy-caption {{ font-size: 16px; color: #595959; text-align: center; margin: 0 0 16px; }}
+.anatomy-subject-title {{ font-size: 20px; font-weight: 600; margin: 0 0 10px; text-align: center; }}
+/* 30-09-26: the caption used to run the panel's full 1100px - a ~150-character line that wraps
+   at an arbitrary point and is genuinely hard to read. Capped at a normal measure and centred;
+   the extra line-height is what stops the two lines reading as one block. */
+.anatomy-caption {{
+    font-size: 16px; line-height: 1.6; color: #595959; text-align: center;
+    max-width: 68ch; margin: 0 auto 26px;
+}}
+/* The secondary half of a caption (why this map is what it is), one step quieter than the
+   sentence that says what the colour means. */
+.anatomy-note {{ display: block; margin-top: 6px; font-size: 14.5px; color: #767676; }}
 /* 29-09-26: a per-cluster map built from fewer subjects than the cluster actually has (some
    unresolvable on disk, see resolve_available_lesion_paths) - visually distinct (amber) from
    the plain gray .anatomy-caption above it, so a real data gap doesn't read as routine text. */
@@ -216,7 +256,10 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
     font-size: 17px; font-weight: 600; color: {_TEXT_COLOR}; font-variant-numeric: tabular-nums;
     line-height: 1.3; white-space: nowrap;
 }}
-.stat-sd {{ font-size: 14px; font-weight: 400; color: #8a8a8a; margin-left: 3px; }}
+/* 30-09-26, on request: the ± spread is part of the same number as the mean, so it wears the
+   same size, weight and ink. Only the coverage line below stays small and grey - that is the
+   annotation, not the value. */
+.stat-sd {{ margin-left: 4px; }}
 .stat-empty {{ color: #b8b8b8; font-weight: 400; }}
 /* Coverage, printed under the value only where the variable does not cover the whole
    cluster (_coverage_note). */
@@ -751,6 +794,7 @@ def build_embedding_figure(
     ylabel: str,
     title: str,
     zlabel: str | None = None,
+    volume_grid: str = DEFAULT_VOLUME_GRID,
 ) -> go.Figure:
     """Builds the Plotly figure for one (run, color mode) combination - 2D if `zlabel` is
     None, 3D otherwise (branches on `embedding.shape[1]`/`zlabel` the same way the
@@ -799,7 +843,10 @@ def build_embedding_figure(
         fig.add_trace(scatter_cls(**_trace_kwargs(), mode="markers", marker=dict(color="#3aa9e0", **marker_kwargs)))
     else:
         mode = COLOR_MODES[mode_name]
-        values = read_color_values(metadata, mode_name)
+        # The volume mode reads whichever grid the button row below the colour chips has
+        # selected; every other mode uses its own declared registry column.
+        registry_column = volume_grid_column(volume_grid) if mode_name == VOLUME_MODE else None
+        values = read_color_values(metadata, mode_name, registry_column=registry_column)
 
         if mode.kind == "categorical":
             unique_categories = sorted(pd.unique(values).tolist())
@@ -818,11 +865,32 @@ def build_embedding_figure(
             colorbar_kwargs: dict = dict(title=mode.label)
             if mode.log_scale:
                 non_missing = values[~is_missing]
-                if (non_missing <= 0).any():
+                # A NEGATIVE value is impossible for every log-scaled mode this registry has
+                # (all are counts) - that is corrupt data and must stop the plot.
+                if (non_missing < 0).any():
                     raise ValueError(
-                        f"Color mode {mode_name!r} is log_scale but has non-positive values - cannot log-transform"
+                        f"Color mode {mode_name!r} is log_scale but has negative values - "
+                        f"cannot log-transform, and a negative count is not a legitimate value"
                     )
-                color_values = np.where(is_missing, values, np.log10(values))
+                # ZERO is legitimate and expected (30-09-26): lesion volume on the 2mm grid is
+                # a nearest-neighbour resample of a 1mm mask, so a small lesion can come out at
+                # 0 voxels without the mask being empty (docs/dev/metadata.md). log10(0) has no
+                # position on the scale, which is exactly what "missing" means here - so it is
+                # drawn neutral gray like any other missing value, not treated as corrupt.
+                # Refusing the whole plot over it made the mode unusable for real cohorts.
+                zero = ~is_missing & (values == 0)
+                if zero.any():
+                    logging.warning(
+                        "color mode %r: %d subject(s) have volume 0 on this grid - no position "
+                        "on a log scale, drawn as missing (gray)",
+                        mode_name, int(zero.sum()),
+                    )
+                    is_missing = is_missing | zero
+                color_values = np.where(is_missing, np.nan, np.log10(np.where(is_missing, 1.0, values)))
+                # Recomputed after folding the zeros in: the decade ticks are built from the
+                # values actually drawn on the scale, and a 0 left in here would make the
+                # lower bound log10(0) = -inf.
+                non_missing = values[~is_missing]
                 if non_missing.size:
                     tickvals, ticktext = _log_decade_ticks(non_missing)
                     colorbar_kwargs = dict(title=mode.label, tickvals=tickvals, ticktext=ticktext)
@@ -937,7 +1005,9 @@ def _add_cluster_centroids_trace(figure: go.Figure, embedding: np.ndarray, metad
     )
 
 
-def graph_content_for(run: ProductionRun, mode_name: str) -> html.P | dcc.Graph:
+def graph_content_for(
+    run: ProductionRun, mode_name: str, volume_grid: str = DEFAULT_VOLUME_GRID
+) -> html.P | dcc.Graph:
     """The graph-area.children Dash callback's actual body, pulled out as a plain function -
     directly unit-testable (no Dash callback-context wrapping to fight, see
     tests/unit/test_embedding_app.py) and kept as the single place this logic lives, not
@@ -968,6 +1038,7 @@ def graph_content_for(run: ProductionRun, mode_name: str) -> html.P | dcc.Graph:
         figure = build_embedding_figure(
             embedding, metadata, mode_name,
             f"{run.method} dim 1", f"{run.method} dim 2", run_title(run, mode_name),
+            volume_grid=volume_grid,
             zlabel=zlabel,
         )
     except ValueError as exc:
@@ -1007,6 +1078,32 @@ _ANATOMY_VIEWER_WIDTH = 900
 # the full volume depth), but the same fix shape - raise the near-zero epsilon to a real floor.
 _DISCONNECTOME_CMAP = "magma"
 _DISCONNECTOME_DISPLAY_THRESHOLD = 0.02
+
+# --- Per-cluster disconnection map: two readings of the same subjects (30-09-26) ------------
+# The mean map and the lesion overlap map are the SAME estimator (voxelwise mean over the
+# cluster) on different data, but that makes them mean different things: averaging BINARY
+# masks yields a fraction of subjects, averaging CONTINUOUS probabilities does not. A mean of
+# 0.6 could be "every subject at 0.6" or "60% at 1.0 and 40% at 0.0" - indistinguishable - so
+# it cannot be read as "60% of the cluster is disconnected here", which is exactly what the
+# lesion overlap map does say. "percent" restores that reading by binarizing each subject
+# first and then counting, making the two maps identical by construction.
+DISCONNECTION_PERCENT_MODE = "percent"
+DISCONNECTION_MEAN_MODE = "mean"
+DEFAULT_DISCONNECTION_MAP_MODE = DISCONNECTION_PERCENT_MODE
+DISCONNECTION_MAP_MODE_LABELS = {
+    DISCONNECTION_PERCENT_MODE: "% soggetti disconnessi",
+    DISCONNECTION_MEAN_MODE: "probabilità media",
+}
+# The per-subject probability a voxel must EXCEED for that subject to count as disconnected
+# there (build_overlap_map binarizes with a strict >, same as for a lesion mask).
+# 0.5 is "more likely disconnected than not" - the same more-likely-than-not cutoff the
+# lesion-mask literature uses to binarize a smoothed probabilistic mask (e.g. Keator et al.
+# 2021, knowledge/nemesis_related/). Declared here as ONE named constant rather than exposed
+# as a slider: a threshold the reader can sweep invites fishing for the value that makes a
+# cluster look separable, which is not what this panel is for. Changing it is a deliberate,
+# reviewable edit - and it must be stated wherever the map is shown, since the map's meaning
+# depends on it entirely.
+DISCONNECTION_PROBABILITY_THRESHOLD = 0.5
 
 # Display-only threshold/alpha for the SDC glass-brain static download (29-09-26, on request) -
 # deliberately not the same threshold the SDC ortho/interactive views use above (see
@@ -1144,7 +1241,9 @@ def _static_png_bytes(stat_map_img: str | nib.Nifti1Image, *, threshold: float, 
     return buffer.getvalue()
 
 
-def _anatomy_viewer(view: StatMapView, heading: str, caption: str, warning: str | None = None) -> html.Div:
+def _anatomy_viewer(
+    view: StatMapView, heading: str, caption: str, warning: str | None = None, note: str | None = None
+) -> html.Div:
     """Shared layout for both anatomy panels: a heading + a one-line color-legend caption, both
     ordinary HTML we render ourselves (never nilearn's own `title`/colorbar text - see
     _build_subject_lesion_view's docstring for why), above the iframe sized to the view's own
@@ -1166,9 +1265,15 @@ def _anatomy_viewer(view: StatMapView, heading: str, caption: str, warning: str 
     place whenever `heading` changes - and `heading` (a subject_id or "Cluster N (n=...)") is
     already guaranteed to change whenever the actual content does, so no separate id is needed.
     """
+    # note (30-09-26): a second, quieter line inside the same paragraph - for the part of a
+    # caption that explains WHY the map is built this way rather than what the colour means.
+    # One paragraph, not two, so the two lines stay visually bound to each other.
+    # Kept a plain string when there is no note, so a panel that never had one (both
+    # single-subject viewers, the lesion overlap map) keeps exactly its previous shape.
+    caption_children = caption if note is None else [caption, html.Span(note, className="anatomy-note")]
     children = [
         html.H3(heading, className="anatomy-subject-title"),
-        html.P(caption, className="anatomy-caption"),
+        html.P(caption_children, className="anatomy-caption"),
     ]
     if warning is not None:
         children.append(_warning_box(warning))
@@ -1384,7 +1489,8 @@ def disconnectome_viewer_content_for(
 
 
 def _build_cluster_disconnection_view(
-    run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig
+    run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig,
+    map_mode: str = DEFAULT_DISCONNECTION_MAP_MODE,
 ) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
     """Returns (view, n_subjects, mean_img, missing_subjects) - same reasoning as
     _build_cluster_overlap_view (including missing_subjects - see its own docstring), but the
@@ -1395,8 +1501,24 @@ def _build_cluster_disconnection_view(
     download can reuse it rather than paying build_mean_map's per-subject load+resample cost a
     second time.
 
-    Raises ValueError if cluster_label has no subjects in this run's metadata, or if EVERY one
-    of them is unresolvable (see resolve_available_lesion_paths/build_mean_map)."""
+    map_mode (30-09-26, on request):
+
+    - "percent" (default) binarizes each subject's disconnectome at
+      DISCONNECTION_PROBABILITY_THRESHOLD and counts, via the SAME build_overlap_map the lesion
+      panel uses - so the two maps become the same quantity, "% of the cluster's subjects
+      affected in this voxel", and are directly comparable. Displayed with the same near-zero
+      display threshold as the lesion overlap map, for the same reason.
+    - "mean" is the previous behaviour, build_mean_map's voxelwise mean of the continuous
+      probabilities. It uses the full information instead of discarding it at a cutoff, so it
+      still sees widespread sub-threshold disconnection that "percent" shows as empty - but it
+      is NOT a proportion of subjects (see the constants above).
+
+    Raises ValueError for an unknown map_mode, if cluster_label has no subjects in this run's
+    metadata, or if EVERY one of them is unresolvable (see resolve_available_lesion_paths)."""
+    if map_mode not in DISCONNECTION_MAP_MODE_LABELS:
+        raise ValueError(
+            f"unknown disconnection map mode {map_mode!r} - known: {sorted(DISCONNECTION_MAP_MODE_LABELS)}"
+        )
     column = COLOR_MODES["cluster_label"].column
     cluster_metadata = metadata.loc[metadata[column] == cluster_label]
     if cluster_metadata.empty:
@@ -1405,19 +1527,31 @@ def _build_cluster_disconnection_view(
     disconnectome_paths, missing_subjects = resolve_available_lesion_paths(
         list(dataset_by_subject), dataset_by_subject, sdc_cfg.data_root, sdc_cfg.disconnectome_glob
     )
-    mean_img = build_mean_map(disconnectome_paths, sdc_cfg.reference_img, sdc_cfg.resample_interpolation)
+    if map_mode == DISCONNECTION_PERCENT_MODE:
+        _count_img, img = build_overlap_map(
+            disconnectome_paths, sdc_cfg.reference_img,
+            DISCONNECTION_PROBABILITY_THRESHOLD, sdc_cfg.resample_interpolation,
+        )
+        display_threshold = 1e-6  # any non-zero voxel, exactly as the lesion overlap map
+    else:
+        img = build_mean_map(disconnectome_paths, sdc_cfg.reference_img, sdc_cfg.resample_interpolation)
+        display_threshold = _DISCONNECTOME_DISPLAY_THRESHOLD
+    # The colormap stays magma in both modes: it encodes WHICH DATA this is (disconnection,
+    # not lesion), a cue the app uses everywhere, while the scale is what now matches the
+    # lesion map in "percent".
     view = nilearn_plotting.view_img(
-        mean_img, bg_img="MNI152", black_bg=False, threshold=_DISCONNECTOME_DISPLAY_THRESHOLD,
+        img, bg_img="MNI152", black_bg=False, threshold=display_threshold,
         cmap=_DISCONNECTOME_CMAP, symmetric_cmap=False, title=None, width_view=_ANATOMY_VIEWER_WIDTH,
     )
-    return view, len(disconnectome_paths), mean_img, missing_subjects
+    return view, len(disconnectome_paths), img, missing_subjects
 
 
 def disconnection_map_content_for(
     run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig,
     build_view: Callable[
-        [ProductionRun, pd.DataFrame, int, SdcViewerConfig], tuple[StatMapView, int, nib.Nifti1Image, list[str]]
+        ..., tuple[StatMapView, int, nib.Nifti1Image, list[str]]
     ] = _build_cluster_disconnection_view,
+    map_mode: str = DEFAULT_DISCONNECTION_MAP_MODE,
 ) -> html.Div | html.P:
     """Same never-raises contract as overlap_map_content_for (including the same skip-and-warn
     behavior for a cluster with *some* unresolvable subjects, _missing_subjects_warning) - a
@@ -1429,13 +1563,27 @@ def disconnection_map_content_for(
     overlap_map_content_for's own cache (per-subject load+resample dominates the panel's response
     time for a real several-hundred-subject cluster)."""
     try:
-        view, n_subjects, _mean_img, missing_subjects = build_view(run, metadata, cluster_label, sdc_cfg)
+        view, n_subjects, _img, missing_subjects = build_view(run, metadata, cluster_label, sdc_cfg, map_mode)
     except ValueError as exc:
         return html.P(str(exc), className="status-message")
+    # The caption states the threshold in "percent" mode: the map's whole meaning depends on
+    # it, so it must never be read without it.
+    if map_mode == DISCONNECTION_PERCENT_MODE:
+        caption = "Colore = % di soggetti del cluster disconnessi in quel voxel (0-100%)."
+        note = (
+            f"\"Disconnesso\" = probabilità > {DISCONNECTION_PROBABILITY_THRESHOLD:g} per quel "
+            f"soggetto. Stessa quantità della overlap map lesionale, quindi direttamente "
+            f"confrontabile."
+        )
+    else:
+        caption = "Colore = probabilità media di disconnessione del cluster in quel voxel (0-1)."
+        note = (
+            "Non è una percentuale di soggetti: usa tutta l'informazione continua, ma non si "
+            "può leggere come \"il 60% del cluster è disconnesso qui\"."
+        )
     return _anatomy_viewer(
-        view, f"Cluster {cluster_label} (n={n_subjects})",
-        "Colore = probabilità media di disconnessione del cluster in quel voxel (0-1)",
-        warning=_missing_subjects_warning(missing_subjects),
+        view, f"Cluster {cluster_label} (n={n_subjects})", caption,
+        warning=_missing_subjects_warning(missing_subjects), note=note,
     )
 
 
@@ -1738,14 +1886,21 @@ def build_app(
     # cluster_label) pair for a clustering run could in principle collide across the two if
     # they shared one dict (a clustering run's own key doesn't encode which of the two anatomy
     # families produced a given cache entry).
-    disconnection_view_cache: dict[tuple[str, int], tuple[StatMapView, int, nib.Nifti1Image, list[str]]] = {}
+    disconnection_view_cache: dict[
+        tuple[str, int, str], tuple[StatMapView, int, nib.Nifti1Image, list[str]]
+    ] = {}
 
     def _cached_cluster_disconnection_view(
-        run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig
+        run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig,
+        map_mode: str = DEFAULT_DISCONNECTION_MAP_MODE,
     ) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
-        cache_key = (run.key, cluster_label)
+        # map_mode is part of the key (30-09-26): the same cluster now has two different maps,
+        # and keying on (run, cluster) alone would serve whichever was built first for both.
+        cache_key = (run.key, cluster_label, map_mode)
         if cache_key not in disconnection_view_cache:
-            disconnection_view_cache[cache_key] = _build_cluster_disconnection_view(run, metadata, cluster_label, sdc_cfg)
+            disconnection_view_cache[cache_key] = _build_cluster_disconnection_view(
+                run, metadata, cluster_label, sdc_cfg, map_mode
+            )
         return disconnection_view_cache[cache_key]
 
     app = Dash(__name__, suppress_callback_exceptions=True)
@@ -1759,6 +1914,19 @@ def build_app(
             className="active" if mode == NEUTRAL_MODE else "",
         )
         for mode in COLOR_MODE_ORDER
+    ]
+
+    # Resolved once at build time, not per callback: which volume grids the registry holds is
+    # a property of participants.csv, which this process does not rewrite while running.
+    grids = available_volume_grids()
+    volume_grid_buttons = [
+        html.Button(
+            grid,
+            id={"type": "volume-grid-btn", "grid": grid},
+            n_clicks=0,
+            className="active" if grid == DEFAULT_VOLUME_GRID else "",
+        )
+        for grid in grids
     ]
 
     # 6-step decision order, left to right (2026-08-14, on request - replaces the previous
@@ -1828,9 +1996,25 @@ def build_app(
                         ],
                     ),
                     html.Div(color_buttons, className="color-buttons"),
+                    # Only meaningful while "volume" is the active colour mode, so it is
+                    # hidden otherwise (a grid chooser floating under an unrelated mode
+                    # reads as a second, broken colour row). Built from the grids the
+                    # registry can actually serve today - one button now, two as soon as
+                    # enrich_metadata.py writes lesion_volume_voxels_1mm.
+                    html.Div(
+                        [
+                            html.Span("Griglia volume", className="grid-row-label"),
+                            *volume_grid_buttons,
+                        ],
+                        id="volume-grid-row",
+                        className="color-buttons grid-row",
+                        style={"display": "none"},
+                    ),
                 ],
             ),
             dcc.Store(id="selected-color-mode", data=NEUTRAL_MODE),
+            dcc.Store(id="selected-volume-grid", data=DEFAULT_VOLUME_GRID),
+            dcc.Store(id="selected-disconnection-mode", data=DEFAULT_DISCONNECTION_MAP_MODE),
             html.H2("Embedding Visualization", className="section-heading"),
             html.Div(id="graph-area", className="graph-wrap"),
             # Always-visible (per design decision, 01-09-26 - not an appear-on-click popup):
@@ -1902,6 +2086,31 @@ def build_app(
                 ],
             ),
             # Hidden by default (style toggled by _update_cluster_picker below) - only a
+            # 30-09-26, on request: everything below is per-CLUSTER, everything above is
+            # per-subject/whole-run. The break is marked with a heavier rule and its own
+            # title, and the cluster chooser is lifted out of the first panel it happened to
+            # live in (cluster-map-panel) to sit here, centred, as the section's first act -
+            # it scopes every panel that follows, so it belongs to the section, not to one of
+            # its panels. Callbacks still resolve it by component id, so nothing else moves.
+            html.Div(
+                id="clustering-section",
+                className="section-divider",
+                style={"display": "none"},
+                children=[
+                    html.H2("Clustering Exploring", className="section-title"),
+                    html.P(
+                        "Le sezioni qui sotto descrivono un cluster alla volta. Scegli quale.",
+                        className="section-intro",
+                    ),
+                    html.Div(
+                        className="cluster-chooser",
+                        children=[
+                            html.Label("Cluster", className="picker-label"),
+                            dcc.Dropdown(id="cluster-picker", clearable=False),
+                        ],
+                    ),
+                ],
+            ),
             # clustering.py run (metadata has cluster_label) ever shows this panel.
             html.Div(
                 id="cluster-map-panel",
@@ -1909,18 +2118,6 @@ def build_app(
                 style={"display": "none"},
                 children=[
                     html.H2("Overlap map per cluster", className="section-heading"),
-                    html.Div(
-                        className="anatomy-controls",
-                        children=[
-                            html.Div(
-                                className="picker-field",
-                                children=[
-                                    html.Label("Cluster", className="picker-label"),
-                                    dcc.Dropdown(id="cluster-picker", clearable=False),
-                                ],
-                            ),
-                        ],
-                    ),
                     html.Div(id="cluster-map-content"),
                     html.Div(
                         className="save-btn-row",
@@ -1945,7 +2142,24 @@ def build_app(
                 className="anatomy-panel",
                 style={"display": "none"},
                 children=[
-                    html.H2("Frequency map disconnessione per cluster", className="section-heading"),
+                    html.H2("Disconnessione per cluster", className="section-heading"),
+                    # 30-09-26: two readings of the same subjects, explicitly chosen rather
+                    # than one silently assumed - see DISCONNECTION_PERCENT_MODE's comment.
+                    html.Div(
+                        [
+                            html.Span("Mappa", className="grid-row-label"),
+                            *[
+                                html.Button(
+                                    DISCONNECTION_MAP_MODE_LABELS[mode],
+                                    id={"type": "disconnection-mode-btn", "mode": mode},
+                                    n_clicks=0,
+                                    className="active" if mode == DEFAULT_DISCONNECTION_MAP_MODE else "",
+                                )
+                                for mode in DISCONNECTION_MAP_MODE_LABELS
+                            ],
+                        ],
+                        className="color-buttons grid-row",
+                    ),
                     html.Div(id="disconnection-map-content"),
                     html.Div(
                         className="save-btn-row",
@@ -2109,14 +2323,40 @@ def build_app(
         return ["active" if button_id["mode"] == selected_mode else "" for button_id in ids]
 
     @app.callback(
+        Output("selected-volume-grid", "data"),
+        Input({"type": "volume-grid-btn", "grid": ALL}, "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def _select_volume_grid(_all_n_clicks: list[int]) -> str:
+        if ctx.triggered_id is None:
+            raise PreventUpdate
+        return ctx.triggered_id["grid"]
+
+    @app.callback(
+        Output({"type": "volume-grid-btn", "grid": ALL}, "className"),
+        Input("selected-volume-grid", "data"),
+        State({"type": "volume-grid-btn", "grid": ALL}, "id"),
+    )
+    def _highlight_active_grid(selected_grid: str, ids: list[dict]) -> list[str]:
+        return ["active" if button_id["grid"] == selected_grid else "" for button_id in ids]
+
+    @app.callback(
+        Output("volume-grid-row", "style"),
+        Input("selected-color-mode", "data"),
+    )
+    def _toggle_volume_grid_row(selected_mode: str) -> dict:
+        return {} if selected_mode == VOLUME_MODE else {"display": "none"}
+
+    @app.callback(
         Output("graph-area", "children"),
         Input("run-picker", "value"),
         Input("selected-color-mode", "data"),
+        Input("selected-volume-grid", "data"),
     )
-    def _update_graph(run_key: str | None, selected_mode: str):
+    def _update_graph(run_key: str | None, selected_mode: str, volume_grid: str):
         if run_key is None:
             raise PreventUpdate
-        return graph_content_for(runs_by_key[run_key], selected_mode)
+        return graph_content_for(runs_by_key[run_key], selected_mode, volume_grid)
 
     @app.callback(
         Output("lesion-viewer-content", "children"),
@@ -2307,6 +2547,7 @@ def build_app(
     @app.callback(
         Output("cluster-picker", "options"),
         Output("cluster-picker", "value"),
+        Output("clustering-section", "style"),
         Output("cluster-map-panel", "style"),
         Output("representative-subject-panel", "style"),
         Output("cluster-description-panel", "style"),
@@ -2316,12 +2557,13 @@ def build_app(
         if run_key is None:
             raise PreventUpdate
         run = runs_by_key[run_key]
+        hidden = {"display": "none"}
         if run.pipeline != "clustering":
-            return [], None, {"display": "none"}, {"display": "none"}, {"display": "none"}
+            return [], None, hidden, hidden, hidden, hidden
         clusters = cluster_options(run_metadata(run))
         return (
             [{"label": str(cluster_label), "value": cluster_label} for cluster_label in clusters],
-            clusters[0], {}, {}, {},
+            clusters[0], {}, {}, {}, {},
         )
 
     @app.callback(
@@ -2493,16 +2735,36 @@ def build_app(
         Output("disconnection-map-content", "children"),
         Input("run-picker", "value"),
         Input("cluster-picker", "value"),
+        Input("selected-disconnection-mode", "data"),
     )
-    def _update_disconnection_map(run_key: str | None, cluster_label: int | None):
+    def _update_disconnection_map(run_key: str | None, cluster_label: int | None, map_mode: str):
         if run_key is None or cluster_label is None:
             raise PreventUpdate
         run = runs_by_key[run_key]
         if run.modality != "sdc" or run.pipeline != "clustering":
             raise PreventUpdate
         return disconnection_map_content_for(
-            run, run_metadata(run), cluster_label, sdc_cfg, build_view=_cached_cluster_disconnection_view
+            run, run_metadata(run), cluster_label, sdc_cfg,
+            build_view=_cached_cluster_disconnection_view, map_mode=map_mode,
         )
+
+    @app.callback(
+        Output("selected-disconnection-mode", "data"),
+        Input({"type": "disconnection-mode-btn", "mode": ALL}, "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def _select_disconnection_mode(_all_n_clicks: list[int]) -> str:
+        if ctx.triggered_id is None:
+            raise PreventUpdate
+        return ctx.triggered_id["mode"]
+
+    @app.callback(
+        Output({"type": "disconnection-mode-btn", "mode": ALL}, "className"),
+        Input("selected-disconnection-mode", "data"),
+        State({"type": "disconnection-mode-btn", "mode": ALL}, "id"),
+    )
+    def _highlight_active_disconnection_mode(selected: str, ids: list[dict]) -> list[str]:
+        return ["active" if button_id["mode"] == selected else "" for button_id in ids]
 
     @app.callback(
         Output("disconnection-download", "data"),
