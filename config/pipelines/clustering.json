@@ -1,21 +1,22 @@
 {
   "project": "clinical_connectome",
   "output_root": "results/sdc/clustering",
-  "input_path": "results/sdc/dim_reduction/production/umap/07-09_s2.2-vol_m_euclidean_nc2",
-  "reduction_method": "umap",
+  "input_path": "data/derived/sdc_matrix/30-09_s2.3-stream",
+  "reduction_method": "raw",
   "params_file": "config/registry/params_clustering.json",
-  "reduction_params_file": "config/registry/params_reduction_sdc.json",
-  "session_name": "s2.2-vol",
+  "session_name": "s2.3-stream",
   "clustering_methods": [
-    "agglomerative",
     "kmeans",
+    "agglomerative",
     "gmm",
-    "spectral"
+    "hdbscan",
+    "spectral",
+    "evidence_accumulation"
   ],
-  "reduced_data": true,
-  "fine_tuning": false,
+  "reduced_data": false,
+  "fine_tuning": true,
   "save_tuning_clusterings": false,
   "overwrite": false,
   "viz_embedding_path": null,
-  "run_notes": "Opzione E (k6): completa lo sweep 2..6 su s2.2-vol - miglior config per metodo a k=6 dal tuning 10-09. Notare: agglomerative a k=6 (0.761) ha silhouette piu' alta di k=4/5 (0.745/0.747), non monotono"
+  "run_notes": "first tuning on s2.3-stream: raw 87 tracts, euclidean, k 4-10"
 }

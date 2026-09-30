@@ -1,13 +1,13 @@
 {
   "project": "clinical_connectome",
   "output_root": "results/sdc/dim_reduction",
-  "input_path": "data/derived/sdc_matrix/07-09_s2.2-vol",
+  "input_path": "data/derived/sdc_matrix/30-09_s2.3-stream",
   "params_file": "config/registry/params_reduction_sdc.json",
-  "session_name": "s2.2-vol",
-  "reduction_method": "tsne",
+  "session_name": "s2.3-stream",
+  "reduction_method": "umap",
   "fine_tuning": false,
   "save_tuning_embeddings": false,
-  "overwrite": true,
+  "overwrite": false,
   "precompute_distance_metric": true,
   "color_by": [
     "dataset",
@@ -15,5 +15,5 @@
     "nihss"
   ],
   "viz_n_components": 2,
-  "run_notes": "produzione t-SNE SDC voxel-wise (s2.2-vol) - metric=euclidean, perplexity=30. Non l argmax stretto (50): 15/30/50 sono un plateau entro 0.00024, e 30 e il valore usato in ogni produzione precedente - vedi s2_tuning.md."
+  "run_notes": "UMAP euclidean nc2 on s2.3-stream, for visualization only: clustering runs on the raw 87 tracts, this embedding only supplies the plot coordinates"
 }
