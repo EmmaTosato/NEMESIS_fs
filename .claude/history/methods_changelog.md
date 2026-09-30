@@ -8,6 +8,18 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 30-09-26 — Cache condivisa e ricampionamento single-pass per le mappe anatomiche in Embedding Explorer
+
+**Decisione**: `BinaryMaskStore` (`src/analysis/anatomical_maps.py`) passa da precalcolo per-singola-run a cache in-memoria condivisa fra tutti i run/cluster aperti nella stessa sessione app: per ogni soggetto tiene solo gli indici dei voxel sopra soglia (lesione, o disconnessione >0.5), riempiti una sola volta per soggetto indipendentemente da quanti run/cluster lo richiedono. `_GridResampler`, stessa classe, calcola una sola volta la corrispondenza voxel→voxel fra griglia sorgente e reference (invece che per ogni soggetto) — bit-identico a `resample_to_img`, verificato con test dedicato. Nuovo flag `--preload` in `src/pipeline/embedding_app.py`: all'avvio, in background, legge tutti i soggetti di tutti i run di clustering (maschere lesionali sempre, disconnettomi SDC solo per i run sdc) e riempie i due store una volta per l'intera sessione. Inoltre, `_masked_for_view_colorbar` (`src/analysis/embedding_app.py`) rimuove il grigio dalla colorbar interattiva della mappa "probabilità media": pre-azzera i voxel sotto soglia (0.02) e passa un epsilon a `view_img` invece della soglia reale.
+
+**Perché**: con un precalcolo per-singola-run, ogni cluster di ogni run ripeteva il ricampionamento e il filtraggio per voxel per gli stessi soggetti già visti in run precedenti nella stessa sessione — costo che cresce con il numero di run aperti, non con il numero di soggetti distinti. Condividere la cache per soggetto (indipendente dal run) elimina il lavoro ripetuto: con `--preload`, qualunque cluster di qualunque run mostra la mappa in ~1s. Sul colorbar: `view_img` di nilearn colora di grigio opaco tutto l'intervallo sotto soglia quando gli si passa la soglia reale, e questo comportamento non è configurabile dai suoi parametri pubblici — pre-azzerare a monte e passare un epsilon aggira il problema senza patch a nilearn.
+
+**Alternative scartate**: mantenere il precalcolo per-run e limitarsi a velocizzare il ricampionamento (`_GridResampler` da solo) — avrebbe comunque ripetuto il lavoro per ogni run sullo stesso soggetto, non risolvendo il caso reale (più run aperti in una sessione lunga).
+
+**Conseguenza ancora vera oggi**: i due store (`BinaryMaskStore` per lesioni e per disconnettomi SDC) vivono per la durata del processo `embedding_app`, non per singola run — un riavvio dell'app senza `--preload` torna al comportamento lazy (primo accesso più lento, poi cache calda per quel soggetto). Bug noto e non corretto: il download PNG statico della mappa di disconnessione (`_download_disconnection_png`) usa sempre `_DISCONNECTOME_DISPLAY_THRESHOLD` anche in modalità "percent", dove dovrebbe usare `1e-6` come la vista interattiva.
+
+---
+
 ## 30-09-26 — Streamline per tratto come terza rappresentazione SDC, nella track s2.x
 
 **Decisione**: `build_sdc_matrix.json` accetta `representation: "streamline"`, che legge `sdc/<subject>/*_LF-lesion_atlas-yeh_hcp1065_streamline.csv` (colonne `tract,streamline_ratio`) in una matrice soggetti x 87 tratti di sostanza bianca — un valore per tratto, la quota delle sue streamline colpite. Nuovo builder dedicato (`src.features.sdc.build_sdc_streamline_matrix`), non un parametro di quello parcellato. Lista autoritativa dei tratti in `assets/atlases/sdc_labels/yeh_hcp1065_streamline.csv` (colonna `tract`, 87 righe), derivata dall'unione su tutti i 1734 file reali. Il dato appartiene alla track **s2.x** (disconnettoma), non s1.x, nonostante il nome `LF-lesion`: quello che misura è una disconnessione, cioè streamline interrotte dalla lesione, non danno diretto al tessuto. Prima sessione: `s2.3-stream`, 7 dataset (UCL-UK non ha questo CSV).

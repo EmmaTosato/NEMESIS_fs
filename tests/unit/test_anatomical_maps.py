@@ -3,8 +3,11 @@
 import nibabel as nib
 import numpy as np
 import pytest
+from nilearn.image import resample_to_img
 
 from src.analysis.anatomical_maps import (
+    BinaryMaskStore,
+    _GridResampler,
     build_mean_map,
     build_overlap_map,
     resolve_available_lesion_paths,
@@ -209,3 +212,79 @@ def test_build_mean_map_one_corrupt_file_still_raises(tmp_path):
 
     with pytest.raises(Exception):
         build_mean_map(disconnectome_paths, _reference_img(), resample_interpolation="nearest")
+
+
+def _finer_shifted_source(tmp_path, seed):
+    """A source on a 2x finer grid whose field of view only partly overlaps the reference
+    (shifted by a non-multiple of the voxel size), with float32 values that are NOT exactly
+    representable as a round decimal - the case where the lookup shortcut could diverge from
+    resample_to_img (tie-breaking at voxel boundaries, out-of-FOV fill, float32 vs float64)."""
+    affine = np.eye(4)
+    affine[:3, 3] = (-3.0, 1.0, -7.0)
+    volume = np.random.default_rng(seed).random((24, 24, 24)).astype(np.float32)
+    path = tmp_path / f"source_{seed}.nii.gz"
+    nib.save(nib.Nifti1Image(volume, affine), path)
+    return path
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_grid_resampler_nearest_matches_resample_to_img_exactly(tmp_path, seed):
+    path = _finer_shifted_source(tmp_path, seed)
+    expected = resample_to_img(
+        nib.load(path), _reference_img(), interpolation="nearest", force_resample=True, copy_header=True
+    ).get_fdata()
+
+    actual = _GridResampler(_reference_img(), "nearest").load(path)
+
+    assert actual.dtype == np.float64
+    assert np.array_equal(actual, expected)
+    assert (expected == 0).any(), "fixture must include out-of-field-of-view voxels, or the +1 padding is untested"
+
+
+def test_grid_resampler_non_nearest_interpolation_keeps_resample_to_img_path(tmp_path):
+    path = _finer_shifted_source(tmp_path, 0)
+    expected = resample_to_img(
+        nib.load(path), _reference_img(), interpolation="linear", force_resample=True, copy_header=True
+    ).get_fdata()
+
+    actual = _GridResampler(_reference_img(), "linear").load(path)
+
+    assert np.array_equal(actual, expected)
+
+
+def test_grid_resampler_same_grid_returns_data_unchanged(tmp_path):
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    path = next(tmp_path.rglob("*_label-lesion_mask.nii.gz"))
+
+    loaded = _GridResampler(_reference_img(), "nearest").load(path)
+
+    assert loaded[1, 1, 1] == 1.0
+    assert loaded.sum() == 1.0
+
+
+def test_build_overlap_map_with_shared_store_matches_without_and_reads_each_file_once(tmp_path):
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (2, 2, 2)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [(1, 1, 1)])
+    ids = ["sub-STUNIPD0001", "sub-STUNIPD0002"]
+    paths = resolve_lesion_paths(ids, {i: "siteA" for i in ids}, tmp_path, _LESION_GLOB)
+    reference = _reference_img()
+    store = BinaryMaskStore(reference, "nearest", 0.5)
+
+    expected = build_overlap_map(paths, reference, 0.5, "nearest")
+    first = build_overlap_map(paths, reference, 0.5, "nearest", store=store)
+    for path in paths.values():
+        path.unlink()  # a second build must not need the files any more
+    second = build_overlap_map(paths, reference, 0.5, "nearest", store=store)
+
+    for got in (first, second):
+        assert np.array_equal(got[0].get_fdata(), expected[0].get_fdata())
+        assert np.array_equal(got[1].get_fdata(), expected[1].get_fdata())
+
+
+def test_build_overlap_map_rejects_store_built_for_other_threshold(tmp_path):
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    paths = resolve_lesion_paths(["sub-STUNIPD0001"], {"sub-STUNIPD0001": "siteA"}, tmp_path, _LESION_GLOB)
+    reference = _reference_img()
+
+    with pytest.raises(ValueError, match="built for other parameters"):
+        build_overlap_map(paths, reference, 0.5, "nearest", store=BinaryMaskStore(reference, "nearest", 0.9))

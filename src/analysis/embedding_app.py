@@ -48,6 +48,7 @@ import io
 import itertools
 import logging
 import re
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -62,6 +63,7 @@ from nilearn import plotting as nilearn_plotting
 from nilearn.plotting.html_stat_map import StatMapView
 
 from src.analysis.anatomical_maps import (
+    BinaryMaskStore,
     build_mean_map,
     build_overlap_map,
     resolve_available_lesion_paths,
@@ -1079,6 +1081,26 @@ _ANATOMY_VIEWER_WIDTH = 900
 _DISCONNECTOME_CMAP = "magma"
 _DISCONNECTOME_DISPLAY_THRESHOLD = 0.02
 
+
+def _masked_for_view_colorbar(img: nib.Nifti1Image, threshold: float) -> nib.Nifti1Image:
+    """A copy of img with every voxel inside [-threshold, threshold] zeroed - lets a view_img
+    call receive a near-zero epsilon (1e-6, this app's usual "any non-zero voxel" convention)
+    instead of a real, wide threshold like _DISCONNECTOME_DISPLAY_THRESHOLD.
+
+    view_img's own interactive colorbar paints every value inside [-threshold, threshold] flat
+    opaque gray (nilearn.plotting._engine_utils.threshold_cmap, hardcoded gray (0.5, 0.5, 0.5,
+    1.0), not configurable through view_img's public API) - invisible for a near-zero epsilon
+    (a sliver against vmax) but a visibly wide gray band at the low end of the scale for a real
+    threshold like 0.02 (30-09-26 feedback: "perché c'è del grigio nella scala"). Zeroing the
+    data ourselves the same way nilearn's own thresholding would (html_stat_map._threshold_data:
+    values inside [-threshold, threshold] become 0) and passing 1e-6 to view_img instead hides
+    the exact same voxels without the artifact. Callers keep passing the real, unmasked image to
+    every other consumer (PNG download, cached return value) - this masked copy exists only for
+    what view_img itself renders."""
+    data = img.get_fdata()
+    masked = np.where(np.abs(data) > threshold, data, 0.0).astype(data.dtype)
+    return nib.Nifti1Image(masked, img.affine)
+
 # --- Per-cluster disconnection map: two readings of the same subjects (30-09-26) ------------
 # The mean map and the lesion overlap map are the SAME estimator (voxelwise mean over the
 # cluster) on different data, but that makes them mean different things: averaging BINARY
@@ -1335,7 +1357,8 @@ def lesion_viewer_content_for(
 
 
 def _build_cluster_overlap_view(
-    run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig
+    run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig,
+    mask_store: BinaryMaskStore | None = None,
 ) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
     """Returns (view, n_subjects, percentage_img, missing_subjects) - n_subjects is needed by
     the caller to build its own heading (title=None here, same reasoning as
@@ -1367,7 +1390,8 @@ def _build_cluster_overlap_view(
         list(dataset_by_subject), dataset_by_subject, lesion_cfg.data_root, lesion_cfg.lesion_glob
     )
     _count_img, percentage_img = build_overlap_map(
-        lesion_paths, lesion_cfg.reference_img, lesion_cfg.binarize_threshold, lesion_cfg.resample_interpolation
+        lesion_paths, lesion_cfg.reference_img, lesion_cfg.binarize_threshold, lesion_cfg.resample_interpolation,
+        store=mask_store,
     )
     view = nilearn_plotting.view_img(
         percentage_img, bg_img="MNI152", black_bg=False, threshold=1e-6, cmap="hot", symmetric_cmap=False, title=None,
@@ -1458,9 +1482,10 @@ def _build_subject_disconnectome_view(
     title, resolved via resolve_lesion_paths against sdc_cfg's own disconnectome_glob rather
     than lesion_cfg's lesion_glob). colorbar=True (unlike the lesion viewer): disconnectome
     values are a genuinely continuous [0, 1] probability per voxel, not a binary mask - a
-    colorbar conveys real information here. threshold=_DISCONNECTOME_DISPLAY_THRESHOLD, not a
-    binarize threshold (disconnectome values are never binarized, see src.features.sdc's module
-    docstring) - see that constant's own docstring for why it isn't a near-zero epsilon.
+    colorbar conveys real information here. Masks with _DISCONNECTOME_DISPLAY_THRESHOLD before
+    viewing, not a binarize threshold (disconnectome values are never binarized, see
+    src.features.sdc's module docstring) - see that constant's own docstring for why it isn't a
+    near-zero epsilon, and _masked_for_view_colorbar's for why view_img itself gets 1e-6 instead.
 
     Raises ValueError (never silently) if subject_id/dataset/disconnectome file can't be
     resolved - see resolve_lesion_paths."""
@@ -1468,9 +1493,10 @@ def _build_subject_disconnectome_view(
     disconnectome_paths = resolve_lesion_paths(
         [subject_id], {subject_id: dataset}, sdc_cfg.data_root, sdc_cfg.disconnectome_glob
     )
+    disconnectome_img = nib.load(str(disconnectome_paths[subject_id]))
     view = nilearn_plotting.view_img(
-        str(disconnectome_paths[subject_id]), bg_img="MNI152", black_bg=False,
-        threshold=_DISCONNECTOME_DISPLAY_THRESHOLD, cmap=_DISCONNECTOME_CMAP, symmetric_cmap=False,
+        _masked_for_view_colorbar(disconnectome_img, _DISCONNECTOME_DISPLAY_THRESHOLD), bg_img="MNI152",
+        black_bg=False, threshold=1e-6, cmap=_DISCONNECTOME_CMAP, symmetric_cmap=False,
         title=None, colorbar=True, width_view=_ANATOMY_VIEWER_WIDTH,
     )
     return view, dataset
@@ -1490,7 +1516,7 @@ def disconnectome_viewer_content_for(
 
 def _build_cluster_disconnection_view(
     run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig,
-    map_mode: str = DEFAULT_DISCONNECTION_MAP_MODE,
+    map_mode: str = DEFAULT_DISCONNECTION_MAP_MODE, mask_store: BinaryMaskStore | None = None,
 ) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
     """Returns (view, n_subjects, mean_img, missing_subjects) - same reasoning as
     _build_cluster_overlap_view (including missing_subjects - see its own docstring), but the
@@ -1530,17 +1556,21 @@ def _build_cluster_disconnection_view(
     if map_mode == DISCONNECTION_PERCENT_MODE:
         _count_img, img = build_overlap_map(
             disconnectome_paths, sdc_cfg.reference_img,
-            DISCONNECTION_PROBABILITY_THRESHOLD, sdc_cfg.resample_interpolation,
+            DISCONNECTION_PROBABILITY_THRESHOLD, sdc_cfg.resample_interpolation, store=mask_store,
         )
         display_threshold = 1e-6  # any non-zero voxel, exactly as the lesion overlap map
+        view_source = img
     else:
         img = build_mean_map(disconnectome_paths, sdc_cfg.reference_img, sdc_cfg.resample_interpolation)
-        display_threshold = _DISCONNECTOME_DISPLAY_THRESHOLD
+        # threshold=1e-6 below, not _DISCONNECTOME_DISPLAY_THRESHOLD directly - see
+        # _masked_for_view_colorbar's own docstring (avoids view_img's gray sub-threshold band).
+        view_source = _masked_for_view_colorbar(img, _DISCONNECTOME_DISPLAY_THRESHOLD)
+        display_threshold = 1e-6
     # The colormap stays magma in both modes: it encodes WHICH DATA this is (disconnection,
     # not lesion), a cue the app uses everywhere, while the scale is what now matches the
     # lesion map in "percent".
     view = nilearn_plotting.view_img(
-        img, bg_img="MNI152", black_bg=False, threshold=display_threshold,
+        view_source, bg_img="MNI152", black_bg=False, threshold=display_threshold,
         cmap=_DISCONNECTOME_CMAP, symmetric_cmap=False, title=None, width_view=_ANATOMY_VIEWER_WIDTH,
     )
     return view, len(disconnectome_paths), img, missing_subjects
@@ -1577,10 +1607,7 @@ def disconnection_map_content_for(
         )
     else:
         caption = "Colore = probabilità media di disconnessione del cluster in quel voxel (0-1)."
-        note = (
-            "Non è una percentuale di soggetti: usa tutta l'informazione continua, ma non si "
-            "può leggere come \"il 60% del cluster è disconnesso qui\"."
-        )
+        note = "La media dice quanto forte è la disconnessione."
     return _anatomy_viewer(
         view, f"Cluster {cluster_label} (n={n_subjects})", caption,
         warning=_missing_subjects_warning(missing_subjects), note=note,
@@ -1822,7 +1849,11 @@ _DISCONNECTOME_PLACEHOLDER = html.P(
 
 
 def build_app(
-    runs: list[ProductionRun], lesion_cfg: LesionViewerConfig, sdc_cfg: SdcViewerConfig, clustering_params_file: str | Path
+    runs: list[ProductionRun],
+    lesion_cfg: LesionViewerConfig,
+    sdc_cfg: SdcViewerConfig,
+    clustering_params_file: str | Path,
+    preload: bool = False,
 ) -> Dash:
     """Builds the Dash app: a run picker (dcc.Dropdown, one entry per discovered production
     run) plus a color-mode button group (COLOR_MODE_ORDER, styled as a chip row via CSS, not
@@ -1862,6 +1893,13 @@ def build_app(
         raise ValueError("The app needs at least one production run - none were discovered, nothing to display")
 
     runs_by_key = {run.key: run for run in runs}
+
+    # Per-subject "voxels above threshold" memos (30-09-26), shared by every run and cluster of
+    # this app instance - see BinaryMaskStore. Plain closure variables, like the view caches.
+    lesion_store = BinaryMaskStore(lesion_cfg.reference_img, lesion_cfg.resample_interpolation, lesion_cfg.binarize_threshold)
+    disconnection_store = BinaryMaskStore(
+        sdc_cfg.reference_img, sdc_cfg.resample_interpolation, DISCONNECTION_PROBABILITY_THRESHOLD
+    )
     default_modality = modality_options(runs)[0]
 
     # Cluster-overlap-map cache (01-09-26 perf fix) - process-lifetime, in-memory, scoped to
@@ -1878,7 +1916,9 @@ def build_app(
     ) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
         cache_key = (run.key, cluster_label)
         if cache_key not in cluster_view_cache:
-            cluster_view_cache[cache_key] = _build_cluster_overlap_view(run, metadata, cluster_label, lesion_cfg)
+            cluster_view_cache[cache_key] = _build_cluster_overlap_view(
+                run, metadata, cluster_label, lesion_cfg, mask_store=lesion_store
+            )
         return cluster_view_cache[cache_key]
 
     # Same caching reasoning as cluster_view_cache above, for the SDC per-cluster mean
@@ -1899,7 +1939,7 @@ def build_app(
         cache_key = (run.key, cluster_label, map_mode)
         if cache_key not in disconnection_view_cache:
             disconnection_view_cache[cache_key] = _build_cluster_disconnection_view(
-                run, metadata, cluster_label, sdc_cfg, map_mode
+                run, metadata, cluster_label, sdc_cfg, map_mode, mask_store=disconnection_store
             )
         return disconnection_view_cache[cache_key]
 
@@ -2811,5 +2851,42 @@ def build_app(
             mean_img, threshold=_DISCONNECTOME_DISPLAY_THRESHOLD, cmap=_DISCONNECTOME_CMAP, colorbar=True,
         )
         return dcc.send_bytes(png_bytes, filename=f"cluster_{cluster_label}_disconnection_mean_map.png")
+
+    def _preload_stores() -> None:
+        """Reads every subject of every clustering run once, in the background, into the two
+        BinaryMaskStores, so that afterwards ANY cluster of ANY run is a bincount + a ~1s render
+        instead of minutes of reading NIfTIs (30-09-26, a live-demo need: all masks and SDC
+        must browse fast). Lesion masks for every clustering run's subjects; disconnectomes for
+        the subjects of sdc-modality runs only (the one modality showing that panel). Background
+        optimisation only: a failure is logged with its traceback and leaves the store as far as
+        it got - a click then reads whatever is still missing itself and raises visibly in the
+        panel, nothing is hidden."""
+        datasets: dict[str, dict[str, str]] = {"lesion": {}, "disconnection": {}}
+        for run in runs:
+            if run.pipeline != "clustering":
+                continue
+            metadata = run_metadata(run)
+            by_subject = dict(zip(metadata["subject_id"], metadata["dataset"]))
+            datasets["lesion"].update(by_subject)
+            if run.modality == "sdc":
+                datasets["disconnection"].update(by_subject)
+        for name, store, cfg_data_root, glob in (
+            ("lesion", lesion_store, lesion_cfg.data_root, lesion_cfg.lesion_glob),
+            ("disconnection", disconnection_store, sdc_cfg.data_root, sdc_cfg.disconnectome_glob),
+        ):
+            by_subject = datasets[name]
+            if not by_subject:
+                continue
+            try:
+                paths, _missing = resolve_available_lesion_paths(list(by_subject), by_subject, cfg_data_root, glob)
+                logging.info("preload %s: reading %d subject(s)", name, len(paths))
+                store.preload(paths.values())
+            except (ValueError, OSError):
+                logging.warning("preload %s failed", name, exc_info=True)
+                continue
+            logging.info("preload %s: done, %d subject(s) in memory", name, len(paths))
+
+    if preload:
+        threading.Thread(target=_preload_stores, name="store-preload", daemon=True).start()
 
     return app

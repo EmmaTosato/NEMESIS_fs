@@ -65,6 +65,13 @@ def main(argv: list[str] | None = None) -> int:
     # 8060, not Dash's own default 8050 - deliberately non-default so this app doesn't collide
     # with another local Dash instance a developer might already have running on 8050.
     parser.add_argument("--port", type=int, default=8060, help="Local port to serve on (default: 8060)")
+    parser.add_argument(
+        "--preload",
+        action="store_true",
+        help="At startup, in a background thread, read every subject of every clustering run once "
+        "(lesion masks; SDC disconnectomes for sdc runs) so that every cluster of every run then "
+        "renders its anatomy maps in about a second instead of minutes",
+    )
     parser.add_argument("--debug", action="store_true", help="Enable Dash's debug mode (auto-reload, in-browser error overlay)")
     args = parser.parse_args(argv)
 
@@ -116,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     try:
-        app = build_app(runs, lesion_cfg, sdc_cfg, args.clustering_params_file)
+        app = build_app(runs, lesion_cfg, sdc_cfg, args.clustering_params_file, preload=args.preload)
     except ValueError as exc:
         logging.error(str(exc))
         return 1

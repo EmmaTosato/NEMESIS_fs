@@ -100,7 +100,7 @@ def test_main_server_port_in_use_returns_1_not_raw_traceback(tmp_path, monkeypat
         def run(self, debug, port):
             raise OSError(f"[Errno 48] Address already in use: {port}")
 
-    monkeypatch.setattr(embedding_app, "build_app", lambda runs, lesion_cfg, sdc_cfg, clustering_params_file: _FakeApp())
+    monkeypatch.setattr(embedding_app, "build_app", lambda runs, lesion_cfg, sdc_cfg, clustering_params_file, preload=False: _FakeApp())
 
     exit_code = embedding_app.main(["--results-root", str(tmp_path), "--port", "8060"])
     assert exit_code == 1
@@ -111,7 +111,7 @@ def test_main_build_app_value_error_returns_1(tmp_path, monkeypatch):
     _patch_lesion_config(monkeypatch)
     _patch_sdc_config(monkeypatch)
 
-    def _raise(runs, lesion_cfg, sdc_cfg, clustering_params_file):
+    def _raise(runs, lesion_cfg, sdc_cfg, clustering_params_file, preload=False):
         raise ValueError("mixed pipelines with incompatible run shapes")
 
     monkeypatch.setattr(embedding_app, "build_app", _raise)

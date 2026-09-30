@@ -1,6 +1,8 @@
 """Unit tests for src/analysis/embedding_app.py."""
 
 import json
+import logging
+import threading
 from pathlib import Path
 
 import nibabel as nib
@@ -1860,3 +1862,59 @@ def test_cluster_description_table_prints_coverage_only_where_incomplete(_partic
     age_cell, education_cell = row.children[2], row.children[4]
     assert age_cell.children[1] is None                      # 2/2 - nothing to say
     assert education_cell.children[1].children == "1/2"      # genuinely incomplete
+
+
+
+def test_preload_fills_both_stores_so_cluster_maps_need_no_file_reads(tmp_path, monkeypatch):
+    # sdc clustering run whose subjects have both a lesion mask and a disconnectome on disk.
+    results_root, data_root = tmp_path / "results", tmp_path / "data"
+    subject_ids = [f"sub-STUNIPD000{i}" for i in range(1, 5)]
+    run_dir = _make_run_dir(
+        results_root, modality="sdc", pipeline="clustering",
+        extra_metadata={"cluster_label": [0, 0, 1, 1], "subject_id": subject_ids},
+    )
+    run = ProductionRun("sdc", "clustering", "kmeans", "10-08_s1", run_dir, reduction_method="umap")
+    for subject_id, dataset in zip(subject_ids, ["UNIPD/WashU"] * 2 + ["UKLFR/stroke_UKLFR"] * 2):
+        _make_lesion_subject(data_root, dataset, subject_id, [(1, 1, 1)])
+        _make_disconnectome_subject(data_root, dataset, subject_id, {(1, 1, 1): 0.9})
+    app = build_app(
+        [run], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path), preload=True
+    )
+    for thread in threading.enumerate():
+        if thread.name == "store-preload":
+            thread.join(timeout=30)
+
+    def _no_reads(path):
+        raise AssertionError(f"file read after preload: {path}")
+
+    monkeypatch.setattr("src.analysis.anatomical_maps.nib.load", _no_reads)
+    app.server.config["TESTING"] = True
+    client = app.server.test_client()
+    body = {
+        "output": "cluster-map-content.children",
+        "outputs": {"id": "cluster-map-content", "property": "children"},
+        "inputs": [
+            {"id": "run-picker", "property": "value", "value": run.key},
+            {"id": "cluster-picker", "property": "value", "value": 0},
+        ],
+        "changedPropIds": ["cluster-picker.value"],
+        "state": [],
+    }
+    resp = client.post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
+    assert resp.status_code == 200
+    assert "status-message" not in json.dumps(resp.get_json())
+
+
+def test_preload_failure_is_logged_and_does_not_crash(tmp_path, caplog):
+    # No files on disk at all: resolution raises, the preload logs it with a traceback and ends.
+    run_dir = _make_run_dir(tmp_path / "results", pipeline="clustering", extra_metadata={"cluster_label": [0, 0, 1, 1]})
+    run = ProductionRun("lesion", "clustering", "kmeans", "10-08_s1", run_dir, reduction_method="umap")
+
+    with caplog.at_level(logging.INFO):
+        build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), preload=True)
+        for thread in threading.enumerate():
+            if thread.name == "store-preload":
+                thread.join(timeout=30)
+
+    failures = [r for r in caplog.records if "preload lesion failed" in r.getMessage()]
+    assert len(failures) == 1 and failures[0].exc_info
