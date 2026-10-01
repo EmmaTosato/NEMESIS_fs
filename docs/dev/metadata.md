@@ -163,7 +163,7 @@ La conseguenza è deliberata: un volume o un lato inaffidabile ha la sua causa n
 
 ## `excluded_subjects.csv`: chi entra in analisi
 
-`subject_id, dataset, reason, value`, scritto **a mano** dal notebook `notebooks/exploration/lesion_quality.ipynb`. Letto da `src/utils/participants.py::load_excluded_subjects`, e da lì da `build_lesion_matrix.py` e `build_sdc_matrix.py` tramite il campo `excluded_subjects_path` dei loro config — vedi `docs/dev/lesion_matrix.md`.
+`subject_id, dataset, reason, value`, scritto **a mano** dal notebook `notebooks/exploration/lesion_analysis.ipynb`. Letto da `src/utils/participants.py::load_excluded_subjects`, e da lì da `build_lesion_matrix.py` e `build_sdc_matrix.py` tramite il campo `excluded_subjects_path` dei loro config — vedi `docs/dev/lesion_matrix.md`.
 
 Nessuna pipeline lo genera: i dati non hanno un salto naturale su cui mettere una soglia (su 5853 soggetti, 3 maschere a 0 voxel a 2 mm, 132 con volume ≤ 10 voxel, coda continua; 234 soggetti sopra il 5% di frazione fuori dal brain, 73 sopra il 10%), e quale soggetto limite valga la pena di scartare è un giudizio che appartiene all'analisi.
 

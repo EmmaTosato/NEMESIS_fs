@@ -7,8 +7,8 @@ decision - the Thiebaut de Schotten et al. 2020 parcellation-then-varimax-PCA
 replication this fed is no longer pursued through this pipeline; see
 management/notes/TODO.md).
 
-Migrated from notebooks/lesion_analysis.ipynb (voxel-wise path only, cells
-4-8): same algorithm, restructured into typed, independently testable
+Migrated from notebooks/pipeline_building/lesion_matrix_build.ipynb
+(voxel-wise path only): same algorithm, restructured into typed, independently testable
 functions per src/ code standards. The notebook itself is left as-is, as the
 exploratory reference.
 """

@@ -6,6 +6,18 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 01-10-26 — Notebook riorganizzati per oggetto sotto ispezione: `lesion_analysis` si scioglie, `lesion_quality` ne prende il nome
+
+**Cosa è cambiato**:
+- Il vecchio `exploration/lesion_analysis.ipynb` (prototipo preistorico del costruttore di matrice + volumetria + overlap voxel-wise) è sciolto. Setup, caricamento maschere, costruzione di `X`, fast loading, sanity check, riduzione ai voxel non costanti, matrix visualization e frequenza voxel-wise → nuovo `pipeline_building/lesion_matrix_build.ipynb`.
+- `exploration/lesion_quality.ipynb` è rinominato `exploration/lesion_analysis.ipynb` e riordinato per sezioni: Volume → Lateralità → Fuori dal brain → Soggetti esclusi. `show_scrollable` spostata nelle utilità in cima. La volumetria del vecchio notebook (ml, boxplot, violin/ECDF, percentili, coda lunga) vi è stata **riscritta su `lesion_metadata.csv`** (`lesion_volume_voxels_2mm` × 8 / 1000), non spostata: dipendeva da `X.sum(axis=1)`, cioè dalla matrice costruita nel notebook.
+- `exploration/clinical_metadata_raw.ipynb` → `exploration/metadata_raw.ipynb`, con scope dichiarato in testa (legge i TSV grezzi, non `participants.csv`); titoli `###` → `##`.
+- Nuova guida `docs/guides/exploration.md` (indice: domanda / legge / scrive per ogni notebook); rimandi in `README.md`, `.claude/CLAUDE.md`, 4 doc e 3 docstring aggiornati. Via le intestazioni "Parte X di 3".
+
+**Perché**: gli scope si sovrapponevano (la distribuzione dei volumi stava in due notebook, calcolata in due modi). Criterio adottato: un notebook = un oggetto sotto ispezione + una domanda. Alternativa scartata: rinominare `lesion_quality` in `lesion_volume` — avrebbe descritto solo un terzo del contenuto (c'è anche lateralità, fuori dal brain e la cella che scrive `excluded_subjects.csv`, che legge soglie da tutte le sezioni); scissione in due notebook scartata per lo stesso motivo.
+
+**Conseguenza ancora vera oggi**: l'ultima cella di `lesion_analysis` sovrascrive `assets/metadata/excluded_subjects.csv` con le sole liste `EXCLUSIONS` del notebook. Il file su disco ha una colonna `scope` che la cella non scrive e il notebook ha `EXCLUSIONS` vuoto: la cella è **indietro** rispetto al file e rieseguirla lo azzera. Non toccata in questa sessione.
+
 ## 29-09-26 — `scripts/` ridotto a 3 accessori: 4 entry point promossi a `src/pipeline/`, 6 script cancellati
 
 `scripts/` conteneva 13 file (12 `.py` + 1 `.sh`) di tre nature diverse mescolate: veri entry point di pipeline, utility accessorie e one-off già eseguiti. Ora ne restano **3**, tutti e soli accessori: `archive_local_raw_data.py` (potatura/archiviazione della cache locale sotto `data/`), `build_dataset_summary_table.py` (tabelle LaTeX dei conteggi per dataset), `build_dim_reduction_strategies_csv.py` (indice derivato `results/dim_reduction_strategies.csv`).

@@ -17,7 +17,7 @@ Lo scrivono due script, che rispondono a due domande diverse e non si sovrascriv
 | File | Cosa c'è | Chi lo scrive |
 | :--- | :--- | :--- |
 | `lesion_metadata.csv` | tutto ciò che si misura su una maschera di lesione: volume, frazione fuori dal brain, indice di lateralità e lato, **per ogni griglia** | `src/pipeline/compute_lesion_metadata.py` |
-| `excluded_subjects.csv` | quali soggetti tenere fuori dalle matrici di produzione, con il motivo | **tu, a mano**, dal notebook `notebooks/exploration/lesion_quality.ipynb` |
+| `excluded_subjects.csv` | quali soggetti tenere fuori dalle matrici di produzione, con il motivo | **tu, a mano**, dal notebook `notebooks/exploration/lesion_analysis.ipynb` |
 
 ---
 
@@ -179,7 +179,7 @@ Non serve copiare i valori altrove: i consumatori leggono il registro direttamen
 | `build_lesion_matrix.py` / `build_sdc_matrix.py` | `excluded_subjects.csv`, per escludere gli stessi soggetti |
 | `dim_reduction.py` / `clustering.py` | `lesion_side`/`NIHSS` per i color mode `side`/`nihss`, risolti al momento del plot |
 | `src/analysis/cluster_description.py` (pannello di `embedding_app.py`) | età, sesso, istruzione, NIHSS, `lesion_volume_voxels_2mm` per la composizione dei cluster |
-| `notebooks/exploration/lesion_quality.ipynb` | `lesion_metadata.csv`, per decidere le esclusioni |
+| `notebooks/exploration/lesion_analysis.ipynb` | `lesion_metadata.csv`, per decidere le esclusioni |
 
 Conseguenza pratica: se aggiungi `NIHSS` al registro oggi, **anche le run vecchie** si possono colorare per NIHSS, senza rigenerarle.
 

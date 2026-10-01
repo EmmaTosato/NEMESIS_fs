@@ -12,7 +12,7 @@ Where this file sits among the metadata sources (see docs/dev/metadata.md):
 
 Every subject with a discoverable mask is measured - no exclusion threshold is applied here.
 Which subjects to drop from an analysis is decided by looking at this file's distributions
-(notebooks/exploration/lesion_quality.ipynb) and written by hand into
+(notebooks/exploration/lesion_analysis.ipynb) and written by hand into
 assets/metadata/excluded_subjects.csv, the one list both matrix pipelines read.
 
 Usage:

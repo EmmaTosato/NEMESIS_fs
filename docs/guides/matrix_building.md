@@ -91,7 +91,7 @@ Chi viene escluso è elencato per nome nelle sezioni "Excluded by ..." di `confi
 
 **Non ci sono soglie di qualità in questo config, di proposito.** I dati non hanno un salto naturale su cui metterne una, e quale soggetto limite valga la pena di scartare è un giudizio caso per caso che appartiene all'analisi, non alla configurazione di una pipeline.
 
-Il file lo scrivi **a mano**, dopo aver guardato le distribuzioni in `assets/metadata/lesion_metadata.csv` dal notebook `notebooks/exploration/lesion_quality.ipynb` — formato, vocabolario dei motivi e validazioni in [`docs/guides/metadata.md`](metadata.md).
+Il file lo scrivi **a mano**, dopo aver guardato le distribuzioni in `assets/metadata/lesion_metadata.csv` dal notebook `notebooks/exploration/lesion_analysis.ipynb` — formato, vocabolario dei motivi e validazioni in [`docs/guides/metadata.md`](metadata.md).
 
 Lo stesso file è letto anche da `build_sdc_matrix.py`, quindi **le due matrici escludono gli stessi soggetti per costruzione**: senza di questo un confronto lesione/SDC confronterebbe due coorti diverse.
 
@@ -111,4 +111,4 @@ Un file **assente ferma la run**: "mai scritto" e "nessuna esclusione" sono indi
 python -m src.pipeline.compute_lesion_metadata --config config/pipelines/compute_lesion_metadata.json
 ```
 
-Il calcolo è costoso (una lettura per soggetto, un ricampionamento per griglia) — con `overwrite: false` nel config, se il csv esiste già la run esce subito senza ricalcolare. Le distribuzioni con i grafici sono in `notebooks/exploration/lesion_quality.ipynb`, che legge quello stesso file.
+Il calcolo è costoso (una lettura per soggetto, un ricampionamento per griglia) — con `overwrite: false` nel config, se il csv esiste già la run esce subito senza ricalcolare. Le distribuzioni con i grafici sono in `notebooks/exploration/lesion_analysis.ipynb`, che legge quello stesso file.

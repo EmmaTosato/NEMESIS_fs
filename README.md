@@ -46,7 +46,7 @@ docs/
 ├── dev/           # architecture/implementation reference (developer-facing)
 ├── experiments/   # per-session run logs and cross-run experiment notes
 └── debugging/     # dated, per-session debug reports
-notebooks/        # exploration, pipeline prototyping, post-results analysis
+notebooks/        # exploration, pipeline prototyping, post-results analysis (index: docs/guides/exploration.md)
 assets/
 ├── atlases/       # reference brain atlases
 └── metadata/      # curated per-dataset clinical/demographic metadata
@@ -94,7 +94,7 @@ Every clinical/demographic value lives in one checked-in source of truth, `asset
 
 `src/pipeline/populate_metadata.py` writes **who exists**: it joins each dataset's raw `participants.tsv` (`data/clinical_connectome/metadata_tsv/`, paths declared in `config/registry/metadata_sources.json`) against the subject folders actually on disk, one row per subject with `has_lesion`/`has_sdc`/`has_features` flags. `src/pipeline/enrich_metadata.py` adds **what we know about them** — age, sex, education, lesion_side, NIHSS, clinical_date, plus `lesion_volume_voxels_2mm`. The join onto the raw tsvs goes through `original_id`, since UCL-UK's raw `participant_id` is a legacy site id rather than the canonical subject id.
 
-`enrich_metadata.py` computes nothing from imaging: it is a **join**. Everything measured on a lesion mask comes from a third file, `assets/metadata/lesion_metadata.csv`, written by `src/pipeline/compute_lesion_metadata.py` — one row per subject with a mask, and four columns per voxel grid (`lesion_volume_voxels_<g>`, `out_of_brain_fraction_<g>`, `laterality_index_<g>`, `lesion_side_<g>`), measured on both the 1mm grid the masks are natively on and the 2mm production grid. A fourth file, `assets/metadata/excluded_subjects.csv`, is written **by hand** from `notebooks/exploration/lesion_quality.ipynb` and is the single admission list both matrix pipelines read, so they exclude exactly the same subjects.
+`enrich_metadata.py` computes nothing from imaging: it is a **join**. Everything measured on a lesion mask comes from a third file, `assets/metadata/lesion_metadata.csv`, written by `src/pipeline/compute_lesion_metadata.py` — one row per subject with a mask, and four columns per voxel grid (`lesion_volume_voxels_<g>`, `out_of_brain_fraction_<g>`, `laterality_index_<g>`, `lesion_side_<g>`), measured on both the 1mm grid the masks are natively on and the 2mm production grid. A fourth file, `assets/metadata/excluded_subjects.csv`, is written **by hand** from `notebooks/exploration/lesion_analysis.ipynb` and is the single admission list both matrix pipelines read, so they exclude exactly the same subjects.
 
 📖 Guide: [`docs/guides/metadata.md`](docs/guides/metadata.md) · Architecture: [`docs/dev/metadata.md`](docs/dev/metadata.md)
 
