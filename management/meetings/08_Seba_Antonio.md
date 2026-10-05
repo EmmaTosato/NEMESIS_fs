@@ -32,6 +32,8 @@ Nel notebook lesion quality
 
 * [ ] Nuovi dati
 * [ ] RIdefinire le Pipelines
+* [ ] Comparazione risultati: la lesione rispiecchia il clsuter sdc (distanze / metriche )
+* [ ] PCA Michel
 
 
 
@@ -50,7 +52,8 @@ Nel notebook lesion quality
   * (Autoencoder)
 * Potrebbe essere che il clustering sia guidato dall'asse lateralità/volume
 * Anche le lesioni focali e minime possono essere fatali
-* 
+
+
 
 # GOALS
 

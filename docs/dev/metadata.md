@@ -24,7 +24,7 @@ data/clinical_connectome/metadata_tsv/*.tsv       assets/metadata/lesion_metadat
                                                      │  — cosa misurano le maschere
                                           data/clinical_connectome/derivatives/<dataset>/manual_masks/
 
-assets/metadata/excluded_subjects.csv   — chi resta fuori dalle matrici (scritto a mano)
+assets/metadata/excluded_subjects.csv   — chi resta fuori dalle matrici (generato da build_excluded_subjects)
         │  letto da build_lesion_matrix.py e build_sdc_matrix.py, non da enrich
 ```
 
@@ -60,7 +60,7 @@ Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv`
 
 - **`assets/metadata/participants.csv`** — 5853 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_2mm` (enrich).
 - **`assets/metadata/lesion_metadata.csv`** — una riga per soggetto con maschera, quattro colonne per griglia (`lesion_volume_voxels_<g>`, `out_of_brain_fraction_<g>`, `laterality_index_<g>`, `lesion_side_<g>`), più `lesion_metadata.config.json` accanto: il config della run che l'ha prodotto.
-- **`assets/metadata/excluded_subjects.csv`** — `subject_id, dataset, reason, value`, scritto a mano. Oggi solo l'intestazione.
+- **`assets/metadata/excluded_subjects.csv`** — `subject_id, dataset, reason, scope, value`, generato da `src/pipeline/build_excluded_subjects.py` dal suo config.
 - **I tsv per-dataset `assets/metadata/<DATASET>_participants_*.tsv` non esistono più**: cancellati. Ogni consumatore è stato spostato sul file unico.
 - **`data/derived/<pipeline>/<sessione>/metadata.csv`** — contiene solo ciò che appartiene a quella run (`subject_id`, `dataset`, `lesion_volume_voxels` per `build_lesion_matrix.py`). Non è più la fonte da cui `enrich_metadata.py` copia `lesion_volume_voxels` in `participants.csv` (fino al 28-09-26 lo era, vedi sopra) — resta solo l'artefatto della run stessa, la sua colonna può differire da quella nel registro se le due griglie non coincidono.
 
@@ -118,7 +118,9 @@ Le maschere manuali hanno voxel di 1 mm (verificato sugli header di tutte e 5853
 
 Il costo che scala è il tempo, non la memoria: una lettura da disco per soggetto (la maschera è letta **una volta** e ricampionata una volta per griglia, non riletta per griglia) più un ricampionamento per griglia.
 
-**La colonna a 1 mm è ridondante per 5 dataset su 8.** `manual_masks/` contiene la lesione già ricampionata da BCBToolKit su griglia 1 mm (`docs/guides/datasets.md`), e per i dataset segmentati originariamente a 2 mm i voxel risultano costanti in blocchi 2x2x2 allineati: `lesion_volume_voxels_1mm` è esattamente `8 x lesion_volume_voxels_2mm`, e il conteggio a 2 mm **ricostruisce esattamente** la maschera nativa, quindi nessuna lesione può sparire. Sono 5150 soggetti su 5853 (UCL-UK, UKLFR, WashU, NEMESIS_T0, SFB936); le due colonne portano informazione diversa solo per i 702 di PASPORT, PSP e WAKEUP. Verificato su tutti i soggetti, uniforme dentro ogni dataset - tabella e metodo in `docs/guides/datasets.md`. Il disegno a due griglie resta giustificato proprio da quei 702: 2 dei 4 soggetti con volume 0 sulla griglia di produzione stanno in WAKEUP e hanno una lesione reale di 8 e 3 voxel.
+**La colonna a 1 mm è ridondante per 5 dataset su 8.** `manual_masks/` contiene la lesione già ricampionata da BCBToolKit su griglia 1 mm (`docs/guides/datasets.md`), e per i dataset segmentati originariamente a 2 mm i voxel risultano costanti in blocchi 2x2x2 allineati: il conteggio *grezzo* a 1 mm è esattamente `8 x` quello a 2 mm, e il conteggio a 2 mm **ricostruisce esattamente** la maschera nativa, quindi nessuna lesione può sparire. Sono 5150 soggetti su 5853 (UCL-UK, UKLFR, WashU, NEMESIS_T0, SFB936); le due colonne portano informazione diversa solo per i 534 di PASPORT e WAKEUP. **Le colonne del csv non sono il conteggio grezzo**: sono contate dopo l'azzeramento dei voxel fuori dal cervello, e ogni griglia ha la propria maschera cerebrale (`brain_mask_path` in `grids` di `compute_lesion_metadata.json`), quindi `lesion_volume_voxels_1mm == 8 x lesion_volume_voxels_2mm` vale esattamente solo per chi non ha voxel fuori dal brain (3501 su 3501 in questi 5 dataset). Per gli altri 1608 le due colonne differiscono di pochi voxel (differenza relativa mediana 0,2%, 95° percentile 2,3%, massima 12,8%): è un effetto di bordo dell'azzeramento, non una perdita di dettaglio.
+
+**PSP: maschere frazionarie.** Le 168 maschere PSP sono a 2 mm e interpolate linearmente a 1 mm, quindi hanno valori multipli di 1/8 invece di solo 0/1 (negli altri 7 dataset sono binarie). `_binarize_on_grid` binarizza con `> binarize_threshold` (0,5): a 1 mm scarta i voxel che valgono esattamente 0,5 (circa il 23% di quelli di lesione), e `lesion_volume_voxels_1mm` risulta in mediana 0,83 volte il volume vero (da 0,34 a 0,94). A 2 mm `nearest` campiona proprio i voxel che valgono 0 o 1 e ricostruisce la maschera originale: la colonna a 2 mm è esatta. Le colonne a 1 mm di PSP non sono affidabili. Non è noto come BCBToolKit usi la stessa mappa frazionaria per calcolare la disconnessione (vedi `.claude/open_problems.md`). Verificato su tutti i soggetti, uniforme dentro ogni dataset - tabella e metodo in `docs/guides/datasets.md`. Il disegno a due griglie resta giustificato proprio da quei 534: 2 dei 4 soggetti con volume 0 sulla griglia di produzione stanno in WAKEUP e hanno una lesione reale di 8 e 3 voxel.
 
 ### La soglia del lato
 
@@ -130,17 +132,22 @@ Quello script ora legge `laterality_index_<grid>` dal csv e **non apre nessuna m
 
 ## `enrich_metadata`: il join
 
-`lesion_metadata` (config, opzionale, `null` salta del tutto le colonne derivate dalle maschere) ha tre chiavi:
+`lesion_metadata` (config, opzionale, `null` salta del tutto le colonne derivate dalle maschere) ha quattro chiavi:
 
 | Chiave | Effetto |
 |---|---|
 | `path` | Il csv da cui copiare. |
 | `copy_columns` | Colonne copiate **con lo stesso nome**, per ogni soggetto in scope, sovrascrivendo. Ogni nome deve esistere nel csv e non può essere una colonna di `populate_metadata.py`. |
 | `lesion_side_from` | Quale colonna del csv riempie `lesion_side`: **solo dove la risoluzione clinica ha lasciato la cella vuota**, scrivendo anche `lesion_side_source = "geometric"`. `null` disattiva. Richiede `lesion_side` in `variables`. |
+| `geometric_override_datasets` | Dataset dove un lato clinico `left`/`right` **opposto** a quello di `lesion_side_from` viene sostituito da quest'ultimo (`lesion_side_source = "geometric"`). L'unica eccezione a "un valore clinico non si sovrascrive". Obbligatoria, `[]` la disattiva. |
 
 Le due chiavi sono separate perché le regole di scrittura sono diverse, e la seconda scrive anche in una colonna ulteriore. Metterle nella stessa lista avrebbe richiesto che il codice conoscesse per nome la voce speciale — una regola implicita invece che dichiarata.
 
-`lesion_side` nel registro resta **senza suffisso di griglia** anche se nel csv le colonne sono `lesion_side_1mm`/`lesion_side_2mm`: per i circa 1445 soggetti con etichetta clinica quel valore non viene da nessuna griglia, quindi un suffisso sarebbe falso per la maggioranza delle celle. `lesion_side_from` registra da quale griglia viene la parte geometrica; `lesion_side_source` dice, per ogni soggetto, quale delle due provenienze ha vinto. Le due fonti non sono mai in conflitto perché la seconda scrive solo dove la prima non ha scritto nulla.
+`lesion_side` nel registro resta **senza suffisso di griglia** anche se nel csv le colonne sono `lesion_side_1mm`/`lesion_side_2mm`: per i circa 1445 soggetti con etichetta clinica quel valore non viene da nessuna griglia, quindi un suffisso sarebbe falso per la maggioranza delle celle. `lesion_side_from` registra da quale griglia viene la parte geometrica; `lesion_side_source` dice, per ogni soggetto, quale delle due provenienze ha vinto. Le due fonti non entrano in conflitto perché la seconda scrive solo dove la prima non ha scritto nulla, con una sola eccezione dichiarata: `geometric_override_datasets` (sotto).
+
+### `geometric_override_datasets`: perché è per dataset e per regola
+
+La forzatura è una **regola per dataset**, non un elenco di ID. Un elenco di ID andrebbe rifatto a mano a ogni cambio delle maschere e non direbbe a un lettore perché quei soggetti; la regola (lato clinico `left`/`right` opposto a quello geometrico) si rilegge da `lesion_metadata.csv` a ogni run. È **per dataset** perché è stata verificata solo su WashU (11/162); UKE e PSP hanno un caso ciascuno, non indagati, e un default globale cambierebbe il registro su dati che nessuno ha guardato. Motivazione, regola e conseguenze per chi legge il registro sono in `docs/guides/metadata.md`, sezione "Il lato forzato dalla geometria". Ogni soggetto forzato è un `WARNING` nel log: la forzatura contraddice il tsv di un dataset e non deve essere invisibile (come le sostituzioni di `VARIABLE_SOURCE_OVERRIDES`).
 
 ### Il join è stretto nei due sensi
 
@@ -163,14 +170,14 @@ La conseguenza è deliberata: un volume o un lato inaffidabile ha la sua causa n
 
 ## `excluded_subjects.csv`: chi entra in analisi
 
-`subject_id, dataset, reason, value`, scritto **a mano** dal notebook `notebooks/exploration/lesion_analysis.ipynb`. Letto da `src/utils/participants.py::load_excluded_subjects`, e da lì da `build_lesion_matrix.py` e `build_sdc_matrix.py` tramite il campo `excluded_subjects_path` dei loro config — vedi `docs/dev/lesion_matrix.md`.
+`subject_id, dataset, reason, scope, value`, generato da `src/pipeline/build_excluded_subjects.py` a partire dal config `config/pipelines/build_excluded_subjects.json`, dove ogni soggetto è elencato esplicitamente (nessuna soglia): il csv è derivato e si riscrive per intero a ogni run, il config è la decisione. L'ultima cella di `notebooks/exploration/lesion_analysis.ipynb` non scrive nulla: stampa i blocchi da incollare nel config. Letto da `src/utils/participants.py::load_excluded_subjects`, e da lì da `build_lesion_matrix.py` e `build_sdc_matrix.py` tramite il campo `excluded_subjects_path` dei loro config — vedi `docs/dev/lesion_matrix.md`.
 
 Nessuna pipeline lo genera: i dati non hanno un salto naturale su cui mettere una soglia (su 5853 soggetti, 3 maschere a 0 voxel a 2 mm, 132 con volume ≤ 10 voxel, coda continua; 234 soggetti sopra il 5% di frazione fuori dal brain, 73 sopra il 10%), e quale soggetto limite valga la pena di scartare è un giudizio che appartiene all'analisi.
 
-`reason` ha un vocabolario chiuso in `KNOWN_EXCLUSION_REASONS` (`empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`), pensato per crescere: aggiungerne uno è una voce lì più una riga in `docs/guides/metadata.md`. Chiuso e non libero perché il file è scritto a mano e un motivo con un typo diventerebbe in silenzio una categoria nuova che nessuno conta.
+`reason` ha un vocabolario chiuso in `KNOWN_EXCLUSION_REASONS` (`empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`, `all_zero_features`), pensato per crescere: aggiungerne uno è una voce lì più una riga in `docs/guides/metadata.md`. Chiuso e non libero perché la lista dei soggetti è scritta a mano nel config e un motivo con un typo diventerebbe in silenzio una categoria nuova che nessuno conta.
 
 Un file **assente solleva**; con la sola intestazione è valido e significa "nessuna esclusione, deliberatamente". Le due cose non sono lo stesso fatto, e trattare un file mai scritto come "non escludere nessuno" produce esattamente la matrice di produzione con tutti i soggetti limite dentro che la lista esiste per evitare.
 
-Ogni riga è validata contro il registro (ID inesistente, ID duplicato, `subject_id` vuoto, `dataset` in disaccordo, motivo non registrato, `value` non numerico sollevano): il file è scritto a mano, e i dati ridondanti scritti a mano divergono. Il `dataset` è ridondante col registro proprio per questo viene controllato invece che ignorato.
+Ogni riga è validata contro il registro (ID inesistente, ID duplicato, `subject_id` vuoto, `dataset` in disaccordo, motivo non registrato, `value` non numerico sollevano): la pipeline deriva `dataset` e `value` da registro e `lesion_metadata.csv`, ma il validatore (lo stesso che gira sul file temporaneo prima della sostituzione) li controlla comunque: i dati ridondanti divergono, e il file letto dalle matrici può essere stato toccato fuori dalla pipeline.
 
 I soggetti esclusi **restano** in `participants.csv` con `has_lesion`/`has_sdc` intatti e restano in `lesion_metadata.csv`: l'esclusione riguarda solo cosa entra in una matrice.

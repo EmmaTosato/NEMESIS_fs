@@ -124,7 +124,10 @@ _FONT_STACK = (
 CSS = f"""
 body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_COLOR}; }}
 .page {{ max-width: 1100px; margin: 0 auto; padding: 48px 32px 96px; }}
-.page-title {{ font-size: 32px; font-weight: 800; text-align: center; margin: 0 0 12px; }}
+/* 02-10-26 feedback: same size as .section-title ("Clustering Explorer") - the two headline
+   titles the app has must read as the same weight of statement, not a page title that's
+   visibly smaller than one of its own sections. */
+.page-title {{ font-size: 40px; font-weight: 800; letter-spacing: -0.01em; text-align: center; margin: 0 0 14px; }}
 /* 01-09-26 feedback: the descriptive/status texts across the app (this subtitle, .status-message,
    .anatomy-caption) read "troppo chiaro e scritto in piccolo" - all 3 bumped in size and to a
    darker gray, still clearly secondary to any heading (kept well under .section-heading/
@@ -176,7 +179,7 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 /* The per-subject -> per-cluster break (30-09-26). A heavier rule than .anatomy-panel's own
    hairline, because this separates two kinds of question, not two panels of the same kind. */
 .section-divider {{ margin-top: 88px; padding-top: 52px; border-top: 3px solid {_TEXT_COLOR}; }}
-.section-title {{ font-size: 40px; font-weight: 800; text-align: center; margin: 0 0 10px; }}
+.section-title {{ font-size: 40px; font-weight: 800; letter-spacing: -0.01em; text-align: center; margin: 0 0 10px; }}
 .section-intro {{ font-size: 17px; color: #595959; text-align: center; margin: 0 0 28px; }}
 /* The chooser that scopes every panel below: centred and wider than a picker-row field, so it
    reads as this section's own control rather than as one more form field. */
@@ -253,9 +256,11 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
    column's only use of color, and it encodes identity, nothing else. */
 .stats-swatch {{ width: 13px; height: 13px; border-radius: 3px; flex: none; }}
 /* The value carries the weight; the ± spread is secondary ink beside it, not a second number
-   competing for attention. tabular-nums so digits line up down a column. */
+   competing for attention. tabular-nums so digits line up down a column. Bold (02-10-26
+   feedback), one step heavier than .stats-cluster's own 600 - this is the number the table
+   exists to show, the rest of the row is context for it. */
 .stat-value {{
-    font-size: 17px; font-weight: 600; color: {_TEXT_COLOR}; font-variant-numeric: tabular-nums;
+    font-size: 17px; font-weight: 700; color: {_TEXT_COLOR}; font-variant-numeric: tabular-nums;
     line-height: 1.3; white-space: nowrap;
 }}
 /* 30-09-26, on request: the ± spread is part of the same number as the mean, so it wears the
@@ -840,6 +845,7 @@ def build_embedding_figure(
         return kw
 
     fig = go.Figure()
+    has_colorbar = False  # set below for a continuous mode - moves the legend so it can't sit on top of it
 
     if mode_name == NEUTRAL_MODE:
         fig.add_trace(scatter_cls(**_trace_kwargs(), mode="markers", marker=dict(color="#3aa9e0", **marker_kwargs)))
@@ -910,9 +916,17 @@ def build_embedding_figure(
             # still showed up as a legend entry with mode.label and no visible marker,
             # confusing next to the real "missing" trace that already explains the gap.
             if (~is_missing).any():
+                has_colorbar = True
                 fig.add_trace(
                     scatter_cls(
                         **_trace_kwargs(~is_missing), mode="markers", name=mode.label,
+                        # showlegend=False (02-10-26 feedback: "la legenda ... si sovrappone"):
+                        # the colorbar already carries this trace's own name as its title, so a
+                        # legend entry repeating it just duplicates that label - and Plotly's
+                        # default legend position (top-right) sits exactly where the colorbar
+                        # does, so the two visibly overlapped. The "missing"/"centroide" entries
+                        # above/below still need the legend, so it is moved (not removed) below.
+                        showlegend=False,
                         marker=dict(
                             color=color_values[~is_missing], colorscale="Viridis", colorbar=colorbar_kwargs,
                             **marker_kwargs,
@@ -927,9 +941,15 @@ def build_embedding_figure(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family=_FONT_STACK, color=_TEXT_COLOR),
-        margin=dict(l=10, r=10, t=70, b=10),
+        # Extra bottom margin only where the legend is relocated there (has_colorbar) - a plain
+        # categorical/neutral mode keeps the default top-right legend, no colorbar to collide with.
+        margin=dict(l=10, r=10, t=70, b=70 if has_colorbar else 10),
         height=680 if is_3d else 560,
     )
+    if has_colorbar:
+        # A continuous mode's colorbar sits at the plot's right edge, the same corner Plotly's
+        # own default legend occupies - moved below the plot instead of overlapping it.
+        layout_kwargs["legend"] = dict(orientation="h", xanchor="center", x=0.5, yanchor="top", y=-0.12)
     if is_3d:
         thin_axis = dict(showbackground=False, showgrid=False, zeroline=True, linewidth=1, showline=True)
         layout_kwargs["scene"] = dict(
@@ -1353,7 +1373,7 @@ def lesion_viewer_content_for(
         view, dataset = _build_subject_lesion_view(run, subject_id, metadata, lesion_cfg)
     except ValueError as exc:
         return html.P(str(exc), className="status-message")
-    return _anatomy_viewer(view, f"{subject_id} ({dataset})", "Giallo = voxel lesionato")
+    return _anatomy_viewer(view, f"{subject_id} ({dataset})", "Zona colorata = Lesione")
 
 
 def _build_cluster_overlap_view(
@@ -1601,9 +1621,10 @@ def disconnection_map_content_for(
     if map_mode == DISCONNECTION_PERCENT_MODE:
         caption = "Colore = % di soggetti del cluster disconnessi in quel voxel (0-100%)."
         note = (
-            f"\"Disconnesso\" = probabilità > {DISCONNECTION_PROBABILITY_THRESHOLD:g} per quel "
-            f"soggetto. Stessa quantità della overlap map lesionale, quindi direttamente "
-            f"confrontabile."
+            f"Un soggetto conta come disconnesso in un voxel se lì la sua probabilità di "
+            f"disconnessione supera {DISCONNECTION_PROBABILITY_THRESHOLD:g} - stessa soglia e "
+            f"stessa logica dell'overlap map lesionale, quindi i due pannelli sono "
+            f"confrontabili direttamente."
         )
     else:
         caption = "Colore = probabilità media di disconnessione del cluster in quel voxel (0-1)."
@@ -1719,7 +1740,7 @@ def _coverage_note(summary: dict) -> html.Span | None:
     either - the caption under the table states the rule."""
     if summary["n_available"] == summary["n_total"]:
         return None
-    return html.Span(f"{summary['n_available']}/{summary['n_total']}", className="stat-n")
+    return html.Span(f"{summary['n_available']}/{summary['n_total']}", className="stats-n")
 
 
 def _clusters_comparison_table(stats: list[ClusterStats], selected_cluster: int) -> html.Div:
@@ -1750,7 +1771,7 @@ def _clusters_comparison_table(stats: list[ClusterStats], selected_cluster: int)
         name = "Rumore" if stat.cluster_label == -1 else f"Cluster {stat.cluster_label}"
         size = [html.Div(_format_number(stat.n_total, 0), className="stat-value")]
         if stat.n_unregistered:
-            size.append(html.Span(f"{stat.n_unregistered} fuori registro", className="stat-n"))
+            size.append(html.Span(f"{stat.n_unregistered} fuori registro", className="stats-n"))
         cells = [
             _format_categorical_cell(stat.summaries[v.name]) if v.kind == "categorical"
             else _format_continuous_cell(stat.summaries[v.name], v)
@@ -1991,8 +2012,7 @@ def build_app(
         children=[
             html.H1("Embedding Explorer", className="page-title"),
             html.P(
-                "Esplorazione interattiva dei run di produzione (dim_reduction.py/clustering.py) — "
-                "scegli un run e una colorazione.",
+                "Esplorazione interattiva dei run di produzione — scegli un run e una colorazione.",
                 className="page-subtitle",
             ),
             html.Div(
@@ -2137,7 +2157,7 @@ def build_app(
                 className="section-divider",
                 style={"display": "none"},
                 children=[
-                    html.H2("Clustering Exploring", className="section-title"),
+                    html.H2("Clustering Explorer", className="section-title"),
                     html.P(
                         "Le sezioni qui sotto descrivono un cluster alla volta. Scegli quale.",
                         className="section-intro",

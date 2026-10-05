@@ -27,6 +27,21 @@ This file covers turning lesion masks into a feature matrix ready for dimensiona
 
 **Shared with the SDC matrix by design.** `src/features/sdc.py::_subjects_with_lesion_mask` applies the same list (both representations go through it), so the two matrices drop exactly the same subjects. Without that, a lesion-vs-SDC comparison would silently compare two different cohorts. This is also why the file is one list rather than one per pipeline, and why the SDC side can honour it despite never loading a raw lesion mask (`docs/dev/sdc_matrix.md`, "Why participants.tsv, not manual_masks/ on disk"): the list is subject ids, not imaging.
 
+### Resampling onto the common grid
+
+Every lesion mask reaches its target grid through one function, `src/features/lesion.py::_binarize_on_grid`, shared by `build_lesion_matrix` and `compute_lesion_metadata` so a volume is computed the same way in both.
+
+1. **Target grid**: fixed by an explicit `reference_template_path` (2mm template for the production matrix; `compute_lesion_metadata` declares one template per grid, 1mm and 2mm).
+2. **Is a resample needed?** `_needs_resample` is true if the mask's shape differs from the reference **or** its affine is not `np.allclose` to the reference's (`atol=1e-3`). Shape alone is not enough: two images can share a shape while their affines place the same array at different physical coordinates. A mask already on the grid is not touched, so its count is the native one.
+3. **Resample**: `nilearn.image.resample_to_img(img, reference, interpolation=resample_interpolation, force_resample=True, copy_header=True)`. `resample_interpolation` is `nearest` in both production configs, because a mask holds labels and any other interpolation produces values that are neither 0 nor 1.
+4. **Re-binarize**: `img.get_fdata() > binarize_threshold` (`0.5` in production), then flattened in C order. This runs even when the source is already binary, since registration and interpolation can leave near-0/near-1 values.
+
+**`nearest` downsampling is sampling, not averaging.** Going from 1mm to 2mm each target voxel covers 8 source voxels and takes the value of one. The 2mm volume is therefore not `native / 8`, and a very small lesion can lose all its voxels. This is why `lesion_metadata.csv` keeps both grids (see `docs/guides/metadata.md`). Measurements and the majority-threshold alternative are in `knowledge/neuroimaging/lesion_resampling.md`.
+
+**The brain mask is always `nearest`** (`_load_and_binarize_brain_mask`, threshold `0.5`), whatever `resample_interpolation` the run uses: it is binary too.
+
+**`compute_lesion_metadata` reads each mask once** and resamples it once per grid, not once per metric. The SDC pipeline resamples lesion masks separately (`nearest` hardcoded, onto the canonical 1mm grid) to feed BCBToolKit upstream of this repo; that is a different purpose and not covered here.
+
 ### `correct_out_of_brain` — fix the voxels, keep the subject
 
 Zeroes every lesion voxel of every subject falling outside `brain_mask_path` (`src/features/lesion_correction.py::zero_out_of_brain_voxels`, applied in `_apply_out_of_brain_correction`, which also recomputes `lesion_volume_voxels` from the corrected data) and keeps the subject in the matrix. Disabled (`False`) by default - no correction is ever applied silently.

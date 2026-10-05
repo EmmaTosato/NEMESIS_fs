@@ -16,8 +16,9 @@
     "copy_columns": [
       "lesion_volume_voxels_2mm"
     ],
-    "lesion_side_from": "lesion_side_2mm"
+    "lesion_side_from": "lesion_side_2mm",
+    "geometric_override_datasets": ["UNIPD/WashU"]
   },
   "fill": false,
-  "run_notes": "enrich_metadata e' un join, non calcola nulla dalle maschere: i valori derivati dalle maschere arrivano da assets/metadata/lesion_metadata.csv (src.pipeline.compute_lesion_metadata), che possiede ogni scelta su COME una maschera e' misurata (griglie, azzeramento fuori dal brain, soglia del lato). copy_columns copia con lo stesso nome per tutti i soggetti in scope, sovrascrivendo. lesion_side_from riempie lesion_side solo dove la risoluzione clinica ha lasciato la cella vuota, scrivendo lesion_side_source=geometric, e registra da quale griglia viene il lato del registro (il csv ne ha uno per griglia). Un valore clinico non viene mai sovrascritto. Le colonne derivate dalle maschere non si correggono a mano: ogni run le ricopia, un valore inaffidabile si sistema sulla maschera o il soggetto va in assets/metadata/excluded_subjects.csv."
+  "run_notes": "enrich_metadata e' un join, non calcola nulla dalle maschere: i valori derivati dalle maschere arrivano da assets/metadata/lesion_metadata.csv (src.pipeline.compute_lesion_metadata), che possiede ogni scelta su COME una maschera e' misurata (griglie, azzeramento fuori dal brain, soglia del lato). copy_columns copia con lo stesso nome per tutti i soggetti in scope, sovrascrivendo. lesion_side_from riempie lesion_side solo dove la risoluzione clinica ha lasciato la cella vuota, scrivendo lesion_side_source=geometric, e registra da quale griglia viene il lato del registro (il csv ne ha uno per griglia). Un valore clinico non viene sovrascritto, tranne nei dataset di geometric_override_datasets (WashU: ~7% dei lati clinici e' invertito alla fonte): li', se il lato clinico e' l'esatto opposto di quello della maschera (left contro right), il registro prende il lato geometrico e scrive lesion_side_source=geometric - un'assunzione forzata, non una misura (docs/guides/metadata.md). Le colonne derivate dalle maschere non si correggono a mano: ogni run le ricopia, un valore inaffidabile si sistema sulla maschera o il soggetto va in assets/metadata/excluded_subjects.csv."
 }

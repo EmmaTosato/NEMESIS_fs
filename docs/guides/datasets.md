@@ -20,7 +20,7 @@ Per rigenerarli: `notebooks/exploration/dataset_availability.ipynb` (esplorazion
 | **`UKLFR/stroke_UKLFR`** | 735 (735 ST) | 705 | 705 | — | 1.0 mm | reticolo 2 mm |
 | **`UKE/WAKEUP_acute`** | 503 (503 ST) | 451 ️ | 451 | — | 1.0 mm | **1 mm** |
 | **`UNIPD/WashU`** | 319 (251 ST + 68 HC) | 195 | 195 | **225** (169 ST + 56 HC) | 1.0 mm | reticolo 2 mm |
-| **`UNIPD/PSP`** | 237 (237 ST) | 168 | 168 | — | 1.0 mm | **1 mm** |
+| **`UNIPD/PSP`** | 237 (237 ST) | 168 | 168 | — | 1.0 mm | **2 mm interpolata** |
 | **`UNIPD/PASPORT`** | 97 (97 ST) | 83 | 83 | — | 1.0 mm | **1 mm** |
 | **`UNIPD/NEMESIS_T0`** | 104 (76 ST nel registro) | 76 | 76 | — | 1.0 mm | reticolo 2 mm |
 | **`UKE/SFB936_ses01`** | 57 (56 ST nel registro) | 56 | 56 | — | 1.0 mm | reticolo 2 mm |
@@ -34,11 +34,12 @@ Tutte le maschere sono in spazio `MNI152NLin6Asym` su griglia **1.0 mm**, `182x2
 Un ricampionamento non crea dettaglio che non c'era. Per i dataset la cui segmentazione originale era a 2 mm, il risultato è un volume su griglia da 1 mm i cui voxel sono **costanti in blocchi 2x2x2 allineati** — ogni voxel originale replicato 8 volte. È questo che distingue le due colonne:
 
 - **`reticolo 2 mm`** — 5150 soggetti (UCL-UK, UKLFR, WashU, NEMESIS_T0, SFB936). Nessun dettaglio sotto i 2 mm.
-- **`1 mm`** — 702 soggetti (PASPORT, PSP, WAKEUP). Segmentazione genuinamente a 1 mm.
+- **`1 mm`** — 534 soggetti (PASPORT, WAKEUP). Segmentazione genuinamente a 1 mm, binaria (solo 0 e 1).
+- **`2 mm interpolata`** — 168 soggetti (PSP). Maschera a 2 mm portata a 1 mm con interpolazione lineare: i valori non sono solo 0 e 1 ma multipli di 1/8, e valgono 0 o 1 solo i voxel che coincidono con i centri della griglia a 2 mm (la somma dei valori è esattamente 8 × il volume a 2 mm). Conseguenze per le colonne a 1 mm in [`docs/dev/metadata.md`](../dev/metadata.md).
 
 Verificato su **tutti e 5853** i soggetti, non a campione: per ciascuno si cerca, tra gli 8 allineamenti possibili, se esiste un raggruppamento in blocchi 2x2x2 con zero blocchi misti. Il verdetto è **uniforme dentro ogni dataset** (nessun dataset misto) e l'allineamento pulito è sempre `(1,1,1)`. L'unica eccezione non classificabile è `sub-STUKLFR0671`, la cui maschera è vuota.
 
-**Perché conta.** `assets/metadata/lesion_metadata.csv` misura ogni maschera su due griglie, 1 mm e 2 mm, per distinguere una maschera vuota da una lesione minuscola persa nel sottocampionamento ([`docs/guides/metadata.md`](metadata.md)). Per i dataset a reticolo 2 mm il conteggio sulla griglia di produzione a 2 mm **ricostruisce esattamente** la maschera originale, quindi nessuna lesione può sparire e `lesion_volume_voxels_1mm` è esattamente `8 x lesion_volume_voxels_2mm`: non aggiunge informazione. La perdita per sottocampionamento è possibile **solo** per i 702 soggetti a 1 mm genuino — e infatti 2 dei 4 soggetti con volume 0 sulla griglia di produzione stanno in WAKEUP, con lesioni reali di 8 e 3 voxel.
+**Perché conta.** `assets/metadata/lesion_metadata.csv` misura ogni maschera su due griglie, 1 mm e 2 mm, per distinguere una maschera vuota da una lesione minuscola persa nel sottocampionamento ([`docs/guides/metadata.md`](metadata.md)). Per i dataset a reticolo 2 mm il conteggio sulla griglia di produzione a 2 mm **ricostruisce esattamente** la maschera originale, quindi nessuna lesione può sparire e `lesion_volume_voxels_1mm` è esattamente `8 x lesion_volume_voxels_2mm`: non aggiunge informazione. La perdita per sottocampionamento è possibile **solo** per i 534 soggetti a 1 mm genuino — e infatti 2 dei 4 soggetti con volume 0 sulla griglia di produzione stanno in WAKEUP, con lesioni reali di 8 e 3 voxel.
 
 **UKLFR e WashU sono passati a 1mm il 23-09-26** (prima 1.5mm/2.0mm nativo): `manual_masks/` è stata ri-sincronizzata da una copia fresca della stessa sorgente usata per l'SDC (`Clinical_connectome_stroke/<dataset>/lesion/`, già a 1mm), che ora coincide esattamente con `sdc/` per questi due dataset (0 discrepanze, vedi sotto) invece di essere un sottoinsieme diverso. Il **dettaglio** attuale di entrambi è su reticolo 2 mm (vedi la nota sopra): la griglia a 1 mm viene da quel ricampionamento, non da una segmentazione a 1 mm.
 

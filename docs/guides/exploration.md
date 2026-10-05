@@ -22,11 +22,11 @@ Ordine logico dei dati: **input grezzi** (cosa esiste su disco, cosa dicono i TS
 |---|---|---|---|
 | `dataset_availability` | quali dati esistono su disco, per dataset, tipologia e soggetto? | `data/clinical_connectome/derivatives` (filesystem) | solo la cache `data/clinical_connectome/file_types_cache.json` |
 | `metadata_raw` | cosa dicono i metadati clinici/demografici come arrivano dai dataset, prima della nostra normalizzazione? | i TSV `data/clinical_connectome/metadata_tsv/participants_*.tsv`, non `participants.csv` | nulla |
-| `lesion_analysis` | com'è fatta ogni maschera di lesione (volume, lateralità, fuori dal brain) e chi va escluso dalle matrici? | `assets/metadata/lesion_metadata.csv`, `participants.csv` | `assets/metadata/excluded_subjects.csv`, **solo l'ultima cella** |
+| `lesion_analysis` | com'è fatta ogni maschera di lesione (volume, lateralità, fuori dal brain) e chi va escluso dalle matrici? | `assets/metadata/lesion_metadata.csv`, `participants.csv`; il file di una maschera a scelta da `derivatives/` (sezione "Lesion mask file exploring") | nulla (l'ultima cella stampa i blocchi da incollare nel config di `build_excluded_subjects`) |
 | `sdc_analysis` | l'output SDC è valido e com'è fatta la matrice di disconnessione? | output SDC (`sdc/`); costruisce la matrice in memoria | nulla |
 | `fc_analysis` | quanto danneggia la lesione la FC e dove va la soglia di mascheramento? | FC pre-masking e output di `mask_fc.py`/`build_fc_matrix.py` | nulla |
 
-**`lesion_analysis` e `excluded_subjects.csv`.** È l'unico notebook di esplorazione che scrive un file di produzione, ed è una scelta deliberata: l'ultima cella è quella che *decide*, tutto sopra è esplorazione. Non rieseguirla alla cieca: sovrascrive il file con le sole liste `EXCLUSIONS` scritte nella cella. Formato, vocabolario dei motivi e validazioni in [`metadata.md`](metadata.md).
+**`lesion_analysis` e `excluded_subjects.csv`.** L'ultima cella è quella che *decide*, ma non scrive: per gli ID che le si danno (tre motivi: `empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`, scope `all`) stampa i blocchi da incollare in `exclusions` di `config/pipelines/build_excluded_subjects.json`. La pipeline `build_excluded_subjects` genera poi il csv. Tutto sopra è esplorazione. Formato, vocabolario dei motivi e validazioni in [`metadata.md`](metadata.md).
 
 ---
 

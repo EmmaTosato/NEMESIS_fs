@@ -33,9 +33,11 @@ is a registry, not a plotting input: a consumer that needs a categorical
 sentinel (e.g. "unknown" for a colour legend) applies its own on read. The one
 exception carrying extra information is lesion_side_source, which records where
 a lesion_side value came from - "clinical" (the raw tsv) or "geometric" (a
-subject with no clinical value, filled from the geometry of its own lesion mask -
+subject whose side the registry takes from the geometry of its own lesion mask -
 see config.lesion_metadata below and knowledge/neuroimaging/lesion_laterality.md).
-A clinical value is never overwritten by a geometric one.
+A clinical value is overwritten by a geometric one in exactly one case, forced on
+purpose and listed per dataset in `geometric_override_datasets` (below): the clinical
+side is the exact opposite of the mask's.
 
 lesion_metadata (config, optional, null skips the mask-derived columns entirely):
 the join onto assets/metadata/lesion_metadata.csv.
@@ -50,10 +52,19 @@ the join onto assets/metadata/lesion_metadata.csv.
 - `lesion_side_from`: which CSV column fills `lesion_side`. Its rule differs from
   copy_columns, which is why it is a separate key: it writes ONLY where the
   clinical resolution above left the cell empty, and it also writes
-  lesion_side_source="geometric". A clinical value is never overwritten. It also
-  records which grid the registry's side comes from (e.g. "lesion_side_2mm"),
-  since the CSV carries one per grid. null disables the fill, leaving lesion_side
-  clinical-only. Requires `lesion_side` in `variables`.
+  lesion_side_source="geometric". Outside `geometric_override_datasets` a clinical
+  value is never overwritten. It also records which grid the registry's side comes
+  from (e.g. "lesion_side_2mm"), since the CSV carries one per grid. null disables
+  the fill, leaving lesion_side clinical-only. Requires `lesion_side` in `variables`.
+- `geometric_override_datasets`: datasets whose clinical lesion_side is known to be
+  unreliable (WashU: ~7% of the labelled subjects have it inverted, every one a full
+  inversion with |laterality_index| >= 0.95 - docs/dev/metadata.md). For a subject of
+  one of them whose clinical side is left/right and whose `lesion_side_from` side is
+  the opposite one (left vs right - a `both` never triggers it), the registry takes the
+  GEOMETRIC side and writes lesion_side_source="geometric". This is a forced assumption
+  (the clinical label is the wrong one, not the mask), not a measured fact; every
+  overridden subject is logged at WARNING. [] disables it; a non-empty list requires
+  `lesion_side_from`.
 
 The join is on subject_id and is strict in both directions: a subject with
 has_lesion=True but no row in the CSV means the CSV is stale (re-run
@@ -142,11 +153,13 @@ class LesionMetadataJoin:
 
     copy_columns are copied under their own name for every in-scope subject, overwriting.
     lesion_side_from (optional) has a different rule - fill-only-where-empty, plus
-    lesion_side_source - which is why it is not just another entry in copy_columns."""
+    lesion_side_source - which is why it is not just another entry in copy_columns.
+    geometric_override_datasets is the one exception to "never overwrite a clinical side"."""
 
     path: Path
     copy_columns: list[str]
     lesion_side_from: str | None
+    geometric_override_datasets: list[str]
 
 
 @dataclass(frozen=True)
@@ -235,7 +248,7 @@ def _load_lesion_metadata_config(raw_block: object, variables: list[str], path: 
         return None
     if not isinstance(raw_block, dict):
         raise ValueError(f"{path}: 'lesion_metadata' must be an object or null")
-    for key in ("path", "copy_columns", "lesion_side_from"):
+    for key in ("path", "copy_columns", "lesion_side_from", "geometric_override_datasets"):
         if key not in raw_block:
             raise ValueError(f"{path}: 'lesion_metadata' is missing required key {key!r}")
     if not isinstance(raw_block["path"], str) or not raw_block["path"]:
@@ -270,8 +283,18 @@ def _load_lesion_metadata_config(raw_block: object, variables: list[str], path: 
             "nothing to copy; use null to disable the block entirely"
         )
 
+    override_datasets = _unique_str_list(
+        raw_block["geometric_override_datasets"], "lesion_metadata.geometric_override_datasets", path
+    )
+    if override_datasets and lesion_side_from is None:
+        raise ValueError(
+            f"{path}: 'lesion_metadata.geometric_override_datasets' is {override_datasets} but "
+            "'lesion_side_from' is null - there is no geometric side to force"
+        )
+
     return LesionMetadataJoin(
-        path=Path(raw_block["path"]), copy_columns=copy_columns, lesion_side_from=lesion_side_from
+        path=Path(raw_block["path"]), copy_columns=copy_columns, lesion_side_from=lesion_side_from,
+        geometric_override_datasets=override_datasets,
     )
 
 
@@ -601,8 +624,47 @@ def enrich(registry: pd.DataFrame, config: EnrichMetadataConfig) -> tuple[pd.Dat
                             "and no row in %s (they have no lesion mask): %s",
                             len(unmeasured), join.path, unmeasured,
                         )
+            _force_geometric_side_on_inversions(out, measured[join.lesion_side_from], join, in_scope)
 
     return out, coverages
+
+
+_OPPOSITE_SIDE = {"left": "right", "right": "left"}
+
+
+def _force_geometric_side_on_inversions(
+    out: pd.DataFrame, geometric_side: pd.Series, join: LesionMetadataJoin, in_scope: pd.Series
+) -> None:
+    """Overwrite, IN PLACE on `out`, the clinical lesion_side of every subject of a
+    `geometric_override_datasets` dataset whose clinical side is the exact opposite of
+    `geometric_side` (indexed by subject_id) - and mark it lesion_side_source="geometric".
+
+    Only a left/right clash triggers it: a geometric `both` (or an empty side) never overrides a
+    clinical left/right, because that is a disagreement of degree, not the full inversion this
+    exists for. Each overridden subject is logged at WARNING - this deliberately contradicts the
+    dataset's own tsv, so it must never be invisible.
+    """
+    unknown = sorted(set(join.geometric_override_datasets) - set(out["dataset"]))
+    if unknown:
+        raise ValueError(
+            f"'lesion_metadata.geometric_override_datasets' names dataset(s) {unknown} that have no row "
+            "in the registry"
+        )
+    clinical = in_scope & out["dataset"].isin(join.geometric_override_datasets) & (
+        out[LESION_SIDE_SOURCE_COLUMN] == LESION_SIDE_SOURCE_CLINICAL
+    )
+    measured_side = out["subject_id"].map(geometric_side)
+    inverted = clinical & out[LESION_SIDE_VARIABLE].map(_OPPOSITE_SIDE).eq(measured_side)
+    if not inverted.any():
+        return
+    forced = sorted(out.loc[inverted, "subject_id"])
+    logging.warning(
+        "lesion_side: %d subject(s) have a clinical side opposite to their mask (%s) - registry forced "
+        "to the geometric side, lesion_side_source=%s: %s",
+        len(forced), join.lesion_side_from, LESION_SIDE_SOURCE_GEOMETRIC, forced,
+    )
+    out.loc[inverted, LESION_SIDE_VARIABLE] = measured_side[inverted]
+    out.loc[inverted, LESION_SIDE_SOURCE_COLUMN] = LESION_SIDE_SOURCE_GEOMETRIC
 
 
 def _apply(existing: pd.Series | None, fresh: pd.Series, in_scope: pd.Series, fill: bool) -> pd.Series:
@@ -651,6 +713,7 @@ def _lesion_metadata_summary(join: LesionMetadataJoin | None) -> str:
         "path": str(join.path),
         "copy_columns": join.copy_columns,
         "lesion_side_from": join.lesion_side_from,
+        "geometric_override_datasets": join.geometric_override_datasets,
     }
     return json.dumps(payload, indent=2)
 

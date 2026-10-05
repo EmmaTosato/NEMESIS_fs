@@ -8,6 +8,23 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 05-10-26 — `lesion_side` di WashU: dove clinico e maschera sono opposti, il registro prende la geometria
+
+**Decisione**: in `participants.csv`, per i dataset di `geometric_override_datasets` (oggi solo `UNIPD/WashU`, `config/pipelines/enrich_metadata.json`), un soggetto con lato clinico `left`/`right` e lato in `lesion_side_2mm` l'opposto riceve il lato **geometrico** e `lesion_side_source = "geometric"`. È l'unica eccezione a "un valore clinico non si sovrascrive". Un `both` geometrico non scatta mai.
+
+**Misurato**: su 162 WashU con lato clinico, 11 (6,8%) sono opposti alla maschera, 6 `left`→`right` e 5 `right`→`left`, tutti con `|laterality_index_2mm| ≥ 0,95`. Le 195 maschere WashU hanno header identico (RAS, affine con origine -90, shape 182×218×182). Negli altri dataset il tasso è quasi nullo (UKLFR 0/120, UKE 1/120, PSP 1/95, campioni di `.claude/open_problems.md`). Applicato alla run del 05-10-26: i 11 soggetti sono `sub-STUNIPD0002/0008/0026/0056/0077/0131/0147/0151/0179/0187/0222`.
+
+**Perché**: l'ipotesi è che sbagli l'etichetta clinica (errore alla fonte, magari una convenzione di visualizzazione radiologica), non la maschera. Il motivo per preferire questa ipotesi: un capovolgimento delle maschere sarebbe sistematico per un processo comune a tutto il dataset, non confinato a 11 soggetti in entrambe le direzioni. **Non è verificata sulla T1.**
+
+**Alternative scartate**:
+- *Elenco di ID in config*: va rifatto a mano a ogni cambio delle maschere e non dice perché quei soggetti. La regola si rilegge da `lesion_metadata.csv` a ogni run.
+- *Regola globale su tutti i dataset*: UKE e PSP hanno un caso ciascuno, mai indagati; un default globale cambierebbe il registro su dati che nessuno ha guardato.
+- *Lasciare il lato clinico e usare la geometria solo dove manca* (comportamento precedente): le inversioni restavano nei plot per `side` e nella descrizione dei cluster.
+
+**Conseguenza ancora vera oggi**: `lesion_side_source = "clinical"` non indica più tutte le etichette del tsv. `src/pipeline/calibrate_lesion_side_threshold.py` usa quelle righe come verità, quindi non vede più le 11 inversioni: l'accordo che calcola ora è più alto del 97,4% (su 1445, inversioni incluse) della voce del 28-09-26 e non è confrontabile. Se la T1 mostrasse che sbaglia la maschera, la lista va svuotata e la run rifatta.
+
+---
+
 ## 30-09-26 — Cache condivisa e ricampionamento single-pass per le mappe anatomiche in Embedding Explorer
 
 **Decisione**: `BinaryMaskStore` (`src/analysis/anatomical_maps.py`) passa da precalcolo per-singola-run a cache in-memoria condivisa fra tutti i run/cluster aperti nella stessa sessione app: per ogni soggetto tiene solo gli indici dei voxel sopra soglia (lesione, o disconnessione >0.5), riempiti una sola volta per soggetto indipendentemente da quanti run/cluster lo richiedono. `_GridResampler`, stessa classe, calcola una sola volta la corrispondenza voxel→voxel fra griglia sorgente e reference (invece che per ogni soggetto) — bit-identico a `resample_to_img`, verificato con test dedicato. Nuovo flag `--preload` in `src/pipeline/embedding_app.py`: all'avvio, in background, legge tutti i soggetti di tutti i run di clustering (maschere lesionali sempre, disconnettomi SDC solo per i run sdc) e riempie i due store una volta per l'intera sessione. Inoltre, `_masked_for_view_colorbar` (`src/analysis/embedding_app.py`) rimuove il grigio dalla colorbar interattiva della mappa "probabilità media": pre-azzera i voxel sotto soglia (0.02) e passa un epsilon a `view_img` invece della soglia reale.

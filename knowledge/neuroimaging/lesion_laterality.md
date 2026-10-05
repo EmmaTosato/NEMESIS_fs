@@ -14,7 +14,7 @@ Il documento è in tre parti:
 
 ## 1. Perché serve un fallback geometrico
 
-`lesion_side` (`left`/`right`/`both`) è un dato clinico prima di tutto — arriva dal tsv grezzo del dataset, quando quella colonna esiste. Ma 3 degli 8 dataset in-scope non hanno mai avuto questa colonna (UCL-UK, PASPORT, e il nuovo `UNIPD/NEMESIS_T0` onboardato il 28-09-26), e altri hanno celle vuote per singoli soggetti pur avendo la colonna. La maschera di lesione, però, esiste sempre per un soggetto ammesso — quindi il lato si può derivare geometricamente, come fallback esplicito, mai come sostituto del dato clinico dove questo esiste.
+`lesion_side` (`left`/`right`/`both`) è un dato clinico prima di tutto — arriva dal tsv grezzo del dataset, quando quella colonna esiste. Ma 3 degli 8 dataset in-scope non hanno mai avuto questa colonna (UCL-UK, PASPORT, e il nuovo `UNIPD/NEMESIS_T0` onboardato il 28-09-26), e altri hanno celle vuote per singoli soggetti pur avendo la colonna. La maschera di lesione, però, esiste sempre per un soggetto ammesso — quindi il lato si può derivare geometricamente, come fallback esplicito, e come sostituto del dato clinico dove questo esiste solo per i dataset dichiarati in `geometric_override_datasets` (`config/pipelines/enrich_metadata.json`) e solo quando il lato clinico è l'opposto esatto di quello geometrico — vedi `docs/guides/metadata.md`.
 
 ## 2. La formula: laterality index
 

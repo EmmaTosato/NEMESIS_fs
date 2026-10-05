@@ -167,18 +167,26 @@ def compose_run_title(output_dir: Path, project: str) -> str:
 
 
 def _modality_title(output_dir: Path) -> str:
-    """Naive capitalized plural (append "s") of output_dir's modality segment
-    - the first path part after a leading "results", e.g. "lesion" ->
-    "Lesions" - so a future modality (e.g. "sdc" -> "Sdcs") picks up the same
-    format automatically. Shared by every title composer below so they can't
-    drift out of format sync with each other.
+    """Capitalized plural of output_dir's modality segment - the first path
+    part after a leading "results", e.g. "lesion" -> "Lesions" - so a future
+    free-text modality picks up the same format automatically. Shared by
+    every title composer below so they can't drift out of format sync with
+    each other.
+
+    "sdc" is a fixed exception, not a word to pluralize/title-case character
+    by character: it is the acronym for "structural disconnectome", so it
+    reads "SDC" always - the naive rule below used to produce "Sdcs"
+    (02-10-26 feedback: "non è ben fatta").
     """
     parts = output_dir.parts
     if parts and parts[0] == "results":
         parts = parts[1:]
     if not parts:
         raise ValueError(f"cannot derive a modality from output_dir {output_dir} - no path segments after 'results'")
-    return parts[0][0].upper() + parts[0][1:] + "s"
+    modality = parts[0]
+    if modality == "sdc":
+        return "SDC"
+    return modality[0].upper() + modality[1:] + "s"
 
 
 def compose_cluster_plot_title(output_dir: Path, reduction_method: str, clustering_method: str) -> str:

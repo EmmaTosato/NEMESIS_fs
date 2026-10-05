@@ -293,8 +293,11 @@ def build_cluster_description_figure(
     titles = []
     for variable in variables:
         summary = variable_summary(composition, variable)
+        # Two <br> between the label and the n= line (02-10-26 feedback: "più spazio tra
+        # titolo plot e n=") - a single <br> read as cramped at this font size, the label and
+        # its coverage looked like one run-on line instead of two.
         titles.append(
-            f'<b><span style="color:{variable.color}">{variable.label}</span></b><br>'
+            f'<b><span style="color:{variable.color}">{variable.label}</span></b><br><br>'
             f'<span style="font-size:13.5px;color:{_MUTED_COLOR}">'
             f"n={summary['n_available']}/{summary['n_total']}</span>"
         )
@@ -366,6 +369,10 @@ def build_cluster_description_figure(
 
     for annotation in fig.layout.annotations:  # the subplot titles make_subplots created
         annotation.font.update(size=17, color=_TEXT_COLOR, family=_FONT_STACK)
+        # Pushed further above its own subplot (02-10-26 feedback: "più spazio tra queste due
+        # cose e plot") - yshift is in pixels, applied after make_subplots' own title position,
+        # so this only widens the gap to the plot below without moving the title's row/col.
+        annotation.yshift = 8
 
     swatch = "" if color is None else f'<span style="color:{color}">■</span> '
     fig.update_layout(

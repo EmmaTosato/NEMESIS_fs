@@ -66,6 +66,14 @@ def test_compose_embedding_plot_title_raises_without_modality_segment():
         compose_embedding_plot_title(Path("results"), "umap")
 
 
+def test_compose_embedding_plot_title_sdc_modality_is_the_acronym_not_a_naive_plural():
+    # Regression (02-10-26 feedback): the naive "capitalize + append s" rule used to turn
+    # "sdc" into "Sdcs" - SDC is a fixed acronym (structural disconnectome), never pluralized.
+    output_dir = Path("results/sdc/dim_reduction/umap/21-07_s1_d01")
+
+    assert compose_embedding_plot_title(output_dir, "umap") == "SDC - Umap"
+
+
 def _embedding_and_metadata():
     X_2d = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0]])
     metadata = pd.DataFrame(

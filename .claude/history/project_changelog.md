@@ -6,6 +6,26 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 05-10-26 — `excluded_subjects.csv` è generato da una pipeline, `build_excluded_subjects`, da un config che elenca i soggetti
+
+**Cosa è cambiato**: nuova pipeline `src/pipeline/build_excluded_subjects.py` (+ `config/pipelines/build_excluded_subjects.json`, `jobs/run_build_excluded_subjects.sh`, `tests/unit/test_build_excluded_subjects.py`). Il config contiene, per ogni coppia (motivo, scope), gli ID dei soggetti esclusi e da dove viene il `value` (una colonna di `lesion_metadata.csv`, oppure una costante). La pipeline ricava `dataset` dal registro, controlla il risultato con `load_excluded_subjects` su un file temporaneo e sostituisce il csv in modo atomico. Il csv non si modifica più a mano. Config iniziale: le 15 righe di HEAD (1 `empty_mask` con scope `all`, 14 `all_zero_features` con scope `sdc-streamline`); la prima run ha rigenerato un file identico a HEAD.
+
+**Perché**: l'ultima cella di `lesion_analysis` possedeva solo tre dei quattro motivi del file e lo riscriveva per intero, cancellando le righe che non conosceva (voce precedente, stesso giorno). Una pipeline che possiede **tutto** il file, con tutti i motivi nel config, elimina il problema alla radice: non c'è più nessun altro scrittore del csv, quindi nessuna fusione.
+
+**Alternative scartate**: (a) pipeline che possiede solo i tre motivi di lesione e lascia il resto del csv: rimette in gioco la fusione, due scrittori sullo stesso file; (b) regole con soglie invece di ID espliciti: contraddice la scelta del 29-09 (`cf6e1fe`) di sostituire le soglie di qualità con una lista curata a mano. Per `all_zero_features` il `value` è la costante `0` (numero di feature non nulle, per definizione): calcolarlo vorrebbe dire aprire la matrice SDC.
+
+**Conseguenza ancora vera oggi**: la decisione sta nel config, non nel csv. Aggiungere o togliere un soggetto = modificare `exclusions` e rilanciare la pipeline; una modifica a mano al csv viene persa alla run successiva. L'ultima cella di `lesion_analysis` non scrive: stampa i blocchi da incollare nel config (la voce successiva descrive la versione precedente, "solo stampa" delle righe CSV).
+
+## 05-10-26 — L'ultima cella di `lesion_analysis` non scrive più `excluded_subjects.csv`: stampa le righe da incollare
+
+**Cosa è cambiato**: la cella finale del notebook (l'unica di esplorazione che scriveva un file di produzione) riscriveva `excluded_subjects.csv` per intero con le sole liste `EXCLUSIONS`, che partivano vuote, e non conosceva la colonna `scope`. Ora calcola `dataset` e `value` per gli ID dati (tre motivi: `empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`, scope `all`) e **stampa** le righe CSV da incollare a mano; non legge né scrive il file.
+
+**Perché**: il file ha 15 righe in HEAD, 14 delle quali (`all_zero_features`, scope `sdc-streamline`) non vengono da questa cella, che non conosce quel motivo: qualunque esecuzione le cancellava. È successo due volte (la seconda il 05-10-26 alle 10:30: il file è rimasto alla sola intestazione `subject_id,dataset,reason,value`, senza `scope`).
+
+**Alternativa scartata**: una cella che fonde i propri tre motivi nel file esistente, con `CONFIRM_WRITE` e validazione prima di scrivere. Implementata e collaudata, ma più complessa di quanto serva: dipendeva dallo schema del file (sollevava finché il file non era ripristinato) e aggiungeva parametri da tenere a mente. Scartata su richiesta dell'utente a favore della sola stampa.
+
+**Conseguenza ancora vera oggi**: il file `assets/metadata/excluded_subjects.csv` in lavoro ha ancora lo schema vecchio e nessuna riga (HEAD ne ha 15 con `scope`): il notebook non lo tocca più, quindi va ripristinato o riscritto a mano.
+
 ## 05-10-26 — Ritirate le pipeline di retrieval e di calcolo SDC; la regola di naming dei soggetti passa a `src/utils/subject_ids.py`
 
 **Cosa è cambiato**:

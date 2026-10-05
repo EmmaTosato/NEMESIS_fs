@@ -1,6 +1,6 @@
 # Problemi aperti e cose da fare — NEMESIS
 
-Ultimo aggiornamento: 07-09-26.
+Ultimo aggiornamento: 05-10-26.
 
 Elenco vivo di ciò che è **aperto adesso**: problemi noti non risolti, decisioni non prese, lavori iniziati e non finiti. Una voce si cancella quando è chiusa — non si tiene lo storico qui.
 
@@ -10,40 +10,31 @@ Elenco vivo di ciò che è **aperto adesso**: problemi noti non risolti, decisio
 
 ## 🔴 Problemi di dati
 
-### Lato della lesione invertito in ~6% di WashU — *non risolvibile internamente*
+### Maschere PSP frazionarie (non binarie)
 
-Su 120 soggetti WashU controllati, **7 hanno il `lesion_side` clinico opposto alla geometria della maschera**, e non sono casi dubbi: sono inversioni piene (lesione interamente dal lato contrario). Confermati: `sub-STUNIPD0002`, `0026`, `0077`, `0179`, `0187`, `0056`, `0151`.
+Le 168 maschere `UNIPD/PSP` in `manual_masks/` hanno valori tra 0 e 1 (multipli di 1/8) invece di solo 0/1; negli altri 7 dataset sono binarie (controllato su 25 file per dataset). Sono maschere a 2 mm interpolate linearmente a 1 mm: i voxel che coincidono con i centri della griglia a 2 mm valgono 0 o 1, gli altri sono medie. La somma dei valori è esattamente 8 × `lesion_volume_voxels_2mm` su tutti e 168.
 
-Il tasso negli altri dataset è ~0% (UKLFR 0/120, UKE 1/120, PSP 1/95), quindi non è rumore di misura: o sono errori di etichetta all'origine, o un sottoinsieme di WashU segue una convenzione di lato invertita.
+**Conseguenze note**
+- **Colonne a 1 mm di PSP in `lesion_metadata.csv`**: la binarizzazione `> 0,5` scarta i voxel da 0,5 esatto, quindi il volume a 1 mm è 0,83 volte il vero (mediana; da 0,34 a 0,94). Le colonne a 2 mm, la matrice lesionale di produzione e il suo volume sono corretti.
+- **SDC**: le statistiche di BCBToolKit (`desc-lesion_mapstats.tsv`) hanno `map_min_nonzero = 0,125` e `n_nonzero_voxels` conta i voxel con valore > 0: BCBToolKit ha ricevuto la mappa frazionaria. **Non si sa** come la usi per la disconnessione (pesi continui, `> 0` o `> 0,5`): se binarizza, la lesione effettiva di PSP è ingrandita o rimpicciolita rispetto agli altri dataset.
 
-**Il dato arriva così dalla sorgente**: `data/clinical_connectome/metadata_tsv/participants_WashU.tsv`. Non è correggibile da questo repo — va segnalato a chi cura quei metadati. Fino ad allora resta un limite noto, non un lavoro in coda.
+**Da fare**: verificare sul cluster come `bcb-lf-preprocess` (bcblib 0.6.1) tratta una mappa non binaria; far sollevare un errore esplicito al codice per maschere non binarie (`code_standards.md` §0); chiedere gli originali a 2 mm a chi ha prodotto le maschere.
 
-**Mitigazione pratica**: non usare il `lesion_side` clinico di WashU come verità. La geometria della maschera è disponibile e concorda con l'etichetta nel 98% dei casi complessivi, quindi è il riferimento più affidabile per questo dataset — è anche il motivo in più per implementare il `lesion_side` geometrico qui sotto. Da chiarire anche se il problema riguardi solo i 120 campionati o tutti i 166 etichettati.
+### Lato della lesione invertito in ~7% di WashU — forzato a valle, causa non verificata
+
+In WashU **11 soggetti su 162** con un lato clinico (6,8%) hanno il `lesion_side` opposto alla maschera: 6 `left`→`right` e 5 `right`→`left`, tutte inversioni piene (`|laterality_index_2mm| ≥ 0,95`). Le 195 maschere hanno header identico (RAS, stessa affine). Negli altri dataset il tasso è quasi nullo (UKLFR 0/120, UKE 1/120, PSP 1/95, su campioni).
+
+**Il dato arriva così dalla sorgente** (`data/clinical_connectome/metadata_tsv/participants_WashU.tsv`). Non è correggibile da questo repo.
+
+**Cosa vale oggi**: `participants.csv` forza il lato geometrico su questi 11 (`geometric_override_datasets` in `config/pipelines/enrich_metadata.json`, `lesion_side_source = "geometric"`). Regola e conseguenze in `docs/guides/metadata.md`, motivazione in `.claude/history/methods_changelog.md` (05-10-26).
+
+**Aperto**: la forzatura assume che sbagli l'etichetta, non la maschera, ed è un'ipotesi. Si verifica guardando la T1 di quegli 11 con la maschera sovrapposta, oppure chiedendo a chi ha curato i metadati WashU. UKE e PSP hanno un caso ciascuno, non indagato.
 
 ### `sub-STUKLFR0671`: SDC vuoto con lesione grande
 
 Nella matrice `sdc_matrix` s2.2-vol questo soggetto è una riga interamente nulla. La causa è a monte: la sua mappa `disconnectome-map` ha **0 voxel non nulli** pur avendo una lesione da **56.785 voxel**. Output degenere di BCBToolKit, non una proprietà del soggetto.
 
 Unico caso su 1570. Per risolverlo va rilanciato il calcolo SDC (BCBToolKit) per quel soggetto, **che gira solo sul cluster** (la pipeline `compute_sdc.py` è stata ritirata da questo repo). Nel frattempo va escluso a valle.
-
----
-
-## 🟡 Decisioni non prese
-
-### `lesion_side` calcolato geometricamente
-
-`lesion_side` oggi è popolato solo dove il dato clinico esiste. Mancano PASPORT e UCL-UK (nessuna colonna) e ~230 soggetti tra WashU e PSP (cella vuota).
-
-Il disegno originale (`docs/dev/metadata.md`) prevedeva di calcolarlo dalla maschera con una soglia "bilaterale" calibrata sui dataset che hanno l'etichetta. **Misurato il 06-09-26: quella calibrazione non è possibile.** Il `both` clinico e la geometria non misurano la stessa cosa — metà dei soggetti etichettati `both` ha la lesione essenzialmente tutta da un lato, e anche una soglia assurdamente permissiva ne recupera 10 su 25. In più `both` esiste solo in UKE.
-
-Cosa invece funziona benissimo: il **segno** dell'indice di lateralità `LI = (R−L)/(R+L)` concorda con l'etichetta clinica nel **98%** dei casi (446/455).
-
-**Proposta sul tavolo, non ancora approvata:**
-1. salvare `lesion_laterality_index` continuo — è il dato vero, e lascia rivedibile qualunque soglia senza ricalcolare 5720 maschere;
-2. derivare `lesion_side` geometrico **solo** come left/right dal segno;
-3. se serve una categoria bilaterale, definirla come descrittore geometrico dichiarato (es. `|LI| < 0.5`), mai spacciata per una ricostruzione del `both` clinico.
-
-Contesto completo: `.claude/history/methods_changelog.md`.
 
 ---
 

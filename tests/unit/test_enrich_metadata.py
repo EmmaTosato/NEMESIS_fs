@@ -300,8 +300,11 @@ def _write_measured(tmp_path, rows, columns=None):
     return path
 
 
-def _join(path, copy_columns=("lesion_volume_voxels_2mm",), lesion_side_from="lesion_side_2mm"):
-    return LesionMetadataJoin(path=path, copy_columns=list(copy_columns), lesion_side_from=lesion_side_from)
+def _join(path, copy_columns=("lesion_volume_voxels_2mm",), lesion_side_from="lesion_side_2mm", override_datasets=()):
+    return LesionMetadataJoin(
+        path=path, copy_columns=list(copy_columns), lesion_side_from=lesion_side_from,
+        geometric_override_datasets=list(override_datasets),
+    )
 
 
 def _bool_registry(rows):
@@ -541,11 +544,13 @@ def test_load_config_parses_a_valid_lesion_metadata_block(tmp_path):
         "path": "assets/metadata/lesion_metadata.csv",
         "copy_columns": ["lesion_volume_voxels_2mm"],
         "lesion_side_from": "lesion_side_2mm",
+        "geometric_override_datasets": [],
     }))
 
     assert config.lesion_metadata.path == Path("assets/metadata/lesion_metadata.csv")
     assert config.lesion_metadata.copy_columns == ["lesion_volume_voxels_2mm"]
     assert config.lesion_metadata.lesion_side_from == "lesion_side_2mm"
+    assert config.lesion_metadata.geometric_override_datasets == []
 
 
 def test_load_config_rejects_copying_onto_a_column_populate_metadata_owns(tmp_path):
@@ -553,14 +558,16 @@ def test_load_config_rejects_copying_onto_a_column_populate_metadata_owns(tmp_pa
     populate_metadata's would break that silently."""
     with pytest.raises(ValueError, match="owned by"):
         load_config(_write_join_config(tmp_path, {
-            "path": "x.csv", "copy_columns": ["dataset"], "lesion_side_from": None,
+            "path": "x.csv", "copy_columns": ["dataset"],
+            "lesion_side_from": None, "geometric_override_datasets": [],
         }))
 
 
 def test_load_config_lesion_side_from_requires_lesion_side_in_variables(tmp_path):
     with pytest.raises(ValueError, match="not in 'variables'"):
         load_config(_write_join_config(tmp_path, {
-            "path": "x.csv", "copy_columns": [], "lesion_side_from": "lesion_side_2mm",
+            "path": "x.csv", "copy_columns": [],
+            "lesion_side_from": "lesion_side_2mm", "geometric_override_datasets": [],
         }, variables=("age",)))
 
 
@@ -569,14 +576,110 @@ def test_load_config_rejects_the_side_column_in_both_keys(tmp_path):
     fact twice under two names."""
     with pytest.raises(ValueError, match="both 'lesion_side_from' and in 'copy_columns'"):
         load_config(_write_join_config(tmp_path, {
-            "path": "x.csv", "copy_columns": ["lesion_side_2mm"], "lesion_side_from": "lesion_side_2mm",
+            "path": "x.csv", "copy_columns": ["lesion_side_2mm"],
+            "lesion_side_from": "lesion_side_2mm", "geometric_override_datasets": [],
         }))
 
 
 def test_load_config_rejects_a_block_that_copies_nothing(tmp_path):
     with pytest.raises(ValueError, match="nothing to copy"):
         load_config(_write_join_config(tmp_path, {
-            "path": "x.csv", "copy_columns": [], "lesion_side_from": None,
+            "path": "x.csv", "copy_columns": [],
+            "lesion_side_from": None, "geometric_override_datasets": [],
+        }))
+
+
+# --- enrich(): geometric_override_datasets ------------------------------------------------------
+
+
+def _override_fixture(tmp_path, rows):
+    """rows: (subject_id, dataset, clinical side, geometric side). One tsv per dataset, one measured csv."""
+    sources = {}
+    for dataset in sorted({r[1] for r in rows}):
+        tsv = _write_tsv(
+            tmp_path / f"{dataset.replace('/', '_')}.tsv", ["participant_id", "lesion_side"],
+            [[r[0], r[2]] for r in rows if r[1] == dataset],
+        )
+        sources[dataset] = DatasetSource(tsv, tmp_path)
+    registry = _bool_registry([(r[0], r[1], True) for r in rows])
+    path = _write_measured(tmp_path, [[r[0], r[1], 5, r[3]] for r in rows])
+    return sources, registry, path
+
+
+def test_override_forces_the_geometric_side_only_on_a_full_left_right_inversion(tmp_path, caplog):
+    """In a listed dataset a clinical left vs geometric right (and the reverse) takes the geometric
+    side with source "geometric". Everything else keeps the clinical value: same side, a geometric
+    `both` (a disagreement of degree), and the same inversion in a dataset NOT listed."""
+    sources, registry, path = _override_fixture(tmp_path, [
+        ("sub-STUNIPD0001", "UNIPD/WashU", "left", "right"),   # inverted -> forced
+        ("sub-STUNIPD0002", "UNIPD/WashU", "right", "left"),   # inverted -> forced
+        ("sub-STUNIPD0003", "UNIPD/WashU", "left", "left"),    # agrees
+        ("sub-STUNIPD0004", "UNIPD/WashU", "left", "both"),    # degree, not inversion
+        ("sub-STUNIPD0005", "UNIPD/PSP", "left", "right"),     # inverted, but dataset not listed
+    ])
+    config = _config(
+        tmp_path, sources, ["lesion_side"],
+        lesion_metadata=_join(path, copy_columns=[], override_datasets=["UNIPD/WashU"]),
+    )
+
+    with caplog.at_level(logging.WARNING):
+        out, _ = enrich(registry, config)
+    by_id = out.set_index("subject_id")
+
+    assert by_id.loc["sub-STUNIPD0001", ["lesion_side", "lesion_side_source"]].tolist() == ["right", "geometric"]
+    assert by_id.loc["sub-STUNIPD0002", ["lesion_side", "lesion_side_source"]].tolist() == ["left", "geometric"]
+    for subject, side in (("sub-STUNIPD0003", "left"), ("sub-STUNIPD0004", "left"), ("sub-STUNIPD0005", "left")):
+        assert by_id.loc[subject, ["lesion_side", "lesion_side_source"]].tolist() == [side, "clinical"]
+    assert "sub-STUNIPD0001" in caplog.text and "sub-STUNIPD0002" in caplog.text
+    assert "sub-STUNIPD0003" not in caplog.text
+
+
+def test_override_disabled_by_default_keeps_the_clinical_side(tmp_path):
+    sources, registry, path = _override_fixture(tmp_path, [("sub-STUNIPD0001", "UNIPD/WashU", "left", "right")])
+    config = _config(tmp_path, sources, ["lesion_side"], lesion_metadata=_join(path, copy_columns=[]))
+
+    out, _ = enrich(registry, config)
+
+    assert out.loc[0, ["lesion_side", "lesion_side_source"]].tolist() == ["left", "clinical"]
+
+
+def test_override_rerun_over_the_enriched_file_is_stable(tmp_path):
+    """A second run, over the file the first one wrote, gives the same registry."""
+    sources, registry, path = _override_fixture(tmp_path, [("sub-STUNIPD0001", "UNIPD/WashU", "left", "right")])
+    config = _config(
+        tmp_path, sources, ["lesion_side"],
+        lesion_metadata=_join(path, copy_columns=[], override_datasets=["UNIPD/WashU"]),
+    )
+
+    first, _ = enrich(registry, config)
+    second, _ = enrich(first, config)
+
+    assert second.loc[0, ["lesion_side", "lesion_side_source"]].tolist() == ["right", "geometric"]
+
+
+def test_override_naming_a_dataset_absent_from_the_registry_raises(tmp_path):
+    sources, registry, path = _override_fixture(tmp_path, [("sub-STUNIPD0001", "UNIPD/WashU", "left", "left")])
+    config = _config(
+        tmp_path, sources, ["lesion_side"],
+        lesion_metadata=_join(path, copy_columns=[], override_datasets=["UNIPD/Typo"]),
+    )
+
+    with pytest.raises(ValueError, match="UNIPD/Typo"):
+        enrich(registry, config)
+
+
+def test_load_config_override_requires_lesion_side_from(tmp_path):
+    with pytest.raises(ValueError, match="no geometric side to force"):
+        load_config(_write_join_config(tmp_path, {
+            "path": "x.csv", "copy_columns": ["lesion_volume_voxels_2mm"], "lesion_side_from": None,
+            "geometric_override_datasets": ["UNIPD/WashU"],
+        }))
+
+
+def test_load_config_requires_the_override_key(tmp_path):
+    with pytest.raises(ValueError, match="geometric_override_datasets"):
+        load_config(_write_join_config(tmp_path, {
+            "path": "x.csv", "copy_columns": [], "lesion_side_from": "lesion_side_2mm",
         }))
 
 

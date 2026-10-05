@@ -1,0 +1,39 @@
+{
+  "project": "clinical_connectome",
+  "output_path": "assets/metadata/excluded_subjects.csv",
+  "lesion_metadata_path": "assets/metadata/lesion_metadata.csv",
+
+  "exclusions": [
+    {
+      "reason": "empty_mask",
+      "scope": "all",
+      "value_column": "lesion_volume_voxels_1mm",
+      "subjects": [
+        "sub-STUKLFR0671"
+      ]
+    },
+    {
+      "reason": "all_zero_features",
+      "scope": "sdc-streamline",
+      "value": 0,
+      "subjects": [
+        "sub-STUCLUK0383",
+        "sub-STUCLUK0661",
+        "sub-STUCLUK0797",
+        "sub-STUCLUK0907",
+        "sub-STUCLUK1508",
+        "sub-STUCLUK2160",
+        "sub-STUCLUK2359",
+        "sub-STUCLUK2664",
+        "sub-STUCLUK2846",
+        "sub-STUCLUK2951",
+        "sub-STUCLUK3025",
+        "sub-STUCLUK3108",
+        "sub-STUCLUK3453",
+        "sub-STUNIPD0222"
+      ]
+    }
+  ],
+
+  "run_notes": "La lista dei soggetti tenuti fuori dalle matrici di produzione: e' qui la decisione, il csv e' derivato e non si modifica a mano. Ogni soggetto e' elencato esplicitamente (nessuna soglia: i dati non hanno un salto naturale). empty_mask: value dal conteggio nativo a 1 mm di lesion_metadata.csv, che deve valere 0. all_zero_features: la riga di feature e' tutta zero nella rappresentazione dello scope, quindi value 0 per definizione (numero di feature non nulle)."
+}

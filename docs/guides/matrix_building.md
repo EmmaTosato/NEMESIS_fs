@@ -83,7 +83,7 @@ L'output vive in `data/derived/lesion_matrix/<GIORNO-MESE>_<session_name>/` e co
 Due criteri, valutati prima di scrivere la matrice:
 
 - **`group_filter`**: chi non appartiene ai gruppi richiesti (es. i controlli sani con `["ST"]`) viene saltato in fase di scoperta.
-- **`excluded_subjects_path`**: la lista curata a mano dei soggetti da tenere fuori, `assets/metadata/excluded_subjects.csv`. La maschera di un soggetto escluso **non viene nemmeno letta**.
+- **`excluded_subjects_path`**: la lista dei soggetti da tenere fuori, `assets/metadata/excluded_subjects.csv`, generata da `build_excluded_subjects` dal suo config. La maschera di un soggetto escluso **non viene nemmeno letta**.
 
 Chi viene escluso è elencato per nome nelle sezioni "Excluded by ..." di `config.md` e nei `summaries/build_lesion_matrix/<project>/build_summary__*.md`, con motivo e valore per gli esclusi da lista.
 
@@ -91,7 +91,7 @@ Chi viene escluso è elencato per nome nelle sezioni "Excluded by ..." di `confi
 
 **Non ci sono soglie di qualità in questo config, di proposito.** I dati non hanno un salto naturale su cui metterne una, e quale soggetto limite valga la pena di scartare è un giudizio caso per caso che appartiene all'analisi, non alla configurazione di una pipeline.
 
-Il file lo scrivi **a mano**, dopo aver guardato le distribuzioni in `assets/metadata/lesion_metadata.csv` dal notebook `notebooks/exploration/lesion_analysis.ipynb` — formato, vocabolario dei motivi e validazioni in [`docs/guides/metadata.md`](metadata.md).
+Il file lo genera la pipeline `build_excluded_subjects` dalla lista che scrivi nel suo config, dopo aver guardato le distribuzioni in `assets/metadata/lesion_metadata.csv` dal notebook `notebooks/exploration/lesion_analysis.ipynb` — formato, vocabolario dei motivi e validazioni in [`docs/guides/metadata.md`](metadata.md).
 
 Lo stesso file è letto anche da `build_sdc_matrix.py`, quindi **le due matrici escludono gli stessi soggetti per costruzione**: senza di questo un confronto lesione/SDC confronterebbe due coorti diverse.
 
