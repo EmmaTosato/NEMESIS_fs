@@ -4,8 +4,8 @@ Each function is a pure array-in/array-out transform: **params is unpacked
 straight into the estimator's constructor, no in-code defaults - every
 hyperparameter (e.g. UMAP's n_neighbors, t-SNE's perplexity) comes from
 config/registry/params_reduction.json (see src/analysis/params.py), never hardcoded
-here. Mirrors the "explicit registry over hardcoded dispatch" precedent
-already used for config/registry/file_patterns.json.
+here. Same "explicit registry over hardcoded dispatch" precedent as the metadata
+sources registry (config/registry/metadata_sources.json).
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Parsing/validation of the pipeline configs that read subject imaging off disk
 (build_lesion_matrix.json, build_*_matrix.json, compute_lesion_metadata.json).
 
-Same style as src/retrieval/config.py: hand-written _require_*/_optional_*
+Hand-written _require_*/_optional_*
 helpers, every field validated upfront so a bad config is rejected before any
 file is touched - never a silent default, never an error surfacing later,
 mid-run, from the library code that actually uses the value (e.g. nilearn
@@ -16,7 +16,7 @@ from pathlib import Path
 
 from src.features.lesion import LesionGrid, validate_lesion_grids
 from src.features.sdc import KNOWN_OBJECTS, KNOWN_REPRESENTATIONS, KNOWN_VALUE_COLUMNS, STREAMLINE_ATLAS
-from src.retrieval.config import KNOWN_GROUPS
+from src.utils.subject_ids import KNOWN_GROUPS
 
 _KNOWN_INTERPOLATIONS = frozenset({"linear", "nearest", "continuous"})
 
@@ -153,8 +153,8 @@ def _optional_bool(raw: dict, key: str) -> bool:
 
 
 def _optional_group_filter(raw: dict) -> list[str] | None:
-    """Same convention as src.retrieval.config._optional_group_filter: absent/null
-    means no restriction, present means exactly these groups (src.retrieval.dataset.group_of)."""
+    """absent/null means no restriction, present means exactly these groups
+    (src.utils.subject_ids.group_of)."""
     value = raw.get("group_filter")
     if value is None:
         return None

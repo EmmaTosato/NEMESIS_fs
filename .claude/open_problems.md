@@ -24,7 +24,7 @@ Il tasso negli altri dataset è ~0% (UKLFR 0/120, UKE 1/120, PSP 1/95), quindi n
 
 Nella matrice `sdc_matrix` s2.2-vol questo soggetto è una riga interamente nulla. La causa è a monte: la sua mappa `disconnectome-map` ha **0 voxel non nulli** pur avendo una lesione da **56.785 voxel**. Output degenere di BCBToolKit, non una proprietà del soggetto.
 
-Unico caso su 1570. Per risolverlo va rilanciato `compute_sdc.py` per quel soggetto, **che gira solo sul cluster**. Nel frattempo va escluso a valle.
+Unico caso su 1570. Per risolverlo va rilanciato il calcolo SDC (BCBToolKit) per quel soggetto, **che gira solo sul cluster** (la pipeline `compute_sdc.py` è stata ritirata da questo repo). Nel frattempo va escluso a valle.
 
 ---
 

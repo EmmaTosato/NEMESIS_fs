@@ -37,7 +37,7 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 
 | Regola | Dettaglio |
 |---|---|
-| Struttura a livelli | `utils` → `preprocessing`/`retrieval` → `features` → `models`/`analysis` → `pipeline`. I livelli alti dipendono da quelli bassi, mai il contrario |
+| Struttura a livelli | `utils` → `features` → `models`/`analysis` → `pipeline`. I livelli alti dipendono da quelli bassi, mai il contrario |
 | Una responsabilità per modulo | No classi che fanno tutto (I/O + logica + metriche insieme) |
 | No stato globale | Niente variabili a livello di modulo che persistono tra chiamate; dipendenze passate come argomenti |
 | Composizione > ereditarietà | Preferire wrapping/composizione a gerarchie di classi profonde (>3-4 livelli) |
@@ -120,4 +120,4 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 ## Riferimenti
 
 - [`.claude/CLAUDE.md`](../.claude/CLAUDE.md) — struttura repo e convenzioni generali NEMESIS
-- [`src/retrieval/dataset.py`](../src/retrieval/dataset.py) — esempio attuale di gestione errori conforme al §0
+- [`src/utils/subject_ids.py`](../src/utils/subject_ids.py) — esempio attuale di gestione errori conforme al §0 (un sito non registrato solleva, non viene indovinato)

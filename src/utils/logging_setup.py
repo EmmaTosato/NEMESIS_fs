@@ -1,9 +1,6 @@
 """Shared log-file-handler setup and run-duration logging for the pipeline CLI scripts.
 
-attach_file_handler is not used by src/pipeline/retrieve_data.py, which already has its own
-working copy of the same logic - left untouched rather than refactored in, to avoid
-introducing risk on stable, already-in-production code that wasn't asked for. log_duration has
-no such duplicate and is used by every src/pipeline/*.py entry point, retrieve_data.py included.
+Used by every src/pipeline/*.py entry point.
 """
 
 from __future__ import annotations

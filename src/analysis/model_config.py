@@ -1,6 +1,6 @@
 """Parsing/validation of dim_reduction.json, clustering.json.
 
-Same style as build_config.py / src/retrieval/config.py: hand-written
+Same style as build_config.py: hand-written
 _require_* helpers, every field validated upfront. reduction_method is
 checked against REDUCTION_METHODS; clustering_methods (a non-empty list,
 duplicates rejected - lessons_learned.md #5) has every element checked

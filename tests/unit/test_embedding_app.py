@@ -856,7 +856,7 @@ def test_lesion_viewer_content_for_unresolvable_subject_returns_status_message(t
 
 def test_lesion_viewer_content_for_valid_subject_returns_iframe(tmp_path):
     # subject_id must match the project's real ST/HC/... naming convention
-    # (src.retrieval.dataset._SUBJECT_RE, enforced unconditionally by discover_files_by_subject
+    # (src.utils.subject_ids._SUBJECT_RE, enforced unconditionally by discover_files_by_subject
     # - lessons_learned.md #28) - "sub-1" (this file's other, unrelated fixtures) would raise.
     data_root = tmp_path / "data"
     _make_lesion_subject(data_root, "UNIPD/WashU", "sub-STUNIPD0001", [(1, 1, 1)])

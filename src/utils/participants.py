@@ -4,7 +4,7 @@ One row per subject, written by src/pipeline/populate_metadata.py (who exists) a
 src/pipeline/enrich_metadata.py (what we know about them). This module is the
 read side: every pipeline that needs to know which subjects exist, or which of
 them have a lesion mask, goes through here rather than globbing data/ (a local
-copy can be a partial retrieval sample) or re-reading a raw participants.tsv.
+copy can be a partial local sample) or re-reading a raw participants.tsv.
 
 Replaces the retired src/features/clinical.py, whose per-dataset
 assets/metadata/<DATASET>_participants_lesions.tsv files no longer exist - see

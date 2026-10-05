@@ -3,9 +3,9 @@ by keeping a small, fixed sample of subjects in place (for notebooks/exploration
 everything else into one verified `.tar.gz` archive per target - the originals are only deleted
 after the archive has been read back and shown to contain exactly the files that were tarred.
 
-Why this is safe: `data/` is documented (`.claude/CLAUDE.md`, `docs/guides/retrieval.md`,
+Why this is safe: `data/` is documented (`.claude/CLAUDE.md`,
 `docs/guides/datasets.md`) as a disposable local cache of EBRAIN, never the source of truth -
-`retrieve_data.py` can always re-pull anything archived here. The one exception is
+anything archived here can always be copied again from EBRAIN (paths in `docs/guides/datasets.md`). The one exception is
 `data/derived/features/masked_fc`, which is `mask_fc.py`'s own computed output, not an EBRAIN
 copy - for that target, "restore" means either decompressing the archive back (lossless) or
 re-running `mask_fc.py` from the raw WashU features + manual masks.
@@ -48,8 +48,8 @@ _ATLAS_COMBO_DIR_RE = re.compile(r"^Yan\d+TianS\d+Buckner7N$")
 _MASKED_FC_SUBJECT_FILE_RE = re.compile(r"^(sub-[A-Za-z0-9]+)_masked_fc\.csv$")
 
 _EBRAIN_RESTORE_HINT = (
-    "The full data also still lives on EBRAIN - re-pull it with `retrieve_data.py` "
-    "(see docs/guides/retrieval.md) instead of decompressing this archive, if you'd rather "
+    "The full data also still lives on EBRAIN (paths in docs/guides/datasets.md) - copy it "
+    "again from there instead of decompressing this archive, if you'd rather "
     "always work from the current server copy."
 )
 _MASKED_FC_RESTORE_HINT = (
@@ -285,7 +285,7 @@ def write_archive_manifest(root: Path, sample_ids: Sequence[str], archived_ids: 
     instead of decompressing gigabytes.
 
     Deliberately only subject_id + source: a subject's group (ST/HC/...) is derivable from the
-    id itself (src.retrieval.dataset.group_of), and storing it here would couple this
+    id itself (src.utils.subject_ids.group_of), and storing it here would couple this
     disk-space utility to the project's subject-naming registry - it would then fail outright
     on any directory whose subjects don't follow that convention.
     """

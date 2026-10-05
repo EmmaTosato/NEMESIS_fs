@@ -3,7 +3,7 @@
 Usage:
     python -m src.pipeline.build_lesion_matrix --config config/pipelines/build_lesion_matrix.json
 
-Unlike retrieve_data.py, there is no per-subject error accumulation here:
+There is no per-subject error accumulation here:
 build_lesion_matrix() (src/features/lesion.py) either succeeds for every
 requested subject or raises - a subject-count mismatch or a missing
 reference file stops the whole run before anything is written, since a

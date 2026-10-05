@@ -49,8 +49,8 @@ _GLOB = "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz"
 
 def _make_lesion_subject_pipeline_first(data_root, dataset, subject_id, lesion_voxels):
     """Same fixture as _make_lesion_subject, but in the pipeline-first shape
-    (`<pipeline>/<subject_id>/anat/...`) the real local retrieval layout uses
-    today (src.retrieval.output_layout) - regression fixture for
+    (`<pipeline>/<subject_id>/anat/...`) the real local data layout uses
+    today - regression fixture for
     test_build_lesion_matrix_voxelwise_pipeline_first_layout below."""
     subject_dir = data_root / dataset / "manual_masks" / subject_id / "anat"
     subject_dir.mkdir(parents=True, exist_ok=True)
@@ -442,7 +442,7 @@ _REAL_GLOB = "manual_masks/*/anat/*_label-lesion_mask.nii.gz"
 
 
 def _make_lesion_subject_on_fine_grid(data_root, dataset, subject_id, lesion_voxels):
-    """A subject's mask on the fine grid, in the pipeline-first layout the real retrieval uses."""
+    """A subject's mask on the fine grid, in the pipeline-first layout the real local data uses."""
     subject_dir = data_root / dataset / "manual_masks" / subject_id / "anat"
     subject_dir.mkdir(parents=True, exist_ok=True)
     volume = np.zeros(_FINE_SHAPE, dtype=np.float32)

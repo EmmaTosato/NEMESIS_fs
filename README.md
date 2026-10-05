@@ -19,7 +19,6 @@ Data-driven stroke research project (Corbetta lab) building a **multimodal low-d
 ```bash
 conda env create -f environment.yml
 conda activate nemesis
-python -m src.pipeline.retrieve_data --config config/pipelines/retrieval_server.json
 ```
 
 See [`docs/setup.md`](docs/setup.md) for full environment setup, and each pipeline's guide under [`docs/guides/`](docs/guides/) for its exact invocation.
@@ -29,9 +28,7 @@ See [`docs/setup.md`](docs/setup.md) for full environment setup, and each pipeli
 ```
 config/           # JSON configs driving the pipelines (per-run request + naming registries)
 src/
-├── retrieval/     # dataset access layer: config parsing, per-dataset file resolution
 ├── features/       # feature-matrix construction (lesion, FC, SDC, clinical)
-├── sdc/           # structural disconnectome orchestration (cluster-only, needs bcblib)
 ├── analysis/       # dimensionality reduction, clustering, plotting, exploration apps
 ├── utils/          # shared I/O, logging, run-history helpers
 └── pipeline/       # CLI entry points, one per pipeline
@@ -54,38 +51,30 @@ management/
 ├── meetings/      # raw dated meeting notes (primary source for project scope/decisions)
 └── notes/         # working notes, TODOs
 knowledge/        # reference literature, one folder per paper, extracted via docling
-data/             # local copy of retrieved + derived data (gitignored, not in repo)
+data/             # local copy of raw + derived data (gitignored, not in repo)
 results/          # dimensionality-reduction/clustering outputs (gitignored, not in repo)
 summaries/, logs/  # per-run outputs of the pipelines (gitignored)
 .claude/          # agent-facing project instructions and conventions
 ```
 
-Raw neuroimaging data (`*.nii`, `*.nii.gz`) is never stored in this repo — it lives on EBRAIN (`/data/corbetta/Clinical_connectome`) and is copied locally into `data/` on demand by the retrieval pipeline.
+Raw neuroimaging data (`*.nii`, `*.nii.gz`) is never stored in this repo — it lives on EBRAIN (`/data/corbetta/Clinical_connectome`) and is copied locally into `data/` by hand.
 
 ## What's implemented so far
 
-### Data retrieval
-`src/retrieval/`, `src/pipeline/retrieve_data.py` — copies lesion data and `participants.tsv` from the in-scope stroke datasets (see [`docs/guides/datasets.md`](docs/guides/datasets.md) for the current list) into `data/`, driven by `config/pipelines/retrieval_local.json`/[`retrieval_server.json`](config/pipelines/retrieval_server.json) (per-run request, one per environment) and `config/registry/file_patterns_local.json`/[`file_patterns_server.json`](config/registry/file_patterns_server.json) (naming registry, per `object` — `lesion`, `feature`, and `sdc`). A dedicated `config/pipelines/retrieval_sdc.json` retrieves structural disconnectome output (the same BCBToolKit Stage1+Stage2 computation `src/sdc/`/`compute_sdc.py` itself performs, just not run through our own `--mode manifest/run/aggregate` orchestration for this particular run) for `UNIPD/WashU`, `UNIPD/PASPORT`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`, and `UKE/WAKEUP_acute` — lands locally under `sdc/` (see [`docs/dev/retrieval.md`](docs/dev/retrieval.md), [`docs/guides/datasets.md`](docs/guides/datasets.md)).
+### Retired pipelines
+Three pipelines existed and have been removed; their code stays in `git log`, and no guide documents them anymore.
 
-Every run writes a summary (`summaries/`) and a matching log (`logs/`) flagging anything that needs a human look (missing files, non-conforming subject folders).
-
-📖 Guide: [`docs/guides/retrieval.md`](docs/guides/retrieval.md) · Architecture: [`docs/dev/retrieval.md`](docs/dev/retrieval.md)
-
-### Atlas building
-Retired along with `build_combined_atlas.py`/`src/atlases/` (see `management/notes/TODO.md`) — the parcellation-then-varimax-PCA replication it fed is no longer pursued through this repo. No combined atlas is produced here anymore.
+- **Data retrieval** (`retrieve_data.py`, `src/retrieval/`): copied lesion masks, FC features and SDC output from EBRAIN into `data/`. Data is now copied by hand; the subject-naming rule it carried lives on in `src/utils/subject_ids.py` ([`docs/guides/datasets.md`](docs/guides/datasets.md)).
+- **SDC computation** (`compute_sdc.py`, `src/sdc/`): ran BCBToolKit Stage 1 + Stage 2 over the lesion masks on the cluster. The SDC output it produced is what `build_sdc_matrix.py` reads.
+- **Atlas building** (`build_combined_atlas.py`, `src/atlases/`): combined-atlas construction for a parcellation-then-varimax-PCA replication, no longer pursued.
 
 ### FC lesion masking and matrix building
 `src/features/functional.py`, `src/pipeline/mask_fc.py` + `build_fc_matrix.py` — two deliberately decoupled pipelines that turn the WashU functional-connectivity CSVs (already computed via XCP-D, 12 atlas combos) into a subjects × edges feature matrix ready for `dim_reduction.py`. `mask_fc.py` marks as missing (`NaN`, not zero — see [`docs/dev/fc_matrix.md`](docs/dev/fc_matrix.md) for why) any FC node whose territory is substantially lesioned (`nilearn`-based coverage check, same `min_coverage` scheme as XCP-D's own BOLD-coverage thresholding), writing one masked matrix per subject to `data/derived/features/masked_fc/`; `build_fc_matrix.py` reads only that already-masked output, vectorizes and stacks it into `data/derived/features/fc_matrix/`. The per-subject exclusion threshold question is settled (no threshold, no subject excluded); NaN-imputation remains deliberately open, pending an empirical look at the full cohort.
 
 📖 Guides: [`fc_matrix_building.md`](docs/guides/fc_matrix_building.md) · Architecture: [`docs/dev/fc_matrix.md`](docs/dev/fc_matrix.md)
 
-### Structural disconnectome (SDC) computation
-`src/sdc/`, `src/pipeline/compute_sdc.py` — orchestrates BCBToolKit/BCBlib (Stage 1 + Stage 2) over every retrievable lesion mask in `clinical_connectome`, split into 3 CLI modes (`manifest`/`run`/`aggregate`) so per-subject work can be parallelized across SLURM tasks — a per-subject failure (Stage 1/2 crash, failed output check) doesn't stop the batch, only a structural one (bad config, missing tool path) does. **Cannot be run or tested locally** (needs `bcblib`, cluster-only — see [Environment](#environment)).
-
-📖 Guide: [`docs/guides/compute_sdc.md`](docs/guides/compute_sdc.md)
-
 ### SDC feature matrix building
-`src/features/sdc.py`, `src/pipeline/build_sdc_matrix.py` — turns `compute_sdc.py`'s SDC output (`sdc/<subject_id>/*`) into a feature matrix ready for `dim_reduction.py` (Task 2), in any of three representations picked by `config.representation`: **parcellated** (`compute_sdc.py`'s already-parcellated per-atlas CSV output, one row per anatomical region, subjects × regions — alignment by region name via `pandas.reindex` against a fixed, authoritative region list in `assets/atlases/sdc_labels/<atlas>.csv`, not by row position, since CSV rows aren't in a stable order across subjects and BCBToolKit omits zero-overlap regions rather than writing them explicitly, both verified empirically; no column ever dropped, so a run's column meaning stays stable across subject selections) **voxelwise** (the pre-parcellation `disconnectome-map` `.nii.gz` directly, resampled onto a common grid same as the lesion voxel matrix, subjects × voxels, continuous disconnection values never binarized, constant columns dropped) or **streamline** (the `yeh_hcp1065_streamline` CSV, subjects × 87 white matter tracts, one `streamline_ratio` per tract — aligned by tract name like the parcellated one, but a *missing* tract raises instead of being filled with zero, since that file writes every tract explicitly). Every representation admits a subject only if it has both a lesion mask registered in the subject registry (`assets/metadata/participants.csv`, column `has_lesion` — not a glob against local disk, since a local `data/` copy can be a partial retrieval sample) and the requested SDC output — a subject with SDC output but no registered lesion mask is excluded explicitly, never folded in as a false all-zero row.
+`src/features/sdc.py`, `src/pipeline/build_sdc_matrix.py` — turns the SDC output (`sdc/<subject_id>/*`, computed upstream with BCBToolKit) into a feature matrix ready for `dim_reduction.py` (Task 2), in any of three representations picked by `config.representation`: **parcellated** (the already-parcellated per-atlas CSV output, one row per anatomical region, subjects × regions — alignment by region name via `pandas.reindex` against a fixed, authoritative region list in `assets/atlases/sdc_labels/<atlas>.csv`, not by row position, since CSV rows aren't in a stable order across subjects and BCBToolKit omits zero-overlap regions rather than writing them explicitly, both verified empirically; no column ever dropped, so a run's column meaning stays stable across subject selections) **voxelwise** (the pre-parcellation `disconnectome-map` `.nii.gz` directly, resampled onto a common grid same as the lesion voxel matrix, subjects × voxels, continuous disconnection values never binarized, constant columns dropped) or **streamline** (the `yeh_hcp1065_streamline` CSV, subjects × 87 white matter tracts, one `streamline_ratio` per tract — aligned by tract name like the parcellated one, but a *missing* tract raises instead of being filled with zero, since that file writes every tract explicitly). Every representation admits a subject only if it has both a lesion mask registered in the subject registry (`assets/metadata/participants.csv`, column `has_lesion` — not a glob against local disk, since a local `data/` copy can be a partial local sample) and the requested SDC output — a subject with SDC output but no registered lesion mask is excluded explicitly, never folded in as a false all-zero row.
 
 📖 Guide: [`docs/guides/sdc_matrix_building.md`](docs/guides/sdc_matrix_building.md) · Architecture: [`docs/dev/sdc_matrix.md`](docs/dev/sdc_matrix.md)
 
@@ -125,8 +114,6 @@ Task 1 (lesion embedding/clustering) is the most mature piece above; Task 2's em
 ## Environment
 
 Conda environment **`nemesis`**, defined in [`environment.yml`](environment.yml) (numpy, scipy, pandas, scikit-learn, umap-learn, matplotlib, seaborn, networkx, jupyterlab, nibabel, nilearn). See [`docs/setup.md`](docs/setup.md) for creating/updating it — [Quick start](#quick-start) above covers the common case.
-
-**`src/sdc/`/`src/pipeline/compute_sdc.py` cannot be run or tested locally**: it imports `bcblib` (BCBToolKit), installed only in the cluster's conda environment. Exclude its tests (`pytest --ignore=...`) when running the suite outside the cluster — see [`.claude/CLAUDE.md`](.claude/CLAUDE.md) for the exact files.
 
 ## Contributing / development conventions
 

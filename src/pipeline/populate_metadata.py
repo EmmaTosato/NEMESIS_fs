@@ -22,7 +22,7 @@ data-type trees (manual_masks/sdc/features). Both kinds of mismatch (in the
 tsv but nowhere on disk; on disk but absent from the tsv) are excluded and
 listed in the report - never silently dropped.
 
-`disease_id` is taken from the subject id itself (src.retrieval.dataset.group_of,
+`disease_id` is taken from the subject id itself (src.utils.subject_ids.group_of,
 the same parser every other layer uses), NOT copied from the tsv: the tsv's own
 value is compared against it and any disagreement is reported as a data problem
 rather than picked between silently.
@@ -50,7 +50,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.retrieval.dataset import group_of
+from src.utils.subject_ids import group_of
 from src.utils.metadata_sources import DatasetSource, load_metadata_sources
 from src.utils.logging_setup import attach_file_handler, log_duration
 

@@ -6,6 +6,23 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 05-10-26 — Ritirate le pipeline di retrieval e di calcolo SDC; la regola di naming dei soggetti passa a `src/utils/subject_ids.py`
+
+**Cosa è cambiato**:
+- Eliminati `src/retrieval/` (config, dataset, output_layout, verify), `src/sdc/` (config, manifest, resample, runner, staging, status), `src/pipeline/retrieve_data.py`, `src/pipeline/compute_sdc.py` (~2850 righe), `src/atlases/` (solo un `__pycache__` residuo: la pipeline atlas era già stata ritirata il 25-08-26).
+- Config: `config/pipelines/{retrieval_server,retrieval_local,retrieval_sdc,compute_sdc}.json`, `config/registry/file_patterns_{local,server}.json`. Jobs: 6 (`run_retrieve_data`, `run_retrieve_sdc`, `run_compute_sdc{,_manifest,_aggregate,_no_slurm}`). Test: 16 file (12 unit, 4 integration; 183 test, di cui 22 in 2 file che giravano solo sul cluster per `bcblib`). Doc: `docs/guides/retrieval.md`, `docs/dev/retrieval.md`, `docs/guides/compute_sdc.md`.
+- Suite: prima 1076 passed + 12 skipped (con i 2 file cluster esclusi con `--ignore`), dopo 918 passed, nessuno skipped, nessuna esclusione necessaria.
+
+**Perché**: nessun codice vivo dipendeva da queste pipeline tranne un punto — `group_of`/`KNOWN_GROUPS`/`KNOWN_SITES`, la regola che dal nome di un soggetto (`sub-<DISEASE><SITE>[HC]<NUM>`) ricava il gruppo ST/HC/PD/GM, importata da `features/lesion.py`, `features/subject_discovery.py`, `features/sdc.py`, `populate_metadata.py`, `analysis/build_config.py` e `scripts/build_dataset_summary_table.py`. Spostata in `src/utils/subject_ids.py` (il livello più basso), con i suoi test di regressione (sito inventato che termina in "HC", lessons_learned #20). La spiegazione della regola vive ora in `docs/guides/datasets.md` ("Naming dei soggetti"), richiamata da `docs/dev/metadata.md`.
+
+**Scartato**: tenere `src/retrieval/` solo per `group_of` (un pacchetto intero per una funzione, con la dipendenza `analysis → retrieval` che resterebbe senza motivo); documentare `compute_sdc` in una guida ridotta (deciso: la guida resta solo in git, nei doc una nota breve).
+
+**Conseguenze ancora vere**:
+- I dati si copiano a mano sotto `data/clinical_connectome/`; il formato delle cartelle non è cambiato ed è il contratto che i builder leggono.
+- L'output SDC (`sdc/<subject_id>/*`) arriva da BCBToolKit fuori da questo repo; `build_sdc_matrix.py` lo legge come prima. Per rilanciare un soggetto (es. `sub-STUKLFR0671`, `open_problems.md`) non c'è più una pipeline qui.
+- `assets/atlases/` NON è stato toccato: `fmriprep/` serve a `mask_fc.json`, `sdc_labels/` a `build_sdc_matrix.json`.
+- `lessons_learned.md` e `docs/debugging/*` citano ancora i path eliminati nelle voci "Seen in": sono archivio, lasciati com'erano.
+
 ## 01-10-26 — Notebook riorganizzati per oggetto sotto ispezione: `lesion_analysis` si scioglie, `lesion_quality` ne prende il nome
 
 **Cosa è cambiato**:

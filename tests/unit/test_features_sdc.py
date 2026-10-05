@@ -26,7 +26,7 @@ _REGISTRY_HEADER = "subject_id,original_id,dataset,disease_id,has_lesion,has_sdc
 def _register_subject(metadata_root, dataset, subject_id, has_lesion=True):
     """Appends one row to participants.csv - lesion mask presence is resolved
     from this registry, not from disk (see src/features/sdc.py's module
-    docstring for why: a local `data/` copy can be a partial retrieval
+    docstring for why: a local `data/` copy can be a partial local
     sample, this registry is not).
 
     has_lesion=False registers a subject the registry knows about but which

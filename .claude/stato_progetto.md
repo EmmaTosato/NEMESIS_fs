@@ -4,7 +4,7 @@ Ultimo aggiornamento: 2026-09-03. **Snapshot dello stato attuale — non un log 
 
 ## Architettura / cosa è implementato
 
-Sintesi corrente in `README.md` ("What's implemented so far") — non ripetuta qui. Riferimento architetturale sviluppatore: `docs/dev/` (`retrieval.md`, `models.md`, `config.md`, `plotting.md`, `lesion_matrix.md`, `fc_matrix.md`, `sdc_matrix.md`, `design_patterns.md`, `metadata.md` — i 3 livelli di metadati e come si relazionano).
+Sintesi corrente in `README.md` ("What's implemented so far") — non ripetuta qui. Riferimento architetturale sviluppatore: `docs/dev/` (`models.md`, `config.md`, `plotting.md`, `lesion_matrix.md`, `fc_matrix.md`, `sdc_matrix.md`, `design_patterns.md`, `metadata.md` — i 3 livelli di metadati e come si relazionano).
 
 **Ridisegno metadati completato 06-09-26**: `src/pipeline/enrich_metadata.py` (nuovo) scrive le colonne cliniche direttamente in `assets/metadata/participants.csv`; `enrich_lesion_metadata.py` e `src/features/clinical.py` cancellati; `src/utils/participants.py` è il lettore del registro; `embedding_coloring.color_values` risolve `side`/`nihss` dal registro al momento del plot. Resta non implementato il `lesion_side` geometrico (serve la calibrazione della soglia bilaterale). Vedi `docs/dev/metadata.md`.
 
@@ -25,7 +25,6 @@ L'elenco completo di problemi aperti e cose da fare sta in **`.claude/open_probl
 - **`config/registry/params_clustering.json`**: lasciato ai valori dell'ultima opzione lanciata per metodo — non sono i default "canonici", sono lo stato dell'ultima run reale.
 - **`clustering.py` non genera più `comparison/`** (rimosso 01-09-26): cartelle `comparison/` residue da run precedenti restano su disco ma non vengono più rigenerate.
 - **Esecuzione locale vs SLURM**: locale diretto è il default, non proporre `sbatch`/jobs cluster senza richiesta esplicita.
-- **`src/sdc/`/`src/pipeline/compute_sdc.py`** non eseguibili/testabili in locale (richiedono `bcblib`) — `pytest --ignore` su `tests/unit/test_sdc_staging_and_check.py`/`tests/integration/test_compute_sdc_pipeline.py` fuori dal cluster. `config/pipelines/compute_sdc.json` **non** toccato dalla migrazione naming 02-09-26 (escluso esplicitamente - il suo `session_name` ha un problema separato, non ancora affrontato).
 - **Documentazione e Codice**: niente dump di tabelle o dati completi nei `.md` (solo pointer a `results/*.csv`). Rationale/logica verbosa confinata in `docs/dev/`, il sorgente python deve rimanere conciso e snello.
 - **Diagnostic grid oltre 2D**: `n_components > 2` non emette un diagnostic grid automatico — ispezione solo on-demand via `src/pipeline/plot_tuning_embedding_3d.py`, non è un bug.
 - **Copie locali ridotte**: solo `UNIPD/WashU/features/` e `data/derived/features/masked_fc/` restano a 10 soggetti campione (vedi `docs/guides/datasets.md`) — `manual_masks` è pieno per tutti e 5 i dataset dal 01-09-26.

@@ -32,7 +32,7 @@ never silently included as an all-zero row indistinguishable from a genuine
 "Has a lesion mask" is resolved against `assets/metadata/participants.csv`
 (via src.utils.participants), NOT by globbing manual_masks/ on disk directly
 (unlike build_lesion_matrix.py) - a local `data/` copy can be a partial
-retrieval sample (found 2026-08-27: this Mac had only 10 lesion masks per
+local sample (found 2026-08-27: this Mac had only 10 lesion masks per
 dataset physically present, vs. 195-705 in sdc/), while the registry is
 authoritative about which subjects genuinely have a lesion mask
 regardless of what's currently retrieved on any one machine.
@@ -83,7 +83,7 @@ from nilearn.image import resample_to_img
 from src.utils.participants import load_participants_registry
 from src.features.lesion import load_reference_image
 from src.features.subject_discovery import discover_files_by_subject
-from src.retrieval.dataset import group_of
+from src.utils.subject_ids import group_of
 
 KNOWN_OBJECTS = frozenset({"disconnectome", "lesion"})
 KNOWN_VALUE_COLUMNS = frozenset({

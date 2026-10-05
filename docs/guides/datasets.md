@@ -2,7 +2,7 @@
 
 Quali coorti cliniche usa NEMESIS, quanti soggetti hanno **davvero**, quali tipi di dato esistono per ciascuna e cosa di tutto questo è presente nel workspace locale.
 
-I dati risiedono sul server **EBRAIN** (`/data/corbetta/Clinical_connectome`) e vengono copiati in locale sotto `data/clinical_connectome/derivatives/<centro>/<coorte>/` dalla pipeline di retrieval.
+I dati risiedono sul server **EBRAIN** (`/data/corbetta/Clinical_connectome`) e vengono copiati in locale a mano sotto `data/clinical_connectome/derivatives/<centro>/<coorte>/`. Una pipeline di retrieval (`retrieve_data.py`) lo faceva in automatico: è stata ritirata, resta in git.
 
 Tutti i numeri di questa pagina sono **verificati sul disco e sui tsv il 23-09-26**, non stimati. 
 
@@ -29,7 +29,7 @@ Tutte le maschere sono in spazio `MNI152NLin6Asym` su griglia **1.0 mm**, `182x2
 
 ### ⚠️ La griglia è 1 mm per tutti, il dettaglio no
 
-`manual_masks/` non contiene segmentazioni disegnate a mano: è la lesione **già ricampionata da BCBToolKit** sulla propria griglia di lavoro a 1 mm, copiata dal `lesion-map` dell'output SDC e rinominata togliendo `res-1` (provenienza completa in [`docs/dev/retrieval.md`](../dev/retrieval.md); vedi anche `data/clinical_connectome/derivatives/README.md`, non versionato).
+`manual_masks/` non contiene segmentazioni disegnate a mano: è la lesione **già ricampionata da BCBToolKit** sulla propria griglia di lavoro a 1 mm, copiata dal `lesion-map` dell'output SDC e rinominata togliendo `res-1` (vedi anche `data/clinical_connectome/derivatives/README.md`, non versionato).
 
 Un ricampionamento non crea dettaglio che non c'era. Per i dataset la cui segmentazione originale era a 2 mm, il risultato è un volume su griglia da 1 mm i cui voxel sono **costanti in blocchi 2x2x2 allineati** — ogni voxel originale replicato 8 volte. È questo che distingue le due colonne:
 
@@ -64,13 +64,20 @@ Un soggetto per riga, con le colonne `has_lesion`/`has_sdc`/`has_features`, per 
 
 ---
 
+## Naming dei soggetti
+
+Ogni soggetto ha un ID `sub-<DISEASE><SITE>[HC]<NUM>`, ad esempio `sub-STUNIPD0001` (paziente) o `sub-STUNIPDHC0002` (controllo sano). `src/utils/subject_ids.py::group_of(subject_id)` lo trasforma nel gruppo `ST`, `HC`, `PD` o `GM`; è l'unico punto del progetto che interpreta un ID, riusato da `features/`, da `populate_metadata.py` e dagli script. Metadati e matrici ne derivano il gruppo (`disease_id`, `group_filter`) invece di copiarlo da una tabella (`docs/dev/metadata.md`).
+
+`KNOWN_SITES = ("UNIPD", "UKLFR", "UCLUK", "UKE")` è una **lista chiusa**, non un pattern libero. Un pattern libero non distingue un sito il cui nome termina in "HC" da un sito seguito dal marcatore `HC`: un ipotetico `MONTREALHC` verrebbe letto come sito `MONTREAL` più controllo sano, e tutti i suoi pazienti risulterebbero controlli, senza alcun errore. Un sito non registrato fa invece sollevare `ValueError`: un sito nuovo va aggiunto a mano in `KNOWN_SITES`, mai dedotto.
+
+---
+
 ## Tipi di dato
 
 Ogni tipo vive in una sottocartella dedicata dentro `derivatives/<centro>/<coorte>/`, con un numero fisso di file per soggetto.
 
 ### 1. Maschere di lesione — `manual_masks/` (1 file per soggetto)
 
-- **Path logico retrieval**: `lesion/manual_masks/anat/lesion_mask`
 - **File**: `manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz`
 - L'oggetto centrale del progetto: maschere disegnate a mano e normalizzate in spazio MNI. Presenti per tutti e 6 i dataset.
 
@@ -105,13 +112,10 @@ Due conseguenze pratiche, entrambe gestite in `docs/dev/metadata.md`:
 
 ### 3. Connettività funzionale — `features/` (16 file per soggetto)
 
-- **Path logico retrieval**: `feature/func/FC-pearson`
 - **Disponibile solo per WashU** (225 soggetti: 169 ST + 56 HC). I 16 file per soggetto sono le 12 matrici FC (una per combinazione di atlante `Yan<n>TianS<n>Buckner7N`) più i sidecar di motion/outliers.
-- Se una config di retrieval chiede `feature` per tutti i dataset, la pipeline scarica solo WashU e segnala gli altri con un WARNING, senza fermarsi (vedi `docs/dev/retrieval.md`).
 
 ### 4. Structural disconnectome — `sdc/` (34 file per soggetto)
 
-- **Path logico retrieval**: `sdc/{disconnectome,lesion}-{map,mapstats,LF}` (`datatype="dwi"` è solo un'etichetta BIDS nello schema di `file_patterns.json`, non una cartella reale)
 - Output Stage1+2 di BCBToolKit.
 - I 34 file per soggetto: 
   - il volume di disconnessione voxel-wise (`res-1_desc-disconnectome.nii.gz`),
@@ -162,4 +166,4 @@ tar -xzf ../<nome>_archive.tar.gz -C .
 
 Il salto di `manual_masks/` (da ~169 MB a ~919 MB) non è un errore: UKLFR e WashU sono passati a 1mm (vedi sopra), file molto più pesanti della loro risoluzione nativa precedente.
 
-Dentro l'SDC, il peso è dominato dai `.nii.gz`: `disconnectome-map` ~61% del totale, `disconnectome-LF` (15 CSV) ~25%, `lesion-map` ~12%, `lesion-LF` (16 CSV) ~2%, mapstats trascurabile. Per scaricarne solo un sottoinsieme (es. i soli CSV parcellati, ~793 MB, sufficienti per una matrice tipo `build_sdc_matrix.py`) copia `config/pipelines/retrieval_sdc.json` riducendone la lista `retrieve` alle sole categorie che ti servono — vedi `docs/guides/retrieval.md`.
+Dentro l'SDC, il peso è dominato dai `.nii.gz`: `disconnectome-map` ~61% del totale, `disconnectome-LF` (15 CSV) ~25%, `lesion-map` ~12%, `lesion-LF` (16 CSV) ~2%, mapstats trascurabile. I soli CSV parcellati (~793 MB) bastano per una matrice tipo `build_sdc_matrix.py`.

@@ -7,7 +7,7 @@ the same notebook's SDC extension:
 
 - resolve_lesion_paths: subject_id -> real file path (a lesion mask OR, despite the name, any
   other per-subject NIfTI glob - e.g. an SDC disconnectome-map.nii.gz, see
-  src.analysis.embedding_app.SDC_DISCONNECTOME_GLOB), under the retrieval layout of today (never
+  src.analysis.embedding_app.SDC_DISCONNECTOME_GLOB), under the local data layout of today (never
   a historical run's own config.md - see that notebook's "Configurazione" cell for why a run's
   own recorded layout can be stale). Raises if ANY requested subject can't be resolved.
 - resolve_available_lesion_paths (29-09-26): same resolution, for a caller that can proceed with

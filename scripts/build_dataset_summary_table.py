@@ -6,10 +6,10 @@
 - group_summary_table (only with --features-dir): stroke (ST) vs healthy-control (HC)
   subjects that have functional-connectivity features, counted from the `sub-*`
   folders of the given features directory, group taken from the subject id
-  (src.retrieval.dataset.group_of). Counted from disk, not from the registry: HC
+  (src.utils.subject_ids.group_of). Counted from disk, not from the registry: HC
   subjects are only in the registry once populate_metadata has seen them, and a local
   data/ copy is a partial sample (docs/guides/datasets.md) - point --features-dir at the
-  full copy (the EBRAIN mount, or a full local retrieval).
+  full copy (the EBRAIN mount, or a full local copy).
 
 Usage:
     conda activate nemesis
@@ -29,7 +29,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.retrieval.dataset import group_of
+from src.utils.subject_ids import group_of
 from src.utils.participants import load_participants_registry
 
 DATASET_TABLE_NAME = "dataset_summary_table"

@@ -25,7 +25,7 @@ from nilearn.image import resample_to_img
 
 from src.features.lesion_correction import zero_out_of_brain_voxels
 from src.features.subject_discovery import discover_files_by_subject
-from src.retrieval.dataset import group_of
+from src.utils.subject_ids import group_of
 
 
 def build_lesion_matrix(
@@ -575,8 +575,8 @@ def _discover_lesion_files(
         if not subject_dirs:
             raise FileNotFoundError(
                 f"{dataset}: no subject directories found under {dataset_root} matching "
-                f"{subject_glob!r} - check 'datasets'/'data_root' in the config, or run "
-                "retrieve_data.py first if this dataset hasn't been retrieved yet"
+                f"{subject_glob!r} - check 'datasets'/'data_root' in the config, or copy "
+                "this dataset under data_root if it isn't there yet"
             )
         # group_of() validates unconditionally, not only when group_filter is set -
         # AUDIT_FINDINGS.md #46, see docs/dev/lesion_matrix.md.
@@ -588,7 +588,7 @@ def _discover_lesion_files(
         if len(by_subject) != len(subject_dirs):
             raise ValueError(
                 f"{dataset}: {len(subject_dirs)} subject dirs but {len(by_subject)} lesion masks "
-                f"found matching {lesion_glob!r} - check the retrieval report"
+                f"found matching {lesion_glob!r} - check the local data copy"
             )
         lesion_files[dataset] = by_subject
     return lesion_files, sorted(set(excluded_by_group))

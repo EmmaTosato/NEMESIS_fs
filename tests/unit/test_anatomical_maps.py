@@ -23,7 +23,7 @@ _DISCONNECTOME_GLOB = "sdc/*/*_res-1_desc-disconnectome.nii.gz"
 
 def _make_lesion_subject(data_root, dataset, subject_id, lesion_voxels):
     """Pipeline-first layout (dataset/manual_masks/<subject_id>/anat/...) - the real local
-    retrieval layout, matching _LESION_GLOB above (same fixture shape as
+    data layout, matching _LESION_GLOB above (same fixture shape as
     tests/unit/test_features_lesion.py::_make_lesion_subject_pipeline_first)."""
     subject_dir = data_root / dataset / "manual_masks" / subject_id / "anat"
     subject_dir.mkdir(parents=True, exist_ok=True)

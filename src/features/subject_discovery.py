@@ -1,20 +1,16 @@
 """Shared subject-level file discovery under data/clinical_connectome/derivatives.
 
 One glob pattern -> one file per subject_id, optionally restricted to a
-group_filter (see src.retrieval.dataset.group_of for the ST/HC/PD/GM naming
+group_filter (see src.utils.subject_ids.group_of for the ST/HC/PD/GM naming
 convention). Used by both src/features/lesion.py (lesion masks) and
 src/features/functional.py (FC matrices) - previously each had its own
 independent glob + dict-comprehension for this, which is how a real dataset
 mixing patients (ST) and healthy controls (HC) under the same `features/`
 tree (WashU) went unnoticed until group_filter was added explicitly here.
 
-Deliberately not src/retrieval/dataset.py's Dataset/FilePatterns registry:
-that model registers file templates per (object, pipeline, datatype, suffix)
-combination, with atlas combo baked in as one of several alternative
-templates - a fit for retrieve_data.py's "copy whatever combo exists"
-semantics, not for a pipeline that must process one caller-selected combo at
-a time (mask_fc.py's atlas_combos loop). This module only reuses
-src.retrieval.dataset.group_of, the one piece of subject-naming logic that's
+Discovery is driven directly by a caller-supplied glob, one caller-selected
+combo at a time (mask_fc.py's atlas_combos loop). This module reuses
+src.utils.subject_ids.group_of, the one piece of subject-naming logic that's
 genuinely project-wide.
 
 data/derived (pipeline outputs: masked_fc/, fc_matrix/, lesion_matrix/, ...)
@@ -26,7 +22,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.retrieval.dataset import group_of
+from src.utils.subject_ids import group_of
 
 
 def _subject_dir_segment_index(glob_pattern: str) -> int | None:
@@ -72,14 +68,13 @@ def discover_files_by_subject(
     does this file belong to" implied both by its folder and by its own name -
     must agree, not be trusted from only one of the two). A file physically
     misfiled under the wrong subject's folder (e.g. copied by hand during a
-    manual retrieval repair, filename left unchanged) is exactly the case this
+    manual repair, filename left unchanged) is exactly the case this
     catches - the filename alone would otherwise associate it with the wrong
     subject, silently.
 
     Raises ValueError if more than one file maps to the same subject_id (a
-    leftover/duplicate file, not a legitimate multiplicity - unlike the
-    retrieval registry's atlas-combo templates, this function's contract is
-    exactly one file per subject per glob_pattern; the caller is expected to
+    leftover/duplicate file, not a legitimate multiplicity - this function's
+    contract is exactly one file per subject per glob_pattern; the caller is expected to
     call it once per combo/variant when more than one legitimately exists).
     Never picks one arbitrarily - the caller must resolve/clean up the
     conflict before this can proceed.
