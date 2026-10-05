@@ -2,6 +2,7 @@
   "project": "clinical_connectome",
   "output_path": "assets/metadata/excluded_subjects.csv",
   "lesion_metadata_path": "assets/metadata/lesion_metadata.csv",
+  "overwrite": false,
 
   "exclusions": [
     {
@@ -35,5 +36,5 @@
     }
   ],
 
-  "run_notes": "La lista dei soggetti tenuti fuori dalle matrici di produzione: e' qui la decisione, il csv e' derivato e non si modifica a mano. Ogni soggetto e' elencato esplicitamente (nessuna soglia: i dati non hanno un salto naturale). empty_mask: value dal conteggio nativo a 1 mm di lesion_metadata.csv, che deve valere 0. all_zero_features: la riga di feature e' tutta zero nella rappresentazione dello scope, quindi value 0 per definizione (numero di feature non nulle)."
+  "run_notes": "I soggetti da tenere fuori dalle matrici di produzione, elencati esplicitamente (nessuna soglia: i dati non hanno un salto naturale). Con overwrite false il csv esistente resta com'e' (anche le righe tolte o aggiunte a mano) e le righe di questo config vengono aggiunte; con overwrite true il csv viene ricostruito da questo config soltanto. empty_mask: value dal conteggio nativo a 1 mm di lesion_metadata.csv, che deve valere 0. all_zero_features: la riga di feature e' tutta zero nella rappresentazione dello scope, quindi value 0 per definizione (numero di feature non nulle)."
 }

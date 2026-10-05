@@ -6,6 +6,16 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 05-10-26 — `build_excluded_subjects`: modo predefinito append, `overwrite: true` per ricostruire dal solo config
+
+**Cosa è cambiato**: la pipeline `build_excluded_subjects` (voce successiva) riscriveva il csv per intero a ogni run, quindi il config doveva contenere tutti i soggetti esclusi. Ora ha un flag obbligatorio `overwrite` nel config. Con `false` (valore in uso) il csv esistente resta com'è, comprese le righe aggiunte o tolte a mano, e le righe del config vengono **aggiunte**: una riga già presente per lo stesso soggetto, scope e motivo non si tocca (se il `value` calcolato dal config è diverso resta quello del file, con una nota nel log e nel report), lo stesso soggetto e scope sotto un altro motivo solleva, un file assente viene creato, uno con lo schema vecchio non si può estendere. Con `true` il csv è ricostruito dal solo config. Il validatore delle pipeline di matrice gira sempre, sul risultato, prima di sostituire il file.
+
+**Perché**: richiesta dell'utente. Con la scrittura per intero il config diventava lungo e andava tenuto allineato al csv; così il csv, una volta scritto, resta tale, il config contiene solo i soggetti da aggiungere e per togliere una riga basta cancellarla dal csv. Stesso schema di `overwrite` in `populate_metadata`.
+
+**Alternativa scartata**: il csv sempre derivato dal config (modo unico `overwrite`), che dava una sola fonte di verità ma obbligava a tenere nel config anche i soggetti già scritti.
+
+**Conseguenza ancora vera oggi**: con `overwrite: false` la fonte di verità è il **csv**, non il config: un soggetto tolto dal config resta nel csv, e uno tolto dal csv a mano ricompare alla run successiva se è ancora nel config (conviene svuotare il config dopo l'uso). Con `overwrite: true` la fonte torna a essere il config e ciò che il csv conteneva d'altro è perso. Config attuale: le stesse 15 righe di HEAD, già nel csv (la run in append le salta); il csv è identico a HEAD.
+
 ## 05-10-26 — `excluded_subjects.csv` è generato da una pipeline, `build_excluded_subjects`, da un config che elenca i soggetti
 
 **Cosa è cambiato**: nuova pipeline `src/pipeline/build_excluded_subjects.py` (+ `config/pipelines/build_excluded_subjects.json`, `jobs/run_build_excluded_subjects.sh`, `tests/unit/test_build_excluded_subjects.py`). Il config contiene, per ogni coppia (motivo, scope), gli ID dei soggetti esclusi e da dove viene il `value` (una colonna di `lesion_metadata.csv`, oppure una costante). La pipeline ricava `dataset` dal registro, controlla il risultato con `load_excluded_subjects` su un file temporaneo e sostituisce il csv in modo atomico. Il csv non si modifica più a mano. Config iniziale: le 15 righe di HEAD (1 `empty_mask` con scope `all`, 14 `all_zero_features` con scope `sdc-streamline`); la prima run ha rigenerato un file identico a HEAD.

@@ -87,7 +87,7 @@ Accanto al csv viene scritto `lesion_metadata.config.json`, il config esatto del
 
 ## `excluded_subjects.csv` — chi resta fuori dalle matrici
 
-La lista è una **decisione**, e vive nel config `config/pipelines/build_excluded_subjects.json`: la pipeline `build_excluded_subjects` ne genera il csv, che **non si modifica a mano** (la run successiva lo riscrive per intero). Ogni soggetto è elencato esplicitamente, senza soglie: i dati non hanno un salto naturale su cui mettere una soglia, e quale soggetto limite valga la pena di scartare è un giudizio, non un confronto numerico. L'ultima cella del notebook `lesion_analysis`, dopo aver guardato le distribuzioni di `lesion_metadata.csv`, stampa i blocchi da incollare nel config.
+Il csv è scritto dalla pipeline `build_excluded_subjects` a partire dal config `config/pipelines/build_excluded_subjects.json`, dove elenchi i soggetti da escludere. Una volta scritto, **il csv resta com'è**: la pipeline gli **aggiunge** i soggetti nuovi senza toccare le righe che ci sono, e per togliere una riga la cancelli a mano dal csv. Con `overwrite: true` il csv è invece ricostruito dal solo config. Ogni soggetto è elencato esplicitamente, senza soglie: i dati non hanno un salto naturale su cui mettere una soglia, e quale soggetto limite valga la pena di scartare è un giudizio, non un confronto numerico. L'ultima cella del notebook `lesion_analysis`, dopo aver guardato le distribuzioni di `lesion_metadata.csv`, stampa i blocchi da incollare nel config.
 
 ```csv
 subject_id,dataset,reason,scope,value
@@ -106,6 +106,7 @@ sub-STUCLUK2160,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
 {
   "output_path": "assets/metadata/excluded_subjects.csv",
   "lesion_metadata_path": "assets/metadata/lesion_metadata.csv",
+  "overwrite": false,
   "exclusions": [
     {"reason": "empty_mask", "scope": "all", "value_column": "lesion_volume_voxels_1mm", "subjects": ["sub-STUKLFR0671"]},
     {"reason": "all_zero_features", "scope": "sdc-streamline", "value": 0, "subjects": ["sub-STUCLUK0383", "..."]}
@@ -115,9 +116,10 @@ sub-STUCLUK2160,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
 
 | Parametro | Descrizione |
 | :--- | :--- |
-| **`output_path`** | Il csv generato. È riscritto per intero a ogni run, in modo atomico: un crash non lo lascia a metà. |
+| **`output_path`** | Il csv scritto. La scrittura è atomica: un crash non lo lascia a metà. |
+| **`overwrite`** | `false` (il modo usuale): il csv esistente resta com'è, comprese le righe aggiunte o tolte a mano, e le righe del config vengono **aggiunte**. Una riga già presente per lo stesso soggetto, scope e motivo non viene toccata (resta il suo `value`, e se il config ne calcola uno diverso la run lo segnala); lo stesso soggetto e scope sotto un altro motivo è un conflitto e fa fallire la run. Un file assente viene creato, uno con le colonne vecchie (senza `scope`) non si può estendere. `true`: il csv è ricostruito dal solo config, e ciò che conteneva d'altro è perso. |
 | **`lesion_metadata_path`** | Il csv da cui si legge il `value` dei motivi di lesione. |
-| **`exclusions`** | Lista di blocchi. Una lista vuota è valida e genera un file con la sola intestazione ("nessuna esclusione, deliberatamente"). |
+| **`exclusions`** | Lista di blocchi. Con `overwrite: true`, una lista vuota genera un file con la sola intestazione ("nessuna esclusione, deliberatamente"); con `overwrite: false` non aggiunge nulla. |
 | ↳ **`reason`**, **`scope`** | Dal vocabolario chiuso sopra; una coppia (`reason`, `scope`) compare in un solo blocco. |
 | ↳ **`subjects`** | Gli ID, esplicitamente; non vuota, senza ripetizioni. |
 | ↳ **`value_column`** *oppure* **`value`** | Esattamente uno dei due: una colonna di `lesion_metadata.csv`, letta per ogni soggetto, oppure una costante (`0` per `all_zero_features`: il numero di feature non nulle, per definizione). |
@@ -125,7 +127,7 @@ sub-STUCLUK2160,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
 
 La pipeline ricava da sola il `dataset` (dal registro) e il `value`; un ID sconosciuto al registro, o senza riga in `lesion_metadata.csv` quando serve il `value`, fa fallire la run. Un soggetto elencato come `empty_mask` deve avere `value` 0, altrimenti la run fallisce: sarebbe un ID sbagliato che esclude un soggetto con una lesione vera.
 
-Prima di sostituire il file, il risultato passa dallo stesso validatore delle pipeline di matrice, su un file temporaneo: un config che produrrebbe un file rifiutato fallisce qui, e il file esistente resta com'è. `--dry-run` esegue ogni controllo e scrive il report in `summaries/build_excluded_subjects/` (con le righe aggiunte e rimosse rispetto al file attuale), ma non il csv.
+Prima di sostituire il file, il risultato passa dallo stesso validatore delle pipeline di matrice, su un file temporaneo: un config che produrrebbe un file rifiutato fallisce qui, e il file esistente resta com'è. `--dry-run` esegue ogni controllo e scrive il report in `summaries/build_excluded_subjects/` (con le righe aggiunte e rimosse rispetto al file attuale), ma non il csv. In modalità `overwrite: false` il config può contenere solo i soggetti **nuovi**: quelli già nel csv non servono, e se restano nel config vengono saltati.
 
 Il file è **l'unica fonte** letta sia da `build_lesion_matrix.py` sia da `build_sdc_matrix.py` (campo `excluded_subjects_path` nei due config). Ogni matrice legge le righe `all` più quelle del proprio scope: `build_lesion_matrix.py` quelle `lesion`, `build_sdc_matrix.py` quelle `sdc-<representation>`. Le righe `all` sono quindi ciò che garantisce la stessa coorte tra lesione e SDC; una riga più stretta restringe volutamente il confronto a un solo spazio di feature, e `config.md` di ogni matrice registra lo scope usato (`excluded_subjects_scope`).
 

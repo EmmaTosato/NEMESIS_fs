@@ -12,11 +12,14 @@ import pytest
 import src.utils.participants as participants_registry
 from src.pipeline.build_excluded_subjects import (
     OUTPUT_COLUMNS,
+    append_new_rows,
     build_table,
     describe_change,
     load_config,
     main,
+    read_existing,
     read_lesion_metadata,
+    resolve_final_table,
     validate_and_write,
 )
 
@@ -61,6 +64,7 @@ def _write_config(tmp_path, exclusions, **overrides):
         "output_path": "assets/metadata/excluded_subjects.csv",
         "lesion_metadata_path": "metadata/lesion_metadata.csv",
         "exclusions": exclusions,
+        "overwrite": False,
         "run_notes": "n",
         **overrides,
     }
@@ -254,6 +258,119 @@ def test_describe_change_missing_file_old_schema_and_diff(tmp_path, metadata_roo
     assert any(line.startswith("- sub-STUKE0146") for line in lines)
 
 
+# --- append (overwrite: false) and overwrite -------------------------------------------------
+
+_OLD_ROW = "sub-STUKE0146,UKE/WAKEUP_acute,all_zero_features,sdc-streamline,0\n"
+
+
+def _existing_file(tmp_path, body):
+    path = tmp_path / "assets/metadata/excluded_subjects.csv"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_HEADER + body)
+    return path
+
+
+def test_load_config_requires_overwrite_to_be_a_boolean(tmp_path, metadata_root):
+    path = _write_config(tmp_path, [], overwrite="yes")
+
+    with pytest.raises(ValueError, match="'overwrite' must be a boolean"):
+        load_config(path)
+
+
+def test_load_config_requires_the_overwrite_key(tmp_path, metadata_root):
+    path = _write_config(tmp_path, [])
+    raw = json.loads(path.read_text())
+    del raw["overwrite"]
+    path.write_text(json.dumps(raw))
+
+    with pytest.raises(ValueError, match="overwrite"):
+        load_config(path)
+
+
+def test_append_keeps_every_existing_row_and_adds_only_the_new_ones(tmp_path, metadata_root):
+    """The row the file has and the config does not know (here put there "by hand") survives."""
+    output = _existing_file(tmp_path, _OLD_ROW)
+    config = _write_config(tmp_path, [_entry(subjects=["sub-STUNIPD0001"])])
+
+    assert main(["--config", str(config)]) == 0
+
+    written = pd.read_csv(output, dtype=str)
+    assert list(written["subject_id"]) == ["sub-STUKE0146", "sub-STUNIPD0001"]
+    assert output.read_text().startswith(_HEADER + _OLD_ROW)
+
+
+def test_append_twice_is_idempotent(tmp_path, metadata_root):
+    output = _existing_file(tmp_path, "")
+    config = _write_config(tmp_path, [_entry(subjects=["sub-STUNIPD0001"])])
+
+    assert main(["--config", str(config)]) == 0
+    first = output.read_text()
+    assert main(["--config", str(config)]) == 0
+
+    assert output.read_text() == first
+
+
+def test_append_creates_a_missing_file(tmp_path, metadata_root):
+    assert main(["--config", str(_write_config(tmp_path, [_entry()]))]) == 0
+
+    assert len(pd.read_csv(tmp_path / "assets/metadata/excluded_subjects.csv")) == 1
+
+
+def test_append_does_not_touch_a_row_the_config_would_compute_differently(tmp_path, metadata_root):
+    """A value typed in the file differs from the one lesion_metadata.csv gives (5): the file's wins, and it is reported."""
+    existing = pd.DataFrame([["sub-STUNIPD0001", "UNIPD/WashU", "lesion_too_small", "all", "7"]], columns=OUTPUT_COLUMNS)
+    new = _table(tmp_path, [_entry()])
+
+    merged, notes = append_new_rows(existing, new)
+
+    assert merged.to_dict("records") == existing.to_dict("records")
+    assert any("value '7'" in n and "'5'" in n for n in notes)
+
+
+def test_append_same_subject_and_scope_under_another_reason_raises(tmp_path, metadata_root):
+    existing = pd.DataFrame([["sub-STUNIPD0001", "UNIPD/WashU", "empty_mask", "all", "0"]], columns=OUTPUT_COLUMNS)
+
+    with pytest.raises(ValueError, match="under another reason"):
+        append_new_rows(existing, _table(tmp_path, [_entry()]))
+
+
+def test_append_to_a_file_with_the_old_schema_raises_and_points_at_overwrite(tmp_path, metadata_root):
+    output = tmp_path / "assets/metadata/excluded_subjects.csv"
+    output.parent.mkdir(parents=True)
+    output.write_text("subject_id,dataset,reason,value\n")
+
+    with pytest.raises(ValueError, match="overwrite"):
+        read_existing(output)
+    assert main(["--config", str(_write_config(tmp_path, [_entry()]))]) == 1
+    assert output.read_text() == "subject_id,dataset,reason,value\n"
+
+
+def test_append_header_only_file_is_filled(tmp_path, metadata_root):
+    output = _existing_file(tmp_path, "")
+
+    assert main(["--config", str(_write_config(tmp_path, [_entry()]))]) == 0
+
+    assert len(pd.read_csv(output)) == 1
+
+
+def test_overwrite_rebuilds_the_file_from_the_config_alone(tmp_path, metadata_root):
+    """The by-hand row is dropped: overwrite is the explicit way to say "the config is the whole list"."""
+    output = _existing_file(tmp_path, _OLD_ROW)
+    config = _write_config(tmp_path, [_entry(subjects=["sub-STUNIPD0001"])], overwrite=True)
+
+    assert main(["--config", str(config)]) == 0
+
+    assert list(pd.read_csv(output, dtype=str)["subject_id"]) == ["sub-STUNIPD0001"]
+
+
+def test_resolve_final_table_modes(tmp_path, metadata_root):
+    config_rows = _table(tmp_path, [_entry()])
+    config = load_config(_write_config(tmp_path, [_entry()]))
+
+    table, notes = resolve_final_table(config, config_rows)  # no file yet
+    assert table.equals(config_rows) and "does not exist" in notes[0]
+
+
 # --- main (end to end) ----------------------------------------------------------------------
 
 
@@ -280,7 +397,9 @@ def test_main_replaces_a_file_with_the_old_schema_and_the_result_loads_for_the_m
     output = tmp_path / "assets/metadata/excluded_subjects.csv"
     output.parent.mkdir(parents=True)
     output.write_text("subject_id,dataset,reason,value\n")
-    config = _write_config(tmp_path, [_entry("all_zero_features", "sdc-streamline", subjects=["sub-STUKE0146"], value=0)])
+    config = _write_config(
+        tmp_path, [_entry("all_zero_features", "sdc-streamline", subjects=["sub-STUKE0146"], value=0)], overwrite=True
+    )
 
     assert main(["--config", str(config)]) == 0
 

@@ -1,16 +1,21 @@
-"""CLI entry point: build assets/metadata/excluded_subjects.csv from a config.
+"""CLI entry point: add subjects to assets/metadata/excluded_subjects.csv from a config.
 
-The config is the decision - which subjects are kept out of the production matrices, for which
-reason and for which matrix (scope) - and the CSV is a file derived from it, never edited by hand.
-Every subject is listed explicitly: there is no threshold or rule here, because the data have no
-natural cut-off and which borderline subject is worth dropping is a judgement call, not a number
-(docs/guides/metadata.md). What this script computes is only what a hand-written file would get
-wrong: each row's `dataset` (from the registry) and `value` (the metric that motivated the
-exclusion, from assets/metadata/lesion_metadata.csv, or a constant).
+The config lists the subjects to keep out of the production matrices - for which reason and for
+which matrix (scope) - and this script writes them into the CSV. Every subject is listed
+explicitly: there is no threshold or rule here, because the data have no natural cut-off and which
+borderline subject is worth dropping is a judgement call, not a number (docs/guides/metadata.md).
+What this script computes is only what a hand-written file would get wrong: each row's `dataset`
+(from the registry) and `value` (the metric that motivated the exclusion, from
+assets/metadata/lesion_metadata.csv, or a constant).
 
-The whole file is written by this script, from every entry of the config: there is no merge with
-rows already in the CSV, so a reason that no notebook knows about (all_zero_features) lives in the
-config like any other.
+Two modes, chosen by the config's `overwrite`:
+
+- `overwrite: false` (the usual one): the CSV that exists stays as it is - rows added or removed
+  by hand included - and the config's rows are APPENDED to it. A row already in the file for the
+  same subject, scope and reason is left alone; the same subject and scope under a different
+  reason is a conflict and raises (remove the row by hand, or rebuild with overwrite). A missing
+  file is created.
+- `overwrite: true`: the CSV is rebuilt from the config alone, dropping whatever else it held.
 
 Usage:
     conda activate nemesis
@@ -18,7 +23,8 @@ Usage:
 
 The result is checked with the same validator the matrix pipelines use
 (src.utils.participants.load_excluded_subjects), on a temporary file, BEFORE the real one is
-replaced: a config that would write a file the matrix pipelines reject fails here instead.
+replaced: a config that would write a file the matrix pipelines reject fails here instead, and
+the existing file stays as it was.
 --dry-run runs every check and writes the report, but not the CSV.
 """
 
@@ -72,6 +78,7 @@ class BuildExcludedSubjectsConfig:
     output_path: Path
     lesion_metadata_path: Path
     exclusions: list[ExclusionEntry]
+    overwrite: bool
     run_notes: str
 
 
@@ -86,9 +93,11 @@ def load_config(path: str | Path) -> BuildExcludedSubjectsConfig:
     raw = json.loads(path.read_text())
     if not isinstance(raw, dict):
         raise ValueError(f"{path}: expected a JSON object, got {type(raw).__name__}")
-    for key in ("project", "output_path", "lesion_metadata_path", "exclusions", "run_notes"):
+    for key in ("project", "output_path", "lesion_metadata_path", "exclusions", "overwrite", "run_notes"):
         if key not in raw:
             raise ValueError(f"{path}: missing required key {key!r}")
+    if not isinstance(raw["overwrite"], bool):
+        raise ValueError(f"{path}: 'overwrite' must be a boolean, got {raw['overwrite']!r}")
     for key in ("output_path", "lesion_metadata_path"):
         if not isinstance(raw[key], str) or not raw[key]:
             raise ValueError(f"{path}: {key!r} must be a non-empty string")
@@ -106,6 +115,7 @@ def load_config(path: str | Path) -> BuildExcludedSubjectsConfig:
         output_path=Path(raw["output_path"]),
         lesion_metadata_path=Path(raw["lesion_metadata_path"]),
         exclusions=entries,
+        overwrite=raw["overwrite"],
         run_notes=str(raw["run_notes"]),
     )
 
@@ -221,6 +231,65 @@ def _format_value(value: float) -> str:
     return str(int(value)) if float(value).is_integer() else repr(float(value))
 
 
+# --- appending ------------------------------------------------------------------------------
+
+
+def read_existing(output_path: Path) -> pd.DataFrame | None:
+    """The CSV as it is now (every cell kept as text, so a row is written back unchanged), or None
+    if it does not exist. A file whose columns are not OUTPUT_COLUMNS cannot be appended to."""
+    if not output_path.is_file():
+        return None
+    existing = pd.read_csv(output_path, dtype=str)
+    if list(existing.columns) != OUTPUT_COLUMNS:
+        raise ValueError(
+            f"{output_path} has columns {list(existing.columns)} instead of {OUTPUT_COLUMNS}, so the config's "
+            "rows cannot be appended to it - rebuild it from the config with 'overwrite': true"
+        )
+    return existing
+
+
+def append_new_rows(existing: pd.DataFrame, new: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
+    """`existing` untouched and first, then the rows of `new` whose (subject_id, scope) is not in it.
+
+    A row of `new` that is already there with the same reason is skipped (the file's own value
+    wins, and a differing one is reported in the returned notes); the same (subject, scope) under
+    another reason raises - which of the two is right is a decision, not something to resolve here.
+    """
+    present = {(r.subject_id, r.scope): r for r in existing.itertuples(index=False)}
+    to_add, notes, conflicts = [], [], []
+    for row in new.itertuples(index=False):
+        current = present.get((row.subject_id, row.scope))
+        if current is None:
+            to_add.append(row)
+        elif current.reason != row.reason:
+            conflicts.append(f"{row.subject_id}/{row.scope}: file has {current.reason!r}, config has {row.reason!r}")
+        elif current.value != row.value:
+            notes.append(
+                f"{row.subject_id} {row.reason}/{row.scope} already in the file with value {current.value!r} "
+                f"(config says {row.value!r}) - the file's row was kept"
+            )
+    if conflicts:
+        raise ValueError(
+            f"{len(conflicts)} subject(s) already in the file under another reason: {conflicts[:5]} - "
+            "remove the row by hand, or rebuild the file from the config with 'overwrite': true"
+        )
+    notes.append(f"{len(new) - len(to_add)} of the config's {len(new)} row(s) were already in the file")
+    return pd.concat([existing, pd.DataFrame(to_add, columns=OUTPUT_COLUMNS)], ignore_index=True), notes
+
+
+def resolve_final_table(
+    config: BuildExcludedSubjectsConfig, table: pd.DataFrame
+) -> tuple[pd.DataFrame, list[str]]:
+    """What the CSV will contain: the config's rows alone with overwrite (or if there is no file
+    yet), the existing file plus the config's new rows otherwise."""
+    if config.overwrite:
+        return table, ["overwrite: the file is rebuilt from the config alone"]
+    existing = read_existing(config.output_path)
+    if existing is None:
+        return table, [f"{config.output_path} does not exist: created from the config"]
+    return append_new_rows(existing, table)
+
+
 # --- writing --------------------------------------------------------------------------------
 
 
@@ -266,7 +335,8 @@ def report_lines(
     lines = [
         f"# build_excluded_subjects — {now.strftime('%d-%m-%y %H:%M:%S')}",
         "",
-        f"file: `{config.output_path}` · rows: {len(table)} · lesion measures: `{config.lesion_metadata_path}`",
+        f"file: `{config.output_path}` · rows: {len(table)} · overwrite: {config.overwrite} · "
+        f"lesion measures: `{config.lesion_metadata_path}`",
         "",
         f"notes: {config.run_notes}",
         "",
@@ -318,8 +388,9 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
         try:
-            table = build_table(config, read_lesion_metadata(config.lesion_metadata_path), load_participants_registry())
-            change = describe_change(table, config.output_path)
+            config_rows = build_table(config, read_lesion_metadata(config.lesion_metadata_path), load_participants_registry())
+            table, notes = resolve_final_table(config, config_rows)
+            change = notes + describe_change(table, config.output_path)
         except (FileNotFoundError, ValueError) as exc:
             logging.error(str(exc))
             return 1
