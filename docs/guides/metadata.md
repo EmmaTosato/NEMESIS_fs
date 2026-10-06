@@ -7,7 +7,7 @@ Lo scrivono due script, che rispondono a due domande diverse e non si sovrascriv
 | Script | Domanda | Colonne che scrive |
 | :--- | :--- | :--- |
 | `src/pipeline/populate_metadata.py` | chi esiste | `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` |
-| `src/pipeline/enrich_metadata.py` | cosa sappiamo di lui | `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_2mm`, `disconnection_load_voxels_1mm`, `disconnection_mean_1mm` |
+| `src/pipeline/enrich_metadata.py` | cosa sappiamo di lui | `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_{2mm,1mm}`, `disconnection_load_voxels_{2mm,1mm}`, `disconnection_mean_{2mm,1mm}` |
 
 - **Dettagli architetturali/perché è fatto così**: [`docs/dev/metadata.md`](../dev/metadata.md)
 - **Quali campi esistono in quale dataset**: [`docs/guides/datasets.md`](datasets.md)
@@ -91,20 +91,20 @@ Accanto al csv viene scritto `lesion_metadata.config.json`, il config esatto del
 
 Produce `assets/metadata/sdc_metadata.csv`: una riga per **ogni** soggetto con un disconnettoma (`has_sdc` vero nel registro), nessuna esclusione applicata. Come `lesion_metadata.csv`, è agnostica del clinico.
 
-Due colonne, sulla griglia 1 mm (le mappe disconnettoma esistono solo lì, `res-1` è nel nome del file):
+Due colonne per griglia, su **2 mm** (la griglia di produzione) e **1 mm** (quella nativa delle mappe: `res-1` è nel nome del file). Qui sotto il suffisso `<g>` è il nome della griglia:
 
 | Colonna | Cos'è |
 | :--- | :--- |
-| `disconnection_load_voxels_1mm` | La somma della probabilità di disconnessione sui voxel **dentro il cervello**. È l'analogo del volume lesionale: per una mappa binaria sarebbe un conteggio di voxel; qui ogni voxel pesa la sua probabilità, quindi l'unità è "voxel pesati per probabilità" (mm³ a 1 mm). |
-| `disconnection_mean_1mm` | La stessa somma divisa per il numero di voxel del cervello: la probabilità media di disconnessione sul cervello, tra 0 e 1. |
+| `disconnection_load_voxels_<g>` | La somma della probabilità di disconnessione sui voxel **dentro il cervello**. È l'analogo del volume lesionale: per una mappa binaria sarebbe un conteggio di voxel; qui ogni voxel pesa la sua probabilità, quindi l'unità è "voxel pesati per probabilità" (1 mm³ a 1 mm, 8 mm³ a 2 mm). |
+| `disconnection_mean_<g>` | La stessa somma divisa per il numero di voxel del cervello: la probabilità media di disconnessione sul cervello, tra 0 e 1. |
 
-Le due colonne **ordinano i soggetti allo stesso modo**: il divisore è una costante della griglia. Cambia solo il numero che si legge (`~60 000` oppure `~0,033`). Il carico si legge come un volume, la media come "quanta parte del cervello, in media".
+Su una stessa griglia le due colonne **ordinano i soggetti allo stesso modo**: il divisore è una costante della griglia. Cambia solo il numero che si legge (`~60 000` oppure `~0,033`). Il carico si legge come un volume, la media come "quanta parte del cervello, in media".
 
 ### Cosa viene misurato, e cosa no
 
 - **Solo dentro la maschera cerebrale.** Il disconnettoma di BCBToolKit ha una quota di massa fuori dal cervello (mediana 0,80% della massa totale, fino all'8,9% in un caso, misurato su 400 soggetti casuali): è tractografia che esce dal cervello, non disconnessione. È la stessa scelta di `correct_out_of_brain` per le lesioni.
 - **Senza soglia.** Ogni voxel pesa la sua probabilità. È diverso dal pannello "Disconnessione per cluster" dell'Embedding Explorer, che conta un voxel come disconnesso solo sopra `0.5`: le due quantità ordinano i soggetti quasi allo stesso modo (Spearman 0,99 su 200 soggetti) ma non sono la stessa formula.
-- **Ogni mappa con il suo header.** Le mappe non stanno tutte sullo stesso reticolo di voxel: tra gli 8 dataset ci sono **3 header distinti** (orientamento LAS con offset x `+90`; RAS con `-90`, cioè traslato di 1 voxel; RAS con `-91`, identico al template MNI). Ogni mappa viene portata sulla griglia con il proprio header (`nearest`, una rimappatura intera esatta: la somma non cambia), mai con un flip fisso: un flip è giusto per un solo gruppo e specchierebbe gli altri senza alcun errore.
+- **Ogni mappa con il suo header.** Le mappe non stanno tutte sullo stesso reticolo di voxel: tra gli 8 dataset ci sono **3 header distinti** (orientamento LAS con offset x `+90`; RAS con `-90`, cioè traslato di 1 voxel; RAS con `-91`, identico al template MNI). Ogni mappa viene portata sulla griglia con il proprio header (`nearest`; a 1 mm è una rimappatura intera esatta, la somma non cambia), mai con un flip fisso: un flip è giusto per un solo gruppo e specchierebbe gli altri senza alcun errore.
 
 ### Parametri di `config/pipelines/compute_sdc_metadata.json`
 
@@ -116,8 +116,8 @@ Le due colonne **ordinano i soggetti allo stesso modo**: il divisore è una cost
 | **`group_filter`** | Gruppi ammessi (`["ST"]`: solo i pazienti con ictus). |
 | **`disconnectome_glob`** | Come si trova la mappa di un soggetto, relativo alla cartella del dataset. |
 | **`resample_interpolation`** | `nearest` (consigliata: l'unica che non altera la somma). |
-| **`grid`** | `{name, reference_template_path, brain_mask_path}`, tutti obbligatori. `name` diventa il suffisso delle due colonne, quindi dev'essere alfanumerico. |
-| **`overwrite`** | `false`: se il csv esiste la run esce subito (la misura costa una lettura e un ricampionamento per soggetto, circa 15 minuti sull'intera coorte). `true` lo ricalcola e lo sostituisce. |
+| **`grids`** | Oggetto `{nome: {reference_template_path, brain_mask_path}}`, entrambi i path obbligatori per ogni griglia, nell'ordine in cui compariranno le colonne. Il nome diventa il suffisso delle due colonne, quindi dev'essere alfanumerico e unico. Stessa forma di `grids` in `compute_lesion_metadata.json`. |
+| **`overwrite`** | `false`: se il csv esiste la run esce subito (la misura costa una lettura e un ricampionamento per soggetto, circa 20 minuti sull'intera coorte con due griglie). `true` lo ricalcola e lo sostituisce. |
 | **`run_notes`** | Nota libera, finisce nel report. |
 
 Accanto al csv viene scritto `sdc_metadata.config.json`, il config esatto della run che l'ha prodotto.
@@ -138,7 +138,7 @@ La run si ferma, elencando tutti i dataset coinvolti, se:
 
 Il csv è scritto dalla pipeline `build_excluded_subjects` a partire dal config `config/pipelines/build_excluded_subjects.json`, dove elenchi i soggetti da escludere. Una volta scritto, **il csv resta com'è**: la pipeline gli **aggiunge** i soggetti nuovi senza toccare le righe che ci sono, e per togliere una riga la cancelli a mano dal csv. Con `overwrite: true` il csv è invece ricostruito dal solo config. Ogni soggetto è elencato esplicitamente, senza soglie: i dati non hanno un salto naturale su cui mettere una soglia, e quale soggetto limite valga la pena di scartare è un giudizio, non un confronto numerico. L'ultima cella del notebook `lesion_analysis`, dopo aver guardato le distribuzioni di `lesion_metadata.csv`, stampa i blocchi da incollare nel config.
 
-**Criteri adottati.** Le lesioni piccole **non** vengono escluse: anche una lesione focale o minima può essere clinicamente grave, quindi per volume si scarta solo la maschera vuota. Si escludono invece i soggetti con più del **30%** dei voxel di lesione fuori dal brain (`out_of_brain_fraction_2mm`, misurata prima dell'azzeramento); sotto quella soglia il soggetto resta e i voxel fuori dal brain sono azzerati. Il razionale è in [`docs/dev/metadata.md`](../dev/metadata.md#criteri-di-esclusione-adottati).
+**Criteri adottati.** Le lesioni piccole **non** vengono escluse: anche una lesione focale o minima può essere clinicamente grave, quindi per volume si scarta solo la maschera vuota. Si escludono invece i soggetti con più del **30%** dei voxel di lesione fuori dal brain (`out_of_brain_fraction_2mm`, misurata prima dell'azzeramento); sotto quella soglia il soggetto resta, e i suoi voxel fuori dal brain sono azzerati solo se la matrice è costruita con `correct_out_of_brain: true`. Il razionale è in [`docs/dev/metadata.md`](../dev/metadata.md#criteri-di-esclusione-adottati).
 
 ```csv
 subject_id,dataset,reason,scope,value
@@ -206,7 +206,7 @@ I soggetti esclusi **restano nel registro** con `has_lesion` e `has_sdc` intatti
 ```json
 "lesion_metadata": {
   "path": "assets/metadata/lesion_metadata.csv",
-  "copy_columns": ["lesion_volume_voxels_2mm"],
+  "copy_columns": ["lesion_volume_voxels_2mm", "lesion_volume_voxels_1mm"],
   "lesion_side_from": "lesion_side_2mm",
   "geometric_override_datasets": []
 }
@@ -214,7 +214,7 @@ I soggetti esclusi **restano nel registro** con `has_lesion` e `has_sdc` intatti
 
 `enrich_metadata` **non apre nessuna maschera**: copia numeri già calcolati. Ogni scelta su *come* una maschera è misurata (quali griglie, se azzerare i voxel fuori dal brain, quale soglia per il lato) vive nel config di `compute_lesion_metadata`, non qui.
 
-- **`copy_columns`**: colonne copiate **con lo stesso nome**, per tutti i soggetti in scope, sovrascrivendo. Ogni nome deve esistere nel csv, e non può essere una colonna di `populate_metadata.py`. Una colonna non elencata non viene portata nel registro e resta disponibile nel csv per il notebook: oggi il volume a 1 mm, le due frazioni e i due indici di lateralità stanno solo lì.
+- **`copy_columns`**: colonne copiate **con lo stesso nome**, per tutti i soggetti in scope, sovrascrivendo. Ogni nome deve esistere nel csv, e non può essere una colonna di `populate_metadata.py`. Una colonna non elencata non viene portata nel registro e resta disponibile nel csv per il notebook: oggi le due frazioni fuori dal brain e i due indici di lateralità stanno solo lì. Il volume è copiato su entrambe le griglie perché l'Embedding Explorer offre la scelta 1 mm/2 mm.
 - **`lesion_side_from`**: quale colonna del csv riempie `lesion_side`. Ha una regola diversa da `copy_columns`, per questo è una chiave a sé: scrive **solo dove la risoluzione clinica ha lasciato la cella vuota**, e scrive anche `lesion_side_source = "geometric"`. Un valore clinico non viene sovrascritto, salvo l'eccezione di `geometric_override_datasets` (sotto). `null` disattiva il riempimento e lascia `lesion_side` solo clinico. Richiede `lesion_side` in `variables`.
 - **`geometric_override_datasets`**: lista di dataset dove un lato clinico opposto a quello della maschera viene **forzato** a quello geometrico. Obbligatoria; `[]` (il valore in uso) la disattiva; se non vuota richiede `lesion_side_from`. Un nome non presente nel registro fa fallire la run. Spiegata, e motivata, nella sezione seguente.
 
@@ -246,7 +246,10 @@ Dove sta l'inversione non è accertato. Nelle immagini dei soggetti WashU la les
 ```json
 "sdc_metadata": {
   "path": "assets/metadata/sdc_metadata.csv",
-  "copy_columns": ["disconnection_load_voxels_1mm", "disconnection_mean_1mm"]
+  "copy_columns": [
+    "disconnection_load_voxels_2mm", "disconnection_mean_2mm",
+    "disconnection_load_voxels_1mm", "disconnection_mean_1mm"
+  ]
 }
 ```
 

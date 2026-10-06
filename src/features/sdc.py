@@ -78,6 +78,7 @@ src.features.lesion.compute_lesion_metadata measures. See its own docstring.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import nibabel as nib
@@ -344,13 +345,13 @@ def compute_sdc_metadata(
     disconnectome_glob: str,
     resample_interpolation: str,
     group_filter: list[str] | None,
-    grid: LesionGrid,
+    grids: list[LesionGrid],
 ) -> tuple[pd.DataFrame, list[str]]:
-    """How disconnected each subject is, overall - two scalars per subject, on `grid`.
+    """How disconnected each subject is, overall - two scalars per subject, on every grid in `grids`.
 
     The single computation src.pipeline.compute_sdc_metadata writes to
     assets/metadata/sdc_metadata.csv. Returns (metadata, excluded_by_group); metadata carries
-    subject_id, dataset and, suffixed with the grid's name:
+    subject_id, dataset and, per grid, suffixed with that grid's name:
 
     - disconnection_load_voxels_<g>: the sum of the disconnection probability over the voxels
       inside the brain mask. The disconnection counterpart of lesion_volume_voxels: for a
@@ -360,6 +361,11 @@ def compute_sdc_metadata(
       disconnection probability over the brain, in [0, 1]. The divisor is a constant of the
       grid, so this column orders subjects exactly as the load does; it exists because a
       fraction reads more directly than a voxel count.
+
+    Each map is read from disk once and resampled once per grid, like compute_lesion_metadata.
+    On a grid coarser than the maps' native 1mm, "nearest" is a subsample: the load there sums
+    2mm voxels (8 mm^3 each), so it is about 1/8 of the 1mm load but not exactly (measured on the
+    full cohort: 8 x load_2mm / load_1mm has median 1.001, range 0.989-1.017).
 
     Voxels outside the brain mask are excluded from both (lesion_metadata's own
     correct_out_of_brain=True makes the same choice for lesions): BCBToolKit's disconnectome
@@ -384,45 +390,31 @@ def compute_sdc_metadata(
 
     Streaming, one map at a time - only scalars are kept per subject.
     """
-    validate_lesion_grids([grid])
-    reference_img = load_reference_image(grid.reference_template_path)
-    brain_mask = load_brain_mask(grid.brain_mask_path, reference_img)
-    n_brain_voxels = int(brain_mask.sum())
-    if n_brain_voxels == 0:
-        raise ValueError(
-            f"brain mask {grid.brain_mask_path} has no voxel inside it on grid {grid.name!r} - "
-            "the mean disconnection over the brain is undefined"
-        )
+    validate_lesion_grids(grids)
+    contexts = [_disconnection_grid_context(grid) for grid in grids]
 
     registered, excluded_by_group_registry = _registered_subjects(datasets, group_filter, _SDC_FLAG_COLUMN)
     sdc_files, excluded_by_group_disk = _discover_by_dataset(data_root, datasets, disconnectome_glob, group_filter)
     _check_registry_agrees_with_disk(registered, sdc_files, disconnectome_glob)
 
-    load_column = f"{DISCONNECTION_LOAD_PREFIX}_{grid.name}"
-    mean_column = f"{DISCONNECTION_MEAN_PREFIX}_{grid.name}"
     rows: list[dict[str, object]] = []
     for dataset in datasets:
         for subject_id, path in sorted(sdc_files[dataset].items()):
-            load = _disconnection_load(path, reference_img, brain_mask, resample_interpolation)
-            # Rounded to 3 decimal places (06-10-26, on request): a readable CSV, not a change
-            # of what is measured - a probability-weighted voxel sum has no more real precision
-            # than that anyway (the input maps are float32). The mean column's own values span
-            # 4e-05 to 0.25, so 3 decimals genuinely collapses the lowest-disconnection subjects
-            # toward 0.000 - the load column (tens of thousands) keeps all the precision that
-            # mattered before rounding.
-            rows.append(
-                {
-                    "subject_id": subject_id, "dataset": dataset,
-                    load_column: round(load, 3), mean_column: round(load / n_brain_voxels, 3),
-                }
-            )
+            # One disk read per subject, shared by every grid (nibabel caches the data array).
+            img = nib.load(path)
+            row: dict[str, object] = {"subject_id": subject_id, "dataset": dataset}
+            for context in contexts:
+                load = _disconnection_load(img, path, context, resample_interpolation)
+                row[context.load_column] = load
+                row[context.mean_column] = load / context.n_brain_voxels
+            rows.append(row)
 
     if not rows:
         raise ValueError(
             f"no subjects measured under {data_root} for datasets={datasets} (group_filter={group_filter!r}) - "
             "the registry flags no subject with SDC output in scope"
         )
-    metadata = pd.DataFrame(rows, columns=["subject_id", "dataset", load_column, mean_column])
+    metadata = pd.DataFrame(rows, columns=_disconnection_metadata_columns(contexts))
     return metadata, sorted(set(excluded_by_group_registry) | set(excluded_by_group_disk))
 
 
@@ -453,21 +445,62 @@ def _check_registry_agrees_with_disk(
         raise ValueError("the subject registry and the SDC output on disk disagree:\n  " + "\n  ".join(problems))
 
 
+@dataclass(frozen=True, eq=False)
+class _DisconnectionGridContext:
+    """Everything derived once per grid and reused for every subject: the reference image, the
+    brain mask, its voxel count and the two column names. eq=False: numpy fields."""
+
+    reference_img: nib.Nifti1Image
+    brain_mask: np.ndarray
+    n_brain_voxels: int
+    load_column: str
+    mean_column: str
+
+
+def _disconnection_grid_context(grid: LesionGrid) -> _DisconnectionGridContext:
+    reference_img = load_reference_image(grid.reference_template_path)
+    brain_mask = load_brain_mask(grid.brain_mask_path, reference_img)
+    n_brain_voxels = int(brain_mask.sum())
+    if n_brain_voxels == 0:
+        raise ValueError(
+            f"brain mask {grid.brain_mask_path} has no voxel inside it on grid {grid.name!r} - "
+            "the mean disconnection over the brain is undefined"
+        )
+    return _DisconnectionGridContext(
+        reference_img=reference_img,
+        brain_mask=brain_mask,
+        n_brain_voxels=n_brain_voxels,
+        load_column=f"{DISCONNECTION_LOAD_PREFIX}_{grid.name}",
+        mean_column=f"{DISCONNECTION_MEAN_PREFIX}_{grid.name}",
+    )
+
+
+def _disconnection_metadata_columns(contexts: list[_DisconnectionGridContext]) -> list[str]:
+    """Explicit column order, grids in declaration order - also what fixes the columns of an
+    empty frame."""
+    columns = ["subject_id", "dataset"]
+    for context in contexts:
+        columns += [context.load_column, context.mean_column]
+    return columns
+
+
 def _disconnection_load(
-    path: Path, reference_img: nib.Nifti1Image, brain_mask: np.ndarray, resample_interpolation: str
+    img: nib.Nifti1Image, path: Path, context: _DisconnectionGridContext, resample_interpolation: str
 ) -> float:
-    """One subject's summed disconnection probability inside the brain mask.
+    """One subject's summed disconnection probability inside the brain mask, on one grid.
+
+    `path` only names the file in the error: `img` is its already-loaded image.
 
     Raises ValueError for a map that is not a [0, 1] probability (negative, non-finite, or above
     1) - see _PROBABILITY_UPPER_BOUND for why that check exists."""
-    values = _load_disconnectome_voxels(path, reference_img, resample_interpolation)
+    values = _disconnectome_values(img, context.reference_img, resample_interpolation)
     if not np.isfinite(values).all() or values.min() < 0.0 or values.max() > _PROBABILITY_UPPER_BOUND:
         raise ValueError(
             f"{path}: disconnectome values are not a [0, 1] probability "
             f"(min={values.min()}, max={values.max()}, finite={bool(np.isfinite(values).all())}) - "
             "refusing to sum a map on an unknown scale"
         )
-    return float(values[brain_mask].sum(dtype=np.float64))
+    return float(values[context.brain_mask].sum(dtype=np.float64))
 
 
 def load_reference_regions(reference_labels_path: Path, column: str = "region_name") -> np.ndarray:
@@ -686,7 +719,14 @@ def _load_disconnectome_voxels(
     grid if needed, flattened to float32 - never binarized (continuous [0, 1]
     disconnection probability, unlike src/features/lesion.py's
     _load_and_binarize_lesion)."""
-    img = nib.load(path)
+    return _disconnectome_values(nib.load(path), reference_img, resample_interpolation)
+
+
+def _disconnectome_values(
+    img: nib.Nifti1Image, reference_img: nib.Nifti1Image, resample_interpolation: str
+) -> np.ndarray:
+    """An already-loaded disconnectome-map resampled onto reference_img's grid if needed,
+    flattened to float32."""
     if _needs_resample(img, reference_img):
         img = resample_to_img(
             img, reference_img, interpolation=resample_interpolation, force_resample=True, copy_header=True

@@ -14,7 +14,7 @@ import pytest
 from dash import dcc, html
 
 from src.analysis.embedding_app import DISCONNECTION_PROBABILITY_THRESHOLD
-from src.analysis.embedding_coloring import DEFAULT_VOLUME_GRID, available_volume_grids
+from src.analysis.embedding_coloring import DEFAULT_GRID, available_grids
 from src.analysis.embedding_app import (
     COLOR_MODE_ORDER,
     NEUTRAL_MODE,
@@ -407,7 +407,7 @@ def test_build_embedding_figure_log_scale_transforms_values_and_sets_decade_tick
 
     fig = build_embedding_figure(embedding, metadata, "volume", "x", "y", "title")
 
-    volume_trace = next(trace for trace in fig.data if trace.name == "lesion volume (voxels)")
+    volume_trace = next(trace for trace in fig.data if trace.name == "lesion volume")
     # log10([10, 100, 1000, 10000]) = [1, 2, 3, 4]
     assert list(volume_trace.marker.color) == pytest.approx([1.0, 2.0, 3.0, 4.0])
     assert list(volume_trace.marker.colorbar.tickvals) == pytest.approx([1.0, 2.0, 3.0, 4.0])
@@ -489,15 +489,15 @@ def test_build_embedding_figure_volume_zero_is_drawn_missing_not_refused(_partic
     fig = build_embedding_figure(embedding, metadata, "volume", "x", "y", "title")
 
     assert "missing" in {trace.name for trace in fig.data}
-    volume_trace = next(t for t in fig.data if t.name == "lesion volume (voxels)")
+    volume_trace = next(t for t in fig.data if t.name == "lesion volume")
     # Ticks are built from the values actually on the scale - the 0 must not drag the lower
     # bound to log10(0) = -inf.
     assert list(volume_trace.marker.colorbar.ticktext) == ["100", "1000", "10000"]
 
 
-def _registry_with_disconnection(metadata_root, loads, means):
+def _registry_with_disconnection(metadata_root, loads, means, grid="2mm"):
     metadata_root.mkdir(parents=True, exist_ok=True)
-    header = [*_PARTICIPANTS_REGISTRY_COLUMNS, "disconnection_load_voxels_1mm", "disconnection_mean_1mm"]
+    header = [*_PARTICIPANTS_REGISTRY_COLUMNS, f"disconnection_load_voxels_{grid}", f"disconnection_mean_{grid}"]
     rows = [
         [f"sub-{i}", f"sub-{i}", "UNIPD/WashU", "ST", "True", "True", "False", str(loads[i]), str(means[i])]
         for i in range(len(loads))
@@ -508,7 +508,7 @@ def _registry_with_disconnection(metadata_root, loads, means):
 
 
 @pytest.mark.parametrize(
-    "mode_name, label", [("disconnection_load", "disconnection load (voxels)"), ("disconnection_mean", "mean disconnection (0-1)")]
+    "mode_name, label", [("disconnection_load", "disconnection load"), ("disconnection_mean", "mean disconnection")]
 )
 def test_build_embedding_figure_disconnection_modes_draw_a_linear_colorbar(
     _participants_registry_root, mode_name, label
@@ -528,6 +528,42 @@ def test_build_embedding_figure_disconnection_modes_draw_a_linear_colorbar(
     assert min(trace.marker.color) == (1000 if mode_name == "disconnection_load" else 0.0005)
 
 
+@pytest.mark.parametrize("mode_name", ["disconnection_load", "disconnection_mean"])
+def test_build_embedding_figure_disconnection_follows_the_selected_grid(_participants_registry_root, mode_name):
+    """The grid buttons must change what is drawn: the same mode reads the 1mm column when "1mm"
+    is selected and the 2mm one otherwise. A registry holding both with different values pins
+    that the selection is honoured and not silently ignored."""
+    embedding, metadata = _embedding_and_metadata()
+    _participants_registry_root.mkdir(parents=True, exist_ok=True)
+    columns = {"disconnection_load": "disconnection_load_voxels", "disconnection_mean": "disconnection_mean"}
+    prefix = columns[mode_name]
+    header = [*_PARTICIPANTS_REGISTRY_COLUMNS, f"{prefix}_2mm", f"{prefix}_1mm"]
+    rows = [
+        [f"sub-{i}", f"sub-{i}", "UNIPD/WashU", "ST", "True", "True", "False", str(10 + i), str(1000 + i)]
+        for i in range(4)
+    ]
+    (_participants_registry_root / "participants.csv").write_text(
+        "\n".join([",".join(header)] + [",".join(r) for r in rows]) + "\n"
+    )
+
+    default = build_embedding_figure(embedding, metadata, mode_name, "x", "y", "title")
+    one_mm = build_embedding_figure(embedding, metadata, mode_name, "x", "y", "title", grid="1mm")
+
+    def drawn(fig):
+        return min(next(t for t in fig.data if t.marker.colorbar is not None and t.marker.colorbar.title.text).marker.color)
+
+    assert drawn(default) == 10
+    assert drawn(one_mm) == 1000
+
+
+def test_build_embedding_figure_unknown_grid_raises(_participants_registry_root):
+    embedding, metadata = _embedding_and_metadata()
+    _registry_with_disconnection(_participants_registry_root, [1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+
+    with pytest.raises(ValueError, match="unknown grid '3mm'"):
+        build_embedding_figure(embedding, metadata, "disconnection_load", "x", "y", "title", grid="3mm")
+
+
 def test_build_embedding_figure_disconnection_zero_is_a_real_value_on_the_linear_scale(_participants_registry_root):
     """A subject with no measurable disconnection has load 0. On a linear scale that is the
     bottom of the colour range, not a missing value - unlike lesion volume 0 on the log scale."""
@@ -537,7 +573,7 @@ def test_build_embedding_figure_disconnection_zero_is_a_real_value_on_the_linear
     fig = build_embedding_figure(embedding, metadata, "disconnection_load", "x", "y", "title")
 
     assert "missing" not in {trace.name for trace in fig.data}
-    trace = next(t for t in fig.data if t.name == "disconnection load (voxels)")
+    trace = next(t for t in fig.data if t.name == "disconnection load")
     assert 0 in list(trace.marker.color)
 
 
@@ -924,18 +960,18 @@ def test_build_app_layout_has_one_button_per_color_mode(tmp_path):
     # (Metrica/Componenti/Run), color-buttons] - color-buttons is the last one, not a fixed
     # index, so this doesn't silently break the next time a row is added/reordered.
     controls_children = app.layout.children[2].children
-    color_buttons_div = controls_children[-2]  # -1 is the volume-grid row below it
+    color_buttons_div = controls_children[-2]  # -1 is the grid row below it
     assert len(color_buttons_div.children) == len(COLOR_MODE_ORDER)
     assert color_buttons_div.children[0].className == "active"  # neutro selected by default
 
-    # The volume-grid row: hidden until "volume" is picked, one button per grid the registry
-    # can actually serve, the default one pre-selected (30-09-26).
+    # The grid row: hidden until a grid mode (volume, disconnection) is picked, one button per
+    # grid the registry can actually serve, the default one pre-selected (30-09-26).
     grid_row = controls_children[-1]
-    assert grid_row.id == "volume-grid-row"
+    assert grid_row.id == "color-grid-row"
     assert grid_row.style == {"display": "none"}
-    grid_buttons = grid_row.children[1:]  # children[0] is the "Griglia volume" label
-    assert [b.id["grid"] for b in grid_buttons] == available_volume_grids()
-    assert [b.className for b in grid_buttons if b.id["grid"] == DEFAULT_VOLUME_GRID] == ["active"]
+    grid_buttons = grid_row.children[1:]  # children[0] is the "Griglia" label
+    assert [b.id["grid"] for b in grid_buttons] == available_grids()
+    assert [b.className for b in grid_buttons if b.id["grid"] == DEFAULT_GRID] == ["active"]
 
 
 def test_run_metadata_reads_metadata_csv_regardless_of_dimensionality(tmp_path):

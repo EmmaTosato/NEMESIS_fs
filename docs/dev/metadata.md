@@ -41,7 +41,7 @@ assets/metadata/excluded_subjects.csv   — chi resta fuori dalle matrici (gener
 | | `populate_metadata.py` | `enrich_metadata.py` |
 |---|---|---|
 | Domanda | chi esiste | cosa sappiamo di lui |
-| Scrive | `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` | `age`, `sex`, `lesion_side`, `lesion_side_source`, `NIHSS`, `education`, `clinical_date`, `lesion_volume_voxels_2mm`, `disconnection_load_voxels_1mm`, `disconnection_mean_1mm` |
+| Scrive | `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` | `age`, `sex`, `lesion_side`, `lesion_side_source`, `NIHSS`, `education`, `clinical_date`, `lesion_volume_voxels_{2mm,1mm}`, `disconnection_load_voxels_{2mm,1mm}`, `disconnection_mean_{2mm,1mm}` |
 | Flag di idempotenza | `overwrite` — false: aggiunge solo soggetti nuovi, righe esistenti intatte; true: ricalcola le proprie colonne preservando quelle dell'altro script | `fill` — true: riempie solo le celle vuote delle variabili richieste; false: ricalcola tutto il richiesto |
 
 Registry condiviso: **`config/registry/metadata_sources.json`** — per ogni dataset, il path del tsv grezzo e quello della cartella derivatives. Lo leggono entrambi gli script, così la corrispondenza dataset↔path esiste in un posto solo (non è derivabile meccanicamente: `participants_UCL.tsv` ↔ `UCL-UK/UCLStrokeData`).
@@ -64,9 +64,9 @@ Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv`
 
 ## Cosa esiste davvero adesso
 
-- **`assets/metadata/participants.csv`** — 5853 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_2mm`, `disconnection_load_voxels_1mm`, `disconnection_mean_1mm` (enrich).
+- **`assets/metadata/participants.csv`** — 5853 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_{2mm,1mm}`, `disconnection_load_voxels_{2mm,1mm}`, `disconnection_mean_{2mm,1mm}` (enrich).
 - **`assets/metadata/lesion_metadata.csv`** — una riga per soggetto con maschera, quattro colonne per griglia (`lesion_volume_voxels_<g>`, `out_of_brain_fraction_<g>`, `laterality_index_<g>`, `lesion_side_<g>`), più `lesion_metadata.config.json` accanto: il config della run che l'ha prodotto.
-- **`assets/metadata/sdc_metadata.csv`** — una riga per soggetto con disconnettoma, due colonne sulla griglia 1 mm (`disconnection_load_voxels_1mm`, `disconnection_mean_1mm`), più `sdc_metadata.config.json` accanto: il config della run che l'ha prodotto.
+- **`assets/metadata/sdc_metadata.csv`** — una riga per soggetto con disconnettoma, due colonne per griglia (`disconnection_load_voxels_<g>`, `disconnection_mean_<g>`, con `<g>` = `2mm` e `1mm`), più `sdc_metadata.config.json` accanto: il config della run che l'ha prodotto.
 - **`assets/metadata/excluded_subjects.csv`** — `subject_id, dataset, reason, scope, value`, generato da `src/pipeline/build_excluded_subjects.py` dal suo config.
 - **I tsv per-dataset `assets/metadata/<DATASET>_participants_*.tsv` non esistono più**: cancellati. Ogni consumatore è stato spostato sul file unico.
 - **`data/derived/<pipeline>/<sessione>/metadata.csv`** — contiene solo ciò che appartiene a quella run (`subject_id`, `dataset`, `lesion_volume_voxels` per `build_lesion_matrix.py`). Non è più la fonte da cui `enrich_metadata.py` copia `lesion_volume_voxels` in `participants.csv` (fino al 28-09-26 lo era, vedi sopra) — resta solo l'artefatto della run stessa, la sua colonna può differire da quella nel registro se le due griglie non coincidono.
@@ -156,6 +156,14 @@ Gemello di `lesion_metadata.csv`: lo scrive `src/pipeline/compute_sdc_metadata.p
 
 `disconnection_load_voxels_<g>` è la somma della probabilità di disconnessione sui voxel dentro la maschera cerebrale; `disconnection_mean_<g>` è quella somma divisa per il numero di voxel cerebrali. La prima è l'analogo diretto di `lesion_volume_voxels`: per una mappa binaria si ridurrebbe a un conteggio di voxel. Il divisore della seconda è una costante della griglia, quindi **le due colonne ordinano i soggetti in modo identico**: non sono due misure, sono una misura in due unità.
 
+### Due griglie: 2 mm e 1 mm
+
+Come `lesion_metadata.csv`, il csv ha le colonne su **due** griglie, `grids` nel config (stessa forma e stesso `validate_lesion_grids`): ogni nome diventa il suffisso delle sue due colonne. 2 mm è la griglia di produzione (matrice lesionale e matrice SDC voxel-wise), 1 mm quella nativa delle mappe; tenerle entrambe permette all'Embedding Explorer di offrire per la disconnessione la stessa scelta 1 mm/2 mm che offre per il volume.
+
+Ogni mappa è letta **una volta** e ricampionata una volta per griglia (il costo che scala è la lettura di 5853 file, non il ricampionamento): circa 20 minuti per l'intera coorte con due griglie.
+
+A 2 mm `nearest` è un sottocampionamento (un voxel su otto), quindi il carico a 2 mm non è il carico a 1 mm diviso 8, ma ci va vicino perché la mappa è liscia: su 5853 soggetti `8 × carico_2mm / carico_1mm` ha mediana 1,001 (da 0,989 a 1,017) e le due colonne hanno Spearman 0,9999994. La media sul cervello coincide (rapporto mediano 1,000). A differenza del volume lesionale, nessun soggetto sparisce nel ricampionamento: 1 soggetto ha carico 0 a 2 mm, ed è lo stesso che ha 0 a 1 mm.
+
 Alternative considerate e scartate (`.claude/history/methods_changelog.md`, 06-10-26):
 
 - **Volume sogliato** (`#{p > 0.5}`): è la soglia che il pannello "Disconnessione per cluster" dell'app già usa, ma una soglia è una scelta in più da giustificare, e su 200 soggetti ordina quasi come la somma (Spearman 0,993) pur avendo un soggetto su 200 a zero. Non scritto.
@@ -173,7 +181,7 @@ Tutte 182×218×182 a 1 mm, ma con **3 header distinti**, raggruppati per datase
 | RAS, offset x `-90` (traslato di 1 voxel rispetto al template) | UKE-SFB936, UKLFR, NEMESIS_T0, WashU | 1032 |
 | RAS, offset x `-91` (identico al template MNI) | UKE-WAKEUP | 451 |
 
-Gli stessi voxel fisici stanno quindi a indici diversi: un flip fisso è giusto per il primo gruppo e specchia gli altri due; leggere per indice sbaglia i primi due. `compute_sdc_metadata` porta ogni mappa sulla griglia col **suo** header (`resample_to_img`, `nearest`, lo stesso passaggio di `build_sdc_voxelwise_matrix`). Con `nearest` ogni caso è una rimappatura intera esatta e la somma non cambia. Verificato contro un calcolo geometrico indipendente per gruppo (flip / traslazione di 1 voxel / identità): scarto `0.0` su 12 soggetti, 4 per gruppo. Il test `test_compute_sdc_metadata_realigns_every_map_with_its_own_header` fallisce sia per "non riallineare" sia per "flippare sempre".
+Gli stessi voxel fisici stanno quindi a indici diversi: un flip fisso è giusto per il primo gruppo e specchia gli altri due; leggere per indice sbaglia i primi due. `compute_sdc_metadata` porta ogni mappa sulla griglia col **suo** header (`resample_to_img`, `nearest`, lo stesso passaggio di `build_sdc_voxelwise_matrix`). Con `nearest` e a 1 mm ogni caso è una rimappatura intera esatta e la somma non cambia. Verificato contro un calcolo geometrico indipendente per gruppo (flip / traslazione di 1 voxel / identità): scarto `0.0` su 12 soggetti, 4 per gruppo. Il test `test_compute_sdc_metadata_realigns_every_map_with_its_own_header` fallisce sia per "non riallineare" sia per "flippare sempre".
 
 Questa eterogeneità è stata scoperta per caso: un primo calcolo esplorativo assumeva uno specchio fisso, dedotto da pochi soggetti che erano per caso tutti LAS. Il censimento sull'intera popolazione (letture dei soli header, secondi) è ciò che l'ha smentita.
 
@@ -250,7 +258,7 @@ Nessuna pipeline lo genera: i dati non hanno un salto naturale su cui mettere un
 La pipeline non applica soglie, ma la lista nel config non è arbitraria: segue due criteri di analisi.
 
 - **Lesioni piccole: nessuna esclusione.** Un soggetto non è scartato per il solo fatto che la lesione è piccola. Anche una lesione focale o minima può avere conseguenze cliniche gravi, quindi il volume non è un proxy di rilevanza clinica. Per volume si esclude solo la maschera vuota (`empty_mask`, 3 soggetti): il motivo `lesion_too_small` esiste nel vocabolario ma non è usato. Tra i soggetti inclusi il volume minimo a 2 mm è 1 voxel, e 122 soggetti stanno a 10 voxel o meno.
-- **Lesioni fuori dal brain: esclusione sopra il 30%.** Si esclude (`out_of_brain_fraction_too_high`) chi ha **più del 30%** dei voxel di lesione fuori dalla maschera cerebrale, letto da `out_of_brain_fraction_2mm`, la frazione sulla griglia di produzione misurata prima dell'azzeramento. Sotto la soglia il soggetto resta, e con `correct_out_of_brain: true` i voxel fuori dal brain sono azzerati (`docs/dev/lesion_matrix.md`). Oltre, la maschera è troppo contaminata perché il residuo rappresenti la lesione: è il caso di 5 soggetti, tutti sopra il 41%. La soglia viene dalla sezione "Lesione fuori dal brain" di `notebooks/exploration/lesion_analysis.ipynb`.
+- **Lesioni fuori dal brain: esclusione sopra il 30%.** Si esclude (`out_of_brain_fraction_too_high`) chi ha **più del 30%** dei voxel di lesione fuori dalla maschera cerebrale, letto da `out_of_brain_fraction_2mm`, la frazione sulla griglia di produzione misurata prima dell'azzeramento. Sotto la soglia il soggetto resta; i suoi voxel fuori dal brain sono azzerati solo con `correct_out_of_brain: true` nel config della matrice, e restano nella matrice con `false` (`docs/dev/lesion_matrix.md`). Oltre, la maschera è troppo contaminata perché il residuo rappresenti la lesione: è il caso di 5 soggetti, tutti sopra il 41%. La soglia viene dalla sezione "Lesione fuori dal brain" di `notebooks/exploration/lesion_analysis.ipynb`.
 
 `reason` ha un vocabolario chiuso in `KNOWN_EXCLUSION_REASONS` (`empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`, `all_zero_features`), pensato per crescere: aggiungerne uno è una voce lì più una riga in `docs/guides/metadata.md`. Chiuso e non libero perché la lista dei soggetti è scritta a mano nel config e un motivo con un typo diventerebbe in silenzio una categoria nuova che nessuno conta.
 

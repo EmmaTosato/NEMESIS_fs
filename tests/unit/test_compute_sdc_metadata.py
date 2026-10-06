@@ -50,15 +50,18 @@ def _make_map(data_root, subject_id, voxels):
 
 
 def _write_config(tmp_path, data_root, output_path, overrides=None, grid_overrides=None):
-    """A one-grid config whose brain mask keeps world x >= 0 (array index i >= 2)."""
+    """A one-grid ("1mm") config whose brain mask keeps world x >= 0 (array index i >= 2).
+    `grid_overrides` patches that grid's own fields; a "name" key renames it."""
     template = tmp_path / "template.nii.gz"
     nib.save(nib.Nifti1Image(np.zeros(_SHAPE, dtype=np.float32), _AFFINE), template)
     brain = np.zeros(_SHAPE, dtype=np.float32)
     brain[2:] = 1.0
     brain_path = tmp_path / "brain_mask.nii.gz"
     nib.save(nib.Nifti1Image(brain, _AFFINE), brain_path)
-    grid = {"name": "1mm", "reference_template_path": str(template), "brain_mask_path": str(brain_path)}
-    grid.update(grid_overrides or {})
+    grid = {"reference_template_path": str(template), "brain_mask_path": str(brain_path)}
+    grid_overrides = dict(grid_overrides or {})
+    grid_name = grid_overrides.pop("name", "1mm")
+    grid.update(grid_overrides)
     cfg = {
         "project": "testproj",
         "data_root": str(data_root),
@@ -67,7 +70,7 @@ def _write_config(tmp_path, data_root, output_path, overrides=None, grid_overrid
         "group_filter": ["ST"],
         "disconnectome_glob": "sdc/*/*_res-1_desc-disconnectome.nii.gz",
         "resample_interpolation": "nearest",
-        "grid": grid,
+        "grids": {grid_name: grid},
         "overwrite": False,
         "run_notes": "test",
     }
@@ -110,7 +113,7 @@ def test_compute_sdc_metadata_end_to_end(tmp_path, monkeypatch, caplog, _isolate
     by_id = metrics.set_index("subject_id")
     assert by_id.loc["sub-STUNIPD0001", "disconnection_load_voxels_1mm"] == 0.75
     assert by_id.loc["sub-STUNIPD0002", "disconnection_load_voxels_1mm"] == 1.0
-    assert by_id.loc["sub-STUNIPD0001", "disconnection_mean_1mm"] == pytest.approx(round(0.75 / 32, 3))
+    assert by_id.loc["sub-STUNIPD0001", "disconnection_mean_1mm"] == pytest.approx(0.75 / 32)
 
     reports = list((tmp_path / "summaries").glob("*.md"))
     logs = list((tmp_path / "logs").glob("*.log"))
@@ -131,7 +134,8 @@ def test_compute_sdc_metadata_writes_its_own_config_beside_the_csv(tmp_path, mon
     assert pipeline.main(["--config", str(config_path)]) == 0
 
     written = json.loads((tmp_path / "sdc_metadata.config.json").read_text())
-    assert written["grid"]["name"] == "1mm"
+    assert list(written["grids"]) == ["1mm"]
+    assert written["grids"]["1mm"]["brain_mask_path"].endswith("brain_mask.nii.gz")
     assert written["resample_interpolation"] == "nearest"
     assert "written" in written
 
@@ -243,3 +247,26 @@ def test_compute_sdc_metadata_unknown_dataset_returns_1(tmp_path, monkeypatch, _
 
     assert pipeline.main(["--config", str(config_path)]) == 1
     assert not output_path.exists()
+
+
+def test_compute_sdc_metadata_two_grids_end_to_end(tmp_path, monkeypatch, _isolated_registry):
+    """Both grids' columns reach the CSV, the run config and the report - the 1mm/2mm choice the
+    Embedding Explorer offers for disconnection rests on this file carrying both."""
+    _redirect_outputs(monkeypatch, tmp_path)
+    data_root = _two_subjects(tmp_path, _isolated_registry)
+    output_path = tmp_path / "sdc_metadata.csv"
+    config_path = _write_config(tmp_path, data_root, output_path)
+    cfg = json.loads(config_path.read_text())
+    cfg["grids"]["2mm"] = cfg["grids"]["1mm"]  # same files: only the naming/column plumbing is under test
+    config_path.write_text(json.dumps(cfg))
+
+    assert pipeline.main(["--config", str(config_path)]) == 0
+
+    assert list(pd.read_csv(output_path).columns) == [
+        "subject_id", "dataset",
+        "disconnection_load_voxels_1mm", "disconnection_mean_1mm",
+        "disconnection_load_voxels_2mm", "disconnection_mean_2mm",
+    ]
+    assert list(json.loads((tmp_path / "sdc_metadata.config.json").read_text())["grids"]) == ["1mm", "2mm"]
+    report = next((tmp_path / "summaries").glob("*.md")).read_text()
+    assert "## Distribuzione (1mm)" in report and "## Distribuzione (2mm)" in report

@@ -8,13 +8,27 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 06-10-26 — Disconnessione per soggetto su due griglie (2mm e 1mm), come il volume lesionale
+
+**Decisione**: `sdc_metadata.csv` ha le due colonne (`disconnection_load_voxels_<g>`, `disconnection_mean_<g>`) su **2mm e 1mm**, config `grids` come `compute_lesion_metadata.json`; `enrich_metadata.json` copia nel registro entrambe le griglie sia per la disconnessione sia per il volume lesionale (`lesion_volume_voxels_1mm` prima restava solo in `lesion_metadata.csv`). L'Embedding Explorer offre la scelta 1mm/2mm (default 2mm) per volume, disconnection load e mean disconnection.
+
+**Perché**: la voce "Disconnessione per soggetto: carico/media" qui sotto aveva fissato la sola griglia 1mm senza alcun confronto con il 2mm: era la risoluzione nativa delle mappe (`res-1` nel nome del file), non una scelta di risoluzione deliberata, mentre la griglia di produzione del progetto è 2mm (voce 06-09-26 sulle griglie delle matrici). Richiesto esplicitamente di avere entrambe, non di sostituire l'una con l'altra.
+
+**Misurato sull'intera coorte (5853 soggetti, 19m54s di run)**: il carico a 2mm ordina i soggetti quasi come quello a 1mm (Spearman 0,9999994); `8 × carico_2mm / carico_1mm` ha mediana 1,001, intervallo 0,989-1,017, quindi `nearest` a 2mm sottocampiona ma la mappa è abbastanza liscia da non cambiare il numero in modo sensibile; la media sul cervello coincide (rapporto mediano 1,000). Nessun soggetto sparisce nel ricampionamento: l'unico con carico 0 (`sub-STUKLFR0671`) è 0 su entrambe le griglie, a differenza del volume lesionale dove una lesione piccola può azzerarsi a 2mm.
+
+**Conseguenza ancora vera**: il `csv` è stato rigenerato con `overwrite: true` da una copia del config nella scratchpad; il config del repo resta `overwrite: false`. I valori sono arrotondati a 3 decimali (la versione committata prima di oggi aveva i float interi). I nomi delle colonne dell'app (`DEFAULT_GRID`, `grid_column`, `available_grids` in `src/analysis/embedding_coloring.py`) sostituiscono i vecchi `*_volume_grid*`: nessun alias.
+
+---
+
 ## 06-10-26 — Criteri di esclusione dalle matrici: nessuna esclusione per lesione piccola, soglia > 30% fuori dal brain
 
 **Decisione**: (1) le lesioni piccole **non** si escludono: anche una lesione focale o minima può avere conseguenze cliniche gravi, quindi il volume non è un proxy di rilevanza clinica; per volume si scarta solo la maschera vuota (`empty_mask`, 3 soggetti). Il motivo `lesion_too_small` resta nel vocabolario ma non è usato. (2) Si escludono i soggetti con **più del 30%** dei voxel di lesione fuori dalla maschera cerebrale (`out_of_brain_fraction_2mm`, misurata prima dell'azzeramento), motivo `out_of_brain_fraction_too_high`.
 
 **Verificato su `lesion_metadata.csv`/`excluded_subjects.csv`**: 5 soggetti sopra il 30%, tutti e soli quelli esclusi per questo motivo (frazione minima 0,41); tra i non esclusi il massimo è esattamente 0,30, quindi la soglia è stretta (`>`). Tra gli inclusi il volume minimo a 2 mm è 1 voxel, 122 soggetti stanno a 10 voxel o meno.
 
-**Perché**: la voce del 29-09-26 ("Esclusione dei soggetti: lista curata a mano al posto delle soglie in config") spiega perché non esiste una soglia automatica sui dati (nessun salto naturale); la 30% è un criterio di analisi applicato a mano quando si compila il config, non un parametro di pipeline. Sotto la soglia il soggetto resta e i voxel fuori dal brain sono azzerati (`correct_out_of_brain`).
+**Perché**: la voce del 29-09-26 ("Esclusione dei soggetti: lista curata a mano al posto delle soglie in config") spiega perché non esiste una soglia automatica sui dati (nessun salto naturale); la 30% è un criterio di analisi applicato a mano quando si compila il config, non un parametro di pipeline. Sotto la soglia il soggetto resta; i voxel fuori dal brain sono azzerati solo con `correct_out_of_brain: true`, flag che resta configurabile (`true` o `false`) in `build_lesion_matrix.json`.
+
+**Config ripristinato nella stessa sessione**: `build_lesion_matrix.json` aveva `excluded_subjects_path` assente (tolto da `4b297d3`) e due chiavi morte `min_lesion_volume_voxels`/`max_out_of_brain_fraction` a `null`; il loader sollevava `missing required field 'excluded_subjects_path'`. Chiavi morte cancellate, `excluded_subjects_path` rimesso.
 
 **Conseguenza ancora vera**: la regola è documentata in `docs/dev/metadata.md` ("Criteri di esclusione adottati") e `docs/guides/metadata.md`; la pipeline non la applica, quindi un soggetto nuovo sopra il 30% entra in matrice finché non è aggiunto a mano al config.
 

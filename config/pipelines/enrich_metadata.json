@@ -14,7 +14,8 @@
   "lesion_metadata": {
     "path": "assets/metadata/lesion_metadata.csv",
     "copy_columns": [
-      "lesion_volume_voxels_2mm"
+      "lesion_volume_voxels_2mm",
+      "lesion_volume_voxels_1mm"
     ],
     "lesion_side_from": "lesion_side_2mm",
     "geometric_override_datasets": []
@@ -22,6 +23,8 @@
   "sdc_metadata": {
     "path": "assets/metadata/sdc_metadata.csv",
     "copy_columns": [
+      "disconnection_load_voxels_2mm",
+      "disconnection_mean_2mm",
       "disconnection_load_voxels_1mm",
       "disconnection_mean_1mm"
     ]

@@ -3,7 +3,16 @@
 import pandas as pd
 import pytest
 
-from src.analysis.embedding_coloring import COLOR_MODES, color_values, resolve_color_mode
+from src.analysis.embedding_coloring import (
+    COLOR_MODES,
+    DEFAULT_GRID,
+    GRID_MODES,
+    KNOWN_GRIDS,
+    available_grids,
+    color_values,
+    grid_column,
+    resolve_color_mode,
+)
 
 
 def test_registry_has_expected_modes():
@@ -252,15 +261,49 @@ def test_run_only_mode_still_raises_on_missing_column(_registry_root):
 # --- overall disconnection -------------------------------------------------------------------------------
 
 
-def test_disconnection_registry_columns_are_the_ones_compute_sdc_metadata_writes():
-    """embedding_coloring repeats the two column names instead of importing them (it must stay
-    free of the imaging stack), so this is what keeps the two from drifting apart: a rename in
+@pytest.mark.parametrize("grid", KNOWN_GRIDS)
+def test_disconnection_registry_columns_are_the_ones_compute_sdc_metadata_writes(grid):
+    """embedding_coloring repeats the column names instead of importing them (it must stay free
+    of the imaging stack), so this is what keeps the two from drifting apart: a rename in
     compute_sdc_metadata would otherwise leave the colour modes asking the registry for a
     column nobody writes any more."""
     from src.features.sdc import DISCONNECTION_LOAD_PREFIX, DISCONNECTION_MEAN_PREFIX
 
-    assert resolve_color_mode("disconnection_load").registry_column == f"{DISCONNECTION_LOAD_PREFIX}_1mm"
-    assert resolve_color_mode("disconnection_mean").registry_column == f"{DISCONNECTION_MEAN_PREFIX}_1mm"
+    assert grid_column("disconnection_load", grid) == f"{DISCONNECTION_LOAD_PREFIX}_{grid}"
+    assert grid_column("disconnection_mean", grid) == f"{DISCONNECTION_MEAN_PREFIX}_{grid}"
+
+
+def test_the_default_grid_is_the_one_every_grid_mode_declares_as_its_registry_column():
+    for mode_name in GRID_MODES:
+        assert resolve_color_mode(mode_name).registry_column == grid_column(mode_name, DEFAULT_GRID)
+    assert DEFAULT_GRID == "2mm"  # the production grid: lesion matrix and SDC voxel-wise matrix
+
+
+def test_grid_column_rejects_an_unknown_grid_and_a_mode_with_no_grid():
+    with pytest.raises(ValueError, match="unknown grid '3mm'.*known"):
+        grid_column("volume", "3mm")
+    with pytest.raises(ValueError, match="no grid choice"):
+        grid_column("nihss", "2mm")
+
+
+def test_available_grids_offers_what_the_registry_holds_for_any_grid_mode(_registry_root):
+    """A grid is offered when at least one grid mode has its column - volume at 1mm only is
+    enough to offer 1mm - and never one the registry has no column for at all."""
+    _write_registry(
+        _registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "1", "2"]],
+        ["lesion_volume_voxels_2mm", "disconnection_load_voxels_1mm"],
+    )
+
+    assert available_grids() == ["2mm", "1mm"]
+
+    _write_registry(
+        _registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "1"]],
+        ["lesion_volume_voxels_2mm"],
+    )
+
+    assert available_grids() == ["2mm"]
 
 
 @pytest.mark.parametrize("mode_name", ["disconnection_load", "disconnection_mean"])
@@ -301,12 +344,28 @@ def test_disconnection_modes_read_the_registry(_registry_root):
             ["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "59503.8", "0.0326"],
             ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", "1200.0", "0.0007"],
         ],
-        ["disconnection_load_voxels_1mm", "disconnection_mean_1mm"],
+        ["disconnection_load_voxels_2mm", "disconnection_mean_2mm"],
     )
     metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0002", "sub-STUNIPD0001"]})  # run order, not registry order
 
     assert list(color_values(metadata, "disconnection_load")) == [1200.0, 59503.8]
     assert list(color_values(metadata, "disconnection_mean")) == [0.0007, 0.0326]
+
+
+def test_disconnection_mode_reads_the_grid_it_is_asked_for(_registry_root):
+    """registry_column is how the app's grid buttons switch a mode between grids: the SAME mode
+    must return the other grid's numbers, not the default's."""
+    _write_registry(
+        _registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "100.0", "800.0"]],
+        ["disconnection_load_voxels_2mm", "disconnection_load_voxels_1mm"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001"]})
+
+    assert list(color_values(metadata, "disconnection_load")) == [100.0]
+    assert list(
+        color_values(metadata, "disconnection_load", registry_column=grid_column("disconnection_load", "1mm"))
+    ) == [800.0]
 
 
 def test_disconnection_mode_on_an_unenriched_registry_says_how_to_populate_it(_registry_root):
@@ -317,5 +376,5 @@ def test_disconnection_mode_on_an_unenriched_registry_says_how_to_populate_it(_r
     )
     metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001"]})
 
-    with pytest.raises(ValueError, match=r"no 'disconnection_load_voxels_1mm' column.*enrich_metadata"):
+    with pytest.raises(ValueError, match=r"no 'disconnection_load_voxels_2mm' column.*enrich_metadata"):
         color_values(metadata, "disconnection_load")

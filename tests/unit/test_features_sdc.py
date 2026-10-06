@@ -883,10 +883,10 @@ def _make_disconnectome(data_root, subject_id, voxels, affine=_REFERENCE_AFFINE,
     )
 
 
-def _compute(tmp_path, data_root, datasets=(_DATASET,), group_filter=("ST",), grid=None):
+def _compute(tmp_path, data_root, datasets=(_DATASET,), group_filter=("ST",), grids=None):
     return compute_sdc_metadata(
         data_root, list(datasets), _GLOB, "nearest", None if group_filter is None else list(group_filter),
-        grid or _metadata_grid(tmp_path),
+        grids or [_metadata_grid(tmp_path)],
     )
 
 
@@ -907,24 +907,7 @@ def test_compute_sdc_metadata_sums_probability_inside_the_brain_and_divides_by_b
     by_id = metadata.set_index("subject_id")
     assert by_id.loc["sub-STUNIPD0001", "disconnection_load_voxels_1mm"] == 1.0
     assert by_id.loc["sub-STUNIPD0002", "disconnection_load_voxels_1mm"] == 0.75
-    assert by_id.loc["sub-STUNIPD0002", "disconnection_mean_1mm"] == round(0.75 / n_brain, 3)
-
-
-def test_compute_sdc_metadata_rounds_both_columns_to_3_decimal_places(tmp_path, _metadata_root):
-    """06-10-26, on request: assets/metadata/sdc_metadata.csv must be readable, not carry the
-    full float64 precision of a probability-weighted voxel sum - which has no more real meaning
-    than that anyway (the input maps are float32). A sum chosen to land on a 4th decimal digit
-    pins the rounding itself, not just a value that happens to already be short."""
-    data_root = tmp_path / "data"
-    # 0.1234567 inside the brain (i=2,3 both in-brain) -> exact float64 sum has far more than 3
-    # decimal digits; n_brain=32 makes the mean's 4th decimal non-zero too.
-    _make_disconnectome(data_root, "sub-STUNIPD0001", {(2, 2, 2): 0.1111111, (3, 2, 2): 0.0123456})
-    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001")
-
-    metadata, _ = _compute(tmp_path, data_root)
-
-    assert metadata.loc[0, "disconnection_load_voxels_1mm"] == round(0.1111111 + 0.0123456, 3)
-    assert metadata.loc[0, "disconnection_mean_1mm"] == round((0.1111111 + 0.0123456) / 32, 3)
+    assert by_id.loc["sub-STUNIPD0002", "disconnection_mean_1mm"] == 0.75 / n_brain
 
 
 @pytest.mark.parametrize(
@@ -1029,7 +1012,7 @@ def test_compute_sdc_metadata_raises_on_an_empty_brain_mask(tmp_path, _metadata_
     grid = _metadata_grid(tmp_path, brain_x_from_index=4)  # slice(4, None) of a 4-wide axis: empty
 
     with pytest.raises(ValueError, match="no voxel inside it"):
-        _compute(tmp_path, tmp_path / "data", grid=grid)
+        _compute(tmp_path, tmp_path / "data", grids=[grid])
 
 
 def test_compute_sdc_metadata_zero_disconnection_is_a_value_not_an_error(tmp_path, _metadata_root):
@@ -1044,3 +1027,79 @@ def test_compute_sdc_metadata_zero_disconnection_is_a_value_not_an_error(tmp_pat
 
     assert metadata.loc[0, "disconnection_load_voxels_1mm"] == 0.0
     assert metadata.loc[0, "disconnection_mean_1mm"] == 0.0
+
+
+def _coarse_grid(tmp_path):
+    """A 2x2x2 grid with 2-unit voxels whose centres are world x/y/z in {-2, 0} - exactly the
+    even-indexed voxels of the 4x4x4 reference lattice, so "nearest" keeps source voxels i/j/k in
+    {0, 2} and drops the odd ones. Its brain mask keeps world x >= 0 (index 1 on the x axis)."""
+    affine = np.diag([2.0, 2.0, 2.0, 1.0])
+    affine[:3, 3] = -2.0
+    template = tmp_path / "template_2mm.nii.gz"
+    nib.save(nib.Nifti1Image(np.zeros((2, 2, 2), dtype=np.float32), affine), template)
+    brain = np.zeros((2, 2, 2), dtype=np.float32)
+    brain[1:] = 1.0
+    brain_path = tmp_path / "brain_mask_2mm.nii.gz"
+    nib.save(nib.Nifti1Image(brain, affine), brain_path)
+    return LesionGrid("2mm", template, brain_path)
+
+
+def test_compute_sdc_metadata_writes_two_columns_per_grid_in_declaration_order(tmp_path, _metadata_root):
+    data_root = tmp_path / "data"
+    _make_disconnectome(data_root, "sub-STUNIPD0001", {(2, 2, 2): 0.5})
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001")
+
+    metadata, _ = _compute(tmp_path, data_root, grids=[_coarse_grid(tmp_path), _metadata_grid(tmp_path)])
+
+    assert list(metadata.columns) == [
+        "subject_id", "dataset",
+        "disconnection_load_voxels_2mm", "disconnection_mean_2mm",
+        "disconnection_load_voxels_1mm", "disconnection_mean_1mm",
+    ]
+
+
+def test_compute_sdc_metadata_each_grid_is_its_own_measurement_not_a_rescaling(tmp_path, _metadata_root):
+    """On the coarse grid "nearest" is a subsample: of the two in-brain blobs (0.5 at i=2 and 0.25
+    at i=3) only the one on an even index is sampled, so the 2mm load is 0.5 - not the 1mm load
+    (0.75) divided by 8. The means divide by each grid's own brain-voxel count (4 vs 32)."""
+    data_root = tmp_path / "data"
+    _make_disconnectome(data_root, "sub-STUNIPD0001", {(2, 2, 2): 0.5, (3, 2, 2): 0.25})
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001")
+
+    metadata, _ = _compute(tmp_path, data_root, grids=[_metadata_grid(tmp_path), _coarse_grid(tmp_path)])
+
+    row = metadata.iloc[0]
+    assert row["disconnection_load_voxels_1mm"] == 0.75
+    assert row["disconnection_mean_1mm"] == 0.75 / 32
+    assert row["disconnection_load_voxels_2mm"] == 0.5
+    assert row["disconnection_mean_2mm"] == 0.5 / 4
+
+
+def test_compute_sdc_metadata_reads_each_map_once_however_many_grids(tmp_path, _metadata_root, monkeypatch):
+    """The cost that scales is the disk read of ~5800 maps: a second grid must reuse the loaded
+    image (same contract as compute_lesion_metadata), not re-read every file."""
+    data_root = tmp_path / "data"
+    for subject_id in ("sub-STUNIPD0001", "sub-STUNIPD0002"):
+        _make_disconnectome(data_root, subject_id, {(2, 2, 2): 0.5})
+        _register_subject(_metadata_root, _DATASET, subject_id)
+
+    real_load = nib.load
+    map_reads: list[str] = []
+
+    def counting_load(path, *args, **kwargs):
+        if "desc-disconnectome" in str(path):
+            map_reads.append(str(path))
+        return real_load(path, *args, **kwargs)
+
+    monkeypatch.setattr("src.features.sdc.nib.load", counting_load)
+    _compute(tmp_path, data_root, grids=[_metadata_grid(tmp_path), _coarse_grid(tmp_path)])
+
+    assert len(map_reads) == 2
+
+
+def test_compute_sdc_metadata_duplicate_grid_names_raise(tmp_path, _metadata_root):
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001")
+    grid = _metadata_grid(tmp_path)
+
+    with pytest.raises(ValueError, match="duplicate|unique"):
+        _compute(tmp_path, tmp_path / "data", grids=[grid, grid])

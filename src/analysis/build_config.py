@@ -518,11 +518,12 @@ def _parse_lesion_grid(name: str, entry: object) -> LesionGrid:
 class SdcMetadataConfig:
     """Config for src/pipeline/compute_sdc_metadata.py.
 
-    One `grid`, not a list: the disconnectome maps are produced on a single 1mm lattice
-    (`res-1` is in the file name), and measuring them on a coarser grid would resample a
-    continuous probability map and change its sum - there is no second grid to compare against
-    the way lesion_metadata compares 1mm against 2mm. The grid's `name` becomes the suffix of
-    both output columns (disconnection_load_voxels_<name>, disconnection_mean_<name>).
+    `grids` is the same {name: {reference_template_path, brain_mask_path}} object as
+    LesionMetadataConfig's: the maps are natively 1mm (`res-1` is in the file name), and every
+    other grid is a nearest-neighbour subsample of them, so each grid is its own measurement.
+    Each grid's name becomes the suffix of its two output columns
+    (disconnection_load_voxels_<name>, disconnection_mean_<name>), which is what lets the app
+    offer the same 1mm/2mm choice for disconnection that it offers for lesion volume.
 
     Deliberately its own file, not a reuse of build_sdc_matrix.json: that one describes a chosen
     cohort's matrix, this one a per-subject cache over every subject with SDC output (same
@@ -535,7 +536,7 @@ class SdcMetadataConfig:
     group_filter: list[str] | None
     disconnectome_glob: str
     resample_interpolation: str
-    grid: LesionGrid
+    grids: list[LesionGrid]
     output_path: Path
     overwrite: bool
     run_notes: str | None
@@ -544,9 +545,10 @@ class SdcMetadataConfig:
 def load_compute_sdc_metadata_config(path: str | Path) -> SdcMetadataConfig:
     """Load and validate a compute_sdc_metadata.json file.
 
-    `grid` is {name, reference_template_path, brain_mask_path}; its name is validated by
-    src.features.lesion.validate_lesion_grids (alphanumeric, becomes a column suffix) before any
-    map is opened, same as the lesion grids.
+    `grids` is {name: {reference_template_path, brain_mask_path}}, in the order the columns
+    should appear; names are validated by src.features.lesion.validate_lesion_grids
+    (alphanumeric, unique, become column suffixes) before any map is opened, same as the lesion
+    grids.
     """
     path = Path(path)
     if not path.is_file():
@@ -557,13 +559,8 @@ def load_compute_sdc_metadata_config(path: str | Path) -> SdcMetadataConfig:
     if not isinstance(raw, dict):
         raise ValueError(f"config: top-level content must be a JSON object, got {raw!r}")
 
-    if "grid" not in raw:
-        raise ValueError("config: missing required field 'grid'")
-    raw_grid = raw["grid"]
-    if not isinstance(raw_grid, dict) or not isinstance(raw_grid.get("name"), str) or not raw_grid["name"]:
-        raise ValueError(f"config: field 'grid' must be an object with a non-empty string 'name', got {raw_grid!r}")
-    grid = _parse_lesion_grid(raw_grid["name"], {k: v for k, v in raw_grid.items() if k != "name"})
-    validate_lesion_grids([grid])
+    grids = _require_lesion_grids(raw)
+    validate_lesion_grids(grids)
 
     return SdcMetadataConfig(
         project=_require_str(raw, "project"),
@@ -572,7 +569,7 @@ def load_compute_sdc_metadata_config(path: str | Path) -> SdcMetadataConfig:
         group_filter=_optional_group_filter(raw),
         disconnectome_glob=_require_str(raw, "disconnectome_glob"),
         resample_interpolation=_validate_resample_interpolation(_require_str(raw, "resample_interpolation")),
-        grid=grid,
+        grids=grids,
         output_path=Path(_require_str(raw, "output_path")),
         overwrite=_require_bool(raw, "overwrite"),
         run_notes=_optional_str(raw, "run_notes"),

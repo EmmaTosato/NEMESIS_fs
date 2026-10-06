@@ -71,51 +71,54 @@ class ColorMode:
     restricted_to_modality: str | None = None
 
 
-# Lesion volume is measured on a voxel grid, and the registry holds one column per grid
-# (src/pipeline/enrich_metadata.py's lesion_metrics.grids). The app offers whichever of these
-# actually exists in participants.csv today (available_volume_grids) as a small button row of
-# its own, so the choice of grid is explicit instead of buried in whichever column a run
-# happened to write. A closed vocabulary: an unknown grid raises rather than being looked up.
-VOLUME_MODE = "volume"
-DEFAULT_VOLUME_GRID = "2mm"
-_VOLUME_GRID_COLUMNS: dict[str, str] = {
-    "2mm": "lesion_volume_voxels_2mm",
-    "1mm": "lesion_volume_voxels_1mm",
+# Lesion volume and overall disconnection are measured on a voxel grid, and the registry holds one
+# column per grid (src/pipeline/enrich_metadata.py's lesion_metadata/sdc_metadata copy_columns).
+# The app offers whichever of these grids actually exists in participants.csv today
+# (available_grids) as a small button row of its own, shown while one of GRID_MODES is active, so
+# the choice of grid is explicit instead of buried in whichever column a run happened to write.
+# A closed vocabulary: an unknown grid raises rather than being looked up.
+#
+# The column names are those compute_lesion_metadata / compute_sdc_metadata write - their prefixes
+# plus the grid name configured in config/pipelines/compute_{lesion,sdc}_metadata.json - repeated
+# here rather than imported, so this module stays free of the imaging stack;
+# tests/unit/test_embedding_coloring.py pins that the two agree.
+DEFAULT_GRID = "2mm"
+KNOWN_GRIDS: tuple[str, ...] = (DEFAULT_GRID, "1mm")
+_GRID_MODE_PREFIXES: dict[str, str] = {
+    "volume": "lesion_volume_voxels",
+    "disconnection_load": "disconnection_load_voxels",
+    "disconnection_mean": "disconnection_mean",
 }
+GRID_MODES: tuple[str, ...] = tuple(_GRID_MODE_PREFIXES)
 
 
-def volume_grid_column(grid: str) -> str:
-    """The participants.csv column holding lesion volume on `grid`.
+def grid_column(mode_name: str, grid: str) -> str:
+    """The participants.csv column holding `mode_name`'s value on `grid`.
 
-    Raises ValueError for an unregistered grid - a typo'd grid must fail with the known list,
-    never resolve to a column name built by string interpolation."""
-    if grid not in _VOLUME_GRID_COLUMNS:
-        raise ValueError(f"unknown volume grid {grid!r} - known: {sorted(_VOLUME_GRID_COLUMNS)}")
-    return _VOLUME_GRID_COLUMNS[grid]
+    Raises ValueError for a mode that is not grid-dependent or an unregistered grid - a typo'd
+    name must fail with the known list, never resolve to a column built by string interpolation."""
+    if mode_name not in _GRID_MODE_PREFIXES:
+        raise ValueError(f"color mode {mode_name!r} has no grid choice - grid modes: {list(GRID_MODES)}")
+    if grid not in KNOWN_GRIDS:
+        raise ValueError(f"unknown grid {grid!r} - known: {list(KNOWN_GRIDS)}")
+    return f"{_GRID_MODE_PREFIXES[mode_name]}_{grid}"
 
 
-def available_volume_grids() -> list[str]:
-    """The grids the registry can actually serve right now, in _VOLUME_GRID_COLUMNS order.
+def available_grids() -> list[str]:
+    """The grids the registry can serve right now for at least one grid mode, in KNOWN_GRIDS
+    order (DEFAULT_GRID first).
 
-    Read from participants.csv rather than declared, because the 1mm column only exists once
-    enrich_metadata.py has been run with a "1mm" grid in its own config - the app must offer
-    what is there, not what is theoretically supported, and must not offer a button that would
-    raise when clicked. DEFAULT_VOLUME_GRID first if present, so the default is always offered.
+    Read from participants.csv rather than declared, because a grid's column only exists once
+    enrich_metadata.py has copied it - the app must offer what is there, not what is
+    theoretically supported. A grid present for one mode but not another stays offered: picking
+    it for the mode that lacks it shows that mode's own "run enrich_metadata" message instead of
+    a silently different plot.
     """
-    registry = load_participants_registry()
-    return [grid for grid, column in _VOLUME_GRID_COLUMNS.items() if column in registry.columns]
-
-
-# Overall disconnection per subject, written into the registry by enrich_metadata from
-# assets/metadata/sdc_metadata.csv (src.pipeline.compute_sdc_metadata). One fixed grid: the
-# disconnectome maps exist only at 1mm, so unlike lesion volume there is no grid to choose and
-# no button row for it. The names are those compute_sdc_metadata writes - its column prefixes
-# (src.features.sdc.DISCONNECTION_*_PREFIX) plus the grid name configured in
-# config/pipelines/compute_sdc_metadata.json - repeated here rather than imported, so this
-# module stays free of the imaging stack; tests/unit/test_embedding_coloring.py pins that the
-# two agree.
-_DISCONNECTION_LOAD_COLUMN = "disconnection_load_voxels_1mm"
-_DISCONNECTION_MEAN_COLUMN = "disconnection_mean_1mm"
+    columns = set(load_participants_registry().columns)
+    return [
+        grid for grid in KNOWN_GRIDS
+        if any(grid_column(mode_name, grid) in columns for mode_name in GRID_MODES)
+    ]
 
 
 COLOR_MODES: dict[str, ColorMode] = {
@@ -130,8 +133,8 @@ COLOR_MODES: dict[str, ColorMode] = {
     "volume": ColorMode(
         kind="continuous",
         column="lesion_volume_voxels",
-        registry_column=_VOLUME_GRID_COLUMNS[DEFAULT_VOLUME_GRID],
-        label="lesion volume (voxels)",
+        registry_column=grid_column("volume", DEFAULT_GRID),
+        label="lesion volume",
         # Heavily right-skewed (a handful of large-lesion outliers otherwise
         # stretch a linear scale so far that almost every other point looks
         # the same dark color - visually confirmed on the real 1150-subject
@@ -152,9 +155,9 @@ COLOR_MODES: dict[str, ColorMode] = {
     # a log scale would over-correct (log10 skew -0.8) by stretching the low-disconnection tail.
     "disconnection_load": ColorMode(
         kind="continuous",
-        column=_DISCONNECTION_LOAD_COLUMN,
-        registry_column=_DISCONNECTION_LOAD_COLUMN,
-        label="disconnection load (voxels)",
+        column=grid_column("disconnection_load", DEFAULT_GRID),
+        registry_column=grid_column("disconnection_load", DEFAULT_GRID),
+        label="disconnection load",
         # Restricted to sdc runs, unlike volume/side/nihss (26-10-06, on request): a "lesion"
         # run's own embedding is about lesion location/volume, and this app does not yet have a
         # production use for colouring it by overall disconnection - revisit if one comes up.
@@ -162,9 +165,9 @@ COLOR_MODES: dict[str, ColorMode] = {
     ),
     "disconnection_mean": ColorMode(
         kind="continuous",
-        column=_DISCONNECTION_MEAN_COLUMN,
-        registry_column=_DISCONNECTION_MEAN_COLUMN,
-        label="mean disconnection (0-1)",
+        column=grid_column("disconnection_mean", DEFAULT_GRID),
+        registry_column=grid_column("disconnection_mean", DEFAULT_GRID),
+        label="mean disconnection",
         restricted_to_modality="sdc",
     ),
     # NaN for subjects with no resolvable NIHSS (dataset-wide gap, e.g. UCL-UK records no
@@ -220,8 +223,8 @@ def color_values(
     blank/wrong plot.
 
     registry_column overrides which registry column this mode reads - used by the app to
-    switch the "volume" mode between the 2mm and 1mm grids (volume_grid_column) without a
-    second, near-identical ColorMode entry per grid.
+    switch a grid mode (volume, disconnection) between the 2mm and 1mm grids (grid_column)
+    without a second, near-identical ColorMode entry per grid.
     """
     mode = resolve_color_mode(mode_name)
     column = mode.registry_column if registry_column is None else registry_column

@@ -47,12 +47,12 @@ the join onto assets/metadata/lesion_metadata.csv.
   out-of-brain voxels are zeroed, the laterality threshold). None of those
   settings appear here: this pipeline copies numbers, it does not compute them.
 - `copy_columns`: columns copied across under the SAME name, for every in-scope
-  subject, overwriting whatever was there. Each must exist in the CSV and must
-  not be a column src/pipeline/populate_metadata.py owns.
+  subject, under the run's `overwrite` rule (below). Each must exist in the CSV and
+  must not be a column src/pipeline/populate_metadata.py owns.
 - `lesion_side_from`: which CSV column fills `lesion_side`. Its rule differs from
   copy_columns, which is why it is a separate key: it writes ONLY where the
-  clinical resolution above left the cell empty, and it also writes
-  lesion_side_source="geometric". Outside `geometric_override_datasets` a clinical
+  clinical resolution above left the cell empty, in either `overwrite` mode, and it
+  also writes lesion_side_source="geometric". Outside `geometric_override_datasets` a clinical
   value is never overwritten. It also records which grid the registry's side comes
   from (e.g. "lesion_side_2mm"), since the CSV carries one per grid. null disables
   the fill, leaving lesion_side clinical-only. Requires `lesion_side` in `variables`.
@@ -64,7 +64,8 @@ the join onto assets/metadata/lesion_metadata.csv.
   GEOMETRIC side and writes lesion_side_source="geometric". This is a forced assumption
   (the clinical label is the wrong one, not the mask), not a measured fact; every
   overridden subject is logged at WARNING. [] disables it; a non-empty list requires
-  `lesion_side_from`.
+  `lesion_side_from` and `overwrite: true` (it overwrites a filled cell, which append mode
+  never does).
 
 The join is on subject_id and is strict in both directions: a subject with
 has_lesion=True but no row in the CSV means the CSV is stale (re-run
@@ -79,17 +80,10 @@ src.pipeline.compute_sdc_metadata (how disconnected each subject is overall, on 
 - `path`: that CSV. compute_sdc_metadata owns every decision about HOW a map is measured
   (the grid, the brain mask, the interpolation); none of those settings appear here.
 - `copy_columns`: columns copied across under the SAME name, for every in-scope subject,
-  overwriting - exactly as for lesion_metadata, and with the same strict join, only against
+  under the run's `overwrite` rule - exactly as for lesion_metadata, and with the same strict join, only against
   `has_sdc` instead of `has_lesion`: a subject flagged has_sdc=True with no row means the CSV
   is stale (re-run compute_sdc_metadata), and a row for a subject the registry does not know -
   or knows as has_sdc=False - means the two files disagree about who has SDC output.
-
-Mask-derived columns are NOT hand-correctable in participants.csv: every run
-copies them over. A value found unreliable in analysis is fixed at the source (the
-mask, then re-run compute_lesion_metadata) or the subject goes into
-assets/metadata/excluded_subjects.csv - never by editing a cell that the next run
-will overwrite anyway. The clinical columns read from the raw tsvs keep the `fill`
-semantics below.
 
 Two kinds of gap are reported and are NOT errors:
 - a variable absent from one dataset's tsv entirely (structural per-dataset gap,
@@ -101,10 +95,22 @@ A subject present in participants.csv but absent from its own dataset's raw tsv
 IS an error: the two files disagree about who exists, which populate_metadata's
 own inner join should have made impossible.
 
-`fill` (config):
-- true  - only empty cells of the requested variables are written; any value
-          already present is left exactly as it is.
-- false - every requested variable is recomputed for every in-scope subject.
+`overwrite` (config, required) - one rule for EVERY column this script writes (clinical
+variables, lesion_side_source, and the copy_columns of both joins):
+- false - append: only empty cells are written (a new subject, a new column, a gap the raw tsv
+          has since filled); a cell that already holds a value is left exactly as it is. An
+          existing value that differs from the freshly resolved one is logged at WARNING, per
+          column, so a stale value is never kept in silence.
+- true  - rewrite: every in-scope cell is recomputed and replaced, including with an empty one.
+
+`protected_path` (config, required, null for none) - a JSON file, assets/metadata/
+participants_protected.json, `{"columns": [...], "subjects": [...]}`. A cell whose column is
+listed or whose subject is listed is never written, in either mode - the way to keep a
+hand-corrected column or subject through an `overwrite: true` run. Every listed subject must be
+in participants.csv, and every listed column must be one this config writes and one that already
+exists in participants.csv; anything else raises (a typo would otherwise protect nothing, in
+silence). `lesion_side` and `lesion_side_source` move together: protecting one column requires
+protecting the other.
 """
 
 from __future__ import annotations
@@ -188,6 +194,18 @@ class SdcMetadataJoin:
 
 
 @dataclass(frozen=True)
+class ProtectedCells:
+    """What a run must leave intact in participants.csv - see module docstring.
+
+    A cell is protected when its column is in `columns` OR its subject is in `subjects`; a
+    protected cell is never written, whatever `overwrite` says."""
+
+    path: Path
+    columns: list[str]
+    subjects: list[str]
+
+
+@dataclass(frozen=True)
 class EnrichMetadataConfig:
     project: str
     sources: dict[str, DatasetSource]
@@ -196,7 +214,8 @@ class EnrichMetadataConfig:
     variables: list[str]
     lesion_metadata: LesionMetadataJoin | None
     sdc_metadata: SdcMetadataJoin | None
-    fill: bool
+    overwrite: bool
+    protected: ProtectedCells | None
     run_notes: str
 
 
@@ -226,11 +245,13 @@ def load_config(path: str | Path) -> EnrichMetadataConfig:
     raw = json.loads(path.read_text())
     if not isinstance(raw, dict):
         raise ValueError(f"{path}: expected a JSON object, got {type(raw).__name__}")
-    for key in ("project", "metadata_sources", "participants_path", "variables", "fill", "run_notes"):
+    for key in (
+        "project", "metadata_sources", "participants_path", "variables", "overwrite", "protected_path", "run_notes"
+    ):
         if key not in raw:
             raise ValueError(f"{path}: missing required key {key!r}")
-    if not isinstance(raw["fill"], bool):
-        raise ValueError(f"{path}: 'fill' must be a boolean, got {raw['fill']!r}")
+    if not isinstance(raw["overwrite"], bool):
+        raise ValueError(f"{path}: 'overwrite' must be a boolean, got {raw['overwrite']!r}")
 
     variables = _unique_str_list(raw["variables"], "variables", path)
     if not variables:
@@ -250,6 +271,7 @@ def load_config(path: str | Path) -> EnrichMetadataConfig:
 
     lesion_metadata = _load_lesion_metadata_config(raw.get("lesion_metadata"), variables, path)
     sdc_metadata = _load_sdc_metadata_config(raw.get("sdc_metadata"), lesion_metadata, path)
+    protected = _load_protected(raw["protected_path"], path)
 
     return EnrichMetadataConfig(
         project=str(raw["project"]),
@@ -259,8 +281,41 @@ def load_config(path: str | Path) -> EnrichMetadataConfig:
         variables=variables,
         lesion_metadata=lesion_metadata,
         sdc_metadata=sdc_metadata,
-        fill=raw["fill"],
+        overwrite=raw["overwrite"],
+        protected=protected,
         run_notes=str(raw["run_notes"]),
+    )
+
+
+_PROTECTED_KEYS = {"columns", "subjects"}
+
+
+def _load_protected(raw_path: object, config_path: Path) -> ProtectedCells | None:
+    """Parse the file named by 'protected_path' - null means nothing is protected.
+
+    Shape/type validated here; whether each column and subject exists is checked against the real
+    participants.csv, by _check_protected, since that needs the registry."""
+    if raw_path is None:
+        return None
+    if not isinstance(raw_path, str) or not raw_path:
+        raise ValueError(f"{config_path}: 'protected_path' must be a non-empty string or null")
+    path = Path(raw_path)
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{config_path}: 'protected_path' {path} not found - create it as "
+            '{"columns": [], "subjects": []}, or set protected_path to null for no protection'
+        )
+    try:
+        raw = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path}: not valid JSON: {exc}") from exc
+    if not isinstance(raw, dict) or set(raw) != _PROTECTED_KEYS:
+        found = sorted(raw) if isinstance(raw, dict) else type(raw).__name__
+        raise ValueError(f"{path}: expected an object with exactly the keys {sorted(_PROTECTED_KEYS)}, got {found}")
+    return ProtectedCells(
+        path=path,
+        columns=_unique_str_list(raw["columns"], "columns", path),
+        subjects=_unique_str_list(raw["subjects"], "subjects", path),
     )
 
 
@@ -637,6 +692,7 @@ def enrich(registry: pd.DataFrame, config: EnrichMetadataConfig) -> tuple[pd.Dat
     unknown = sorted(set(datasets) - set(registry["dataset"]))
     if unknown:
         raise ValueError(f"dataset(s) {unknown} have no row in {config.participants_path}")
+    _check_write_rules(registry, config)
 
     values_by_variable: dict[str, dict[str, object]] = {v: {} for v in config.variables}
     coverages: list[DatasetCoverage] = []
@@ -655,24 +711,28 @@ def enrich(registry: pd.DataFrame, config: EnrichMetadataConfig) -> tuple[pd.Dat
     in_scope = out["dataset"].isin(datasets)
     for variable in config.variables:
         fresh = out["subject_id"].map(values_by_variable[variable])
-        out[variable] = _apply(out.get(variable), fresh, in_scope, config.fill)
+        _merge_column(out, variable, fresh, in_scope, config, config.overwrite)
 
     if LESION_SIDE_VARIABLE in config.variables:
-        resolved_side = out[LESION_SIDE_VARIABLE].notna()
+        # From what the raw tsv resolved THIS run, not from out[lesion_side] after the merge: in
+        # append mode the latter still holds an earlier geometric fill, which would then read as a
+        # "clinical" source that contradicts the "geometric" one already recorded for it.
+        resolved_side = out["subject_id"].map(values_by_variable[LESION_SIDE_VARIABLE]).notna()
         source = pd.Series(np.nan, index=out.index, dtype=object)
         source.loc[resolved_side] = LESION_SIDE_SOURCE_CLINICAL
-        out[LESION_SIDE_SOURCE_COLUMN] = _apply(
-            out.get(LESION_SIDE_SOURCE_COLUMN), source, in_scope, config.fill
-        )
+        _merge_column(out, LESION_SIDE_SOURCE_COLUMN, source, in_scope, config, config.overwrite)
 
     if config.lesion_metadata is not None:
         join = config.lesion_metadata
         measured = read_lesion_metadata(join, registry, datasets)
 
-        _copy_measured_columns(out, measured, join.copy_columns, in_scope, "lesion_metadata", join.path)
+        _copy_measured_columns(out, measured, join.copy_columns, in_scope, "lesion_metadata", join.path, config)
 
         if join.lesion_side_from is not None:
-            missing = in_scope & out[LESION_SIDE_VARIABLE].isna()
+            missing = (
+                in_scope & out[LESION_SIDE_VARIABLE].isna()
+                & ~_protected_mask(out, config.protected, LESION_SIDE_VARIABLE)
+            )
             if not missing.any():
                 logging.info("lesion_metadata: every in-scope subject already has a clinical lesion_side")
             else:
@@ -685,17 +745,14 @@ def enrich(registry: pd.DataFrame, config: EnrichMetadataConfig) -> tuple[pd.Dat
                     for subject_id, side in measured[join.lesion_side_from].items()
                     if subject_id in missing_ids and pd.notna(side)
                 }
-                # fill=True regardless of config.fill: `missing` already restricts this to
+                # Append mode regardless of config.overwrite: `missing` already restricts this to
                 # currently-empty cells, so this only ever writes into a gap the clinical
-                # resolution left behind.
-                out[LESION_SIDE_VARIABLE] = _apply(
-                    out.get(LESION_SIDE_VARIABLE), out["subject_id"].map(sides), in_scope, fill=True
-                )
-                out[LESION_SIDE_SOURCE_COLUMN] = _apply(
-                    out.get(LESION_SIDE_SOURCE_COLUMN),
+                # resolution left behind - and a recompute here would blank every other cell.
+                _merge_column(out, LESION_SIDE_VARIABLE, out["subject_id"].map(sides), in_scope, config, False)
+                _merge_column(
+                    out, LESION_SIDE_SOURCE_COLUMN,
                     out["subject_id"].map({s: LESION_SIDE_SOURCE_GEOMETRIC for s in sides}),
-                    in_scope,
-                    fill=True,
+                    in_scope, config, False,
                 )
                 logging.info(
                     "lesion_metadata: %d/%d subject(s) missing lesion_side filled from %s",
@@ -719,21 +776,99 @@ def enrich(registry: pd.DataFrame, config: EnrichMetadataConfig) -> tuple[pd.Dat
                             "and no row in %s (they have no lesion mask): %s",
                             len(unmeasured), join.path, unmeasured,
                         )
-            _force_geometric_side_on_inversions(out, measured[join.lesion_side_from], join, in_scope)
+            _force_geometric_side_on_inversions(
+                out, measured[join.lesion_side_from], join, in_scope, config.protected
+            )
 
     if config.sdc_metadata is not None:
         sdc_join = config.sdc_metadata
         sdc_measured = read_sdc_metadata(sdc_join, registry, datasets)
-        _copy_measured_columns(out, sdc_measured, sdc_join.copy_columns, in_scope, "sdc_metadata", sdc_join.path)
+        _copy_measured_columns(
+            out, sdc_measured, sdc_join.copy_columns, in_scope, "sdc_metadata", sdc_join.path, config
+        )
 
     return out, coverages
 
 
+def _written_columns(config: EnrichMetadataConfig) -> list[str]:
+    """Every participants.csv column this config can write - what a protected column must be one of."""
+    columns = list(config.variables)
+    if LESION_SIDE_VARIABLE in config.variables:
+        columns.append(LESION_SIDE_SOURCE_COLUMN)
+    if config.lesion_metadata is not None:
+        columns += config.lesion_metadata.copy_columns
+    if config.sdc_metadata is not None:
+        columns += config.sdc_metadata.copy_columns
+    return columns
+
+
+def _check_write_rules(registry: pd.DataFrame, config: EnrichMetadataConfig) -> None:
+    """The cross-checks of `overwrite` and the protected file against the real registry.
+
+    Here and not in load_config because they need participants.csv, and because tests (and any
+    caller) build an EnrichMetadataConfig directly: the one always-run place is enrich()."""
+    join = config.lesion_metadata
+    if join is not None and join.geometric_override_datasets and not config.overwrite:
+        raise ValueError(
+            f"'lesion_metadata.geometric_override_datasets' is {join.geometric_override_datasets} but "
+            "'overwrite' is false: the override replaces a filled lesion_side, which append mode never does"
+        )
+    protected = config.protected
+    if protected is None:
+        return
+    unknown_subjects = sorted(set(protected.subjects) - set(registry["subject_id"]))
+    if unknown_subjects:
+        raise ValueError(
+            f"{protected.path}: subject(s) {unknown_subjects} are not in {config.participants_path} - "
+            "a misspelt id would protect nothing"
+        )
+    written = _written_columns(config)
+    not_written = [c for c in protected.columns if c not in written]
+    if not_written:
+        raise ValueError(
+            f"{protected.path}: column(s) {not_written} are not written by this config (it writes "
+            f"{sorted(written)}), so protecting them does nothing - probably a typo"
+        )
+    not_in_table = [c for c in protected.columns if c not in registry.columns]
+    if not_in_table:
+        raise ValueError(
+            f"{protected.path}: column(s) {not_in_table} do not exist in {config.participants_path} yet - "
+            "protection keeps what is already there, and there is nothing to keep"
+        )
+    pair = {LESION_SIDE_VARIABLE, LESION_SIDE_SOURCE_COLUMN}
+    listed = pair & set(protected.columns)
+    if listed and listed != pair:
+        raise ValueError(
+            f"{protected.path}: {sorted(listed)} is protected without {sorted(pair - listed)} - "
+            "lesion_side and lesion_side_source describe the same fact and must be protected together"
+        )
+
+
+def _protected_mask(out: pd.DataFrame, protected: ProtectedCells | None, column: str) -> pd.Series:
+    """True for every row whose cell in `column` must not be written."""
+    if protected is None:
+        return pd.Series(False, index=out.index)
+    if column in protected.columns:
+        return pd.Series(True, index=out.index)
+    return out["subject_id"].isin(protected.subjects)
+
+
+def _merge_column(
+    out: pd.DataFrame, column: str, fresh: pd.Series, in_scope: pd.Series, config: EnrichMetadataConfig,
+    overwrite: bool,
+) -> None:
+    """Merge `fresh` into out[column], IN PLACE, under `overwrite` and the run's protected cells."""
+    out[column] = _apply(
+        out.get(column), fresh, in_scope, overwrite, _protected_mask(out, config.protected, column), column
+    )
+
+
 def _copy_measured_columns(
-    out: pd.DataFrame, measured: pd.DataFrame, columns: list[str], in_scope: pd.Series, block: str, path: Path
+    out: pd.DataFrame, measured: pd.DataFrame, columns: list[str], in_scope: pd.Series, block: str, path: Path,
+    config: EnrichMetadataConfig,
 ) -> None:
     """Copy `columns` of a per-subject measurements frame (indexed by subject_id) onto `out`,
-    IN PLACE, under the same name, for every in-scope subject, overwriting."""
+    IN PLACE, under the same name, for every in-scope subject, under `config.overwrite`."""
     for column in columns:
         values = measured[column]
         fresh = out["subject_id"].map(values)
@@ -744,10 +879,7 @@ def _copy_measured_columns(
         # anyway, but the dtype is decided before that).
         if pd.api.types.is_integer_dtype(values):
             fresh = fresh.astype("Int64")
-        # fill=False regardless of config.fill: a measured value is never hand-corrected in
-        # participants.csv (see module docstring), so there is nothing to preserve - and
-        # honouring fill=True would silently freeze a stale number after the masks changed.
-        out[column] = _apply(out.get(column), fresh, in_scope, fill=False)
+        _merge_column(out, column, fresh, in_scope, config, config.overwrite)
         logging.info(
             "%s: %d/%d subject(s) matched for %s (from %s)", block, int(fresh.notna().sum()), len(out), column, path
         )
@@ -757,11 +889,13 @@ _OPPOSITE_SIDE = {"left": "right", "right": "left"}
 
 
 def _force_geometric_side_on_inversions(
-    out: pd.DataFrame, geometric_side: pd.Series, join: LesionMetadataJoin, in_scope: pd.Series
+    out: pd.DataFrame, geometric_side: pd.Series, join: LesionMetadataJoin, in_scope: pd.Series,
+    protected: ProtectedCells | None,
 ) -> None:
     """Overwrite, IN PLACE on `out`, the clinical lesion_side of every subject of a
     `geometric_override_datasets` dataset whose clinical side is the exact opposite of
     `geometric_side` (indexed by subject_id) - and mark it lesion_side_source="geometric".
+    A protected lesion_side is never overridden.
 
     Only a left/right clash triggers it: a geometric `both` (or an empty side) never overrides a
     clinical left/right, because that is a disagreement of degree, not the full inversion this
@@ -776,7 +910,7 @@ def _force_geometric_side_on_inversions(
         )
     clinical = in_scope & out["dataset"].isin(join.geometric_override_datasets) & (
         out[LESION_SIDE_SOURCE_COLUMN] == LESION_SIDE_SOURCE_CLINICAL
-    )
+    ) & ~_protected_mask(out, protected, LESION_SIDE_VARIABLE)
     measured_side = out["subject_id"].map(geometric_side)
     inverted = clinical & out[LESION_SIDE_VARIABLE].map(_OPPOSITE_SIDE).eq(measured_side)
     if not inverted.any():
@@ -791,14 +925,24 @@ def _force_geometric_side_on_inversions(
     out.loc[inverted, LESION_SIDE_SOURCE_COLUMN] = LESION_SIDE_SOURCE_GEOMETRIC
 
 
-def _apply(existing: pd.Series | None, fresh: pd.Series, in_scope: pd.Series, fill: bool) -> pd.Series:
-    """Merge freshly resolved values into an existing column, honouring `fill`.
+def _apply(
+    existing: pd.Series | None,
+    fresh: pd.Series,
+    in_scope: pd.Series,
+    overwrite: bool,
+    protected: pd.Series,
+    column: str,
+) -> pd.Series:
+    """Merge freshly resolved values into an existing column, honouring `overwrite`.
 
-    Out-of-scope rows (a dataset this run didn't touch) always keep whatever
-    they had - a partial run never blanks a dataset it wasn't asked about.
+    Out-of-scope rows (a dataset this run didn't touch) and protected rows always keep whatever
+    they had - a partial run never blanks a dataset it wasn't asked about. In append mode
+    (overwrite=False) only empty cells are written; an existing value that differs from the
+    fresh one is kept and counted at WARNING, never dropped or kept in silence.
     """
+    writable_scope = in_scope & ~protected
     if existing is None:
-        return fresh.where(in_scope, np.nan)
+        return fresh.where(writable_scope, np.nan)
     # astype(object) first: participants.csv is read with dtype=str, and pandas' "str"
     # dtype rejects a NaN assignment outright (TypeError). A re-run over an
     # already-enriched file always writes some NaN back (a subject whose value is
@@ -806,8 +950,21 @@ def _apply(existing: pd.Series | None, fresh: pd.Series, in_scope: pd.Series, fi
     # the first one - when the column didn't exist yet and this branch was skipped
     # entirely - looked fine (.claude/lessons_learned.md #17).
     kept = existing.astype(object).copy()
-    writable = in_scope & (existing.isna() if fill else True)
+    if overwrite:
+        kept.loc[writable_scope] = fresh.loc[writable_scope]
+        return kept
+    writable = writable_scope & existing.isna()
     kept.loc[writable] = fresh.loc[writable]
+    # Compared as text: participants.csv is read with dtype=str, so the stored side of the
+    # comparison is always a string, whatever type the fresh one has.
+    both = writable_scope & existing.notna() & fresh.notna()
+    differing = both & (existing.astype(str) != fresh.astype(str))
+    if differing.any():
+        logging.warning(
+            "%s: %d existing value(s) differ from the freshly resolved one and were kept "
+            "(overwrite=false) - set overwrite to true to replace them, or fix the source",
+            column, int(differing.sum()),
+        )
     return kept
 
 

@@ -11,7 +11,7 @@ disconnection counterpart of assets/metadata/lesion_metadata.csv.
 - src/pipeline/enrich_metadata.py then JOINS it into participants.csv (config.sdc_metadata). It
   reads this CSV and no disconnectome of its own.
 
-Two columns per subject (src.features.sdc.compute_sdc_metadata): the summed disconnection
+Two columns per subject and per grid (src.features.sdc.compute_sdc_metadata): the summed disconnection
 probability inside the brain (disconnection_load_voxels_<grid>) and that sum over the number of
 brain voxels (disconnection_mean_<grid>). Every subject the registry flags as having SDC output
 is measured - no exclusion is applied here; which subjects to drop from an analysis is decided
@@ -109,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
                 disconnectome_glob=config.disconnectome_glob,
                 resample_interpolation=config.resample_interpolation,
                 group_filter=config.group_filter,
-                grid=config.grid,
+                grids=config.grids,
             )
         except (FileNotFoundError, ValueError, nib.filebasedimages.ImageFileError) as exc:
             # ImageFileError: a truncated/corrupt .nii.gz among the maps - same handling as
@@ -168,10 +168,12 @@ def _config_payload(config: SdcMetadataConfig) -> dict[str, object]:
         "group_filter": config.group_filter,
         "disconnectome_glob": config.disconnectome_glob,
         "resample_interpolation": config.resample_interpolation,
-        "grid": {
-            "name": config.grid.name,
-            "reference_template_path": str(config.grid.reference_template_path),
-            "brain_mask_path": str(config.grid.brain_mask_path),
+        "grids": {
+            grid.name: {
+                "reference_template_path": str(grid.reference_template_path),
+                "brain_mask_path": str(grid.brain_mask_path),
+            }
+            for grid in config.grids
         },
         "run_notes": config.run_notes,
     }
@@ -208,7 +210,7 @@ def _report_lines(
         f"# compute_sdc_metadata — {now.strftime('%d-%m-%y %H:%M:%S')}",
         "",
         f"output: `{config.output_path}`" + ("" if metadata is None else f" ({len(metadata)} righe)"),
-        f"griglia: {config.grid.name} · interpolazione: {config.resample_interpolation} · "
+        f"griglie: {', '.join(grid.name for grid in config.grids)} · interpolazione: {config.resample_interpolation} · "
         f"group_filter: {config.group_filter}",
         "",
         "config:",
@@ -225,8 +227,9 @@ def _report_lines(
     for name, count in metadata["dataset"].value_counts().sort_index().items():
         lines.append(f"| {name} | {int(count)} |")
 
-    lines += ["", f"## Distribuzione ({config.grid.name})", ""]
-    lines += _distribution_report_lines(metadata, config.grid.name)
+    for grid in config.grids:
+        lines += ["", f"## Distribuzione ({grid.name})", ""]
+        lines += _distribution_report_lines(metadata, grid.name)
 
     lines += ["", "## Esclusi da group_filter", ""]
     if excluded_by_group:

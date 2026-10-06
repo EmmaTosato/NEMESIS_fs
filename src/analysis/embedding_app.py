@@ -79,10 +79,10 @@ from src.analysis.cluster_description import (
 )
 from src.analysis.embedding_coloring import COLOR_MODES
 from src.analysis.embedding_coloring import (
-    DEFAULT_VOLUME_GRID,
-    VOLUME_MODE,
-    available_volume_grids,
-    volume_grid_column,
+    DEFAULT_GRID,
+    GRID_MODES,
+    available_grids,
+    grid_column,
 )
 from src.analysis.embedding_coloring import color_values as read_color_values
 from src.analysis.params import load_tag_params
@@ -149,9 +149,16 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 }}
 .color-buttons button:hover {{ border-color: #4a90d9; }}
 .color-buttons button.active {{ border-color: #4a90d9; border-width: 2px; background: #f0f7fd; font-weight: 600; }}
-/* The volume-grid chooser, shown under the colour chips only while "volume" is active
-   (30-09-26, on request). Same chip family as the row above, one step quieter, with a label
-   so a lone "2mm" button is not a mystery. */
+/* The main colour-mode row (06-10-26, on request): one row when every chip fits, otherwise two
+   rows of balanced length instead of a flex wrap that strands a single chip on its own line.
+   `text-wrap: balance` does exactly that for inline content, which a flex container is not -
+   hence inline-block chips with a margin where the flex rows use `gap`. */
+.color-buttons.chips-balanced {{ display: block; text-align: center; text-wrap: balance; }}
+.color-buttons.chips-balanced button {{ display: inline-block; margin: 4px; }}
+/* The grid chooser, shown under the colour chips only while a grid mode (lesion volume,
+   disconnection) is active (30-09-26, on request; extended to disconnection 06-10-26). Same
+   chip family as the row above, one step quieter, with a label so a lone "2mm" button is not a
+   mystery. */
 .grid-row {{ margin-top: 10px; align-items: center; }}
 /* Inside an anatomy panel the same chooser sits between a section heading and the content it
    scopes, so it needs room on BOTH sides - as a bare 10px-top row it read as glued to the
@@ -801,7 +808,7 @@ def build_embedding_figure(
     ylabel: str,
     title: str,
     zlabel: str | None = None,
-    volume_grid: str = DEFAULT_VOLUME_GRID,
+    grid: str = DEFAULT_GRID,
     modality: str | None = None,
 ) -> go.Figure:
     """Builds the Plotly figure for one (run, color mode) combination - 2D if `zlabel` is
@@ -865,9 +872,9 @@ def build_embedding_figure(
         fig.add_trace(scatter_cls(**_trace_kwargs(), mode="markers", marker=dict(color="#3aa9e0", **marker_kwargs)))
     else:
         mode = COLOR_MODES[mode_name]
-        # The volume mode reads whichever grid the button row below the colour chips has
-        # selected; every other mode uses its own declared registry column.
-        registry_column = volume_grid_column(volume_grid) if mode_name == VOLUME_MODE else None
+        # A grid mode (lesion volume, disconnection) reads whichever grid the button row below
+        # the colour chips has selected; every other mode uses its own declared registry column.
+        registry_column = grid_column(mode_name, grid) if mode_name in GRID_MODES else None
         values = read_color_values(metadata, mode_name, registry_column=registry_column)
 
         if mode.kind == "categorical":
@@ -1042,7 +1049,7 @@ def _add_cluster_centroids_trace(figure: go.Figure, embedding: np.ndarray, metad
 
 
 def graph_content_for(
-    run: ProductionRun, mode_name: str, volume_grid: str = DEFAULT_VOLUME_GRID
+    run: ProductionRun, mode_name: str, grid: str = DEFAULT_GRID
 ) -> html.P | dcc.Graph:
     """The graph-area.children Dash callback's actual body, pulled out as a plain function -
     directly unit-testable (no Dash callback-context wrapping to fight, see
@@ -1074,7 +1081,7 @@ def graph_content_for(
         figure = build_embedding_figure(
             embedding, metadata, mode_name,
             f"{run.method} dim 1", f"{run.method} dim 2", run_title(run, mode_name),
-            volume_grid=volume_grid,
+            grid=grid,
             zlabel=zlabel,
             modality=run.modality,
         )
@@ -1993,17 +2000,16 @@ def build_app(
         for mode in COLOR_MODE_ORDER
     ]
 
-    # Resolved once at build time, not per callback: which volume grids the registry holds is
-    # a property of participants.csv, which this process does not rewrite while running.
-    grids = available_volume_grids()
-    volume_grid_buttons = [
+    # Resolved once at build time, not per callback: which grids the registry holds is a
+    # property of participants.csv, which this process does not rewrite while running.
+    grid_buttons = [
         html.Button(
             grid,
-            id={"type": "volume-grid-btn", "grid": grid},
+            id={"type": "grid-btn", "grid": grid},
             n_clicks=0,
-            className="active" if grid == DEFAULT_VOLUME_GRID else "",
+            className="active" if grid == DEFAULT_GRID else "",
         )
-        for grid in grids
+        for grid in available_grids()
     ]
 
     # 6-step decision order, left to right (2026-08-14, on request - replaces the previous
@@ -2071,25 +2077,24 @@ def build_app(
                             _picker_field("Run", "run-picker"),
                         ],
                     ),
-                    html.Div(color_buttons, className="color-buttons"),
-                    # Only meaningful while "volume" is the active colour mode, so it is
-                    # hidden otherwise (a grid chooser floating under an unrelated mode
-                    # reads as a second, broken colour row). Built from the grids the
-                    # registry can actually serve today - one button now, two as soon as
-                    # enrich_metadata.py writes lesion_volume_voxels_1mm.
+                    html.Div(color_buttons, className="color-buttons chips-balanced"),
+                    # Only meaningful while a grid mode (lesion volume, disconnection load/mean)
+                    # is the active colour mode, so it is hidden otherwise (a grid chooser
+                    # floating under an unrelated mode reads as a second, broken colour row).
+                    # Built from the grids the registry can actually serve today.
                     html.Div(
                         [
-                            html.Span("Griglia volume", className="grid-row-label"),
-                            *volume_grid_buttons,
+                            html.Span("Griglia", className="grid-row-label"),
+                            *grid_buttons,
                         ],
-                        id="volume-grid-row",
+                        id="color-grid-row",
                         className="color-buttons grid-row",
                         style={"display": "none"},
                     ),
                 ],
             ),
             dcc.Store(id="selected-color-mode", data=NEUTRAL_MODE),
-            dcc.Store(id="selected-volume-grid", data=DEFAULT_VOLUME_GRID),
+            dcc.Store(id="selected-grid", data=DEFAULT_GRID),
             dcc.Store(id="selected-disconnection-mode", data=DEFAULT_DISCONNECTION_MAP_MODE),
             html.H2("Embedding Visualization", className="section-heading"),
             html.Div(id="graph-area", className="graph-wrap"),
@@ -2399,40 +2404,40 @@ def build_app(
         return ["active" if button_id["mode"] == selected_mode else "" for button_id in ids]
 
     @app.callback(
-        Output("selected-volume-grid", "data"),
-        Input({"type": "volume-grid-btn", "grid": ALL}, "n_clicks"),
+        Output("selected-grid", "data"),
+        Input({"type": "grid-btn", "grid": ALL}, "n_clicks"),
         prevent_initial_call=True,
     )
-    def _select_volume_grid(_all_n_clicks: list[int]) -> str:
+    def _select_grid(_all_n_clicks: list[int]) -> str:
         if ctx.triggered_id is None:
             raise PreventUpdate
         return ctx.triggered_id["grid"]
 
     @app.callback(
-        Output({"type": "volume-grid-btn", "grid": ALL}, "className"),
-        Input("selected-volume-grid", "data"),
-        State({"type": "volume-grid-btn", "grid": ALL}, "id"),
+        Output({"type": "grid-btn", "grid": ALL}, "className"),
+        Input("selected-grid", "data"),
+        State({"type": "grid-btn", "grid": ALL}, "id"),
     )
     def _highlight_active_grid(selected_grid: str, ids: list[dict]) -> list[str]:
         return ["active" if button_id["grid"] == selected_grid else "" for button_id in ids]
 
     @app.callback(
-        Output("volume-grid-row", "style"),
+        Output("color-grid-row", "style"),
         Input("selected-color-mode", "data"),
     )
-    def _toggle_volume_grid_row(selected_mode: str) -> dict:
-        return {} if selected_mode == VOLUME_MODE else {"display": "none"}
+    def _toggle_grid_row(selected_mode: str) -> dict:
+        return {} if selected_mode in GRID_MODES else {"display": "none"}
 
     @app.callback(
         Output("graph-area", "children"),
         Input("run-picker", "value"),
         Input("selected-color-mode", "data"),
-        Input("selected-volume-grid", "data"),
+        Input("selected-grid", "data"),
     )
-    def _update_graph(run_key: str | None, selected_mode: str, volume_grid: str):
+    def _update_graph(run_key: str | None, selected_mode: str, grid: str):
         if run_key is None:
             raise PreventUpdate
-        return graph_content_for(runs_by_key[run_key], selected_mode, volume_grid)
+        return graph_content_for(runs_by_key[run_key], selected_mode, grid)
 
     @app.callback(
         Output("lesion-viewer-content", "children"),

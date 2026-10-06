@@ -307,10 +307,15 @@ _SDC_METADATA_BASE = {
     "group_filter": ["ST"],
     "disconnectome_glob": "sdc/*/*_res-1_desc-disconnectome.nii.gz",
     "resample_interpolation": "nearest",
-    "grid": {
-        "name": "1mm",
-        "reference_template_path": "assets/templates/tpl-res-1_T1w.nii.gz",
-        "brain_mask_path": "assets/templates/tpl-res-1_desc-brain_mask.nii.gz",
+    "grids": {
+        "2mm": {
+            "reference_template_path": "assets/templates/tpl-res-2_T1w.nii.gz",
+            "brain_mask_path": "assets/templates/tpl-res-2_desc-brain_mask.nii.gz",
+        },
+        "1mm": {
+            "reference_template_path": "assets/templates/tpl-res-1_T1w.nii.gz",
+            "brain_mask_path": "assets/templates/tpl-res-1_desc-brain_mask.nii.gz",
+        },
     },
     "overwrite": False,
     "run_notes": "test",
@@ -329,8 +334,8 @@ def _write_sdc_metadata(tmp_path, overrides=None, drop=()):
 def test_compute_sdc_metadata_config_valid(tmp_path):
     config = load_compute_sdc_metadata_config(_write_sdc_metadata(tmp_path))
 
-    assert config.grid.name == "1mm"
-    assert config.grid.brain_mask_path.name == "tpl-res-1_desc-brain_mask.nii.gz"
+    assert [grid.name for grid in config.grids] == ["2mm", "1mm"]  # the file's own order
+    assert config.grids[1].brain_mask_path.name == "tpl-res-1_desc-brain_mask.nii.gz"
     assert config.datasets == ["UNIPD/WashU", "UNIPD/PSP"]
     assert config.group_filter == ["ST"]
     assert config.overwrite is False
@@ -339,18 +344,15 @@ def test_compute_sdc_metadata_config_valid(tmp_path):
 @pytest.mark.parametrize(
     "overrides, drop, match",
     [
-        pytest.param({}, ("grid",), "missing required field 'grid'", id="grid-absent"),
-        pytest.param({"grid": "1mm"}, (), "must be an object with a non-empty string 'name'", id="grid-not-an-object"),
+        pytest.param({}, ("grids",), "missing required field 'grids'", id="grids-absent"),
+        pytest.param({"grids": {}}, (), "non-empty object", id="grids-empty"),
+        pytest.param({"grids": ["1mm"]}, (), "non-empty object", id="grids-not-an-object"),
         pytest.param(
-            {"grid": {"reference_template_path": "a", "brain_mask_path": "b"}}, (), "non-empty string 'name'",
-            id="grid-without-name",
-        ),
-        pytest.param(
-            {"grid": {"name": "1mm", "reference_template_path": "a"}}, (), "missing 'brain_mask_path'",
+            {"grids": {"1mm": {"reference_template_path": "a"}}}, (), "missing 'brain_mask_path'",
             id="grid-without-brain-mask",
         ),
         pytest.param(
-            {"grid": {"name": "1 mm", "reference_template_path": "a", "brain_mask_path": "b"}}, (),
+            {"grids": {"1 mm": {"reference_template_path": "a", "brain_mask_path": "b"}}}, (),
             "not alphanumeric", id="grid-name-not-a-column-suffix",
         ),
         pytest.param({"datasets": ["UNIPD/WashU", "UNIPD/WashU"]}, (), "duplicate", id="duplicate-dataset"),

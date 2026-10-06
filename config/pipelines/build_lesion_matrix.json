@@ -24,9 +24,8 @@
   "binarize_threshold": 0.5,
   "resample_interpolation": "nearest",
 
-  "min_lesion_volume_voxels": null,
-  
-  "max_out_of_brain_fraction": null,
+  "excluded_subjects_path": "assets/metadata/excluded_subjects.csv",
+
   "correct_out_of_brain": false,
 
   "session_name": "s1.4-vol",
