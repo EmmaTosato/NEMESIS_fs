@@ -16,7 +16,7 @@ Voci in ordine cronologico inverso.
 
 **Misurato sull'intera coorte (5853 soggetti, 19m54s di run)**: il carico a 2mm ordina i soggetti quasi come quello a 1mm (Spearman 0,9999994); `8 × carico_2mm / carico_1mm` ha mediana 1,001, intervallo 0,989-1,017, quindi `nearest` a 2mm sottocampiona ma la mappa è abbastanza liscia da non cambiare il numero in modo sensibile; la media sul cervello coincide (rapporto mediano 1,000). Nessun soggetto sparisce nel ricampionamento: l'unico con carico 0 (`sub-STUKLFR0671`) è 0 su entrambe le griglie, a differenza del volume lesionale dove una lesione piccola può azzerarsi a 2mm.
 
-**Conseguenza ancora vera**: il `csv` è stato rigenerato con `overwrite: true` da una copia del config nella scratchpad; il config del repo resta `overwrite: false`. I valori sono arrotondati a 3 decimali (la versione committata prima di oggi aveva i float interi). I nomi delle colonne dell'app (`DEFAULT_GRID`, `grid_column`, `available_grids` in `src/analysis/embedding_coloring.py`) sostituiscono i vecchi `*_volume_grid*`: nessun alias.
+**Conseguenza ancora vera**: il `csv` è stato rigenerato con `overwrite: true` da una copia del config nella scratchpad; il config del repo resta `overwrite: false`. I valori sono a precisione piena, senza arrotondamento: il `round(…, 3)` introdotto in giornata è stato tolto (a 3 decimali la media a 1 mm aveva 229 valori distinti su 5853 e 26 soggetti a `0.000`; senza, 5853 distinti) e il csv è stato ricalcolato su entrambe le griglie (20m25s). I nomi delle colonne dell'app (`DEFAULT_GRID`, `grid_column`, `available_grids` in `src/analysis/embedding_coloring.py`) sostituiscono i vecchi `*_volume_grid*`: nessun alias.
 
 ---
 
