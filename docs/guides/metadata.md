@@ -198,7 +198,8 @@ I soggetti esclusi **restano nel registro** con `has_lesion` e `has_sdc` intatti
 | **`variables`** | Quali variabili leggere dai tsv clinici. Ammesse: `age`, `sex`, `education`, `lesion_side`, `NIHSS`, `clinical_date`. Un nome non in elenco fa fallire il config subito. |
 | **`lesion_metadata`** | Oggetto opzionale (`null` salta del tutto le colonne derivate dalle maschere) — il join su `lesion_metadata.csv`. Vedi sotto. |
 | **`sdc_metadata`** | Oggetto opzionale (`null` salta le colonne di disconnessione) — il join su `sdc_metadata.csv`. Vedi sotto. |
-| **`fill`** | `true`: scrive **solo** le celle vuote delle variabili cliniche, ogni valore già presente resta intatto. `false`: le ricalcola tutte. Non ha effetto sulle colonne copiate da `lesion_metadata.csv` e `sdc_metadata.csv`, che vengono sempre sovrascritte. |
+| **`overwrite`** | Obbligatorio. `false`: **append**, scrive solo le celle vuote e lascia com'è ogni valore già presente. `true`: **riscrittura**, ricalcola e sostituisce ogni cella in scope. Vale per tutte le colonne che la run scrive, cliniche e derivate. Vedi [`overwrite`](#overwrite-append-o-riscrittura). |
+| **`protected_path`** | Obbligatorio. Il json con le colonne e i soggetti da non toccare mai (`assets/metadata/participants_protected.json`), oppure `null` per nessuna protezione. Vedi [`protected_path`](#protected_path-tenere-intatto). |
 | **`run_notes`** | Nota libera, finisce nel report. |
 
 ### `lesion_metadata`: il join sul csv delle misure
@@ -214,9 +215,9 @@ I soggetti esclusi **restano nel registro** con `has_lesion` e `has_sdc` intatti
 
 `enrich_metadata` **non apre nessuna maschera**: copia numeri già calcolati. Ogni scelta su *come* una maschera è misurata (quali griglie, se azzerare i voxel fuori dal brain, quale soglia per il lato) vive nel config di `compute_lesion_metadata`, non qui.
 
-- **`copy_columns`**: colonne copiate **con lo stesso nome**, per tutti i soggetti in scope, sovrascrivendo. Ogni nome deve esistere nel csv, e non può essere una colonna di `populate_metadata.py`. Una colonna non elencata non viene portata nel registro e resta disponibile nel csv per il notebook: oggi le due frazioni fuori dal brain e i due indici di lateralità stanno solo lì. Il volume è copiato su entrambe le griglie perché l'Embedding Explorer offre la scelta 1 mm/2 mm.
+- **`copy_columns`**: colonne copiate **con lo stesso nome**, per tutti i soggetti in scope, secondo la regola di `overwrite`. Ogni nome deve esistere nel csv, e non può essere una colonna di `populate_metadata.py`. Una colonna non elencata non viene portata nel registro e resta disponibile nel csv per il notebook: oggi le due frazioni fuori dal brain e i due indici di lateralità stanno solo lì. Il volume è copiato su entrambe le griglie perché l'Embedding Explorer offre la scelta 1 mm/2 mm.
 - **`lesion_side_from`**: quale colonna del csv riempie `lesion_side`. Ha una regola diversa da `copy_columns`, per questo è una chiave a sé: scrive **solo dove la risoluzione clinica ha lasciato la cella vuota**, e scrive anche `lesion_side_source = "geometric"`. Un valore clinico non viene sovrascritto, salvo l'eccezione di `geometric_override_datasets` (sotto). `null` disattiva il riempimento e lascia `lesion_side` solo clinico. Richiede `lesion_side` in `variables`.
-- **`geometric_override_datasets`**: lista di dataset dove un lato clinico opposto a quello della maschera viene **forzato** a quello geometrico. Obbligatoria; `[]` (il valore in uso) la disattiva; se non vuota richiede `lesion_side_from`. Un nome non presente nel registro fa fallire la run. Spiegata, e motivata, nella sezione seguente.
+- **`geometric_override_datasets`**: lista di dataset dove un lato clinico opposto a quello della maschera viene **forzato** a quello geometrico. Obbligatoria; `[]` (il valore in uso) la disattiva; se non vuota richiede `lesion_side_from` e `overwrite: true`, perché sostituisce un valore già presente. Un nome non presente nel registro fa fallire la run. Spiegata, e motivata, nella sezione seguente.
 
 Nel registro la colonna resta **`lesion_side`, senza suffisso di griglia**, perché per i soggetti con etichetta clinica quel valore non viene da nessuna griglia: un suffisso sarebbe falso per la maggioranza delle celle. `lesion_side_from` dice da quale griglia viene la parte geometrica, `lesion_side_source` dice quale delle due provenienze ha vinto per ogni soggetto.
 
@@ -286,9 +287,50 @@ Due controlli, uno per file:
 
   Questi controlli non vedono un cambio di **codice** in `src/features/lesion.py` che alteri le misure: dopo una modifica a come si misura una maschera, `compute_lesion_metadata` va rilanciata.
 
-### Le colonne derivate dalle maschere non si correggono a mano
+### `overwrite`: append o riscrittura
 
-`fill: true` protegge una cella **clinica** corretta a mano, non una copiata dal csv: quelle vengono sovrascritte a ogni run. Se un volume o un lato è inaffidabile, la causa è nella maschera, non nel registro — si sistema la maschera e si ricalcola, oppure il soggetto va in `excluded_subjects.csv`.
+`overwrite` vale per **tutte** le colonne che la run scrive: le cliniche lette dai tsv, `lesion_side_source` e quelle copiate da `lesion_metadata.csv` e `sdc_metadata.csv`. È lo stesso nome, e lo stesso significato, che ha in `populate_metadata`.
+
+| Valore | Modo | Una cella già piena |
+| :--- | :--- | :--- |
+| `false` | append | resta com'è: si scrivono solo le celle vuote |
+| `true` | riscrittura | viene ricalcolata e sostituita; se la fonte è vuota, si svuota anche la cella |
+
+In entrambi i modi un dataset fuori scope e una cella protetta restano invariati.
+
+In **append**, un valore già presente che differisce da quello appena calcolato resta, ma la run lo segnala a `WARNING` per colonna (`N existing value(s) differ ... and were kept`): un numero rimasto vecchio dopo un cambio di maschere non passa in silenzio.
+
+**Quale usare**
+
+- **`false`** per aggiungere soggetti nuovi o riempire buchi. Dopo `populate_metadata`, i soggetti nuovi hanno le colonne cliniche vuote e `enrich_metadata` le riempie; i soggetti già presenti non vengono toccati.
+- **`true`** per riallineare il registro alle fonti: dopo aver corretto un tsv, o dopo aver ricalcolato `lesion_metadata.csv` o `sdc_metadata.csv`. In append le colonne derivate resterebbero ai valori vecchi.
+- Con fonti invariate e nessuna cella modificata a mano i due modi danno lo stesso risultato.
+
+Una cella che nella fonte è vuota svuota la cella del registro, con `overwrite: true`. Un valore che esiste solo nel registro (messo a mano, senza una fonte) va quindi protetto, vedi sotto.
+
+### `protected_path`: tenere intatto
+
+Un json (`assets/metadata/participants_protected.json`) elenca ciò che una run non deve toccare:
+
+```json
+{
+  "columns": ["NIHSS"],
+  "subjects": ["sub-STUNIPD0558"]
+}
+```
+
+- Una cella è protetta se la sua **colonna** è in `columns` **oppure** il suo **soggetto** è in `subjects`. Non viene mai scritta, né in append né in riscrittura, nemmeno se è vuota.
+- È il modo di far sopravvivere a `overwrite: true` una colonna o un soggetto corretti a mano. `{"columns": [], "subjects": []}` non protegge nulla; `protected_path: null` nel config salta il file.
+- Il report della run elenca cosa era protetto.
+- Una colonna protetta non riceve più gli aggiornamenti della sua fonte. Se un volume o un lato è inaffidabile, di solito la causa è nella maschera: si sistema lì e si ricalcola, oppure il soggetto va in `excluded_subjects.csv`. La protezione serve per ciò che non ha una fonte da correggere.
+
+**Controlli** (ognuno fa fallire la run, perché altrimenti la protezione non proteggerebbe nulla in silenzio):
+
+- un soggetto elencato che non è in `participants.csv`;
+- una colonna che questo config non scrive (un refuso, o una colonna fuori da `variables` e dai `copy_columns`);
+- una colonna non ancora presente nel registro: la protezione conserva ciò che c'è già;
+- `lesion_side` senza `lesion_side_source`, o il contrario: descrivono lo stesso fatto e si proteggono insieme;
+- un file assente, non JSON, con chiavi diverse da `columns` e `subjects`, o con voci ripetute.
 
 ---
 

@@ -999,6 +999,17 @@ def _lesion_metadata_summary(join: LesionMetadataJoin | None) -> str:
     return json.dumps(payload, indent=2)
 
 
+def _protected_summary(protected: ProtectedCells | None) -> str:
+    """One report line naming what the run left intact, so a protected cell is never an invisible reason a
+    value did not change."""
+    if protected is None:
+        return "protected: none"
+    return (
+        f"protected (`{protected.path}`): columns {protected.columns or 'none'} · "
+        f"{len(protected.subjects)} subject(s) {protected.subjects or ''}".rstrip()
+    )
+
+
 def _sdc_metadata_summary(join: SdcMetadataJoin | None) -> str:
     """JSON dump of the sdc_metadata block (or 'null') - see _lesion_metadata_summary."""
     if join is None:
@@ -1010,7 +1021,9 @@ def report_lines(config: EnrichMetadataConfig, coverages: list[DatasetCoverage],
     lines = [
         f"# enrich_metadata — {now.strftime('%d-%m-%y %H:%M:%S')}",
         "",
-        f"file: `{config.participants_path}` · fill: {config.fill} · variables: {', '.join(config.variables)}",
+        f"file: `{config.participants_path}` · overwrite: {config.overwrite} · variables: {', '.join(config.variables)}",
+        "",
+        _protected_summary(config.protected),
         "",
         "lesion_metadata:",
         "```json",

@@ -14,6 +14,7 @@ from src.pipeline.enrich_metadata import (
     DatasetCoverage,
     EnrichMetadataConfig,
     LesionMetadataJoin,
+    ProtectedCells,
     SdcMetadataJoin,
     enrich,
     load_config,
@@ -38,7 +39,10 @@ def _write_tsv(path, columns, rows):
     return path
 
 
-def _config(tmp_path, sources, variables, fill=False, lesion_metadata=None, datasets=None, sdc_metadata=None):
+def _config(
+    tmp_path, sources, variables, overwrite=True, lesion_metadata=None, datasets=None, sdc_metadata=None,
+    protected=None,
+):
     return EnrichMetadataConfig(
         project="test",
         sources=sources,
@@ -47,7 +51,8 @@ def _config(tmp_path, sources, variables, fill=False, lesion_metadata=None, data
         variables=variables,
         lesion_metadata=lesion_metadata,
         sdc_metadata=sdc_metadata,
-        fill=fill,
+        overwrite=overwrite,
+        protected=protected,
         run_notes="test",
     )
 
@@ -172,8 +177,8 @@ def test_lesion_side_source_marks_only_resolved_values(tmp_path):
     assert pd.isna(out.loc[1, "lesion_side_source"])
 
 
-def test_fill_true_preserves_existing_values(tmp_path):
-    """fill=true only writes empty cells - an existing value is never overwritten."""
+def test_append_mode_writes_only_the_empty_cells(tmp_path):
+    """overwrite=false only writes empty cells - an existing value is never replaced."""
     tsv = _write_tsv(
         tmp_path / "a.tsv", ["participant_id", "age"], [["sub-STUNIPD0001", "70"], ["sub-STUNIPD0002", "55"]]
     )
@@ -183,11 +188,11 @@ def test_fill_true_preserves_existing_values(tmp_path):
     ])
     registry["age"] = ["999", np.nan]  # 999 is a hand-corrected value that must survive
 
-    out, _ = enrich(registry, _config(tmp_path, sources, ["age"], fill=True))
+    out, _ = enrich(registry, _config(tmp_path, sources, ["age"], overwrite=False))
     assert list(out["age"]) == ["999", "55"]
 
 
-def test_fill_false_recomputes_every_value(tmp_path):
+def test_overwrite_mode_recomputes_every_value(tmp_path):
     tsv = _write_tsv(
         tmp_path / "a.tsv", ["participant_id", "age"], [["sub-STUNIPD0001", "70"], ["sub-STUNIPD0002", "55"]]
     )
@@ -197,7 +202,7 @@ def test_fill_false_recomputes_every_value(tmp_path):
     ])
     registry["age"] = ["999", np.nan]
 
-    out, _ = enrich(registry, _config(tmp_path, sources, ["age"], fill=False))
+    out, _ = enrich(registry, _config(tmp_path, sources, ["age"], overwrite=True))
     assert list(out["age"]) == ["70", "55"]
 
 
@@ -224,7 +229,7 @@ def test_load_config_rejects_unknown_variable(tmp_path):
     config_path = tmp_path / "c.json"
     config_path.write_text(json.dumps({
         "project": "p", "metadata_sources": str(sources_path), "participants_path": "x.csv",
-        "variables": ["age", "not_a_variable"], "fill": False, "run_notes": "n",
+        "variables": ["age", "not_a_variable"], "overwrite": True, "protected_path": None, "run_notes": "n",
     }))
     with pytest.raises(ValueError, match="unknown variable"):
         load_config(config_path)
@@ -236,7 +241,7 @@ def test_load_config_rejects_duplicate_variables(tmp_path):
     config_path = tmp_path / "c.json"
     config_path.write_text(json.dumps({
         "project": "p", "metadata_sources": str(sources_path), "participants_path": "x.csv",
-        "variables": ["age", "age"], "fill": False, "run_notes": "n",
+        "variables": ["age", "age"], "overwrite": True, "protected_path": None, "run_notes": "n",
     }))
     with pytest.raises(ValueError, match="duplicate"):
         load_config(config_path)
@@ -445,21 +450,46 @@ def test_copy_columns_writes_the_volume_as_an_integer_not_a_float(tmp_path):
     assert "4.0" not in (tmp_path / "written.csv").read_text()
 
 
-def test_copy_columns_overwrites_even_with_fill_true(tmp_path):
-    """A mask-derived value is never hand-corrected in participants.csv (every run copies it
-    over), so honouring fill=True here would silently freeze a stale number after the masks
-    changed - the opposite of what the clinical columns want."""
+def test_copy_columns_follow_the_overwrite_rule_and_append_warns_about_the_stale_value(tmp_path, caplog):
+    """A mask-derived column obeys the same rule as every other: overwrite=true replaces it, and
+    overwrite=false keeps it - but a kept value that differs from the freshly measured one is
+    logged, so a number frozen after the masks changed is never kept in silence."""
     sources = _one_subject_sources(tmp_path, ("participant_id", "age"), [["sub-STUNIPD0001", "70"]])
     registry = _bool_registry([("sub-STUNIPD0001", "UNIPD/WashU", True)])
     registry["lesion_volume_voxels_2mm"] = ["999"]
     path = _write_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 4, "left"]])
-    config = _config(
-        tmp_path, sources, ["age"], fill=True, lesion_metadata=_join(path, lesion_side_from=None)
-    )
+    join = _join(path, lesion_side_from=None)
 
-    out, _ = enrich(registry, config)
-
+    out, _ = enrich(registry, _config(tmp_path, sources, ["age"], overwrite=True, lesion_metadata=join))
     assert out.loc[0, "lesion_volume_voxels_2mm"] == 4
+
+    with caplog.at_level(logging.WARNING):
+        kept, _ = enrich(registry, _config(tmp_path, sources, ["age"], overwrite=False, lesion_metadata=join))
+    assert kept.loc[0, "lesion_volume_voxels_2mm"] == "999"
+    assert "lesion_volume_voxels_2mm: 1 existing value(s) differ" in caplog.text
+
+
+def test_append_mode_is_silent_when_the_existing_values_match_the_fresh_ones(tmp_path, caplog):
+    """The warning is for a real disagreement: a re-run over an unchanged file, whose stored text
+    equals the freshly resolved value, must not cry wolf (an integer count, a float, a string)."""
+    sources = _one_subject_sources(tmp_path, ("participant_id", "age"), [["sub-STUNIPD0001", "70"]])
+    registry = _sdc_registry([("sub-STUNIPD0001", "UNIPD/WashU", True, True)])
+    lesion_csv = _write_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 4, "left"]])
+    sdc_csv = _write_sdc_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 59503.8418, 0.032565]])
+    config = _config(
+        tmp_path, sources, ["age"], overwrite=True,
+        lesion_metadata=_join(lesion_csv, lesion_side_from=None), sdc_metadata=_sdc_join(sdc_csv),
+    )
+    first, _ = enrich(registry, config)
+    path = tmp_path / "participants.csv"
+    first.to_csv(path, index=False)
+    reread = pd.read_csv(path, dtype=str)
+    reread[["has_lesion", "has_sdc", "has_features"]] = reread[["has_lesion", "has_sdc", "has_features"]] == "True"
+
+    with caplog.at_level(logging.WARNING):
+        enrich(reread, replace(config, overwrite=False))
+
+    assert "differ" not in caplog.text
 
 
 def test_a_column_not_in_copy_columns_is_not_written(tmp_path):
@@ -537,7 +567,7 @@ def _write_join_config(tmp_path, block, variables=("lesion_side",)):
     config_path = tmp_path / "c.json"
     config_path.write_text(json.dumps({
         "project": "p", "metadata_sources": str(sources_path), "participants_path": "x.csv",
-        "variables": list(variables), "lesion_metadata": block, "fill": False, "run_notes": "n",
+        "variables": list(variables), "lesion_metadata": block, "overwrite": True, "protected_path": None, "run_notes": "n",
     }))
     return config_path
 
@@ -801,7 +831,7 @@ def test_sdc_columns_are_copied_as_floats_without_integer_coercion(tmp_path):
     assert out.loc[0, "disconnection_mean_1mm"] == pytest.approx(0.032565)
 
 
-def test_sdc_columns_overwrite_even_with_fill_true_and_leave_other_datasets_alone(tmp_path):
+def test_sdc_columns_overwrite_in_scope_and_leave_other_datasets_alone(tmp_path):
     sources = _one_subject_sources(tmp_path, ("participant_id", "age"), [["sub-STUNIPD0001", "70"]])
     registry = _sdc_registry([
         ("sub-STUNIPD0001", "UNIPD/WashU", True, True), ("sub-STUKLFR0001", "UKLFR/stroke_UKLFR", True, True),
@@ -809,13 +839,14 @@ def test_sdc_columns_overwrite_even_with_fill_true_and_leave_other_datasets_alon
     registry["disconnection_load_voxels_1mm"] = ["1.0", "777.0"]
     path = _write_sdc_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 5.0, 0.1]])
     config = _config(
-        tmp_path, sources, ["age"], fill=True, datasets=["UNIPD/WashU"], sdc_metadata=_sdc_join(path, _SDC_BOTH[:1])
+        tmp_path, sources, ["age"], overwrite=True, datasets=["UNIPD/WashU"],
+        sdc_metadata=_sdc_join(path, _SDC_BOTH[:1]),
     )
 
     out, _ = enrich(registry, config)
 
     by_id = out.set_index("subject_id")["disconnection_load_voxels_1mm"]
-    assert float(by_id["sub-STUNIPD0001"]) == 5.0  # stale value replaced despite fill=True
+    assert float(by_id["sub-STUNIPD0001"]) == 5.0  # stale value replaced
     assert by_id["sub-STUKLFR0001"] == "777.0"  # out-of-scope dataset untouched
 
 
@@ -844,7 +875,7 @@ def _write_sdc_join_config(tmp_path, block, lesion_block=None):
     config_path = tmp_path / "c.json"
     config_path.write_text(json.dumps({
         "project": "p", "metadata_sources": str(sources_path), "participants_path": "x.csv",
-        "variables": ["age"], "lesion_metadata": lesion_block, "sdc_metadata": block, "fill": False, "run_notes": "n",
+        "variables": ["age"], "lesion_metadata": lesion_block, "sdc_metadata": block, "overwrite": True, "protected_path": None, "run_notes": "n",
     }))
     return config_path
 
@@ -906,3 +937,277 @@ def test_report_lines_dumps_sdc_metadata_as_json_and_null_when_disabled(tmp_path
     without = "\n".join(report_lines(_config(tmp_path, sources, ["age"]), coverage, now))
     sdc_section = without.split("sdc_metadata:")[1]
     assert sdc_section.lstrip().startswith("```json\nnull")
+
+
+# --- overwrite + protected cells ------------------------------------------------------------------
+
+
+def _two_subjects(tmp_path):
+    """Two WashU subjects whose registry cells (age 999/888, sex X/Y) disagree with the raw tsv
+    (70/55, M/F) - so a cell that changed was written, and a cell that did not was kept."""
+    tsv = _write_tsv(
+        tmp_path / "a.tsv", ["participant_id", "age", "sex"],
+        [["sub-STUNIPD0001", "70", "M"], ["sub-STUNIPD0002", "55", "F"]],
+    )
+    sources = {"UNIPD/WashU": DatasetSource(tsv, tmp_path)}
+    registry = _registry([
+        [f"sub-STUNIPD000{i}", f"sub-STUNIPD000{i}", "UNIPD/WashU", "ST", "True", "True", "False"] for i in (1, 2)
+    ])
+    registry["age"] = ["999", "888"]
+    registry["sex"] = ["X", "Y"]
+    return sources, registry
+
+
+def _protected(tmp_path, columns=(), subjects=()):
+    return ProtectedCells(path=tmp_path / "protected.json", columns=list(columns), subjects=list(subjects))
+
+
+def test_a_protected_column_survives_an_overwrite_run(tmp_path):
+    sources, registry = _two_subjects(tmp_path)
+    config = _config(tmp_path, sources, ["age", "sex"], overwrite=True, protected=_protected(tmp_path, columns=["age"]))
+
+    out, _ = enrich(registry, config)
+
+    assert list(out["age"]) == ["999", "888"]  # protected: kept for every subject
+    assert list(out["sex"]) == ["M", "F"]      # not protected: recomputed
+
+
+def test_a_protected_subject_survives_an_overwrite_run_in_every_column(tmp_path):
+    sources, registry = _two_subjects(tmp_path)
+    config = _config(
+        tmp_path, sources, ["age", "sex"], overwrite=True, protected=_protected(tmp_path, subjects=["sub-STUNIPD0001"])
+    )
+
+    out, _ = enrich(registry, config)
+
+    assert list(out["age"]) == ["999", "55"]
+    assert list(out["sex"]) == ["X", "F"]
+
+
+@pytest.mark.parametrize("overwrite", [True, False])
+def test_a_protected_cell_is_never_written_even_when_it_is_empty(tmp_path, overwrite):
+    """"Intact" means untouched, not "protected unless empty": a protected subject's empty cell stays
+    empty, in append mode too - the raw tsv has a value for it, and it must still not be written."""
+    sources, registry = _two_subjects(tmp_path)
+    registry["age"] = [np.nan, "888"]
+    config = _config(
+        tmp_path, sources, ["age"], overwrite=overwrite, protected=_protected(tmp_path, subjects=["sub-STUNIPD0001"])
+    )
+
+    out, _ = enrich(registry, config)
+
+    assert pd.isna(out.loc[0, "age"])
+
+
+def test_protection_applies_to_the_columns_copied_from_a_measurements_csv(tmp_path):
+    sources = _one_subject_sources(tmp_path, ("participant_id", "age"), [["sub-STUNIPD0001", "70"]])
+    registry = _bool_registry([("sub-STUNIPD0001", "UNIPD/WashU", True)])
+    registry["age"] = ["70"]
+    registry["lesion_volume_voxels_2mm"] = ["999"]
+    path = _write_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 4, "left"]])
+    config = _config(
+        tmp_path, sources, ["age"], overwrite=True, lesion_metadata=_join(path, lesion_side_from=None),
+        protected=_protected(tmp_path, columns=["lesion_volume_voxels_2mm"]),
+    )
+
+    out, _ = enrich(registry, config)
+
+    assert out.loc[0, "lesion_volume_voxels_2mm"] == "999"
+
+
+def test_a_protected_subject_that_is_not_in_participants_raises(tmp_path):
+    sources, registry = _two_subjects(tmp_path)
+    config = _config(tmp_path, sources, ["age"], protected=_protected(tmp_path, subjects=["sub-STUNIPD9999"]))
+
+    with pytest.raises(ValueError, match="sub-STUNIPD9999"):
+        enrich(registry, config)
+
+
+def test_a_protected_column_this_config_does_not_write_raises(tmp_path):
+    """A typo (or a column no run writes) would otherwise protect nothing, in silence."""
+    sources, registry = _two_subjects(tmp_path)
+    config = _config(tmp_path, sources, ["age"], protected=_protected(tmp_path, columns=["NIHSS"]))
+
+    with pytest.raises(ValueError, match="not written by this config"):
+        enrich(registry, config)
+
+
+def test_a_protected_column_missing_from_participants_raises(tmp_path):
+    sources, registry = _two_subjects(tmp_path)
+    config = _config(tmp_path, sources, ["age", "sex"], protected=_protected(tmp_path, columns=["sex"]))
+
+    with pytest.raises(ValueError, match="do not exist"):
+        enrich(registry.drop(columns=["sex"]), config)
+
+
+def test_protecting_lesion_side_without_its_source_raises(tmp_path):
+    sources = _one_subject_sources(tmp_path, ("participant_id", "lesion_side"), [["sub-STUNIPD0001", "left"]])
+    registry = _bool_registry([("sub-STUNIPD0001", "UNIPD/WashU", True)])
+    registry["lesion_side"] = ["left"]
+    registry["lesion_side_source"] = ["clinical"]
+    config = _config(tmp_path, sources, ["lesion_side"], protected=_protected(tmp_path, columns=["lesion_side"]))
+
+    with pytest.raises(ValueError, match="must be protected together"):
+        enrich(registry, config)
+
+
+def test_protected_lesion_side_pair_is_kept_through_an_overwrite_run(tmp_path):
+    sources = _one_subject_sources(tmp_path, ("participant_id", "lesion_side"), [["sub-STUNIPD0001", "left"]])
+    registry = _bool_registry([("sub-STUNIPD0001", "UNIPD/WashU", True)])
+    registry["lesion_side"] = ["both"]
+    registry["lesion_side_source"] = ["geometric"]  # a hand decision to keep
+    path = _write_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 4, "right"]])
+    config = _config(
+        tmp_path, sources, ["lesion_side"], overwrite=True, lesion_metadata=_join(path, copy_columns=[]),
+        protected=_protected(tmp_path, columns=["lesion_side", "lesion_side_source"]),
+    )
+
+    out, _ = enrich(registry, config)
+
+    assert out.loc[0, ["lesion_side", "lesion_side_source"]].tolist() == ["both", "geometric"]
+
+
+def test_override_does_not_force_a_protected_subject(tmp_path):
+    sources, registry, path = _override_fixture(tmp_path, [("sub-STUNIPD0001", "UNIPD/WashU", "left", "right")])
+    registry["lesion_side"] = ["left"]
+    registry["lesion_side_source"] = ["clinical"]
+    config = _config(
+        tmp_path, sources, ["lesion_side"], overwrite=True,
+        lesion_metadata=_join(path, copy_columns=[], override_datasets=["UNIPD/WashU"]),
+        protected=_protected(tmp_path, subjects=["sub-STUNIPD0001"]),
+    )
+
+    out, _ = enrich(registry, config)
+
+    assert out.loc[0, ["lesion_side", "lesion_side_source"]].tolist() == ["left", "clinical"]
+
+
+def test_override_requires_overwrite_true(tmp_path):
+    """The override replaces a filled cell; append mode never does - two rules that cannot both hold."""
+    sources, registry, path = _override_fixture(tmp_path, [("sub-STUNIPD0001", "UNIPD/WashU", "left", "right")])
+    config = _config(
+        tmp_path, sources, ["lesion_side"], overwrite=False,
+        lesion_metadata=_join(path, copy_columns=[], override_datasets=["UNIPD/WashU"]),
+    )
+
+    with pytest.raises(ValueError, match="append mode never does"):
+        enrich(registry, config)
+
+
+def test_append_mode_keeps_an_earlier_geometric_side_and_its_source(tmp_path, caplog):
+    """Where the raw tsv has no side, an earlier geometric fill must survive an append run with
+    its "geometric" source - not be relabelled "clinical" because the cell happens to be non-empty."""
+    sources = _one_subject_sources(tmp_path, ("participant_id", "lesion_side"), [["sub-STUNIPD0001", "n/a"]])
+    registry = _bool_registry([("sub-STUNIPD0001", "UNIPD/WashU", True)])
+    registry["lesion_side"] = ["both"]
+    registry["lesion_side_source"] = ["geometric"]
+    path = _write_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 4, "both"]])
+    config = _config(
+        tmp_path, sources, ["lesion_side"], overwrite=False, lesion_metadata=_join(path, copy_columns=[])
+    )
+
+    with caplog.at_level(logging.WARNING):
+        out, _ = enrich(registry, config)
+
+    assert out.loc[0, ["lesion_side", "lesion_side_source"]].tolist() == ["both", "geometric"]
+    assert "differ" not in caplog.text
+
+
+# --- load_config: overwrite and protected_path ------------------------------------------------------------
+
+
+def _write_base_config(tmp_path, **changes):
+    sources_path = tmp_path / "sources.json"
+    sources_path.write_text(json.dumps({"UNIPD/WashU": {"participants_tsv": "a.tsv", "derivatives_dir": "d"}}))
+    payload = {
+        "project": "p", "metadata_sources": str(sources_path), "participants_path": "x.csv",
+        "variables": ["age"], "overwrite": True, "protected_path": None, "run_notes": "n",
+    }
+    payload.update(changes)
+    payload = {k: v for k, v in payload.items() if v is not _ABSENT}
+    config_path = tmp_path / "c.json"
+    config_path.write_text(json.dumps(payload))
+    return config_path
+
+
+_ABSENT = object()
+
+
+def _write_protected(tmp_path, payload):
+    path = tmp_path / "protected.json"
+    path.write_text(payload if isinstance(payload, str) else json.dumps(payload))
+    return path
+
+
+def test_load_config_reads_overwrite_and_a_null_protected_path(tmp_path):
+    config = load_config(_write_base_config(tmp_path, overwrite=False))
+
+    assert config.overwrite is False
+    assert config.protected is None
+
+
+def test_load_config_reads_the_protected_file(tmp_path):
+    protected = _write_protected(tmp_path, {"columns": ["NIHSS"], "subjects": ["sub-STUNIPD0001"]})
+
+    config = load_config(_write_base_config(tmp_path, protected_path=str(protected)))
+
+    assert config.protected == ProtectedCells(path=protected, columns=["NIHSS"], subjects=["sub-STUNIPD0001"])
+
+
+def test_load_config_accepts_an_empty_protected_file(tmp_path):
+    protected = _write_protected(tmp_path, {"columns": [], "subjects": []})
+
+    config = load_config(_write_base_config(tmp_path, protected_path=str(protected)))
+
+    assert config.protected.columns == [] and config.protected.subjects == []
+
+
+@pytest.mark.parametrize("missing", ["overwrite", "protected_path"])
+def test_load_config_requires_overwrite_and_protected_path(tmp_path, missing):
+    """An old config that still says "fill" has no "overwrite": it must fail, not run on a default."""
+    with pytest.raises(ValueError, match=f"missing required key '{missing}'"):
+        load_config(_write_base_config(tmp_path, **{missing: _ABSENT}))
+
+
+def test_load_config_rejects_a_non_boolean_overwrite(tmp_path):
+    with pytest.raises(ValueError, match="'overwrite' must be a boolean"):
+        load_config(_write_base_config(tmp_path, overwrite="yes"))
+
+
+def test_load_config_protected_path_to_a_missing_file_raises(tmp_path):
+    with pytest.raises(FileNotFoundError, match="protected_path"):
+        load_config(_write_base_config(tmp_path, protected_path=str(tmp_path / "nope.json")))
+
+
+@pytest.mark.parametrize(
+    "payload, match",
+    [
+        pytest.param('{"columns": []', "not valid JSON", id="not-json"),
+        pytest.param([], "exactly the keys", id="not-an-object"),
+        pytest.param({"columns": []}, "exactly the keys", id="subjects-absent"),
+        pytest.param({"columns": [], "subjects": [], "rows": []}, "exactly the keys", id="unknown-key"),
+        pytest.param({"columns": "age", "subjects": []}, "list of non-empty strings", id="columns-not-a-list"),
+        pytest.param({"columns": ["age", "age"], "subjects": []}, "duplicate", id="duplicate-column"),
+        pytest.param({"columns": [], "subjects": ["sub-A", "sub-A"]}, "duplicate", id="duplicate-subject"),
+    ],
+)
+def test_load_config_rejects_a_malformed_protected_file(tmp_path, payload, match):
+    protected = _write_protected(tmp_path, payload)
+
+    with pytest.raises(ValueError, match=match):
+        load_config(_write_base_config(tmp_path, protected_path=str(protected)))
+
+
+def test_report_lines_state_the_overwrite_mode_and_what_is_protected(tmp_path):
+    sources = _one_subject_sources(tmp_path, ("participant_id", "age"), [["sub-STUNIPD0001", "70"]])
+    coverage = [DatasetCoverage("UNIPD/WashU", 1, [], {}, {"age": 0})]
+    now = datetime(2026, 10, 7, 12, 0, 0)
+
+    plain = "\n".join(report_lines(_config(tmp_path, sources, ["age"], overwrite=False), coverage, now))
+    assert "overwrite: False" in plain and "protected: none" in plain
+
+    guarded = _config(
+        tmp_path, sources, ["age"], protected=_protected(tmp_path, columns=["age"], subjects=["sub-STUNIPD0001"])
+    )
+    text = "\n".join(report_lines(guarded, coverage, now))
+    assert "overwrite: True" in text and "['age']" in text and "1 subject(s)" in text

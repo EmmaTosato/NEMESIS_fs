@@ -42,7 +42,7 @@ assets/metadata/excluded_subjects.csv   — chi resta fuori dalle matrici (gener
 |---|---|---|
 | Domanda | chi esiste | cosa sappiamo di lui |
 | Scrive | `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` | `age`, `sex`, `lesion_side`, `lesion_side_source`, `NIHSS`, `education`, `clinical_date`, `lesion_volume_voxels_{2mm,1mm}`, `disconnection_load_voxels_{2mm,1mm}`, `disconnection_mean_{2mm,1mm}` |
-| Flag di idempotenza | `overwrite` — false: aggiunge solo soggetti nuovi, righe esistenti intatte; true: ricalcola le proprie colonne preservando quelle dell'altro script | `fill` — true: riempie solo le celle vuote delle variabili richieste; false: ricalcola tutto il richiesto |
+| Flag di idempotenza | `overwrite` — false: aggiunge solo soggetti nuovi, righe esistenti intatte; true: ricalcola le proprie colonne preservando quelle dell'altro script | `overwrite` — false: append, scrive solo le celle vuote; true: riscrittura, sostituisce ogni cella in scope. In più `protected_path`: colonne e soggetti da non toccare mai |
 
 Registry condiviso: **`config/registry/metadata_sources.json`** — per ogni dataset, il path del tsv grezzo e quello della cartella derivatives. Lo leggono entrambi gli script, così la corrispondenza dataset↔path esiste in un posto solo (non è derivabile meccanicamente: `participants_UCL.tsv` ↔ `UCL-UK/UCLStrokeData`).
 
@@ -210,9 +210,9 @@ Il registro ricava `has_sdc` dalle cartelle `sdc/<soggetto>/`, non dalla presenz
 | Chiave | Effetto |
 |---|---|
 | `path` | Il csv da cui copiare. |
-| `copy_columns` | Colonne copiate **con lo stesso nome**, per ogni soggetto in scope, sovrascrivendo. Ogni nome deve esistere nel csv e non può essere una colonna di `populate_metadata.py`. |
+| `copy_columns` | Colonne copiate **con lo stesso nome**, per ogni soggetto in scope, secondo `overwrite`. Ogni nome deve esistere nel csv e non può essere una colonna di `populate_metadata.py`. |
 | `lesion_side_from` | Quale colonna del csv riempie `lesion_side`: **solo dove la risoluzione clinica ha lasciato la cella vuota**, scrivendo anche `lesion_side_source = "geometric"`. `null` disattiva. Richiede `lesion_side` in `variables`. |
-| `geometric_override_datasets` | Dataset dove un lato clinico `left`/`right` **opposto** a quello di `lesion_side_from` viene sostituito da quest'ultimo (`lesion_side_source = "geometric"`). L'unica eccezione a "un valore clinico non si sovrascrive". Obbligatoria; `[]` la disattiva ed è il valore in uso. |
+| `geometric_override_datasets` | Dataset dove un lato clinico `left`/`right` **opposto** a quello di `lesion_side_from` viene sostituito da quest'ultimo (`lesion_side_source = "geometric"`). L'unica eccezione a "un valore clinico non si sovrascrive". Obbligatoria; `[]` la disattiva ed è il valore in uso; se non vuota richiede `overwrite: true`. |
 
 Le due chiavi sono separate perché le regole di scrittura sono diverse, e la seconda scrive anche in una colonna ulteriore. Metterle nella stessa lista avrebbe richiesto che il codice conoscesse per nome la voce speciale — una regola implicita invece che dichiarata.
 
@@ -241,17 +241,27 @@ Stessa meccanica, con un blocco `sdc_metadata` a due chiavi (`path`, `copy_colum
 
 `copy_columns` non può nominare una colonna scritta già da un'altra parte (una variabile clinica, `lesion_side_source`, o una `copy_columns` di `lesion_metadata`): due scrittori per una colonna lascerebbero il valore del secondo, senza errori. Le colonne sono float e non passano per `Int64`: una probabilità sommata non è un conteggio, e troncarla ne perderebbe la parte frazionaria.
 
-### Le colonne derivate dalle maschere non si correggono a mano
+### `overwrite` e le celle protette
 
-`fill: true` protegge una cella **clinica** corretta a mano; le colonne copiate da `lesion_metadata.csv` e da `sdc_metadata.csv` vengono sovrascritte a ogni run, quindi `_apply` le scrive con `fill=False` indipendentemente da `config.fill`. Onorare `fill: true` anche per quelle congelerebbe in silenzio un numero vecchio dopo che le maschere sono cambiate.
+Una sola regola di scrittura per tutte le colonne di `enrich_metadata` (`_apply`): in append (`overwrite: false`) si scrivono solo le celle vuote, in riscrittura (`overwrite: true`) ogni cella in scope viene sostituita, anche con una cella vuota. Le colonne copiate da `lesion_metadata.csv` e `sdc_metadata.csv` non hanno un trattamento a parte: la stessa regola vale per loro e per le cliniche, quindi un lettore non deve ricordare quale colonna segue quale regola.
 
-La conseguenza è deliberata: un volume o un lato inaffidabile ha la sua causa nella maschera, non nel registro. Si sistema la maschera e si ricalcola, oppure il soggetto va in `excluded_subjects.csv`. Un meccanismo per proteggere singole celle significherebbe due fonti di verità per lo stesso numero, senza nulla che dica quale vince.
+**Cosa tiene al riparo dai valori rimasti vecchi.** In append una colonna derivata resta al valore di quando fu scritta, anche se la maschera è cambiata nel frattempo. Per questo `_apply` conta, a `WARNING` e per colonna, i valori esistenti che differiscono da quello appena calcolato e che sono stati tenuti. Il confronto è tra testi, perché `participants.csv` si legge con `dtype=str`. Su `participants.csv` reale e invariato non produce nessun avviso: un avviso a ogni run sarebbe rumore, e il rumore si smette di leggere.
+
+**Cosa tiene intatto ciò che va tenuto.** Il file `assets/metadata/participants_protected.json` (`columns`, `subjects`) dice, per colonna o per soggetto, ciò che nessuna run scrive. È la regola esplicita su chi vince tra il registro e la fonte: vince la cella protetta. Senza di essa, due fonti per lo stesso numero non avrebbero nulla che dica quale vale. Una cella protetta non viene scritta nemmeno se è vuota: "intatta" significa non toccata, non "protetta finché piena". La protezione è per colonna e per soggetto, non per cella (soggetto × colonna): era quello che serviva, e una granularità più fine moltiplicherebbe i casi da validare.
+
+**Controlli, tutti in `_check_write_rules`**, e non in `load_config`, perché servono `participants.csv` e perché un `EnrichMetadataConfig` si costruisce anche direttamente (nei test) senza passare dal loader:
+
+- un soggetto protetto assente dal registro, una colonna protetta che il config non scrive, o che non esiste ancora nel registro, solleva: un refuso protegge altrimenti nulla, in silenzio;
+- `lesion_side` e `lesion_side_source` si proteggono **insieme**: descrivono lo stesso fatto, e proteggerne una sola lascerebbe un valore con la provenienza di un altro;
+- `geometric_override_datasets` non vuota con `overwrite: false` solleva: l'override sostituisce un lato già scritto, che l'append non fa mai. Un override non tocca un `lesion_side` protetto.
+
+**Dove la regola non è quella del config.** Il riempimento del lato geometrico (`lesion_side_from`) scrive sempre in append, anche con `overwrite: true`: una riscrittura vuoterebbe ogni cella per cui la maschera non ha un lato. E `lesion_side_source = "clinical"` si calcola da ciò che il tsv ha risolto in *questa* run, non dal contenuto di `lesion_side` dopo il merge: in append quest'ultimo contiene ancora un precedente riempimento geometrico, che verrebbe rietichettato `clinical` contro la sua stessa `lesion_side_source`.
 
 ## `excluded_subjects.csv`: chi entra in analisi
 
 `subject_id, dataset, reason, scope, value`, generato da `src/pipeline/build_excluded_subjects.py` a partire dal config `config/pipelines/build_excluded_subjects.json`, dove ogni soggetto è elencato esplicitamente (nessuna soglia). Il modo usuale (`overwrite: false`) **aggiunge** al csv esistente senza toccarne le righe, quindi il csv è la fonte di verità e togliere una riga si fa a mano; con `overwrite: true` il csv è ricostruito dal solo config, che diventa allora la fonte. La modalità distruttiva è un flag esplicito, mai il comportamento di partenza: una pipeline che conosce solo alcune righe di un file condiviso non deve riscriverlo per intero senza che lo si sia chiesto. L'ultima cella di `notebooks/exploration/lesion_analysis.ipynb` non scrive nulla: stampa i blocchi da incollare nel config. Letto da `src/utils/participants.py::load_excluded_subjects`, e da lì da `build_lesion_matrix.py` e `build_sdc_matrix.py` tramite il campo `excluded_subjects_path` dei loro config — vedi `docs/dev/lesion_matrix.md`.
 
-Nessuna pipeline lo genera: i dati non hanno un salto naturale su cui mettere una soglia (su 5853 soggetti, 3 maschere a 0 voxel a 2 mm, 132 con volume ≤ 10 voxel, coda continua; 234 soggetti sopra il 5% di frazione fuori dal brain, 73 sopra il 10%), e quale soggetto limite valga la pena di scartare è un giudizio che appartiene all'analisi.
+La pipeline non applica nessuna soglia: i dati non hanno un salto naturale su cui metterne una (su 5853 soggetti, 3 maschere a 0 voxel a 2 mm, 132 con volume ≤ 10 voxel, coda continua; 234 soggetti sopra il 5% di frazione fuori dal brain, 73 sopra il 10%), e quale soggetto limite valga la pena di scartare è un giudizio che appartiene all'analisi.
 
 ### Criteri di esclusione adottati
 
