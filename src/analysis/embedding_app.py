@@ -168,7 +168,7 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 /* Shared by all 3 section headings (Embedding Visualization / Anatomia lesionale / Overlap map
    per cluster, 01-09-26) - a class of its own rather than a nesting-based ".anatomy-panel h2"
    selector, since "Embedding Visualization" sits above the scatter, outside any .anatomy-panel.
-   Same weight/scale family as .page-title (32px) - a real section header, not the 20px
+   Same weight/scale family as .page-title (40px) - a real section header, not the 20px
    subheading this panel used to read as (feedback: "va scritto più grande" / "un pelo più
    grande" on a follow-up pass). */
 .section-heading {{ font-size: 30px; font-weight: 800; margin: 40px 0 20px; text-align: center; }}
@@ -1859,7 +1859,8 @@ def _color_button_label(mode_name: str) -> str:
     # "Nihss (severity)" (str.capitalize lowercases every character but the first), the same
     # trap the notebook prototype's _panel_title left uncorrected; sidestepped here by not
     # reformatting the label's casing at all, same as compose_embedding_plot_title's own
-    
+    # color_by segment (src/analysis/plotting.py), which interpolates the label verbatim
+    # instead of re-casing it.
     return "neutro" if mode_name == NEUTRAL_MODE else COLOR_MODES[mode_name].label
 
 
