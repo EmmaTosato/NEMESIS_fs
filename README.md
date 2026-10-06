@@ -21,7 +21,7 @@ conda env create -f environment.yml
 conda activate nemesis
 ```
 
-See [`docs/setup.md`](docs/setup.md) for full environment setup, and each pipeline's guide under [`docs/guides/`](docs/guides/) for its exact invocation.
+See [`docs/setup.md`](docs/setup.md) for full environment setup, and each pipeline's guide under [`docs/guides/`](docs/guides/) for its exact invocation. The order in which the pipelines run, from raw data to `dim_reduction`/`clustering`, is in [`docs/guides/pipeline_order.md`](docs/guides/pipeline_order.md) (technical flow: [`docs/dev/pipeline_flow.md`](docs/dev/pipeline_flow.md)).
 
 ## Repository structure
 

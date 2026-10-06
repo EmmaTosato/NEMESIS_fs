@@ -42,6 +42,18 @@ Le 168 maschere `UNIPD/PSP` hanno valori tra 0 e 1 (multipli di 1/8) invece di s
 - quante maschere capovolte sono oggi nelle matrici: almeno 6 su 162 WashU con etichetta (3,7%); sconosciuto tra i 33 WashU senza etichetta clinica, dove la geometria è l'unico dato e non c'è modo di applicare la verifica comportamentale;
 - il meccanismo dell'inversione resta senza causa nota: esclusi normalizzazione, header T1, passaggio SDC (controllo E) e T1 duplicate (controllo F, tranne `0077`); la manualità resta un indizio statistico, non un meccanismo — tra i 4 mancini decidibili 2 hanno l'etichetta giusta e 2 la maschera.
 
+### Header RAS −90: 1032 maschere traslate di 1 voxel in x rispetto al template?
+
+Censimento di 5853 maschere: LAS +90 (4370, stessa griglia degli atlanti FSL), RAS −91 (451, WAKEUP, identico al template), RAS −90 (1032: WashU, UKLFR, NEMESIS_T0, SFB936). Il terzo gruppo, preso col suo header, è traslato di 1 mm in x rispetto agli altri due. Non si sa se sia l'header a essere sbagliato o se i dati stiano davvero in quella griglia. Con l'header come verità la classificazione per sede cambia poco (1 soggetto su 24 cambia categoria dominante, max |Δfrazione| 0,08).
+
+**Test statistico eseguito (06-10-26, 5852 maschere)**: spostando i voxel lesionali di ±3 mm e contando quanti cadono fuori dal brain mask del template, se i 4 dataset RAS −90 fossero davvero traslati di 1 voxel il minimo dovrebbe stare a −1 mm in x. Non ci sta: 3 dataset su 4 hanno il minimo a +1/+2 (UKLFR, SFB936, NEMESIS_T0), WashU a −1. Sul gruppo intero, a −1 la frazione fuori dal brain sale (0,0463 contro 0,0422 a 0), quindi la correzione ipotizzata peggiora l'accordo. Il test però non ha risoluzione di 1 mm: anche il gruppo di riferimento WAKEUP (identico al template) ha il minimo a +1, e gli assi di controllo y e z danno minimi a ±1-2 mm. **Non supporta** una traslazione di −1 mm, ma non la esclude.
+
+**Da fare**: chiedere a chi ha prodotto le maschere con quale software le ha scritte; sovrapporre la maschera alla T1 normalizzata per 3-5 soggetti per gruppo (le T1 sono sul server, non in locale). È l'unico controllo che può decidere.
+
+### Soglie per la classificazione della lesione per sede
+
+Quota minima della lesione in una categoria per dirla "coinvolta" e per dirla "pura" contro "mista": non decisa, la letteratura non ha uno standard per questa quantità. Da fissare con una sweep sull'intera coorte (`.claude/history/methods_changelog.md`, 06-10-26). Aperto anche l'effetto della sovrapposizione corticale/bianca di HO sulle lesioni, non ancora misurato.
+
 ### Colonne `NIHSS_5a/5b` di UKLFR probabilmente scambiate
 
 Nel tsv UKLFR il braccio più deficitario corrisponde alla lesione **omolaterale** (75/75 sui soggetti con asimmetria: braccio "a" peggiore → lesione sinistra, "b" peggiore → destra), il contrario dello standard NIHSS (5a sinistro, 5b destro). Verificato solo per 5a/5b, non per 6a/6b. Nessun codice del repo usa questi item oggi (solo il `NIHSS` totale); conta se qualcuno li usa.

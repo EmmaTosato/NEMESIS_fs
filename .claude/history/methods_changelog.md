@@ -8,6 +8,32 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 06-10-26 — Header RAS −90: test statistico inconclusivo, header lasciato come verità
+
+**Decisione**: le 1032 maschere con header RAS −90 restano trattate col loro header (nessuna traslazione applicata).
+
+**Fatto**: per 5852 maschere (una vuota esclusa) si sono spostati i soli voxel lesionali di −3..+3 mm lungo x (y e z come controlli negativi) contando quelli fuori dal brain mask del template a 1mm. Ipotesi testata: griglia vera = −91 (identica al template), quindi minimo atteso a −1 mm in x per i 4 dataset RAS −90. Osservato: minimo a +1 (UKLFR, SFB936), +2 (NEMESIS_T0), −1 (WashU); sul gruppo intero la frazione fuori dal brain è 0,0463 a −1, 0,0422 a 0, 0,0421 a +1. Gruppi di riferimento: WAKEUP (identico al template) minimo a +1, LAS +90 (4370) a 0 con stima sub-voxel −0,26. Assi di controllo: minimi a ±1-2 mm in y e z in più dataset (WashU y=2, z=2; NEMESIS_T0 y=1).
+
+**Perché inconclusivo**: il criterio "fuori dal brain mask" ha risoluzione di circa ±1-2 mm, perché i cervelli normalizzati differiscono dal template di più di 1 mm e la distribuzione delle lesioni vicino al bordo non è simmetrica; un controllo che sbaglia di ±1 mm sul gruppo di riferimento e sugli assi di controllo non può rivelare uno spostamento di 1 mm. Non conferma la traslazione ipotizzata (il minimo non è a −1) ma non la esclude.
+
+**Conseguenza ancora vera**: l'unico controllo decisivo resta la T1 normalizzata sul server o l'informazione su come sono state scritte le maschere (`open_problems.md`). Script in `tmp/lesion_location/06_header_shift_test.py` (locale, gitignored).
+
+---
+
+## 06-10-26 — Sede della lesione: atlanti FSL e sei categorie esclusive (prototipo in `tmp/`, non ancora in `src/`)
+
+**Decisione**: ogni lesione si classifica per sede con tre atlanti FSL, in `assets/atlases/fsl/` (provenienza nel suo `README.md`): Harvard-Oxford corticale (48 etichette), Harvard-Oxford sotto-corticale (21), Cerebellum-MNIfnirt (28), tutti `maxprob-thr25` a 1mm e 2mm. Sei categorie esclusive per voxel dentro il brain mask, in ordine di precedenza: infratentoriale (`Brain-Stem` HO + cervelletto) > sotto-corticale grigia (talamo, caudato, putamen, pallido, ippocampo, amigdala, accumbens) > corticale > sostanza bianca (`Cerebral White Matter` HO) > ventricolo > non etichettato. Per lesione si tengono le **frazioni continue** per categoria (sui voxel lesionali dentro il brain mask) e la quota fuori dal brain mask a parte; le etichette discrete si derivano dopo, a soglie diverse. Il tronco encefalico intero conta infratentoriale. Anteriore/posteriore: **messo in stop**.
+
+**Alternative scartate**: AAL3 (un solo file con cervelletto e vermis, ma costruito sul template Colin27, un MNI diverso: rischio di disallineamento proprio nel cervelletto); SUIT (spazio proprio, scomodo per lesioni già in MNI); Schaefer/Yan + Tian (già in locale, ma parcellazioni funzionali, e Tian non ha cervelletto né tronco); Arterial Territories Atlas (Liu et al. 2023, NITRC, CC-BY): rinviato, serve al circolo anteriore/posteriore, cioè alla parte in stop. JHU per la sostanza bianca profonda: non ora, HO la separa già.
+
+**Misurato (prototipo, 48 soggetti = 6 per dataset, seed 0)**: gli atlanti sono LAS, i template RAS; la corrispondenza di griglia è un flip x con offset intero (181 a 1mm, 90 a 2mm), quindi il ricampionamento `nearest` tramite affine è senza perdite (conteggi per etichetta identici). Segno emisferico in coordinate mondo corretto per tutte le etichette Left/Right; un flip naive dell'array viene rilevato (20 violazioni per atlante). Controlli contro `lesion_metadata.csv`: frazione fuori dal brain 48/48; volume dentro il brain mask 48/48 (il volume di produzione è post-correzione); lato 46/46 sui decidibili (2 lesioni solo di tronco non hanno etichette L/R); categoria dominante uguale a 1mm e 2mm in 47/48. Volumi delle categorie a 1mm: corticale 1.035.841, sotto-corticale 63.699, infratentoriale 204.154, bianca 389.870, ventricolo 10.705, non etichettato 122.974 (brain mask 1.827.243). Sovrapposizioni tra atlanti: corticale/infratentoriale 2.440 voxel, corticale/sotto-corticale 485, corticale/bianca 109.621 (la fascia corticale HO è generosa al confine); sui 48 soggetti solo lo 0,08% dei voxel lesionali (max 1,9%) cade in voxel reclamati da più di una tra corticale/sotto-corticale/infratentoriale. L'effetto della sovrapposizione corticale/bianca sulle lesioni **non è misurato**.
+
+**Soglie: non decise.** La letteratura non ha uno standard per la quota *della lesione* in una categoria: la pratica clinica classifica per coinvolgimento (sotto-corticale / cortico-sottocorticale / corticale) senza percentuali; le soglie quantitative trovate sono sulla frazione della *regione* danneggiata (>0, >1, >10, >20%), un'altra quantità (solo riassunti di ricerca, paper non letti per intero). Nel campione "pura" = 43/48 a soglia 50%, 31 a 60%, 23 a 70%, 13 a 80%, 8 a 90%, senza salto naturale. Da decidere con una sweep sull'intera coorte; proposta provvisoria: coinvolgimento a >10% della lesione (a >0% è instabile: la corticale tocca 38/48 contro 29/48).
+
+**Conseguenza ancora vera**: (1) il gruppo di header RAS −90 (1032 maschere, vedi la voce SDC qui sotto) è trattato col suo header come verità; se fosse sbagliato di 1 voxel la categoria dominante cambia in 1 soggetto su 24 (max |Δfrazione| 0,08), aperto in `open_problems.md`. (2) Le 168 maschere PSP sono frazionarie e a 1mm la binarizzazione `> 0,5` ne perde voxel (`open_problems.md`): le frazioni di PSP a 1mm sono indicative. (3) Mesencefalo: il tentorio lo taglia, HO non permette di dividerlo, il tronco intero conta infratentoriale.
+
+---
+
 ## 06-10-26 — Disconnessione per soggetto su due griglie (2mm e 1mm), come il volume lesionale
 
 **Decisione**: `sdc_metadata.csv` ha le due colonne (`disconnection_load_voxels_<g>`, `disconnection_mean_<g>`) su **2mm e 1mm**, config `grids` come `compute_lesion_metadata.json`; `enrich_metadata.json` copia nel registro entrambe le griglie sia per la disconnessione sia per il volume lesionale (`lesion_volume_voxels_1mm` prima restava solo in `lesion_metadata.csv`). L'Embedding Explorer offre la scelta 1mm/2mm (default 2mm) per volume, disconnection load e mean disconnection.
