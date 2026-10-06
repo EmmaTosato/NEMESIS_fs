@@ -1,6 +1,6 @@
 # Problemi aperti e cose da fare — NEMESIS
 
-Ultimo aggiornamento: 05-10-26.
+Ultimo aggiornamento: 06-10-26.
 
 Elenco vivo di ciò che è **aperto adesso**: problemi noti non risolti, decisioni non prese, lavori iniziati e non finiti. Una voce si cancella quando è chiusa — non si tiene lo storico qui.
 
@@ -20,15 +20,23 @@ Le 168 maschere `UNIPD/PSP` in `manual_masks/` hanno valori tra 0 e 1 (multipli 
 
 **Da fare**: verificare sul cluster come `bcb-lf-preprocess` (bcblib 0.6.1) tratta una mappa non binaria; far sollevare un errore esplicito al codice per maschere non binarie (`code_standards.md` §0); chiedere gli originali a 2 mm a chi ha prodotto le maschere.
 
-### Lato della lesione invertito in ~7% di WashU — forzato a valle, causa non verificata
+### Lato clinico e maschera opposti in 11 soggetti WashU: spesso è la maschera a essere capovolta
 
-In WashU **11 soggetti su 162** con un lato clinico (6,8%) hanno il `lesion_side` opposto alla maschera: 6 `left`→`right` e 5 `right`→`left`, tutte inversioni piene (`|laterality_index_2mm| ≥ 0,95`). Le 195 maschere hanno header identico (RAS, stessa affine). Negli altri dataset il tasso è quasi nullo (UKLFR 0/120, UKE 1/120, PSP 1/95, su campioni).
+**Fatti.** In WashU 11 soggetti su 162 con un lato clinico (6,8%) hanno il `lesion_side` opposto alla maschera: 6 `left`→`right` e 5 `right`→`left`, tutte inversioni piene (`|laterality_index_2mm| ≥ 0,95`, lesione tutta dall'altra parte). L'header delle 195 maschere è identico (RAS, stessa affine). Il disaccordo è associato alla manualità: mancini 5/16 (31%), destrimani 6/146 (4%), Fisher p = 0,0016.
 
-**Il dato arriva così dalla sorgente** (`data/clinical_connectome/metadata_tsv/participants_WashU.tsv`). Non è correggibile da questo repo.
+**Verifica indipendente (06-10-26).** Senza T1 locali, il lato si controlla con deficit controlaterali: `ARAT_L/R` e `9HPT_L/R` del tsv (sui 151 concordi indicano il lato giusto nel 98% e nell'86%). Sugli 11 i test sono informativi in 8: **etichetta giusta, quindi maschera capovolta, in 6** (`sub-STUNIPD0002`, `0026`, `0056`, `0077`, `0147`, `0222`); **maschera giusta, quindi etichetta sbagliata, in 2** (`0008`, `0179`); non decidibili `0131`, `0151`, `0187`. Metodo e numeri in `.claude/history/methods_changelog.md` (06-10-26).
 
-**Cosa vale oggi**: `participants.csv` forza il lato geometrico su questi 11 (`geometric_override_datasets` in `config/pipelines/enrich_metadata.json`, `lesion_side_source = "geometric"`). Regola e conseguenze in `docs/guides/metadata.md`, motivazione in `.claude/history/methods_changelog.md` (05-10-26).
+**Cosa vale oggi**: `participants.csv` forza il lato geometrico sugli 11 (`geometric_override_datasets` in `config/pipelines/enrich_metadata.json`, `lesion_side_source = "geometric"`): per la maggioranza dei casi decidibili questo scrive il lato **sbagliato**. L'assunzione di partenza (sbaglia l'etichetta) è falsa nella maggior parte dei casi.
 
-**Aperto**: la forzatura assume che sbagli l'etichetta, non la maschera, ed è un'ipotesi. Si verifica guardando la T1 di quegli 11 con la maschera sovrapposta, oppure chiedendo a chi ha curato i metadati WashU. UKE e PSP hanno un caso ciascuno, non indagato.
+**Aperto**:
+- decidere se disattivare la forzatura (`geometric_override_datasets: []`, rilancio di `enrich_metadata`);
+- le maschere capovolte entrano nelle matrici (lesione voxel-wise, SDC): almeno 6 su 162 soggetti WashU con etichetta (3,7%) hanno la lesione dal lato sbagliato; non si sa quante siano tra i 33 WashU senza etichetta clinica, dove la geometria è l'unico dato;
+- il meccanismo: la manualità è un indizio, ma tra i 4 mancini decidibili 2 hanno l'etichetta giusta e 2 la maschera;
+- le T1 degli 11 sciolgono i dubbi (non disponibili in locale).
+
+### Colonne `NIHSS_5a/5b` di UKLFR probabilmente scambiate
+
+Nel tsv UKLFR il braccio più deficitario corrisponde alla lesione **omolaterale** (75/75 sui soggetti con asimmetria: braccio "a" peggiore → lesione sinistra, "b" peggiore → destra), il contrario dello standard NIHSS (5a sinistro, 5b destro). Verificato solo per 5a/5b, non per 6a/6b. Nessun codice del repo usa questi item oggi (solo il `NIHSS` totale); conta se qualcuno li usa.
 
 ### `sub-STUKLFR0671`: SDC vuoto con lesione grande
 

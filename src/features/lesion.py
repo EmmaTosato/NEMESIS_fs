@@ -175,6 +175,11 @@ def compute_lesion_metadata(
     return metadata, excluded_by_group
 
 
+# The values lesion_side_from_laterality_index can return - also the vocabulary of the clinical
+# lesion_side labels the calibration compares them against.
+KNOWN_LESION_SIDES = ("left", "right", "both")
+
+
 def lesion_side_from_laterality_index(laterality_index: float, threshold: float) -> str:
     """left/right/both from a laterality_index and a bilaterality threshold -
     calibrated against clinical lesion_side labels in

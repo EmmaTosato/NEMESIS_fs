@@ -8,13 +8,25 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 06-10-26 — Verifica del lato forzato (WashU) con test comportamentali; soglia a 1 mm verificata; calibrazione rifatta
+
+**Cosa è stato fatto**: (1) verificata l'ipotesi della voce del 05-10-26 (sbaglia l'etichetta clinica, non la maschera), senza T1 locali, con deficit controlaterali presenti nei tsv; (2) esteso il controllo ai disaccordi degli altri dataset su dati completi; (3) rifatta la calibrazione della soglia, a 2 mm e a 1 mm.
+
+**Metodo e risultati del punto 1-2**: WashU `ARAT_L/R` e `9HPT_L/R`: la mano più debole indica il lato della lesione (controlaterale). Calibrazione del test sui 151 soggetti con etichetta e maschera concordi: ARAT 90/92 (98%), 9HPT 102/119 (86%, valore alto = meglio). UKE: `NIHSS_5a/5b` + `6a/6b` sui 409 concordi, 259/273 (95%). UKLFR: afasia (`NIHSS_9 ≥ 1`) nei destrimani con etichetta e maschera concordi, lesione sinistra in 128/129 (99%). Applicati ai 15 disaccordi pieni: **etichetta giusta in 8, maschera giusta in 3, non decidibili 4** (WashU: 6/2/3; UKE e UKLFR: 2/1/1). Sui 9HPT degli 11 WashU, 5 dei 6 informativi indicano l'etichetta: sotto "maschera giusta" la probabilità di quel risultato è ~3e-4 (accuratezza di base 86%, indipendenza assunta). In WashU il disaccordo è associato alla manualità (mancini 5/16, destrimani 6/146, Fisher p = 0,0016). Numeri completi dei disaccordi a 2 mm: WashU 11/162, UKLFR 2/700, UKE-WAKEUP 2/411, PSP 0/94, UKE-SFB936 0/53 (i campioni citati prima, 1/120 e 1/95, erano stime).
+
+**Conclusione**: l'assunzione della forzatura è contraddetta dai dati nella maggior parte dei casi decidibili: la regola `geometric_override_datasets` scrive il lato sbagliato in 6 casi su 8 decidibili WashU. Non rimossa in questa voce: la decisione spetta all'utente (vedi `.claude/open_problems.md`). Conseguenza non voluta: le maschere capovolte sono nelle matrici (lesione, SDC).
+
+**Soglia a 1 mm** (`calibrate_lesion_side_threshold.py`, verità = `participants.csv` salvato prima della forzatura, con gli 11 ancora `clinical`): 2 mm con tutti e 5 i dataset, 1445 soggetti, soglia 0.20 → **97,4%** (identico alla calibrazione del 28-09-26; ottima 0.28, 97,5%). Senza PSP, sugli stessi 1350 soggetti: 97,3% a 1 mm e a 2 mm, **stesso lato per tutti i 1350**, 97,4% a 0.28 su entrambe. Senza le 15 inversioni piene (non correggibili da nessuna soglia) 98,4%. La soglia vale quindi a 1 mm. La classe `both` resta debole (24 etichette cliniche, 3 predette).
+
+**Script rotto, ripristinato**: `calibrate_lesion_side_threshold.py` importava `KNOWN_LESION_SIDES` da `src/features/lesion.py`, cancellata il 29-09-26 (commit `cf6e1fe`) e mai ripristinata: falliva all'import e nessun test lo copriva. Ripristinata la costante, aggiunto `tests/unit/test_calibrate_lesion_side_threshold.py` (5 test).
+
 ## 05-10-26 — `lesion_side` di WashU: dove clinico e maschera sono opposti, il registro prende la geometria
 
 **Decisione**: in `participants.csv`, per i dataset di `geometric_override_datasets` (oggi solo `UNIPD/WashU`, `config/pipelines/enrich_metadata.json`), un soggetto con lato clinico `left`/`right` e lato in `lesion_side_2mm` l'opposto riceve il lato **geometrico** e `lesion_side_source = "geometric"`. È l'unica eccezione a "un valore clinico non si sovrascrive". Un `both` geometrico non scatta mai.
 
 **Misurato**: su 162 WashU con lato clinico, 11 (6,8%) sono opposti alla maschera, 6 `left`→`right` e 5 `right`→`left`, tutti con `|laterality_index_2mm| ≥ 0,95`. Le 195 maschere WashU hanno header identico (RAS, affine con origine -90, shape 182×218×182). Negli altri dataset il tasso è quasi nullo (UKLFR 0/120, UKE 1/120, PSP 1/95, campioni di `.claude/open_problems.md`). Applicato alla run del 05-10-26: i 11 soggetti sono `sub-STUNIPD0002/0008/0026/0056/0077/0131/0147/0151/0179/0187/0222`.
 
-**Perché**: l'ipotesi è che sbagli l'etichetta clinica (errore alla fonte, magari una convenzione di visualizzazione radiologica), non la maschera. Il motivo per preferire questa ipotesi: un capovolgimento delle maschere sarebbe sistematico per un processo comune a tutto il dataset, non confinato a 11 soggetti in entrambe le direzioni. **Non è verificata sulla T1.**
+**Perché**: l'ipotesi è che sbagli l'etichetta clinica (errore alla fonte, magari una convenzione di visualizzazione radiologica), non la maschera. Il motivo per preferire questa ipotesi: un capovolgimento delle maschere sarebbe sistematico per un processo comune a tutto il dataset, non confinato a 11 soggetti in entrambe le direzioni. **Non è verificata sulla T1** (verificata con test comportamentali il 06-10-26: la contraddicono, vedi voce successiva).
 
 **Alternative scartate**:
 - *Elenco di ID in config*: va rifatto a mano a ogni cambio delle maschere e non dice perché quei soggetti. La regola si rilegge da `lesion_metadata.csv` a ogni run.
