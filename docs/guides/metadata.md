@@ -168,6 +168,15 @@ I soggetti esclusi **restano nel registro** con `has_lesion` e `has_sdc` intatti
 
 Nel registro la colonna resta **`lesion_side`, senza suffisso di griglia**, perché per i soggetti con etichetta clinica quel valore non viene da nessuna griglia: un suffisso sarebbe falso per la maggioranza delle celle. `lesion_side_from` dice da quale griglia viene la parte geometrica, `lesion_side_source` dice quale delle due provenienze ha vinto per ogni soggetto.
 
+### Il valore `both` ha due origini, e non sono equivalenti
+
+`lesion_side` assume i valori `left`, `right` e `both`. Il `both` del registro viene da due fonti, distinte da `lesion_side_source`:
+
+- **`clinical`**: il valore del tsv. Esiste solo in UKE-WAKEUP (25 soggetti nel registro). Il tsv non spiega cosa indichi (`disease_notes` è vuoto) e il registro lo riporta com'è, senza metterlo in discussione.
+- **`geometric`**: la maschera ha `|laterality_index| < side_threshold` (64 soggetti, quasi tutti UCL-UK), cioè una lesione che occupa i due emisferi in modo simile.
+
+I due significati non coincidono: il `both` clinico non implica una maschera bilaterale (per 14 dei 24 `both` clinici con un indice calcolabile la lesione sta quasi tutta da un lato, `|laterality_index| ≥ 0,9`) e una maschera bilaterale non ha un `both` clinico (la soglia ritrova 3 dei 24). Nessuna soglia riduce la differenza (limiti in [`knowledge/neuroimaging/lesion_laterality.md`](../../knowledge/neuroimaging/lesion_laterality.md)). Chi usa `lesion_side` per un'analisi sul lato legge `both` insieme a `lesion_side_source`, e non lo tratta come "lesione bilaterale" senza controllare da dove viene.
+
 ### Il lato forzato dalla geometria (`geometric_override_datasets`)
 
 > **Forzatura deliberata.** Per i dataset elencati in `geometric_override_datasets` (oggi solo `UNIPD/WashU`), `participants.csv` **contraddice il tsv sorgente** su alcuni soggetti: ne scrive il lato opposto, preso dalla maschera.

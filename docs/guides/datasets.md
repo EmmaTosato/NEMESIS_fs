@@ -106,6 +106,7 @@ Un file per dataset.
 Due conseguenze pratiche, entrambe gestite in `docs/dev/metadata.md`:
 - **PASPORT non ha `NIHSS`** (solo `NIHSS_at_presentation`/`_24H`/`_3m`) né `lesion_side`; **UCL-UK non ha nessuno dei due**, e nemmeno una colonna sostitutiva.
 - **`lesion_side` è incompleto anche dove esiste** (PSP 47%, WashU 84%): per questo verrà calcolato geometricamente dalla maschera dove manca.
+- **`lesion_side` ha il valore `both` solo in UKE** (25 soggetti nel registro): è l'etichetta del tsv e non coincide con una maschera bilaterale; vedi [`metadata.md`](metadata.md), sezione sul valore `both`.
 
 **Punteggi comportamentali — solo WashU** (% sui 251 ST): `ARAT_L`/`ARAT_R` 94%, `Boston_nam` 92%, `NIHSS` 74%, `9HPT_L`/`9HPT_R` 65%, `Clock` 65%, `Corsi` 34%. `GDS_15` esiste come colonna ma è vuota al 100% per questa coorte.
 
