@@ -245,6 +245,13 @@ La conseguenza è deliberata: un volume o un lato inaffidabile ha la sua causa n
 
 Nessuna pipeline lo genera: i dati non hanno un salto naturale su cui mettere una soglia (su 5853 soggetti, 3 maschere a 0 voxel a 2 mm, 132 con volume ≤ 10 voxel, coda continua; 234 soggetti sopra il 5% di frazione fuori dal brain, 73 sopra il 10%), e quale soggetto limite valga la pena di scartare è un giudizio che appartiene all'analisi.
 
+### Criteri di esclusione adottati
+
+La pipeline non applica soglie, ma la lista nel config non è arbitraria: segue due criteri di analisi.
+
+- **Lesioni piccole: nessuna esclusione.** Un soggetto non è scartato per il solo fatto che la lesione è piccola. Anche una lesione focale o minima può avere conseguenze cliniche gravi, quindi il volume non è un proxy di rilevanza clinica. Per volume si esclude solo la maschera vuota (`empty_mask`, 3 soggetti): il motivo `lesion_too_small` esiste nel vocabolario ma non è usato. Tra i soggetti inclusi il volume minimo a 2 mm è 1 voxel, e 122 soggetti stanno a 10 voxel o meno.
+- **Lesioni fuori dal brain: esclusione sopra il 30%.** Si esclude (`out_of_brain_fraction_too_high`) chi ha **più del 30%** dei voxel di lesione fuori dalla maschera cerebrale, letto da `out_of_brain_fraction_2mm`, la frazione sulla griglia di produzione misurata prima dell'azzeramento. Sotto la soglia il soggetto resta, e con `correct_out_of_brain: true` i voxel fuori dal brain sono azzerati (`docs/dev/lesion_matrix.md`). Oltre, la maschera è troppo contaminata perché il residuo rappresenti la lesione: è il caso di 5 soggetti, tutti sopra il 41%. La soglia viene dalla sezione "Lesione fuori dal brain" di `notebooks/exploration/lesion_analysis.ipynb`.
+
 `reason` ha un vocabolario chiuso in `KNOWN_EXCLUSION_REASONS` (`empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`, `all_zero_features`), pensato per crescere: aggiungerne uno è una voce lì più una riga in `docs/guides/metadata.md`. Chiuso e non libero perché la lista dei soggetti è scritta a mano nel config e un motivo con un typo diventerebbe in silenzio una categoria nuova che nessuno conta.
 
 Un file **assente solleva**; con la sola intestazione è valido e significa "nessuna esclusione, deliberatamente". Le due cose non sono lo stesso fatto, e trattare un file mai scritto come "non escludere nessuno" produce esattamente la matrice di produzione con tutti i soggetti limite dentro che la lista esiste per evitare.

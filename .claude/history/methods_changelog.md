@@ -8,6 +8,18 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 06-10-26 — Criteri di esclusione dalle matrici: nessuna esclusione per lesione piccola, soglia > 30% fuori dal brain
+
+**Decisione**: (1) le lesioni piccole **non** si escludono: anche una lesione focale o minima può avere conseguenze cliniche gravi, quindi il volume non è un proxy di rilevanza clinica; per volume si scarta solo la maschera vuota (`empty_mask`, 3 soggetti). Il motivo `lesion_too_small` resta nel vocabolario ma non è usato. (2) Si escludono i soggetti con **più del 30%** dei voxel di lesione fuori dalla maschera cerebrale (`out_of_brain_fraction_2mm`, misurata prima dell'azzeramento), motivo `out_of_brain_fraction_too_high`.
+
+**Verificato su `lesion_metadata.csv`/`excluded_subjects.csv`**: 5 soggetti sopra il 30%, tutti e soli quelli esclusi per questo motivo (frazione minima 0,41); tra i non esclusi il massimo è esattamente 0,30, quindi la soglia è stretta (`>`). Tra gli inclusi il volume minimo a 2 mm è 1 voxel, 122 soggetti stanno a 10 voxel o meno.
+
+**Perché**: la voce del 29-09-26 ("Esclusione dei soggetti: lista curata a mano al posto delle soglie in config") spiega perché non esiste una soglia automatica sui dati (nessun salto naturale); la 30% è un criterio di analisi applicato a mano quando si compila il config, non un parametro di pipeline. Sotto la soglia il soggetto resta e i voxel fuori dal brain sono azzerati (`correct_out_of_brain`).
+
+**Conseguenza ancora vera**: la regola è documentata in `docs/dev/metadata.md` ("Criteri di esclusione adottati") e `docs/guides/metadata.md`; la pipeline non la applica, quindi un soggetto nuovo sopra il 30% entra in matrice finché non è aggiunto a mano al config.
+
+---
+
 ## 06-10-26 — Disconnessione per soggetto: carico/media come analogo del volume lesionale
 
 **Decisione**: `assets/metadata/sdc_metadata.csv` (nuova pipeline `compute_sdc_metadata.py`, `src/features/sdc.py::compute_sdc_metadata`) misura, per ogni soggetto con disconnettoma (5853/5853), due colonne sulla griglia 1 mm: `disconnection_load_voxels_1mm` (somma della probabilità di disconnessione sui voxel dentro il cervello) e `disconnection_mean_1mm` (la stessa somma divisa per il numero di voxel cerebrali, costante di griglia — le due ordinano i soggetti in modo identico). `enrich_metadata.py` le copia in `participants.csv` (blocco `sdc_metadata`, stesso meccanismo di `lesion_metadata`, join stretto su `has_sdc`); l'Embedding Explorer le offre come due bottoni di colore, scala lineare.

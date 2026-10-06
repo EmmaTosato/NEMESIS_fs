@@ -138,6 +138,8 @@ La run si ferma, elencando tutti i dataset coinvolti, se:
 
 Il csv è scritto dalla pipeline `build_excluded_subjects` a partire dal config `config/pipelines/build_excluded_subjects.json`, dove elenchi i soggetti da escludere. Una volta scritto, **il csv resta com'è**: la pipeline gli **aggiunge** i soggetti nuovi senza toccare le righe che ci sono, e per togliere una riga la cancelli a mano dal csv. Con `overwrite: true` il csv è invece ricostruito dal solo config. Ogni soggetto è elencato esplicitamente, senza soglie: i dati non hanno un salto naturale su cui mettere una soglia, e quale soggetto limite valga la pena di scartare è un giudizio, non un confronto numerico. L'ultima cella del notebook `lesion_analysis`, dopo aver guardato le distribuzioni di `lesion_metadata.csv`, stampa i blocchi da incollare nel config.
 
+**Criteri adottati.** Le lesioni piccole **non** vengono escluse: anche una lesione focale o minima può essere clinicamente grave, quindi per volume si scarta solo la maschera vuota. Si escludono invece i soggetti con più del **30%** dei voxel di lesione fuori dal brain (`out_of_brain_fraction_2mm`, misurata prima dell'azzeramento); sotto quella soglia il soggetto resta e i voxel fuori dal brain sono azzerati. Il razionale è in [`docs/dev/metadata.md`](../dev/metadata.md#criteri-di-esclusione-adottati).
+
 ```csv
 subject_id,dataset,reason,scope,value
 sub-STUKE0146,UKE/WAKEUP_acute,empty_mask,all,0
