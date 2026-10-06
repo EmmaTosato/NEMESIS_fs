@@ -24,18 +24,24 @@ data/clinical_connectome/metadata_tsv/*.tsv       assets/metadata/lesion_metadat
                                                      │  — cosa misurano le maschere
                                           data/clinical_connectome/derivatives/<dataset>/manual_masks/
 
+assets/metadata/sdc_metadata.csv                  (stesso schema, accanto a lesion_metadata.csv)
+                                                     ▲
+                                                     │  src/pipeline/compute_sdc_metadata.py
+                                                     │  — quanto è disconnesso ogni soggetto
+                                          data/clinical_connectome/derivatives/<dataset>/sdc/
+
 assets/metadata/excluded_subjects.csv   — chi resta fuori dalle matrici (generato da build_excluded_subjects)
         │  letto da build_lesion_matrix.py e build_sdc_matrix.py, non da enrich
 ```
 
-**Quattro file, quattro domande.** Il registro (`participants.csv`) risponde a "chi esiste" e "cosa sappiamo di lui"; `lesion_metadata.csv` a "cosa misurano le sue maschere"; `excluded_subjects.csv` a "chi entra in analisi".
+**Cinque file, cinque domande.** Il registro (`participants.csv`) risponde a "chi esiste" e "cosa sappiamo di lui"; `lesion_metadata.csv` a "cosa misurano le sue maschere"; `sdc_metadata.csv` a "quanto è disconnesso"; `excluded_subjects.csv` a "chi entra in analisi".
 
-`enrich_metadata.py` **non apre nessun file NIfTI**: i valori derivati dalle maschere li copia da `lesion_metadata.csv`. Non li copia più nemmeno da un artefatto `data/derived/lesion_matrix/<sessione>/` già costruito — quella scelta, più vecchia, generava esattamente la seconda fonte di verità che voleva evitare (28-09-26, `.claude/history/methods_changelog.md`: 900/5721 soggetti con valore diverso tra le due fonti, fino a 38x, dopo che la griglia era cambiata senza ricostruire l'artefatto). Il punto fisso attuale è diverso: il valore nasce **in un posto solo**, la pipeline che misura le maschere, e il registro ne tiene una copia dichiarata.
+`enrich_metadata.py` **non apre nessun file NIfTI**: i valori derivati dalle maschere li copia da `lesion_metadata.csv`, quelli derivati dai disconnettomi da `sdc_metadata.csv`. Non li copia più nemmeno da un artefatto `data/derived/lesion_matrix/<sessione>/` già costruito — quella scelta, più vecchia, generava esattamente la seconda fonte di verità che voleva evitare (28-09-26, `.claude/history/methods_changelog.md`: 900/5721 soggetti con valore diverso tra le due fonti, fino a 38x, dopo che la griglia era cambiata senza ricostruire l'artefatto). Il punto fisso attuale è diverso: il valore nasce **in un posto solo**, la pipeline che misura le maschere, e il registro ne tiene una copia dichiarata.
 
 | | `populate_metadata.py` | `enrich_metadata.py` |
 |---|---|---|
 | Domanda | chi esiste | cosa sappiamo di lui |
-| Scrive | `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` | `age`, `sex`, `lesion_side`, `lesion_side_source`, `NIHSS`, `education`, `clinical_date`, `lesion_volume_voxels_2mm` |
+| Scrive | `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` | `age`, `sex`, `lesion_side`, `lesion_side_source`, `NIHSS`, `education`, `clinical_date`, `lesion_volume_voxels_2mm`, `disconnection_load_voxels_1mm`, `disconnection_mean_1mm` |
 | Flag di idempotenza | `overwrite` — false: aggiunge solo soggetti nuovi, righe esistenti intatte; true: ricalcola le proprie colonne preservando quelle dell'altro script | `fill` — true: riempie solo le celle vuote delle variabili richieste; false: ricalcola tutto il richiesto |
 
 Registry condiviso: **`config/registry/metadata_sources.json`** — per ogni dataset, il path del tsv grezzo e quello della cartella derivatives. Lo leggono entrambi gli script, così la corrispondenza dataset↔path esiste in un posto solo (non è derivabile meccanicamente: `participants_UCL.tsv` ↔ `UCL-UK/UCLStrokeData`).
@@ -58,8 +64,9 @@ Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv`
 
 ## Cosa esiste davvero adesso
 
-- **`assets/metadata/participants.csv`** — 5853 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_2mm` (enrich).
+- **`assets/metadata/participants.csv`** — 5853 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_2mm`, `disconnection_load_voxels_1mm`, `disconnection_mean_1mm` (enrich).
 - **`assets/metadata/lesion_metadata.csv`** — una riga per soggetto con maschera, quattro colonne per griglia (`lesion_volume_voxels_<g>`, `out_of_brain_fraction_<g>`, `laterality_index_<g>`, `lesion_side_<g>`), più `lesion_metadata.config.json` accanto: il config della run che l'ha prodotto.
+- **`assets/metadata/sdc_metadata.csv`** — una riga per soggetto con disconnettoma, due colonne sulla griglia 1 mm (`disconnection_load_voxels_1mm`, `disconnection_mean_1mm`), più `sdc_metadata.config.json` accanto: il config della run che l'ha prodotto.
 - **`assets/metadata/excluded_subjects.csv`** — `subject_id, dataset, reason, scope, value`, generato da `src/pipeline/build_excluded_subjects.py` dal suo config.
 - **I tsv per-dataset `assets/metadata/<DATASET>_participants_*.tsv` non esistono più**: cancellati. Ogni consumatore è stato spostato sul file unico.
 - **`data/derived/<pipeline>/<sessione>/metadata.csv`** — contiene solo ciò che appartiene a quella run (`subject_id`, `dataset`, `lesion_volume_voxels` per `build_lesion_matrix.py`). Non è più la fonte da cui `enrich_metadata.py` copia `lesion_volume_voxels` in `participants.csv` (fino al 28-09-26 lo era, vedi sopra) — resta solo l'artefatto della run stessa, la sua colonna può differire da quella nel registro se le due griglie non coincidono.
@@ -69,7 +76,7 @@ Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv`
 | Consumatore | Cosa ci prende |
 |---|---|
 | `src/features/sdc.py` | `has_lesion`, criterio di ammissione di `build_sdc_matrix.py` |
-| `src/analysis/embedding_coloring.py` | `lesion_side`/`NIHSS` per i color mode `side`/`nihss`, risolti al momento del plot |
+| `src/analysis/embedding_coloring.py` | `lesion_side`/`NIHSS`/volume/disconnessione per i color mode `side`/`nihss`/`volume`/`disconnection_load`/`disconnection_mean`, risolti al momento del plot |
 | `src/analysis/cluster_description.py` | age/sex/education/NIHSS/`lesion_volume_voxels_2mm` per la composizione dei cluster nel pannello di `embedding_app.py` |
 | `notebooks/post-results_analysis/clustering_evaluation.ipynb` | age/sex/NIHSS per le demografiche per cluster |
 
@@ -120,7 +127,7 @@ Il costo che scala è il tempo, non la memoria: una lettura da disco per soggett
 
 **La colonna a 1 mm è ridondante per 5 dataset su 8.** `manual_masks/` contiene la lesione già ricampionata da BCBToolKit su griglia 1 mm (`docs/guides/datasets.md`), e per i dataset segmentati originariamente a 2 mm i voxel risultano costanti in blocchi 2x2x2 allineati: il conteggio *grezzo* a 1 mm è esattamente `8 x` quello a 2 mm, e il conteggio a 2 mm **ricostruisce esattamente** la maschera nativa, quindi nessuna lesione può sparire. Sono 5150 soggetti su 5853 (UCL-UK, UKLFR, WashU, NEMESIS_T0, SFB936); le due colonne portano informazione diversa solo per i 534 di PASPORT e WAKEUP. **Le colonne del csv non sono il conteggio grezzo**: sono contate dopo l'azzeramento dei voxel fuori dal cervello, e ogni griglia ha la propria maschera cerebrale (`brain_mask_path` in `grids` di `compute_lesion_metadata.json`), quindi `lesion_volume_voxels_1mm == 8 x lesion_volume_voxels_2mm` vale esattamente solo per chi non ha voxel fuori dal brain (3501 su 3501 in questi 5 dataset). Per gli altri 1608 le due colonne differiscono di pochi voxel (differenza relativa mediana 0,2%, 95° percentile 2,3%, massima 12,8%): è un effetto di bordo dell'azzeramento, non una perdita di dettaglio.
 
-**PSP: maschere frazionarie.** Le 168 maschere PSP sono a 2 mm e interpolate linearmente a 1 mm, quindi hanno valori multipli di 1/8 invece di solo 0/1 (negli altri 7 dataset sono binarie). `_binarize_on_grid` binarizza con `> binarize_threshold` (0,5): a 1 mm scarta i voxel che valgono esattamente 0,5 (circa il 23% di quelli di lesione), e `lesion_volume_voxels_1mm` risulta in mediana 0,83 volte il volume vero (da 0,34 a 0,94). A 2 mm `nearest` campiona proprio i voxel che valgono 0 o 1 e ricostruisce la maschera originale: la colonna a 2 mm è esatta. Le colonne a 1 mm di PSP non sono affidabili. Non è noto come BCBToolKit usi la stessa mappa frazionaria per calcolare la disconnessione (vedi `.claude/open_problems.md`). Verificato su tutti i soggetti, uniforme dentro ogni dataset - tabella e metodo in `docs/guides/datasets.md`. Il disegno a due griglie resta giustificato proprio da quei 534: 2 dei 4 soggetti con volume 0 sulla griglia di produzione stanno in WAKEUP e hanno una lesione reale di 8 e 3 voxel.
+**PSP: maschere frazionarie.** Le 168 maschere PSP sono a 2 mm e interpolate linearmente a 1 mm, quindi hanno valori multipli di 1/8 invece di solo 0/1 (negli altri 7 dataset sono binarie). `_binarize_on_grid` binarizza con `> binarize_threshold` (0,5): a 1 mm scarta i voxel che valgono esattamente 0,5, e `lesion_volume_voxels_1mm` risulta in mediana 0,83 volte il volume vero (da 0,34 a 0,94). A 2 mm `nearest` campiona proprio i voxel che valgono 0 o 1 e ricostruisce la maschera originale: la colonna a 2 mm è esatta. Le colonne a 1 mm di PSP non sono affidabili. Non è noto come BCBToolKit usi la stessa mappa frazionaria per calcolare la disconnessione (vedi `.claude/open_problems.md`). Verificato su tutti i soggetti, uniforme dentro ogni dataset - tabella e metodo in `docs/guides/datasets.md`. Il disegno a due griglie resta giustificato proprio da quei 534: 2 dei 4 soggetti con volume 0 sulla griglia di produzione stanno in WAKEUP e hanno una lesione reale di 8 e 3 voxel.
 
 **Un soggetto per caso, stesso volume letto sulle due griglie** (voxel × 0,001 ml a 1 mm, × 0,008 ml a 2 mm):
 
@@ -140,6 +147,53 @@ In UCL-UK le due griglie coincidono (1997 × 8 = 15976); in PSP il volume a 1 mm
 La stessa soglia vale anche a 1 mm: sugli stessi 1350 soggetti con lato clinico (PSP esclusa: le sue maschere a 1 mm sono frazionarie) la soglia 0.20 dà la stessa accuratezza a 1 mm e a 2 mm (97,3%) e attribuisce a **tutti** lo stesso lato. Il motivo per cui non era scontato: il piano mediano escluso da entrambi gli emisferi è spesso 1 mm su una griglia e 2 mm sull'altra (la griglia a 1 mm ha 91 fette a sinistra e 90 a destra, quella a 2 mm 45 e 45), quindi per una lesione quasi tutta mediana i due indici non sono interscambiabili.
 
 Quello script ora legge `laterality_index_<grid>` dal csv e **non apre nessuna maschera**: ricalibrare su un'altra griglia è un cambio di `--grid`, non un secondo passaggio su 5853 maschere.
+
+## `sdc_metadata.csv`: il livello delle misure sul disconnettoma
+
+Gemello di `lesion_metadata.csv`: lo scrive `src/pipeline/compute_sdc_metadata.py` (logica in `src/features/sdc.py::compute_sdc_metadata`), una riga per soggetto con `has_sdc` vero, due colonne per griglia. Non applica nessuna esclusione e non conosce il clinico.
+
+### Cosa si misura e perché così
+
+`disconnection_load_voxels_<g>` è la somma della probabilità di disconnessione sui voxel dentro la maschera cerebrale; `disconnection_mean_<g>` è quella somma divisa per il numero di voxel cerebrali. La prima è l'analogo diretto di `lesion_volume_voxels`: per una mappa binaria si ridurrebbe a un conteggio di voxel. Il divisore della seconda è una costante della griglia, quindi **le due colonne ordinano i soggetti in modo identico**: non sono due misure, sono una misura in due unità.
+
+Alternative considerate e scartate (`.claude/history/methods_changelog.md`, 06-10-26):
+
+- **Volume sogliato** (`#{p > 0.5}`): è la soglia che il pannello "Disconnessione per cluster" dell'app già usa, ma una soglia è una scelta in più da giustificare, e su 200 soggetti ordina quasi come la somma (Spearman 0,993) pur avendo un soggetto su 200 a zero. Non scritto.
+- **`n_nonzero_voxels` di BCBToolKit**: misura quanto *si diffonde* la disconnessione, non quanta ce n'è. Il minimo non nullo è costante a `1/178 = 0,0056` (un solo donatore sano), quindi conta qualunque traccia: mediana 36% del cervello, fino al 91%.
+- **`map_mean_nonzero`** (media sui soli voxel non nulli): il denominatore varia per soggetto, quindi non è un carico ma un'intensità. Variabile genuinamente diversa, non richiesta.
+- **Leggere i `mapstats.tsv` di BCBToolKit** invece di aprire i NIfTI: `map_sum` coincide al decimale con quello ricalcolato (verificato), ma non è mascherato sul cervello e non permette soglie. Si preferisce la misura nostra, con la scelta in/fuori dal cervello esplicita.
+
+### Le mappe non stanno tutte sullo stesso reticolo
+
+Tutte 182×218×182 a 1 mm, ma con **3 header distinti**, raggruppati per dataset (censimento su tutti i 5853 file):
+
+| Header | Dataset | Soggetti |
+|---|---|---|
+| LAS, offset x `+90` | UCL-UK, PASPORT, PSP | 4370 |
+| RAS, offset x `-90` (traslato di 1 voxel rispetto al template) | UKE-SFB936, UKLFR, NEMESIS_T0, WashU | 1032 |
+| RAS, offset x `-91` (identico al template MNI) | UKE-WAKEUP | 451 |
+
+Gli stessi voxel fisici stanno quindi a indici diversi: un flip fisso è giusto per il primo gruppo e specchia gli altri due; leggere per indice sbaglia i primi due. `compute_sdc_metadata` porta ogni mappa sulla griglia col **suo** header (`resample_to_img`, `nearest`, lo stesso passaggio di `build_sdc_voxelwise_matrix`). Con `nearest` ogni caso è una rimappatura intera esatta e la somma non cambia. Verificato contro un calcolo geometrico indipendente per gruppo (flip / traslazione di 1 voxel / identità): scarto `0.0` su 12 soggetti, 4 per gruppo. Il test `test_compute_sdc_metadata_realigns_every_map_with_its_own_header` fallisce sia per "non riallineare" sia per "flippare sempre".
+
+Questa eterogeneità è stata scoperta per caso: un primo calcolo esplorativo assumeva uno specchio fisso, dedotto da pochi soggetti che erano per caso tutti LAS. Il censimento sull'intera popolazione (letture dei soli header, secondi) è ciò che l'ha smentita.
+
+### Solo dentro il cervello
+
+Il disconnettoma porta una quota di massa fuori dalla maschera cerebrale (mediana 0,80% della massa totale, fino all'8,9% in un caso, misurato su 400 soggetti casuali). È tractografia che esce dal cervello, non disconnessione, ed è la stessa scelta di `correct_out_of_brain` per le lesioni. Non c'è un'opzione per disattivarla: nessun uso chiesto ne ha bisogno, e un parametro non letto da nessuno è un campo di config morto.
+
+### Scala di colore: lineare
+
+Il color mode dell'Embedding Explorer è **lineare**, a differenza del volume (log). Misurato sull'intera coorte: asimmetria del carico 1,5 e massimo/mediana 7,6, contro 4,1 e 97 per il volume lesionale. Il motivo per cui il volume ha la scala log — pochi valori enormi schiacciano tutti gli altri su un solo colore — qui non vale, e una scala log sovra-correggerebbe (asimmetria del log10: -0,8), allungando la coda dei soggetti poco disconnessi.
+
+### Un carico di zero è un valore vero
+
+Un soggetto la cui mappa è tutta a zero dentro il cervello misura `0.0`: la quantità è ben definita (nessuna disconnessione), a differenza del lato di una maschera vuota. Il csv tiene il numero onesto; il color mode lineare lo disegna in fondo alla scala.
+
+### Registro e disco devono coincidere
+
+L'ammissione viene da `has_sdc` nel registro, non da un glob su disco, e i due devono concordare nei due sensi (`_check_registry_agrees_with_disk`): un soggetto con `has_sdc` senza mappa su disco, o una mappa per un soggetto senza `has_sdc`, solleva. Una misura "su chi capita di essere su disco" nasconderebbe che `populate_metadata` e i dati non concordano su chi esiste. Tutti i dataset in disaccordo sono riportati in un solo errore.
+
+Il registro ricava `has_sdc` dalle cartelle `sdc/<soggetto>/`, non dalla presenza del file `res-1_desc-disconnectome.nii.gz`: una cartella senza quel file fa fallire la run, con il soggetto nominato.
 
 ## `enrich_metadata`: il join
 
@@ -173,9 +227,15 @@ Il primo controllo è limitato ai `datasets` della run (arricchire un sottoinsie
 
 `main()` legge il registro tramite `src.utils.participants.load_participants_registry`, non con un `pd.read_csv(dtype=str)` grezzo: il join ha bisogno di `has_lesion` come booleano vero. Su una colonna di stringhe un `astype(bool)` mapperebbe `"False"` a `True` — qualunque stringa non vuota è vera — invertendo silenziosamente tutti e tre i controlli. `_check_agrees_with_registry` pretende quindi dtype booleano e solleva altrimenti, invece di convertire per conto proprio.
 
+### Il join su `sdc_metadata.csv`
+
+Stessa meccanica, con un blocco `sdc_metadata` a due chiavi (`path`, `copy_columns`). Lettura e controlli stretti sono la stessa funzione (`_read_measured_csv`), parametrizzata su quale flag del registro usare (`has_lesion` per le maschere, `has_sdc` per i disconnettomi) e su quale pipeline nominare nell'errore: un disaccordo su chi ha un disconnettoma si dice "rilancia `compute_sdc_metadata`", non "rilancia `compute_lesion_metadata`". Ognuno dei due join guarda **solo il suo flag**: un soggetto con maschera ma senza disconnettoma è legittimo per il join sul disconnettoma, e viceversa (`test_each_join_checks_its_own_flag_not_the_other_ones`).
+
+`copy_columns` non può nominare una colonna scritta già da un'altra parte (una variabile clinica, `lesion_side_source`, o una `copy_columns` di `lesion_metadata`): due scrittori per una colonna lascerebbero il valore del secondo, senza errori. Le colonne sono float e non passano per `Int64`: una probabilità sommata non è un conteggio, e troncarla ne perderebbe la parte frazionaria.
+
 ### Le colonne derivate dalle maschere non si correggono a mano
 
-`fill: true` protegge una cella **clinica** corretta a mano; le colonne copiate da `lesion_metadata.csv` vengono sovrascritte a ogni run, quindi `_apply` le scrive con `fill=False` indipendentemente da `config.fill`. Onorare `fill: true` anche per quelle congelerebbe in silenzio un numero vecchio dopo che le maschere sono cambiate.
+`fill: true` protegge una cella **clinica** corretta a mano; le colonne copiate da `lesion_metadata.csv` e da `sdc_metadata.csv` vengono sovrascritte a ogni run, quindi `_apply` le scrive con `fill=False` indipendentemente da `config.fill`. Onorare `fill: true` anche per quelle congelerebbe in silenzio un numero vecchio dopo che le maschere sono cambiate.
 
 La conseguenza è deliberata: un volume o un lato inaffidabile ha la sua causa nella maschera, non nel registro. Si sistema la maschera e si ricalcola, oppure il soggetto va in `excluded_subjects.csv`. Un meccanismo per proteggere singole celle significherebbe due fonti di verità per lo stesso numero, senza nulla che dica quale vince.
 

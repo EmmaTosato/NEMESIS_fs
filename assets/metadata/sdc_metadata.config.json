@@ -1,0 +1,26 @@
+{
+  "written": "06-10-26 17:38:03",
+  "project": "clinical_connectome",
+  "data_root": "data/clinical_connectome/derivatives",
+  "datasets": [
+    "UNIPD/WashU",
+    "UNIPD/PASPORT",
+    "UNIPD/PSP",
+    "UKLFR/stroke_UKLFR",
+    "UCL-UK/UCLStrokeData",
+    "UKE/WAKEUP_acute",
+    "UNIPD/NEMESIS_T0",
+    "UKE/SFB936_ses01"
+  ],
+  "group_filter": [
+    "ST"
+  ],
+  "disconnectome_glob": "sdc/*/*_res-1_desc-disconnectome.nii.gz",
+  "resample_interpolation": "nearest",
+  "grid": {
+    "name": "1mm",
+    "reference_template_path": "assets/templates/tpl-MNI152NLin6Asym_res-1_T1w.nii.gz",
+    "brain_mask_path": "assets/templates/tpl-MNI152NLin6Asym_res-1_desc-brain_mask.nii.gz"
+  },
+  "run_notes": "Quanto e' disconnesso ciascun soggetto, in totale: somma delle probabilita' di disconnessione dentro la maschera cerebrale (carico, in voxel pesati per probabilita') e la stessa somma divisa per il numero di voxel cerebrali (media 0-1). Le mappe disconnettoma (res-1) non stanno tutte sullo stesso reticolo: 3 header distinti tra gli 8 dataset (LAS con offset x +90, RAS con -90, RAS con -91 come il template MNI), quindi ogni mappa e' portata sulla griglia col SUO header e non con un flip fisso; con nearest ciascun caso e' una rimappatura intera esatta e la somma non cambia. I voxel fuori dal cervello sono esclusi (lo 0.6-2.6% della massa di BCBToolKit cade li', e' tractografia che esce dal cervello, non disconnessione): la stessa scelta di correct_out_of_brain per le lesioni. Nessuna esclusione di soggetti: chi scartare lo decide excluded_subjects.csv a valle."
+}

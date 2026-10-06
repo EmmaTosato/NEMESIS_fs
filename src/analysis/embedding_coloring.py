@@ -10,7 +10,7 @@ two persisted places, never from a live recomputation:
 
 - assets/metadata/participants.csv, the project's subject registry, for facts
   about a SUBJECT that are true regardless of which run is being plotted
-  (`lesion_side`, `NIHSS`, lesion volume) - see docs/dev/metadata.md;
+  (`lesion_side`, `NIHSS`, lesion volume, overall disconnection) - see docs/dev/metadata.md;
 - the run's own metadata.csv, only for facts that belong to that RUN and
   exist nowhere else (`dataset`, `cluster_label`).
 
@@ -62,6 +62,13 @@ class ColorMode:
     # continuous only - see plot_embedding_continuous/plot_embedding_grid_blocks's
     # own log_scale param. Ignored for categorical modes.
     log_scale: bool = False
+    # None (default): a subject-level fact meaningful regardless of which modality built the
+    # embedding (dataset/side/NIHSS/lesion volume are all plottable on an sdc run too, e.g. to
+    # relate disconnection clusters to lesion size). A ProductionRun.modality value otherwise:
+    # the mode only makes sense on a run of that modality, enforced by
+    # src.analysis.embedding_app.build_embedding_figure's own modality parameter - checked
+    # there, not here, since this module has no ProductionRun concept of its own.
+    restricted_to_modality: str | None = None
 
 
 # Lesion volume is measured on a voxel grid, and the registry holds one column per grid
@@ -99,6 +106,18 @@ def available_volume_grids() -> list[str]:
     return [grid for grid, column in _VOLUME_GRID_COLUMNS.items() if column in registry.columns]
 
 
+# Overall disconnection per subject, written into the registry by enrich_metadata from
+# assets/metadata/sdc_metadata.csv (src.pipeline.compute_sdc_metadata). One fixed grid: the
+# disconnectome maps exist only at 1mm, so unlike lesion volume there is no grid to choose and
+# no button row for it. The names are those compute_sdc_metadata writes - its column prefixes
+# (src.features.sdc.DISCONNECTION_*_PREFIX) plus the grid name configured in
+# config/pipelines/compute_sdc_metadata.json - repeated here rather than imported, so this
+# module stays free of the imaging stack; tests/unit/test_embedding_coloring.py pins that the
+# two agree.
+_DISCONNECTION_LOAD_COLUMN = "disconnection_load_voxels_1mm"
+_DISCONNECTION_MEAN_COLUMN = "disconnection_mean_1mm"
+
+
 COLOR_MODES: dict[str, ColorMode] = {
     "dataset": ColorMode(kind="categorical", column="dataset", label="dataset"),
     # "unknown" sentinel for an unresolvable subject (dataset-wide gap, e.g. PASPORT has no
@@ -119,6 +138,34 @@ COLOR_MODES: dict[str, ColorMode] = {
         # cohort, session 2026-08-04) - log makes the whole cohort's spread
         # readable again.
         log_scale=True,
+    ),
+    # How disconnected a subject is overall, the disconnection counterpart of "volume": the sum of
+    # its disconnection probability over the brain (a probability-weighted voxel count), and the
+    # same sum over the number of brain voxels (a 0-1 fraction). The divisor is a constant of the
+    # grid, so the two colour every point identically and differ only in the number the colorbar
+    # prints - both are offered because the voxel count reads like "lesion volume" and the
+    # fraction reads like "how much of the brain, on average".
+    #
+    # Linear, NOT log like "volume": measured on the full cohort (06-10-26) the load has
+    # skew 1.5 and max/median 7.6, against 4.1 and 97 for lesion volume. The reason volume needs
+    # a log scale - a few huge outliers flatten everyone else to one colour - does not hold, and
+    # a log scale would over-correct (log10 skew -0.8) by stretching the low-disconnection tail.
+    "disconnection_load": ColorMode(
+        kind="continuous",
+        column=_DISCONNECTION_LOAD_COLUMN,
+        registry_column=_DISCONNECTION_LOAD_COLUMN,
+        label="disconnection load (voxels)",
+        # Restricted to sdc runs, unlike volume/side/nihss (26-10-06, on request): a "lesion"
+        # run's own embedding is about lesion location/volume, and this app does not yet have a
+        # production use for colouring it by overall disconnection - revisit if one comes up.
+        restricted_to_modality="sdc",
+    ),
+    "disconnection_mean": ColorMode(
+        kind="continuous",
+        column=_DISCONNECTION_MEAN_COLUMN,
+        registry_column=_DISCONNECTION_MEAN_COLUMN,
+        label="mean disconnection (0-1)",
+        restricted_to_modality="sdc",
     ),
     # NaN for subjects with no resolvable NIHSS (dataset-wide gap, e.g. UCL-UK records no
     # NIHSS at all, or a per-subject missing cell) - see plot_embedding_continuous's NaN

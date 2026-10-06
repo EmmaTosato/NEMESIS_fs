@@ -7,23 +7,24 @@ Lo scrivono due script, che rispondono a due domande diverse e non si sovrascriv
 | Script | Domanda | Colonne che scrive |
 | :--- | :--- | :--- |
 | `src/pipeline/populate_metadata.py` | chi esiste | `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` |
-| `src/pipeline/enrich_metadata.py` | cosa sappiamo di lui | `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_2mm` |
+| `src/pipeline/enrich_metadata.py` | cosa sappiamo di lui | `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_2mm`, `disconnection_load_voxels_1mm`, `disconnection_mean_1mm` |
 
 - **Dettagli architetturali/perché è fatto così**: [`docs/dev/metadata.md`](../dev/metadata.md)
 - **Quali campi esistono in quale dataset**: [`docs/guides/datasets.md`](datasets.md)
 
-`assets/metadata/` contiene altri due file, **separati** dal registro:
+`assets/metadata/` contiene altri tre file, **separati** dal registro:
 
 | File | Cosa c'è | Chi lo scrive |
 | :--- | :--- | :--- |
 | `lesion_metadata.csv` | tutto ciò che si misura su una maschera di lesione: volume, frazione fuori dal brain, indice di lateralità e lato, **per ogni griglia** | `src/pipeline/compute_lesion_metadata.py` |
+| `sdc_metadata.csv` | quanto è disconnesso ciascun soggetto, in totale: carico e media sul cervello, dal suo disconnettoma | `src/pipeline/compute_sdc_metadata.py` |
 | `excluded_subjects.csv` | quali soggetti tenere fuori dalle matrici di produzione, con il motivo | `src/pipeline/build_excluded_subjects.py`, dalla lista che scrivi **tu** nel config `build_excluded_subjects.json` |
 
 ---
 
 ## Come si lancia, in ordine
 
-Tre passaggi, in quest'ordine: chi esiste, cosa misurano le maschere, e infine il join che riempie il registro. Un quarto, indipendente, genera la lista delle esclusioni (`excluded_subjects.csv`) quando cambia.
+Quattro passaggi, in quest'ordine: chi esiste, cosa misurano le maschere, quanto sono disconnessi i soggetti, e infine il join che riempie il registro. Un quarto, indipendente, genera la lista delle esclusioni (`excluded_subjects.csv`) quando cambia.
 
 ```bash
 conda activate nemesis
@@ -31,15 +32,16 @@ cd "$PROJECT_ROOT"
 
 PYTHONPATH="$PROJECT_ROOT" python -m src.pipeline.populate_metadata --config config/pipelines/populate_metadata.json
 python -m src.pipeline.compute_lesion_metadata --config config/pipelines/compute_lesion_metadata.json
+python -m src.pipeline.compute_sdc_metadata --config config/pipelines/compute_sdc_metadata.json
 python -m src.pipeline.enrich_metadata --config config/pipelines/enrich_metadata.json
 
 # quando cambia la lista dei soggetti esclusi:
 python -m src.pipeline.build_excluded_subjects --config config/pipelines/build_excluded_subjects.json
 ```
 
-Entrambe le pipeline accettano `--dry-run`: eseguono ogni controllo e scrivono il report, senza toccare nulla. **Usalo la prima volta dopo aver cambiato un config.**
+Tutte le pipeline accettano `--dry-run`: eseguono ogni controllo e scrivono il report, senza toccare nulla. **Usalo la prima volta dopo aver cambiato un config.**
 
-Su cluster: `sbatch jobs/run_compute_lesion_metadata.sh`, `sbatch jobs/run_enrich_metadata.sh`, `sbatch jobs/run_build_excluded_subjects.sh` (le cartelle `logs/slurm/<pipeline>/` devono già esistere).
+Su cluster: `sbatch jobs/run_compute_lesion_metadata.sh`, `sbatch jobs/run_compute_sdc_metadata.sh`, `sbatch jobs/run_enrich_metadata.sh`, `sbatch jobs/run_build_excluded_subjects.sh` (le cartelle `logs/slurm/<pipeline>/` devono già esistere).
 
 ---
 
@@ -82,6 +84,53 @@ Celle vuote o `NaN` non sono buchi ma casi di dominio espliciti: una maschera se
 **Costo**: una lettura da disco per soggetto e un ricampionamento per griglia. Il calcolo è in streaming, un soggetto per volta, quindi la memoria non dipende da quanti soggetti ci sono. `overwrite: false` lascia intatto un csv esistente e la run esce subito, così rilanciarla per sbaglio non ripaga il costo.
 
 Accanto al csv viene scritto `lesion_metadata.config.json`, il config esatto della run che l'ha prodotto: un csv di cui non si sappia su quali griglie e con quale correzione è stato calcolato non è interpretabile.
+
+---
+
+## `compute_sdc_metadata.py` — quanto è disconnesso un soggetto
+
+Produce `assets/metadata/sdc_metadata.csv`: una riga per **ogni** soggetto con un disconnettoma (`has_sdc` vero nel registro), nessuna esclusione applicata. Come `lesion_metadata.csv`, è agnostica del clinico.
+
+Due colonne, sulla griglia 1 mm (le mappe disconnettoma esistono solo lì, `res-1` è nel nome del file):
+
+| Colonna | Cos'è |
+| :--- | :--- |
+| `disconnection_load_voxels_1mm` | La somma della probabilità di disconnessione sui voxel **dentro il cervello**. È l'analogo del volume lesionale: per una mappa binaria sarebbe un conteggio di voxel; qui ogni voxel pesa la sua probabilità, quindi l'unità è "voxel pesati per probabilità" (mm³ a 1 mm). |
+| `disconnection_mean_1mm` | La stessa somma divisa per il numero di voxel del cervello: la probabilità media di disconnessione sul cervello, tra 0 e 1. |
+
+Le due colonne **ordinano i soggetti allo stesso modo**: il divisore è una costante della griglia. Cambia solo il numero che si legge (`~60 000` oppure `~0,033`). Il carico si legge come un volume, la media come "quanta parte del cervello, in media".
+
+### Cosa viene misurato, e cosa no
+
+- **Solo dentro la maschera cerebrale.** Il disconnettoma di BCBToolKit ha una quota di massa fuori dal cervello (mediana 0,80% della massa totale, fino all'8,9% in un caso, misurato su 400 soggetti casuali): è tractografia che esce dal cervello, non disconnessione. È la stessa scelta di `correct_out_of_brain` per le lesioni.
+- **Senza soglia.** Ogni voxel pesa la sua probabilità. È diverso dal pannello "Disconnessione per cluster" dell'Embedding Explorer, che conta un voxel come disconnesso solo sopra `0.5`: le due quantità ordinano i soggetti quasi allo stesso modo (Spearman 0,99 su 200 soggetti) ma non sono la stessa formula.
+- **Ogni mappa con il suo header.** Le mappe non stanno tutte sullo stesso reticolo di voxel: tra gli 8 dataset ci sono **3 header distinti** (orientamento LAS con offset x `+90`; RAS con `-90`, cioè traslato di 1 voxel; RAS con `-91`, identico al template MNI). Ogni mappa viene portata sulla griglia con il proprio header (`nearest`, una rimappatura intera esatta: la somma non cambia), mai con un flip fisso: un flip è giusto per un solo gruppo e specchierebbe gli altri senza alcun errore.
+
+### Parametri di `config/pipelines/compute_sdc_metadata.json`
+
+| Parametro | Descrizione |
+| :--- | :--- |
+| **`project`**, **`data_root`** | Dove stanno i dati (`data/clinical_connectome/derivatives`). |
+| **`output_path`** | Il csv da scrivere (`assets/metadata/sdc_metadata.csv`). |
+| **`datasets`** | Lista di dataset da misurare. Un nome duplicato o sconosciuto al registro fa fallire la run. |
+| **`group_filter`** | Gruppi ammessi (`["ST"]`: solo i pazienti con ictus). |
+| **`disconnectome_glob`** | Come si trova la mappa di un soggetto, relativo alla cartella del dataset. |
+| **`resample_interpolation`** | `nearest` (consigliata: l'unica che non altera la somma). |
+| **`grid`** | `{name, reference_template_path, brain_mask_path}`, tutti obbligatori. `name` diventa il suffisso delle due colonne, quindi dev'essere alfanumerico. |
+| **`overwrite`** | `false`: se il csv esiste la run esce subito (la misura costa una lettura e un ricampionamento per soggetto, circa 15 minuti sull'intera coorte). `true` lo ricalcola e lo sostituisce. |
+| **`run_notes`** | Nota libera, finisce nel report. |
+
+Accanto al csv viene scritto `sdc_metadata.config.json`, il config esatto della run che l'ha prodotto.
+
+### Registro e disco devono essere d'accordo
+
+La run si ferma, elencando tutti i dataset coinvolti, se:
+
+| Situazione | Cosa significa |
+| :--- | :--- |
+| un soggetto con `has_sdc` vero non ha la mappa su disco | i dati sono incompleti, oppure `data/` è una copia locale parziale |
+| una mappa su disco per un soggetto senza `has_sdc` | il registro è vecchio: rilancia `populate_metadata` |
+| una mappa con valori fuori da [0, 1] o non finiti | non è una probabilità: una scala in percento darebbe un carico ~100 volte più grande e passerebbe ogni altro controllo |
 
 ---
 
@@ -146,7 +195,8 @@ I soggetti esclusi **restano nel registro** con `has_lesion` e `has_sdc` intatti
 | **`datasets`** | Lista di dataset da processare, oppure `null` per tutti quelli presenti nel file. Un dataset fuori scope **non viene toccato**: le sue celle restano quelle che erano. |
 | **`variables`** | Quali variabili leggere dai tsv clinici. Ammesse: `age`, `sex`, `education`, `lesion_side`, `NIHSS`, `clinical_date`. Un nome non in elenco fa fallire il config subito. |
 | **`lesion_metadata`** | Oggetto opzionale (`null` salta del tutto le colonne derivate dalle maschere) — il join su `lesion_metadata.csv`. Vedi sotto. |
-| **`fill`** | `true`: scrive **solo** le celle vuote delle variabili cliniche, ogni valore già presente resta intatto. `false`: le ricalcola tutte. Non ha effetto sulle colonne copiate da `lesion_metadata.csv`, che vengono sempre sovrascritte. |
+| **`sdc_metadata`** | Oggetto opzionale (`null` salta le colonne di disconnessione) — il join su `sdc_metadata.csv`. Vedi sotto. |
+| **`fill`** | `true`: scrive **solo** le celle vuote delle variabili cliniche, ogni valore già presente resta intatto. `false`: le ricalcola tutte. Non ha effetto sulle colonne copiate da `lesion_metadata.csv` e `sdc_metadata.csv`, che vengono sempre sovrascritte. |
 | **`run_notes`** | Nota libera, finisce nel report. |
 
 ### `lesion_metadata`: il join sul csv delle misure
@@ -189,6 +239,19 @@ Dove sta l'inversione non è accertato. Nelle immagini dei soggetti WashU la les
 
 **Calibrazione della soglia.** `calibrate_lesion_side_threshold.py` usa come verità le righe `lesion_side_source = "clinical"`: con la forzatura spenta sono tutte le etichette del tsv, quindi il suo accordo (97,4% a 2 mm su 1445 soggetti, soglia 0.20) è direttamente confrontabile con `knowledge/neuroimaging/lesion_laterality.md`. Con la forzatura accesa gli invertiti ne uscirebbero e l'accordo risulterebbe più alto. Le inversioni piene sbagliano a qualunque soglia: senza i 15 casi dei dataset con etichetta clinica l'accordo a 0.20 è del 98,4%.
 
+### `sdc_metadata`: il join sul csv della disconnessione
+
+```json
+"sdc_metadata": {
+  "path": "assets/metadata/sdc_metadata.csv",
+  "copy_columns": ["disconnection_load_voxels_1mm", "disconnection_mean_1mm"]
+}
+```
+
+Stessa idea di `lesion_metadata`: `enrich_metadata` **non apre nessuna mappa**, copia numeri già calcolati da `compute_sdc_metadata`. Ogni scelta su *come* si misura la disconnessione (griglia, maschera cerebrale, interpolazione) sta nel config di quella pipeline. Solo `path` e `copy_columns`, entrambi obbligatori: non c'è un equivalente di `lesion_side_from`, perché nessuna colonna riempie un buco in una variabile clinica.
+
+`copy_columns` non può essere vuoto, non può contenere una colonna di `populate_metadata.py`, né una che `enrich_metadata` scrive già da un'altra parte (una variabile clinica, `lesion_side_source`, o una `copy_columns` di `lesion_metadata`): due scrittori per una colonna lascerebbero il valore del secondo, senza errori. Le colonne copiate sono float e restano tali.
+
 ### Il join è stretto nei due sensi
 
 Tre disaccordi fermano la run, nessuno viene ignorato:
@@ -201,9 +264,11 @@ Tre disaccordi fermano la run, nessuno viene ignorato:
 
 Il primo controllo è limitato ai `datasets` della run (arricchire un sottoinsieme della coorte è legittimo); gli altri due sono globali, perché una riga che non corrisponde a nessuno è sbagliata comunque.
 
+Il join su `sdc_metadata.csv` applica gli stessi tre controlli contro `has_sdc` invece di `has_lesion`: un soggetto con una maschera ma senza disconnettoma (o il contrario) è legittimo per il join che non lo riguarda.
+
 ### Come sapere se registro e csv sono allineati
 
-`participants.csv` è una **copia** dei valori di `lesion_metadata.csv`, non un riferimento: è allineato solo se `enrich_metadata` è girato **dopo** l'ultima scrittura del csv. Il join stretto qui sopra intercetta i disaccordi su *chi* ha una maschera, non su un valore diverso (un volume o un lato) per lo stesso soggetto: un csv rigenerato senza rilanciare `enrich_metadata` lascia nel registro i valori precedenti, senza errori.
+`participants.csv` è una **copia** dei valori di `lesion_metadata.csv` e `sdc_metadata.csv`, non un riferimento: è allineato solo se `enrich_metadata` è girato **dopo** l'ultima scrittura del csv. Il join stretto qui sopra intercetta i disaccordi su *chi* ha una maschera, non su un valore diverso (un volume o un lato) per lo stesso soggetto: un csv rigenerato senza rilanciare `enrich_metadata` lascia nel registro i valori precedenti, senza errori.
 
 Due controlli, uno per file:
 

@@ -69,6 +69,11 @@ order, 2-42 of them non-zero per subject). A tract missing from a subject's
 CSV is therefore not the legitimate "omitted because zero" case it is for
 the parcellated builder - it means a truncated or corrupt file, and raises
 instead of being filled with 0.0.
+
+`compute_sdc_metadata` (added 06/10) is not a matrix builder: it reduces each subject's
+disconnectome-map to two per-subject scalars (how disconnected the subject is, overall) for
+assets/metadata/sdc_metadata.csv - the disconnection counterpart of the lesion volume that
+src.features.lesion.compute_lesion_metadata measures. See its own docstring.
 """
 
 from __future__ import annotations
@@ -81,7 +86,7 @@ import pandas as pd
 from nilearn.image import resample_to_img
 
 from src.utils.participants import load_participants_registry
-from src.features.lesion import load_reference_image
+from src.features.lesion import LesionGrid, load_brain_mask, load_reference_image, validate_lesion_grids
 from src.features.subject_discovery import discover_files_by_subject
 from src.utils.subject_ids import group_of
 
@@ -104,6 +109,7 @@ _STREAMLINE_TRACT_COLUMN = "tract"
 _STREAMLINE_VALUE_COLUMN = "streamline_ratio"
 
 _LESION_FLAG_COLUMN = "has_lesion"
+_SDC_FLAG_COLUMN = "has_sdc"
 
 # Same tolerance as src/features/lesion.py's _AFFINE_ATOL - loose enough to
 # absorb float32-header round-tripping noise, tight enough that no real
@@ -320,6 +326,150 @@ def build_sdc_streamline_matrix(
     )
 
 
+# The two columns compute_sdc_metadata writes, each suffixed with the grid's own name. One place,
+# so the writer, the column order and the config that copies them into participants.csv cannot
+# disagree about what a grid contributes.
+DISCONNECTION_LOAD_PREFIX = "disconnection_load_voxels"
+DISCONNECTION_MEAN_PREFIX = "disconnection_mean"
+
+# A disconnection probability lives in [0, 1]. Float32 files round-trip a hair above 1.0, so the
+# upper bound is not exact - but a map on a 0-100 scale (a percent) would be ~100x too large and
+# pass every other check, so it must stop the run rather than become a plausible-looking column.
+_PROBABILITY_UPPER_BOUND = 1.0 + 1e-4
+
+
+def compute_sdc_metadata(
+    data_root: Path,
+    datasets: list[str],
+    disconnectome_glob: str,
+    resample_interpolation: str,
+    group_filter: list[str] | None,
+    grid: LesionGrid,
+) -> tuple[pd.DataFrame, list[str]]:
+    """How disconnected each subject is, overall - two scalars per subject, on `grid`.
+
+    The single computation src.pipeline.compute_sdc_metadata writes to
+    assets/metadata/sdc_metadata.csv. Returns (metadata, excluded_by_group); metadata carries
+    subject_id, dataset and, suffixed with the grid's name:
+
+    - disconnection_load_voxels_<g>: the sum of the disconnection probability over the voxels
+      inside the brain mask. The disconnection counterpart of lesion_volume_voxels: for a
+      binary map it IS a voxel count; here each voxel contributes its probability instead of 0
+      or 1, so the unit is "probability-weighted voxels" (mm^3 on a 1mm grid).
+    - disconnection_mean_<g>: that sum divided by the number of brain voxels - the mean
+      disconnection probability over the brain, in [0, 1]. The divisor is a constant of the
+      grid, so this column orders subjects exactly as the load does; it exists because a
+      fraction reads more directly than a voxel count.
+
+    Voxels outside the brain mask are excluded from both (lesion_metadata's own
+    correct_out_of_brain=True makes the same choice for lesions): BCBToolKit's disconnectome
+    carries a median 0.80% of its mass there (up to 8.9% in one case, measured on 400 random
+    subjects), which is tractography leaking past the brain, not
+    disconnection.
+
+    Every map is resampled onto the grid with the file's OWN header, never by assuming a
+    fixed relationship to the reference. The disconnectome maps do not share one voxel lattice:
+    across the 8 datasets there are 3 distinct headers (LAS with an x offset of +90, RAS with
+    -90, RAS with -91 like the MNI template), so one dataset needs an x flip, another a
+    one-voxel shift and a third nothing. A hardcoded flip is right for exactly one of them and
+    silently mirrors the others. With the default "nearest" interpolation each of those is an
+    exact integer remapping, so the sum is not altered by the resampling.
+
+    Admission comes from the registry (has_sdc in participants.csv), not from a glob on disk,
+    and the two must agree in both directions: a subject the registry says has SDC output but
+    whose map is not on disk, or a map on disk for a subject the registry does not flag, raises.
+    Either means populate_metadata.py and the data disagree about who exists, and measuring
+    "whoever happens to be on disk" would hide it. No exclusion list is applied here: like
+    compute_lesion_metadata this measures every subject; who to drop is decided downstream.
+
+    Streaming, one map at a time - only scalars are kept per subject.
+    """
+    validate_lesion_grids([grid])
+    reference_img = load_reference_image(grid.reference_template_path)
+    brain_mask = load_brain_mask(grid.brain_mask_path, reference_img)
+    n_brain_voxels = int(brain_mask.sum())
+    if n_brain_voxels == 0:
+        raise ValueError(
+            f"brain mask {grid.brain_mask_path} has no voxel inside it on grid {grid.name!r} - "
+            "the mean disconnection over the brain is undefined"
+        )
+
+    registered, excluded_by_group_registry = _registered_subjects(datasets, group_filter, _SDC_FLAG_COLUMN)
+    sdc_files, excluded_by_group_disk = _discover_by_dataset(data_root, datasets, disconnectome_glob, group_filter)
+    _check_registry_agrees_with_disk(registered, sdc_files, disconnectome_glob)
+
+    load_column = f"{DISCONNECTION_LOAD_PREFIX}_{grid.name}"
+    mean_column = f"{DISCONNECTION_MEAN_PREFIX}_{grid.name}"
+    rows: list[dict[str, object]] = []
+    for dataset in datasets:
+        for subject_id, path in sorted(sdc_files[dataset].items()):
+            load = _disconnection_load(path, reference_img, brain_mask, resample_interpolation)
+            # Rounded to 3 decimal places (06-10-26, on request): a readable CSV, not a change
+            # of what is measured - a probability-weighted voxel sum has no more real precision
+            # than that anyway (the input maps are float32). The mean column's own values span
+            # 4e-05 to 0.25, so 3 decimals genuinely collapses the lowest-disconnection subjects
+            # toward 0.000 - the load column (tens of thousands) keeps all the precision that
+            # mattered before rounding.
+            rows.append(
+                {
+                    "subject_id": subject_id, "dataset": dataset,
+                    load_column: round(load, 3), mean_column: round(load / n_brain_voxels, 3),
+                }
+            )
+
+    if not rows:
+        raise ValueError(
+            f"no subjects measured under {data_root} for datasets={datasets} (group_filter={group_filter!r}) - "
+            "the registry flags no subject with SDC output in scope"
+        )
+    metadata = pd.DataFrame(rows, columns=["subject_id", "dataset", load_column, mean_column])
+    return metadata, sorted(set(excluded_by_group_registry) | set(excluded_by_group_disk))
+
+
+def _check_registry_agrees_with_disk(
+    registered: dict[str, list[str]], on_disk: dict[str, dict[str, Path]], glob_pattern: str
+) -> None:
+    """Both directions of "the registry and the data agree about who has SDC output".
+
+    Collected over every dataset before raising, so one run reports the whole disagreement
+    instead of the first dataset's."""
+    problems: list[str] = []
+    for dataset, flagged in registered.items():
+        absent = sorted(set(flagged) - set(on_disk[dataset]))
+        unflagged = sorted(set(on_disk[dataset]) - set(flagged))
+        if absent:
+            problems.append(
+                f"{dataset}: {len(absent)} subject(s) flagged {_SDC_FLAG_COLUMN}=True in the registry have no "
+                f"file matching {glob_pattern!r} (e.g. {absent[:5]}) - the data is incomplete, or this is a "
+                "partial local copy of it"
+            )
+        if unflagged:
+            problems.append(
+                f"{dataset}: {len(unflagged)} subject(s) have a file matching {glob_pattern!r} but are not flagged "
+                f"{_SDC_FLAG_COLUMN}=True in the registry (e.g. {unflagged[:5]}) - re-run "
+                "src/pipeline/populate_metadata.py"
+            )
+    if problems:
+        raise ValueError("the subject registry and the SDC output on disk disagree:\n  " + "\n  ".join(problems))
+
+
+def _disconnection_load(
+    path: Path, reference_img: nib.Nifti1Image, brain_mask: np.ndarray, resample_interpolation: str
+) -> float:
+    """One subject's summed disconnection probability inside the brain mask.
+
+    Raises ValueError for a map that is not a [0, 1] probability (negative, non-finite, or above
+    1) - see _PROBABILITY_UPPER_BOUND for why that check exists."""
+    values = _load_disconnectome_voxels(path, reference_img, resample_interpolation)
+    if not np.isfinite(values).all() or values.min() < 0.0 or values.max() > _PROBABILITY_UPPER_BOUND:
+        raise ValueError(
+            f"{path}: disconnectome values are not a [0, 1] probability "
+            f"(min={values.min()}, max={values.max()}, finite={bool(np.isfinite(values).all())}) - "
+            "refusing to sum a map on an unknown scale"
+        )
+    return float(values[brain_mask].sum(dtype=np.float64))
+
+
 def load_reference_regions(reference_labels_path: Path, column: str = "region_name") -> np.ndarray:
     """Load the authoritative, fixed region list for one atlas.
 
@@ -361,6 +511,42 @@ def _discover_by_dataset(
     return by_dataset, excluded
 
 
+def _registered_subjects(
+    datasets: list[str], group_filter: list[str] | None, flag_column: str
+) -> tuple[dict[str, list[str]], list[str]]:
+    """Which subjects the registry flags as having something (`flag_column`: has_lesion or
+    has_sdc), per dataset, from assets/metadata/participants.csv - not from disk (see module
+    docstring).
+
+    Returns (by_dataset, excluded_by_group): the flagged subjects of each dataset that pass
+    `group_filter`, and the flagged subjects it removes. The one place every consumer of the
+    registry's per-subject flags resolves them, so the group rule and the unknown-dataset check
+    exist exactly once.
+
+    Raises ValueError if a requested dataset has no row at all in the registry - a structural
+    gap in the file this pipeline depends on for its core admission criterion, not something
+    to silently treat as "nobody in that dataset has this".
+    """
+    registry = load_participants_registry()
+    known_datasets = set(registry["dataset"])
+    unknown = [d for d in datasets if d not in known_datasets]
+    if unknown:
+        raise ValueError(
+            f"dataset(s) {unknown} have no row in the subject registry "
+            f"(assets/metadata/participants.csv); known datasets: {sorted(known_datasets)}"
+        )
+
+    by_dataset: dict[str, list[str]] = {}
+    excluded: list[str] = []
+    for dataset in datasets:
+        in_dataset = registry["dataset"] == dataset
+        flagged = registry.loc[in_dataset & registry[flag_column], "subject_id"]
+        groups = {s: group_of(s) for s in flagged}
+        excluded.extend(sorted(s for s in flagged if group_filter is not None and groups[s] not in group_filter))
+        by_dataset[dataset] = [s for s in flagged if group_filter is None or groups[s] in group_filter]
+    return by_dataset, excluded
+
+
 def _subjects_with_lesion_mask(
     datasets: list[str], group_filter: list[str] | None, excluded_subjects: frozenset[str]
 ) -> tuple[dict[str, dict[str, None]], list[str], list[str]]:
@@ -379,37 +565,15 @@ def _subjects_with_lesion_mask(
     _drop_excluded_subjects), which is the reason that list is a single file.
     excluded_by_list names only subjects in scope for this run, never the whole
     list.
-
-    Raises ValueError if a requested dataset has no row at all in the
-    registry - a structural gap in the file this pipeline depends on for its
-    core admission criterion, not something to silently treat as "nobody in
-    that dataset has a lesion mask".
     """
-    registry = load_participants_registry()
-    known_datasets = set(registry["dataset"])
-    unknown = [d for d in datasets if d not in known_datasets]
-    if unknown:
-        raise ValueError(
-            f"dataset(s) {unknown} have no row in the subject registry "
-            f"(assets/metadata/participants.csv); known datasets: {sorted(known_datasets)}"
-        )
-
+    in_group, excluded = _registered_subjects(datasets, group_filter, _LESION_FLAG_COLUMN)
     by_dataset: dict[str, dict[str, None]] = {}
-    excluded: list[str] = []
     excluded_by_list: list[str] = []
     for dataset in datasets:
-        in_dataset = registry["dataset"] == dataset
-        has_mask = registry.loc[in_dataset & registry[_LESION_FLAG_COLUMN], "subject_id"]
-        groups = {s: group_of(s) for s in has_mask}
-        excluded_here = sorted(s for s in has_mask if group_filter is not None and groups[s] not in group_filter)
-        in_group = [s for s in has_mask if group_filter is None or groups[s] in group_filter]
-        # Applied after group_filter so a subject is never reported twice: an HC subject on the
-        # exclusion list is excluded by group, not by the list.
-        excluded_by_list.extend(s for s in in_group if s in excluded_subjects)
-        admitted = {s: None for s in in_group if s not in excluded_subjects}
-
-        by_dataset[dataset] = admitted
-        excluded.extend(excluded_here)
+        # Applied after group_filter (inside _registered_subjects) so a subject is never
+        # reported twice: an HC subject on the exclusion list is excluded by group, not by the list.
+        excluded_by_list.extend(s for s in in_group[dataset] if s in excluded_subjects)
+        by_dataset[dataset] = {s: None for s in in_group[dataset] if s not in excluded_subjects}
     return by_dataset, excluded, sorted(excluded_by_list)
 
 

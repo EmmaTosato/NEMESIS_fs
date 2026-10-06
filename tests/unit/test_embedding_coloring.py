@@ -10,7 +10,9 @@ def test_registry_has_expected_modes():
     # cluster_label added 15-08-26 (docs/dev/clustering_migration_plan.md §3) - clustering.py's
     # own production output, never consumed via a pipeline's color_by config (see this
     # module's own docstring), only by src.pipeline.embedding_app.
-    assert set(COLOR_MODES) == {"dataset", "side", "volume", "nihss", "cluster_label"}
+    assert set(COLOR_MODES) == {
+        "dataset", "side", "volume", "disconnection_load", "disconnection_mean", "nihss", "cluster_label"
+    }
 
 
 def test_registry_column_mapping():
@@ -245,3 +247,75 @@ def test_run_only_mode_still_raises_on_missing_column(_registry_root):
     column that does not exist for them."""
     with pytest.raises(ValueError, match="metadata has no 'cluster_label' column"):
         color_values(pd.DataFrame({"subject_id": ["sub-STUNIPD0001"]}), "cluster_label")
+
+
+# --- overall disconnection -------------------------------------------------------------------------------
+
+
+def test_disconnection_registry_columns_are_the_ones_compute_sdc_metadata_writes():
+    """embedding_coloring repeats the two column names instead of importing them (it must stay
+    free of the imaging stack), so this is what keeps the two from drifting apart: a rename in
+    compute_sdc_metadata would otherwise leave the colour modes asking the registry for a
+    column nobody writes any more."""
+    from src.features.sdc import DISCONNECTION_LOAD_PREFIX, DISCONNECTION_MEAN_PREFIX
+
+    assert resolve_color_mode("disconnection_load").registry_column == f"{DISCONNECTION_LOAD_PREFIX}_1mm"
+    assert resolve_color_mode("disconnection_mean").registry_column == f"{DISCONNECTION_MEAN_PREFIX}_1mm"
+
+
+@pytest.mark.parametrize("mode_name", ["disconnection_load", "disconnection_mean"])
+def test_disconnection_modes_are_continuous_linear_and_distinctly_labelled(mode_name):
+    mode = resolve_color_mode(mode_name)
+    assert mode.kind == "continuous"
+    # Linear on purpose (measured on the full cohort: skew 1.5, max/median 7.6, vs 4.1 and 97 for
+    # lesion volume) - the outliers that justify volume's log scale do not exist here.
+    assert mode.log_scale is False
+    assert mode.column == mode.registry_column
+
+
+def test_the_two_disconnection_modes_have_different_labels():
+    """Both are buttons in the same row and titles on the same colorbar: identical labels would
+    make the two indistinguishable."""
+    assert resolve_color_mode("disconnection_load").label != resolve_color_mode("disconnection_mean").label
+
+
+@pytest.mark.parametrize("mode_name", ["disconnection_load", "disconnection_mean"])
+def test_disconnection_modes_are_restricted_to_sdc(mode_name):
+    """06-10-26, on request: a lesion-modality run's embedding is about lesion location/volume,
+    not overall disconnection - enforced by src.analysis.embedding_app.build_embedding_figure's
+    own modality parameter, declared here since this is where every mode's own rules live."""
+    assert resolve_color_mode(mode_name).restricted_to_modality == "sdc"
+
+
+@pytest.mark.parametrize("mode_name", ["dataset", "side", "volume", "nihss", "cluster_label"])
+def test_every_other_mode_is_unrestricted(mode_name):
+    """Subject-level facts stay meaningful regardless of which modality built the embedding
+    (e.g. colouring an sdc run by lesion volume, to relate disconnection to lesion size)."""
+    assert resolve_color_mode(mode_name).restricted_to_modality is None
+
+
+def test_disconnection_modes_read_the_registry(_registry_root):
+    _write_registry(
+        _registry_root,
+        [
+            ["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "59503.8", "0.0326"],
+            ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", "1200.0", "0.0007"],
+        ],
+        ["disconnection_load_voxels_1mm", "disconnection_mean_1mm"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0002", "sub-STUNIPD0001"]})  # run order, not registry order
+
+    assert list(color_values(metadata, "disconnection_load")) == [1200.0, 59503.8]
+    assert list(color_values(metadata, "disconnection_mean")) == [0.0007, 0.0326]
+
+
+def test_disconnection_mode_on_an_unenriched_registry_says_how_to_populate_it(_registry_root):
+    """A registry that never had enrich_metadata run with the sdc_metadata block must say so, not
+    fall back to anything."""
+    _write_registry(
+        _registry_root, [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False"]], []
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001"]})
+
+    with pytest.raises(ValueError, match=r"no 'disconnection_load_voxels_1mm' column.*enrich_metadata"):
+        color_values(metadata, "disconnection_load")

@@ -38,7 +38,7 @@ Every lesion mask reaches its target grid through one function, `src/features/le
 
 **`nearest` downsampling is sampling, not averaging.** Going from 1mm to 2mm each target voxel covers 8 source voxels and takes the value of one. The 2mm volume is therefore not `native / 8`, and a very small lesion can lose all its voxels. This is why `lesion_metadata.csv` keeps both grids (see `docs/guides/metadata.md`). Measurements and the majority-threshold alternative are in `knowledge/neuroimaging/lesion_resampling.md`.
 
-**The brain mask is always `nearest`** (`_load_and_binarize_brain_mask`, threshold `0.5`), whatever `resample_interpolation` the run uses: it is binary too.
+**The brain mask is always `nearest`** (`load_brain_mask`, threshold `0.5`), whatever `resample_interpolation` the run uses: it is binary too.
 
 **`compute_lesion_metadata` reads each mask once** and resamples it once per grid, not once per metric. The SDC pipeline resamples lesion masks separately (`nearest` hardcoded, onto the canonical 1mm grid) to feed BCBToolKit upstream of this repo; that is a different purpose and not covered here.
 

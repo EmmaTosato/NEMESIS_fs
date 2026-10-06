@@ -5,10 +5,12 @@ import numpy as np
 import pytest
 
 from src.utils import participants as participants_registry
+from src.features.lesion import LesionGrid
 from src.features.sdc import (
     build_sdc_matrix,
     build_sdc_streamline_matrix,
     build_sdc_voxelwise_matrix,
+    compute_sdc_metadata,
     load_reference_regions,
 )
 
@@ -23,7 +25,7 @@ _VALUE_COLUMN = "mean_overlap"
 _REGISTRY_HEADER = "subject_id,original_id,dataset,disease_id,has_lesion,has_sdc,has_features"
 
 
-def _register_subject(metadata_root, dataset, subject_id, has_lesion=True):
+def _register_subject(metadata_root, dataset, subject_id, has_lesion=True, has_sdc=True):
     """Appends one row to participants.csv - lesion mask presence is resolved
     from this registry, not from disk (see src/features/sdc.py's module
     docstring for why: a local `data/` copy can be a partial local
@@ -37,7 +39,7 @@ def _register_subject(metadata_root, dataset, subject_id, has_lesion=True):
     if not path.is_file():
         path.write_text(_REGISTRY_HEADER + "\n")
     with path.open("a") as f:
-        f.write(f"{subject_id},{subject_id},{dataset},ST,{has_lesion},True,False\n")
+        f.write(f"{subject_id},{subject_id},{dataset},ST,{has_lesion},{has_sdc},False\n")
 
 
 def _register_lesion_mask(metadata_root, dataset, subject_id):
@@ -836,3 +838,209 @@ def test_excluded_subject_is_not_also_reported_as_missing_its_lesion_mask(tmp_pa
     for name, (_, _, _, _, excluded_by_list, excluded_no_lesion_mask, _) in results.items():
         assert excluded_by_list == ["sub-STUNIPD0002"], name
         assert excluded_no_lesion_mask == [], name
+
+
+# --- compute_sdc_metadata ---------------------------------------------------------------------------
+#
+# The reference lattice is RAS with world x = i - 2 (so x in {-2, -1, 0, 1}), and the brain mask keeps
+# only world x >= 0 (i >= 2): asymmetric in x on purpose, so a map that lands on the wrong lattice
+# changes the in-brain sum instead of cancelling out.
+
+_METADATA_SHAPE = (4, 4, 4)
+_REFERENCE_AFFINE = np.array(
+    [[1.0, 0.0, 0.0, -2.0], [0.0, 1.0, 0.0, -2.0], [0.0, 0.0, 1.0, -2.0], [0.0, 0.0, 0.0, 1.0]]
+)
+_GLOB = "sdc/*/*_res-1_desc-disconnectome.nii.gz"
+_DATASET = "UNIPD/WashU"
+
+
+def _metadata_grid(tmp_path, brain_x_from_index=2):
+    template = tmp_path / "template.nii.gz"
+    nib.save(nib.Nifti1Image(np.zeros(_METADATA_SHAPE, dtype=np.float32), _REFERENCE_AFFINE), template)
+    brain = np.zeros(_METADATA_SHAPE, dtype=np.float32)
+    brain[brain_x_from_index:] = 1.0
+    brain_path = tmp_path / "brain_mask.nii.gz"
+    nib.save(nib.Nifti1Image(brain, _REFERENCE_AFFINE), brain_path)
+    return LesionGrid("1mm", template, brain_path)
+
+
+def _affine_with_x(sign, offset):
+    affine = _REFERENCE_AFFINE.copy()
+    affine[0, 0] = sign
+    affine[0, 3] = offset
+    return affine
+
+
+def _make_disconnectome(data_root, subject_id, voxels, affine=_REFERENCE_AFFINE, dataset=_DATASET):
+    """voxels: {(i, j, k): probability} in the FILE's own index space."""
+    subject_dir = data_root / dataset / "sdc" / subject_id
+    subject_dir.mkdir(parents=True, exist_ok=True)
+    volume = np.zeros(_METADATA_SHAPE, dtype=np.float32)
+    for index, probability in voxels.items():
+        volume[index] = probability
+    nib.save(
+        nib.Nifti1Image(volume, affine), subject_dir / f"{subject_id}_space-MNI152NLin6Asym_res-1_desc-disconnectome.nii.gz"
+    )
+
+
+def _compute(tmp_path, data_root, datasets=(_DATASET,), group_filter=("ST",), grid=None):
+    return compute_sdc_metadata(
+        data_root, list(datasets), _GLOB, "nearest", None if group_filter is None else list(group_filter),
+        grid or _metadata_grid(tmp_path),
+    )
+
+
+def test_compute_sdc_metadata_sums_probability_inside_the_brain_and_divides_by_brain_voxels(tmp_path, _metadata_root):
+    data_root = tmp_path / "data"
+    # i=2 and i=3 are inside the brain (x >= 0); i=1 is outside and must not count.
+    _make_disconnectome(data_root, "sub-STUNIPD0002", {(2, 2, 2): 0.5, (3, 2, 2): 0.25, (1, 2, 2): 0.9})
+    _make_disconnectome(data_root, "sub-STUNIPD0001", {(2, 0, 0): 1.0})
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001")
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0002")
+
+    metadata, excluded = _compute(tmp_path, data_root)
+
+    assert list(metadata.columns) == ["subject_id", "dataset", "disconnection_load_voxels_1mm", "disconnection_mean_1mm"]
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0002"]  # sorted within a dataset
+    assert excluded == []
+    n_brain = 2 * 4 * 4
+    by_id = metadata.set_index("subject_id")
+    assert by_id.loc["sub-STUNIPD0001", "disconnection_load_voxels_1mm"] == 1.0
+    assert by_id.loc["sub-STUNIPD0002", "disconnection_load_voxels_1mm"] == 0.75
+    assert by_id.loc["sub-STUNIPD0002", "disconnection_mean_1mm"] == round(0.75 / n_brain, 3)
+
+
+def test_compute_sdc_metadata_rounds_both_columns_to_3_decimal_places(tmp_path, _metadata_root):
+    """06-10-26, on request: assets/metadata/sdc_metadata.csv must be readable, not carry the
+    full float64 precision of a probability-weighted voxel sum - which has no more real meaning
+    than that anyway (the input maps are float32). A sum chosen to land on a 4th decimal digit
+    pins the rounding itself, not just a value that happens to already be short."""
+    data_root = tmp_path / "data"
+    # 0.1234567 inside the brain (i=2,3 both in-brain) -> exact float64 sum has far more than 3
+    # decimal digits; n_brain=32 makes the mean's 4th decimal non-zero too.
+    _make_disconnectome(data_root, "sub-STUNIPD0001", {(2, 2, 2): 0.1111111, (3, 2, 2): 0.0123456})
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001")
+
+    metadata, _ = _compute(tmp_path, data_root)
+
+    assert metadata.loc[0, "disconnection_load_voxels_1mm"] == round(0.1111111 + 0.0123456, 3)
+    assert metadata.loc[0, "disconnection_mean_1mm"] == round((0.1111111 + 0.0123456) / 32, 3)
+
+
+@pytest.mark.parametrize(
+    "affine, blob_a, blob_b",
+    [
+        pytest.param(_REFERENCE_AFFINE, (2, 2, 2), (1, 2, 2), id="reference-lattice"),
+        # LAS (x = 1 - i), the header 4370 real subjects carry: the same physical voxels sit at
+        # mirrored indices.
+        pytest.param(_affine_with_x(-1.0, 1.0), (1, 2, 2), (2, 2, 2), id="las-mirrored"),
+        # RAS shifted by one voxel (x = i - 1), the header of another 1032 real subjects.
+        pytest.param(_affine_with_x(1.0, -1.0), (1, 2, 2), (0, 2, 2), id="ras-shifted-one-voxel"),
+    ],
+)
+def test_compute_sdc_metadata_realigns_every_map_with_its_own_header(tmp_path, _metadata_root, affine, blob_a, blob_b):
+    """Regression: the real disconnectome maps sit on 3 distinct voxel lattices (by dataset), so
+    the SAME physical content is stored at different array indices. blob A (prob 0.5) is at world
+    x = 0, inside the brain; blob B (0.25) at world x = -1, outside. Every header must give 0.5.
+
+    Fails for the two shortcuts that look plausible: reading the array by index (LAS gives 0.25,
+    the shifted lattice 0.0) and flipping every map unconditionally (mirrors the reference-lattice
+    file and the shifted one)."""
+    data_root = tmp_path / "data"
+    _make_disconnectome(data_root, "sub-STUNIPD0001", {blob_a: 0.5, blob_b: 0.25}, affine=affine)
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001")
+
+    metadata, _ = _compute(tmp_path, data_root)
+
+    assert metadata.loc[0, "disconnection_load_voxels_1mm"] == 0.5
+
+
+def test_compute_sdc_metadata_excludes_group_filtered_subjects_and_reports_them(tmp_path, _metadata_root):
+    data_root = tmp_path / "data"
+    for subject_id in ("sub-STUNIPD0001", "sub-STUNIPDHC0001"):
+        _make_disconnectome(data_root, subject_id, {(2, 2, 2): 0.5})
+        _register_subject(_metadata_root, _DATASET, subject_id)
+
+    metadata, excluded = _compute(tmp_path, data_root, group_filter=("ST",))
+
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
+    assert excluded == ["sub-STUNIPDHC0001"]
+
+
+def test_compute_sdc_metadata_raises_when_the_registry_flags_a_subject_with_no_map(tmp_path, _metadata_root):
+    data_root = tmp_path / "data"
+    _make_disconnectome(data_root, "sub-STUNIPD0001", {(2, 2, 2): 0.5})
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001")
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0002")  # flagged has_sdc, nothing on disk
+
+    with pytest.raises(ValueError, match=r"have no file matching.*sub-STUNIPD0002"):
+        _compute(tmp_path, data_root)
+
+
+def test_compute_sdc_metadata_raises_when_a_map_exists_for_a_subject_the_registry_does_not_flag(tmp_path, _metadata_root):
+    data_root = tmp_path / "data"
+    _make_disconnectome(data_root, "sub-STUNIPD0001", {(2, 2, 2): 0.5})
+    _make_disconnectome(data_root, "sub-STUNIPD0002", {(2, 2, 2): 0.5})
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001")
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0002", has_sdc=False)
+
+    with pytest.raises(ValueError, match=r"not flagged.*populate_metadata"):
+        _compute(tmp_path, data_root)
+
+
+def test_compute_sdc_metadata_reports_every_disagreeing_dataset_in_one_error(tmp_path, _metadata_root):
+    data_root = tmp_path / "data"
+    for dataset, subject_id in ((_DATASET, "sub-STUNIPD0001"), ("UNIPD/PSP", "sub-STUNIPD0101")):
+        _register_subject(_metadata_root, dataset, subject_id)  # flagged, no map on disk
+
+    with pytest.raises(ValueError) as exc_info:
+        _compute(tmp_path, data_root, datasets=(_DATASET, "UNIPD/PSP"))
+
+    assert _DATASET in str(exc_info.value) and "UNIPD/PSP" in str(exc_info.value)
+
+
+@pytest.mark.parametrize("bad_value", [50.0, -0.1, float("nan")])
+def test_compute_sdc_metadata_rejects_a_map_that_is_not_a_unit_probability(tmp_path, _metadata_root, bad_value):
+    """A percent-scale map (0-100) would sum ~100x too large and pass every other check."""
+    data_root = tmp_path / "data"
+    _make_disconnectome(data_root, "sub-STUNIPD0001", {(2, 2, 2): bad_value})
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001")
+
+    with pytest.raises(ValueError, match="not a \\[0, 1\\] probability"):
+        _compute(tmp_path, data_root)
+
+
+def test_compute_sdc_metadata_unknown_dataset_raises(tmp_path, _metadata_root):
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001")
+
+    with pytest.raises(ValueError, match="no row in the subject registry"):
+        _compute(tmp_path, tmp_path / "data", datasets=("UNIPD/Typo",))
+
+
+def test_compute_sdc_metadata_raises_when_nothing_is_in_scope(tmp_path, _metadata_root):
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001", has_sdc=False)
+
+    with pytest.raises(ValueError, match="no subjects measured"):
+        _compute(tmp_path, tmp_path / "data")
+
+
+def test_compute_sdc_metadata_raises_on_an_empty_brain_mask(tmp_path, _metadata_root):
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001")
+    grid = _metadata_grid(tmp_path, brain_x_from_index=4)  # slice(4, None) of a 4-wide axis: empty
+
+    with pytest.raises(ValueError, match="no voxel inside it"):
+        _compute(tmp_path, tmp_path / "data", grid=grid)
+
+
+def test_compute_sdc_metadata_zero_disconnection_is_a_value_not_an_error(tmp_path, _metadata_root):
+    """A subject whose in-brain map is all zero measures 0.0: the quantity is well-defined (no
+    disconnection), unlike the lesion side of an empty mask. The log-scaled colour mode draws
+    it as missing; the CSV keeps the honest number."""
+    data_root = tmp_path / "data"
+    _make_disconnectome(data_root, "sub-STUNIPD0001", {(1, 2, 2): 0.7})  # only outside the brain
+    _register_subject(_metadata_root, _DATASET, "sub-STUNIPD0001")
+
+    metadata, _ = _compute(tmp_path, data_root)
+
+    assert metadata.loc[0, "disconnection_load_voxels_1mm"] == 0.0
+    assert metadata.loc[0, "disconnection_mean_1mm"] == 0.0

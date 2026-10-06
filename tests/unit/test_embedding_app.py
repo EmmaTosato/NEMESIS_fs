@@ -495,9 +495,108 @@ def test_build_embedding_figure_volume_zero_is_drawn_missing_not_refused(_partic
     assert list(volume_trace.marker.colorbar.ticktext) == ["100", "1000", "10000"]
 
 
+def _registry_with_disconnection(metadata_root, loads, means):
+    metadata_root.mkdir(parents=True, exist_ok=True)
+    header = [*_PARTICIPANTS_REGISTRY_COLUMNS, "disconnection_load_voxels_1mm", "disconnection_mean_1mm"]
+    rows = [
+        [f"sub-{i}", f"sub-{i}", "UNIPD/WashU", "ST", "True", "True", "False", str(loads[i]), str(means[i])]
+        for i in range(len(loads))
+    ]
+    (metadata_root / "participants.csv").write_text(
+        "\n".join([",".join(header)] + [",".join(r) for r in rows]) + "\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "mode_name, label", [("disconnection_load", "disconnection load (voxels)"), ("disconnection_mean", "mean disconnection (0-1)")]
+)
+def test_build_embedding_figure_disconnection_modes_draw_a_linear_colorbar(
+    _participants_registry_root, mode_name, label
+):
+    """Both modes plot from the registry on a LINEAR scale: the colorbar carries the mode's own
+    label and real values, with no log10 tick relabelling (that is what volume does)."""
+    embedding, metadata = _embedding_and_metadata()
+    _registry_with_disconnection(
+        _participants_registry_root, [1000, 20000, 60000, 400000], [0.0005, 0.011, 0.033, 0.22]
+    )
+
+    fig = build_embedding_figure(embedding, metadata, mode_name, "x", "y", "title")
+
+    trace = next(t for t in fig.data if t.name == label)
+    assert trace.marker.colorbar.title.text == label
+    assert trace.marker.colorbar.tickvals is None  # no decade ticks: not log-scaled
+    assert min(trace.marker.color) == (1000 if mode_name == "disconnection_load" else 0.0005)
+
+
+def test_build_embedding_figure_disconnection_zero_is_a_real_value_on_the_linear_scale(_participants_registry_root):
+    """A subject with no measurable disconnection has load 0. On a linear scale that is the
+    bottom of the colour range, not a missing value - unlike lesion volume 0 on the log scale."""
+    embedding, metadata = _embedding_and_metadata()
+    _registry_with_disconnection(_participants_registry_root, [0, 20000, 60000, 400000], [0.0, 0.011, 0.033, 0.22])
+
+    fig = build_embedding_figure(embedding, metadata, "disconnection_load", "x", "y", "title")
+
+    assert "missing" not in {trace.name for trace in fig.data}
+    trace = next(t for t in fig.data if t.name == "disconnection load (voxels)")
+    assert 0 in list(trace.marker.color)
+
+
+@pytest.mark.parametrize("mode_name", ["disconnection_load", "disconnection_mean"])
+def test_build_embedding_figure_disconnection_modes_raise_on_a_non_sdc_modality(_participants_registry_root, mode_name):
+    """06-10-26, on request: a 'lesion' run's embedding is about lesion location/volume, not
+    overall disconnection - the mode must refuse, not silently colour from the registry just
+    because the value happens to exist there for the same subjects."""
+    embedding, metadata = _embedding_and_metadata()
+    _registry_with_disconnection(
+        _participants_registry_root, [1000, 20000, 60000, 400000], [0.0005, 0.011, 0.033, 0.22]
+    )
+
+    with pytest.raises(ValueError, match=r"only applies to modality='sdc' runs, not 'lesion'"):
+        build_embedding_figure(embedding, metadata, mode_name, "x", "y", "title", modality="lesion")
+
+
+@pytest.mark.parametrize("mode_name", ["disconnection_load", "disconnection_mean"])
+def test_build_embedding_figure_disconnection_modes_allowed_on_sdc_modality(_participants_registry_root, mode_name):
+    embedding, metadata = _embedding_and_metadata()
+    _registry_with_disconnection(
+        _participants_registry_root, [1000, 20000, 60000, 400000], [0.0005, 0.011, 0.033, 0.22]
+    )
+
+    fig = build_embedding_figure(embedding, metadata, mode_name, "x", "y", "title", modality="sdc")
+
+    assert len(fig.data) > 0
+
+
+def test_build_embedding_figure_disconnection_modes_unrestricted_when_modality_not_given(_participants_registry_root):
+    """modality=None (the default) is for callers with no modality concept of their own
+    (plot_tuning_embedding_3d.py) - the restriction only engages when a caller actually states
+    a modality that conflicts."""
+    embedding, metadata = _embedding_and_metadata()
+    _registry_with_disconnection(
+        _participants_registry_root, [1000, 20000, 60000, 400000], [0.0005, 0.011, 0.033, 0.22]
+    )
+
+    fig = build_embedding_figure(embedding, metadata, "disconnection_load", "x", "y", "title")
+
+    assert len(fig.data) > 0
+
+
+def test_build_embedding_figure_volume_mode_is_not_restricted_by_modality(_participants_registry_root):
+    """Unchanged behaviour for every pre-existing registry mode (dataset/side/volume/nihss):
+    only disconnection_load/disconnection_mean declare a restricted_to_modality."""
+    _registry_for_embedding_fixture(_participants_registry_root)
+    embedding, metadata = _embedding_and_metadata()
+
+    fig = build_embedding_figure(embedding, metadata, "volume", "x", "y", "title", modality="sdc")
+
+    assert len(fig.data) > 0
+
+
 def test_color_mode_order_starts_with_neutro():
     assert COLOR_MODE_ORDER[0] == NEUTRAL_MODE
-    assert set(COLOR_MODE_ORDER[1:]) == {"dataset", "side", "volume", "nihss", "cluster_label"}
+    assert set(COLOR_MODE_ORDER[1:]) == {
+        "dataset", "side", "volume", "disconnection_load", "disconnection_mean", "nihss", "cluster_label"
+    }
 
 
 def test_graph_content_for_valid_run_returns_graph(tmp_path):
@@ -525,6 +624,20 @@ def test_graph_content_for_undisplayable_run_returns_status_message(tmp_path):
 
     assert isinstance(content, html.P)
     assert "can only display" in content.children
+
+
+def test_graph_content_for_disconnection_mode_on_a_lesion_run_returns_status_message(tmp_path):
+    """End-to-end through graph_content_for (not just build_embedding_figure directly): a
+    'lesion'-modality run asking for 'disconnection_load' gets a clear status message, same as
+    any other ValueError this function already turns into one - never a plotted graph."""
+    results_root = tmp_path / "results"
+    run_dir = _make_run_dir(results_root, modality="lesion", run_name="run-2d", n_dims=2)
+    run = ProductionRun("lesion", "dim_reduction", "umap", "run-2d", run_dir)
+
+    content = graph_content_for(run, "disconnection_load")
+
+    assert isinstance(content, html.P)
+    assert "only applies to modality='sdc'" in content.children
 
 
 def test_build_app_raises_on_empty_runs(tmp_path):

@@ -7,6 +7,7 @@ import pytest
 from src.analysis.build_config import (
     load_build_fc_matrix_config,
     load_build_matrix_config,
+    load_compute_sdc_metadata_config,
     load_mask_fc_config,
 )
 
@@ -294,3 +295,75 @@ _ENRICH_BASE = {
 }
 
 
+
+
+# --- compute_sdc_metadata.json ------------------------------------------------------------------------
+
+_SDC_METADATA_BASE = {
+    "project": "clinical_connectome",
+    "data_root": "data/clinical_connectome/derivatives",
+    "output_path": "assets/metadata/sdc_metadata.csv",
+    "datasets": ["UNIPD/WashU", "UNIPD/PSP"],
+    "group_filter": ["ST"],
+    "disconnectome_glob": "sdc/*/*_res-1_desc-disconnectome.nii.gz",
+    "resample_interpolation": "nearest",
+    "grid": {
+        "name": "1mm",
+        "reference_template_path": "assets/templates/tpl-res-1_T1w.nii.gz",
+        "brain_mask_path": "assets/templates/tpl-res-1_desc-brain_mask.nii.gz",
+    },
+    "overwrite": False,
+    "run_notes": "test",
+}
+
+
+def _write_sdc_metadata(tmp_path, overrides=None, drop=()):
+    cfg = {**_SDC_METADATA_BASE, **(overrides or {})}
+    for key in drop:
+        del cfg[key]
+    path = tmp_path / "compute_sdc_metadata.json"
+    path.write_text(json.dumps(cfg))
+    return path
+
+
+def test_compute_sdc_metadata_config_valid(tmp_path):
+    config = load_compute_sdc_metadata_config(_write_sdc_metadata(tmp_path))
+
+    assert config.grid.name == "1mm"
+    assert config.grid.brain_mask_path.name == "tpl-res-1_desc-brain_mask.nii.gz"
+    assert config.datasets == ["UNIPD/WashU", "UNIPD/PSP"]
+    assert config.group_filter == ["ST"]
+    assert config.overwrite is False
+
+
+@pytest.mark.parametrize(
+    "overrides, drop, match",
+    [
+        pytest.param({}, ("grid",), "missing required field 'grid'", id="grid-absent"),
+        pytest.param({"grid": "1mm"}, (), "must be an object with a non-empty string 'name'", id="grid-not-an-object"),
+        pytest.param(
+            {"grid": {"reference_template_path": "a", "brain_mask_path": "b"}}, (), "non-empty string 'name'",
+            id="grid-without-name",
+        ),
+        pytest.param(
+            {"grid": {"name": "1mm", "reference_template_path": "a"}}, (), "missing 'brain_mask_path'",
+            id="grid-without-brain-mask",
+        ),
+        pytest.param(
+            {"grid": {"name": "1 mm", "reference_template_path": "a", "brain_mask_path": "b"}}, (),
+            "not alphanumeric", id="grid-name-not-a-column-suffix",
+        ),
+        pytest.param({"datasets": ["UNIPD/WashU", "UNIPD/WashU"]}, (), "duplicate", id="duplicate-dataset"),
+        pytest.param({"resample_interpolation": "cubic"}, (), "resample_interpolation", id="unknown-interpolation"),
+        pytest.param({}, ("disconnectome_glob",), "disconnectome_glob", id="glob-absent"),
+        pytest.param({"overwrite": "yes"}, (), "overwrite", id="overwrite-not-a-bool"),
+    ],
+)
+def test_compute_sdc_metadata_config_invalid_raises_value_error(tmp_path, overrides, drop, match):
+    with pytest.raises(ValueError, match=match):
+        load_compute_sdc_metadata_config(_write_sdc_metadata(tmp_path, overrides, drop))
+
+
+def test_compute_sdc_metadata_config_missing_file_raises(tmp_path):
+    with pytest.raises(FileNotFoundError, match="config file not found"):
+        load_compute_sdc_metadata_config(tmp_path / "nope.json")

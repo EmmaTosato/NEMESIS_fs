@@ -802,6 +802,7 @@ def build_embedding_figure(
     title: str,
     zlabel: str | None = None,
     volume_grid: str = DEFAULT_VOLUME_GRID,
+    modality: str | None = None,
 ) -> go.Figure:
     """Builds the Plotly figure for one (run, color mode) combination - 2D if `zlabel` is
     None, 3D otherwise (branches on `embedding.shape[1]`/`zlabel` the same way the
@@ -817,9 +818,22 @@ def build_embedding_figure(
     Raises UndisplayableRunError-independent ValueErrors for a bad embedding/mode/metadata
     combination (e.g. `mode_name` not in COLOR_MODE_ORDER) - a caller that only ever offers
     COLOR_MODE_ORDER's own entries as UI choices should never actually hit these.
+
+    `modality` is the run's own ProductionRun.modality, only needed to enforce a mode's
+    restricted_to_modality (06-10-26, on request: disconnection_load/disconnection_mean only
+    apply to an sdc run) - None (the default) skips that check, for callers with no modality
+    concept of their own (src/pipeline/plot_tuning_embedding_3d.py, replotting a tuning sweep).
+    graph_content_for, the production caller, always passes run.modality.
     """
     if mode_name not in COLOR_MODE_ORDER:
         raise ValueError(f"unknown color mode {mode_name!r} - known: {list(COLOR_MODE_ORDER)}")
+    if mode_name != NEUTRAL_MODE:
+        restriction = COLOR_MODES[mode_name].restricted_to_modality
+        if restriction is not None and modality is not None and modality != restriction:
+            raise ValueError(
+                f"color mode {mode_name!r} only applies to modality={restriction!r} runs, not "
+                f"{modality!r} - pick a different colour for this run"
+            )
     is_3d = zlabel is not None
     if is_3d and embedding.shape[1] != 3:
         raise ValueError(f"zlabel given but embedding has {embedding.shape[1]} columns, not 3")
@@ -874,11 +888,11 @@ def build_embedding_figure(
             if mode.log_scale:
                 non_missing = values[~is_missing]
                 # A NEGATIVE value is impossible for every log-scaled mode this registry has
-                # (all are counts) - that is corrupt data and must stop the plot.
+                # (all are non-negative quantities) - that is corrupt data and must stop the plot.
                 if (non_missing < 0).any():
                     raise ValueError(
                         f"Color mode {mode_name!r} is log_scale but has negative values - "
-                        f"cannot log-transform, and a negative count is not a legitimate value"
+                        f"cannot log-transform, and a negative value is not legitimate here"
                     )
                 # ZERO is legitimate and expected (30-09-26): lesion volume on the 2mm grid is
                 # a nearest-neighbour resample of a 1mm mask, so a small lesion can come out at
@@ -889,7 +903,7 @@ def build_embedding_figure(
                 zero = ~is_missing & (values == 0)
                 if zero.any():
                     logging.warning(
-                        "color mode %r: %d subject(s) have volume 0 on this grid - no position "
+                        "color mode %r: %d subject(s) have a value of 0 - no position "
                         "on a log scale, drawn as missing (gray)",
                         mode_name, int(zero.sum()),
                     )
@@ -1062,6 +1076,7 @@ def graph_content_for(
             f"{run.method} dim 1", f"{run.method} dim 2", run_title(run, mode_name),
             volume_grid=volume_grid,
             zlabel=zlabel,
+            modality=run.modality,
         )
     except ValueError as exc:
         return html.P(str(exc), className="status-message")

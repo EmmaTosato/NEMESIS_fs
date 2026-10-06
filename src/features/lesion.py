@@ -96,7 +96,7 @@ class LesionGrid:
     brain_mask_path is required, not optional: it is what both the out-of-brain fraction and
     the out-of-brain correction are measured against, and those are the whole point of
     measuring a mask on a grid at all. It must be on this same grid (resampled with
-    nearest-neighbour if it isn't, see _load_and_binarize_brain_mask).
+    nearest-neighbour if it isn't, see load_brain_mask).
     """
 
     name: str
@@ -344,7 +344,7 @@ def _apply_out_of_brain_correction(
             "correct_out_of_brain is set but brain_mask_path is None - "
             "cannot zero out-of-brain voxels without a brain mask"
         )
-    brain_mask = _load_and_binarize_brain_mask(brain_mask_path, reference_img)
+    brain_mask = load_brain_mask(brain_mask_path, reference_img)
     X_corrected, n_corrected_voxels = zero_out_of_brain_voxels(X_voxelwise, brain_mask)
     metadata = metadata.copy()
     metadata["lesion_volume_voxels"] = X_corrected.sum(axis=1, dtype=np.int64)
@@ -355,7 +355,7 @@ def _apply_out_of_brain_correction(
     return X_corrected, metadata, corrected_subjects
 
 
-def _load_and_binarize_brain_mask(brain_mask_path: Path, reference_img: nib.Nifti1Image) -> np.ndarray:
+def load_brain_mask(brain_mask_path: Path, reference_img: nib.Nifti1Image) -> np.ndarray:
     """Boolean brain-mask array on reference_img's grid, flattened.
 
     Always resampled with nearest-neighbor interpolation regardless of the
@@ -426,7 +426,7 @@ def _grid_context(grid: LesionGrid) -> _GridContext:
     return _GridContext(
         name=grid.name,
         reference_img=reference_img,
-        brain_mask=_load_and_binarize_brain_mask(grid.brain_mask_path, reference_img),
+        brain_mask=load_brain_mask(grid.brain_mask_path, reference_img),
         left_mask=left_mask,
         right_mask=right_mask,
     )
@@ -618,7 +618,7 @@ def _binarize_on_grid(
 ) -> np.ndarray:
     """One already-loaded mask, resampled onto reference_img's grid if it isn't already on it
     (_needs_resample) and binarized, raveled in the same C order as _hemisphere_masks and
-    _load_and_binarize_brain_mask - boolean, so it combines with those directly.
+    load_brain_mask - boolean, so it combines with those directly.
 
     Takes a loaded image rather than a path because compute_lesion_metadata measures the same
     mask on several grids and must not re-read it once per grid.

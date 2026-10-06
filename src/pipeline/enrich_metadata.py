@@ -72,6 +72,18 @@ compute_lesion_metadata), and a row in the CSV for a subject the registry does n
 know - or knows as has_lesion=False - means the two files disagree about who has a
 mask. Both raise rather than being silently skipped.
 
+sdc_metadata (config, optional, null skips it): the same kind of join, for what the
+disconnectome maps measure - assets/metadata/sdc_metadata.csv, written by
+src.pipeline.compute_sdc_metadata (how disconnected each subject is overall, on the 1mm grid).
+
+- `path`: that CSV. compute_sdc_metadata owns every decision about HOW a map is measured
+  (the grid, the brain mask, the interpolation); none of those settings appear here.
+- `copy_columns`: columns copied across under the SAME name, for every in-scope subject,
+  overwriting - exactly as for lesion_metadata, and with the same strict join, only against
+  `has_sdc` instead of `has_lesion`: a subject flagged has_sdc=True with no row means the CSV
+  is stale (re-run compute_sdc_metadata), and a row for a subject the registry does not know -
+  or knows as has_sdc=False - means the two files disagree about who has SDC output.
+
 Mask-derived columns are NOT hand-correctable in participants.csv: every run
 copies them over. A value found unreliable in analysis is fixed at the source (the
 mask, then re-run compute_lesion_metadata) or the subject goes into
@@ -124,13 +136,14 @@ LESION_SIDE_VARIABLE = "lesion_side"
 LESION_SIDE_SOURCE_COLUMN = "lesion_side_source"
 LESION_SIDE_SOURCE_CLINICAL = "clinical"
 LESION_SIDE_SOURCE_GEOMETRIC = "geometric"
-_LESION_METADATA_KEY_COLUMNS = ("subject_id", "dataset")
+_MEASURED_KEY_COLUMNS = ("subject_id", "dataset")
 # Columns src/pipeline/populate_metadata.py owns - "who exists". A lesion_metadata column may never be
 # copied onto one of them: the two scripts never overwrite each other's work (see module
 # docstring), and a copy_columns entry naming one of these would silently break that rule.
 _REGISTRY_OWNED_COLUMNS = ("subject_id", "original_id", "dataset", "disease_id",
                            "has_lesion", "has_sdc", "has_features")
 _LESION_FLAG_COLUMN = "has_lesion"
+_SDC_FLAG_COLUMN = "has_sdc"
 
 # The only missing-value sentinel observed in the real participants.tsv files
 # (verified 27/07/26); a genuinely empty field is already NaN from read_csv.
@@ -163,6 +176,18 @@ class LesionMetadataJoin:
 
 
 @dataclass(frozen=True)
+class SdcMetadataJoin:
+    """How to join assets/metadata/sdc_metadata.csv onto the registry - see module docstring.
+
+    Only copy_columns, no counterpart of lesion_side_from/geometric_override_datasets: every
+    column the disconnection CSV holds is a plain per-subject measurement to copy, none of them
+    fills a gap in a clinical variable."""
+
+    path: Path
+    copy_columns: list[str]
+
+
+@dataclass(frozen=True)
 class EnrichMetadataConfig:
     project: str
     sources: dict[str, DatasetSource]
@@ -170,6 +195,7 @@ class EnrichMetadataConfig:
     datasets: list[str] | None
     variables: list[str]
     lesion_metadata: LesionMetadataJoin | None
+    sdc_metadata: SdcMetadataJoin | None
     fill: bool
     run_notes: str
 
@@ -223,6 +249,7 @@ def load_config(path: str | Path) -> EnrichMetadataConfig:
             raise ValueError(f"{path}: dataset(s) not in {raw['metadata_sources']}: {missing}")
 
     lesion_metadata = _load_lesion_metadata_config(raw.get("lesion_metadata"), variables, path)
+    sdc_metadata = _load_sdc_metadata_config(raw.get("sdc_metadata"), lesion_metadata, path)
 
     return EnrichMetadataConfig(
         project=str(raw["project"]),
@@ -231,6 +258,7 @@ def load_config(path: str | Path) -> EnrichMetadataConfig:
         datasets=datasets,
         variables=variables,
         lesion_metadata=lesion_metadata,
+        sdc_metadata=sdc_metadata,
         fill=raw["fill"],
         run_notes=str(raw["run_notes"]),
     )
@@ -296,6 +324,51 @@ def _load_lesion_metadata_config(raw_block: object, variables: list[str], path: 
         path=Path(raw_block["path"]), copy_columns=copy_columns, lesion_side_from=lesion_side_from,
         geometric_override_datasets=override_datasets,
     )
+
+
+def _load_sdc_metadata_config(
+    raw_block: object, lesion_metadata: LesionMetadataJoin | None, path: Path
+) -> SdcMetadataJoin | None:
+    """Parse the optional 'sdc_metadata' block - null (the default) skips the CSV entirely.
+
+    Shape/type validated here; whether each named column exists is checked against the CSV
+    itself (read_sdc_metadata), whose column names carry the grid compute_sdc_metadata was
+    configured with.
+
+    A column named by both this block and lesion_metadata is rejected: two joins writing the
+    same participants.csv column would leave it holding whichever ran second, with no error.
+    """
+    if raw_block is None:
+        return None
+    if not isinstance(raw_block, dict):
+        raise ValueError(f"{path}: 'sdc_metadata' must be an object or null")
+    for key in ("path", "copy_columns"):
+        if key not in raw_block:
+            raise ValueError(f"{path}: 'sdc_metadata' is missing required key {key!r}")
+    if not isinstance(raw_block["path"], str) or not raw_block["path"]:
+        raise ValueError(f"{path}: 'sdc_metadata.path' must be a non-empty string")
+
+    copy_columns = _unique_str_list(raw_block["copy_columns"], "sdc_metadata.copy_columns", path)
+    if not copy_columns:
+        raise ValueError(
+            f"{path}: 'sdc_metadata' is set but 'copy_columns' is empty - nothing to copy; "
+            "use null to disable the block entirely"
+        )
+    owned = [c for c in copy_columns if c in _REGISTRY_OWNED_COLUMNS]
+    if owned:
+        raise ValueError(
+            f"{path}: 'sdc_metadata.copy_columns' names column(s) {owned} owned by "
+            "src/pipeline/populate_metadata.py - the two scripts never overwrite each other's columns"
+        )
+    clashing = [c for c in copy_columns if c in KNOWN_VARIABLES or c == LESION_SIDE_SOURCE_COLUMN]
+    if lesion_metadata is not None:
+        clashing += [c for c in copy_columns if c in lesion_metadata.copy_columns]
+    if clashing:
+        raise ValueError(
+            f"{path}: 'sdc_metadata.copy_columns' names column(s) {sorted(set(clashing))} that another part of "
+            "this config already writes - two writers for one participants.csv column"
+        )
+    return SdcMetadataJoin(path=Path(raw_block["path"]), copy_columns=copy_columns)
 
 
 def _unique_str_list(value: object, field: str, path: Path) -> list[str]:
@@ -424,77 +497,116 @@ def read_lesion_metadata(
 ) -> pd.DataFrame:
     """Read assets/metadata/lesion_metadata.csv and check it agrees with the registry.
 
-    Returned frame is indexed by subject_id, carrying only the columns this run copies.
+    Returned frame is indexed by subject_id, carrying only the columns this run copies. See
+    _read_measured_csv for the parsing and the three strict join checks, here run against
+    has_lesion."""
+    requested = list(join.copy_columns) + ([] if join.lesion_side_from is None else [join.lesion_side_from])
+    return _read_measured_csv(
+        join.path, requested, registry, datasets,
+        flag_column=_LESION_FLAG_COLUMN, producer="src.pipeline.compute_lesion_metadata",
+        block="lesion_metadata", what="a lesion mask",
+    )
+
+
+def read_sdc_metadata(join: SdcMetadataJoin, registry: pd.DataFrame, datasets: list[str]) -> pd.DataFrame:
+    """Read assets/metadata/sdc_metadata.csv and check it agrees with the registry - the same
+    parsing and strict join as read_lesion_metadata, run against has_sdc."""
+    return _read_measured_csv(
+        join.path, list(join.copy_columns), registry, datasets,
+        flag_column=_SDC_FLAG_COLUMN, producer="src.pipeline.compute_sdc_metadata",
+        block="sdc_metadata", what="SDC output",
+    )
+
+
+def _read_measured_csv(
+    path: Path,
+    requested: list[str],
+    registry: pd.DataFrame,
+    datasets: list[str],
+    *,
+    flag_column: str,
+    producer: str,
+    block: str,
+    what: str,
+) -> pd.DataFrame:
+    """Read one per-subject measurements CSV (lesion_metadata.csv, sdc_metadata.csv) and check it
+    agrees with the registry.
+
     subject_id/dataset are read as str (never let pandas strip a leading zero); the metric
     columns keep their own inferred types, so a voxel count stays an integer.
 
     Three disagreements raise, none is skipped (see module docstring for why each is a real
     inconsistency rather than a missing value):
 
-    - an in-scope subject with has_lesion=True and no row in the CSV -> the CSV is stale;
+    - an in-scope subject flagged `flag_column`=True with no row in the CSV -> the CSV is stale;
     - a row whose subject_id is not in the registry at all -> a spurious row;
-    - a row for a subject the registry records as has_lesion=False -> the two files disagree
-      about who has a mask.
+    - a row for a subject the registry records as `flag_column`=False -> the two files disagree
+      about who has `what`.
 
     The first check is scoped to `datasets` (a run may legitimately enrich a subset of the
     cohort); the other two are global, since a row that matches nobody is wrong regardless of
     which datasets this run happens to touch.
     """
-    if not join.path.is_file():
+    if not path.is_file():
         raise FileNotFoundError(
-            f"{join.path} not found - it is written by src.pipeline.compute_lesion_metadata; "
-            "run that first, or set 'lesion_metadata' to null to skip the mask-derived columns"
+            f"{path} not found - it is written by {producer}; "
+            f"run that first, or set {block!r} to null to skip these columns"
         )
-    key_dtypes = {column: str for column in _LESION_METADATA_KEY_COLUMNS}
-    lesion_metadata = pd.read_csv(join.path, dtype=key_dtypes)
+    key_dtypes = {column: str for column in _MEASURED_KEY_COLUMNS}
+    measured = pd.read_csv(path, dtype=key_dtypes)
 
-    missing_keys = [c for c in _LESION_METADATA_KEY_COLUMNS if c not in lesion_metadata.columns]
+    missing_keys = [c for c in _MEASURED_KEY_COLUMNS if c not in measured.columns]
     if missing_keys:
-        raise ValueError(f"{join.path}: missing required column(s) {missing_keys}")
-    requested = list(join.copy_columns) + ([] if join.lesion_side_from is None else [join.lesion_side_from])
-    absent = [c for c in requested if c not in lesion_metadata.columns]
+        raise ValueError(f"{path}: missing required column(s) {missing_keys}")
+    absent = [c for c in requested if c not in measured.columns]
     if absent:
         raise ValueError(
-            f"{join.path}: column(s) {absent} requested by 'lesion_metadata' are not in the file; "
-            f"it has {list(lesion_metadata.columns)}"
+            f"{path}: column(s) {absent} requested by {block!r} are not in the file; "
+            f"it has {list(measured.columns)}"
         )
-    duplicated = sorted(lesion_metadata.loc[lesion_metadata["subject_id"].duplicated(), "subject_id"])
+    duplicated = sorted(measured.loc[measured["subject_id"].duplicated(), "subject_id"])
     if duplicated:
-        raise ValueError(f"{join.path}: duplicate subject_id row(s): {duplicated}")
+        raise ValueError(f"{path}: duplicate subject_id row(s): {duplicated}")
 
-    _check_agrees_with_registry(join.path, lesion_metadata, registry, datasets)
-    return lesion_metadata.set_index("subject_id")[requested]
+    _check_agrees_with_registry(path, measured, registry, datasets, flag_column, producer, what)
+    return measured.set_index("subject_id")[requested]
 
 
 def _check_agrees_with_registry(
-    path: Path, lesion_metadata: pd.DataFrame, registry: pd.DataFrame, datasets: list[str]
+    path: Path,
+    measured_table: pd.DataFrame,
+    registry: pd.DataFrame,
+    datasets: list[str],
+    flag_column: str,
+    producer: str,
+    what: str,
 ) -> None:
-    """The three strict join checks of read_lesion_metadata, kept apart from the parsing."""
-    if _LESION_FLAG_COLUMN not in registry.columns:
+    """The three strict join checks of _read_measured_csv, kept apart from the parsing."""
+    if flag_column not in registry.columns:
         raise ValueError(
-            f"registry has no {_LESION_FLAG_COLUMN!r} column - it is written by "
-            "src/pipeline/populate_metadata.py and is what says which subjects have a mask at all"
+            f"registry has no {flag_column!r} column - it is written by "
+            f"src/pipeline/populate_metadata.py and is what says which subjects have {what} at all"
         )
-    has_mask = registry[_LESION_FLAG_COLUMN]
-    if not pd.api.types.is_bool_dtype(has_mask):
+    has_flag = registry[flag_column]
+    if not pd.api.types.is_bool_dtype(has_flag):
         # NOT astype(bool): on a str-dtype registry (participants.csv is read with dtype=str)
         # that maps the string "False" to True, since any non-empty string is truthy - the
         # checks below would then silently invert. The registry must arrive already parsed,
         # which is what src.utils.participants.load_participants_registry is for.
         raise ValueError(
-            f"registry column {_LESION_FLAG_COLUMN!r} has dtype {has_mask.dtype} instead of bool - "
+            f"registry column {flag_column!r} has dtype {has_flag.dtype} instead of bool - "
             "read participants.csv through src.utils.participants.load_participants_registry, "
             "which parses the has_* flags explicitly"
         )
-    measured = set(lesion_metadata["subject_id"])
+    measured = set(measured_table["subject_id"])
 
     in_scope = registry["dataset"].isin(datasets)
-    expected = set(registry.loc[in_scope & has_mask, "subject_id"])
+    expected = set(registry.loc[in_scope & has_flag, "subject_id"])
     stale = sorted(expected - measured)
     if stale:
         raise ValueError(
-            f"{path}: {len(stale)} in-scope subject(s) with {_LESION_FLAG_COLUMN}=True have no row "
-            f"(e.g. {stale[:5]}) - the file predates them; re-run src.pipeline.compute_lesion_metadata"
+            f"{path}: {len(stale)} in-scope subject(s) with {flag_column}=True have no row "
+            f"(e.g. {stale[:5]}) - the file predates them; re-run {producer}"
         )
 
     unknown = sorted(measured - set(registry["subject_id"]))
@@ -503,12 +615,12 @@ def _check_agrees_with_registry(
             f"{path}: {len(unknown)} subject(s) have no row in the registry (e.g. {unknown[:5]}) - "
             "the two files disagree about who exists"
         )
-    without_mask = sorted(measured & set(registry.loc[~has_mask, "subject_id"]))
-    if without_mask:
+    without_flag = sorted(measured & set(registry.loc[~has_flag, "subject_id"]))
+    if without_flag:
         raise ValueError(
-            f"{path}: {len(without_mask)} subject(s) are measured here but recorded as "
-            f"{_LESION_FLAG_COLUMN}=False in the registry (e.g. {without_mask[:5]}) - the two files "
-            "disagree about who has a lesion mask"
+            f"{path}: {len(without_flag)} subject(s) are measured here but recorded as "
+            f"{flag_column}=False in the registry (e.g. {without_flag[:5]}) - the two files "
+            f"disagree about who has {what}"
         )
 
 
@@ -557,24 +669,7 @@ def enrich(registry: pd.DataFrame, config: EnrichMetadataConfig) -> tuple[pd.Dat
         join = config.lesion_metadata
         measured = read_lesion_metadata(join, registry, datasets)
 
-        for column in join.copy_columns:
-            values = measured[column]
-            fresh = out["subject_id"].map(values)
-            # Nullable Int64 for an integer source column, not the float64 a plain map() yields:
-            # subjects outside this run's scope are absent from `values`, introducing a NaN that
-            # promotes the whole column to float and would write a voxel *count* as "4616.0".
-            # Int64 keeps NA and stays integral (the out-of-scope rows are dropped by _apply
-            # anyway, but the dtype is decided before that).
-            if pd.api.types.is_integer_dtype(values):
-                fresh = fresh.astype("Int64")
-            # fill=False regardless of config.fill: a mask-derived value is never hand-corrected
-            # in participants.csv (see module docstring), so there is nothing to preserve - and
-            # honouring fill=True would silently freeze a stale number after the masks changed.
-            out[column] = _apply(out.get(column), fresh, in_scope, fill=False)
-            logging.info(
-                "lesion_metadata: %d/%d subject(s) matched for %s (from %s)",
-                int(fresh.notna().sum()), len(out), column, join.path,
-            )
+        _copy_measured_columns(out, measured, join.copy_columns, in_scope, "lesion_metadata", join.path)
 
         if join.lesion_side_from is not None:
             missing = in_scope & out[LESION_SIDE_VARIABLE].isna()
@@ -626,7 +721,36 @@ def enrich(registry: pd.DataFrame, config: EnrichMetadataConfig) -> tuple[pd.Dat
                         )
             _force_geometric_side_on_inversions(out, measured[join.lesion_side_from], join, in_scope)
 
+    if config.sdc_metadata is not None:
+        sdc_join = config.sdc_metadata
+        sdc_measured = read_sdc_metadata(sdc_join, registry, datasets)
+        _copy_measured_columns(out, sdc_measured, sdc_join.copy_columns, in_scope, "sdc_metadata", sdc_join.path)
+
     return out, coverages
+
+
+def _copy_measured_columns(
+    out: pd.DataFrame, measured: pd.DataFrame, columns: list[str], in_scope: pd.Series, block: str, path: Path
+) -> None:
+    """Copy `columns` of a per-subject measurements frame (indexed by subject_id) onto `out`,
+    IN PLACE, under the same name, for every in-scope subject, overwriting."""
+    for column in columns:
+        values = measured[column]
+        fresh = out["subject_id"].map(values)
+        # Nullable Int64 for an integer source column, not the float64 a plain map() yields:
+        # subjects outside this run's scope are absent from `values`, introducing a NaN that
+        # promotes the whole column to float and would write a voxel *count* as "4616.0".
+        # Int64 keeps NA and stays integral (the out-of-scope rows are dropped by _apply
+        # anyway, but the dtype is decided before that).
+        if pd.api.types.is_integer_dtype(values):
+            fresh = fresh.astype("Int64")
+        # fill=False regardless of config.fill: a measured value is never hand-corrected in
+        # participants.csv (see module docstring), so there is nothing to preserve - and
+        # honouring fill=True would silently freeze a stale number after the masks changed.
+        out[column] = _apply(out.get(column), fresh, in_scope, fill=False)
+        logging.info(
+            "%s: %d/%d subject(s) matched for %s (from %s)", block, int(fresh.notna().sum()), len(out), column, path
+        )
 
 
 _OPPOSITE_SIDE = {"left": "right", "right": "left"}
@@ -718,6 +842,13 @@ def _lesion_metadata_summary(join: LesionMetadataJoin | None) -> str:
     return json.dumps(payload, indent=2)
 
 
+def _sdc_metadata_summary(join: SdcMetadataJoin | None) -> str:
+    """JSON dump of the sdc_metadata block (or 'null') - see _lesion_metadata_summary."""
+    if join is None:
+        return "null"
+    return json.dumps({"path": str(join.path), "copy_columns": join.copy_columns}, indent=2)
+
+
 def report_lines(config: EnrichMetadataConfig, coverages: list[DatasetCoverage], now: datetime) -> list[str]:
     lines = [
         f"# enrich_metadata — {now.strftime('%d-%m-%y %H:%M:%S')}",
@@ -727,6 +858,11 @@ def report_lines(config: EnrichMetadataConfig, coverages: list[DatasetCoverage],
         "lesion_metadata:",
         "```json",
         _lesion_metadata_summary(config.lesion_metadata),
+        "```",
+        "",
+        "sdc_metadata:",
+        "```json",
+        _sdc_metadata_summary(config.sdc_metadata),
         "```",
         "",
         f"notes: {config.run_notes}",

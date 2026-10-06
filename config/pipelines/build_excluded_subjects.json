@@ -8,9 +8,11 @@
     {
       "reason": "empty_mask",
       "scope": "all",
-      "value_column": "lesion_volume_voxels_1mm",
+      "value_column": "lesion_volume_voxels_2mm",
       "subjects": [
-        "sub-STUKLFR0671"
+        "sub-STUKLFR0671",
+        "sub-STUKE0146",
+        "sub-STUKE0201"
       ]
     },
     {
@@ -33,8 +35,20 @@
         "sub-STUCLUK3453",
         "sub-STUNIPD0222"
       ]
+    },
+    {
+      "reason": "out_of_brain_fraction_too_high",
+      "scope": "all",
+      "value_column": "out_of_brain_fraction_2mm",
+      "subjects": [
+        "sub-STUNIPD0558",
+        "sub-STUNIPD0516",
+        "sub-STUKLFR0227",
+        "sub-STUKE0329",
+        "sub-STUNIPD0552"
+      ]
     }
   ],
 
-  "run_notes": "I soggetti da tenere fuori dalle matrici di produzione, elencati esplicitamente (nessuna soglia: i dati non hanno un salto naturale). Con overwrite false il csv esistente resta com'e' (anche le righe tolte o aggiunte a mano) e le righe di questo config vengono aggiunte; con overwrite true il csv viene ricostruito da questo config soltanto. empty_mask: value dal conteggio nativo a 1 mm di lesion_metadata.csv, che deve valere 0. all_zero_features: la riga di feature e' tutta zero nella rappresentazione dello scope, quindi value 0 per definizione (numero di feature non nulle)."
+  "run_notes": "I soggetti da tenere fuori dalle matrici di produzione, elencati esplicitamente (nessuna soglia: i dati non hanno un salto naturale). Con overwrite false il csv esistente resta com'e' (anche le righe tolte o aggiunte a mano) e le righe di questo config vengono aggiunte; con overwrite true il csv viene ricostruito da questo config soltanto. empty_mask: value dal conteggio sulla griglia di produzione a 2 mm di lesion_metadata.csv (maschera vuota in produzione: nulla a 1 mm o lesione persa nel ricampionamento), che deve valere 0. sub-STUNIPD0558 e' vuota a 2 mm per lo stesso motivo (100% fuori dal brain) ma e' classificata sotto out_of_brain_fraction_too_high, non qui, perche' quel reason ne spiega la causa. all_zero_features: la riga di feature e' tutta zero nella rappresentazione dello scope, quindi value 0 per definizione (numero di feature non nulle). out_of_brain_fraction_too_high: value da out_of_brain_fraction_2mm (griglia di produzione), soglia di esclusione > 30% (notebooks/exploration/lesion_analysis.ipynb, sezione 'Lesione fuori dal brain')."
 }

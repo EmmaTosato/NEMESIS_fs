@@ -124,6 +124,7 @@ Due conseguenze pratiche, entrambe gestite in `docs/dev/metadata.md`:
   - le parcellazioni per 15 atlanti (`LF-disconnectome_atlas-*.csv`),
   - gli equivalenti per la lesione ricampionata (`LF-lesion_atlas-*.csv`, 16 atlanti — include `yeh_hcp1065_streamline`),
   - i 2 `mapstats.tsv`.
+- **Il reticolo di voxel del disconnettoma non è lo stesso per tutti i dataset.** Tutte le mappe sono 182×218×182 a 1 mm, ma gli header sono 3: LAS con offset x `+90` (UCL-UK, PASPORT, PSP), RAS con `-90`, cioè traslato di 1 voxel (UKE-SFB936, UKLFR, NEMESIS_T0, WashU), RAS con `-91`, identico al template MNI (UKE-WAKEUP). Gli stessi voxel fisici stanno quindi a indici diversi: chi legge una mappa deve portarla sulla griglia di riferimento col **suo** header (`resample_to_img`), mai assumere un flip o un'identità fissi. Dettagli in [`docs/dev/metadata.md`](../dev/metadata.md).
 - **Disponibile per tutti e 6 i dataset** (UCL-UK incluso dal 29-09-26), solo pazienti stroke.
 - Sorgente: `Clinical_connectome/features/Clinical_connectome_stroke/<dataset>/lesion/{subject_id}/...` — un `project_root` diverso da quello di `lesion`/`feature`.
 

@@ -14,9 +14,11 @@ from src.pipeline.enrich_metadata import (
     DatasetCoverage,
     EnrichMetadataConfig,
     LesionMetadataJoin,
+    SdcMetadataJoin,
     enrich,
     load_config,
     read_lesion_metadata,
+    read_sdc_metadata,
     report_lines,
     resolve_dataset_values,
     source_column_for,
@@ -36,7 +38,7 @@ def _write_tsv(path, columns, rows):
     return path
 
 
-def _config(tmp_path, sources, variables, fill=False, lesion_metadata=None, datasets=None):
+def _config(tmp_path, sources, variables, fill=False, lesion_metadata=None, datasets=None, sdc_metadata=None):
     return EnrichMetadataConfig(
         project="test",
         sources=sources,
@@ -44,6 +46,7 @@ def _config(tmp_path, sources, variables, fill=False, lesion_metadata=None, data
         datasets=datasets,
         variables=variables,
         lesion_metadata=lesion_metadata,
+        sdc_metadata=sdc_metadata,
         fill=fill,
         run_notes="test",
     )
@@ -696,3 +699,210 @@ def test_report_lines_dumps_lesion_metadata_as_json_and_null_when_disabled(tmp_p
 
     without = report_lines(_config(tmp_path, sources, ["age"]), coverage, now)
     assert "null" in "\n".join(without)
+
+
+# --- the sdc_metadata join ------------------------------------------------------------------------------
+
+_SDC_COLUMNS = ["subject_id", "dataset", "disconnection_load_voxels_1mm", "disconnection_mean_1mm"]
+_SDC_BOTH = ("disconnection_load_voxels_1mm", "disconnection_mean_1mm")
+
+
+def _write_sdc_measured(tmp_path, rows, columns=None):
+    """A synthetic assets/metadata/sdc_metadata.csv."""
+    path = tmp_path / "sdc_metadata.csv"
+    pd.DataFrame(rows, columns=columns or _SDC_COLUMNS).to_csv(path, index=False)
+    return path
+
+
+def _sdc_join(path, copy_columns=_SDC_BOTH):
+    return SdcMetadataJoin(path=path, copy_columns=list(copy_columns))
+
+
+def _sdc_registry(rows):
+    """Registry rows as (subject_id, dataset, has_sdc, has_lesion), real bools like
+    load_participants_registry returns."""
+    registry = _registry([
+        [subject_id, subject_id, dataset, "ST", has_lesion, has_sdc, False]
+        for subject_id, dataset, has_sdc, has_lesion in rows
+    ])
+    for column in ("has_lesion", "has_sdc", "has_features"):
+        registry[column] = registry[column].astype(bool)
+    return registry
+
+
+def test_read_sdc_metadata_missing_file_points_at_the_pipeline_that_writes_it(tmp_path):
+    registry = _sdc_registry([("sub-STUNIPD0001", "UNIPD/WashU", True, True)])
+    with pytest.raises(FileNotFoundError, match="compute_sdc_metadata"):
+        read_sdc_metadata(_sdc_join(tmp_path / "never_written.csv"), registry, ["UNIPD/WashU"])
+
+
+def test_read_sdc_metadata_requested_column_absent_lists_what_the_file_has(tmp_path):
+    """The CSV's column names carry the grid compute_sdc_metadata was configured with, so a
+    config naming another grid must say what the file actually holds."""
+    registry = _sdc_registry([("sub-STUNIPD0001", "UNIPD/WashU", True, True)])
+    path = _write_sdc_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 5.0, 0.1]])
+    with pytest.raises(ValueError, match=r"disconnection_load_voxels_2mm.*sdc_metadata.*it has"):
+        read_sdc_metadata(_sdc_join(path, ["disconnection_load_voxels_2mm"]), registry, ["UNIPD/WashU"])
+
+
+def test_read_sdc_metadata_stale_file_raises_and_names_its_producer(tmp_path):
+    registry = _sdc_registry([
+        ("sub-STUNIPD0001", "UNIPD/WashU", True, True), ("sub-STUNIPD0002", "UNIPD/WashU", True, True),
+    ])
+    path = _write_sdc_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 5.0, 0.1]])
+    with pytest.raises(ValueError, match=r"have no row.*compute_sdc_metadata"):
+        read_sdc_metadata(_sdc_join(path), registry, ["UNIPD/WashU"])
+
+
+def test_read_sdc_metadata_spurious_row_raises(tmp_path):
+    registry = _sdc_registry([("sub-STUNIPD0001", "UNIPD/WashU", True, True)])
+    path = _write_sdc_measured(
+        tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 5.0, 0.1], ["sub-STUNIPD0099", "UNIPD/WashU", 1.0, 0.0]]
+    )
+    with pytest.raises(ValueError, match="disagree about who exists"):
+        read_sdc_metadata(_sdc_join(path), registry, ["UNIPD/WashU"])
+
+
+def test_read_sdc_metadata_row_for_a_subject_without_sdc_output_raises(tmp_path):
+    registry = _sdc_registry([
+        ("sub-STUNIPD0001", "UNIPD/WashU", True, True), ("sub-STUNIPD0002", "UNIPD/WashU", False, True),
+    ])
+    path = _write_sdc_measured(
+        tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 5.0, 0.1], ["sub-STUNIPD0002", "UNIPD/WashU", 1.0, 0.0]]
+    )
+    with pytest.raises(ValueError, match="disagree about who has SDC output"):
+        read_sdc_metadata(_sdc_join(path), registry, ["UNIPD/WashU"])
+
+
+def test_each_join_checks_its_own_flag_not_the_other_ones(tmp_path):
+    """Regression for generalising the strict join over a flag column: the lesion join must
+    keep reading has_lesion and the SDC join has_sdc. A subject with a mask but no SDC output
+    (or the reverse) is legitimate for the join that does not concern it."""
+    registry = _sdc_registry([("sub-STUNIPD0001", "UNIPD/WashU", False, True)])  # has_lesion, no SDC
+    lesion_csv = _write_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 4, "left"]])
+    assert list(read_lesion_metadata(_join(lesion_csv), registry, ["UNIPD/WashU"]).index) == ["sub-STUNIPD0001"]
+
+    registry = _sdc_registry([("sub-STUNIPD0001", "UNIPD/WashU", True, False)])  # SDC, no registered mask
+    sdc_csv = _write_sdc_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 5.0, 0.1]])
+    assert list(read_sdc_metadata(_sdc_join(sdc_csv), registry, ["UNIPD/WashU"]).index) == ["sub-STUNIPD0001"]
+
+
+def test_sdc_columns_are_copied_as_floats_without_integer_coercion(tmp_path):
+    """A summed probability is not a count: it must keep its fractional part (the Int64
+    handling the lesion volume needs would truncate it)."""
+    sources = _one_subject_sources(tmp_path, ("participant_id", "age"), [["sub-STUNIPD0001", "70"]])
+    registry = _sdc_registry([("sub-STUNIPD0001", "UNIPD/WashU", True, True)])
+    path = _write_sdc_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 59503.8418, 0.032565]])
+    config = _config(tmp_path, sources, ["age"], sdc_metadata=_sdc_join(path))
+
+    out, _ = enrich(registry, config)
+
+    assert out.loc[0, "disconnection_load_voxels_1mm"] == pytest.approx(59503.8418)
+    assert out.loc[0, "disconnection_mean_1mm"] == pytest.approx(0.032565)
+
+
+def test_sdc_columns_overwrite_even_with_fill_true_and_leave_other_datasets_alone(tmp_path):
+    sources = _one_subject_sources(tmp_path, ("participant_id", "age"), [["sub-STUNIPD0001", "70"]])
+    registry = _sdc_registry([
+        ("sub-STUNIPD0001", "UNIPD/WashU", True, True), ("sub-STUKLFR0001", "UKLFR/stroke_UKLFR", True, True),
+    ])
+    registry["disconnection_load_voxels_1mm"] = ["1.0", "777.0"]
+    path = _write_sdc_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 5.0, 0.1]])
+    config = _config(
+        tmp_path, sources, ["age"], fill=True, datasets=["UNIPD/WashU"], sdc_metadata=_sdc_join(path, _SDC_BOTH[:1])
+    )
+
+    out, _ = enrich(registry, config)
+
+    by_id = out.set_index("subject_id")["disconnection_load_voxels_1mm"]
+    assert float(by_id["sub-STUNIPD0001"]) == 5.0  # stale value replaced despite fill=True
+    assert by_id["sub-STUKLFR0001"] == "777.0"  # out-of-scope dataset untouched
+
+
+def test_both_blocks_can_run_in_the_same_enrichment(tmp_path):
+    sources = _one_subject_sources(tmp_path, ("participant_id", "age"), [["sub-STUNIPD0001", "70"]])
+    registry = _sdc_registry([("sub-STUNIPD0001", "UNIPD/WashU", True, True)])
+    lesion_csv = _write_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 4, "left"]])
+    sdc_csv = _write_sdc_measured(tmp_path, [["sub-STUNIPD0001", "UNIPD/WashU", 5.0, 0.1]])
+    config = _config(
+        tmp_path, sources, ["age"], lesion_metadata=_join(lesion_csv, lesion_side_from=None),
+        sdc_metadata=_sdc_join(sdc_csv),
+    )
+
+    out, _ = enrich(registry, config)
+
+    assert out.loc[0, "lesion_volume_voxels_2mm"] == 4
+    assert out.loc[0, "disconnection_load_voxels_1mm"] == 5.0
+
+
+# --- load_config validation of the sdc_metadata block ---------------------------------------------------
+
+
+def _write_sdc_join_config(tmp_path, block, lesion_block=None):
+    sources_path = tmp_path / "sources.json"
+    sources_path.write_text(json.dumps({"UNIPD/WashU": {"participants_tsv": "a.tsv", "derivatives_dir": "d"}}))
+    config_path = tmp_path / "c.json"
+    config_path.write_text(json.dumps({
+        "project": "p", "metadata_sources": str(sources_path), "participants_path": "x.csv",
+        "variables": ["age"], "lesion_metadata": lesion_block, "sdc_metadata": block, "fill": False, "run_notes": "n",
+    }))
+    return config_path
+
+
+def test_load_config_parses_a_valid_sdc_metadata_block(tmp_path):
+    config = load_config(_write_sdc_join_config(tmp_path, {
+        "path": "assets/metadata/sdc_metadata.csv", "copy_columns": list(_SDC_BOTH),
+    }))
+
+    assert config.sdc_metadata.path == Path("assets/metadata/sdc_metadata.csv")
+    assert config.sdc_metadata.copy_columns == list(_SDC_BOTH)
+
+
+def test_load_config_sdc_metadata_defaults_to_disabled(tmp_path):
+    assert load_config(_write_sdc_join_config(tmp_path, None)).sdc_metadata is None
+
+
+@pytest.mark.parametrize(
+    "block, match",
+    [
+        pytest.param("a string", "must be an object or null", id="not-an-object"),
+        pytest.param({"copy_columns": ["x"]}, "missing required key 'path'", id="path-absent"),
+        pytest.param({"path": "a.csv"}, "missing required key 'copy_columns'", id="copy-columns-absent"),
+        pytest.param({"path": "", "copy_columns": ["x"]}, "non-empty string", id="empty-path"),
+        pytest.param({"path": "a.csv", "copy_columns": []}, "'copy_columns' is empty", id="nothing-to-copy"),
+        pytest.param({"path": "a.csv", "copy_columns": ["x", "x"]}, "duplicate", id="duplicate-column"),
+        pytest.param({"path": "a.csv", "copy_columns": ["has_sdc"]}, "owned by", id="registry-owned-column"),
+        pytest.param({"path": "a.csv", "copy_columns": ["age"]}, "already writes", id="clashes-with-a-clinical-variable"),
+        pytest.param(
+            {"path": "a.csv", "copy_columns": ["lesion_side_source"]}, "already writes", id="clashes-with-side-provenance"
+        ),
+    ],
+)
+def test_load_config_rejects_a_malformed_sdc_metadata_block(tmp_path, block, match):
+    with pytest.raises(ValueError, match=match):
+        load_config(_write_sdc_join_config(tmp_path, block))
+
+
+def test_load_config_rejects_a_column_written_by_both_joins(tmp_path):
+    """Two joins writing one participants.csv column would leave it holding whichever ran second."""
+    lesion_block = {
+        "path": "l.csv", "copy_columns": ["shared_column"], "lesion_side_from": None, "geometric_override_datasets": [],
+    }
+    with pytest.raises(ValueError, match=r"already writes.*shared_column|shared_column.*already writes"):
+        load_config(_write_sdc_join_config(tmp_path, {"path": "s.csv", "copy_columns": ["shared_column"]}, lesion_block))
+
+
+def test_report_lines_dumps_sdc_metadata_as_json_and_null_when_disabled(tmp_path):
+    sources = _one_subject_sources(tmp_path, ("participant_id", "age"), [["sub-STUNIPD0001", "70"]])
+    coverage = [DatasetCoverage("UNIPD/WashU", 1, [], {}, {"age": 0})]
+    now = datetime(2026, 10, 6, 12, 0, 0)
+
+    with_join = "\n".join(
+        report_lines(_config(tmp_path, sources, ["age"], sdc_metadata=_sdc_join(tmp_path / "sdc_metadata.csv")), coverage, now)
+    )
+    assert "sdc_metadata:" in with_join
+    assert '"disconnection_load_voxels_1mm"' in with_join
+
+    without = "\n".join(report_lines(_config(tmp_path, sources, ["age"]), coverage, now))
+    sdc_section = without.split("sdc_metadata:")[1]
+    assert sdc_section.lstrip().startswith("```json\nnull")

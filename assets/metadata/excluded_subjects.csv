@@ -14,3 +14,10 @@ sub-STUCLUK3025,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
 sub-STUCLUK3108,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
 sub-STUCLUK3453,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
 sub-STUNIPD0222,UNIPD/WashU,all_zero_features,sdc-streamline,0
+sub-STUKE0146,UKE/WAKEUP_acute,empty_mask,all,0
+sub-STUKE0201,UKE/WAKEUP_acute,empty_mask,all,0
+sub-STUNIPD0558,UNIPD/PASPORT,out_of_brain_fraction_too_high,all,1
+sub-STUNIPD0516,UNIPD/PASPORT,out_of_brain_fraction_too_high,all,0.9432913765399036
+sub-STUKLFR0227,UKLFR/stroke_UKLFR,out_of_brain_fraction_too_high,all,0.7631379962192817
+sub-STUKE0329,UKE/WAKEUP_acute,out_of_brain_fraction_too_high,all,0.4761904761904761
+sub-STUNIPD0552,UNIPD/PASPORT,out_of_brain_fraction_too_high,all,0.4102254428341385

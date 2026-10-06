@@ -7,7 +7,6 @@ People: Sebastiano, Antonio
 # TO DO
 
 ### SEBA
-
 Nel notebook lesion quality
 
 * [ ] Scala reale al posto del log
@@ -21,7 +20,6 @@ Nel notebook lesion quality
 
 
 ### ANTONIO
-
 * [ ] Plottare la disconnessione oltre che volume lesione
 * [ ] Sistemare plot centroide
 * [ ] Caratterizziamo i pazienti per lesione corticale / sotto-corticale / sotto-tentrionale
@@ -29,9 +27,8 @@ Nel notebook lesion quality
 
 
 ### EMMA
-
 * [ ] Nuovi dati
-* [ ] RIdefinire le Pipelines
+* [ ] Ridefinire le Pipelines
 * [ ] Comparazione risultati: la lesione rispiecchia il clsuter sdc (distanze / metriche )
 * [ ] PCA Michel
 
@@ -40,12 +37,10 @@ Nel notebook lesion quality
 # STATEMENTS
 
 * Input:
-
   * Lesione
   * SDC voxel wise
   * SDC streamline
 * Clustering scelti
-
   * Agglomerative
   * HDBSCAN
   * (Michele)

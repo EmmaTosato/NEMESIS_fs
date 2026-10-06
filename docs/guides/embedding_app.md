@@ -1,6 +1,6 @@
 # Guida all'Embedding Explorer (app Dash)
 
-App web live per esplorare interattivamente un run **di produzione** (`dim_reduction.py` o `clustering.py`, entrambi con `fine_tuning: false`) - 2D o 3D, con un selettore di run e bottoni di colorazione (neutro/dataset/side/volume/nihss/cluster), stile editoriale. Un solo processo copre **tutti** i run di produzione già scritti, non un file HTML da rigenerare ogni volta. Cliccando un punto si vede anche la vera anatomia lesionale di quel paziente; per un run di modalità `sdc` si vede anche il suo disconnettoma; per un run `clustering.py` lo scatter può mostrare anche i centroidi dei cluster cerchiati (spenti di default, si accendono dalla legenda), e si può vedere la overlap map (lesione), la mappa di disconnessione, il soggetto rappresentativo e la composizione demografica/clinica di ciascun cluster - vedi "Anatomia lesionale", "Disconnessione (SDC)", "Overlap map per cluster", "Disconnessione per cluster", "Soggetto rappresentativo del cluster" e "Descrizione del cluster" più sotto.
+App web live per esplorare interattivamente un run **di produzione** (`dim_reduction.py` o `clustering.py`, entrambi con `fine_tuning: false`) - 2D o 3D, con un selettore di run e bottoni di colorazione (neutro/dataset/side/volume/disconnection load/mean disconnection/nihss/cluster), stile editoriale. Un solo processo copre **tutti** i run di produzione già scritti, non un file HTML da rigenerare ogni volta. Cliccando un punto si vede anche la vera anatomia lesionale di quel paziente; per un run di modalità `sdc` si vede anche il suo disconnettoma; per un run `clustering.py` lo scatter può mostrare anche i centroidi dei cluster cerchiati (spenti di default, si accendono dalla legenda), e si può vedere la overlap map (lesione), la mappa di disconnessione, il soggetto rappresentativo e la composizione demografica/clinica di ciascun cluster - vedi "Anatomia lesionale", "Disconnessione (SDC)", "Overlap map per cluster", "Disconnessione per cluster", "Soggetto rappresentativo del cluster" e "Descrizione del cluster" più sotto.
 
 - **Script**: `src/pipeline/embedding_app.py`
 - **Logica**: `src/analysis/embedding_app.py`, `src/analysis/anatomical_maps.py` (risoluzione path + overlap/mean map) — architettura/dettagli implementativi: `docs/dev/anatomical_maps.md`
@@ -17,12 +17,31 @@ Regola unica (30-09-26): **un dato del soggetto viene da `assets/metadata/partic
 | `side` | participants.csv | `lesion_side` |
 | `nihss` | participants.csv | `NIHSS` |
 | `volume` | participants.csv | `lesion_volume_voxels_2mm` (o `_1mm`, vedi sotto) |
+| `disconnection load` | participants.csv | `disconnection_load_voxels_1mm` |
+| `mean disconnection` | participants.csv | `disconnection_mean_1mm` |
 | `dataset` | metadata.csv del run | `dataset` |
 | `cluster` | metadata.csv del run | `cluster_label` |
 
 Prima l'ordine era invertito: si guardava prima il `metadata.csv` del run. Un run costruito prima del 06/09/26 porta ancora una **copia** di quelle colonne cliniche, e quella copia poteva divergere dal registro — due run degli stessi soggetti si coloravano in modo diverso. Ora il registro vince sempre.
 
 Sul volume la differenza è sostanziale: il `lesion_volume_voxels` di un run conta i voxel sulla griglia che *quel* `build_lesion_matrix` ha usato, mentre le colonne del registro sono calcolate una volta sola su una griglia fissa per tutti i soggetti — le uniche confrontabili fra run.
+
+### Disconnessione del paziente
+
+Due bottoni colorano ogni punto per **quanto è disconnesso il paziente in totale**, l'analogo del volume lesionale per il disconnettoma:
+
+- **disconnection load (voxels)**: la somma della probabilità di disconnessione sui voxel del cervello. Si legge come un volume (`~60 000` è un soggetto tipico).
+- **mean disconnection (0-1)**: la stessa somma divisa per i voxel del cervello, cioè la probabilità media di disconnessione. Si legge come una frazione (`~0,033` è un soggetto tipico).
+
+I due colorano i punti **in modo identico**: il divisore è una costante, quindi cambia solo il numero scritto sulla barra dei colori. Ne esistono due perché una cifra in voxel e una frazione si leggono in modo diverso.
+
+La scala è **lineare**, non logaritmica come il volume: il carico di disconnessione non ha pochi valori enormi che schiacciano tutti gli altri (misurato sull'intera coorte: massimo/mediana 7,6, contro 97 per il volume lesionale), e una scala log allungherebbe la coda dei soggetti poco disconnessi. Un soggetto con carico **0** è quindi un valore vero in fondo alla scala, non un "missing".
+
+Non hanno la riga "Griglia": la disconnessione esiste solo a 1 mm. I valori vengono da `sdc_metadata.csv` tramite `enrich_metadata.py` (sezione `sdc_metadata`, [`docs/guides/metadata.md`](metadata.md)): finché quel passaggio non è stato eseguito, i due bottoni mostrano un messaggio che dice di lanciarlo, non un grafico vuoto.
+
+**Non è la stessa quantità della mappa "Disconnessione per cluster"**, più sotto: quella conta un voxel come disconnesso solo se la probabilità supera `0.5`, il colore somma ogni probabilità senza soglia. Ordinano i soggetti quasi allo stesso modo (Spearman 0,99 su 200 soggetti) ma non sono la stessa formula.
+
+I due bottoni sono **visibili solo per un run di modalità `sdc`**: su un run `lesion` mostrano un messaggio esplicito invece di un grafico, anche se il valore esiste nel registro per quasi tutti i soggetti (il contrario non vale - `volume`/`side`/`nihss` restano disponibili su un run `sdc`, per relazionare un cluster di disconnessione al lato o al volume della lesione).
 
 ### Griglia del volume
 
@@ -80,7 +99,7 @@ Poi apri `http://127.0.0.1:8060` nel browser. Opzioni:
   Scoperta generica alla base (`results/*/dim_reduction/production/*/*`, `results/*/clustering/production/*/*/*` - profondità diversa per pipeline, `clustering.py` ha il segmento extra `<reduction_method>`) - una futura modalità o metodo compare da solo nei passi 1/3, senza toccare il codice. `clustering.py` non genera più la cartella `comparison/` sotto `production/` (il confronto multi-metodo tra `cluster_plot.png` non esiste) - un'eventuale cartella `comparison/` residua resta comunque esclusa automaticamente: non ha mai un `manifest.json`, lo stesso controllo che scarta qualunque cartella incompleta.
 
   **Metrica/Componenti/Parametri letti da `config.md`, non dal nome del run**: il nome (`13-08_s1.1_m_dice_nc3`, `01-09_s1.1_m_euclidean_n2_k4_link_average`) è una convenzione testuale scelta a mano da chi lancia la pipeline, non garantita per ogni metodo - `run_params`/`read_run_config` leggono invece rispettivamente la riga `Params used: {...}` e il blocco ` ```json ` sotto `## Config`, entrambi scritti per davvero in ogni `config.md` da `dim_reduction.py`/`clustering.py`, le stesse fonti usate per l'anteprima "Params used"/"Config" già presenti in ogni run.
-- **Bottoni di colorazione**: uno per "Neutro" più uno per ogni voce di `src.analysis.embedding_coloring.COLOR_MODES` (dataset/lesion side/lesion volume (voxels)/NIHSS (severity)/cluster) - lo stesso registro che usa `dim_reduction.py` in produzione, mai una copia. `cluster` è visibile solo per run che hanno davvero una colonna `cluster_label` in `metadata.csv` (cioè solo run `clustering.py`) - scegliere quel bottone su un run `dim_reduction.py` mostra un messaggio d'errore esplicito al posto del grafico, non un plot vuoto. Il label noise di HDBSCAN (`-1`) è mostrato come una categoria come le altre, senza colorazione grigia dedicata - a differenza del `cluster_plot.png` di produzione, questo è un esploratore generico su qualunque colonna di metadata, non il diagnostico dedicato al clustering.
+- **Bottoni di colorazione**: uno per "Neutro" più uno per ogni voce di `src.analysis.embedding_coloring.COLOR_MODES` (dataset/lesion side/lesion volume (voxels)/disconnection load (voxels)/mean disconnection (0-1)/NIHSS (severity)/cluster) - lo stesso registro che usa `dim_reduction.py` in produzione, mai una copia. `cluster` è visibile solo per run che hanno davvero una colonna `cluster_label` in `metadata.csv` (cioè solo run `clustering.py`) - scegliere quel bottone su un run `dim_reduction.py` mostra un messaggio d'errore esplicito al posto del grafico, non un plot vuoto. Il label noise di HDBSCAN (`-1`) è mostrato come una categoria come le altre, senza colorazione grigia dedicata - a differenza del `cluster_plot.png` di produzione, questo è un esploratore generico su qualunque colonna di metadata, non il diagnostico dedicato al clustering.
 - **Il grafico** ("Embedding Visualization"): 2D o 3D, deciso automaticamente dalla forma dell'embedding salvato per quel run (`embedding.shape[1]`) - mai uno slicing di un embedding con più componenti (vedi sotto). Per un run `clustering.py`, la matrice mostrata è quella usata per il clustering stesso (`clustering.py` non trasforma mai lo spazio delle feature) - se quel run è stato lanciato su un embedding già a 2/3 componenti si vede direttamente, altrimenti risulta "non mostrabile" come qualunque altro run oltre le 3 dimensioni (vedi sotto). Per un run `clustering.py`, lo scatter mostra anche un cerchio nero (con il numero del cluster) in corrispondenza del **centroide** di ciascun cluster - il punto medio delle coordinate embedding di quel cluster, non un soggetto reale. Passandoci sopra col mouse si vede quale soggetto reale è il più vicino a quel centroide - lo stesso soggetto mostrato nel pannello "Soggetto rappresentativo del cluster" più sotto.
 
 ## Un run non mostrabile

@@ -1,5 +1,6 @@
 """Parsing/validation of the pipeline configs that read subject imaging off disk
-(build_lesion_matrix.json, build_*_matrix.json, compute_lesion_metadata.json).
+(build_lesion_matrix.json, build_*_matrix.json, compute_lesion_metadata.json,
+compute_sdc_metadata.json).
 
 Hand-written _require_*/_optional_*
 helpers, every field validated upfront so a bad config is rejected before any
@@ -489,24 +490,90 @@ def _require_lesion_grids(raw: dict) -> list[LesionGrid]:
     value = raw["grids"]
     if not isinstance(value, dict) or not value:
         raise ValueError(f"config: field 'grids' must be a non-empty object, got {value!r}")
+    return [_parse_lesion_grid(name, entry) for name, entry in value.items()]
 
-    grids: list[LesionGrid] = []
-    for name, entry in value.items():
-        if not isinstance(entry, dict):
-            raise ValueError(f"config: field 'grids.{name}' must be an object, got {entry!r}")
-        for field in ("reference_template_path", "brain_mask_path"):
-            if field not in entry:
-                raise ValueError(
-                    f"config: field 'grids.{name}' is missing {field!r} - both are required for every "
-                    "grid (the out-of-brain fraction and the correction are why a grid is measured)"
-                )
-            if not isinstance(entry[field], str) or not entry[field]:
-                raise ValueError(f"config: field 'grids.{name}.{field}' must be a non-empty string")
-        grids.append(
-            LesionGrid(
-                name=name,
-                reference_template_path=Path(entry["reference_template_path"]),
-                brain_mask_path=Path(entry["brain_mask_path"]),
+
+def _parse_lesion_grid(name: str, entry: object) -> LesionGrid:
+    """One grid's {reference_template_path, brain_mask_path}, both required - the out-of-brain
+    fraction/correction (lesions) and the in-brain restriction (disconnection) are why a grid is
+    measured at all."""
+    if not isinstance(entry, dict):
+        raise ValueError(f"config: field 'grids.{name}' must be an object, got {entry!r}")
+    for field in ("reference_template_path", "brain_mask_path"):
+        if field not in entry:
+            raise ValueError(
+                f"config: field 'grids.{name}' is missing {field!r} - both are required for every "
+                "grid (the brain mask is what every measurement on a grid is restricted or corrected by)"
             )
-        )
-    return grids
+        if not isinstance(entry[field], str) or not entry[field]:
+            raise ValueError(f"config: field 'grids.{name}.{field}' must be a non-empty string")
+    return LesionGrid(
+        name=name,
+        reference_template_path=Path(entry["reference_template_path"]),
+        brain_mask_path=Path(entry["brain_mask_path"]),
+    )
+
+
+@dataclass(frozen=True)
+class SdcMetadataConfig:
+    """Config for src/pipeline/compute_sdc_metadata.py.
+
+    One `grid`, not a list: the disconnectome maps are produced on a single 1mm lattice
+    (`res-1` is in the file name), and measuring them on a coarser grid would resample a
+    continuous probability map and change its sum - there is no second grid to compare against
+    the way lesion_metadata compares 1mm against 2mm. The grid's `name` becomes the suffix of
+    both output columns (disconnection_load_voxels_<name>, disconnection_mean_<name>).
+
+    Deliberately its own file, not a reuse of build_sdc_matrix.json: that one describes a chosen
+    cohort's matrix, this one a per-subject cache over every subject with SDC output (same
+    reasoning as LesionMetadataConfig vs BuildMatrixConfig).
+    """
+
+    project: str
+    data_root: Path
+    datasets: list[str]
+    group_filter: list[str] | None
+    disconnectome_glob: str
+    resample_interpolation: str
+    grid: LesionGrid
+    output_path: Path
+    overwrite: bool
+    run_notes: str | None
+
+
+def load_compute_sdc_metadata_config(path: str | Path) -> SdcMetadataConfig:
+    """Load and validate a compute_sdc_metadata.json file.
+
+    `grid` is {name, reference_template_path, brain_mask_path}; its name is validated by
+    src.features.lesion.validate_lesion_grids (alphanumeric, becomes a column suffix) before any
+    map is opened, same as the lesion grids.
+    """
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"config file not found: {path}")
+
+    with path.open() as f:
+        raw = json.load(f)
+    if not isinstance(raw, dict):
+        raise ValueError(f"config: top-level content must be a JSON object, got {raw!r}")
+
+    if "grid" not in raw:
+        raise ValueError("config: missing required field 'grid'")
+    raw_grid = raw["grid"]
+    if not isinstance(raw_grid, dict) or not isinstance(raw_grid.get("name"), str) or not raw_grid["name"]:
+        raise ValueError(f"config: field 'grid' must be an object with a non-empty string 'name', got {raw_grid!r}")
+    grid = _parse_lesion_grid(raw_grid["name"], {k: v for k, v in raw_grid.items() if k != "name"})
+    validate_lesion_grids([grid])
+
+    return SdcMetadataConfig(
+        project=_require_str(raw, "project"),
+        data_root=Path(_require_str(raw, "data_root")),
+        datasets=_require_unique_str_list(raw, "datasets"),
+        group_filter=_optional_group_filter(raw),
+        disconnectome_glob=_require_str(raw, "disconnectome_glob"),
+        resample_interpolation=_validate_resample_interpolation(_require_str(raw, "resample_interpolation")),
+        grid=grid,
+        output_path=Path(_require_str(raw, "output_path")),
+        overwrite=_require_bool(raw, "overwrite"),
+        run_notes=_optional_str(raw, "run_notes"),
+    )

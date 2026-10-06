@@ -8,6 +8,20 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 06-10-26 — Disconnessione per soggetto: carico/media come analogo del volume lesionale
+
+**Decisione**: `assets/metadata/sdc_metadata.csv` (nuova pipeline `compute_sdc_metadata.py`, `src/features/sdc.py::compute_sdc_metadata`) misura, per ogni soggetto con disconnettoma (5853/5853), due colonne sulla griglia 1 mm: `disconnection_load_voxels_1mm` (somma della probabilità di disconnessione sui voxel dentro il cervello) e `disconnection_mean_1mm` (la stessa somma divisa per il numero di voxel cerebrali, costante di griglia — le due ordinano i soggetti in modo identico). `enrich_metadata.py` le copia in `participants.csv` (blocco `sdc_metadata`, stesso meccanismo di `lesion_metadata`, join stretto su `has_sdc`); l'Embedding Explorer le offre come due bottoni di colore, scala lineare.
+
+**Alternative scartate**: volume sogliato a `p > 0.5` (la soglia che il pannello "Disconnessione per cluster" dell'app già usa — su 200 soggetti ordina quasi come la somma, Spearman 0,993, ma è una soglia in più da giustificare e introduce zeri assenti dalla somma); `n_nonzero_voxels` di BCBToolKit (misura quanto si *diffonde* la disconnessione, non quanta ce n'è: il minimo non nullo è costante a 1/178, un solo donatore su 178, quindi conta qualunque traccia — mediana 36% del cervello, fino al 91%); `map_mean_nonzero` (intensità con denominatore per-soggetto, non un carico); leggere `mapstats.tsv` di BCBToolKit invece di aprire i NIfTI (`map_sum` coincide al decimale col ricalcolo, verificato su 5 soggetti, ma non è mascherato sul cervello e non permette soglie).
+
+**Scoperta corretta prima di entrare in `src/`**: le mappe disconnettoma non condividono un reticolo di voxel. Censimento sull'intera popolazione (5853 header, letti senza aprire i dati): 3 affine distinti per dataset — LAS con offset x `+90` (UCL-UK/PASPORT/PSP, 4370 soggetti), RAS con `-90` cioè traslato di 1 voxel (UKE-SFB936/UKLFR/NEMESIS_T0/WashU, 1032), RAS con `-91` identico al template MNI (UKE-WAKEUP, 451). Un primo prototipo assumeva uno specchio fisso dedotto da un campione di 6 soggetti per caso in maggioranza LAS: corretto per 4370, speculare per gli altri 1483, senza errore (`.claude/lessons_learned.md` #40). Ogni mappa viene ora portata sulla griglia di riferimento col **suo** header (`resample_to_img`, `nearest`), mai con un flip o un'identità presunti.
+
+**Verificato**: somma ricalcolata contro `map_sum` di BCBToolKit, scarto 0.0 su 5 soggetti; riallineamento verificato con un calcolo geometrico indipendente per gruppo di header, scarto 0.0 su 12 soggetti (4 per gruppo); quota di massa fuori dal cervello misurata su 400 soggetti casuali (mediana 0,80%, max 8,9%) invece di stimata sui 5-6 soggetti del prototipo iniziale. Run di produzione: 5853/5853 soggetti, 18m24s, nessun NaN.
+
+**Conseguenza ancora vera**: scala **lineare**, non log come il volume — misurato sull'intera coorte, asimmetria del carico 1,5 e massimo/mediana 7,6, contro 4,1 e 97 per il volume lesionale; un log sovra-correggerebbe (asimmetria del log10 -0,8). Un carico di 0 è un valore vero (nessuna disconnessione), non un "missing" come il volume a 0 sulla griglia 2mm.
+
+---
+
 ## 06-10-26 — Forzatura del lato geometrico (WashU) spenta; controlli sulle immagini sui 15 disaccordi
 
 **Decisione**: `geometric_override_datasets` in `config/pipelines/enrich_metadata.json` da `["UNIPD/WashU"]` a `[]`, `enrich_metadata` rilanciato: cambiano esattamente le 11 righe WashU (`lesion_side` e `lesion_side_source` tornano al valore del tsv, `clinical`), nient'altro. La funzione resta nel codice, spenta (testata, riattivabile).
@@ -22,6 +36,20 @@ Voci in ordine cronologico inverso.
 - sette soggetti WashU (`0222`, `0179`, `0187`, `0216`, `0233`, `0242`, `0251`) hanno la T1w con identici `AcquisitionTime` (11:31:53.6725), orientamento DICOM, scanner (Prisma_fit) e shape: probabilmente la stessa immagine assegnata a più soggetti. Non verificato sui dati.
 
 **Conseguenza ancora vera oggi**: i controlli sulle immagini non decidono il lato. Resta un'ipotesi non verificata sul dove nasca l'inversione per gli 11 WashU. Aperti: confronto manuale/SDC su tutti i soggetti (controllo E), identità delle 7 T1 (controllo F), maschere capovolte nelle matrici.
+
+## 06-10-26 — Controlli E e F: il passaggio SDC non spiega gli 11 WashU; le "7 T1 identiche" sono un artefatto di metadato
+
+**Fatto**: i due controlli lasciati aperti dalla voce precedente, eseguiti da un agente sul cluster (sola lettura, T1 non presenti in locale).
+
+**Controllo E** (lato world di manuale vs SDC, su ogni soggetto con entrambe le maschere in MNI): WashU 1/195 discorde (`sub-STUNIPD0094`), UKLFR 3/673 (`sub-STUKLFR0253`, `0403`, `0463`), PSP 0/168, PASPORT 0/83; UKE 0 soggetti con entrambe le maschere disponibili sul server; `NEMESIS_T0` non esiste come cartella. MD5 dei 15 file locali contro l'SDC (`res-1`) del server: match su tutti e 15 — confermato su tutta la popolazione, non solo sul campione, che i file locali sono l'output SDC e non le `manual_masks` originali.
+
+**Conseguenza**: il passaggio SDC inverte il lato raramente (0,2-0,5% dove misurabile) e **non per nessuno degli 11 WashU in disaccordo** (`sub-STUNIPD0094` non è tra gli 11). Non è il meccanismo dell'inversione.
+
+**Controllo F** (identità delle T1 con `AcquisitionTime`/orientamento/scanner identici): il gruppo da 104 soggetti (che includeva le 7 segnalate) condivide un timestamp **placeholder** nel JSON ma ha dati anatomici tutti distinti (md5 e array diversi per ogni coppia) — un artefatto di metadato statico, non immagini duplicate. Trovate invece, per caso, due coppie di T1 realmente identiche byte per byte ma con `lesion_roi` diverso: `sub-STUNIPD0053`/`0060` e `sub-STUNIPD0066`/`0077`.
+
+**Perché conta**: `sub-STUNIPD0077` è uno degli 11 WashU in disaccordo (maschera capovolta secondo il test comportamentale di questa stessa giornata). Condividere la T1 nativa con un altro soggetto (`0066`), con una maschera di lesione diversa sopra, è un'anomalia di dati reale nel sottoinsieme che ci interessa — non spiega di per sé l'inversione, ma non è capita.
+
+**Non verificato**: se le due coppie di T1 duplicate siano uno scambio di identità tra soggetti o un placeholder riusato quando lo scan originale manca. Nessuna conseguenza per la decisione di spegnere la forzatura (voce precedente): resta valida.
 
 ## 06-10-26 — Verifica del lato forzato (WashU) con test comportamentali; soglia a 1 mm verificata; calibrazione rifatta
 
