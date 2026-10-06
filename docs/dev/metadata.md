@@ -122,6 +122,17 @@ Il costo che scala è il tempo, non la memoria: una lettura da disco per soggett
 
 **PSP: maschere frazionarie.** Le 168 maschere PSP sono a 2 mm e interpolate linearmente a 1 mm, quindi hanno valori multipli di 1/8 invece di solo 0/1 (negli altri 7 dataset sono binarie). `_binarize_on_grid` binarizza con `> binarize_threshold` (0,5): a 1 mm scarta i voxel che valgono esattamente 0,5 (circa il 23% di quelli di lesione), e `lesion_volume_voxels_1mm` risulta in mediana 0,83 volte il volume vero (da 0,34 a 0,94). A 2 mm `nearest` campiona proprio i voxel che valgono 0 o 1 e ricostruisce la maschera originale: la colonna a 2 mm è esatta. Le colonne a 1 mm di PSP non sono affidabili. Non è noto come BCBToolKit usi la stessa mappa frazionaria per calcolare la disconnessione (vedi `.claude/open_problems.md`). Verificato su tutti i soggetti, uniforme dentro ogni dataset - tabella e metodo in `docs/guides/datasets.md`. Il disegno a due griglie resta giustificato proprio da quei 534: 2 dei 4 soggetti con volume 0 sulla griglia di produzione stanno in WAKEUP e hanno una lesione reale di 8 e 3 voxel.
 
+**Un soggetto per caso, stesso volume letto sulle due griglie** (voxel × 0,001 ml a 1 mm, × 0,008 ml a 2 mm):
+
+| soggetto | griglia | voxel | ml |
+|---|---|---|---|
+| `sub-STUCLUK0729` (UCL-UK, maschera binaria) | 1 mm | 15976 | 15,976 |
+| | 2 mm | 1997 | 15,976 |
+| `sub-STUNIPD0252` (PSP, maschera frazionaria) | 1 mm | 10970 | 10,97 |
+| | 2 mm | 1538 | 12,30 |
+
+In UCL-UK le due griglie coincidono (1997 × 8 = 15976); in PSP il volume a 1 mm è 0,89 volte quello a 2 mm. Sui soggetti non PSP con più di 500 voxel a 2 mm il rapporto 1 mm / 2 mm ha mediana tra 0,998 e 1,000 in ogni dataset, in PSP 0,83.
+
 ### La soglia del lato
 
 `side_threshold` (`0.20` in produzione) non è inventata: è calibrata contro 1445 soggetti con etichetta clinica vera, 97.4% di accordo, **sulla griglia a 2 mm** — dettagli, letteratura e limiti (la classe "bilaterale" resta debole, 3/24 corretti a qualunque soglia) in `knowledge/neuroimaging/lesion_laterality.md` e `.claude/history/methods_changelog.md`.
@@ -139,7 +150,7 @@ Quello script ora legge `laterality_index_<grid>` dal csv e **non apre nessuna m
 | `path` | Il csv da cui copiare. |
 | `copy_columns` | Colonne copiate **con lo stesso nome**, per ogni soggetto in scope, sovrascrivendo. Ogni nome deve esistere nel csv e non può essere una colonna di `populate_metadata.py`. |
 | `lesion_side_from` | Quale colonna del csv riempie `lesion_side`: **solo dove la risoluzione clinica ha lasciato la cella vuota**, scrivendo anche `lesion_side_source = "geometric"`. `null` disattiva. Richiede `lesion_side` in `variables`. |
-| `geometric_override_datasets` | Dataset dove un lato clinico `left`/`right` **opposto** a quello di `lesion_side_from` viene sostituito da quest'ultimo (`lesion_side_source = "geometric"`). L'unica eccezione a "un valore clinico non si sovrascrive". Obbligatoria, `[]` la disattiva. |
+| `geometric_override_datasets` | Dataset dove un lato clinico `left`/`right` **opposto** a quello di `lesion_side_from` viene sostituito da quest'ultimo (`lesion_side_source = "geometric"`). L'unica eccezione a "un valore clinico non si sovrascrive". Obbligatoria; `[]` la disattiva ed è il valore in uso. |
 
 Le due chiavi sono separate perché le regole di scrittura sono diverse, e la seconda scrive anche in una colonna ulteriore. Metterle nella stessa lista avrebbe richiesto che il codice conoscesse per nome la voce speciale — una regola implicita invece che dichiarata.
 
@@ -147,7 +158,7 @@ Le due chiavi sono separate perché le regole di scrittura sono diverse, e la se
 
 ### `geometric_override_datasets`: perché è per dataset e per regola
 
-La forzatura è una **regola per dataset**, non un elenco di ID. Un elenco di ID andrebbe rifatto a mano a ogni cambio delle maschere e non direbbe a un lettore perché quei soggetti; la regola (lato clinico `left`/`right` opposto a quello geometrico) si rilegge da `lesion_metadata.csv` a ogni run. È **per dataset** perché è stata verificata solo su WashU (11/162); UKE e PSP hanno un caso ciascuno, non indagati, e un default globale cambierebbe il registro su dati che nessuno ha guardato. Motivazione, regola e conseguenze per chi legge il registro sono in `docs/guides/metadata.md`, sezione "Il lato forzato dalla geometria". Ogni soggetto forzato è un `WARNING` nel log: la forzatura contraddice il tsv di un dataset e non deve essere invisibile (come le sostituzioni di `VARIABLE_SOURCE_OVERRIDES`).
+La forzatura è una **regola per dataset**, non un elenco di ID. Un elenco di ID andrebbe rifatto a mano a ogni cambio delle maschere e non direbbe a un lettore perché quei soggetti; la regola (lato clinico `left`/`right` opposto a quello geometrico) si rilegge da `lesion_metadata.csv` a ogni run. È **per dataset** perché un default globale cambierebbe il registro su dati che nessuno ha guardato. Oggi è spenta (`[]`): i test indipendenti dal lato dicono che per WashU l'etichetta clinica è più spesso quella giusta. Motivazione, regola e verifica sono in `docs/guides/metadata.md`, sezione "Forzare il lato geometrico". Ogni soggetto forzato è un `WARNING` nel log: la forzatura contraddice il tsv di un dataset e non deve essere invisibile (come le sostituzioni di `VARIABLE_SOURCE_OVERRIDES`).
 
 ### Il join è stretto nei due sensi
 

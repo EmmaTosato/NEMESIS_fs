@@ -156,7 +156,7 @@ I soggetti esclusi **restano nel registro** con `has_lesion` e `has_sdc` intatti
   "path": "assets/metadata/lesion_metadata.csv",
   "copy_columns": ["lesion_volume_voxels_2mm"],
   "lesion_side_from": "lesion_side_2mm",
-  "geometric_override_datasets": ["UNIPD/WashU"]
+  "geometric_override_datasets": []
 }
 ```
 
@@ -164,7 +164,7 @@ I soggetti esclusi **restano nel registro** con `has_lesion` e `has_sdc` intatti
 
 - **`copy_columns`**: colonne copiate **con lo stesso nome**, per tutti i soggetti in scope, sovrascrivendo. Ogni nome deve esistere nel csv, e non può essere una colonna di `populate_metadata.py`. Una colonna non elencata non viene portata nel registro e resta disponibile nel csv per il notebook: oggi il volume a 1 mm, le due frazioni e i due indici di lateralità stanno solo lì.
 - **`lesion_side_from`**: quale colonna del csv riempie `lesion_side`. Ha una regola diversa da `copy_columns`, per questo è una chiave a sé: scrive **solo dove la risoluzione clinica ha lasciato la cella vuota**, e scrive anche `lesion_side_source = "geometric"`. Un valore clinico non viene sovrascritto, salvo l'eccezione di `geometric_override_datasets` (sotto). `null` disattiva il riempimento e lascia `lesion_side` solo clinico. Richiede `lesion_side` in `variables`.
-- **`geometric_override_datasets`**: lista di dataset dove un lato clinico opposto a quello della maschera viene **forzato** a quello geometrico. Obbligatoria; `[]` la disattiva; se non vuota richiede `lesion_side_from`. Un nome non presente nel registro fa fallire la run. Spiegata nella sezione seguente.
+- **`geometric_override_datasets`**: lista di dataset dove un lato clinico opposto a quello della maschera viene **forzato** a quello geometrico. Obbligatoria; `[]` (il valore in uso) la disattiva; se non vuota richiede `lesion_side_from`. Un nome non presente nel registro fa fallire la run. Spiegata, e motivata, nella sezione seguente.
 
 Nel registro la colonna resta **`lesion_side`, senza suffisso di griglia**, perché per i soggetti con etichetta clinica quel valore non viene da nessuna griglia: un suffisso sarebbe falso per la maggioranza delle celle. `lesion_side_from` dice da quale griglia viene la parte geometrica, `lesion_side_source` dice quale delle due provenienze ha vinto per ogni soggetto.
 
@@ -177,25 +177,17 @@ Nel registro la colonna resta **`lesion_side`, senza suffisso di griglia**, perc
 
 I due significati non coincidono: il `both` clinico non implica una maschera bilaterale (per 14 dei 24 `both` clinici con un indice calcolabile la lesione sta quasi tutta da un lato, `|laterality_index| ≥ 0,9`) e una maschera bilaterale non ha un `both` clinico (la soglia ritrova 3 dei 24). Nessuna soglia riduce la differenza (limiti in [`knowledge/neuroimaging/lesion_laterality.md`](../../knowledge/neuroimaging/lesion_laterality.md)). Chi usa `lesion_side` per un'analisi sul lato legge `both` insieme a `lesion_side_source`, e non lo tratta come "lesione bilaterale" senza controllare da dove viene.
 
-### Il lato forzato dalla geometria (`geometric_override_datasets`)
+### Forzare il lato geometrico (`geometric_override_datasets`, oggi spenta)
 
-> **Forzatura deliberata.** Per i dataset elencati in `geometric_override_datasets` (oggi solo `UNIPD/WashU`), `participants.csv` **contraddice il tsv sorgente** su alcuni soggetti: ne scrive il lato opposto, preso dalla maschera.
+> **Opzione disponibile, spenta.** `geometric_override_datasets` è `[]`: nessun lato clinico viene sovrascritto e `participants.csv` riporta, per ogni soggetto con etichetta, il valore del tsv (`lesion_side_source = "clinical"`).
 
-**Perché.** In WashU 11 soggetti su 162 con un lato clinico (6,8%) hanno il lato **opposto** a quello della maschera: 6 `left` → `right` e 5 `right` → `left`. Sono tutti inversioni piene (`|laterality_index_2mm| ≥ 0,95`, la lesione sta tutta dall'altra parte). Le 195 maschere WashU hanno lo stesso header (RAS, stessa affine), e negli altri dataset il tasso è quasi nullo (sui dati completi, a 2 mm: UKLFR 2/700, UKE-WAKEUP 2/411, PSP 0/94, UKE-SFB936 0/53): non è rumore di misura. In WashU il disaccordo è associato alla manualità: 5 mancini su 16 (31%) contro 6 destrimani su 146 (4%), Fisher p = 0,0016. L'ipotesi con cui è stata scritta la regola è che sia sbagliata l'**etichetta clinica**; la verifica sotto **non la conferma**.
+**Cosa fa quando è accesa.** Per i dataset elencati, un soggetto con lato clinico `left`/`right` il cui lato in `lesion_side_from` è l'opposto (`left` contro `right`) riceve il lato **geometrico** e `lesion_side_source = "geometric"`. Un `both` geometrico non fa scattare nulla: è un disaccordo di grado, non un'inversione. Ogni soggetto forzato è un `WARNING` nel log di `enrich_metadata` (`logs/enrich_metadata/`).
 
-**Regola.** Un soggetto di un dataset elencato, con lato clinico `left`/`right`, il cui lato in `lesion_side_from` è l'opposto (`left` contro `right`), riceve nel registro il lato **geometrico** e `lesion_side_source = "geometric"`. Un `both` geometrico non fa scattare nulla: è un disaccordo di grado, non un'inversione.
+**Perché è spenta.** In WashU 11 soggetti su 162 con un lato clinico (6,8%) hanno il lato opposto a quello della maschera (6 `left` → `right`, 5 `right` → `left`), tutte inversioni piene (`|laterality_index_2mm| ≥ 0,95`). Il disaccordo è associato alla manualità (mancini 5/16, 31%; destrimani 6/146, 4%; Fisher p = 0,0016). La regola presuppone che sbagli l'etichetta clinica, e i dati indipendenti dal lato non lo confermano. Il tsv di WashU ha `ARAT_L/R` e `9HPT_L/R` (arto superiore, mano sinistra e destra): il deficit è controlaterale alla lesione. Sui 151 soggetti dove etichetta e maschera concordano, l'ARAT indica il lato giusto nel 98% dei casi (90/92) e il 9HPT nell'86% (102/119). Sugli 11 in disaccordo i test sono informativi in 8: **in 6 indicano il lato clinico** (`sub-STUNIPD0002`, `0026`, `0056`, `0077`, `0147`, `0222`), in 2 il lato della maschera (`0008`, `0179`), 3 non sono decidibili (`0131`, `0151`, `0187`). Forzare il lato geometrico scriverebbe quindi il lato sbagliato per la maggior parte dei casi decidibili.
 
-**Come riconoscerli.**
+Dove sta l'inversione non è accertato. Nelle immagini dei soggetti WashU la lesione nativa e la maschera in MNI sono dallo stesso lato (la normalizzazione non inverte), e le proprietà degli header delle T1 native (orientamento, software di conversione, scanner) non distinguono gli 11 da 20 controlli concordi. Per i soggetti degli altri dataset in disaccordo (sui dati completi, a 2 mm: UKLFR 2/700, UKE-WAKEUP 2/411, PSP 0/94, UKE-SFB936 0/53) la stessa verifica dà `sub-STUKE0164` e `sub-STUKLFR0403` etichetta giusta, `sub-STUKLFR0576` maschera giusta, `sub-STUKE0154` non decidibile; per `sub-STUKLFR0403` la maschera manuale sul server è dal lato dell'etichetta e quella derivata dall'SDC, che è la nostra, dal lato opposto.
 
-- Nel registro: `lesion_side_source = "geometric"` per un soggetto che nel tsv ha un valore.
-- Nel log di ogni run (`logs/enrich_metadata/`): un `WARNING` con il numero e gli ID dei soggetti forzati.
-
-**Verifica con dati indipendenti dal lato.** Non ci sono T1 dei soggetti in locale, ma il tsv di WashU ha `ARAT_L/R` e `9HPT_L/R` (arto superiore, mano sinistra e destra): il deficit è controlaterale alla lesione. Sui 151 soggetti dove etichetta e maschera concordano, l'ARAT indica il lato giusto nel 98% dei casi (90/92) e il 9HPT nell'86% (102/119). Sugli 11 in disaccordo i test sono informativi in 8: **in 6 indicano il lato clinico** (la maschera sembra capovolta: `sub-STUNIPD0002`, `0026`, `0056`, `0077`, `0147`, `0222`), in 2 il lato della maschera (`0008`, `0179`), 3 non sono decidibili (`0131`, `0151`, `0187`). La regola quindi scrive nel registro il lato sbagliato per la maggior parte dei casi decidibili. Per i 4 casi degli altri dataset (stessa verifica, con deficit motori e afasia): `sub-STUKE0164` e `sub-STUKLFR0403` hanno ragione sull'etichetta, `sub-STUKLFR0576` sulla maschera, `sub-STUKE0154` non è decidibile.
-
-**Cosa non è.** Non è una misura: è un'assunzione, e i dati comportamentali la contraddicono per la maggioranza dei casi. Per tornare al lato clinico la lista va svuotata (`[]`) e la run rifatta.
-
-**Cosa cambia a valle.** `lesion_side_source = "clinical"` non vuol più dire "ogni etichetta del tsv": le inversioni di WashU ne sono escluse. `calibrate_lesion_side_threshold.py` usa quelle righe come verità, quindi non vede più questi soggetti, e l'accordo che calcola è più alto del 97,4% di `knowledge/neuroimaging/lesion_laterality.md` (calcolato su tutte le etichette del tsv, inversioni comprese). Per ottenere il numero confrontabile si passa `--participants-path` a una copia di `participants.csv` dove quegli 11 hanno ancora `lesion_side_source = "clinical"`. Le inversioni piene (`|LI| ≥ 0,95`) sbagliano a qualunque soglia: senza i 15 casi dei dataset con etichetta clinica l'accordo a 0.20 è del 98,4%.
-
+**Calibrazione della soglia.** `calibrate_lesion_side_threshold.py` usa come verità le righe `lesion_side_source = "clinical"`: con la forzatura spenta sono tutte le etichette del tsv, quindi il suo accordo (97,4% a 2 mm su 1445 soggetti, soglia 0.20) è direttamente confrontabile con `knowledge/neuroimaging/lesion_laterality.md`. Con la forzatura accesa gli invertiti ne uscirebbero e l'accordo risulterebbe più alto. Le inversioni piene sbagliano a qualunque soglia: senza i 15 casi dei dataset con etichetta clinica l'accordo a 0.20 è del 98,4%.
 
 ### Il join è stretto nei due sensi
 

@@ -8,6 +8,21 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 06-10-26 — Forzatura del lato geometrico (WashU) spenta; controlli sulle immagini sui 15 disaccordi
+
+**Decisione**: `geometric_override_datasets` in `config/pipelines/enrich_metadata.json` da `["UNIPD/WashU"]` a `[]`, `enrich_metadata` rilanciato: cambiano esattamente le 11 righe WashU (`lesion_side` e `lesion_side_source` tornano al valore del tsv, `clinical`), nient'altro. La funzione resta nel codice, spenta (testata, riattivabile).
+
+**Perché**: la voce precedente mostra che i test comportamentali (ARAT, 9HPT) danno ragione all'etichetta in 6 degli 8 casi decidibili: forzare la maschera scriveva il lato sbagliato nella maggioranza dei casi. **Alternativa scartata**: tenere la forzatura accesa in attesa di prove sulla T1: le prove sulle T1 non sono arrivate (sotto).
+
+**Controlli sulle immagini, svolti da un agente sul cluster (sola lettura, T1 non presenti in locale)**:
+- lesione nativa e maschera MNI stanno dallo stesso lato in tutti gli 11 WashU (`sform` e `qform` concordi): la normalizzazione non inverte;
+- nessuna proprietà degli header delle T1 native (orientamento RAS/LAS, segno del determinante, software di conversione, scanner) distingue gli 11 da 20 controlli concordi (8 RAS e 3 LAS contro 16 e 4);
+- contrasto maschera/specchio sulla T1 in MNI (griglia a 2 mm): controlli tra -0,18 e +0,11 (mediana -0,05); 10 degli 11 dentro quell'intervallo, solo `sub-STUNIPD0187` a +0,51. Non discrimina;
+- le nostre maschere locali sono l'output SDC a 1 mm (`features/.../lesion/<sub>/..._res-1_...`), non le `manual_masks` del server, che sono sul reticolo originale a 2 mm (circa un ottavo dei voxel); i 15 md5 locali coincidono con i file `res-1` (riferito dall'agente). Il confronto con il server mostra `sub-STUKLFR0403`: maschera manuale a sinistra (7300 voxel; lato dell'etichetta e dell'afasia), maschera SDC a destra (27984 voxel). Per gli 11 WashU manuale e SDC stanno dallo stesso lato;
+- sette soggetti WashU (`0222`, `0179`, `0187`, `0216`, `0233`, `0242`, `0251`) hanno la T1w con identici `AcquisitionTime` (11:31:53.6725), orientamento DICOM, scanner (Prisma_fit) e shape: probabilmente la stessa immagine assegnata a più soggetti. Non verificato sui dati.
+
+**Conseguenza ancora vera oggi**: i controlli sulle immagini non decidono il lato. Resta un'ipotesi non verificata sul dove nasca l'inversione per gli 11 WashU. Aperti: confronto manuale/SDC su tutti i soggetti (controllo E), identità delle 7 T1 (controllo F), maschere capovolte nelle matrici.
+
 ## 06-10-26 — Verifica del lato forzato (WashU) con test comportamentali; soglia a 1 mm verificata; calibrazione rifatta
 
 **Cosa è stato fatto**: (1) verificata l'ipotesi della voce del 05-10-26 (sbaglia l'etichetta clinica, non la maschera), senza T1 locali, con deficit controlaterali presenti nei tsv; (2) esteso il controllo ai disaccordi degli altri dataset su dati completi; (3) rifatta la calibrazione della soglia, a 2 mm e a 1 mm.
@@ -21,6 +36,8 @@ Voci in ordine cronologico inverso.
 **Script rotto, ripristinato**: `calibrate_lesion_side_threshold.py` importava `KNOWN_LESION_SIDES` da `src/features/lesion.py`, cancellata il 29-09-26 (commit `cf6e1fe`) e mai ripristinata: falliva all'import e nessun test lo copriva. Ripristinata la costante, aggiunto `tests/unit/test_calibrate_lesion_side_threshold.py` (5 test).
 
 ## 05-10-26 — `lesion_side` di WashU: dove clinico e maschera sono opposti, il registro prende la geometria
+
+*(Spenta il 06-10-26: vedi la voce sopra. Il testo che segue descrive la decisione com'era allora.)*
 
 **Decisione**: in `participants.csv`, per i dataset di `geometric_override_datasets` (oggi solo `UNIPD/WashU`, `config/pipelines/enrich_metadata.json`), un soggetto con lato clinico `left`/`right` e lato in `lesion_side_2mm` l'opposto riceve il lato **geometrico** e `lesion_side_source = "geometric"`. È l'unica eccezione a "un valore clinico non si sovrascrive". Un `both` geometrico non scatta mai.
 

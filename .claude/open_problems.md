@@ -12,13 +12,13 @@ Elenco vivo di ciò che è **aperto adesso**: problemi noti non risolti, decisio
 
 ### Maschere PSP frazionarie (non binarie)
 
-Le 168 maschere `UNIPD/PSP` in `manual_masks/` hanno valori tra 0 e 1 (multipli di 1/8) invece di solo 0/1; negli altri 7 dataset sono binarie (controllato su 25 file per dataset). Sono maschere a 2 mm interpolate linearmente a 1 mm: i voxel che coincidono con i centri della griglia a 2 mm valgono 0 o 1, gli altri sono medie. La somma dei valori è esattamente 8 × `lesion_volume_voxels_2mm` su tutti e 168.
+Le 168 maschere `UNIPD/PSP` hanno valori tra 0 e 1 (multipli di 1/8) invece di solo 0/1: sono maschere a 2 mm interpolate linearmente a 1 mm. Gli altri 7 dataset sono binari.
 
-**Conseguenze note**
-- **Colonne a 1 mm di PSP in `lesion_metadata.csv`**: la binarizzazione `> 0,5` scarta i voxel da 0,5 esatto, quindi il volume a 1 mm è 0,83 volte il vero (mediana; da 0,34 a 0,94). Le colonne a 2 mm, la matrice lesionale di produzione e il suo volume sono corretti.
-- **SDC**: le statistiche di BCBToolKit (`desc-lesion_mapstats.tsv`) hanno `map_min_nonzero = 0,125` e `n_nonzero_voxels` conta i voxel con valore > 0: BCBToolKit ha ricevuto la mappa frazionaria. **Non si sa** come la usi per la disconnessione (pesi continui, `> 0` o `> 0,5`): se binarizza, la lesione effettiva di PSP è ingrandita o rimpicciolita rispetto agli altri dataset.
+- **A 1 mm** (le 4 colonne `_1mm` di `lesion_metadata.csv`): `> 0,5` scarta i voxel da 0,5 esatto, quindi il volume è 0,83 volte il vero (mediana). Nessuna soglia lo ripara: a 1 mm l'informazione non c'è.
+- **A 2 mm** (produzione, matrici lesionali): corretto, `nearest` ricostruisce la maschera originale.
+- **SDC**: BCBToolKit ha ricevuto la mappa frazionaria (`map_min_nonzero = 0,125`). Non si sa se la binarizzi o usi pesi continui; se binarizza, la lesione effettiva di PSP differisce da quella degli altri dataset.
 
-**Da fare**: verificare sul cluster come `bcb-lf-preprocess` (bcblib 0.6.1) tratta una mappa non binaria; far sollevare un errore esplicito al codice per maschere non binarie (`code_standards.md` §0); chiedere gli originali a 2 mm a chi ha prodotto le maschere.
+**Da fare**: verificare sul cluster come `bcb-lf-preprocess` (bcblib 0.6.1) tratta una mappa non binaria; errore esplicito sulle maschere non binarie (`code_standards.md` §0); chiedere gli originali a 2 mm.
 
 ### Lato clinico e maschera opposti in 11 soggetti WashU: spesso è la maschera a essere capovolta
 
@@ -26,13 +26,15 @@ Le 168 maschere `UNIPD/PSP` in `manual_masks/` hanno valori tra 0 e 1 (multipli 
 
 **Verifica indipendente (06-10-26).** Senza T1 locali, il lato si controlla con deficit controlaterali: `ARAT_L/R` e `9HPT_L/R` del tsv (sui 151 concordi indicano il lato giusto nel 98% e nell'86%). Sugli 11 i test sono informativi in 8: **etichetta giusta, quindi maschera capovolta, in 6** (`sub-STUNIPD0002`, `0026`, `0056`, `0077`, `0147`, `0222`); **maschera giusta, quindi etichetta sbagliata, in 2** (`0008`, `0179`); non decidibili `0131`, `0151`, `0187`. Metodo e numeri in `.claude/history/methods_changelog.md` (06-10-26).
 
-**Cosa vale oggi**: `participants.csv` forza il lato geometrico sugli 11 (`geometric_override_datasets` in `config/pipelines/enrich_metadata.json`, `lesion_side_source = "geometric"`): per la maggioranza dei casi decidibili questo scrive il lato **sbagliato**. L'assunzione di partenza (sbaglia l'etichetta) è falsa nella maggior parte dei casi.
+**Cosa vale oggi**: la forzatura del lato geometrico è **spenta** (`geometric_override_datasets: []` in `config/pipelines/enrich_metadata.json`, 06-10-26): `participants.csv` riporta per gli 11 il lato clinico (`lesion_side_source = "clinical"`). Le maschere restano quelle che sono, nelle matrici.
+
+**Controlli sulle immagini (06-10-26)**: nelle immagini dei WashU la lesione nativa e la maschera MNI stanno dallo stesso lato, quindi la normalizzazione non inverte; nessuna proprietà degli header delle T1 native (orientamento, software, scanner) distingue gli 11 da 20 controlli concordi; il contrasto maschera/specchio sulla T1 non discrimina (controlli e disaccordi sovrapposti). Le maschere locali non sono le `manual_masks` del server: sono l'output SDC (1 mm), mentre il server ha le originali sul reticolo a 2 mm (circa un ottavo dei voxel). Per `sub-STUKLFR0403` la maschera manuale del server è a sinistra (come etichetta e afasia) e quella derivata dall'SDC, che usiamo, a destra: un caso in cui il passaggio SDC inverte il lato. Sette soggetti WashU (`0222`, `0179`, `0187`, `0216`, `0233`, `0242`, `0251`) hanno la T1 nativa con identici `AcquisitionTime`, orientamento DICOM e scanner: probabilmente la stessa immagine assegnata a più soggetti.
 
 **Aperto**:
-- decidere se disattivare la forzatura (`geometric_override_datasets: []`, rilancio di `enrich_metadata`);
-- le maschere capovolte entrano nelle matrici (lesione voxel-wise, SDC): almeno 6 su 162 soggetti WashU con etichetta (3,7%) hanno la lesione dal lato sbagliato; non si sa quante siano tra i 33 WashU senza etichetta clinica, dove la geometria è l'unico dato;
-- il meccanismo: la manualità è un indizio, ma tra i 4 mancini decidibili 2 hanno l'etichetta giusta e 2 la maschera;
-- le T1 degli 11 sciolgono i dubbi (non disponibili in locale).
+- confronto sistematico tra maschera manuale del server e maschera derivata dall'SDC su tutti i soggetti, per sapere in quanti casi il passaggio SDC inverte il lato (controllo E);
+- verificare se le 7 T1 con la stessa acquisizione sono lo stesso file (controllo F);
+- le maschere capovolte, qualunque ne sia l'origine, entrano nelle matrici (lesione voxel-wise, SDC): almeno 6 su 162 WashU con etichetta (3,7%); non si sa quante siano tra i 33 WashU senza etichetta clinica, dove la geometria è l'unico dato;
+- il meccanismo: la manualità è un indizio, ma tra i 4 mancini decidibili 2 hanno l'etichetta giusta e 2 la maschera.
 
 ### Colonne `NIHSS_5a/5b` di UKLFR probabilmente scambiate
 

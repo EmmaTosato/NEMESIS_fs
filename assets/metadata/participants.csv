@@ -1,10 +1,10 @@
 subject_id,original_id,dataset,disease_id,has_lesion,has_sdc,has_features,age,sex,education,lesion_side,NIHSS,clinical_date,lesion_side_source,lesion_volume_voxels_2mm
 sub-STUNIPD0001,sub-STUNIPD0001,UNIPD/WashU,ST,True,True,False,48.0,F,12.0,right,23.0,2008/05/20,clinical,5013
-sub-STUNIPD0002,sub-STUNIPD0002,UNIPD/WashU,ST,True,True,True,39.0,M,12.0,right,2.0,2008/06/11,geometric,4221
+sub-STUNIPD0002,sub-STUNIPD0002,UNIPD/WashU,ST,True,True,True,39.0,M,12.0,left,2.0,2008/06/11,clinical,4221
 sub-STUNIPD0003,sub-STUNIPD0003,UNIPD/WashU,ST,True,True,True,43.0,F,12.0,left,20.0,2008/06/23,clinical,7100
 sub-STUNIPD0005,sub-STUNIPD0005,UNIPD/WashU,ST,True,True,True,50.0,M,12.0,left,2.0,2008/07/09,clinical,1423
 sub-STUNIPD0006,sub-STUNIPD0006,UNIPD/WashU,ST,True,True,True,50.0,F,14.0,right,10.0,2008/07/23,clinical,6513
-sub-STUNIPD0008,sub-STUNIPD0008,UNIPD/WashU,ST,True,True,True,53.0,M,12.0,left,0.0,2008/08/05,geometric,1139
+sub-STUNIPD0008,sub-STUNIPD0008,UNIPD/WashU,ST,True,True,True,53.0,M,12.0,right,0.0,2008/08/05,clinical,1139
 sub-STUNIPD0009,sub-STUNIPD0009,UNIPD/WashU,ST,True,True,True,56.0,F,16.0,left,6.0,2008/08/19,clinical,1446
 sub-STUNIPD0011,sub-STUNIPD0011,UNIPD/WashU,ST,True,True,True,59.0,F,10.0,left,2.0,2008/09/02,clinical,3968
 sub-STUNIPD0012,sub-STUNIPD0012,UNIPD/WashU,ST,True,True,True,27.0,M,13.0,right,12.0,2008/09/08,clinical,8334
@@ -19,7 +19,7 @@ sub-STUNIPD0021,sub-STUNIPD0021,UNIPD/WashU,ST,True,True,False,65.0,F,12.0,left,
 sub-STUNIPD0023,sub-STUNIPD0023,UNIPD/WashU,ST,True,True,False,52.0,M,14.0,left,7.0,2009/03/09,clinical,859
 sub-STUNIPD0024,sub-STUNIPD0024,UNIPD/WashU,ST,True,True,False,63.0,F,16.0,right,11.0,2009/03/26,clinical,3327
 sub-STUNIPD0025,sub-STUNIPD0025,UNIPD/WashU,ST,True,True,False,69.0,M,14.0,left,10.0,2009/03/30,clinical,545
-sub-STUNIPD0026,sub-STUNIPD0026,UNIPD/WashU,ST,True,True,False,58.0,M,18.0,right,4.0,2009/04/14,geometric,2991
+sub-STUNIPD0026,sub-STUNIPD0026,UNIPD/WashU,ST,True,True,False,58.0,M,18.0,left,4.0,2009/04/14,clinical,2991
 sub-STUNIPD0027,sub-STUNIPD0027,UNIPD/WashU,ST,True,True,False,56.0,F,11.0,right,4.0,2009/05/04,clinical,100
 sub-STUNIPD0029,sub-STUNIPD0029,UNIPD/WashU,ST,True,True,False,60.0,M,15.0,left,1.0,2009/05/05,clinical,4011
 sub-STUNIPD0031,sub-STUNIPD0031,UNIPD/WashU,ST,True,True,False,19.0,M,13.0,left,8.0,2009/05/14,clinical,594
@@ -41,7 +41,7 @@ sub-STUNIPD0052,sub-STUNIPD0052,UNIPD/WashU,ST,True,True,False,59.0,M,12.0,right
 sub-STUNIPD0053,sub-STUNIPD0053,UNIPD/WashU,ST,True,True,False,57.0,M,12.0,left,12.0,2009/11/05,clinical,449
 sub-STUNIPD0054,sub-STUNIPD0054,UNIPD/WashU,ST,True,True,False,62.0,M,12.0,left,,2009/11/05,clinical,1346
 sub-STUNIPD0055,sub-STUNIPD0055,UNIPD/WashU,ST,True,True,False,57.0,M,12.0,left,2.0,2009/11/09,clinical,216
-sub-STUNIPD0056,sub-STUNIPD0056,UNIPD/WashU,ST,True,True,False,37.0,M,10.0,left,0.0,2009/11/09,geometric,1595
+sub-STUNIPD0056,sub-STUNIPD0056,UNIPD/WashU,ST,True,True,False,37.0,M,10.0,right,0.0,2009/11/09,clinical,1595
 sub-STUNIPD0057,sub-STUNIPD0057,UNIPD/WashU,ST,True,True,False,57.0,M,12.0,right,5.0,2009/11/17,clinical,310
 sub-STUNIPD0058,sub-STUNIPD0058,UNIPD/WashU,ST,True,True,False,61.0,F,16.0,right,2.0,2009/11/20,clinical,6511
 sub-STUNIPD0059,sub-STUNIPD0059,UNIPD/WashU,ST,True,True,False,60.0,M,16.0,left,1.0,2009/12/03,clinical,453
@@ -57,7 +57,7 @@ sub-STUNIPD0073,sub-STUNIPD0073,UNIPD/WashU,ST,True,True,False,44.0,M,14.0,left,
 sub-STUNIPD0074,sub-STUNIPD0074,UNIPD/WashU,ST,True,True,False,58.0,M,10.0,right,7.0,2010/04/07,clinical,285
 sub-STUNIPD0075,sub-STUNIPD0075,UNIPD/WashU,ST,True,True,False,54.0,F,12.0,left,13.0,2010/04/26,clinical,14974
 sub-STUNIPD0076,sub-STUNIPD0076,UNIPD/WashU,ST,True,True,False,42.0,M,11.0,left,2.0,2010/05/13,clinical,4666
-sub-STUNIPD0077,sub-STUNIPD0077,UNIPD/WashU,ST,True,True,False,58.0,M,12.0,right,3.0,2010/05/18,geometric,1924
+sub-STUNIPD0077,sub-STUNIPD0077,UNIPD/WashU,ST,True,True,False,58.0,M,12.0,left,3.0,2010/05/18,clinical,1924
 sub-STUNIPD0078,sub-STUNIPD0078,UNIPD/WashU,ST,True,True,False,38.0,F,18.0,left,4.0,2010/05/28,clinical,257
 sub-STUNIPD0079,sub-STUNIPD0079,UNIPD/WashU,ST,True,True,False,53.0,M,14.0,left,21.0,2010/06/08,clinical,9262
 sub-STUNIPD0080,sub-STUNIPD0080,UNIPD/WashU,ST,True,True,False,68.0,F,14.0,left,4.0,2010/06/10,clinical,253
@@ -95,7 +95,7 @@ sub-STUNIPD0126,sub-STUNIPD0126,UNIPD/WashU,ST,True,True,False,58.0,F,20.0,left,
 sub-STUNIPD0127,sub-STUNIPD0127,UNIPD/WashU,ST,True,True,False,50.0,M,14.0,left,17.0,2011/12/22,clinical,1847
 sub-STUNIPD0128,sub-STUNIPD0128,UNIPD/WashU,ST,True,True,False,70.0,F,12.0,left,16.0,2011/12/28,clinical,9482
 sub-STUNIPD0130,sub-STUNIPD0130,UNIPD/WashU,ST,True,True,False,39.0,F,13.0,right,5.0,2012/01/09,clinical,431
-sub-STUNIPD0131,sub-STUNIPD0131,UNIPD/WashU,ST,True,True,False,57.0,M,16.0,left,2.0,2012/01/11,geometric,1115
+sub-STUNIPD0131,sub-STUNIPD0131,UNIPD/WashU,ST,True,True,False,57.0,M,16.0,right,2.0,2012/01/11,clinical,1115
 sub-STUNIPD0133,sub-STUNIPD0133,UNIPD/WashU,ST,True,True,False,62.0,F,12.0,left,12.0,2012/01/23,clinical,3307
 sub-STUNIPD0134,sub-STUNIPD0134,UNIPD/WashU,ST,True,True,False,64.0,F,14.0,right,24.0,2012/03/12,clinical,6750
 sub-STUNIPD0136,sub-STUNIPD0136,UNIPD/WashU,ST,True,True,False,63.0,F,11.0,right,18.0,2012/04/10,clinical,6728
@@ -109,11 +109,11 @@ sub-STUNIPD0143,sub-STUNIPD0143,UNIPD/WashU,ST,True,True,False,39.0,M,12.0,right
 sub-STUNIPD0144,sub-STUNIPD0144,UNIPD/WashU,ST,True,True,False,50.0,M,13.0,left,1.0,2012/06/28,clinical,320
 sub-STUNIPD0145,sub-STUNIPD0145,UNIPD/WashU,ST,True,True,False,65.0,M,20.0,left,4.0,2012/07/16,clinical,993
 sub-STUNIPD0146,sub-STUNIPD0146,UNIPD/WashU,ST,True,True,False,57.0,M,14.0,right,18.0,2012/07/23,clinical,5468
-sub-STUNIPD0147,sub-STUNIPD0147,UNIPD/WashU,ST,True,True,False,50.0,M,12.0,left,2.0,2012/07/20,geometric,980
+sub-STUNIPD0147,sub-STUNIPD0147,UNIPD/WashU,ST,True,True,False,50.0,M,12.0,right,2.0,2012/07/20,clinical,980
 sub-STUNIPD0148,sub-STUNIPD0148,UNIPD/WashU,ST,True,True,False,39.0,F,19.0,right,11.0,2012/07/31,clinical,5593
 sub-STUNIPD0149,sub-STUNIPD0149,UNIPD/WashU,ST,True,True,False,52.0,F,13.0,right,6.0,2012/08/03,clinical,2094
 sub-STUNIPD0150,sub-STUNIPD0150,UNIPD/WashU,ST,True,True,False,43.0,F,12.0,right,12.0,2012/08/15,clinical,29320
-sub-STUNIPD0151,sub-STUNIPD0151,UNIPD/WashU,ST,True,True,False,51.0,M,9.0,left,0.0,2012/08/27,geometric,751
+sub-STUNIPD0151,sub-STUNIPD0151,UNIPD/WashU,ST,True,True,False,51.0,M,9.0,right,0.0,2012/08/27,clinical,751
 sub-STUNIPD0154,sub-STUNIPD0154,UNIPD/WashU,ST,True,True,False,40.0,F,18.0,left,10.0,2012/09/12,clinical,4200
 sub-STUNIPD0155,sub-STUNIPD0155,UNIPD/WashU,ST,True,True,False,54.0,M,10.0,right,13.0,2012/09/10,clinical,811
 sub-STUNIPD0156,sub-STUNIPD0156,UNIPD/WashU,ST,True,True,False,50.0,F,12.0,left,4.0,2012/09/26,clinical,4458
@@ -134,13 +134,13 @@ sub-STUNIPD0175,sub-STUNIPD0175,UNIPD/WashU,ST,True,True,False,55.0,M,12.0,left,
 sub-STUNIPD0176,sub-STUNIPD0176,UNIPD/WashU,ST,True,True,False,67.0,M,16.0,right,,,clinical,214
 sub-STUNIPD0177,sub-STUNIPD0177,UNIPD/WashU,ST,True,True,False,26.0,F,14.0,right,,,clinical,693
 sub-STUNIPD0178,sub-STUNIPD0178,UNIPD/WashU,ST,True,True,False,59.0,F,12.0,right,,,clinical,598
-sub-STUNIPD0179,sub-STUNIPD0179,UNIPD/WashU,ST,True,True,False,57.0,F,12.0,right,,,geometric,16060
+sub-STUNIPD0179,sub-STUNIPD0179,UNIPD/WashU,ST,True,True,False,57.0,F,12.0,left,,,clinical,16060
 sub-STUNIPD0180,sub-STUNIPD0180,UNIPD/WashU,ST,True,True,False,62.0,F,12.0,left,,,geometric,29
 sub-STUNIPD0181,sub-STUNIPD0181,UNIPD/WashU,ST,True,True,False,56.0,F,10.0,left,,,geometric,20228
 sub-STUNIPD0182,sub-STUNIPD0182,UNIPD/WashU,ST,True,True,False,60.0,F,12.0,left,,,geometric,800
 sub-STUNIPD0183,sub-STUNIPD0183,UNIPD/WashU,ST,True,True,False,56.0,M,11.0,right,,,geometric,8278
 sub-STUNIPD0185,sub-STUNIPD0185,UNIPD/WashU,ST,True,True,False,60.0,M,12.0,left,,,geometric,1475
-sub-STUNIPD0187,sub-STUNIPD0187,UNIPD/WashU,ST,True,True,False,58.0,M,12.0,right,4.0,,geometric,252
+sub-STUNIPD0187,sub-STUNIPD0187,UNIPD/WashU,ST,True,True,False,58.0,M,12.0,left,4.0,,clinical,252
 sub-STUNIPD0188,sub-STUNIPD0188,UNIPD/WashU,ST,True,True,False,71.0,M,16.0,left,,,geometric,643
 sub-STUNIPD0189,sub-STUNIPD0189,UNIPD/WashU,ST,True,True,False,72.0,F,14.0,right,,,geometric,9952
 sub-STUNIPD0191,sub-STUNIPD0191,UNIPD/WashU,ST,True,True,False,,F,14.0,left,,,geometric,449
@@ -168,7 +168,7 @@ sub-STUNIPD0218,sub-STUNIPD0218,UNIPD/WashU,ST,True,True,False,51.0,M,,left,,,ge
 sub-STUNIPD0219,sub-STUNIPD0219,UNIPD/WashU,ST,True,True,False,60.0,M,12.0,right,,,geometric,8178
 sub-STUNIPD0220,sub-STUNIPD0220,UNIPD/WashU,ST,True,True,False,61.0,M,12.0,left,7.0,2018/03/07,geometric,36
 sub-STUNIPD0221,sub-STUNIPD0221,UNIPD/WashU,ST,True,True,False,58.0,F,12.0,right,13.0,2018/03/15,clinical,1863
-sub-STUNIPD0222,sub-STUNIPD0222,UNIPD/WashU,ST,True,True,False,55.0,F,12.0,right,5.0,2018/03/26,geometric,2
+sub-STUNIPD0222,sub-STUNIPD0222,UNIPD/WashU,ST,True,True,False,55.0,F,12.0,left,5.0,2018/03/26,clinical,2
 sub-STUNIPD0223,sub-STUNIPD0223,UNIPD/WashU,ST,True,True,False,55.0,M,12.0,right,3.0,2018/04/02,clinical,154
 sub-STUNIPD0224,sub-STUNIPD0224,UNIPD/WashU,ST,True,True,False,63.0,F,12.0,left,4.0,2018/04/10,clinical,116
 sub-STUNIPD0225,sub-STUNIPD0225,UNIPD/WashU,ST,True,True,False,60.0,M,12.0,left,3.0,2018/04/11,clinical,6710
