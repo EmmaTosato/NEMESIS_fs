@@ -98,6 +98,10 @@ from src.utils.artifacts import MANIFEST_FILENAME, load_matrix, read_run_config,
 # the neutral single-color view is always available and always the default, every other
 # entry is a registered color_by mode name.
 NEUTRAL_MODE = "neutro"
+_NEUTRAL_DESCRIPTION = (
+    "Nessuna colorazione: ogni punto è un paziente, tutti dello stesso colore. "
+    "Serve a leggere la forma dell'embedding senza altre informazioni."
+)
 COLOR_MODE_ORDER: tuple[str, ...] = (NEUTRAL_MODE, *COLOR_MODES.keys())
 
 # Same measured design tokens as src/analysis/understanding_umap_report.py's own _CSS
@@ -169,6 +173,13 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 /* width:100% + no Plotly config.responsive (see graph_content_for) - a stable CSS width set
    once at mount, not a JS ResizeObserver reacting to every later layout event (scrolling
    included) - that combination was the actual cause of the graph distorting on scroll. */
+/* What the active colour mode means (06-10-26, on request): between the section heading and the
+   plot, with room on both sides. min-height holds two lines so the plot below does not jump when
+   a one-line description replaces a two-line one. */
+.color-description {{
+    max-width: 820px; min-height: 3em; margin: 0 auto 32px; text-align: center;
+    font-size: 17px; line-height: 1.5; color: #595959;
+}}
 .graph-wrap {{ display: flex; justify-content: center; width: 100%; }}
 .graph-wrap > div {{ width: 100%; }}
 .status-message {{ text-align: center; color: #595959; font-size: 18px; margin: 64px 0; }}
@@ -1876,6 +1887,11 @@ def cluster_description_content_for(metadata: pd.DataFrame, cluster_label: int) 
     return html.Div(children)
 
 
+def color_mode_description(mode_name: str) -> str:
+    """The sentence shown above the plot for `mode_name` (neutral included)."""
+    return _NEUTRAL_DESCRIPTION if mode_name == NEUTRAL_MODE else COLOR_MODES[mode_name].description
+
+
 def _color_button_label(mode_name: str) -> str:
     # Raw mode.label, not .capitalize()'d - "NIHSS (severity)".capitalize() would produce
     # "Nihss (severity)" (str.capitalize lowercases every character but the first), the same
@@ -2097,6 +2113,7 @@ def build_app(
             dcc.Store(id="selected-grid", data=DEFAULT_GRID),
             dcc.Store(id="selected-disconnection-mode", data=DEFAULT_DISCONNECTION_MAP_MODE),
             html.H2("Embedding Visualization", className="section-heading"),
+            html.P(_NEUTRAL_DESCRIPTION, id="color-description", className="color-description"),
             html.Div(id="graph-area", className="graph-wrap"),
             # Always-visible (per design decision, 01-09-26 - not an appear-on-click popup):
             # placeholder until a point is clicked, subject's nilearn viewer afterward.
@@ -2420,6 +2437,10 @@ def build_app(
     )
     def _highlight_active_grid(selected_grid: str, ids: list[dict]) -> list[str]:
         return ["active" if button_id["grid"] == selected_grid else "" for button_id in ids]
+
+    @app.callback(Output("color-description", "children"), Input("selected-color-mode", "data"))
+    def _describe_color_mode(selected_mode: str) -> str:
+        return color_mode_description(selected_mode)
 
     @app.callback(
         Output("color-grid-row", "style"),

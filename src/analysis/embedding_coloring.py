@@ -54,6 +54,10 @@ class ColorMode:
     kind: ColorKind
     column: str  # metadata.csv column this mode reads, when the run carries it itself
     label: str
+    # One or two sentences (Italian, like the rest of the app's own prose) shown above the plot
+    # while this mode is active: what the colour means and what grey means. Lives here, next to
+    # the label and the scale, so a mode's meaning and its description cannot drift apart.
+    description: str
     # Column in assets/metadata/participants.csv holding this same fact, for modes whose
     # value is a property of the subject rather than of the run. None means the value
     # exists only in the run's own metadata.csv (dataset, lesion_volume_voxels, cluster)
@@ -122,19 +126,33 @@ def available_grids() -> list[str]:
 
 
 COLOR_MODES: dict[str, ColorMode] = {
-    "dataset": ColorMode(kind="categorical", column="dataset", label="dataset"),
+    "dataset": ColorMode(
+        kind="categorical", column="dataset", label="dataset",
+        description=(
+            "Punti colorati per coorte di provenienza. Mostra se l'embedding separa i pazienti "
+            "per sito o per acquisizione invece che per la lesione."
+        ),
+    ),
     # "unknown" sentinel for an unresolvable subject (dataset-wide gap, e.g. PASPORT has no
     # lesion_side column at all, or a per-subject missing cell). The sentinel is applied here,
     # on read: the registry itself stores a plain empty cell, but this mode sorts its values as
     # plain strings, so a NaN mixed in would raise TypeError.
     "side": ColorMode(
-        kind="categorical", column="lesion_side", label="lesion side", registry_column="lesion_side"
+        kind="categorical", column="lesion_side", label="lesion side", registry_column="lesion_side",
+        description=(
+            "Punti colorati per lato della lesione (left, right, both), preso dalla clinica dove è "
+            "registrato e altrimenti dalla maschera della lesione. Grigio: lato non disponibile."
+        ),
     ),
     "volume": ColorMode(
         kind="continuous",
         column="lesion_volume_voxels",
         registry_column=grid_column("volume", DEFAULT_GRID),
         label="lesion volume",
+        description=(
+            "Punti colorati per volume della lesione, in voxel sulla griglia scelta, con scala "
+            "logaritmica. Grigio: volume nullo o mancante."
+        ),
         # Heavily right-skewed (a handful of large-lesion outliers otherwise
         # stretch a linear scale so far that almost every other point looks
         # the same dark color - visually confirmed on the real 1150-subject
@@ -158,6 +176,11 @@ COLOR_MODES: dict[str, ColorMode] = {
         column=grid_column("disconnection_load", DEFAULT_GRID),
         registry_column=grid_column("disconnection_load", DEFAULT_GRID),
         label="disconnection load",
+        description=(
+            "Punti colorati per quanta disconnessione strutturale ha il paziente in totale: somma "
+            "della probabilità di disconnessione sui voxel del cervello, nella griglia scelta, con "
+            "scala lineare."
+        ),
         # Restricted to sdc runs, unlike volume/side/nihss (26-10-06, on request): a "lesion"
         # run's own embedding is about lesion location/volume, and this app does not yet have a
         # production use for colouring it by overall disconnection - revisit if one comes up.
@@ -168,6 +191,10 @@ COLOR_MODES: dict[str, ColorMode] = {
         column=grid_column("disconnection_mean", DEFAULT_GRID),
         registry_column=grid_column("disconnection_mean", DEFAULT_GRID),
         label="mean disconnection",
+        description=(
+            "Punti colorati per probabilità media di disconnessione sul cervello (da 0 a 1). "
+            "Ordina i pazienti come il carico di disconnessione: cambia solo l'unità."
+        ),
         restricted_to_modality="sdc",
     ),
     # NaN for subjects with no resolvable NIHSS (dataset-wide gap, e.g. UCL-UK records no
@@ -178,6 +205,10 @@ COLOR_MODES: dict[str, ColorMode] = {
         column="nihss",
         registry_column="NIHSS",
         label="NIHSS (severity)",
+        description=(
+            "Punti colorati per gravità clinica del deficit (NIHSS, più alto è più grave). "
+            "Grigio: NIHSS non registrato, come in tutta la coorte UCL-UK."
+        ),
         # Linear: less skewed than volume, and kept on the same viridis
         # palette as volume (not a second hue family) - deliberately, on
         # request, log_scale=False is the actual differentiator between the
@@ -193,7 +224,10 @@ COLOR_MODES: dict[str, ColorMode] = {
     # plot_clusters_2d's _NOISE_COLOR) - this is a generic explorer over any metadata column,
     # not the dedicated cluster-diagnostic plot; the legend still shows "-1" as its own entry,
     # nothing is hidden.
-    "cluster_label": ColorMode(kind="categorical", column="cluster_label", label="cluster"),
+    "cluster_label": ColorMode(
+        kind="categorical", column="cluster_label", label="cluster",
+        description="Punti colorati per cluster assegnato. Il rumore di HDBSCAN compare come categoria -1.",
+    ),
 }
 
 

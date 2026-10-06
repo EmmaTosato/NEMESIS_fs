@@ -39,6 +39,7 @@ from src.analysis.embedding_app import (
     disconnectome_viewer_content_for,
     disconnection_map_content_for,
     discover_production_runs,
+    color_mode_description,
     graph_content_for,
     lesion_viewer_content_for,
     load_run,
@@ -2067,3 +2068,32 @@ def test_preload_failure_is_logged_and_does_not_crash(tmp_path, caplog):
 
     failures = [r for r in caplog.records if "preload lesion failed" in r.getMessage()]
     assert len(failures) == 1 and failures[0].exc_info
+
+
+@pytest.mark.parametrize("mode_name", COLOR_MODE_ORDER)
+def test_every_color_mode_has_a_description_without_an_equals_sign(mode_name):
+    """The sentence above the plot: every button, the neutral one included, must have one - an
+    empty paragraph would read as a layout glitch - and it is prose, not "Colore = ..." notation
+    (06-10-26, on request)."""
+    description = color_mode_description(mode_name)
+
+    assert description.strip()
+    assert "=" not in description
+
+
+def test_each_description_belongs_to_its_own_mode():
+    descriptions = [color_mode_description(mode) for mode in COLOR_MODE_ORDER]
+
+    assert len(set(descriptions)) == len(COLOR_MODE_ORDER)  # none copy-pasted onto a second mode
+
+
+def test_description_sits_between_the_section_heading_and_the_plot(tmp_path):
+    run_dir = _make_run_dir(tmp_path / "results", run_name="run-2d", n_dims=2)
+    run = ProductionRun("lesion", "dim_reduction", "umap", "run-2d", run_dir)
+    app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path))
+    ids = [getattr(child, "id", None) for child in app.layout.children]
+
+    heading = next(i for i, child in enumerate(app.layout.children) if getattr(child, "children", None) == "Embedding Visualization")
+    assert ids[heading + 1] == "color-description"
+    assert ids[heading + 2] == "graph-area"
+    assert app.layout.children[heading + 1].children == color_mode_description("neutro")
