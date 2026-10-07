@@ -14,8 +14,11 @@ import logging
 import nibabel as nib
 import numpy as np
 import pandas as pd
+import pytest
 
+from src.features.lesion_location import location_columns
 from src.pipeline import compute_lesion_metadata as pipeline
+from tests.unit.location_fixtures import location_config_block, make_location_spec
 
 _FINE_SHAPE = (20, 20, 20)
 _FINE_AFFINE = np.array(
@@ -68,6 +71,10 @@ def _write_config(tmp_path, data_root, output_path, overrides=None):
         },
         "correct_out_of_brain": True,
         "side_threshold": 0.2,
+        # coarse voxel (1,1,1) is cortex only and (2,1,1) white matter only: fine (2,2,2) and (4,2,2)
+        "location": location_config_block(
+            make_location_spec(tmp_path, _COARSE_SHAPE, _COARSE_AFFINE, "coarse", cortex=[(1, 1, 1)], white=[(2, 1, 1)])
+        ),
         "overwrite": False,
         "run_notes": "test",
     }
@@ -105,7 +112,7 @@ def test_compute_lesion_metadata_end_to_end(tmp_path, monkeypatch, caplog):
         "laterality_index_fine", "lesion_side_fine",
         "lesion_volume_voxels_coarse", "out_of_brain_fraction_coarse",
         "laterality_index_coarse", "lesion_side_coarse",
-    ]
+    ] + location_columns("coarse")
     by_id = metrics.set_index("subject_id")
     assert list(by_id.index) == ["sub-STUNIPD0001", "sub-STUNIPD0002"]
     assert by_id.loc["sub-STUNIPD0001", "out_of_brain_fraction_fine"] == 0.0
@@ -113,12 +120,19 @@ def test_compute_lesion_metadata_end_to_end(tmp_path, monkeypatch, caplog):
     assert by_id.loc["sub-STUNIPD0002", "out_of_brain_fraction_fine"] == 0.5
     assert by_id.loc["sub-STUNIPD0002", "lesion_volume_voxels_fine"] == 2  # post-correction
     assert set(by_id["lesion_side_fine"]) == {"left"}
+    # location, on the coarse grid: half cortex, half white matter (exact tie -> the earlier category);
+    # the voxels outside the brain are not in the denominator
+    for subject in ("sub-STUNIPD0001", "sub-STUNIPD0002"):
+        assert by_id.loc[subject, "location_cortex_only_coarse"] == 0.5
+        assert by_id.loc[subject, "location_white_matter_only_coarse"] == 0.5
+        assert by_id.loc[subject, "location_dominant_coarse"] == "cortex_only"
 
     reports = list((tmp_path / "summaries").glob("*.md"))
     logs = list((tmp_path / "logs").glob("*.log"))
     assert len(reports) == 1 and len(logs) == 1
     report = reports[0].read_text()
     assert "### fine" in report and "### coarse" in report
+    assert "## Sede della lesione (coarse)" in report
 
 
 def test_compute_lesion_metadata_writes_its_own_config_beside_the_csv(tmp_path, monkeypatch):
@@ -137,6 +151,8 @@ def test_compute_lesion_metadata_writes_its_own_config_beside_the_csv(tmp_path, 
     assert written["correct_out_of_brain"] is True
     assert written["side_threshold"] == 0.2
     assert list(written["grids"]) == ["fine", "coarse"]
+    assert written["location"]["grid"] == "coarse"
+    assert set(written["location"]["atlases"]) == {"cortical", "subcortical", "cerebellum"}
     assert "written" in written
 
 
@@ -237,6 +253,52 @@ def test_compute_lesion_metadata_unknown_dataset_returns_1(tmp_path, monkeypatch
     _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0001", [(2, 2, 2)])
     output_path = tmp_path / "lesion_metadata.csv"
     config_path = _write_config(tmp_path, data_root, output_path, overrides={"datasets": ["siteB"]})
+
+    assert pipeline.main(["--config", str(config_path)]) == 1
+    assert not output_path.exists()
+
+
+def _rewrite_config(config_path, mutate):
+    cfg = json.loads(config_path.read_text())
+    mutate(cfg)
+    config_path.write_text(json.dumps(cfg))
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        pytest.param(lambda cfg: cfg.pop("location"), id="missing_location"),
+        pytest.param(lambda cfg: cfg["location"].update(grid="2mm"), id="grid_is_not_one_of_the_grids"),
+        pytest.param(lambda cfg: cfg["location"].update(extra=1), id="unknown_key"),
+        pytest.param(lambda cfg: cfg["location"]["atlases"].pop("cerebellum"), id="missing_atlas"),
+        pytest.param(lambda cfg: cfg["location"]["atlases"].update(extra={}), id="unknown_atlas"),
+        pytest.param(lambda cfg: cfg["location"]["atlases"]["cortical"].pop("labels_path"), id="atlas_without_labels"),
+        pytest.param(lambda cfg: cfg["location"]["atlases"]["cortical"].update(image_path=""), id="empty_atlas_path"),
+    ],
+)
+def test_compute_lesion_metadata_bad_location_config_returns_1(tmp_path, monkeypatch, mutate):
+    """Every shape of a wrong `location` block is rejected at config load, before any mask or atlas
+    is opened - there is no run without it, since the CSV's columns would depend on it."""
+    _redirect_outputs(monkeypatch, tmp_path)
+    data_root = tmp_path / "data"
+    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0001", [(2, 2, 2)])
+    output_path = tmp_path / "lesion_metadata.csv"
+    config_path = _write_config(tmp_path, data_root, output_path)
+    _rewrite_config(config_path, mutate)
+
+    assert pipeline.main(["--config", str(config_path)]) == 1
+    assert not output_path.exists()
+
+
+def test_compute_lesion_metadata_missing_atlas_file_returns_1_before_reading_any_mask(tmp_path, monkeypatch):
+    _redirect_outputs(monkeypatch, tmp_path)
+    data_root = tmp_path / "data"
+    _make_lesion_subject(data_root, "siteA", "sub-STUNIPD0001", [(2, 2, 2)])
+    output_path = tmp_path / "lesion_metadata.csv"
+    config_path = _write_config(tmp_path, data_root, output_path)
+    _rewrite_config(
+        config_path, lambda cfg: cfg["location"]["atlases"]["cortical"].update(image_path=str(tmp_path / "nope.nii.gz"))
+    )
 
     assert pipeline.main(["--config", str(config_path)]) == 1
     assert not output_path.exists()

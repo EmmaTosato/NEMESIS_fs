@@ -15,7 +15,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.features.lesion import LesionGrid, validate_lesion_grids
+from src.features.lesion import LesionGrid, validate_lesion_grids, validate_lesion_location
+from src.features.lesion_location import LesionAtlas, LesionLocationSpec
 from src.features.sdc import KNOWN_OBJECTS, KNOWN_REPRESENTATIONS, KNOWN_VALUE_COLUMNS, STREAMLINE_ATLAS
 from src.utils.subject_ids import KNOWN_GROUPS
 
@@ -414,6 +415,10 @@ class LesionMetadataConfig:
     `grids` replaces BuildMatrixConfig's single reference_template_path/brain_mask_path pair:
     every metric is computed once per grid, and each grid's name becomes the suffix of the four
     columns it produces (see src.features.lesion.compute_lesion_metadata).
+
+    `location` is the one thing measured on a single grid instead of every one: which grid it is
+    and the three atlases it is built from (src.features.lesion_location). Required - the CSV's
+    columns would otherwise depend on whether a config happened to carry it.
     """
 
     project: str
@@ -426,6 +431,7 @@ class LesionMetadataConfig:
     grids: list[LesionGrid]
     correct_out_of_brain: bool
     side_threshold: float
+    location: LesionLocationSpec
     output_path: Path
     overwrite: bool
     run_notes: str | None
@@ -461,6 +467,8 @@ def load_compute_lesion_metadata_config(path: str | Path) -> LesionMetadataConfi
     # Validated here, at config-load time, rather than only inside compute_lesion_metadata:
     # a duplicate/unusable grid name must be rejected before any mask is opened.
     validate_lesion_grids(grids)
+    location = _require_lesion_location(raw)
+    validate_lesion_location(location, grids)
 
     return LesionMetadataConfig(
         project=_require_str(raw, "project"),
@@ -476,10 +484,49 @@ def load_compute_lesion_metadata_config(path: str | Path) -> LesionMetadataConfi
         # including a strictly unilateral lesion (|index| == 1.0 is not < 1.0 - but nothing
         # can exceed it either, so no subject could ever be left/right).
         side_threshold=_require_float_in_range(raw, "side_threshold", 0.0, 1.0),
+        location=location,
         output_path=Path(_require_str(raw, "output_path")),
         overwrite=_require_bool(raw, "overwrite"),
         run_notes=_optional_str(raw, "run_notes"),
     )
+
+
+def _require_lesion_location(raw: dict) -> LesionLocationSpec:
+    """Parse 'location': {grid, atlases: {cortical, subcortical, cerebellum: {image_path,
+    labels_path}}} - all of it required, and no atlas besides these three (an unknown key is
+    rejected rather than ignored, so a misspelt atlas name cannot look honoured)."""
+    if "location" not in raw:
+        raise ValueError("config: missing required field 'location'")
+    location = raw["location"]
+    if not isinstance(location, dict):
+        raise ValueError(f"config: field 'location' must be an object, got {location!r}")
+    unknown = sorted(set(location) - {"grid", "atlases"})
+    if unknown:
+        raise ValueError(f"config: field 'location' has unknown key(s) {unknown} - allowed: grid, atlases")
+    atlases = location.get("atlases")
+    if not isinstance(atlases, dict):
+        raise ValueError(f"config: field 'location.atlases' must be an object, got {atlases!r}")
+    required = ("cortical", "subcortical", "cerebellum")
+    if set(atlases) != set(required):
+        raise ValueError(f"config: field 'location.atlases' must have exactly the keys {list(required)}, got {sorted(atlases)}")
+    return LesionLocationSpec(
+        grid=_require_str(location, "grid"),
+        cortical=_parse_lesion_atlas("cortical", atlases["cortical"]),
+        subcortical=_parse_lesion_atlas("subcortical", atlases["subcortical"]),
+        cerebellum=_parse_lesion_atlas("cerebellum", atlases["cerebellum"]),
+    )
+
+
+def _parse_lesion_atlas(name: str, entry: object) -> LesionAtlas:
+    if not isinstance(entry, dict):
+        raise ValueError(f"config: field 'location.atlases.{name}' must be an object, got {entry!r}")
+    unknown = sorted(set(entry) - {"image_path", "labels_path"})
+    if unknown:
+        raise ValueError(f"config: field 'location.atlases.{name}' has unknown key(s) {unknown}")
+    for field in ("image_path", "labels_path"):
+        if not isinstance(entry.get(field), str) or not entry[field]:
+            raise ValueError(f"config: field 'location.atlases.{name}.{field}' must be a non-empty string")
+    return LesionAtlas(image_path=Path(entry["image_path"]), labels_path=Path(entry["labels_path"]))
 
 
 def _require_lesion_grids(raw: dict) -> list[LesionGrid]:

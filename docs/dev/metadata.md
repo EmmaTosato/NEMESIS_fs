@@ -65,7 +65,7 @@ Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv`
 ## Cosa esiste davvero adesso
 
 - **`assets/metadata/participants.csv`** — 5853 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_{2mm,1mm}`, `disconnection_load_voxels_{2mm,1mm}`, `disconnection_mean_{2mm,1mm}` (enrich).
-- **`assets/metadata/lesion_metadata.csv`** — una riga per soggetto con maschera, quattro colonne per griglia (`lesion_volume_voxels_<g>`, `out_of_brain_fraction_<g>`, `laterality_index_<g>`, `lesion_side_<g>`), più `lesion_metadata.config.json` accanto: il config della run che l'ha prodotto.
+- **`assets/metadata/lesion_metadata.csv`** — una riga per soggetto con maschera, quattro colonne per griglia (`lesion_volume_voxels_<g>`, `out_of_brain_fraction_<g>`, `laterality_index_<g>`, `lesion_side_<g>`) e, solo sulla griglia 2 mm, otto colonne di sede (`location_dominant_2mm` e una frazione per categoria, vedi "La sede della lesione"), più `lesion_metadata.config.json` accanto: il config della run che l'ha prodotto.
 - **`assets/metadata/sdc_metadata.csv`** — una riga per soggetto con disconnettoma, due colonne per griglia (`disconnection_load_voxels_<g>`, `disconnection_mean_<g>`, con `<g>` = `2mm` e `1mm`), più `sdc_metadata.config.json` accanto: il config della run che l'ha prodotto.
 - **`assets/metadata/excluded_subjects.csv`** — `subject_id, dataset, reason, scope, value`, generato da `src/pipeline/build_excluded_subjects.py` dal suo config.
 - **I tsv per-dataset `assets/metadata/<DATASET>_participants_*.tsv` non esistono più**: cancellati. Ogni consumatore è stato spostato sul file unico.
@@ -148,9 +148,9 @@ La stessa soglia vale anche a 1 mm: sugli stessi 1350 soggetti con lato clinico 
 
 Quello script ora legge `laterality_index_<grid>` dal csv e **non apre nessuna maschera**: ricalibrare su un'altra griglia è un cambio di `--grid`, non un secondo passaggio su 5853 maschere.
 
-### La sede della lesione (decisa, non ancora implementata)
+### La sede della lesione
 
-`lesion_metadata.csv` **non ha ancora** queste colonne e `compute_lesion_metadata` non le calcola: il prototipo vive in `tmp/lesion_location/` (locale, gitignored). Qui sta lo schema deciso, allo stesso livello di volume e lateralità: una feature ricavata dalla maschera.
+Dove sta la lesione è una feature ricavata dalla maschera, allo stesso livello di volume e lateralità: la calcola `compute_lesion_metadata` (logica in `src/features/lesion_location.py`, collegata in `src/features/lesion.py`), nel passaggio in cui ha già la maschera binarizzata e corretta.
 
 **Sette categorie esclusive** per voxel dentro il brain mask. Infratentoriale e sotto-corticale grigia hanno la precedenza su tutto; corteccia e sostanza bianca non si assegnano l'una all'altra, i voxel su cui i due atlanti Harvard-Oxford (HO) non concordano formano una categoria a parte:
 
@@ -166,16 +166,20 @@ Quello script ora legge `laterality_index_<grid>` dal csv e **non apre nessuna m
 
 Atlanti, indici e allineamento: `knowledge/neuroimaging/lesion_location.md` e `assets/atlases/fsl/README.md`.
 
-**Otto colonne in più, solo a 2 mm**, dopo le dieci attuali:
+**Otto colonne in più, solo sulla griglia `location.grid` (2 mm)**, dopo le colonne di tutte le griglie:
 
 | Colonna | Cosa è |
 |---|---|
-| `location_dominant_2mm` | la categoria con la frazione più alta; vuota se la maschera è vuota |
-| `location_<categoria>_2mm` (sette) | quota della lesione dentro il brain mask in quella categoria; sommano a 1; vuote se la maschera è vuota |
+| `location_dominant_<g>` | la categoria con la frazione più alta; vuota se la lesione non ha voxel dentro il brain |
+| `location_<categoria>_<g>` (sette) | quota della lesione dentro il brain mask in quella categoria; sommano a 1; vuote se la lesione non ha voxel dentro il brain |
 
-Il denominatore è `lesion_volume_voxels_2mm`, già dopo l'azzeramento fuori dal brain, quindi frazione × volume dà i voxel. La quota fuori dal brain è `out_of_brain_fraction_2mm`. Dove una maschera è vuota la frazione non è definita (`NaN`, come per `out_of_brain_fraction`).
+- **Denominatore.** La frazione è sui voxel di lesione dentro il brain mask; con `correct_out_of_brain` attivo è esattamente `lesion_volume_voxels_<g>`, quindi frazione × volume dà i voxel. La quota fuori dal brain è `out_of_brain_fraction_<g>`.
+- **Parità.** Quando due categorie hanno lo stesso numero di voxel (frequente per lesioni di pochi voxel) vince la prima in `LOCATION_CATEGORIES`, cioè l'ordine della tabella (infratentoriale prima, `unlabeled` ultima). È deterministica, ma è una convenzione, non una misura.
+- **`NaN`.** Una lesione senza voxel dentro il brain (maschera vuota, o tutta fuori) non ha sede: tutte le otto celle vuote, mai frazioni a 0.
+- **Solo 2 mm, perché la sede a 1 mm non serve.** È anche la griglia giusta: a 2 mm la maschera ricostruisce l'originale, a 1 mm quelle di WashU/UKLFR sono ricampionamenti e quelle di PSP perdono voxel (sezione precedente). Se servirà a 1 mm si aggiungono le stesse otto colonne con suffisso `_1mm`: il codice le calcola per la griglia che `location.grid` nomina, quindi serve generalizzarlo a più griglie, oggi ne nomina una.
+- **Una sola griglia, e non il `_GRID_METRIC_PREFIXES`.** Le quattro misure per griglia sono la stessa tupla su ogni griglia; la sede no, ha il suo blocco `location` nel config e le sue colonne in coda.
 
-**Perché solo 2 mm, per ora**: la sede a 1 mm non serve. È anche la griglia giusta: a 2 mm la maschera ricostruisce l'originale, a 1 mm quelle di WashU/UKLFR sono ricampionamenti e quelle di PSP perdono voxel (sezione precedente). Se servirà a 1 mm, si aggiungono le stesse otto colonne con suffisso `_1mm`. Il codice di oggi presuppone le stesse colonne per ogni griglia (`_GRID_METRIC_PREFIXES`): le colonne di sede solo a 2 mm richiedono di cambiarlo.
+**Controlli all'avvio**, prima di aprire una maschera, tutti con `raise`: ogni atlante deve essere una mappa di voxel intera esatta sulla griglia (permutazione di assi con segno e offset intero: così il ricampionamento `nearest` attraverso l'affine, che porta un atlante LAS su un template RAS senza mai capovolgere un array, non perde né sposta etichette); il numero di voxel per etichetta non cambia col ricampionamento; i valori dei voxel sono esattamente gli indici dell'XML + 1; il baricentro di ogni etichetta `Left`/`Right` sta dal lato giusto del piano mediano in coordinate mondo (è il controllo che un flip sbagliato rompe). Le regole di categoria riconoscono le etichette per nome (14 sotto-corticali grigie, 1 tronco, 2 sostanza bianca, 2 ventricoli) e il numero atteso è verificato: un'etichetta rinominata solleva invece di spostare voxel in silenzio. L'XML di HO scrive "Left Lateral **Ventrical**" (refuso): la regola dei ventricoli cerca `Lateral Vent`.
 
 **Cosa non sta nel file**: etichette a soglia ("coinvolta", "pura", insieme delle aree). Dipendono da soglie non ancora fissate (`.claude/open_problems.md`), si derivano dalle frazioni alla lettura. "Corticale" si dichiara in due versioni: stretta (`cortex_only`) e larga (`cortex_only` + `cortex_white_boundary`).
 

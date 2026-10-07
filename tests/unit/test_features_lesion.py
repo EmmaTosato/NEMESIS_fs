@@ -16,6 +16,8 @@ from src.features.lesion import (
     load_reference_image,
     validate_lesion_grids,
 )
+from src.features.lesion_location import location_columns
+from tests.unit.location_fixtures import make_location_spec
 
 _AFFINE = np.eye(4) * 2
 _AFFINE[3, 3] = 1
@@ -475,7 +477,13 @@ def _make_two_grids(tmp_path, fine_brain_region=None, coarse_brain_region=None):
     return grids
 
 
-def _compute(tmp_path, grids, correct_out_of_brain=False, side_threshold=0.2, group_filter=None):
+def _location(tmp_path, grid="coarse", **scenario):
+    """Location atlases on the coarse grid (the one location is measured on in these tests); voxels
+    are given in COARSE index space, world x = 2i - 10, so i = 5 is the midline and must be avoided."""
+    return make_location_spec(tmp_path, _COARSE_SHAPE, _COARSE_AFFINE, grid, **scenario)
+
+
+def _compute(tmp_path, grids, correct_out_of_brain=False, side_threshold=0.2, group_filter=None, location=None):
     return compute_lesion_metadata(
         data_root=tmp_path,
         datasets=["siteA"],
@@ -486,6 +494,7 @@ def _compute(tmp_path, grids, correct_out_of_brain=False, side_threshold=0.2, gr
         grids=grids,
         correct_out_of_brain=correct_out_of_brain,
         side_threshold=side_threshold,
+        location=_location(tmp_path) if location is None else location,
     )
 
 
@@ -502,8 +511,13 @@ def test_compute_lesion_metadata_columns_are_four_per_grid_in_declaration_order(
         "laterality_index_fine", "lesion_side_fine",
         "lesion_volume_voxels_coarse", "out_of_brain_fraction_coarse",
         "laterality_index_coarse", "lesion_side_coarse",
+        # location: only on the grid it is measured on, after every grid's own columns
+        "location_dominant_coarse", "location_infratentorial_coarse", "location_subcortical_gray_coarse",
+        "location_cortex_only_coarse", "location_cortex_white_boundary_coarse",
+        "location_white_matter_only_coarse", "location_ventricle_coarse", "location_unlabeled_coarse",
     ]
-    assert list(metadata.columns) == _metadata_columns(grids)
+    assert list(metadata.columns) == _metadata_columns(grids, _location(tmp_path))
+    assert not any(column.startswith("location_") and column.endswith("_fine") for column in metadata.columns)
 
 
 def test_compute_lesion_metadata_tiny_lesion_survives_on_fine_grid_and_vanishes_on_coarse(tmp_path):
@@ -666,6 +680,7 @@ def test_compute_lesion_metadata_raises_when_every_mask_is_empty_on_a_grid(tmp_p
             grids=grids,
             correct_out_of_brain=False,
             side_threshold=0.2,
+            location=_location(tmp_path),
         )
 
 
@@ -799,3 +814,66 @@ def test_compute_lesion_metadata_midline_only_lesion_has_no_attributable_side(tm
     assert midline["lesion_volume_voxels_fine"] == 2  # a real lesion, not an empty mask
     assert np.isnan(midline["laterality_index_fine"])
     assert pd.isna(midline["lesion_side_fine"])
+
+
+# --- location -------------------------------------------------------------------------------------
+
+
+def test_compute_lesion_metadata_location_fractions_follow_the_atlases_on_the_location_grid(tmp_path):
+    """Fine voxel (2,2,2) is coarse voxel (1,1,1) (cortex only) and fine (4,2,2) is coarse (2,1,1)
+    (white matter only): a lesion of both is half and half, a lesion of the first alone is all
+    cortex. The dominant label and the fractions are measured on the coarse grid only."""
+    _make_lesion_subject_on_fine_grid(tmp_path, "siteA", "sub-STUNIPD0001", [(2, 2, 2), (4, 2, 2)])
+    _make_lesion_subject_on_fine_grid(tmp_path, "siteA", "sub-STUNIPD0002", [(2, 2, 2)])
+    grids = _make_two_grids(tmp_path)
+    location = _location(tmp_path, cortex=[(1, 1, 1)], white=[(2, 1, 1)])
+
+    metadata, _ = _compute(tmp_path, grids, location=location)
+    rows = metadata.set_index("subject_id")
+
+    both = rows.loc["sub-STUNIPD0001"]
+    assert both["location_cortex_only_coarse"] == 0.5
+    assert both["location_white_matter_only_coarse"] == 0.5
+    assert both["location_dominant_coarse"] == "cortex_only"  # exact tie: the earlier category wins
+    only_cortex = rows.loc["sub-STUNIPD0002"]
+    assert only_cortex["location_cortex_only_coarse"] == 1.0
+    assert only_cortex["location_dominant_coarse"] == "cortex_only"
+    for column in location_columns("coarse")[1:]:
+        assert 0.0 <= both[column] <= 1.0
+    assert sum(both[column] for column in location_columns("coarse")[1:]) == 1.0
+
+
+def test_compute_lesion_metadata_location_denominator_is_the_lesion_inside_the_brain(tmp_path):
+    """One lesion voxel is inside the brain and one is outside (k=0). The outside one is cortex in
+    the atlas too, and must count for nothing: the fraction is over the inside voxels, with the
+    correction on (volume 1) and off (volume 2) alike."""
+    _make_lesion_subject_on_fine_grid(tmp_path, "siteA", "sub-STUNIPD0001", [(2, 2, 2), (2, 2, 0)])
+    grids = _make_two_grids(tmp_path, coarse_brain_region=(slice(None), slice(None), slice(1, None)))
+    location = _location(tmp_path, cortex=[(1, 1, 1), (1, 1, 0)])
+
+    for correct in (True, False):
+        metadata, _ = _compute(tmp_path, grids, correct_out_of_brain=correct, location=location)
+        row = metadata.iloc[0]
+        assert row["lesion_volume_voxels_coarse"] == (1 if correct else 2)
+        assert row["location_cortex_only_coarse"] == 1.0
+        assert row["location_dominant_coarse"] == "cortex_only"
+
+
+def test_compute_lesion_metadata_location_is_empty_for_an_empty_mask(tmp_path):
+    """No lesion voxel inside the brain: no location (an empty cell), never all-zero fractions."""
+    _make_lesion_subject_on_fine_grid(tmp_path, "siteA", "sub-STUNIPD0001", [(2, 2, 2)])
+    _make_lesion_subject_on_fine_grid(tmp_path, "siteA", "sub-STUNIPD0002", [])
+    grids = _make_two_grids(tmp_path)
+
+    metadata, _ = _compute(tmp_path, grids, location=_location(tmp_path, cortex=[(1, 1, 1)]))
+    empty = metadata.set_index("subject_id").loc["sub-STUNIPD0002"]
+
+    assert empty[location_columns("coarse")].isna().all()
+
+
+def test_compute_lesion_metadata_location_grid_must_be_one_of_the_grids(tmp_path):
+    _make_lesion_subject_on_fine_grid(tmp_path, "siteA", "sub-STUNIPD0001", [(2, 2, 2)])
+    grids = _make_two_grids(tmp_path)
+
+    with pytest.raises(ValueError, match="location.grid 'medium' is not one of the grids"):
+        _compute(tmp_path, grids, location=_location(tmp_path, grid="medium"))

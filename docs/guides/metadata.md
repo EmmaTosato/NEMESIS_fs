@@ -60,6 +60,15 @@ Produce `assets/metadata/lesion_metadata.csv`: una riga per **ogni** soggetto co
 | `laterality_index_<g>` | `(sinistra − destra) / (sinistra + destra)` | dopo l'azzeramento |
 | `lesion_side_<g>` | `left`/`right`/`both` | dopo l'azzeramento |
 
+Poi, **solo sulla griglia `location.grid` (2 mm)**, otto colonne di sede:
+
+| Colonna | Cosa è |
+| :--- | :--- |
+| `location_dominant_2mm` | la categoria in cui cade la quota maggiore della lesione |
+| `location_infratentorial_2mm`, `location_subcortical_gray_2mm`, `location_cortex_only_2mm`, `location_cortex_white_boundary_2mm`, `location_white_matter_only_2mm`, `location_ventricle_2mm`, `location_unlabeled_2mm` | quota della lesione dentro il brain in ciascuna delle sette categorie (sommano a 1) |
+
+`cortex_white_boundary` sono i voxel su cui i due atlanti Harvard-Oxford non concordano (corteccia per uno, sostanza bianca per l'altro): non è una sede, è l'incertezza dell'atlante. Con due categorie a pari voxel vince la prima nell'ordine della tabella. Vuote se la lesione non ha voxel dentro il brain. Categorie, regole e controlli: [`docs/dev/metadata.md`](../dev/metadata.md), sezione *La sede della lesione*.
+
 La frazione è misurata **prima** della correzione di proposito: la correzione la porterebbe a 0 per costruzione, e quella colonna serve proprio a decidere chi escludere. Volume e lato sono invece misurati **dopo**: un voxel fuori dal cervello non è lesione, quindi non va contato né deve poter decidere il lato.
 
 Celle vuote o `NaN` non sono buchi ma casi di dominio espliciti: una maschera senza voxel non ha una frazione (0.0 la metterebbe tra i soggetti più puliti della distribuzione), e una lesione confinata al piano mediano non ha un lato attribuibile, perché quel piano non appartiene a nessuno dei due emisferi.
@@ -73,6 +82,7 @@ Celle vuote o `NaN` non sono buchi ma casi di dominio espliciti: una maschera se
 | **`grids`** | oggetto `{nome: {reference_template_path, brain_mask_path}}`. Il **nome diventa il suffisso** delle quattro colonne, quindi deve essere alfanumerico. Entrambi i path sono obbligatori per ogni griglia. Aggiungere una terza griglia è una voce qui, non una modifica al codice. |
 | **`correct_out_of_brain`** | azzera i voxel di lesione fuori dalla maschera cerebrale prima di contare. `true` in produzione. |
 | **`side_threshold`** | soglia di bilateralità: sotto, il lato è `both`. |
+| **`location`** | `{grid, atlases: {cortical, subcortical, cerebellum: {image_path, labels_path}}}`, tutto obbligatorio. `grid` è il nome di una delle `grids` (2 mm: la sede a 1 mm non serve) e il suffisso delle otto colonne di sede; i tre atlanti sono i file `maxprob-thr25` in `assets/atlases/fsl/` **alla risoluzione di quella griglia**. Un atlante che non è una mappa di voxel intera sulla griglia, un'etichetta fuori posto o rinominata ferma la run prima di aprire una maschera. |
 | **`output_path`, `overwrite`, `run_notes`** | dove scrivere, se sovrascrivere un csv esistente, nota libera per il report. |
 
 **Due griglie in produzione, `1mm` e `2mm`, e non è ridondanza.** Le maschere manuali sono tutte a 1 mm, il template di produzione è a 2 mm con ricampionamento `nearest`, che tiene un voxel su 8: a 1 mm il conteggio è nativo ed esatto, a 2 mm è un sottocampionamento in cui una lesione minuscola può ridursi o sparire. Confrontare i due volumi è l'unico modo per dire se una maschera a 0 voxel a 2 mm sia vuota nel file originale o abbia perso la lesione nel ricampionamento. Come il codice ricampiona, passo per passo: [`docs/dev/lesion_matrix.md`](../dev/lesion_matrix.md), sezione *Resampling onto the common grid*.
@@ -81,7 +91,7 @@ Celle vuote o `NaN` non sono buchi ma casi di dominio espliciti: una maschera se
 
 **`side_threshold` è 0.20, calibrato e non inventato**: riproduce il 97.4% di 1445 soggetti con etichetta clinica vera sulla griglia a 2 mm (metodo, letteratura e limiti in [`knowledge/neuroimaging/lesion_laterality.md`](../../knowledge/neuroimaging/lesion_laterality.md)). La stessa soglia vale anche a 1 mm: sugli stessi 1350 soggetti con lato clinico (PSP esclusa: le sue maschere a 1 mm sono frazionarie) la soglia 0.20 dà la stessa accuratezza a 1 mm e a 2 mm (97,3%) e attribuisce a **tutti** lo stesso lato (0 differenze su 1350). Il confronto si rifà con `python -m src.pipeline.calibrate_lesion_side_threshold --grid 1mm --datasets ...`.
 
-**Costo**: una lettura da disco per soggetto e un ricampionamento per griglia. Il calcolo è in streaming, un soggetto per volta, quindi la memoria non dipende da quanti soggetti ci sono. `overwrite: false` lascia intatto un csv esistente e la run esce subito, così rilanciarla per sbaglio non ripaga il costo.
+**Costo**: una lettura da disco per soggetto e un ricampionamento per griglia; gli atlanti si caricano una volta, all'avvio. Il calcolo è in streaming, un soggetto per volta, quindi la memoria non dipende da quanti soggetti ci sono. `overwrite: false` lascia intatto un csv esistente e la run esce subito, così rilanciarla per sbaglio non ripaga il costo.
 
 Accanto al csv viene scritto `lesion_metadata.config.json`, il config esatto della run che l'ha prodotto: un csv di cui non si sappia su quali griglie e con quale correzione è stato calcolato non è interpretabile.
 

@@ -10,6 +10,10 @@ Where this file sits among the metadata sources (see docs/dev/metadata.md):
 - src/pipeline/enrich_metadata.py then JOINS the two (plus the raw clinical tsvs) into
   participants.csv. It reads this CSV and no lesion mask of its own.
 
+Per grid it writes the volume, the out-of-brain fraction and the laterality/side; on the one grid
+named by `location.grid` (2mm) it also writes where the lesion sits - the dominant category and
+the fraction in each of seven anatomical categories (src/features/lesion_location.py).
+
 Every subject with a discoverable mask is measured - no exclusion threshold is applied here.
 Which subjects to drop from an analysis is decided by looking at this file's distributions
 (notebooks/exploration/lesion_analysis.ipynb) and written by hand into
@@ -47,6 +51,7 @@ import pandas as pd
 
 from src.analysis.build_config import LesionMetadataConfig, load_compute_lesion_metadata_config
 from src.features.lesion import compute_lesion_metadata
+from src.features.lesion_location import LOCATION_CATEGORIES
 from src.utils.logging_setup import attach_file_handler, log_duration
 
 REPORTS_ROOT = Path("summaries") / "compute_lesion_metadata"
@@ -112,6 +117,7 @@ def main(argv: list[str] | None = None) -> int:
                 grids=config.grids,
                 correct_out_of_brain=config.correct_out_of_brain,
                 side_threshold=config.side_threshold,
+                location=config.location,
             )
         except (FileNotFoundError, ValueError, nib.filebasedimages.ImageFileError) as exc:
             # ImageFileError: a truncated/corrupt .nii.gz among the masks - same handling as
@@ -180,6 +186,17 @@ def _config_payload(config: LesionMetadataConfig) -> dict[str, object]:
         },
         "correct_out_of_brain": config.correct_out_of_brain,
         "side_threshold": config.side_threshold,
+        "location": {
+            "grid": config.location.grid,
+            "atlases": {
+                name: {"image_path": str(atlas.image_path), "labels_path": str(atlas.labels_path)}
+                for name, atlas in (
+                    ("cortical", config.location.cortical),
+                    ("subcortical", config.location.subcortical),
+                    ("cerebellum", config.location.cerebellum),
+                )
+            },
+        },
         "run_notes": config.run_notes,
     }
 
@@ -214,6 +231,25 @@ def _grid_report_lines(metadata: pd.DataFrame, grid_name: str) -> list[str]:
     ]
 
 
+def _location_report_lines(metadata: pd.DataFrame, grid_name: str) -> list[str]:
+    """How many lesions each category is dominant for, and the mean fraction per category: enough
+    to see at a glance that the categories are populated as expected, not an analysis."""
+    dominant = metadata[f"location_dominant_{grid_name}"]
+    lines = [
+        "",
+        f"## Sede della lesione ({grid_name})",
+        "",
+        f"senza sede (maschera vuota o tutta fuori dal brain): {int(dominant.isna().sum())}",
+        "",
+        "| categoria | dominante per | frazione media |",
+        "|---|---|---|",
+    ]
+    for category in LOCATION_CATEGORIES:
+        fraction = metadata[f"location_{category}_{grid_name}"].mean()
+        lines.append(f"| {category} | {int((dominant == category).sum())} | {fraction:.3f} |")
+    return lines
+
+
 def _report_lines(
     config: LesionMetadataConfig, metadata: pd.DataFrame | None, excluded_by_group: list[str], now: datetime
 ) -> list[str]:
@@ -222,7 +258,8 @@ def _report_lines(
         "",
         f"output: `{config.output_path}`" + ("" if metadata is None else f" ({len(metadata)} righe)"),
         f"griglie: {', '.join(grid.name for grid in config.grids)} · "
-        f"correct_out_of_brain: {config.correct_out_of_brain} · side_threshold: {config.side_threshold}",
+        f"correct_out_of_brain: {config.correct_out_of_brain} · side_threshold: {config.side_threshold} · "
+        f"sede misurata su: {config.location.grid}",
         f"group_filter: {config.group_filter}",
         "",
         "config:",
@@ -242,6 +279,7 @@ def _report_lines(
     lines += ["", "## Metriche per griglia"]
     for grid in config.grids:
         lines += _grid_report_lines(metadata, grid.name)
+    lines += _location_report_lines(metadata, config.location.grid)
 
     lines += ["", "## Esclusi da group_filter", ""]
     if excluded_by_group:
