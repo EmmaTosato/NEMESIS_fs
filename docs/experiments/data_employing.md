@@ -82,9 +82,11 @@ The clustering that are done when the methods are not specified:
 
 ```mermaid
 flowchart LR
+    classDef pending stroke-dasharray: 5 5
+
     subgraph COL0["Input matrix"]
-        direction TB
         R14["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
+        R24["s2.4-vol<br/>sdc_matrix<br/>non ancora costruita"]:::pending
     end
 ```
 

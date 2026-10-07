@@ -1,5 +1,7 @@
 """Unit tests for src/features/sdc.py - synthetic CSV/TSV fixtures, no real data required."""
 
+import tracemalloc
+
 import nibabel as nib
 import numpy as np
 import pytest
@@ -553,6 +555,90 @@ def test_build_sdc_voxelwise_matrix_no_admitted_subjects_raises(tmp_path, _metad
 
 
 # --- the shared hand-curated exclusion list ------------------------------------------------------
+
+
+def _build_voxelwise(tmp_path, template_path):
+    return build_sdc_voxelwise_matrix(
+        data_root=tmp_path,
+        datasets=["siteA", "siteB"],
+        object_="disconnectome",
+        reference_template_path=template_path,
+        resample_interpolation="nearest",
+        group_filter=None,
+        excluded_subjects=frozenset(),
+    )
+
+
+def test_build_sdc_voxelwise_matrix_matches_stack_then_drop_constant_columns(tmp_path, _metadata_root):
+    """The two-pass build must give exactly what stacking every map and dropping the columns where
+    min == max gives, on the cases where a shortcut would diverge: a voxel constant but non-zero
+    (dropped), nonzero in one subject only (kept), NaN in one subject (kept: NaN != NaN), NaN in
+    all subjects (kept), and subjects registered out of order across two datasets (rows sorted)."""
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_voxelwise_reference_template(template_path)
+    rng = np.random.default_rng(0)
+    volumes = {}
+    for dataset, subject_id in [("siteB", "sub-STUNIPD0003"), ("siteA", "sub-STUNIPD0002"), ("siteA", "sub-STUNIPD0001"), ("siteB", "sub-STUNIPD0004")]:
+        volume = np.zeros(_VOXELWISE_SHAPE, dtype=np.float32)
+        volume[0, 0, 0] = 0.5
+        volume[1, 1, 1] = rng.random()
+        volume[3, 3, 3] = np.nan
+        if subject_id == "sub-STUNIPD0004":
+            volume[2, 2, 2] = 0.9
+            volume[0, 1, 0] = np.nan
+        _register_lesion_mask(_metadata_root, dataset, subject_id)
+        _make_disconnectome_map(tmp_path, dataset, subject_id, volume)
+        volumes[(dataset, subject_id)] = volume
+
+    X, metadata, non_constant_mask, *_ = _build_voxelwise(tmp_path, template_path)
+
+    ordered = sorted(volumes)
+    stacked = np.stack([volumes[key].ravel() for key in ordered])
+    expected_mask = stacked.min(axis=0) != stacked.max(axis=0)
+    assert list(metadata["subject_id"]) == [subject_id for _, subject_id in ordered]
+    assert list(metadata["dataset"]) == [dataset for dataset, _ in ordered]
+    np.testing.assert_array_equal(non_constant_mask, expected_mask)
+    assert non_constant_mask.sum() == 4  # (1,1,1), (2,2,2), (0,1,0), (3,3,3); not the constant 0.5 nor zeros
+    assert X.dtype == np.float32
+    np.testing.assert_array_equal(X, stacked[:, expected_mask])
+
+
+def test_build_sdc_voxelwise_matrix_never_holds_the_full_voxel_matrix_in_memory(tmp_path, _metadata_root):
+    """Regression: the build used to stack every subject's full-grid vector before dropping the
+    constant voxels, so its peak was about twice the full n_subjects x n_grid_voxels matrix
+    (~42 GB for 5845 subjects on the 2mm grid) even though only a third of the columns are kept.
+    Only 1% of the voxels vary here, so the peak must stay far below the full matrix."""
+    shape = (40, 40, 40)
+    template_path = tmp_path / "reference_template.nii.gz"
+    nib.save(nib.Nifti1Image(np.zeros(shape, dtype=np.float32), _VOXELWISE_AFFINE), template_path)
+    n_subjects = 60
+    rng = np.random.default_rng(0)
+    varying = rng.choice(np.prod(shape), size=int(0.01 * np.prod(shape)), replace=False)
+    for i in range(n_subjects):
+        subject_id = f"sub-STUNIPD{i:04d}"
+        volume = np.zeros(np.prod(shape), dtype=np.float32)
+        volume[varying] = rng.random(varying.size)
+        _register_lesion_mask(_metadata_root, "siteA", subject_id)
+        _make_disconnectome_map(tmp_path, "siteA", subject_id, volume.reshape(shape))
+
+    tracemalloc.start()
+    try:
+        X, *_ = build_sdc_voxelwise_matrix(
+            data_root=tmp_path,
+            datasets=["siteA"],
+            object_="disconnectome",
+            reference_template_path=template_path,
+            resample_interpolation="nearest",
+            group_filter=None,
+            excluded_subjects=frozenset(),
+        )
+        _, peak_bytes = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+
+    full_matrix_bytes = n_subjects * np.prod(shape) * 4
+    assert X.shape == (n_subjects, varying.size)
+    assert peak_bytes < full_matrix_bytes / 2
 
 
 def test_build_sdc_matrix_applies_the_excluded_subjects_list(tmp_path, _metadata_root):

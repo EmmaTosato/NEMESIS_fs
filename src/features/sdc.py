@@ -250,8 +250,7 @@ def build_sdc_voxelwise_matrix(
         )
 
     reference_img = load_reference_image(reference_template_path)
-    X_voxelwise, metadata = _stack_voxelwise_matrix(admitted, reference_img, resample_interpolation)
-    X, non_constant_mask = _drop_constant_features(X_voxelwise)
+    X, metadata, non_constant_mask = _stack_voxelwise_matrix(admitted, reference_img, resample_interpolation)
     return (
         X, metadata, non_constant_mask, excluded_by_group, excluded_by_list,
         sorted(excluded_no_lesion_mask), sorted(sdc_not_yet_computed),
@@ -736,23 +735,46 @@ def _disconnectome_values(
 
 def _stack_voxelwise_matrix(
     admitted: dict[tuple[str, str], Path], reference_img: nib.Nifti1Image, resample_interpolation: str
-) -> tuple[np.ndarray, pd.DataFrame]:
-    subject_ids: list[str] = []
-    dataset_labels: list[str] = []
-    vectors: list[np.ndarray] = []
-    for (dataset, subject_id), path in sorted(admitted.items()):
-        vectors.append(_load_disconnectome_voxels(path, reference_img, resample_interpolation))
-        subject_ids.append(subject_id)
-        dataset_labels.append(dataset)
+) -> tuple[np.ndarray, pd.DataFrame, np.ndarray]:
+    """X (n_subjects x n_non_constant_voxels), metadata and the boolean non-constant mask over
+    the full reference grid, built in two passes over the maps so that the full
+    n_subjects x n_grid_voxels matrix is never held in memory.
 
-    X = np.stack(vectors)
-    metadata = pd.DataFrame({"subject_id": subject_ids, "dataset": dataset_labels})
-    return X, metadata
+    Pass 1 reads every map and keeps only the running per-voxel min and max; a voxel is constant
+    when they are equal (NaN never equals itself, so a NaN voxel is kept - the same outcome as
+    `X.min(axis=0) != X.max(axis=0)` on the stacked matrix). Pass 2 reads every map again and
+    writes only the kept voxels into a preallocated array. Both passes walk the same sorted
+    order, so row i is the same subject in both.
+    """
+    ordered = sorted(admitted.items())
+    paths = [path for _, path in ordered]
+    non_constant_mask = _non_constant_voxel_mask(paths, reference_img, resample_interpolation)
+
+    X = np.empty((len(paths), int(non_constant_mask.sum())), dtype=np.float32)
+    for row, path in enumerate(paths):
+        X[row] = _load_disconnectome_voxels(path, reference_img, resample_interpolation)[non_constant_mask]
+
+    metadata = pd.DataFrame(
+        {
+            "subject_id": [subject_id for (_, subject_id), _ in ordered],
+            "dataset": [dataset for (dataset, _), _ in ordered],
+        }
+    )
+    return X, metadata, non_constant_mask
 
 
-def _drop_constant_features(X: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Same drop as src/features/lesion.py's own _drop_constant_features (not
-    imported: private helper, one line - see the _needs_resample comment
-    above for this module's stance on cross-module private sharing)."""
-    non_constant_mask = X.min(axis=0) != X.max(axis=0)
-    return X[:, non_constant_mask], non_constant_mask
+def _non_constant_voxel_mask(
+    paths: list[Path], reference_img: nib.Nifti1Image, resample_interpolation: str
+) -> np.ndarray:
+    lowest: np.ndarray | None = None
+    highest: np.ndarray | None = None
+    for path in paths:
+        voxels = _load_disconnectome_voxels(path, reference_img, resample_interpolation)
+        if lowest is None or highest is None:
+            lowest, highest = voxels.copy(), voxels.copy()
+        else:
+            np.minimum(lowest, voxels, out=lowest)
+            np.maximum(highest, voxels, out=highest)
+    if lowest is None or highest is None:
+        raise ValueError("cannot find non-constant voxels: no disconnectome maps were given")
+    return lowest != highest
