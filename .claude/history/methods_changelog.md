@@ -8,6 +8,52 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 07-10-26 — Sede della lesione: sovrapposizione corticale/bianca come categoria a parte (opzione C); layout in `lesion_metadata.csv`, solo 2 mm
+
+**Decisione**: i voxel che HO corticale chiama corteccia e HO sotto-corticale chiama `Cerebral White Matter` non vanno né alla corteccia né alla bianca: formano una **settima categoria**, `cortex_white_boundary`. Le sette: infratentoriale, sotto-corticale grigia, `cortex_only`, `cortex_white_boundary`, `white_matter_only`, ventricolo, non etichettato (infratentoriale e sotto-corticale grigia restano prioritarie su tutto).
+
+**Alternative scartate**: (A) corteccia prioritaria, com'era: sposta la classe "corticale pura" più di ogni altra scelta e non ha un motivo forte; (B) bianca prioritaria: stesso arbitrio specchiato; (D) HO corticale a soglia 50% invece di 25%, per ridurre la sovrapposizione alla fonte: tenuta in riserva, cambierebbe un atlante già deciso e non so se il pacchetto FSL lo contiene (non verificato). Provenienza: i due atlanti sono due file HO distribuiti separatamente, i bordi non sono garantiti coerenti; la fascia corticale a thr25 è generosa.
+
+**Layout in `assets/metadata/lesion_metadata.csv`** (non ancora implementato, nulla in `src/`): da 10 a 18 colonne, **solo a 2 mm**. `location_dominant_2mm` (la categoria con la frazione più alta, vuota con maschera vuota) più sette frazioni `location_<categoria>_2mm` sulla lesione dentro il brain mask (denominatore: `lesion_volume_voxels_2mm`). Scartate: una sola colonna di etichetta senza frazioni (una lesione tocca quasi sempre più aree: a >10% il 63% ne tocca due, il 7% tre; l'etichetta non permette di ricostruire le quote); etichette a soglia nel file (le soglie non sono decise, scriverle le congelerebbe).
+
+**Solo 2 mm, per ora, perché la sede a 1 mm non serve** (motivo dato dall'utente): niente colonne `_1mm` di sede. Il 1 mm resta controllo del prototipo e dei test. Il codice di `compute_lesion_metadata` assume le stesse colonne per ogni griglia: avere la sede solo a 2 mm richiede di cambiarlo (sette colonne più l'etichetta contro le quattro attuali per griglia).
+
+**Non deciso**: la regola per la parità tra due categorie nell'etichetta prevalente (frequente nelle lesioni di pochi voxel): proposta, non confermata, vince la categoria con la precedenza più alta. Soglie di coinvolgimento e di "pura" ancora aperte (`open_problems.md`).
+
+---
+
+## 07-10-26 — Sede della lesione: classificazione sulla griglia a 2 mm, 1 mm come controllo; prima misura sull'intera coorte
+
+**Decisione (OK dell'utente, 07-10-26)**: le frazioni per categoria si calcolano sulla **griglia a 2 mm** (quella di produzione); la griglia a 1 mm resta solo un controllo. **Scartato**: classificare a 1 mm. Motivo: per WashU/UKLFR (e probabilmente NEMESIS_T0/SFB936) le maschere a 1 mm sono ricampionamenti delle originali (2 mm / 1,5 mm) con scarti di 0,5-1,2 mm in y/z e volume ×1,09 / ×0,85, mentre a 2 mm ricostruiscono l'originale; le PSP frazionarie perdono voxel a 1 mm con `> 0,5`.
+
+**Popolazione**: tutte le 5853 maschere in `lesion_metadata.csv` sono state calcolate; si classificano **5845**, cioè fuori solo le 8 righe di `excluded_subjects.csv` con `scope = all`. Le 14 righe con `scope = sdc-streamline` hanno lesioni valide (la loro esclusione riguarda solo la matrice SDC streamline) e restano. Interpretazione mia di "escludendo excluded_subjects.csv", da confermare. Nessuno dei 5845 ha 0 voxel dentro il brain a 2 mm; 27 hanno meno di 5 voxel (mediana 434).
+
+**Controlli sull'intera coorte (tutti i 5853, entrambe le griglie)**: volume dentro il brain mask = volume di produzione 5853/5853; frazione fuori dal brain = produzione 5853/5853; somma delle categorie = volume 5853/5853. Lato dell'atlante = `lesion_side_2mm` in 5465/5483 decidabili (68 `both` e 7 vuoti non decidibili), 1 mm 5493/5511; con L/R scambiati l'accordo crolla a 18/5483 (il controllo può fallire). Le 18 discordanze a 2 mm non sono state esaminate.
+
+**Misurato (2 mm, n = 5845)**:
+- Frazione media: corticale 0,309, sotto-corticale grigia 0,114, infratentoriale 0,103, bianca 0,444, ventricolo 0,004, non etichettato 0,026. Categoria dominante: bianca 2551, corticale 2117, infratentoriale 643, sotto-corticale 507, non etichettata 27. 121 lesioni hanno >20% non etichettato.
+- Quota "pura" (frazione dominante ≥ t): 0,935 (t=0,5), 0,734 (0,6), 0,543 (0,7), 0,378 (0,8), 0,246 (0,9). Nessun plateau, il calo è graduale (−20, −19, −17, −13 punti): la sweep non indica una soglia naturale.
+- Quota "coinvolta" (frazione > m): a m=0 corticale 0,678, sotto-corticale 0,502, infratentoriale 0,180, bianca 0,870; a m=0,10: 0,557 / 0,270 / 0,126 / 0,813. A 0 la sotto-corticale è instabile (0,502 contro 0,270 a 0,10), conferma la proposta provvisoria di partire da >10%. A >10% le categorie anatomiche coinvolte sono 1 nel 30,3%, 2 nel 62,8%, 3 nel 6,7%.
+- Per dataset (`out/cohort_dataset_summary.csv`) la composizione è molto diversa: dominante corticale UKLFR 64%, PASPORT 69%, UCL-UK 31%; lesioni con infratentoriale >10% UKLFR 0,1%, PASPORT 0%, contro 15-18% di UCL-UK/WashU/SFB936. Perché UKLFR/PASPORT non abbiano lesioni infratentoriali (selezione della coorte?) non è verificato.
+
+**Sovrapposizione corticale/bianca di HO: misurata, e pesa.** Quota della lesione in voxel reclamati da entrambe: media 0,046, mediana 0,023, p90 0,119, max 0,70; 836 soggetti sopra 0,10. Dando la precedenza alla sostanza bianca invece che alla corticale: la categoria dominante cambia in 455/5845 (7,8%; per dataset da 1,8% a 10,7%); le lesioni "pure corticali" scendono da 905 a 511 a t=0,7 (da 1972 a 1496 a 0,5; da 200 a 101 a 0,9); "corticale coinvolta" a >0,10 da 3255 a 3098. La precedenza corticale > bianca, scelta il 06-10-26 senza misurarne l'effetto, è quindi la leva che più sposta la classe "corticale pura". Non è stata cambiata.
+
+**1 mm contro 2 mm**: la categoria dominante differisce in 143/5845 (2,4%; per dataset 1,5-2,7%, per header LAS+90 2,6% / RAS −90 1,7% / RAS −91 2,5%); |Δfrazione| massima per soggetto: mediana 0,017, p95 0,072, max 0,48. L'etichetta (dominante, pura) differisce per 268 / 422 / 307 soggetti (4,6 / 7,2 / 5,3%) a t = 0,5 / 0,7 / 0,9. **Limite del controllo**: confronta due griglie della *stessa* maschera locale, non maschera locale contro originale (le originali a 2 mm di WashU non sono in locale), quindi non dice se il ricampionamento a 1 mm di WashU/UKLFR sposti la sede; dice solo che 1 mm e 2 mm raccontano la stessa storia per oltre il 97%.
+
+**Conseguenza ancora vera**: le soglie e la precedenza corticale/bianca restano **non decise** (`open_problems.md`); nulla è in `src/`. Script e numeri completi in `tmp/lesion_location/` (`07_cohort_counts.py` → `out/cohort_counts.csv`; `08_cohort_summary.py` → `out/08_summary.txt`), locale, gitignored.
+
+---
+
+## 07-10-26 — Header RAS −90: nessuna traslazione in x rispetto alle originali; T1 non utilizzabili
+
+**Fatto**: un agente sul cluster (sola lettura) ha trovato che per UNIPD/WashU le T1 sono native (nessuna in MNI, per nessun gruppo di header, in nessun dataset) e non esiste alcuna trasformazione native→MNI: il test T1→template non è eseguibile. Ha invece confrontato i baricentri delle maschere locali con le `manual_masks` originali (tabella in `open_problems.md`): per WashU la differenza in x ha mediana +0,05 mm (sd 0,98), quindi nessuna traslazione di 1 mm in x; in y/z restano scarti di 0,5-1,2 mm e il volume cambia (×1,09 WashU, ×0,85 UKLFR), compatibili con un ricampionamento da 2 mm (WashU) o 1,5 mm (UKLFR). Per PASPORT e PSP il confronto dà 0,000 (calibrazione: il metodo funziona).
+
+**Decisione**: nessuna correzione dell'header; il problema "traslazione di 1 mm in x" è considerato non supportato (insieme al test sui bordi del cervello della voce precedente). Resta aperto l'effetto del ricampionamento a 1 mm per i 4 dataset RAS −90.
+
+**Non verificato da me**: i numeri sono del report dell'agente; l'origine delle maschere locali per ciascun dataset (copia `lesion` di BCBToolKit) è dedotta dal `data_changelog.md`, non controllata sul server.
+
+---
+
 ## 06-10-26 — Header RAS −90: test statistico inconclusivo, header lasciato come verità
 
 **Decisione**: le 1032 maschere con header RAS −90 restano trattate col loro header (nessuna traslazione applicata).

@@ -1,6 +1,6 @@
-# Sede della lesione (corticale / sotto-corticale / infratentoriale) — atlanti, categorie, regola
+# Sede della lesione — atlanti e allineamento
 
-Stato: prototipo in `tmp/lesion_location/` (locale, gitignored), non ancora in `src/`. Le decisioni e le alternative scartate stanno in `.claude/history/methods_changelog.md` (06-10-26), i punti aperti in `.claude/open_problems.md`.
+Atlanti usati per classificare la sede della lesione e come allinearli alle maschere. Le categorie, le colonne di `lesion_metadata.csv`, la griglia e la popolazione sono del progetto e stanno in `docs/dev/metadata.md` (sezione "La sede della lesione"); decisioni e alternative in `.claude/history/methods_changelog.md`, punti aperti in `.claude/open_problems.md`.
 
 ## Atlanti
 
@@ -14,21 +14,6 @@ In `assets/atlases/fsl/` (fonte, versione e licenza nel suo `README.md`), versio
 
 Il valore del voxel è l'indice dell'XML + 1; gli indici si leggono dall'XML, mai per offset.
 
-## Categorie
-
-Sei categorie esclusive per voxel dentro il brain mask, in ordine di precedenza (la prima che reclama il voxel vince):
-
-1. **infratentoriale**: `Brain-Stem` (HO) + cervelletto. Il tronco intero conta infratentoriale, mesencefalo compreso (il tentorio lo taglia, HO non permette di dividerlo).
-2. **sotto-corticale grigia**: talamo, caudato, putamen, pallido, ippocampo, amigdala, accumbens (14 etichette HO, sinistra e destra).
-3. **corticale**: HO corticale.
-4. **sostanza bianca**: `Cerebral White Matter` di HO.
-5. **ventricolo**: `Lateral Ventricle` di HO.
-6. **non etichettato**: dentro il brain mask ma senza etichetta in nessun atlante.
-
-Per ogni lesione si tengono le frazioni per categoria (quota dei voxel lesionali dentro il brain mask, somma 1) e la quota fuori dal brain mask a parte. Le etichette discrete (coinvolto / puro / misto) si derivano dalle frazioni a soglie esplicite; le soglie non sono ancora fissate (`open_problems.md`).
-
-Anteriore/posteriore non fa parte di questa classificazione.
-
 ## Allineamento
 
 - Gli atlanti sono **LAS**, i template in `assets/templates/` **RAS**; le maschere hanno 3 header diversi (LAS +90, RAS −91, RAS −90, vedi `open_problems.md`). Tutto passa dall'**affine** (`resample_to_img`, `nearest`, come `src/features/lesion.py::_binarize_on_grid`), mai da un flip dell'array.
@@ -38,6 +23,6 @@ Anteriore/posteriore non fa parte di questa classificazione.
 
 ## Limiti noti
 
-- La fascia corticale di HO è generosa: 109.621 voxel a 1mm sono sia corticali sia `Cerebral White Matter`; con la precedenza contano corticali.
+- La fascia corticale di HO è generosa: 109.621 voxel a 1mm sono sia corticali sia `Cerebral White Matter`; il progetto li tiene come categoria a parte, senza assegnarli (`docs/dev/metadata.md`).
 - Le maschere PSP sono frazionarie: a 1mm la binarizzazione `> 0,5` ne perde voxel, quindi le frazioni di PSP a 1mm sono indicative.
 - Una lesione solo di tronco non ha etichette sinistra/destra nell'atlante.

@@ -148,6 +148,41 @@ La stessa soglia vale anche a 1 mm: sugli stessi 1350 soggetti con lato clinico 
 
 Quello script ora legge `laterality_index_<grid>` dal csv e **non apre nessuna maschera**: ricalibrare su un'altra griglia è un cambio di `--grid`, non un secondo passaggio su 5853 maschere.
 
+### La sede della lesione (decisa, non ancora implementata)
+
+`lesion_metadata.csv` **non ha ancora** queste colonne e `compute_lesion_metadata` non le calcola: il prototipo vive in `tmp/lesion_location/` (locale, gitignored). Qui sta lo schema deciso, allo stesso livello di volume e lateralità: una feature ricavata dalla maschera.
+
+**Sette categorie esclusive** per voxel dentro il brain mask. Infratentoriale e sotto-corticale grigia hanno la precedenza su tutto; corteccia e sostanza bianca non si assegnano l'una all'altra, i voxel su cui i due atlanti Harvard-Oxford (HO) non concordano formano una categoria a parte:
+
+| Categoria | Cosa è |
+|---|---|
+| `infratentorial` | `Brain-Stem` (HO) + cervelletto (Cerebellum-MNIfnirt); il tronco intero, mesencefalo compreso |
+| `subcortical_gray` | talamo, caudato, putamen, pallido, ippocampo, amigdala, accumbens |
+| `cortex_only` | HO corticale e non `Cerebral White Matter` |
+| `cortex_white_boundary` | HO corticale **e** `Cerebral White Matter`: l'incertezza dell'atlante, non una sede |
+| `white_matter_only` | `Cerebral White Matter` e non HO corticale |
+| `ventricle` | `Lateral Ventricle` di HO |
+| `unlabeled` | dentro il brain mask, senza etichetta in nessun atlante |
+
+Atlanti, indici e allineamento: `knowledge/neuroimaging/lesion_location.md` e `assets/atlases/fsl/README.md`.
+
+**Otto colonne in più, solo a 2 mm**, dopo le dieci attuali:
+
+| Colonna | Cosa è |
+|---|---|
+| `location_dominant_2mm` | la categoria con la frazione più alta; vuota se la maschera è vuota |
+| `location_<categoria>_2mm` (sette) | quota della lesione dentro il brain mask in quella categoria; sommano a 1; vuote se la maschera è vuota |
+
+Il denominatore è `lesion_volume_voxels_2mm`, già dopo l'azzeramento fuori dal brain, quindi frazione × volume dà i voxel. La quota fuori dal brain è `out_of_brain_fraction_2mm`. Dove una maschera è vuota la frazione non è definita (`NaN`, come per `out_of_brain_fraction`).
+
+**Perché solo 2 mm, per ora**: la sede a 1 mm non serve. È anche la griglia giusta: a 2 mm la maschera ricostruisce l'originale, a 1 mm quelle di WashU/UKLFR sono ricampionamenti e quelle di PSP perdono voxel (sezione precedente). Se servirà a 1 mm, si aggiungono le stesse otto colonne con suffisso `_1mm`. Il codice di oggi presuppone le stesse colonne per ogni griglia (`_GRID_METRIC_PREFIXES`): le colonne di sede solo a 2 mm richiedono di cambiarlo.
+
+**Cosa non sta nel file**: etichette a soglia ("coinvolta", "pura", insieme delle aree). Dipendono da soglie non ancora fissate (`.claude/open_problems.md`), si derivano dalle frazioni alla lettura. "Corticale" si dichiara in due versioni: stretta (`cortex_only`) e larga (`cortex_only` + `cortex_white_boundary`).
+
+**Popolazione**: tutte le righe di `lesion_metadata.csv`; per le analisi si escludono le righe di `excluded_subjects.csv` con `scope = all`, quelle con altri scope (`sdc-streamline`) riguardano solo la matrice SDC.
+
+Decisioni, alternative scartate e numeri della coorte: `.claude/history/methods_changelog.md` (07-10-26).
+
 ## `sdc_metadata.csv`: il livello delle misure sul disconnettoma
 
 Gemello di `lesion_metadata.csv`: lo scrive `src/pipeline/compute_sdc_metadata.py` (logica in `src/features/sdc.py::compute_sdc_metadata`), una riga per soggetto con `has_sdc` vero, due colonne per griglia. Non applica nessuna esclusione e non conosce il clinico.

@@ -3,6 +3,8 @@
 
 # Data Employed in Pipelines
 
+## First Experiment Session
+
 ```mermaid
 flowchart LR
     classDef pending stroke-dasharray: 5 5
@@ -75,4 +77,6 @@ The clustering that are done when the methods are not specified:
 - hdbscan
 - spectral
 
+
+## Second Experiment Session
 

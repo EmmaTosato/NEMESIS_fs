@@ -26,9 +26,9 @@
 
   "excluded_subjects_path": "assets/metadata/excluded_subjects.csv",
 
-  "correct_out_of_brain": false,
+  "correct_out_of_brain": true,
 
   "session_name": "s1.4-vol",
   "overwrite": false,
-  "run_notes": "Adds UNIPD/NEMESIS_T0 (76 subjects) and UKE/SFB936_ses01 (56 subjects) to s1.3-vol's 6 datasets (5721 today, post WashU/UKLFR 1mm resync) -> 5853, tutti gli 8 dataset ST in assets/metadata/participants.csv ora coperti. Onboarding 28-09-26 (.claude/history/data_changelog.md); needed for enrich_metadata.py's lesion_volume_config/lesion_side_geometric, which read this file's 'datasets' directly (fresh per-subject computation, no built matrix session required for that use)."
+  "run_notes": "Lesion matrix on the 8 ST datasets in assets/metadata/participants.csv (5853 subjects, onboarding 28-09-26, .claude/history/data_changelog.md). 8 subjects excluded via excluded_subjects.csv (scope=all: 3 empty_mask, 5 out_of_brain_fraction_too_high) -> 5845 expected. correct_out_of_brain=true: out-of-brain lesion voxels are zeroed and the subject kept, so this session is not voxel-comparable with s1.3-vol (correction off)."
 }
