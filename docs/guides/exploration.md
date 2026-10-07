@@ -44,7 +44,8 @@ Ordine logico dei dati: **input grezzi** (cosa esiste su disco, cosa dicono i TS
 
 | Notebook | Domanda |
 |---|---|
-| `clustering_evaluation` | quale tra più run di clustering già prodotte descrive meglio i dati? Guida dedicata: [`evaluation.md`](evaluation.md) |
+| `clustering_evaluation` | come sta andando una run di clustering già prodotta, una alla volta (metriche, stabilità, variabili cliniche, grafici)? Guida dedicata: [`evaluation.md`](evaluation.md) |
+| `clustering_comparison` | in cosa differiscono due o più run già prodotte (ARI/NMI, match matrix, cross-modalità)? Guida dedicata: [`evaluation.md`](evaluation.md) |
 | `clustering_tuning_explorer` | esplorazione dei risultati di uno sweep di tuning del clustering |
 
 ---

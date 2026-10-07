@@ -68,7 +68,7 @@ Restano quindi valide tutte le opzioni prodotte, ognuna come una lettura diversa
 - **D (spectral k=8)** — il miglior silhouette assoluto del tuning (0.502), tenuto come estremo di riferimento, non come candidato alla pari
 - **E/F (hdbscan)** — granularità non imposta a priori, con rumore esplicito: il controllo indipendente rispetto ai metodi che il k lo ricevono in input
 
-Il confronto tra queste opzioni avviene in [`notebooks/post-results_analysis/clustering_evaluation.ipynb`](../../../notebooks/post-results_analysis/clustering_evaluation.ipynb), che ne carica un sottoinsieme alla volta in `SELECTED_RUNS` — è lì che si guarda cosa cambia davvero tra un k e l'altro, non in una scelta fatta a questo stadio.
+Il confronto tra queste opzioni avviene in [`notebooks/post-results_analysis/clustering_comparison.ipynb`](../../../notebooks/post-results_analysis/clustering_comparison.ipynb), che ne carica un sottoinsieme alla volta in `SELECTED_RUNS` — è lì che si guarda cosa cambia davvero tra un k e l'altro, non in una scelta fatta a questo stadio.
 
 ---
 

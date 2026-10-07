@@ -15,7 +15,7 @@ diagnostic mode.
 subsampling_stability_index is a lighter sibling of the Monti idea above (a
 single full-vs-one-subsample ARI comparison, not an N-repeat ensemble) -
 meaningful for any CLUSTERING_METHODS entry, not restricted to
-CONSENSUS_ELIGIBLE_METHODS. Used by the cross-run evaluation notebook
+CONSENSUS_ELIGIBLE_METHODS. Used by the single-run evaluation notebook
 (notebooks/post-results_analysis/clustering_evaluation.ipynb, docs/guides/evaluation.md),
 not wired into clustering_tuning.py's sweep.
 

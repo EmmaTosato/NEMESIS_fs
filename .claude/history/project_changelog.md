@@ -6,6 +6,18 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 07-10-26 — `clustering_evaluation.ipynb` diviso in evaluation (una run) e comparison (più run)
+
+**Cosa è cambiato**: il notebook unico (101 celle) è diventato due. `clustering_evaluation.ipynb` valuta una run alla volta, in sezioni per metodo di valutazione (geometriche, modello, stabilità, cliniche, grafici), ciascuna con metodo/cosa fa/come si legge/metodi applicabili. `clustering_comparison.ipynb` contiene ARI/NMI, match matrix, distanze tra centroidi e tutta la parte cross-modalità, spostate senza modifiche (71 celle), in attesa di riorganizzazione. Entrambi eseguiti end-to-end senza errori.
+
+L'applicabilità per metodo è nel codice: `src/analysis/clustering_evaluation.py` (registro `EVALUATIONS`, `require_applicable`, `model_fit_metrics`) con `tests/unit/test_clustering_evaluation.py`; suite completa 1165/1165.
+
+**Perché**: richiesta dell'utente. Non tutte le valutazioni valgono per tutti i metodi (inertia solo kmeans, BIC/AIC solo gmm, rumore solo hdbscan); il registro rende il vincolo verificabile invece che scritto soltanto nel testo.
+
+**Scartato/rinviato**: le funzioni non committate in `clustering_tuning.py` (ICL, cophenetic, gap statistic) non sono state aggiunte come sezioni per-metodo, perché in lavorazione. Una stabilità al seed (kmeans/gmm/spectral) non c'è: non esisteva nel notebook originale.
+
+**Conseguenza**: `docs/guides/evaluation.md` descrive entrambi i notebook. I numeri di sezione del comparison sono ancora quelli della vecchia versione unica, quindi alcuni rimandi interni ("Parte 1 §3") sono sfasati finché non viene riorganizzato.
+
 ## 07-10-26 — `build_lesion_matrix`: eliminato il summary in `summaries/`, resta il `config.md` accanto alla matrice
 
 **Cosa è cambiato**: la pipeline non scrive più `summaries/build_lesion_matrix/<project>/build_summary__*.md`. Restano il `config.md` nella cartella della matrice, il log in `logs/build_lesion_matrix/<project>/` e la riga in `runs.csv`. Rimossi `REPORTS_ROOT`, `_build_report`, `_write_report`; `REPORT_FILENAME_PREFIX` rinominata `LOG_FILENAME_PREFIX`, stesso valore (`build_summary`), perché i nomi dei log restino uguali a quelli delle pipeline sorelle.

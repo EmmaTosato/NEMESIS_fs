@@ -78,7 +78,7 @@ Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv`
 | `src/features/sdc.py` | `has_lesion`, criterio di ammissione di `build_sdc_matrix.py` |
 | `src/analysis/embedding_coloring.py` | `lesion_side`/`NIHSS`/volume/disconnessione per i color mode `side`/`nihss`/`volume`/`disconnection_load`/`disconnection_mean`, risolti al momento del plot |
 | `src/analysis/cluster_description.py` | age/sex/education/NIHSS/`lesion_volume_voxels_2mm` per la composizione dei cluster nel pannello di `embedding_app.py` |
-| `notebooks/post-results_analysis/clustering_evaluation.ipynb` | age/sex/NIHSS per le demografiche per cluster |
+| `notebooks/post-results_analysis/clustering_evaluation.ipynb`, `clustering_comparison.ipynb` | age/sex/NIHSS per le demografiche per cluster |
 
 Il join con i tsv grezzi avviene su **`original_id`**, non su `subject_id`: il `participant_id` grezzo è l'id canonico per quasi tutti i dataset ma è l'id legacy di sito per UCL-UK (`ST_UCL-UK_0001`). `participants.csv` fa da ponte perché li contiene entrambi — vedi `.claude/lessons_learned.md` #30.
 
