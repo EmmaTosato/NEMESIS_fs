@@ -6,6 +6,16 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 07-10-26 — `build_lesion_matrix`: eliminato il summary in `summaries/`, resta il `config.md` accanto alla matrice
+
+**Cosa è cambiato**: la pipeline non scrive più `summaries/build_lesion_matrix/<project>/build_summary__*.md`. Restano il `config.md` nella cartella della matrice, il log in `logs/build_lesion_matrix/<project>/` e la riga in `runs.csv`. Rimossi `REPORTS_ROOT`, `_build_report`, `_write_report`; `REPORT_FILENAME_PREFIX` rinominata `LOG_FILENAME_PREFIX`, stesso valore (`build_summary`), perché i nomi dei log restino uguali a quelli delle pipeline sorelle.
+
+**Perché**: richiesta dell'utente. Il summary era il `config.md` con la sola intestazione diversa (verificato con `diff` sulla run `s1.4-vol`): stesso contenuto in due posti, nessuna informazione in più.
+
+**Alternativa scartata**: tenere il summary come copia indipendente dalla cartella dei dati. Il log di ogni run riporta già esclusi e corretti e vive fuori da `data/`, quindi una copia fuori dalla cartella della matrice non serve.
+
+**Non fatto**: le altre pipeline con lo stesso meccanismo (`build_sdc_matrix`, `build_fc_matrix`, `mask_fc` e le altre che definiscono `REPORTS_ROOT`) producono ancora il loro summary. Le cartelle `summaries/build_lesion_matrix/` già scritte restano su disco, non più alimentate.
+
 ## 06-10-26 — `enrich_metadata`: `overwrite` + file delle celle protette al posto di `fill`
 
 **Cosa è cambiato**: il flag `fill` di `config/pipelines/enrich_metadata.json` è eliminato. Al suo posto, due campi obbligatori: `overwrite` (`false` = append, scrive solo le celle vuote; `true` = riscrittura, sostituisce ogni cella in scope) e `protected_path` (un json `{"columns": [...], "subjects": [...]}`, oggi `assets/metadata/participants_protected.json`, vuoto; `null` = nessuna protezione). Una cella la cui colonna o il cui soggetto è elencato non viene mai scritta, né in append né in riscrittura, nemmeno se è vuota. La regola vale per **tutte** le colonne che la run scrive, comprese quelle copiate da `lesion_metadata.csv` e `sdc_metadata.csv`, che con `fill` venivano sempre sovrascritte. Valore in uso: `overwrite: true`, cioè lo stesso comportamento di `fill: false` che c'era prima. Codice: `src/pipeline/enrich_metadata.py` (`_apply`, `_check_write_rules`, `ProtectedCells`), 92 test in `tests/unit/test_enrich_metadata.py`.

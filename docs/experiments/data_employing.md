@@ -80,3 +80,11 @@ The clustering that are done when the methods are not specified:
 
 ## Second Experiment Session
 
+```mermaid
+flowchart LR
+    subgraph COL0["Input matrix"]
+        direction TB
+        R14["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
+    end
+```
+

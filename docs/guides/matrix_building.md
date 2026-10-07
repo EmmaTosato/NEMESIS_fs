@@ -85,7 +85,7 @@ Due criteri, valutati prima di scrivere la matrice:
 - **`group_filter`**: chi non appartiene ai gruppi richiesti (es. i controlli sani con `["ST"]`) viene saltato in fase di scoperta.
 - **`excluded_subjects_path`**: la lista dei soggetti da tenere fuori, `assets/metadata/excluded_subjects.csv`, generata da `build_excluded_subjects` dal suo config. La maschera di un soggetto escluso **non viene nemmeno letta**.
 
-Chi viene escluso è elencato per nome nelle sezioni "Excluded by ..." di `config.md` e nei `summaries/build_lesion_matrix/<project>/build_summary__*.md`, con motivo e valore per gli esclusi da lista.
+Chi viene escluso è elencato per nome nelle sezioni "Excluded by ..." di `config.md`, con motivo e valore per gli esclusi da lista.
 
 ### La lista degli esclusi
 

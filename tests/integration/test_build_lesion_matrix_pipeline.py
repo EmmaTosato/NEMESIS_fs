@@ -79,7 +79,6 @@ def _write_config(tmp_path, data_root, output_root, overrides=None):
 
 
 def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch, caplog):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
@@ -105,10 +104,9 @@ def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch, caplog):
     assert matrix.shape[0] == 5
     assert len(metadata) == 5
 
-    reports = list((tmp_path / "summaries" / "testproj").glob("*.md"))
     logs = list((tmp_path / "logs" / "testproj").glob("*.log"))
-    assert len(reports) == 1
     assert len(logs) == 1
+    assert not (tmp_path / "summaries").exists()
 
     runs_csv = (output_root / "runs.csv").read_text()
     assert "run1" in runs_csv
@@ -116,7 +114,6 @@ def test_build_lesion_matrix_end_to_end(tmp_path, monkeypatch, caplog):
 
 
 def test_build_lesion_matrix_group_filter_excludes_hc(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
@@ -145,7 +142,6 @@ def test_build_lesion_matrix_config_md_has_params_used_line(tmp_path, monkeypatc
     only the generic full-config JSON dump, never the single-line "Params used: {...}"
     form dim_reduction.py/clustering.py already standardize on (and
     embedding_app.py::run_params already parses, for those two pipelines)."""
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
@@ -169,7 +165,6 @@ def test_build_lesion_matrix_corrupt_lesion_mask_returns_1_not_raw_traceback(tmp
     for a truncated/corrupt .nii.gz - not FileNotFoundError (the file exists) nor ValueError
     (nibabel's own exception, not ours) - so it used to propagate as a raw traceback instead
     of the usual logging.error + return 1."""
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
@@ -201,7 +196,6 @@ def test_build_lesion_matrix_corrupt_lesion_mask_returns_1_not_raw_traceback(tmp
 
 
 def test_build_lesion_matrix_correct_out_of_brain_zeroes_voxels_and_reports(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
@@ -231,7 +225,6 @@ def test_build_lesion_matrix_correct_out_of_brain_zeroes_voxels_and_reports(tmp_
 
 
 def test_overwrite_false_rerun_fails_without_touching_existing_output(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
@@ -253,7 +246,6 @@ def test_build_lesion_matrix_excluded_subjects_list_drops_and_records_reason(tmp
     reason and value go into config.md, not just the id: a matrix whose cohort cannot be
     explained months later is not reviewable (and config.md is the only permanent record - logs/
     is not an artifact)."""
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
     metadata_root = tmp_path / "metadata"
     monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
@@ -293,7 +285,6 @@ def test_build_lesion_matrix_missing_excluded_subjects_file_returns_1(tmp_path, 
     """A MISSING list is an error, not "exclude nobody": the two are indistinguishable, and
     silently building a production matrix with every borderline subject in it is what the list
     exists to prevent. Saying "nobody" is done with a header-only file."""
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
@@ -311,7 +302,6 @@ def test_build_lesion_matrix_missing_excluded_subjects_file_returns_1(tmp_path, 
 def test_build_lesion_matrix_ignores_rows_scoped_to_an_sdc_representation(tmp_path, monkeypatch):
     """The reason `scope` exists: a subject whose streamline row is all zeros is a valid lesion
     subject. The lesion matrix must keep it, while still dropping what is scoped "lesion"."""
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
     metadata_root = tmp_path / "metadata"
     monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)

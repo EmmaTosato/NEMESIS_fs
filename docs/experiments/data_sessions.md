@@ -42,11 +42,11 @@ Tag chiuso, condiviso tra track (mai un `_` al suo interno - vedi `src/utils/run
 
 ### Session 1.4-vol
 
-- Starting date: TBD (data della build)
+- Starting date: 07-10
 - Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR, UCL-UK StrokeData, UKE/WAKEUP_acute, UNIPD/NEMESIS_T0, UKE/SFB936_ses01
 - Modality: Lesion, voxel-wise, griglia 2mm
-- Soggetti: 5853
-- Notes: rispetto a s1.3-vol, dati mancanti recuperati e due dataset in più (NEMESIS_T0, SFB936_ses01)
+- Soggetti: 5845
+- Notes: rispetto a s1.3-vol, dati mancanti recuperati e due dataset in più (NEMESIS_T0, SFB936_ses01); 8 soggetti esclusi da `excluded_subjects.csv` (3 maschere vuote, 5 con troppi voxel fuori dal brain); voxel fuori dal brain azzerati (`correct_out_of_brain`, 1501 soggetti corretti), quindi non confrontabile voxel per voxel con le sessioni precedenti
 
 ---
 

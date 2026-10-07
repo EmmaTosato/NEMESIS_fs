@@ -30,9 +30,8 @@ from src.utils.participants import load_excluded_subjects
 from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
 
-REPORTS_ROOT = Path("summaries") / "build_lesion_matrix"
 LOGS_ROOT = Path("logs") / "build_lesion_matrix"
-REPORT_FILENAME_PREFIX = "build_summary"
+LOG_FILENAME_PREFIX = "build_summary"
 
 # Which rows of the exclusion list this pipeline obeys: those scoped "lesion" plus those scoped
 # "all" (src.utils.participants.load_excluded_subjects). A subject excluded only from an SDC
@@ -138,9 +137,6 @@ def main(argv: list[str] | None = None) -> int:
         logging.info("matrix written to %s (shape %s)", output_dir, X.shape)
 
         try:
-            report_path = _write_report(
-                config, X, metadata, excluded_by_group, excluded_rows, corrected_subjects, now
-            )
             append_run_log_entry(
                 config.output_root,
                 config.session_name,
@@ -152,12 +148,10 @@ def main(argv: list[str] | None = None) -> int:
                 config.data_root,
             )
         except OSError as exc:
-            logging.error("cannot write report/run log: %s", exc, exc_info=True)
+            logging.error("cannot write run log: %s", exc, exc_info=True)
             return 1
 
-        logging.info(
-            "done - matrix written to %s, report written to %s, log written to %s", output_dir, report_path, log_path
-        )
+        logging.info("done - matrix written to %s, log written to %s", output_dir, log_path)
         return 0
     finally:
         log_duration(now)
@@ -282,45 +276,10 @@ def _build_readme_lines(
     )
 
 
-def _build_report(
-    config: BuildMatrixConfig,
-    X: np.ndarray,
-    metadata: pd.DataFrame,
-    excluded_by_group: list[str],
-    excluded_rows: list[tuple[str, str, float]],
-    corrected_subjects: list[tuple[str, int]],
-    now: datetime,
-) -> str:
-    lines = [f"# {config.project}_{now.strftime('%d-%m-%y')}", f"## {now.strftime('%H:%M')}", ""] + _summary_lines(
-        config, X, metadata, excluded_by_group, excluded_rows, corrected_subjects
-    )
-    return "\n".join(lines)
-
-
-def _write_report(
-    config: BuildMatrixConfig,
-    X: np.ndarray,
-    metadata: pd.DataFrame,
-    excluded_by_group: list[str],
-    excluded_rows: list[tuple[str, str, float]],
-    corrected_subjects: list[tuple[str, int]],
-    now: datetime,
-) -> Path:
-    report_dir = REPORTS_ROOT / config.project
-    report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.md"
-    report_path.write_text(
-        _build_report(
-            config, X, metadata, excluded_by_group, excluded_rows, corrected_subjects, now
-        )
-    )
-    return report_path
-
-
 def _log_path(config: BuildMatrixConfig, now: datetime) -> Path:
     log_dir = LOGS_ROOT / config.project
     log_dir.mkdir(parents=True, exist_ok=True)
-    return log_dir / f"{REPORT_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.log"
+    return log_dir / f"{LOG_FILENAME_PREFIX}__{now.strftime('%d-%m-%y__%H-%M-%S')}.log"
 
 
 if __name__ == "__main__":

@@ -8,6 +8,20 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 07-10-26 — Matrice lesionale `s1.4-vol` costruita con `correct_out_of_brain: true`
+
+**Decisione**: `07-10_s1.4-vol` è la prima matrice lesionale costruita con la correzione dei voxel fuori dal brain attiva (`brain_mask_path` = maschera res-2). I voxel di lesione fuori dalla maschera cerebrale sono azzerati e il soggetto resta in matrice, con `lesion_volume_voxels` ricalcolato sui dati corretti.
+
+**Numeri**: 5845 soggetti × 221955 feature (5853 − 8 esclusi da `excluded_subjects.csv`, `scope=all`: 3 `empty_mask`, 5 `out_of_brain_fraction_too_high`). **1501 soggetti corretti** (25,7%): 177031 voxel azzerati in totale, mediana 18 voxel per soggetto, massimo 2938, 361 soggetti con almeno 100 voxel.
+
+**Perché**: un voxel fuori dal cervello non è lesione, quindi non deve entrare né nelle feature né nel volume. Le esclusioni per frazione >30% togliono i casi troppo contaminati (i 5 esclusi hanno frazione 0,41–1,0; con la correzione `sub-STUNIPD0558`, frazione 1,0, sarebbe diventato una riga tutta a zero); sotto soglia si corregge invece di escludere.
+
+**Alternativa scartata**: lasciare la correzione spenta. Terrebbe la matrice confrontabile voxel per voxel con `s1.1`–`s1.3`, ma lascerebbe in matrice voxel fuori dal brain per 1501 soggetti.
+
+**Conseguenza ancora vera oggi**: `s1.4-vol` **non è confrontabile voxel per voxel** con `s1.1-vol`, `s1.2-vol`, `s1.3-vol`: costruite prima del 29-09-26, quando il flag non esisteva (`e7ba077`), quindi senza alcuna correzione. Vale per ogni confronto di risultati di `dim_reduction`/`clustering` tra le sessioni: la differenza può dipendere dalla correzione e non solo dai dataset in più.
+
+---
+
 ## 07-10-26 — Sede della lesione: sovrapposizione corticale/bianca come categoria a parte (opzione C); layout in `lesion_metadata.csv`, solo 2 mm
 
 **Decisione**: i voxel che HO corticale chiama corteccia e HO sotto-corticale chiama `Cerebral White Matter` non vanno né alla corteccia né alla bianca: formano una **settima categoria**, `cortex_white_boundary`. Le sette: infratentoriale, sotto-corticale grigia, `cortex_only`, `cortex_white_boundary`, `white_matter_only`, ventricolo, non etichettato (infratentoriale e sotto-corticale grigia restano prioritarie su tutto).

@@ -55,7 +55,6 @@ def _make_dataset(data_root, n_subjects=8):
 
 
 def _build_matrix(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
@@ -455,7 +454,6 @@ def _make_varying_volume_dataset(data_root, n_subjects=8):
 
 
 def _build_matrix_varying_volume(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_lesion_matrix, "REPORTS_ROOT", tmp_path / "summaries")
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"
