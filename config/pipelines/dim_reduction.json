@@ -1,12 +1,12 @@
 {
   "project": "clinical_connectome",
-  "output_root": "results/sdc/dim_reduction",
-  "input_path": "data/derived/sdc_matrix/30-09_s2.3-stream",
-  "params_file": "config/registry/params_reduction_sdc.json",
-  "session_name": "s2.3-stream",
+  "output_root": "results/lesion/dim_reduction",
+  "input_path": "data/derived/lesion_matrix/07-10_s1.4-vol",
+  "params_file": "config/registry/params_reduction.json",
+  "session_name": "s1.4-vol",
   "reduction_method": "umap",
-  "fine_tuning": false,
-  "save_tuning_embeddings": false,
+  "fine_tuning": true,
+  "save_tuning_embeddings": true,
   "overwrite": false,
   "precompute_distance_metric": true,
   "color_by": [
@@ -15,5 +15,5 @@
     "nihss"
   ],
   "viz_n_components": 2,
-  "run_notes": "UMAP euclidean nc2 on s2.3-stream, for visualization only: clustering runs on the raw 87 tracts, this embedding only supplies the plot coordinates"
+  "run_notes": "UMAP tuning on s1.4-vol (5845 subjects): metric dice/euclidean nested with n_components 2/3/10, n_neighbors x min_dist grid unchanged from s1.1-vol/s1.2-vol sweeps."
 }
