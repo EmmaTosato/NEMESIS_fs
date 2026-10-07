@@ -7,7 +7,7 @@ Lo scrivono due script, che rispondono a due domande diverse e non si sovrascriv
 | Script | Domanda | Colonne che scrive |
 | :--- | :--- | :--- |
 | `src/pipeline/populate_metadata.py` | chi esiste | `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` |
-| `src/pipeline/enrich_metadata.py` | cosa sappiamo di lui | `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_{2mm,1mm}`, `disconnection_load_voxels_{2mm,1mm}`, `disconnection_mean_{2mm,1mm}` |
+| `src/pipeline/enrich_metadata.py` | cosa sappiamo di lui | `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_{2mm,1mm}`, `location_dominant_2mm`, `location_<categoria>_2mm` (sette), `disconnection_load_voxels_{2mm,1mm}`, `disconnection_mean_{2mm,1mm}` |
 
 - **Dettagli architetturali/perché è fatto così**: [`docs/dev/metadata.md`](../dev/metadata.md)
 - **Quali campi esistono in quale dataset**: [`docs/guides/datasets.md`](datasets.md)

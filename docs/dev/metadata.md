@@ -41,7 +41,7 @@ assets/metadata/excluded_subjects.csv   — chi resta fuori dalle matrici (gener
 | | `populate_metadata.py` | `enrich_metadata.py` |
 |---|---|---|
 | Domanda | chi esiste | cosa sappiamo di lui |
-| Scrive | `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` | `age`, `sex`, `lesion_side`, `lesion_side_source`, `NIHSS`, `education`, `clinical_date`, `lesion_volume_voxels_{2mm,1mm}`, `disconnection_load_voxels_{2mm,1mm}`, `disconnection_mean_{2mm,1mm}` |
+| Scrive | `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` | `age`, `sex`, `lesion_side`, `lesion_side_source`, `NIHSS`, `education`, `clinical_date`, `lesion_volume_voxels_{2mm,1mm}`, `location_dominant_2mm`, `location_<categoria>_2mm` (sette), `disconnection_load_voxels_{2mm,1mm}`, `disconnection_mean_{2mm,1mm}` |
 | Flag di idempotenza | `overwrite` — false: aggiunge solo soggetti nuovi, righe esistenti intatte; true: ricalcola le proprie colonne preservando quelle dell'altro script | `overwrite` — false: append, scrive solo le celle vuote; true: riscrittura, sostituisce ogni cella in scope. In più `protected_path`: colonne e soggetti da non toccare mai |
 
 Registry condiviso: **`config/registry/metadata_sources.json`** — per ogni dataset, il path del tsv grezzo e quello della cartella derivatives. Lo leggono entrambi gli script, così la corrispondenza dataset↔path esiste in un posto solo (non è derivabile meccanicamente: `participants_UCL.tsv` ↔ `UCL-UK/UCLStrokeData`).
@@ -64,7 +64,7 @@ Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv`
 
 ## Cosa esiste davvero adesso
 
-- **`assets/metadata/participants.csv`** — 5853 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_{2mm,1mm}`, `disconnection_load_voxels_{2mm,1mm}`, `disconnection_mean_{2mm,1mm}` (enrich).
+- **`assets/metadata/participants.csv`** — 5853 soggetti stroke, con le colonne di entrambi gli script: `subject_id`, `original_id`, `dataset`, `disease_id`, `has_lesion`, `has_sdc`, `has_features` (populate) e `age`, `sex`, `education`, `lesion_side`, `lesion_side_source`, `NIHSS`, `clinical_date`, `lesion_volume_voxels_{2mm,1mm}`, `location_dominant_2mm`, `location_<categoria>_2mm` (sette), `disconnection_load_voxels_{2mm,1mm}`, `disconnection_mean_{2mm,1mm}` (enrich).
 - **`assets/metadata/lesion_metadata.csv`** — una riga per soggetto con maschera, quattro colonne per griglia (`lesion_volume_voxels_<g>`, `out_of_brain_fraction_<g>`, `laterality_index_<g>`, `lesion_side_<g>`) e, solo sulla griglia 2 mm, otto colonne di sede (`location_dominant_2mm` e una frazione per categoria, vedi "La sede della lesione"), più `lesion_metadata.config.json` accanto: il config della run che l'ha prodotto.
 - **`assets/metadata/sdc_metadata.csv`** — una riga per soggetto con disconnettoma, due colonne per griglia (`disconnection_load_voxels_<g>`, `disconnection_mean_<g>`, con `<g>` = `2mm` e `1mm`), più `sdc_metadata.config.json` accanto: il config della run che l'ha prodotto.
 - **`assets/metadata/excluded_subjects.csv`** — `subject_id, dataset, reason, scope, value`, generato da `src/pipeline/build_excluded_subjects.py` dal suo config.
