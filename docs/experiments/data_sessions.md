@@ -83,6 +83,14 @@ Tag chiuso, condiviso tra track (mai un `_` al suo interno - vedi `src/utils/run
 - Soggetti: 5845
 - Notes: speculare a s1.4-vol (stessi 8 dataset, lato disconnettoma): stesso template 2mm, stessi 5845 soggetti (8 esclusi da `excluded_subjects.csv`), righe nello stesso ordine di s1.4-vol (riordinate dopo la build, vedi `data_changelog.md` 07-10-26). Nessuna correzione dei voxel fuori dal brain (la pipeline SDC non la prevede): 291345 colonne non costanti contro le 221955 di s1.4-vol
 
+### Session 2.4-stream
+
+- Starting date: 07-10
+- Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR, UCL-UK StrokeData, UKE/WAKEUP_acute, UNIPD/NEMESIS_T0, UKE/SFB936_ses01
+- Modality: SDC, streamline per tratto (atlante `yeh_hcp1065_streamline`, famiglia `LF-lesion`, 87 tratti)
+- Soggetti: 5831
+- Notes: speculare a s2.4-vol (stessi 8 dataset, lato streamline) e ricostruzione di s2.3-stream sulla lista di esclusioni attuale. Esclusi 22 soggetti da `excluded_subjects.csv` (righe `scope=all` e `scope=sdc-streamline`): i 14 `all_zero_features` (nessun tratto colpito) sono in più rispetto a s2.4-vol
+
 ---
 
 # Session 3

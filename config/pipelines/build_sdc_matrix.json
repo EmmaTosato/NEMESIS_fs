@@ -14,14 +14,12 @@
   "group_filter": [
     "ST"
   ],
-
   "excluded_subjects_path": "assets/metadata/excluded_subjects.csv",
-  "object": "disconnectome",
-  "representation": "voxelwise",
-  "reference_template_path": "assets/templates/tpl-MNI152NLin6Asym_res-2_T1w.nii.gz",
-  "resample_interpolation": "nearest",
+  "object": "lesion",
+  "representation": "streamline",
   "output_root": "data/derived/sdc_matrix",
-  "session_name": "s2.4-vol",
+  "session_name": "s2.4-stream",
   "overwrite": false,
-  "run_notes": "SDC voxelwise on the 8 ST datasets (5853 subjects with a disconnectome map). 8 subjects excluded via excluded_subjects.csv (scope=all) -> 5845 expected, the same rows as lesion_matrix s1.4-vol. Same 2mm template as s1.4-vol, so voxel-aligned with it. Built with the two-pass voxelwise stacking (peak RAM ~ the final matrix)."
+  "run_notes": "SDC streamline (yeh_hcp1065, 87 tracts) on the 8 ST datasets (5853 subjects with the CSV). 22 subjects excluded via excluded_subjects.csv (scope=all plus scope=sdc-streamline) -> 5831. Rebuild of s2.3-stream on the current exclusion list; same cohort as s2.4-vol minus the 14 sdc-streamline exclusions.",
+  "reference_labels_path": "assets/atlases/sdc_labels/yeh_hcp1065_streamline.csv"
 }

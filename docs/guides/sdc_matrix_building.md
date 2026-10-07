@@ -53,7 +53,7 @@ Comuni a entrambe le modalità:
 | :--- | :--- |
 | **`project`** | Nome del progetto (es. `"clinical_connectome"`). |
 | **`data_root`** | Sede dei dati grezzi estratti (es. `"data/clinical_connectome/derivatives"`). |
-| **`datasets`** | Lista delle coorti da includere — solo quelle con `sdc/` (oggi tutti e 8 i dataset stroke: WashU, PASPORT, PSP, stroke_UKLFR, UCL-UK, UKE/WAKEUP_acute, NEMESIS_T0, SFB936_ses01; il CSV streamline `yeh_hcp1065_streamline` manca solo a UCL-UK). |
+| **`datasets`** | Lista delle coorti da includere — solo quelle con `sdc/` (oggi tutti e 8 i dataset stroke: WashU, PASPORT, PSP, stroke_UKLFR, UCL-UK, UKE/WAKEUP_acute, NEMESIS_T0, SFB936_ses01; il CSV streamline `yeh_hcp1065_streamline` c'è per tutti). |
 | **`group_filter`** | Lista per filtrare i pazienti sani vs malati (`["ST"]` = solo stroke). `null` non applica filtri. |
 | **`object`** | `"disconnectome"` (probabilità di disconnessione) o `"lesion"` (proporzione di danno diretto, parcellata). Vincolato dalla `representation`: solo `"disconnectome"` con `"voxelwise"`, solo `"lesion"` con `"streamline"`. |
 | **`representation`** | `"parcellated"`, `"voxelwise"` o `"streamline"` — sceglie quali campi sotto sono richiesti. |
