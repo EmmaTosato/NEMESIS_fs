@@ -24,6 +24,12 @@ import pandas as pd
 from nilearn.image import resample_to_img
 
 from src.features.lesion_correction import zero_out_of_brain_voxels
+from src.features.lesion_location import (
+    LesionLocationSpec,
+    build_location_categories,
+    location_columns,
+    location_metrics,
+)
 from src.features.subject_discovery import discover_files_by_subject
 from src.utils.subject_ids import group_of
 
@@ -114,6 +120,7 @@ def compute_lesion_metadata(
     grids: list[LesionGrid],
     correct_out_of_brain: bool,
     side_threshold: float,
+    location: LesionLocationSpec,
 ) -> tuple[pd.DataFrame, list[str]]:
     """Every mask-derived per-subject metric, on every grid in `grids`, in one pass.
 
@@ -122,7 +129,11 @@ def compute_lesion_metadata(
 
     Returns (metadata, excluded_by_group). metadata carries subject_id, dataset, and four
     columns per grid, suffixed with that grid's own name:
-    lesion_volume_voxels_<g>, out_of_brain_fraction_<g>, laterality_index_<g>, lesion_side_<g>.
+    lesion_volume_voxels_<g>, out_of_brain_fraction_<g>, laterality_index_<g>, lesion_side_<g>;
+    then, only for the one grid named by `location.grid`, the eight location columns
+    (src.features.lesion_location.location_columns): the dominant category and the fraction of
+    the lesion in each of the seven. Location is measured on that grid alone, deliberately - see
+    docs/dev/metadata.md ("La sede della lesione").
 
     Streaming, one subject at a time - deliberately NOT built on _voxelwise_matrix_with_volume
     like build_lesion_matrix() is. That function stacks every subject's flattened volume in
@@ -143,10 +154,12 @@ def compute_lesion_metadata(
     0 by construction, so measuring it afterwards would make the column useless for deciding
     which subjects to exclude - which is what it exists for. Volume and laterality are
     deliberately post-correction: a voxel outside the brain is not lesion, so it must not be
-    counted, nor bias the left/right split.
+    counted, nor bias the left/right split. Location is measured on the same post-correction
+    mask, over the voxels inside the brain.
     """
     validate_lesion_grids(grids)
-    contexts = [_grid_context(grid) for grid in grids]
+    validate_lesion_location(location, grids)
+    contexts = [_grid_context(grid, location) for grid in grids]
     lesion_files, excluded_by_group = _discover_lesion_files(data_root, datasets, lesion_glob, group_filter)
 
     rows: list[dict[str, object]] = []
@@ -165,7 +178,7 @@ def compute_lesion_metadata(
                 )
             rows.append(row)
 
-    metadata = pd.DataFrame(rows, columns=_metadata_columns(grids))
+    metadata = pd.DataFrame(rows, columns=_metadata_columns(grids, location))
     if metadata.empty:
         raise ValueError(
             f"no subjects discovered under {data_root} for datasets={datasets} "
@@ -403,11 +416,29 @@ def validate_lesion_grids(grids: list[LesionGrid]) -> None:
         raise ValueError(f"duplicate grid name(s): {duplicates} - each grid writes its own columns")
 
 
+def validate_lesion_location(location: LesionLocationSpec, grids: list[LesionGrid]) -> None:
+    """The location grid must be one of the run's grids: its name is the suffix of the location
+    columns and its template/brain mask are what the category map is built on.
+
+    Public for the same reason as validate_lesion_grids - src.analysis.build_config calls it at
+    config-load time, before any atlas or mask is opened.
+    """
+    names = [grid.name for grid in grids]
+    if location.grid not in names:
+        raise ValueError(
+            f"location.grid {location.grid!r} is not one of the grids {names} - location is measured "
+            "on one of the run's own grids"
+        )
+
+
 @dataclass(frozen=True, eq=False)
 class _GridContext:
     """Everything derived once per grid and reused for every subject: the grid itself, its
     brain mask and its two hemisphere masks. Computed once because each is a full-volume array
     (tens of MB at 1mm) whose derivation does not depend on any subject.
+
+    `categories` is the location category map (src.features.lesion_location) and is set only on
+    the grid location is measured on; None on every other grid.
 
     eq=False: the fields are numpy arrays, whose element-wise __eq__ would make a generated
     __eq__/__hash__ either raise or return an array instead of a bool.
@@ -418,17 +449,22 @@ class _GridContext:
     brain_mask: np.ndarray
     left_mask: np.ndarray
     right_mask: np.ndarray
+    categories: np.ndarray | None
 
 
-def _grid_context(grid: LesionGrid) -> _GridContext:
+def _grid_context(grid: LesionGrid, location: LesionLocationSpec) -> _GridContext:
     reference_img = load_reference_image(grid.reference_template_path)
     left_mask, right_mask = _hemisphere_masks(reference_img)
+    brain_mask = load_brain_mask(grid.brain_mask_path, reference_img)
     return _GridContext(
         name=grid.name,
         reference_img=reference_img,
-        brain_mask=load_brain_mask(grid.brain_mask_path, reference_img),
+        brain_mask=brain_mask,
         left_mask=left_mask,
         right_mask=right_mask,
+        categories=(
+            build_location_categories(location, reference_img, brain_mask) if grid.name == location.grid else None
+        ),
     )
 
 
@@ -440,8 +476,9 @@ def _metrics_on_grid(
     correct_out_of_brain: bool,
     side_threshold: float,
 ) -> dict[str, object]:
-    """One subject's four metrics on one grid - see compute_lesion_metadata for why the
-    fraction is measured before the correction and the counts after it.
+    """One subject's four metrics on one grid (plus the eight location columns when this is the
+    location grid) - see compute_lesion_metadata for why the fraction is measured before the
+    correction and the counts after it.
 
     lesion_side is NaN (an empty cell, the same missing-value convention as every other
     metadata column) exactly when laterality_index is: zero lesion voxels on both sides of the
@@ -456,7 +493,7 @@ def _metrics_on_grid(
     left_voxels = int((lesion & context.left_mask).sum())
     right_voxels = int((lesion & context.right_mask).sum())
     index = _laterality_index(left_voxels, right_voxels)
-    return {
+    metrics: dict[str, object] = {
         f"lesion_volume_voxels_{context.name}": int(lesion.sum()),
         f"out_of_brain_fraction_{context.name}": fraction,
         f"laterality_index_{context.name}": index,
@@ -464,15 +501,19 @@ def _metrics_on_grid(
             np.nan if np.isnan(index) else lesion_side_from_laterality_index(index, side_threshold)
         ),
     }
+    if context.categories is not None:
+        metrics.update(location_metrics(lesion, context.categories, context.name))
+    return metrics
 
 
-def _metadata_columns(grids: list[LesionGrid]) -> list[str]:
-    """The explicit column order, grids in declaration order - also what fixes the columns of
-    an empty frame, which a plain DataFrame(rows) could not know."""
+def _metadata_columns(grids: list[LesionGrid], location: LesionLocationSpec) -> list[str]:
+    """The explicit column order, grids in declaration order, then the location columns of the
+    one grid they are measured on - also what fixes the columns of an empty frame, which a plain
+    DataFrame(rows) could not know."""
     columns = ["subject_id", "dataset"]
     for grid in grids:
         columns += [f"{prefix}_{grid.name}" for prefix in _GRID_METRIC_PREFIXES]
-    return columns
+    return columns + location_columns(location.grid)
 
 
 def _check_some_mask_is_non_empty(
