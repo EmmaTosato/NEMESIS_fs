@@ -1,5 +1,5 @@
 {
-  "written": "30-09-26 00:06:52",
+  "written": "07-10-26 12:08:14",
   "project": "clinical_connectome",
   "data_root": "data/clinical_connectome/derivatives",
   "datasets": [
@@ -30,5 +30,22 @@
   },
   "correct_out_of_brain": true,
   "side_threshold": 0.2,
-  "run_notes": "Tutte le metriche derivate dalle maschere, su due griglie. Le maschere sono a 1 mm nativo (verificato: tutte e 5853, 182x218x182), quindi la griglia 1mm non ricampiona nulla e il suo conteggio e' esatto, mentre la 2mm e' un sottocampionamento nearest in cui una lesione minuscola puo' sparire: confrontare i due volumi distingue una maschera davvero vuota da una lesione persa nel ricampionamento. correct_out_of_brain true: i voxel fuori dalla maschera cerebrale non sono lesione, quindi non vanno contati ne' devono influenzare il lato. out_of_brain_fraction resta misurata sulla maschera grezza, prima dell'azzeramento, perche' serve a decidere chi escludere. side_threshold=0.20 calibrato sulla griglia 2mm su 1445 soggetti con lato clinico (97.4% di accordo, vedi knowledge/neuroimaging/lesion_laterality.md): la stessa soglia e' applicata anche a 1mm, dove non e' ancora stata verificata."
+  "location": {
+    "grid": "2mm",
+    "atlases": {
+      "cortical": {
+        "image_path": "assets/atlases/fsl/HarvardOxford/HarvardOxford-cort-maxprob-thr25-2mm.nii.gz",
+        "labels_path": "assets/atlases/fsl/HarvardOxford/HarvardOxford-Cortical.xml"
+      },
+      "subcortical": {
+        "image_path": "assets/atlases/fsl/HarvardOxford/HarvardOxford-sub-maxprob-thr25-2mm.nii.gz",
+        "labels_path": "assets/atlases/fsl/HarvardOxford/HarvardOxford-Subcortical.xml"
+      },
+      "cerebellum": {
+        "image_path": "assets/atlases/fsl/Cerebellum/Cerebellum-MNIfnirt-maxprob-thr25-2mm.nii.gz",
+        "labels_path": "assets/atlases/fsl/Cerebellum/Cerebellum_MNIfnirt.xml"
+      }
+    }
+  },
+  "run_notes": "Tutte le metriche derivate dalle maschere, su due griglie. Le maschere sono a 1 mm nativo (verificato: tutte e 5853, 182x218x182), quindi la griglia 1mm non ricampiona nulla e il suo conteggio e' esatto, mentre la 2mm e' un sottocampionamento nearest in cui una lesione minuscola puo' sparire: confrontare i due volumi distingue una maschera davvero vuota da una lesione persa nel ricampionamento. correct_out_of_brain true: i voxel fuori dalla maschera cerebrale non sono lesione, quindi non vanno contati ne' devono influenzare il lato. out_of_brain_fraction resta misurata sulla maschera grezza, prima dell'azzeramento, perche' serve a decidere chi escludere. side_threshold=0.20 calibrato sulla griglia 2mm su 1445 soggetti con lato clinico (97.4% di accordo, vedi knowledge/neuroimaging/lesion_laterality.md): la stessa soglia e' applicata anche a 1mm, dove non e' ancora stata verificata. location: la sede della lesione (dominante + frazione in sette categorie anatomiche, docs/dev/metadata.md) e' misurata solo sulla griglia 2mm perche' a 1mm non serve; gli atlanti devono essere alla risoluzione di quella griglia."
 }
