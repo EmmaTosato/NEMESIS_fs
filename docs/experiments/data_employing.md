@@ -86,7 +86,7 @@ flowchart LR
 
     subgraph COL0["Input matrix"]
         R14["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
-        R24["s2.4-vol<br/>sdc_matrix<br/>non ancora costruita"]:::pending
+        R24["s2.4-vol<br/>sdc_matrix<br/>07-10<br/>5845 subj."]
     end
 ```
 
