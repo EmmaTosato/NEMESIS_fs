@@ -24,13 +24,15 @@ from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
+from scipy.cluster.hierarchy import cophenet
 from scipy.linalg import eigh
+from scipy.spatial.distance import squareform
 from scipy.sparse import csgraph
 from sklearn.cluster import HDBSCAN, AgglomerativeClustering, KMeans
 from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, pairwise_distances, silhouette_samples, silhouette_score
-from sklearn.metrics.pairwise import rbf_kernel
+from sklearn.metrics.pairwise import euclidean_distances, rbf_kernel
 from sklearn.mixture import GaussianMixture
-from sklearn.neighbors import kneighbors_graph
+from sklearn.neighbors import NearestNeighbors, kneighbors_graph
 
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.consensus_clustering import (
@@ -773,6 +775,166 @@ def compute_eigengap(X: np.ndarray, params: dict, max_k: int = 20) -> np.ndarray
     laplacian = csgraph.laplacian(affinity_matrix, normed=True)
     if hasattr(laplacian, "toarray"):
         laplacian = laplacian.toarray()
+    k = min(max_k, laplacian.shape[0] - 1)
+    eigenvalues = eigh(laplacian, eigvals_only=True, subset_by_index=[0, k])
+    return np.sort(eigenvalues)
+
+
+# Literature-established, per-parameter justification metrics (07-10-26 chat decision): unlike
+# everything above, these are deliberately *not* wired into run_clustering_tuning_sweep/
+# clustering.py - they're reusable, tested functions meant to be called post-hoc from
+# clustering_tuning_explorer.ipynb against an already-produced tuning run's matrix.npy/
+# tuning_results.csv, same contract as dunn_index for the evaluation notebook. No pipeline/
+# config/docs changes, no reruns needed. One per method's own hardest-to-justify parameter -
+# HDBSCAN deliberately excluded (its own relative_validity_ overlaps with DBCV, already
+# rejected in docs/guides/clustering.md, so adding it here would silently contradict that
+# decision - flagged explicitly to the user instead of added).
+
+
+def integrated_completed_likelihood(X: np.ndarray, params: dict) -> float:
+    """Integrated Completed Likelihood (ICL, Biernacki, Celeux & Govaert 2000) for GMM's
+    n_components/covariance_type - same lower-is-better convention as bic/aic, but adds an
+    entropy penalty for ambiguous (low-confidence) soft assignments on top of BIC's plain
+    likelihood-vs-complexity trade-off: ICL = BIC + 2 * entropy, entropy = -sum_i,k z_ik *
+    log(z_ik) over the fitted posterior responsibilities z. Answers "BIC favors this
+    n_components, but are the resulting components actually well separated, or just a better
+    fit to overlapping data?" - a question BIC/AIC alone cannot answer, since both only score
+    log-likelihood and model complexity, never how confidently each point is assigned.
+
+    Fits its own GaussianMixture(**params) on X (not given a pre-fitted estimator) - cheap
+    enough for a single post-hoc call per already-tested combination, and keeps this function's
+    contract identical to the rest of this module's params-in functions (never takes a fitted
+    sklearn object as an argument). responsibilities are clipped away from exactly 0 before the
+    log (entropy's own convention: 0 * log(0) contributes 0, but numpy raises a divide-by-zero
+    warning for the literal log(0) rather than silently producing -inf*0=nan).
+    """
+    fitted = GaussianMixture(**params).fit(X)
+    responsibilities = fitted.predict_proba(X)
+    nonzero = responsibilities[responsibilities > 0.0]
+    entropy = -float(np.sum(nonzero * np.log(nonzero)))
+    return float(fitted.bic(X)) + 2.0 * entropy
+
+
+def cophenetic_correlation(X: np.ndarray, params: dict, distance_cache: dict[str, np.ndarray] | None = None) -> float:
+    """Cophenetic correlation coefficient - the classic HAC criterion for comparing `linkage`
+    choices (given a `metric`) beyond eyeballing dendrograms: correlation between the original
+    pairwise distances and the "cophenetic distances" implied by the dendrogram (the height at
+    which two points first end up in the same cluster). A linkage whose dendrogram faithfully
+    represents the original distance structure scores close to 1; a poor fit (e.g. single-link
+    chaining) scores much lower.
+
+    Reuses compute_dendrogram_linkage for the full merge tree (same metric-aware/distance_cache
+    behavior - ward is only ever fit on raw euclidean X, every other metric in
+    distances.py::PRECOMPUTABLE_METRICS is precomputed once and shared). Raises ValueError if
+    compute_dendrogram_linkage's own validation does (e.g. ward + a non-euclidean metric - see
+    is_invalid_ward_metric_combo, left to the caller to filter out before calling this, same
+    convention as compute_dendrogram_linkage/compute_eigengap).
+    """
+    metric = params.get("metric", "euclidean")
+    linkage_matrix = compute_dendrogram_linkage(X, params, distance_cache)
+
+    linkage = params.get("linkage", "ward")
+    if metric in PRECOMPUTABLE_METRICS and linkage != "ward":
+        if distance_cache is not None and metric in distance_cache:
+            distance_matrix = distance_cache[metric]
+        else:
+            distance_matrix = precomputed_distance(X, metric)
+    else:
+        distance_matrix = pairwise_distances(X, metric=metric)
+
+    condensed_distances = squareform(distance_matrix, checks=False)
+    correlation, _ = cophenet(linkage_matrix, condensed_distances)
+    return float(correlation)
+
+
+def compute_gap_statistic(
+    X: np.ndarray, k_values: list[int], kmeans_params: dict, n_references: int = 10, random_state: int = 0
+) -> pd.DataFrame:
+    """Gap statistic (Tibshirani, Walther & Hastie 2001) for KMeans' n_clusters - a formal
+    reference-distribution criterion in place of eyeballing the inertia elbow: at each k, the
+    observed within-cluster dispersion log(Wk) (= KMeans' own inertia_, Tibshirani's Wk is
+    exactly the standard within-cluster sum of squares) is compared against its expectation
+    under `n_references` uniform-random reference datasets of the same shape (sampled
+    feature-by-feature within X's own min/max range - the simplified reference distribution
+    most implementations use, not the paper's optional PCA-aligned box). Gap(k) = mean_b(log
+    Wkb) - log(Wk): a large gap means the real data clusters far tighter than random noise would
+    at that k.
+
+    Returns one row per k_values with columns [n_clusters, log_wk, log_wk_ref_mean, gap,
+    gap_sk] - gap_sk is the reference standard deviation scaled by sqrt(1 + 1/n_references),
+    feeding the 1-SE selection rule in gap_statistic_suggested_k. Never picks k itself - purely
+    the numbers, same "no automatic selection" convention as every other tuning diagnostic here.
+    """
+    rng = np.random.default_rng(random_state)
+    mins, maxs = X.min(axis=0), X.max(axis=0)
+
+    rows = []
+    for k in k_values:
+        observed_log_wk = np.log(KMeans(n_clusters=k, **kmeans_params).fit(X).inertia_)
+
+        reference_log_wks = []
+        for b in range(n_references):
+            reference_X = rng.uniform(mins, maxs, size=X.shape)
+            reference_params = {**kmeans_params, "random_state": kmeans_params.get("random_state", 0) + b}
+            reference_log_wks.append(np.log(KMeans(n_clusters=k, **reference_params).fit(reference_X).inertia_))
+
+        log_wk_ref_mean = float(np.mean(reference_log_wks))
+        gap_sk = float(np.std(reference_log_wks) * np.sqrt(1 + 1 / n_references))
+        rows.append(
+            {
+                "n_clusters": k,
+                "log_wk": float(observed_log_wk),
+                "log_wk_ref_mean": log_wk_ref_mean,
+                "gap": log_wk_ref_mean - float(observed_log_wk),
+                "gap_sk": gap_sk,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def gap_statistic_suggested_k(gap_results: pd.DataFrame) -> int | None:
+    """Tibshirani et al. 2001's own 1-SE selection rule: the smallest k (among consecutive pairs
+    in gap_results, sorted by n_clusters) such that Gap(k) >= Gap(k+1) - gap_sk(k+1). Returns
+    None, not the largest k swept, when no k in the swept range satisfies the rule (e.g. gap is
+    still rising at the largest k tested) - a legitimate "inconclusive, widen k_values" domain
+    outcome (code_standards.md §0), not a fallback guess.
+    """
+    sorted_results = gap_results.sort_values("n_clusters").reset_index(drop=True)
+    for i in range(len(sorted_results) - 1):
+        current, nxt = sorted_results.iloc[i], sorted_results.iloc[i + 1]
+        if current["gap"] >= nxt["gap"] - nxt["gap_sk"]:
+            return int(current["n_clusters"])
+    return None
+
+
+def compute_self_tuning_eigengap(X: np.ndarray, local_scale_k: int = 7, max_k: int = 20) -> np.ndarray:
+    """Self-tuning spectral affinity (Zelnik-Manor & Perona 2004) - unlike compute_eigengap's
+    affinity (a single fixed gamma/n_neighbors applied uniformly, exactly what tuning_grid
+    sweeps), each point i gets its own local scale sigma_i = distance to its local_scale_k-th
+    nearest neighbor (paper's own default, K=7), so points in dense regions get a tight
+    affinity and points in sparse regions a loose one: affinity(i,j) = exp(-d(i,j)^2 /
+    (sigma_i * sigma_j)). Answers a question compute_eigengap cannot: does the affinity
+    hyperparameter the tuning_grid swept actually matter, or does a construction that removes
+    it altogether suggest the same n_clusters anyway?
+
+    Returns the sorted graph-Laplacian eigenvalues, read exactly like compute_eigengap's output
+    (biggest gap between consecutive eigenvalues = suggested n_clusters). Raises ValueError if
+    any point has local scale 0 (>= local_scale_k exact duplicates) - local scaling is undefined
+    for it, not silently turned into inf/nan by a division by zero.
+    """
+    neighbor_distances, _ = NearestNeighbors(n_neighbors=local_scale_k + 1).fit(X).kneighbors(X)
+    sigma = neighbor_distances[:, -1]
+    if np.any(sigma == 0.0):
+        raise ValueError(
+            f"compute_self_tuning_eigengap: {int((sigma == 0.0).sum())} point(s) have {local_scale_k} coincident "
+            "neighbors (local scale 0) - lower local_scale_k or deduplicate X before calling this"
+        )
+
+    squared_distances = euclidean_distances(X, squared=True)
+    affinity = np.exp(-squared_distances / np.outer(sigma, sigma))
+    np.fill_diagonal(affinity, 0.0)
+
+    laplacian = csgraph.laplacian(affinity, normed=True)
     k = min(max_k, laplacian.shape[0] - 1)
     eigenvalues = eigh(laplacian, eigvals_only=True, subset_by_index=[0, k])
     return np.sort(eigenvalues)

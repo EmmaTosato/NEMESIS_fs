@@ -1,7 +1,9 @@
 """Unit tests for src/analysis/clustering_tuning.py."""
 
 import numpy as np
+import pandas as pd
 import pytest
+from sklearn.mixture import GaussianMixture
 
 from src.analysis.clustering_tuning import (
     CONSENSUS_METRIC_COLUMNS,
@@ -12,12 +14,17 @@ from src.analysis.clustering_tuning import (
     compute_clustering_metrics_metric_aware,
     compute_dendrogram_linkage,
     compute_eigengap,
+    compute_gap_statistic,
     compute_interclass_distance_matrix,
+    compute_self_tuning_eigengap,
     compute_silhouette_samples,
     compute_stability_sweep,
     consensus_suggestion_lines,
+    cophenetic_correlation,
     dunn_index,
+    gap_statistic_suggested_k,
     hdbscan_labels_and_probabilities,
+    integrated_completed_likelihood,
     representative_values,
     run_clustering_tuning_sweep,
     run_spectral_affinity_aware_sweep,
@@ -604,3 +611,90 @@ def test_consensus_suggestion_lines_report_argmax_k():
     assert len(lines) == 2
     assert lines[0].startswith("RSC suggests n_clusters=")
     assert lines[1].startswith("Monti suggests n_clusters=")
+
+
+# --- literature-established per-parameter justification metrics (07-10-26 chat decision):
+# notebook-only post-hoc diagnostics, not wired into run_clustering_tuning_sweep/clustering.py --
+
+
+def test_integrated_completed_likelihood_penalizes_overlapping_components_more_than_bic():
+    """3 well-separated blobs: a GMM fit with the true n_components=3 should have confident
+    (near 0/1) responsibilities, so ICL stays close to BIC (small entropy penalty). Forcing
+    n_components=6 on the same data splits at least one blob into overlapping sub-components
+    with genuinely ambiguous responsibilities - ICL's extra entropy term must open a larger
+    gap above BIC there than at the true n_components."""
+    X = _three_blobs()
+
+    icl_3 = integrated_completed_likelihood(X, {"n_components": 3, "random_state": 0})
+    bic_3 = GaussianMixture(n_components=3, random_state=0).fit(X).bic(X)
+    icl_6 = integrated_completed_likelihood(X, {"n_components": 6, "random_state": 0})
+    bic_6 = GaussianMixture(n_components=6, random_state=0).fit(X).bic(X)
+
+    assert (icl_6 - bic_6) > (icl_3 - bic_3) >= 0
+
+
+def test_cophenetic_correlation_is_high_for_well_separated_blobs():
+    X = _three_blobs()
+
+    correlation = cophenetic_correlation(X, {"linkage": "average", "metric": "euclidean"})
+
+    assert 0.0 <= correlation <= 1.0
+    assert correlation > 0.7  # 3 compact, well-separated blobs -> dendrogram should fit well
+
+
+def test_cophenetic_correlation_single_link_chaining_scores_lower_than_average():
+    """Single linkage is the textbook example of a linkage whose dendrogram poorly represents
+    the original distances on compact blobs (chaining effect) - average linkage should score
+    higher cophenetic correlation on this same well-separated fixture."""
+    X = _three_blobs()
+
+    correlation_single = cophenetic_correlation(X, {"linkage": "single", "metric": "euclidean"})
+    correlation_average = cophenetic_correlation(X, {"linkage": "average", "metric": "euclidean"})
+
+    assert correlation_average > correlation_single
+
+
+def test_compute_gap_statistic_shape_and_columns():
+    X = _three_blobs()
+
+    df = compute_gap_statistic(X, [2, 3, 4, 5], {"random_state": 0, "n_init": "auto"}, n_references=5, random_state=0)
+
+    assert list(df["n_clusters"]) == [2, 3, 4, 5]
+    assert set(df.columns) == {"n_clusters", "log_wk", "log_wk_ref_mean", "gap", "gap_sk"}
+    assert (df["gap_sk"] >= 0).all()
+
+
+def test_gap_statistic_suggested_k_picks_true_cluster_count():
+    X = _three_blobs()
+
+    df = compute_gap_statistic(X, [1, 2, 3, 4, 5, 6], {"random_state": 0, "n_init": "auto"}, n_references=15, random_state=0)
+    suggested_k = gap_statistic_suggested_k(df)
+
+    assert suggested_k == 3  # the fixture's true number of blobs
+
+
+def test_gap_statistic_suggested_k_returns_none_when_rule_never_satisfied():
+    # a single k has no "next" k to compare against -> the 1-SE rule can never fire
+    df = pd.DataFrame({"n_clusters": [3], "gap": [1.0], "gap_sk": [0.1], "log_wk": [0.0], "log_wk_ref_mean": [1.0]})
+
+    assert gap_statistic_suggested_k(df) is None
+
+
+def test_compute_self_tuning_eigengap_finds_gap_matching_known_cluster_count():
+    X = _three_blobs()
+
+    eigenvalues = compute_self_tuning_eigengap(X, local_scale_k=5, max_k=10)
+
+    assert len(eigenvalues) == 11
+    assert (np.diff(eigenvalues) >= -1e-9).all()
+    assert eigenvalues[2] < 1e-6
+    assert eigenvalues[3] > 0.01
+
+
+def test_compute_self_tuning_eigengap_raises_on_coincident_neighbors():
+    # 10 exact duplicates at the origin -> local scale 0 for local_scale_k=7 (needs 7 distinct
+    # non-self neighbors, only 9 identical points available)
+    X = np.zeros((10, 2))
+
+    with pytest.raises(ValueError, match="coincident neighbors"):
+        compute_self_tuning_eigengap(X, local_scale_k=7)
