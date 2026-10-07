@@ -10,6 +10,20 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 07-10-26 — `sdc_matrix/07-10_s2.4-vol`: righe riordinate come `lesion_matrix/07-10_s1.4-vol`
+
+**Cosa è cambiato**: in `matrix.npy` e `metadata.csv` le 5845 righe sono state riordinate dall'ordine alfabetico per dataset (quello con cui la pipeline le aveva scritte) all'ordine di `lesion_matrix/07-10_s1.4-vol/metadata.csv` (dataset nell'ordine del config: WashU, PASPORT, PSP, UKLFR, UCL-UK, WAKEUP, NEMESIS_T0, SFB936). Nessun valore è cambiato: è una permutazione delle righe. `non_constant_mask.npy`, `manifest.json` e `config.md` sono invariati (colonne e forma non toccate).
+
+**Perché**: richiesta dell'utente, così le due matrici sono allineate per posizione oltre che per `subject_id` (stesso insieme di 5845 soggetti, stesso dataset per ciascuno).
+
+**Verifica prima della sostituzione**: permutazione completa (ogni riga vecchia usata una volta); le 5845 righe nuove sono identiche bit a bit alla riga vecchia da cui provengono (0 differenze); 16 soggetti, tra cui prima e ultima riga, ricalcolati dal loro `.nii.gz` con `_load_disconnectome_voxels` e confrontati con la riga corrispondente nell'ordine nuovo (16/16). Il file è stato scritto a parte e sostituito solo dopo.
+
+**Verifica dopo la sostituzione**: tutte e 5845 le righe ricalcolate dal `.nii.gz` del proprio soggetto (un file per soggetto, nome che contiene il `subject_id`) e confrontate bit a bit con la riga del file finale: 0 righe non corrispondenti (354 s). Fatta a partire dal `metadata.csv` finale, quindi indipendente dalla permutazione usata per scrivere il file. Solo dopo è stata cancellata la copia temporanea in ordine alfabetico.
+
+**Conseguenza ancora vera oggi**: l'ordine riordinato è solo nei file, non nel codice. Una nuova build di `build_sdc_matrix` con la stessa configurazione riscrive le righe in ordine alfabetico per dataset (`sorted(admitted.items())` in `src/features/sdc.py`), quindi un `overwrite` di questa sessione annulla il riordino. L'originale in ordine alfabetico non è in `data/`: è stato tenuto fuori dal repo solo per questa sessione di lavoro.
+
+---
+
 ## 28-09-26 — Rimossa `data/derived/enrich_lesion_metadata/`
 
 Cancellata la directory (conteneva solo un `runs.csv` residuo, 2.9KB, mtime 02-09-26) —

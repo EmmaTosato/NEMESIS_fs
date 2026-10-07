@@ -81,7 +81,7 @@ Tag chiuso, condiviso tra track (mai un `_` al suo interno - vedi `src/utils/run
 - Datasets: UNIPD/WashU, UNIPD/PASPORT, UNIPD/PSP, UKLFR/stroke_UKLFR, UCL-UK StrokeData, UKE/WAKEUP_acute, UNIPD/NEMESIS_T0, UKE/SFB936_ses01
 - Modality: SDC, voxel-wise (mappe `disconnectome-map`, valori continui 0-1), griglia 2mm
 - Soggetti: 5845
-- Notes: speculare a s1.4-vol (stessi 8 dataset, lato disconnettoma): stesso template 2mm, stessi 5845 soggetti (8 esclusi da `excluded_subjects.csv`), ma righe in ordine diverso (qui ordinate per dataset in ordine alfabetico, in s1.4-vol nell'ordine del config), quindi le due matrici si allineano per `subject_id`, non per posizione. Nessuna correzione dei voxel fuori dal brain (la pipeline SDC non la prevede): 291345 colonne non costanti contro le 221955 di s1.4-vol
+- Notes: speculare a s1.4-vol (stessi 8 dataset, lato disconnettoma): stesso template 2mm, stessi 5845 soggetti (8 esclusi da `excluded_subjects.csv`), righe nello stesso ordine di s1.4-vol (riordinate dopo la build, vedi `data_changelog.md` 07-10-26). Nessuna correzione dei voxel fuori dal brain (la pipeline SDC non la prevede): 291345 colonne non costanti contro le 221955 di s1.4-vol
 
 ---
 
