@@ -73,6 +73,14 @@ class ColorMode:
     # src.analysis.embedding_app.build_embedding_figure's own modality parameter - checked
     # there, not here, since this module has no ProductionRun concept of its own.
     restricted_to_modality: str | None = None
+    # categorical only: the closed vocabulary of this mode's values, in display order. When set,
+    # every renderer gives each label the colour of its position HERE, not of its position among
+    # the labels a given run happens to contain - a label absent from a run (a rare category in a
+    # small cohort) would otherwise shift the colour of every label after it, so the same
+    # category would change colour from run to run. A value outside it (and outside
+    # UNKNOWN_CATEGORICAL) raises in color_values. None: an open vocabulary (dataset, side),
+    # coloured by sorted position among the labels present.
+    categories: tuple[str, ...] | None = None
 
 
 # Lesion volume and overall disconnection are measured on a voxel grid, and the registry holds one
@@ -86,6 +94,23 @@ class ColorMode:
 # plus the grid name configured in config/pipelines/compute_{lesion,sdc}_metadata.json - repeated
 # here rather than imported, so this module stays free of the imaging stack;
 # tests/unit/test_embedding_coloring.py pins that the two agree.
+# The categories of src.features.lesion_location.LOCATION_CATEGORIES, repeated here for the same
+# reason as the grid column prefixes below (this module stays free of the imaging stack);
+# tests/unit/test_embedding_coloring.py pins that the two agree. Same order, which is the legend
+# order.
+_LOCATION_CATEGORIES: tuple[str, ...] = (
+    "infratentorial",
+    "subcortical_gray",
+    "cortex_only",
+    "cortex_white_boundary",
+    "white_matter_only",
+    "ventricle",
+    "unlabeled",
+)
+# The one grid lesion location is measured on (config/pipelines/compute_lesion_metadata.json,
+# `location.grid`): unlike volume and disconnection it has no 1mm column, so it is not a grid mode.
+_LOCATION_COLUMN = "location_dominant_2mm"
+
 DEFAULT_GRID = "2mm"
 KNOWN_GRIDS: tuple[str, ...] = (DEFAULT_GRID, "1mm")
 _GRID_MODE_PREFIXES: dict[str, str] = {
@@ -142,6 +167,19 @@ COLOR_MODES: dict[str, ColorMode] = {
         description=(
             "Punti colorati per lato della lesione (left, right, both), preso dalla clinica dove è "
             "registrato e altrimenti dalla maschera della lesione. Grigio: lato non disponibile."
+        ),
+    ),
+    # The anatomical category holding most of the lesion (compute_lesion_metadata's
+    # `location_dominant_2mm`), one of seven. Grey for the few subjects with no lesion voxel
+    # inside the brain, who have no location. Not restricted to a modality: where the lesions of
+    # a disconnection cluster sit is exactly what an sdc run is looked at for.
+    "location": ColorMode(
+        kind="categorical", column=_LOCATION_COLUMN, registry_column=_LOCATION_COLUMN, label="lesion location",
+        categories=_LOCATION_CATEGORIES,
+        description=(
+            "Punti colorati per sede della lesione: la categoria anatomica che ne contiene la quota maggiore. "
+            "cortex_white_boundary sono i voxel su cui i due atlanti non concordano (corteccia o bianca). "
+            "Grigio: sede non disponibile."
         ),
     ),
     "volume": ColorMode(
@@ -263,13 +301,30 @@ def color_values(
     mode = resolve_color_mode(mode_name)
     column = mode.registry_column if registry_column is None else registry_column
     if column is not None:
-        return _values_from_registry(metadata, mode, mode_name, column)
-    if mode.column in metadata.columns:
-        return metadata[mode.column].to_numpy()
-    raise ValueError(
-        f"metadata has no {mode.column!r} column for color mode {mode_name!r} - "
-        "run the pipeline step that produces it first (clustering.py for 'cluster_label')"
-    )
+        values = _values_from_registry(metadata, mode, mode_name, column)
+    elif mode.column in metadata.columns:
+        values = metadata[mode.column].to_numpy()
+    else:
+        raise ValueError(
+            f"metadata has no {mode.column!r} column for color mode {mode_name!r} - "
+            "run the pipeline step that produces it first (clustering.py for 'cluster_label')"
+        )
+    if mode.categories is not None:
+        _check_closed_vocabulary(values, mode, mode_name)
+    return values
+
+
+def _check_closed_vocabulary(values: np.ndarray, mode: ColorMode, mode_name: str) -> None:
+    """A categorical mode with a closed vocabulary must not meet a value outside it: a label the
+    palette has no colour for would otherwise be drawn in whichever colour is left, or crash a
+    renderer far from the cause."""
+    unexpected = sorted(set(pd.unique(values).tolist()) - set(mode.categories) - {UNKNOWN_CATEGORICAL})
+    if unexpected:
+        raise ValueError(
+            f"color mode {mode_name!r} met value(s) {unexpected} outside its categories "
+            f"{list(mode.categories)} - the registry column {mode.registry_column or mode.column!r} "
+            "was written by a different version of the pipeline"
+        )
 
 
 def _values_from_registry(

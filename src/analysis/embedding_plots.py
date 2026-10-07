@@ -76,7 +76,10 @@ def write_embedding_plots(
         static_path = output_dir / f"{file_prefix}_{name}.png"
         try:
             if mode.kind == "categorical":
-                plot_embedding_categorical(embedding, values, static_path, xlabel, ylabel, title, legend_title=mode.label)
+                plot_embedding_categorical(
+                    embedding, values, static_path, xlabel, ylabel, title,
+                    legend_title=mode.label, category_order=mode.categories,
+                )
             else:
                 plot_embedding_continuous(
                     embedding, values, static_path, xlabel, ylabel, title,
@@ -126,6 +129,7 @@ def write_embedding_grid(
                 color_kind=mode.kind,
                 legend_title=mode.label,
                 log_scale=mode.log_scale,
+                category_order=mode.categories,
             )
         except Exception as exc:
             logging.warning("failed to generate %r embedding grid: %s", name, exc)

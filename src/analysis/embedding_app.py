@@ -45,7 +45,6 @@ docstring.
 from __future__ import annotations
 
 import io
-import itertools
 import logging
 import re
 import threading
@@ -87,8 +86,9 @@ from src.analysis.embedding_coloring import (
 from src.analysis.embedding_coloring import color_values as read_color_values
 from src.analysis.params import load_tag_params
 from src.analysis.plotting import (
-    _CATEGORICAL_PALETTE,
     _NOISE_COLOR,
+    _ordered_categories,
+    _palette_for_categories,
     _palette_for_labels,
     compose_embedding_plot_title,
 )
@@ -792,14 +792,6 @@ def run_title(run: ProductionRun, mode_name: str) -> str:
     return compose_embedding_plot_title(run.results_relative_path, run.method, _color_label(mode_name))
 
 
-def _palette_for(categories: list[str], missing_label: str = "unknown") -> dict[str, str]:
-    palette: dict[str, str] = {}
-    colors = itertools.cycle(_CATEGORICAL_PALETTE)
-    for category in categories:
-        palette[category] = _NOISE_COLOR if category == missing_label else next(colors)
-    return palette
-
-
 def _log_decade_ticks(values: np.ndarray) -> tuple[list[float], list[str]]:
     """Decade tick positions (in log10 space) spanning `values`' real (non-log) range, e.g.
     [1, 10, 100, 1000] for a 1..2000 range - the same "one tick per order of magnitude" a
@@ -889,8 +881,8 @@ def build_embedding_figure(
         values = read_color_values(metadata, mode_name, registry_column=registry_column)
 
         if mode.kind == "categorical":
-            unique_categories = sorted(pd.unique(values).tolist())
-            palette = _palette_for(unique_categories)
+            unique_categories = _ordered_categories(values, mode.categories)
+            palette = _palette_for_categories(unique_categories, category_order=mode.categories)
             for category in unique_categories:
                 fig.add_trace(
                     scatter_cls(

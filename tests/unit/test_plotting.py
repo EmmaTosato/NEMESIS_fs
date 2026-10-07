@@ -12,7 +12,11 @@ import pytest
 from src.analysis.plotting import (
     _DECLUTTER_MARKER_DIAMETERS,
     _EMBEDDING_DPI,
+    _CATEGORICAL_PALETTE,
+    _NOISE_COLOR,
     _declutter_points,
+    _ordered_categories,
+    _palette_for_categories,
     compose_embedding_plot_title,
     compose_run_title,
     plot_clustering_tuning_heatmaps,
@@ -692,4 +696,58 @@ def test_plot_embedding_grid_blocks_invalid_color_kind_raises(tmp_path):
     with pytest.raises(ValueError, match="color_kind must be"):
         plot_embedding_grid_blocks(
             blocks, tmp_path / "out.png", "x", "y", "title", color_values=np.array([1, 2]), color_kind="bogus"
+        )
+
+
+# --- closed category vocabularies -----------------------------------------------------------------
+
+_ORDER = ("a", "b", "c", "d")
+
+
+def test_open_vocabulary_is_sorted_and_coloured_by_position_among_the_present_labels():
+    categories = _ordered_categories(np.array(["c", "a", "c"]), None)
+
+    assert categories == ["a", "c"]
+    palette = _palette_for_categories(categories)
+    assert palette == {"a": _CATEGORICAL_PALETTE[0], "c": _CATEGORICAL_PALETTE[1]}
+
+
+def test_closed_vocabulary_colours_a_label_by_its_position_in_the_full_list():
+    """The point of a closed vocabulary: "c" has the same colour whether or not "b" is in the
+    plot - with an open vocabulary dropping "b" would shift "c" onto b's colour."""
+    with_b = _palette_for_categories(_ordered_categories(np.array(["a", "b", "c"]), _ORDER), category_order=_ORDER)
+    without_b = _palette_for_categories(_ordered_categories(np.array(["a", "c"]), _ORDER), category_order=_ORDER)
+
+    assert with_b["c"] == without_b["c"] == _CATEGORICAL_PALETTE[2]
+    assert _palette_for_categories(["a", "c"])["c"] != without_b["c"]  # the open-vocabulary behaviour it replaces
+
+
+def test_closed_vocabulary_is_in_list_order_with_the_missing_label_last_and_grey():
+    categories = _ordered_categories(np.array(["d", "unknown", "a"]), _ORDER)
+
+    assert categories == ["a", "d", "unknown"]
+    assert _palette_for_categories(categories, category_order=_ORDER)["unknown"] == _NOISE_COLOR
+
+
+def test_closed_vocabulary_rejects_a_label_outside_it():
+    with pytest.raises(ValueError, match="outside the closed category list"):
+        _ordered_categories(np.array(["a", "zzz"]), _ORDER)
+    with pytest.raises(ValueError, match="outside the closed category list"):
+        _palette_for_categories(["zzz"], category_order=_ORDER)
+
+
+def test_plot_embedding_categorical_accepts_a_closed_vocabulary(tmp_path):
+    X = np.random.default_rng(0).normal(size=(6, 2))
+    path = tmp_path / "out.png"
+
+    plot_embedding_categorical(
+        X, np.array(["a", "c", "a", "unknown", "c", "d"]), path, "x", "y", "title",
+        legend_title="mode", category_order=_ORDER,
+    )
+
+    assert path.is_file() and path.stat().st_size > 0
+    with pytest.raises(ValueError, match="outside the closed category list"):
+        plot_embedding_categorical(
+            X, np.array(["a", "c", "a", "q", "c", "d"]), path, "x", "y", "title",
+            legend_title="mode", category_order=_ORDER,
         )

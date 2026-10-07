@@ -20,7 +20,8 @@ def test_registry_has_expected_modes():
     # own production output, never consumed via a pipeline's color_by config (see this
     # module's own docstring), only by src.pipeline.embedding_app.
     assert set(COLOR_MODES) == {
-        "dataset", "side", "volume", "disconnection_load", "disconnection_mean", "nihss", "cluster_label"
+        "dataset", "side", "location", "volume", "disconnection_load", "disconnection_mean", "nihss",
+        "cluster_label",
     }
 
 
@@ -330,7 +331,7 @@ def test_disconnection_modes_are_restricted_to_sdc(mode_name):
     assert resolve_color_mode(mode_name).restricted_to_modality == "sdc"
 
 
-@pytest.mark.parametrize("mode_name", ["dataset", "side", "volume", "nihss", "cluster_label"])
+@pytest.mark.parametrize("mode_name", ["dataset", "side", "location", "volume", "nihss", "cluster_label"])
 def test_every_other_mode_is_unrestricted(mode_name):
     """Subject-level facts stay meaningful regardless of which modality built the embedding
     (e.g. colouring an sdc run by lesion volume, to relate disconnection to lesion size)."""
@@ -378,3 +379,55 @@ def test_disconnection_mode_on_an_unenriched_registry_says_how_to_populate_it(_r
 
     with pytest.raises(ValueError, match=r"no 'disconnection_load_voxels_2mm' column.*enrich_metadata"):
         color_values(metadata, "disconnection_load")
+
+
+# --- location ----------------------------------------------------------------------------------
+
+
+def test_location_mode_is_a_closed_categorical_vocabulary_matching_the_pipeline_s():
+    """The categories are repeated in embedding_coloring (it stays free of the imaging stack), so
+    this is where the copy is pinned to the one compute_lesion_metadata actually writes - same
+    names, same order (the legend order)."""
+    from src.features.lesion_location import LOCATION_CATEGORIES, location_columns
+
+    mode = resolve_color_mode("location")
+    assert mode.kind == "categorical"
+    assert mode.categories == LOCATION_CATEGORIES
+    assert mode.registry_column == mode.column == location_columns("2mm")[0]
+    assert "location" not in GRID_MODES  # measured on the 2mm grid alone, there is no 1mm column to choose
+
+
+def test_location_resolves_from_registry_and_an_empty_cell_is_unknown(_registry_root):
+    _write_registry(
+        _registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "cortex_only"],
+         ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", ""]],
+        ["location_dominant_2mm"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0002", "sub-STUNIPD0001", "sub-STUNIPD9999"]})
+
+    assert list(color_values(metadata, "location")) == ["unknown", "cortex_only", "unknown"]
+
+
+def test_location_value_outside_the_closed_vocabulary_raises(_registry_root):
+    """A label the palette has no colour for must stop at the source, not be drawn in whichever
+    colour is left over (e.g. a registry written by a pipeline version with another category)."""
+    _write_registry(
+        _registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "cortical"]],
+        ["location_dominant_2mm"],
+    )
+
+    with pytest.raises(ValueError, match="outside its categories"):
+        color_values(pd.DataFrame({"subject_id": ["sub-STUNIPD0001"]}), "location")
+
+
+def test_location_without_the_registry_column_points_to_enrich_metadata(_registry_root):
+    _write_registry(
+        _registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "left"]],
+        ["lesion_side"],
+    )
+
+    with pytest.raises(ValueError, match="enrich_metadata"):
+        color_values(pd.DataFrame({"subject_id": ["sub-STUNIPD0001"]}), "location")

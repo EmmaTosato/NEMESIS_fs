@@ -363,6 +363,45 @@ def test_build_embedding_figure_categorical_one_trace_per_category():
     assert names == set(metadata["dataset"].unique())
 
 
+def _registry_with_location(metadata_root, locations):
+    metadata_root.mkdir(parents=True, exist_ok=True)
+    header = [*_PARTICIPANTS_REGISTRY_COLUMNS, "location_dominant_2mm"]
+    rows = [
+        [f"sub-{i}", f"sub-{i}", "UNIPD/WashU", "ST", "True", "True", "False", location]
+        for i, location in enumerate(locations)
+    ]
+    (metadata_root / "participants.csv").write_text(
+        "\n".join([",".join(header)] + [",".join(r) for r in rows]) + "\n"
+    )
+
+
+def test_build_embedding_figure_location_mode_is_in_vocabulary_order_with_stable_colours(tmp_path, monkeypatch):
+    """One trace per location present, in the vocabulary's order (not alphabetical); and the same
+    label has the same colour whether or not another label is in the plot - the reason the mode
+    declares a closed vocabulary."""
+    from src.utils import participants as participants_registry
+
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", tmp_path / "metadata")
+    embedding, metadata = _embedding_and_metadata()
+
+    _registry_with_location(
+        tmp_path / "metadata", ["white_matter_only", "cortex_white_boundary", "cortex_only", ""]
+    )
+    full = build_embedding_figure(embedding, metadata, "location", "x", "y", "title")
+    _registry_with_location(
+        tmp_path / "metadata", ["white_matter_only", "cortex_only", "cortex_only", "white_matter_only"]
+    )
+    without_boundary = build_embedding_figure(embedding, metadata, "location", "x", "y", "title")
+
+    assert [trace.name for trace in full.data] == [
+        "cortex_only", "cortex_white_boundary", "white_matter_only", "unknown"
+    ]
+    colour = lambda fig: {trace.name: trace.marker.color for trace in fig.data}
+    assert colour(full)["white_matter_only"] == colour(without_boundary)["white_matter_only"]
+    assert colour(full)["cortex_only"] == colour(without_boundary)["cortex_only"]
+    assert colour(full)["unknown"] == "#9e9d98"
+
+
 def test_build_embedding_figure_cluster_label_mode_one_trace_per_cluster():
     # cluster_label is an int column, including hdbscan-style noise (-1) - rendered as just
     # another category (no special gray styling), see embedding_coloring.py's own note on why.
@@ -632,7 +671,8 @@ def test_build_embedding_figure_volume_mode_is_not_restricted_by_modality(_parti
 def test_color_mode_order_starts_with_neutro():
     assert COLOR_MODE_ORDER[0] == NEUTRAL_MODE
     assert set(COLOR_MODE_ORDER[1:]) == {
-        "dataset", "side", "volume", "disconnection_load", "disconnection_mean", "nihss", "cluster_label"
+        "dataset", "side", "location", "volume", "disconnection_load", "disconnection_mean", "nihss",
+        "cluster_label",
     }
 
 

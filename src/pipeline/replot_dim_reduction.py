@@ -151,7 +151,10 @@ def _replot_embedding(run_dir: Path, X: np.ndarray, metadata: pd.DataFrame) -> l
 
         static_path = run_dir / f"embedding_plot_{name}.png"
         if mode.kind == "categorical":
-            plot_embedding_categorical(X, values, static_path, xlabel, ylabel, title, legend_title=mode.label)
+            plot_embedding_categorical(
+                X, values, static_path, xlabel, ylabel, title,
+                legend_title=mode.label, category_order=mode.categories,
+            )
         else:
             plot_embedding_continuous(
                 X, values, static_path, xlabel, ylabel, title,

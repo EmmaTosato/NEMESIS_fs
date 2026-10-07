@@ -338,19 +338,47 @@ def plot_embedding_2d(
     plt.close(fig)
 
 
-def _palette_for_categories(categories: list[str], missing_label: str = "unknown") -> dict[str, str]:
+def _ordered_categories(
+    values: np.ndarray, category_order: tuple[str, ...] | None, missing_label: str = "unknown"
+) -> list[str]:
+    """The categories present in `values`, in legend order: sorted, for an open vocabulary
+    (category_order None); otherwise in category_order, then missing_label last, with any other
+    value raising - a closed vocabulary (embedding_coloring.ColorMode.categories) must never
+    meet a label it has no colour for."""
+    present = pd.unique(values).tolist()
+    if category_order is None:
+        return sorted(present)
+    unexpected = sorted(set(present) - set(category_order) - {missing_label})
+    if unexpected:
+        raise ValueError(f"value(s) {unexpected} are outside the closed category list {list(category_order)}")
+    return [c for c in category_order if c in present] + ([missing_label] if missing_label in present else [])
+
+
+def _palette_for_categories(
+    categories: list[str], missing_label: str = "unknown", category_order: tuple[str, ...] | None = None
+) -> dict[str, str]:
     """Maps each category string to a color: missing_label always gets the
-    fixed neutral gray (same convention as -1/noise in _palette_for_labels),
-    every other category cycles through the validated categorical palette in
-    the order given (callers pass a sorted list, so this is deterministic).
+    fixed neutral gray (same convention as -1/noise in _palette_for_labels).
+
+    Every other category gets a color from the validated categorical palette:
+    - category_order None (an open vocabulary): cycling in the order given
+      (callers pass a sorted list, so this is deterministic) - so a label's color
+      depends on which other labels are present;
+    - category_order given (a closed vocabulary): by the label's position in
+      category_order, so a label keeps its color whichever of the others a given
+      plot happens to contain. A label outside it raises.
     """
     palette: dict[str, str] = {}
     colors = itertools.cycle(_CATEGORICAL_PALETTE)
     for category in categories:
         if category == missing_label:
             palette[category] = _NOISE_COLOR
-        else:
+        elif category_order is None:
             palette[category] = next(colors)
+        elif category in category_order:
+            palette[category] = _CATEGORICAL_PALETTE[category_order.index(category) % len(_CATEGORICAL_PALETTE)]
+        else:
+            raise ValueError(f"category {category!r} is outside the closed category list {list(category_order)}")
     return palette
 
 
@@ -363,9 +391,12 @@ def plot_embedding_categorical(
     title: str,
     legend_title: str,
     missing_label: str = "unknown",
+    category_order: tuple[str, ...] | None = None,
 ) -> None:
     """Scatter the first 2 columns of X_2d, colored by an arbitrary string
     category per point (e.g. dataset, lesion side), to output_path.
+    `category_order` is a closed vocabulary's fixed legend/color order
+    (embedding_coloring.ColorMode.categories), None for an open one.
 
     Same visual treatment as plot_clusters_2d: validated categorical
     palette (missing_label - default "unknown" - always the same neutral
@@ -383,7 +414,7 @@ def plot_embedding_categorical(
     xlim = (x_min - x_pad, x_max + x_pad)
     ylim = (y_min - y_pad, y_max + y_pad)
     figsize = (_SINGLE_PLOT_WIDTH, _SINGLE_PLOT_HEIGHT)
-    unique_categories = sorted(pd.unique(categories).tolist())
+    unique_categories = _ordered_categories(categories, category_order, missing_label)
     X_2d = _declutter_points(X_2d, xlim, ylim, figsize, _EMBEDDING_MARKER_SIZE)
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -392,7 +423,7 @@ def plot_embedding_categorical(
         y=X_2d[:, 1],
         hue=categories,
         hue_order=unique_categories,
-        palette=_palette_for_categories(unique_categories, missing_label),
+        palette=_palette_for_categories(unique_categories, missing_label, category_order),
         s=_EMBEDDING_MARKER_SIZE,
         alpha=_EMBEDDING_MARKER_ALPHA,
         edgecolor="none",
@@ -696,6 +727,7 @@ def plot_embedding_grid_blocks(
     color_kind: str | None = None,
     legend_title: str | None = None,
     log_scale: bool = False,
+    category_order: tuple[str, ...] | None = None,
 ) -> None:
     """One row of small scatter subplots per entry in `blocks` - each entry
     is (block_title, [(cell_title, embedding_2d), ...]), e.g. block_title=
@@ -763,14 +795,14 @@ def plot_embedding_grid_blocks(
             if color_values is None:
                 ax.scatter(embedding[:, 0], embedding[:, 1], alpha=_GRID_MARKER_ALPHA, s=_GRID_MARKER_SIZE, edgecolor="none")
             elif color_kind == "categorical":
-                unique_categories = sorted(pd.unique(color_values).tolist())
+                unique_categories = _ordered_categories(color_values, category_order)
                 show_legend = legend_handles_labels is None
                 sns.scatterplot(
                     x=embedding[:, 0],
                     y=embedding[:, 1],
                     hue=color_values,
                     hue_order=unique_categories,
-                    palette=_palette_for_categories(unique_categories),
+                    palette=_palette_for_categories(unique_categories, category_order=category_order),
                     s=_GRID_MARKER_SIZE,
                     alpha=_GRID_MARKER_ALPHA,
                     edgecolor="none",

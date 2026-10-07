@@ -15,6 +15,7 @@ Regola unica (30-09-26): **un dato del soggetto viene da `assets/metadata/partic
 | Bottone | Fonte | Colonna |
 |---|---|---|
 | `side` | participants.csv | `lesion_side` |
+| `lesion location` | participants.csv | `location_dominant_2mm` |
 | `nihss` | participants.csv | `NIHSS` |
 | `volume` | participants.csv | `lesion_volume_voxels_2mm` (o `_1mm`, vedi sotto) |
 | `disconnection load` | participants.csv | `disconnection_load_voxels_2mm` (o `_1mm`, vedi sotto) |
@@ -25,6 +26,16 @@ Regola unica (30-09-26): **un dato del soggetto viene da `assets/metadata/partic
 Prima l'ordine era invertito: si guardava prima il `metadata.csv` del run. Un run costruito prima del 06/09/26 porta ancora una **copia** di quelle colonne cliniche, e quella copia poteva divergere dal registro — due run degli stessi soggetti si coloravano in modo diverso. Ora il registro vince sempre.
 
 Sul volume la differenza è sostanziale: il `lesion_volume_voxels` di un run conta i voxel sulla griglia che *quel* `build_lesion_matrix` ha usato, mentre le colonne del registro sono calcolate una volta sola su una griglia fissa per tutti i soggetti — le uniche confrontabili fra run.
+
+### Sede della lesione
+
+Il bottone **lesion location** colora ogni punto per **dove sta la lesione**: la categoria anatomica che ne contiene la quota maggiore, una tra sette (`infratentorial`, `subcortical_gray`, `cortex_only`, `cortex_white_boundary`, `white_matter_only`, `ventricle`, `unlabeled`). `cortex_white_boundary` non è una sede: sono i voxel su cui i due atlanti Harvard-Oxford non concordano (corteccia per uno, sostanza bianca per l'altro). Definizioni e regole: [`docs/dev/metadata.md`](../dev/metadata.md), sezione *La sede della lesione*.
+
+- **Ogni etichetta ha sempre lo stesso colore**, in qualunque run e anche se in quel run un'altra etichetta non compare (di solito `cortex_white_boundary`, rara: 21 soggetti su 5853). La legenda segue l'ordine delle categorie, non quello alfabetico.
+- **Grigio**: sede non disponibile, cioè i soggetti con la lesione tutta fuori dal cervello (4 su 5853).
+- **Disponibile su ogni modalità di run**, `lesion` e `sdc`: su un run `sdc` serve a vedere dove stanno le lesioni di un cluster di disconnessione.
+- **Il colore è la categoria dominante, non una misura continua**: una lesione 40% / 35% / 25% prende il colore del 40%. Le quote per categoria sono nel registro (`location_<categoria>_2mm`), ma non hanno ancora un bottone.
+- I valori vengono da `lesion_metadata.csv` tramite `enrich_metadata.py` (`lesion_metadata.copy_columns`, [`docs/guides/metadata.md`](metadata.md)); finché quel passaggio non è stato eseguito il bottone mostra un messaggio che dice di lanciarlo.
 
 ### Disconnessione del paziente
 
