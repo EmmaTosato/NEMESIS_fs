@@ -1,11 +1,29 @@
 # Guida ai notebook di valutazione del clustering
 
-Due notebook sotto `notebooks/post-results_analysis/` lavorano su run di clustering già **prodotte** (`fine_tuning: false`, lette da `results/<lesion|sdc>/clustering/production/<metodo>/<embedding>/<run_name>/`). La scelta di `k`/iperparametri è fatta altrove (`clustering.py --fine_tuning true`, `tuning_results.csv`/`tuning_plot.png`): qui non si sceglie niente in automatico (`code_standards.md` §0), si leggono tabelle e grafici.
+Due notebook sotto `notebooks/post-results_analysis/` (evaluation e comparison) lavorano su run di clustering già **prodotte** (`fine_tuning: false`, lette da `results/<lesion|sdc>/clustering/production/<metodo>/<embedding>/<run_name>/`). La scelta di `k`/iperparametri è fatta altrove (`clustering.py --fine_tuning true`, `tuning_results.csv`/`tuning_plot.png`): qui non si sceglie niente in automatico (`code_standards.md` §0), si leggono tabelle e grafici.
 
 | Notebook | Domanda | Unità di analisi |
 |---|---|---|
 | `clustering_evaluation.ipynb` | com'è fatta questa run? | una run alla volta |
 | `clustering_comparison.ipynb` | in cosa differiscono queste run? | due o più run |
+
+## Scope: dove vive ogni analisi
+
+Il criterio (empirica contro interpretativa) è in [`exploration.md`](exploration.md). Evaluation e comparison sono **empirici**; l'interpretazione dei cluster è in `cluster_interpretation.ipynb`, che non è documentato qui.
+
+| Analisi | Notebook |
+|---|---|
+| Metriche geometriche, del modello, stabilità di una run | `clustering_evaluation` |
+| Accordo tra partizioni (ARI/NMI/VI), contingency, abbinamento e Jaccard tra cluster di run diverse | `clustering_comparison` |
+| Distanze tra cluster **nello spazio dell'embedding** (centroidi, Mahalanobis, linkage) | `clustering_comparison` |
+| Tabelle e test su età, sesso, NIHSS, volume, dataset, lato, localizzazione | `cluster_interpretation` |
+| Mappe di overlap e disconnessione, soggetti rappresentativi | `cluster_interpretation` |
+| Distanze tra cluster **nello spazio delle mappe o del profilo clinico** | `cluster_interpretation` |
+| Perché due cluster abbinati differiscono (A∩B, A\B, B\A descritti con le variabili esterne) | `cluster_interpretation`, che riceve l'abbinamento dal comparison |
+
+I casi di confine seguono il criterio: una distanza calcolata sulle coordinate dell'embedding è empirica; una calcolata su mappe anatomiche o variabili cliniche descrive i cluster ed è interpretativa. Un'analisi che serve a entrambi i notebook (l'abbinamento dei cluster) vive come funzione in `src/analysis/`, perché i notebook non si importano tra loro.
+
+**Stato attuale.** `clustering_evaluation` contiene ancora la sezione 5 (associazione con le variabili cliniche) e le sezioni 6.2 e 6.3 (centroidi, soggetti rappresentativi): per il criterio sopra ricadono in `cluster_interpretation`, che le ha già. `clustering_comparison` ha ancora le sezioni della versione unica, con la vecchia numerazione e il profilo clinico per cluster della Parte 2 §3.
 
 Sono notebook locali, non pipeline CLI:
 

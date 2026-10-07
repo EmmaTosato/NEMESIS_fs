@@ -42,11 +42,19 @@ Ordine logico dei dati: **input grezzi** (cosa esiste su disco, cosa dicono i TS
 
 ## `notebooks/post-results_analysis/`
 
-| Notebook | Domanda |
-|---|---|
-| `clustering_evaluation` | come sta andando una run di clustering già prodotta, una alla volta (metriche, stabilità, variabili cliniche, grafici)? Guida dedicata: [`evaluation.md`](evaluation.md) |
-| `clustering_comparison` | in cosa differiscono due o più run già prodotte (ARI/NMI, match matrix, cross-modalità)? Guida dedicata: [`evaluation.md`](evaluation.md) |
-| `clustering_tuning_explorer` | esplorazione dei risultati di uno sweep di tuning del clustering |
+Leggono run di clustering già **prodotte**. Tre notebook, separati da un criterio solo: se l'analisi usa dati *interni* al clustering o dati *esterni* a esso.
+
+- **Empirica**: usa solo le etichette e lo spazio su cui la run è stata costruita (embedding o matrice). Risponde a "com'è fatta e quanto è affidabile questa partizione, quanto si accorda con un'altra".
+- **Interpretativa**: porta variabili o immagini che il clustering non ha visto (cliniche, demografiche, mappe anatomiche) e fa test su quelle. Risponde a "cosa rappresentano questi cluster".
+
+| Notebook | Scope | Domanda | Legge | Scrive |
+|---|---|---|---|---|
+| `clustering_evaluation` | empirica, **una** run | quanto è buona questa run? (metriche geometriche, del modello, stabilità, plot prodotti) | la run (`matrix.npy`, `metadata.csv`, `config.md`) | nulla |
+| `clustering_comparison` | empirica, **più** run | in cosa differiscono queste run? (accordo tra partizioni, corrispondenza dei cluster, distanze tra cluster nell'embedding) | le run scelte | nulla |
+| `cluster_interpretation` | interpretativa, **un** cluster alla volta | cosa distingue questo cluster dagli altri, clinicamente e anatomicamente? Replica i pannelli dell'app Dash e prova analisi nuove | una run, `participants.csv`, i `.nii.gz` dei soggetti | nulla |
+| `clustering_tuning_explorer` | esplorazione di uno sweep di tuning | come variano le metriche al variare degli iperparametri? | l'output di un tuning | nulla |
+
+Guida di evaluation e comparison, e dove vive ogni analisi: [`evaluation.md`](evaluation.md). `cluster_interpretation` è il banco di prova dell'app Dash: un'analisi che serve passa in `src/analysis/` con i test, poi nel pannello.
 
 ---
 

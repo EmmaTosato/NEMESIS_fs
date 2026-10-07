@@ -6,6 +6,24 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 07-10-26 — Scope dei notebook di post-results: empirico contro interpretativo
+
+**Cosa è stato deciso**: i notebook sotto `notebooks/post-results_analysis/` si separano per un criterio solo. Un'analisi che usa solo etichette e spazio del clustering è *empirica* (`clustering_evaluation` per una run, `clustering_comparison` per più run); una che porta variabili o immagini esterne (cliniche, demografiche, mappe) è *interpretativa* (`cluster_interpretation`). Scritto in `docs/guides/exploration.md` (criterio, tabella) e `docs/guides/evaluation.md` (dove vive ogni analisi, casi di confine).
+
+**Casi di confine**: le distanze tra cluster nello spazio dell'embedding sono empiriche; nello spazio delle mappe o del profilo clinico sono interpretative. Il confronto tra le interpretazioni di due cluster abbinati (A∩B, A\B, B\A) sta in `cluster_interpretation`, che riceve l'abbinamento dal comparison; l'abbinamento è una funzione in `src/analysis/` perché i notebook non si importano.
+
+**Scartato**: un notebook unico (vecchio `clustering_evaluation`, 101 celle, scope misti); due soli notebook con l'interpretazione dentro evaluation (la stessa analisi finiva in due posti, contro la regola "niente duplicati tra notebook").
+
+**Conseguenza ancora vera**: `clustering_evaluation` §5, §6.2 e §6.3 duplicano `cluster_interpretation` e vanno tolte; `clustering_comparison` ha ancora la numerazione della versione unica. Entrambe le pulizie sono da fare.
+
+## 07-10-26 — `cluster_interpretation.ipynb`: il notebook è il banco di prova dell'app Dash per interpretare i cluster
+
+**Cosa è cambiato**: nuovo `notebooks/post-results_analysis/cluster_interpretation.ipynb`. Si sceglie la run (`RUN_KEY`) e il cluster (`CLUSTER`) in cima; riusa le stesse funzioni dell'app (`cluster_description`, `anatomical_maps`, `embedding_app.discover_production_runs`/`run_metadata`/`load_run`), quindi tabella, figura, overlap e mappe di disconnessione coincidono con quelle dell'app. Le mappe SDC si attivano da sole per una run `sdc` (`SHOW_SDC_MAPS`). In più, solo qui: composizione per dataset/lato/localizzazione, mappa differenza cluster − resto, test cluster contro resto con effect size. Eseguito end-to-end su una run sdc (cluster 0, 2m50) e su una run lesion hdbscan con il cluster di rumore (-1).
+
+**Perché**: richiesta dell'utente. Le analisi nuove si provano nel notebook e, se servono, passano in `src/analysis/` con i test e poi nel pannello dell'app. L'ultima sezione del notebook elenca cosa è già nell'app e cosa è solo qui.
+
+**Conseguenza**: `config/pipelines/build_sdc_matrix.json` oggi è `streamline` e l'app richiede un config `voxelwise` per le mappe SDC (`src/pipeline/embedding_app.py` fallisce all'avvio altrimenti). Il notebook non dipende da quel file: dichiara la griglia SDC (2mm, `nearest`, la stessa delle matrici `s2.x-vol`) nella cella di configurazione.
+
 ## 07-10-26 — `clustering_evaluation.ipynb` diviso in evaluation (una run) e comparison (più run)
 
 **Cosa è cambiato**: il notebook unico (101 celle) è diventato due. `clustering_evaluation.ipynb` valuta una run alla volta, in sezioni per metodo di valutazione (geometriche, modello, stabilità, cliniche, grafici), ciascuna con metodo/cosa fa/come si legge/metodi applicabili. `clustering_comparison.ipynb` contiene ARI/NMI, match matrix, distanze tra centroidi e tutta la parte cross-modalità, spostate senza modifiche (71 celle), in attesa di riorganizzazione. Entrambi eseguiti end-to-end senza errori.
