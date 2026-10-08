@@ -34,6 +34,7 @@ from src.analysis.embedding_app import (
     build_app,
     build_embedding_figure,
     cluster_centroids_with_nearest_subject,
+    cluster_composition_content_for,
     cluster_description_content_for,
     cluster_options,
     disconnectome_viewer_content_for,
@@ -1665,9 +1666,9 @@ def test_sdc_panels_visible_only_for_sdc_modality_runs(tmp_path):
 
 
 def test_representative_subject_panel_visible_only_for_clustering_runs(tmp_path):
-    # representative-subject-panel's style is one of 6 Outputs on the same
+    # representative-subject-panel's style is one of 7 Outputs on the same
     # _update_cluster_picker callback (options/value/clustering-section style/cluster-map-panel
-    # style/this one/cluster-description-panel style) - all 6 must be requested together
+    # style/this one/cluster-description-panel style/cluster-composition-panel style) - all 7 must be requested together
     # (Dash's raw endpoint 500s on a subset of a registered multi-output callback's own
     # Outputs, confirmed while writing this test). clustering-section joined the group on
     # 30-09-26, when the cluster chooser was lifted into its own section header.
@@ -1687,6 +1688,7 @@ def test_representative_subject_panel_visible_only_for_clustering_runs(tmp_path)
         ("cluster-picker", "options"), ("cluster-picker", "value"),
         ("clustering-section", "style"), ("cluster-map-panel", "style"),
         ("representative-subject-panel", "style"), ("cluster-description-panel", "style"),
+        ("cluster-composition-panel", "style"),
     ]
 
     def cluster_picker_outputs(run_key):
@@ -1703,6 +1705,8 @@ def test_representative_subject_panel_visible_only_for_clustering_runs(tmp_path)
 
     assert cluster_picker_outputs(dr_run.key)["representative-subject-panel"]["style"] == {"display": "none"}
     assert cluster_picker_outputs(cl_run.key)["representative-subject-panel"]["style"] == {}
+    assert cluster_picker_outputs(dr_run.key)["cluster-composition-panel"]["style"] == {"display": "none"}
+    assert cluster_picker_outputs(cl_run.key)["cluster-composition-panel"]["style"] == {}
 
 
 def test_cluster_centroids_with_nearest_subject_finds_true_nearest_point():
@@ -2137,3 +2141,38 @@ def test_description_sits_between_the_section_heading_and_the_plot(tmp_path):
     assert ids[heading + 1] == "color-description"
     assert ids[heading + 2] == "graph-area"
     assert app.layout.children[heading + 1].children == color_mode_description("neutro")
+
+
+def test_cluster_composition_content_for_returns_one_graph_per_variable(_participants_registry_root):
+    from src.analysis.cluster_composition import COMPOSITION_VARIABLES
+
+    _write_participants_registry(
+        _participants_registry_root,
+        [
+            ["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "left", "5.0", "1000", "20000.0", "cortex_only"],
+            ["sub-STUNIPD0002", "sub-STUNIPD0002", "UNIPD/WashU", "ST", "True", "True", "False", "right", "10.0", "2000", "30000.0", "white_matter_only"],
+        ],
+        ["lesion_side", "NIHSS", "lesion_volume_voxels_2mm", "disconnection_load_voxels_2mm", "location_dominant_2mm"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001", "sub-STUNIPD0002"], "cluster_label": [0, 1]})
+
+    content = cluster_composition_content_for(metadata)
+
+    assert isinstance(content, html.Div)
+    grid = content.children[0]
+    assert len(grid.children) == len(COMPOSITION_VARIABLES)
+    assert all(isinstance(graph, dcc.Graph) for graph in grid.children)
+
+
+def test_cluster_composition_content_for_reports_a_registry_without_the_needed_columns(_participants_registry_root):
+    _write_participants_registry(
+        _participants_registry_root,
+        [["sub-STUNIPD0001", "sub-STUNIPD0001", "UNIPD/WashU", "ST", "True", "True", "False", "60.0"]],
+        ["age"],
+    )
+    metadata = pd.DataFrame({"subject_id": ["sub-STUNIPD0001"], "cluster_label": [0]})
+
+    content = cluster_composition_content_for(metadata)
+
+    assert isinstance(content, html.P)
+    assert "enrich_metadata" in content.children

@@ -1,6 +1,6 @@
 # Guida all'Embedding Explorer (app Dash)
 
-App web live per esplorare interattivamente un run **di produzione** (`dim_reduction.py` o `clustering.py`, entrambi con `fine_tuning: false`) - 2D o 3D, con un selettore di run e bottoni di colorazione (neutro/dataset/side/volume/disconnection load/mean disconnection/nihss/cluster), stile editoriale. Un solo processo copre **tutti** i run di produzione già scritti, non un file HTML da rigenerare ogni volta. Cliccando un punto si vede anche la vera anatomia lesionale di quel paziente; per un run di modalità `sdc` si vede anche il suo disconnettoma; per un run `clustering.py` lo scatter può mostrare anche i centroidi dei cluster cerchiati (spenti di default, si accendono dalla legenda), e si può vedere la overlap map (lesione), la mappa di disconnessione, il soggetto rappresentativo e la composizione demografica/clinica di ciascun cluster - vedi "Anatomia lesionale", "Disconnessione (SDC)", "Overlap map per cluster", "Disconnessione per cluster", "Soggetto rappresentativo del cluster" e "Descrizione del cluster" più sotto.
+App web live per esplorare interattivamente un run **di produzione** (`dim_reduction.py` o `clustering.py`, entrambi con `fine_tuning: false`) - 2D o 3D, con un selettore di run e bottoni di colorazione (neutro/dataset/side/volume/disconnection load/mean disconnection/nihss/cluster), stile editoriale. Un solo processo copre **tutti** i run di produzione già scritti, non un file HTML da rigenerare ogni volta. Cliccando un punto si vede anche la vera anatomia lesionale di quel paziente; per un run di modalità `sdc` si vede anche il suo disconnettoma; per un run `clustering.py` lo scatter può mostrare anche i centroidi dei cluster cerchiati (spenti di default, si accendono dalla legenda), e si può vedere la overlap map (lesione), la mappa di disconnessione, il soggetto rappresentativo e la composizione demografica/clinica di ciascun cluster - vedi "Anatomia lesionale", "Disconnessione (SDC)", "Overlap map per cluster", "Disconnessione per cluster", "Soggetto rappresentativo del cluster", "Descrizione del cluster" e "Composizione dei cluster" più sotto.
 
 - **Script**: `src/pipeline/embedding_app.py`
 - **Logica**: `src/analysis/embedding_app.py`, `src/analysis/anatomical_maps.py` (risoluzione path + overlap/mean map) — architettura/dettagli implementativi: `docs/dev/anatomical_maps.md`
@@ -122,6 +122,10 @@ Un run il cui embedding salvato ha **più di 3 componenti** (es. un run lanciato
 
 ---
 
+## Indice della pagina
+
+In alto a destra c'è un menu **Indice**, chiuso di default e fisso sullo schermo mentre scorri. Aprendolo si salta a una sezione. Elenca solo le sezioni che il run scelto ha davvero: un run `lesion` non mostra "Disconnessione (SDC)", un run di `dim_reduction` non mostra le sezioni per cluster. "Confronto tra run" c'è sempre.
+
 ## Anatomia lesionale
 
 Pannello sempre visibile sotto il grafico, indipendentemente dal run scelto: mostra un messaggio ("Clicca un punto...") finché non si clicca un punto dell'embedding, poi la vera lesione di quel paziente in un visualizzatore 3D interattivo `nilearn` (`nilearn.plotting.view_img`, sfondo MNI152, `black_bg=False` → pagina bianca, ruotabile/zoomabile nel browser, colormap `autumn`).
@@ -210,6 +214,60 @@ Tutti i valori vengono da `assets/metadata/participants.csv` (l'anagrafica clini
 Se qualche soggetto del cluster **non ha affatto una riga** in `participants.csv` (caso distinto da un valore mancante per una singola variabile), il pannello si disegna comunque su tutti gli altri e mostra sopra il grafico una riga di avviso che elenca i soggetti coinvolti. Quei soggetti restano contati nel `totale` di ogni variabile - il cluster non rimpicciolisce - ma non contribuiscono alcun valore. Per farli sparire dall'avviso, rilancia `src/pipeline/populate_metadata.py` (vedi `docs/guides/metadata.md`) così che entrino nell'anagrafica.
 
 Nessun bottone "Salva HTML"/"Salva PNG" dedicato - come per lo scatter dell'embedding in cima alla pagina, l'icona fotocamera di Plotly (visibile al passaggio del mouse) esporta un PNG dello stato attuale.
+
+## Composizione dei cluster
+
+Ultimo pannello della pagina, per un run di clustering. Mette **tutti i cluster del run affiancati**, un grafico per variabile, per vedere come si distribuiscono le variabili da un cluster all'altro. Non dipende dal cluster scelto nel dropdown.
+
+Variabili categoriche, barre orizzontali al 100%: una barra per cluster, divisa per categoria, così cluster di dimensioni diverse si confrontano sulla stessa scala.
+
+- dataset
+
+- lato della lesione
+
+- localizzazione dominante della lesione
+
+Variabili numeriche, un box plot per cluster nel colore che il cluster ha nello scatter:
+
+- NIHSS
+
+- volume della lesione (scala logaritmica)
+
+- carico di disconnessione
+
+Sotto il titolo di ogni grafico, `n=` indica i soggetti con il dato sul totale del run. I valori vengono da `participants.csv`; un soggetto assente dal registro resta nei grafici come dato mancante ed è nominato in una riga di avviso. L'icona fotocamera di Plotly esporta il PNG.
+
+Dettagli di implementazione: `docs/dev/cluster_composition.md`.
+
+## Confronto tra run
+
+Ultima sezione della pagina, **indipendente dal run scelto in alto**: ha due selettori suoi, **Run A** e **Run B**, e confronta due run di clustering sui soggetti che hanno in comune. Due modalità, scelte dai bottoni sopra i selettori. Cambiare modalità azzera la coppia.
+
+| Modalità | Cosa deve essere uguale | Cosa può cambiare |
+|---|---|---|
+| **Dentro lo stesso embedding** | l'embedding di partenza (lo stesso `input_path` di dim_reduction, letto da `config.md`) | metodo di clustering e parametri (`k`, linkage...) |
+| **Tra modalità (lesion vs sdc)** | metodo di clustering, valori dei suoi parametri (es. `n_clusters=5`), metodo di riduzione, componenti e metrica dell'embedding | solo la modalità |
+
+Il selettore B offre soltanto le run compatibili con la A. Se non ce n'è nessuna, la sezione lo dice e ripete la regola. Le run su dati grezzi non sono ammesse nella modalità "stesso embedding", perché non hanno un embedding.
+
+### Cosa si vede
+
+In ordine, per entrambe le modalità:
+
+1. **Soggetti confrontati**: i soggetti di A, di B, quelli in comune e quanti restano fuori da ciascun lato. Si confronta sempre e solo l'intersezione, e il suo peso è sempre dichiarato.
+2. **Accordo tra le partizioni**: ARI, NMI, homogeneity, completeness, con la lettura a parole per ARI e NMI. Sotto, un "Come leggere queste metriche" a scomparsa con le definizioni e la scala.
+3. **Dove finisce ogni cluster**: tre heatmap con il valore scritto in ogni cella. Conteggi; percentuali per riga (dove va ogni cluster di A); percentuali per colonna (da dove viene ogni cluster di B).
+4. **Associazione statistica**: test chi-quadro di indipendenza e heatmap dei residui standardizzati (rosso = la coppia co-occorre più del previsto, blu = meno).
+5. **Purezza dei cluster**: due tabelle, da A verso B e da B verso A, dal cluster meno puro al più puro.
+
+Poi, a seconda della modalità:
+
+- **Stesso embedding**: **distanza tra centroidi**, una heatmap A x B calcolata sui soggetti in comune. Ha senso perché i due run stanno nello stesso spazio, e questo viene verificato sulle coordinate dei soggetti: se differiscono, la sezione lo dice invece di mostrare numeri.
+- **Tra modalità**: **profilo clinico dei cluster** di A e di B, la stessa tabella di "Descrizione del cluster" ma sui soli soggetti in comune. I centroidi non si confrontano, perché i due run vivono in spazi di feature diversi: si confronta il fenotipo clinico di ciascun cluster.
+
+Il rumore di HDBSCAN (`-1`) conta come un gruppo a sé e si chiama "rumore".
+
+Dettagli di implementazione: `docs/dev/cluster_comparison.md`.
 
 ## Salvare un grafico
 

@@ -68,6 +68,22 @@ from src.analysis.anatomical_maps import (
     resolve_available_lesion_paths,
     resolve_lesion_paths,
 )
+from src.analysis.cluster_comparison import (
+    AGREEMENT_LEVELS,
+    AGREEMENT_SCALE,
+    AlignedRuns,
+    ContingencyTables,
+    agreement_level,
+    agreement_metrics,
+    align_runs,
+    build_table_heatmap,
+    centroid_distances,
+    chi_square_independence,
+    cluster_name,
+    contingency_tables,
+    purity_table,
+)
+from src.analysis.cluster_composition import COMPOSITION_VARIABLES, build_composition_figure, composition_frame
 from src.analysis.cluster_description import (
     CLUSTER_DESCRIPTION_VARIABLES,
     ClusterDescriptionVariable,
@@ -93,6 +109,8 @@ from src.analysis.plotting import (
     compose_embedding_plot_title,
 )
 from src.utils.artifacts import MANIFEST_FILENAME, load_matrix, read_run_config, read_run_params
+
+_CLUSTER_LABEL_COLUMN = COLOR_MODES["cluster_label"].column
 
 # "neutro" first, same convention as embedding_coloring.COLOR_MODES/the notebook prototype -
 # the neutral single-color view is always available and always the default, every other
@@ -193,6 +211,7 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 /* Anatomy panels (lesion viewer / cluster overlap map, 01-09-26) - same page-width container as
    .page itself (not .graph-wrap's centered flex, these are full-width blocks with their own
    heading), separated from the picker/scatter above by a thin rule instead of a boxy border. */
+.composition-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 24px 16px; }}
 .anatomy-panel {{ margin-top: 56px; padding-top: 32px; border-top: 1px solid {_GRID_BORDER}; }}
 /* The per-subject -> per-cluster break (30-09-26). A heavier rule than .anatomy-panel's own
    hairline, because this separates two kinds of question, not two panels of the same kind. */
@@ -304,6 +323,32 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
     transition: border-color 0.15s, background 0.15s;
 }}
 .save-btn:hover {{ border-color: #4a90d9; }}
+
+/* Page index (08-10-26): a collapsed <details> pinned to the top-right corner, so it is out of the
+   way until opened and follows the reader down the page. */
+html {{ scroll-behavior: smooth; }}
+.page-index {{
+    position: fixed; top: 16px; right: 16px; z-index: 1000; max-width: 280px; max-height: 80vh;
+    overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.10); font-size: 14px;
+}}
+.page-index summary {{ cursor: pointer; font-weight: 700; padding: 9px 16px; list-style-position: inside; }}
+.page-index nav {{ display: flex; flex-direction: column; padding: 2px 8px 10px; }}
+.page-index-link {{ padding: 6px 10px; border-radius: 8px; color: {_TEXT_COLOR}; text-decoration: none; }}
+.page-index-link:hover {{ background: #f0f7fd; }}
+/* Comparison section (08-10-26): the two run pickers are wider than a normal picker-field, since
+   a run label names modality, method and the whole run directory. */
+.picker-field.wide {{ min-width: 460px; }}
+.comparison-rule {{ max-width: 760px; margin: 20px auto 8px; text-align: center; font-size: 16px; line-height: 1.55; color: #595959; }}
+.comparison-heading {{ font-size: 26px; font-weight: 800; margin: 56px 0 14px; text-align: center; }}
+.comparison-subheading {{ font-size: 16px; font-weight: 700; margin: 22px 0 8px; }}
+.comparison-note {{ font-size: 15.5px; line-height: 1.6; color: #595959; max-width: 78ch; margin: 0 auto 22px; }}
+.comparison-summary {{ margin: 28px auto 0; max-width: 78ch; font-size: 16px; line-height: 1.5; }}
+.comparison-summary p, .comparison-summary-line {{ margin: 4px 0; }}
+.comparison-summary-line {{ text-align: center; font-size: 17px; }}
+.comparison-guide {{ margin: 18px 0 0; font-size: 15.5px; line-height: 1.6; color: #595959; }}
+.comparison-guide summary {{ cursor: pointer; font-weight: 600; color: {_TEXT_COLOR}; }}
+.comparison-guide .stats-table {{ margin-top: 12px; max-width: 520px; }}
 """
 
 
@@ -1768,7 +1813,7 @@ def _coverage_note(summary: dict) -> html.Span | None:
     return html.Span(f"{summary['n_available']}/{summary['n_total']}", className="stats-n")
 
 
-def _clusters_comparison_table(stats: list[ClusterStats], selected_cluster: int) -> html.Div:
+def _clusters_comparison_table(stats: list[ClusterStats], selected_cluster: int | None) -> html.Div:
     """The cross-cluster comparison table rendered under the selected cluster's own figure
     (29-09-26, on request) - one row per cluster, one column per CLUSTER_DESCRIPTION_VARIABLES
     entry, so a variable is read down a column across clusters rather than by flipping the
@@ -1781,7 +1826,8 @@ def _clusters_comparison_table(stats: list[ClusterStats], selected_cluster: int)
     than supporting them.
 
     Every cluster of the run is listed, including the selected one (highlighted) and hdbscan's
-    noise bucket (-1, labelled as such rather than shown as a cluster named "-1")."""
+    noise bucket (-1, labelled as such rather than shown as a cluster named "-1"). With
+    selected_cluster=None no row is highlighted (the comparison section has no chosen cluster)."""
     palette = _palette_for_labels([stat.cluster_label for stat in stats])
     # Plain headers: the per-variable colored underline was dropped on request (29-09-26). The
     # figure above still colors each variable and the in-cell bars carry the same hue, so the
@@ -1877,6 +1923,450 @@ def cluster_description_content_for(metadata: pd.DataFrame, cluster_label: int) 
     children.append(dcc.Graph(figure=figure, config=config, style={"width": "100%"}))
     children.append(_clusters_comparison_table(stats, cluster_label))
     return html.Div(children)
+
+
+def cluster_composition_content_for(metadata: pd.DataFrame) -> html.Div | html.P:
+    """Panel "Composizione dei cluster" (07-10-26, on request), last panel of the page: every
+    cluster of the run side by side, one plot per variable (dataset, lesion side, dominant lesion
+    location as 100%-stacked bars; NIHSS, lesion volume, disconnection load as box plots), all
+    read from assets/metadata/participants.csv (src.analysis.cluster_composition). Unlike
+    "Descrizione del cluster" it does not depend on the chosen cluster: it is the same for the
+    whole run, so its callback only listens to the run picker.
+
+    Same never-raises contract as every other *_content_for function here: a run whose registry
+    lacks a needed column renders an html.P status message. Subjects missing from the registry
+    stay in the plots as missing values, named in an _unregistered_subjects_warning line."""
+    try:
+        frame, unregistered = composition_frame(metadata)
+    except ValueError as exc:
+        return html.P(str(exc), className="status-message")
+
+    config = {"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False}
+    children: list = []
+    warning = _unregistered_subjects_warning(unregistered)
+    if warning is not None:
+        children.append(warning)
+    children.append(
+        html.Div(
+            className="composition-grid",
+            children=[
+                dcc.Graph(figure=build_composition_figure(frame, variable), config=config, style={"width": "100%"})
+                for variable in COMPOSITION_VARIABLES
+            ],
+        )
+    )
+    return html.Div(children)
+
+
+# --- Comparison between two clustering runs (08-10-26) -----------------------------------------
+
+COMPARISON_MODE_EMBEDDING = "embedding"
+COMPARISON_MODE_MODALITY = "modality"
+COMPARISON_MODE_LABELS: dict[str, str] = {
+    COMPARISON_MODE_EMBEDDING: "Dentro lo stesso embedding",
+    COMPARISON_MODE_MODALITY: "Tra modalità (lesion vs sdc)",
+}
+COMPARISON_MODE_RULES: dict[str, str] = {
+    COMPARISON_MODE_EMBEDDING: (
+        "Due run costruite sullo stesso embedding (lo stesso input di dim_reduction): "
+        "possono cambiare metodo di clustering e parametri. Le run su dati grezzi non sono ammesse, "
+        "perché non hanno un embedding."
+    ),
+    COMPARISON_MODE_MODALITY: (
+        "Due run di modalità diverse (lesion e sdc) con lo stesso metodo di clustering, gli stessi parametri "
+        "e lo stesso embedding di partenza (metodo di riduzione, componenti, metrica): "
+        "cambia solo la modalità, e il confronto avviene sui soggetti in comune."
+    ),
+}
+
+
+def comparison_run_label(run: ProductionRun) -> str:
+    return f"{run.modality} · {run.method} · {run.run_name}"
+
+
+def _require_comparison_mode(mode: str) -> None:
+    if mode not in COMPARISON_MODE_LABELS:
+        raise ValueError(f"unknown comparison mode {mode!r}, expected one of {sorted(COMPARISON_MODE_LABELS)}")
+
+
+def comparison_candidates(runs: list[ProductionRun], mode: str) -> list[ProductionRun]:
+    """Runs that can be the first side (A) of a comparison in `mode`: every clustering run, minus
+    the ones run on raw data in the embedding mode (no embedding to share). Ordered by modality,
+    method, then chronologically."""
+    _require_comparison_mode(mode)
+    candidates = [
+        run for run in runs
+        if run.pipeline == "clustering" and not (mode == COMPARISON_MODE_EMBEDDING and run.reduction_method == "raw")
+    ]
+    return sorted(candidates, key=lambda run: (run.modality, run.method, _run_chronological_key(run)))
+
+
+def _run_embedding_input(run: ProductionRun) -> str:
+    """The dim_reduction output a clustering run was built from, as recorded in its config.md.
+    Raises ValueError if config.md does not say: without it nobody can tell which embedding the
+    run lives in, and guessing it from the run name would be a silent fallback."""
+    input_path = read_run_config(run.path).get("input_path")
+    if not input_path:
+        raise ValueError(f"{run.path}: config.md has no input_path - cannot tell which embedding the run was built from")
+    return str(input_path)
+
+
+def comparison_incompatibility(
+    run_a: ProductionRun, run_b: ProductionRun, mode: str, clustering_params_file: str | Path
+) -> str | None:
+    """Why `run_a` and `run_b` cannot be compared in `mode`, or None if they can.
+
+    Embedding mode: same upstream embedding (same input_path in config.md), so every point sits at
+    the same coordinates in both runs and centroid distances mean something.
+    Modality mode: different modality, but same clustering method, same values of that method's
+    registered tag_param (k, linkage, ...) and same upstream embedding settings - so that the
+    only thing that varies is the modality, never also the clustering criterion.
+
+    Raises ValueError for an unknown mode or when a run's config.md/params cannot be read."""
+    _require_comparison_mode(mode)
+    if run_a.key == run_b.key:
+        return "le due run sono la stessa run"
+    for run in (run_a, run_b):
+        if run.pipeline != "clustering":
+            return f"{run.key} non è una run di clustering"
+
+    if mode == COMPARISON_MODE_EMBEDDING:
+        for run in (run_a, run_b):
+            if run.reduction_method == "raw":
+                return f"{run.key} è una run su dati grezzi: non ha un embedding"
+        input_a, input_b = _run_embedding_input(run_a), _run_embedding_input(run_b)
+        if input_a != input_b:
+            return f"le due run non partono dallo stesso embedding ({input_a} ≠ {input_b})"
+        return None
+
+    if run_a.modality == run_b.modality:
+        return f"le due run sono entrambe di modalità {run_a.modality!r}: servono modalità diverse"
+    if run_a.method != run_b.method:
+        return f"metodi di clustering diversi ({run_a.method} ≠ {run_b.method}): in questa modalità deve cambiare solo la modalità"
+    if run_a.reduction_method != run_b.reduction_method:
+        return f"metodi di riduzione diversi ({run_a.reduction_method} ≠ {run_b.reduction_method})"
+    axis_a, axis_b = run_reduction_axis(run_a), run_reduction_axis(run_b)
+    if axis_a != axis_b:
+        return f"embedding di partenza diversi (metrica, componenti): {axis_a} ≠ {axis_b}"
+    tag_param = _load_tag_params_or_none(clustering_params_file, run_a.method)
+    if tag_param:
+        label_a, label_b = _run_tag_param_label(run_a, tag_param), _run_tag_param_label(run_b, tag_param)
+        if label_a is None or label_b is None:
+            raise ValueError(f"{run_a.path} / {run_b.path}: cannot read the {run_a.method} parameters of both runs")
+        if label_a != label_b:
+            return f"parametri del metodo diversi ({label_a} ≠ {label_b})"
+    return None
+
+
+def comparable_runs(
+    runs: list[ProductionRun], run_a: ProductionRun, mode: str, clustering_params_file: str | Path
+) -> list[ProductionRun]:
+    """The runs that can sit opposite `run_a` in `mode` (the options of the second picker). A run
+    whose config.md or params cannot be read is left out and logged, like the other pickers: one
+    broken run must not hide every other option."""
+    compatible = []
+    for candidate in comparison_candidates(runs, mode):
+        try:
+            reason = comparison_incompatibility(run_a, candidate, mode, clustering_params_file)
+        except ValueError as exc:
+            logging.warning("%s: excluded from the comparison options: %s", candidate.path, exc)
+            continue
+        if reason is None:
+            compatible.append(candidate)
+    return compatible
+
+
+def _table(headers: list[str], rows: list[list]) -> html.Table:
+    return html.Table(
+        [html.Thead(html.Tr([html.Th(header) for header in headers])), html.Tbody([html.Tr([html.Td(cell) for cell in row]) for row in rows])],
+        className="stats-table",
+    )
+
+
+def _agreement_guide() -> html.Details:
+    """How to read the four agreement metrics, collapsed under the metrics table."""
+    scale_rows = [
+        [level, f"{_scale_range(AGREEMENT_SCALE['ARI'], i)}", f"{_scale_range(AGREEMENT_SCALE['NMI'], i)}"]
+        for i, level in enumerate(AGREEMENT_LEVELS)
+    ]
+    return html.Details(
+        className="comparison-guide",
+        children=[
+            html.Summary("Come leggere queste metriche"),
+            html.Ul([
+                html.Li([html.B("ARI (Adjusted Rand Index): "), (
+                    "accordo tra le due partizioni, corretto per il caso. Conta le coppie di soggetti messe insieme "
+                    "(o separate) da entrambe. 1 = identiche, 0 = come a caso, può scendere sotto 0. "
+                    "Non si gonfia quando i cluster sono tanti."
+                )]),
+                html.Li([html.B("NMI (Normalized Mutual Information): "), (
+                    "quanta informazione condividono le due partizioni, tra 0 e 1. È la media armonica di "
+                    "homogeneity e completeness. Più intuitiva dell'ARI, ma può sovrastimare l'accordo con molti cluster."
+                )]),
+                html.Li([html.B("Homogeneity: "), "quanto ogni cluster di A contiene soggetti di un solo cluster di B (1 se A è una suddivisione più fine di B)."]),
+                html.Li([html.B("Completeness: "), "quanto i soggetti di un cluster di B restano insieme in un solo cluster di A (1 se B è una suddivisione più fine di A)."]),
+            ]),
+            html.P(
+                "NMI, essendo una media, nasconde la direzione di uno squilibrio: due coppie con la stessa NMI "
+                "possono avere homogeneity bassa e completeness alta, o il contrario. Per questo le due vanno "
+                "lette anche separatamente. Homogeneity alta e completeness bassa vuol dire che A è più fine di B "
+                "(spezza i cluster di B); il contrario, che B è più fine di A. La tabella di contingenza qui sotto "
+                "dice quali cluster causano lo squilibrio.",
+                className="comparison-note",
+            ),
+            _table(["Livello", "ARI", "NMI"], scale_rows),
+        ],
+    )
+
+
+def _scale_range(bounds: tuple[float, ...], level_index: int) -> str:
+    if level_index == 0:
+        return f"< {bounds[0]}"
+    if level_index == len(bounds):
+        return f"> {bounds[-1]}"
+    return f"{bounds[level_index - 1]}–{bounds[level_index]}"
+
+
+def _comparison_summary(run_a: ProductionRun, run_b: ProductionRun, aligned: AlignedRuns) -> html.Div:
+    """Which run is A and B, and how many subjects the comparison actually covers: the
+    intersection is always stated against each run's full size, never absorbed silently."""
+    return html.Div(
+        className="comparison-summary",
+        children=[
+            html.P([html.B("A: "), comparison_run_label(run_a), f" · {_format_number(aligned.n_a, 0)} soggetti"]),
+            html.P([html.B("B: "), comparison_run_label(run_b), f" · {_format_number(aligned.n_b, 0)} soggetti"]),
+            html.P(
+                [
+                    html.B("Confrontati: "),
+                    f"{_format_number(aligned.n_common, 0)} soggetti in comune "
+                    f"(solo in A: {_format_number(aligned.n_only_a, 0)} · solo in B: {_format_number(aligned.n_only_b, 0)}).",
+                ]
+            ),
+        ],
+    )
+
+
+def _agreement_block(aligned: AlignedRuns) -> html.Div:
+    metrics = agreement_metrics(aligned.labels_a, aligned.labels_b)
+    rows = [
+        [name, html.Span(_format_number(value, 3), className="stat-value"), agreement_level(name, value) or "—"]
+        for name, value in metrics.items()
+    ]
+    return html.Div([
+        html.H3("Accordo tra le partizioni", className="comparison-heading"),
+        _table(["Metrica", "Valore", "Lettura"], rows),
+        _agreement_guide(),
+    ])
+
+
+def _contingency_block(tables: ContingencyTables) -> html.Div:
+    config = {"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False}
+    figures = [
+        build_table_heatmap(
+            tables.counts, title="Soggetti per coppia di cluster", row_axis_title="cluster di A",
+            column_axis_title="cluster di B", decimals=0, colorbar_title="soggetti",
+        ),
+        build_table_heatmap(
+            tables.row_pct, title="Per riga: dove va ogni cluster di A", row_axis_title="cluster di A",
+            column_axis_title="cluster di B", decimals=1, suffix="%", colorbar_title="% della riga",
+        ),
+        build_table_heatmap(
+            tables.col_pct, title="Per colonna: da dove viene ogni cluster di B", row_axis_title="cluster di A",
+            column_axis_title="cluster di B", decimals=1, suffix="%", colorbar_title="% della colonna",
+        ),
+    ]
+    return html.Div([
+        html.H3("Dove finisce ogni cluster", className="comparison-heading"),
+        html.P(
+            "Le etichette numeriche dei due clustering sono indipendenti: il cluster 0 di A non è «lo stesso» del 0 di B. "
+            "Conta solo dove va la massa. Per riga: se quasi tutto sta in una colonna, quel cluster di A coincide con un "
+            "cluster di B; se è sparso, i due clustering lo dividono in modo diverso. Per colonna vale lo stesso, letto "
+            "dal lato di B.",
+            className="comparison-note",
+        ),
+        html.Div(
+            className="composition-grid",
+            children=[dcc.Graph(figure=figure, config=config, style={"width": "100%"}) for figure in figures],
+        ),
+    ])
+
+
+def _chi_square_block(counts: pd.DataFrame) -> html.Div:
+    heading = html.H3("Associazione statistica", className="comparison-heading")
+    try:
+        result = chi_square_independence(counts)
+    except ValueError as exc:
+        return html.Div([heading, html.P(str(exc), className="status-message")])
+    config = {"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False}
+    figure = build_table_heatmap(
+        result.residuals, title="Residui standardizzati", row_axis_title="cluster di A",
+        column_axis_title="cluster di B", decimals=1, diverging=True, colorbar_title="residuo",
+    )
+    return html.Div([
+        heading,
+        html.P(
+            [
+                html.B("Test chi-quadro di indipendenza: "),
+                f"χ² = {_format_number(result.chi2, 1)}, gradi di libertà = {result.dof}, p = {result.p_value:.2e}.",
+            ],
+            className="comparison-summary-line",
+        ),
+        html.P(
+            "H0: l'appartenenza a un cluster di A è indipendente da quella a un cluster di B. Con p basso (< 0,05) le due "
+            "partizioni non sono indipendenti. I residui dicono dove: rosso = la coppia di cluster co-occorre più del "
+            "previsto, blu = meno, grigio = in linea con l'indipendenza. Il p-value dice se c'è associazione, i residui "
+            "quali coppie la determinano.",
+            className="comparison-note",
+        ),
+        dcc.Graph(figure=figure, config=config, style={"width": "100%"}),
+    ])
+
+
+def _purity_table(counts: pd.DataFrame, source: str, target: str) -> html.Div:
+    table = purity_table(counts)
+    rows = [
+        [
+            f"{source}: {cluster_name(int(label))}",
+            _format_number(int(row.n_subjects), 0),
+            f"{target}: {cluster_name(int(row.dominant_target_cluster))}",
+            html.Span(f"{_format_number(float(row.purity_pct), 1)}%", className="stat-value"),
+        ]
+        for label, row in table.iterrows()
+    ]
+    return html.Div([
+        html.P(f"Cluster di {source} verso {target}", className="comparison-subheading"),
+        _table(["Cluster", "Soggetti", "Va soprattutto in", "Quota"], rows),
+    ])
+
+
+def _purity_block(counts: pd.DataFrame) -> html.Div:
+    return html.Div([
+        html.H3("Purezza dei cluster", className="comparison-heading"),
+        html.P(
+            "Per ogni cluster: dove finisce la quota maggiore dei suoi soggetti e quanto pesa. Dal meno puro (disperso su "
+            "più cluster) al più puro (quasi tutto in uno). Le due direzioni sono complementari: un cluster di A può "
+            "confluire tutto in uno di B, mentre quello di B raccoglie anche soggetti di altri cluster di A.",
+            className="comparison-note",
+        ),
+        html.Div(
+            className="composition-grid",
+            children=[_purity_table(counts, "A", "B"), _purity_table(counts.T, "B", "A")],
+        ),
+    ])
+
+
+def _centroid_block(embedding_a: np.ndarray, embedding_b: np.ndarray, aligned: AlignedRuns) -> html.Div:
+    heading = html.H3("Distanza tra centroidi", className="comparison-heading")
+    try:
+        _centroids_a, _centroids_b, distances = centroid_distances(embedding_a, embedding_b, aligned)
+    except ValueError as exc:
+        return html.Div([heading, html.P(str(exc), className="status-message")])
+    config = {"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False}
+    figure = build_table_heatmap(
+        distances, title="Distanza euclidea tra i centroidi", row_axis_title="cluster di A",
+        column_axis_title="cluster di B", decimals=2, colorbar_title="distanza",
+    )
+    return html.Div([
+        heading,
+        html.P(
+            "Le due run stanno nello stesso embedding, quindi i centroidi sono confrontabili direttamente. Una distanza "
+            "vicina a 0 vuol dire che i due cluster occupano la stessa zona dello spazio, anche se hanno etichette e "
+            "dimensioni diverse. Centroidi calcolati sui soli soggetti in comune.",
+            className="comparison-note",
+        ),
+        dcc.Graph(figure=figure, config=config, style={"width": "100%"}),
+    ])
+
+
+def _clinical_profile_block(aligned: AlignedRuns, run_a: ProductionRun, run_b: ProductionRun) -> html.Div:
+    """Clinical/demographic table of each run's clusters, on the common subjects. The centroids of
+    two modalities live in different feature spaces and cannot be compared; what can be compared
+    is the clinical phenotype of each cluster, which does not depend on coordinates."""
+    heading = html.H3("Profilo clinico dei cluster", className="comparison-heading")
+    children: list = [
+        heading,
+        html.P(
+            "Le due modalità hanno spazi di feature diversi: i centroidi non sono confrontabili. Si confronta invece il "
+            "fenotipo clinico di ciascun cluster, che non dipende dalle coordinate. Soggetti in comune.",
+            className="comparison-note",
+        ),
+    ]
+    for side, run, labels in (("A", run_a, aligned.labels_a), ("B", run_b, aligned.labels_b)):
+        frame = pd.DataFrame({"subject_id": aligned.subject_ids, _CLUSTER_LABEL_COLUMN: labels})
+        children.append(html.P(f"{side}: {comparison_run_label(run)}", className="comparison-subheading"))
+        try:
+            children.append(_clusters_comparison_table(clusters_comparison_stats(frame), None))
+        except (ValueError, OSError) as exc:
+            children.append(html.P(str(exc), className="status-message"))
+    return html.Div(children)
+
+
+def comparison_content_for(
+    run_a: ProductionRun, run_b: ProductionRun, mode: str, clustering_params_file: str | Path
+) -> html.Div | html.P:
+    """Section "Confronto tra run" (08-10-26, on request): how two clustering runs relate on the
+    subjects they share - agreement metrics, contingency tables, chi-square test, purity, and then
+    what is meaningful for the mode: centroid distances when both runs share an embedding, the
+    clinical profile of each cluster when they come from two modalities.
+
+    Same never-raises contract as every other *_content_for function here: a pair that is not
+    comparable, a run that cannot be read or an empty intersection renders an html.P status
+    message naming the cause, never a half-built section."""
+    try:
+        reason = comparison_incompatibility(run_a, run_b, mode, clustering_params_file)
+        if reason is not None:
+            return html.P(f"Le due run non sono confrontabili: {reason}.", className="status-message")
+        embedding_a, metadata_a, _extra_a = load_matrix(run_a.path)
+        embedding_b, metadata_b, _extra_b = load_matrix(run_b.path)
+        aligned = align_runs(metadata_a, metadata_b)
+    except (ValueError, OSError) as exc:
+        return html.P(str(exc), className="status-message")
+
+    tables = contingency_tables(aligned.labels_a, aligned.labels_b)
+    children = [
+        _comparison_summary(run_a, run_b, aligned),
+        _agreement_block(aligned),
+        _contingency_block(tables),
+        _chi_square_block(tables.counts),
+        _purity_block(tables.counts),
+    ]
+    if mode == COMPARISON_MODE_EMBEDDING:
+        children.append(_centroid_block(embedding_a, embedding_b, aligned))
+    else:
+        children.append(_clinical_profile_block(aligned, run_a, run_b))
+    return html.Div(children)
+
+
+# --- Page index (08-10-26) ------------------------------------------------------------------
+
+# (anchor id, label, shown for this run?) in page order. The panels that only exist for some runs
+# (see _update_cluster_picker and _update_disconnectome_panel_visibility) are listed only for
+# those runs, so the index never links to a hidden section.
+_INDEX_SECTIONS: tuple[tuple[str, str, Callable[[ProductionRun | None], bool]], ...] = (
+    ("controls-section", "Scelta del run", lambda run: True),
+    ("embedding-section", "Embedding Visualization", lambda run: True),
+    ("lesion-panel", "Anatomia lesionale", lambda run: True),
+    ("disconnectome-panel", "Disconnessione (SDC)", lambda run: run is not None and run.modality == "sdc"),
+    ("clustering-section", "Clustering Explorer", lambda run: run is not None and run.pipeline == "clustering"),
+    ("cluster-map-panel", "Overlap map per cluster", lambda run: run is not None and run.pipeline == "clustering"),
+    (
+        "disconnection-map-panel", "Disconnessione per cluster",
+        lambda run: run is not None and run.pipeline == "clustering" and run.modality == "sdc",
+    ),
+    ("representative-subject-panel", "Soggetto rappresentativo", lambda run: run is not None and run.pipeline == "clustering"),
+    ("cluster-description-panel", "Descrizione del cluster", lambda run: run is not None and run.pipeline == "clustering"),
+    ("cluster-composition-panel", "Composizione dei cluster", lambda run: run is not None and run.pipeline == "clustering"),
+    ("comparison-section", "Confronto tra run", lambda run: True),
+)
+
+
+def index_entries_for(run: ProductionRun | None) -> list[tuple[str, str]]:
+    """(anchor id, label) of the page sections visible for `run`, in page order."""
+    return [(anchor, label) for anchor, label, shown in _INDEX_SECTIONS if shown(run)]
+
+
+def _index_links(entries: list[tuple[str, str]]) -> list[html.A]:
+    return [html.A(label, href=f"#{anchor}", className="page-index-link") for anchor, label in entries]
 
 
 def color_mode_description(mode_name: str) -> str:
@@ -2046,6 +2536,7 @@ def build_app(
                 className="page-subtitle",
             ),
             html.Div(
+                id="controls-section",
                 className="controls",
                 children=[
                     # Two rows (2026-08-14, on request): Dato/Pipeline/Metodo (the "which
@@ -2104,12 +2595,13 @@ def build_app(
             dcc.Store(id="selected-color-mode", data=NEUTRAL_MODE),
             dcc.Store(id="selected-grid", data=DEFAULT_GRID),
             dcc.Store(id="selected-disconnection-mode", data=DEFAULT_DISCONNECTION_MAP_MODE),
-            html.H2("Embedding Visualization", className="section-heading"),
+            html.H2("Embedding Visualization", id="embedding-section", className="section-heading"),
             html.P(_NEUTRAL_DESCRIPTION, id="color-description", className="color-description"),
             html.Div(id="graph-area", className="graph-wrap"),
             # Always-visible (per design decision, 01-09-26 - not an appear-on-click popup):
             # placeholder until a point is clicked, subject's nilearn viewer afterward.
             html.Div(
+                id="lesion-panel",
                 className="anatomy-panel",
                 children=[
                     html.H2("Anatomia lesionale", className="section-heading"),
@@ -2299,6 +2791,67 @@ def build_app(
                 children=[
                     html.H2("Descrizione del cluster", className="section-heading"),
                     html.Div(id="cluster-description-content"),
+                ],
+            ),
+            # Hidden by default (style toggled by _update_cluster_picker below, same condition as
+            # the other per-cluster panels) - 07-10-26, on request: last panel of the page. Not
+            # driven by cluster-picker: it compares every cluster of the run at once.
+            html.Div(
+                id="cluster-composition-panel",
+                className="anatomy-panel",
+                style={"display": "none"},
+                children=[
+                    html.H2("Composizione dei cluster", className="section-heading"),
+                    html.Div(id="cluster-composition-content"),
+                ],
+            ),
+            # Always visible, independent of the run chosen at the top: it has its own two pickers.
+            html.Div(
+                id="comparison-section",
+                className="section-divider",
+                children=[
+                    html.H2("Confronto tra run", className="section-title"),
+                    html.P(
+                        "Confronta due run di clustering sui soggetti che hanno in comune.",
+                        className="section-intro",
+                    ),
+                    html.Div(
+                        [
+                            html.Button(
+                                label,
+                                id={"type": "comparison-mode-btn", "mode": mode},
+                                n_clicks=0,
+                                className="active" if mode == COMPARISON_MODE_EMBEDDING else "",
+                            )
+                            for mode, label in COMPARISON_MODE_LABELS.items()
+                        ],
+                        className="color-buttons",
+                    ),
+                    dcc.Store(id="selected-comparison-mode", data=COMPARISON_MODE_EMBEDDING),
+                    html.P(id="comparison-rule", className="comparison-rule"),
+                    html.Div(
+                        className="picker-row",
+                        children=[
+                            html.Div(
+                                className="picker-field wide",
+                                children=[html.Label("Run A", className="picker-label"), dcc.Dropdown(id="comparison-run-a")],
+                            ),
+                            html.Div(
+                                className="picker-field wide",
+                                children=[html.Label("Run B", className="picker-label"), dcc.Dropdown(id="comparison-run-b")],
+                            ),
+                        ],
+                    ),
+                    html.Div(id="comparison-content"),
+                ],
+            ),
+            # Last child and position: fixed, so its place in the DOM does not matter. Collapsed by default; the links are rebuilt for the chosen run by _update_page_index.
+            html.Details(
+                id="page-index",
+                className="page-index",
+                children=[
+                    html.Summary("Indice"),
+                    html.Nav(id="page-index-links", children=_index_links(index_entries_for(None))),
                 ],
             ),
         ],
@@ -2645,6 +3198,7 @@ def build_app(
         Output("cluster-map-panel", "style"),
         Output("representative-subject-panel", "style"),
         Output("cluster-description-panel", "style"),
+        Output("cluster-composition-panel", "style"),
         Input("run-picker", "value"),
     )
     def _update_cluster_picker(run_key: str | None):
@@ -2653,11 +3207,11 @@ def build_app(
         run = runs_by_key[run_key]
         hidden = {"display": "none"}
         if run.pipeline != "clustering":
-            return [], None, hidden, hidden, hidden, hidden
+            return [], None, hidden, hidden, hidden, hidden, hidden
         clusters = cluster_options(run_metadata(run))
         return (
             [{"label": str(cluster_label), "value": cluster_label} for cluster_label in clusters],
-            clusters[0], {}, {}, {}, {},
+            clusters[0], {}, {}, {}, {}, {},
         )
 
     @app.callback(
@@ -2704,6 +3258,18 @@ def build_app(
         if run.pipeline != "clustering":
             raise PreventUpdate
         return cluster_description_content_for(run_metadata(run), cluster_label)
+
+    @app.callback(
+        Output("cluster-composition-content", "children"),
+        Input("run-picker", "value"),
+    )
+    def _update_cluster_composition(run_key: str | None):
+        if run_key is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if run.pipeline != "clustering":
+            raise PreventUpdate
+        return cluster_composition_content_for(run_metadata(run))
 
     @app.callback(
         Output("representative-download", "data"),
@@ -2905,6 +3471,75 @@ def build_app(
             mean_img, threshold=_DISCONNECTOME_DISPLAY_THRESHOLD, cmap=_DISCONNECTOME_CMAP, colorbar=True,
         )
         return dcc.send_bytes(png_bytes, filename=f"cluster_{cluster_label}_disconnection_mean_map.png")
+
+    @app.callback(
+        Output("page-index-links", "children"),
+        Input("run-picker", "value"),
+    )
+    def _update_page_index(run_key: str | None):
+        if run_key is None:
+            raise PreventUpdate
+        return _index_links(index_entries_for(runs_by_key[run_key]))
+
+    @app.callback(
+        Output("selected-comparison-mode", "data"),
+        Input({"type": "comparison-mode-btn", "mode": ALL}, "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def _select_comparison_mode(_all_n_clicks: list[int]) -> str:
+        if ctx.triggered_id is None:
+            raise PreventUpdate
+        return ctx.triggered_id["mode"]
+
+    @app.callback(
+        Output({"type": "comparison-mode-btn", "mode": ALL}, "className"),
+        Output("comparison-rule", "children"),
+        Input("selected-comparison-mode", "data"),
+        State({"type": "comparison-mode-btn", "mode": ALL}, "id"),
+    )
+    def _show_comparison_mode(mode: str, ids: list[dict]):
+        return ["active" if button_id["mode"] == mode else "" for button_id in ids], COMPARISON_MODE_RULES[mode]
+
+    @app.callback(
+        Output("comparison-run-a", "options"),
+        Output("comparison-run-a", "value"),
+        Input("selected-comparison-mode", "data"),
+    )
+    def _update_comparison_run_a(mode: str):
+        # A mode change resets both sides: a pair chosen under one rule says nothing under the other.
+        return [{"label": comparison_run_label(run), "value": run.key} for run in comparison_candidates(runs, mode)], None
+
+    @app.callback(
+        Output("comparison-run-b", "options"),
+        Output("comparison-run-b", "value"),
+        Input("comparison-run-a", "value"),
+        State("selected-comparison-mode", "data"),
+    )
+    def _update_comparison_run_b(run_a_key: str | None, mode: str):
+        if run_a_key is None:
+            return [], None
+        partners = comparable_runs(runs, runs_by_key[run_a_key], mode, clustering_params_file)
+        return [{"label": comparison_run_label(run), "value": run.key} for run in partners], None
+
+    @app.callback(
+        Output("comparison-content", "children"),
+        Input("comparison-run-a", "value"),
+        Input("comparison-run-b", "value"),
+        State("selected-comparison-mode", "data"),
+    )
+    def _update_comparison_content(run_a_key: str | None, run_b_key: str | None, mode: str):
+        if run_a_key is None:
+            return html.P("Scegli la run A.", className="status-message")
+        run_a = runs_by_key[run_a_key]
+        if run_b_key is None:
+            if not comparable_runs(runs, run_a, mode, clustering_params_file):
+                return html.P(
+                    "Nessuna run è confrontabile con la A in questa modalità. Regola: "
+                    + COMPARISON_MODE_RULES[mode],
+                    className="status-message",
+                )
+            return html.P("Scegli la run B.", className="status-message")
+        return comparison_content_for(run_a, runs_by_key[run_b_key], mode, clustering_params_file)
 
     def _preload_stores() -> None:
         """Reads every subject of every clustering run once, in the background, into the two
