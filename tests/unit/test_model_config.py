@@ -1,12 +1,14 @@
 """Unit tests for src/analysis/model_config.py."""
 
 import json
+from pathlib import Path
 
 import pytest
 
 from src.analysis.model_config import (
     load_clustering_config,
     load_dim_reduction_config,
+    load_evaluate_tuning_embeddings_config,
 )
 
 _SHARED = {
@@ -34,8 +36,13 @@ def test_dim_reduction_config_valid(tmp_path):
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
+        "tuning_evaluations": {"trustworthiness": {}, "plot_hdbscan": {"min_cluster_size": 100, "min_samples": 10}},
     }
     config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
+    assert config.tuning_evaluations == {
+        "trustworthiness": {},
+        "plot_hdbscan": {"min_cluster_size": 100, "min_samples": 10},
+    }
     assert config.reduction_method == "umap"
     assert config.fine_tuning is False
     assert config.color_by == ("dataset", "volume")
@@ -55,11 +62,75 @@ def test_dim_reduction_config_with_run_notes(tmp_path):
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
+        "tuning_evaluations": {"trustworthiness": {}},
         "run_notes": "provo n_neighbors piu alto",
     }
     config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
     assert config.fine_tuning is True
     assert config.run_notes == "provo n_neighbors piu alto"
+
+
+def test_dim_reduction_config_missing_tuning_evaluations_raises(tmp_path):
+    payload = _dr_payload()
+    del payload["tuning_evaluations"]
+    with pytest.raises(ValueError, match="missing required field 'tuning_evaluations'"):
+        load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
+
+
+@pytest.mark.parametrize(
+    "bad_block, message",
+    [
+        ([], "must be an object"),
+        ({"bogus": {}}, "unknown tuning evaluation 'bogus'"),
+        ({"plot_hdbscan": []}, "must be an object of settings"),
+        ({"plot_hdbscan": {"min_cluster_size": 100}}, "missing \\['min_samples'\\]"),
+        ({"plot_hdbscan": {"min_cluster_size": 100, "min_samples": 10, "typo": 1}}, "unknown \\['typo'\\]"),
+        ({"plot_hdbscan": {"min_cluster_size": 1, "min_samples": 10}}, "'min_cluster_size'\\] must be an integer >= 2"),
+        ({"plot_hdbscan": {"min_cluster_size": True, "min_samples": 10}}, "must be an integer >= 2"),
+        ({"trustworthiness": {"n_neighbors": 10}}, "takes no settings here"),
+    ],
+)
+def test_dim_reduction_config_invalid_tuning_evaluations_raises(tmp_path, bad_block, message):
+    with pytest.raises(ValueError, match=message):
+        load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(tuning_evaluations=bad_block)))
+
+
+def test_evaluate_tuning_embeddings_config_valid(tmp_path):
+    payload = {
+        "tuning_dir": "results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol",
+        "overwrite": False,
+        "tuning_evaluations": {"plot_hdbscan": {"min_cluster_size": 100, "min_samples": 10}},
+    }
+    config = load_evaluate_tuning_embeddings_config(_write(tmp_path, "ev.json", payload))
+    assert config.tuning_dir == Path("results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol")
+    assert config.overwrite is False
+    assert config.tuning_evaluations == payload["tuning_evaluations"]
+
+
+def test_evaluate_tuning_embeddings_config_rejects_sweep_score(tmp_path):
+    """trustworthiness needs the original matrix, which this entry point never loads - rejected
+    at load time instead of being silently skipped."""
+    payload = {
+        "tuning_dir": "x",
+        "overwrite": False,
+        "tuning_evaluations": {"trustworthiness": {}, "plot_hdbscan": {"min_cluster_size": 100, "min_samples": 10}},
+    }
+    with pytest.raises(ValueError, match="'trustworthiness'\\] is a sweep_score and cannot be run here"):
+        load_evaluate_tuning_embeddings_config(_write(tmp_path, "ev.json", payload))
+
+
+def test_evaluate_tuning_embeddings_config_empty_block_raises(tmp_path):
+    payload = {"tuning_dir": "x", "overwrite": False, "tuning_evaluations": {}}
+    with pytest.raises(ValueError, match="at least one evaluation"):
+        load_evaluate_tuning_embeddings_config(_write(tmp_path, "ev.json", payload))
+
+
+@pytest.mark.parametrize("missing", ["tuning_dir", "overwrite", "tuning_evaluations"])
+def test_evaluate_tuning_embeddings_config_missing_field_raises(tmp_path, missing):
+    payload = {"tuning_dir": "x", "overwrite": False, "tuning_evaluations": {"plot_hdbscan": {"min_cluster_size": 100, "min_samples": 10}}}
+    del payload[missing]
+    with pytest.raises(ValueError, match=f"missing required field '{missing}'"):
+        load_evaluate_tuning_embeddings_config(_write(tmp_path, "ev.json", payload))
 
 
 def test_dim_reduction_config_missing_fine_tuning_raises(tmp_path):
@@ -89,6 +160,7 @@ def _dr_payload(**overrides):
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
+        "tuning_evaluations": {},
     }
     payload.update(overrides)
     return payload

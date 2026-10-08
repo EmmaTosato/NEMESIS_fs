@@ -28,7 +28,11 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
   exactly one parameter is swept; 2+ swept parameters get no plot (heatmaps
   removed on request), just the CSV. No automatic selection - a human reads
   it, picks parameters by hand, writes them into params_reduction.json's
-  "params", and re-runs with fine_tuning=false.
+  "params", and re-runs with fine_tuning=false. The evaluation mechanisms applied are
+  declared in config.tuning_evaluations (src/analysis/tuning_evaluations.py): the sweep's own
+  score (always) plus the embedding-based ones (today plot_hdbscan: HDBSCAN on every
+  combination, one grid PNG + CSV per nested leaf). The embedding-based ones can also be run
+  later on a stored run, without refitting: src/pipeline/evaluate_tuning_embeddings.py.
 
 Output lives under two separate branches of output_root, never mixed:
 <output_root>/production/<method>/ (embeddings + plots + runs.csv) and
@@ -64,6 +68,12 @@ from src.analysis.params import load_method_params, load_nested_params, load_tag
 from src.analysis.plotting import compose_embedding_plot_title, compose_run_title, compose_tuning_leaf_title, plot_tuning_curve
 from src.analysis.reduction import embed, embedding_for_viz
 from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
+from src.analysis.tuning_embeddings import TuningRun, combo_key, leaf_dir
+from src.analysis.tuning_evaluations import (
+    require_native_score_declared,
+    run_embedding_evaluations,
+    validate_embedding_evaluations_feasible,
+)
 from src.utils.artifacts import load_matrix, save_matrix
 from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
@@ -212,6 +222,10 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, metadata: pd.Dat
             if method in METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS
             else None
         )
+        # Before the sweep, which can take hours: a block that misstates the sweep's own score, or
+        # asks for an evaluation the grid cannot support, must fail now, not after the fits.
+        require_native_score_declared(config.tuning_evaluations, TUNING_METRIC_NAMES[method], method)
+        validate_embedding_evaluations_feasible(config.tuning_evaluations, params, tuning_grid)
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return 1
@@ -243,6 +257,9 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, metadata: pd.Dat
         return 1
     logging.info("tuning results written to %s (%d combinations evaluated)", output_dir, len(results))
 
+    if not _run_embedding_evaluations(config, output_dir, params, tuning_grid, nested_params, embeddings_by_combo):
+        return 1
+
     try:
         append_run_log_entry(
             config.output_root / "tuning" / config.reduction_method,
@@ -266,6 +283,39 @@ def _tuning_output_dir(config: DimReductionConfig, now: datetime) -> Path:
     return config.output_root / "tuning" / config.reduction_method / f"{now.strftime('%d-%m')}_{config.session_name}"
 
 
+def _run_embedding_evaluations(
+    config: DimReductionConfig,
+    output_dir: Path,
+    base_params: dict,
+    tuning_grid: dict[str, list],
+    nested_params: list[str],
+    embeddings_by_combo: dict[tuple, np.ndarray],
+) -> bool:
+    """Runs the embedding-based evaluations declared in config.tuning_evaluations on the sweep that
+    was just computed (in memory - works whether or not save_tuning_embeddings is on). False, with
+    the error logged, if one fails: the sweep's own files are already on disk by then, and the
+    same evaluations can be re-run on them without refitting (src/pipeline/evaluate_tuning_embeddings.py).
+    """
+    keys = list(tuning_grid)
+    run = TuningRun(
+        run_dir=output_dir,
+        reduction_method=config.reduction_method,
+        base_params=base_params,
+        tuning_grid=tuning_grid,
+        nested_params=nested_params,
+        embeddings={combo_key(keys, combo): embedding for combo, embedding in embeddings_by_combo.items()},
+    )
+    try:
+        written = run_embedding_evaluations(config.tuning_evaluations, run, overwrite=False)
+    except (FileExistsError, OSError, ValueError) as exc:
+        logging.error("tuning evaluation failed (the sweep itself was written to %s): %s", output_dir, exc)
+        return False
+    if written and not config.save_tuning_embeddings:
+        logging.warning(
+            "save_tuning_embeddings=false: these evaluations ran on the in-memory sweep and cannot be re-run later "
+            "with other settings - set it to true to keep embeddings.npz"
+        )
+    return True
 
 
 
@@ -341,6 +391,7 @@ def _write_tuning_output(
                 "base_params": base_params,
                 "tuning_grid": tuning_grid,
                 "nested_params": nested_params,
+                "tuning_evaluations": config.tuning_evaluations,
             },
             indent=2,
         ),
@@ -353,6 +404,7 @@ def _write_tuning_output(
         f"Free/grid parameters (embeddings_grid.png per leaf): {free_params}",
         f"Combinations evaluated: {len(results)}",
         f"Metric: {metric_col}",
+        f"Evaluations applied: {list(config.tuning_evaluations)}",
         "",
         "Warning: no automatic selection - inspect tuning_results.csv/tuning_plot.png (or the per-leaf "
         "embeddings_grid_*.png) and pick parameters by hand.",
@@ -360,27 +412,15 @@ def _write_tuning_output(
     (output_dir / "config.md").write_text("\n".join(readme_lines) + "\n")
 
 
-def _combo_key(keys: list[str], combo: tuple) -> str:
-    """Self-describing string key for one tuning combination, e.g.
-    'metric=jaccard,n_components=5,n_neighbors=15,min_dist=0.1' -
-    same names/order as tuning_grid.keys() for that run (matches embeddings_by_combo's
-    own combo tuple, see run_tuning_sweep), so it's identical, character for character, to
-    the string a caller rebuilds from that same row's own values in tuning_results.csv
-    (str(bool) is 'True'/'False', same as pandas' own CSV serialization) - no separate
-    index file needed to join the two.
-    """
-    return ",".join(f"{key}={value}" for key, value in zip(keys, combo))
-
-
 def _write_tuning_embeddings(output_dir: Path, embeddings_by_combo: dict[tuple, np.ndarray], keys: list[str]) -> None:
     """Serializes every combination's embedding actually computed by the sweep
     (not just the ones shown in embeddings_grid_*.png - the full Cartesian
-    product) into a single embeddings.npz, keyed by _combo_key. Opt-in via
+    product) into a single embeddings.npz, keyed by tuning_embeddings.combo_key. Opt-in via
     config.save_tuning_embeddings - before this flag existed no tuning run
     ever wrote this file, so it stays off by default (code_standards.md
     §0/§5: no silent change to an existing run's output shape).
     """
-    arrays = {_combo_key(keys, combo): embedding for combo, embedding in embeddings_by_combo.items()}
+    arrays = {combo_key(keys, combo): embedding for combo, embedding in embeddings_by_combo.items()}
     final_path = output_dir / "embeddings.npz"
     # Atomic (HIGH #24, 2026-08): np.savez wrote directly to the final path - a run killed
     # mid-write (SLURM timeout, Ctrl+C) left a truncated embeddings.npz sitting next to an
@@ -442,11 +482,9 @@ def _write_nested_tuning_leaves(
         raw_values = group_key if isinstance(group_key, tuple) else (group_key,)
         leaf = {name: (value.item() if hasattr(value, "item") else value) for name, value in zip(nested_params, raw_values)}
 
-        leaf_dir = output_dir
-        for name in nested_params:
-            leaf_dir = leaf_dir / f"{name}={leaf[name]}"
-        leaf_dir.mkdir(parents=True, exist_ok=True)
-        group.to_csv(leaf_dir / "tuning_results.csv", index=False)
+        leaf_path = leaf_dir(output_dir, nested_params, leaf)
+        leaf_path.mkdir(parents=True, exist_ok=True)
+        group.to_csv(leaf_path / "tuning_results.csv", index=False)
 
         leaf_n_components = leaf.get("n_components")
         if leaf_n_components is not None and leaf_n_components != _TUNING_GRID_N_COMPONENTS:
@@ -454,16 +492,16 @@ def _write_nested_tuning_leaves(
                 "skipping embeddings_grid for %s: n_components=%s (only n_components=%d combinations get "
                 "this diagnostic - see src/pipeline/plot_tuning_embedding_3d.py for an on-demand 3D view of a "
                 "specific combination)",
-                leaf_dir, leaf_n_components, _TUNING_GRID_N_COMPONENTS,
+                leaf_path, leaf_n_components, _TUNING_GRID_N_COMPONENTS,
             )
             continue
 
-        blocks = _build_grid_blocks(free_params, tuning_grid, keys, leaf, base_params, embeddings_by_combo, leaf_dir)
+        blocks = _build_grid_blocks(free_params, tuning_grid, keys, leaf, base_params, embeddings_by_combo, leaf_path)
         if not blocks:
             logging.info(
                 "skipping embeddings_grid for %s: every combination this leaf could show has "
                 "n_components != %d - nothing left to plot",
-                leaf_dir, _TUNING_GRID_N_COMPONENTS,
+                leaf_path, _TUNING_GRID_N_COMPONENTS,
             )
             continue
 
@@ -472,7 +510,7 @@ def _write_nested_tuning_leaves(
             blocks,
             metadata,
             list(config.color_by),
-            leaf_dir,
+            leaf_path,
             f"{config.reduction_method} dim 1",
             f"{config.reduction_method} dim 2",
             lambda label, leaf_title=leaf_title: f"{leaf_title} - {label.capitalize()}" if label else leaf_title,
@@ -486,7 +524,7 @@ def _build_grid_blocks(
     leaf: dict,
     base_params: dict,
     embeddings_by_combo: dict[tuple, np.ndarray],
-    leaf_dir: Path,
+    leaf_path: Path,
 ) -> list[tuple[str, list[tuple[str, np.ndarray]]]]:
     """For each free parameter, one cell per value it can take - every other
     free parameter held at base_params' own value (must be one of that
@@ -537,7 +575,7 @@ def _build_grid_blocks(
                 logging.info(
                     "skipping embeddings_grid cell %s in %s (%s=%s): n_components=%d, not %d - "
                     "see src/pipeline/plot_tuning_embedding_3d.py for an on-demand 3D view of this combination",
-                    dict(zip(keys, combo)), leaf_dir, varying, value, embedding.shape[1], _TUNING_GRID_N_COMPONENTS,
+                    dict(zip(keys, combo)), leaf_path, varying, value, embedding.shape[1], _TUNING_GRID_N_COMPONENTS,
                 )
                 continue
             cells.append((str(value), embedding))

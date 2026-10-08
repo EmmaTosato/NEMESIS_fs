@@ -30,6 +30,7 @@ from src.analysis.plotting import (
     plot_embedding_categorical,
     plot_embedding_continuous,
     plot_embedding_grid_blocks,
+    plot_hdbscan_grid,
     plot_interclass_distance_matrix,
     plot_silhouette_analysis,
     plot_spectral_tuning,
@@ -751,3 +752,36 @@ def test_plot_embedding_categorical_accepts_a_closed_vocabulary(tmp_path):
             X, np.array(["a", "c", "a", "q", "c", "d"]), path, "x", "y", "title",
             legend_title="mode", category_order=_ORDER,
         )
+
+
+def _hdbscan_cell(title, n=30, seed=0, with_noise=True):
+    rng = np.random.default_rng(seed)
+    embedding = rng.normal(size=(n, 2))
+    labels = np.array([0, 1, 2] * (n // 3))
+    if with_noise:
+        labels[:5] = -1
+    return title, embedding, labels
+
+
+def test_plot_hdbscan_grid_writes_file_and_accepts_a_ragged_grid(tmp_path):
+    grid = [[_hdbscan_cell("a"), _hdbscan_cell("b", seed=1)], [_hdbscan_cell("c", seed=2), None], [_hdbscan_cell("d", seed=3)]]
+    out = tmp_path / "sub" / "grid.png"
+
+    plot_hdbscan_grid(grid, out, "suptitle")
+
+    assert out.is_file() and out.stat().st_size > 0
+
+
+def test_plot_hdbscan_grid_accepts_a_cell_that_is_all_noise(tmp_path):
+    cell = ("all noise", np.random.default_rng(0).normal(size=(10, 2)), np.full(10, -1))
+    out = tmp_path / "grid.png"
+
+    plot_hdbscan_grid([[cell]], out, "suptitle")
+
+    assert out.is_file()
+
+
+@pytest.mark.parametrize("grid", [[], [[]], [[None, None]]])
+def test_plot_hdbscan_grid_without_any_cell_raises(tmp_path, grid):
+    with pytest.raises(ValueError, match="at least one non-empty cell"):
+        plot_hdbscan_grid(grid, tmp_path / "grid.png", "suptitle")

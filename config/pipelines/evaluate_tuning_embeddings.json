@@ -1,0 +1,10 @@
+{
+  "tuning_dir": "results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol",
+  "overwrite": false,
+  "tuning_evaluations": {
+    "plot_hdbscan": {
+      "min_cluster_size": 100,
+      "min_samples": 10
+    }
+  }
+}

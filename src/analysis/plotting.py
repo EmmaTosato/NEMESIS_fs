@@ -859,6 +859,69 @@ def plot_embedding_grid_blocks(
     plt.close(fig)
 
 
+_HDBSCAN_GRID_CELL_WIDTH = 3.6
+_HDBSCAN_GRID_CELL_HEIGHT = 3.5
+_HDBSCAN_GRID_CELL_TITLE_FONTSIZE = 7
+_HDBSCAN_GRID_SUPTITLE_FONTSIZE = 12
+_HDBSCAN_GRID_MARKER_SIZE = 4
+# constrained-layout padding (inches / fraction of the axes): the roomy values asked for after the
+# first version packed the subplots against each other and against the figure title.
+_HDBSCAN_GRID_PAD_INCHES = 0.25
+_HDBSCAN_GRID_SPACE_FRACTION = 0.12
+
+
+def plot_hdbscan_grid(
+    grid: list[list[tuple[str, np.ndarray, np.ndarray] | None]], output_path: Path, suptitle: str
+) -> None:
+    """One scatter subplot per cell of `grid` (a list of rows; a row may hold None for an empty
+    cell), each cell = (title, embedding_2d, cluster_labels). The embedding is whatever 2D array
+    the caller wants the clusters shown on - it need not be the space they were found in (a
+    cluster found in a 10-component embedding is drawn on its own 2-component twin fit, never on
+    a slice of the 10 columns, lessons_learned.md #16). Noise (label -1) keeps the project's
+    neutral gray, clusters the validated categorical palette (cycling past 10 clusters, an
+    inherent limit of the palette - see _CATEGORICAL_PALETTE). Colors are per subplot: HDBSCAN
+    numbers its clusters arbitrarily, so the same color in two subplots means nothing.
+
+    Each cell auto-scales to its own embedding (two fits share no coordinate frame, lesson #16).
+    Constrained layout keeps title, subplot titles and axes from colliding whatever the number
+    of title lines.
+    """
+    if not grid or not any(cell is not None for row in grid for cell in row):
+        raise ValueError("plot_hdbscan_grid needs at least one non-empty cell")
+    nrows, ncols = len(grid), max(len(row) for row in grid)
+
+    fig = plt.figure(
+        figsize=(_HDBSCAN_GRID_CELL_WIDTH * ncols, _HDBSCAN_GRID_CELL_HEIGHT * nrows + 0.8), layout="constrained"
+    )
+    fig.get_layout_engine().set(
+        w_pad=_HDBSCAN_GRID_PAD_INCHES / 2,
+        h_pad=_HDBSCAN_GRID_PAD_INCHES / 2,
+        wspace=_HDBSCAN_GRID_SPACE_FRACTION,
+        hspace=_HDBSCAN_GRID_SPACE_FRACTION,
+    )
+    gridspec = fig.add_gridspec(nrows, ncols)
+    for i, row in enumerate(grid):
+        for j in range(ncols):
+            cell = row[j] if j < len(row) else None
+            if cell is None:
+                continue
+            title, embedding, labels = cell
+            ax = fig.add_subplot(gridspec[i, j])
+            palette = _palette_for_labels(sorted(np.unique(labels).tolist()))
+            ax.scatter(
+                embedding[:, 0], embedding[:, 1], c=[palette[label] for label in labels],
+                s=_HDBSCAN_GRID_MARKER_SIZE, alpha=_GRID_MARKER_ALPHA, edgecolors="none",
+            )
+            ax.set_title(title, fontsize=_HDBSCAN_GRID_CELL_TITLE_FONTSIZE)
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+    fig.suptitle(suptitle, fontsize=_HDBSCAN_GRID_SUPTITLE_FONTSIZE, fontweight="bold")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=120)
+    plt.close(fig)
+
+
 def plot_tuning_curve(df: pd.DataFrame, param_col: str, metric_col: str, output_path: Path, title: str) -> None:
     """Line plot: one swept hyperparameter vs. the tuning metric (e.g. PCA's n_components sweep)."""
     sorted_df = df.sort_values(param_col)

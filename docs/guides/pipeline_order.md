@@ -152,8 +152,10 @@ python -m src.pipeline.build_fc_matrix --config config/pipelines/build_fc_matrix
 python -m src.pipeline.dim_reduction --config config/pipelines/dim_reduction.json
 ```
 
-Riduce la matrice a poche dimensioni (`umap`, `tsne`, `pca`, `pacmap`). `fine_tuning: true` prova una griglia di parametri e scrive una tabella; `false` produce l'embedding.
+Riduce la matrice a poche dimensioni (`umap`, `tsne`, `pca`, `pacmap`). `fine_tuning: true` prova una griglia di parametri e scrive una tabella, valutata come dichiara `tuning_evaluations` (punteggio dello sweep, più `plot_hdbscan`); `false` produce l'embedding.
 **Input:** la matrice (`input_path`) e il registro dei parametri (`params_reduction.json` per la lesione, `params_reduction_sdc.json` per l'SDC). **Output:** `results/<modalità>/dim_reduction/{production,tuning}/<metodo>/...`. Guida: [`dim_reduction.md`](dim_reduction.md).
+
+**Passo opzionale, dopo un tuning:** `python -m src.pipeline.evaluate_tuning_embeddings --config config/pipelines/evaluate_tuning_embeddings.json` applica a un tuning già salvato (`save_tuning_embeddings: true`) le valutazioni sugli embedding, senza rifare lo sweep. Guida: [`evaluate_tuning_embeddings.md`](evaluate_tuning_embeddings.md).
 
 ## 7. `clustering` — i cluster
 

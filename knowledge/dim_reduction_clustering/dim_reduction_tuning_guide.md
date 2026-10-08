@@ -55,6 +55,10 @@ dove `wₕ(e)`/`wₗ(e)` sono i pesi (interpretati come probabilità) assegnati 
 
 Questo è il motivo metodologico, non solo pratico, per cui NEMESIS non si affida mai a un singolo run: senza un ottimo globale garantito, un numero di trustworthiness alto per una singola combinazione di iperparametri/seed non basta a escludere che un seed diverso avrebbe trovato un embedding sostanzialmente diverso (si veda `challenge_of_clustering_after_dim_reduction.md` per le implicazioni quando su quell'embedding si clusterizza a valle).
 
+## Un controllo in più sugli embedding: HDBSCAN su ogni combinazione (`plot_hdbscan`)
+
+Trustworthiness dice quanto l'embedding conserva i vicinati, non se la struttura che mostra è clusterizzabile in modo sensato. `plot_hdbscan` (`src/analysis/tuning_evaluations.py`) lancia HDBSCAN su ogni combinazione dello sweep e ne mostra numero di cluster e frazione di rumore: una combinazione che frammenta tutto in decine di cluster o butta metà dei soggetti nel rumore è un cattivo candidato anche con trustworthiness alta. HDBSCAN gira nello spazio dell'embedding stesso (anche a 10 componenti); per disegnarlo si usa il fit gemello a 2 componenti con gli stessi iperparametri, mai le prime 2 colonne dell'embedding a più componenti (le colonne di UMAP non sono ordinate per importanza, `lessons_learned.md` #16). Come per tutto il tuning, nessuna scelta automatica: è un'indicazione da leggere insieme agli scatter. Impostazioni e uso in [`dim_reduction.md`](../../docs/guides/dim_reduction.md).
+
 ## Numero e plot, mai uno solo
 
 Il numero è cieco a *come* è fatto l'embedding — `dim_reduction.py` produce anche gli scatter reali (`embeddings_grid_*.png`, uno per parametro libero, meccanismo `nested_params` in `docs/guides/dim_reduction.md`). Il numero dice "quale combinazione preserva meglio il vicinato"; il plot dice "che forma ha l'embedding" — utile per scartare combinazioni tecnicamente valide ma degeneri, o per notare se una struttura netta coincide con dataset/lato/volume (confondimento) invece che un pattern reale. **Leggerli sempre insieme.**

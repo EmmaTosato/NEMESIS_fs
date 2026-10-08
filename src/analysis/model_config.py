@@ -17,6 +17,7 @@ from pathlib import Path
 
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.reduction import REDUCTION_METHODS
+from src.analysis.tuning_evaluations import KIND_EMBEDDING_EVALUATION, validate_tuning_evaluations_block
 
 # ClusteringConfig.reduction_method's valid values: any real dim_reduction method, plus the
 # "raw" sentinel for clustering directly on an un-reduced feature matrix.
@@ -37,7 +38,15 @@ class DimReductionConfig:
     viz_n_components: int
     save_tuning_embeddings: bool
     precompute_distance_metric: bool
+    tuning_evaluations: dict[str, dict]
     run_notes: str | None
+
+
+@dataclass(frozen=True)
+class EvaluateTuningEmbeddingsConfig:
+    tuning_dir: Path
+    overwrite: bool
+    tuning_evaluations: dict[str, dict]
 
 
 @dataclass(frozen=True)
@@ -74,7 +83,27 @@ def load_dim_reduction_config(path: str | Path) -> DimReductionConfig:
         viz_n_components=_require_viz_n_components(raw),
         save_tuning_embeddings=_require_bool(raw, "save_tuning_embeddings"),
         precompute_distance_metric=_require_bool(raw, "precompute_distance_metric"),
+        # Required in every config (an empty object is valid) so a run always states which
+        # evaluation mechanisms it applies; read only by fine_tuning=true, where the sweep's own
+        # score must be listed (src/analysis/tuning_evaluations.py::require_native_score_declared).
+        tuning_evaluations=_require_tuning_evaluations(raw),
         run_notes=run_notes,
+    )
+
+
+def load_evaluate_tuning_embeddings_config(path: str | Path) -> EvaluateTuningEmbeddingsConfig:
+    """Config of src/pipeline/evaluate_tuning_embeddings.py: which stored tuning run to evaluate
+    and with what. Only embedding evaluations are accepted - sweep scores need the original
+    matrix, which this entry point never loads - and at least one is required.
+    """
+    raw = _read_config(path)
+    evaluations = _require_tuning_evaluations(raw, allowed_kinds=frozenset({KIND_EMBEDDING_EVALUATION}))
+    if not evaluations:
+        raise ValueError("config: field 'tuning_evaluations' must list at least one evaluation to run")
+    return EvaluateTuningEmbeddingsConfig(
+        tuning_dir=Path(_require_str(raw, "tuning_dir")),
+        overwrite=_require_bool(raw, "overwrite"),
+        tuning_evaluations=evaluations,
     )
 
 
@@ -245,6 +274,12 @@ def _require_str_list_allow_empty(raw: dict, key: str) -> tuple[str, ...]:
     if len(set(value)) != len(value):
         raise ValueError(f"config: field {key!r} contains duplicate entries: {value!r}")
     return tuple(value)
+
+
+def _require_tuning_evaluations(raw: dict, allowed_kinds: frozenset[str] | None = None) -> dict[str, dict]:
+    if "tuning_evaluations" not in raw:
+        raise ValueError("config: missing required field 'tuning_evaluations'")
+    return validate_tuning_evaluations_block(raw["tuning_evaluations"], allowed_kinds)
 
 
 def _require_viz_n_components(raw: dict) -> int:

@@ -37,6 +37,20 @@ In modalità Tuning, lo script esegue esperimenti su una griglia di combinazioni
 
 - **Parametri Nested (`nested_params`)**: Con molteplici parametri (es. UMAP ha metric, n_components, n_neighbors...), la visualizzazione esploderebbe. Il registry permette di specificare `nested_params`. I parametri primari (es. la metrica) generano sottocartelle, e il grid visuale (`embeddings_grid_unico.png`) viene mostrato solo sulle 1 o 2 variabili libere rimanenti. **Regola**: nessuna combinazione a più di 2 componenti viene mai rifittata/mostrata in questo grid, né come PNG né come HTML — se `n_components` è tra i `nested_params` e la sottocartella corrisponde a un valore diverso da 2, quella foglia non riceve nessun file; se `n_components` è invece un parametro libero (variato dentro una foglia), solo le singole combinazioni con `n_components != 2` vengono scartate, le altre restano. Per vedere davvero una combinazione a più componenti (in 3D, interattivo) c'è `src/pipeline/plot_tuning_embedding_3d.py`, da lanciare a mano — vedi `docs/guides/embedding_app.md`. Stessa logica in Produzione: con `viz_n_components: 3` non viene scritto nessun PNG/HTML statico — l'esplorazione 3D è sempre e solo `src.pipeline.embedding_app`, l'app Dash live.
 
+- **Valutazioni (`tuning_evaluations`)**: il blocco della config elenca, una chiave per meccanismo, tutto ciò con cui il tuning viene valutato. Valutazioni oggi disponibili:
+
+  | Chiave | Tipo | Cosa fa |
+  | :--- | :--- | :--- |
+  | `trustworthiness` | punteggio dello sweep | la qualità di ogni combinazione per `umap`/`tsne`/`pacmap`: la colonna di `tuning_results.csv`. Il parametro `trustworthiness_n_neighbors` sta in `params_file` |
+  | `cumulative_explained_variance` | punteggio dello sweep | lo stesso per `pca`/`pca_varimax` |
+  | `plot_hdbscan` | sugli embedding | HDBSCAN su ogni combinazione, nello spazio dell'embedding stesso, disegnato su un embedding 2D. Impostazioni: `min_cluster_size`, `min_samples` (entrambe obbligatorie) |
+
+  Il punteggio dello sweep è sempre calcolato e va dichiarato: il blocco deve contenere esattamente quello del `reduction_method` (`trustworthiness` per umap/tsne/pacmap, `cumulative_explained_variance` per pca/pca_varimax), altrimenti la pipeline si ferma **prima** dello sweep. Il blocco serve solo in `fine_tuning: true`; in produzione resta richiesto (può essere `{}`) e non ha effetto.
+
+  `plot_hdbscan` disegna un embedding con più di 2 componenti sul suo **gemello 2D**: l'embedding con gli stessi iperparametri e `n_components=2`, che è un fit a sé, mai un taglio delle prime colonne. Per questo la griglia deve contenere `n_components: 2`; senza, la pipeline si ferma prima dello sweep. I colori dei cluster valgono dentro un solo subplot (HDBSCAN numera i cluster a caso), il grigio è il rumore.
+
+  Le valutazioni sugli embedding si possono rilanciare in un secondo momento su un tuning già salvato, senza rifare lo sweep: [`evaluate_tuning_embeddings.md`](evaluate_tuning_embeddings.md).
+
 ### 2. Modalità Produzione (`"fine_tuning": false`)
 Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modalità produzione elaborerà il file finale da usare nei passaggi successivi.
 
@@ -57,6 +71,7 @@ Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modal
 | **`viz_n_components`** | *Intero (2 o 3)* | Dimensioni fisse del plot grafico, anche se la compressione vera è a più dimensioni. Evita distorsioni di "taglio". A `3`, fornisce solo l'HTML interattivo ruotabile. |
 | **`color_by`** | *Lista* | Genera plot colorati per specifici tag: `"dataset"`, `"side"`, `"volume"`, `"nihss"`. |
 | **`save_tuning_embeddings`** | *Booleano* | Se `true`, salva in `embeddings.npz` l'embedding effettivo di **ogni** combinazione valutata nel Fine-Tuning (non solo quelle mostrate in `embeddings_grid_*.png`), più un `metadata.csv` autosufficiente accanto — vedi sotto. Opt-in, `false` di default: nessuna run precedente all'introduzione di questo campo ha mai scritto questi file. |
+| **`tuning_evaluations`** | *Oggetto* | Le valutazioni applicate al tuning, una chiave per meccanismo (vedi sopra). Obbligatorio, anche in produzione dove non ha effetto. |
 | **`precompute_distance_metric`** | *Booleano* | Solo per la modalità **Produzione** (`fine_tuning: false`) — nessun effetto in Fine-Tuning. Se `true` (consigliato, comportamento di tutte le run prima dell'introduzione di questo campo), per `metric` in `jaccard`/`dice`/`euclidean` precalcola l'intera matrice di distanze una volta sola invece di farlo ricalcolare da UMAP/t-SNE ad ogni fit — molto più veloce, e garantisce ricerca dei vicini *esatta* indipendentemente dal numero di soggetti. Se `false`, passa la metrica grezza direttamente a UMAP/t-SNE (nessun precompute) — comportamento "standard" identico a un run UMAP/t-SNE esterno senza questo meccanismo, utile per confrontabilità con la letteratura. Nota: sopra i 4096 soggetti (soglia interna, non documentata, di `umap-learn`) i due modi danno risultati **diversi** (esatto vs approssimato) — sotto i 4096 sono equivalenti. Vedi `docs/debugging/debug_25_08_26.md`. |
 
 ---
@@ -73,6 +88,7 @@ Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modal
 ### In Modalità Fine-Tuning
 - **`tuning_results.csv`**: I punteggi matematici estratti per ogni esperimento.
 - **`tuning_plot.png`** e **`embeddings_grid_*.png`**: I plot per visualizzare come cambia la compressione al variare dei parametri, organizzati per sottocartelle se si usa la struttura *nested*.
+- **`hdbscan_grid_mcs<N>_ms<M>.png`** e **`hdbscan_results_mcs<N>_ms<M>.csv`** (se `plot_hdbscan` è nel blocco): uno per ogni foglia (`metric=.../n_components=.../`), o nella cartella del run se non ci sono `nested_params`. La griglia ha una riga per `n_neighbors` e una colonna per `min_dist`; ogni subplot riporta tutti i parametri UMAP della combinazione, il numero di cluster trovati e la frazione di rumore. Il CSV ha una riga per combinazione con `n_clusters_found` e `noise_fraction`. Le impostazioni di HDBSCAN stanno nel nome del file, quindi impostazioni diverse non si sovrascrivono.
 - **`embeddings.npz`** (solo se `save_tuning_embeddings: true`): un unico file con l'embedding vero e proprio di ogni combinazione valutata, non solo quelle disegnate nei plot. Ogni array è indicizzato da una chiave leggibile tipo `"n_neighbors=15,min_dist=0.1"` (stessi nomi/valori delle colonne di `tuning_results.csv`) — si ricostruisce la chiave dai valori di una riga per recuperare il suo embedding, senza bisogno di un indice separato. Pensato per essere lo strato dati di un futuro plot interattivo (vedi `knowledge/dim_reduction_clustering/dim_reduction_tuning_guide.md`) che legge e basta, senza dover rifittare nulla.
 - **`metadata.csv`** (stesso trigger, un solo file in cima alla cartella — non per foglia, stessi soggetti per tutto lo sweep): l'anagrafica arricchita, identica per schema a quella di produzione (`lesion_volume_voxels`/`lesion_side`/`nihss`). Serve perché i colori di `embeddings_grid_*.png` si calcolano al volo (join live col registro clinico, somma su `X`) — senza questo file, un plot futuro che legge solo `embeddings.npz` non avrebbe modo di sapere di chi è ogni punto o come colorarlo.
 

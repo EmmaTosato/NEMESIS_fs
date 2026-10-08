@@ -137,6 +137,7 @@ def test_dim_reduction_end_to_end_chained(tmp_path, monkeypatch, caplog):
         "color_by": ["dataset", "volume", "side"],
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
+        "tuning_evaluations": {},
         "precompute_distance_metric": True,
         "run_notes": None,
     }
@@ -185,6 +186,7 @@ def test_dim_reduction_fine_tuning_umap_writes_sweep_not_embedding(tmp_path, mon
         "color_by": [],
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
+        "tuning_evaluations": {"trustworthiness": {}},
         "precompute_distance_metric": True,
         "run_notes": "prova sweep",
     }
@@ -252,6 +254,7 @@ def test_dim_reduction_fine_tuning_save_tuning_embeddings_writes_npz(tmp_path, m
         "color_by": [],
         "viz_n_components": 2,
         "save_tuning_embeddings": True,
+        "tuning_evaluations": {"trustworthiness": {}},
         "precompute_distance_metric": True,
         "run_notes": None,
     }
@@ -316,6 +319,7 @@ def test_dim_reduction_save_tuning_embeddings_interrupted_write_leaves_no_trunca
         "color_by": [],
         "viz_n_components": 2,
         "save_tuning_embeddings": True,
+        "tuning_evaluations": {"trustworthiness": {}},
         "precompute_distance_metric": True,
         "run_notes": None,
     }
@@ -345,6 +349,7 @@ def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_pa
         "color_by": [],
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
+        "tuning_evaluations": {"cumulative_explained_variance": {}},
         "precompute_distance_metric": True,
         "run_notes": None,
     }
@@ -381,6 +386,7 @@ def test_dim_reduction_fine_tuning_pacmap_writes_sweep_not_embedding(tmp_path, m
         "color_by": [],
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
+        "tuning_evaluations": {"trustworthiness": {}},
         "precompute_distance_metric": True,
         "run_notes": None,
     }
@@ -417,6 +423,7 @@ def test_dim_reduction_fine_tuning_tsne_writes_sweep_not_embedding(tmp_path, mon
         "color_by": [],
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
+        "tuning_evaluations": {"trustworthiness": {}},
         "precompute_distance_metric": True,
         "run_notes": None,
     }
@@ -531,6 +538,7 @@ def test_dim_reduction_jaccard_metric_on_non_binary_matrix_raises(tmp_path, monk
         "color_by": [],
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
+        "tuning_evaluations": {},
         "precompute_distance_metric": True,
         "run_notes": None,
     }
@@ -572,6 +580,7 @@ def test_dim_reduction_unrecognized_hyperparameter_returns_1_not_raw_traceback(t
         "color_by": [],
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
+        "tuning_evaluations": {},
         "precompute_distance_metric": True,
         "run_notes": None,
     }
@@ -602,6 +611,7 @@ def test_dim_reduction_missing_input_path_raises(tmp_path, monkeypatch):
         "color_by": [],
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
+        "tuning_evaluations": {},
         "precompute_distance_metric": True,
         "run_notes": None,
     }
@@ -650,6 +660,7 @@ def test_dim_reduction_fine_tuning_nested_params_writes_leaf_folders_and_embeddi
         "color_by": [],
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
+        "tuning_evaluations": {"trustworthiness": {}},
         "precompute_distance_metric": True,
         "run_notes": None,
     }
@@ -725,6 +736,7 @@ def test_dim_reduction_fine_tuning_overwrite_wipes_leaves_from_incompatible_prio
             "color_by": [],
             "viz_n_components": 2,
             "save_tuning_embeddings": False,
+            "tuning_evaluations": {"trustworthiness": {}},
             "precompute_distance_metric": True,
             "run_notes": None,
         }
@@ -793,6 +805,7 @@ def test_dim_reduction_fine_tuning_nested_n_components_skips_embeddings_grid_for
         "color_by": [],
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
+        "tuning_evaluations": {"trustworthiness": {}},
         "precompute_distance_metric": True,
         "run_notes": None,
     }
@@ -855,6 +868,7 @@ def test_dim_reduction_fine_tuning_free_n_components_drops_non_viz_cells(tmp_pat
         "color_by": [],
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
+        "tuning_evaluations": {"trustworthiness": {}},
         "precompute_distance_metric": True,
         "run_notes": None,
     }
@@ -872,3 +886,148 @@ def test_dim_reduction_fine_tuning_free_n_components_drops_non_viz_cells(tmp_pat
     assert (leaf_dir / "embeddings_grid_unico.png").is_file()
     assert "skipping embeddings_grid cell" in caplog.text
     assert "n_components=3, not 2" in caplog.text
+
+
+# --- tuning_evaluations (08-10-26): plot_hdbscan inside the sweep, and re-run later on disk ----
+
+_HDBSCAN_TINY = {"min_cluster_size": 2, "min_samples": 1}
+
+
+def _write_nested_umap_params(tmp_path, grid=None, nested=None):
+    params_path = tmp_path / "params_eval.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "umap": {
+                    "params": {"n_neighbors": 3, "min_dist": 0.1, "n_components": 2, "random_state": 0, "metric": "euclidean"},
+                    "tuning_grid": grid or {"metric": ["euclidean", "cosine"], "n_neighbors": [2, 3], "min_dist": [0.1, 0.5]},
+                    "nested_params": nested or ["metric"],
+                    "trustworthiness_n_neighbors": 2,
+                }
+            }
+        )
+    )
+    return params_path
+
+
+def _write_tuning_cfg(tmp_path, input_dir, params_path, tuning_evaluations, save_tuning_embeddings=True):
+    cfg_path = tmp_path / "dim_reduction_eval.json"
+    cfg_path.write_text(
+        json.dumps(
+            {
+                "project": "testproj",
+                "input_path": str(input_dir),
+                "reduction_method": "umap",
+                "params_file": str(params_path),
+                "output_root": str(tmp_path / "dr_out"),
+                "session_name": "tune_eval",
+                "overwrite": False,
+                "fine_tuning": True,
+                "color_by": [],
+                "viz_n_components": 2,
+                "save_tuning_embeddings": save_tuning_embeddings,
+                "tuning_evaluations": tuning_evaluations,
+                "precompute_distance_metric": True,
+                "run_notes": None,
+            }
+        )
+    )
+    return cfg_path
+
+
+def test_dim_reduction_fine_tuning_plot_hdbscan_writes_grid_and_csv_per_leaf(tmp_path, monkeypatch, caplog):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    cfg_path = _write_tuning_cfg(
+        tmp_path, input_dir, _write_nested_umap_params(tmp_path),
+        {"trustworthiness": {}, "plot_hdbscan": _HDBSCAN_TINY}, save_tuning_embeddings=False,
+    )
+
+    with caplog.at_level(logging.WARNING):
+        assert dim_reduction.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (tmp_path / "dr_out" / "tuning" / "umap").iterdir() if p.is_dir())
+    for metric in ("euclidean", "cosine"):
+        leaf = tuning_dir / f"metric={metric}"
+        assert (leaf / "hdbscan_grid_mcs2_ms1.png").is_file()
+        results = pd.read_csv(leaf / "hdbscan_results_mcs2_ms1.csv")
+        assert len(results) == 4  # 2 n_neighbors x 2 min_dist
+        assert set(results["metric"]) == {metric}
+    assert "Evaluations applied: ['trustworthiness', 'plot_hdbscan']" in (tuning_dir / "config.md").read_text()
+    assert "cannot be re-run later" in caplog.text  # save_tuning_embeddings=false: said, not silent
+
+
+def test_dim_reduction_fine_tuning_then_standalone_evaluation_on_the_stored_run(tmp_path, monkeypatch):
+    """The on-disk contract end to end: what dim_reduction.py writes (embeddings.npz + config.md)
+    is exactly what evaluate_tuning_embeddings.py reads - same settings reproduce the in-sweep CSV
+    byte for byte, other settings add files next to it."""
+    from src.pipeline import evaluate_tuning_embeddings
+
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    monkeypatch.setattr(evaluate_tuning_embeddings, "LOGS_ROOT", tmp_path / "eval_logs")
+    cfg_path = _write_tuning_cfg(
+        tmp_path, input_dir, _write_nested_umap_params(tmp_path), {"trustworthiness": {}, "plot_hdbscan": _HDBSCAN_TINY}
+    )
+    assert dim_reduction.main(["--config", str(cfg_path)]) == 0
+    tuning_dir = next(p for p in (tmp_path / "dr_out" / "tuning" / "umap").iterdir() if p.is_dir())
+    in_sweep_csv = (tuning_dir / "metric=cosine" / "hdbscan_results_mcs2_ms1.csv").read_bytes()
+
+    def _evaluate(settings, overwrite):
+        path = tmp_path / "evaluate.json"
+        path.write_text(
+            json.dumps({"tuning_dir": str(tuning_dir), "overwrite": overwrite, "tuning_evaluations": {"plot_hdbscan": settings}})
+        )
+        return evaluate_tuning_embeddings.main(["--config", str(path)])
+
+    assert _evaluate({"min_cluster_size": 3, "min_samples": 1}, overwrite=False) == 0
+    assert (tuning_dir / "metric=cosine" / "hdbscan_grid_mcs3_ms1.png").is_file()
+    assert (tuning_dir / "metric=cosine" / "hdbscan_grid_mcs2_ms1.png").is_file()  # the first run's file is still there
+
+    assert _evaluate(_HDBSCAN_TINY, overwrite=False) == 1  # files already exist
+    assert _evaluate(_HDBSCAN_TINY, overwrite=True) == 0
+    assert (tuning_dir / "metric=cosine" / "hdbscan_results_mcs2_ms1.csv").read_bytes() == in_sweep_csv
+
+
+def test_dim_reduction_fine_tuning_misdeclared_sweep_score_fails_before_the_sweep(tmp_path, monkeypatch, caplog):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    cfg_path = _write_tuning_cfg(
+        tmp_path, input_dir, _write_nested_umap_params(tmp_path), {"plot_hdbscan": _HDBSCAN_TINY}
+    )
+
+    with caplog.at_level(logging.ERROR):
+        assert dim_reduction.main(["--config", str(cfg_path)]) == 1
+
+    assert "declare exactly the sweep score" in caplog.text
+    assert not (tmp_path / "dr_out" / "tuning").exists()  # nothing was swept or written
+
+
+def test_dim_reduction_fine_tuning_plot_hdbscan_without_2d_twin_fails_before_the_sweep(tmp_path, monkeypatch, caplog):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    params_path = _write_nested_umap_params(tmp_path, grid={"n_components": [3, 4], "n_neighbors": [2]}, nested=["n_components"])
+    cfg_path = _write_tuning_cfg(tmp_path, input_dir, params_path, {"trustworthiness": {}, "plot_hdbscan": _HDBSCAN_TINY})
+
+    with caplog.at_level(logging.ERROR):
+        assert dim_reduction.main(["--config", str(cfg_path)]) == 1
+
+    assert "2-component twin" in caplog.text
+    assert not (tmp_path / "dr_out" / "tuning").exists()
+
+
+def test_evaluate_tuning_embeddings_missing_embeddings_npz_returns_1(tmp_path, monkeypatch, caplog):
+    from src.pipeline import evaluate_tuning_embeddings
+
+    monkeypatch.setattr(evaluate_tuning_embeddings, "LOGS_ROOT", tmp_path / "eval_logs")
+    run_dir = tmp_path / "some_tuning_run"
+    run_dir.mkdir()
+    cfg_path = tmp_path / "evaluate.json"
+    cfg_path.write_text(
+        json.dumps({"tuning_dir": str(run_dir), "overwrite": False, "tuning_evaluations": {"plot_hdbscan": _HDBSCAN_TINY}})
+    )
+
+    with caplog.at_level(logging.ERROR):
+        assert evaluate_tuning_embeddings.main(["--config", str(cfg_path)]) == 1
+
+    assert "save_tuning_embeddings=true" in caplog.text

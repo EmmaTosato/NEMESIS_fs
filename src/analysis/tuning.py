@@ -20,13 +20,14 @@ from sklearn.manifold import trustworthiness
 
 from src.analysis.distances import PRECOMPUTABLE_METRICS, precomputed_distance
 from src.analysis.reduction import _pca_varimax_fit, pacmap_embed, tsne_embed, umap_embed
+from src.analysis.tuning_evaluations import CUMULATIVE_EXPLAINED_VARIANCE, TRUSTWORTHINESS
 
 TUNING_METRIC_NAMES = {
-    "umap": "trustworthiness",
-    "tsne": "trustworthiness",
-    "pca": "cumulative_explained_variance",
-    "pca_varimax": "cumulative_explained_variance",
-    "pacmap": "trustworthiness",
+    "umap": TRUSTWORTHINESS,
+    "tsne": TRUSTWORTHINESS,
+    "pca": CUMULATIVE_EXPLAINED_VARIANCE,
+    "pca_varimax": CUMULATIVE_EXPLAINED_VARIANCE,
+    "pacmap": TRUSTWORTHINESS,
 }
 
 METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS = {"umap", "tsne", "pacmap"}

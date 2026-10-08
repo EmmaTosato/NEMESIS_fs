@@ -1,0 +1,43 @@
+# Valutare un tuning già salvato (`evaluate_tuning_embeddings`)
+
+Applica a un tuning di `dim_reduction` già concluso le valutazioni che lavorano sui soli embedding (oggi `plot_hdbscan`), senza rifare lo sweep. Funziona su lesione e SDC allo stesso modo: legge solo la cartella del tuning.
+
+- **Script**: `src/pipeline/evaluate_tuning_embeddings.py`
+- **Configurazione**: `config/pipelines/evaluate_tuning_embeddings.json`
+
+---
+
+## Esecuzione
+
+### 1. In locale
+```bash
+conda activate nemesis
+python -m src.pipeline.evaluate_tuning_embeddings --config config/pipelines/evaluate_tuning_embeddings.json
+```
+
+### 2. Sul server (tramite SLURM)
+```bash
+sbatch jobs/run_evaluate_tuning_embeddings.sh
+```
+
+---
+
+## Cosa serve
+
+Una cartella di tuning scritta da `dim_reduction` con `save_tuning_embeddings: true`: `embeddings.npz` (tutti gli embedding dello sweep) e `config.md` (la griglia del run). Il numero di embedding in `embeddings.npz` deve corrispondere esattamente alla griglia dichiarata in `config.md`, altrimenti lo script si ferma: una cartella riusata da un run con un'altra griglia non viene valutata.
+
+Non servono la matrice originale né i metadati. Per questo il punteggio dello sweep (`trustworthiness`, `cumulative_explained_variance`), che richiede la matrice, non è accettato qui.
+
+## Parametri JSON
+
+| Parametro | Tipo | Descrizione |
+| :--- | :--- | :--- |
+| **`tuning_dir`** | *Stringa* | La cartella del tuning, es. `results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol` o `results/sdc/...`. Deve esistere. Si usa il percorso relativo alla radice del repo: il titolo dei grafici ne deriva modalità e metodo. |
+| **`overwrite`** | *Booleano* | Se `false`, lo script si ferma se i file della valutazione esistono già; se `true`, li sostituisce. |
+| **`tuning_evaluations`** | *Oggetto* | Le valutazioni da lanciare, almeno una. Stessa sintassi del blocco omonimo di `dim_reduction.json` (vedi [`dim_reduction.md`](dim_reduction.md)). |
+
+## Output
+
+Gli stessi file che scrive `dim_reduction` quando la valutazione è nel suo blocco, nelle stesse cartelle del tuning (una per foglia `metric=.../n_components=.../`): per `plot_hdbscan`, `hdbscan_grid_mcs<N>_ms<M>.png` e `hdbscan_results_mcs<N>_ms<M>.csv`. Le impostazioni stanno nel nome del file: rilanciare con altre impostazioni aggiunge file accanto ai precedenti. Con le stesse impostazioni il risultato è identico a quello calcolato durante lo sweep.
+
+`config.md` del tuning non viene modificato: descrive lo sweep, non le valutazioni successive. Ogni lancio scrive un log in `logs/evaluate_tuning_embeddings/`.

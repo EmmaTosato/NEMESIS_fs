@@ -1,9 +1,9 @@
 {
   "project": "clinical_connectome",
-  "output_root": "results/lesion/dim_reduction",
-  "input_path": "data/derived/lesion_matrix/07-10_s1.4-vol",
-  "params_file": "config/registry/params_reduction.json",
-  "session_name": "s1.4-vol",
+  "output_root": "results/sdc/dim_reduction",
+  "input_path": "data/derived/sdc_matrix/07-10_s2.4-vol",
+  "params_file": "config/registry/params_reduction_sdc.json",
+  "session_name": "s2.4-vol",
   "reduction_method": "umap",
   "fine_tuning": true,
   "save_tuning_embeddings": true,
@@ -15,5 +15,12 @@
     "nihss"
   ],
   "viz_n_components": 2,
-  "run_notes": "UMAP tuning on s1.4-vol (5845 subjects): metric dice/euclidean nested with n_components 2/3/10, n_neighbors x min_dist grid unchanged from s1.1-vol/s1.2-vol sweeps."
+  "tuning_evaluations": {
+    "trustworthiness": {},
+    "plot_hdbscan": {
+      "min_cluster_size": 100,
+      "min_samples": 10
+    }
+  },
+  "run_notes": "UMAP tuning on s2.4-vol (5845 subjects, SDC voxelwise, continuous disconnection values): metric euclidean only (dice dropped - binary metric not meaningful on continuous disconnection values), n_components 2/3/10, n_neighbors x min_dist grid unchanged from the s1.4-vol lesion sweep."
 }

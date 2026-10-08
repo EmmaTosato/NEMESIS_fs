@@ -58,7 +58,8 @@
       ],
       "n_components": [
         2,
-        3
+        3,
+        10
       ],
       "n_neighbors": [
         5,
