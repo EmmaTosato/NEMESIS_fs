@@ -16,6 +16,38 @@
 
 ---
 
+## 08-10-2026 — s1.4-vol
+
+### Produzione UMAP su s1.4-vol (n=5845)
+
+##### Input
+- s1.4-vol
+- Dati raw: matrice lesionale voxel-wise (2mm)
+- Path: `data/derived/lesion_matrix/07-10_s1.4-vol`
+- 5845 soggetti
+##### Metodi
+umap
+
+##### Obiettivo
+- Produrre i 6 embedding UMAP (`{dice,euclidean}×{2,3,10}`) con i parametri scelti nel tuning del 07-10 ([`s1_tuning.md`](s1_tuning.md))
+
+##### Risultati
+
+| ID | metric | n_neighbors | min_dist | n_components | Link |
+| --- | --- | --- | --- | --- | --- |
+| nc2_m_dice | dice | 100 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/08-10_s1.4-vol_m_dice_nc2/config.md) |
+| nc3_m_dice | dice | 50 | 0.05 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/08-10_s1.4-vol_m_dice_nc3/config.md) |
+| nc10_m_dice | dice | 50 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/08-10_s1.4-vol_m_dice_nc10/config.md) |
+| nc2_m_euclidean | euclidean | 5 | 0.0 | 2 | [config.md](../../../results/lesion/dim_reduction/production/umap/08-10_s1.4-vol_m_euclidean_nc2/config.md) |
+| nc3_m_euclidean | euclidean | 5 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/08-10_s1.4-vol_m_euclidean_nc3/config.md) |
+| nc10_m_euclidean | euclidean | 5 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/08-10_s1.4-vol_m_euclidean_nc10/config.md) |
+
+- I valori `dice` vengono dal plateau di stabilità HDBSCAN del tuning; non sono più gli stessi della produzione s1.2 (che aveva `n_neighbors` 15 o 30).
+- I valori `euclidean` sono provvisori: le griglie non mostrano alcun plateau. Per nc2 e nc3 coincidono con la produzione s1.2; per nc10 s1.2 usava `n_neighbors=30`.
+- Embedding nc2 colorati per lato: con `dice` i soggetti si dividono quasi del tutto per lato lesionale (un blob sinistro, uno destro e pochi piccoli gruppi misti al centro), lo stesso artefatto noto delle produzioni precedenti; con `euclidean` destra e sinistra si mescolano in un anello centrale e si separano solo in periferia.
+
+---
+
 ## 28-08-2026 — s1.2-vol
 
 ### Produzione t-SNE  su coorte allargta (n=5269)
