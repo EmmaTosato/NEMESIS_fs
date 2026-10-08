@@ -6,6 +6,36 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 08-10-26 — Confronto tra run: sezione dell'Embedding Explorer, non una seconda pagina
+
+Il confronto tra due run di clustering (`docs/guides/embedding_app.md`, "Confronto tra run") vive in fondo alla stessa pagina dell'app, con un menu "Indice" a scomparsa per navigare, invece che in una seconda pagina con il Clustering Explorer spostato lì.
+
+Scartata la seconda pagina: il Clustering Explorer ha circa 40 callback agganciati ai selettori della pagina principale (`run-picker`, `cluster-picker`); spostarlo voleva dire riagganciarli tutti a un nuovo selettore, con rischio alto e nessun guadagno per chi legge. La sezione di confronto ha selettori propri (Run A, Run B), quindi non dipende dal run scelto in alto.
+
+## 08-10-26 — `tuning_evaluations`: registro delle valutazioni del tuning di dim reduction e `evaluate_tuning_embeddings`
+
+**Cosa è cambiato**: `dim_reduction.json` ha una chiave obbligatoria `tuning_evaluations` che elenca, un meccanismo per chiave, tutto ciò con cui il tuning è valutato: il punteggio dello sweep (`trustworthiness`, o `cumulative_explained_variance` per PCA) e `plot_hdbscan`. Il registro è `src/analysis/tuning_evaluations.py` (una `EvaluationSpec` per meccanismo: aggiungerne uno è aggiungere una voce). Le convenzioni su disco condivise tra chi scrive e chi rilegge un tuning (formato delle chiavi di `embeddings.npz`, cartelle delle foglie, caricamento di un run) stanno in `src/analysis/tuning_embeddings.py`; `_combo_key` è uscito da `dim_reduction.py`. Nuova pipeline `src/pipeline/evaluate_tuning_embeddings.py` (config `config/pipelines/evaluate_tuning_embeddings.json`, job `jobs/run_evaluate_tuning_embeddings.sh`): le valutazioni sugli embedding si rilanciano su un tuning già salvato, lesione e SDC, senza rifare lo sweep. Stessa esecuzione in entrambi i casi (`run_embedding_evaluations`).
+
+**Perché**: richiesta di avere in config tutti i meccanismi di valutazione applicati, di poterli rilanciare a posteriori (uno sweep da ore non si rifà per aggiungere un grafico) e di aggiungerne altri senza toccare la pipeline.
+
+**Scartato**:
+- *Spostare `trustworthiness_n_neighbors` dai registri dei parametri al blocco*: tocca i due registri, il loader e i test, e non serve a dichiarare il meccanismo. Resta accanto al metodo a cui appartiene; il blocco elenca `trustworthiness` con `{}`.
+- *Rendere disattivabile il punteggio dello sweep*: viene sempre calcolato, una chiave disattivabile non farebbe niente. Il blocco è validato contro ciò che lo sweep fa davvero, prima dello sweep.
+- *Riusare `dim_reduction.json` come config dello standalone*: richiederebbe `input_path`, `session_name` e altri campi senza senso per una valutazione a posteriori.
+- *Una riga in `runs_tuning.csv` per ogni valutazione a posteriori*: i file stanno nella cartella del tuning con le impostazioni nel nome, il log in `logs/evaluate_tuning_embeddings/`.
+
+**Conseguenze che fanno sbagliare chi non le conosce**: ogni config di `dim_reduction`, anche di produzione, deve avere la chiave (può essere `{}`). Il tuning del clustering non ha ancora lo stesso (`.claude/open_problems.md`).
+
+## 08-10-26 — Pannello "Composizione dei cluster" nell'app Dash; notebook di interpretazione rivisto
+
+**Cosa è cambiato**: l'app Dash ha un nuovo pannello in fondo alla pagina, "Composizione dei cluster" (`src/analysis/cluster_composition.py`, `embedding_app.cluster_composition_content_for`): per un run di clustering, un grafico per variabile con tutti i cluster affiancati (dataset, lato, localizzazione dominante come barre al 100%; NIHSS, volume, carico di disconnessione come box plot nei colori dello scatter). `cluster_interpretation.ipynb` è stato riscritto: scelta della run seguendo i rami di `results/`, composizione dei cluster, soggetti rappresentativi di tutti i cluster in una figura, regressione logistica al posto dell'importanza per permutazione (`.claude/history/methods_changelog.md`).
+
+**Rimosso dal notebook**: la mappa differenza cluster − resto (richiesta dell'utente) e la configurazione letta dai json delle pipeline: i percorsi dei dati e la griglia sono costanti scritte a mano nel notebook.
+
+**Perché a mano**: le mappe si costruiscono dai file originali dei soggetti, non dalla matrice; servono solo cartella dati, glob e griglia. Le matrici dei cluster oggi guardati (s1.2-vol, s2.2-vol) sono a 1 mm, le più recenti (s1.4-vol, s2.4-vol) a 2 mm: il notebook disegna a 2 mm, con la griglia res-1 come alternativa dichiarata.
+
+**Conseguenza**: l'app non dipende più da `build_sdc_matrix.json` solo per la composizione dei cluster (il pannello legge `participants.csv`); i pannelli delle mappe SDC continuano a richiedere un config `voxelwise`.
+
 ## 07-10-26 — Scope dei notebook di post-results: empirico contro interpretativo
 
 **Cosa è stato deciso**: i notebook sotto `notebooks/post-results_analysis/` si separano per un criterio solo. Un'analisi che usa solo etichette e spazio del clustering è *empirica* (`clustering_evaluation` per una run, `clustering_comparison` per più run); una che porta variabili o immagini esterne (cliniche, demografiche, mappe) è *interpretativa* (`cluster_interpretation`). Scritto in `docs/guides/exploration.md` (criterio, tabella) e `docs/guides/evaluation.md` (dove vive ogni analisi, casi di confine).

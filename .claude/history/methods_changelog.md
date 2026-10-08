@@ -8,6 +8,54 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 08-10-26 — Confronto tra run di clustering: due modalità, identità dell'embedding da `input_path`, homogeneity/completeness orientate
+
+**Cosa è stato adottato**: il confronto tra due run di clustering (sezione "Confronto tra run" dell'Embedding Explorer, `src/analysis/cluster_comparison.py`) ha due modalità, con regole di compatibilità fisse:
+
+- **Stesso embedding**: due run con lo stesso `input_path` in `config.md`; possono cambiare metodo e parametri. Metriche, contingency, chi², purezza, distanza tra centroidi.
+- **Tra modalità (lesion vs sdc)**: stesso metodo, stessi valori dei `tag_param`, stesso metodo di riduzione, stesse componenti e metrica; cambia solo la modalità. Metriche, contingency, chi², purezza, profilo clinico dei cluster. Niente centroidi: gli spazi di feature sono diversi.
+
+Il confronto avviene sempre e solo sull'intersezione dei `subject_id`, dichiarata contro la dimensione piena di ciascuna run.
+
+**Alternative scartate**:
+- *Confronto libero tra metodi diversi sullo stesso `k`* (la vecchia Parte 1 del notebook, ARI/NMI tra kmeans/agglomerative/spectral/gmm): il notebook non avrà più metodi confrontabili tra pipeline diverse (decisione dell'utente); il confronto tra metodi resta solo dentro lo stesso embedding, dove i centroidi hanno senso.
+- *Identità dell'embedding come `(session_name, reduction_method, reduction_n_components, reduction_metric)`* (come in `require_shared_embedding` del notebook): quattro chiavi che coincidono non garantiscono lo stesso file (per esempio due dim_reduction della stessa sessione rilanciate con parametri diversi). `input_path` nomina l'output esatto. In più `centroid_distances` verifica sulle coordinate dei soggetti comuni, e solleva se differiscono.
+
+**Correzione rispetto al notebook**: `clustering_comparison.ipynb` chiama `homogeneity_score(labels_a, labels_b)`, che in sklearn è definita sui cluster *predetti* (B): misura se ogni cluster di **B** contiene un solo cluster di A. Il testo del notebook la descrive invece come "ogni cluster di A contiene soggetti di un solo cluster di B". Le due letture sono invertite (stesso per completeness). Il modulo nuovo passa B come "true" e A come "predicted", così il calcolo coincide con la definizione scritta; un test fissa le due direzioni. I valori homogeneity/completeness già letti dal notebook vanno scambiati tra loro.
+
+---
+
+## 08-10-26 — Tuning di dim reduction: HDBSCAN su ogni combinazione, nello spazio proprio, disegnato sul gemello 2D
+
+**Cosa è stato adottato**: oltre alla trustworthiness, ogni combinazione di uno sweep di `dim_reduction` viene clusterizzata con HDBSCAN (`plot_hdbscan`, `min_cluster_size=100`, `min_samples=10`: i valori di produzione di `params_clustering.json` di allora, un punto di partenza, non una scelta fatta su questo sweep). Per combinazione si registrano numero di cluster e frazione di rumore, e si disegna una griglia per foglia (`metric × n_components`) con una riga per `n_neighbors` e una colonna per `min_dist`. HDBSCAN gira nello spazio dell'embedding stesso, anche a 3 o 10 componenti; i cluster si disegnano sul **gemello 2D** (stessi iperparametri, `n_components=2`, un fit separato già presente nello sweep).
+
+**Perché**: la trustworthiness dice se il vicinato è conservato, non se la struttura è clusterizzabile; `n_components` e iperparametri si scelgono per il clustering a valle, e a 5-10 componenti (`knowledge/dim_reduction_clustering/challenge_of_clustering_after_dim_reduction.md`) il clustering sull'embedding a più componenti è proprio ciò che si userà.
+
+**Scartato**:
+- *Disegnare l'embedding a 10 componenti tagliandolo alle prime 2 colonne*: le colonne di UMAP non sono ordinate per importanza, il taglio è arbitrario (`lessons_learned.md` #16).
+- *Clusterizzare il gemello 2D invece dello spazio proprio*: i cluster non sarebbero quelli che il clustering vedrebbe a valle. Lo copre `test_plot_hdbscan_clusters_in_the_embeddings_own_space_not_on_its_2d_twin`, verificato per mutazione.
+- *Aggiungere `n_clusters_found`/`noise_fraction` a `tuning_results.csv`*: quel file è letto da report, notebook e `build_dim_reduction_strategies_csv`; le colonne stanno in un CSV a parte per foglia.
+
+**Conseguenze che fanno sbagliare chi non le conosce**: i colori dei cluster valgono dentro un solo subplot (HDBSCAN numera i cluster a caso). Uno sweep con combinazioni a più di 2 componenti e senza `n_components: 2` in griglia viene rifiutato prima di iniziare.
+
+## 08-10-26 — "Cosa distingue un cluster": regressione logistica cluster contro resto, al posto dell'importanza per permutazione
+
+**Cosa è stato adottato**: per un cluster scelto, una regressione logistica con esito "il soggetto è in questo cluster" e come predittori età, NIHSS, log10 del volume della lesione, indice di lateralità, tre quote di localizzazione (corticale, sottocorticale grigia, infratentoriale), sesso e dataset. Numeriche standardizzate (odds ratio per deviazione standard), categoriche contro il livello più frequente, soggetti con dati mancanti esclusi e contati. Si riportano odds ratio con intervallo di confidenza al 95% (Wald), VIF, pseudo-R² di McFadden e AUC. Codice in `src/analysis/cluster_drivers.py`, sezione 8 di `cluster_interpretation.ipynb`; una regressione per cluster, riassunte in una mappa di colori.
+
+**Perché**: il confronto cluster contro resto (sezione 7) è una variabile alla volta, e volume, lato, disconnessione e dataset si spiegano a vicenda. La regressione dà l'effetto di ciascuna a parità delle altre, in una grandezza (odds ratio) con un'interpretazione diretta.
+
+**Scartato**:
+- *Importanza per permutazione di una foresta casuale* (provata il 07-10-26, mai committata): l'utente non riusciva a leggerla ("non ho capito niente"). Con variabili ridondanti una delle due risultava a ~0 pur portando tutto il segnale, quindi servivano anche i blocchi: troppo da spiegare per una domanda semplice.
+- *Carico di disconnessione insieme al volume*: correlazione 0.88 sulla coorte di s2.2-vol, VIF tra 8 e 11, stime instabili. Resta il volume.
+- *Lato della lesione insieme all'indice di lateralità*: il lato deriva dall'indice. Resta l'indice.
+- *Istruzione*: manca per l'85% dei soggetti.
+
+**Conseguenze che fanno sbagliare chi non le conosce**:
+- Le variabili di lesione (volume, lateralità, localizzazione) riassumono i dati con cui è fatta una run lesion: sono legate al cluster anche per costruzione.
+- L'indice di lateralità è quasi sempre vicino a -1 (destra) o +1 (sinistra, `LI = (L - R) / (L + R)`): il suo odds ratio per deviazione standard è enorme e si legge come "sinistra contro destra".
+- Una categoria assente dal cluster (nessuna lesione infratentoriale) dà un odds ratio vicino a 0 con un intervallo larghissimo: instabilità, non un risultato.
+- Un cluster con meno di 10 soggetti per termine viene saltato con un messaggio (regola di Peduzzi): su run hdbscan con cluster piccoli la mappa di colori ha poche colonne.
+
 ## 07-10-26 — Matrice lesionale `s1.4-vol` costruita con `correct_out_of_brain: true`
 
 **Decisione**: `07-10_s1.4-vol` è la prima matrice lesionale costruita con la correzione dei voxel fuori dal brain attiva (`brain_mask_path` = maschera res-2). I voxel di lesione fuori dalla maschera cerebrale sono azzerati e il soggetto resta in matrice, con `lesion_volume_voxels` ricalcolato sui dati corretti.

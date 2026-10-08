@@ -1,6 +1,6 @@
 # Problemi aperti e cose da fare — NEMESIS
 
-Ultimo aggiornamento: 06-10-26.
+Ultimo aggiornamento: 08-10-26.
 
 Elenco vivo di ciò che è **aperto adesso**: problemi noti non risolti, decisioni non prese, lavori iniziati e non finiti. Una voce si cancella quando è chiusa — non si tiene lo storico qui.
 
@@ -70,6 +70,17 @@ Nel tsv UKLFR il braccio più deficitario corrisponde alla lesione **omolaterale
 Nella matrice `sdc_matrix` s2.2-vol questo soggetto è una riga interamente nulla. La causa è a monte: la sua mappa `disconnectome-map` ha **0 voxel non nulli** pur avendo una lesione da **56.785 voxel**. Output degenere di BCBToolKit, non una proprietà del soggetto.
 
 Unico caso su 1570. Per risolverlo va rilanciato il calcolo SDC (BCBToolKit) per quel soggetto, **che gira solo sul cluster** (la pipeline `compute_sdc.py` è stata ritirata da questo repo). Nel frattempo va escluso a valle.
+
+## 🟡 Lavori da fare
+
+### Il tuning del clustering arriverà alla stessa struttura del tuning di dim reduction
+
+Il tuning di `dim_reduction` dichiara le valutazioni che applica in `tuning_evaluations` (registro in `src/analysis/tuning_evaluations.py`, una voce per meccanismo) e le valutazioni sugli embedding si rilanciano su un tuning già salvato, senza rifare lo sweep (`evaluate_tuning_embeddings`, `docs/guides/evaluate_tuning_embeddings.md`). Per il clustering non c'è ancora l'equivalente:
+
+- le metriche dello sweep (Silhouette, Calinski-Harabasz, Davies-Bouldin, `inertia`, `bic`/`aic`, `noise_fraction`) sono calcolate dentro `run_clustering_tuning_sweep` e non sono dichiarate in nessuna config;
+- i criteri aggiunti dopo (cophenetic correlation, ICL, gap statistic, self-tuning eigengap, in `src/analysis/clustering_tuning.py`) si lanciano solo a mano dal notebook `clustering_tuning_explorer.ipynb`, su una run già prodotta.
+
+Da fare: un blocco analogo nella config di `clustering`, un registro con una voce per criterio, e un entry point che li rilancia su un tuning salvato (etichette in `clusterings.npz` con `save_tuning_clusterings: true`, matrice in `matrix.npy`; lo spectral con `affinity` sweepata non salva le etichette, va rifittato). I plot per metodo e parametro vanno nelle cartelle del tuning, come per `plot_hdbscan`.
 
 ---
 

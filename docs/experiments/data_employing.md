@@ -93,8 +93,8 @@ flowchart LR
 
     subgraph COL1["Dim Reduction — Tuning"]
         direction TB
-        T14["07-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<hr/>in corso"]
-        T24["non ancora lanciata"]:::pending
+        T14["07-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10"]
+        T24["07-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
         T25["non ancora lanciata"]:::pending
     end
 
@@ -120,7 +120,7 @@ flowchart LR
     end
 
     R14 --> T14 -.-> P14 -.-> CT14 -.-> CP14
-    R24 -.-> T24 -.-> P24 -.-> CT24 -.-> CP24
+    R24 --> T24 -.-> P24 -.-> CT24 -.-> CP24
     R25 -.-> T25 -.-> P25 -.-> CT25 -.-> CP25
 ```
 
