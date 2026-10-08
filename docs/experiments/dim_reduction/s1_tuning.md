@@ -48,13 +48,13 @@ umap
 | dice, nc2 | 100 | 0.0 | La riga 100 non cambia al variare di `min_dist` (`k`=8 fino a 0.5). Con 50 il riquadro `min_dist=0.01` salta a `k`=18 con 14% di rumore |
 | dice, nc3 | 50 | 0.05 | Tutti i vicini danno `k`=7–8, rumore ≤1%. A `min_dist=0.0` il vicino a `n_neighbors=30` salta a `k`=11 |
 | dice, nc10 | 50 | 0.0 | Vicini a `k`=7–8, rumore 0–1%; a `min_dist=0.5` il rumore è 9% (20% con `n_neighbors=100`) |
-| euclidean, nc2 | 5 | 0.0 | Provvisorio, vedi sotto |
-| euclidean, nc3 | 5 | 0.0 | Provvisorio, vedi sotto |
-| euclidean, nc10 | 5 | 0.0 | Provvisorio, vedi sotto |
+| euclidean, nc2 | 5 | 0.0 | Nessun plateau, vedi sotto |
+| euclidean, nc3 | 5 | 0.0 | Nessun plateau, vedi sotto |
+| euclidean, nc10 | 5 | 0.0 | Nessun plateau, vedi sotto |
 
 - Un `min_dist` basso rende i gruppi netti per costruzione; qui è accettabile perché lo stesso `k` e lo stesso disegno restano a `min_dist` 0.01–0.1.
 - Il plateau è il livello grossolano: ogni blob è un unico cluster. La sottostruttura interna ai blob compare solo a `n_neighbors` bassi, dove è instabile, e va cercata nel clustering.
-- `euclidean` (nc2, nc3, nc10): valori provvisori, gli stessi della produzione s1.2 per nc2 e nc3. Le griglie non mostrano alcun plateau, quindi non giustificano una scelta robusta; `n_neighbors=5` è inoltre il valore minimo della griglia.
+- `euclidean` (nc2, nc3, nc10): per nc2 e nc3 gli stessi valori della produzione s1.2. Le griglie non mostrano alcun plateau, quindi non giustificano una scelta robusta; `n_neighbors=5` è inoltre il valore minimo della griglia.
 
 ---
 

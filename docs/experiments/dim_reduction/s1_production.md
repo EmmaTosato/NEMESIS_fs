@@ -42,8 +42,8 @@ umap
 | nc3_m_euclidean | euclidean | 5 | 0.0 | 3 | [config.md](../../../results/lesion/dim_reduction/production/umap/08-10_s1.4-vol_m_euclidean_nc3/config.md) |
 | nc10_m_euclidean | euclidean | 5 | 0.0 | 10 | [config.md](../../../results/lesion/dim_reduction/production/umap/08-10_s1.4-vol_m_euclidean_nc10/config.md) |
 
-- I valori `dice` vengono dal plateau di stabilità HDBSCAN del tuning; non sono più gli stessi della produzione s1.2 (che aveva `n_neighbors` 15 o 30).
-- I valori `euclidean` sono provvisori: le griglie non mostrano alcun plateau. Per nc2 e nc3 coincidono con la produzione s1.2; per nc10 s1.2 usava `n_neighbors=30`.
+- I valori `dice` vengono dal plateau di stabilità HDBSCAN del tuning.
+- Per `euclidean` le griglie non mostrano alcun plateau. Per nc2 e nc3 i valori coincidono con la produzione s1.2; per nc10 s1.2 usava `n_neighbors=30`.
 - Embedding nc2 colorati per lato: con `dice` i soggetti si dividono quasi del tutto per lato lesionale (un blob sinistro, uno destro e pochi piccoli gruppi misti al centro), lo stesso artefatto noto delle produzioni precedenti; con `euclidean` destra e sinistra si mescolano in un anello centrale e si separano solo in periferia.
 
 ---

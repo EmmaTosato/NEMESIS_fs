@@ -39,8 +39,8 @@
     "tag_prefix": ["mcs", "ms"],
     "params": { "min_cluster_size": 100, "min_samples": 10 },
     "tuning_grid": {
-      "min_cluster_size": [10, 20, 30, 50, 75, 100],
-      "min_samples": [5, 10, 20]
+      "min_cluster_size": [10, 15, 20, 30, 50, 75, 100],
+      "min_samples": [1, 5, 10, 20]
     }
   },
   "spectral": {
