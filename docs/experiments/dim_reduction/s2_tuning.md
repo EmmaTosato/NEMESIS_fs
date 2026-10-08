@@ -15,6 +15,52 @@
 
 ---
 
+## 07-10-2026 — s2.4-vol
+
+### Tuning UMAP su SDC voxel-wise, coorte allargata (n=5845)
+
+##### Input
+- s2.4-vol
+- Dati raw: matrice SDC **voxel-wise** (`disconnectome-map`, valori continui 0-1)
+- Path: `data/derived/sdc_matrix/07-10_s2.4-vol`
+- 5845 soggetti × 291.345 voxel non costanti
+
+##### Metodi
+umap
+
+##### Obiettivo
+- Ripetere il tuning di s2.2-vol sulla coorte allargata (8 dataset, 3.7x più soggetti), con `n_components`=10 in più, per fissare i parametri di produzione
+- Solo `metric=euclidean`, stesso motivo di s2.2: valori continui, `dice` non applicabile
+- Oltre alla trustworthiness, `plot_hdbscan` (`min_cluster_size=100`, `min_samples=10`) su ogni combinazione, solo come diagnostica
+
+##### Risultati
+
+| Metodo | Run | Griglia | Link |
+| --- | --- | --- | --- |
+| UMAP | 90 | `metric`=euclidean × `n_components`∈{2,3,10} × `n_neighbors`∈{5,15,30,50,100} × `min_dist`∈{0.0,0.01,0.05,0.1,0.5,1.0} | [config.md](../../../results/sdc/dim_reduction/tuning/umap/07-10_s2.4-vol/config.md) · [tuning_results.csv](../../../results/sdc/dim_reduction/tuning/umap/07-10_s2.4-vol/tuning_results.csv) |
+
+| n_components | Trustworthiness (range) | Massimo | A `n_neighbors=15`, `min_dist=0.0` |
+| --- | --- | --- | --- |
+| 2 | 0.916–0.980 | 0.980 (`n_neighbors=5`, `min_dist=0.01`) | 0.977 |
+| 3 | 0.956–0.984 | 0.984 (`n_neighbors=5`, `min_dist=0.0`) | 0.983 |
+| 10 | 0.984–0.992 | 0.992 (`min_dist=1.0`); 0.986 con `min_dist` ≤ 0.1 | 0.986 |
+
+- **Profilo come s2.2-vol**: plateau per `min_dist` ≤ 0.1, calo a `min_dist` ≥ 0.5 (a `n_components=10` invece sale, ma i cluster si fondono e il rumore HDBSCAN arriva fino al 30%); trustworthiness che scende con `n_neighbors` crescente.
+- **Nessun batch effect** per `dataset`: gli 8 dataset sono mescolati in ogni combinazione.
+- **Separazione `lesion_side`**: due lobi con un ponte stretto al centro, come in s2.2-vol. Il segnale principale è la lateralità.
+- **HDBSCAN non dà un k robusto**: k da 2 a 20, e cambia anche tra `min_dist` 0.0 e 0.01. L'embedding è un continuum a due lobi con isole piccole; a `n_neighbors` ≥ 30 compare quasi sempre un'isola in alto (circa 100+ soggetti, di più dataset), di cui non so ancora la natura.
+
+##### Decisioni
+
+- **Produzione: `n_neighbors=15`, `min_dist=0.0`**, per `n_components`∈{2,3,10}.
+  - Stesso valore di s2.1 e s2.2, quindi le run restano confrontabili.
+  - È entro 0.003 dal massimo di trustworthiness per ogni `n_components` (0.001 a 3, 0 a 10 con `min_dist` ≤ 0.1).
+  - `n_neighbors=5` guadagna qualche millesimo ma frammenta (a `n_components=2`: k=19, rumore 12%).
+  - `min_dist=0.0` resta fisso come in ogni produzione UMAP del progetto.
+- Aperto: capire chi sono i soggetti dell'isola in alto.
+
+---
+
 ## 07-09-2026 — s2.2-vol
 
 ### Tuning UMAP su SDC voxel-wise
