@@ -16,6 +16,37 @@
 
 ---
 
+## 08-10-2026 — s2.4-vol
+
+### Produzione UMAP su SDC voxel-wise, coorte allargata (n=5845)
+
+##### Input
+- s2.4-vol
+- Dati raw: matrice SDC **voxel-wise** (`disconnectome-map`, valori continui 0-1)
+- Path: `data/derived/sdc_matrix/07-10_s2.4-vol`
+- 5845 soggetti × 291.345 voxel non costanti
+
+##### Metodi
+umap
+
+##### Obiettivo
+- Produrre gli embedding di riferimento di s2.4-vol con i parametri scelti dal tuning del 07-10 ([`s2_tuning.md`](s2_tuning.md)), per `n_components`∈{2,3,10}
+
+##### Risultati
+
+| ID | Metodo | n_neighbors | min_dist | n_components | Link |
+| --- | --- | --- | --- | --- | --- |
+| s2.4-vol_nc2 | UMAP | 15 | 0.0 | 2 | [config.md](../../../results/sdc/dim_reduction/production/umap/08-10_s2.4-vol_m_euclidean_nc2/config.md) |
+| s2.4-vol_nc3 | UMAP | 15 | 0.0 | 3 | [config.md](../../../results/sdc/dim_reduction/production/umap/08-10_s2.4-vol_m_euclidean_nc3/config.md) |
+| s2.4-vol_nc10 | UMAP | 15 | 0.0 | 10 | [config.md](../../../results/sdc/dim_reduction/production/umap/08-10_s2.4-vol_m_euclidean_nc10/config.md) |
+
+- Stessi parametri di s2.1 e s2.2, quindi le run restano confrontabili. Solo `metric=euclidean`, valori continui.
+- **`lesion_side`:** due lobi, sinistra e destra, uniti da un ponte stretto al centro; i casi `both` cadono per lo più lì o sparsi ai bordi. Più isole piccole sotto.
+- **NIHSS:** molti valori mancanti. Dove c'è, i valori alti stanno alle estremità dei due lobi e i bassi al centro e nelle isole.
+- Durata: 5m47 (nc2), 4m43 (nc3), 3m21 (nc10).
+
+---
+
 ## 07-09-2026 — s2.2-vol
 
 ### Produzione UMAP + t-SNE su SDC voxel-wise
