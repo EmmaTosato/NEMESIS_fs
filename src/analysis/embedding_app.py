@@ -652,34 +652,64 @@ def _run_reduction_axis_or_none(run: ProductionRun) -> tuple[str, int] | None:
         return None
 
 
-def _runs_for_reduction_axis(
-    runs: list[ProductionRun], modality: str, pipeline: str, method: str, metric: str, n_components: int
+def _reduction_method_label(run: ProductionRun) -> str:
+    """The "Riduzione" picker value of `run`: the dimensionality reduction a clustering run was
+    computed on (umap, tsne, ..., or "raw" for un-reduced data), NO_METRIC for a dim_reduction
+    run (its own Metodo already *is* the reduction method, ProductionRun.reduction_method is None)."""
+    return NO_METRIC if run.reduction_method is None else run.reduction_method
+
+
+def reduction_options(runs: list[ProductionRun], modality: str, pipeline: str, method: str) -> list[str]:
+    """Distinct reduction methods behind (modality, pipeline, method)'s own runs - the "Riduzione"
+    step, between Metodo and Metrica. Without it, clustering runs on a UMAP embedding and on raw
+    data (or on two different reduction methods) landed in the same Metrica/Componenti/Run lists.
+    Sorted alphabetically with "raw" last, so the default is a real embedding when one exists."""
+    values = {_reduction_method_label(run) for run in runs_for(runs, modality, pipeline, method)}
+    return sorted(values, key=lambda value: (value == "raw", value))
+
+
+def _runs_for_reduction_method(
+    runs: list[ProductionRun], modality: str, pipeline: str, method: str, reduction_method: str
 ) -> list[ProductionRun]:
-    """runs_for(...) further narrowed to runs whose own run_reduction_axis equals
-    (metric, n_components) - the shared filter metric_options/n_components_options/
+    """runs_for(...) narrowed to the runs of one "Riduzione" value (_reduction_method_label)."""
+    return [
+        run for run in runs_for(runs, modality, pipeline, method) if _reduction_method_label(run) == reduction_method
+    ]
+
+
+def _runs_for_reduction_axis(
+    runs: list[ProductionRun], modality: str, pipeline: str, method: str, reduction_method: str,
+    metric: str, n_components: int,
+) -> list[ProductionRun]:
+    """_runs_for_reduction_method(...) further narrowed to runs whose own run_reduction_axis
+    equals (metric, n_components) - the shared filter metric_options/n_components_options/
     tag_param_options/runs_matching all build on, so "which embedding is this run on" is
     computed in exactly one place. Order preserved from runs_for's own chronological sort."""
     return [
         run
-        for run in runs_for(runs, modality, pipeline, method)
+        for run in _runs_for_reduction_method(runs, modality, pipeline, method, reduction_method)
         if (axis := _run_reduction_axis_or_none(run)) is not None and axis == (metric, n_components)
     ]
 
 
-def metric_options(runs: list[ProductionRun], modality: str, pipeline: str, method: str) -> list[str]:
+def metric_options(
+    runs: list[ProductionRun], modality: str, pipeline: str, method: str, reduction_method: str
+) -> list[str]:
     """Distinct `metric` values actually used by (modality, pipeline, method)'s own runs,
     sorted - NO_METRIC included if any of them has no metric axis at all (run_reduction_axis).
     For a clustering.py run this is the *upstream embedding's* own metric, not the clustering
     method's hyperparameters (see tag_param_options for those)."""
     values = {
         axis[0]
-        for run in runs_for(runs, modality, pipeline, method)
+        for run in _runs_for_reduction_method(runs, modality, pipeline, method, reduction_method)
         if (axis := _run_reduction_axis_or_none(run)) is not None
     }
     return sorted(values)
 
 
-def n_components_options(runs: list[ProductionRun], modality: str, pipeline: str, method: str, metric: str) -> list[int]:
+def n_components_options(
+    runs: list[ProductionRun], modality: str, pipeline: str, method: str, reduction_method: str, metric: str
+) -> list[int]:
     """Distinct `n_components` values among (modality, pipeline, method, metric)'s own runs
     (metric being run_reduction_axis's own upstream-embedding metric, see metric_options),
     sorted ascending - includes every value actually used, even ones this app can't display
@@ -688,7 +718,7 @@ def n_components_options(runs: list[ProductionRun], modality: str, pipeline: str
     already reports that clearly per-run, see UndisplayableRunError)."""
     values = {
         axis[1]
-        for run in runs_for(runs, modality, pipeline, method)
+        for run in _runs_for_reduction_method(runs, modality, pipeline, method, reduction_method)
         if (axis := _run_reduction_axis_or_none(run)) is not None and axis[0] == metric
     }
     return sorted(values)
@@ -734,8 +764,8 @@ def _load_tag_params_or_none(clustering_params_file: str | Path, method: str) ->
 
 
 def tag_param_options(
-    runs: list[ProductionRun], modality: str, pipeline: str, method: str, metric: str, n_components: int,
-    clustering_params_file: str | Path,
+    runs: list[ProductionRun], modality: str, pipeline: str, method: str, reduction_method: str, metric: str,
+    n_components: int, clustering_params_file: str | Path,
 ) -> list[str]:
     """Distinct combinations of `method`'s own registered tag_param values
     (config/registry/params_clustering.json, e.g. n_clusters+linkage for agglomerative,
@@ -758,17 +788,17 @@ def tag_param_options(
         return [NO_METRIC]
     labels = {
         label
-        for run in _runs_for_reduction_axis(runs, modality, pipeline, method, metric, n_components)
+        for run in _runs_for_reduction_axis(runs, modality, pipeline, method, reduction_method, metric, n_components)
         if (label := _run_tag_param_label(run, tag_param)) is not None
     }
     return sorted(labels)
 
 
 def runs_matching(
-    runs: list[ProductionRun], modality: str, pipeline: str, method: str, metric: str, n_components: int,
-    tag_params_label: str, clustering_params_file: str | Path,
+    runs: list[ProductionRun], modality: str, pipeline: str, method: str, reduction_method: str, metric: str,
+    n_components: int, tag_params_label: str, clustering_params_file: str | Path,
 ) -> list[ProductionRun]:
-    """Runs matching (modality, pipeline, method, metric, n_components, tag_params_label)
+    """Runs matching (modality, pipeline, method, reduction_method, metric, n_components, tag_params_label)
     exactly, chronologically ordered - the final picker step ("Run"): today this is usually
     exactly one run (each combination has only ever been produced once), but stays a list rather
     than assuming that - a rerun of the same combination on a later date is a legitimate, real
@@ -782,7 +812,7 @@ def runs_matching(
     load_tag_params call, a separate caller from tag_param_options - see AUDIT_FINDINGS-style
     isolation, both call sites of the same registry lookup need the same isolation, not just the
     first one found)."""
-    candidates = _runs_for_reduction_axis(runs, modality, pipeline, method, metric, n_components)
+    candidates = _runs_for_reduction_axis(runs, modality, pipeline, method, reduction_method, metric, n_components)
     if pipeline != "clustering" or tag_params_label == NO_METRIC:
         return candidates
     tag_param = _load_tag_params_or_none(clustering_params_file, method)
@@ -2510,10 +2540,10 @@ def build_app(
         for grid in available_grids()
     ]
 
-    # 6-step decision order, left to right (2026-08-14, on request - replaces the previous
+    # 7-step decision order, left to right (2026-08-14, on request - replaces the previous
     # single flat "every run from every method mixed together" dropdown, then extended with
     # explicit Metrica/Componenti steps rather than leaving them buried in the Run label's own
-    # free-text run_name): Dato (modality) -> Pipeline -> Metodo -> Metrica -> Componenti ->
+    # free-text run_name): Dato (modality) -> Pipeline -> Metodo -> Riduzione -> Metrica -> Componenti ->
     # Run (scoped by every step before it). Pipeline became a real choice, not a fixed label,
     # 15-08-26 (docs/dev/clustering_migration_plan.md §3) once this app started discovering
     # clustering.py runs too - Metrica/Componenti still show up for a clustering-pipeline run
@@ -2559,6 +2589,7 @@ def build_app(
                             ),
                             _picker_field("Pipeline", "pipeline-picker"),
                             _picker_field("Metodo", "method-picker"),
+                            _picker_field("Riduzione", "reduction-picker"),
                         ],
                     ),
                     html.Div(
@@ -2879,16 +2910,30 @@ def build_app(
         return [{"label": m, "value": m} for m in methods], methods[0]
 
     @app.callback(
+        Output("reduction-picker", "options"),
+        Output("reduction-picker", "value"),
+        Input("modality-picker", "value"),
+        Input("pipeline-picker", "value"),
+        Input("method-picker", "value"),
+    )
+    def _update_reduction_picker(modality: str, pipeline: str | None, method: str | None):
+        if pipeline is None or method is None:
+            raise PreventUpdate
+        reductions = reduction_options(runs, modality, pipeline, method)
+        return [{"label": r, "value": r} for r in reductions], reductions[0]
+
+    @app.callback(
         Output("metric-picker", "options"),
         Output("metric-picker", "value"),
         Input("modality-picker", "value"),
         Input("pipeline-picker", "value"),
         Input("method-picker", "value"),
+        Input("reduction-picker", "value"),
     )
-    def _update_metric_picker(modality: str, pipeline: str | None, method: str | None):
-        if pipeline is None or method is None:
+    def _update_metric_picker(modality: str, pipeline: str | None, method: str | None, reduction: str | None):
+        if pipeline is None or method is None or reduction is None:
             raise PreventUpdate
-        metrics = metric_options(runs, modality, pipeline, method)
+        metrics = metric_options(runs, modality, pipeline, method, reduction)
         return [{"label": m, "value": m} for m in metrics], metrics[0]
 
     @app.callback(
@@ -2897,12 +2942,15 @@ def build_app(
         Input("modality-picker", "value"),
         Input("pipeline-picker", "value"),
         Input("method-picker", "value"),
+        Input("reduction-picker", "value"),
         Input("metric-picker", "value"),
     )
-    def _update_n_components_picker(modality: str, pipeline: str | None, method: str | None, metric: str | None):
-        if pipeline is None or method is None or metric is None:
+    def _update_n_components_picker(
+        modality: str, pipeline: str | None, method: str | None, reduction: str | None, metric: str | None
+    ):
+        if pipeline is None or method is None or reduction is None or metric is None:
             raise PreventUpdate
-        n_components_values = n_components_options(runs, modality, pipeline, method, metric)
+        n_components_values = n_components_options(runs, modality, pipeline, method, reduction, metric)
         options = [{"label": _n_components_option_label(n), "value": n} for n in n_components_values]
         return options, n_components_values[0]
 
@@ -2912,15 +2960,19 @@ def build_app(
         Input("modality-picker", "value"),
         Input("pipeline-picker", "value"),
         Input("method-picker", "value"),
+        Input("reduction-picker", "value"),
         Input("metric-picker", "value"),
         Input("n-components-picker", "value"),
     )
     def _update_tag_params_picker(
-        modality: str, pipeline: str | None, method: str | None, metric: str | None, n_components: int | None
+        modality: str, pipeline: str | None, method: str | None, reduction: str | None, metric: str | None,
+        n_components: int | None,
     ):
-        if pipeline is None or method is None or metric is None or n_components is None:
+        if pipeline is None or method is None or reduction is None or metric is None or n_components is None:
             raise PreventUpdate
-        labels = tag_param_options(runs, modality, pipeline, method, metric, n_components, clustering_params_file)
+        labels = tag_param_options(
+            runs, modality, pipeline, method, reduction, metric, n_components, clustering_params_file
+        )
         return [{"label": label, "value": label} for label in labels], labels[0]
 
     @app.callback(
@@ -2929,20 +2981,26 @@ def build_app(
         Input("modality-picker", "value"),
         Input("pipeline-picker", "value"),
         Input("method-picker", "value"),
+        Input("reduction-picker", "value"),
         Input("metric-picker", "value"),
         Input("n-components-picker", "value"),
         Input("tag-params-picker", "value"),
     )
     def _update_run_picker(
-        modality: str, pipeline: str | None, method: str | None, metric: str | None, n_components: int | None,
-        tag_params_label: str | None,
+        modality: str, pipeline: str | None, method: str | None, reduction: str | None, metric: str | None,
+        n_components: int | None, tag_params_label: str | None,
     ):
-        if pipeline is None or method is None or metric is None or n_components is None or tag_params_label is None:
+        if (
+            pipeline is None or method is None or reduction is None or metric is None
+            or n_components is None or tag_params_label is None
+        ):
             # An upstream picker just changed and hasn't propagated its new value here yet -
             # each cascading callback is a separate step in Dash's dependency graph, not a
             # synchronous call chain.
             raise PreventUpdate
-        matching = runs_matching(runs, modality, pipeline, method, metric, n_components, tag_params_label, clustering_params_file)
+        matching = runs_matching(
+            runs, modality, pipeline, method, reduction, metric, n_components, tag_params_label, clustering_params_file
+        )
         options = [{"label": run.run_name, "value": run.key} for run in matching]
         default_run_key = matching[-1].key  # most recent by _run_chronological_key
         return options, default_run_key
