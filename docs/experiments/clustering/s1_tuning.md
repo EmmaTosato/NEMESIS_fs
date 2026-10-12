@@ -20,46 +20,24 @@
 ### Quanti cluster stabili: agglomerative, HDBSCAN e ADP, k=2 escluso
 
 ##### Input
-- s1.4-vol, 5845 soggetti
-- Embedding UMAP `08-10_s1.4-vol_m_{dice,euclidean}_nc{2,3,10}` (nc3 solo nel confronto); `n_neighbors`: dice 100 (nc2) e 50 (nc3, nc10), euclidean 5
-- ADP sulla matrice grezza `data/derived/lesion_matrix/07-10_s1.4-vol` (metriche dice ed euclidean, indipendente dall'embedding)
-- Tuning: agglomerative (k=2-30 × linkage × metric), HDBSCAN (28 combinazioni `mcs` × `ms`), ADP (Z da 0.25 a 16)
+- s1.4-vol, 5845 soggetti; embedding UMAP `08-10_s1.4-vol_m_{dice,euclidean}_nc{2,3,10}` (nc3 solo nel confronto); ADP sulla matrice grezza `data/derived/lesion_matrix/07-10_s1.4-vol`
 
 ##### Metodi
 agglomerative, hdbscan, adp
 
 ##### Obiettivo
 - Trovare per ogni embedding il k (o il numero di cluster) **stabile** da k=3
-- Stabilità = ARI su 20 sottocampioni all'80% dei soggetti (agglomerative k=3-30 e righe HDBSCAN usabili); per ADP solo plateau di Z, perché `dadapy` non è nell'ambiente
 - Criteri e codice: [README](../../../results/reports/cluster_tuning_notebooks/README.md)
 
 ##### Risultati
-
-Una voce per run. Nei report ci sono tabelle k, composizione dei cluster, immagini e script.
-
-| Run | Agglomerative (k) | HDBSCAN (n cluster, rumore) | ADP (n cluster) | Report |
-| --- | --- | --- | --- | --- |
-| dice nc2 | **3** (ward = average = complete); 4 con riserva | **8**, 0.8% | 15 (Z=3.0) | [report](../../../results/reports/cluster_tuning_notebooks/cluster_lesion_dice_nc2/report.md) |
-| dice nc10 | **3 o 4**; anche 5, 7 | **8**, 0.7% | 15 | [report](../../../results/reports/cluster_tuning_notebooks/cluster_lesion_dice_nc10/report.md) |
-| euclidean nc2 | nessuno stabile (meno peggio: 3, 11) | nessuno stabile (meno peggio: 11, 10.9%) | 15 | [report](../../../results/reports/cluster_tuning_notebooks/cluster_lesion_euclidean_nc2/report.md) |
-| euclidean nc10 | **3, 4 o 5** | **12**, 16.2% | 15 | [report](../../../results/reports/cluster_tuning_notebooks/cluster_lesion_euclidean_nc10/report.md) |
-
-- **Dice, k=3:** ARI 1.000 su nc2 e 0.977 su nc10; il dendrogramma ha fusioni a ~810 e ~320, poi tutto sotto 100, e la silhouette è massima (0.72 su nc2, 0.68 su nc10). Nel confronto, anche dice nc3 ha k stabili (3, 4, 5, 7).
-- **Euclidean:** nessun taglio domina (le ultime due fusioni di ward hanno rapporto 0.78-0.85, contro 0.40 dei dice). Solo nc10 ha k stabili (ARI ~0.965, minimo 0.87-0.88); nc2 e nc3 no (massimo 0.79 a k=27).
-- **HDBSCAN euclidean nc10:** il nucleo dei cluster è stabile (ARI senza rumore 0.96-0.98), ma chi finisce nel rumore (15-18%) cambia tra sottocampioni (ARI con rumore 0.83-0.88).
-- **ADP:** euclidean è degenere (un cluster al 93-99% dei soggetti per ogni Z). Dice Z=3.0 dà 15 cluster, ma 4 sono grandi e 11 piccoli (2-305 soggetti).
-- **Cosa descrivono i cluster:** il taglio principale è sinistra contro destra, poi il volume (gradiente continuo). Il terzo gruppo a k=3 è diverso: nei dice è il gruppo infratentoriale (63% su nc2, 59% su nc10 con sede dominante infratentoriale), negli euclidean è un gruppo di lesioni piccole di entrambi i lati (19-23% infratentoriale).
+- Sintesi e confronto tra le run: [SUMMARY](../../../results/reports/cluster_tuning_notebooks/SUMMARY.md)
+- Un report per run: [dice nc2](../../../results/reports/cluster_tuning_notebooks/cluster_lesion_dice_nc2/report.md), [dice nc10](../../../results/reports/cluster_tuning_notebooks/cluster_lesion_dice_nc10/report.md), [euclidean nc2](../../../results/reports/cluster_tuning_notebooks/cluster_lesion_euclidean_nc2/report.md), [euclidean nc10](../../../results/reports/cluster_tuning_notebooks/cluster_lesion_euclidean_nc10/report.md)
 
 ##### Limiti
-- `lesion_side` è calcolato dalla maschera per quasi tutti i soggetti (UCL-UK 99.9%): cluster puri per lato sono attesi, non una conferma indipendente.
-- La stabilità misura il clustering su un embedding fisso, non UMAP.
-- `n_neighbors` è scelto per combinazione: i dice vengono dal plateau di stabilità HDBSCAN del tuning, gli euclidean non hanno plateau (il 5 è ereditato). Il confronto dice contro euclidean non isola quindi l'effetto della metrica.
-- Sintesi completa di tutte le run (lesione, SDC, streamline): [SUMMARY](../../../results/reports/cluster_tuning_notebooks/SUMMARY.md).
+- Vedi §5 del [SUMMARY](../../../results/reports/cluster_tuning_notebooks/SUMMARY.md)
 
 ##### Decisioni
-- Da decidere: se il lato è un fattore di disturbo (riflettere le lesioni su un emisfero, o clusterizzare dentro ciascun lato) o un risultato.
-- Da decidere: se tenere gli euclidean come controllo di sensibilità (nc10 è l'unico stabile) o rifare UMAP con `n_neighbors` più alto.
-- Da decidere: k finale (dice nc10: 3 o 4; euclidean nc10: 3, 4 o 5) e HDBSCAN (8 cluster sui dice, 12 su euclidean nc10).
+- Vedi "Decisioni aperte" (§6) del [SUMMARY](../../../results/reports/cluster_tuning_notebooks/SUMMARY.md)
 
 ---
 
