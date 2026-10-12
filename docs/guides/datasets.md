@@ -27,6 +27,16 @@ Per rigenerarli: `notebooks/exploration/dataset_availability.ipynb` (esplorazion
 
 Tutte le maschere sono in spazio `MNI152NLin6Asym` su griglia **1.0 mm**, `182x218x182`: verificato sugli header NIfTI di tutte e 5853.
 
+**L'orientamento degli header non è uniforme.** A parità di shape, le maschere hanno 3 header (censimento di tutte e 5853):
+
+| Header | Offset x | Soggetti |
+|---|---|---|
+| LAS | `+90` | UCL-UK (4119), parte di UNIPD (251) |
+| RAS | `-90` (un voxel di scarto dal template MNI) | UKLFR (705), parte di UNIPD (271), parte di UKE (56) |
+| RAS | `-91` (identico al template MNI res-1) | UKE/WAKEUP (451) |
+
+Lo stesso indice d'array è quindi un voxel fisico diverso (LAS e RAS sono specchiati sull'asse x). Chi legge una maschera deve confrontare **shape e affine** col riferimento e ricampionare (`resample_to_img`) se differiscono, mai assumere un orientamento o confrontare la sola shape.
+
 ### ⚠️ La griglia è 1 mm per tutti, il dettaglio no
 
 `manual_masks/` non contiene segmentazioni disegnate a mano: è la lesione **già ricampionata da BCBToolKit** sulla propria griglia di lavoro a 1 mm, copiata dal `lesion-map` dell'output SDC e rinominata togliendo `res-1` (vedi anche `data/clinical_connectome/derivatives/README.md`, non versionato).

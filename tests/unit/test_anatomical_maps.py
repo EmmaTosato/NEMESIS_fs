@@ -262,6 +262,31 @@ def test_grid_resampler_same_grid_returns_data_unchanged(tmp_path):
     assert loaded.sum() == 1.0
 
 
+@pytest.mark.parametrize("flip_x", [True, False], ids=["LAS-vs-RAS", "same-orientation-shifted-by-one-voxel"])
+def test_grid_resampler_same_shape_different_affine_is_realigned(tmp_path, flip_x):
+    """Same shape, different header (LAS source on a RAS reference, or a 1-voxel offset): the
+    shape-only shortcut returned the array untouched, mirrored/shifted in physical space."""
+    reference = _reference_img()
+    affine = np.array(reference.affine, dtype=float)
+    if flip_x:
+        affine[0, 0] = -affine[0, 0]
+        affine[0, 3] = affine[0, 3] + affine[0, 0] * -(_SHAPE[0] - 1)
+    else:
+        affine[0, 3] += affine[0, 0]
+    volume = np.zeros(_SHAPE, dtype=np.float32)
+    volume[1, 2, 3] = 1.0
+    path = tmp_path / "source.nii.gz"
+    nib.save(nib.Nifti1Image(volume, affine), path)
+    expected = resample_to_img(
+        nib.load(path), reference, interpolation="nearest", force_resample=True, copy_header=True
+    ).get_fdata()
+
+    actual = _GridResampler(reference, "nearest").load(path)
+
+    assert np.array_equal(actual, expected)
+    assert not np.array_equal(actual, volume), "fixture must differ from the untouched array, or it proves nothing"
+
+
 def test_build_overlap_map_with_shared_store_matches_without_and_reads_each_file_once(tmp_path):
     _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1), (2, 2, 2)])
     _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [(1, 1, 1)])

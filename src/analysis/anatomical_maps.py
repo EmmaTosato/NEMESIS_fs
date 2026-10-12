@@ -172,7 +172,9 @@ class _GridResampler:
 
     def load(self, path: Path) -> np.ndarray:
         img = nib.load(path)
-        if img.shape == self._reference_img.shape:
+        # Shape alone is not "same grid": the 1mm maps come as LAS and as RAS (offset -90 vs -91),
+        # same shape, different physical placement - same test as src/features/lesion.py::_needs_resample.
+        if img.shape == self._reference_img.shape and np.allclose(img.affine, self._reference_img.affine, atol=1e-3):
             return img.get_fdata()
         if self._interpolation != "nearest":
             return resample_to_img(
