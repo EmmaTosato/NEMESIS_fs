@@ -529,3 +529,25 @@ def test_the_cluster_options_callback_lists_the_clusters_of_the_chosen_run(tmp_p
     payload = response.get_json()["response"]
     assert [option["value"] for option in payload["comparison-cluster-1"]["options"]] == [0, 1]
     assert payload["comparison-cluster-1"]["value"] is None and payload["comparison-cluster-2"]["value"] is None
+
+
+@pytest.mark.parametrize(
+    ("pipeline", "expected_style"), [("dim_reduction", {"display": "none"}), ("clustering", {})]
+)
+def test_the_reduction_picker_is_hidden_only_for_a_dim_reduction_run(tmp_path, pipeline, expected_style):
+    # Regression (08-10-26): for a dim_reduction run the Metodo already is the reduction method, so
+    # "Riduzione" showed a single empty option next to it.
+    run = _make_clustering_run(tmp_path, labels=(0, 0, 1, 1))
+    app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _params_file(tmp_path))
+    app.server.config["TESTING"] = True
+    body = {
+        "output": "reduction-picker-field.style",
+        "outputs": {"id": "reduction-picker-field", "property": "style"},
+        "inputs": [{"id": "pipeline-picker", "property": "value", "value": pipeline}],
+        "changedPropIds": ["pipeline-picker.value"],
+    }
+
+    response = app.server.test_client().post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
+
+    assert response.status_code == 200
+    assert response.get_json()["response"]["reduction-picker-field"]["style"] == expected_style

@@ -227,15 +227,15 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
    hairline, because this separates two kinds of question, not two panels of the same kind. */
 .section-divider {{ margin-top: 88px; padding-top: 52px; border-top: 3px solid {_TEXT_COLOR}; }}
 .section-title {{ font-size: 40px; font-weight: 800; letter-spacing: -0.01em; text-align: center; margin: 0 0 10px; }}
-.section-intro {{ font-size: 17px; color: #595959; text-align: center; margin: 0 0 28px; }}
+.section-intro {{ font-size: 21px; line-height: 1.5; color: #595959; text-align: center; margin: 0 0 28px; }}
 /* The chooser that scopes every panel below: centred and wider than a picker-row field, so it
    reads as this section's own control rather than as one more form field. */
 .cluster-chooser {{
     display: flex; flex-direction: column; align-items: center; gap: 8px;
     max-width: 260px; margin: 0 auto 8px;
 }}
-.cluster-chooser > div {{ width: 100%; }}
-.cluster-chooser .picker-label {{ font-size: 14px; }}
+.cluster-chooser > div {{ width: 100%; font-size: 18px; }}
+.cluster-chooser .picker-label {{ font-size: 16px; }}
 /* The panel directly under the chooser must not re-draw the section break with its own rule. */
 .section-divider + .anatomy-panel {{ margin-top: 40px; border-top: none; padding-top: 0; }}
 /* A further bump over .section-heading's own 30px (01-09-26, follow-up feedback: "un po' più
@@ -294,8 +294,8 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
     color: #6e6e6e; text-align: right; padding: 0 16px 11px; white-space: nowrap;
     border-bottom: 2px solid #d8d8d8;
 }}
-.stats-table th:first-child, .stats-table td:first-child {{ text-align: left; }}
-.stats-table td {{ padding: 17px 16px 15px; text-align: right; border-bottom: 1px solid #f2f2f2; vertical-align: top; }}
+.stats-table th:first-child, .stats-table td:first-child, .stats-table th.text-col, .stats-table td.text-col {{ text-align: left; }}
+.stats-table td {{ padding: 17px 16px 15px; font-size: 17px; text-align: right; border-bottom: 1px solid #f2f2f2; vertical-align: top; }}
 .stats-table tbody tr:last-child td {{ border-bottom: none; }}
 .stats-table tr.selected td {{ background: #f4f9fd; }}
 .stats-cluster {{ display: flex; align-items: center; gap: 10px; white-space: nowrap; font-weight: 600; font-size: 16px; }}
@@ -317,7 +317,7 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 .stat-empty {{ color: #b8b8b8; font-weight: 400; }}
 /* Coverage, printed under the value only where the variable does not cover the whole
    cluster (_coverage_note). */
-.stats-n {{ display: block; font-size: 12.5px; color: #a0a0a0; margin-top: 6px; font-weight: 400; font-variant-numeric: tabular-nums; }}
+.stats-n {{ display: block; font-size: 15px; color: #767676; margin-top: 6px; font-weight: 400; font-variant-numeric: tabular-nums; }}
 .stats-caption {{ font-size: 14.5px; line-height: 1.75; color: #6e6e6e; margin: 20px 0 0; }}
 .stats-caption b {{ color: {_TEXT_COLOR}; font-weight: 600; }}
 .anatomy-viewer-wrap {{ display: flex; justify-content: center; }}
@@ -349,6 +349,20 @@ html {{ scroll-behavior: smooth; }}
 /* Comparison section (08-10-26): the two run pickers are wider than a normal picker-field, since
    a run label names modality, method and the whole run directory. */
 .picker-field.wide {{ min-width: 460px; }}
+/* The comparison tables (08-10-26 feedback: headers such as "Mediana cluster 1" made every column as
+   wide as its title, so the table ran off the page): a header may break at "\n" and then stays as
+   narrow as its longest word, centred above its numbers. */
+.comparison-table-wrap {{ margin-top: 8px; }}
+.comparison-table th {{ white-space: pre-line; text-align: center; vertical-align: bottom; line-height: 1.35; padding: 0 12px 11px; }}
+.comparison-table th.text-col {{ text-align: left; }}
+.comparison-table td {{ padding-left: 12px; padding-right: 12px; text-align: center; }}
+.comparison-table td.text-col {{ text-align: left; }}
+/* A note that was one long paragraph is now a short lead sentence plus one line per idea. */
+.comparison-points {{ font-size: 16.5px; line-height: 1.6; color: #595959; max-width: 78ch; margin: 0 auto 22px; padding-left: 22px; }}
+.comparison-points li {{ margin: 6px 0; }}
+.comparison-points b {{ color: {_TEXT_COLOR}; font-weight: 600; }}
+.comparison-lead {{ font-size: 17px; line-height: 1.55; color: {_TEXT_COLOR}; max-width: 78ch; margin: 0 auto 8px; }}
+#comparison-cluster-row {{ margin-top: 28px; }}
 .comparison-rule {{ max-width: 760px; margin: 20px auto 8px; text-align: center; font-size: 16px; line-height: 1.55; color: #595959; }}
 .comparison-heading {{ font-size: 26px; font-weight: 800; margin: 56px 0 14px; text-align: center; }}
 .comparison-subheading {{ font-size: 16px; font-weight: 700; margin: 22px 0 8px; }}
@@ -2077,11 +2091,27 @@ def comparable_runs(runs: list[ProductionRun], run_a: ProductionRun, clustering_
     return compatible
 
 
-def _table(headers: list[str], rows: list[list]) -> html.Table:
-    return html.Table(
-        [html.Thead(html.Tr([html.Th(header) for header in headers])), html.Tbody([html.Tr([html.Td(cell) for cell in row]) for row in rows])],
-        className="stats-table",
+def _table(headers: list[str], rows: list[list], text_columns: tuple[int, ...] = (0,)) -> html.Div:
+    """A table of the comparison section. The columns in `text_columns` hold labels (left-aligned),
+    the rest numbers; a header may break at "\\n" (see .comparison-table), so a column is as wide as
+    its numbers, not as its title."""
+    def cells(tag, values):
+        return [tag(value, className="text-col" if i in text_columns else None) for i, value in enumerate(values)]
+
+    table = html.Table(
+        [html.Thead(html.Tr(cells(html.Th, headers))), html.Tbody([html.Tr(cells(html.Td, row)) for row in rows])],
+        className="stats-table comparison-table",
     )
+    return html.Div(table, className="stats-table-wrap comparison-table-wrap")
+
+
+def _points(lead: str, points: list) -> html.Div:
+    """A note as one lead sentence and one short line per idea; a point is a string or a list of
+    children (so a term can be bold)."""
+    return html.Div([
+        html.P(lead, className="comparison-lead"),
+        html.Ul([html.Li(point) for point in points], className="comparison-points"),
+    ])
 
 
 def _agreement_guide() -> html.Details:
@@ -2155,7 +2185,7 @@ def _agreement_block(aligned: AlignedRuns) -> html.Div:
     ]
     return html.Div([
         html.H3("Accordo tra le partizioni", className="comparison-heading"),
-        _table(["Metrica", "Valore", "Lettura"], rows),
+        _table(["Metrica", "Valore", "Lettura"], rows, text_columns=(0, 2)),
         _agreement_guide(),
     ])
 
@@ -2236,7 +2266,7 @@ def _purity_table(counts: pd.DataFrame, source: str, target: str) -> html.Div:
     ]
     return html.Div([
         html.P(f"Cluster di {source} verso {target}", className="comparison-subheading"),
-        _table(["Cluster", "Soggetti", "Va soprattutto in", "Quota"], rows),
+        _table(["Cluster", "Soggetti", "Va soprattutto in", "Quota"], rows, text_columns=(0, 2)),
     ])
 
 
@@ -2384,14 +2414,20 @@ def _cluster_pair_clinical_block(pair: PairFrame, label_1: int, label_2: int) ->
     ]
     children: list = [
         heading,
-        html.P(
-            f"Una riga per variabile, {name_1} contro {name_2}, sui soggetti dei due cluster. Variabili numeriche: test di "
-            "Mann-Whitney; r è la correlazione rank-biseriale, tra -1 e 1, positiva se i valori del primo cluster sono più "
-            "alti (0 = nessuna differenza, oltre 0,3 in valore assoluto già visibile). Variabili categoriche: test esatto di "
-            "Fisher su ogni categoria contro tutte le altre; l'odds ratio è sopra 1 se la categoria è più frequente nel "
-            "primo cluster. Il p corretto (FDR, Benjamini-Hochberg) tiene conto di tutti i test insieme: in grassetto sotto "
-            "0,05. Un test senza abbastanza valori da una parte (meno di 2) resta vuoto.",
-            className="comparison-note",
+        _points(
+            f"Ogni riga confronta una variabile tra il {name_1} e il {name_2}, sui soggetti dei due cluster.",
+            [
+                [html.B("Variabili numeriche"), f" (test di Mann-Whitney): si confrontano le mediane. «r» misura la differenza, "
+                 f"da -1 a 1: positivo se i valori del {name_1} sono più alti, negativo se sono più bassi, 0 se non c'è differenza. "
+                 "Oltre 0,3 (in valore assoluto) la differenza è già visibile."],
+                [html.B("Variabili categoriche"), f" (test esatto di Fisher, una categoria contro tutte le altre): si confronta la quota "
+                 f"di soggetti con quella categoria. L'odds ratio è sopra 1 se la categoria è più frequente nel {name_1}, "
+                 f"sotto 1 se lo è nel {name_2}."],
+                [html.B("p"), " è la probabilità che la differenza sia dovuta al caso; ", html.B("p (FDR)"),
+                 " è lo stesso valore corretto per il numero di confronti fatti insieme. In grassetto sotto 0,05: "
+                 "la differenza è probabilmente reale."],
+                [html.B("«—»"), ": il test non è stato fatto, perché da una parte ci sono meno di 2 soggetti con il dato."],
+            ],
         ),
     ]
     warning = _pair_unregistered_warning(pair.unregistered)
@@ -2400,13 +2436,14 @@ def _cluster_pair_clinical_block(pair: PairFrame, label_1: int, label_2: int) ->
     children += [
         html.P("Variabili numeriche", className="comparison-subheading"),
         _table(
-            ["Variabile", f"n {name_1}", f"n {name_2}", f"Mediana {name_1}", f"Mediana {name_2}", "r", "p", "p (FDR)"],
+            ["Variabile", f"n\n{name_1}", f"n\n{name_2}", f"Mediana\n{name_1}", f"Mediana\n{name_2}", "r", "p", "p\n(FDR)"],
             numeric_rows,
         ),
         html.P("Variabili categoriche", className="comparison-subheading"),
         _table(
-            ["Variabile", "Categoria", f"n {name_1}", f"n {name_2}", f"Quota {name_1}", f"Quota {name_2}", "Odds ratio", "p", "p (FDR)"],
+            ["Variabile", "Categoria", f"n\n{name_1}", f"n\n{name_2}", f"Quota\n{name_1}", f"Quota\n{name_2}", "Odds\nratio", "p", "p\n(FDR)"],
             categorical_rows,
+            text_columns=(0, 1),
         ),
     ]
     return html.Div(children)
@@ -2425,15 +2462,19 @@ def _pair_unregistered_warning(unregistered: list[str]) -> html.Div | None:
 def _cluster_pair_regression_block(pair: PairFrame, label_1: int, label_2: int) -> html.Div:
     heading = html.H3("Cosa distingue i due cluster", className="comparison-heading")
     name_1, name_2 = _pair_name(label_1), _pair_name(label_2)
-    note = html.P(
-        f"Regressione logistica tra i soli soggetti dei due cluster: l'esito è «sta nel {name_1}» (contro {name_2}), i "
-        "predittori sono età, NIHSS, volume della lesione (log10), quota corticale, sottocorticale grigia e infratentoriale, "
-        "sesso e dataset, tenuti fissi gli uni rispetto agli altri. Ogni numero è un odds ratio: sopra 1 la variabile rende "
-        f"più probabile il {name_1}, sotto 1 il {name_2}; per le numeriche è per una deviazione standard in più. Il punto "
-        "è blu se l'intervallo di confidenza al 95% non contiene 1. È un'associazione, non una causa, e una variabile "
-        "derivata dall'input del clustering (il volume per una run lesion) è associata ai cluster anche per costruzione. "
-        "I soggetti con un dato mancante in una delle variabili sono esclusi dalla regressione.",
-        className="comparison-note",
+    note = _points(
+        f"Per ogni variabile: quanto cambia la probabilità di stare nel {name_1} invece che nel {name_2}, a parità di tutte le altre. "
+        "Si usano solo i soggetti dei due cluster (regressione logistica).",
+        [
+            [html.B("Variabili considerate"), ": età, NIHSS, volume della lesione (log10), quota corticale, sottocorticale grigia "
+             "e infratentoriale, sesso e dataset."],
+            [html.B("Odds ratio"), f": sopra 1 la variabile rende più probabile il {name_1}, sotto 1 il {name_2}, uguale a 1 non "
+             "cambia nulla. Per le variabili numeriche è per una deviazione standard in più."],
+            [html.B("Punto blu"), ": l'intervallo di confidenza al 95% non contiene 1, quindi l'effetto è distinguibile da «nessun effetto»."],
+            [html.B("Attenzione"), ": è un'associazione, non una causa. Una variabile derivata dall'input del clustering "
+             "(il volume, per una run lesion) è associata ai cluster anche per costruzione."],
+            ["I soggetti con un dato mancante in una delle variabili sono esclusi."],
+        ],
     )
     try:
         result = pair_regression(pair, label_1)
@@ -2460,12 +2501,15 @@ def _cluster_pair_regression_block(pair: PairFrame, label_1: int, label_2: int) 
             className="comparison-summary-line",
         ),
         dcc.Graph(figure=build_odds_ratio_figure(result, label_1, label_2), config=config, style={"width": "100%"}),
-        _table(["Variabile", "Odds ratio", "Intervallo 95%", "p", "VIF"], rows),
-        html.P(
-            "AUC: quanto bene le variabili insieme separano i due cluster (0,5 = a caso, 1 = perfettamente; calcolata sugli "
-            "stessi soggetti del modello, quindi un po' ottimistica). Pseudo-R² di McFadden: 0,2-0,4 è già un buon adattamento. "
-            "VIF: quanto una variabile è spiegata dalle altre; sopra circa 5 il suo odds ratio è instabile.",
-            className="comparison-note",
+        _table(["Variabile", "Odds\nratio", "Intervallo\n95%", "p", "VIF"], rows),
+        _points(
+            "Come leggere le misure di qualità:",
+            [
+                [html.B("AUC"), ": quanto bene le variabili insieme distinguono i due cluster. 0,5 = come a caso, 1 = perfettamente. "
+                 "È calcolata sugli stessi soggetti del modello, quindi un po' ottimistica."],
+                [html.B("Pseudo-R² (McFadden)"), ": 0,2-0,4 è già un buon adattamento."],
+                [html.B("VIF"), ": quanto una variabile è già spiegata dalle altre. Sopra circa 5 il suo odds ratio è instabile."],
+            ],
         ),
     ])
 
@@ -2490,15 +2534,17 @@ def _cluster_pair_centroid_block(
     name_1, name_2 = _pair_name(label_1), _pair_name(label_2)
     return html.Div([
         heading,
-        html.P(
-            "Distanza euclidea tra i centroidi dei due cluster nello spazio su cui è stato calcolato il clustering, letta "
-            "accanto al raggio di ciascun cluster (la distanza media dei suoi soggetti dal proprio centroide): una distanza "
-            "molto più grande dei due raggi vuol dire cluster ben separati, una distanza simile ai raggi vuol dire cluster "
-            "che si toccano.",
-            className="comparison-note",
+        _points(
+            "Quanto sono lontani i due cluster nello spazio su cui è stato fatto il clustering.",
+            [
+                [html.B("Distanza tra i centroidi"), ": la distanza in linea retta tra i centri dei due cluster."],
+                [html.B("Raggio"), ": la distanza media dei soggetti di un cluster dal proprio centro, cioè quanto è «largo» il cluster."],
+                [html.B("Come leggerli"), ": distanza molto maggiore dei due raggi = cluster ben separati; "
+                 "distanza simile ai raggi = cluster che si toccano."],
+            ],
         ),
         _table(
-            ["Distanza tra i centroidi", f"Raggio {name_1}", f"Raggio {name_2}"],
+            ["Distanza tra\ni centroidi", f"Raggio\n{name_1}", f"Raggio\n{name_2}"],
             [[
                 html.Span(_format_number(separation.distance, 2), className="stat-value"),
                 _format_number(separation.radius_1, 2), _format_number(separation.radius_2, 2),
@@ -2556,8 +2602,8 @@ def _pair_map_viewers(
         _anatomy_viewer(view_2, f"{_pair_name(label_2).capitalize()} (n={n_2})", caption, warning=_missing_subjects_warning(missing_2)),
         _anatomy_viewer(
             difference_view, f"Differenza: {name_1} meno {name_2}",
-            f"Colore = differenza in punti percentuali, voxel per voxel: rosso = {what} più frequente nel {name_1}, "
-            f"blu = più frequente nel {name_2}",
+            f"Rosso: {what} più frequente nel {name_1}. Blu: più frequente nel {name_2}. L'intensità è la differenza "
+            "tra le due percentuali di soggetti, in punti percentuali, voxel per voxel.",
         ),
     ]
 
@@ -2789,10 +2835,12 @@ def build_app(
     # NO_N_COMPONENTS sentinel option each (see metric_options/n_components_options), since
     # clustering method params have no metric/n_components axis to offer. Steps 2-6's own
     # options are populated by the cascading callbacks below, empty at layout-build time.
-    def _picker_field(label: str, dropdown_id: str) -> html.Div:
+    def _picker_field(label: str, dropdown_id: str, field_id: str | None = None) -> html.Div:
+        extra = {} if field_id is None else {"id": field_id}
         return html.Div(
             className="picker-field",
             children=[html.Label(label, className="picker-label"), dcc.Dropdown(id=dropdown_id, clearable=False)],
+            **extra,
         )
 
     app.layout = html.Div(
@@ -2827,7 +2875,9 @@ def build_app(
                             ),
                             _picker_field("Pipeline", "pipeline-picker"),
                             _picker_field("Metodo", "method-picker"),
-                            _picker_field("Riduzione", "reduction-picker"),
+                            # Hidden for a dim_reduction run (08-10-26, on request): there the Metodo already
+                            # is the reduction method, so this step would only offer one empty option.
+                            _picker_field("Riduzione", "reduction-picker", field_id="reduction-picker-field"),
                         ],
                     ),
                     html.Div(
@@ -3168,6 +3218,12 @@ def build_app(
             raise PreventUpdate
         methods = method_options(runs, modality, pipeline)
         return [{"label": m, "value": m} for m in methods], methods[0]
+
+    @app.callback(Output("reduction-picker-field", "style"), Input("pipeline-picker", "value"))
+    def _toggle_reduction_picker(pipeline: str | None):
+        if pipeline is None:
+            raise PreventUpdate
+        return {"display": "none"} if pipeline == "dim_reduction" else {}
 
     @app.callback(
         Output("reduction-picker", "options"),

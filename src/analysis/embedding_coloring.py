@@ -215,9 +215,9 @@ COLOR_MODES: dict[str, ColorMode] = {
         registry_column=grid_column("disconnection_load", DEFAULT_GRID),
         label="disconnection load",
         description=(
-            "Punti colorati per quanta disconnessione strutturale ha il paziente in totale: somma "
-            "della probabilità di disconnessione sui voxel del cervello, nella griglia scelta, con "
-            "scala lineare."
+            "Punti colorati per quanta disconnessione strutturale ha il paziente in totale: la somma, "
+            "su tutti i voxel del suo cervello, della probabilità di disconnessione di ciascun voxel, "
+            "nella griglia scelta, con scala lineare."
         ),
         # Restricted to sdc runs, unlike volume/side/nihss (26-10-06, on request): a "lesion"
         # run's own embedding is about lesion location/volume, and this app does not yet have a
