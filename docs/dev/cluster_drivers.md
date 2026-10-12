@@ -1,6 +1,6 @@
 # Cluster drivers — technical reference
 
-Audience: developers/agents working on `src/analysis/cluster_drivers.py`, used by section 8 of `notebooks/post-results_analysis/cluster_interpretation.ipynb`. It is an *interpretative* analysis (`docs/guides/exploration.md`): it brings in variables the clustering never saw.
+Audience: developers/agents working on `src/analysis/cluster_drivers.py`, used by section 8 of `notebooks/post-results_analysis/cluster_interpretation.ipynb` and, for two clusters against each other, by `cluster_pair.pair_regression` (`docs/dev/cluster_comparison.md`). It is an *interpretative* analysis (`docs/guides/exploration.md`): it brings in variables the clustering never saw.
 
 ## `cluster_vs_rest_regression(features, in_cluster, *, numeric, categorical, references) -> RegressionResult`
 

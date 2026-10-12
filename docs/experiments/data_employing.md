@@ -89,6 +89,9 @@ flowchart LR
         R14["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
         R24["s2.4-vol<br/>sdc_matrix<br/>07-10<br/>5845 subj."]
         R25["s2.4-stream<br/>sdc_matrix<br/>07-10<br/>5831 subj."]
+        R14R["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
+        R24R["s2.4-vol<br/>sdc_matrix<br/>07-10<br/>5845 subj."]
+        R25R["s2.4-stream<br/>sdc_matrix<br/>07-10<br/>5831 subj."]
     end
 
     subgraph COL1["Dim Reduction — Tuning"]
@@ -96,6 +99,9 @@ flowchart LR
         T14["07-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10"]
         T24["07-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
         T25["non ancora lanciata"]:::pending
+        T14R["no dim reduction"]
+        T24R["no dim reduction"]
+        T25R["no dim reduction"]
     end
 
     subgraph COL2["Dim Reduction — Production"]
@@ -103,6 +109,9 @@ flowchart LR
         P14["non ancora lanciata"]:::pending
         P24["non ancora lanciata"]:::pending
         P25["non ancora lanciata"]:::pending
+        P14R["no dim reduction"]
+        P24R["no dim reduction"]
+        P25R["no dim reduction"]
     end
 
     subgraph COL3["Clustering — Tuning"]
@@ -110,6 +119,9 @@ flowchart LR
         CT14["non ancora lanciata"]:::pending
         CT24["non ancora lanciata"]:::pending
         CT25["non ancora lanciata"]:::pending
+        CT14R["08-10<hr/>raw dice/euclidean<br/>221955 voxel<br/>ADP"]
+        CT24R["08-10<hr/>raw dice/euclidean<br/>291345 voxel<br/>ADP"]
+        CT25R["08-10<hr/>raw dice/euclidean<br/>87 tratti<br/>ADP"]
     end
 
     subgraph COL4["Clustering — Production"]
@@ -117,10 +129,16 @@ flowchart LR
         CP14["non ancora lanciata"]:::pending
         CP24["non ancora lanciata"]:::pending
         CP25["non ancora lanciata"]:::pending
+        CP14R["non ancora lanciata"]:::pending
+        CP24R["non ancora lanciata"]:::pending
+        CP25R["non ancora lanciata"]:::pending
     end
 
     R14 --> T14 -.-> P14 -.-> CT14 -.-> CP14
     R24 --> T24 -.-> P24 -.-> CT24 -.-> CP24
     R25 -.-> T25 -.-> P25 -.-> CT25 -.-> CP25
+    R14R --> T14R --> P14R --> CT14R -.-> CP14R
+    R24R --> T24R --> P24R --> CT24R -.-> CP24R
+    R25R --> T25R --> P25R --> CT25R -.-> CP25R
 ```
 

@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from src.analysis.adp import adp_cluster
 from src.analysis.clustering import (
     CLUSTERING_METHODS,
     agglomerative_cluster,
@@ -27,13 +28,14 @@ def _two_blobs(n_per_blob=15):
 
 
 def test_registry_has_expected_methods():
-    assert set(CLUSTERING_METHODS) == {"kmeans", "agglomerative", "gmm", "hdbscan", "spectral", "evidence_accumulation"}
+    assert set(CLUSTERING_METHODS) == {"kmeans", "agglomerative", "gmm", "hdbscan", "spectral", "evidence_accumulation", "adp"}
     assert CLUSTERING_METHODS["kmeans"] is kmeans_cluster
     assert CLUSTERING_METHODS["agglomerative"] is agglomerative_cluster
     assert CLUSTERING_METHODS["gmm"] is gmm_cluster
     assert CLUSTERING_METHODS["hdbscan"] is hdbscan_cluster
     assert CLUSTERING_METHODS["spectral"] is spectral_cluster
     assert CLUSTERING_METHODS["evidence_accumulation"] is evidence_accumulation_cluster
+    assert CLUSTERING_METHODS["adp"] is adp_cluster
 
 
 def test_kmeans_cluster_shape_and_label_count():

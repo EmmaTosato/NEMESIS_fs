@@ -78,7 +78,7 @@ Unico caso su 1570. Per risolverlo va rilanciato il calcolo SDC (BCBToolKit) per
 Il tuning di `dim_reduction` dichiara le valutazioni che applica in `tuning_evaluations` (registro in `src/analysis/tuning_evaluations.py`, una voce per meccanismo) e le valutazioni sugli embedding si rilanciano su un tuning già salvato, senza rifare lo sweep (`evaluate_tuning_embeddings`, `docs/guides/evaluate_tuning_embeddings.md`). Per il clustering non c'è ancora l'equivalente:
 
 - le metriche dello sweep (Silhouette, Calinski-Harabasz, Davies-Bouldin, `inertia`, `bic`/`aic`, `noise_fraction`) sono calcolate dentro `run_clustering_tuning_sweep` e non sono dichiarate in nessuna config;
-- i criteri aggiunti dopo (cophenetic correlation, ICL, gap statistic, self-tuning eigengap, in `src/analysis/clustering_tuning.py`) si lanciano solo a mano dal notebook `clustering_tuning_explorer.ipynb`, su una run già prodotta.
+- la cophenetic correlation (`src/analysis/clustering_tuning.py`) si lancia solo a mano dal notebook `clustering_tuning_explorer.ipynb`, su una run già prodotta. ICL, gap statistic e self-tuning eigengap sono nello stesso modulo ma non hanno più una sezione nel notebook (GMM, KMeans e spectral ne sono stati tolti: si recuperano da `46c3123`).
 
 Da fare: un blocco analogo nella config di `clustering`, un registro con una voce per criterio, e un entry point che li rilancia su un tuning salvato (etichette in `clusterings.npz` con `save_tuning_clusterings: true`, matrice in `matrix.npy`; lo spectral con `affinity` sweepata non salva le etichette, va rifittato). I plot per metodo e parametro vanno nelle cartelle del tuning, come per `plot_hdbscan`.
 

@@ -56,6 +56,7 @@ Cose che non si vedono dal registro:
 - **Metriche del modello**: kmeans e gmm vengono rifittati con i parametri della run e accettati solo se riproducono esattamente le etichette salvate (altrimenti `ValueError`, tipico di `random_state` non fissato). `inertia` e BIC/AIC non sono sulla stessa scala.
 - **Stabilità**: per hdbscan il rumore (`-1`) conta come un gruppo nell'ARI; è un singolo confronto con seed fisso, non un ensemble (a differenza di `run_monti_repeats`, che vale solo per `CONSENSUS_ELIGIBLE_METHODS`).
 - **Rumore di hdbscan**: escluso da tabella e test clinici, dai centroidi e dagli indici geometrici; la sua quota è sempre mostrata (`noise_fraction`, conteggio stampato).
+- **adp**: le metriche geometriche (sezione 2) rifiutano una run con `dice`/`jaccard` (assumono distanza euclidea); la silhouette con la distanza giusta è nel `tuning_results.csv`. La stabilità (sezione 4) rifà il fit di ADP e richiede `dadapy` nel kernel.
 - **DBCV** è escluso (già scartato nel tuning, `docs/guides/clustering.md`).
 
 Lesion e sdc possono convivere nella stessa `SELECTED_RUNS`: ogni run è valutata da sola. I soggetti rappresentativi richiedono i `.nii.gz` dei soggetti in `data/`.
@@ -70,7 +71,9 @@ Contiene le analisi che mettono a confronto più run:
 - distanza centroide-centroide tra run che condividono lo stesso embedding (`require_shared_embedding` solleva altrimenti);
 - confronto cross-modalità lesion vs sdc sull'intersezione dei `subject_id` (`aligned_labels_intersection` stampa N per lato, intersezione ed esclusi, mai un merge silenzioso): contingency grezza e normalizzata, ARI/NMI/homogeneity/completeness, chi-quadro con residui standardizzati, purezza per cluster, profilo clinico per cluster.
 
-Le sezioni sono ancora quelle della versione unica del notebook, in attesa di riorganizzazione.
+- Parte 4, **due cluster della stessa run** (la sezione "Dentro lo stesso clustering" dell'app Dash, stesse funzioni di `src/analysis/cluster_pair.py`): profilo demografico e clinico (Mann-Whitney e Fisher, p corretto Benjamini-Hochberg), regressione logistica del cluster 1 contro il cluster 2 con grafico degli odds ratio, distanza tra i centroidi nell'embedding rapportata al raggio dei cluster, mappe di overlap della lesione dei due cluster e loro differenza. Si sceglie la run (`PAIR_RUN`) e i due cluster (`LABEL_1`, `LABEL_2`); il primo è il riferimento per il segno di `r`, degli odds ratio e della differenza. Le mappe leggono le maschere di tutti i soggetti dei due cluster (circa 1 minuto su ~900 soggetti) e richiedono i `.nii.gz` in `data/`. La disconnessione per le run sdc non è nel notebook, solo nell'app.
+
+Le Parti 1-3 sono ancora quelle della versione unica del notebook, in attesa di riorganizzazione.
 
 ---
 

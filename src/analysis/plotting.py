@@ -189,13 +189,18 @@ def _modality_title(output_dir: Path) -> str:
     return modality[0].upper() + modality[1:] + "s"
 
 
+def _clustering_method_title(method: str) -> str:
+    """str.capitalize() ("kmeans" -> "Kmeans"), except for the one clustering method named by an acronym."""
+    return "ADP" if method == "adp" else method.capitalize()
+
+
 def compose_cluster_plot_title(output_dir: Path, reduction_method: str, clustering_method: str) -> str:
     """Title for a single clustering method's static scatter (cluster_plot.png):
     "<Modality> - <ReductionMethod> - <ClusteringMethod>", each segment
-    capitalized (Python's str.capitalize(), e.g. "umap" -> "Umap").
+    capitalized (Python's str.capitalize(), e.g. "umap" -> "Umap"; "adp" -> "ADP").
     """
     modality_title = _modality_title(output_dir)
-    return f"{modality_title} - {reduction_method.capitalize()} - {clustering_method.capitalize()}"
+    return f"{modality_title} - {reduction_method.capitalize()} - {_clustering_method_title(clustering_method)}"
 
 
 def compose_clustering_tuning_title(output_dir: Path, method: str) -> str:
@@ -208,7 +213,7 @@ def compose_clustering_tuning_title(output_dir: Path, method: str) -> str:
     the run's own directory/config.md, they don't need repeating inside every plot title too.
     """
     modality_title = _modality_title(output_dir)
-    return f"{modality_title} - Clustering Tuning - {method.capitalize()}"
+    return f"{modality_title} - Clustering Tuning - {_clustering_method_title(method)}"
 
 
 def compose_embedding_plot_title(output_dir: Path, reduction_method: str, color_by: str | None = None) -> str:
@@ -979,12 +984,17 @@ def plot_clustering_tuning_heatmaps(
     plt.close(fig)
 
 
-def plot_clustering_tuning_metrics(df: pd.DataFrame, param_col: str, metric_cols: list[str], output_path: Path, title: str) -> None:
+def plot_clustering_tuning_metrics(
+    df: pd.DataFrame, param_col: str, metric_cols: list[str], output_path: Path, title: str, log_x: bool = False
+) -> None:
     """One line-plot subplot per metric in metric_cols, all sharing param_col
     on the x-axis - the clustering-tuning equivalent of plot_tuning_curve for
     more than one metric at once, each on its own subplot since silhouette/
     Calinski-Harabasz/Davies-Bouldin live on incomparable scales. Laid out
     on the smallest square grid that fits all metrics (see docs/dev/plotting.md).
+
+    log_x: logarithmic x-axis, for a parameter swept over orders of magnitude (adp's Z, 0.25..16);
+    needs strictly positive param values.
     """
     if not metric_cols:
         raise ValueError("plot_clustering_tuning_metrics needs at least one metric column")
@@ -1002,6 +1012,8 @@ def plot_clustering_tuning_metrics(df: pd.DataFrame, param_col: str, metric_cols
     for i, metric_col in enumerate(metric_cols):
         ax = axes[i // ncols][i % ncols]
         ax.plot(sorted_df[param_col], sorted_df[metric_col], marker="o")
+        if log_x:
+            ax.set_xscale("log")
         ax.set_xlabel(param_col)
         ax.set_ylabel(metric_col)
     for i in range(len(metric_cols), nrows * ncols):
@@ -1094,13 +1106,14 @@ def plot_interclass_distance_matrix(
 
 
 def plot_grouped_tuning_metrics(
-    df: pd.DataFrame, x_param: str, group_param: str, metric_cols: list[str], output_path: Path, title: str
+    df: pd.DataFrame, x_param: str, group_param: str, metric_cols: list[str], output_path: Path, title: str, log_x: bool = False
 ) -> None:
     """One subplot per metric in metric_cols, `x_param` on the x-axis, one line per unique
     value of `group_param` - the shared layout behind spectral's `(affinity, hyperparameter)`
     grouping and evidence_accumulation's Split-phase-`k` grouping (project-clustering-tuning-
     redesign memory, 26-08-26): both need "one line per group" instead of
-    `plot_clustering_tuning_metrics`'s single line, or a heatmap.
+    `plot_clustering_tuning_metrics`'s single line, or a heatmap. `log_x` as in
+    plot_clustering_tuning_metrics (adp's Z, one line per metric).
     """
     if not metric_cols:
         raise ValueError("plot_grouped_tuning_metrics needs at least one metric column")
@@ -1118,6 +1131,8 @@ def plot_grouped_tuning_metrics(
         for group_value in sorted(df[group_param].unique(), key=str):
             subset = df[df[group_param] == group_value].sort_values(x_param)
             ax.plot(subset[x_param], subset[metric_col], marker="o", markersize=4, label=str(group_value))
+        if log_x:
+            ax.set_xscale("log")
         ax.set_xlabel(x_param)
         ax.set_ylabel(metric_col)
         ax.legend(fontsize=7)

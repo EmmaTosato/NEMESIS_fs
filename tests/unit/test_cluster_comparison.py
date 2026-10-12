@@ -11,7 +11,6 @@ from src.analysis.cluster_comparison import (
     agreement_metrics,
     align_runs,
     build_table_heatmap,
-    centroid_distances,
     chi_square_independence,
     cluster_centroids,
     cluster_name,
@@ -33,8 +32,6 @@ def test_align_runs_keeps_the_common_subjects_in_the_order_of_run_a():
     assert aligned.subject_ids.tolist() == ["s2", "s4"]
     assert aligned.labels_a.tolist() == [0, 1]
     assert aligned.labels_b.tolist() == [6, 5]
-    assert aligned.positions_a.tolist() == [1, 3]
-    assert aligned.positions_b.tolist() == [1, 0]
     assert (aligned.n_a, aligned.n_b, aligned.n_common) == (4, 3, 2)
     assert (aligned.n_only_a, aligned.n_only_b) == (2, 1)
 
@@ -168,34 +165,6 @@ def _same_embedding_pair():
     order = [2, 0, 3, 1]
     metadata_b = _metadata(["s3", "s1", "s4", "s2"], [0, 0, 1, 1])
     return embedding, embedding[order], metadata_a, metadata_b
-
-
-def test_centroid_distances_use_the_common_subjects_in_either_run_order():
-    embedding_a, embedding_b, metadata_a, metadata_b = _same_embedding_pair()
-    aligned = align_runs(metadata_a, metadata_b)
-
-    centroids_a, centroids_b, distances = centroid_distances(embedding_a, embedding_b, aligned)
-
-    assert centroids_a.loc[0].tolist() == [1.0, 0.0]
-    assert centroids_b.loc[0].tolist() == [5.0, 0.0]  # run B's cluster 0 is {s3, s1}
-    assert distances.loc[0, 0] == pytest.approx(4.0)
-    assert distances.loc[1, 1] == pytest.approx(4.0)  # A1 = {s3, s4} at 11, B1 = {s4, s2} at 7
-
-
-def test_centroid_distances_reject_two_different_embeddings():
-    embedding_a, embedding_b, metadata_a, metadata_b = _same_embedding_pair()
-    aligned = align_runs(metadata_a, metadata_b)
-
-    with pytest.raises(ValueError, match="not in the same embedding"):
-        centroid_distances(embedding_a, embedding_b + 1.0, aligned)
-
-
-def test_centroid_distances_reject_different_dimensionality():
-    embedding_a, embedding_b, metadata_a, metadata_b = _same_embedding_pair()
-    aligned = align_runs(metadata_a, metadata_b)
-
-    with pytest.raises(ValueError, match="not the same space"):
-        centroid_distances(embedding_a, np.hstack([embedding_b, np.zeros((4, 1))]), aligned)
 
 
 def test_cluster_name_labels_noise():

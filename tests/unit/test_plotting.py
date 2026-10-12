@@ -10,6 +10,8 @@ import pandas as pd
 import pytest
 
 from src.analysis.plotting import (
+    compose_cluster_plot_title,
+    compose_clustering_tuning_title,
     _DECLUTTER_MARKER_DIAMETERS,
     _EMBEDDING_DPI,
     _CATEGORICAL_PALETTE,
@@ -307,6 +309,19 @@ def test_plot_clustering_tuning_metrics_writes_one_subplot_per_metric(tmp_path):
 
     assert output_path.exists()
     assert output_path.stat().st_size > 0
+
+
+def test_plot_clustering_tuning_metrics_log_x_sets_a_log_axis(tmp_path, monkeypatch):
+    import matplotlib.pyplot as plt
+
+    scales = []
+    monkeypatch.setattr(plt, "close", lambda fig: scales.extend(ax.get_xscale() for ax in fig.axes))
+    df = pd.DataFrame({"Z": [0.25, 1.0, 16.0], "silhouette": [0.1, 0.4, 0.2]})
+
+    plot_clustering_tuning_metrics(df, "Z", ["silhouette"], tmp_path / "log.png", "t", log_x=True)
+    plot_clustering_tuning_metrics(df, "Z", ["silhouette"], tmp_path / "lin.png", "t")
+
+    assert scales == ["log", "linear"]
 
 
 def test_plot_clustering_tuning_metrics_raises_on_empty_metric_cols(tmp_path):
@@ -785,3 +800,11 @@ def test_plot_hdbscan_grid_accepts_a_cell_that_is_all_noise(tmp_path):
 def test_plot_hdbscan_grid_without_any_cell_raises(tmp_path, grid):
     with pytest.raises(ValueError, match="at least one non-empty cell"):
         plot_hdbscan_grid(grid, tmp_path / "grid.png", "suptitle")
+
+
+def test_clustering_titles_write_adp_as_an_acronym_and_other_methods_capitalized():
+    output_dir = Path("results/sdc/clustering/tuning/adp/raw/run")
+
+    assert compose_clustering_tuning_title(output_dir, "adp") == "SDC - Clustering Tuning - ADP"
+    assert compose_clustering_tuning_title(output_dir, "kmeans") == "SDC - Clustering Tuning - Kmeans"
+    assert compose_cluster_plot_title(output_dir, "raw", "adp") == "SDC - Raw - ADP"

@@ -125,7 +125,7 @@ Un run il cui embedding salvato ha **più di 3 componenti** (es. un run lanciato
 
 ## Indice della pagina
 
-In alto a destra c'è un menu **Indice**, chiuso di default e fisso sullo schermo mentre scorri. Aprendolo si salta a una sezione. Elenca solo le sezioni che il run scelto ha davvero: un run `lesion` non mostra "Disconnessione (SDC)", un run di `dim_reduction` non mostra le sezioni per cluster. "Confronto tra run" c'è sempre.
+In alto a destra c'è un menu **Indice**, chiuso di default e fisso sullo schermo mentre scorri. Aprendolo si salta a una sezione. Elenca solo le sezioni che il run scelto ha davvero: un run `lesion` non mostra "Disconnessione (SDC)", un run di `dim_reduction` non mostra le sezioni per cluster. "Confronto" c'è sempre.
 
 ## Anatomia lesionale
 
@@ -240,31 +240,39 @@ Sotto il titolo di ogni grafico, `n=` indica i soggetti con il dato sul totale d
 
 Dettagli di implementazione: `docs/dev/cluster_composition.md`.
 
-## Confronto tra run
+## Confronto
 
-Ultima sezione della pagina, **indipendente dal run scelto in alto**: ha due selettori suoi, **Run A** e **Run B**, e confronta due run di clustering sui soggetti che hanno in comune. Due modalità, scelte dai bottoni sopra i selettori. Cambiare modalità azzera la coppia.
+Ultima sezione della pagina, **indipendente dal run scelto in alto**: ha selettori suoi. Due modalità, scelte dai bottoni sopra i selettori. Cambiare modalità azzera la scelta.
 
-| Modalità | Cosa deve essere uguale | Cosa può cambiare |
+| Modalità | Cosa si sceglie | Cosa si confronta |
 |---|---|---|
-| **Dentro lo stesso embedding** | l'embedding di partenza (lo stesso `input_path` di dim_reduction, letto da `config.md`) | metodo di clustering e parametri (`k`, linkage...) |
-| **Tra modalità (lesion vs sdc)** | metodo di clustering, valori dei suoi parametri (es. `n_clusters=5`), metodo di riduzione, componenti e metrica dell'embedding | solo la modalità |
+| **Dentro lo stesso clustering** | una run e due suoi cluster (**Primo cluster**, **Secondo cluster**; il rumore `-1` è ammesso) | i soggetti dei due cluster |
+| **Tra modalità (lesion vs sdc)** | **Run A** e **Run B**: stesso metodo di clustering, stessi valori dei parametri (es. `n_clusters=5`), stesso metodo di riduzione, componenti e metrica dell'embedding; cambia solo la modalità | i soggetti in comune alle due run |
 
-Il selettore B offre soltanto le run compatibili con la A. Se non ce n'è nessuna, la sezione lo dice e ripete la regola. Le run su dati grezzi non sono ammesse nella modalità "stesso embedding", perché non hanno un embedding.
+Nella modalità tra run, il selettore B offre soltanto le run compatibili con la A. Se non ce n'è nessuna, la sezione lo dice e ripete la regola.
 
-### Cosa si vede
+### Dentro lo stesso clustering
 
-In ordine, per entrambe le modalità:
+I due cluster si chiamano sempre col loro numero vero (`cluster 0`, `cluster 3`, `rumore`), mai «1» e «2»: «primo» e «secondo» indicano solo l'ordine di scelta, da cui dipende il **segno** di ciò che segue. Scambiarli inverte il segno e lascia uguali distanza, p e AUC.
+
+In ordine:
+
+1. **Soggetti**: la run e quanti soggetti ha ciascun cluster.
+2. **Profilo demografico e clinico**: una riga per variabile, primo cluster contro secondo. Per le numeriche (età, istruzione, NIHSS, volume della lesione, quota della lesione per sede) il test di Mann-Whitney, con la mediana di ciascun cluster e `r`, la correlazione rank-biseriale: tra -1 e 1, positiva se il primo cluster ha valori più alti. Per le categoriche (sesso, dataset, lato della lesione, sede dominante) il test esatto di Fisher su ogni categoria contro le altre, con le quote e l'odds ratio (sopra 1 = categoria più frequente nel primo cluster). Il p corretto (FDR) tiene conto di tutti i test insieme ed è in grassetto sotto 0,05. Un lato con meno di 2 valori lascia il test vuoto. I soggetti assenti dal registro `participants.csv` restano nei conteggi e sono nominati in un avviso.
+3. **Cosa distingue i due cluster**: regressione logistica con esito «sta nel primo cluster» tra i soli soggetti dei due cluster, su età, NIHSS, volume (log10), quota corticale, sottocorticale grigia e infratentoriale, sesso e dataset, **tutte insieme**. Grafico degli odds ratio con intervallo al 95% (blu se non contiene 1), tabella con p e VIF, AUC e pseudo-R². È un'associazione, non una causa, e una variabile derivata dall'input del clustering (il volume per una run lesion) è associata ai cluster anche per costruzione. Se la regressione non è adattabile (pochi soggetti per variabile, una variabile costante, separazione perfetta) il blocco lo dice con la causa.
+4. **Distanza tra i centroidi**: distanza euclidea nello spazio su cui è stato calcolato il clustering, accanto al raggio medio di ciascun cluster. Una run su dati grezzi non ha un embedding: il blocco lo dice e non calcola nulla.
+5. **Anatomia** (pannello separato, sotto i numeri): l'overlap map della lesione di ciascun cluster e la **differenza** tra le due, voxel per voxel, in punti percentuali (rosso = più frequente nel primo cluster, blu = nel secondo). Per una run `sdc`, lo stesso per la disconnessione in modalità «percent». Le mappe usano gli stessi builder e la stessa cache dei pannelli per cluster più in alto: la prima volta di un cluster legge ogni suo soggetto dal disco (con `--preload` è già pronto), poi è immediato. Per questo compaiono dopo i numeri.
+
+### Tra modalità
+
+In ordine:
 
 1. **Soggetti confrontati**: i soggetti di A, di B, quelli in comune e quanti restano fuori da ciascun lato. Si confronta sempre e solo l'intersezione, e il suo peso è sempre dichiarato.
 2. **Accordo tra le partizioni**: ARI, NMI, homogeneity, completeness, con la lettura a parole per ARI e NMI. Sotto, un "Come leggere queste metriche" a scomparsa con le definizioni e la scala.
 3. **Dove finisce ogni cluster**: tre heatmap con il valore scritto in ogni cella. Conteggi; percentuali per riga (dove va ogni cluster di A); percentuali per colonna (da dove viene ogni cluster di B).
 4. **Associazione statistica**: test chi-quadro di indipendenza e heatmap dei residui standardizzati (rosso = la coppia co-occorre più del previsto, blu = meno).
 5. **Purezza dei cluster**: due tabelle, da A verso B e da B verso A, dal cluster meno puro al più puro.
-
-Poi, a seconda della modalità:
-
-- **Stesso embedding**: **distanza tra centroidi**, una heatmap A x B calcolata sui soggetti in comune. Ha senso perché i due run stanno nello stesso spazio, e questo viene verificato sulle coordinate dei soggetti: se differiscono, la sezione lo dice invece di mostrare numeri.
-- **Tra modalità**: **profilo clinico dei cluster** di A e di B, la stessa tabella di "Descrizione del cluster" ma sui soli soggetti in comune. I centroidi non si confrontano, perché i due run vivono in spazi di feature diversi: si confronta il fenotipo clinico di ciascun cluster.
+6. **Profilo clinico dei cluster** di A e di B, la stessa tabella di "Descrizione del cluster" ma sui soli soggetti in comune. I centroidi non si confrontano, perché i due run vivono in spazi di feature diversi: si confronta il fenotipo clinico di ciascun cluster.
 
 Il rumore di HDBSCAN (`-1`) conta come un gruppo a sé e si chiama "rumore".
 

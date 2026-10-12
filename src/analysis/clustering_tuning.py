@@ -34,6 +34,7 @@ from sklearn.metrics.pairwise import euclidean_distances, rbf_kernel
 from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import NearestNeighbors, kneighbors_graph
 
+from src.analysis.adp import run_adp_tuning_sweep
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.consensus_clustering import (
     CONSENSUS_ELIGIBLE_METHODS,
@@ -43,7 +44,7 @@ from src.analysis.consensus_clustering import (
     run_monti_repeats,
     run_rsc_repeats,
 )
-from src.analysis.distances import PRECOMPUTABLE_METRICS, SUPPORTED_BINARY_METRICS, precomputed_distance
+from src.analysis.distances import PRECOMPUTABLE_METRICS, SUPPORTED_BINARY_METRICS, pairwise_distance, precomputed_distance
 
 CONSENSUS_METRIC_COLUMNS = ("rsc_eigengap", "monti_stability")
 
@@ -68,6 +69,7 @@ METHOD_METRIC_COLUMNS: dict[str, list[str]] = {
     "hdbscan": ["silhouette", "calinski_harabasz", "davies_bouldin", "noise_fraction", "n_clusters_found"],
     "spectral": ["silhouette", "calinski_harabasz", "davies_bouldin"],
     "evidence_accumulation": ["silhouette", "calinski_harabasz", "davies_bouldin"],
+    "adp": ["silhouette", "calinski_harabasz", "davies_bouldin", "n_clusters_found", "largest_cluster_share", "ari_vs_prev_z"],
 }
 
 STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral", "evidence_accumulation"}
@@ -156,7 +158,7 @@ def compute_clustering_metrics(X: np.ndarray, labels: np.ndarray, combo_params: 
     }
 
 
-def compute_silhouette_samples(X: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def compute_silhouette_samples(X: np.ndarray, labels: np.ndarray, metric: str = "euclidean") -> tuple[np.ndarray, np.ndarray]:
     """Per-sample silhouette coefficients for one (X, labels) clustering result -
     the production-time, per-cluster-breakdown counterpart of
     compute_clustering_metrics's single aggregate "silhouette" number (their
@@ -169,6 +171,11 @@ def compute_silhouette_samples(X: np.ndarray, labels: np.ndarray) -> tuple[np.nd
     compute_clustering_metrics's NaN-and-warn (built for an unattended
     sweep), this runs once for the already-chosen production result, so the
     caller decides whether to skip the plot.
+
+    `metric` is the distance the clustering itself used: "euclidean" (default, every method but
+    adp) scores X directly; dice/jaccard (adp on the raw matrix) score the exact distance matrix of
+    distances.py::pairwise_distance - scoring those under euclidean would measure a different
+    geometry than the one clustered on (lessons_learned.md #15). Any other metric raises.
     """
     labels = np.asarray(labels)
     noise_mask = labels == -1
@@ -181,7 +188,11 @@ def compute_silhouette_samples(X: np.ndarray, labels: np.ndarray) -> tuple[np.nd
             f"cannot compute per-sample silhouette: {n_unique} non-noise cluster(s) found (need 2..n-1)"
         )
 
-    return non_noise_labels, silhouette_samples(non_noise_X, non_noise_labels)
+    if metric == "euclidean":
+        return non_noise_labels, silhouette_samples(non_noise_X, non_noise_labels)
+    if metric in SUPPORTED_BINARY_METRICS:
+        return non_noise_labels, silhouette_samples(pairwise_distance(non_noise_X, metric), non_noise_labels, metric="precomputed")
+    raise ValueError(f"compute_silhouette_samples supports metric 'euclidean', 'dice' or 'jaccard', got {metric!r}")
 
 
 def dunn_index(X: np.ndarray, labels: np.ndarray) -> float:
@@ -466,6 +477,11 @@ def run_clustering_tuning_sweep(
             f"consensus_config given for method {method!r}, but consensus/stability clustering is only defined for "
             f"{sorted(CONSENSUS_ELIGIBLE_METHODS)}"
         )
+
+    if method == "adp":
+        # ADP fits its density once per (metric, maxk) and only re-cuts it per Z - a per-combination
+        # CLUSTERING_METHODS call would recompute the N x N distances every time (src/analysis/adp.py).
+        return run_adp_tuning_sweep(X, base_params, tuning_grid)
 
     keys = list(tuning_grid.keys())
     combinations = list(itertools.product(*tuning_grid.values()))

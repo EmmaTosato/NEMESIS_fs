@@ -11,15 +11,29 @@ SUPPORTED_BINARY_METRICS (jaccard/dice, validated by require_binary_matrix)
 vs. PRECOMPUTABLE_METRICS (every metric this module can precompute at all) -
 tuning.py/reduction.py check PRECOMPUTABLE_METRICS to decide when to take
 this path.
+
+pairwise_distance is the odd one out: a single entry point for the same three metrics that also
+accepts a *continuous* non-negative matrix (weighted dice/jaccard) and never converts a whole
+raw matrix to float64 - the input of src/analysis/adp.py, which runs on the raw voxel matrices.
 """
 
 from __future__ import annotations
 
 import numpy as np
+from joblib import Parallel, delayed
+from scipy.spatial.distance import cdist
 from sklearn.metrics.pairwise import euclidean_distances
 
 SUPPORTED_BINARY_METRICS = {"jaccard", "dice"}
 PRECOMPUTABLE_METRICS = SUPPORTED_BINARY_METRICS | {"euclidean"}
+
+# Columns per block in pairwise_distance's Gram matrix: bounds the float copy of X held in memory
+# at once (a raw voxel matrix is ~5000 x 264274), and keeps every float32 block product exact for
+# a binary X (integer counts <= _GRAM_CHUNK < 2**24).
+_GRAM_CHUNK = 20000
+
+# Rows of the L1 distance matrix computed per parallel task in pairwise_distance (continuous dice/jaccard).
+_L1_ROW_BLOCK = 100
 
 
 def require_binary_matrix(X: np.ndarray, metric: str) -> None:
@@ -97,3 +111,90 @@ def precomputed_distance(X: np.ndarray, metric: str) -> np.ndarray:
     if metric == "euclidean":
         return euclidean_pairwise_distance(X)
     raise ValueError(f"unsupported metric {metric!r} for precomputed_distance - supported: {sorted(PRECOMPUTABLE_METRICS)}")
+
+
+def pairwise_distance(X: np.ndarray, metric: str, n_jobs: int = -1) -> np.ndarray:
+    """Exact (n_samples, n_samples) distance matrix for euclidean/dice/jaccard, on a binary *or*
+    a non-negative continuous matrix - the input of src/analysis/adp.py, which runs on the raw
+    feature matrices of this project (lesion/SDC voxel-wise: binary or near-binary; SDC streamline:
+    87 continuous tract values).
+
+    - **euclidean**: L2, any real-valued X.
+    - **dice / jaccard on a binary X**: the classic set-overlap distances from the exact
+      intersection counts - identical to binary_pairwise_distance (checked by a test), but
+      computed on column blocks so X is never converted to float64 as a whole.
+    - **dice / jaccard on a continuous X >= 0**: the weighted generalisations that reduce to the
+      classic ones on 0/1 data, with sum_min = sum_f min(x_f, y_f) = (sum x + sum y - L1(x, y)) / 2:
+          dice    = 1 - 2 * sum_min / (sum x + sum y)           (Czekanowski / Bray-Curtis)
+          jaccard = 1 - sum_min / (sum x + sum y - sum_min)     (Ruzicka)
+
+    The L1 distances of the continuous case (the only slow step: ~2 minutes on 1570 x 290940 with all 8
+    cores of a laptop) are computed by column blocks (bounded memory) with the rows split across `n_jobs`
+    threads (joblib convention, -1 = every core); the binary and euclidean cases are BLAS matrix
+    products and ignore it.
+
+    Raises ValueError for an unsupported metric, for dice/jaccard on a matrix with a negative
+    value (the overlap is meaningless) or with an all-zero row (the denominator would be 0).
+    """
+    if metric not in PRECOMPUTABLE_METRICS:
+        raise ValueError(f"unsupported metric {metric!r} for pairwise_distance - supported: {sorted(PRECOMPUTABLE_METRICS)}")
+
+    binary = _is_binary(X)
+    row_sum = X.sum(axis=1, dtype=np.float64)
+    if metric in SUPPORTED_BINARY_METRICS:
+        if np.any(row_sum == 0):
+            raise ValueError(
+                f"metric={metric!r} is undefined for an all-zero row (the denominator would be 0) - "
+                f"{int((row_sum == 0).sum())} such row(s) in X"
+            )
+        if not binary and X.min() < 0:
+            raise ValueError(f"metric={metric!r} on a continuous matrix needs non-negative values, X.min() = {X.min()}")
+
+    if metric == "euclidean" or binary:
+        gram = _gram_matrix(X, binary)
+        if metric == "euclidean":
+            squared_norm = np.diag(gram)
+            distance = np.sqrt(np.maximum(squared_norm[:, None] + squared_norm[None, :] - 2 * gram, 0.0))
+            np.fill_diagonal(distance, 0.0)
+            return distance
+        sum_min = gram  # for a 0/1 matrix, min(x_f, y_f) = x_f * y_f: the intersection count is the Gram matrix
+    else:
+        l1 = _l1_distance_matrix(X, n_jobs)
+        sum_min = (row_sum[:, None] + row_sum[None, :] - l1) / 2
+
+    total = row_sum[:, None] + row_sum[None, :]
+    distance = 1 - 2 * sum_min / total if metric == "dice" else 1 - sum_min / (total - sum_min)
+    np.fill_diagonal(distance, 0.0)
+    return distance
+
+
+def _is_binary(X: np.ndarray) -> bool:
+    return all(np.isin(np.asarray(X[:, start : start + _GRAM_CHUNK]), (0, 1)).all() for start in range(0, X.shape[1], _GRAM_CHUNK))
+
+
+def _gram_matrix(X: np.ndarray, binary: bool) -> np.ndarray:
+    """X @ X.T in float64, accumulated over column blocks. A binary X goes through float32 BLAS
+    per block (exact, see _GRAM_CHUNK) and is summed in float64; a continuous X stays float64.
+    """
+    block_dtype = np.float32 if binary else np.float64
+    gram = np.zeros((X.shape[0], X.shape[0]), dtype=np.float64)
+    for start in range(0, X.shape[1], _GRAM_CHUNK):
+        block = np.asarray(X[:, start : start + _GRAM_CHUNK]).astype(block_dtype)
+        gram += block @ block.T
+    return gram
+
+
+def _l1_distance_matrix(X: np.ndarray, n_jobs: int) -> np.ndarray:
+    """L1 distances, summed over blocks of _GRAM_CHUNK columns so at most one float64 block of X
+    (n_samples x _GRAM_CHUNK) exists at a time - a float64 copy of the whole matrix is 13.6 GB for
+    5845 x 291345. Within a block the rows are split across threads: scipy's cdist releases the GIL, so
+    no copy of the block is made (about 3.6x faster than 1 thread on 8 cores, and faster than processes).
+    """
+    n_samples = X.shape[0]
+    row_blocks = [(start, min(start + _L1_ROW_BLOCK, n_samples)) for start in range(0, n_samples, _L1_ROW_BLOCK)]
+    l1 = np.zeros((n_samples, n_samples), dtype=np.float64)
+    for column_start in range(0, X.shape[1], _GRAM_CHUNK):
+        block = np.ascontiguousarray(X[:, column_start : column_start + _GRAM_CHUNK], dtype=np.float64)
+        parts = Parallel(n_jobs=n_jobs, prefer="threads")(delayed(cdist)(block[start:stop], block, "cityblock") for start, stop in row_blocks)
+        l1 += np.vstack(parts)
+    return l1

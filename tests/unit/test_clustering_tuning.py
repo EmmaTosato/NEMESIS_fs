@@ -141,6 +141,27 @@ def test_compute_silhouette_samples_mean_matches_aggregate_silhouette():
     assert np.mean(sample_values) == pytest.approx(compute_clustering_metrics(X, labels)["silhouette"])
 
 
+def test_compute_silhouette_samples_dice_scores_the_dice_distance_not_the_euclidean_one():
+    from sklearn.metrics import silhouette_samples
+
+    from src.analysis.distances import binary_pairwise_distance
+
+    rng = np.random.default_rng(0)
+    X = (rng.random((30, 12)) < 0.4).astype(np.uint8)
+    X[:, 0] = 1
+    labels = np.array([0] * 15 + [1] * 15)
+
+    _, dice_values = compute_silhouette_samples(X, labels, "dice")
+
+    assert np.allclose(dice_values, silhouette_samples(binary_pairwise_distance(X, "dice"), labels, metric="precomputed"))
+    assert not np.allclose(dice_values, compute_silhouette_samples(X, labels)[1])
+
+
+def test_compute_silhouette_samples_unsupported_metric_raises():
+    with pytest.raises(ValueError, match="'euclidean', 'dice' or 'jaccard'"):
+        compute_silhouette_samples(_three_blobs(), np.array([0] * 15 + [1] * 15 + [2] * 15), "cosine")
+
+
 def test_compute_silhouette_samples_excludes_noise():
     X = _three_blobs()
     labels = np.array([0] * 15 + [1] * 15 + [-1] * 15)

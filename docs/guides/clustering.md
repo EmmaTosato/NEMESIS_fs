@@ -62,6 +62,71 @@ Genera i cluster definitivi usando i parametri precedentemente scelti in `config
 
 ---
 
+## ADP (DADApy)
+
+*Advanced Density Peaks* (d'Errico et al. 2021, libreria `dadapy`) cerca i picchi di densità tra i soggetti: **il numero di cluster non si sceglie, emerge dai dati**. L'unico iperparametro che lo governa è `Z`, la soglia di significatività: un picco resta un cluster a sé solo se la sua densità supera quella del "passo" che lo collega al picco vicino di più di `Z` volte l'incertezza della stima. `Z` basso dà molti cluster piccoli, `Z` alto li fonde.
+
+Si usa su una matrice **grezza** (lesione, SDC voxelwise, SDC streamline), non su un embedding: è l'unico metodo che clusterizza direttamente le distanze `dice`/`jaccard` della matrice.
+
+### Ambiente e comando
+
+`dadapy` dipende da `jax` e vive in un ambiente conda **separato** da `nemesis` (oggi `nemesis_fallback`: Python 3.11, `dadapy` 0.3.4, `numpy` 1.26.4, `scikit-learn` 1.9.1). L'import è lazy: in `nemesis` il registro dei metodi si carica comunque, ma una run `"adp"` solleva un errore che chiede di usare l'ambiente con `dadapy`. Per questo ha un config suo per ogni matrice (`config/pipelines/clustering_adp_<sessione>.json`, es. `clustering_adp_s2.2-vol.json`), con `"clustering_methods": ["adp"]` e nient'altro:
+
+```bash
+conda activate nemesis_fallback      # l'ambiente con dadapy
+python -m src.pipeline.clustering --config config/pipelines/clustering_adp_<sessione>.json
+```
+
+L'ambiente `dadapy` non ha `dash`: `embedding_app` e i suoi test non vi girano. I risultati si leggono dall'ambiente `nemesis`.
+
+### Parametri (`params_clustering.json`, voce `"adp"`)
+
+| Parametro | Descrizione |
+| :--- | :--- |
+| **`metric`** | `"dice"`, `"jaccard"` o `"euclidean"`. Su una matrice binaria sono le distanze classiche; su una continua `>= 0` (SDC) `dice`/`jaccard` sono le generalizzazioni pesate (Czekanowski/Ruzicka), che sulle matrici 0/1 coincidono con le classiche. |
+| **`Z`** | Soglia di significatività (> 0). Lo sweep di tuning la varia da 0.25 a 16. |
+| **`maxk`** | Quanti vicini per soggetto vengono passati a DADApy (densità e dimensione intrinseca sono stimate dentro questi). Deve essere minore del numero di righe distinte. |
+
+Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorato). `halo` è fisso a `false`; stima della dimensione intrinseca (2NN) e della densità (PAk) sono quelle di default di DADApy. Il metodo è deterministico: nessun `random_state`.
+
+### Tuning
+
+`tuning_grid` sweeppa `Z` e, per confrontare le distanze nella stessa run, `metric` (oggi `["dice", "euclidean"]`: una combinazione per ogni coppia, chiavi `metric=dice,Z=1.65` in `clusterings.npz`, una linea per metrica nel `tuning_plot.png`). Con una sola metrica, la chiave è `Z=1.65`. Densità e distanze si calcolano **una volta** per `metric`/`maxk`; ogni `Z` rifà solo il taglio dei picchi, quindi lo sweep costa quanto una run (circa 2 minuti su 1570 soggetti x 290940 voxel, con le distanze pesate in parallelo su tutti i core). Con più `metric` si calcola una matrice di distanze per ciascuna. La `silhouette` di due metriche non è confrontabile (ognuna usa la propria distanza): per confrontarle si usano la partizione (ARI tra le due) e le variabili esterne, come `lesion_side`.
+
+`tuning_results.csv` ha, oltre ai valori sweeppati:
+
+- `silhouette`, calcolata con la stessa distanza usata per clusterizzare (`dice`...), non con l'euclidea;
+
+- `calinski_harabasz`, `davies_bouldin`: solo con `euclidean` (sono basate sui centroidi), `NaN` altrimenti; i due pannelli vuoti non vengono disegnati;
+
+- `n_clusters_found`, `largest_cluster_share`, `n_small_clusters` (cluster con meno di 10 soggetti), `noise_fraction`;
+
+- `id_2nn`: la dimensione intrinseca stimata, costante per `metric`/`maxk`;
+
+- `ari_vs_prev_z`: ARI, sui soli soggetti clusterizzati, contro il `Z` immediatamente più basso (stesse altre impostazioni). Un tratto vicino a 1 è un plateau: la partizione non dipende dalla soglia.
+
+`tuning_plot.png` ha `Z` in scala logaritmica. Con `save_tuning_clusterings: true` le partizioni sono in `clusterings.npz` con chiavi `Z=1.65` (formato letto dal notebook `clustering_tuning_explorer`, sezione ADP).
+
+### Soggetti che non entrano nel clustering
+
+- **Riga a zero:** `dice`/`jaccard` non sono definite. La riga prende l'etichetta `-1` (rumore, come in HDBSCAN) **per ogni metrica**, così tutte le metriche clusterizzano gli stessi soggetti. Il run lo segnala a `WARNING` con l'indice di riga; `noise_fraction` ne riporta la quota.
+
+- **Righe duplicate esatte:** a distanza 0 la stima di densità divide per zero. Le righe uguali si clusterizzano una volta sola e ogni duplicato prende l'etichetta del gemello; anche questo è loggato.
+
+- Una matrice con tutte le righe a zero, o due righe diverse a distanza numericamente 0, solleva `ValueError`.
+
+### Limiti da tenere presenti
+
+- Le metriche geometriche del notebook di valutazione (`compute_clustering_metrics`) rifiutano `dice`/`jaccard`: assumono distanza euclidea. Per ADP si legge la `silhouette` del tuning, che usa la distanza giusta.
+
+- Il grafico `silhouette_plot.png` di produzione usa la stessa distanza di `metric`.
+
+- `cluster_plot.png` ha bisogno di un `viz_embedding_path` (la matrice grezza ha più di 3 colonne). L'UMAP di produzione è `euclidean`, ADP clusterizza con `dice`: le due viste non condividono la metrica.
+
+- La memoria cresce con una matrice `N x N` in `float64` per ogni `metric` richiesta (circa 270 MB a 5800 soggetti).
+
+---
+
 ## Dettaglio Parametri JSON (`clustering.json`)
 
 | Parametro | Tipo | Descrizione |
@@ -69,7 +134,7 @@ Genera i cluster definitivi usando i parametri precedentemente scelti in `config
 | **`project`** | *Stringa* | Nome del progetto (es. `"clinical_connectome"`). |
 | **`input_path`** | *Stringa* | Percorso della matrice di input. Dati grezzi (`data/derived/...`) o compressi (`results/lesion/dim_reduction/...`). DEVE esistere. |
 | **`reduction_method`** | *Stringa* | Dichiara quale metodo di dim reduction ha prodotto `input_path` (`"umap"`, `"tsne"`, `"pca"`, `"pacmap"`) — o `"raw"` se `input_path` è una matrice non ridotta. Obbligatorio, mai dedotto dal testo di `input_path`. Determina un livello in più nell'albero di output (vedi sotto), così risultati da embedding diversi non finiscono mai nella stessa cartella. |
-| **`clustering_methods`** | *Lista* | Algoritmi da usare. Opzioni: `"kmeans"`, `"agglomerative"`, `"gmm"`, `"hdbscan"`, `"spectral"`, `"evidence_accumulation"`. È possibile metterne multipli per confrontarli. |
+| **`clustering_methods`** | *Lista* | Algoritmi da usare. Opzioni: `"kmeans"`, `"agglomerative"`, `"gmm"`, `"hdbscan"`, `"spectral"`, `"evidence_accumulation"`, `"adp"`. È possibile metterne multipli per confrontarli, tranne `"adp"`, che gira da solo in un ambiente a parte (sezione "ADP" sotto). |
 | **`params_file`** | *Stringa* | File configurazione interna algoritmi (di norma `"config/registry/params_clustering.json"`). |
 | **`reduction_params_file`** | *Stringa \| null* | Il file `config/registry/params_reduction*.json` che ha prodotto `input_path` — `"config/registry/params_reduction.json"` per lesion, `"config/registry/params_reduction_sdc.json"` per sdc. **Obbligatorio quando `reduced_data: true`**, **vietato (deve mancare) quando `reduced_data: false`**. Serve a leggere `tag_param`/`tag_prefix` del `reduction_method` per ricostruire il tag dell'embedding (es. `"m_euclidean_nc2"`) direttamente dai parametri veri con cui `input_path` è stato costruito — mai scritto a mano in `session_name`, così non può disallinearsi dal vero `input_path` (vedi sotto). |
 | **`output_root`** | *Stringa* | Cartella radice per i risultati (es. `"results/lesion/clustering"`). |

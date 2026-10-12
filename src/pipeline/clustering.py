@@ -353,7 +353,9 @@ def _run_one_method(
         else:
             cluster_labels = CLUSTERING_METHODS[method](X, params)
             membership_probabilities = None
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, ImportError) as exc:
+        # ImportError: adp needs dadapy, installed in a separate environment (src/analysis/adp.py)
+        # - a clean "run it from that environment" error, not a raw traceback.
         # Same gap as HIGH #11 (dim_reduction.py's embed()), found here during the same
         # audit under #18 - load_method_params validates the file/method exist, never the
         # *contents* of params (e.g. a typo'd key, or a value sklearn's constructor rejects).
@@ -400,7 +402,10 @@ def _run_one_method(
         logging.info("[%s] cluster plot written to %s", method, output_dir / "cluster_plot.png")
 
         try:
-            sample_labels, sample_silhouette_values = compute_silhouette_samples(X, cluster_labels)
+            # adp clusters the dice/jaccard/euclidean distances of the raw matrix - score under that same
+            # distance; every other method is scored on X as-is (euclidean).
+            silhouette_metric = params["metric"] if method == "adp" else "euclidean"
+            sample_labels, sample_silhouette_values = compute_silhouette_samples(X, cluster_labels, silhouette_metric)
             plot_silhouette_analysis(
                 sample_labels,
                 sample_silhouette_values,
@@ -656,7 +661,8 @@ def _run_one_method_tuning(
             results, labels_by_combo = run_spectral_affinity_aware_sweep(X, base_params, tuning_grid, consensus_config)
         else:
             results, labels_by_combo = run_clustering_tuning_sweep(method, X, base_params, tuning_grid, consensus_config)
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, ImportError) as exc:
+        # ImportError: adp without dadapy (see _run_one_method).
         # TypeError: a bad tuning_grid value reaches the estimator's own **params unpack
         # (same gap as _run_one_method's production path above, HIGH #11/#18).
         logging.error("[%s] %s", method, exc)
@@ -747,6 +753,10 @@ def _write_tuning_output(
         metadata.to_csv(output_dir / "metadata.csv", index=False)
     title = compose_clustering_tuning_title(output_dir, method)
     metric_cols = METHOD_METRIC_COLUMNS[method] + [c for c in CONSENSUS_METRIC_COLUMNS if c in results.columns]
+    if method == "adp":
+        # calinski_harabasz/davies_bouldin exist only for the euclidean metric - NaN (an empty subplot)
+        # for dice/jaccard; the columns stay in tuning_results.csv either way.
+        metric_cols = [c for c in metric_cols if results[c].notna().any()]
     if method == "spectral" and "affinity" in tuning_grid:
         # project-clustering-tuning-redesign memory (26-08-26): the affinity-aware sweep's own
         # x-axis is whatever other key was actually swept (typically n_clusters) - "affinity"
@@ -769,8 +779,15 @@ def _write_tuning_output(
         # expected" the Split decomposition was).
         split_k_param = next(key for key in swept_params if key != "threshold")
         plot_grouped_tuning_metrics(results, "threshold", split_k_param, metric_cols, output_dir / "tuning_plot.png", title)
+    elif method == "adp" and set(swept_params) == {"metric", "Z"}:
+        # adp compared across distances: one line per metric, Z (log) on x - a heatmap of 2 metrics x 18 Z
+        # values would be unreadable
+        plot_grouped_tuning_metrics(results, "Z", "metric", metric_cols, output_dir / "tuning_plot.png", title, log_x=True)
     elif len(swept_params) == 1:
-        plot_clustering_tuning_metrics(results, swept_params[0], metric_cols, output_dir / "tuning_plot.png", title)
+        # adp's Z is swept over orders of magnitude (0.25..16): log x-axis
+        plot_clustering_tuning_metrics(
+            results, swept_params[0], metric_cols, output_dir / "tuning_plot.png", title, log_x=method == "adp" and swept_params[0] == "Z"
+        )
     elif len(swept_params) == 2:
         plot_clustering_tuning_heatmaps(
             results, swept_params[0], swept_params[1], metric_cols, output_dir / "tuning_plot.png", title

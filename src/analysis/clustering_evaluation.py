@@ -31,7 +31,7 @@ EVALUATIONS: dict[str, Evaluation] = {
     "model_fit_metrics": Evaluation(
         frozenset({"kmeans", "gmm", "hdbscan"}),
         "only these expose a model-specific statistic (inertia, BIC/AIC, noise fraction); "
-        "agglomerative, spectral and evidence_accumulation have none",
+        "agglomerative, spectral, evidence_accumulation and adp have none",
     ),
     "subsampling_stability": Evaluation(_ALL_METHODS, "refit on a subsample is defined for any method"),
     "clinical_association": Evaluation(_ALL_METHODS, "depends only on the labels"),

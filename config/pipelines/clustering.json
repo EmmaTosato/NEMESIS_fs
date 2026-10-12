@@ -1,22 +1,15 @@
 {
   "project": "clinical_connectome",
   "output_root": "results/sdc/clustering",
-  "input_path": "data/derived/sdc_matrix/30-09_s2.3-stream",
+  "input_path": "data/derived/sdc_matrix/07-10_s2.4-stream",
   "reduction_method": "raw",
   "params_file": "config/registry/params_clustering.json",
-  "session_name": "s2.3-stream",
-  "clustering_methods": [
-    "kmeans",
-    "agglomerative",
-    "gmm",
-    "hdbscan",
-    "spectral",
-    "evidence_accumulation"
-  ],
+  "session_name": "s2.4-stream",
+  "clustering_methods": ["agglomerative", "hdbscan"],
   "reduced_data": false,
   "fine_tuning": true,
-  "save_tuning_clusterings": false,
+  "save_tuning_clusterings": true,
   "overwrite": false,
   "viz_embedding_path": null,
-  "run_notes": "first tuning on s2.3-stream: raw 87 tracts, euclidean, k 4-10"
+  "run_notes": "clustering tuning on raw s2.4-stream (5831 subjects, SDC streamline, 87 tracts); agglomerative + hdbscan"
 }

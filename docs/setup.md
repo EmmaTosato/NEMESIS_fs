@@ -26,6 +26,10 @@ Aggiungere la dipendenza a `environment.yml` (sezione `dependencies` per pacchet
 conda env update -f environment.yml -n nemesis --prune
 ```
 
+## Ambiente per ADP (`dadapy`)
+
+Il clustering ADP (`"adp"` in `clustering_methods`) richiede il pacchetto `dadapy`, che dipende da `jax` e non è in `environment.yml`: vive in un ambiente conda separato (oggi `nemesis_fallback`, con `dadapy` 0.3.4). Le run ADP partono da lì (vedi [`guides/clustering.md`](guides/clustering.md), sezione "ADP"); tutto il resto del progetto resta in `nemesis`. Quell'ambiente non ha `dash`, quindi `embedding_app` e i suoi test non vi girano.
+
 ## Organizzazione del codice
 
 - **`src/`** — codice di progetto (pipeline SDC, embedding, clustering, ecc.)

@@ -8,6 +8,53 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 08-10-26 — Agglomerative: griglia `metric` riaperta (euclidean, cosine, manhattan) sugli embedding s1.4-vol
+
+**Cosa è stato adottato**: il tuning di agglomerative sui 6 embedding UMAP di s1.4-vol (`{dice,euclidean}` x `n_components` 2/3/10) usa `metric` ∈ {`euclidean`, `cosine`, `manhattan`} invece del solo `euclidean`. Sono 290 combinazioni valide per embedding (29 `n_clusters` da 2 a 30 x 4 linkage; 116 euclidean, 87 cosine, 87 manhattan): `ward` esiste solo con `euclidean`, le altre 58 combinazioni sono saltate. Le 6 run con il solo `euclidean` (116 combinazioni, stesso giorno, 16:49-17:07) sono state sostituite con `overwrite: true`: cartelle riscritte (`results/lesion/clustering/tuning/agglomerative/umap/08-10_s1.4-vol_*`) e le 6 righe vecchie tolte da `runs_tuning.csv` di agglomerative (14 righe prima e dopo: 8 delle sessioni precedenti + le 6 nuove, una per output). HDBSCAN non è stato rilanciato: la sua griglia non cambia.
+
+Perché: test di sensibilità sulla scelta della metrica. **Alternativa scartata**: tenere solo `euclidean`, che lascia senza risposta se il k di agglomerative dipende dalla metrica.
+
+**Conseguenza ancora vera**: i tre insiemi di risultati non si leggono come un unico punteggio.
+- `cosine` su un embedding UMAP è difficile da interpretare: l'origine dello spazio non ha significato, la metrica misura solo l'angolo.
+- La silhouette non è confrontabile tra metriche (ogni metrica definisce le proprie distanze): il confronto tra metriche va fatto su ARI a parità di k e su `lesion_side`.
+
+---
+
+## 08-10-26 — Confronto tra due cluster della stessa run al posto del confronto "stesso embedding"
+
+**Cosa è stato adottato**: la modalità "Dentro lo stesso embedding" della sezione di confronto dell'Embedding Explorer (due run con lo stesso `input_path`, sullo stesso embedding) è sostituita da "Dentro lo stesso clustering": si sceglie **una** run e due suoi cluster (anche il rumore `-1`). Il confronto avviene sui soli soggetti dei due cluster (`src/analysis/cluster_pair.py`):
+
+- profilo demografico e clinico: Mann-Whitney per ogni variabile numerica (effetto: correlazione rank-biseriale, positiva se il primo cluster ha valori più alti), Fisher esatto per ogni categoria di ogni variabile categorica, p corretto con Benjamini-Hochberg su tutti i test insieme;
+- regressione logistica "sta nel primo cluster" contro "sta nel secondo" (`cluster_drivers.cluster_vs_rest_regression` sui soli due cluster), con età, NIHSS, log10 del volume, quote corticale/sottocorticale grigia/infratentoriale, sesso e dataset;
+- distanza euclidea tra i centroidi, con il raggio medio di ciascun cluster come scala di lettura;
+- anatomia: overlap map di ciascun cluster e la loro differenza in punti percentuali (rosso = più frequente nel primo cluster), per la lesione e, in una run sdc, per la disconnessione in modalità "percent".
+
+Perché: la domanda che si pone è «in cosa il cluster 1 è diverso dal cluster 2», non «due clustering sullo stesso embedding si accordano?». La seconda restava possibile solo via notebook (`clustering_comparison.ipynb`).
+
+**Alternative scartate**:
+- *Terza modalità accanto alle altre due*: la modalità "stesso embedding" non serviva più a nessuno; tenerla avrebbe lasciato un ramo mai usato (`centroid_distances` e il controllo `input_path` sono stati cancellati).
+- *Il confronto dentro il pannello "Descrizione del cluster"*: quel pannello è guidato dal selettore di cluster condiviso con le mappe, e dovrebbe poi scegliere un secondo cluster.
+- *Variabili del notebook `cluster_interpretation` in toto* (indice di lateralità da `lesion_metadata.csv`): non nel registro soggetti, richiederebbe un secondo file; la lateralità entra con `lesion_side`.
+
+**Conseguenza ancora vera**: il segno di r, dell'odds ratio e della differenza di mappe dipende da quale cluster è il «primo»: scambiarli inverte il segno e lascia invariati distanza, p e AUC. Le mappe dei due cluster si costruiscono con gli stessi builder (e la stessa cache) dei pannelli per cluster: la prima volta leggono ogni NIfTI, per questo stanno in un pannello a parte, sotto i numeri. La sezione si chiama ora "Confronto", non più "Confronto tra run". Dettagli: `docs/guides/embedding_app.md`, `docs/dev/cluster_comparison.md`.
+
+---
+
+## 08-10-26 — ADP (DADApy) adottato come metodo di clustering, sulla matrice grezza e con la sua distanza
+
+**Cosa è stato adottato**: Advanced Density Peaks (`dadapy` 0.3.4) è `CLUSTERING_METHODS["adp"]` (`src/analysis/adp.py`), usato dalla pipeline `clustering.py` come gli altri metodi. Il numero di cluster non si sceglie: lo sweep di tuning è su `Z` (soglia di significatività, 18 valori da 0.25 a 16, `maxk=100`) e su `metric` (`dice` ed `euclidean` nella stessa run, per confrontare le distanze). Gira sulla matrice **grezza** (lesione, SDC voxelwise, SDC streamline), con distanza `dice` come default (`jaccard`/`euclidean` disponibili), non su un embedding. Prima run reale: `results/sdc/clustering/tuning/adp/raw/08-10_s2.2-vol` (1570 x 290940, `dice`), che riproduce k e silhouette del prototipo (`tmp/dadapy_test/`) per tutti i 18 valori di `Z`.
+
+**Alternative scartate**:
+- *Pipeline separata `src/pipeline/adp_clustering.py`*: avrebbe duplicato albero di output, `runs.csv`/`runs_tuning.csv`, `config.md`, silhouette plot, tuning plot e lettura del notebook `clustering_tuning_explorer`/`embedding_app`. Come metodo di `clustering.py` eredita tutto. Il costo è che l'ambiente con `dadapy` (separato da `nemesis`, dipende da `jax`) è richiesto solo per le run `"adp"`: import lazy, un config per matrice (`config/pipelines/clustering_adp_<sessione>.json`), nessuna run mista con gli altri metodi.
+- *Una fit per combinazione, come gli altri metodi*: ricalcolerebbe le distanze N x N (~2 minuti su SDC voxelwise) a ogni `Z`. Distanze e densità si calcolano una volta per `(metric, maxk)`, ogni `Z` rifà solo il taglio dei picchi.
+- *Righe a zero eliminate in silenzio, o sollevate come errore*: `dice`/`jaccard` non esistono per una riga a zero, ma la matrice SDC voxelwise ne contiene una (`sub-STUKLFR0671`) e sollevare impedirebbe di usarla. Prendono l'etichetta `-1` (rumore) per **ogni** metrica, così tutte clusterizzano gli stessi soggetti; `noise_fraction` la riporta.
+- *Righe duplicate esatte perturbate*: DADApy divide per la distanza dal primo vicino (0 tra gemelli). Si clusterizzano una volta e il gemello eredita l'etichetta (nella run SDC stream: `sub-STUCLUK1950`/`sub-STUCLUK2303`).
+- *`dice`/`jaccard` binari soltanto*: la SDC è continua (`float32`, 24% di celle non nulle in un soggetto di esempio). Per matrici continue `>= 0` si usano le versioni pesate (Czekanowski/Ruzicka), che sulle 0/1 coincidono con le classiche (test).
+
+**Conseguenza ancora vera**: la `silhouette` del tuning è calcolata con la distanza usata per clusterizzare, non con l'euclidea; `calinski_harabasz`/`davies_bouldin` esistono solo per `euclidean`. Le metriche geometriche del notebook di valutazione rifiutano un ADP `dice`/`jaccard`. L'UMAP di produzione su cui si proiettano i cluster è `euclidean`: le due viste non condividono la metrica. Funzionamento e parametri: `docs/guides/clustering.md` (sezione "ADP"), `docs/dev/models.md`.
+
+---
+
 ## 08-10-26 — Confronto tra run di clustering: due modalità, identità dell'embedding da `input_path`, homogeneity/completeness orientate
 
 **Cosa è stato adottato**: il confronto tra due run di clustering (sezione "Confronto tra run" dell'Embedding Explorer, `src/analysis/cluster_comparison.py`) ha due modalità, con regole di compatibilità fisse:

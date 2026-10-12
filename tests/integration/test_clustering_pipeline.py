@@ -1,12 +1,15 @@
 """Integration test: clustering.py (no reduction) chained onto a build_lesion_matrix.py output."""
 
+import importlib.util
 import json
 import logging
+import sys
 from datetime import datetime
 
 import nibabel as nib
 import numpy as np
 import pandas as pd
+import pytest
 
 from src.pipeline import build_lesion_matrix, clustering
 
@@ -1906,3 +1909,135 @@ def test_clustering_viz_embedding_mismatched_param_raises(tmp_path, monkeypatch,
     with caplog.at_level(logging.ERROR):
         assert clustering.main(["--config", str(cfg_path)]) == 1
     assert "n_neighbors" in caplog.text and "15" in caplog.text and "30" in caplog.text
+
+
+# --- adp (DADApy): runs only where dadapy is installed (it lives in its own environment) ---
+
+requires_dadapy = pytest.mark.skipif(importlib.util.find_spec("dadapy") is None, reason="dadapy is not installed in this environment")
+
+
+def _write_three_group_matrix(tmp_path, n_per_group=30):
+    """A raw binary matrix artifact whose 3 subject groups each light up their own block of columns,
+    plus the 2D companion embedding clustering.py needs to draw anything for a >3-column matrix."""
+    from src.utils.artifacts import save_matrix
+
+    rng = np.random.default_rng(0)
+    n_features_per_group = 40
+    group_of_row = np.repeat(np.arange(3), n_per_group)
+    X = np.zeros((len(group_of_row), 3 * n_features_per_group), dtype=np.uint8)
+    for row, group in enumerate(group_of_row):
+        X[row, group * n_features_per_group : (group + 1) * n_features_per_group] = rng.random(n_features_per_group) < 0.7
+    metadata = pd.DataFrame(
+        {"subject_id": [f"sub-STUNIPD{i:04d}" for i in range(len(X))], "dataset": ["siteA"] * len(X)}
+    )
+    input_dir = tmp_path / "raw_matrix"
+    save_matrix(input_dir, X, metadata, ["# raw matrix fixture"], overwrite=False)
+    return input_dir, _write_viz_embedding(tmp_path, "viz_embedding", metadata), group_of_row
+
+
+def _adp_config(tmp_path, input_dir, viz_dir, output_root, fine_tuning, session_name, save_tuning_clusterings=False):
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "adp": {
+                    "tag_param": ["metric", "Z"],
+                    "tag_prefix": ["m_", "Z"],
+                    "params": {"metric": "dice", "Z": 1.65, "maxk": 15},
+                    "tuning_grid": {"Z": [0.5, 1.65, 4.0]},
+                }
+            }
+        )
+    )
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "raw",
+        "clustering_methods": ["adp"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": session_name,
+        "overwrite": False,
+        "fine_tuning": fine_tuning,
+        "reduced_data": False,
+        "save_tuning_clusterings": save_tuning_clusterings,
+        "viz_embedding_path": str(viz_dir),
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+    return cfg_path
+
+
+@requires_dadapy
+def test_clustering_end_to_end_adp_production_writes_labels_plots_and_tagged_run_log(tmp_path, monkeypatch):
+    from sklearn.metrics import adjusted_rand_score
+
+    input_dir, viz_dir, truth = _write_three_group_matrix(tmp_path)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+    output_root = tmp_path / "cl_out"
+    cfg_path = _adp_config(tmp_path, input_dir, viz_dir, output_root, fine_tuning=False, session_name="run1")
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    out_dir = next(p for p in (output_root / "production" / "adp" / "raw").iterdir() if p.is_dir())
+    assert out_dir.name.endswith("_run1_m_dice_Z165")
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    assert adjusted_rand_score(truth, metadata["cluster_label"]) == pytest.approx(1.0)
+    assert (out_dir / "cluster_plot.png").stat().st_size > 0
+    assert (out_dir / "silhouette_plot.png").stat().st_size > 0  # scored on the dice distance, not on X as euclidean
+
+    runs = pd.read_csv(output_root / "production" / "adp" / "runs.csv")
+    assert list(runs["metric"]) == ["dice"] and list(runs["Z"]) == [1.65]
+
+
+@requires_dadapy
+def test_clustering_fine_tuning_adp_sweeps_z_and_saves_each_partition(tmp_path, monkeypatch):
+    input_dir, viz_dir, _ = _write_three_group_matrix(tmp_path)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+    output_root = tmp_path / "cl_out"
+    cfg_path = _adp_config(tmp_path, input_dir, viz_dir, output_root, fine_tuning=True, session_name="tune1", save_tuning_clusterings=True)
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (output_root / "tuning" / "adp" / "raw").iterdir() if p.is_dir())
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert list(results["Z"]) == [0.5, 1.65, 4.0]
+    assert {"silhouette", "n_clusters_found", "largest_cluster_share", "ari_vs_prev_z", "id_2nn"} <= set(results.columns)
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
+    npz = np.load(tuning_dir / "clusterings.npz")
+    assert set(npz.files) == {"Z=0.5", "Z=1.65", "Z=4.0"}  # the key format the explorer notebook's crosstab/ARI helpers read
+    assert (output_root / "tuning" / "adp" / "runs_tuning.csv").is_file()
+
+
+def test_clustering_adp_without_dadapy_fails_loudly_not_with_a_raw_traceback(tmp_path, monkeypatch, caplog):
+    input_dir, viz_dir, _ = _write_three_group_matrix(tmp_path)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+    monkeypatch.setitem(sys.modules, "dadapy", None)
+    cfg_path = _adp_config(tmp_path, input_dir, viz_dir, tmp_path / "cl_out", fine_tuning=False, session_name="run1")
+
+    with caplog.at_level(logging.ERROR):
+        assert clustering.main(["--config", str(cfg_path)]) == 1
+
+    assert "separate environment" in caplog.text
+
+
+@requires_dadapy
+def test_clustering_fine_tuning_adp_metric_and_z_sweep_writes_one_line_per_metric_and_keyed_partitions(tmp_path, monkeypatch):
+    input_dir, viz_dir, _ = _write_three_group_matrix(tmp_path)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+    output_root = tmp_path / "cl_out"
+    cfg_path = _adp_config(tmp_path, input_dir, viz_dir, output_root, fine_tuning=True, session_name="tune2", save_tuning_clusterings=True)
+    params = json.loads((tmp_path / "params_clustering.json").read_text())
+    params["adp"]["tuning_grid"] = {"metric": ["dice", "euclidean"], "Z": [1.65, 4.0]}
+    (tmp_path / "params_clustering.json").write_text(json.dumps(params))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (output_root / "tuning" / "adp" / "raw").iterdir() if p.is_dir())
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert list(zip(results["metric"], results["Z"])) == [("dice", 1.65), ("dice", 4.0), ("euclidean", 1.65), ("euclidean", 4.0)]
+    assert results.loc[results["metric"] == "euclidean", "calinski_harabasz"].notna().all()
+    assert results.loc[results["metric"] == "dice", "calinski_harabasz"].isna().all()
+    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
+    assert set(np.load(tuning_dir / "clusterings.npz").files) == {"metric=dice,Z=1.65", "metric=dice,Z=4.0", "metric=euclidean,Z=1.65", "metric=euclidean,Z=4.0"}

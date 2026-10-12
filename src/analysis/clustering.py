@@ -14,6 +14,8 @@ import numpy as np
 from sklearn.cluster import HDBSCAN, AgglomerativeClustering, KMeans, SpectralClustering
 from sklearn.mixture import GaussianMixture
 
+from src.analysis.adp import adp_cluster
+
 
 def kmeans_cluster(X: np.ndarray, params: dict) -> np.ndarray:
     return KMeans(**params).fit_predict(X)
@@ -137,4 +139,5 @@ CLUSTERING_METHODS: dict[str, Callable[[np.ndarray, dict], np.ndarray]] = {
     "hdbscan": hdbscan_cluster,
     "spectral": spectral_cluster,
     "evidence_accumulation": evidence_accumulation_cluster,
+    "adp": adp_cluster,
 }

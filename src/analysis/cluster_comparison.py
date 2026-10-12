@@ -1,16 +1,15 @@
-"""Comparison of two clustering runs - feeds the "Confronto tra run" section in
-src/analysis/embedding_app.py.
+"""Comparison of two clustering runs - feeds the "Tra modalità" mode of the "Confronto" section in
+src/analysis/embedding_app.py (two clusters of the same run are compared in cluster_pair.py).
 
 Two runs are compared on the subjects they have in common: how much their partitions agree
 (ARI, NMI, homogeneity, completeness), where each cluster of one lands in the other (contingency
 table, as counts and as row/column percentages), whether the association is statistically real
-(chi-square test and standardized residuals), how pure each cluster is, and, when both runs live
-in the same embedding, how far apart their cluster centroids are.
+(chi-square test and standardized residuals) and how pure each cluster is.
 
-Which pairs of runs may be compared at all (same embedding, or same method on two modalities) is
+Which pairs of runs may be compared at all (same method and parameters on two modalities) is
 decided by src.analysis.embedding_app, which knows the run layout; this module only receives the
-two runs' metadata (and, for centroids, embeddings) and never reads from disk. The only registry
-read is the demographic profile, which lives in cluster_description.py.
+two runs' metadata and never reads from disk. The only registry read is the demographic profile,
+which lives in cluster_description.py.
 """
 
 from __future__ import annotations
@@ -22,7 +21,6 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from scipy import stats
-from scipy.spatial.distance import cdist
 from sklearn.metrics import (
     adjusted_rand_score,
     completeness_score,
@@ -68,15 +66,11 @@ AGREEMENT_SCALE: dict[str, tuple[float, float, float, float]] = {
 class AlignedRuns:
     """The two runs restricted to their common subjects, in run A's order.
 
-    positions_a/positions_b are the row positions of those subjects in each run's own
-    metadata (and embedding), so anything else stored per row can be aligned the same way.
     n_a/n_b are the runs' full sizes, kept so the intersection is always reported against them."""
 
     subject_ids: np.ndarray
     labels_a: np.ndarray
     labels_b: np.ndarray
-    positions_a: np.ndarray
-    positions_b: np.ndarray
     n_a: int
     n_b: int
 
@@ -137,12 +131,10 @@ def align_runs(metadata_a: pd.DataFrame, metadata_b: pd.DataFrame) -> AlignedRun
     _require_comparable_metadata(metadata_b, "B")
     left = pd.DataFrame({
         "subject_id": metadata_a["subject_id"].to_numpy(),
-        "position_a": np.arange(len(metadata_a)),
         "label_a": metadata_a[_CLUSTER_LABEL_COLUMN].to_numpy(),
     })
     right = pd.DataFrame({
         "subject_id": metadata_b["subject_id"].to_numpy(),
-        "position_b": np.arange(len(metadata_b)),
         "label_b": metadata_b[_CLUSTER_LABEL_COLUMN].to_numpy(),
     })
     merged = left.merge(right, on="subject_id", how="inner")
@@ -152,8 +144,6 @@ def align_runs(metadata_a: pd.DataFrame, metadata_b: pd.DataFrame) -> AlignedRun
         subject_ids=merged["subject_id"].to_numpy(),
         labels_a=merged["label_a"].to_numpy(),
         labels_b=merged["label_b"].to_numpy(),
-        positions_a=merged["position_a"].to_numpy(),
-        positions_b=merged["position_b"].to_numpy(),
         n_a=len(metadata_a),
         n_b=len(metadata_b),
     )
@@ -227,36 +217,6 @@ def cluster_centroids(embedding: np.ndarray, labels: np.ndarray) -> pd.DataFrame
     """Mean embedding coordinates of each cluster (rows: cluster label, columns dim0, dim1, ...)."""
     columns = [f"dim{i}" for i in range(embedding.shape[1])]
     return pd.DataFrame(embedding, columns=columns).assign(cluster_label=labels).groupby("cluster_label").mean()
-
-
-def centroid_distances(
-    embedding_a: np.ndarray, embedding_b: np.ndarray, aligned: AlignedRuns
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """(centroids of A, centroids of B, Euclidean distance between each pair of centroids), all
-    computed on the common subjects only.
-
-    Two runs claim to share an embedding because they were built from the same input; this checks
-    that the claim holds for the data, by comparing the coordinates of every common subject.
-    Raises ValueError if the embeddings differ in dimensionality or in any coordinate: a distance
-    between centroids of two different spaces would be a meaningless number."""
-    if embedding_a.shape[1] != embedding_b.shape[1]:
-        raise ValueError(
-            f"the two runs' embeddings have {embedding_a.shape[1]} and {embedding_b.shape[1]} dimensions: "
-            "not the same space, centroid distances are undefined"
-        )
-    common_a = embedding_a[aligned.positions_a]
-    common_b = embedding_b[aligned.positions_b]
-    if not np.allclose(common_a, common_b):
-        raise ValueError(
-            "the two runs are not in the same embedding: the common subjects have different coordinates, "
-            "centroid distances would compare two different spaces"
-        )
-    centroids_a = cluster_centroids(common_a, aligned.labels_a)
-    centroids_b = cluster_centroids(common_b, aligned.labels_b)
-    distances = pd.DataFrame(
-        cdist(centroids_a.to_numpy(), centroids_b.to_numpy()), index=centroids_a.index, columns=centroids_b.index
-    )
-    return centroids_a, centroids_b, distances
 
 
 def _text_color(fraction: float, diverging: bool) -> str:
