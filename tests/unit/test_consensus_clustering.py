@@ -1,6 +1,7 @@
 """Unit tests for src/analysis/consensus_clustering.py."""
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from src.analysis.consensus_clustering import (
@@ -12,6 +13,7 @@ from src.analysis.consensus_clustering import (
     compute_rsc_eigengap,
     run_monti_repeats,
     run_rsc_repeats,
+    subsampling_stability_ensemble,
     subsampling_stability_index,
 )
 
@@ -258,3 +260,101 @@ def test_compute_evidence_accumulation_convergence_rejects_non_positive_checkpoi
     X = _two_blobs()
     with pytest.raises(ValueError, match=">= 1"):
         compute_evidence_accumulation_convergence("kmeans", X, {"n_clusters": 2, "n_init": "auto"}, [0, 5])
+
+
+# --- subsampling_stability_ensemble ----------------------------------------
+
+
+def _three_blobs_with_labels(n_per_blob=40):
+    rng = np.random.default_rng(0)
+    X = np.vstack([rng.normal(loc=center, scale=0.2, size=(n_per_blob, 2)) for center in ([0, 0], [6, 6], [0, 6])])
+    return X, np.repeat([0, 1, 2], n_per_blob)
+
+
+def test_stability_ensemble_well_separated_blobs_recover_every_cluster():
+    X, labels = _three_blobs_with_labels()
+
+    result = subsampling_stability_ensemble("kmeans", X, {"n_clusters": 3, "n_init": "auto"}, labels, 0.8, n_repeats=6)
+
+    assert result.ari.shape == (6,)
+    assert (result.ari > 0.95).all()
+    assert (result.clusters["jaccard_mean"] > 0.95).all()
+    assert (result.clusters["dissolved_share"] == 0).all()
+    assert (result.clusters["n_present"] == 6).all()
+
+
+def test_stability_ensemble_names_the_unstable_cluster():
+    """One clean blob and two heavily overlapping ones: the per-cluster Jaccard singles out the
+    overlapping pair, which the global ARI (one number for the whole partition) cannot."""
+    rng = np.random.default_rng(0)
+    clean = rng.normal(loc=[0, 0], scale=0.2, size=(60, 2))
+    overlapping_1 = rng.normal(loc=[8, 0], scale=0.3, size=(60, 2))
+    overlapping_2 = rng.normal(loc=[8, 0.4], scale=0.3, size=(60, 2))
+    X = np.vstack([clean, overlapping_1, overlapping_2])
+    labels = np.repeat([0, 1, 2], 60)
+
+    result = subsampling_stability_ensemble("agglomerative", X, {"n_clusters": 3, "linkage": "ward"}, labels, 0.8, n_repeats=8)
+
+    assert result.clusters.loc[0, "jaccard_mean"] > 0.95
+    assert (result.clusters.loc[[1, 2], "jaccard_mean"] < 0.7).all()
+    assert result.clusters.loc[0, "dissolved_share"] == 0
+
+
+def test_stability_ensemble_uses_the_stored_labels_not_a_refit_of_the_full_data():
+    """Stored labels that are NOT what the method would produce on the full data: the reference
+    is still the stored partition, so the ARI against a refit is low. A refit-on-100% reference
+    (subsampling_stability_index) would have hidden this behind an ARI of ~1."""
+    X, _ = _three_blobs_with_labels()
+    arbitrary = np.arange(len(X)) % 3
+
+    result = subsampling_stability_ensemble("kmeans", X, {"n_clusters": 3, "n_init": "auto", "random_state": 0}, arbitrary, 0.8, n_repeats=4)
+
+    assert (result.ari < 0.1).all()
+
+
+def test_stability_ensemble_is_reproducible_for_a_seed():
+    X, labels = _three_blobs_with_labels()
+
+    first = subsampling_stability_ensemble("agglomerative", X, {"n_clusters": 3, "linkage": "ward"}, labels, 0.5, n_repeats=5, base_seed=7)
+    second = subsampling_stability_ensemble("agglomerative", X, {"n_clusters": 3, "linkage": "ward"}, labels, 0.5, n_repeats=5, base_seed=7)
+
+    np.testing.assert_array_equal(first.ari, second.ari)
+    pd.testing.assert_frame_equal(first.clusters, second.clusters)
+
+
+def test_stability_ensemble_cluster_missing_from_a_subsample_is_nan_not_zero():
+    X, labels = _three_blobs_with_labels(n_per_blob=30)
+    labels = labels.copy()
+    labels[0] = 3  # a cluster of one subject: absent from most subsamples at fraction 0.3
+
+    result = subsampling_stability_ensemble("agglomerative", X, {"n_clusters": 3, "linkage": "ward"}, labels, 0.3, n_repeats=12)
+
+    assert 0 < result.clusters.loc[3, "n_present"] < 12
+    assert result.clusters.loc[3, "n_present"] == result.clusters["n_present"].min()
+
+
+def test_stability_ensemble_noise_counts_in_the_ari_but_has_no_jaccard_row():
+    X, labels = _three_blobs_with_labels()
+    labels = labels.copy()
+    labels[:10] = -1
+
+    result = subsampling_stability_ensemble("agglomerative", X, {"n_clusters": 3, "linkage": "ward"}, labels, 0.8, n_repeats=3)
+
+    assert list(result.clusters.index) == [0, 1, 2]
+
+
+def test_stability_ensemble_rejects_bad_input():
+    X, labels = _three_blobs_with_labels()
+    params = {"n_clusters": 3, "n_init": "auto"}
+    with pytest.raises(ValueError, match="unknown clustering method"):
+        subsampling_stability_ensemble("nope", X, params, labels, 0.8, n_repeats=2)
+    with pytest.raises(ValueError, match="subsample_fraction"):
+        subsampling_stability_ensemble("kmeans", X, params, labels, 1.0, n_repeats=2)
+    with pytest.raises(ValueError, match="n_repeats"):
+        subsampling_stability_ensemble("kmeans", X, params, labels, 0.8, n_repeats=0)
+    with pytest.raises(ValueError, match="entries but X has"):
+        subsampling_stability_ensemble("kmeans", X, params, labels[:-1], 0.8, n_repeats=2)
+    with pytest.raises(ValueError, match="no non-noise cluster"):
+        subsampling_stability_ensemble("kmeans", X, params, np.full(len(X), -1), 0.8, n_repeats=2)
+    with pytest.raises(ValueError, match="too small"):
+        subsampling_stability_ensemble("kmeans", X[:4], params, labels[:4], 0.1, n_repeats=2)

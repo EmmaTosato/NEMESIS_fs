@@ -91,7 +91,7 @@ _EUCLIDEAN_SAFE_METRIC = frozenset({None, "euclidean"})
 _WARD_SAFE_METRICS = frozenset({"euclidean", "l2"})
 
 
-def _require_euclidean_compatible(combo_params: dict | None) -> None:
+def require_euclidean_compatible(combo_params: dict | None) -> None:
     if combo_params is None:
         return
     affinity = combo_params.get("affinity")
@@ -123,12 +123,12 @@ def compute_clustering_metrics(X: np.ndarray, labels: np.ndarray, combo_params: 
     rather than aborting the whole sweep - a bad hyperparameter combination is
     expected information in a tuning sweep, not a bug.
 
-    combo_params (optional, see _require_euclidean_compatible/docs/dev/models.md):
+    combo_params (optional, see require_euclidean_compatible/docs/dev/models.md):
     when given, raises ValueError upfront if it names a distance/affinity this
     function's Euclidean assumption doesn't hold for. None (default) skips the
     check - only run_clustering_tuning_sweep always knows combo_params to pass.
     """
-    _require_euclidean_compatible(combo_params)
+    require_euclidean_compatible(combo_params)
     labels = np.asarray(labels)
     noise_mask = labels == -1
     noise_fraction = float(noise_mask.sum()) / len(labels)
@@ -305,7 +305,7 @@ def compute_clustering_metrics_metric_aware(
 ) -> dict[str, float]:
     """Agglomerative-only counterpart of compute_clustering_metrics, for a `metric` that may not
     be euclidean (project-clustering-tuning-redesign memory, 26-08-26 - the redesign this
-    replaces compute_clustering_metrics's blanket `_require_euclidean_compatible` abort with,
+    replaces compute_clustering_metrics's blanket `require_euclidean_compatible` abort with,
     for agglomerative specifically): Silhouette is always computable for any metric
     (sklearn's silhouette_score accepts a metric string or "precomputed" - lesson #15, thread
     the same metric used for clustering into scoring), so it's always kept. Calinski-Harabasz/
