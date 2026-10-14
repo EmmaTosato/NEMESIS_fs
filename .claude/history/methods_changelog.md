@@ -8,6 +8,62 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 13-10-26 — cluster_interpretation: regressione logistica tolta dal notebook
+
+**Cosa è stato fatto**: la sezione "Regressione logistica" (§4: modello per cluster, grafico degli odds ratio, mappa di tutti i cluster) è stata tolta da `notebooks/post-results_analysis/cluster_interpretation.ipynb`. Con lei vanno via la lettura della lateralità da `lesion_metadata.csv` (serviva solo lì) e l'import di `cluster_vs_rest_regression`. `src/analysis/cluster_drivers.py` e i suoi test restano: li usa `cluster_pair.pair_regression`, cioè il confronto tra due cluster nell'app e nella Parte 4 di `clustering_comparison.ipynb`.
+
+**Perché**, sulla run `12-10_s1.4-vol_m_dice_nc10_k7_link_ward` (5845 soggetti, 7 cluster):
+- il modello completo (con NIHSS) stimava **2 cluster su 7**: il NIHSS manca per interi dataset (UCL-UK, 0%), quindi lo scarto dei mancanti lasciava 1579 soggetti su 5845, nessuno di UCL-UK;
+- il blocco clinico (età, sesso, dataset) ha AUC 0.54-0.59 e pseudo-R² 0.004-0.016: non aggiunge niente a quello che §2 e §3 già mostrano (effetti deboli o trascurabili);
+- il blocco anatomico (volume, lateralità, quote di localizzazione) ha AUC 0.88-1.00 e pseudo-R² 0.32-0.96: ricostruisce la partizione, cioè l'input del clustering, quindi non spiega nulla di esterno;
+- due cluster (1 e 6) erano rifiutati come "separazione perfetta" per una cella vuota (PASPORT assente dal cluster 1, SFB936 dal 6), non per una separazione vera;
+- la direzione era opposta alla domanda del progetto: prevedeva il cluster dalle variabili cliniche, mentre la domanda è se i cluster differiscono per esito clinico.
+
+**Alternative scartate**: tenere solo il modello clinico (non aggiunge informazione); dividere in due modelli clinico/anatomico con avvisi sulla circolarità (complessità senza guadagno).
+
+**Conseguenza ancora vera**: la domanda sul NIHSS resta aperta e va fatta con il cluster come predittore e il dataset come covariata (NIHSS ~ cluster + dataset), dentro i dataset che lo misurano, in una sezione a parte. Il campo sui livelli persi dopo lo scarto, il parametro `min_level_count` e i messaggi di rifiuto migliori proposti per `cluster_drivers.py` non sono stati implementati.
+
+---
+
+## 13-10-26 — cluster_interpretation §3 (cluster contro resto): stessa popolazione di §2, due gruppi di variabili, pari merito visibili
+
+**Cosa è stato adottato** nella sezione 3 di `notebooks/post-results_analysis/cluster_interpretation.ipynb`:
+- il «resto» sono gli altri cluster della run **senza il rumore HDBSCAN** (prima `frame`, rumore incluso); `-1` come cluster solleva;
+- **NIHSS e istruzione non testati** (stessa `NOT_TESTED_VARIABLES` di §2); le variabili di disconnessione solo sulle run sdc (prima testate sempre);
+- le variabili sono divise per origine in `BLOCK_OF`: **3.1 anagrafiche e di sito** (età, sesso, dataset) e **3.2 derivate dalla lesione o dal disconnettoma** (volume, quote di localizzazione, lato, sede dominante, disconnessione). Il 3.2 è presentato come descrizione del cluster, non come spiegazione;
+- una sola famiglia di correzione Benjamini-Hochberg per cluster, su 3.1 e 3.2 insieme; nelle tabelle si mostra solo `p_fdr`, non il `p` grezzo (come in §2);
+- **una variabile con due sole categorie ha una riga sola** (la prima in ordine alfabetico, es. sesso = F): l'altra era lo stesso test con odds ratio rovesciato e p identico, e contava due volte nella correzione (cluster 0 di `12-10_s1.4-vol_m_dice_nc10_k7_link_ward`: 28 test invece di 27);
+- colonna `lettura` per `r` con le stesse parole di §2 (trascurabile < 0.1, debole < 0.3, moderato < 0.5, forte; convenzioni di Cohen per r); le variabili con categorie non ne hanno, la differenza tra le due quote è già la misura;
+- colonna `pari_merito` accanto a `r`: la quota di coppie (soggetto del cluster, soggetto fuori) con lo stesso valore. Il massimo di |r| è 1 meno questa quota. Cluster 0 di `12-10_s1.4-vol_m_dice_nc10_k7_link_ward`: `loc_infratentorial` 75% di pari merito (tetto 0.25, r = −0.149), `loc_subcortical_gray` 6%.
+
+**Correzione al testo**: «(r+1)/2 è la probabilità che un soggetto del cluster superi uno esterno» è vera solo contando i pari merito per metà (la U di scipy li conta 0.5); il testo ora lo dice.
+
+**Alternative scartate**: una sezione 3.3 con tutti i cluster in una mappa (non voluta); una famiglia di correzione separata per gruppo; normalizzare r per il suo tetto (cambierebbe il significato della grandezza).
+
+**Conseguenza ancora vera**: non c'è l'intervallo di confidenza dell'odds ratio, e `r` si ordina ancora per |r| (colonna `pari_merito` da leggere insieme). Le funzioni stanno nel notebook, non in `src/`.
+
+---
+
+## 13-10-26 — cluster_interpretation §2: effetto prima del p-value, NIHSS e istruzione non testati
+
+**Cosa è stato adottato** nella sezione "Associazione con variabili cliniche e anatomiche" di `notebooks/post-results_analysis/cluster_interpretation.ipynb`:
+- accanto a ogni test una **dimensione dell'effetto con la sua lettura**: ε² = H/(n−1) per il Kruskal-Wallis (trascurabile < 0.01, debole < 0.06, moderato < 0.14, forte oltre: soglie di η² di Cohen 1988), V di Cramér per il chi-quadro;
+- la V si legge con le soglie di Cohen 0.1/0.3/0.5 **divise per √d**, d = min(righe, colonne) − 1. Prima si usava la scala di una tabella 2×2 su tabelle 7×2…7×8. Sulla run `12-10_s1.4-vol_m_dice_nc10_k7_link_ward` cambia solo `dataset` (V = 0.089: da trascurabile a debole);
+- si mostra solo il **p-value corretto (FDR)**, non il p grezzo né H/χ²;
+- tolta la quota di celle attese < 5 e il suo avviso;
+- **NIHSS e istruzione non testati** (restano nelle tabelle descrittive e di copertura): mancano per interi dataset, NIHSS 0% in UCL-UK (4119 soggetti su 5853), istruzione assente in 5 dataset su 8 (15% di copertura), quindi il test confronterebbe anche mix di siti. Le variabili non testate e il motivo sono in `NOT_TESTED_VARIABLES`, stampato a ogni run;
+- **controllo di sensibilità senza UCL-UK** per età e sesso (`SENSITIVITY_VARIABLES`, `SENSITIVITY_EXCLUDED_DATASET`): lo stesso test su 1726 soggetti. Sulla run `12-10_s1.4-vol_m_dice_nc10_k7_link_ward` età ε² 0.012 → 0.015 (debole in entrambi), sesso V 0.089 → 0.114 (la lettura passa da trascurabile a debole perché la soglia è 0.10: i due numeri sono vicini);
+- **i test non scartano cluster in silenzio**: Kruskal-Wallis e chi-quadro sollevano se un cluster non ha nessun dato sulla variabile, e il controllo senza UCL-UK confronta gli stessi cluster del test principale (altrimenti perdere un cluster intero cambierebbe la domanda senza dirlo);
+- tabelle descrittive: una tabella di **copertura** (soggetti con il dato e quota sul cluster, con la riga "Tutti i cluster"; una variabile a cui mancano al più `MAX_MISSING_LISTED` = 10 soggetti non è nella tabella ma ha una riga di avviso, con gli id di chi manca), poi media ± sd **e** mediana [Q1–Q3] senza l'n nelle celle. Le quote delle categoriche sono sui soli soggetti con il dato.
+
+**Perché**: con 5845 soggetti il p-value è quasi sempre minuscolo (età p = 3·10⁻¹¹ con ε² = 0.012, volume ε² = 0.132): da solo non distingue un effetto trascurabile da uno grande. Il p corretto resta perché a pari effetto distingue 856 soggetti (istruzione, p = 0.13, ε² = 0.011) da 5000.
+
+**Alternative scartate**: tenere l'avviso sulle celle attese < 5 (riguarda l'affidabilità del p, non l'effetto; con χ² = 8188 su `location_dominant` nessuna lettura cambia); soglia minima di 30 soggetti per cluster per il test sul NIHSS (nessun cluster sarebbe stato escluso, e non risolve la mancanza per sito); imputare NIHSS e istruzione (nei dataset che non le hanno mai misurate non c'è informazione da cui imputare: si inventerebbe il dato del 70% della coorte).
+
+**Conseguenza ancora vera**: §3 (cluster contro resto) e §4 (regressione) usano ancora il NIHSS, e `kruskal_by_cluster` scarta ancora in silenzio i cluster senza dati validi (rimandato). Il NIHSS merita un'analisi dedicata (dentro i dataset che lo misurano, con il dataset come covariata), in una sezione a parte. Le funzioni stanno nel notebook, non in `src/`.
+
+---
+
 ## 08-10-26 — Agglomerative: griglia `metric` riaperta (euclidean, cosine, manhattan) sugli embedding s1.4-vol
 
 **Cosa è stato adottato**: il tuning di agglomerative sui 6 embedding UMAP di s1.4-vol (`{dice,euclidean}` x `n_components` 2/3/10) usa `metric` ∈ {`euclidean`, `cosine`, `manhattan`} invece del solo `euclidean`. Sono 290 combinazioni valide per embedding (29 `n_clusters` da 2 a 30 x 4 linkage; 116 euclidean, 87 cosine, 87 manhattan): `ward` esiste solo con `euclidean`, le altre 58 combinazioni sono saltate. Le 6 run con il solo `euclidean` (116 combinazioni, stesso giorno, 16:49-17:07) sono state sostituite con `overwrite: true`: cartelle riscritte (`results/lesion/clustering/tuning/agglomerative/umap/08-10_s1.4-vol_*`) e le 6 righe vecchie tolte da `runs_tuning.csv` di agglomerative (14 righe prima e dopo: 8 delle sessioni precedenti + le 6 nuove, una per output). HDBSCAN non è stato rilanciato: la sua griglia non cambia.
