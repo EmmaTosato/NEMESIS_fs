@@ -88,7 +88,7 @@ flowchart LR
         direction TB
         R14["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
         R24["s2.4-vol<br/>sdc_matrix<br/>07-10<br/>5845 subj."]
-        R25["s2.4-stream<br/>sdc_matrix<br/>07-10<br/>5831 subj."]
+        R25["s2.4-stream<br/>sdc_matrix<br/>07-10<br/>5831 subj.<br/>87 tratti"]
         R14R["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
         R24R["s2.4-vol<br/>sdc_matrix<br/>07-10<br/>5845 subj."]
         R25R["s2.4-stream<br/>sdc_matrix<br/>07-10<br/>5831 subj."]
@@ -98,7 +98,7 @@ flowchart LR
         direction TB
         T14["07-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10"]
         T24["07-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
-        T25["non ancora lanciata"]:::pending
+        T25["no dim reduction"]
         T14R["no dim reduction"]
         T24R["no dim reduction"]
         T25R["no dim reduction"]
@@ -106,9 +106,9 @@ flowchart LR
 
     subgraph COL2["Dim Reduction — Production"]
         direction TB
-        P14["non ancora lanciata"]:::pending
-        P24["non ancora lanciata"]:::pending
-        P25["non ancora lanciata"]:::pending
+        P14["08-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<hr/>12-10<br/>UMAP dice nc2<br/>n_neighbors 50<br/>(gemello 2D di nc10,<br/>solo per la vista)"]
+        P24["08-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
+        P25["14-10<hr/>UMAP euclidean nc2<br/>(solo per la vista)"]
         P14R["no dim reduction"]
         P24R["no dim reduction"]
         P25R["no dim reduction"]
@@ -116,9 +116,9 @@ flowchart LR
 
     subgraph COL3["Clustering — Tuning"]
         direction TB
-        CT14["non ancora lanciata"]:::pending
-        CT24["non ancora lanciata"]:::pending
-        CT25["non ancora lanciata"]:::pending
+        CT14["08-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<br/>agglomerative, HDBSCAN"]
+        CT24["09-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>agglomerative, HDBSCAN"]
+        CT25["09-10<hr/>raw<br/>87 tratti<br/>agglomerative, HDBSCAN"]
         CT14R["08-10<hr/>raw dice/euclidean<br/>221955 voxel<br/>ADP"]
         CT24R["08-10<hr/>raw dice/euclidean<br/>291345 voxel<br/>ADP"]
         CT25R["08-10<hr/>raw dice/euclidean<br/>87 tratti<br/>ADP"]
@@ -126,19 +126,25 @@ flowchart LR
 
     subgraph COL4["Clustering — Production"]
         direction TB
-        CP14["non ancora lanciata"]:::pending
-        CP24["non ancora lanciata"]:::pending
-        CP25["non ancora lanciata"]:::pending
-        CP14R["non ancora lanciata"]:::pending
-        CP24R["non ancora lanciata"]:::pending
-        CP25R["non ancora lanciata"]:::pending
+        CP14["12-10<hr/>UMAP dice/euclidean<br/>nc2/nc10<br/>agglomerative ward: 23 run<br/>HDBSCAN: 40 run<br/>(67 run)"]
+        CP24["12-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>agglomerative: 14 run<br/>HDBSCAN: 7 run<br/>(21 run)"]
+        CP25["14-10<hr/>raw<br/>87 tratti<br/>agglomerative average/cosine: 7 run<br/>HDBSCAN: 6 run<br/>(13 run)"]
+        CP14R["12-10<hr/>raw dice<br/>221955 voxel<br/>ADP Z 2.5-4.0<br/>(4 run)"]
+        CP24R["12-10<hr/>raw dice<br/>291345 voxel<br/>ADP Z 2.0-3.5<br/>(4 run)"]
+        CP25R["14-10<hr/>raw dice<br/>87 tratti<br/>ADP Z 2.5-6.0<br/>(6 run)"]
     end
 
-    R14 --> T14 -.-> P14 -.-> CT14 -.-> CP14
-    R24 --> T24 -.-> P24 -.-> CT24 -.-> CP24
-    R25 -.-> T25 -.-> P25 -.-> CT25 -.-> CP25
-    R14R --> T14R --> P14R --> CT14R -.-> CP14R
-    R24R --> T24R --> P24R --> CT24R -.-> CP24R
-    R25R --> T25R --> P25R --> CT25R -.-> CP25R
+    R14 --> T14 --> P14 --> CT14 --> CP14
+    R24 --> T24 --> P24 --> CT24 --> CP24
+    R25 --> T25 --> P25 --> CT25 --> CP25
+    R14R --> T14R --> P14R --> CT14R --> CP14R
+    R24R --> T24R --> P24R --> CT24R --> CP24R
+    R25R --> T25R --> P25R --> CT25R --> CP25R
 ```
 
+## Notes
+- **Produzione di clustering, 12-10 e 14-10:** 111 run. Per ogni matrice si sono prodotti i candidati "buoni" e "discreti" del tuning del 12-10 ([`clustering/s1_tuning.md`](clustering/s1_tuning.md), [`clustering/s2_tuning.md`](clustering/s2_tuning.md)); i diari sono [`clustering/s1_production.md`](clustering/s1_production.md) e [`clustering/s2_production.md`](clustering/s2_production.md).
+- **s1.4-vol:** `agglomerative` con `ward`/`euclidean` (7 k per dice nc2, 7 per dice nc10, 3 per euclidean nc2, 6 per euclidean nc10) e HDBSCAN (una run per riga della griglia con 8-20 cluster: 14, 12, 5, 9). `ADP` solo con metrica `dice`.
+- **s2.4-vol:** `ward` su nc2 e `average` su nc10 (l'unico linkage con k stabili); le 7 righe HDBSCAN non sono stabili.
+- **s2.4-stream:** gira sulla matrice grezza, senza embedding in ingresso. L'UMAP del 14-10 serve solo a disegnare i cluster; le 6 righe HDBSCAN hanno il 71-83% di rumore.
+- **Vista 2D delle run su più di 3 componenti** (nc10 e matrici grezze): sono disegnate su un embedding 2D gemello, indicato in `viz_embedding_path` del loro `config.md` (vedi `docs/guides/embedding_app.md`). Il gemello di dice nc10 è l'UMAP dice nc2 del 12-10 con `n_neighbors=50`, diverso dal dice nc2 scelto dal tuning (`n_neighbors=100`).

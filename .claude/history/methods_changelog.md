@@ -8,6 +8,21 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 13-10-26 — clustering_evaluation: purezza dei vicini, nullo e stabilità ripetuta (funzioni in `src/` e notebook)
+
+**Cosa è stato aggiunto** (`clustering_evaluation.py`, `consensus_clustering.py`): `per_cluster_silhouette` (micro, macro, minimo e quota di negativi per cluster), `null_reference_silhouette` (silhouette osservata contro lo stesso metodo rifittato su dati senza cluster, nullo `gaussian` o `permute`), `knn_purity` (quota dei k vicini nello stesso cluster, su matrice di distanze precalcolata), `subsampling_stability_ensemble` (n ripetizioni di sottocampione contro le etichette salvate, ARI e Jaccard per cluster).
+
+**Perché** (misurato su `s1.4-vol`):
+- La silhouette di adp con distanza dice è inutilizzabile: l'84,3% delle coppie di soggetti ha distanza esattamente 1 (nessun voxel in comune). Run `Z25`: silhouette 0,03, ma 89% dei 30 vicini nello stesso cluster contro il 21% atteso a caso. Decisione: per adp si tiene la purezza dei vicini, non la silhouette. Il `silhouette` di `tuning_results.csv` e `silhouette_plot.png` per adp usano la stessa distanza dice e hanno lo stesso limite; non sono stati toccati.
+- Una silhouette assoluta non dice se c'è struttura: ward k=3/9/20 su nuvole senza cluster dà 0,39/0,23/0,28 (gaussiano) o 0,33/0,16/0,37 (colonne permutate), contro 0,68/0,52/0,48 osservate. A k=20 su 2 componenti il margine è 0,195 con il nullo gaussiano e 0,112 con quello permutato: il tipo di nullo cambia la lettura, quindi vanno riportati entrambi.
+- La stabilità con un solo seed nasconde la dispersione: ward k=9, 100 ripetizioni, ARI medio 0,920, sd 0,061, intervallo 0,741–0,990. A k=20 (2 componenti) l'ARI medio è 0,732 e i cluster 7 e 18 si dissolvono (Jaccard < 0,5) nell'85% e 90% delle ripetizioni: informazione che l'ARI globale non dà.
+
+**Alternative scartate**: per adp, una silhouette su distanza tagliata ai soli vicini (non è la metrica con cui adp decide); come riferimento della stabilità, il rifit sul 100% (non è detto che riproduca le etichette salvate; `subsampling_stability_index` lo fa e resta per `clustering_tuning_explorer`).
+
+**Conseguenza ancora vera**: `knn_purity` risolve i pareggi a distanza uguale con il valore atteso sotto scelta casuale, non per posizione, e riporta `tied_share`; i cluster con k o meno membri non sono valutabili. Il registro `EVALUATIONS` ha due voci nuove (`null_reference` tutti i metodi tranne adp, `knn_purity` solo adp); `geometric_metrics` non include più adp: il notebook lo valuta con la purezza dei vicini (sezione 2.3), la stabilità con `N_REPEATS = 100` (`ADP_N_REPEATS = 3` per adp, non cronometrato: `dadapy` manca nell'ambiente `nemesis`) e un avviso stampato quando il rumore supera `NOISE_WARNING_FRACTION = 0.10`. Nella stabilità di hdbscan un cluster vicino a `min_cluster_size` ottiene Jaccard 0 perché il parametro è un conteggio assoluto (run `03-09_s1.2-vol mcs200_ms5`: cluster da 209 e 239 soggetti); non è corretto scalando il parametro.
+
+---
+
 ## 13-10-26 — cluster_interpretation: regressione logistica tolta dal notebook
 
 **Cosa è stato fatto**: la sezione "Regressione logistica" (§4: modello per cluster, grafico degli odds ratio, mappa di tutti i cluster) è stata tolta da `notebooks/post-results_analysis/cluster_interpretation.ipynb`. Con lei vanno via la lettura della lateralità da `lesion_metadata.csv` (serviva solo lì) e l'import di `cluster_vs_rest_regression`. `src/analysis/cluster_drivers.py` e i suoi test restano: li usa `cluster_pair.pair_regression`, cioè il confronto tra due cluster nell'app e nella Parte 4 di `clustering_comparison.ipynb`.
@@ -61,6 +76,67 @@ Voci in ordine cronologico inverso.
 **Alternative scartate**: tenere l'avviso sulle celle attese < 5 (riguarda l'affidabilità del p, non l'effetto; con χ² = 8188 su `location_dominant` nessuna lettura cambia); soglia minima di 30 soggetti per cluster per il test sul NIHSS (nessun cluster sarebbe stato escluso, e non risolve la mancanza per sito); imputare NIHSS e istruzione (nei dataset che non le hanno mai misurate non c'è informazione da cui imputare: si inventerebbe il dato del 70% della coorte).
 
 **Conseguenza ancora vera**: §3 (cluster contro resto) e §4 (regressione) usano ancora il NIHSS, e `kruskal_by_cluster` scarta ancora in silenzio i cluster senza dati validi (rimandato). Il NIHSS merita un'analisi dedicata (dentro i dataset che lo misurano, con il dataset come covariata), in una sezione a parte. Le funzioni stanno nel notebook, non in `src/`.
+
+---
+
+## 14-10-26 — Produzione clustering s2.4-stream: HDBSCAN "meno peggio" incluso su richiesta, UMAP 2D creato solo per la vista
+
+**Cosa è stato adottato**: 19 run sulla matrice grezza s2.4-stream (7 agglomerative `average`/`cosine` k=3-9; 6 HDBSCAN; 6 ADP `dice` Z = 2.5-6.0). Criterio "buoni e discreti" come s1.4/s2.4-vol, con due scostamenti:
+- **HDBSCAN**: nessuna riga è usabile (rumore 71-83%); sono state prodotte lo stesso le 6 righe "meno peggio" con 8-20 cluster, su richiesta. Descrivono il 17-29% dei soggetti. **Alternativa scartata**: non produrre HDBSCAN per lo streamline.
+- **ADP Z=5.0 e 6.0** (9 e 7 cluster): inclusi perché hanno 7-20 cluster e un cluster più grande sotto il 60%, senza averli letti nel report del tuning.
+
+**UMAP 2D**: per il grafico e per Dash serviva una vista con gli stessi 5831 soggetti. È stato creato `14-10_s2.4-stream_m_euclidean_nc2` (`n_neighbors=15`, `min_dist=0.0`, come quello di s2.3-stream), senza tuning. **Alternativa scartata**: usare l'UMAP di s2.3-stream (5838 soggetti, altro ordine) o produrre senza grafici (e poi dover rifare le run).
+
+**Conseguenza ancora vera**: l'UMAP è solo una vista; i cluster sono calcolati sui 87 tratti. Altri linkage (ward, complete) hanno solo k parziali instabili e non sono stati prodotti.
+
+---
+
+## 12-10-26 — Produzione clustering s2.4-vol (SDC voxelwise): stesso criterio "buoni e discreti" di s1.4, con HDBSCAN non stabile incluso
+
+**Cosa è stato adottato**: 25 run (14 agglomerative, 7 HDBSCAN, 4 ADP dice) scelte dal tuning del 12-10-26 con lo stesso criterio di s1.4-vol:
+- agglomerative: nc2 `ward` k = 5, 7, 9, 13, 15, 18; nc10 `average` k = 3, 6, 7, 8, 10, 13, 14, 15 (average perché è l'unico linkage con k stabili su nc10);
+- HDBSCAN: le 7 righe usabili con 8-20 cluster;
+- ADP: `dice`, Z = 2.0, 2.5, 3.0, 3.5 (16, 9, 7, 7 cluster).
+
+**Differenza con s1.4**: su SDC **nessuna riga HDBSCAN è stabile** (ARI minimo 0.12-0.30 al sottocampionamento). Le 7 run sono state prodotte lo stesso, per coerenza con s1.4 e perché lo scopo è descrivere i soggetti, non dichiarare sottotipi. **Alternativa scartata**: escluderle (17-18 run).
+
+**Conseguenza ancora vera**:
+- ADP Z=3.0 e Z=3.5 sono la stessa partizione (7 cluster, ARI ~1): la seconda è un duplicato, tenuto per simmetria con s1.4.
+- Z=4.0 (5 cluster) e Z=5.0 (3 cluster) sono "buoni" nel tuning ma non sono stati prodotti: l'intervallo scelto è 7-20 cluster.
+- Una run ADP su SDC dura circa 48 minuti e copia 6.3 GB: `production/adp` pesa 25 GB. Ogni Z ricalcola le distanze dice, anche se cambia solo il taglio.
+
+---
+
+## 12-10-26 — Embedding Explorer: run con più di 3 componenti disegnate sul gemello 2D, centroidi nello spazio del clustering
+
+**Cosa è stato adottato**: una run `clustering.py` il cui `matrix.npy` non è 2D/3D (clusterizzata su un UMAP a 10 componenti o su una matrice grezza) si disegna sulle coordinate dell'embedding gemello registrato nel suo `config.md` (`viz_embedding_path`), con una nota sotto il grafico. Prima risultava "non mostrabile". Il gemello viene ricontrollato (2D/3D, stessi soggetti nello stesso ordine) a ogni apertura.
+
+Il centroide di un cluster e il suo soggetto reale più vicino (cerchio nel grafico, pannello "Soggetto rappresentativo") si calcolano nello **spazio del clustering** (le 10 componenti), e il cerchio sta sulla posizione disegnata di quel soggetto. **Alternativa scartata**: la media delle coordinate disegnate. In 2D la media di un cluster non è il suo centro nello spazio dove i cluster sono stati calcolati, e il "più vicino" cambia (test: stessi punti, rappresentante diverso).
+
+**Eccezione**: una run su matrice grezza (ADP su 221955 colonne, metrica dice) non ha uno spazio dove la media sia coerente con la metrica del clustering, quindi i centroidi restano calcolati sulle coordinate disegnate.
+
+**Conseguenza ancora vera**: il disegno non è la geometria del clustering. Due cluster vicini nel disegno possono essere lontani nelle 10 componenti, e viceversa. Il gemello di dice nc10 è `12-10_s1.4-vol_m_dice_nc2` (`n_neighbors=50`), non il dice nc2 scelto dal tuning (`n_neighbors=100`).
+
+---
+
+## 12-10-26 — Produzione clustering s1.4-vol: candidati "buoni e discreti", non un solo k
+
+**Cosa è stato adottato**: la produzione di s1.4-vol (lesione) comprende 67 run, scelte dal tuning del 12-10-26 con un criterio a due livelli, **buono + discreto**:
+- agglomerative: `ward`/`euclidean`, k nei livelli "buono" e "parziale" del tuning fino a k=20 (23 run: dice nc2 7, dice nc10 7, euclidean nc10 6, euclidean nc2 3);
+- HDBSCAN: ogni riga "usabile" (3-30 cluster, rumore ≤ 25%, cluster più grande ≤ 60%) con 8-20 cluster (40 run);
+- ADP: `dice`, Z = 2.5, 3.0, 3.5, 4.0 (7-17 cluster, 4 run).
+
+Perché: lo stesso di `docs/experiments/clustering/s1_production.md` (01-09-26): nessun criterio interno indica un k solo e k non è separabile da `n_components`, quindi si tengono aperte più risoluzioni. Un k non stabile resta una partizione valida per descrivere i soggetti: non sostiene "esistono N sottotipi".
+
+**Alternative scartate**:
+- solo i k "buoni" (circa 13 run per s1.4-vol): lascia fuori le risoluzioni intermedie su cui si vuole guardare come si divide un gruppo grande;
+- una sola riga HDBSCAN per numero di cluster (24 run invece di 40): scelta di quale riga è "la migliore" non necessaria, ma molte righe condividono la stessa partizione (ARI ≥ 0.995 tra le righe a 8 cluster dei dice), quindi le 40 non sono 40 letture indipendenti;
+- ADP `euclidean`: degenere su ogni Z (un cluster al 93-99% dei soggetti).
+
+**Conseguenza ancora vera**:
+- Le 19 run su dice nc10 usano come vista 2D `12-10_s1.4-vol_m_dice_nc2` (UMAP dice nc2 con `n_neighbors=50`, `min_dist=0.0`), creato solo per visualizzarle: è il gemello di dice nc10. Il dice nc2 "tuned" (`08-10_s1.4-vol_m_dice_nc2`, `n_neighbors=100`) resta quello per cui si clusterizza su nc2. I due hanno lo stesso tag `m_dice_nc2` e differiscono solo per data e `n_neighbors`: non confonderli.
+- I parametri di ogni run stanno in `config.md`/`runs.csv`, ma `params_file` nel `config.md` punta a un file temporaneo: `params_clustering.json` non è stato toccato.
+- Non è stata fatta nessuna scelta sul lato lesionale (fattore di disturbo o risultato): l'input è quello di s1.4-vol, senza riflessione.
 
 ---
 

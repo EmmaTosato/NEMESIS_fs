@@ -16,6 +16,31 @@
 
 ---
 
+## 14-10-2026 — s2.4-stream
+
+### UMAP 2D solo per visualizzare i clustering sulla matrice grezza
+
+##### Input
+- s2.4-stream
+- Dati raw: matrice SDC streamline, 5831 soggetti × 87 tratti, `data/derived/sdc_matrix/07-10_s2.4-stream`
+
+##### Metodi
+umap
+
+##### Obiettivo
+- Fornire le coordinate 2D su cui disegnare i clustering dello streamline, che girano sulla matrice grezza (nessun embedding). Non è una scelta del tuning: nessun tuning UMAP è stato fatto su s2.4-stream
+
+##### Risultati
+
+| metric | n_neighbors | min_dist | n_components | Link |
+| --- | --- | --- | --- | --- |
+| euclidean | 15 | 0.0 | 2 | [config.md](../../../results/sdc/dim_reduction/production/umap/14-10_s2.4-stream_m_euclidean_nc2/config.md) |
+
+- Stessi parametri dell'UMAP di s2.3-stream (`30-09_s2.3-stream_m_euclidean_nc2`), che ha 5838 soggetti in un altro ordine e non è usabile per s2.4
+- Durata: 14 secondi
+
+---
+
 ## 08-10-2026 — s2.4-vol
 
 ### Produzione UMAP su SDC voxel-wise, coorte allargata (n=5845)

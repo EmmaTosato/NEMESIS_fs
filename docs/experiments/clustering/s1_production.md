@@ -16,6 +16,65 @@
 
 ---
 
+## 12-10-2026 — s1.4-vol
+
+### Produzione ampia dopo il tuning: k buoni e discreti, tutte le righe HDBSCAN usabili con 8-20 cluster
+
+##### Input
+- s1.4-vol, 5845 soggetti
+- Embedding: UMAP `{dice, euclidean}` x `n_components` 2/10, path `08-10_s1.4-vol_m_{dice,euclidean}_nc{2,10}` in `results/lesion/dim_reduction/production/umap/`
+- ADP sulla matrice grezza `data/derived/lesion_matrix/07-10_s1.4-vol` (5845 x 221955)
+- Parametri scelti dal tuning del 12-10-2026 ([`s1_tuning.md`](s1_tuning.md))
+
+##### Metodi
+agglomerative, hdbscan, adp
+
+##### Obiettivo
+- Produrre i cluster di tutti i candidati "buoni" e "discreti" del tuning, non un solo k: ogni run è una lettura a una risoluzione diversa
+- **Buono** = criteri del [README dei report](../../../results/reports/cluster_tuning_notebooks/README.md). **Discreto** = agglomerative "parziale" (stabile oppure almeno 2 segnali degli indici), HDBSCAN "usabile" (3-30 cluster, rumore ≤ 25%, cluster più grande ≤ 60%), ADP con plateau meno netto
+- Un k non stabile resta una partizione valida per descrivere i soggetti, ma non sostiene "esistono N sottotipi"
+
+##### Risultati
+
+67 run, tutte concluse; 67 righe in `runs.csv` di ciascun metodo, nessun duplicato.
+
+| Metodo | Parametri | Input | Run | Cluster | Link |
+| --- | --- | --- | --- | --- | --- |
+| agglomerative | `linkage=ward, metric=euclidean`, k = 3, 6, 8, 11, 13, 16, 20 | dice nc2 | 7 | k | [runs.csv](../../../results/lesion/clustering/production/agglomerative/runs.csv) |
+| agglomerative | k = 3, 4, 5, 7, 8, 9, 17 | dice nc10 | 7 | k | stesso |
+| agglomerative | k = 3, 7, 11 | euclidean nc2 | 3 | k | stesso |
+| agglomerative | k = 3, 4, 5, 6, 8, 10 | euclidean nc10 | 6 | k | stesso |
+| hdbscan | 8 cluster: 100/{1,5,10,20}, 75/{10,20}; 9: 50/20; 10: 30/20; 11: 10/20, 15/20, 20/20; 18: 75/1; 19: 75/5; 20: 50/10 | dice nc2 | 14 | 8-20, rumore 0.6-12.7% | [runs.csv](../../../results/lesion/clustering/production/hdbscan/runs.csv) |
+| hdbscan | 8: 100/{1,5,10,20}, 75/20; 10: 50/10, 50/20; 11: 30/20; 14: 75/5, 75/10; 17: 75/1; 20: 30/10 | dice nc10 | 12 | 8-20, rumore 0.3-13.6% | stesso |
+| hdbscan | 11: 100/10; 12: 100/1; 14: 75/10; 15: 75/5; 19: 75/1 | euclidean nc2 | 5 | 11-19, rumore 10.9-13.6% | stesso |
+| hdbscan | 12: 100/20; 14: 100/5, 75/20; 15: 100/1, 100/10; 16: 75/10; 19: 50/20, 75/5; 20: 75/1 | euclidean nc10 | 9 | 12-20, rumore 12.7-19.6% | stesso |
+| adp | `metric=dice`, Z = 2.5, 3.0, 3.5, 4.0 | matrice grezza | 4 | 17, 15, 12, 7 | [runs.csv](../../../results/lesion/clustering/production/adp/runs.csv) |
+
+Dentro ogni tabella la sigla è `min_cluster_size/min_samples`. Le cartelle di output sono `<dd-mm>_s1.4-vol_<embedding>_<tag>` sotto `production/<metodo>/umap/` (`raw/` per ADP).
+
+**Quali sono "buoni" e quali "discreti"** (dal tuning):
+- agglomerative buoni: dice nc2 k=3; dice nc10 k=3, 4, 5, 7; euclidean nc10 k=3, 4, 5. Gli altri k sono discreti (euclidean nc2 non ha nessun k buono)
+- HDBSCAN buone: dice nc2 8 delle 11 righe con 8-11 cluster (non buone: 100/1, 10/20, 15/20); dice nc10 le 5 righe con 8 cluster; euclidean nc10 tutte tranne 100/1 e 100/10. Le altre sono discrete; euclidean nc2 non ne ha di buone
+- ADP: Z=3.0 buono, Z=2.5, 3.5, 4.0 usabili. Stabilità per sottocampionamento non calcolata
+
+**Controlli sulle run:**
+- Agglomerative: il k nel nome coincide col numero di cluster ottenuto in tutte le 23
+- HDBSCAN: numero di cluster e quota di rumore coincidono con la riga di tuning in tutte le 40
+- ADP: 17, 15, 12, 7 cluster come nel tuning; Z=3.0 ha 4 cluster grandi (1886, 1422, 1180, 165) e 11 piccoli, il più piccolo di 2 soggetti
+- Ward k=3 su euclidean nc10: 3437 / 1187 / 1221 soggetti, come nel report del tuning
+- `cluster_plot.png` e `silhouette_plot.png`: presenti in tutte le 67 run. Le 19 run su dice nc10 sono state rifatte (`overwrite`) con `viz_embedding_path` = `12-10_s1.4-vol_m_dice_nc2`, un UMAP dice 2D con `n_neighbors=50` e `min_dist=0.0` creato apposta (gemello di dice nc10; il dice nc2 scelto dal tuning ha `n_neighbors=100`, quindi il controllo di coerenza lo rifiutava). I cluster non cambiano (le run sono deterministiche). Le 19 righe vecchie di `runs.csv` sono state tolte, restano quelle nuove
+
+##### Decisioni
+- Prodotte tutte le righe HDBSCAN con 8-20 cluster, non una per numero di cluster: 40 run invece di 24. Molte righe condividono la stessa partizione (per esempio le 5-6 righe a 8 cluster dei dice, ARI tra loro ≥ 0.995), quindi non sono 40 letture indipendenti
+- ADP solo con `metric=dice`: l'euclidean è degenere su ogni Z (un cluster al 93-99% dei soggetti)
+- Il lato lesionale non è stato trattato: l'input è invariato, non riflesso. I cluster puri per lato sono attesi (il lato è calcolato dalla maschera) e non confermano nulla di indipendente
+
+##### Note
+- I parametri di ogni run sono scritti in `config.md` e `runs.csv` (`Params used`), ma `params_file` nel `config.md` punta a un file temporaneo, non a `config/registry/params_clustering.json`: il registro del repo non è stato modificato
+- Ogni run ADP copia `matrix.npy` (1.2 GB): `production/adp` pesa 4.8 GB
+
+---
+
 ## 03-09-2026 — s1.2-vol
 
 ### Stesso schema (A-C/E-F) su coorte estesa, parametri da s1_tuning.md

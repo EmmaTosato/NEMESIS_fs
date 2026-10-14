@@ -46,6 +46,107 @@ _s2.1-schaefer-200-tian-s2 è ferma al tuning (vedi `s2_tuning.md`), in attesa d
 
 ---
 
+## 14-10-2026 — s2.4-stream
+
+### Produzione dopo il tuning: k buoni e discreti, HDBSCAN meno peggio con 8-20 cluster
+
+##### Input
+- s2.4-stream (SDC streamline), matrice grezza 5831 soggetti × 87 tratti, `data/derived/sdc_matrix/07-10_s2.4-stream` (nessun embedding in ingresso)
+- Vista 2D (solo per i grafici e per Dash): UMAP `14-10_s2.4-stream_m_euclidean_nc2`, creato apposta ([`dim_reduction/s2_production.md`](../dim_reduction/s2_production.md))
+- Parametri scelti dal tuning del 12-10-2026 ([`s2_tuning.md`](s2_tuning.md)); stesso criterio "buono + discreto" di [`s1_production.md`](s1_production.md)
+
+##### Metodi
+agglomerative, hdbscan, adp
+
+##### Obiettivo
+- Produrre i cluster dei candidati "buoni" e "discreti" del tuning, ognuno come lettura a una risoluzione diversa
+
+##### Risultati
+
+19 run, tutte concluse; righe di `runs.csv` e cartelle di output coincidono (7 + 6 + 6, nessun duplicato).
+
+| Metodo | Parametri | Run | Cluster | Link |
+| --- | --- | --- | --- | --- |
+| agglomerative | `linkage=average, metric=cosine`, k = 3, 4, 5, 6, 7, 8, 9 | 7 | k | [runs.csv](../../../results/sdc/clustering/production/agglomerative/runs.csv) |
+| hdbscan | 15/10, 30/1, 10/10, 20/5, 15/5, 20/1 | 6 | 8, 9, 11, 11, 14, 18 (rumore 70.9-82.9%) | [runs.csv](../../../results/sdc/clustering/production/hdbscan/runs.csv) |
+| adp | `metric=dice`, Z = 2.5, 3.0, 3.5, 4.0, 5.0, 6.0 | 6 | 19, 16, 14, 12, 9, 7 | [runs.csv](../../../results/sdc/clustering/production/adp/runs.csv) |
+
+HDBSCAN: sigla `min_cluster_size/min_samples`. Le cartelle di output sono `<dd-mm>_s2.4-stream_<tag>` sotto `production/<metodo>/raw/`.
+
+**Quali sono "buoni" e quali "discreti"** (dal tuning):
+- agglomerative: k=3 buono (ARI 0.964, minimo 0.889), k=4-9 parziali. Gli altri linkage non hanno k stabili e non sono stati prodotti
+- HDBSCAN: **nessuna riga è usabile**; sono le 6 "meno peggio" con 8-20 cluster, scelte su richiesta. Il 71-83% dei soggetti è rumore, quindi descrivono solo il 17-29% della coorte: nuclei densi di lesioni piccole e code di lesioni molto grandi. I cluster sono stabili (ARI senza rumore 0.92-0.99), non il rumore
+- ADP: Z=2.5, 3.0, 3.5 buoni (plateau); Z=4.0, 5.0, 6.0 usabili con 12, 9, 7 cluster, non letti nel report. Stabilità per sottocampionamento non calcolata
+
+**Controlli sulle run:**
+- Agglomerative: il k nel nome coincide col numero di cluster; k=3 ha 3013, 2518 e 300 soggetti, come nel report
+- HDBSCAN e ADP: numero di cluster e rumore coincidono con la riga di tuning in tutte le 12
+- `cluster_plot.png` e `silhouette_plot.png` presenti in tutte le 19, disegnati sull'UMAP 2D creato apposta; tutte si aprono in Dash
+
+##### Decisioni
+- HDBSCAN prodotto anche senza righe usabili, su richiesta: le 6 righe con 8-20 cluster, nonostante il rumore
+- Il lato lesionale non è stato trattato: l'input è invariato, e i cluster puri per lato sono attesi (average/cosine k=3 separa sinistre, destre e infratentoriali)
+- In questo spazio i cluster ricalcano lato, volume e sede infratentoriale (dal report del tuning), non una struttura nuova
+
+##### Note
+- La vista 2D non è lo spazio del clustering (87 tratti): l'UMAP euclidean serve solo per disegnare. Come nelle altre sessioni, `params_file` nel `config.md` punta a un file temporaneo; il registro del repo non è stato modificato
+
+---
+
+## 12-10-2026 — s2.4-vol
+
+### Produzione ampia dopo il tuning: k buoni e discreti, righe HDBSCAN usabili con 8-20 cluster
+
+##### Input
+- s2.4-vol (SDC voxelwise), 5845 soggetti
+- Embedding: UMAP `euclidean`, `n_neighbors=15`, `min_dist=0.0`, n_components 2 e 10, path `08-10_s2.4-vol_m_euclidean_nc{2,10}` in `results/sdc/dim_reduction/production/umap/`
+- ADP sulla matrice grezza `data/derived/sdc_matrix/07-10_s2.4-vol` (5845 x 291345)
+- Parametri scelti dal tuning del 12-10-2026 ([`s2_tuning.md`](s2_tuning.md)); stesso criterio "buono + discreto" di [`s1_production.md`](s1_production.md)
+
+##### Metodi
+agglomerative, hdbscan, adp
+
+##### Obiettivo
+- Produrre i cluster di tutti i candidati "buoni" e "discreti" del tuning, ognuno come lettura a una risoluzione diversa
+- Un k non stabile resta una partizione valida per descrivere i soggetti, ma non sostiene "esistono N sottotipi"
+
+##### Risultati
+
+25 run, tutte concluse; righe di `runs.csv` e cartelle di output coincidono (14 + 7 + 4, nessun duplicato).
+
+| Metodo | Parametri | Input | Run | Cluster | Link |
+| --- | --- | --- | --- | --- | --- |
+| agglomerative | `linkage=ward, metric=euclidean`, k = 5, 7, 9, 13, 15, 18 | euclidean nc2 | 6 | k | [runs.csv](../../../results/sdc/clustering/production/agglomerative/runs.csv) |
+| agglomerative | `linkage=average, metric=euclidean`, k = 3, 6, 7, 8, 10, 13, 14, 15 | euclidean nc10 | 8 | k | stesso |
+| hdbscan | 100/10, 75/10, 50/10 | euclidean nc2 | 3 | 14, 16, 20 (rumore 9.1-12.3%) | [runs.csv](../../../results/sdc/clustering/production/hdbscan/runs.csv) |
+| hdbscan | 75/5, 75/10, 75/20, 50/10 | euclidean nc10 | 4 | 8, 8, 11, 19 (rumore 1.4-13.3%) | stesso |
+| adp | `metric=dice`, Z = 2.0, 2.5, 3.0, 3.5 | matrice grezza | 4 | 16, 9, 7, 7 | [runs.csv](../../../results/sdc/clustering/production/adp/runs.csv) |
+
+HDBSCAN: sigla `min_cluster_size/min_samples`. Le cartelle di output sono `<dd-mm>_s2.4-vol_<embedding>_<tag>` sotto `production/<metodo>/umap/` (`raw/` per ADP).
+
+**Quali sono "buoni" e quali "discreti"** (dal tuning):
+- agglomerative buoni: nc2 k=5 (ward); nc10 k=8, 13, 14, 15 (average). Gli altri k sono discreti
+- HDBSCAN: **nessuna riga è buona**. Sono righe "usabili" (3-30 cluster, rumore ≤ 25%, cluster più grande ≤ 60%) con 8-20 cluster, ma l'ARI minimo al sottocampionamento è 0.12-0.30
+- ADP: Z=3.0 e 3.5 buoni (stessa partizione, 7 cluster), Z=2.0 e 2.5 usabili. Stabilità per sottocampionamento non calcolata. Z=4.0 (5 cluster) e Z=5.0 (3 cluster) sono buoni ma fuori dall'intervallo 7-20, quindi non prodotti
+
+**Controlli sulle run:**
+- Agglomerative: il k nel nome coincide col numero di cluster ottenuto in tutte le 14
+- HDBSCAN: numero di cluster e rumore coincidono con la riga di tuning in tutte le 7
+- ADP: 16, 9, 7, 7 cluster come nel tuning; Z=3.0 ha 2705, 2321, 195, 188, 166, 142, 128 soggetti, come nel report
+- `cluster_plot.png` e `silhouette_plot.png` presenti in tutte le 25. Le 12 run su nc10 sono disegnate sul gemello `08-10_s2.4-vol_m_euclidean_nc2` (stessi parametri tranne `n_components`); le 4 ADP sullo stesso embedding nc2
+- Tutte le 25 si aprono in Dash (le run su nc10 e ADP sul loro gemello 2D, con la nota in calce)
+
+##### Decisioni
+- Prodotte tutte le righe HDBSCAN usabili con 8-20 cluster (7 run) pur non essendo stabili, per coerenza con s1.4; vanno lette come descrizioni, non come struttura
+- ADP solo con `metric=dice`, Z=3.5 incluso anche se dà la stessa partizione di Z=3.0 (per coerenza con s1.4, non perché aggiunga informazione)
+- Il lato lesionale non è stato trattato: l'input è invariato, e i cluster puri per lato sono attesi
+
+##### Note
+- Ogni run ADP dura circa 48 minuti (ricalcola le distanze dice su 291345 colonne) e copia `matrix.npy` (6.3 GB): `production/adp` pesa 25 GB
+- Come per s1.4, `params_file` nel `config.md` punta a un file temporaneo; il registro del repo non è stato modificato e i parametri veri sono in `config.md` e `runs.csv`
+
+---
+
 ## 10-09-2026 — s2.2-vol
 
 ### 5 opzioni di k in esplorazione

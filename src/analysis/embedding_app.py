@@ -45,6 +45,7 @@ docstring.
 from __future__ import annotations
 
 import io
+import json
 import logging
 import re
 import threading
@@ -118,7 +119,14 @@ from src.analysis.plotting import (
     _palette_for_labels,
     compose_embedding_plot_title,
 )
-from src.utils.artifacts import MANIFEST_FILENAME, load_matrix, read_run_config, read_run_params
+from src.utils.artifacts import (
+    MANIFEST_FILENAME,
+    MATRIX_FILENAME,
+    METADATA_FILENAME,
+    load_matrix,
+    read_run_config,
+    read_run_params,
+)
 
 _CLUSTER_LABEL_COLUMN = COLOR_MODES["cluster_label"].column
 
@@ -855,29 +863,119 @@ class UndisplayableRunError(ValueError):
     columns carry no importance ordering, so a slice is an arbitrary cut, not a summary)."""
 
 
-def load_run(run: ProductionRun) -> tuple[np.ndarray, pd.DataFrame]:
-    """Loads `run`'s embedding + metadata via load_matrix, raising UndisplayableRunError (not
-    silently slicing) if the saved embedding has other than 2 or 3 columns."""
-    embedding, metadata, _extra_arrays = load_matrix(run.path)
-    n_dims = embedding.shape[1]
-    if n_dims not in (2, 3):
-        # AUDIT_FINDINGS.md #43/#44: this message used to always point at dim_reduction.py's
-        # viz_n_components, even for a clustering.py run - clustering.py has no such config
-        # field (it never reduces dimensionality itself, see docs/dev/models.md's
-        # "reduced_data (declarative-only)" section) and rerunning it would leave matrix.npy's
-        # dimensionality unchanged either way, so that advice would not fix anything there.
-        if run.pipeline == "dim_reduction":
-            fix_hint = "rerun dim_reduction.py with viz_n_components 2 or 3, or pick a different run"
-        else:
-            fix_hint = (
-                f"{run.pipeline}.py does not reduce dimensionality itself - point its input_path at an "
-                "already-2-or-3-component matrix (e.g. a dim_reduction.py production embedding), or pick a different run"
-            )
+def _matrix_shape(run: ProductionRun) -> tuple[int, ...]:
+    """The saved matrix's shape, read from manifest.json without loading matrix.npy - a
+    clustering.py run on a raw matrix (ADP on a 5845 x 221955 lesion matrix is 1.2 GB) must not
+    be read in full just to learn that it is not 2D/3D."""
+    manifest = json.loads((run.path / MANIFEST_FILENAME).read_text())
+    return tuple(manifest["matrix_shape"])
+
+
+def _viz_twin_path(run: ProductionRun) -> Path | None:
+    """The `viz_embedding_path` recorded in a clustering.py run's own config.md - the 2D/3D
+    twin embedding clustering.py already validated as a twin of this run's input (same
+    reduction method and params except n_components, same subjects in the same order, see
+    clustering.py::_resolve_viz_embedding) when the run was written. None when the run was
+    written without one (a legitimate, recorded case: no usable twin existed). Relative paths
+    are relative to the working directory, same as every other path in the run's config.md."""
+    if run.pipeline != "clustering":
+        return None
+    raw = read_run_config(run.path).get("viz_embedding_path")
+    return None if raw is None else Path(raw)
+
+
+def _load_viz_twin(run: ProductionRun, twin_path: Path, metadata: pd.DataFrame) -> np.ndarray:
+    """Loads the twin embedding for a clustering run that cannot be displayed directly,
+    checking again (the twin could have been moved or rewritten since the run was made) that
+    it is 2D/3D and covers exactly this run's subjects in this run's order - a mismatch would
+    draw every cluster label on the wrong subject with no error to notice it by."""
+    try:
+        twin_embedding, twin_metadata, _extra_arrays = load_matrix(twin_path)
+    except FileNotFoundError as exc:
         raise UndisplayableRunError(
-            f"Run {run.path} has a saved embedding with {n_dims} components - this app can only display an "
-            f"already-2-or-3-component embedding: {fix_hint}."
+            f"Run {run.path} was made with viz_embedding_path={twin_path}, which can no longer be read: {exc}"
+        ) from exc
+    if twin_embedding.shape[1] not in (2, 3):
+        raise UndisplayableRunError(
+            f"Run {run.path}: viz_embedding_path {twin_path} has {twin_embedding.shape[1]} components, not 2 or 3"
         )
-    return embedding, metadata
+    if list(twin_metadata["subject_id"]) != list(metadata["subject_id"]):
+        raise UndisplayableRunError(
+            f"Run {run.path}: viz_embedding_path {twin_path} does not cover the same subjects in the same order "
+            "as the run - the cluster labels would be drawn on the wrong points"
+        )
+    return twin_embedding
+
+
+def load_run(run: ProductionRun) -> tuple[np.ndarray, pd.DataFrame]:
+    """Loads `run`'s embedding + metadata, raising UndisplayableRunError (not silently
+    slicing) if it cannot be shown as 2D/3D.
+
+    A run whose own matrix is 2D/3D is read from disk as is. A clustering.py run whose matrix
+    has any other number of columns (e.g. clustered on a 10-component UMAP, or on a raw
+    matrix) is shown on the coordinates of the twin embedding recorded in its own config.md
+    (`viz_embedding_path`): the points are where the twin puts them, the colors are the
+    clusters computed in the run's own space. view_note_for says so on the figure. Without a
+    recorded twin the run stays undisplayable."""
+    shape = _matrix_shape(run)
+    if len(shape) == 2 and shape[1] in (2, 3):
+        embedding, metadata, _extra_arrays = load_matrix(run.path)
+        return embedding, metadata
+
+    twin_path = _viz_twin_path(run)
+    if twin_path is not None:
+        metadata = pd.read_csv(run.path / METADATA_FILENAME)
+        return _load_viz_twin(run, twin_path, metadata), metadata
+
+    n_dims = shape[1]
+    # AUDIT_FINDINGS.md #43/#44: this message used to always point at dim_reduction.py's
+    # viz_n_components, even for a clustering.py run - clustering.py has no such config
+    # field (it never reduces dimensionality itself, see docs/dev/models.md's
+    # "reduced_data (declarative-only)" section) and rerunning it would leave matrix.npy's
+    # dimensionality unchanged either way, so that advice would not fix anything there.
+    if run.pipeline == "dim_reduction":
+        fix_hint = "rerun dim_reduction.py with viz_n_components 2 or 3, or pick a different run"
+    else:
+        fix_hint = (
+            f"{run.pipeline}.py does not reduce dimensionality itself - rerun it with a viz_embedding_path "
+            "(a 2D/3D twin of its input embedding, same params except n_components), or pick a different run"
+        )
+    raise UndisplayableRunError(
+        f"Run {run.path} has a saved embedding with {n_dims} components - this app can only display an "
+        f"already-2-or-3-component embedding: {fix_hint}."
+    )
+
+
+def view_note_for(run: ProductionRun) -> str | None:
+    """A one-line caveat for a run shown on a twin's coordinates (see load_run), None for a run
+    shown on its own matrix. The picture is not the space the clusters were computed in, and
+    the figure has to say so."""
+    shape = _matrix_shape(run)
+    if len(shape) == 2 and shape[1] in (2, 3):
+        return None
+    twin_path = _viz_twin_path(run)
+    if twin_path is None:
+        return None
+    return (
+        f"Vista 2D dell'embedding {twin_path.name}: non è lo spazio in cui sono calcolati i cluster "
+        f"({shape[1]} componenti). Posizioni dal gemello 2D, colori dai cluster."
+    )
+
+
+def load_cluster_space(run: ProductionRun) -> np.ndarray | None:
+    """The matrix a clustering.py run actually clustered, when it differs from what is drawn
+    (a run shown on a twin's coordinates, see load_run) and is itself an embedding
+    (`reduced_data` true): the centroid and its nearest subject have to be found there, not in
+    the 2D picture, where the mean of the drawn points is not the cluster's centre. None
+    otherwise: a run drawn on its own matrix, or one clustered on a raw matrix (ADP on a
+    221955-column lesion matrix), where a mean of binary columns would not be the metric
+    the clusters were computed with - those fall back to the drawn coordinates."""
+    shape = _matrix_shape(run)
+    if run.pipeline != "clustering" or (len(shape) == 2 and shape[1] in (2, 3)):
+        return None
+    if not read_run_config(run.path)["reduced_data"]:
+        return None
+    return np.load(run.path / MATRIX_FILENAME)
 
 
 def _color_label(mode_name: str) -> str | None:
@@ -1105,7 +1203,9 @@ _INDEX_STRING = f"""<!DOCTYPE html>
 </html>"""
 
 
-def _add_cluster_centroids_trace(figure: go.Figure, embedding: np.ndarray, metadata: pd.DataFrame) -> None:
+def _add_cluster_centroids_trace(
+    figure: go.Figure, embedding: np.ndarray, metadata: pd.DataFrame, cluster_space: np.ndarray | None = None
+) -> None:
     """Overlays a black-outlined circle + cluster_label text at each cluster's centroid
     (cluster_centroids_with_nearest_subject) on top of `figure`'s own point traces - same
     circled-centroid style as notebooks/post-results_analysis/clustering_evaluation.ipynb's
@@ -1121,7 +1221,7 @@ def _add_cluster_centroids_trace(figure: go.Figure, embedding: np.ndarray, metad
     column = COLOR_MODES["cluster_label"].column
     if column not in metadata.columns:
         return
-    centroids = cluster_centroids_with_nearest_subject(embedding, metadata)
+    centroids = cluster_centroids_with_nearest_subject(embedding, metadata, cluster_space)
     dim_columns = [c for c in centroids.columns if c.startswith("dim")]
     is_3d = len(dim_columns) == 3
     scatter_cls = go.Scatter3d if is_3d else go.Scatter
@@ -1189,7 +1289,13 @@ def graph_content_for(
         )
     except ValueError as exc:
         return html.P(str(exc), className="status-message")
-    _add_cluster_centroids_trace(figure, embedding, metadata)
+    _add_cluster_centroids_trace(figure, embedding, metadata, load_cluster_space(run))
+    note = view_note_for(run)
+    if note is not None:
+        figure.add_annotation(
+            text=note, xref="paper", yref="paper", x=0, y=-0.12, showarrow=False, xanchor="left",
+            font=dict(size=11, color="#555", family=_FONT_STACK),
+        )
 
     # modeBarButtons (not modeBarButtonsToRemove): an explicit whitelist survives 2D<->3D
     # unchanged (Plotly's default button set differs between them - a removal-list would need
@@ -1290,7 +1396,9 @@ def cluster_options(metadata: pd.DataFrame) -> list[int]:
     return sorted(int(value) for value in pd.unique(metadata[column]))
 
 
-def cluster_centroids_with_nearest_subject(embedding: np.ndarray, metadata: pd.DataFrame) -> pd.DataFrame:
+def cluster_centroids_with_nearest_subject(
+    embedding: np.ndarray, metadata: pd.DataFrame, cluster_space: np.ndarray | None = None
+) -> pd.DataFrame:
     """Per-cluster centroid (mean of that cluster's own embedding coordinates) plus the real
     subject_id closest to it in that same embedding space (Euclidean distance) - promoted
     29-09-26 from notebooks/post-results_analysis/clustering_evaluation.ipynb's own
@@ -1304,8 +1412,15 @@ def cluster_centroids_with_nearest_subject(embedding: np.ndarray, metadata: pd.D
     plotted), not the original pre-reduction feature space - consistent with where the
     centroid circle itself is drawn (see docs/dev/anatomical_maps.md).
 
+    `cluster_space` (a run shown on a twin's coordinates, see load_run/load_cluster_space): the
+    matrix the clusters were computed on. The centroid and the nearest real subject are then
+    found there, and the dim columns hold the *drawn* coordinates of that nearest subject (the
+    mean of the drawn points would not be the cluster's centre); distance_to_centroid is in
+    cluster_space.
+
     Returns one row per cluster_label, indexed by it, with columns dim0..dim{n-1} (centroid
-    coordinates), nearest_subject_id, distance_to_centroid.
+    coordinates, or the nearest subject's drawn coordinates with cluster_space),
+    nearest_subject_id, distance_to_centroid.
 
     Raises ValueError if `metadata` has no cluster_label column (only a clustering.py run has
     one - dim_reduction.py runs never reach this) or if `embedding`/`metadata` have mismatched
@@ -1315,6 +1430,8 @@ def cluster_centroids_with_nearest_subject(embedding: np.ndarray, metadata: pd.D
         raise ValueError(f"metadata has no {column!r} column - centroids only apply to a clustering.py run")
     if len(embedding) != len(metadata):
         raise ValueError(f"embedding has {len(embedding)} rows but metadata has {len(metadata)} - can't align them")
+    if cluster_space is not None and len(cluster_space) != len(metadata):
+        raise ValueError(f"cluster_space has {len(cluster_space)} rows but metadata has {len(metadata)} - can't align them")
 
     dim_columns = [f"dim{i}" for i in range(embedding.shape[1])]
     coords = pd.DataFrame(embedding, columns=dim_columns)
@@ -1323,12 +1440,19 @@ def cluster_centroids_with_nearest_subject(embedding: np.ndarray, metadata: pd.D
 
     rows = []
     for cluster_label, group in coords.groupby(column):
-        centroid = group[dim_columns].mean()
-        distances = np.linalg.norm(group[dim_columns].to_numpy() - centroid.to_numpy(), axis=1)
-        nearest_position = distances.argmin()
+        if cluster_space is None:
+            centroid = group[dim_columns].mean()
+            distances = np.linalg.norm(group[dim_columns].to_numpy() - centroid.to_numpy(), axis=1)
+            nearest_position = distances.argmin()
+            drawn = centroid
+        else:
+            members = cluster_space[group.index.to_numpy()]
+            distances = np.linalg.norm(members - members.mean(axis=0), axis=1)
+            nearest_position = distances.argmin()
+            drawn = group[dim_columns].iloc[nearest_position]
         rows.append({
             column: cluster_label,
-            **centroid.to_dict(),
+            **drawn.to_dict(),
             "nearest_subject_id": group["subject_id"].iloc[nearest_position],
             "distance_to_centroid": float(distances[nearest_position]),
         })
@@ -1776,7 +1900,7 @@ def representative_subject_content_for(
     unresolvable cluster, or a representative subject whose file can't be resolved on disk,
     renders an html.P status message instead of crashing the callback."""
     try:
-        centroids = cluster_centroids_with_nearest_subject(embedding, metadata)
+        centroids = cluster_centroids_with_nearest_subject(embedding, metadata, load_cluster_space(run))
     except ValueError as exc:
         return html.P(str(exc), className="status-message")
     if cluster_label not in centroids.index:
@@ -1794,7 +1918,7 @@ def representative_subject_content_for(
         return html.P(str(exc), className="status-message")
     return _anatomy_viewer(
         view, f"Cluster {cluster_label} — rappresentante: {subject_id} ({dataset})",
-        f"Soggetto reale più vicino al centroide del cluster nello spazio embedding (distanza={distance:.3f})",
+        f"Soggetto reale più vicino al centroide del cluster nello spazio del clustering (distanza={distance:.3f})",
     )
 
 
@@ -3660,7 +3784,7 @@ def build_app(
             raise PreventUpdate
         try:
             embedding, metadata = load_run(run)
-            centroids = cluster_centroids_with_nearest_subject(embedding, metadata)
+            centroids = cluster_centroids_with_nearest_subject(embedding, metadata, load_cluster_space(run))
             subject_id = centroids.loc[cluster_label, "nearest_subject_id"]
             if run.modality == "lesion":
                 view, _dataset = _build_subject_lesion_view(run, subject_id, metadata, lesion_cfg)
@@ -3690,7 +3814,7 @@ def build_app(
             raise PreventUpdate
         try:
             embedding, metadata = load_run(run)
-            centroids = cluster_centroids_with_nearest_subject(embedding, metadata)
+            centroids = cluster_centroids_with_nearest_subject(embedding, metadata, load_cluster_space(run))
             subject_id = centroids.loc[cluster_label, "nearest_subject_id"]
             dataset = _resolve_subject_dataset(metadata, subject_id)
             if run.modality == "lesion":

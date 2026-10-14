@@ -60,7 +60,7 @@ from src.analysis.embedding_app import (
     runs_matching,
     tag_param_options,
 )
-from src.utils.artifacts import save_matrix
+from src.utils.artifacts import load_matrix, save_matrix
 
 _LESION_AFFINE = np.eye(4) * 2
 _LESION_AFFINE[3, 3] = 1
@@ -129,6 +129,8 @@ def _make_run_dir(
     extra_metadata=None,
     reduction_metric="euclidean",
     reduction_n_components=2,
+    viz_embedding_path=None,
+    reduced_data=True,
 ):
     # clustering.py's own production tree has one extra <reduction_method> segment
     # (31-08-26) that dim_reduction.py's doesn't - default it here so every existing
@@ -165,6 +167,8 @@ def _make_run_dir(
         "reduction_method": reduction_method or "umap",
         "reduction_n_components": str(reduction_n_components),
         "reduction_metric": reduction_metric,
+        "viz_embedding_path": str(viz_embedding_path) if viz_embedding_path is not None else None,
+        "reduced_data": reduced_data,
     }
     readme_lines = [
         "# test run", "", "## Config", "```json", json.dumps(config_block), "```", "",
@@ -312,6 +316,128 @@ def test_load_run_undisplayable_clustering_run_does_not_suggest_viz_n_components
         load_run(ProductionRun("lesion", "clustering", "kmeans", "run-bad", run_dir))
     assert "viz_n_components" not in str(exc_info.value)
     assert "clustering.py does not reduce dimensionality" in str(exc_info.value)
+
+
+def _make_clustering_run_with_twin(results_root, twin_kwargs=None, **run_kwargs):
+    """A clustering run on 10 components plus its 2D twin (a dim_reduction run on the same four
+    subjects), the run's config.md pointing at the twin's directory."""
+    twin_dir = _make_run_dir(results_root, run_name="twin", n_dims=2, **(twin_kwargs or {}))
+    run_dir = _make_run_dir(
+        results_root, pipeline="clustering", method="ward", run_name="run-10d", n_dims=10,
+        extra_metadata={"cluster_label": [0, 0, 1, 1]}, viz_embedding_path=twin_dir, **run_kwargs,
+    )
+    return ProductionRun("lesion", "clustering", "ward", "run-10d", run_dir, reduction_method="umap"), twin_dir
+
+
+def test_load_run_clustering_on_10_components_is_drawn_on_the_twin_coordinates(tmp_path):
+    run, twin_dir = _make_clustering_run_with_twin(tmp_path / "results")
+
+    embedding, metadata = load_run(run)
+
+    twin_embedding, _twin_metadata, _ = load_matrix(twin_dir)
+    np.testing.assert_array_equal(embedding, twin_embedding)
+    assert embedding.shape == (4, 2)
+    assert list(metadata["cluster_label"]) == [0, 0, 1, 1]
+
+
+def test_load_run_rejects_a_twin_with_the_subjects_in_another_order(tmp_path):
+    """Same four subjects, different order: every cluster label would land on the wrong point."""
+    run, _twin_dir = _make_clustering_run_with_twin(
+        tmp_path / "results", twin_kwargs={"extra_metadata": {"subject_id": ["sub-4", "sub-3", "sub-2", "sub-1"]}},
+    )
+
+    with pytest.raises(UndisplayableRunError, match="same subjects in the same order"):
+        load_run(run)
+
+
+def test_load_run_rejects_a_twin_that_no_longer_exists(tmp_path):
+    run, twin_dir = _make_clustering_run_with_twin(tmp_path / "results")
+    import shutil
+    shutil.rmtree(twin_dir)
+
+    with pytest.raises(UndisplayableRunError, match="can no longer be read"):
+        load_run(run)
+
+
+def test_load_run_rejects_a_twin_that_is_not_2d_or_3d(tmp_path):
+    results_root = tmp_path / "results"
+    twin_dir = _make_run_dir(results_root, run_name="twin", n_dims=10)
+    run_dir = _make_run_dir(
+        results_root, pipeline="clustering", method="ward", run_name="run-10d", n_dims=10,
+        extra_metadata={"cluster_label": [0, 0, 1, 1]}, viz_embedding_path=twin_dir,
+    )
+
+    with pytest.raises(UndisplayableRunError, match="not 2 or 3"):
+        load_run(ProductionRun("lesion", "clustering", "ward", "run-10d", run_dir, reduction_method="umap"))
+
+
+def test_view_note_for_names_the_twin_only_when_the_run_is_drawn_on_it(tmp_path):
+    from src.analysis.embedding_app import view_note_for
+
+    run, twin_dir = _make_clustering_run_with_twin(tmp_path / "results")
+    direct_dir = _make_run_dir(tmp_path / "results", pipeline="clustering", method="ward", run_name="run-2d", n_dims=2)
+    direct = ProductionRun("lesion", "clustering", "ward", "run-2d", direct_dir, reduction_method="umap")
+
+    note = view_note_for(run)
+
+    assert twin_dir.name in note
+    assert "10 componenti" in note
+    assert view_note_for(direct) is None
+
+
+def test_load_cluster_space_is_the_clustered_matrix_only_for_an_embedding_drawn_on_a_twin(tmp_path):
+    from src.analysis.embedding_app import load_cluster_space
+
+    run, _twin_dir = _make_clustering_run_with_twin(tmp_path / "results")
+    raw_run, _ = _make_clustering_run_with_twin(tmp_path / "results_raw", reduced_data=False)
+    direct_dir = _make_run_dir(tmp_path / "results", pipeline="clustering", method="ward", run_name="run-2d", n_dims=2)
+    direct = ProductionRun("lesion", "clustering", "ward", "run-2d", direct_dir, reduction_method="umap")
+
+    space = load_cluster_space(run)
+
+    assert space.shape == (4, 10)
+    # A run clustered on a raw matrix, and one drawn on its own matrix, fall back to the drawn coordinates.
+    assert load_cluster_space(raw_run) is None
+    assert load_cluster_space(direct) is None
+
+
+def test_cluster_centroids_find_the_nearest_subject_in_the_clustering_space_not_in_the_drawing():
+    """In the drawing sub-a is the closest point to the mean of {a, b, c}; in the space the
+    clusters were computed in it is sub-c. With cluster_space the representative is sub-c and
+    the circle sits on sub-c's drawn position; without it the answer is the drawing's."""
+    drawn = np.array([[0.0, 0.0], [10.0, 0.0], [0.0, 10.0], [50.0, 50.0]])
+    space = np.array([[0.0, 0.0], [10.0, 0.0], [5.0, 0.0], [99.0, 99.0]])
+    metadata = pd.DataFrame({"subject_id": ["sub-a", "sub-b", "sub-c", "sub-d"], "cluster_label": [0, 0, 0, 1]})
+
+    in_drawing = cluster_centroids_with_nearest_subject(drawn, metadata)
+    in_space = cluster_centroids_with_nearest_subject(drawn, metadata, space)
+
+    assert in_drawing.loc[0, "nearest_subject_id"] == "sub-a"
+    assert in_space.loc[0, "nearest_subject_id"] == "sub-c"
+    assert (in_space.loc[0, "dim0"], in_space.loc[0, "dim1"]) == (0.0, 10.0)
+    # distance in the clustering space: sub-c (5, 0) to the mean (5, 0).
+    assert in_space.loc[0, "distance_to_centroid"] == pytest.approx(0.0)
+
+
+def test_cluster_centroids_rejects_a_cluster_space_with_another_row_count():
+    drawn = np.array([[0.0, 0.0], [1.0, 1.0]])
+    metadata = pd.DataFrame({"subject_id": ["sub-a", "sub-b"], "cluster_label": [0, 0]})
+
+    with pytest.raises(ValueError, match="cluster_space"):
+        cluster_centroids_with_nearest_subject(drawn, metadata, np.zeros((3, 10)))
+
+
+def test_graph_content_for_clustering_on_10_components_draws_the_twin_and_says_so(tmp_path):
+    run, twin_dir = _make_clustering_run_with_twin(tmp_path / "results")
+
+    graph = graph_content_for(run, "cluster_label")
+
+    figure = graph.figure
+    twin_embedding, _m, _ = load_matrix(twin_dir)
+    drawn_x = np.concatenate([np.asarray(trace.x, dtype=float) for trace in figure.data if trace.name != "centroide"])
+    np.testing.assert_array_equal(np.sort(drawn_x), np.sort(twin_embedding[:, 0]))
+    assert twin_dir.name in figure.layout.annotations[0].text
+    assert any(trace.name == "centroide" for trace in figure.data)
 
 
 def _embedding_and_metadata(n=4):
