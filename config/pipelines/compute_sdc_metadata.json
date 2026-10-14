@@ -17,7 +17,7 @@
     "ST"
   ],
 
-  "disconnectome_glob": "sdc/*/*_res-1_desc-disconnectome.nii.gz",
+  "disconnectome_glob": "bcbtoolkit/*/*_res-1_desc-disconnectome.nii.gz",
   "resample_interpolation": "nearest",
 
   "grids": {

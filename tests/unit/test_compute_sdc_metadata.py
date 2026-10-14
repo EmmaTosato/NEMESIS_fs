@@ -39,7 +39,7 @@ def _register(metadata_root, subject_id, has_sdc=True):
 
 
 def _make_map(data_root, subject_id, voxels):
-    subject_dir = data_root / _DATASET / "sdc" / subject_id
+    subject_dir = data_root / _DATASET / "bcbtoolkit" / subject_id
     subject_dir.mkdir(parents=True, exist_ok=True)
     volume = np.zeros(_SHAPE, dtype=np.float32)
     for index, probability in voxels.items():
@@ -68,7 +68,7 @@ def _write_config(tmp_path, data_root, output_path, overrides=None, grid_overrid
         "output_path": str(output_path),
         "datasets": [_DATASET],
         "group_filter": ["ST"],
-        "disconnectome_glob": "sdc/*/*_res-1_desc-disconnectome.nii.gz",
+        "disconnectome_glob": "bcbtoolkit/*/*_res-1_desc-disconnectome.nii.gz",
         "resample_interpolation": "nearest",
         "grids": {grid_name: grid},
         "overwrite": False,
@@ -208,7 +208,7 @@ def test_compute_sdc_metadata_corrupt_map_returns_1_not_a_traceback(tmp_path, mo
     compute_lesion_metadata (nib ImageFileError)."""
     _redirect_outputs(monkeypatch, tmp_path)
     data_root = _two_subjects(tmp_path, _isolated_registry)
-    broken = next((data_root / _DATASET / "sdc" / "sub-STUNIPD0002").glob("*.nii.gz"))
+    broken = next((data_root / _DATASET / "bcbtoolkit" / "sub-STUNIPD0002").glob("*.nii.gz"))
     broken.write_bytes(b"not a nifti")
     output_path = tmp_path / "sdc_metadata.csv"
     config_path = _write_config(tmp_path, data_root, output_path)

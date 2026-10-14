@@ -87,7 +87,7 @@ def _lesion_cfg(data_root):
     )
 
 
-_DISCONNECTOME_GLOB = "sdc/*/*_res-1_desc-disconnectome.nii.gz"
+_DISCONNECTOME_GLOB = "bcbtoolkit/*/*_res-1_desc-disconnectome.nii.gz"
 
 
 def _sdc_cfg(data_root):
@@ -99,7 +99,7 @@ def _sdc_cfg(data_root):
 
 
 def _make_disconnectome_subject(data_root, dataset, subject_id, voxel_values):
-    subject_dir = data_root / dataset / "sdc" / subject_id
+    subject_dir = data_root / dataset / "bcbtoolkit" / subject_id
     subject_dir.mkdir(parents=True, exist_ok=True)
     volume = np.zeros(_LESION_SHAPE, dtype=np.float32)
     for voxel, value in voxel_values.items():
@@ -1446,7 +1446,7 @@ def test_static_glass_brain_png_bytes_from_disconnectome_path_returns_valid_png(
     data_root = tmp_path / "data"
     _make_disconnectome_subject(data_root, "UNIPD/WashU", "sub-STUNIPD0001", {(1, 1, 1): 0.8})
     disconnectome_path = (
-        data_root / "UNIPD/WashU" / "sdc" / "sub-STUNIPD0001" / "sub-STUNIPD0001_res-1_desc-disconnectome.nii.gz"
+        data_root / "UNIPD/WashU" / "bcbtoolkit" / "sub-STUNIPD0001" / "sub-STUNIPD0001_res-1_desc-disconnectome.nii.gz"
     )
 
     png_bytes = _static_glass_brain_png_bytes(

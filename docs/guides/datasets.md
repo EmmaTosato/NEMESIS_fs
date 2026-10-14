@@ -14,7 +14,7 @@ Per rigenerarli: `notebooks/exploration/dataset_availability.ipynb` (esplorazion
 
 ## Le 6 coorti, in numeri
 
-| Dataset | Registro clinico (`participants_*.tsv`) | `manual_masks` | `sdc` | `features` (FC) | Griglia | Dettaglio |
+| Dataset | Registro clinico (`participants_*.tsv`) | `manual_masks` | `bcbtoolkit` | `features` (FC) | Griglia | Dettaglio |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | **`UCL-UK/UCLStrokeData`** | 4119 (4119 ST) | **4119** | 4119 | — | 1.0 mm | reticolo 2 mm |
 | **`UKLFR/stroke_UKLFR`** | 735 (735 ST) | 705 | 705 | — | 1.0 mm | reticolo 2 mm |
@@ -39,7 +39,7 @@ Lo stesso indice d'array è quindi un voxel fisico diverso (LAS e RAS sono specc
 
 ### ⚠️ La griglia è 1 mm per tutti, il dettaglio no
 
-`manual_masks/` non contiene segmentazioni disegnate a mano: è la lesione **già ricampionata da BCBToolKit** sulla propria griglia di lavoro a 1 mm, copiata dal `lesion-map` dell'output SDC e rinominata togliendo `res-1` (vedi anche `data/clinical_connectome/derivatives/README.md`, non versionato).
+`manual_masks/` non contiene segmentazioni disegnate a mano: è la lesione **già ricampionata da BCBToolKit** sulla propria griglia di lavoro a 1 mm, copiata dal `lesion-map` dell'output BCBToolKit (`bcbtoolkit/`) e rinominata togliendo `res-1` (vedi anche `data/clinical_connectome/derivatives/README.md`, non versionato).
 
 Un ricampionamento non crea dettaglio che non c'era. Per i dataset la cui segmentazione originale era a 2 mm, il risultato è un volume su griglia da 1 mm i cui voxel sono **costanti in blocchi 2x2x2 allineati** — ogni voxel originale replicato 8 volte. È questo che distingue le due colonne:
 
@@ -51,14 +51,14 @@ Verificato su **tutti e 5853** i soggetti, non a campione: per ciascuno si cerca
 
 **Perché conta.** `assets/metadata/lesion_metadata.csv` misura ogni maschera su due griglie, 1 mm e 2 mm, per distinguere una maschera vuota da una lesione minuscola persa nel sottocampionamento ([`docs/guides/metadata.md`](metadata.md)). Per i dataset a reticolo 2 mm il conteggio sulla griglia di produzione a 2 mm **ricostruisce esattamente** la maschera originale, quindi nessuna lesione può sparire e `lesion_volume_voxels_1mm` è esattamente `8 x lesion_volume_voxels_2mm`: non aggiunge informazione. La perdita per sottocampionamento è possibile **solo** per i 534 soggetti a 1 mm genuino — e infatti 2 dei 4 soggetti con volume 0 sulla griglia di produzione stanno in WAKEUP, con lesioni reali di 8 e 3 voxel.
 
-**UKLFR e WashU sono passati a 1mm il 23-09-26** (prima 1.5mm/2.0mm nativo): `manual_masks/` è stata ri-sincronizzata da una copia fresca della stessa sorgente usata per l'SDC (`Clinical_connectome_stroke/<dataset>/lesion/`, già a 1mm), che ora coincide esattamente con `sdc/` per questi due dataset (0 discrepanze, vedi sotto) invece di essere un sottoinsieme diverso. Il **dettaglio** attuale di entrambi è su reticolo 2 mm (vedi la nota sopra): la griglia a 1 mm viene da quel ricampionamento, non da una segmentazione a 1 mm.
+**UKLFR e WashU sono passati a 1mm il 23-09-26** (prima 1.5mm/2.0mm nativo): `manual_masks/` è stata ri-sincronizzata da una copia fresca della stessa sorgente usata per l'SDC (`Clinical_connectome_stroke/<dataset>/lesion/`, già a 1mm), che ora coincide esattamente con `bcbtoolkit/` per questi due dataset (0 discrepanze, vedi sotto) invece di essere un sottoinsieme diverso. Il **dettaglio** attuale di entrambi è su reticolo 2 mm (vedi la nota sopra): la griglia a 1 mm viene da quel ricampionamento, non da una segmentazione a 1 mm.
 
 ### Perché le colonne non coincidono
 
 Il registro clinico e i dati su disco rispondono a due domande diverse, e vanno tenute separate:
 
 - **Registro clinico** = quante persone sono arruolate nella coorte e hanno una riga di dati clinici. 
-- **`manual_masks`/`sdc`/`features`** = per quanti di quei soggetti abbiamo effettivamente quel tipo di dato in locale.
+- **`manual_masks`/`bcbtoolkit`/`features`** = per quanti di quei soggetti abbiamo effettivamente quel tipo di dato in locale.
 
 Le differenze non sono errori, sono la realtà del dato. Due esempi concreti:
 
@@ -71,7 +71,7 @@ Un soggetto per riga, con le colonne `has_lesion`/`has_sdc`/`has_features`, per 
 
 ### 2 dataset aggiuntivi, non ancora onboarded
 
-`UKE/SFB936_ses01` (56 soggetti) e `UNIPD/NEMESIS_T0` (76 soggetti) sono presenti in locale (`manual_masks/` + `sdc/` completo, 1mm, stesso schema di file degli altri) dal 23-09-26, ma **non fanno parte delle "6 coorti" sopra**: assenti da `config/registry/`, `assets/metadata/participants.csv` e dalla tabella dei tipi di dato sopra. Mancano ancora i `participants_*.tsv` clinici reali. Dettagli in `.claude/history/data_changelog.md` (23-09-26).
+`UKE/SFB936_ses01` (56 soggetti) e `UNIPD/NEMESIS_T0` (76 soggetti) sono presenti in locale (`manual_masks/` + `bcbtoolkit/` completo, 1mm, stesso schema di file degli altri) dal 23-09-26, ma **non fanno parte delle "6 coorti" sopra**: assenti da `config/registry/`, `assets/metadata/participants.csv` e dalla tabella dei tipi di dato sopra. Mancano ancora i `participants_*.tsv` clinici reali. Dettagli in `.claude/history/data_changelog.md` (23-09-26).
 
 ---
 
@@ -126,9 +126,9 @@ Due conseguenze pratiche, entrambe gestite in `docs/dev/metadata.md`:
 
 - **Disponibile solo per WashU** (225 soggetti: 169 ST + 56 HC). I 16 file per soggetto sono le 12 matrici FC (una per combinazione di atlante `Yan<n>TianS<n>Buckner7N`) più i sidecar di motion/outliers.
 
-### 4. Structural disconnectome — `sdc/` (34 file per soggetto)
+### 4. Output BCBToolKit: disconnettoma e lesione parcellati — `bcbtoolkit/` (34 file per soggetto)
 
-- Output Stage1+2 di BCBToolKit.
+- Output Stage1+2 di BCBToolKit: la cartella raccoglie sia le misure di disconnessione sia quelle sulla lesione, per questo si chiama come lo strumento che le produce.
 - I 34 file per soggetto: 
   - il volume di disconnessione voxel-wise (`res-1_desc-disconnectome.nii.gz`),
   - le parcellazioni per 15 atlanti (`LF-disconnectome_atlas-*.csv`),
@@ -172,7 +172,7 @@ tar -xzf ../<nome>_archive.tar.gz -C .
 
 | Tipo | Peso |
 | :--- | ---: |
-| `sdc/` (8 dataset, 5853 soggetti) | ~6.9 GB |
+| `bcbtoolkit/` (8 dataset, 5853 soggetti) | ~6.9 GB |
 | `features_archive.tar.gz` (i 215 soggetti WashU compressi) | 2.1 GB |
 | `features/` (solo WashU, i 10 soggetti in chiaro) | 222 MB |
 | `manual_masks/` (8 dataset, 5853 soggetti) | ~919 MB |

@@ -1,8 +1,8 @@
 # Guida al Matrix Building (Costruzione della Matrice SDC)
 
-Questa guida illustra come usare `build_sdc_matrix.py` per trasformare l'output SDC (`sdc/<subject_id>/*`, prodotto a monte da BCBToolKit) in una matrice numerica pronta per `dim_reduction.py` (Task 2), in una di tre **rappresentazioni** scelte dal campo `representation` della config:
+Questa guida illustra come usare `build_sdc_matrix.py` per trasformare l'output SDC (`bcbtoolkit/<subject_id>/*`, prodotto a monte da BCBToolKit) in una matrice numerica pronta per `dim_reduction.py` (Task 2), in una di tre **rappresentazioni** scelte dal campo `representation` della config:
 
-- **`parcellated`** (originale): un CSV per atlante già parcellato (`sdc/<subject_id>/*.csv`) → matrice **soggetti × regioni**, allineamento per **nome regione**, non per posizione (righe non in ordine stabile tra soggetti — verificato sui dati reali). A differenza di `build_lesion_matrix.py`, nessuna colonna viene mai scartata.
+- **`parcellated`** (originale): un CSV per atlante già parcellato (`bcbtoolkit/<subject_id>/*.csv`) → matrice **soggetti × regioni**, allineamento per **nome regione**, non per posizione (righe non in ordine stabile tra soggetti — verificato sui dati reali). A differenza di `build_lesion_matrix.py`, nessuna colonna viene mai scartata.
 - **`voxelwise`**: il `disconnectome-map` `.nii.gz` non ancora parcellato → matrice **soggetti × voxel**, stesso approccio di `build_lesion_matrix.py` (resampling su griglia comune), ma valori **continui** (probabilità di disconnessione 0-1), mai binarizzati. Colonne costanti (voxel fuori dal cervello di ogni soggetto ammesso) vengono scartate come in `build_lesion_matrix.py`.
 - **`streamline`**: il CSV `LF-lesion_atlas-yeh_hcp1065_streamline.csv` (colonne `tract,streamline_ratio`) → matrice **soggetti × tratti** (87 tratti di sostanza bianca), un valore per tratto: la quota di streamline di quel tratto colpite. Allineamento per **nome del tratto**; nessuna colonna scartata, come in `parcellated`. Nonostante la famiglia `LF-lesion` è una misura di disconnessione, quindi appartiene alla track `s2.x` (vedi [`data_sessions.md`](../experiments/data_sessions.md)).
 
@@ -53,7 +53,7 @@ Comuni a entrambe le modalità:
 | :--- | :--- |
 | **`project`** | Nome del progetto (es. `"clinical_connectome"`). |
 | **`data_root`** | Sede dei dati grezzi estratti (es. `"data/clinical_connectome/derivatives"`). |
-| **`datasets`** | Lista delle coorti da includere — solo quelle con `sdc/` (oggi tutti e 8 i dataset stroke: WashU, PASPORT, PSP, stroke_UKLFR, UCL-UK, UKE/WAKEUP_acute, NEMESIS_T0, SFB936_ses01; il CSV streamline `yeh_hcp1065_streamline` c'è per tutti). |
+| **`datasets`** | Lista delle coorti da includere — solo quelle con `bcbtoolkit/` (oggi tutti e 8 i dataset stroke: WashU, PASPORT, PSP, stroke_UKLFR, UCL-UK, UKE/WAKEUP_acute, NEMESIS_T0, SFB936_ses01; il CSV streamline `yeh_hcp1065_streamline` c'è per tutti). |
 | **`group_filter`** | Lista per filtrare i pazienti sani vs malati (`["ST"]` = solo stroke). `null` non applica filtri. |
 | **`object`** | `"disconnectome"` (probabilità di disconnessione) o `"lesion"` (proporzione di danno diretto, parcellata). Vincolato dalla `representation`: solo `"disconnectome"` con `"voxelwise"`, solo `"lesion"` con `"streamline"`. |
 | **`representation`** | `"parcellated"`, `"voxelwise"` o `"streamline"` — sceglie quali campi sotto sono richiesti. |
@@ -65,7 +65,7 @@ Solo per `representation: "parcellated"`:
 
 | Parametro | Descrizione |
 | :--- | :--- |
-| **`atlas`** | Uno degli atlanti disponibili in `sdc/` (es. `"schaefer_200_tian_s2"`), **uno per run**. |
+| **`atlas`** | Uno degli atlanti disponibili in `bcbtoolkit/` (es. `"schaefer_200_tian_s2"`), **uno per run**. |
 | **`value_column`** | Quale statistica per-regione estrarre: `"fraction_covered"`, `"mean_overlap"` (default consigliato), `"weighted_mean_overlap"`, `"sum_overlap"`, `"p90_overlap"`, `"p95_overlap"`. |
 | **`reference_labels_path`** | File con l'elenco autoritativo e fisso delle regioni per l'atlante scelto, es. `"assets/atlases/sdc_labels/schaefer_200_tian_s2.csv"` — vedi sotto per aggiungerne uno nuovo. |
 

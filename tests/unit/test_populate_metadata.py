@@ -68,7 +68,7 @@ def test_discover_subjects_on_disk_reports_empty_set_for_absent_data_type(tmp_pa
     found = pm.discover_subjects_on_disk(derivatives_dir)
 
     assert found["manual_masks"] == {"sub-STUNIPD0001"}
-    assert found["sdc"] == set()  # dataset simply doesn't have this tree - not an error
+    assert found["bcbtoolkit"] == set()  # dataset simply doesn't have this tree - not an error
     assert found["features"] == set()
 
 
@@ -115,7 +115,7 @@ def test_presence_columns_reflect_each_data_type_independently(tmp_path):
     source = _source(tmp_path)
     _write_tsv(source.participants_tsv, [{"participant_id": "sub-STUNIPD0001", "disease_id": "ST"}])
     _make_subject_dirs(source.derivatives_dir, "manual_masks", ["sub-STUNIPD0001"])
-    _make_subject_dirs(source.derivatives_dir, "sdc", ["sub-STUNIPD0001"])
+    _make_subject_dirs(source.derivatives_dir, "bcbtoolkit", ["sub-STUNIPD0001"])
 
     row = pm.build_dataset_outcome(_DATASET, source, group_filter=None).rows.iloc[0]
 

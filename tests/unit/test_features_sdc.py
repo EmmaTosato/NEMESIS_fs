@@ -53,7 +53,7 @@ def _make_sdc_csv(data_root, dataset, subject_id, object_, atlas, rows, value_co
     """rows: dict[region_name, value]. An empty dict writes a header-only CSV
     (real-world case: BCBToolKit produced zero disconnected regions for this
     subject/atlas - see docs/dev/sdc_matrix.md)."""
-    subject_dir = data_root / dataset / "sdc" / subject_id
+    subject_dir = data_root / dataset / "bcbtoolkit" / subject_id
     subject_dir.mkdir(parents=True, exist_ok=True)
     path = subject_dir / f"{subject_id}_space-MNI152NLin6Asym_LF-{object_}_atlas-{atlas}.csv"
     lines = [f"region_name,{value_column}"]
@@ -316,7 +316,7 @@ def test_build_sdc_matrix_duplicate_region_name_raises(tmp_path, _metadata_root)
     _make_reference_labels(reference_path, ["A", "B"])
 
     _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
-    subject_dir = tmp_path / "siteA" / "sdc" / "sub-STUNIPD0001"
+    subject_dir = tmp_path / "siteA" / "bcbtoolkit" / "sub-STUNIPD0001"
     subject_dir.mkdir(parents=True, exist_ok=True)
     path = subject_dir / f"sub-STUNIPD0001_space-MNI152NLin6Asym_LF-{_OBJECT}_atlas-{_ATLAS}.csv"
     path.write_text(f"region_name,{_VALUE_COLUMN}\nA,0.5\nA,0.6\n")  # duplicate "A"
@@ -407,7 +407,7 @@ def test_load_reference_regions_valid(tmp_path):
 
 
 def _make_disconnectome_map(data_root, dataset, subject_id, volume, affine=_VOXELWISE_AFFINE):
-    subject_dir = data_root / dataset / "sdc" / subject_id
+    subject_dir = data_root / dataset / "bcbtoolkit" / subject_id
     subject_dir.mkdir(parents=True, exist_ok=True)
     path = subject_dir / f"{subject_id}_space-MNI152NLin6Asym_res-1_desc-disconnectome.nii.gz"
     nib.save(nib.Nifti1Image(volume.astype(np.float32), affine), path)
@@ -733,7 +733,7 @@ def _make_streamline_csv(data_root, dataset, subject_id, rows, object_="lesion")
     """rows: dict[tract, streamline_ratio]. Unlike _make_sdc_csv, a real file
     always lists every tract (zeros included) - an incomplete dict here is the
     corrupt-file case, not an omitted zero."""
-    subject_dir = data_root / dataset / "sdc" / subject_id
+    subject_dir = data_root / dataset / "bcbtoolkit" / subject_id
     subject_dir.mkdir(parents=True, exist_ok=True)
     path = subject_dir / f"{subject_id}_space-MNI152NLin6Asym_LF-{object_}_atlas-{_STREAMLINE_ATLAS_SUFFIX}.csv"
     lines = ["tract,streamline_ratio"] + [f"{tract},{value}" for tract, value in rows.items()]
@@ -936,7 +936,7 @@ _METADATA_SHAPE = (4, 4, 4)
 _REFERENCE_AFFINE = np.array(
     [[1.0, 0.0, 0.0, -2.0], [0.0, 1.0, 0.0, -2.0], [0.0, 0.0, 1.0, -2.0], [0.0, 0.0, 0.0, 1.0]]
 )
-_GLOB = "sdc/*/*_res-1_desc-disconnectome.nii.gz"
+_GLOB = "bcbtoolkit/*/*_res-1_desc-disconnectome.nii.gz"
 _DATASET = "UNIPD/WashU"
 
 
@@ -959,7 +959,7 @@ def _affine_with_x(sign, offset):
 
 def _make_disconnectome(data_root, subject_id, voxels, affine=_REFERENCE_AFFINE, dataset=_DATASET):
     """voxels: {(i, j, k): probability} in the FILE's own index space."""
-    subject_dir = data_root / dataset / "sdc" / subject_id
+    subject_dir = data_root / dataset / "bcbtoolkit" / subject_id
     subject_dir.mkdir(parents=True, exist_ok=True)
     volume = np.zeros(_METADATA_SHAPE, dtype=np.float32)
     for index, probability in voxels.items():

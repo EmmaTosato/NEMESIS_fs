@@ -1,6 +1,6 @@
 """Build a 2D feature matrix (n_subjects x n_regions) from parcellated SDC output.
 
-Each subject's disconnectome (or lesion) CSV under sdc/<subject>/ holds one
+Each subject's disconnectome (or lesion) CSV under bcbtoolkit/<subject>/ holds one
 row per brain region disconnected/damaged above zero for a given atlas -
 BCBToolKit omits rows for regions at zero overlap rather than writing them
 explicitly (verified empirically on the real cohort: zero rows with an
@@ -24,7 +24,7 @@ run includes (2026-08-27, on request).
 
 A subject is only admitted into X if it has BOTH a lesion mask registered in
 the subject registry AND the requested SDC CSV - a subject present
-in sdc/ without a lesion mask (a real case found in this cohort, see
+in bcbtoolkit/ without a lesion mask (a real case found in this cohort, see
 docs/dev/sdc_matrix.md) is excluded explicitly (excluded_no_lesion_mask),
 never silently included as an all-zero row indistinguishable from a genuine
 "no disconnection" observation.
@@ -33,7 +33,7 @@ never silently included as an all-zero row indistinguishable from a genuine
 (via src.utils.participants), NOT by globbing manual_masks/ on disk directly
 (unlike build_lesion_matrix.py) - a local `data/` copy can be a partial
 local sample (found 2026-08-27: this Mac had only 10 lesion masks per
-dataset physically present, vs. 195-705 in sdc/), while the registry is
+dataset physically present, vs. 195-705 in bcbtoolkit/), while the registry is
 authoritative about which subjects genuinely have a lesion mask
 regardless of what's currently retrieved on any one machine.
 
@@ -47,7 +47,7 @@ binarized (unlike a lesion mask). Deliberately restricted to
 `object_="disconnectome"` only: the equivalent for `object_="lesion"` (the
 `lesion-map` .nii.gz, itself just the resampled input lesion mask BCBToolKit
 used) would duplicate `build_lesion_matrix.py`'s own job from a different,
-less authoritative source (`manual_masks/` is the real source; `sdc/`
+less authoritative source (`manual_masks/` is the real source; `bcbtoolkit/`
 only carries a copy of it as SDC's own computation input) - not built here,
 raises explicitly if requested.
 
@@ -97,6 +97,9 @@ KNOWN_VALUE_COLUMNS = frozenset({
     "sum_overlap", "p90_overlap", "p95_overlap",
 })
 KNOWN_REPRESENTATIONS = frozenset({"parcellated", "voxelwise", "streamline"})
+# Per-dataset tree (derivatives/<site>/<dataset>/) holding BCBToolKit's output: the disconnectome
+# and lesion maps and their per-atlas CSVs.
+BCBTOOLKIT_DIR = "bcbtoolkit"
 _VOXELWISE_SUPPORTED_OBJECTS = frozenset({"disconnectome"})
 # The streamline CSV exists only in the LF-lesion family - BCBToolKit writes no
 # LF-disconnectome variant of it (see module docstring).
@@ -157,7 +160,7 @@ def build_sdc_matrix(
     lesion_subjects, excluded_lesion, excluded_by_list = _subjects_with_lesion_mask(
         datasets, group_filter, excluded_subjects
     )
-    sdc_glob = f"sdc/*/*_LF-{object_}_atlas-{atlas}.csv"
+    sdc_glob = f"{BCBTOOLKIT_DIR}/*/*_LF-{object_}_atlas-{atlas}.csv"
     sdc_files, excluded_sdc = _discover_by_dataset(data_root, datasets, sdc_glob, group_filter)
     excluded_by_group = sorted(set(excluded_lesion) | set(excluded_sdc))
 
@@ -224,7 +227,7 @@ def build_sdc_voxelwise_matrix(
     lesion_subjects, excluded_lesion, excluded_by_list = _subjects_with_lesion_mask(
         datasets, group_filter, excluded_subjects
     )
-    sdc_glob = f"sdc/*/*_res-1_desc-{object_}.nii.gz"
+    sdc_glob = f"{BCBTOOLKIT_DIR}/*/*_res-1_desc-{object_}.nii.gz"
     sdc_files, excluded_sdc = _discover_by_dataset(data_root, datasets, sdc_glob, group_filter)
     excluded_by_group = sorted(set(excluded_lesion) | set(excluded_sdc))
 
@@ -293,7 +296,7 @@ def build_sdc_streamline_matrix(
     lesion_subjects, excluded_lesion, excluded_by_list = _subjects_with_lesion_mask(
         datasets, group_filter, excluded_subjects
     )
-    sdc_glob = f"sdc/*/*_LF-{object_}_atlas-{STREAMLINE_ATLAS}.csv"
+    sdc_glob = f"{BCBTOOLKIT_DIR}/*/*_LF-{object_}_atlas-{STREAMLINE_ATLAS}.csv"
     sdc_files, excluded_sdc = _discover_by_dataset(data_root, datasets, sdc_glob, group_filter)
     excluded_by_group = sorted(set(excluded_lesion) | set(excluded_sdc))
 

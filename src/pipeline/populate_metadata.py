@@ -18,7 +18,7 @@ Usage:
 
 Admission rule: a subject is written only if it appears BOTH in its dataset's
 participants.tsv AND as a sub-* folder under at least one of the registered
-data-type trees (manual_masks/sdc/features). Both kinds of mismatch (in the
+data-type trees (manual_masks/bcbtoolkit/features). Both kinds of mismatch (in the
 tsv but nowhere on disk; on disk but absent from the tsv) are excluded and
 listed in the report - never silently dropped.
 
@@ -58,7 +58,7 @@ from src.utils.logging_setup import attach_file_handler, log_duration
 # derivatives/<dataset>/, and the boolean column each one gets in the output.
 PRESENCE_COLUMN_BY_DATA_TYPE = {
     "manual_masks": "has_lesion",
-    "sdc": "has_sdc",
+    "bcbtoolkit": "has_sdc",
     "features": "has_features",
 }
 OWN_COLUMNS = ["subject_id", "original_id", "dataset", "disease_id", *PRESENCE_COLUMN_BY_DATA_TYPE.values()]

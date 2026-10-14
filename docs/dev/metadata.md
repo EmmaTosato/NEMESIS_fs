@@ -10,7 +10,7 @@ Una sola fonte di verità: **`assets/metadata/participants.csv`**, una riga per 
 
 ```
 data/clinical_connectome/metadata_tsv/participants_*.tsv        (grezzi, uno per dataset, gitignored)
-data/clinical_connectome/derivatives/<dataset>/{manual_masks,sdc,features}/   (cosa c'è su disco)
+data/clinical_connectome/derivatives/<dataset>/{manual_masks,bcbtoolkit,features}/   (cosa c'è su disco)
         │  src/pipeline/populate_metadata.py               — chi esiste
         ▼
 assets/metadata/participants.csv ◄──────────────┐
@@ -28,7 +28,7 @@ assets/metadata/sdc_metadata.csv                  (stesso schema, accanto a lesi
                                                      ▲
                                                      │  src/pipeline/compute_sdc_metadata.py
                                                      │  — quanto è disconnesso ogni soggetto
-                                          data/clinical_connectome/derivatives/<dataset>/sdc/
+                                          data/clinical_connectome/derivatives/<dataset>/bcbtoolkit/
 
 assets/metadata/excluded_subjects.csv   — chi resta fuori dalle matrici (generato da build_excluded_subjects)
         │  letto da build_lesion_matrix.py e build_sdc_matrix.py, non da enrich
@@ -240,7 +240,7 @@ Un soggetto la cui mappa è tutta a zero dentro il cervello misura `0.0`: la qua
 
 L'ammissione viene da `has_sdc` nel registro, non da un glob su disco, e i due devono concordare nei due sensi (`_check_registry_agrees_with_disk`): un soggetto con `has_sdc` senza mappa su disco, o una mappa per un soggetto senza `has_sdc`, solleva. Una misura "su chi capita di essere su disco" nasconderebbe che `populate_metadata` e i dati non concordano su chi esiste. Tutti i dataset in disaccordo sono riportati in un solo errore.
 
-Il registro ricava `has_sdc` dalle cartelle `sdc/<soggetto>/`, non dalla presenza del file `res-1_desc-disconnectome.nii.gz`: una cartella senza quel file fa fallire la run, con il soggetto nominato.
+Il registro ricava `has_sdc` dalle cartelle `bcbtoolkit/<soggetto>/`, non dalla presenza del file `res-1_desc-disconnectome.nii.gz`: una cartella senza quel file fa fallire la run, con il soggetto nominato.
 
 ## `enrich_metadata`: il join
 

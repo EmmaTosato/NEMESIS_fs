@@ -49,7 +49,7 @@ def _register_lesion_mask(metadata_root, dataset, subject_id):
 
 
 def _make_sdc_csv(data_root, dataset, subject_id, rows):
-    subject_dir = data_root / dataset / "sdc" / subject_id
+    subject_dir = data_root / dataset / "bcbtoolkit" / subject_id
     subject_dir.mkdir(parents=True, exist_ok=True)
     path = subject_dir / f"{subject_id}_space-MNI152NLin6Asym_LF-{_OBJECT}_atlas-{_ATLAS}.csv"
     lines = [f"region_name,{_VALUE_COLUMN}"] + [f"{region},{value}" for region, value in rows.items()]
@@ -94,7 +94,7 @@ def _write_config(tmp_path, data_root, output_root, overrides=None):
 
 
 def _make_disconnectome_map(data_root, dataset, subject_id, volume):
-    subject_dir = data_root / dataset / "sdc" / subject_id
+    subject_dir = data_root / dataset / "bcbtoolkit" / subject_id
     subject_dir.mkdir(parents=True, exist_ok=True)
     path = subject_dir / f"{subject_id}_space-MNI152NLin6Asym_res-1_desc-disconnectome.nii.gz"
     nib.save(nib.Nifti1Image(volume.astype(np.float32), _VOXELWISE_AFFINE), path)
@@ -310,7 +310,7 @@ def test_build_sdc_matrix_voxelwise_object_lesion_rejected_at_config_load(tmp_pa
 
 
 def _make_streamline_csv(data_root, dataset, subject_id, rows, object_="lesion"):
-    subject_dir = data_root / dataset / "sdc" / subject_id
+    subject_dir = data_root / dataset / "bcbtoolkit" / subject_id
     subject_dir.mkdir(parents=True, exist_ok=True)
     path = subject_dir / f"{subject_id}_space-MNI152NLin6Asym_LF-{object_}_atlas-yeh_hcp1065_streamline.csv"
     lines = ["tract,streamline_ratio"] + [f"{tract},{value}" for tract, value in rows.items()]

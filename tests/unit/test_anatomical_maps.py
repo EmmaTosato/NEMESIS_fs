@@ -18,7 +18,7 @@ _AFFINE = np.eye(4) * 2
 _AFFINE[3, 3] = 1
 _SHAPE = (10, 10, 10)
 _LESION_GLOB = "manual_masks/*/anat/*_label-lesion_mask.nii.gz"
-_DISCONNECTOME_GLOB = "sdc/*/*_res-1_desc-disconnectome.nii.gz"
+_DISCONNECTOME_GLOB = "bcbtoolkit/*/*_res-1_desc-disconnectome.nii.gz"
 
 
 def _make_lesion_subject(data_root, dataset, subject_id, lesion_voxels):
@@ -34,10 +34,10 @@ def _make_lesion_subject(data_root, dataset, subject_id, lesion_voxels):
 
 
 def _make_disconnectome_subject(data_root, dataset, subject_id, voxel_values):
-    """sdc/<subject_id>/<subject_id>_..._res-1_desc-disconnectome.nii.gz - same glob shape as
+    """bcbtoolkit/<subject_id>/<subject_id>_..._res-1_desc-disconnectome.nii.gz - same glob shape as
     src.features.sdc.build_sdc_voxelwise_matrix's own sdc_glob, continuous (never binary) values
     unlike a lesion mask."""
-    subject_dir = data_root / dataset / "sdc" / subject_id
+    subject_dir = data_root / dataset / "bcbtoolkit" / subject_id
     subject_dir.mkdir(parents=True, exist_ok=True)
     volume = np.zeros(_SHAPE, dtype=np.float32)
     for voxel, value in voxel_values.items():

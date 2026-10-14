@@ -10,6 +10,20 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 14-10-26 — `derivatives/<sito>/<dataset>/sdc/` rinominata `bcbtoolkit/`
+
+**Cosa è cambiato**: in ognuno degli 8 dataset la cartella `sdc/` è stata rinominata `bcbtoolkit/` sul posto (`mv`, nessun file toccato). Sottocartelle soggetto contate dopo la rinomina: UCL-UK 4119, UKE/SFB936 56, UKE/WAKEUP 451, UKLFR 705, UNIPD/NEMESIS_T0 76, UNIPD/PASPORT 83, UNIPD/PSP 168, UNIPD/WashU 195 (5853, uguali a prima). Aggiornati anche:
+
+- `data/clinical_connectome/file_types_cache.json`: chiave `sdc` → `bcbtoolkit` in `file_types_by_type` (1 chiave) e in `file_types_by_subject` (5853 chiavi `sdc|...`), valori invariati.
+- `data/clinical_connectome/derivatives/README.md`: il percorso sorgente di `manual_masks/`.
+- `assets/metadata/sdc_metadata.config.json` (versionato): `disconnectome_glob` dello snapshot di config con cui fu scritto `sdc_metadata.csv`. Il csv non è stato ricalcolato.
+
+**Perché**: la cartella contiene l'intero output di BCBToolKit (disconnettoma e lesione, `LF-*` per atlante, `lesion-map`, mapstats), non solo l'SDC. `sdc` era un nome locale: EBRAIN non lo usa. Serve perché `build_lesion_matrix` possa leggere i `LF-lesion` senza che la lesione stia sotto un nome SDC. Scartato: spostare i `LF-lesion` in `manual_masks/` (mescola un prodotto calcolato con le maschere e il glob che le trova); lasciare `sdc/`.
+
+**Conseguenza ancora vera oggi**: ogni nuova copia dei dati deve usare `bcbtoolkit/`. Il nome è in `BCBTOOLKIT_DIR` (`src/features/sdc.py`), nella chiave di `PRESENCE_COLUMN_BY_DATA_TYPE` (`src/pipeline/populate_metadata.py`), in `SDC_DISCONNECTOME_GLOB` (`src/analysis/embedding_app.py`) e in `disconnectome_glob` dei config. La colonna `has_sdc` del registro non cambia: indica la modalità SDC, non la cartella. Le voci precedenti di questo file e i report in `docs/debugging/` parlano di `sdc/`: era il nome di allora.
+
+---
+
 ## 07-10-26 — `sdc_matrix/07-10_s2.4-vol`: righe riordinate come `lesion_matrix/07-10_s1.4-vol`
 
 **Cosa è cambiato**: in `matrix.npy` e `metadata.csv` le 5845 righe sono state riordinate dall'ordine alfabetico per dataset (quello con cui la pipeline le aveva scritte) all'ordine di `lesion_matrix/07-10_s1.4-vol/metadata.csv` (dataset nell'ordine del config: WashU, PASPORT, PSP, UKLFR, UCL-UK, WAKEUP, NEMESIS_T0, SFB936). Nessun valore è cambiato: è una permutazione delle righe. `non_constant_mask.npy`, `manifest.json` e `config.md` sono invariati (colonne e forma non toccate).

@@ -2,7 +2,7 @@
 
 Audience: developers/agents working on `src/features/sdc.py`, `src/analysis/build_config.py` (the `build_sdc_matrix.json`-parsing half), and `src/pipeline/build_sdc_matrix.py`.
 
-This file covers turning SDC output (`sdc/<subject_id>/*`, produced upstream by BCBToolKit Stage 1+2) into a feature matrix ready for dimensionality reduction, in any of three representations picked by `config.representation`: **parcellated** (`build_sdc_matrix`, the original one - one CSV per atlas, `LF-{object}_atlas-*.csv`), **voxelwise** (`build_sdc_voxelwise_matrix`, added 03/09 - the pre-parcellation `disconnectome-map` `.nii.gz` directly, same resampling-onto-a-common-grid approach as the lesion pipeline) or **streamline** (`build_sdc_streamline_matrix`, added 30/09 - the `yeh_hcp1065_streamline` CSV, one `streamline_ratio` per white matter tract). For the equivalent lesion (voxel-wise) pipeline, see `docs/dev/lesion_matrix.md`. For "how do I run this", see `docs/guides/sdc_matrix_building.md`.
+This file covers turning SDC output (`bcbtoolkit/<subject_id>/*`, produced upstream by BCBToolKit Stage 1+2) into a feature matrix ready for dimensionality reduction, in any of three representations picked by `config.representation`: **parcellated** (`build_sdc_matrix`, the original one - one CSV per atlas, `LF-{object}_atlas-*.csv`), **voxelwise** (`build_sdc_voxelwise_matrix`, added 03/09 - the pre-parcellation `disconnectome-map` `.nii.gz` directly, same resampling-onto-a-common-grid approach as the lesion pipeline) or **streamline** (`build_sdc_streamline_matrix`, added 30/09 - the `yeh_hcp1065_streamline` CSV, one `streamline_ratio` per white matter tract). For the equivalent lesion (voxel-wise) pipeline, see `docs/dev/lesion_matrix.md`. For "how do I run this", see `docs/guides/sdc_matrix_building.md`.
 
 ## Why this pipeline looks different from `build_lesion_matrix.py`
 
@@ -39,7 +39,7 @@ Cardinalities for atlases not yet backed by a reference file are **not** derived
 
 A subject is admitted into `X` only if it has **both**:
 1. A lesion mask **registered** in `assets/metadata/participants.csv` (column `has_lesion == True`, via `src.utils.participants.load_participants_registry`) - not a glob against `manual_masks/` on disk (see "Why participants.tsv, not `manual_masks/` on disk" below).
-2. The requested `object_`/`atlas` SDC CSV (`sdc/*/*_LF-{object_}_atlas-{atlas}.csv`, discovered via `discover_files_by_subject` same as `build_lesion_matrix.py`).
+2. The requested `object_`/`atlas` SDC CSV (`bcbtoolkit/*/*_LF-{object_}_atlas-{atlas}.csv`, discovered via `discover_files_by_subject` same as `build_lesion_matrix.py`).
 
 ...and is not in `excluded_subjects`, the hand-curated admission list (`assets/metadata/excluded_subjects.csv`, resolved by the pipeline via `src.utils.participants.load_excluded_subjects` and passed in as an id set). Applied inside `_subjects_with_lesion_mask`, which is the one place **both** representations resolve their admitted subjects - so one call site covers `build_sdc_matrix` and `build_sdc_voxelwise_matrix`, and the SDC matrices drop exactly the subjects the lesion matrix drops (`src/features/lesion.py::_drop_excluded_subjects`). Without that guarantee a lesion-vs-SDC comparison would silently compare two different cohorts, which is why the list is one shared file rather than one per pipeline - and why this module can honour it at all despite never loading a raw lesion mask: the list is subject ids, not imaging.
 
@@ -71,7 +71,7 @@ A header-only (zero-row) CSV is a legitimate domain case handled by `_stack_alig
 
 `build_sdc_voxelwise_matrix(data_root, datasets, object_, reference_template_path, resample_interpolation, group_filter, excluded_subjects) -> (X, metadata, non_constant_mask, excluded_by_group, excluded_by_list, excluded_no_lesion_mask, sdc_not_yet_computed)`
 
-Reads the `disconnectome-map` `.nii.gz` directly (`sdc/*/*_res-1_desc-{object_}.nii.gz`) instead of the parcellated CSVs - the same pre-parcellation volume `build_sdc_matrix`'s CSVs are themselves derived from. Same admission criterion as `build_sdc_matrix` (a lesion mask registered in `assets/metadata/participants.csv`, not on the exclusion list, **and** the requested SDC file present) - both go through the same `_subjects_with_lesion_mask`.
+Reads the `disconnectome-map` `.nii.gz` directly (`bcbtoolkit/*/*_res-1_desc-{object_}.nii.gz`) instead of the parcellated CSVs - the same pre-parcellation volume `build_sdc_matrix`'s CSVs are themselves derived from. Same admission criterion as `build_sdc_matrix` (a lesion mask registered in `assets/metadata/participants.csv`, not on the exclusion list, **and** the requested SDC file present) - both go through the same `_subjects_with_lesion_mask`.
 
 - **Deliberately restricted to `object_="disconnectome"`** - `object_="lesion"` raises `ValueError` immediately (both here and, redundantly, at config-load time - see below). The `lesion-map` `.nii.gz` (the resampled *input* lesion mask BCBToolKit used, not the real mask) would duplicate `build_lesion_matrix.py`'s own job from a less authoritative source; `manual_masks/` (via the `has_lesion` registry flag) stays the one place a lesion mask is built from.
 - **Never binarized** - disconnection values are a continuous [0, 1] probability, unlike `build_lesion_matrix.py`'s binary lesion mask. No `binarize_threshold` field exists for this representation.
@@ -83,7 +83,7 @@ Reads the `disconnectome-map` `.nii.gz` directly (`sdc/*/*_res-1_desc-{object_}.
 
 `build_sdc_streamline_matrix(data_root, datasets, object_, reference_labels_path, group_filter, excluded_subjects) -> (X, metadata, tract_names, excluded_by_group, excluded_by_list, excluded_no_lesion_mask, sdc_not_yet_computed)`
 
-Reads `sdc/*/*_LF-lesion_atlas-yeh_hcp1065_streamline.csv` (columns `tract,streamline_ratio`) into a subjects x 87 tracts matrix - one value per white matter tract, the proportion of its streamlines affected. Same admission criterion as the other two builders, via the same `_subjects_with_lesion_mask`.
+Reads `bcbtoolkit/*/*_LF-lesion_atlas-yeh_hcp1065_streamline.csv` (columns `tract,streamline_ratio`) into a subjects x 87 tracts matrix - one value per white matter tract, the proportion of its streamlines affected. Same admission criterion as the other two builders, via the same `_subjects_with_lesion_mask`.
 
 **Why its own builder, not a parameter of `build_sdc_matrix`.** The schema shares nothing with the parcellated CSVs: no `region_name` column, and exactly one value column instead of the 6 interchangeable statistics in `KNOWN_VALUE_COLUMNS`. Generalising the parcellated builder to take configurable identifier/value column names would have put a rarely-varying parameter on the hot path of the representation every existing run uses, for no gain.
 

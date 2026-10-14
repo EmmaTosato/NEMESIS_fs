@@ -305,7 +305,7 @@ _SDC_METADATA_BASE = {
     "output_path": "assets/metadata/sdc_metadata.csv",
     "datasets": ["UNIPD/WashU", "UNIPD/PSP"],
     "group_filter": ["ST"],
-    "disconnectome_glob": "sdc/*/*_res-1_desc-disconnectome.nii.gz",
+    "disconnectome_glob": "bcbtoolkit/*/*_res-1_desc-disconnectome.nii.gz",
     "resample_interpolation": "nearest",
     "grids": {
         "2mm": {

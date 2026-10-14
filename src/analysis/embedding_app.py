@@ -446,12 +446,12 @@ class LesionViewerConfig:
 
 
 # Same fixed pattern as src.features.sdc.build_sdc_voxelwise_matrix's own
-# f"sdc/*/*_res-1_desc-{object_}.nii.gz" with object_="disconnectome" - this app only ever wants
+# f"bcbtoolkit/*/*_res-1_desc-{object_}.nii.gz" with object_="disconnectome" - this app only ever wants
 # the disconnectome map itself (never "lesion", SDC's own other known object, see
 # src.features.sdc.KNOWN_OBJECTS - that one is already covered by the lesion viewer above,
-# reading straight from manual_masks/ instead of sdc/), so the pattern is inlined as a plain
+# reading straight from manual_masks/ instead of bcbtoolkit/), so the pattern is inlined as a plain
 # constant here rather than threading an unused object_ parameter through SdcViewerConfig.
-SDC_DISCONNECTOME_GLOB = "sdc/*/*_res-1_desc-disconnectome.nii.gz"
+SDC_DISCONNECTOME_GLOB = "bcbtoolkit/*/*_res-1_desc-disconnectome.nii.gz"
 
 
 @dataclass(frozen=True)
