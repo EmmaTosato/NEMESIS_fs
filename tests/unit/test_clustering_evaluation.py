@@ -3,12 +3,17 @@
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
+from sklearn.cluster import HDBSCAN, KMeans
+from sklearn.metrics import silhouette_samples, silhouette_score
 from sklearn.mixture import GaussianMixture
 
 from src.analysis.clustering import CLUSTERING_METHODS
-from src.analysis.clustering_evaluation import EVALUATIONS, model_fit_metrics, require_applicable
+from src.analysis.clustering_evaluation import (
+    EVALUATIONS,
+    membership_confidence,
+    model_fit_metrics,
+    require_applicable,
+)
 
 
 def _three_blobs():
@@ -396,3 +401,93 @@ def test_saturated_pair_share_counts_pairs_not_the_zero_diagonal():
         saturated_pair_share(np.ones((3, 4)))
     with pytest.raises(ValueError, match="at least 2"):
         saturated_pair_share(np.zeros((1, 1)))
+
+
+# --- membership_confidence --------------------------------------------------
+
+_HDBSCAN_PARAMS = {"min_cluster_size": 15, "min_samples": 5}
+
+
+def _blobs_of_mixed_density():
+    """Two tight blobs and a loose one, plus a few far outliers: HDBSCAN finds three clusters,
+    some noise, and probabilities below 1 inside the loose cluster."""
+    rng = np.random.default_rng(0)
+    return np.vstack(
+        [
+            rng.normal(loc=[0, 0], scale=0.2, size=(60, 2)),
+            rng.normal(loc=[8, 0], scale=1.0, size=(60, 2)),
+            rng.normal(loc=[0, 8], scale=0.2, size=(60, 2)),
+            [[30.0, 30.0], [-30.0, 30.0], [30.0, -30.0]],
+        ]
+    )
+
+
+def _fit_hdbscan(X):
+    fitted = HDBSCAN(**_HDBSCAN_PARAMS).fit(X)
+    return fitted.labels_, fitted.probabilities_
+
+
+def test_membership_confidence_summarises_hdbscans_own_probabilities_per_cluster():
+    X = _blobs_of_mixed_density()
+    labels, probabilities = _fit_hdbscan(X)
+    assert (labels == -1).any() and len(set(labels) - {-1}) == 3  # the fixture is what the test assumes
+
+    result = membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, labels, threshold=0.7)
+
+    for cluster, row in result.clusters.iterrows():
+        p = probabilities[labels == cluster]
+        assert row["n"] == len(p)
+        assert row["probability_mean"] == pytest.approx(p.mean())
+        assert row["probability_p10"] == pytest.approx(np.quantile(p, 0.1))
+        assert row["share_below_threshold"] == pytest.approx((p < 0.7).mean())
+    assert result.clusters["share_below_threshold"].max() > 0  # the loose cluster has weak members
+    assert result.n_noise == int((labels == -1).sum())
+    assert result.n_confident == int((probabilities[labels != -1] >= 0.7).sum())
+
+
+def test_membership_confidence_silhouettes_are_the_same_per_subject_values_averaged_over_two_groups():
+    X = _blobs_of_mixed_density()
+    labels, probabilities = _fit_hdbscan(X)
+    kept = labels != -1
+    per_subject = silhouette_samples(X[kept], labels[kept])
+
+    result = membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, labels, threshold=0.7)
+
+    assert result.silhouette_all == pytest.approx(silhouette_score(X[kept], labels[kept]))
+    assert result.silhouette_confident == pytest.approx(per_subject[probabilities[kept] >= 0.7].mean())
+
+
+def test_membership_confidence_refuses_a_refit_that_does_not_reproduce_the_labels():
+    X = _blobs_of_mixed_density()
+    labels, _ = _fit_hdbscan(X)
+
+    with pytest.raises(ValueError, match="does not reproduce the stored labels"):
+        membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, np.roll(labels, 1), threshold=0.5)
+
+
+def test_membership_confidence_refuses_a_method_without_membership_probabilities():
+    with pytest.raises(ValueError, match="'kmeans'"):
+        membership_confidence("kmeans", np.zeros((4, 2)), {}, np.zeros(4, dtype=int), threshold=0.5)
+
+
+@pytest.mark.parametrize("threshold", [0.0, -0.1, 1.5])
+def test_membership_confidence_rejects_a_threshold_outside_zero_one(threshold):
+    X = _blobs_of_mixed_density()
+    labels, _ = _fit_hdbscan(X)
+
+    with pytest.raises(ValueError, match="threshold must be in"):
+        membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, labels, threshold=threshold)
+
+
+def test_membership_confidence_refuses_a_non_euclidean_run():
+    X = _blobs_of_mixed_density()
+    labels, _ = _fit_hdbscan(X)
+
+    with pytest.raises(ValueError, match="Euclidean"):
+        membership_confidence("hdbscan", X, {**_HDBSCAN_PARAMS, "metric": "manhattan"}, labels, threshold=0.5)
+
+
+def test_membership_confidence_is_registered_for_hdbscan_only():
+    require_applicable("membership_confidence", "hdbscan")
+    with pytest.raises(ValueError, match="'agglomerative'"):
+        require_applicable("membership_confidence", "agglomerative")

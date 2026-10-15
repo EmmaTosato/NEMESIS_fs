@@ -49,7 +49,7 @@ Leggono run di clustering già **prodotte**. Tre notebook, separati da un criter
 
 | Notebook | Scope | Domanda | Legge | Scrive |
 |---|---|---|---|---|
-| `clustering_evaluation` | empirica, **una** run | quanto è buona questa run? (metriche geometriche, del modello, stabilità, plot prodotti) | la run (`matrix.npy`, `metadata.csv`, `config.md`) | nulla |
+| `clustering_evaluation` | empirica, **una** run | quanto è buona questa run? (metriche geometriche e del modello, confidenza di appartenenza) | la run (`matrix.npy`, `metadata.csv`, `config.md`) | nulla |
 | `clustering_comparison` | empirica, **più** run | in cosa differiscono queste run? (accordo tra partizioni, corrispondenza dei cluster, distanze tra cluster nell'embedding) | le run scelte | nulla |
 | `cluster_interpretation` | interpretativa, **una** run | come sono distribuite le variabili cliniche e anatomiche nei cluster di questa run? Solo descrittivo, nessun test statistico: copertura dei dati, media, mediana e percentuali per cluster. Si sceglie la run seguendo i rami di results; con una run `sdc` si aggiunge il carico di disconnessione. Mappe anatomiche, soggetti rappresentativi, composizione dei cluster e confronto tra cluster sono solo nell'app Dash | una run, `participants.csv` | nulla |
 | `clustering_tuning_explorer` | esplorazione di uno sweep di tuning | come variano le metriche al variare degli iperparametri? | l'output di un tuning | nulla |

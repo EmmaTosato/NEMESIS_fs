@@ -18,7 +18,11 @@ from sklearn.metrics import silhouette_samples
 from sklearn.mixture import GaussianMixture
 
 from src.analysis.clustering import CLUSTERING_METHODS
-from src.analysis.clustering_tuning import compute_silhouette_samples, require_euclidean_compatible
+from src.analysis.clustering_tuning import (
+    compute_silhouette_samples,
+    hdbscan_labels_and_probabilities,
+    require_euclidean_compatible,
+)
 
 
 @dataclass(frozen=True)
@@ -55,6 +59,11 @@ EVALUATIONS: dict[str, Evaluation] = {
         frozenset({"kmeans", "gmm", "hdbscan"}),
         "solo questi espongono una statistica propria del modello (inertia, BIC/AIC, quota di rumore); "
         "agglomerative, spectral, evidence_accumulation e adp non ne hanno",
+    ),
+    "membership_confidence": Evaluation(
+        frozenset({"hdbscan"}),
+        "probabilities_ è un'uscita del solo HDBSCAN (forza di appartenenza di ogni soggetto al proprio cluster, "
+        "normalizzata dentro il cluster); gli altri metodi assegnano un soggetto a un cluster senza un grado di appartenenza",
     ),
     "clinical_association": Evaluation(_ALL_METHODS, "dipende solo dalle etichette"),
     "centroids": Evaluation(_ALL_METHODS, "media delle coordinate dell'embedding per cluster"),
@@ -107,6 +116,84 @@ def model_fit_metrics(method: str, X: np.ndarray, params: dict, labels: np.ndarr
             "(is random_state unset?) - its statistic would describe a different fit than the run"
         )
     return metrics
+
+
+@dataclass(frozen=True)
+class MembershipConfidence:
+    """How firmly the subjects of an hdbscan run belong to their cluster, from `probabilities_`.
+
+    `clusters` has one row per non-noise cluster: `n`, `probability_mean`, `probability_p10` (the 10th
+    percentile: the median saturates at 1 whenever most of a cluster is its core, so it tells nothing)
+    and `share_below_threshold` (the share of its subjects under `threshold`). `silhouette_all` is the
+    mean per-subject silhouette over every non-noise subject, `silhouette_confident` the mean of the
+    same per-subject values over the `n_confident` subjects at or above `threshold`: the silhouette
+    is never recomputed on the subset, so the geometry is the same in both numbers.
+    """
+
+    clusters: pd.DataFrame  # index: cluster label; columns: n, probability_mean, probability_p10, share_below_threshold
+    threshold: float
+    n_noise: int
+    n_confident: int
+    silhouette_all: float
+    silhouette_confident: float
+
+
+def membership_confidence(
+    method: str, X: np.ndarray, params: dict, labels: np.ndarray, threshold: float
+) -> MembershipConfidence:
+    """Membership strength of an already-produced hdbscan run.
+
+    `probabilities_` is a lambda value normalised to [0, 1] inside each cluster (0 for noise), so it
+    says how close a subject sits to the core of *its* cluster, not how confident the algorithm is
+    across clusters. It exists only on the fitted estimator, which a run does not store: it is refit
+    with the run's own params and accepted only if it reproduces the stored labels exactly, as in
+    model_fit_metrics. It is a description of the density in the space clustered (an embedding with
+    min_dist=0 is already packed), not a validity index.
+
+    `threshold` has no default and no literature backing a value: the caller states it. Noise is left
+    out of every number (its probability is 0 by construction). Every cluster holds at least one
+    subject at probability 1, so the confident group is never empty for a threshold in (0, 1].
+
+    Raises ValueError for a method other than hdbscan, a threshold outside (0, 1], a non-Euclidean
+    run, a refit that does not reproduce the labels, or fewer than 2 non-noise clusters (the
+    silhouette is undefined).
+    """
+    require_applicable("membership_confidence", method)
+    if not 0.0 < threshold <= 1.0:
+        raise ValueError(f"threshold must be in (0, 1], got {threshold}")
+    require_euclidean_compatible(params)
+    labels = np.asarray(labels)
+
+    refit_labels, probabilities = hdbscan_labels_and_probabilities(X, params)
+    if not np.array_equal(refit_labels, labels):
+        raise ValueError(
+            f"refitting 'hdbscan' with params={params} does not reproduce the stored labels - "
+            "its probabilities would describe a different fit than the run"
+        )
+
+    noise = labels == -1
+    kept_labels, silhouettes = compute_silhouette_samples(X, labels)
+    kept_probabilities = probabilities[~noise]
+    confident = kept_probabilities >= threshold
+
+    frame = pd.DataFrame({"cluster": kept_labels, "probability": kept_probabilities})
+    grouped = frame.groupby("cluster")["probability"]
+    clusters = pd.DataFrame(
+        {
+            "n": grouped.size(),
+            "probability_mean": grouped.mean(),
+            "probability_p10": grouped.quantile(0.1),
+            "share_below_threshold": grouped.apply(lambda p: float((p < threshold).mean())),
+        }
+    )
+    return MembershipConfidence(
+        clusters=clusters,
+        threshold=threshold,
+        n_noise=int(noise.sum()),
+        n_confident=int(confident.sum()),
+        silhouette_all=float(silhouettes.mean()),
+        silhouette_confident=float(silhouettes[confident].mean()),
+    )
 
 
 @dataclass(frozen=True)

@@ -8,6 +8,20 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 15-10-26 — Confidenza di appartenenza di HDBSCAN (`probabilities_`) come valutazione, non come validazione
+
+**Decisione**: `clustering_evaluation` ottiene una valutazione solo per HDBSCAN, `membership_confidence` (`src/analysis/clustering_evaluation.py`): per cluster, probabilità media, 10° percentile e quota di soggetti sotto una soglia; e la silhouette per soggetto mediata su tutti i non-rumore contro i soli soggetti sopra la soglia. Appartiene a `clustering_evaluation` (empirica: usa solo etichette e spazio clusterizzato, nessuna variabile esterna), non a `cluster_interpretation`.
+
+**Cosa è e cosa non è**: `probabilities_` è un lambda normalizzato dentro ogni cluster (0 per il rumore): dice quanto un soggetto è vicino al nucleo del *suo* cluster. Nessuna fonte trovata la usa come indice di validità né propone una soglia: la soglia la dichiara chi chiama la funzione, come `MAX_NOISE_FRACTION`. È calcolata sulla densità dello spazio clusterizzato: su un UMAP con `min_dist=0.0` misura quanto UMAP ha impacchettato il cluster, non una proprietà dei dati di lesione.
+
+**Alternative scartate**: (1) pacchetto `hdbscan` standalone, per persistenza dei cluster, albero condensato, GLOSH e `relative_validity_`: `sklearn.cluster.HDBSCAN` (1.8.0 qui) espone solo `labels_`, `probabilities_`, `centroids_`, `medoids_` e `dbscan_clustering`; il pacchetto non è in `environment.yml`, costerebbe una dipendenza e rifare le run, e per il notebook solo descrittivo non serve (DBCV era già scartato, `docs/guides/clustering.md`). (2) Probabilità mediana per cluster: scartata perché vale 1.0 in tutti i cluster quando la maggior parte è nucleo (lesione dice nc2, `min_cluster_size=100, min_samples=20`: 8 cluster su 5845 soggetti, 47 rumore, mediana 1.0 ovunque); si riportano media e 10° percentile.
+
+**Misurato sul prototipo**: lesione dice nc2 (100, 20): i due cluster grandi (2652 e 2173) hanno p10 = 1.00 e nessun soggetto sotto 0.5; i frammenti da 132-188 hanno p10 tra 0.34 e 1.00 e fino al 22.4% sotto 0.5. Silhouette 0.648 su tutti i non-rumore, 0.650 sui soggetti con probabilità ≥ 0.5: su questa run la silhouette non dipende dai soggetti periferici. Lesione euclidean nc10 (100, 20): 12 cluster, 946 rumore, fino al 68% dei soggetti di un cluster sotto 0.9.
+
+**Conseguenza ancora vera oggi**: la valutazione è la sezione 3.1 di `clustering_evaluation.ipynb` (`LOW_PROBABILITY = 0.5` è un esempio, non una scelta); provata sulle run di produzione `12-10_s1.4-vol_m_dice_nc2_mcs75_ms10` e `_ms20`. La mediana delle probabilità non si riporta: satura a 1.
+
+---
+
 ## 15-10-26 — clustering_evaluation: silhouette di adp riammessa, con la quota di coppie a distanza 1
 
 Per adp la sezione 2.4 calcola di nuovo la silhouette (`distance_matrix_silhouette`, sulla distanza dice già in cache), accanto a `saturated_pair_share`: la quota di coppie di soggetti a distanza esattamente 1. La purezza dei vicini (2.3) resta. La decisione del 13-10-26 ("per adp la silhouette è sostituita dalla purezza") valeva per le lesioni.

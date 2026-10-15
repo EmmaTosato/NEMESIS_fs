@@ -50,12 +50,13 @@ L'applicabilità è verificata dal codice: `src/analysis/clustering_evaluation.p
 | 2.3 | Purezza dei k vicini | adp | `clustering_evaluation.knn_purity` |
 | 2.4 | Silhouette sulla distanza dice, con la quota di coppie a distanza 1 | adp | `clustering_evaluation.distance_matrix_silhouette`, `saturated_pair_share` |
 | 3 | Metriche del modello: `inertia`, `bic`/`aic`, `noise_fraction`/`n_clusters_found` | kmeans, gmm, hdbscan | `clustering_evaluation.model_fit_metrics` |
-| 5 | Associazione con variabili cliniche: tabella per cluster, Kruskal-Wallis (età, NIHSS), chi-quadro (sesso) | tutti | `scipy.stats` su `assets/metadata/participants.csv` |
+| 3.1 | Confidenza di appartenenza: probabilità media, 10° percentile e quota sotto soglia per cluster; silhouette su tutti i non-rumore contro i soli soggetti sopra soglia | hdbscan | `clustering_evaluation.membership_confidence` |
 
 Cose che non si vedono dal registro:
 
 - **Metriche geometriche**: assumono distanza euclidea e cluster compatti e convessi, quindi favoriscono kmeans/gmm. `compute_clustering_metrics(combo_params=...)` rifiuta una run con `metric`/`affinity` non euclideo. Valori di embedding diversi (lesion vs sdc) non sono confrontabili.
 - **Metriche del modello**: kmeans e gmm vengono rifittati con i parametri della run e accettati solo se riproducono esattamente le etichette salvate (altrimenti `ValueError`, tipico di `random_state` non fissato). `inertia` e BIC/AIC non sono sulla stessa scala.
+- **Confidenza di appartenenza**: `probabilities_` di HDBSCAN è normalizzata dentro ogni cluster (0 per il rumore), quindi dice quanto un soggetto sta nel nucleo **del suo** cluster e non è confrontabile tra cluster di densità diversa. Esiste solo sullo stimatore: la run viene rifittata con i suoi parametri e accettata solo se riproduce le etichette salvate. La mediana non si riporta perché vale 1 quando la maggior parte del cluster è nucleo. La soglia (`LOW_PROBABILITY`) non ha un riferimento in letteratura. È calcolata sulla densità dello spazio clusterizzato: su un embedding con `min_dist=0` descrive quanto UMAP ha impacchettato il cluster, non è un indice di validità.
 - **Silhouette e rumore**: se la quota di rumore supera `NOISE_WARNING_FRACTION` (10%) la cella della sezione 2 stampa un avviso: gli indici descrivono allora solo i soggetti non-rumore.
 - **Rumore di hdbscan**: escluso dagli indici geometrici, dal nullo; la sua quota è sempre mostrata (`noise_fraction`).
 - **adp**: clusterizza il dato grezzo, quindi `X` è la matrice delle feature (soggetti x voxel) e non un embedding: `load_run` la apre con `mmap` e la marca `is_raw`.
