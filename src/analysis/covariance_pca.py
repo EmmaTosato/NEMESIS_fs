@@ -45,6 +45,21 @@ NO_ROTATION = "none"
 SUPPORTED_ROTATIONS = (NO_ROTATION, *ORTHOGONAL_ROTATIONS)
 
 
+def nonzero_component_count(eigenvalues: np.ndarray) -> int:
+    """How many components have variance above numerical noise (`eigenvalues` descending)."""
+    return int((eigenvalues > _RANK_TOLERANCE * eigenvalues[0]).sum())
+
+
+def components_for_share(eigenvalues: np.ndarray, share: float) -> int:
+    """Smallest number of components whose cumulative explained variance reaches `share`."""
+    if not 0.0 < share <= 1.0:
+        raise ValueError(f"share must be in (0, 1], got {share!r}")
+    cumulative = np.cumsum(eigenvalues / eigenvalues.sum())
+    # The cumulative sum can stop a hair short of 1.0 (round-off), which would put share=1.0
+    # one past the last component with variance.
+    return min(int(np.searchsorted(cumulative, share) + 1), nonzero_component_count(eigenvalues))
+
+
 @dataclass(frozen=True)
 class CovariancePca:
     """The PCA of X: everything needed to rotate or project, without holding X.
@@ -95,15 +110,11 @@ class CovariancePca:
         return np.cumsum(self.explained_variance_ratio)
 
     def n_nonzero_components(self) -> int:
-        return int((self.eigenvalues > _RANK_TOLERANCE * self.eigenvalues[0]).sum())
+        return nonzero_component_count(self.eigenvalues)
 
     def n_components_for(self, share: float) -> int:
         """Smallest number of components whose cumulative explained variance reaches `share`."""
-        if not 0.0 < share <= 1.0:
-            raise ValueError(f"share must be in (0, 1], got {share!r}")
-        # The cumulative sum can stop a hair short of 1.0 (round-off), which would put share=1.0
-        # one past the last component with variance.
-        return min(int(np.searchsorted(self.cumulative_variance_ratio, share) + 1), self.n_nonzero_components())
+        return components_for_share(self.eigenvalues, share)
 
     def save(self, path: Path) -> None:
         """Write the model to `path` (a .npz), temp file then rename so a killed run leaves no half file."""
@@ -149,7 +160,7 @@ def fit_covariance_pca(
     _require_matrix(X, chunk_columns)
     n_samples, n_features = X.shape
     _require_square_matrix_fits(n_samples, n_features, dual, max_matrix_gib)
-    means, scales = _column_statistics(X, standardize, chunk_columns)
+    means, scales = column_statistics(X, standardize, chunk_columns)
     if dual:
         eigenvalues, vectors = _descending_eigh(_gram_matrix(X, means, scales, chunk_columns), n_samples - 1)
         return CovariancePca(eigenvalues, means, scales, standardize, n_samples, left_vectors=vectors)
@@ -157,17 +168,22 @@ def fit_covariance_pca(
     return CovariancePca(eigenvalues, means, scales, standardize, n_samples, right_vectors=vectors)
 
 
-def resolve_n_components(pca: CovariancePca, n_components: int | None, variance_share: float | None) -> int:
+def resolve_n_components(eigenvalues: np.ndarray, n_components: int | None, variance_share: float | None) -> int:
     """How many components to keep: `n_components` as given, or as many as `variance_share` of the variance needs.
-    Exactly one of the two must be given."""
+    Exactly one of the two must be given. `eigenvalues` are the PCA's, descending."""
     if (n_components is None) == (variance_share is None):
         raise ValueError(
             f"give exactly one of n_components and variance_share, got n_components={n_components!r} "
             f"and variance_share={variance_share!r}"
         )
     if variance_share is not None:
-        return pca.n_components_for(variance_share)
-    _require_component_count(pca, n_components)
+        return components_for_share(eigenvalues, variance_share)
+    available = nonzero_component_count(eigenvalues)
+    if isinstance(n_components, bool) or not isinstance(n_components, int) or not 1 <= n_components <= available:
+        raise ValueError(
+            f"n_components must be an integer between 1 and {available} (components with non-zero variance), "
+            f"got {n_components!r}"
+        )
     return n_components
 
 
@@ -380,7 +396,9 @@ def _require_square_matrix_fits(n_samples: int, n_features: int, dual: bool, max
         )
 
 
-def _column_statistics(X: np.ndarray, standardize: bool, chunk_columns: int) -> tuple[np.ndarray, np.ndarray]:
+def column_statistics(X: np.ndarray, standardize: bool, chunk_columns: int = DEFAULT_CHUNK_COLUMNS) -> tuple[np.ndarray, np.ndarray]:
+    """Column means, and column standard deviations (ddof=1) if `standardize` else ones. Raises on NaN/inf,
+    and on a constant column when standardizing."""
     n_features = X.shape[1]
     means = np.empty(n_features, dtype=np.float64)
     scales = np.ones(n_features, dtype=np.float64)
@@ -393,7 +411,7 @@ def _column_statistics(X: np.ndarray, standardize: bool, chunk_columns: int) -> 
             )
         means[start:stop] = block.mean(axis=0)
         if standardize:
-            scales[start:stop] = block.std(axis=0, ddof=0)
+            scales[start:stop] = block.std(axis=0, ddof=1)
     constant = np.flatnonzero(scales == 0)
     if len(constant):
         raise ValueError(
