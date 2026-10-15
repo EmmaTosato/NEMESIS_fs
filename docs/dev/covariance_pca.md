@@ -4,6 +4,8 @@ Audience: developers/agents working on `src/analysis/covariance_pca.py` and the 
 
 This module replicates the "Data compression" step of Thiebaut de Schotten et al. 2020 (PCA on the covariance matrix, then varimax rotation with at most 500 iterations, component scores by multiple regression) on matrices too wide for `pca_varimax_embed` (`src/analysis/reduction.py`), such as the voxel-wise SDC matrix (5845 x 291345 float32 = 6.8 GB).
 
+What PCA, covariance vs correlation and varimax mean (concepts, not code): [`knowledge/dim_reduction_clustering/employed_dim_reduction_methods.md`](../../knowledge/dim_reduction_clustering/employed_dim_reduction_methods.md) (section "PCA e rotazione varimax").
+
 ## Why `pca_varimax_embed` is not enough
 
 `pca_varimax_embed` centers `X` into a second full copy, `sklearn.PCA` copies it again, and the score step solves a least-squares problem on a float64 transpose of `X` (about 13 GB for the matrix above). It is the right tool for the matrices that go through `dim_reduction.py`; it does not fit in memory here.

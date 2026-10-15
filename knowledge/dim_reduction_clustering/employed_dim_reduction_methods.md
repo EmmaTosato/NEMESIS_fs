@@ -1,8 +1,8 @@
-# t-SNE e UMAP: i metodi di riduzione dimensionale impiegati in NEMESIS
+# PCA, t-SNE e UMAP: i metodi di riduzione dimensionale impiegati in NEMESIS
 
 > Fonti (lette integralmente): van der Maaten & Hinton 2008, *"Visualizing Data using t-SNE"* ([paper originale, JMLR](https://jmlr.org/papers/volume9/vandermaaten08a/vandermaaten08a.pdf)); McInnes, Healy & Melville 2018, *"UMAP: Uniform Manifold Approximation and Projection"*; [documentazione ufficiale UMAP, "How UMAP Works"](https://umap-learn.readthedocs.io/en/latest/how_umap_works.html); Wattenberg, Viégas & Johnson 2016, *"How to Use t-SNE Effectively"* (Distill); Kobak & Linderman 2021, *"Initialization is critical for preserving global data structure in both t-SNE and UMAP"* (Nature Biotechnology).
 >
-> Meccanica dei due soli metodi non lineari che NEMESIS usa effettivamente (`umap`/`tsne` in `REDUCTION_METHODS`, `src/analysis/reduction.py`) — non coperta in questo dettaglio dalla rassegna più ampia in `dim_reduction_literature_survey.md` (tassonomia completa dei metodi di riduzione dimensionale, PCA/spettrali/neurali inclusi), a cui questo file si affianca.
+> Meccanica dei due metodi non lineari che NEMESIS usa effettivamente (`umap`/`tsne` in `REDUCTION_METHODS`, `src/analysis/reduction.py`), più, in fondo, la PCA con la rotazione varimax (il metodo lineare) — non coperta in questo dettaglio dalla rassegna più ampia in `dim_reduction_literature_survey.md` (tassonomia completa dei metodi di riduzione dimensionale, PCA/spettrali/neurali inclusi), a cui questo file si affianca.
 
 **In breve**:
 - **t-SNE, in una frase**: converte le distanze tra i punti in "probabilità di essere vicini" (gaussiane nello spazio originale, t di Student nello spazio ridotto) e sposta i punti nello spazio a bassa dimensione finché le due distribuzioni di probabilità non si assomigliano il più possibile (minimizzando la divergenza KL) — il risultato tipico sono cluster ben separati, pensati per la visualizzazione 2D/3D. Parametro chiave: `perplexity` (grosso modo quanti vicini "contano" per punto, tipicamente 5-50).
@@ -47,3 +47,159 @@ Le indicazioni delle fonti diventano un metodo di lettura dei plot dello sweep. 
 - **Più plateau con `k` diverso.** A `n_neighbors` diversi possono esistere due livelli stabili (uno fine, uno grosso): sono due granularità, non un errore. La scelta dipende da ciò che si vuole studiare; se si vogliono confrontare più `n_components`, ha senso tenere lo stesso livello.
 - **Nessun plateau.** Se il disegno cambia a ogni riquadro e il rumore è alto ovunque, nessuna combinazione è robusta: non si forza una scelta dal `k`.
 - **Cosa non si legge nei riquadri.** Le dimensioni dei cluster e le distanze tra cluster non sono significative (Coenen & Pearce, Wattenberg et al.). Prima di interpretare un gruppo si guardano le griglie colorate per metadati (lato, dataset, volume): una struttura netta che coincide con una variabile di confondimento non è un pattern.
+
+## PCA e rotazione varimax
+
+> Il metodo lineare tra quelli impiegati (`pca`/`pca_varimax` in `REDUCTION_METHODS`, `src/analysis/reduction.py`), a differenza di t-SNE e UMAP sopra. Il calcolo per matrici troppo larghe per `sklearn` (disconnettoma voxelwise) è in [`docs/dev/covariance_pca.md`](../../docs/dev/covariance_pca.md); i notebook che lo usano sono in [`docs/guides/exploration.md`](../../docs/guides/exploration.md) (`thiebaut_2020_replication`, `pca_sdc_voxelwise`).
+
+### La PCA
+
+#### L'idea
+
+Una matrice con *n* soggetti e *p* variabili (qui: voxel) è difficile da guardare. La PCA (*Principal Component Analysis*) trova nuovi assi, le **componenti**, lungo cui i soggetti differiscono di più:
+
+- la prima componente è la direzione di massima variabilità;
+- la seconda è la direzione di massima variabilità tra quelle perpendicolari alla prima;
+- e così via.
+
+Tenendo le prime *k* componenti si riassume ogni soggetto con *k* numeri invece di *p*, perdendo il meno possibile della variabilità.
+
+#### I passi
+
+1. **Centrare.** Si toglie a ogni variabile la sua media sui soggetti: `Xc = X - media`.
+2. **Covarianza.** Si calcola la matrice `C = Xcᵀ Xc / (n-1)`, di dimensione *p* × *p*. Il suo elemento (i, j) dice quanto i voxel *i* e *j* variano insieme tra i soggetti.
+3. **Autovettori e autovalori di C.** Ogni autovettore è una componente, ogni autovalore è la varianza che quella componente cattura. Si ordinano dal più grande.
+
+Dai risultati si leggono quattro cose:
+
+| Oggetto | Cos'è | Dimensione |
+|---|---|---|
+| **Autovalore** | varianza catturata dalla componente | uno per componente |
+| **Quota di varianza spiegata** | autovalore / somma di tutti gli autovalori | uno per componente |
+| **Pesi** (*loadings*) | quanto ogni variabile contribuisce alla componente (l'autovettore, eventualmente moltiplicato per √autovalore) | *p* × *k* |
+| **Punteggi** (*scores*) | la posizione di ogni soggetto sulla componente | *n* × *k* |
+
+Il grafico degli autovalori in ordine decrescente si chiama *scree plot*; la quota cumulata dice quante componenti servono per arrivare, ad esempio, al 90% della varianza.
+
+#### Equivalenze utili
+
+- La PCA è la decomposizione ai valori singolari (SVD) di `Xc`: gli autovalori di C sono i valori singolari al quadrato diviso `n-1`. `sklearn.decomposition.PCA` fa questo.
+- **Matrice più larga che alta (p > n).** Dopo aver centrato, ci sono al massimo `n-1` componenti con varianza non nulla. Gli stessi autovalori si ottengono dalla matrice piccola *n* × *n*, `Xc Xcᵀ`, senza costruire la matrice *p* × *p*. È ciò che fa [`covariance_pca.py`](../../src/analysis/covariance_pca.py) su 5845 soggetti × 291.345 voxel.
+- **Il segno di una componente è arbitrario.** Moltiplicarla per −1 è una soluzione equivalente. Per leggere una mappa si fissa una convenzione (qui: il voxel con |valore| massimo positivo).
+
+#### Limiti
+
+- È **lineare**: non trova strutture curve.
+- È sensibile ai **valori estremi**: pochi soggetti con valori enormi possono dominare una componente.
+- Le componenti sono **ortogonali per costruzione**: non è detto che corrispondano a processi distinti nei dati.
+
+### Covarianza o correlazione
+
+**Non sono due tecniche diverse.** È la stessa PCA applicata a due versioni dei dati:
+
+| | PCA sulla covarianza | PCA sulla correlazione |
+|---|---|---|
+| Preparazione | si toglie la media di ogni variabile | si toglie la media **e** si divide per la deviazione standard |
+| Scala delle variabili | conta | non conta |
+| Equivale a | `sklearn.PCA` così com'è | `StandardScaler` + `PCA` |
+
+**Perché cambia il risultato.** La PCA cerca le direzioni di massima varianza.
+
+- Con la covarianza, una variabile che varia molto domina le prime componenti.
+- Con la correlazione tutte le variabili hanno varianza 1, quindi nessuna domina per scala.
+
+**Quando usare l'una o l'altra:**
+
+- **Correlazione**: variabili in unità diverse (età in anni, volume in mm³). Senza standardizzare, vincerebbe quella con i numeri più grandi per puro accidente di unità.
+- **Covarianza**: variabili nella stessa unità, dove la differenza di variabilità è informazione vera.
+
+**Nel nostro caso: covarianza.** Ogni voxel del disconnettoma è una probabilità di disconnessione, tutti sulla stessa scala. Un voxel che varia di più tra i soggetti è davvero più informativo. Standardizzando, i voxel quasi sempre a zero (e quindi con variabilità minuscola, spesso solo rumore) peserebbero quanto gli altri. È anche la scelta di Thiebaut de Schotten et al. 2020.
+
+### La rotazione varimax
+
+#### L'idea in una frase
+
+**Gli assi della PCA sono una scelta tra tante equivalenti. Il varimax li gira finché non diventano facili da leggere.**
+
+In 2D: una nuvola di punti si può descrivere con due assi dritti, storti o ruotati di 30°. La nuvola non cambia, cambia solo il riferimento. La PCA sceglie gli assi con un criterio di varianza, che non garantisce che siano interpretabili. Il varimax ne sceglie altri, equivalenti per l'informazione, con un criterio di semplicità.
+
+#### Perché ruotare non costa nulla
+
+Le prime *k* componenti hanno una matrice di pesi Λ, di dimensione *p* × *k*. La PCA approssima la covarianza con:
+
+> C ≈ Λ Λᵀ
+
+Se R è una matrice **ortogonale** (RᵀR = I: una rotazione, eventualmente con riflessione), le componenti ruotate B = ΛR danno:
+
+> B Bᵀ = Λ R Rᵀ Λᵀ = Λ Λᵀ
+
+La stessa ricostruzione, quindi la stessa varianza totale spiegata dalle *k* componenti insieme. Ruotare cambia *come* quella varianza è divisa tra le componenti, non quanta ce n'è.
+
+#### Cosa significa "facile da leggere"
+
+| | Ricetta della PCA | Ricetta dopo il varimax |
+|---|---|---|
+| Variabili coinvolte | tutte un po' | poche molto, le altre quasi zero |
+| Come si legge | "un mix di tutto" | "questa è la zona X" |
+
+Il varimax cerca la rotazione in cui ogni variabile appartiene soprattutto a **una** componente (*struttura semplice*).
+
+#### Il criterio
+
+Si cerca la R che massimizza:
+
+> V(R) = Σⱼ [ media_i(bᵢⱼ⁴) − ( media_i(bᵢⱼ²) )² ]
+
+con B = ΛR, dove *i* scorre sulle variabili e *j* sulle componenti. Dentro la parentesi c'è la **varianza dei pesi al quadrato** della componente *j*: alta quando pochi pesi sono grandi e molti sono vicini a zero.
+
+**Perché spinge verso la concentrazione.** Una rotazione conserva la lunghezza di ogni riga: Σⱼ bᵢⱼ² è fisso per ogni variabile. Cambia solo come quell'energia si divide tra le componenti. Con una variabile di energia 1 e due componenti:
+
+| Distribuzione | Pesi | Σ b⁴ |
+|---|---|---|
+| Spalmata | (0,7; 0,7) | 0,49² + 0,49² ≈ 0,48 |
+| Concentrata | (1; 0) | 1² + 0² = 1 |
+
+A energia fissa, la somma delle quarte potenze è massima quando l'energia sta su una sola componente. Massimizzare V significa far scegliere a ogni variabile una componente.
+
+#### Come si calcola
+
+Non c'è formula chiusa (salvo con due componenti). Si itera:
+
+1. si parte da R = I;
+2. si calcola il gradiente di V rispetto a R (matrice *k* × *k*);
+3. dalla sua SVD, G = U Σ Vᵀ, si pone R = U Vᵀ, la rotazione ortogonale più vicina al gradiente;
+4. si ripete fino a convergenza o fino al numero massimo di iterazioni (500 nel paper).
+
+Trova un massimo **locale**, non necessariamente globale.
+
+#### I punteggi dopo la rotazione
+
+Le colonne di B non sono più ortogonali nei dati, quindi la semplice proiezione non basta. Il punteggio di un soggetto con riga centrata **x** è il vettore **s** che ricostruisce meglio **x** come combinazione dei profili ruotati, cioè la regressione multipla:
+
+> **s** = (BᵀB)⁻¹ Bᵀ **x**
+
+#### Cosa si guadagna e cosa si perde
+
+**Si guadagna:** componenti leggibili come zone (per il disconnettoma: gruppi di voxel che si disconnettono insieme, ad esempio un emisfero o un fascio).
+
+**Si perde:**
+
+- **L'ordine per varianza.** Dopo la rotazione la prima componente non è più la più importante.
+- **L'uguaglianza dei pesi nel clustering.** Con la regressione, i punteggi ruotati hanno varianza 1 per costruzione: ogni componente pesa uguale, anche quelle che spiegano poca varianza. Per un clustering sulle componenti l'input consigliato sono i punteggi PCA non ruotati.
+- **L'indipendenza dalla scelta di *k*.** Ruotare 14 o 42 componenti dà profili diversi.
+
+**Non si scopre nulla di nuovo.** I dati e l'informazione sono gli stessi. Il varimax sceglie la descrizione più semplice anche quando nei dati non c'è una struttura a gruppi, e produce comunque componenti dall'aspetto pulito: che i gruppi siano reali va verificato altrove (ad esempio con la riproducibilità tra due metà dei soggetti).
+
+#### Quando usare cosa
+
+| Obiettivo | Scelta |
+|---|---|
+| Interpretare le componenti, confrontarsi con il paper | PCA + varimax |
+| Input di un clustering o di un'altra riduzione | PCA non ruotata |
+
+### Nel repo
+
+- Calcolo su matrici larghe (covarianza, varimax, punteggi per regressione, R², mappe t): [`src/analysis/covariance_pca.py`](../../src/analysis/covariance_pca.py), riferimento tecnico in [`docs/dev/covariance_pca.md`](../../docs/dev/covariance_pca.md).
+- `pca` e `pca_varimax` in `src/analysis/reduction.py` passano da `sklearn.PCA` e `factor_analyzer.Rotator`, adatti alle matrici che passano da `dim_reduction.py`.
+- Notebook: `notebooks/pipeline_building/thiebaut_2020_replication.ipynb` (con varimax) e `pca_sdc_voxelwise.ipynb` (solo PCA).
+- Fonte del metodo: Thiebaut de Schotten et al. 2020, *Brain disconnections link structural connectivity with function and behaviour* (cartella in `knowledge/nemesis/`).
