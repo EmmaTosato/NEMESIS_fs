@@ -17,6 +17,8 @@
     "ST"
   ],
   
+  "representation": "voxelwise",
+
   "reference_template_path": "assets/templates/tpl-MNI152NLin6Asym_res-2_T1w.nii.gz",
   "brain_mask_path": "assets/templates/tpl-MNI152NLin6Asym_res-2_desc-brain_mask.nii.gz",
   "lesion_glob": "manual_masks/*/anat/*_label-lesion_mask.nii.gz",

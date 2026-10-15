@@ -29,7 +29,8 @@ import numpy as np
 import pandas as pd
 
 from src.analysis.build_config import SdcMatrixConfig, load_build_sdc_matrix_config
-from src.features.sdc import build_sdc_matrix, build_sdc_streamline_matrix, build_sdc_voxelwise_matrix
+from src.features.parcellated_csv import build_parcellated_matrix
+from src.features.sdc import build_sdc_streamline_matrix, build_sdc_voxelwise_matrix
 from src.utils.artifacts import save_matrix
 from src.utils.participants import load_excluded_subjects
 from src.utils.logging_setup import attach_file_handler, log_duration
@@ -83,7 +84,7 @@ def main(argv: list[str] | None = None) -> int:
                 (
                     X, metadata, column_labels, excluded_by_group, excluded_by_list,
                     excluded_no_lesion_mask, sdc_not_yet_computed,
-                ) = build_sdc_matrix(
+                ) = build_parcellated_matrix(
                     data_root=config.data_root,
                     datasets=config.datasets,
                     object_=config.object,

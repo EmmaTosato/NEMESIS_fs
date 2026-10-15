@@ -8,12 +8,11 @@ import pytest
 
 from src.utils import participants as participants_registry
 from src.features.lesion import LesionGrid
+from src.features.parcellated_csv import build_parcellated_matrix, load_reference_regions
 from src.features.sdc import (
-    build_sdc_matrix,
     build_sdc_streamline_matrix,
     build_sdc_voxelwise_matrix,
     compute_sdc_metadata,
-    load_reference_regions,
 )
 
 _VOXELWISE_AFFINE = np.eye(4) * 2
@@ -76,7 +75,7 @@ def _metadata_root(tmp_path, monkeypatch):
     return metadata_root
 
 
-def test_build_sdc_matrix_reindexes_missing_regions_to_zero(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_reindexes_missing_regions_to_zero(tmp_path, _metadata_root):
     """The core alignment behaviour: BCBToolKit omits regions at zero overlap
     instead of writing them explicitly - reindex must restore them as 0.0,
     not drop the subject or shrink the column count."""
@@ -89,7 +88,7 @@ def test_build_sdc_matrix_reindexes_missing_regions_to_zero(tmp_path, _metadata_
     _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0002")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0002", _OBJECT, _ATLAS, {"A": 0.1, "B": 0.9, "C": 0.3})
 
-    X, metadata, region_names, excluded_by_group, _, excluded_no_lesion_mask, sdc_not_yet_computed = build_sdc_matrix(
+    X, metadata, region_names, excluded_by_group, _, excluded_no_lesion_mask, sdc_not_yet_computed = build_parcellated_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
         object_=_OBJECT,
@@ -109,7 +108,7 @@ def test_build_sdc_matrix_reindexes_missing_regions_to_zero(tmp_path, _metadata_
     assert sdc_not_yet_computed == []
 
 
-def test_build_sdc_matrix_no_column_dropped_even_if_constant(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_no_column_dropped_even_if_constant(tmp_path, _metadata_root):
     """2026-08-27 project decision: unlike build_lesion_matrix.py's
     _drop_constant_features, a column here always means the same region
     regardless of which subjects a given run includes - no drop, ever."""
@@ -121,7 +120,7 @@ def test_build_sdc_matrix_no_column_dropped_even_if_constant(tmp_path, _metadata
     _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0002")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0002", _OBJECT, _ATLAS, {"A": 0.7})
 
-    X, _, region_names, *_ = build_sdc_matrix(
+    X, _, region_names, *_ = build_parcellated_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
         object_=_OBJECT,
@@ -136,7 +135,7 @@ def test_build_sdc_matrix_no_column_dropped_even_if_constant(tmp_path, _metadata
     assert list(region_names) == ["A", "B"]
 
 
-def test_build_sdc_matrix_empty_csv_becomes_zero_vector(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_empty_csv_becomes_zero_vector(tmp_path, _metadata_root):
     """A subject with a registered lesion mask and a real (but header-only)
     SDC CSV is a legitimate domain case (BCBToolKit found zero disconnected
     regions), distinct from a missing lesion mask (excluded entirely, see
@@ -147,7 +146,7 @@ def test_build_sdc_matrix_empty_csv_becomes_zero_vector(tmp_path, _metadata_root
     _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {})  # header only, no rows
 
-    X, metadata, region_names, *_ = build_sdc_matrix(
+    X, metadata, region_names, *_ = build_parcellated_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
         object_=_OBJECT,
@@ -162,7 +161,7 @@ def test_build_sdc_matrix_empty_csv_becomes_zero_vector(tmp_path, _metadata_root
     np.testing.assert_array_equal(X[0], [0.0, 0.0])
 
 
-def test_build_sdc_matrix_excludes_subject_without_lesion_mask(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_excludes_subject_without_lesion_mask(tmp_path, _metadata_root):
     """Real case confirmed in the cohort (sub-STUKLFR0005, absent from
     has_lesion=False in participants.csv - docs/dev/sdc_matrix.md):
     a subject with SDC output but no lesion mask registered in the
@@ -176,7 +175,7 @@ def test_build_sdc_matrix_excludes_subject_without_lesion_mask(tmp_path, _metada
     # sub-STUNIPD0002 has SDC output but is never registered as having a lesion mask
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0002", _OBJECT, _ATLAS, {"A": 0.9})
 
-    X, metadata, _, excluded_by_group, _, excluded_no_lesion_mask, sdc_not_yet_computed = build_sdc_matrix(
+    X, metadata, _, excluded_by_group, _, excluded_no_lesion_mask, sdc_not_yet_computed = build_parcellated_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
         object_=_OBJECT,
@@ -193,7 +192,7 @@ def test_build_sdc_matrix_excludes_subject_without_lesion_mask(tmp_path, _metada
     assert excluded_by_group == []
 
 
-def test_build_sdc_matrix_tracks_lesion_mask_without_sdc_yet(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_tracks_lesion_mask_without_sdc_yet(tmp_path, _metadata_root):
     """A subject registered with a lesion mask but no SDC file yet (not yet
     computed upstream) is excluded from X and tracked separately - distinct
     from excluded_no_lesion_mask, opposite direction of the gap."""
@@ -204,7 +203,7 @@ def test_build_sdc_matrix_tracks_lesion_mask_without_sdc_yet(tmp_path, _metadata
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {"A": 0.5})
     _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0002")  # no SDC CSV at all
 
-    X, metadata, _, _, _, excluded_no_lesion_mask, sdc_not_yet_computed = build_sdc_matrix(
+    X, metadata, _, _, _, excluded_no_lesion_mask, sdc_not_yet_computed = build_parcellated_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
         object_=_OBJECT,
@@ -220,7 +219,7 @@ def test_build_sdc_matrix_tracks_lesion_mask_without_sdc_yet(tmp_path, _metadata
     assert sdc_not_yet_computed == ["sub-STUNIPD0002"]
 
 
-def test_build_sdc_matrix_group_filter_excludes_hc(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_group_filter_excludes_hc(tmp_path, _metadata_root):
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A"])
 
@@ -229,7 +228,7 @@ def test_build_sdc_matrix_group_filter_excludes_hc(tmp_path, _metadata_root):
     _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPDHC0001")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPDHC0001", _OBJECT, _ATLAS, {"A": 0.1})
 
-    X, metadata, _, excluded_by_group, _, _, _ = build_sdc_matrix(
+    X, metadata, _, excluded_by_group, _, _, _ = build_parcellated_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
         object_=_OBJECT,
@@ -244,7 +243,7 @@ def test_build_sdc_matrix_group_filter_excludes_hc(tmp_path, _metadata_root):
     assert excluded_by_group == ["sub-STUNIPDHC0001"]
 
 
-def test_build_sdc_matrix_missing_registry_raises(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_missing_registry_raises(tmp_path, _metadata_root):
     """No participants.csv at all is a real configuration problem (registry
     never generated by src/pipeline/populate_metadata.py) - never silently
     treated as "zero subjects have a lesion mask"."""
@@ -253,7 +252,7 @@ def test_build_sdc_matrix_missing_registry_raises(tmp_path, _metadata_root):
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {"A": 0.5})
 
     with pytest.raises(FileNotFoundError, match="subject registry not found"):
-        build_sdc_matrix(
+        build_parcellated_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
             object_=_OBJECT,
@@ -265,7 +264,7 @@ def test_build_sdc_matrix_missing_registry_raises(tmp_path, _metadata_root):
         )
 
 
-def test_build_sdc_matrix_dataset_absent_from_registry_raises(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_dataset_absent_from_registry_raises(tmp_path, _metadata_root):
     """A structural gap in the registry this pipeline depends on for its core
     admission criterion: the registry exists but knows nothing about the
     requested dataset (typo'd name, or genuinely not onboarded yet) - never
@@ -276,7 +275,7 @@ def test_build_sdc_matrix_dataset_absent_from_registry_raises(tmp_path, _metadat
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {"A": 0.5})
 
     with pytest.raises(ValueError, match="no row in the subject registry"):
-        build_sdc_matrix(
+        build_parcellated_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
             object_=_OBJECT,
@@ -288,7 +287,7 @@ def test_build_sdc_matrix_dataset_absent_from_registry_raises(tmp_path, _metadat
         )
 
 
-def test_build_sdc_matrix_unknown_region_raises(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_unknown_region_raises(tmp_path, _metadata_root):
     """A region_name in a subject's CSV that isn't in the reference label set
     is a hard error (atlas mismatch or corrupt file), never silently ignored
     or added as an extra column."""
@@ -299,7 +298,7 @@ def test_build_sdc_matrix_unknown_region_raises(tmp_path, _metadata_root):
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPD0001", _OBJECT, _ATLAS, {"A": 0.5, "Z": 0.9})  # "Z" unknown
 
     with pytest.raises(ValueError, match="not in the reference label set"):
-        build_sdc_matrix(
+        build_parcellated_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
             object_=_OBJECT,
@@ -311,7 +310,7 @@ def test_build_sdc_matrix_unknown_region_raises(tmp_path, _metadata_root):
         )
 
 
-def test_build_sdc_matrix_duplicate_region_name_raises(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_duplicate_region_name_raises(tmp_path, _metadata_root):
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A", "B"])
 
@@ -322,7 +321,7 @@ def test_build_sdc_matrix_duplicate_region_name_raises(tmp_path, _metadata_root)
     path.write_text(f"region_name,{_VALUE_COLUMN}\nA,0.5\nA,0.6\n")  # duplicate "A"
 
     with pytest.raises(ValueError, match="duplicate region_name"):
-        build_sdc_matrix(
+        build_parcellated_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
             object_=_OBJECT,
@@ -334,11 +333,11 @@ def test_build_sdc_matrix_duplicate_region_name_raises(tmp_path, _metadata_root)
         )
 
 
-def test_build_sdc_matrix_invalid_object_raises(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_invalid_object_raises(tmp_path, _metadata_root):
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A"])
     with pytest.raises(ValueError, match="object_ must be one of"):
-        build_sdc_matrix(
+        build_parcellated_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
             object_="not_a_real_object",
@@ -350,11 +349,11 @@ def test_build_sdc_matrix_invalid_object_raises(tmp_path, _metadata_root):
         )
 
 
-def test_build_sdc_matrix_invalid_value_column_raises(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_invalid_value_column_raises(tmp_path, _metadata_root):
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A"])
     with pytest.raises(ValueError, match="value_column must be one of"):
-        build_sdc_matrix(
+        build_parcellated_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
             object_=_OBJECT,
@@ -366,13 +365,13 @@ def test_build_sdc_matrix_invalid_value_column_raises(tmp_path, _metadata_root):
         )
 
 
-def test_build_sdc_matrix_no_admitted_subjects_raises(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_no_admitted_subjects_raises(tmp_path, _metadata_root):
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A"])
     _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0001")  # no SDC file for anyone
 
     with pytest.raises(ValueError, match="no subjects admitted"):
-        build_sdc_matrix(
+        build_parcellated_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
             object_=_OBJECT,
@@ -641,9 +640,9 @@ def test_build_sdc_voxelwise_matrix_never_holds_the_full_voxel_matrix_in_memory(
     assert peak_bytes < full_matrix_bytes / 2
 
 
-def test_build_sdc_matrix_applies_the_excluded_subjects_list(tmp_path, _metadata_root):
+def test_build_parcellated_matrix_applies_the_excluded_subjects_list(tmp_path, _metadata_root):
     """The same list src.features.lesion applies, resolved in the one place BOTH SDC
-    representations share (_subjects_with_lesion_mask). Without this, a lesion-vs-SDC comparison
+    representations share (subjects_with_lesion_mask). Without this, a lesion-vs-SDC comparison
     would silently compare two different cohorts."""
     reference_path = tmp_path / "labels.csv"
     _make_reference_labels(reference_path, ["A"])
@@ -652,7 +651,7 @@ def test_build_sdc_matrix_applies_the_excluded_subjects_list(tmp_path, _metadata
         _register_lesion_mask(_metadata_root, "siteA", subject_id)
         _make_sdc_csv(tmp_path, "siteA", subject_id, _OBJECT, _ATLAS, {"A": value})
 
-    X, metadata, _, excluded_by_group, excluded_by_list, _, _ = build_sdc_matrix(
+    X, metadata, _, excluded_by_group, excluded_by_list, _, _ = build_parcellated_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
         object_=_OBJECT,
@@ -708,7 +707,7 @@ def test_excluded_subject_out_of_group_is_reported_as_group_not_list(tmp_path, _
     _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPDHC0001")
     _make_sdc_csv(tmp_path, "siteA", "sub-STUNIPDHC0001", _OBJECT, _ATLAS, {"A": 0.1})
 
-    _, metadata, _, excluded_by_group, excluded_by_list, _, _ = build_sdc_matrix(
+    _, metadata, _, excluded_by_group, excluded_by_list, _, _ = build_parcellated_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
         object_=_OBJECT,
@@ -913,7 +912,7 @@ def test_excluded_subject_is_not_also_reported_as_missing_its_lesion_mask(tmp_pa
     common = dict(data_root=tmp_path, datasets=["siteA"], group_filter=None,
                   excluded_subjects=frozenset({"sub-STUNIPD0002"}))
     results = {
-        "parcellated": build_sdc_matrix(
+        "parcellated": build_parcellated_matrix(
             object_=_OBJECT, atlas=_ATLAS, value_column=_VALUE_COLUMN, reference_labels_path=labels, **common),
         "voxelwise": build_sdc_voxelwise_matrix(
             object_=_OBJECT, reference_template_path=template, resample_interpolation="nearest", **common),

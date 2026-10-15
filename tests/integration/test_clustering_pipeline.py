@@ -50,6 +50,7 @@ def _build_matrix(tmp_path, monkeypatch, n_subjects=12):
         "data_root": str(data_root),
         "datasets": ["siteA"],
         "excluded_subjects_path": _empty_exclusion_list(tmp_path),
+        "representation": "voxelwise",
         "reference_template_path": str(template_path),
         "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
         "binarize_threshold": 0.5,

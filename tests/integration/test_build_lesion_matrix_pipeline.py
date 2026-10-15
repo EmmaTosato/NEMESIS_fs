@@ -64,6 +64,7 @@ def _write_config(tmp_path, data_root, output_root, overrides=None):
         "data_root": str(data_root),
         "datasets": ["siteA"],
         "excluded_subjects_path": _empty_exclusion_list(tmp_path),
+        "representation": "voxelwise",
         "reference_template_path": str(template_path),
         "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
         "binarize_threshold": 0.5,
@@ -333,3 +334,81 @@ def test_build_lesion_matrix_ignores_rows_scoped_to_an_sdc_representation(tmp_pa
     # 0002 is dropped (scope lesion); 0003 stays (its row is scoped to a matrix this is not)
     assert list(metadata["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0003"]
     assert '"excluded_subjects_scope": "lesion"' in (out_dir / "config.md").read_text()
+
+
+_PARCELLATED_REGIONS = ["7Networks_LH_Vis_1", "7Networks_LH_Vis_2", "pPUT-lh"]
+
+
+def _write_parcellated_config(tmp_path, data_root, output_root):
+    labels = tmp_path / "labels.csv"
+    labels.write_text("\n".join(["region_name", *_PARCELLATED_REGIONS]) + "\n")
+    cfg = {
+        "project": "testproj",
+        "data_root": str(data_root),
+        "datasets": ["siteA"],
+        "excluded_subjects_path": _empty_exclusion_list(tmp_path),
+        "representation": "parcellated",
+        "atlas": "test_atlas",
+        "value_column": "fraction_covered",
+        "reference_labels_path": str(labels),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+    }
+    path = tmp_path / "build_lesion_matrix.json"
+    path.write_text(json.dumps(cfg))
+    return path
+
+
+def _write_lesion_csv(data_root, subject_id, rows):
+    subject_dir = data_root / "siteA" / "bcbtoolkit" / subject_id
+    subject_dir.mkdir(parents=True, exist_ok=True)
+    lines = ["region_name,n_voxels_region,n_voxels_overlap,fraction_covered"]
+    lines += [f"{region},100,{int(100 * value)},{value}" for region, value in rows.items()]
+    (subject_dir / f"{subject_id}_space-MNI152NLin6Asym_LF-lesion_atlas-test_atlas.csv").write_text(
+        "\n".join(lines) + "\n"
+    )
+
+
+def test_build_lesion_matrix_parcellated_end_to_end(tmp_path, monkeypatch, caplog):
+    """The whole parcellated flow: regions come back named and in reference order, an omitted
+    region is 0.0, and the subject that has a registered mask but no LF-lesion CSV is left out
+    of the matrix AND told about in config.md - never a row of zeros."""
+    monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
+    metadata_root.mkdir(parents=True, exist_ok=True)
+    (metadata_root / "participants.csv").write_text(
+        "subject_id,original_id,dataset,disease_id,has_lesion,has_sdc,has_features\n"
+        + "".join(f"sub-STUNIPD000{i},sub-STUNIPD000{i},siteA,ST,True,True,False\n" for i in (1, 2, 3))
+    )
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    _write_lesion_csv(data_root, "sub-STUNIPD0001", {"7Networks_LH_Vis_1": 0.5, "pPUT-lh": 0.25})
+    _write_lesion_csv(data_root, "sub-STUNIPD0002", {"7Networks_LH_Vis_2": 1.0})
+    # sub-STUNIPD0003: registered mask, no LF-lesion CSV
+    config_path = _write_parcellated_config(tmp_path, data_root, output_root)
+
+    with caplog.at_level(logging.INFO):
+        assert build_lesion_matrix.main(["--config", str(config_path)]) == 0
+
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    matrix = np.load(out_dir / "matrix.npy")
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    region_names = list(np.load(out_dir / "region_names.npy", allow_pickle=False))
+
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0002"]
+    assert region_names == sorted(_PARCELLATED_REGIONS)
+    column = {name: i for i, name in enumerate(region_names)}
+    assert matrix[0, column["7Networks_LH_Vis_1"]] == 0.5
+    assert matrix[0, column["7Networks_LH_Vis_2"]] == 0.0  # omitted by BCBToolKit
+    assert matrix[1, column["7Networks_LH_Vis_2"]] == 1.0
+
+    config_md = (out_dir / "config.md").read_text()
+    assert "2 subjects x 3 regions" in config_md
+    assert '"excluded_subjects_scope": "lesion"' in config_md
+    assert "Have a registered lesion mask but no LF-lesion CSV" in config_md
+    assert "- sub-STUNIPD0003" in config_md
+    assert "sub-STUNIPD0003" in caplog.text
+    runs_csv = (output_root / "runs.csv").read_text()
+    assert "fraction_covered" in runs_csv

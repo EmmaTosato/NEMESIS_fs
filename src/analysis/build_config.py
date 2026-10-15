@@ -17,7 +17,8 @@ from pathlib import Path
 
 from src.features.lesion import LesionGrid, validate_lesion_grids, validate_lesion_location
 from src.features.lesion_location import LesionAtlas, LesionLocationSpec
-from src.features.sdc import KNOWN_OBJECTS, KNOWN_REPRESENTATIONS, KNOWN_VALUE_COLUMNS, STREAMLINE_ATLAS
+from src.features.parcellated_csv import KNOWN_OBJECTS, KNOWN_VALUE_COLUMNS
+from src.features.sdc import KNOWN_REPRESENTATIONS, STREAMLINE_ATLAS
 from src.utils.subject_ids import KNOWN_GROUPS
 
 _KNOWN_INTERPOLATIONS = frozenset({"linear", "nearest", "continuous"})
@@ -29,21 +30,48 @@ class BuildMatrixConfig:
     data_root: Path
     datasets: list[str]
     group_filter: list[str] | None
-    reference_template_path: Path
-    lesion_glob: str
-    binarize_threshold: float
-    resample_interpolation: str
+    representation: str
     excluded_subjects_path: Path
-    correct_out_of_brain: bool
+    # voxelwise-only (None for parcellated)
+    reference_template_path: Path | None
+    lesion_glob: str | None
+    binarize_threshold: float | None
+    resample_interpolation: str | None
+    correct_out_of_brain: bool | None
     brain_mask_path: Path | None
+    # parcellated-only (None for voxelwise)
+    atlas: str | None
+    value_column: str | None
+    reference_labels_path: Path | None
     output_root: Path
     session_name: str
     overwrite: bool
     run_notes: str | None
 
 
+KNOWN_LESION_REPRESENTATIONS = ("voxelwise", "parcellated")
+_LESION_VOXELWISE_KEYS = (
+    "reference_template_path", "lesion_glob", "binarize_threshold", "resample_interpolation",
+    "correct_out_of_brain", "brain_mask_path",
+)
+_LESION_PARCELLATED_KEYS = ("atlas", "value_column", "reference_labels_path")
+
+
 def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
     """Load and validate a build_lesion_matrix.json file.
+
+    `representation` ("voxelwise" or "parcellated") picks what the matrix is made of, and each
+    has its own required fields, validated only for the representation requested:
+    - "voxelwise": reference_template_path, lesion_glob, binarize_threshold,
+      resample_interpolation, and optionally correct_out_of_brain (+ brain_mask_path, required
+      when it is set).
+    - "parcellated": atlas, value_column, reference_labels_path - same field names as
+      build_sdc_matrix.json's parcellated representation, because it reads the same kind of
+      BCBToolKit CSV (the LF-lesion family instead of LF-disconnectome), through the same code
+      (src.features.parcellated_csv).
+    A field belonging to the other representation is rejected rather than ignored: a
+    `correct_out_of_brain: true` that silently did nothing would leave a parcellated run looking
+    corrected when it is not.
 
     Raises ValueError identifying the offending field for any structural
     problem (missing field, wrong type, out-of-domain value).
@@ -57,12 +85,43 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
     if not isinstance(raw, dict):
         raise ValueError(f"config: top-level content must be a JSON object, got {raw!r}")
 
-    datasets = _require_unique_str_list(raw, "datasets")
-    reference_template_path = Path(_require_str(raw, "reference_template_path"))
+    representation = _require_str(raw, "representation")
+    if representation not in KNOWN_LESION_REPRESENTATIONS:
+        raise ValueError(
+            f"config: field 'representation' must be one of {list(KNOWN_LESION_REPRESENTATIONS)}, "
+            f"got {representation!r}"
+        )
+    foreign_keys = _LESION_PARCELLATED_KEYS if representation == "voxelwise" else _LESION_VOXELWISE_KEYS
+    present = [key for key in foreign_keys if key in raw]
+    if present:
+        raise ValueError(
+            f"config: field(s) {present} are not read by representation={representation!r} - remove them"
+        )
 
-    resample_interpolation = _validate_resample_interpolation(_require_str(raw, "resample_interpolation"))
-    binarize_threshold = _require_float_in_range(raw, "binarize_threshold", 0.0, 1.0)
+    if representation == "voxelwise":
+        voxelwise_fields = _voxelwise_fields(raw)
+        parcellated_fields = {"atlas": None, "value_column": None, "reference_labels_path": None}
+    else:
+        voxelwise_fields = {key: None for key in _LESION_VOXELWISE_KEYS}
+        parcellated_fields = _parcellated_fields(raw)
 
+    return BuildMatrixConfig(
+        project=_require_str(raw, "project"),
+        data_root=Path(_require_str(raw, "data_root")),
+        datasets=_require_unique_str_list(raw, "datasets"),
+        group_filter=_optional_group_filter(raw),
+        representation=representation,
+        excluded_subjects_path=Path(_require_str(raw, "excluded_subjects_path")),
+        **voxelwise_fields,
+        **parcellated_fields,
+        output_root=Path(_require_str(raw, "output_root")),
+        session_name=_require_str(raw, "session_name"),
+        overwrite=_require_bool(raw, "overwrite"),
+        run_notes=_optional_str(raw, "run_notes"),
+    )
+
+
+def _voxelwise_fields(raw: dict) -> dict:
     # correct_out_of_brain zeroes a subject's out-of-brain lesion voxels and keeps the subject.
     # It is the only use of brain_mask_path here, so that field is required exactly when it is
     # active. There is no threshold-based admission filter in this config any more: which
@@ -74,24 +133,27 @@ def load_build_matrix_config(path: str | Path) -> BuildMatrixConfig:
     brain_mask_path = Path(brain_mask_path_raw) if brain_mask_path_raw is not None else None
     if correct_out_of_brain and brain_mask_path is None:
         raise ValueError("config: correct_out_of_brain is set but brain_mask_path is missing")
+    return {
+        "reference_template_path": Path(_require_str(raw, "reference_template_path")),
+        "lesion_glob": _require_str(raw, "lesion_glob"),
+        "binarize_threshold": _require_float_in_range(raw, "binarize_threshold", 0.0, 1.0),
+        "resample_interpolation": _validate_resample_interpolation(_require_str(raw, "resample_interpolation")),
+        "correct_out_of_brain": correct_out_of_brain,
+        "brain_mask_path": brain_mask_path,
+    }
 
-    return BuildMatrixConfig(
-        project=_require_str(raw, "project"),
-        data_root=Path(_require_str(raw, "data_root")),
-        datasets=datasets,
-        group_filter=_optional_group_filter(raw),
-        reference_template_path=reference_template_path,
-        lesion_glob=_require_str(raw, "lesion_glob"),
-        binarize_threshold=binarize_threshold,
-        resample_interpolation=resample_interpolation,
-        excluded_subjects_path=Path(_require_str(raw, "excluded_subjects_path")),
-        correct_out_of_brain=correct_out_of_brain,
-        brain_mask_path=brain_mask_path,
-        output_root=Path(_require_str(raw, "output_root")),
-        session_name=_require_str(raw, "session_name"),
-        overwrite=_require_bool(raw, "overwrite"),
-        run_notes=_optional_str(raw, "run_notes"),
-    )
+
+def _parcellated_fields(raw: dict) -> dict:
+    value_column = _require_str(raw, "value_column")
+    if value_column not in KNOWN_VALUE_COLUMNS:
+        raise ValueError(
+            f"config: field 'value_column' must be one of {sorted(KNOWN_VALUE_COLUMNS)}, got {value_column!r}"
+        )
+    return {
+        "atlas": _require_str(raw, "atlas"),
+        "value_column": value_column,
+        "reference_labels_path": Path(_require_str(raw, "reference_labels_path")),
+    }
 
 
 def _require_str(raw: dict, key: str) -> str:

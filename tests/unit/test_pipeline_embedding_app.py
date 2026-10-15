@@ -4,6 +4,7 @@ AUDIT_FINDINGS.md #45: this file didn't exist before, main()'s own error handlin
 src/analysis/embedding_app.py's underlying functions were tested).
 """
 
+import dataclasses
 from pathlib import Path
 
 import nibabel as nib
@@ -24,13 +25,17 @@ def _fake_build_matrix_config() -> BuildMatrixConfig:
         data_root=Path("unused"),
         datasets=["siteA"],
         group_filter=None,
+        representation="voxelwise",
+        excluded_subjects_path=Path("unused.csv"),
         reference_template_path=Path("unused.nii.gz"),
         lesion_glob="*/manual_masks/*/anat/*_label-lesion_mask.nii.gz",
         binarize_threshold=0.5,
         resample_interpolation="nearest",
-        excluded_subjects_path=Path("unused.csv"),
         correct_out_of_brain=False,
         brain_mask_path=None,
+        atlas=None,
+        value_column=None,
+        reference_labels_path=None,
         output_root=Path("unused"),
         session_name="test",
         overwrite=False,
@@ -139,3 +144,18 @@ def test_main_sdc_config_not_voxelwise_returns_1(tmp_path, monkeypatch):
 
     exit_code = embedding_app.main(["--results-root", str(tmp_path)])
     assert exit_code == 1
+
+
+def test_main_lesion_config_not_voxelwise_returns_1(tmp_path, monkeypatch):
+    """The lesion anatomy panels re-read raw masks, which a "parcellated" build_lesion_matrix.json
+    has no path to (reference_template_path/lesion_glob are None) - it must fail loudly at
+    startup, never build a LesionViewerConfig out of None fields."""
+    monkeypatch.setattr(embedding_app, "discover_production_runs", lambda results_root: [_fake_run()])
+    parcellated = dataclasses.replace(
+        _fake_build_matrix_config(), representation="parcellated", reference_template_path=None, lesion_glob=None,
+        binarize_threshold=None, resample_interpolation=None, correct_out_of_brain=None,
+        atlas="schaefer_300_tian_s2", value_column="fraction_covered", reference_labels_path=Path("unused.csv"),
+    )
+    monkeypatch.setattr(embedding_app, "load_build_matrix_config", lambda path: parcellated)
+
+    assert embedding_app.main(["--results-root", str(tmp_path)]) == 1

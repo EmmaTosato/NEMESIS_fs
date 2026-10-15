@@ -15,6 +15,7 @@ _BASE = {
     "project": "clinical_connectome",
     "data_root": "data/clinical_connectome",
     "datasets": ["UNIPD/WashU", "UNIPD/PASPORT"],
+    "representation": "voxelwise",
     "reference_template_path": "/templates/mni152_2mm.nii.gz",
     "lesion_glob": "*/lesion/manual_masks/anat/*_label-lesion_mask.nii.gz",
     "binarize_threshold": 0.5,
@@ -117,6 +118,73 @@ def test_brain_mask_path_absent_when_nothing_set(tmp_path):
 def test_invalid_configs_raise_value_error(tmp_path, overrides, match):
     with pytest.raises(ValueError, match=match):
         load_build_matrix_config(_write(tmp_path, overrides))
+
+
+_PARCELLATED = {
+    "representation": "parcellated",
+    "atlas": "schaefer_300_tian_s2",
+    "value_column": "fraction_covered",
+    "reference_labels_path": "assets/atlases/sdc_labels/schaefer_300_tian_s2.csv",
+}
+_VOXELWISE_ONLY = ("reference_template_path", "lesion_glob", "binarize_threshold", "resample_interpolation")
+
+
+def _write_parcellated(tmp_path, overrides=None):
+    cfg = {k: v for k, v in _BASE.items() if k not in _VOXELWISE_ONLY}
+    cfg.update(_PARCELLATED)
+    cfg.update(overrides or {})
+    path = tmp_path / "cfg.json"
+    path.write_text(json.dumps(cfg))
+    return path
+
+
+def test_valid_parcellated_config_has_no_voxelwise_fields(tmp_path):
+    config = load_build_matrix_config(_write_parcellated(tmp_path))
+    assert config.representation == "parcellated"
+    assert config.atlas == "schaefer_300_tian_s2"
+    assert config.value_column == "fraction_covered"
+    assert str(config.reference_labels_path).endswith("schaefer_300_tian_s2.csv")
+    assert config.reference_template_path is None
+    assert config.lesion_glob is None
+    assert config.correct_out_of_brain is None
+
+
+@pytest.mark.parametrize(
+    "overrides, match",
+    [
+        ({"representation": "streamline"}, "representation"),
+        ({"value_column": "n_voxels_overlap"}, "value_column"),
+        ({"correct_out_of_brain": True}, r"not read by representation='parcellated'"),
+        ({"binarize_threshold": 0.5}, r"not read by representation='parcellated'"),
+    ],
+)
+def test_invalid_parcellated_configs_raise(tmp_path, overrides, match):
+    with pytest.raises(ValueError, match=match):
+        load_build_matrix_config(_write_parcellated(tmp_path, overrides))
+
+
+@pytest.mark.parametrize("missing", ["atlas", "value_column", "reference_labels_path"])
+def test_parcellated_config_requires_its_own_fields(tmp_path, missing):
+    path = _write_parcellated(tmp_path)
+    cfg = json.loads(path.read_text())
+    del cfg[missing]
+    path.write_text(json.dumps(cfg))
+    with pytest.raises(ValueError, match=missing):
+        load_build_matrix_config(path)
+
+
+def test_voxelwise_config_rejects_parcellated_fields(tmp_path):
+    with pytest.raises(ValueError, match=r"not read by representation='voxelwise'"):
+        load_build_matrix_config(_write(tmp_path, {"atlas": "schaefer_300_tian_s2"}))
+
+
+def test_representation_is_required(tmp_path):
+    path = _write(tmp_path, {})
+    cfg = json.loads(path.read_text())
+    del cfg["representation"]
+    path.write_text(json.dumps(cfg))
+    with pytest.raises(ValueError, match="missing required field 'representation'"):
+        load_build_matrix_config(path)
 
 
 def test_top_level_must_be_object(tmp_path):

@@ -92,6 +92,17 @@ def main(argv: list[str] | None = None) -> int:
     # missing, same as build_lesion_matrix.py itself would, rather than deferring the failure
     # to the first click on a point (code_standards.md §0).
     lesion_matrix_config = load_build_matrix_config(args.lesion_config)
+    # Same reasoning as the SDC config below: the lesion anatomy panels re-read raw masks, which
+    # only the voxelwise representation has (reference_template_path/lesion_glob are None for
+    # "parcellated").
+    if lesion_matrix_config.representation != "voxelwise":
+        logging.error(
+            "%s: representation=%r, but the lesion anatomy panels need the raw masks only "
+            "'voxelwise' resolves (reference_template_path/lesion_glob) - point --lesion-config at "
+            "a voxelwise build_lesion_matrix.json",
+            args.lesion_config, lesion_matrix_config.representation,
+        )
+        return 1
     reference_img = load_reference_image(lesion_matrix_config.reference_template_path)
     lesion_cfg = LesionViewerConfig(
         data_root=lesion_matrix_config.data_root,
