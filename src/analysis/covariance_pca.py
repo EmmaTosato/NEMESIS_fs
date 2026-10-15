@@ -1,16 +1,22 @@
-"""Covariance PCA + varimax for a subjects x features matrix too wide to center in memory.
+"""PCA on the covariance (or correlation) matrix, for matrices too wide to center in memory.
 
 Replicates the "Data compression" step of Thiebaut de Schotten et al. 2020 (PCA on the covariance
 matrix - centered, not scaled - then varimax rotation, scores by multiple regression) on matrices
-like the voxel-wise SDC one (5845 x 291345 float32 = 6.8 GB), where `pca_varimax_embed`
-(src/analysis/reduction.py) cannot run: it makes several full float64 copies of X.
+like the voxel-wise SDC one (5845 x 291345 float32 = 6.8 GB), where `sklearn.decomposition.PCA`
+cannot run: it makes several full float64 copies of X. Every pass over X reads a block at a time,
+so peak memory is one block plus one square matrix, not the matrix.
 
-The covariance matrix over features (291345 x 291345) is never built. With Xc = X - column mean,
-the eigenvectors of Xc^T Xc / (n-1) with non-zero eigenvalue are Xc^T u / s for the eigenvectors u
-(and singular values s) of the small Gram matrix Xc Xc^T (n x n), with the same eigenvalues
-s^2 / (n-1): the same components as PCA, to numerical precision (tests/unit/test_covariance_pca.py
-checks it against sklearn.decomposition.PCA). Every pass over X reads a block of columns at a time,
-so peak memory is one block, not the matrix.
+Two equivalent ways to the same components, picked with `dual`:
+
+- dual=True (the snapshot method): with Z = (X - column mean) [/ column std], the eigenvectors of
+  Z^T Z / (n-1) with non-zero eigenvalue are Z^T u / s for the eigenvectors u (and singular values
+  s) of the n x n Gram matrix Z Z^T, with the same eigenvalues s^2 / (n-1). Right when features
+  outnumber subjects: the feature x feature matrix (291345 x 291345) is never built.
+- dual=False: the p x p covariance matrix is built and decomposed directly. Right when subjects
+  outnumber features (parcellated matrices).
+
+`standardize` divides every column by its standard deviation first (PCA on the correlation matrix).
+tests/unit/test_covariance_pca.py checks every combination against sklearn.decomposition.PCA.
 
 Component maps (`component_t_maps`) are the voxel-wise counterpart of the scores, as in the paper's
 Supplementary section B: for each voxel, a multiple regression of its values on the component scores,
@@ -21,32 +27,64 @@ subjects so the two maps of a component can be correlated (its reproducibility).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
-from factor_analyzer import Rotator
+from factor_analyzer.rotator import ORTHOGONAL_ROTATIONS, Rotator
 
 DEFAULT_CHUNK_COLUMNS = 16384
-# An eigenvalue under this share of the largest one is numerical noise (the Gram matrix of n
-# subjects has at most n-1 non-zero eigenvalues after centering), not a component.
+# The square matrix that is built and decomposed (n x n if dual, p x p if not), in float64. A request
+# above this raises instead of trying to allocate it.
+DEFAULT_MAX_MATRIX_GIB = 8.0
+# An eigenvalue under this share of the largest one is numerical noise (after centering, n subjects
+# have at most n-1 non-zero eigenvalues), not a component.
 _RANK_TOLERANCE = 1e-10
+
+NO_ROTATION = "none"
+# Only orthogonal rotations: the regression scores below assume uncorrelated rotated components.
+SUPPORTED_ROTATIONS = (NO_ROTATION, *ORTHOGONAL_ROTATIONS)
 
 
 @dataclass(frozen=True)
 class CovariancePca:
     """The PCA of X: everything needed to rotate or project, without holding X.
 
-    eigenvalues: variance of each component (denominator n-1), descending, length n.
-    left_vectors: (n, n) eigenvectors of the Gram matrix; column i belongs to eigenvalues[i].
-    column_means: (n_features,) mean subtracted from every column.
+    eigenvalues: variance of each component (denominator n-1), descending; length n if dual, p if not.
+    column_means / column_scales: (p,) what was subtracted from / divided out of every column
+        (scales are all 1.0 unless `standardized`).
+    left_vectors: dual only, (n, n) eigenvectors of the Gram matrix; column i belongs to eigenvalues[i].
+    right_vectors: not dual only, (p, p) eigenvectors of the covariance matrix, same convention.
     """
 
     eigenvalues: np.ndarray
-    left_vectors: np.ndarray
     column_means: np.ndarray
+    column_scales: np.ndarray
+    standardized: bool
+    n_samples: int
+    left_vectors: np.ndarray | None = None
+    right_vectors: np.ndarray | None = None
+
+    def __post_init__(self) -> None:
+        if (self.left_vectors is None) == (self.right_vectors is None):
+            raise ValueError("give exactly one of left_vectors (dual PCA) and right_vectors (PCA on the covariance matrix)")
+        n_features = len(self.column_means)
+        if self.column_scales.shape != (n_features,):
+            raise ValueError(f"column_scales has shape {self.column_scales.shape}, expected ({n_features},)")
+        side = self.n_samples if self.dual else n_features
+        vectors = self.left_vectors if self.dual else self.right_vectors
+        if vectors.shape != (side, side) or self.eigenvalues.shape != (side,):
+            raise ValueError(
+                f"{'dual' if self.dual else 'covariance'} PCA needs {side} eigenvalues and a ({side}, {side}) "
+                f"eigenvector matrix, got {self.eigenvalues.shape} and {vectors.shape}"
+            )
 
     @property
-    def n_samples(self) -> int:
-        return len(self.eigenvalues)
+    def dual(self) -> bool:
+        return self.left_vectors is not None
+
+    @property
+    def n_features(self) -> int:
+        return len(self.column_means)
 
     @property
     def explained_variance_ratio(self) -> np.ndarray:
@@ -56,103 +94,151 @@ class CovariancePca:
     def cumulative_variance_ratio(self) -> np.ndarray:
         return np.cumsum(self.explained_variance_ratio)
 
+    def n_nonzero_components(self) -> int:
+        return int((self.eigenvalues > _RANK_TOLERANCE * self.eigenvalues[0]).sum())
+
     def n_components_for(self, share: float) -> int:
         """Smallest number of components whose cumulative explained variance reaches `share`."""
         if not 0.0 < share <= 1.0:
             raise ValueError(f"share must be in (0, 1], got {share!r}")
         # The cumulative sum can stop a hair short of 1.0 (round-off), which would put share=1.0
-        # one past the last component.
-        return min(int(np.searchsorted(self.cumulative_variance_ratio, share) + 1), self.n_samples)
+        # one past the last component with variance.
+        return min(int(np.searchsorted(self.cumulative_variance_ratio, share) + 1), self.n_nonzero_components())
 
-    def pca_scores(self, n_components: int) -> np.ndarray:
-        """Scores of the first `n_components` (unrotated) components, shape (n_samples, n_components):
-        the same values as sklearn's PCA.transform, up to the sign of each column."""
-        if not 1 <= n_components <= self.n_nonzero_components():
-            raise ValueError(
-                f"n_components must be between 1 and {self.n_nonzero_components()} (components with "
-                f"non-zero variance), got {n_components!r}"
+    def save(self, path: Path) -> None:
+        """Write the model to `path` (a .npz), temp file then rename so a killed run leaves no half file."""
+        arrays = {
+            "eigenvalues": self.eigenvalues,
+            "column_means": self.column_means,
+            "column_scales": self.column_scales,
+            "standardized": np.array(self.standardized),
+            "n_samples": np.array(self.n_samples),
+        }
+        arrays["left_vectors" if self.dual else "right_vectors"] = self.left_vectors if self.dual else self.right_vectors
+        temporary = path.with_name(path.name + ".tmp")
+        with temporary.open("wb") as handle:
+            np.savez(handle, **arrays)
+        temporary.replace(path)
+
+    @classmethod
+    def load(cls, path: Path) -> CovariancePca:
+        with np.load(path) as stored:
+            return cls(
+                eigenvalues=stored["eigenvalues"],
+                column_means=stored["column_means"],
+                column_scales=stored["column_scales"],
+                standardized=bool(stored["standardized"]),
+                n_samples=int(stored["n_samples"]),
+                left_vectors=stored["left_vectors"] if "left_vectors" in stored else None,
+                right_vectors=stored["right_vectors"] if "right_vectors" in stored else None,
             )
-        scale = np.sqrt(self.eigenvalues[:n_components] * (self.n_samples - 1))
-        return self.left_vectors[:, :n_components] * scale
-
-    def n_nonzero_components(self) -> int:
-        return int((self.eigenvalues > _RANK_TOLERANCE * self.eigenvalues[0]).sum())
 
 
-def fit_covariance_pca(X: np.ndarray, chunk_columns: int = DEFAULT_CHUNK_COLUMNS) -> CovariancePca:
-    """PCA of the covariance matrix of X (centered, not scaled), from X's Gram matrix.
+def fit_covariance_pca(
+    X: np.ndarray,
+    standardize: bool = False,
+    dual: bool = True,
+    chunk_columns: int = DEFAULT_CHUNK_COLUMNS,
+    max_matrix_gib: float = DEFAULT_MAX_MATRIX_GIB,
+) -> CovariancePca:
+    """PCA of the covariance matrix of X (or its correlation matrix if `standardize`).
 
-    X may be a memory-mapped array: it is read `chunk_columns` columns at a time and never copied
-    whole.
+    X may be a memory-mapped array: it is read `chunk_columns` columns at a time (dual) or in row
+    chunks of the same size (not dual), and never copied whole.
     """
     _require_matrix(X, chunk_columns)
     n_samples, n_features = X.shape
-    means = np.empty(n_features, dtype=np.float64)
-    for start, stop in _column_blocks(n_features, chunk_columns):
-        means[start:stop] = np.asarray(X[:, start:stop], dtype=np.float64).mean(axis=0)
-
-    gram = np.zeros((n_samples, n_samples), dtype=np.float64)
-    for start, stop in _column_blocks(n_features, chunk_columns):
-        block = np.asarray(X[:, start:stop], dtype=np.float64) - means[start:stop]
-        gram += block @ block.T
-
-    # eigh returns ascending order; tiny negative eigenvalues are round-off on a positive
-    # semi-definite matrix.
-    eigenvalues, vectors = np.linalg.eigh(gram)
-    order = np.argsort(eigenvalues)[::-1]
-    eigenvalues = np.clip(eigenvalues[order], 0.0, None) / (n_samples - 1)
-    return CovariancePca(eigenvalues=eigenvalues, left_vectors=vectors[:, order], column_means=means)
+    _require_square_matrix_fits(n_samples, n_features, dual, max_matrix_gib)
+    means, scales = _column_statistics(X, standardize, chunk_columns)
+    if dual:
+        eigenvalues, vectors = _descending_eigh(_gram_matrix(X, means, scales, chunk_columns), n_samples - 1)
+        return CovariancePca(eigenvalues, means, scales, standardize, n_samples, left_vectors=vectors)
+    eigenvalues, vectors = _descending_eigh(_covariance_matrix(X, means, scales, chunk_columns), n_samples - 1)
+    return CovariancePca(eigenvalues, means, scales, standardize, n_samples, right_vectors=vectors)
 
 
-def varimax_scores(
+def resolve_n_components(pca: CovariancePca, n_components: int | None, variance_share: float | None) -> int:
+    """How many components to keep: `n_components` as given, or as many as `variance_share` of the variance needs.
+    Exactly one of the two must be given."""
+    if (n_components is None) == (variance_share is None):
+        raise ValueError(
+            f"give exactly one of n_components and variance_share, got n_components={n_components!r} "
+            f"and variance_share={variance_share!r}"
+        )
+    if variance_share is not None:
+        return pca.n_components_for(variance_share)
+    _require_component_count(pca, n_components)
+    return n_components
+
+
+def pca_scores(X: np.ndarray, pca: CovariancePca, n_components: int, chunk_columns: int = DEFAULT_CHUNK_COLUMNS) -> np.ndarray:
+    """Scores of the first `n_components` (unrotated) components, shape (n_samples, n_components): the
+    same values as sklearn's PCA.transform (of X scaled by `pca.column_scales`), up to the sign of each column."""
+    _require_fitted_matrix(X, pca, chunk_columns)
+    _require_component_count(pca, n_components)
+    if pca.dual:
+        scale = np.sqrt(pca.eigenvalues[:n_components] * (pca.n_samples - 1))
+        return pca.left_vectors[:, :n_components] * scale
+    scores = np.empty((pca.n_samples, n_components), dtype=np.float64)
+    for start, stop in _row_chunks(pca.n_samples, pca.n_features, chunk_columns):
+        scores[start:stop] = _scaled_rows(X, start, stop, pca) @ pca.right_vectors[:, :n_components]
+    return scores
+
+
+def rotated_scores(
     X: np.ndarray,
     pca: CovariancePca,
     n_components: int,
+    rotation: str,
     max_iter: int,
     chunk_columns: int = DEFAULT_CHUNK_COLUMNS,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Varimax-rotate the first `n_components` components and extract their scores.
+    """Rotate the first `n_components` components and extract their scores.
 
-    Same steps as `pca_varimax_embed` (src/analysis/reduction.py), without ever centering X as a
-    whole: factor loadings (eigenvector * sqrt(eigenvalue), not the raw unit-norm eigenvectors)
-    are rotated with varimax, then each subject's score is the multiple-regression coefficient of
-    its centered row onto the rotated loadings.
+    Same steps as the paper: factor loadings (eigenvector * sqrt(eigenvalue), not the raw unit-norm
+    eigenvectors) are rotated, then each subject's score is the multiple-regression coefficient of
+    its centered (and scaled) row onto the rotated loadings.
 
     Returns (scores (n_samples, n_components), rotated_loadings (n_features, n_components)).
     """
-    _require_matrix(X, chunk_columns)
-    if X.shape[0] != pca.n_samples or X.shape[1] != len(pca.column_means):
-        raise ValueError(f"X has shape {X.shape} but the PCA was fitted on ({pca.n_samples}, {len(pca.column_means)})")
+    _require_fitted_matrix(X, pca, chunk_columns)
+    if rotation not in ORTHOGONAL_ROTATIONS:
+        raise ValueError(
+            f"rotation {rotation!r} is not an orthogonal rotation, supported: {list(ORTHOGONAL_ROTATIONS)} "
+            f"(use {NO_ROTATION!r} for no rotation; oblique rotations need a different score formula)"
+        )
     if n_components < 2:
         raise ValueError(
-            f"varimax needs n_components >= 2 (it rotates *between* components - there is nothing to "
+            f"a rotation needs n_components >= 2 (it rotates *between* components - there is nothing to "
             f"rotate with a single one), got {n_components!r}"
         )
-    if n_components > pca.n_nonzero_components():
-        raise ValueError(
-            f"n_components={n_components} exceeds the {pca.n_nonzero_components()} components with "
-            "non-zero variance in this matrix"
-        )
+    _require_component_count(pca, n_components)
 
-    variances = pca.eigenvalues[:n_components]
-    left = pca.left_vectors[:, :n_components]
-    singular_values = np.sqrt(variances * (pca.n_samples - 1))
-    loadings = np.empty((X.shape[1], n_components), dtype=np.float64)
-    for start, stop in _column_blocks(X.shape[1], chunk_columns):
-        centered = np.asarray(X[:, start:stop], dtype=np.float64) - pca.column_means[start:stop]
-        eigenvectors = centered.T @ left / singular_values
-        loadings[start:stop] = eigenvectors * np.sqrt(variances)
+    rotated = Rotator(method=rotation, max_iter=max_iter).fit_transform(_loadings(X, pca, n_components, chunk_columns))
 
-    rotated = Rotator(method="varimax", max_iter=max_iter).fit_transform(loadings)
-
-    # lstsq(rotated, Xc^T) in normal-equation form, accumulated block by block:
-    # (R^T R) B = R^T Xc^T, with R^T Xc^T summed over column blocks.
+    # lstsq(rotated, Z^T) in normal-equation form, accumulated block by block:
+    # (R^T R) B = R^T Z^T, with R^T Z^T summed over column blocks.
     projection = np.zeros((n_components, pca.n_samples), dtype=np.float64)
-    for start, stop in _column_blocks(X.shape[1], chunk_columns):
-        centered = np.asarray(X[:, start:stop], dtype=np.float64) - pca.column_means[start:stop]
-        projection += rotated[start:stop].T @ centered.T
+    for start, stop in _column_blocks(pca.n_features, chunk_columns):
+        projection += rotated[start:stop].T @ _scaled_columns(X, start, stop, pca).T
     coefficients = np.linalg.solve(rotated.T @ rotated, projection)
     return coefficients.T, rotated
+
+
+def pca_embedding(
+    X: np.ndarray,
+    pca: CovariancePca,
+    n_components: int,
+    rotation: str,
+    max_iter: int,
+    chunk_columns: int = DEFAULT_CHUNK_COLUMNS,
+) -> np.ndarray:
+    """The subjects x components matrix: unrotated scores if `rotation` is "none", else rotated scores."""
+    if rotation not in SUPPORTED_ROTATIONS:
+        raise ValueError(f"rotation must be one of {list(SUPPORTED_ROTATIONS)}, got {rotation!r}")
+    if rotation == NO_ROTATION:
+        return pca_scores(X, pca, n_components, chunk_columns)
+    return rotated_scores(X, pca, n_components, rotation, max_iter, chunk_columns)[0]
 
 
 def squared_correlation(scores: np.ndarray, covariate: np.ndarray) -> np.ndarray:
@@ -281,3 +367,105 @@ def _require_matrix(X: np.ndarray, chunk_columns: int) -> None:
 def _column_blocks(n_features: int, chunk_columns: int):
     for start in range(0, n_features, chunk_columns):
         yield start, min(start + chunk_columns, n_features)
+
+
+def _require_square_matrix_fits(n_samples: int, n_features: int, dual: bool, max_matrix_gib: float) -> None:
+    side = n_samples if dual else n_features
+    gib = side * side * 8 / 2**30
+    if gib > max_matrix_gib:
+        other = "dual=False" if dual else "dual=True"
+        raise ValueError(
+            f"dual={dual} builds a {side} x {side} float64 matrix ({gib:.1f} GiB), above max_matrix_gib={max_matrix_gib}: "
+            f"X has {n_samples} subjects and {n_features} features - try {other}, or raise max_matrix_gib"
+        )
+
+
+def _column_statistics(X: np.ndarray, standardize: bool, chunk_columns: int) -> tuple[np.ndarray, np.ndarray]:
+    n_features = X.shape[1]
+    means = np.empty(n_features, dtype=np.float64)
+    scales = np.ones(n_features, dtype=np.float64)
+    for start, stop in _column_blocks(n_features, chunk_columns):
+        block = np.asarray(X[:, start:stop], dtype=np.float64)
+        if not np.isfinite(block).all():
+            raise ValueError(
+                f"X has {int((~np.isfinite(block)).sum())} NaN or infinite value(s) in columns {start}:{stop} - "
+                "a PCA is undefined on them, drop or fill those subjects/columns first"
+            )
+        means[start:stop] = block.mean(axis=0)
+        if standardize:
+            scales[start:stop] = block.std(axis=0, ddof=0)
+    constant = np.flatnonzero(scales == 0)
+    if len(constant):
+        raise ValueError(
+            f"standardize=True needs every column to vary across subjects, but {len(constant)} column(s) are "
+            f"constant (first indices: {constant[:10].tolist()}) - drop them first, or use standardize=False"
+        )
+    return means, scales
+
+
+def _gram_matrix(X: np.ndarray, means: np.ndarray, scales: np.ndarray, chunk_columns: int) -> np.ndarray:
+    gram = np.zeros((X.shape[0], X.shape[0]), dtype=np.float64)
+    for start, stop in _column_blocks(X.shape[1], chunk_columns):
+        block = (np.asarray(X[:, start:stop], dtype=np.float64) - means[start:stop]) / scales[start:stop]
+        gram += block @ block.T
+    return gram
+
+
+def _covariance_matrix(X: np.ndarray, means: np.ndarray, scales: np.ndarray, chunk_columns: int) -> np.ndarray:
+    n_samples, n_features = X.shape
+    covariance = np.zeros((n_features, n_features), dtype=np.float64)
+    for start, stop in _row_chunks(n_samples, n_features, chunk_columns):
+        rows = (np.asarray(X[start:stop], dtype=np.float64) - means) / scales
+        covariance += rows.T @ rows
+    return covariance
+
+
+def _descending_eigh(symmetric: np.ndarray, divisor: int) -> tuple[np.ndarray, np.ndarray]:
+    # eigh returns ascending order; tiny negative eigenvalues are round-off on a positive
+    # semi-definite matrix.
+    eigenvalues, vectors = np.linalg.eigh(symmetric)
+    order = np.argsort(eigenvalues)[::-1]
+    return np.clip(eigenvalues[order], 0.0, None) / divisor, vectors[:, order]
+
+
+def _loadings(X: np.ndarray, pca: CovariancePca, n_components: int, chunk_columns: int) -> np.ndarray:
+    """Factor loadings (n_features, n_components): eigenvector * sqrt(eigenvalue)."""
+    variances = pca.eigenvalues[:n_components]
+    if not pca.dual:
+        return pca.right_vectors[:, :n_components] * np.sqrt(variances)
+    singular_values = np.sqrt(variances * (pca.n_samples - 1))
+    left = pca.left_vectors[:, :n_components]
+    loadings = np.empty((pca.n_features, n_components), dtype=np.float64)
+    for start, stop in _column_blocks(pca.n_features, chunk_columns):
+        eigenvectors = _scaled_columns(X, start, stop, pca).T @ left / singular_values
+        loadings[start:stop] = eigenvectors * np.sqrt(variances)
+    return loadings
+
+
+def _scaled_columns(X: np.ndarray, start: int, stop: int, pca: CovariancePca) -> np.ndarray:
+    return (np.asarray(X[:, start:stop], dtype=np.float64) - pca.column_means[start:stop]) / pca.column_scales[start:stop]
+
+
+def _scaled_rows(X: np.ndarray, start: int, stop: int, pca: CovariancePca) -> np.ndarray:
+    return (np.asarray(X[start:stop], dtype=np.float64) - pca.column_means) / pca.column_scales
+
+
+def _require_fitted_matrix(X: np.ndarray, pca: CovariancePca, chunk_columns: int) -> None:
+    _require_matrix(X, chunk_columns)
+    if X.shape != (pca.n_samples, pca.n_features):
+        raise ValueError(f"X has shape {X.shape} but the PCA was fitted on ({pca.n_samples}, {pca.n_features})")
+
+
+def _require_component_count(pca: CovariancePca, n_components: int) -> None:
+    if not 1 <= n_components <= pca.n_nonzero_components():
+        raise ValueError(
+            f"n_components must be between 1 and {pca.n_nonzero_components()} (components with "
+            f"non-zero variance), got {n_components!r}"
+        )
+
+
+def _row_chunks(n_samples: int, n_features: int, chunk_columns: int):
+    """Row ranges holding about as many values as a block of `chunk_columns` columns."""
+    rows = max(1, chunk_columns * n_samples // n_features)
+    for start in range(0, n_samples, rows):
+        yield start, min(start + rows, n_samples)
