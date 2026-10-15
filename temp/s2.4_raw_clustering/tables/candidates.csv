@@ -1,0 +1,8 @@
+method,metric,param,rule,key,silhouette,name
+agglomerative,euclidean,"linkage=ward,k=3",best_silhouette,"linkage=ward,metric=euclidean,k=3",0.2932335436344147,"aggl|euc|linkage=ward,k=3"
+agglomerative,euclidean,"linkage=ward,k=4",best_silhouette_k>=4,"linkage=ward,metric=euclidean,k=4",0.1674702614545822,"aggl|euc|linkage=ward,k=4"
+agglomerative,euclidean,"linkage=complete,k=3",best_silhouette,"linkage=complete,metric=euclidean,k=3",0.3038954734802246,"aggl|euc|linkage=complete,k=3"
+agglomerative,cosine,"linkage=complete,k=3",best_silhouette,"linkage=complete,metric=cosine,k=3",0.0432088896632194,"aggl|cos|linkage=complete,k=3"
+agglomerative,cosine,"linkage=complete,k=5",best_silhouette_k>=4,"linkage=complete,metric=cosine,k=5",0.0315567776560783,"aggl|cos|linkage=complete,k=5"
+hdbscan,euclidean,"mcs=20,ms=5",least_bad(1 criteria violated),"metric=euclidean,min_cluster_size=20,min_samples=5",0.4903083443641662,"hdbs|euc|mcs=20,ms=5"
+hdbscan,cosine,"mcs=50,ms=20",least_bad(1 criteria violated),"metric=cosine,min_cluster_size=50,min_samples=20",0.2918945848941803,"hdbs|cos|mcs=50,ms=20"
