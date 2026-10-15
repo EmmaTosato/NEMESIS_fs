@@ -49,6 +49,19 @@ def test_overwrite_true_replaces_existing_dir(tmp_path):
     assert np.array_equal(X2, X * 2)
 
 
+def test_load_matrix_mmap_keeps_the_matrix_on_disk_read_only_with_the_same_values(tmp_path):
+    X, metadata = _matrix_and_metadata()
+    save_matrix(tmp_path / "run1", X, metadata, ["x"], overwrite=False, extra_arrays={"mask": np.array([True, False])})
+
+    on_disk, _metadata, extra = load_matrix(tmp_path / "run1", mmap=True)
+    in_memory, _metadata, _extra = load_matrix(tmp_path / "run1")
+
+    assert isinstance(on_disk, np.memmap) and not isinstance(in_memory, np.memmap)
+    assert np.array_equal(on_disk, in_memory)
+    assert not on_disk.flags.writeable
+    assert not isinstance(extra["mask"], np.memmap)  # the extra arrays are small: always in memory
+
+
 def test_load_matrix_missing_dir_raises(tmp_path):
     with pytest.raises(FileNotFoundError, match="manifest.json"):
         load_matrix(tmp_path / "does_not_exist")

@@ -20,7 +20,7 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
   src/pipeline/replot_dim_reduction.py regenerates every plot from metadata.csv
   alone, without reloading the original feature matrix, same as this
   pipeline's own plotting.
-- fine_tuning=true (manual hyperparameter search, umap/tsne/pca/pca_varimax/
+- fine_tuning=true (manual hyperparameter search, umap/tsne/pca/
   pacmap - t-SNE only sweeps perplexity, its other params still come from
   Thiebaut de Schotten et al. 2020): evaluates every combination in the
   method's "tuning_grid", writes a comparison table (tuning_results.csv)
@@ -64,6 +64,7 @@ import pandas as pd
 from src.analysis.distances import SUPPORTED_BINARY_METRICS, require_binary_matrix
 from src.analysis.embedding_plots import write_embedding_grid, write_embedding_plots
 from src.analysis.model_config import DimReductionConfig, load_dim_reduction_config
+from src.analysis.pca_method import fit_pca
 from src.analysis.params import load_method_params, load_nested_params, load_tag_params, load_trustworthiness_n_neighbors, load_tuning_grid
 from src.analysis.plotting import compose_embedding_plot_title, compose_run_title, compose_tuning_leaf_title, plot_tuning_curve
 from src.analysis.reduction import embed, embedding_for_viz
@@ -106,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
         try:
-            X, metadata, _extra_arrays = load_matrix(config.input_path)
+            X, metadata, _extra_arrays = load_matrix(config.input_path, mmap=_reads_matrix_in_blocks(config))
         except (FileNotFoundError, ValueError) as exc:
             logging.error(str(exc))
             return 1
@@ -116,6 +117,35 @@ def main(argv: list[str] | None = None) -> int:
         return _run_production(config, X, metadata, now, log_path)
     finally:
         log_duration(now)
+
+
+def _reads_matrix_in_blocks(config: DimReductionConfig) -> bool:
+    """True when the method reads the matrix a block of columns at a time (pca with the 'blocks'
+    solver), so it can stay on disk instead of being loaded whole: a 6.8 GB matrix then costs one
+    block of memory. Every other method needs the matrix in memory."""
+    if config.reduction_method != "pca":
+        return False
+    params, _tag = load_method_params(config.params_file, "pca")
+    return params.get("solver") == "blocks"
+
+
+def _embed_production(
+    config: DimReductionConfig, X: np.ndarray, params: dict, distance_cache: dict[str, np.ndarray]
+) -> tuple[np.ndarray, dict, dict[str, np.ndarray], list[str]]:
+    """(embedding, params as recorded for the run, extra arrays to save beside it, summary lines).
+
+    For pca the recorded params carry the number of components actually kept (the answer to
+    variance_share, which the params alone do not give) and the run keeps its whole variance
+    spectrum, so the curve behind a variance_share choice can be read back. Every other method
+    records the params as given."""
+    if config.reduction_method != "pca":
+        embedding = embed(config.reduction_method, X, params, distance_cache, config.precompute_distance_metric)
+        return embedding, params, {}, []
+    fit = fit_pca(X, params)
+    note = f"PCA kept {fit.n_components} components, explaining {fit.explained_share:.1%} of the variance"
+    if "variance_share" in params:
+        note += f" (the smallest number reaching variance_share={params['variance_share']})"
+    return fit.embedding, {**params, "n_components": fit.n_components}, {"eigenvalues": fit.eigenvalues}, [note]
 
 
 def _run_production(
@@ -137,7 +167,7 @@ def _run_production(
     # recomputing it (see src/analysis/reduction.py::embed's docstring).
     distance_cache: dict[str, np.ndarray] = {}
     try:
-        embedding = embed(config.reduction_method, X, params, distance_cache, config.precompute_distance_metric)
+        embedding, params, extra_arrays, notes = _embed_production(config, X, params, distance_cache)
     except (TypeError, ValueError) as exc:
         # TypeError: an unrecognized hyperparameter in params_reduction.json (e.g. a typo'd
         # key) reaches the estimator's own **params unpack and raises there, not from any
@@ -151,7 +181,7 @@ def _run_production(
     # extra cost); refit from raw X otherwise for umap/tsne only, since slicing
     # embedding[:, :viz_n_components] out of a higher-dimensional fit is not a meaningful
     # projection (see src/analysis/reduction.py::embedding_for_viz's docstring) - pca/
-    # pca_varimax/pacmap raise instead of a silent slice or an invalid refit.
+    # pacmap raise instead of a silent slice or an invalid refit.
     try:
         viz_embedding = embedding_for_viz(
             config.reduction_method, X, params, embedding, config.viz_n_components, distance_cache, config.precompute_distance_metric
@@ -165,8 +195,9 @@ def _run_production(
             output_dir,
             embedding,
             metadata,
-            _build_readme_lines(config, X, embedding, params, now),
+            _build_readme_lines(config, X, embedding, params, now, notes),
             overwrite=config.overwrite,
+            extra_arrays=extra_arrays,
         )
     except (FileExistsError, ValueError, OSError) as exc:
         logging.error(str(exc))
@@ -601,7 +632,7 @@ def _config_summary(config: DimReductionConfig) -> str:
     return json.dumps(payload, indent=2)
 
 
-def _summary_lines(config: DimReductionConfig, X: np.ndarray, embedding: np.ndarray, params: dict) -> list[str]:
+def _summary_lines(config: DimReductionConfig, X: np.ndarray, embedding: np.ndarray, params: dict, notes: list[str]) -> list[str]:
     return [
         "## Config",
         "",
@@ -613,15 +644,16 @@ def _summary_lines(config: DimReductionConfig, X: np.ndarray, embedding: np.ndar
         "",
         f"Input matrix shape: {X.shape[0]} subjects x {X.shape[1]} features",
         f"Embedding shape: {embedding.shape[0]} subjects x {embedding.shape[1]} components",
+        *notes,
         f"Params used: {json.dumps(params)}",
     ]
 
 
 def _build_readme_lines(
-    config: DimReductionConfig, X: np.ndarray, embedding: np.ndarray, params: dict, now: datetime
+    config: DimReductionConfig, X: np.ndarray, embedding: np.ndarray, params: dict, now: datetime, notes: list[str]
 ) -> list[str]:
     return [f"# {config.project} dim_reduction ({config.reduction_method}) — {now.strftime('%d-%m-%y %H:%M')}", ""] + _summary_lines(
-        config, X, embedding, params
+        config, X, embedding, params, notes
     )
 
 

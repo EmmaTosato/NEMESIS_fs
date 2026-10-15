@@ -42,10 +42,10 @@ In modalità Tuning, lo script esegue esperimenti su una griglia di combinazioni
   | Chiave | Tipo | Cosa fa |
   | :--- | :--- | :--- |
   | `trustworthiness` | punteggio dello sweep | la qualità di ogni combinazione per `umap`/`tsne`/`pacmap`: la colonna di `tuning_results.csv`. Il parametro `trustworthiness_n_neighbors` sta in `params_file` |
-  | `cumulative_explained_variance` | punteggio dello sweep | lo stesso per `pca`/`pca_varimax` |
+  | `cumulative_explained_variance` | punteggio dello sweep | lo stesso per `pca` (con o senza rotazione) |
   | `plot_hdbscan` | sugli embedding | HDBSCAN su ogni combinazione, nello spazio dell'embedding stesso, disegnato su un embedding 2D. Impostazioni: `min_cluster_size`, `min_samples` (entrambe obbligatorie) |
 
-  Il punteggio dello sweep è sempre calcolato e va dichiarato: il blocco deve contenere esattamente quello del `reduction_method` (`trustworthiness` per umap/tsne/pacmap, `cumulative_explained_variance` per pca/pca_varimax), altrimenti la pipeline si ferma **prima** dello sweep. Il blocco serve solo in `fine_tuning: true`; in produzione resta richiesto (può essere `{}`) e non ha effetto.
+  Il punteggio dello sweep è sempre calcolato e va dichiarato: il blocco deve contenere esattamente quello del `reduction_method` (`trustworthiness` per umap/tsne/pacmap, `cumulative_explained_variance` per pca), altrimenti la pipeline si ferma **prima** dello sweep. Il blocco serve solo in `fine_tuning: true`; in produzione resta richiesto (può essere `{}`) e non ha effetto.
 
   `plot_hdbscan` disegna un embedding con più di 2 componenti sul suo **gemello 2D**: l'embedding con gli stessi iperparametri e `n_components=2`, che è un fit a sé, mai un taglio delle prime colonne. Per questo la griglia deve contenere `n_components: 2`; senza, la pipeline si ferma prima dello sweep. I colori dei cluster valgono dentro un solo subplot (HDBSCAN numera i cluster a caso), il grigio è il rumore.
 
@@ -62,7 +62,7 @@ Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modal
 | :--- | :--- | :--- |
 | **`project`** | *Stringa* | Nome del progetto (es. `"clinical_connectome"`). |
 | **`input_path`** | *Stringa* | Percorso della matrice di output generata dal *Matrix Building*. DEVE esistere. |
-| **`reduction_method`** | *Stringa* | L'algoritmo da usare. Valori: `"umap"`, `"tsne"`, `"pca"`, `"pacmap"`. *(Nota: `pca_varimax` è momentaneamente rimosso).* |
+| **`reduction_method`** | *Stringa* | L'algoritmo da usare. Valori: `"umap"`, `"tsne"`, `"pca"`, `"pacmap"`. |
 | **`params_file`** | *Stringa* | Il percorso al registro logico: `"config/registry/params_reduction.json"`. |
 | **`output_root`** | *Stringa* | Cartella per i risultati (es. `"results/lesion/dim_reduction"`). |
 | **`session_name`** | *Stringa* | Nome dell'esperimento (es. `"umap_test_1"`). |
@@ -76,6 +76,37 @@ Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modal
 
 ---
 
+## Il metodo `pca`
+
+Tutte le scelte sono parametri della voce `pca` di `config/registry/params_reduction.json` (e di `params_reduction_sdc.json`), dentro `"params"`. Una chiave o c'è con un valore o manca: un `null` viene rifiutato, e una chiave sconosciuta o mancante ferma la run con un errore che la nomina.
+
+| Parametro | Valori | Cosa decide |
+| :--- | :--- | :--- |
+| **`solver`** | `"blocks"`, `"sklearn"` | `blocks` legge la matrice un blocco di colonne alla volta e regge matrici che non entrano in memoria (il disconnettoma voxelwise, 6,8 GB); `sklearn` usa `sklearn.decomposition.PCA` su una copia in memoria, per matrici piccole e per controlli. Con `blocks` la matrice resta su disco (`np.memmap`). |
+| **`standardize`** | `true`, `false` | `false`: PCA sulla covarianza, ogni colonna è solo centrata. `true`: PCA sulla correlazione, ogni colonna è anche divisa per la sua deviazione standard; una colonna costante ferma la run. La covarianza è la scelta quando le variabili sono nella stessa unità e una variabilità maggiore è informazione vera (come per un disconnettoma). |
+| **`dual`** | `true`, `false` | Solo `blocks`, obbligatorio. `true` parte dalla matrice soggetti × soggetti (PCA duale, o metodo degli snapshot), `false` dalla covarianza tra variabili. Danno gli stessi risultati; conviene la matrice più piccola. |
+| **`rotation`** | `"none"`, `"varimax"`, `"quartimax"`, `"equamax"`, `"oblimax"`, `"geomin_ort"` | `none` dà i punteggi delle componenti, ordinati per varianza. Le altre sono rotazioni ortogonali di `factor_analyzer`: i punteggi si ottengono per regressione multipla sui pesi ruotati, tutti con varianza 1 e senza più un ordine per varianza. Le rotazioni oblique non sono supportate. Solo `blocks`. |
+| **`rotation_max_iter`** | intero | Obbligatorio con una rotazione (500 come nel paper di Thiebaut de Schotten et al. 2020). |
+| **`n_components`** o **`variance_share`** | intero, oppure quota in (0, 1] | Quante componenti tenere: un numero fisso, oppure il numero minimo che raggiunge la quota di varianza (con `0.9`, qualunque sia il numero di componenti che servono). Esattamente uno dei due. |
+| **`chunk_columns`**, **`max_matrix_gib`** | numero | Solo `blocks`, facoltativi: colonne per blocco (16384) e soglia in GiB oltre la quale la run si ferma invece di costruire la matrice quadrata (8). Non cambiano il risultato. |
+
+**Con `solver: "sklearn"`** `dual`, `chunk_columns` e `max_matrix_gib` vanno tolti (si applicano solo a `blocks`) e `rotation` deve essere `"none"`.
+
+**Come si sceglie `dual`.** Si usa la matrice più piccola: `true` quando le variabili sono più dei soggetti, `false` quando sono meno. Con la scelta sbagliata il risultato è lo stesso, ma costa molto di più o non entra in memoria (per `dual: false` su un disconnettoma voxelwise la matrice sarebbe di circa 680 GB, e la run si ferma prima).
+
+| Sessione | Soggetti | Variabili | `dual` |
+| :--- | :--- | :--- | :--- |
+| `s1.4-vol` (lesione voxelwise) | 5845 | 221.955 | `true` |
+| `s2.4-vol` (disconnettoma voxelwise) | 5845 | 291.345 | `true` |
+| `s2.1-schaefer-200-tian-s2` (SDC parcellato) | 1119 | 232 | `false` |
+| `s2.4-stream` (SDC per tratto) | 5831 | 87 | `false` |
+
+**Fine-tuning.** Una griglia su `n_components`, `variance_share` o `rotation` fitta la decomposizione una sola volta: nessuno dei tre la cambia. Si rifitta solo per un nuovo valore di `standardize`, `dual` o `solver`. Il punteggio dello sweep è la quota di varianza spiegata dalle componenti tenute (una rotazione non la cambia). Una griglia su `variance_share` richiede che `n_components` non sia in `"params"`, e viceversa: con entrambi la run si ferma.
+
+**Produzione.** `config.md` riporta in `Params used` il numero di componenti effettivamente tenute (`n_components`, accanto a `variance_share` se era quella la richiesta) e una riga "PCA kept N components"; l'intero spettro è in `eigenvalues.npy`. Il plot usa le prime `viz_n_components` componenti quando `rotation` è `"none"` (sono le direzioni che separano di più i soggetti); con una rotazione le colonne non hanno ordine, quindi `n_components` deve essere uguale a `viz_n_components` o la run si ferma.
+
+---
+
 ## Output e Diari Storici
 
 **I risultati di produzione e di tuning vivono in due rami separati sotto `output_root`, mai mescolati**: `results/lesion/dim_reduction/production/<metodo>/<Data>_<session_name>_<tag>` e `results/lesion/dim_reduction/tuning/<metodo>/<Data>_<session_name>`.
@@ -83,6 +114,7 @@ Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modal
 ### In Modalità Produzione
 - **`matrix.npy`**: La nuova matrice compressa.
 - **`metadata.csv`**: L'anagrafica arricchita in automatico di `lesion_volume_voxels`, `lesion_side`, e `nihss`.
+- **`eigenvalues.npy`** (solo `pca`): l'intero spettro di varianza, una voce per componente in ordine decrescente. È la curva da leggere per scegliere `variance_share`.
 - **Plot Grafici**: Un `embedding_plot_unico.png` base (solo per embedding 2D — con `viz_n_components: 3` nessun PNG statico viene scritto, vedi sotto), più un PNG statico per ogni voce elencata in `color_by` (`embedding_plot_<voce>.png`). Non viene scritto un file `.html` interattivo per-run — l'esplorazione interattiva 2D/3D con bottoni di colorazione è `src.pipeline.embedding_app` (`docs/guides/embedding_app.md`), un'app Dash live che legge qualunque run di produzione già scritto, non un file da rigenerare per ogni run.
 
 ### In Modalità Fine-Tuning

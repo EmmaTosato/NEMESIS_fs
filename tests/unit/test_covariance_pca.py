@@ -380,17 +380,17 @@ def test_pca_embedding_dispatches_on_rotation_and_rejects_an_unknown_one():
 def test_resolve_n_components_takes_exactly_one_of_the_two():
     pca = fit_covariance_pca(_structured_matrix())
 
-    assert resolve_n_components(pca, 7, None) == 7
-    assert resolve_n_components(pca, None, 0.9) == pca.n_components_for(0.9)
+    assert resolve_n_components(pca.eigenvalues, 7, None) == 7
+    assert resolve_n_components(pca.eigenvalues, None, 0.9) == pca.n_components_for(0.9)
     for both_or_neither in [(None, None), (5, 0.9)]:
         with pytest.raises(ValueError, match="exactly one of n_components and variance_share"):
-            resolve_n_components(pca, *both_or_neither)
+            resolve_n_components(pca.eigenvalues, *both_or_neither)
 
 
 def test_resolve_n_components_rejects_a_count_beyond_the_components_with_variance():
     pca = fit_covariance_pca(_structured_matrix(n_samples=10, n_features=50))
-    with pytest.raises(ValueError, match="n_components must be between 1 and 9"):
-        resolve_n_components(pca, 10, None)
+    with pytest.raises(ValueError, match="between 1 and 9"):
+        resolve_n_components(pca.eigenvalues, 10, None)
 
 
 def test_variance_share_gives_a_different_count_on_matrices_with_different_spectra():
@@ -398,7 +398,7 @@ def test_variance_share_gives_a_different_count_on_matrices_with_different_spect
     low_rank = fit_covariance_pca(_structured_matrix(n_latent=2))
     high_rank = fit_covariance_pca(_structured_matrix(n_latent=8))
 
-    assert resolve_n_components(low_rank, None, 0.9) < resolve_n_components(high_rank, None, 0.9)
+    assert resolve_n_components(low_rank.eigenvalues, None, 0.9) < resolve_n_components(high_rank.eigenvalues, None, 0.9)
 
 
 # --- guards: nothing is silently dropped, ignored or allocated -----------------------------------
@@ -455,3 +455,10 @@ def test_a_saved_model_loads_back_identical_and_gives_the_same_scores(dual, tmp_
     np.testing.assert_array_equal(loaded.eigenvalues, pca.eigenvalues)
     np.testing.assert_array_equal(pca_scores(X, loaded, 5), pca_scores(X, pca, 5))
     assert not list(tmp_path.glob("*.tmp"))
+
+
+@pytest.mark.parametrize("bad", [2.5, True, 0, "3"])
+def test_resolve_n_components_rejects_a_non_integer_or_non_positive_count(bad):
+    pca = fit_covariance_pca(_structured_matrix())
+    with pytest.raises(ValueError, match="n_components must be an integer"):
+        resolve_n_components(pca.eigenvalues, bad, None)

@@ -1,7 +1,8 @@
 """Dimensionality-reduction strategies: a plain dict[str, Callable] registry, not a class hierarchy.
 
 Each function is a pure array-in/array-out transform: **params is unpacked
-straight into the estimator's constructor, no in-code defaults - every
+straight into the estimator's constructor (`pca` is the one exception: it has its own
+params contract, src/analysis/pca_method.py), no in-code defaults - every
 hyperparameter (e.g. UMAP's n_neighbors, t-SNE's perplexity) comes from
 config/registry/params_reduction.json (see src/analysis/params.py), never hardcoded
 here. Same "explicit registry over hardcoded dispatch" precedent as the metadata
@@ -15,11 +16,10 @@ from collections.abc import Callable
 import numpy as np
 import pacmap
 import umap
-from factor_analyzer import Rotator
-from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
 from src.analysis.distances import PRECOMPUTABLE_METRICS, SUPPORTED_BINARY_METRICS, precomputed_distance, require_binary_matrix
+from src.analysis.pca_method import fit_pca_embedding
 
 
 def umap_embed(X: np.ndarray, params: dict) -> np.ndarray:
@@ -31,55 +31,9 @@ def tsne_embed(X: np.ndarray, params: dict) -> np.ndarray:
 
 
 def pca_embed(X: np.ndarray, params: dict) -> np.ndarray:
-    return PCA(**params).fit_transform(X)
-
-
-def pca_varimax_embed(X: np.ndarray, params: dict) -> np.ndarray:
-    """PCA + varimax-rotated loadings + component scores via multiple
-    regression - Thiebaut de Schotten et al. 2020's "Data compression"
-    methodology (see docs/dev/models.md for the full derivation).
-
-    Unlike the other strategies here, params is not unpacked blindly into a
-    single constructor: this wraps two distinct estimators (PCA, then
-    Rotator), so 'n_components'/'rotation_max_iter' are read explicitly.
-
-    Loadings passed to Rotator are `components_.T * sqrt(explained_variance_)`
-    (factor loadings), never the raw `components_` (unit-norm eigenvectors) -
-    using the latter silently both mis-weights the rotation and degrades the
-    "multiple regression" score step below into a plain projection (bug
-    fixed 2026-08, before any production run - see docs/dev/models.md and
-    tests/unit/test_reduction.py::test_pca_varimax_embed_rotates_scaled_loadings_not_raw_eigenvectors).
-    """
-    embedding, _fitted = _pca_varimax_fit(X, params)
-    return embedding
-
-
-def _pca_varimax_fit(X: np.ndarray, params: dict) -> tuple[np.ndarray, PCA]:
-    """Shared implementation for pca_varimax_embed above and
-    tuning.py::evaluate_pca_varimax (AUDIT_FINDINGS.md #57) - also returns the
-    fitted PCA object so a caller that needs `explained_variance_ratio_` (the
-    tuning sweep's own score) doesn't have to fit a second, separate PCA on
-    the same X/n_components just to read it.
-    """
-    if "n_components" not in params:
-        raise ValueError("pca_varimax requires 'n_components' in params")
-    if "rotation_max_iter" not in params:
-        raise ValueError("pca_varimax requires 'rotation_max_iter' in params")
-    if params["n_components"] < 2:
-        raise ValueError(
-            f"pca_varimax requires n_components >= 2 (varimax rotates *between* components - "
-            f"there is nothing to rotate with a single one), got {params['n_components']!r}"
-        )
-
-    X_centered = X - X.mean(axis=0)
-    fitted = PCA(n_components=params["n_components"]).fit(X)
-    # Factor loadings (eigenvector * sqrt(eigenvalue)), not raw eigenvectors - see docstring above.
-    loadings = fitted.components_.T * np.sqrt(fitted.explained_variance_)  # (n_features, n_components)
-    rotated_loadings = Rotator(method="varimax", max_iter=params["rotation_max_iter"]).fit_transform(loadings)
-    # "component scores were... extracted... by means of multiple regression":
-    # regress each centered row onto the rotated loadings -> (n_samples, n_components)
-    scores, *_ = np.linalg.lstsq(rotated_loadings, X_centered.T, rcond=None)
-    return scores.T, fitted
+    """The `pca` method: solver, standardization, rotation and component count all come from `params`
+    (src/analysis/pca_method.py); returns only the embedding."""
+    return fit_pca_embedding(X, params)[0]
 
 
 def pacmap_embed(X: np.ndarray, params: dict) -> np.ndarray:
@@ -90,7 +44,6 @@ REDUCTION_METHODS: dict[str, Callable[[np.ndarray, dict], np.ndarray]] = {
     "umap": umap_embed,
     "tsne": tsne_embed,
     "pca": pca_embed,
-    "pca_varimax": pca_varimax_embed,
     "pacmap": pacmap_embed,
 }
 
@@ -109,7 +62,7 @@ def embed(
     guarantees an exact neighbor graph regardless of cohort size and, for
     euclidean specifically, is also a large speed win at this project's scale
     (see docs/dev/models.md for why and the measured numbers). No effect for
-    pca/pca_varimax/pacmap, whose params never carry a "metric" key. Forces
+    pca/pacmap, whose params never carry a "metric" key. Forces
     init="random" for reduction_method="tsne" when precomputing - sklearn's
     own default init="pca" can't run on a distance matrix.
 
@@ -147,11 +100,24 @@ def embed(
 # Methods where a same-metric/same-n_neighbors/same-random_state refit at a
 # different n_components is a legitimate view in its own right (umap/tsne's
 # output dimensions have no fixed meaning - lessons_learned.md #16, never a
-# slice). Deliberately narrow (2026-08-17, on request) - pca_varimax, pca and
-# pacmap are all excluded too, each for a different reason - see
+# slice). Deliberately narrow (2026-08-17, on request) - pca and pacmap are
+# both excluded too, each for a different reason - see
 # docs/dev/models.md's embedding_for_viz entry for the full per-method
 # rationale.
 _REFITTABLE_FOR_VIZ: frozenset[str] = frozenset({"umap", "tsne"})
+
+
+def _leading_components(embedding: np.ndarray, viz_n_components: int) -> np.ndarray:
+    """The first `viz_n_components` columns of an unrotated PCA embedding. Unlike any other method's
+    output, these columns are ordered by variance, so the first two are the two directions that
+    separate the subjects most: a slice is a legitimate 2D view of the same fit, not an arbitrary
+    cut (lessons_learned.md #16 names PCA's variance-ranked components as the one exception)."""
+    if embedding.shape[1] < viz_n_components:
+        raise ValueError(
+            f"the pca embedding has {embedding.shape[1]} component(s), fewer than viz_n_components={viz_n_components} - "
+            "keep at least that many components, or lower viz_n_components"
+        )
+    return embedding[:, :viz_n_components]
 
 
 def embedding_for_viz(
@@ -173,7 +139,10 @@ def embedding_for_viz(
     can make real cluster structure look artificially merged or split - see
     lessons_learned.md #16 and docs/dev/models.md.
 
-    Raises ValueError if `reduction_method` isn't in _REFITTABLE_FOR_VIZ and
+    An unrotated pca (reduction_params["rotation"] == "none") is the exception to the "never a slice"
+    rule: its leading columns are its leading components (`_leading_components`).
+
+    Raises ValueError if `reduction_method` isn't in _REFITTABLE_FOR_VIZ (nor an unrotated pca) and
     `embedding` doesn't already have viz_n_components columns (see that
     frozenset's own comment for why each excluded method is excluded) - the
     caller must rerun with viz_n_components == n_components for that method
@@ -183,13 +152,15 @@ def embedding_for_viz(
     """
     if embedding.shape[1] == viz_n_components:
         return embedding
+    if reduction_method == "pca" and reduction_params.get("rotation") == "none":
+        return _leading_components(embedding, viz_n_components)
     if reduction_method not in _REFITTABLE_FOR_VIZ:
         raise ValueError(
             f"{reduction_method!r} has no valid viz-refit at a different dimensionality - "
             f"the production embedding has {embedding.shape[1]} components but "
             f"viz_n_components={viz_n_components} was requested. Only {sorted(_REFITTABLE_FOR_VIZ)} "
             "support a same-metric refit at a different n_components (see this function's own "
-            "docstring for why pca/pca_varimax/pacmap don't) - rerun with viz_n_components equal "
+            "docstring for why pca/pacmap don't) - rerun with viz_n_components equal "
             "to n_components for this method instead"
         )
     viz_params = {**reduction_params, "n_components": viz_n_components}

@@ -85,23 +85,22 @@ def _build_matrix(tmp_path, monkeypatch):
     return next(p for p in output_root.iterdir() if p.is_dir())
 
 
-def _write_params(tmp_path):
+_PCA_ENTRY = {
+    "params": {"solver": "blocks", "standardize": False, "dual": True, "rotation": "none", "n_components": 2},
+    "tuning_grid": {"n_components": [1, 2, 3]},
+}
+
+
+def _write_params(tmp_path, pca_entry=None):
     params_path = tmp_path / "params_reduction.json"
     params_path.write_text(
         json.dumps(
             {
-                "pca": {
-                    "params": {"n_components": 2},
-                    "tuning_grid": {"n_components": [1, 2, 3]},
-                },
+                "pca": pca_entry or _PCA_ENTRY,
                 "umap": {
                     "params": {"n_neighbors": 3, "min_dist": 0.1, "n_components": 2, "random_state": 0},
                     "tuning_grid": {"n_neighbors": [2, 3], "min_dist": [0.1, 0.5]},
                     "trustworthiness_n_neighbors": 2,
-                },
-                "pca_varimax": {
-                    "params": {"n_components": 2, "rotation_max_iter": 500},
-                    "tuning_grid": {"n_components": [2, 3, 4]},
                 },
                 "pacmap": {
                     "params": {"n_components": 2, "n_neighbors": 3, "MN_ratio": 0.5, "FP_ratio": 2.0, "random_state": 0},
@@ -332,16 +331,20 @@ def test_dim_reduction_save_tuning_embeddings_interrupted_write_leaves_no_trunca
     assert not (tuning_dir / "embeddings.npz").exists()
 
 
-def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_path, monkeypatch):
+def test_dim_reduction_fine_tuning_pca_with_varimax_writes_sweep_not_embedding(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
 
-    params_path = _write_params(tmp_path)
+    varimax_entry = {
+        "params": {**_PCA_ENTRY["params"], "rotation": "varimax", "rotation_max_iter": 500},
+        "tuning_grid": {"n_components": [2, 3, 4]},
+    }
+    params_path = _write_params(tmp_path, varimax_entry)
     output_root = tmp_path / "dr_out"
     dr_cfg = {
         "project": "testproj",
         "input_path": str(input_dir),
-        "reduction_method": "pca_varimax",
+        "reduction_method": "pca",
         "params_file": str(params_path),
         "output_root": str(output_root),
         "session_name": "tune1",
@@ -360,7 +363,7 @@ def test_dim_reduction_fine_tuning_pca_varimax_writes_sweep_not_embedding(tmp_pa
     exit_code = dim_reduction.main(["--config", str(dr_cfg_path)])
     assert exit_code == 0
 
-    tuning_dir = next(p for p in (output_root / "tuning" / "pca_varimax").iterdir() if p.is_dir())
+    tuning_dir = next(p for p in (output_root / "tuning" / "pca").iterdir() if p.is_dir())
     assert (tuning_dir / "tuning_results.csv").is_file()
     assert not (tuning_dir / "matrix.npy").exists()
 
@@ -595,6 +598,132 @@ def test_dim_reduction_unrecognized_hyperparameter_returns_1_not_raw_traceback(t
     assert not (tmp_path / "dr_out").exists()
     # Duration must be logged on the error path too, not just on success.
     assert "run duration:" in caplog.text
+
+
+def _production_config(tmp_path, input_dir, params_path, method, session):
+    return {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": method,
+        "params_file": str(params_path),
+        "output_root": str(tmp_path / "dr_out"),
+        "session_name": session,
+        "overwrite": False,
+        "fine_tuning": False,
+        "color_by": [],
+        "viz_n_components": 2,
+        "save_tuning_embeddings": False,
+        "tuning_evaluations": {},
+        "precompute_distance_metric": True,
+        "run_notes": None,
+    }
+
+
+def _matrix_type_seen_by(monkeypatch, module, function_name):
+    """Wrap module.function_name, recording the type of its first argument (the matrix)."""
+    seen = []
+    real = getattr(module, function_name)
+
+    def _recording(X, *args, **kwargs):
+        seen.append(type(X))
+        return real(X, *args, **kwargs)
+
+    monkeypatch.setattr(module, function_name, _recording)
+    return seen
+
+
+def test_pca_with_the_blocks_solver_reads_the_matrix_from_disk_without_loading_it(tmp_path, monkeypatch):
+    """The matrix a block-reading method gets is a read-only np.memmap, not an in-memory copy (a
+    6.8 GB voxel-wise matrix is the reason the 'blocks' solver exists)."""
+    import src.analysis.pca_method as pca_method
+
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    seen = _matrix_type_seen_by(monkeypatch, pca_method, "fit_covariance_pca")
+    cfg_path = tmp_path / "dim_reduction.json"
+    cfg_path.write_text(json.dumps(_production_config(tmp_path, input_dir, _write_params(tmp_path), "pca", "blocks")))
+
+    assert dim_reduction.main(["--config", str(cfg_path)]) == 0
+
+    assert seen == [np.memmap]
+
+
+def test_pca_with_the_sklearn_solver_loads_the_matrix_in_memory(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    sklearn_entry = {
+        "params": {"solver": "sklearn", "standardize": False, "rotation": "none", "n_components": 2},
+        "tuning_grid": {"n_components": [1, 2]},
+    }
+    cfg_path = tmp_path / "dim_reduction.json"
+    cfg_path.write_text(json.dumps(_production_config(tmp_path, input_dir, _write_params(tmp_path, sklearn_entry), "pca", "sk")))
+    loaded = []
+    real_load = dim_reduction.load_matrix
+    monkeypatch.setattr(dim_reduction, "load_matrix", lambda path, mmap=False: loaded.append(mmap) or real_load(path, mmap=mmap))
+
+    assert dim_reduction.main(["--config", str(cfg_path)]) == 0
+
+    assert loaded == [False]
+
+
+def test_a_method_that_needs_the_matrix_in_memory_never_gets_a_memmap(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    cfg_path = tmp_path / "dim_reduction.json"
+    cfg_path.write_text(json.dumps(_production_config(tmp_path, input_dir, _write_params(tmp_path), "umap", "u")))
+    loaded = []
+    real_load = dim_reduction.load_matrix
+    monkeypatch.setattr(dim_reduction, "load_matrix", lambda path, mmap=False: loaded.append(mmap) or real_load(path, mmap=mmap))
+
+    assert dim_reduction.main(["--config", str(cfg_path)]) == 0
+
+    assert loaded == [False]
+
+
+def test_pca_production_with_variance_share_records_the_components_it_kept_and_the_spectrum(tmp_path, monkeypatch):
+    from src.utils.artifacts import load_matrix, read_run_params
+
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    entry = {
+        "tag_param": ["variance_share"],
+        "tag_prefix": ["v"],
+        "params": {"solver": "blocks", "standardize": False, "dual": True, "rotation": "none", "variance_share": 0.9},
+    }
+    cfg_path = tmp_path / "dim_reduction.json"
+    cfg_path.write_text(json.dumps(_production_config(tmp_path, input_dir, _write_params(tmp_path, entry), "pca", "share")))
+
+    assert dim_reduction.main(["--config", str(cfg_path)]) == 0
+
+    (run_dir,) = [p for p in (tmp_path / "dr_out" / "production" / "pca").iterdir() if p.is_dir()]
+    assert run_dir.name.endswith("_share_v09")  # the tag drops the dot, as for every tag_param
+    embedding, _metadata, extra = load_matrix(run_dir)
+    kept = embedding.shape[1]
+    assert kept >= 1 and extra["eigenvalues"].shape == (8,)  # one value per subject: the whole spectrum
+    assert extra["eigenvalues"][:kept].sum() / extra["eigenvalues"].sum() >= 0.9
+
+    recorded = read_run_params(run_dir)
+    assert recorded["n_components"] == kept and recorded["variance_share"] == 0.9
+    config_text = (run_dir / "config.md").read_text()
+    assert f"PCA kept {kept} components" in config_text and "variance_share=0.9" in config_text
+    runs_csv = (tmp_path / "dr_out" / "production" / "pca" / "runs.csv").read_text()
+    assert "0.9" in runs_csv
+
+
+def test_pca_production_with_more_components_than_the_view_slices_the_plot_not_the_embedding(tmp_path, monkeypatch):
+    """The registry's pca keeps 150 components while viz_n_components is 2: the saved embedding keeps
+    them all, only the plot takes the two leading ones."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    entry = {"params": {**_PCA_ENTRY["params"], "n_components": 5}}
+    cfg_path = tmp_path / "dim_reduction.json"
+    cfg_path.write_text(json.dumps(_production_config(tmp_path, input_dir, _write_params(tmp_path, entry), "pca", "wide")))
+
+    assert dim_reduction.main(["--config", str(cfg_path)]) == 0
+
+    (run_dir,) = [p for p in (tmp_path / "dr_out" / "production" / "pca").iterdir() if p.is_dir()]
+    assert np.load(run_dir / "matrix.npy").shape == (8, 5)
+    assert (run_dir / "embedding_plot_unico.png").is_file()
 
 
 def test_dim_reduction_missing_input_path_raises(tmp_path, monkeypatch):

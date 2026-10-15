@@ -9,7 +9,6 @@ from src.analysis.reduction import (
     embedding_for_viz,
     pacmap_embed,
     pca_embed,
-    pca_varimax_embed,
     tsne_embed,
     umap_embed,
 )
@@ -19,16 +18,18 @@ _X_BINARY = (np.random.default_rng(1).random((30, 20)) > 0.7).astype(np.uint8)
 
 
 def test_registry_has_expected_methods():
-    assert set(REDUCTION_METHODS) == {"umap", "tsne", "pca", "pca_varimax", "pacmap"}
+    assert set(REDUCTION_METHODS) == {"umap", "tsne", "pca", "pacmap"}
     assert REDUCTION_METHODS["umap"] is umap_embed
     assert REDUCTION_METHODS["tsne"] is tsne_embed
     assert REDUCTION_METHODS["pca"] is pca_embed
-    assert REDUCTION_METHODS["pca_varimax"] is pca_varimax_embed
     assert REDUCTION_METHODS["pacmap"] is pacmap_embed
 
 
+_PCA_PARAMS = {"solver": "blocks", "standardize": False, "dual": True, "rotation": "none", "n_components": 3}
+
+
 def test_pca_embed_shape_and_determinism():
-    params = {"n_components": 3}
+    params = _PCA_PARAMS
     out1 = pca_embed(_X, params)
     out2 = pca_embed(_X, params)
     assert out1.shape == (30, 3)
@@ -45,60 +46,42 @@ def test_tsne_embed_shape():
     assert out.shape == (30, 2)
 
 
-def test_pca_varimax_embed_shape_and_determinism():
-    params = {"n_components": 3, "rotation_max_iter": 500}
-    out1 = pca_varimax_embed(_X, params)
-    out2 = pca_varimax_embed(_X, params)
+def test_pca_embed_with_varimax_is_deterministic_and_the_right_shape():
+    params = {**_PCA_PARAMS, "rotation": "varimax", "rotation_max_iter": 500}
+    out1 = pca_embed(_X, params)
+    out2 = pca_embed(_X, params)
     assert out1.shape == (30, 3)
     assert np.allclose(out1, out2)  # PCA + varimax rotation is deterministic
 
 
-def test_pca_varimax_embed_missing_n_components_raises():
-    with pytest.raises(ValueError, match="n_components"):
-        pca_varimax_embed(_X, {"rotation_max_iter": 500})
-
-
-def test_pca_varimax_embed_missing_rotation_max_iter_raises():
-    with pytest.raises(ValueError, match="rotation_max_iter"):
-        pca_varimax_embed(_X, {"n_components": 3})
-
-
-def test_pca_varimax_embed_rotates_scaled_loadings_not_raw_eigenvectors():
-    """Regression test for the loadings-scaling bug (2026-08 literature review):
-    pca_varimax_embed used to rotate PCA.components_ directly (unit-norm
+def test_pca_embed_with_varimax_rotates_scaled_loadings_not_raw_eigenvectors():
+    """Regression test for the loadings-scaling bug (2026-08 literature review), kept for the
+    varimax path of the `pca` method: it used to rotate PCA.components_ directly (unit-norm
     eigenvectors) instead of factor loadings (eigenvector * sqrt(eigenvalue)).
-    Varimax is an orthogonal rotation, so it preserves the total
-    reconstructed covariance of whatever matrix it rotates - Lambda_rot @
-    Lambda_rot.T must equal Lambda @ Lambda.T for the *loadings* Lambda, not
-    for the raw eigenvectors. This fails under the old (unscaled) code
-    whenever explained_variance_ isn't ~1 for every retained component (true
-    for any real, non-pathological input), and passes once loadings are
-    scaled correctly.
+    Varimax is an orthogonal rotation, so it preserves the total reconstructed covariance of
+    whatever matrix it rotates - Lambda_rot @ Lambda_rot.T must equal Lambda @ Lambda.T for the
+    *loadings* Lambda, not for the raw eigenvectors. This fails under the old (unscaled) code
+    whenever explained_variance_ isn't ~1 for every retained component (true for any real,
+    non-pathological input), and passes once loadings are scaled correctly.
     """
     from sklearn.decomposition import PCA
 
-    params = {"n_components": 3, "rotation_max_iter": 500}
     fitted = PCA(n_components=3).fit(_X)
     loadings = fitted.components_.T * np.sqrt(fitted.explained_variance_)
     unrotated_covariance = loadings @ loadings.T
 
-    embedding = pca_varimax_embed(_X, params)
+    embedding = pca_embed(_X, {**_PCA_PARAMS, "rotation": "varimax", "rotation_max_iter": 500})
 
-    # Reconstruct the rotated loadings straight from the embedding: with real
-    # loadings, lstsq(Lambda_rot, X_centered.T) is a genuine multiple
-    # regression (Lambda_rot.T @ Lambda_rot != I), invertible via the normal
-    # equations - Lambda_rot recovered this way must reproduce the same
-    # covariance the unrotated loadings do (varimax is variance-preserving).
+    # Reconstruct the rotated loadings straight from the embedding: with real loadings,
+    # lstsq(Lambda_rot, X_centered.T) is a genuine multiple regression, invertible via the normal
+    # equations - Lambda_rot recovered this way must reproduce the same covariance the unrotated
+    # loadings do (varimax is variance-preserving).
     X_centered = _X - _X.mean(axis=0)
-    rotated_loadings, *_ = np.linalg.lstsq(embedding, X_centered, rcond=None)
-    rotated_loadings = rotated_loadings.T
+    coefficients, *_ = np.linalg.lstsq(embedding, X_centered, rcond=None)
+    rotated_loadings = coefficients.T
     rotated_covariance = rotated_loadings @ rotated_loadings.T
 
     assert np.allclose(rotated_covariance, unrotated_covariance, atol=1e-6)
-    # Also pin down that this is NOT the degenerate orthonormal case the old
-    # bug produced (Lambda_rot.T @ Lambda_rot == I) - a real varimax rotation
-    # on scaled loadings should not be exactly orthonormal itself.
-    assert not np.allclose(rotated_loadings.T @ rotated_loadings, np.eye(3), atol=1e-3)
 
 
 def test_pacmap_embed_shape():
@@ -309,22 +292,19 @@ def test_embedding_for_viz_tsne_refits_when_dimensions_differ():
     assert viz_embedding.shape == (30, 2)
 
 
-@pytest.mark.parametrize("method", ["pca", "pca_varimax", "pacmap"])
+@pytest.mark.parametrize("method", ["pca", "pacmap"])
 def test_embedding_for_viz_raises_for_non_refittable_methods_when_dimensions_differ(method):
-    """Regression (2026-08-17, on request): pca/pca_varimax/pacmap must never
-    silently slice (invalid for pacmap/pca_varimax, see reduction.py's own
-    docstring) nor silently refit (mathematically meaningless for
-    pca_varimax's jointly-optimized rotation) when the production embedding's
-    own dimensionality doesn't already match viz_n_components - only
-    umap/tsne refit. A 5-column embedding is a plausible stand-in for any of
-    the 3 excluded methods' real output shape (this test only exercises
-    embedding_for_viz's own dispatch, not each method's own embed function)."""
+    """Regression (2026-08-17, on request): pca/pacmap must never silently slice (invalid for
+    pacmap, see reduction.py's own docstring) nor silently refit when the production embedding's
+    own dimensionality doesn't already match viz_n_components - only umap/tsne refit. A 5-column
+    embedding is a plausible stand-in for either excluded method's real output shape (this test
+    only exercises embedding_for_viz's own dispatch, not each method's own embed function)."""
     embedding = np.random.default_rng(3).random((30, 5))
     with pytest.raises(ValueError, match="no valid viz-refit"):
         embedding_for_viz(method, _X, {"n_components": 5}, embedding, viz_n_components=2)
 
 
-@pytest.mark.parametrize("method", ["pca", "pca_varimax", "pacmap"])
+@pytest.mark.parametrize("method", ["pca", "pacmap"])
 def test_embedding_for_viz_reuses_non_refittable_methods_when_already_matching(method):
     """The exclusion from _REFITTABLE_FOR_VIZ only matters when a refit would
     actually be needed - the cheap "already the right shape" path stays
@@ -332,3 +312,31 @@ def test_embedding_for_viz_reuses_non_refittable_methods_when_already_matching(m
     embedding = np.random.default_rng(4).random((30, 2))
     viz_embedding = embedding_for_viz(method, _X, {"n_components": 2}, embedding, viz_n_components=2)
     assert viz_embedding is embedding
+
+
+def test_embedding_for_viz_slices_an_unrotated_pca_to_its_leading_components():
+    """Regression: a pca production run with more components than viz_n_components (the registry's 150)
+    used to fail at the viz step. An unrotated pca's columns are ordered by variance, so its first
+    two are a legitimate 2D view (lessons_learned.md #16's one exception)."""
+    params = {**_PCA_PARAMS, "n_components": 5}
+    embedding = pca_embed(_X, params)
+
+    viz = embedding_for_viz("pca", _X, params, embedding, viz_n_components=2)
+
+    assert viz.shape == (30, 2)
+    np.testing.assert_array_equal(viz, embedding[:, :2])
+
+
+def test_embedding_for_viz_never_slices_a_rotated_pca():
+    """After a rotation the columns have no order by variance: a slice would be an arbitrary cut."""
+    params = {**_PCA_PARAMS, "n_components": 5, "rotation": "varimax", "rotation_max_iter": 500}
+    embedding = pca_embed(_X, params)
+    with pytest.raises(ValueError, match="no valid viz-refit"):
+        embedding_for_viz("pca", _X, params, embedding, viz_n_components=2)
+
+
+def test_embedding_for_viz_rejects_a_pca_with_fewer_components_than_the_view_needs():
+    params = {**_PCA_PARAMS, "n_components": 1}
+    embedding = pca_embed(_X, params)
+    with pytest.raises(ValueError, match="fewer than viz_n_components=2"):
+        embedding_for_viz("pca", _X, params, embedding, viz_n_components=2)

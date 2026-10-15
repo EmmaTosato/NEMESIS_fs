@@ -99,8 +99,12 @@ def save_matrix(
     return output_dir
 
 
-def load_matrix(input_dir: Path) -> tuple[np.ndarray, pd.DataFrame, dict[str, np.ndarray]]:
+def load_matrix(input_dir: Path, mmap: bool = False) -> tuple[np.ndarray, pd.DataFrame, dict[str, np.ndarray]]:
     """Load a matrix artifact previously written by save_matrix.
+
+    With `mmap=True` the matrix itself stays on disk (a read-only np.memmap): for a caller that
+    reads it a block at a time and would otherwise hold a multi-GB copy in memory. The extra
+    arrays are always loaded in memory.
 
     Raises FileNotFoundError if input_dir has no manifest.json - either the
     artifact was never built, or a previous build was interrupted before the
@@ -115,7 +119,7 @@ def load_matrix(input_dir: Path) -> tuple[np.ndarray, pd.DataFrame, dict[str, np
         )
     manifest = json.loads(manifest_path.read_text())
 
-    X = np.load(input_dir / MATRIX_FILENAME)
+    X = np.load(input_dir / MATRIX_FILENAME, mmap_mode="r" if mmap else None)
     metadata = pd.read_csv(input_dir / METADATA_FILENAME)
     extra_arrays = {
         name: np.load(input_dir / f"{name}.npy") for name in manifest.get("extra_arrays", {})

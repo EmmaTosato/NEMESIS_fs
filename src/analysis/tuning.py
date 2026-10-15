@@ -1,5 +1,5 @@
 """Manual fine-tuning sweep for dimensionality-reduction methods that support it
-(today: umap, tsne, pca, pca_varimax, pacmap). No automatic selection:
+(today: umap, tsne, pca, pacmap). No automatic selection:
 run_tuning_sweep only produces a comparison table - a human reads it (or the
 accompanying plot) and writes the chosen combination into params_reduction.json's
 "params" by hand. See docs/dev/models.md and
@@ -15,18 +15,17 @@ from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
-from sklearn.decomposition import PCA
 from sklearn.manifold import trustworthiness
 
 from src.analysis.distances import PRECOMPUTABLE_METRICS, precomputed_distance
-from src.analysis.reduction import _pca_varimax_fit, pacmap_embed, tsne_embed, umap_embed
+from src.analysis.pca_method import fit_pca_embedding
+from src.analysis.reduction import pacmap_embed, tsne_embed, umap_embed
 from src.analysis.tuning_evaluations import CUMULATIVE_EXPLAINED_VARIANCE, TRUSTWORTHINESS
 
 TUNING_METRIC_NAMES = {
     "umap": TRUSTWORTHINESS,
     "tsne": TRUSTWORTHINESS,
     "pca": CUMULATIVE_EXPLAINED_VARIANCE,
-    "pca_varimax": CUMULATIVE_EXPLAINED_VARIANCE,
     "pacmap": TRUSTWORTHINESS,
 }
 
@@ -42,6 +41,11 @@ METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS = {"umap", "tsne", "pacmap"}
 # umap-learn's own neighbor search, not the distance computation itself -
 # see distances.py's module docstring).
 METHODS_WITH_DISTANCE_CACHE = {"umap", "tsne"}
+
+# pca's decomposition is independent of how many components are kept and of the rotation, so
+# run_tuning_sweep hands its evaluator a shared per-sweep model cache and a grid over those
+# params fits once instead of once per combination.
+METHODS_WITH_MODEL_CACHE = {"pca"}
 
 
 def evaluate_umap(
@@ -118,21 +122,13 @@ def evaluate_tsne(
     return embedding, score
 
 
-def evaluate_pca(X: np.ndarray, params: dict) -> tuple[np.ndarray, float]:
-    fitted = PCA(**params)
-    embedding = fitted.fit_transform(X)
-    score = float(fitted.explained_variance_ratio_.sum())
-    return embedding, score
+def evaluate_pca(X: np.ndarray, params: dict, model_cache: dict | None = None) -> tuple[np.ndarray, float]:
+    """Embed with the `pca` method (src/analysis/pca_method.py), scored by the share of the total
+    variance the kept components explain (unchanged by a rotation).
 
-
-def evaluate_pca_varimax(X: np.ndarray, params: dict) -> tuple[np.ndarray, float]:
-    """AUDIT_FINDINGS.md #57: used to fit PCA twice per combination - once here just to
-    read explained_variance_ratio_, once again inside pca_varimax_embed for the actual
-    embedding. _pca_varimax_fit (shared with pca_varimax_embed) now fits once and returns
-    both."""
-    embedding, fitted = _pca_varimax_fit(X, params)
-    score = float(fitted.explained_variance_ratio_.sum())
-    return embedding, score
+    `model_cache`, when given, lets a sweep over n_components/variance_share/rotation fit the
+    decomposition once: none of them changes it (see pca_method.py)."""
+    return fit_pca_embedding(X, params, model_cache)
 
 
 def evaluate_pacmap(X: np.ndarray, params: dict, trustworthiness_n_neighbors: int) -> tuple[np.ndarray, float]:
@@ -145,7 +141,6 @@ _EVALUATORS: dict[str, Callable] = {
     "umap": evaluate_umap,
     "tsne": evaluate_tsne,
     "pca": evaluate_pca,
-    "pca_varimax": evaluate_pca_varimax,
     "pacmap": evaluate_pacmap,
 }
 
@@ -180,6 +175,7 @@ def run_tuning_sweep(
     rows = []
     embeddings_by_combo: dict[tuple, np.ndarray] = {}
     distance_cache: dict[str, np.ndarray] = {}
+    model_cache: dict = {}
     import logging
 
     combinations = list(itertools.product(*tuning_grid.values()))
@@ -197,6 +193,8 @@ def run_tuning_sweep(
                 embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors, distance_cache)
             else:
                 embedding, score = evaluator(X, combo_params, trustworthiness_n_neighbors)
+        elif method in METHODS_WITH_MODEL_CACHE:
+            embedding, score = evaluator(X, combo_params, model_cache)
         else:
             embedding, score = evaluator(X, combo_params)
         rows.append({**swept, metric_name: score})
