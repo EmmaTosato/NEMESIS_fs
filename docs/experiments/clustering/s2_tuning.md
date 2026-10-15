@@ -38,6 +38,7 @@ agglomerative, hdbscan, adp
 
 - Le silhouette HDBSCAN alte hanno decine di cluster e il 22-40% di rumore; con rumore ≤ 11% la silhouette massima è 0.21 (nc2) e 0.31 (nc10).
 - ADP `euclidean`: silhouette negativa a ogni Z.
+- Dendrogrammi e viste 2D: in tutte e tre le run uno dei cluster ha sede infratentoriale e lato misto (598 soggetti in SDC nc2 a ward k=5, 636 in nc10 ad average k=3, 300 nello streamline ad average/cosine k=3), gli altri sono puri per lato. Il rumore di HDBSCAN è sparso su tutta la nuvola, non concentrato.
 - Sintesi tra le run: [SUMMARY](../../../results/reports/cluster_tuning_notebooks/SUMMARY.md)
 
 ##### Decisioni

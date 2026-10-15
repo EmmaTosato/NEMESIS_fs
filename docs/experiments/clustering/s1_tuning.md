@@ -43,6 +43,7 @@ agglomerative, hdbscan, adp
 - Le silhouette HDBSCAN più alte scartano il 14-24% dei soggetti come rumore: non sono candidati.
 - ADP `euclidean` è degenere (silhouette negativa, un cluster al 93-99%).
 - Accordo tra embedding (ward k=3, ARI nc2-nc3 / nc2-nc10 / nc3-nc10): `dice` 0.80 / 0.82 / 0.97; `euclidean` 0.76 / 0.58 / 0.78.
+- Dendrogrammi e viste 2D confermano le tabelle: con `dice` l'embedding ha tre parti separate a occhio e ward k=3 taglia lì; con `euclidean` è una nuvola unica e i cluster sono fette. Su `dice` nc2, HDBSCAN (100/20) è esattamente ward k=3 col terzo gruppo diviso in sei.
 - Sintesi tra le run: [SUMMARY](../../../results/reports/cluster_tuning_notebooks/SUMMARY.md)
 
 ##### Decisioni
