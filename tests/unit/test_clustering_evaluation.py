@@ -1,6 +1,7 @@
 """Unit tests for src/analysis/clustering_evaluation.py."""
 
 import numpy as np
+import pandas as pd
 import pytest
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
@@ -37,7 +38,7 @@ def test_require_applicable_rejects_an_unlisted_method():
 
 
 def test_require_applicable_rejects_an_unknown_evaluation():
-    with pytest.raises(ValueError, match="unknown evaluation"):
+    with pytest.raises(ValueError, match="valutazione sconosciuta"):
         require_applicable("silhouete", "kmeans")
 
 
@@ -138,7 +139,6 @@ def test_null_reference_well_separated_blobs_beat_the_null_by_a_wide_margin():
 
     assert reference.observed > 0.8
     assert reference.margin > 0.3
-    assert reference.empirical_p == pytest.approx(1 / 11)  # no null fit reaches the observed value
 
 
 def test_null_reference_one_gaussian_blob_is_not_distinguished_from_the_null():
@@ -154,7 +154,6 @@ def test_null_reference_one_gaussian_blob_is_not_distinguished_from_the_null():
 
     assert reference.observed > 0.3  # the absolute value alone looks like structure
     assert abs(reference.margin) < 3 * reference.null_sd
-    assert reference.empirical_p > 0.05
 
 
 @pytest.mark.parametrize("null", ["gaussian", "permute"])
@@ -191,6 +190,8 @@ def test_null_reference_rejects_adp_unknown_null_and_a_non_euclidean_run():
     X, labels = _three_blobs(), np.repeat([0, 1, 2], 30)
     with pytest.raises(ValueError, match="'adp'"):
         null_reference_silhouette("adp", X, labels, {"metric": "dice", "Z": 2.5, "maxk": 100})
+    with pytest.raises(ValueError, match="'evidence_accumulation'"):
+        null_reference_silhouette("evidence_accumulation", X, labels, {"base_method": "kmeans", "n_clusters": 3})
     with pytest.raises(ValueError, match="unknown null"):
         null_reference_silhouette("kmeans", X, labels, {"n_clusters": 3}, null="uniform")
     with pytest.raises(ValueError, match="metric='dice'"):
@@ -311,7 +312,7 @@ def test_noise_warning_is_silent_up_to_the_threshold_and_names_the_run_above_it(
     assert noise_warning("run_a", 0.004, 0.10) is None
     assert noise_warning("run_a", 0.10, 0.10) is None  # the threshold itself is not above it
     message = noise_warning("hdbscan_mcs200", 0.274, 0.10)
-    assert message is not None and "hdbscan_mcs200" in message and "27.4%" in message
+    assert message is not None and "hdbscan_mcs200" in message and "27,4%" in message
 
 
 def test_noise_warning_rejects_values_outside_the_unit_interval():
@@ -325,7 +326,73 @@ def test_noise_warning_rejects_values_outside_the_unit_interval():
 
 def test_adp_is_scored_by_knn_purity_and_not_by_the_euclidean_geometric_metrics():
     require_applicable("knn_purity", "adp")
+    require_applicable("adp_silhouette", "adp")
+    with pytest.raises(ValueError, match="'kmeans'"):
+        require_applicable("adp_silhouette", "kmeans")
     with pytest.raises(ValueError, match="'adp'"):
         require_applicable("geometric_metrics", "adp")
     with pytest.raises(ValueError, match="'kmeans'"):
         require_applicable("knn_purity", "kmeans")
+
+
+# --- distance_matrix_silhouette / saturated_pair_share -----------------------
+
+
+def test_distance_matrix_silhouette_matches_the_euclidean_breakdown_on_euclidean_distances():
+    from sklearn.metrics import pairwise_distances
+
+    from src.analysis.clustering_evaluation import distance_matrix_silhouette, per_cluster_silhouette
+
+    X = _three_blobs()
+    labels = np.repeat([0, 1, 2], 30)
+    expected = per_cluster_silhouette(X, labels, {"n_clusters": 3})
+    result = distance_matrix_silhouette(pairwise_distances(X), labels)
+
+    assert result.micro == pytest.approx(expected.micro)
+    assert result.macro == pytest.approx(expected.macro)
+    assert result.minimum == pytest.approx(expected.minimum)
+    pd.testing.assert_frame_equal(result.clusters, expected.clusters)
+
+
+def test_distance_matrix_silhouette_is_flattened_by_a_saturated_distance():
+    """Two clusters whose members are each close to 5 own-cluster neighbours and at distance 1 from
+    everyone else: the neighbourhoods are perfect, the silhouette is still near 0 (the lesion case)."""
+    from src.analysis.clustering_evaluation import distance_matrix_silhouette, saturated_pair_share
+
+    n_per_cluster = 100
+    labels = np.repeat([0, 1], n_per_cluster)
+    distances = np.ones((2 * n_per_cluster, 2 * n_per_cluster))
+    for start in (0, n_per_cluster):
+        for i in range(n_per_cluster):
+            for offset in range(1, 6):
+                j = start + (i + offset) % n_per_cluster
+                distances[start + i, j] = distances[j, start + i] = 0.6
+    np.fill_diagonal(distances, 0.0)
+
+    assert distance_matrix_silhouette(distances, labels).micro < 0.1
+    assert saturated_pair_share(distances) > 0.9
+
+
+def test_distance_matrix_silhouette_rejects_bad_input():
+    from src.analysis.clustering_evaluation import distance_matrix_silhouette
+
+    distances = np.ones((4, 4)) - np.eye(4)
+    with pytest.raises(ValueError, match="noise"):
+        distance_matrix_silhouette(distances, np.array([0, 0, 1, -1]))
+    with pytest.raises(ValueError, match="to match labels"):
+        distance_matrix_silhouette(distances, np.array([0, 0, 1]))
+    with pytest.raises(ValueError, match="1 cluster"):
+        distance_matrix_silhouette(distances, np.zeros(4, dtype=int))
+    with pytest.raises(ValueError, match="NaN or inf"):
+        distance_matrix_silhouette(np.full((4, 4), np.nan), np.array([0, 0, 1, 1]))
+
+
+def test_saturated_pair_share_counts_pairs_not_the_zero_diagonal():
+    from src.analysis.clustering_evaluation import saturated_pair_share
+
+    distances = np.array([[0, 1, 1, 0.4], [1, 0, 1 - 1e-12, 1], [1, 1 - 1e-12, 0, 0.5], [0.4, 1, 0.5, 0]])
+    assert saturated_pair_share(distances) == pytest.approx(4 / 6)  # pairs (0,1) (0,2) (1,2) (1,3); (1,2) within tolerance
+    with pytest.raises(ValueError, match="square"):
+        saturated_pair_share(np.ones((3, 4)))
+    with pytest.raises(ValueError, match="at least 2"):
+        saturated_pair_share(np.zeros((1, 1)))

@@ -15,8 +15,7 @@ diagnostic mode.
 subsampling_stability_index is a lighter sibling of the Monti idea above (a
 single full-vs-one-subsample ARI comparison, not an N-repeat ensemble) -
 meaningful for any CLUSTERING_METHODS entry, not restricted to
-CONSENSUS_ELIGIBLE_METHODS. Used by the single-run evaluation notebook
-(notebooks/post-results_analysis/clustering_evaluation.ipynb, docs/guides/evaluation.md),
+CONSENSUS_ELIGIBLE_METHODS. Used by notebooks/post-results_analysis/clustering_tuning_explorer.ipynb,
 not wired into clustering_tuning.py's sweep.
 
 Beyond the diagnostic above, this module also backs a production clustering
@@ -29,8 +28,6 @@ criterion used here.
 """
 
 from __future__ import annotations
-
-from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -162,97 +159,6 @@ def subsampling_stability_index(method: str, X: np.ndarray, params: dict, subsam
     subsample_labels = CLUSTERING_METHODS[method](X[subsample], params)
 
     return float(adjusted_rand_score(full_labels[subsample], subsample_labels))
-
-
-# Hennig (2007, "Cluster-wise assessment of cluster stability"): a cluster is "dissolved" in a
-# resample when no resampled cluster recovers it with a Jaccard similarity above this value.
-DISSOLVED_JACCARD = 0.5
-
-
-@dataclass(frozen=True)
-class StabilityEnsemble:
-    """Repeated subsample stability of one run.
-
-    ari: one ARI per repeat between the stored labels and the refit on a subsample, both restricted
-    to the subsampled subjects. clusters: one row per non-noise cluster of the stored labels, with
-    the mean Jaccard of its best match in the refit, the share of repeats in which it was dissolved
-    (Jaccard below DISSOLVED_JACCARD) and in how many repeats it had members in the subsample at all.
-    """
-
-    ari: np.ndarray
-    clusters: pd.DataFrame  # index: cluster label; columns: jaccard_mean, dissolved_share, n_present
-
-
-def _best_jaccard_per_cluster(reference: np.ndarray, refit: np.ndarray) -> dict[int, float]:
-    """For each non-noise cluster of `reference`, the Jaccard of its best match among the non-noise
-    clusters of `refit` (0.0 if the refit has no cluster at all). Both label arrays cover the same subjects."""
-    ref_ids, ref_inverse = np.unique(reference, return_inverse=True)
-    refit_ids, refit_inverse = np.unique(refit, return_inverse=True)
-    overlap = np.bincount(ref_inverse * len(refit_ids) + refit_inverse, minlength=len(ref_ids) * len(refit_ids)).reshape(len(ref_ids), len(refit_ids))
-    ref_sizes, refit_sizes = overlap.sum(axis=1), overlap.sum(axis=0)
-    jaccard = overlap / (ref_sizes[:, None] + refit_sizes[None, :] - overlap)
-    jaccard = jaccard[:, refit_ids != -1]
-    best = jaccard.max(axis=1) if jaccard.shape[1] else np.zeros(len(ref_ids))
-    return {int(cluster): float(value) for cluster, value in zip(ref_ids, best) if cluster != -1}
-
-
-def subsampling_stability_ensemble(
-    method: str, X: np.ndarray, params: dict, labels: np.ndarray, subsample_fraction: float, n_repeats: int, base_seed: int = 0
-) -> StabilityEnsemble:
-    """n_repeats refits of `method` on random subsamples (without replacement), each compared with
-    the run's stored `labels` on the subsampled subjects: a global ARI and, per cluster, the Jaccard
-    recovery of that cluster.
-
-    Where subsampling_stability_index is one draw against a refit of the full data, this takes the
-    stored labels as the reference (so no refit that might not reproduce them) and repeats the draw,
-    so the spread across seeds is visible - for ward k=9 on a 10-dimensional embedding single ARIs
-    range 0.77-0.98 - and the per-cluster Jaccard says which cluster is the unstable one. Seeds are
-    base_seed + repeat, one rng per repeat. Noise (-1) in `labels` counts as a group in the ARI, as
-    in subsampling_stability_index, and gets no Jaccard row.
-
-    Raises ValueError for an unknown method, subsample_fraction outside (0, 1), n_repeats < 1, a
-    `labels` that does not match X, a subsample under 2 subjects, or labels with no non-noise cluster.
-    """
-    if method not in CLUSTERING_METHODS:
-        raise ValueError(f"unknown clustering method {method!r} - known: {sorted(CLUSTERING_METHODS)}")
-    if not (0.0 < subsample_fraction < 1.0):
-        raise ValueError(f"subsample_fraction must be in (0, 1), got {subsample_fraction}")
-    if n_repeats < 1:
-        raise ValueError(f"n_repeats must be >= 1, got {n_repeats}")
-    labels = np.asarray(labels)
-    n_samples = X.shape[0]
-    if len(labels) != n_samples:
-        raise ValueError(f"labels has {len(labels)} entries but X has {n_samples} rows")
-    cluster_ids = np.unique(labels[labels != -1])
-    if len(cluster_ids) == 0:
-        raise ValueError("labels has no non-noise cluster to assess")
-    subsample_size = round(subsample_fraction * n_samples)
-    if subsample_size < 2:
-        raise ValueError(
-            f"subsample_fraction={subsample_fraction} on n_samples={n_samples} yields a subsample of "
-            f"{subsample_size} point(s) - too small to compare clusterings"
-        )
-
-    ari = np.empty(n_repeats)
-    jaccard = np.full((n_repeats, len(cluster_ids)), np.nan)  # NaN: the cluster had no member in that subsample
-    for repeat in range(n_repeats):
-        subsample = np.random.default_rng(base_seed + repeat).choice(n_samples, size=subsample_size, replace=False)
-        reference = labels[subsample]
-        refit = CLUSTERING_METHODS[method](X[subsample], params)
-        ari[repeat] = adjusted_rand_score(reference, refit)
-        for cluster, value in _best_jaccard_per_cluster(reference, refit).items():
-            jaccard[repeat, np.searchsorted(cluster_ids, cluster)] = value
-
-    per_repeat = pd.DataFrame(jaccard, columns=pd.Index(cluster_ids, name="cluster"))
-    n_present = per_repeat.notna().sum()
-    clusters = pd.DataFrame(
-        {
-            "jaccard_mean": per_repeat.mean(),  # NaN for a cluster that never had a member in a subsample
-            "dissolved_share": (per_repeat < DISSOLVED_JACCARD).sum() / n_present,
-            "n_present": n_present,
-        }
-    )
-    return StabilityEnsemble(ari=ari, clusters=clusters)
 
 
 def compute_evidence_accumulation_convergence(

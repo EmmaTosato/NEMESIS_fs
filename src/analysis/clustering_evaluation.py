@@ -1,7 +1,7 @@
 """Which single-run evaluation applies to which clustering method.
 
 Backs notebooks/post-results_analysis/clustering_evaluation.ipynb: each of its sections is one
-evaluation (a metric, or a bundle of metrics, or a plot) and declares here which of
+evaluation (a metric, or a bundle of metrics) and declares here which of
 CLUSTERING_METHODS it is meaningful for. The notebook calls require_applicable before every
 section, so a run of the wrong method is refused loudly instead of producing a number that
 looks valid and is not.
@@ -14,6 +14,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_samples
 from sklearn.mixture import GaussianMixture
 
 from src.analysis.clustering import CLUSTERING_METHODS
@@ -31,39 +32,43 @@ _ALL_METHODS = frozenset(CLUSTERING_METHODS)
 EVALUATIONS: dict[str, Evaluation] = {
     "geometric_metrics": Evaluation(
         _ALL_METHODS - {"adp"},
-        "Euclidean (X, labels) indices; adp clusters the dice distance of the raw matrix, which they would "
-        "score in another geometry - it has knn_purity instead",
+        "indici euclidei su (X, etichette); adp clusterizza la distanza dice della matrice grezza, che questi "
+        "indici misurerebbero in un'altra geometria - per adp ci sono la purezza dei vicini e la silhouette sulla distanza dice",
     ),
     "null_reference": Evaluation(
-        frozenset(CLUSTERING_METHODS) - {"adp"},
-        "refits the method on structureless data of the run's own shape; adp's input is the raw voxel "
-        "matrix, whose refits take minutes each and have no Gaussian reference of the same shape",
+        _ALL_METHODS - {"adp", "evidence_accumulation"},
+        "rifitta il metodo su dati senza struttura della stessa forma della run; l'input di adp è la matrice "
+        "grezza dei voxel, i cui rifit richiedono minuti ciascuno e che non ha un riferimento gaussiano della stessa forma; "
+        "ogni fit di evidence_accumulation ripete spectral 50 volte, troppo lento per decine di rifit",
     ),
     "knn_purity": Evaluation(
         frozenset({"adp"}),
-        "adp decides on the nearest neighbours of each subject; on a saturated dice distance the "
-        "silhouette (all pairs) does not see that geometry",
+        "adp decide sui vicini più prossimi di ogni soggetto; su una distanza dice saturata (le lesioni) la "
+        "silhouette (che guarda tutte le coppie) non vede questa geometria",
+    ),
+    "adp_silhouette": Evaluation(
+        frozenset({"adp"}),
+        "silhouette sulla distanza con cui adp clusterizza (dice sulla matrice grezza), non sullo spazio euclideo; "
+        "va letta insieme alla quota di coppie a distanza 1, che la rende inutilizzabile quando è alta",
     ),
     "model_fit_metrics": Evaluation(
         frozenset({"kmeans", "gmm", "hdbscan"}),
-        "only these expose a model-specific statistic (inertia, BIC/AIC, noise fraction); "
-        "agglomerative, spectral, evidence_accumulation and adp have none",
+        "solo questi espongono una statistica propria del modello (inertia, BIC/AIC, quota di rumore); "
+        "agglomerative, spectral, evidence_accumulation e adp non ne hanno",
     ),
-    "subsampling_stability": Evaluation(_ALL_METHODS, "refit on a subsample is defined for any method"),
-    "clinical_association": Evaluation(_ALL_METHODS, "depends only on the labels"),
-    "produced_plots": Evaluation(_ALL_METHODS, "plots written by clustering.py for every method"),
-    "centroids": Evaluation(_ALL_METHODS, "mean of the embedding coordinates per cluster"),
-    "representative_maps": Evaluation(_ALL_METHODS, "nearest real subject to each centroid"),
+    "clinical_association": Evaluation(_ALL_METHODS, "dipende solo dalle etichette"),
+    "centroids": Evaluation(_ALL_METHODS, "media delle coordinate dell'embedding per cluster"),
+    "representative_maps": Evaluation(_ALL_METHODS, "soggetto reale più vicino a ogni centroide"),
 }
 
 
 def require_applicable(evaluation: str, method: str) -> None:
     if evaluation not in EVALUATIONS:
-        raise ValueError(f"unknown evaluation {evaluation!r} - known: {sorted(EVALUATIONS)}")
+        raise ValueError(f"valutazione sconosciuta {evaluation!r} - note: {sorted(EVALUATIONS)}")
     spec = EVALUATIONS[evaluation]
     if method not in spec.methods:
         raise ValueError(
-            f"evaluation {evaluation!r} is not defined for method {method!r} - applicable to "
+            f"la valutazione {evaluation!r} non è definita per il metodo {method!r} - si applica a "
             f"{sorted(spec.methods)} ({spec.reason})"
         )
 
@@ -126,7 +131,11 @@ def per_cluster_silhouette(X: np.ndarray, labels: np.ndarray, combo_params: dict
     """
     require_euclidean_compatible(combo_params)
     kept_labels, samples = compute_silhouette_samples(X, np.asarray(labels))
-    grouped = pd.DataFrame({"cluster": kept_labels, "silhouette": samples}).groupby("cluster")["silhouette"]
+    return _silhouette_breakdown(kept_labels, samples)
+
+
+def _silhouette_breakdown(labels: np.ndarray, samples: np.ndarray) -> SilhouetteBreakdown:
+    grouped = pd.DataFrame({"cluster": labels, "silhouette": samples}).groupby("cluster")["silhouette"]
     clusters = pd.DataFrame(
         {"n": grouped.size(), "silhouette_mean": grouped.mean(), "share_negative": grouped.apply(lambda s: float((s < 0).mean()))}
     )
@@ -136,6 +145,46 @@ def per_cluster_silhouette(X: np.ndarray, labels: np.ndarray, combo_params: dict
         macro=float(clusters["silhouette_mean"].mean()),
         minimum=float(clusters["silhouette_mean"].min()),
     )
+
+
+def _check_distance_matrix(distances: np.ndarray, labels: np.ndarray, caller: str) -> None:
+    n = len(labels)
+    if distances.shape != (n, n):
+        raise ValueError(f"distances must be ({n}, {n}) to match labels, got {distances.shape}")
+    if not np.isfinite(distances).all():
+        raise ValueError("distances contains NaN or inf")
+    if (labels == -1).any():
+        raise ValueError(f"labels contains noise (-1): pass only the clustered subjects (rows and columns of distances) to {caller}")
+
+
+def distance_matrix_silhouette(distances: np.ndarray, labels: np.ndarray) -> SilhouetteBreakdown:
+    """Per-cluster silhouette on a precomputed distance matrix: the geometry adp clusters in (dice on
+    the raw matrix), which the Euclidean `per_cluster_silhouette` would score in another one.
+
+    Only the clustered subjects: rows and columns of `distances` match `labels`, with no noise (-1).
+    Raises ValueError for a non-square, non-finite or mismatched `distances`, noise labels, or fewer
+    than 2 clusters / every subject its own cluster (the silhouette is undefined).
+    """
+    labels = np.asarray(labels)
+    _check_distance_matrix(distances, labels, "distance_matrix_silhouette")
+    n_clusters = len(np.unique(labels))
+    if not 2 <= n_clusters <= len(labels) - 1:
+        raise ValueError(f"cannot compute the silhouette: {n_clusters} cluster(s) found (need 2..n-1)")
+    return _silhouette_breakdown(labels, silhouette_samples(distances, labels, metric="precomputed"))
+
+
+def saturated_pair_share(distances: np.ndarray, tolerance: float = 1e-9) -> float:
+    """Share of the pairs of distinct subjects whose distance is 1 (within `tolerance`).
+
+    dice and jaccard are exactly 1 between two subjects with nothing in common. When most pairs are,
+    a silhouette (which averages distances over whole clusters) sits near 0 whatever the neighbourhoods
+    look like: 84% of the pairs of the lesion matrix, 0.0015% of the voxelwise disconnection one.
+    Raises ValueError for a non-square matrix or fewer than 2 subjects.
+    """
+    n = distances.shape[0]
+    if distances.ndim != 2 or distances.shape[1] != n or n < 2:
+        raise ValueError(f"distances must be a square matrix of at least 2 subjects, got {distances.shape}")
+    return float((distances >= 1.0 - tolerance).sum() / (n * (n - 1)))  # the zero diagonal never counts
 
 
 NULL_KINDS = ("gaussian", "permute")
@@ -165,11 +214,6 @@ class NullReference:
     def margin(self) -> float:
         """Observed minus null mean: the silhouette the method does NOT get for free."""
         return self.observed - self.null_mean
-
-    @property
-    def empirical_p(self) -> float:
-        """Share of null fits (observed included, the +1 convention) at least as good as the observed one."""
-        return (1 + float((self.null_values >= self.observed).sum())) / (len(self.null_values) + 1)
 
 
 def _null_sample(X: np.ndarray, kind: str, rng: np.random.Generator) -> np.ndarray:
@@ -256,12 +300,7 @@ def knn_purity(distances: np.ndarray, labels: np.ndarray, k: int) -> KnnPurity:
     """
     labels = np.asarray(labels)
     n = len(labels)
-    if distances.shape != (n, n):
-        raise ValueError(f"distances must be ({n}, {n}) to match labels, got {distances.shape}")
-    if not np.isfinite(distances).all():
-        raise ValueError("distances contains NaN or inf")
-    if (labels == -1).any():
-        raise ValueError("labels contains noise (-1): pass only the clustered subjects (rows and columns of distances)")
+    _check_distance_matrix(distances, labels, "knn_purity")
     if not 1 <= k <= n - 1:
         raise ValueError(f"k must be in [1, {n - 1}], got {k}")
     if len(np.unique(labels)) < 2:
@@ -312,4 +351,5 @@ def noise_warning(run_name: str, noise_fraction: float, threshold: float) -> str
             raise ValueError(f"{name} must be in [0, 1], got {value}")
     if noise_fraction <= threshold:
         return None
-    return f"{run_name}: {noise_fraction:.1%} of the subjects are noise and are not scored by the indices below"
+    share = f"{noise_fraction:.1%}".replace(".", ",")
+    return f"{run_name}: il {share} dei soggetti è rumore e gli indici qui sotto non lo valutano"

@@ -6,6 +6,14 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 15-10-26 — `clustering_evaluation`: tolti i grafici e il registro `produced_plots`
+
+La sezione 6 del notebook (6.1 plot prodotti da `clustering.py`, `cluster_plot.png` e `silhouette_plot.png`) e l'helper `plot_production_runs` sono stati tolti, con gli import `matplotlib`/`seaborn` e `%matplotlib inline`. Il notebook resta fatto di tabelle. Via anche la voce `produced_plots` di `EVALUATIONS` (nessun consumatore).
+
+Perché: i due plot sono già scritti in ogni cartella di run (95 run lesion su 95 li hanno) e si aprono da lì; il notebook li rileggeva da disco senza calcolare niente. In più il testo era sbagliato: diceva che le run a 10 componenti non hanno i plot, ma `clustering.py` le disegna su un UMAP 2D separato (`viz_embedding_path`), e `silhouette_plot.png` di adp (media 0,030, distanza dice saturata) compariva accanto alla purezza 0,922 che sostituisce la silhouette.
+
+Conseguenza ancora vera: restano senza consumatori `clinical_association`, `centroids` e `representative_maps` in `EVALUATIONS` (sezioni passate a `cluster_interpretation`).
+
 ## 08-10-26 — Confronto tra run: sezione dell'Embedding Explorer, non una seconda pagina
 
 Il confronto tra due run di clustering (`docs/guides/embedding_app.md`, "Confronto tra run") vive in fondo alla stessa pagina dell'app, con un menu "Indice" a scomparsa per navigare, invece che in una seconda pagina con il Clustering Explorer spostato lì.

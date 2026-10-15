@@ -13,7 +13,7 @@ Il criterio (empirica contro interpretativa) è in [`exploration.md`](exploratio
 
 | Analisi | Notebook |
 |---|---|
-| Metriche geometriche, del modello, stabilità di una run | `clustering_evaluation` |
+| Metriche geometriche e del modello di una run | `clustering_evaluation` |
 | Accordo tra partizioni (ARI/NMI/VI), contingency, abbinamento e Jaccard tra cluster di run diverse | `clustering_comparison` |
 | Distanze tra cluster **nello spazio dell'embedding** (centroidi, Mahalanobis, linkage) | `clustering_comparison` |
 | Tabelle e test su età, sesso, NIHSS, volume, dataset, lato, localizzazione | `cluster_interpretation` |
@@ -23,7 +23,7 @@ Il criterio (empirica contro interpretativa) è in [`exploration.md`](exploratio
 
 I casi di confine seguono il criterio: una distanza calcolata sulle coordinate dell'embedding è empirica; una calcolata su mappe anatomiche o variabili cliniche descrive i cluster ed è interpretativa. Un'analisi che serve a entrambi i notebook (l'abbinamento dei cluster) vive come funzione in `src/analysis/`, perché i notebook non si importano tra loro.
 
-**Stato attuale.** `clustering_evaluation` contiene ancora la sezione 5 (associazione con le variabili cliniche) e le sezioni 6.2 e 6.3 (centroidi, soggetti rappresentativi): per il criterio sopra ricadono in `cluster_interpretation`, che le ha già. `clustering_comparison` ha ancora le sezioni della versione unica, con la vecchia numerazione e il profilo clinico per cluster della Parte 2 §3.
+**Stato attuale.** `clustering_evaluation` non contiene più l'associazione con le variabili cliniche, i centroidi, i soggetti rappresentativi né i grafici (i plot di `clustering.py` si guardano direttamente in `results/`): per il criterio sopra le prime tre ricadono in `cluster_interpretation`, che le ha già. `clustering_comparison` ha ancora le sezioni della versione unica, con la vecchia numerazione e il profilo clinico per cluster della Parte 2 §3.
 
 Sono notebook locali, non pipeline CLI:
 
@@ -38,28 +38,32 @@ Nessun dataset sintetico: le run si scelgono a mano in `SELECTED_RUNS` (path del
 
 ## `clustering_evaluation.ipynb` — una run alla volta
 
-Ogni sezione è un **metodo di valutazione** (una metrica, un gruppo di metriche lette insieme, o un grafico) e riporta quattro cose: che metodo è, cosa fa, come si legge, a quali metodi di clustering si applica.
+Ogni sezione è un **metodo di valutazione** (una metrica o un gruppo di metriche lette insieme) e riporta quattro cose: che metodo è, cosa fa, come si legge, a quali metodi di clustering si applica.
 
-L'applicabilità è verificata dal codice: `src/analysis/clustering_evaluation.py` tiene il registro `EVALUATIONS` (valutazione → metodi) e `require_applicable`, che solleva `ValueError` per un metodo non previsto. Nel notebook `applicable_runs(valutazione)` salta le run non applicabili stampando il motivo e solleva se non ne resta nessuna; le sezioni a run singola chiamano `require_applicable` sulla run scelta. Un test (`tests/unit/test_clustering_evaluation.py`) garantisce che il registro nomini solo metodi di `CLUSTERING_METHODS`.
+L'applicabilità è verificata dal codice: `src/analysis/clustering_evaluation.py` tiene il registro `EVALUATIONS` (valutazione → metodi) e `require_applicable`, che solleva `ValueError` per un metodo non previsto. Nel notebook `applicable_runs(valutazione)` salta le run non applicabili stampando il motivo (una riga per metodo); se non ne resta nessuna la sezione non produce niente, senza errore. Un test (`tests/unit/test_clustering_evaluation.py`) garantisce che il registro nomini solo metodi di `CLUSTERING_METHODS`.
 
 | Sezione | Metodo di valutazione | Metodi di clustering | Codice |
 |---|---|---|---|
-| 2 | Metriche geometriche: Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn | tutti | `clustering_tuning.compute_clustering_metrics`, `dunn_index` |
+| 2 | Metriche geometriche: Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn | tutti tranne adp | `clustering_tuning.compute_clustering_metrics`, `dunn_index` |
+| 2.1 | Silhouette per cluster (micro, macro, minimo) | tutti tranne adp | `clustering_evaluation.per_cluster_silhouette` |
+| 2.2 | Silhouette contro dati senza cluster (nullo gaussiano e permutato, margine sulla media del nullo) | tutti tranne adp ed evidence_accumulation | `clustering_evaluation.null_reference_silhouette` |
+| 2.3 | Purezza dei k vicini | adp | `clustering_evaluation.knn_purity` |
+| 2.4 | Silhouette sulla distanza dice, con la quota di coppie a distanza 1 | adp | `clustering_evaluation.distance_matrix_silhouette`, `saturated_pair_share` |
 | 3 | Metriche del modello: `inertia`, `bic`/`aic`, `noise_fraction`/`n_clusters_found` | kmeans, gmm, hdbscan | `clustering_evaluation.model_fit_metrics` |
-| 4 | Stabilità al sottocampionamento (ARI tra fit al 100% e all'80%) | tutti | `consensus_clustering.subsampling_stability_index` |
 | 5 | Associazione con variabili cliniche: tabella per cluster, Kruskal-Wallis (età, NIHSS), chi-quadro (sesso) | tutti | `scipy.stats` su `assets/metadata/participants.csv` |
-| 6 | Grafici: plot prodotti, embedding con centroidi, soggetti rappresentativi sul cervello | tutti | `plotting`, `anatomical_maps.resolve_lesion_paths` |
 
 Cose che non si vedono dal registro:
 
 - **Metriche geometriche**: assumono distanza euclidea e cluster compatti e convessi, quindi favoriscono kmeans/gmm. `compute_clustering_metrics(combo_params=...)` rifiuta una run con `metric`/`affinity` non euclideo. Valori di embedding diversi (lesion vs sdc) non sono confrontabili.
 - **Metriche del modello**: kmeans e gmm vengono rifittati con i parametri della run e accettati solo se riproducono esattamente le etichette salvate (altrimenti `ValueError`, tipico di `random_state` non fissato). `inertia` e BIC/AIC non sono sulla stessa scala.
-- **Stabilità**: per hdbscan il rumore (`-1`) conta come un gruppo nell'ARI; è un singolo confronto con seed fisso, non un ensemble (a differenza di `run_monti_repeats`, che vale solo per `CONSENSUS_ELIGIBLE_METHODS`).
-- **Rumore di hdbscan**: escluso da tabella e test clinici, dai centroidi e dagli indici geometrici; la sua quota è sempre mostrata (`noise_fraction`, conteggio stampato).
-- **adp**: le metriche geometriche (sezione 2) rifiutano una run con `dice`/`jaccard` (assumono distanza euclidea); la silhouette con la distanza giusta è nel `tuning_results.csv`. La stabilità (sezione 4) rifà il fit di ADP e richiede `dadapy` nel kernel.
+- **Silhouette e rumore**: se la quota di rumore supera `NOISE_WARNING_FRACTION` (10%) la cella della sezione 2 stampa un avviso: gli indici descrivono allora solo i soggetti non-rumore.
+- **Rumore di hdbscan**: escluso dagli indici geometrici, dal nullo; la sua quota è sempre mostrata (`noise_fraction`).
+- **adp**: clusterizza il dato grezzo, quindi `X` è la matrice delle feature (soggetti x voxel) e non un embedding: `load_run` la apre con `mmap` e la marca `is_raw`.
+  - Sezione 2: le metriche geometriche non si applicano (il registro rifiuta adp): `compute_clustering_metrics` rifiuta `dice`/`jaccard`. Per adp ci sono due letture sulla distanza con cui ha clusterizzato. La 2.3 è la purezza dei k vicini (`adp_knn_purity`; i soggetti con riga vuota, etichettati `-1`, restano fuori), che dipende solo dall'ordine dei vicini; un cluster con `K_NEIGHBORS` o meno soggetti non è valutabile. La 2.4 è la silhouette sulla distanza dice, riportata con `pairs_at_distance_1`, la quota di coppie a distanza esattamente 1: sulle lesioni è l'84% e la silhouette è inutilizzabile (lettura: purezza), sulle mappe sdc è lo 0,0015% e la silhouette si legge normalmente.
+  - Sezione 3: saltata (nessuna statistica propria).
 - **DBCV** è escluso (già scartato nel tuning, `docs/guides/clustering.md`).
 
-Lesion e sdc possono convivere nella stessa `SELECTED_RUNS`: ogni run è valutata da sola. I soggetti rappresentativi richiedono i `.nii.gz` dei soggetti in `data/`.
+Lesion e sdc possono convivere nella stessa `SELECTED_RUNS`: ogni run è valutata da sola. Dopo la selezione una cella svuota `runs` e carica solo le run scelte: senza quella cella nessuna sezione produce niente.
 
 ---
 
@@ -80,7 +84,6 @@ Le Parti 1-3 sono ancora quelle della versione unica del notebook, in attesa di 
 ## Lettura consigliata
 
 - Le metriche intrinseche dicono se *quella* run è compatta e separata, non se è "giusta" rispetto a un'altra.
-- La stabilità risponde a una domanda diversa: la run è un artefatto del campione esatto di soggetti?
 - ARI/NMI alti tra metodi diversi sono un segnale di convergenza, non una prova che `k` sia corretto. ARI/NMI bassi tra lesion e sdc non sono un errore: feature space diversi non hanno obbligo di produrre la stessa partizione.
 
 Metodologia e letteratura: `knowledge/dim_reduction_clustering/clustering_literature_survey.md`.

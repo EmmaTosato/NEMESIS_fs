@@ -8,6 +8,29 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 15-10-26 — clustering_evaluation: silhouette di adp riammessa, con la quota di coppie a distanza 1
+
+Per adp la sezione 2.4 calcola di nuovo la silhouette (`distance_matrix_silhouette`, sulla distanza dice già in cache), accanto a `saturated_pair_share`: la quota di coppie di soggetti a distanza esattamente 1. La purezza dei vicini (2.3) resta. La decisione del 13-10-26 ("per adp la silhouette è sostituita dalla purezza") valeva per le lesioni.
+
+Perché (misurato il 14-10-26): la saturazione è una proprietà della matrice, non di adp. Lesioni `s1.4-vol`: 84,3% delle coppie a distanza 1, silhouette 0,030 contro purezza 0,922. Disconnessione voxelwise `s2.4-vol` (continua, dice pesata): ogni mappa copre in mediana 109734 voxel su 291345 e solo lo 0,0015% delle coppie ha supporto disgiunto, quindi la silhouette non è schiacciata. Il testo generico "distanza 1 per la gran parte delle coppie" era falso per sdc.
+
+Alternativa scartata: decidere per matrice se mostrare o no la silhouette. Si mostra sempre, con `pairs_at_distance_1` accanto: la lettura è dei dati, non di una regola scritta nel notebook.
+
+Conseguenza ancora vera: la silhouette di adp (distanza dice) non è confrontabile con quella euclidea delle run su embedding.
+
+## 15-10-26 — clustering_evaluation: tolti il p empirico e la stabilità al sottocampionamento; nullo non per evidence_accumulation
+
+Tolti dal notebook e da `src/`: `NullReference.empirical_p`, `consensus_clustering.subsampling_stability_ensemble` con `StabilityEnsemble`, `DISSOLVED_JACCARD` e `_best_jaccard_per_cluster` (ARI ripetuto e Jaccard per cluster, sezione 4), la voce `subsampling_stability` di `EVALUATIONS`. Resta `subsampling_stability_index` (usato da `clustering_tuning_explorer.ipynb`). Il nullo (2.2) ora esclude anche `evidence_accumulation`, oltre ad adp.
+
+Perché (misurato il 14-10-26):
+- **p empirico**: i fit del nullo con meno di 2 cluster sono scartati dal denominatore, quindi il minimo non è 1/(N_NULL+1) ma 1/(fit validi + 1). Su `hdbscan 12-10_s1.4-vol_m_dice_nc10_mcs100_ms10` 24 fit su 30 sono degeneri e `gaussian_p` vale 1/7 = 0,143: il p risultava "non significativo" proprio perché il nullo, che di solito non trova cluster, veniva scartato. Il margine sulla media del nullo resta.
+- **stabilità**: ricampiona solo il passo di clustering sull'embedding salvato, che UMAP ha costruito su tutti i soggetti (i soggetti tolti hanno già influenzato la posizione degli altri): l'ARI 0,92 non dice che il risultato non dipenda dal campione. Il Jaccard per cluster di hdbscan `03-09_s1.2-vol mcs200_ms5` smentiva il testo "Jaccard 0 in tutte le ripetizioni": tre cluster da 209/239/209 soggetti hanno Jaccard medio 0,006/0,049/0,346 (dissolti nel 99%/95%/54% delle ripetizioni), quindi la dimensione sola non spiega. Per adp il rifit rifà la distanza a ogni ripetizione (sdc, continua: stimato circa 17 minuti ciascuna, non misurato senza `dadapy`).
+- **evidence_accumulation nel nullo**: con `N_NULL = 2` la cella non finiva in 25 minuti (ogni fit ripete spectral 50 volte).
+
+Alternative scartate: contare i fit degeneri come "non buoni quanto l'osservato" (p minimo 1/31); ripetere anche UMAP in ogni ripetizione della stabilità (minuti per ripetizione su 5845 x 220 mila).
+
+Conseguenza ancora vera: il notebook non ha nessuna misura di stabilità né un indicatore di incertezza sul margine del nullo; la voce del 13-10-26 qui sotto descrive ciò che c'era prima.
+
 ## 15-10-26 — cluster_interpretation: tolti tutti i test statistici e la sezione «cluster contro resto», il notebook è solo descrittivo
 
 **Cosa è stato fatto** in `notebooks/post-results_analysis/cluster_interpretation.ipynb`, dopo una revisione che ha riprodotto i problemi sulle run `12-10_s1.4-vol_m_dice_nc10_k7_link_ward` (7 cluster), `03-09_s1.2-vol_m_euclidean_nc2_mcs100_ms20` (hdbscan, 15 cluster) e `30-09_s2.3-stream_k5_link_ward` (sdc):
