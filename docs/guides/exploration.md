@@ -42,19 +42,18 @@ Ordine logico dei dati: **input grezzi** (cosa esiste su disco, cosa dicono i TS
 
 ## `notebooks/post-results_analysis/`
 
-Leggono run di clustering già **prodotte**. Tre notebook, separati da un criterio solo: se l'analisi usa dati *interni* al clustering o dati *esterni* a esso.
+Leggono run di clustering già **prodotte**. Due notebook di analisi (una run o più run) più l'esplorazione di un tuning. Un criterio separa le analisi: se usano dati *interni* al clustering o dati *esterni* a esso.
 
 - **Empirica**: usa solo le etichette e lo spazio su cui la run è stata costruita (embedding o matrice). Risponde a "com'è fatta e quanto è affidabile questa partizione, quanto si accorda con un'altra".
-- **Interpretativa**: porta variabili o immagini che il clustering non ha visto (cliniche, demografiche, mappe anatomiche) e fa test su quelle. Risponde a "cosa rappresentano questi cluster".
+- **Interpretativa**: porta variabili o immagini che il clustering non ha visto (cliniche, demografiche, mappe anatomiche). Risponde a "cosa rappresentano questi cluster". Vive nell'app Dash (mappe, soggetti rappresentativi, composizione dei cluster, confronto tra cluster); l'unica eccezione nei notebook è la sezione 4 di `clustering_evaluation`, che descrive i cluster con le variabili cliniche e non fa nessun test.
 
 | Notebook | Scope | Domanda | Legge | Scrive |
 |---|---|---|---|---|
-| `clustering_evaluation` | empirica, **una** run | quanto è buona questa run? (metriche geometriche e del modello, confidenza di appartenenza) | la run (`matrix.npy`, `metadata.csv`, `config.md`) | nulla |
+| `clustering_evaluation` | empirica, **una** run | quanto è buona questa run? (metriche geometriche e del modello, confidenza di appartenenza) e come sono distribuite le variabili cliniche nei suoi cluster (sezione 4, solo descrittiva, nessun test) | la run (`matrix.npy`, `metadata.csv`, `config.md`), `participants.csv` per la sezione 4 | nulla |
 | `clustering_comparison` | empirica, **più** run | in cosa differiscono queste run? (accordo tra partizioni, corrispondenza dei cluster, distanze tra cluster nell'embedding) | le run scelte | nulla |
-| `cluster_interpretation` | interpretativa, **una** run | come sono distribuite le variabili cliniche e anatomiche nei cluster di questa run? Solo descrittivo, nessun test statistico: copertura dei dati, media, mediana e percentuali per cluster. Si sceglie la run seguendo i rami di results; con una run `sdc` si aggiunge il carico di disconnessione. Mappe anatomiche, soggetti rappresentativi, composizione dei cluster e confronto tra cluster sono solo nell'app Dash | una run, `participants.csv` | nulla |
 | `clustering_tuning_explorer` | esplorazione di uno sweep di tuning | come variano le metriche al variare degli iperparametri? | l'output di un tuning | nulla |
 
-Guida di evaluation e comparison, e dove vive ogni analisi: [`evaluation.md`](evaluation.md). `cluster_interpretation` è il banco di prova dell'app Dash: un'analisi che serve passa in `src/analysis/` con i test, poi nel pannello.
+Guida di evaluation e comparison, e dove vive ogni analisi: [`evaluation.md`](evaluation.md).
 
 ---
 

@@ -6,7 +6,7 @@ coefficient is reported as an odds ratio: how many times more (or less) likely a
 the cluster when that variable goes up by one standard deviation (numeric), or when it takes a level
 instead of the reference level (categorical), with the other variables held fixed.
 
-Backs notebooks/post-results_analysis/cluster_interpretation.ipynb. It is an association, not a
+Backs the two-cluster regression of src.analysis.cluster_pair (Dash app, clustering_comparison). It is an association, not a
 cause, and a variable derived from the clustering input (lesion summaries for a lesion run,
 disconnection summaries for an sdc run) is associated with the cluster partly by construction.
 """

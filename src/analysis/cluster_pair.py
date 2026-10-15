@@ -11,9 +11,8 @@ Four views of "cluster 1 versus cluster 2", all on the subjects of those two clu
 
 Every subject variable is read from assets/metadata/participants.csv (the project's single
 subject registry), never from the run's own metadata.csv - the same rule as
-src.analysis.cluster_description. The statistics are the ones notebooks/post-results_analysis/
-cluster_interpretation.ipynb already uses for "cluster against the rest", with the second group
-being the other cluster instead of everyone else.
+src.analysis.cluster_description. The statistics are a Mann-Whitney test per numeric variable and a
+Fisher exact test per category, cluster 1 against cluster 2, with p corrected for all of them together.
 """
 
 from __future__ import annotations

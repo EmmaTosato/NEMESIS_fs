@@ -9,21 +9,21 @@ Due notebook sotto `notebooks/post-results_analysis/` (evaluation e comparison) 
 
 ## Scope: dove vive ogni analisi
 
-Il criterio (empirica contro interpretativa) è in [`exploration.md`](exploration.md). Evaluation e comparison sono **empirici**; l'interpretazione dei cluster è in `cluster_interpretation.ipynb`, che non è documentato qui.
+Il criterio (empirica contro interpretativa) è in [`exploration.md`](exploration.md). Evaluation e comparison sono **empirici**, con una sola eccezione: la sezione 4 di evaluation descrive i cluster con le variabili cliniche, senza test. L'interpretazione (mappe, soggetti rappresentativi, confronto tra cluster) è nell'app Dash.
 
 | Analisi | Notebook |
 |---|---|
 | Metriche geometriche e del modello di una run | `clustering_evaluation` |
 | Accordo tra partizioni (ARI/NMI/VI), contingency, abbinamento e Jaccard tra cluster di run diverse | `clustering_comparison` |
 | Distanze tra cluster **nello spazio dell'embedding** (centroidi, Mahalanobis, linkage) | `clustering_comparison` |
-| Tabelle e test su età, sesso, NIHSS, volume, dataset, lato, localizzazione | `cluster_interpretation` |
-| Mappe di overlap e disconnessione, soggetti rappresentativi | `cluster_interpretation` |
-| Distanze tra cluster **nello spazio delle mappe o del profilo clinico** | `cluster_interpretation` |
-| Perché due cluster abbinati differiscono (A∩B, A\B, B\A descritti con le variabili esterne) | `cluster_interpretation`, che riceve l'abbinamento dal comparison |
+| Tabelle descrittive per cluster su età, sesso, NIHSS, volume, dataset, lato, sede dominante (nessun test) | `clustering_evaluation`, sezione 4 |
+| Mappe di overlap e disconnessione, soggetti rappresentativi | app Dash |
+| Distanze tra cluster **nello spazio delle mappe o del profilo clinico** | nessun notebook (non implementato) |
+| Perché due cluster abbinati differiscono (A∩B, A\B, B\A descritti con le variabili esterne) | nessun notebook (non implementato) |
 
 I casi di confine seguono il criterio: una distanza calcolata sulle coordinate dell'embedding è empirica; una calcolata su mappe anatomiche o variabili cliniche descrive i cluster ed è interpretativa. Un'analisi che serve a entrambi i notebook (l'abbinamento dei cluster) vive come funzione in `src/analysis/`, perché i notebook non si importano tra loro.
 
-**Stato attuale.** `clustering_evaluation` non contiene più l'associazione con le variabili cliniche, i centroidi, i soggetti rappresentativi né i grafici (i plot di `clustering.py` si guardano direttamente in `results/`): per il criterio sopra le prime tre ricadono in `cluster_interpretation`, che le ha già. `clustering_comparison` ha ancora le sezioni della versione unica, con la vecchia numerazione e il profilo clinico per cluster della Parte 2 §3.
+**Stato attuale.** `clustering_evaluation` non contiene più l'associazione con le variabili cliniche, i centroidi, i soggetti rappresentativi né i grafici (i plot di `clustering.py` si guardano direttamente in `results/`). L'associazione è sostituita dalla descrizione per cluster della sezione 4, senza test; centroidi e soggetti rappresentativi sono nell'app Dash. `clustering_comparison` ha ancora le sezioni della versione unica, con la vecchia numerazione e il profilo clinico per cluster della Parte 2 §3.
 
 Sono notebook locali, non pipeline CLI:
 
@@ -51,12 +51,14 @@ L'applicabilità è verificata dal codice: `src/analysis/clustering_evaluation.p
 | 2.4 | Silhouette sulla distanza dice, con la quota di coppie a distanza 1 | adp | `clustering_evaluation.distance_matrix_silhouette`, `saturated_pair_share` |
 | 3 | Metriche del modello: `inertia`, `bic`/`aic`, `noise_fraction`/`n_clusters_found` | kmeans, gmm, hdbscan | `clustering_evaluation.model_fit_metrics` |
 | 3.1 | Confidenza di appartenenza: probabilità media, 10° percentile e quota sotto soglia per cluster; silhouette su tutti i non-rumore contro i soli soggetti sopra soglia | hdbscan | `clustering_evaluation.membership_confidence` |
+| 4 | Descrizione dei cluster con le variabili di `participants.csv`: soggetti con il dato, media ± deviazione standard, mediana [Q1–Q3], percentuali per categoria; nessun test | tutti | funzioni del notebook (`registry_frame`, `coverage_table`, `describe_clusters`) |
 
 Cose che non si vedono dal registro:
 
 - **Metriche geometriche**: assumono distanza euclidea e cluster compatti e convessi, quindi favoriscono kmeans/gmm. `compute_clustering_metrics(combo_params=...)` rifiuta una run con `metric`/`affinity` non euclideo. Valori di embedding diversi (lesion vs sdc) non sono confrontabili.
 - **Metriche del modello**: kmeans e gmm vengono rifittati con i parametri della run e accettati solo se riproducono esattamente le etichette salvate (altrimenti `ValueError`, tipico di `random_state` non fissato). `inertia` e BIC/AIC non sono sulla stessa scala.
 - **Confidenza di appartenenza**: `probabilities_` di HDBSCAN è normalizzata dentro ogni cluster (0 per il rumore), quindi dice quanto un soggetto sta nel nucleo **del suo** cluster e non è confrontabile tra cluster di densità diversa. Esiste solo sullo stimatore: la run viene rifittata con i suoi parametri e accettata solo se riproduce le etichette salvate. La mediana non si riporta perché vale 1 quando la maggior parte del cluster è nucleo. La soglia (`LOW_PROBABILITY`) non ha un riferimento in letteratura. È calcolata sulla densità dello spazio clusterizzato: su un embedding con `min_dist=0` descrive quanto UMAP ha impacchettato il cluster, non è un indice di validità.
+- **Descrizione clinica (sezione 4)**: una run alla volta (`DESCRIBED_RUN`, `None` = la prima caricata), non passa dal registro `EVALUATIONS` perché vale per tutti i metodi e usa solo le etichette. Le variabili vengono da `participants.csv`, mai dal `metadata.csv` della run; un soggetto non registrato resta con valori mancanti e viene segnalato; il rumore di hdbscan è escluso. NIHSS e istruzione mancano per interi dataset (UCL-UK non li ha). La disconnessione media non è tra le variabili: è il carico diviso per una costante.
 - **Silhouette e rumore**: se la quota di rumore supera `NOISE_WARNING_FRACTION` (10%) la cella della sezione 2 stampa un avviso: gli indici descrivono allora solo i soggetti non-rumore.
 - **Rumore di hdbscan**: escluso dagli indici geometrici, dal nullo; la sua quota è sempre mostrata (`noise_fraction`).
 - **adp**: clusterizza il dato grezzo, quindi `X` è la matrice delle feature (soggetti x voxel) e non un embedding: `load_run` la apre con `mmap` e la marca `is_raw`.
