@@ -8,6 +8,26 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 15-10-26 — cluster_interpretation: tolti tutti i test statistici e la sezione «cluster contro resto», il notebook è solo descrittivo
+
+**Cosa è stato fatto** in `notebooks/post-results_analysis/cluster_interpretation.ipynb`, dopo una revisione che ha riprodotto i problemi sulle run `12-10_s1.4-vol_m_dice_nc10_k7_link_ward` (7 cluster), `03-09_s1.2-vol_m_euclidean_nc2_mcs100_ms20` (hdbscan, 15 cluster) e `30-09_s2.3-stream_k5_link_ward` (sdc):
+- **via la sezione 2.2** (Kruskal-Wallis con ε², chi-quadro con V di Cramér, controllo senza UCL-UK) e **via da §3** `p`, `p_fdr`, la correzione Benjamini-Hochberg, `r` (rank-biserial), `pari_merito`, `lettura` e `odds_ratio`. Resta §2 (copertura, media ± sd, mediana [Q1–Q3], percentuali per categoria). La sezione 3 «cluster contro resto» (n, mediana e quota nei due gruppi, in 3.1 anagrafiche e 3.2 derivate) è stata tolta subito dopo, su richiesta: le mediane per cluster sono già in §2, quindi non aggiungeva niente. Con lei vanno via `cluster_vs_rest`, `BLOCK_OF` e le quote di localizzazione nel frame (`LOCATION_FRACTIONS` non è più importato);
+- **NIHSS e istruzione** non sono più "non testati": non c'è più un test, compaiono in §2 con il loro `n` nella tabella di copertura;
+- **`disconnection_mean_2mm` non è più una variabile del notebook**: è `disconnection_load_voxels_2mm` × 4.3767e-6 per ogni soggetto (rapporto minimo = massimo, Spearman 1.0 sulla run sdc), cioè gli stessi valori in un'altra scala. Resta solo il carico; la colonna resta nel registro.
+
+**Perché** (verificato):
+- ε² e V di Cramér hanno un valore atteso sotto l'ipotesi nulla che cresce con il numero di cluster e cala con n, mentre le soglie di lettura (Cohen) sono fisse. Con le etichette dei cluster rimescolate a caso, sulla run hdbscan a 15 cluster `Dataset` veniva letto "debole" in 188 prove su 200, `Sesso` senza UCL-UK in 168/200, `Età` senza UCL-UK in 171/200;
+- il controllo senza UCL-UK confrontava effetti su n molto diversi (5194 contro 1716 soggetti per il sesso): V da 0.089 a 0.114 (+0.025) contro un aumento atteso per solo caso di 0.024 (0.032 → 0.056);
+- la famiglia FDR di §3 era fatta di test dipendenti: le sette quote di localizzazione sommano esattamente a 1, `Sede dominante` deriva dalle stesse quote, e le categorie di una variabile sono confronti uno-contro-resto sulla stessa colonna;
+- con migliaia di soggetti i p-value sono quasi sempre minuscoli, e per volume, localizzazione e disconnessione l'associazione è in parte per costruzione;
+- `r` e `pari_merito` richiedevano una spiegazione lunga e non erano di uso immediato. `odds_ratio` era instabile (96, 206) e il testo doveva già dire di non leggerlo senza le quote.
+
+**Alternative scartate**: sottrarre il pavimento di caso calcolato per permutazione e leggere l'effetto rispetto a quello; ripetere il controllo su un sottocampione dello stesso n; una soglia minima di soggetti per cluster in §3 (29 delle 183 run di produzione hanno un cluster sotto i 30 soggetti, 17 sotto i 10, minimo 2); tenere `r` e `pari_merito` come descrizione. Tutte più complesse del guadagno, e l'utente ha deciso di togliere i test: "non riusciamo a farli".
+
+**Conseguenza ancora vera**: sostituisce le tre decisioni del 13-10-26 su `cluster_interpretation` che riguardano i test (effetto prima del p-value, NIHSS e istruzione non testati, §3 con p_fdr e pari merito). Il confronto tra due cluster dell'app (`cluster_pair`) fa ancora Mann-Whitney, Fisher e p corretto, con il sesso su due righe (stesso confronto due volte). Il confronto di un cluster contro tutti gli altri non esiste più nel notebook; resta nell'app solo come confronto tra due cluster. Le quote di localizzazione per cluster non sono più in nessuna tabella del notebook (resta la sede dominante in percentuale). Anche la scelta del cluster (`CLUSTER`, con il bordo nero nel grafico delle dimensioni) è stata tolta: §2 descrive tutti i cluster, quindi il notebook ora lavora su una run, non su un cluster. Il notebook assume che la disconnessione media resti proporzionale al carico: se il registro la ricalcolasse in un altro modo, non se ne accorge.
+
+---
+
 ## 13-10-26 — clustering_evaluation: purezza dei vicini, nullo e stabilità ripetuta (funzioni in `src/` e notebook)
 
 **Cosa è stato aggiunto** (`clustering_evaluation.py`, `consensus_clustering.py`): `per_cluster_silhouette` (micro, macro, minimo e quota di negativi per cluster), `null_reference_silhouette` (silhouette osservata contro lo stesso metodo rifittato su dati senza cluster, nullo `gaussian` o `permute`), `knn_purity` (quota dei k vicini nello stesso cluster, su matrice di distanze precalcolata), `subsampling_stability_ensemble` (n ripetizioni di sottocampione contro le etichette salvate, ARI e Jaccard per cluster).
