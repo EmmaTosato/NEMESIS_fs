@@ -15,90 +15,90 @@
 
 ---
 
-## 12-10-2026 — s2.4 (SDC voxelwise nc2 e nc10, streamline raw)
+## 12-10-2026 — s2.4
 
-### Quanti cluster stabili: agglomerative, HDBSCAN e ADP, k=2 escluso
+### Tuning agglomerative, HDBSCAN e ADP su SDC voxelwise (nc2, nc10) e streamline
 
 ##### Input
-- **SDC voxelwise s2.4-vol:** 5845 soggetti; embedding UMAP `08-10_s2.4-vol_m_euclidean_nc{2,3,10}` (nc3 solo nel confronto); ADP sulla matrice grezza `data/derived/sdc_matrix/07-10_s2.4-vol`
-- **Streamline s2.4-stream:** matrice grezza 5831 × 87 tratti (`data/derived/sdc_matrix/07-10_s2.4-stream`), nessun embedding
-
+- s2.4-vol: UMAP `08-10_s2.4-vol_m_euclidean_nc{2,10}` (nc3 solo nel confronto tra embedding); ADP su `data/derived/sdc_matrix/07-10_s2.4-vol`; 5845 soggetti
+- s2.4-stream: matrice grezza `data/derived/sdc_matrix/07-10_s2.4-stream`, 5831 soggetti × 87 tratti, nessun embedding
 ##### Metodi
 agglomerative, hdbscan, adp
 
 ##### Obiettivo
-- Trovare il k (o il numero di cluster) **stabile** da k=3
-- Criteri e codice: [README](../../../results/reports/cluster_tuning_notebooks/README.md)
+- Leggere i tuning di ogni run con silhouette, Davies-Bouldin e Calinski-Harabasz, per decidere quali partizioni produrre
 
 ##### Risultati
-- Sintesi e confronto tra le run: [SUMMARY](../../../results/reports/cluster_tuning_notebooks/SUMMARY.md)
-- Un report per run: [SDC nc2](../../../results/reports/cluster_tuning_notebooks/cluster_sdc_euclidean_nc2/report.md), [SDC nc10](../../../results/reports/cluster_tuning_notebooks/cluster_sdc_euclidean_nc10/report.md), [streamline](../../../results/reports/cluster_tuning_notebooks/cluster_streamline_raw/report.md)
 
-##### Limiti
-- Vedi §5 del [SUMMARY](../../../results/reports/cluster_tuning_notebooks/SUMMARY.md)
+| Run | Agglomerative | HDBSCAN | ADP dice | Link |
+| --- | --- | --- | --- | --- |
+| SDC nc2 | nessun k supera k=2 (0.48); picco a k=5 | nessuna riga utilizzabile | Z=5-6: 3 cluster, silhouette 0.169 | [report](../../../results/reports/cluster_tuning_notebooks/cluster_sdc_euclidean_nc2/report.md) |
+| SDC nc10 | average k=3 (0.495); seconda zona a k=14-16 | nessuna riga utilizzabile | Z=5-6: 3 cluster, silhouette 0.169 | [report](../../../results/reports/cluster_tuning_notebooks/cluster_sdc_euclidean_nc10/report.md) |
+| streamline | nessuna struttura: massimo a k=2-3 | inutilizzabile | plateau a Z 2.5-4, silhouette ≤ 0.067 | [report](../../../results/reports/cluster_tuning_notebooks/cluster_streamline_raw/report.md) |
+
+- Le silhouette HDBSCAN alte hanno decine di cluster e il 22-40% di rumore; con rumore ≤ 11% la silhouette massima è 0.21 (nc2) e 0.31 (nc10).
+- ADP `euclidean`: silhouette negativa a ogni Z.
+- Sintesi tra le run: [SUMMARY](../../../results/reports/cluster_tuning_notebooks/SUMMARY.md)
 
 ##### Decisioni
-- Vedi "Decisioni aperte" (§6) del [SUMMARY](../../../results/reports/cluster_tuning_notebooks/SUMMARY.md)
+- Vedi [`s2_production.md`](s2_production.md), 12-10-2026 e 14-10-2026
 
 ---
 
 ## 10-09-2026 — s2.2-vol (nc2 e nc3)
 
-### Tuning SDC voxel-wise - 5 metodi SOTA
+### Tuning SDC voxel-wise, 5 metodi
 
 ##### Input
 - s2.2-vol
-- Embedding: UMAP `euclidean`, n_components=2 e 3
-- Path Embedding: `07-09_s2.2-vol_m_euclidean_nc2` / `_nc3`
-- Dati originali: `data/derived/sdc_matrix/07-09_s2.2-vol` (1570 x 290940)
+- Embedding: UMAP `euclidean`, n_components=2 e 3, `07-09_s2.2-vol_m_euclidean_nc2` / `_nc3`
+- Dati raw: `data/derived/sdc_matrix/07-09_s2.2-vol` (1570 × 290940)
 - 1570 soggetti
-
 ##### Metodi
-Agglomerative, gmm, kmeans, hdbscan, spectral — stessa sequenza del 01-09 su s2.1
-(spectral lanciato a parte: `save_tuning_clusterings=true` non è supportato insieme a uno sweep su `affinity`)
+agglomerative, gmm, kmeans, hdbscan, spectral
 
 ##### Obiettivo
-- Verificare se la versione voxel-wise dell'SDC produce una struttura di cluster diversa da quella parcellata (s2.1), o se ne eredita gli stessi limiti
+- Verificare se la versione voxel-wise dell'SDC dà una struttura diversa da quella parcellata (s2.1)
 
 ##### Risultati
 
-350 combinazioni totali (175 per dimensionalità). Miglior silhouette per metodo, `nc2`:
+350 combinazioni (175 per dimensionalità). Miglior silhouette per metodo, `nc2`:
 
 | Metodo | Miglior combo (silhouette) | Link |
 | --- | --- | --- |
 | Agglomerative | `k=2, average, cosine` (0.800) | [tuning/agglomerative/](../../../results/sdc/clustering/tuning/agglomerative/umap/10-09_s2.2-vol_m_euclidean_nc2/) |
-| HDBSCAN | `mcs=10, ms=10` (0.619, 42 cluster, noise 0.24) *[1]* | [tuning/hdbscan/](../../../results/sdc/clustering/tuning/hdbscan/umap/10-09_s2.2-vol_m_euclidean_nc2/) |
+| HDBSCAN | `mcs=10, ms=10` (0.619, 42 cluster, rumore 0.24) *[1]* | [tuning/hdbscan/](../../../results/sdc/clustering/tuning/hdbscan/umap/10-09_s2.2-vol_m_euclidean_nc2/) |
 | KMeans | `k=2` (0.571) | [tuning/kmeans/](../../../results/sdc/clustering/tuning/kmeans/umap/10-09_s2.2-vol_m_euclidean_nc2/) |
 | GMM | `n_components=2, spherical` (0.570) | [tuning/gmm/](../../../results/sdc/clustering/tuning/gmm/umap/10-09_s2.2-vol_m_euclidean_nc2/) |
 | Spectral | `k=2, rbf, gamma=1.0` (0.570) | [tuning/spectral/](../../../results/sdc/clustering/tuning/spectral/umap/10-09_s2.2-vol_m_euclidean_nc2/) |
 
-*[1] Soluzione degenere: 42 cluster con un quarto dei soggetti marcato come rumore. Non confrontabile con le altre righe.*
+*[1] Soluzione degenere, non confrontabile con le altre righe.*
 
-- **Ogni metodo, in entrambe le dimensionalità, ha il suo massimo a k=2** — a differenza di s2.1, dove l'ottimo cadeva a k=3-4 in fascia compatta 0.45–0.50. Qui la silhouette è nettamente più alta (0.57–0.80) proprio perché la partizione è più netta, non perché sia più informativa.
-- **Il k=2 è l'emisfero.** Crosstab con `lesion_side` (KMeans, nc2): un cluster raccoglie 666 `left` e **0** `right`; l'altro 571 `right` e 101 `left`. Con Agglomerative `average/cosine` la separazione è ancora più pulita (762 `left` / 59 `right` contro 5 / 512).
-- Salendo a k=4 la struttura non cambia natura, si frammenta soltanto: KMeans produce due cluster interamente `left` (417 e 232), uno quasi interamente `right` (357), e un solo cluster misto (115 `left` / 214 `right`). GMM `n_components=4, full` riproduce lo stesso schema.
-- `nc3` dà silhouette leggermente più basse ma lo stesso ordinamento e gli stessi ottimi — l'aggiunta di una dimensione non introduce struttura nuova.
-- **Conclusione**: l'artefatto di lateralizzazione già documentato per s2.1 non è attenuato dalla rappresentazione voxel-wise, è *accentuato*. Su s2.1 gli algoritmi frammentavano in più cluster con qualche gruppo misto; qui la geometria dominante dell'embedding è un asse destra/sinistra e ogni algoritmo, indipendentemente dal criterio, taglia lungo quell'asse.
+- Ogni metodo ha il massimo a k=2, in entrambe le dimensionalità (s2.1: k=3-4, silhouette 0.45-0.50). La silhouette è più alta (0.57-0.80) perché la partizione è più netta, non più informativa.
+- Il k=2 è l'emisfero: KMeans nc2 ha un cluster con 666 `left` e 0 `right`, l'altro con 571 `right` e 101 `left`.
+- A k=4 la struttura si frammenta senza cambiare natura: due cluster `left`, uno quasi tutto `right`, uno misto.
+- `nc3` dà silhouette leggermente più basse, stessi ottimi.
+- L'artefatto di lateralizzazione di s2.1 è accentuato dalla rappresentazione voxel-wise, non attenuato.
 
 ##### Decisioni
+- Vedi [`s2_production.md`](s2_production.md), 10-09-2026
 
 ---
 
 ## 01-09-2026 — s2.1-schaefer-200-tian-s2 (nc2)
 
-### Tuning SDC - 5 metodi SOTA
+### Tuning SDC, 5 metodi
 
 ##### Input
 - s2.1-schaefer-200-tian-s2
-- Embedding: UMAP `euclidean`, n_components=2
-- Path Embedding: `31-08_s2.1-schaefer-200-tian-s2_m_euclidean_nc2`
-- Dati originali: `data/derived/sdc_matrix/27-08_s2.1-schaefer-200-tian-s2`
+- Embedding: UMAP `euclidean`, n_components=2, `31-08_s2.1-schaefer-200-tian-s2_m_euclidean_nc2`
+- Dati raw: `data/derived/sdc_matrix/27-08_s2.1-schaefer-200-tian-s2`
 - 1119 soggetti
 ##### Metodi
-Agglomerative, gmm, kmeans, hdbscan, spectral
+agglomerative, gmm, kmeans, hdbscan, spectral
 
 ##### Obiettivo
-- Verificare se l'artefatto di lateralizzazione (`lesion_side`) e le metriche di silhouette seguono lo stesso andamento visto per i lesion embeddings (s1.1-vol e s1.2-vol)
+- Verificare se l'artefatto `lesion_side` e la silhouette seguono l'andamento visto sulle lesioni (s1.1-vol, s1.2-vol)
 
 ##### Risultati
 
@@ -107,16 +107,14 @@ Agglomerative, gmm, kmeans, hdbscan, spectral
 | Agglomerative | `k=3, average/ward/complete, euclidean` (~0.481) | [tuning/agglomerative/](../../../results/sdc/clustering/tuning/agglomerative/umap/01-09_s2.1-schaefer-200-tian-s2_m_euclidean_nc2/) |
 | GMM | `n_components=4, full` (0.496) | [tuning/gmm/](../../../results/sdc/clustering/tuning/gmm/umap/01-09_s2.1-schaefer-200-tian-s2_m_euclidean_nc2/) |
 | KMeans | `k=4` (0.497) | [tuning/kmeans/](../../../results/sdc/clustering/tuning/kmeans/umap/01-09_s2.1-schaefer-200-tian-s2_m_euclidean_nc2/) |
-| HDBSCAN | `mcs=20, ms=10` (0.475, noise 0.08) *[1]* | [tuning/hdbscan/](../../../results/sdc/clustering/tuning/hdbscan/umap/01-09_s2.1-schaefer-200-tian-s2_m_euclidean_nc2/) |
+| HDBSCAN | `mcs=20, ms=10` (0.475, rumore 0.08) *[1]* | [tuning/hdbscan/](../../../results/sdc/clustering/tuning/hdbscan/umap/01-09_s2.1-schaefer-200-tian-s2_m_euclidean_nc2/) |
 | Spectral | `n_clusters=8, rbf, gamma=1.0` (0.502) | [tuning/spectral/](../../../results/sdc/clustering/tuning/spectral/umap/01-09_s2.1-schaefer-200-tian-s2_m_euclidean_nc2/) |
 
-*[1] Filtrato per `noise_fraction ≤ 0.1` per evitare la soluzione degenere a 0.608 con ~25% di dati marcati come rumore.*
+*[1] Filtrato per `noise_fraction ≤ 0.1`, per escludere la soluzione degenere a 0.608 con ~25% di rumore.*
 
-- Silhouette per `k` bassi (3-6) in fascia compatta 0.45–0.50 per quasi tutti gli algoritmi.
-- Subsampling Stability Index (calcolato su Agglomerative): valori eccellenti (`> 0.95`).
-- Forte e sistematico sbilanciamento su `lesion_side`, replica specularmente l'artefatto già noto sulle matrici di lesione — in tutte le configurazioni ottimali (crosstab, es. `k=4` di KMeans o GMM) la partizione restituisce quasi sempre cluster puri per emisfero (gruppi da oltre 200 soggetti interamente "left" o "right") e alcuni piccoli cluster misti. In Spectral e HDBSCAN i cluster misti concentrano più soggetti, ma la frammentazione sui lati resta predominante.
-- Conferma che la struttura SDC, derivata direttamente dalla maschera di lesione, ne eredita pesantemente la lateralizzazione — nessuno degli algoritmi standard esplorati riesce a raggruppare i profili di disconnessione prescindendo spontaneamente dall'emisfero colpito.
+- Silhouette 0.45-0.50 per k=3-6 in quasi tutti gli algoritmi.
+- Lateralizzazione sistematica come sulle lesioni: cluster puri per emisfero (oltre 200 soggetti tutti `left` o tutti `right`) più pochi cluster misti. In Spectral e HDBSCAN i misti concentrano più soggetti.
+- La struttura SDC, derivata dalla maschera, ne eredita la lateralizzazione: nessun algoritmo standard la supera.
 
 ##### Decisioni
-
-- Estendere l'analisi esplorativa all'altra versione di embedding (`nc3`) generata per s2.1-schaefer-200-tian-s2, per confermare se l'incremento di dimensionalità mitiga o conferma questi risultati, per poi decidere come uniformare la configurazione di produzione.
+- Estendere l'analisi a `nc3` per vedere se più dimensioni la mitigano, poi uniformare la configurazione di produzione.
