@@ -43,6 +43,16 @@
       "min_samples": [1, 5, 10, 20]
     }
   },
+  "hdbscan_soft": {
+    "tag_param": ["min_cluster_size", "min_samples", "cluster_selection_method"],
+    "tag_prefix": ["mcs", "ms", "sel_"],
+    "params": { "min_cluster_size": 100, "min_samples": 10, "cluster_selection_method": "eom", "approx_min_span_tree": false },
+    "tuning_grid": {
+      "min_cluster_size": [10, 15, 20, 30, 50, 75, 100],
+      "min_samples": [1, 5, 10, 20],
+      "cluster_selection_method": ["eom", "leaf"]
+    }
+  },
   "spectral": {
     "tag_param": ["n_clusters", "affinity"],
     "tag_prefix": ["k", "aff_"],

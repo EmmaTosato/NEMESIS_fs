@@ -18,6 +18,35 @@ Voci in ordine cronologico inverso.
 
 **Conseguenza ancora vera**: il nome della funzione resta `membership_confidence` e la voce di registro `membership_confidence`, anche se la sezione ha un altro titolo.
 
+## 15-10-26 — Nuovo metodo `hdbscan_soft` (pacchetto `hdbscan`) con tuning dedicato, non confrontabile con `hdbscan` (sklearn)
+
+**Cosa è stato fatto**: `hdbscan_soft` in `CLUSTERING_METHODS` (`hdbscan_soft_fit` restituisce lo stimatore con `prediction_data=True`, `hdbscan_soft_cluster` solo le etichette), blocco `hdbscan_soft` in `params_clustering.json`, `hdbscan` in `environment.yml`. Griglia dedicata, 56 combinazioni: `min_cluster_size` {10, 15, 20, 30, 50, 75, 100} x `min_samples` {1, 5, 10, 20} x `cluster_selection_method` {eom, leaf}, con `approx_min_span_tree=False` fisso; `alpha` e `allow_single_cluster` ai default del pacchetto (la documentazione sconsiglia il primo; il secondo serve per dati omogenei). Tre colonne nuove in `tuning_results.csv` dal pacchetto: `membership_mean`, `membership_share_below_half` (soglia fissa 0,5), `persistence_mean`; NaN se la combinazione non trova cluster. Con tre parametri variati il pipeline scrive una heatmap per valore di `cluster_selection_method` (`tuning_plot_cluster_selection_method=<valore>.png`). Dieci tuning sulle stesse matrici dell'08-10 (lesione `s1.4-vol` UMAP dice/euclidean nc2/nc3/nc10) e del 09-10 (sdc `s2.4-vol` UMAP euclidean nc2/nc3/nc10, `s2.4-stream` raw), output in `results/<lesion|sdc>/clustering/tuning/hdbscan_soft/`; 30-55 secondi ciascuno sugli embedding, 3 minuti la raw. Solo tuning: la produzione e la matrice soft salvata non ci sono.
+
+**Perché un nome e una griglia propri**: con gli stessi numeri di `hdbscan` le due implementazioni **non** danno la stessa partizione. ARI per combinazione contro le run sklearn: mediana 0,998 (lesione dice nc2), 0,81 (lesione euclidean nc2), 0,67 (lesione euclidean nc3), 0,86-0,98 (sdc); minimi tra 0,000 e 0,67; fino a 19 combinazioni su 28 con ARI < 0,8. Cause: (1) la convenzione di `min_samples` (il pacchetto con `min_samples - 1` riproduce sklearn, ARI 0,95-1,00 per `min_samples` >= 5; per 1 serve 1, perché 0 è rifiutato; il docstring della classe dice "include il punto stesso" ma il comportamento misurato corrisponde alla pagina *How HDBSCAN Works*, k-esimo vicino); (2) `approx_min_span_tree=True` di default, che da solo sposta poco (ARI 0,988 contro 1,000 a mcs=10, ms=1, dice nc2). Alternativa scartata dall'utente: tradurre `min_samples` dentro `hdbscan_soft` per far coincidere le partizioni con sklearn. L'utente non vuole confrontare run vecchie e nuove: il tuning di `hdbscan_soft` è fatto per il pacchetto e si legge da solo.
+
+**Run precedenti cancellate**: un primo giro di 10 tuning con la griglia di `hdbscan` (28 combinazioni, MST approssimato, senza colonne nuove) è stato cancellato e rifatto con la griglia dedicata, su richiesta.
+
+**Produzione, 17 run** (15-10 e 16-10, la mezzanotte è passata a metà lancio: l'ultima ha la data 16-10), in `results/<lesion|sdc>/clustering/production/hdbscan_soft/umap/`. Scelta dal tuning dedicato con i criteri "usabile" del 12-10 (`results/reports/cluster_tuning_notebooks/README.md`: 3-30 cluster, rumore <= 25%, cluster più grande <= 60%), una combinazione per famiglia di numero di cluster (pochi e netti, intermedi, frammentati); la stabilità per sottocampionamento ("buono") non è stata applicata. Sono "usabili", non "buoni".
+
+| Matrice | Combinazioni `mcs/ms/selezione` |
+|---|---|
+| lesione dice nc2 | 75/5/eom (8 cluster), 20/20/eom (11), 50/5/eom (21) |
+| lesione dice nc10 | 100/1/eom (8), 50/10/eom (10), 30/10/eom (21) |
+| lesione euclidean nc2 | 100/20/eom (12), 75/5/eom (15), 75/1/eom (19) |
+| lesione euclidean nc10 | 100/20/eom (12), 100/10/eom (15), 50/20/eom (19) |
+| sdc `s2.4-vol` nc2 | 75/10/eom (16), 50/10/eom (21), 100/5/leaf (24, rumore 24,2%) |
+| sdc `s2.4-vol` nc10 | 75/5/eom (8), 100/20/eom (7) |
+
+Fuori dalla produzione: lesione e sdc nc3 (1 combinazione usabile ciascuna) e `s2.4-stream` raw (0 usabili). L'utente ha aggiunto lesione euclidean nc2/nc10 e sdc nc2 a una lista corta che le escludeva (appartenenza più bassa: `membership_mean` 0,54-0,73 sulla lesione euclidean, quasi metà dei soggetti sotto 0,5 su nc10). Ogni run riproduce il suo candidato del tuning (cluster, rumore e `membership_mean` coincidono, verificato sulle 17).
+
+**Cosa salva la produzione di `hdbscan_soft`**: `membership.npy` (soggetti x cluster, array extra di `save_matrix`) e la colonna `membership_own` in `metadata.csv` (NaN per il rumore: non ha un cluster proprio, e uno 0 si leggerebbe come improbabilità misurata); i marker di `cluster_plot.png` seguono `membership_own`. Una run senza cluster salva una matrice (n, 0), non fallisce: tutto rumore è un esito legittimo, come per `hdbscan`. I parametri di ogni run sono stati messi nel `params` del blocco `hdbscan_soft` di `params_clustering.json` uno alla volta e il file è stato ripristinato (base 100/10/eom) a fine lancio.
+
+**Lettura**: sezione 3.2 di `clustering_evaluation.ipynb` (`soft_membership_summary`, registro `soft_membership`); `hdbscan_soft` entra anche nella sezione 3 (rumore e numero di cluster). La 3.1 resta solo per `hdbscan` (sklearn).
+
+**Documentazione**: `knowledge/dim_reduction_clustering/hdbscan_package.md` (algoritmo, parametri, soft clustering, differenze da sklearn), sezione "HDBSCAN soft" in `docs/guides/clustering.md` e `docs/dev/models.md`.
+
+**Conseguenza ancora vera**: DBCV (`relative_validity_` del pacchetto) resta escluso; non è stato aggiunto alle colonne. I vettori soft hanno righe che non sommano a 1 (la parte mancante è la probabilità di essere rumore).
+
 ## 15-10-26 — clustering_evaluation: tolto il confronto con dati senza cluster (2.2); silhouette di adp fusa nella purezza dei vicini
 
 **Cosa è cambiato**: il nullo (ex 2.2) è stato tolto dal notebook e da `src/`: `null_reference_silhouette`, `NullReference`, `_null_sample`, `NULL_KINDS`, la voce `null_reference` di `EVALUATIONS` e i 6 test relativi (`tests/unit/test_clustering_evaluation.py`). La silhouette sulla distanza dice di adp (ex 2.4) non è più una sezione: è nella 2.2 (ex 2.3, purezza dei vicini), stessa tabella, con le colonne `silhouette`, `silhouette_macro`, `silhouette_min` e `pairs_at_distance_1`, e due colonne per cluster (`silhouette_mean`, `share_negative`). Via anche la voce `adp_silhouette` di `EVALUATIONS` e l'helper `adp_knn_purity` del notebook (non più usato). Suite: 1454 passed, 17 skipped.

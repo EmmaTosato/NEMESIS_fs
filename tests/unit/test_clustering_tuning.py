@@ -256,6 +256,37 @@ def test_run_clustering_tuning_sweep_hdbscan_noise_fraction_varies_with_min_clus
     assert large_mcs_row["noise_fraction"] == 1.0
 
 
+def test_run_clustering_tuning_sweep_hdbscan_soft_reports_its_membership_metrics():
+    """hdbscan_soft adds three columns from the package itself: the soft probability of a subject
+    being in its own cluster (mean, share under 0.5) and the mean cluster persistence."""
+    from hdbscan import HDBSCAN as PackageHDBSCAN, all_points_membership_vectors
+
+    X = _three_blobs()
+    params = {"min_cluster_size": 10, "min_samples": 5}
+    df, labels_by_combo = run_clustering_tuning_sweep("hdbscan_soft", X, params, {"cluster_selection_method": ["eom", "leaf"]})
+
+    assert set(METHOD_METRIC_COLUMNS["hdbscan_soft"]) <= set(df.columns)
+    for _, row in df.iterrows():
+        fitted = PackageHDBSCAN(**params, cluster_selection_method=row["cluster_selection_method"], prediction_data=True).fit(X)
+        clustered = np.flatnonzero(fitted.labels_ != -1)
+        own = all_points_membership_vectors(fitted)[clustered, fitted.labels_[clustered]]
+        assert row["membership_mean"] == pytest.approx(own.mean())
+        assert row["membership_share_below_half"] == pytest.approx((own < 0.5).mean())
+        assert row["persistence_mean"] == pytest.approx(np.mean(fitted.cluster_persistence_))
+        assert 0.0 <= row["membership_mean"] <= 1.0
+        assert row["n_clusters_found"] == len(set(fitted.labels_) - {-1})
+
+
+def test_run_clustering_tuning_sweep_hdbscan_soft_records_nan_membership_when_nothing_clusters():
+    X = _three_blobs()
+    df, _ = run_clustering_tuning_sweep("hdbscan_soft", X, {"min_samples": 5}, {"min_cluster_size": [80]})  # larger than any blob
+
+    row = df.iloc[0]
+    assert row["n_clusters_found"] == 0
+    assert row["noise_fraction"] == 1.0
+    assert np.isnan(row[["membership_mean", "membership_share_below_half", "persistence_mean"]].to_numpy(dtype=float)).all()
+
+
 def test_run_clustering_tuning_sweep_hdbscan_reports_n_clusters_found():
     """Regression: n_clusters_found used to be invisible in tuning_results.csv (only
     silhouette/calinski_harabasz/davies_bouldin/noise_fraction were computed for hdbscan) -

@@ -82,7 +82,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.analysis.clustering import CLUSTERING_METHODS, _validate_evidence_accumulation_params
+from src.analysis.clustering import (
+    CLUSTERING_METHODS,
+    _validate_evidence_accumulation_params,
+    hdbscan_soft_fit,
+    own_cluster_membership,
+    soft_membership_matrix,
+)
 from src.analysis.clustering_tuning import (
     CONSENSUS_METRIC_COLUMNS,
     METHOD_METRIC_COLUMNS,
@@ -350,9 +356,20 @@ def _run_one_method(
             # CLUSTERING_METHODS["hdbscan"]'s labels-only contract - refit directly here to size
             # cluster_plot.png's markers by it below.
             cluster_labels, membership_probabilities = hdbscan_labels_and_probabilities(X, params)
+            extra_arrays = None
+        elif method == "hdbscan_soft":
+            # soft clustering: one fit gives the labels and the subjects x clusters probability matrix, so
+            # both describe the same partition (the package's partition is not sklearn's).
+            fitted = hdbscan_soft_fit(X, params)
+            cluster_labels = fitted.labels_
+            membership = soft_membership_matrix(fitted)
+            own_membership = own_cluster_membership(membership, cluster_labels)
+            membership_probabilities = np.nan_to_num(own_membership, nan=0.0)  # noise has none: smallest marker
+            extra_arrays = {"membership": membership}
         else:
             cluster_labels = CLUSTERING_METHODS[method](X, params)
             membership_probabilities = None
+            extra_arrays = None
     except (TypeError, ValueError, ImportError) as exc:
         # ImportError: adp needs dadapy, installed in a separate environment (src/analysis/adp.py)
         # - a clean "run it from that environment" error, not a raw traceback.
@@ -364,6 +381,8 @@ def _run_one_method(
 
     metadata_out = metadata.copy()
     metadata_out["cluster_label"] = cluster_labels
+    if method == "hdbscan_soft":
+        metadata_out["membership_own"] = own_membership  # NaN for noise: it has no own cluster
     
     effective_session_name = config.session_name
     if embedding_tag:
@@ -381,6 +400,7 @@ def _run_one_method(
             metadata_out,
             _build_readme_lines(config, method, X, cluster_labels, params, now),
             overwrite=config.overwrite,
+            extra_arrays=extra_arrays,
         )
     except (FileExistsError, ValueError, OSError) as exc:
         logging.error(str(exc))
@@ -783,6 +803,14 @@ def _write_tuning_output(
         # adp compared across distances: one line per metric, Z (log) on x - a heatmap of 2 metrics x 18 Z
         # values would be unreadable
         plot_grouped_tuning_metrics(results, "Z", "metric", metric_cols, output_dir / "tuning_plot.png", title, log_x=True)
+    elif method == "hdbscan_soft" and "cluster_selection_method" in tuning_grid and len(swept_params) == 3:
+        # a heatmap is 2-D: min_cluster_size x min_samples inside, one file per cluster_selection_method value
+        heatmap_params = [key for key in swept_params if key != "cluster_selection_method"]
+        for selection in tuning_grid["cluster_selection_method"]:
+            plot_clustering_tuning_heatmaps(
+                results[results["cluster_selection_method"] == selection], heatmap_params[0], heatmap_params[1], metric_cols,
+                output_dir / f"tuning_plot_cluster_selection_method={selection}.png", f"{title} - cluster_selection_method={selection}",
+            )
     elif len(swept_params) == 1:
         # adp's Z is swept over orders of magnitude (0.25..16): log x-axis
         plot_clustering_tuning_metrics(

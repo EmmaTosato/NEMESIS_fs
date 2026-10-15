@@ -559,6 +559,56 @@ def test_clustering_end_to_end_hdbscan_cluster_plot_sized_by_probabilities(tmp_p
     assert (out_dir / "cluster_plot.png").stat().st_size > 0
 
 
+def test_clustering_production_hdbscan_soft_saves_the_membership_matrix_and_own_membership(tmp_path, monkeypatch):
+    """hdbscan_soft's production run keeps the soft clustering: membership.npy (subjects x clusters, an
+    extra array of the artifact) and a membership_own column in metadata.csv, NaN exactly for noise."""
+    from src.utils.artifacts import load_matrix, save_matrix
+
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+    rng = np.random.default_rng(0)
+    blobs = np.vstack(
+        [rng.normal([0, 0], 0.2, (40, 2)), rng.normal([6, 0], 0.2, (40, 2)), rng.normal([0, 6], 0.2, (40, 2)), [[40.0, 40.0], [-40.0, 40.0]]]
+    )
+    metadata = pd.DataFrame({"subject_id": [f"sub-STUNIPD{i:04d}" for i in range(len(blobs))], "dataset": ["siteA"] * len(blobs)})
+    input_dir = tmp_path / "embedding"
+    save_matrix(input_dir, blobs, metadata, ["# embedding fixture"], overwrite=False)
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({"hdbscan_soft": {"params": {"min_cluster_size": 10, "min_samples": 5}}}))
+    viz_dir = _write_viz_embedding(tmp_path, "viz_embedding", metadata)
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "umap",
+        "clustering_methods": ["hdbscan_soft"],
+        "params_file": str(params_path),
+        "output_root": str(tmp_path / "cl_out"),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+        "viz_embedding_path": str(viz_dir),
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    out_dir = next(p for p in (tmp_path / "cl_out" / "production" / "hdbscan_soft" / "umap").iterdir() if p.is_dir())
+    _, saved_metadata, extra = load_matrix(out_dir)
+    labels = saved_metadata["cluster_label"].to_numpy()
+    n_clusters = len(set(labels) - {-1})
+    assert n_clusters == 3 and (labels == -1).any()
+    assert extra["membership"].shape == (len(blobs), n_clusters)
+    own = saved_metadata["membership_own"].to_numpy()
+    assert np.isnan(own).tolist() == (labels == -1).tolist()
+    clustered = np.flatnonzero(labels != -1)
+    np.testing.assert_allclose(own[clustered], extra["membership"][clustered, labels[clustered]])
+    assert (out_dir / "cluster_plot.png").stat().st_size > 0
+
+
 def test_clustering_fine_tuning_hdbscan_min_samples_joint_sweep_writes_heatmap(tmp_path, monkeypatch):
     """project-clustering-tuning-redesign memory (26-08-26): min_cluster_size x min_samples
     reuses the existing 2-swept-param heatmap mechanism, in a single sweep run (no repeated/
@@ -599,6 +649,53 @@ def test_clustering_fine_tuning_hdbscan_min_samples_joint_sweep_writes_heatmap(t
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert len(results) == 4
     assert set(results["min_samples"]) == {2, 5}
+
+
+def test_clustering_fine_tuning_hdbscan_soft_writes_one_heatmap_per_cluster_selection_method(tmp_path, monkeypatch):
+    """hdbscan_soft sweeps min_cluster_size x min_samples x cluster_selection_method: a heatmap is 2-D,
+    so the pipeline writes one tuning_plot per selection method, with the three membership columns."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(
+        json.dumps(
+            {
+                "hdbscan_soft": {
+                    "params": {"approx_min_span_tree": False},
+                    "tuning_grid": {"min_cluster_size": [2, 5], "min_samples": [2, 5], "cluster_selection_method": ["eom", "leaf"]},
+                }
+            }
+        )
+    )
+
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "umap",
+        "clustering_methods": ["hdbscan_soft"],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune_soft",
+        "overwrite": False,
+        "fine_tuning": True,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (output_root / "tuning" / "hdbscan_soft" / "umap").iterdir() if p.is_dir())
+    for selection in ("eom", "leaf"):
+        assert (tuning_dir / f"tuning_plot_cluster_selection_method={selection}.png").stat().st_size > 0
+
+    results = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert len(results) == 8
+    assert {"membership_mean", "membership_share_below_half", "persistence_mean"} <= set(results.columns)
 
 
 def test_clustering_end_to_end_multiple_methods_writes_each_method_independently(tmp_path, monkeypatch):

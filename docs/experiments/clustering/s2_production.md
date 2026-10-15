@@ -14,35 +14,6 @@
 - Parametri scelti a valle del tuning ([`s2_tuning.md`](s2_tuning.md)).
 - Vedi data_sessions.md per specifica sulle sessioni
 
----
-
-_s2.1-schaefer-200-tian-s2 è ferma al tuning (vedi `s2_tuning.md`), in attesa di estendere l'analisi a `nc3` e di decidere la config di produzione. s2.2-vol ha la sua prima run di produzione qui sotto. Struttura entry da usare per le prossime:_
-
-```
-## DD-MM-YYYY — sX.X
-
-### <titolo>
-
-##### Input
-- sX.X
-- Embedding: <metodo, parametri>
-- Path Embedding: <cartella `input_path` in `dim_reduction/production/`, es. `31-08_s2.1-schaefer-200-tian-s2_m_euclidean_nc2` — NON la cartella di output di clustering stesso>
-- Dati originali: data/derived/sdc_matrix/<...>
-- N soggetti
-##### Metodi
-<metodo scelto>
-
-##### Obiettivo
-- ...
-
-##### Risultati
-
-<tabella o descrizione>
-
-##### Decisioni
-
-- ...
-```
 
 ---
 
@@ -122,7 +93,6 @@ agglomerative, hdbscan, adp
 | hdbscan | 75/5, 75/10, 75/20, 50/10 | euclidean nc10 | 4 | 8, 8, 11, 19 (rumore 1.4-13.3%) | stesso |
 | adp | `metric=dice`, Z = 2.0, 2.5, 3.0, 3.5 | matrice grezza | 4 | 16, 9, 7, 7 | [runs.csv](../../../results/sdc/clustering/production/adp/runs.csv) |
 
-HDBSCAN: sigla `min_cluster_size/min_samples`. Le cartelle di output sono `<dd-mm>_s2.4-vol_<embedding>_<tag>` sotto `production/<metodo>/umap/` (`raw/` per ADP).
 
 **Quali sono "buoni" e quali "discreti"** (dal tuning):
 - agglomerative buoni: nc2 k=5 (ward); nc10 k=8, 13, 14, 15 (average). Gli altri k sono discreti

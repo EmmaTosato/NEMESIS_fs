@@ -39,6 +39,7 @@ Utilizzata per trovare la configurazione ottimale. Calcola indici interni di com
 - **Metriche calcolate**: Silhouette score, Calinski-Harabasz, Davies-Bouldin.
 - **Specifiche per metodo**: K-Means calcola anche `inertia`; GMM calcola `bic`/`aic` — sweeppabile anche su `covariance_type` (`"full"`/`"tied"`/`"diag"`/`"spherical"`) insieme a `n_components`, uno sweep congiunto legittimo (a differenza di `linkage`/`metric` di Agglomerative o `k`/`init` di K-Means) perché AIC/BIC sono esattamente lo strumento statistico corretto per confrontare `covariance_type` diversi.
 - **HDBSCAN (nuovo)**: `tuning_grid` sweeppa `min_cluster_size` x `min_samples` insieme, in un unico run (nessuna run ripetuta/sequenziale) — riusa la heatmap generica a 2 parametri. Niente DBCV/condensation tree (scelta deliberata: nemmeno l'esempio ufficiale sklearn li usa). In produzione, `cluster_plot.png` ha ora i marker dimensionati in base a `probabilities_` (confidenza di appartenenza al cluster) — i punti noise (label `-1`) hanno sempre probabilità 0 e restano visibili grazie a una dimensione minima.
+- **HDBSCAN soft**: `tuning_grid` sweeppa `min_cluster_size` x `min_samples` x `cluster_selection_method` (`eom`/`leaf`). Una heatmap ha due assi: la run scrive un file per ogni valore di `cluster_selection_method`, `tuning_plot_cluster_selection_method=<valore>.png`, con `min_cluster_size` e `min_samples` sugli assi. In `tuning_results.csv` ci sono tre colonne in più (sezione "HDBSCAN soft" sotto).
 - **Spectral (nuovo)**: `"assign_labels"` è ora fissato a `"cluster_qr"` in `params_clustering.json` (rimuove un'instabilità nascosta ereditata da k-means, di default sklearn userebbe `"kmeans"` per l'assegnazione finale delle etichette). `tuning_grid` può sweeppare `"affinity"` (`"nearest_neighbors"`/`"rbf"`) insieme al proprio iperparametro (`"n_neighbors"` per `nearest_neighbors`, `"gamma"` per `rbf`) — girano due sotto-sweep separati (uno per affinity) per non sprecare fit sull'iperparametro che non si applica, poi vengono uniti in un unico `tuning_plot.png` con una linea per ogni combinazione `(affinity, iperparametro)`. **Nota**: `save_tuning_clusterings: true` non è supportato insieme a `"affinity"` sweeppata (viene rifiutato con errore esplicito).
 - **Grafici diagnostici**: Agglomerative genera un *dendrogramma* (un file `dendrogram_metric=<metric>.png` per ogni `metric` sweeppata, con un subplot per ogni `linkage` valido per quella metrica) + una *matrice di distanza interclasse* (una heatmap per ogni `metric` sweeppato, usa la colonna `"dataset"` dei metadati come proxy di ground-truth debole); Spectral genera un *eigengap plot* (un file `eigengap_affinity=<affinity>.png` per ogni `affinity` sweeppata, con un subplot per ogni valore del suo iperparametro `n_neighbors`/`gamma`). HDBSCAN non ne ha uno dedicato.
 - **Sweep di Agglomerative su `linkage`/`metric` (nuovo)**: a differenza degli altri metodi, Agglomerative è deterministico (nessun `random_state`) — si può quindi sweeppare `n_clusters` x `linkage` x `metric` insieme, senza bisogno di un controllo di stabilità. Attenzione: `linkage="ward"` richiede `metric` euclideo (`"euclidean"`/`"l2"`) — ogni combinazione `ward`+metrica-non-euclidea viene automaticamente saltata (con warning nei log), mai fatta fallire. Per metriche non euclidee (`"cosine"`, `"manhattan"`, `"dice"`), Calinski-Harabasz/Davies-Bouldin non sono calcolabili (sono geometrici, solo euclidei) e compaiono come `NaN` in `tuning_results.csv` — il Silhouette resta sempre calcolato con la stessa metrica del clustering. Con 3 parametri sweeppati contemporaneamente, il grafico generico `tuning_plot.png` non viene generato (supportato solo per 1-2 parametri) — restano comunque i dendrogrammi e la matrice interclasse.
@@ -106,6 +107,39 @@ Cerca zone dense di soggetti, a densità diverse. Il numero di cluster **non si 
 **Valori di partenza** in `params_clustering.json`: `min_cluster_size: 100`, `min_samples: 10`.
 
 Fonte: [scikit-learn, `HDBSCAN`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.HDBSCAN.html) e [guida al clustering](https://scikit-learn.org/stable/modules/clustering.html#hdbscan).
+
+---
+
+## HDBSCAN soft
+
+Lo stesso algoritmo di HDBSCAN, con il pacchetto `hdbscan` al posto di quello di scikit-learn (`environment.yml`). Serve per il *soft clustering*: per ogni soggetto, una probabilità per ogni cluster. Come funziona il pacchetto: `knowledge/dim_reduction_clustering/hdbscan_package.md`.
+
+**Non è confrontabile con `hdbscan`.** I due non danno la stessa partizione con gli stessi numeri: il pacchetto usa un'altra convenzione per `min_samples` e un MST approssimato di default. Le run `hdbscan_soft` stanno in cartelle proprie (`.../tuning/hdbscan_soft/...`) e si leggono tra loro.
+
+| Parametro | Cosa fa | Valore in `params_clustering.json` |
+| :--- | :--- | :--- |
+| **`min_cluster_size`** | Come in HDBSCAN. | base 100; griglia 10, 15, 20, 30, 50, 75, 100 |
+| **`min_samples`** | La core distance è la distanza dal `min_samples`-esimo vicino. Più alto: più rumore. | base 10; griglia 1, 5, 10, 20 |
+| **`cluster_selection_method`** | `eom`: pochi cluster grandi più tanti piccoli. `leaf`: cluster fini e omogenei. | base `eom`; griglia `eom`, `leaf` |
+| **`approx_min_span_tree`** | Con `false` il risultato è quello esatto, non dipende dall'approssimazione. | fisso `false` |
+
+`alpha` resta a 1 (la documentazione del pacchetto lo sconsiglia) e `allow_single_cluster` a falso. Il nome della cartella di produzione contiene `mcs`, `ms` e `sel_<metodo>`.
+
+**Colonne in più in `tuning_results.csv`**, oltre a silhouette, CH, DB, `noise_fraction` e `n_clusters_found`:
+
+| Colonna | Lettura |
+| :--- | :--- |
+| `membership_mean` | Media, sui soggetti non-rumore, della probabilità di stare nel **proprio** cluster (vettore soft). Vicino a 1 i soggetti stanno chiaramente nel loro cluster. |
+| `membership_share_below_half` | Quota di soggetti non-rumore con quella probabilità sotto 0,5. |
+| `persistence_mean` | Media della stabilità dei cluster (`cluster_persistence_`), da 0 (effimeri) a 1. |
+
+Una combinazione senza nessun cluster (tutto rumore) ha queste tre colonne e quelle di silhouette a `NaN`, e un avviso nel log.
+
+**Il vettore soft non somma a 1.** La parte mancante è la probabilità di essere rumore. Per un soggetto con etichetta `c`, la colonna `c` dice quanto appartiene a quel cluster; il rumore riceve comunque un vettore e si vede a quale cluster è più vicino.
+
+**Tempi** (5845 soggetti): circa 30-55 secondi per 56 combinazioni su un embedding UMAP; circa 3 minuti sulla matrice grezza a 87 colonne.
+
+**Tuning**: i vettori soft entrano solo come le tre colonne riassuntive, la matrice non viene salvata. **Produzione**: oltre a `matrix.npy` e `metadata.csv` (con `cluster_label`), la run salva `membership.npy` (soggetti × cluster; il numero di colonne è il numero di cluster, nessuna colonna se tutti i soggetti sono rumore) e la colonna `membership_own` in `metadata.csv`, la probabilità del soggetto nel proprio cluster (vuota per il rumore, che non ha un cluster proprio). In `cluster_plot.png` la dimensione dei marker segue `membership_own`. Si leggono nella sezione 3.2 di `clustering_evaluation.ipynb` (`docs/guides/evaluation.md`).
 
 ---
 
@@ -183,7 +217,7 @@ Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorat
 | **`project`** | *Stringa* | Nome del progetto (es. `"clinical_connectome"`). |
 | **`input_path`** | *Stringa* | Percorso della matrice di input. Dati grezzi (`data/derived/...`) o compressi (`results/lesion/dim_reduction/...`). DEVE esistere. |
 | **`reduction_method`** | *Stringa* | Dichiara quale metodo di dim reduction ha prodotto `input_path` (`"umap"`, `"tsne"`, `"pca"`, `"pacmap"`) — o `"raw"` se `input_path` è una matrice non ridotta. Obbligatorio, mai dedotto dal testo di `input_path`. Determina un livello in più nell'albero di output (vedi sotto), così risultati da embedding diversi non finiscono mai nella stessa cartella. |
-| **`clustering_methods`** | *Lista* | Algoritmi da usare. Opzioni: `"kmeans"`, `"agglomerative"`, `"gmm"`, `"hdbscan"`, `"spectral"`, `"evidence_accumulation"`, `"adp"`. È possibile metterne multipli per confrontarli, tranne `"adp"`, che gira da solo in un ambiente a parte (sezione "ADP" sotto). |
+| **`clustering_methods`** | *Lista* | Algoritmi da usare. Opzioni: `"kmeans"`, `"agglomerative"`, `"gmm"`, `"hdbscan"`, `"hdbscan_soft"`, `"spectral"`, `"evidence_accumulation"`, `"adp"`. È possibile metterne multipli per confrontarli, tranne `"adp"`, che gira da solo in un ambiente a parte (sezione "ADP" sotto). |
 | **`params_file`** | *Stringa* | File configurazione interna algoritmi (di norma `"config/registry/params_clustering.json"`). |
 | **`reduction_params_file`** | *Stringa \| null* | Il file `config/registry/params_reduction*.json` che ha prodotto `input_path` — `"config/registry/params_reduction.json"` per lesion, `"config/registry/params_reduction_sdc.json"` per sdc. **Obbligatorio quando `reduced_data: true`**, **vietato (deve mancare) quando `reduced_data: false`**. Serve a leggere `tag_param`/`tag_prefix` del `reduction_method` per ricostruire il tag dell'embedding (es. `"m_euclidean_nc2"`) direttamente dai parametri veri con cui `input_path` è stato costruito — mai scritto a mano in `session_name`, così non può disallinearsi dal vero `input_path` (vedi sotto). |
 | **`output_root`** | *Stringa* | Cartella radice per i risultati (es. `"results/lesion/clustering"`). |

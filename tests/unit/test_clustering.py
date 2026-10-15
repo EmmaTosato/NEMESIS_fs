@@ -10,6 +10,10 @@ from src.analysis.clustering import (
     evidence_accumulation_cluster,
     gmm_cluster,
     hdbscan_cluster,
+    hdbscan_soft_cluster,
+    hdbscan_soft_fit,
+    own_cluster_membership,
+    soft_membership_matrix,
     kmeans_cluster,
     spectral_cluster,
 )
@@ -28,11 +32,12 @@ def _two_blobs(n_per_blob=15):
 
 
 def test_registry_has_expected_methods():
-    assert set(CLUSTERING_METHODS) == {"kmeans", "agglomerative", "gmm", "hdbscan", "spectral", "evidence_accumulation", "adp"}
+    assert set(CLUSTERING_METHODS) == {"kmeans", "agglomerative", "gmm", "hdbscan", "hdbscan_soft", "spectral", "evidence_accumulation", "adp"}
     assert CLUSTERING_METHODS["kmeans"] is kmeans_cluster
     assert CLUSTERING_METHODS["agglomerative"] is agglomerative_cluster
     assert CLUSTERING_METHODS["gmm"] is gmm_cluster
     assert CLUSTERING_METHODS["hdbscan"] is hdbscan_cluster
+    assert CLUSTERING_METHODS["hdbscan_soft"] is hdbscan_soft_cluster
     assert CLUSTERING_METHODS["spectral"] is spectral_cluster
     assert CLUSTERING_METHODS["evidence_accumulation"] is evidence_accumulation_cluster
     assert CLUSTERING_METHODS["adp"] is adp_cluster
@@ -60,6 +65,13 @@ def test_spectral_cluster_shape_and_label_count():
     labels = spectral_cluster(_X, {"n_clusters": 4, "affinity": "nearest_neighbors", "random_state": 0})
     assert labels.shape == (30,)
     assert set(labels.tolist()) <= {0, 1, 2, 3}
+
+
+def test_hdbscan_soft_cluster_shape_and_noise_label():
+    labels = hdbscan_soft_cluster(_X, {"min_cluster_size": 3})
+
+    assert labels.shape == (len(_X),)
+    assert labels.min() >= -1
 
 
 def test_hdbscan_cluster_shape_and_noise_label():
@@ -158,3 +170,37 @@ def test_evidence_accumulation_cluster_rejects_fixed_random_state():
                 "random_state": 0,
             },
         )
+
+
+def _blobs_with_outliers():
+    rng = np.random.default_rng(0)
+    return np.vstack(
+        [rng.normal([0, 0], 0.2, (40, 2)), rng.normal([6, 0], 0.2, (40, 2)), rng.normal([0, 6], 0.2, (40, 2)), [[40.0, 40.0], [-40.0, 40.0]]]
+    )
+
+
+def test_soft_membership_matrix_has_one_column_per_cluster_and_rows_below_one_for_noise():
+    fitted = hdbscan_soft_fit(_blobs_with_outliers(), {"min_cluster_size": 10, "min_samples": 5})
+
+    membership = soft_membership_matrix(fitted)
+
+    assert membership.shape == (122, 3)
+    assert (membership >= 0).all() and (membership.sum(axis=1) <= 1 + 1e-9).all()
+    assert (fitted.labels_ == -1).any()
+    assert membership[fitted.labels_ == -1].sum(axis=1).max() < 0.5  # noise belongs to no cluster, not to a random one
+
+
+def test_soft_membership_matrix_with_no_cluster_is_empty_with_one_row_per_subject():
+    fitted = hdbscan_soft_fit(_blobs_with_outliers(), {"min_cluster_size": 100, "min_samples": 5})
+
+    assert (fitted.labels_ == -1).all()
+    assert soft_membership_matrix(fitted).shape == (122, 0)
+
+
+def test_own_cluster_membership_reads_the_label_column_and_is_nan_for_noise():
+    membership = np.array([[0.9, 0.1], [0.2, 0.7], [0.1, 0.1]])
+
+    own = own_cluster_membership(membership, np.array([0, 1, -1]))
+
+    np.testing.assert_allclose(own[:2], [0.9, 0.7])
+    assert np.isnan(own[2])

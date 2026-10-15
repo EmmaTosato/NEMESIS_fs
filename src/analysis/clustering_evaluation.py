@@ -17,7 +17,7 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_samples
 from sklearn.mixture import GaussianMixture
 
-from src.analysis.clustering import CLUSTERING_METHODS
+from src.analysis.clustering import CLUSTERING_METHODS, own_cluster_membership
 from src.analysis.clustering_tuning import (
     compute_silhouette_samples,
     hdbscan_labels_and_probabilities,
@@ -46,18 +46,21 @@ EVALUATIONS: dict[str, Evaluation] = {
         "purezza e alla quota di coppie a distanza 1",
     ),
     "model_fit_metrics": Evaluation(
-        frozenset({"kmeans", "gmm", "hdbscan"}),
+        frozenset({"kmeans", "gmm", "hdbscan", "hdbscan_soft"}),
         "solo questi espongono una statistica propria del modello (inertia, BIC/AIC, quota di rumore); "
         "agglomerative, spectral, evidence_accumulation e adp non ne hanno",
+    ),
+    "soft_membership": Evaluation(
+        frozenset({"hdbscan_soft"}),
+        "la matrice soggetti x cluster delle probabilità di appartenenza è un'uscita del soft clustering del pacchetto "
+        "hdbscan, salvata con la run: gli altri metodi assegnano un soggetto a un cluster senza un grado di appartenenza "
+        "a ciascuno (l'HDBSCAN di sklearn ha solo probabilities_, la vicinanza al nucleo del proprio cluster)",
     ),
     "membership_confidence": Evaluation(
         frozenset({"hdbscan"}),
         "probabilities_ è un'uscita del solo HDBSCAN (forza di appartenenza di ogni soggetto al proprio cluster, "
         "normalizzata dentro il cluster); gli altri metodi assegnano un soggetto a un cluster senza un grado di appartenenza",
     ),
-    "clinical_association": Evaluation(_ALL_METHODS, "dipende solo dalle etichette"),
-    "centroids": Evaluation(_ALL_METHODS, "media delle coordinate dell'embedding per cluster"),
-    "representative_maps": Evaluation(_ALL_METHODS, "soggetto reale più vicino a ogni centroide"),
 }
 
 
@@ -84,7 +87,7 @@ def model_fit_metrics(method: str, X: np.ndarray, params: dict, labels: np.ndarr
     require_applicable("model_fit_metrics", method)
     labels = np.asarray(labels)
 
-    if method == "hdbscan":
+    if method in ("hdbscan", "hdbscan_soft"):
         noise = labels == -1
         return {
             "noise_fraction": float(noise.mean()),
@@ -171,6 +174,73 @@ def membership_confidence(
         threshold=threshold,
         n_noise=int(noise.sum()),
         n_confident=int((kept_probabilities >= threshold).sum()),
+    )
+
+
+@dataclass(frozen=True)
+class SoftMembership:
+    """The soft clustering of a hdbscan_soft run, summarised per cluster.
+
+    `clusters` has one row per cluster: `n`, `own_mean` (mean probability of its subjects of belonging to
+    it), `share_below_threshold`, `top_other` (the other cluster its subjects belong to most, on average)
+    and `top_other_mean` (that average). `mean_vectors` is the mean membership vector of the subjects of each
+    cluster (rows, plus -1 for the noise when there is any) over all the clusters (columns): the diagonal is
+    `own_mean`, the off-diagonal cells say which clusters share subjects.
+    """
+
+    clusters: pd.DataFrame
+    mean_vectors: pd.DataFrame
+    threshold: float
+    n_noise: int
+
+
+def soft_membership_summary(labels: np.ndarray, membership: np.ndarray, threshold: float) -> SoftMembership:
+    """Per-cluster summary of the (n_subjects, n_clusters) membership matrix saved by a hdbscan_soft run.
+
+    The rows of `membership` do not sum to 1 (the rest is the probability of being noise), so the numbers
+    are read as they are, never renormalised. `threshold` has no default: the caller states it. Noise
+    (label -1) has no own cluster, so it is left out of `own_mean` and `share_below_threshold`.
+
+    Raises ValueError for a threshold outside (0, 1], a run where every subject is noise, cluster labels
+    that are not 0..k-1 (the column order of `membership`), or a matrix that is not (n_subjects, k).
+    """
+    if not 0.0 < threshold <= 1.0:
+        raise ValueError(f"threshold must be in (0, 1], got {threshold}")
+    labels = np.asarray(labels)
+    cluster_ids = np.unique(labels[labels != -1])
+    if len(cluster_ids) == 0:
+        raise ValueError("every subject is noise (label -1): there is no cluster to describe")
+    if not np.array_equal(cluster_ids, np.arange(len(cluster_ids))):
+        raise ValueError(f"cluster labels must be 0..k-1 (the column order of the membership matrix), got {cluster_ids.tolist()}")
+    if membership.shape != (len(labels), len(cluster_ids)):
+        raise ValueError(f"membership must be ({len(labels)}, {len(cluster_ids)}) to match labels, got {membership.shape}")
+
+    own = own_cluster_membership(membership, labels)
+    rows, vectors = [], {}
+    for cluster in cluster_ids:
+        members = labels == cluster
+        vector = membership[members].mean(axis=0)
+        vectors[int(cluster)] = vector
+        others = np.where(cluster_ids == cluster, -np.inf, vector)
+        top_other = int(others.argmax()) if len(cluster_ids) > 1 else None
+        rows.append(
+            {
+                "cluster": int(cluster),
+                "n": int(members.sum()),
+                "own_mean": float(own[members].mean()),
+                "share_below_threshold": float((own[members] < threshold).mean()),
+                "top_other": top_other,
+                "top_other_mean": float(vector[top_other]) if top_other is not None else float("nan"),
+            }
+        )
+    noise = labels == -1
+    if noise.any():
+        vectors[-1] = membership[noise].mean(axis=0)
+    return SoftMembership(
+        clusters=pd.DataFrame(rows).set_index("cluster"),
+        mean_vectors=pd.DataFrame.from_dict(vectors, orient="index", columns=cluster_ids.tolist()),
+        threshold=threshold,
+        n_noise=int(noise.sum()),
     )
 
 

@@ -13,6 +13,7 @@ from src.analysis.clustering_evaluation import (
     membership_confidence,
     model_fit_metrics,
     require_applicable,
+    soft_membership_summary,
 )
 
 
@@ -391,3 +392,66 @@ def test_membership_confidence_is_registered_for_hdbscan_only():
     require_applicable("membership_confidence", "hdbscan")
     with pytest.raises(ValueError, match="'agglomerative'"):
         require_applicable("membership_confidence", "agglomerative")
+
+
+# --- soft_membership_summary --------------------------------------------------
+
+
+def _soft_fixture():
+    labels = np.array([0, 0, 0, 1, 1, -1])
+    membership = np.array(
+        [
+            [0.9, 0.05],
+            [0.7, 0.20],
+            [0.4, 0.30],
+            [0.1, 0.8],
+            [0.2, 0.6],
+            [0.1, 0.1],
+        ]
+    )
+    return labels, membership
+
+
+def test_soft_membership_summary_reads_each_cluster_from_its_own_column_and_names_the_nearest_other():
+    labels, membership = _soft_fixture()
+
+    result = soft_membership_summary(labels, membership, threshold=0.5)
+
+    assert result.clusters.loc[0, "n"] == 3
+    assert result.clusters.loc[0, "own_mean"] == pytest.approx((0.9 + 0.7 + 0.4) / 3)
+    assert result.clusters.loc[0, "share_below_threshold"] == pytest.approx(1 / 3)
+    assert result.clusters.loc[0, "top_other"] == 1
+    assert result.clusters.loc[0, "top_other_mean"] == pytest.approx((0.05 + 0.20 + 0.30) / 3)
+    assert result.clusters.loc[1, "own_mean"] == pytest.approx(0.7)
+    assert result.clusters.loc[1, "top_other"] == 0
+    assert result.n_noise == 1
+
+
+def test_soft_membership_summary_mean_vectors_have_a_noise_row_and_the_own_means_on_the_diagonal():
+    labels, membership = _soft_fixture()
+
+    result = soft_membership_summary(labels, membership, threshold=0.5)
+
+    assert result.mean_vectors.index.tolist() == [0, 1, -1]
+    np.testing.assert_allclose(np.diag(result.mean_vectors.loc[[0, 1]].to_numpy()), result.clusters["own_mean"].to_numpy())
+    np.testing.assert_allclose(result.mean_vectors.loc[-1].to_numpy(), [0.1, 0.1])  # the noise is not renormalised
+
+
+def test_soft_membership_summary_rejects_inconsistent_input():
+    labels, membership = _soft_fixture()
+
+    with pytest.raises(ValueError, match="threshold must be in"):
+        soft_membership_summary(labels, membership, threshold=0.0)
+    with pytest.raises(ValueError, match="every subject is noise"):
+        soft_membership_summary(np.full(6, -1), membership, threshold=0.5)
+    with pytest.raises(ValueError, match="0..k-1"):
+        soft_membership_summary(np.array([0, 0, 0, 2, 2, -1]), membership, threshold=0.5)
+    with pytest.raises(ValueError, match=r"\(6, 2\)"):
+        soft_membership_summary(labels, membership[:, :1], threshold=0.5)
+
+
+def test_soft_membership_is_registered_for_hdbscan_soft_only():
+    require_applicable("soft_membership", "hdbscan_soft")
+    with pytest.raises(ValueError, match="'hdbscan'"):
+        require_applicable("soft_membership", "hdbscan")
+    require_applicable("model_fit_metrics", "hdbscan_soft")

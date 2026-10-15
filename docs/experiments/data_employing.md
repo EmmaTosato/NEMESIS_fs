@@ -92,6 +92,9 @@ flowchart LR
         R14R["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
         R24R["s2.4-vol<br/>sdc_matrix<br/>07-10<br/>5845 subj."]
         R25R["s2.4-stream<br/>sdc_matrix<br/>07-10<br/>5831 subj."]
+        R14S["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
+        R24S["s2.4-vol<br/>sdc_matrix<br/>07-10<br/>5845 subj."]
+        R25S["s2.4-stream<br/>sdc_matrix<br/>07-10<br/>5831 subj."]
     end
 
     subgraph COL1["Dim Reduction — Tuning"]
@@ -102,6 +105,9 @@ flowchart LR
         T14R["no dim reduction"]
         T24R["no dim reduction"]
         T25R["no dim reduction"]
+        T14S["07-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10"]
+        T24S["07-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
+        T25S["no dim reduction"]
     end
 
     subgraph COL2["Dim Reduction — Production"]
@@ -112,6 +118,9 @@ flowchart LR
         P14R["no dim reduction"]
         P24R["no dim reduction"]
         P25R["no dim reduction"]
+        P14S["08-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10"]
+        P24S["08-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
+        P25S["no dim reduction"]
     end
 
     subgraph COL3["Clustering — Tuning"]
@@ -122,6 +131,9 @@ flowchart LR
         CT14R["08-10<hr/>raw dice/euclidean<br/>221955 voxel<br/>ADP"]
         CT24R["08-10<hr/>raw dice/euclidean<br/>291345 voxel<br/>ADP"]
         CT25R["08-10<hr/>raw dice/euclidean<br/>87 tratti<br/>ADP"]
+        CT14S["15-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
+        CT24S["15-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
+        CT25S["15-10<hr/>raw<br/>87 tratti<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
     end
 
     subgraph COL4["Clustering — Production"]
@@ -132,6 +144,9 @@ flowchart LR
         CP14R["12-10<hr/>raw dice<br/>221955 voxel<br/>ADP Z 2.5-4.0<br/>(4 run)"]
         CP24R["12-10<hr/>raw dice<br/>291345 voxel<br/>ADP Z 2.0-3.5<br/>(4 run)"]
         CP25R["14-10<hr/>raw dice<br/>87 tratti<br/>ADP Z 2.5-6.0<br/>(6 run)"]
+        CP14S["15-10<hr/>UMAP dice/euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 12 run"]
+        CP24S["15-10 / 16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 5 run"]
+        CP25S["nessuna combinazione usabile"]:::pending
     end
 
     R14 --> T14 --> P14 --> CT14 --> CP14
@@ -140,6 +155,9 @@ flowchart LR
     R14R --> T14R --> P14R --> CT14R --> CP14R
     R24R --> T24R --> P24R --> CT24R --> CP24R
     R25R --> T25R --> P25R --> CT25R --> CP25R
+    R14S --> T14S --> P14S --> CT14S --> CP14S
+    R24S --> T24S --> P24S --> CT24S --> CP24S
+    R25S --> T25S --> P25S --> CT25S -.-> CP25S
 ```
 
 ## Notes

@@ -35,7 +35,7 @@ from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import NearestNeighbors, kneighbors_graph
 
 from src.analysis.adp import run_adp_tuning_sweep
-from src.analysis.clustering import CLUSTERING_METHODS
+from src.analysis.clustering import CLUSTERING_METHODS, hdbscan_soft_fit, own_cluster_membership, soft_membership_matrix
 from src.analysis.consensus_clustering import (
     CONSENSUS_ELIGIBLE_METHODS,
     K_PARAM_NAME,
@@ -67,6 +67,10 @@ METHOD_METRIC_COLUMNS: dict[str, list[str]] = {
     "agglomerative": ["silhouette", "calinski_harabasz", "davies_bouldin"],
     "gmm": ["silhouette", "calinski_harabasz", "davies_bouldin", "bic", "aic"],
     "hdbscan": ["silhouette", "calinski_harabasz", "davies_bouldin", "noise_fraction", "n_clusters_found"],
+    "hdbscan_soft": [
+        "silhouette", "calinski_harabasz", "davies_bouldin", "noise_fraction", "n_clusters_found",
+        "membership_mean", "membership_share_below_half", "persistence_mean",
+    ],
     "spectral": ["silhouette", "calinski_harabasz", "davies_bouldin"],
     "evidence_accumulation": ["silhouette", "calinski_harabasz", "davies_bouldin"],
     "adp": ["silhouette", "calinski_harabasz", "davies_bouldin", "n_clusters_found", "largest_cluster_share", "ari_vs_prev_z"],
@@ -438,10 +442,44 @@ def _hdbscan_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.ndarray
     return labels, {"n_clusters_found": n_clusters_found}
 
 
+SOFT_MEMBERSHIP_LOW = 0.5  # fixed: it is the "membership_share_below_half" column's own definition
+
+
+def _hdbscan_soft_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.ndarray, dict[str, float]]:
+    """The metrics specific to the standalone `hdbscan` package, on top of n_clusters_found:
+    - membership_mean: mean, over the non-noise subjects, of the soft probability of being in their own
+      cluster (`all_points_membership_vectors`, the row entry of the subject's cluster);
+    - membership_share_below_half: share of the non-noise subjects whose own-cluster probability is
+      under SOFT_MEMBERSHIP_LOW;
+    - persistence_mean: mean `cluster_persistence_`, the stability of the clusters in [0, 1].
+    A combination with no cluster has none of the three: they are NaN, like the silhouette-family
+    metrics of the same combination (compute_clustering_metrics records a degenerate NaN there too).
+    """
+    fitted = hdbscan_soft_fit(X, params)
+    labels = fitted.labels_
+    n_clusters_found = len(np.unique(labels[labels != -1]))
+    metrics = {
+        "n_clusters_found": float(n_clusters_found),
+        "membership_mean": float("nan"),
+        "membership_share_below_half": float("nan"),
+        "persistence_mean": float("nan"),
+    }
+    if n_clusters_found == 0:
+        return labels, metrics
+
+    own = own_cluster_membership(soft_membership_matrix(fitted), labels)
+    own = own[~np.isnan(own)]  # the non-noise subjects
+    metrics["membership_mean"] = float(own.mean())
+    metrics["membership_share_below_half"] = float((own < SOFT_MEMBERSHIP_LOW).mean())
+    metrics["persistence_mean"] = float(np.mean(fitted.cluster_persistence_))
+    return labels, metrics
+
+
 _EXTRA_METRICS_EVALUATORS: dict[str, Callable[[np.ndarray, dict], tuple[np.ndarray, dict[str, float]]]] = {
     "kmeans": _kmeans_with_extra_metrics,
     "gmm": _gmm_with_extra_metrics,
     "hdbscan": _hdbscan_with_extra_metrics,
+    "hdbscan_soft": _hdbscan_soft_with_extra_metrics,
 }
 
 
