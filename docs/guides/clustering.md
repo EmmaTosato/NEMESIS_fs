@@ -62,6 +62,53 @@ Genera i cluster definitivi usando i parametri precedentemente scelti in `config
 
 ---
 
+## Agglomerative
+
+Parte con un cluster per soggetto e fonde via via i due cluster più vicini, fino a uno solo (l'albero delle fusioni). Il numero di cluster si sceglie dopo, tagliando l'albero. È deterministico: nessun `random_state`. Implementazione: `sklearn.cluster.AgglomerativeClustering`.
+
+| Parametro | Cosa fa | Valori |
+| :--- | :--- | :--- |
+| **`n_clusters`** | Dove si taglia l'albero: quanti cluster restano. | Intero >= 2. Lo sweep prova ogni k da 2 a 30. |
+| **`metric`** | Come si misura la distanza tra **due singoli soggetti**. Entra poi nel calcolo del linkage. | `euclidean`, `manhattan` (`l1`), `cosine`, più `dice` e `jaccard` calcolate dal progetto (sovrapposizione tra due mappe). |
+| **`linkage`** | Come si misura la distanza tra **due gruppi** di soggetti, cioè il criterio con cui si decide quali due fondere. | `ward`, `average`, `complete`, `single`. |
+
+**Il linkage** (sklearn: l'algoritmo fonde la coppia di cluster che minimizza questo criterio):
+
+- **`ward`**: minimizza la varianza dei cluster che si fondono. Concettualmente vicino a K-Means, ma per via gerarchica. Dà cluster di dimensioni più regolari.
+- **`average`**: media delle distanze tra tutte le coppie di soggetti dei due gruppi.
+- **`complete`**: distanza massima tra le coppie di soggetti dei due gruppi. Favorisce cluster compatti.
+- **`single`**: distanza minima tra le coppie, cioè i due soggetti più vicini. Tende a incatenare gruppi distinti attraverso pochi soggetti-ponte (*chaining*) ed è il meno robusto al rumore.
+
+**Combinazioni valide.** `ward` accetta solo `euclidean`. Per le altre metriche si usa un altro linkage: sklearn indica `average` come alternativa quando la metrica non è euclidea. Lo sweep salta ogni coppia `ward` + metrica non euclidea e lo scrive nel log.
+
+**Come scegliere la metrica** (sklearn): `manhattan` va bene con feature sparse, `cosine` è invariante alle scale globali del segnale. Il confronto tra metriche sullo stesso embedding si fa con la matrice di distanza interclasse (sezione "Grafici diagnostici" sopra).
+
+**Valori di partenza** in `params_clustering.json`: `n_clusters: 6`, `linkage: average`, `metric: cosine`.
+
+Fonte: [scikit-learn, `AgglomerativeClustering`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html) e [guida al clustering gerarchico](https://scikit-learn.org/stable/modules/clustering.html#hierarchical-clustering).
+
+---
+
+## HDBSCAN
+
+Cerca zone dense di soggetti, a densità diverse. Il numero di cluster **non si sceglie**: emerge dai dati. I soggetti che non stanno in nessuna zona densa non sono forzati in un cluster e prendono l'etichetta `-1` (rumore). Implementazione: `sklearn.cluster.HDBSCAN`. È deterministico.
+
+| Parametro | Cosa fa | Effetto di un valore più alto |
+| :--- | :--- | :--- |
+| **`min_cluster_size`** | Numero minimo di soggetti perché un gruppo conti come cluster; i gruppi più piccoli restano rumore. | Meno cluster, più grandi; più soggetti scartati come rumore. |
+| **`min_samples`** | Il `k` con cui si calcola la distanza di un soggetto dal suo k-esimo vicino, base della stima di densità. Controlla quanto il metodo tollera il rumore. | Metodo più conservativo: più soggetti nel rumore, zone dense più ristrette. |
+
+- Con `min_samples` non specificato sklearn usa il valore di `min_cluster_size`. Il progetto li sweepa insieme in una sola run.
+- La distanza è euclidea, perché HDBSCAN gira sull'embedding. Gli altri parametri di sklearn restano ai default: `cluster_selection_method="eom"` (sceglie i cluster più persistenti nell'albero) e `cluster_selection_epsilon=0`.
+- Etichette: `-1` è il rumore. Dopo il fit, `probabilities_` dà per ogni soggetto la forza di appartenenza al suo cluster (0 per il rumore); in produzione dimensiona i marker di `cluster_plot.png`.
+- Silhouette, CH e DB escludono il rumore: va letta sempre insieme a `noise_fraction` (vedi `knowledge/dim_reduction_clustering/clustering_tuning_guide.md`).
+
+**Valori di partenza** in `params_clustering.json`: `min_cluster_size: 100`, `min_samples: 10`.
+
+Fonte: [scikit-learn, `HDBSCAN`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.HDBSCAN.html) e [guida al clustering](https://scikit-learn.org/stable/modules/clustering.html#hdbscan).
+
+---
+
 ## ADP (DADApy)
 
 *Advanced Density Peaks* (d'Errico et al. 2021, libreria `dadapy`) cerca i picchi di densità tra i soggetti: **il numero di cluster non si sceglie, emerge dai dati**. L'unico iperparametro che lo governa è `Z`, la soglia di significatività: un picco resta un cluster a sé solo se la sua densità supera quella del "passo" che lo collega al picco vicino di più di `Z` volte l'incertezza della stima. `Z` basso dà molti cluster piccoli, `Z` alto li fonde.
@@ -83,9 +130,11 @@ L'ambiente `dadapy` non ha `dash`: `embedding_app` e i suoi test non vi girano. 
 
 | Parametro | Descrizione |
 | :--- | :--- |
-| **`metric`** | `"dice"`, `"jaccard"` o `"euclidean"`. Su una matrice binaria sono le distanze classiche; su una continua `>= 0` (SDC) `dice`/`jaccard` sono le generalizzazioni pesate (Czekanowski/Ruzicka), che sulle matrici 0/1 coincidono con le classiche. |
-| **`Z`** | Soglia di significatività (> 0). Lo sweep di tuning la varia da 0.25 a 16. |
-| **`maxk`** | Quanti vicini per soggetto vengono passati a DADApy (densità e dimensione intrinseca sono stimate dentro questi). Deve essere minore del numero di righe distinte. |
+| **`metric`** | Come si misura la distanza tra due soggetti: `"dice"`, `"jaccard"` o `"euclidean"`. Su una matrice binaria `dice`/`jaccard` misurano la sovrapposizione tra due mappe; su una continua `>= 0` (SDC) sono le generalizzazioni pesate (Czekanowski/Ruzicka), che sulle matrici 0/1 coincidono con le classiche. |
+| **`Z`** | Fattore di fusione dei picchi di densità (> 0, default DADApy 1.65). È l'unico parametro libero del metodo. Un picco resta un cluster a sé solo se la sua densità supera quella del punto più basso che lo collega a un picco vicino di più di `Z` volte l'incertezza della stima. **Più alto = fusione più aggressiva = meno cluster.** Lo sweep la varia da 0.25 a 16. |
+| **`maxk`** | Numero massimo di vicini per soggetto su cui DADApy calcola distanze, dimensione intrinseca e densità (default DADApy `min(100, N-1)`). È un tetto: la stima di densità adatta il proprio numero di vicini, per ogni soggetto, entro `maxk`. Deve essere minore del numero di righe distinte. |
+
+Fonte: [DADApy, `Clustering.compute_clustering_ADP`](https://dadapy.readthedocs.io/en/latest/clustering.html) (la documentazione ufficiale descrive `Z`, non `maxk`; per `maxk` vale il docstring nel codice di `dadapy.base`) e d'Errico, Facco, Laio, Rodriguez 2021, *Automatic topography of high-dimensional data sets by non-parametric density peak clustering*, Information Sciences 560.
 
 Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorato). `halo` è fisso a `false`; stima della dimensione intrinseca (2NN) e della densità (PAk) sono quelle di default di DADApy. Il metodo è deterministico: nessun `random_state`.
 

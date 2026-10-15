@@ -1,6 +1,6 @@
 # Covariance PCA + varimax on a wide matrix — technical reference
 
-Audience: developers/agents working on `src/analysis/covariance_pca.py` and the two notebooks that use it: `notebooks/pipeline_building/thiebaut_2020_replication.ipynb` (with varimax, the paper's method) and `notebooks/pipeline_building/pca_sdc_voxelwise.ipynb` (plain PCA, no rotation).
+Audience: developers/agents working on `src/analysis/covariance_pca.py` and the notebook that uses it, `notebooks/pipeline_building/thiebaut_2020_replication.ipynb` (varimax, the paper's method, with the unrotated PCA alongside for comparison).
 
 This module replicates the "Data compression" step of Thiebaut de Schotten et al. 2020 (PCA on the covariance matrix, then varimax rotation with at most 500 iterations, component scores by multiple regression) on matrices too wide for `pca_varimax_embed` (`src/analysis/reduction.py`), such as the voxel-wise SDC matrix (5845 x 291345 float32 = 6.8 GB).
 
@@ -11,6 +11,8 @@ What PCA, covariance vs correlation and varimax mean (concepts, not code): [`kno
 `pca_varimax_embed` centers `X` into a second full copy, `sklearn.PCA` copies it again, and the score step solves a least-squares problem on a float64 transpose of `X` (about 13 GB for the matrix above). It is the right tool for the matrices that go through `dim_reduction.py`; it does not fit in memory here.
 
 ## How the same PCA is computed
+
+Why the small matrix gives the same eigenvalues (the SVD identity, what is checked and the numerical limit): section "PCA su una matrice più larga che alta" in [`employed_dim_reduction_methods.md`](../../knowledge/dim_reduction_clustering/employed_dim_reduction_methods.md).
 
 The covariance matrix over features would be 291345 x 291345. With `Xc = X - column mean`, the eigenvectors of `Xc^T Xc / (n-1)` with non-zero eigenvalue are `Xc^T u / s`, where `u` and `s` are the eigenvectors and singular values of the small Gram matrix `Xc Xc^T` (n x n); the eigenvalues are `s^2 / (n-1)`. So:
 

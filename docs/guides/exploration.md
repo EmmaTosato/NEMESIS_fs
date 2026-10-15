@@ -38,7 +38,6 @@ Ordine logico dei dati: **input grezzi** (cosa esiste su disco, cosa dicono i TS
 | `fc_lesion_masking` | `src/pipeline/mask_fc.py`/`build_fc_matrix.py`: mascheramento della FC in funzione della lesione (scrive CSV mascherati e di matrice) |
 | `dim_reduction` | tuning della riduzione dimensionale |
 | `thiebaut_2020_replication` | replica della PCA varimax di Thiebaut de Schotten et al. 2020 sul disconnettoma voxelwise `s2.4-vol`: quante componenti per il 50/80/90% della varianza, e quanto ogni componente dipende dal volume della lesione, e le mappe delle componenti nel cervello con la loro riproducibilità tra due metà dei soggetti (le componenti da disegnare si scelgono a mano, `COMPONENTS_TO_PLOT`). Legge `matrix.npy`/`metadata.csv` e `participants.csv`; scrive solo una cache in `results/pipeline_building/thiebaut_2020_replication/`. Il calcolo è in `src/analysis/covariance_pca.py` ([`covariance_pca.md`](../dev/covariance_pca.md)) |
-| `pca_sdc_voxelwise` | la PCA sulla covarianza di `s2.4-vol` senza rotazione: quante componenti per il 50/80/90% della varianza (scree plot e varianza cumulata), da cosa dipende ognuna (R² col volume), come stanno i soggetti sulle prime due (colorati per lato, dataset, volume), mappe delle componenti e loro stabilità tra due metà. Legge `matrix.npy`/`metadata.csv` e `participants.csv`; scrive solo una cache in `results/pipeline_building/pca_sdc_voxelwise/`. Stesso calcolo di `thiebaut_2020_replication` ([`covariance_pca.md`](../dev/covariance_pca.md)), senza varimax |
 
 ---
 

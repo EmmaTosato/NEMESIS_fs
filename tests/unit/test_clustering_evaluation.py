@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from sklearn.cluster import HDBSCAN, KMeans
-from sklearn.metrics import silhouette_samples, silhouette_score
+from sklearn.metrics import silhouette_score
 from sklearn.mixture import GaussianMixture
 
 from src.analysis.clustering import CLUSTERING_METHODS
@@ -130,89 +130,6 @@ def test_per_cluster_silhouette_refuses_a_non_euclidean_run():
         per_cluster_silhouette(_three_blobs(), np.repeat([0, 1, 2], 30), combo_params={"metric": "dice"})
 
 
-# --- null_reference_silhouette ---------------------------------------------
-
-
-def test_null_reference_well_separated_blobs_beat_the_null_by_a_wide_margin():
-    from src.analysis.clustering_evaluation import null_reference_silhouette
-
-    X = _three_blobs()
-    params = {"n_clusters": 3, "n_init": 10, "random_state": 0}
-    labels = KMeans(**params).fit_predict(X)
-
-    reference = null_reference_silhouette("kmeans", X, labels, params, n_null=10)
-
-    assert reference.observed > 0.8
-    assert reference.margin > 0.3
-
-
-def test_null_reference_one_gaussian_blob_is_not_distinguished_from_the_null():
-    """A single Gaussian cut into k=3 by kmeans has a clearly positive silhouette, but no more than
-    the null: the margin is what separates 'structure' from 'a partition was forced'."""
-    from src.analysis.clustering_evaluation import null_reference_silhouette
-
-    X = np.random.default_rng(1).normal(size=(300, 2)).astype(np.float32)
-    params = {"n_clusters": 3, "n_init": 10, "random_state": 0}
-    labels = KMeans(**params).fit_predict(X)
-
-    reference = null_reference_silhouette("kmeans", X, labels, params, n_null=20)
-
-    assert reference.observed > 0.3  # the absolute value alone looks like structure
-    assert abs(reference.margin) < 3 * reference.null_sd
-
-
-@pytest.mark.parametrize("null", ["gaussian", "permute"])
-def test_null_reference_is_reproducible_for_a_seed(null):
-    from src.analysis.clustering_evaluation import null_reference_silhouette
-
-    X = _three_blobs()
-    params = {"n_clusters": 3, "n_init": 3, "random_state": 0}
-    labels = KMeans(**params).fit_predict(X)
-
-    first = null_reference_silhouette("kmeans", X, labels, params, null=null, n_null=4, seed=5)
-    second = null_reference_silhouette("kmeans", X, labels, params, null=null, n_null=4, seed=5)
-
-    np.testing.assert_array_equal(first.null_values, second.null_values)
-
-
-def test_null_sample_permute_keeps_each_column_marginal_and_gaussian_keeps_the_dtype():
-    from src.analysis.clustering_evaluation import _null_sample
-
-    X = _three_blobs().astype(np.float32)
-    rng = np.random.default_rng(0)
-
-    permuted = _null_sample(X, "permute", rng)
-    gaussian = _null_sample(X, "gaussian", rng)
-
-    for column in range(X.shape[1]):
-        np.testing.assert_array_equal(np.sort(permuted[:, column]), np.sort(X[:, column]))
-    assert gaussian.dtype == X.dtype and gaussian.shape == X.shape
-
-
-def test_null_reference_rejects_adp_unknown_null_and_a_non_euclidean_run():
-    from src.analysis.clustering_evaluation import null_reference_silhouette
-
-    X, labels = _three_blobs(), np.repeat([0, 1, 2], 30)
-    with pytest.raises(ValueError, match="'adp'"):
-        null_reference_silhouette("adp", X, labels, {"metric": "dice", "Z": 2.5, "maxk": 100})
-    with pytest.raises(ValueError, match="'evidence_accumulation'"):
-        null_reference_silhouette("evidence_accumulation", X, labels, {"base_method": "kmeans", "n_clusters": 3})
-    with pytest.raises(ValueError, match="unknown null"):
-        null_reference_silhouette("kmeans", X, labels, {"n_clusters": 3}, null="uniform")
-    with pytest.raises(ValueError, match="metric='dice'"):
-        null_reference_silhouette("agglomerative", X, labels, {"n_clusters": 3, "metric": "dice"})
-
-
-def test_null_reference_raises_when_every_null_fit_is_degenerate():
-    from src.analysis.clustering_evaluation import null_reference_silhouette
-
-    X = _three_blobs()
-    labels = np.repeat([0, 1, 2], 30)
-    # min_cluster_size larger than the sample: hdbscan labels everything as noise, on every null fit
-    with pytest.raises(ValueError, match="no reference"):
-        null_reference_silhouette("hdbscan", X, labels, {"min_cluster_size": 80, "min_samples": 80}, n_null=2)
-
-
 # --- knn_purity -------------------------------------------------------------
 
 
@@ -331,9 +248,6 @@ def test_noise_warning_rejects_values_outside_the_unit_interval():
 
 def test_adp_is_scored_by_knn_purity_and_not_by_the_euclidean_geometric_metrics():
     require_applicable("knn_purity", "adp")
-    require_applicable("adp_silhouette", "adp")
-    with pytest.raises(ValueError, match="'kmeans'"):
-        require_applicable("adp_silhouette", "kmeans")
     with pytest.raises(ValueError, match="'adp'"):
         require_applicable("geometric_metrics", "adp")
     with pytest.raises(ValueError, match="'kmeans'"):
@@ -438,23 +352,10 @@ def test_membership_confidence_summarises_hdbscans_own_probabilities_per_cluster
         p = probabilities[labels == cluster]
         assert row["n"] == len(p)
         assert row["probability_mean"] == pytest.approx(p.mean())
-        assert row["probability_p10"] == pytest.approx(np.quantile(p, 0.1))
         assert row["share_below_threshold"] == pytest.approx((p < 0.7).mean())
     assert result.clusters["share_below_threshold"].max() > 0  # the loose cluster has weak members
     assert result.n_noise == int((labels == -1).sum())
     assert result.n_confident == int((probabilities[labels != -1] >= 0.7).sum())
-
-
-def test_membership_confidence_silhouettes_are_the_same_per_subject_values_averaged_over_two_groups():
-    X = _blobs_of_mixed_density()
-    labels, probabilities = _fit_hdbscan(X)
-    kept = labels != -1
-    per_subject = silhouette_samples(X[kept], labels[kept])
-
-    result = membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, labels, threshold=0.7)
-
-    assert result.silhouette_all == pytest.approx(silhouette_score(X[kept], labels[kept]))
-    assert result.silhouette_confident == pytest.approx(per_subject[probabilities[kept] >= 0.7].mean())
 
 
 def test_membership_confidence_refuses_a_refit_that_does_not_reproduce_the_labels():
@@ -479,12 +380,11 @@ def test_membership_confidence_rejects_a_threshold_outside_zero_one(threshold):
         membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, labels, threshold=threshold)
 
 
-def test_membership_confidence_refuses_a_non_euclidean_run():
+def test_membership_confidence_refuses_a_run_that_is_all_noise():
     X = _blobs_of_mixed_density()
-    labels, _ = _fit_hdbscan(X)
 
-    with pytest.raises(ValueError, match="Euclidean"):
-        membership_confidence("hdbscan", X, {**_HDBSCAN_PARAMS, "metric": "manhattan"}, labels, threshold=0.5)
+    with pytest.raises(ValueError, match="every subject is noise"):
+        membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, np.full(len(X), -1), threshold=0.5)
 
 
 def test_membership_confidence_is_registered_for_hdbscan_only():

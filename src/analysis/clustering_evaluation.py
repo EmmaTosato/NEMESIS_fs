@@ -39,21 +39,11 @@ EVALUATIONS: dict[str, Evaluation] = {
         "indici euclidei su (X, etichette); adp clusterizza la distanza dice della matrice grezza, che questi "
         "indici misurerebbero in un'altra geometria - per adp ci sono la purezza dei vicini e la silhouette sulla distanza dice",
     ),
-    "null_reference": Evaluation(
-        _ALL_METHODS - {"adp", "evidence_accumulation"},
-        "rifitta il metodo su dati senza struttura della stessa forma della run; l'input di adp è la matrice "
-        "grezza dei voxel, i cui rifit richiedono minuti ciascuno e che non ha un riferimento gaussiano della stessa forma; "
-        "ogni fit di evidence_accumulation ripete spectral 50 volte, troppo lento per decine di rifit",
-    ),
     "knn_purity": Evaluation(
         frozenset({"adp"}),
         "adp decide sui vicini più prossimi di ogni soggetto; su una distanza dice saturata (le lesioni) la "
-        "silhouette (che guarda tutte le coppie) non vede questa geometria",
-    ),
-    "adp_silhouette": Evaluation(
-        frozenset({"adp"}),
-        "silhouette sulla distanza con cui adp clusterizza (dice sulla matrice grezza), non sullo spazio euclideo; "
-        "va letta insieme alla quota di coppie a distanza 1, che la rende inutilizzabile quando è alta",
+        "silhouette (che guarda tutte le coppie) non vede questa geometria, quindi la si legge accanto alla "
+        "purezza e alla quota di coppie a distanza 1",
     ),
     "model_fit_metrics": Evaluation(
         frozenset({"kmeans", "gmm", "hdbscan"}),
@@ -122,20 +112,15 @@ def model_fit_metrics(method: str, X: np.ndarray, params: dict, labels: np.ndarr
 class MembershipConfidence:
     """How firmly the subjects of an hdbscan run belong to their cluster, from `probabilities_`.
 
-    `clusters` has one row per non-noise cluster: `n`, `probability_mean`, `probability_p10` (the 10th
-    percentile: the median saturates at 1 whenever most of a cluster is its core, so it tells nothing)
-    and `share_below_threshold` (the share of its subjects under `threshold`). `silhouette_all` is the
-    mean per-subject silhouette over every non-noise subject, `silhouette_confident` the mean of the
-    same per-subject values over the `n_confident` subjects at or above `threshold`: the silhouette
-    is never recomputed on the subset, so the geometry is the same in both numbers.
+    `clusters` has one row per non-noise cluster: `n`, `probability_mean` and `share_below_threshold`
+    (the share of its subjects under `threshold`). `n_confident` counts the non-noise subjects at or
+    above `threshold`.
     """
 
-    clusters: pd.DataFrame  # index: cluster label; columns: n, probability_mean, probability_p10, share_below_threshold
+    clusters: pd.DataFrame  # index: cluster label; columns: n, probability_mean, share_below_threshold
     threshold: float
     n_noise: int
     n_confident: int
-    silhouette_all: float
-    silhouette_confident: float
 
 
 def membership_confidence(
@@ -144,25 +129,25 @@ def membership_confidence(
     """Membership strength of an already-produced hdbscan run.
 
     `probabilities_` is a lambda value normalised to [0, 1] inside each cluster (0 for noise), so it
-    says how close a subject sits to the core of *its* cluster, not how confident the algorithm is
-    across clusters. It exists only on the fitted estimator, which a run does not store: it is refit
-    with the run's own params and accepted only if it reproduces the stored labels exactly, as in
-    model_fit_metrics. It is a description of the density in the space clustered (an embedding with
+    says how close a subject sits to the core of *its* cluster, not how likely it is to belong to this
+    cluster rather than another. It exists only on the fitted estimator, which a run does not store: it
+    is refit with the run's own params and accepted only if it reproduces the stored labels exactly, as
+    in model_fit_metrics. It is a description of the density in the space clustered (an embedding with
     min_dist=0 is already packed), not a validity index.
 
     `threshold` has no default and no literature backing a value: the caller states it. Noise is left
-    out of every number (its probability is 0 by construction). Every cluster holds at least one
-    subject at probability 1, so the confident group is never empty for a threshold in (0, 1].
+    out of every number (its probability is 0 by construction).
 
-    Raises ValueError for a method other than hdbscan, a threshold outside (0, 1], a non-Euclidean
-    run, a refit that does not reproduce the labels, or fewer than 2 non-noise clusters (the
-    silhouette is undefined).
+    Raises ValueError for a method other than hdbscan, a threshold outside (0, 1], a refit that does
+    not reproduce the labels, or a run where every subject is noise.
     """
     require_applicable("membership_confidence", method)
     if not 0.0 < threshold <= 1.0:
         raise ValueError(f"threshold must be in (0, 1], got {threshold}")
-    require_euclidean_compatible(params)
     labels = np.asarray(labels)
+    noise = labels == -1
+    if noise.all():
+        raise ValueError("every subject is noise (label -1): there is no cluster to describe")
 
     refit_labels, probabilities = hdbscan_labels_and_probabilities(X, params)
     if not np.array_equal(refit_labels, labels):
@@ -171,18 +156,13 @@ def membership_confidence(
             "its probabilities would describe a different fit than the run"
         )
 
-    noise = labels == -1
-    kept_labels, silhouettes = compute_silhouette_samples(X, labels)
     kept_probabilities = probabilities[~noise]
-    confident = kept_probabilities >= threshold
-
-    frame = pd.DataFrame({"cluster": kept_labels, "probability": kept_probabilities})
+    frame = pd.DataFrame({"cluster": labels[~noise], "probability": kept_probabilities})
     grouped = frame.groupby("cluster")["probability"]
     clusters = pd.DataFrame(
         {
             "n": grouped.size(),
             "probability_mean": grouped.mean(),
-            "probability_p10": grouped.quantile(0.1),
             "share_below_threshold": grouped.apply(lambda p: float((p < threshold).mean())),
         }
     )
@@ -190,9 +170,7 @@ def membership_confidence(
         clusters=clusters,
         threshold=threshold,
         n_noise=int(noise.sum()),
-        n_confident=int(confident.sum()),
-        silhouette_all=float(silhouettes.mean()),
-        silhouette_confident=float(silhouettes[confident].mean()),
+        n_confident=int((kept_probabilities >= threshold).sum()),
     )
 
 
@@ -272,86 +250,6 @@ def saturated_pair_share(distances: np.ndarray, tolerance: float = 1e-9) -> floa
     if distances.ndim != 2 or distances.shape[1] != n or n < 2:
         raise ValueError(f"distances must be a square matrix of at least 2 subjects, got {distances.shape}")
     return float((distances >= 1.0 - tolerance).sum() / (n * (n - 1)))  # the zero diagonal never counts
-
-
-NULL_KINDS = ("gaussian", "permute")
-
-
-@dataclass(frozen=True)
-class NullReference:
-    """Observed silhouette against the same method refit on structureless data of the same shape.
-
-    `null_values` holds one silhouette per null fit that found at least 2 clusters; `n_degenerate`
-    counts the fits that did not (e.g. hdbscan labelling a structureless cloud as one cluster).
-    """
-
-    observed: float
-    null_values: np.ndarray
-    n_degenerate: int
-
-    @property
-    def null_mean(self) -> float:
-        return float(self.null_values.mean())
-
-    @property
-    def null_sd(self) -> float:
-        return float(self.null_values.std(ddof=1)) if len(self.null_values) > 1 else float("nan")
-
-    @property
-    def margin(self) -> float:
-        """Observed minus null mean: the silhouette the method does NOT get for free."""
-        return self.observed - self.null_mean
-
-
-def _null_sample(X: np.ndarray, kind: str, rng: np.random.Generator) -> np.ndarray:
-    """A structureless cloud with X's shape and dtype.
-
-    gaussian: same mean and covariance as X (keeps the linear correlations, loses any shape or
-    cluster). permute: every column shuffled on its own (keeps each marginal exactly, loses all
-    dependence between columns).
-    """
-    if kind == "gaussian":
-        covariance = np.atleast_2d(np.cov(X, rowvar=False))
-        return rng.multivariate_normal(X.mean(axis=0), covariance, size=len(X)).astype(X.dtype)
-    return np.column_stack([rng.permutation(X[:, j]) for j in range(X.shape[1])])
-
-
-def null_reference_silhouette(
-    method: str, X: np.ndarray, labels: np.ndarray, params: dict, null: str = "gaussian", n_null: int = 20, seed: int = 0
-) -> NullReference:
-    """The run's silhouette next to what the same method and params score on structureless data.
-
-    A partition of a cloud with no clusters still gets a positive silhouette (a Gaussian cloud cut
-    by ward k=3 scores ~0.40), so the absolute value says little: the margin over the null does.
-    The observed value is computed on the stored labels, not on a refit. Noise (-1) is excluded
-    on both sides, like everywhere else.
-
-    Raises ValueError for a method outside the "null_reference" registry entry, an unknown `null`,
-    n_null < 1, a non-Euclidean run, or when every null fit is degenerate (nothing to compare to).
-    """
-    require_applicable("null_reference", method)
-    require_euclidean_compatible(params)
-    if null not in NULL_KINDS:
-        raise ValueError(f"unknown null {null!r} - known: {list(NULL_KINDS)}")
-    if n_null < 1:
-        raise ValueError(f"n_null must be >= 1, got {n_null}")
-    if len(labels) != len(X):
-        raise ValueError(f"labels has {len(labels)} entries but X has {len(X)} rows")
-
-    observed = float(compute_silhouette_samples(X, np.asarray(labels))[1].mean())
-    rng = np.random.default_rng(seed)
-    values, n_degenerate = [], 0
-    for _ in range(n_null):
-        null_X = _null_sample(X, null, rng)
-        null_labels = CLUSTERING_METHODS[method](null_X, params)
-        kept = null_labels[null_labels != -1]
-        if not 2 <= len(np.unique(kept)) <= len(kept) - 1:
-            n_degenerate += 1
-            continue
-        values.append(float(compute_silhouette_samples(null_X, null_labels)[1].mean()))
-    if not values:
-        raise ValueError(f"all {n_null} null fits of {method!r} with params={params} found fewer than 2 clusters - no reference")
-    return NullReference(observed=observed, null_values=np.asarray(values), n_degenerate=n_degenerate)
 
 
 @dataclass(frozen=True)

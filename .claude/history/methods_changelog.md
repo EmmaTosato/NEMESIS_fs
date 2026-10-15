@@ -8,6 +8,26 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 15-10-26 — clustering_evaluation 3.1: la probabilità di HDBSCAN descrive la posizione nel cluster; tolti p10 e confronto delle silhouette
+
+**Cosa è cambiato** (`membership_confidence`, sezione 3.1): `clusters` ha solo `n`, `probability_mean` e `share_below_threshold`; via `probability_p10`, `silhouette_all` e `silhouette_confident`. Via anche il rifiuto delle run non euclidee e il vincolo di almeno 2 cluster, che esistevano solo per la silhouette; resta il rifit che deve riprodurre le etichette, e una run tutta rumore solleva. La sezione si chiama «Posizione nel cluster», non più «Confidenza di appartenenza».
+
+**Perché**: l'utente voleva la probabilità che un soggetto appartenga al suo cluster, e `probabilities_` non è quello: è un lambda normalizzato dentro il cluster, cioè quanto il soggetto è vicino al nucleo (1 = cuore, vicino a 0 = margine, per poco non rumore). Non dice se un altro cluster starebbe meglio. Il nome «confidenza di appartenenza» e il confronto delle due silhouette lo facevano leggere come un'appartenenza vera. Scelta dell'utente tra: riscrivere solo il testo, semplificare (scelto), appartenenza vera ai cluster.
+
+**Alternativa tenuta aperta (C)**: l'appartenenza a tutti i cluster esiste come `all_points_membership_vectors` del pacchetto `hdbscan` standalone, che non è in `environment.yml` (verificato: `import hdbscan` fallisce nell'ambiente `nemesis`) e richiede un rifit; l'utente ha chiesto di provarla. Prototipo (scratchpad, non in `src/`; `pip install hdbscan` 0.8.44 nell'ambiente `nemesis`, `environment.yml` non toccato) su lesione dice nc2 `12-10_s1.4-vol_m_dice_nc2_mcs100_ms20` (5845 soggetti, 8 cluster, 47 rumore): `hdbscan.HDBSCAN(**params, prediction_data=True)` dà la stessa partizione di sklearn a meno di una permutazione degli id dei cluster e di **1 soggetto su 5845** (etichetta diversa), quindi il criterio «il rifit deve riprodurre le etichette esattamente» non vale così com'è; `all_points_membership_vectors` dà una matrice soggetti x cluster le cui righe sommano da 0,135 a 1 (il resto è rumore). Probabilità media di stare nel proprio cluster 0,78-0,99 per cluster; 190 soggetti su 5798 non-rumore sotto 0,5.
+
+**Conseguenza ancora vera**: il nome della funzione resta `membership_confidence` e la voce di registro `membership_confidence`, anche se la sezione ha un altro titolo.
+
+## 15-10-26 — clustering_evaluation: tolto il confronto con dati senza cluster (2.2); silhouette di adp fusa nella purezza dei vicini
+
+**Cosa è cambiato**: il nullo (ex 2.2) è stato tolto dal notebook e da `src/`: `null_reference_silhouette`, `NullReference`, `_null_sample`, `NULL_KINDS`, la voce `null_reference` di `EVALUATIONS` e i 6 test relativi (`tests/unit/test_clustering_evaluation.py`). La silhouette sulla distanza dice di adp (ex 2.4) non è più una sezione: è nella 2.2 (ex 2.3, purezza dei vicini), stessa tabella, con le colonne `silhouette`, `silhouette_macro`, `silhouette_min` e `pairs_at_distance_1`, e due colonne per cluster (`silhouette_mean`, `share_negative`). Via anche la voce `adp_silhouette` di `EVALUATIONS` e l'helper `adp_knn_purity` del notebook (non più usato). Suite: 1454 passed, 17 skipped.
+
+**Perché il nullo**: la silhouette resta senza riferimento di scala, e va bene così. Il nullo costava 2 x `N_NULL` rifit per run e non aveva un indicatore di incertezza sul margine; i due nulli davano letture diverse (ward, 20 cluster, 2 componenti: margine 0,195 gaussiano contro 0,112 permutato); con hdbscan fino a 24 fit su 30 erano degeneri e fuori dalla media (voce del 15-10-26 sul p empirico); non copriva adp né evidence_accumulation. Scelta dell'utente: sacrificarlo. Il testo della sezione 2 dice ora che nessuno dei quattro indici ha un riferimento e che anche una nuvola senza cluster ha silhouette positiva (ward, 3 cluster, gaussiana a 2 componenti: circa 0,4).
+
+**Perché la fusione**: l'informazione della silhouette di adp (separazione globale dei cluster, che la purezza non vede: su sdc 0,07 contro purezza 0,97) resta, ma non occupa una sezione a sé; `pairs_at_distance_1` accanto ricorda quando ignorarla (lesioni: 84%). Alternative scartate: togliere la silhouette di adp (si perdeva la lettura sulla separazione globale su sdc); lasciarla come sezione separata.
+
+**Conseguenza ancora vera**: nessuna sezione del notebook dà una scala di riferimento alla silhouette euclidea. La numerazione è 2, 2.1, 2.2 (adp), 3, 3.1, 4. Il filtro di `warnings` sul `copy` di HDBSCAN resta (serve anche alla 3.1).
+
 ## 15-10-26 — Confidenza di appartenenza di HDBSCAN (`probabilities_`) come valutazione, non come validazione
 
 **Decisione**: `clustering_evaluation` ottiene una valutazione solo per HDBSCAN, `membership_confidence` (`src/analysis/clustering_evaluation.py`): per cluster, probabilità media, 10° percentile e quota di soggetti sotto una soglia; e la silhouette per soggetto mediata su tutti i non-rumore contro i soli soggetti sopra la soglia. Appartiene a `clustering_evaluation` (empirica: usa solo etichette e spazio clusterizzato, nessuna variabile esterna), non a `cluster_interpretation`.
