@@ -144,7 +144,4 @@ flowchart LR
 
 ## Notes
 - **Produzione di clustering, 12-10 e 14-10:** 111 run. Per ogni matrice si sono prodotti i candidati "buoni" e "discreti" del tuning del 12-10 ([`clustering/s1_tuning.md`](clustering/s1_tuning.md), [`clustering/s2_tuning.md`](clustering/s2_tuning.md)); i diari sono [`clustering/s1_production.md`](clustering/s1_production.md) e [`clustering/s2_production.md`](clustering/s2_production.md).
-- **s1.4-vol:** `agglomerative` con `ward`/`euclidean` (7 k per dice nc2, 7 per dice nc10, 3 per euclidean nc2, 6 per euclidean nc10) e HDBSCAN (una run per riga della griglia con 8-20 cluster: 14, 12, 5, 9). `ADP` solo con metrica `dice`.
-- **s2.4-vol:** `ward` su nc2 e `average` su nc10 (l'unico linkage con k stabili); le 7 righe HDBSCAN non sono stabili.
-- **s2.4-stream:** gira sulla matrice grezza, senza embedding in ingresso. L'UMAP del 14-10 serve solo a disegnare i cluster; le 6 righe HDBSCAN hanno il 71-83% di rumore.
-- **Vista 2D delle run su più di 3 componenti** (nc10 e matrici grezze): sono disegnate su un embedding 2D gemello, indicato in `viz_embedding_path` del loro `config.md` (vedi `docs/guides/embedding_app.md`). Il gemello di dice nc10 è l'UMAP dice nc2 del 12-10 con `n_neighbors=50`, diverso dal dice nc2 scelto dal tuning (`n_neighbors=100`).
+

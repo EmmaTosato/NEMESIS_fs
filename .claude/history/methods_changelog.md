@@ -22,6 +22,16 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 15-10-26 — Replica della PCA varimax di Thiebaut de Schotten 2020 sul disconnettoma voxelwise `s2.4-vol`
+
+**Decisione**: la replica del paper si fa sulla matrice voxelwise `s2.4-vol` (5845 × 291345), non sulla lesione parcellata (messa in pausa dall'utente lo stesso giorno). Metodo: PCA sulla covarianza (centrata, non scalata), varimax con al più 500 iterazioni sulle prime 42 componenti, punteggi per regressione multipla; R² di ogni componente contro `lesion_volume_voxels_2mm`. Codice in `src/analysis/covariance_pca.py`, notebook `notebooks/pipeline_building/thiebaut_2020_replication.ipynb`.
+
+**Numero di componenti**: il paper non dice come ha scelto le 46 componenti totali; riporta solo che 30 superano il 90% della varianza, letto dalla curva cumulata (Fig. 2a). Si ruota quindi il numero minimo di componenti che raggiunge il 90%: 42 su `s2.4-vol` (50% con 2, 80% con 14). Scelto dall'utente tra: curva prima e numero dopo, 90%, 30 fisso.
+
+**Alternative scartate**: `pca_varimax_embed` (`reduction.py`) — fa copie full-size di `X` (circa 13 GB in float64 solo per i punteggi), non entra nei 25,7 GB di RAM. La matrice di covarianza tra voxel (291345²) è impossibile; si usa la matrice soggetti × soggetti, che dà gli stessi autovalori (verificato contro `sklearn.decomposition.PCA`, scarto relativo massimo 8e-15 su 400 × 30000).
+
+**Primo risultato** (non un giudizio sul metodo): R² con il volume massimo 0.251 sulle ruotate e 0.452 sulle non ruotate, 2 componenti su 42 sopra 0.1 in entrambi i casi. Il paper riporta R² < 0.1 per tutte; qui lo spazio è diverso (voxel, non 372 regioni), quindi è un confronto di tendenza.
+
 ## 15-10-26 — clustering_evaluation: silhouette di adp riammessa, con la quota di coppie a distanza 1
 
 Per adp la sezione 2.4 calcola di nuovo la silhouette (`distance_matrix_silhouette`, sulla distanza dice già in cache), accanto a `saturated_pair_share`: la quota di coppie di soggetti a distanza esattamente 1. La purezza dei vicini (2.3) resta. La decisione del 13-10-26 ("per adp la silhouette è sostituita dalla purezza") valeva per le lesioni.

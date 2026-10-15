@@ -2,7 +2,7 @@
 
 Audience: developers/agents working on `src/features/sdc.py`, `src/analysis/build_config.py` (the `build_sdc_matrix.json`-parsing half), and `src/pipeline/build_sdc_matrix.py`.
 
-This file covers turning SDC output (`bcbtoolkit/<subject_id>/*`, produced upstream by BCBToolKit Stage 1+2) into a feature matrix ready for dimensionality reduction, in any of three representations picked by `config.representation`: **parcellated** (`build_sdc_matrix`, the original one - one CSV per atlas, `LF-{object}_atlas-*.csv`), **voxelwise** (`build_sdc_voxelwise_matrix`, added 03/09 - the pre-parcellation `disconnectome-map` `.nii.gz` directly, same resampling-onto-a-common-grid approach as the lesion pipeline) or **streamline** (`build_sdc_streamline_matrix`, added 30/09 - the `yeh_hcp1065_streamline` CSV, one `streamline_ratio` per white matter tract). For the equivalent lesion (voxel-wise) pipeline, see `docs/dev/lesion_matrix.md`. For "how do I run this", see `docs/guides/sdc_matrix_building.md`.
+This file covers turning SDC output (`bcbtoolkit/<subject_id>/*`, produced upstream by BCBToolKit Stage 1+2) into a feature matrix ready for dimensionality reduction, in any of three representations picked by `config.representation`: **parcellated** (`build_parcellated_matrix` in `src/features/parcellated_csv.py`, the original one - one CSV per atlas, `LF-{object}_atlas-*.csv`), **voxelwise** (`build_sdc_voxelwise_matrix`, added 03/09 - the pre-parcellation `disconnectome-map` `.nii.gz` directly, same resampling-onto-a-common-grid approach as the lesion pipeline) or **streamline** (`build_sdc_streamline_matrix`, added 30/09 - the `yeh_hcp1065_streamline` CSV, one `streamline_ratio` per white matter tract). For the equivalent lesion (voxel-wise) pipeline, see `docs/dev/lesion_matrix.md`. For "how do I run this", see `docs/guides/sdc_matrix_building.md`.
 
 ## Why this pipeline looks different from `build_lesion_matrix.py`
 
@@ -12,7 +12,7 @@ This file covers turning SDC output (`bcbtoolkit/<subject_id>/*`, produced upstr
 
 ## Reference labels (`assets/atlases/sdc_labels/<atlas>.csv`)
 
-The set of columns (regions) `build_sdc_matrix()` produces for a given atlas is **fixed and authoritative**, read from `assets/atlases/sdc_labels/<atlas>.csv` (one `region_name` per row) - not re-derived per run as the union of whatever regions happen to appear in the current subject selection. This matters for two reasons:
+The set of columns (regions) `build_parcellated_matrix()` produces for a given atlas is **fixed and authoritative**, read from `assets/atlases/sdc_labels/<atlas>.csv` (one `region_name` per row) - not re-derived per run as the union of whatever regions happen to appear in the current subject selection. This matters for two reasons:
 
 1. **Completeness**: an atlas region never disconnected by any subject in a given run's selection would otherwise silently vanish from the matrix. The reference file was derived once from the *entire* local cohort (all 4 in-scope SDC datasets, ~1150 subjects) for each atlas currently supported, confirmed to reach that atlas's known/expected cardinality (e.g. `schaefer_200_tian_s2` = 200 Schaefer cortical + 32 Tian S2 subcortical = 232 regions, `schaefer_400_tian_s2` = 432 - both confirmed to reach exactly that count across the full cohort, no region ever missing).
 2. **Validation**: every `region_name` found in a subject's CSV must exist in the reference set - a region name the reference doesn't know about raises `ValueError` immediately (an atlas mismatch, a corrupt file, or a naming change upstream), never silently added as an extra column or ignored.
@@ -27,9 +27,11 @@ Cardinalities for atlases not yet backed by a reference file are **not** derived
 2. Derive the reference region list from the full local cohort (same approach as `schaefer_200_tian_s2`/`schaefer_400_tian_s2`): union every `region_name` across every subject's CSV for that atlas, across all in-scope datasets, and confirm the union reaches the atlas's known/expected cardinality (published value, or a locally-verified fmriprep `dseg.tsv` for atlas combos that include one - see `assets/atlases/fmriprep/atlas-Yan<N>Tian<Sx>Buckner7N/*_dseg.tsv`, whose additive structure - e.g. 200 Schaefer + 16 Tian S1 + 7 Buckner = 223 - helped cross-check the individual-component cardinalities used here).
 3. Write the confirmed list, one `region_name` per row (header included), to `assets/atlases/sdc_labels/<atlas>.csv`.
 
-## `src/features/sdc.py`
+## `src/features/parcellated_csv.py`
 
-`build_sdc_matrix(data_root, datasets, object_, atlas, value_column, reference_labels_path, group_filter, excluded_subjects) -> (X, metadata, region_names, excluded_by_group, excluded_by_list, excluded_no_lesion_mask, sdc_not_yet_computed)`
+The parcellated builder and the subject-admission helpers every BCBToolKit-based builder shares (`registered_subjects`, `subjects_with_lesion_mask`, `discover_by_dataset`, `load_reference_regions`) live here, below `sdc.py` in the layering: `sdc.py` imports `src.features.lesion`, so a module both of them need cannot sit in either.
+
+`build_parcellated_matrix(data_root, datasets, object_, atlas, value_column, reference_labels_path, group_filter, excluded_subjects) -> (X, metadata, region_names, excluded_by_group, excluded_by_list, excluded_no_lesion_mask, csv_not_yet_computed)`
 
 - **`object_`**: `"disconnectome"` or `"lesion"` - which of the two parcellated CSV families to read (`docs/guides/sdc_matrix_building.md` for the difference). Validated against `KNOWN_OBJECTS`.
 - **`value_column`**: which per-region statistic to extract - `"fraction_covered"`, `"mean_overlap"`, `"weighted_mean_overlap"`, `"sum_overlap"`, `"p90_overlap"`, or `"p95_overlap"` (`KNOWN_VALUE_COLUMNS`; these 6 are the columns common to all 14 in-scope atlases - `buckner_7n`/`rojkova`/`yeh_hcp1065` additionally have `sum_atlas_in_tract`/`pwll_normalised`/`max_atlas_prob_in_overlap`/`continuous_dice`, not currently exposed here).
@@ -45,9 +47,9 @@ A subject is admitted into `X` only if it has **both**:
 
 Applied **after** `group_filter`, so a subject is never reported twice: an HC subject that also appears on the list is `excluded_by_group`, not `excluded_by_list`. `excluded_by_list` names only the subjects in scope for this run, never the whole file.
 
-`excluded_no_lesion_mask` tracks subjects with SDC output but no registered lesion mask (logged and persisted to `config.md`, never silently dropped or zero-filled); `sdc_not_yet_computed` tracks the opposite gap (a registered lesion mask but SDC not computed for that subject yet - not an error, just work not yet done upstream).
+`excluded_no_lesion_mask` tracks subjects with SDC output but no registered lesion mask (logged and persisted to `config.md`, never silently dropped or zero-filled); `csv_not_yet_computed` (`sdc_not_yet_computed` in the voxelwise and streamline builders) tracks the opposite gap (a registered lesion mask but SDC not computed for that subject yet - not an error, just work not yet done upstream).
 
-If the intersection is empty across every dataset, `build_sdc_matrix` raises `ValueError` rather than returning an empty matrix.
+If the intersection is empty across every dataset, `build_parcellated_matrix` raises `ValueError` rather than returning an empty matrix.
 
 ### Why `participants.tsv`, not `manual_masks/` on disk (found 27-08-26)
 
@@ -57,7 +59,7 @@ Fixed by resolving lesion-mask presence from `assets/metadata/participants.csv` 
 
 A full local run before this fix admitted 40/1151 subjects; after the fix, the same local run (SDC CSVs untouched, only the admission criterion changed) admits 1119/1151 - the remaining 32 exclusions are all genuine registry gaps (subject not flagged `has_lesion` in the registry), confirmed individually, not local-sampling artifacts.
 
-### Per-CSV validation (`_load_and_validate_csv`)
+### Per-CSV validation (`load_and_validate_csv`)
 
 For every admitted subject's CSV:
 - `region_name` column must be present.
@@ -65,13 +67,13 @@ For every admitted subject's CSV:
 - No duplicate `region_name` values (raise `ValueError` listing them - a duplicate would otherwise make `.set_index("region_name")` produce a non-unique index, and the resulting `.reindex()` failure is a confusing pandas `ValueError` that doesn't name the offending file).
 - Every `region_name` found must exist in the reference set (raise `ValueError` otherwise - see "Reference labels" above).
 
-A header-only (zero-row) CSV is a legitimate domain case handled by `_stack_aligned_matrix`: the subject's vector is all-zero, same result as if every reference region had been individually omitted.
+A header-only (zero-row) CSV is a legitimate domain case handled by `stack_aligned_matrix`: the subject's vector is all-zero, same result as if every reference region had been individually omitted.
 
 ## `build_sdc_voxelwise_matrix` — the voxel-wise representation (added 03/09)
 
 `build_sdc_voxelwise_matrix(data_root, datasets, object_, reference_template_path, resample_interpolation, group_filter, excluded_subjects) -> (X, metadata, non_constant_mask, excluded_by_group, excluded_by_list, excluded_no_lesion_mask, sdc_not_yet_computed)`
 
-Reads the `disconnectome-map` `.nii.gz` directly (`bcbtoolkit/*/*_res-1_desc-{object_}.nii.gz`) instead of the parcellated CSVs - the same pre-parcellation volume `build_sdc_matrix`'s CSVs are themselves derived from. Same admission criterion as `build_sdc_matrix` (a lesion mask registered in `assets/metadata/participants.csv`, not on the exclusion list, **and** the requested SDC file present) - both go through the same `_subjects_with_lesion_mask`.
+Reads the `disconnectome-map` `.nii.gz` directly (`bcbtoolkit/*/*_res-1_desc-{object_}.nii.gz`) instead of the parcellated CSVs - the same pre-parcellation volume `build_parcellated_matrix`'s CSVs are themselves derived from. Same admission criterion as `build_sdc_matrix` (a lesion mask registered in `assets/metadata/participants.csv`, not on the exclusion list, **and** the requested SDC file present) - both go through the same `_subjects_with_lesion_mask`.
 
 - **Deliberately restricted to `object_="disconnectome"`** - `object_="lesion"` raises `ValueError` immediately (both here and, redundantly, at config-load time - see below). The `lesion-map` `.nii.gz` (the resampled *input* lesion mask BCBToolKit used, not the real mask) would duplicate `build_lesion_matrix.py`'s own job from a less authoritative source; `manual_masks/` (via the `has_lesion` registry flag) stays the one place a lesion mask is built from.
 - **Never binarized** - disconnection values are a continuous [0, 1] probability, unlike `build_lesion_matrix.py`'s binary lesion mask. No `binarize_threshold` field exists for this representation.

@@ -6,6 +6,26 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 15-10-26 — `cluster_interpretation.ipynb` eliminato: la descrizione dei cluster passa in `clustering_evaluation` §4
+
+**Cosa è cambiato**: eliminato `notebooks/post-results_analysis/cluster_interpretation.ipynb`. Le sue tabelle per cluster (soggetti con il dato, media ± deviazione standard, mediana [Q1–Q3], percentuali per categoria, sulle variabili di `participants.csv`; carico di disconnessione per le run sdc) sono ora la sezione 4 di `clustering_evaluation.ipynb` (`describe_clusters`, `DESCRIBED_RUN`), che le mostra per una run alla volta con gli stessi numeri (verificato su `12-10_s1.4-vol_m_dice_nc10_k7_link_ward`, `03-09_s1.2-vol_m_euclidean_nc2_mcs100_ms20` e `30-09_s2.3-stream_k5_link_ward`). Le funzioni stanno nel notebook, come prima, non in `src/`.
+
+**Perché**: dopo la rimozione dei test (`methods_changelog.md`, 15-10-26) e della sezione «cluster contro resto» il notebook conteneva solo una descrizione per cluster, già vicina a quello che `clustering_evaluation` fa per le metriche. Il criterio empirica/interpretativa del 08-10-26 (`docs/guides/exploration.md`) non ha più un notebook interpretativo: l'interpretazione (mappe, soggetti rappresentativi, composizione, confronto tra cluster) vive nell'app Dash, e la sezione 4 è l'unica descrizione con variabili esterne nei notebook, senza test.
+
+**Alternative scartate**: tenere il notebook per le sole tabelle descrittive (un notebook per una sezione); una sezione 4 che descrive tutte le run caricate insieme (una decina di tabelle per run, illeggibile con molte run).
+
+**Conseguenza ancora vera**: il notebook è recuperabile da `git` (ultimo commit con il file: `439a709`). Le righe di `docs/guides/evaluation.md` sulle distanze nello spazio delle mappe e su A∩B, A\B, B\A non hanno più un notebook: sono previste e non implementate. Le voci precedenti di questo file e di `methods_changelog.md` che nominano `cluster_interpretation` descrivono il notebook com'era.
+
+## 15-10-26 — Logica dei CSV parcellati spostata in `src/features/parcellated_csv.py`; `build_lesion_matrix` guadagna `representation`
+
+**Cosa**: `build_sdc_matrix` (ora `build_parcellated_matrix`) e gli helper di ammissione dei soggetti (`registered_subjects`, `subjects_with_lesion_mask`, `discover_by_dataset`, `load_reference_regions`, `KNOWN_OBJECTS`, `KNOWN_VALUE_COLUMNS`, `BCBTOOLKIT_DIR`) escono da `src/features/sdc.py` e vanno in un modulo nuovo. `sdc.py` e la pipeline `build_lesion_matrix` lo importano entrambi. Il terzo ritorno di `build_parcellated_matrix` si chiama `csv_not_yet_computed` (era `sdc_not_yet_computed`).
+
+**Perché un modulo e non due copie**: `sdc.py` importa `src.features.lesion`, quindi `lesion.py` non poteva importare da `sdc.py` (circolare). Alternative scartate: delegare nel layer pipeline a `build_sdc_matrix(object_="lesion")` (la lesione parcellata userebbe lo scope di esclusione SDC e `lesion.py` non possederebbe la rappresentazione); copiare la logica.
+
+**Config**: `build_lesion_matrix.json` ha ora `representation` obbligatorio (`voxelwise` o `parcellated`, nessun default silenzioso); un campo dell'altra rappresentazione è rifiutato invece che ignorato. L'Embedding Explorer rifiuta un config lesione non voxelwise.
+
+**Stato**: la rappresentazione `parcellated` è implementata e testata (1421 passed al momento della modifica) ma non è mai stata eseguita su dati reali: l'utente ha messo in pausa la lesione parcellata il 15-10-26 prima di `s1.5`/`s2.5`. L'atlante `schaefer_300_tian_s2` ha il suo elenco regioni (`assets/atlases/sdc_labels/schaefer_300_tian_s2.csv`, 332 regioni, unione su 5853 CSV lesione e 5853 disconnettoma). Decisioni rimaste aperte: 716 soggetti con lesione non vuota ma zero regioni colpite (riga tutta a zero) restano nella matrice o escono con un nuovo scope; dove va il config di `s1.5`; `value_column` (`fraction_covered` è gonfiata nei dataset con maschere non binarie come PSP, `mean_overlap`/`sum_overlap` sono fuori scala per `sub-STUKLFR0088`). La rimozione del 25-08-26 era una scelta di scope dell'utente, non un bug (commit `2ed3dcb`); `management/notes/TODO.md`, citato dalla voce di allora, non esiste più.
+
 ## 15-10-26 — `clustering_evaluation`: tolti i grafici e il registro `produced_plots`
 
 La sezione 6 del notebook (6.1 plot prodotti da `clustering.py`, `cluster_plot.png` e `silhouette_plot.png`) e l'helper `plot_production_runs` sono stati tolti, con gli import `matplotlib`/`seaborn` e `%matplotlib inline`. Il notebook resta fatto di tabelle. Via anche la voce `produced_plots` di `EVALUATIONS` (nessun consumatore).
