@@ -102,7 +102,20 @@ Compare lo stesso `S²` in entrambe, quindi hanno **gli stessi autovalori non nu
 
 **Perché non si perde nulla.** Una tabella con *n* righe, dopo il centraggio, ha al massimo `n-1` componenti con varianza non nulla: le *p* dimensioni dei voxel non possono produrne di più. La matrice piccola contiene quindi tutta l'informazione utile.
 
-**Quando conviene.** Quando i campioni sono molto meno delle variabili (*n* ≪ *p*). Il metodo è noto come *metodo degli snapshot* o PCA duale.
+**Duale o sulla covarianza tra variabili.** Sono due strade per lo stesso risultato: stessi autovalori, stesse componenti. Il metodo degli snapshot, o PCA duale, parte dalla matrice *n* × *n* tra i soggetti; la strada classica parte dalla matrice *p* × *p* di covarianza tra le variabili.
+
+**Come si sceglie.** Si usa la matrice più piccola: il duale quando le variabili sono più dei soggetti (*p* > *n*), la covarianza tra variabili quando sono meno (*p* < *n*). La memoria cresce con il quadrato della dimensione della matrice scelta, quindi per matrici larghe come le nostre il duale è l'unico percorso praticabile.
+
+Matrici del progetto:
+
+| Sessione | Soggetti (*n*) | Variabili (*p*) | Percorso conveniente |
+|---|---|---|---|
+| `s1.4-vol` (lesione voxelwise) | 5845 | 221.955 | duale |
+| `s2.4-vol` (disconnettoma voxelwise) | 5845 | 291.345 | duale |
+| `s2.1-schaefer-200-tian-s2` (SDC parcellato) | 1119 | 232 | covarianza tra variabili |
+| `s2.4-stream` (SDC per tratto) | 5831 | 87 | covarianza tra variabili |
+
+**Cosa implementa il codice.** [`covariance_pca.py`](../../src/analysis/covariance_pca.py) implementa **solo il percorso duale**. Il percorso sulla covarianza tra variabili non è implementato: per le matrici con *p* < *n* (ultime due righe) la PCA passa oggi da `sklearn.decomposition.PCA`.
 
 **Cosa è verificato.**
 
