@@ -433,7 +433,7 @@ def test_build_sdc_voxelwise_matrix_preserves_continuous_values(tmp_path, _metad
     _register_lesion_mask(_metadata_root, "siteA", "sub-STUNIPD0002")
     _make_disconnectome_map(tmp_path, "siteA", "sub-STUNIPD0002", volume2)
 
-    X, metadata, non_constant_mask, excluded_by_group, _, excluded_no_lesion_mask, sdc_not_yet_computed = (
+    X, metadata, non_constant_mask, excluded_by_group, _, excluded_no_lesion_mask, sdc_not_yet_computed, _ = (
         build_sdc_voxelwise_matrix(
             data_root=tmp_path,
             datasets=["siteA"],
@@ -442,6 +442,8 @@ def test_build_sdc_voxelwise_matrix_preserves_continuous_values(tmp_path, _metad
             resample_interpolation="nearest",
             group_filter=None,
             excluded_subjects=frozenset(),
+            correct_out_of_brain=False,
+            brain_mask_path=None,
         )
     )
 
@@ -482,6 +484,8 @@ def test_build_sdc_voxelwise_matrix_resamples_when_grid_differs(tmp_path, _metad
         resample_interpolation="continuous",
         group_filter=None,
         excluded_subjects=frozenset(),
+        correct_out_of_brain=False,
+        brain_mask_path=None,
     )
 
     assert list(metadata["subject_id"]) == ["sub-STUNIPD0001", "sub-STUNIPD0002"]
@@ -501,7 +505,7 @@ def test_build_sdc_voxelwise_matrix_excludes_subject_without_lesion_mask(tmp_pat
     # sub-STUNIPD0002 has SDC output but is never registered as having a lesion mask
     _make_disconnectome_map(tmp_path, "siteA", "sub-STUNIPD0002", volume)
 
-    X, metadata, _, excluded_by_group, _, excluded_no_lesion_mask, sdc_not_yet_computed = build_sdc_voxelwise_matrix(
+    X, metadata, _, excluded_by_group, _, excluded_no_lesion_mask, sdc_not_yet_computed, _ = build_sdc_voxelwise_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
         object_="disconnectome",
@@ -509,6 +513,8 @@ def test_build_sdc_voxelwise_matrix_excludes_subject_without_lesion_mask(tmp_pat
         resample_interpolation="nearest",
         group_filter=None,
         excluded_subjects=frozenset(),
+        correct_out_of_brain=False,
+        brain_mask_path=None,
     )
 
     assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
@@ -533,6 +539,8 @@ def test_build_sdc_voxelwise_matrix_object_lesion_raises(tmp_path, _metadata_roo
             resample_interpolation="nearest",
             group_filter=None,
             excluded_subjects=frozenset(),
+            correct_out_of_brain=False,
+            brain_mask_path=None,
         )
 
 
@@ -550,7 +558,165 @@ def test_build_sdc_voxelwise_matrix_no_admitted_subjects_raises(tmp_path, _metad
             resample_interpolation="nearest",
             group_filter=None,
             excluded_subjects=frozenset(),
+            correct_out_of_brain=False,
+            brain_mask_path=None,
         )
+
+
+# --- correct_out_of_brain (added 16/10) -----------------------------------------------------------
+#
+# The reference grid is 4x4x4; the brain keeps only [1,1,1] and [2,2,2], so every other voxel is
+# out of brain and any probability there is tractography leaking past it.
+
+_BRAIN_VOXELS = [(1, 1, 1), (2, 2, 2)]
+
+
+def _make_brain_mask(path, voxels=_BRAIN_VOXELS):
+    mask = np.zeros(_VOXELWISE_SHAPE, dtype=np.float32)
+    for voxel in voxels:
+        mask[voxel] = 1
+    nib.save(nib.Nifti1Image(mask, _VOXELWISE_AFFINE), path)
+
+
+def _register_map(tmp_path, metadata_root, subject_id, entries, dataset="siteA"):
+    volume = np.zeros(_VOXELWISE_SHAPE, dtype=np.float32)
+    for voxel, value in entries.items():
+        volume[voxel] = value
+    _register_lesion_mask(metadata_root, dataset, subject_id)
+    _make_disconnectome_map(tmp_path, dataset, subject_id, volume)
+
+
+def _build_corrected(tmp_path, template_path, mask_path, correct=True, datasets=("siteA",)):
+    return build_sdc_voxelwise_matrix(
+        data_root=tmp_path,
+        datasets=list(datasets),
+        object_="disconnectome",
+        reference_template_path=template_path,
+        resample_interpolation="nearest",
+        group_filter=None,
+        excluded_subjects=frozenset(),
+        correct_out_of_brain=correct,
+        brain_mask_path=mask_path,
+    )
+
+
+def test_correct_out_of_brain_drops_the_out_of_brain_column_and_reports_the_mass_removed(tmp_path, _metadata_root):
+    """Regression for the SDC/lesion mismatch: without the correction a voxel outside the brain
+    that varies across subjects survives as a column (the old behaviour, kept when the flag is off);
+    with it the voxel is zeroed for everyone, becomes constant and disappears. Each row then sums
+    to the subject's in-brain mass - the quantity compute_sdc_metadata measures - and the report
+    carries the share of the mass removed, 0.4 and 1/3 here, nothing for the subject fully inside."""
+    template_path = tmp_path / "reference_template.nii.gz"
+    mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_voxelwise_reference_template(template_path)
+    _make_brain_mask(mask_path)
+    _register_map(tmp_path, _metadata_root, "sub-STUNIPD0001", {(1, 1, 1): 0.6, (0, 0, 0): 0.4})
+    _register_map(tmp_path, _metadata_root, "sub-STUNIPD0002", {(1, 1, 1): 0.2, (0, 0, 0): 0.1})
+    _register_map(tmp_path, _metadata_root, "sub-STUNIPD0003", {(1, 1, 1): 0.5, (2, 2, 2): 0.3})
+
+    X_off, _, mask_off, *_, corrected_off = _build_corrected(tmp_path, template_path, mask_path, correct=False)
+    X, metadata, mask, *_, corrected = _build_corrected(tmp_path, template_path, mask_path)
+
+    # Off: the out-of-brain voxel (0,0,0) varies (0.4/0.1/0), so it is a column - the old behaviour.
+    assert corrected_off == []
+    assert X_off.shape == (3, 3)
+    assert mask_off.reshape(_VOXELWISE_SHAPE)[0, 0, 0]
+    # On: (0,0,0) is zeroed for everyone and is gone; (2,2,2) is inside the brain and stays.
+    assert X.shape == (3, 2)
+    assert not mask.reshape(_VOXELWISE_SHAPE)[0, 0, 0]
+    assert mask.reshape(_VOXELWISE_SHAPE)[1, 1, 1] and mask.reshape(_VOXELWISE_SHAPE)[2, 2, 2]
+    np.testing.assert_allclose(X.sum(axis=1), [0.6, 0.2, 0.8], rtol=1e-6)
+    assert [subject_id for subject_id, *_ in corrected] == ["sub-STUNIPD0001", "sub-STUNIPD0002"]
+    assert [n for _, n, _ in corrected] == [1, 1]
+    np.testing.assert_allclose([fraction for *_, fraction in corrected], [0.4, 0.1 / 0.3], rtol=1e-6)
+
+
+def test_correct_out_of_brain_matches_zero_stack_then_drop_constant_columns(tmp_path, _metadata_root):
+    """Independent recomputation: stack every map, zero the voxels outside the brain, keep the
+    columns where min != max. Random maps and a random mask, so a voxel that varies only outside
+    the brain, one that varies only inside it and a constant one are all present - and both
+    passes of the two-pass build must have applied the same correction for this to match."""
+    rng = np.random.default_rng(3)
+    brain = rng.random(_VOXELWISE_SHAPE) > 0.5
+    template_path = tmp_path / "reference_template.nii.gz"
+    mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_voxelwise_reference_template(template_path)
+    nib.save(nib.Nifti1Image(brain.astype(np.float32), _VOXELWISE_AFFINE), mask_path)
+    volumes = []
+    for i in range(4):
+        subject_id = f"sub-STUNIPD{i:04d}"
+        volume = rng.random(_VOXELWISE_SHAPE).astype(np.float32)
+        volume[0, 0, 0] = 0.5
+        _register_lesion_mask(_metadata_root, "siteA", subject_id)
+        _make_disconnectome_map(tmp_path, "siteA", subject_id, volume)
+        volumes.append(volume)
+
+    X, _, mask, *_ = _build_corrected(tmp_path, template_path, mask_path)
+
+    stacked = np.stack([v.ravel() for v in volumes])
+    stacked[:, ~brain.ravel()] = 0
+    expected_mask = stacked.min(axis=0) != stacked.max(axis=0)
+    np.testing.assert_array_equal(mask, expected_mask)
+    np.testing.assert_array_equal(X, stacked[:, expected_mask])
+    assert not mask[~brain.ravel()].any()
+
+
+def test_correct_out_of_brain_without_a_brain_mask_raises(tmp_path, _metadata_root):
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_voxelwise_reference_template(template_path)
+    _register_map(tmp_path, _metadata_root, "sub-STUNIPD0001", {(1, 1, 1): 0.6})
+
+    with pytest.raises(ValueError, match="brain_mask_path is None"):
+        _build_corrected(tmp_path, template_path, None)
+
+
+def test_correct_out_of_brain_with_a_missing_brain_mask_file_raises(tmp_path, _metadata_root):
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_voxelwise_reference_template(template_path)
+    _register_map(tmp_path, _metadata_root, "sub-STUNIPD0001", {(1, 1, 1): 0.6})
+
+    with pytest.raises(FileNotFoundError, match="brain_mask_path not found"):
+        _build_corrected(tmp_path, template_path, tmp_path / "nope.nii.gz")
+
+
+def test_correct_out_of_brain_with_an_empty_brain_mask_raises(tmp_path, _metadata_root):
+    """An empty mask would zero every voxel of every subject - never a correction anyone meant."""
+    template_path = tmp_path / "reference_template.nii.gz"
+    mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_voxelwise_reference_template(template_path)
+    _make_brain_mask(mask_path, voxels=[])
+    _register_map(tmp_path, _metadata_root, "sub-STUNIPD0001", {(1, 1, 1): 0.6})
+
+    with pytest.raises(ValueError, match="no voxel inside it"):
+        _build_corrected(tmp_path, template_path, mask_path)
+
+
+def test_correct_out_of_brain_raises_when_every_variation_was_out_of_brain(tmp_path, _metadata_root):
+    """All the variation sits outside the brain, so correcting leaves every column constant: a
+    0-column matrix, not something to write as if it were a result."""
+    template_path = tmp_path / "reference_template.nii.gz"
+    mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_voxelwise_reference_template(template_path)
+    _make_brain_mask(mask_path)
+    _register_map(tmp_path, _metadata_root, "sub-STUNIPD0001", {(0, 0, 0): 0.4})
+    _register_map(tmp_path, _metadata_root, "sub-STUNIPD0002", {(0, 0, 0): 0.1})
+
+    with pytest.raises(ValueError, match="every voxel is constant"):
+        _build_corrected(tmp_path, template_path, mask_path)
+
+
+@pytest.mark.parametrize("bad_value", [np.nan, -0.1])
+def test_correct_out_of_brain_rejects_a_map_whose_mass_is_undefined(tmp_path, _metadata_root, bad_value):
+    """The mass share is only defined for a finite, non-negative field: a NaN or a negative value
+    must stop the run, not turn the reported fraction into NaN or a number above 1."""
+    template_path = tmp_path / "reference_template.nii.gz"
+    mask_path = tmp_path / "brain_mask.nii.gz"
+    _make_voxelwise_reference_template(template_path)
+    _make_brain_mask(mask_path)
+    _register_map(tmp_path, _metadata_root, "sub-STUNIPD0001", {(1, 1, 1): 0.6, (0, 0, 0): bad_value})
+
+    with pytest.raises(ValueError, match="finite, non-negative"):
+        _build_corrected(tmp_path, template_path, mask_path)
 
 
 # --- the shared hand-curated exclusion list ------------------------------------------------------
@@ -565,6 +731,8 @@ def _build_voxelwise(tmp_path, template_path):
         resample_interpolation="nearest",
         group_filter=None,
         excluded_subjects=frozenset(),
+        correct_out_of_brain=False,
+        brain_mask_path=None,
     )
 
 
@@ -630,6 +798,8 @@ def test_build_sdc_voxelwise_matrix_never_holds_the_full_voxel_matrix_in_memory(
             resample_interpolation="nearest",
             group_filter=None,
             excluded_subjects=frozenset(),
+            correct_out_of_brain=False,
+            brain_mask_path=None,
         )
         _, peak_bytes = tracemalloc.get_traced_memory()
     finally:
@@ -680,7 +850,7 @@ def test_build_sdc_voxelwise_matrix_applies_the_excluded_subjects_list(tmp_path,
         _register_lesion_mask(_metadata_root, "siteA", subject_id)
         _make_disconnectome_map(tmp_path, "siteA", subject_id, volume)
 
-    X, metadata, _, _, excluded_by_list, _, _ = build_sdc_voxelwise_matrix(
+    X, metadata, _, _, excluded_by_list, _, _, _ = build_sdc_voxelwise_matrix(
         data_root=tmp_path,
         datasets=["siteA"],
         object_="disconnectome",
@@ -688,6 +858,8 @@ def test_build_sdc_voxelwise_matrix_applies_the_excluded_subjects_list(tmp_path,
         resample_interpolation="nearest",
         group_filter=None,
         excluded_subjects=frozenset({"sub-STUNIPD0002"}),
+        correct_out_of_brain=False,
+        brain_mask_path=None,
     )
 
     assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
@@ -915,12 +1087,14 @@ def test_excluded_subject_is_not_also_reported_as_missing_its_lesion_mask(tmp_pa
         "parcellated": build_parcellated_matrix(
             object_=_OBJECT, atlas=_ATLAS, value_column=_VALUE_COLUMN, reference_labels_path=labels, **common),
         "voxelwise": build_sdc_voxelwise_matrix(
-            object_=_OBJECT, reference_template_path=template, resample_interpolation="nearest", **common),
+            object_=_OBJECT, reference_template_path=template, resample_interpolation="nearest",
+            correct_out_of_brain=False, brain_mask_path=None, **common),
         "streamline": build_sdc_streamline_matrix(
             object_="lesion", reference_labels_path=tracts, **common),
     }
 
-    for name, (_, _, _, _, excluded_by_list, excluded_no_lesion_mask, _) in results.items():
+    for name, result in results.items():
+        excluded_by_list, excluded_no_lesion_mask = result[4], result[5]
         assert excluded_by_list == ["sub-STUNIPD0002"], name
         assert excluded_no_lesion_mask == [], name
 

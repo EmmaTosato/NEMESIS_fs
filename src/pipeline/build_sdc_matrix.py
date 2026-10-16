@@ -8,7 +8,9 @@ src.analysis.build_config.load_build_sdc_matrix_config / src/features/sdc.py):
 "parcellated" (build_sdc_matrix, the original one, per-atlas region CSVs),
 "voxelwise" (build_sdc_voxelwise_matrix, added 03/09, the disconnectome-map
 .nii.gz directly) or "streamline" (build_sdc_streamline_matrix, added 30/09,
-one streamline_ratio per white matter tract). Same shape as
+one streamline_ratio per white matter tract). The voxelwise one can zero the voxels outside
+the brain (`correct_out_of_brain`, added 16/10) and then also reports, in config.md, the
+subjects that were corrected and the share of their mass removed. Same shape as
 build_lesion_matrix.py in every case:
 either builder succeeds for the admitted subjects or raises - no per-subject
 error accumulation beyond the two explicit exclusion lists both builders
@@ -79,6 +81,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         excluded_ids = frozenset(excluded_subjects["subject_id"])
 
+        # Only the voxelwise representation corrects anything: the other two never touch a voxel.
+        corrected_subjects: list[tuple[str, int, float]] = []
         try:
             if config.representation == "parcellated":
                 (
@@ -109,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 (
                     X, metadata, column_labels, excluded_by_group, excluded_by_list,
-                    excluded_no_lesion_mask, sdc_not_yet_computed,
+                    excluded_no_lesion_mask, sdc_not_yet_computed, corrected_subjects,
                 ) = build_sdc_voxelwise_matrix(
                     data_root=config.data_root,
                     datasets=config.datasets,
@@ -118,6 +122,8 @@ def main(argv: list[str] | None = None) -> int:
                     resample_interpolation=config.resample_interpolation,
                     group_filter=config.group_filter,
                     excluded_subjects=excluded_ids,
+                    correct_out_of_brain=config.correct_out_of_brain,
+                    brain_mask_path=config.brain_mask_path,
                 )
         except (FileNotFoundError, ValueError, nib.filebasedimages.ImageFileError) as exc:
             # ImageFileError (voxelwise only): a truncated/corrupt .nii.gz raises this from
@@ -136,6 +142,12 @@ def main(argv: list[str] | None = None) -> int:
             logging.info(
                 "%d subject(s) excluded by %s: %s",
                 len(excluded_by_list), config.excluded_subjects_path, excluded_by_list,
+            )
+        if corrected_subjects:
+            logging.info(
+                "%d subject(s) corrected by correct_out_of_brain (subject_id, n_voxels_corrected, "
+                "mass_removed_fraction): %s",
+                len(corrected_subjects), corrected_subjects,
             )
         if excluded_no_lesion_mask:
             logging.info(
@@ -158,7 +170,7 @@ def main(argv: list[str] | None = None) -> int:
                 metadata,
                 _build_readme_lines(
                     config, X, metadata, excluded_by_group, excluded_by_list,
-                    excluded_no_lesion_mask, sdc_not_yet_computed, now,
+                    excluded_no_lesion_mask, sdc_not_yet_computed, corrected_subjects, now,
                 ),
                 overwrite=config.overwrite,
                 extra_arrays=extra_arrays,
@@ -171,7 +183,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             report_path = _write_report(
                 config, X, metadata, excluded_by_group, excluded_by_list,
-                excluded_no_lesion_mask, sdc_not_yet_computed, now,
+                excluded_no_lesion_mask, sdc_not_yet_computed, corrected_subjects, now,
             )
             append_run_log_entry(
                 config.output_root,
@@ -278,6 +290,8 @@ def _config_summary(config: SdcMatrixConfig) -> str:
     else:
         payload["reference_template_path"] = str(config.reference_template_path)
         payload["resample_interpolation"] = config.resample_interpolation
+        payload["correct_out_of_brain"] = config.correct_out_of_brain
+        payload["brain_mask_path"] = str(config.brain_mask_path) if config.brain_mask_path is not None else None
     return json.dumps(payload, indent=2)
 
 
@@ -286,7 +300,11 @@ def _params_used(config: SdcMatrixConfig) -> dict:
         return {"object": config.object, "atlas": config.atlas, "value_column": config.value_column}
     if config.representation == "streamline":
         return {"object": config.object, "representation": config.representation, "atlas": config.atlas}
-    return {"object": config.object, "representation": config.representation}
+    return {
+        "object": config.object,
+        "representation": config.representation,
+        "correct_out_of_brain": config.correct_out_of_brain,
+    }
 
 
 def _summary_lines(
@@ -297,6 +315,7 @@ def _summary_lines(
     excluded_by_list: list[str],
     excluded_no_lesion_mask: list[str],
     sdc_not_yet_computed: list[str],
+    corrected_subjects: list[tuple[str, int, float]],
 ) -> list[str]:
     lines = ["## Config", "", "```json", _config_summary(config), "```", "", "## Summary", ""]
     lines.append(f"Matrix shape: {X.shape[0]} subjects x {X.shape[1]} {_column_kind(config)}")
@@ -318,6 +337,9 @@ def _summary_lines(
     else:
         lines.append("None.")
 
+    if config.representation == "voxelwise":
+        lines += _corrected_section(config, corrected_subjects, X.shape[0])
+
     lines += ["", "## Excluded (SDC output present but no lesion mask)", ""]
     if excluded_no_lesion_mask:
         lines.append(f"{len(excluded_no_lesion_mask)} subject(s):")
@@ -335,6 +357,31 @@ def _summary_lines(
     return lines
 
 
+def _corrected_section(
+    config: SdcMatrixConfig, corrected_subjects: list[tuple[str, int, float]], n_subjects: int
+) -> list[str]:
+    """The subjects correct_out_of_brain touched, each with how many voxels and what share of its
+    map's mass was zeroed - listed in full, never truncated, like the lesion matrix's own section.
+
+    The mass fraction is what tells a leak of a fraction of a percent (the median) from a map
+    that is largely outside the brain; a voxel count alone cannot, the map being continuous."""
+    lines = ["", "## Corrected by correct_out_of_brain", ""]
+    if not config.correct_out_of_brain:
+        return lines + ["Off (correct_out_of_brain=false): no voxel was zeroed."]
+    if not corrected_subjects:
+        return lines + ["None."]
+    fractions = np.array([fraction for _, _, fraction in corrected_subjects])
+    lines.append(
+        f"{len(corrected_subjects)} of {n_subjects} subject(s) had out-of-brain voxels zeroed "
+        f"(share of the map's mass removed: median {np.median(fractions):.4%}, max {fractions.max():.4%}):"
+    )
+    lines += [
+        f"- {subject_id} (n_voxels_corrected={n_voxels}, mass_removed={fraction:.4%})"
+        for subject_id, n_voxels, fraction in corrected_subjects
+    ]
+    return lines
+
+
 def _build_readme_lines(
     config: SdcMatrixConfig,
     X: np.ndarray,
@@ -343,11 +390,12 @@ def _build_readme_lines(
     excluded_by_list: list[str],
     excluded_no_lesion_mask: list[str],
     sdc_not_yet_computed: list[str],
+    corrected_subjects: list[tuple[str, int, float]],
     now: datetime,
 ) -> list[str]:
     return [f"# {config.project} sdc matrix — {now.strftime('%d-%m-%y %H:%M')}", ""] + _summary_lines(
         config, X, metadata, excluded_by_group, excluded_by_list, excluded_no_lesion_mask,
-        sdc_not_yet_computed,
+        sdc_not_yet_computed, corrected_subjects,
     )
 
 
@@ -359,11 +407,12 @@ def _build_report(
     excluded_by_list: list[str],
     excluded_no_lesion_mask: list[str],
     sdc_not_yet_computed: list[str],
+    corrected_subjects: list[tuple[str, int, float]],
     now: datetime,
 ) -> str:
     lines = [f"# {config.project}_{now.strftime('%d-%m-%y')}", f"## {now.strftime('%H:%M')}", ""] + _summary_lines(
         config, X, metadata, excluded_by_group, excluded_by_list, excluded_no_lesion_mask,
-        sdc_not_yet_computed,
+        sdc_not_yet_computed, corrected_subjects,
     )
     return "\n".join(lines)
 
@@ -376,6 +425,7 @@ def _write_report(
     excluded_by_list: list[str],
     excluded_no_lesion_mask: list[str],
     sdc_not_yet_computed: list[str],
+    corrected_subjects: list[tuple[str, int, float]],
     now: datetime,
 ) -> Path:
     report_dir = REPORTS_ROOT / config.project
@@ -384,7 +434,7 @@ def _write_report(
     report_path.write_text(
         _build_report(
             config, X, metadata, excluded_by_group, excluded_by_list, excluded_no_lesion_mask,
-            sdc_not_yet_computed, now,
+            sdc_not_yet_computed, corrected_subjects, now,
         )
     )
     return report_path

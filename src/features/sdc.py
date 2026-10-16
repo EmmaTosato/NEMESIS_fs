@@ -12,7 +12,11 @@ The voxel-wise representation (`build_sdc_voxelwise_matrix`, added
 files above are themselves derived from) - same resampling-onto-a-common-grid
 approach as `src/features/lesion.py`'s voxel-wise lesion matrix, but the
 disconnectome values are a **continuous** [0, 1] probability, never
-binarized (unlike a lesion mask). Deliberately restricted to
+binarized (unlike a lesion mask). `correct_out_of_brain` (added 16/10) zeroes the
+voxels outside a brain mask after resampling and keeps the subject, as in the lesion
+matrix: tractography leaks past the brain (median 0.80% of a map's mass, up to 15.3% over the 5845-subject cohort),
+and without the correction the matrix and `compute_sdc_metadata`'s disconnection load
+(which sums only inside the brain) would not describe the same quantity. Deliberately restricted to
 `object_="disconnectome"` only: the equivalent for `object_="lesion"` (the
 `lesion-map` .nii.gz, itself just the resampled input lesion mask BCBToolKit
 used) would duplicate `build_lesion_matrix.py`'s own job from a different,
@@ -56,6 +60,7 @@ import pandas as pd
 from nilearn.image import resample_to_img
 
 from src.features.lesion import LesionGrid, load_brain_mask, load_reference_image, validate_lesion_grids
+from src.features.lesion_correction import zero_out_of_brain_voxels
 from src.features.parcellated_csv import (
     BCBTOOLKIT_DIR,
     discover_by_dataset,
@@ -101,7 +106,9 @@ def build_sdc_voxelwise_matrix(
     resample_interpolation: str,
     group_filter: list[str] | None,
     excluded_subjects: frozenset[str],
-) -> tuple[np.ndarray, pd.DataFrame, np.ndarray, list[str], list[str], list[str], list[str]]:
+    correct_out_of_brain: bool,
+    brain_mask_path: Path | None,
+) -> tuple[np.ndarray, pd.DataFrame, np.ndarray, list[str], list[str], list[str], list[str], list[tuple[str, int, float]]]:
     """Build X (n_subjects x n_voxels) from the `disconnectome-map` .nii.gz -
     the pre-parcellation volume `build_parcellated_matrix`'s CSVs are themselves
     derived from. Continuous [0, 1] disconnection probability per voxel,
@@ -111,12 +118,26 @@ def build_sdc_voxelwise_matrix(
     assets/metadata/participants.csv (has_lesion), not on the hand-curated
     exclusion list, AND the requested SDC file present), and the same
     constant-column drop as
-    build_lesion_matrix.py (voxels outside every admitted subject's brain
-    are identically 0.0 - dropped to keep X a manageable size, recoverable
-    via non_constant_mask).
+    build_lesion_matrix.py (voxels that are identically 0.0 for every admitted
+    subject - dropped to keep X a manageable size, recoverable via
+    non_constant_mask).
+
+    correct_out_of_brain zeroes every voxel outside the brain mask, after the map is
+    resampled onto the reference grid and BEFORE the constant-column drop (both passes of
+    `_stack_voxelwise_matrix`), so an out-of-brain voxel becomes a constant column and
+    disappears. Without it, tractography that leaves the brain survives as columns: on the
+    5845-subject cohort, 64110 of the 291345 non-constant columns lie outside the 2mm brain
+    mask. brain_mask_path is required exactly when the flag is set and must be on (or
+    nearest-resampled to) the reference grid, see `load_brain_mask`.
 
     Returns (X, metadata, non_constant_mask, excluded_by_group,
-    excluded_by_list, excluded_no_lesion_mask, sdc_not_yet_computed).
+    excluded_by_list, excluded_no_lesion_mask, sdc_not_yet_computed,
+    corrected_subjects). corrected_subjects is (subject_id, n_voxels_corrected,
+    mass_removed_fraction) triples, sorted by subject_id - empty when the flag is off, and
+    only the subjects that actually had a voxel zeroed when it is on. The map is a
+    continuous probability, so the share of its mass that was removed (sum of the
+    probability outside the brain / sum overall) says how much was lost, which a voxel
+    count alone does not.
     """
     if object_ not in _VOXELWISE_SUPPORTED_OBJECTS:
         raise ValueError(
@@ -154,11 +175,45 @@ def build_sdc_voxelwise_matrix(
         )
 
     reference_img = load_reference_image(reference_template_path)
-    X, metadata, non_constant_mask = _stack_voxelwise_matrix(admitted, reference_img, resample_interpolation)
+    brain_mask = _brain_mask_for_correction(correct_out_of_brain, brain_mask_path, reference_img)
+    X, metadata, non_constant_mask, corrected_subjects = _stack_voxelwise_matrix(
+        admitted, reference_img, resample_interpolation, brain_mask
+    )
+    if correct_out_of_brain and X.shape[1] == 0:
+        # Only here: with the flag off the matrix is what it has always been; with it on, an empty
+        # result means the brain mask removed every voxel that varied - a wrong mask, not a result.
+        raise ValueError(
+            f"every voxel is constant across the {X.shape[0]} admitted subject(s) once the voxels "
+            f"outside {brain_mask_path} are zeroed - the matrix would have no column"
+        )
     return (
         X, metadata, non_constant_mask, excluded_by_group, excluded_by_list,
-        sorted(excluded_no_lesion_mask), sorted(sdc_not_yet_computed),
+        sorted(excluded_no_lesion_mask), sorted(sdc_not_yet_computed), corrected_subjects,
     )
+
+
+def _brain_mask_for_correction(
+    correct_out_of_brain: bool, brain_mask_path: Path | None, reference_img: nib.Nifti1Image
+) -> np.ndarray | None:
+    """The boolean brain mask on the reference grid when the correction is on, None when it is off.
+
+    Raises when the flag is set without a mask (a correction that silently did nothing would
+    leave a run looking corrected when it is not), when the mask is empty (it would zero every
+    voxel of every subject) and, through `load_brain_mask`, when the file is missing."""
+    if not correct_out_of_brain:
+        return None
+    if brain_mask_path is None:
+        raise ValueError(
+            "correct_out_of_brain is set but brain_mask_path is None - "
+            "cannot zero out-of-brain voxels without a brain mask"
+        )
+    brain_mask = load_brain_mask(brain_mask_path, reference_img)
+    if not brain_mask.any():
+        raise ValueError(
+            f"brain_mask_path {brain_mask_path} has no voxel inside it on the reference grid - "
+            "correct_out_of_brain would zero every voxel of every subject"
+        )
+    return brain_mask
 
 
 def build_sdc_streamline_matrix(
@@ -464,13 +519,40 @@ def _stack_streamline_matrix(
 
 
 def _load_disconnectome_voxels(
-    path: Path, reference_img: nib.Nifti1Image, resample_interpolation: str
-) -> np.ndarray:
+    path: Path, reference_img: nib.Nifti1Image, resample_interpolation: str, brain_mask: np.ndarray | None
+) -> tuple[np.ndarray, int, float]:
     """Load one subject's disconnectome-map, resampled onto reference_img's
     grid if needed, flattened to float32 - never binarized (continuous [0, 1]
     disconnection probability, unlike src/features/lesion.py's
-    _load_and_binarize_lesion)."""
-    return _disconnectome_values(nib.load(path), reference_img, resample_interpolation)
+    _load_and_binarize_lesion). With a brain_mask, the voxels outside it are zeroed.
+
+    Returns (voxels, n_voxels_corrected, mass_removed_fraction), the last two (0, 0.0) when
+    brain_mask is None or the map has nothing outside it."""
+    voxels = _disconnectome_values(nib.load(path), reference_img, resample_interpolation)
+    if brain_mask is None:
+        return voxels, 0, 0.0
+    return _zero_out_of_brain(voxels, brain_mask, path)
+
+
+def _zero_out_of_brain(voxels: np.ndarray, brain_mask: np.ndarray, path: Path) -> tuple[np.ndarray, int, float]:
+    """One map with its out-of-brain voxels zeroed (`zero_out_of_brain_voxels`), the count of
+    voxels that were zeroed, and the fraction of the map's mass they held.
+
+    Raises for a non-finite or negative value: the mass fraction is only defined for a
+    non-negative, finite field, and a NaN would silently turn it into NaN."""
+    if not np.isfinite(voxels).all() or voxels.min() < 0.0:
+        raise ValueError(
+            f"{path}: disconnectome values are not a finite, non-negative field "
+            f"(min={voxels.min()}, finite={bool(np.isfinite(voxels).all())}) - "
+            "cannot compute the mass removed by correct_out_of_brain"
+        )
+    corrected, n_corrected_voxels = zero_out_of_brain_voxels(voxels[None, :], brain_mask)
+    n_voxels = int(n_corrected_voxels[0])
+    if n_voxels == 0:
+        return voxels, 0, 0.0
+    removed_mass = float(voxels[~brain_mask].sum(dtype=np.float64))
+    total_mass = float(voxels.sum(dtype=np.float64))
+    return corrected[0], n_voxels, removed_mass / total_mass
 
 
 def _disconnectome_values(
@@ -486,25 +568,37 @@ def _disconnectome_values(
 
 
 def _stack_voxelwise_matrix(
-    admitted: dict[tuple[str, str], Path], reference_img: nib.Nifti1Image, resample_interpolation: str
-) -> tuple[np.ndarray, pd.DataFrame, np.ndarray]:
-    """X (n_subjects x n_non_constant_voxels), metadata and the boolean non-constant mask over
-    the full reference grid, built in two passes over the maps so that the full
-    n_subjects x n_grid_voxels matrix is never held in memory.
+    admitted: dict[tuple[str, str], Path],
+    reference_img: nib.Nifti1Image,
+    resample_interpolation: str,
+    brain_mask: np.ndarray | None,
+) -> tuple[np.ndarray, pd.DataFrame, np.ndarray, list[tuple[str, int, float]]]:
+    """X (n_subjects x n_non_constant_voxels), metadata, the boolean non-constant mask over
+    the full reference grid and the (subject_id, n_voxels_corrected, mass_removed_fraction)
+    triples of the subjects the out-of-brain correction touched, built in two passes over the
+    maps so that the full n_subjects x n_grid_voxels matrix is never held in memory.
 
     Pass 1 reads every map and keeps only the running per-voxel min and max; a voxel is constant
     when they are equal (NaN never equals itself, so a NaN voxel is kept - the same outcome as
     `X.min(axis=0) != X.max(axis=0)` on the stacked matrix). Pass 2 reads every map again and
     writes only the kept voxels into a preallocated array. Both passes walk the same sorted
-    order, so row i is the same subject in both.
+    order, so row i is the same subject in both, and both apply the same out-of-brain
+    correction (brain_mask, when given) before anything is compared or stored: the mask that
+    decides which columns are constant must be the one on the values that fill them.
     """
     ordered = sorted(admitted.items())
     paths = [path for _, path in ordered]
-    non_constant_mask = _non_constant_voxel_mask(paths, reference_img, resample_interpolation)
+    non_constant_mask = _non_constant_voxel_mask(paths, reference_img, resample_interpolation, brain_mask)
 
     X = np.empty((len(paths), int(non_constant_mask.sum())), dtype=np.float32)
-    for row, path in enumerate(paths):
-        X[row] = _load_disconnectome_voxels(path, reference_img, resample_interpolation)[non_constant_mask]
+    corrected_subjects: list[tuple[str, int, float]] = []
+    for row, ((_, subject_id), path) in enumerate(ordered):
+        voxels, n_voxels_corrected, mass_removed = _load_disconnectome_voxels(
+            path, reference_img, resample_interpolation, brain_mask
+        )
+        X[row] = voxels[non_constant_mask]
+        if n_voxels_corrected > 0:
+            corrected_subjects.append((subject_id, n_voxels_corrected, mass_removed))
 
     metadata = pd.DataFrame(
         {
@@ -512,16 +606,16 @@ def _stack_voxelwise_matrix(
             "dataset": [dataset for (dataset, _), _ in ordered],
         }
     )
-    return X, metadata, non_constant_mask
+    return X, metadata, non_constant_mask, sorted(corrected_subjects)
 
 
 def _non_constant_voxel_mask(
-    paths: list[Path], reference_img: nib.Nifti1Image, resample_interpolation: str
+    paths: list[Path], reference_img: nib.Nifti1Image, resample_interpolation: str, brain_mask: np.ndarray | None
 ) -> np.ndarray:
     lowest: np.ndarray | None = None
     highest: np.ndarray | None = None
     for path in paths:
-        voxels = _load_disconnectome_voxels(path, reference_img, resample_interpolation)
+        voxels, _, _ = _load_disconnectome_voxels(path, reference_img, resample_interpolation, brain_mask)
         if lowest is None or highest is None:
             lowest, highest = voxels.copy(), voxels.copy()
         else:

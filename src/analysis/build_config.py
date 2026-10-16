@@ -349,6 +349,10 @@ class SdcMatrixConfig:
     # voxelwise-only (None for both other representations)
     reference_template_path: Path | None
     resample_interpolation: str | None
+    # voxelwise-only: False/None for both other representations (a flag set there is rejected at
+    # load). brain_mask_path is required exactly when correct_out_of_brain is True.
+    correct_out_of_brain: bool
+    brain_mask_path: Path | None
     output_root: Path
     session_name: str
     overwrite: bool
@@ -367,7 +371,12 @@ def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
     - "voxelwise": reference_template_path, resample_interpolation - same
       field names as build_lesion_matrix.json's own voxel-wise config, no
       binarize_threshold (disconnectome values are continuous, never
-      binarized - see src.features.sdc.build_sdc_voxelwise_matrix).
+      binarized - see src.features.sdc.build_sdc_voxelwise_matrix) - and
+      optionally correct_out_of_brain (False when absent) with brain_mask_path,
+      required exactly when it is set, same convention as build_lesion_matrix.json.
+      Both are rejected on the other two representations when they would act:
+      `correct_out_of_brain: true` or a `brain_mask_path` there would otherwise be
+      ignored and leave a run looking corrected when it is not.
     - "streamline": reference_labels_path only. No atlas (there is exactly
       one streamline file per subject, so the field would carry no choice -
       it is pinned to src.features.sdc.STREAMLINE_ATLAS) and no value_column
@@ -417,6 +426,20 @@ def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
             f"{STREAMLINE_ATLAS} CSV only in the LF-lesion family, got object={object_!r}"
         )
 
+    correct_out_of_brain = _optional_bool(raw, "correct_out_of_brain")
+    brain_mask_path_raw = _optional_str(raw, "brain_mask_path")
+    if representation != "voxelwise":
+        if correct_out_of_brain or brain_mask_path_raw is not None:
+            raise ValueError(
+                f"config: correct_out_of_brain/brain_mask_path are only read by representation='voxelwise' "
+                f"(got representation={representation!r}, correct_out_of_brain={correct_out_of_brain}, "
+                f"brain_mask_path={brain_mask_path_raw!r}) - remove them, a correction that is not "
+                "applied must not look as if it were"
+            )
+    elif correct_out_of_brain and brain_mask_path_raw is None:
+        raise ValueError("config: correct_out_of_brain is set but brain_mask_path is missing")
+    brain_mask_path = Path(brain_mask_path_raw) if brain_mask_path_raw is not None else None
+
     if representation == "parcellated":
         value_column = _require_str(raw, "value_column")
         if value_column not in KNOWN_VALUE_COLUMNS:
@@ -456,6 +479,8 @@ def load_build_sdc_matrix_config(path: str | Path) -> SdcMatrixConfig:
         reference_labels_path=reference_labels_path,
         reference_template_path=reference_template_path,
         resample_interpolation=resample_interpolation,
+        correct_out_of_brain=correct_out_of_brain,
+        brain_mask_path=brain_mask_path,
         output_root=Path(_require_str(raw, "output_root")),
         session_name=_require_str(raw, "session_name"),
         overwrite=_require_bool(raw, "overwrite"),

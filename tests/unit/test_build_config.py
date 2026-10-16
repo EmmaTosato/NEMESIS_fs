@@ -7,6 +7,7 @@ import pytest
 from src.analysis.build_config import (
     load_build_fc_matrix_config,
     load_build_matrix_config,
+    load_build_sdc_matrix_config,
     load_compute_sdc_metadata_config,
     load_mask_fc_config,
 )
@@ -437,3 +438,88 @@ def test_compute_sdc_metadata_config_invalid_raises_value_error(tmp_path, overri
 def test_compute_sdc_metadata_config_missing_file_raises(tmp_path):
     with pytest.raises(FileNotFoundError, match="config file not found"):
         load_compute_sdc_metadata_config(tmp_path / "nope.json")
+
+
+# --- build_sdc_matrix.json: correct_out_of_brain / brain_mask_path ------------------------------------------
+
+_SDC_BASE = {
+    "project": "clinical_connectome",
+    "data_root": "data/clinical_connectome/derivatives",
+    "datasets": ["UNIPD/WashU"],
+    "excluded_subjects_path": "assets/metadata/excluded_subjects.csv",
+    "output_root": "data/derived/sdc_matrix",
+    "session_name": "run1",
+    "overwrite": False,
+}
+_SDC_VOXELWISE = {
+    "object": "disconnectome",
+    "representation": "voxelwise",
+    "reference_template_path": "assets/templates/tpl-MNI152NLin6Asym_res-2_T1w.nii.gz",
+    "resample_interpolation": "nearest",
+}
+_SDC_STREAMLINE = {
+    "object": "lesion",
+    "representation": "streamline",
+    "reference_labels_path": "assets/atlases/sdc_labels/yeh_hcp1065_streamline.csv",
+}
+_SDC_PARCELLATED = {
+    "object": "disconnectome",
+    "representation": "parcellated",
+    "atlas": "schaefer_200_tian_s2",
+    "value_column": "mean_overlap",
+    "reference_labels_path": "assets/atlases/sdc_labels/schaefer_200_tian_s2.csv",
+}
+_BRAIN_MASK = "assets/templates/tpl-MNI152NLin6Asym_res-2_desc-brain_mask.nii.gz"
+
+
+def _write_sdc(tmp_path, representation_fields, overrides=None):
+    path = tmp_path / "sdc_cfg.json"
+    path.write_text(json.dumps({**_SDC_BASE, **representation_fields, **(overrides or {})}))
+    return path
+
+
+def test_sdc_voxelwise_config_correction_defaults_to_off(tmp_path):
+    config = load_build_sdc_matrix_config(_write_sdc(tmp_path, _SDC_VOXELWISE))
+    assert config.correct_out_of_brain is False
+    assert config.brain_mask_path is None
+
+
+def test_sdc_voxelwise_config_with_correction_reads_the_brain_mask(tmp_path):
+    config = load_build_sdc_matrix_config(
+        _write_sdc(tmp_path, _SDC_VOXELWISE, {"correct_out_of_brain": True, "brain_mask_path": _BRAIN_MASK})
+    )
+    assert config.correct_out_of_brain is True
+    assert str(config.brain_mask_path) == _BRAIN_MASK
+
+
+def test_sdc_voxelwise_config_correction_without_brain_mask_raises(tmp_path):
+    with pytest.raises(ValueError, match="brain_mask_path is missing"):
+        load_build_sdc_matrix_config(_write_sdc(tmp_path, _SDC_VOXELWISE, {"correct_out_of_brain": True}))
+
+
+def test_sdc_voxelwise_config_correction_must_be_a_boolean(tmp_path):
+    with pytest.raises(ValueError, match="must be a boolean"):
+        load_build_sdc_matrix_config(
+            _write_sdc(tmp_path, _SDC_VOXELWISE, {"correct_out_of_brain": "yes", "brain_mask_path": _BRAIN_MASK})
+        )
+
+
+@pytest.mark.parametrize("fields", [_SDC_STREAMLINE, _SDC_PARCELLATED], ids=["streamline", "parcellated"])
+@pytest.mark.parametrize(
+    "overrides",
+    [{"correct_out_of_brain": True}, {"correct_out_of_brain": True, "brain_mask_path": _BRAIN_MASK},
+     {"brain_mask_path": _BRAIN_MASK}],
+    ids=["flag", "flag+mask", "mask"],
+)
+def test_sdc_config_rejects_the_correction_outside_voxelwise(tmp_path, fields, overrides):
+    """A flag that would be silently ignored on a representation that never touches a voxel must stop
+    the run: the output would look corrected and not be."""
+    with pytest.raises(ValueError, match="only read by representation='voxelwise'"):
+        load_build_sdc_matrix_config(_write_sdc(tmp_path, fields, overrides))
+
+
+@pytest.mark.parametrize("fields", [_SDC_STREAMLINE, _SDC_PARCELLATED], ids=["streamline", "parcellated"])
+def test_sdc_config_outside_voxelwise_has_the_correction_off(tmp_path, fields):
+    config = load_build_sdc_matrix_config(_write_sdc(tmp_path, fields, {"correct_out_of_brain": False}))
+    assert config.correct_out_of_brain is False
+    assert config.brain_mask_path is None

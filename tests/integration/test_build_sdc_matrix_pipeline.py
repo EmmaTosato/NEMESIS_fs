@@ -289,6 +289,84 @@ def test_build_sdc_matrix_voxelwise_end_to_end(tmp_path, monkeypatch, caplog):
     assert "3 subjects x 1 voxels" in config_md
 
 
+def _run_voxelwise_with_leak(tmp_path, monkeypatch, correct):
+    """Three maps on the 4x4x4 grid; the brain keeps only [1,1,1]. Voxel [0,0,0] holds a leak that
+    varies across subjects, [1,1,1] holds the in-brain value."""
+    monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    for i, (inside, leak) in enumerate([(0.6, 0.4), (0.2, 0.1), (0.5, 0.0)]):
+        subject_id = f"sub-STUNIPD{i:04d}"
+        _register_lesion_mask(metadata_root, "siteA", subject_id)
+        volume = np.zeros(_VOXELWISE_SHAPE, dtype=np.float32)
+        volume[1, 1, 1] = inside
+        volume[0, 0, 0] = leak
+        _make_disconnectome_map(data_root, "siteA", subject_id, volume)
+    mask = np.zeros(_VOXELWISE_SHAPE, dtype=np.float32)
+    mask[1, 1, 1] = 1
+    mask_path = tmp_path / "brain_mask.nii.gz"
+    nib.save(nib.Nifti1Image(mask, _VOXELWISE_AFFINE), mask_path)
+    overrides = {"correct_out_of_brain": True, "brain_mask_path": str(mask_path)} if correct else {}
+    config_path = _write_voxelwise_config(tmp_path, data_root, output_root, overrides=overrides)
+    assert build_sdc_matrix.main(["--config", str(config_path)]) == 0
+    out_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    return out_dir, tmp_path / "summaries"
+
+
+def test_build_sdc_matrix_voxelwise_correct_out_of_brain_end_to_end(tmp_path, monkeypatch):
+    """The correction reaches the CLI: the leaking voxel is not a column, and config.md and the
+    report name each corrected subject with its voxel count and the share of its mass removed."""
+    out_dir, summaries = _run_voxelwise_with_leak(tmp_path, monkeypatch, correct=True)
+
+    matrix = np.load(out_dir / "matrix.npy")
+    assert matrix.shape == (3, 1)
+    np.testing.assert_allclose(matrix[:, 0], [0.6, 0.2, 0.5], rtol=1e-6)
+    config_md = (out_dir / "config.md").read_text()
+    assert '"correct_out_of_brain": true' in config_md
+    assert "## Corrected by correct_out_of_brain" in config_md
+    assert "2 of 3 subject(s) had out-of-brain voxels zeroed" in config_md
+    assert "- sub-STUNIPD0000 (n_voxels_corrected=1, mass_removed=40.0000%)" in config_md
+    assert "- sub-STUNIPD0001 (n_voxels_corrected=1, mass_removed=33.3333%)" in config_md
+    assert "sub-STUNIPD0002 (n_voxels" not in config_md
+    report = next(summaries.rglob("build_summary__*.md")).read_text()
+    assert "- sub-STUNIPD0000 (n_voxels_corrected=1, mass_removed=40.0000%)" in report
+    assert '"correct_out_of_brain": true' in report.split("Params used:")[1].splitlines()[0]
+
+
+def test_build_sdc_matrix_voxelwise_without_correction_keeps_the_leak_and_says_so(tmp_path, monkeypatch):
+    """Flag off: the behaviour every earlier matrix has - the leaking voxel is a column - and the
+    report says the correction is off instead of omitting the section."""
+    out_dir, _ = _run_voxelwise_with_leak(tmp_path, monkeypatch, correct=False)
+
+    assert np.load(out_dir / "matrix.npy").shape == (3, 2)
+    config_md = (out_dir / "config.md").read_text()
+    assert '"correct_out_of_brain": false' in config_md
+    assert "Off (correct_out_of_brain=false): no voxel was zeroed." in config_md
+
+
+def test_build_sdc_matrix_voxelwise_correction_with_a_missing_mask_file_returns_1(tmp_path, monkeypatch, caplog):
+    monkeypatch.setattr(build_sdc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_sdc_matrix, "LOGS_ROOT", tmp_path / "logs")
+    metadata_root = tmp_path / "metadata"
+    monkeypatch.setattr(participants_registry, "METADATA_ROOT", metadata_root)
+    data_root = tmp_path / "data"
+    output_root = tmp_path / "out"
+    _register_lesion_mask(metadata_root, "siteA", "sub-STUNIPD0000")
+    _make_disconnectome_map(data_root, "siteA", "sub-STUNIPD0000", np.ones(_VOXELWISE_SHAPE))
+    config_path = _write_voxelwise_config(
+        tmp_path, data_root, output_root,
+        overrides={"correct_out_of_brain": True, "brain_mask_path": str(tmp_path / "nope.nii.gz")},
+    )
+
+    with caplog.at_level(logging.INFO):
+        assert build_sdc_matrix.main(["--config", str(config_path)]) == 1
+    assert "brain_mask_path not found" in caplog.text
+    assert not output_root.exists()
+
+
 def test_build_sdc_matrix_voxelwise_object_lesion_rejected_at_config_load(tmp_path, monkeypatch, caplog):
     """representation='voxelwise' only supports object='disconnectome' - see
     src/features/sdc.py module docstring. Caught at config-load time (fails

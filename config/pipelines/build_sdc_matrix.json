@@ -15,11 +15,14 @@
     "ST"
   ],
   "excluded_subjects_path": "assets/metadata/excluded_subjects.csv",
-  "object": "lesion",
-  "representation": "streamline",
+  "object": "disconnectome",
+  "representation": "voxelwise",
   "output_root": "data/derived/sdc_matrix",
-  "session_name": "s2.4-stream",
+  "session_name": "s2.4-vol",
   "overwrite": false,
-  "run_notes": "SDC streamline (yeh_hcp1065, 87 tracts) on the 8 ST datasets (5853 subjects with the CSV). 22 subjects excluded via excluded_subjects.csv (scope=all plus scope=sdc-streamline) -> 5831. Rebuild of s2.3-stream on the current exclusion list; same cohort as s2.4-vol minus the 14 sdc-streamline exclusions.",
-  "reference_labels_path": "assets/atlases/sdc_labels/yeh_hcp1065_streamline.csv"
+  "run_notes": "SDC voxel-wise on the 8 ST datasets (same cohort as 07-10_s2.4-vol: 5845 subjects, scope=all plus scope=sdc-voxelwise of excluded_subjects.csv), 2mm grid, nearest. correct_out_of_brain=true: the voxels outside the 2mm brain mask are zeroed after resampling and before the constant-column drop, and the subject is kept (tractography leaves the brain: median 0.80% of a map's mass, up to 15.3%). Same choice as the lesion matrix s1.4-vol and as sdc_metadata.csv, so each row sums to disconnection_load_voxels_2mm. Same session name as the 07-10 matrix, told apart by the date prefix of the output directory; not voxel-comparable with 07-10_s2.4-vol (correction off, 291345 columns).",
+  "reference_template_path": "assets/templates/tpl-MNI152NLin6Asym_res-2_T1w.nii.gz",
+  "resample_interpolation": "nearest",
+  "correct_out_of_brain": true,
+  "brain_mask_path": "assets/templates/tpl-MNI152NLin6Asym_res-2_desc-brain_mask.nii.gz"
 }
