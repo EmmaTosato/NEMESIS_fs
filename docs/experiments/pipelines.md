@@ -1,6 +1,6 @@
 # Le pipeline attraversate da ogni matrice
 
-Vista d'insieme delle due tornate di esperimenti: dalla matrice di partenza al clustering di produzione. Il dettaglio di ogni sessione sta nel suo file, elencato nel [README](README.md).
+Vista d'insieme delle tornate di esperimenti: dalla matrice di partenza al clustering di produzione. Il dettaglio di ogni sessione sta nel suo file, elencato nel [README](README.md).
 
 ## Prima tornata — s1.1, s1.2, s2.1, s2.2
 
@@ -68,7 +68,9 @@ flowchart LR
 
 Dove il metodo di clustering non è indicato: k-means, agglomerative, gmm, hdbscan, spectral.
 
-## Seconda tornata — s1.4, s2.4
+## Storico 07-10 — s1.4, s2.4 (SDC senza correzione dei voxel fuori dal brain)
+
+Le run s2.4 del 07-10 sono lo storico della pipeline SDC **senza** `correct_out_of_brain`: la matrice s2.4-vol del 07-10 ha 291345 colonne, 64110 delle quali fuori dalla maschera cerebrale. La lesione s1.4 è invece corretta. s2.4-stream legge CSV per tratto e non è toccata dalla correzione.
 
 ```mermaid
 flowchart LR
@@ -152,4 +154,54 @@ flowchart LR
 
 Ogni matrice compare tre volte: il ramo principale (UMAP, poi agglomerative e HDBSCAN), il ramo ADP sulla matrice grezza, e il ramo `hdbscan_soft` del 15-10.
 
-Il tuning PCA del 16-10 su s2.4-vol (`results/sdc/dim_reduction/tuning/pca`) non ha produzione né clustering in `results/`: il clustering sui 42 punteggi è un prototipo in `tmp/`, fuori dal repo ([s2.4-vol](s2.4-vol.md)).
+Il tuning PCA del 16-10 su s2.4-vol del 07-10 (`results/sdc/dim_reduction/tuning/pca`) non ha produzione né clustering in `results/`: il clustering sui 42 punteggi è un prototipo in `tmp/`, fuori dal repo ([s2.4-vol](s2.4-vol.md)).
+
+## Seconda tornata — s2.4 (voxel fuori dal brain azzerati)
+
+La matrice s2.4-vol ricostruita il 16-10 con `correct_out_of_brain` (227235 colonne contro le 291345 del 07-10), sugli stessi 5845 soggetti. Il nome della sessione è lo stesso del 07-10: li distingue la data. Nessun nodo è ancora stato lanciato: i rami sono quelli del 07-10, da rifare sulla matrice nuova. `s2.4-stream` e la lesione non cambiano e non compaiono.
+
+```mermaid
+flowchart LR
+    classDef pending stroke-dasharray: 5 5
+
+    subgraph COL0["Input matrix"]
+        direction TB
+        R24["s2.4-vol<br/>sdc_matrix<br/>16-10<br/>5845 subj.<br/>227235 colonne"]:::pending
+        R24R["s2.4-vol<br/>sdc_matrix<br/>16-10<br/>5845 subj."]:::pending
+        R24S["s2.4-vol<br/>sdc_matrix<br/>16-10<br/>5845 subj."]:::pending
+    end
+
+    subgraph COL1["Dim Reduction — Tuning"]
+        direction TB
+        T24["da rifare<hr/>UMAP euclidean<br/>nc2/nc3/nc10<hr/>PCA none/varimax<br/>2-150 componenti"]:::pending
+        T24R["no dim reduction"]
+        T24S["da rifare<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]:::pending
+    end
+
+    subgraph COL2["Dim Reduction — Production"]
+        direction TB
+        P24["da rifare<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]:::pending
+        P24R["no dim reduction"]
+        P24S["da rifare<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]:::pending
+    end
+
+    subgraph COL3["Clustering — Tuning"]
+        direction TB
+        CT24["da rifare<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>agglomerative, HDBSCAN"]:::pending
+        CT24R["da rifare<hr/>raw dice/euclidean<br/>227235 voxel<br/>ADP"]:::pending
+        CT24S["da rifare<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]:::pending
+    end
+
+    subgraph COL4["Clustering — Production"]
+        direction TB
+        CP24["non ancora lanciata"]:::pending
+        CP24R["non ancora lanciata"]:::pending
+        CP24S["non ancora lanciata"]:::pending
+    end
+
+    R24 -.-> T24 -.-> P24 -.-> CT24 -.-> CP24
+    R24R -.-> T24R -.-> P24R -.-> CT24R -.-> CP24R
+    R24S -.-> T24S -.-> P24S -.-> CT24S -.-> CP24S
+```
+
+Stessi tre rami del 07-10: principale (UMAP, poi agglomerative e HDBSCAN), ADP sulla matrice grezza, `hdbscan_soft`. Le date dei nodi si scrivono man mano che le run esistono.

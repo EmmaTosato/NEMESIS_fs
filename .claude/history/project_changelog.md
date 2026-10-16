@@ -6,6 +6,14 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 16-10-26 — Un solo ordine delle righe per le matrici lesione e SDC: alfabetico per dataset, poi `subject_id`
+
+**Cosa è cambiato**: `build_lesion_matrix` ordina le righe per nome del dataset e poi `subject_id` (`src/features/lesion.py::_stack_voxel_matrix`, `sorted(lesion_files.items())`), come già facevano `build_sdc_matrix` (tutte e tre le rappresentazioni) e il builder parcellato. Prima seguiva l'ordine di `datasets` nel config, e l'unica ragione per cui `s1.4-vol` e `s2.4-vol` del 07-10 avevano lo stesso ordine era un riordino a mano dell'SDC (`data_changelog.md`). Test di regressione: `test_build_lesion_matrix_rows_are_ordered_by_dataset_name_not_by_config_order`, che fallisce col codice vecchio.
+
+**Perché**: con due criteri diversi, una nuova build SDC usciva in un ordine diverso dalla lesione e il confronto per posizione si rompeva senza errori; l'ordine del config è anche una scelta di chi scrive il json, non una proprietà dei dati. **Scartato**: allineare l'SDC all'ordine del config (dipenderebbe dall'ordine in cui si elencano i dataset) e riordinare a mano a ogni build.
+
+**Conseguenza ancora vera oggi**: ogni confronto tra run continua ad allineare per `subject_id` (`align_runs`); l'uguaglianza di posizione vale solo per matrici costruite dopo questa data o riordinate (le due del 07-10 lo sono). Il FC (`build_fc_matrix`) ordina per `subject_id` senza dataset e non è toccato.
+
 ## 16-10-26 — Il tuning della PCA scrive lo spettro (`eigenvalues.npz`) e lo scree plot
 
 **Cosa è cambiato**: un tuning `pca` scrive, accanto a `tuning_results.csv`, `eigenvalues.npz` (un array per ogni decomposizione fittata dalla griglia, chiave `solver=blocks,standardize=False,dual=True`), `scree_plot.png` e, se la griglia tiene più di 50 componenti, `scree_plot_zoom.png` sulle prime 50 (`SCREE_ZOOM_COMPONENTS`, costante in `dim_reduction.py`). Lo scrive sempre, anche con `save_tuning_embeddings: false`. Codice: `pca_method.decomposition_spectra`, `plotting.plot_scree`, `run_tuning_sweep(..., model_cache=None)`.

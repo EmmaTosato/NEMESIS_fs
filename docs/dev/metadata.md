@@ -226,7 +226,7 @@ Questa eterogeneità è stata scoperta per caso: un primo calcolo esplorativo as
 
 ### Solo dentro il cervello
 
-Il disconnettoma porta una quota di massa fuori dalla maschera cerebrale (mediana 0,80% della massa totale, fino all'8,9% in un caso, misurato su 400 soggetti casuali). È tractografia che esce dal cervello, non disconnessione, ed è la stessa scelta di `correct_out_of_brain` per le lesioni. Non c'è un'opzione per disattivarla: nessun uso chiesto ne ha bisogno, e un parametro non letto da nessuno è un campo di config morto.
+Il disconnettoma porta una quota di massa fuori dalla maschera cerebrale (mediana 0,80% della massa totale, fino all'8,9% in un caso, misurato su 400 soggetti casuali). È tractografia che esce dal cervello, non disconnessione, ed è la stessa scelta di `correct_out_of_brain` per le lesioni. La matrice SDC voxel-wise la applica con lo stesso flag (`docs/dev/sdc_matrix.md`): con `correct_out_of_brain: true` la somma di ogni riga della matrice coincide con `disconnection_load_voxels_2mm`. Non c'è un'opzione per disattivarla: nessun uso chiesto ne ha bisogno, e un parametro non letto da nessuno è un campo di config morto.
 
 ### Scala di colore: lineare
 

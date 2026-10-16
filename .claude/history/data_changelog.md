@@ -10,6 +10,18 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 16-10-26 — `lesion_matrix/07-10_s1.4-vol` e `sdc_matrix/07-10_s2.4-vol`: righe riordinate alfabeticamente per dataset
+
+**Cosa è cambiato**: in `matrix.npy` e `metadata.csv` di entrambe le matrici le 5845 righe sono passate dall'ordine dei dataset del config (WashU, PASPORT, PSP, UKLFR, UCL-UK, WAKEUP, NEMESIS_T0, SFB936) all'ordine alfabetico per nome del dataset (UCL-UK, SFB936, WAKEUP, UKLFR, NEMESIS_T0, PASPORT, PSP, WashU), poi `subject_id`. Nessun valore è cambiato: è una permutazione delle righe (la colonna `lesion_volume_voxels` del lesion `metadata.csv` si è mossa con la sua riga). `non_constant_mask.npy`, `manifest.json` e `config.md` sono invariati.
+
+**Perché**: richiesta dell'utente, un solo criterio per le due pipeline. `build_sdc_matrix` ordinava già per (dataset, `subject_id`), `build_lesion_matrix` seguiva l'ordine di `datasets` nel config; il codice lesionale è stato allineato lo stesso giorno (`project_changelog.md` 16-10-26). Così anche la nuova `16-10_s2.4-vol`, scritta in ordine alfabetico dal builder, ha le stesse righe nello stesso ordine di entrambe. Sostituisce il riordino a mano del 07-10 (voce sotto), che portava la matrice SDC all'ordine del config.
+
+**Verifica**: permutazione completa e ogni riga nuova bit a bit uguale alla riga vecchia da cui proviene (0 differenze su 5845, per entrambe), fatta prima di sostituire i file; poi 26 righe per matrice (3 soggetti per dataset, prima e ultima riga incluse) ricalcolate dal `.nii.gz` grezzo con codice indipendente dalla pipeline (`resample_to_img` nearest, per la lesione binarizzazione e azzeramento fuori dal brain) e confrontate con la riga del file finale: 0 differenze. Copie originali (`*.orig`) cancellate solo dopo.
+
+**Conseguenza ancora vera oggi**: i risultati già prodotti sul 07-10 (tuning, produzioni, clustering) hanno ancora le righe nell'ordine del config: ognuno ha il suo `metadata.csv`, quindi restano coerenti con sé stessi e i confronti tra run allineano per `subject_id`. Ma non sono più riproducibili bit a bit dalla sorgente: UMAP non è invariante alla permutazione delle righe, quindi lo stesso `random_state` su matrice riordinata dà un embedding diverso. Un clustering con `viz_embedding_path` che mescola un embedding vecchio e una matrice nuova viene fermato dal controllo sull'ordine dei `metadata.csv`.
+
+---
+
 ## 14-10-26 — `derivatives/<sito>/<dataset>/sdc/` rinominata `bcbtoolkit/`
 
 **Cosa è cambiato**: in ognuno degli 8 dataset la cartella `sdc/` è stata rinominata `bcbtoolkit/` sul posto (`mv`, nessun file toccato). Sottocartelle soggetto contate dopo la rinomina: UCL-UK 4119, UKE/SFB936 56, UKE/WAKEUP 451, UKLFR 705, UNIPD/NEMESIS_T0 76, UNIPD/PASPORT 83, UNIPD/PSP 168, UNIPD/WashU 195 (5853, uguali a prima). Aggiornati anche:
@@ -34,7 +46,7 @@ Voci in ordine cronologico inverso.
 
 **Verifica dopo la sostituzione**: tutte e 5845 le righe ricalcolate dal `.nii.gz` del proprio soggetto (un file per soggetto, nome che contiene il `subject_id`) e confrontate bit a bit con la riga del file finale: 0 righe non corrispondenti (354 s). Fatta a partire dal `metadata.csv` finale, quindi indipendente dalla permutazione usata per scrivere il file. Solo dopo è stata cancellata la copia temporanea in ordine alfabetico.
 
-**Conseguenza ancora vera oggi**: l'ordine riordinato è solo nei file, non nel codice. Una nuova build di `build_sdc_matrix` con la stessa configurazione riscrive le righe in ordine alfabetico per dataset (`sorted(admitted.items())` in `src/features/sdc.py`), quindi un `overwrite` di questa sessione annulla il riordino. L'originale in ordine alfabetico non è in `data/`: è stato tenuto fuori dal repo solo per questa sessione di lavoro.
+**Conseguenza ancora vera oggi**: superata il 16-10-26 (voce sopra): l'ordine delle due matrici è ora alfabetico per dataset, quello che i builder producono da soli. L'ordine del config descritto qui non esiste più.
 
 ---
 

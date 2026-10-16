@@ -12,6 +12,8 @@ This file covers turning lesion masks into a feature matrix ready for dimensiona
 
 `build_lesion_matrix(data_root, datasets, reference_template_path, lesion_glob, binarize_threshold, resample_interpolation, group_filter, excluded_subjects, correct_out_of_brain, brain_mask_path) -> (X, metadata, non_constant_mask, excluded_by_group, excluded_by_list, corrected_subjects)`
 
+**Row order**: by dataset name, then `subject_id`, whatever the order of `datasets` in the config - the same criterion as the SDC builders (`docs/dev/sdc_matrix.md`), so a lesion matrix and an SDC matrix of the same cohort have the same row order and can be compared by position. Comparisons across runs still align by `subject_id` (`src/analysis/cluster_comparison.py::align_runs`), never by position.
+
 **`group_filter`** restricts subject discovery to specific naming-derived groups (`src.utils.subject_ids.group_of` - ST/HC/PD/GM), via the shared `src/features/subject_discovery.py::discover_files_by_subject` also used by `src/features/functional.py` (`docs/dev/fc_matrix.md`). `None` means no restriction. Subjects excluded this way are returned separately as `excluded_by_group`, never conflated with a genuine missing-file gap - see `debug_27_07_26.md` and `docs/guides/matrix_building.md`.
 
 ### Subject admission: one curated list, no thresholds

@@ -128,6 +128,36 @@ def test_build_lesion_matrix_voxelwise(tmp_path):
     assert "out_of_brain_fraction" not in metadata.columns
 
 
+def test_build_lesion_matrix_rows_are_ordered_by_dataset_name_not_by_config_order(tmp_path):
+    """Regression: rows followed the order of `datasets` in the config, while the SDC builders order
+    by (dataset, subject_id), so two matrices of the same cohort had different row orders. Both
+    now use the dataset name, whatever order the config lists the datasets in."""
+    _make_lesion_subject(tmp_path, "siteB", "sub-STUNIPD0003", [(5, 5, 5)])
+    _make_lesion_subject(tmp_path, "siteB", "sub-STUNIPD0004", [(6, 6, 6)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0002", [(1, 1, 1)])
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(2, 2, 2)])
+    template_path = tmp_path / "reference_template.nii.gz"
+    _make_reference_template(template_path)
+
+    _, metadata, *_ = build_lesion_matrix(
+        data_root=tmp_path,
+        datasets=["siteB", "siteA"],
+        reference_template_path=template_path,
+        lesion_glob=_GLOB,
+        binarize_threshold=0.5,
+        resample_interpolation="nearest",
+        group_filter=None,
+        excluded_subjects=frozenset(),
+        correct_out_of_brain=False,
+        brain_mask_path=None,
+    )
+
+    assert list(metadata["dataset"]) == ["siteA", "siteA", "siteB", "siteB"]
+    assert list(metadata["subject_id"]) == [
+        "sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUNIPD0003", "sub-STUNIPD0004",
+    ]
+
+
 def test_build_lesion_matrix_voxelwise_pipeline_first_layout(tmp_path):
     """Regression: _discover_lesion_files must derive where subject folders
     sit from lesion_glob itself, not assume they're dataset_root's immediate

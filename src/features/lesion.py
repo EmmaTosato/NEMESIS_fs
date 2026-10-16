@@ -695,7 +695,10 @@ def _stack_voxel_matrix(
     dataset_labels: list[str] = []
     vectors: list[np.ndarray] = []
 
-    for dataset, by_subject in lesion_files.items():
+    # Rows are ordered by dataset name, then subject_id - the same criterion as the SDC builders
+    # (src/features/sdc.py, src/features/parcellated_csv.py), never the order of `datasets` in the
+    # config, so a lesion matrix and an SDC matrix of the same cohort have the same row order.
+    for dataset, by_subject in sorted(lesion_files.items()):
         for subject_id in sorted(by_subject):
             f = by_subject[subject_id]
             vectors.append(_load_and_binarize_lesion(f, reference_img, resample_interpolation, binarize_threshold))

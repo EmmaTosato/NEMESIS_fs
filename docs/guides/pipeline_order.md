@@ -131,7 +131,7 @@ Matrice binaria soggetti × voxel delle lesioni. `correct_out_of_brain` (`true` 
 python -m src.pipeline.build_sdc_matrix --config config/pipelines/build_sdc_matrix.json
 ```
 
-Matrice di disconnessione; `representation` sceglie `parcellated` (per regione), `voxelwise` (per voxel) o `streamline` (per tratto).
+Matrice di disconnessione; `representation` sceglie `parcellated` (per regione), `voxelwise` (per voxel) o `streamline` (per tratto). Con `voxelwise`, `correct_out_of_brain` (`true` o `false`) azzera o no i voxel fuori dal brain, come per la lesione.
 **Input:** output SDC, registro, `excluded_subjects.csv`, etichette in `assets/atlases/sdc_labels/`. **Output:** `data/derived/sdc_matrix/<gg-mm>_<sessione>/`. Guida: [`sdc_matrix_building.md`](sdc_matrix_building.md).
 
 ### 5c. `mask_fc`, poi `build_fc_matrix`

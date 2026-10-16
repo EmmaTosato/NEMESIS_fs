@@ -8,6 +8,24 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 16-10-26 — SDC voxel-wise: `correct_out_of_brain` come nella lesione (la matrice e il suo carico di disconnessione non descrivevano la stessa quantità)
+
+**Cosa è cambiato.** `build_sdc_matrix` con `representation: "voxelwise"` accetta `correct_out_of_brain` (default `false`) e `brain_mask_path` (obbligatorio solo col flag acceso). Con il flag acceso azzera i voxel fuori dalla maschera cerebrale dopo il ricampionamento e prima dell'eliminazione delle colonne costanti, in entrambi i passaggi di `_stack_voxelwise_matrix`, riusando `zero_out_of_brain_voxels` della lesione. Il soggetto resta. `config.md` e il report elencano ogni soggetto corretto con i voxel azzerati e la quota di massa tolta. `parcellated` e `streamline` rifiutano il flag acceso al caricamento della config.
+
+**Perché.** `s1.4-vol` (lesione) era corretta, `s2.4-vol` (disconnettoma, stessi 5845 soggetti) no, e `compute_sdc_metadata` somma già solo dentro il cervello: la matrice e `disconnection_load_voxels_2mm` misuravano cose diverse. La trattografia esce dal cervello e quei voxel diventavano colonne.
+
+**Misurato su tutti i 5845 soggetti di `s2.4-vol`** (il codice reale, flag acceso, template e maschera 2mm, nulla scritto in `data/`):
+
+- **Colonne non costanti: 291345 → 227235.** Le 64110 tolte sono esattamente quelle fuori dalla maschera cerebrale; le 227235 rimaste sono esattamente quelle che stavano già dentro, e l'insieme nuovo è contenuto nel vecchio.
+- **Massa tolta per soggetto**: mediana 0,80%, 5° percentile 0,40%, 95° 2,41%, 99° 6,72%, massimo 15,3% (`sub-STUNIPD0056`, WashU), media 1,05%. 112 soggetti sopra il 5%, 13 sopra il 10%. Voxel azzerati: mediana 3340, massimo 24637. 5844 soggetti su 5845 toccati (`sub-STUCLUK3955` non ha nulla fuori). La cifra "massimo 8,9%" citata finora veniva da un campione di 400 soggetti, non dall'intera coorte.
+- **La somma di ogni riga coincide con `disconnection_load_voxels_2mm`** di `sdc_metadata.csv`: scarto relativo massimo 2.5e-16 su tutti i 5845; la stessa verifica sulla matrice vera costruita da `_stack_voxelwise_matrix`, su 240 soggetti stratificati (30 per dataset), dà 2.1e-16.
+
+**Scartato.** Applicare l'azzeramento solo nel secondo passaggio: la maschera delle colonne costanti verrebbe calcolata su una matrice e applicata a un'altra (il test di regressione fallisce con questa mutazione). Un default `true`: come nella lesione la correzione non si applica mai in silenzio, e una matrice già costruita non cambierebbe significato.
+
+**Conseguenza ancora vera oggi.** `07-10_s2.4-vol` è costruita **senza** correzione e resta immutabile: non è confrontabile voxel per voxel con una sessione corretta (291345 colonne contro 227235) né con `sdc_metadata.csv` come somma di riga. La versione corretta ha lo stesso nome di sessione, `s2.4-vol`, e la distingue la data (`16-10_s2.4-vol`; `session_name` in `config/pipelines/build_sdc_matrix.json`, scelta dell'utente al posto di un `s2.5`). `s2.4-stream` e `sdc_metadata.csv` non sono toccati: la prima legge CSV per tratto, il secondo misura già solo dentro il cervello.
+
+---
+
 ## 16-10-26 — Lettura del tuning `hdbscan_soft`: la produzione scelta il 15-10 non segue la silhouette, e "nc3: una combinazione usabile" valeva solo per euclidean
 
 Letti i 10 `tuning_results.csv` di `hdbscan_soft` (report in `results/reports/cluster_tuning_notebooks/`, sezione `hdbscan_soft`; riassunto in `docs/experiments/s1.4-vol.md`, `s2.4-vol.md`, `s2.4-stream.md`). Quota del cluster più grande ricalcolata da `clusterings.npz` per applicare il criterio "usabile" (3-30 cluster, rumore ≤ 25%, più grande ≤ 60%).
