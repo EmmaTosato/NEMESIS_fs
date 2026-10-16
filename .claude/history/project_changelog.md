@@ -6,6 +6,14 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 16-10-26 — Eliminato `build_dim_reduction_strategies_csv.py` e il suo indice
+
+**Cosa è cambiato**: cancellati `scripts/build_dim_reduction_strategies_csv.py`, `jobs/run_build_dim_reduction_strategies_csv.sh` e `tests/unit/test_build_dim_reduction_strategies_csv.py`. Tolte le descrizioni di `results/dim_reduction_strategies.csv` da `docs/dev/config.md` e da `docs/guides/dim_reduction.md`.
+
+**Perché**: lo script generava `results/dim_reduction_strategies.csv`, un indice di esistenza con una riga per combinazione `(session, reduction_method, metric, n_components)` già prodotta. Era morto da tempo: fermo al commit del 02-09-26, con il suo output cancellato dall'utente l'08-10-26 e mai più rigenerato. La riorganizzazione di `docs/experiments/` della stessa giornata lo avrebbe comunque rotto, perché parsava `data_sessions.md` con una regex sul formato `### Session <id>` + campi fissi.
+
+**Conseguenza ancora vera**: per sapere quali combinazioni di dim reduction esistono si aprono i `runs.csv`/`runs_tuning.csv` di ogni metodo sotto `results/*/dim_reduction/`, oppure si legge il file della sessione in `docs/experiments/`. Le voci #24 e #25 di `lessons_learned.md` citano questo script nei loro "Seen in": restano, descrivono pattern di errore ancora validi.
+
 ## 16-10-26 — `docs/experiments/`: un file per sessione al posto di 11 file divisi per pipeline
 
 **Cosa è cambiato**: le 1582 righe su 11 file (`data_sessions.md`, `data_employing.md`, `processing/matrices.md`, più `{clustering,dim_reduction}/s{1,2}_{tuning,production}.md` con 31 entry datate dentro) sono diventati 11 file: un file per sessione (`s1.1-vol.md`, `s1.2-vol.md`, `s1.3-vol.md`, `s1.4-vol.md`, `s2.1-schaefer-200-tian-s2.md`, `s2.2-vol.md`, `s2.4-vol.md`, `s2.4-stream.md`), più `README.md` (indice, tabella delle sessioni, vocabolario dei tag di formato), `pipelines.md` (i due mermaid di `data_employing.md`, rinominato) e `lineage.md` (nuovo: da quale sessione deriva quale e quali coorti sono confrontabili). Ogni file di sessione va dalla coorte alle decisioni passando per dim reduction e clustering, tuning e produzione.
@@ -19,7 +27,7 @@ Aggiunto in questo giro il lavoro su `hdbscan_soft` del 15-10/16-10 (10 tuning, 
 **Conseguenze ancora vere**:
 
 - `docs/experiments/data_sessions.md` non esiste più. Il significato di un `session_name` sta nella tabella di `docs/experiments/README.md` e nel file della sessione. 26 riferimenti aggiornati in `README.md`, `docs/dev/{config,models,pipeline_flow,sdc_matrix}.md`, `docs/guides/{dim_reduction,pipeline_order,sdc_matrix_building}.md`, `.claude/{CLAUDE,open_problems,stato_progetto}.md` e 5 docstring in `src/`. I riferimenti dentro `.claude/history/` sono narrativa storica e restano com'erano.
-- **`scripts/build_dim_reduction_strategies_csv.py` non funziona più**: parsava `data_sessions.md` con una regex sul formato `### Session <id>` + `- Starting date:`/`- Datasets:`/`- Modality:`, e solleva `FileNotFoundError` se il file non c'è. Era già di fatto morto — fermo dal 02-09-26 e il suo output `results/dim_reduction_strategies.csv` è stato cancellato dall'utente l'08-10-26 — ma non è stato eliminato in questo giro: va deciso a parte.
+- **`scripts/build_dim_reduction_strategies_csv.py` non funziona più**: parsava `data_sessions.md` con una regex sul formato `### Session <id>` + `- Starting date:`/`- Datasets:`/`- Modality:`, e solleva `FileNotFoundError` se il file non c'è. Era già di fatto morto — fermo dal 02-09-26 e il suo output `results/dim_reduction_strategies.csv` è stato cancellato dall'utente l'08-10-26 — ed è stato eliminato lo stesso giorno (voce sopra).
 - Un riferimento in `docs/dev/config.md` puntava alla "naming discussion" di `clustering/s1_production.md`, che quel file non conteneva più già da prima: ora punta a `docs/guides/clustering.md`, "Nome della cartella finale".
 
 ## 15-10-26 — `cluster_interpretation.ipynb` eliminato: la descrizione dei cluster passa in `clustering_evaluation` §4
