@@ -14,7 +14,7 @@ flowchart TB
         L14["<b>s1.4-vol</b> · 07-10<br/>5845 · 8 dataset"]
         L11 -->|"+ UCL-UK StrokeData"| L12
         L12 -->|"+ UKE/WAKEUP_acute"| L13
-        L13 -->|"+ NEMESIS_T0, SFB936_ses01<br/>voxel fuori dal brain azzerati"| L14
+        L13 -->|"+ NEMESIS_T0,<br/>SFB936_ses01<br/>voxel fuori dal brain<br/>azzerati"| L14
     end
 
     subgraph SDC["Disconnettoma — s2.x"]
@@ -23,13 +23,13 @@ flowchart TB
         S22["<b>s2.2-vol</b> · 07-09<br/>1570"]
         S24["<b>s2.4-vol</b> · 07-10<br/>5845 · 8 dataset"]
         S24S["<b>s2.4-stream</b> · 07-10<br/>5831 · 87 tratti"]
-        S21 -->|"+ UKE/WAKEUP_acute<br/>parcellata → voxel-wise"| S22
+        S21 -->|"+ UKE/WAKEUP_acute<br/>parcellata →<br/>voxel-wise"| S22
         S22 -->|"coorte piena"| S24
-        S24 -.->|"stessi dataset, altra rappresentazione<br/>−14 senza alcun tratto colpito"| S24S
+        S24 -.->|"stessi dataset,<br/>altra rappresentazione,<br/>−14 senza alcun<br/>tratto colpito"| S24S
     end
 
     L13 <-.->|"stessa griglia 2mm,<br/>coorti diverse"| S22
-    L14 <==>|"stessi 5845 soggetti,<br/>stesso ordine di riga"| S24
+    L14 <==>|"stessi 5845 soggetti,<br/>stesso ordine<br/>di riga"| S24
 ```
 
 ## Cosa si può confrontare con cosa
