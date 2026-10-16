@@ -5,7 +5,7 @@
   "params_file": "config/registry/params_reduction_sdc.json",
   "session_name": "s2.4-vol",
   "reduction_method": "umap",
-  "fine_tuning": true,
+  "fine_tuning": false,
   "save_tuning_embeddings": true,
   "overwrite": false,
   "precompute_distance_metric": true,
@@ -22,5 +22,5 @@
       "min_samples": 10
     }
   },
-  "run_notes": "UMAP tuning on 16-10 s2.4-vol (5845 subjects, SDC voxelwise, voxels outside the brain zeroed: 227235 columns): metric euclidean only (dice dropped - binary metric not meaningful on continuous disconnection values), n_components 2/3/10, n_neighbors x min_dist grid identical to the 07-10 s2.4-vol tuning (uncorrected matrix) and to the s1.4-vol lesion sweep."
+  "run_notes": "UMAP production on 16-10 s2.4-vol (5845 subjects, SDC voxelwise, voxels outside the brain zeroed: 227235 columns): metric euclidean, n_neighbors=15, min_dist=0.0 (same as the 08-10 production on the uncorrected matrix, s2.1 and s2.2; within 0.004 of the tuning max trustworthiness for every n_components)."
 }
