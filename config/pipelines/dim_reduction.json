@@ -4,8 +4,8 @@
   "input_path": "data/derived/sdc_matrix/07-10_s2.4-vol",
   "params_file": "config/registry/params_reduction_sdc.json",
   "session_name": "s2.4-vol",
-  "reduction_method": "umap",
-  "fine_tuning": false,
+  "reduction_method": "pca",
+  "fine_tuning": true,
   "save_tuning_embeddings": true,
   "overwrite": false,
   "precompute_distance_metric": true,
@@ -16,11 +16,7 @@
   ],
   "viz_n_components": 2,
   "tuning_evaluations": {
-    "trustworthiness": {},
-    "plot_hdbscan": {
-      "min_cluster_size": 100,
-      "min_samples": 10
-    }
+    "cumulative_explained_variance": {}
   },
   "run_notes": "UMAP production on s2.4-vol (5845 subjects, SDC voxelwise): metric euclidean, n_neighbors=15, min_dist=0.0 (same as s2.1/s2.2; within 0.003 of the tuning max trustworthiness for every n_components)."
 }
