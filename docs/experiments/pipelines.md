@@ -90,7 +90,7 @@ flowchart LR
     subgraph COL1["Dim Reduction — Tuning"]
         direction TB
         T14["07-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10"]
-        T24["07-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
+        T24["07-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10<hr/>16-10<br/>PCA none/varimax<br/>2-150 componenti"]
         T25["no dim reduction"]
         T14R["no dim reduction"]
         T24R["no dim reduction"]
@@ -151,3 +151,5 @@ flowchart LR
 ```
 
 Ogni matrice compare tre volte: il ramo principale (UMAP, poi agglomerative e HDBSCAN), il ramo ADP sulla matrice grezza, e il ramo `hdbscan_soft` del 15-10.
+
+Il tuning PCA del 16-10 su s2.4-vol (`results/sdc/dim_reduction/tuning/pca`) non ha produzione né clustering in `results/`: il clustering sui 42 punteggi è un prototipo in `tmp/`, fuori dal repo ([s2.4-vol](s2.4-vol.md)).
