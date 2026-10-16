@@ -41,7 +41,7 @@ docs/
 ├── setup.md       # environment setup
 ├── guides/        # how to use each pipeline (user-facing)
 ├── dev/           # architecture/implementation reference (developer-facing)
-├── experiments/   # per-session run logs and cross-run experiment notes
+├── experiments/   # one file per session: what was tried, seen and decided
 └── debugging/     # dated, per-session debug reports
 notebooks/        # exploration, pipeline prototyping, post-results analysis (index: docs/guides/exploration.md)
 assets/
@@ -96,7 +96,7 @@ Consumers read the registry directly rather than carrying copies: `build_sdc_mat
 ### Dimensionality reduction and clustering
 `src/analysis/`, `src/pipeline/dim_reduction.py`/`clustering.py` — reduces a feature matrix (lesion voxels today) to a low-dimensional embedding (`umap`/`tsne`/`pacmap`, and `pca` — whose standardization, dual or covariance computation, orthogonal rotation (varimax...) and number of components are all params of its `params_reduction.json` entry: [`docs/guides/dim_reduction.md`](docs/guides/dim_reduction.md)) and/or clusters it (`kmeans`/`agglomerative`/`gmm`/`hdbscan`/`spectral`/`evidence_accumulation`, plus `adp` — density peaks from DADApy on the raw matrix, run alone from its own environment: [`docs/guides/clustering.md`](docs/guides/clustering.md)) — two separate steps (`clustering.py --reduced_data true` on a `dim_reduction.py` output). Each script has a manual fine-tuning mode (`fine_tuning: true` — sweeps hyperparameters, writes a comparison table/plot, never picks automatically) and a production mode; production output includes static/interactive embedding and cluster scatter plots (`dim_reduction.py`: configurable coloring by dataset/lesion side/volume; `clustering.py`: cluster-colored only), a per-sample silhouette diagnostic, and a per-method `runs.csv` run history. A fine-tuning run is evaluated by the mechanisms declared in its `tuning_evaluations` block (the sweep's own score, plus embedding-based ones such as `plot_hdbscan`: HDBSCAN on every combination, one grid per nested leaf); the embedding-based ones can be re-run on a stored tuning without refitting (`src/pipeline/evaluate_tuning_embeddings.py`, [`docs/guides/evaluate_tuning_embeddings.md`](docs/guides/evaluate_tuning_embeddings.md)).
 
-Each production/tuning run is tagged with a **session id** (`sX.Y[-<format>]` — track/cohort plus a mandatory format suffix, e.g. `s1.1-vol` for volumetric lesion data, `s2.1-schaefer-200-tian-s2` for SDC parcellated on that atlas) documented one entry per session in [`docs/experiments/data_sessions.md`](docs/experiments/data_sessions.md).
+Each production/tuning run is tagged with a **session id** (`sX.Y[-<format>]` — track/cohort plus a mandatory format suffix, e.g. `s1.1-vol` for volumetric lesion data, `s2.1-schaefer-200-tian-s2` for SDC parcellated on that atlas) documented one entry per session in [`docs/experiments/`](docs/experiments/README.md).
 
 📖 Guides: [`dim_reduction.md`](docs/guides/dim_reduction.md) · [`clustering.md`](docs/guides/clustering.md)
 📚 Methodology/literature: [`knowledge/dim_reduction_clustering/`](knowledge/dim_reduction_clustering/)

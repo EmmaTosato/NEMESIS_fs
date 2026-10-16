@@ -292,7 +292,7 @@ def test_run_clustering_tuning_sweep_hdbscan_reports_n_clusters_found():
     silhouette/calinski_harabasz/davies_bouldin/noise_fraction were computed for hdbscan) -
     a combination could look reasonable on silhouette/noise_fraction alone while actually
     fragmenting the data into far more clusters than intended, only discovered at
-    production time (docs/experiments/clustering/s1_production.md, s1.2-vol: 143 clusters
+    production time (docs/experiments/s1.2-vol.md: 143 clusters
     for a combination that looked fine in tuning)."""
     X = _three_blobs()
     df, labels_by_combo = run_clustering_tuning_sweep("hdbscan", X, {}, {"min_cluster_size": [2, 20]})

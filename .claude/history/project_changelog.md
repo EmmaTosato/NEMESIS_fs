@@ -6,6 +6,22 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 16-10-26 — `docs/experiments/`: un file per sessione al posto di 11 file divisi per pipeline
+
+**Cosa è cambiato**: le 1582 righe su 11 file (`data_sessions.md`, `data_employing.md`, `processing/matrices.md`, più `{clustering,dim_reduction}/s{1,2}_{tuning,production}.md` con 31 entry datate dentro) sono diventati 11 file: un file per sessione (`s1.1-vol.md`, `s1.2-vol.md`, `s1.3-vol.md`, `s1.4-vol.md`, `s2.1-schaefer-200-tian-s2.md`, `s2.2-vol.md`, `s2.4-vol.md`, `s2.4-stream.md`), più `README.md` (indice, tabella delle sessioni, vocabolario dei tag di formato), `pipelines.md` (i due mermaid di `data_employing.md`, rinominato) e `lineage.md` (nuovo: da quale sessione deriva quale e quali coorti sono confrontabili). Ogni file di sessione va dalla coorte alle decisioni passando per dim reduction e clustering, tuning e produzione.
+
+Aggiunto in questo giro il lavoro su `hdbscan_soft` del 15-10/16-10 (10 tuning, 17 run di produzione), che non era in nessun diario: stava solo in `data_employing.md` e in `methods_changelog.md`.
+
+**Perché**: l'unità di lavoro è la sessione, non la pipeline. Prima, per sapere cosa era successo a `s1.4-vol`, servivano 5 file di `docs/experiments/` più i 4 report in `results/`; ogni diario conteneva entry di 2-3 sessioni diverse e ogni sessione era spezzata su 4-5 diari. Scelta dell'utente tra: un file per sessione (scelto), unire solo dim reduction e clustering tenendo la divisione tuning/produzione (4 file), lasciare la struttura e togliere solo le duplicazioni.
+
+**Le tabelle complete restano fuori da `docs/`**: i 7 report per run del tuning clustering del 12-10 (tabelle ordinate per silhouette, lettura per gruppi di k, immagini) restano in `results/reports/cluster_tuning_notebooks/`, linkati dai file di sessione, che ne riportano solo la lettura. Rispetta la regola "niente dump di dati nei `.md`". Alternative scartate: spostare i report interi in git (circa 1000 righe di tabelle già presenti nei `tuning_results.csv`), lasciare tutto in `results/` (fuori da git, quindi perso a ogni pulizia).
+
+**Conseguenze ancora vere**:
+
+- `docs/experiments/data_sessions.md` non esiste più. Il significato di un `session_name` sta nella tabella di `docs/experiments/README.md` e nel file della sessione. 26 riferimenti aggiornati in `README.md`, `docs/dev/{config,models,pipeline_flow,sdc_matrix}.md`, `docs/guides/{dim_reduction,pipeline_order,sdc_matrix_building}.md`, `.claude/{CLAUDE,open_problems,stato_progetto}.md` e 5 docstring in `src/`. I riferimenti dentro `.claude/history/` sono narrativa storica e restano com'erano.
+- **`scripts/build_dim_reduction_strategies_csv.py` non funziona più**: parsava `data_sessions.md` con una regex sul formato `### Session <id>` + `- Starting date:`/`- Datasets:`/`- Modality:`, e solleva `FileNotFoundError` se il file non c'è. Era già di fatto morto — fermo dal 02-09-26 e il suo output `results/dim_reduction_strategies.csv` è stato cancellato dall'utente l'08-10-26 — ma non è stato eliminato in questo giro: va deciso a parte.
+- Un riferimento in `docs/dev/config.md` puntava alla "naming discussion" di `clustering/s1_production.md`, che quel file non conteneva più già da prima: ora punta a `docs/guides/clustering.md`, "Nome della cartella finale".
+
 ## 15-10-26 — `cluster_interpretation.ipynb` eliminato: la descrizione dei cluster passa in `clustering_evaluation` §4
 
 **Cosa è cambiato**: eliminato `notebooks/post-results_analysis/cluster_interpretation.ipynb`. Le sue tabelle per cluster (soggetti con il dato, media ± deviazione standard, mediana [Q1–Q3], percentuali per categoria, sulle variabili di `participants.csv`; carico di disconnessione per le run sdc) sono ora la sezione 4 di `clustering_evaluation.ipynb` (`describe_clusters`, `DESCRIBED_RUN`), che le mostra per una run alla volta con gli stessi numeri (verificato su `12-10_s1.4-vol_m_dice_nc10_k7_link_ward`, `03-09_s1.2-vol_m_euclidean_nc2_mcs100_ms20` e `30-09_s2.3-stream_k5_link_ward`). Le funzioni stanno nel notebook, come prima, non in `src/`.

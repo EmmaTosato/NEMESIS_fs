@@ -1,9 +1,8 @@
+# Le pipeline attraversate da ogni matrice
 
+Vista d'insieme delle due tornate di esperimenti: dalla matrice di partenza al clustering di produzione. Il dettaglio di ogni sessione sta nel suo file, elencato nel [README](README.md).
 
-
-# Data Employed in Pipelines
-
-## First Experiment Session
+## Prima tornata — s1.1, s1.2, s2.1, s2.2
 
 ```mermaid
 flowchart LR
@@ -67,18 +66,9 @@ flowchart LR
     R23 -.-> T23 -.-> P23 -.-> CT23 -.-> CP23
 ```
 
+Dove il metodo di clustering non è indicato: k-means, agglomerative, gmm, hdbscan, spectral.
 
-## Notes
-The clustering that are done when the methods are not specified:
-
-- k-means
-- agglomerative
-- gmm
-- hdbscan
-- spectral
-
-
-## Second Experiment Session
+## Seconda tornata — s1.4, s2.4
 
 ```mermaid
 flowchart LR
@@ -160,6 +150,4 @@ flowchart LR
     R25S --> T25S --> P25S --> CT25S -.-> CP25S
 ```
 
-## Notes
-- **Produzione di clustering, 12-10 e 14-10:** 111 run. Per ogni matrice si sono prodotti i candidati "buoni" e "discreti" del tuning del 12-10 ([`clustering/s1_tuning.md`](clustering/s1_tuning.md), [`clustering/s2_tuning.md`](clustering/s2_tuning.md)); i diari sono [`clustering/s1_production.md`](clustering/s1_production.md) e [`clustering/s2_production.md`](clustering/s2_production.md).
-
+Ogni matrice compare tre volte: il ramo principale (UMAP, poi agglomerative e HDBSCAN), il ramo ADP sulla matrice grezza, e il ramo `hdbscan_soft` del 15-10.

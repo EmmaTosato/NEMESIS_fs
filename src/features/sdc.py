@@ -29,7 +29,7 @@ value column), which is why it is its own builder rather than a parameter of
 file only in the `LF-lesion` family, there is no `LF-disconnectome` variant
 of it. Despite that name the quantity is a disconnection measure, which is
 why it belongs to the s2.x (disconnectome) track - see
-docs/experiments/data_sessions.md.
+docs/experiments/README.md.
 
 Unlike the parcellated CSVs, this one writes **every** tract explicitly,
 zeros included (verified on the full local cohort, 30/09: all 1734 files

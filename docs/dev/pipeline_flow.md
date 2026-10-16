@@ -58,7 +58,7 @@ La soglia in uso è già calibrata: il giro si rifà solo se cambiano griglia o 
 
 - **Cartella di matrice:** `matrix.npy`, `metadata.csv` (almeno `subject_id`, `dataset`), `manifest.json`, `config.md`, più array accessori (`non_constant_mask.npy` per la lesione, `tract_names.npy` per la streamline). `save_matrix` scrive in una cartella temporanea e la rinomina: un crash non lascia mai una cartella a metà. `load_matrix` richiede `manifest.json`.
 - **Nome:** `<gg-mm>_<sessione>`, con la sessione nella forma `sX.Y-<formato>` (vocabolario chiuso, mai `_` al suo interno: `run_log` divide l'id sul primo `_`). `dim_reduction` e `clustering` aggiungono un tag derivato dai parametri (`_m_euclidean_nc2`); il ramo FC aggiunge l'`atlas_combo`.
-- **Registro delle sessioni:** `docs/experiments/data_sessions.md`, a mano. Nessun codice lo legge né confronta `session_name` con `input_path`.
+- **Registro delle sessioni:** `docs/experiments/README.md`, a mano. Nessun codice lo legge né confronta `session_name` con `input_path`.
 - **Output di `dim_reduction`:** `results/<modalità>/dim_reduction/{production,tuning}/<metodo>/...`; produzione e tuning non si incontrano mai su disco. **Output di `clustering`:** `results/<modalità>/clustering/{production,tuning}/<metodo>/<riduzione>/...`, dove `<riduzione>` è il metodo che ha prodotto l'embedding in ingresso (`raw` per una matrice non ridotta).
 
 ## Esclusioni e coorti

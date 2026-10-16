@@ -433,7 +433,7 @@ def _hdbscan_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.ndarray
     min_cluster_size/min_samples, never surfaced anywhere in a tuning sweep before this - a
     combination could silently produce a degenerate/over-fragmented result (e.g. min_cluster_size
     too low relative to the cohort size) invisible in tuning_results.csv until it was already
-    running in production (see docs/experiments/clustering/s1_production.md, s1.2-vol: 143
+    running in production (see docs/experiments/s1.2-vol.md: 143
     clusters found only at production time for a combination silhouette/noise_fraction alone
     looked reasonable for). label -1 (noise) is excluded, same convention as noise_fraction.
     """

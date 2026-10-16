@@ -179,7 +179,7 @@ python -m src.pipeline.embedding_app
 
 - [ ] La matrice esiste e ha la coorte attesa.
 - [ ] `params_file` è il registro giusto (lesione o SDC) e ne ho letto i valori: tiene quelli dell'ultima run.
-- [ ] `session_name` è coerente con `input_path` (nessun controllo lo verifica) ed è registrata in [`data_sessions.md`](../experiments/data_sessions.md).
+- [ ] `session_name` è coerente con `input_path` (nessun controllo lo verifica) ed è registrata in [`docs/experiments/`](../experiments/README.md).
 - [ ] `output_root` è quello giusto (`results/lesion/...` o `results/sdc/...`).
 - [ ] Per colori e analisi: `enrich_metadata` è stato eseguito dopo l'ultimo cambio di maschere o tsv.
 
