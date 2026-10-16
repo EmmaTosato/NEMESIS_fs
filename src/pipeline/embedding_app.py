@@ -62,6 +62,13 @@ def main(argv: list[str] | None = None) -> int:
         help="params_clustering.json-shaped registry backing the picker's clustering-pipeline "
         "'Parametri' step (each method's own tag_param list) (default: config/registry/params_clustering.json)",
     )
+    parser.add_argument(
+        "--distance-cache-dir",
+        default="results/cache/raw_distances",
+        help="Where the dice distance matrix of an adp run's raw feature matrix is cached once computed "
+        "(about 270 MB per matrix; computed in the background, about 4 minutes for lesions and up to 25 for "
+        "voxelwise disconnection) (default: results/cache/raw_distances)",
+    )
     # 8060, not Dash's own default 8050 - deliberately non-default so this app doesn't collide
     # with another local Dash instance a developer might already have running on 8050.
     parser.add_argument("--port", type=int, default=8060, help="Local port to serve on (default: 8060)")
@@ -134,7 +141,9 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     try:
-        app = build_app(runs, lesion_cfg, sdc_cfg, args.clustering_params_file, preload=args.preload)
+        app = build_app(
+            runs, lesion_cfg, sdc_cfg, args.clustering_params_file, Path(args.distance_cache_dir), preload=args.preload
+        )
     except ValueError as exc:
         logging.error(str(exc))
         return 1

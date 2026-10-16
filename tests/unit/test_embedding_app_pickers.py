@@ -123,7 +123,7 @@ def test_resolve_pickers_raises_when_a_step_has_nothing_to_offer(tmp_path):
 
 def test_the_picker_callback_answers_in_one_response_for_every_step(_runs, tmp_path):
     # End to end through Dash: the single callback has every step as input and output.
-    app = build_app(_runs, _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path))
+    app = build_app(_runs, _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache")
     app.server.config["TESTING"] = True
     ids = {field: f"{field.replace('_', '-')}-picker" for field in PICKER_FIELDS}
     values = {field: None for field in PICKER_FIELDS} | {"modality": "sdc"}

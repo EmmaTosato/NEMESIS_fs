@@ -85,7 +85,15 @@ from src.analysis.cluster_comparison import (
 )
 from src.analysis.cluster_composition import COMPOSITION_VARIABLES, build_composition_figure, composition_frame
 from src.analysis.cluster_quality import build_silhouette_figure
-from src.analysis.clustering_evaluation import GeometricSummary, geometric_summary, noise_warning, require_applicable
+from src.analysis.clustering_evaluation import (
+    AdpSummary,
+    GeometricSummary,
+    adp_summary,
+    geometric_summary,
+    noise_warning,
+    require_applicable,
+)
+from src.analysis.raw_distances import RawDistanceStore
 from src.analysis.cluster_description import (
     CLUSTER_DESCRIPTION_VARIABLES,
     ClusterDescriptionVariable,
@@ -630,7 +638,7 @@ def run_metadata(run: ProductionRun) -> pd.DataFrame:
     panels (lesion_viewer_content_for, cluster_options) only need metadata's columns, not a
     2-or-3-component embedding to plot, so a run with e.g. n_components=10 still exposes them.
     """
-    _matrix, metadata, _extra_arrays = load_matrix(run.path)
+    _matrix, metadata, _extra_arrays = load_matrix(run.path, mmap=True)  # the matrix stays on disk: only the csv is wanted
     return metadata
 
 
@@ -2250,6 +2258,131 @@ def run_geometric_summary(run: ProductionRun) -> GeometricSummary:
     return geometric_summary(matrix, metadata["cluster_label"].to_numpy(), run_params(run))
 
 
+# How often the panel looks again at a background computation (milliseconds).
+_QUALITY_POLL_MS = 5000
+
+# Neighbours counted by the purity of an adp run (the K_NEIGHBORS of the evaluation notebook).
+ADP_K_NEIGHBORS = 10
+
+
+def run_adp_summary(run: ProductionRun, store: RawDistanceStore) -> AdpSummary | None:
+    """k-neighbour purity and silhouette on the dice distance of an adp run, or None while the distance
+    matrix is still being computed in the background (RawDistanceStore.request).
+
+    Reads the run's own matrix.npy (what adp clustered: the matrix may have been rebuilt since, the
+    run keeps its copy) memory-mapped, and only metadata.csv for the subjects and labels. Raises
+    ValueError for a run that is not adp, or whatever adp_summary refuses."""
+    require_applicable("knn_purity", run.method)
+    metadata = run_metadata(run)
+    distances = store.request(run.path / MATRIX_FILENAME, metadata["subject_id"].tolist(), run_params(run)["metric"])
+    if distances is None:
+        return None
+    return adp_summary(distances.distances, distances.non_empty, metadata["cluster_label"].to_numpy(), ADP_K_NEIGHBORS)
+
+
+def _adp_guide() -> html.Details:
+    """How to read the adp indices, collapsed under the tables (the text of section 2.2 of the evaluation notebook)."""
+    return html.Details(
+        className="comparison-guide",
+        children=[
+            html.Summary("Come leggere questi indici"),
+            html.Ul([
+                html.Li([html.B("Purezza dei vicini: "), (
+                    f"per ogni soggetto, la quota dei suoi {ADP_K_NEIGHBORS} vicini più prossimi (distanza dice, quella con cui adp "
+                    "ha clusterizzato) che sta nel suo stesso cluster. Da 0 a 1; vicino a 1 i vicini stanno quasi sempre nel "
+                    "suo cluster. Va letta accanto al valore atteso a caso, (n del cluster - 1) / (n totale - 1). Un cluster con "
+                    f"{ADP_K_NEIGHBORS} soggetti o meno non può raggiungere 1: resta in tabella ma fuori dal riassunto."
+                )]),
+                html.Li([html.B("Coppie a distanza 1: "), (
+                    "quota delle coppie di soggetti senza voxel in comune. Da guardare prima di leggere la silhouette. "
+                    "Se è alta (per le lesioni 84%), quasi tutte le distanze valgono 1 e la silhouette sta vicino a 0 "
+                    "qualunque sia la struttura: si ignora e si usa la purezza. Se è bassa (disconnettoma voxelwise "
+                    "0,0015%), le distanze sono varie e la silhouette si legge come per gli altri metodi."
+                )]),
+                html.Li([html.B("Quota con pareggio: "), (
+                    "soggetti il cui ultimo vicino contato ha la stessa distanza del successivo. Per loro la purezza "
+                    "è il valore atteso scegliendo a caso tra i pareggi."
+                )]),
+            ]),
+            html.P(
+                "La purezza è in parte circolare, perché adp forma i cluster proprio su questi vicini: una purezza alta dice "
+                "che i cluster sono coerenti, non che siano \"veri\". La silhouette qui è sulla distanza dice e non è "
+                "confrontabile con quella euclidea dei run su embedding. Il rumore (-1) e i soggetti con la matrice "
+                "tutta a zero, che adp etichetta -1 perché la distanza dice non è definita, sono esclusi.",
+                className="comparison-note",
+            ),
+        ],
+    )
+
+
+def adp_quality_content_for(
+    run: ProductionRun, summary_of: Callable[[ProductionRun], AdpSummary | None]
+) -> tuple[html.Div | html.P, bool]:
+    """(content, pending) of the "Valutazione del clustering" panel for an adp run: the k-neighbour purity,
+    the silhouette on the dice distance and the share of pairs at distance 1, with a per-cluster table.
+    `pending` is True while the distance matrix is still being computed: the content then says so and
+    the caller keeps polling. Same never-raises contract as the other *_content_for functions."""
+    try:
+        summary = summary_of(run)
+    except (ValueError, OSError) as exc:
+        return html.P(str(exc), className="status-message"), False
+    if summary is None:
+        return html.P(
+            "Calcolo della matrice delle distanze dice tra i soggetti in corso (circa 4 minuti per le lesioni, "
+            "fino a circa 25 per il disconnettoma voxelwise). Viene salvata su disco: la prossima volta è immediata. "
+            "La pagina si aggiorna da sola.",
+            className="status-message",
+        ), True
+
+    def share(value: float) -> str:
+        return f"{_format_number(value * 100, 1)}%"
+
+    purity, silhouette = summary.purity, summary.silhouette
+    rows = [
+        [f"Purezza dei {summary.k} vicini", _format_number(purity.purity, 3), "più alto è meglio, da 0 a 1"],
+        ["Purezza attesa a caso", _format_number(purity.chance, 3), "da leggere accanto alla purezza"],
+        ["Silhouette dice (media sui soggetti)", _format_number(silhouette.micro, 3), "più alto è meglio, da -1 a 1"],
+        ["Silhouette dice (media dei cluster)", _format_number(silhouette.macro, 3), "ogni cluster pesa uguale"],
+        ["Silhouette dice del cluster peggiore", _format_number(silhouette.minimum, 3), "più alto è meglio"],
+        ["Coppie a distanza 1", share(summary.pairs_at_distance_1), "se è alta la silhouette non è informativa"],
+        ["Cluster (rumore escluso)", str(len(purity.clusters)), ""],
+        ["Rumore", share(summary.noise_fraction), "dei soggetti"],
+        [f"Soggetti in cluster di {summary.k} o meno", str(purity.n_not_evaluable), "fuori dal riassunto della purezza"],
+        ["Quota con pareggio", share(purity.tied_share), "soggetti con vicini a pari distanza"],
+    ]
+    cluster_rows = [
+        [
+            str(label), str(int(row.n)), _format_number(row.purity, 3), _format_number(row.chance, 3),
+            "sì" if row.evaluable else "no", _format_number(row.silhouette_mean, 3), share(row.share_negative),
+        ]
+        for label, row in summary.clusters.iterrows()
+    ]
+    children: list = []
+    warning = noise_warning(run.run_name, summary.noise_fraction, NOISE_WARNING_FRACTION)
+    if warning is not None:
+        children.append(_warning_box(warning))
+    children += [
+        html.P(
+            f"Calcolati sulla distanza dice del dato grezzo, quella con cui adp ha clusterizzato, su {summary.n_clustered} "
+            f"soggetti clusterizzati di {summary.n_subjects}. Numeri da leggere, non una graduatoria.",
+            className="section-intro",
+        ),
+        _table(["Indice", "Valore", "Lettura"], rows, text_columns=(0, 2)),
+        html.P("Per cluster", className="comparison-subheading"),
+        _table(
+            ["Cluster", "Soggetti", "Purezza", "Attesa a caso", "Valutabile", "Silhouette media", "Silhouette negativa"],
+            cluster_rows, text_columns=(0,),
+        ),
+        dcc.Graph(
+            figure=build_silhouette_figure(summary.silhouette.clusters),
+            config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
+            style={"width": "100%"},
+        ),
+        _adp_guide(),
+    ]
+    return html.Div(children), False
+
+
 def _quality_guide() -> html.Details:
     """How to read the indices, collapsed under the table (the text of section 2 of the evaluation notebook)."""
     return html.Details(
@@ -3031,6 +3164,7 @@ def build_app(
     lesion_cfg: LesionViewerConfig,
     sdc_cfg: SdcViewerConfig,
     clustering_params_file: str | Path,
+    distance_cache_dir: str | Path,
     preload: bool = False,
 ) -> Dash:
     """Builds the Dash app: a run picker (dcc.Dropdown, one entry per discovered production
@@ -3125,6 +3259,17 @@ def build_app(
     # run and served from memory afterwards. Same closure-cache reasoning as the two view caches above;
     # a run the indices are not defined for raises ValueError and is never cached.
     geometric_summary_cache: dict[str, GeometricSummary] = {}
+    raw_distance_store = RawDistanceStore(Path(distance_cache_dir))
+    adp_summary_cache: dict[str, AdpSummary] = {}
+
+    def _cached_adp_summary(run: ProductionRun) -> AdpSummary | None:
+        # Seconds once the distance matrix exists, so memoised per run; None (still computing) is not.
+        if run.key not in adp_summary_cache:
+            summary = run_adp_summary(run, raw_distance_store)
+            if summary is None:
+                return None
+            adp_summary_cache[run.key] = summary
+        return adp_summary_cache[run.key]
 
     def _cached_geometric_summary(run: ProductionRun) -> GeometricSummary:
         if run.key not in geometric_summary_cache:
@@ -3466,6 +3611,8 @@ def build_app(
                 children=[
                     html.H2("Valutazione del clustering", className="section-heading"),
                     html.Div(id="cluster-quality-content"),
+                    # Enabled only while an adp run's distance matrix is being computed in the background.
+                    dcc.Interval(id="cluster-quality-poll", interval=_QUALITY_POLL_MS, disabled=True),
                 ],
             ),
             # Last child and position: fixed, so its place in the DOM does not matter. Collapsed by default; the links are rebuilt for the chosen run by _update_page_index.
@@ -3837,15 +3984,20 @@ def build_app(
 
     @app.callback(
         Output("cluster-quality-content", "children"),
+        Output("cluster-quality-poll", "disabled"),
         Input("run-picker", "value"),
+        Input("cluster-quality-poll", "n_intervals"),
     )
-    def _update_cluster_quality(run_key: str | None):
+    def _update_cluster_quality(run_key: str | None, _n_intervals: int):
         if run_key is None:
             raise PreventUpdate
         run = runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
-        return cluster_quality_content_for(run, summary_of=_cached_geometric_summary)
+        if run.method == "adp":
+            content, pending = adp_quality_content_for(run, summary_of=_cached_adp_summary)
+            return content, not pending
+        return cluster_quality_content_for(run, summary_of=_cached_geometric_summary), True
 
     @app.callback(
         Output("representative-download", "data"),

@@ -10,7 +10,11 @@ from sklearn.mixture import GaussianMixture
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.clustering_evaluation import (
     EVALUATIONS,
+    adp_summary,
+    distance_matrix_silhouette,
     geometric_summary,
+    knn_purity,
+    saturated_pair_share,
     membership_confidence,
     model_fit_metrics,
     require_applicable,
@@ -513,3 +517,60 @@ def test_geometric_summary_raises_when_every_cluster_is_a_single_subject():
 
     with pytest.raises(ValueError):
         geometric_summary(X, np.array([0, 1, 2]), {})
+
+
+def _blob_distances():
+    X, labels = _three_blobs(), _blob_labels()
+    distances = np.linalg.norm(X[:, None, :] - X[None, :, :], axis=2)
+    return distances, labels
+
+
+def test_adp_summary_matches_its_parts_on_the_clustered_subjects_only():
+    distances, labels = _blob_distances()
+    labels = labels.copy()
+    labels[:6] = -1  # noise: out of the distance matrix the indices are computed on
+    non_empty = np.ones(90, dtype=bool)
+
+    summary = adp_summary(distances, non_empty, labels, k=5)
+
+    kept = labels != -1
+    expected_distances = distances[np.ix_(kept, kept)]
+    assert summary.purity.purity == pytest.approx(knn_purity(expected_distances, labels[kept], 5).purity)
+    assert summary.silhouette.micro == pytest.approx(distance_matrix_silhouette(expected_distances, labels[kept]).micro)
+    assert summary.pairs_at_distance_1 == pytest.approx(saturated_pair_share(expected_distances))
+    assert (summary.n_subjects, summary.n_clustered, summary.k) == (90, 84, 5)
+    assert summary.noise_fraction == pytest.approx(6 / 90)
+    assert list(summary.clusters.columns) == [
+        "n", "purity", "chance", "max_possible", "evaluable", "silhouette_mean", "share_negative"
+    ]
+
+
+def test_adp_summary_leaves_out_the_subjects_with_an_empty_row_labelled_noise():
+    distances, labels = _blob_distances()
+    non_empty = np.ones(90, dtype=bool)
+    non_empty[[0, 40]] = False  # their distance is undefined: not in the matrix, labelled -1 by adp
+    labels = labels.copy()
+    labels[[0, 40]] = -1
+    kept = np.flatnonzero(non_empty)
+
+    summary = adp_summary(distances[np.ix_(kept, kept)], non_empty, labels, k=5)
+
+    assert summary.n_clustered == 88 and summary.n_subjects == 90
+    assert summary.noise_fraction == pytest.approx(2 / 90)
+
+
+def test_adp_summary_refuses_an_empty_row_subject_that_has_a_cluster():
+    distances, labels = _blob_distances()
+    non_empty = np.ones(90, dtype=bool)
+    non_empty[0] = False  # but labels[0] is cluster 0, which adp never produces
+    kept = np.flatnonzero(non_empty)
+
+    with pytest.raises(ValueError, match="not an adp run"):
+        adp_summary(distances[np.ix_(kept, kept)], non_empty, labels, k=5)
+
+
+def test_adp_summary_refuses_distances_that_do_not_match_the_mask():
+    distances, labels = _blob_distances()
+
+    with pytest.raises(ValueError, match="do not match"):
+        adp_summary(distances[:80, :80], np.ones(90, dtype=bool), labels, k=5)

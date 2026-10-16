@@ -444,7 +444,7 @@ def test_index_hides_the_sections_a_run_does_not_have(tmp_path):
 
 def test_every_index_anchor_is_a_real_element_of_the_page(tmp_path):
     run = _make_clustering_run(tmp_path)
-    app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _params_file(tmp_path))
+    app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _params_file(tmp_path), tmp_path / "cache")
     ids = _layout_ids(app.layout)
 
     sdc_run = ProductionRun("sdc", "clustering", "kmeans", "x", tmp_path, reduction_method="umap")
@@ -460,7 +460,7 @@ def test_the_reduction_picker_is_hidden_only_for_a_dim_reduction_run(tmp_path, p
     # Regression (08-10-26): for a dim_reduction run the Metodo already is the reduction method, so
     # "Riduzione" showed a single empty option next to it.
     run = _make_clustering_run(tmp_path, labels=(0, 0, 1, 1))
-    app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _params_file(tmp_path))
+    app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _params_file(tmp_path), tmp_path / "cache")
     app.server.config["TESTING"] = True
     body = {
         "output": "reduction-picker-field.style",

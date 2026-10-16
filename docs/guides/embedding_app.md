@@ -91,6 +91,7 @@ Poi apri `http://127.0.0.1:8060` nel browser. Opzioni:
 | `--lesion-config` | `config/pipelines/build_lesion_matrix.json` | Config (stessa forma usata da `build_lesion_matrix.py`) che risolve `data_root`/`lesion_glob`/`reference_template_path`/`binarize_threshold`/`resample_interpolation` per i pannelli di anatomia lesionale sotto - caricato/validato con lo stesso loader (`load_build_matrix_config`), fallisce subito all'avvio se il config o il template di riferimento mancano |
 | `--sdc-config` | `config/pipelines/build_sdc_matrix.json` | Config (stessa forma usata da `build_sdc_matrix.py`) che risolve `data_root`/`reference_template_path`/`resample_interpolation` per i pannelli di anatomia SDC sotto - deve avere `representation: "voxelwise"` (fallisce subito all'avvio altrimenti, `representation: "parcellated"` non ha un `disconnectome-map.nii.gz` grezzo da mostrare) |
 | `--clustering-params-file` | `config/registry/params_clustering.json` | Registry (stesso file che usa `clustering.py`) da cui il passo "Parametri" del selettore legge il `tag_param` di ciascun metodo di clustering (`n_clusters`/`linkage` per agglomerative, ecc. - `load_tag_params`) |
+| `--distance-cache-dir` | `results/cache/raw_distances` | Dove si salva la matrice delle distanze dice di un run `adp` (sezione "Valutazione del clustering"), una volta calcolata in background. Circa 270 MB per matrice |
 | `--preload`      | off         | All'avvio, in un thread di background, legge una volta tutti i soggetti di tutti i run di clustering (maschere lesionali sempre; disconnettomi SDC solo per i run `sdc`) popolando la cache condivisa di `src/analysis/anatomical_maps.py::BinaryMaskStore` - da quel momento la mappa di anatomia di qualunque cluster di qualunque run si apre in circa un secondo invece che ricalcolarsi da zero al primo clic |
 | `--port`         | `8060`    | Porta locale (non l'8050 di default di Dash, per non collidere con un'altra istanza Dash locale già in esecuzione) |
 | `--debug`        | off         | Modalità debug di Dash (auto-reload, overlay errori nel browser)                                                   |
@@ -258,17 +259,31 @@ Ultimo pannello della pagina, per un run di clustering. Dà gli **indici geometr
 
 Una tabella con valore e lettura di:
 
-- **Silhouette** (da -1 a 1, più alta è meglio) e **silhouette del cluster peggiore**
+- **Silhouette** (da -1 a 1, più alta è meglio) in tre sintesi: media sui soggetti (pesa di più i cluster grandi), media dei cluster (ogni cluster pesa uguale) e **silhouette del cluster peggiore**
 - **Calinski-Harabasz** (più alto è meglio)
 - **Davies-Bouldin** (più basso è meglio)
 - **Dunn** (più alto è meglio, sensibile agli outlier)
 - numero di **cluster** (rumore escluso), quota del **cluster più grande** e quota di **rumore**, sul totale dei soggetti
 
+Sotto la tabella, **Silhouette per cluster**: una barra per cluster con la sua silhouette media (da -1 a 1), nel colore che il cluster ha nello scatter. L'etichetta di ogni barra porta la dimensione del cluster (`3 · n=412`), perché la media di pochi soggetti non è confrontabile con quella di centinaia: un cluster di un soggetto ha silhouette 0 per convenzione, e uno di 2 o 3 può avere una media estrema per caso. Passando il mouse su una barra compare la quota dei suoi soggetti con silhouette negativa, cioè più vicini a un altro cluster che al proprio. Serve a vedere quali cluster hanno confini ambigui anche quando la media complessiva è buona. L'icona fotocamera di Plotly esporta il PNG.
+
 Se il rumore supera il 10% compare un avviso: gli indici descrivono solo i soggetti rimasti. Sotto la tabella, "Come leggere questi indici" (a scomparsa) dice la direzione di ogni indice e il limite principale: **nessuno ha un valore di riferimento**. Una nuvola senza cluster divisa da un algoritmo ha comunque una silhouette positiva, e Calinski-Harabasz, Davies-Bouldin e Dunn di un run solo non hanno una scala. Embedding diversi (2 o 10 componenti, lesion o sdc) non sono confrontabili tra loro.
+
+### Run `adp`
+
+`adp` clusterizza la distanza dice sulla matrice grezza, che gli indici euclidei sopra misurerebbero in un'altra geometria. Per questi run il pannello mostra invece (sezione 2.2 del notebook), tutti sulla **distanza dice** e sui soli soggetti clusterizzati:
+
+- **Purezza dei 10 vicini**: la quota dei 10 soggetti più vicini che sta nello stesso cluster, accanto al valore **atteso a caso**. Un cluster con 10 soggetti o meno non può raggiungere 1: resta in tabella (colonna "Valutabile") ma fuori dal riassunto.
+- **Silhouette sulla distanza dice**: media sui soggetti, media dei cluster, cluster peggiore, e le barre per cluster.
+- **Coppie a distanza 1**: la quota di coppie senza voxel in comune. Va guardata prima della silhouette: se è alta (le lesioni: 84%) quasi tutte le distanze valgono 1 e la silhouette sta vicino a 0 qualunque sia la struttura, quindi si usa la purezza.
+- **Cluster, rumore, soggetti in cluster piccoli, quota con pareggio** (soggetti con vicini a pari distanza), e una tabella con una riga per cluster.
+
+La purezza è in parte circolare: adp forma i cluster proprio su questi vicini, quindi una purezza alta dice che i cluster sono coerenti, non che siano "veri". La silhouette non è confrontabile con quella euclidea dei run su embedding. Il rumore e i soggetti con la matrice tutta a zero (distanza non definita, etichettati `-1` da adp) sono esclusi.
+
+**La prima volta è lenta.** La matrice delle distanze tra tutti i soggetti si calcola **in background**: circa 4 minuti per le lesioni, fino a circa 25 per il disconnettoma voxelwise (la `stream`, 87 colonne, qualche secondo). Il pannello lo dice e si aggiorna da solo ogni 5 secondi; il resto dell'app resta usabile. La matrice si salva in `--distance-cache-dir` (default `results/cache/raw_distances`, circa 270 MB per matrice) e il nome della cartella dipende dal **contenuto** della matrice del run (forma, tipo, un campione di righe, i `subject_id`, la metrica): una matrice corretta ne genera una nuova invece di riusare una vecchia, e i run della stessa matrice la condividono. Le cartelle non più usate non si cancellano da sole. Una volta pronta la matrice, il pannello di un run costa pochi secondi.
 
 Quando il pannello dice una causa invece dei numeri:
 
-- **`adp`**: clusterizza la distanza dice sulla matrice grezza, che questi indici misurerebbero in un'altra geometria (per `adp` ci sono la purezza dei vicini e la silhouette sulla distanza dice, nel notebook).
 - **Run su una matrice con più di 1000 colonne** (`MAX_QUALITY_COLUMNS`), cioè su dato grezzo come i 221955 voxel della matrice lesionale: silhouette e Dunn leggono tutte le coppie di soggetti e non si calcolano qui; si fanno nel notebook.
 - **Run non euclideo** (metrica o affinità diversa da euclidea, es. `cosine`): gli indici sarebbero calcolati nella geometria sbagliata.
 - **Meno di 2 cluster** una volta tolto il rumore.

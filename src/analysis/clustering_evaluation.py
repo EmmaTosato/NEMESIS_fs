@@ -447,6 +447,52 @@ def geometric_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> 
     )
 
 
+@dataclass(frozen=True)
+class AdpSummary:
+    """Section 2.2 of the evaluation notebook for one adp run, on the distance adp clustered in (dice on
+    the raw matrix), over the clustered subjects only: noise (-1) and the subjects with an all-zero row
+    (undefined distance, labelled -1 by adp) are left out. `noise_fraction` is over all subjects."""
+
+    k: int
+    n_subjects: int
+    n_clustered: int
+    noise_fraction: float
+    pairs_at_distance_1: float
+    purity: KnnPurity
+    silhouette: SilhouetteBreakdown
+    clusters: pd.DataFrame  # index: cluster; n, purity, chance, max_possible, evaluable, silhouette_mean, share_negative
+
+
+def adp_summary(distances: np.ndarray, non_empty: np.ndarray, labels: np.ndarray, k: int) -> AdpSummary:
+    """k-neighbour purity, silhouette on the distance matrix and the share of pairs at distance 1 of an adp run.
+
+    `distances` is between the subjects with a non-empty row (RawDistances), `non_empty` their mask over
+    all of `labels`. Raises ValueError for a shape mismatch, an all-zero-row subject whose label is not
+    -1 (adp never does that: not an adp run), or anything knn_purity / distance_matrix_silhouette refuse
+    (fewer than 2 clusters, no cluster with more than k members, k out of range)."""
+    labels = np.asarray(labels)
+    if len(labels) != len(non_empty):
+        raise ValueError(f"{len(labels)} labels for {len(non_empty)} subjects in the empty-row mask")
+    n_kept = int(non_empty.sum())
+    if distances.shape != (n_kept, n_kept):
+        raise ValueError(f"distances {distances.shape} do not match the {n_kept} subjects with a non-empty row")
+    if not (labels[~non_empty] == -1).all():
+        raise ValueError("a subject with an all-zero row (undefined distance) has a label other than -1: not an adp run")
+    kept_labels = labels[non_empty]
+    clustered = np.flatnonzero(kept_labels != -1)
+    if len(clustered) == len(kept_labels):  # no noise: the matrix already is the right one, no N x N copy
+        clustered_distances, clustered_labels = distances, kept_labels
+    else:
+        clustered_distances, clustered_labels = distances[np.ix_(clustered, clustered)], kept_labels[clustered]
+    purity = knn_purity(clustered_distances, clustered_labels, k)
+    silhouette = distance_matrix_silhouette(clustered_distances, clustered_labels)
+    return AdpSummary(
+        k=k, n_subjects=len(labels), n_clustered=len(clustered_labels), noise_fraction=float((labels == -1).mean()),
+        pairs_at_distance_1=saturated_pair_share(clustered_distances), purity=purity, silhouette=silhouette,
+        clusters=pd.concat([purity.clusters, silhouette.clusters[["silhouette_mean", "share_negative"]]], axis=1),
+    )
+
+
 def noise_warning(run_name: str, noise_fraction: float, threshold: float) -> str | None:
     """The message for a run whose noise (label -1) share exceeds `threshold`, else None.
 

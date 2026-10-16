@@ -847,7 +847,7 @@ def test_graph_content_for_disconnection_mode_on_a_lesion_run_returns_status_mes
 
 def test_build_app_raises_on_empty_runs(tmp_path):
     with pytest.raises(ValueError, match="at least one production run"):
-        build_app([], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path))
+        build_app([], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache")
 
 
 def _runs(*specs):
@@ -1157,7 +1157,7 @@ def test_build_app_layout_has_one_button_per_color_mode(tmp_path):
     run_dir = _make_run_dir(results_root, run_name="run-2d", n_dims=2)
     run = ProductionRun("lesion", "dim_reduction", "umap", "run-2d", run_dir)
 
-    app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path))
+    app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache")
 
     # .controls' children: [picker-row-1 (Dato/Pipeline/Metodo), picker-row-2
     # (Metrica/Componenti/Run), color-buttons] - color-buttons is the last one, not a fixed
@@ -1722,7 +1722,7 @@ def test_lesion_save_buttons_do_not_use_stale_clickdata_after_run_switch(tmp_pat
     dir_b = _make_run_dir(results_root, run_name="run-b", extra_metadata=shared_subject_metadata)
     run_a = ProductionRun("lesion", "dim_reduction", "umap", "run-a", dir_a)
     run_b = ProductionRun("lesion", "dim_reduction", "umap", "run-b", dir_b)
-    app = build_app([run_a, run_b], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path))
+    app = build_app([run_a, run_b], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path), tmp_path / "cache")
     app.server.config["TESTING"] = True
     client = app.server.test_client()
 
@@ -1800,7 +1800,7 @@ def test_sdc_panels_visible_only_for_sdc_modality_runs(tmp_path):
     lesion_run = ProductionRun("lesion", "dim_reduction", "umap", "lesion-run", lesion_dir)
     sdc_dr_run = ProductionRun("sdc", "dim_reduction", "umap", "sdc-dr-run", sdc_dim_reduction_dir)
     sdc_cl_run = ProductionRun("sdc", "clustering", "kmeans", "sdc-cl-run", sdc_clustering_dir, reduction_method="umap")
-    app = build_app([lesion_run, sdc_dr_run, sdc_cl_run], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path))
+    app = build_app([lesion_run, sdc_dr_run, sdc_cl_run], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path), tmp_path / "cache")
     app.server.config["TESTING"] = True
     client = app.server.test_client()
 
@@ -1841,7 +1841,7 @@ def test_representative_subject_panel_visible_only_for_clustering_runs(tmp_path)
     )
     dr_run = ProductionRun("lesion", "dim_reduction", "umap", "dr-run", dr_dir)
     cl_run = ProductionRun("lesion", "clustering", "kmeans", "cl-run", cl_dir, reduction_method="umap")
-    app = build_app([dr_run, cl_run], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path))
+    app = build_app([dr_run, cl_run], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path), tmp_path / "cache")
     app.server.config["TESTING"] = True
     client = app.server.test_client()
 
@@ -2235,7 +2235,8 @@ def test_preload_fills_both_stores_so_cluster_maps_need_no_file_reads(tmp_path, 
         _make_lesion_subject(data_root, dataset, subject_id, [(1, 1, 1)])
         _make_disconnectome_subject(data_root, dataset, subject_id, {(1, 1, 1): 0.9})
     app = build_app(
-        [run], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path), preload=True
+        [run], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path),
+        tmp_path / "cache", preload=True
     )
     for thread in threading.enumerate():
         if thread.name == "store-preload":
@@ -2268,7 +2269,7 @@ def test_preload_failure_is_logged_and_does_not_crash(tmp_path, caplog):
     run = ProductionRun("lesion", "clustering", "kmeans", "10-08_s1", run_dir, reduction_method="umap")
 
     with caplog.at_level(logging.INFO):
-        build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), preload=True)
+        build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache", preload=True)
         for thread in threading.enumerate():
             if thread.name == "store-preload":
                 thread.join(timeout=30)
@@ -2297,7 +2298,7 @@ def test_each_description_belongs_to_its_own_mode():
 def test_description_sits_between_the_section_heading_and_the_plot(tmp_path):
     run_dir = _make_run_dir(tmp_path / "results", run_name="run-2d", n_dims=2)
     run = ProductionRun("lesion", "dim_reduction", "umap", "run-2d", run_dir)
-    app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path))
+    app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache")
     ids = [getattr(child, "id", None) for child in app.layout.children]
 
     heading = next(i for i, child in enumerate(app.layout.children) if getattr(child, "children", None) == "Embedding Visualization")
