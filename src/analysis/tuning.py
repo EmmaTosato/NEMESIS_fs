@@ -151,6 +151,7 @@ def run_tuning_sweep(
     base_params: dict,
     tuning_grid: dict[str, list],
     trustworthiness_n_neighbors: int | None,
+    model_cache: dict | None = None,
 ) -> tuple[pd.DataFrame, dict[tuple, np.ndarray]]:
     """Evaluate every combination in the Cartesian product of tuning_grid.
 
@@ -162,12 +163,18 @@ def run_tuning_sweep(
     - lets a caller that needs to *see* an embedding (e.g. dim_reduction.py's
     per-leaf embeddings_grid plot) avoid refitting it a second time.
 
+    `model_cache`, for a method in METHODS_WITH_MODEL_CACHE (pca), is the dict the sweep fits its
+    decomposition into: a caller that passes its own can read the fitted models back afterwards
+    (pca_method.decomposition_spectra). Omitted, the sweep uses a private one.
+
     Raises ValueError for a method with no supported tuning evaluator - only
     TUNING_METRIC_NAMES' methods are supported here (clustering methods go
-    through clustering_tuning.py instead).
+    through clustering_tuning.py instead) - or for a model_cache given to a method that has none.
     """
     if method not in TUNING_METRIC_NAMES:
         raise ValueError(f"fine-tuning not supported for method {method!r} - known: {sorted(TUNING_METRIC_NAMES)}")
+    if model_cache is not None and method not in METHODS_WITH_MODEL_CACHE:
+        raise ValueError(f"model_cache was given but method {method!r} has no model cache - known: {sorted(METHODS_WITH_MODEL_CACHE)}")
 
     metric_name = TUNING_METRIC_NAMES[method]
     evaluator = _EVALUATORS[method]
@@ -175,7 +182,7 @@ def run_tuning_sweep(
     rows = []
     embeddings_by_combo: dict[tuple, np.ndarray] = {}
     distance_cache: dict[str, np.ndarray] = {}
-    model_cache: dict = {}
+    model_cache = {} if model_cache is None else model_cache
     import logging
 
     combinations = list(itertools.product(*tuning_grid.values()))

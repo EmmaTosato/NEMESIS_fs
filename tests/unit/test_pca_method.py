@@ -5,7 +5,7 @@ import itertools
 import numpy as np
 import pytest
 
-from src.analysis.pca_method import fit_pca, fit_pca_embedding
+from src.analysis.pca_method import decomposition_spectra, fit_pca, fit_pca_embedding
 
 _X = np.random.default_rng(0).normal(size=(40, 12)) * np.linspace(3.0, 0.5, 12) + 100.0
 
@@ -142,3 +142,43 @@ def test_fit_pca_embedding_is_the_two_value_view_of_fit_pca():
     embedding, score = fit_pca_embedding(_X, {**_BLOCKS, "n_components": 3})
     np.testing.assert_array_equal(embedding, fit.embedding)
     assert score == fit.explained_share
+
+
+def test_decomposition_spectra_is_the_spectrum_fit_pca_reports_for_each_solver():
+    for solver_params, label in (
+        (_BLOCKS, "solver=blocks,standardize=False,dual=True"),
+        (_SKLEARN, "solver=sklearn,standardize=False"),
+    ):
+        cache: dict = {}
+        fit = fit_pca(_X, {**solver_params, "n_components": 3}, cache)
+
+        spectra = decomposition_spectra(cache)
+
+        assert list(spectra) == [label]
+        np.testing.assert_array_equal(spectra[label], fit.eigenvalues)
+
+
+def test_decomposition_spectra_has_one_spectrum_per_decomposition_the_sweep_fitted():
+    cache: dict = {}
+    for standardize in (False, True):
+        fit_pca(_X, {**_BLOCKS, "standardize": standardize, "n_components": 3}, cache)
+    fit_pca(_X, {**_BLOCKS, "n_components": 5}, cache)  # same decomposition as the first: not a third spectrum
+
+    spectra = decomposition_spectra(cache)
+
+    assert sorted(spectra) == ["solver=blocks,standardize=False,dual=True", "solver=blocks,standardize=True,dual=True"]
+    assert not np.allclose(*spectra.values())  # covariance and correlation give different spectra
+
+
+def test_decomposition_spectra_rejects_an_empty_cache():
+    with pytest.raises(ValueError, match="no pca decomposition"):
+        decomposition_spectra({})
+
+
+def test_decomposition_spectra_rejects_decompositions_that_differ_only_in_resource_knobs():
+    cache: dict = {}
+    fit_pca(_X, {**_BLOCKS, "n_components": 3, "chunk_columns": 4}, cache)
+    fit_pca(_X, {**_BLOCKS, "n_components": 3, "chunk_columns": 8}, cache)
+
+    with pytest.raises(ValueError, match="share the spectrum key"):
+        decomposition_spectra(cache)

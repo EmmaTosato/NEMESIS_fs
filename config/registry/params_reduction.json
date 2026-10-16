@@ -55,7 +55,7 @@
   },
   "pca": {
     "tag_param": ["n_components"],
-    "tag_prefix": ["c"],
+    "tag_prefix": ["nc"],
     "params": {
       "solver": "blocks",
       "standardize": false,

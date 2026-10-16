@@ -7,8 +7,9 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 
+from src.analysis.pca_method import fit_pca
 from src.pipeline import build_lesion_matrix, dim_reduction
-from src.utils.artifacts import save_matrix
+from src.utils.artifacts import load_matrix, save_matrix
 
 
 def _empty_exclusion_list(tmp_path):
@@ -370,6 +371,82 @@ def test_dim_reduction_fine_tuning_pca_with_varimax_writes_sweep_not_embedding(t
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert list(results.columns) == ["n_components", "cumulative_explained_variance"]
     assert len(results) == 3  # 3-value grid
+
+
+def test_dim_reduction_fine_tuning_pca_writes_the_variance_spectrum_and_the_scree_plot(tmp_path, monkeypatch):
+    """A sweep over rotation x n_components fits one decomposition: one spectrum, the same one a
+    production fit reports, written beside the sweep even with save_tuning_embeddings off."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+
+    entry = {
+        "params": {**_PCA_ENTRY["params"], "rotation_max_iter": 500},
+        "tuning_grid": {"rotation": ["none", "varimax"], "n_components": [2, 3]},
+    }
+    params_path = _write_params(tmp_path, entry)
+    output_root = tmp_path / "dr_out"
+    dr_cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "pca",
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "color_by": [],
+        "viz_n_components": 2,
+        "save_tuning_embeddings": False,
+        "tuning_evaluations": {"cumulative_explained_variance": {}},
+        "precompute_distance_metric": False,
+        "run_notes": None,
+    }
+    dr_cfg_path = tmp_path / "dim_reduction_tuning.json"
+    dr_cfg_path.write_text(json.dumps(dr_cfg))
+
+    assert dim_reduction.main(["--config", str(dr_cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (output_root / "tuning" / "pca").iterdir() if p.is_dir())
+    X, _, _ = load_matrix(input_dir)
+    expected = fit_pca(X, {**entry["params"], "n_components": 2}).eigenvalues
+    with np.load(tuning_dir / "eigenvalues.npz") as spectra:
+        assert list(spectra.files) == ["solver=blocks,standardize=False,dual=True"]
+        np.testing.assert_allclose(spectra["solver=blocks,standardize=False,dual=True"], expected)
+    assert (tuning_dir / "scree_plot.png").stat().st_size > 0
+    assert not (tuning_dir / "embeddings.npz").exists()
+    assert not list(tuning_dir.glob(".*_tmp_*"))  # no temp leftovers
+    assert len(pd.read_csv(tuning_dir / "tuning_results.csv")) == 4  # 2 rotations x 2 sizes
+
+
+def test_dim_reduction_fine_tuning_other_methods_write_no_spectrum(tmp_path, monkeypatch):
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    params_path = _write_params(tmp_path)
+    output_root = tmp_path / "dr_out"
+    dr_cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "pacmap",
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "tune1",
+        "overwrite": False,
+        "fine_tuning": True,
+        "color_by": [],
+        "viz_n_components": 2,
+        "save_tuning_embeddings": False,
+        "tuning_evaluations": {"trustworthiness": {}},
+        "precompute_distance_metric": True,
+        "run_notes": None,
+    }
+    dr_cfg_path = tmp_path / "dim_reduction_tuning.json"
+    dr_cfg_path.write_text(json.dumps(dr_cfg))
+
+    assert dim_reduction.main(["--config", str(dr_cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (output_root / "tuning" / "pacmap").iterdir() if p.is_dir())
+    assert not (tuning_dir / "eigenvalues.npz").exists()
+    assert not (tuning_dir / "scree_plot.png").exists()
 
 
 def test_dim_reduction_fine_tuning_pacmap_writes_sweep_not_embedding(tmp_path, monkeypatch):
@@ -1162,3 +1239,27 @@ def test_evaluate_tuning_embeddings_missing_embeddings_npz_returns_1(tmp_path, m
         assert evaluate_tuning_embeddings.main(["--config", str(cfg_path)]) == 1
 
     assert "save_tuning_embeddings=true" in caplog.text
+
+
+def test_scree_components_is_the_most_components_any_combination_keeps():
+    spectra = {"a": np.array([50.0, 30.0, 10.0, 5.0, 3.0, 1.5, 0.4, 0.1])}
+
+    assert dim_reduction._scree_components({"n_components": 9}, {"n_components": [2, 7, 4]}, spectra) == 7
+    assert dim_reduction._scree_components({"n_components": 6}, {"rotation": ["none", "varimax"]}, spectra) == 6
+    # variance_share: 0.8 is reached by 2 components (cumulative 0.8), 0.9 by 3
+    assert dim_reduction._scree_components({}, {"variance_share": [0.8, 0.9]}, spectra) == 3
+    assert dim_reduction._scree_components({"variance_share": 0.8}, {"rotation": ["none"]}, spectra) == 2
+
+
+def test_the_zoomed_scree_plot_is_written_only_when_the_full_one_shows_more_components(tmp_path):
+    spectra = {"a": np.linspace(100.0, 1.0, 80) ** 2}
+    zoom = dim_reduction.SCREE_ZOOM_COMPONENTS
+
+    wide, narrow = tmp_path / "wide", tmp_path / "narrow"
+    wide.mkdir()
+    narrow.mkdir()
+    dim_reduction._write_pca_spectra(wide, spectra, "title", n_shown=zoom + 10)
+    dim_reduction._write_pca_spectra(narrow, spectra, "title", n_shown=zoom)
+
+    assert (wide / "scree_plot.png").is_file() and (wide / "scree_plot_zoom.png").is_file()
+    assert (narrow / "scree_plot.png").is_file() and not (narrow / "scree_plot_zoom.png").exists()

@@ -76,6 +76,30 @@ def fit_pca_embedding(X: np.ndarray, params: dict, model_cache: dict | None = No
     return fit.embedding, fit.explained_share
 
 
+def decomposition_spectra(model_cache: dict) -> dict[str, np.ndarray]:
+    """The variance spectrum (eigenvalues, descending) of every decomposition `fit_pca` fitted into `model_cache`.
+
+    A sweep over n_components/variance_share/rotation fits one decomposition, so one spectrum; a sweep over
+    standardize, dual or solver fits several, one per combination. Each is keyed by what defines it
+    (e.g. "solver=blocks,standardize=False,dual=True"). Two cache entries that differ only in the resource
+    knobs (chunk_columns, max_matrix_gib) would share a key and raise: they cannot be told apart by name."""
+    spectra: dict[str, np.ndarray] = {}
+    for key, fitted in model_cache.items():
+        if key[0] == "blocks":
+            _solver, standardize, dual, _resources = key
+            label, eigenvalues = f"solver=blocks,standardize={standardize},dual={dual}", fitted.eigenvalues
+        elif key[0] == "sklearn":
+            label, eigenvalues = f"solver=sklearn,standardize={key[1]}", fitted[0].explained_variance_
+        else:
+            raise ValueError(f"model_cache entry {key!r} is not a pca decomposition")
+        if label in spectra:
+            raise ValueError(f"two pca decompositions share the spectrum key {label!r} (they differ only in chunk_columns/max_matrix_gib)")
+        spectra[label] = eigenvalues
+    if not spectra:
+        raise ValueError("model_cache holds no pca decomposition - no spectrum to report")
+    return spectra
+
+
 def _fit_blocks(X: np.ndarray, given: dict, cache: dict) -> PcaFit:
     resources = {key: given[key] for key in ("chunk_columns", "max_matrix_gib") if key in given}
     key = ("blocks", given["standardize"], given["dual"], tuple(sorted(resources.items())))

@@ -8,7 +8,7 @@
   "fine_tuning": true,
   "save_tuning_embeddings": true,
   "overwrite": false,
-  "precompute_distance_metric": true,
+  "precompute_distance_metric": false,
   "color_by": [
     "dataset",
     "side",
@@ -18,5 +18,5 @@
   "tuning_evaluations": {
     "cumulative_explained_variance": {}
   },
-  "run_notes": "UMAP production on s2.4-vol (5845 subjects, SDC voxelwise): metric euclidean, n_neighbors=15, min_dist=0.0 (same as s2.1/s2.2; within 0.003 of the tuning max trustworthiness for every n_components)."
+  "run_notes": "PCA tuning on s2.4-vol (5845 subjects, SDC voxelwise): covariance PCA (solver blocks, dual, standardize=false), n_components sweep, rotation none vs varimax."
 }

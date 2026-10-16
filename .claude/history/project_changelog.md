@@ -6,6 +6,24 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 16-10-26 — Il tuning della PCA scrive lo spettro (`eigenvalues.npz`) e lo scree plot
+
+**Cosa è cambiato**: un tuning `pca` scrive, accanto a `tuning_results.csv`, `eigenvalues.npz` (un array per ogni decomposizione fittata dalla griglia, chiave `solver=blocks,standardize=False,dual=True`), `scree_plot.png` e, se la griglia tiene più di 50 componenti, `scree_plot_zoom.png` sulle prime 50 (`SCREE_ZOOM_COMPONENTS`, costante in `dim_reduction.py`). Lo scrive sempre, anche con `save_tuning_embeddings: false`. Codice: `pca_method.decomposition_spectra`, `plotting.plot_scree`, `run_tuning_sweep(..., model_cache=None)`.
+
+**Perché**: `tuning_results.csv` campiona la varianza cumulata solo ai valori della griglia; per scegliere `n_components`/`variance_share` serve l'intero spettro, che prima usciva solo da una produzione (`eigenvalues.npy`). Pesa 47 KB, quindi non è opt-in. Scelto `.npz` con chiavi e non `.npy`: una griglia su `standardize`/`dual`/`solver` fitta più decomposizioni, ognuna con il suo spettro, e il confronto covarianza contro correlazione è proprio ciò che uno scree plot deve mostrare.
+
+**Scartato**: salvare i pesi ruotati (`rotated_loadings`) nel tuning. Dipendono da `rotation` e da `n_components` (la rotazione delle prime 42 componenti non è un sottoinsieme di quella delle prime 100), quindi ogni combinazione ne avrebbe di propri: circa 2 GB con la griglia di 20 valori su `s2.4-vol`. Servono solo alla varianza per componente dopo il varimax; non servono né agli embedding né alle mappe t.
+
+**Conseguenza ancora vera**: lo spettro nel tuning è sempre quello della decomposizione non ruotata; la varianza per componente dopo il varimax non si ricava da un tuning.
+
+## 16-10-26 — Prefisso `nc` per `n_components` nelle cartelle della PCA
+
+**Cosa è cambiato**: `tag_prefix` della voce `pca` è `["nc"]` (era `["c"]`) in `config/registry/params_reduction.json` e `params_reduction_sdc.json`. Le cartelle di produzione diventano `<data>_<sessione>_nc<k>` (es. `nc42`) e il tag passa a `clustering.py` con lo stesso prefisso.
+
+**Perché**: stesso prefisso di UMAP (`nc`) per lo stesso parametro, `n_components`. Scelta dell'utente.
+
+**Conseguenza ancora vera**: nessuna run PCA esisteva in `results/` al momento del cambio, quindi nessuna cartella da rinominare. L'esperimento in `tmp/s2.4_pca42_clustering/` ha usato il prefisso `c` (cartella `..._c42`): resta com'è, è fuori da `results/`.
+
 ## 16-10-26 — Eliminato `build_dim_reduction_strategies_csv.py` e il suo indice
 
 **Cosa è cambiato**: cancellati `scripts/build_dim_reduction_strategies_csv.py`, `jobs/run_build_dim_reduction_strategies_csv.sh` e `tests/unit/test_build_dim_reduction_strategies_csv.py`. Tolte le descrizioni di `results/dim_reduction_strategies.csv` da `docs/dev/config.md` e da `docs/guides/dim_reduction.md`.

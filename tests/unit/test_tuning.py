@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from sklearn.manifold import trustworthiness
 
+from src.analysis.pca_method import decomposition_spectra
 from src.analysis.tuning import (
     TUNING_METRIC_NAMES,
     evaluate_pacmap,
@@ -414,3 +415,17 @@ def test_pca_sweep_with_the_sklearn_solver_fits_once(monkeypatch):
     run_tuning_sweep("pca", _X, {"solver": "sklearn", "standardize": False, "rotation": "none"}, {"n_components": [2, 3, 4]}, None)
 
     assert len(fits) == 1
+
+
+def test_pca_sweep_fits_into_the_model_cache_it_is_given():
+    cache: dict = {}
+
+    df, _ = run_tuning_sweep("pca", _X, _PCA_BASE, {"n_components": [2, 3]}, None, cache)
+
+    assert len(df) == 2
+    assert list(decomposition_spectra(cache)) == ["solver=blocks,standardize=False,dual=True"]
+
+
+def test_a_model_cache_given_to_a_method_without_one_is_an_error():
+    with pytest.raises(ValueError, match="has no model cache"):
+        run_tuning_sweep("pacmap", _X, {"n_components": 2, "n_neighbors": 3, "MN_ratio": 0.5, "FP_ratio": 2.0, "random_state": 0}, {"n_neighbors": [2]}, 2, {})

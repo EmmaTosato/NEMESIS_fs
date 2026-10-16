@@ -20,11 +20,14 @@ import matplotlib.colors as mcolors
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator, PercentFormatter
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from scipy.cluster.hierarchy import dendrogram
 from sklearn.neighbors import NearestNeighbors
+
+from src.analysis.covariance_pca import components_for_share, nonzero_component_count
 
 # Categorical palette (10 tones) - CVD-safe on every *adjacent* pairwise
 # combination, verified (OKLab/Machado-CVD math, dataviz skill's
@@ -108,6 +111,10 @@ _TUNING_METRICS_SUBPLOT_WIDTH = 6.0
 _TUNING_METRICS_SUBPLOT_HEIGHT = 4.5
 _TUNING_METRICS_WSPACE = 0.4
 _TUNING_METRICS_HSPACE = 0.4
+
+# plot_scree: the cumulative-variance levels marked on the right panel and counted in the legend.
+_SCREE_SHARES = (0.5, 0.8, 0.9)
+_SCREE_FIGSIZE = (12, 4.8)
 
 # plot_embedding_grid_blocks packs the same subject count into a much smaller
 # cell than a single full-figure embedding plot - a smaller, lower-alpha
@@ -936,6 +943,54 @@ def plot_tuning_curve(df: pd.DataFrame, param_col: str, metric_col: str, output_
     ax.set_xlabel(param_col)
     ax.set_ylabel(metric_col)
     ax.set_title(title)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_scree(spectra: dict[str, np.ndarray], output_path: Path, title: str, n_shown: int) -> None:
+    """Scree plot of a pca sweep: one line per decomposition (`spectra`: label -> eigenvalues, descending).
+
+    Left: the percentage of the total variance each of the first `n_shown` components explains. Right:
+    the cumulative percentage, with dashed lines at _SCREE_SHARES and a dot, labelled with the component
+    count, where each decomposition crosses them. Plain linear axes in percent; the legend repeats the counts.
+    """
+    if not spectra:
+        raise ValueError("plot_scree needs at least one spectrum")
+    if n_shown < 1:
+        raise ValueError(f"plot_scree needs n_shown >= 1, got {n_shown!r}")
+    fig, (ax_each, ax_cumulative) = plt.subplots(1, 2, figsize=_SCREE_FIGSIZE)
+    for index, (label, eigenvalues) in enumerate(spectra.items()):
+        shown = min(n_shown, nonzero_component_count(eigenvalues))
+        share = eigenvalues[:shown] / eigenvalues.sum()
+        positions = np.arange(1, shown + 1)
+        color = _CATEGORICAL_PALETTE[index % len(_CATEGORICAL_PALETTE)]
+        ax_each.plot(positions, share, color=color, linewidth=1.5, marker="o", markersize=3)
+        ax_cumulative.plot(positions, np.cumsum(share), color=color, linewidth=1.5)
+        reached = {level: components_for_share(eigenvalues, level) for level in _SCREE_SHARES}
+        for level, count in reached.items():
+            if count <= shown:
+                ax_cumulative.plot([count], [level], marker="o", markersize=6, color=color)
+                ax_cumulative.annotate(f"{count}", (count, level), textcoords="offset points", xytext=(6, -14 - 12 * index), color=color, fontsize=9)
+        counts = ", ".join(f"{level:.0%}: {count}" for level, count in reached.items())
+        ax_cumulative.plot([], [], color=color, label=f"{label} ({counts})")
+
+    for level in _SCREE_SHARES:
+        ax_cumulative.axhline(level, color=_NOISE_COLOR, linestyle="--", linewidth=1)
+    for axis in (ax_each, ax_cumulative):
+        axis.set_xlabel("component")
+        axis.set_xlim(0, n_shown + 1)
+        axis.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=8))
+        axis.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
+        axis.grid(alpha=0.3)
+    ax_each.set_ylabel("variance explained by the component")
+    ax_each.set_title("per component")
+    ax_cumulative.set_ylabel("cumulative variance explained")
+    ax_cumulative.set_title("cumulative")
+    # Below the panels: the labels are long, inside the axes they cover the curves.
+    fig.legend(*ax_cumulative.get_legend_handles_labels(), loc="upper center", bbox_to_anchor=(0.5, 0.0), fontsize=9)
+    fig.suptitle(title)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=150, bbox_inches="tight")

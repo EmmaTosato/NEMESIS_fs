@@ -26,6 +26,7 @@ from src.analysis.plotting import (
     plot_clusters_2d,
     plot_consensus_matrix_heatmap,
     plot_grouped_tuning_metrics,
+    plot_scree,
     plot_dendrograms_grid,
     plot_eigengaps_grid,
     plot_embedding_2d,
@@ -808,3 +809,25 @@ def test_clustering_titles_write_adp_as_an_acronym_and_other_methods_capitalized
     assert compose_clustering_tuning_title(output_dir, "adp") == "SDC - Clustering Tuning - ADP"
     assert compose_clustering_tuning_title(output_dir, "kmeans") == "SDC - Clustering Tuning - Kmeans"
     assert compose_cluster_plot_title(output_dir, "raw", "adp") == "SDC - Raw - ADP"
+
+
+def test_plot_scree_writes_a_png_for_one_or_several_decompositions(tmp_path):
+    eigenvalues = np.array([50.0, 30.0, 10.0, 5.0, 3.0, 1.5, 0.4, 0.1])
+    one = tmp_path / "one" / "scree.png"
+    several = tmp_path / "several.png"
+
+    plot_scree({"solver=blocks,standardize=False,dual=True": eigenvalues}, one, "title", n_shown=5)
+    plot_scree({"a": eigenvalues, "b": eigenvalues * 2}, several, "title", n_shown=20)  # more than exist: shows them all
+
+    assert one.stat().st_size > 0
+    assert several.stat().st_size > 0
+
+
+def test_plot_scree_rejects_no_spectrum(tmp_path):
+    with pytest.raises(ValueError, match="at least one spectrum"):
+        plot_scree({}, tmp_path / "scree.png", "title", n_shown=5)
+
+
+def test_plot_scree_rejects_fewer_than_one_component(tmp_path):
+    with pytest.raises(ValueError, match="n_shown >= 1"):
+        plot_scree({"a": np.array([3.0, 2.0, 1.0])}, tmp_path / "scree.png", "title", n_shown=0)
