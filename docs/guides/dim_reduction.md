@@ -82,7 +82,7 @@ Tutte le scelte sono parametri della voce `pca` di `config/registry/params_reduc
 
 | Parametro | Valori | Cosa decide |
 | :--- | :--- | :--- |
-| **`solver`** | `"blocks"`, `"sklearn"` | `blocks` legge la matrice un blocco di colonne alla volta e regge matrici che non entrano in memoria (il disconnettoma voxelwise, 6,8 GB); `sklearn` usa `sklearn.decomposition.PCA` su una copia in memoria, per matrici piccole e per controlli. Con `blocks` la matrice resta su disco (`np.memmap`). |
+| **`solver`** | `"blocks"`, `"sklearn"` | `blocks` legge la matrice un blocco di colonne alla volta e regge matrici che non entrano in memoria (il disconnettoma voxelwise, 5,3 GB); `sklearn` usa `sklearn.decomposition.PCA` su una copia in memoria, per matrici piccole e per controlli. Con `blocks` la matrice resta su disco (`np.memmap`). |
 | **`standardize`** | `true`, `false` | `false`: PCA sulla covarianza, ogni colonna è solo centrata. `true`: PCA sulla correlazione, ogni colonna è anche divisa per la sua deviazione standard; una colonna costante ferma la run. La covarianza è la scelta quando le variabili sono nella stessa unità e una variabilità maggiore è informazione vera (come per un disconnettoma). |
 | **`dual`** | `true`, `false` | Solo `blocks`, obbligatorio. `true` parte dalla matrice soggetti × soggetti (PCA duale, o metodo degli snapshot), `false` dalla covarianza tra variabili. Danno gli stessi risultati; conviene la matrice più piccola. |
 | **`rotation`** | `"none"`, `"varimax"`, `"quartimax"`, `"equamax"`, `"oblimax"`, `"geomin_ort"` | `none` dà i punteggi delle componenti, ordinati per varianza. Le altre sono rotazioni ortogonali di `factor_analyzer`: i punteggi si ottengono per regressione multipla sui pesi ruotati, tutti con varianza 1 e senza più un ordine per varianza. Le rotazioni oblique non sono supportate. Solo `blocks`. |
@@ -92,12 +92,12 @@ Tutte le scelte sono parametri della voce `pca` di `config/registry/params_reduc
 
 **Con `solver: "sklearn"`** `dual`, `chunk_columns` e `max_matrix_gib` vanno tolti (si applicano solo a `blocks`) e `rotation` deve essere `"none"`.
 
-**Come si sceglie `dual`.** Si usa la matrice più piccola: `true` quando le variabili sono più dei soggetti, `false` quando sono meno. Con la scelta sbagliata il risultato è lo stesso, ma costa molto di più o non entra in memoria (per `dual: false` su un disconnettoma voxelwise la matrice sarebbe di circa 680 GB, e la run si ferma prima).
+**Come si sceglie `dual`.** Si usa la matrice più piccola: `true` quando le variabili sono più dei soggetti, `false` quando sono meno. Con la scelta sbagliata il risultato è lo stesso, ma costa molto di più o non entra in memoria (per `dual: false` su un disconnettoma voxelwise la matrice sarebbe di circa 413 GB, e la run si ferma prima).
 
 | Sessione | Soggetti | Variabili | `dual` |
 | :--- | :--- | :--- | :--- |
 | `s1.4-vol` (lesione voxelwise) | 5845 | 221.955 | `true` |
-| `s2.4-vol` (disconnettoma voxelwise) | 5845 | 291.345 | `true` |
+| `s2.4-vol` (disconnettoma voxelwise, voxel fuori dal brain azzerati) | 5845 | 227.235 | `true` |
 | `s2.1-schaefer-200-tian-s2` (SDC parcellato) | 1119 | 232 | `false` |
 | `s2.4-stream` (SDC per tratto) | 5831 | 87 | `false` |
 

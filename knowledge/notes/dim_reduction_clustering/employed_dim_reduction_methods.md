@@ -106,7 +106,7 @@ Il grafico degli autovalori in ordine decrescente si chiama *scree plot*; la quo
 
 #### PCA su una matrice più larga che alta (metodo degli snapshot)
 
-**Il problema.** La covarianza tra i voxel ha *p* × *p* valori. Con *p* = 291.345 sono circa 680 GB in float64: non entra in memoria, e `sklearn.decomposition.PCA` non regge nemmeno la tabella dei dati (5845 × 291.345, 6,8 GB) perché ne fa più copie.
+**Il problema.** La covarianza tra i voxel ha *p* × *p* valori. Con *p* = 227.235 sono circa 413 GB in float64: non entra in memoria, e `sklearn.decomposition.PCA` non regge nemmeno la tabella dei dati (5845 × 227.235, 5,3 GB) perché ne fa più copie.
 
 **Il trucco.** Si scrive la tabella centrata con la SVD: `Xc = U · S · Vᵀ`, con `U` (*n* × *n*, i soggetti), `S` (i valori singolari) e `V` (*p* × *n*, i voxel). Allora:
 
@@ -128,7 +128,7 @@ Matrici del progetto:
 | Sessione | Soggetti (*n*) | Variabili (*p*) | Percorso conveniente |
 |---|---|---|---|
 | `s1.4-vol` (lesione voxelwise) | 5845 | 221.955 | duale |
-| `s2.4-vol` (disconnettoma voxelwise) | 5845 | 291.345 | duale |
+| `s2.4-vol` (disconnettoma voxelwise, voxel fuori dal brain azzerati) | 5845 | 227.235 | duale |
 | `s2.1-schaefer-200-tian-s2` (SDC parcellato) | 1119 | 232 | covarianza tra variabili |
 | `s2.4-stream` (SDC per tratto) | 5831 | 87 | covarianza tra variabili |
 

@@ -38,7 +38,7 @@ Voci in ordine cronologico inverso.
 
 **Perché**: `tuning_results.csv` campiona la varianza cumulata solo ai valori della griglia; per scegliere `n_components`/`variance_share` serve l'intero spettro, che prima usciva solo da una produzione (`eigenvalues.npy`). Pesa 47 KB, quindi non è opt-in. Scelto `.npz` con chiavi e non `.npy`: una griglia su `standardize`/`dual`/`solver` fitta più decomposizioni, ognuna con il suo spettro, e il confronto covarianza contro correlazione è proprio ciò che uno scree plot deve mostrare.
 
-**Scartato**: salvare i pesi ruotati (`rotated_loadings`) nel tuning. Dipendono da `rotation` e da `n_components` (la rotazione delle prime 42 componenti non è un sottoinsieme di quella delle prime 100), quindi ogni combinazione ne avrebbe di propri: circa 2 GB con la griglia di 20 valori su `s2.4-vol`. Servono solo alla varianza per componente dopo il varimax; non servono né agli embedding né alle mappe t.
+**Scartato**: salvare i pesi ruotati (`rotated_loadings`) nel tuning. Dipendono da `rotation` e da `n_components` (la rotazione delle prime 42 componenti non è un sottoinsieme di quella delle prime 100), quindi ogni combinazione ne avrebbe di propri: circa 2 GB con la griglia di 20 valori sulla matrice del 07-10 di `s2.4-vol` (291345 colonne; circa 1,5 GB sulla corretta del 16-10, 227235). Servono solo alla varianza per componente dopo il varimax; non servono né agli embedding né alle mappe t.
 
 **Conseguenza ancora vera**: lo spettro nel tuning è sempre quello della decomposizione non ruotata; la varianza per componente dopo il varimax non si ricava da un tuning.
 
