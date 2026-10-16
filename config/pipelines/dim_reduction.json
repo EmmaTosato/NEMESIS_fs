@@ -1,14 +1,14 @@
 {
   "project": "clinical_connectome",
   "output_root": "results/sdc/dim_reduction",
-  "input_path": "data/derived/sdc_matrix/07-10_s2.4-vol",
+  "input_path": "data/derived/sdc_matrix/16-10_s2.4-vol",
   "params_file": "config/registry/params_reduction_sdc.json",
   "session_name": "s2.4-vol",
-  "reduction_method": "pca",
+  "reduction_method": "umap",
   "fine_tuning": true,
   "save_tuning_embeddings": true,
   "overwrite": false,
-  "precompute_distance_metric": false,
+  "precompute_distance_metric": true,
   "color_by": [
     "dataset",
     "side",
@@ -16,7 +16,11 @@
   ],
   "viz_n_components": 2,
   "tuning_evaluations": {
-    "cumulative_explained_variance": {}
+    "trustworthiness": {},
+    "plot_hdbscan": {
+      "min_cluster_size": 100,
+      "min_samples": 10
+    }
   },
-  "run_notes": "PCA tuning on s2.4-vol (5845 subjects, SDC voxelwise): covariance PCA (solver blocks, dual, standardize=false), n_components sweep, rotation none vs varimax."
+  "run_notes": "UMAP tuning on 16-10 s2.4-vol (5845 subjects, SDC voxelwise, voxels outside the brain zeroed: 227235 columns): metric euclidean only (dice dropped - binary metric not meaningful on continuous disconnection values), n_components 2/3/10, n_neighbors x min_dist grid identical to the 07-10 s2.4-vol tuning (uncorrected matrix) and to the s1.4-vol lesion sweep."
 }
