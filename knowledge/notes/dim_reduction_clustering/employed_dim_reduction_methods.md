@@ -232,13 +232,15 @@ Le colonne di B non sono più ortogonali nei dati, quindi la semplice proiezione
 
 > **s** = (BᵀB)⁻¹ Bᵀ **x**
 
+Con una rotazione ortogonale i punteggi che ne escono sono i punteggi PCA a varianza 1, ruotati: restano **scorrelati tra loro**, anche se le colonne di B non sono ortogonali. Per la letteratura sui punteggi dopo la rotazione vedi i riferimenti in [`docs/dev/covariance_pca.md`](../../../docs/dev/covariance_pca.md).
+
 #### Cosa si guadagna e cosa si perde
 
 **Si guadagna:** componenti leggibili come zone (per il disconnettoma: gruppi di voxel che si disconnettono insieme, ad esempio un emisfero o un fascio).
 
 **Si perde:**
 
-- **L'ordine per varianza.** Dopo la rotazione la prima componente non è più la più importante.
+- **L'ordine per varianza.** Dopo la rotazione la prima componente non è più la più importante. I punteggi hanno tutti varianza 1, quindi non servono per ordinarle: si ordina per la quota di varianza che ogni componente spiega, cioè la somma dei pesi al quadrato della sua colonna divisa per la varianza totale. La somma sulle componenti è quella di prima della rotazione, cambia come è ripartita.
 - **L'uguaglianza dei pesi nel clustering.** Con la regressione, i punteggi ruotati hanno varianza 1 per costruzione: ogni componente pesa uguale, anche quelle che spiegano poca varianza. Per un clustering sulle componenti l'input consigliato sono i punteggi PCA non ruotati.
 - **L'indipendenza dalla scelta di *k*.** Ruotare 14 o 42 componenti dà profili diversi.
 
@@ -251,9 +253,48 @@ Le colonne di B non sono più ortogonali nei dati, quindi la semplice proiezione
 | Interpretare le componenti, confrontarsi con il paper | PCA + varimax |
 | Input di un clustering o di un'altra riduzione | PCA non ruotata |
 
+### Dalle componenti alle mappe nel cervello
+
+Il disconnettoma voxelwise permette di riportare ogni componente sul cervello. Due controlli e una mappa, come in Thiebaut de Schotten et al. 2020.
+
+#### Quanto dipende dal volume della lesione
+
+Una componente potrebbe misurare solo quanto è grande la lesione. Per verificarlo si calcola, per ogni componente, **R²**: il quadrato della correlazione tra il punteggio dei soggetti e il volume della lesione. Si legge come la quota della variabilità del punteggio che si spiega conoscendo il volume.
+
+- R² = 0,04: componente quasi indipendente dalla dimensione della lesione.
+- R² = 0,50: componente che misura soprattutto la dimensione.
+
+Si calcola sulle componenti ruotate e su quelle non ruotate, per vedere cosa cambia con la rotazione. Il paper lo calcola sulle ruotate e riporta R² < 0,1 per tutte.
+
+#### La mappa *t*
+
+- **Come si fa.** Per ogni voxel, una regressione mette in relazione la sua disconnessione nei soggetti con i punteggi di tutte le componenti insieme, e dice di quanto cambia quando sale il punteggio di ciascuna. Quel cambiamento, diviso per la sua incertezza (l'errore standard), è il *t* del voxel. I *t* di tutti i voxel sul cervello formano la mappa della componente.
+- **Mappa dei pesi e mappa *t*.** I pesi di una componente riportati sul cervello formano la mappa dei pesi. La mappa *t* è simile ma non uguale, perché tiene conto dell'incertezza di ogni voxel (su `s2.4-vol` la correlazione tra le due va da 0,74 a 0,91 per componente).
+- **Il paper** usa `randomise` di FSL con 1000 permutazioni; il repo calcola le statistiche *t* senza test di permutazione.
+
+#### Come si leggono
+
+| Cosa si vede | Significa |
+|---|---|
+| **Rosso** (*t* positivo) | più il soggetto ha la componente, più quel voxel è disconnesso |
+| **Blu** (*t* negativo) | più il soggetto ha la componente, meno quel voxel è disconnesso |
+| **Colore forte** (|*t*| alto) | effetto solido |
+| **Colore assente** | effetto sotto la soglia, o nessun effetto |
+
+- **Cosa si cerca**: dove sta la zona rossa. Se è compatta, la componente è una zona del cervello.
+- **Segno**: arbitrario (vedi sopra). Ogni mappa è orientata con il voxel di |*t*| massimo positivo, quindi si guarda la forma e non il colore.
+- **Soglia**: con tanti soggetti anche effetti piccoli hanno *t* alto, e una soglia fissa come |*t*| > 3 colorerebbe quasi tutto il cervello. Si colorano invece i voxel con |*t*| almeno una frazione (qui 0,3) del massimo di quella componente.
+
+#### Riproducibilità
+
+La mappa dipende dai soggetti scelti? Si dividono a caso i soggetti in due metà, si rifà la regressione in ciascuna e si correlano (Pearson, sui voxel) le due mappe di ogni componente: 1 se uguali, 0 se non hanno nulla in comune.
+
+- I punteggi sono quelli calcolati su tutti i soggetti: si verifica che la componente si ritrovi, non che la PCA sia stabile.
+- Il paper riporta 0,813 ± 0,079 in media (da 0,39 a 0,98), con metà da 666 soggetti. Qui le metà sono da circa 2900: i valori non sono direttamente confrontabili.
+
 ### Nel repo
 
 - Calcolo su matrici larghe (covarianza, varimax, punteggi per regressione, R², mappe t): [`src/analysis/covariance_pca.py`](../../../src/analysis/covariance_pca.py), riferimento tecnico in [`docs/dev/covariance_pca.md`](../../../docs/dev/covariance_pca.md).
 - `pca` in `src/analysis/reduction.py` (parametri e scelte: [`docs/guides/dim_reduction.md`](../../../docs/guides/dim_reduction.md)) usa questo calcolo con `solver: blocks`, oppure `sklearn.decomposition.PCA` con `solver: sklearn`; la rotazione passa da `factor_analyzer.Rotator`.
-- Notebook: `notebooks/pipeline_building/thiebaut_2020_replication.ipynb` (PCA con varimax, e senza rotazione per confronto).
+- Notebook: `notebooks/pipeline_building/thiebaut_2020_replication.ipynb` (PCA con varimax; la PCA senza rotazione compare solo nel confronto con il volume della lesione).
 - Fonte del metodo: Thiebaut de Schotten et al. 2020, *Brain disconnections link structural connectivity with function and behaviour* (cartella in `knowledge/papers/stroke_core/`).
