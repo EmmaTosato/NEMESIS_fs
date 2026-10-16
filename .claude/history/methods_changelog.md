@@ -8,6 +8,18 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 16-10-26 — Lettura del tuning `hdbscan_soft`: la produzione scelta il 15-10 non segue la silhouette, e "nc3: una combinazione usabile" valeva solo per euclidean
+
+Letti i 10 `tuning_results.csv` di `hdbscan_soft` (report in `results/reports/cluster_tuning_notebooks/`, sezione `hdbscan_soft`; riassunto in `docs/experiments/s1.4-vol.md`, `s2.4-vol.md`, `s2.4-stream.md`). Quota del cluster più grande ricalcolata da `clusterings.npz` per applicare il criterio "usabile" (3-30 cluster, rumore ≤ 25%, più grande ≤ 60%).
+
+**Verifica della produzione contro il tuning.** Le 17 run riproducono la loro riga del tuning (cluster, rumore, `membership_mean`) e sono tutte usabili, ma la scelta per famiglia di granularità non coincide con la silhouette: tra le usabili `eom` dello stesso embedding stanno dalla 1ª alla 15ª posizione (lesione: 3 su 12 nelle prime tre; SDC nc2: 3ª e 5ª su 5 con silhouette 0.206 e 0.156, mentre 75/1 e 75/5, 0.492 e 0.428, non sono prodotte; SDC nc10: 3ª e 6ª su 10). Produzione non modificata.
+
+**Errore nel record del 15-10:** "lesione e sdc nc3 (1 combinazione usabile ciascuna)" è vero per lesione euclidean nc3 (1 su 56) e SDC nc3 (1 su 56, `leaf` 100/1), ma **lesione dice nc3 ha 21 combinazioni usabili** (19 `eom`, 2 `leaf`), compreso un plateau a 8 cluster con rumore ≤ 2.4%. Dice nc3 è fuori dalla produzione per quel conteggio sbagliato, non per mancanza di righe usabili. Da decidere se produrlo.
+
+**Streamline raw:** nelle 28 combinazioni `eom` e `leaf` danno etichette identiche (verificato su `clusterings.npz`); 0 usabili, confermato.
+
+---
+
 ## 16-10-26 — PCA nella pipeline: una voce `pca` con le scelte come parametri, `pca_varimax` eliminato
 
 **Cosa è cambiato**: `pca` in `REDUCTION_METHODS` ha ora `solver` (`blocks`: `covariance_pca.py`, legge la matrice a blocchi; `sklearn`: `sklearn.decomposition.PCA` in memoria), `standardize` (correlazione invece di covarianza), `dual` (matrice soggetti × soggetti o covarianza tra variabili, esplicito), `rotation` (`none` o una rotazione ortogonale di `factor_analyzer`, `rotation_max_iter` con una rotazione) e `n_components` oppure `variance_share` (esattamente uno). `pca_varimax` è eliminato (codice, tuning, registro, test, doc): è `pca` con `rotation: "varimax"`. Con `blocks` la matrice resta su disco (`np.memmap`); il tuning fitta la decomposizione una volta per griglia su `n_components`/`variance_share`/`rotation`. La produzione registra in `Params used` il numero di componenti effettivo e salva lo spettro in `eigenvalues.npy`. Il plot di una `pca` non ruotata prende le prime `viz_n_components` componenti.
