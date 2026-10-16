@@ -8,8 +8,6 @@ import pytest
 from dash import dcc, html
 
 from src.analysis.embedding_app import (
-    COMPARISON_MODE_CLUSTERS,
-    COMPARISON_MODE_MODALITY,
     ProductionRun,
     build_app,
     cluster_pair_anatomy_for,
@@ -440,7 +438,8 @@ def test_index_hides_the_sections_a_run_does_not_have(tmp_path):
     assert "clustering-section" in anchors(lesion_cl) and "disconnection-map-panel" not in anchors(lesion_cl)
     assert "disconnection-map-panel" in anchors(sdc_cl) and "disconnectome-panel" in anchors(sdc_cl)
     for run in (None, lesion_dr, lesion_cl, sdc_cl):
-        assert anchors(run)[0] == "controls-section" and anchors(run)[-1] == "comparison-section"
+        assert anchors(run)[0] == "controls-section"
+        assert "comparison-section" not in anchors(run)  # the "Confronto" section is not mounted in the app
 
 
 def test_every_index_anchor_is_a_real_element_of_the_page(tmp_path):
@@ -452,83 +451,6 @@ def test_every_index_anchor_is_a_real_element_of_the_page(tmp_path):
     every_anchor = {anchor for case in (None, run, sdc_run) for anchor, _label in index_entries_for(case)}
 
     assert every_anchor <= ids
-
-
-def _post(client, outputs_id, inputs, state_mode, changed):
-    body = {
-        "output": f"{outputs_id}.children",
-        "outputs": {"id": outputs_id, "property": "children"},
-        "inputs": inputs,
-        "changedPropIds": changed,
-        "state": [{"id": "selected-comparison-mode", "property": "data", "value": state_mode}],
-    }
-    return client.post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
-
-
-def test_the_modality_content_callback_end_to_end(tmp_path, _registry_root):
-    lesion, sdc = _modality_pair(tmp_path)
-    app = build_app([lesion, sdc], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _params_file(tmp_path))
-    app.server.config["TESTING"] = True
-
-    response = _post(
-        app.server.test_client(), "comparison-content",
-        [
-            {"id": "comparison-run-a", "property": "value", "value": lesion.key},
-            {"id": "comparison-run-b", "property": "value", "value": sdc.key},
-            {"id": "comparison-cluster-1", "property": "value", "value": None},
-            {"id": "comparison-cluster-2", "property": "value", "value": None},
-        ],
-        COMPARISON_MODE_MODALITY, ["comparison-run-b.value"],
-    )
-
-    assert response.status_code == 200
-    assert "4 soggetti in comune" in json.dumps(response.get_json())
-
-
-def test_the_cluster_pair_content_callback_end_to_end(tmp_path, _registry_root):
-    run = _make_clustering_run(tmp_path, labels=(0, 0, 1, 1))
-    app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _params_file(tmp_path))
-    app.server.config["TESTING"] = True
-    client = app.server.test_client()
-    inputs = [
-        {"id": "comparison-run-a", "property": "value", "value": run.key},
-        {"id": "comparison-run-b", "property": "value", "value": None},
-        {"id": "comparison-cluster-1", "property": "value", "value": 0},
-        {"id": "comparison-cluster-2", "property": "value", "value": 1},
-    ]
-
-    response = _post(client, "comparison-content", inputs, COMPARISON_MODE_CLUSTERS, ["comparison-cluster-2.value"])
-
-    assert response.status_code == 200
-    body = json.dumps(response.get_json(), ensure_ascii=False)
-    assert "Profilo demografico e clinico" in body and "Distanza tra i centroidi" in body
-
-    inputs[3]["value"] = None
-    incomplete = _post(client, "comparison-content", inputs, COMPARISON_MODE_CLUSTERS, ["comparison-cluster-2.value"])
-    assert "Scegli i due cluster da confrontare" in json.dumps(incomplete.get_json())
-
-
-def test_the_cluster_options_callback_lists_the_clusters_of_the_chosen_run(tmp_path):
-    run = _make_clustering_run(tmp_path, labels=(0, 0, 1, 1))
-    app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _params_file(tmp_path))
-    app.server.config["TESTING"] = True
-    body = {
-        "output": "..comparison-cluster-1.options...comparison-cluster-1.value...comparison-cluster-2.options...comparison-cluster-2.value..",
-        "outputs": [
-            {"id": "comparison-cluster-1", "property": "options"}, {"id": "comparison-cluster-1", "property": "value"},
-            {"id": "comparison-cluster-2", "property": "options"}, {"id": "comparison-cluster-2", "property": "value"},
-        ],
-        "inputs": [{"id": "comparison-run-a", "property": "value", "value": run.key}],
-        "changedPropIds": ["comparison-run-a.value"],
-        "state": [{"id": "selected-comparison-mode", "property": "data", "value": COMPARISON_MODE_CLUSTERS}],
-    }
-
-    response = app.server.test_client().post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
-
-    assert response.status_code == 200
-    payload = response.get_json()["response"]
-    assert [option["value"] for option in payload["comparison-cluster-1"]["options"]] == [0, 1]
-    assert payload["comparison-cluster-1"]["value"] is None and payload["comparison-cluster-2"]["value"] is None
 
 
 @pytest.mark.parametrize(

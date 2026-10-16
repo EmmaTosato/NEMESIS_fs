@@ -4,12 +4,13 @@ import numpy as np
 import pandas as pd
 import pytest
 from sklearn.cluster import HDBSCAN, KMeans
-from sklearn.metrics import silhouette_score
+from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, silhouette_score
 from sklearn.mixture import GaussianMixture
 
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.clustering_evaluation import (
     EVALUATIONS,
+    geometric_summary,
     membership_confidence,
     model_fit_metrics,
     require_applicable,
@@ -455,3 +456,60 @@ def test_soft_membership_is_registered_for_hdbscan_soft_only():
     with pytest.raises(ValueError, match="'hdbscan'"):
         require_applicable("soft_membership", "hdbscan")
     require_applicable("model_fit_metrics", "hdbscan_soft")
+
+
+def _blob_labels():
+    return np.repeat([0, 1, 2], 30)
+
+
+def test_geometric_summary_matches_sklearn_on_well_separated_blobs():
+    X, labels = _three_blobs(), _blob_labels()
+
+    summary = geometric_summary(X, labels, {"n_clusters": 3})
+
+    assert summary.silhouette == pytest.approx(silhouette_score(X, labels))
+    assert summary.calinski_harabasz == pytest.approx(calinski_harabasz_score(X, labels))
+    assert summary.davies_bouldin == pytest.approx(davies_bouldin_score(X, labels))
+    assert (summary.n_subjects, summary.n_components, summary.n_clusters) == (90, 2, 3)
+    assert summary.largest_cluster_share == pytest.approx(1 / 3) and summary.noise_fraction == 0.0
+    assert summary.silhouette_min <= summary.silhouette and summary.dunn > 0
+    assert summary.silhouette_macro == pytest.approx(summary.clusters["silhouette_mean"].mean())
+    assert list(summary.clusters["n"]) == [30, 30, 30]
+
+
+def test_geometric_summary_leaves_noise_out_of_the_indices_but_not_out_of_the_shares():
+    X, labels = _three_blobs(), _blob_labels().copy()
+    labels[:9] = -1  # 9 of 90 subjects are noise
+
+    summary = geometric_summary(X, labels, {})
+
+    kept = labels != -1
+    assert summary.silhouette == pytest.approx(silhouette_score(X[kept], labels[kept]))
+    assert summary.noise_fraction == pytest.approx(0.1)
+    assert summary.n_clusters == 3
+    assert summary.largest_cluster_share == pytest.approx(30 / 90)  # over all subjects, noise included
+
+
+def test_geometric_summary_needs_two_clusters_once_noise_is_left_out():
+    X = _three_blobs()
+    labels = np.where(np.arange(90) < 30, 0, -1)
+
+    with pytest.raises(ValueError, match="at least 2 clusters"):
+        geometric_summary(X, labels, {})
+
+
+def test_geometric_summary_refuses_a_run_clustered_under_another_metric():
+    with pytest.raises(ValueError, match="Euclidean"):
+        geometric_summary(_three_blobs(), _blob_labels(), {"metric": "dice"})
+
+
+def test_geometric_summary_rejects_labels_that_do_not_match_the_rows():
+    with pytest.raises(ValueError, match="one row per label"):
+        geometric_summary(_three_blobs(), _blob_labels()[:-1], {})
+
+
+def test_geometric_summary_raises_when_every_cluster_is_a_single_subject():
+    X = np.array([[0.0, 0.0], [1.0, 0.0], [5.0, 5.0]])
+
+    with pytest.raises(ValueError):
+        geometric_summary(X, np.array([0, 1, 2]), {})

@@ -1849,7 +1849,7 @@ def test_representative_subject_panel_visible_only_for_clustering_runs(tmp_path)
         ("cluster-picker", "options"), ("cluster-picker", "value"),
         ("clustering-section", "style"), ("cluster-map-panel", "style"),
         ("representative-subject-panel", "style"), ("cluster-description-panel", "style"),
-        ("cluster-composition-panel", "style"),
+        ("cluster-composition-panel", "style"), ("cluster-quality-panel", "style"),
     ]
 
     def cluster_picker_outputs(run_key):
@@ -1868,6 +1868,8 @@ def test_representative_subject_panel_visible_only_for_clustering_runs(tmp_path)
     assert cluster_picker_outputs(cl_run.key)["representative-subject-panel"]["style"] == {}
     assert cluster_picker_outputs(dr_run.key)["cluster-composition-panel"]["style"] == {"display": "none"}
     assert cluster_picker_outputs(cl_run.key)["cluster-composition-panel"]["style"] == {}
+    assert cluster_picker_outputs(dr_run.key)["cluster-quality-panel"]["style"] == {"display": "none"}
+    assert cluster_picker_outputs(cl_run.key)["cluster-quality-panel"]["style"] == {}
 
 
 def test_cluster_centroids_with_nearest_subject_finds_true_nearest_point():

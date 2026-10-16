@@ -9,11 +9,11 @@ Due notebook sotto `notebooks/post-results_analysis/` (evaluation e comparison) 
 
 ## Scope: dove vive ogni analisi
 
-Il criterio (empirica contro interpretativa) è in [`exploration.md`](exploration.md). Evaluation e comparison sono **empirici**, con una sola eccezione: la sezione 4 di evaluation descrive i cluster con le variabili cliniche, senza test. L'interpretazione (mappe, soggetti rappresentativi, confronto tra cluster) è nell'app Dash.
+Il criterio (empirica contro interpretativa) è in [`exploration.md`](exploration.md). Evaluation e comparison sono **empirici**, con una sola eccezione: la sezione 4 di evaluation descrive i cluster con le variabili cliniche, senza test. L'interpretazione (mappe, soggetti rappresentativi, composizione dei cluster) è nell'app Dash.
 
 | Analisi | Notebook |
 |---|---|
-| Metriche geometriche e del modello di una run | `clustering_evaluation` |
+| Metriche geometriche e del modello di una run | `clustering_evaluation` (le geometriche, sezione 2, anche nell'app Dash: pannello "Valutazione del clustering") |
 | Accordo tra partizioni (ARI/NMI/VI), contingency, abbinamento e Jaccard tra cluster di run diverse | `clustering_comparison` |
 | Distanze tra cluster **nello spazio dell'embedding** (centroidi, Mahalanobis, linkage) | `clustering_comparison` |
 | Tabelle descrittive per cluster su età, sesso, NIHSS, volume, dataset, lato, sede dominante (nessun test) | `clustering_evaluation`, sezione 4 |

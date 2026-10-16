@@ -46,7 +46,7 @@ Ordine logico dei dati: **input grezzi** (cosa esiste su disco, cosa dicono i TS
 Leggono run di clustering già **prodotte**. Due notebook di analisi (una run o più run) più l'esplorazione di un tuning. Un criterio separa le analisi: se usano dati *interni* al clustering o dati *esterni* a esso.
 
 - **Empirica**: usa solo le etichette e lo spazio su cui la run è stata costruita (embedding o matrice). Risponde a "com'è fatta e quanto è affidabile questa partizione, quanto si accorda con un'altra".
-- **Interpretativa**: porta variabili o immagini che il clustering non ha visto (cliniche, demografiche, mappe anatomiche). Risponde a "cosa rappresentano questi cluster". Vive nell'app Dash (mappe, soggetti rappresentativi, composizione dei cluster, confronto tra cluster); l'unica eccezione nei notebook è la sezione 4 di `clustering_evaluation`, che descrive i cluster con le variabili cliniche e non fa nessun test.
+- **Interpretativa**: porta variabili o immagini che il clustering non ha visto (cliniche, demografiche, mappe anatomiche). Risponde a "cosa rappresentano questi cluster". Vive nell'app Dash (mappe, soggetti rappresentativi, composizione dei cluster); l'unica eccezione nei notebook è la sezione 4 di `clustering_evaluation`, che descrive i cluster con le variabili cliniche e non fa nessun test.
 
 | Notebook | Scope | Domanda | Legge | Scrive |
 |---|---|---|---|---|

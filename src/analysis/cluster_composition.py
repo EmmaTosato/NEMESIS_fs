@@ -144,11 +144,17 @@ def build_composition_figure(frame: pd.DataFrame, variable: CompositionVariable)
             raise ValueError(f"{variable.name}: value(s) {unexpected} are outside the closed category list {categories}")
         palette = _palette_for_categories(categories, category_order=variable.category_order)
         counts = pd.crosstab(present[_CLUSTER_LABEL_COLUMN], present[variable.name]).reindex(index=labels, columns=categories, fill_value=0)
+        # barnorm="percent" makes Plotly's %{x} the percentage, not the count, so the hover reads
+        # both from customdata: the count (what "soggetti" means) and the share of the cluster.
+        shares = counts.div(counts.sum(axis=1), axis=0).fillna(0.0) * 100
         for category in categories:
             fig.add_trace(go.Bar(
                 y=[str(label) for label in labels], x=counts[category], name=category, orientation="h",
+                customdata=list(zip(counts[category], shares[category])),
                 marker=dict(color=palette[category], line=dict(color="white", width=1)),
-                hovertemplate="cluster %{y}<br>" + category + ": %{x} soggetti<extra></extra>",
+                hovertemplate=(
+                    "cluster %{y}<br>" + category + ": %{customdata[0]} soggetti (%{customdata[1]:.1f}% del cluster)<extra></extra>"
+                ),
             ))
         fig.update_layout(barmode="stack", barnorm="percent", legend=dict(orientation="h", y=-0.38, x=0))
         fig.update_xaxes(title_text="% del cluster", range=[0, 100])

@@ -109,6 +109,19 @@ def test_categorical_figure_has_one_stacked_percent_bar_trace_per_category():
     assert counts == {"left": [2, 0], "right": [0, 1], "both": [0, 1]}
 
 
+def test_categorical_hover_shows_the_subject_count_and_the_share_not_the_normalised_x():
+    # Regression (16-10-26): with barnorm="percent" Plotly's %{x} is the percentage, so the hover
+    # printed e.g. "42.5641 soggetti" - a share labelled as a count.
+    variable = next(v for v in COMPOSITION_VARIABLES if v.name == "lesion_side")
+
+    figure = build_composition_figure(_frame(), variable)
+
+    traces = {trace.name: trace for trace in figure.data}
+    assert all("%{x}" not in trace.hovertemplate for trace in figure.data)
+    assert [tuple(point) for point in traces["left"].customdata] == [(2, 100.0), (0, 0.0)]
+    assert [tuple(point) for point in traces["right"].customdata] == [(0, 0.0), (1, 50.0)]
+
+
 def test_categorical_figure_rejects_a_value_outside_the_closed_vocabulary():
     frame = _frame()
     frame.loc[0, "lesion_side"] = "middle"

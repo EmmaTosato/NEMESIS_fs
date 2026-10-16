@@ -110,6 +110,8 @@ Poi apri `http://127.0.0.1:8060` nel browser. Opzioni:
   7. **Parametri** - gli iperparametri propri del metodo di clustering scelto (`n_clusters`+`linkage` per agglomerative, `min_cluster_size`+`min_samples` per hdbscan, ecc. - registrati come `tag_param` in `config/registry/params_clustering.json`/`--clustering-params-file`, `load_tag_params`), mostrati come combinazioni leggibili (`"n_clusters=4, linkage=average"`) - una per ogni combinazione realmente eseguita per la metrica/componenti scelti. Sempre `"—"` per la pipeline `dim_reduction` (non ha iperparametri di clustering).
   8. **Run** - il run vero e proprio (es. `13-08_s1.1_m_dice_nc3`), filtrato su tutti i passi precedenti e ordinato cronologicamente (dal prefisso `DD-MM` del nome), selezionato di default sul più recente - per `clustering.py` questo passo raramente serve a scegliere tra più opzioni (Metrica+Componenti+Parametri di solito bastano a isolare un unico run), ma il picker non lo assume: un secondo run della stessa identica combinazione in una data diversa comparirebbe qui, non sovrascriverebbe silenziosamente il primo.
 
+  **I passi sono collegati in entrambe le direzioni.** Ogni passo offre solo i valori che esistono davvero, dati i passi alla sua sinistra: scegliendo `sdc` compaiono solo le pipeline, i metodi, le metriche e i parametri delle run `sdc`. Se cambi un passo e uno a destra non ha più il suo valore tra le opzioni, passa al primo disponibile (per **Run**, al più recente); se lo ha ancora, lo tiene. Scegliendo una **Run**, tutti i passi a sinistra si allineano ai valori di quella run, quindi i selettori descrivono sempre la run mostrata. I passi si aggiornano insieme, in una sola callback (`resolve_pickers`), mai uno dopo l'altro.
+
   Scoperta generica alla base (`results/*/dim_reduction/production/*/*`, `results/*/clustering/production/*/*/*` - profondità diversa per pipeline, `clustering.py` ha il segmento extra `<reduction_method>`) - una futura modalità o metodo compare da solo nei passi 1/3, senza toccare il codice. `clustering.py` non genera più la cartella `comparison/` sotto `production/` (il confronto multi-metodo tra `cluster_plot.png` non esiste) - un'eventuale cartella `comparison/` residua resta comunque esclusa automaticamente: non ha mai un `manifest.json`, lo stesso controllo che scarta qualunque cartella incompleta.
 
   **Metrica/Componenti/Parametri letti da `config.md`, non dal nome del run**: il nome (`13-08_s1.1_m_dice_nc3`, `01-09_s1.1_m_euclidean_n2_k4_link_average`) è una convenzione testuale scelta a mano da chi lancia la pipeline, non garantita per ogni metodo - `run_params`/`read_run_config` leggono invece rispettivamente la riga `Params used: {...}` e il blocco ` ```json ` sotto `## Config`, entrambi scritti per davvero in ogni `config.md` da `dim_reduction.py`/`clustering.py`, le stesse fonti usate per l'anteprima "Params used"/"Config" già presenti in ogni run.
@@ -133,7 +135,7 @@ Un run senza `viz_embedding_path` resta non mostrabile e non viene scartato dal 
 
 ## Indice della pagina
 
-In alto a destra c'è un menu **Indice**, chiuso di default e fisso sullo schermo mentre scorri. Aprendolo si salta a una sezione. Elenca solo le sezioni che il run scelto ha davvero: un run `lesion` non mostra "Disconnessione (SDC)", un run di `dim_reduction` non mostra le sezioni per cluster. "Confronto" c'è sempre.
+In alto a destra c'è un menu **Indice**, chiuso di default e fisso sullo schermo mentre scorri. Aprendolo si salta a una sezione. Elenca solo le sezioni che il run scelto ha davvero: un run `lesion` non mostra "Disconnessione (SDC)", un run di `dim_reduction` non mostra le sezioni per cluster.
 
 ## Anatomia lesionale
 
@@ -244,47 +246,36 @@ Variabili numeriche, un box plot per cluster nel colore che il cluster ha nello 
 
 - carico di disconnessione
 
+Passando il mouse su una barra compaiono il **numero di soggetti** e la **quota del cluster** (es. `42 soggetti (31.8% del cluster)`); la quota è calcolata sui soli soggetti che hanno il dato.
+
 Sotto il titolo di ogni grafico, `n=` indica i soggetti con il dato sul totale del run. I valori vengono da `participants.csv`; un soggetto assente dal registro resta nei grafici come dato mancante ed è nominato in una riga di avviso. L'icona fotocamera di Plotly esporta il PNG.
 
 Dettagli di implementazione: `docs/dev/cluster_composition.md`.
 
-## Confronto
+## Valutazione del clustering
 
-Ultima sezione della pagina, **indipendente dal run scelto in alto**: ha selettori suoi. Due modalità, scelte dai bottoni sopra i selettori. Cambiare modalità azzera la scelta.
+Ultimo pannello della pagina, per un run di clustering. Dà gli **indici geometrici dell'intero run** (non del cluster scelto nel dropdown): quanto i cluster sono compatti e separati nello spazio su cui è stato fatto il clustering, con il rumore di HDBSCAN (`-1`) escluso. È la sezione 2 di `clustering_evaluation.ipynb`, calcolata nell'app.
 
-| Modalità | Cosa si sceglie | Cosa si confronta |
-|---|---|---|
-| **Dentro lo stesso clustering** | una run e due suoi cluster (**Primo cluster**, **Secondo cluster**; il rumore `-1` è ammesso) | i soggetti dei due cluster |
-| **Tra modalità (lesion vs sdc)** | **Run A** e **Run B**: stesso metodo di clustering, stessi valori dei parametri (es. `n_clusters=5`), stesso metodo di riduzione, componenti e metrica dell'embedding; cambia solo la modalità | i soggetti in comune alle due run |
+Una tabella con valore e lettura di:
 
-Nella modalità tra run, il selettore B offre soltanto le run compatibili con la A. Se non ce n'è nessuna, la sezione lo dice e ripete la regola.
+- **Silhouette** (da -1 a 1, più alta è meglio) e **silhouette del cluster peggiore**
+- **Calinski-Harabasz** (più alto è meglio)
+- **Davies-Bouldin** (più basso è meglio)
+- **Dunn** (più alto è meglio, sensibile agli outlier)
+- numero di **cluster** (rumore escluso), quota del **cluster più grande** e quota di **rumore**, sul totale dei soggetti
 
-### Dentro lo stesso clustering
+Se il rumore supera il 10% compare un avviso: gli indici descrivono solo i soggetti rimasti. Sotto la tabella, "Come leggere questi indici" (a scomparsa) dice la direzione di ogni indice e il limite principale: **nessuno ha un valore di riferimento**. Una nuvola senza cluster divisa da un algoritmo ha comunque una silhouette positiva, e Calinski-Harabasz, Davies-Bouldin e Dunn di un run solo non hanno una scala. Embedding diversi (2 o 10 componenti, lesion o sdc) non sono confrontabili tra loro.
 
-I due cluster si chiamano sempre col loro numero vero (`cluster 0`, `cluster 3`, `rumore`), mai «1» e «2»: «primo» e «secondo» indicano solo l'ordine di scelta, da cui dipende il **segno** di ciò che segue. Scambiarli inverte il segno e lascia uguali distanza, p e AUC.
+Quando il pannello dice una causa invece dei numeri:
 
-In ordine:
+- **`adp`**: clusterizza la distanza dice sulla matrice grezza, che questi indici misurerebbero in un'altra geometria (per `adp` ci sono la purezza dei vicini e la silhouette sulla distanza dice, nel notebook).
+- **Run su una matrice con più di 1000 colonne** (`MAX_QUALITY_COLUMNS`), cioè su dato grezzo come i 221955 voxel della matrice lesionale: silhouette e Dunn leggono tutte le coppie di soggetti e non si calcolano qui; si fanno nel notebook.
+- **Run non euclideo** (metrica o affinità diversa da euclidea, es. `cosine`): gli indici sarebbero calcolati nella geometria sbagliata.
+- **Meno di 2 cluster** una volta tolto il rumore.
 
-1. **Soggetti**: la run e quanti soggetti ha ciascun cluster.
-2. **Profilo demografico e clinico**: una riga per variabile, primo cluster contro secondo. Per le numeriche (età, istruzione, NIHSS, volume della lesione, quota della lesione per sede) il test di Mann-Whitney, con la mediana di ciascun cluster e `r`, la correlazione rank-biseriale: tra -1 e 1, positiva se il primo cluster ha valori più alti. Per le categoriche (sesso, dataset, lato della lesione, sede dominante) il test esatto di Fisher su ogni categoria contro le altre, con le quote e l'odds ratio (sopra 1 = categoria più frequente nel primo cluster). Il p corretto (FDR) tiene conto di tutti i test insieme ed è in grassetto sotto 0,05. Un lato con meno di 2 valori lascia il test vuoto. I soggetti assenti dal registro `participants.csv` restano nei conteggi e sono nominati in un avviso.
-3. **Cosa distingue i due cluster**: regressione logistica con esito «sta nel primo cluster» tra i soli soggetti dei due cluster, su età, NIHSS, volume (log10), quota corticale, sottocorticale grigia e infratentoriale, sesso e dataset, **tutte insieme**. Grafico degli odds ratio con intervallo al 95% (blu se non contiene 1), tabella con p e VIF, AUC e pseudo-R². È un'associazione, non una causa, e una variabile derivata dall'input del clustering (il volume per una run lesion) è associata ai cluster anche per costruzione. Se la regressione non è adattabile (pochi soggetti per variabile, una variabile costante, separazione perfetta) il blocco lo dice con la causa.
-4. **Distanza tra i centroidi**: distanza euclidea nello spazio su cui è stato calcolato il clustering, accanto al raggio medio di ciascun cluster. Una run su dati grezzi non ha un embedding: il blocco lo dice e non calcola nulla.
-5. **Anatomia** (pannello separato, sotto i numeri): l'overlap map della lesione di ciascun cluster e la **differenza** tra le due, voxel per voxel, in punti percentuali (rosso = più frequente nel primo cluster, blu = nel secondo). Per una run `sdc`, lo stesso per la disconnessione in modalità «percent». Le mappe usano gli stessi builder e la stessa cache dei pannelli per cluster più in alto: la prima volta di un cluster legge ogni suo soggetto dal disco (con `--preload` è già pronto), poi è immediato. Per questo compaiono dopo i numeri.
+Il calcolo richiede da meno di un secondo a pochi secondi (5845 soggetti, 10 componenti: circa 4 s) e viene fatto una volta per run: il secondo passaggio sullo stesso run è immediato.
 
-### Tra modalità
-
-In ordine:
-
-1. **Soggetti confrontati**: i soggetti di A, di B, quelli in comune e quanti restano fuori da ciascun lato. Si confronta sempre e solo l'intersezione, e il suo peso è sempre dichiarato.
-2. **Accordo tra le partizioni**: ARI, NMI, homogeneity, completeness, con la lettura a parole per ARI e NMI. Sotto, un "Come leggere queste metriche" a scomparsa con le definizioni e la scala.
-3. **Dove finisce ogni cluster**: tre heatmap con il valore scritto in ogni cella. Conteggi; percentuali per riga (dove va ogni cluster di A); percentuali per colonna (da dove viene ogni cluster di B).
-4. **Associazione statistica**: test chi-quadro di indipendenza e heatmap dei residui standardizzati (rosso = la coppia co-occorre più del previsto, blu = meno).
-5. **Purezza dei cluster**: due tabelle, da A verso B e da B verso A, dal cluster meno puro al più puro.
-6. **Profilo clinico dei cluster** di A e di B, la stessa tabella di "Descrizione del cluster" ma sui soli soggetti in comune. I centroidi non si confrontano, perché i due run vivono in spazi di feature diversi: si confronta il fenotipo clinico di ciascun cluster.
-
-Il rumore di HDBSCAN (`-1`) conta come un gruppo a sé e si chiama "rumore".
-
-Dettagli di implementazione: `docs/dev/cluster_comparison.md`.
+Dettagli di implementazione: `docs/dev/models.md` (`geometric_summary`).
 
 ## Salvare un grafico
 

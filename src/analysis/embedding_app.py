@@ -84,6 +84,8 @@ from src.analysis.cluster_comparison import (
     purity_table,
 )
 from src.analysis.cluster_composition import COMPOSITION_VARIABLES, build_composition_figure, composition_frame
+from src.analysis.cluster_quality import build_silhouette_figure
+from src.analysis.clustering_evaluation import GeometricSummary, geometric_summary, noise_warning, require_applicable
 from src.analysis.cluster_description import (
     CLUSTER_DESCRIPTION_VARIABLES,
     ClusterDescriptionVariable,
@@ -851,6 +853,89 @@ def runs_matching(
     if not tag_param:
         return []
     return [run for run in candidates if _run_tag_param_label(run, tag_param) == tag_params_label]
+
+
+# The picker steps in left-to-right order. "run" is last: it is the list of runs left once every
+# step before it is fixed, and choosing one of them fixes all the others.
+PICKER_FIELDS: tuple[str, ...] = (
+    "modality", "pipeline", "method", "reduction", "metric", "n_components", "tag_params", "run",
+)
+
+
+def run_picker_values(run: ProductionRun, clustering_params_file: str | Path) -> dict[str, object]:
+    """The value `run` has at every picker step before "run" - what the steps must show for `run` to
+    be the chosen one. Raises ValueError if `run`'s own params/config cannot be read, which also
+    keeps it out of every step's options (see _run_reduction_axis_or_none)."""
+    metric, n_components = run_reduction_axis(run)
+    tag_params = NO_METRIC
+    if run.pipeline == "clustering":
+        tag_param = _load_tag_params_or_none(clustering_params_file, run.method)
+        if tag_param:
+            label = _run_tag_param_label(run, tag_param)
+            if label is None:
+                raise ValueError(f"{run.path}: params do not carry the registered tag_param keys {tag_param}")
+            tag_params = label
+    return {
+        "modality": run.modality, "pipeline": run.pipeline, "method": run.method,
+        "reduction": _reduction_method_label(run), "metric": metric, "n_components": n_components,
+        "tag_params": tag_params,
+    }
+
+
+def _picker_options(
+    runs: list[ProductionRun], field: str, chosen: dict[str, object], clustering_params_file: str | Path
+) -> list:
+    """The values `field` can take given the steps before it in `chosen` (PICKER_FIELDS order)."""
+    if field == "modality":
+        return modality_options(runs)
+    leading = [chosen[name] for name in PICKER_FIELDS[1 : PICKER_FIELDS.index(field)]]
+    modality = chosen["modality"]
+    if field == "pipeline":
+        return pipeline_options(runs, modality)
+    if field == "method":
+        return method_options(runs, modality, *leading)
+    if field == "reduction":
+        return reduction_options(runs, modality, *leading)
+    if field == "metric":
+        return metric_options(runs, modality, *leading)
+    if field == "n_components":
+        return n_components_options(runs, modality, *leading)
+    if field == "tag_params":
+        return tag_param_options(runs, modality, *leading, clustering_params_file)
+    if field == "run":
+        return [run.key for run in runs_matching(runs, modality, *leading, clustering_params_file)]
+    raise ValueError(f"unknown picker field {field!r}, expected one of {PICKER_FIELDS}")
+
+
+def resolve_pickers(
+    runs: list[ProductionRun], current: dict[str, object], changed: str | None, clustering_params_file: str | Path
+) -> tuple[dict[str, list], dict[str, object]]:
+    """(options, values) of every picker step, all computed together from one consistent selection.
+
+    Each step offers only the values that exist given the steps to its left. A step keeps its
+    current value when that is still offered, and otherwise takes the first offered one (the most
+    recent run, for "run"). When `changed` is "run", the steps to its left are first set to that
+    run's own values, so they always describe the run shown. `changed` None is the first render.
+
+    Resolving every step in one call (rather than one callback per step) is what keeps a step from
+    ever being computed against a half-updated neighbour. Raises ValueError if a step has nothing to
+    offer - a modality whose runs cannot be read - instead of leaving the picker empty."""
+    runs_by_key = {run.key: run for run in runs}
+    chosen: dict[str, object] = {}
+    forced = {}
+    if changed == "run" and current.get("run") in runs_by_key:
+        forced = run_picker_values(runs_by_key[current["run"]], clustering_params_file)
+    options: dict[str, list] = {}
+    for field in PICKER_FIELDS:
+        options[field] = _picker_options(runs, field, chosen, clustering_params_file)
+        if not options[field]:
+            raise ValueError(f"picker step {field!r} has no option given {chosen}")
+        wanted = forced.get(field, current.get(field))
+        if wanted in options[field]:
+            chosen[field] = wanted
+        else:
+            chosen[field] = options[field][-1] if field == "run" else options[field][0]
+    return options, chosen
 
 
 class UndisplayableRunError(ValueError):
@@ -2136,6 +2221,119 @@ def cluster_composition_content_for(metadata: pd.DataFrame) -> html.Div | html.P
     return html.Div(children)
 
 
+# --- Clustering quality (16-10-26) ----------------------------------------------------------------
+
+# Above this share of noise (label -1) the indices describe only the rest of the subjects, and the panel says so.
+NOISE_WARNING_FRACTION = 0.10
+
+# The silhouette and Dunn read every pair of subjects, so their cost grows with the number of columns:
+# about a second for 5845 subjects x 10 components, minutes for the 221955 voxels of a raw lesion matrix.
+# Past this many columns the panel does not compute them (the notebook reads such a run memory-mapped).
+MAX_QUALITY_COLUMNS = 1000
+
+
+def run_geometric_summary(run: ProductionRun) -> GeometricSummary:
+    """The geometric indices of a clustering run, on the matrix it was clustered on (matrix.npy).
+
+    Raises ValueError, with the cause, for a run they are not defined for or too costly here: a
+    method they do not apply to (adp - src.analysis.clustering_evaluation.EVALUATIONS), a matrix
+    with more than MAX_QUALITY_COLUMNS columns, a non-Euclidean run, or fewer than 2 clusters."""
+    require_applicable("geometric_metrics", run.method)
+    n_columns = _matrix_shape(run)[1]
+    if n_columns > MAX_QUALITY_COLUMNS:
+        raise ValueError(
+            f"il run è stato calcolato su {n_columns} colonne (dato grezzo, non un embedding): gli indici euclidei "
+            f"non si calcolano qui oltre {MAX_QUALITY_COLUMNS} colonne (si fanno in "
+            "notebooks/post-results_analysis/clustering_evaluation.ipynb)"
+        )
+    matrix, metadata, _extra_arrays = load_matrix(run.path)
+    return geometric_summary(matrix, metadata["cluster_label"].to_numpy(), run_params(run))
+
+
+def _quality_guide() -> html.Details:
+    """How to read the indices, collapsed under the table (the text of section 2 of the evaluation notebook)."""
+    return html.Details(
+        className="comparison-guide",
+        children=[
+            html.Summary("Come leggere questi indici"),
+            html.Ul([
+                html.Li([html.B("Silhouette: "), (
+                    "per ogni soggetto confronta la distanza media dal proprio cluster con quella dal cluster più vicino. "
+                    "Da -1 a 1, più alta è meglio: vicino a 1 i cluster sono netti, vicino a 0 i confini sono ambigui, "
+                    "negativa il soggetto sta nel cluster sbagliato. La media sui soggetti pesa di più i cluster grandi, "
+                    "la media dei cluster fa pesare ogni cluster uguale, la silhouette del cluster peggiore è la media "
+                    "del cluster con la silhouette più bassa. Se la prima e la seconda sono molto diverse, cluster grandi "
+                    "e piccoli hanno qualità diversa."
+                )]),
+                html.Li([html.B("Calinski-Harabasz: "), "dispersione tra i cluster divisa per quella dentro i cluster. Più alto è meglio."]),
+                html.Li([html.B("Davies-Bouldin: "), "per ogni cluster, somiglianza con il cluster più simile. Più basso è meglio, 0 = cluster compatti e separati."]),
+                html.Li([html.B("Dunn: "), "distanza minima tra cluster divisa per il diametro massimo di un cluster. Più alto è meglio; è sensibile agli outlier."]),
+            ]),
+            html.P(
+                "Il grafico per cluster mostra quali cluster hanno confini ambigui anche se la media complessiva è buona; "
+                "il numero di soggetti (n) è nell'etichetta di ogni barra e va letto insieme alla barra: un cluster di un "
+                "solo soggetto ha silhouette 0 per convenzione, e la media di uno di 2 o 3 soggetti può essere estrema per "
+                "caso. Passando il mouse su una barra compare la quota di soggetti con silhouette negativa. "
+                "Nessuno dei quattro indici ha un riferimento qui. Anche una nuvola senza cluster, divisa da un algoritmo, ha una "
+                "silhouette positiva (ward, 3 cluster, nuvola gaussiana a 2 componenti: circa 0,4), quindi il valore da solo "
+                "non dice se c'è struttura. Calinski-Harabasz, Davies-Bouldin e Dunn di un run solo non hanno una scala. "
+                "Embedding diversi (2 o 10 componenti, lesion o sdc) non sono confrontabili tra loro.",
+                className="comparison-note",
+            ),
+        ],
+    )
+
+
+def cluster_quality_content_for(
+    run: ProductionRun, summary_of: Callable[[ProductionRun], GeometricSummary] = run_geometric_summary
+) -> html.Div | html.P:
+    """Panel "Valutazione del clustering" (16-10-26, on request): the geometric indices of the whole run
+    (Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn, the weakest cluster's silhouette, number of
+    clusters, share of the largest one and of the noise), ported from section 2 of the evaluation
+    notebook. Not tied to the chosen cluster. `summary_of` computes (or serves from a cache) the numbers.
+
+    Same never-raises contract as every other *_content_for: a run the indices are not defined for
+    renders an html.P with the cause."""
+    try:
+        summary = summary_of(run)
+    except ValueError as exc:
+        return html.P(str(exc), className="status-message")
+
+    def share(value: float) -> str:
+        return f"{_format_number(value * 100, 1)}%"
+
+    rows = [
+        ["Silhouette (media sui soggetti)", _format_number(summary.silhouette, 3), "più alto è meglio, da -1 a 1"],
+        ["Silhouette (media dei cluster)", _format_number(summary.silhouette_macro, 3), "ogni cluster pesa uguale, anche il più piccolo"],
+        ["Silhouette del cluster peggiore", _format_number(summary.silhouette_min, 3), "più alto è meglio"],
+        ["Calinski-Harabasz", _format_number(summary.calinski_harabasz, 1), "più alto è meglio"],
+        ["Davies-Bouldin", _format_number(summary.davies_bouldin, 3), "più basso è meglio"],
+        ["Dunn", _format_number(summary.dunn, 4), "più alto è meglio"],
+        ["Cluster (rumore escluso)", str(summary.n_clusters), ""],
+        ["Cluster più grande", share(summary.largest_cluster_share), "dei soggetti"],
+        ["Rumore", share(summary.noise_fraction), "dei soggetti"],
+    ]
+    children: list = []
+    warning = noise_warning(run.run_name, summary.noise_fraction, NOISE_WARNING_FRACTION)
+    if warning is not None:
+        children.append(_warning_box(warning))
+    children += [
+        html.P(
+            f"Calcolati sulle {summary.n_components} colonne della matrice su cui è stato fatto il clustering "
+            f"({summary.n_subjects} soggetti), con il rumore (-1) escluso. Numeri da leggere, non una graduatoria.",
+            className="section-intro",
+        ),
+        _table(["Indice", "Valore", "Lettura"], rows, text_columns=(0, 2)),
+        dcc.Graph(
+            figure=build_silhouette_figure(summary.clusters),
+            config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
+            style={"width": "100%"},
+        ),
+        _quality_guide(),
+    ]
+    return html.Div(children)
+
+
 # --- Comparison inside a run and between two runs (08-10-26) ------------------------------------
 
 COMPARISON_MODE_CLUSTERS = "clusters"
@@ -2794,7 +2992,7 @@ _INDEX_SECTIONS: tuple[tuple[str, str, Callable[[ProductionRun | None], bool]], 
     ("representative-subject-panel", "Soggetto rappresentativo", lambda run: run is not None and run.pipeline == "clustering"),
     ("cluster-description-panel", "Descrizione del cluster", lambda run: run is not None and run.pipeline == "clustering"),
     ("cluster-composition-panel", "Composizione dei cluster", lambda run: run is not None and run.pipeline == "clustering"),
-    ("comparison-section", "Confronto", lambda run: True),
+    ("cluster-quality-panel", "Valutazione del clustering", lambda run: run is not None and run.pipeline == "clustering"),
 )
 
 
@@ -2922,6 +3120,16 @@ def build_app(
                 run, metadata, cluster_label, sdc_cfg, map_mode, mask_store=disconnection_store
             )
         return disconnection_view_cache[cache_key]
+
+    # Geometric indices per run (16-10-26): about a second for a 5845-subject run, so computed once per
+    # run and served from memory afterwards. Same closure-cache reasoning as the two view caches above;
+    # a run the indices are not defined for raises ValueError and is never cached.
+    geometric_summary_cache: dict[str, GeometricSummary] = {}
+
+    def _cached_geometric_summary(run: ProductionRun) -> GeometricSummary:
+        if run.key not in geometric_summary_cache:
+            geometric_summary_cache[run.key] = run_geometric_summary(run)
+        return geometric_summary_cache[run.key]
 
     app = Dash(__name__, suppress_callback_exceptions=True)
     app.index_string = _INDEX_STRING
@@ -3248,66 +3456,16 @@ def build_app(
                     html.Div(id="cluster-composition-content"),
                 ],
             ),
-            # Always visible, independent of the run chosen at the top: it has its own two pickers.
+            # Hidden by default (style toggled by _update_cluster_picker, same condition as the other
+            # clustering panels) - 16-10-26, on request: the whole-run geometric indices, after the
+            # composition panel. Like it, not driven by cluster-picker.
             html.Div(
-                id="comparison-section",
-                className="section-divider",
+                id="cluster-quality-panel",
+                className="anatomy-panel",
+                style={"display": "none"},
                 children=[
-                    html.H2("Confronto", className="section-title"),
-                    html.P(
-                        "Confronta due cluster della stessa run, oppure due run di clustering sui soggetti che hanno in comune.",
-                        className="section-intro",
-                    ),
-                    html.Div(
-                        [
-                            html.Button(
-                                label,
-                                id={"type": "comparison-mode-btn", "mode": mode},
-                                n_clicks=0,
-                                className="active" if mode == COMPARISON_MODE_CLUSTERS else "",
-                            )
-                            for mode, label in COMPARISON_MODE_LABELS.items()
-                        ],
-                        className="color-buttons",
-                    ),
-                    dcc.Store(id="selected-comparison-mode", data=COMPARISON_MODE_CLUSTERS),
-                    html.P(id="comparison-rule", className="comparison-rule"),
-                    html.Div(
-                        className="picker-row",
-                        children=[
-                            html.Div(
-                                className="picker-field wide",
-                                children=[
-                                    html.Label("Run", id="comparison-run-a-label", className="picker-label"),
-                                    dcc.Dropdown(id="comparison-run-a"),
-                                ],
-                            ),
-                            # Only the "Tra modalità" mode has a second run; the first mode (the one open at
-                            # start) picks two clusters of the first run instead - _show_comparison_mode swaps them.
-                            html.Div(
-                                id="comparison-run-b-field",
-                                className="picker-field wide",
-                                style={"display": "none"},
-                                children=[html.Label("Run B", className="picker-label"), dcc.Dropdown(id="comparison-run-b")],
-                            ),
-                        ],
-                    ),
-                    html.Div(
-                        id="comparison-cluster-row",
-                        className="picker-row",
-                        children=[
-                            html.Div(
-                                className="picker-field wide",
-                                children=[html.Label("Primo cluster", className="picker-label"), dcc.Dropdown(id="comparison-cluster-1")],
-                            ),
-                            html.Div(
-                                className="picker-field wide",
-                                children=[html.Label("Secondo cluster", className="picker-label"), dcc.Dropdown(id="comparison-cluster-2")],
-                            ),
-                        ],
-                    ),
-                    html.Div(id="comparison-content"),
-                    html.Div(id="comparison-pair-anatomy"),
+                    html.H2("Valutazione del clustering", className="section-heading"),
+                    html.Div(id="cluster-quality-content"),
                 ],
             ),
             # Last child and position: fixed, so its place in the DOM does not matter. Collapsed by default; the links are rebuilt for the chosen run by _update_page_index.
@@ -3322,128 +3480,35 @@ def build_app(
         ],
     )
 
-    @app.callback(
-        Output("pipeline-picker", "options"),
-        Output("pipeline-picker", "value"),
-        Input("modality-picker", "value"),
-    )
-    def _update_pipeline_picker(modality: str):
-        pipelines = pipeline_options(runs, modality)
-        return [{"label": p, "value": p} for p in pipelines], pipelines[0]
-
-    @app.callback(
-        Output("method-picker", "options"),
-        Output("method-picker", "value"),
-        Input("modality-picker", "value"),
-        Input("pipeline-picker", "value"),
-    )
-    def _update_method_picker(modality: str, pipeline: str | None):
-        if pipeline is None:
-            raise PreventUpdate
-        methods = method_options(runs, modality, pipeline)
-        return [{"label": m, "value": m} for m in methods], methods[0]
-
     @app.callback(Output("reduction-picker-field", "style"), Input("pipeline-picker", "value"))
     def _toggle_reduction_picker(pipeline: str | None):
         if pipeline is None:
             raise PreventUpdate
         return {"display": "none"} if pipeline == "dim_reduction" else {}
 
-    @app.callback(
-        Output("reduction-picker", "options"),
-        Output("reduction-picker", "value"),
-        Input("modality-picker", "value"),
-        Input("pipeline-picker", "value"),
-        Input("method-picker", "value"),
-    )
-    def _update_reduction_picker(modality: str, pipeline: str | None, method: str | None):
-        if pipeline is None or method is None:
-            raise PreventUpdate
-        reductions = reduction_options(runs, modality, pipeline, method)
-        return [{"label": r, "value": r} for r in reductions], reductions[0]
+    # One callback for every picker step (see resolve_pickers): the 8 values come in, the 8 option
+    # lists and 8 values go out, so Dato -> Pipeline -> ... -> Parametri -> Run always describe the
+    # same run. Choosing a run aligns every step to its left with that run. The steps are both inputs
+    # and outputs of this callback; Dash does not re-trigger a callback from its own outputs.
+    picker_ids = {field: f"{field.replace('_', '-')}-picker" for field in PICKER_FIELDS}
+    option_labels = {
+        "n_components": _n_components_option_label,
+        "run": lambda run_key: runs_by_key[run_key].run_name,
+    }
 
     @app.callback(
-        Output("metric-picker", "options"),
-        Output("metric-picker", "value"),
-        Input("modality-picker", "value"),
-        Input("pipeline-picker", "value"),
-        Input("method-picker", "value"),
-        Input("reduction-picker", "value"),
+        [Output(picker_ids[field], prop) for field in PICKER_FIELDS for prop in ("options", "value")],
+        [Input(picker_ids[field], "value") for field in PICKER_FIELDS],
     )
-    def _update_metric_picker(modality: str, pipeline: str | None, method: str | None, reduction: str | None):
-        if pipeline is None or method is None or reduction is None:
-            raise PreventUpdate
-        metrics = metric_options(runs, modality, pipeline, method, reduction)
-        return [{"label": m, "value": m} for m in metrics], metrics[0]
-
-    @app.callback(
-        Output("n-components-picker", "options"),
-        Output("n-components-picker", "value"),
-        Input("modality-picker", "value"),
-        Input("pipeline-picker", "value"),
-        Input("method-picker", "value"),
-        Input("reduction-picker", "value"),
-        Input("metric-picker", "value"),
-    )
-    def _update_n_components_picker(
-        modality: str, pipeline: str | None, method: str | None, reduction: str | None, metric: str | None
-    ):
-        if pipeline is None or method is None or reduction is None or metric is None:
-            raise PreventUpdate
-        n_components_values = n_components_options(runs, modality, pipeline, method, reduction, metric)
-        options = [{"label": _n_components_option_label(n), "value": n} for n in n_components_values]
-        return options, n_components_values[0]
-
-    @app.callback(
-        Output("tag-params-picker", "options"),
-        Output("tag-params-picker", "value"),
-        Input("modality-picker", "value"),
-        Input("pipeline-picker", "value"),
-        Input("method-picker", "value"),
-        Input("reduction-picker", "value"),
-        Input("metric-picker", "value"),
-        Input("n-components-picker", "value"),
-    )
-    def _update_tag_params_picker(
-        modality: str, pipeline: str | None, method: str | None, reduction: str | None, metric: str | None,
-        n_components: int | None,
-    ):
-        if pipeline is None or method is None or reduction is None or metric is None or n_components is None:
-            raise PreventUpdate
-        labels = tag_param_options(
-            runs, modality, pipeline, method, reduction, metric, n_components, clustering_params_file
-        )
-        return [{"label": label, "value": label} for label in labels], labels[0]
-
-    @app.callback(
-        Output("run-picker", "options"),
-        Output("run-picker", "value"),
-        Input("modality-picker", "value"),
-        Input("pipeline-picker", "value"),
-        Input("method-picker", "value"),
-        Input("reduction-picker", "value"),
-        Input("metric-picker", "value"),
-        Input("n-components-picker", "value"),
-        Input("tag-params-picker", "value"),
-    )
-    def _update_run_picker(
-        modality: str, pipeline: str | None, method: str | None, reduction: str | None, metric: str | None,
-        n_components: int | None, tag_params_label: str | None,
-    ):
-        if (
-            pipeline is None or method is None or reduction is None or metric is None
-            or n_components is None or tag_params_label is None
-        ):
-            # An upstream picker just changed and hasn't propagated its new value here yet -
-            # each cascading callback is a separate step in Dash's dependency graph, not a
-            # synchronous call chain.
-            raise PreventUpdate
-        matching = runs_matching(
-            runs, modality, pipeline, method, reduction, metric, n_components, tag_params_label, clustering_params_file
-        )
-        options = [{"label": run.run_name, "value": run.key} for run in matching]
-        default_run_key = matching[-1].key  # most recent by _run_chronological_key
-        return options, default_run_key
+    def _update_pickers(*values):
+        current = dict(zip(PICKER_FIELDS, values))
+        changed = next((field for field in PICKER_FIELDS if picker_ids[field] == ctx.triggered_id), None)
+        options, chosen = resolve_pickers(runs, current, changed, clustering_params_file)
+        outputs = []
+        for field in PICKER_FIELDS:
+            label = option_labels.get(field, str)
+            outputs += [[{"label": label(value), "value": value} for value in options[field]], chosen[field]]
+        return outputs
 
     @app.callback(
         Output("selected-color-mode", "data"),
@@ -3697,6 +3762,7 @@ def build_app(
         Output("representative-subject-panel", "style"),
         Output("cluster-description-panel", "style"),
         Output("cluster-composition-panel", "style"),
+        Output("cluster-quality-panel", "style"),
         Input("run-picker", "value"),
     )
     def _update_cluster_picker(run_key: str | None):
@@ -3705,11 +3771,11 @@ def build_app(
         run = runs_by_key[run_key]
         hidden = {"display": "none"}
         if run.pipeline != "clustering":
-            return [], None, hidden, hidden, hidden, hidden, hidden
+            return [], None, hidden, hidden, hidden, hidden, hidden, hidden
         clusters = cluster_options(run_metadata(run))
         return (
             [{"label": str(cluster_label), "value": cluster_label} for cluster_label in clusters],
-            clusters[0], {}, {}, {}, {}, {},
+            clusters[0], {}, {}, {}, {}, {}, {},
         )
 
     @app.callback(
@@ -3768,6 +3834,18 @@ def build_app(
         if run.pipeline != "clustering":
             raise PreventUpdate
         return cluster_composition_content_for(run_metadata(run))
+
+    @app.callback(
+        Output("cluster-quality-content", "children"),
+        Input("run-picker", "value"),
+    )
+    def _update_cluster_quality(run_key: str | None):
+        if run_key is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if run.pipeline != "clustering":
+            raise PreventUpdate
+        return cluster_quality_content_for(run, summary_of=_cached_geometric_summary)
 
     @app.callback(
         Output("representative-download", "data"),
@@ -3978,116 +4056,6 @@ def build_app(
         if run_key is None:
             raise PreventUpdate
         return _index_links(index_entries_for(runs_by_key[run_key]))
-
-    @app.callback(
-        Output("selected-comparison-mode", "data"),
-        Input({"type": "comparison-mode-btn", "mode": ALL}, "n_clicks"),
-        prevent_initial_call=True,
-    )
-    def _select_comparison_mode(_all_n_clicks: list[int]) -> str:
-        if ctx.triggered_id is None:
-            raise PreventUpdate
-        return ctx.triggered_id["mode"]
-
-    @app.callback(
-        Output({"type": "comparison-mode-btn", "mode": ALL}, "className"),
-        Output("comparison-rule", "children"),
-        Output("comparison-run-a-label", "children"),
-        Output("comparison-run-b-field", "style"),
-        Output("comparison-cluster-row", "style"),
-        Input("selected-comparison-mode", "data"),
-        State({"type": "comparison-mode-btn", "mode": ALL}, "id"),
-    )
-    def _show_comparison_mode(mode: str, ids: list[dict]):
-        clusters = mode == COMPARISON_MODE_CLUSTERS
-        return (
-            ["active" if button_id["mode"] == mode else "" for button_id in ids],
-            COMPARISON_MODE_RULES[mode],
-            "Run" if clusters else "Run A",
-            {"display": "none"} if clusters else {},
-            {} if clusters else {"display": "none"},
-        )
-
-    @app.callback(
-        Output("comparison-run-a", "options"),
-        Output("comparison-run-a", "value"),
-        Input("selected-comparison-mode", "data"),
-    )
-    def _update_comparison_run_a(_mode: str):
-        # A mode change resets the whole selection: what was chosen under one rule says nothing under the other.
-        return [{"label": comparison_run_label(run), "value": run.key} for run in comparison_candidates(runs)], None
-
-    @app.callback(
-        Output("comparison-run-b", "options"),
-        Output("comparison-run-b", "value"),
-        Input("comparison-run-a", "value"),
-        State("selected-comparison-mode", "data"),
-    )
-    def _update_comparison_run_b(run_a_key: str | None, mode: str):
-        if run_a_key is None or mode != COMPARISON_MODE_MODALITY:
-            return [], None
-        partners = comparable_runs(runs, runs_by_key[run_a_key], clustering_params_file)
-        return [{"label": comparison_run_label(run), "value": run.key} for run in partners], None
-
-    @app.callback(
-        Output("comparison-cluster-1", "options"),
-        Output("comparison-cluster-1", "value"),
-        Output("comparison-cluster-2", "options"),
-        Output("comparison-cluster-2", "value"),
-        Input("comparison-run-a", "value"),
-        State("selected-comparison-mode", "data"),
-    )
-    def _update_comparison_clusters(run_a_key: str | None, mode: str):
-        if run_a_key is None or mode != COMPARISON_MODE_CLUSTERS:
-            return [], None, [], None
-        metadata = run_metadata(runs_by_key[run_a_key])
-        options = [{"label": pair_cluster_option_label(label, metadata), "value": label} for label in cluster_options(metadata)]
-        return options, None, options, None
-
-    @app.callback(
-        Output("comparison-content", "children"),
-        Input("comparison-run-a", "value"),
-        Input("comparison-run-b", "value"),
-        Input("comparison-cluster-1", "value"),
-        Input("comparison-cluster-2", "value"),
-        State("selected-comparison-mode", "data"),
-    )
-    def _update_comparison_content(
-        run_a_key: str | None, run_b_key: str | None, label_1: int | None, label_2: int | None, mode: str
-    ):
-        if run_a_key is None:
-            return html.P("Scegli la run." if mode == COMPARISON_MODE_CLUSTERS else "Scegli la run A.", className="status-message")
-        run_a = runs_by_key[run_a_key]
-        if mode == COMPARISON_MODE_CLUSTERS:
-            if label_1 is None or label_2 is None:
-                return html.P("Scegli i due cluster da confrontare.", className="status-message")
-            return cluster_pair_content_for(run_a, label_1, label_2)
-        if run_b_key is None:
-            if not comparable_runs(runs, run_a, clustering_params_file):
-                return html.P(
-                    "Nessuna run è confrontabile con la A in questa modalità. Regola: " + COMPARISON_MODE_RULES[mode],
-                    className="status-message",
-                )
-            return html.P("Scegli la run B.", className="status-message")
-        return comparison_content_for(run_a, runs_by_key[run_b_key], clustering_params_file)
-
-    @app.callback(
-        Output("comparison-pair-anatomy", "children"),
-        Input("comparison-cluster-1", "value"),
-        Input("comparison-cluster-2", "value"),
-        Input("selected-comparison-mode", "data"),
-        State("comparison-run-a", "value"),
-    )
-    def _update_comparison_pair_anatomy(label_1: int | None, label_2: int | None, mode: str, run_a_key: str | None):
-        # The run is a State, not an Input: choosing another run resets both clusters to None (see
-        # _update_comparison_clusters), which is what re-renders this panel - reading the run as an
-        # Input too would build the maps of the new run's stale cluster choice first, minutes of NIfTI reads.
-        if mode != COMPARISON_MODE_CLUSTERS or run_a_key is None or label_1 is None or label_2 is None:
-            return []
-        return cluster_pair_anatomy_for(
-            runs_by_key[run_a_key], label_1, label_2, lesion_cfg, sdc_cfg,
-            build_overlap_view=_cached_cluster_overlap_view, build_disconnection_view=_cached_cluster_disconnection_view,
-        )
 
     def _preload_stores() -> None:
         """Reads every subject of every clustering run once, in the background, into the two

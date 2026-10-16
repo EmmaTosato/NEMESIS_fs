@@ -2,6 +2,8 @@
 
 Audience: developers/agents working on `src/analysis/cluster_comparison.py`, `src/analysis/cluster_pair.py` and the "Confronto" section they feed in `src/analysis/embedding_app.py`. For how the section looks from a user's point of view, see `docs/guides/embedding_app.md`.
 
+**The section is not mounted in the app**: `build_app` has no layout block and no callback for it, and the index does not list it. The numbers and the page builders below are complete and tested, and stay in place for when it returns; the pickers and callbacks described under "The page" are not wired.
+
 The section has two modes:
 
 - **`clusters`** ("Dentro lo stesso clustering"): two clusters of one run. Numbers in `cluster_pair.py`, page in `cluster_pair_content_for` and `cluster_pair_anatomy_for`.

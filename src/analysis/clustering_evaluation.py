@@ -19,7 +19,9 @@ from sklearn.mixture import GaussianMixture
 
 from src.analysis.clustering import CLUSTERING_METHODS, own_cluster_membership
 from src.analysis.clustering_tuning import (
+    compute_clustering_metrics,
     compute_silhouette_samples,
+    dunn_index,
     hdbscan_labels_and_probabilities,
     require_euclidean_compatible,
 )
@@ -389,6 +391,59 @@ def knn_purity(distances: np.ndarray, labels: np.ndarray, k: int) -> KnnPurity:
         chance=float(chance[evaluable_subjects].mean()),
         n_not_evaluable=int((~evaluable_subjects).sum()),
         tied_share=float(tied.mean()),
+    )
+
+
+@dataclass(frozen=True)
+class GeometricSummary:
+    """The geometric indices of one run, on the space it was clustered in, noise (label -1)
+    excluded. `silhouette` is the mean over subjects (micro), `silhouette_macro` the mean of the
+    per-cluster means and `silhouette_min` the weakest cluster's (SilhouetteBreakdown), `clusters`
+    the per-cluster table; `largest_cluster_share` is over all subjects, noise included, like
+    `noise_fraction`."""
+
+    n_subjects: int
+    n_components: int
+    n_clusters: int
+    largest_cluster_share: float
+    noise_fraction: float
+    silhouette: float
+    silhouette_macro: float
+    silhouette_min: float
+    calinski_harabasz: float
+    davies_bouldin: float
+    dunn: float
+    clusters: pd.DataFrame  # per_cluster_silhouette's table: index cluster label; n, silhouette_mean, share_negative
+
+
+def geometric_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> GeometricSummary:
+    """Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn and the run's cluster/noise shares, the
+    bundle of section 2 of notebooks/post-results_analysis/clustering_evaluation.ipynb.
+
+    Euclidean only: `combo_params` is the run's own params and a run clustered under another
+    metric/affinity is refused (require_euclidean_compatible), never scored in the wrong geometry.
+
+    Raises ValueError for a `labels`/`X` length mismatch, fewer than 2 clusters once noise is left
+    out, an index that comes out undefined (every cluster a single subject), or a non-Euclidean run.
+    """
+    labels = np.asarray(labels)
+    if X.ndim != 2 or len(X) != len(labels):
+        raise ValueError(f"X must be 2D with one row per label, got X.shape={X.shape} and {len(labels)} labels")
+    sizes = np.unique(labels[labels != -1], return_counts=True)[1]
+    if len(sizes) < 2:
+        raise ValueError(f"the indices need at least 2 clusters once noise is left out, this run has {len(sizes)}")
+    breakdown = per_cluster_silhouette(X, labels, combo_params)
+    metrics = compute_clustering_metrics(X, labels, combo_params=combo_params)
+    dunn = dunn_index(X, labels)
+    undefined = sorted(name for name, value in {**metrics, "dunn": dunn}.items() if not np.isfinite(value))
+    if undefined:
+        raise ValueError(f"undefined for this run (every cluster is a single subject?): {undefined}")
+    return GeometricSummary(
+        n_subjects=len(labels), n_components=X.shape[1], n_clusters=len(sizes),
+        largest_cluster_share=float(sizes.max() / len(labels)), noise_fraction=float(metrics["noise_fraction"]),
+        silhouette=float(metrics["silhouette"]), silhouette_macro=breakdown.macro, silhouette_min=breakdown.minimum,
+        calinski_harabasz=float(metrics["calinski_harabasz"]), davies_bouldin=float(metrics["davies_bouldin"]),
+        dunn=float(dunn), clusters=breakdown.clusters,
     )
 
 

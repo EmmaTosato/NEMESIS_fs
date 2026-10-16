@@ -6,6 +6,14 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 16-10-26 — Sezione "Confronto" tolta dall'Embedding Explorer (acerba, non pronta per la produzione)
+
+**Cosa è cambiato**: il blocco `comparison-section` (layout), le 7 callback `comparison-*`/`selected-comparison-mode` e la voce "Confronto" dell'indice sono stati rimossi da `build_app` in `src/analysis/embedding_app.py`. Restano, non montati: `src/analysis/cluster_comparison.py`, `src/analysis/cluster_pair.py`, i builder del Confronto in `embedding_app.py` (`comparison_content_for`, `cluster_pair_content_for`, `cluster_pair_anatomy_for`, `COMPARISON_MODE_*`...) e i loro test unitari. Rimossi i 3 test end-to-end sulle callback non più montate (`tests/unit/test_embedding_app_comparison.py`).
+
+**Perché**: decisione dell'utente, la parte di confronto è ancora acerba. È un ritiro **temporaneo**, non definitivo: per reintrodurla bastano layout + callback, i builder non vanno riscritti.
+
+**Conseguenza ancora vera oggi**: i builder del Confronto sono codice non raggiunto dall'app (solo i test li usano) finché la sezione non torna; non cancellarli come codice morto. Il valore `homogeneity`/`completeness` scambiato del notebook `clustering_comparison` (`lessons_learned.md` #41) resta un problema a sé.
+
 ## 16-10-26 — `knowledge/` divisa per funzione: `notes/` (nostre sintesi) e `papers/` (fonti estratte)
 
 **Cosa è cambiato**: le 4 cartelle per argomento (`nemesis/`, `nemesis_related/`, `dim_reduction_clustering/`, `neuroimaging/`) sono diventate due. `knowledge/notes/` ha le note scritte da noi (`dim_reduction_clustering/`, `neuroimaging/`, `stroke_literature/`); `knowledge/papers/` ha le fonti estratte da PDF (`stroke_core/` 21 cartelle, `stroke_related/` 4, `methods/` 5 paper più `Slides_Bicego/` e `websites/`). `Paper_Summaries.md`, `Papers_Schema.md` e il `Paper_Summaries.md` di `nemesis_related/` sono in `notes/stroke_literature/` come `summaries_core.md`, `scope_by_category.md`, `summaries_related.md`. `paper_lists.md` è `papers/index.md` e ora elenca anche `stroke_related/` e `methods/`. Aggiunti `knowledge/README.md`, 8 `.DS_Store` rimossi. Spostamenti con `git mv` (600 rinomine al 100%). Aggiornati i riferimenti in `.claude/CLAUDE.md`, `README.md`, `docs/`, `src/` (commenti), `config/pipelines/compute_lesion_metadata.json` e i link relativi `../../` delle note (ora `../../../`).
