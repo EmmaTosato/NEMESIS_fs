@@ -40,6 +40,17 @@ I sei passi della pagina *How HDBSCAN Works*:
 
 Il docstring della classe elenca anche `cluster_selection_persistence`, `cluster_selection_epsilon_max` e `max_cluster_size`, che le pagine della guida non discutono.
 
+**Alzare o abbassare i due parametri** (pagine *Parameter Selection* e FAQ):
+
+| Parametro | Più basso | Più alto |
+|---|---|---|
+| `min_cluster_size` | anche gruppi piccoli contano come cluster | meno cluster, alcuni si fondono; sotto soglia un gruppo non è un cluster e i suoi punti escono dal cluster padre |
+| `min_samples` | meno rumore (a 1 quasi tutti i punti sono in un cluster) | più rumore, cluster ristretti alle zone più dense |
+
+- `min_samples` agisce sulla densità del **singolo punto**, `min_cluster_size` sulla taglia del **gruppo**.
+- La documentazione non dice come `min_samples` cambia il *numero* di cluster: descrive solo l'effetto su rumore ed estensione dei cluster.
+- Se `min_samples` non è fissato vale `min_cluster_size`, quindi alzare `min_cluster_size` alza anche `min_samples` e il rumore. La pagina precisa che `min_cluster_size` si comporta secondo l'intuizione solo se `min_samples` è fissato.
+
 **Dalla FAQ.** Troppo rumore: `min_samples` di default è uguale a `min_cluster_size`, abbassarlo riduce il rumore. Un cluster enorme e pochi piccoli: provare `leaf`. Cluster attesi non separati: la densità richiede abbastanza punti, e servono più punti in più dimensioni.
 
 ---
