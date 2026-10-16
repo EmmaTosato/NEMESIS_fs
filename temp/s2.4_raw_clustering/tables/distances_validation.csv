@@ -1,3 +1,0 @@
-metric,n,symmetric,diag_zero,finite,max_abs_err_vs_cdist_200x200,tol,min_offdiag,median_offdiag,max,n_zero_offdiag_pairs,compute_seconds,peak_rss_gb
-euclidean,5845,True,True,True,7.629003135889434e-06,0.01769473821928202,1.196312665939331,82.27039337158203,205.1348419189453,0,123.3,8.7
-cosine,5845,True,True,True,2.9799530065766078e-08,1e-05,0.0012033419916406274,0.8468096852302551,1.0,0,177.3,9.13

@@ -1,6 +1,0 @@
-linkage,metric,cophenetic_corr,linkage_seconds,peak_rss_gb
-ward,euclidean,0.6736096516407382,0.4,1.17
-average,euclidean,0.836860886891711,0.4,1.18
-complete,euclidean,0.7658879990444483,0.4,1.18
-average,cosine,0.7827801062537737,0.4,1.18
-complete,cosine,0.3868722348827734,0.4,1.18
