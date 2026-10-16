@@ -4,7 +4,7 @@ Audience: developers/agents working on `src/analysis/covariance_pca.py` (the num
 
 The core replicates the "Data compression" step of Thiebaut de Schotten et al. 2020 (PCA on the covariance matrix, then varimax rotation with at most 500 iterations, component scores by multiple regression) on matrices too wide for `sklearn.decomposition.PCA`, such as the voxel-wise SDC matrix (5845 x 291345 float32 = 6.8 GB): sklearn copies the matrix several times (about 25.7 GB of memory on it).
 
-What PCA, covariance vs correlation and varimax mean (concepts, not code): [`knowledge/dim_reduction_clustering/employed_dim_reduction_methods.md`](../../knowledge/dim_reduction_clustering/employed_dim_reduction_methods.md) (section "PCA e rotazione varimax"). The params of the `pca` method and how to choose them: [`docs/guides/dim_reduction.md`](../guides/dim_reduction.md), section "Il metodo `pca`".
+What PCA, covariance vs correlation and varimax mean (concepts, not code): [`knowledge/notes/dim_reduction_clustering/employed_dim_reduction_methods.md`](../../knowledge/notes/dim_reduction_clustering/employed_dim_reduction_methods.md) (section "PCA e rotazione varimax"). The params of the `pca` method and how to choose them: [`docs/guides/dim_reduction.md`](../guides/dim_reduction.md), section "Il metodo `pca`".
 
 ## How the PCA is computed
 

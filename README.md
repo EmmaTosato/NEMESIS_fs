@@ -50,7 +50,7 @@ assets/
 management/
 ├── meetings/      # raw dated meeting notes (primary source for project scope/decisions)
 └── notes/         # working notes, TODOs
-knowledge/        # reference literature, one folder per paper, extracted via docling
+knowledge/        # notes/ = our own syntheses; papers/ = extracted reference literature (docling)
 data/             # local copy of raw + derived data (gitignored, not in repo)
 results/          # dimensionality-reduction/clustering outputs (gitignored, not in repo)
 summaries/, logs/  # per-run outputs of the pipelines (gitignored)
@@ -89,7 +89,7 @@ Every clinical/demographic value lives in one checked-in source of truth, `asset
 
 Consumers read the registry directly rather than carrying copies: `build_sdc_matrix.py` takes its `has_lesion` admission criterion from it, and `dim_reduction.py`/`clustering.py`'s `side`/`nihss` colouring resolves against it at plot time — so a run gets those colours whether or not any enrichment step was ever applied to it.
 
-`lesion_side` carries its own provenance in `lesion_side_source`: `"clinical"` where a dataset records it, `"geometric"` where it is filled from the mask's own laterality index against a threshold calibrated on 1445 clinically-labelled subjects (97.4% agreement on the 2mm grid). A clinical value is never overwritten by a geometric one. Still open: that threshold is verified on the 2mm grid only, so the 1mm side column is indicative until it is re-calibrated there ([`knowledge/neuroimaging/lesion_laterality.md`](knowledge/neuroimaging/lesion_laterality.md)).
+`lesion_side` carries its own provenance in `lesion_side_source`: `"clinical"` where a dataset records it, `"geometric"` where it is filled from the mask's own laterality index against a threshold calibrated on 1445 clinically-labelled subjects (97.4% agreement on the 2mm grid). A clinical value is never overwritten by a geometric one. Still open: that threshold is verified on the 2mm grid only, so the 1mm side column is indicative until it is re-calibrated there ([`knowledge/notes/neuroimaging/lesion_laterality.md`](knowledge/notes/neuroimaging/lesion_laterality.md)).
 
 📖 How it works, what's in the file, and what's left: [`docs/dev/metadata.md`](docs/dev/metadata.md) · Guide: [`docs/guides/metadata.md`](docs/guides/metadata.md)
 
@@ -99,7 +99,7 @@ Consumers read the registry directly rather than carrying copies: `build_sdc_mat
 Each production/tuning run is tagged with a **session id** (`sX.Y[-<format>]` — track/cohort plus a mandatory format suffix, e.g. `s1.1-vol` for volumetric lesion data, `s2.1-schaefer-200-tian-s2` for SDC parcellated on that atlas) documented one entry per session in [`docs/experiments/`](docs/experiments/README.md).
 
 📖 Guides: [`dim_reduction.md`](docs/guides/dim_reduction.md) · [`clustering.md`](docs/guides/clustering.md)
-📚 Methodology/literature: [`knowledge/dim_reduction_clustering/`](knowledge/dim_reduction_clustering/)
+📚 Methodology/literature: [`knowledge/notes/dim_reduction_clustering/`](knowledge/notes/dim_reduction_clustering/)
 🏗️ Architecture: [`models.md`](docs/dev/models.md) · [`config.md`](docs/dev/config.md) · [`plotting.md`](docs/dev/plotting.md)
 
 ### Embedding exploration tools

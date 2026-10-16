@@ -539,7 +539,7 @@ def load_compute_lesion_metadata_config(path: str | Path) -> LesionMetadataConfi
     `side_threshold` is range-checked here but its *calibration* is a separate concern
     (src/pipeline/calibrate_lesion_side_threshold.py): 0.20 reproduces 97.4% of 1445
     clinically-labelled subjects on the 2mm grid, and that calibration does not automatically
-    transfer to a finer grid - see knowledge/neuroimaging/lesion_laterality.md.
+    transfer to a finer grid - see knowledge/notes/neuroimaging/lesion_laterality.md.
     """
     path = Path(path)
     if not path.is_file():

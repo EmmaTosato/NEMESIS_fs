@@ -1370,7 +1370,7 @@ DISCONNECTION_MAP_MODE_LABELS = {
 # there (build_overlap_map binarizes with a strict >, same as for a lesion mask).
 # 0.5 is "more likely disconnected than not" - the same more-likely-than-not cutoff the
 # lesion-mask literature uses to binarize a smoothed probabilistic mask (e.g. Keator et al.
-# 2021, knowledge/nemesis_related/). Declared here as ONE named constant rather than exposed
+# 2021, knowledge/papers/stroke_related/). Declared here as ONE named constant rather than exposed
 # as a slider: a threshold the reader can sweep invites fishing for the value that makes a
 # cluster look separable, which is not what this panel is for. Changing it is a deliberate,
 # reviewable edit - and it must be stated wherever the map is shown, since the map's meaning

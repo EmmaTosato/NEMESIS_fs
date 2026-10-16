@@ -1,6 +1,6 @@
 # Resampling delle maschere di lesione — regola, sfumature e stato reale in NEMESIS
 
-> Fonte: Bisogno et al. 2025 (*Brain Communications*, in `knowledge/nemesis/`), FSL (`flirt -applyxfm` + `fslmaths -thr 0.5 -bin`), `nilearn.image.resample_to_img`. Implementazione: `src/features/lesion.py` (`_needs_resample`/`_load_and_binarize_lesion`), `src/sdc/resample.py`, `src/features/sdc.py`. Misure empiriche: questo documento, § Parte 3.
+> Fonte: Bisogno et al. 2025 (*Brain Communications*, in `knowledge/papers/stroke_core/`), FSL (`flirt -applyxfm` + `fslmaths -thr 0.5 -bin`), `nilearn.image.resample_to_img`. Implementazione: `src/features/lesion.py` (`_needs_resample`/`_load_and_binarize_lesion`), `src/sdc/resample.py`, `src/features/sdc.py`. Misure empiriche: questo documento, § Parte 3.
 
 Il documento è in tre parti:
 
@@ -33,7 +33,7 @@ Non è una convenzione interna al progetto. Bisogno et al. 2025, che lavora sull
 
 > *"The normalization matrix was then applied to the lesion mask through a nearest neighbour interpolation function."*
 
-Lo stesso criterio è già applicato altrove nel repo per lo stesso motivo — vedi `knowledge/neuroimaging/fc_lesion_masking.md` (riallineamento lesione → griglia dell'atlante, `nearest`).
+Lo stesso criterio è già applicato altrove nel repo per lo stesso motivo — vedi `knowledge/notes/neuroimaging/fc_lesion_masking.md` (riallineamento lesione → griglia dell'atlante, `nearest`).
 
 ## 4. Come il repo applica la regola
 

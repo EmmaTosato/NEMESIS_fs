@@ -34,7 +34,7 @@ sentinel (e.g. "unknown" for a colour legend) applies its own on read. The one
 exception carrying extra information is lesion_side_source, which records where
 a lesion_side value came from - "clinical" (the raw tsv) or "geometric" (a
 subject whose side the registry takes from the geometry of its own lesion mask -
-see config.lesion_metadata below and knowledge/neuroimaging/lesion_laterality.md).
+see config.lesion_metadata below and knowledge/notes/neuroimaging/lesion_laterality.md).
 A clinical value is overwritten by a geometric one in exactly one case, forced on
 purpose and listed per dataset in `geometric_override_datasets` (below): the clinical
 side is the exact opposite of the mask's.

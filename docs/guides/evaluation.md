@@ -89,4 +89,4 @@ Le Parti 1-3 sono ancora quelle della versione unica del notebook, in attesa di 
 - Le metriche intrinseche dicono se *quella* run è compatta e separata, non se è "giusta" rispetto a un'altra.
 - ARI/NMI alti tra metodi diversi sono un segnale di convergenza, non una prova che `k` sia corretto. ARI/NMI bassi tra lesion e sdc non sono un errore: feature space diversi non hanno obbligo di produrre la stessa partizione.
 
-Metodologia e letteratura: `knowledge/dim_reduction_clustering/clustering_literature_survey.md`.
+Metodologia e letteratura: `knowledge/notes/dim_reduction_clustering/clustering_literature_survey.md`.

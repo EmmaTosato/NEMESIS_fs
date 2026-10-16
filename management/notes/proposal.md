@@ -15,7 +15,7 @@
 
 Le assunzioni di letteratura per Task 1 (lesione→disconnessione, embedding, struttura del
 comportamento, dinamica temporale, valore predittivo, clustering di traiettorie...) sono in
-`knowledge/nemesis/Papers_Schema.md` (scope per paper) e `Paper_Summaries.md` (dettaglio).
+`knowledge/notes/stroke_literature/scope_by_category.md` (scope per paper) e `knowledge/notes/stroke_literature/summaries_core.md` (dettaglio).
 
 
 # Cosa possiamo fare noi

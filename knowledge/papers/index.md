@@ -1,4 +1,8 @@
-# Lista Paper
+# Indice dei paper
+
+Un paper per cartella, nominata `<Autore> et al - <Anno> - <Titolo>`. Le sintesi scritte da noi sono in [`../notes/stroke_literature/`](../notes/stroke_literature/); qui stanno solo le fonti estratte.
+
+## `stroke_core/` — paper di riferimento di NEMESIS
 
 1. 2015 - Corbetta et al - *Common Behavioral Clusters and Subcortical Anatomy in Stroke*
 2. 2016 - Siegel et al - *Disruptions of network connectivity predict impairment in multiple behavioral domains after stroke*
@@ -21,3 +25,20 @@
 19. 2025 - Volpi et al - *The brain’s “dark energy” puzzle upgraded [18F]FDG uptake, delivery and phosphorylation, and their*
 20. 2026 - Santoro et al - *Individual connectome fingerprints reveal early stabilization and long-term circuit remodeling after*
 21. 2025 - Tshimanga et al - *Behavioral Clusters and Lesion Distributions in Ischemic Stroke, Based on NIHSS Similarity Network*
+
+## `stroke_related/` — paper affini
+
+1. 2018 - Filatova et al - *Dynamic Information Flow*
+2. 2021 - Keator et al - *Independent contributions of structural and functional connectivity*
+3. 2025 - Wang et al - *Neuroimaging and biological markers*
+4. 2025 - Zhou et al - *Structural and EEG motor networks*
+
+## `methods/` — metodi di riduzione dimensionale e clustering
+
+1. 2002 - Fred et al - *Data clustering using evidence accumulation*
+2. 2014 - Sorzano et al. - *A survey of dimensionality reduction techniques*
+3. 2025 - Dinh et al - *Data clustering: an essential technique in data science*
+4. 2025 - de Bodt et al - *Low-dimensional embeddings of high-dimensional data*
+5. 2025 - Wani - *Comprehensive review of dimensionality reduction algorithms: challenges, limitations, and innovative solutions*
+
+Materiale che non è un paper: `Slides_Bicego/` (slide del corso di clustering, 2021) e `websites/` (quattro pagine web salvate su UMAP, t-SNE e clustering).

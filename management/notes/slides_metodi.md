@@ -1,6 +1,6 @@
 # Note per le slide sui metodi
 
-Spiegazioni brevi dei metodi di riduzione dimensionale e di clustering usati in NEMESIS, scritte per essere ridette a voce. Il dettaglio e le fonti stanno in `knowledge/dim_reduction_clustering/`, indicato in fondo a ogni metodo.
+Spiegazioni brevi dei metodi di riduzione dimensionale e di clustering usati in NEMESIS, scritte per essere ridette a voce. Il dettaglio e le fonti stanno in `knowledge/notes/dim_reduction_clustering/`, indicato in fondo a ogni metodo.
 
 ---
 
@@ -25,7 +25,7 @@ Spiegazioni brevi dei metodi di riduzione dimensionale e di clustering usati in 
 - Sulla SDC voxel-wise (`s2.4-vol`), 42 componenti raggiungono il 90.0% della varianza; le prime 2 ne spiegano il 51% (tuning del 16-10, `results/sdc/dim_reduction/tuning/pca/16-10_s2.4-vol/tuning_results.csv`).
 - Il tuning è stato fatto sulla matrice prima della correzione dei voxel fuori dal cervello: il numero di componenti per il 90% va ricontrollato sulla matrice corretta.
 
-Approfondimento: `knowledge/dim_reduction_clustering/employed_dim_reduction_methods.md`, sezione "PCA e rotazione varimax".
+Approfondimento: `knowledge/notes/dim_reduction_clustering/employed_dim_reduction_methods.md`, sezione "PCA e rotazione varimax".
 
 ---
 
@@ -119,4 +119,4 @@ Approfondimento: `clustering_literature_survey.md` (sezione sul clustering gerar
 | `min_cluster_size` | basso | anche gruppi piccoli sono cluster: tanti cluster, alcuni poco affidabili |
 | `min_cluster_size` | alto | servono gruppi grandi: pochi cluster, e i gruppi piccoli diventano rumore o restano nel padre |
 
-Approfondimento: `knowledge/dim_reduction_clustering/hdbscan_package.md` (come funziona, parametri, differenze da sklearn).
+Approfondimento: `knowledge/notes/dim_reduction_clustering/hdbscan_package.md` (come funziona, parametri, differenze da sklearn).

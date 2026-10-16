@@ -238,7 +238,7 @@ def compute_monti_stability(consensus_matrix: np.ndarray, ambiguous_band: tuple[
 
 def assign_clusters_from_cooccurrence(co_occurrence_matrix: np.ndarray, threshold: float) -> np.ndarray:
     """Evidence Accumulation Clustering's final "Merge" step, per Fred & Jain
-    (2002, ICPR - knowledge/sota/Fred et al - 2002 - Data clustering using
+    (2002, ICPR - knowledge/papers/methods/Fred et al - 2002 - Data clustering using
     evidence accumulation.md, the exact paper Zanola et al. 2026 cites for
     RSC's "consensus clustering" half): derive cluster labels from the
     co-occurrence matrix C itself - not from any single one of the N

@@ -52,7 +52,7 @@ Le indicazioni delle fonti diventano un metodo di lettura dei plot dello sweep. 
 
 ## PCA e rotazione varimax
 
-> Il metodo lineare tra quelli impiegati (`pca` in `REDUCTION_METHODS`, `src/analysis/reduction.py`, con la rotazione come parametro), a differenza di t-SNE e UMAP sopra. Il calcolo per matrici troppo larghe per `sklearn` (disconnettoma voxelwise) è in [`docs/dev/covariance_pca.md`](../../docs/dev/covariance_pca.md); il notebook che lo usa è in [`docs/guides/exploration.md`](../../docs/guides/exploration.md) (`thiebaut_2020_replication`).
+> Il metodo lineare tra quelli impiegati (`pca` in `REDUCTION_METHODS`, `src/analysis/reduction.py`, con la rotazione come parametro), a differenza di t-SNE e UMAP sopra. Il calcolo per matrici troppo larghe per `sklearn` (disconnettoma voxelwise) è in [`docs/dev/covariance_pca.md`](../../../docs/dev/covariance_pca.md); il notebook che lo usa è in [`docs/guides/exploration.md`](../../../docs/guides/exploration.md) (`thiebaut_2020_replication`).
 
 ### La PCA
 
@@ -101,7 +101,7 @@ Il grafico degli autovalori in ordine decrescente si chiama *scree plot*; la quo
 #### Equivalenze utili
 
 - La PCA è la decomposizione ai valori singolari (SVD) di `Xc`: gli autovalori di C sono i valori singolari al quadrato diviso `n-1`. `sklearn.decomposition.PCA` fa questo.
-- **Matrice più larga che alta (*p* > *n*).** Gli autovalori si ottengono dalla matrice piccola *n* × *n* invece che da quella *p* × *p*: vedi la sezione successiva. È ciò che fa [`covariance_pca.py`](../../src/analysis/covariance_pca.py) su 5845 soggetti × 291.345 voxel.
+- **Matrice più larga che alta (*p* > *n*).** Gli autovalori si ottengono dalla matrice piccola *n* × *n* invece che da quella *p* × *p*: vedi la sezione successiva. È ciò che fa [`covariance_pca.py`](../../../src/analysis/covariance_pca.py) su 5845 soggetti × 291.345 voxel.
 - **Il segno di una componente è arbitrario.** Moltiplicarla per −1 è una soluzione equivalente. Per leggere una mappa si fissa una convenzione (qui: il voxel con |valore| massimo positivo).
 
 #### PCA su una matrice più larga che alta (metodo degli snapshot)
@@ -115,7 +115,7 @@ Il grafico degli autovalori in ordine decrescente si chiama *scree plot*; la quo
 
 Compare lo stesso `S²` in entrambe, quindi hanno **gli stessi autovalori non nulli**. La varianza della componente *j* è `S²ⱼ / (n-1)`.
 
-**Gli autovettori dei voxel** (i pesi) si ricavano da quelli dei soggetti: `V = Xcᵀ · U / S`. Nel codice sono calcolati a blocchi di colonne, quindi la matrice *p* × *p* non viene mai costruita ([`covariance_pca.py`](../../src/analysis/covariance_pca.py), `fit_covariance_pca` e `rotated_scores`). In memoria restano la matrice *n* × *n* (circa 270 MB) e un blocco di colonne.
+**Gli autovettori dei voxel** (i pesi) si ricavano da quelli dei soggetti: `V = Xcᵀ · U / S`. Nel codice sono calcolati a blocchi di colonne, quindi la matrice *p* × *p* non viene mai costruita ([`covariance_pca.py`](../../../src/analysis/covariance_pca.py), `fit_covariance_pca` e `rotated_scores`). In memoria restano la matrice *n* × *n* (circa 270 MB) e un blocco di colonne.
 
 **Perché non si perde nulla.** Una tabella con *n* righe, dopo il centraggio, ha al massimo `n-1` componenti con varianza non nulla: le *p* dimensioni dei voxel non possono produrne di più. La matrice piccola contiene quindi tutta l'informazione utile.
 
@@ -132,7 +132,7 @@ Matrici del progetto:
 | `s2.1-schaefer-200-tian-s2` (SDC parcellato) | 1119 | 232 | covarianza tra variabili |
 | `s2.4-stream` (SDC per tratto) | 5831 | 87 | covarianza tra variabili |
 
-**Cosa implementa il codice.** [`covariance_pca.py`](../../src/analysis/covariance_pca.py) implementa **entrambi i percorsi**, scelti con `dual` (`true`: duale, `false`: covarianza tra variabili), con o senza `standardize`. Su `s2.4-stream` (5831 × 87) il percorso sulla covarianza tra variabili impiega meno di un secondo, il duale circa 24.
+**Cosa implementa il codice.** [`covariance_pca.py`](../../../src/analysis/covariance_pca.py) implementa **entrambi i percorsi**, scelti con `dual` (`true`: duale, `false`: covarianza tra variabili), con o senza `standardize`. Su `s2.4-stream` (5831 × 87) il percorso sulla covarianza tra variabili impiega meno di un secondo, il duale circa 24.
 
 **Cosa è verificato.**
 
@@ -253,7 +253,7 @@ Le colonne di B non sono più ortogonali nei dati, quindi la semplice proiezione
 
 ### Nel repo
 
-- Calcolo su matrici larghe (covarianza, varimax, punteggi per regressione, R², mappe t): [`src/analysis/covariance_pca.py`](../../src/analysis/covariance_pca.py), riferimento tecnico in [`docs/dev/covariance_pca.md`](../../docs/dev/covariance_pca.md).
-- `pca` in `src/analysis/reduction.py` (parametri e scelte: [`docs/guides/dim_reduction.md`](../../docs/guides/dim_reduction.md)) usa questo calcolo con `solver: blocks`, oppure `sklearn.decomposition.PCA` con `solver: sklearn`; la rotazione passa da `factor_analyzer.Rotator`.
+- Calcolo su matrici larghe (covarianza, varimax, punteggi per regressione, R², mappe t): [`src/analysis/covariance_pca.py`](../../../src/analysis/covariance_pca.py), riferimento tecnico in [`docs/dev/covariance_pca.md`](../../../docs/dev/covariance_pca.md).
+- `pca` in `src/analysis/reduction.py` (parametri e scelte: [`docs/guides/dim_reduction.md`](../../../docs/guides/dim_reduction.md)) usa questo calcolo con `solver: blocks`, oppure `sklearn.decomposition.PCA` con `solver: sklearn`; la rotazione passa da `factor_analyzer.Rotator`.
 - Notebook: `notebooks/pipeline_building/thiebaut_2020_replication.ipynb` (PCA con varimax, e senza rotazione per confronto).
-- Fonte del metodo: Thiebaut de Schotten et al. 2020, *Brain disconnections link structural connectivity with function and behaviour* (cartella in `knowledge/nemesis/`).
+- Fonte del metodo: Thiebaut de Schotten et al. 2020, *Brain disconnections link structural connectivity with function and behaviour* (cartella in `knowledge/papers/stroke_core/`).

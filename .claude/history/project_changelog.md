@@ -6,6 +6,16 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 16-10-26 — `knowledge/` divisa per funzione: `notes/` (nostre sintesi) e `papers/` (fonti estratte)
+
+**Cosa è cambiato**: le 4 cartelle per argomento (`nemesis/`, `nemesis_related/`, `dim_reduction_clustering/`, `neuroimaging/`) sono diventate due. `knowledge/notes/` ha le note scritte da noi (`dim_reduction_clustering/`, `neuroimaging/`, `stroke_literature/`); `knowledge/papers/` ha le fonti estratte da PDF (`stroke_core/` 21 cartelle, `stroke_related/` 4, `methods/` 5 paper più `Slides_Bicego/` e `websites/`). `Paper_Summaries.md`, `Papers_Schema.md` e il `Paper_Summaries.md` di `nemesis_related/` sono in `notes/stroke_literature/` come `summaries_core.md`, `scope_by_category.md`, `summaries_related.md`. `paper_lists.md` è `papers/index.md` e ora elenca anche `stroke_related/` e `methods/`. Aggiunti `knowledge/README.md`, 8 `.DS_Store` rimossi. Spostamenti con `git mv` (600 rinomine al 100%). Aggiornati i riferimenti in `.claude/CLAUDE.md`, `README.md`, `docs/`, `src/` (commenti), `config/pipelines/compute_lesion_metadata.json` e i link relativi `../../` delle note (ora `../../../`).
+
+**Perché**: le note nostre (da mantenere) stavano accanto a cartelle di paper estratti (archivio), e l'indice dei paper era dentro `nemesis/` mentre `CLAUDE.md` lo dava in `knowledge/paper_lists.md`. Due riferimenti in `src/` puntavano a `knowledge/sota/`, inesistente.
+
+**Scartato**: uniformare il layout interno di ogni paper (alcuni hanno `<Autore> et al - <Anno>.md` nella radice, altri `markdown/_full.md`) e rinominare le cartelle con underscore: toccherebbe i `manifest.json`/`figures.json` per nessun guadagno di lettura. I `manifest.json` conservano i vecchi percorsi di estrazione (`knowledge/sota/...`, `knowledge/related/...`), lasciati come metadati.
+
+**Conseguenza ancora vera oggi**: i vecchi percorsi (`knowledge/nemesis/`, `knowledge/neuroimaging/`, ...) compaiono ancora in `docs/debugging/`, `.claude/history/` e `stato_progetto_archive.md`, lasciati com'erano perché sono registri datati. Un percorso lì che non esiste è questa riorganizzazione, non un file perso. L'indice di `stroke_core/` e la cartella non coincidono, dall'origine: la voce 14 (Idesis 2024, *Whole-brain model...*) non ha cartella, e la cartella `Cinetto et al - 2026/` (solo `Manuscript.docx`) non ha voce.
+
 ## 16-10-26 — Un solo ordine delle righe per le matrici lesione e SDC: alfabetico per dataset, poi `subject_id`
 
 **Cosa è cambiato**: `build_lesion_matrix` ordina le righe per nome del dataset e poi `subject_id` (`src/features/lesion.py::_stack_voxel_matrix`, `sorted(lesion_files.items())`), come già facevano `build_sdc_matrix` (tutte e tre le rappresentazioni) e il builder parcellato. Prima seguiva l'ordine di `datasets` nel config, e l'unica ragione per cui `s1.4-vol` e `s2.4-vol` del 07-10 avevano lo stesso ordine era un riordino a mano dell'SDC (`data_changelog.md`). Test di regressione: `test_build_lesion_matrix_rows_are_ordered_by_dataset_name_not_by_config_order`, che fallisce col codice vecchio.

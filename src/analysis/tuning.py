@@ -3,7 +3,7 @@
 run_tuning_sweep only produces a comparison table - a human reads it (or the
 accompanying plot) and writes the chosen combination into params_reduction.json's
 "params" by hand. See docs/dev/models.md and
-knowledge/dim_reduction_clustering/dim_reduction_tuning_guide.md for why the
+knowledge/notes/dim_reduction_clustering/dim_reduction_tuning_guide.md for why the
 quality metric differs by method family (TUNING_METRIC_NAMES) and why only
 t-SNE's perplexity is swept, not its other params.
 """

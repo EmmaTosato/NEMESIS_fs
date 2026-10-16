@@ -142,7 +142,7 @@ In UCL-UK le due griglie coincidono (1997 × 8 = 15976); in PSP il volume a 1 mm
 
 ### La soglia del lato
 
-`side_threshold` (`0.20` in produzione) non è inventata: è calibrata contro 1445 soggetti con etichetta clinica vera, 97.4% di accordo, **sulla griglia a 2 mm** — dettagli, letteratura e limiti (la classe "bilaterale" resta debole, 3/24 corretti a qualunque soglia) in `knowledge/neuroimaging/lesion_laterality.md` e `.claude/history/methods_changelog.md`.
+`side_threshold` (`0.20` in produzione) non è inventata: è calibrata contro 1445 soggetti con etichetta clinica vera, 97.4% di accordo, **sulla griglia a 2 mm** — dettagli, letteratura e limiti (la classe "bilaterale" resta debole, 3/24 corretti a qualunque soglia) in `knowledge/notes/neuroimaging/lesion_laterality.md` e `.claude/history/methods_changelog.md`.
 
 La stessa soglia vale anche a 1 mm: sugli stessi 1350 soggetti con lato clinico (PSP esclusa: le sue maschere a 1 mm sono frazionarie) la soglia 0.20 dà la stessa accuratezza a 1 mm e a 2 mm (97,3%) e attribuisce a **tutti** lo stesso lato. Il motivo per cui non era scontato: il piano mediano escluso da entrambi gli emisferi è spesso 1 mm su una griglia e 2 mm sull'altra (la griglia a 1 mm ha 91 fette a sinistra e 90 a destra, quella a 2 mm 45 e 45), quindi per una lesione quasi tutta mediana i due indici non sono interscambiabili.
 
@@ -164,7 +164,7 @@ Dove sta la lesione è una feature ricavata dalla maschera, allo stesso livello 
 | `ventricle` | `Lateral Ventricle` di HO |
 | `unlabeled` | dentro il brain mask, senza etichetta in nessun atlante |
 
-Atlanti, indici e allineamento: `knowledge/neuroimaging/lesion_location.md` e `assets/atlases/fsl/README.md`.
+Atlanti, indici e allineamento: `knowledge/notes/neuroimaging/lesion_location.md` e `assets/atlases/fsl/README.md`.
 
 **Otto colonne in più, solo sulla griglia `location.grid` (2 mm)**, dopo le colonne di tutte le griglie:
 
