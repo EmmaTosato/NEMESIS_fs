@@ -79,6 +79,21 @@ Dai risultati si leggono quattro cose:
 | **Pesi** (*loadings*) | quanto ogni variabile contribuisce alla componente (l'autovettore, eventualmente moltiplicato per √autovalore) | *p* × *k* |
 | **Punteggi** (*scores*) | la posizione di ogni soggetto sulla componente | *n* × *k* |
 
+**Pesi e punteggi, in parole.** I pesi sono un numero per voxel e per componente, e sono **gli stessi per tutti i soggetti**: descrivono la componente. Il punteggio è un numero per soggetto e per componente: la somma dei voxel di quel soggetto, pesati con i pesi della componente.
+
+> punteggio(soggetto *i*, componente *j*) = peso₁ⱼ · voxel₁(*i*) + peso₂ⱼ · voxel₂(*i*) + … + peso_pⱼ · voxel_p(*i*)
+
+Questa somma è la **combinazione lineare delle variabili originali**: i pesi sono i coefficienti, il punteggio è il risultato. Su tutti i soggetti insieme, la componente è una nuova colonna lunga *n*, somma pesata delle *p* colonne dei voxel. Riportati sulla griglia del cervello, i pesi di una componente formano la sua mappa spaziale.
+
+Esempio con 3 voxel (valori già centrati) e una componente con pesi (0,6; 0,0; 0,8):
+
+| Soggetto | voxel₁ | voxel₂ | voxel₃ | Punteggio |
+|---|---|---|---|---|
+| 1 | 2 | −1 | 1 | 0,6·2 + 0,0·(−1) + 0,8·1 = **2,0** |
+| 2 | −1 | 3 | −2 | 0,6·(−1) + 0,0·3 + 0,8·(−2) = **−2,2** |
+
+I pesi sono uguali nelle due righe; cambiano i valori dei voxel, quindi cambia il punteggio. Un peso nullo (voxel₂) esclude quel voxel dalla componente.
+
 Il grafico degli autovalori in ordine decrescente si chiama *scree plot*; la quota cumulata dice quante componenti servono per arrivare, ad esempio, al 90% della varianza.
 
 #### Equivalenze utili
