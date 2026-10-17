@@ -6,6 +6,28 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 17-10-26 — Risultati di `s2.4-vol` sulla matrice pre-correzione spostati in `results/legacy/`
+
+**Cosa è cambiato**: 44 cartelle sotto `results/sdc/` (circa 25 GB) sono state spostate in `results/legacy/sdc_s2.4-vol_07-10/`, con la stessa struttura di `results/sdc/` (`clustering/{tuning,production}/...`, `dim_reduction/{tuning,production}/...`). Sono tutte le run di `s2.4-vol` costruite sulla matrice `data/derived/sdc_matrix/07-10_s2.4-vol` (voxel fuori dal cervello non azzerati): tuning UMAP 07-10, embedding di produzione 08-10 (nc2, nc3, nc10), tuning di agglomerative/HDBSCAN 09-10, di `hdbscan_soft` 15-10 e di ADP 08-10, produzioni 12-10 (agglomerative 14, HDBSCAN 7, ADP 4) e `hdbscan_soft` 15-10 (4). Restano in `results/sdc/` le 50 cartelle sulla matrice del 16-10 (compresa la PCA 16-10/17-10) e tutto `s2.4-stream`. `data/` non è cambiato.
+
+**Come si è scelto cosa spostare**: dall'`input_path` di ogni `config.md` (la matrice 07-10 oppure un embedding `08-10_s2.4-vol_m_euclidean_nc*`), non dalla data nel nome. Questo ha preso anche `hdbscan_soft/umap/16-10_s2.4-vol_m_euclidean_nc10_mcs100_ms20_sel_eom`, che per il nome sembrava del 16-10 ma aveva input `08-10_s2.4-vol_m_euclidean_nc10`: una run sulla matrice vecchia fatta dopo mezzanotte del 16-10. Il suo nome in `results/sdc/` è ora libero per la run sul 16-10, che non è stata prodotta.
+
+**Perché**: dopo `correct_out_of_brain` (`methods_changelog.md`, 16-10-26) la matrice del 07-10 non descrive la stessa quantità di `sdc_metadata.csv`; le sue run restano come storico ma non devono stare accanto a quelle valide. Spostate, non cancellate: sono il termine di confronto di `SUMMARY.md` (report di tuning) e di `docs/experiments/s2.4-vol.md`.
+
+**Scartato**: cancellarle (non richiesto); riscrivere i `runs.csv`/`runs_tuning.csv` per togliere o aggiornare le righe spostate (sono registri, non toccati).
+
+**Conseguenza ancora vera oggi**: i `runs.csv`/`runs_tuning.csv` di `results/sdc/` hanno ancora 44 righe (una per cartella spostata) con la colonna `output` che punta a un percorso non più esistente (`lessons_learned.md` #24): chi legge quei registri deve verificare `Path(output).is_dir()`. I link di `docs/experiments/` alle run del 07-10 puntano a `results/legacy/`. `results/legacy/` non è tracciato da git (`legacy/` in `.gitignore`).
+
+## 17-10-26 — Report di tuning: suffisso con la data della matrice; report SDC del 07-10 eliminati
+
+**Cosa è cambiato**: in `results/reports/cluster_tuning_notebooks/` ogni cartella porta come suffisso la data della matrice di input: `cluster_lesion_{dice,euclidean}_nc{2,3,10}_07-10` (6) e `cluster_streamline_raw_07-10` (rinominate), `cluster_sdc_euclidean_nc{2,3,10}_16-10` (3 nuove, sulla matrice `s2.4-vol` del 16-10). Le tre cartelle `cluster_sdc_euclidean_nc{2,3,10}` sulla matrice del 07-10 (circa 9.6 MB) sono state **eliminate**, su richiesta dell'utente; `results/` è gitignorato, quindi non c'è modo di recuperarle. Gli script di generazione (`_shared/generate_reports/`) conoscono solo i report esistenti: `common.py` (`RUNS`), `content.py`, `images_text.py`, `hdbscan_soft.py`, `hdbscan_soft_text/` e il nuovo `images_1610.py` (viste 2D e copie dei png di tuning).
+
+**Perché**: esistevano due matrici con lo stesso nome di sessione (`s2.4-vol`), distinte solo dalla data; senza suffisso il report di una era indistinguibile da quello dell'altra. Il suffisso è la data della matrice, non della run.
+
+**Scartato**: lasciare i report SDC del 07-10 accanto ai nuovi (richiesta di eliminarli); rinominare solo i nuovi.
+
+**Conseguenza ancora vera oggi**: i file del metodo precedente (`scripts/` e `tables/` di ogni cartella, `all_candidates.csv`, `_shared/k_evaluation*.py`, `hdbscan_all.py`, `make_detail_reports.py`) contengono ancora i vecchi nomi di cartella: il README della cartella li dichiara non più letti, non vanno rieseguiti. I report del 16-10 non hanno i grafici delle celle di `clustering_tuning_explorer` (notebook human-in-the-loop, non eseguito).
+
 ## 16-10-26 — Sezione "Confronto" tolta dall'Embedding Explorer (acerba, non pronta per la produzione)
 
 **Cosa è cambiato**: il blocco `comparison-section` (layout), le 7 callback `comparison-*`/`selected-comparison-mode` e la voce "Confronto" dell'indice sono stati rimossi da `build_app` in `src/analysis/embedding_app.py`. Restano, non montati: `src/analysis/cluster_comparison.py`, `src/analysis/cluster_pair.py`, i builder del Confronto in `embedding_app.py` (`comparison_content_for`, `cluster_pair_content_for`, `cluster_pair_anatomy_for`, `COMPARISON_MODE_*`...) e i loro test unitari. Rimossi i 3 test end-to-end sulle callback non più montate (`tests/unit/test_embedding_app_comparison.py`).

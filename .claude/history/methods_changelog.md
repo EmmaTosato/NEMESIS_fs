@@ -8,6 +8,18 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 17-10-26 — Confronto tra matrici SDC: il filtro `usabile` come criterio comune; due sensi di "utilizzabile" nei report
+
+**Cosa è cambiato**: per confrontare le run su `s2.4-vol` 07-10 e 16-10 si usa il filtro `usabile` già definito per `hdbscan_soft` (3-30 cluster, rumore ≤ 25%, cluster più grande ≤ 60% dei soggetti), applicato anche alle righe di HDBSCAN (sklearn). Con quel filtro, nel 07-10 le righe `hdbscan` usabili sono 5/0/8 (nc2/nc3/nc10, su 28) e le `hdbscan_soft` 9/1/13 (su 56); nel 16-10 sono 0/0/0 e 0/2/0. Le produzioni delle due matrici si confrontano per `subject_id` (`cluster_comparison.align_runs` + `agreement_metrics`, 5845 soggetti in comune): ARI HDBSCAN 0.19-0.37, `hdbscan_soft` 0.23-0.37, agglomerative nc10 average 0.79-1.00, nc2 ward 0.58-0.79, ADP 0.73-0.89.
+
+**Perché**: i report SDC del 07-10 scrivevano "nessuna riga utilizzabile" per HDBSCAN con un criterio informale ("poco rumore e silhouette decente"), che non coincide col filtro: lo stesso 07-10 ha 5 e 8 righe che lo passano (silhouette 0.155-0.512 e 0.095-0.363). Senza un criterio unico la frase "HDBSCAN è peggiorato" non si può verificare tra le due matrici.
+
+**Non separato**: la causa del cambio di HDBSCAN e `hdbscan_soft` sugli embedding UMAP. Può essere la correzione dei voxel oppure la variabilità di UMAP dovuta al riordino delle righe (stessa `random_state`, righe in ordine diverso); il controllo (UMAP nc2 sulla matrice 07-10 riordinata) non è stato fatto. Non scrivere nei documenti una causa come spiegazione.
+
+**Conseguenza ancora vera oggi**: le due letture di "utilizzabile" convivono nei documenti storici (i `report.md` del 07-10 non esistono più; `SUMMARY.md` e `docs/experiments/s2.4-vol.md` usano il filtro). Una frase "nessuna riga utilizzabile" senza il filtro esplicito va riletta con cautela. Il risultato sta in `docs/experiments/s2.4-vol.md`.
+
+---
+
 ## 16-10-26 — SDC voxel-wise: `correct_out_of_brain` come nella lesione (la matrice e il suo carico di disconnessione non descrivevano la stessa quantità)
 
 **Cosa è cambiato.** `build_sdc_matrix` con `representation: "voxelwise"` accetta `correct_out_of_brain` (default `false`) e `brain_mask_path` (obbligatorio solo col flag acceso). Con il flag acceso azzera i voxel fuori dalla maschera cerebrale dopo il ricampionamento e prima dell'eliminazione delle colonne costanti, in entrambi i passaggi di `_stack_voxelwise_matrix`, riusando `zero_out_of_brain_voxels` della lesione. Il soggetto resta. `config.md` e il report elencano ogni soggetto corretto con i voxel azzerati e la quota di massa tolta. `parcellated` e `streamline` rifiutano il flag acceso al caricamento della config.

@@ -70,7 +70,7 @@ Dove il metodo di clustering non è indicato: k-means, agglomerative, gmm, hdbsc
 
 ## s2.4-vol del 07-10 — matrice con i voxel fuori dal brain non azzerati
 
-Le run che si basano sulla matrice **vecchia** di s2.4-vol (291345 colonne, 64110 delle quali fuori dalla maschera cerebrale, senza `correct_out_of_brain`). Restano come storico della pipeline SDC prima della correzione; la matrice del 16-10 le rifà nella seconda tornata, qui sotto.
+Le run che si basano sulla matrice **vecchia** di s2.4-vol (291345 colonne, 64110 delle quali fuori dalla maschera cerebrale, senza `correct_out_of_brain`). Restano come storico della pipeline SDC prima della correzione, e i loro risultati stanno in `results/legacy/sdc_s2.4-vol_07-10/` (stessa struttura di `results/sdc/`); la matrice del 16-10 le rifà nella seconda tornata, qui sotto.
 
 ```mermaid
 flowchart LR
@@ -120,7 +120,7 @@ Tre rami per matrice: principale (UMAP, poi agglomerative e HDBSCAN), ADP sulla 
 
 ## Seconda tornata — s1.4, s2.4
 
-La lesione (s1.4-vol, 07-10) e le due SDC: s2.4-vol **del 16-10**, ricostruita con i voxel fuori dal brain azzerati (227235 colonne), e s2.4-stream (07-10, per tratto, non toccata dalla correzione). Le run di s2.4-vol sulla matrice vecchia del 07-10 sono nello schema precedente. Le run di s2.4-vol del 16-10 usano gli stessi parametri del 12 e del 14 ottobre (la PCA si fa altrove). In produzione manca una run: la `hdbscan_soft` nc10 con `min_cluster_size=100`, `min_samples=20`, `eom` (il nome della cartella coincide con quello della run sulla matrice del 07-10, fatta dopo mezzanotte del 16-10).
+La lesione (s1.4-vol, 07-10) e le due SDC: s2.4-vol **del 16-10**, ricostruita con i voxel fuori dal brain azzerati (227235 colonne), e s2.4-stream (07-10, per tratto, non toccata dalla correzione). Le run di s2.4-vol sulla matrice vecchia del 07-10 sono nello schema precedente. Le run di s2.4-vol del 16-10 usano gli stessi parametri del 12 e del 14 ottobre (la PCA si fa altrove). Le run di s2.4-vol del 16-10 sono: tuning UMAP 90 combinazioni (16-10), produzione UMAP nc2/nc3/nc10, tuning di agglomerative, HDBSCAN e `hdbscan_soft` su ogni embedding e ADP sulla matrice grezza (16-10), e in produzione 29 run su 30: agglomerative 14 e HDBSCAN 7 (21 run sull'embedding), `hdbscan_soft` 4 su 5, ADP 4. Manca una run: la `hdbscan_soft` nc10 con `min_cluster_size=100`, `min_samples=20`, `eom`. Il nome della cartella `16-10_s2.4-vol_m_euclidean_nc10_mcs100_ms20_sel_eom` coincide con quello di una run sulla matrice del 07-10 (input `08-10_s2.4-vol_m_euclidean_nc10`) fatta dopo mezzanotte del 16-10, che non va attribuita alla matrice nuova (ora in `results/legacy/`, la run sul 16-10 resta da fare).
 
 ```mermaid
 flowchart LR
@@ -202,4 +202,4 @@ flowchart LR
     R25S --> T25S --> P25S --> CT25S -.-> CP25S
 ```
 
-Ogni matrice compare tre volte: il ramo principale (UMAP, poi agglomerative e HDBSCAN), il ramo ADP sulla matrice grezza, e il ramo `hdbscan_soft`. Le date dei nodi di s2.4-vol si scrivono man mano che le run esistono.
+Ogni matrice compare tre volte: il ramo principale (UMAP, poi agglomerative e HDBSCAN), il ramo ADP sulla matrice grezza, e il ramo `hdbscan_soft`.
