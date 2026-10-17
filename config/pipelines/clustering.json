@@ -1,18 +1,19 @@
 {
   "project": "clinical_connectome",
-  "output_root": "results/lesion/clustering",
-  "input_path": "results/lesion/dim_reduction/production/umap/08-10_s1.4-vol_m_dice_nc2",
-  "reduction_method": "umap",
-  "reduction_params_file": "config/registry/params_reduction.json",
+  "output_root": "results/sdc/clustering",
+  "input_path": "results/sdc/dim_reduction/production/pca/16-10_s2.4-vol_nc42",
+  "reduction_method": "pca",
+  "reduction_params_file": "config/registry/params_reduction_sdc.json",
   "params_file": "config/registry/params_clustering.json",
-  "session_name": "s1.4-vol",
+  "session_name": "s2.4-vol",
   "clustering_methods": [
-    "hdbscan_soft"
+    "agglomerative",
+    "hdbscan"
   ],
   "reduced_data": true,
   "fine_tuning": true,
   "save_tuning_clusterings": true,
   "overwrite": false,
   "viz_embedding_path": null,
-  "run_notes": "tuning dedicato di hdbscan_soft (pacchetto hdbscan; mcs x ms x eom/leaf, MST esatto), stesse matrici di 08-10_s1.4-vol_m_dice_nc2: clustering tuning on UMAP s1.4-vol (5845 subjects): dice, n_components=2, n_neighbors=100, min_dist=0.0"
+  "run_notes": "clustering tuning on the PCA scores of 16-10 s2.4-vol (5845 subjects, SDC voxelwise, voxels outside the brain zeroed): covariance PCA, no rotation, 42 components (90.05% of the variance); agglomerative and hdbscan, same grids as the 16-10 UMAP tunings"
 }

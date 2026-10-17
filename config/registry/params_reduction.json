@@ -54,8 +54,9 @@
     "trustworthiness_n_neighbors": 10
   },
   "pca": {
-    "tag_param": ["n_components"],
-    "tag_prefix": ["nc"],
+    "tag_param": ["n_components", "rotation"],
+    "tag_prefix": ["nc", ""],
+    "tag_omit": {"rotation": "none"},
     "params": {
       "solver": "blocks",
       "standardize": false,

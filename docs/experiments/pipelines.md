@@ -120,7 +120,7 @@ Tre rami per matrice: principale (UMAP, poi agglomerative e HDBSCAN), ADP sulla 
 
 ## Seconda tornata — s1.4, s2.4
 
-La lesione (s1.4-vol, 07-10) e le due SDC: s2.4-vol **del 16-10**, ricostruita con i voxel fuori dal brain azzerati (227235 colonne), e s2.4-stream (07-10, per tratto, non toccata dalla correzione). Le run di s2.4-vol sulla matrice vecchia del 07-10 sono nello schema precedente. Le run di s2.4-vol del 16-10 usano gli stessi parametri del 12 e del 14 ottobre (la PCA si fa altrove). In produzione mancano due run: la `hdbscan_soft` nc10 con `min_cluster_size=100`, `min_samples=20`, `eom` (il nome della cartella coincide con quello della run sulla matrice del 07-10, fatta dopo mezzanotte del 16-10) e le tre ADP ancora in esecuzione.
+La lesione (s1.4-vol, 07-10) e le due SDC: s2.4-vol **del 16-10**, ricostruita con i voxel fuori dal brain azzerati (227235 colonne), e s2.4-stream (07-10, per tratto, non toccata dalla correzione). Le run di s2.4-vol sulla matrice vecchia del 07-10 sono nello schema precedente. Le run di s2.4-vol del 16-10 usano gli stessi parametri del 12 e del 14 ottobre (la PCA si fa altrove). In produzione manca una run: la `hdbscan_soft` nc10 con `min_cluster_size=100`, `min_samples=20`, `eom` (il nome della cartella coincide con quello della run sulla matrice del 07-10, fatta dopo mezzanotte del 16-10).
 
 ```mermaid
 flowchart LR
@@ -184,7 +184,7 @@ flowchart LR
         CP24["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>agglomerative: 14 run<br/>HDBSCAN: 7 run<br/>(21 run)"]
         CP25["14-10<hr/>raw<br/>87 tratti<br/>agglomerative average/cosine: 7 run<br/>HDBSCAN: 6 run<br/>(13 run)"]
         CP14R["12-10<hr/>raw dice<br/>221955 voxel<br/>ADP Z 2.5-4.0<br/>(4 run)"]
-        CP24R["16-10<hr/>raw dice<br/>227235 voxel<br/>ADP Z 2.0-3.5<br/>(4 run, 1 completata)"]
+        CP24R["16-10<hr/>raw dice<br/>227235 voxel<br/>ADP Z 2.0-3.5<br/>(4 run)"]
         CP25R["14-10<hr/>raw dice<br/>87 tratti<br/>ADP Z 2.5-6.0<br/>(6 run)"]
         CP14S["15-10<hr/>UMAP dice/euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 12 run"]
         CP24S["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 4 run su 5"]

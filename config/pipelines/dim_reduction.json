@@ -5,7 +5,7 @@
   "params_file": "config/registry/params_reduction_sdc.json",
   "session_name": "s2.4-vol",
   "reduction_method": "pca",
-  "fine_tuning": true,
+  "fine_tuning": false,
   "save_tuning_embeddings": true,
   "overwrite": false,
   "precompute_distance_metric": false,
@@ -18,5 +18,5 @@
   "tuning_evaluations": {
     "cumulative_explained_variance": {}
   },
-  "run_notes": "PCA tuning on 16-10 s2.4-vol (5845 subjects, SDC voxelwise, voxels outside the brain zeroed: 227235 columns): covariance PCA (solver blocks, dual, standardize=false), n_components sweep, rotation none vs varimax."
+  "run_notes": "PCA production on 16-10 s2.4-vol (5845 subjects, SDC voxelwise, voxels outside the brain zeroed: 227235 columns): covariance PCA (solver blocks, dual, standardize=false), no rotation, 42 components (90.05% of the variance, from the 16-10 tuning)."
 }
