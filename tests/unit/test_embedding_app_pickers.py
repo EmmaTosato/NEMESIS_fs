@@ -1,13 +1,19 @@
-"""Unit tests for the linked run pickers (Dato -> ... -> Parametri -> Run) of src/analysis/embedding_app.py."""
+"""Unit tests for the run selectors (Dato ... Parametri, Run) of src/analysis/embedding_app.py: optional filters."""
 
 import json
+import logging
 
 import pytest
 
 from src.analysis.embedding_app import (
+    NO_METRIC,
+    NO_N_COMPONENTS,
     PICKER_FIELDS,
+    PRODUCTION_PIPELINES,
+    UNSET,
     ProductionRun,
     build_app,
+    index_runs,
     resolve_pickers,
     run_picker_values,
 )
@@ -16,117 +22,196 @@ from tests.unit.test_embedding_app import _clustering_params_file, _lesion_cfg, 
 
 @pytest.fixture
 def _runs(tmp_path):
-    """Runs that differ on every picker step: two modalities, both pipelines, two metrics/n_components."""
+    """Runs that differ on every selector: two modalities, both pipelines, several metrics/components, a pca (no
+    metric), a clustering on raw data (no embedding) and a run whose name has no date."""
     root = tmp_path / "results"
 
-    def dim_reduction(modality, run_name, metric, n_components):
-        path = _make_run_dir(
-            root, modality=modality, run_name=run_name, params={"metric": metric, "n_components": n_components}
-        )
-        return ProductionRun(modality, "dim_reduction", "umap", run_name, path)
+    def dim_reduction(modality, method, run_name, params):
+        path = _make_run_dir(root, modality=modality, method=method, run_name=run_name, params=params)
+        return ProductionRun(modality, "dim_reduction", method, run_name, path)
 
-    def clustering(modality, run_name, n_clusters, metric, n_components):
+    def clustering(modality, run_name, n_clusters, metric, n_components, reduction="umap"):
         path = _make_run_dir(
-            root, modality=modality, pipeline="clustering", method="kmeans", run_name=run_name,
+            root, modality=modality, pipeline="clustering", method="kmeans", run_name=run_name, reduction_method=reduction,
             params={"n_clusters": n_clusters}, reduction_metric=metric, reduction_n_components=n_components,
         )
-        return ProductionRun(modality, "clustering", "kmeans", run_name, path, reduction_method="umap")
+        return ProductionRun(modality, "clustering", "kmeans", run_name, path, reduction_method=reduction)
 
     return [
-        dim_reduction("lesion", "10-08_a", "euclidean", 2),
-        dim_reduction("lesion", "11-08_b", "dice", 3),
+        dim_reduction("lesion", "umap", "10-08_a", {"metric": "euclidean", "n_components": 2}),
+        dim_reduction("lesion", "umap", "11-08_b", {"metric": "dice", "n_components": 3}),
+        dim_reduction("lesion", "pca", "09-08_p", {"n_components": 5}),
+        dim_reduction("lesion", "umap", "undated", {"metric": "dice", "n_components": 2}),
         clustering("lesion", "12-08_k3", 3, "euclidean", 2),
         clustering("lesion", "13-08_k5", 5, "dice", 3),
+        clustering("lesion", "13-08_raw", 3, "", "", reduction="raw"),
         clustering("sdc", "14-08_s3", 3, "euclidean", 2),
     ]
 
 
-def _first_render(modality="lesion"):
-    return {field: modality if field == "modality" else None for field in PICKER_FIELDS}
+@pytest.fixture
+def _indexed(_runs, tmp_path):
+    return index_runs(_runs, _clustering_params_file(tmp_path))
 
 
-def test_first_render_fills_every_step_and_picks_the_first_combination(_runs, tmp_path):
-    options, chosen = resolve_pickers(_runs, _first_render(), None, _clustering_params_file(tmp_path))
-
-    assert chosen["pipeline"] == "dim_reduction" and chosen["method"] == "umap"
-    assert chosen["metric"] == "dice"  # first of the sorted metrics, as before
-    assert chosen["run"] == "lesion/dim_reduction/umap/11-08_b"
-    assert all(chosen[field] in options[field] for field in PICKER_FIELDS)
+def _key(modality, pipeline, method, run_name, reduction=None):
+    parts = [modality, pipeline, method] + ([reduction] if reduction else []) + [run_name]
+    return "/".join(parts)
 
 
-def test_choosing_a_run_aligns_every_step_to_its_left_with_that_run(_runs, tmp_path):
-    # Regression (16-10-26): the steps were separate callbacks and the Run list never fed back, so
-    # the steps could show values of a different run than the one on screen.
-    params_file = _clustering_params_file(tmp_path)
-    current = {
-        "modality": "lesion", "pipeline": "dim_reduction", "method": "umap", "reduction": "—",
-        "metric": "euclidean", "n_components": 2, "tag_params": "—", "run": "sdc/clustering/kmeans/umap/14-08_s3",
+def _current(**filters):
+    """The state the selectors are in: the filters given, every other one open, no run chosen yet."""
+    return {field: filters.get(field, UNSET) for field in PICKER_FIELDS} | {"run": filters.get("run")}
+
+
+# --- the value of a run at each selector ------------------------------------------------------------------------
+
+def test_a_dim_reduction_run_takes_its_own_metric_and_components_and_has_no_parametri(_runs, tmp_path):
+    values = run_picker_values(_runs[0], _clustering_params_file(tmp_path))
+
+    assert values == {
+        "modality": "lesion", "pipeline": "dim_reduction", "method": "umap", "reduction": NO_METRIC,
+        "metric": "euclidean", "n_components": 2, "tag_params": NO_METRIC,
     }
 
-    options, chosen = resolve_pickers(_runs, current, "run", params_file)
 
-    assert chosen == {
-        "modality": "sdc", "pipeline": "clustering", "method": "kmeans", "reduction": "umap",
-        "metric": "euclidean", "n_components": 2, "tag_params": "n_clusters=3", "run": current["run"],
-    }
-    assert options["pipeline"] == ["clustering"]  # sdc has no dim_reduction run to offer
+def test_a_method_without_a_metric_has_the_sentinel_not_a_made_up_value(_runs, tmp_path):
+    values = run_picker_values(_runs[2], _clustering_params_file(tmp_path))  # pca
+
+    assert values["metric"] == NO_METRIC and values["n_components"] == 5
 
 
-def test_changing_the_modality_offers_only_what_that_modality_has(_runs, tmp_path):
-    # Regression (16-10-26): after switching lesion -> sdc the pickers kept offering the other
-    # modality's pipelines, methods and parameters.
-    params_file = _clustering_params_file(tmp_path)
-    current = {
-        "modality": "sdc", "pipeline": "dim_reduction", "method": "umap", "reduction": "—",
-        "metric": "dice", "n_components": 3, "tag_params": "—", "run": "lesion/dim_reduction/umap/11-08_b",
-    }
+def test_a_clustering_run_takes_the_upstream_embedding_axis_and_its_own_parameters(_runs, tmp_path):
+    values = run_picker_values(_runs[5], _clustering_params_file(tmp_path))
 
-    options, chosen = resolve_pickers(_runs, current, "modality", params_file)
-
-    assert options["pipeline"] == ["clustering"] and chosen["pipeline"] == "clustering"
-    assert options["metric"] == ["euclidean"] and options["n_components"] == [2]
-    assert options["tag_params"] == ["n_clusters=3"]
-    assert options["run"] == ["sdc/clustering/kmeans/umap/14-08_s3"]
+    assert (values["reduction"], values["metric"], values["n_components"], values["tag_params"]) == (
+        "umap", "dice", 3, "n_clusters=5",
+    )
 
 
-def test_a_step_keeps_its_value_when_it_is_still_offered_after_an_upstream_change(_runs, tmp_path):
-    params_file = _clustering_params_file(tmp_path)
-    current = {
-        "modality": "lesion", "pipeline": "clustering", "method": "kmeans", "reduction": "umap",
-        "metric": "dice", "n_components": 3, "tag_params": "n_clusters=5", "run": "lesion/clustering/kmeans/umap/13-08_k5",
-    }
+def test_a_clustering_run_on_raw_data_has_no_embedding_axis(_runs, tmp_path):
+    values = run_picker_values(_runs[6], _clustering_params_file(tmp_path))
 
-    # metric changes to euclidean: n_components 3 no longer exists for it, so it falls back to 2 and
-    # the parameters follow; the run is the only one left for that combination.
-    options, chosen = resolve_pickers(_runs, {**current, "metric": "euclidean"}, "metric", params_file)
-
-    assert chosen["n_components"] == 2 and chosen["tag_params"] == "n_clusters=3"
-    assert chosen["run"] == "lesion/clustering/kmeans/umap/12-08_k3"
+    assert (values["reduction"], values["metric"], values["n_components"]) == ("raw", NO_METRIC, NO_N_COMPONENTS)
 
 
-def test_every_run_resolves_to_itself_with_every_step_offering_its_value(_runs, tmp_path):
-    params_file = _clustering_params_file(tmp_path)
-    stale = _first_render()
+def test_a_method_missing_from_the_registry_has_the_sentinel_for_parametri_not_an_error(_runs, tmp_path):
+    values = run_picker_values(_runs[4], _clustering_params_file(tmp_path, methods=("gmm",)))  # kmeans not registered
 
-    for run in _runs:
-        options, chosen = resolve_pickers(_runs, {**stale, "run": run.key}, "run", params_file)
-
-        assert chosen["run"] == run.key
-        assert {f: chosen[f] for f in PICKER_FIELDS if f != "run"} == run_picker_values(run, params_file)
-        assert all(chosen[field] in options[field] for field in PICKER_FIELDS)
+    assert values["tag_params"] == NO_METRIC
 
 
-def test_resolve_pickers_raises_when_a_step_has_nothing_to_offer(tmp_path):
-    with pytest.raises(ValueError, match="picker step 'modality' has no option"):
-        resolve_pickers([], _first_render(), None, _clustering_params_file(tmp_path))
+# --- the index ---------------------------------------------------------------------------------------------------
+
+def test_the_index_is_oldest_first_with_an_undated_run_last(_runs, tmp_path):
+    indexed = index_runs(_runs, _clustering_params_file(tmp_path))
+
+    names = [item.run.run_name for item in indexed]
+    assert names == ["09-08_p", "10-08_a", "11-08_b", "12-08_k3", "13-08_k5", "13-08_raw", "14-08_s3", "undated"]
 
 
-def test_the_picker_callback_answers_in_one_response_for_every_step(_runs, tmp_path):
-    # End to end through Dash: the single callback has every step as input and output.
+def test_one_corrupt_run_is_left_out_with_a_warning_and_the_others_stay(_runs, tmp_path, caplog):
+    (_runs[1].path / "config.md").write_text("no params here")
+
+    with caplog.at_level(logging.WARNING):
+        indexed = index_runs(_runs, _clustering_params_file(tmp_path))
+
+    assert "11-08_b" not in [item.run.run_name for item in indexed] and len(indexed) == len(_runs) - 1
+    assert "11-08_b" in caplog.text
+
+
+def test_an_index_with_no_readable_run_raises(tmp_path):
+    with pytest.raises(ValueError, match="no run has readable params"):
+        index_runs([], _clustering_params_file(tmp_path))
+
+
+# --- the selectors -----------------------------------------------------------------------------------------------
+
+def test_the_first_render_opens_on_the_first_modality_and_the_preferred_pipeline_with_the_rest_open(_indexed):
+    state = resolve_pickers(_indexed, {field: None for field in PICKER_FIELDS}, None)
+
+    assert state.chosen["modality"] == "lesion" and state.chosen["pipeline"] == "dim_reduction"
+    assert all(state.chosen[f] == UNSET for f in ("method", "reduction", "metric", "n_components", "tag_params"))
+    assert state.chosen["run"] == _key("lesion", "dim_reduction", "umap", "undated")  # the most recent of the listed runs
+
+
+def test_every_filter_starts_with_the_open_choice_and_lists_only_what_exists(_indexed):
+    state = resolve_pickers(_indexed, _current(modality="sdc"), "modality")
+
+    assert state.options["pipeline"] == [UNSET, "clustering"]  # sdc has no dim_reduction run
+    assert state.options["metric"] == [UNSET, "euclidean"] and state.options["n_components"] == [UNSET, 2]
+    assert state.options["modality"][0] == UNSET
+
+
+def test_a_filter_offers_the_values_of_the_runs_the_other_filters_leave_not_its_own_narrowing(_indexed):
+    # method=umap narrows the runs, but the method selector still offers pca: it is computed without itself.
+    state = resolve_pickers(_indexed, _current(modality="lesion", pipeline="dim_reduction", method="umap"), "method")
+
+    assert state.options["method"] == [UNSET, "pca", "umap"]
+    assert state.options["metric"] == [UNSET, "dice", "euclidean"]  # pca's missing metric is not offered here
+    assert state.chosen["method"] == "umap"
+
+
+def test_the_run_list_shows_exactly_the_runs_that_match_the_filters_that_are_set(_indexed):
+    state = resolve_pickers(_indexed, _current(modality="lesion", pipeline="clustering", metric="dice"), "metric")
+
+    assert state.options["run"] == [_key("lesion", "clustering", "kmeans", "13-08_k5", "umap")]
+
+
+def test_choosing_a_run_leaves_the_open_filters_open(_indexed):
+    run = _key("lesion", "clustering", "kmeans", "12-08_k3", "umap")
+
+    state = resolve_pickers(_indexed, _current(modality="lesion", run=run), "run")
+
+    assert state.chosen["run"] == run
+    assert state.chosen["modality"] == "lesion" and state.chosen["method"] == UNSET and state.chosen["metric"] == UNSET
+
+
+def test_the_chosen_run_stays_while_the_filters_still_list_it_else_it_is_the_most_recent(_indexed):
+    run = _key("lesion", "dim_reduction", "umap", "10-08_a")
+
+    kept = resolve_pickers(_indexed, _current(modality="lesion", pipeline="dim_reduction", run=run), "pipeline")
+    moved = resolve_pickers(_indexed, _current(modality="lesion", pipeline="clustering", run=run), "pipeline")
+
+    assert kept.chosen["run"] == run
+    assert moved.chosen["run"] == _key("lesion", "clustering", "kmeans", "13-08_raw", "raw")
+
+
+def test_the_filter_just_changed_wins_and_one_that_would_leave_no_run_goes_back_to_open(_indexed):
+    # pipeline=dim_reduction with a leftover method=kmeans from before: nothing matches both, the new pipeline wins.
+    state = resolve_pickers(_indexed, _current(modality="lesion", pipeline="dim_reduction", method="kmeans"), "pipeline")
+
+    assert state.chosen["pipeline"] == "dim_reduction" and state.chosen["method"] == UNSET
+    assert state.options["run"]  # never an empty list
+
+
+def test_a_leftover_filter_set_on_a_value_no_run_has_is_dropped(_indexed):
+    state = resolve_pickers(_indexed, _current(modality="lesion", metric="no-such-metric"), "modality")
+
+    assert state.chosen["metric"] == UNSET
+
+
+def test_pipelines_are_offered_in_the_preferred_order_and_raw_reduction_last(_indexed):
+    state = resolve_pickers(_indexed, _current(modality="lesion"), "modality")
+
+    assert state.options["pipeline"][1:] == list(PRODUCTION_PIPELINES)
+    assert state.options["reduction"] == [UNSET, "umap", NO_METRIC, "raw"]  # raw is last, whatever sorts before it
+
+
+def test_a_run_is_labelled_with_the_values_of_the_filters_that_are_open(_indexed):
+    open_state = resolve_pickers(_indexed, _current(modality="lesion"), "modality")
+    set_state = resolve_pickers(_indexed, _current(modality="lesion", pipeline="clustering", method="kmeans", reduction="umap"), "reduction")
+
+    assert open_state.run_labels[_key("lesion", "clustering", "kmeans", "12-08_k3", "umap")] == "12-08_k3  (clustering / kmeans / umap)"
+    assert open_state.run_labels[_key("lesion", "dim_reduction", "umap", "10-08_a")] == "10-08_a  (dim_reduction / umap)"  # n.a. left out
+    assert set_state.run_labels[_key("lesion", "clustering", "kmeans", "12-08_k3", "umap")] == "12-08_k3"
+
+
+def test_the_picker_callback_answers_in_one_response_for_every_selector(_runs, tmp_path):
     app = build_app(_runs, _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache")
     app.server.config["TESTING"] = True
     ids = {field: f"{field.replace('_', '-')}-picker" for field in PICKER_FIELDS}
-    values = {field: None for field in PICKER_FIELDS} | {"modality": "sdc"}
+    values = {field: UNSET for field in PICKER_FIELDS} | {"modality": "sdc", "run": None}
     body = {
         "output": ".." + "...".join(f"{ids[f]}.{prop}" for f in PICKER_FIELDS for prop in ("options", "value")) + "..",
         "outputs": [{"id": ids[f], "property": prop} for f in PICKER_FIELDS for prop in ("options", "value")],
@@ -138,6 +223,7 @@ def test_the_picker_callback_answers_in_one_response_for_every_step(_runs, tmp_p
 
     assert response.status_code == 200
     payload = response.get_json()["response"]
-    assert payload[ids["pipeline"]]["value"] == "clustering"
+    assert payload[ids["pipeline"]]["options"][0] == {"label": UNSET, "value": UNSET}
     assert payload[ids["run"]]["value"] == "sdc/clustering/kmeans/umap/14-08_s3"
-    assert payload[ids["run"]]["options"] == [{"label": "14-08_s3", "value": "sdc/clustering/kmeans/umap/14-08_s3"}]
+    assert payload[ids["run"]]["options"] == [{"label": "14-08_s3  (clustering / kmeans / umap)", "value": "sdc/clustering/kmeans/umap/14-08_s3"}]
+    assert payload[ids["n_components"]]["options"][0]["label"] == UNSET

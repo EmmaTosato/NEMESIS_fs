@@ -43,7 +43,7 @@ Ordine logico dei dati: **input grezzi** (cosa esiste su disco, cosa dicono i TS
 
 ## `notebooks/post-results_analysis/`
 
-Leggono run di clustering già **prodotte**. Due notebook di analisi (una run o più run) più l'esplorazione di un tuning. Un criterio separa le analisi: se usano dati *interni* al clustering o dati *esterni* a esso.
+Leggono run già **prodotte**: di clustering (due notebook di analisi, una run o più run, più l'esplorazione di un tuning) e di PCA (`pca_evaluation`). Per il clustering un criterio separa le analisi: se usano dati *interni* al clustering o dati *esterni* a esso.
 
 - **Empirica**: usa solo le etichette e lo spazio su cui la run è stata costruita (embedding o matrice). Risponde a "com'è fatta e quanto è affidabile questa partizione, quanto si accorda con un'altra".
 - **Interpretativa**: porta variabili o immagini che il clustering non ha visto (cliniche, demografiche, mappe anatomiche). Risponde a "cosa rappresentano questi cluster". Vive nell'app Dash (mappe, soggetti rappresentativi, composizione dei cluster); l'unica eccezione nei notebook è la sezione 4 di `clustering_evaluation`, che descrive i cluster con le variabili cliniche e non fa nessun test.
@@ -53,6 +53,7 @@ Leggono run di clustering già **prodotte**. Due notebook di analisi (una run o 
 | `clustering_evaluation` | empirica, **una** run | quanto è buona questa run? (metriche geometriche e del modello, confidenza di appartenenza) e come sono distribuite le variabili cliniche nei suoi cluster (sezione 4, solo descrittiva, nessun test) | la run (`matrix.npy`, `metadata.csv`, `config.md`), `participants.csv` per la sezione 4 | nulla |
 | `clustering_comparison` | empirica, **più** run | in cosa differiscono queste run? (accordo tra partizioni, corrispondenza dei cluster, distanze tra cluster nell'embedding) | le run scelte | nulla |
 | `clustering_tuning_explorer` | esplorazione di uno sweep di tuning | come variano le metriche al variare degli iperparametri? | l'output di un tuning | nulla |
+| `pca_evaluation` | valutazione di **una** PCA, di produzione o di tuning (una combinazione) | quante componenti tenere (varianza cumulata), quanta varianza spiega ogni componente ruotata, quanto dipende ciascuna dal volume della lesione, dove sta nel cervello (mappe *t* e riproducibilità tra metà), come separa i soggetti (embedding) | la run (`matrix.npy`/`embeddings.npz`, `eigenvalues.npy`/`.npz`, `metadata.csv`, `config.md`), la matrice su cui la PCA è stata calcolata (sezioni 4 e 6), `participants.csv` | solo la cache delle mappe in `results/cache/component_maps`, la stessa dell'app |
 
 Guida di evaluation e comparison, e dove vive ogni analisi: [`evaluation.md`](evaluation.md).
 

@@ -37,10 +37,13 @@ def load_method_params(params_file: str | Path, method: str) -> tuple[dict, str 
     dim_reduction.py/clustering.py) - fine-tuning discards this return value,
     it builds its own output-folder shape from `session_name`/`nested_params`
     instead (docs/dev/config.md). Absent "tag_param" -> tag is None (no
-    suffix). Raises ValueError if "tag_param"/"tag_prefix" aren't both lists
-    of strings of the same length, or if "tag_param" names a key not present
-    in "params" (a registry typo, not a legitimate absence - every declared
-    tag_param is expected to always be a real hyperparameter of that method).
+    suffix). An optional "tag_omit" ({"rotation": "none"}) drops the tag part of a
+    tag_param key whose value equals the one declared: pca's tag is "nc42" for an
+    unrotated run and "nc42_varimax" for a rotated one. Raises ValueError if
+    "tag_param"/"tag_prefix" aren't both lists of strings of the same length, if
+    "tag_param" names a key not present in "params" (a registry typo, not a legitimate
+    absence - every declared tag_param is expected to always be a real hyperparameter of
+    that method), or if "tag_omit" is malformed or would leave the tag empty.
     """
     entry = _load_method_entry(params_file, method)
     if "params" not in entry:
@@ -65,7 +68,7 @@ def load_method_params(params_file: str | Path, method: str) -> tuple[dict, str 
         missing = [key for key in tag_param if key not in params]
         if missing:
             raise ValueError(f"{params_file}: {method!r}.tag_param references {missing!r}, not present in params")
-        tag_str = _join_tag(tag_param, tag_prefix, params)
+        tag_str = _join_tag(tag_param, tag_prefix, params, _tag_omit(entry, params_file, method, tag_param))
 
     return params, tag_str
 
@@ -112,11 +115,33 @@ def build_tag_from_values(params_file: str | Path, method: str, tag_param: list[
     missing = [key for key in tag_param if key not in values]
     if missing:
         raise ValueError(f"{params_file}: {method!r}.tag_param references {missing!r}, not present in the supplied values {values!r}")
-    return _join_tag(tag_param, tag_prefix, values)
+    omit = _tag_omit(_load_method_entry(params_file, method), params_file, method, tag_param)
+    return _join_tag(tag_param, tag_prefix, values, omit)
 
 
-def _join_tag(tag_param: list[str], tag_prefix: list[str], values: dict) -> str:
-    return "_".join(f"{prefix}{str(values[key]).replace('.', '')}" for key, prefix in zip(tag_param, tag_prefix))
+def _tag_omit(entry: dict, params_file: str | Path, method: str, tag_param: list[str]) -> dict:
+    """The entry's optional "tag_omit": {tag_param key: value that drops that key's tag part}. Absent -> {}."""
+    omit = entry.get("tag_omit", {})
+    if not isinstance(omit, dict):
+        raise ValueError(f"{params_file}: {method!r}.tag_omit must be a JSON object, got {omit!r}")
+    unknown = [key for key in omit if key not in tag_param]
+    if unknown:
+        raise ValueError(f"{params_file}: {method!r}.tag_omit names {unknown!r}, which are not in tag_param {tag_param!r}")
+    for key, value in omit.items():
+        if isinstance(value, (list, dict)) or value is None:
+            raise ValueError(f"{params_file}: {method!r}.tag_omit[{key!r}] must be a plain scalar, got {value!r}")
+    return omit
+
+
+def _join_tag(tag_param: list[str], tag_prefix: list[str], values: dict, omit: dict) -> str:
+    parts = [
+        f"{prefix}{str(values[key]).replace('.', '')}"
+        for key, prefix in zip(tag_param, tag_prefix)
+        if not (key in omit and values[key] == omit[key])
+    ]
+    if not parts:
+        raise ValueError(f"every tag part was omitted (tag_omit {omit!r}, values {values!r}): the tag would be empty")
+    return "_".join(parts)
 
 
 def load_tag_params(params_file: str | Path, method: str) -> list[str]:

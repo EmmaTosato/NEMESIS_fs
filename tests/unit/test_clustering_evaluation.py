@@ -15,6 +15,7 @@ from src.analysis.clustering_evaluation import (
     geometric_summary,
     knn_purity,
     saturated_pair_share,
+    weakest_soft_members,
     membership_confidence,
     model_fit_metrics,
     require_applicable,
@@ -574,3 +575,45 @@ def test_adp_summary_refuses_distances_that_do_not_match_the_mask():
 
     with pytest.raises(ValueError, match="do not match"):
         adp_summary(distances[:80, :80], np.ones(90, dtype=bool), labels, k=5)
+
+
+def _soft_membership():
+    labels = np.array([0, 0, 1, 1, -1, 0])
+    membership = np.array([
+        [0.90, 0.05],
+        [0.40, 0.35],  # contested between the two clusters
+        [0.10, 0.80],
+        [0.20, 0.30],
+        [0.05, 0.05],  # noise: no own cluster
+        [0.60, 0.10],
+    ])
+    return labels, membership
+
+
+def test_weakest_soft_members_lists_the_lowest_own_probability_first_with_the_other_cluster():
+    labels, membership = _soft_membership()
+
+    weakest = weakest_soft_members(labels, membership, 2)
+
+    assert list(weakest.index) == [3, 1]  # row positions in labels; the noise subject (row 4) is never listed
+    assert list(weakest["cluster"]) == [1, 0]
+    assert list(weakest["own_membership"]) == pytest.approx([0.30, 0.40])
+    assert list(weakest["best_other"]) == [0, 1]
+    assert list(weakest["best_other_probability"]) == pytest.approx([0.20, 0.35])
+
+
+def test_weakest_soft_members_has_no_other_cluster_when_there_is_only_one():
+    weakest = weakest_soft_members(np.array([0, 0, -1]), np.array([[0.9], [0.5], [0.1]]), 5)
+
+    assert list(weakest.index) == [1, 0]
+    assert weakest["best_other"].isna().all() and weakest["best_other_probability"].isna().all()
+
+
+def test_weakest_soft_members_rejects_bad_input():
+    labels, membership = _soft_membership()
+    with pytest.raises(ValueError, match="at least 1"):
+        weakest_soft_members(labels, membership, 0)
+    with pytest.raises(ValueError, match="every subject is noise"):
+        weakest_soft_members(np.full(6, -1), membership, 3)
+    with pytest.raises(ValueError, match="one row per label"):
+        weakest_soft_members(labels, membership[:-1], 3)

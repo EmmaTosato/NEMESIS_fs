@@ -246,6 +246,36 @@ def soft_membership_summary(labels: np.ndarray, membership: np.ndarray, threshol
     )
 
 
+def weakest_soft_members(labels: np.ndarray, membership: np.ndarray, n_lowest: int) -> pd.DataFrame:
+    """The `n_lowest` clustered subjects with the lowest probability of belonging to their own cluster, in a
+    hdbscan_soft run: one row each, ascending, indexed by the subject's row position in `labels`, with its
+    `cluster`, `own_membership`, and the other cluster it belongs to most (`best_other`,
+    `best_other_probability`; both NaN when the run has a single cluster, which has no "other").
+
+    A subject with 0.4 in its own cluster and 0.1 everywhere else is weak, near the noise; one with 0.4 and
+    0.35 in another cluster is contested between the two - which the last two columns tell apart.
+    Noise (label -1) has no own cluster and is not listed. Raises ValueError for `n_lowest` < 1, a matrix
+    that does not match `labels`, or a run where every subject is noise."""
+    if n_lowest < 1:
+        raise ValueError(f"n_lowest must be at least 1, got {n_lowest}")
+    labels = np.asarray(labels)
+    clustered = np.flatnonzero(labels != -1)
+    if len(clustered) == 0:
+        raise ValueError("every subject is noise (label -1): there is no cluster to describe")
+    if membership.ndim != 2 or membership.shape[0] != len(labels):
+        raise ValueError(f"membership must have one row per label ({len(labels)}), got {membership.shape}")
+    own = own_cluster_membership(membership, labels)[clustered]
+    frame = pd.DataFrame({"cluster": labels[clustered], "own_membership": own}, index=clustered)
+    if membership.shape[1] > 1:
+        others = membership[clustered].copy()
+        others[np.arange(len(clustered)), labels[clustered]] = -np.inf
+        frame["best_other"] = others.argmax(axis=1)
+        frame["best_other_probability"] = others.max(axis=1)
+    else:
+        frame["best_other"], frame["best_other_probability"] = np.nan, np.nan
+    return frame.nsmallest(n_lowest, "own_membership")
+
+
 @dataclass(frozen=True)
 class SilhouetteBreakdown:
     """Silhouette of one run split by cluster. `micro` is the mean over subjects (what

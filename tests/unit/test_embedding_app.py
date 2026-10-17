@@ -44,21 +44,12 @@ from src.analysis.embedding_app import (
     graph_content_for,
     lesion_viewer_content_for,
     load_run,
-    method_options,
-    metric_options,
-    reduction_options,
-    modality_options,
-    n_components_options,
     overlap_map_content_for,
-    pipeline_options,
     representative_subject_content_for,
     run_metadata,
     run_params,
     run_reduction_axis,
     run_title,
-    runs_for,
-    runs_matching,
-    tag_param_options,
 )
 from src.utils.artifacts import load_matrix, save_matrix
 
@@ -850,77 +841,8 @@ def test_build_app_raises_on_empty_runs(tmp_path):
         build_app([], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache")
 
 
-def _runs(*specs):
-    """specs: (modality, pipeline, method, run_name) tuples - path unused by the picker
-    helpers."""
-    return [ProductionRun(modality=m, pipeline=p, method=method, run_name=name, path=None) for m, p, method, name in specs]
-
-
-def test_modality_options_sorted_and_distinct():
-    runs = _runs(
-        ("lesion", "dim_reduction", "umap", "a"),
-        ("lesion", "dim_reduction", "pca", "b"),
-        ("sdc", "dim_reduction", "umap", "c"),
-    )
-
-    assert modality_options(runs) == ["lesion", "sdc"]
-
-
-def test_pipeline_options_dim_reduction_preferred_over_clustering():
-    runs = _runs(
-        ("lesion", "clustering", "kmeans", "a"),
-        ("lesion", "dim_reduction", "umap", "b"),
-        ("sdc", "clustering", "kmeans", "c"),
-    )
-
-    assert pipeline_options(runs, "lesion") == ["dim_reduction", "clustering"]
-    assert pipeline_options(runs, "sdc") == ["clustering"]
-
-
 def test_pipeline_options_subset_of_production_pipelines():
     assert set(PRODUCTION_PIPELINES) == {"dim_reduction", "clustering"}
-
-
-def test_method_options_scoped_to_modality_and_pipeline():
-    runs = _runs(
-        ("lesion", "dim_reduction", "umap", "a"),
-        ("lesion", "dim_reduction", "pca", "b"),
-        ("lesion", "clustering", "kmeans", "c"),
-        ("sdc", "dim_reduction", "umap", "d"),
-    )
-
-    assert method_options(runs, "lesion", "dim_reduction") == ["pca", "umap"]
-    assert method_options(runs, "lesion", "clustering") == ["kmeans"]
-    assert method_options(runs, "sdc", "dim_reduction") == ["umap"]
-
-
-def test_runs_for_scoped_and_chronologically_ordered():
-    runs = _runs(
-        ("lesion", "dim_reduction", "umap", "23-07_s1.1_d00"),
-        ("lesion", "dim_reduction", "umap", "13-08_s1.1_nc3_m_dice"),
-        ("lesion", "dim_reduction", "umap", "11-08_s1.1_nc2_m_euclidean"),
-        ("lesion", "dim_reduction", "pca", "26-07_s1.1_c2"),  # different method - excluded
-        ("lesion", "clustering", "umap", "26-07_s1.1_x"),  # same method name, different pipeline - excluded
-    )
-
-    matching = runs_for(runs, "lesion", "dim_reduction", "umap")
-
-    assert [r.run_name for r in matching] == [
-        "23-07_s1.1_d00",
-        "11-08_s1.1_nc2_m_euclidean",
-        "13-08_s1.1_nc3_m_dice",
-    ]
-
-
-def test_runs_for_undated_run_name_sorts_last():
-    runs = _runs(
-        ("lesion", "dim_reduction", "umap", "no-date-here"),
-        ("lesion", "dim_reduction", "umap", "23-07_s1.1_d00"),
-    )
-
-    matching = runs_for(runs, "lesion", "dim_reduction", "umap")
-
-    assert [r.run_name for r in matching] == ["23-07_s1.1_d00", "no-date-here"]
 
 
 def test_run_params_reads_config_md(tmp_path):
@@ -949,116 +871,6 @@ def test_run_params_config_md_without_params_line_raises(tmp_path):
         run_params(ProductionRun("lesion", "dim_reduction", "umap", "bad-run", run_dir))
 
 
-def test_metric_options_includes_no_metric_sentinel_for_methods_without_metric(tmp_path):
-    results_root = tmp_path / "results"
-    _make_run_dir(results_root, method="pca", run_name="run-a", params={"n_components": 150})
-
-    assert metric_options(
-        [ProductionRun("lesion", "dim_reduction", "pca", "run-a", results_root / "lesion/dim_reduction/production/pca/run-a")],
-        "lesion", "dim_reduction", "pca", NO_METRIC,
-    ) == [NO_METRIC]
-
-
-def test_metric_options_distinct_values(tmp_path):
-    results_root = tmp_path / "results"
-    dir_a = _make_run_dir(results_root, run_name="run-a", params={"metric": "euclidean", "n_components": 2})
-    dir_b = _make_run_dir(results_root, run_name="run-b", params={"metric": "dice", "n_components": 2})
-    runs = [
-        ProductionRun("lesion", "dim_reduction", "umap", "run-a", dir_a),
-        ProductionRun("lesion", "dim_reduction", "umap", "run-b", dir_b),
-    ]
-
-    assert metric_options(runs, "lesion", "dim_reduction", "umap", NO_METRIC) == ["dice", "euclidean"]
-
-
-def test_metric_options_one_corrupt_run_does_not_hide_the_others(tmp_path, caplog):
-    """Regression (HIGH #25, 2026-08): a single run() with a truncated config.md (a
-    real-world "editor open on the results/ folder over a network mount" scenario) used
-    to raise straight out of the list-comprehension, making metric_options fail for
-    EVERY run of that (modality, pipeline, method), not just the corrupt one."""
-    results_root = tmp_path / "results"
-    dir_a = _make_run_dir(results_root, run_name="run-a", params={"metric": "euclidean", "n_components": 2})
-    dir_b = _make_run_dir(results_root, run_name="run-b", params={"metric": "dice", "n_components": 2})
-    (dir_b / "config.md").write_text('# test run\nParams used: {"metric": "dice", "n_com')  # truncated mid-write
-    runs = [
-        ProductionRun("lesion", "dim_reduction", "umap", "run-a", dir_a),
-        ProductionRun("lesion", "dim_reduction", "umap", "run-b", dir_b),
-    ]
-
-    assert metric_options(runs, "lesion", "dim_reduction", "umap", NO_METRIC) == ["euclidean"]
-    assert "run-b" in caplog.text
-
-
-def test_metric_options_clustering_pipeline_returns_upstream_reduction_metric(tmp_path):
-    # 01-09-26: a clustering run's own "metric" axis is the *upstream embedding's* metric
-    # (config.md's "## Config" reduction_metric), not a sentinel - runs.csv already shows this
-    # varying across real agglomerative/gmm/... runs, so the picker must reflect it too.
-    results_root = tmp_path / "results"
-    dir_a = _make_run_dir(
-        results_root, pipeline="clustering", method="kmeans", run_name="run-a",
-        params={"n_clusters": 3}, reduction_metric="dice",
-    )
-    dir_b = _make_run_dir(
-        results_root, pipeline="clustering", method="kmeans", run_name="run-b",
-        params={"n_clusters": 5}, reduction_metric="euclidean",
-    )
-    runs = [
-        ProductionRun("lesion", "clustering", "kmeans", "run-a", dir_a, reduction_method="umap"),
-        ProductionRun("lesion", "clustering", "kmeans", "run-b", dir_b, reduction_method="umap"),
-    ]
-
-    assert metric_options(runs, "lesion", "clustering", "kmeans", "umap") == ["dice", "euclidean"]
-
-
-def test_n_components_options_scoped_to_metric(tmp_path):
-    results_root = tmp_path / "results"
-    dir_a = _make_run_dir(results_root, run_name="run-a", params={"metric": "euclidean", "n_components": 2})
-    dir_b = _make_run_dir(results_root, run_name="run-b", params={"metric": "euclidean", "n_components": 3})
-    dir_c = _make_run_dir(results_root, run_name="run-c", params={"metric": "dice", "n_components": 10})
-    runs = [
-        ProductionRun("lesion", "dim_reduction", "umap", "run-a", dir_a),
-        ProductionRun("lesion", "dim_reduction", "umap", "run-b", dir_b),
-        ProductionRun("lesion", "dim_reduction", "umap", "run-c", dir_c),
-    ]
-
-    assert n_components_options(runs, "lesion", "dim_reduction", "umap", NO_METRIC, "euclidean") == [2, 3]
-    assert n_components_options(runs, "lesion", "dim_reduction", "umap", NO_METRIC, "dice") == [10]
-
-
-def test_n_components_options_clustering_pipeline_returns_upstream_reduction_n_components(tmp_path):
-    results_root = tmp_path / "results"
-    dir_a = _make_run_dir(
-        results_root, pipeline="clustering", method="kmeans", run_name="run-a",
-        params={"n_clusters": 3}, reduction_metric="euclidean", reduction_n_components=2,
-    )
-    dir_b = _make_run_dir(
-        results_root, pipeline="clustering", method="kmeans", run_name="run-b",
-        params={"n_clusters": 5}, reduction_metric="euclidean", reduction_n_components=3,
-    )
-    runs = [
-        ProductionRun("lesion", "clustering", "kmeans", "run-a", dir_a, reduction_method="umap"),
-        ProductionRun("lesion", "clustering", "kmeans", "run-b", dir_b, reduction_method="umap"),
-    ]
-
-    assert n_components_options(runs, "lesion", "clustering", "kmeans", "umap", "euclidean") == [2, 3]
-
-
-def test_n_components_options_clustering_pipeline_raw_reduction_returns_sentinel(tmp_path):
-    """A clustering run built directly on un-reduced data (reduction_method="raw") has no
-    upstream embedding at all - config.md then records reduction_metric/reduction_n_components
-    as "" (clustering.py::_reduction_extra_columns), which must resolve to the same
-    NO_METRIC/NO_N_COMPONENTS sentinel a pca/pacmap dim_reduction run gets, not "" itself."""
-    results_root = tmp_path / "results"
-    dir_a = _make_run_dir(
-        results_root, pipeline="clustering", method="kmeans", run_name="run-a",
-        reduction_method="raw", params={"n_clusters": 3}, reduction_metric="", reduction_n_components="",
-    )
-    runs = [ProductionRun("lesion", "clustering", "kmeans", "run-a", dir_a, reduction_method="raw")]
-
-    assert metric_options(runs, "lesion", "clustering", "kmeans", "raw") == [NO_METRIC]
-    assert n_components_options(runs, "lesion", "clustering", "kmeans", "raw", NO_METRIC) == [NO_N_COMPONENTS]
-
-
 def test_n_components_option_label_maps_sentinel_to_readable_placeholder():
     """AUDIT_FINDINGS.md #64 regression: NO_N_COMPONENTS (-1) used to be labeled str(-1) -
     the literal string "-1" would show up as a dropdown option in the "Componenti" picker
@@ -1067,89 +879,6 @@ def test_n_components_option_label_maps_sentinel_to_readable_placeholder():
     assert _n_components_option_label(NO_N_COMPONENTS) == NO_METRIC
     assert _n_components_option_label(2) == "2"
     assert _n_components_option_label(10) == "10"
-
-
-def test_runs_matching_scoped_to_metric_and_n_components(tmp_path):
-    results_root = tmp_path / "results"
-    dir_a = _make_run_dir(results_root, run_name="11-08_run-a", params={"metric": "euclidean", "n_components": 2})
-    dir_b = _make_run_dir(results_root, run_name="11-08_run-b", params={"metric": "dice", "n_components": 2})
-    dir_c = _make_run_dir(results_root, run_name="13-08_run-c", params={"metric": "euclidean", "n_components": 3})
-    runs = [
-        ProductionRun("lesion", "dim_reduction", "umap", "11-08_run-a", dir_a),
-        ProductionRun("lesion", "dim_reduction", "umap", "11-08_run-b", dir_b),
-        ProductionRun("lesion", "dim_reduction", "umap", "13-08_run-c", dir_c),
-    ]
-
-    matching = runs_matching(runs, "lesion", "dim_reduction", "umap", NO_METRIC, "euclidean", 2, NO_METRIC, _clustering_params_file(tmp_path))
-
-    assert [r.run_name for r in matching] == ["11-08_run-a"]
-
-
-def test_runs_matching_clustering_pipeline_scoped_to_reduction_axis_and_tag_params(tmp_path):
-    # 01-09-26: real clustering runs vary along 2 independent axes - which embedding they were
-    # built from (metric/n_components) and the method's own tag_params (n_clusters here) - both
-    # must narrow the "Run" step, not just be ignored the way this used to work.
-    results_root = tmp_path / "results"
-    params_file = _clustering_params_file(tmp_path)
-    dir_a = _make_run_dir(
-        results_root, pipeline="clustering", method="kmeans", run_name="10-08_run-a",
-        params={"n_clusters": 3}, reduction_metric="euclidean", reduction_n_components=2,
-    )
-    dir_b = _make_run_dir(
-        results_root, pipeline="clustering", method="kmeans", run_name="11-08_run-b",
-        params={"n_clusters": 5}, reduction_metric="euclidean", reduction_n_components=2,
-    )
-    dir_c = _make_run_dir(
-        results_root, pipeline="clustering", method="kmeans", run_name="12-08_run-c",
-        params={"n_clusters": 3}, reduction_metric="dice", reduction_n_components=2,
-    )
-    runs = [
-        ProductionRun("lesion", "clustering", "kmeans", "10-08_run-a", dir_a, reduction_method="umap"),
-        ProductionRun("lesion", "clustering", "kmeans", "11-08_run-b", dir_b, reduction_method="umap"),
-        ProductionRun("lesion", "clustering", "kmeans", "12-08_run-c", dir_c, reduction_method="umap"),
-    ]
-
-    # Same (metric, n_components) as run-a and run-b, but only run-a's own n_clusters=3.
-    matching = runs_matching(runs, "lesion", "clustering", "kmeans", "umap", "euclidean", 2, "n_clusters=3", params_file)
-    assert [r.run_name for r in matching] == ["10-08_run-a"]
-
-    # A different upstream embedding (dice) excludes run-a/run-b entirely, regardless of tag_params.
-    matching_dice = runs_matching(runs, "lesion", "clustering", "kmeans", "umap", "dice", 2, "n_clusters=3", params_file)
-    assert [r.run_name for r in matching_dice] == ["12-08_run-c"]
-
-
-def test_reduction_options_separate_umap_and_raw_clustering_runs(tmp_path):
-    # Regression (08-10-26): the picker had no "Riduzione" step, so clustering runs on a UMAP
-    # embedding and on raw data shared the same Metrica/Componenti/Run lists - raw could not be
-    # told apart from (or chosen over) umap. raw sorts last so the default is a real embedding.
-    results_root = tmp_path / "results"
-    params_file = _clustering_params_file(tmp_path)
-    dir_umap = _make_run_dir(
-        results_root, pipeline="clustering", method="kmeans", run_name="run-umap",
-        params={"n_clusters": 3}, reduction_metric="euclidean", reduction_n_components=2,
-    )
-    dir_raw = _make_run_dir(
-        results_root, pipeline="clustering", method="kmeans", run_name="run-raw",
-        reduction_method="raw", params={"n_clusters": 3}, reduction_metric="", reduction_n_components="",
-    )
-    runs = [
-        ProductionRun("lesion", "clustering", "kmeans", "run-raw", dir_raw, reduction_method="raw"),
-        ProductionRun("lesion", "clustering", "kmeans", "run-umap", dir_umap, reduction_method="umap"),
-    ]
-
-    assert reduction_options(runs, "lesion", "clustering", "kmeans") == ["umap", "raw"]
-    assert metric_options(runs, "lesion", "clustering", "kmeans", "umap") == ["euclidean"]
-    assert metric_options(runs, "lesion", "clustering", "kmeans", "raw") == [NO_METRIC]
-    raw_runs = runs_matching(runs, "lesion", "clustering", "kmeans", "raw", NO_METRIC, NO_N_COMPONENTS, "n_clusters=3", params_file)
-    assert [r.run_name for r in raw_runs] == ["run-raw"]
-
-
-def test_reduction_options_dim_reduction_pipeline_is_sentinel(tmp_path):
-    results_root = tmp_path / "results"
-    run_dir = _make_run_dir(results_root, run_name="run-a")
-    runs = [ProductionRun("lesion", "dim_reduction", "umap", "run-a", run_dir)]
-
-    assert reduction_options(runs, "lesion", "dim_reduction", "umap") == [NO_METRIC]
 
 
 def test_build_app_layout_has_one_button_per_color_mode(tmp_path):
@@ -1628,78 +1357,6 @@ def test_run_reduction_axis_clustering_reads_upstream_embedding(tmp_path):
     run = ProductionRun("lesion", "clustering", "kmeans", "run-a", run_dir, reduction_method="umap")
 
     assert run_reduction_axis(run) == ("dice", 3)
-
-
-def test_tag_param_options_returns_sentinel_for_dim_reduction(tmp_path):
-    results_root = tmp_path / "results"
-    run_dir = _make_run_dir(results_root, run_name="run-a")
-    runs = [ProductionRun("lesion", "dim_reduction", "umap", "run-a", run_dir)]
-
-    labels = tag_param_options(runs, "lesion", "dim_reduction", "umap", NO_METRIC, "euclidean", 2, _clustering_params_file(tmp_path))
-
-    assert labels == [NO_METRIC]
-
-
-def test_tag_param_options_distinct_combinations_for_clustering(tmp_path):
-    results_root = tmp_path / "results"
-    params_file = _clustering_params_file(tmp_path)
-    dir_a = _make_run_dir(
-        results_root, pipeline="clustering", method="kmeans", run_name="run-a",
-        params={"n_clusters": 3}, reduction_metric="euclidean", reduction_n_components=2,
-    )
-    dir_b = _make_run_dir(
-        results_root, pipeline="clustering", method="kmeans", run_name="run-b",
-        params={"n_clusters": 5}, reduction_metric="euclidean", reduction_n_components=2,
-    )
-    runs = [
-        ProductionRun("lesion", "clustering", "kmeans", "run-a", dir_a, reduction_method="umap"),
-        ProductionRun("lesion", "clustering", "kmeans", "run-b", dir_b, reduction_method="umap"),
-    ]
-
-    labels = tag_param_options(runs, "lesion", "clustering", "kmeans", "umap", "euclidean", 2, params_file)
-
-    assert labels == ["n_clusters=3", "n_clusters=5"]
-
-
-def test_tag_param_options_method_missing_from_registry_returns_sentinel_not_raise(tmp_path, caplog):
-    # Regression: a clustering method with real production runs on disk but no entry in
-    # params_clustering.json (a registry/artifact mismatch, e.g. a method renamed/dropped from
-    # the registry after its output was written - lessons_learned.md #12, "dbscan" -> "hdbscan"
-    # for real) used to propagate load_tag_params' own ValueError straight out of
-    # tag_param_options, crashing the "Parametri" picker step (500) the moment this method was
-    # selected - with the old code this test fails with an uncaught ValueError.
-    results_root = tmp_path / "results"
-    run_dir = _make_run_dir(
-        results_root, pipeline="clustering", method="dbscan", run_name="run-a",
-        params={"eps": 0.5}, reduction_metric="euclidean", reduction_n_components=2,
-    )
-    runs = [ProductionRun("lesion", "clustering", "dbscan", "run-a", run_dir, reduction_method="umap")]
-    # Registry only knows "kmeans" - "dbscan" is unregistered, same shape as a dropped method.
-    params_file = _clustering_params_file(tmp_path, methods=("kmeans",))
-
-    with caplog.at_level("WARNING"):
-        labels = tag_param_options(runs, "lesion", "clustering", "dbscan", "umap", "euclidean", 2, params_file)
-
-    assert labels == [NO_METRIC]
-    assert "dbscan" in caplog.text
-
-
-def test_runs_matching_method_missing_from_registry_returns_empty_not_raise(tmp_path):
-    # Same registry gap as above, exercised through runs_matching's own separate
-    # load_tag_params call site (line ~539) - tag_param_options being fixed doesn't protect this
-    # second, independent call site, since a caller could reach it with a non-NO_METRIC label
-    # (e.g. a stale dropdown value from before the registry was edited mid-session).
-    results_root = tmp_path / "results"
-    run_dir = _make_run_dir(
-        results_root, pipeline="clustering", method="dbscan", run_name="run-a",
-        params={"eps": 0.5}, reduction_metric="euclidean", reduction_n_components=2,
-    )
-    runs = [ProductionRun("lesion", "clustering", "dbscan", "run-a", run_dir, reduction_method="umap")]
-    params_file = _clustering_params_file(tmp_path, methods=("kmeans",))
-
-    matching = runs_matching(runs, "lesion", "clustering", "dbscan", "umap", "euclidean", 2, "eps=0.5", params_file)
-
-    assert matching == []
 
 
 def test_lesion_save_buttons_do_not_use_stale_clickdata_after_run_switch(tmp_path):
@@ -2228,7 +1885,7 @@ def test_preload_fills_both_stores_so_cluster_maps_need_no_file_reads(tmp_path, 
     subject_ids = [f"sub-STUNIPD000{i}" for i in range(1, 5)]
     run_dir = _make_run_dir(
         results_root, modality="sdc", pipeline="clustering",
-        extra_metadata={"cluster_label": [0, 0, 1, 1], "subject_id": subject_ids},
+        params={"n_clusters": 2}, extra_metadata={"cluster_label": [0, 0, 1, 1], "subject_id": subject_ids},
     )
     run = ProductionRun("sdc", "clustering", "kmeans", "10-08_s1", run_dir, reduction_method="umap")
     for subject_id, dataset in zip(subject_ids, ["UNIPD/WashU"] * 2 + ["UKLFR/stroke_UKLFR"] * 2):
@@ -2265,7 +1922,9 @@ def test_preload_fills_both_stores_so_cluster_maps_need_no_file_reads(tmp_path, 
 
 def test_preload_failure_is_logged_and_does_not_crash(tmp_path, caplog):
     # No files on disk at all: resolution raises, the preload logs it with a traceback and ends.
-    run_dir = _make_run_dir(tmp_path / "results", pipeline="clustering", extra_metadata={"cluster_label": [0, 0, 1, 1]})
+    run_dir = _make_run_dir(
+        tmp_path / "results", pipeline="clustering", params={"n_clusters": 2}, extra_metadata={"cluster_label": [0, 0, 1, 1]}
+    )
     run = ProductionRun("lesion", "clustering", "kmeans", "10-08_s1", run_dir, reduction_method="umap")
 
     with caplog.at_level(logging.INFO):

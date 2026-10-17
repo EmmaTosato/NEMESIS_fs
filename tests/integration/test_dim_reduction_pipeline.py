@@ -1263,3 +1263,25 @@ def test_the_zoomed_scree_plot_is_written_only_when_the_full_one_shows_more_comp
 
     assert (wide / "scree_plot.png").is_file() and (wide / "scree_plot_zoom.png").is_file()
     assert (narrow / "scree_plot.png").is_file() and not (narrow / "scree_plot_zoom.png").exists()
+
+
+def test_pca_production_folder_name_carries_the_rotation_only_when_there_is_one(tmp_path, monkeypatch):
+    """tag_omit: the unrotated run is ..._nc2, the rotated one ..._nc2_varimax, so two runs with the
+    same number of components do not collide, and runs.csv has a rotation column for both."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
+    base = {"solver": "blocks", "standardize": False, "dual": True, "n_components": 2, "rotation_max_iter": 500}
+    tagging = {"tag_param": ["n_components", "rotation"], "tag_prefix": ["nc", ""], "tag_omit": {"rotation": "none"}}
+
+    for rotation in ("none", "varimax"):
+        entry = {**tagging, "params": {**base, "rotation": rotation}}
+        cfg_path = tmp_path / f"dim_reduction_{rotation}.json"
+        cfg_path.write_text(json.dumps(_production_config(tmp_path, input_dir, _write_params(tmp_path, entry), "pca", "rot")))
+        assert dim_reduction.main(["--config", str(cfg_path)]) == 0
+
+    production = tmp_path / "dr_out" / "production" / "pca"
+    names = sorted(p.name.split("_", 1)[1] for p in production.iterdir() if p.is_dir())
+    assert names == ["rot_nc2", "rot_nc2_varimax"]
+    runs = pd.read_csv(production / "runs.csv")
+    assert list(runs.columns[:3]) == ["session", "n_components", "rotation"]
+    assert sorted(runs["rotation"]) == ["none", "varimax"]

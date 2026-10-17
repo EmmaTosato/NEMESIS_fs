@@ -422,3 +422,50 @@ def test_load_stability_config_rejects_bad_n_repeats(tmp_path):
     )
     with pytest.raises(ValueError, match="n_repeats must be a positive integer"):
         load_stability_config(path, "kmeans")
+
+
+_PCA_TAG_ENTRY = {
+    "params": {"n_components": 42, "rotation": "none"},
+    "tag_param": ["n_components", "rotation"],
+    "tag_prefix": ["nc", ""],
+    "tag_omit": {"rotation": "none"},
+}
+
+
+def test_tag_omit_drops_the_part_only_when_the_value_matches(tmp_path):
+    path = _write(tmp_path, {"pca": _PCA_TAG_ENTRY})
+    tag_param, tag_prefix = load_tag_spec(path, "pca")
+
+    assert load_method_params(path, "pca")[1] == "nc42"
+    assert build_tag_from_values(path, "pca", tag_param, tag_prefix, {"n_components": 42, "rotation": "none"}) == "nc42"
+    assert build_tag_from_values(path, "pca", tag_param, tag_prefix, {"n_components": 42, "rotation": "varimax"}) == "nc42_varimax"
+
+
+def test_tag_omit_does_not_change_the_tag_columns_of_the_run_log(tmp_path):
+    path = _write(tmp_path, {"pca": _PCA_TAG_ENTRY})
+    assert load_tag_params(path, "pca") == ["n_components", "rotation"]
+
+
+def test_tag_omit_not_an_object_raises(tmp_path):
+    path = _write(tmp_path, {"pca": {**_PCA_TAG_ENTRY, "tag_omit": ["rotation"]}})
+    with pytest.raises(ValueError, match="tag_omit must be a JSON object"):
+        load_method_params(path, "pca")
+
+
+def test_tag_omit_naming_a_key_outside_tag_param_raises(tmp_path):
+    path = _write(tmp_path, {"pca": {**_PCA_TAG_ENTRY, "tag_omit": {"standardize": False}}})
+    with pytest.raises(ValueError, match="not in tag_param"):
+        load_method_params(path, "pca")
+
+
+def test_tag_omit_with_a_non_scalar_value_raises(tmp_path):
+    path = _write(tmp_path, {"pca": {**_PCA_TAG_ENTRY, "tag_omit": {"rotation": ["none"]}}})
+    with pytest.raises(ValueError, match="plain scalar"):
+        load_method_params(path, "pca")
+
+
+def test_tag_omit_that_empties_the_tag_raises(tmp_path):
+    entry = {"params": {"rotation": "none"}, "tag_param": ["rotation"], "tag_prefix": [""], "tag_omit": {"rotation": "none"}}
+    path = _write(tmp_path, {"pca": entry})
+    with pytest.raises(ValueError, match="tag would be empty"):
+        load_method_params(path, "pca")

@@ -3,7 +3,7 @@
 The single-run evaluation of an adp run (src/analysis/clustering_evaluation.py::adp_summary) needs the
 distance adp clustered in (dice on the raw matrix): about 4 minutes for the lesion matrix, up to about 25 for
 the voxelwise disconnection one. Too long to block a request, too long to redo at every app start, so
-RawDistanceStore computes it once in a worker thread and keeps it under `cache_dir`.
+RawDistanceStore computes it once in a worker thread (src/analysis/background_cache.py) and keeps it under `cache_dir`.
 
 A cache entry is named after the *content* it was computed from (shape, dtype, a sample of rows, the
 subject ids, the metric), not after a path or a date: a corrected matrix gets a new entry instead of
@@ -15,16 +15,13 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
-import shutil
-import threading
 from collections.abc import Sequence
-from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 
+from src.analysis.background_cache import BackgroundDiskCache
 from src.analysis.distances import pairwise_distance
 
 _DISTANCES_FILENAME = "distances.npy"
@@ -44,14 +41,10 @@ class RawDistances:
 
 
 class RawDistanceStore:
-    """One worker thread (a second 25-minute computation in parallel would only fight the first for the
-    cores and the memory), one cache directory. Plain instance state, owned by whoever builds it."""
+    """The distance matrices of raw feature matrices, in a BackgroundDiskCache under `cache_dir`."""
 
     def __init__(self, cache_dir: Path) -> None:
-        self._cache_dir = Path(cache_dir)
-        self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="raw-distances")
-        self._pending: dict[str, Future] = {}
-        self._lock = threading.Lock()
+        self._cache = BackgroundDiskCache(cache_dir, "raw-distances")
 
     def request(self, matrix_path: Path, subject_ids: Sequence[str], metric: str) -> RawDistances | None:
         """The distances of `matrix_path`'s subjects under `metric`, or None while they are still being
@@ -64,21 +57,8 @@ class RawDistanceStore:
         if matrix.ndim != 2 or matrix.shape[0] != len(subject_ids):
             raise ValueError(f"{matrix_path}: matrix {matrix.shape} does not have one row per subject id ({len(subject_ids)})")
         key = _cache_key(matrix, subject_ids, metric)
-        directory = self._cache_dir / key
-        if directory.is_dir():
-            return _load(directory)
-        with self._lock:
-            future = self._pending.get(key)
-            if future is None:
-                logging.info("raw distances: computing %s for %s (cache entry %s)", metric, matrix_path, key)
-                future = self._executor.submit(_compute_and_store, matrix_path, metric, directory)
-                self._pending[key] = future
-        if not future.done():
-            return None
-        with self._lock:
-            self._pending.pop(key, None)
-        future.result()
-        return _load(directory)
+        directory = self._cache.request(key, lambda temporary: _compute_into(temporary, matrix_path, metric))
+        return None if directory is None else _load(directory)
 
 
 def _cache_key(matrix: np.ndarray, subject_ids: Sequence[str], metric: str) -> str:
@@ -91,24 +71,14 @@ def _cache_key(matrix: np.ndarray, subject_ids: Sequence[str], metric: str) -> s
     return f"{metric}-{digest.hexdigest()[:16]}"
 
 
-def _compute_and_store(matrix_path: Path, metric: str, directory: Path) -> None:
-    """Computes the distances and writes them as `directory`, all at once: into a temporary sibling,
-    renamed into place as the last step, so `directory` never exists half written (same swap as
-    src/utils/artifacts.py::save_matrix)."""
+def _compute_into(directory: Path, matrix_path: Path, metric: str) -> None:
     matrix = np.load(matrix_path, mmap_mode="r")
     non_empty = matrix.sum(axis=1, dtype=np.float64) != 0
     kept = matrix if non_empty.all() else matrix[non_empty]  # the row filter copies the matrix (1.3 GB for the lesions)
     distances = pairwise_distance(kept, metric)
-    temporary = directory.with_name(f"{directory.name}.tmp-{os.getpid()}")
-    temporary.mkdir(parents=True)
-    try:
-        np.save(temporary / _NON_EMPTY_FILENAME, non_empty)
-        np.save(temporary / _DISTANCES_FILENAME, distances)
-        os.replace(temporary, directory)
-    except BaseException:
-        shutil.rmtree(temporary, ignore_errors=True)
-        raise
-    logging.info("raw distances: %s %s saved (%d subjects)", metric, directory, int(non_empty.sum()))
+    np.save(directory / _NON_EMPTY_FILENAME, non_empty)
+    np.save(directory / _DISTANCES_FILENAME, distances)
+    logging.info("raw distances: %s computed for %d subjects", metric, int(non_empty.sum()))
 
 
 def _load(directory: Path) -> RawDistances:

@@ -51,6 +51,7 @@ import re
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 import nibabel as nib
@@ -84,14 +85,22 @@ from src.analysis.cluster_comparison import (
     purity_table,
 )
 from src.analysis.cluster_composition import COMPOSITION_VARIABLES, build_composition_figure, composition_frame
-from src.analysis.cluster_quality import build_silhouette_figure
+from src.analysis.cluster_quality import build_mean_membership_figure, build_silhouette_figure
+from src.analysis.component_map_plots import build_reproducibility_figure
+from src.analysis.component_maps import ComponentMapSet, ComponentMapStore, MapGeometry, load_map_geometry, to_volume
 from src.analysis.clustering_evaluation import (
     AdpSummary,
     GeometricSummary,
+    MembershipConfidence,
+    SoftMembership,
     adp_summary,
     geometric_summary,
+    membership_confidence,
+    model_fit_metrics,
     noise_warning,
     require_applicable,
+    soft_membership_summary,
+    weakest_soft_members,
 )
 from src.analysis.raw_distances import RawDistanceStore
 from src.analysis.cluster_description import (
@@ -561,58 +570,20 @@ def _run_chronological_key(run: ProductionRun) -> tuple:
     return (0, month, day, run.run_name)
 
 
-def modality_options(runs: list[ProductionRun]) -> list[str]:
-    """Distinct modalities across `runs`, sorted - step 1 of the picker ("Dato"). Only
-    "lesion" exists today; a future modality shows up here with zero code changes (same
-    generic-discovery contract as discover_production_runs itself)."""
-    return sorted({run.modality for run in runs})
-
-
-def pipeline_options(runs: list[ProductionRun], modality: str) -> list[str]:
-    """Distinct pipelines available for `modality` - step 2 of the picker ("Pipeline"), now a
-    real choice (15-08-26) rather than the fixed "dim_reduction · produzione" label it used to
-    be, since this app discovers both dim_reduction.py and clustering.py runs. Ordered by
-    PRODUCTION_PIPELINES' own preference order, not alphabetically (dim_reduction first,
-    matching every other *_options helper's plain `sorted()` would put clustering first
-    instead - a worse default given dim_reduction is the more mature pipeline)."""
-    available = {run.pipeline for run in runs if run.modality == modality}
-    return [pipeline for pipeline in PRODUCTION_PIPELINES if pipeline in available]
-
-
-def method_options(runs: list[ProductionRun], modality: str, pipeline: str) -> list[str]:
-    """Distinct methods available for (modality, pipeline), sorted - step 3 of the picker
-    ("Metodo": a dim_reduction method like umap/pca, or a clustering method like
-    kmeans/hdbscan, depending on the pipeline chosen in step 2)."""
-    return sorted({run.method for run in runs if run.modality == modality and run.pipeline == pipeline})
-
-
-def runs_for(runs: list[ProductionRun], modality: str, pipeline: str, method: str) -> list[ProductionRun]:
-    """Runs matching (modality, pipeline, method), chronologically ordered (oldest first, most
-    recent last) - the base scope every later picker step (Metrica/Componenti/Run) narrows
-    further. Scoped this tightly is the whole point of the multi-step picker (2026-08-14, on
-    request): the original single flat dropdown mixed every method's runs together, so picking
-    a run meant scanning entries that weren't even the same method."""
-    return sorted(
-        (run for run in runs if run.modality == modality and run.pipeline == pipeline and run.method == method),
-        key=_run_chronological_key,
-    )
-
-
-# Sentinel for "this axis doesn't apply to this run at all" - shared across all 3 narrowing
-# axes this app offers (Metrica/Componenti: PCA/PaCMAP dim_reduction runs have no 'metric' key,
-# config/registry/params_reduction.json; Parametri: a clustering run built directly on
-# un-reduced data, reduction_method="raw", has no upstream-embedding metric/n_components; a
-# clustering method with no tag_param registered at all - none today). One shared "—" rather
-# than a separate sentinel per axis, so the picker's placeholder reads identically everywhere.
+# Sentinel for "this axis doesn't apply to this run at all" - shared across the selectors that can lack a
+# value (Metrica/Componenti: PCA/PaCMAP dim_reduction runs have no 'metric' key, config/registry/params_reduction.json;
+# a clustering run built directly on un-reduced data, reduction_method="raw", has no upstream-embedding
+# metric/n_components; Parametri of a dim_reduction run, or of a method with no tag_param registered). One shared
+# "—" rather than one per axis, so the placeholder reads identically everywhere. Not UNSET ("---"): that is a
+# selector that is not a filter, this is a real value a run has (that it has none).
 NO_METRIC = "—"
 
-# Sibling sentinel for "this run's own axis has no 'n_components' value" (see NO_METRIC) - an
-# int, not a string like NO_METRIC, to keep n_components_options' return type uniform
-# (list[int]) - -1 is safely distinct from any real n_components value (always >= 1).
+# Sibling sentinel for "this run's own axis has no 'n_components' value" (see NO_METRIC) - an int, not a string
+# like NO_METRIC - -1 is safely distinct from any real n_components value (always >= 1).
 NO_N_COMPONENTS = -1
 
 def _n_components_option_label(n: int) -> str:
-    """Dropdown label for one n_components_options() value - AUDIT_FINDINGS.md #64:
+    """Dropdown label for one n_components value - AUDIT_FINDINGS.md #64:
     NO_N_COMPONENTS (-1, the clustering-pipeline sentinel) gets NO_METRIC's own readable
     placeholder ("—") instead of the literal string "-1", the same treatment NO_METRIC
     already gets on the metric picker for the analogous case."""
@@ -646,7 +617,7 @@ def _run_params_or_none(run: ProductionRun) -> dict | None:
     """run_params(run), isolated per-run (HIGH #25, 2026-08 - lesson #21). The 3 picker
     helpers below each call this once per run in a comprehension - a single run with a
     corrupt/truncated config.md must not take down every other run's picker options with
-    it (e.g. metric_options iterating 8 runs for one method, one has a bad config.md ->
+    it (e.g. a picker over 8 runs of one method, one has a bad config.md ->
     the whole method used to become unexplorable in the app, not just that one run).
     None on failure, logged as a warning - callers filter it out and keep going.
     """
@@ -664,7 +635,7 @@ def run_reduction_axis(run: ProductionRun) -> tuple[str, int]:
     clustering.py run that's the *upstream* embedding's own metric/n_components (config.md's
     "## Config" fenced block - reduction_metric/reduction_n_components, 31-08-26 -
     src.utils.artifacts.read_run_config - never the clustering method's own hyperparameters,
-    which have no metric/n_components concept at all, see tag_param_options for those).
+    which have no metric/n_components concept at all; their own hyperparameters are the "Parametri" selector, run_picker_values).
     01-09-26: real clustering runs are built from more than one source embedding (different
     metric/n_components), so this app must let that vary per run here too, not collapse every
     clustering run to one sentinel the way it used to.
@@ -683,87 +654,11 @@ def run_reduction_axis(run: ProductionRun) -> tuple[str, int]:
     return metric, n_components
 
 
-def _run_reduction_axis_or_none(run: ProductionRun) -> tuple[str, int] | None:
-    """run_reduction_axis(run), isolated per-run (same reasoning as _run_params_or_none) - a
-    single run with a corrupt/truncated config.md must not take down every other run's picker
-    options with it."""
-    try:
-        return run_reduction_axis(run)
-    except ValueError as exc:
-        logging.warning("%s: cannot read resolved reduction axis, excluding this run from picker options: %s", run.path, exc)
-        return None
-
-
 def _reduction_method_label(run: ProductionRun) -> str:
     """The "Riduzione" picker value of `run`: the dimensionality reduction a clustering run was
     computed on (umap, tsne, ..., or "raw" for un-reduced data), NO_METRIC for a dim_reduction
     run (its own Metodo already *is* the reduction method, ProductionRun.reduction_method is None)."""
     return NO_METRIC if run.reduction_method is None else run.reduction_method
-
-
-def reduction_options(runs: list[ProductionRun], modality: str, pipeline: str, method: str) -> list[str]:
-    """Distinct reduction methods behind (modality, pipeline, method)'s own runs - the "Riduzione"
-    step, between Metodo and Metrica. Without it, clustering runs on a UMAP embedding and on raw
-    data (or on two different reduction methods) landed in the same Metrica/Componenti/Run lists.
-    Sorted alphabetically with "raw" last, so the default is a real embedding when one exists."""
-    values = {_reduction_method_label(run) for run in runs_for(runs, modality, pipeline, method)}
-    return sorted(values, key=lambda value: (value == "raw", value))
-
-
-def _runs_for_reduction_method(
-    runs: list[ProductionRun], modality: str, pipeline: str, method: str, reduction_method: str
-) -> list[ProductionRun]:
-    """runs_for(...) narrowed to the runs of one "Riduzione" value (_reduction_method_label)."""
-    return [
-        run for run in runs_for(runs, modality, pipeline, method) if _reduction_method_label(run) == reduction_method
-    ]
-
-
-def _runs_for_reduction_axis(
-    runs: list[ProductionRun], modality: str, pipeline: str, method: str, reduction_method: str,
-    metric: str, n_components: int,
-) -> list[ProductionRun]:
-    """_runs_for_reduction_method(...) further narrowed to runs whose own run_reduction_axis
-    equals (metric, n_components) - the shared filter metric_options/n_components_options/
-    tag_param_options/runs_matching all build on, so "which embedding is this run on" is
-    computed in exactly one place. Order preserved from runs_for's own chronological sort."""
-    return [
-        run
-        for run in _runs_for_reduction_method(runs, modality, pipeline, method, reduction_method)
-        if (axis := _run_reduction_axis_or_none(run)) is not None and axis == (metric, n_components)
-    ]
-
-
-def metric_options(
-    runs: list[ProductionRun], modality: str, pipeline: str, method: str, reduction_method: str
-) -> list[str]:
-    """Distinct `metric` values actually used by (modality, pipeline, method)'s own runs,
-    sorted - NO_METRIC included if any of them has no metric axis at all (run_reduction_axis).
-    For a clustering.py run this is the *upstream embedding's* own metric, not the clustering
-    method's hyperparameters (see tag_param_options for those)."""
-    values = {
-        axis[0]
-        for run in _runs_for_reduction_method(runs, modality, pipeline, method, reduction_method)
-        if (axis := _run_reduction_axis_or_none(run)) is not None
-    }
-    return sorted(values)
-
-
-def n_components_options(
-    runs: list[ProductionRun], modality: str, pipeline: str, method: str, reduction_method: str, metric: str
-) -> list[int]:
-    """Distinct `n_components` values among (modality, pipeline, method, metric)'s own runs
-    (metric being run_reduction_axis's own upstream-embedding metric, see metric_options),
-    sorted ascending - includes every value actually used, even ones this app can't display
-    (e.g. 150 for the full-dimensionality PCA production run): the picker's job is to reflect
-    what was actually run, not to pre-filter it down to what's displayable (graph_content_for
-    already reports that clearly per-run, see UndisplayableRunError)."""
-    values = {
-        axis[1]
-        for run in _runs_for_reduction_method(runs, modality, pipeline, method, reduction_method)
-        if (axis := _run_reduction_axis_or_none(run)) is not None and axis[0] == metric
-    }
-    return sorted(values)
 
 
 def _run_tag_param_label(run: ProductionRun, tag_param: list[str]) -> str | None:
@@ -805,75 +700,21 @@ def _load_tag_params_or_none(clustering_params_file: str | Path, method: str) ->
         return None
 
 
-def tag_param_options(
-    runs: list[ProductionRun], modality: str, pipeline: str, method: str, reduction_method: str, metric: str,
-    n_components: int, clustering_params_file: str | Path,
-) -> list[str]:
-    """Distinct combinations of `method`'s own registered tag_param values
-    (config/registry/params_clustering.json, e.g. n_clusters+linkage for agglomerative,
-    min_cluster_size+min_samples for hdbscan) actually run among (modality, pipeline, method)'s
-    runs on the (metric, n_components) upstream embedding - 01-09-26, on request: a flat "Run"
-    dropdown mixing every k/linkage combination together, with no way to narrow by them, was the
-    exact complaint that prompted this step.
+# What a selector shows when it is not a filter: the runs listed are then not narrowed by it.
+UNSET = "---"
 
-    dim_reduction pipeline runs, any clustering method with no tag_param registered at all (none
-    today - every params_clustering.json entry declares at least one), and a clustering method
-    missing from the registry entirely (_load_tag_params_or_none) all resolve to exactly
-    [NO_METRIC] (this axis's own "doesn't apply" sentinel - reused rather than a redundant third
-    one, see NO_METRIC's own docstring) - the last case still logs a warning naming the real
-    cause, so a registry/artifact mismatch is never silently indistinguishable from "this method
-    genuinely has no tag_param" in the logs, even though the picker UI reads the same either way."""
-    if pipeline != "clustering":
-        return [NO_METRIC]
-    tag_param = _load_tag_params_or_none(clustering_params_file, method)
-    if not tag_param:
-        return [NO_METRIC]
-    labels = {
-        label
-        for run in _runs_for_reduction_axis(runs, modality, pipeline, method, reduction_method, metric, n_components)
-        if (label := _run_tag_param_label(run, tag_param)) is not None
-    }
-    return sorted(labels)
+# The selectors that filter the run list, in the order they are shown. "run" is the list itself: the runs that
+# match every filter that is set; choosing one of them does not set the filters that are not.
+PICKER_FACETS: tuple[str, ...] = ("modality", "pipeline", "method", "reduction", "metric", "n_components", "tag_params")
+PICKER_FIELDS: tuple[str, ...] = (*PICKER_FACETS, "run")
 
-
-def runs_matching(
-    runs: list[ProductionRun], modality: str, pipeline: str, method: str, reduction_method: str, metric: str,
-    n_components: int, tag_params_label: str, clustering_params_file: str | Path,
-) -> list[ProductionRun]:
-    """Runs matching (modality, pipeline, method, reduction_method, metric, n_components, tag_params_label)
-    exactly, chronologically ordered - the final picker step ("Run"): today this is usually
-    exactly one run (each combination has only ever been produced once), but stays a list rather
-    than assuming that - a rerun of the same combination on a later date is a legitimate, real
-    scenario this picker must keep showing both of, not silently collapse to one.
-
-    dim_reduction pipeline runs (tag_params_label always NO_METRIC there, see tag_param_options)
-    skip the tag_params_label filter entirely - it's a no-op for them, not a real narrowing. Same
-    for a clustering method missing from the registry (_load_tag_params_or_none) - tag_param_options
-    already collapses that case to NO_METRIC too, so this filter is consistently a no-op for it here,
-    never a second crash site for the same registry gap (this function has its own direct
-    load_tag_params call, a separate caller from tag_param_options - see AUDIT_FINDINGS-style
-    isolation, both call sites of the same registry lookup need the same isolation, not just the
-    first one found)."""
-    candidates = _runs_for_reduction_axis(runs, modality, pipeline, method, reduction_method, metric, n_components)
-    if pipeline != "clustering" or tag_params_label == NO_METRIC:
-        return candidates
-    tag_param = _load_tag_params_or_none(clustering_params_file, method)
-    if not tag_param:
-        return []
-    return [run for run in candidates if _run_tag_param_label(run, tag_param) == tag_params_label]
-
-
-# The picker steps in left-to-right order. "run" is last: it is the list of runs left once every
-# step before it is fixed, and choosing one of them fixes all the others.
-PICKER_FIELDS: tuple[str, ...] = (
-    "modality", "pipeline", "method", "reduction", "metric", "n_components", "tag_params", "run",
-)
+# Shown next to a run's name for the facets that are not set, so runs of different methods are told apart.
+_RUN_LABEL_FACETS = ("modality", "pipeline", "method", "reduction")
 
 
 def run_picker_values(run: ProductionRun, clustering_params_file: str | Path) -> dict[str, object]:
-    """The value `run` has at every picker step before "run" - what the steps must show for `run` to
-    be the chosen one. Raises ValueError if `run`'s own params/config cannot be read, which also
-    keeps it out of every step's options (see _run_reduction_axis_or_none)."""
+    """The value `run` has at every filter selector (PICKER_FACETS). Raises ValueError if `run`'s own
+    params/config cannot be read."""
     metric, n_components = run_reduction_axis(run)
     tag_params = NO_METRIC
     if run.pipeline == "clustering":
@@ -890,60 +731,98 @@ def run_picker_values(run: ProductionRun, clustering_params_file: str | Path) ->
     }
 
 
-def _picker_options(
-    runs: list[ProductionRun], field: str, chosen: dict[str, object], clustering_params_file: str | Path
-) -> list:
-    """The values `field` can take given the steps before it in `chosen` (PICKER_FIELDS order)."""
-    if field == "modality":
-        return modality_options(runs)
-    leading = [chosen[name] for name in PICKER_FIELDS[1 : PICKER_FIELDS.index(field)]]
-    modality = chosen["modality"]
-    if field == "pipeline":
-        return pipeline_options(runs, modality)
-    if field == "method":
-        return method_options(runs, modality, *leading)
-    if field == "reduction":
-        return reduction_options(runs, modality, *leading)
-    if field == "metric":
-        return metric_options(runs, modality, *leading)
-    if field == "n_components":
-        return n_components_options(runs, modality, *leading)
-    if field == "tag_params":
-        return tag_param_options(runs, modality, *leading, clustering_params_file)
-    if field == "run":
-        return [run.key for run in runs_matching(runs, modality, *leading, clustering_params_file)]
-    raise ValueError(f"unknown picker field {field!r}, expected one of {PICKER_FIELDS}")
+@dataclass(frozen=True)
+class IndexedRun:
+    """A run with its value at every filter selector, read once (not on every click)."""
+
+    run: ProductionRun
+    values: dict[str, object]
 
 
-def resolve_pickers(
-    runs: list[ProductionRun], current: dict[str, object], changed: str | None, clustering_params_file: str | Path
-) -> tuple[dict[str, list], dict[str, object]]:
-    """(options, values) of every picker step, all computed together from one consistent selection.
+def index_runs(runs: list[ProductionRun], clustering_params_file: str | Path) -> list[IndexedRun]:
+    """`runs` with their selector values, oldest first (_run_chronological_key). A run whose own params or config
+    cannot be read is left out, with a warning naming it and why: one corrupt config.md must not take the
+    whole picker down. Raises ValueError if no run is left."""
+    indexed = []
+    for run in sorted(runs, key=_run_chronological_key):
+        try:
+            indexed.append(IndexedRun(run, run_picker_values(run, clustering_params_file)))
+        except ValueError as exc:
+            logging.warning("%s: cannot read its selector values, leaving it out of the picker: %s", run.path, exc)
+    if not indexed:
+        raise ValueError("no run has readable params: nothing the picker can offer")
+    return indexed
 
-    Each step offers only the values that exist given the steps to its left. A step keeps its
-    current value when that is still offered, and otherwise takes the first offered one (the most
-    recent run, for "run"). When `changed` is "run", the steps to its left are first set to that
-    run's own values, so they always describe the run shown. `changed` None is the first render.
 
-    Resolving every step in one call (rather than one callback per step) is what keeps a step from
-    ever being computed against a half-updated neighbour. Raises ValueError if a step has nothing to
-    offer - a modality whose runs cannot be read - instead of leaving the picker empty."""
-    runs_by_key = {run.key: run for run in runs}
-    chosen: dict[str, object] = {}
-    forced = {}
-    if changed == "run" and current.get("run") in runs_by_key:
-        forced = run_picker_values(runs_by_key[current["run"]], clustering_params_file)
+def _matches(item: IndexedRun, filters: dict[str, object]) -> bool:
+    return all(item.values[facet] == value for facet, value in filters.items())
+
+
+def _facet_sort_key(facet: str, value: object) -> tuple:
+    if facet == "pipeline":
+        return (PRODUCTION_PIPELINES.index(value),)
+    if facet == "reduction":  # "raw" last, so a real embedding comes first
+        return (value == "raw", str(value))
+    return (str(value),) if isinstance(value, str) else (value,)
+
+
+@dataclass(frozen=True)
+class PickerState:
+    """What every selector shows: `options` (UNSET first for a filter; run keys for "run"), `chosen` (its
+    current value) and `run_labels` (the text of each run key)."""
+
+    options: dict[str, list]
+    chosen: dict[str, object]
+    run_labels: dict[str, str]
+
+
+def resolve_pickers(indexed: list[IndexedRun], current: dict[str, object], changed: str | None) -> PickerState:
+    """The state of every selector, computed together from one consistent selection.
+
+    A filter selector set to a value narrows the run list to the runs that have it; UNSET leaves it open. Each
+    filter offers the values found among the runs that match every *other* filter, so any value it offers gives
+    at least one run, and a run is always chosen from what the filters leave. Choosing a run does not set the
+    filters that are UNSET: they stay open, so one can browse runs without turning each into a filter.
+
+    `changed` is the selector the user just touched (None at the first render, when only the modality and the
+    pipeline are set, to the first ones, so the page opens on a dim_reduction run as it always did). The changed
+    filter wins: filters are applied starting from it, and one that would leave no run at all goes back to UNSET,
+    which the selector then shows. The chosen run stays if the filters still list it, else it is the most recent.
+    """
+    filters: dict[str, object] = {}
+    if changed is None and all(current.get(facet) in (None, UNSET) for facet in PICKER_FACETS):
+        modality = min(item.values["modality"] for item in indexed)
+        pipelines = {item.values["pipeline"] for item in indexed if item.values["modality"] == modality}
+        filters = {"modality": modality, "pipeline": next(p for p in PRODUCTION_PIPELINES if p in pipelines)}
+    else:
+        order = [changed, *(f for f in PICKER_FACETS if f != changed)] if changed in PICKER_FACETS else list(PICKER_FACETS)
+        for facet in order:
+            value = current.get(facet)
+            if value in (None, UNSET):
+                continue
+            trial = {**filters, facet: value}
+            if any(_matches(item, trial) for item in indexed):
+                filters = trial
+
     options: dict[str, list] = {}
-    for field in PICKER_FIELDS:
-        options[field] = _picker_options(runs, field, chosen, clustering_params_file)
-        if not options[field]:
-            raise ValueError(f"picker step {field!r} has no option given {chosen}")
-        wanted = forced.get(field, current.get(field))
-        if wanted in options[field]:
-            chosen[field] = wanted
-        else:
-            chosen[field] = options[field][-1] if field == "run" else options[field][0]
-    return options, chosen
+    for facet in PICKER_FACETS:
+        others = {f: v for f, v in filters.items() if f != facet}
+        values = {item.values[facet] for item in indexed if _matches(item, others)}
+        options[facet] = [UNSET, *sorted(values, key=lambda value: _facet_sort_key(facet, value))]
+    chosen: dict[str, object] = {facet: filters.get(facet, UNSET) for facet in PICKER_FACETS}
+
+    listed = [item for item in indexed if _matches(item, filters)]
+    options["run"] = [item.run.key for item in listed]
+    chosen["run"] = current["run"] if current.get("run") in options["run"] else options["run"][-1]
+    shown = [facet for facet in _RUN_LABEL_FACETS if chosen[facet] == UNSET]
+    run_labels = {item.run.key: _run_label(item, shown) for item in listed}
+    return PickerState(options=options, chosen=chosen, run_labels=run_labels)
+
+
+def _run_label(item: IndexedRun, shown_facets: list[str]) -> str:
+    """The run's name, followed by its value at each facet that is not a filter (the n.a. ones left out)."""
+    extras = [str(item.values[facet]) for facet in shown_facets if item.values[facet] != NO_METRIC]
+    return item.run.run_name if not extras else f"{item.run.run_name}  ({' / '.join(extras)})"
 
 
 class UndisplayableRunError(ValueError):
@@ -2229,6 +2108,139 @@ def cluster_composition_content_for(metadata: pd.DataFrame) -> html.Div | html.P
     return html.Div(children)
 
 
+# --- PCA component maps (16-10-26) ---------------------------------------------------------------
+
+# A voxel of a component's map is coloured when its |t| reaches this share of the component's peak |t|: with
+# thousands of subjects even small effects have a high t, and a fixed |t| > 3 would colour almost the whole brain.
+COMPONENT_MAP_THRESHOLD_FRACTION = 0.3
+_COMPONENT_MAP_CMAP = "cold_hot"
+
+
+@dataclass(frozen=True)
+class ComponentMapData:
+    """What the component-map panel needs for one pca run: the maps, where their voxels are, and whether the
+    source matrix was modified after the run was written (the maps then pair the run's scores with a matrix that
+    may not be the one they came from)."""
+
+    maps: ComponentMapSet
+    geometry: MapGeometry
+    source_modified_after_run: bool
+
+
+def _is_pca_run(run: ProductionRun) -> bool:
+    return run.pipeline == "dim_reduction" and run.method == "pca"
+
+
+def run_component_maps(run: ProductionRun, store: ComponentMapStore) -> ComponentMapData | None:
+    """The component maps of a pca dim_reduction run (src/analysis/component_maps.py), or None while they are
+    still being computed in the background.
+
+    The scores are the run's own matrix.npy; the matrix they are regressed against is the run's `input_path`
+    (relative to the folder the app is launched from, the repo root). Raises ValueError, with the cause, for a
+    run that is not a pca one, a source matrix that is missing, not voxelwise, or not the run's (other subjects)."""
+    if not _is_pca_run(run):
+        raise ValueError("le mappe delle componenti esistono solo per i run di dim_reduction con metodo pca")
+    input_path = read_run_config(run.path)["input_path"]
+    source_dir = Path(input_path)
+    if not (source_dir / MATRIX_FILENAME).is_file():
+        raise ValueError(
+            f"la matrice su cui il run è stato calcolato ({input_path}) non esiste: serve per le mappe, "
+            "e si cerca a partire dalla cartella da cui è stata lanciata l'app"
+        )
+    geometry = load_map_geometry(source_dir)
+    maps = store.request(source_dir, np.load(run.path / MATRIX_FILENAME), run_metadata(run)["subject_id"].tolist())
+    if maps is None:
+        return None
+    written = datetime.fromisoformat(json.loads((run.path / MANIFEST_FILENAME).read_text())["created_at"])
+    modified = datetime.fromtimestamp((source_dir / MATRIX_FILENAME).stat().st_mtime, tz=timezone.utc)
+    return ComponentMapData(maps=maps, geometry=geometry, source_modified_after_run=modified > written)
+
+
+def _build_component_map_view(data: ComponentMapData, component: int) -> tuple[StatMapView, float]:
+    """(interactive view, peak t) of one component (1-based): the t-map of the component, voxels below
+    COMPONENT_MAP_THRESHOLD_FRACTION of its peak left uncoloured, the three sections crossing at the peak.
+    Raises ValueError for a component with an all-zero map or outside the run's components."""
+    n_components = data.maps.t.shape[0]
+    if not 1 <= component <= n_components:
+        raise ValueError(f"la componente {component} non esiste: il run ne ha {n_components}")
+    t_map = np.asarray(data.maps.t[component - 1])
+    peak_column = int(np.argmax(np.abs(t_map)))
+    peak = float(t_map[peak_column])
+    if peak == 0.0:
+        raise ValueError(f"la mappa della componente {component} è tutta a zero: nessun voxel ha un effetto")
+    peak_voxel = np.unravel_index(np.flatnonzero(data.geometry.mask)[peak_column], data.geometry.shape)
+    peak_mm = nib.affines.apply_affine(data.geometry.affine, peak_voxel)
+    shown = _masked_for_view_colorbar(to_volume(t_map, data.geometry), COMPONENT_MAP_THRESHOLD_FRACTION * abs(peak))
+    view = nilearn_plotting.view_img(
+        shown, bg_img="MNI152", black_bg=False, threshold=1e-6, cmap=_COMPONENT_MAP_CMAP, symmetric_cmap=True,
+        vmax=abs(peak), cut_coords=tuple(float(c) for c in peak_mm), title=None, width_view=_ANATOMY_VIEWER_WIDTH,
+    )
+    return view, peak
+
+
+def component_maps_content_for(
+    run: ProductionRun,
+    component: int,
+    maps_of: Callable[[ProductionRun], ComponentMapData | None],
+    view_of: Callable[[ComponentMapData, int], tuple[StatMapView, float]] = _build_component_map_view,
+) -> tuple[html.Div | html.P, bool]:
+    """(content, pending) of the "Mappe delle componenti" panel for one component (1-based) of a pca run:
+    the reproducibility of every component's map, then the chosen component's t-map in an interactive viewer.
+    `pending` is True while the maps are still being computed: the content then says so and the caller keeps
+    polling. Same never-raises contract as the other *_content_for functions."""
+    try:
+        data = maps_of(run)
+    except (ValueError, OSError) as exc:
+        return html.P(str(exc), className="status-message"), False
+    if data is None:
+        return html.P(
+            "Calcolo delle mappe in corso: un passaggio sulla matrice dei voxel per ogni soggetto, da pochi minuti "
+            "in su secondo la matrice. Si salva su disco: la prossima volta è immediato. La pagina si aggiorna da sola.",
+            className="status-message",
+        ), True
+    try:
+        view, peak = view_of(data, component)
+    except ValueError as exc:
+        return html.P(str(exc), className="status-message"), False
+
+    reproducibility = data.maps.reproducibility
+    children: list = []
+    if data.source_modified_after_run:
+        children.append(_warning_box(
+            "La matrice su cui il run è stato calcolato è stata modificata dopo il run. Se i suoi soggetti o i suoi valori "
+            "sono cambiati, le mappe accoppiano gli score del run con dati che non sono quelli da cui vengono."
+        ))
+    children += [
+        html.P(
+            f"Riproducibilità media {_format_number(float(reproducibility.mean()), 3)} ± "
+            f"{_format_number(float(reproducibility.std(ddof=1)) if len(reproducibility) > 1 else 0.0, 3)}, "
+            f"da {_format_number(float(reproducibility.min()), 3)} (componente {int(reproducibility.argmin()) + 1}) a "
+            f"{_format_number(float(reproducibility.max()), 3)} (componente {int(reproducibility.argmax()) + 1}). "
+            "Il paper riporta 0,813 ± 0,079 con metà da 666 soggetti: qui le metà sono molto più grandi, quindi i valori non sono direttamente confrontabili.",
+            className="section-intro",
+        ),
+        dcc.Graph(
+            figure=build_reproducibility_figure(reproducibility, component),
+            config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
+            style={"width": "100%"},
+        ),
+        _anatomy_viewer(
+            view,
+            heading=f"Componente {component}: t massimo {_format_number(abs(peak), 0)}, riproducibilità {_format_number(float(reproducibility[component - 1]), 2)}",
+            caption=(
+                "Rosso: più il soggetto ha questa componente, più quel voxel è disconnesso. Blu: più la ha, meno è disconnesso. "
+                f"Sono colorati i voxel con |t| di almeno il {_format_number(COMPONENT_MAP_THRESHOLD_FRACTION * 100, 0)}% del picco."
+            ),
+            note=(
+                "Il segno di una componente è arbitrario: ogni mappa è orientata con il picco rosso, quindi si guarda la forma, "
+                "non il colore. La mappa è il t di una regressione multipla per voxel sugli score di tutte le componenti insieme "
+                "(non i pesi della componente), senza test di permutazione."
+            ),
+        ),
+    ]
+    return html.Div(children), False
+
+
 # --- Clustering quality (16-10-26) ----------------------------------------------------------------
 
 # Above this share of noise (label -1) the indices describe only the rest of the subjects, and the panel says so.
@@ -2240,6 +2252,16 @@ NOISE_WARNING_FRACTION = 0.10
 MAX_QUALITY_COLUMNS = 1000
 
 
+def _require_narrow_matrix(run: ProductionRun) -> None:
+    """Raises ValueError if the matrix `run` was clustered on has more than MAX_QUALITY_COLUMNS columns."""
+    n_columns = _matrix_shape(run)[1]
+    if n_columns > MAX_QUALITY_COLUMNS:
+        raise ValueError(
+            f"il run è stato calcolato su {n_columns} colonne (dato grezzo, non un embedding): non si calcola qui "
+            f"oltre {MAX_QUALITY_COLUMNS} colonne (si fa in notebooks/post-results_analysis/clustering_evaluation.ipynb)"
+        )
+
+
 def run_geometric_summary(run: ProductionRun) -> GeometricSummary:
     """The geometric indices of a clustering run, on the matrix it was clustered on (matrix.npy).
 
@@ -2247,15 +2269,57 @@ def run_geometric_summary(run: ProductionRun) -> GeometricSummary:
     method they do not apply to (adp - src.analysis.clustering_evaluation.EVALUATIONS), a matrix
     with more than MAX_QUALITY_COLUMNS columns, a non-Euclidean run, or fewer than 2 clusters."""
     require_applicable("geometric_metrics", run.method)
-    n_columns = _matrix_shape(run)[1]
-    if n_columns > MAX_QUALITY_COLUMNS:
-        raise ValueError(
-            f"il run è stato calcolato su {n_columns} colonne (dato grezzo, non un embedding): gli indici euclidei "
-            f"non si calcolano qui oltre {MAX_QUALITY_COLUMNS} colonne (si fanno in "
-            "notebooks/post-results_analysis/clustering_evaluation.ipynb)"
-        )
+    _require_narrow_matrix(run)
     matrix, metadata, _extra_arrays = load_matrix(run.path)
     return geometric_summary(matrix, metadata["cluster_label"].to_numpy(), run_params(run))
+
+
+def run_model_fit(run: ProductionRun) -> dict[str, float]:
+    """The statistic of the model itself for a clustering run (section 3 of the evaluation notebook):
+    inertia for kmeans, BIC and AIC for gmm, noise share and number of clusters for hdbscan/hdbscan_soft.
+
+    kmeans and gmm are refitted with the run's own params and accepted only if they reproduce the stored
+    labels exactly (model_fit_metrics). Raises ValueError, with the cause, for a method with no such
+    statistic, a matrix wider than MAX_QUALITY_COLUMNS (a refit on it would not be quick), or a refit that
+    does not reproduce the labels."""
+    require_applicable("model_fit_metrics", run.method)
+    _require_narrow_matrix(run)
+    matrix, metadata, _extra_arrays = load_matrix(run.path)
+    return model_fit_metrics(run.method, matrix, run_params(run), metadata["cluster_label"].to_numpy())
+
+
+# Probability below which a subject counts as peripheral (hdbscan) or not clearly in its cluster (hdbscan_soft),
+# and how many of the weakest subjects the soft table lists. Examples, as in the evaluation notebook:
+# the literature has no reference threshold.
+LOW_PROBABILITY = 0.5
+LOW_MEMBERSHIP = 0.5
+N_WEAKEST_MEMBERS = 10
+
+
+def run_membership_confidence(run: ProductionRun) -> MembershipConfidence:
+    """How firmly each subject of an hdbscan run sits in its cluster (section 3.1 of the evaluation
+    notebook): sklearn's HDBSCAN is refitted with the run's own params and accepted only if it reproduces the
+    stored labels. Raises ValueError, with the cause, for another method, a matrix wider than
+    MAX_QUALITY_COLUMNS, a refit that does not reproduce the labels, or a run that is all noise."""
+    require_applicable("membership_confidence", run.method)
+    _require_narrow_matrix(run)
+    matrix, metadata, _extra_arrays = load_matrix(run.path)
+    return membership_confidence(run.method, matrix, run_params(run), metadata["cluster_label"].to_numpy(), LOW_PROBABILITY)
+
+
+def run_soft_membership(run: ProductionRun) -> tuple[SoftMembership, pd.DataFrame]:
+    """The soft clustering of a hdbscan_soft run (section 3.2): the per-cluster summary with the mean
+    membership vectors, and the N_WEAKEST_MEMBERS subjects least firmly in their own cluster (with their
+    subject_id). Read from the membership.npy the run saved, no refit. Raises ValueError, with the cause,
+    for another method or a run without membership.npy."""
+    require_applicable("soft_membership", run.method)
+    _matrix, metadata, extra_arrays = load_matrix(run.path, mmap=True)  # only the labels and membership are wanted
+    if "membership" not in extra_arrays:
+        raise ValueError("il run non ha membership.npy: non è un run di produzione di hdbscan_soft")
+    labels, membership = metadata["cluster_label"].to_numpy(), extra_arrays["membership"]
+    weakest = weakest_soft_members(labels, membership, N_WEAKEST_MEMBERS)
+    weakest.insert(0, "subject_id", metadata["subject_id"].to_numpy()[weakest.index])
+    return soft_membership_summary(labels, membership, LOW_MEMBERSHIP), weakest
 
 
 # How often the panel looks again at a background computation (milliseconds).
@@ -2417,20 +2481,162 @@ def _quality_guide() -> html.Details:
     )
 
 
+def _model_fit_rows(method: str, metrics: dict[str, float]) -> list[list[str]]:
+    """The table rows of the model statistic of `method` (the keys model_fit_metrics returns for it)."""
+    if method == "kmeans":
+        return [[
+            "Inertia", _format_number(metrics["inertia"], 1),
+            "somma delle distanze al quadrato dai centroidi; più bassa è meglio, ma cala sempre al crescere di k",
+        ]]
+    if method == "gmm":
+        return [
+            ["BIC", _format_number(metrics["bic"], 1), "verosimiglianza penalizzata per la complessità; più basso è meglio, penalizza di più dell'AIC"],
+            ["AIC", _format_number(metrics["aic"], 1), "come il BIC, con una penalità minore; più basso è meglio"],
+        ]
+    if method in ("hdbscan", "hdbscan_soft"):
+        return [
+            ["Rumore", f"{_format_number(metrics['noise_fraction'] * 100, 1)}%", "soggetti senza cluster; molto alta = parametri troppo restrittivi"],
+            ["Cluster trovati", str(int(metrics["n_clusters_found"])), "è un risultato, non un parametro; molti cluster piccoli = parametri troppo permissivi"],
+        ]
+    raise ValueError(f"no model statistic rows for method {method!r}")
+
+
+def _model_fit_block(run: ProductionRun, model_fit_of: Callable[[ProductionRun], dict[str, float]]) -> html.Div:
+    """The "Statistica del modello" block of the quality panel. A method with no statistic of its own says
+    so in one line; a refit that does not reproduce the stored labels says why, never a number."""
+    heading = html.P("Statistica del modello", className="comparison-subheading")
+    try:
+        metrics = model_fit_of(run)
+    except ValueError as exc:
+        return html.Div([heading, html.P(str(exc), className="status-message")])
+    guide = (
+        "inertia e BIC/AIC non sono sulla stessa scala e non si confrontano tra metodi. "
+        "kmeans e gmm sono rifittati con i parametri del run e accettati solo se riproducono esattamente le etichette salvate."
+        if run.method in ("kmeans", "gmm")
+        else "Qui la statistica si legge dalle etichette del run: nessun rifit."
+    )
+    return html.Div([
+        heading,
+        _table(["Statistica", "Valore", "Lettura"], _model_fit_rows(run.method, metrics), text_columns=(0, 2)),
+        html.P(guide, className="comparison-note"),
+    ])
+
+
+def _confidence_block(run: ProductionRun, confidence_of: Callable[[ProductionRun], MembershipConfidence]) -> html.Div:
+    """Section 3.1 for an hdbscan run: per cluster, how many subjects sit at its core and how many at its margin."""
+    heading = html.P("Posizione nel cluster (probabilità di HDBSCAN)", className="comparison-subheading")
+    try:
+        result = confidence_of(run)
+    except ValueError as exc:
+        return html.Div([heading, html.P(str(exc), className="status-message")])
+    rows = [
+        [str(label), str(int(row.n)), _format_number(row.probability_mean, 3), f"{_format_number(row.share_below_threshold * 100, 1)}%"]
+        for label, row in result.clusters.iterrows()
+    ]
+    threshold = _format_number(result.threshold, 2)
+    return html.Div([
+        heading,
+        html.P(
+            f"{result.n_noise} soggetti di rumore (esclusi) e {result.n_confident} soggetti con probabilità di almeno {threshold}.",
+            className="section-intro",
+        ),
+        _table(["Cluster", "Soggetti", "Probabilità media", f"Sotto {threshold}"], rows, text_columns=(0,)),
+        html.P(
+            "La probabilità va da 0 a 1 ed è calcolata dentro ogni cluster: vicino a 1 il soggetto sta nel cuore del cluster, "
+            "vicino a 0 sta al margine, assegnato a quel cluster ma per poco non è rumore. Non è la probabilità di stare in "
+            "questo cluster invece che in un altro: un soggetto con 0,2 non è incerto tra due cluster, è in periferia del "
+            "suo. Non è confrontabile tra cluster di densità diversa. Un cluster con una quota alta sotto soglia è fatto "
+            "soprattutto di soggetti al margine. La probabilità è calcolata sulla densità dello spazio clusterizzato: su un "
+            "UMAP con min_dist = 0 misura quanto UMAP ha impacchettato il cluster, non prova che il cluster sia reale. "
+            f"La soglia {threshold} è un esempio, in letteratura non ce n'è una di riferimento.",
+            className="comparison-note",
+        ),
+    ])
+
+
+def _soft_membership_block(
+    run: ProductionRun, soft_of: Callable[[ProductionRun], tuple[SoftMembership, pd.DataFrame]]
+) -> html.Div:
+    """Section 3.2 for a hdbscan_soft run: per cluster table, mean membership vectors, weakest subjects."""
+    heading = html.P("Appartenenza ai cluster (soft clustering)", className="comparison-subheading")
+    try:
+        summary, weakest = soft_of(run)
+    except ValueError as exc:
+        return html.Div([heading, html.P(str(exc), className="status-message")])
+    threshold = _format_number(summary.threshold, 2)
+
+    def other(value) -> str:
+        return "—" if pd.isna(value) else str(int(value))
+
+    cluster_rows = [
+        [
+            str(label), str(int(row.n)), _format_number(row.own_mean, 3), f"{_format_number(row.share_below_threshold * 100, 1)}%",
+            other(row.top_other), _format_number(row.top_other_mean, 3) if pd.notna(row.top_other_mean) else "—",
+        ]
+        for label, row in summary.clusters.iterrows()
+    ]
+    weakest_rows = [
+        [
+            str(row.subject_id), str(int(row.cluster)), _format_number(row.own_membership, 3), other(row.best_other),
+            _format_number(row.best_other_probability, 3) if pd.notna(row.best_other_probability) else "—",
+        ]
+        for row in weakest.itertuples()
+    ]
+    return html.Div([
+        heading,
+        html.P(f"{summary.n_noise} soggetti di rumore: non hanno un cluster proprio, e hanno una riga a parte nella matrice.", className="section-intro"),
+        _table(
+            ["Cluster", "Soggetti", "Probabilità media nel proprio", f"Sotto {threshold}", "Altro cluster più probabile", "Probabilità media nell'altro"],
+            cluster_rows, text_columns=(0,),
+        ),
+        dcc.Graph(
+            figure=build_mean_membership_figure(summary.mean_vectors),
+            config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
+            style={"width": "100%"},
+        ),
+        html.P(f"I {len(weakest)} soggetti meno saldi nel proprio cluster", className="comparison-subheading"),
+        _table(
+            ["Soggetto", "Cluster", "Probabilità nel proprio", "Altro cluster più probabile", "Probabilità nell'altro"],
+            weakest_rows, text_columns=(0,),
+        ),
+        html.P(
+            "Le righe non sommano a 1: la parte mancante è la probabilità di essere rumore. Un soggetto con 0,4 nel proprio "
+            "cluster e 0,1 in tutti gli altri non è conteso: è debole, vicino al rumore. Un soggetto con 0,4 e 0,35 in un altro "
+            "cluster è conteso tra i due. La diagonale della matrice è la probabilità media nel proprio cluster, fuori "
+            "diagonale si vede quali cluster si sovrappongono. La probabilità è calcolata sulla densità dello spazio "
+            "clusterizzato, quindi su un UMAP con min_dist = 0 misura anche quanto UMAP ha impacchettato i gruppi. Non è "
+            f"confrontabile con la posizione nel cluster di hdbscan, che usa un'altra implementazione. La soglia {threshold} "
+            "è un esempio, in letteratura non ce n'è una di riferimento.",
+            className="comparison-note",
+        ),
+    ])
+
+
 def cluster_quality_content_for(
-    run: ProductionRun, summary_of: Callable[[ProductionRun], GeometricSummary] = run_geometric_summary
-) -> html.Div | html.P:
+    run: ProductionRun,
+    summary_of: Callable[[ProductionRun], GeometricSummary] = run_geometric_summary,
+    model_fit_of: Callable[[ProductionRun], dict[str, float]] = run_model_fit,
+    confidence_of: Callable[[ProductionRun], MembershipConfidence] = run_membership_confidence,
+    soft_of: Callable[[ProductionRun], tuple[SoftMembership, pd.DataFrame]] = run_soft_membership,
+) -> html.Div:
     """Panel "Valutazione del clustering" (16-10-26, on request): the geometric indices of the whole run
     (Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn, the weakest cluster's silhouette, number of
-    clusters, share of the largest one and of the noise), ported from section 2 of the evaluation
-    notebook. Not tied to the chosen cluster. `summary_of` computes (or serves from a cache) the numbers.
+    clusters, share of the largest one and of the noise) and the statistic of the model itself (inertia,
+    BIC/AIC, noise and number of clusters), ported from sections 2 and 3 of the evaluation notebook. Not
+    tied to the chosen cluster. `summary_of` and `model_fit_of` compute (or serve from a cache) the numbers.
 
-    Same never-raises contract as every other *_content_for: a run the indices are not defined for
-    renders an html.P with the cause."""
+    Same never-raises contract as every other *_content_for: each of the two parts renders its own cause
+    when it is not defined for the run, so one failing never hides the other. An hdbscan run adds the position
+    of its subjects in their cluster (section 3.1), a hdbscan_soft run its soft membership (section 3.2)."""
+    membership_blocks: list = []
+    if run.method == "hdbscan":
+        membership_blocks.append(_confidence_block(run, confidence_of))
+    elif run.method == "hdbscan_soft":
+        membership_blocks.append(_soft_membership_block(run, soft_of))
     try:
         summary = summary_of(run)
     except ValueError as exc:
-        return html.P(str(exc), className="status-message")
+        return html.Div([html.P(str(exc), className="status-message"), _model_fit_block(run, model_fit_of), *membership_blocks])
 
     def share(value: float) -> str:
         return f"{_format_number(value * 100, 1)}%"
@@ -2462,6 +2668,8 @@ def cluster_quality_content_for(
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
             style={"width": "100%"},
         ),
+        _model_fit_block(run, model_fit_of),
+        *membership_blocks,
         _quality_guide(),
     ]
     return html.Div(children)
@@ -3116,6 +3324,7 @@ _INDEX_SECTIONS: tuple[tuple[str, str, Callable[[ProductionRun | None], bool]], 
     ("embedding-section", "Embedding Visualization", lambda run: True),
     ("lesion-panel", "Anatomia lesionale", lambda run: True),
     ("disconnectome-panel", "Disconnessione (SDC)", lambda run: run is not None and run.modality == "sdc"),
+    ("pca-map-panel", "Mappe delle componenti", lambda run: run is not None and _is_pca_run(run)),
     ("clustering-section", "Clustering Explorer", lambda run: run is not None and run.pipeline == "clustering"),
     ("cluster-map-panel", "Overlap map per cluster", lambda run: run is not None and run.pipeline == "clustering"),
     (
@@ -3164,7 +3373,7 @@ def build_app(
     lesion_cfg: LesionViewerConfig,
     sdc_cfg: SdcViewerConfig,
     clustering_params_file: str | Path,
-    distance_cache_dir: str | Path,
+    cache_dir: str | Path,
     preload: bool = False,
 ) -> Dash:
     """Builds the Dash app: a run picker (dcc.Dropdown, one entry per discovered production
@@ -3191,7 +3400,7 @@ def build_app(
     standard Dash idiom for wiring a callback to a dynamically-created component.
 
     clustering_params_file (01-09-26): config/registry/params_clustering.json (or an equivalent
-    test fixture) - the picker's own "Parametri" step (tag_param_options/runs_matching) reads
+    test fixture) - the picker's own "Parametri" selector (run_picker_values) reads
     each clustering method's registered tag_param list from it, so a run can be narrowed by its
     own n_clusters/linkage/etc., not just by the upstream embedding's metric/n_components.
 
@@ -3205,14 +3414,19 @@ def build_app(
         raise ValueError("The app needs at least one production run - none were discovered, nothing to display")
 
     runs_by_key = {run.key: run for run in runs}
+    # Each run's value at every filter selector, read once here and not on every click.
+    indexed_runs = index_runs(runs, clustering_params_file)
 
     # Per-subject "voxels above threshold" memos (30-09-26), shared by every run and cluster of
     # this app instance - see BinaryMaskStore. Plain closure variables, like the view caches.
-    lesion_store = BinaryMaskStore(lesion_cfg.reference_img, lesion_cfg.resample_interpolation, lesion_cfg.binarize_threshold)
-    disconnection_store = BinaryMaskStore(
-        sdc_cfg.reference_img, sdc_cfg.resample_interpolation, DISCONNECTION_PROBABILITY_THRESHOLD
+    lesion_store = BinaryMaskStore(
+        lesion_cfg.reference_img, lesion_cfg.resample_interpolation, lesion_cfg.binarize_threshold,
+        cache_dir=Path(cache_dir) / "binary_masks",
     )
-    default_modality = modality_options(runs)[0]
+    disconnection_store = BinaryMaskStore(
+        sdc_cfg.reference_img, sdc_cfg.resample_interpolation, DISCONNECTION_PROBABILITY_THRESHOLD,
+        cache_dir=Path(cache_dir) / "binary_masks",
+    )
 
     # Cluster-overlap-map cache (01-09-26 perf fix) - process-lifetime, in-memory, scoped to
     # this one app instance (a plain closure variable, not a module-level global -
@@ -3259,7 +3473,48 @@ def build_app(
     # run and served from memory afterwards. Same closure-cache reasoning as the two view caches above;
     # a run the indices are not defined for raises ValueError and is never cached.
     geometric_summary_cache: dict[str, GeometricSummary] = {}
-    raw_distance_store = RawDistanceStore(Path(distance_cache_dir))
+    # The representative subject's viewer: about a second of nilearn per (run, cluster), kept like the other views.
+    representative_cache: dict[tuple[str, int], html.Div] = {}
+    model_fit_cache: dict[str, dict[str, float]] = {}
+    confidence_cache: dict[str, MembershipConfidence] = {}
+    soft_membership_cache: dict[str, tuple[SoftMembership, pd.DataFrame]] = {}
+
+    def _cached_confidence(run: ProductionRun) -> MembershipConfidence:
+        # An HDBSCAN refit: seconds at most on the runs seen so far, memoised per run.
+        if run.key not in confidence_cache:
+            confidence_cache[run.key] = run_membership_confidence(run)
+        return confidence_cache[run.key]
+
+    def _cached_soft_membership(run: ProductionRun) -> tuple[SoftMembership, pd.DataFrame]:
+        if run.key not in soft_membership_cache:
+            soft_membership_cache[run.key] = run_soft_membership(run)
+        return soft_membership_cache[run.key]
+
+    def _cached_model_fit(run: ProductionRun) -> dict[str, float]:
+        # A refit of kmeans/gmm: under a second on every run seen so far, memoised like the summary above.
+        if run.key not in model_fit_cache:
+            model_fit_cache[run.key] = run_model_fit(run)
+        return model_fit_cache[run.key]
+    raw_distance_store = RawDistanceStore(Path(cache_dir) / "raw_distances")
+    component_map_store = ComponentMapStore(Path(cache_dir) / "component_maps")
+    component_map_cache: dict[str, ComponentMapData] = {}
+    component_view_cache: dict[tuple[str, int], tuple[StatMapView, float]] = {}
+
+    def _cached_component_maps(run: ProductionRun) -> ComponentMapData | None:
+        # Memoised once computed (reading the entry back is cheap, not free); None (still computing) is not.
+        if run.key not in component_map_cache:
+            data = run_component_maps(run, component_map_store)
+            if data is None:
+                return None
+            component_map_cache[run.key] = data
+        return component_map_cache[run.key]
+
+    def _cached_component_view(data: ComponentMapData, component: int) -> tuple[StatMapView, float]:
+        # The view of a component is a second of nilearn; keyed by the maps' identity through the run key it came from.
+        key = next(run_key for run_key, cached in component_map_cache.items() if cached is data), component
+        if key not in component_view_cache:
+            component_view_cache[key] = _build_component_map_view(data, component)
+        return component_view_cache[key]
     adp_summary_cache: dict[str, AdpSummary] = {}
 
     def _cached_adp_summary(run: ProductionRun) -> AdpSummary | None:
@@ -3309,9 +3564,9 @@ def build_app(
     # 15-08-26 (docs/dev/clustering_migration_plan.md §3) once this app started discovering
     # clustering.py runs too - Metrica/Componenti still show up for a clustering-pipeline run
     # (uniform layout across both pipelines), just resolved to their one NO_METRIC/
-    # NO_N_COMPONENTS sentinel option each (see metric_options/n_components_options), since
-    # clustering method params have no metric/n_components axis to offer. Steps 2-6's own
-    # options are populated by the cascading callbacks below, empty at layout-build time.
+    # NO_N_COMPONENTS sentinel option each , since
+    # clustering method params have no metric/n_components axis to offer. Every selector's options are
+    # filled by the picker callback below, empty at layout-build time.
     def _picker_field(label: str, dropdown_id: str, field_id: str | None = None) -> html.Div:
         extra = {} if field_id is None else {"id": field_id}
         return html.Div(
@@ -3338,18 +3593,7 @@ def build_app(
                     html.Div(
                         className="picker-row",
                         children=[
-                            html.Div(
-                                className="picker-field",
-                                children=[
-                                    html.Label("Dato", className="picker-label"),
-                                    dcc.Dropdown(
-                                        id="modality-picker",
-                                        options=[{"label": m, "value": m} for m in modality_options(runs)],
-                                        value=default_modality,
-                                        clearable=False,
-                                    ),
-                                ],
-                            ),
+                            _picker_field("Dato", "modality-picker"),
                             _picker_field("Pipeline", "pipeline-picker"),
                             _picker_field("Metodo", "method-picker"),
                             # Hidden for a dim_reduction run (08-10-26, on request): there the Metodo already
@@ -3366,7 +3610,7 @@ def build_app(
                             # more than just the upstream embedding's metric/n_components - each
                             # method's own hyperparameters (n_clusters/linkage for agglomerative,
                             # etc.) do too. NO_METRIC-only for dim_reduction (see
-                            # tag_param_options) - kept in this same row so the picker still
+                            # run_picker_values) - kept in this same row so the picker still
                             # reads as one uniform 4-step sequence across both pipelines.
                             _picker_field("Parametri", "tag-params-picker"),
                             _picker_field("Run", "run-picker"),
@@ -3461,6 +3705,27 @@ def build_app(
                     dcc.Download(id="disconnectome-download"),
                     dcc.Download(id="disconnectome-png-download"),
                     dcc.Download(id="disconnectome-glass-png-download"),
+                ],
+            ),
+            # Hidden by default (style toggled by _update_pca_panel below): only a pca dim_reduction run has
+            # components. 16-10-26, on request: the brain maps of the components, as in section 6 of
+            # notebooks/pipeline_building/thiebaut_2020_replication.ipynb.
+            html.Div(
+                id="pca-map-panel",
+                className="anatomy-panel",
+                style={"display": "none"},
+                children=[
+                    html.H2("Mappe delle componenti", className="section-heading"),
+                    html.Div(
+                        className="cluster-chooser",
+                        children=[
+                            html.Label("Componente", className="picker-label"),
+                            dcc.Dropdown(id="pca-component-picker", clearable=False),
+                        ],
+                    ),
+                    html.Div(id="pca-map-content"),
+                    # Enabled only while the maps are being computed in the background.
+                    dcc.Interval(id="pca-map-poll", interval=_QUALITY_POLL_MS, disabled=True),
                 ],
             ),
             # Hidden by default (style toggled by _update_cluster_picker below) - only a
@@ -3633,15 +3898,11 @@ def build_app(
             raise PreventUpdate
         return {"display": "none"} if pipeline == "dim_reduction" else {}
 
-    # One callback for every picker step (see resolve_pickers): the 8 values come in, the 8 option
-    # lists and 8 values go out, so Dato -> Pipeline -> ... -> Parametri -> Run always describe the
-    # same run. Choosing a run aligns every step to its left with that run. The steps are both inputs
-    # and outputs of this callback; Dash does not re-trigger a callback from its own outputs.
+    # One callback for every selector (see resolve_pickers): the 8 values come in, the 8 option lists and 8
+    # values go out. The seven before "Run" are optional filters ("---" = not a filter); "Run" lists the runs
+    # that match the filters that are set. The selectors are both inputs and outputs of this callback; Dash
+    # does not re-trigger a callback from its own outputs.
     picker_ids = {field: f"{field.replace('_', '-')}-picker" for field in PICKER_FIELDS}
-    option_labels = {
-        "n_components": _n_components_option_label,
-        "run": lambda run_key: runs_by_key[run_key].run_name,
-    }
 
     @app.callback(
         [Output(picker_ids[field], prop) for field in PICKER_FIELDS for prop in ("options", "value")],
@@ -3650,11 +3911,18 @@ def build_app(
     def _update_pickers(*values):
         current = dict(zip(PICKER_FIELDS, values))
         changed = next((field for field in PICKER_FIELDS if picker_ids[field] == ctx.triggered_id), None)
-        options, chosen = resolve_pickers(runs, current, changed, clustering_params_file)
+        state = resolve_pickers(indexed_runs, current, changed)
+
+        def label(field: str, value) -> str:
+            if field == "run":
+                return state.run_labels[value]
+            if value == UNSET:
+                return UNSET
+            return _n_components_option_label(value) if field == "n_components" else str(value)
+
         outputs = []
         for field in PICKER_FIELDS:
-            label = option_labels.get(field, str)
-            outputs += [[{"label": label(value), "value": value} for value in options[field]], chosen[field]]
+            outputs += [[{"label": label(field, value), "value": value} for value in state.options[field]], state.chosen[field]]
         return outputs
 
     @app.callback(
@@ -3955,7 +4223,13 @@ def build_app(
             # Same never-raises-into-the-callback contract as every other *_content_for
             # panel - the main graph above already shows this same error for this run.
             return html.P(str(exc), className="status-message")
-        return representative_subject_content_for(run, embedding, metadata, cluster_label, lesion_cfg, sdc_cfg)
+        key = (run.key, cluster_label)
+        if key not in representative_cache:
+            content = representative_subject_content_for(run, embedding, metadata, cluster_label, lesion_cfg, sdc_cfg)
+            if not isinstance(content, html.P):  # a status message (a missing file...) is not remembered: it may be fixed
+                representative_cache[key] = content
+            return content
+        return representative_cache[key]
 
     @app.callback(
         Output("cluster-description-content", "children"),
@@ -3997,7 +4271,40 @@ def build_app(
         if run.method == "adp":
             content, pending = adp_quality_content_for(run, summary_of=_cached_adp_summary)
             return content, not pending
-        return cluster_quality_content_for(run, summary_of=_cached_geometric_summary), True
+        return cluster_quality_content_for(
+            run, _cached_geometric_summary, _cached_model_fit, _cached_confidence, _cached_soft_membership
+        ), True
+
+    @app.callback(
+        Output("pca-map-panel", "style"),
+        Output("pca-component-picker", "options"),
+        Output("pca-component-picker", "value"),
+        Input("run-picker", "value"),
+    )
+    def _update_pca_panel(run_key: str | None):
+        if run_key is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if not _is_pca_run(run):
+            return {"display": "none"}, [], None
+        n_components = _matrix_shape(run)[1]
+        return {}, [{"label": f"Componente {k}", "value": k} for k in range(1, n_components + 1)], 1
+
+    @app.callback(
+        Output("pca-map-content", "children"),
+        Output("pca-map-poll", "disabled"),
+        Input("run-picker", "value"),
+        Input("pca-component-picker", "value"),
+        Input("pca-map-poll", "n_intervals"),
+    )
+    def _update_pca_maps(run_key: str | None, component: int | None, _n_intervals: int):
+        if run_key is None or component is None:
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        if not _is_pca_run(run):
+            raise PreventUpdate
+        content, pending = component_maps_content_for(run, component, _cached_component_maps, _cached_component_view)
+        return content, not pending
 
     @app.callback(
         Output("representative-download", "data"),

@@ -313,3 +313,67 @@ def test_build_overlap_map_rejects_store_built_for_other_threshold(tmp_path):
 
     with pytest.raises(ValueError, match="built for other parameters"):
         build_overlap_map(paths, reference, 0.5, "nearest", store=BinaryMaskStore(reference, "nearest", 0.9))
+
+
+def _lesion_paths(tmp_path, voxels_by_subject):
+    ids = []
+    for index, voxels in enumerate(voxels_by_subject, start=1):
+        subject_id = f"sub-STUNIPD{index:04d}"
+        _make_lesion_subject(tmp_path, "siteA", subject_id, voxels)
+        ids.append(subject_id)
+    return resolve_lesion_paths(ids, {i: "siteA" for i in ids}, tmp_path, _LESION_GLOB)
+
+
+def test_the_store_keeps_each_subject_on_disk_so_a_new_store_does_not_read_the_file_again(tmp_path):
+    paths = _lesion_paths(tmp_path, [[(1, 1, 1), (2, 2, 2)], [(1, 1, 1)]])
+    reference = _reference_img()
+    first = BinaryMaskStore(reference, "nearest", 0.5, cache_dir=tmp_path / "cache")
+    expected = [first.indices(path) for path in paths.values()]
+
+    second = BinaryMaskStore(reference, "nearest", 0.5, cache_dir=tmp_path / "cache")
+
+    def refuse(_path):
+        raise AssertionError("the file must not be read again")
+
+    second._resampler.load = refuse
+    assert all(np.array_equal(second.indices(path), want) for path, want in zip(paths.values(), expected))
+
+
+def test_a_rewritten_file_gets_a_new_entry_not_the_stale_one(tmp_path):
+    (path,) = _lesion_paths(tmp_path, [[(1, 1, 1)]]).values()
+    reference = _reference_img()
+    before = BinaryMaskStore(reference, "nearest", 0.5, cache_dir=tmp_path / "cache").indices(path)
+
+    volume = np.zeros(_SHAPE, dtype=np.float32)
+    volume[3, 3, 3] = 1.0
+    volume[4, 4, 4] = 1.0  # another content, so another size on disk as well as another time
+    nib.save(nib.Nifti1Image(volume, nib.load(path).affine), path)
+    after = BinaryMaskStore(reference, "nearest", 0.5, cache_dir=tmp_path / "cache").indices(path)
+
+    assert len(before) == 1 and len(after) == 2
+
+
+def test_another_threshold_does_not_read_the_entries_of_the_first(tmp_path):
+    (path,) = _lesion_paths(tmp_path, [[(1, 1, 1)]]).values()
+    reference = _reference_img()
+    BinaryMaskStore(reference, "nearest", 0.5, cache_dir=tmp_path / "cache").indices(path)
+
+    strict = BinaryMaskStore(reference, "nearest", 1.5, cache_dir=tmp_path / "cache")  # nothing exceeds 1.5
+
+    assert len(strict.indices(path)) == 0
+    assert len([d for d in (tmp_path / "cache").iterdir() if d.is_dir()]) == 2  # one directory per parameter triple
+
+
+def test_the_store_without_a_cache_dir_writes_nothing(tmp_path):
+    (path,) = _lesion_paths(tmp_path, [[(1, 1, 1)]]).values()
+
+    store = BinaryMaskStore(_reference_img(), "nearest", 0.5)
+
+    assert len(store.indices(path)) == 1 and not (tmp_path / "cache").exists()
+
+
+def test_a_cached_store_asked_for_a_missing_file_raises(tmp_path):
+    store = BinaryMaskStore(_reference_img(), "nearest", 0.5, cache_dir=tmp_path / "cache")
+
+    with pytest.raises(FileNotFoundError):
+        store.indices(tmp_path / "no_such_file.nii.gz")

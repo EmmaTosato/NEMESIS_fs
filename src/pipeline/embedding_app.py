@@ -63,11 +63,14 @@ def main(argv: list[str] | None = None) -> int:
         "'Parametri' step (each method's own tag_param list) (default: config/registry/params_clustering.json)",
     )
     parser.add_argument(
-        "--distance-cache-dir",
-        default="results/cache/raw_distances",
-        help="Where the dice distance matrix of an adp run's raw feature matrix is cached once computed "
-        "(about 270 MB per matrix; computed in the background, about 4 minutes for lesions and up to 25 for "
-        "voxelwise disconnection) (default: results/cache/raw_distances)",
+        "--cache-dir",
+        default="results/cache",
+        help="Where results too slow to compute in a click are kept once computed, in a background thread: "
+        "the dice distance matrix of an adp run (about 270 MB, about 4 minutes for lesions and up to 25 for "
+        "voxelwise disconnection) in <cache-dir>/raw_distances, the t-maps of a pca run's components in "
+        "<cache-dir>/component_maps, and, subject by subject, the voxels of each lesion mask/disconnectome above "
+        "its threshold (what makes a cluster's overlap map instant after the first time, also after a restart) in "
+        "<cache-dir>/binary_masks (default: results/cache)",
     )
     # 8060, not Dash's own default 8050 - deliberately non-default so this app doesn't collide
     # with another local Dash instance a developer might already have running on 8050.
@@ -142,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         app = build_app(
-            runs, lesion_cfg, sdc_cfg, args.clustering_params_file, Path(args.distance_cache_dir), preload=args.preload
+            runs, lesion_cfg, sdc_cfg, args.clustering_params_file, Path(args.cache_dir), preload=args.preload
         )
     except ValueError as exc:
         logging.error(str(exc))

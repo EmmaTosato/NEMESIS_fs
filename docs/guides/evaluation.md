@@ -13,7 +13,7 @@ Il criterio (empirica contro interpretativa) è in [`exploration.md`](exploratio
 
 | Analisi | Notebook |
 |---|---|
-| Metriche geometriche e del modello di una run | `clustering_evaluation` (le sezioni 2, 2.1 e 2.2 anche nell'app Dash: pannello "Valutazione del clustering") |
+| Metriche geometriche e del modello di una run | `clustering_evaluation` (tutte le sezioni da 2 a 3.2 anche nell'app Dash: pannello "Valutazione del clustering"; la 4 è nel pannello "Descrizione del cluster") |
 | Accordo tra partizioni (ARI/NMI/VI), contingency, abbinamento e Jaccard tra cluster di run diverse | `clustering_comparison` |
 | Distanze tra cluster **nello spazio dell'embedding** (centroidi, Mahalanobis, linkage) | `clustering_comparison` |
 | Tabelle descrittive per cluster su età, sesso, NIHSS, volume, dataset, lato, sede dominante (nessun test) | `clustering_evaluation`, sezione 4 |

@@ -27,7 +27,9 @@ lesion overlap map and disconnection mean map) - see docs/guides/embedding_app.m
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import os
 import threading
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
@@ -187,6 +189,12 @@ class _GridResampler:
         return padded[lookup].astype(np.float64)
 
 
+# Bumped when what a stored entry means changes - how a file is loaded/resampled (_GridResampler.load) or
+# binarized - so entries written by older code are not served. A change of the data itself needs no bump: the
+# entry is named after the file's modification time and size.
+_MASK_CACHE_VERSION = 1
+
+
 class BinaryMaskStore:
     """Memo of "which reference-grid voxels does this file have above the threshold", one entry
     per file path - what makes a cluster overlap map instant once the subjects were seen.
@@ -204,20 +212,61 @@ class BinaryMaskStore:
     are only valid for it - and build_overlap_map refuses a store built for other parameters
     rather than mixing them. Thread-safe: a path computed twice by concurrent callers yields the
     same indices, so the plain dict write needs no lock.
+
+    `cache_dir` (16-10-26, measured: ~18 ms per subject cold, 14 s for a 778-subject cluster, ~50 s
+    for one of 2600, repeated at every app start because the memo lived in memory only): when given,
+    each subject's indices are also kept on disk, one small .npy per file, under a subdirectory named
+    after the (grid, interpolation, threshold, _MASK_CACHE_VERSION) triple. An entry is named after the
+    file's path, modification time and size, so a rewritten file gets a new entry instead of a stale one,
+    and is written to a temporary name and renamed into place, so a reader never sees a half-written
+    one. Entries are never deleted here (a file no longer on disk leaves a few KB behind).
     """
 
-    def __init__(self, reference_img: nib.Nifti1Image, resample_interpolation: str, binarize_threshold: float) -> None:
+    def __init__(
+        self, reference_img: nib.Nifti1Image, resample_interpolation: str, binarize_threshold: float,
+        cache_dir: Path | None = None,
+    ) -> None:
         self.reference_img = reference_img
         self.resample_interpolation = resample_interpolation
         self.binarize_threshold = binarize_threshold
         self._resampler = _GridResampler(reference_img, resample_interpolation)
         self._indices: dict[Path, np.ndarray] = {}
+        self._cache_dir: Path | None = None
+        if cache_dir is not None:
+            signature = hashlib.sha1(
+                f"{_MASK_CACHE_VERSION}|{reference_img.shape}|{reference_img.affine.tobytes()!r}|"
+                f"{resample_interpolation}|{binarize_threshold!r}".encode()
+            ).hexdigest()[:16]
+            self._cache_dir = Path(cache_dir) / signature
+            self._cache_dir.mkdir(parents=True, exist_ok=True)
 
     def indices(self, path: Path) -> np.ndarray:
         if path not in self._indices:
-            values = self._resampler.load(path)
-            self._indices[path] = np.flatnonzero(values > self.binarize_threshold).astype(np.int32)
+            entry = self._entry_path(path)
+            if entry is not None and entry.is_file():
+                self._indices[path] = np.load(entry)
+            else:
+                values = self._resampler.load(path)
+                self._indices[path] = np.flatnonzero(values > self.binarize_threshold).astype(np.int32)
+                if entry is not None:
+                    self._write_entry(entry, self._indices[path])
         return self._indices[path]
+
+    def _entry_path(self, path: Path) -> Path | None:
+        """The disk entry of `path`, or None when the store has no cache_dir. Raises FileNotFoundError for
+        a file that does not exist, as loading it would."""
+        if self._cache_dir is None:
+            return None
+        stat = Path(path).stat()
+        name = hashlib.sha1(f"{path}|{stat.st_mtime_ns}|{stat.st_size}".encode()).hexdigest()[:24]
+        return self._cache_dir / f"{name}.npy"
+
+    @staticmethod
+    def _write_entry(entry: Path, indices: np.ndarray) -> None:
+        temporary = entry.with_name(f"{entry.name}.tmp-{os.getpid()}-{threading.get_ident()}")
+        with open(temporary, "wb") as handle:
+            np.save(handle, indices)
+        os.replace(temporary, entry)
 
     def __contains__(self, path: Path) -> bool:
         return path in self._indices

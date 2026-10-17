@@ -4,7 +4,14 @@ import pandas as pd
 import pytest
 from dash import dcc, html
 
-from src.analysis.clustering_evaluation import AdpSummary, GeometricSummary, adp_summary
+from src.analysis.clustering_evaluation import (
+    AdpSummary,
+    GeometricSummary,
+    adp_summary,
+    membership_confidence,
+    soft_membership_summary,
+    weakest_soft_members,
+)
 from src.analysis.embedding_app import (
     NOISE_WARNING_FRACTION,
     ProductionRun,
@@ -13,11 +20,15 @@ from src.analysis.embedding_app import (
     index_entries_for,
     run_adp_summary,
     run_geometric_summary,
+    run_membership_confidence,
+    run_model_fit,
+    run_soft_membership,
 )
 import numpy as np
 import time
 
 from src.analysis.raw_distances import RawDistanceStore
+from src.utils.artifacts import save_matrix
 from tests.unit.test_embedding_app import _make_run_dir
 
 
@@ -37,6 +48,23 @@ def _run(method="kmeans", reduction_method="umap", path=None) -> ProductionRun:
     return ProductionRun("lesion", "clustering", method, "15-10_x", path, reduction_method=reduction_method)
 
 
+def _unused(_run):
+    raise ValueError("not under test")
+
+
+def _fit(run) -> dict[str, float]:
+    """The statistic each method has, as run_model_fit would return it; a method without one is refused."""
+    by_method = {
+        "kmeans": {"inertia": 1234.5},
+        "gmm": {"bic": 5000.2, "aic": 4900.7},
+        "hdbscan": {"noise_fraction": 0.09, "n_clusters_found": 4.0},
+        "hdbscan_soft": {"noise_fraction": 0.01, "n_clusters_found": 8.0},
+    }
+    if run.method not in by_method:
+        raise ValueError(f"no model statistic for {run.method}")
+    return by_method[run.method]
+
+
 def _text(component) -> str:
     """Every string inside a Dash component tree, space-joined."""
     if isinstance(component, str):
@@ -50,7 +78,7 @@ def _text(component) -> str:
 
 
 def test_the_panel_shows_every_index_with_italian_number_formatting():
-    text = _text(cluster_quality_content_for(_run(), summary_of=lambda _run: _summary()))
+    text = _text(cluster_quality_content_for(_run(), model_fit_of=_fit, summary_of=lambda _run: _summary()))
 
     for expected in ("0,546", "0,431", "0,210", "17.157,4", "0,462", "0,0123", "41,2%", "0,3%", "5845 soggetti"):
         assert expected in text
@@ -58,8 +86,8 @@ def test_the_panel_shows_every_index_with_italian_number_formatting():
 
 
 def test_a_noise_share_above_the_threshold_adds_a_warning_and_below_it_does_not():
-    quiet = cluster_quality_content_for(_run(), summary_of=lambda _run: _summary(noise_fraction=NOISE_WARNING_FRACTION))
-    noisy = cluster_quality_content_for(_run(), summary_of=lambda _run: _summary(noise_fraction=0.25))
+    quiet = cluster_quality_content_for(_run(), model_fit_of=_fit, summary_of=lambda _run: _summary(noise_fraction=NOISE_WARNING_FRACTION))
+    noisy = cluster_quality_content_for(_run(), model_fit_of=_fit, summary_of=lambda _run: _summary(noise_fraction=0.25))
 
     assert "Attenzione" not in _text(quiet)
     assert "Attenzione" in _text(noisy) and "25,0%" in _text(noisy)
@@ -69,9 +97,10 @@ def test_a_run_the_indices_are_not_defined_for_renders_the_cause_instead_of_rais
     def refuse(_run):
         raise ValueError("fewer than 2 clusters")
 
-    content = cluster_quality_content_for(_run(), summary_of=refuse)
+    content = cluster_quality_content_for(_run(), model_fit_of=_fit, summary_of=refuse)
 
-    assert isinstance(content, html.P) and "fewer than 2 clusters" in content.children
+    assert "fewer than 2 clusters" in _text(content)
+    assert "Inertia" in _text(content)  # the model statistic is still there: one failing part never hides the other
 
 
 def test_run_geometric_summary_refuses_adp(tmp_path):
@@ -116,7 +145,7 @@ def _graphs(component) -> list:
 
 
 def test_the_panel_draws_one_silhouette_graph_with_a_bar_per_cluster():
-    content = cluster_quality_content_for(_run(), summary_of=lambda _run: _summary())
+    content = cluster_quality_content_for(_run(), model_fit_of=_fit, summary_of=lambda _run: _summary())
 
     (graph,) = _graphs(content)
     assert list(graph.figure.data[0].y) == ["0 · n=100", "1 · n=200"]
@@ -218,3 +247,171 @@ def test_the_quality_callback_keeps_polling_an_adp_run_until_its_distances_are_r
 
     assert payload["cluster-quality-poll"]["disabled"] is True
     assert "Purezza dei 1 vicini" in json.dumps(payload["cluster-quality-content"], ensure_ascii=False)
+
+
+@pytest.mark.parametrize(
+    ("method", "metrics", "expected"),
+    [
+        ("kmeans", {"inertia": 1234.5}, ["Inertia", "1.234,5"]),
+        ("gmm", {"bic": 5000.2, "aic": 4900.7}, ["BIC", "5.000,2", "AIC", "4.900,7"]),
+        ("hdbscan", {"noise_fraction": 0.093, "n_clusters_found": 4.0}, ["Rumore", "9,3%", "Cluster trovati", "4"]),
+        ("hdbscan_soft", {"noise_fraction": 0.003, "n_clusters_found": 8.0}, ["Rumore", "0,3%", "Cluster trovati", "8"]),
+    ],
+)
+def test_the_model_statistic_block_shows_what_each_method_has(method, metrics, expected):
+    content = cluster_quality_content_for(
+        _run(method=method), lambda _run: _summary(), lambda _run: metrics, confidence_of=_unused, soft_of=_unused
+    )
+
+    text = _text(content)
+    assert "Statistica del modello" in text
+    assert all(piece in text for piece in expected)
+
+
+def test_a_refit_that_does_not_reproduce_the_labels_says_so_instead_of_showing_a_number():
+    def refuse(_run):
+        raise ValueError("refitting 'kmeans' does not reproduce the stored labels")
+
+    text = _text(cluster_quality_content_for(_run(), lambda _run: _summary(), refuse))
+
+    assert "does not reproduce the stored labels" in text and "Inertia" not in text
+
+
+def test_a_method_without_a_model_statistic_says_so():
+    # agglomerative has none: the real run_model_fit refuses it through require_applicable.
+    text = _text(cluster_quality_content_for(_run(method="agglomerative"), lambda _run: _summary()))
+
+    assert "Statistica del modello" in text and "agglomerative" in text and "kmeans" in text
+
+
+def test_run_model_fit_refits_the_run_and_reads_its_inertia(tmp_path):
+    from sklearn.cluster import KMeans
+
+    params = {"n_clusters": 2, "n_init": 10, "random_state": 0}
+    fixture_matrix = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 0.5], [3.0, 2.0]])  # what _make_run_dir saves
+    labels = KMeans(**params).fit(fixture_matrix).labels_  # the numbering a real run would have stored
+    run_dir = _make_run_dir(
+        tmp_path / "results", pipeline="clustering", method="kmeans", run_name="15-10_x",
+        params=params, extra_metadata={"cluster_label": labels},
+    )
+
+    metrics = run_model_fit(_run(path=run_dir))
+
+    assert set(metrics) == {"inertia"} and metrics["inertia"] > 0
+
+
+def test_run_model_fit_refuses_a_matrix_wider_than_the_limit(tmp_path, monkeypatch):
+    run_dir = _make_run_dir(
+        tmp_path / "results", pipeline="clustering", method="kmeans", run_name="15-10_x",
+        params={"n_clusters": 2, "random_state": 0}, extra_metadata={"cluster_label": [0, 0, 1, 1]},
+    )
+    monkeypatch.setattr("src.analysis.embedding_app.MAX_QUALITY_COLUMNS", 1)
+
+    with pytest.raises(ValueError, match="2 colonne"):
+        run_model_fit(_run(path=run_dir))
+
+
+_SOFT_LABELS = np.array([0, 0, 1, 1, -1, 0])
+_SOFT_MEMBERSHIP = np.array([[0.9, 0.05], [0.4, 0.35], [0.1, 0.8], [0.2, 0.3], [0.05, 0.05], [0.6, 0.1]])
+
+
+def _soft_pair():
+    weakest = weakest_soft_members(_SOFT_LABELS, _SOFT_MEMBERSHIP, 2)
+    weakest.insert(0, "subject_id", [f"sub-{i}" for i in weakest.index])
+    return soft_membership_summary(_SOFT_LABELS, _SOFT_MEMBERSHIP, 0.5), weakest
+
+
+def test_an_hdbscan_run_gets_the_position_in_cluster_block():
+    from tests.unit.test_clustering_evaluation import _HDBSCAN_PARAMS, _blobs_of_mixed_density, _fit_hdbscan
+
+    X = _blobs_of_mixed_density()
+    labels, _ = _fit_hdbscan(X)
+    result = membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, labels, 0.5)
+
+    content = cluster_quality_content_for(
+        _run(method="hdbscan"), lambda _run: _summary(), _fit, confidence_of=lambda _run: result, soft_of=_unused
+    )
+
+    text = _text(content)
+    assert "Posizione nel cluster" in text and f"{result.n_noise} soggetti di rumore" in text
+    assert "Sotto 0,50" in text and "Appartenenza ai cluster" not in text
+
+
+def test_a_hdbscan_soft_run_gets_the_soft_membership_block_with_heatmap_and_weakest_subjects():
+    content = cluster_quality_content_for(
+        _run(method="hdbscan_soft"), lambda _run: _summary(), _fit, confidence_of=_unused, soft_of=lambda _run: _soft_pair()
+    )
+
+    text = _text(content)
+    assert "Appartenenza ai cluster" in text and "Posizione nel cluster" not in text
+    assert "1 soggetti di rumore" in text
+    assert "sub-3" in text and "sub-1" in text and "0,300" in text  # the two weakest, lowest first
+    assert len(_graphs(content)) == 2  # the silhouette bars and the membership heatmap
+
+
+@pytest.mark.parametrize("method", ["hdbscan", "hdbscan_soft"])
+def test_a_membership_block_that_cannot_be_computed_says_why_and_leaves_the_rest(method):
+    def refuse(_run):
+        raise ValueError("refit does not reproduce the stored labels")
+
+    text = _text(cluster_quality_content_for(_run(method=method), lambda _run: _summary(), _fit, confidence_of=refuse, soft_of=refuse))
+
+    assert "does not reproduce the stored labels" in text and "Silhouette" in text
+
+
+@pytest.mark.parametrize("method", ["kmeans", "gmm", "agglomerative", "spectral"])
+def test_the_other_methods_get_neither_membership_block(method):
+    text = _text(cluster_quality_content_for(_run(method=method), lambda _run: _summary(), _fit, confidence_of=_unused, soft_of=_unused))
+
+    assert "Posizione nel cluster" not in text and "Appartenenza ai cluster" not in text
+
+
+def _save_run(tmp_path, method, X, labels, params, extra_arrays=None):
+    import json
+
+    run_dir = tmp_path / "results" / "lesion" / "clustering" / "production" / method / "umap" / "15-10_x"
+    metadata = pd.DataFrame({"subject_id": [f"sub-{i}" for i in range(len(X))], "cluster_label": labels})
+    readme = ["# test run", "", f"Params used: {json.dumps(params)}"]
+    save_matrix(run_dir, X, metadata, readme_lines=readme, overwrite=False, extra_arrays=extra_arrays)
+    return ProductionRun("lesion", "clustering", method, "15-10_x", run_dir, reduction_method="umap")
+
+
+def test_run_membership_confidence_refits_hdbscan_and_reads_the_run_labels(tmp_path):
+    from tests.unit.test_clustering_evaluation import _HDBSCAN_PARAMS, _blobs_of_mixed_density, _fit_hdbscan
+
+    X = _blobs_of_mixed_density()
+    labels, _ = _fit_hdbscan(X)
+    run = _save_run(tmp_path, "hdbscan", X, labels, _HDBSCAN_PARAMS)
+
+    result = run_membership_confidence(run)
+
+    assert result.n_noise == int((labels == -1).sum()) and result.threshold == 0.5
+    assert sorted(result.clusters.index) == sorted(set(labels) - {-1})
+
+
+def test_run_membership_confidence_refuses_labels_the_refit_does_not_reproduce(tmp_path):
+    from tests.unit.test_clustering_evaluation import _HDBSCAN_PARAMS, _blobs_of_mixed_density, _fit_hdbscan
+
+    X = _blobs_of_mixed_density()
+    labels, _ = _fit_hdbscan(X)
+    run = _save_run(tmp_path, "hdbscan", X, np.roll(labels, 1), _HDBSCAN_PARAMS)
+
+    with pytest.raises(ValueError, match="does not reproduce the stored labels"):
+        run_membership_confidence(run)
+
+
+def test_run_soft_membership_reads_the_saved_membership_and_names_the_weakest_subjects(tmp_path):
+    X = np.zeros((6, 2))
+    run = _save_run(tmp_path, "hdbscan_soft", X, _SOFT_LABELS, {"min_cluster_size": 2}, extra_arrays={"membership": _SOFT_MEMBERSHIP})
+
+    summary, weakest = run_soft_membership(run)
+
+    assert summary.n_noise == 1 and list(summary.clusters.index) == [0, 1]
+    assert list(weakest["subject_id"])[:2] == ["sub-3", "sub-1"]  # the lowest own probability first
+
+
+def test_run_soft_membership_refuses_a_run_without_membership_npy(tmp_path):
+    run = _save_run(tmp_path, "hdbscan_soft", np.zeros((6, 2)), _SOFT_LABELS, {"min_cluster_size": 2})
+
+    with pytest.raises(ValueError, match="membership.npy"):
+        run_soft_membership(run)
