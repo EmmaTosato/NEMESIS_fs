@@ -6,6 +6,16 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 18-10-26 — I file dei report di clustering vanno nelle cartelle delle run, i riepiloghi per modalità accanto ai tuning
+
+**Cosa è cambiato** (a mano, senza rilanciare niente; `results/` è ignorato da git): da `results/reports/cluster_tuning_notebooks/cluster_*/{images,tables,adp}/` sono stati spostati 307 file nelle cartelle delle run in `results/{lesion,sdc}/clustering/tuning/<metodo>/...` (agglomerative, hdbscan, adp), assegnati per nome del file; i file ADP di più report della stessa matrice condividono la cartella ADP e hanno il prefisso del report (`lesion_dice_nc2_07-10__...`). 12 file erano copie byte-identiche di file già presenti nella run (sha256) e sono stati cancellati. Restano nei report 24 file che non appartengono a una run sola (confronti tra embedding, immagini di riferimento, tabelle ausiliarie del metodo vecchio). `report.md` cita i file con percorso relativo (nessun riferimento rotto). L'elenco completo, con origine e destinazione, è in `results/reports/cluster_tuning_notebooks/MOVES_18-10-26.json`.
+
+`SUMMARY.md` è diviso in `results/lesion/clustering/tuning/SUMMARY.md` e `results/sdc/clustering/tuning/SUMMARY.md` (lo streamline è in `sdc`); `all_candidates.csv` (208 righe) è diviso per modalità (128 lesione, 80 SDC). Gli originali sono in `results/legacy/cluster_tuning_notebooks_pre-split_18-10-26/`.
+
+**Perché**: una cartella report doveva contenere solo ciò che non esiste altrove; le immagini e le tabelle di una run appartengono alla run.
+
+**Conseguenza ancora vera**: due intervalli di `hdbscan_soft` (26-209 cluster, rumore 15.6-38.9%; leaf 40.2-54.3%) erano calcolati su lesione e SDC insieme e non si possono separare senza ricalcolo: compaiono in entrambi i riepiloghi con la nota. Non spostati: `scripts/` dei report e `_shared/` (codice del metodo precedente, non versionato sotto `results/`). Una nuova run di tuning con `overwrite: true` cancella la cartella della run e i file spostati lì dentro.
+
 ## 18-10-26 — Lo scree plot della PCA esce dalla pipeline e si disegna nel notebook
 
 **Cosa è cambiato**: `dim_reduction.py` non scrive più `scree_plot.png` e `scree_plot_zoom.png` nel tuning della PCA, e `plotting.plot_scree`, `_scree_components` e `SCREE_ZOOM_COMPONENTS` sono stati cancellati insieme ai loro test. Resta `eigenvalues.npz` (lo spettro intero, 47 KB), da cui `notebooks/post-results_analysis/pca_evaluation.ipynb` disegna il grafico con il numero di componenti che si vuole. I due png di `results/sdc/dim_reduction/tuning/pca/16-10_s2.4-vol/` sono stati cancellati a mano.
