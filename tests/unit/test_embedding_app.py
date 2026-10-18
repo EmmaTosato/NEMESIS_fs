@@ -1958,12 +1958,13 @@ def test_description_sits_between_the_section_heading_and_the_plot(tmp_path):
     run_dir = _make_run_dir(tmp_path / "results", run_name="run-2d", n_dims=2)
     run = ProductionRun("lesion", "dim_reduction", "umap", "run-2d", run_dir)
     app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache")
-    ids = [getattr(child, "id", None) for child in app.layout.children]
+    content = next(child for child in app.layout.children if getattr(child, "id", None) == "run-content").children
+    ids = [getattr(child, "id", None) for child in content]
 
-    heading = next(i for i, child in enumerate(app.layout.children) if getattr(child, "children", None) == "Embedding Visualization")
+    heading = next(i for i, child in enumerate(content) if getattr(child, "children", None) == "Embedding Visualization")
     assert ids[heading + 1] == "color-description"
     assert ids[heading + 2] == "graph-area"
-    assert app.layout.children[heading + 1].children == color_mode_description("neutro")
+    assert content[heading + 1].children == color_mode_description("neutro")
 
 
 def test_cluster_composition_content_for_returns_one_graph_per_variable(_participants_registry_root):

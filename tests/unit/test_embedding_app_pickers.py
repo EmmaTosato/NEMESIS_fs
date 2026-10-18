@@ -155,7 +155,7 @@ def test_a_filter_offers_the_values_of_the_runs_the_other_filters_leave_not_its_
 def test_the_run_list_shows_exactly_the_runs_that_match_the_filters_that_are_set(_indexed):
     state = resolve_pickers(_indexed, _current(modality="lesion", pipeline="clustering", metric="dice"), "metric")
 
-    assert state.options["run"] == [_key("lesion", "clustering", "kmeans", "13-08_k5", "umap")]
+    assert state.options["run"] == [UNSET, _key("lesion", "clustering", "kmeans", "13-08_k5", "umap")]
 
 
 def test_choosing_a_run_leaves_the_open_filters_open(_indexed):
@@ -165,6 +165,22 @@ def test_choosing_a_run_leaves_the_open_filters_open(_indexed):
 
     assert state.chosen["run"] == run
     assert state.chosen["modality"] == "lesion" and state.chosen["method"] == UNSET and state.chosen["metric"] == UNSET
+
+
+def test_run_offers_the_open_choice_first_and_keeps_it_while_chosen(_indexed):
+    state = resolve_pickers(_indexed, _current(modality="lesion", run=UNSET), "run")
+    after_filter = resolve_pickers(_indexed, _current(modality="lesion", pipeline="clustering", run=UNSET), "pipeline")
+
+    assert state.options["run"][0] == UNSET and len(state.options["run"]) > 1
+    assert state.chosen["run"] == UNSET
+    assert after_filter.chosen["run"] == UNSET  # a filter change does not pick a run for the user
+    assert UNSET not in state.run_labels
+
+
+def test_the_first_render_does_not_start_on_the_open_run_choice(_indexed):
+    state = resolve_pickers(_indexed, {field: None for field in PICKER_FIELDS}, None)
+
+    assert state.chosen["run"] != UNSET
 
 
 def test_the_chosen_run_stays_while_the_filters_still_list_it_else_it_is_the_most_recent(_indexed):
@@ -182,7 +198,7 @@ def test_the_filter_just_changed_wins_and_one_that_would_leave_no_run_goes_back_
     state = resolve_pickers(_indexed, _current(modality="lesion", pipeline="dim_reduction", method="kmeans"), "pipeline")
 
     assert state.chosen["pipeline"] == "dim_reduction" and state.chosen["method"] == UNSET
-    assert state.options["run"]  # never an empty list
+    assert state.options["run"][1:]  # never without a run to choose, besides UNSET
 
 
 def test_a_leftover_filter_set_on_a_value_no_run_has_is_dropped(_indexed):
@@ -225,5 +241,50 @@ def test_the_picker_callback_answers_in_one_response_for_every_selector(_runs, t
     payload = response.get_json()["response"]
     assert payload[ids["pipeline"]]["options"][0] == {"label": UNSET, "value": UNSET}
     assert payload[ids["run"]]["value"] == "sdc/clustering/kmeans/umap/14-08_s3"
-    assert payload[ids["run"]]["options"] == [{"label": "14-08_s3  (clustering / kmeans / umap)", "value": "sdc/clustering/kmeans/umap/14-08_s3"}]
+    assert payload[ids["run"]]["options"] == [
+        {"label": UNSET, "value": UNSET},
+        {"label": "14-08_s3  (clustering / kmeans / umap)", "value": "sdc/clustering/kmeans/umap/14-08_s3"},
+    ]
     assert payload[ids["n_components"]]["options"][0]["label"] == UNSET
+
+
+def _post_run_picker(app, run_value, output_ids, output_props):
+    body = {
+        "output": output_ids,
+        "outputs": output_props,
+        "inputs": [{"id": "run-picker", "property": "value", "value": run_value}],
+        "changedPropIds": ["run-picker.value"],
+    }
+    return app.server.test_client().post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
+
+
+def test_the_page_content_is_hidden_while_run_is_open_and_shown_for_a_run(_runs, tmp_path):
+    app = build_app(_runs, _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache")
+    app.server.config["TESTING"] = True
+    output = "..run-content.style...no-run-message.style.."
+    outputs = [{"id": "run-content", "property": "style"}, {"id": "no-run-message", "property": "style"}]
+
+    hidden = _post_run_picker(app, UNSET, output, outputs).get_json()["response"]
+    shown = _post_run_picker(app, "lesion/dim_reduction/umap/10-08_a", output, outputs).get_json()["response"]
+
+    assert hidden["run-content"]["style"] == {"display": "none"} and hidden["no-run-message"]["style"] == {}
+    assert shown["run-content"]["style"] == {} and shown["no-run-message"]["style"] == {"display": "none"}
+
+
+def test_the_graph_is_not_drawn_while_run_is_open(_runs, tmp_path):
+    app = build_app(_runs, _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache")
+    app.server.config["TESTING"] = True
+    body = {
+        "output": "graph-area.children",
+        "outputs": {"id": "graph-area", "property": "children"},
+        "inputs": [
+            {"id": "run-picker", "property": "value", "value": UNSET},
+            {"id": "selected-color-mode", "property": "data", "value": "neutral"},
+            {"id": "selected-grid", "property": "data", "value": "2mm"},
+        ],
+        "changedPropIds": ["run-picker.value"],
+    }
+
+    response = app.server.test_client().post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
+
+    assert response.status_code == 204  # PreventUpdate: no KeyError on runs_by_key["---"]
