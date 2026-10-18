@@ -137,6 +137,7 @@ flowchart LR
         R14S["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
         R24S["s2.4-vol<br/>sdc_matrix<br/>16-10<br/>5845 subj."]
         R25S["s2.4-stream<br/>sdc_matrix<br/>07-10<br/>5831 subj."]
+        R24P["s2.4-vol<br/>sdc_matrix<br/>16-10<br/>5845 subj."]
     end
 
     subgraph COL1["Dim Reduction — Tuning"]
@@ -150,6 +151,7 @@ flowchart LR
         T14S["07-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10"]
         T24S["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
         T25S["no dim reduction"]
+        T24P["16-10<hr/>PCA none/varimax<br/>2-150 componenti"]
     end
 
     subgraph COL2["Dim Reduction — Production"]
@@ -163,6 +165,7 @@ flowchart LR
         P14S["08-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10"]
         P24S["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
         P25S["no dim reduction"]
+        P24P["16-10 / 17-10<hr/>PCA non ruotata<br/>nc42, nc30<hr/>18-10<br/>PCA nc2<br/>(solo per la vista)"]
     end
 
     subgraph COL3["Clustering — Tuning"]
@@ -176,6 +179,7 @@ flowchart LR
         CT14S["15-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
         CT24S["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
         CT25S["15-10<hr/>raw<br/>87 tratti<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
+        CT24P["17-10<hr/>PCA nc42, nc30<br/>agglomerative, HDBSCAN"]
     end
 
     subgraph COL4["Clustering — Production"]
@@ -189,6 +193,7 @@ flowchart LR
         CP14S["15-10<hr/>UMAP dice/euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 12 run"]
         CP24S["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 4 run su 5"]
         CP25S["nessuna combinazione usabile"]:::pending
+        CP24P["18-10<hr/>PCA nc42, nc30<br/>agglomerative ward k=3<br/>(2 run)"]
     end
 
     R14 --> T14 --> P14 --> CT14 --> CP14
@@ -200,6 +205,7 @@ flowchart LR
     R14S --> T14S --> P14S --> CT14S --> CP14S
     R24S --> T24S --> P24S --> CT24S --> CP24S
     R25S --> T25S --> P25S --> CT25S -.-> CP25S
+    R24P --> T24P --> P24P --> CT24P --> CP24P
 ```
 
-Ogni matrice compare tre volte: il ramo principale (UMAP, poi agglomerative e HDBSCAN), il ramo ADP sulla matrice grezza, e il ramo `hdbscan_soft`.
+Ogni matrice compare tre volte: il ramo principale (UMAP, poi agglomerative e HDBSCAN), il ramo ADP sulla matrice grezza, e il ramo `hdbscan_soft`. s2.4-vol del 16-10 compare una quarta volta, con il ramo PCA.

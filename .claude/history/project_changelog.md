@@ -6,6 +6,16 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 17-10-26 — La rotazione compare nel tag della PCA solo quando c'è
+
+**Cosa è cambiato**: nella voce `pca` di `config/registry/params_reduction.json` e `params_reduction_sdc.json`, `tag_param` è `["n_components", "rotation"]`, `tag_prefix` `["nc", ""]`, e un campo nuovo `"tag_omit": {"rotation": "none"}` toglie quella parte dal tag quando la rotazione è `none`. Le cartelle sono `nc42` (non ruotata) e `nc42_varimax` (ruotata), per la produzione e per il tag dell'embedding in `clustering.py` (`params.py::_tag_omit`, `_join_tag`).
+
+`rotation` entra anche tra le colonne di `runs.csv` di produzione della PCA, e l'intestazione deve restare identica tra le righe: `results/sdc/dim_reduction/production/pca/runs.csv` (una riga, la run nc42 del 16-10) è stato migrato a mano aggiungendo `rotation=none`.
+
+**Perché**: due run con lo stesso numero di componenti ma rotazione diversa avevano lo stesso nome (lo stesso giorno la seconda si fermava con `FileExistsError`, in giorni diversi le distingueva solo la data). Scelta dell'utente: la rotazione nel nome solo quando c'è, così i nomi esistenti non cambiano.
+
+**Conseguenza ancora vera**: il tag della PCA non contiene `standardize` né `solver`: una PCA standardizzata e una no, con lo stesso numero di componenti, hanno lo stesso nome. Si distinguono solo dal `config.md` dell'embedding.
+
 ## 17-10-26 — Risultati di `s2.4-vol` sulla matrice pre-correzione spostati in `results/legacy/`
 
 **Cosa è cambiato**: 44 cartelle sotto `results/sdc/` (circa 25 GB) sono state spostate in `results/legacy/sdc_s2.4-vol_07-10/`, con la stessa struttura di `results/sdc/` (`clustering/{tuning,production}/...`, `dim_reduction/{tuning,production}/...`). Sono tutte le run di `s2.4-vol` costruite sulla matrice `data/derived/sdc_matrix/07-10_s2.4-vol` (voxel fuori dal cervello non azzerati): tuning UMAP 07-10, embedding di produzione 08-10 (nc2, nc3, nc10), tuning di agglomerative/HDBSCAN 09-10, di `hdbscan_soft` 15-10 e di ADP 08-10, produzioni 12-10 (agglomerative 14, HDBSCAN 7, ADP 4) e `hdbscan_soft` 15-10 (4). Restano in `results/sdc/` le 50 cartelle sulla matrice del 16-10 (compresa la PCA 16-10/17-10) e tutto `s2.4-stream`. `data/` non è cambiato.
