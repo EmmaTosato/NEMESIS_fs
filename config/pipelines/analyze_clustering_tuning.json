@@ -1,0 +1,12 @@
+{
+  "tuning_dir": "results/lesion/clustering/tuning/agglomerative/umap/08-10_s1.4-vol_m_dice_nc2",
+  "overwrite": false,
+  "k_range": {"min": 3, "max": 30},
+  "curves_max_noise_fraction": 0.1,
+  "usable": {
+    "min_clusters": 3,
+    "max_clusters": 30,
+    "max_noise_fraction": 0.25,
+    "max_largest_cluster_share": 0.6
+  }
+}

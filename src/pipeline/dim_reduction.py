@@ -64,10 +64,9 @@ import pandas as pd
 from src.analysis.distances import SUPPORTED_BINARY_METRICS, require_binary_matrix
 from src.analysis.embedding_plots import write_embedding_grid, write_embedding_plots
 from src.analysis.model_config import DimReductionConfig, load_dim_reduction_config
-from src.analysis.covariance_pca import components_for_share
 from src.analysis.pca_method import decomposition_spectra, fit_pca
 from src.analysis.params import load_method_params, load_nested_params, load_tag_params, load_trustworthiness_n_neighbors, load_tuning_grid
-from src.analysis.plotting import compose_embedding_plot_title, compose_run_title, compose_tuning_leaf_title, plot_scree, plot_tuning_curve
+from src.analysis.plotting import compose_embedding_plot_title, compose_run_title, compose_tuning_leaf_title, plot_tuning_curve
 from src.analysis.reduction import embed, embedding_for_viz
 from src.analysis.tuning import METHODS_REQUIRING_TRUSTWORTHINESS_N_NEIGHBORS, TUNING_METRIC_NAMES, run_tuning_sweep
 from src.analysis.tuning_embeddings import TuningRun, combo_key, leaf_dir
@@ -82,9 +81,6 @@ from src.utils.run_log import append_run_log_entry
 
 LOGS_ROOT = Path("logs") / "dim_reduction"
 LOG_FILENAME_PREFIX = "dim_reduction"
-# The pca tuning's second scree plot shows only this many components (scree_plot_zoom.png), written
-# when the full plot shows more.
-SCREE_ZOOM_COMPONENTS = 50
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -297,9 +293,7 @@ def _run_fine_tuning(config: DimReductionConfig, X: np.ndarray, metadata: pd.Dat
     if model_cache is not None:
         try:
             spectra = decomposition_spectra(model_cache)
-            _write_pca_spectra(
-                output_dir, spectra, compose_run_title(output_dir, config.project), _scree_components(params, tuning_grid, spectra)
-            )
+            _write_pca_spectra(output_dir, spectra)
         except (OSError, ValueError) as exc:
             logging.error("cannot write the pca spectrum (the sweep itself was written to %s): %s", output_dir, exc, exc_info=True)
             return 1
@@ -482,28 +476,12 @@ def _savez_atomic(final_path: Path, arrays: dict[str, np.ndarray]) -> None:
     tmp_path.replace(final_path)
 
 
-def _scree_components(params: dict, tuning_grid: dict[str, list], spectra: dict[str, np.ndarray]) -> int:
-    """How many components the scree plot shows: the most any combination of the sweep keeps."""
-    if "n_components" in tuning_grid:
-        sizes = tuning_grid["n_components"]
-    elif "n_components" in params:
-        sizes = [params["n_components"]]
-    else:
-        shares = tuning_grid["variance_share"] if "variance_share" in tuning_grid else [params["variance_share"]]
-        sizes = [components_for_share(eigenvalues, share) for eigenvalues in spectra.values() for share in shares]
-    return max(sizes)
-
-
-def _write_pca_spectra(output_dir: Path, spectra: dict[str, np.ndarray], title: str, n_shown: int) -> None:
-    """eigenvalues.npz (one array per decomposition the sweep fitted, keyed by what defines it) and
-    scree_plot.png (its first `n_shown` components), plus scree_plot_zoom.png on the first
-    SCREE_ZOOM_COMPONENTS when `n_shown` is larger: the variance spectrum, which tuning_results.csv
-    only samples at the swept values. Written for every pca tuning, whether or not
-    save_tuning_embeddings is on (47 KB)."""
+def _write_pca_spectra(output_dir: Path, spectra: dict[str, np.ndarray]) -> None:
+    """eigenvalues.npz: one array per decomposition the sweep fitted, keyed by what defines it - the
+    variance spectrum, which tuning_results.csv only samples at the swept values. Written for every pca
+    tuning, whether or not save_tuning_embeddings is on (47 KB). The scree plot is drawn from it in
+    notebooks/post-results_analysis/pca_evaluation.ipynb."""
     _savez_atomic(output_dir / "eigenvalues.npz", spectra)
-    plot_scree(spectra, output_dir / "scree_plot.png", title, n_shown)
-    if n_shown > SCREE_ZOOM_COMPONENTS:
-        plot_scree(spectra, output_dir / "scree_plot_zoom.png", f"{title} - first {SCREE_ZOOM_COMPONENTS} components", SCREE_ZOOM_COMPONENTS)
 
 
 # embeddings_grid.png is a static-only diagnostic (no interactive counterpart) - always 2

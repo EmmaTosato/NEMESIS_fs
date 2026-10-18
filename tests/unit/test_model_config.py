@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from src.analysis.model_config import (
+    load_analyze_clustering_tuning_config,
     load_clustering_config,
     load_dim_reduction_config,
     load_evaluate_tuning_embeddings_config,
@@ -536,3 +537,54 @@ def test_missing_required_field_raises(tmp_path):
 def test_missing_file_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
         load_dim_reduction_config(tmp_path / "nope.json")
+
+
+def _analyze_payload(**overrides):
+    payload = {
+        "tuning_dir": "results/lesion/clustering/tuning/agglomerative/umap/08-10_s1.4-vol_m_dice_nc2",
+        "overwrite": False,
+        "k_range": {"min": 3, "max": 30},
+        "curves_max_noise_fraction": 0.1,
+        "usable": {"min_clusters": 3, "max_clusters": 30, "max_noise_fraction": 0.25, "max_largest_cluster_share": 0.6},
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_analyze_clustering_tuning_config_valid(tmp_path):
+    config = load_analyze_clustering_tuning_config(_write(tmp_path, "an.json", _analyze_payload()))
+
+    assert config.tuning_dir == Path("results/lesion/clustering/tuning/agglomerative/umap/08-10_s1.4-vol_m_dice_nc2")
+    assert (config.k_min, config.k_max) == (3, 30)
+    assert config.curves_max_noise_fraction == 0.1
+    assert (config.usable.min_clusters, config.usable.max_clusters) == (3, 30)
+    assert config.usable.max_noise_fraction == 0.25
+    assert config.usable.max_largest_cluster_share == 0.6
+
+
+@pytest.mark.parametrize(
+    "overrides, message",
+    [
+        ({"k_range": {"min": 30, "max": 3}}, "k_range.min"),
+        ({"k_range": {"min": 1, "max": 30}}, "'min' must be an integer >= 2"),
+        ({"k_range": {"min": 3}}, "missing required field 'max'"),
+        ({"curves_max_noise_fraction": 0}, "'curves_max_noise_fraction' must be a number in"),
+        ({"curves_max_noise_fraction": 1.5}, "'curves_max_noise_fraction' must be a number in"),
+        ({"curves_max_noise_fraction": True}, "'curves_max_noise_fraction' must be a number in"),
+        ({"usable": {"min_clusters": 5, "max_clusters": 3, "max_noise_fraction": 0.25, "max_largest_cluster_share": 0.6}}, "usable.min_clusters"),
+        ({"usable": {"min_clusters": 3, "max_clusters": 30, "max_noise_fraction": 0.25}}, "missing required field 'max_largest_cluster_share'"),
+        ({"usable": "all"}, "'usable' must be an object"),
+        ({"overwrite": "no"}, "'overwrite' must be a boolean"),
+    ],
+)
+def test_analyze_clustering_tuning_config_invalid_raises(tmp_path, overrides, message):
+    with pytest.raises(ValueError, match=message):
+        load_analyze_clustering_tuning_config(_write(tmp_path, "an.json", _analyze_payload(**overrides)))
+
+
+def test_analyze_clustering_tuning_config_has_no_defaults(tmp_path):
+    payload = _analyze_payload()
+    del payload["k_range"]
+
+    with pytest.raises(ValueError, match="missing required field 'k_range'"):
+        load_analyze_clustering_tuning_config(_write(tmp_path, "an.json", payload))

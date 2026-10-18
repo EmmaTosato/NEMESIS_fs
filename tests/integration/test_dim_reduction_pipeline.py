@@ -373,7 +373,7 @@ def test_dim_reduction_fine_tuning_pca_with_varimax_writes_sweep_not_embedding(t
     assert len(results) == 3  # 3-value grid
 
 
-def test_dim_reduction_fine_tuning_pca_writes_the_variance_spectrum_and_the_scree_plot(tmp_path, monkeypatch):
+def test_dim_reduction_fine_tuning_pca_writes_the_variance_spectrum(tmp_path, monkeypatch):
     """A sweep over rotation x n_components fits one decomposition: one spectrum, the same one a
     production fit reports, written beside the sweep even with save_tuning_embeddings off."""
     input_dir = _build_matrix(tmp_path, monkeypatch)
@@ -412,7 +412,6 @@ def test_dim_reduction_fine_tuning_pca_writes_the_variance_spectrum_and_the_scre
     with np.load(tuning_dir / "eigenvalues.npz") as spectra:
         assert list(spectra.files) == ["solver=blocks,standardize=False,dual=True"]
         np.testing.assert_allclose(spectra["solver=blocks,standardize=False,dual=True"], expected)
-    assert (tuning_dir / "scree_plot.png").stat().st_size > 0
     assert not (tuning_dir / "embeddings.npz").exists()
     assert not list(tuning_dir.glob(".*_tmp_*"))  # no temp leftovers
     assert len(pd.read_csv(tuning_dir / "tuning_results.csv")) == 4  # 2 rotations x 2 sizes
@@ -446,7 +445,6 @@ def test_dim_reduction_fine_tuning_other_methods_write_no_spectrum(tmp_path, mon
 
     tuning_dir = next(p for p in (output_root / "tuning" / "pacmap").iterdir() if p.is_dir())
     assert not (tuning_dir / "eigenvalues.npz").exists()
-    assert not (tuning_dir / "scree_plot.png").exists()
 
 
 def test_dim_reduction_fine_tuning_pacmap_writes_sweep_not_embedding(tmp_path, monkeypatch):
@@ -1239,30 +1237,6 @@ def test_evaluate_tuning_embeddings_missing_embeddings_npz_returns_1(tmp_path, m
         assert evaluate_tuning_embeddings.main(["--config", str(cfg_path)]) == 1
 
     assert "save_tuning_embeddings=true" in caplog.text
-
-
-def test_scree_components_is_the_most_components_any_combination_keeps():
-    spectra = {"a": np.array([50.0, 30.0, 10.0, 5.0, 3.0, 1.5, 0.4, 0.1])}
-
-    assert dim_reduction._scree_components({"n_components": 9}, {"n_components": [2, 7, 4]}, spectra) == 7
-    assert dim_reduction._scree_components({"n_components": 6}, {"rotation": ["none", "varimax"]}, spectra) == 6
-    # variance_share: 0.8 is reached by 2 components (cumulative 0.8), 0.9 by 3
-    assert dim_reduction._scree_components({}, {"variance_share": [0.8, 0.9]}, spectra) == 3
-    assert dim_reduction._scree_components({"variance_share": 0.8}, {"rotation": ["none"]}, spectra) == 2
-
-
-def test_the_zoomed_scree_plot_is_written_only_when_the_full_one_shows_more_components(tmp_path):
-    spectra = {"a": np.linspace(100.0, 1.0, 80) ** 2}
-    zoom = dim_reduction.SCREE_ZOOM_COMPONENTS
-
-    wide, narrow = tmp_path / "wide", tmp_path / "narrow"
-    wide.mkdir()
-    narrow.mkdir()
-    dim_reduction._write_pca_spectra(wide, spectra, "title", n_shown=zoom + 10)
-    dim_reduction._write_pca_spectra(narrow, spectra, "title", n_shown=zoom)
-
-    assert (wide / "scree_plot.png").is_file() and (wide / "scree_plot_zoom.png").is_file()
-    assert (narrow / "scree_plot.png").is_file() and not (narrow / "scree_plot_zoom.png").exists()
 
 
 def test_pca_production_folder_name_carries_the_rotation_only_when_there_is_one(tmp_path, monkeypatch):

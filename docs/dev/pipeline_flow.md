@@ -33,6 +33,7 @@ Le pipeline dipendono l'una dall'altra in due modi diversi.
 | `dim_reduction` | una matrice |
 | `clustering` | una matrice, oppure un run di `dim_reduction` |
 | `evaluate_tuning_embeddings` | un tuning di `dim_reduction` salvato con `save_tuning_embeddings: true` (non legge la matrice né i metadati) |
+| `analyze_clustering_tuning` | un tuning di `clustering` salvato con `save_tuning_clusterings: true`; per agglomerative anche la matrice di `input_path` |
 
 - Il registro serve alle matrici anche quando le maschere si cercano su disco: `load_excluded_subjects` valida l'intero file delle esclusioni contro il registro.
 - `compute_lesion_metadata` non legge il registro; `compute_sdc_metadata` sì, per sapere chi ha `has_sdc`.
@@ -82,6 +83,7 @@ Lo stesso nome, con significati vicini ma non identici, in ogni pipeline:
 | `build_excluded_subjects` | aggiunge righe senza toccare le esistenti | ricostruisce il csv dal solo config |
 | matrici, `dim_reduction`, `clustering` | rifiutano una cartella di output già esistente (`FileExistsError`) | la sostituiscono per intero |
 | `evaluate_tuning_embeddings` | rifiuta se i propri file (nome con le impostazioni) esistono già | sostituisce solo quei file, mai il resto del tuning |
+| `analyze_clustering_tuning` | rifiuta se uno dei propri file esiste già | sostituisce solo quei file, mai il resto del tuning |
 
 `enrich_metadata` ha in più `assets/metadata/participants_protected.json` (`columns`, `subjects`): le celle la cui colonna o il cui soggetto è elencato non vengono mai scritte, in nessuno dei due modi. Il file è validato contro il registro e contro le colonne che il config scrive (`_check_write_rules`): un refuso solleva, perché altrimenti non proteggerebbe nulla in silenzio. In append, un valore esistente diverso da quello appena calcolato resta, ma è contato a `WARNING` per colonna. Con `overwrite: true`, una cella vuota nella fonte svuota quella del registro senza avviso: ciò che esiste solo nel registro va protetto. Dettagli in [`metadata.md`](metadata.md).
 

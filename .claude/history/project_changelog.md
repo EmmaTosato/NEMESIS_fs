@@ -6,6 +6,24 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 18-10-26 — Lo scree plot della PCA esce dalla pipeline e si disegna nel notebook
+
+**Cosa è cambiato**: `dim_reduction.py` non scrive più `scree_plot.png` e `scree_plot_zoom.png` nel tuning della PCA, e `plotting.plot_scree`, `_scree_components` e `SCREE_ZOOM_COMPONENTS` sono stati cancellati insieme ai loro test. Resta `eigenvalues.npz` (lo spettro intero, 47 KB), da cui `notebooks/post-results_analysis/pca_evaluation.ipynb` disegna il grafico con il numero di componenti che si vuole. I due png di `results/sdc/dim_reduction/tuning/pca/16-10_s2.4-vol/` sono stati cancellati a mano.
+
+**Perché**: il numero di componenti mostrate (il massimo della griglia, con uno zoom fisso a 50) era una scelta della pipeline per un grafico che si guarda e si rifà a occhio; nel notebook si cambia in un'istruzione.
+
+**Conseguenza ancora vera**: i tuning PCA già su disco con `scree_plot*.png` li tengono; quelli nuovi no.
+
+## 18-10-26 — Le analisi dopo un tuning di clustering diventano una pipeline che scrive nella cartella della run
+
+**Cosa è cambiato**: `src/pipeline/analyze_clustering_tuning.py` (logica in `src/analysis/clustering_tuning_analysis.py`, config `config/pipelines/analyze_clustering_tuning.json`, `jobs/run_analyze_clustering_tuning.sh`) calcola su un tuning di clustering già salvato ciò che il notebook `clustering_tuning_explorer` mostrava soltanto: cophenetic e salto del dendrogramma per agglomerative, quota del cluster più grande e flag `usable` per HDBSCAN/`hdbscan_soft`, più le curve per k e le curve filtrate sul rumore. I file stanno nella cartella della run (`cophenetic_correlation.csv`, `dendrogram_jump.csv`, `k_curves_metric=<metric>.png`, `candidates.csv`, `noise_filtered_curves*.png`). ADP è escluso.
+
+**Perché**: i generatori dei report stavano in `results/reports/cluster_tuning_notebooks/_shared/`, cioè sotto `results/`, che git ignora: il codice non era versionato. I risultati finivano in un report separato, con tabelle ordinate per silhouette che duplicano `tuning_results.csv`. Decisione presa il 18-10-26: i risultati per run vanno nella cartella della run, il codice nel repo, e `results/reports/cluster_tuning_notebooks/` tiene solo ciò che non esiste altrove (testo scritto a mano, confronti tra run).
+
+**Scartato**: mettere il codice in `scripts/`, come proposto in chat: `scripts/` è per utilità accessorie, mai per passi di analisi (`.claude/CLAUDE.md`); questo è un passo, quindi sta in `src/pipeline/` con la logica in `src/analysis/`, come `evaluate_tuning_embeddings`.
+
+**Conseguenza ancora vera**: rilanciare un tuning con `overwrite: true` ricrea la cartella da zero (`_write_tuning_output`, lessons_learned #18) e cancella questi file: vanno rigenerati con la pipeline. Non ancora fatto: i riepiloghi per modalità (`SUMMARY.md`, `all_candidates.csv` sotto `results/{lesion,sdc}/clustering/tuning/`) e lo svuotamento dei report dalle tabelle duplicate.
+
 ## 17-10-26 — La rotazione compare nel tag della PCA solo quando c'è
 
 **Cosa è cambiato**: nella voce `pca` di `config/registry/params_reduction.json` e `params_reduction_sdc.json`, `tag_param` è `["n_components", "rotation"]`, `tag_prefix` `["nc", ""]`, e un campo nuovo `"tag_omit": {"rotation": "none"}` toglie quella parte dal tag quando la rotazione è `none`. Le cartelle sono `nc42` (non ruotata) e `nc42_varimax` (ruotata), per la produzione e per il tag dell'embedding in `clustering.py` (`params.py::_tag_omit`, `_join_tag`).
