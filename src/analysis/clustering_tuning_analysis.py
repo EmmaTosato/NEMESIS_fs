@@ -96,6 +96,29 @@ JUMP_TERM = (
     "più il taglio è netto. Le altezze sono in unità diverse per ogni linkage, quindi i linkage non si confrontano. "
     "Nessuna fascia con fonte in letteratura."
 )
+# One line under each figure/table of the agglomerative report: what it shows and what it does not say. Descriptions, no verdict.
+HINT_PREFIX = "Come leggerlo: "
+HINT_CURVES = (
+    "silhouette (asse fisso e asse adattato ai dati) e Davies-Bouldin per `n_clusters`, una linea per linkage. Conta la "
+    "forma sui k, non un punto solo; le linee tratteggiate sono le soglie della convenzione."
+)
+HINT_CURVES_SINGLE = "come sopra, solo per `single`, che ha una scala sua."
+HINT_COPHENETIC = "quanto l'albero rispetta le distanze vere. Non dice niente su `n_clusters`."
+HINT_JUMP = (
+    "per ogni k, altezza della fusione da k a k-1 divisa per quella da k+1 a k; vicino a 1 non c'è un taglio naturale a k, "
+    "più è alto più il taglio è netto. Non si confronta tra linkage (altezze in unità diverse)."
+)
+HINT_DENDROGRAM = (
+    "ogni fusione sta a un'altezza; una fusione molto più alta della precedente separa gruppi distinti, e tagliare a "
+    "un'altezza dà quel numero di cluster. Mostra solo le ultime 30 fusioni, quindi i k piccoli. Le altezze non si "
+    "confrontano tra linkage."
+)
+HINT_LABELS_2D = (
+    "i soggetti sul piano 2D di un UMAP gemello (non lo spazio in cui si è clusterizzato), colorati per cluster, un "
+    "riquadro per ogni k mostrato. Dice dove cadono i cluster, non quanto siano separati nello spazio vero. Vale per "
+    "tutte le immagini di questa serie."
+)
+HINT_INTERCLASS = "righe e colonne sono dataset, non cluster. Non dice niente su `n_clusters`."
 SINGLE_LINKAGE = "single"
 LINKAGE_ORDER = ("ward", "average", "complete", SINGLE_LINKAGE)
 METRIC_ORDER = ("euclidean", "cosine", "manhattan")
@@ -450,7 +473,7 @@ def _silhouette_comment(group: pd.DataFrame) -> list[str]:
 def _curves_section(subset: pd.DataFrame, metric: str) -> list[str]:
     """The figures of one metric of an agglomerative report, with the line that says which dashed lines they show."""
     lines: list[str] = []
-    for single, title in ((False, "senza single"), (True, "solo single (scala diversa)")):
+    for single, title, hint in ((False, "senza single", HINT_CURVES), (True, "solo single (scala diversa)", HINT_CURVES_SINGLE)):
         figure_subset = _curves_subset(subset, metric, single)
         if not figure_subset.empty:
             lines += [
@@ -459,6 +482,8 @@ def _curves_section(subset: pd.DataFrame, metric: str) -> list[str]:
                 f"![{title}]({k_curves_file_name(metric, single)})",
                 "",
                 convention_lines_caption(figure_subset),
+                "",
+                HINT_PREFIX + hint,
                 "",
             ]
     return lines
@@ -476,24 +501,33 @@ def _jump_table(jump: pd.DataFrame, metric: str) -> str:
     return _markdown_table(wide[_ordered(wide.columns, LINKAGE_ORDER)].reset_index(), ("n_clusters",))
 
 
-def _images_section(run_dir: Path, names: list[tuple[str, str]]) -> list[str]:
-    """Markdown images for the files of `names` ((caption, file name)) that clustering.py wrote in the run folder:
-    a run without one of them simply has no link to it."""
+def _images_section(run_dir: Path, names: list[tuple[str, str, str | None]]) -> list[str]:
+    """Markdown images for the files of `names` ((caption, file name, hint)) that clustering.py wrote in the run folder:
+    a run without one of them simply has no link to it. A hint is written once, under the first image of the series
+    that has it (a series shares its hint: pass it on the first entry only, None on the others)."""
     lines: list[str] = []
-    for caption, name in names:
+    pending_hint: str | None = None
+    for caption, name, hint in names:
+        pending_hint = hint or pending_hint
         if (run_dir / name).is_file():
             lines += [f"**{caption}**", "", f"![{caption}]({name})", ""]
+            if pending_hint:
+                lines += [HINT_PREFIX + pending_hint, ""]
+                pending_hint = None
     return lines
 
 
 def _dendrogram_section(run_dir: Path, results: pd.DataFrame, cophenetic: pd.DataFrame, jump: pd.DataFrame, metric: str) -> list[str]:
     """Cophenetic correlation, dendrogram jump and the tree/label images of one metric of an agglomerative report."""
     linkages = _ordered(results[results["metric"] == metric]["linkage"].unique(), LINKAGE_ORDER)
-    images = [("Dendrogramma (ultime 30 fusioni)", f"dendrogram_metric={metric}.png")]
-    images += [(f"Etichette sul piano 2D, {linkage}", f"labels_2d_{linkage}_{metric}.png") for linkage in linkages]
+    images: list[tuple[str, str, str | None]] = [("Dendrogramma (ultime 30 fusioni)", f"dendrogram_metric={metric}.png", HINT_DENDROGRAM)]
+    images += [
+        (f"Etichette sul piano 2D, {linkage}", f"labels_2d_{linkage}_{metric}.png", HINT_LABELS_2D if index == 0 else None)
+        for index, linkage in enumerate(linkages)
+    ]
     return [
-        "### Cophenetic correlation", "", _cophenetic_table(cophenetic, metric), "",
-        "### Salto del dendrogramma", "", _jump_table(jump, metric), "",
+        "### Cophenetic correlation", "", _cophenetic_table(cophenetic, metric), "", HINT_PREFIX + HINT_COPHENETIC, "",
+        "### Salto del dendrogramma", "", _jump_table(jump, metric), "", HINT_PREFIX + HINT_JUMP, "",
         *_images_section(run_dir, images),
     ]
 
@@ -533,9 +567,7 @@ def _agglomerative_report_markdown(run_dir: Path, input_path: Path, results: pd.
             table = group.sort_values("n_clusters")[["n_clusters", "silhouette", "davies_bouldin", "calinski_harabasz"]]
             lines += [f"### linkage = {linkage}", "", _markdown_table(table, ("n_clusters",)), "", *_silhouette_comment(group), ""]
         lines += _dendrogram_section(run_dir, results, cophenetic, jump, metric)
-    lines += _images_section(
-        run_dir, [("Distanza media tra dataset (non tra cluster: dice dell'effetto sito, niente su k)", "interclass_distance_matrix.png")]
-    )
+    lines += _images_section(run_dir, [("Distanza media tra dataset", "interclass_distance_matrix.png", HINT_INTERCLASS)])
     terms = [f"- **`{column}`**: {REPORT_TERMS[column]}" for column in ("silhouette", "davies_bouldin", "calinski_harabasz")]
     terms += [f"- **`cophenetic_correlation`**: {COPHENETIC_TERM}", f"- **`jump`**: {JUMP_TERM}", f"- {SILHOUETTE_BANDS_TERM}"]
     return "\n".join([*lines, "## Termini", "", *terms, ""])
