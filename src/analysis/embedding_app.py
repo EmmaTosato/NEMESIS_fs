@@ -392,7 +392,7 @@ html {{ scroll-behavior: smooth; }}
 #comparison-cluster-row {{ margin-top: 28px; }}
 .comparison-rule {{ max-width: 760px; margin: 20px auto 8px; text-align: center; font-size: 16px; line-height: 1.55; color: #595959; }}
 .comparison-heading {{ font-size: 26px; font-weight: 800; margin: 56px 0 14px; text-align: center; }}
-.comparison-subheading {{ font-size: 16px; font-weight: 700; margin: 22px 0 8px; }}
+.comparison-subheading {{ font-size: 24px; font-weight: 700; margin: 32px 0 12px; }}
 .comparison-note {{ font-size: 15.5px; line-height: 1.6; color: #595959; max-width: 78ch; margin: 0 auto 22px; }}
 .comparison-summary {{ margin: 28px auto 0; max-width: 78ch; font-size: 16px; line-height: 1.5; }}
 .comparison-summary p, .comparison-summary-line {{ margin: 4px 0; }}
@@ -401,7 +401,7 @@ html {{ scroll-behavior: smooth; }}
 .comparison-guide summary {{ cursor: pointer; font-weight: 600; color: {_TEXT_COLOR}; }}
 .comparison-guide .stats-table {{ margin-top: 12px; max-width: 520px; }}
 .comparison-guide .comparison-points {{ margin: 8px 0 14px; max-width: none; }}
-.comparison-guide .comparison-subheading {{ margin: 14px 0 0; }}
+.comparison-guide .comparison-subheading {{ font-size: 16px; margin: 14px 0 0; }}
 """
 
 
@@ -2566,16 +2566,13 @@ def _confidence_block(run: ProductionRun, confidence_of: Callable[[ProductionRun
         _guide(
             "Come leggere questa tabella",
             [
-                ("Probabilità", "da 0 a 1, calcolata dentro ogni cluster: vicino a 1 il soggetto sta nel cuore del cluster, vicino a 0 sta al margine"),
-                ("Non è", (
-                    "la probabilità di stare in questo cluster invece che in un altro: un soggetto con 0,2 non è incerto tra "
-                    "due cluster, è in periferia del suo. Non è confrontabile tra cluster di densità diversa"
-                )),
-                (f"Sotto {threshold}", "quota dei soggetti del cluster al margine; se è alta, il cluster è fatto soprattutto di soggetti periferici"),
+                ("Probabilità", "da 0 a 1, dentro il cluster: vicino a 1 il soggetto è nel cuore, vicino a 0 al margine"),
+                ("Non è", "la probabilità di stare in questo cluster invece che in un altro, né confrontabile tra cluster di densità diversa"),
+                (f"Sotto {threshold}", "quota di soggetti al margine del cluster"),
             ],
             [
-                "Misura la densità dello spazio clusterizzato: su un UMAP con min_dist = 0 dice quanto UMAP ha impacchettato il cluster, non che il cluster sia reale.",
-                f"La soglia {threshold} è un esempio: in letteratura non ce n'è una di riferimento.",
+                "Dipende dalla densità dello spazio clusterizzato: su UMAP con min_dist = 0 dice quanto UMAP ha impacchettato il cluster, non che sia reale.",
+                f"La soglia {threshold} è solo un esempio.",
             ],
         ),
         html.P(
@@ -2619,15 +2616,15 @@ def _soft_membership_block(
         _guide(
             "Come leggere queste tabelle",
             [
-                ("Righe della matrice", "non sommano a 1: la parte mancante è la probabilità di essere rumore"),
-                ("Soggetto debole", "0,4 nel proprio cluster e 0,1 in tutti gli altri: vicino al rumore, non conteso"),
-                ("Soggetto conteso", "0,4 nel proprio cluster e 0,35 in un altro: conteso tra i due"),
-                ("Heatmap", "la diagonale è la probabilità media nel proprio cluster; fuori diagonale si vede quali cluster si sovrappongono"),
+                ("Righe", "non sommano a 1: il resto è la probabilità di essere rumore"),
+                ("Debole", "0,4 nel proprio cluster e 0,1 negli altri: vicino al rumore"),
+                ("Conteso", "0,4 nel proprio cluster e 0,35 in un altro: tra i due"),
+                ("Heatmap", "diagonale = probabilità media nel proprio cluster; fuori diagonale = cluster che si sovrappongono"),
             ],
             [
-                "La probabilità è calcolata sulla densità dello spazio clusterizzato: su un UMAP con min_dist = 0 misura anche quanto UMAP ha impacchettato i gruppi.",
-                "Non è confrontabile con la posizione nel cluster di hdbscan, che è un'altra implementazione.",
-                f"La soglia {threshold} è un esempio: in letteratura non ce n'è una di riferimento.",
+                "Dipende dalla densità dello spazio clusterizzato: su UMAP con min_dist = 0 misura anche quanto UMAP ha impacchettato i gruppi.",
+                "Non è confrontabile con la probabilità di hdbscan (altra implementazione).",
+                f"La soglia {threshold} è solo un esempio.",
             ],
         ),
         html.P(f"{summary.n_noise} soggetti di rumore: non hanno un cluster proprio, e hanno una riga a parte nella matrice.", className="section-intro"),
