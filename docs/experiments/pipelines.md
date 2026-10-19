@@ -165,7 +165,7 @@ flowchart LR
         P14S["08-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10"]
         P24S["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
         P25S["no dim reduction"]
-        P24P["16-10 / 17-10<hr/>PCA non ruotata<br/>nc42, nc30<hr/>18-10<br/>PCA nc2<br/>(solo per la vista)"]
+        P24P["16-10 / 17-10<hr/>PCA non ruotata<br/>nc42, nc30<hr/>18-10<br/>PCA nc12<br/>PCA nc2<br/>(solo per la vista)"]
     end
 
     subgraph COL3["Clustering — Tuning"]
@@ -179,7 +179,7 @@ flowchart LR
         CT14S["15-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
         CT24S["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
         CT25S["15-10<hr/>raw<br/>87 tratti<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
-        CT24P["17-10<hr/>PCA nc42, nc30<br/>agglomerative, HDBSCAN"]
+        CT24P["17-10<hr/>PCA nc42, nc30<br/>agglomerative, HDBSCAN<hr/>18-10<br/>PCA nc2, nc12<br/>agglomerative, HDBSCAN<hr/>19-10<br/>PCA nc2/nc12/nc30/nc42<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
     end
 
     subgraph COL4["Clustering — Production"]
