@@ -7,7 +7,7 @@ Reads the files `clustering.py --fine_tuning true` wrote (tuning_results.csv, cl
 for agglomerative, the matrix its config.md points to) and writes what the sweep does not, next to them:
 
 - every method: report.md, the tables of tuning_results.csv with no verdict
-- agglomerative: cophenetic_correlation.csv, dendrogram_jump.csv, k_curves_metric=<metric>.png and
+- agglomerative: cophenetic_correlation.csv, linkage_agreement.csv, dendrogram_jump.csv, k_curves_metric=<metric>.png and
   k_curves_single_metric=<metric>.png (the single linkage, in a figure of its own)
 - hdbscan / hdbscan_soft: density_metrics.csv, noise_filtered_curves[_cluster_selection_method=<method>].png
 
@@ -33,6 +33,7 @@ from src.analysis.clustering_tuning_analysis import (
     k_curves_figure,
     k_curves_file_name,
     k_curves_targets,
+    linkage_agreement,
     load_clustering_tuning_run,
     noise_filtered_curves_figures,
     read_run_config,
@@ -61,6 +62,7 @@ def _analyze_agglomerative(run: ClusteringTuningRun, config: AnalyzeClusteringTu
     curves = {k_curves_file_name(metric, single): (metric, single) for metric, single in k_curves_targets(run.results)}
     outputs = {
         "cophenetic": run.run_dir / "cophenetic_correlation.csv",
+        "agreement": run.run_dir / "linkage_agreement.csv",
         "jump": run.run_dir / "dendrogram_jump.csv",
         "report": run.run_dir / REPORT_FILENAME,
         **{name: run.run_dir / name for name in curves},
@@ -69,8 +71,10 @@ def _analyze_agglomerative(run: ClusteringTuningRun, config: AnalyzeClusteringTu
 
     X, _, _ = load_matrix(run.input_path)
     cophenetic, jump = agglomerative_analysis(run, X, range(config.k_min, config.k_max + 1))
-    outputs["report"].write_text(tuning_report_markdown(run.run_dir, run.method, run.input_path, run.results, cophenetic, jump))
+    agreement = linkage_agreement(run)
+    outputs["report"].write_text(tuning_report_markdown(run.run_dir, run.method, run.input_path, run.results, cophenetic, agreement, jump))
     cophenetic.to_csv(outputs["cophenetic"], index=False)
+    agreement.to_csv(outputs["agreement"], index=False)
     jump.to_csv(outputs["jump"], index=False)
     for name, (metric, single) in curves.items():
         _save_figure(k_curves_figure(run.results, metric, single), outputs[name])

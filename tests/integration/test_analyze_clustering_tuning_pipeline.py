@@ -84,6 +84,11 @@ def test_agglomerative_run_gets_cophenetic_jump_and_curves(tmp_path, monkeypatch
     report = (tuning_dir / "report.md").read_text()
     assert "## metric = euclidean" in report and "## metric = cosine" in report
     assert "### linkage = single" in report and "(k_curves_single_metric=euclidean.png)" in report
+    agreement = pd.read_csv(tuning_dir / "linkage_agreement.csv")
+    assert set(zip(agreement["linkage_a"], agreement["linkage_b"])) == {
+        ("ward", "average"), ("ward", "single"), ("average", "single")  # euclidean has ward; cosine only average and single
+    } | {("average", "single")}
+    assert agreement["ari"].between(-1, 1).all() and "### Accordo tra linkage (ARI)" in report
     assert report.count("### Cophenetic correlation") == 2 and report.count("### Salto del dendrogramma") == 2  # one per metric
     assert "| 3 | " in report.split("### Salto del dendrogramma")[1]  # k_range 3-6 of this config
 
@@ -104,7 +109,9 @@ def test_hdbscan_run_gets_density_metrics_and_filtered_curves(tmp_path, monkeypa
     # three blobs of equal size are found whole, with a third of the subjects in each
     assert metrics["n_clusters_found"].eq(3).all()
     assert metrics["largest_cluster_share"].round(2).eq(0.33).all()
-    assert "largest_cluster_share" in (tuning_dir / "report.md").read_text()
+    report = (tuning_dir / "report.md").read_text()
+    assert "## min_samples = 3" in report and "## min_samples = 5" in report  # one table per min_samples
+    assert "| min_cluster_size | n_clusters_found | noise_fraction | largest_cluster_share | silhouette |" in report
     assert (tuning_dir / "noise_filtered_curves.png").stat().st_size > 0
 
 
