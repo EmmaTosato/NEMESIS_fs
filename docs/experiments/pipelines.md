@@ -193,7 +193,7 @@ flowchart LR
         CP14S["15-10<hr/>UMAP dice/euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 12 run"]
         CP24S["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 4 run su 5"]
         CP25S["nessuna combinazione usabile"]:::pending
-        CP24P["18-10<hr/>PCA nc42, nc30<br/>agglomerative ward k=3<br/>(2 run)"]
+        CP24P["18-10 / 19-10<hr/>PCA nc42, nc30, nc12, nc2<br/>agglomerative ward k=3: 4 run<br/>HDBSCAN: 20 run<br/>HDBSCAN soft: 20 run<br/>(44 run)"]
     end
 
     R14 --> T14 --> P14 --> CT14 --> CP14
