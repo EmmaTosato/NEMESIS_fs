@@ -47,7 +47,7 @@ L'applicabilità è verificata dal codice: `src/analysis/clustering_evaluation.p
 | 2 | Metriche geometriche: Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn | tutti tranne adp | `clustering_tuning.compute_clustering_metrics`, `dunn_index` |
 | 2.1 | Silhouette per cluster (micro, macro, minimo) | tutti tranne adp | `clustering_evaluation.per_cluster_silhouette` |
 | 2.2 | Purezza dei k vicini, silhouette sulla distanza dice e quota di coppie a distanza 1 | adp | `clustering_evaluation.knn_purity`, `distance_matrix_silhouette`, `saturated_pair_share` |
-| 3 | Metriche del modello: `inertia`, `bic`/`aic`, `noise_fraction`/`n_clusters_found` | kmeans, gmm, hdbscan, hdbscan_soft | `clustering_evaluation.model_fit_metrics` |
+| 3 | Metriche del modello: `inertia`, `bic`/`aic`, `cophenetic_correlation`/`dendrogram_jump`, `noise_fraction`/`n_clusters_found` | kmeans, gmm, agglomerative, hdbscan, hdbscan_soft | `clustering_evaluation.model_fit_metrics` |
 | 3.1 | Posizione nel cluster: probabilità media e quota sotto soglia per cluster | hdbscan | `clustering_evaluation.membership_confidence` |
 | 3.2 | Appartenenza ai cluster: per cluster, probabilità media nel proprio e cluster più vicino; vettori medi; soggetti più deboli | hdbscan_soft | `clustering_evaluation.soft_membership_summary` |
 | 4 | Descrizione dei cluster con le variabili di `participants.csv`: soggetti con il dato, media ± deviazione standard, mediana [Q1–Q3], percentuali per categoria; nessun test | tutti | funzioni del notebook (`registry_frame`, `coverage_table`, `describe_clusters`) |

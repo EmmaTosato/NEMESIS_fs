@@ -45,8 +45,8 @@ def test_require_applicable_accepts_a_listed_method():
 
 
 def test_require_applicable_rejects_an_unlisted_method():
-    with pytest.raises(ValueError, match="'agglomerative'"):
-        require_applicable("model_fit_metrics", "agglomerative")
+    with pytest.raises(ValueError, match="'spectral'"):
+        require_applicable("model_fit_metrics", "spectral")
 
 
 def test_require_applicable_rejects_an_unknown_evaluation():
@@ -90,6 +90,38 @@ def test_model_fit_metrics_refuses_a_refit_that_does_not_reproduce_the_labels():
 
     with pytest.raises(ValueError, match="does not reproduce the stored labels"):
         model_fit_metrics("kmeans", X, params, other_labels)
+
+
+def test_model_fit_metrics_agglomerative_matches_scipy_cophenetic_correlation_and_jump():
+    from scipy.cluster.hierarchy import cophenet, linkage
+    from scipy.spatial.distance import pdist
+    from sklearn.cluster import AgglomerativeClustering
+
+    X = _three_blobs()
+    params = {"n_clusters": 3, "linkage": "ward", "metric": "euclidean"}
+    labels = AgglomerativeClustering(**params).fit_predict(X)
+
+    metrics = model_fit_metrics("agglomerative", X, params, labels)
+
+    tree = linkage(X, method="ward")
+    assert metrics["n_clusters"] == 3.0
+    assert metrics["cophenetic_correlation"] == pytest.approx(cophenet(tree, pdist(X))[0])
+    assert metrics["dendrogram_jump"] == pytest.approx(tree[-2, 2] / tree[-3, 2])  # merge 3->2 over merge 4->3
+
+
+def test_model_fit_metrics_agglomerative_refuses_labels_the_refit_does_not_reproduce():
+    X = _three_blobs()
+    params = {"n_clusters": 3, "linkage": "ward", "metric": "euclidean"}
+
+    with pytest.raises(ValueError, match="does not reproduce the stored labels"):
+        model_fit_metrics("agglomerative", X, params, np.arange(len(X)) % 3)
+
+
+def test_model_fit_metrics_agglomerative_refuses_a_run_without_n_clusters():
+    X = _three_blobs()
+
+    with pytest.raises(ValueError, match="no n_clusters"):
+        model_fit_metrics("agglomerative", X, {"n_clusters": None, "linkage": "ward"}, np.zeros(len(X), dtype=int))
 
 
 def test_model_fit_metrics_refuses_a_method_without_a_model_statistic():

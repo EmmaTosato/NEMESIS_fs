@@ -20,11 +20,14 @@ from sklearn.mixture import GaussianMixture
 from src.analysis.clustering import CLUSTERING_METHODS, own_cluster_membership
 from src.analysis.clustering_tuning import (
     compute_clustering_metrics,
+    compute_dendrogram_linkage,
     compute_silhouette_samples,
+    cophenetic_correlation,
     dunn_index,
     hdbscan_labels_and_probabilities,
     require_euclidean_compatible,
 )
+from src.analysis.clustering_tuning_analysis import dendrogram_jump
 
 
 @dataclass(frozen=True)
@@ -48,9 +51,10 @@ EVALUATIONS: dict[str, Evaluation] = {
         "purezza e alla quota di coppie a distanza 1",
     ),
     "model_fit_metrics": Evaluation(
-        frozenset({"kmeans", "gmm", "hdbscan", "hdbscan_soft"}),
-        "solo questi espongono una statistica propria del modello (inertia, BIC/AIC, quota di rumore); "
-        "agglomerative, spectral, evidence_accumulation e adp non ne hanno",
+        frozenset({"kmeans", "gmm", "agglomerative", "hdbscan", "hdbscan_soft"}),
+        "solo questi hanno una statistica propria del modello (inertia, BIC/AIC, correlazione cofenetica e salto "
+        "del dendrogramma, quota di rumore); spectral, evidence_accumulation e adp non ne hanno "
+        "(gli indici geometrici valgono comunque)",
     ),
     "soft_membership": Evaluation(
         frozenset({"hdbscan_soft"}),
@@ -79,12 +83,13 @@ def require_applicable(evaluation: str, method: str) -> None:
 
 def model_fit_metrics(method: str, X: np.ndarray, params: dict, labels: np.ndarray) -> dict[str, float]:
     """The model-specific statistic of an already-produced run: inertia (kmeans), BIC/AIC (gmm),
-    noise fraction and number of clusters found (hdbscan).
+    cophenetic correlation and dendrogram jump at the run's k (agglomerative), noise fraction and
+    number of clusters found (hdbscan).
 
-    kmeans and gmm need the fitted estimator, which a run does not store, so it is refit with
-    the run's own params. The refit is accepted only if it reproduces the stored labels exactly
-    - otherwise (e.g. random_state=None) the statistic would describe a different fit than the
-    one that produced the labels, and it raises. hdbscan's statistics come from the labels alone.
+    kmeans, gmm and agglomerative need the fitted estimator or tree, which a run does not store, so
+    it is refit with the run's own params. The refit is accepted only if it reproduces the stored
+    labels exactly - otherwise (e.g. random_state=None) the statistic would describe a different fit
+    than the one that produced the labels, and it raises. hdbscan's statistics come from the labels alone.
     """
     require_applicable("model_fit_metrics", method)
     labels = np.asarray(labels)
@@ -95,6 +100,9 @@ def model_fit_metrics(method: str, X: np.ndarray, params: dict, labels: np.ndarr
             "noise_fraction": float(noise.mean()),
             "n_clusters_found": float(len(np.unique(labels[~noise]))),
         }
+
+    if method == "agglomerative":
+        return _agglomerative_model_fit(X, params, labels)
 
     if method == "kmeans":
         fitted = KMeans(**params).fit(X)
@@ -111,6 +119,30 @@ def model_fit_metrics(method: str, X: np.ndarray, params: dict, labels: np.ndarr
             "(is random_state unset?) - its statistic would describe a different fit than the run"
         )
     return metrics
+
+
+def _agglomerative_model_fit(X: np.ndarray, params: dict, labels: np.ndarray) -> dict[str, float]:
+    """Cophenetic correlation of the run's tree and its dendrogram jump at the run's own k (the keys
+    `cophenetic_correlation`, `dendrogram_jump`, plus that `n_clusters`). The partition is refit with the
+    run's params and must match the stored labels; the tree is the full merge tree of the same
+    (linkage, metric), which does not depend on the cut."""
+    n_clusters = params.get("n_clusters")
+    if n_clusters is None:
+        raise ValueError(
+            f"the run has no n_clusters in its params ({params}): the dendrogram jump is read at the run's own k"
+        )
+    if not np.array_equal(CLUSTERING_METHODS["agglomerative"](X, params), labels):
+        raise ValueError(
+            f"refitting 'agglomerative' with params={params} does not reproduce the stored labels "
+            "- its statistic would describe a different fit than the run"
+        )
+    distance_cache: dict[str, np.ndarray] = {}
+    linkage_matrix = compute_dendrogram_linkage(X, params, distance_cache)
+    return {
+        "n_clusters": float(n_clusters),
+        "cophenetic_correlation": cophenetic_correlation(X, params, distance_cache),
+        "dendrogram_jump": dendrogram_jump(linkage_matrix, range(n_clusters, n_clusters + 1))[n_clusters],
+    }
 
 
 @dataclass(frozen=True)

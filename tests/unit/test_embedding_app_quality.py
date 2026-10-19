@@ -57,6 +57,7 @@ def _fit(run) -> dict[str, float]:
     by_method = {
         "kmeans": {"inertia": 1234.5},
         "gmm": {"bic": 5000.2, "aic": 4900.7},
+        "agglomerative": {"n_clusters": 7.0, "cophenetic_correlation": 0.7312, "dendrogram_jump": 1.4567},
         "hdbscan": {"noise_fraction": 0.09, "n_clusters_found": 4.0},
         "hdbscan_soft": {"noise_fraction": 0.01, "n_clusters_found": 8.0},
     }
@@ -83,6 +84,17 @@ def test_the_panel_shows_every_index_with_italian_number_formatting():
     for expected in ("0,546", "0,431", "0,210", "17.157,4", "0,462", "0,0123", "41,2%", "0,3%", "5845 soggetti"):
         assert expected in text
     assert "Come leggere questi indici" in text
+
+
+def test_the_guide_to_the_indices_is_a_collapsed_menu_right_under_the_heading():
+    content = cluster_quality_content_for(_run(), model_fit_of=_fit, summary_of=lambda _run: _summary())
+    failing = cluster_quality_content_for(_run(), model_fit_of=_fit, summary_of=_unused)
+
+    for panel in (content, failing):
+        first = panel.children[0]
+        assert isinstance(first, html.Details) and "Come leggere questi indici" in _text(first)
+        assert "open" not in (first.to_plotly_json()["props"])  # collapsed by default
+    assert "Limiti" in _text(content.children[0])
 
 
 def test_a_noise_share_above_the_threshold_adds_a_warning_and_below_it_does_not():
@@ -278,10 +290,34 @@ def test_a_refit_that_does_not_reproduce_the_labels_says_so_instead_of_showing_a
 
 
 def test_a_method_without_a_model_statistic_says_so():
-    # agglomerative has none: the real run_model_fit refuses it through require_applicable.
-    text = _text(cluster_quality_content_for(_run(method="agglomerative"), lambda _run: _summary()))
+    # spectral has none: the real run_model_fit refuses it through require_applicable.
+    text = _text(cluster_quality_content_for(_run(method="spectral"), lambda _run: _summary()))
 
-    assert "Statistica del modello" in text and "agglomerative" in text and "kmeans" in text
+    assert "Statistica del modello" in text and "spectral" in text and "agglomerative" in text and "kmeans" in text
+
+
+def test_the_panel_shows_cophenetic_correlation_and_dendrogram_jump_for_agglomerative():
+    text = _text(cluster_quality_content_for(_run(method="agglomerative"), model_fit_of=_fit, summary_of=lambda _run: _summary()))
+
+    assert "Correlazione cofenetica" in text and "0,731" in text
+    assert "Salto del dendrogramma (k=7)" in text and "1,46" in text
+
+
+def test_run_model_fit_reads_cophenetic_correlation_and_jump_of_an_agglomerative_run(tmp_path):
+    from sklearn.cluster import AgglomerativeClustering
+
+    params = {"n_clusters": 2, "linkage": "average", "metric": "euclidean"}
+    fixture_matrix = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 0.5], [3.0, 2.0]])  # what _make_run_dir saves
+    labels = AgglomerativeClustering(**params).fit_predict(fixture_matrix)
+    run_dir = _make_run_dir(
+        tmp_path / "results", pipeline="clustering", method="agglomerative", run_name="15-10_x",
+        params=params, extra_metadata={"cluster_label": labels},
+    )
+
+    metrics = run_model_fit(_run(method="agglomerative", path=run_dir))
+
+    assert set(metrics) == {"n_clusters", "cophenetic_correlation", "dendrogram_jump"}
+    assert metrics["n_clusters"] == 2.0 and 0 < metrics["cophenetic_correlation"] <= 1 and metrics["dendrogram_jump"] > 0
 
 
 def test_run_model_fit_refits_the_run_and_reads_its_inertia(tmp_path):

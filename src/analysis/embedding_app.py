@@ -400,6 +400,8 @@ html {{ scroll-behavior: smooth; }}
 .comparison-guide {{ margin: 18px 0 0; font-size: 15.5px; line-height: 1.6; color: #595959; }}
 .comparison-guide summary {{ cursor: pointer; font-weight: 600; color: {_TEXT_COLOR}; }}
 .comparison-guide .stats-table {{ margin-top: 12px; max-width: 520px; }}
+.comparison-guide .comparison-points {{ margin: 8px 0 14px; max-width: none; }}
+.comparison-guide .comparison-subheading {{ margin: 14px 0 0; }}
 """
 
 
@@ -2278,10 +2280,11 @@ def run_geometric_summary(run: ProductionRun) -> GeometricSummary:
 
 def run_model_fit(run: ProductionRun) -> dict[str, float]:
     """The statistic of the model itself for a clustering run (section 3 of the evaluation notebook):
-    inertia for kmeans, BIC and AIC for gmm, noise share and number of clusters for hdbscan/hdbscan_soft.
+    inertia for kmeans, BIC and AIC for gmm, cophenetic correlation and dendrogram jump for agglomerative,
+    noise share and number of clusters for hdbscan/hdbscan_soft.
 
-    kmeans and gmm are refitted with the run's own params and accepted only if they reproduce the stored
-    labels exactly (model_fit_metrics). Raises ValueError, with the cause, for a method with no such
+    kmeans, gmm and agglomerative are refitted with the run's own params and accepted only if they reproduce
+    the stored labels exactly (model_fit_metrics). Raises ValueError, with the cause, for a method with no such
     statistic, a matrix wider than MAX_QUALITY_COLUMNS (a refit on it would not be quick), or a refit that
     does not reproduce the labels."""
     require_applicable("model_fit_metrics", run.method)
@@ -2346,37 +2349,48 @@ def run_adp_summary(run: ProductionRun, store: RawDistanceStore) -> AdpSummary |
     return adp_summary(distances.distances, distances.non_empty, metadata["cluster_label"].to_numpy(), ADP_K_NEIGHBORS)
 
 
+def _guide(title: str, points: list[tuple[str, str]], limits: list[str] | None = None) -> html.Details:
+    """A collapsed explanation under a panel's heading: one bullet per idea ("Name: sentence"), then, if any,
+    the limits of the reading, one bullet each."""
+    children: list = [
+        html.Summary(title),
+        html.Ul([html.Li([html.B(f"{name}: "), text]) for name, text in points], className="comparison-points"),
+    ]
+    if limits:
+        children += [
+            html.P("Limiti", className="comparison-subheading"),
+            html.Ul([html.Li(limit) for limit in limits], className="comparison-points"),
+        ]
+    return html.Details(className="comparison-guide", children=children)
+
+
 def _adp_guide() -> html.Details:
-    """How to read the adp indices, collapsed under the tables (the text of section 2.2 of the evaluation notebook)."""
-    return html.Details(
-        className="comparison-guide",
-        children=[
-            html.Summary("Come leggere questi indici"),
-            html.Ul([
-                html.Li([html.B("Purezza dei vicini: "), (
-                    f"per ogni soggetto, la quota dei suoi {ADP_K_NEIGHBORS} vicini più prossimi (distanza dice, quella con cui adp "
-                    "ha clusterizzato) che sta nel suo stesso cluster. Da 0 a 1; vicino a 1 i vicini stanno quasi sempre nel "
-                    "suo cluster. Va letta accanto al valore atteso a caso, (n del cluster - 1) / (n totale - 1). Un cluster con "
-                    f"{ADP_K_NEIGHBORS} soggetti o meno non può raggiungere 1: resta in tabella ma fuori dal riassunto."
-                )]),
-                html.Li([html.B("Coppie a distanza 1: "), (
-                    "quota delle coppie di soggetti senza voxel in comune. Da guardare prima di leggere la silhouette. "
-                    "Se è alta (per le lesioni 84%), quasi tutte le distanze valgono 1 e la silhouette sta vicino a 0 "
-                    "qualunque sia la struttura: si ignora e si usa la purezza. Se è bassa (disconnettoma voxelwise "
-                    "0,0015%), le distanze sono varie e la silhouette si legge come per gli altri metodi."
-                )]),
-                html.Li([html.B("Quota con pareggio: "), (
-                    "soggetti il cui ultimo vicino contato ha la stessa distanza del successivo. Per loro la purezza "
-                    "è il valore atteso scegliendo a caso tra i pareggi."
-                )]),
-            ]),
-            html.P(
-                "La purezza è in parte circolare, perché adp forma i cluster proprio su questi vicini: una purezza alta dice "
-                "che i cluster sono coerenti, non che siano \"veri\". La silhouette qui è sulla distanza dice e non è "
-                "confrontabile con quella euclidea dei run su embedding. Il rumore (-1) e i soggetti con la matrice "
-                "tutta a zero, che adp etichetta -1 perché la distanza dice non è definita, sono esclusi.",
-                className="comparison-note",
-            ),
+    """How to read the adp indices (section 2.2 of the evaluation notebook)."""
+    return _guide(
+        "Come leggere questi indici",
+        [
+            ("Purezza dei vicini", (
+                f"per ogni soggetto, la quota dei suoi {ADP_K_NEIGHBORS} vicini più prossimi (distanza dice, quella con cui adp "
+                "ha clusterizzato) che sta nel suo stesso cluster. Da 0 a 1, vicino a 1 i vicini stanno quasi sempre nel suo "
+                "cluster. Si legge accanto al valore atteso a caso, (n del cluster - 1) / (n totale - 1)"
+            )),
+            ("Cluster piccoli", (
+                f"un cluster con {ADP_K_NEIGHBORS} soggetti o meno non può raggiungere 1: resta in tabella ma fuori dal riassunto"
+            )),
+            ("Coppie a distanza 1", (
+                "quota delle coppie di soggetti senza voxel in comune, da guardare prima della silhouette. Se è alta "
+                "(lesioni: 84%) quasi tutte le distanze valgono 1 e la silhouette sta vicino a 0 qualunque sia la struttura: "
+                "si usa la purezza. Se è bassa (disconnettoma voxelwise: 0,0015%) la silhouette si legge come per gli altri metodi"
+            )),
+            ("Quota con pareggio", (
+                "soggetti il cui ultimo vicino contato ha la stessa distanza del successivo; per loro la purezza è il valore "
+                "atteso scegliendo a caso tra i pareggi"
+            )),
+        ],
+        [
+            "La purezza è in parte circolare: adp forma i cluster proprio su questi vicini. Una purezza alta dice che i cluster sono coerenti, non che siano \"veri\".",
+            "La silhouette è sulla distanza dice: non è confrontabile con quella euclidea dei run su embedding.",
+            "Il rumore (-1) e i soggetti con la matrice tutta a zero (distanza dice non definita, adp li etichetta -1) sono esclusi.",
         ],
     )
 
@@ -2423,7 +2437,7 @@ def adp_quality_content_for(
         ]
         for label, row in summary.clusters.iterrows()
     ]
-    children: list = []
+    children: list = [_adp_guide()]
     warning = noise_warning(run.run_name, summary.noise_fraction, NOISE_WARNING_FRACTION)
     if warning is not None:
         children.append(_warning_box(warning))
@@ -2444,41 +2458,41 @@ def adp_quality_content_for(
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
             style={"width": "100%"},
         ),
-        _adp_guide(),
     ]
     return html.Div(children), False
 
 
 def _quality_guide() -> html.Details:
-    """How to read the indices, collapsed under the table (the text of section 2 of the evaluation notebook)."""
-    return html.Details(
-        className="comparison-guide",
-        children=[
-            html.Summary("Come leggere questi indici"),
-            html.Ul([
-                html.Li([html.B("Silhouette: "), (
-                    "per ogni soggetto confronta la distanza media dal proprio cluster con quella dal cluster più vicino. "
-                    "Da -1 a 1, più alta è meglio: vicino a 1 i cluster sono netti, vicino a 0 i confini sono ambigui, "
-                    "negativa il soggetto sta nel cluster sbagliato. La media sui soggetti pesa di più i cluster grandi, "
-                    "la media dei cluster fa pesare ogni cluster uguale, la silhouette del cluster peggiore è la media "
-                    "del cluster con la silhouette più bassa. Se la prima e la seconda sono molto diverse, cluster grandi "
-                    "e piccoli hanno qualità diversa."
-                )]),
-                html.Li([html.B("Calinski-Harabasz: "), "dispersione tra i cluster divisa per quella dentro i cluster. Più alto è meglio."]),
-                html.Li([html.B("Davies-Bouldin: "), "per ogni cluster, somiglianza con il cluster più simile. Più basso è meglio, 0 = cluster compatti e separati."]),
-                html.Li([html.B("Dunn: "), "distanza minima tra cluster divisa per il diametro massimo di un cluster. Più alto è meglio; è sensibile agli outlier."]),
-            ]),
-            html.P(
-                "Il grafico per cluster mostra quali cluster hanno confini ambigui anche se la media complessiva è buona; "
-                "il numero di soggetti (n) è nell'etichetta di ogni barra e va letto insieme alla barra: un cluster di un "
-                "solo soggetto ha silhouette 0 per convenzione, e la media di uno di 2 o 3 soggetti può essere estrema per "
-                "caso. Passando il mouse su una barra compare la quota di soggetti con silhouette negativa. "
-                "Nessuno dei quattro indici ha un riferimento qui. Anche una nuvola senza cluster, divisa da un algoritmo, ha una "
-                "silhouette positiva (ward, 3 cluster, nuvola gaussiana a 2 componenti: circa 0,4), quindi il valore da solo "
-                "non dice se c'è struttura. Calinski-Harabasz, Davies-Bouldin e Dunn di un run solo non hanno una scala. "
-                "Embedding diversi (2 o 10 componenti, lesion o sdc) non sono confrontabili tra loro.",
-                className="comparison-note",
-            ),
+    """How to read the geometric indices (section 2 of the evaluation notebook)."""
+    return _guide(
+        "Come leggere questi indici",
+        [
+            ("Silhouette", (
+                "per ogni soggetto confronta la distanza media dal proprio cluster con quella dal cluster più vicino. "
+                "Da -1 a 1, più alta è meglio: vicino a 1 i cluster sono netti, vicino a 0 i confini sono ambigui, "
+                "negativa il soggetto sta nel cluster sbagliato"
+            )),
+            ("Silhouette, le tre sintesi", (
+                "la media sui soggetti pesa di più i cluster grandi; la media dei cluster fa pesare ogni cluster uguale; "
+                "il cluster peggiore è la media più bassa. Se le prime due sono molto diverse, cluster grandi e piccoli "
+                "hanno qualità diversa"
+            )),
+            ("Calinski-Harabasz", "dispersione tra i cluster divisa per quella dentro i cluster. Più alto è meglio"),
+            ("Davies-Bouldin", "per ogni cluster, somiglianza con il cluster più simile. Più basso è meglio, 0 = cluster compatti e separati"),
+            ("Dunn", "distanza minima tra cluster divisa per il diametro massimo di un cluster. Più alto è meglio, è sensibile agli outlier"),
+            ("Grafico per cluster", (
+                "mostra quali cluster hanno confini ambigui anche se la media complessiva è buona. Il numero di soggetti (n) "
+                "è nell'etichetta di ogni barra e va letto con la barra: un cluster di un soggetto ha silhouette 0 per "
+                "convenzione, la media di 2 o 3 soggetti può essere estrema per caso. Passando il mouse su una barra "
+                "compare la quota di soggetti con silhouette negativa"
+            )),
+        ],
+        [
+            "Nessuno dei quattro indici ha un valore di riferimento.",
+            "Una nuvola senza cluster, divisa da un algoritmo, ha comunque una silhouette positiva (ward, 3 cluster, "
+            "nuvola gaussiana a 2 componenti: circa 0,4): il valore da solo non dice se c'è struttura.",
+            "Calinski-Harabasz, Davies-Bouldin e Dunn di un run solo non hanno una scala.",
+            "Embedding diversi (2 o 10 componenti, lesion o sdc) non sono confrontabili tra loro.",
         ],
     )
 
@@ -2494,6 +2508,17 @@ def _model_fit_rows(method: str, metrics: dict[str, float]) -> list[list[str]]:
         return [
             ["BIC", _format_number(metrics["bic"], 1), "verosimiglianza penalizzata per la complessità; più basso è meglio, penalizza di più dell'AIC"],
             ["AIC", _format_number(metrics["aic"], 1), "come il BIC, con una penalità minore; più basso è meglio"],
+        ]
+    if method == "agglomerative":
+        return [
+            [
+                "Correlazione cofenetica", _format_number(metrics["cophenetic_correlation"], 3),
+                "quanto le distanze dell'albero rispettano quelle vere tra i soggetti; da 0 a 1, più è alta più l'albero è fedele",
+            ],
+            [
+                f"Salto del dendrogramma (k={int(metrics['n_clusters'])})", _format_number(metrics["dendrogram_jump"], 2),
+                "altezza della fusione da k a k−1 divisa per quella da k+1 a k; vicino a 1 non c'è un taglio naturale a k, più è alto più il taglio è netto",
+            ],
         ]
     if method in ("hdbscan", "hdbscan_soft"):
         return [
@@ -2511,12 +2536,12 @@ def _model_fit_block(run: ProductionRun, model_fit_of: Callable[[ProductionRun],
         metrics = model_fit_of(run)
     except ValueError as exc:
         return html.Div([heading, html.P(str(exc), className="status-message")])
-    guide = (
-        "inertia e BIC/AIC non sono sulla stessa scala e non si confrontano tra metodi. "
-        "kmeans e gmm sono rifittati con i parametri del run e accettati solo se riproducono esattamente le etichette salvate."
-        if run.method in ("kmeans", "gmm")
-        else "Qui la statistica si legge dalle etichette del run: nessun rifit."
-    )
+    if run.method in ("kmeans", "gmm"):
+        guide = "Inertia e BIC/AIC non hanno la stessa scala. Il modello è rifatto con i parametri del run e accettato solo se riproduce le etichette salvate."
+    elif run.method == "agglomerative":
+        guide = "L'albero è rifatto con i parametri del run e accettato solo se riproduce le etichette salvate. La correlazione cofenetica non si confronta tra metriche diverse."
+    else:
+        guide = "La statistica si legge dalle etichette del run, senza rifit."
     return html.Div([
         heading,
         _table(["Statistica", "Valore", "Lettura"], _model_fit_rows(run.method, metrics), text_columns=(0, 2)),
@@ -2538,21 +2563,26 @@ def _confidence_block(run: ProductionRun, confidence_of: Callable[[ProductionRun
     threshold = _format_number(result.threshold, 2)
     return html.Div([
         heading,
+        _guide(
+            "Come leggere questa tabella",
+            [
+                ("Probabilità", "da 0 a 1, calcolata dentro ogni cluster: vicino a 1 il soggetto sta nel cuore del cluster, vicino a 0 sta al margine"),
+                ("Non è", (
+                    "la probabilità di stare in questo cluster invece che in un altro: un soggetto con 0,2 non è incerto tra "
+                    "due cluster, è in periferia del suo. Non è confrontabile tra cluster di densità diversa"
+                )),
+                (f"Sotto {threshold}", "quota dei soggetti del cluster al margine; se è alta, il cluster è fatto soprattutto di soggetti periferici"),
+            ],
+            [
+                "Misura la densità dello spazio clusterizzato: su un UMAP con min_dist = 0 dice quanto UMAP ha impacchettato il cluster, non che il cluster sia reale.",
+                f"La soglia {threshold} è un esempio: in letteratura non ce n'è una di riferimento.",
+            ],
+        ),
         html.P(
             f"{result.n_noise} soggetti di rumore (esclusi) e {result.n_confident} soggetti con probabilità di almeno {threshold}.",
             className="section-intro",
         ),
         _table(["Cluster", "Soggetti", "Probabilità media", f"Sotto {threshold}"], rows, text_columns=(0,)),
-        html.P(
-            "La probabilità va da 0 a 1 ed è calcolata dentro ogni cluster: vicino a 1 il soggetto sta nel cuore del cluster, "
-            "vicino a 0 sta al margine, assegnato a quel cluster ma per poco non è rumore. Non è la probabilità di stare in "
-            "questo cluster invece che in un altro: un soggetto con 0,2 non è incerto tra due cluster, è in periferia del "
-            "suo. Non è confrontabile tra cluster di densità diversa. Un cluster con una quota alta sotto soglia è fatto "
-            "soprattutto di soggetti al margine. La probabilità è calcolata sulla densità dello spazio clusterizzato: su un "
-            "UMAP con min_dist = 0 misura quanto UMAP ha impacchettato il cluster, non prova che il cluster sia reale. "
-            f"La soglia {threshold} è un esempio, in letteratura non ce n'è una di riferimento.",
-            className="comparison-note",
-        ),
     ])
 
 
@@ -2586,6 +2616,20 @@ def _soft_membership_block(
     ]
     return html.Div([
         heading,
+        _guide(
+            "Come leggere queste tabelle",
+            [
+                ("Righe della matrice", "non sommano a 1: la parte mancante è la probabilità di essere rumore"),
+                ("Soggetto debole", "0,4 nel proprio cluster e 0,1 in tutti gli altri: vicino al rumore, non conteso"),
+                ("Soggetto conteso", "0,4 nel proprio cluster e 0,35 in un altro: conteso tra i due"),
+                ("Heatmap", "la diagonale è la probabilità media nel proprio cluster; fuori diagonale si vede quali cluster si sovrappongono"),
+            ],
+            [
+                "La probabilità è calcolata sulla densità dello spazio clusterizzato: su un UMAP con min_dist = 0 misura anche quanto UMAP ha impacchettato i gruppi.",
+                "Non è confrontabile con la posizione nel cluster di hdbscan, che è un'altra implementazione.",
+                f"La soglia {threshold} è un esempio: in letteratura non ce n'è una di riferimento.",
+            ],
+        ),
         html.P(f"{summary.n_noise} soggetti di rumore: non hanno un cluster proprio, e hanno una riga a parte nella matrice.", className="section-intro"),
         _table(
             ["Cluster", "Soggetti", "Probabilità media nel proprio", f"Sotto {threshold}", "Altro cluster più probabile", "Probabilità media nell'altro"],
@@ -2601,16 +2645,6 @@ def _soft_membership_block(
             ["Soggetto", "Cluster", "Probabilità nel proprio", "Altro cluster più probabile", "Probabilità nell'altro"],
             weakest_rows, text_columns=(0,),
         ),
-        html.P(
-            "Le righe non sommano a 1: la parte mancante è la probabilità di essere rumore. Un soggetto con 0,4 nel proprio "
-            "cluster e 0,1 in tutti gli altri non è conteso: è debole, vicino al rumore. Un soggetto con 0,4 e 0,35 in un altro "
-            "cluster è conteso tra i due. La diagonale della matrice è la probabilità media nel proprio cluster, fuori "
-            "diagonale si vede quali cluster si sovrappongono. La probabilità è calcolata sulla densità dello spazio "
-            "clusterizzato, quindi su un UMAP con min_dist = 0 misura anche quanto UMAP ha impacchettato i gruppi. Non è "
-            f"confrontabile con la posizione nel cluster di hdbscan, che usa un'altra implementazione. La soglia {threshold} "
-            "è un esempio, in letteratura non ce n'è una di riferimento.",
-            className="comparison-note",
-        ),
     ])
 
 
@@ -2621,11 +2655,12 @@ def cluster_quality_content_for(
     confidence_of: Callable[[ProductionRun], MembershipConfidence] = run_membership_confidence,
     soft_of: Callable[[ProductionRun], tuple[SoftMembership, pd.DataFrame]] = run_soft_membership,
 ) -> html.Div:
-    """Panel "Valutazione del clustering" (16-10-26, on request): the geometric indices of the whole run
-    (Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn, the weakest cluster's silhouette, number of
-    clusters, share of the largest one and of the noise) and the statistic of the model itself (inertia,
-    BIC/AIC, noise and number of clusters), ported from sections 2 and 3 of the evaluation notebook. Not
-    tied to the chosen cluster. `summary_of` and `model_fit_of` compute (or serve from a cache) the numbers.
+    """Panel "Valutazione del clustering": under the collapsed guide to the indices, the geometric indices of
+    the whole run (Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn, the weakest cluster's silhouette,
+    number of clusters, share of the largest one and of the noise) and the statistic of the model itself
+    (inertia, BIC/AIC, cophenetic correlation and dendrogram jump, noise and number of clusters), ported
+    from sections 2 and 3 of the evaluation notebook. Not tied to the chosen cluster. `summary_of` and
+    `model_fit_of` compute (or serve from a cache) the numbers.
 
     Same never-raises contract as every other *_content_for: each of the two parts renders its own cause
     when it is not defined for the run, so one failing never hides the other. An hdbscan run adds the position
@@ -2638,7 +2673,7 @@ def cluster_quality_content_for(
     try:
         summary = summary_of(run)
     except ValueError as exc:
-        return html.Div([html.P(str(exc), className="status-message"), _model_fit_block(run, model_fit_of), *membership_blocks])
+        return html.Div([_quality_guide(), html.P(str(exc), className="status-message"), _model_fit_block(run, model_fit_of), *membership_blocks])
 
     def share(value: float) -> str:
         return f"{_format_number(value * 100, 1)}%"
@@ -2654,7 +2689,7 @@ def cluster_quality_content_for(
         ["Cluster più grande", share(summary.largest_cluster_share), "dei soggetti"],
         ["Rumore", share(summary.noise_fraction), "dei soggetti"],
     ]
-    children: list = []
+    children: list = [_quality_guide()]
     warning = noise_warning(run.run_name, summary.noise_fraction, NOISE_WARNING_FRACTION)
     if warning is not None:
         children.append(_warning_box(warning))
@@ -2672,7 +2707,6 @@ def cluster_quality_content_for(
         ),
         _model_fit_block(run, model_fit_of),
         *membership_blocks,
-        _quality_guide(),
     ]
     return html.Div(children)
 
