@@ -29,6 +29,17 @@ def test_the_bars_have_the_color_the_clusters_have_in_the_embedding_scatter():
     assert list(figure.data[0].marker.color) == [scatter[0], scatter[2], scatter[5]]
 
 
+def test_a_dashed_line_marks_the_mean_silhouette_over_all_subjects_not_the_mean_of_the_bars():
+    figure = build_silhouette_figure(_clusters())  # 30 x 0.52, 5 x -0.1, 120 x 0.33
+
+    (line,) = figure.layout.shapes
+    expected = (30 * 0.52 + 5 * -0.1 + 120 * 0.33) / 155
+    assert line.x0 == line.x1 == pytest.approx(expected) and line.line.dash == "dash"
+    assert line.opacity == 1  # simple_white gives every shape 0.3 opacity: the line would be nearly invisible
+    assert f"{expected:.2f}" in figure.layout.annotations[0].text
+    assert abs(expected - (0.52 - 0.1 + 0.33) / 3) > 0.05  # the unweighted mean would be a different line
+
+
 def test_the_hover_reports_the_size_and_the_share_of_negative_silhouettes():
     figure = build_silhouette_figure(_clusters())
 

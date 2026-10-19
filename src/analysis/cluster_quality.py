@@ -21,7 +21,8 @@ _FONT_STACK = (
     'Cantarell, "Helvetica Neue", sans-serif'
 )
 _BAR_HEIGHT = 34
-_FIGURE_MARGINS = dict(l=20, r=30, t=20, b=50)
+_AVERAGE_COLOR = "#d62728"
+_FIGURE_MARGINS = dict(l=20, r=30, t=40, b=50)
 _REQUIRED_COLUMNS = ("n", "silhouette_mean", "share_negative")
 
 
@@ -30,6 +31,7 @@ def build_silhouette_figure(clusters: pd.DataFrame) -> go.Figure:
     in the embedding scatter. The label of each bar carries the cluster's size ("3 · n=412"), because
     a mean over a handful of subjects is not comparable with one over hundreds; the hover adds the
     share of its subjects with a negative silhouette (placed closer to another cluster than to their own).
+    A dashed red line marks the mean over all subjects (the cluster means weighted by size).
 
     `clusters` is per_cluster_silhouette's table (index: cluster label, noise already left out).
     Raises ValueError if it is empty or lacks one of n/silhouette_mean/share_negative."""
@@ -54,6 +56,16 @@ def build_silhouette_figure(clusters: pd.DataFrame) -> go.Figure:
         ),
         showlegend=False,
     ))
+    # Mean over the subjects (what silhouette_score returns): each cluster's mean weighted by its size.
+    average = float((ordered["silhouette_mean"] * ordered["n"]).sum() / ordered["n"].sum())
+    figure.add_shape(
+        type="line", x0=average, x1=average, y0=0, y1=1, xref="x", yref="paper",
+        line=dict(color=_AVERAGE_COLOR, width=2, dash="dash"), layer="above", opacity=1,
+    )
+    figure.add_annotation(
+        x=average, y=1, xref="x", yref="paper", yanchor="bottom", showarrow=False,
+        text=f"media sui soggetti = {average:.2f}", font=dict(size=13, color=_AVERAGE_COLOR),
+    )
     figure.update_xaxes(range=[-1, 1], title_text="silhouette media del cluster", gridcolor=_GRIDLINE_COLOR, zeroline=True, zerolinecolor=_MUTED_COLOR)
     figure.update_yaxes(type="category", autorange="reversed", title_text="cluster")
     figure.update_layout(

@@ -72,6 +72,7 @@ def test_a_dim_reduction_run_takes_its_own_metric_and_components_and_has_no_para
     assert values == {
         "modality": "lesion", "pipeline": "dim_reduction", "method": "umap", "reduction": NO_METRIC,
         "metric": "euclidean", "n_components": 2, "tag_params": NO_METRIC,
+        "n_subjects": 4,
     }
 
 
@@ -288,3 +289,39 @@ def test_the_graph_is_not_drawn_while_run_is_open(_runs, tmp_path):
     response = app.server.test_client().post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
 
     assert response.status_code == 204  # PreventUpdate: no KeyError on runs_by_key["---"]
+
+
+# --- the number of subjects ("Soggetti") -------------------------------------------------------------------------
+
+def _with_subjects(indexed, counts):
+    """The same runs, each with the subject count given (the fixture runs all share one matrix size)."""
+    from dataclasses import replace
+    return [replace(item, values={**item.values, "n_subjects": counts[item.run.run_name]}) for item in indexed]
+
+
+def test_the_subject_count_of_a_run_is_read_from_its_manifest_without_loading_the_matrix(_runs, tmp_path):
+    values = run_picker_values(_runs[0], _clustering_params_file(tmp_path))
+    manifest = json.loads((_runs[0].path / "manifest.json").read_text())
+
+    assert values["n_subjects"] == manifest["matrix_shape"][0]
+
+
+def test_a_run_whose_manifest_has_no_shape_is_left_out_with_a_warning(_runs, tmp_path, caplog):
+    (_runs[0].path / "manifest.json").write_text("{}")
+
+    with caplog.at_level(logging.WARNING):
+        indexed = index_runs(_runs, _clustering_params_file(tmp_path))
+
+    assert _runs[0].key not in [item.run.key for item in indexed] and "matrix_shape" in caplog.text
+
+
+def test_the_subjects_selector_filters_the_runs_and_is_filtered_by_the_others(_indexed):
+    counts = {item.run.run_name: 100 for item in _indexed} | {"10-08_a": 5845, "12-08_k3": 5845, "13-08_k5": 5200}
+    indexed = _with_subjects(_indexed, counts)
+
+    state = resolve_pickers(indexed, _current(modality="lesion", n_subjects=5845), "n_subjects")
+    assert set(state.options["run"][1:]) == {_key("lesion", "dim_reduction", "umap", "10-08_a"), _key("lesion", "clustering", "kmeans", "12-08_k3", "umap")}
+
+    # with the method narrowed to kmeans, "Soggetti" offers only the counts of kmeans runs (sorted numerically)
+    state = resolve_pickers(indexed, _current(modality="lesion", method="kmeans"), "method")
+    assert state.options["n_subjects"] == [UNSET, 100, 5200, 5845]

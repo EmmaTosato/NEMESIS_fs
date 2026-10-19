@@ -255,6 +255,8 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 .section-divider {{ margin-top: 88px; padding-top: 52px; border-top: 3px solid {_TEXT_COLOR}; }}
 .section-title {{ font-size: 40px; font-weight: 800; letter-spacing: -0.01em; text-align: center; margin: 0 0 10px; }}
 .section-intro {{ font-size: 21px; line-height: 1.5; color: #595959; text-align: center; margin: 0 0 28px; }}
+/* The explanation lines of the clustering evaluation panel: the size of .page-subtitle. */
+.quality-intro {{ font-size: 19px; line-height: 1.5; color: #595959; text-align: center; margin: 0 0 28px; }}
 /* The chooser that scopes every panel below: centred and wider than a picker-row field, so it
    reads as this section's own control rather than as one more form field. */
 .cluster-chooser {{
@@ -708,11 +710,20 @@ UNSET = "---"
 
 # The selectors that filter the run list, in the order they are shown. "run" is the list itself: the runs that
 # match every filter that is set; choosing one of them does not set the filters that are not.
-PICKER_FACETS: tuple[str, ...] = ("modality", "pipeline", "method", "reduction", "metric", "n_components", "tag_params")
+PICKER_FACETS: tuple[str, ...] = ("modality", "pipeline", "method", "reduction", "metric", "n_components", "n_subjects", "tag_params")
 PICKER_FIELDS: tuple[str, ...] = (*PICKER_FACETS, "run")
 
 # Shown next to a run's name for the facets that are not set, so runs of different methods are told apart.
 _RUN_LABEL_FACETS = ("modality", "pipeline", "method", "reduction")
+
+
+def _run_n_subjects(run: ProductionRun) -> int:
+    """The number of subjects (rows) of the run's matrix, read from manifest.json without loading matrix.npy.
+    Raises ValueError if the manifest does not carry it."""
+    try:
+        return int(_matrix_shape(run)[0])
+    except (KeyError, IndexError, TypeError) as exc:
+        raise ValueError(f"{run.path}: manifest.json has no usable matrix_shape: {exc!r}") from exc
 
 
 def run_picker_values(run: ProductionRun, clustering_params_file: str | Path) -> dict[str, object]:
@@ -730,7 +741,7 @@ def run_picker_values(run: ProductionRun, clustering_params_file: str | Path) ->
     return {
         "modality": run.modality, "pipeline": run.pipeline, "method": run.method,
         "reduction": _reduction_method_label(run), "metric": metric, "n_components": n_components,
-        "tag_params": tag_params,
+        "n_subjects": _run_n_subjects(run), "tag_params": tag_params,
     }
 
 
@@ -2446,7 +2457,7 @@ def adp_quality_content_for(
         html.P(
             f"Calcolati sulla distanza dice del dato grezzo, quella con cui adp ha clusterizzato, su {summary.n_clustered} "
             f"soggetti clusterizzati di {summary.n_subjects}.",
-            className="section-intro",
+            className="quality-intro",
         ),
         _table(["Indice", "Valore", "Lettura"], rows, text_columns=(0, 2)),
         html.P("Per cluster", className="comparison-subheading"),
@@ -2567,12 +2578,12 @@ def _confidence_block(run: ProductionRun, confidence_of: Callable[[ProductionRun
         ),
         html.P(
             f"{result.n_noise} soggetti di rumore (esclusi) e {result.n_confident} soggetti con probabilità di almeno {threshold}.",
-            className="section-intro",
+            className="quality-intro",
         ),
         html.P(
             f"«Sotto {threshold}» è la quota dei soggetti del cluster con probabilità nel proprio cluster inferiore a {threshold}: "
             "più è alta, più il cluster è fatto di soggetti deboli (soglia d'esempio).",
-            className="section-intro",
+            className="quality-intro",
         ),
         _table(["Cluster", "Soggetti", "Probabilità media", f"Sotto {threshold}"], rows, text_columns=(0,)),
     ])
@@ -2621,11 +2632,11 @@ def _soft_membership_block(
                 f"La soglia {threshold} è solo un esempio.",
             ],
         ),
-        html.P(f"{summary.n_noise} soggetti di rumore: non hanno un cluster proprio, e hanno una riga a parte nella matrice.", className="section-intro"),
+        html.P(f"{summary.n_noise} soggetti di rumore: non hanno un cluster proprio, e hanno una riga a parte nella matrice.", className="quality-intro"),
         html.P(
             f"«Sotto {threshold}» è la quota dei soggetti del cluster con probabilità nel proprio cluster inferiore a {threshold}: "
             "più è alta, più il cluster è fatto di soggetti deboli (soglia d'esempio).",
-            className="section-intro",
+            className="quality-intro",
         ),
         _table(
             ["Cluster", "Soggetti", "Probabilità media nel proprio", f"Sotto {threshold}", "Altro cluster più probabile", "Probabilità media nell'altro"],
@@ -2694,7 +2705,7 @@ def cluster_quality_content_for(
         html.P(
             f"Calcolati sulle {summary.n_components} colonne della matrice su cui è stato fatto il clustering "
             f"({summary.n_subjects} soggetti), con il rumore (-1) escluso.",
-            className="section-intro",
+            className="quality-intro",
         ),
         _table(["Indice", "Valore", "Lettura"], rows, text_columns=(0, 2)),
         _chart_heading("Silhouette per cluster", "una barra per cluster, rumore escluso"),
@@ -2792,7 +2803,7 @@ def _chart_heading(title: str, subtitle: str) -> html.Div:
     """The title of a chart as page text (a sub-heading and one line under it), not inside the figure."""
     return html.Div([
         html.P(title, className="comparison-subheading"),
-        html.P(subtitle, className="section-intro"),
+        html.P(subtitle, className="quality-intro"),
     ])
 
 
@@ -3648,6 +3659,7 @@ def build_app(
                         children=[
                             _picker_field("Metrica", "metric-picker"),
                             _picker_field("Componenti", "n-components-picker"),
+                            _picker_field("Soggetti", "n-subjects-picker"),
                             # "Parametri" (01-09-26, on request): real clustering runs vary by
                             # more than just the upstream embedding's metric/n_components - each
                             # method's own hyperparameters (n_clusters/linkage for agglomerative,
@@ -3962,8 +3974,8 @@ def build_app(
             raise PreventUpdate
         return {"display": "none"} if pipeline == "dim_reduction" else {}
 
-    # One callback for every selector (see resolve_pickers): the 8 values come in, the 8 option lists and 8
-    # values go out. The seven before "Run" are optional filters ("---" = not a filter); "Run" lists the runs
+    # One callback for every selector (see resolve_pickers): the 9 values come in, the 9 option lists and 9
+    # values go out. The eight before "Run" are optional filters ("---" = not a filter); "Run" lists the runs
     # that match the filters that are set. The selectors are both inputs and outputs of this callback; Dash
     # does not re-trigger a callback from its own outputs.
     picker_ids = {field: f"{field.replace('_', '-')}-picker" for field in PICKER_FIELDS}
