@@ -6,6 +6,22 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 19-10-26 — Eliminata `results/reports/cluster_tuning_notebooks/`: il report di una run sta nella cartella della run
+
+**Cosa è cambiato** (a mano su `results/`, ignorato da git): eliminata la cartella con i 13 `cluster_*.md` per embedding, `README.md`, `MOVES_18-10-26.json`, `MOVES_19-10-26.json`, `_shared/` (generatori `generate_reports/*.py`, `cluster_tools.py`, 10 bozze di testo di `hdbscan_soft`) e le sottocartelle `images/`/`tables/`. Prima:
+- le 4 immagini di riferimento sono state spostate nelle cartelle `dim_reduction` di produzione: `embedding_reference.png` in `lesion/.../umap/08-10_s1.4-vol_m_euclidean_nc2/`, `umap_covariates.png` in `sdc/.../umap/16-10_s2.4-vol_m_euclidean_nc2/`, `pca_covariates.png` in `sdc/.../pca/17-10_s2.4-vol_nc30/` e `sdc/.../pca/16-10_s2.4-vol_nc42/`;
+- i 10 residui di `tables/` (`candidates.csv` del vecchio metodo con le soglie, `what_explains_partition.csv`, `subjects_metadata_joined.csv`, `metadata_merged_nc2.csv`, `association_agglomerative_candidates.csv`, `pca2d_view.npy`) sono in `tmp/cluster_tuning_residual_tables_19-10-26/`;
+- le 2 immagini `view2d_*.png` dello streamline sono state eliminate (restano solo nel backup);
+- copia integrale della cartella (51 file, verificata con `diff -r`) in `tmp/cluster_tuning_notebooks_backup_19-10-26/`: è l'unico posto dove restano i generatori e `plot_labels_on_2d`.
+
+Eliminati anche `results/lesion/clustering/tuning/SUMMARY.md` e `results/sdc/clustering/tuning/SUMMARY.md` (contenevano il filtro `usabile` del vecchio metodo); copie in `tmp/summary_md_19-10-26/`. `all_candidates.csv` (accanto ai due `SUMMARY.md`) non è stato toccato.
+
+**Perché**: un report per run, scritto da `analyze_clustering_tuning` come `report.md` nella cartella della run (voce `methods_changelog.md` del 19-10-26), sostituisce i report per embedding con i quattro metodi; il codice che li generava stava sotto `results/`, non versionato.
+
+**Conseguenza ancora vera oggi**: le voci storiche di questo e del `methods_changelog.md` che citano `results/reports/cluster_tuning_notebooks/` descrivono un percorso che non esiste più. I link nei `docs/experiments/{README,s1.4-vol,s2.4-vol,s2.4-stream}.md` puntano ai `report.md` delle run; quelli di agglomerative (lesione `08-10 euclidean nc10`, SDC `16-10 nc2/nc3/nc10`) e quelli dello streamline raw (`agglomerative`, `hdbscan`, `hdbscan_soft`, `adp`) esistono solo dopo aver rigenerato i report. I due `SUMMARY.md` vanno riscritti senza `usabile`; il confronto tra le matrici 07-10 e 16-10 della voce del 17-10-26 non ha più un file di sintesi.
+
+---
+
 ## 19-10-26 — Confronti tra embedding in una cartella propria, report in file piatti, niente `k_evaluation_map`
 
 **Cosa è cambiato** (a mano su `results/`, ignorato da git): i confronti tra embedding (curve e ARI tra nc2, nc3 e nc10, heatmap HDBSCAN per `n_components`) stanno in `results/lesion/clustering/tuning/comparison/umap/<data>_<sessione>_m_<metrica>_comparison_nc/`: una cartella per metrica (`08-10_s1.4-vol_m_dice_comparison_nc`, `08-10_s1.4-vol_m_euclidean_comparison_nc`), con lo stesso nome delle run in cui `nc<N>` diventa `comparison_nc`. Le tre immagini `nb_c52/54/58_0.png` hanno nomi descrittivi (`agglomerative_curves_by_embedding.png`, `ward_ari_by_k.png`, `hdbscan_grids_by_embedding.png`). I `report.md` sono saliti di una cartella (`cluster_<...>.md`) con i percorsi relativi accorciati; `scripts/` dei report e quattro file di `_shared/` (`hdbscan_all.py`, `k_evaluation.py`, `k_evaluation_all.csv`, `make_detail_reports.py`) sono stati cancellati. Origine e destinazione sono in `results/reports/cluster_tuning_notebooks/MOVES_19-10-26.json`.

@@ -167,7 +167,7 @@ Raggruppa i soggetti con `kmeans`, `agglomerative`, `gmm`, `hdbscan`, `spectral`
 `adp` (Advanced Density Peaks, `dadapy`) è l'eccezione: gira da solo, sulla matrice grezza, nell'ambiente con `dadapy` e con un config per matrice (`config/pipelines/clustering_adp_<sessione>.json`) (sezione "ADP" di [`clustering.md`](clustering.md)).
 **Input:** la matrice (`reduced_data: false`) o un embedding del passo 6 (`true`), più `params_clustering.json`. **Output:** `results/<modalità>/clustering/{production,tuning}/<metodo>/<riduzione>/...`. Se la matrice ha più di 3 componenti, per i grafici dei cluster serve un `viz_embedding_path`, cioè un run 2D di `dim_reduction` sugli stessi soggetti. Guida: [`clustering.md`](clustering.md).
 
-**Passo opzionale, dopo un tuning:** `python -m src.pipeline.analyze_clustering_tuning --config config/pipelines/analyze_clustering_tuning.json` calcola su un tuning già salvato (`save_tuning_clusterings: true`) ciò che lo sweep non scrive (cophenetic e salto del dendrogramma per agglomerative; quota del cluster più grande e flag `usable` per HDBSCAN), senza rifare il clustering. Guida: [`analyze_clustering_tuning.md`](analyze_clustering_tuning.md).
+**Passo opzionale, dopo un tuning:** `python -m src.pipeline.analyze_clustering_tuning --config config/pipelines/analyze_clustering_tuning.json` calcola su un tuning già salvato (`save_tuning_clusterings: true`) ciò che lo sweep non scrive (cophenetic e salto del dendrogramma per agglomerative; numero di cluster e quota del cluster più grande per HDBSCAN) e un `report.md` per run, senza rifare il clustering. Guida: [`analyze_clustering_tuning.md`](analyze_clustering_tuning.md).
 
 Per esplorare i risultati salvati:
 

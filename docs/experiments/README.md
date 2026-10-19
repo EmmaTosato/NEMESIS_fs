@@ -40,7 +40,7 @@ Qui: cosa è stato provato, cosa si è visto, cosa si è deciso e perché.
 
 Altrove:
 
-- **Le tabelle complete** di ogni tuning: `tuning_results.csv` nella cartella della run, linkata da ogni sezione. Per il clustering ci sono anche i report per run in [`results/reports/cluster_tuning_notebooks/`](../../results/reports/cluster_tuning_notebooks/) (tabelle ordinate per silhouette, lettura per gruppi di k, immagini).
+- **Le tabelle complete** di ogni tuning: `tuning_results.csv` nella cartella della run, linkata da ogni sezione. Per il clustering ogni run di tuning ha anche un `report.md` nella sua cartella, scritto da `analyze_clustering_tuning` ([guida](../guides/analyze_clustering_tuning.md)): per agglomerative una tabella per `metric` e `linkage` con le fasce della silhouette e le curve per k, per gli altri metodi le tabelle di `tuning_results.csv`.
 - **I parametri di una singola run**: il suo `config.md` e la riga in `runs.csv`.
 - **Il perché di una scelta di metodo**, con le alternative scartate: [`.claude/history/methods_changelog.md`](../../.claude/history/methods_changelog.md).
 - **Come si lancia una pipeline**: [`docs/guides/`](../guides/).

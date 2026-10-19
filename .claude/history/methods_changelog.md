@@ -8,6 +8,40 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 19-10-26 — Report di tuning di agglomerative: fasce della silhouette di Kaufman & Rousseeuw (1990) come convenzione dichiarata
+
+**Cosa è cambiato**: `report.md` di agglomerative (`tuning_report_markdown`, `src/analysis/clustering_tuning_analysis.py`) ha una sezione per `metric` e, dentro, una tabella per `linkage` con silhouette, Davies-Bouldin e Calinski-Harabasz per `n_clusters` (da 2 a 30, nessuna riga esclusa, `single` compreso). Sotto ogni tabella, punti che collocano ogni k nelle quattro fasce (0.71-1.00 forte, 0.51-0.70 ragionevole, 0.26-0.50 debole, fino a 0.25 nessuna struttura sostanziale; silhouette arrotondata a 2 decimali), contano le negative ("non accettabile per convenzione", la combinazione resta nel report) e riportano la silhouette a k minimo e massimo. Figure per `metric`: una senza `single` con tre pannelli (silhouette su asse fisso da -1 a 1, silhouette su asse adattato ai dati, Davies-Bouldin) e una solo per `single`, perché la sua silhouette scende fino a -0.69.
+
+Poi, per ogni `metric`, tabella del cophenetic (un valore per linkage), tabella del salto del dendrogramma (k in riga, linkage in colonna) e link ai dendrogrammi e alle etichette 2D che `clustering.py` ha scritto nella cartella (solo se presenti), in fondo la matrice interclasse. `k_range` del config passa da 3 a 2: il salto a k=2 (la prima divisione) mancava. Senza fasce: per cophenetic e salto la ricerca web (fonti secondarie) non trova soglie con fonte. La regola "0.75 è buono" non si trova; 0.8 compare in lavori applicati senza fonte primaria (Sokal & Rohlf 1962 propongono il coefficiente, Farris 1969 lo discute, testi non consultati). Il salto non è la regola di Mojena (1977, *The Computer Journal*): quella lavora sulle altezze di fusione standardizzate, il nostro salto è il rapporto tra due altezze consecutive. Un articolo su *Pattern Recognition* ne discute il valore limitato come criterio di clustering.
+
+**Perché**: la voce sotto (stesso giorno) ha tolto le soglie scelte da noi. Le fasce sono un'altra cosa: una convenzione di letteratura, dichiarata come tale con la fonte, applicata senza escludere nessuna run. La distinzione adottata: una soglia con fonte sì, una inventata da noi no. La fonte è attribuita da fonti secondarie (il libro del 1990 non è stato consultato) e gli estremi variano tra le fonti (0.25/0.26, 0.50/0.51).
+
+**Scartato**:
+- Ordinare le righe per silhouette decrescente: metteva in cima k=2-3 e mescolava i linkage, inutile per leggere tutti i k.
+- Una tabella per indice con i linkage in colonna: nascondeva i disaccordi tra indici allo stesso k.
+- Escludere `single`, `cosine` e `manhattan` dalle tabelle: una scelta nostra, non agnostica.
+- Fasce per Davies-Bouldin e Calinski-Harabasz: nessuna con fonte (ricerca web, solo fonti secondarie), quindi solo valori.
+- Un solo asse per la silhouette: l'asse fisso rende le oscillazioni piccole (e le quattro soglie sempre visibili), quello adattato mostra la forma ma le esagera; si tengono entrambi nella stessa figura.
+- `noise_fraction` per agglomerative: vale sempre 0.
+
+**Conseguenza ancora vera oggi**: le fasce descrivono la combinazione, non scelgono `n_clusters`, e non si confrontano tra `metric` diverse. Restano nel vecchio formato HDBSCAN, `hdbscan_soft` e ADP, e i `report.md` già presenti in `results/` (20 al 19-10-26, scritti alle 10:03-10:06 dal vecchio `tuning_report_markdown`). Aperti in `.claude/open_problems.md`: il modello nullo per la silhouette, le dimensioni dei cluster nelle tabelle, scree plot, accordo tra embedding e composizione dei cluster nel report.
+
+---
+
+## 19-10-26 — Report di tuning del clustering: via le soglie che giudicano le run, la parte agnostica resta solo misure
+
+**Cosa è cambiato**: tolti da `src/pipeline/analyze_clustering_tuning.py` il flag `usable` (3-30 cluster, rumore ≤ 25%, cluster più grande ≤ 60%) e il blocco `usable` del config; l'output per HDBSCAN si chiama ora `density_metrics.csv` (era `candidates.csv`) e contiene `n_clusters_found` e `largest_cluster_share`, senza verdetto. In `results/reports/cluster_tuning_notebooks/_shared/cluster_tools.py` cancellata la classificazione `buono`/`parziale`/`debole` (ARI medio ≥ 0.90 e minimo ≥ 0.80 su 20 sottocampioni, cluster minimo ≥ 1%, salto del dendrogramma ≥ 1.10) con `rank_least_bad` e `plot_k_curves`. Suite: 1736 passed, 17 skipped.
+
+**Perché**: quelle soglie erano convenzioni scelte da noi, senza una giustificazione scientifica, e decidevano quali run dichiarare stabili o instabili. Un report deve avere una parte agnostica (le tabelle di metriche, già presenti) separata dall'interpretazione.
+
+**Report `cluster_*.md`**: tolto il commento a mano da tutti e 12 (sezioni «In breve» e «Cosa mostrano le immagini», le frasi sotto le tabelle, la colonna e la definizione di `usabile`); restano intestazione, tabelle e termini, con lo stesso numero di righe di tabella. Copia commentata in `tmp/cluster_reports_commented_19-10-26/`. Gli script generatori in `_shared/generate_reports/` scrivono ancora il testo vecchio: non vanno rilanciati.
+
+**Non ancora fatto** (da decidere insieme): la parte interpretativa. Agglomerative: metriche, scree plot, dendrogramma e altri grafici letti su tutti i k. HDBSCAN: metriche e rumore. Resta `curves_max_noise_fraction` (0.1, un filtro di vista), non toccato.
+
+**Conseguenza ancora vera oggi**: la voce del 17-10-26 usa ancora `usabile` come criterio di confronto tra le matrici 07-10 e 16-10; quel confronto non è più riproducibile con la pipeline.
+
+---
+
 ## 17-10-26 — Confronto tra matrici SDC: il filtro `usabile` come criterio comune; due sensi di "utilizzabile" nei report
 
 **Cosa è cambiato**: per confrontare le run su `s2.4-vol` 07-10 e 16-10 si usa il filtro `usabile` già definito per `hdbscan_soft` (3-30 cluster, rumore ≤ 25%, cluster più grande ≤ 60% dei soggetti), applicato anche alle righe di HDBSCAN (sklearn). Con quel filtro, nel 07-10 le righe `hdbscan` usabili sono 5/0/8 (nc2/nc3/nc10, su 28) e le `hdbscan_soft` 9/1/13 (su 56); nel 16-10 sono 0/0/0 e 0/2/0. Le produzioni delle due matrici si confrontano per `subject_id` (`cluster_comparison.align_runs` + `agreement_metrics`, 5845 soggetti in comune): ARI HDBSCAN 0.19-0.37, `hdbscan_soft` 0.23-0.37, agglomerative nc10 average 0.79-1.00, nc2 ward 0.58-0.79, ADP 0.73-0.89.

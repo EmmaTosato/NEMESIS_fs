@@ -6,10 +6,12 @@ Usage:
 Reads the files `clustering.py --fine_tuning true` wrote (tuning_results.csv, clusterings.npz, config.md and,
 for agglomerative, the matrix its config.md points to) and writes what the sweep does not, next to them:
 
-- agglomerative: cophenetic_correlation.csv, dendrogram_jump.csv, k_curves_metric=<metric>.png
-- hdbscan / hdbscan_soft: candidates.csv, noise_filtered_curves[_cluster_selection_method=<method>].png
+- every method: report.md, the tables of tuning_results.csv with no verdict
+- agglomerative: cophenetic_correlation.csv, dendrogram_jump.csv, k_curves_metric=<metric>.png and
+  k_curves_single_metric=<metric>.png (the single linkage, in a figure of its own)
+- hdbscan / hdbscan_soft: density_metrics.csv, noise_filtered_curves[_cluster_selection_method=<method>].png
 
-Nothing is refitted. Lesion and sdc alike; adp is not handled (docs/guides/clustering.md).
+Nothing is refitted. Lesion and sdc alike; adp only gets report.md (its own diagnostics: docs/guides/clustering.md).
 """
 
 from __future__ import annotations
@@ -23,13 +25,18 @@ import pandas as pd
 from matplotlib.figure import Figure
 
 from src.analysis.clustering_tuning_analysis import (
+    ADP,
     AGGLOMERATIVE,
     ClusteringTuningRun,
     agglomerative_analysis,
-    density_candidates,
+    density_metrics,
     k_curves_figure,
+    k_curves_file_name,
+    k_curves_targets,
     load_clustering_tuning_run,
     noise_filtered_curves_figures,
+    read_run_config,
+    tuning_report_markdown,
 )
 from src.analysis.model_config import AnalyzeClusteringTuningConfig, load_analyze_clustering_tuning_config
 from src.utils.artifacts import load_matrix
@@ -37,6 +44,7 @@ from src.utils.logging_setup import attach_file_handler, log_duration
 
 LOGS_ROOT = Path("logs") / "analyze_clustering_tuning"
 LOG_FILENAME_PREFIX = "analyze_clustering_tuning"
+REPORT_FILENAME = "report.md"
 
 
 def _refuse_existing(paths: list[Path], overwrite: bool) -> None:
@@ -50,40 +58,52 @@ def _save_figure(figure: Figure, path: Path) -> None:
 
 
 def _analyze_agglomerative(run: ClusteringTuningRun, config: AnalyzeClusteringTuningConfig) -> list[Path]:
-    metrics = sorted(run.results["metric"].unique())
+    curves = {k_curves_file_name(metric, single): (metric, single) for metric, single in k_curves_targets(run.results)}
     outputs = {
         "cophenetic": run.run_dir / "cophenetic_correlation.csv",
         "jump": run.run_dir / "dendrogram_jump.csv",
-        **{f"curves_{metric}": run.run_dir / f"k_curves_metric={metric}.png" for metric in metrics},
+        "report": run.run_dir / REPORT_FILENAME,
+        **{name: run.run_dir / name for name in curves},
     }
     _refuse_existing(list(outputs.values()), config.overwrite)
 
     X, _, _ = load_matrix(run.input_path)
     cophenetic, jump = agglomerative_analysis(run, X, range(config.k_min, config.k_max + 1))
+    outputs["report"].write_text(tuning_report_markdown(run.run_dir, run.method, run.input_path, run.results, cophenetic, jump))
     cophenetic.to_csv(outputs["cophenetic"], index=False)
     jump.to_csv(outputs["jump"], index=False)
-    for metric in metrics:
-        _save_figure(k_curves_figure(run.results, metric), outputs[f"curves_{metric}"])
+    for name, (metric, single) in curves.items():
+        _save_figure(k_curves_figure(run.results, metric, single), outputs[name])
     return list(outputs.values())
 
 
 def _analyze_density(run: ClusteringTuningRun, config: AnalyzeClusteringTuningConfig) -> list[Path]:
-    candidates = density_candidates(run, config.usable)
-    figures, without_figure = noise_filtered_curves_figures(candidates, config.curves_max_noise_fraction)
+    metrics = density_metrics(run)
+    figures, without_figure = noise_filtered_curves_figures(metrics, config.curves_max_noise_fraction)
     for name in without_figure:
         logging.warning(
             "no combination has noise_fraction <= %s%s: no curves figure for it",
             config.curves_max_noise_fraction, f" for cluster_selection_method={name}" if name else "",
         )
     paths = {name: run.run_dir / (f"noise_filtered_curves_{name}.png" if name else "noise_filtered_curves.png") for name in figures}
-    csv_path = run.run_dir / "candidates.csv"
-    _refuse_existing([csv_path, *paths.values()], config.overwrite)  # candidates.csv is written even with no figure
+    csv_path, report_path = run.run_dir / "density_metrics.csv", run.run_dir / REPORT_FILENAME
+    _refuse_existing([csv_path, report_path, *paths.values()], config.overwrite)  # written even with no figure
 
-    candidates.to_csv(csv_path, index=False)
+    metrics.to_csv(csv_path, index=False)
+    report_path.write_text(tuning_report_markdown(run.run_dir, run.method, run.input_path, metrics))
     for name, figure in figures.items():
         _save_figure(figure, paths[name])
-    logging.info("usable combinations: %d of %d", int(candidates["usable"].sum()), len(candidates))
-    return [csv_path, *paths.values()]
+    return [csv_path, report_path, *paths.values()]
+
+
+def _analyze_adp(run_dir: Path, run_config: dict, config: AnalyzeClusteringTuningConfig) -> list[Path]:
+    report_path = run_dir / REPORT_FILENAME
+    _refuse_existing([report_path], config.overwrite)
+    results_path = run_dir / "tuning_results.csv"
+    if not results_path.is_file():
+        raise FileNotFoundError(f"{results_path} not found")
+    report_path.write_text(tuning_report_markdown(run_dir, ADP, Path(run_config["input_path"]), pd.read_csv(results_path)))
+    return [report_path]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -111,19 +131,25 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
         try:
-            run = load_clustering_tuning_run(config.tuning_dir)
+            run_config = read_run_config(config.tuning_dir)
+            run = None if run_config["clustering_method"] == ADP else load_clustering_tuning_run(config.tuning_dir)
         except (FileNotFoundError, ValueError) as exc:
             logging.error(str(exc))
             return 1
 
-        logging.info("analysing %s: method=%s, %d combinations", run.run_dir, run.method, len(run.results))
+        logging.info("analysing %s: method=%s", config.tuning_dir, run_config["clustering_method"])
         try:
-            written = _analyze_agglomerative(run, config) if run.method == AGGLOMERATIVE else _analyze_density(run, config)
+            if run is None:
+                written = _analyze_adp(config.tuning_dir, run_config, config)
+            elif run.method == AGGLOMERATIVE:
+                written = _analyze_agglomerative(run, config)
+            else:
+                written = _analyze_density(run, config)
         except (FileExistsError, FileNotFoundError, OSError, ValueError, pd.errors.ParserError) as exc:
             logging.error("analysis failed: %s", exc, exc_info=isinstance(exc, OSError))
             return 1
 
-        logging.info("done - %d file(s) written under %s, log written to %s", len(written), run.run_dir, log_path)
+        logging.info("done - %d file(s) written under %s, log written to %s", len(written), config.tuning_dir, log_path)
         return 0
     finally:
         log_duration(now)

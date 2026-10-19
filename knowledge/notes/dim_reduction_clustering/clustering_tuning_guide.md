@@ -37,6 +37,24 @@ Calcolati per tutti e 6 i metodi, sempre nello stesso file (`tuning_plot.png`), 
    - Davies-Bouldin basso a un valore alto → sottogruppi più fini, compatti al loro interno.
 3. In caso di conflitto non esiste una regola meccanica. Guarda anche la diagnostica specifica del metodo (dendrogramma, eigengap, ecc. — sotto) prima di decidere, e valuta il risultato anche dal punto di vista clinico.
 
+### Fasce di valori: cosa dice la letteratura
+
+Solo la silhouette ha una scala di interpretazione citata in letteratura. È una **convenzione**, non un risultato:
+
+| Silhouette | Lettura (Kaufman & Rousseeuw 1990, *Finding Groups in Data*) |
+| --- | --- |
+| 0.71 - 1.00 | struttura forte |
+| 0.51 - 0.70 | struttura ragionevole |
+| 0.26 - 0.50 | struttura debole, forse artificiale |
+| fino a 0.25 | nessuna struttura sostanziale |
+
+- **Estremi**: le fonti che la riportano li scrivono in modi diversi (0.25/0.26, 0.50/0.51; alcune danno solo le soglie 0.7, 0.5 e 0.25). La scala è attribuita al testo del 1990 da fonti secondarie; il testo originale non è stato consultato.
+- **Limiti noti**: funziona meglio con cluster convessi; con dati ad alta dimensione tende a dare valori più bassi (Wikipedia, "Silhouette (clustering)").
+- **Davies-Bouldin e Calinski-Harabasz**: nessuna fascia con fonte. Le fonti secondarie consultate li descrivono come indici da usare per confronto tra partizioni degli stessi dati (Davies-Bouldin: più basso è meglio; Calinski-Harabasz: si prende il k che lo massimizza). Le pagine che parlano di "vicino a 0" per Davies-Bouldin o di "sotto 1" per Calinski-Harabasz non citano una fonte. I testi originali (Davies & Bouldin 1979; Caliński & Harabasz 1974) non sono stati consultati.
+- **Calinski-Harabasz** favorisce gruppi globulari e di dimensioni simili; **Davies-Bouldin** è sensibile a outlier e rumore.
+
+Fonti consultate (secondarie): [Wikipedia, Silhouette (clustering)](https://en.wikipedia.org/wiki/Silhouette_(clustering)), [tabella PLOS ONE](https://pmc.ncbi.nlm.nih.gov/articles/PMC5978888/table/pone.0198245.t001), [Wikipedia, Davies–Bouldin index](https://en.wikipedia.org/wiki/Davies%E2%80%93Bouldin_index), [MetricGate, Calinski-Harabasz](https://metricgate.com/calculator/calinski-harabasz-index), [GraphPad, Calinski-Harabasz](https://www.graphpad.com/guides/prism/latest/statistics/stat_clustering_calinski_harabasz.htm).
+
 ### Attenzione a questi tre casi particolari
 
 - **HDBSCAN**: i punti classificati come rumore vengono esclusi dai 3 indici. La frazione di rumore è sempre riportata a parte (`noise_fraction`) — mai nascosta, mai fusa nel calcolo.

@@ -54,7 +54,6 @@ def _analyze(tmp_path, monkeypatch, tuning_dir, overwrite=False):
         "overwrite": overwrite,
         "k_range": {"min": 3, "max": 6},
         "curves_max_noise_fraction": 0.5,
-        "usable": {"min_clusters": 3, "max_clusters": 30, "max_noise_fraction": 0.25, "max_largest_cluster_share": 0.6},
     }
     config_path = tmp_path / "an.json"
     config_path.write_text(json.dumps(config))
@@ -64,14 +63,16 @@ def _analyze(tmp_path, monkeypatch, tuning_dir, overwrite=False):
 def test_agglomerative_run_gets_cophenetic_jump_and_curves(tmp_path, monkeypatch):
     entry = {
         "params": {"n_clusters": 3},
-        "tuning_grid": {"n_clusters": [2, 3, 4], "linkage": ["ward", "average"], "metric": ["euclidean", "cosine"]},
+        "tuning_grid": {"n_clusters": [2, 3, 4], "linkage": ["ward", "average", "single"], "metric": ["euclidean", "cosine"]},
     }
     tuning_dir = _run_tuning(tmp_path, monkeypatch, "agglomerative", entry)
 
     assert _analyze(tmp_path, monkeypatch, tuning_dir) == 0
 
     cophenetic = pd.read_csv(tuning_dir / "cophenetic_correlation.csv")
-    assert set(zip(cophenetic["metric"], cophenetic["linkage"])) == {("euclidean", "ward"), ("euclidean", "average"), ("cosine", "average")}
+    assert set(zip(cophenetic["metric"], cophenetic["linkage"])) == {
+        ("euclidean", "ward"), ("euclidean", "average"), ("euclidean", "single"), ("cosine", "average"), ("cosine", "single"),
+    }
     jump = pd.read_csv(tuning_dir / "dendrogram_jump.csv")
     assert set(jump["n_clusters"]) == {3, 4, 5, 6}
     # three blobs: the sharpest ward cut is at 3 clusters
@@ -79,9 +80,15 @@ def test_agglomerative_run_gets_cophenetic_jump_and_curves(tmp_path, monkeypatch
     assert ward.idxmax() == 3
     for metric in ("euclidean", "cosine"):
         assert (tuning_dir / f"k_curves_metric={metric}.png").stat().st_size > 0
+        assert (tuning_dir / f"k_curves_single_metric={metric}.png").stat().st_size > 0  # single has a figure of its own
+    report = (tuning_dir / "report.md").read_text()
+    assert "## metric = euclidean" in report and "## metric = cosine" in report
+    assert "### linkage = single" in report and "(k_curves_single_metric=euclidean.png)" in report
+    assert report.count("### Cophenetic correlation") == 2 and report.count("### Salto del dendrogramma") == 2  # one per metric
+    assert "| 3 | " in report.split("### Salto del dendrogramma")[1]  # k_range 3-6 of this config
 
 
-def test_hdbscan_run_gets_candidates_and_filtered_curves(tmp_path, monkeypatch):
+def test_hdbscan_run_gets_density_metrics_and_filtered_curves(tmp_path, monkeypatch):
     entry = {
         "params": {"min_cluster_size": 10, "min_samples": 5},
         "tuning_grid": {"min_cluster_size": [10, 15], "min_samples": [3, 5]},
@@ -90,13 +97,14 @@ def test_hdbscan_run_gets_candidates_and_filtered_curves(tmp_path, monkeypatch):
 
     assert _analyze(tmp_path, monkeypatch, tuning_dir) == 0
 
-    candidates = pd.read_csv(tuning_dir / "candidates.csv")
-    assert len(candidates) == 4
-    assert {"largest_cluster_share", "usable", "n_clusters_found"} <= set(candidates.columns)
+    metrics = pd.read_csv(tuning_dir / "density_metrics.csv")
+    assert len(metrics) == 4
+    assert {"largest_cluster_share", "n_clusters_found"} <= set(metrics.columns)
+    assert "usable" not in metrics.columns
     # three blobs of equal size are found whole, with a third of the subjects in each
-    assert candidates["n_clusters_found"].eq(3).all()
-    assert candidates["largest_cluster_share"].round(2).eq(0.33).all()
-    assert candidates["usable"].all()
+    assert metrics["n_clusters_found"].eq(3).all()
+    assert metrics["largest_cluster_share"].round(2).eq(0.33).all()
+    assert "largest_cluster_share" in (tuning_dir / "report.md").read_text()
     assert (tuning_dir / "noise_filtered_curves.png").stat().st_size > 0
 
 
@@ -104,11 +112,11 @@ def test_a_second_run_without_overwrite_stops_and_leaves_the_files(tmp_path, mon
     entry = {"params": {"min_cluster_size": 10, "min_samples": 5}, "tuning_grid": {"min_cluster_size": [10, 15], "min_samples": [3, 5]}}
     tuning_dir = _run_tuning(tmp_path, monkeypatch, "hdbscan", entry)
     assert _analyze(tmp_path, monkeypatch, tuning_dir) == 0
-    before = (tuning_dir / "candidates.csv").read_bytes()
+    before = (tuning_dir / "density_metrics.csv").read_bytes()
 
     assert _analyze(tmp_path, monkeypatch, tuning_dir) == 1
     assert "overwrite=true" in caplog.text
-    assert (tuning_dir / "candidates.csv").read_bytes() == before
+    assert (tuning_dir / "density_metrics.csv").read_bytes() == before
 
     assert _analyze(tmp_path, monkeypatch, tuning_dir, overwrite=True) == 0
 
@@ -118,16 +126,33 @@ def test_a_folder_that_is_not_a_clustering_tuning_run_stops(tmp_path, monkeypatc
     assert "tuning config not found" in caplog.text
 
 
-def test_adp_runs_are_refused(tmp_path, monkeypatch, caplog):
+def _adp_run(tmp_path):
     run_dir = tmp_path / "adp_run"
     run_dir.mkdir()
     (run_dir / "config.md").write_text('# t\n\n```json\n{"clustering_method": "adp", "input_path": "m", "fine_tuning": true}\n```\n')
-
-    assert _analyze(tmp_path, monkeypatch, run_dir) == 1
-    assert "adp is not analysed here" in caplog.text
+    return run_dir
 
 
-def test_hdbscan_run_with_all_noise_still_gets_candidates_without_curves(tmp_path, monkeypatch):
+def test_adp_run_gets_only_the_report(tmp_path, monkeypatch):
+    run_dir = _adp_run(tmp_path)
+    pd.DataFrame(
+        {"metric": ["dice", "dice", "euclidean"], "Z": [1.0, 2.5, 1.0], "n_clusters_found": [30.0, 12.0, 2.0],
+         "largest_cluster_share": [0.2, 0.3, 0.98], "silhouette": [0.03, 0.05, -0.2]}
+    ).to_csv(run_dir / "tuning_results.csv", index=False)
+
+    assert _analyze(tmp_path, monkeypatch, run_dir) == 0
+
+    report = (run_dir / "report.md").read_text()
+    assert "## metric = dice" in report and "## metric = euclidean" in report
+    assert sorted(path.name for path in run_dir.iterdir()) == ["config.md", "report.md", "tuning_results.csv"]
+
+
+def test_adp_run_without_tuning_results_stops(tmp_path, monkeypatch, caplog):
+    assert _analyze(tmp_path, monkeypatch, _adp_run(tmp_path)) == 1
+    assert "tuning_results.csv" in caplog.text
+
+
+def test_hdbscan_run_with_all_noise_still_gets_density_metrics_without_curves(tmp_path, monkeypatch):
     """Regression: 8 of 58 real tuning runs have every combination above the noise limit; the analysis used to
     stop without writing anything for them."""
     entry = {"params": {"min_cluster_size": 30, "min_samples": 3}, "tuning_grid": {"min_cluster_size": [30, 40], "min_samples": [3]}}
@@ -135,7 +160,6 @@ def test_hdbscan_run_with_all_noise_still_gets_candidates_without_curves(tmp_pat
 
     assert _analyze(tmp_path, monkeypatch, tuning_dir) == 0
 
-    candidates = pd.read_csv(tuning_dir / "candidates.csv")
-    assert candidates["noise_fraction"].eq(1.0).all()
-    assert not candidates["usable"].any()
+    metrics = pd.read_csv(tuning_dir / "density_metrics.csv")
+    assert metrics["noise_fraction"].eq(1.0).all()
     assert not (tuning_dir / "noise_filtered_curves.png").exists()

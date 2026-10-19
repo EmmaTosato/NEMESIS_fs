@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from src.analysis.clustering import CLUSTERING_METHODS
-from src.analysis.clustering_tuning_analysis import UsableCriteria
 from src.analysis.reduction import REDUCTION_METHODS
 from src.analysis.tuning_evaluations import KIND_EMBEDDING_EVALUATION, validate_tuning_evaluations_block
 
@@ -57,7 +56,6 @@ class AnalyzeClusteringTuningConfig:
     k_min: int
     k_max: int
     curves_max_noise_fraction: float
-    usable: UsableCriteria
 
 
 @dataclass(frozen=True)
@@ -120,30 +118,20 @@ def load_evaluate_tuning_embeddings_config(path: str | Path) -> EvaluateTuningEm
 
 def load_analyze_clustering_tuning_config(path: str | Path) -> AnalyzeClusteringTuningConfig:
     """Config of src/pipeline/analyze_clustering_tuning.py: which stored clustering tuning run to analyse,
-    the range of k the dendrogram jump is computed over, the noise limit of the filtered curves and the
-    criteria of the `usable` flag. Every field is required: the thresholds have no default.
+    the range of k the dendrogram jump is computed over and the noise limit of the filtered curves.
+    Every field is required: the limit has no default.
     """
     raw = _read_config(path)
     k_range = _require_object(raw, "k_range")
-    usable = _require_object(raw, "usable")
     k_min, k_max = _require_int(k_range, "min", 2), _require_int(k_range, "max", 2)
     if k_min > k_max:
         raise ValueError(f"config: k_range.min ({k_min}) is greater than k_range.max ({k_max})")
-    min_clusters, max_clusters = _require_int(usable, "min_clusters", 1), _require_int(usable, "max_clusters", 1)
-    if min_clusters > max_clusters:
-        raise ValueError(f"config: usable.min_clusters ({min_clusters}) is greater than usable.max_clusters ({max_clusters})")
     return AnalyzeClusteringTuningConfig(
         tuning_dir=Path(_require_str(raw, "tuning_dir")),
         overwrite=_require_bool(raw, "overwrite"),
         k_min=k_min,
         k_max=k_max,
         curves_max_noise_fraction=_require_fraction(raw, "curves_max_noise_fraction"),
-        usable=UsableCriteria(
-            min_clusters=min_clusters,
-            max_clusters=max_clusters,
-            max_noise_fraction=_require_fraction(usable, "max_noise_fraction"),
-            max_largest_cluster_share=_require_fraction(usable, "max_largest_cluster_share"),
-        ),
     )
 
 

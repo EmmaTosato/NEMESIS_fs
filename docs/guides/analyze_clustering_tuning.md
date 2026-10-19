@@ -34,7 +34,6 @@ Una cartella di tuning scritta da `clustering.py` con `fine_tuning: true` e `sav
 | **`overwrite`** | *Booleano* | Se `false`, lo script si ferma se uno dei suoi file esiste già; se `true`, li sostituisce. |
 | **`k_range`** | *Oggetto* | `min` e `max` (interi, `min` ≥ 2): i k per cui si calcola il salto del dendrogramma (agglomerative). |
 | **`curves_max_noise_fraction`** | *Numero in (0, 1]* | Le curve di HDBSCAN tengono solo le combinazioni con `noise_fraction` fino a questo valore. |
-| **`usable`** | *Oggetto* | I criteri del flag `usable` (HDBSCAN): `min_clusters`, `max_clusters`, `max_noise_fraction`, `max_largest_cluster_share`. Non hanno un default. |
 
 ## Output
 
@@ -44,8 +43,10 @@ Nella cartella della run (rilanciare la pipeline del tuning con `overwrite: true
 | :--- | :--- | :--- |
 | agglomerative | `cophenetic_correlation.csv` | Una riga per (`metric`, `linkage`) valido: correlazione tra le distanze vere e quelle dell'albero (da 0 a 1, vicino a 1 l'albero è fedele). Non si confronta tra `metric` diverse. |
 | agglomerative | `dendrogram_jump.csv` | Una riga per (`metric`, `linkage`, `n_clusters`): altezza della fusione da k a k−1 divisa per quella da k+1 a k. Vicino a 1 non c'è un taglio naturale a k; più è alto, più il taglio è netto. |
-| agglomerative | `k_curves_metric=<metric>.png` | Silhouette e Davies-Bouldin per `n_clusters`, una linea per linkage (single escluso). |
-| hdbscan, hdbscan_soft | `candidates.csv` | `tuning_results.csv` più `n_clusters_found` (contato dalle etichette), `largest_cluster_share` (sul totale dei soggetti, rumore compreso) e `usable`: tra `min_clusters` e `max_clusters` cluster, rumore e cluster più grande entro i limiti. È un filtro pratico, non un indice. |
+| agglomerative | `k_curves_metric=<metric>.png` | Una figura per `metric`, senza `single`, con tre pannelli: silhouette su asse fisso (da -1 a 1), silhouette su asse adattato ai dati, Davies-Bouldin; una linea per linkage. Sui pannelli della silhouette le linee tratteggiate delle soglie della convenzione di Kaufman & Rousseeuw (1990) comprese nell'asse. Con `cosine` e `manhattan` Davies-Bouldin è vuoto e il suo pannello manca. |
+| agglomerative | `k_curves_single_metric=<metric>.png` | Come sopra, solo per il linkage `single` (la sua silhouette scende molto sotto quella degli altri). Presente solo se la run ha `single`. |
+| tutti | `report.md` | Le tabelle di `tuning_results.csv`, senza giudizi di merito. Agglomerative: una sezione per `metric` con le figure delle curve e, per ogni `linkage`, una tabella con silhouette, Davies-Bouldin e Calinski-Harabasz per `n_clusters`, seguita da punti che collocano la silhouette nelle fasce di Kaufman & Rousseeuw (1990), contano le silhouette negative e riportano il valore a k minimo e massimo. Poi, per ogni `metric`, la tabella del cophenetic (un valore per linkage), quella del salto del dendrogramma (k in riga, linkage in colonna) e i link ai dendrogrammi e alle etichette sul piano 2D che `clustering.py` ha scritto nella cartella (solo quelli presenti); in fondo la matrice interclasse, che riguarda i dataset e non i cluster. Le fasce sono una convenzione di letteratura (non nostra) e descrivono la combinazione, non scelgono `n_clusters`. Gli altri metodi: una tabella ordinata per silhouette decrescente. |
+| hdbscan, hdbscan_soft | `density_metrics.csv` | `tuning_results.csv` più `n_clusters_found` (contato dalle etichette) e `largest_cluster_share` (sul totale dei soggetti, rumore compreso; vuoto se tutti i soggetti sono rumore). Sono misure: nessuna combinazione è classificata come buona o utilizzabile. |
 | hdbscan, hdbscan_soft | `noise_filtered_curves[_<cluster_selection_method>].png` | Silhouette e Davies-Bouldin contro `min_cluster_size`, una linea per `min_samples`, solo le combinazioni con poco rumore. Se per un `cluster_selection_method` nessuna combinazione è sotto il limite (`leaf` non scende sotto il 15%), manca quel file e il log lo dice. |
 
 Ogni lancio scrive un log in `logs/analyze_clustering_tuning/`.

@@ -1,6 +1,6 @@
 # Problemi aperti e cose da fare — NEMESIS
 
-Ultimo aggiornamento: 08-10-26.
+Ultimo aggiornamento: 19-10-26 (aggiunto il modello nullo per la silhouette).
 
 Elenco vivo di ciò che è **aperto adesso**: problemi noti non risolti, decisioni non prese, lavori iniziati e non finiti. Una voce si cancella quando è chiusa — non si tiene lo storico qui.
 
@@ -81,6 +81,26 @@ Il tuning di `dim_reduction` dichiara le valutazioni che applica in `tuning_eval
 - la cophenetic correlation (`src/analysis/clustering_tuning.py`) si lancia solo a mano dal notebook `clustering_tuning_explorer.ipynb`, su una run già prodotta. ICL, gap statistic e self-tuning eigengap sono nello stesso modulo ma non hanno più una sezione nel notebook (GMM, KMeans e spectral ne sono stati tolti: si recuperano da `46c3123`).
 
 Da fare: un blocco analogo nella config di `clustering`, un registro con una voce per criterio, e un entry point che li rilancia su un tuning salvato (etichette in `clusterings.npz` con `save_tuning_clusterings: true`, matrice in `matrix.npy`; lo spectral con `affinity` sweepata non salva le etichette, va rifittato). I plot per metodo e parametro vanno nelle cartelle del tuning, come per `plot_hdbscan`.
+
+### Modello nullo per la silhouette dei report di tuning del clustering
+
+Il report di agglomerative documenta la silhouette con le fasce convenzionali di Kaufman & Rousseeuw (1990) e con la curva su `n_clusters`. Un riferimento nullo darebbe un punto di confronto che non dipende da soglie: quale silhouette produce lo stesso clustering, con gli stessi parametri, su dati senza struttura. **Non è deciso come costruirlo**; due candidati misurano cose diverse:
+
+- **Etichette permutate** (stesse dimensioni dei cluster, assegnazione casuale): dà la silhouette di una partizione a caso, vicina a 0 o negativa per costruzione. Non dice cosa fa l'algoritmo su dati senza struttura.
+- **Clustering rifatto su dati senza struttura** (ad esempio colonne dell'embedding permutate in modo indipendente, o campioni gaussiani con la stessa covarianza): l'algoritmo trova comunque dei cluster, e la silhouette risulta positiva. È il riferimento più vicino alla domanda, ma costa un tuning per ogni riferimento e dipende da come si genera il dato nullo.
+
+Da decidere: quale dei due (o un altro), se si applica anche a Davies-Bouldin e Calinski-Harabasz, e come si tiene conto che UMAP stesso produce blob compatti.
+
+### Cosa aggiungere ai report di tuning di agglomerative, oltre alle tabelle degli indici
+
+Fuori dal primo giro di implementazione (19-10-26), da riprendere dopo aver deciso come leggere dendrogramma, cophenetic e salto:
+
+- **Dimensioni dei cluster nelle tabelle**: `largest_cluster_share` e `n_small_clusters` (meno di 10 soggetti, la definizione già usata da HDBSCAN e ADP in `clustering_tuning_analysis.py` e `adp.py`) non sono calcolati per agglomerative. Sulla run SDC `16-10 nc10` la quota del cluster più grande va, con euclidean, dal 64-70% a k=2 al 7-8% a k=30; `single` ha il 97% a k=2 e 20 cluster sotto l'1% a k=30.
+- **Scree plot**: altezza di fusione contro k. Oggi c'è solo il rapporto in `dendrogram_jump.csv`.
+- **Dimensione del cluster che si divide da k a k+1**: non esiste nel codice.
+- **Accordo tra embedding** (ARI tra nc2, nc3 e nc10, a parità di k e linkage): esiste solo nel notebook `clustering_tuning_explorer.ipynb` e in `src/analysis/cluster_comparison.py` (sezione "Confronto" tolta dall'app); confronta più run, quindi non entra nel `report.md` di una singola run.
+- **Composizione dei cluster per dataset e lato**: esiste in `src/analysis/cluster_composition.py` e nel pannello dell'app, non nei report.
+- **Dove riprodurre dendrogrammi, matrice interclasse e `labels_2d_*`**: li scrive `clustering.py`, non `analyze_clustering_tuning`; il report non li cita.
 
 ---
 

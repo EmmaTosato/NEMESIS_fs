@@ -59,7 +59,7 @@ def build_silhouette_figure(clusters: pd.DataFrame) -> go.Figure:
     figure.update_layout(
         title=dict(
             text=f'<b>Silhouette per cluster</b><br><span style="font-size:13.5px;color:{_MUTED_COLOR}">rumore escluso</span>',
-            font=dict(size=17, family=_FONT_STACK, color=_TEXT_COLOR), x=0.02, xanchor="left",
+            font=dict(size=17, family=_FONT_STACK, color=_TEXT_COLOR), x=0.02, xanchor="left", y=0.97, yanchor="top",
         ),
         template="simple_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family=_FONT_STACK, color=_TEXT_COLOR), margin=_FIGURE_MARGINS,
@@ -85,20 +85,21 @@ def build_mean_membership_figure(mean_vectors: pd.DataFrame) -> go.Figure:
         z=mean_vectors.to_numpy(), x=columns, y=rows, zmin=0, zmax=1, colorscale="Blues",
         text=[[f"{value:.2f}" for value in row] for row in mean_vectors.to_numpy()], texttemplate="%{text}",
         hovertemplate="soggetti di %{y}<br>probabilità media di stare in %{x}: %{z:.3f}<extra></extra>",
-        colorbar=dict(title="probabilità"),
+        colorbar=dict(title=dict(text="probabilità", side="top"), x=1.04, thickness=18),
+        xgap=2, ygap=2,
     ))
-    figure.update_xaxes(type="category", side="top")
-    figure.update_yaxes(type="category", autorange="reversed")
+    figure.update_xaxes(type="category", side="top", ticks="outside", ticklen=12, tickcolor="rgba(0,0,0,0)")
+    figure.update_yaxes(type="category", autorange="reversed", ticks="outside", ticklen=12, tickcolor="rgba(0,0,0,0)")
     figure.update_layout(
         title=dict(
             text=(
                 '<b>Vettori medi di appartenenza</b><br><span style="font-size:13.5px;color:'
                 f'{_MUTED_COLOR}">righe: cluster dei soggetti; colonne: cluster di appartenenza</span>'
             ),
-            font=dict(size=17, family=_FONT_STACK, color=_TEXT_COLOR), x=0.02, xanchor="left",
+            font=dict(size=17, family=_FONT_STACK, color=_TEXT_COLOR), x=0.02, xanchor="left", y=0.97, yanchor="top",
         ),
         template="simple_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family=_FONT_STACK, color=_TEXT_COLOR), margin=dict(l=20, r=20, t=110, b=30),
-        height=140 + _BAR_HEIGHT * len(rows),
+        font=dict(family=_FONT_STACK, color=_TEXT_COLOR), margin=dict(l=50, r=50, t=170, b=60),
+        height=240 + _BAR_HEIGHT * len(rows),
     )
     return figure

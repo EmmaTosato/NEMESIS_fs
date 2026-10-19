@@ -392,16 +392,17 @@ html {{ scroll-behavior: smooth; }}
 #comparison-cluster-row {{ margin-top: 28px; }}
 .comparison-rule {{ max-width: 760px; margin: 20px auto 8px; text-align: center; font-size: 16px; line-height: 1.55; color: #595959; }}
 .comparison-heading {{ font-size: 26px; font-weight: 800; margin: 56px 0 14px; text-align: center; }}
-.comparison-subheading {{ font-size: 24px; font-weight: 700; margin: 32px 0 12px; }}
-.comparison-note {{ font-size: 15.5px; line-height: 1.6; color: #595959; max-width: 78ch; margin: 0 auto 22px; }}
+.comparison-subheading {{ font-size: 28px; font-weight: 700; margin: 56px 0 18px; }}
+.comparison-note {{ font-size: 15.5px; line-height: 1.6; color: #595959; max-width: 78ch; margin: 28px auto 22px; }}
+.comparison-note.centered {{ text-align: center; }}
 .comparison-summary {{ margin: 28px auto 0; max-width: 78ch; font-size: 16px; line-height: 1.5; }}
 .comparison-summary p, .comparison-summary-line {{ margin: 4px 0; }}
 .comparison-summary-line {{ text-align: center; font-size: 17px; }}
-.comparison-guide {{ margin: 18px 0 0; font-size: 15.5px; line-height: 1.6; color: #595959; }}
-.comparison-guide summary {{ cursor: pointer; font-weight: 600; color: {_TEXT_COLOR}; }}
+.comparison-guide {{ margin: 32px 0 40px; font-size: 15.5px; line-height: 1.6; color: #595959; }}
+.comparison-guide summary {{ cursor: pointer; font-size: 22px; font-weight: 700; color: {_TEXT_COLOR}; }}
 .comparison-guide .stats-table {{ margin-top: 12px; max-width: 520px; }}
-.comparison-guide .comparison-points {{ margin: 8px 0 14px; max-width: none; }}
-.comparison-guide .comparison-subheading {{ font-size: 16px; margin: 14px 0 0; }}
+.comparison-guide .comparison-points {{ margin: 18px 0 14px; max-width: none; }}
+.comparison-guide .comparison-subheading {{ font-size: 18px; margin: 22px 0 0; }}
 """
 
 
@@ -2226,7 +2227,7 @@ def component_maps_content_for(
         dcc.Graph(
             figure=build_reproducibility_figure(reproducibility, component),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%"},
+            style={"width": "100%", "marginTop": "40px"},
         ),
         _anatomy_viewer(
             view,
@@ -2444,7 +2445,7 @@ def adp_quality_content_for(
     children += [
         html.P(
             f"Calcolati sulla distanza dice del dato grezzo, quella con cui adp ha clusterizzato, su {summary.n_clustered} "
-            f"soggetti clusterizzati di {summary.n_subjects}. Numeri da leggere, non una graduatoria.",
+            f"soggetti clusterizzati di {summary.n_subjects}.",
             className="section-intro",
         ),
         _table(["Indice", "Valore", "Lettura"], rows, text_columns=(0, 2)),
@@ -2456,7 +2457,7 @@ def adp_quality_content_for(
         dcc.Graph(
             figure=build_silhouette_figure(summary.silhouette.clusters),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%"},
+            style={"width": "100%", "marginTop": "40px"},
         ),
     ]
     return html.Div(children), False
@@ -2498,32 +2499,20 @@ def _quality_guide() -> html.Details:
 
 
 def _model_fit_rows(method: str, metrics: dict[str, float]) -> list[list[str]]:
-    """The table rows of the model statistic of `method` (the keys model_fit_metrics returns for it)."""
+    """The table rows (name, value) of the model statistic of `method` (the keys model_fit_metrics returns for it)."""
     if method == "kmeans":
-        return [[
-            "Inertia", _format_number(metrics["inertia"], 1),
-            "somma delle distanze al quadrato dai centroidi; più bassa è meglio, ma cala sempre al crescere di k",
-        ]]
+        return [["Inertia", _format_number(metrics["inertia"], 1)]]
     if method == "gmm":
-        return [
-            ["BIC", _format_number(metrics["bic"], 1), "verosimiglianza penalizzata per la complessità; più basso è meglio, penalizza di più dell'AIC"],
-            ["AIC", _format_number(metrics["aic"], 1), "come il BIC, con una penalità minore; più basso è meglio"],
-        ]
+        return [["BIC", _format_number(metrics["bic"], 1)], ["AIC", _format_number(metrics["aic"], 1)]]
     if method == "agglomerative":
         return [
-            [
-                "Correlazione cofenetica", _format_number(metrics["cophenetic_correlation"], 3),
-                "quanto le distanze dell'albero rispettano quelle vere tra i soggetti; da 0 a 1, più è alta più l'albero è fedele",
-            ],
-            [
-                f"Salto del dendrogramma (k={int(metrics['n_clusters'])})", _format_number(metrics["dendrogram_jump"], 2),
-                "altezza della fusione da k a k−1 divisa per quella da k+1 a k; vicino a 1 non c'è un taglio naturale a k, più è alto più il taglio è netto",
-            ],
+            ["Correlazione cofenetica", _format_number(metrics["cophenetic_correlation"], 3)],
+            [f"Salto del dendrogramma (k={int(metrics['n_clusters'])})", _format_number(metrics["dendrogram_jump"], 2)],
         ]
     if method in ("hdbscan", "hdbscan_soft"):
         return [
-            ["Rumore", f"{_format_number(metrics['noise_fraction'] * 100, 1)}%", "soggetti senza cluster; molto alta = parametri troppo restrittivi"],
-            ["Cluster trovati", str(int(metrics["n_clusters_found"])), "è un risultato, non un parametro; molti cluster piccoli = parametri troppo permissivi"],
+            ["Rumore", f"{_format_number(metrics['noise_fraction'] * 100, 1)}%"],
+            ["Cluster trovati", str(int(metrics["n_clusters_found"]))],
         ]
     raise ValueError(f"no model statistic rows for method {method!r}")
 
@@ -2544,8 +2533,8 @@ def _model_fit_block(run: ProductionRun, model_fit_of: Callable[[ProductionRun],
         guide = "La statistica si legge dalle etichette del run, senza rifit."
     return html.Div([
         heading,
-        _table(["Statistica", "Valore", "Lettura"], _model_fit_rows(run.method, metrics), text_columns=(0, 2)),
-        html.P(guide, className="comparison-note"),
+        _table(["Statistica", "Valore"], _model_fit_rows(run.method, metrics), text_columns=(0,)),
+        html.P(guide, className="comparison-note centered"),
     ])
 
 
@@ -2577,6 +2566,11 @@ def _confidence_block(run: ProductionRun, confidence_of: Callable[[ProductionRun
         ),
         html.P(
             f"{result.n_noise} soggetti di rumore (esclusi) e {result.n_confident} soggetti con probabilità di almeno {threshold}.",
+            className="section-intro",
+        ),
+        html.P(
+            f"«Sotto {threshold}» è la quota dei soggetti del cluster con probabilità nel proprio cluster inferiore a {threshold}: "
+            "più è alta, più il cluster è fatto di soggetti deboli (soglia d'esempio).",
             className="section-intro",
         ),
         _table(["Cluster", "Soggetti", "Probabilità media", f"Sotto {threshold}"], rows, text_columns=(0,)),
@@ -2623,11 +2617,15 @@ def _soft_membership_block(
             ],
             [
                 "Dipende dalla densità dello spazio clusterizzato: su UMAP con min_dist = 0 misura anche quanto UMAP ha impacchettato i gruppi.",
-                "Non è confrontabile con la probabilità di hdbscan (altra implementazione).",
                 f"La soglia {threshold} è solo un esempio.",
             ],
         ),
         html.P(f"{summary.n_noise} soggetti di rumore: non hanno un cluster proprio, e hanno una riga a parte nella matrice.", className="section-intro"),
+        html.P(
+            f"«Sotto {threshold}» è la quota dei soggetti del cluster con probabilità nel proprio cluster inferiore a {threshold}: "
+            "più è alta, più il cluster è fatto di soggetti deboli (soglia d'esempio).",
+            className="section-intro",
+        ),
         _table(
             ["Cluster", "Soggetti", "Probabilità media nel proprio", f"Sotto {threshold}", "Altro cluster più probabile", "Probabilità media nell'altro"],
             cluster_rows, text_columns=(0,),
@@ -2635,7 +2633,7 @@ def _soft_membership_block(
         dcc.Graph(
             figure=build_mean_membership_figure(summary.mean_vectors),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%"},
+            style={"width": "100%", "marginTop": "40px"},
         ),
         html.P(f"I {len(weakest)} soggetti meno saldi nel proprio cluster", className="comparison-subheading"),
         _table(
@@ -2693,14 +2691,14 @@ def cluster_quality_content_for(
     children += [
         html.P(
             f"Calcolati sulle {summary.n_components} colonne della matrice su cui è stato fatto il clustering "
-            f"({summary.n_subjects} soggetti), con il rumore (-1) escluso. Numeri da leggere, non una graduatoria.",
+            f"({summary.n_subjects} soggetti), con il rumore (-1) escluso.",
             className="section-intro",
         ),
         _table(["Indice", "Valore", "Lettura"], rows, text_columns=(0, 2)),
         dcc.Graph(
             figure=build_silhouette_figure(summary.clusters),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%"},
+            style={"width": "100%", "marginTop": "40px"},
         ),
         _model_fit_block(run, model_fit_of),
         *membership_blocks,

@@ -545,7 +545,6 @@ def _analyze_payload(**overrides):
         "overwrite": False,
         "k_range": {"min": 3, "max": 30},
         "curves_max_noise_fraction": 0.1,
-        "usable": {"min_clusters": 3, "max_clusters": 30, "max_noise_fraction": 0.25, "max_largest_cluster_share": 0.6},
     }
     payload.update(overrides)
     return payload
@@ -557,9 +556,6 @@ def test_analyze_clustering_tuning_config_valid(tmp_path):
     assert config.tuning_dir == Path("results/lesion/clustering/tuning/agglomerative/umap/08-10_s1.4-vol_m_dice_nc2")
     assert (config.k_min, config.k_max) == (3, 30)
     assert config.curves_max_noise_fraction == 0.1
-    assert (config.usable.min_clusters, config.usable.max_clusters) == (3, 30)
-    assert config.usable.max_noise_fraction == 0.25
-    assert config.usable.max_largest_cluster_share == 0.6
 
 
 @pytest.mark.parametrize(
@@ -571,9 +567,6 @@ def test_analyze_clustering_tuning_config_valid(tmp_path):
         ({"curves_max_noise_fraction": 0}, "'curves_max_noise_fraction' must be a number in"),
         ({"curves_max_noise_fraction": 1.5}, "'curves_max_noise_fraction' must be a number in"),
         ({"curves_max_noise_fraction": True}, "'curves_max_noise_fraction' must be a number in"),
-        ({"usable": {"min_clusters": 5, "max_clusters": 3, "max_noise_fraction": 0.25, "max_largest_cluster_share": 0.6}}, "usable.min_clusters"),
-        ({"usable": {"min_clusters": 3, "max_clusters": 30, "max_noise_fraction": 0.25}}, "missing required field 'max_largest_cluster_share'"),
-        ({"usable": "all"}, "'usable' must be an object"),
         ({"overwrite": "no"}, "'overwrite' must be a boolean"),
     ],
 )
