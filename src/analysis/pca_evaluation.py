@@ -23,6 +23,7 @@ import pandas as pd
 
 from src.analysis.covariance_pca import DEFAULT_CHUNK_COLUMNS, NO_ROTATION, column_statistics
 from src.analysis.tuning_embeddings import EMBEDDINGS_FILENAME, parse_combo_key
+from src.features.lesion import KNOWN_LESION_SIDES
 from src.utils.artifacts import (
     MATRIX_FILENAME,
     METADATA_FILENAME,
@@ -224,3 +225,28 @@ def registry_values(subject_ids: list[str], column: str) -> np.ndarray:
     if np.isnan(values).any():
         raise ValueError(f"{int(np.isnan(values).sum())} subjects have no {column!r}")
     return values
+
+
+def registry_side_indicator(subject_ids: list[str]) -> tuple[np.ndarray, np.ndarray]:
+    """(indicator, keep): 1.0 for a left lesion and 0.0 for a right one, over the subjects with a single side.
+
+    `keep` is the boolean mask, in the order of `subject_ids`, of those subjects; `indicator` has one value per
+    kept subject. Subjects with a bilateral lesion ("both") or no recorded side lie on neither end of a left-right
+    axis, so they are left out here and the caller reports how many (`keep.sum()` against `len(keep)`).
+
+    Raises ValueError for a subject that is not in the registry, for a missing `lesion_side` column, and for a
+    value that is neither empty nor one of KNOWN_LESION_SIDES: a misspelt side would otherwise be dropped like
+    an empty one."""
+    registry = load_participants_registry().set_index("subject_id")
+    if "lesion_side" not in registry.columns:
+        raise ValueError("participants.csv has no 'lesion_side' column")
+    missing = sorted(set(subject_ids) - set(registry.index))
+    if missing:
+        raise ValueError(f"{len(missing)} subjects are not in the registry: {missing[:5]}")
+    sides = registry.loc[subject_ids, "lesion_side"]
+    unexpected = sorted(set(sides.dropna()) - set(KNOWN_LESION_SIDES))
+    if unexpected:
+        raise ValueError(f"lesion_side has value(s) {unexpected} outside {list(KNOWN_LESION_SIDES)}")
+    keep = sides.isin(("left", "right")).to_numpy()
+    indicator = (sides[keep] == "left").to_numpy(dtype=float)
+    return indicator, keep

@@ -12,6 +12,7 @@ from src.analysis.pca_evaluation import (
     default_embedding_components,
     load_pca_run,
     load_source_matrix,
+    registry_side_indicator,
     registry_values,
     rotated_variance_shares,
 )
@@ -347,3 +348,49 @@ def test_registry_values_raise_for_a_column_that_does_not_exist(monkeypatch):
 
     with pytest.raises(ValueError, match="no 'age' column"):
         registry_values(["a"], "age")
+
+
+# --- registry_side_indicator ---------------------------------------------------------------------------------
+
+
+def _side_registry(monkeypatch, sides):
+    _registry(monkeypatch, pd.DataFrame({"subject_id": [f"s{i}" for i in range(len(sides))], "lesion_side": sides}))
+
+
+def test_side_indicator_is_one_for_left_zero_for_right_and_drops_both_and_empty(monkeypatch):
+    _side_registry(monkeypatch, ["left", "both", "right", np.nan, "left"])
+
+    indicator, keep = registry_side_indicator(["s0", "s1", "s2", "s3", "s4"])
+
+    np.testing.assert_array_equal(keep, [True, False, True, False, True])
+    np.testing.assert_array_equal(indicator, [1.0, 0.0, 1.0])
+
+
+def test_side_indicator_follows_the_order_of_the_subjects(monkeypatch):
+    _side_registry(monkeypatch, ["left", "right", "right"])
+
+    indicator, keep = registry_side_indicator(["s2", "s0"])
+
+    np.testing.assert_array_equal(keep, [True, True])
+    np.testing.assert_array_equal(indicator, [0.0, 1.0])
+
+
+def test_side_indicator_raises_for_a_value_outside_the_known_sides(monkeypatch):
+    _side_registry(monkeypatch, ["left", "rigth"])
+
+    with pytest.raises(ValueError, match="rigth"):
+        registry_side_indicator(["s0", "s1"])
+
+
+def test_side_indicator_raises_for_a_subject_that_is_not_registered(monkeypatch):
+    _side_registry(monkeypatch, ["left"])
+
+    with pytest.raises(ValueError, match="not in the registry"):
+        registry_side_indicator(["s0", "zz"])
+
+
+def test_side_indicator_raises_without_the_lesion_side_column(monkeypatch):
+    _registry(monkeypatch, pd.DataFrame({"subject_id": ["s0"], "volume": ["10"]}))
+
+    with pytest.raises(ValueError, match="no 'lesion_side' column"):
+        registry_side_indicator(["s0"])

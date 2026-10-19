@@ -118,7 +118,7 @@
       "dual": true,
       "rotation": "none",
       "rotation_max_iter": 500,
-      "n_components": 2
+      "n_components": 12
     },
     "tuning_grid": {
       "rotation": ["none", "varimax"],

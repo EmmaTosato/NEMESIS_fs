@@ -18,5 +18,5 @@
   "tuning_evaluations": {
     "cumulative_explained_variance": {}
   },
-  "run_notes": "PCA production on 16-10 s2.4-vol (5845 subjects, SDC voxelwise, voxels outside the brain zeroed: 227235 columns): covariance PCA (solver blocks, dual, standardize=false), no rotation, 2 components: the 2D view (viz_embedding_path) of the nc30 and nc42 clusterings; its two components are the first two of those runs."
+  "run_notes": "PCA production on 16-10 s2.4-vol (5845 subjects, SDC voxelwise, voxels outside the brain zeroed: 227235 columns): covariance PCA (solver blocks, dual, standardize=false), no rotation, 12 components (78.67% of the variance, from the 16-10 tuning)."
 }
