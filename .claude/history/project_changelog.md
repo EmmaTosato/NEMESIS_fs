@@ -6,6 +6,14 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 19-10-26 — Confronti tra embedding in una cartella propria, report in file piatti, niente `k_evaluation_map`
+
+**Cosa è cambiato** (a mano su `results/`, ignorato da git): i confronti tra embedding (curve e ARI tra nc2, nc3 e nc10, heatmap HDBSCAN per `n_components`) stanno in `results/lesion/clustering/tuning/comparison/umap/<data>_<sessione>_m_<metrica>_comparison_nc/`: una cartella per metrica (`08-10_s1.4-vol_m_dice_comparison_nc`, `08-10_s1.4-vol_m_euclidean_comparison_nc`), con lo stesso nome delle run in cui `nc<N>` diventa `comparison_nc`. Le tre immagini `nb_c52/54/58_0.png` hanno nomi descrittivi (`agglomerative_curves_by_embedding.png`, `ward_ari_by_k.png`, `hdbscan_grids_by_embedding.png`). I `report.md` sono saliti di una cartella (`cluster_<...>.md`) con i percorsi relativi accorciati; `scripts/` dei report e quattro file di `_shared/` (`hdbscan_all.py`, `k_evaluation.py`, `k_evaluation_all.csv`, `make_detail_reports.py`) sono stati cancellati. Origine e destinazione sono in `results/reports/cluster_tuning_notebooks/MOVES_19-10-26.json`.
+
+**Scartato**: `k_evaluation_map.png` (mappa dei k da 3 a 30): cancellato in 4 cartelle di run e non più generato, perché il solo script che lo scriveva (`_shared/k_evaluation.py`) è stato cancellato. Le tabelle `k_evaluation_*.csv` restano.
+
+**Conseguenza ancora vera**: `_shared/generate_reports/` (generatori attuali e commenti scritti a mano in `hdbscan_soft_text/`) e `_shared/cluster_tools.py` (importato da `images_1610.py`) restano, ma scrivono ancora `<report>/report.md`: vanno allineati ai file piatti prima di rigenerare un report.
+
 ## 18-10-26 — I file dei report di clustering vanno nelle cartelle delle run, i riepiloghi per modalità accanto ai tuning
 
 **Cosa è cambiato** (a mano, senza rilanciare niente; `results/` è ignorato da git): da `results/reports/cluster_tuning_notebooks/cluster_*/{images,tables,adp}/` sono stati spostati 307 file nelle cartelle delle run in `results/{lesion,sdc}/clustering/tuning/<metodo>/...` (agglomerative, hdbscan, adp), assegnati per nome del file; i file ADP di più report della stessa matrice condividono la cartella ADP e hanno il prefisso del report (`lesion_dice_nc2_07-10__...`). 12 file erano copie byte-identiche di file già presenti nella run (sha256) e sono stati cancellati. Restano nei report 24 file che non appartengono a una run sola (confronti tra embedding, immagini di riferimento, tabelle ausiliarie del metodo vecchio). `report.md` cita i file con percorso relativo (nessun riferimento rotto). L'elenco completo, con origine e destinazione, è in `results/reports/cluster_tuning_notebooks/MOVES_18-10-26.json`.
