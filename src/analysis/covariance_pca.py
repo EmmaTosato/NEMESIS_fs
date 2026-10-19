@@ -241,6 +241,30 @@ def rotated_scores(
     return coefficients.T, rotated
 
 
+def leading_rotated_scores(
+    X: np.ndarray,
+    pca: CovariancePca,
+    n_rotated: int,
+    n_kept: int,
+    rotation: str,
+    max_iter: int,
+    chunk_columns: int = DEFAULT_CHUNK_COLUMNS,
+) -> tuple[np.ndarray, float]:
+    """Rotate the first `n_rotated` components, keep the `n_kept` rotated ones that explain the most variance.
+
+    A rotated component has no place in the PCA's order (its score has variance 1 whatever it explains), so the
+    kept ones are picked by the variance they explain - the sum of the squared loadings of the component over
+    the total variance - and returned most first, the order an unrotated PCA has.
+
+    Returns (scores (n_samples, n_kept), the share of the total variance the kept components explain)."""
+    if not 1 <= n_kept <= n_rotated:
+        raise ValueError(f"n_kept must be between 1 and n_rotated={n_rotated!r} (the components rotated), got {n_kept!r}")
+    scores, loadings = rotated_scores(X, pca, n_rotated, rotation, max_iter, chunk_columns)
+    shares = (loadings**2).sum(axis=0) / pca.eigenvalues.sum()
+    kept = np.argsort(-shares, kind="stable")[:n_kept]
+    return scores[:, kept], float(shares[kept].sum())
+
+
 def pca_embedding(
     X: np.ndarray,
     pca: CovariancePca,

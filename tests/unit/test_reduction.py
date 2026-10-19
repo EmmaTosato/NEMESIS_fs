@@ -335,6 +335,17 @@ def test_embedding_for_viz_never_slices_a_rotated_pca():
         embedding_for_viz("pca", _X, params, embedding, viz_n_components=2)
 
 
+def test_embedding_for_viz_slices_a_rotated_pca_that_picked_its_components_by_variance():
+    """With rotation_n_components the kept rotated components come out most variance first, so the first two
+    are a legitimate 2D view (a varimax production run of 12 components used to fail at the viz step)."""
+    params = {**_PCA_PARAMS, "n_components": 3, "rotation": "varimax", "rotation_max_iter": 500, "rotation_n_components": 5}
+    embedding = pca_embed(_X, params)
+
+    viz = embedding_for_viz("pca", _X, params, embedding, viz_n_components=2)
+
+    np.testing.assert_array_equal(viz, embedding[:, :2])
+
+
 def test_embedding_for_viz_rejects_a_pca_with_fewer_components_than_the_view_needs():
     params = {**_PCA_PARAMS, "n_components": 1}
     embedding = pca_embed(_X, params)

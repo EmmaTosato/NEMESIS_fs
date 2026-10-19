@@ -10,6 +10,9 @@ One method, many choices - all of them are params, none hardcoded (code_standard
   covariance_pca.py); they mean nothing to sklearn, so giving them with solver "sklearn" raises.
 - rotation: "none" or an orthogonal rotation (varimax...); rotation_max_iter is required with one.
   The sklearn solver does not rotate.
+- rotation_n_components (optional, with a rotation): how many components to rotate. Absent, the n_components
+  kept are the ones rotated. Given, the n_components kept are the rotated ones that explain the most
+  variance, most first - the columns of a rotated PCA have no order of their own.
 - n_components or variance_share (exactly one): how many components to keep, as a count or as the
   share of the variance they must reach.
 
@@ -36,6 +39,7 @@ from src.analysis.covariance_pca import (
     SUPPORTED_ROTATIONS,
     column_statistics,
     fit_covariance_pca,
+    leading_rotated_scores,
     pca_embedding,
     resolve_n_components,
 )
@@ -43,7 +47,7 @@ from src.analysis.covariance_pca import (
 SOLVERS = ("blocks", "sklearn")
 _REQUIRED = ("solver", "standardize", "rotation")
 _BLOCKS_ONLY = ("dual", "chunk_columns", "max_matrix_gib")
-_ALLOWED = {*_REQUIRED, *_BLOCKS_ONLY, "rotation_max_iter", "n_components", "variance_share"}
+_ALLOWED = {*_REQUIRED, *_BLOCKS_ONLY, "rotation_max_iter", "rotation_n_components", "n_components", "variance_share"}
 
 
 class PcaFit(NamedTuple):
@@ -108,6 +112,11 @@ def _fit_blocks(X: np.ndarray, given: dict, cache: dict) -> PcaFit:
     pca = cache[key]
     n_components = resolve_n_components(pca.eigenvalues, given.get("n_components"), given.get("variance_share"))
     chunk = {"chunk_columns": given["chunk_columns"]} if "chunk_columns" in given else {}
+    if "rotation_n_components" in given:
+        embedding, explained_share = leading_rotated_scores(
+            X, pca, given["rotation_n_components"], n_components, given["rotation"], given["rotation_max_iter"], **chunk
+        )
+        return PcaFit(embedding, n_components, explained_share, pca.eigenvalues)
     embedding = pca_embedding(X, pca, n_components, given["rotation"], given.get("rotation_max_iter"), **chunk)
     return PcaFit(embedding, n_components, float(pca.explained_variance_ratio[:n_components].sum()), pca.eigenvalues)
 
@@ -142,10 +151,26 @@ def _validate(given: dict) -> None:
         raise ValueError(f"pca: rotation must be one of {list(SUPPORTED_ROTATIONS)}, got {given['rotation']!r}")
     if given["rotation"] != NO_ROTATION and "rotation_max_iter" not in given:
         raise ValueError(f"pca: rotation {given['rotation']!r} requires 'rotation_max_iter' in params")
+    if "rotation_n_components" in given:
+        _validate_rotation_n_components(given)
     if given["solver"] == "sklearn":
         _validate_sklearn(given)
     else:
         _validate_blocks(given)
+
+
+def _validate_rotation_n_components(given: dict) -> None:
+    if given["rotation"] == NO_ROTATION:
+        raise ValueError("pca: 'rotation_n_components' is the number of components to rotate, but rotation is 'none' - remove it")
+    if "variance_share" in given:
+        raise ValueError("pca: 'rotation_n_components' needs 'n_components' (how many of the rotated ones to keep), not 'variance_share'")
+    if "n_components" not in given:
+        raise ValueError("pca: 'rotation_n_components' needs 'n_components' (how many of the rotated ones to keep)")
+    rotated, kept = given["rotation_n_components"], given["n_components"]
+    if isinstance(rotated, bool) or not isinstance(rotated, int) or rotated < 2:
+        raise ValueError(f"pca: rotation_n_components must be an integer of at least 2 (a rotation turns components into each other), got {rotated!r}")
+    if isinstance(kept, int) and not isinstance(kept, bool) and kept > rotated:
+        raise ValueError(f"pca: n_components={kept} cannot exceed rotation_n_components={rotated}: it keeps some of the rotated components")
 
 
 def _validate_sklearn(given: dict) -> None:

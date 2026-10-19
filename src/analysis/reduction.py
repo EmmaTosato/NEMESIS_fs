@@ -107,11 +107,20 @@ def embed(
 _REFITTABLE_FOR_VIZ: frozenset[str] = frozenset({"umap", "tsne"})
 
 
+def _columns_ordered_by_variance(reduction_method: str, reduction_params: dict) -> bool:
+    """True for a pca whose columns come out most variance first: an unrotated one, or a rotated one that
+    picked its kept components from `rotation_n_components` rotated ones (pca_method.py). A rotated pca
+    that kept the components it rotated has columns with no order."""
+    return reduction_method == "pca" and (
+        reduction_params.get("rotation") == "none" or "rotation_n_components" in reduction_params
+    )
+
+
 def _leading_components(embedding: np.ndarray, viz_n_components: int) -> np.ndarray:
-    """The first `viz_n_components` columns of an unrotated PCA embedding. Unlike any other method's
-    output, these columns are ordered by variance, so the first two are the two directions that
-    separate the subjects most: a slice is a legitimate 2D view of the same fit, not an arbitrary
-    cut (lessons_learned.md #16 names PCA's variance-ranked components as the one exception)."""
+    """The first `viz_n_components` columns of a PCA embedding whose columns are ordered by variance. Unlike
+    any other method's output, the first two are the two directions that separate the subjects most: a
+    slice is a legitimate 2D view of the same fit, not an arbitrary cut (lessons_learned.md #16 names
+    PCA's variance-ranked components as the one exception)."""
     if embedding.shape[1] < viz_n_components:
         raise ValueError(
             f"the pca embedding has {embedding.shape[1]} component(s), fewer than viz_n_components={viz_n_components} - "
@@ -139,10 +148,11 @@ def embedding_for_viz(
     can make real cluster structure look artificially merged or split - see
     lessons_learned.md #16 and docs/dev/models.md.
 
-    An unrotated pca (reduction_params["rotation"] == "none") is the exception to the "never a slice"
-    rule: its leading columns are its leading components (`_leading_components`).
+    A pca whose columns are ordered by variance (unrotated, or rotated with `rotation_n_components`:
+    `_columns_ordered_by_variance`) is the exception to the "never a slice" rule: its leading columns
+    are its leading components (`_leading_components`).
 
-    Raises ValueError if `reduction_method` isn't in _REFITTABLE_FOR_VIZ (nor an unrotated pca) and
+    Raises ValueError if `reduction_method` isn't in _REFITTABLE_FOR_VIZ (nor such a pca) and
     `embedding` doesn't already have viz_n_components columns (see that
     frozenset's own comment for why each excluded method is excluded) - the
     caller must rerun with viz_n_components == n_components for that method
@@ -152,7 +162,7 @@ def embedding_for_viz(
     """
     if embedding.shape[1] == viz_n_components:
         return embedding
-    if reduction_method == "pca" and reduction_params.get("rotation") == "none":
+    if _columns_ordered_by_variance(reduction_method, reduction_params):
         return _leading_components(embedding, viz_n_components)
     if reduction_method not in _REFITTABLE_FOR_VIZ:
         raise ValueError(

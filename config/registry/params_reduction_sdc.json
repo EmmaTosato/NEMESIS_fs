@@ -116,8 +116,9 @@
       "solver": "blocks",
       "standardize": false,
       "dual": true,
-      "rotation": "none",
+      "rotation": "varimax",
       "rotation_max_iter": 500,
+      "rotation_n_components": 150,
       "n_components": 12
     },
     "tuning_grid": {

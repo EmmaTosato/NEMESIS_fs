@@ -18,5 +18,5 @@
   "tuning_evaluations": {
     "cumulative_explained_variance": {}
   },
-  "run_notes": "PCA production on 16-10 s2.4-vol (5845 subjects, SDC voxelwise, voxels outside the brain zeroed: 227235 columns): covariance PCA (solver blocks, dual, standardize=false), no rotation, 12 components (78.67% of the variance, from the 16-10 tuning)."
+  "run_notes": "PCA production on 16-10 s2.4-vol (5845 subjects, SDC voxelwise, voxels outside the brain zeroed: 227235 columns): covariance PCA (solver blocks, dual, standardize=false), varimax on the first 150 components (96.0% of the variance), the 2 rotated components that explain the most variance kept, most first."
 }

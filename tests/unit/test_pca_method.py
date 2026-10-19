@@ -5,6 +5,8 @@ import itertools
 import numpy as np
 import pytest
 
+from src.analysis.covariance_pca import fit_covariance_pca, rotated_scores
+from src.analysis.pca_evaluation import rotated_variance_shares
 from src.analysis.pca_method import decomposition_spectra, fit_pca, fit_pca_embedding
 
 _X = np.random.default_rng(0).normal(size=(40, 12)) * np.linspace(3.0, 0.5, 12) + 100.0
@@ -182,3 +184,47 @@ def test_decomposition_spectra_rejects_decompositions_that_differ_only_in_resour
 
     with pytest.raises(ValueError, match="share the spectrum key"):
         decomposition_spectra(cache)
+
+
+# --- rotation_n_components -----------------------------------------------------------------------------------
+
+_VARIMAX = {**_BLOCKS, "rotation": "varimax", "rotation_max_iter": 500}
+
+
+def test_rotation_n_components_keeps_the_rotated_components_that_explain_the_most_variance_most_first():
+    """Rotate 8, keep 3: the 3 kept explain more than any other 3 of the 8, and are in descending order."""
+    params = {**_VARIMAX, "rotation_n_components": 8, "n_components": 3}
+    fit = fit_pca(_X, params)
+
+    assert fit.embedding.shape == (40, 3)
+    assert fit.n_components == 3
+    shares = rotated_variance_shares(_X, fit.embedding, fit.eigenvalues)
+    assert np.all(np.diff(shares) <= 0)
+    pca = fit_covariance_pca(_X)
+    _, loadings = rotated_scores(_X, pca, 8, "varimax", 500)
+    all_shares = (loadings**2).sum(axis=0) / pca.eigenvalues.sum()
+    assert shares.sum() == pytest.approx(np.sort(all_shares)[::-1][:3].sum())
+    assert fit.explained_share == pytest.approx(shares.sum())
+
+
+def test_without_rotation_n_components_the_kept_components_are_the_rotated_ones_as_before():
+    plain = fit_pca(_X, {**_VARIMAX, "n_components": 4})
+    pca = fit_covariance_pca(_X)
+    np.testing.assert_allclose(plain.embedding, rotated_scores(_X, pca, 4, "varimax", 500)[0], atol=1e-10)
+    assert plain.explained_share == pytest.approx(pca.cumulative_variance_ratio[3])
+
+
+@pytest.mark.parametrize(
+    "given,message",
+    [
+        ({"rotation": "none", "rotation_n_components": 6, "n_components": 3}, "rotation is 'none'"),
+        ({"rotation_n_components": 6, "variance_share": 0.8}, "not 'variance_share'"),
+        ({"rotation_n_components": 6}, "needs 'n_components'"),
+        ({"rotation_n_components": 6, "n_components": 7}, "cannot exceed rotation_n_components=6"),
+        ({"rotation_n_components": 1, "n_components": 1}, "at least 2"),
+        ({"rotation_n_components": True, "n_components": 1}, "at least 2"),
+    ],
+)
+def test_rotation_n_components_rejects_what_does_not_make_sense(given, message):
+    with pytest.raises(ValueError, match=message):
+        fit_pca(_X, {**_VARIMAX, **given})

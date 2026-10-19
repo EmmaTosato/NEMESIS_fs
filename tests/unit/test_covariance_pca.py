@@ -11,6 +11,7 @@ from src.analysis.covariance_pca import (
     CovariancePca,
     component_t_maps,
     fit_covariance_pca,
+    leading_rotated_scores,
     map_reproducibility,
     pca_embedding,
     pca_scores,
@@ -462,3 +463,53 @@ def test_resolve_n_components_rejects_a_non_integer_or_non_positive_count(bad):
     pca = fit_covariance_pca(_structured_matrix())
     with pytest.raises(ValueError, match="n_components must be an integer"):
         resolve_n_components(pca.eigenvalues, bad, None)
+
+
+# --- leading_rotated_scores ----------------------------------------------------------------------------------
+
+
+def _rotated_shares(X, n_rotated):
+    pca = fit_covariance_pca(X)
+    scores, loadings = rotated_scores(X, pca, n_rotated, "varimax", 500)
+    return pca, scores, (loadings**2).sum(axis=0) / pca.eigenvalues.sum()
+
+
+def test_leading_rotated_scores_are_the_rotated_components_that_explain_the_most_variance_most_first():
+    X = _structured_matrix(n_latent=5)
+    pca, scores, shares = _rotated_shares(X, 10)
+    # the fixture must leave the rotated columns out of order, or the sort below proves nothing
+    assert not np.all(np.diff(shares) <= 0)
+
+    kept, explained = leading_rotated_scores(X, pca, 10, 3, "varimax", 500)
+
+    expected = np.argsort(-shares, kind="stable")[:3]
+    np.testing.assert_allclose(kept, scores[:, expected], atol=1e-10)
+    assert explained == pytest.approx(shares[expected].sum())
+    assert np.all(np.diff(shares[expected]) <= 0)
+
+
+def test_leading_rotated_scores_keeping_every_rotated_component_only_reorders_them():
+    X = _structured_matrix(n_latent=5)
+    pca, scores, shares = _rotated_shares(X, 6)
+
+    kept, explained = leading_rotated_scores(X, pca, 6, 6, "varimax", 500)
+
+    np.testing.assert_allclose(kept, scores[:, np.argsort(-shares, kind="stable")], atol=1e-10)
+    assert explained == pytest.approx(pca.cumulative_variance_ratio[5])
+
+
+def test_leading_rotated_scores_of_a_smaller_k_are_the_start_of_the_larger_ones():
+    X = _structured_matrix(n_latent=5)
+    pca = fit_covariance_pca(X)
+
+    two, _ = leading_rotated_scores(X, pca, 10, 2, "varimax", 500)
+    five, _ = leading_rotated_scores(X, pca, 10, 5, "varimax", 500)
+
+    np.testing.assert_allclose(two, five[:, :2], atol=1e-10)
+
+
+@pytest.mark.parametrize("n_kept", [0, 11])
+def test_leading_rotated_scores_reject_keeping_more_than_the_rotated_or_nothing(n_kept):
+    X = _structured_matrix()
+    with pytest.raises(ValueError, match="n_kept must be between 1 and n_rotated=10"):
+        leading_rotated_scores(X, fit_covariance_pca(X), 10, n_kept, "varimax", 500)
