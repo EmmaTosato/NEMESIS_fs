@@ -379,7 +379,7 @@ html {{ scroll-behavior: smooth; }}
 /* The comparison tables (08-10-26 feedback: headers such as "Mediana cluster 1" made every column as
    wide as its title, so the table ran off the page): a header may break at "\n" and then stays as
    narrow as its longest word, centred above its numbers. */
-.comparison-table-wrap {{ margin-top: 8px; }}
+.comparison-table-wrap {{ margin-top: 24px; }}
 .comparison-table th {{ white-space: pre-line; text-align: center; vertical-align: bottom; line-height: 1.35; padding: 0 12px 11px; }}
 .comparison-table th.text-col {{ text-align: left; }}
 .comparison-table td {{ padding-left: 12px; padding-right: 12px; text-align: center; }}
@@ -2227,7 +2227,7 @@ def component_maps_content_for(
         dcc.Graph(
             figure=build_reproducibility_figure(reproducibility, component),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%", "marginTop": "40px"},
+            style={"width": "100%"},
         ),
         _anatomy_viewer(
             view,
@@ -2454,10 +2454,11 @@ def adp_quality_content_for(
             ["Cluster", "Soggetti", "Purezza", "Attesa a caso", "Valutabile", "Silhouette media", "Silhouette negativa"],
             cluster_rows, text_columns=(0,),
         ),
+        _chart_heading("Silhouette per cluster", "una barra per cluster, rumore escluso"),
         dcc.Graph(
             figure=build_silhouette_figure(summary.silhouette.clusters),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%", "marginTop": "40px"},
+            style={"width": "100%"},
         ),
     ]
     return html.Div(children), False
@@ -2630,10 +2631,11 @@ def _soft_membership_block(
             ["Cluster", "Soggetti", "Probabilità media nel proprio", f"Sotto {threshold}", "Altro cluster più probabile", "Probabilità media nell'altro"],
             cluster_rows, text_columns=(0,),
         ),
+        _chart_heading("Vettori medi di appartenenza", "righe: cluster dei soggetti; colonne: cluster di appartenenza"),
         dcc.Graph(
             figure=build_mean_membership_figure(summary.mean_vectors),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%", "marginTop": "40px"},
+            style={"width": "100%"},
         ),
         html.P(f"I {len(weakest)} soggetti meno saldi nel proprio cluster", className="comparison-subheading"),
         _table(
@@ -2695,10 +2697,11 @@ def cluster_quality_content_for(
             className="section-intro",
         ),
         _table(["Indice", "Valore", "Lettura"], rows, text_columns=(0, 2)),
+        _chart_heading("Silhouette per cluster", "una barra per cluster, rumore escluso"),
         dcc.Graph(
             figure=build_silhouette_figure(summary.clusters),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%", "marginTop": "40px"},
+            style={"width": "100%"},
         ),
         _model_fit_block(run, model_fit_of),
         *membership_blocks,
@@ -2783,6 +2786,14 @@ def comparable_runs(runs: list[ProductionRun], run_a: ProductionRun, clustering_
         if reason is None:
             compatible.append(candidate)
     return compatible
+
+
+def _chart_heading(title: str, subtitle: str) -> html.Div:
+    """The title of a chart as page text (a sub-heading and one line under it), not inside the figure."""
+    return html.Div([
+        html.P(title, className="comparison-subheading"),
+        html.P(subtitle, className="section-intro"),
+    ])
 
 
 def _table(headers: list[str], rows: list[list], text_columns: tuple[int, ...] = (0,)) -> html.Div:
