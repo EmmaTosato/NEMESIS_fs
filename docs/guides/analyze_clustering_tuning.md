@@ -51,3 +51,57 @@ Nella cartella della run (rilanciare la pipeline del tuning con `overwrite: true
 | hdbscan, hdbscan_soft | `noise_filtered_curves[_<cluster_selection_method>].png` | Silhouette e Davies-Bouldin contro `min_cluster_size`, una linea per `min_samples`, solo le combinazioni con poco rumore. Se per un `cluster_selection_method` nessuna combinazione è sotto il limite (`leaf` non scende sotto il 15%), manca quel file e il log lo dice. |
 
 Ogni lancio scrive un log in `logs/analyze_clustering_tuning/`.
+
+---
+
+## Notebook per leggere un tuning
+
+Due notebook in `notebooks/post-results_analysis/` leggono un tuning già salvato. Non rifanno nessun tuning e non scrivono nulla. Come leggere gli indici e i grafici: [`clustering_tuning_guide.md`](../../knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md).
+
+### `clustering_tuning_explorer`
+
+Mostra i risultati di `results/<lesion|sdc>/clustering/tuning/` metodo per metodo. Ogni sezione ha una cella in cui si sceglie la run (`RUN_DIR`) e, se serve, un parametro; poi si eseguono le celle sotto. Una run alla volta per sezione.
+
+Legge `tuning_results.csv`, `config.md`, `metadata.csv` e i grafici già scritti da `clustering.py`. Dalla matrice a cui punta `input_path` ricalcola solo ciò che lo sweep non salva: i dendrogrammi e la cophenetic correlation (agglomerative). Il suo ordine di soggetti deve coincidere con quello di `metadata.csv`, altrimenti il notebook si ferma.
+
+| Sezione | Cosa fa | Parametri da impostare |
+| :--- | :--- | :--- |
+| Gli indici che compaiono | Spiega silhouette, CH e DB (tutte le sezioni li usano). CH e DB sono `NaN` con le metriche non euclidee: non è un errore | nessuno |
+| Agglomerative 1-3 | Dendrogrammi (un pannello per `linkage` valido per `METRIC`, ultime 30 foglie, linea rossa del taglio `cut_k`), cophenetic correlation per `linkage`, tabella e curve di silhouette e Davies-Bouldin per `n_clusters` (senza `single`). Lo sweep prova ogni k da 2 a 30 | `RUN_DIR`, `METRIC` (impostata una volta e usata nelle sezioni 1-3; `ward` solo con `euclidean`) |
+| HDBSCAN 1-2 | `tuning_plot.png` e tabella ordinata per silhouette; poi le sole combinazioni con `noise_fraction` fino a `MAX_NOISE_FRACTION`, con le curve di silhouette e Davies-Bouldin contro `min_cluster_size` | `RUN_DIR`, `MAX_NOISE_FRACTION` (un esempio, 0,1 = al massimo il 10% di rumore: si cambia liberamente) |
+| ADP 1-3 | `tuning_plot.png`, tabella per `Z`, tabella dei plateau (per ogni numero di cluster l'intervallo di `Z` e quanti valori dello sweep ci cadono), etichette di `clusterings.npz` proiettate su un UMAP 2D già esistente (croci nere = rumore). Legge solo file già scritti: `dadapy` non serve | `RUN_DIR`, `ADP_Z_VALUES`, `PLOTS` (coppie UMAP 2D di produzione e metrica ADP; l'UMAP deve avere 2 colonne e gli stessi soggetti, nello stesso ordine, della run) |
+| Confronto tra embedding | Lo stesso metodo (agglomerative, HDBSCAN) su UMAP con `n_components` 2, 3 e 10 | `EMBEDDING_METRIC` (metrica UMAP, `dice` o `euclidean`), `SESSION_PREFIX`, `COMPARE_METRIC` (metrica del clustering, non quella di UMAP), `COMPARE_LINKAGE`, `COMPARE_K`, `COMPARE_PAIR`, `COMPARE_MIN_CLUSTER_SIZE`, `COMPARE_MIN_SAMPLES` |
+
+**Confronto tra embedding.** Il notebook trova da solo le tre run di ciascun metodo: cerca in `results/lesion/clustering/tuning/<metodo>/umap/` le cartelle `<SESSION_PREFIX>_*` il cui `config.md` ha `reduction_metric` uguale a `EMBEDDING_METRIC`, una per `n_components`. Solleva errore se `n_components` non sono esattamente 2, 3 e 10, se due run hanno lo stesso `n_components` o se i soggetti non coincidono (stessi e nello stesso ordine). Una tabella iniziale riporta `n_neighbors` e `min_dist` di UMAP per ciascuna run, perché possono cambiare insieme a `n_components`. Output, per agglomerative: curve per `n_clusters` (un pannello per `n_components`, un asse y ciascuno), ARI tra le run per k da 2 a 10, dimensioni dei cluster e contingenza tra due run (righe = prima run, colonne = seconda); per HDBSCAN: heatmap dei cluster trovati e di `noise_fraction` per run (stessa scala di colore su tutta la riga), ARI sui soli soggetti non-rumore in entrambe le run (con la colonna "soggetti confrontati") e dimensioni dei cluster. Come leggerli: sezione "Confrontare la stessa run su embedding diversi" della guida al tuning.
+
+### `dendrogram_embedding_explorer`
+
+Segue l'agglomerative **k dopo k** su un tuning già eseguito. Passando da k-1 a k cluster esattamente un cluster si divide in due: per ogni k il notebook mostra dove stanno i due pezzi nell'embedding e che anatomia hanno, cioè la mappa di disconnessione per una run `sdc` e la mappa di sovrapposizione delle lesioni per una run `lesion`. Serve a capire da cosa è fatto il cluster grande mentre si spezza.
+
+Legge `config.md`, `metadata.csv` e `clusterings.npz` della run, l'embedding a cui punta `input_path` (deve avere 2 colonne e gli stessi soggetti, nello stesso ordine, della run) e i file dei singoli soggetti su disco. Non scrive nulla. Dell'albero ricalcola solo la parte che serve, sull'embedding 2D (pochi secondi); la tipologia di mappa si decide da sola dalla cartella della run (`results/sdc/...` o `results/lesion/...`).
+
+| Parametro | Significato |
+| :--- | :--- |
+| `RUN_DIR` | La cartella della run di tuning. |
+| `LINKAGE`, `METRIC` | La combinazione da guardare. `ward` solo con `euclidean`. |
+| `K_MIN`, `K_MAX` | Primo e ultimo numero di cluster da mostrare: per ogni k una coppia di figure. |
+| `LAST_P` | Quante foglie ha l'albero troncato (al massimo 20, uno per colore). Deve essere almeno `K_MAX`, altrimenti il taglio spezzerebbe una foglia. |
+| `MAP_THRESHOLD_FRACTION` | Quota del massimo di ciascuna mappa sotto cui non si colora (da 0 a 1, 1 escluso). Con `0.2` e un massimo del 76% dei soggetti si colorano i voxel sopra il 15%. |
+| `CACHE_DIR` | Cache delle mappe dei singoli soggetti, la stessa dell'Embedding Explorer (`<--cache-dir>/binary_masks`, per default `results/cache/binary_masks`): un soggetto già visto lì non costa nulla qui, e viceversa. La prima volta costa qualche decina di millisecondi a soggetto; la prima esecuzione su molti soggetti può richiedere minuti. |
+
+**Controllo di coerenza.** L'albero non è salvato nella run, quindi si ricalcola. Per ogni k da `K_MIN - 1` a `K_MAX` (da 2 in su) il taglio dell'albero si confronta con le etichette salvate per la stessa combinazione: l'ARI (*adjusted Rand index*, 1 = divisioni identiche, 0 = quanto il caso) deve essere esattamente 1, altrimenti il notebook si ferma. Controlla anche che ogni foglia stia dentro un solo cluster.
+
+**Prima figura, per ogni k.** A sinistra l'albero troncato con le foglie `L1`, `L2`, ... (con il numero di soggetti) e la linea rossa del taglio a k; a destra l'embedding con esattamente k colori. Il titolo dice quale cluster si divide in quali due e a quale distanza di fusione. I cluster si nominano con le foglie che contengono (`L5–L6`): le foglie restano uguali a ogni k, mentre le etichette numeriche (0, 1, 2...) cambiano. Quando un cluster si divide, il pezzo più grande tiene il suo colore e il più piccolo ne prende uno nuovo; la legenda segna "nuovo" i due nati dall'ultima divisione. Convenzioni grafiche: [`plotting.md`](../dev/plotting.md).
+
+**Seconda figura, per ogni k: la mappa anatomica.** Una riga per ciascuno dei due cluster nati dalla divisione: per voxel, la percentuale dei soggetti del cluster con quel voxel disconnesso (o lesionato). Per la disconnessione un voxel conta se la probabilità supera 0,5, la stessa convenzione dell'Embedding Explorer ([`embedding_app.md`](embedding_app.md)); la lesione è già una maschera. Tre sezioni (sagittale, coronale, assiale) sul template, tagliate sul voxel più acceso del cluster; dal rosso (appena sopra la soglia) al giallo (il massimo). La scala va dalla soglia al massimo di **ciascuna** mappa: si confrontano le zone, non il colore tra mappe diverse. Il massimo (in % dei soggetti) è nel titolo. Dettagli di calcolo: [`anatomical_maps.md`](../dev/anatomical_maps.md).
+
+**Come leggerla.**
+
+- Anatomie diverse tra i due figli (zone diverse accese): la divisione ha un significato anatomico.
+- Mappe simili: la divisione separa soggetti simili per anatomia; si guarda se cambia solo la dimensione.
+
+**Attenzione.**
+
+- La mappa mostra solo tre fette: la parte del cluster fuori dalle fette non si vede. Se il massimo è basso (i soggetti si sovrappongono poco), il voxel su cui cadono le fette può rappresentare male il cluster.
+- I soggetti senza file su disco sono esclusi dalla mappa, e il notebook scrive quanti sono.
+- Il tipo di mappa si legge dalla cartella della run: una run fuori da `results/sdc/` e `results/lesion/` solleva errore.

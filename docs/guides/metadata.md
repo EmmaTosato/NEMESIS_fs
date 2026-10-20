@@ -20,6 +20,8 @@ Lo scrivono due script, che rispondono a due domande diverse e non si sovrascriv
 | `sdc_metadata.csv` | quanto è disconnesso ciascun soggetto, in totale: carico e media sul cervello, dal suo disconnettoma | `src/pipeline/compute_sdc_metadata.py` |
 | `excluded_subjects.csv` | quali soggetti tenere fuori dalle matrici di produzione, con il motivo | `src/pipeline/build_excluded_subjects.py`, dalla lista che scrivi **tu** nel config `build_excluded_subjects.json` |
 
+In `assets/metadata/` c'è anche `columns_by_dataset.xlsx`, scritto dal notebook `metadata_raw` ([`exploration.md`](exploration.md)): la tabella colonna × dataset dei tsv clinici grezzi (una `X` dove il dataset ha la colonna, ordinata da chi è condivisa da più dataset a chi è specifica di uno). Serve a confrontare gli schemi dei tsv; non è letto da nessuna pipeline.
+
 ---
 
 ## Come si lancia, in ordine
@@ -150,6 +152,8 @@ Il csv è scritto dalla pipeline `build_excluded_subjects` a partire dal config 
 
 **Criteri adottati.** Le lesioni piccole **non** vengono escluse: anche una lesione focale o minima può essere clinicamente grave, quindi per volume si scarta solo la maschera vuota. Si escludono invece i soggetti con più del **30%** dei voxel di lesione fuori dal brain (`out_of_brain_fraction_2mm`, misurata prima dell'azzeramento); sotto quella soglia il soggetto resta, e i suoi voxel fuori dal brain sono azzerati solo se la matrice è costruita con `correct_out_of_brain: true`. Il razionale è in [`docs/dev/metadata.md`](../dev/metadata.md#criteri-di-esclusione-adottati).
 
+**Convenzioni della frazione fuori dal brain.** `out_of_brain_fraction` va da `0` (lesione tutta dentro il cervello) a `1` (tutta fuori: con `correct_out_of_brain` attiva il soggetto finisce con volume 0). Una maschera vuota ha frazione `NaN`, non `0`, e non entra nelle distribuzioni. La regola con cui si elencano i candidati all'esclusione è `frazione > soglia`: chi sta esattamente sulla soglia resta. Il notebook `lesion_analysis` guarda soglie candidate fisse (1, 5, 10, 30, 50, 70%) e per ognuna conta chi la supera ed elenca gli ID: nessun test statistico, perché i dati non hanno un salto naturale, e l'elenco serve ad aprire le maschere e giudicare a occhio se è un errore di normalizzazione. L'ultima cella del notebook copre solo tre motivi (`empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`) e con `EXCLUSIONS` vuoto non stampa nulla; gli altri motivi (per esempio `all_zero_features`) si scrivono direttamente nel config.
+
 ```csv
 subject_id,dataset,reason,scope,value
 sub-STUKE0146,UKE/WAKEUP_acute,empty_mask,all,0
@@ -230,6 +234,10 @@ I soggetti esclusi **restano nel registro** con `has_lesion` e `has_sdc` intatti
 - **`geometric_override_datasets`**: lista di dataset dove un lato clinico opposto a quello della maschera viene **forzato** a quello geometrico. Obbligatoria; `[]` (il valore in uso) la disattiva; se non vuota richiede `lesion_side_from` e `overwrite: true`, perché sostituisce un valore già presente. Un nome non presente nel registro fa fallire la run. Spiegata, e motivata, nella sezione seguente.
 
 Nel registro la colonna resta **`lesion_side`, senza suffisso di griglia**, perché per i soggetti con etichetta clinica quel valore non viene da nessuna griglia: un suffisso sarebbe falso per la maggioranza delle celle. `lesion_side_from` dice da quale griglia viene la parte geometrica, `lesion_side_source` dice quale delle due provenienze ha vinto per ogni soggetto.
+
+### A cosa serve `lesion_side`
+
+È l'emisfero colpito dalla lesione (`left`, `right`, `both`). Nel progetto serve a due cose: **colorare per lato** i plot degli embedding (color mode `side` di `dim_reduction.py`/`clustering.py`) e **descrivere i cluster**, cioè quanti soggetti di ciascun lato contengono (variabile `lesion_side` della composizione dei cluster, `src/analysis/cluster_composition.py`). Il lato geometrico si calcola dalla maschera con l'indice di lateralità `(sinistra − destra) / (sinistra + destra)` sui voxel dei due emisferi (il piano mediano MNI non appartiene a nessuno dei due): positivo = prevalenza sinistra, negativo = destra, vicino a 0 = bilaterale. Con `side_threshold`: `both` se `|indice| < side_threshold`, `left` se l'indice è `≥ side_threshold`, `right` se `≤ −side_threshold`. Se `sinistra + destra = 0` (maschera vuota, o lesione sul solo piano mediano) l'indice non è definito: `NaN`, e il lato resta vuoto.
 
 ### Il valore `both` ha due origini, e non sono equivalenti
 

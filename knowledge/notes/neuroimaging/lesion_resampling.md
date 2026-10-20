@@ -14,7 +14,17 @@ Il documento è in tre parti:
 
 ## 1. Perché serve un resampling
 
-Le maschere di lesione arrivano dai vari centri già normalizzate in MNI152NLin6Asym, ma **non sulla stessa griglia di voxel**: risoluzioni native diverse (1mm, 1.5mm, 2mm) e, in casi isolati, bounding box diversi. Per impilarle in una matrice pazienti × voxel serve una griglia comune, fissata esplicitamente da `reference_template_path` (oggi un soggetto WashU a 2mm — scelta esplicita e non derivata dai dati, vedi `docs/dev/lesion_matrix.md`).
+Le maschere di lesione arrivano dai vari centri già normalizzate in MNI152NLin6Asym, ma **non sulla stessa griglia di voxel**: risoluzioni native diverse (1mm, 1.5mm, 2mm) e, in casi isolati, bounding box diversi. Per impilarle in una matrice pazienti × voxel serve una griglia comune, fissata esplicitamente da `reference_template_path` (oggi il template MNI152NLin6Asym a 2mm di TemplateFlow, `assets/templates/tpl-MNI152NLin6Asym_res-2_T1w.nii.gz` — scelta esplicita e non derivata dai dati, vedi `docs/dev/lesion_matrix.md`).
+
+### Griglia, risoluzione e spazio: tre cose diverse
+
+Tre informazioni descrivono dove stanno i voxel di una maschera, e non sono intercambiabili:
+
+- **Shape** (es. `91×109×91`): quanti voxel ci sono lungo i tre assi (x, y, z), cioè la forma dell'array 3D.
+- **Dimensione del voxel** (es. `2mm`): quanti millimetri misura ogni voxel lungo ciascun asse. Shape e dimensione insieme (più l'origine e l'orientamento, contenuti nell'*affine* del file) formano la **griglia**.
+- **Spazio** (es. `MNI152NLin6Asym`): il sistema di coordinate standard in cui il cervello è stato normalizzato. Due maschere nello stesso spazio possono stare su griglie diverse (un MNI a 1mm e uno a 2mm descrivono lo stesso cervello con un numero diverso di voxel).
+
+Per impilare due maschere in una matrice, ogni colonna deve indicare lo stesso punto fisico per tutti i soggetti: serve quindi la stessa griglia, non solo lo stesso spazio. Per questo `_needs_resample` confronta shape **e** affine, mai la shape da sola (`docs/dev/lesion_matrix.md`).
 
 ## 2. La regola va per tipo di dato, non per direzione
 

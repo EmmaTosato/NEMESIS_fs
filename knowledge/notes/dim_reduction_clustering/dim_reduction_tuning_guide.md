@@ -79,6 +79,17 @@ Il numero è cieco a *come* è fatto l'embedding — `dim_reduction.py` produce 
 
 **Implicazione pratica per leggere `tuning_results.csv`**: la trustworthiness non è comparabile tra `n_components` diversi (vedi sopra) — quindi non esiste un modo puramente numerico per scegliere quante componenti tenere prima del clustering, va sempre incrociato con il pattern clinico/anatomico e con la diagnostica descritta in `challenge_of_clustering_after_dim_reduction.md`.
 
+### Cosa si può leggere: il guadagno marginale
+
+Il **valore assoluto** della trustworthiness non si confronta tra `n_components` diversi, ma la sua **variazione** sì, se letta con cautela:
+
+- Si fissano tutti gli altri iperparametri (per UMAP `n_neighbors`, `min_dist`, e `metric`, che è nested) e si segue la trustworthiness lungo `n_components` (es. 2 → 3 → 10), una linea per ogni combinazione di `(n_neighbors, min_dist)`. Mai si confrontano punti di linee diverse tra loro.
+- Il **guadagno marginale** è la differenza di trustworthiness tra due `n_components` consecutivi. Si cerca il punto oltre il quale il guadagno si appiattisce: aggiungere dimensioni non fa più conservare meglio i vicinati. È la stessa logica del gomito della varianza spiegata di PCA, ma letta come **derivata** (la pendenza), non come valore assoluto.
+- Un'unica linea media sui parametri liberi sintetizza l'andamento; le linee singole mostrano se è lo stesso per tutte le combinazioni o dipende da `n_neighbors`/`min_dist`.
+- Il gomito dice dove smette di convenire aumentare le dimensioni **per la conservazione dei vicinati**, non quante servono al clustering: la scelta resta congiunta al pattern clinico/anatomico e alla diagnostica del clustering, come sopra.
+
+Solo UMAP varia `n_components` nello sweep (`config/registry/params_reduction.json`: `n_components` è nella `tuning_grid` di `umap`). t-SNE e PaCMAP restano a `n_components = 2` fisso e non hanno nulla da confrontare in questo senso. Il guadagno marginale si legge direttamente dai `tuning_results.csv` già su disco (colonne `n_components`, `trustworthiness`), senza nuovi calcoli.
+
 ## File di output
 
 - `tuning_results.csv`: una riga per combinazione (colonna metrica secondo la tabella sopra). Se `nested_params` è dichiarato, una copia filtrata per ogni foglia.

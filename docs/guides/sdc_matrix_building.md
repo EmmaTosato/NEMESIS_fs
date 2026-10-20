@@ -43,6 +43,15 @@ A differenza di `parcellated`, qui un tratto **mancante** dal CSV fa fallire la 
 
 La lista degli esclusi è **la stessa** che legge `build_lesion_matrix.py`, quindi le due matrici tengono fuori gli stessi soggetti per costruzione: senza di questo un confronto lesione/SDC confronterebbe due coorti diverse. Formato e validazioni in [`docs/guides/metadata.md`](metadata.md); un file assente ferma la run, "nessuna esclusione" si dichiara tenendolo con la sola intestazione.
 
+### Controlli prima di costruire
+
+`notebooks/exploration/sdc_analysis.ipynb` ([`exploration.md`](exploration.md)) controlla l'input senza scrivere nulla:
+
+- **Contenuto di `bcbtoolkit/`**: ogni soggetto ha esattamente i 31 CSV attesi (15 `LF-disconnectome` + 16 `LF-lesion`), verificati per nome e non per numero (dettaglio in [`docs/dev/sdc_matrix.md`](../dev/sdc_matrix.md)).
+- **Accordo con il registro**: i soggetti in `bcbtoolkit/` e quelli con `has_sdc` in `participants.csv` devono coincidere nei due sensi. Se no, il registro è vecchio: rilancia `populate_metadata.py`. Un soggetto è ammesso solo con `has_sdc` **e** `has_lesion`; il conteggio del notebook non applica la lista degli esclusi né `group_filter`, quindi è il massimo ammissibile.
+- **Matrice parcellata**: valori in [0, 1], nessun NaN; il numero di colonne a varianza zero è un dato da leggere, non un errore (la matrice parcellata non scarta colonne).
+- **Mappe voxel-wise**: un campione di soggetti per dataset (non l'intera coorte) per forma/affine, intervallo e NaN, più una prova di ricampionamento `nearest`.
+
 ---
 
 ## Dettaglio Parametri JSON

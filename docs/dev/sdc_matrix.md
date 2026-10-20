@@ -12,6 +12,19 @@ This file covers turning SDC output (`bcbtoolkit/<subject_id>/*`, produced upstr
 
 **Row order, every representation**: by dataset name, then `subject_id` (`sorted(admitted.items())`, and the same for the parcellated builder). It is the criterion `build_lesion_matrix` uses too, so the two matrices of one cohort have the same row order.
 
+## What a subject's `bcbtoolkit/<subject_id>/` must contain
+
+A flat folder (no intermediate `dwi/` subfolder), with exactly:
+
+- **31 parcellated CSVs** named `<subject_id>_space-MNI152NLin6Asym_LF-{object}_atlas-{atlas}.csv`: 15 `LF-disconnectome` (one per atlas: `aal`, `buckner_7n`, `rojkova`, `schaefer_{200,300,400}_7n`, `schaefer_{200,300,400}_tian_s{1,2}`, `tian_s1`, `tian_s2`, `yeh_hcp1065`) and 16 `LF-lesion` (the same 15 plus `yeh_hcp1065_streamline`, which has no disconnectome counterpart);
+- the voxel-wise `*_res-1_desc-disconnectome.nii.gz` and the two `*_mapstats.tsv`, for 34 files in total.
+
+The check that matters is on the **set of names**, not the count: 31 files with a wrong or duplicated atlas pass a cardinality check. `notebooks/exploration/sdc_analysis.ipynb` (section 1) derives the expected set from the two atlas lists and raises on any missing or unexpected CSV, and on any entry of `bcbtoolkit/` that is not a `sub-*` folder. A subject that is registered (`has_sdc`) but incomplete is therefore caught there, before a builder fails on the first missing file.
+
+## Sanity checks on a built parcellated matrix
+
+The exploration notebook applies three checks to the in-memory `X`: every value in `[0, 1]` and no NaN (both raise), and the **number** of zero-variance columns (printed, never an error). The last is a diagnostic and not a guarantee in either direction: the production parcellated `X` never drops a column (see below), so constant columns are expected whenever no admitted subject disconnects a region.
+
 ## Reference labels (`assets/atlases/sdc_labels/<atlas>.csv`)
 
 The set of columns (regions) `build_parcellated_matrix()` produces for a given atlas is **fixed and authoritative**, read from `assets/atlases/sdc_labels/<atlas>.csv` (one `region_name` per row) - not re-derived per run as the union of whatever regions happen to appear in the current subject selection. This matters for two reasons:

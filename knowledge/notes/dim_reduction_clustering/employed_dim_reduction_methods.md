@@ -85,7 +85,14 @@ Dai risultati si leggono quattro cose:
 
 > punteggio(soggetto *i*, componente *j*) = peso₁ⱼ · voxel₁(*i*) + peso₂ⱼ · voxel₂(*i*) + … + peso_pⱼ · voxel_p(*i*)
 
+**Pesi, autovettori, *loadings*.** Tecnicamente i pesi sono gli autovettori (di lunghezza 1), e i *loadings* in senso stretto sono gli autovettori moltiplicati per la radice dell'autovalore. Nel resto della nota e nei notebook "pesi" e "loadings" sono usati come sinonimi; dove la differenza conta (la rotazione agisce sui *loadings* in senso stretto, vedi sotto) lo si dice.
+
 Questa somma è la **combinazione lineare delle variabili originali**: i pesi sono i coefficienti, il punteggio è il risultato. Su tutti i soggetti insieme, la componente è una nuova colonna lunga *n*, somma pesata delle *p* colonne dei voxel. Riportati sulla griglia del cervello, i pesi di una componente formano la sua mappa spaziale.
+
+**Come si legge un punteggio.** Dice quanto il pattern del soggetto si allinea alla mappa dei pesi, e con che intensità.
+
+- Alto in valore assoluto: la mappa è molto presente nel soggetto.
+- Il **segno** indica la direzione rispetto alla mappa. Il segno della componente stessa è arbitrario (vedi "Equivalenze utili").
 
 Esempio con 3 voxel (valori già centrati) e una componente con pesi (0,6; 0,0; 0,8):
 
@@ -94,9 +101,13 @@ Esempio con 3 voxel (valori già centrati) e una componente con pesi (0,6; 0,0; 
 | 1 | 2 | −1 | 1 | 0,6·2 + 0,0·(−1) + 0,8·1 = **2,0** |
 | 2 | −1 | 3 | −2 | 0,6·(−1) + 0,0·3 + 0,8·(−2) = **−2,2** |
 
-I pesi sono uguali nelle due righe; cambiano i valori dei voxel, quindi cambia il punteggio. Un peso nullo (voxel₂) esclude quel voxel dalla componente.
+I pesi sono uguali nelle due righe; cambiano i valori dei voxel, quindi cambia il punteggio. Un peso nullo (voxel₂) esclude quel voxel dalla componente. I soggetti 1 e 2 stanno ai due lati opposti della stessa componente (punteggio positivo e negativo).
 
 Il grafico degli autovalori in ordine decrescente si chiama *scree plot*; la quota cumulata dice quante componenti servono per arrivare, ad esempio, al 90% della varianza.
+
+La **varianza cumulata** di *k* componenti è la somma delle quote delle prime *k*. Esempio: se la prima spiega il 26% e la seconda il 25%, insieme ne spiegano il 51%, quindi con 2 componenti si supera il 50%. Per ogni soglia (50%, 80%, 90%) il **numero minimo di componenti** è il più piccolo *k* la cui cumulata la raggiunge.
+
+**Come si legge lo scree plot.** Dove la curva della varianza per componente si appiattisce, le componenti in più aggiungono poco. La curva non indica un numero: la scelta di quante componenti tenere resta manuale. Gli autovalori sono quelli della PCA senza rotazione; la rotazione non cambia la varianza totale delle prime *k* componenti, ma dopo non descrivono più le singole componenti (vedi "La rotazione varimax").
 
 #### Equivalenze utili
 
@@ -167,7 +178,7 @@ Matrici del progetto:
 - **Correlazione**: variabili in unità diverse (età in anni, volume in mm³). Senza standardizzare, vincerebbe quella con i numeri più grandi per puro accidente di unità.
 - **Covarianza**: variabili nella stessa unità, dove la differenza di variabilità è informazione vera.
 
-**Nel nostro caso: covarianza.** Ogni voxel del disconnettoma è una probabilità di disconnessione, tutti sulla stessa scala. Un voxel che varia di più tra i soggetti è davvero più informativo. Standardizzando, i voxel quasi sempre a zero (e quindi con variabilità minuscola, spesso solo rumore) peserebbero quanto gli altri. È anche la scelta di Thiebaut de Schotten et al. 2020.
+**Nel nostro caso: covarianza.** Ogni voxel del disconnettoma è una probabilità di disconnessione, tutti sulla stessa scala. Un voxel che varia di più tra i soggetti è davvero più informativo. Standardizzando, i voxel quasi sempre a zero (e quindi con variabilità minuscola, spesso solo rumore) peserebbero quanto gli altri. È anche la scelta di Thiebaut de Schotten et al. 2020, che scrive solo «a PCA using a covariance matrix» e non dice altro sulla standardizzazione.
 
 ### La rotazione varimax
 
@@ -246,6 +257,13 @@ Con una rotazione ortogonale i punteggi che ne escono sono i punteggi PCA a vari
 
 **Non si scopre nulla di nuovo.** I dati e l'informazione sono gli stessi. Il varimax sceglie la descrizione più semplice anche quando nei dati non c'è una struttura a gruppi, e produce comunque componenti dall'aspetto pulito: che i gruppi siano reali va verificato altrove (ad esempio con la riproducibilità tra due metà dei soggetti).
 
+**Come si legge la tabella PCA contro ruotate.** Mette a confronto le due graduatorie per varianza.
+
+- Ogni riga è un posto nella graduatoria per varianza.
+- A sinistra c'è la componente PCA che occupa quel posto, con la sua quota di varianza; a destra la componente ruotata che lo occupa, con la sua quota.
+- *n.* è l'etichetta della componente ruotata nelle analisi successive (volume, lato, mappe, embedding): non è il suo posto in graduatoria.
+- La somma delle quote è la stessa prima e dopo la rotazione; cambia come è ripartita.
+
 #### Quando usare cosa
 
 | Obiettivo | Scelta |
@@ -265,6 +283,22 @@ Una componente potrebbe misurare solo quanto è grande la lesione. Per verificar
 - R² = 0,50: componente che misura soprattutto la dimensione.
 
 Si calcola sulle componenti ruotate e su quelle non ruotate, per vedere cosa cambia con la rotazione. Il paper lo calcola sulle ruotate e riporta R² < 0,1 per tutte.
+
+**Conseguenza per un clustering.** Una componente con R² alto pesa come "dimensione della lesione" anche se spiega molta varianza.
+
+#### Quanto dipende dal lato della lesione
+
+La stessa domanda per il lato: una componente separa le lesioni di sinistra da quelle di destra? Il lato si codifica come un numero (1 per la lesione sinistra, 0 per la destra) e si calcola l'**R²** con il punteggio di ogni componente, come per il volume.
+
+- Dice **quanto** la componente separa i due lati, non **da che parte**: il segno di una componente è arbitrario, quindi la direzione non è interpretabile.
+- Restano fuori i soggetti con lesione bilaterale o senza lato registrato: non stanno su nessuno dei due estremi di un asse sinistra-destra.
+
+#### Quante componenti servono per spiegare volume o lato
+
+L'R² di una componente alla volta non dice quanto spiegano *insieme* le prime *k*. Per questo si calcola anche l'**R² cumulato**: la quota di variabilità del volume (o del lato) spiegata insieme dalle prime *k* componenti, al crescere di *k*.
+
+- Le componenti si prendono in ordine di varianza: senza rotazione le prime *k*; con il varimax le *k* con più varianza dopo la rotazione. A parità di *k* i due insiemi di componenti sono diversi.
+- Se l'R² sale molto già con *k* piccolo, l'effetto sta nelle prime componenti; se sale piano, è distribuito su molte.
 
 #### La mappa *t*
 

@@ -13,7 +13,7 @@ Two paths to the same components, picked with `dual`. Why the small matrix gives
 - **`fit_covariance_pca(X, standardize=False, dual=True, chunk_columns, max_matrix_gib)`** returns a `CovariancePca`. With `Z = (X - column mean) [/ column std]`:
   - `dual=True` accumulates the n x n Gram matrix `Z Z^T` over blocks of columns and decomposes it; the eigenvectors of the feature-side matrix are `Z^T u / s`. Peak memory is one block plus the Gram matrix (about 270 MB for 5845 subjects). On the real voxel-wise matrix: about 3 minutes.
   - `dual=False` accumulates the p x p covariance matrix `Z^T Z` over row chunks (about as many values as a column block) and decomposes it.
-  - `standardize=True` divides every column by its standard deviation (ddof=1, so the matrix is a correlation matrix with unit diagonal). A constant column raises. Not standardized, as in the paper, by default.
+  - `standardize=True` divides every column by its standard deviation (ddof=1, so the matrix is a correlation matrix with unit diagonal). A constant column raises. Not standardized by default, as in the paper, which writes only "covariance matrix" and says nothing else about standardization.
 - **Refusals.** NaN or infinite values raise (the PCA is undefined on them, nothing is imputed or dropped). A square matrix above `max_matrix_gib` (default 8) raises with the size and the other `dual` value to try, instead of trying to allocate it (e.g. `dual=False` on 291345 features would be about 680 GB).
 - **`CovariancePca`** holds the eigenvalues (descending, `n` of them if dual, `p` if not), the column means and scales, `n_samples`, and the eigenvector matrix on the side that was decomposed (`left_vectors` if dual, `right_vectors` if not; exactly one). `save(path)` writes it to a `.npz` (temp file then rename), `load(path)` reads it back.
 - **`pca_scores(X, pca, n_components)`** are the unrotated scores (the same values as `sklearn.decomposition.PCA.transform` of the scaled matrix, up to the sign of each column).
@@ -29,7 +29,7 @@ Memory is one block of columns plus one square matrix, never the matrix: X may b
 - **`component_t_maps(X, scores, row_sets)`** fits, for every voxel, `values ~ intercept + all component scores` on each subset of subjects and returns the t-statistic of every component's coefficient: a multiple regression (the components enter together), as the paper describes. One pass over `X` serves every subset. The scores are those of the whole sample from `rotated_scores`: a half-sample map does not re-derive the components.
 - **`map_reproducibility(maps_a, maps_b)`** is the Pearson correlation across voxels between the two maps of each component, from two random halves of the subjects (the paper: two halves of 666, average 0.813 ± 0.079, components from 0.39 to 0.98; here the halves are about 2900 subjects and the scores are shared, so the values are not directly comparable).
 - **t-map and weights map.** The t-map of a component is close to, but not the same as, the map of its rotated loadings: the t divides each voxel by its own uncertainty. On `s2.4-vol` the correlation between the two goes from 0.74 to 0.91 per component (median 0.84).
-- **Display.** A voxel is coloured when its |t| reaches `MAP_THRESHOLD_FRACTION` (0.3 in the notebook) of the component's peak |t|: with thousands of subjects even small effects have a high t, and a fixed |t| > 3 would colour almost the whole brain. The three sections cross at the peak voxel; the background is the MNI T1 template at 1 mm, because the 2 mm file has truncated data. Map columns go back to voxels through `non_constant_mask.npy`, in C order, on the 2 mm grid of the template header.
+- **Display.** A voxel is coloured when its |t| reaches `MAP_THRESHOLD_FRACTION` (0.3 in the notebook) of the component's peak |t|: with thousands of subjects even small effects have a high t, and a fixed |t| > 3 would colour almost the whole brain. The three sections cross at the peak voxel, and each figure's title gives the peak t and the component's reproducibility; the background is the MNI T1 template at 1 mm, because the 2 mm file has truncated data. Map columns go back to voxels through `non_constant_mask.npy`, in C order, on the 2 mm grid of the template header.
 - **Reading the maps.** Red is a positive t (the voxel is more disconnected the more the subject has the component), blue a negative one. A compact red zone means the component is a zone of the brain. The sign of a component is arbitrary, so each map is oriented with its peak positive and is read by its shape, not its colour.
 - **`positive_peak_signs(t_maps)`** orients each component so its largest-magnitude voxel is positive: the sign of a component is arbitrary, and the paper reports positive correlations only.
 - **Degenerate voxels.** A voxel with no residual variance within a subset (constant there, or fitted exactly) has no defined t-statistic. Its t is 0.0 and it is counted in `ComponentMaps.n_degenerate_voxels`, never dropped.
@@ -66,6 +66,44 @@ Memory is one block of columns plus one square matrix, never the matrix: X may b
 - **`default_embedding_components`** picks the two components to draw: the first two of an unrotated run, the two with most variance of a rotated one (its columns have no order).
 - **`registry_values(subject_ids, column)`** reads a participants.csv column for the subjects, raising for one that is not registered or has no value.
 - **`registry_side_indicator(subject_ids)`** is the lesion side as a number for the left-right R² of section 5: 1 for a left lesion, 0 for a right one, over the subjects with a single side. It returns the indicator and the mask of the kept subjects: a bilateral lesion or an empty side lies on neither end and is left out, and the notebook prints how many. A side outside `KNOWN_LESION_SIDES` raises, so a misspelt value is not dropped like an empty one.
+
+### Sections of the notebook
+
+The notebook does not choose the number of components: it shows the data to choose it.
+
+| Section | Content | Applies to |
+|---|---|---|
+| 1 | Choice of the run and the parameters | all runs |
+| 2 | What the run holds | all runs |
+| 3 | How many components to keep | all runs |
+| 4 | Varimax: variance of each rotated component | rotated runs |
+| 5 | How much each component depends on lesion volume (and side) | all runs |
+| 6 | Component maps in the brain | voxel-wise matrices |
+| 7 | Embedding | all runs |
+
+A section that does not apply to the chosen run says so and is skipped: 4 on an unrotated run; 6 when the source matrix has no `non_constant_mask.npy` (parcellated, streamline, FC).
+
+**Parameters** (section 1):
+
+- `RUN_PATH`: the run folder, production or tuning.
+- `ROTATION`, `N_COMPONENTS`: the `rotation` and `n_components` passed to `load_pca_run`; only for a tuning, to pick the combination. For a production run they are the run's own and passing them raises.
+- `COMPARE_WITH_UNROTATED`: for a tuning with varimax only. When `True`, section 5 also shows the same combination without rotation, so the tuning must contain it (the same `n_components`, `rotation="none"`).
+- `UNROTATED_RUN_PATH`: for a varimax production run only. The unrotated run of the same subjects to compare in section 5, or `None`; a path whose run is rotated raises.
+- `LESION_VOLUME_COLUMN`: the volume column of `participants.csv`, in 2 mm voxels.
+- `COMPONENTS_TO_PLOT`, `MAP_THRESHOLD_FRACTION` (section 6): the components to draw, numbered from 1 up to the run's `n_components`, and the share of the peak |t| under which a voxel is not coloured.
+- `EMBEDDING_COMPONENTS` (section 7): the two components to draw, numbered from 1, e.g. `(1, 3)`; `None` lets `default_embedding_components` pick.
+
+**Section 2.** If there is an unrotated comparison, it must have the same subjects in the same order as the run, otherwise the notebook raises.
+
+**Section 3.** A table gives, for each of the 50%, 80% and 90% shares, the smallest number of components that reaches it (`components_for_share`), and two plots show the variance per component and the cumulative one. The eigenvalues are the unrotated PCA's: rotation keeps the total variance of the first k components, but they no longer describe single components, which section 4 does. Where the per-component curve flattens, further components add little; the choice stays manual.
+
+**Section 4.** The table of rotated against PCA components is read as in `employed_dim_reduction_methods.md` (paragraph "Come si legge la tabella PCA contro ruotate"): each row is a place in the variance ranking, the PCA component on the left and the rotated one that occupies it on the right; *n.* is the label the following sections use.
+
+**Section 5.** R^2 of every component with the lesion volume (`squared_correlation`) and, in a second plot, with the lesion side (`registry_side_indicator`, 1 left, 0 right): it says how much a component separates the two sides, not which one, because the sign of a component is arbitrary. A third table gives the cumulative R^2 of the first k components taken together (volume and side), for k up to the run's `n_components`. The first k are the first k columns for an unrotated run and the k with most variance after rotation (section 4) for a rotated one, so at equal k the two sets differ. If the R^2 rises at small k the effect is in the first components; if it rises slowly it is spread over many. Why a high R^2 matters for a clustering: `employed_dim_reduction_methods.md`, "Quanto dipende dal volume della lesione". The dashed line at 0.1 in both R^2 plots is the paper's reference value for the lesion volume ("all R^2 < 0.1", Thiebaut de Schotten et al. 2020, on the rotated components), not a threshold of ours; in the side plot it is only the same reference line, the paper has no side criterion.
+
+**Section 6.** The maps are requested from `ComponentMapStore`: the first time they are computed in the background and take a few minutes, then they come from the cache (`results/cache/component_maps`). The reproducibility bars and one figure per component in `COMPONENTS_TO_PLOT` follow, as described in "Component maps" above.
+
+**Section 7.** One point per subject in the two chosen components, one panel per colour mode: lesion side, volume and dataset (`COLOR_MODES_TO_SHOW`, resolved by `embedding_coloring`). The point is to see whether the components separate the subjects by something known. Without rotation the default is the first two components, the directions that separate the subjects most; with varimax, the two with most variance (section 4). In the volume panel grey is a value not available. The default for a rotated run needs the shares of section 4: run section 4 first, otherwise `rotated_share` is `None` and `default_embedding_components` raises; with `EMBEDDING_COMPONENTS` set the shares are not needed.
 
 The brain maps are [`component_maps.py`](../../src/analysis/component_maps.py)'s (`ComponentMapStore`, in `results/cache/component_maps`, shared with the Embedding Explorer): the notebook skips them for a matrix with no `non_constant_mask.npy`. The tests are `tests/unit/test_pca_evaluation.py`.
 

@@ -12,6 +12,21 @@ Per rigenerarli: `notebooks/exploration/dataset_availability.ipynb` (esplorazion
 
 ---
 
+## Vocabolario
+
+Le parole che questa pagina e `notebooks/exploration/dataset_availability.ipynb` ([`exploration.md`](exploration.md)) usano sempre nello stesso senso:
+
+- **Dataset**: una cartella a profondità 2 sotto `derivatives/`, cioè `<centro>/<coorte>` (centro clinico e sua coorte, per esempio `UNIPD/WashU`). Più coorti possono stare nello stesso centro (UNIPD ne ha quattro).
+- **Tipologia di dato**: una sottocartella di primo livello di un dataset. I nomi su disco sono `manual_masks`, `bcbtoolkit` e `features`; è sempre il nome su disco che si usa in codice, notebook e path. `bcbtoolkit/` è la tipologia dell'output SDC (disconnettoma e lesione parcellati): "SDC" indica il concetto e compare in nomi come `has_sdc` o `build_sdc_matrix`, ma la tipologia non si chiama `sdc`.
+- **Soggetto**: una cartella dentro una tipologia, con il nome dell'ID (`sub-...`). Un soggetto può avere una tipologia e non un'altra.
+- **Pattern di file**: il percorso di un file relativo alla cartella del soggetto, con l'ID sostituito da `{subject_id}`. Serve a confrontare soggetti diversi: i pattern attesi per una tipologia sono l'unione di quelli di tutti i suoi soggetti.
+- **Assenza strutturale**: un pattern che un dataset non ha mai, per nessun soggetto, mentre esiste in altri dataset. Descrive la forma del dataset, non un guasto.
+- **Assenza sporadica**: un pattern che manca a un soggetto mentre gli altri soggetti dello stesso dataset lo hanno. È il segnale di un file perso o di un soggetto incompleto.
+- **Popolazione reale e popolazione su disco**: possono differire (vedi *Copie locali ridotte*). Per `UNIPD/WashU/features/` il conteggio reale viene dal manifest `features_archive_subjects.tsv`, non dalle cartelle in chiaro.
+- **WashU ST e HC**: WashU mescola pazienti (`ST`) e controlli sani (`HC`) nella stessa cartella. Per confrontare le tipologie si trattano come due insiemi distinti, perché i controlli sani non hanno mai `manual_masks` né `bcbtoolkit` (nessuna lesione da segnare); il gruppo di ogni soggetto viene da `disease_id` in `participants_WashU.tsv`.
+
+---
+
 ## Le 6 coorti, in numeri
 
 | Dataset | Registro clinico (`participants_*.tsv`) | `manual_masks` | `bcbtoolkit` | `features` (FC) | Griglia | Dettaglio |
@@ -97,6 +112,8 @@ Ogni tipo vive in una sottocartella dedicata dentro `derivatives/<centro>/<coort
 Un file per dataset.
 
 **Campi comuni a tutti e 6**: `participant_id`, `dataset`, `center_id`, `disease_id`, `age`, `sex`.
+
+Un tsv il cui schema non ha ancora quei campi (manca almeno uno tra `center_id`, `dataset`, `disease_id`) non è ancora normalizzato: `participants_NEMESIS_T0.tsv` ha solo `participant_id`, `age`, `sex`, `group`, `participant_id_dmp`. `notebooks/exploration/metadata_raw.ipynb` lo salta dichiarando le colonne mancanti.
 
 **`disease_id`**: `ST` (stroke) o `HC` (controlli sani). Solo WashU ha controlli sani (68 nel registro, 56 con FC).
 

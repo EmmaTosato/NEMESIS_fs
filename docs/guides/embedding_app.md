@@ -231,6 +231,8 @@ Tutti i valori vengono da `assets/metadata/participants.csv` (l'anagrafica clini
 
 Se qualche soggetto del cluster **non ha affatto una riga** in `participants.csv` (caso distinto da un valore mancante per una singola variabile), il pannello si disegna comunque su tutti gli altri e mostra sopra il grafico una riga di avviso che elenca i soggetti coinvolti. Quei soggetti restano contati nel `totale` di ogni variabile - il cluster non rimpicciolisce - ma non contribuiscono alcun valore. Per farli sparire dall'avviso, rilancia `src/pipeline/populate_metadata.py` (vedi `docs/guides/metadata.md`) così che entrino nell'anagrafica.
 
+Il pannello descrive e non testa: nessun numero dice se una differenza tra cluster supera il caso. Per le variabili asimmetriche, come il volume, la mediana (nel tooltip) descrive meglio della media; volume e disconnessione derivano dai dati del clustering, quindi la loro differenza tra cluster è in parte per costruzione; Istruzione e NIHSS esistono solo per alcuni dataset (UCL-UK non ha nessuno dei due). Le cautele complete sono in `docs/dev/cluster_description.md` ("Reading a cluster description").
+
 Nessun bottone "Salva HTML"/"Salva PNG" dedicato - come per lo scatter dell'embedding in cima alla pagina, l'icona fotocamera di Plotly (visibile al passaggio del mouse) esporta un PNG dello stato attuale.
 
 ## Composizione dei cluster
@@ -290,10 +292,10 @@ Ultimo pannello della pagina, per un run di clustering. Dà gli **indici geometr
 
 Una tabella con valore e lettura di:
 
-- **Silhouette** (da -1 a 1, più alta è meglio) in tre sintesi: media sui soggetti (pesa di più i cluster grandi), media dei cluster (ogni cluster pesa uguale) e **silhouette del cluster peggiore**
-- **Calinski-Harabasz** (più alto è meglio)
-- **Davies-Bouldin** (più basso è meglio)
-- **Dunn** (più alto è meglio, sensibile agli outlier)
+- **Silhouette** (da -1 a 1, più alta è meglio) in tre sintesi: media sui soggetti (pesa di più i cluster grandi), media dei cluster (ogni cluster pesa uguale) e **silhouette del cluster peggiore**. Per ogni soggetto confronta la distanza media dal proprio cluster con quella dal cluster più vicino: vicino a 1 cluster netti, vicino a 0 confini ambigui, negativo il soggetto è più vicino a un altro cluster che al proprio
+- **Calinski-Harabasz** (più alto è meglio): dispersione tra i cluster divisa per la dispersione dentro i cluster
+- **Davies-Bouldin** (più basso è meglio): 0 = cluster compatti e separati
+- **Dunn** (più alto è meglio, sensibile agli outlier): distanza minima tra due cluster divisa per il diametro massimo di un cluster
 - numero di **cluster** (rumore escluso), quota del **cluster più grande** e quota di **rumore**, sul totale dei soggetti
 
 Sotto la tabella, **Silhouette per cluster**: una barra per cluster con la sua silhouette media (da -1 a 1), nel colore che il cluster ha nello scatter. L'etichetta di ogni barra porta la dimensione del cluster (`3 · n=412`), perché la media di pochi soggetti non è confrontabile con quella di centinaia: un cluster di un soggetto ha silhouette 0 per convenzione, e uno di 2 o 3 può avere una media estrema per caso. Passando il mouse su una barra compare la quota dei suoi soggetti con silhouette negativa, cioè più vicini a un altro cluster che al proprio. Serve a vedere quali cluster hanno confini ambigui anche quando la media complessiva è buona. L'icona fotocamera di Plotly esporta il PNG.
@@ -316,7 +318,7 @@ Per i run `hdbscan` e `hdbscan_soft` il pannello aggiunge un blocco sull'**appar
 
 Un blocco che non si può calcolare (rifit che non riproduce le etichette, run senza `membership.npy`, run con tutti i soggetti rumore) dice la causa e non nasconde il resto del pannello. I due blocchi costano da meno di un secondo a circa 2 secondi sui run provati e restano in memoria per run.
 
-Se il rumore supera il 10% compare un avviso: gli indici descrivono solo i soggetti rimasti. Subito sotto il titolo del pannello, "Come leggere questi indici" (menu a tendina, chiuso di default) dice la direzione di ogni indice e i limiti della lettura: **nessuno ha un valore di riferimento**. Una nuvola senza cluster divisa da un algoritmo ha comunque una silhouette positiva, e Calinski-Harabasz, Davies-Bouldin e Dunn di un run solo non hanno una scala. Embedding diversi (2 o 10 componenti, lesion o sdc) non sono confrontabili tra loro.
+Se il rumore supera il 10% compare un avviso: gli indici descrivono solo i soggetti rimasti. Subito sotto il titolo del pannello, "Come leggere questi indici" (menu a tendina, chiuso di default) dice la direzione di ogni indice e i limiti della lettura: **nessuno ha un valore di riferimento**. Una nuvola senza cluster divisa da un algoritmo ha comunque una silhouette positiva, e Calinski-Harabasz, Davies-Bouldin e Dunn di un run solo non hanno una scala. Embedding diversi (2 o 10 componenti, lesion o sdc) non sono confrontabili tra loro. Gli indici assumono cluster compatti e convessi, quindi favoriscono `kmeans` e `gmm`: per gli altri metodi un valore basso non dimostra che i cluster siano sbagliati. La lettura sezione per sezione (compresa la silhouette per cluster, micro e macro) è in `docs/guides/evaluation.md`; le fasce della silhouette citate in letteratura sono in `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md`.
 
 ### Run `adp`
 

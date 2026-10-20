@@ -19,7 +19,7 @@ As of 29-09-26, 5 of the 7 originally-requested dimensions:
 |---|---|---|---|
 | `age` | `age` | continuous | 89.0% |
 | `sex` | `sex` | categorical | 88.9% |
-| `education` | `education` | continuous | 14.7% |
+| `education` | `education` | continuous | 14.7% (0% for UCL-UK, the largest dataset: dataset-wide gap, as for NIHSS) |
 | `nihss` | `NIHSS` | continuous | 27.1% (0% for UCL-UK — dataset-wide gap, not per-subject) |
 | `lesion_volume_voxels` | `lesion_volume_voxels_2mm` | continuous | 100% |
 
@@ -31,6 +31,16 @@ Two requested dimensions are **not** in this list:
 ### Why not extend `COLOR_MODES` instead of a new registry
 
 `embedding_coloring.py`'s `COLOR_MODES` drives two other things this feature has nothing to do with: the interactive app's scatter-coloring button row, and `dim_reduction.py`'s own `color_by` production config. Adding `age`/`sex`/`education` there would silently grow *those* surfaces too (a new "color by age" button appearing in the scatter) — not requested, and not this panel's job. `cluster_composition`/`variable_summary` instead call `src.utils.participants.load_participants_registry()` directly, independent of `COLOR_MODES` (only `COLOR_MODES["cluster_label"].column` is reused, for the one thing genuinely shared: which column names the cluster grouping).
+
+## Reading a cluster description
+
+These cautions hold for the panel and for section 4 of `clustering_evaluation.ipynb` (`docs/guides/evaluation.md`), which describes clusters with the same `participants.csv` variables. Neither runs a statistical test: they are numbers to read next to the number of subjects, and nothing tells whether a difference between clusters exceeds chance.
+
+- **Skewed variables**: the median describes a cluster better than the mean for variables like the lesion volume; with few subjects a median is unstable.
+- **Variables derived from the clustering input**: the lesion volume (a lesion run) and the disconnection load (an sdc run) come from the data the clustering was built on, so a difference between clusters is partly by construction.
+- **A cluster that is almost a dataset**: other differences may reflect the site of origin and not biology. The dataset distribution is the first thing to check.
+- **NIHSS and education exist only for some datasets**: UCL-UK, the largest, has neither, so their per-cluster figures rest only on the datasets that have them; the `n_available/n_total` of each variable says how many subjects that is.
+- **Mean disconnection is not a separate variable**: it is the disconnection load divided by a constant, the same values on another scale.
 
 ## `cluster_composition(metadata, cluster_label) -> tuple[pd.DataFrame, list[str]]`
 

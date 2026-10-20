@@ -1,6 +1,6 @@
 # Masking delle feature FC in funzione della lesione — teoria e decisioni di metodo
 
-> Fonte: Siegel et al. 2016 (*PNAS*), Griffis et al. 2019 (*Neuron*, in `knowledge/`), XCP-D (`xcp_d/interfaces/connectivity.py`). Implementazione: `src/features/functional.py`, `src/pipeline/mask_fc.py`/`build_fc_matrix.py`. Prototipo eseguito su dati reali: `notebooks/fc_lesion_masking.ipynb`.
+> Fonte: Siegel et al. 2016 (*PNAS*), Griffis et al. 2019 (*Neuron*, in `knowledge/`), XCP-D (`xcp_d/interfaces/connectivity.py`). Implementazione: `src/features/functional.py`, `src/pipeline/mask_fc.py`/`build_fc_matrix.py`. Prototipo eseguito su dati reali: `notebooks/pipeline_building/fc_lesion_masking.ipynb`; analisi della coorte e delle soglie: `notebooks/exploration/fc_analysis.ipynb`.
 
 Il documento è in tre parti:
 
@@ -66,7 +66,7 @@ return node_names[parcel_coverage < min_coverage]
 Ai due estremi:
 
 - **`min_coverage = 0.0`**: `parcel_coverage < 0.0` è sempre falso — nessun nodo verrebbe mai marcato compromesso, nemmeno uno distrutto al 100%. Il masking sarebbe di fatto disattivato: il segnale di tessuto morto verrebbe trattato come attività neurale reale, la stessa confusione descritta nella [sezione 3](#3-il-problema-lesione--fc).
-- **`min_coverage = 1.0`**: qualunque nodo con anche un solo voxel dentro la lesione (coverage < 100%) verrebbe marcato compromesso. Con lesion mask reali (rumore di segmentazione, resampling) questo marca compromessi molti più nodi per paziente rispetto a `0.5` — sui dati reali WashU, con soglia `0.5` la mediana è 1 nodo compromesso su 169 pazienti (media 3.9, vedi `notebooks/artifacts_inspection.ipynb`, sezione "Masked FC matrices"); una soglia `1.0` sposterebbe questa distribuzione molto più in alto, senza un guadagno scientifico corrispondente.
+- **`min_coverage = 1.0`**: qualunque nodo con anche un solo voxel dentro la lesione (coverage < 100%) verrebbe marcato compromesso. Con lesion mask reali (rumore di segmentazione, resampling) questo marca compromessi molti più nodi per paziente rispetto a `0.5` — sui dati reali WashU, con soglia `0.5` la mediana è 1 nodo compromesso su 169 pazienti (media 3.9, atlante `Yan200TianS2Buckner7N`, vedi `notebooks/exploration/fc_analysis.ipynb`); una soglia `1.0` sposterebbe questa distribuzione molto più in alto, senza un guadagno scientifico corrispondente.
 
 `0.5` non è quindi un numero scelto ad hoc in questo progetto: è lo stesso standard di campo di Griffis et al. 2019, riusato dallo stesso meccanismo (`min_coverage`) già presente in XCP-D per il proprio problema di copertura BOLD. Per verificarne la sensibilità sui dati reali, l'approccio corretto è uno sweep esplicito (rilanciare `mask_fc.py` con `min_coverage` a es. 0.3/0.5/0.7 e confrontare le distribuzioni di `mask_summary.csv`), non la sua rimozione.
 
@@ -98,8 +98,57 @@ Il concetto chiave che l'atlante rende possibile calcolare è la **coverage**: l
 
 Una volta costruita la tabella pazienti × connessioni, si contano i NaN in due direzioni diverse — due domande distinte, non la stessa misura vista due volte:
 
-- **Per paziente** (`fc_matrix.isna().sum(axis=1)`): quante connessioni sono NaN per quel paziente — quanto è compromesso complessivamente. È la base per decidere una soglia di *esclusione paziente* (vedi `notebooks/artifacts_inspection.ipynb`, sezione "Masked FC matrices").
+- **Per paziente** (`fc_matrix.isna().sum(axis=1)`): quante connessioni sono NaN per quel paziente — quanto è compromesso complessivamente. È la base per decidere una soglia di *esclusione paziente* (come leggerla: sezione successiva; analisi in `notebooks/exploration/fc_analysis.ipynb`).
 - **Per connessione** (`fc_matrix.isna().sum(axis=0)`): quante volte, nel campione di pazienti considerato, *quella specifica connessione* (es. `NodoA__NodoB`) risulta NaN. Se una connessione è NaN in troppi pazienti, è un problema di qualità della *feature* (quella colonna ha troppo pochi dati validi per essere utile a valle), non del paziente — domanda diversa da quella sopra.
+
+## Scegliere una soglia di esclusione paziente: come si legge `mask_summary.csv`
+
+`mask_summary.csv` (una riga per paziente, colonna `n_compromised_nodes`) è la materia prima per decidere se escludere i pazienti troppo compromessi. Qui sono le regole di lettura; la decisione presa è in `docs/dev/fc_matrix.md` ("Settled, not open work").
+
+**Nodo = parcella.** Un nodo è una delle zone dell'atlante (239 per `Yan200TianS2Buckner7N`).
+
+### Distribuzione e percentili
+
+Si guarda prima la forma della distribuzione di `n_compromised_nodes` sulla coorte, in valore assoluto e come percentuale della rete.
+
+- Se i pazienti sono sparsi su tutti i valori (distribuzione piatta), qualunque soglia taglia una parte consistente della coorte ed è una scelta delicata.
+- Se invece c'è una massa di pazienti "puliti" e una coda di pochi molto compromessi, una soglia taglia solo la coda, con poco rischio di perdere dati buoni.
+
+Un **percentile** risponde a "sotto quale valore sta il P% dei pazienti?". Letto qui: p90 = *V* significa che il 90% dei pazienti ha al massimo *V* nodi compromessi e solo il 10% ne ha di più. Spostandosi su p95, p99, p100 si entra sempre più nella coda estrema (p100 è il massimo osservato). I percentili servono a capire **quanto in profondità nella coda** si entrerebbe scegliendo una soglia, non a decidere se tagliare una massa di pazienti nella norma.
+
+### Soglie candidate e curva delle esclusioni
+
+Una soglia *T* è la regola "escludi un paziente se ha **più di** *T* nodi compromessi". Si confrontano più *T* candidate in una tabella, dove ogni riga è un'ipotesi da confrontare, non una scelta già fatta:
+
+| Colonna | Significato |
+|---|---|
+| `soglia_nodi` | *T*, in numero di nodi |
+| `soglia_%_rete` | la stessa soglia come percentuale dei nodi totali, `soglia_nodi ÷ n_nodi_totali × 100`. Serve a confrontare soglie su atlanti con un numero diverso di nodi (le 12 combinazioni hanno nodi totali diversi) |
+| `pazienti_esclusi` | quanti pazienti verrebbero tolti dalla matrice con quella soglia |
+| `pazienti_rimasti` | `n_pazienti − pazienti_esclusi` |
+
+La curva "pazienti esclusi in funzione di *T*" è la stessa informazione su tutti i valori possibili:
+
+- **Più si alza la soglia, meno pazienti vengono esclusi**: una soglia alta è più permissiva, tollera pazienti più compromessi.
+- **Il calo non è costante.** Dove la curva scende ripida si sta ancora attraversando la parte densa della distribuzione; dove si appiattisce si è entrati nella coda rara, e alzare ancora la soglia salva pochissimi pazienti.
+
+### Dai nodi compromessi alle connessioni perse
+
+Contare i nodi non è contare le connessioni. Se un nodo è compromesso, **tutte** le sue connessioni con il resto della rete diventano NaN: per un atlante a *N* nodi, fino a *N − 1* connessioni su *N(N − 1)/2* (239 nodi: fino a 238 su 28.441).
+
+- Esempio giocattolo, 4 zone (A, B, C, D), 6 connessioni possibili. Con la sola C compromessa diventano NaN A-C, B-C e C-D: 3 connessioni su 6 (50%), pur essendo compromessa 1 zona su 4.
+- Con più nodi compromessi i conteggi **non si sommano**: una connessione tra due nodi entrambi compromessi (C-D se lo sono sia C sia D) è NaN una volta sola. Per *k* nodi il massimo è *k(N − 1) − k(k − 1)/2*.
+
+### Proxy e metrica esatta
+
+- **Proxy**: `n_compromised_nodes`, già in `mask_summary.csv`, disponibile senza costruire la matrice.
+- **Metrica esatta**: la percentuale di connessioni NaN del paziente nella matrice finale (`np.isnan(matrix).mean(axis=1)`), cioè la quota di features che il paziente non ha.
+
+Per capire se contare i nodi basta, si mettono i due valori per paziente in un grafico a dispersione (nodi compromessi in orizzontale, % NaN in verticale) e si uniscono per `subject_id`, mai per posizione. Una relazione stretta dice che il proxy è sufficiente; i pazienti che se ne discostano hanno NaN che i soli nodi compromessi non spiegano e vanno guardati direttamente. Il confronto richiede che `mask_summary.csv` e la matrice vengano dalla **stessa** run di `mask_fc.py`.
+
+### Classifica dei candidati all'esclusione
+
+Ordinando i pazienti dal più al meno compromesso e guardando i primi 10, con accanto la % NaN reale, si ottiene la lista dei **candidati più forti all'esclusione**: i pazienti che qualunque soglia ragionevole taglierebbe per primi. È un modo di vedere chi sono, non una regola di esclusione.
 
 ## Riferimento rapido — pipeline reale
 

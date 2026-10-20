@@ -18,6 +18,13 @@ A logistic regression with outcome 1 = "in this cluster", 0 = "in another cluste
 
 `ValueError` for mismatched lengths, unknown columns, no variables, a single class after dropping missing values, a constant numeric column, an unknown reference level, fewer than `MIN_EVENTS_PER_TERM` (10) subjects in the rarer class per term (Peduzzi et al. 1996), collinear terms (condition number of the correlation matrix above 1e8), or a coefficient beyond `MAX_ABS_COEFFICIENT` (15 per standard deviation: one variable almost separates the groups and the likelihood has no finite maximum). The caller prints the message (the app page does, for `pair_regression`).
 
+### How to read the result
+
+- An **odds ratio above 1** means the variable makes "in this cluster" more likely, below 1 less likely; for a numeric column it is per standard deviation, so the odds ratios of different variables are comparable.
+- The odds-ratio figure of `cluster_pair.build_odds_ratio_figure` draws a term blue when its 95% confidence interval excludes 1, gray when it contains it, on a log axis. With the clusters of a pair, an odds ratio above 1 favours the first cluster.
+- `pseudo_r2`, `auc` and `events_per_term` say how well the model separates the groups and whether it has enough subjects per term; `vif` says whether a term's odds ratio is unstable because of correlated variables.
+- When the model cannot be estimated the call raises `ValueError` with the reason (see "Errors") instead of returning a fit that looks fine; the page prints that message.
+
 ### What it does not say
 
 - It is association, not cause.

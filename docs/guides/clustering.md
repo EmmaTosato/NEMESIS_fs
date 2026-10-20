@@ -96,7 +96,7 @@ Cerca zone dense di soggetti, a densità diverse. Il numero di cluster **non si 
 
 | Parametro | Cosa fa | Effetto di un valore più alto |
 | :--- | :--- | :--- |
-| **`min_cluster_size`** | Numero minimo di soggetti perché un gruppo conti come cluster; i gruppi più piccoli restano rumore. | Meno cluster, più grandi; più soggetti scartati come rumore. |
+| **`min_cluster_size`** | Numero minimo di soggetti perché un gruppo conti come cluster; i gruppi più piccoli restano rumore (con 50, un gruppo di 30 non è un cluster). | Meno cluster, più grandi; più soggetti scartati come rumore. |
 | **`min_samples`** | Il `k` con cui si calcola la distanza di un soggetto dal suo k-esimo vicino, base della stima di densità. Controlla quanto il metodo tollera il rumore. | Metodo più conservativo: più soggetti nel rumore, zone dense più ristrette. |
 
 - Con `min_samples` non specificato sklearn usa il valore di `min_cluster_size`. Il progetto li sweepa insieme in una sola run.
@@ -188,7 +188,15 @@ Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorat
 
 - `ari_vs_prev_z`: ARI, sui soli soggetti clusterizzati, contro il `Z` immediatamente più basso (stesse altre impostazioni). Un tratto vicino a 1 è un plateau: la partizione non dipende dalla soglia.
 
-`tuning_plot.png` ha `Z` in scala logaritmica. Con `save_tuning_clusterings: true` le partizioni sono in `clusterings.npz` con chiavi `Z=1.65` (formato letto dal notebook `clustering_tuning_explorer`, sezione ADP).
+`tuning_plot.png` ha `Z` in scala logaritmica e un pannello per ogni misura: `n_clusters_found`, `largest_cluster_share`, `ari_vs_prev_z`, `silhouette` (e `calinski_harabasz`/`davies_bouldin`, se la run ha `euclidean`), una linea per metrica. Con `save_tuning_clusterings: true` le partizioni sono in `clusterings.npz` con chiavi `Z=1.65` (formato letto dal notebook `clustering_tuning_explorer`, sezione ADP, che legge solo file già scritti: `dadapy` non serve).
+
+**Come leggere lo sweep** (dettaglio in `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md`, sezione "ADP"):
+
+- `largest_cluster_share` vicino a 1: tutti i soggetti sono collassati in un gruppo.
+- Un tratto di `Z` con `n_clusters_found` fisso e `ari_vs_prev_z` vicino a 1 è un plateau: il risultato non dipende dalla soglia. Se la partizione cambia a ogni passo, dipende dalla soglia e non dai dati.
+- Un solo cluster a `Z` alto è il limite atteso: con una soglia severa nessun picco è significativo.
+- Un numero di cluster che compare per un solo `Z` è un caso dello sweep.
+- Il notebook riassume lo sweep in una tabella dei plateau: per ogni numero di cluster (e per ogni metrica), il `Z` minimo e massimo che lo producono e quanti valori dello sweep ci cadono.
 
 ### Soggetti che non entrano nel clustering
 

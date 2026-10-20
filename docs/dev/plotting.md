@@ -88,3 +88,22 @@ Replaces `dim_reduction.py`'s old hardcoded `for color_by, column in (("Dataset"
 - `write_embedding_grid(blocks, metadata, X, color_by, output_dir, xlabel, ylabel, title_fn, file_prefix="embeddings_grid")`: the tuning-leaf case. `blocks: list[tuple[str, list[tuple[str, np.ndarray]]]]` (block title + `[(cell title, embedding), ...]`) is built by the *caller* (`dim_reduction.py`'s `_build_grid_blocks`, `docs/dev/models.md`) - this function only decides which color to render each block set in, calling `plotting.plot_embedding_grid_blocks` once per color (always for `_unico`, plus once per `color_by` entry).
 
 `plotting.plot_embedding_grid_blocks(blocks, output_path, xlabel, ylabel, suptitle, color_values=None, color_kind=None, legend_title=None)`: one row of small scatter subplots per block (real embeddings, not a numeric curve - the point is seeing how the point cloud's *shape* changes with a swept parameter, not just how one score moves), a dedicated label row above each block's scatter row, and a blank spacer row between blocks (a `matplotlib.gridspec` layout, not just subplot padding) - real whitespace, so multiple blocks in one figure read as visually distinct sections. All cells share one x/y axis range (padded beyond every embedding's combined min/max) and one legend/colorbar (taken from the first cell only - every cell is a fit of the same subjects, so per-cell legends would be redundant).
+
+## Figure dei notebook di lettura di un tuning
+
+Le figure di `clustering_tuning_explorer` e `dendrogram_embedding_explorer` (`notebooks/post-results_analysis/`) sono disegnate nei notebook con matplotlib e nilearn, non da `plotting.py`, e non usano `_CATEGORICAL_PALETTE`. Convenzioni (uso dei notebook: `docs/guides/analyze_clustering_tuning.md`):
+
+**`dendrogram_embedding_explorer`, prima figura (albero + embedding), una per k**
+
+- **Un colore per cluster, uguale nei due pannelli.** L'embedding ha esattamente k colori e le foglie dell'albero hanno il colore del cluster a cui appartengono. La palette è un elenco fisso di 20 tinte: le prime 10 sono quelle di `tab10` di matplotlib, le più distinguibili; le altre servono solo oltre k = 10. Per questo `LAST_P` (le foglie dell'albero, quindi i colori) non supera 20.
+- **Il colore del cluster grande si segue da un k al successivo.** Quando un cluster si divide, il pezzo più grande tiene il suo colore e il più piccolo ne prende uno nuovo.
+- **Nomi per foglie.** Le foglie sono numerate da sinistra a destra (`L1`, `L2`, ...) con il numero di soggetti sull'asse x, e un cluster si chiama con le foglie che contiene (`L5–L6`). Le foglie restano le stesse a ogni k, mentre le etichette numeriche del clustering (0, 1, 2...) cambiano: il nome per foglie è l'unico che si segue da una figura alla successiva.
+- **Legenda e nomi nell'embedding.** La legenda ha una voce per cluster (nome e numero di soggetti) e segna "nuovo" i due nati dall'ultima divisione; nell'embedding il nome di ogni cluster è scritto sulla mediana dei suoi punti, in grassetto per i due nuovi.
+- **Linea del taglio.** Rossa tratteggiata, a metà tra l'altezza dell'ultima fusione tenuta e quella della prima scartata.
+
+**`dendrogram_embedding_explorer`, seconda figura (mappa anatomica)**: sfondo nero, una riga per ciascuno dei due figli, tre sezioni dal rosso al giallo con colorbar; la scala è propria di ogni mappa (calcolo in `docs/dev/anatomical_maps.md`).
+
+**`clustering_tuning_explorer`**
+
+- **Proiezione di ADP su un UMAP 2D**: colori dalla mappa `tab20` (etichetta modulo 20), rumore (`-1`) come croci nere.
+- **Confronto tra embedding**: le curve di agglomerative hanno un asse y per pannello (un pannello per `n_components`), perché i valori assoluti non si confrontano; le heatmap di HDBSCAN (cluster trovati e `noise_fraction`) usano `viridis` con la stessa scala di colore su tutta la riga.

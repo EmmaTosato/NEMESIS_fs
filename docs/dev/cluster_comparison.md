@@ -23,6 +23,13 @@ Rule: different modality; same clustering method; same value of the method's reg
 
 A run whose `config.md` cannot be read raises `ValueError` from the rule; the dropdown logs it and leaves it out, like every other picker.
 
+Why the rule is this strict:
+
+- **Same method and same `tag_param`**: the only thing that may differ between the two runs is the upstream pipeline (lesion vs sdc), so a disagreement cannot be blamed on the clustering criterion.
+- **Common subjects only**: the two modalities cover different subjects by construction (`lesion` includes subjects without a computed SDC output, and the other way round), so the comparison runs on the intersection and `align_runs` reports `n_a`, `n_b` and `n_common`; it never merges silently.
+- **Centroids are never compared across modalities**: the embeddings live in different feature spaces (lesion voxels vs SDC regions), so two coordinates are not the same quantity even when both are 2D. The valid stand-in is the clinical phenotype of each cluster (see "Clinical profile"), which does not depend on coordinates.
+- **Centroid distance between two runs** (`clustering_comparison.ipynb`, Part 1 section 8 and Part 3) needs a shared embedding: the same `session_name`, `reduction_method`, `reduction_n_components` and `reduction_metric` (hence the same upstream `input_path`). Two embeddings share a space only by numerical coincidence, never by guarantee; the notebook's `require_shared_embedding` raises on any differing key, and Part 3 skips the incompatible pairs printing the reason.
+
 ## `cluster_comparison.py`
 
 | Function | What it does |
@@ -35,6 +42,30 @@ A run whose `config.md` cannot be read raises `ValueError` from the rule; the dr
 | `purity_table(counts)` | per source cluster: size, dominant target, share; `counts.T` gives the other direction |
 | `cluster_centroids(embedding, labels)` | mean embedding coordinates of each cluster (used by `cluster_pair.centroid_separation`) |
 | `build_table_heatmap(table, ...)` | heatmap with the value in every cell; `diverging=True` centers it on 0 |
+
+### Reading scale of ARI and NMI
+
+`AGREEMENT_SCALE` holds the upper bound of the first four of the five `AGREEMENT_LEVELS` (a value equal to a bound belongs to the level above):
+
+| Level | ARI | NMI |
+|---|---|---|
+| debole/trascurabile | below 0.2 | below 0.3 |
+| moderato | 0.2 to 0.4 | 0.3 to 0.5 |
+| discreto | 0.4 to 0.6 | 0.5 to 0.7 |
+| forte | 0.6 to 0.8 | 0.7 to 0.85 |
+| quasi identiche | above 0.8 | above 0.85 |
+
+It is a **rule of thumb of ours**, without a source in the literature consulted: a way to put a word on a number, not a threshold of validity. NMI is less severe than ARI, so its bounds are higher for the same level.
+
+### What the numbers mean
+
+- **ARI**: agreement of two partitions over pairs of subjects (together in both, apart in both, or discordant), corrected for chance; not inflated by many clusters; it can be negative. **NMI**: shared information normalized to [0, 1]; more intuitive, but it can overestimate with many clusters. Both are external indices (they compare two partitions, not a partition with the data). Definitions: `knowledge/notes/dim_reduction_clustering/clustering_literature_survey.md`, section 6.
+- **NMI** (sklearn default normalization) equals the harmonic mean of homogeneity and completeness. A harmonic mean hides the imbalance between the two, so a pair of runs with high homogeneity and low completeness (or the other way round) looks the same as the opposite pair in ARI and NMI; the two are read separately.
+- **Contingency table**: row = cluster of A, column = cluster of B, cell = subjects in both. Labels are arbitrary across runs, so only the distribution of the mass matters, not the label numbers. It is not symmetric; its row sums are the sizes of A's clusters and its column sums those of B's.
+- **Row % and column %** answer different questions: where each cluster of A goes in B (row), and which clusters of A each cluster of B is made of (column). With very different cluster sizes the same count can be "almost all of a cluster" in one direction and a small fraction in the other, so both are shown.
+- **Chi-square** (`chi_square_independence`): H0 is that membership in A and in B are independent; the expected table comes from the row and column totals; the standardized (Pearson) residual of a cell, `(observed - expected) / sqrt(expected)`, reads like a z-score. The p says *whether* the partitions are associated, the residuals say *where* (positive: the pair co-occurs more than expected, drawn red; negative: less, drawn blue).
+- **Purity** (`purity_table`): the share of a source cluster that lands in its dominant target, sorted from the least pure to the purest. It is half the picture, roughly the homogeneity of a single cluster; whether the target is in turn owned only by that source is the completeness side, read with `counts.T`.
+- **Heatmap of ARI/NMI** across several runs: symmetric, with 1 on the diagonal (a run against itself, ignored); NMI is usually higher than ARI at equal similarity, so the colors of the two panels differ.
 
 ### Homogeneity and completeness: which way round
 
@@ -58,6 +89,14 @@ A test pins both directions on a pair where one run refines the other.
 | `regression_term_label(term)` | readable name of a coefficient; raises on an unknown one |
 | `centroid_separation(embedding, metadata, label_1, label_2)` | Euclidean distance between the two centroids and each cluster's mean distance of its subjects from its own centroid |
 | `difference_image(image_1, image_2)` | voxelwise subtraction; raises if the two images are not on the same grid |
+
+### How to read the outputs
+
+- **Signs follow the first cluster**: `r` (rank-biserial) is positive when cluster 1 has the higher values; an odds ratio (Fisher, or the regression's) is above 1 when the category or the variable is more frequent in, or makes more likely, cluster 1. The same holds in `pair_clinical_comparison` and in the odds-ratio figure.
+- **`p_fdr`, not `p`**: the Benjamini-Hochberg correction is applied to all the tests together; the corrected value is the one to read.
+- **Regression**: an odds ratio is per standard deviation for a numeric variable; the figure paints a point blue when its 95% interval excludes 1. It is an association, not a cause. When the lesion volume is part of the clustering input (a lesion run) it is associated with the clusters partly by construction. A fit that cannot be estimated (too few subjects, collinearity, perfect separation) raises `ValueError` with the reason (`docs/dev/cluster_drivers.md`).
+- **Centroid distance**: read against each cluster's radius (`radius_1`, `radius_2`, the mean distance of its subjects from its own centroid); a distance much larger than both radii means well separated clusters. Only for a run on an embedding: on a raw run the matrix is the feature space.
+- **Maps**: per cluster, the % of subjects with a lesion in each voxel; the difference is cluster 1 minus cluster 2, red where the lesion is more frequent in cluster 1 and blue where it is in cluster 2 (`RdBu_r`, symmetric around 0).
 
 The numeric variables and their registry columns are `CLUSTER_DESCRIPTION_VARIABLES` plus `LOCATION_FRACTIONS`; categorical ones are `CATEGORICAL_VARIABLES`. The laterality index of the interpretation notebook is not used: it lives in `lesion_metadata.csv`, not in the registry.
 
