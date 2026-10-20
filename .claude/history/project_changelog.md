@@ -6,6 +6,20 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 21-10-26 — `management/notes/` dissolta: le note si separano per stato (verificate / derivate), non per argomento
+
+**Cosa è cambiato** (`git mv`, nessun contenuto riscritto):
+- `management/notes/slides_metodi.md` (4 metodi: PCA, varimax, agglomerative, HDBSCAN) diviso in `management/cheatsheets/{pca,pca-varimax,agglomerative,hdbscan}.md` più un `README.md` con la tabella di confronto;
+- `management/notes/pacmap.md` → `knowledge/notes/dim_reduction_clustering/pacmap.md` (è una nota con fonte e versione installata, cioè verificata);
+- `management/notes/proposal.md` → `management/nemesis_project/proposal.md` (documento di progetto, come gli altri lì);
+- aggiornati i riferimenti vivi: `README.md` (albero), `.claude/CLAUDE.md`, `challenge_of_clustering_after_dim_reduction.md`.
+
+**Perché**: `notes` compariva sia in `knowledge/notes/` (fonti di verità, costruite da letteratura e documentazione) sia in `management/notes/` (riassunti personali per sé e per le presentazioni): il nome nascondeva la differenza di stato. Una scheda è una vista derivata e non contiene fatti assenti da `knowledge/notes/`.
+
+**Scartato**: rinominare `knowledge/notes/` (27 file lo citano; il lato personale ne costava 10) · `management/summaries/` (esiste già `summaries/` alla radice, output per run) · `personal/`, `appunti/`, `presentations/` (generici o troppo stretti) · un file unico per tutte le schede (500+ righe a regime).
+
+**Ancora vero oggi**: `management/notes/` non esiste più; `clustering_metrics_report.md` (non tracciato, analisi del 20-10 sulle metriche di valutazione del clustering) è stato messo in `management/cheatsheets/` su indicazione dell'utente, anche se non è una scheda per metodo. I riferimenti vivi a `management/notes/TODO.md` (inesistente) sono stati sostituiti col commit `2ed3dcb` (`.claude/CLAUDE.md`, `src/features/lesion.py`, `docs/dev/lesion_matrix.md`) o tolti (`src/analysis/prediction.py`: la voce "Fase 7" non ha più un posto dove essere tracciata, la limitazione resta nel docstring; `proposal.md`: `workflow.md` non esiste). Quelli nei changelog e in `docs/debugging/` sono storici e restano com'erano.
+
 ## 19-10-26 — Eliminata `results/reports/cluster_tuning_notebooks/`: il report di una run sta nella cartella della run
 
 **Cosa è cambiato** (a mano su `results/`, ignorato da git): eliminata la cartella con i 13 `cluster_*.md` per embedding, `README.md`, `MOVES_18-10-26.json`, `MOVES_19-10-26.json`, `_shared/` (generatori `generate_reports/*.py`, `cluster_tools.py`, 10 bozze di testo di `hdbscan_soft`) e le sottocartelle `images/`/`tables/`. Prima:

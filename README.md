@@ -49,7 +49,9 @@ assets/
 └── metadata/      # curated per-dataset clinical/demographic metadata
 management/
 ├── meetings/      # raw dated meeting notes (primary source for project scope/decisions)
-└── notes/         # working notes, TODOs
+├── nemesis_project/  # project proposals and summaries
+├── slides/        # presented slide decks (PDF)
+└── cheatsheets/   # short per-method cards for presentations, derived from knowledge/notes/
 knowledge/        # notes/ = our own syntheses; papers/ = extracted reference literature (docling)
 data/             # local copy of raw + derived data (gitignored, not in repo)
 results/          # dimensionality-reduction/clustering outputs (gitignored, not in repo)

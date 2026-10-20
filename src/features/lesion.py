@@ -5,7 +5,7 @@ original approach. An earlier version also supported an atlas-parcellated
 output shape (proportion of damage per ROI); removed 25/08/26 (project
 decision - the Thiebaut de Schotten et al. 2020 parcellation-then-varimax-PCA
 replication this fed is no longer pursued through this pipeline; see
-management/notes/TODO.md).
+commit 2ed3dcb).
 
 Migrated from notebooks/pipeline_building/lesion_matrix_build.ipynb
 (voxel-wise path only): same algorithm, restructured into typed, independently testable
