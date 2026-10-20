@@ -79,7 +79,7 @@ Fonti consultate (secondarie): [Wikipedia, Silhouette (clustering)](https://en.w
 
 ### Agglomerative — dendrogramma
 
-- **Dove**: un file `dendrogram_metric=<metric>.png` per ogni `metric` testata, con un subplot per ogni `linkage` valido per quella metrica (`ward` con metrica non euclidea è scartato, stessa regola della sweep) — indipendente dal numero di cluster scelto. **Fix 28-08-26**: prima calcolava il dendrogramma sempre a `metric="euclidean"` fissa, anche per le sweep `cosine`/`manhattan` — ora ogni file riflette davvero la propria metrica.
+- **Dove**: un file `dendrogram_metric=<metric>.png` per ogni `metric` testata, con un subplot per ogni `linkage` valido per quella metrica (`ward` con metrica non euclidea è scartato, stessa regola della sweep) — indipendente dal numero di cluster scelto. Il dendrogramma è calcolato per ogni combinazione (`linkage`, `metric`) sweepata, quindi ogni file riflette la propria metrica e ogni subplot il proprio `linkage`.
 - **Come si legge**: dal basso verso l'alto. Ogni fusione verticale unisce due sotto-gruppi all'altezza (asse y) della loro distanza di fusione.
 - **Cosa cercare**: il salto verticale più grande tra due fusioni consecutive indica il taglio più naturale.
   - Salto grande vicino alla cima → la struttura più forte è binaria (2 cluster).
@@ -155,7 +155,7 @@ Entrambe calcolate una sola volta, indipendenti dalla soglia (`threshold`) sweep
 
 ### Spectral — eigengap
 
-- **Dove**: un file `eigengap_affinity=<affinity>.png` per ogni `affinity` testata (`nearest_neighbors`/`rbf`), con un subplot per ogni valore sweepato del suo iperparametro (`n_neighbors` o `gamma`) — indipendente dal numero di cluster. **Fix 28-08-26**: prima calcolava l'eigengap una sola volta, sempre con l'`affinity`/iperparametro di default (`base_params`), anche quando `affinity` era sweepata — stesso identico problema del dendrogramma sopra, trovato subito dopo aver corretto quello.
+- **Dove**: un file `eigengap_affinity=<affinity>.png` per ogni `affinity` testata (`nearest_neighbors`/`rbf`), con un subplot per ogni valore sweepato del suo iperparametro (`n_neighbors` o `gamma`) — indipendente dal numero di cluster. L'eigengap è calcolato per ogni `affinity` e per ogni valore sweepato del suo iperparametro, non una volta sola dai parametri di base (`base_params`): ogni file riflette la propria `affinity` e ogni subplot il proprio valore.
 - **Cosa misura**: gli autovalori del grafo di affinità tra i punti.
 - **Come si legge**: il numero di cluster consigliato è l'indice giusto prima del salto più grande tra due autovalori consecutivi (spesso marcato visivamente nel plot). È un criterio più fondato dei 3 indici generici per questo metodo, perché riflette direttamente la connettività del grafo che l'algoritmo usa internamente.
 

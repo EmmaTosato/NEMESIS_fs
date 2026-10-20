@@ -4,7 +4,7 @@ Quali coorti cliniche usa NEMESIS, quanti soggetti hanno **davvero**, quali tipi
 
 I dati risiedono sul server **EBRAIN** (`/data/corbetta/Clinical_connectome`) e vengono copiati in locale a mano sotto `data/clinical_connectome/derivatives/<centro>/<coorte>/`. Una pipeline di retrieval (`retrieve_data.py`) lo faceva in automatico: è stata ritirata, resta in git.
 
-Tutti i numeri di questa pagina sono **verificati sul disco e sui tsv il 23-09-26**, non stimati. 
+Tutti i numeri di questa pagina sono **verificati sul disco e sui tsv**, non stimati. 
 
 
 
@@ -27,7 +27,7 @@ Le parole che questa pagina e `notebooks/exploration/dataset_availability.ipynb`
 
 ---
 
-## Le 6 coorti, in numeri
+## Le 8 coorti, in numeri
 
 | Dataset | Registro clinico (`participants_*.tsv`) | `manual_masks` | `bcbtoolkit` | `features` (FC) | Griglia | Dettaglio |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -54,7 +54,7 @@ Lo stesso indice d'array è quindi un voxel fisico diverso (LAS e RAS sono specc
 
 ### ⚠️ La griglia è 1 mm per tutti, il dettaglio no
 
-`manual_masks/` non contiene segmentazioni disegnate a mano: è la lesione **già ricampionata da BCBToolKit** sulla propria griglia di lavoro a 1 mm, copiata dal `lesion-map` dell'output BCBToolKit (`bcbtoolkit/`) e rinominata togliendo `res-1` (vedi anche `data/clinical_connectome/derivatives/README.md`, non versionato).
+`manual_masks/` non contiene segmentazioni disegnate a mano: è la lesione **già ricampionata da BCBToolKit** sulla propria griglia di lavoro a 1 mm, rinominata togliendo `res-1` dal nome (`..._res-1_label-lesion_mask.nii.gz`); `bcbtoolkit/` non contiene la maschera, solo il disconnettoma e le tabelle parcellate (vedi sotto) (vedi anche `data/clinical_connectome/derivatives/README.md`, non versionato).
 
 Un ricampionamento non crea dettaglio che non c'era. Per i dataset la cui segmentazione originale era a 2 mm, il risultato è un volume su griglia da 1 mm i cui voxel sono **costanti in blocchi 2x2x2 allineati** — ogni voxel originale replicato 8 volte. È questo che distingue le due colonne:
 
@@ -66,7 +66,7 @@ Verificato su **tutti e 5853** i soggetti, non a campione: per ciascuno si cerca
 
 **Perché conta.** `assets/metadata/lesion_metadata.csv` misura ogni maschera su due griglie, 1 mm e 2 mm, per distinguere una maschera vuota da una lesione minuscola persa nel sottocampionamento ([`docs/guides/metadata.md`](metadata.md)). Per i dataset a reticolo 2 mm il conteggio sulla griglia di produzione a 2 mm **ricostruisce esattamente** la maschera originale, quindi nessuna lesione può sparire e `lesion_volume_voxels_1mm` è esattamente `8 x lesion_volume_voxels_2mm`: non aggiunge informazione. La perdita per sottocampionamento è possibile **solo** per i 534 soggetti a 1 mm genuino — e infatti 2 dei 4 soggetti con volume 0 sulla griglia di produzione stanno in WAKEUP, con lesioni reali di 8 e 3 voxel.
 
-**UKLFR e WashU sono passati a 1mm il 23-09-26** (prima 1.5mm/2.0mm nativo): `manual_masks/` è stata ri-sincronizzata da una copia fresca della stessa sorgente usata per l'SDC (`Clinical_connectome_stroke/<dataset>/lesion/`, già a 1mm), che ora coincide esattamente con `bcbtoolkit/` per questi due dataset (0 discrepanze, vedi sotto) invece di essere un sottoinsieme diverso. Il **dettaglio** attuale di entrambi è su reticolo 2 mm (vedi la nota sopra): la griglia a 1 mm viene da quel ricampionamento, non da una segmentazione a 1 mm.
+**UKLFR e WashU sono a 1mm**: `manual_masks/` viene dalla stessa sorgente usata per l'SDC (`Clinical_connectome_stroke/<dataset>/lesion/`, già a 1mm) e coincide esattamente con `bcbtoolkit/` per questi due dataset (0 discrepanze, vedi sotto). Il **dettaglio** attuale di entrambi è su reticolo 2 mm (vedi la nota sopra): la griglia a 1 mm viene da quel ricampionamento, non da una segmentazione a 1 mm.
 
 ### Perché le colonne non coincidono
 
@@ -77,16 +77,19 @@ Il registro clinico e i dati su disco rispondono a due domande diverse, e vanno 
 
 Le differenze non sono errori, sono la realtà del dato. Due esempi concreti:
 
-- **WashU**: 251 pazienti nel registro, 195 con maschera — **tutti e 195 hanno anche l'SDC** (corrispondenza esatta dal 23-09-26, prima 202 maschere di cui solo 195 con SDC). Le FC coprono 225 soggetti (169 pazienti + 56 controlli sani) — un insieme che si sovrappone solo in parte a chi ha la maschera.
-- **UKLFR**: 705 con maschera, 705 con SDC — **corrispondenza esatta dal 23-09-26** (prima 697 maschere/705 SDC, con solo 673 in comune, 24 solo-maschera e 32 solo-SDC).
+- **WashU**: 251 pazienti nel registro, 195 con maschera — **tutti e 195 hanno anche l'SDC** (corrispondenza esatta). Le FC coprono 225 soggetti (169 pazienti + 56 controlli sani) — un insieme che si sovrappone solo in parte a chi ha la maschera.
+- **UKLFR**: 705 con maschera, 705 con SDC — **corrispondenza esatta**.
 
 ### Il conteggio unico: `assets/metadata/participants.csv`
 
-Un soggetto per riga, con le colonne `has_lesion`/`has_sdc`/`has_features`, per i soli pazienti stroke presenti su disco — **5752 in totale**. È la fonte da interrogare invece di ricontare a mano; generata da `src/pipeline/populate_metadata.py`, vedi `docs/dev/metadata.md`. Non riflette ancora i 2 dataset sotto (onboarding non fatto) né il delta UKLFR/WashU del 23-09-26 — va rigenerata.
+Un soggetto per riga, con le colonne `has_lesion`/`has_sdc`/`has_features`, per i soli pazienti stroke presenti su disco — **5853 in totale**, uno per ciascun soggetto con maschera delle 8 coorti della tabella sopra. È la fonte da interrogare invece di ricontare a mano; generata da `src/pipeline/populate_metadata.py`, vedi `docs/dev/metadata.md`.
 
-### 2 dataset aggiuntivi, non ancora onboarded
+### `UKE/SFB936_ses01` e `UNIPD/NEMESIS_T0`
 
-`UKE/SFB936_ses01` (56 soggetti) e `UNIPD/NEMESIS_T0` (76 soggetti) sono presenti in locale (`manual_masks/` + `bcbtoolkit/` completo, 1mm, stesso schema di file degli altri) dal 23-09-26, ma **non fanno parte delle "6 coorti" sopra**: assenti da `config/registry/`, `assets/metadata/participants.csv` e dalla tabella dei tipi di dato sopra. Mancano ancora i `participants_*.tsv` clinici reali. Dettagli in `.claude/history/data_changelog.md` (23-09-26).
+I due dataset (56 e 76 soggetti con maschera) hanno `manual_masks/` e `bcbtoolkit/` completi, a 1 mm, con lo stesso schema di file degli altri. Sono in `config/registry/metadata_sources.json`, in `assets/metadata/participants.csv` e nella tabella sopra come gli altri sei. Il loro tsv clinico sta in `data/clinical_connectome/metadata_tsv/`:
+
+- **`participants_UKE_SFB.tsv`** ha lo schema normalizzato (57 righe).
+- **`participants_NEMESIS_T0.tsv`** (104 righe) non è ancora normalizzato: vedi i campi comuni sotto.
 
 ---
 
@@ -105,19 +108,19 @@ Ogni tipo vive in una sottocartella dedicata dentro `derivatives/<centro>/<coort
 ### 1. Maschere di lesione — `manual_masks/` (1 file per soggetto)
 
 - **File**: `manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz`
-- L'oggetto centrale del progetto: maschere disegnate a mano e normalizzate in spazio MNI. Presenti per tutti e 6 i dataset.
+- L'oggetto centrale del progetto: maschere disegnate a mano e normalizzate in spazio MNI. Presenti per tutti e 8 i dataset.
 
 ### 2. Dati clinici e anagrafici — `data/clinical_connectome/metadata_tsv/participants_*.tsv`
 
 Un file per dataset.
 
-**Campi comuni a tutti e 6**: `participant_id`, `dataset`, `center_id`, `disease_id`, `age`, `sex`.
+**Campi comuni ai dataset con schema normalizzato (7 su 8)**: `participant_id`, `dataset`, `center_id`, `disease_id`, `age`, `sex`.
 
 Un tsv il cui schema non ha ancora quei campi (manca almeno uno tra `center_id`, `dataset`, `disease_id`) non è ancora normalizzato: `participants_NEMESIS_T0.tsv` ha solo `participant_id`, `age`, `sex`, `group`, `participant_id_dmp`. `notebooks/exploration/metadata_raw.ipynb` lo salta dichiarando le colonne mancanti.
 
 **`disease_id`**: `ST` (stroke) o `HC` (controlli sani). Solo WashU ha controlli sani (68 nel registro, 56 con FC).
 
-**Copertura dei campi principali** (% sulle sole righe ST del tsv):
+**Copertura dei campi principali** (% sulle sole righe ST del tsv; la tabella copre i 6 dataset di più lunga data, non `UKE/SFB936_ses01` né `UNIPD/NEMESIS_T0`):
 
 | Dataset | n (ST) | age | sex | handedness | education | lesion_side | NIHSS | clinical_date |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -137,7 +140,7 @@ Due conseguenze pratiche, entrambe gestite in `docs/dev/metadata.md`:
 
 **Punteggi comportamentali — solo WashU** (% sui 251 ST): `ARAT_L`/`ARAT_R` 94%, `Boston_nam` 92%, `NIHSS` 74%, `9HPT_L`/`9HPT_R` 65%, `Clock` 65%, `Corsi` 34%. `GDS_15` esiste come colonna ma è vuota al 100% per questa coorte.
 
-**UCL-UK, unica eccezione sul formato ID**: negli altri 5 dataset `participant_id` è già nel formato canonico `sub-*`. UCL-UK ha il formato legacy del sito (`ST_UCL-UK_0001`), riconciliato in `participants.csv` (`subject_id` canonico + `original_id` col valore grezzo).
+**UCL-UK, unica eccezione sul formato ID**: negli altri dataset `participant_id` è già nel formato canonico `sub-*`. UCL-UK ha il formato legacy del sito (`ST_UCL-UK_0001`), riconciliato in `participants.csv` (`subject_id` canonico + `original_id` col valore grezzo).
 
 ### 3. Connettività funzionale — `features/` (16 file per soggetto)
 
@@ -152,7 +155,7 @@ Due conseguenze pratiche, entrambe gestite in `docs/dev/metadata.md`:
   - gli equivalenti per la lesione ricampionata (`LF-lesion_atlas-*.csv`, 16 atlanti — include `yeh_hcp1065_streamline`),
   - i 2 `mapstats.tsv`.
 - **Il reticolo di voxel del disconnettoma non è lo stesso per tutti i dataset.** Tutte le mappe sono 182×218×182 a 1 mm, ma gli header sono 3: LAS con offset x `+90` (UCL-UK, PASPORT, PSP), RAS con `-90`, cioè traslato di 1 voxel (UKE-SFB936, UKLFR, NEMESIS_T0, WashU), RAS con `-91`, identico al template MNI (UKE-WAKEUP). Gli stessi voxel fisici stanno quindi a indici diversi: chi legge una mappa deve portarla sulla griglia di riferimento col **suo** header (`resample_to_img`), mai assumere un flip o un'identità fissi. Dettagli in [`docs/dev/metadata.md`](../dev/metadata.md).
-- **Disponibile per tutti e 6 i dataset** (UCL-UK incluso dal 29-09-26), solo pazienti stroke.
+- **Disponibile per tutti e 8 i dataset**, solo pazienti stroke.
 - Sorgente: `Clinical_connectome/features/Clinical_connectome_stroke/<dataset>/lesion/{subject_id}/...` — un `project_root` diverso da quello di `lesion`/`feature`.
 
 ### 5. Lesioni grezze (raw) — mai copiate
@@ -183,17 +186,15 @@ Ogni cartella ridotta contiene due file, entrambi generati dallo script:
 tar -xzf ../<nome>_archive.tar.gz -C .
 ```
 
-## Ingombro su disco (locale, 29-09-26)
+## Ingombro su disco (locale)
 
-`data/clinical_connectome/derivatives/` pesa **10 GB** in totale:
+`data/clinical_connectome/derivatives/` pesa **12 GB** in totale (`du`):
 
 | Tipo | Peso |
 | :--- | ---: |
-| `bcbtoolkit/` (8 dataset, 5853 soggetti) | ~6.9 GB |
+| `bcbtoolkit/` (8 dataset, 5853 soggetti) | ~8.4 GB |
 | `features_archive.tar.gz` (i 215 soggetti WashU compressi) | 2.1 GB |
 | `features/` (solo WashU, i 10 soggetti in chiaro) | 222 MB |
 | `manual_masks/` (8 dataset, 5853 soggetti) | ~919 MB |
 
-Il salto di `manual_masks/` (da ~169 MB a ~919 MB) non è un errore: UKLFR e WashU sono passati a 1mm (vedi sopra), file molto più pesanti della loro risoluzione nativa precedente.
-
-Dentro l'SDC, il peso è dominato dai `.nii.gz`: `disconnectome-map` ~61% del totale, `disconnectome-LF` (15 CSV) ~25%, `lesion-map` ~12%, `lesion-LF` (16 CSV) ~2%, mapstats trascurabile. I soli CSV parcellati (~793 MB) bastano per una matrice tipo `build_sdc_matrix.py`.
+Dentro l'SDC, il peso è dominato dalla mappa voxel-wise: `res-1_desc-disconnectome.nii.gz` ~5,5 GB (~64% del totale), i 15 CSV `LF-disconnectome` ~2,6 GB (~31%), i 16 CSV `LF-lesion` ~0,4 GB (~5%), i `mapstats.tsv` ~46 MB (~0,5%). Non c'è una mappa di lesione per soggetto. I soli CSV parcellati (~3,0 GB) bastano per una matrice tipo `build_sdc_matrix.py`.

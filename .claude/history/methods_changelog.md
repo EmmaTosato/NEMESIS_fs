@@ -8,6 +8,16 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 21-10-26 — `buckner_7n` escluso dalle matrici SDC parcellate: l'esclusione provvisoria diventa definitiva
+
+**Cosa è cambiato**: `buckner_7n`, uno dei 15 atlanti del disconnettoma BCBToolKit, non è un atlante target di `build_sdc_matrix` e non lo sarà. Il suo CSV ha una sola riga per soggetto, con `region_name` uguale al nome del file dell'atlante (`atl-Buckner7_space-MNI_dseg`) invece di una riga per rete cerebellare: la struttura non coincide con quella degli altri 14. In `assets/atlases/sdc_labels/` ci sono i reference di `schaefer_200_tian_s2`, `schaefer_300_tian_s2`, `schaefer_400_tian_s2` e `yeh_hcp1065_streamline`, nessuno per `buckner_7n`.
+
+**Perché**: `docs/dev/sdc_matrix.md` lo diceva escluso «per ora, su richiesta» dal 27-08-26 («not currently a target atlas»); il 21-10-26 l'utente ha confermato l'esclusione. Le alternative valutate il 27-08-26 non sono documentate in nessun file: la formulazione originale stava solo nel doc, poi riscritta senza date.
+
+**Conseguenza ancora vera oggi**: per includerlo servirebbe un reference file e un modo di costruire le regioni che il CSV non fornisce; non è previsto. Il doc (`docs/dev/sdc_matrix.md`, «`buckner_7n` is excluded») lo dice al presente.
+
+---
+
 ## 19-10-26 — PCA varimax per il clustering: si ruotano 150 componenti e si tengono le più grandi per varianza ruotata
 
 **Cosa è cambiato**: il metodo `pca` ha il parametro facoltativo `rotation_n_components` (`src/analysis/pca_method.py`, `covariance_pca.py::leading_rotated_scores`). Con una rotazione, si ruotano `rotation_n_components` componenti e si tengono le `n_components` ruotate che spiegano più varianza (somma dei pesi ruotati al quadrato sulla varianza totale), la più grande per prima. Senza il parametro resta il comportamento di prima: si ruotano e si tengono le stesse `n_components`, colonne senza ordine. Run in produzione su `s2.4-vol`: varimax su 150 componenti (96.0% della varianza), tenute 2 e 12; tag `nc2_varimax` e `nc12_varimax` (il numero delle ruotate sta in `config.md` e `runs.csv`, non nel nome).
@@ -685,6 +695,18 @@ Il confronto avviene sempre e solo sull'intersezione dei `subject_id`, dichiarat
 
 **Conseguenza ancora vera oggi**: nessuna colonna viene mai scartata, nemmeno se costante su tutti i soggetti ammessi — stessa regola del parcellato, la colonna `j` deve sempre indicare lo stesso tratto. Il clustering su questa matrice gira sui 87 tratti grezzi, senza dim reduction (`reduced_data: false`, `reduction_method: "raw"`): 87 dimensioni sono già basse, quindi `n_components` non entra in gioco.
 
+## 29-09-26 — Mappe anatomiche dell'Embedding Explorer: soglia di visualizzazione 0.02 e colormap `magma` per il disconnettoma, `autumn` per la lesione
+
+**Decisione** (commit `2cfb871`, `src/analysis/embedding_app.py`): nelle viste ortogonali le mappe di disconnessione (singolo soggetto e media per cluster) usano `_DISCONNECTOME_DISPLAY_THRESHOLD = 0.02` e `_DISCONNECTOME_CMAP = "magma"`, con colorbar. La maschera di lesione (binaria) usa `cmap="autumn"`, senza colorbar. Il PNG "glass brain" del disconnettoma usa una soglia a parte, `_DISCONNECTOME_GLASS_BRAIN_THRESHOLD = 0.1` con `_DISCONNECTOME_GLASS_BRAIN_ALPHA = 0.9`. È una scelta di sola visualizzazione: nessun dato né matrice cambia.
+
+**Perché la soglia**: prima era un epsilon quasi nullo (`1e-6`). Il rumore di probabilità di disconnessione vicina a zero veniva disegnato con il colore più scuro della colormap, a puntini neri sparsi sul cervello, segnalato dall'utente ("troppo nero") soprattutto sulla media per cluster. A 0.02 l'immagine è pulita, controllato su una media di cluster reale da 975 soggetti e su una mappa singola. Confrontati anche 0.05 e 0.1: più puliti, ma l'immagine diventa visibilmente più sottile. Il glass brain somma lungo tutta la profondità del volume, quindi 0.02 non basta (ogni voxel di fondo diventa una striscia scura sulla silhouette): 0.1 toglie le strisce senza intaccare il segnale reale (provato su dati reali a più soglie).
+
+**Alternative scartate sulla colormap**: `nipy_spectral` (la colormap della Fig. 1 di Thiebaut de Schotten et al. 2020), provata e annullata lo stesso giorno perché l'utente non voleva una palette arcobaleno. Per la lesione `magma` fu provata e annullata lo stesso giorno: per una maschera binaria il suo colore più alto è un giallo pallido quasi bianco, illeggibile su sfondo bianco sui dati reali.
+
+**Conseguenza ancora vera oggi**: le cifre sono nelle costanti di `embedding_app.py` e nelle loro note (`docs/dev/anatomical_maps.md`). Le immagini di confronto citate nelle note del codice (`tmp/anatomy_rendering/*.png`, gitignorata) non ci sono più: in `tmp/anatomy_rendering/` restano solo i prototipi `.py`. Per la lesione sono state confrontate anche `hot`/`inferno`/`plasma` (altrettanto o più slavate) e `Reds`/`YlOrRd` (leggibili ma più opache), vedi il docstring di `_build_subject_lesion_view`.
+
+---
+
 ## 29-09-26 — Esclusione dei soggetti: lista curata a mano al posto delle soglie in config
 
 **Decisione**: `min_lesion_volume_voxels` e `max_out_of_brain_fraction` sono usciti da `build_lesion_matrix.json` (e da `BuildMatrixConfig`, `build_lesion_matrix()`, `_filter_by_lesion_quality`, ora cancellata). Chi escludere dalle matrici di produzione è deciso **a mano**, guardando le distribuzioni in `assets/metadata/lesion_metadata.csv` dal notebook `lesion_quality.ipynb`, e scritto in `assets/metadata/excluded_subjects.csv` (`subject_id, dataset, reason, value`; vocabolario chiuso dei motivi: `empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`). Quel file è letto sia da `build_lesion_matrix.py` sia da `build_sdc_matrix.py`, quindi le due matrici escludono gli stessi soggetti per costruzione.
@@ -724,6 +746,18 @@ Il confronto avviene sempre e solo sull'intersezione dei `subject_id`, dichiarat
 **Conseguenza ancora vera oggi**: `config/pipelines/build_lesion_matrix.json` ha `correct_out_of_brain: false` — comportamento di produzione invariato, nessuna matrice già costruita è affetta (i thresholds/la correzione contano solo per run non ancora fatte, stessa nota della voce del 28-09-26). Il vecchio script standalone `scripts/lesion_fix.py`, che faceva la stessa correzione ma non era mai integrato in nessuna pipeline, è stato eliminato in questa stessa sessione (vedi `project_changelog.md`).
 
 **Aggiornamento, stessa giornata**: la mutua esclusione descritta sopra **non esiste più**, perché `max_out_of_brain_fraction` è stata rimossa del tutto (voce "Esclusione dei soggetti: lista curata a mano", in cima a questo file). `correct_out_of_brain` resta, come unico uso di `brain_mask_path` in `build_lesion_matrix.json`, ed è attiva anche in `compute_lesion_metadata.json` (lì `true`). La ragione per cui le due strategie non andavano combinate resta valida e spiega perché non è stata tenuta una soglia accanto alla lista.
+
+---
+
+## 28-09-26 — `lesion_volume_voxels` in `participants.csv`: copiarlo da un artefatto già costruito generava una seconda fonte di verità
+
+**Cosa è successo** (commit `139d5c4`): `enrich_metadata.py` riempiva `lesion_volume_voxels` copiandolo dal `metadata.csv` di uno specifico artefatto di `build_lesion_matrix.py` già costruito. Era stato scelto per evitare «una seconda definizione della stessa quantità». Il confronto sui dati reali con la colonna calcolata fresca da `assets/metadata/lesion_quality_metrics.csv` ha trovato 900 soggetti su 5721 (15,7%) con valore diverso, fino a 38 volte: l'artefatto era stato costruito su una griglia diversa da quella corrente (`build_lesion_matrix.json` era passato da 1 mm a 2 mm nel frattempo e l'artefatto non era stato ricostruito).
+
+**Cosa è cambiato**: `lesion_volume_voxels` si ricalcola fresco dalle maschere (`src.features.lesion.compute_lesion_volumes`) invece di essere copiato da un artefatto; la colonna duplicata `lesion_volume_voxels` è tolta da `lesion_quality_metrics.csv`, così `participants.csv` è l'unico posto dove leggerlo. Nello stesso commit la griglia di produzione torna a 2 mm (voce successiva).
+
+**Perché non basta rigenerare l'artefatto**: la copia da un artefatto lega il valore del registro alla griglia e al `binarize_threshold` di una run precisa; qualunque cambio di config li fa divergere in silenzio. Il valore deve nascere in un posto solo, calcolato con la griglia corrente.
+
+**Conseguenza ancora vera oggi**: superata il giorno dopo, 29-09-26, dal livello `assets/metadata/lesion_metadata.csv` (voce in `project_changelog.md`): `participants.csv` ne copia `lesion_volume_voxels_2mm` e la colonna `lesion_volume_voxels` di un `metadata.csv` di una run resta solo l'artefatto di quella run, che può differire dal registro (`docs/dev/metadata.md`). Questa voce è stata scritta il 21-10-26: `docs/dev/metadata.md` rimandava a un'omonima voce del 28-09-26 che non era mai stata scritta in questo file.
 
 ---
 
@@ -773,6 +807,16 @@ Il confronto avviene sempre e solo sull'intersezione dei `subject_id`, dichiarat
 
 ---
 
+## 06-09-26 — SDC voxel-wise: `nearest` e `linear` danno lo stesso risultato sulla griglia reale
+
+**Cosa è stato verificato** (annotato nel doc il 06-09-26, commit `0d734b7`): per `build_sdc_matrix.py` in modalità `voxelwise`, il disconnettoma è un campo continuo in [0, 1], quindi `linear` sarebbe stato altrettanto difendibile. Sui dati di allora (5 dataset SDC, tutti a 1 mm isotropo con forma `(182, 218, 182)`) le mappe differiscono dal riferimento solo per ribaltamenti di assi e traslazioni di voxel interi: il centro di ogni voxel di destinazione cade esattamente sul centro di un voxel sorgente, e `nearest` e `linear` producono un output **identico bit per bit** (controllato su UNIPD/PASPORT contro UNIPD/WashU).
+
+**Perché si usa `nearest`**: coerenza con le pipeline che ricampionano già (`build_lesion_matrix.py`, `mask_fc.py`) e, sui dati reali, la scelta non costa niente. Per la lesione, dove la griglia nativa non coincide con quella di destinazione (UKLFR a 1,5 mm), le due interpolazioni sono state misurate e risultano equivalenti: voce sotto.
+
+**Conseguenza ancora vera oggi**: il controllo vale per griglie sorgente allineate al riferimento. Un dataset con una griglia davvero disallineata o a risoluzione più bassa, se mai onboardato, richiede di rivedere la scelta: `nearest` quantizzerebbe fino a mezzo voxel dove `linear` no.
+
+---
+
 ## 06-09-26 — Ricampionamento a 2mm con `nearest`: confermato, alternative misurate
 
 **Decisione**: ogni matrice voxel-wise resta sulla griglia MNI152NLin6Asym a 2mm con `resample_interpolation: "nearest"`. Vale per `build_lesion_matrix.py` e per `build_sdc_matrix.py` in modalità `voxelwise`.
@@ -795,6 +839,23 @@ Il confronto avviene sempre e solo sull'intersezione dei `subject_id`, dichiarat
 **Conseguenza ancora vera oggi**: la perdita non dipende dalla dimensione della lesione ma da *dove cade rispetto alla griglia* — nei dati misurati una lesione da 15 mm³ sopravvive e una da 16 mm³ sparisce. Non esiste quindi una soglia di volume sotto la quale "si sa" che il soggetto verrà perso: va controllato il volume post-ricampionamento, non quello nativo.
 
 **Deciso di non intervenire sul codice** (07-09-26): `build_lesion_matrix.py` continua ad ammettere una riga tutta-zero senza segnalarla, a differenza di `build_sdc_matrix.py` che per il rischio equivalente esclude esplicitamente e traccia l'esclusione. Valutato non proporzionato: 2 soggetti su 5720 (0,035%). I due casi noti restano in `06-09_s1.3-vol` e sono documentati in `docs/experiments/processing/matrices.md`; chi userà quella matrice li filtra a valle se gli serve. Da rivedere se un dataset futuro ne producesse un numero non trascurabile — il segnale da guardare è il volume minimo *dopo* il ricampionamento, non quello nativo.
+
+---
+
+## 03-09-26 — Tuning di agglomerative su matrice grezza: distanze precalcolate anche per `euclidean` (non per `ward`), cache per metrica, dendrogramma che rispetta `metric`
+
+**Contesto**: preparazione di un tuning di agglomerative direttamente sulla matrice grezza `25-08_s1.2-vol` (5269 soggetti x 264274 voxel, nessuna riduzione), non sui 2-3 componenti di un embedding per cui il codice era nato. Commit `b813efa` e `ce4e749`, entrambi del 03-09-26.
+
+**Cosa è cambiato**:
+- `_agglomerative_fit_metric_aware` e `compute_dendrogram_linkage` (`src/analysis/clustering_tuning.py`) precalcolano la matrice delle distanze per ogni metrica di `distances.py::PRECOMPUTABLE_METRICS` (`jaccard`, `dice`, `euclidean`) e fittano con `metric="precomputed"`. Prima valeva solo per `jaccard`/`dice` (`SUPPORTED_BINARY_METRICS`), e il dendrogramma passava `metric` a sklearn sulla matrice grezza.
+- `ward` è l'eccezione: sklearn lo accetta solo con `metric="euclidean"`/`"l2"`, mai `"precomputed"`, quindi `ward`+`euclidean` (combinazione valida, non filtrata da `is_invalid_ward_metric_combo`) fitta sempre su `X` grezza, senza possibilità di accelerarla.
+- cache `distance_cache` per metrica, costruita una volta per sweep: la matrice dipende solo da `(X, metric)`, mai da `n_clusters`/`linkage`, e ricalcolarla a ogni combinazione era il collo di bottiglia vero dello sweep.
+
+**Misurato** (sottocampione di 1000 soggetti della stessa matrice): `AgglomerativeClustering(metric="euclidean")` sulla `X` grezza 48,7 s contro 8,3 s per precalcolare la matrice, poi 0,0 s per il fit sul precalcolato (circa 6 volte). Con `jaccard`/`dice` sklearn ripiega su `scipy.spatial.distance.cdist` coppia per coppia: ore per combinazione a questa scala (stima, non misurata). Invisibile su un embedding a 2-3 colonne.
+
+**Perché**: stessa radice di `lessons_learned.md` #29 (una cache applicata a un sottoinsieme dei valori validi di un parametro lascia gli altri sul percorso lento), trovata più tardi per agglomerative. Il percorso `euclidean` non usa la via BLAS di `distances.py::euclidean_pairwise_distance`.
+
+**Conseguenza ancora vera oggi**: la modifica riguarda il tempo (la stessa metrica calcolata una volta sola); l'uguaglianza dei cluster con il percorso diretto non è stata misurata in questa occasione. Su una matrice grezza un tuning con `ward` resta lento per costruzione.
 
 ---
 

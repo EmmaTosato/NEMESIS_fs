@@ -6,6 +6,14 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 21-10-26 — Cancellato `assets/metadata/lesion_quality_metrics.csv`, rimasto su disco dopo la sua sostituzione
+
+**Cosa è cambiato**: il file (5853 righe di dati, colonne `subject_id`, `dataset`, `out_of_brain_fraction`; ultimo commit 29-09-26 `028205e`) è stato cancellato dal working tree, e il suo paragrafo è stato tolto da `docs/guides/metadata.md`. Nessun commit fatto dall'assistente.
+
+**Perché**: la voce del 29-09-26 più sotto dichiarava che il file «non esiste più», ma era rimasto su disco e tracciato in git. Il grep su `src/`, `config/`, `tests/`, `scripts/`, `docs/` e `notebooks/` non trovava nessuno che lo scrivesse o lo leggesse; la stessa misura è la colonna `out_of_brain_fraction_<griglia>` di `lesion_metadata.csv`. Cancellazione chiesta esplicitamente dall'utente.
+
+**Conseguenza ancora vera oggi**: la frazione di lesione fuori dal brain si legge solo da `lesion_metadata.csv`; il recupero del vecchio file è possibile da `git` (`028205e`).
+
 ## 21-10-26 — `management/notes/` dissolta: le note si separano per stato (verificate / derivate), non per argomento
 
 **Cosa è cambiato** (`git mv`, nessun contenuto riscritto):
@@ -340,6 +348,46 @@ L'applicabilità per metodo è nel codice: `src/analysis/clustering_evaluation.p
 
 **Conseguenza ancora vera oggi**: l'ultima cella di `lesion_analysis` sovrascrive `assets/metadata/excluded_subjects.csv` con le sole liste `EXCLUSIONS` del notebook. Il file su disco ha una colonna `scope` che la cella non scrive e il notebook ha `EXCLUSIONS` vuoto: la cella è **indietro** rispetto al file e rieseguirla lo azzera. Non toccata in questa sessione.
 
+## 30-09-26 — Embedding Explorer: per i colori il registro `participants.csv` vince sul `metadata.csv` della run
+
+**Cosa è cambiato**: in `src/analysis/embedding_coloring.py` (commit `89de145`, 30-09-26) ogni modalità di colore che dichiara una `registry_column` legge il valore da `assets/metadata/participants.csv`, non più dal `metadata.csv` della run; le modalità senza colonna di registro continuano a leggere dalla run. Prima l'ordine era inverso. Nello stesso commit è stata aggiunta la modalità volume con un bottone per griglia (default `2mm`).
+
+**Perché**: una run costruita prima del 06-09-26 porta nel proprio `metadata.csv` una **copia** di `lesion_side`, `nihss` e volume che può divergere dal registro; con l'ordine vecchio due run degli stessi soggetti si coloravano in modo diverso. È la stessa scelta di fonte unica per il dato del soggetto già presa per `build_sdc_matrix` e `dim_reduction` (README, sezione metadati).
+
+**Conseguenza ancora vera oggi**: un dato del soggetto viene dal registro, un dato della run dal `metadata.csv` di quella run (`docs/guides/embedding_app.md`, «Regola unica»). Un registro non aggiornato cambia il colore di tutte le run, comprese quelle vecchie.
+
+## 30-09-26 — Embedding Explorer: il selettore Cluster esce dal primo pannello e pilota tutta la sezione
+
+**Cosa è cambiato**: il menu «Cluster» (`cluster-picker`) stava dentro il primo pannello della sezione clustering ed è passato a livello di sezione (commit `89de145`, 30-09-26), con un callback che mostra o nasconde l'intera sezione (`clustering-section`). Ora pilota tutti i pannelli che seguono: overlap map, frequency map, soggetto rappresentativo, descrizione del cluster.
+
+**Perché**: dentro il primo pannello sembrava un controllo di quel pannello soltanto. È una scelta di layout dell'interfaccia, archiviata su richiesta dell'utente (21-10-26) perché i docs descrivono ormai solo il comportamento attuale, senza la data.
+
+**Conseguenza ancora vera oggi**: nessuna sul codice o sui dati. Il comportamento attuale è in `docs/guides/embedding_app.md`.
+
+## 29-09-26 — Embedding Explorer: pannello «Descrizione del cluster», scelte di layout fatte su richiesta
+
+**Cosa è stato deciso** (commit `2cfb871`, `src/analysis/cluster_description.py` e `embedding_app.py`; ogni voce nacque da un'osservazione dell'utente sul risultato a schermo):
+- **Griglia a 3 colonne** (`_GRID_COLUMNS = 3`) invece di una riga sola per le 5 variabili. Con la pagina a 1100 px ogni sotto-grafico veniva ~200 px, troppo stretto per assi leggibili, e tick e titoli andavano rimpiccioliti («così non si capisce niente, con label e assi così piccoli»). Font alzati su tutto il pannello («in generale aumenta un po' il font»).
+- **Un colore per variabile**, lo stesso per il grafico e per l'intestazione della sua colonna nella tabella sotto, senza legenda («vorrei più varietà nei colori dato che stiamo plottando variabili diverse»).
+- **Tabella delle statistiche numeriche sotto i grafici, con tutti i cluster a confronto** (`ClusterStats` per ogni cluster) invece del solo cluster selezionato.
+- **Avvisi di risultato parziale in un riquadro unico**: etichetta ATTENZIONE in maiuscolo, superficie **grigio neutro** (`#f4f4f3`) e non un fondo ambra, perché un fondo colorato si leggeva come uno stato.
+- **Niente barre né colore dentro le celle**: le barre dati in cella erano state costruite e poi tolte, insieme alla sottolineatura colorata dell'intestazione, perché confondevano la lettura della tabella («non voglio quelle righe colorate nella tabella, mi confondono la lettura»).
+- **Numeri in formato italiano** (`_format_number`: `.` per le migliaia, `,` per i decimali, `5.265,4`), perché l'intera app è in italiano e `5265.4` si leggeva male.
+
+**Conseguenza ancora vera oggi**: la descrizione dei dati sta in `docs/dev/cluster_description.md`; qui restano le ragioni, che altrimenti sembrerebbero arbitrarie. Le dimensioni e i colori non vanno riportati a un layout a riga unica senza rivedere la larghezza utile (1100 px).
+
+---
+
+## 29-09-26 — Embedding Explorer: soggetti non risolvibili avvisano invece di fermare i pannelli aggregati
+
+**Cosa è cambiato** (commit `2cfb871`): `anatomical_maps.py` guadagna `resolve_available_lesion_paths(...) -> (resolved, missing)`: per le mappe aggregate per cluster (overlap della lesione, frequenza di disconnessione) un soggetto di cui non c'è il file non blocca più la mappa; viene scritto un WARNING con i soggetti esclusi, e solleva solo se **nessuno** dei soggetti richiesti è risolvibile. `resolve_lesion_paths` resta severa (un viewer di singolo soggetto con risultato parziale non ha senso). Nello stesso commit, il pannello «Descrizione del cluster» tiene un soggetto assente da `participants.csv` come riga tutta mancante (`n_total` resta la dimensione vera del cluster) e mostra un avviso, invece del `ValueError` che prima fermava l'intero pannello (richiesta esplicita dell'utente).
+
+**Perché**: rifiutare di descrivere gli altri soggetti di un cluster perché alcuni sono più recenti del registro è una risposta peggiore di descriverli nominando i mancanti. Il caso non è ipotetico: la sostituzione delle maschere locali del 23-09-26 (`data_changelog.md`) ha tolto il file locale a 24 soggetti UKLFR e 7 WashU, che restano però nel `metadata.csv` delle run di `lesion_matrix`/`clustering.py` costruite prima di quella data.
+
+**Conseguenza ancora vera oggi**: una mappa o una tabella per cluster può essere calcolata su meno soggetti del cluster; il numero escluso è nell'avviso e nel log, mai taciuto.
+
+---
+
 ## 29-09-26 — `scripts/` ridotto a 3 accessori: 4 entry point promossi a `src/pipeline/`, 6 script cancellati
 
 `scripts/` conteneva 13 file (12 `.py` + 1 `.sh`) di tre nature diverse mescolate: veri entry point di pipeline, utility accessorie e one-off già eseguiti. Ora ne restano **3**, tutti e soli accessori: `archive_local_raw_data.py` (potatura/archiviazione della cache locale sotto `data/`), `build_dataset_summary_table.py` (tabelle LaTeX dei conteggi per dataset), `build_dim_reduction_strategies_csv.py` (indice derivato `results/dim_reduction_strategies.csv`).
@@ -514,6 +562,30 @@ Ricablati sul registro: `src/features/sdc.py` (`has_lesion` come criterio di amm
 
 ---
 
+## 01-09-26 — Palette categorica dei cluster estesa da 5 a 10 colori, validata solo sulle coppie adiacenti
+
+**Cosa è cambiato** (commit `4b4111e`, `_CATEGORICAL_PALETTE` in `src/analysis/plotting.py`): da 5 a 10 tonalità. Le 5 originali erano validate su **tutte le coppie** (ΔE peggiore 8,6/18,3, sopra le soglie 8,0/15,0); le 10 solo sulle coppie **adiacenti** (visione dei colori compromessa inclusa).
+
+**Perché**: le run HDBSCAN di produzione su s1.1-vol trovano di norma 8-20 cluster reali (rumore escluso) a `min_cluster_size`/`min_samples` ragionevoli, e 5 colori si ripetevano 2-4 volte rendendo illeggibile `cluster_plot.png`.
+
+**Alternative scartate**: la linea guida dataviz dice che una palette categorica sicura su tutte le coppie arriva a 3-4 slot per uno scatter, qualunque sia la dimensione della palette: nessuna palette distingue 8-20 cluster in un solo scatter. Le soluzioni vere sarebbero piccoli multipli (un pannello per cluster) o accorpare i cluster minori in «Altro». Scelta dell'utente: l'espansione a 10 colori solo-adiacenti come compromesso, non come soluzione.
+
+**Conseguenza ancora vera oggi**: oltre 10 cluster i colori si ripetono ancora. Non cambiare i colori senza rieseguire la validazione (`validate_palette.js`, citato nel commento della costante).
+
+---
+
+## 01-09-26 — `clustering.py`: il tag dell'embedding si deriva da `input_path`, `session_name` non lo contiene più
+
+**Cosa è cambiato** (commit `7c56ad6`): `ClusteringConfig` guadagna `reduction_params_file` (obbligatorio se `reduced_data` è true, vietato altrimenti): il `config/registry/params_reduction*.json` che ha prodotto `input_path`. `clustering.py::_embedding_tag` ne legge `tag_param`/`tag_prefix` e ricostruisce il tag (es. `m_euclidean_nc2`) dai parametri realmente registrati nel `config.md` di `input_path`, e lo inserisce nei nomi delle cartelle di produzione e tuning. `session_name` porta solo l'id di sessione (es. `s1.1`).
+
+**Perché**: prima il tag andava digitato a mano dentro `session_name` senza nulla che lo validasse contro l'`input_path` vero: un rischio di deriva silenziosa, trovato producendo i primi risultati di clustering lesionale.
+
+**Alternativa scartata**: dedurre quale dei due registri (`params_reduction.json` per la lesione, `params_reduction_sdc.json` per l'SDC) ha prodotto l'embedding dal testo del percorso di `input_path`, o da una convenzione sul numero di sessione (s1 = lesione, s2 = SDC). Scartata perché `docs/experiments/` è narrativa scritta a mano, mai pensata per essere letta da una pipeline di produzione (`lessons_learned.md` #20/#22, stessa disciplina di `reduction_method`): il registro si dichiara in `reduction_params_file`.
+
+**Conseguenza ancora vera oggi**: `reduction_params_file` va dichiarato in ogni config di clustering su un embedding; il tag nei nomi cartella è quello vero dell'embedding, non quello che qualcuno ha scritto.
+
+---
+
 ## 01-09-26 — Rimossa `production/comparison/` da `clustering.py`
 
 **Cosa è cambiato**: `clustering.py` non genera più, su richiesta, la cartella `comparison/` sotto `production/` (il plot di confronto cross-metodo `cluster_comparison.png`/`cluster_comparison_interactive.html`).
@@ -524,11 +596,47 @@ Ricablati sul registro: `src/features/sdc.py` (`has_lesion` come criterio di amm
 
 ---
 
+## 31-08-26 — `clustering.py`: `reduction_method` obbligatorio con un segmento in più nell'albero dei risultati, e tre colonne `reduction_*` in `runs.csv`
+
+**Cosa è cambiato** (commit `5ac2243` e `29233db`):
+- `ClusteringConfig.reduction_method` è obbligatorio (convalidato contro `REDUCTION_METHODS | {"raw"}`) e dichiara quale metodo di riduzione ha prodotto la matrice di `input_path` (`"raw"` se `reduced_data` è falso). Mai dedotto dal testo del percorso. Aggiunge un segmento: `production/<metodo>/<reduction_method>/<gg-mm>_<sessione>/` e `tuning/<metodo>/<reduction_method>/...`.
+- `runs.csv`/`runs_tuning.csv` di `clustering.py` e il `config.md` di ogni run registrano `reduction_method`, `reduction_n_components`, `reduction_metric`, letti dal `config.md` dell'embedding sorgente (`read_run_params`) e confrontati con `reduction_method` dichiarato, mai ridichiarati come campo di config a parte.
+
+**Perché**: risultati prodotti da embedding sorgente diversi non devono finire nella stessa cartella. I tre campi hanno il prefisso `reduction_` perché `gmm` ha come iperparametro proprio `n_components` (`lessons_learned.md` #33).
+
+**Conseguenza ancora vera oggi**: `embedding_app.py::discover_production_runs` ha una profondità di glob che dipende dalla pipeline; senza quell'adattamento ogni run di clustering sarebbe sparita dal selettore senza errori. Risultati scritti prima del 31-08-26 sono sul layout senza il segmento; 30 foglie di clustering/tuning sono state spostate a mano sotto `umap/` e 5 `runs_tuning.csv` hanno guadagnato la colonna (dal messaggio del commit, `results/` è ignorato da git).
+
+---
+
+## 31-08-26 — `runs.csv`: tolta la colonna `id`
+
+**Cosa è cambiato** (commit `29233db`): `FIELDNAMES` in `src/utils/run_log.py` passa da `session, id, timestamp, input_path, params, output, notes` a `session, timestamp, input_path, params, output, notes`; `extra_columns` si inserisce subito dopo `session`. `id` era la seconda metà di `run_id` (il tag dopo il primo `_`, es. `m_euclidean_nc2`).
+
+**Perché**: duplicava un'informazione già recuperabile dal nome della cartella `output` e dalle colonne `tag_param` esplose in `extra_columns`; un controllo con `grep` su tutto il repo non ha trovato nessun lettore che la riparsasse.
+
+**Alternativa scartata, nello stesso giro**: descrivere l'input di `clustering.py` come JSON annidato dentro `input_path`. Provato e annullato nella stessa sessione, su richiesta, per tenere `input_path` della stessa forma (un `Path`) per ogni chiamante; la descrizione ricca sta in `extra_columns`.
+
+**Conseguenza ancora vera oggi**: `append_run_log_entry` solleva `ValueError` se l'header di un `runs.csv` esistente non coincide con lo schema corrente (`lessons_learned.md` #32): un file con la vecchia colonna `id` va migrato a mano. Con quel commit sono stati migrati 22 `runs.csv`/`runs_tuning.csv`, 35 `config.md` di tuning di clustering e 2 `runs.csv` di `masked_fc`/`fc_matrix` precedenti a qualunque schema attuale (dal messaggio del commit; `results/` e `data/derived/` non sono in git).
+
+---
+
+## 26-08-26 — `write_embeddings_grid` eliminato: con la regola su `n_components` era ridondante
+
+**Cosa è cambiato**: il campo obbligatorio `write_embeddings_grid: bool` di `DimReductionConfig` (aggiunto il 04-08-26 come interruttore manuale per saltare `embeddings_grid_*.png` e i rifit costosi di una foglia annidata) non esiste più; la sua rimozione dal codice è nel commit `b6d972b` (data del commit 27-08-26). La griglia non viene mai prodotta per una combinazione con `n_components != 2`, in nessun caso: `_build_grid_blocks` non chiama più `embedding_for_viz`, scarta la cella (loggata) e le celle sorelle a 2 componenti restano. La regola e le due richieste dell'utente sono in `docs/debugging/debug_26_08_26.md`.
+
+**Perché**: a `random_state` fisso un rifit a 2 componenti è identico byte per byte alla foglia gemella già calcolata a `n_components=2` (verificato a vista il 04-08-26), e la vista 3D reale di una combinazione si ottiene su richiesta con `scripts/plot_tuning_embedding_3d.py`. Un opt-out più grossolano che spegne l'intera griglia a prescindere da `n_components` diventa ridondante.
+
+**Conseguenza ancora vera oggi**: nessun flag di config controlla la griglia; il test `test_dim_reduction_fine_tuning_free_n_components_drops_non_viz_cells` fissa la regola.
+
+---
+
 ## 15-08-26 — `embedding_plot_interactive.html`/`plot_clusters_interactive` per-run rimossi, sostituiti da `embedding_app.py`
 
 **Cosa è cambiato**: `dim_reduction.py` (14-08-26) e poi `clustering.py` (15-08-26, quando `embedding_app.py` è stato esteso a scoprire anche i run di `clustering.py`) hanno smesso di scrivere un file `.html` interattivo per-run (`embedding_plot_interactive.html`, `plot_clusters_interactive`). Un solo processo live, l'app Dash `src.pipeline.embedding_app`, copre invece tutti i run di produzione già scritti (di entrambe le pipeline), con un selettore di run e bottoni di colorazione.
 
 **Perché**: un file HTML per-run va rigenerato ad ogni run e non scala con il numero di run prodotti; un'app che legge `matrix.npy`/`metadata.csv` già su disco copre tutti i run esistenti e futuri senza rigenerazione.
+
+**Correzione (21-10-26, verificata su git)**: per `plot_embedding_interactive` la data è giusta (rimossa il 14-08-26, commit `2c997b9`). Per `clustering.py` no: `plot_clusters_interactive` e le sue chiamate in `clustering.py` erano ancora presenti al commit `2991ec1` (15-08-26) e sono state tolte dal commit `b6d972b` del 27-08-26 («remove interactive HTML plots»). `docs/dev/plotting.md` e la memoria del progetto datavano la rimozione di `plot_clusters_interactive` al 27-08-26, che è la data corretta; dal 15-08-26 è giusto solo che `embedding_app.py` scoprisse anche le run di `clustering.py`.
 
 **Conseguenza ancora vera oggi**: nessuna pipeline di dim reduction/clustering scrive più un file `.html` interattivo per singolo run — l'esplorazione interattiva 2D/3D di qualunque run di produzione passa sempre da `embedding_app.py` (`docs/guides/embedding_app.md`).
 

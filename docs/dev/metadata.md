@@ -36,7 +36,7 @@ assets/metadata/excluded_subjects.csv   — chi resta fuori dalle matrici (gener
 
 **Cinque file, cinque domande.** Il registro (`participants.csv`) risponde a "chi esiste" e "cosa sappiamo di lui"; `lesion_metadata.csv` a "cosa misurano le sue maschere"; `sdc_metadata.csv` a "quanto è disconnesso"; `excluded_subjects.csv` a "chi entra in analisi".
 
-`enrich_metadata.py` **non apre nessun file NIfTI**: i valori derivati dalle maschere li copia da `lesion_metadata.csv`, quelli derivati dai disconnettomi da `sdc_metadata.csv`. Non li copia più nemmeno da un artefatto `data/derived/lesion_matrix/<sessione>/` già costruito — quella scelta, più vecchia, generava esattamente la seconda fonte di verità che voleva evitare (28-09-26, `.claude/history/methods_changelog.md`: 900/5721 soggetti con valore diverso tra le due fonti, fino a 38x, dopo che la griglia era cambiata senza ricostruire l'artefatto). Il punto fisso attuale è diverso: il valore nasce **in un posto solo**, la pipeline che misura le maschere, e il registro ne tiene una copia dichiarata.
+`enrich_metadata.py` **non apre nessun file NIfTI**: i valori derivati dalle maschere li copia da `lesion_metadata.csv`, quelli derivati dai disconnettomi da `sdc_metadata.csv`. Non li copia da un artefatto `data/derived/lesion_matrix/<sessione>/` già costruito, perché quell'artefatto sarebbe una seconda fonte di verità: se la griglia cambia senza ricostruirlo, il suo valore diverge da quello delle maschere (vedi `.claude/history/methods_changelog.md`). Il punto fisso è: il valore nasce **in un posto solo**, la pipeline che misura le maschere, e il registro ne tiene una copia dichiarata.
 
 | | `populate_metadata.py` | `enrich_metadata.py` |
 |---|---|---|
@@ -69,7 +69,7 @@ Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv`
 - **`assets/metadata/sdc_metadata.csv`** — una riga per soggetto con disconnettoma, due colonne per griglia (`disconnection_load_voxels_<g>`, `disconnection_mean_<g>`, con `<g>` = `2mm` e `1mm`), più `sdc_metadata.config.json` accanto: il config della run che l'ha prodotto.
 - **`assets/metadata/excluded_subjects.csv`** — `subject_id, dataset, reason, scope, value`, generato da `src/pipeline/build_excluded_subjects.py` dal suo config.
 - **I tsv per-dataset `assets/metadata/<DATASET>_participants_*.tsv` non esistono più**: cancellati. Ogni consumatore è stato spostato sul file unico.
-- **`data/derived/<pipeline>/<sessione>/metadata.csv`** — contiene solo ciò che appartiene a quella run (`subject_id`, `dataset`, `lesion_volume_voxels` per `build_lesion_matrix.py`). Non è più la fonte da cui `enrich_metadata.py` copia `lesion_volume_voxels` in `participants.csv` (fino al 28-09-26 lo era, vedi sopra) — resta solo l'artefatto della run stessa, la sua colonna può differire da quella nel registro se le due griglie non coincidono.
+- **`data/derived/<pipeline>/<sessione>/metadata.csv`** — contiene solo ciò che appartiene a quella run (`subject_id`, `dataset`, `lesion_volume_voxels` per `build_lesion_matrix.py`). Non è la fonte da cui `enrich_metadata.py` copia `lesion_volume_voxels` in `participants.csv` (vedi sopra) — è solo l'artefatto della run stessa: la sua colonna può differire da quella nel registro se le due griglie non coincidono.
 
 ### Chi legge il registro
 
@@ -187,7 +187,7 @@ Atlanti, indici e allineamento: `knowledge/notes/neuroimaging/lesion_location.md
 
 **Popolazione**: tutte le righe di `lesion_metadata.csv`; per le analisi si escludono le righe di `excluded_subjects.csv` con `scope = all`, quelle con altri scope (`sdc-streamline`) riguardano solo la matrice SDC.
 
-Decisioni, alternative scartate e numeri della coorte: `.claude/history/methods_changelog.md` (07-10-26).
+Decisioni, alternative scartate e numeri della coorte: `.claude/history/methods_changelog.md`.
 
 ## `sdc_metadata.csv`: il livello delle misure sul disconnettoma
 
@@ -205,7 +205,7 @@ Ogni mappa è letta **una volta** e ricampionata una volta per griglia (il costo
 
 A 2 mm `nearest` è un sottocampionamento (un voxel su otto), quindi il carico a 2 mm non è il carico a 1 mm diviso 8, ma ci va vicino perché la mappa è liscia: su 5853 soggetti `8 × carico_2mm / carico_1mm` ha mediana 1,001 (da 0,989 a 1,017) e le due colonne hanno Spearman 0,9999994. La media sul cervello coincide (rapporto mediano 1,000). A differenza del volume lesionale, nessun soggetto sparisce nel ricampionamento: 1 soggetto ha carico 0 a 2 mm, ed è lo stesso che ha 0 a 1 mm.
 
-Alternative considerate e scartate (`.claude/history/methods_changelog.md`, 06-10-26):
+Alternative considerate e scartate (`.claude/history/methods_changelog.md`):
 
 - **Volume sogliato** (`#{p > 0.5}`): è la soglia che il pannello "Disconnessione per cluster" dell'app già usa, ma una soglia è una scelta in più da giustificare, e su 200 soggetti ordina quasi come la somma (Spearman 0,993) pur avendo un soggetto su 200 a zero. Non scritto.
 - **`n_nonzero_voxels` di BCBToolKit**: misura quanto *si diffonde* la disconnessione, non quanta ce n'è. Il minimo non nullo è costante a `1/178 = 0,0056` (un solo donatore sano), quindi conta qualunque traccia: mediana 36% del cervello, fino al 91%.

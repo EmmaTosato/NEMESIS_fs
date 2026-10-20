@@ -71,6 +71,12 @@ Nella matrice `sdc_matrix` s2.2-vol questo soggetto è una riga interamente null
 
 Unico caso su 1570. Per risolverlo va rilanciato il calcolo SDC (BCBToolKit) per quel soggetto, **che gira solo sul cluster** (la pipeline `compute_sdc.py` è stata ritirata da questo repo). Nel frattempo va escluso a valle.
 
+### `mask_summary.csv` di WashU non descrive i file che hanno alimentato la matrice FC
+
+Per l'atlante `Yan200TianS2Buckner7N` esiste una sola run di `mask_fc.py` (24-07, `masked_fc/runs.csv`) e una sola matrice costruita da essa (`fc_matrix/24-07_s3.1-Yan200TianS2Buckner7N`, 24-07). Ma `mask_summary.csv` ha data 02-09, mentre i CSV mascherati ancora presenti in `masked_fc/` sono del 24-07. Sui 10 soggetti locali, il numero di nodi con riga interamente NaN nei CSV mascherati coincide con i nodi compromessi del summary per 7 soggetti (0002, 0003, 0008, 0011, 0012, 0013, 0014) e non coincide per 3 (0005: 3 contro 2; 0006: 10 contro 9; 0009: 2 contro 0). Il confronto nodi compromessi contro NaN di `fc_analysis.ipynb` mescola quindi due stati dei dati.
+
+Decisione dell'utente (21-10-26): **non** rilanciare `mask_fc.py` per ora. Non è stata verificata la causa della discrepanza; un rilancio di `mask_fc.py` e `build_fc_matrix.py` allineerebbe summary e matrice.
+
 ## 🟡 Lavori da fare
 
 ### Il tuning del clustering arriverà alla stessa struttura del tuning di dim reduction
@@ -103,6 +109,32 @@ Fuori dal primo giro di implementazione (19-10-26), da riprendere dopo aver deci
 - **Dove riprodurre dendrogrammi, matrice interclasse e `labels_2d_*`**: li scrive `clustering.py`, non `analyze_clustering_tuning`; il report non li cita.
 
 ---
+
+### Documentazione e notebook: cosa resta aperto dopo il giro del 21-10-26
+
+Il giro ha allineato docs, note e notebook alla regola «il markdown di un notebook non è fonte di informazione nuova». Restano questi punti.
+
+**Verifiche non fatte**
+- Il contenuto dei docs riscritti dagli agenti (circa 30 file tra `docs/` e `knowledge/notes/`) è stato controllato per struttura (link, date, titoli, JSON), non riga per riga. Misure riportate dagli agenti e non ricalcolate: i pesi di `bcbtoolkit/` e il totale in `docs/guides/datasets.md` (circa 8,4 GB e 12 GB), il «52 su 169» soggetti di `fc_analysis`, le 42 componenti per il 90% di varianza sul `16-10_s2.4-vol` (il 42 è attribuito al `07-10`, come nel notebook di replica).
+- `management/cheatsheets/`: controllate solo `pca.md`, `pca-varimax.md`, `agglomerative.md`, `hdbscan.md`. Non controllate contro le note: `adp.md`, `kmeans.md`, `umap.md`, `pacmap.md`, `evidence-accumulation.md`.
+- `dendrogram_embedding_explorer.ipynb`: la modifica al codice (`split_at` senza `labels_previous`) non è stata provata con una riesecuzione.
+- **Voci nuove di `.claude/history/` con motivazione ricavata dai vecchi docs e non dai commit**: git conferma le date e i commit, non le frasi. Riguarda `methods_changelog.md` (03-09-26 agglomerative: «ore per combinazione» con jaccard/dice è una stima non misurata; 06-09-26 SDC voxel-wise: «5 dataset, 1 mm, ribaltamenti e traslazioni intere» non riletto sugli header su disco; 29-09-26 mappe anatomiche: le immagini di confronto `tmp/anatomy_rendering/*.png` non esistono più, restano i prototipi `.py`) e `project_changelog.md` (26-08-26 `write_embeddings_grid`: il doc dava 26-08, il commit che toglie il flag è del 27-08, tenuto 26-08 nel titolo; 29-09-26 pannello «Descrizione del cluster»; 01-09-26 palette e tag dell'embedding).
+- **Design record «project-clustering-tuning-redesign»**: i docs lo citano, ma il file di memoria non esiste più. Se il design non è scritto nei docs, non è scritto da nessuna parte.
+- **Non archiviati nello storico** (decisioni minori): rimozione dei `summaries/` di `dim_reduction` e `clustering` (commit `567630d`, la ragione è ancora in `docs/dev/models.md`) e `tag_param`/`tag_prefix` come liste parallele (commit `625b2c1`, la storia è nel messaggio del commit).
+
+**Incoerenze note, da decidere**
+- **Cosa dire sulla silhouette** (`management/cheatsheets/clustering_metrics_report.md`, §4.4 e decisione 3): l'app e `clustering_evaluation` dicono che nessun indice ha un valore di riferimento e che una nuvola senza cluster ha silhouette circa 0,4; `clustering_tuning_explorer` (cella 3) dice che la silhouette «si legge da sola» e non cita le fasce di Kaufman & Rousseeuw, che stanno in `clustering_tuning_guide.md`. Tre messaggi diversi sullo stesso numero.
+- **`management/cheatsheets/hdbscan.md`**: il passo «taglia minima» dice che i punti del pezzo piccolo «escono dal cluster padre», mentre l'esempio della scheda e `clustering.md` dicono che un gruppo di 30 «resta rumore»; il comportamento reale è più sfumato (i punti fuori da un cluster padre selezionato restano nel padre con probabilità bassa). La scheda descrive `eom` e `leaf` come validi per entrambi i metodi, ma nel progetto solo `hdbscan_soft` li fa variare; `hdbscan` di sklearn usa sempre `eom`.
+- **`.claude/CLAUDE.md`** non contiene la regola sul markdown dei notebook; sta solo in `docs/guides/exploration.md`, «Regole di scrittura dei notebook».
+- **Link rotto** in `docs/experiments/s2.4-vol.md`: punta a `results/legacy/sdc_s2.4-vol_07-10/...`, e `results/legacy/` è vuota su disco.
+
+**Notebook**
+- `thiebaut_2020_replication.ipynb` ha salvato un errore alla cella 8 (`ValueError`: la cache in `results/pipeline_building/thiebaut_2020_replication/07-10_s2.4-vol` viene da un'altra matrice). È la guardia voluta del notebook; per farlo ripartire si cancella la cartella della cache oppure si imposta `USE_CACHE = False`. Non rieseguito in questo giro, e non è stato modificato.
+- `fc_analysis.ipynb` non è stato rieseguito: il confronto nodi compromessi contro NaN dipende dal problema `mask_summary.csv` descritto più su.
+- In `dim_reduction.ipynb` la metrica del test rapido è `jaccard`, che non è nella griglia attuale del registro (`dice`, `euclidean`); resta supportata. L'import `plot_tuning_curve` non è usato.
+- In `sdc_analysis.ipynb` le stringhe di `print` della cella 5 dicono «ammessi» mentre il testo dice «massimo ammissibile».
+- Le celle markdown riscritte hanno applicato in modo non sistematico la regola dei backtick (solo per i nomi che l'utente modifica).
+- I risultati delle riesecuzioni non sono stati riportati nei docs (decide l'utente quando): curva di varianza, R² e riproducibilità della replica di Thiebaut e di `pca_evaluation` per `s2.4-vol` (`docs/experiments/s2.4-vol.md`), cophenetic e ARI tra embedding del tuning explorer, conteggi di `lesion_matrix_build`, metriche descrittive di `sdc_analysis`.
 
 ## Note
 

@@ -98,7 +98,7 @@ In altre parole la pipeline è già scritta per lo schema partial-volume; oggi q
 
 ## 8. Quali coorti vengono davvero ricampionate
 
-Griglie native verificate direttamente sui file (06-09-26), contro la griglia di riferimento `(91, 109, 91)` @ 2mm:
+Griglie native, verificate direttamente sui file, contro la griglia di riferimento `(91, 109, 91)` @ 2mm:
 
 | Coorte | N | Griglia nativa | Ricampionata? |
 |---|---|---|---|

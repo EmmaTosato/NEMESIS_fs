@@ -137,7 +137,7 @@ La curva "pazienti esclusi in funzione di *T*" è la stessa informazione su tutt
 Contare i nodi non è contare le connessioni. Se un nodo è compromesso, **tutte** le sue connessioni con il resto della rete diventano NaN: per un atlante a *N* nodi, fino a *N − 1* connessioni su *N(N − 1)/2* (239 nodi: fino a 238 su 28.441).
 
 - Esempio giocattolo, 4 zone (A, B, C, D), 6 connessioni possibili. Con la sola C compromessa diventano NaN A-C, B-C e C-D: 3 connessioni su 6 (50%), pur essendo compromessa 1 zona su 4.
-- Con più nodi compromessi i conteggi **non si sommano**: una connessione tra due nodi entrambi compromessi (C-D se lo sono sia C sia D) è NaN una volta sola. Per *k* nodi il massimo è *k(N − 1) − k(k − 1)/2*.
+- Con più nodi compromessi i conteggi **non si sommano**: una connessione tra due nodi entrambi compromessi (C-D se lo sono sia C sia D) è NaN una volta sola. Per *k* nodi compromessi le connessioni NaN sono esattamente *k(N − 1) − k(k − 1)/2*: le *k(N − 1)* connessioni di ciascun nodo, meno le *k(k − 1)/2* tra due nodi compromessi, contate due volte (equivale a *N(N − 1)/2 − (N − k)(N − k − 1)/2*, tutte le connessioni meno quelle tra nodi sani). Con *N* = 239: *k* = 1 dà 238 connessioni NaN (su 28.441), *k* = 3 ne dà 3·238 − 3 = 711.
 
 ### Proxy e metrica esatta
 

@@ -1,19 +1,19 @@
 # Cluster description — technical reference
 
-Audience: developers/agents working on `src/analysis/cluster_description.py` and the "Descrizione del cluster" panel it feeds in `src/analysis/embedding_app.py` (29-09-26). For how the panel looks/behaves from a user's point of view, see `docs/guides/embedding_app.md` ("Descrizione del cluster"). For the anatomy panels (lesion/SDC maps) this one sits alongside, see `docs/dev/anatomical_maps.md` — this panel is deliberately **not** documented there: it never touches a lesion mask or disconnectome file, only `assets/metadata/participants.csv`.
+Audience: developers/agents working on `src/analysis/cluster_description.py` and the "Descrizione del cluster" panel it feeds in `src/analysis/embedding_app.py`. For how the panel looks/behaves from a user's point of view, see `docs/guides/embedding_app.md` ("Descrizione del cluster"). For the anatomy panels (lesion/SDC maps) this one sits alongside, see `docs/dev/anatomical_maps.md` — this panel is deliberately **not** documented there: it never touches a lesion mask or disconnectome file, only `assets/metadata/participants.csv`.
 
 ## Why every variable comes from `participants.csv`, never a run's own `metadata.csv`
 
 Two separate reasons, not one:
 
 1. **Age/sex/education/NIHSS are properties of the subject, not of the run** — the same reasoning `src/analysis/embedding_coloring.py`'s own `registry_column` modes (`"side"`, `"nihss"`) already follow. A subject's age doesn't change depending on which `dim_reduction.py`/`clustering.py` run you're looking at.
-2. **Lesion volume specifically is *not* read from a run's own `metadata.csv`**, even though `embedding_coloring.py`'s `"volume"` mode can be — a run's own `lesion_volume_voxels` column reflects whichever resample grid (1mm/2mm) that particular `build_lesion_matrix.py` call used, not guaranteed the same across runs (see `docs/dev/lesion_matrix.md`). `participants.csv`'s own `lesion_volume_voxels_2mm` is computed once, on one fixed grid, for every admitted subject (100% coverage as of 29-09-26) — the one source that's comparable across every run this panel could ever be shown for, where "which grid" is a distinction that matters for the overlap-map's own voxel-level display but not for a demographic summary.
+2. **Lesion volume specifically is *not* read from a run's own `metadata.csv`**, even though `embedding_coloring.py`'s `"volume"` mode can be — a run's own `lesion_volume_voxels` column reflects whichever resample grid (1mm/2mm) that particular `build_lesion_matrix.py` call used, not guaranteed the same across runs (see `docs/dev/lesion_matrix.md`). `participants.csv`'s own `lesion_volume_voxels_2mm` is computed once, on one fixed grid, for every admitted subject (100% coverage) — the one source that's comparable across every run this panel could ever be shown for, where "which grid" is a distinction that matters for the overlap-map's own voxel-level display but not for a demographic summary.
 
 ## `CLUSTER_DESCRIPTION_VARIABLES: list[ClusterDescriptionVariable]`
 
 A declarative registry, same shape as `embedding_coloring.py`'s own `COLOR_MODES` — deliberately not the same registry (see "Why not extend `COLOR_MODES` instead" below). Each entry: `name` (internal key), `label` (Italian, shown as that variable's subplot title), `kind` (`"continuous"` | `"categorical"`), `registry_column` (the exact `assets/metadata/participants.csv` column).
 
-As of 29-09-26, 5 of the 7 originally-requested dimensions:
+The registry covers 5 of the 7 requested dimensions:
 
 | name | registry_column | kind | coverage (5853 stroke subjects, project-wide) |
 |---|---|---|---|
@@ -26,7 +26,7 @@ As of 29-09-26, 5 of the 7 originally-requested dimensions:
 Two requested dimensions are **not** in this list:
 
 - **Istruzione/NIHSS were kept despite low coverage**, on request — never hidden, but always shown next to their own `n_available/n_total` (see `variable_summary` below), since a *per-cluster* coverage can differ wildly from the *project-wide* one (a cluster drawn mostly from one well-NIHSS'd dataset can be 90%+ populated even though the project-wide figure is 27%).
-- **Hemorrhagic/ischemic stroke type has no column in `assets/metadata/participants.csv`** as of 29-09-26, so it cannot be registered here yet. The datum itself is *not* missing from the project, only from the registry: `participants_PSP.tsv` carries it per subject in its own `lesion_type` column (189 `ischemic` / 18 `hemorrhagic` / 30 `n/a` of 237). UKLFR states it only cohort-wide (`disease_notes` = `"ischemic stroke"` for all 735), and UKE's `Ischemic_stroke`/`Intracranial_haemorrhage` are **not** this variable — they sit in that file's risk-factor/anamnesis block (alongside `Arterial_hypertension`, `Atrial_fibrillation`, `TIA`) and mean *prior* stroke, not the type of the index event. Surfacing it is `enrich_metadata.py`'s job first (see "Next session"), one `ClusterDescriptionVariable` line here second.
+- **Hemorrhagic/ischemic stroke type has no column in `assets/metadata/participants.csv`**, so it cannot be registered here yet. The datum itself is *not* missing from the project, only from the registry: `participants_PSP.tsv` carries it per subject in its own `lesion_type` column (189 `ischemic` / 18 `hemorrhagic` / 30 `n/a` of 237). UKLFR states it only cohort-wide (`disease_notes` = `"ischemic stroke"` for all 735), and UKE's `Ischemic_stroke`/`Intracranial_haemorrhage` are **not** this variable — they sit in that file's risk-factor/anamnesis block (alongside `Arterial_hypertension`, `Atrial_fibrillation`, `TIA`) and mean *prior* stroke, not the type of the index event. Surfacing it is `enrich_metadata.py`'s job first (see "Next session"), one `ClusterDescriptionVariable` line here second.
 
 ### Why not extend `COLOR_MODES` instead of a new registry
 
@@ -73,7 +73,7 @@ One `plotly.subplots.make_subplots` figure, one subplot per `CLUSTER_DESCRIPTION
 
 ### Layout: 3 per row, not 1 row of 5
 
-The 5 variables sat in a single row until 29-09-26 ("così non si capisce niente, con label e assi così piccoli"). At the app's 1100px page width that left each subplot ~200px wide — too narrow for a readable axis, so every tick and title had to be shrunk to fit. `_GRID_COLUMNS = 3` gives ~290px each, which is what pays for the type sizes below. Any unused trailing cell (the 6th, today) has both axes set `visible=False`; an empty *framed* box reads as a subplot whose data failed to load.
+The 5 variables are not laid out in a single row: at the app's 1100px page width that would leave each subplot ~200px wide — too narrow for a readable axis, so every tick and title would have to be shrunk to fit. `_GRID_COLUMNS = 3` gives ~290px each, which is what pays for the type sizes below. Any unused trailing cell (the 6th, today) has both axes set `visible=False`; an empty *framed* box reads as a subplot whose data failed to load.
 
 | Element | Size |
 |---|---|
@@ -83,7 +83,7 @@ The 5 variables sat in a single row until 29-09-26 ("così non si capisce niente
 | y-axis ticks | 13 |
 | Bar direct labels | 14 |
 
-Sizes were raised across the board on 29-09-26 ("in generale aumenta un po' il font"). The title is pinned to the top (`y=0.975, yanchor="top"`) with `margin.t=170`, so the extra top margin becomes a **gap between the heading and the first row of panels** rather than padding above the heading.
+Type sizes are deliberately generous. The title is pinned to the top (`y=0.975, yanchor="top"`) with `margin.t=170`, so the extra top margin becomes a **gap between the heading and the first row of panels** rather than padding above the heading.
 
 **Coverage sits in the subplot title, not the x-axis title.** As an axis title it rendered lower under the one subplot that has tick labels (the categorical bar chart — its `F`/`M` labels push the title down) than under the box plots, which have none: five coverage figures meant to be scanned together, sitting on two different baselines. In the title they align by construction. Found by rendering the figure and looking at it, not by any numeric check — the geometry assertions all passed; a regression test now guards it.
 
@@ -91,7 +91,7 @@ Height is `_ROW_HEIGHT * n_rows + 110`, i.e. it grows with the grid instead of c
 
 ### Color
 
-Each **variable** owns a hue (`ClusterDescriptionVariable.color`), carried by its subplot's marks, its subplot title, and its column header in the table below — so a panel and its column read as the same thing without a legend (29-09-26: *"vorrei più varietà nei colori dato che stiamo plottando variabili diverse"*).
+Each **variable** owns a hue (`ClusterDescriptionVariable.color`), carried by its subplot's marks, its subplot title, and its column header in the table below — so a panel and its column read as the same thing without a legend.
 
 | Variable | Color |
 |---|---|
@@ -123,7 +123,7 @@ Rendered in `embedding_app.py` as a plain `dcc.Graph` with the same minimal `mod
 
 ## `clusters_comparison_stats(metadata) -> list[ClusterStats]`
 
-Every cluster of the run, ascending by label, each a `ClusterStats(cluster_label, n_total, n_unregistered, summaries)` where `summaries` maps a variable's `name` to its own `variable_summary` dict (29-09-26, on request: *"statistiche numeriche, più sotto, a confronto tra tutti i vari cluster"*).
+Every cluster of the run, ascending by label, each a `ClusterStats(cluster_label, n_total, n_unregistered, summaries)` where `summaries` maps a variable's `name` to its own `variable_summary` dict, so the numbers of all clusters can be compared side by side.
 
 Built on `variable_summary` — the **same** function the figure calls, never a parallel reimplementation that could drift from it. A regression test asserts the two agree for the same cluster.
 
@@ -145,11 +145,11 @@ Raises `ValueError` if `metadata` has no `cluster_label` column at all.
 
 ### `_warning_box(message, detail=None)`
 
-Every "partial result" warning on the page goes through one boxed callout (29-09-26: *"warning tipo questo devono essere renderizzati un po' meglio"*): an uppercase vivid **ATTENZIONE** label, then the message in **black** body text, then the long non-prose tail (the subject ids) set apart in `.warning-detail`.
+Every "partial result" warning on the page goes through one boxed callout: an uppercase vivid **ATTENZIONE** label, then the message in **black** body text, then the long non-prose tail (the subject ids) set apart in `.warning-detail`.
 
 The label/body color split is deliberate. Coloring the whole block would make the information read as decoration and cost it contrast — the label alone is enough to say "this is not routine caption text", which is exactly how the previous thin amber line failed.
 
-The surface is a **neutral grey one shade off the white page** (`#f4f4f3`), not an amber wash (29-09-26, on request): a tinted background made the box read as a colored block of its own rather than as a quiet callout. The vivid color survives in exactly two places — the label and the 5px left rule — with a low shadow to lift the box off the page.
+The surface is a **neutral grey one shade off the white page** (`#f4f4f3`), not an amber wash: a tinted background made the box read as a colored block of its own rather than as a quiet callout. The vivid color survives in exactly two places — the label and the 5px left rule — with a low shadow to lift the box off the page.
 
 Shared with the two anatomy panels: `_anatomy_viewer` renders its own `warning` string through the same box, so a data gap looks identical wherever it appears.
 
@@ -161,7 +161,7 @@ One row per cluster, one column per variable, so a variable is read *down a colu
 
 A **table rather than a second figure**: the request was for the numbers themselves, and a 5-8 cluster × 5 variable grid is past the point where a reader can hold that many color classes apart. It also serves as the table view the figure's fills require for accessibility.
 
-**No bars, no color in the cells.** In-cell data bars were built and then removed on request (29-09-26: *"non voglio quelle righe colorate nella tabella, mi confondono la lettura"*), together with the per-variable colored header underline. The cells are numbers only; the figure above is the visual read, the table is the exact one. What makes the numbers scannable instead is their formatting and size, not added graphics.
+**No bars, no color in the cells.** There are no in-cell data bars and no per-variable colored header underline: they made the table harder to read. The cells are numbers only; the figure above is the visual read, the table is the exact one. What makes the numbers scannable instead is their formatting and size, not added graphics.
 
 | Cell | Content |
 |---|---|
@@ -171,7 +171,7 @@ A **table rather than a second figure**: the request was for the numbers themsel
 
 `std` is `None` for a single-subject cluster and renders as the mean alone: a standard deviation of one value does not exist, which is a different statement from `0`.
 
-**Numbers are formatted Italian-style** (`_format_number`): `.` groups thousands, `,` is the decimal separator — `5.265,4`, not `5 265.4` (29-09-26: *"i numeri non sono ben scritti, non si capisce molto bene"*). The whole app is in Italian, so English-formatted numbers read as a foreign convention exactly where the eye is scanning fastest. Implemented by swapping Python's own grouped format rather than with `locale`, which is process-global, depends on what is installed on the machine, and would silently change every other number this process formats.
+**Numbers are formatted Italian-style** (`_format_number`): `.` groups thousands, `,` is the decimal separator — `5.265,4`, not `5 265.4`. The whole app is in Italian, so English-formatted numbers read as a foreign convention exactly where the eye is scanning fastest. Implemented by swapping Python's own grouped format rather than with `locale`, which is process-global, depends on what is installed on the machine, and would silently change every other number this process formats.
 
 **Coverage (`n_available/n_total`) prints under a value only where that variable is genuinely incomplete** (`_coverage_note`). It used to sit under every cell: 25 near-identical fractions competing with the values they annotated, which is how a coverage note stops being read at all. Printed only when it says something, it is a signal again — and the caption states the rule, so full coverage is never silently assumed.
 

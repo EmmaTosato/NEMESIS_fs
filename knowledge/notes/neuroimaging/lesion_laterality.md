@@ -14,7 +14,7 @@ Il documento è in tre parti:
 
 ## 1. Perché serve un fallback geometrico
 
-`lesion_side` (`left`/`right`/`both`) è un dato clinico prima di tutto — arriva dal tsv grezzo del dataset, quando quella colonna esiste. Ma 3 degli 8 dataset in-scope non hanno mai avuto questa colonna (UCL-UK, PASPORT, e il nuovo `UNIPD/NEMESIS_T0` onboardato il 28-09-26), e altri hanno celle vuote per singoli soggetti pur avendo la colonna. La maschera di lesione, però, esiste sempre per un soggetto ammesso — quindi il lato si può derivare geometricamente, come fallback esplicito, e mai come sostituto del dato clinico dove questo esiste (la forzatura per dataset, `geometric_override_datasets` in `config/pipelines/enrich_metadata.json`, è spenta: vedi `docs/guides/metadata.md`).
+`lesion_side` (`left`/`right`/`both`) è un dato clinico prima di tutto — arriva dal tsv grezzo del dataset, quando quella colonna esiste. Ma 3 degli 8 dataset in-scope non hanno mai avuto questa colonna (UCL-UK, PASPORT, e `UNIPD/NEMESIS_T0`), e altri hanno celle vuote per singoli soggetti pur avendo la colonna. La maschera di lesione, però, esiste sempre per un soggetto ammesso — quindi il lato si può derivare geometricamente, come fallback esplicito, e mai come sostituto del dato clinico dove questo esiste (la forzatura per dataset, `geometric_override_datasets` in `config/pipelines/enrich_metadata.json`, è spenta: vedi `docs/guides/metadata.md`).
 
 ## 2. La formula: laterality index
 
@@ -56,9 +56,9 @@ Un soggetto con **zero voxel di lesione su entrambi i lati** (lesione confinata 
 
 # Parte 3 — Lo stato reale in NEMESIS
 
-## 8. La calibrazione vera (28-09-26)
+## 8. La calibrazione vera
 
-Eseguita con `src/pipeline/calibrate_lesion_side_threshold.py` sui 5 dataset che hanno `lesion_side` clinico in `assets/metadata/participants.csv` (`lesion_side_source == "clinical"`): `UNIPD/WashU`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`, `UKE/WAKEUP_acute`, `UKE/SFB936_ses01` (quest'ultimo onboardato lo stesso giorno — la nota di `docs/dev/metadata.md` di sessioni precedenti parlava di "4 dataset", ora sono 5).
+Eseguita con `src/pipeline/calibrate_lesion_side_threshold.py` sui 5 dataset che hanno `lesion_side` clinico in `assets/metadata/participants.csv` (`lesion_side_source == "clinical"`): `UNIPD/WashU`, `UNIPD/PSP`, `UKLFR/stroke_UKLFR`, `UKE/WAKEUP_acute`, `UKE/SFB936_ses01`.
 
 **1445 soggetti** utilizzabili (3 esclusi, `laterality_index` indefinito — § 6). Distribuzione etichette vere: 816 `left`, 605 `right`, 24 `both`.
 
@@ -96,4 +96,4 @@ Il lato geometrico è attribuito da `compute_lesion_metadata.py` per **ogni** so
 
 **La calibrazione qui sopra è fatta sulla griglia a 2 mm, e vale anche a 1 mm:** sugli stessi 1350 soggetti con lato clinico (PSP esclusa: le sue maschere a 1 mm sono frazionarie) la soglia 0.20 dà la stessa accuratezza a 1 mm e a 2 mm (97,3%) e attribuisce a **tutti** lo stesso lato. Non era scontato: il piano mediano escluso da entrambi gli emisferi è spesso 1 mm su una griglia e 2 mm sull'altra (la griglia a 1 mm ha 91 fette a sinistra e 90 a destra, quella a 2 mm 45 e 45), quindi per una lesione quasi tutta mediana i due indici non sono interscambiabili. Con `--grid 1mm` si rifà il confronto.
 - Architettura del registro: `docs/dev/metadata.md`. Guida utente: `docs/guides/metadata.md`.
-- Decisione registrata: `.claude/history/methods_changelog.md`, 28-09-26.
+- Decisione registrata in `.claude/history/methods_changelog.md` (voce "`lesion_side` geometrico: soglia di bilateralità 0.20").

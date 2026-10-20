@@ -18,7 +18,8 @@
 
 - **Gerarchico**, dal basso verso l'alto, **deterministico** e **non supervisionato**.
 - Il numero di cluster non è nell'algoritmo: si decide dopo, tagliando l'albero.
-- Nel progetto `linkage` e `metric` si variano insieme a `n_clusters`; `ward` esiste solo con la metrica euclidea, quindi le altre combinazioni con `ward` vengono scartate.
+- Nel progetto gira sugli embedding UMAP e sui punteggi PCA.
+- `linkage` e `metric` si variano insieme a `n_clusters`; `ward` esiste solo con la metrica euclidea, quindi le altre combinazioni con `ward` vengono scartate.
 
 ## Cosa restituisce
 

@@ -112,12 +112,12 @@ La **varianza cumulata** di *k* componenti è la somma delle quote delle prime *
 #### Equivalenze utili
 
 - La PCA è la decomposizione ai valori singolari (SVD) di `Xc`: gli autovalori di C sono i valori singolari al quadrato diviso `n-1`. `sklearn.decomposition.PCA` fa questo.
-- **Matrice più larga che alta (*p* > *n*).** Gli autovalori si ottengono dalla matrice piccola *n* × *n* invece che da quella *p* × *p*: vedi la sezione successiva. È ciò che fa [`covariance_pca.py`](../../../src/analysis/covariance_pca.py) su 5845 soggetti × 291.345 voxel.
+- **Matrice più larga che alta (*p* > *n*).** Gli autovalori si ottengono dalla matrice piccola *n* × *n* invece che da quella *p* × *p*: vedi la sezione successiva. È ciò che fa [`covariance_pca.py`](../../../src/analysis/covariance_pca.py) su 5845 soggetti × 227.235 voxel (`16-10_s2.4-vol`; la `07-10_s2.4-vol`, dove i voxel fuori dal brain non sono azzerati, ha 291.345 colonne).
 - **Il segno di una componente è arbitrario.** Moltiplicarla per −1 è una soluzione equivalente. Per leggere una mappa si fissa una convenzione (qui: il voxel con |valore| massimo positivo).
 
 #### PCA su una matrice più larga che alta (metodo degli snapshot)
 
-**Il problema.** La covarianza tra i voxel ha *p* × *p* valori. Con *p* = 227.235 sono circa 413 GB in float64: non entra in memoria, e `sklearn.decomposition.PCA` non regge nemmeno la tabella dei dati (5845 × 227.235, 5,3 GB) perché ne fa più copie.
+**Il problema.** La covarianza tra i voxel ha *p* × *p* valori. Con *p* = 227.235 (`16-10_s2.4-vol`) sono circa 413 GB in float64: non entra in memoria, e `sklearn.decomposition.PCA` non regge nemmeno la tabella dei dati (5845 × 227.235, 5,3 GB) perché ne fa più copie.
 
 **Il trucco.** Si scrive la tabella centrata con la SVD: `Xc = U · S · Vᵀ`, con `U` (*n* × *n*, i soggetti), `S` (i valori singolari) e `V` (*p* × *n*, i voxel). Allora:
 
@@ -139,7 +139,8 @@ Matrici del progetto:
 | Sessione | Soggetti (*n*) | Variabili (*p*) | Percorso conveniente |
 |---|---|---|---|
 | `s1.4-vol` (lesione voxelwise) | 5845 | 221.955 | duale |
-| `s2.4-vol` (disconnettoma voxelwise, voxel fuori dal brain azzerati) | 5845 | 227.235 | duale |
+| `s2.4-vol`, `16-10` (disconnettoma voxelwise, voxel fuori dal brain azzerati e colonne costanti tolte) | 5845 | 227.235 | duale |
+| `s2.4-vol`, `07-10` (voxel fuori dal brain non azzerati: 64.110 colonne in più) | 5845 | 291.345 | duale |
 | `s2.1-schaefer-200-tian-s2` (SDC parcellato) | 1119 | 232 | covarianza tra variabili |
 | `s2.4-stream` (SDC per tratto) | 5831 | 87 | covarianza tra variabili |
 
@@ -155,8 +156,8 @@ Matrici del progetto:
 #### Limiti
 
 - È **lineare**: non trova strutture curve.
-- È sensibile ai **valori estremi**: pochi soggetti con valori enormi possono dominare una componente.
 - È **deterministico**: a parità di dati il risultato è lo stesso (il segno di ogni componente resta arbitrario, vedi "Equivalenze utili").
+- È sensibile ai **valori estremi**: pochi soggetti con valori enormi possono dominare una componente.
 - Le componenti sono **ortogonali per costruzione**: non è detto che corrispondano a processi distinti nei dati.
 
 ### Covarianza o correlazione
@@ -304,7 +305,7 @@ L'R² di una componente alla volta non dice quanto spiegano *insieme* le prime *
 #### La mappa *t*
 
 - **Come si fa.** Per ogni voxel, una regressione mette in relazione la sua disconnessione nei soggetti con i punteggi di tutte le componenti insieme, e dice di quanto cambia quando sale il punteggio di ciascuna. Quel cambiamento, diviso per la sua incertezza (l'errore standard), è il *t* del voxel. I *t* di tutti i voxel sul cervello formano la mappa della componente.
-- **Mappa dei pesi e mappa *t*.** I pesi di una componente riportati sul cervello formano la mappa dei pesi. La mappa *t* è simile ma non uguale, perché tiene conto dell'incertezza di ogni voxel (su `s2.4-vol` la correlazione tra le due va da 0,74 a 0,91 per componente).
+- **Mappa dei pesi e mappa *t*.** I pesi di una componente riportati sul cervello formano la mappa dei pesi. La mappa *t* è simile ma non uguale, perché tiene conto dell'incertezza di ogni voxel (su `07-10_s2.4-vol` la correlazione tra le due va da 0,74 a 0,91 per componente).
 - **Il paper** usa `randomise` di FSL con 1000 permutazioni; il repo calcola le statistiche *t* senza test di permutazione.
 
 #### Come si leggono

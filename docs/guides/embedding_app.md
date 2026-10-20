@@ -10,7 +10,7 @@ App web live per esplorare interattivamente un run **di produzione** (`dim_reduc
 
 ## Da dove vengono i valori di colorazione
 
-Regola unica (30-09-26): **un dato del soggetto viene da `assets/metadata/participants.csv`, un dato del run dal `metadata.csv` di quel run.**
+Regola unica: **un dato del soggetto viene da `assets/metadata/participants.csv`, un dato del run dal `metadata.csv` di quel run.**
 
 | Bottone | Fonte | Colonna |
 |---|---|---|
@@ -23,7 +23,7 @@ Regola unica (30-09-26): **un dato del soggetto viene da `assets/metadata/partic
 | `dataset` | metadata.csv del run | `dataset` |
 | `cluster` | metadata.csv del run | `cluster_label` |
 
-Prima l'ordine era invertito: si guardava prima il `metadata.csv` del run. Un run costruito prima del 06/09/26 porta ancora una **copia** di quelle colonne cliniche, e quella copia poteva divergere dal registro — due run degli stessi soggetti si coloravano in modo diverso. Ora il registro vince sempre.
+Un run più vecchio può portare ancora nel suo `metadata.csv` una **copia** di quelle colonne cliniche, che può divergere dal registro: il registro vince sempre, così due run degli stessi soggetti si colorano allo stesso modo.
 
 Sul volume la differenza è sostanziale: il `lesion_volume_voxels` di un run conta i voxel sulla griglia che *quel* `build_lesion_matrix` ha usato, mentre le colonne del registro sono calcolate una volta sola su una griglia fissa per tutti i soggetti — le uniche confrontabili fra run.
 
@@ -155,7 +155,7 @@ Il paziente è risolto tramite `subject_id`/`dataset` del run corrente (colonne 
 
 Per un run `clustering.py` la pagina si divide in due, separate da una riga netta e da questo titolo: **sopra** tutto ciò che riguarda l'intero run o un singolo soggetto (scatter, anatomia lesionale, disconnettoma), **sotto** tutto ciò che riguarda un cluster alla volta.
 
-La prima cosa della sezione è il selettore **Cluster**, centrato: pilota *tutti* i pannelli che seguono (overlap map, frequency map, soggetto rappresentativo, descrizione del cluster). Fino al 30/09/26 viveva dentro il primo pannello, il che lo faceva sembrare un controllo di quel pannello soltanto.
+La prima cosa della sezione è il selettore **Cluster**, centrato: pilota *tutti* i pannelli che seguono (overlap map, frequency map, soggetto rappresentativo, descrizione del cluster).
 
 Per un run `dim_reduction.py` l'intera sezione è nascosta.
 

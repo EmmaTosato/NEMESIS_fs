@@ -37,7 +37,7 @@ python -m src.pipeline.build_sdc_matrix --config config/pipelines/build_sdc_matr
 
 **Modalità `streamline`**: ogni soggetto ha un CSV `LF-lesion_atlas-yeh_hcp1065_streamline.csv` con 87 righe, una per tratto di sostanza bianca, e una colonna `streamline_ratio` (la quota di streamline di quel tratto colpite). Lo script riallinea il CSV alla lista fissa dei tratti (`assets/atlases/sdc_labels/yeh_hcp1065_streamline.csv`) e impila tutto in una matrice **soggetti × 87 tratti**, senza mai scartare colonne.
 
-A differenza di `parcellated`, qui un tratto **mancante** dal CSV fa fallire la run invece di essere riempito a `0.0`: questo file elenca sempre tutti i tratti, zeri inclusi (verificato su tutti i 1734 file reali, 30-09-26), quindi un file incompleto è troncato o corrotto, non una omissione legittima.
+A differenza di `parcellated`, qui un tratto **mancante** dal CSV fa fallire la run invece di essere riempito a `0.0`: questo file elenca sempre tutti i tratti, zeri inclusi (verificato su tutti i 1734 file reali), quindi un file incompleto è troncato o corrotto, non una omissione legittima.
 
 **Ammissione soggetti (uguale per tutte e tre le modalità)**: un soggetto entra nella matrice solo se ha **entrambi**: una lesion mask **registrata** nel registro soggetti (`assets/metadata/participants.csv`, colonna `has_lesion == True`) e il file SDC richiesto (CSV o `.nii.gz` a seconda della modalità), **e** non compare nella lista degli esclusi (`excluded_subjects_path`, obbligatorio nel config: `assets/metadata/excluded_subjects.csv`). Non si controlla `manual_masks/` su disco direttamente — una copia locale parziale renderebbe quel controllo inaffidabile. Un soggetto con output SDC ma senza lesion mask registrata viene escluso esplicitamente, non trattato come "disconnessione zero" — vedi `docs/dev/sdc_matrix.md`.
 
@@ -102,7 +102,7 @@ La trattografia di BCBToolKit esce dal cervello: in mediana lo 0,80% della massa
 `config.md` e il report elencano ogni soggetto corretto con il numero di voxel azzerati (`n_voxels_corrected`) e la quota di massa tolta (`mass_removed`): le mappe sono continue, quindi il solo numero di voxel non dice quanto è stato scartato. Una mappa con valori non finiti o negativi ferma la run. Una matrice già costruita senza correzione non si corregge sul posto: si costruisce una sessione nuova.
 
 ### Atlanti attualmente supportati (solo `parcellated`)
-Solo quelli con un file di reference in `assets/atlases/sdc_labels/`: `schaefer_200_tian_s2` (232 regioni), `schaefer_400_tian_s2` (432 regioni). Per aggiungerne un altro, vedi `docs/dev/sdc_matrix.md` § "Adding a new atlas". **Escluso strutturalmente**: `buckner_7n` (il CSV ha una sola riga per soggetto, non parcellato per network — anomalia nota). `yeh_hcp1065_streamline` ha uno schema completamente diverso (tratti invece di regioni) e non è gestito qui, ma dalla sua `representation: "streamline"`.
+Solo quelli con un file di reference in `assets/atlases/sdc_labels/`: `schaefer_200_tian_s2` (232 regioni), `schaefer_300_tian_s2` (332 regioni), `schaefer_400_tian_s2` (432 regioni). Per aggiungerne un altro, vedi `docs/dev/sdc_matrix.md` § "Adding a new atlas". **Escluso strutturalmente**: `buckner_7n` (il CSV ha una sola riga per soggetto, non parcellato per network — anomalia nota). `yeh_hcp1065_streamline` ha uno schema completamente diverso (tratti invece di regioni) e non è gestito qui, ma dalla sua `representation: "streamline"`.
 
 ---
 

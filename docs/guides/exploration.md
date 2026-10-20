@@ -124,7 +124,7 @@ Le soglie candidate della frazione fuori dal brain sono una lista fissa scritta 
 
 La cella delle **soglie candidate** non è un test statistico: le soglie (1, 5, 10, 30, 50, 70%) sono valori fissi e per ognuna si legge quanti soggetti la superano, sul totale, e in quali dataset. La cella degli **ID sopra soglia** li elenca per ogni soglia, per frazione decrescente, con dataset e percentuale: serve ad aprire le maschere una a una e giudicare a occhio se è un errore di normalizzazione.
 
-**I soggetti esclusi.** `EXCLUSIONS` ha come chiavi i tre motivi (`empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`) e come valori le liste di ID; `SCOPE` è `all`. Gli ID ripetuti sotto motivi diversi o assenti da `lesion_metadata.csv` fermano la cella. Per ogni blocco la cella stampa `value_column`, cioè la colonna di `lesion_metadata.csv` da cui la pipeline legge il `value`: `lesion_volume_voxels_1mm` per `empty_mask` (il conteggio nativo, 0 = vuota davvero), `lesion_volume_voxels_2mm` per `lesion_too_small` (la griglia che entra nella matrice), `OUT_OF_BRAIN_COLUMN` per `out_of_brain_fraction_too_high`. **Con `EXCLUSIONS` vuoto la cella non stampa nulla.** I motivi che la cella non copre (per esempio `all_zero_features`) si scrivono direttamente nel config.
+**I soggetti esclusi.** `EXCLUSIONS` ha come chiavi i tre motivi (`empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`) e come valori le liste di ID; `SCOPE` è `all`. Gli ID ripetuti sotto motivi diversi o assenti da `lesion_metadata.csv` fermano la cella. Per ogni blocco la cella stampa `value_column`, cioè la colonna di `lesion_metadata.csv` da cui la pipeline legge il `value`: `lesion_volume_voxels_1mm` per `empty_mask` (il conteggio nativo, 0 = vuota davvero), `lesion_volume_voxels_2mm` per `lesion_too_small` (la griglia che entra nella matrice), `OUT_OF_BRAIN_COLUMN` per `out_of_brain_fraction_too_high`. **Con `EXCLUSIONS` vuoto la cella non stampa nessun blocco, solo il messaggio «Nessun ID in EXCLUSIONS: nessun blocco da stampare.».** I motivi che la cella non copre (per esempio `all_zero_features`) si scrivono direttamente nel config.
 
 ### `fc_analysis`
 
@@ -210,7 +210,8 @@ Guida di evaluation e comparison, e dove vive ogni analisi: [`evaluation.md`](ev
 
 ## Regole di scrittura dei notebook
 
-- **Prima cella**: titolo, domanda, cosa legge, cosa scrive, e cosa *non* fa (rimandando al notebook che lo fa).
+- **Apertura**: il titolo sta da solo nella sua cella (ogni intestazione sta sola in una cella di markdown); la **prima cella sotto il titolo** dice la domanda, cosa legge, cosa scrive, e cosa *non* fa (rimandando al notebook che lo fa).
 - **Titoli**: `#` solo per il titolo, `##` per le sezioni, `###` e oltre per le sottosezioni.
 - **Niente duplicati tra notebook**: una stessa analisi (per esempio la distribuzione del volume) vive in un solo notebook. Se ne serve il risultato altrove, si legge il file che la contiene.
-- Un notebook che diventa codice di produzione resta come prototipo in `pipeline_building/`, con il rimando alla pipeline nella prima cella.
+- Un notebook che diventa codice di produzione resta come prototipo in `pipeline_building/`, con il rimando alla pipeline nella prima cella sotto il titolo.
+- **Il markdown di un notebook non è mai una fonte di informazione nuova**: tutto ciò che dice è scritto anche in `docs/` e/o in `knowledge/notes/`, e il notebook lo ripete. Gli output delle celle sono un'altra cosa: l'utente decide quando aggiornare i documenti con ciò che mostrano.
