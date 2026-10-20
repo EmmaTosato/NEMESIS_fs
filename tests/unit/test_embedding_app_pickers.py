@@ -1,4 +1,5 @@
-"""Unit tests for the run selectors (Dato ... Parametri, Run) of src/analysis/embedding_app.py: optional filters."""
+"""Unit tests for the run selectors (Dato ... Parametri, Run) of src/analysis/embedding_app.py: optional filters
+in a left-to-right cascade."""
 
 import json
 import logging
@@ -14,6 +15,7 @@ from src.analysis.embedding_app import (
     ProductionRun,
     build_app,
     index_runs,
+    open_pickers,
     resolve_pickers,
     run_picker_values,
 )
@@ -144,13 +146,23 @@ def test_every_filter_starts_with_the_open_choice_and_lists_only_what_exists(_in
     assert state.options["modality"][0] == UNSET
 
 
-def test_a_filter_offers_the_values_of_the_runs_the_other_filters_leave_not_its_own_narrowing(_indexed):
-    # method=umap narrows the runs, but the method selector still offers pca: it is computed without itself.
-    state = resolve_pickers(_indexed, _current(modality="lesion", pipeline="dim_reduction", method="umap"), "method")
+def test_a_selector_offers_only_what_the_selectors_to_its_left_leave(_indexed):
+    # method=umap narrows what Metrica/Componenti/Parametri offer (to its right), not Pipeline (to its left).
+    state = resolve_pickers(_indexed, _current(modality="lesion", method="umap"), "method")
 
-    assert state.options["method"] == [UNSET, "pca", "umap"]
-    assert state.options["metric"] == [UNSET, "dice", "euclidean"]  # pca's missing metric is not offered here
-    assert state.chosen["method"] == "umap"
+    assert state.options["pipeline"] == [UNSET, *PRODUCTION_PIPELINES]  # clustering has no umap method, still offered
+    assert state.options["method"] == [UNSET, "kmeans", "pca", "umap"]  # not narrowed by itself
+    assert state.options["metric"] == [UNSET, "dice", "euclidean"]  # pca's / kmeans' missing metric is not offered here
+    assert state.chosen["method"] == "umap" and state.chosen["pipeline"] == UNSET
+
+
+def test_each_selector_to_the_right_is_narrowed_by_all_the_choices_before_it(_indexed):
+    state = resolve_pickers(
+        _indexed, _current(modality="lesion", pipeline="clustering", reduction="umap", metric="dice"), "metric",
+    )
+
+    assert state.options["n_components"] == [UNSET, 3]  # only the dice clustering on umap has 3 components
+    assert state.options["tag_params"] == [UNSET, "n_clusters=5"]
 
 
 def test_the_run_list_shows_exactly_the_runs_that_match_the_filters_that_are_set(_indexed):
@@ -159,13 +171,54 @@ def test_the_run_list_shows_exactly_the_runs_that_match_the_filters_that_are_set
     assert state.options["run"] == [UNSET, _key("lesion", "clustering", "kmeans", "13-08_k5", "umap")]
 
 
-def test_choosing_a_run_leaves_the_open_filters_open(_indexed):
-    run = _key("lesion", "clustering", "kmeans", "12-08_k3", "umap")
+def test_choosing_a_run_fills_every_open_selector_with_the_values_of_that_run(_indexed):
+    run = _key("lesion", "clustering", "kmeans", "13-08_k5", "umap")
 
     state = resolve_pickers(_indexed, _current(modality="lesion", run=run), "run")
 
     assert state.chosen["run"] == run
-    assert state.chosen["modality"] == "lesion" and state.chosen["method"] == UNSET and state.chosen["metric"] == UNSET
+    assert {f: state.chosen[f] for f in ("modality", "pipeline", "method", "reduction", "metric", "n_components", "tag_params")} == {
+        "modality": "lesion", "pipeline": "clustering", "method": "kmeans", "reduction": "umap",
+        "metric": "dice", "n_components": 3, "tag_params": "n_clusters=5",
+    }
+    assert state.options["run"] == [UNSET, run]
+
+
+def test_stopping_at_componenti_and_choosing_the_run_sets_the_parameters_from_the_run(_indexed):
+    run = _key("lesion", "clustering", "kmeans", "12-08_k3", "umap")
+
+    state = resolve_pickers(
+        _indexed,
+        _current(modality="lesion", pipeline="clustering", method="kmeans", reduction="umap", metric="euclidean", n_components=2, run=run),
+        "run",
+    )
+
+    assert state.chosen["tag_params"] == "n_clusters=3" and state.chosen["run"] == run
+
+
+def test_choosing_a_filter_after_a_run_still_leaves_the_other_selectors_alone(_indexed):
+    run = _key("lesion", "dim_reduction", "umap", "10-08_a")
+    state = resolve_pickers(_indexed, _current(modality="lesion", run=run), "run")
+    current = {field: state.chosen[field] for field in PICKER_FIELDS} | {"n_components": UNSET}
+
+    widened = resolve_pickers(_indexed, current, "n_components")
+
+    assert widened.chosen["n_components"] == UNSET and widened.chosen["metric"] == "euclidean"
+    assert widened.chosen["run"] == run  # still listed by the remaining filters
+
+
+# --- Riavvia -----------------------------------------------------------------------------------------------------
+
+def test_riavvia_puts_every_selector_including_the_run_back_to_the_open_choice(_indexed):
+    state = open_pickers(_indexed)
+
+    assert all(value == UNSET for value in state.chosen.values()) and set(state.chosen) == set(PICKER_FIELDS)
+    assert state.options["pipeline"] == [UNSET, *PRODUCTION_PIPELINES]
+    assert state.options["run"] == [UNSET, *(item.run.key for item in _indexed)]
+
+
+def test_the_subjects_selector_comes_right_after_dato():
+    assert PICKER_FIELDS[:3] == ("modality", "n_subjects", "pipeline")
 
 
 def test_run_offers_the_open_choice_first_and_keeps_it_while_chosen(_indexed):
@@ -232,7 +285,8 @@ def test_the_picker_callback_answers_in_one_response_for_every_selector(_runs, t
     body = {
         "output": ".." + "...".join(f"{ids[f]}.{prop}" for f in PICKER_FIELDS for prop in ("options", "value")) + "..",
         "outputs": [{"id": ids[f], "property": prop} for f in PICKER_FIELDS for prop in ("options", "value")],
-        "inputs": [{"id": ids[f], "property": "value", "value": values[f]} for f in PICKER_FIELDS],
+        "inputs": [{"id": ids[f], "property": "value", "value": values[f]} for f in PICKER_FIELDS]
+        + [{"id": "reset-pickers-btn", "property": "n_clicks", "value": 0}],
         "changedPropIds": [f"{ids['modality']}.value"],
     }
 
@@ -247,6 +301,36 @@ def test_the_picker_callback_answers_in_one_response_for_every_selector(_runs, t
         {"label": "14-08_s3  (clustering / kmeans / umap)", "value": "sdc/clustering/kmeans/umap/14-08_s3"},
     ]
     assert payload[ids["n_components"]]["options"][0]["label"] == UNSET
+
+
+def test_the_riavvia_button_resets_every_selector_through_the_callback(_runs, tmp_path):
+    app = build_app(_runs, _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache")
+    app.server.config["TESTING"] = True
+    ids = {field: f"{field.replace('_', '-')}-picker" for field in PICKER_FIELDS}
+    values = {field: UNSET for field in PICKER_FIELDS} | {"modality": "sdc", "pipeline": "clustering", "run": "sdc/clustering/kmeans/umap/14-08_s3"}
+    body = {
+        "output": ".." + "...".join(f"{ids[f]}.{prop}" for f in PICKER_FIELDS for prop in ("options", "value")) + "..",
+        "outputs": [{"id": ids[f], "property": prop} for f in PICKER_FIELDS for prop in ("options", "value")],
+        "inputs": [{"id": ids[f], "property": "value", "value": values[f]} for f in PICKER_FIELDS]
+        + [{"id": "reset-pickers-btn", "property": "n_clicks", "value": 1}],
+        "changedPropIds": ["reset-pickers-btn.n_clicks"],
+    }
+
+    response = app.server.test_client().post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
+
+    assert response.status_code == 200
+    payload = response.get_json()["response"]
+    assert all(payload[ids[f]]["value"] == UNSET for f in PICKER_FIELDS)
+
+
+def test_the_page_lays_out_dato_then_soggetti_then_pipeline_and_has_a_riavvia_button(_runs, tmp_path):
+    app = build_app(_runs, _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache")
+
+    layout = json.dumps(app.layout.to_plotly_json(), default=lambda node: node.to_plotly_json())
+
+    positions = [layout.index(f'"{name}-picker"') for name in ("modality", "n-subjects", "pipeline", "method", "reduction", "metric", "n-components", "tag-params", "run")]
+    assert positions == sorted(positions)
+    assert '"reset-pickers-btn"' in layout and '"Riavvia"' in layout
 
 
 def _post_run_picker(app, run_value, output_ids, output_props):
@@ -322,6 +406,7 @@ def test_the_subjects_selector_filters_the_runs_and_is_filtered_by_the_others(_i
     state = resolve_pickers(indexed, _current(modality="lesion", n_subjects=5845), "n_subjects")
     assert set(state.options["run"][1:]) == {_key("lesion", "dim_reduction", "umap", "10-08_a"), _key("lesion", "clustering", "kmeans", "12-08_k3", "umap")}
 
-    # with the method narrowed to kmeans, "Soggetti" offers only the counts of kmeans runs (sorted numerically)
-    state = resolve_pickers(indexed, _current(modality="lesion", method="kmeans"), "method")
+    # Soggetti is the second selector: it offers the counts of the runs of the modality only, and narrows Pipeline
+    state = resolve_pickers(indexed, _current(modality="lesion", n_subjects=5200), "n_subjects")
     assert state.options["n_subjects"] == [UNSET, 100, 5200, 5845]
+    assert state.options["pipeline"] == [UNSET, "clustering"]  # only a clustering run has 5200 subjects

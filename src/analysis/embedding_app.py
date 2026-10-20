@@ -710,7 +710,7 @@ UNSET = "---"
 
 # The selectors that filter the run list, in the order they are shown. "run" is the list itself: the runs that
 # match every filter that is set; choosing one of them does not set the filters that are not.
-PICKER_FACETS: tuple[str, ...] = ("modality", "pipeline", "method", "reduction", "metric", "n_components", "n_subjects", "tag_params")
+PICKER_FACETS: tuple[str, ...] = ("modality", "n_subjects", "pipeline", "method", "reduction", "metric", "n_components", "tag_params")
 PICKER_FIELDS: tuple[str, ...] = (*PICKER_FACETS, "run")
 
 # Shown next to a run's name for the facets that are not set, so runs of different methods are told apart.
@@ -793,17 +793,19 @@ class PickerState:
 def resolve_pickers(indexed: list[IndexedRun], current: dict[str, object], changed: str | None) -> PickerState:
     """The state of every selector, computed together from one consistent selection.
 
-    A filter selector set to a value narrows the run list to the runs that have it; UNSET leaves it open. Each
-    filter offers the values found among the runs that match every *other* filter, so any value it offers gives
-    at least one run, and a run is always chosen from what the filters leave. "Run" also offers UNSET: no run
-    chosen, which stays chosen until the user picks one. Choosing a run does not set the filters that are UNSET:
-    they stay open, so one can browse runs without turning each into a filter.
+    The selectors are a left-to-right cascade (PICKER_FACETS order): each one offers only the values found among
+    the runs that match the filters set to its *left*, so what it offers is always compatible with what was
+    chosen before it, and a value it offers gives at least one run. A selector set to UNSET is not a filter;
+    one can stop at any point and pick the run directly. "Run" lists the runs that match every filter that is set
+    and also offers UNSET: no run chosen, which stays chosen until the user picks one.
+
+    Choosing a run fills every selector still at UNSET with that run's own value (its parameters follow the run).
+    Changing a filter keeps the run while the filters still list it, else the most recent one.
 
     `changed` is the selector the user just touched (None at the first render, when only the modality and the
     pipeline are set, to the first ones, so the page opens on a dim_reduction run as it always did). The changed
     filter wins: filters are applied starting from it, and one that would leave no run at all goes back to UNSET,
-    which the selector then shows. The chosen run (or UNSET) stays if the filters still list it, else it is the
-    most recent run.
+    which the selector then shows.
     """
     filters: dict[str, object] = {}
     if changed is None and all(current.get(facet) in (None, UNSET) for facet in PICKER_FACETS):
@@ -820,16 +822,31 @@ def resolve_pickers(indexed: list[IndexedRun], current: dict[str, object], chang
             if any(_matches(item, trial) for item in indexed):
                 filters = trial
 
+    listed = [item for item in indexed if _matches(item, filters)]
+    run_keys = [item.run.key for item in listed]
+    run = current.get("run") if current.get("run") in (UNSET, *run_keys) else run_keys[-1]
+    if changed == "run" and run != UNSET:
+        filters = dict(next(item for item in listed if item.run.key == run).values)
+    return _picker_state(indexed, filters, run)
+
+
+def open_pickers(indexed: list[IndexedRun]) -> PickerState:
+    """Every selector at UNSET, the run included (the "Riavvia" button)."""
+    return _picker_state(indexed, {}, UNSET)
+
+
+def _picker_state(indexed: list[IndexedRun], filters: dict[str, object], run: object) -> PickerState:
+    """The options of every selector for `filters` (the cascade of resolve_pickers) and `run` as chosen."""
     options: dict[str, list] = {}
-    for facet in PICKER_FACETS:
-        others = {f: v for f, v in filters.items() if f != facet}
-        values = {item.values[facet] for item in indexed if _matches(item, others)}
+    for position, facet in enumerate(PICKER_FACETS):
+        left = {f: filters[f] for f in PICKER_FACETS[:position] if f in filters}
+        values = {item.values[facet] for item in indexed if _matches(item, left)}
         options[facet] = [UNSET, *sorted(values, key=lambda value: _facet_sort_key(facet, value))]
     chosen: dict[str, object] = {facet: filters.get(facet, UNSET) for facet in PICKER_FACETS}
 
     listed = [item for item in indexed if _matches(item, filters)]
     options["run"] = [UNSET, *(item.run.key for item in listed)]
-    chosen["run"] = current["run"] if current.get("run") in options["run"] else options["run"][-1]
+    chosen["run"] = run
     shown = [facet for facet in _RUN_LABEL_FACETS if chosen[facet] == UNSET]
     run_labels = {item.run.key: _run_label(item, shown) for item in listed}
     return PickerState(options=options, chosen=chosen, run_labels=run_labels)
@@ -3640,13 +3657,14 @@ def build_app(
                 id="controls-section",
                 className="controls",
                 children=[
-                    # Two rows (2026-08-14, on request): Dato/Pipeline/Metodo (the "which
-                    # pipeline output" question) above, Metrica/Componenti/Run (the "which
-                    # exact combination that pipeline produced" question) below.
+                    # Two rows, left to right in the order of the cascade (PICKER_FACETS): each selector
+                    # offers only what is compatible with the ones before it. "Soggetti" comes right after
+                    # "Dato" (12-10-26 order -> 21-10-26, on request). "Riavvia" puts every selector back at "---".
                     html.Div(
                         className="picker-row",
                         children=[
                             _picker_field("Dato", "modality-picker"),
+                            _picker_field("Soggetti", "n-subjects-picker"),
                             _picker_field("Pipeline", "pipeline-picker"),
                             _picker_field("Metodo", "method-picker"),
                             # Hidden for a dim_reduction run (08-10-26, on request): there the Metodo already
@@ -3659,15 +3677,13 @@ def build_app(
                         children=[
                             _picker_field("Metrica", "metric-picker"),
                             _picker_field("Componenti", "n-components-picker"),
-                            _picker_field("Soggetti", "n-subjects-picker"),
                             # "Parametri" (01-09-26, on request): real clustering runs vary by
                             # more than just the upstream embedding's metric/n_components - each
                             # method's own hyperparameters (n_clusters/linkage for agglomerative,
-                            # etc.) do too. NO_METRIC-only for dim_reduction (see
-                            # run_picker_values) - kept in this same row so the picker still
-                            # reads as one uniform 4-step sequence across both pipelines.
+                            # etc.) do too. NO_METRIC-only for dim_reduction (see run_picker_values).
                             _picker_field("Parametri", "tag-params-picker"),
                             _picker_field("Run", "run-picker"),
+                            html.Button("Riavvia", id="reset-pickers-btn", n_clicks=0, className="save-btn"),
                         ],
                     ),
                     html.Div(color_buttons, className="color-buttons chips-balanced"),
@@ -3974,20 +3990,24 @@ def build_app(
             raise PreventUpdate
         return {"display": "none"} if pipeline == "dim_reduction" else {}
 
-    # One callback for every selector (see resolve_pickers): the 9 values come in, the 9 option lists and 9
-    # values go out. The eight before "Run" are optional filters ("---" = not a filter); "Run" lists the runs
+    # One callback for every selector (see resolve_pickers): the 9 values (and the "Riavvia" button) come in, the
+    # 9 option lists and 9 values go out. The eight before "Run" are optional filters ("---" = not a filter); "Run" lists the runs
     # that match the filters that are set. The selectors are both inputs and outputs of this callback; Dash
     # does not re-trigger a callback from its own outputs.
     picker_ids = {field: f"{field.replace('_', '-')}-picker" for field in PICKER_FIELDS}
 
     @app.callback(
         [Output(picker_ids[field], prop) for field in PICKER_FIELDS for prop in ("options", "value")],
-        [Input(picker_ids[field], "value") for field in PICKER_FIELDS],
+        [*(Input(picker_ids[field], "value") for field in PICKER_FIELDS), Input("reset-pickers-btn", "n_clicks")],
     )
     def _update_pickers(*values):
-        current = dict(zip(PICKER_FIELDS, values))
+        *picker_values, _reset_clicks = values
+        current = dict(zip(PICKER_FIELDS, picker_values))
         changed = next((field for field in PICKER_FIELDS if picker_ids[field] == ctx.triggered_id), None)
-        state = resolve_pickers(indexed_runs, current, changed)
+        if ctx.triggered_id == "reset-pickers-btn":
+            state = open_pickers(indexed_runs)
+        else:
+            state = resolve_pickers(indexed_runs, current, changed)
 
         def label(field: str, value) -> str:
             if value == UNSET:
