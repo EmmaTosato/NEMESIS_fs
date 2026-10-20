@@ -18,10 +18,10 @@
 
 | parametro | valore | effetto |
 |---|---|---|
-| `min_samples` | basso | bastano pochi vicini per dire "zona densa": più cluster, meno rumore |
-| `min_samples` | alto | contano solo le zone davvero dense: più punti diventano rumore |
+| `min_samples` | basso | bastano pochi vicini per dire "zona densa": meno rumore (a 1 quasi tutti i punti sono in un cluster) |
+| `min_samples` | alto | contano solo le zone davvero dense: più rumore, cluster ristretti alle zone più dense |
 | `min_cluster_size` | basso | anche gruppi piccoli sono cluster: tanti cluster, alcuni poco affidabili |
-| `min_cluster_size` | alto | servono gruppi grandi: pochi cluster, e i gruppi piccoli diventano rumore o restano nel padre |
+| `min_cluster_size` | alto | servono gruppi grandi: meno cluster, alcuni si fondono; un gruppo sotto soglia non è un cluster e i suoi punti escono dal cluster padre |
 
 ## Che tipo di metodo è
 
@@ -38,7 +38,7 @@
 | **Etichetta** | il cluster di ogni soggetto; −1 = rumore | una per soggetto |
 | **Probabilità di appartenenza** | quanto il soggetto sta nel nucleo del proprio cluster, da 0 a 1 | una per soggetto |
 | **Soft membership** (solo `hdbscan_soft`) | la probabilità di stare in ciascun cluster | soggetti × cluster |
-| **Stabilità** | quanto un cluster dura al variare della densità | una per cluster |
+| **Stabilità** (solo `hdbscan_soft`) | quanto un cluster dura al variare della densità | una per cluster |
 
 ## Esempio concreto
 
@@ -53,6 +53,6 @@ Quattro soggetti e due cluster (valori inventati per illustrare):
 
 - A sta nel nucleo del cluster 0. B è nel cluster 0 ma al confine: la probabilità è bassa e l'altro cluster non è lontano.
 - D è rumore: ha probabilità bassa su tutti i cluster. Le righe non sommano a 1, e la parte mancante è la probabilità di essere rumore.
-- Con `min_cluster_size` = 50 un gruppo di 30 soggetti non è un cluster: i suoi punti diventano rumore o restano nel cluster padre.
+- Con `min_cluster_size` = 50 un gruppo di 30 soggetti non è un cluster e resta rumore.
 
 Approfondimento: `knowledge/notes/dim_reduction_clustering/hdbscan_package.md` (come funziona, parametri, differenze da sklearn).

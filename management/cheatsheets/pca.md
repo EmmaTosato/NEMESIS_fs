@@ -36,9 +36,9 @@ Tre voxel (valori già centrati) e una componente con pesi (0,6; 0,0; 0,8):
 | 1 | 2 | −1 | 1 | 0,6·2 + 0,0·(−1) + 0,8·1 = **2,0** |
 | 2 | −1 | 3 | −2 | 0,6·(−1) + 0,0·3 + 0,8·(−2) = **−2,2** |
 
-- I pesi sono uguali nelle due righe: 
-  - cambiano i valori dei voxel, quindi cambia lo score.
-  - cambiando da componente a componente
+- I pesi sono gli stessi per tutti i soggetti:
+  - tra le due righe cambiano i valori dei voxel, quindi cambia lo score;
+  - i pesi cambiano solo passando da una componente all'altra.
 - Un peso nullo (voxel₂) esclude quel voxel dalla componente.
 - Il soggetto 1 ha lo score positivo e il soggetto 2 negativo: stanno ai due lati opposti della stessa componente.
 

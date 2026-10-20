@@ -156,6 +156,7 @@ Matrici del progetto:
 
 - È **lineare**: non trova strutture curve.
 - È sensibile ai **valori estremi**: pochi soggetti con valori enormi possono dominare una componente.
+- È **deterministico**: a parità di dati il risultato è lo stesso (il segno di ogni componente resta arbitrario, vedi "Equivalenze utili").
 - Le componenti sono **ortogonali per costruzione**: non è detto che corrispondano a processi distinti nei dati.
 
 ### Covarianza o correlazione
@@ -235,7 +236,7 @@ Non c'è formula chiusa (salvo con due componenti). Si itera:
 3. dalla sua SVD, G = U Σ Vᵀ, si pone R = U Vᵀ, la rotazione ortogonale più vicina al gradiente;
 4. si ripete fino a convergenza o fino al numero massimo di iterazioni (500 nel paper).
 
-Trova un massimo **locale**, non necessariamente globale.
+Trova un massimo **locale**, non necessariamente globale. Parte sempre da R = I, quindi a parità di dati il risultato è lo stesso (nessuna casualità).
 
 #### I punteggi dopo la rotazione
 

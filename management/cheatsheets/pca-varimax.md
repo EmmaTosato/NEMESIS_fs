@@ -11,7 +11,7 @@
 
 - **Lineare**, **deterministico** e **non supervisionato**, come la PCA da cui parte.
 - Dopo la rotazione le componenti **non sono più ordinate per varianza**.
-- Nel progetto: fino a 500 iterazioni, come in Thiebaut de Schotten et al. 2020.
+- Nel progetto il massimo di iterazioni è un parametro (`rotation_max_iter`), 500 come in Thiebaut de Schotten et al. 2020.
 - Per un clustering sulle componenti l'input consigliato sono i punteggi PCA non ruotati.
 
 ## Cosa restituisce
