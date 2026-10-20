@@ -2,6 +2,191 @@
 
 Vista d'insieme delle tornate di esperimenti: dalla matrice di partenza al clustering di produzione. Il dettaglio di ogni sessione sta nel suo file, elencato nel [README](README.md).
 
+## Seconda tornata — s1.4, s2.4
+
+Una matrice per schema. Ogni matrice parte una volta sola e si dirama dove le pipeline divergono.
+
+### s1.4-vol — lesione
+
+```mermaid
+flowchart LR
+    classDef pending stroke-dasharray: 5 5
+
+    subgraph COL0["Input matrix"]
+        direction TB
+        R14["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
+    end
+
+    subgraph COL1["Dim Red. — Tuning"]
+        direction TB
+        T14["07-10<hr/><b>UMAP</b><br/>dice/euclidean<br/>nc2/nc3/nc10"]
+        N14T["no dim reduction"]
+    end
+
+    subgraph COL2["Dim Red. — Prod."]
+        direction TB
+        P14["08-10<hr/><b>UMAP</b><br/>dice/euclidean<br/>nc2/nc3/nc10<hr/>12-10<br/><b>UMAP</b><br/>dice nc2<br/>n_neighbors 50<br/>(gemello 2D di nc10,<br/>solo per la vista)"]
+        N14P["no dim reduction"]
+    end
+
+    subgraph COL3["Clustering — Tuning"]
+        direction TB
+        CT14["08-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<br/>agglomerative, HDBSCAN"]
+        CT14S["15-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
+        CT14R["08-10<hr/>raw dice/euclidean<br/>221955 voxel<br/>ADP"]
+    end
+
+    subgraph COL4["Clustering — Prod."]
+        direction TB
+        CP14["12-10<hr/>UMAP dice/euclidean<br/>nc2/nc10<br/>agglomerative ward: 23 run<br/>HDBSCAN: 40 run<br/>(67 run)"]
+        CP14S["15-10<hr/>UMAP dice/euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 12 run"]
+        CP14R["12-10<hr/>raw dice<br/>221955 voxel<br/>ADP Z 2.5-4.0<br/>(4 run)"]
+    end
+
+    R14 --> T14 --> P14
+    P14 --> CT14 --> CP14
+    P14 --> CT14S --> CP14S
+    R14 --> N14T --> N14P --> CT14R --> CP14R
+```
+
+### s2.4-vol — SDC voxelwise
+
+Matrice **del 16-10**, ricostruita con i voxel fuori dal brain azzerati (227235 colonne). Manca una run in produzione: `hdbscan_soft` nc10, `min_cluster_size=100`, `min_samples=20`, `eom`.
+
+```mermaid
+flowchart LR
+    classDef pending stroke-dasharray: 5 5
+
+    subgraph COL0["Input matrix"]
+        direction TB
+        R24["s2.4-vol<br/>sdc_matrix<br/>16-10<br/>5845 subj.<br/>227235 colonne"]
+    end
+
+    subgraph COL1["Dim Red. — Tuning"]
+        direction TB
+        T24["16-10<hr/><b>UMAP</b><br/>euclidean<br/>nc2/nc3/nc10"]
+        T24P["16-10<hr/><b>PCA</b><br/>none/varimax<br/>2-150 componenti"]
+        N24T["no dim reduction"]
+    end
+
+    subgraph COL2["Dim Red. — Prod."]
+        direction TB
+        P24["16-10<hr/><b>UMAP</b><br/>euclidean<br/>nc2/nc3/nc10"]
+        P24P["16-10 / 17-10<hr/><b>PCA</b><br/>non ruotata<br/>nc42, nc30<hr/>18-10<br/><b>PCA</b><br/>nc12, nc2<br/>(solo per la vista)"]
+        N24P["no dim reduction"]
+    end
+
+    subgraph COL3["Clustering — Tuning"]
+        direction TB
+        CT24["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>agglomerative, HDBSCAN"]
+        CT24S["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
+        CT24P["17-10<hr/>PCA nc42, nc30<br/>agglomerative, HDBSCAN<hr/>18-10<br/>PCA nc2, nc12<br/>agglomerative, HDBSCAN<hr/>19-10<br/>PCA nc2/nc12/nc30/nc42<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
+        CT24R["16-10<hr/>raw dice/euclidean<br/>227235 voxel<br/>ADP"]
+    end
+
+    subgraph COL4["Clustering — Prod."]
+        direction TB
+        CP24["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>agglomerative: 14 run<br/>HDBSCAN: 7 run<br/>(21 run)"]
+        CP24S["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 4 run su 5"]
+        CP24P["18-10 / 19-10<hr/>PCA nc42, nc30, nc12, nc2<br/>agglomerative<br/>ward k=3: 4 run<br/>HDBSCAN: 20 run<br/>HDBSCAN soft: 20 run<br/>(44 run)"]
+        CP24R["16-10<hr/>raw dice<br/>227235 voxel<br/>ADP Z 2.0-3.5<br/>(4 run)"]
+    end
+
+    R24 --> T24 --> P24
+    P24 --> CT24 --> CP24
+    P24 --> CT24S --> CP24S
+    R24 --> T24P --> P24P --> CT24P --> CP24P
+    R24 --> N24T --> N24P --> CT24R --> CP24R
+```
+
+### s2.4-stream — SDC per tratto
+
+Per tratto (87), non toccata dalla correzione dei voxel fuori dal brain.
+
+```mermaid
+flowchart LR
+    classDef pending stroke-dasharray: 5 5
+
+    subgraph COL0["Input matrix"]
+        direction TB
+        R25["s2.4-stream<br/>sdc_matrix<br/>07-10<br/>5831 subj.<br/>87 tratti"]
+    end
+
+    subgraph COL1["Dim Red. — Tuning"]
+        direction TB
+        N25T["no dim reduction"]
+    end
+
+    subgraph COL2["Dim Red. — Prod."]
+        direction TB
+        P25["14-10<hr/><b>UMAP</b><br/>euclidean nc2<br/>(solo per la vista)"]
+        N25P["no dim reduction"]
+    end
+
+    subgraph COL3["Clustering — Tuning"]
+        direction TB
+        CT25["09-10<hr/>raw<br/>87 tratti<br/>agglomerative, HDBSCAN"]
+        CT25R["08-10<hr/>raw dice/euclidean<br/>87 tratti<br/>ADP"]
+        CT25S["15-10<hr/>raw<br/>87 tratti<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
+    end
+
+    subgraph COL4["Clustering — Prod."]
+        direction TB
+        CP25["14-10<hr/>raw<br/>87 tratti<br/>agglomerative<br/>average/cosine: 7 run<br/>HDBSCAN: 6 run<br/>(13 run)"]
+        CP25R["14-10<hr/>raw dice<br/>87 tratti<br/>ADP Z 2.5-6.0<br/>(6 run)"]
+        CP25S["nessuna combinazione usabile"]:::pending
+    end
+
+    R25 --> N25T --> P25 --> CT25 --> CP25
+    N25T --> N25P --> CT25R --> CP25R
+    N25P --> CT25S -.-> CP25S
+```
+
+## s2.4-vol del 07-10 — storico
+
+Matrice **vecchia**, senza `correct_out_of_brain`: 291345 colonne, 64110 delle quali fuori dalla maschera cerebrale. La ricostruisce la s2.4-vol del 16-10 (sopra). I risultati stanno in `results/legacy/sdc_s2.4-vol_07-10/`.
+
+```mermaid
+flowchart LR
+    classDef pending stroke-dasharray: 5 5
+
+    subgraph COL0["Input matrix"]
+        direction TB
+        R24["s2.4-vol<br/>sdc_matrix<br/>07-10<br/>5845 subj.<br/>291345 colonne"]
+    end
+
+    subgraph COL1["Dim Red. — Tuning"]
+        direction TB
+        T24["07-10<hr/><b>UMAP</b><br/>euclidean<br/>nc2/nc3/nc10"]
+        N24T["no dim reduction"]
+    end
+
+    subgraph COL2["Dim Red. — Prod."]
+        direction TB
+        P24["08-10<hr/><b>UMAP</b><br/>euclidean<br/>nc2/nc3/nc10"]
+        N24P["no dim reduction"]
+    end
+
+    subgraph COL3["Clustering — Tuning"]
+        direction TB
+        CT24["09-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>agglomerative, HDBSCAN"]
+        CT24S["15-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
+        CT24R["08-10<hr/>raw dice/euclidean<br/>291345 voxel<br/>ADP"]
+    end
+
+    subgraph COL4["Clustering — Prod."]
+        direction TB
+        CP24["12-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>agglomerative: 14 run<br/>HDBSCAN: 7 run<br/>(21 run)"]
+        CP24S["15-10 / 16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 5 run"]
+        CP24R["12-10<hr/>raw dice<br/>291345 voxel<br/>ADP Z 2.0-3.5<br/>(4 run)"]
+    end
+
+    R24 --> T24 --> P24
+    P24 --> CT24 --> CP24
+    P24 --> CT24S --> CP24S
+    R24 --> N24T --> N24P --> CT24R --> CP24R
+```
+
 ## Prima tornata — s1.1, s1.2, s2.1, s2.2
 
 ```mermaid
@@ -18,23 +203,23 @@ flowchart LR
         R23["s2.3-stream<br/>sdc_matrix<br/>87 tratti<br/>non ancora costruita"]:::pending
     end
 
-    subgraph COL1["Dim Reduction — Tuning"]
+    subgraph COL1["Dim Red. — Tuning"]
         direction TB
-        T11["03/04-08 + 13-08<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<hr/>t-SNE dice/euclidean<br/>nc2"]
-        T12["26-08<hr/>UMAP dice/euclidean<br/>nc2/nc3<hr/>t-SNE dice/euclidean<br/>nc2"]
+        T11["03/04-08 + 13-08<hr/><b>UMAP</b><br/>dice/euclidean<br/>nc2/nc3/nc10<hr/><b>t-SNE</b><br/>dice/euclidean<br/>nc2"]
+        T12["26-08<hr/><b>UMAP</b><br/>dice/euclidean<br/>nc2/nc3<hr/><b>t-SNE</b><br/>dice/euclidean<br/>nc2"]
         T12R["no dim reduction"]
-        T21["28-08<hr/>UMAP euclidean<br/>nc2/nc3<hr/>t-SNE euclidean<br/>nc2"]
-        T22["07-09<hr/>UMAP euclidean<br/>nc2/nc3<hr/>t-SNE euclidean<br/>nc2"]
+        T21["28-08<hr/><b>UMAP</b><br/>euclidean<br/>nc2/nc3<hr/><b>t-SNE</b><br/>euclidean<br/>nc2"]
+        T22["07-09<hr/><b>UMAP</b><br/>euclidean<br/>nc2/nc3<hr/><b>t-SNE</b><br/>euclidean<br/>nc2"]
         T23["no dim reduction"]
     end
 
-    subgraph COL2["Dim Reduction — Production"]
+    subgraph COL2["Dim Red. — Prod."]
         direction TB
-        P11["11-08<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<hr/>t-SNE dice/euclidean<br/>nc2"]
-        P12["28-08<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<hr/>t-SNE dice/euclidean<br/>nc2"]
+        P11["11-08<hr/><b>UMAP</b><br/>dice/euclidean<br/>nc2/nc3/nc10<hr/><b>t-SNE</b><br/>dice/euclidean<br/>nc2"]
+        P12["28-08<hr/><b>UMAP</b><br/>dice/euclidean<br/>nc2/nc3/nc10<hr/><b>t-SNE</b><br/>dice/euclidean<br/>nc2"]
         P12R["no dim reduction"]
-        P21["31-08<hr/>UMAP euclidean<br/>nc2/nc3<hr/>t-SNE euclidean<br/>nc2"]
-        P22["07-09<hr/>UMAP euclidean<br/>nc2/nc3<hr/>t-SNE euclidean<br/>nc2"]
+        P21["31-08<hr/><b>UMAP</b><br/>euclidean<br/>nc2/nc3<hr/><b>t-SNE</b><br/>euclidean<br/>nc2"]
+        P22["07-09<hr/><b>UMAP</b><br/>euclidean<br/>nc2/nc3<hr/><b>t-SNE</b><br/>euclidean<br/>nc2"]
         P23["no dim reduction"]
     end
 
@@ -48,7 +233,7 @@ flowchart LR
         CT23["non ancora lanciata<hr/>raw<br/>87 tratti"]:::pending
     end
 
-    subgraph COL4["Clustering — Production"]
+    subgraph COL4["Clustering — Prod."]
         direction TB
         CP11["01-09<hr/>UMAP euclidean nc2<br/>6 opzioni k"]
         CP12["03-09<hr/>UMAP euclidean nc2<br/>6 opzioni k"]
@@ -67,95 +252,3 @@ flowchart LR
 ```
 
 Dove il metodo di clustering non è indicato: k-means, agglomerative, gmm, hdbscan, spectral.
-
-## Seconda tornata — s1.4, s2.4
-
-La lesione (s1.4-vol, 07-10) e le due SDC: s2.4-vol **del 16-10**, ricostruita con i voxel fuori dal brain azzerati (227235 colonne), e s2.4-stream (07-10, per tratto, non toccata dalla correzione). Le run di s2.4-vol del 16-10 usano gli stessi parametri del 12 e del 14 ottobre (la PCA si fa altrove). Le run di s2.4-vol del 16-10 sono: tuning UMAP 90 combinazioni (16-10), produzione UMAP nc2/nc3/nc10, tuning di agglomerative, HDBSCAN e `hdbscan_soft` su ogni embedding e ADP sulla matrice grezza (16-10), e in produzione 29 run su 30: agglomerative 14 e HDBSCAN 7 (21 run sull'embedding), `hdbscan_soft` 4 su 5, ADP 4. Manca una run: la `hdbscan_soft` nc10 con `min_cluster_size=100`, `min_samples=20`, `eom`. Il nome della cartella `16-10_s2.4-vol_m_euclidean_nc10_mcs100_ms20_sel_eom` coincide con quello di una run sulla matrice del 07-10 (input `08-10_s2.4-vol_m_euclidean_nc10`) fatta dopo mezzanotte del 16-10, che non va attribuita alla matrice nuova (ora in `results/legacy/`, la run sul 16-10 resta da fare).
-
-```mermaid
-flowchart LR
-    classDef pending stroke-dasharray: 5 5
-
-    subgraph COL0["Input matrix"]
-        direction TB
-        R14["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
-        R24["s2.4-vol<br/>sdc_matrix<br/>16-10<br/>5845 subj.<br/>227235 colonne"]
-        R25["s2.4-stream<br/>sdc_matrix<br/>07-10<br/>5831 subj.<br/>87 tratti"]
-        R14R["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
-        R24R["s2.4-vol<br/>sdc_matrix<br/>16-10<br/>5845 subj."]
-        R25R["s2.4-stream<br/>sdc_matrix<br/>07-10<br/>5831 subj."]
-        R14S["s1.4-vol<br/>lesion_matrix<br/>07-10<br/>5845 subj."]
-        R24S["s2.4-vol<br/>sdc_matrix<br/>16-10<br/>5845 subj."]
-        R25S["s2.4-stream<br/>sdc_matrix<br/>07-10<br/>5831 subj."]
-        R24P["s2.4-vol<br/>sdc_matrix<br/>16-10<br/>5845 subj."]
-    end
-
-    subgraph COL1["Dim Reduction — Tuning"]
-        direction TB
-        T14["07-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10"]
-        T24["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
-        T25["no dim reduction"]
-        T14R["no dim reduction"]
-        T24R["no dim reduction"]
-        T25R["no dim reduction"]
-        T14S["07-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10"]
-        T24S["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
-        T25S["no dim reduction"]
-        T24P["16-10<hr/>PCA none/varimax<br/>2-150 componenti"]
-    end
-
-    subgraph COL2["Dim Reduction — Production"]
-        direction TB
-        P14["08-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<hr/>12-10<br/>UMAP dice nc2<br/>n_neighbors 50<br/>(gemello 2D di nc10,<br/>solo per la vista)"]
-        P24["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
-        P25["14-10<hr/>UMAP euclidean nc2<br/>(solo per la vista)"]
-        P14R["no dim reduction"]
-        P24R["no dim reduction"]
-        P25R["no dim reduction"]
-        P14S["08-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10"]
-        P24S["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10"]
-        P25S["no dim reduction"]
-        P24P["16-10 / 17-10<hr/>PCA non ruotata<br/>nc42, nc30<hr/>18-10<br/>PCA nc12<br/>PCA nc2<br/>(solo per la vista)"]
-    end
-
-    subgraph COL3["Clustering — Tuning"]
-        direction TB
-        CT14["08-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<br/>agglomerative, HDBSCAN"]
-        CT24["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>agglomerative, HDBSCAN"]
-        CT25["09-10<hr/>raw<br/>87 tratti<br/>agglomerative, HDBSCAN"]
-        CT14R["08-10<hr/>raw dice/euclidean<br/>221955 voxel<br/>ADP"]
-        CT24R["16-10<hr/>raw dice/euclidean<br/>227235 voxel<br/>ADP"]
-        CT25R["08-10<hr/>raw dice/euclidean<br/>87 tratti<br/>ADP"]
-        CT14S["15-10<hr/>UMAP dice/euclidean<br/>nc2/nc3/nc10<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
-        CT24S["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
-        CT25S["15-10<hr/>raw<br/>87 tratti<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
-        CT24P["17-10<hr/>PCA nc42, nc30<br/>agglomerative, HDBSCAN<hr/>18-10<br/>PCA nc2, nc12<br/>agglomerative, HDBSCAN<hr/>19-10<br/>PCA nc2/nc12/nc30/nc42<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
-    end
-
-    subgraph COL4["Clustering — Production"]
-        direction TB
-        CP14["12-10<hr/>UMAP dice/euclidean<br/>nc2/nc10<br/>agglomerative ward: 23 run<br/>HDBSCAN: 40 run<br/>(67 run)"]
-        CP24["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>agglomerative: 14 run<br/>HDBSCAN: 7 run<br/>(21 run)"]
-        CP25["14-10<hr/>raw<br/>87 tratti<br/>agglomerative average/cosine: 7 run<br/>HDBSCAN: 6 run<br/>(13 run)"]
-        CP14R["12-10<hr/>raw dice<br/>221955 voxel<br/>ADP Z 2.5-4.0<br/>(4 run)"]
-        CP24R["16-10<hr/>raw dice<br/>227235 voxel<br/>ADP Z 2.0-3.5<br/>(4 run)"]
-        CP25R["14-10<hr/>raw dice<br/>87 tratti<br/>ADP Z 2.5-6.0<br/>(6 run)"]
-        CP14S["15-10<hr/>UMAP dice/euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 12 run"]
-        CP24S["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 4 run su 5"]
-        CP25S["nessuna combinazione usabile"]:::pending
-        CP24P["18-10 / 19-10<hr/>PCA nc42, nc30, nc12, nc2<br/>agglomerative ward k=3: 4 run<br/>HDBSCAN: 20 run<br/>HDBSCAN soft: 20 run<br/>(44 run)"]
-    end
-
-    R14 --> T14 --> P14 --> CT14 --> CP14
-    R24 --> T24 --> P24 --> CT24 --> CP24
-    R25 --> T25 --> P25 --> CT25 --> CP25
-    R14R --> T14R --> P14R --> CT14R --> CP14R
-    R24R --> T24R --> P24R --> CT24R --> CP24R
-    R25R --> T25R --> P25R --> CT25R --> CP25R
-    R14S --> T14S --> P14S --> CT14S --> CP14S
-    R24S --> T24S --> P24S --> CT24S --> CP24S
-    R25S --> T25S --> P25S --> CT25S -.-> CP25S
-    R24P --> T24P --> P24P --> CT24P --> CP24P
-```
-
-Ogni matrice compare tre volte: il ramo principale (UMAP, poi agglomerative e HDBSCAN), il ramo ADP sulla matrice grezza, e il ramo `hdbscan_soft`. s2.4-vol del 16-10 compare una quarta volta, con il ramo PCA.
