@@ -79,14 +79,15 @@ Decisione dell'utente (21-10-26): **non** rilanciare `mask_fc.py` per ora. Non �
 
 ## 🟡 Lavori da fare
 
-### Il tuning del clustering arriverà alla stessa struttura del tuning di dim reduction
+### Tuning del clustering: cosa resta dopo il registro delle valutazioni
 
-Il tuning di `dim_reduction` dichiara le valutazioni che applica in `tuning_evaluations` (registro in `src/analysis/tuning_evaluations.py`, una voce per meccanismo) e le valutazioni sugli embedding si rilanciano su un tuning già salvato, senza rifare lo sweep (`evaluate_tuning_embeddings`, `docs/guides/evaluate_tuning_embeddings.md`). Per il clustering non c'è ancora l'equivalente:
+Fatto (21-10-26): blocco `tuning_evaluations` nel config, registro in `src/analysis/clustering_tuning_evaluations.py`, parametri in `config/registry/clustering_evaluations.json`, stessa funzione nello sweep e in `analyze_clustering_tuning` (`.claude/history/project_changelog.md`). Resta:
 
-- le metriche dello sweep (Silhouette, Calinski-Harabasz, Davies-Bouldin, `inertia`, `bic`/`aic`, `noise_fraction`) sono calcolate dentro `run_clustering_tuning_sweep` e non sono dichiarate in nessuna config;
-- la cophenetic correlation (`src/analysis/clustering_tuning.py`) si lancia solo a mano dal notebook `clustering_tuning_explorer.ipynb`, su una run già prodotta. ICL, gap statistic e self-tuning eigengap sono nello stesso modulo ma non hanno più una sezione nel notebook (GMM, KMeans e spectral ne sono stati tolti: si recuperano da `46c3123`).
-
-Da fare: un blocco analogo nella config di `clustering`, un registro con una voce per criterio, e un entry point che li rilancia su un tuning salvato (etichette in `clusterings.npz` con `save_tuning_clusterings: true`, matrice in `matrix.npy`; lo spectral con `affinity` sweepata non salva le etichette, va rifittato). I plot per metodo e parametro vanno nelle cartelle del tuning, come per `plot_hdbscan`.
+- decidere quali metriche entrano nel registro e con quali soglie (Dunn, silhouette per cluster, quota del cluster più grande per agglomerative, membership e persistence di `hdbscan_soft` come valutazioni dichiarate: oggi sono colonne dello sweep o assenti);
+- il report come prodotto del notebook `clustering_tuning_explorer`, per metodo e riduzione, con le spiegazioni che arrivano da `docs/` e `knowledge/`; oggi `report.md` lo scrive ancora `analyze_clustering_tuning` (`write_report`);
+- il notebook speculare ai file prodotti, e le immagini riplottate in alta qualità (le figure sono salvate a 150 dpi);
+- la produzione e Dash con le stesse funzioni e soglie; `clustering_evaluation.ipynb` verso `pipeline_building`;
+- ICL, gap statistic e self-tuning eigengap sono nello stesso modulo di `clustering_tuning.py` ma senza una valutazione nel registro (si recuperano da `46c3123`).
 
 ### Modello nullo per la silhouette dei report di tuning del clustering
 

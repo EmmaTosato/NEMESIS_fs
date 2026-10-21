@@ -6,6 +6,16 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 21-10-26 — Le valutazioni del tuning del clustering si dichiarano nel config, con parametri in un registro unico
+
+**Cosa è cambiato**: `clustering.json` e `analyze_clustering_tuning.json` hanno un blocco `tuning_evaluations` con la chiave `general` e una per metodo (liste di nomi). Le valutazioni stanno in un registro (`src/analysis/clustering_tuning_evaluations.py`: `k_curves`, `cophenetic_correlation`, `dendrogram_jump`, `linkage_agreement`, `density_metrics`, `noise_filtered_curves`) e girano con una sola funzione, `run_evaluations`: subito dopo lo sweep (da `clustering.py`) e in un secondo momento (da `analyze_clustering_tuning`). `k_range` e `curves_max_noise_fraction` sono usciti dal config di analisi e stanno in `config/registry/clustering_evaluations.json`, per nome di valutazione. `report.md` non calcola più niente: legge dalla cartella i file delle valutazioni (flag `write_report`). Commit `93450bb`, `abbd5f6`.
+
+**Perché**: le metriche si calcolavano in tre momenti diversi (sweep, analisi, notebook) con soglie duplicate. Una funzione, un posto per ogni soglia.
+
+**Scartato**: parametri nel config della pipeline come `plot_hdbscan` di dim_reduction (produzione e Dash non li vedrebbero, le soglie si duplicherebbero); lista piatta di nomi filtrata dal registro (meno esplicita su cosa gira per ogni metodo).
+
+**Conseguenza attuale**: un blocco senza la chiave `general`, o senza la chiave di un metodo con `fine_tuning: true`, è rifiutato. Le valutazioni non vuote richiedono `save_tuning_clusterings: true`. Il notebook `clustering_tuning_explorer` e le metriche di produzione non usano ancora il registro.
+
 ## 21-10-26 — Note sui metodi divise per metodo: `dim_reduction_methods/` e `clustering_methods/`
 
 **Cosa è cambiato**: in `knowledge/notes/dim_reduction_clustering/` sono nate due cartelle con una nota per metodo, fonti in coda a ogni nota:

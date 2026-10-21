@@ -33,7 +33,7 @@ Le pipeline dipendono l'una dall'altra in due modi diversi.
 | `dim_reduction` | una matrice |
 | `clustering` | una matrice, oppure un run di `dim_reduction` |
 | `evaluate_tuning_embeddings` | un tuning di `dim_reduction` salvato con `save_tuning_embeddings: true` (non legge la matrice né i metadati) |
-| `analyze_clustering_tuning` | un tuning di `clustering` salvato con `save_tuning_clusterings: true`; per agglomerative anche la matrice di `input_path` |
+| `analyze_clustering_tuning` | un tuning di `clustering` salvato con `save_tuning_clusterings: true`; le valutazioni elencate in `tuning_evaluations` (per agglomerative cophenetic e salto leggono anche la matrice di `input_path`); `report.md` legge dalla cartella i file di quelle valutazioni |
 
 - Il registro serve alle matrici anche quando le maschere si cercano su disco: `load_excluded_subjects` valida l'intero file delle esclusioni contro il registro.
 - `compute_lesion_metadata` non legge il registro; `compute_sdc_metadata` sì, per sapere chi ha `has_sdc`.

@@ -32,8 +32,11 @@ Una cartella di tuning scritta da `clustering.py` con `fine_tuning: true` e `sav
 | :--- | :--- | :--- |
 | **`tuning_dir`** | *Stringa* | La cartella della run, es. `results/lesion/clustering/tuning/agglomerative/umap/08-10_s1.4-vol_m_dice_nc2`. Il metodo si legge dal suo `config.md`. |
 | **`overwrite`** | *Booleano* | Se `false`, lo script si ferma se uno dei suoi file esiste già; se `true`, li sostituisce. |
-| **`k_range`** | *Oggetto* | `min` e `max` (interi, `min` ≥ 2): i k per cui si calcola il salto del dendrogramma (agglomerative). |
-| **`curves_max_noise_fraction`** | *Numero in (0, 1]* | Le curve di HDBSCAN tengono solo le combinazioni con `noise_fraction` fino a questo valore. |
+| **`evaluations_file`** | *Stringa* | Il file con i parametri delle valutazioni (di norma `config/registry/clustering_evaluations.json`): l'intervallo di k del salto del dendrogramma (`dendrogram_jump.k_range`) e il limite di rumore delle curve di HDBSCAN (`noise_filtered_curves.max_noise_fraction`, una scelta nostra). È lo stesso file che legge lo sweep di `clustering.py`. |
+| **`tuning_evaluations`** | *Oggetto* | Quali valutazioni girano, con la stessa forma del blocco di `clustering.json`: `"general"` e una chiave per metodo, ciascuna una lista di nomi. Serve la chiave del metodo della run (lista vuota se nessuna). Nomi: `k_curves`, `cophenetic_correlation`, `dendrogram_jump`, `linkage_agreement` (agglomerative); `density_metrics`, `noise_filtered_curves` (hdbscan, hdbscan_soft). |
+| **`write_report`** | *Booleano* | Se `true` scrive anche `report.md`. Il report legge dalla cartella i file delle valutazioni: se ne manca uno che gli serve (`cophenetic_correlation.csv`, `linkage_agreement.csv`, `dendrogram_jump.csv` per agglomerative; `density_metrics.csv` per HDBSCAN) lo script si ferma dicendo quale. |
+
+Le stesse valutazioni girano anche alla fine di uno sweep, se `clustering.json` le elenca in `tuning_evaluations`: stessa funzione, stessi parametri, stessi file.
 
 ## Output
 
