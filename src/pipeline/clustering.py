@@ -64,7 +64,8 @@ Two modes, chosen by `fine_tuning`, same convention as dim_reduction.py:
   The evaluations declared in config.tuning_evaluations (src/analysis/clustering_tuning_evaluations.py: cophenetic
   correlation, dendrogram jump, ... per method) run right after the sweep on those stored labels - the same
   function src/pipeline/analyze_clustering_tuning.py runs later on the folder - and write their files next to
-  tuning_results.csv.
+  tuning_results.csv. With config.write_report, report.md (src/analysis/clustering_tuning_report.py) is written
+  from those files.
 
 Output lives under two separate branches of output_root, never mixed:
 <output_root>/production/<method>/ (production, runs.csv) and
@@ -115,6 +116,7 @@ from src.analysis.clustering_tuning import (
 )
 from src.analysis.clustering_tuning_analysis import load_clustering_tuning_run
 from src.analysis.clustering_tuning_evaluations import evaluations_for, load_evaluation_settings, run_evaluations
+from src.analysis.clustering_tuning_report import write_report
 from src.analysis.model_config import ClusteringConfig, load_clustering_config
 from src.analysis.params import (
     build_tag_from_values,
@@ -714,6 +716,14 @@ def _run_one_method_tuning(
             return False
         logging.info("[%s] tuning evaluations written: %s", method, [path.name for path in written])
 
+    if config.write_report:
+        try:
+            report_path = write_report(output_dir, overwrite=False)
+        except (FileExistsError, FileNotFoundError, OSError, ValueError) as exc:
+            logging.error("[%s] cannot write the report: %s", method, exc, exc_info=isinstance(exc, OSError))
+            return False
+        logging.info("[%s] report written to %s", method, report_path)
+
     if stability_config is not None:
         title = compose_clustering_tuning_title(output_dir, method)
         try:
@@ -859,6 +869,7 @@ def _write_tuning_output(
                 "save_tuning_clusterings": config.save_tuning_clusterings,
                 "evaluations_file": str(config.evaluations_file),
                 "tuning_evaluations": {key: list(names) for key, names in config.tuning_evaluations.items()},
+                "write_report": config.write_report,
                 "run_notes": config.run_notes,
                 # viz_embedding_path deliberately absent (unlike _config_summary's production
                 # payload) - never read during fine-tuning, main() returns via _run_fine_tuning

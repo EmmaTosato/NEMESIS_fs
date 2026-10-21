@@ -44,6 +44,7 @@ def _run_dim_reduction(tmp_path, monkeypatch, input_dir):
         "viz_n_components": 2,
         "save_tuning_embeddings": False,
         "tuning_evaluations": {},
+        "write_report": False,
         "precompute_distance_metric": True,
         "run_notes": None,
     }
@@ -71,6 +72,7 @@ def _run_clustering(tmp_path, monkeypatch, input_dir, reduction_params_path, *, 
         "save_tuning_clusterings": fine_tuning,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "agglomerative": []},
+        "write_report": False,
         "viz_embedding_path": None,
         "run_notes": None,
     }
@@ -173,6 +175,7 @@ def test_chain_stops_cleanly_when_an_upstream_artifact_is_missing(tmp_path, monk
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "agglomerative": []},
+        "write_report": False,
         "viz_embedding_path": None,
         "run_notes": None,
     }

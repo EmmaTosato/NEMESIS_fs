@@ -139,6 +139,7 @@ def test_clustering_end_to_end(tmp_path, monkeypatch, caplog):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "viz_embedding_path": str(viz_dir),
         "run_notes": None,
     }
@@ -198,6 +199,7 @@ def test_clustering_unrecognized_hyperparameter_returns_1_not_raw_traceback(tmp_
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "viz_embedding_path": None,
         "run_notes": None,
     }
@@ -248,6 +250,7 @@ def test_clustering_viz_embedding_path_wrong_n_components_raises(tmp_path, monke
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "viz_embedding_path": str(bad_viz_dir),
         "run_notes": None,
     }
@@ -283,6 +286,7 @@ def test_clustering_viz_embedding_path_mismatched_subjects_raises(tmp_path, monk
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "viz_embedding_path": str(viz_dir),
         "run_notes": None,
     }
@@ -317,6 +321,7 @@ def test_clustering_end_to_end_no_viz_embedding_skips_plots(tmp_path, monkeypatc
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -353,6 +358,7 @@ def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "agglomerative": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -387,6 +393,7 @@ def test_clustering_end_to_end_gmm(tmp_path, monkeypatch):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "gmm": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -423,6 +430,7 @@ def test_clustering_end_to_end_spectral(tmp_path, monkeypatch):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "spectral": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -457,6 +465,7 @@ def test_clustering_end_to_end_hdbscan_reports_noise_separately(tmp_path, monkey
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "hdbscan": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -505,6 +514,7 @@ def test_clustering_end_to_end_hdbscan_cluster_plot_sized_by_probabilities(tmp_p
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "hdbscan": []},
+        "write_report": False,
         "viz_embedding_path": str(viz_dir),
         "run_notes": None,
     }
@@ -548,6 +558,7 @@ def test_clustering_production_hdbscan_soft_saves_the_membership_matrix_and_own_
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "hdbscan_soft": []},
+        "write_report": False,
         "viz_embedding_path": str(viz_dir),
         "run_notes": None,
     }
@@ -598,6 +609,7 @@ def test_clustering_fine_tuning_hdbscan_min_samples_joint_sweep_writes_heatmap(t
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "hdbscan": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -646,6 +658,7 @@ def test_clustering_fine_tuning_hdbscan_soft_writes_one_heatmap_per_cluster_sele
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "hdbscan_soft": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -697,6 +710,7 @@ def test_clustering_end_to_end_multiple_methods_writes_each_method_independently
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": [], "agglomerative": []},
+        "write_report": False,
         "viz_embedding_path": str(viz_dir),
         "run_notes": None,
     }
@@ -746,6 +760,7 @@ def test_clustering_fine_tuning_kmeans_writes_sweep_with_inertia(tmp_path, monke
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "run_notes": "prova sweep n_clusters",
     }
     cfg_path = tmp_path / "cl.json"
@@ -808,6 +823,7 @@ def test_clustering_fine_tuning_save_tuning_clusterings_true_writes_clusterings_
         "save_tuning_clusterings": True,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -853,6 +869,7 @@ def test_clustering_fine_tuning_save_tuning_clusterings_false_skips_clusterings_
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -896,6 +913,7 @@ def test_clustering_fine_tuning_two_swept_params_writes_heatmap(tmp_path, monkey
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "agglomerative": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -939,6 +957,7 @@ def test_clustering_fine_tuning_overwrite_wipes_stale_plot_from_incompatible_pri
             "save_tuning_clusterings": False,
             "evaluations_file": "config/registry/clustering_evaluations.json",
             "tuning_evaluations": {"general": [], "kmeans": []},
+            "write_report": False,
             "run_notes": None,
         }
 
@@ -1014,6 +1033,7 @@ def test_clustering_fine_tuning_kmeans_with_consensus_writes_rsc_monti_columns(t
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "run_notes": "prova consensus/stability clustering",
     }
     cfg_path = tmp_path / "cl.json"
@@ -1077,6 +1097,7 @@ def test_clustering_fine_tuning_agglomerative_metric_aware_sweep_writes_new_diag
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "agglomerative": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1138,6 +1159,7 @@ def test_clustering_fine_tuning_kmeans_with_stability_writes_stability_output(tm
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1180,6 +1202,7 @@ def test_clustering_fine_tuning_gmm_writes_bic_aic(tmp_path, monkeypatch):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "gmm": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1228,6 +1251,7 @@ def test_clustering_fine_tuning_gmm_covariance_type_joint_sweep_writes_heatmap(t
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "gmm": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1279,6 +1303,7 @@ def test_clustering_fine_tuning_gmm_with_stability_writes_stability_output(tmp_p
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "gmm": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1321,6 +1346,7 @@ def test_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkey
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "agglomerative": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1365,6 +1391,7 @@ def test_clustering_fine_tuning_spectral_writes_eigengap(tmp_path, monkeypatch):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "spectral": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1418,6 +1445,7 @@ def test_clustering_fine_tuning_spectral_affinity_aware_sweep_writes_combined_pl
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "spectral": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1470,6 +1498,7 @@ def test_clustering_fine_tuning_spectral_affinity_aware_sweep_rejects_save_tunin
         "save_tuning_clusterings": True,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "spectral": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1502,6 +1531,7 @@ def test_clustering_fine_tuning_hdbscan_writes_noise_fraction(tmp_path, monkeypa
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "hdbscan": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1555,6 +1585,7 @@ def test_clustering_fine_tuning_multiple_methods_stops_on_first_failure(tmp_path
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": [], "agglomerative": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1605,6 +1636,7 @@ def test_clustering_fine_tuning_sweep_value_error_is_caught_not_propagated(tmp_p
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl_valueerror.json"
@@ -1648,6 +1680,7 @@ def test_clustering_viz_embedding_matching_reduction_run_succeeds(tmp_path, monk
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "viz_embedding_path": str(viz_dir),
         "run_notes": None,
     }
@@ -1689,6 +1722,7 @@ def test_clustering_production_output_dir_includes_auto_derived_embedding_tag(tm
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl_autotag.json"
@@ -1730,6 +1764,7 @@ def test_clustering_tuning_output_dir_includes_auto_derived_embedding_tag(tmp_pa
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl_tune_autotag.json"
@@ -1771,6 +1806,7 @@ def test_clustering_reduced_data_logs_reduction_columns(tmp_path, monkeypatch):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1825,6 +1861,7 @@ def test_clustering_gmm_reduction_n_components_does_not_collide_with_gmm_own_n_c
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "gmm": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1863,6 +1900,7 @@ def test_clustering_raw_data_leaves_reduction_columns_blank(tmp_path, monkeypatc
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "run_notes": None,
     }
     cfg_path = tmp_path / "cl.json"
@@ -1911,6 +1949,7 @@ def test_clustering_viz_embedding_different_reduction_method_raises(tmp_path, mo
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "viz_embedding_path": str(viz_dir),
         "run_notes": None,
     }
@@ -1955,6 +1994,7 @@ def test_clustering_viz_embedding_mismatched_param_raises(tmp_path, monkeypatch,
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
         "viz_embedding_path": str(viz_dir),
         "run_notes": None,
     }
@@ -2018,6 +2058,7 @@ def _adp_config(tmp_path, input_dir, viz_dir, output_root, fine_tuning, session_
         "save_tuning_clusterings": save_tuning_clusterings,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "adp": []},
+        "write_report": False,
         "viz_embedding_path": str(viz_dir),
         "run_notes": None,
     }

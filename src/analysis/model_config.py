@@ -17,6 +17,7 @@ from pathlib import Path
 
 from src.analysis import clustering_tuning_evaluations as clustering_evaluations
 from src.analysis.clustering import CLUSTERING_METHODS
+from src.analysis.clustering_tuning_report import require_report_evaluations
 from src.analysis.reduction import REDUCTION_METHODS
 from src.analysis.tuning_evaluations import KIND_EMBEDDING_EVALUATION, validate_tuning_evaluations_block
 
@@ -76,6 +77,7 @@ class ClusteringConfig:
     save_tuning_clusterings: bool
     evaluations_file: Path
     tuning_evaluations: dict[str, tuple[str, ...]]
+    write_report: bool
     run_notes: str | None
 
 
@@ -179,7 +181,10 @@ def load_clustering_config(path: str | Path) -> ClusteringConfig:
 
     save_tuning_clusterings = _require_bool(raw, "save_tuning_clusterings")
     tuning_evaluations = _require_clustering_tuning_evaluations(raw)
+    write_report = _require_bool(raw, "write_report")
     if fine_tuning:
+        if write_report:
+            require_report_evaluations(tuning_evaluations, clustering_methods)
         clustering_evaluations.require_methods_declared(tuning_evaluations, clustering_methods)
         if any(tuning_evaluations[key] for key in tuning_evaluations) and not save_tuning_clusterings:
             raise ValueError(
@@ -216,6 +221,8 @@ def load_clustering_config(path: str | Path) -> ClusteringConfig:
         # which of them run for each method.
         evaluations_file=Path(_require_str(raw, "evaluations_file")),
         tuning_evaluations=tuning_evaluations,
+        # Whether a fine-tuning run also writes report.md (read only by fine_tuning=true, like the block above).
+        write_report=write_report,
         run_notes=run_notes,
     )
 

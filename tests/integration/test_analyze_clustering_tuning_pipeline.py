@@ -38,7 +38,7 @@ def _evaluations_file(tmp_path):
     return path
 
 
-def _run_tuning(tmp_path, monkeypatch, method, entry, evaluations=()):
+def _run_tuning(tmp_path, monkeypatch, method, entry, evaluations=(), write_report=False):
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
     params_path = tmp_path / f"params_{method}.json"
     params_path.write_text(json.dumps({method: entry}))
@@ -57,6 +57,7 @@ def _run_tuning(tmp_path, monkeypatch, method, entry, evaluations=()):
         "save_tuning_clusterings": True,
         "evaluations_file": str(_evaluations_file(tmp_path)),
         "tuning_evaluations": {"general": [], method: list(evaluations)},
+        "write_report": write_report,
         "run_notes": None,
     }
     config_path = tmp_path / "cl.json"
@@ -222,3 +223,14 @@ def test_without_a_report_only_the_listed_evaluations_run(tmp_path, monkeypatch)
 
     assert (tuning_dir / "density_metrics.csv").is_file()
     assert not (tuning_dir / "noise_filtered_curves.png").exists() and not (tuning_dir / "report.md").exists()
+
+
+def test_a_sweep_with_write_report_writes_the_report_a_later_analysis_writes(tmp_path, monkeypatch):
+    entry = {"params": {"min_cluster_size": 10, "min_samples": 5}, "tuning_grid": {"min_cluster_size": [10, 15], "min_samples": [3, 5]}}
+    tuning_dir = _run_tuning(tmp_path, monkeypatch, "hdbscan", entry, evaluations=EVALUATIONS_BY_METHOD["hdbscan"], write_report=True)
+    by_the_sweep = (tuning_dir / "report.md").read_bytes()
+    assert b"## min_samples = 3" in by_the_sweep
+
+    assert _analyze(tmp_path, monkeypatch, tuning_dir, overwrite=True) == 0
+
+    assert (tuning_dir / "report.md").read_bytes() == by_the_sweep

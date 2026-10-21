@@ -34,5 +34,6 @@
       "noise_filtered_curves"
     ]
   },
+  "write_report": true,
   "run_notes": "clustering tuning on the varimax PCA scores of 16-10 s2.4-vol (5845 subjects, SDC voxelwise, voxels outside the brain zeroed): covariance PCA, varimax on 150 components, the 12 rotated ones that explain the most variance kept (69.4% of the variance); agglomerative, hdbscan and hdbscan_soft, same grids as the unrotated PCA tunings"
 }

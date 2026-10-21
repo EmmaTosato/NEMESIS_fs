@@ -1,0 +1,546 @@
+"""The report of a stored clustering tuning run (report.md): its tables and figures as markdown.
+
+Computes nothing. It reads what the evaluations of src/analysis/clustering_tuning_evaluations.py wrote in the run
+folder (cophenetic_correlation.csv, dendrogram_jump.csv, linkage_agreement.csv, density_metrics.csv, the figures) and
+tuning_results.csv, and lays them out with the explanation of each index: what it measures, how to read it, what it
+does not say. Called by the sweep (src/pipeline/clustering.py) and by src/pipeline/analyze_clustering_tuning.py, so the
+report is the same either way.
+
+Nothing here classifies a combination as good, usable or stable with a threshold of ours: the outputs are measurements,
+and the only bands are the silhouette ones of a published convention (SILHOUETTE_BANDS), labelled as such.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+from src.analysis.clustering_tuning_analysis import (
+    ADP,
+    AGGLOMERATIVE,
+    CONVENTION_LINES,
+    DENSITY_METHODS,
+    LINKAGE_ORDER,
+    METRIC_ORDER,
+    SILHOUETTE_BANDS,
+    curves_subset,
+    k_curves_file_name,
+    ordered,
+    read_run_config,
+    silhouette_zoom_limits,
+)
+from src.analysis.clustering_tuning_evaluations import (
+    COPHENETIC_CORRELATION,
+    DENDROGRAM_JUMP,
+    DENSITY_METRICS,
+    LINKAGE_AGREEMENT,
+    evaluations_for,
+    refuse_existing,
+)
+
+REPORT_METHODS = (AGGLOMERATIVE, *DENSITY_METHODS, ADP)
+
+# The report of a run, for adp (agglomerative and the density methods have their own layout): one table per value of the
+# grouping column (a silhouette is not comparable across metrics or across selection methods), the swept columns first.
+REPORT_GROUP_COLUMN: dict[str, str | None] = {ADP: "metric"}
+REPORT_KEY_COLUMNS: dict[str, tuple[str, ...]] = {ADP: ("Z",)}
+REPORT_COUNT_COLUMNS = ("n_clusters", "min_cluster_size", "min_samples", "n_clusters_found", "n_small_clusters")
+REPORT_TERMS: dict[str, str] = {
+    "silhouette": (
+        "per ogni soggetto confronta la distanza media dai compagni del suo cluster con quella dal cluster più vicino; qui è la "
+        "media su tutti i soggetti. Va da -1 a 1: più alta è meglio; sotto 0 i soggetti sono in media più vicini a un altro "
+        "cluster che al proprio."
+    ),
+    "davies_bouldin": "media, sui cluster, del rapporto tra quanto il cluster è disperso e quanto è vicino al cluster più simile. Più bassa è meglio.",
+    "calinski_harabasz": "rapporto tra la separazione dei cluster e la compattezza di ciascuno. Più alto è meglio; tende a crescere con il numero di cluster.",
+    "noise_fraction": "quota dei soggetti non assegnati a nessun cluster (rumore); sono esclusi dal calcolo degli indici.",
+    "n_clusters_found": "numero di cluster, rumore escluso.",
+    "largest_cluster_share": "quota dei soggetti, rumore compreso, nel cluster più grande.",
+    "n_small_clusters": "cluster con meno di 10 soggetti.",
+    "id_2nn": "dimensione intrinseca stimata dei dati; costante per `metric`.",
+    "ari_vs_prev_z": "ARI (accordo tra due partizioni, 1 = identiche) con la partizione al valore di `Z` immediatamente più basso, sui soli soggetti clusterizzati.",
+    "membership_mean": "media, sui soggetti non rumore, della probabilità di appartenere al proprio cluster.",
+    "membership_share_below_half": "quota dei soggetti non rumore con probabilità di appartenenza sotto 0.5.",
+    "persistence_mean": "stabilità media dei cluster (0 effimeri, 1 stabili).",
+}
+
+SILHOUETTE_BANDS_TERM = (
+    "**Fasce della silhouette**: convenzione di Kaufman & Rousseeuw (1990), *Finding Groups in Data*. 0.71-1.00 struttura "
+    "forte; 0.51-0.70 ragionevole; 0.26-0.50 debole, forse artificiale; fino a 0.25 nessuna struttura sostanziale. Gli estremi "
+    "cambiano da una fonte all'altra: qui la silhouette è arrotondata a 2 decimali. Le fasce descrivono la combinazione: non "
+    "scelgono `n_clusters` e non si confrontano tra `metric` diverse. Per Davies-Bouldin e Calinski-Harabasz non esiste una "
+    "convenzione con fonte: si leggono solo i valori."
+)
+SILHOUETTE_DENSITY_NOTE = (
+    " Per HDBSCAN la silhouette (come Davies-Bouldin e Calinski-Harabasz) è calcolata sui soli soggetti non rumore: va letta "
+    "accanto a `noise_fraction`. Le fasce sono pensate per cluster convessi."
+)
+COPHENETIC_TERM = (
+    "correlazione tra le distanze vere tra i soggetti e le distanze che l'albero implica. Va da -1 a 1: vicino a 1 l'albero "
+    "rispetta bene le distanze. Un valore per `metric` e `linkage`, non si confronta tra `metric` diverse. Nessuna fascia con "
+    "fonte in letteratura."
+)
+ARI_TERM = (
+    "adjusted Rand index: accordo tra due partizioni degli stessi soggetti, 1 = identiche, 0 = quanto il caso. Qui tra i "
+    "linkage della stessa `metric`, allo stesso k; non dipende dai nomi dei cluster."
+)
+JUMP_TERM = (
+    "per ogni k, altezza della fusione che porta da k a k-1 cluster divisa per quella della fusione che porta da k+1 a k. "
+    "Vicino a 1: nessun taglio netto a k; più è alto, più il taglio a k è netto. Le altezze sono in unità diverse per ogni "
+    "linkage, quindi i linkage non si confrontano. Nessuna fascia con fonte in letteratura."
+)
+
+# One block under each figure/table of a report, written as a quote: what it shows, how to read it, what it does not say.
+# Descriptions only, no verdict. Each hint is a tuple of bullets.
+HINT_CURVES = (
+    "Cosa mostra: come cambiano silhouette e Davies-Bouldin al crescere di `n_clusters`, con una linea per ogni linkage.",
+    "I pannelli: silhouette con asse da -1 a 1 (a sinistra); la stessa silhouette con asse adattato ai dati (al centro, le "
+    "differenze sembrano più grandi); Davies-Bouldin (a destra).",
+    "Come si legge: conta la forma della linea su tutti i k, non un punto solo. Silhouette: più alta è meglio. Davies-Bouldin: "
+    "più bassa è meglio.",
+)
+HINT_CURVES_SINGLE = ("Come sopra, ma solo per il linkage `single`: ha spesso valori molto diversi dagli altri, quindi sta in un grafico a parte.",)
+HINT_COPHENETIC = (
+    "Cosa mostra: quanto l'albero di ogni linkage rispetta le distanze vere tra i soggetti. Serve a confrontare i linkage tra loro (stessa `metric`): più è alto, più l'albero è fedele.",
+    "Cosa non dice: niente su quanti cluster scegliere.",
+)
+HINT_AGREEMENT = (
+    "Cosa mostra: per ogni k, quanto due linkage producono la stessa partizione dei soggetti (ARI: 1 = identiche, 0 = quanto il caso).",
+    "Come si legge: dove l'ARI è vicino a 1 per tutte le coppie, scegliere il linkage cambia poco; dove è basso, la partizione dipende dal linkage.",
+    "Cosa non dice: quale dei due linkage sia quello giusto.",
+)
+HINT_JUMP = (
+    "Cosa mostra: per ogni k, quanto è netto il taglio dell'albero in k cluster. Vicino a 1 non c'è un taglio netto; più è "
+    "alto, più è netto.",
+    "Cosa non dice: i linkage non si confrontano tra loro (altezze in unità diverse); e non dice se i cluster hanno senso clinico.",
+)
+HINT_DENDROGRAM = (
+    "Cosa mostra: l'albero delle fusioni; l'asse verticale è l'altezza a cui due gruppi si uniscono.",
+    "Come si legge: una fusione molto più alta della precedente separa gruppi distinti; tagliare l'albero a una certa altezza "
+    "dà quel numero di cluster.",
+    "Limiti: sono mostrate solo le ultime 30 fusioni, quindi i k piccoli; le altezze non si confrontano tra linkage.",
+)
+HINT_LABELS_2D = (
+    "Cosa mostra: i soggetti su un piano 2D, colorati per cluster, un riquadro per ogni k mostrato. Il piano è un UMAP "
+    "\"gemello\" in 2D, non lo spazio in cui è stato fatto il clustering.",
+    "Cosa non dice: indica dove cadono i cluster, non quanto siano separati nello spazio vero.",
+    "Vale per tutte le immagini di questa serie.",
+)
+HINT_HEATMAP = (
+    "Cosa mostra: gli stessi numeri delle tabelle su tutta la griglia `min_cluster_size` × `min_samples`, un riquadro per metrica.",
+    "Attenzione: ogni riquadro ha una sua scala di colore adattata ai dati, quindi le differenze piccole sembrano grandi.",
+)
+HINT_FILTERED_CURVES = (
+    "Cosa mostra: silhouette e Davies-Bouldin contro `min_cluster_size`, una linea per `min_samples`, solo per le combinazioni "
+    "con poco rumore.",
+    "Attenzione: il limite di rumore è scritto nel titolo del grafico (`curves_max_noise_fraction` del config, una scelta "
+    "nostra). Le combinazioni con più rumore non compaiono; per `leaf` può non esserci nessun grafico.",
+)
+
+def _hint_lines(hint: tuple[str, ...]) -> list[str]:
+    """A hint as a markdown quote: a title line, one bullet per sentence, a blank line."""
+    return ["> **Come leggerlo**", *(f"> - {sentence}" for sentence in hint), ""]
+
+
+DENSITY_REPORT_COLUMNS = ("min_cluster_size", "min_samples", "silhouette", "davies_bouldin", "calinski_harabasz", "noise_fraction", "n_clusters_found", "largest_cluster_share")
+DENSITY_SOFT_COLUMNS = ("cluster_selection_method", "membership_mean", "membership_share_below_half", "persistence_mean")
+DENSITY_TABLE_COLUMNS = ("min_cluster_size", "n_clusters_found", "noise_fraction", "largest_cluster_share", "silhouette", "davies_bouldin", "calinski_harabasz")
+
+AGGLOMERATIVE_REPORT_COLUMNS = ("n_clusters", "linkage", "metric", "silhouette", "davies_bouldin", "calinski_harabasz")
+
+def silhouette_band(value: float) -> str | None:
+    """The band of SILHOUETTE_BANDS a silhouette falls in, or None for a negative one. Raises for NaN."""
+    if np.isnan(value):
+        raise ValueError("a NaN silhouette has no band")
+    if value < 0:
+        return None
+    rounded = round(float(value), 2)
+    return next(name for name, _, lower_edge in SILHOUETTE_BANDS if rounded >= lower_edge)
+
+def convention_lines_caption(subset: pd.DataFrame) -> str:
+    """The sentence that says which dashed lines of CONVENTION_LINES each silhouette panel of a figure of `subset` shows."""
+    low, high = silhouette_zoom_limits(subset["silhouette"])
+    visible = [line for line in CONVENTION_LINES if low <= line <= high]
+    hidden = [line for line in CONVENTION_LINES if line not in visible]
+    as_text = lambda lines: ", ".join(f"{line:.2f}" for line in lines)
+    if not hidden:
+        center = "si vedono tutti"
+    elif not visible:
+        center = "non se ne vede nessuno (cadono tutti fuori dal grafico)"
+    else:
+        shown = f"si vede solo {as_text(visible)}" if len(visible) == 1 else f"si vedono {as_text(visible)}"
+        center = f"{shown}; gli altri ({as_text(hidden)}) cadono fuori dal grafico"
+    return (
+        f"Linee grigie tratteggiate sulla silhouette: i limiti delle fasce di Kaufman & Rousseeuw ({as_text(CONVENTION_LINES)}). "
+        f"Pannello a sinistra: si vedono tutti. Pannello centrale: {center}."
+    )
+
+def _format_report_value(column: str, value: float, key_columns: tuple[str, ...]) -> str:
+    if pd.isna(value):
+        return "–"
+    if column in REPORT_COUNT_COLUMNS:
+        return str(int(value))
+    if column == "calinski_harabasz":
+        return f"{value:,.0f}"
+    if column in key_columns:
+        return f"{value:g}" if isinstance(value, (int, float, np.integer, np.floating)) else str(value)
+    if isinstance(value, str):
+        return value
+    return f"{value:,.0f}" if abs(value) >= 1000 else f"{value:.3f}"
+
+
+def _markdown_table(table: pd.DataFrame, key_columns: tuple[str, ...]) -> str:
+    lines = ["| " + " | ".join(table.columns) + " |", "|" + "|".join(["---"] * len(table.columns)) + "|"]
+    for row in table.itertuples(index=False):
+        lines.append("| " + " | ".join(_format_report_value(column, value, key_columns) for column, value in zip(table.columns, row)) + " |")
+    return "\n".join(lines)
+
+
+def _k_ranges(values: list[int]) -> str:
+    """Sorted integers as runs: [2, 3, 4, 9] -> "2-4, 9"."""
+    runs: list[list[int]] = []
+    for value in sorted(values):
+        if runs and value == runs[-1][1] + 1:
+            runs[-1][1] = value
+        else:
+            runs.append([value, value])
+    return ", ".join(str(start) if start == end else f"{start}-{end}" for start, end in runs)
+
+
+def _count_phrase(count: int, total: int, label: str) -> str:
+    """"29 k su 29", or "1 su 2" when there is no label for the rows."""
+    return f"{count}{' ' + label if label else ''} su {total}"
+
+
+def _silhouette_comment(group: pd.DataFrame, key_column: str = "n_clusters", key_name: str = "k", count_label: str = "k") -> list[str]:
+    """The bullets under the table of one (metric, linkage) or one min_samples: the rows per silhouette band
+    (SILHOUETTE_BANDS), the negative ones, and the silhouette at the first and last value of `key_column`.
+    Measurements and a published convention. `count_label` names the rows being counted ("k"; "" for none)."""
+    group = group.sort_values(key_column)
+    total = len(group)
+    in_band: dict[str | None, list[int]] = {}
+    uncomputable = []
+    for key, silhouette in zip(group[key_column], group["silhouette"]):
+        if np.isnan(silhouette):
+            uncomputable.append(int(key))
+        else:
+            in_band.setdefault(silhouette_band(silhouette), []).append(int(key))
+    lines = ["- **Silhouette per fascia** (convenzione di Kaufman & Rousseeuw 1990, arrotondata a 2 decimali):"]
+    for name, description, _ in SILHOUETTE_BANDS:
+        if name in in_band:
+            lines.append(f"  - {name} ({description}): {_count_phrase(len(in_band[name]), total, count_label)} ({key_name} {_k_ranges(in_band[name])})")
+    negative = in_band.get(None, [])
+    lines.append(
+        f"  - negativa (sotto 0): {_count_phrase(len(negative), total, count_label)} ({key_name} {_k_ranges(negative)}); non accettabile "
+        "per convenzione, la combinazione resta nel report" if negative else "  - negativa (sotto 0): nessuna"
+    )
+    if uncomputable:
+        lines.append(f"  - non calcolabile: {_count_phrase(len(uncomputable), total, count_label)} ({key_name} {_k_ranges(uncomputable)})")
+    first, last = group.iloc[0], group.iloc[-1]
+    lines.append(
+        f"- **Dal primo all'ultimo valore** ({key_name}): {key_name}={int(first[key_column])}: {_format_report_value('silhouette', first['silhouette'], ())}, "
+        f"{key_name}={int(last[key_column])}: {_format_report_value('silhouette', last['silhouette'], ())}"
+    )
+    return lines
+
+
+def _curves_section(subset: pd.DataFrame, metric: str) -> list[str]:
+    """The figures of one metric of an agglomerative report, with the line that says which dashed lines they show."""
+    lines: list[str] = []
+    for single, title, hint in ((False, "senza single", HINT_CURVES), (True, "solo single (scala diversa)", HINT_CURVES_SINGLE)):
+        figure_subset = curves_subset(subset, metric, single)
+        if not figure_subset.empty:
+            lines += [
+                f"**Curve per n_clusters, {title}**",
+                "",
+                f"![{title}]({k_curves_file_name(metric, single)})",
+                "",
+                *_hint_lines((*hint, convention_lines_caption(figure_subset))),
+            ]
+    return lines
+
+
+def _cophenetic_table(cophenetic: pd.DataFrame, metric: str) -> str:
+    values = cophenetic[cophenetic["metric"] == metric].set_index("linkage")["cophenetic_correlation"]
+    linkages = ordered(values.index, LINKAGE_ORDER)
+    table = pd.DataFrame({"linkage": linkages, "cophenetic_correlation": [values[linkage] for linkage in linkages]})
+    return _markdown_table(table, ("linkage",))
+
+
+def _agreement_table(agreement: pd.DataFrame, metric: str) -> str:
+    subset = agreement[agreement["metric"] == metric].assign(pair=lambda frame: frame["linkage_a"] + "-" + frame["linkage_b"])
+    wide = subset.pivot(index="n_clusters", columns="pair", values="ari")
+    return _markdown_table(wide[list(dict.fromkeys(subset["pair"]))].reset_index(), ("n_clusters",))
+
+
+def _agreement_block(agreement: pd.DataFrame, metric: str) -> list[str]:
+    """The agreement table with its hint, or a line saying there is none: a metric with a single linkage has no pair."""
+    if agreement[agreement["metric"] == metric].empty:
+        return ["Non calcolabile: la run ha un solo linkage per questa `metric`.", ""]
+    return [_agreement_table(agreement, metric), "", *_hint_lines(HINT_AGREEMENT)]
+
+
+def _jump_table(jump: pd.DataFrame, metric: str) -> str:
+    wide = jump[jump["metric"] == metric].pivot(index="n_clusters", columns="linkage", values="jump")
+    return _markdown_table(wide[ordered(wide.columns, LINKAGE_ORDER)].reset_index(), ("n_clusters",))
+
+
+def _images_section(run_dir: Path, names: list[tuple[str, str, tuple[str, ...] | None]]) -> list[str]:
+    """Markdown images for the files of `names` ((caption, file name, hint)) that clustering.py wrote in the run folder:
+    a run without one of them simply has no link to it. A hint is written once, under the first image of the series
+    that has it (a series shares its hint: pass it on the first entry only, None on the others)."""
+    lines: list[str] = []
+    pending_hint: tuple[str, ...] | None = None
+    for caption, name, hint in names:
+        pending_hint = hint or pending_hint
+        if (run_dir / name).is_file():
+            lines += [f"**{caption}**", "", f"![{caption}]({name})", ""]
+            if pending_hint:
+                lines += _hint_lines(pending_hint)
+                pending_hint = None
+    return lines
+
+
+def _dendrogram_section(
+    run_dir: Path, results: pd.DataFrame, cophenetic: pd.DataFrame, agreement: pd.DataFrame, jump: pd.DataFrame, metric: str
+) -> list[str]:
+    """Cophenetic correlation, agreement between linkages, dendrogram jump and the tree/label images of one metric of an
+    agglomerative report."""
+    linkages = ordered(results[results["metric"] == metric]["linkage"].unique(), LINKAGE_ORDER)
+    images: list[tuple[str, str, tuple[str, ...] | None]] = [("Dendrogramma (ultime 30 fusioni)", f"dendrogram_metric={metric}.png", HINT_DENDROGRAM)]
+    images += [
+        (f"Etichette sul piano 2D, {linkage}", f"labels_2d_{linkage}_{metric}.png", HINT_LABELS_2D if index == 0 else None)
+        for index, linkage in enumerate(linkages)
+    ]
+    return [
+        "### Cophenetic correlation", "", _cophenetic_table(cophenetic, metric), "", *_hint_lines(HINT_COPHENETIC),
+        "### Accordo tra linkage (ARI)", "", *_agreement_block(agreement, metric),
+        "### Salto del dendrogramma", "", _jump_table(jump, metric), "", *_hint_lines(HINT_JUMP),
+        *_images_section(run_dir, images),
+    ]
+
+
+def _check_agglomerative_inputs(
+    run_dir: Path, results: pd.DataFrame, cophenetic: pd.DataFrame, agreement: pd.DataFrame, jump: pd.DataFrame
+) -> None:
+    for name, frame, columns in (
+        ("tuning_results", results, AGGLOMERATIVE_REPORT_COLUMNS),
+        ("cophenetic", cophenetic, ("metric", "linkage", "cophenetic_correlation")),
+        ("agreement", agreement, ("metric", "n_clusters", "linkage_a", "linkage_b", "ari")),
+        ("jump", jump, ("metric", "linkage", "n_clusters", "jump")),
+    ):
+        missing = [column for column in columns if column not in frame.columns]
+        if missing:
+            raise ValueError(f"{run_dir}: {name} has no column(s) {missing} - needed for the agglomerative report")
+    for metric in results["metric"].unique():
+        if any(frame[frame["metric"] == metric].empty for frame in (cophenetic, jump)):
+            raise ValueError(f"{run_dir}: no cophenetic or jump row for metric={metric!r} (an analysis of another run?)")
+
+
+def _agglomerative_report_markdown(
+    run_dir: Path, input_path: Path, results: pd.DataFrame, cophenetic: pd.DataFrame, agreement: pd.DataFrame, jump: pd.DataFrame
+) -> str:
+    _check_agglomerative_inputs(run_dir, results, cophenetic, agreement, jump)
+    lines = [
+        f"# {AGGLOMERATIVE}, {run_dir.name}",
+        "",
+        f"Cartella: `{run_dir}`. Matrice di input: `{input_path}`. {len(results)} combinazioni.",
+        "",
+        "**Come è fatto**",
+        "",
+        "- Una sezione per `metric` (la distanza usata): gli indici di `metric` diverse non si confrontano.",
+        "- In ogni sezione: curve per `n_clusters`, una tabella per `linkage`, poi gli strumenti per scegliere il **linkage** "
+        "(curve, cophenetic, accordo tra linkage) e quelli per scegliere dove tagliare l'albero, cioè **k** (salto, dendrogramma, etichette 2D).",
+        "- Dati completi: `tuning_results.csv`, `cophenetic_correlation.csv`, `linkage_agreement.csv`, `dendrogram_jump.csv`.",
+        "- Una cella vuota (–) è un indice non calcolabile per quella combinazione.",
+        "",
+    ]
+    for metric in ordered(results["metric"].unique(), METRIC_ORDER):
+        subset = results[results["metric"] == metric]
+        lines += [f"## metric = {metric}", "", *_curves_section(subset, metric)]
+        for linkage in ordered(subset["linkage"].unique(), LINKAGE_ORDER):
+            group = subset[subset["linkage"] == linkage]
+            table = group.sort_values("n_clusters")[["n_clusters", "silhouette", "davies_bouldin", "calinski_harabasz"]]
+            lines += [f"### linkage = {linkage}", "", _markdown_table(table, ("n_clusters",)), "", *_silhouette_comment(group), ""]
+        lines += _dendrogram_section(run_dir, results, cophenetic, agreement, jump, metric)
+    terms = [f"- **`{column}`**: {REPORT_TERMS[column]}" for column in ("silhouette", "davies_bouldin", "calinski_harabasz")]
+    terms += [
+        f"- **`cophenetic_correlation`**: {COPHENETIC_TERM}",
+        f"- **`ari`**: {ARI_TERM}",
+        f"- **`jump`**: {JUMP_TERM}",
+        f"- {SILHOUETTE_BANDS_TERM}",
+    ]
+    return "\n".join([*lines, "## Termini", "", *terms, ""])
+
+
+def _extremes_text(group: pd.DataFrame, column: str, label: str) -> str:
+    """"da <min> (min_cluster_size ...) a <max> (min_cluster_size ...)" for `column` of one min_samples table."""
+    def at(value: float) -> str:
+        sizes = [int(size) for size in group.loc[group[column] == value, "min_cluster_size"]]
+        text = f"{value:.3f}" if column == "noise_fraction" else f"{int(value)}"
+        return f"{text} (min_cluster_size {_k_ranges(sizes)})"
+    return f"- {label}: da {at(group[column].min())} a {at(group[column].max())}"
+
+
+def _density_comment(group: pd.DataFrame) -> list[str]:
+    """The bullets under the table of one min_samples of an hdbscan / hdbscan_soft report."""
+    lines = _silhouette_comment(group, "min_cluster_size", "min_cluster_size", "")
+    lines += [_extremes_text(group, "noise_fraction", "**Rumore**"), _extremes_text(group, "n_clusters_found", "**Cluster trovati**")]
+    empty = [int(size) for size in group.loc[group["n_clusters_found"] == 0, "min_cluster_size"]]
+    if empty:
+        lines.append(f"- **Nessun cluster** (tutti i soggetti rumore): {_count_phrase(len(empty), len(group), '')} (min_cluster_size {_k_ranges(empty)})")
+    return lines
+
+
+def _density_report_markdown(run_dir: Path, method: str, input_path: Path, results: pd.DataFrame) -> str:
+    is_soft = method == "hdbscan_soft"
+    required = [*DENSITY_REPORT_COLUMNS, *(DENSITY_SOFT_COLUMNS if is_soft else ())]
+    missing = [column for column in required if column not in results.columns]
+    if missing:
+        raise ValueError(f"{run_dir}: tuning_results has no column(s) {missing} - needed for the {method} report")
+    columns = [*DENSITY_TABLE_COLUMNS, *(DENSITY_SOFT_COLUMNS[1:] if is_soft else ())]
+    lines = [
+        f"# {method}, {run_dir.name}",
+        "",
+        f"Cartella: `{run_dir}`. Matrice di input: `{input_path}`. {len(results)} combinazioni.",
+        "",
+        "**Come è fatto**",
+        "",
+        *(["- Una sezione per `cluster_selection_method`: le silhouette di metodi diversi non si confrontano."] if is_soft else []),
+        "- Dentro: una tabella per `min_samples`, con una riga per ogni `min_cluster_size`.",
+        "- Dati completi: `tuning_results.csv`, `density_metrics.csv`.",
+        "- Una cella vuota (–) è un indice non calcolabile per quella combinazione (con 0 cluster non c'è silhouette).",
+        "",
+    ]
+    for selection in (ordered(results["cluster_selection_method"].unique(), ("eom", "leaf")) if is_soft else [None]):
+        subset = results if selection is None else results[results["cluster_selection_method"] == selection]
+        heading = "##"
+        if selection is not None:
+            lines += [f"## cluster_selection_method = {selection}", ""]
+            heading = "###"
+        suffix = "" if selection is None else f"_{selection}"
+        heatmap = "tuning_plot.png" if selection is None else f"tuning_plot_cluster_selection_method={selection}.png"
+        lines += _images_section(
+            run_dir,
+            [("Heatmap delle metriche", heatmap, HINT_HEATMAP), ("Curve con poco rumore", f"noise_filtered_curves{suffix}.png", HINT_FILTERED_CURVES)],
+        )
+        for min_samples in sorted(subset["min_samples"].unique()):
+            group = subset[subset["min_samples"] == min_samples].sort_values("min_cluster_size")
+            lines += [f"{heading} min_samples = {int(min_samples)}", "", _markdown_table(group[columns], ("min_cluster_size",)), "", *_density_comment(group), ""]
+    terms = [f"- **`{column}`**: {REPORT_TERMS[column]}" for column in (*DENSITY_TABLE_COLUMNS[1:], *(DENSITY_SOFT_COLUMNS[1:] if is_soft else ()))]
+    return "\n".join([*lines, "## Termini", "", *terms, f"- {SILHOUETTE_BANDS_TERM}{SILHOUETTE_DENSITY_NOTE}", ""])
+
+
+def tuning_report_markdown(
+    run_dir: Path, method: str, input_path: Path, results: pd.DataFrame,
+    cophenetic: pd.DataFrame | None = None, agreement: pd.DataFrame | None = None, jump: pd.DataFrame | None = None,
+) -> str:
+    """The report of one clustering tuning run: its `tuning_results.csv` as markdown tables.
+
+    Agglomerative: one section per `metric` with the curves figures and, per `linkage`, a table with the three indices
+    per n_clusters and bullets that place the silhouette in the bands of a published convention (SILHOUETTE_BANDS);
+    then the cophenetic correlation, the agreement between linkages and the dendrogram jump (`cophenetic` and `jump`,
+    the frames of `cophenetic_table` and `jump_table`, and `agreement`, that of `linkage_agreement`: required here and refused for
+    any other method) and links to the tree and label images clustering.py wrote in the run folder, when it did.
+
+    hdbscan / hdbscan_soft (`results` is `density_metrics`: it needs `largest_cluster_share`): a
+    link to the heatmap clustering.py wrote, and one table per `min_samples` (one section per `cluster_selection_method`
+    for hdbscan_soft) with a row per `min_cluster_size` and bullets with the silhouette bands, the range of the noise
+    and of the number of clusters.
+
+    adp: one table per `metric`, the swept columns first and every other column after them, ordered by silhouette,
+    highest first (an empty silhouette last). Nothing is classified by a threshold of ours. Raises ValueError for a
+    method without a report or a `results` that lacks a column of the layout.
+    """
+    if method not in REPORT_METHODS:
+        raise ValueError(f"no report for clustering_method {method!r} - supported: {list(REPORT_METHODS)}")
+    if method == AGGLOMERATIVE:
+        if cophenetic is None or agreement is None or jump is None:
+            raise ValueError(f"{run_dir}: the agglomerative report needs the cophenetic, agreement and jump frames")
+        return _agglomerative_report_markdown(run_dir, input_path, results, cophenetic, agreement, jump)
+    if cophenetic is not None or agreement is not None or jump is not None:
+        raise ValueError(f"{run_dir}: cophenetic, agreement and jump belong to the agglomerative report, not to {method!r}")
+    if method in DENSITY_METHODS:
+        return _density_report_markdown(run_dir, method, input_path, results)
+    group_column, key_columns = REPORT_GROUP_COLUMN[method], REPORT_KEY_COLUMNS[method]
+    required = [*key_columns, "silhouette", *([group_column] if group_column else [])]
+    missing = [column for column in required if column not in results.columns]
+    if missing:
+        raise ValueError(f"{run_dir}: tuning_results has no column(s) {missing} - needed for the {method} report")
+
+    others = [column for column in results.columns if column not in (*key_columns, group_column)]
+    ordered = results[[*([group_column] if group_column else []), *key_columns, *others]]
+    groups = ordered.groupby(group_column, sort=False) if group_column else [("", ordered)]
+
+    lines = [
+        f"# {method}, {run_dir.name}",
+        "",
+        f"Cartella: `{run_dir}`. Matrice di input: `{input_path}`. {len(results)} combinazioni.",
+        "",
+        "**Come è fatto**",
+        "",
+        "- Righe ordinate per silhouette decrescente"
+        + (f"; una tabella per `{group_column}`, perché le silhouette di gruppi diversi non si confrontano." if group_column else "."),
+        "- Una cella vuota (–) è un indice non calcolabile per quella combinazione.",
+    ]
+    for name, group in groups:
+        group = group.drop(columns=[group_column]) if group_column else group
+        group = group.sort_values("silhouette", ascending=False, na_position="last", kind="stable")
+        lines += ["", f"## {group_column} = {name}" if group_column else "## Tabella", "", _markdown_table(group, key_columns)]
+    terms = [f"- **`{column}`**: {definition}" for column, definition in REPORT_TERMS.items() if column in results.columns]
+    return "\n".join([*lines, "", "## Termini", "", *terms, ""])
+
+
+REPORT_FILENAME = "report.md"
+
+# The evaluations whose files a report reads from the run folder, by method (adp: none, only tuning_results.csv).
+REPORT_EVALUATIONS: dict[str, tuple[str, ...]] = {
+    AGGLOMERATIVE: (COPHENETIC_CORRELATION, DENDROGRAM_JUMP, LINKAGE_AGREEMENT),
+    **{method: (DENSITY_METRICS,) for method in DENSITY_METHODS},
+    ADP: (),
+}
+
+
+def require_report_evaluations(block: Mapping[str, tuple[str, ...]], methods: tuple[str, ...]) -> None:
+    """Every method has a report, and the `tuning_evaluations` block lists the evaluations that report reads, so
+    the sweep that writes it has their files. Raises ValueError naming the method and what is missing."""
+    for method in methods:
+        if method not in REPORT_EVALUATIONS:
+            raise ValueError(f"write_report is true but {method!r} has no report - methods with one: {sorted(REPORT_EVALUATIONS)}")
+        missing = [name for name in REPORT_EVALUATIONS[method] if name not in evaluations_for(block, method)]
+        if missing:
+            raise ValueError(f"write_report is true but tuning_evaluations lacks {missing} for {method!r}, which its report reads")
+
+
+def _read_run_csv(run_dir: Path, name: str, method: str) -> pd.DataFrame:
+    path = run_dir / name
+    if not path.is_file():
+        raise FileNotFoundError(f"{path} not found - the {method} report reads it: list its evaluation in tuning_evaluations and run again")
+    return pd.read_csv(path)
+
+
+def write_report(run_dir: Path, overwrite: bool) -> Path:
+    """Writes <run_dir>/report.md from the files in the folder and returns its path. Needs config.md and
+    tuning_results.csv, and the CSVs of REPORT_EVALUATIONS for the run's method. Raises FileExistsError if the
+    report exists and `overwrite` is false, FileNotFoundError naming a missing file, ValueError for a method
+    with no report."""
+    path = run_dir / REPORT_FILENAME
+    refuse_existing([path], overwrite)
+    run_config = read_run_config(run_dir)
+    method, input_path = run_config["clustering_method"], Path(run_config["input_path"])
+    results = _read_run_csv(run_dir, "tuning_results.csv", method)
+    if method == AGGLOMERATIVE:
+        frames = {name: _read_run_csv(run_dir, f"{name}.csv", method) for name in REPORT_EVALUATIONS[method]}
+        text = tuning_report_markdown(
+            run_dir, method, input_path, results,
+            frames[COPHENETIC_CORRELATION], frames[LINKAGE_AGREEMENT], frames[DENDROGRAM_JUMP],
+        )
+    elif method in DENSITY_METHODS:
+        text = tuning_report_markdown(run_dir, method, input_path, _read_run_csv(run_dir, f"{DENSITY_METRICS}.csv", method))
+    else:
+        text = tuning_report_markdown(run_dir, method, input_path, results)
+    path.write_text(text)
+    return path

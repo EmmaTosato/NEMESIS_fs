@@ -49,14 +49,14 @@ _CASES: dict[str, tuple] = {
         {**_SHARED, "reduction_method": "umap", "clustering_methods": ["kmeans", "gmm"], "params_file": "pf.json",
          "reduction_params_file": "rpf.json", "fine_tuning": True, "reduced_data": True, "viz_embedding_path": "viz",
          "save_tuning_clusterings": False, "evaluations_file": "ef.json",
-         "tuning_evaluations": {"general": [], "kmeans": [], "gmm": []}},
+         "tuning_evaluations": {"general": [], "kmeans": [], "gmm": []}, "write_report": False},
         {"run_notes", "viz_embedding_path"},
     ),
     "clustering_raw": (
         M.load_clustering_config,
         {**_SHARED, "reduction_method": "raw", "clustering_methods": ["hdbscan"], "params_file": "pf.json", "fine_tuning": False,
          "reduced_data": False, "save_tuning_clusterings": True, "evaluations_file": "ef.json",
-         "tuning_evaluations": {"general": [], "hdbscan": ["density_metrics"]}},
+         "tuning_evaluations": {"general": [], "hdbscan": ["density_metrics"]}, "write_report": True},
         {"run_notes", "viz_embedding_path"},
     ),
 }

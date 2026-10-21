@@ -38,6 +38,7 @@ def test_dim_reduction_config_valid(tmp_path):
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "tuning_evaluations": {"trustworthiness": {}, "plot_hdbscan": {"min_cluster_size": 100, "min_samples": 10}},
+        "write_report": False,
     }
     config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
     assert config.tuning_evaluations == {
@@ -64,6 +65,7 @@ def test_dim_reduction_config_with_run_notes(tmp_path):
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "tuning_evaluations": {"trustworthiness": {}},
+        "write_report": False,
         "run_notes": "provo n_neighbors piu alto",
     }
     config = load_dim_reduction_config(_write(tmp_path, "dr.json", payload))
@@ -101,6 +103,7 @@ def test_evaluate_tuning_embeddings_config_valid(tmp_path):
         "tuning_dir": "results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol",
         "overwrite": False,
         "tuning_evaluations": {"plot_hdbscan": {"min_cluster_size": 100, "min_samples": 10}},
+        "write_report": False,
     }
     config = load_evaluate_tuning_embeddings_config(_write(tmp_path, "ev.json", payload))
     assert config.tuning_dir == Path("results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol")
@@ -115,6 +118,7 @@ def test_evaluate_tuning_embeddings_config_rejects_sweep_score(tmp_path):
         "tuning_dir": "x",
         "overwrite": False,
         "tuning_evaluations": {"trustworthiness": {}, "plot_hdbscan": {"min_cluster_size": 100, "min_samples": 10}},
+        "write_report": False,
     }
     with pytest.raises(ValueError, match="'trustworthiness'\\] is a sweep_score and cannot be run here"):
         load_evaluate_tuning_embeddings_config(_write(tmp_path, "ev.json", payload))
@@ -162,6 +166,7 @@ def _dr_payload(**overrides):
         "save_tuning_embeddings": False,
         "precompute_distance_metric": True,
         "tuning_evaluations": {},
+        "write_report": False,
     }
     payload.update(overrides)
     return payload
@@ -246,6 +251,7 @@ def test_clustering_config_valid(tmp_path):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": []},
+        "write_report": False,
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.clustering_methods == ("kmeans",)
@@ -270,6 +276,7 @@ def test_clustering_config_reduction_method_raw_valid(tmp_path):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": []},
+        "write_report": False,
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.reduction_method == "raw"
@@ -285,6 +292,7 @@ def test_clustering_config_missing_reduction_method_raises(tmp_path):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": []},
+        "write_report": False,
     }
     with pytest.raises(ValueError, match="missing required field 'reduction_method'"):
         load_clustering_config(_write(tmp_path, "cl.json", payload))
@@ -301,6 +309,7 @@ def test_clustering_config_unknown_reduction_method_raises(tmp_path):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": []},
+        "write_report": False,
     }
     with pytest.raises(ValueError, match="unknown reduction_method"):
         load_clustering_config(_write(tmp_path, "cl.json", payload))
@@ -318,6 +327,7 @@ def test_clustering_config_reduced_data_true_valid(tmp_path):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": []},
+        "write_report": False,
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.reduced_data is True
@@ -338,6 +348,7 @@ def test_clustering_config_reduced_data_true_missing_reduction_params_file_raise
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": []},
+        "write_report": False,
     }
     with pytest.raises(ValueError, match="'reduction_params_file' is required when reduced_data=true"):
         load_clustering_config(_write(tmp_path, "cl.json", payload))
@@ -358,6 +369,7 @@ def test_clustering_config_reduced_data_false_with_reduction_params_file_raises(
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": []},
+        "write_report": False,
     }
     with pytest.raises(ValueError, match="'reduction_params_file' must be omitted when reduced_data=false"):
         load_clustering_config(_write(tmp_path, "cl.json", payload))
@@ -400,6 +412,7 @@ def test_clustering_config_viz_embedding_path_defaults_to_none(tmp_path):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": []},
+        "write_report": False,
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.viz_embedding_path is None
@@ -417,6 +430,7 @@ def test_clustering_config_viz_embedding_path_set(tmp_path):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": []},
+        "write_report": False,
         "viz_embedding_path": "results/lesion/dim_reduction/production/umap/23-07_s1.1_d00",
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
@@ -434,6 +448,7 @@ def test_clustering_config_save_tuning_clusterings_true_valid(tmp_path):
         "save_tuning_clusterings": True,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.save_tuning_clusterings is True
@@ -463,6 +478,7 @@ def test_clustering_config_save_tuning_clusterings_non_bool_raises(tmp_path):
         "save_tuning_clusterings": "true",
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": []},
+        "write_report": False,
     }
     with pytest.raises(ValueError, match="field 'save_tuning_clusterings' must be a boolean"):
         load_clustering_config(_write(tmp_path, "cl.json", payload))
@@ -479,6 +495,7 @@ def test_clustering_config_multiple_methods_valid(tmp_path):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": []},
+        "write_report": False,
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.clustering_methods == ("kmeans", "hdbscan", "gmm")
@@ -495,6 +512,7 @@ def test_clustering_config_fine_tuning_true(tmp_path):
         "save_tuning_clusterings": False,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "kmeans": []},
+        "write_report": False,
     }
     config = load_clustering_config(_write(tmp_path, "cl.json", payload))
     assert config.fine_tuning is True
@@ -622,6 +640,7 @@ def _clustering_tuning_payload(**overrides):
         "save_tuning_clusterings": True,
         "evaluations_file": "config/registry/clustering_evaluations.json",
         "tuning_evaluations": {"general": [], "agglomerative": ["k_curves"], "hdbscan": ["density_metrics"]},
+        "write_report": False,
     }
     payload.update(overrides)
     return payload
@@ -660,3 +679,35 @@ def test_clustering_tuning_without_evaluations_does_not_need_the_labels_saved(tm
     )
 
     assert load_clustering_config(_write(tmp_path, "cl.json", payload)).save_tuning_clusterings is False
+
+
+def test_clustering_config_write_report_needs_the_evaluations_the_report_reads(tmp_path):
+    payload = _clustering_tuning_payload(write_report=True)
+
+    with pytest.raises(ValueError, match=r"write_report is true but tuning_evaluations lacks .* for 'agglomerative'"):
+        load_clustering_config(_write(tmp_path, "cl.json", payload))
+
+
+def test_clustering_config_write_report_refuses_a_method_with_no_report(tmp_path):
+    payload = _clustering_tuning_payload(
+        write_report=True, clustering_methods=["kmeans"], tuning_evaluations={"general": [], "kmeans": []}
+    )
+
+    with pytest.raises(ValueError, match="'kmeans' has no report"):
+        load_clustering_config(_write(tmp_path, "cl.json", payload))
+
+
+def test_clustering_config_write_report_valid_with_the_evaluations_listed(tmp_path):
+    payload = _clustering_tuning_payload(
+        write_report=True,
+        clustering_methods=["hdbscan"],
+        tuning_evaluations={"general": [], "hdbscan": ["density_metrics"]},
+    )
+
+    assert load_clustering_config(_write(tmp_path, "cl.json", payload)).write_report is True
+
+
+def test_a_production_config_with_write_report_is_not_checked_against_the_evaluations(tmp_path):
+    payload = _clustering_tuning_payload(fine_tuning=False, write_report=True, tuning_evaluations={"general": []})
+
+    assert load_clustering_config(_write(tmp_path, "cl.json", payload)).write_report is True

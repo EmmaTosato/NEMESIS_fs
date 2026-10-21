@@ -824,8 +824,8 @@ def compute_eigengap(X: np.ndarray, params: dict, max_k: int = 20) -> np.ndarray
 
 # Literature-established, per-parameter justification metrics (07-10-26 chat decision): unlike
 # everything above, these are deliberately *not* wired into run_clustering_tuning_sweep/
-# clustering.py - they're reusable, tested functions meant to be called post-hoc from
-# clustering_tuning_explorer.ipynb against an already-produced tuning run's matrix.npy/
+# clustering.py - they're reusable, tested functions meant to be called post-hoc from a
+# notebook against an already-produced tuning run's matrix.npy/
 # tuning_results.csv, same contract as dunn_index for the evaluation notebook. No pipeline/
 # config/docs changes, no reruns needed. One per method's own hardest-to-justify parameter -
 # HDBSCAN deliberately excluded (its own relative_validity_ overlaps with DBCV, already
