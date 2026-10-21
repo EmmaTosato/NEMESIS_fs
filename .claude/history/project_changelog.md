@@ -6,6 +6,16 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 21-10-26 — Silhouette di produzione: plot a pannelli per ogni metodo; per agglomerative anche tabella per cluster e media in config.md, con la distanza della run
+
+**Cosa è cambiato**: `silhouette_plot.png` ha un pannello per cluster (altezza proporzionale ai soggetti, minimo il 5% dell'altezza) con la linea rossa sulla media, asse x fisso da -1 a 1 e titolo "Average silhouette coefficient = <media> (<distanza>)"; sostituisce il vecchio plot per **tutti** i metodi, perché `plot_silhouette_analysis` è una sola funzione. Per **agglomerative** si aggiungono `silhouette_per_cluster.csv` (`cluster, n, silhouette_mean, share_negative`, da `clustering_evaluation.silhouette_breakdown`, ora pubblica) e la riga `Average silhouette coefficient: <media> (<distanza>)` in `Summary` di `config.md`. `compute_silhouette_samples` accetta anche `cosine` e `manhattan`; agglomerative e ADP sono scorati con la propria `metric` (default euclidean se i params non la dicono), ogni altro metodo in euclidean come prima. HDBSCAN, kmeans, gmm, spectral e ADP non ricevono né la tabella né la riga: HDBSCAN è ancora da decidere.
+
+**Perché**: la silhouette si misura nella stessa geometria in cui l'algoritmo ha deciso (`lessons_learned.md` #15): prima una run di produzione agglomerative con `metric=cosine` non produceva il plot (`compute_silhouette_samples` rifiutava la distanza). La media era solo nella legenda del plot; ora è anche in `config.md`, ricavata dagli stessi valori del plot e della tabella.
+
+**Alternative scartate**: due versioni del plot (una per agglomerative, una per gli altri), cioè codice duplicato; "Average silhouette width" (il termine di Rousseeuw 1987) al posto di "coefficient": scelta dell'utente, più aderente a sklearn. In sklearn "Silhouette Coefficient" indica anche il valore del singolo soggetto, quindi nel plot l'asse x e il titolo usano lo stesso nome per due cose; per Kaufman & Rousseeuw (1990) il "silhouette coefficient" sarebbe il massimo, al variare di k, della media (ricordo non verificato: il libro non è in `knowledge/papers/`).
+
+**Conseguenza attuale**: le run di produzione già scritte hanno ancora il plot vecchio e nessuna tabella o riga in `config.md`: non sono state rigenerate. Una run con meno di 2 cluster non ha silhouette (warning, niente plot, tabella e riga).
+
 ## 21-10-26 — Le curve di agglomerative: niente figura `single`, niente asse fisso, assi uguali in tutta la run
 
 **Cosa è cambiato**: `k_curves_metric=<metric>.png` ha due pannelli (silhouette; Davies-Bouldin solo per `euclidean`) invece di tre: il pannello con asse fisso da -1 a 1 è tolto. Le figure `k_curves_single_metric=<metric>.png` non si producono più; `single` resta nello sweep, in `tuning_results.csv`, nelle tabelle del report e negli altri file. Gli assi sono quelli della run, uguali in ogni figura: per ogni `metric` l'intervallo dei dati senza `single` più l'8% per lato, poi il più basso dei minimi e il più alto dei massimi, arrotondati al decimo (per difetto il minimo, per eccesso il massimo). `run_axis_limits` in `clustering_tuning_analysis.py`; per Davies-Bouldin la stessa regola. Sul tuning `19-10_s2.4-vol_nc12_varimax`: silhouette 0.0-0.8, Davies-Bouldin 0.1-1.9.

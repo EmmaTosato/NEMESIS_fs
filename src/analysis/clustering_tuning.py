@@ -171,6 +171,10 @@ def compute_clustering_metrics(X: np.ndarray, labels: np.ndarray, combo_params: 
     }
 
 
+# Distances sklearn's silhouette_samples computes itself, on X as is: the non-euclidean `metric`s of agglomerative.
+SKLEARN_SILHOUETTE_METRICS = ('cosine', 'manhattan')
+
+
 def compute_silhouette_samples(X: np.ndarray, labels: np.ndarray, metric: str = "euclidean") -> tuple[np.ndarray, np.ndarray]:
     """Per-sample silhouette coefficients for one (X, labels) clustering result -
     the production-time, per-cluster-breakdown counterpart of
@@ -185,10 +189,12 @@ def compute_silhouette_samples(X: np.ndarray, labels: np.ndarray, metric: str = 
     sweep), this runs once for the already-chosen production result, so the
     caller decides whether to skip the plot.
 
-    `metric` is the distance the clustering itself used: "euclidean" (default, every method but
-    adp) scores X directly; dice/jaccard (adp on the raw matrix) score the exact distance matrix of
-    distances.py::pairwise_distance - scoring those under euclidean would measure a different
-    geometry than the one clustered on (lessons_learned.md #15). Any other metric raises.
+    `metric` is the distance the clustering itself used: "euclidean" (default) scores X directly;
+    "cosine"/"manhattan" (agglomerative's `metric`) are scored by sklearn under that same distance, as
+    the tuning sweep does (compute_clustering_metrics_metric_aware); dice/jaccard (adp on the raw
+    matrix) score the exact distance matrix of distances.py::pairwise_distance - scoring those under
+    euclidean would measure a different geometry than the one clustered on (lessons_learned.md #15).
+    Any other metric raises.
     """
     labels = np.asarray(labels)
     noise_mask = labels == -1
@@ -203,9 +209,11 @@ def compute_silhouette_samples(X: np.ndarray, labels: np.ndarray, metric: str = 
 
     if metric == "euclidean":
         return non_noise_labels, silhouette_samples(non_noise_X, non_noise_labels)
+    if metric in SKLEARN_SILHOUETTE_METRICS:
+        return non_noise_labels, silhouette_samples(non_noise_X, non_noise_labels, metric=metric)
     if metric in SUPPORTED_BINARY_METRICS:
         return non_noise_labels, silhouette_samples(pairwise_distance(non_noise_X, metric), non_noise_labels, metric="precomputed")
-    raise ValueError(f"compute_silhouette_samples supports metric 'euclidean', 'dice' or 'jaccard', got {metric!r}")
+    raise ValueError(f"compute_silhouette_samples supports metric 'euclidean', 'cosine', 'manhattan', 'dice' or 'jaccard', got {metric!r}")
 
 
 def dunn_index(X: np.ndarray, labels: np.ndarray) -> float:

@@ -18,7 +18,6 @@ from src.analysis.plotting import (
     _NOISE_COLOR,
     _declutter_points,
     _ordered_categories,
-    _spread_label_positions,
     _palette_for_categories,
     compose_embedding_plot_title,
     compose_run_title,
@@ -525,7 +524,7 @@ def test_plot_silhouette_analysis_writes_file(tmp_path):
     sample_labels, sample_values = compute_silhouette_samples(X_2d, cluster_labels)
     output_path = tmp_path / "silhouette_plot.png"
 
-    plot_silhouette_analysis(sample_labels, sample_values, X_2d, cluster_labels, output_path, "x", "y", "test title")
+    plot_silhouette_analysis(sample_labels, sample_values, X_2d, cluster_labels, output_path, "x", "y", "test title", "euclidean")
 
     assert output_path.exists()
     assert output_path.stat().st_size > 0
@@ -539,7 +538,7 @@ def test_plot_silhouette_analysis_handles_noise_in_display_labels_only(tmp_path)
     sample_labels, sample_values = compute_silhouette_samples(X_2d, display_labels)
     output_path = tmp_path / "silhouette_plot.png"
 
-    plot_silhouette_analysis(sample_labels, sample_values, X_2d, display_labels, output_path, "x", "y", "test title")
+    plot_silhouette_analysis(sample_labels, sample_values, X_2d, display_labels, output_path, "x", "y", "test title", "euclidean")
 
     assert output_path.exists()
     assert output_path.stat().st_size > 0
@@ -551,7 +550,7 @@ def test_plot_silhouette_analysis_raises_on_fewer_than_two_columns(tmp_path):
     X_1d = np.array([[0.0], [1.0], [2.0], [3.0]])
 
     with pytest.raises(ValueError, match="at least 2 columns"):
-        plot_silhouette_analysis(sample_labels, sample_values, X_1d, sample_labels, tmp_path / "out.png", "x", "y", "title")
+        plot_silhouette_analysis(sample_labels, sample_values, X_1d, sample_labels, tmp_path / "out.png", "x", "y", "title", "euclidean")
 
 
 def _small_embeddings(n=8, seed=0):
@@ -789,44 +788,43 @@ def test_clustering_titles_write_adp_as_an_acronym_and_other_methods_capitalized
     assert compose_cluster_plot_title(output_dir, "raw", "adp") == "SDC - Raw - ADP"
 
 
-def test_spread_label_positions_separates_close_centers_keeping_order():
-    positions = _spread_label_positions([100.0, 105.0, 110.0, 900.0], min_gap=50.0, lower=0.0, upper=1000.0)
-
-    assert np.all(np.diff(positions) >= 50.0 - 1e-9)
-    assert positions[-1] == pytest.approx(900.0)
-
-
-def test_spread_label_positions_stays_within_bounds_at_the_top():
-    positions = _spread_label_positions([950.0, 980.0, 990.0], min_gap=50.0, lower=0.0, upper=1000.0)
-
-    assert positions.max() <= 1000.0
-    assert np.all(np.diff(positions) >= 50.0 - 1e-9)
-
-
-def test_spread_label_positions_leaves_far_apart_centers_untouched():
-    centers = [100.0, 400.0, 800.0]
-
-    assert _spread_label_positions(centers, min_gap=50.0, lower=0.0, upper=1000.0).tolist() == centers
-
-
-def test_spread_label_positions_caps_gap_when_labels_do_not_fit():
-    positions = _spread_label_positions([1.0, 2.0, 3.0, 4.0], min_gap=500.0, lower=0.0, upper=100.0)
-
-    assert positions.min() >= 0.0 and positions.max() <= 100.0
-    assert np.all(np.diff(positions) > 0)
-
-
-def test_plot_silhouette_analysis_fixes_x_axis_to_minus_one_one(tmp_path, monkeypatch):
+def _silhouette_figure(tmp_path, monkeypatch, cluster_sizes, metric="euclidean"):
+    """The figure plot_silhouette_analysis draws for clusters of the given sizes (captured before it is closed)."""
     import matplotlib.pyplot as plt
 
     from src.analysis.clustering_tuning import compute_silhouette_samples
 
-    X_2d = _three_blobs_2d()
-    cluster_labels = np.array([0] * 15 + [1] * 15 + [2] * 15)
-    sample_labels, sample_values = compute_silhouette_samples(X_2d, cluster_labels)
+    rng = np.random.default_rng(0)
+    X_2d = np.vstack([rng.normal(10 * i, 1.0, (size, 2)) for i, size in enumerate(cluster_sizes)])
+    labels = np.repeat(np.arange(len(cluster_sizes)), cluster_sizes)
+    sample_labels, values = compute_silhouette_samples(X_2d, labels)
     captured = []
     monkeypatch.setattr(plt, "close", lambda fig: captured.append(fig))
 
-    plot_silhouette_analysis(sample_labels, sample_values, X_2d, cluster_labels, tmp_path / "s.png", "x", "y", "t")
+    plot_silhouette_analysis(sample_labels, values, X_2d, labels, tmp_path / "s.png", "x", "y", "t", metric)
 
-    assert captured[0].axes[0].get_xlim() == (-1.0, 1.0)
+    return captured[0], values
+
+
+def test_plot_silhouette_analysis_has_one_panel_per_cluster_on_the_fixed_silhouette_axis(tmp_path, monkeypatch):
+    figure, _ = _silhouette_figure(tmp_path, monkeypatch, [30, 20, 10])
+
+    panels, scatter = figure.axes[:-1], figure.axes[-1]
+    assert len(panels) == 3
+    assert all(panel.get_xlim() == (-1.0, 1.0) for panel in panels)
+    assert [panel.get_ylabel() for panel in panels] == ["cluster 0", "cluster 1", "cluster 2"]
+    assert scatter.get_xlabel() == "x"
+
+
+def test_plot_silhouette_analysis_titles_the_average_with_its_distance(tmp_path, monkeypatch):
+    figure, values = _silhouette_figure(tmp_path, monkeypatch, [30, 20, 10], metric="cosine")
+
+    assert figure.axes[0].get_title() == f"Average silhouette coefficient = {values.mean():.3f} (cosine)"
+
+
+def test_plot_silhouette_analysis_panel_height_follows_cluster_size_with_a_floor_for_a_tiny_cluster(tmp_path, monkeypatch):
+    figure, _ = _silhouette_figure(tmp_path, monkeypatch, [200, 100, 2])
+
+    heights = [panel.get_position().height for panel in figure.axes[:-1]]
+    assert heights[0] / heights[1] == pytest.approx(2.0, rel=0.02)  # twice the subjects, twice the height
+    assert heights[2] / heights[1] == pytest.approx(0.05 / (100 / 302), rel=0.02)  # 2 subjects: the floor share, not 2/302

@@ -120,8 +120,7 @@ _GRID_MARKER_ALPHA = 0.7
 _SILHOUETTE_SUBPLOT_WIDTH = 6.5
 _SILHOUETTE_HEIGHT = 5.5
 _SILHOUETTE_WSPACE = 0.35
-_SILHOUETTE_BAND_GAP = 10  # vertical gap (in samples) between per-cluster silhouette bands
-_SILHOUETTE_LABEL_MIN_GAP = 0.04  # minimum vertical distance between two cluster labels, as a fraction of the y range
+_SILHOUETTE_MIN_PANEL_SHARE = 0.05  # a cluster of a few dozen subjects still gets a panel tall enough for its name
 
 
 def _square_grid_shape(n_items: int) -> tuple[int, int]:
@@ -637,20 +636,34 @@ def plot_clusters_2d(
     plt.close(fig)
 
 
-def _spread_label_positions(centers: list[float], min_gap: float, lower: float, upper: float) -> np.ndarray:
-    """Y positions for labels anchored at `centers` (ascending): same order, at least `min_gap` apart
-    (capped at what fits in [lower, upper]), as close as possible to their own center.
-    """
-    if len(centers) < 2:
-        return np.array(centers, dtype=float)
-    gap = min(min_gap, (upper - lower) / len(centers))
-    positions = np.array(centers, dtype=float)
-    for i in range(1, len(positions)):
-        positions[i] = max(positions[i], positions[i - 1] + gap)
-    positions[-1] = min(positions[-1], upper)
-    for i in range(len(positions) - 2, -1, -1):
-        positions[i] = min(positions[i], positions[i + 1] - gap)
-    return positions
+def _draw_silhouette_panels(
+    figure,
+    grid_spec,
+    sample_labels: np.ndarray,
+    sample_silhouette_values: np.ndarray,
+    palette: dict[int, str],
+    average: float,
+) -> list:
+    """One panel per cluster, stacked, sharing the x axis (-1..1, the silhouette's own range): each subject's coefficient,
+    largest on top, with the dashed line at the average of all subjects. A panel is as tall as its cluster is large,
+    with a floor (_SILHOUETTE_MIN_PANEL_SHARE) so that a small cluster's name still fits."""
+    clusters = sorted(np.unique(sample_labels).tolist())
+    shares = np.array([np.mean(sample_labels == cluster) for cluster in clusters])
+    panels_grid = grid_spec.subgridspec(len(clusters), 1, height_ratios=np.maximum(shares, _SILHOUETTE_MIN_PANEL_SHARE), hspace=0.08)
+    axes: list = []
+    for row, cluster in enumerate(clusters):
+        axis = figure.add_subplot(panels_grid[row], sharex=axes[0] if axes else None)
+        values = np.sort(sample_silhouette_values[sample_labels == cluster])[::-1]
+        axis.fill_betweenx(np.arange(len(values))[::-1], 0, values, step="mid", facecolor=palette[cluster], edgecolor=palette[cluster], linewidth=0.3)
+        axis.axvline(average, color="red", linestyle="--", linewidth=1)
+        axis.set_xlim(-1, 1)
+        axis.set_ylim(-0.5, len(values) - 0.5)
+        axis.set_yticks([])
+        axis.set_ylabel(f"cluster {cluster}", rotation=0, ha="right", va="center", labelpad=8)
+        axis.tick_params(bottom=row == len(clusters) - 1, labelbottom=row == len(clusters) - 1)
+        axes.append(axis)
+    axes[-1].set_xlabel("silhouette coefficient")
+    return axes
 
 
 def plot_silhouette_analysis(
@@ -662,13 +675,12 @@ def plot_silhouette_analysis(
     xlabel: str,
     ylabel: str,
     title: str,
+    metric: str,
 ) -> None:
-    """The classic sklearn-style two-panel silhouette diagnostic for one
-    already-chosen production clustering result - left: one filled band per
-    cluster, members' coefficients sorted ascending, dashed line at the mean
-    (equals compute_clustering_metrics's aggregate "silhouette" exactly);
-    right: the same 2D scatter as plot_clusters_2d. See docs/dev/plotting.md
-    for the full reading guide.
+    """The silhouette diagnostic of one already-chosen production clustering result - left: one panel per cluster with
+    its members' coefficients (see _draw_silhouette_panels) under the average silhouette coefficient of all subjects
+    (equals compute_clustering_metrics's aggregate "silhouette" exactly), written with the `metric` it was measured
+    under; right: the same 2D scatter as plot_clusters_2d. See docs/dev/plotting.md for the full reading guide.
 
     sample_labels/sample_silhouette_values come from
     clustering_tuning.compute_silhouette_samples (noise already excluded);
@@ -680,47 +692,14 @@ def plot_silhouette_analysis(
 
     display_unique = sorted(np.unique(display_labels).tolist())
     palette = _palette_for_labels(display_unique)
-    avg_score = float(np.mean(sample_silhouette_values))
+    average = float(np.mean(sample_silhouette_values))
 
-    fig, (ax_sil, ax_scatter) = plt.subplots(
-        1,
-        2,
-        figsize=(_SILHOUETTE_SUBPLOT_WIDTH * 2, _SILHOUETTE_HEIGHT),
-        gridspec_kw={"wspace": _SILHOUETTE_WSPACE},
-    )
+    figure = plt.figure(figsize=(_SILHOUETTE_SUBPLOT_WIDTH * 2, _SILHOUETTE_HEIGHT))
+    grid = figure.add_gridspec(1, 2, wspace=_SILHOUETTE_WSPACE)
+    panels = _draw_silhouette_panels(figure, grid[0, 0], sample_labels, sample_silhouette_values, palette, average)
+    panels[0].set_title(f"Average silhouette coefficient = {average:.3f} ({metric})", fontsize=11, fontweight="bold")
 
-    y_lower = _SILHOUETTE_BAND_GAP
-    band_texts: list[str] = []
-    band_centers: list[float] = []
-    for label in sorted(np.unique(sample_labels).tolist()):
-        values = np.sort(sample_silhouette_values[sample_labels == label])
-        y_upper = y_lower + len(values)
-        ax_sil.fill_betweenx(np.arange(y_lower, y_upper), 0, values, facecolor=palette[label], edgecolor=palette[label])
-        band_texts.append(f"cluster {label}")
-        band_centers.append(y_lower + 0.5 * len(values))
-        y_lower = y_upper + _SILHOUETTE_BAND_GAP
-    ax_sil.set_ylim(0, y_lower)
-    # Fixed [-1, 1] (the silhouette's own range), so two runs' plots are comparable. Labels sit left of the
-    # axes, not at x<0 inside them, where the negative tails of the bands would cover them; a small band
-    # (a few dozen subjects out of thousands) is thinner than its own text, so the labels are spread apart.
-    ax_sil.set_xlim(-1, 1)
-    label_gap = _SILHOUETTE_LABEL_MIN_GAP * y_lower
-    label_positions = _spread_label_positions(band_centers, label_gap, label_gap / 2, y_lower - label_gap / 2)
-    for text, y_position in zip(band_texts, label_positions):
-        ax_sil.annotate(
-            text,
-            xy=(0, y_position),
-            xycoords=("axes fraction", "data"),
-            xytext=(-6, 0),
-            textcoords="offset points",
-            ha="right",
-            va="center",
-        )
-    ax_sil.axvline(avg_score, color="red", linestyle="--", label=f"mean = {avg_score:.3f}")
-    ax_sil.set_xlabel("silhouette coefficient")
-    ax_sil.set_yticks([])
-    ax_sil.legend(loc="lower right")
-
+    ax_scatter = figure.add_subplot(grid[0, 1])
     x_min, x_max = X_2d[:, 0].min(), X_2d[:, 0].max()
     y_min, y_max = X_2d[:, 1].min(), X_2d[:, 1].max()
     x_pad = (x_max - x_min) * _AXIS_PADDING_FRACTION
@@ -752,11 +731,10 @@ def plot_silhouette_analysis(
     ax_scatter.legend(
         handles, legend_labels, title="cluster", loc="upper left", bbox_to_anchor=(1.02, 1.0), borderaxespad=0.0
     )
-
-    fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
+    figure.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
+    figure.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(figure)
 
 
 def plot_embedding_grid_blocks(

@@ -330,10 +330,10 @@ def per_cluster_silhouette(X: np.ndarray, labels: np.ndarray, combo_params: dict
     """
     require_euclidean_compatible(combo_params)
     kept_labels, samples = compute_silhouette_samples(X, np.asarray(labels))
-    return _silhouette_breakdown(kept_labels, samples)
+    return silhouette_breakdown(kept_labels, samples)
 
 
-def _silhouette_breakdown(labels: np.ndarray, samples: np.ndarray) -> SilhouetteBreakdown:
+def silhouette_breakdown(labels: np.ndarray, samples: np.ndarray) -> SilhouetteBreakdown:
     grouped = pd.DataFrame({"cluster": labels, "silhouette": samples}).groupby("cluster")["silhouette"]
     clusters = pd.DataFrame(
         {"n": grouped.size(), "silhouette_mean": grouped.mean(), "share_negative": grouped.apply(lambda s: float((s < 0).mean()))}
@@ -369,7 +369,7 @@ def distance_matrix_silhouette(distances: np.ndarray, labels: np.ndarray) -> Sil
     n_clusters = len(np.unique(labels))
     if not 2 <= n_clusters <= len(labels) - 1:
         raise ValueError(f"cannot compute the silhouette: {n_clusters} cluster(s) found (need 2..n-1)")
-    return _silhouette_breakdown(labels, silhouette_samples(distances, labels, metric="precomputed"))
+    return silhouette_breakdown(labels, silhouette_samples(distances, labels, metric="precomputed"))
 
 
 def saturated_pair_share(distances: np.ndarray, tolerance: float = 1e-9) -> float:

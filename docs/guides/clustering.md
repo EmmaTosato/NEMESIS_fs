@@ -214,7 +214,7 @@ Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorat
 
 - Le metriche geometriche del notebook di valutazione (`compute_clustering_metrics`) rifiutano `dice`/`jaccard`: assumono distanza euclidea. Per ADP si legge la `silhouette` del tuning, che usa la distanza giusta.
 
-- Il grafico `silhouette_plot.png` di produzione usa la stessa distanza di `metric`.
+- La silhouette di produzione (`silhouette_plot.png` e, per agglomerative, `silhouette_per_cluster.csv` e la riga di `config.md`) usa la distanza della run: la `metric` per agglomerative e ADP, euclidea per ogni altro metodo. Una media non si confronta tra distanze diverse.
 
 - `cluster_plot.png` ha bisogno di un `viz_embedding_path` (la matrice grezza ha più di 3 colonne). L'UMAP di produzione è `euclidean`, ADP clusterizza con `dice`: le due viste non condividono la metrica.
 
@@ -258,7 +258,8 @@ A seconda della modalità, vengono generati risultati diversi. **Produzione e tu
 1. **`matrix.npy`**: Copia della matrice di partenza.
 2. **`metadata.csv`**: File arricchito con la colonna **`cluster_label`**.
 3. **`cluster_plot.png`**: Grafico 2D/3D statico colorato per cluster (titolo `"<Modality> - <ReductionMethod> - <ClusteringMethod>"`, es. `"Lesions - Umap - Kmeans"`). Nessuna versione `.html` per-run — la vista interattiva di un singolo run vive in `src.pipeline.embedding_app` (vedi `docs/guides/embedding_app.md`), che legge questo stesso `matrix.npy`/`metadata.csv` senza bisogno di un file HTML da rigenerare.
-4. **`silhouette_plot.png`**: Grafico di qualità del clustering paziente per paziente.
+4. **`silhouette_plot.png`**: un pannello per cluster con la silhouette di ogni soggetto (da -1 a 1, dal più alto in alto), la linea rossa tratteggiata sulla media e, a destra, lo scatter dei cluster. Il titolo riporta la *Average silhouette coefficient* (la media sui soggetti, rumore escluso) e la distanza con cui è misurata. L'altezza di un pannello segue la dimensione del cluster, con un minimo del 5% dell'altezza totale perché il nome di un cluster piccolo resti leggibile (i pannelli dei cluster più piccoli non sono quindi proporzionali).
+5. **`silhouette_per_cluster.csv`** (solo agglomerative): una riga per cluster con `cluster`, `n` (soggetti), `silhouette_mean` (media del cluster) e `share_negative` (quota dei soggetti con silhouette negativa). La media sui soggetti, pesata per `n`, è la *Average silhouette coefficient* del titolo del plot e della riga `Average silhouette coefficient: 0.452 (euclidean)` che agglomerative scrive in `Summary` di `config.md`. Una run con meno di 2 cluster non ha silhouette: niente plot, tabella e riga, e un warning nel log.
 
 Nessuna cartella `production/comparison/` — non esiste un plot di confronto cross-metodo generato dalla pipeline: per confrontare più metodi si aprono i `cluster_plot.png` di ciascuno, o si usa `embedding_app.py` (un run alla volta).
 

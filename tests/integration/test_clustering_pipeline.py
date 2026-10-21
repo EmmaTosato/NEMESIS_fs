@@ -5,6 +5,7 @@ import json
 import logging
 import sys
 from datetime import datetime
+from pathlib import Path
 
 import nibabel as nib
 import numpy as np
@@ -369,6 +370,89 @@ def test_clustering_end_to_end_agglomerative(tmp_path, monkeypatch):
     out_dir = next(p for p in (output_root / "production" / "agglomerative" / "umap").iterdir() if p.is_dir())
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
+
+
+def _run_production(tmp_path, monkeypatch, method: str, params: dict) -> Path:
+    """One production run of `method` on the small test matrix; returns its output folder."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({method: {"params": params}}))
+    output_root = tmp_path / "cl_out"
+    cfg = {
+        "project": "testproj",
+        "input_path": str(input_dir),
+        "reduction_method": "umap",
+        "clustering_methods": [method],
+        "params_file": str(params_path),
+        "output_root": str(output_root),
+        "session_name": "run1",
+        "overwrite": False,
+        "fine_tuning": False,
+        "reduced_data": False,
+        "save_tuning_clusterings": False,
+        "evaluations_file": "config/registry/clustering_evaluations.json",
+        "tuning_evaluations": {"general": [], method: []},
+        "write_report": False,
+        "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+    return next(p for p in (output_root / "production" / method / "umap").iterdir() if p.is_dir())
+
+
+@pytest.mark.parametrize("metric", ["euclidean", "cosine", "manhattan"])
+def test_clustering_agglomerative_production_writes_the_silhouette_per_cluster_and_the_average_in_config(tmp_path, monkeypatch, metric):
+    out_dir = _run_production(tmp_path, monkeypatch, "agglomerative", {"n_clusters": 3, "linkage": "average", "metric": metric})
+
+    table = pd.read_csv(out_dir / "silhouette_per_cluster.csv")
+    assert list(table.columns) == ["cluster", "n", "silhouette_mean", "share_negative"]
+    assert table["n"].sum() == 12
+    average = (table["n"] * table["silhouette_mean"]).sum() / table["n"].sum()  # the average over subjects
+    assert f"Average silhouette coefficient: {average:.3f} ({metric})" in (out_dir / "config.md").read_text()
+
+
+def test_run_silhouette_scores_agglomerative_and_adp_under_their_metric_and_every_other_method_as_euclidean():
+    rng = np.random.default_rng(0)
+    X = np.vstack([rng.normal([5, 1, 1], 1.5, (20, 3)), rng.normal([1, 5, 1], 1.5, (20, 3))])
+    labels = np.array([0] * 20 + [1] * 20)  # same partition for every call: only the distance can differ
+
+    agglomerative = clustering._run_silhouette(X, labels, "agglomerative", {"metric": "cosine"})
+    euclidean = clustering._run_silhouette(X, labels, "agglomerative", {"metric": "euclidean"})
+    kmeans = clustering._run_silhouette(X, labels, "kmeans", {"metric": "cosine"})  # kmeans has no metric: params are ignored
+
+    assert agglomerative.metric == "cosine" and euclidean.metric == "euclidean" and kmeans.metric == "euclidean"
+    assert not np.allclose(agglomerative.values, euclidean.values)
+    assert np.allclose(kmeans.values, euclidean.values)
+
+
+def test_run_silhouette_is_none_for_a_result_with_fewer_than_two_clusters(caplog):
+    X = np.random.default_rng(0).normal(size=(10, 3))
+
+    with caplog.at_level(logging.WARNING):
+        assert clustering._run_silhouette(X, np.zeros(10, dtype=int), "agglomerative", {"metric": "euclidean"}) is None
+    assert "no silhouette for this run" in caplog.text
+
+
+def test_clustering_agglomerative_params_without_metric_are_scored_as_euclidean(tmp_path, monkeypatch):
+    out_dir = _run_production(tmp_path, monkeypatch, "agglomerative", {"n_clusters": 3, "linkage": "ward"})
+
+    assert "(euclidean)" in (out_dir / "config.md").read_text()
+
+
+def test_clustering_agglomerative_production_with_one_cluster_has_no_silhouette_and_still_succeeds(tmp_path, monkeypatch):
+    out_dir = _run_production(tmp_path, monkeypatch, "agglomerative", {"n_clusters": 1, "linkage": "ward"})
+
+    assert not (out_dir / "silhouette_per_cluster.csv").exists()
+    assert "silhouette" not in (out_dir / "config.md").read_text()
+
+
+def test_clustering_other_methods_write_neither_the_silhouette_table_nor_its_config_line(tmp_path, monkeypatch):
+    out_dir = _run_production(tmp_path, monkeypatch, "kmeans", {"n_clusters": 3, "random_state": 0, "n_init": 10})
+
+    assert not (out_dir / "silhouette_per_cluster.csv").exists()
+    assert "silhouette" not in (out_dir / "config.md").read_text()
 
 
 def test_clustering_end_to_end_gmm(tmp_path, monkeypatch):

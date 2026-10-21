@@ -81,6 +81,7 @@ import json
 import logging
 import shutil
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -93,6 +94,7 @@ from src.analysis.clustering import (
     own_cluster_membership,
     soft_membership_matrix,
 )
+from src.analysis.clustering_evaluation import silhouette_breakdown
 from src.analysis.clustering_tuning import (
     CONSENSUS_METRIC_COLUMNS,
     METHOD_METRIC_COLUMNS,
@@ -388,6 +390,9 @@ def _run_one_method(
     if method == "hdbscan_soft":
         metadata_out["membership_own"] = own_membership  # NaN for noise: it has no own cluster
     
+    # The plot needs it only when there is a viz embedding; agglomerative also writes it as a table and in config.md.
+    silhouette = _run_silhouette(X, cluster_labels, method, params) if method == "agglomerative" or X_viz is not None else None
+
     effective_session_name = config.session_name
     if embedding_tag:
         effective_session_name = f"{effective_session_name}_{embedding_tag}"
@@ -402,7 +407,7 @@ def _run_one_method(
             output_dir,
             X,
             metadata_out,
-            _build_readme_lines(config, method, X, cluster_labels, params, now),
+            _build_readme_lines(config, method, X, cluster_labels, params, now, silhouette),
             overwrite=config.overwrite,
             extra_arrays=extra_arrays,
         )
@@ -410,6 +415,13 @@ def _run_one_method(
         logging.error(str(exc))
         return None
     logging.info("[%s] clustered matrix written to %s (shape %s)", method, output_dir, X.shape)
+
+    if method == "agglomerative" and silhouette is not None:
+        try:
+            _write_silhouette_per_cluster(output_dir, silhouette)
+        except OSError as exc:
+            logging.error("[%s] cannot write %s: %s", method, SILHOUETTE_PER_CLUSTER_FILENAME, exc)
+            return None
 
     if X_viz is not None:
         plot_title = compose_cluster_plot_title(output_dir, config.reduction_method, method)
@@ -425,24 +437,19 @@ def _run_one_method(
         )
         logging.info("[%s] cluster plot written to %s", method, output_dir / "cluster_plot.png")
 
-        try:
-            # adp clusters the dice/jaccard/euclidean distances of the raw matrix - score under that same
-            # distance; every other method is scored on X as-is (euclidean).
-            silhouette_metric = params["metric"] if method == "adp" else "euclidean"
-            sample_labels, sample_silhouette_values = compute_silhouette_samples(X, cluster_labels, silhouette_metric)
+        if silhouette is not None:
             plot_silhouette_analysis(
-                sample_labels,
-                sample_silhouette_values,
+                silhouette.labels,
+                silhouette.values,
                 X_viz,
                 cluster_labels,
                 output_dir / "silhouette_plot.png",
                 xlabel="viz dim 1",
                 ylabel="viz dim 2",
                 title=plot_title,
+                metric=silhouette.metric,
             )
             logging.info("[%s] silhouette plot written to %s", method, output_dir / "silhouette_plot.png")
-        except ValueError as exc:
-            logging.warning("[%s] skipping silhouette_plot.png: %s", method, exc)
     else:
         logging.warning(
             "[%s] no viz embedding available (see warning logged in main()) - skipping "
@@ -586,7 +593,47 @@ def _config_summary(config: ClusteringConfig, method: str) -> str:
     return json.dumps(payload, indent=2)
 
 
-def _summary_lines(config: ClusteringConfig, method: str, X: np.ndarray, cluster_labels: np.ndarray, params: dict) -> list[str]:
+SILHOUETTE_PER_CLUSTER_FILENAME = "silhouette_per_cluster.csv"
+# Methods whose clustering has its own `metric`: scored under it. Every other method is scored on X as is, euclidean.
+SILHOUETTE_OWN_METRIC_METHODS = ("adp", "agglomerative")
+
+
+@dataclass(frozen=True)
+class RunSilhouette:
+    """The silhouette of every non-noise subject of one production run, and the distance it was measured under."""
+
+    metric: str
+    labels: np.ndarray
+    values: np.ndarray
+
+
+def _run_silhouette(X: np.ndarray, cluster_labels: np.ndarray, method: str, params: dict) -> RunSilhouette | None:
+    """None, with a warning, when the result has no silhouette (fewer than 2 non-noise clusters): a degenerate
+    production result is not an error of the run, it just has nothing to score."""
+    # a params file without `metric` clusters under the model's own default, euclidean
+    metric = params.get("metric", "euclidean") if method in SILHOUETTE_OWN_METRIC_METHODS else "euclidean"
+    try:
+        labels, values = compute_silhouette_samples(X, cluster_labels, metric)
+    except ValueError as exc:
+        logging.warning("[%s] no silhouette for this run: %s", method, exc)
+        return None
+    return RunSilhouette(metric, labels, values)
+
+
+def _write_silhouette_per_cluster(output_dir: Path, silhouette: RunSilhouette) -> None:
+    """One row per cluster: subjects, mean silhouette, share of subjects with a negative silhouette."""
+    table = silhouette_breakdown(silhouette.labels, silhouette.values).clusters
+    table.rename_axis("cluster").to_csv(output_dir / SILHOUETTE_PER_CLUSTER_FILENAME)
+
+
+def _summary_lines(
+    config: ClusteringConfig, method: str, X: np.ndarray, cluster_labels: np.ndarray, params: dict, silhouette: "RunSilhouette | None"
+) -> list[str]:
+    silhouette_lines = (
+        [f"Average silhouette coefficient: {silhouette.values.mean():.3f} ({silhouette.metric})"]
+        if method == "agglomerative" and silhouette is not None
+        else []
+    )
     return [
         "## Config",
         "",
@@ -598,6 +645,7 @@ def _summary_lines(config: ClusteringConfig, method: str, X: np.ndarray, cluster
         "",
         f"Matrix shape: {X.shape[0]} subjects x {X.shape[1]} features",
         _clusters_found_line(cluster_labels),
+        *silhouette_lines,
         f"Params used: {json.dumps(params)}",
     ]
 
@@ -616,10 +664,16 @@ def _clusters_found_line(cluster_labels: np.ndarray) -> str:
 
 
 def _build_readme_lines(
-    config: ClusteringConfig, method: str, X: np.ndarray, cluster_labels: np.ndarray, params: dict, now: datetime
+    config: ClusteringConfig,
+    method: str,
+    X: np.ndarray,
+    cluster_labels: np.ndarray,
+    params: dict,
+    now: datetime,
+    silhouette: "RunSilhouette | None",
 ) -> list[str]:
     title = f"# {config.project} clustering ({method}) — {now.strftime('%d-%m-%y %H:%M')}"
-    return [title, ""] + _summary_lines(config, method, X, cluster_labels, params)
+    return [title, ""] + _summary_lines(config, method, X, cluster_labels, params, silhouette)
 
 
 def _run_fine_tuning(

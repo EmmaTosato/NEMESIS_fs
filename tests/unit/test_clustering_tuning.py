@@ -157,9 +157,25 @@ def test_compute_silhouette_samples_dice_scores_the_dice_distance_not_the_euclid
     assert not np.allclose(dice_values, compute_silhouette_samples(X, labels)[1])
 
 
+@pytest.mark.parametrize("metric", ["cosine", "manhattan"])
+def test_compute_silhouette_samples_scores_cosine_and_manhattan_under_that_distance(metric):
+    from sklearn.metrics import silhouette_samples
+
+    rng = np.random.default_rng(0)
+    X = np.vstack([rng.normal([5, 1, 1], 1.5, (20, 3)), rng.normal([1, 5, 1], 1.5, (20, 3))])
+    labels = np.array([0] * 20 + [1] * 20)
+
+    sample_labels, values = compute_silhouette_samples(X, labels, metric)
+
+    assert np.allclose(values, silhouette_samples(X, labels, metric=metric))
+    assert not np.allclose(values, compute_silhouette_samples(X, labels)[1])  # not the euclidean geometry
+    # the mean is the silhouette the tuning sweep records for the same metric
+    assert values.mean() == pytest.approx(compute_clustering_metrics_metric_aware(X, labels, metric)["silhouette"])
+
+
 def test_compute_silhouette_samples_unsupported_metric_raises():
-    with pytest.raises(ValueError, match="'euclidean', 'dice' or 'jaccard'"):
-        compute_silhouette_samples(_three_blobs(), np.array([0] * 15 + [1] * 15 + [2] * 15), "cosine")
+    with pytest.raises(ValueError, match="'euclidean', 'cosine', 'manhattan', 'dice' or 'jaccard'"):
+        compute_silhouette_samples(_three_blobs(), np.array([0] * 15 + [1] * 15 + [2] * 15), "chebyshev")
 
 
 def test_compute_silhouette_samples_excludes_noise():
