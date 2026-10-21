@@ -50,7 +50,7 @@ In modalità Tuning, lo script esegue esperimenti su una griglia di combinazioni
 
   `plot_hdbscan` disegna un embedding con più di 2 componenti sul suo **gemello 2D**: l'embedding con gli stessi iperparametri e `n_components=2`, che è un fit a sé, mai un taglio delle prime colonne. Per questo la griglia deve contenere `n_components: 2`; senza, la pipeline si ferma prima dello sweep. I colori dei cluster valgono dentro un solo subplot (HDBSCAN numera i cluster a caso), il grigio è il rumore.
 
-  Le valutazioni sugli embedding si possono rilanciare in un secondo momento su un tuning già salvato, senza rifare lo sweep: [`evaluate_tuning_embeddings.md`](evaluate_tuning_embeddings.md).
+  Le valutazioni sugli embedding si possono rilanciare in un secondo momento su un tuning già salvato, senza rifare lo sweep: [`evaluate_dim_reduction_tuning.md`](evaluate_dim_reduction_tuning.md).
 
 ### 2. Modalità Produzione (`"fine_tuning": false`)
 Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modalità produzione elaborerà il file finale da usare nei passaggi successivi.
@@ -63,7 +63,7 @@ Dopo aver scelto i parametri nel tuning, salvarli nel registry. L'avvio in modal
 | :--- | :--- | :--- |
 | **`project`** | *Stringa* | Nome del progetto (es. `"clinical_connectome"`). |
 | **`input_path`** | *Stringa* | Percorso della matrice di output generata dal *Matrix Building*. DEVE esistere. |
-| **`reduction_method`** | *Stringa* | L'algoritmo da usare. Valori: `"umap"`, `"tsne"`, `"pca"`, `"pacmap"`. |
+| **`reduction_method`** | *Stringa* | L'algoritmo da usare. Valori: `"umap"`, `"tsne"`, `"pca"`, `"pacmap"`. `"tsne"` non è usato nelle analisi correnti: i suoi tuning salvati usano init casuale e `learning_rate` 200, un nuovo tuning usa MDS classico e `"auto"` (`knowledge/notes/dim_reduction_clustering/dim_reduction_methods/tsne.md`). |
 | **`params_file`** | *Stringa* | Il percorso al registro logico: `"config/registry/params_reduction.json"`. |
 | **`output_root`** | *Stringa* | Cartella per i risultati (es. `"results/lesion/dim_reduction"`). |
 | **`session_name`** | *Stringa* | Nome dell'esperimento (es. `"umap_test_1"`). |

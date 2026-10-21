@@ -2,6 +2,8 @@
 
 Indice dei metodi: [README.md](README.md). Implementazione nel repo: `tsne_embed` in `src/analysis/reduction.py`, cioè `sklearn.manifold.TSNE(**params)` di scikit-learn 1.8.0 (Barnes-Hut). Parametri in `config/registry/params_reduction.json` (chiave `tsne`). Una sintesi più breve è in [`../employed_dim_reduction_methods.md`](../employed_dim_reduction_methods.md).
 
+**Stato.** t-SNE è registrato in `REDUCTION_METHODS` ma non è usato nelle analisi correnti (si usano PCA e UMAP). I tuning t-SNE già salvati (sessioni `s1.1`, `s1.2`, `s2.1`, `s2.2` in `docs/experiments/`) sono stati fatti con inizializzazione casuale e `learning_rate` 200; il codice attuale usa l'MDS classico e `"auto"` (§3, §4). Un nuovo tuning non è quindi confrontabile punto per punto con quelli salvati.
+
 ## 1. Cosa fa
 
 Mette ogni soggetto in un piano (2D, raramente 3D) in modo che i soggetti vicini nello spazio originale restino vicini nel piano. Lo fa convertendo le distanze in probabilità di "essere vicini" in entrambi gli spazi e spostando i punti del piano finché le due distribuzioni si somigliano [1]. È pensato per la **visualizzazione** [1, 2].

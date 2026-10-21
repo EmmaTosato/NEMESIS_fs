@@ -8,7 +8,7 @@ Una nota per ogni metodo registrato in `REDUCTION_METHODS` (`src/analysis/reduct
 |---|---|---|---|---|
 | [pca.md](pca.md) | PCA | `pca` con `rotation: "none"` | `covariance_pca.py` (propria) o `scikit-learn` 1.8.0 | lineare, spettrale |
 | [pca_varimax.md](pca_varimax.md) | PCA con rotazione varimax | `pca` con `rotation: "varimax"` | `factor_analyzer` 0.5.1 | lineare + rotazione |
-| [tsne.md](tsne.md) | t-SNE (Barnes-Hut) | `tsne` | `scikit-learn` 1.8.0 | neighbor embedding |
+| [tsne.md](tsne.md) | t-SNE (Barnes-Hut), non usato nelle analisi correnti | `tsne` | `scikit-learn` 1.8.0 | neighbor embedding |
 | [umap.md](umap.md) | UMAP | `umap` | `umap-learn` 0.5.12 | neighbor embedding |
 | [pacmap.md](pacmap.md) | PaCMAP | `pacmap` | `pacmap` 0.9.1 | neighbor embedding a coppie |
 
