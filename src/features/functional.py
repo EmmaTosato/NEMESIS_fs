@@ -61,7 +61,7 @@ def load_atlas(atlas_path: Path, label_table_path: Path) -> tuple[nib.Nifti1Imag
 
     Raises FileNotFoundError if either file is missing, ValueError if the
     label table doesn't have the expected columns, has a duplicate 'index'
-    value, or has an 'index' value absent from the volume itself - see
+    or 'label' value, or has an 'index' value absent from the volume itself - see
     docs/dev/fc_matrix.md for why each check exists.
     """
     atlas_path = Path(atlas_path)
@@ -76,6 +76,13 @@ def load_atlas(atlas_path: Path, label_table_path: Path) -> tuple[nib.Nifti1Imag
     if not {"index", "label"}.issubset(label_table.columns):
         raise ValueError(
             f"label table {label_table_path} must have 'index' and 'label' columns, got {list(label_table.columns)}"
+        )
+
+    duplicated_labels = sorted(label_table.loc[label_table["label"].duplicated(), "label"].unique().tolist())
+    if duplicated_labels:
+        raise ValueError(
+            f"label table {label_table_path} has duplicate 'label' value(s) {duplicated_labels} - "
+            "node names must be unique, they index the FC matrix"
         )
 
     duplicated_indices = sorted(label_table.loc[label_table["index"].duplicated(), "index"].unique().tolist())
@@ -97,6 +104,12 @@ def load_atlas(atlas_path: Path, label_table_path: Path) -> tuple[nib.Nifti1Imag
     return atlas_img, label_table
 
 
+def _parcel_labels(masker: NiftiLabelsMasker) -> list[int]:
+    """Fitted masker's labels without the background (0), which is in labels_ only if the volume has a voxel at 0:
+    the transform output has one value per non-background label, so position 0 is not always the background."""
+    return [label for label in masker.labels_ if label != 0]
+
+
 def compute_parcel_coverage(atlas_img: nib.Nifti1Image, label_ids: list[int], healthy_img: nib.Nifti1Image) -> np.ndarray:
     """Fraction of healthy (non-lesioned) voxels per parcel, in label_ids order.
 
@@ -112,14 +125,13 @@ def compute_parcel_coverage(atlas_img: nib.Nifti1Image, label_ids: list[int], he
 
     masker_total = NiftiLabelsMasker(labels_img=atlas_img, background_label=0, strategy="sum", standardize=None)
     n_total = np.atleast_1d(np.squeeze(masker_total.fit_transform(ones_img)))
-    # labels_[1:]: labels_[0] is always the "Background" placeholder (label 0), not a real parcel.
-    total_by_label = dict(zip(masker_total.labels_[1:], n_total))
+    total_by_label = dict(zip(_parcel_labels(masker_total), n_total))
 
     masker_healthy = NiftiLabelsMasker(
         labels_img=atlas_img, mask_img=healthy_img, background_label=0, strategy="sum", standardize=None
     )
     n_healthy = np.atleast_1d(np.squeeze(masker_healthy.fit_transform(ones_img)))
-    healthy_by_label = dict(zip(masker_healthy.labels_[1:], n_healthy))
+    healthy_by_label = dict(zip(_parcel_labels(masker_healthy), n_healthy))
 
     # .get(lbl, 0.0): a label absent from healthy_by_label (fully lesioned, 0 voxels
     # survived the mask) is 0.0 coverage - never a KeyError, never silently skipped.
@@ -169,7 +181,8 @@ def vectorize_upper_triangle(matrix_df: pd.DataFrame, node_names: np.ndarray) ->
     matrix is symmetric with a non-informative diagonal (self-correlation
     1.0). Raises ValueError if the lower triangle actually disagrees with
     the upper one, instead of silently discarding whichever half the lower
-    triangle held - see docs/dev/fc_matrix.md.
+    triangle held, or if two node pairs give the same edge name (a node name
+    containing '__') - see docs/dev/fc_matrix.md.
     """
     values_matrix = matrix_df.values
     if not np.allclose(values_matrix, values_matrix.T, equal_nan=True):
@@ -180,6 +193,12 @@ def vectorize_upper_triangle(matrix_df: pd.DataFrame, node_names: np.ndarray) ->
     n = len(node_names)
     row_idx, col_idx = np.triu_indices(n, k=1)
     edge_names = [f"{node_names[i]}__{node_names[j]}" for i, j in zip(row_idx, col_idx)]
+    duplicated_edges = sorted(pd.Series(edge_names).loc[lambda names: names.duplicated()].unique())
+    if duplicated_edges:
+        raise ValueError(
+            f"edge name(s) {duplicated_edges} are ambiguous: node names containing '__' make two different "
+            "node pairs join into the same 'a__b' edge name"
+        )
     values = values_matrix[row_idx, col_idx]
     return pd.Series(values, index=edge_names)
 
@@ -269,7 +288,8 @@ def mask_dataset_fc(
     missing_lesion/excluded_by_group as in discover_subject_files, and
     failed is subject_id -> reason for any subject whose own lesion/FC file
     couldn't be read or masked - isolated per-subject (lesson #21) so one
-    bad file costs only that subject, not the whole combo/run.
+    bad file costs only that subject, not the whole combo/run. Raises
+    ValueError if every discovered subject fails.
     """
     atlas_img, label_table = load_atlas(atlas_path, label_table_path)
     label_ids = label_table["index"].tolist()
@@ -299,12 +319,18 @@ def mask_dataset_fc(
                 lesion_img, fc, atlas_img, label_ids, node_names, min_coverage, resample_interpolation, binarize_threshold
             )
             fc_masked.to_csv(output_dir / f"{subject}_masked_fc.csv")
-        except (OSError, ValueError, ImageFileError, pd.errors.ParserError) as exc:
+        # EOFError: raised for a .nii.gz truncated at the end, and it is not an OSError.
+        except (OSError, EOFError, ValueError, ImageFileError, pd.errors.ParserError) as exc:
             logging.warning("%s: skipped, could not be masked: %s", subject, exc)
             failed[subject] = str(exc)
             continue
         rows.append({"subject_id": subject, "dataset": dataset, "n_compromised_nodes": len(compromised_names)})
 
+    if not rows:
+        raise ValueError(
+            f"all {len(subject_files)} subject(s) of {dataset!r} failed masking for atlas_combo {atlas_combo!r} - "
+            f"nothing to write; reasons: {failed}"
+        )
     summary = pd.DataFrame(rows).sort_values("subject_id").reset_index(drop=True)
     return summary, missing_lesion, excluded_by_group, failed
 

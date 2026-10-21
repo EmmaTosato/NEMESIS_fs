@@ -231,21 +231,3 @@ def load_excluded_subjects(path: Path, scope: str) -> pd.DataFrame:
     applies = excluded["scope"].isin(("all", scope))
     return excluded.assign(value=values).loc[applies].reset_index(drop=True)
 
-
-def load_participants(path: Path) -> pd.DataFrame:
-    """Read participants.tsv, rename participant_id -> subject_id.
-
-    Raises FileNotFoundError if path doesn't exist, ValueError if the
-    expected participant_id column is absent (wrong/malformed file - never
-    guessed at from a different column name).
-    """
-    path = Path(path)
-    if not path.is_file():
-        raise FileNotFoundError(f"participants.tsv not found: {path}")
-
-    participants = pd.read_csv(path, sep="\t", dtype=str)
-    if "participant_id" not in participants.columns:
-        raise ValueError(
-            f"{path}: expected a 'participant_id' column, got {list(participants.columns)}"
-        )
-    return participants.rename(columns={"participant_id": "subject_id"})

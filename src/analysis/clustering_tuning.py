@@ -1,5 +1,5 @@
 """Manual fine-tuning sweep for clustering methods (kmeans, agglomerative, gmm,
-hdbscan, spectral, evidence_accumulation) - mirrors src/analysis/tuning.py's
+hdbscan, spectral, adp) - mirrors src/analysis/tuning.py's
 dim-reduction sweep, but clustering has no ground truth to score against:
 every generic metric here is an *internal* validation index computed straight
 from (X, cluster_labels), meaningful only within one method's own swept grid,
@@ -10,8 +10,7 @@ Two kinds of extras beyond the 3 generic metrics, see METHOD_METRIC_COLUMNS -
 per-combination scalar columns for methods that expose one after fitting
 (kmeans' inertia_, gmm's bic_/aic_), and standalone single-fit diagnostics
 independent of which n_clusters ends up chosen (agglomerative's dendrogram +
-interclass distance matrix, spectral's eigengap, evidence_accumulation's
-n_repeats convergence check + consensus matrix heatmap) - see
+interclass distance matrix, spectral's eigengap) - see
 docs/dev/models.md for the full rationale, including why HDBSCAN gets neither
 a standalone diagnostic nor a plotted inertia/bic-style column.
 """
@@ -72,11 +71,10 @@ METHOD_METRIC_COLUMNS: dict[str, list[str]] = {
         "membership_mean", "membership_share_below_half", "persistence_mean",
     ],
     "spectral": ["silhouette", "calinski_harabasz", "davies_bouldin"],
-    "evidence_accumulation": ["silhouette", "calinski_harabasz", "davies_bouldin"],
     "adp": ["silhouette", "calinski_harabasz", "davies_bouldin", "n_clusters_found", "largest_cluster_share", "ari_vs_prev_z"],
 }
 
-STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral", "evidence_accumulation"}
+STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral"}
 
 # HIGH #13 (audit 15/08/26): the 3 geometric metrics below always score X under
 # sklearn's own default (Euclidean) - only valid if the clustering method itself also
@@ -95,11 +93,22 @@ _EUCLIDEAN_SAFE_METRIC = frozenset({None, "euclidean"})
 _WARD_SAFE_METRICS = frozenset({"euclidean", "l2"})
 
 
+def _in_allow_list(field: str, value: object, allowed: frozenset) -> bool:
+    """`value in allowed`, with a list/object (valid JSON, unhashable) turned into a domain error
+    instead of the raw TypeError a frozenset lookup raises."""
+    try:
+        return value in allowed
+    except TypeError as exc:
+        raise ValueError(f"{field} must be a plain scalar (string/null), got {value!r}") from exc
+
+
 def require_euclidean_compatible(combo_params: dict | None) -> None:
+    """Raises ValueError if combo_params names an affinity/metric outside the Euclidean allow-lists
+    (or one that isn't a plain scalar). None -> no check."""
     if combo_params is None:
         return
     affinity = combo_params.get("affinity")
-    if affinity not in _EUCLIDEAN_SAFE_AFFINITY:
+    if not _in_allow_list("affinity", affinity, _EUCLIDEAN_SAFE_AFFINITY):
         raise ValueError(
             f"compute_clustering_metrics assumes Euclidean geometry (sklearn's default for "
             f"silhouette/calinski_harabasz/davies_bouldin), but affinity={affinity!r} means X is not a "
@@ -107,7 +116,7 @@ def require_euclidean_compatible(combo_params: dict | None) -> None:
             "function, or register affinity in _EUCLIDEAN_SAFE_AFFINITY if it's actually Euclidean-based"
         )
     metric = combo_params.get("metric")
-    if metric not in _EUCLIDEAN_SAFE_METRIC:
+    if not _in_allow_list("metric", metric, _EUCLIDEAN_SAFE_METRIC):
         raise ValueError(
             f"compute_clustering_metrics assumes Euclidean geometry (sklearn's default for "
             f"silhouette/calinski_harabasz/davies_bouldin), but metric={metric!r} means clustering itself "
@@ -248,11 +257,11 @@ def is_invalid_ward_metric_combo(combo_params: dict) -> bool:
     (AgglomerativeClustering's own `metric` docstring: "If linkage is 'ward', only 'euclidean'
     and 'l2' are accepted"). Checked upfront in run_clustering_tuning_sweep so such a
     combination is skipped with a logged warning, never let through to raise sklearn's own
-    ValueError mid-sweep.
+    ValueError mid-sweep. Raises ValueError if linkage/metric isn't a plain scalar.
     """
     linkage = combo_params.get("linkage", "ward")
     metric = combo_params.get("metric", "euclidean")
-    return linkage == "ward" and metric not in _WARD_SAFE_METRICS
+    return linkage == "ward" and not _in_allow_list("metric", metric, _WARD_SAFE_METRICS)
 
 
 def _agglomerative_fit_metric_aware(
@@ -506,7 +515,9 @@ def run_clustering_tuning_sweep(
     docs/dev/models.md). None (default) leaves output unchanged. Raises
     ValueError if given for a method outside CONSENSUS_ELIGIBLE_METHODS -
     agglomerative/hdbscan are deterministic given the same data, so a
-    stability sweep for them would be degenerate.
+    stability sweep for them would be degenerate. Also raises ValueError when no combination is
+    evaluated (an empty axis, or an agglomerative grid whose every combination is ward + a
+    non-euclidean metric): a sweep that scores nothing is a config error, not an empty result.
     """
     if method not in CLUSTERING_METHODS:
         raise ValueError(f"unknown clustering method {method!r} - known: {sorted(CLUSTERING_METHODS)}")
@@ -525,15 +536,6 @@ def run_clustering_tuning_sweep(
     combinations = list(itertools.product(*tuning_grid.values()))
     total = len(combinations)
     logging.info("Starting clustering fine-tuning sweep for %s (%d combinations)", method, total)
-
-    # AUDIT_FINDINGS.md #35: evidence_accumulation's real cost (run_rsc_repeats, n_repeats
-    # fits of base_method) depends only on base_method/n_repeats/base_seed/the Split-phase
-    # K_PARAM_NAME[base_method] - never on threshold, which only drives the separate, cheap
-    # Merge-phase cut (assign_clusters_from_cooccurrence). Combinations that agree on
-    # everything except threshold share one already-computed co-occurrence matrix instead
-    # of each recomputing run_rsc_repeats from scratch - a 7-value threshold-only sweep
-    # goes from 7*n_repeats fits down to n_repeats.
-    cooccurrence_cache: dict[tuple, np.ndarray] = {} if method == "evidence_accumulation" else None
 
     # See _agglomerative_fit_metric_aware's distance_cache docstring: the jaccard/dice distance
     # matrix depends only on (X, metric), not on n_clusters/linkage - shared across every combo
@@ -558,11 +560,7 @@ def run_clustering_tuning_sweep(
             continue
 
         logging.info("Evaluating combination %d/%d: %s", i, total, combo_dict)
-        if method == "evidence_accumulation":
-            labels = _evidence_accumulation_labels(X, combo_params, cooccurrence_cache)
-            extra_metrics = {}
-            generic_metrics = compute_clustering_metrics(X, labels, combo_params)
-        elif method == "agglomerative":
+        if method == "agglomerative":
             labels, metric = _agglomerative_fit_metric_aware(X, combo_params, agglomerative_distance_cache)
             extra_metrics = {}
             generic_metrics = compute_clustering_metrics_metric_aware(X, labels, metric, agglomerative_distance_cache)
@@ -578,6 +576,14 @@ def run_clustering_tuning_sweep(
         rows.append({**combo_dict, **generic_metrics, **extra_metrics, **consensus_metrics})
         labels_by_combo[combo] = labels
 
+    if not rows:
+        reason = (
+            "every combination was discarded as invalid (linkage='ward' requires metric in "
+            f"{sorted(_WARD_SAFE_METRICS)})"
+            if combinations
+            else "a tuning_grid axis is empty"
+        )
+        raise ValueError(f"clustering sweep for {method!r} evaluated no combination: {reason}; tuning_grid={tuning_grid!r}")
     return pd.DataFrame(rows), labels_by_combo
 
 
@@ -620,24 +626,6 @@ def run_spectral_affinity_aware_sweep(
             labels_by_combo[(affinity, *combo)] = labels
 
     return pd.concat(all_results, ignore_index=True), labels_by_combo
-
-
-def _evidence_accumulation_labels(X: np.ndarray, combo_params: dict, cooccurrence_cache: dict[tuple, np.ndarray]) -> np.ndarray:
-    """evidence_accumulation_cluster(X, combo_params), but reusing run_rsc_repeats' result
-    across combinations that share everything except threshold (see the cache-existence
-    comment in run_clustering_tuning_sweep above) - cache_key is exactly the subset of
-    combo_params that run_rsc_repeats actually reads (split_params, plus base_method/
-    n_repeats/base_seed), so two combinations differing only in threshold always collide
-    on the same key and only the first ever calls run_rsc_repeats.
-    """
-    from src.analysis.clustering import _validate_evidence_accumulation_params
-    from src.analysis.consensus_clustering import assign_clusters_from_cooccurrence, run_rsc_repeats
-
-    base_method, split_params, n_repeats, base_seed, threshold = _validate_evidence_accumulation_params(combo_params)
-    cache_key = (base_method, n_repeats, base_seed, tuple(sorted(split_params.items())))
-    if cache_key not in cooccurrence_cache:
-        cooccurrence_cache[cache_key] = run_rsc_repeats(base_method, X, split_params, n_repeats, base_seed=base_seed)
-    return assign_clusters_from_cooccurrence(cooccurrence_cache[cache_key], threshold)
 
 
 def _compute_consensus_metrics(method: str, X: np.ndarray, combo_params: dict, consensus_config: dict | None) -> dict[str, float]:

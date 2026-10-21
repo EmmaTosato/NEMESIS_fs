@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import zipfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,13 +38,15 @@ def combo_key(keys: Sequence[str], combo: Sequence) -> str:
 def parse_combo_key(key: str) -> dict[str, str]:
     """Inverse of combo_key, values left as the strings they were written as (the caller compares
     them against str() of the typed tuning_grid values, never against a re-parsed float). Raises
-    ValueError for a part that is not exactly one 'name=value' pair.
+    ValueError for a part that is not exactly one 'name=value' pair or for a repeated name.
     """
     tokens: dict[str, str] = {}
     for part in key.split(","):
         pieces = part.split("=")
         if len(pieces) != 2 or not pieces[0]:
             raise ValueError(f"malformed combination key {key!r}: part {part!r} is not a 'name=value' pair")
+        if pieces[0] in tokens:
+            raise ValueError(f"malformed combination key {key!r}: name {pieces[0]!r} is repeated")
         tokens[pieces[0]] = pieces[1]
     return tokens
 
@@ -74,7 +77,8 @@ class TuningRun:
 
 def read_tuning_config_block(config_path: Path) -> dict:
     """Parses the fenced ```json block of a tuning run's config.md and checks it has the fields a
-    reader needs. Raises FileNotFoundError / ValueError with the exact path and missing piece.
+    reader needs, each of the right type. Raises FileNotFoundError / ValueError with the exact path and
+    missing or malformed piece.
     """
     if not config_path.is_file():
         raise FileNotFoundError(f"tuning config not found: {config_path}")
@@ -84,11 +88,19 @@ def read_tuning_config_block(config_path: Path) -> dict:
     block = text.split("```json", 1)[1].split("```", 1)[0]
     config = json.loads(block)
 
+    if not isinstance(config, dict):
+        raise ValueError(f"{config_path}: config block must be a JSON object, got {config!r}")
     for field in ("reduction_method", "base_params", "tuning_grid", "nested_params"):
         if field not in config:
             raise ValueError(f"{config_path}: config block is missing {field!r}")
+    if not isinstance(config["reduction_method"], str) or not config["reduction_method"]:
+        raise ValueError(f"{config_path}: 'reduction_method' must be a non-empty string, got {config['reduction_method']!r}")
+    if not isinstance(config["base_params"], dict):
+        raise ValueError(f"{config_path}: 'base_params' must be an object, got {config['base_params']!r}")
     if not isinstance(config["tuning_grid"], dict) or not config["tuning_grid"]:
         raise ValueError(f"{config_path}: 'tuning_grid' must be a non-empty object, got {config['tuning_grid']!r}")
+    if not isinstance(config["nested_params"], list) or not all(isinstance(name, str) for name in config["nested_params"]):
+        raise ValueError(f"{config_path}: 'nested_params' must be a list of strings, got {config['nested_params']!r}")
     unknown_nested = [name for name in config["nested_params"] if name not in config["tuning_grid"]]
     if unknown_nested:
         raise ValueError(f"{config_path}: nested_params {unknown_nested} are not in tuning_grid {list(config['tuning_grid'])}")
@@ -114,10 +126,17 @@ def load_tuning_run(run_dir: Path) -> TuningRun:
         raise FileNotFoundError(
             f"{npz_path} not found - embeddings are only persisted by a tuning run with save_tuning_embeddings=true"
         )
-    config = read_tuning_config_block(run_dir / CONFIG_FILENAME)
+    config_path = run_dir / CONFIG_FILENAME
+    config = read_tuning_config_block(config_path)
+    for axis, values in config["tuning_grid"].items():
+        if not isinstance(values, list):
+            raise ValueError(f"{config_path}: 'tuning_grid'[{axis!r}] must be a list of values, got {values!r}")
 
-    with np.load(npz_path) as data:
-        embeddings = {key: data[key] for key in data.files}
+    try:
+        with np.load(npz_path) as data:
+            embeddings = {key: data[key] for key in data.files}
+    except (zipfile.BadZipFile, EOFError) as exc:
+        raise ValueError(f"{npz_path} is truncated or not a valid npz archive ({type(exc).__name__}: {exc})") from exc
 
     expected = expected_combo_keys(config["tuning_grid"])
     found = set(embeddings)

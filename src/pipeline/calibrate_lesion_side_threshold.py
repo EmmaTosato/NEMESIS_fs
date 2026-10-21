@@ -15,9 +15,9 @@ This script does NOT write anything into participants.csv and does NOT decide th
 threshold: `side_threshold` in config/pipelines/compute_lesion_metadata.json is where the chosen
 value lives.
 
-laterality_index = (left_voxels - right_voxels) / (left_voxels + right_voxels) - the standard
-lesion/fMRI laterality-index convention (Wilke & Lidzba LI-toolbox; Rorden's Gigascience LI
-protocol for stroke lesion masks). A literature-typical bilaterality threshold is |LI| < 0.2;
+laterality_index = (left_voxels - right_voxels) / (left_voxels + right_voxels) - the classic fMRI
+laterality index (Seghier 2008; Wilke & Lidzba LI-toolbox), applied here to lesion voxel counts.
+The fMRI-typical dominance threshold is |LI| < 0.2 (Seghier 2008);
 this script checks that value AND grid-searches for the threshold that best reproduces our own
 clinical labels, so both can be compared.
 
@@ -111,7 +111,8 @@ def load_laterality_index(lesion_metadata_path: Path, grid: str) -> pd.DataFrame
 
     The column is named after the grid (laterality_index_<grid>) - the CSV carries one per grid
     that src.pipeline.compute_lesion_metadata was configured with, so an unknown --grid names the
-    available ones instead of failing with a bare KeyError."""
+    available ones instead of failing with a bare KeyError. A subject_id listed twice raises
+    ValueError: the inner merge would count it twice in every accuracy."""
     if not lesion_metadata_path.is_file():
         raise FileNotFoundError(
             f"{lesion_metadata_path} not found - it is written by src.pipeline.compute_lesion_metadata"
@@ -124,6 +125,12 @@ def load_laterality_index(lesion_metadata_path: Path, grid: str) -> pd.DataFrame
         )
         raise ValueError(
             f"{lesion_metadata_path} has no {column!r} column - available grid(s): {available or 'none'}"
+        )
+    duplicated = sorted(measured.loc[measured["subject_id"].duplicated(), "subject_id"].unique().tolist())
+    if duplicated:
+        raise ValueError(
+            f"{lesion_metadata_path} lists {len(duplicated)} subject_id more than once: {duplicated} - "
+            "each would be counted twice in the accuracy; re-run src.pipeline.compute_lesion_metadata"
         )
     return measured[["subject_id", "dataset", column]].rename(columns={column: "laterality_index"})
 
@@ -188,6 +195,12 @@ def main(argv: list[str] | None = None) -> int:
                 undefined.sum(), sorted(merged.loc[undefined, "subject_id"]),
             )
         merged = merged.loc[~undefined].reset_index(drop=True)
+        if merged.empty:
+            logging.error(
+                "no subject has a defined laterality_index for grid=%s in %s - nothing to calibrate on",
+                args.grid, args.lesion_metadata_path,
+            )
+            return 1
 
         results = [evaluate_threshold(merged, t) for t in THRESHOLD_GRID]
         best = max(results, key=lambda r: r.accuracy)

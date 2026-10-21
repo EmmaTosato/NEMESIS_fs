@@ -118,14 +118,35 @@ def load_matrix(input_dir: Path, mmap: bool = False) -> tuple[np.ndarray, pd.Dat
             "(or the build never completed); run the pipeline script that produces it first"
         )
     manifest = json.loads(manifest_path.read_text())
+    if not isinstance(manifest, dict):
+        raise ValueError(f"{manifest_path}: expected a JSON object, got {type(manifest).__name__}")
+    if "extra_arrays" not in manifest:
+        raise ValueError(
+            f"{manifest_path}: missing required key 'extra_arrays' (save_matrix always writes it, "
+            "{} when there are none) - the manifest is truncated or was not written by save_matrix"
+        )
 
     X = np.load(input_dir / MATRIX_FILENAME, mmap_mode="r" if mmap else None)
-    metadata = pd.read_csv(input_dir / METADATA_FILENAME)
-    extra_arrays = {
-        name: np.load(input_dir / f"{name}.npy") for name in manifest.get("extra_arrays", {})
-    }
+    metadata = _read_metadata(input_dir / METADATA_FILENAME)
+    extra_arrays = {name: np.load(input_dir / f"{name}.npy") for name in manifest["extra_arrays"]}
 
     return X, metadata, extra_arrays
+
+
+def _read_metadata(path: Path) -> pd.DataFrame:
+    """metadata.csv with subject_id read verbatim: pandas would otherwise turn an id like "NA"
+    into NaN (docs/dev/metadata.md: never re-type a subject id). Only that column is read as
+    text - the other columns keep their inferred numeric dtype and NaN for empty cells."""
+    metadata = pd.read_csv(path, dtype={"subject_id": str})
+    if "subject_id" in metadata.columns:
+        metadata["subject_id"] = pd.read_csv(path, usecols=["subject_id"], dtype=str, keep_default_na=False)["subject_id"]
+    return metadata
+
+
+def _require_json_object(parsed: object, source: Path, what: str) -> dict:
+    if not isinstance(parsed, dict):
+        raise ValueError(f"{source}: {what} must be a JSON object, got {type(parsed).__name__}")
+    return parsed
 
 
 def read_run_params(run_dir: Path) -> dict:
@@ -149,7 +170,7 @@ def read_run_params(run_dir: Path) -> dict:
         raise ValueError(f"run {run_dir} has no {README_FILENAME} - cannot read its resolved params")
     for line in config_path.read_text().splitlines():
         if line.startswith(_PARAMS_USED_PREFIX):
-            return json.loads(line[len(_PARAMS_USED_PREFIX) :])
+            return _require_json_object(json.loads(line[len(_PARAMS_USED_PREFIX) :]), config_path, "Params used")
     raise ValueError(f"run {run_dir}'s {README_FILENAME} has no {_PARAMS_USED_PREFIX!r} line - unexpected format")
 
 
@@ -172,7 +193,7 @@ def read_run_config(run_dir: Path) -> dict:
     match = _CONFIG_BLOCK_RE.search(config_path.read_text())
     if match is None:
         raise ValueError(f"run {run_dir}'s {README_FILENAME} has no '## Config' fenced json block - unexpected format")
-    return json.loads(match.group("json"))
+    return _require_json_object(json.loads(match.group("json")), config_path, "## Config block")
 
 
 def read_dim_reduction_method(run_dir: Path) -> str:

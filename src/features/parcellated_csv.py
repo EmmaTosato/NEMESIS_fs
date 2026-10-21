@@ -234,6 +234,28 @@ def subjects_with_lesion_mask(
     return by_dataset, excluded, sorted(excluded_by_list)
 
 
+def require_finite_numeric(df: pd.DataFrame, path: Path, key_column: str, value_column: str) -> pd.Series:
+    """df[value_column] as float64, raising ValueError (naming path, CSV line, key and cell) for a
+    cell that is not a number, is empty (NaN) or is infinite.
+
+    pandas reads a column with one unparsable cell as `object`, which would stack into an
+    object-dtype matrix, and reads an empty cell as NaN: neither has a defined meaning here,
+    since a value that is not observed is written as an omitted row, never as an empty cell.
+    """
+    raw = df[value_column]
+    numeric = pd.to_numeric(raw, errors="coerce").astype(float)
+    bad = numeric.isna() | np.isinf(numeric)
+    if bad.any():
+        examples = [
+            f"line {i + 2} ({key_column}={df.loc[i, key_column]!r}): {raw[i]!r}" for i in df.index[bad][:5]
+        ]
+        raise ValueError(
+            f"{path}: {int(bad.sum())} {value_column!r} value(s) not a finite number "
+            f"(non-numeric, empty or infinite), e.g. {examples}"
+        )
+    return numeric
+
+
 def load_and_validate_csv(path: Path, region_names: np.ndarray, value_column: str) -> pd.DataFrame:
     df = pd.read_csv(path)
     if "region_name" not in df.columns:
@@ -254,6 +276,7 @@ def load_and_validate_csv(path: Path, region_names: np.ndarray, value_column: st
             f"{path}: {len(unknown)} region_name value(s) not in the reference label set: "
             f"{sorted(unknown)} - check that the reference file matches this atlas"
         )
+    df[value_column] = require_finite_numeric(df, path, "region_name", value_column)
     return df
 
 

@@ -80,6 +80,8 @@ def embed(
     being meaningless on non-binary data is a fact about the data, not about
     which computation path is chosen.
     """
+    if reduction_method not in REDUCTION_METHODS:
+        raise ValueError(f"unknown reduction method {reduction_method!r} - known: {sorted(REDUCTION_METHODS)}")
     metric = params.get("metric")
     if metric in SUPPORTED_BINARY_METRICS:
         require_binary_matrix(X, metric)
@@ -152,7 +154,8 @@ def embedding_for_viz(
     `_columns_ordered_by_variance`) is the exception to the "never a slice" rule: its leading columns
     are its leading components (`_leading_components`).
 
-    Raises ValueError if `reduction_method` isn't in _REFITTABLE_FOR_VIZ (nor such a pca) and
+    Raises ValueError if `viz_n_components` isn't an integer >= 1 (bool included), or if
+    `reduction_method` isn't in _REFITTABLE_FOR_VIZ (nor such a pca) and
     `embedding` doesn't already have viz_n_components columns (see that
     frozenset's own comment for why each excluded method is excluded) - the
     caller must rerun with viz_n_components == n_components for that method
@@ -160,6 +163,8 @@ def embedding_for_viz(
     above, so the refit follows the same raw-vs-precomputed choice as the
     original fit.
     """
+    if isinstance(viz_n_components, bool) or not isinstance(viz_n_components, (int, np.integer)) or viz_n_components < 1:
+        raise ValueError(f"viz_n_components must be an integer >= 1, got {viz_n_components!r}")
     if embedding.shape[1] == viz_n_components:
         return embedding
     if _columns_ordered_by_variance(reduction_method, reduction_params):

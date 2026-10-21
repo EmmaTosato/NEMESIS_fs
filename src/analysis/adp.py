@@ -244,10 +244,21 @@ def run_adp_tuning_sweep(
     SMALL_CLUSTER_SIZE subjects); id_2nn (intrinsic dimension, constant per metric/maxk); ari_vs_prev_z
     (ARI, on the clustered rows only, against the next-lower Z of the same other parameters, NaN for
     the first - a plateau of ~1 means the partition did not change).
+
+    Raises ValueError for an unknown grid key, for a value repeated within one axis or for any
+    invalid parameter value (validate_adp_params).
     """
     unknown = set(tuning_grid) - ADP_PARAM_KEYS
     if unknown:
         raise ValueError(f"adp tuning_grid keys must be among {sorted(ADP_PARAM_KEYS)}, got unknown {sorted(unknown)}")
+
+    for key, values in tuning_grid.items():
+        repeated = sorted({value for value in values if list(values).count(value) > 1}, key=str)
+        if repeated:
+            raise ValueError(
+                f"adp tuning_grid[{key!r}] has duplicate value(s) {repeated!r} in {list(values)!r}: "
+                "the same combination would be evaluated twice and collapse into one labels_by_combo entry"
+            )
 
     keys = list(tuning_grid)
     combinations = list(itertools.product(*tuning_grid.values()))

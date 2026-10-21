@@ -54,6 +54,8 @@ def components_for_share(eigenvalues: np.ndarray, share: float) -> int:
     """Smallest number of components whose cumulative explained variance reaches `share`."""
     if not 0.0 < share <= 1.0:
         raise ValueError(f"share must be in (0, 1], got {share!r}")
+    if not eigenvalues.sum() > 0:
+        raise ValueError("the spectrum has no variance (all eigenvalues are zero): there is no component to keep")
     cumulative = np.cumsum(eigenvalues / eigenvalues.sum())
     # The cumulative sum can stop a hair short of 1.0 (round-off), which would put share=1.0
     # one past the last component with variance.
@@ -290,6 +292,9 @@ def squared_correlation(scores: np.ndarray, covariate: np.ndarray) -> np.ndarray
         raise ValueError("covariate contains NaN - drop or fill those subjects before correlating")
     if np.ptp(covariate) == 0:
         raise ValueError("covariate is constant - a correlation is undefined")
+    constant_scores = np.flatnonzero(np.ptp(scores, axis=0) == 0)
+    if len(constant_scores):
+        raise ValueError(f"score column(s) {constant_scores.tolist()} are constant - a correlation is undefined")
     centered_scores = scores - scores.mean(axis=0)
     centered_covariate = covariate - covariate.mean()
     covariance = centered_scores.T @ centered_covariate
@@ -388,8 +393,11 @@ class _RegressionDesign:
         projection = self.scores.T @ centered
         coefficients = self.gram_inverse @ projection
         residual_ss = (centered**2).sum(axis=0) - (coefficients * projection).sum(axis=0)
-        # Round-off can leave a residual a hair below zero on a voxel that is fitted perfectly.
-        degenerate = residual_ss <= 1e-12 * np.maximum((centered**2).sum(axis=0), 1e-300)
+        # Round-off can leave a residual a hair below zero on a voxel that is fitted perfectly. A constant
+        # voxel is tested on its raw values: the rounding of its mean (e.g. 0.3) leaves a "centered" residue
+        # of the same order as the residual, so no threshold relative to it can tell the two apart.
+        constant = np.ptp(values, axis=0) == 0
+        degenerate = constant | (residual_ss <= 1e-12 * np.maximum((centered**2).sum(axis=0), 1e-300))
         residual_variance = np.where(degenerate, 1.0, residual_ss / self.degrees_of_freedom)
         standard_error = np.sqrt(np.diag(self.gram_inverse)[:, None] * residual_variance[None, :])
         t = coefficients / standard_error

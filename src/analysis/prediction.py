@@ -61,7 +61,8 @@ def pca_variance_retained(X: np.ndarray, variance_retained: float) -> tuple[np.n
     """
     if not 0.0 < variance_retained <= 1.0:
         raise ValueError(f"variance_retained must be in (0.0, 1.0], got {variance_retained!r}")
-    fitted = PCA(n_components=variance_retained)
+    # sklearn reads a float n_components in (0, 1) as a variance share and rejects exactly 1.0: keeping 100% means all components.
+    fitted = PCA(n_components=None if variance_retained == 1.0 else variance_retained)
     X_pca = fitted.fit_transform(X)
     return X_pca, fitted
 
@@ -107,7 +108,14 @@ def accuracy_r2(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 
     Deliberately not sklearn.metrics.r2_score - a different quantity (fraction
     of variance explained relative to a mean-only baseline, can be negative).
+
+    Raises ValueError if either vector is constant: the correlation is then
+    0/0, and a NaN would make `permutation_test`'s `>=` comparison silently
+    false for every permutation.
     """
+    for name, values in (("y_true", y_true), ("y_pred", y_pred)):
+        if np.all(values == values[0]):
+            raise ValueError(f"{name} is constant (all values equal {values[0]!r}): the squared correlation is undefined")
     r, _ = pearsonr(y_true, y_pred)
     return float(r**2)
 

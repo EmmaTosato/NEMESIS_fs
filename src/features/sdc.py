@@ -66,6 +66,7 @@ from src.features.parcellated_csv import (
     discover_by_dataset,
     load_reference_regions,
     registered_subjects,
+    require_finite_numeric,
     subjects_with_lesion_mask,
 )
 
@@ -498,7 +499,14 @@ def _load_and_validate_streamline_csv(path: Path, tract_names: np.ndarray) -> pd
             f"{len(tract_names)}: {sorted(missing)} - truncated or corrupt file, not an omitted "
             "zero (see src/features/sdc.py's module docstring)"
         )
-    return df.set_index(_STREAMLINE_TRACT_COLUMN)[_STREAMLINE_VALUE_COLUMN]
+    ratio = require_finite_numeric(df, path, _STREAMLINE_TRACT_COLUMN, _STREAMLINE_VALUE_COLUMN)
+    negative = ratio < 0
+    if negative.any():
+        raise ValueError(
+            f"{path}: {int(negative.sum())} negative {_STREAMLINE_VALUE_COLUMN} value(s) - a proportion of "
+            f"streamlines cannot be below 0, e.g. {df.loc[negative, _STREAMLINE_TRACT_COLUMN].tolist()[:5]}"
+        )
+    return pd.Series(ratio.values, index=df[_STREAMLINE_TRACT_COLUMN])
 
 
 def _stack_streamline_matrix(

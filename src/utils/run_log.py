@@ -76,12 +76,21 @@ def append_run_log_entry(
     rather than omitting it (clustering.py's reduction_n_components/
     reduction_metric do exactly this for a source method with no such
     hyperparameter, e.g. pca has no "metric").
+
+    Raises ValueError if an extra_columns key is also one of FIELDNAMES.
     """
     session = run_id.split("_", 1)[0]
 
     if run_type not in _FILE_NAME_BY_RUN_TYPE:
         raise ValueError(f"run_type must be one of {sorted(_FILE_NAME_BY_RUN_TYPE)}, got {run_type!r}")
     runs_csv_path = log_dir / _FILE_NAME_BY_RUN_TYPE[run_type]
+
+    colliding = sorted(set(extra_columns or {}) & set(FIELDNAMES))
+    if colliding:
+        raise ValueError(
+            f"extra_columns key(s) {colliding} collide with the reserved run-log columns {FIELDNAMES}: "
+            "the header would list the column twice and the extra value would overwrite the real one"
+        )
 
     fieldnames = FIELDNAMES[:1] + list(extra_columns) + FIELDNAMES[1:] if extra_columns else FIELDNAMES
     runs_csv_path.parent.mkdir(parents=True, exist_ok=True)

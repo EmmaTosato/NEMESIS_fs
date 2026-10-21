@@ -15,9 +15,10 @@ KNOWN_GROUPS = ("ST", "HC", "PD", "GM")
 
 # Every site code seen across the in-scope datasets' real subject IDs -
 # deliberately a closed, explicit list, not `[A-Z]+?` free-form matching.
+# Matched with fullmatch and [0-9] (not `$` + `\d`): `$` accepts a trailing "\n" and `\d` Unicode digits.
 KNOWN_SITES = ("UNIPD", "UKLFR", "UCLUK", "UKE")
 _SITE_ALTERNATION = "|".join(sorted(KNOWN_SITES, key=len, reverse=True))
-_SUBJECT_RE = re.compile(rf"^sub-(?P<disease>ST|PD|GM)(?P<site>{_SITE_ALTERNATION})(?P<hc>HC)?(?P<num>\d+)$")
+_SUBJECT_RE = re.compile(rf"sub-(?P<disease>ST|PD|GM)(?P<site>{_SITE_ALTERNATION})(?P<hc>HC)?(?P<num>[0-9]+)")
 
 
 def group_of(subject_id: str) -> str:
@@ -27,7 +28,7 @@ def group_of(subject_id: str) -> str:
     code isn't in KNOWN_SITES - a genuinely new site must be added by a human,
     never inferred.
     """
-    match = _SUBJECT_RE.match(subject_id)
+    match = _SUBJECT_RE.fullmatch(subject_id)
     if match is None:
         raise ValueError(f"subject_id does not match expected naming: {subject_id!r}")
     return "HC" if match.group("hc") else match.group("disease")

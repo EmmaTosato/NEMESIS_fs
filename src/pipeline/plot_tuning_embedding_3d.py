@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -44,6 +45,7 @@ import pandas as pd
 
 from src.analysis.embedding_app import COLOR_MODE_ORDER, NEUTRAL_MODE, build_embedding_figure
 from src.analysis.embedding_coloring import COLOR_MODES
+from src.utils.logging_setup import log_duration
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -60,15 +62,24 @@ def main(argv: list[str] | None = None) -> int:
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-    embeddings_npz = Path(args.embeddings_npz)
-    metadata_csv = Path(args.metadata_csv)
-    output_dir = Path(args.output_dir)
-
+    start_time = datetime.now()
     try:
-        embedding, metadata = _load_combo(embeddings_npz, metadata_csv, args.combo_key)
-    except (FileNotFoundError, KeyError, ValueError) as exc:
+        # _load_combo and _write_one share one boundary: _write_one reads the subject registry
+        # (FileNotFoundError/ValueError) and writes the HTML files (OSError).
+        _render_all(args)
+    except (FileNotFoundError, KeyError, ValueError, OSError) as exc:
         logging.error(str(exc))
         return 1
+    finally:
+        log_duration(start_time)
+
+    logging.info("done - HTML files written to %s", args.output_dir)
+    return 0
+
+
+def _render_all(args: argparse.Namespace) -> None:
+    output_dir = Path(args.output_dir)
+    embedding, metadata = _load_combo(Path(args.embeddings_npz), Path(args.metadata_csv), args.combo_key)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     xlabel, ylabel, zlabel = (f"{args.reduction_method} dim {i}" for i in (1, 2, 3))
@@ -82,9 +93,6 @@ def main(argv: list[str] | None = None) -> int:
             logging.warning("skipping color mode %r: metadata.csv has no %r column", mode_name, column)
             continue
         _write_one(embedding, metadata, mode_name, xlabel, ylabel, zlabel, args, output_dir, mode_name)
-
-    logging.info("done - HTML files written to %s", output_dir)
-    return 0
 
 
 def _load_combo(embeddings_npz: Path, metadata_csv: Path, combo_key: str) -> tuple[np.ndarray, pd.DataFrame]:

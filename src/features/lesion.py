@@ -143,10 +143,11 @@ def compute_lesion_metadata(
     independent of cohort size.
 
     Each mask is read from disk once and resampled once per grid (only where _needs_resample
-    says its own grid differs - the manual masks are natively 1mm, so a 1mm grid resamples
-    nothing, while a 2mm grid is a nearest-neighbour subsample in which a very small lesion can
-    shrink or vanish; comparing the two volumes tells a genuinely empty mask from a lesion lost
-    in the resampling).
+    says its shape or affine differs). The masks have 1mm voxels but three headers (LAS +90,
+    RAS -90, RAS -91): only RAS -91 matches the 1mm template; the other two are remapped onto it
+    exactly (an x flip or a one-voxel shift, no value interpolated). A 2mm grid is a
+    nearest-neighbour subsample in which a very small lesion can shrink or vanish; comparing the
+    two volumes tells a genuinely empty mask from a lesion lost in the resampling.
 
     Per grid, in this order: binarize, measure out_of_brain_fraction on the RAW mask, then
     (when correct_out_of_brain) zero the out-of-brain voxels, then count volume and laterality
@@ -229,9 +230,11 @@ def _hemisphere_masks(reference_img: nib.Nifti1Image) -> tuple[np.ndarray, np.nd
     data.ravel(), since reference_img.shape is exactly X_voxelwise's per-subject
     unflattened shape).
 
-    Left = anatomical-left of the MNI midline, Right = anatomical-right - derived
-    from the first voxel axis's world coordinate (reference_img.affine), not
-    assumed from array position. The exact midline plane (world-x == 0) belongs to
+    Left = world x < 0, Right = world x > 0 - the NIfTI world space is RAS+ (positive x
+    is anatomical right) whatever the storage orientation of the first voxel axis, so
+    an 'L'-oriented grid (x decreasing with the index) needs no sign flip. Derived from
+    the first voxel axis's world coordinate (reference_img.affine), not assumed from
+    array position. The exact midline plane (world-x == 0) belongs to
     neither side, excluded from both hemisphere counts (a single voxel-thick slice,
     not a meaningful side).
 
@@ -255,8 +258,6 @@ def _hemisphere_masks(reference_img: nib.Nifti1Image) -> tuple[np.ndarray, np.nd
         )
     nx, ny, nz = reference_img.shape
     world_x = affine[0, 0] * np.arange(nx) + affine[0, 3]
-    if orientation[0] == "L":
-        world_x = -world_x  # flip so positive always means anatomical Right, regardless of storage orientation
     left_mask = np.broadcast_to((world_x < 0)[:, None, None], (nx, ny, nz)).ravel()
     right_mask = np.broadcast_to((world_x > 0)[:, None, None], (nx, ny, nz)).ravel()
     return left_mask, right_mask
@@ -543,10 +544,9 @@ def _check_some_mask_is_non_empty(
 
 
 def _laterality_index(left_voxels: int, right_voxels: int) -> float:
-    """(left - right) / (left + right) - the standard laterality-index convention from the
-    lesion/fMRI literature (Wilke & Lidzba's LI-toolbox; Rorden's Gigascience LI protocol applied
-    to stroke lesion masks): positive means left-dominant, negative right-dominant, magnitude near
-    0 means bilateral. NaN when both counts are 0 (a lesion confined to the single midline voxel
+    """(left - right) / (left + right) - the classic fMRI laterality index (Seghier 2008; Wilke &
+    Lidzba's LI-toolbox), applied here to lesion voxel counts: positive means left-dominant,
+    negative right-dominant, magnitude near 0 means bilateral. NaN when both counts are 0 (a lesion confined to the single midline voxel
     plane, or an empty mask): a legitimate, explicit domain case the caller must handle, not an
     error."""
     total = left_voxels + right_voxels
@@ -666,7 +666,15 @@ def _binarize_on_grid(
 
     The re-binarization is not redundant with the source mask already being binary:
     interpolation/registration leave near-1/near-0 values that have to be thresholded again.
+
+    Raises ValueError for a mask with more than 3 dimensions unless the extra ones are
+    singleton: a multi-volume 4D mask would ravel to a row longer than the grid.
     """
+    if any(size != 1 for size in img.shape[3:]):
+        raise ValueError(
+            f"{img.get_filename() or 'in-memory mask'}: mask has shape {img.shape}, expected 3D "
+            "(trailing singleton dimensions allowed) - a multi-volume mask has no single lesion to binarize"
+        )
     if _needs_resample(img, reference_img):
         img = resample_to_img(
             img, reference_img, interpolation=resample_interpolation, force_resample=True, copy_header=True

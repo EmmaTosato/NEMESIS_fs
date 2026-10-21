@@ -23,9 +23,17 @@ class DatasetSource:
     derivatives_dir: Path
 
 
+def _object_without_duplicates(pairs: list[tuple[str, object]], path: Path) -> dict:
+    keys = [k for k, _ in pairs]
+    duplicates = sorted({k for k in keys if keys.count(k) > 1})
+    if duplicates:
+        raise ValueError(f"{path}: duplicate key(s) {duplicates} in a JSON object - json.loads would silently keep the last")
+    return dict(pairs)
+
+
 def load_metadata_sources(path: Path) -> dict[str, DatasetSource]:
     """Parse the shared dataset->paths registry, validating its shape before use."""
-    raw = json.loads(Path(path).read_text())
+    raw = json.loads(Path(path).read_text(), object_pairs_hook=lambda pairs: _object_without_duplicates(pairs, path))
     if not isinstance(raw, dict) or not raw:
         raise ValueError(f"{path}: expected a non-empty JSON object of dataset -> paths")
     sources = {}
@@ -33,7 +41,7 @@ def load_metadata_sources(path: Path) -> dict[str, DatasetSource]:
         if not isinstance(entry, dict):
             raise ValueError(f"{path}: {dataset!r} must map to an object, got {type(entry).__name__}")
         for key in ("participants_tsv", "derivatives_dir"):
-            if not isinstance(entry.get(key), str):
-                raise ValueError(f"{path}: {dataset!r} is missing a string {key!r}")
+            if not isinstance(entry.get(key), str) or not entry[key].strip():
+                raise ValueError(f"{path}: {dataset!r} is missing a non-empty string {key!r}")
         sources[dataset] = DatasetSource(Path(entry["participants_tsv"]), Path(entry["derivatives_dir"]))
     return sources

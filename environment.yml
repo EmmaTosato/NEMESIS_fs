@@ -16,6 +16,8 @@ dependencies:
   - openpyxl
   - jupyterlab
   - pytest
+  - pytest-cov
+  - hypothesis
   - pip
   - pip:
       - nibabel

@@ -12,7 +12,8 @@ One method, many choices - all of them are params, none hardcoded (code_standard
   The sklearn solver does not rotate.
 - rotation_n_components (optional, with a rotation): how many components to rotate. Absent, the n_components
   kept are the ones rotated. Given, the n_components kept are the rotated ones that explain the most
-  variance, most first - the columns of a rotated PCA have no order of their own.
+  variance, most first - the columns of a rotated PCA have no order of their own. Not read with rotation
+  "none", so one tuning grid can sweep rotation over "none" and a rotation with the same entry.
 - n_components or variance_share (exactly one): how many components to keep, as a count or as the
   share of the variance they must reach.
 
@@ -112,7 +113,7 @@ def _fit_blocks(X: np.ndarray, given: dict, cache: dict) -> PcaFit:
     pca = cache[key]
     n_components = resolve_n_components(pca.eigenvalues, given.get("n_components"), given.get("variance_share"))
     chunk = {"chunk_columns": given["chunk_columns"]} if "chunk_columns" in given else {}
-    if "rotation_n_components" in given:
+    if given["rotation"] != NO_ROTATION and "rotation_n_components" in given:
         embedding, explained_share = leading_rotated_scores(
             X, pca, given["rotation_n_components"], n_components, given["rotation"], given["rotation_max_iter"], **chunk
         )
@@ -151,7 +152,7 @@ def _validate(given: dict) -> None:
         raise ValueError(f"pca: rotation must be one of {list(SUPPORTED_ROTATIONS)}, got {given['rotation']!r}")
     if given["rotation"] != NO_ROTATION and "rotation_max_iter" not in given:
         raise ValueError(f"pca: rotation {given['rotation']!r} requires 'rotation_max_iter' in params")
-    if "rotation_n_components" in given:
+    if given["rotation"] != NO_ROTATION and "rotation_n_components" in given:
         _validate_rotation_n_components(given)
     if given["solver"] == "sklearn":
         _validate_sklearn(given)
@@ -160,8 +161,6 @@ def _validate(given: dict) -> None:
 
 
 def _validate_rotation_n_components(given: dict) -> None:
-    if given["rotation"] == NO_ROTATION:
-        raise ValueError("pca: 'rotation_n_components' is the number of components to rotate, but rotation is 'none' - remove it")
     if "variance_share" in given:
         raise ValueError("pca: 'rotation_n_components' needs 'n_components' (how many of the rotated ones to keep), not 'variance_share'")
     if "n_components" not in given:

@@ -32,6 +32,7 @@ def test_pca_variance_retained_invalid_ratio_raises():
         pca_variance_retained(X, 0.0)
 
 
+@pytest.mark.slow
 def test_ridge_loocv_recovers_strong_linear_signal():
     n, p = 30, 4
     X = _RNG.standard_normal((n, p))
@@ -69,6 +70,7 @@ def test_accuracy_r2_known_value():
     assert accuracy_r2(y_true, y_pred_inverted) == pytest.approx(1.0)  # squared -> sign-agnostic
 
 
+@pytest.mark.slow
 def test_permutation_test_detects_strong_signal():
     n, p = 20, 2
     X = _RNG.standard_normal((n, p))
@@ -80,6 +82,7 @@ def test_permutation_test_detects_strong_signal():
     assert p_value < 0.1
 
 
+@pytest.mark.slow
 def test_permutation_test_p_value_in_valid_range_on_noise():
     n, p = 15, 3
     X = _RNG.standard_normal((n, p))

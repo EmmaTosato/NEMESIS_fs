@@ -41,7 +41,7 @@ def load_method_params(params_file: str | Path, method: str) -> tuple[dict, str 
     tag_param key whose value equals the one declared: pca's tag is "nc42" for an
     unrotated run and "nc42_varimax" for a rotated one. Raises ValueError if
     "tag_param"/"tag_prefix" aren't both lists of strings of the same length, if
-    "tag_param" names a key not present in "params" (a registry typo, not a legitimate
+    "tag_param" repeats a name, if "tag_param" names a key not present in "params" (a registry typo, not a legitimate
     absence - every declared tag_param is expected to always be a real hyperparameter of
     that method), or if "tag_omit" is malformed or would leave the tag empty.
     """
@@ -58,6 +58,7 @@ def load_method_params(params_file: str | Path, method: str) -> tuple[dict, str 
         tag_prefix = entry.get("tag_prefix")
         if not isinstance(tag_param, list) or not all(isinstance(name, str) for name in tag_param):
             raise ValueError(f"{params_file}: {method!r}.tag_param must be a list of strings, got {tag_param!r}")
+        _reject_duplicates(params_file, f"{method!r}.tag_param", tag_param)
         if not isinstance(tag_prefix, list) or not all(isinstance(prefix, str) for prefix in tag_prefix):
             raise ValueError(f"{params_file}: {method!r}.tag_prefix must be a list of strings, got {tag_prefix!r}")
         if len(tag_param) != len(tag_prefix):
@@ -93,6 +94,7 @@ def load_tag_spec(params_file: str | Path, method: str) -> tuple[list[str], list
     tag_prefix = entry.get("tag_prefix")
     if not isinstance(tag_param, list) or not all(isinstance(name, str) for name in tag_param):
         raise ValueError(f"{params_file}: {method!r}.tag_param must be a list of strings, got {tag_param!r}")
+    _reject_duplicates(params_file, f"{method!r}.tag_param", tag_param)
     if not isinstance(tag_prefix, list) or not all(isinstance(prefix, str) for prefix in tag_prefix):
         raise ValueError(f"{params_file}: {method!r}.tag_prefix must be a list of strings, got {tag_prefix!r}")
     if len(tag_param) != len(tag_prefix):
@@ -162,6 +164,7 @@ def load_tag_params(params_file: str | Path, method: str) -> list[str]:
         return []
     if not isinstance(tag_param, list) or not all(isinstance(name, str) for name in tag_param):
         raise ValueError(f"{params_file}: {method!r}.tag_param must be a list of strings, got {tag_param!r}")
+    _reject_duplicates(params_file, f"{method!r}.tag_param", tag_param)
     return tag_param
 
 
@@ -173,7 +176,9 @@ def load_tuning_grid(params_file: str | Path, method: str) -> dict[str, list]:
     or if any value in one of those lists is itself a nested list/object -
     such a value is later used as part of a dict key (AUDIT_FINDINGS.md #56,
     lesson #8) and would otherwise raise a cryptic TypeError far downstream
-    instead of a clear error here.
+    instead of a clear error here. Also raises ValueError if an axis repeats a
+    value: the sweep would evaluate the same combination twice while its
+    per-combination embeddings collapse into one dict entry.
     """
     entry = _load_method_entry(params_file, method)
     if "tuning_grid" not in entry:
@@ -191,6 +196,7 @@ def load_tuning_grid(params_file: str | Path, method: str) -> dict[str, list]:
                     "(a nested list/object) - every value must be a plain scalar (string/number/bool/null), "
                     "it's later used as part of a dict key to look up this exact combination's embedding"
                 )
+        _reject_duplicates(params_file, f"{method!r}.tuning_grid[{key!r}]", values)
     return grid
 
 
@@ -202,8 +208,8 @@ def load_nested_params(params_file: str | Path, method: str, tuning_grid: dict[s
     entry). Absent -> [] (no nesting), a legitimate case for a method with
     <= 2 total swept parameters (e.g. pacmap/pca today).
 
-    Raises ValueError if nested_params isn't a list of strings, references a
-    name not in tuning_grid, or leaves anything other than 1 or 2 free
+    Raises ValueError if nested_params isn't a list of strings, repeats a name,
+    references a name not in tuning_grid, or leaves anything other than 1 or 2 free
     parameters (0 = nothing to visualize, >2 = not representable by the
     2-block embedding grid).
     """
@@ -215,6 +221,7 @@ def load_nested_params(params_file: str | Path, method: str, tuning_grid: dict[s
     if not isinstance(nested_params, list) or not all(isinstance(name, str) for name in nested_params):
         raise ValueError(f"{params_file}: {method!r}.nested_params must be a list of strings, got {nested_params!r}")
 
+    _reject_duplicates(params_file, f"{method!r}.nested_params", nested_params)
     unknown = [name for name in nested_params if name not in tuning_grid]
     if unknown:
         raise ValueError(
@@ -336,6 +343,17 @@ def load_trustworthiness_n_neighbors(params_file: str | Path, method: str) -> in
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise ValueError(f"{params_file}: {method!r}.trustworthiness_n_neighbors must be a positive integer, got {value!r}")
     return value
+
+
+def _reject_duplicates(params_file: str | Path, field: str, values: list) -> None:
+    seen: list = []
+    duplicates: list = []
+    for value in values:
+        if value in seen and value not in duplicates:
+            duplicates.append(value)
+        seen.append(value)
+    if duplicates:
+        raise ValueError(f"{params_file}: {field} has duplicate value(s) {duplicates!r} in {values!r}")
 
 
 def _load_method_entry(params_file: str | Path, method: str) -> dict:

@@ -214,10 +214,17 @@ def test_without_rotation_n_components_the_kept_components_are_the_rotated_ones_
     assert plain.explained_share == pytest.approx(pca.cumulative_variance_ratio[3])
 
 
+def test_rotation_n_components_is_not_read_without_a_rotation():
+    unrotated = {**_BLOCKS, "rotation": "none", "n_components": 3}
+    plain = fit_pca(_X, unrotated)
+    ignored = fit_pca(_X, {**unrotated, "rotation_n_components": 6})
+    np.testing.assert_array_equal(ignored.embedding, plain.embedding)
+    assert ignored.explained_share == plain.explained_share
+
+
 @pytest.mark.parametrize(
     "given,message",
     [
-        ({"rotation": "none", "rotation_n_components": 6, "n_components": 3}, "rotation is 'none'"),
         ({"rotation_n_components": 6, "variance_share": 0.8}, "not 'variance_share'"),
         ({"rotation_n_components": 6}, "needs 'n_components'"),
         ({"rotation_n_components": 6, "n_components": 7}, "cannot exceed rotation_n_components=6"),

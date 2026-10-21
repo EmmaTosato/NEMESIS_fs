@@ -87,13 +87,18 @@ def _check_plot_hdbscan_feasible(base_params: dict, tuning_grid: dict, settings:
     """Fails before the sweep (hours of fits) when a higher-dimensional combination would have no
     VIZ_N_COMPONENTS twin to be drawn on. If the sweep's dimensionality cannot be known from the
     grid or base_params, the post-sweep check in visualization_key is the one that decides.
+    Raises ValueError for a non-scalar n_components.
     """
     if "n_components" in tuning_grid:
-        dims = set(tuning_grid["n_components"])
+        declared = list(tuning_grid["n_components"])
     elif "n_components" in base_params:
-        dims = {base_params["n_components"]}
+        declared = [base_params["n_components"]]
     else:
         return
+    non_scalar = [value for value in declared if isinstance(value, (list, dict))]
+    if non_scalar:
+        raise ValueError(f"n_components must be an integer (or a list of integers in tuning_grid), got non-scalar {non_scalar!r}")
+    dims = set(declared)
     if dims <= {VIZ_N_COMPONENTS}:
         return
     if "n_components" in tuning_grid and VIZ_N_COMPONENTS in tuning_grid["n_components"]:

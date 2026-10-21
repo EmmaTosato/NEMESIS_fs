@@ -180,10 +180,14 @@ def _require_unique_str_list(raw: dict, key: str) -> list[str]:
     value = raw[key]
     if not isinstance(value, list) or not value or not all(isinstance(v, str) and v for v in value):
         raise ValueError(f"config: field {key!r} must be a non-empty list of non-empty strings, got {value!r}")
-    duplicates = {v for v in value if value.count(v) > 1}
+    _reject_duplicates(key, value)
+    return value
+
+
+def _reject_duplicates(key: str, values: list[str]) -> None:
+    duplicates = {v for v in values if values.count(v) > 1}
     if duplicates:
         raise ValueError(f"config: field {key!r} has duplicate entries: {sorted(duplicates)}")
-    return value
 
 
 def _optional_str(raw: dict, key: str) -> str | None:
@@ -201,7 +205,10 @@ def _require_float_in_range(raw: dict, key: str, lo: float, hi: float) -> float:
     value = raw[key]
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"config: field {key!r} must be a number, got {value!r}")
-    value = float(value)
+    try:
+        value = float(value)
+    except OverflowError:  # a JSON integer beyond float range is out of any [lo, hi] by definition
+        raise ValueError(f"config: field {key!r} must be between {lo} and {hi}, got an integer too large for a float") from None
     if not (lo <= value <= hi):
         raise ValueError(f"config: field {key!r} must be between {lo} and {hi}, got {value}")
     return value
@@ -227,6 +234,7 @@ def _optional_group_filter(raw: dict) -> list[str] | None:
     unknown = [g for g in value if g not in KNOWN_GROUPS]
     if unknown:
         raise ValueError(f"config: group_filter contains unknown group(s) {unknown} (known: {KNOWN_GROUPS})")
+    _reject_duplicates("group_filter", value)
     return value
 
 

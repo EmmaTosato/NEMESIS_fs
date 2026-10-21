@@ -133,11 +133,13 @@ def pairwise_distance(X: np.ndarray, metric: str, n_jobs: int = -1) -> np.ndarra
     threads (joblib convention, -1 = every core); the binary and euclidean cases are BLAS matrix
     products and ignore it.
 
-    Raises ValueError for an unsupported metric, for dice/jaccard on a matrix with a negative
-    value (the overlap is meaningless) or with an all-zero row (the denominator would be 0).
+    Raises ValueError for an unsupported metric, for a matrix with NaN or infinite values (every distance
+    would be NaN), for dice/jaccard on a matrix with a negative value (the overlap is meaningless) or
+    with an all-zero row (the denominator would be 0).
     """
     if metric not in PRECOMPUTABLE_METRICS:
         raise ValueError(f"unsupported metric {metric!r} for pairwise_distance - supported: {sorted(PRECOMPUTABLE_METRICS)}")
+    _require_finite(X, metric)
 
     binary = _is_binary(X)
     row_sum = X.sum(axis=1, dtype=np.float64)
@@ -166,6 +168,19 @@ def pairwise_distance(X: np.ndarray, metric: str, n_jobs: int = -1) -> np.ndarra
     distance = 1 - 2 * sum_min / total if metric == "dice" else 1 - sum_min / (total - sum_min)
     np.fill_diagonal(distance, 0.0)
     return distance
+
+
+def _require_finite(X: np.ndarray, metric: str) -> None:
+    """Raises ValueError on NaN/inf, checked by column blocks so a raw matrix is never copied whole."""
+    if X.dtype.kind in "iub":
+        return
+    for start in range(0, X.shape[1], _GRAM_CHUNK):
+        bad = ~np.isfinite(np.asarray(X[:, start : start + _GRAM_CHUNK]))
+        if bad.any():
+            raise ValueError(
+                f"metric={metric!r} needs finite values, but X has {int(bad.sum())} non-finite value(s) (NaN or inf) "
+                f"in columns {start}:{start + _GRAM_CHUNK} - drop or fill them first (the distances would all be NaN)"
+            )
 
 
 def _is_binary(X: np.ndarray) -> bool:

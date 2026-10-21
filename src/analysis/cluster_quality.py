@@ -56,6 +56,8 @@ def build_silhouette_figure(clusters: pd.DataFrame) -> go.Figure:
         ),
         showlegend=False,
     ))
+    if ordered["n"].sum() == 0:
+        raise ValueError("every cluster of the per-cluster table has n=0 - there is no subject to average over")
     # Mean over the subjects (what silhouette_score returns): each cluster's mean weighted by its size.
     average = float((ordered["silhouette_mean"] * ordered["n"]).sum() / ordered["n"].sum())
     figure.add_shape(

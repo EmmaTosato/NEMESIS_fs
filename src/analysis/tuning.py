@@ -170,11 +170,23 @@ def run_tuning_sweep(
     Raises ValueError for a method with no supported tuning evaluator - only
     TUNING_METRIC_NAMES' methods are supported here (clustering methods go
     through clustering_tuning.py instead) - or for a model_cache given to a method that has none.
+    Also raises ValueError for a tuning_grid axis that is empty or repeats a value: either way the
+    sweep would not evaluate what the grid declares.
     """
     if method not in TUNING_METRIC_NAMES:
         raise ValueError(f"fine-tuning not supported for method {method!r} - known: {sorted(TUNING_METRIC_NAMES)}")
     if model_cache is not None and method not in METHODS_WITH_MODEL_CACHE:
         raise ValueError(f"model_cache was given but method {method!r} has no model cache - known: {sorted(METHODS_WITH_MODEL_CACHE)}")
+
+    for key, values in tuning_grid.items():
+        if len(values) == 0:
+            raise ValueError(f"tuning_grid[{key!r}] is empty: the sweep would evaluate no combination")
+        repeated = sorted({value for value in values if list(values).count(value) > 1}, key=str)
+        if repeated:
+            raise ValueError(
+                f"tuning_grid[{key!r}] has duplicate value(s) {repeated!r} in {list(values)!r}: "
+                "the same combination would be evaluated twice and collapse into one embedding"
+            )
 
     metric_name = TUNING_METRIC_NAMES[method]
     evaluator = _EVALUATORS[method]
