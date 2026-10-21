@@ -419,68 +419,6 @@ def test_clustering_end_to_end_spectral(tmp_path, monkeypatch):
     assert set(metadata["cluster_label"].unique()) <= {0, 1, 2}
 
 
-def test_clustering_end_to_end_evidence_accumulation(tmp_path, monkeypatch):
-    """evidence_accumulation (Fred & Jain 2002, base_method="spectral" here -
-    i.e. Zanola et al. 2026's RSC specifically) chained through the full
-    production pipeline exactly like every other method - final labels come
-    from src.analysis.consensus_clustering.assign_clusters_from_cooccurrence,
-    not from a single spectral_cluster run (see
-    clustering.py::evidence_accumulation_cluster).
-    """
-    input_dir = _build_matrix(tmp_path, monkeypatch)
-    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
-
-    params_path = tmp_path / "params_clustering.json"
-    params_path.write_text(
-        json.dumps(
-            {
-                "evidence_accumulation": {
-                    "params": {
-                        "base_method": "spectral",
-                        "n_clusters": 3,
-                        "affinity": "nearest_neighbors",
-                        "n_neighbors": 5,
-                        "n_repeats": 10,
-                        "threshold": 0.5,
-                        "base_seed": 0,
-                    }
-                }
-            }
-        )
-    )
-
-    output_root = tmp_path / "cl_out"
-    cfg = {
-        "project": "testproj",
-        "input_path": str(input_dir),
-        "reduction_method": "umap",
-        "clustering_methods": ["evidence_accumulation"],
-        "params_file": str(params_path),
-        "output_root": str(output_root),
-        "session_name": "run1",
-        "overwrite": False,
-        "fine_tuning": False,
-        "reduced_data": False,
-        "save_tuning_clusterings": False,
-        "run_notes": None,
-    }
-    cfg_path = tmp_path / "cl.json"
-    cfg_path.write_text(json.dumps(cfg))
-
-    assert clustering.main(["--config", str(cfg_path)]) == 0
-
-    out_dir = next(p for p in (output_root / "production" / "evidence_accumulation" / "umap").iterdir() if p.is_dir())
-    metadata = pd.read_csv(out_dir / "metadata.csv")
-    # unlike every other method, the number of clusters isn't a parameter
-    # here - it emerges from the threshold cut, so only the label shape/type
-    # is checked, not a specific bounded set of values
-    assert len(metadata["cluster_label"]) == 12
-    assert (metadata["cluster_label"] >= 0).all()
-    # X has 57 raw voxel columns and no viz_embedding_path was given here - no
-    # cluster_plot.png, see test_clustering_end_to_end_no_viz_embedding_skips_plots.
-    assert not (out_dir / "cluster_plot.png").exists()
-
-
 def test_clustering_end_to_end_hdbscan_reports_noise_separately(tmp_path, monkeypatch):
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
@@ -1518,67 +1456,6 @@ def test_clustering_fine_tuning_hdbscan_writes_noise_fraction(tmp_path, monkeypa
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert "noise_fraction" in results.columns
-
-
-def test_clustering_fine_tuning_evidence_accumulation_threshold_split_k_sweep_writes_new_diagnostics(tmp_path, monkeypatch):
-    """project-clustering-tuning-redesign memory (26-08-26): threshold x Split-phase n_clusters
-    joint sweep (grouped line plot, not a heatmap) + n_repeats convergence check + consensus
-    matrix heatmap, all in one fine-tuning run."""
-    input_dir = _build_matrix(tmp_path, monkeypatch, n_subjects=15)
-    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
-
-    params_path = tmp_path / "params_clustering.json"
-    params_path.write_text(
-        json.dumps(
-            {
-                "evidence_accumulation": {
-                    "params": {
-                        "base_method": "kmeans",
-                        "n_clusters": 6,
-                        "n_init": "auto",
-                        "n_repeats": 10,
-                        "threshold": 0.5,
-                        "base_seed": 0,
-                    },
-                    "tuning_grid": {"threshold": [0.3, 0.5, 0.7], "n_clusters": [4, 6]},
-                }
-            }
-        )
-    )
-
-    output_root = tmp_path / "cl_out"
-    cfg = {
-        "project": "testproj",
-        "input_path": str(input_dir),
-        "reduction_method": "umap",
-        "clustering_methods": ["evidence_accumulation"],
-        "params_file": str(params_path),
-        "output_root": str(output_root),
-        "session_name": "tune_ea",
-        "overwrite": False,
-        "fine_tuning": True,
-        "reduced_data": False,
-        "save_tuning_clusterings": False,
-        "run_notes": None,
-    }
-    cfg_path = tmp_path / "cl.json"
-    cfg_path.write_text(json.dumps(cfg))
-
-    assert clustering.main(["--config", str(cfg_path)]) == 0
-
-    tuning_dir = next(p for p in (output_root / "tuning" / "evidence_accumulation" / "umap").iterdir() if p.is_dir())
-    results = pd.read_csv(tuning_dir / "tuning_results.csv")
-    assert len(results) == 6  # 3 thresholds x 2 split-k
-    assert set(results["n_clusters"]) == {4, 6}
-
-    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0  # grouped line plot, not a heatmap
-
-    assert (tuning_dir / "n_repeats_convergence.png").stat().st_size > 0
-    convergence = pd.read_csv(tuning_dir / "n_repeats_convergence.csv")
-    assert list(convergence.columns) == ["n_repeats", "stability_score"]
-    assert len(convergence) > 0
-
-    assert (tuning_dir / "consensus_matrix_heatmap.png").stat().st_size > 0
 
 
 def test_clustering_fine_tuning_multiple_methods_stops_on_first_failure(tmp_path, monkeypatch):

@@ -44,4 +44,4 @@ Le tre fasi dell'ottimizzazione (`num_iters = (100, 100, 250)`):
 - Prima si decide dove stanno i grandi gruppi, poi si sistemano i dettagli dentro ciascuno.
 - Nel progetto si varia `n_neighbors` (5, 10, 20, 50), mentre `MN_ratio` e `FP_ratio` restano ai valori di default (0,5 e 2,0).
 
-Approfondimento: `knowledge/notes/dim_reduction_clustering/pacmap.md`.
+Approfondimento: `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/pacmap.md`.

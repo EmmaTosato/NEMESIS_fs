@@ -3,6 +3,8 @@
 > Fonti (lette integralmente): la documentazione ufficiale del pacchetto, [hdbscan.readthedocs.io](https://hdbscan.readthedocs.io/en/latest/), pagine *Basic Usage*, *Getting More Information About a Clustering*, *Parameter Selection*, *Outlier Detection*, *Predicting clusters for new points*, *Soft Clustering*, *How Soft Clustering Works*, *Combining HDBSCAN\* with DBSCAN* (`cluster_selection_epsilon`), *Extracting DBSCAN\**, *How to Detect Branches*, *FAQ*, *How HDBSCAN Works*, *Comparing Python Clustering Algorithms*, *Performance and Scaling*, *API Reference*. Più il docstring della classe `hdbscan.HDBSCAN` (versione 0.8.44, installata nell'ambiente `nemesis`).
 >
 > Questo pacchetto è l'implementazione di riferimento di McInnes, Healy e Astels (2017, *JOSS* 2(11)) di HDBSCAN\* di Campello, Moulavi e Sander. NEMESIS lo usa nel metodo `hdbscan_soft`; il metodo `hdbscan` usa invece `sklearn.cluster.HDBSCAN`, un'altra implementazione (vedi la fine di questa nota).
+>
+> Le formule (core distance, mutual reachability, stabilità, EOM/leaf, vettori soft), i parametri dei due pacchetti a confronto e le insidie: [`clustering_methods/hdbscan.md`](clustering_methods/hdbscan.md).
 
 **In breve**:
 - **Cosa fa**: trova zone dense a densità diverse, senza scegliere il numero di cluster. I soggetti fuori da ogni zona densa sono rumore (`-1`), non sono forzati in un cluster.
@@ -19,7 +21,7 @@ I sei passi della pagina *How HDBSCAN Works*:
 2. **Albero di copertura minimo** (MST) del grafo con quelle distanze.
 3. **Gerarchia**: gli archi dell'MST, in ordine di peso crescente, fondono i cluster a due a due (un single linkage robusto).
 4. **Condensare l'albero** con `min_cluster_size`: quando uno dei due rami di una divisione ha meno punti della soglia, quei punti "cadono fuori" dal cluster invece di formare un cluster nuovo. L'albero si riduce molto.
-5. **Stabilità e scelta dei cluster.** Si usa `λ = 1 / distanza`. La stabilità di un cluster è `Σ (λ_p − λ_nascita)` sui suoi punti, dove `λ_p` è il valore a cui il punto esce. Con *Excess of Mass* (`eom`) si risale dalle foglie: un cluster figlio sostituisce il genitore se la sua stabilità è maggiore, altrimenti resta il genitore.
+5. **Stabilità e scelta dei cluster.** Si usa `λ = 1 / distanza`. La stabilità di un cluster è `Σ (λ_p − λ_nascita)` sui suoi punti, dove `λ_p` è il valore a cui il punto esce. Con *Excess of Mass* (`eom`) si risale dalle foglie: i figli sostituiscono il genitore se la **somma** delle loro stabilità supera quella del genitore, altrimenti resta il genitore (Campello et al. 2013; codice `_hdbscan_tree.pyx::get_clusters`, 0.8.44).
 6. **Rumore e probabilità.** Ogni punto fuori dai cluster scelti è rumore (`-1`). Per gli altri, i `λ_p` normalizzati dentro il cluster danno `probabilities_` in [0, 1].
 
 ---

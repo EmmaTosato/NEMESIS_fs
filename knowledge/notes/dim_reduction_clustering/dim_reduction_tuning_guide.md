@@ -1,7 +1,7 @@
 # Tuning della dim reduction — come leggere plot e indici
 
 > **Implementazione:** `src/analysis/tuning.py` (calcolo indici, sweep), `src/analysis/plotting.py` (`plot_tuning_curve`, `plot_embedding_grid_blocks`), `src/analysis/embedding_plots.py`/`embedding_coloring.py` (colorazione embedding). Orchestrazione in `src/pipeline/dim_reduction.py` quando `fine_tuning: true`.
-> **Guida d'uso:** `docs/guides/dim_reduction.md`. **Tassonomia/letteratura generale**: `knowledge/notes/dim_reduction_clustering/dim_reduction_literature_survey.md`. **Meccanica di t-SNE/UMAP**: `knowledge/notes/dim_reduction_clustering/employed_dim_reduction_methods.md`. **Rischi di clusterizzare sopra l'embedding**: `knowledge/notes/dim_reduction_clustering/challenge_of_clustering_after_dim_reduction.md`.
+> **Guida d'uso:** `docs/guides/dim_reduction.md`. **Tassonomia/letteratura generale**: `knowledge/notes/dim_reduction_clustering/dim_reduction_literature_survey.md`. **Meccanica di t-SNE/UMAP**: `knowledge/notes/dim_reduction_clustering/employed_dim_reduction_methods.md`. **Una nota per metodo** (parametri, default, valutazione, insidie): [`dim_reduction_methods/`](dim_reduction_methods/README.md); misure di qualità oltre la trustworthiness (continuity, conservazione dei *k* vicini): [`dim_reduction_methods/evaluation.md`](dim_reduction_methods/evaluation.md). **Rischi di clusterizzare sopra l'embedding**: `knowledge/notes/dim_reduction_clustering/challenge_of_clustering_after_dim_reduction.md`.
 
 ## Cos'è il tuning
 
@@ -11,7 +11,7 @@ Per `umap`/`tsne`/`pacmap`/`pca`, il tuning esegue lo stesso metodo su una grigl
 
 | Metodo | Metrica | Perché |
 |---|---|---|
-| `umap`, `tsne`, `pacmap` | **Trustworthiness** (Venna & Kaski, 2006) | Nessun ground truth noto — l'unica cosa verificabile è se l'embedding ha distorto la vicinanza locale rispetto ai dati originali |
+| `umap`, `tsne`, `pacmap` | **Trustworthiness** (Venna & Kaski 2001, il riferimento della documentazione scikit-learn; poi Venna & Kaski 2006) | Nessun ground truth noto — l'unica cosa verificabile è se l'embedding ha distorto la vicinanza locale rispetto ai dati originali |
 | `pca` | **Varianza cumulativa spiegata** | Criterio nativo di PCA — quanta informazione sopravvive comprimendo a `n_components` (una rotazione non la cambia) |
 
 **Varianza cumulativa spiegata**: somma delle prime `n_components` `explained_variance_ratio_` di sklearn. Cresce monotonicamente — si legge come curva a **gomito**. Thiebaut de Schotten et al. 2020 usa soglia fissa >90%.

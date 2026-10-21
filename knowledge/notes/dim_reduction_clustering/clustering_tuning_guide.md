@@ -2,6 +2,8 @@
 
 Manuale operativo: come leggere gli indici e i grafici prodotti da una sweep di tuning, e come decidere cosa fare a partire da quello che vedi.
 
+Definizioni e fonti degli indici: [`clustering_methods/evaluation_metrics.md`](clustering_methods/evaluation_metrics.md). Formule e parametri dei singoli metodi: cartella [`clustering_methods/`](clustering_methods/), indice in [`README.md`](clustering_methods/README.md) (es. [`kmeans.md`](clustering_methods/kmeans.md), [`gmm.md`](clustering_methods/gmm.md), [`spectral.md`](clustering_methods/spectral.md), [`agglomerative.md`](clustering_methods/agglomerative.md), [`hdbscan.md`](clustering_methods/hdbscan.md), [`adp.md`](clustering_methods/adp.md)).
+
 ## Regola d'oro
 
 Il tuning **non sceglie mai il valore migliore per te**. Per ogni valore testato calcola indici e grafici diagnostici, li salva su disco, e si ferma lì. La scelta finale del parametro da usare in produzione è sempre una decisione umana, guidata dai plot.
@@ -13,7 +15,6 @@ Ogni sweep testa un solo iperparametro principale per metodo:
 | KMeans, Agglomerative, Spectral | `n_clusters`       |
 | GMM                             | `n_components`     |
 | HDBSCAN                         | `min_cluster_size` |
-| Evidence Accumulation           | `threshold`        |
 | ADP                             | `Z`                |
 
 Agglomerative in più testa `linkage` e `metric` insieme a `n_clusters`. Non tutte le combinazioni sono valide: `linkage="ward"` accetta solo la metrica euclidea, quindi ogni combinazione che li accoppia diversamente viene scartata in automatico (con un avviso in log), non silenziosamente.
@@ -125,13 +126,6 @@ Per ogni `n_clusters` e `linkage` (per una sola `metric`, di solito `euclidean`;
 - **Cosa misura**: usa quel raggruppamento come proxy debole di verità nota, e calcola la distanza media dentro ogni gruppo e tra coppie di gruppi diverse, per ciascuna metrica candidata.
 - **Come si legge**: la metrica migliore tiene la diagonale (dentro-gruppo) bassa e le celle fuori diagonale (tra-gruppo) alte. Non ti dice nulla sul numero di cluster: usala **prima** di guardare Silhouette/CH/DB, per capire quale metrica approfondire.
 
-### Evidence Accumulation — convergenza e matrice di consenso
-
-Entrambe calcolate una sola volta, indipendenti dalla soglia (`threshold`) sweepata:
-
-- **Convergenza**: verifica se la matrice di co-occorrenza tra soggetti si stabilizza man mano che aumentano le ripetizioni del clustering di base, o se il numero di ripetizioni scelto è ancora arbitrario.
-- **Matrice di consenso**: quante volte ogni coppia di soggetti finisce nello stesso cluster, riordinata secondo l'assegnazione finale. Blocchi diagonali netti = cluster puliti e affidabili a quella soglia. Zone sfumate = un taglio ambiguo.
-
 ### GMM — BIC / AIC
 
 - **Dove**: colonne in più nello stesso `tuning_plot.png`.
@@ -212,7 +206,7 @@ Domanda diversa: il numero di cluster scelto è supportato dai dati, o cambiereb
 - **Riproducibilità rispetto al seed**: stessi dati, inizializzazioni diverse — quanto si ottiene lo stesso risultato.
 - **Riproducibilità rispetto al campione**: sottocampioni casuali di soggetti — quanto il risultato dipende da chi capita nel campione.
 
-Entrambe restano un punteggio diagnostico per ogni valore testato: non producono etichette finali di cluster (a differenza di Evidence Accumulation, che è un metodo di produzione a sé stante, con le sue diagnostiche standalone viste sopra).
+Entrambe restano un punteggio diagnostico per ogni valore testato: non producono etichette finali di cluster.
 
 ---
 
@@ -233,7 +227,6 @@ Diagnostiche standalone (indipendenti dal valore scelto), solo per il metodo ind
 | Dendrogramma (uno per`metric`, subplot per `linkage`)        | Agglomerative         | Sì                                                                 |
 | Matrice di distanza interclasse                                  | Agglomerative         | Solo se è disponibile un raggruppamento noto a priori nei metadati |
 | Eigengap (uno per`affinity`, subplot per il suo iperparametro) | Spectral              | Sì                                                                 |
-| Convergenza + matrice di consenso                                | Evidence Accumulation | Sì                                                                 |
 
 Output opzionali, solo se attivati in config:
 

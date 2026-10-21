@@ -207,7 +207,7 @@ def compose_cluster_plot_title(output_dir: Path, reduction_method: str, clusteri
 def compose_clustering_tuning_title(output_dir: Path, method: str) -> str:
     """Title for clustering.py's fine-tuning output (tuning_plot.png and every standalone
     diagnostic built from the same `title` - dendrogram/eigengap/interclass-distance/
-    stability/consensus/n_repeats-convergence): "<Modality> - Clustering Tuning -
+    stability): "<Modality> - Clustering Tuning -
     <Method>", same capitalization convention as compose_cluster_plot_title. Deliberately
     shorter than compose_run_title's full output_dir path dump (which this replaces here,
     31-08-26) - a tuning sweep's own reduction_method/session_name are already legible from
@@ -1110,9 +1110,8 @@ def plot_grouped_tuning_metrics(
     df: pd.DataFrame, x_param: str, group_param: str, metric_cols: list[str], output_path: Path, title: str, log_x: bool = False
 ) -> None:
     """One subplot per metric in metric_cols, `x_param` on the x-axis, one line per unique
-    value of `group_param` - the shared layout behind spectral's `(affinity, hyperparameter)`
-    grouping and evidence_accumulation's Split-phase-`k` grouping (project-clustering-tuning-
-    redesign memory, 26-08-26): both need "one line per group" instead of
+    value of `group_param` - the layout behind spectral's `(affinity, hyperparameter)`
+    grouping (project-clustering-tuning-redesign memory, 26-08-26): it needs "one line per group" instead of
     `plot_clustering_tuning_metrics`'s single line, or a heatmap. `log_x` as in
     plot_clustering_tuning_metrics (adp's Z, one line per metric).
     """
@@ -1169,33 +1168,6 @@ def plot_spectral_tuning(df: pd.DataFrame, param_col: str, metric_cols: list[str
     df = df.copy()
     df["_combo_label"] = df.apply(_combo_label, axis=1)
     plot_grouped_tuning_metrics(df, param_col, "_combo_label", metric_cols, output_path, title)
-
-
-def plot_consensus_matrix_heatmap(co_occurrence: np.ndarray, labels: np.ndarray, output_path: Path, title: str) -> None:
-    """Monti et al. 2003's own headline visualization for evidence_accumulation
-    (project-clustering-tuning-redesign memory, 26-08-26): the co-occurrence matrix
-    (`consensus_clustering.run_rsc_repeats`'s output) with subjects reordered by their final
-    cluster assignment (`consensus_clustering.assign_clusters_from_cooccurrence`'s output) -
-    block-diagonal = confident/clean clusters at this threshold, fuzzy = an ambiguous cut.
-    """
-    if co_occurrence.shape[0] != co_occurrence.shape[1]:
-        raise ValueError(f"co_occurrence must be square, got shape {co_occurrence.shape}")
-    if len(labels) != co_occurrence.shape[0]:
-        raise ValueError(f"labels has {len(labels)} entries but co_occurrence is {co_occurrence.shape[0]}x{co_occurrence.shape[0]}")
-
-    order = np.argsort(labels)
-    reordered = co_occurrence[np.ix_(order, order)]
-
-    fig, ax = plt.subplots(figsize=(6, 5.5))
-    image = ax.imshow(reordered, cmap="viridis", vmin=0, vmax=1)
-    ax.set_xlabel("subjects (reordered by final cluster)")
-    ax.set_ylabel("subjects (reordered by final cluster)")
-    ax.set_title(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
-    fig.colorbar(image, ax=ax, label="co-occurrence frequency")
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
 
 
 def plot_dendrograms_grid(

@@ -24,7 +24,6 @@ from src.analysis.plotting import (
     plot_clustering_tuning_heatmaps,
     plot_clustering_tuning_metrics,
     plot_clusters_2d,
-    plot_consensus_matrix_heatmap,
     plot_grouped_tuning_metrics,
     plot_dendrograms_grid,
     plot_eigengaps_grid,
@@ -463,27 +462,6 @@ def test_plot_grouped_tuning_metrics_raises_on_empty_metric_cols(tmp_path):
     df = pd.DataFrame({"threshold": [0.3], "n_clusters": [8], "silhouette": [0.4]})
     with pytest.raises(ValueError, match="at least one metric column"):
         plot_grouped_tuning_metrics(df, "threshold", "n_clusters", [], tmp_path / "out.png", "title")
-
-
-def test_plot_consensus_matrix_heatmap_writes_file(tmp_path):
-    co_occurrence = np.array([[1.0, 0.9, 0.1, 0.1], [0.9, 1.0, 0.1, 0.1], [0.1, 0.1, 1.0, 0.8], [0.1, 0.1, 0.8, 1.0]])
-    labels = np.array([0, 0, 1, 1])
-    output_path = tmp_path / "consensus_matrix_heatmap.png"
-
-    plot_consensus_matrix_heatmap(co_occurrence, labels, output_path, "test title")
-
-    assert output_path.exists()
-    assert output_path.stat().st_size > 0
-
-
-def test_plot_consensus_matrix_heatmap_rejects_non_square():
-    with pytest.raises(ValueError, match="square"):
-        plot_consensus_matrix_heatmap(np.zeros((4, 5)), np.zeros(4), Path("unused.png"), "title")
-
-
-def test_plot_consensus_matrix_heatmap_rejects_mismatched_labels_length():
-    with pytest.raises(ValueError, match="labels has"):
-        plot_consensus_matrix_heatmap(np.eye(4), np.zeros(3), Path("unused.png"), "title")
 
 
 def test_plot_spectral_tuning_writes_one_panel_per_metric(tmp_path):

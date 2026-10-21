@@ -8,6 +8,28 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 21-10-26 — Rimosso evidence_accumulation
+
+Tolto per ora il metodo di clustering `evidence_accumulation` (EAC, Fred & Jain 2002). I `CLUSTERING_METHODS` passano da 8 a 7.
+
+**Cosa è stato tolto**:
+- codice: `evidence_accumulation_cluster` e `_validate_evidence_accumulation_params` (`src/analysis/clustering.py`); `assign_clusters_from_cooccurrence` e `compute_evidence_accumulation_convergence` (`src/analysis/consensus_clustering.py`, che resta per RSC, Monti e `subsampling_stability_index`); la cache della co-occorrenza e `_evidence_accumulation_labels` nella sweep (`src/analysis/clustering_tuning.py`); il grafico `threshold` x `k` di split, `n_repeats_convergence.csv/.png` e `consensus_matrix_heatmap.png` (`src/pipeline/clustering.py`, `plot_consensus_matrix_heatmap` in `src/analysis/plotting.py`); la voce `"evidence_accumulation"` di `config/registry/params_clustering.json`;
+- test: quelli solo per l'EAC in `test_clustering.py`, `test_consensus_clustering.py`, `test_clustering_tuning.py`, `test_plotting.py`, `test_prop_clustering.py`, `test_prop_consensus_clustering.py` e due test end-to-end in `tests/integration/test_clustering_pipeline.py`;
+- docs e note: le sezioni EAC di `docs/dev/models.md`, le note in `docs/guides/clustering.md`, `knowledge/notes/dim_reduction_clustering/clustering_methods/evidence_accumulation.md` e `management/cheatsheets/evidence-accumulation.md`. RSC, Monti e PAC sono ora descritti in `clustering_methods/evaluation_metrics.md` §7.
+
+Restano su disco le 7 run di produzione `results/sdc/clustering/production/evidence_accumulation/raw/30-09_s2.3-stream_t05_k{4..10}`.
+
+**Perché**: con la configurazione attuale il metodo non aggiunge nulla al suo metodo di base. Spectral con `assign_labels="cluster_qr"` è deterministico (con `arpack` il seed cambia solo il vettore iniziale), quindi le 50 ripetizioni sono identiche. La co-associazione contiene solo 0 e 1 e il risultato coincide con un singolo `SpectralClustering`: ARI 1.0, verificato sulle run `30-09_s2.3-stream_t05_k{4,6,10}`. Lo sweep sulla soglia non può cambiare nulla. Altre lacune note:
+- il taglio univa le coppie con C ≥ t invece di C > t (a `27087d1` `fcluster` taglia a `1 - threshold` esatto);
+- nessun criterio lifetime (Fred & Jain 2005) per scegliere la soglia;
+- k di split basso (4-10), contro il ~√n suggerito dagli autori.
+
+**Per reintegrarlo**: codice, test tracciati, config, docs e cheatsheet sono in git al commit `27087d1`. Non sono in git, perché mai committati: la nota `clustering_methods/evidence_accumulation.md` e i test EAC di `test_prop_clustering.py` e `test_prop_consensus_clustering.py`. Per farlo bene servono:
+- un metodo di base stocastico (kmeans, o spectral con partizioni che cambiano davvero tra ripetizioni);
+- k di split ~√n;
+- il criterio lifetime;
+- il taglio C > t.
+
 ## 21-10-26 — `buckner_7n` escluso dalle matrici SDC parcellate: l'esclusione provvisoria diventa definitiva
 
 **Cosa è cambiato**: `buckner_7n`, uno dei 15 atlanti del disconnettoma BCBToolKit, non è un atlante target di `build_sdc_matrix` e non lo sarà. Il suo CSV ha una sola riga per soggetto, con `region_name` uguale al nome del file dell'atlante (`atl-Buckner7_space-MNI_dseg`) invece di una riga per rete cerebellare: la struttura non coincide con quella degli altri 14. In `assets/atlases/sdc_labels/` ci sono i reference di `schaefer_200_tian_s2`, `schaefer_300_tian_s2`, `schaefer_400_tian_s2` e `yeh_hcp1065_streamline`, nessuno per `buckner_7n`.

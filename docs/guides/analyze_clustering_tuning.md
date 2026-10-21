@@ -41,7 +41,7 @@ Nella cartella della run (rilanciare la pipeline del tuning con `overwrite: true
 
 | Metodo | File | Contenuto |
 | :--- | :--- | :--- |
-| agglomerative | `cophenetic_correlation.csv` | Una riga per (`metric`, `linkage`) valido: correlazione tra le distanze vere e quelle dell'albero (da 0 a 1, vicino a 1 l'albero è fedele). Non si confronta tra `metric` diverse. |
+| agglomerative | `cophenetic_correlation.csv` | Una riga per (`metric`, `linkage`) valido: correlazione tra le distanze vere e quelle dell'albero (da -1 a 1, vicino a 1 l'albero è fedele). Non si confronta tra `metric` diverse. |
 | agglomerative | `dendrogram_jump.csv` | Una riga per (`metric`, `linkage`, `n_clusters`): altezza della fusione da k a k−1 divisa per quella da k+1 a k. Vicino a 1 non c'è un taglio naturale a k; più è alto, più il taglio è netto. |
 | agglomerative | `linkage_agreement.csv` | Una riga per (`metric`, `n_clusters`, coppia di linkage): ARI tra le due partizioni (1 = identiche, 0 = quanto il caso). Dice dove i linkage danno la stessa partizione e dove no; non dice quale sia il giusto. |
 | agglomerative | `k_curves_metric=<metric>.png` | Una figura per `metric`, senza `single`, con tre pannelli: silhouette su asse fisso (da -1 a 1), silhouette su asse adattato ai dati, Davies-Bouldin; una linea per linkage. Sui pannelli della silhouette le linee tratteggiate delle soglie della convenzione di Kaufman & Rousseeuw (1990) comprese nell'asse. Con `cosine` e `manhattan` Davies-Bouldin è vuoto e il suo pannello manca. |

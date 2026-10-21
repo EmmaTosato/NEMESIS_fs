@@ -84,9 +84,9 @@ Parte con un cluster per soggetto e fonde via via i due cluster più vicini, fin
 
 **Come scegliere la metrica** (sklearn): `manhattan` va bene con feature sparse, `cosine` è invariante alle scale globali del segnale. Il confronto tra metriche sullo stesso embedding si fa con la matrice di distanza interclasse (sezione "Grafici diagnostici" sopra).
 
-**Valori di partenza** in `params_clustering.json`: `n_clusters: 6`, `linkage: average`, `metric: cosine`.
+**Valori di partenza** in `params_clustering.json`: `n_clusters: 3`, `linkage: ward`, `metric: euclidean`.
 
-Fonte: [scikit-learn, `AgglomerativeClustering`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html) e [guida al clustering gerarchico](https://scikit-learn.org/stable/modules/clustering.html#hierarchical-clustering).
+Fonte: [scikit-learn, `AgglomerativeClustering`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html) e [guida al clustering gerarchico](https://scikit-learn.org/stable/modules/clustering.html#hierarchical-clustering). Formule dei linkage, tuning e insidie: [`agglomerative.md`](../../knowledge/notes/dim_reduction_clustering/clustering_methods/agglomerative.md).
 
 ---
 
@@ -106,7 +106,7 @@ Cerca zone dense di soggetti, a densità diverse. Il numero di cluster **non si 
 
 **Valori di partenza** in `params_clustering.json`: `min_cluster_size: 100`, `min_samples: 10`.
 
-Fonte: [scikit-learn, `HDBSCAN`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.HDBSCAN.html) e [guida al clustering](https://scikit-learn.org/stable/modules/clustering.html#hdbscan).
+Fonte: [scikit-learn, `HDBSCAN`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.HDBSCAN.html) e [guida al clustering](https://scikit-learn.org/stable/modules/clustering.html#hdbscan). Formule, confronto tra i due pacchetti (`hdbscan` e `hdbscan_soft`) e insidie: [`hdbscan.md`](../../knowledge/notes/dim_reduction_clustering/clustering_methods/hdbscan.md).
 
 ---
 
@@ -114,7 +114,12 @@ Fonte: [scikit-learn, `HDBSCAN`](https://scikit-learn.org/stable/modules/generat
 
 Lo stesso algoritmo di HDBSCAN, con il pacchetto `hdbscan` al posto di quello di scikit-learn (`environment.yml`). Serve per il *soft clustering*: per ogni soggetto, una probabilità per ogni cluster. Come funziona il pacchetto: `knowledge/notes/dim_reduction_clustering/hdbscan_package.md`.
 
-**Non è confrontabile con `hdbscan`.** I due non danno la stessa partizione con gli stessi numeri: il pacchetto usa un'altra convenzione per `min_samples` e un MST approssimato di default. Le run `hdbscan_soft` stanno in cartelle proprie (`.../tuning/hdbscan_soft/...`) e si leggono tra loro.
+**Non è confrontabile con `hdbscan`.** I due non danno la stessa partizione con gli stessi numeri, per due motivi:
+
+- **`min_samples` conta cose diverse.** sklearn conta anche il punto stesso tra i vicini (come Campello et al. 2013), il pacchetto `hdbscan` no. Quindi `min_samples = m` nel pacchetto corrisponde a `min_samples = m + 1` in sklearn. Con `min_samples = 1`, in sklearn la core distance è 0 e HDBSCAN si riduce a single linkage; nel pacchetto è la distanza dal primo vicino vero.
+- **Il pacchetto usa di default un MST approssimato.** Il progetto lo disattiva (`approx_min_span_tree: false`).
+
+Le run `hdbscan_soft` stanno in cartelle proprie (`.../tuning/hdbscan_soft/...`) e si confrontano solo tra loro, mai con quelle di `hdbscan` a parità di `min_samples`. Dettaglio e verifica sul codice delle due librerie: [`clustering_methods/hdbscan.md`](../../knowledge/notes/dim_reduction_clustering/clustering_methods/hdbscan.md) §5.
 
 | Parametro | Cosa fa | Valore in `params_clustering.json` |
 | :--- | :--- | :--- |
@@ -168,7 +173,7 @@ L'ambiente `dadapy` non ha `dash`: `embedding_app` e i suoi test non vi girano. 
 | **`Z`** | Fattore di fusione dei picchi di densità (> 0, default DADApy 1.65). È l'unico parametro libero del metodo. Un picco resta un cluster a sé solo se la sua densità supera quella del punto più basso che lo collega a un picco vicino di più di `Z` volte l'incertezza della stima. **Più alto = fusione più aggressiva = meno cluster.** Lo sweep la varia da 0.25 a 16. |
 | **`maxk`** | Numero massimo di vicini per soggetto su cui DADApy calcola distanze, dimensione intrinseca e densità (default DADApy `min(100, N-1)`). È un tetto: la stima di densità adatta il proprio numero di vicini, per ogni soggetto, entro `maxk`. Deve essere minore del numero di righe distinte. |
 
-Fonte: [DADApy, `Clustering.compute_clustering_ADP`](https://dadapy.readthedocs.io/en/latest/clustering.html) (la documentazione ufficiale descrive `Z`, non `maxk`; per `maxk` vale il docstring nel codice di `dadapy.base`) e d'Errico, Facco, Laio, Rodriguez 2021, *Automatic topography of high-dimensional data sets by non-parametric density peak clustering*, Information Sciences 560.
+Fonte: [DADApy, `Clustering.compute_clustering_ADP`](https://dadapy.readthedocs.io/en/latest/clustering.html) (la documentazione ufficiale descrive `Z`, non `maxk`; per `maxk` vale il docstring nel codice di `dadapy.base`) e d'Errico, Facco, Laio, Rodriguez 2021, *Automatic topography of high-dimensional data sets by non-parametric density peak clustering*, Information Sciences 560. Formule (density peaks, 2NN, PAk, test di fusione con `Z`) e insidie: [`adp.md`](../../knowledge/notes/dim_reduction_clustering/clustering_methods/adp.md).
 
 Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorato). `halo` è fisso a `false`; stima della dimensione intrinseca (2NN) e della densità (PAk) sono quelle di default di DADApy. Il metodo è deterministico: nessun `random_state`.
 
@@ -225,7 +230,7 @@ Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorat
 | **`project`** | *Stringa* | Nome del progetto (es. `"clinical_connectome"`). |
 | **`input_path`** | *Stringa* | Percorso della matrice di input. Dati grezzi (`data/derived/...`) o compressi (`results/lesion/dim_reduction/...`). DEVE esistere. |
 | **`reduction_method`** | *Stringa* | Dichiara quale metodo di dim reduction ha prodotto `input_path` (`"umap"`, `"tsne"`, `"pca"`, `"pacmap"`) — o `"raw"` se `input_path` è una matrice non ridotta. Obbligatorio, mai dedotto dal testo di `input_path`. Determina un livello in più nell'albero di output (vedi sotto), così risultati da embedding diversi non finiscono mai nella stessa cartella. |
-| **`clustering_methods`** | *Lista* | Algoritmi da usare. Opzioni: `"kmeans"`, `"agglomerative"`, `"gmm"`, `"hdbscan"`, `"hdbscan_soft"`, `"spectral"`, `"evidence_accumulation"`, `"adp"`. È possibile metterne multipli per confrontarli, tranne `"adp"`, che gira da solo in un ambiente a parte (sezione "ADP" sotto). |
+| **`clustering_methods`** | *Lista* | Algoritmi da usare. Opzioni: `"kmeans"`, `"agglomerative"`, `"gmm"`, `"hdbscan"`, `"hdbscan_soft"`, `"spectral"`, `"adp"`. È possibile metterne multipli per confrontarli, tranne `"adp"`, che gira da solo in un ambiente a parte (sezione "ADP" sotto). |
 | **`params_file`** | *Stringa* | File configurazione interna algoritmi (di norma `"config/registry/params_clustering.json"`). |
 | **`reduction_params_file`** | *Stringa \| null* | Il file `config/registry/params_reduction*.json` che ha prodotto `input_path` — `"config/registry/params_reduction.json"` per lesion, `"config/registry/params_reduction_sdc.json"` per sdc. **Obbligatorio quando `reduced_data: true`**, **vietato (deve mancare) quando `reduced_data: false`**. Serve a leggere `tag_param`/`tag_prefix` del `reduction_method` per ricostruire il tag dell'embedding (es. `"m_euclidean_nc2"`) direttamente dai parametri veri con cui `input_path` è stato costruito — mai scritto a mano in `session_name`, così non può disallinearsi dal vero `input_path` (vedi sotto). |
 | **`output_root`** | *Stringa* | Cartella radice per i risultati (es. `"results/lesion/clustering"`). |
@@ -237,9 +242,7 @@ Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorat
 
 > **Nota su `params_clustering.json`**: Per la maggior parte dei metodi, bisogna specificare in questo file il numero di cluster voluti (es. `"n_clusters": 4`) prima di avviare l'esecuzione in produzione.
 
-> **Nota su `"evidence_accumulation"`**: non va confuso con il blocco diagnostico `"consensus": {"rsc": {...}}` sopra (quello sweeppa la *stabilità* di un altro metodo, senza produrre cluster). `"evidence_accumulation"` come voce di `clustering_methods` è un metodo di produzione a sé (Fred & Jain 2002, replicato fedelmente), che ripete un metodo di base (`"base_method"`: `"kmeans"`/`"gmm"`/`"spectral"`) `n_repeats` volte e deriva le etichette finali dalla matrice di co-occorrenza — vedi `knowledge/notes/dim_reduction_clustering/clustering_literature_survey.md` §3. Con `base_method="spectral"` è esattamente l'RSC di Zanola et al. 2026. **Il numero di cluster finali non è un parametro** — emerge da solo tagliando a `"threshold"` (default 0.5, la soglia `t` del paper: due soggetti finiscono insieme solo se co-clusterizzati più del 50% delle volte). I suoi parametri in `params_clustering.json` sono `"base_method"` + `"n_repeats"` + `"threshold"` (obbligatori) + `"base_seed"` (opzionale, default 0) + tutti i parametri del `base_method` scelto, incluso il suo `n_clusters`/`n_components` — che qui è la granularità di *decomposizione iniziale* (va scelto più alto del numero di cluster atteso, non è il risultato finale) — niente `random_state` fisso, viene rifiutato esplicitamente.
-
-> **Tuning di `"evidence_accumulation"` (nuovo)**: `tuning_grid` può sweeppare `"threshold"` insieme al parametro Split-phase del `base_method` scelto (es. `"n_clusters"` per `base_method="spectral"`/`"kmeans"`) — un grafico a linee (una per ogni valore Split-`k`, x=`threshold`), non una heatmap. In più, ogni run scrive automaticamente due diagnostici standalone indipendenti dallo sweep: `n_repeats_convergence.csv`/`.png` (la matrice di co-occorrenza si stabilizza al crescere di `n_repeats`, o il default è arbitrario?) e `consensus_matrix_heatmap.png` (matrice di co-occorrenza riordinata per cluster finale, stile Monti et al. 2003 — blocchi diagonali netti = cluster affidabili, sfumati = taglio ambiguo).
+> Formule, parametri e insidie di K-Means, GMM e Spectral: [`kmeans.md`](../../knowledge/notes/dim_reduction_clustering/clustering_methods/kmeans.md), [`gmm.md`](../../knowledge/notes/dim_reduction_clustering/clustering_methods/gmm.md), [`spectral.md`](../../knowledge/notes/dim_reduction_clustering/clustering_methods/spectral.md).
 
 ---
 

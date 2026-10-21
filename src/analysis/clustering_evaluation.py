@@ -53,7 +53,7 @@ EVALUATIONS: dict[str, Evaluation] = {
     "model_fit_metrics": Evaluation(
         frozenset({"kmeans", "gmm", "agglomerative", "hdbscan", "hdbscan_soft"}),
         "solo questi hanno una statistica propria del modello (inertia, BIC/AIC, correlazione cofenetica e salto "
-        "del dendrogramma, quota di rumore); spectral, evidence_accumulation e adp non ne hanno "
+        "del dendrogramma, quota di rumore); spectral e adp non ne hanno "
         "(gli indici geometrici valgono comunque)",
     ),
     "soft_membership": Evaluation(

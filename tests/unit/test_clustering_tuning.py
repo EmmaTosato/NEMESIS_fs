@@ -315,39 +315,6 @@ def test_run_clustering_tuning_sweep_hdbscan_reports_n_clusters_found():
     assert large_mcs_row["n_clusters_found"] == 0
 
 
-def test_run_clustering_tuning_sweep_evidence_accumulation_reuses_cooccurrence_across_thresholds(monkeypatch):
-    """AUDIT_FINDINGS.md #35 regression: evidence_accumulation's real cost
-    (run_rsc_repeats, n_repeats fits of base_method) used to be recomputed once per
-    threshold value even though threshold never affects it - only the cheap Merge-phase
-    cut (assign_clusters_from_cooccurrence) does. A 4-value threshold-only sweep must call
-    run_rsc_repeats exactly once, not 4 times."""
-    import src.analysis.consensus_clustering as consensus_clustering
-
-    X = _three_blobs()
-    call_count = 0
-    real_run_rsc_repeats = consensus_clustering.run_rsc_repeats
-
-    def _counting_run_rsc_repeats(*args, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        return real_run_rsc_repeats(*args, **kwargs)
-
-    monkeypatch.setattr(consensus_clustering, "run_rsc_repeats", _counting_run_rsc_repeats)
-
-    base_params = {"base_method": "kmeans", "n_clusters": 5, "n_repeats": 3, "base_seed": 0}
-    df, _ = run_clustering_tuning_sweep(
-        "evidence_accumulation", X, base_params, {"threshold": [0.3, 0.5, 0.7, 0.9]}
-    )
-
-    assert list(df["threshold"]) == [0.3, 0.5, 0.7, 0.9]
-    assert call_count == 1, f"expected run_rsc_repeats to run once (shared across all 4 thresholds), got {call_count}"
-    # Different thresholds on the SAME co-occurrence matrix produce a non-increasing
-    # number of clusters as threshold rises (a stricter cut can only merge, never split) -
-    # not the point of this test, but confirms the shared matrix still drives real,
-    # threshold-dependent output rather than being reused incorrectly for every row.
-    assert set(METHOD_METRIC_COLUMNS["evidence_accumulation"]) <= set(df.columns)
-
-
 def test_run_clustering_tuning_sweep_returns_labels_by_combo_matching_results():
     """Regression (26-08-26, save_tuning_clusterings feature): the sweep must return the
     actual cluster-label array it already computed for every combination, keyed by the exact
@@ -440,8 +407,8 @@ def test_hdbscan_labels_and_probabilities_shapes_and_noise_has_zero_probability(
     assert (probabilities[labels == -1] == 0).all()
 
 
-def test_standalone_diagnostic_methods_covers_exactly_agglomerative_spectral_evidence_accumulation():
-    assert STANDALONE_DIAGNOSTIC_METHODS == {"agglomerative", "spectral", "evidence_accumulation"}
+def test_standalone_diagnostic_methods_covers_exactly_agglomerative_spectral():
+    assert STANDALONE_DIAGNOSTIC_METHODS == {"agglomerative", "spectral"}
 
 
 # --- representative_values / compute_stability_sweep (kmeans/gmm stability analysis,

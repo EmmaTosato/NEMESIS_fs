@@ -20,7 +20,6 @@ Ogni metodo ha le stesse quattro parti: cosa fa, che tipo di metodo è, cosa res
 | [kmeans.md](kmeans.md) | partizionale, non deterministico | il numero *k* di cluster | etichetta, inertia |
 | [agglomerative.md](agglomerative.md) | gerarchico, deterministico | metrica e linkage; il numero di cluster si decide dopo, tagliando il dendrogramma | etichetta, dendrogramma |
 | [hdbscan.md](hdbscan.md) | per densità | `min_cluster_size` e `min_samples`; il numero di cluster non si fissa | etichetta (−1 = rumore), probabilità di appartenenza, stabilità |
-| [evidence-accumulation.md](evidence-accumulation.md) | ensemble / consensus | `base_method`, `n_repeats`, `threshold`; il numero di cluster finali emerge | etichetta, matrice di co-associazione |
 | [adp.md](adp.md) | per picchi di densità | `Z` e la metrica; il numero di cluster non si fissa | etichetta (−1 = rumore) |
 
 Tutti i metodi sono non supervisionati: nel progetto le funzioni di riduzione e di clustering ricevono solo la matrice (`docs/dev/models.md`).

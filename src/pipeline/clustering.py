@@ -84,7 +84,6 @@ import pandas as pd
 
 from src.analysis.clustering import (
     CLUSTERING_METHODS,
-    _validate_evidence_accumulation_params,
     hdbscan_soft_fit,
     own_cluster_membership,
     soft_membership_matrix,
@@ -110,7 +109,6 @@ from src.analysis.clustering_tuning import (
     run_clustering_tuning_sweep,
     run_spectral_affinity_aware_sweep,
 )
-from src.analysis.consensus_clustering import assign_clusters_from_cooccurrence, compute_evidence_accumulation_convergence, run_rsc_repeats
 from src.analysis.model_config import ClusteringConfig, load_clustering_config
 from src.analysis.params import (
     build_tag_from_values,
@@ -127,7 +125,6 @@ from src.analysis.plotting import (
     plot_clusters_2d,
     plot_clustering_tuning_heatmaps,
     plot_clustering_tuning_metrics,
-    plot_consensus_matrix_heatmap,
     plot_dendrograms_grid,
     plot_eigengaps_grid,
     plot_grouped_tuning_metrics,
@@ -135,7 +132,6 @@ from src.analysis.plotting import (
     plot_silhouette_analysis,
     plot_spectral_tuning,
     plot_stability_analysis,
-    plot_tuning_curve,
 )
 from src.utils.artifacts import load_matrix, read_dim_reduction_method, read_run_params, save_matrix
 from src.utils.logging_setup import attach_file_handler, log_duration
@@ -792,13 +788,6 @@ def _write_tuning_output(
                 method,
                 len(other_params),
             )
-    elif method == "evidence_accumulation" and "threshold" in tuning_grid and len(swept_params) == 2:
-        # project-clustering-tuning-redesign memory (26-08-26): threshold x Split-phase k -
-        # one line per Split-phase k value, x=threshold (never a heatmap for this pair - lets a
-        # human read whether the Merge-phase result is sensitive to "how much larger than
-        # expected" the Split decomposition was).
-        split_k_param = next(key for key in swept_params if key != "threshold")
-        plot_grouped_tuning_metrics(results, "threshold", split_k_param, metric_cols, output_dir / "tuning_plot.png", title)
     elif method == "adp" and set(swept_params) == {"metric", "Z"}:
         # adp compared across distances: one line per metric, Z (log) on x - a heatmap of 2 metrics x 18 Z
         # values would be unreadable
@@ -940,54 +929,15 @@ def _write_standalone_diagnostic(
     output_dir: Path, method: str, X: np.ndarray, base_params: dict, tuning_grid: dict[str, list], metadata: pd.DataFrame, title: str
 ) -> None:
     """Diagnostic plot(s) independent of which value in the swept grid ends up chosen - see
-    src/analysis/clustering_tuning.py's module docstring for why these 3 (and only these 3)
+    src/analysis/clustering_tuning.py's module docstring for why these 2 (and only these 2)
     methods get one.
     """
     if method == "agglomerative":
         _write_agglomerative_diagnostics(output_dir, X, base_params, tuning_grid, metadata, title)
     elif method == "spectral":
         _write_spectral_diagnostics(output_dir, X, base_params, tuning_grid, title)
-    elif method == "evidence_accumulation":
-        _write_evidence_accumulation_diagnostics(output_dir, X, base_params, title)
     else:
         raise ValueError(f"no standalone diagnostic wired for method {method!r}")
-
-
-def _default_convergence_checkpoints(n_repeats: int) -> list[int]:
-    """5 evenly-spaced checkpoints up to base_params' own n_repeats (10%/25%/50%/75%/100%,
-    floored at 1, deduplicated and sorted) - a reasonable default sweep of "how many repeats"
-    to score convergence at, without requiring a separate config field for it.
-    """
-    fractions = (0.1, 0.25, 0.5, 0.75, 1.0)
-    return sorted({max(1, round(n_repeats * fraction)) for fraction in fractions})
-
-
-def _write_evidence_accumulation_diagnostics(output_dir: Path, X: np.ndarray, base_params: dict, title: str) -> None:
-    """evidence_accumulation's 2 new standalone diagnostics (project-clustering-tuning-redesign
-    memory, 26-08-26), both built directly on consensus_clustering.py's existing machinery, both
-    computed once from base_params (independent of the swept tuning_grid, same "standalone"
-    convention as agglomerative's dendrogram/spectral's eigengap):
-
-    - n_repeats_convergence.csv/.png: does the co-occurrence matrix actually stabilize as
-      n_repeats grows, or is base_params' own n_repeats arbitrary? (compute_evidence_
-      accumulation_convergence, incremental checkpoints, never refit from scratch per value).
-    - consensus_matrix_heatmap.png: Monti et al. 2003's own headline visualization, at
-      base_params' own n_repeats/threshold - the co-occurrence matrix reordered by the final
-      cluster assignment it actually produces.
-    """
-    base_method, split_params, n_repeats, base_seed, threshold = _validate_evidence_accumulation_params(base_params)
-
-    checkpoints = _default_convergence_checkpoints(n_repeats)
-    convergence_df = compute_evidence_accumulation_convergence(base_method, X, split_params, checkpoints, base_seed=base_seed)
-    convergence_df.to_csv(output_dir / "n_repeats_convergence.csv", index=False)
-    plot_tuning_curve(convergence_df, "n_repeats", "stability_score", output_dir / "n_repeats_convergence.png", title)
-    logging.info("[evidence_accumulation] n_repeats convergence written to %s", output_dir / "n_repeats_convergence.png")
-
-    co_occurrence = run_rsc_repeats(base_method, X, split_params, n_repeats, base_seed=base_seed)
-    final_labels = assign_clusters_from_cooccurrence(co_occurrence, threshold)
-    heatmap_path = output_dir / "consensus_matrix_heatmap.png"
-    plot_consensus_matrix_heatmap(co_occurrence, final_labels, heatmap_path, title)
-    logging.info("[evidence_accumulation] consensus matrix heatmap written to %s", heatmap_path)
 
 
 def _write_spectral_diagnostics(output_dir: Path, X: np.ndarray, base_params: dict, tuning_grid: dict[str, list], title: str) -> None:

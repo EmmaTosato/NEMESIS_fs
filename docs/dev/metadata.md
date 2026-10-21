@@ -104,12 +104,16 @@ Prodotto da `src/pipeline/compute_lesion_metadata.py`, config `config/pipelines/
 
 ### Quattro colonne per griglia
 
-| Colonna | Cosa è | Misurata |
-|---|---|---|
-| `lesion_volume_voxels_<g>` | voxel di lesione | **dopo** l'azzeramento fuori dal brain |
-| `out_of_brain_fraction_<g>` | quota di voxel fuori dalla maschera cerebrale | **prima** dell'azzeramento |
-| `laterality_index_<g>` | `(sinistra − destra) / (sinistra + destra)` | dopo l'azzeramento |
-| `lesion_side_<g>` | `left`/`right`/`both` da `lesion_side_from_laterality_index` | dopo l'azzeramento |
+Definizioni, formule, casi limite, fonti e limiti di ogni metrica, a livello di sezione Metodi: [`knowledge/notes/neuroimaging/lesion_metrics.md`](../../knowledge/notes/neuroimaging/lesion_metrics.md) (volume, frazione fuori dal cervello, passaggi comuni), [`lesion_laterality.md`](../../knowledge/notes/neuroimaging/lesion_laterality.md) (indice e lato), [`lesion_location.md`](../../knowledge/notes/neuroimaging/lesion_location.md) (sede). Qui solo come le calcola il codice.
+
+Per ogni soggetto e ogni griglia, in `src/features/lesion.py::_metrics_on_grid`: (1) la maschera è portata sulla griglia attraverso il suo affine se shape **o** affine differiscono (`_needs_resample`, `resample_to_img` con `resample_interpolation`); (2) è binarizzata con `> binarize_threshold` (`_binarize_on_grid`); (3) si misura la frazione fuori dal brain; (4) con `correct_out_of_brain` si azzerano i voxel fuori dalla maschera cerebrale della griglia (`zero_out_of_brain_voxels`); (5) si contano volume, emisferi e sede.
+
+| Colonna | Cosa è | Codice | Misurata |
+|---|---|---|---|
+| `lesion_volume_voxels_<g>` | voxel di lesione, $V = \sum_v \ell^{*}(v)$ (mm³ = $V \times \Delta^3$, non salvati) | `int(lesion.sum())` | **dopo** l'azzeramento fuori dal brain |
+| `out_of_brain_fraction_<g>` | quota di voxel fuori dalla maschera cerebrale, $\sum_v \ell(v)(1-B(v)) / \sum_v \ell(v)$ | `_out_of_brain_fraction` | **prima** dell'azzeramento |
+| `laterality_index_<g>` | $(L - R)/(L + R)$, voxel con coordinata mondo $x<0$ contro $x>0$ della griglia | `_hemisphere_masks`, `_laterality_index` | dopo l'azzeramento |
+| `lesion_side_<g>` | `both` se $\lvert LI \rvert <$ `side_threshold`, altrimenti `left` se $LI>0$, `right` se no | `lesion_side_from_laterality_index` | dopo l'azzeramento |
 
 Il nome della griglia diventa il suffisso, quindi `validate_lesion_grids` pretende che sia alfanumerico e unico. Il vocabolario delle griglie è **aperto**: aggiungerne una terza è una voce nel config, non una modifica al codice.
 
@@ -121,7 +125,7 @@ L'ordine "frazione prima, conteggi dopo" non è un dettaglio: la correzione port
 
 ### Perché due griglie, e perché il calcolo è in streaming
 
-Le maschere manuali hanno voxel di 1 mm (verificato sugli header di tutte e 5853: `182x218x182`). Una maschera già sulla griglia richiesta non viene ricampionata (`_needs_resample`), quindi il conteggio a 1 mm è nativo ed esatto. A 2 mm il ricampionamento è `nearest`: ogni voxel prende il valore di uno solo degli 8 sottostanti, quindi il volume a 2 mm è un sottocampionamento e **non** `volume nativo / 8` — una lesione di pochi voxel può ridursi o sparire, e 0 voxel a 2 mm non implica maschera vuota nel file originale. Le due colonne insieme distinguono i due casi.
+Le maschere manuali hanno voxel di 1 mm (verificato sugli header di tutte e 5853: `182x218x182`), ma con tre header: LAS origine x `+90`, RAS `-90`, RAS `-91` (`.claude/lessons_learned.md` #40). Solo l'ultimo coincide con il template a 1 mm e non viene ricampionato (`_needs_resample` confronta shape **e** affine); gli altri due sono un'inversione dell'asse x e una traslazione di un voxel, che `resample_to_img` con `nearest` rimappa in modo intero esatto. Il conteggio a 1 mm quindi non perde voxel per sottocampionamento; l'unica fetta che può uscire dal campo è quella a x = +91 mm dell'header RAS `-90`, che la griglia a 1 mm (x da −91 a +90) non contiene. A 2 mm il ricampionamento è `nearest`: ogni voxel prende il valore del solo voxel a 1 mm con lo stesso centro (un punto ogni otto, non una media; il voxel a 2 mm è sfasato di mezzo voxel e si sovrappone parzialmente a 27 voxel a 1 mm), quindi il volume a 2 mm è un sottocampionamento e **non** `volume nativo / 8` — una lesione di pochi voxel può ridursi o sparire, e 0 voxel a 2 mm non implica maschera vuota nel file originale. Le due colonne insieme distinguono i due casi.
 
 `compute_lesion_metadata` in `src/features/lesion.py` è **streaming**, un soggetto per volta, e deliberatamente **non** passa per `_voxelwise_matrix_with_volume` come fa `build_lesion_matrix`. Quella funzione impila in memoria il volume appiattito di ogni soggetto: circa 5,3 GB sulla griglia a 2 mm (902.629 voxel × 5853 soggetti, uint8) e circa **42 GB** su quella a 1 mm, che non è eseguibile. Qui restano solo scalari per soggetto, quindi il picco è una maschera più le maschere per griglia — decine di MB, indipendenti da quanti soggetti ci sono. Chi in futuro volesse "riusare la funzione che c'è già" per aggiungere una griglia fine sbatterebbe esattamente lì.
 
@@ -144,7 +148,7 @@ In UCL-UK le due griglie coincidono (1997 × 8 = 15976); in PSP il volume a 1 mm
 
 ### La soglia del lato
 
-`side_threshold` (`0.20` in produzione) non è inventata: è calibrata contro 1445 soggetti con etichetta clinica vera, 97.4% di accordo, **sulla griglia a 2 mm** — dettagli, letteratura e limiti (la classe "bilaterale" resta debole, 3/24 corretti a qualunque soglia) in `knowledge/notes/neuroimaging/lesion_laterality.md` e `.claude/history/methods_changelog.md`.
+`side_threshold` (`0.20` in produzione) non è inventata: è la soglia usuale in letteratura per il laterality index (Seghier 2008), verificata contro 1445 soggetti con etichetta clinica vera, 97.4% di accordo, **sulla griglia a 2 mm** (massimo della griglia di soglie: 0.28, 97.5%) — dettagli, letteratura e limiti (la classe "bilaterale" resta debole: 3/24 corretti a 0.20, al massimo 7/24 a 0.58-0.60) in `knowledge/notes/neuroimaging/lesion_laterality.md` e `.claude/history/methods_changelog.md`.
 
 La stessa soglia vale anche a 1 mm: sugli stessi 1350 soggetti con lato clinico (PSP esclusa: le sue maschere a 1 mm sono frazionarie) la soglia 0.20 dà la stessa accuratezza a 1 mm e a 2 mm (97,3%) e attribuisce a **tutti** lo stesso lato. Il motivo per cui non era scontato: il piano mediano escluso da entrambi gli emisferi è spesso 1 mm su una griglia e 2 mm sull'altra (la griglia a 1 mm ha 91 fette a sinistra e 90 a destra, quella a 2 mm 45 e 45), quindi per una lesione quasi tutta mediana i due indici non sono interscambiabili.
 
@@ -164,9 +168,9 @@ Dove sta la lesione è una feature ricavata dalla maschera, allo stesso livello 
 | `cortex_white_boundary` | HO corticale **e** `Cerebral White Matter`: l'incertezza dell'atlante, non una sede |
 | `white_matter_only` | `Cerebral White Matter` e non HO corticale |
 | `ventricle` | `Lateral Ventricle` di HO |
-| `unlabeled` | dentro il brain mask, senza etichetta in nessun atlante |
+| `unlabeled` | dentro il brain mask, senza un'etichetta che una delle regole sopra riconosca. Comprende i voxel che hanno solo l'etichetta `Cerebral Cortex` dell'atlante sotto-corticale, che nessuna regola usa (7.862 dei 15.409 voxel `unlabeled` a 2 mm) |
 
-Atlanti, indici e allineamento: `knowledge/notes/neuroimaging/lesion_location.md` e `assets/atlases/fsl/README.md`.
+Atlanti, indici, allineamento, regole in forma di formula, fonti e limiti: [`knowledge/notes/neuroimaging/lesion_location.md`](../../knowledge/notes/neuroimaging/lesion_location.md) e `assets/atlases/fsl/README.md`.
 
 **Otto colonne in più, solo sulla griglia `location.grid` (2 mm)**, dopo le colonne di tutte le griglie:
 
@@ -196,6 +200,16 @@ Gemello di `lesion_metadata.csv`: lo scrive `src/pipeline/compute_sdc_metadata.p
 ### Cosa si misura e perché così
 
 `disconnection_load_voxels_<g>` è la somma della probabilità di disconnessione sui voxel dentro la maschera cerebrale; `disconnection_mean_<g>` è quella somma divisa per il numero di voxel cerebrali. La prima è l'analogo diretto di `lesion_volume_voxels`: per una mappa binaria si ridurrebbe a un conteggio di voxel. Il divisore della seconda è una costante della griglia, quindi **le due colonne ordinano i soggetti in modo identico**: non sono due misure, sono una misura in due unità.
+
+Per il soggetto $s$, sulla griglia $g$ con maschera cerebrale $B_g$ e mappa di disconnessione $d_s$ ricampionata su $g$:
+
+$$L_s^{(g)} = \sum_{v \in B_g} d_s(v), \qquad \bar d_s^{(g)} = \frac{L_s^{(g)}}{|B_g|}$$
+
+Teoria, differenza dal volume della lesione e fonti: [`knowledge/notes/neuroimaging/disconnectome_bcbtoolkit.md`](../../knowledge/notes/neuroimaging/disconnectome_bcbtoolkit.md), parte 3. In breve:
+
+- **Cosa misura.** Poiché $d_s(v)$ è la frazione delle 178 trattografie normative in cui una fibra che attraversa la lesione passa per $v$, il carico è il volume medio, su quei soggetti, del territorio attraversato dalle fibre della lesione. Il volume conta i voxel della lesione; il carico conta quanto cervello dipende, tramite le fibre, dai voxel lesionati.
+- **Nome.** "Disconnection load" è il nome del progetto. In letteratura l'equivalente più vicino è la *disconnection severity* / *global disconnectivity* di Ulrichsen et al. 2021 (intensità media della mappa); BCBlib scrive la stessa somma, senza maschera cerebrale, come `map_sum` ("disconnectome integral") nel `mapstats.tsv`.
+- **Correlazione col volume.** Sui 5853 soggetti del registro, a 2 mm, Spearman tra `disconnection_load_voxels_2mm` e `lesion_volume_voxels_2mm` è 0,906: il carico riordina il volume dove la sede conta, non è un'informazione indipendente da esso.
 
 ### Due griglie: 2 mm e 1 mm
 

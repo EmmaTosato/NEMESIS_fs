@@ -6,6 +6,18 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 21-10-26 — Note sui metodi divise per metodo: `dim_reduction_methods/` e `clustering_methods/`
+
+**Cosa è cambiato**: in `knowledge/notes/dim_reduction_clustering/` sono nate due cartelle con una nota per metodo, fonti in coda a ogni nota:
+- `dim_reduction_methods/`: `README.md`, `evaluation.md`, `pca.md`, `pca_varimax.md`, `tsne.md`, `umap.md`, `pacmap.md`. `pacmap.md` è spostato qui dal livello superiore (contenuto conservato e completato);
+- `clustering_methods/`: `README.md`, `evaluation_metrics.md`, `agglomerative.md`, `hdbscan.md` (hard e soft), `adp.md`, `kmeans.md`, `gmm.md`, `spectral.md`, `evidence_accumulation.md`.
+
+Link aggiornati in `docs/guides/dim_reduction.md`, `docs/dev/models.md`, `management/cheatsheets/pacmap.md` e nelle note di livello superiore. Le note esistenti (`employed_dim_reduction_methods.md`, `clustering_literature_survey.md`, ecc.) restano e rimandano alle cartelle.
+
+**Perché**: l'utente vuole ogni metodo documentato con lo stesso schema (cosa fa, perché, parametri e range, tuning, valutazione, quando usarlo, pro e contro, esempio), solo da letteratura e documentazione ufficiale. Il nome `dim_reduction_methods/` (non `methods/`) evita la confusione con `knowledge/papers/methods/` e fa il paio con `clustering_methods/`.
+
+**Conseguenza ancora vera oggi**: la voce del 21-10-26 più sotto cita `knowledge/notes/dim_reduction_clustering/pacmap.md`; il percorso attuale è `dim_reduction_methods/pacmap.md`.
+
 ## 21-10-26 — Cancellato `assets/metadata/lesion_quality_metrics.csv`, rimasto su disco dopo la sua sostituzione
 
 **Cosa è cambiato**: il file (5853 righe di dati, colonne `subject_id`, `dataset`, `out_of_brain_fraction`; ultimo commit 29-09-26 `028205e`) è stato cancellato dal working tree, e il suo paragrafo è stato tolto da `docs/guides/metadata.md`. Nessun commit fatto dall'assistente.

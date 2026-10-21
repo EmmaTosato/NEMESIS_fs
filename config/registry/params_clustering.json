@@ -64,24 +64,6 @@
       "gamma": [0.1, 1.0, 5.0]
     }
   },
-  "evidence_accumulation": {
-    "tag_param": ["threshold", "n_clusters"],
-    "tag_prefix": ["t", "k"],
-    "params": {
-      "base_method": "spectral",
-      "n_clusters": 6,
-      "affinity": "nearest_neighbors",
-      "n_neighbors": 50,
-      "assign_labels": "cluster_qr",
-      "n_repeats": 50,
-      "threshold": 0.5,
-      "base_seed": 0
-    },
-    "tuning_grid": {
-      "threshold": [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
-      "n_clusters": [4, 5, 6, 7, 8, 9, 10]
-    }
-  },
   "adp": {
     "tag_param": ["metric", "Z"],
     "tag_prefix": ["m_", "Z"],

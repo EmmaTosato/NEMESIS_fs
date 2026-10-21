@@ -163,7 +163,7 @@ Riduce la matrice a poche dimensioni (`umap`, `tsne`, `pca`, `pacmap`). `fine_tu
 python -m src.pipeline.clustering --config config/pipelines/clustering.json
 ```
 
-Raggruppa i soggetti con `kmeans`, `agglomerative`, `gmm`, `hdbscan`, `spectral` o `evidence_accumulation`.
+Raggruppa i soggetti con `kmeans`, `agglomerative`, `gmm`, `hdbscan`, `hdbscan_soft` o `spectral`.
 `adp` (Advanced Density Peaks, `dadapy`) è l'eccezione: gira da solo, sulla matrice grezza, nell'ambiente con `dadapy` e con un config per matrice (`config/pipelines/clustering_adp_<sessione>.json`) (sezione "ADP" di [`clustering.md`](clustering.md)).
 **Input:** la matrice (`reduced_data: false`) o un embedding del passo 6 (`true`), più `params_clustering.json`. **Output:** `results/<modalità>/clustering/{production,tuning}/<metodo>/<riduzione>/...`. Se la matrice ha più di 3 componenti, per i grafici dei cluster serve un `viz_embedding_path`, cioè un run 2D di `dim_reduction` sugli stessi soggetti. Guida: [`clustering.md`](clustering.md).
 

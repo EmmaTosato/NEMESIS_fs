@@ -17,23 +17,12 @@ single full-vs-one-subsample ARI comparison, not an N-repeat ensemble) -
 meaningful for any CLUSTERING_METHODS entry, not restricted to
 CONSENSUS_ELIGIBLE_METHODS. Used by notebooks/post-results_analysis/clustering_tuning_explorer.ipynb,
 not wired into clustering_tuning.py's sweep.
-
-Beyond the diagnostic above, this module also backs a production clustering
-method in its own right (CLUSTERING_METHODS["evidence_accumulation"]) that
-derives *final* cluster labels from the co-occurrence matrix rather than any
-single repeated run - Fred & Jain (2002)'s own algorithm. See docs/dev/models.md
-for the full literature background and the Zanola et al. 2026 RSC connection,
-and assign_clusters_from_cooccurrence's own docstring for the specific cut
-criterion used here.
 """
 
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
-from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.linalg import eigh
-from scipy.spatial.distance import squareform
 from scipy.sparse import csgraph
 from sklearn.metrics import adjusted_rand_score
 
@@ -161,43 +150,6 @@ def subsampling_stability_index(method: str, X: np.ndarray, params: dict, subsam
     return float(adjusted_rand_score(full_labels[subsample], subsample_labels))
 
 
-def compute_evidence_accumulation_convergence(
-    base_method: str, X: np.ndarray, split_params: dict, checkpoints: list[int], base_seed: int = 0
-) -> pd.DataFrame:
-    """Does evidence_accumulation's co-occurrence matrix actually stabilize as `n_repeats`
-    grows, or is a fixed default (e.g. 50) arbitrary (project-clustering-tuning-redesign
-    memory, 26-08-26)? Builds the co-occurrence matrix incrementally, one `base_method` fit at a
-    time (never refitting from scratch per checkpoint - same efficiency principle as
-    clustering_tuning.py's own threshold-only sweep cache, AUDIT_FINDINGS #35), scoring
-    `compute_monti_stability`'s PAC-style stability at each requested value in `checkpoints`.
-    Returns one row per checkpoint: `{"n_repeats", "stability_score"}` (`plotting.plot_tuning_curve`
-    plots it directly, same `(param_col, metric_col)` shape it already supports).
-
-    `split_params` is `base_method`'s own hyperparameters for the Split phase (same role as
-    `run_rsc_repeats`'s `params` - the Split-phase decomposition size, `K_PARAM_NAME[base_method]`,
-    included), never `threshold` (the separate, cheap Merge-phase cut this function doesn't
-    touch at all).
-    """
-    _check_eligible(base_method)
-    if not checkpoints:
-        raise ValueError("checkpoints must be a non-empty list of positive n_repeats values to score")
-    if any(c < 1 for c in checkpoints):
-        raise ValueError(f"every checkpoint must be >= 1, got {checkpoints}")
-
-    n_samples = X.shape[0]
-    cooccurrence_sum = np.zeros((n_samples, n_samples), dtype=float)
-    checkpoint_set = set(checkpoints)
-    rows = []
-    for i in range(max(checkpoints)):
-        labels = CLUSTERING_METHODS[base_method](X, {**split_params, "random_state": base_seed + i})
-        cooccurrence_sum += labels[:, None] == labels[None, :]
-        if (i + 1) in checkpoint_set:
-            co_matrix = cooccurrence_sum / (i + 1)
-            rows.append({"n_repeats": i + 1, "stability_score": compute_monti_stability(co_matrix)})
-
-    return pd.DataFrame(rows)
-
-
 def compute_rsc_eigengap(cooccurrence_matrix: np.ndarray, k: int) -> float:
     """Gap between the (k+1)-th and k-th (1-indexed) sorted eigenvalues of
     the co-occurrence matrix's normalized Laplacian - not the biggest gap
@@ -231,46 +183,9 @@ def compute_monti_stability(consensus_matrix: np.ndarray, ambiguous_band: tuple[
     """
     lower, upper = ambiguous_band
     n = consensus_matrix.shape[0]
+    if n < 2:
+        raise ValueError(f"consensus_matrix needs at least 2 subjects to have off-diagonal entries, got shape {consensus_matrix.shape}")
     upper_triangle = consensus_matrix[np.triu_indices(n, k=1)]
     proportion_ambiguous = float(np.mean((upper_triangle > lower) & (upper_triangle < upper)))
     return 1.0 - proportion_ambiguous
 
-
-def assign_clusters_from_cooccurrence(co_occurrence_matrix: np.ndarray, threshold: float) -> np.ndarray:
-    """Evidence Accumulation Clustering's final "Merge" step, per Fred & Jain
-    (2002, ICPR - knowledge/papers/methods/Fred et al - 2002 - Data clustering using
-    evidence accumulation.md, the exact paper Zanola et al. 2026 cites for
-    RSC's "consensus clustering" half): derive cluster labels from the
-    co-occurrence matrix C itself - not from any single one of the N
-    repeated runs that built it. Method-agnostic: doesn't care whether C
-    came from repeated kmeans/gmm/spectral (see
-    clustering.py::evidence_accumulation_cluster).
-
-    Implemented exactly as the paper's Merge step: **single-link**
-    hierarchical clustering (`scipy.cluster.hierarchy.linkage(...,
-    method="single")`) on `1 - co_occurrence_matrix` as a distance, cut at a
-    fixed similarity **threshold** `t` on the co-association value itself
-    ("cutting weak links at a threshold of t; equivalent to cutting the
-    dendrogram produced by the single link (SL) method... at threshold t") -
-    `fcluster(..., criterion="distance")` at distance `1 - threshold`, since
-    merging pairs with `co_assoc(i,j) > t` is exactly merging pairs with
-    `distance(i,j) < 1 - t`. The number of final clusters is **not** chosen
-    in advance - it emerges from how many connected components survive the
-    cut, per pattern pair (i,j): merged if co_assoc(i,j) > t. The paper's own
-    recommended default is `t = 0.5` ("patterns... co-located in a cluster
-    at least 50% of the times").
-
-    Returns 0-indexed integer labels, the same convention every
-    CLUSTERING_METHODS function uses (scipy's fcluster is 1-indexed).
-    """
-    n_samples = co_occurrence_matrix.shape[0]
-    if co_occurrence_matrix.shape != (n_samples, n_samples):
-        raise ValueError(f"co_occurrence_matrix must be square, got shape {co_occurrence_matrix.shape}")
-    if not (0.0 <= threshold <= 1.0):
-        raise ValueError(f"threshold must be in [0, 1] (a co-association value), got {threshold}")
-
-    distance = 1.0 - co_occurrence_matrix
-    np.fill_diagonal(distance, 0.0)  # self-co-occurrence is always 1.0; guard against float noise going negative
-    linkage_matrix = linkage(squareform(distance, checks=False), method="single")
-    labels = fcluster(linkage_matrix, t=1.0 - threshold, criterion="distance")
-    return labels - 1

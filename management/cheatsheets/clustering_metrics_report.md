@@ -116,7 +116,7 @@ La cella 55 chiama `homogeneity_score(labels_a, labels_b)`, mentre il testo la d
 - `tuning_plot.png` (A): heatmap/curve sugli indici dello sweep.
 
 ### 4.8 Una stabilità citata ma non prodotta da una pipeline
-`s2.4-vol.md` (Decisioni) usa "ARI minimo al sottocampionamento 0.12-0.30" per HDBSCAN. Nel codice ho trovato la stabilità di Monti e il co-occurrence solo per kmeans/gmm/spectral/evidence_accumulation (`consensus_clustering.py`), non per HDBSCAN o agglomerative. Il calcolo potrebbe venire da prototipi in `tmp/`: non l'ho verificato. Se non entra in `src/`, quella decisione non è riproducibile.
+`s2.4-vol.md` (Decisioni) usa "ARI minimo al sottocampionamento 0.12-0.30" per HDBSCAN. Nel codice ho trovato la stabilità di Monti e il co-occurrence solo per kmeans/gmm/spectral (`consensus_clustering.py`), non per HDBSCAN o agglomerative. Il calcolo potrebbe venire da prototipi in `tmp/`: non l'ho verificato. Se non entra in `src/`, quella decisione non è riproducibile.
 
 ### 4.9 Minori
 - L'app non calcola nulla su matrici con più di 1000 colonne (`MAX_QUALITY_COLUMNS`); per quelle serve il notebook F.
