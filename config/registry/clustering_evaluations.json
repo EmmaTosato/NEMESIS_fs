@@ -1,0 +1,8 @@
+{
+  "k_curves": {},
+  "cophenetic_correlation": {},
+  "dendrogram_jump": {"k_range": {"min": 2, "max": 30}},
+  "linkage_agreement": {},
+  "density_metrics": {},
+  "noise_filtered_curves": {"max_noise_fraction": 0.1}
+}

@@ -257,28 +257,46 @@ def dendrogram_jump(linkage_matrix: np.ndarray, k_values: range) -> dict[int, fl
     return jumps
 
 
-def agglomerative_analysis(run: ClusteringTuningRun, X: np.ndarray, k_values: range) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Cophenetic correlation and dendrogram jump of every valid (metric, linkage) of an agglomerative run.
+def _valid_metric_linkage_pairs(run: ClusteringTuningRun, caller: str) -> list[dict]:
+    """The `{"linkage", "metric"}` params of every (metric, linkage) of an agglomerative run that sklearn accepts:
+    a ward row with a non-euclidean metric is invalid and absent from the run, so it is skipped."""
+    if run.method != AGGLOMERATIVE:
+        raise ValueError(f"{caller} needs an agglomerative run, got {run.method!r}")
+    pairs = run.results[["metric", "linkage"]].drop_duplicates().itertuples(index=False)
+    params = [{"linkage": linkage, "metric": metric} for metric, linkage in pairs]
+    return [p for p in params if not is_invalid_ward_metric_combo(p)]
 
-    Returns (cophenetic, jump): `cophenetic` has one row per (metric, linkage) and the column
-    `cophenetic_correlation`; `jump` one row per (metric, linkage, n_clusters) and the column `jump`.
-    A ward row with a non-euclidean metric is invalid in sklearn and absent from the run, so it is skipped.
-    """
+
+def cophenetic_table(run: ClusteringTuningRun, X: np.ndarray, distance_cache: dict[str, np.ndarray] | None = None) -> pd.DataFrame:
+    """Cophenetic correlation of every valid (metric, linkage) of an agglomerative run: one row per pair,
+    columns `metric`, `linkage`, `cophenetic_correlation`."""
+    distance_cache = {} if distance_cache is None else distance_cache
+    rows = [
+        {"metric": p["metric"], "linkage": p["linkage"], "cophenetic_correlation": cophenetic_correlation(X, p, distance_cache)}
+        for p in _valid_metric_linkage_pairs(run, "cophenetic_table")
+    ]
+    return pd.DataFrame(rows)
+
+
+def jump_table(
+    run: ClusteringTuningRun, X: np.ndarray, k_values: range, distance_cache: dict[str, np.ndarray] | None = None
+) -> pd.DataFrame:
+    """Dendrogram jump of every valid (metric, linkage) of an agglomerative run at each k of `k_values`: one row
+    per (metric, linkage, n_clusters), columns `metric`, `linkage`, `n_clusters`, `jump`."""
+    distance_cache = {} if distance_cache is None else distance_cache
+    rows = []
+    for p in _valid_metric_linkage_pairs(run, "jump_table"):
+        jumps = dendrogram_jump(compute_dendrogram_linkage(X, p, distance_cache), k_values)
+        rows += [{"metric": p["metric"], "linkage": p["linkage"], "n_clusters": k, "jump": jump} for k, jump in jumps.items()]
+    return pd.DataFrame(rows)
+
+
+def agglomerative_analysis(run: ClusteringTuningRun, X: np.ndarray, k_values: range) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(cophenetic_table, jump_table) of an agglomerative run, sharing one distance cache."""
     if run.method != AGGLOMERATIVE:
         raise ValueError(f"agglomerative_analysis needs an agglomerative run, got {run.method!r}")
-    cophenetic_rows, jump_rows = [], []
     distance_cache: dict[str, np.ndarray] = {}
-    pairs = run.results[["metric", "linkage"]].drop_duplicates().itertuples(index=False)
-    for metric, linkage in pairs:
-        params = {"linkage": linkage, "metric": metric}
-        if is_invalid_ward_metric_combo(params):
-            continue
-        cophenetic_rows.append(
-            {"metric": metric, "linkage": linkage, "cophenetic_correlation": cophenetic_correlation(X, params, distance_cache)}
-        )
-        jumps = dendrogram_jump(compute_dendrogram_linkage(X, params, distance_cache), k_values)
-        jump_rows += [{"metric": metric, "linkage": linkage, "n_clusters": k, "jump": jump} for k, jump in jumps.items()]
-    return pd.DataFrame(cophenetic_rows), pd.DataFrame(jump_rows)
+    return cophenetic_table(run, X, distance_cache), jump_table(run, X, k_values, distance_cache)
 
 
 def linkage_agreement(run: ClusteringTuningRun) -> pd.DataFrame:
