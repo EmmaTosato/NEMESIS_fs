@@ -18,6 +18,7 @@ from src.analysis.plotting import (
     _NOISE_COLOR,
     _declutter_points,
     _ordered_categories,
+    _spread_label_positions,
     _palette_for_categories,
     compose_embedding_plot_title,
     compose_run_title,
@@ -786,3 +787,46 @@ def test_clustering_titles_write_adp_as_an_acronym_and_other_methods_capitalized
     assert compose_clustering_tuning_title(output_dir, "adp") == "SDC - Clustering Tuning - ADP"
     assert compose_clustering_tuning_title(output_dir, "kmeans") == "SDC - Clustering Tuning - Kmeans"
     assert compose_cluster_plot_title(output_dir, "raw", "adp") == "SDC - Raw - ADP"
+
+
+def test_spread_label_positions_separates_close_centers_keeping_order():
+    positions = _spread_label_positions([100.0, 105.0, 110.0, 900.0], min_gap=50.0, lower=0.0, upper=1000.0)
+
+    assert np.all(np.diff(positions) >= 50.0 - 1e-9)
+    assert positions[-1] == pytest.approx(900.0)
+
+
+def test_spread_label_positions_stays_within_bounds_at_the_top():
+    positions = _spread_label_positions([950.0, 980.0, 990.0], min_gap=50.0, lower=0.0, upper=1000.0)
+
+    assert positions.max() <= 1000.0
+    assert np.all(np.diff(positions) >= 50.0 - 1e-9)
+
+
+def test_spread_label_positions_leaves_far_apart_centers_untouched():
+    centers = [100.0, 400.0, 800.0]
+
+    assert _spread_label_positions(centers, min_gap=50.0, lower=0.0, upper=1000.0).tolist() == centers
+
+
+def test_spread_label_positions_caps_gap_when_labels_do_not_fit():
+    positions = _spread_label_positions([1.0, 2.0, 3.0, 4.0], min_gap=500.0, lower=0.0, upper=100.0)
+
+    assert positions.min() >= 0.0 and positions.max() <= 100.0
+    assert np.all(np.diff(positions) > 0)
+
+
+def test_plot_silhouette_analysis_fixes_x_axis_to_minus_one_one(tmp_path, monkeypatch):
+    import matplotlib.pyplot as plt
+
+    from src.analysis.clustering_tuning import compute_silhouette_samples
+
+    X_2d = _three_blobs_2d()
+    cluster_labels = np.array([0] * 15 + [1] * 15 + [2] * 15)
+    sample_labels, sample_values = compute_silhouette_samples(X_2d, cluster_labels)
+    captured = []
+    monkeypatch.setattr(plt, "close", lambda fig: captured.append(fig))
+
+    plot_silhouette_analysis(sample_labels, sample_values, X_2d, cluster_labels, tmp_path / "s.png", "x", "y", "t")
+
+    assert captured[0].axes[0].get_xlim() == (-1.0, 1.0)

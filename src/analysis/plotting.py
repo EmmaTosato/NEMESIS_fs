@@ -121,6 +121,7 @@ _SILHOUETTE_SUBPLOT_WIDTH = 6.5
 _SILHOUETTE_HEIGHT = 5.5
 _SILHOUETTE_WSPACE = 0.35
 _SILHOUETTE_BAND_GAP = 10  # vertical gap (in samples) between per-cluster silhouette bands
+_SILHOUETTE_LABEL_MIN_GAP = 0.04  # minimum vertical distance between two cluster labels, as a fraction of the y range
 
 
 def _square_grid_shape(n_items: int) -> tuple[int, int]:
@@ -636,6 +637,22 @@ def plot_clusters_2d(
     plt.close(fig)
 
 
+def _spread_label_positions(centers: list[float], min_gap: float, lower: float, upper: float) -> np.ndarray:
+    """Y positions for labels anchored at `centers` (ascending): same order, at least `min_gap` apart
+    (capped at what fits in [lower, upper]), as close as possible to their own center.
+    """
+    if len(centers) < 2:
+        return np.array(centers, dtype=float)
+    gap = min(min_gap, (upper - lower) / len(centers))
+    positions = np.array(centers, dtype=float)
+    for i in range(1, len(positions)):
+        positions[i] = max(positions[i], positions[i - 1] + gap)
+    positions[-1] = min(positions[-1], upper)
+    for i in range(len(positions) - 2, -1, -1):
+        positions[i] = min(positions[i], positions[i + 1] - gap)
+    return positions
+
+
 def plot_silhouette_analysis(
     sample_labels: np.ndarray,
     sample_silhouette_values: np.ndarray,
@@ -673,15 +690,34 @@ def plot_silhouette_analysis(
     )
 
     y_lower = _SILHOUETTE_BAND_GAP
+    band_texts: list[str] = []
+    band_centers: list[float] = []
     for label in sorted(np.unique(sample_labels).tolist()):
         values = np.sort(sample_silhouette_values[sample_labels == label])
         y_upper = y_lower + len(values)
         ax_sil.fill_betweenx(np.arange(y_lower, y_upper), 0, values, facecolor=palette[label], edgecolor=palette[label])
-        ax_sil.text(-0.05, y_lower + 0.5 * len(values), str(label))
+        band_texts.append(f"cluster {label}")
+        band_centers.append(y_lower + 0.5 * len(values))
         y_lower = y_upper + _SILHOUETTE_BAND_GAP
+    ax_sil.set_ylim(0, y_lower)
+    # Fixed [-1, 1] (the silhouette's own range), so two runs' plots are comparable. Labels sit left of the
+    # axes, not at x<0 inside them, where the negative tails of the bands would cover them; a small band
+    # (a few dozen subjects out of thousands) is thinner than its own text, so the labels are spread apart.
+    ax_sil.set_xlim(-1, 1)
+    label_gap = _SILHOUETTE_LABEL_MIN_GAP * y_lower
+    label_positions = _spread_label_positions(band_centers, label_gap, label_gap / 2, y_lower - label_gap / 2)
+    for text, y_position in zip(band_texts, label_positions):
+        ax_sil.annotate(
+            text,
+            xy=(0, y_position),
+            xycoords=("axes fraction", "data"),
+            xytext=(-6, 0),
+            textcoords="offset points",
+            ha="right",
+            va="center",
+        )
     ax_sil.axvline(avg_score, color="red", linestyle="--", label=f"mean = {avg_score:.3f}")
     ax_sil.set_xlabel("silhouette coefficient")
-    ax_sil.set_ylabel("cluster")
     ax_sil.set_yticks([])
     ax_sil.legend(loc="lower right")
 
