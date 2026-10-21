@@ -1,6 +1,25 @@
-# Analizzare un tuning di clustering già salvato (`evaluate_clustering_tuning`)
+# Valutare un tuning di clustering (`evaluate_clustering_tuning`)
 
-Calcola su un tuning di `clustering.py` già concluso ciò che lo sweep non scrive, senza rifare il clustering: legge `tuning_results.csv`, `clusterings.npz` e `config.md` della cartella della run e scrive i risultati accanto a quei file. Lesione e SDC allo stesso modo. ADP non è gestito (ha le sue diagnostiche: [`clustering.md`](clustering.md)).
+Esegue le valutazioni di un tuning di `clustering.py` (cophenetic, salto del dendrogramma, quota del cluster più grande, curve per k, ...) e scrive `report.md`, senza rifare il clustering. Lavora su un tuning già concluso: legge `tuning_results.csv`, `clusterings.npz` e `config.md` della cartella della run e scrive i risultati accanto a quei file. Lesione e SDC allo stesso modo. ADP ha solo il report (le sue diagnostiche: [`clustering.md`](clustering.md)).
+
+## Dove girano le valutazioni
+
+Le valutazioni e il report sono lo stesso codice in due punti di ingresso. Cambia solo da dove parte la run:
+
+```
+python -m src.pipeline.clustering   (fine_tuning: true)
+  1. sweep                          -> tuning_results.csv, clusterings.npz
+  2. clustering_tuning_evaluations  -> csv e png delle valutazioni
+  3. clustering_tuning_report       -> report.md   (se write_report)
+
+python -m src.pipeline.evaluate_clustering_tuning   (su un tuning già salvato)
+  2. clustering_tuning_evaluations  -> csv e png delle valutazioni
+  3. clustering_tuning_report       -> report.md   (se write_report)
+```
+
+- **Quali valutazioni girano**: le elenca il blocco `tuning_evaluations` del config, per metodo (`clustering.json` per lo sweep, `evaluate_clustering_tuning.json` a posteriori). Le soglie (intervallo di k, limite di rumore) sono in `config/registry/clustering_evaluations.json`, lette dallo stesso file in entrambi i casi: stessi parametri, stessi file, stessi numeri.
+- **Perché due ingressi**: con le valutazioni dichiarate in `clustering.json` hai tutto alla fine dello sweep; se poi cambi una soglia, aggiungi una valutazione o ritocchi un plot, rilanci solo questa pipeline sul tuning salvato, senza rifare lo sweep.
+- **Dove sta il codice**: le valutazioni in `src/analysis/clustering_tuning_evaluations.py` (un registro, una voce per valutazione); il report in `src/analysis/clustering_tuning_report.py`, che non calcola nulla e legge i file della cartella.
 
 - **Script**: `src/pipeline/evaluate_clustering_tuning.py`
 - **Configurazione**: `config/pipelines/evaluate_clustering_tuning.json`

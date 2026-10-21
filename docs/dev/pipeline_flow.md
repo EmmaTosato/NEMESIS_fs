@@ -35,6 +35,7 @@ Le pipeline dipendono l'una dall'altra in due modi diversi.
 | `evaluate_dim_reduction_tuning` | un tuning di `dim_reduction` salvato con `save_tuning_embeddings: true` (non legge la matrice né i metadati) |
 | `evaluate_clustering_tuning` | un tuning di `clustering` salvato con `save_tuning_clusterings: true`; le valutazioni elencate in `tuning_evaluations` (per agglomerative cophenetic e salto leggono anche la matrice di `input_path`); `report.md` legge dalla cartella i file di quelle valutazioni |
 
+- Le valutazioni di un tuning di clustering hanno due ingressi che chiamano lo stesso codice: `clustering` (alla fine dello sweep, se `tuning_evaluations` non è vuoto) ed `evaluate_clustering_tuning` (su un tuning salvato). Entrambi passano da `clustering_tuning_evaluations.run_evaluations` e poi, con `write_report`, da `clustering_tuning_report.write_report`; schema in `docs/guides/evaluate_clustering_tuning.md`.
 - Il registro serve alle matrici anche quando le maschere si cercano su disco: `load_excluded_subjects` valida l'intero file delle esclusioni contro il registro.
 - `compute_lesion_metadata` non legge il registro; `compute_sdc_metadata` sì, per sapere chi ha `has_sdc`.
 - Il ramo FC (`mask_fc` → `build_fc_matrix`) non legge né il registro né la lista delle esclusioni: sceglie i soggetti dal filtro di gruppo, derivato dal nome (`src/utils/subject_ids.py::group_of`).
