@@ -6,8 +6,8 @@ tuning_results.csv, and lays them out with the explanation of each index: what i
 does not say. Called by the sweep (src/pipeline/clustering.py) and by src/pipeline/evaluate_clustering_tuning.py, so the
 report is the same either way.
 
-Nothing here classifies a combination as good, usable or stable with a threshold of ours: the outputs are measurements,
-and the only bands are the silhouette ones of a published convention (SILHOUETTE_BANDS), labelled as such.
+Nothing here classifies a combination as good, usable or stable, with a threshold of ours or of the literature: the
+outputs are measurements. The silhouette bands of Kaufman & Rousseeuw are only mentioned (SILHOUETTE_CONVENTION_NOTE).
 """
 
 from __future__ import annotations
@@ -21,11 +21,9 @@ import pandas as pd
 from src.analysis.clustering_tuning_analysis import (
     ADP,
     AGGLOMERATIVE,
-    CONVENTION_LINES,
     DENSITY_METHODS,
     LINKAGE_ORDER,
     METRIC_ORDER,
-    SILHOUETTE_BANDS,
     curves_subset,
     k_curves_file_name,
     ordered,
@@ -67,16 +65,13 @@ REPORT_TERMS: dict[str, str] = {
     "persistence_mean": "stabilità media dei cluster (0 effimeri, 1 stabili).",
 }
 
-SILHOUETTE_BANDS_TERM = (
-    "**Fasce della silhouette**: convenzione di Kaufman & Rousseeuw (1990), *Finding Groups in Data*. 0.71-1.00 struttura "
-    "forte; 0.51-0.70 ragionevole; 0.26-0.50 debole, forse artificiale; fino a 0.25 nessuna struttura sostanziale. Gli estremi "
-    "cambiano da una fonte all'altra: qui la silhouette è arrotondata a 2 decimali. Le fasce descrivono la combinazione: non "
-    "scelgono `n_clusters` e non si confrontano tra `metric` diverse. Per Davies-Bouldin e Calinski-Harabasz non esiste una "
-    "convenzione con fonte: si leggono solo i valori."
+SILHOUETTE_CONVENTION_NOTE = (
+    "**Fasce della silhouette**: esistono fasce di lettura (Kaufman & Rousseeuw 1990, *Finding Groups in Data*); questo "
+    "report non le usa. Spiegazione e fonti in `knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md`."
 )
 SILHOUETTE_DENSITY_NOTE = (
     " Per HDBSCAN la silhouette (come Davies-Bouldin e Calinski-Harabasz) è calcolata sui soli soggetti non rumore: va letta "
-    "accanto a `noise_fraction`. Le fasce sono pensate per cluster convessi."
+    "accanto a `noise_fraction`."
 )
 COPHENETIC_TERM = (
     "correlazione tra le distanze vere tra i soggetti e le distanze che l'albero implica. Va da -1 a 1: vicino a 1 l'albero "
@@ -143,30 +138,6 @@ DENSITY_TABLE_COLUMNS = ("min_cluster_size", "n_clusters_found", "noise_fraction
 
 AGGLOMERATIVE_REPORT_COLUMNS = ("n_clusters", "linkage", "metric", "silhouette", "davies_bouldin", "calinski_harabasz")
 
-def silhouette_band(value: float) -> str | None:
-    """The band of SILHOUETTE_BANDS a silhouette falls in, or None for a negative one. Raises for NaN."""
-    if np.isnan(value):
-        raise ValueError("a NaN silhouette has no band")
-    if value < 0:
-        return None
-    rounded = round(float(value), 2)
-    return next(name for name, _, lower_edge in SILHOUETTE_BANDS if rounded >= lower_edge)
-
-def convention_lines_caption(low: float, high: float) -> str:
-    """The sentence that says which dashed lines of CONVENTION_LINES a silhouette panel with y-limits `low`..`high` shows."""
-    visible = [line for line in CONVENTION_LINES if low <= line <= high]
-    hidden = [line for line in CONVENTION_LINES if line not in visible]
-    as_text = lambda lines: ", ".join(f"{line:.2f}" for line in lines)
-    if not hidden:
-        shown = "Si vedono tutti."
-    elif not visible:
-        shown = "Non se ne vede nessuno (cadono tutti fuori dal grafico)."
-    else:
-        seen = f"si vede solo {as_text(visible)}" if len(visible) == 1 else f"si vedono {as_text(visible)}"
-        shown = f"{seen[0].upper()}{seen[1:]}; gli altri ({as_text(hidden)}) cadono fuori dal grafico."
-    return f"Linee grigie tratteggiate sulla silhouette: i limiti delle fasce di Kaufman & Rousseeuw ({as_text(CONVENTION_LINES)}). {shown}"
-
-
 def curves_hint(silhouette_limits: tuple[float, float], davies_bouldin_limits: tuple[float, float] | None) -> tuple[str, ...]:
     """The hint under the curves figure of one metric. The axes are those of the whole run, so the text carries their
     values; `davies_bouldin_limits` is None for a metric whose figure has no Davies-Bouldin panel (it needs `euclidean`)."""
@@ -229,29 +200,20 @@ def _count_phrase(count: int, total: int, label: str) -> str:
 
 
 def _silhouette_comment(group: pd.DataFrame, key_column: str = "n_clusters", key_name: str = "k", count_label: str = "k") -> list[str]:
-    """The bullets under the table of one (metric, linkage) or one min_samples: the rows per silhouette band
-    (SILHOUETTE_BANDS), the negative ones, and the silhouette at the first and last value of `key_column`.
-    Measurements and a published convention. `count_label` names the rows being counted ("k"; "" for none)."""
+    """The bullets under the table of one (metric, linkage) or one min_samples: the rows with a negative silhouette,
+    those with none (not computable), and the silhouette at the first and last value of `key_column`. Measurements
+    only. `count_label` names the rows being counted ("k"; "" for none)."""
     group = group.sort_values(key_column)
     total = len(group)
-    in_band: dict[str | None, list[int]] = {}
-    uncomputable = []
-    for key, silhouette in zip(group[key_column], group["silhouette"]):
-        if np.isnan(silhouette):
-            uncomputable.append(int(key))
-        else:
-            in_band.setdefault(silhouette_band(silhouette), []).append(int(key))
-    lines = ["- **Silhouette per fascia** (convenzione di Kaufman & Rousseeuw 1990, arrotondata a 2 decimali):"]
-    for name, description, _ in SILHOUETTE_BANDS:
-        if name in in_band:
-            lines.append(f"  - {name} ({description}): {_count_phrase(len(in_band[name]), total, count_label)} ({key_name} {_k_ranges(in_band[name])})")
-    negative = in_band.get(None, [])
-    lines.append(
-        f"  - negativa (sotto 0): {_count_phrase(len(negative), total, count_label)} ({key_name} {_k_ranges(negative)}); non accettabile "
-        "per convenzione, la combinazione resta nel report" if negative else "  - negativa (sotto 0): nessuna"
-    )
+    negative = [int(key) for key, silhouette in zip(group[key_column], group["silhouette"]) if silhouette < 0]
+    uncomputable = [int(key) for key, silhouette in zip(group[key_column], group["silhouette"]) if np.isnan(silhouette)]
+    lines = [
+        f"- **Silhouette negativa**: {_count_phrase(len(negative), total, count_label)} ({key_name} {_k_ranges(negative)})"
+        if negative
+        else "- **Silhouette negativa**: nessuna"
+    ]
     if uncomputable:
-        lines.append(f"  - non calcolabile: {_count_phrase(len(uncomputable), total, count_label)} ({key_name} {_k_ranges(uncomputable)})")
+        lines.append(f"- **Silhouette non calcolabile**: {_count_phrase(len(uncomputable), total, count_label)} ({key_name} {_k_ranges(uncomputable)})")
     first, last = group.iloc[0], group.iloc[-1]
     lines.append(
         f"- **Dal primo all'ultimo valore** ({key_name}): {key_name}={int(first[key_column])}: {_format_report_value('silhouette', first['silhouette'], ())}, "
@@ -261,8 +223,8 @@ def _silhouette_comment(group: pd.DataFrame, key_column: str = "n_clusters", key
 
 
 def _curves_section(results: pd.DataFrame, metric: str) -> list[str]:
-    """The curves figure of one metric of an agglomerative report, with its hint and the line that says which dashed lines
-    it shows; empty for a metric with no linkage other than `single`. `results` is the whole run: the axes are shared."""
+    """The curves figure of one metric of an agglomerative report, with its hint; empty for a metric with no linkage
+    other than `single`. `results` is the whole run: the axes are shared."""
     if curves_subset(results, metric).empty:
         return []
     silhouette_limits = run_axis_limits(results, "silhouette")
@@ -272,7 +234,7 @@ def _curves_section(results: pd.DataFrame, metric: str) -> list[str]:
         "",
         f"![curve per n_clusters]({k_curves_file_name(metric)})",
         "",
-        *_hint_lines((*curves_hint(silhouette_limits, davies_bouldin_limits), convention_lines_caption(*silhouette_limits))),
+        *_hint_lines(curves_hint(silhouette_limits, davies_bouldin_limits)),
     ]
 
 
@@ -384,7 +346,7 @@ def _agglomerative_report_markdown(
         f"- **`cophenetic_correlation`**: {COPHENETIC_TERM}",
         f"- **`ari`**: {ARI_TERM}",
         f"- **`jump`**: {JUMP_TERM}",
-        f"- {SILHOUETTE_BANDS_TERM}",
+        f"- {SILHOUETTE_CONVENTION_NOTE}",
     ]
     return "\n".join([*lines, "## Termini", "", *terms, ""])
 
@@ -444,7 +406,7 @@ def _density_report_markdown(run_dir: Path, method: str, input_path: Path, resul
             group = subset[subset["min_samples"] == min_samples].sort_values("min_cluster_size")
             lines += [f"{heading} min_samples = {int(min_samples)}", "", _markdown_table(group[columns], ("min_cluster_size",)), "", *_density_comment(group), ""]
     terms = [f"- **`{column}`**: {REPORT_TERMS[column]}" for column in (*DENSITY_TABLE_COLUMNS[1:], *(DENSITY_SOFT_COLUMNS[1:] if is_soft else ()))]
-    return "\n".join([*lines, "## Termini", "", *terms, f"- {SILHOUETTE_BANDS_TERM}{SILHOUETTE_DENSITY_NOTE}", ""])
+    return "\n".join([*lines, "## Termini", "", *terms, f"- {SILHOUETTE_CONVENTION_NOTE}{SILHOUETTE_DENSITY_NOTE}", ""])
 
 
 def tuning_report_markdown(
@@ -454,18 +416,18 @@ def tuning_report_markdown(
     """The report of one clustering tuning run: its `tuning_results.csv` as markdown tables.
 
     Agglomerative: one section per `metric` with the curves figures and, per `linkage`, a table with the three indices
-    per n_clusters and bullets that place the silhouette in the bands of a published convention (SILHOUETTE_BANDS);
+    per n_clusters and bullets with the negative silhouettes and the first and last value;
     then the cophenetic correlation, the agreement between linkages and the dendrogram jump (`cophenetic` and `jump`,
     the frames of `cophenetic_table` and `jump_table`, and `agreement`, that of `linkage_agreement`: required here and refused for
     any other method) and links to the tree and label images clustering.py wrote in the run folder, when it did.
 
     hdbscan / hdbscan_soft (`results` is `density_metrics`: it needs `largest_cluster_share`): a
     link to the heatmap clustering.py wrote, and one table per `min_samples` (one section per `cluster_selection_method`
-    for hdbscan_soft) with a row per `min_cluster_size` and bullets with the silhouette bands, the range of the noise
+    for hdbscan_soft) with a row per `min_cluster_size` and bullets with the negative silhouettes, the range of the noise
     and of the number of clusters.
 
     adp: one table per `metric`, the swept columns first and every other column after them, ordered by silhouette,
-    highest first (an empty silhouette last). Nothing is classified by a threshold of ours. Raises ValueError for a
+    highest first (an empty silhouette last). Nothing is classified by a threshold. Raises ValueError for a
     method without a report or a `results` that lacks a column of the layout.
     """
     if method not in REPORT_METHODS:

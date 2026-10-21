@@ -16,9 +16,7 @@ from src.analysis.clustering_tuning_report import (
     HINT_HEATMAP,
     HINT_JUMP,
     HINT_LABELS_2D,
-    convention_lines_caption,
     curves_hint,
-    silhouette_band,
     tuning_report_markdown,
 )
 
@@ -40,26 +38,6 @@ def _curves_results() -> pd.DataFrame:
             "calinski_harabasz": [100.0, 90.0, 20.0, 10.0, np.nan, np.nan],
         }
     )
-
-
-@pytest.mark.parametrize(
-    "silhouette, band",
-    [(0.99, "0.71-1.00"), (0.71, "0.71-1.00"), (0.706, "0.71-1.00"), (0.7049, "0.51-0.70"), (0.51, "0.51-0.70"),
-     (0.50, "0.26-0.50"), (0.26, "0.26-0.50"), (0.25, "0.00-0.25"), (0.0, "0.00-0.25"), (-0.0001, None), (-0.5, None)],
-)
-def test_silhouette_band_follows_the_convention_after_rounding_to_two_decimals(silhouette, band):
-    assert silhouette_band(silhouette) == band
-
-
-def test_silhouette_band_rejects_nan():
-    with pytest.raises(ValueError, match="NaN silhouette"):
-        silhouette_band(float("nan"))
-
-
-def test_convention_lines_caption_names_the_lines_inside_and_outside_the_fitted_axis():
-    assert "Si vedono tutti." in convention_lines_caption(0.0, 0.8)
-    assert "Si vede solo 0.51; gli altri (0.00, 0.26, 0.71) cadono fuori dal grafico." in convention_lines_caption(0.39, 0.53)
-    assert "Non se ne vede nessuno" in convention_lines_caption(0.8, 0.9)
 
 
 def _agglomerative_results() -> pd.DataFrame:
@@ -114,7 +92,7 @@ def test_tuning_report_shows_an_empty_index_as_a_dash_and_has_no_verdict_of_ours
         assert verdict not in report.lower()
 
 
-def test_tuning_report_places_each_n_clusters_in_a_silhouette_band_and_says_what_a_negative_one_is(tmp_path):
+def test_tuning_report_counts_the_negative_silhouettes_and_gives_the_first_and_last_value(tmp_path):
     results = pd.DataFrame(
         {
             "n_clusters": [2, 3, 4, 5, 6],
@@ -128,17 +106,16 @@ def test_tuning_report_places_each_n_clusters_in_a_silhouette_band_and_says_what
 
     report = _agglomerative_report(tmp_path, results)
 
-    assert "  - 0.26-0.50 (debole, forse artificiale): 2 k su 5 (k 2-3)" in report
-    assert "  - 0.00-0.25 (nessuna struttura sostanziale): 1 k su 5 (k 4)" in report
-    assert "  - negativa (sotto 0): 2 k su 5 (k 5-6); non accettabile per convenzione, la combinazione resta nel report" in report
-    assert "0.71-1.00" not in report.split("## Termini")[0]  # a band no combination falls in is not listed
+    assert "- **Silhouette negativa**: 2 k su 5 (k 5-6)" in report
     assert "- **Dal primo all'ultimo valore** (k): k=2: 0.300, k=6: -0.200" in report
+    body = report.split("## Termini")[0]
+    assert "fascia" not in body and "convenzione" not in body  # a measurement, not a verdict of a convention
 
 
 def test_tuning_report_says_when_no_silhouette_is_negative(tmp_path):
     report = _agglomerative_report(tmp_path, _agglomerative_results())
 
-    assert "  - negativa (sotto 0): nessuna" in report
+    assert "- **Silhouette negativa**: nessuna" in report
 
 
 def test_tuning_report_points_to_one_curves_figure_per_metric_and_never_to_a_single_one(tmp_path):
@@ -165,12 +142,13 @@ def test_tuning_report_hint_gives_the_axes_shared_by_the_run(tmp_path):
     assert "`single` non è disegnato" in report
 
 
-def test_tuning_report_defines_the_bands_with_their_source_and_the_two_indices_without_one(tmp_path):
+def test_tuning_report_only_mentions_the_silhouette_bands_and_points_to_where_they_are_explained(tmp_path):
     report = _agglomerative_report(tmp_path, _agglomerative_results())
 
     terms = report.split("## Termini")[1]
-    assert "Kaufman & Rousseeuw (1990)" in terms and "0.26-0.50 debole" in terms
-    assert "Per Davies-Bouldin e Calinski-Harabasz non esiste una convenzione con fonte" in terms
+    assert "Kaufman & Rousseeuw 1990" in terms and "questo report non le usa" in terms
+    assert "evaluation_metrics.md" in terms
+    assert "0.26" not in report and "0.71" not in report  # no edge of a band anywhere
 
 
 def test_tuning_report_has_a_cophenetic_table_and_a_jump_table_per_metric(tmp_path):
@@ -290,18 +268,17 @@ def test_tuning_report_of_hdbscan_has_a_table_per_min_samples_with_integer_count
     assert "cluster_selection_method" not in report
 
 
-def test_tuning_report_of_hdbscan_comments_the_bands_the_noise_and_the_cluster_count_of_each_table(tmp_path):
+def test_tuning_report_of_hdbscan_comments_the_negative_silhouettes_the_noise_and_the_cluster_count_of_each_table(tmp_path):
     report = tuning_report_markdown(tmp_path / "run", "hdbscan", Path("matrix"), _density_results())
 
     first = report.split("## min_samples = 1")[1].split("## min_samples = 5")[0]
-    assert "  - 0.26-0.50 (debole, forse artificiale): 1 su 2 (min_cluster_size 10)" in first
-    assert "  - 0.51-0.70 (ragionevole): 1 su 2 (min_cluster_size 50)" in first
+    assert "- **Silhouette negativa**: nessuna" in first
     assert "- **Rumore**: da 0.100 (min_cluster_size 50) a 0.200 (min_cluster_size 10)" in first
     assert "- **Cluster trovati**: da 5 (min_cluster_size 50) a 30 (min_cluster_size 10)" in first
     assert "Nessun cluster" not in first
     second = report.split("## min_samples = 5")[1]
     assert "- **Nessun cluster** (tutti i soggetti rumore): 1 su 2 (min_cluster_size 50)" in second
-    assert "  - non calcolabile: 1 su 2 (min_cluster_size 50)" in second
+    assert "- **Silhouette non calcolabile**: 1 su 2 (min_cluster_size 50)" in second
     assert "- **Dal primo all'ultimo valore** (min_cluster_size): min_cluster_size=10: 0.100, min_cluster_size=50: –" in second
 
 

@@ -10,7 +10,7 @@ Sintesi corrente in `README.md` ("What's implemented so far") — non ripetuta q
 
 **PCA**: è un metodo di `REDUCTION_METHODS` (`pca`, `src/analysis/pca_method.py`), con rotazione varimax come parametro; `rotation_n_components` ruota un pool più grande (es. 150) e tiene le componenti ruotate con più varianza. Calcolo per matrici larghe (percorso duale e covarianza tra variabili) in `src/analysis/covariance_pca.py`. `pca_varimax` non esiste più.
 
-**Report di tuning del clustering**: `src/pipeline/evaluate_clustering_tuning.py` (guida `docs/guides/evaluate_clustering_tuning.md`) copre agglomerative (bande di silhouette Kaufman-Rousseeuw, nessuna soglia "usable"), `hdbscan` e `hdbscan_soft`, con tabella di accordo tra linkage.
+**Report di tuning del clustering**: `src/pipeline/evaluate_clustering_tuning.py` (guida `docs/guides/evaluate_clustering_tuning.md`) copre agglomerative (nessuna fascia né soglia: solo misure; le fasce di Kaufman-Rousseeuw sono solo citate), `hdbscan` e `hdbscan_soft`, con tabella di accordo tra linkage.
 
 ## Lavoro attivo / thread aperti
 

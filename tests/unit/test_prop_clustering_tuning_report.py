@@ -10,46 +10,27 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from src.analysis.clustering_tuning_analysis import (
-    CONVENTION_LINES,
-    SILHOUETTE_BANDS,
-)
 from src.analysis.clustering_tuning_report import (
     _k_ranges,
-    convention_lines_caption,
-    silhouette_band,
+    _silhouette_comment,
     tuning_report_markdown,
 )
 
 
-_BAND_EDGE = {name: edge for name, _description, edge in SILHOUETTE_BANDS}
+@given(st.lists(st.one_of(st.none(), st.floats(-1, 1, allow_nan=False)), min_size=2, max_size=20))
+def test_the_silhouette_bullets_count_exactly_the_negative_and_the_missing_values_and_never_a_band(values):
+    group = pd.DataFrame({"n_clusters": range(2, 2 + len(values)), "silhouette": pd.Series(values, dtype=float)})
+    text = "\n".join(_silhouette_comment(group))
+    negative = int((group["silhouette"] < 0).sum())
+    missing = int(group["silhouette"].isna().sum())
 
-
-@given(st.floats(-1, 1, allow_nan=False))
-def test_the_band_of_a_silhouette_is_defined_by_its_sign_and_rounded_value(value):
-    band = silhouette_band(value)
-    if value < 0:
-        assert band is None  # negativa: fuori da ogni fascia
-        return
-    assert band in _BAND_EDGE
-    assert round(value, 2) >= _BAND_EDGE[band]
-    higher = [edge for edge in _BAND_EDGE.values() if edge > _BAND_EDGE[band]]
-    assert all(round(value, 2) < edge for edge in higher)  # è la fascia più alta raggiunta
-
-
-@given(st.floats(-1, 1, allow_nan=False), st.floats(-1, 1, allow_nan=False))
-def test_the_band_never_goes_down_when_the_silhouette_goes_up(x, y):
-    low, high = sorted((x, y))
-    rank = lambda v: -1.0 if silhouette_band(v) is None else _BAND_EDGE[silhouette_band(v)]
-    assert rank(low) <= rank(high)
-
-
-@given(st.floats(-1, 1, allow_nan=False), st.floats(0.01, 2, allow_nan=False))
-def test_the_caption_says_all_lines_are_visible_exactly_when_the_axis_contains_them_all(low, width):
-    high = low + width
-    caption = convention_lines_caption(low, high)
-    assert all(f"{line:.2f}" in caption for line in CONVENTION_LINES)
-    assert ("Si vedono tutti." in caption) == all(low <= line <= high for line in CONVENTION_LINES)
+    assert ("- **Silhouette negativa**: nessuna" in text) == (negative == 0)
+    if negative:
+        assert f"- **Silhouette negativa**: {negative} k su {len(values)} (" in text
+    assert ("Silhouette non calcolabile" in text) == (missing > 0)
+    if missing:
+        assert f"- **Silhouette non calcolabile**: {missing} k su {len(values)} (" in text
+    assert "fascia" not in text and "convenzione" not in text
 
 
 @st.composite

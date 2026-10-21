@@ -35,7 +35,17 @@ $$
 - La silhouette di una partizione è la media degli $s(i)$. `sklearn.metrics.silhouette_score` restituisce questa media su tutti i soggetti e richiede tra 2 e $n-1$ cluster [12].
 - Rousseeuw propone la media della silhouette (*average silhouette width*) come criterio per scegliere il numero di cluster e il grafico delle silhouette per cluster come diagnostica [1].
 
-**Le fasce di Kaufman & Rousseeuw (1990)** [2]:
+**Tre nomi per cose vicine.** In letteratura e nei programmi "silhouette" indica tre numeri diversi, e conviene tenerli separati:
+
+| Nome | Cosa è | Dove compare |
+|---|---|---|
+| *silhouette* (o *Silhouette Coefficient* di un campione) $s(i)$ | il valore di **un soggetto** | Rousseeuw 1987 [1]; in scikit-learn il valore per campione si chiama *Silhouette Coefficient* (`silhouette_samples`) [12] |
+| *average silhouette width* $\bar{s}(k)$ | la **media** degli $s(i)$ su tutti i soggetti di una partizione in $k$ cluster | Rousseeuw 1987 [1]; in scikit-learn è `silhouette_score`, "la media del Silhouette Coefficient su tutti i campioni" [12] |
+| *silhouette coefficient* SC | il **massimo** di $\bar{s}(k)$ al variare di $k$: il miglior risultato su tutti i $k$ provati | Kaufman & Rousseeuw 1990, p. 87, secondo [18]; il libro non è stato consultato |
+
+L'esempio di scikit-learn su Affinity Propagation stampa la media con l'etichetta "Silhouette Coefficient: 0.753", calcolata con `metric="sqeuclidean"` perché quell'algoritmo usa la distanza euclidea al quadrato [12]. Nel progetto i grafici scrivono "Average silhouette coefficient" per la media dei soggetti, come scikit-learn; per Kaufman & Rousseeuw quel nome indicherebbe un'altra cosa (il massimo su $k$), e i testi del progetto non usano mai quel significato.
+
+**Le fasce di lettura.** La letteratura associa alla silhouette una scala di interpretazione, attribuita a Kaufman & Rousseeuw (1990) [2]:
 
 | Silhouette | Lettura |
 |---|---|
@@ -44,8 +54,11 @@ $$
 | 0,26 - 0,50 | struttura debole, forse artificiale |
 | ≤ 0,25 | nessuna struttura sostanziale |
 
-- È una convenzione, non un test. Il codice del progetto la usa così (`SILHOUETTE_BANDS` in `src/analysis/clustering_tuning_analysis.py`), arrotondando la silhouette a 2 decimali.
-- Il testo del 1990 non è nel repo: i limiti delle fasce sono riportati in modo diverso dalle fonti secondarie (vedi [`clustering_tuning_guide.md`](../clustering_tuning_guide.md)).
+- **Fonte indiretta.** Il testo del 1990 non è nel repo: le fasce sono riportate da fonti secondarie, una tabella di un articolo PLOS ONE [19] e, in forma discorsiva (sopra 0,7 forte, sopra 0,5 ragionevole, sopra 0,25 debole, senza citare una fonte), Wikipedia [18]. Gli estremi cambiano da una fonte all'altra (0,25 oppure 0,26).
+- **A cosa si riferiscono.** Nella definizione di Kaufman & Rousseeuw il numero che si legge con la scala è SC, cioè il massimo su $k$ [18]. Applicarla alla media di una singola partizione, o a ogni $k$ di un tuning, è un'estensione dell'uso originale, non una lettura prevista da loro.
+- **È una convenzione, non un test.** Non dice se i cluster sono reali: una nuvola senza cluster ha comunque una silhouette positiva con k-means o con un clustering gerarchico (il caso è nei problemi aperti del progetto, "modello nullo per la silhouette").
+- **Dipende dalla forma dei cluster.** Vale quanto detto sotto: premia cluster compatti e convessi.
+- **Il progetto non la usa.** I report del tuning e le tabelle non classificano nessuna combinazione in una fascia: danno i valori, il numero di silhouette negative e il valore al primo e all'ultimo $k$. Il report di tuning dice solo che le fasce esistono e rimanda a questa nota. L'interpretazione dei valori si costruisce caso per caso, sui dati.
 
 **Cosa assume.** La silhouette confronta distanze **medie** su interi cluster. Funziona bene con cluster compatti e convessi, e premia meno un cluster allungato o a forma irregolare, anche se reale [1, 11].
 
@@ -53,9 +66,10 @@ $$
 - Il rumore (`-1`) è escluso prima del calcolo (`compute_clustering_metrics`, `src/analysis/clustering_tuning.py`). Va sempre letta con la frazione di rumore (§6).
 - Con una metrica non euclidea (agglomerativo con `cosine`/`manhattan`, ADP con `dice`) la silhouette è calcolata con **la stessa** distanza del clustering, non con l'euclidea (`compute_clustering_metrics_metric_aware`; `adp._scores`).
 - Due silhouette calcolate con distanze diverse, o su spazi diversi (due embedding), non si confrontano: ogni spazio ha la sua scala.
+- Nelle run di produzione `silhouette_plot.png` ha un pannello per cluster con la silhouette di ogni soggetto, la media nel titolo e la distanza con cui è misurata; per agglomerative la media è anche in `config.md` e la media di ogni cluster in `silhouette_per_cluster.csv` (`docs/guides/clustering.md`). Una media grande può nascondere un cluster debole: per questo la tabella dà anche la media del singolo cluster e la quota di soggetti negativi.
 - Per ADP sulla matrice delle lesioni, l'84% delle coppie è a distanza dice esattamente 1 (`saturated_pair_share`, `docs/guides/evaluation.md`): la distanza media da un cluster è allora dominata da quelle coppie e la silhouette resta vicina a 0 quale che sia la struttura. È un'osservazione sul nostro dato, non della letteratura.
 
-**Esempio.** Cinque punti su una retta: 0, 1, 2 (cluster 1) e 6, 7 (cluster 2). Per il punto 0: $a = (1+2)/2 = 1{,}5$, $b = (6+7)/2 = 6{,}5$, $s = (6{,}5 - 1{,}5)/6{,}5 = 0{,}77$. La media sui cinque punti è 0,78 (calcolata con scikit-learn 1.8.0): "struttura forte" nella convenzione di Kaufman & Rousseeuw.
+**Esempio.** Cinque punti su una retta: 0, 1, 2 (cluster 1) e 6, 7 (cluster 2). Per il punto 0: $a = (1+2)/2 = 1{,}5$, $b = (6+7)/2 = 6{,}5$, $s = (6{,}5 - 1{,}5)/6{,}5 = 0{,}77$. La media sui cinque punti è 0,78 (calcolata con scikit-learn 1.8.0).
 
 ---
 
@@ -234,7 +248,7 @@ con $\delta$ la minima distanza tra due punti di cluster diversi e $\Delta$ il d
 ## Fonti
 
 1. Rousseeuw, P. J. (1987). Silhouettes: a graphical aid to the interpretation and validation of cluster analysis. *Journal of Computational and Applied Mathematics*, 20, 53-65. doi:10.1016/0377-0427(87)90125-7
-2. Kaufman, L., Rousseeuw, P. J. (1990). *Finding Groups in Data: An Introduction to Cluster Analysis*. Wiley. doi:10.1002/9780470316801 (non consultato direttamente: fasce come riportate in `clustering_tuning_guide.md`)
+2. Kaufman, L., Rousseeuw, P. J. (1990). *Finding Groups in Data: An Introduction to Cluster Analysis*. Wiley. doi:10.1002/9780470316801 (non consultato direttamente: le fasce sono riportate dalle fonti secondarie [18], [19])
 3. Bicego, M. (2021). *Il clustering, parte 2* (dispense, Università di Verona), sezione "Indici di validità" - `knowledge/papers/methods/Slides_Bicego/`
 4. Caliński, T., Harabasz, J. (1974). A dendrite method for cluster analysis. *Communications in Statistics*, 3(1), 1-27. doi:10.1080/03610927408827101
 5. Davies, D. L., Bouldin, D. W. (1979). A cluster separation measure. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, PAMI-1(2), 224-227. doi:10.1109/TPAMI.1979.4766909
@@ -250,3 +264,5 @@ con $\delta$ la minima distanza tra due punti di cluster diversi e $\Delta$ il d
 15. Dunn, J. C. (1974). Well-separated clusters and optimal fuzzy partitions. *Journal of Cybernetics*, 4(1), 95-104. doi:10.1080/01969727408546059
 16. Documentazione di `umap-learn` (0.5), *Using UMAP for Clustering*: https://umap-learn.readthedocs.io/en/latest/clustering.html (copia in `knowledge/papers/methods/websites/Using_UMAP_for_Clustering.html`)
 17. Șenbabaoğlu, Y., Michailidis, G., Li, J. Z. (2014). Critical limitations of consensus clustering in class discovery. *Scientific Reports*, 4, 6207. doi:10.1038/srep06207
+18. Wikipedia, *Silhouette (clustering)*: https://en.wikipedia.org/wiki/Silhouette_(clustering) (fonte secondaria: definizione di $s(i)$, il nome *silhouette coefficient* come massimo su $k$ attribuito a Kaufman & Rousseeuw 1990 p. 87, le soglie 0,7, 0,5 e 0,25 senza fonte; consultata il 21-10-26)
+19. Tabella con le fasce di Kaufman & Rousseeuw in un articolo PLOS ONE (fonte secondaria): https://pmc.ncbi.nlm.nih.gov/articles/PMC5978888/table/pone.0198245.t001 (indicata da una ricerca web il 21-10-26: la pagina non è stata aperta, le fasce sono quelle riportate nel riassunto della ricerca)

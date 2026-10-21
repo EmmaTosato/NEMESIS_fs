@@ -9,8 +9,6 @@ src/analysis/clustering_tuning_report.py lays the files out as report.md:
   silhouette and Davies-Bouldin curves per n_clusters (the linkages other than `single`, on axes shared by the run);
 - hdbscan / hdbscan_soft: the number of clusters and the share of the largest cluster of every combination, and the
   silhouette/Davies-Bouldin curves restricted to combinations with little noise.
-
-The only bands here are the silhouette ones of a published convention (SILHOUETTE_BANDS).
 """
 
 from __future__ import annotations
@@ -42,18 +40,6 @@ SWEPT_COLUMNS: dict[str, tuple[str, ...]] = {
 NOISE_LABEL = -1
 
 ADP = "adp"
-
-
-# Silhouette bands: the convention of Kaufman & Rousseeuw (1990, "Finding Groups in Data"), not a result of ours. The
-# sources that quote it differ on the edges (0.25/0.26, 0.50/0.51): a silhouette is rounded to 2 decimals and falls in
-# the first band, from the top, whose lower edge it reaches. A negative silhouette is outside every band.
-SILHOUETTE_BANDS: tuple[tuple[str, str, float], ...] = (
-    ("0.71-1.00", "struttura forte", 0.71),
-    ("0.51-0.70", "ragionevole", 0.51),
-    ("0.26-0.50", "debole, forse artificiale", 0.26),
-    ("0.00-0.25", "nessuna struttura sostanziale", 0.0),
-)
-CONVENTION_LINES = tuple(sorted(lower_edge for _, _, lower_edge in SILHOUETTE_BANDS))
 
 
 SINGLE_LINKAGE = "single"
@@ -255,18 +241,10 @@ def _plot_curves(axis, subset: pd.DataFrame, column: str, label: str) -> None:
     axis.grid(alpha=0.3)
 
 
-def _draw_convention_lines(axis) -> None:
-    low, high = axis.get_ylim()
-    for line in (line for line in CONVENTION_LINES if low <= line <= high):
-        axis.axhline(line, color="grey", linestyle="--", linewidth=0.9)
-        axis.text(axis.get_xlim()[1], line, f" {line:.2f}", va="center", fontsize=7, color="grey")
-
-
 def k_curves_figure(results: pd.DataFrame, metric: str) -> Figure:
     """Silhouette and Davies-Bouldin per n_clusters, one line per linkage other than `single`, for one `metric` of an
-    agglomerative run. The axes are those of the whole run (run_axis_limits), the same in every metric's figure. The
-    silhouette panel carries the dashed lines of CONVENTION_LINES that fall inside it. Davies-Bouldin is NaN for a
-    non-euclidean metric: its panel is left out."""
+    agglomerative run. The axes are those of the whole run (run_axis_limits), the same in every metric's figure.
+    Davies-Bouldin is NaN for a non-euclidean metric: its panel is left out."""
     subset = curves_subset(results, metric)
     if subset.empty:
         raise ValueError(f"no row of the run has metric={metric!r} and a linkage other than single")
@@ -276,7 +254,6 @@ def k_curves_figure(results: pd.DataFrame, metric: str) -> Figure:
     _plot_curves(axes[0], subset, "silhouette", "Silhouette (higher = better)")
     axes[0].set_ylim(*run_axis_limits(results, "silhouette"))
     axes[0].set_title("silhouette", fontsize=10)
-    _draw_convention_lines(axes[0])
     if has_davies_bouldin:
         _plot_curves(axes[1], subset, "davies_bouldin", "Davies-Bouldin (lower = better)")
         axes[1].set_ylim(*run_axis_limits(results, "davies_bouldin"))

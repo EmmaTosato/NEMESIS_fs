@@ -99,7 +99,7 @@ Lesion e sdc possono convivere nella stessa `SELECTED_RUNS`: ogni run è valutat
 
 ### Come si leggono le sezioni
 
-Nessuno degli indici sotto ha un valore di riferimento proprio per una run sola: si leggono per direzione e per confronto, mai come "buono/cattivo". Le uniche fasce citate in letteratura (solo per la silhouette) sono in [`clustering_tuning_guide.md`](../../knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md), "Fasce di valori: cosa dice la letteratura": una convenzione di Kaufman & Rousseeuw, non un risultato.
+Nessuno degli indici sotto ha un valore di riferimento proprio per una run sola: si leggono per direzione e per confronto, mai come "buono/cattivo". Le uniche fasce citate in letteratura (solo per la silhouette, Kaufman & Rousseeuw) sono una convenzione, non un risultato, e il progetto non le usa: cosa sono e a cosa si riferiscono è in [`evaluation_metrics.md`](../../knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md), §2.
 
 **Sezione 2, metriche geometriche** (spazio della run, rumore di hdbscan escluso)
 

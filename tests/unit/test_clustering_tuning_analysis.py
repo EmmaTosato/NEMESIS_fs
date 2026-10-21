@@ -8,7 +8,6 @@ import pandas as pd
 import pytest
 
 from src.analysis.clustering_tuning_analysis import (
-    CONVENTION_LINES,
     ClusteringTuningRun,
     combo_key,
     cophenetic_table,
@@ -313,8 +312,8 @@ def test_k_curves_figures_of_a_run_share_their_axes_and_drop_an_empty_davies_bou
     assert len(euclidean.axes) == 2 and len(cosine.axes) == 1
     assert euclidean.axes[0].get_ylim() == cosine.axes[0].get_ylim() == pytest.approx((0.3, 0.8))
     assert euclidean.axes[1].get_ylim() == pytest.approx((0.9, 1.2))
-    # no fixed -1..1 panel: the silhouette axis is the run's, and the dashed lines of the convention inside it are drawn
-    assert len(euclidean.axes[0].get_lines()) == 1 + sum(0.3 <= line <= 0.8 for line in CONVENTION_LINES)
+    # no fixed -1..1 panel and no reference lines: the only line of the silhouette panel is the ward curve
+    assert len(euclidean.axes[0].get_lines()) == 1
 
 
 def test_linkage_agreement_is_the_ari_between_the_partitions_of_each_pair_of_linkages(tmp_path):

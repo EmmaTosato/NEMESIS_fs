@@ -92,7 +92,7 @@ Fatto (21-10-26): blocco `tuning_evaluations` nel config, registro in `src/analy
 
 ### Modello nullo per la silhouette dei report di tuning del clustering
 
-Il report di agglomerative documenta la silhouette con le fasce convenzionali di Kaufman & Rousseeuw (1990) e con la curva su `n_clusters`. Un riferimento nullo darebbe un punto di confronto che non dipende da soglie: quale silhouette produce lo stesso clustering, con gli stessi parametri, su dati senza struttura. **Non è deciso come costruirlo**; due candidati misurano cose diverse:
+Il report di agglomerative documenta la silhouette con il valore per combinazione e con la curva su `n_clusters`. Un riferimento nullo darebbe un punto di confronto che non dipende da soglie: quale silhouette produce lo stesso clustering, con gli stessi parametri, su dati senza struttura. **Non è deciso come costruirlo**; due candidati misurano cose diverse:
 
 - **Etichette permutate** (stesse dimensioni dei cluster, assegnazione casuale): dà la silhouette di una partizione a caso, vicina a 0 o negativa per costruzione. Non dice cosa fa l'algoritmo su dati senza struttura.
 - **Clustering rifatto su dati senza struttura** (ad esempio colonne dell'embedding permutate in modo indipendente, o campioni gaussiani con la stessa covarianza): l'algoritmo trova comunque dei cluster, e la silhouette risulta positiva. È il riferimento più vicino alla domanda, ma costa un tuning per ogni riferimento e dipende da come si genera il dato nullo.
@@ -125,7 +125,6 @@ Il giro ha allineato docs, note e notebook alla regola «il markdown di un noteb
 - **Non archiviati nello storico** (decisioni minori): rimozione dei `summaries/` di `dim_reduction` e `clustering` (commit `567630d`, la ragione è ancora in `docs/dev/models.md`) e `tag_param`/`tag_prefix` come liste parallele (commit `625b2c1`, la storia è nel messaggio del commit).
 
 **Incoerenze note, da decidere**
-- **Cosa dire sulla silhouette** (`management/cheatsheets/clustering_metrics_report.md`, §4.4 e decisione 3): l'app e `clustering_evaluation` dicono che nessun indice ha un valore di riferimento e che una nuvola senza cluster ha silhouette circa 0,4; il report del tuning cita le fasce di Kaufman & Rousseeuw (che stanno anche in `clustering_tuning_guide.md`). Messaggi diversi sullo stesso numero. Il notebook `clustering_tuning_explorer`, che ne dava un terzo, è stato eliminato.
 - **`management/cheatsheets/hdbscan.md`**: il passo «taglia minima» dice che i punti del pezzo piccolo «escono dal cluster padre», mentre l'esempio della scheda e `clustering.md` dicono che un gruppo di 30 «resta rumore»; il comportamento reale è più sfumato (i punti fuori da un cluster padre selezionato restano nel padre con probabilità bassa). La scheda descrive `eom` e `leaf` come validi per entrambi i metodi, ma nel progetto solo `hdbscan_soft` li fa variare; `hdbscan` di sklearn usa sempre `eom`.
 - **`.claude/CLAUDE.md`** non contiene la regola sul markdown dei notebook; sta solo in `docs/guides/exploration.md`, «Regole di scrittura dei notebook».
 - **Link rotto** in `docs/experiments/s2.4-vol.md`: punta a `results/legacy/sdc_s2.4-vol_07-10/...`, e `results/legacy/` è vuota su disco.

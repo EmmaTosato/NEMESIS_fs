@@ -41,16 +41,8 @@ Calcolati per tutti e 6 i metodi, sempre nello stesso file (`tuning_plot.png`), 
 
 ### Fasce di valori: cosa dice la letteratura
 
-Solo la silhouette ha una scala di interpretazione citata in letteratura. È una **convenzione**, non un risultato:
+Solo la silhouette ha una scala di interpretazione citata in letteratura (Kaufman & Rousseeuw 1990: 0.71-1.00 forte, 0.51-0.70 ragionevole, 0.26-0.50 debole, fino a 0.25 nessuna struttura). È una **convenzione**, non un risultato, e il progetto **non la usa** nei report. Cosa dice, a cosa si riferisce (il massimo della silhouette media su tutti i k, non una singola partizione), perché gli estremi cambiano da fonte a fonte e quali sono i suoi limiti: [`clustering_methods/evaluation_metrics.md`](clustering_methods/evaluation_metrics.md), §2.
 
-| Silhouette | Lettura (Kaufman & Rousseeuw 1990, *Finding Groups in Data*) |
-| --- | --- |
-| 0.71 - 1.00 | struttura forte |
-| 0.51 - 0.70 | struttura ragionevole |
-| 0.26 - 0.50 | struttura debole, forse artificiale |
-| fino a 0.25 | nessuna struttura sostanziale |
-
-- **Estremi**: le fonti che la riportano li scrivono in modi diversi (0.25/0.26, 0.50/0.51; alcune danno solo le soglie 0.7, 0.5 e 0.25). La scala è attribuita al testo del 1990 da fonti secondarie; il testo originale non è stato consultato.
 - **Limiti noti**: funziona meglio con cluster convessi; con dati ad alta dimensione tende a dare valori più bassi (Wikipedia, "Silhouette (clustering)").
 - **Davies-Bouldin e Calinski-Harabasz**: nessuna fascia con fonte. Le fonti secondarie consultate li descrivono come indici da usare per confronto tra partizioni degli stessi dati (Davies-Bouldin: più basso è meglio; Calinski-Harabasz: si prende il k che lo massimizza). Le pagine che parlano di "vicino a 0" per Davies-Bouldin o di "sotto 1" per Calinski-Harabasz non citano una fonte. I testi originali (Davies & Bouldin 1979; Caliński & Harabasz 1974) non sono stati consultati.
 - **Calinski-Harabasz** favorisce gruppi globulari e di dimensioni simili; **Davies-Bouldin** è sensibile a outlier e rumore.

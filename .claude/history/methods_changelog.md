@@ -8,6 +8,18 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 21-10-26 — I report del tuning non usano più le fasce di Kaufman & Rousseeuw
+
+**Cosa è cambiato**: `report.md` (agglomerative, HDBSCAN, `hdbscan_soft`) e le curve per `n_clusters` non collocano più la silhouette nelle fasce 0.71-1.00 / 0.51-0.70 / 0.26-0.50 / ≤0.25. Via le linee grigie sui grafici, i punti "Silhouette per fascia" sotto le tabelle e la frase "non accettabile per convenzione" sulle silhouette negative; restano il conteggio delle negative, quelle non calcolabili e il valore a k minimo e massimo. Nei "Termini" del report una riga dice che le fasce esistono e rimanda a `knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md` §2, dove sono spiegate. Cancellati `SILHOUETTE_BANDS`, `CONVENTION_LINES`, `silhouette_band`, `convention_lines_caption`.
+
+**Perché**: (1) per Kaufman & Rousseeuw il numero che si legge con la scala è il *silhouette coefficient* SC, il massimo della silhouette media su tutti i k (p. 87, secondo Wikipedia); il report la applicava a ogni combinazione, che è un uso più largo di quello originale. (2) Il libro non è nel repo e le fonti secondarie non concordano sugli estremi (0.25 o 0.26). (3) È una convenzione, non un test: una nuvola senza cluster ha comunque una silhouette positiva (`.claude/open_problems.md`, modello nullo). (4) La regola del progetto è nessuna soglia nei report, interpretazione costruita insieme (`feedback_no_arbitrary_thresholds_in_reports`).
+
+**Alternative scartate**: tenere le fasce nei soli report HDBSCAN (la funzione dei punti era condivisa, e la scelta non riguardava solo agglomerative); tenerle sui grafici ma non nelle tabelle.
+
+**Conseguenza attuale**: l'app, il notebook `clustering_evaluation` e il report dicono la stessa cosa (nessun valore di riferimento). Le fonti primarie (Rousseeuw 1987, Kaufman & Rousseeuw 1990) non sono in `knowledge/papers/`: la nota le cita come non consultate. `management/cheatsheets/clustering_metrics_report.md` §4.4 e `docs/experiments/` descrivono ancora il report con le fasce.
+
+---
+
 ## 21-10-26 — t-SNE: inizializzazione MDS classico e `learning_rate: "auto"`
 
 **Cosa è cambiato**:
