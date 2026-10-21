@@ -291,14 +291,6 @@ def jump_table(
     return pd.DataFrame(rows)
 
 
-def agglomerative_analysis(run: ClusteringTuningRun, X: np.ndarray, k_values: range) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """(cophenetic_table, jump_table) of an agglomerative run, sharing one distance cache."""
-    if run.method != AGGLOMERATIVE:
-        raise ValueError(f"agglomerative_analysis needs an agglomerative run, got {run.method!r}")
-    distance_cache: dict[str, np.ndarray] = {}
-    return cophenetic_table(run, X, distance_cache), jump_table(run, X, k_values, distance_cache)
-
-
 def linkage_agreement(run: ClusteringTuningRun) -> pd.DataFrame:
     """Adjusted Rand index between the partitions of every two linkages of an agglomerative run, at each `n_clusters`
     and `metric`. One row per (metric, n_clusters, linkage_a, linkage_b), with the linkages in LINKAGE_ORDER; a linkage
@@ -757,7 +749,7 @@ def tuning_report_markdown(
     Agglomerative: one section per `metric` with the curves figures and, per `linkage`, a table with the three indices
     per n_clusters and bullets that place the silhouette in the bands of a published convention (SILHOUETTE_BANDS);
     then the cophenetic correlation, the agreement between linkages and the dendrogram jump (`cophenetic` and `jump`,
-    the frames of `agglomerative_analysis`, and `agreement`, that of `linkage_agreement`: required here and refused for
+    the frames of `cophenetic_table` and `jump_table`, and `agreement`, that of `linkage_agreement`: required here and refused for
     any other method) and links to the tree and label images clustering.py wrote in the run folder, when it did.
 
     hdbscan / hdbscan_soft (`results` is `density_metrics`: it needs `largest_cluster_share`): a

@@ -40,20 +40,23 @@ _CASES: dict[str, tuple] = {
     ),
     "analyze_clustering_tuning": (
         M.load_analyze_clustering_tuning_config,
-        {"tuning_dir": "td", "overwrite": False, "k_range": {"min": 2, "max": 10}, "curves_max_noise_fraction": 0.5},
+        {"tuning_dir": "td", "overwrite": False, "evaluations_file": "ef.json", "write_report": True,
+         "tuning_evaluations": {"general": [], "agglomerative": ["cophenetic_correlation"]}},
         set(),
     ),
     "clustering_reduced": (
         M.load_clustering_config,
         {**_SHARED, "reduction_method": "umap", "clustering_methods": ["kmeans", "gmm"], "params_file": "pf.json",
          "reduction_params_file": "rpf.json", "fine_tuning": True, "reduced_data": True, "viz_embedding_path": "viz",
-         "save_tuning_clusterings": False},
+         "save_tuning_clusterings": False, "evaluations_file": "ef.json",
+         "tuning_evaluations": {"general": [], "kmeans": [], "gmm": []}},
         {"run_notes", "viz_embedding_path"},
     ),
     "clustering_raw": (
         M.load_clustering_config,
         {**_SHARED, "reduction_method": "raw", "clustering_methods": ["hdbscan"], "params_file": "pf.json", "fine_tuning": False,
-         "reduced_data": False, "save_tuning_clusterings": True},
+         "reduced_data": False, "save_tuning_clusterings": True, "evaluations_file": "ef.json",
+         "tuning_evaluations": {"general": [], "hdbscan": ["density_metrics"]}},
         {"run_notes", "viz_embedding_path"},
     ),
 }
@@ -63,9 +66,12 @@ _NESTED = {
     "dim_reduction": [("color_by", 0), ("tuning_evaluations", "plot_hdbscan"), ("tuning_evaluations", "plot_hdbscan", "min_samples"),
                       ("tuning_evaluations", "trustworthiness")],
     "evaluate_tuning_embeddings": [("tuning_evaluations", "plot_hdbscan"), ("tuning_evaluations", "plot_hdbscan", "min_cluster_size")],
-    "analyze_clustering_tuning": [("k_range", "min"), ("k_range", "max")],
-    "clustering_reduced": [("clustering_methods", 0), ("clustering_methods", 1)],
-    "clustering_raw": [("clustering_methods", 0)],
+    "analyze_clustering_tuning": [("tuning_evaluations", "general"), ("tuning_evaluations", "agglomerative"),
+                                  ("tuning_evaluations", "agglomerative", 0)],
+    "clustering_reduced": [("clustering_methods", 0), ("clustering_methods", 1), ("tuning_evaluations", "general"),
+                           ("tuning_evaluations", "kmeans")],
+    "clustering_raw": [("clustering_methods", 0), ("tuning_evaluations", "general"), ("tuning_evaluations", "hdbscan"),
+                       ("tuning_evaluations", "hdbscan", 0)],
 }
 
 _scalars = st.one_of(
@@ -279,40 +285,6 @@ def test_viz_n_components_is_exactly_2_or_3(value, valid):
     else:
         with pytest.raises(ValueError, match="viz_n_components"):
             _load("dim_reduction", config)
-
-
-@settings(max_examples=120)
-@given(k_min=st.integers(-3, 12), k_max=st.integers(-3, 12))
-def test_k_range_requires_integers_at_least_2_and_min_not_above_max(k_min, k_max):
-    config = _mutated("analyze_clustering_tuning", ("k_range",), {"min": k_min, "max": k_max})
-    if k_min >= 2 and k_max >= 2 and k_min <= k_max:
-        loaded = _load("analyze_clustering_tuning", config)
-        assert (loaded.k_min, loaded.k_max) == (k_min, k_max)
-    else:
-        with pytest.raises(ValueError):
-            _load("analyze_clustering_tuning", config)
-
-
-@pytest.mark.parametrize("k_range", [None, 3, "2-10", [2, 10], {}, {"min": 2}, {"max": 10}, {"min": 2.0, "max": 10}, {"min": True, "max": 10},
-                                     {"min": "2", "max": 10}, {"min": 2, "max": None}, {"min": 2, "max": 10.5}])
-def test_malformed_k_range_is_a_valueerror(k_range):
-    with pytest.raises(ValueError):
-        _load("analyze_clustering_tuning", _mutated("analyze_clustering_tuning", ("k_range",), k_range))
-
-
-@pytest.mark.parametrize(
-    "value, valid",
-    [(1, True), (1.0, True), (0.5, True), (1e-9, True), (0, False), (0.0, False), (-0.5, False), (1.0000001, False), (2, False),
-     (float("nan"), False), (float("inf"), False), (True, False), (False, False), ("0.5", False), (None, False), ([0.5], False), (10**400, False)],
-)
-def test_curves_max_noise_fraction_is_in_the_half_open_interval_zero_one(value, valid):
-    config = _mutated("analyze_clustering_tuning", ("curves_max_noise_fraction",), value)
-    if valid:
-        loaded = _load("analyze_clustering_tuning", config).curves_max_noise_fraction
-        assert loaded == float(value) and isinstance(loaded, float)
-    else:
-        with pytest.raises(ValueError):
-            _load("analyze_clustering_tuning", config)
 
 
 # ---- reduced_data <-> reduction_params_file ---------------------------------------------------------------------------------------------

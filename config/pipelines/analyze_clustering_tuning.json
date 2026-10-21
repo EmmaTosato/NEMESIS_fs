@@ -1,6 +1,23 @@
 {
   "tuning_dir": "results/lesion/clustering/tuning/agglomerative/umap/08-10_s1.4-vol_m_dice_nc2",
   "overwrite": false,
-  "k_range": {"min": 2, "max": 30},
-  "curves_max_noise_fraction": 0.1
+  "evaluations_file": "config/registry/clustering_evaluations.json",
+  "tuning_evaluations": {
+    "general": [],
+    "agglomerative": [
+      "k_curves",
+      "cophenetic_correlation",
+      "dendrogram_jump",
+      "linkage_agreement"
+    ],
+    "hdbscan": [
+      "density_metrics",
+      "noise_filtered_curves"
+    ],
+    "hdbscan_soft": [
+      "density_metrics",
+      "noise_filtered_curves"
+    ]
+  },
+  "write_report": true
 }

@@ -15,6 +15,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from src.analysis import clustering_tuning_evaluations as clustering_evaluations
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.reduction import REDUCTION_METHODS
 from src.analysis.tuning_evaluations import KIND_EMBEDDING_EVALUATION, validate_tuning_evaluations_block
@@ -53,9 +54,9 @@ class EvaluateTuningEmbeddingsConfig:
 class AnalyzeClusteringTuningConfig:
     tuning_dir: Path
     overwrite: bool
-    k_min: int
-    k_max: int
-    curves_max_noise_fraction: float
+    evaluations_file: Path
+    tuning_evaluations: dict[str, tuple[str, ...]]
+    write_report: bool
 
 
 @dataclass(frozen=True)
@@ -73,6 +74,8 @@ class ClusteringConfig:
     reduced_data: bool
     viz_embedding_path: Path | None
     save_tuning_clusterings: bool
+    evaluations_file: Path
+    tuning_evaluations: dict[str, tuple[str, ...]]
     run_notes: str | None
 
 
@@ -117,21 +120,18 @@ def load_evaluate_tuning_embeddings_config(path: str | Path) -> EvaluateTuningEm
 
 
 def load_analyze_clustering_tuning_config(path: str | Path) -> AnalyzeClusteringTuningConfig:
-    """Config of src/pipeline/analyze_clustering_tuning.py: which stored clustering tuning run to analyse,
-    the range of k the dendrogram jump is computed over and the noise limit of the filtered curves.
-    Every field is required: the limit has no default.
+    """Config of src/pipeline/analyze_clustering_tuning.py: which stored clustering tuning run to analyse, which
+    evaluations to run on it (the same `tuning_evaluations` block clustering.json takes; the block needs a key
+    for the method of the run, checked once the run is read) and whether to write report.md. The settings of
+    the evaluations (k range, noise limit) are in `evaluations_file`, not here. Every field is required.
     """
     raw = _read_config(path)
-    k_range = _require_object(raw, "k_range")
-    k_min, k_max = _require_int(k_range, "min", 2), _require_int(k_range, "max", 2)
-    if k_min > k_max:
-        raise ValueError(f"config: k_range.min ({k_min}) is greater than k_range.max ({k_max})")
     return AnalyzeClusteringTuningConfig(
         tuning_dir=Path(_require_str(raw, "tuning_dir")),
         overwrite=_require_bool(raw, "overwrite"),
-        k_min=k_min,
-        k_max=k_max,
-        curves_max_noise_fraction=_require_fraction(raw, "curves_max_noise_fraction"),
+        evaluations_file=Path(_require_str(raw, "evaluations_file")),
+        tuning_evaluations=_require_clustering_tuning_evaluations(raw),
+        write_report=_require_bool(raw, "write_report"),
     )
 
 
@@ -177,6 +177,16 @@ def load_clustering_config(path: str | Path) -> ClusteringConfig:
     if not reduced_data and reduction_params_file is not None:
         raise ValueError("clustering config: 'reduction_params_file' must be omitted when reduced_data=false (input_path has no embedding tag to derive)")
 
+    save_tuning_clusterings = _require_bool(raw, "save_tuning_clusterings")
+    tuning_evaluations = _require_clustering_tuning_evaluations(raw)
+    if fine_tuning:
+        clustering_evaluations.require_methods_declared(tuning_evaluations, clustering_methods)
+        if any(tuning_evaluations[key] for key in tuning_evaluations) and not save_tuning_clusterings:
+            raise ValueError(
+                "clustering config: 'tuning_evaluations' lists evaluations but 'save_tuning_clusterings' is false - "
+                "they read the labels clusterings.npz stores"
+            )
+
     return ClusteringConfig(
         project=project,
         input_path=input_path,
@@ -200,7 +210,12 @@ def load_clustering_config(path: str | Path) -> ClusteringConfig:
         # rather than the pipeline silently deciding on its own (code_standards.md §0). Read only
         # in fine-tuning mode (_write_tuning_output) - a production run never sweeps combinations,
         # so it has nothing to persist here regardless of this flag's value.
-        save_tuning_clusterings=_require_bool(raw, "save_tuning_clusterings"),
+        save_tuning_clusterings=save_tuning_clusterings,
+        # Required in every config like dim_reduction's tuning_evaluations (an empty "general" list is valid),
+        # read only by fine_tuning=true: the settings file the evaluations take their thresholds from, and
+        # which of them run for each method.
+        evaluations_file=Path(_require_str(raw, "evaluations_file")),
+        tuning_evaluations=tuning_evaluations,
         run_notes=run_notes,
     )
 
@@ -243,34 +258,6 @@ def _require_bool(raw: dict, key: str) -> bool:
     if not isinstance(value, bool):
         raise ValueError(f"config: field {key!r} must be a boolean, got {value!r}")
     return value
-
-
-def _require_object(raw: dict, key: str) -> dict:
-    if key not in raw:
-        raise ValueError(f"config: missing required field {key!r}")
-    value = raw[key]
-    if not isinstance(value, dict):
-        raise ValueError(f"config: field {key!r} must be an object, got {value!r}")
-    return value
-
-
-def _require_int(raw: dict, key: str, minimum: int) -> int:
-    if key not in raw:
-        raise ValueError(f"config: missing required field {key!r}")
-    value = raw[key]
-    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
-        raise ValueError(f"config: field {key!r} must be an integer >= {minimum}, got {value!r}")
-    return value
-
-
-def _require_fraction(raw: dict, key: str) -> float:
-    """A number in (0, 1]: 0 would keep nothing, and a value above 1 is not a share."""
-    if key not in raw:
-        raise ValueError(f"config: missing required field {key!r}")
-    value = raw[key]
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 < value <= 1:
-        raise ValueError(f"config: field {key!r} must be a number in (0, 1], got {value!r}")
-    return float(value)
 
 
 def _optional_str(raw: dict, key: str) -> str | None:
@@ -336,6 +323,12 @@ def _require_tuning_evaluations(raw: dict, allowed_kinds: frozenset[str] | None 
     if "tuning_evaluations" not in raw:
         raise ValueError("config: missing required field 'tuning_evaluations'")
     return validate_tuning_evaluations_block(raw["tuning_evaluations"], allowed_kinds)
+
+
+def _require_clustering_tuning_evaluations(raw: dict) -> dict[str, tuple[str, ...]]:
+    if "tuning_evaluations" not in raw:
+        raise ValueError("config: missing required field 'tuning_evaluations'")
+    return clustering_evaluations.validate_tuning_evaluations_block(raw["tuning_evaluations"])
 
 
 def _require_viz_n_components(raw: dict) -> int:

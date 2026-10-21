@@ -6,6 +6,7 @@ gli ID dei soggetti, il loro ordine, le shape e i tipi sopravvivano a tutta la c
 """
 
 import json
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -68,6 +69,8 @@ def _run_clustering(tmp_path, monkeypatch, input_dir, reduction_params_path, *, 
         "fine_tuning": fine_tuning,
         "reduced_data": True,
         "save_tuning_clusterings": fine_tuning,
+        "evaluations_file": "config/registry/clustering_evaluations.json",
+        "tuning_evaluations": {"general": [], "agglomerative": []},
         "viz_embedding_path": None,
         "run_notes": None,
     }
@@ -131,7 +134,12 @@ def test_tuning_chain_feeds_the_analysis_step(tmp_path, monkeypatch, chain):
     assert not results.duplicated(subset=["n_clusters", "linkage", "metric"]).any()
 
     monkeypatch.setattr(analyze_clustering_tuning, "LOGS_ROOT", tmp_path / "an_logs")
-    cfg = {"tuning_dir": str(tuning_dir), "overwrite": False, "k_range": {"min": 2, "max": 4}, "curves_max_noise_fraction": 0.5}
+    registry = json.loads(Path("config/registry/clustering_evaluations.json").read_text())
+    evaluations_file = write_json(tmp_path / "evaluations.json", {**registry, "dendrogram_jump": {"k_range": {"min": 2, "max": 4}}})
+    cfg = {
+        "tuning_dir": str(tuning_dir), "overwrite": False, "evaluations_file": str(evaluations_file), "write_report": True,
+        "tuning_evaluations": {"general": [], "agglomerative": ["k_curves", "cophenetic_correlation", "dendrogram_jump", "linkage_agreement"]},
+    }
     assert analyze_clustering_tuning.main(["--config", str(write_json(tmp_path / "an.json", cfg))]) == 0
 
     jump = pd.read_csv(tuning_dir / "dendrogram_jump.csv")
@@ -163,6 +171,8 @@ def test_chain_stops_cleanly_when_an_upstream_artifact_is_missing(tmp_path, monk
         "fine_tuning": False,
         "reduced_data": True,
         "save_tuning_clusterings": False,
+        "evaluations_file": "config/registry/clustering_evaluations.json",
+        "tuning_evaluations": {"general": [], "agglomerative": []},
         "viz_embedding_path": None,
         "run_notes": None,
     }

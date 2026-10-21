@@ -4,14 +4,19 @@ Usage:
     python -m src.pipeline.analyze_clustering_tuning --config config/pipelines/analyze_clustering_tuning.json
 
 Reads the files `clustering.py --fine_tuning true` wrote (tuning_results.csv, clusterings.npz, config.md and,
-for agglomerative, the matrix its config.md points to) and writes what the sweep does not, next to them:
+for the evaluations that need it, the matrix its config.md points to) and runs on them the evaluations
+the config's `tuning_evaluations` block lists for the run's method
+(src/analysis/clustering_tuning_evaluations.py - the same function the sweep runs when its own config lists them),
+writing their files next to the run's:
 
-- every method: report.md, the tables of tuning_results.csv with no verdict
-- agglomerative: cophenetic_correlation.csv, linkage_agreement.csv, dendrogram_jump.csv, k_curves_metric=<metric>.png and
+- agglomerative: cophenetic_correlation.csv, dendrogram_jump.csv, linkage_agreement.csv, k_curves_metric=<metric>.png and
   k_curves_single_metric=<metric>.png (the single linkage, in a figure of its own)
 - hdbscan / hdbscan_soft: density_metrics.csv, noise_filtered_curves[_cluster_selection_method=<method>].png
 
-Nothing is refitted. Lesion and sdc alike; adp only gets report.md (its own diagnostics: docs/guides/clustering.md).
+With `write_report` it then writes report.md, the tables of those files and of tuning_results.csv with no verdict;
+it reads them from the run folder, so the evaluations it needs must have been run (now or by the sweep).
+Nothing is refitted. Lesion and sdc alike; adp has no evaluation and only gets report.md (its own diagnostics:
+docs/guides/clustering.md).
 """
 
 from __future__ import annotations
@@ -22,25 +27,17 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-from matplotlib.figure import Figure
 
 from src.analysis.clustering_tuning_analysis import (
     ADP,
     AGGLOMERATIVE,
     ClusteringTuningRun,
-    agglomerative_analysis,
-    density_metrics,
-    k_curves_figure,
-    k_curves_file_name,
-    k_curves_targets,
-    linkage_agreement,
     load_clustering_tuning_run,
-    noise_filtered_curves_figures,
     read_run_config,
     tuning_report_markdown,
 )
-from src.analysis.model_config import AnalyzeClusteringTuningConfig, load_analyze_clustering_tuning_config
-from src.utils.artifacts import load_matrix
+from src.analysis.clustering_tuning_evaluations import load_evaluation_settings, refuse_existing, run_evaluations
+from src.analysis.model_config import load_analyze_clustering_tuning_config
 from src.utils.logging_setup import attach_file_handler, log_duration
 
 LOGS_ROOT = Path("logs") / "analyze_clustering_tuning"
@@ -48,66 +45,31 @@ LOG_FILENAME_PREFIX = "analyze_clustering_tuning"
 REPORT_FILENAME = "report.md"
 
 
-def _refuse_existing(paths: list[Path], overwrite: bool) -> None:
-    existing = [path.name for path in paths if path.exists()]
-    if existing and not overwrite:
-        raise FileExistsError(f"already in the run folder: {existing} - set overwrite=true to replace them")
+def _read_evaluation_csv(run_dir: Path, name: str, report_of: str) -> pd.DataFrame:
+    path = run_dir / name
+    if not path.is_file():
+        raise FileNotFoundError(f"{path} not found - the {report_of} report reads it: list its evaluation in tuning_evaluations and run again")
+    return pd.read_csv(path)
 
 
-def _save_figure(figure: Figure, path: Path) -> None:
-    figure.savefig(path, dpi=150)
-
-
-def _analyze_agglomerative(run: ClusteringTuningRun, config: AnalyzeClusteringTuningConfig) -> list[Path]:
-    curves = {k_curves_file_name(metric, single): (metric, single) for metric, single in k_curves_targets(run.results)}
-    outputs = {
-        "cophenetic": run.run_dir / "cophenetic_correlation.csv",
-        "agreement": run.run_dir / "linkage_agreement.csv",
-        "jump": run.run_dir / "dendrogram_jump.csv",
-        "report": run.run_dir / REPORT_FILENAME,
-        **{name: run.run_dir / name for name in curves},
-    }
-    _refuse_existing(list(outputs.values()), config.overwrite)
-
-    X, _, _ = load_matrix(run.input_path)
-    cophenetic, jump = agglomerative_analysis(run, X, range(config.k_min, config.k_max + 1))
-    agreement = linkage_agreement(run)
-    outputs["report"].write_text(tuning_report_markdown(run.run_dir, run.method, run.input_path, run.results, cophenetic, agreement, jump))
-    cophenetic.to_csv(outputs["cophenetic"], index=False)
-    agreement.to_csv(outputs["agreement"], index=False)
-    jump.to_csv(outputs["jump"], index=False)
-    for name, (metric, single) in curves.items():
-        _save_figure(k_curves_figure(run.results, metric, single), outputs[name])
-    return list(outputs.values())
-
-
-def _analyze_density(run: ClusteringTuningRun, config: AnalyzeClusteringTuningConfig) -> list[Path]:
-    metrics = density_metrics(run)
-    figures, without_figure = noise_filtered_curves_figures(metrics, config.curves_max_noise_fraction)
-    for name in without_figure:
-        logging.warning(
-            "no combination has noise_fraction <= %s%s: no curves figure for it",
-            config.curves_max_noise_fraction, f" for cluster_selection_method={name}" if name else "",
+def _report_text(run_dir: Path, run_config: dict, run: ClusteringTuningRun | None) -> str:
+    """The text of report.md from the files in the run folder. Raises FileNotFoundError naming the file the
+    report needs and the run lacks."""
+    if run is None:  # adp: no evaluation, only the table
+        results_path = run_dir / "tuning_results.csv"
+        if not results_path.is_file():
+            raise FileNotFoundError(f"{results_path} not found")
+        return tuning_report_markdown(run_dir, ADP, Path(run_config["input_path"]), pd.read_csv(results_path))
+    if run.method == AGGLOMERATIVE:
+        frames = {
+            name: _read_evaluation_csv(run_dir, f"{name}.csv", "agglomerative")
+            for name in ("cophenetic_correlation", "linkage_agreement", "dendrogram_jump")
+        }
+        return tuning_report_markdown(
+            run_dir, run.method, run.input_path, run.results,
+            frames["cophenetic_correlation"], frames["linkage_agreement"], frames["dendrogram_jump"],
         )
-    paths = {name: run.run_dir / (f"noise_filtered_curves_{name}.png" if name else "noise_filtered_curves.png") for name in figures}
-    csv_path, report_path = run.run_dir / "density_metrics.csv", run.run_dir / REPORT_FILENAME
-    _refuse_existing([csv_path, report_path, *paths.values()], config.overwrite)  # written even with no figure
-
-    metrics.to_csv(csv_path, index=False)
-    report_path.write_text(tuning_report_markdown(run.run_dir, run.method, run.input_path, metrics))
-    for name, figure in figures.items():
-        _save_figure(figure, paths[name])
-    return [csv_path, report_path, *paths.values()]
-
-
-def _analyze_adp(run_dir: Path, run_config: dict, config: AnalyzeClusteringTuningConfig) -> list[Path]:
-    report_path = run_dir / REPORT_FILENAME
-    _refuse_existing([report_path], config.overwrite)
-    results_path = run_dir / "tuning_results.csv"
-    if not results_path.is_file():
-        raise FileNotFoundError(f"{results_path} not found")
-    report_path.write_text(tuning_report_markdown(run_dir, ADP, Path(run_config["input_path"]), pd.read_csv(results_path)))
-    return [report_path]
+    return tuning_report_markdown(run_dir, run.method, run.input_path, _read_evaluation_csv(run_dir, "density_metrics.csv", run.method))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -142,13 +104,15 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
         logging.info("analysing %s: method=%s", config.tuning_dir, run_config["clustering_method"])
+        report_path = config.tuning_dir / REPORT_FILENAME
         try:
-            if run is None:
-                written = _analyze_adp(config.tuning_dir, run_config, config)
-            elif run.method == AGGLOMERATIVE:
-                written = _analyze_agglomerative(run, config)
-            else:
-                written = _analyze_density(run, config)
+            if config.write_report:
+                refuse_existing([report_path], config.overwrite)
+            settings = load_evaluation_settings(config.evaluations_file)
+            written = [] if run is None else run_evaluations(config.tuning_evaluations, settings, run, config.overwrite)
+            if config.write_report:
+                report_path.write_text(_report_text(config.tuning_dir, run_config, run))
+                written.append(report_path)
         except (FileExistsError, FileNotFoundError, OSError, ValueError, pd.errors.ParserError) as exc:
             logging.error("analysis failed: %s", exc, exc_info=isinstance(exc, OSError))
             return 1

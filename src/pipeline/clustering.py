@@ -61,6 +61,10 @@ Two modes, chosen by `fine_tuning`, same convention as dim_reduction.py:
   config.save_tuning_clusterings is true (opt-in, off by default, mirrors
   dim_reduction.py's save_tuning_embeddings) - so a later reader can inspect
   any evaluated combination's labels without recomputing the sweep.
+  The evaluations declared in config.tuning_evaluations (src/analysis/clustering_tuning_evaluations.py: cophenetic
+  correlation, dendrogram jump, ... per method) run right after the sweep on those stored labels - the same
+  function src/pipeline/analyze_clustering_tuning.py runs later on the folder - and write their files next to
+  tuning_results.csv.
 
 Output lives under two separate branches of output_root, never mixed:
 <output_root>/production/<method>/ (production, runs.csv) and
@@ -109,6 +113,8 @@ from src.analysis.clustering_tuning import (
     run_clustering_tuning_sweep,
     run_spectral_affinity_aware_sweep,
 )
+from src.analysis.clustering_tuning_analysis import load_clustering_tuning_run
+from src.analysis.clustering_tuning_evaluations import evaluations_for, load_evaluation_settings, run_evaluations
 from src.analysis.model_config import ClusteringConfig, load_clustering_config
 from src.analysis.params import (
     build_tag_from_values,
@@ -649,6 +655,7 @@ def _run_one_method_tuning(
         tuning_grid = load_tuning_grid(config.params_file, method)
         consensus_config = load_consensus_config(config.params_file, method)
         stability_config = load_stability_config(config.params_file, method)
+        evaluation_settings = load_evaluation_settings(config.evaluations_file)
         # Resolved once, up front (fails before running the sweep, not after) - reused for
         # both this run's own config.md (_write_tuning_output) and runs_tuning.csv's
         # extra_columns below, instead of recomputing/re-reading input_path's config.md twice.
@@ -694,6 +701,18 @@ def _run_one_method_tuning(
         logging.error("[%s] %s", method, exc)
         return False
     logging.info("[%s] tuning results written to %s (%d combination(s) evaluated)", method, output_dir, len(results))
+
+    if evaluations_for(config.tuning_evaluations, method):
+        try:
+            # the same function analyze_clustering_tuning.py runs later on the stored folder, so the sweep and a
+            # later run give the same files (labels come back from clusterings.npz, the matrix is the one in memory)
+            written = run_evaluations(
+                config.tuning_evaluations, evaluation_settings, load_clustering_tuning_run(output_dir), overwrite=False, matrix=X
+            )
+        except (FileExistsError, FileNotFoundError, OSError, ValueError) as exc:
+            logging.error("[%s] tuning evaluations failed: %s", method, exc, exc_info=isinstance(exc, OSError))
+            return False
+        logging.info("[%s] tuning evaluations written: %s", method, [path.name for path in written])
 
     if stability_config is not None:
         title = compose_clustering_tuning_title(output_dir, method)
@@ -838,6 +857,8 @@ def _write_tuning_output(
                 "fine_tuning": config.fine_tuning,
                 "reduced_data": config.reduced_data,
                 "save_tuning_clusterings": config.save_tuning_clusterings,
+                "evaluations_file": str(config.evaluations_file),
+                "tuning_evaluations": {key: list(names) for key, names in config.tuning_evaluations.items()},
                 "run_notes": config.run_notes,
                 # viz_embedding_path deliberately absent (unlike _config_summary's production
                 # payload) - never read during fine-tuning, main() returns via _run_fine_tuning
@@ -853,6 +874,7 @@ def _write_tuning_output(
         f"Swept parameters: {swept_params}",
         f"Combinations evaluated: {len(results)}",
         f"Metrics: {metric_cols}",
+        f"Evaluations applied: {list(evaluations_for(config.tuning_evaluations, method))}",
         "",
         "No automatic selection - inspect tuning_results.csv/tuning_plot.png and pick parameters by hand.",
     ]

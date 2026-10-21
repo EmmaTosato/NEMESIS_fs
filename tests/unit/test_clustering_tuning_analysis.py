@@ -20,7 +20,7 @@ from src.analysis.clustering_tuning_analysis import (
     HINT_HEATMAP,
     HINT_JUMP,
     HINT_LABELS_2D,
-    agglomerative_analysis,
+    cophenetic_table,
     combo_key,
     convention_lines_caption,
     dendrogram_jump,
@@ -30,6 +30,7 @@ from src.analysis.clustering_tuning_analysis import (
     k_curves_targets,
     linkage_agreement,
     load_clustering_tuning_run,
+    jump_table,
     noise_filtered_curves_figures,
     silhouette_band,
     silhouette_zoom_limits,
@@ -211,30 +212,42 @@ def _three_blobs() -> np.ndarray:
     return np.vstack([rng.normal(loc=center, scale=0.3, size=(15, 2)) for center in ([0, 0], [8, 8], [0, 8])])
 
 
-def test_agglomerative_analysis_scores_each_valid_metric_linkage_pair(tmp_path):
-    rows = [
+def _rows_with_invalid_ward_cosine() -> list[dict]:
+    return [
         {"n_clusters": k, "linkage": linkage, "metric": metric, "silhouette": 0.5, "davies_bouldin": 1.0}
         for k in (2, 3)
         for linkage, metric in (("ward", "euclidean"), ("average", "euclidean"), ("ward", "cosine"), ("average", "cosine"))
     ]
-    run = _agglomerative_run(tmp_path, rows)
 
-    cophenetic, jump = agglomerative_analysis(run, _three_blobs(), range(3, 6))
+
+def test_cophenetic_table_scores_each_valid_metric_linkage_pair(tmp_path):
+    run = _agglomerative_run(tmp_path, _rows_with_invalid_ward_cosine())
+
+    cophenetic = cophenetic_table(run, _three_blobs())
 
     # ward + cosine is invalid in sklearn and was never swept: it must not appear
     assert set(zip(cophenetic["metric"], cophenetic["linkage"])) == {("euclidean", "ward"), ("euclidean", "average"), ("cosine", "average")}
     assert cophenetic["cophenetic_correlation"].between(0, 1).all()
+
+
+def test_jump_table_has_a_row_per_pair_and_k_and_a_sharper_cut_at_the_true_k(tmp_path):
+    run = _agglomerative_run(tmp_path, _rows_with_invalid_ward_cosine())
+
+    jump = jump_table(run, _three_blobs(), range(3, 6))
+
     assert set(jump["n_clusters"]) == {3, 4, 5}
+    assert set(zip(jump["metric"], jump["linkage"])) == {("euclidean", "ward"), ("euclidean", "average"), ("cosine", "average")}
     # three well-separated blobs: the cut at 3 clusters is sharper than the one at 5, for ward
     ward = jump[(jump["metric"] == "euclidean") & (jump["linkage"] == "ward")].set_index("n_clusters")["jump"]
     assert ward[3] > ward[5]
 
 
-def test_agglomerative_analysis_rejects_a_density_run(tmp_path):
+@pytest.mark.parametrize("table", [lambda run: cophenetic_table(run, _three_blobs()), lambda run: jump_table(run, _three_blobs(), range(3, 4))])
+def test_the_dendrogram_tables_reject_a_density_run(tmp_path, table):
     run = ClusteringTuningRun(tmp_path, "hdbscan", Path("m"), pd.DataFrame(), {})
 
     with pytest.raises(ValueError, match="needs an agglomerative run"):
-        agglomerative_analysis(run, _three_blobs(), range(3, 4))
+        table(run)
 
 
 def _hint(hint: tuple[str, ...]) -> str:
