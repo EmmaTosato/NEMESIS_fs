@@ -8,6 +8,18 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 21-10-26 — t-SNE: inizializzazione MDS classico e `learning_rate: "auto"`
+
+**Cosa è cambiato**:
+- Con le distanze precalcolate (`metric="precomputed"`, sempre il caso nel repo) t-SNE non parte più da `init="random"` ma dalle prime coordinate dell'MDS classico della matrice di distanze, scalate come l'init PCA di scikit-learn (prima colonna con deviazione standard 1e-4). Codice: `reduction.py::tsne_init_from_distances`, usata da `embed` e da `tuning.py::evaluate_tsne`. Per distanze euclidee coincide con la PCA a meno del segno (test di regressione); 0,8 s su 5269 soggetti.
+- `learning_rate` passa da 200 a `"auto"` (= $N/\alpha/4$, circa 110 per N≈5269) in `params_reduction.json` e `params_reduction_sdc.json`.
+
+**Perché**: l'inizializzazione casuale conserva peggio la struttura globale (Kobak & Linderman 2021); il 200 veniva da Thiebaut de Schotten et al. 2020 ed era circa il doppio della regola di Belkina et al. 2019 (adottata da scikit-learn).
+
+**Alternative scartate**: `init="pca"` sulla matrice grezza (264274 colonne, costo e memoria proibitivi e incoerente con le distanze Dice); lasciare 200 per replicare Thiebaut. Le distanze elevate al quadrato dal percorso Barnes-Hut di scikit-learn non sono state toccate: t-SNE usa un kernel gaussiano sul quadrato della distanza, quindi $d^2$ è la forma corretta e l'insieme dei vicini non cambia.
+
+**Conseguenza ancora vera oggi**: le run e i tuning t-SNE precedenti usavano init casuale e learning rate 200; non sono confrontabili punto per punto con quelli nuovi.
+
 ## 21-10-26 — Rimosso evidence_accumulation
 
 Tolto per ora il metodo di clustering `evidence_accumulation` (EAC, Fred & Jain 2002). I `CLUSTERING_METHODS` passano da 8 a 7.

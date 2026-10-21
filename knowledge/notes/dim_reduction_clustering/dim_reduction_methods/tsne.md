@@ -46,9 +46,9 @@ Il termine $p_{ij}$ attrae i vicini, il termine $q_{ij}$ respinge tutti gli altr
 ## 3. Il nostro contesto
 
 - **Dati.** Matrici voxel-wise con $n \approx 5000$-5800 e $p \approx$ 220-260 mila; in tuning `metric` ∈ {`dice`, `euclidean`} (lesioni binarie) o solo `euclidean` (`params_reduction_sdc.json`, disconnettoma continuo).
-- **Distanze precalcolate.** Il repo calcola una volta la matrice $n\times n$ delle distanze e passa `metric="precomputed"` (`src/analysis/distances.py`, `reduction.py::embed`); in quel caso forza `init="random"`, perché scikit-learn non accetta `init="pca"` su una matrice di distanze [4].
+- **Distanze precalcolate.** Il repo calcola una volta la matrice $n\times n$ delle distanze e passa `metric="precomputed"` (`src/analysis/distances.py`, `reduction.py::embed`); in quel caso scikit-learn non accetta `init="pca"` [4], quindi il repo parte dalle prime coordinate dell'**MDS classico** della matrice di distanze (`reduction.py::tsne_init_from_distances`), scalate come fa scikit-learn per la PCA (prima colonna con deviazione standard $10^{-4}$). Per distanze euclidee l'MDS classico coincide con i punteggi della PCA [11, 12], quindi è la stessa inizializzazione del default di scikit-learn; per `dice` è la stessa ricetta sulle distanze Dice (verificata: per le euclidee coincide con la PCA a meno del segno, test `test_tsne_init_from_euclidean_distances_equals_pca_scores_up_to_sign`). Costo su 5269 soggetti: meno di 1 s. Se i primi autovalori non sono positivi, l'inizializzazione solleva un errore invece di ripiegare su una casuale.
 - **Le distanze vengono elevate al quadrato.** Nel percorso Barnes-Hut scikit-learn eleva al quadrato le distanze dei vicini qualunque sia la metrica (`distances_nn.data **= 2`, con il commento "Not sure of the implication of using a different metric"; sorgente installato). Per `euclidean` è la definizione del paper; per `dice` la gaussiana lavora su $d_\text{Dice}^2$. L'insieme dei vicini non cambia (trasformazione monotona), cambia la forma delle $p_{j|i}$.
-- **Riferimento.** Thiebaut de Schotten et al. 2020 usano t-SNE in 2D con perplexity 30, exaggeration 12, learning rate 200 e 1000 iterazioni (scikit-learn 0.23) [6]; il materiale supplementare replica la figura a perplexity 40, 60 e 80 [6, Supplementary Figure 1]. Il repo fissa gli stessi valori e varia solo `perplexity` (scelta del progetto).
+- **Riferimento.** Thiebaut de Schotten et al. 2020 usano t-SNE in 2D con perplexity 30, exaggeration 12, learning rate 200 e 1000 iterazioni (scikit-learn 0.23) [6]; il materiale supplementare replica la figura a perplexity 40, 60 e 80 [6, Supplementary Figure 1]. Il repo fissa perplexity 30, exaggeration 12 e 1000 iterazioni come loro e varia solo `perplexity` (scelta del progetto); il learning rate non è più 200 ma `"auto"` (vedi §4).
 - **Solo 2D.** `n_components` è fisso a 2: Barnes-Hut non accetta più di 3 dimensioni [4]. Quindi un clustering a valle di t-SNE lavora su un embedding 2D, esattamente ciò che de Bodt et al. sconsigliano [7, §5 punto 10] (vedi §10).
 
 ## 4. I parametri
@@ -57,14 +57,14 @@ Il termine $p_{ij}$ attrae i vicini, il termine $q_{ij}$ respinge tutti gli altr
 |---|---|---|---|---|
 | `perplexity` | numero effettivo di vicini; fissa $\sigma_i$ | 5-50 [1, 4]; con molti punti anche $n/100$ [8] | 30 | griglia 5, 15, 30, 50, 75, 100, 200; base 30 |
 | `early_exaggeration` | fattore $\alpha$ della prima fase | "not very critical" [4]; fino a ~4 anche dopo la prima fase per dati molto grandi [8] | 12 | 12 |
-| `learning_rate` | passo della discesa del gradiente | [10, 1000] [4] | `"auto"` = $\max(N/\alpha/4,\ 50)$ [4, 9] | 200 |
+| `learning_rate` | passo della discesa del gradiente | [10, 1000] [4] | `"auto"` = $\max(N/\alpha/4,\ 50)$ [4, 9] | `"auto"` |
 | `max_iter` | iterazioni totali | "almeno 250" [4] | 1000 | 1000 |
-| `init` | posizione iniziale | `"pca"` o `"random"` | `"pca"` | `"random"` (forzato con le distanze precalcolate) |
+| `init` | posizione iniziale | `"pca"`, `"random"` o un array | `"pca"` | MDS classico delle distanze precalcolate (array passato da `embed`) |
 | `metric` | distanza nello spazio originale | — | `"euclidean"` (interpretata come euclidea al quadrato) | `dice`, `euclidean`, sempre via `"precomputed"` |
 | `method`, `angle` | Barnes-Hut e sua precisione $\theta$ | $\theta$ 0,2-0,8 [4] | `"barnes_hut"`, 0,5 | default |
 | `random_state` | seed | — | `None` | 0 |
 
-**Il learning rate del repo è circa il doppio dell'automatico.** Con $N = 5269$ e $\alpha = 12$, `"auto"` darebbe $5269/12/4 \approx 110$. Belkina et al. 2019 propongono $\eta = N/\alpha$ [9]; scikit-learn divide per 4 perché la sua definizione di learning rate è 4 volte quella di openTSNE/FIt-SNE ("our learning_rate=200 corresponds to learning_rate=800 in those other implementations") [4]. Kobak & Berens 2019 usano $\eta = n/12$ quando supera 200 [8]. Il valore 200 viene dal paper di riferimento [6], non da queste regole.
+**Il learning rate è `"auto"`.** Con $N = 5269$ e $\alpha = 12$ vale $5269/12/4 \approx 110$. Belkina et al. 2019 propongono $\eta = N/\alpha$ [9]; scikit-learn divide per 4 perché la sua definizione di learning rate è 4 volte quella di openTSNE/FIt-SNE ("our learning_rate=200 corresponds to learning_rate=800 in those other implementations") [4]. Kobak & Berens 2019 usano $\eta = n/12$ quando supera 200 [8]. Il paper di riferimento [6] usa 200, circa il doppio: è un valore fisso, non derivato da $N$. Le run di tuning fatte prima del passaggio a `"auto"` usavano 200 e non sono confrontabili punto per punto con quelle nuove.
 
 ## 5. Come si fa il tuning
 
@@ -115,7 +115,7 @@ Le sei lezioni di Wattenberg, Viégas & Johnson 2016 [2], con le conseguenze per
 Altre insidie documentate:
 
 - **Separazione come conseguenza dei parametri.** Più repulsione (exaggeration bassa) dà cluster più discreti e separati, più attrazione dà strutture continue: la "netta separazione" di un t-SNE è in parte una scelta del punto sullo spettro attrazione-repulsione [12].
-- **Inizializzazione.** Con `init="random"` (sempre il caso nel repo, per via delle distanze precalcolate) la struttura globale è meno affidabile; Kobak & Linderman mostrano che con la stessa inizializzazione informata t-SNE e UMAP conservano il globale in modo simile [10].
+- **Inizializzazione.** Con `init="random"` la struttura globale è meno affidabile; Kobak & Linderman mostrano che con la stessa inizializzazione informata t-SNE e UMAP conservano il globale in modo simile [10]. Il repo usa un'inizializzazione informata (MDS classico, §3), non casuale.
 - **2D distorce comunque.** Chari & Pachter mostrano che ridurre a 2 dimensioni distorce inevitabilmente vicinati e distanze [13]; de Bodt et al.: "Do not perform downstream analysis on 2D embeddings" [7, §5 punto 10].
 - **Clustering dopo t-SNE**: il dibattito e i controesempi sono in [`../challenge_of_clustering_after_dim_reduction.md`](../challenge_of_clustering_after_dim_reduction.md).
 
@@ -134,3 +134,5 @@ Altre insidie documentate:
 11. McInnes, L., Healy, J., Melville, J. (2018). *UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction.* arXiv:1802.03426 (sezione sulle prestazioni e la scalabilità).
 12. Böhm, J. N., Berens, P., Kobak, D. (2022). *Attraction-Repulsion Spectrum in Neighbor Embeddings.* Journal of Machine Learning Research 23(95): 1-32. https://jmlr.org/papers/v23/21-0055.html
 13. Chari, T., Pachter, L. (2023). *The specious art of single-cell genomics.* PLoS Computational Biology 19(8): e1011288. https://doi.org/10.1371/journal.pcbi.1011288
+11. Torgerson, W. S. (1952). *Multidimensional scaling: I. Theory and method.* Psychometrika 17: 401-419. https://doi.org/10.1007/BF02288916
+12. Gower, J. C. (1966). *Some distance properties of latent root and vector methods used in multivariate analysis.* Biometrika 53: 325-338. https://doi.org/10.1093/biomet/53.3-4.325

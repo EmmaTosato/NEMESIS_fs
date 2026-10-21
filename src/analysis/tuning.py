@@ -19,7 +19,7 @@ from sklearn.manifold import trustworthiness
 
 from src.analysis.distances import PRECOMPUTABLE_METRICS, precomputed_distance
 from src.analysis.pca_method import fit_pca_embedding
-from src.analysis.reduction import pacmap_embed, tsne_embed, umap_embed
+from src.analysis.reduction import pacmap_embed, tsne_embed, tsne_init_from_distances, umap_embed
 from src.analysis.tuning_evaluations import CUMULATIVE_EXPLAINED_VARIANCE, TRUSTWORTHINESS
 
 TUNING_METRIC_NAMES = {
@@ -92,9 +92,9 @@ def evaluate_tsne(
     """Embed with t-SNE, then score with trustworthiness(X, embedding).
 
     Same precomputed-metric handling as evaluate_umap (see its docstring and
-    docs/dev/models.md) - additionally forces init="random" whenever
-    metric="precomputed", since sklearn TSNE's own default init="pca" can't
-    run on a distance matrix. `distance_cache` behaves exactly as in
+    docs/dev/models.md) - additionally starts t-SNE from classical MDS of the
+    distance matrix (tsne_init_from_distances) whenever metric="precomputed",
+    since sklearn TSNE's own default init="pca" can't run on a distance matrix. `distance_cache` behaves exactly as in
     evaluate_umap. Caveat: the euclidean speedup magnitude is only measured
     for evaluate_umap - correct and safe for t-SNE either way (same
     already-validated mechanism), but don't assume the same order of
@@ -110,7 +110,7 @@ def evaluate_tsne(
                 distance_cache[metric] = X_input
         tsne_params = {k: v for k, v in params.items() if k != "metric"}
         tsne_params["metric"] = "precomputed"
-        tsne_params["init"] = "random"
+        tsne_params["init"] = tsne_init_from_distances(X_input, tsne_params.get("n_components", 2), tsne_params.get("random_state"))
         trustworthiness_metric = "precomputed"
     else:
         X_input = X

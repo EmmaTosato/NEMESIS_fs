@@ -16,6 +16,7 @@ from collections.abc import Callable
 import numpy as np
 import pacmap
 import umap
+from scipy.sparse.linalg import eigsh
 from sklearn.manifold import TSNE
 
 from src.analysis.distances import PRECOMPUTABLE_METRICS, SUPPORTED_BINARY_METRICS, precomputed_distance, require_binary_matrix
@@ -28,6 +29,37 @@ def umap_embed(X: np.ndarray, params: dict) -> np.ndarray:
 
 def tsne_embed(X: np.ndarray, params: dict) -> np.ndarray:
     return TSNE(**params).fit_transform(X)
+
+
+def tsne_init_from_distances(distance_matrix: np.ndarray, n_components: int, random_state: int | None) -> np.ndarray:
+    """t-SNE starting positions from a distance matrix: the first `n_components` coordinates of
+    classical MDS (Torgerson 1952; Gower 1966), scaled so the first column has standard deviation 1e-4.
+
+    sklearn's own `init="pca"` needs the raw matrix and refuses `metric="precomputed"`. For euclidean
+    distances classical MDS gives exactly the PCA scores (Gower 1966), so the scaling here is the one
+    sklearn applies to its PCA init; for other metrics (dice, jaccard) it is the same recipe on that
+    metric's distances. An informative start keeps more of the global arrangement than a random one
+    (Kobak & Linderman 2021). Raises if the leading eigenvalues are not positive (up to rounding, relative
+    to the largest): the distances then have no `n_components`-dimensional configuration to start from."""
+    n = distance_matrix.shape[0]
+    if n_components >= n:
+        raise ValueError(f"t-SNE init needs n_components < n_samples, got n_components={n_components} for {n} samples")
+    if not distance_matrix.any():
+        raise ValueError("every pairwise distance is 0 - no starting configuration for t-SNE")
+    gram = np.square(distance_matrix, dtype=np.float64)
+    gram -= gram.mean(axis=0, keepdims=True)
+    gram -= gram.mean(axis=1, keepdims=True)
+    gram *= -0.5
+    start = np.random.RandomState(random_state).uniform(-1, 1, n)
+    eigenvalues, eigenvectors = eigsh(gram, k=n_components, which="LA", v0=start)
+    if eigenvalues.min() <= np.finfo(np.float64).eps * n * eigenvalues.max():
+        raise ValueError(
+            f"classical MDS of the distance matrix has non-positive leading eigenvalues {np.sort(eigenvalues)[::-1]} - "
+            f"no {n_components}-dimensional starting configuration for t-SNE"
+        )
+    order = np.argsort(eigenvalues)[::-1]
+    coordinates = eigenvectors[:, order] * np.sqrt(eigenvalues[order])
+    return (coordinates / np.std(coordinates[:, 0]) * 1e-4).astype(np.float32)
 
 
 def pca_embed(X: np.ndarray, params: dict) -> np.ndarray:
@@ -62,8 +94,9 @@ def embed(
     guarantees an exact neighbor graph regardless of cohort size and, for
     euclidean specifically, is also a large speed win at this project's scale
     (see docs/dev/models.md for why and the measured numbers). No effect for
-    pca/pacmap, whose params never carry a "metric" key. Forces
-    init="random" for reduction_method="tsne" when precomputing - sklearn's
+    pca/pacmap, whose params never carry a "metric" key. For
+    reduction_method="tsne" when precomputing, the starting positions are
+    classical MDS of the distance matrix (tsne_init_from_distances) - sklearn's
     own default init="pca" can't run on a distance matrix.
 
     `distance_cache`, when given, is read/written by metric name - lets a
@@ -95,7 +128,7 @@ def embed(
         params = {k: v for k, v in params.items() if k != "metric"}
         params["metric"] = "precomputed"
         if reduction_method == "tsne":
-            params["init"] = "random"
+            params["init"] = tsne_init_from_distances(X, params.get("n_components", 2), params.get("random_state"))
     return REDUCTION_METHODS[reduction_method](X, params)
 
 

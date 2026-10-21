@@ -10,6 +10,7 @@ from src.analysis.reduction import (
     pacmap_embed,
     pca_embed,
     tsne_embed,
+    tsne_init_from_distances,
     umap_embed,
 )
 
@@ -144,8 +145,8 @@ def test_embed_euclidean_metric_for_tsne_uses_precomputed_distance_matrix():
     """Regression (2026-08-25, docs/debugging/debug_25_08_26.md): extended from umap-only to
     tsne too, on request - embed("tsne", ..., metric="euclidean") must now match the same
     precomputed-distance path tuning.py's evaluate_tsne already takes, same as the umap test
-    above (bit-identical output). sklearn's TSNE forces init="random" whenever metric is
-    switched to "precomputed" (its own default "pca" needs raw X, not a distance matrix)."""
+    above (bit-identical output). sklearn's TSNE cannot use its default init="pca" on a
+    distance matrix, so embed() starts it from classical MDS of that matrix."""
     from src.analysis.distances import euclidean_pairwise_distance
 
     params = {"n_components": 2, "perplexity": 5, "random_state": 0, "metric": "euclidean"}
@@ -154,7 +155,7 @@ def test_embed_euclidean_metric_for_tsne_uses_precomputed_distance_matrix():
     distance_matrix = euclidean_pairwise_distance(_X)
     precomputed_params = {k: v for k, v in params.items() if k != "metric"}
     precomputed_params["metric"] = "precomputed"
-    precomputed_params["init"] = "random"
+    precomputed_params["init"] = tsne_init_from_distances(distance_matrix, 2, 0)
     direct = tsne_embed(distance_matrix, precomputed_params)
 
     assert np.allclose(via_embed, direct)
@@ -170,9 +171,9 @@ def test_embed_euclidean_distance_cache_reused_across_calls_for_umap():
     assert cache["euclidean"] is cached_matrix
 
 
-def test_embed_dice_forces_tsne_init_random():
+def test_embed_dice_gives_tsne_a_distance_based_init():
     # sklearn's TSNE default init="pca" cannot run on a distance matrix -
-    # embed() must override it whenever metric is precomputed.
+    # embed() must replace it whenever metric is precomputed.
     params = {"n_components": 2, "perplexity": 5, "random_state": 0, "metric": "dice"}
     embedding = embed("tsne", _X_BINARY, params)
     assert embedding.shape == (30, 2)
@@ -351,3 +352,55 @@ def test_embedding_for_viz_rejects_a_pca_with_fewer_components_than_the_view_nee
     embedding = pca_embed(_X, params)
     with pytest.raises(ValueError, match="fewer than viz_n_components=2"):
         embedding_for_viz("pca", _X, params, embedding, viz_n_components=2)
+
+
+def test_tsne_init_from_euclidean_distances_equals_pca_scores_up_to_sign():
+    """For euclidean distances classical MDS is PCA (Gower 1966): the init must match the one sklearn
+    builds for init="pca" - PCA scores rescaled so the first column has std 1e-4."""
+    from sklearn.decomposition import PCA
+
+    from src.analysis.distances import euclidean_pairwise_distance
+
+    init = tsne_init_from_distances(euclidean_pairwise_distance(_X), 2, 0)
+    scores = PCA(n_components=2).fit_transform(_X)
+    expected = scores / np.std(scores[:, 0]) * 1e-4
+    assert init.dtype == np.float32
+    assert np.std(init[:, 0]) == pytest.approx(1e-4, rel=1e-4)
+    for column in range(2):
+        sign = np.sign(init[:, column] @ expected[:, column])
+        np.testing.assert_allclose(sign * init[:, column], expected[:, column], atol=1e-8)
+
+
+def test_tsne_init_from_distances_is_deterministic_for_a_seed():
+    from src.analysis.distances import binary_pairwise_distance
+
+    distances = binary_pairwise_distance(_X_BINARY, "dice")
+    np.testing.assert_array_equal(
+        tsne_init_from_distances(distances, 2, 3), tsne_init_from_distances(distances, 2, 3)
+    )
+
+
+def test_tsne_init_from_distances_does_not_modify_the_distance_matrix():
+    from src.analysis.distances import euclidean_pairwise_distance
+
+    distances = euclidean_pairwise_distance(_X)
+    before = distances.copy()
+    tsne_init_from_distances(distances, 2, 0)
+    np.testing.assert_array_equal(distances, before)
+
+
+def test_tsne_init_from_distances_raises_when_every_distance_is_zero():
+    with pytest.raises(ValueError, match="every pairwise distance is 0"):
+        tsne_init_from_distances(np.zeros((10, 10)), 2, 0)
+
+
+def test_tsne_init_from_distances_raises_without_positive_leading_eigenvalues():
+    # Two points at distance 1 span one dimension only: the second eigenvalue of the MDS Gram matrix is 0.
+    distances = np.array([[0.0, 1.0, 1.0], [1.0, 0.0, 2.0], [1.0, 2.0, 0.0]])
+    with pytest.raises(ValueError, match="non-positive leading eigenvalues"):
+        tsne_init_from_distances(distances, 2, 0)
+
+
+def test_tsne_init_from_distances_raises_when_n_components_reaches_n_samples():
+    with pytest.raises(ValueError, match="n_components < n_samples"):
+        tsne_init_from_distances(np.ones((3, 3)) - np.eye(3), 3, 0)
