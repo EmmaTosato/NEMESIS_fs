@@ -6,7 +6,7 @@ the sweep does not write; src/analysis/clustering_tuning_evaluations.py runs the
 src/analysis/clustering_tuning_report.py lays the files out as report.md:
 
 - agglomerative: cophenetic correlation and dendrogram jump per (metric, linkage), agreement between linkages,
-  silhouette and Davies-Bouldin curves per n_clusters (`single` in a figure of its own);
+  silhouette and Davies-Bouldin curves per n_clusters (the linkages other than `single`, on axes shared by the run);
 - hdbscan / hdbscan_soft: the number of clusters and the share of the largest cluster of every combination, and the
   silhouette/Davies-Bouldin curves restricted to combinations with little noise.
 
@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -205,7 +206,7 @@ def ordered(values, preferred: tuple[str, ...]) -> list[str]:
 
 
 def silhouette_zoom_limits(silhouette: pd.Series) -> tuple[float, float]:
-    """The y-limits of the silhouette panel fitted to the data: its range plus 8% on each side (0.05 if it is flat)."""
+    """The y-limits of a panel fitted to the data of one column: its range plus 8% on each side (0.05 if it is flat)."""
     values = silhouette.dropna()
     if values.empty:
         raise ValueError("no silhouette to fit the axis to")
@@ -214,24 +215,33 @@ def silhouette_zoom_limits(silhouette: pd.Series) -> tuple[float, float]:
     return low - padding, high + padding
 
 
-def curves_subset(results: pd.DataFrame, metric: str, single: bool) -> pd.DataFrame:
-    is_single = results["linkage"] == SINGLE_LINKAGE
-    return results[(results["metric"] == metric) & (is_single if single else ~is_single)]
+def curves_subset(results: pd.DataFrame, metric: str) -> pd.DataFrame:
+    """The rows of one `metric` for the linkages other than `single`, the only ones the curves figures draw."""
+    return results[(results["metric"] == metric) & (results["linkage"] != SINGLE_LINKAGE)]
 
 
-def k_curves_targets(results: pd.DataFrame) -> list[tuple[str, bool]]:
-    """The `(metric, single)` of every curves figure of an agglomerative run: per metric one figure for the linkages
-    other than `single` and, if the run has it, one for `single` alone (its silhouette goes far below the others)."""
-    return [
-        (metric, single)
-        for metric in ordered(results["metric"].unique(), METRIC_ORDER)
-        for single in (False, True)
-        if not curves_subset(results, metric, single).empty
+def k_curves_targets(results: pd.DataFrame) -> list[str]:
+    """The metrics that get a curves figure in an agglomerative run, in METRIC_ORDER: those with a linkage other than `single`."""
+    return [metric for metric in ordered(results["metric"].unique(), METRIC_ORDER) if not curves_subset(results, metric).empty]
+
+
+def k_curves_file_name(metric: str) -> str:
+    return f"k_curves_metric={metric}.png"
+
+
+def run_axis_limits(results: pd.DataFrame, column: str) -> tuple[float, float]:
+    """The y-limits of `column` shared by every curves figure of a run, so the figures compare at a glance: the lowest
+    low and the highest high of the limits fitted to each metric (silhouette_zoom_limits), the low rounded down and
+    the high rounded up to 0.1. Raises if no figure has a value of `column`."""
+    fitted = [
+        silhouette_zoom_limits(values)
+        for metric in k_curves_targets(results)
+        if not (values := curves_subset(results, metric)[column].dropna()).empty
     ]
-
-
-def k_curves_file_name(metric: str, single: bool) -> str:
-    return f"k_curves_{'single_' if single else ''}metric={metric}.png"
+    if not fitted:
+        raise ValueError(f"no {column} in any curves figure of the run to fit the axis to")
+    low, high = min(low for low, _ in fitted), max(high for _, high in fitted)
+    return math.floor(round(low * 10, 9)) / 10, math.ceil(round(high * 10, 9)) / 10
 
 
 def _plot_curves(axis, subset: pd.DataFrame, column: str, label: str) -> None:
@@ -252,32 +262,27 @@ def _draw_convention_lines(axis) -> None:
         axis.text(axis.get_xlim()[1], line, f" {line:.2f}", va="center", fontsize=7, color="grey")
 
 
-def k_curves_figure(results: pd.DataFrame, metric: str, single: bool) -> Figure:
-    """Silhouette and Davies-Bouldin per n_clusters, one line per linkage, for one `metric` of an agglomerative run:
-    the silhouette on a fixed axis (-1..1), on an axis fitted to the data, and Davies-Bouldin. The linkages other than
-    `single` (`single=False`) or `single` alone (`single=True`). The silhouette panels carry the dashed lines of
-    CONVENTION_LINES that fall inside them. Davies-Bouldin is NaN for a non-euclidean metric: its panel is left out."""
-    subset = curves_subset(results, metric, single)
+def k_curves_figure(results: pd.DataFrame, metric: str) -> Figure:
+    """Silhouette and Davies-Bouldin per n_clusters, one line per linkage other than `single`, for one `metric` of an
+    agglomerative run. The axes are those of the whole run (run_axis_limits), the same in every metric's figure. The
+    silhouette panel carries the dashed lines of CONVENTION_LINES that fall inside it. Davies-Bouldin is NaN for a
+    non-euclidean metric: its panel is left out."""
+    subset = curves_subset(results, metric)
     if subset.empty:
-        raise ValueError(f"no row of the run has metric={metric!r} and {'the single linkage' if single else 'a linkage other than single'}")
+        raise ValueError(f"no row of the run has metric={metric!r} and a linkage other than single")
     has_davies_bouldin = subset["davies_bouldin"].notna().any()
-    figure = Figure(figsize=(18 if has_davies_bouldin else 12, 4.5))
-    axes = figure.subplots(1, 3 if has_davies_bouldin else 2)
-    silhouette_label = "Silhouette (higher = better)"
-    _plot_curves(axes[0], subset, "silhouette", silhouette_label)
-    axes[0].set_ylim(-1, 1)
-    axes[0].set_title("silhouette, fixed axis (-1 to 1)", fontsize=10)
-    _plot_curves(axes[1], subset, "silhouette", silhouette_label)
-    axes[1].set_ylim(*silhouette_zoom_limits(subset["silhouette"]))
-    axes[1].set_title("silhouette, axis fitted to the data", fontsize=10)
-    for axis in axes[:2]:
-        _draw_convention_lines(axis)
+    figure = Figure(figsize=(12 if has_davies_bouldin else 6, 4.5))
+    axes = figure.subplots(1, 2) if has_davies_bouldin else [figure.subplots()]
+    _plot_curves(axes[0], subset, "silhouette", "Silhouette (higher = better)")
+    axes[0].set_ylim(*run_axis_limits(results, "silhouette"))
+    axes[0].set_title("silhouette", fontsize=10)
+    _draw_convention_lines(axes[0])
     if has_davies_bouldin:
-        _plot_curves(axes[2], subset, "davies_bouldin", "Davies-Bouldin (lower = better)")
-        axes[2].set_ylim(bottom=0)
-        axes[2].set_title("Davies-Bouldin", fontsize=10)
+        _plot_curves(axes[1], subset, "davies_bouldin", "Davies-Bouldin (lower = better)")
+        axes[1].set_ylim(*run_axis_limits(results, "davies_bouldin"))
+        axes[1].set_title("Davies-Bouldin", fontsize=10)
     axes[0].legend(title="linkage", fontsize=8)
-    figure.suptitle(f"Agglomerative, metric={metric}" + (", single linkage" if single else ""))
+    figure.suptitle(f"Agglomerative, metric={metric}")
     figure.tight_layout()
     return figure
 

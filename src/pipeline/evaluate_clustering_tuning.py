@@ -9,8 +9,8 @@ the config's `tuning_evaluations` block lists for the run's method
 (src/analysis/clustering_tuning_evaluations.py - the same function the sweep runs when its own config lists them),
 writing their files next to the run's:
 
-- agglomerative: cophenetic_correlation.csv, dendrogram_jump.csv, linkage_agreement.csv, k_curves_metric=<metric>.png and
-  k_curves_single_metric=<metric>.png (the single linkage, in a figure of its own)
+- agglomerative: cophenetic_correlation.csv, dendrogram_jump.csv, linkage_agreement.csv and k_curves_metric=<metric>.png
+  (one figure per metric, the linkages other than single, on axes shared by the run)
 - hdbscan / hdbscan_soft: density_metrics.csv, noise_filtered_curves[_cluster_selection_method=<method>].png
 
 With `write_report` it then writes report.md, the tables of those files and of tuning_results.csv with no verdict;

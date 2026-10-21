@@ -18,6 +18,7 @@ from src.analysis.clustering_tuning_analysis import (
     k_curves_figure,
     k_curves_file_name,
     k_curves_targets,
+    run_axis_limits,
     linkage_agreement,
     load_clustering_tuning_run,
     noise_filtered_curves_figures,
@@ -258,45 +259,62 @@ def test_silhouette_zoom_limits_pad_the_range_and_a_flat_series_gets_a_fixed_pad
         silhouette_zoom_limits(pd.Series([np.nan]))
 
 
-def test_k_curves_targets_give_single_its_own_figure_and_follow_the_metric_order():
-    targets = k_curves_targets(_curves_results())
-
-    assert targets == [("euclidean", False), ("euclidean", True), ("cosine", False)]
-    assert [k_curves_file_name(metric, single) for metric, single in targets] == [
-        "k_curves_metric=euclidean.png", "k_curves_single_metric=euclidean.png", "k_curves_metric=cosine.png",
-    ]
-
-
-def test_k_curves_figure_rejects_a_metric_or_a_group_the_run_does_not_have():
+def test_k_curves_targets_are_the_metrics_with_a_linkage_other_than_single_in_the_metric_order():
     results = _curves_results()
+    only_single = results[results["linkage"] == "single"].assign(metric="manhattan")
 
+    assert k_curves_targets(results) == ["euclidean", "cosine"]
+    assert k_curves_targets(pd.concat([results, only_single])) == ["euclidean", "cosine"]  # a metric with only single has no figure
+    assert [k_curves_file_name(metric) for metric in k_curves_targets(results)] == ["k_curves_metric=euclidean.png", "k_curves_metric=cosine.png"]
+
+
+def test_k_curves_figure_rejects_a_metric_the_run_does_not_have_or_that_has_only_single():
+    results = _curves_results()
+    only_single = pd.concat([results, results[results["linkage"] == "single"].assign(metric="manhattan")])
+
+    with pytest.raises(ValueError, match="metric='chebyshev'"):
+        k_curves_figure(results, "chebyshev")
     with pytest.raises(ValueError, match="metric='manhattan'"):
-        k_curves_figure(results, "manhattan", single=False)
-    with pytest.raises(ValueError, match="metric='cosine' and the single linkage"):
-        k_curves_figure(results, "cosine", single=True)
+        k_curves_figure(only_single, "manhattan")
 
 
-def test_k_curves_figure_keeps_single_out_of_the_main_figure_and_alone_in_its_own():
+def test_k_curves_figure_does_not_draw_single():
+    figure = k_curves_figure(_curves_results(), "euclidean")
+
+    assert [line.get_label() for line in figure.axes[0].get_lines() if not line.get_label().startswith("_")] == ["ward"]
+
+
+def test_run_axis_limits_take_the_extremes_of_every_metric_and_round_them_out_to_a_tenth():
+    results = _curves_results()  # silhouette without single: euclidean 0.4-0.5, cosine 0.6-0.7; Davies-Bouldin only euclidean
+
+    assert run_axis_limits(results, "silhouette") == pytest.approx((0.3, 0.8))
+    assert run_axis_limits(results, "davies_bouldin") == pytest.approx((0.9, 1.2))  # the NaN of cosine is ignored
+
+
+def test_run_axis_limits_ignore_single_even_when_it_is_the_lowest():
+    results = _curves_results()  # single reaches -0.2
+
+    assert run_axis_limits(results, "silhouette")[0] > 0
+
+
+def test_run_axis_limits_reject_a_run_with_no_value_to_fit():
+    results = _curves_results().assign(davies_bouldin=np.nan)
+
+    with pytest.raises(ValueError, match="no davies_bouldin"):
+        run_axis_limits(results, "davies_bouldin")
+
+
+def test_k_curves_figures_of_a_run_share_their_axes_and_drop_an_empty_davies_bouldin_panel():
     results = _curves_results()
 
-    main = k_curves_figure(results, "euclidean", single=False)
-    alone = k_curves_figure(results, "euclidean", single=True)
+    euclidean = k_curves_figure(results, "euclidean")
+    cosine = k_curves_figure(results, "cosine")
 
-    assert [line.get_label() for line in main.axes[0].get_lines() if not line.get_label().startswith("_")] == ["ward"]
-    assert [line.get_label() for line in alone.axes[0].get_lines() if not line.get_label().startswith("_")] == ["single"]
-
-
-def test_k_curves_figure_has_a_fixed_and_a_fitted_silhouette_axis_and_drops_an_empty_davies_bouldin_panel():
-    results = _curves_results()
-
-    euclidean = k_curves_figure(results, "euclidean", single=False)
-    cosine = k_curves_figure(results, "cosine", single=False)
-
-    assert len(euclidean.axes) == 3 and len(cosine.axes) == 2
-    assert euclidean.axes[0].get_ylim() == (-1, 1)
-    assert euclidean.axes[1].get_ylim() == pytest.approx(silhouette_zoom_limits(pd.Series([0.5, 0.4])))
-    # the fixed axis shows all four dashed lines of the convention (plus the one data line)
-    assert len(euclidean.axes[0].get_lines()) == 1 + len(CONVENTION_LINES)
+    assert len(euclidean.axes) == 2 and len(cosine.axes) == 1
+    assert euclidean.axes[0].get_ylim() == cosine.axes[0].get_ylim() == pytest.approx((0.3, 0.8))
+    assert euclidean.axes[1].get_ylim() == pytest.approx((0.9, 1.2))
+    # no fixed -1..1 panel: the silhouette axis is the run's, and the dashed lines of the convention inside it are drawn
+    assert len(euclidean.axes[0].get_lines()) == 1 + sum(0.3 <= line <= 0.8 for line in CONVENTION_LINES)
 
 
 def test_linkage_agreement_is_the_ari_between_the_partitions_of_each_pair_of_linkages(tmp_path):

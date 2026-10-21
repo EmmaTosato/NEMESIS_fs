@@ -13,7 +13,6 @@ from hypothesis import strategies as st
 from src.analysis.clustering_tuning_analysis import (
     CONVENTION_LINES,
     SILHOUETTE_BANDS,
-    silhouette_zoom_limits,
 )
 from src.analysis.clustering_tuning_report import (
     _k_ranges,
@@ -45,13 +44,12 @@ def test_the_band_never_goes_down_when_the_silhouette_goes_up(x, y):
     assert rank(low) <= rank(high)
 
 
-@given(st.lists(st.floats(-1, 1, allow_nan=False), min_size=1, max_size=15))
-def test_the_caption_says_all_lines_are_visible_exactly_when_the_axis_contains_them_all(values):
-    subset = pd.DataFrame({"silhouette": values})
-    low, high = silhouette_zoom_limits(subset["silhouette"])
-    caption = convention_lines_caption(subset)
+@given(st.floats(-1, 1, allow_nan=False), st.floats(0.01, 2, allow_nan=False))
+def test_the_caption_says_all_lines_are_visible_exactly_when_the_axis_contains_them_all(low, width):
+    high = low + width
+    caption = convention_lines_caption(low, high)
     assert all(f"{line:.2f}" in caption for line in CONVENTION_LINES)
-    assert ("Pannello centrale: si vedono tutti." in caption) == all(low <= line <= high for line in CONVENTION_LINES)
+    assert ("Si vedono tutti." in caption) == all(low <= line <= high for line in CONVENTION_LINES)
 
 
 @st.composite

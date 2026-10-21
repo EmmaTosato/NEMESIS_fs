@@ -11,14 +11,13 @@ from src.analysis.clustering_tuning_report import (
     require_report_evaluations,
     HINT_AGREEMENT,
     HINT_COPHENETIC,
-    HINT_CURVES,
-    HINT_CURVES_SINGLE,
     HINT_DENDROGRAM,
     HINT_FILTERED_CURVES,
     HINT_HEATMAP,
     HINT_JUMP,
     HINT_LABELS_2D,
     convention_lines_caption,
+    curves_hint,
     silhouette_band,
     tuning_report_markdown,
 )
@@ -58,10 +57,9 @@ def test_silhouette_band_rejects_nan():
 
 
 def test_convention_lines_caption_names_the_lines_inside_and_outside_the_fitted_axis():
-    caption = convention_lines_caption(pd.DataFrame({"silhouette": [0.40, 0.52]}))
-
-    assert "Pannello a sinistra: si vedono tutti" in caption
-    assert "si vede solo 0.51; gli altri (0.00, 0.26, 0.71) cadono fuori dal grafico" in caption
+    assert "Si vedono tutti." in convention_lines_caption(0.0, 0.8)
+    assert "Si vede solo 0.51; gli altri (0.00, 0.26, 0.71) cadono fuori dal grafico." in convention_lines_caption(0.39, 0.53)
+    assert "Non se ne vede nessuno" in convention_lines_caption(0.8, 0.9)
 
 
 def _agglomerative_results() -> pd.DataFrame:
@@ -143,13 +141,28 @@ def test_tuning_report_says_when_no_silhouette_is_negative(tmp_path):
     assert "  - negativa (sotto 0): nessuna" in report
 
 
-def test_tuning_report_points_to_the_curves_figures_and_to_single_only_when_the_run_has_it(tmp_path):
-    with_single = _agglomerative_report(tmp_path, _curves_results())
-    without_single = _agglomerative_report(tmp_path, _agglomerative_results())
+def test_tuning_report_points_to_one_curves_figure_per_metric_and_never_to_a_single_one(tmp_path):
+    report = _agglomerative_report(tmp_path, _curves_results())
 
-    assert "(k_curves_metric=euclidean.png)" in with_single and "(k_curves_single_metric=euclidean.png)" in with_single
-    assert "(k_curves_metric=cosine.png)" in with_single and "k_curves_single_metric=cosine.png" not in with_single
-    assert "k_curves_single" not in without_single
+    assert "(k_curves_metric=euclidean.png)" in report and "(k_curves_metric=cosine.png)" in report
+    assert "k_curves_single" not in report
+    assert "### linkage = single" in report  # single is not drawn, its table stays
+
+
+def test_tuning_report_has_no_curves_figure_for_a_metric_with_only_single(tmp_path):
+    only_single = _curves_results().query("linkage == 'single'")
+
+    report = _agglomerative_report(tmp_path, only_single)
+
+    assert "k_curves_metric" not in report and "### linkage = single" in report
+
+
+def test_tuning_report_hint_gives_the_axes_shared_by_the_run(tmp_path):
+    report = _agglomerative_report(tmp_path, _curves_results())
+
+    assert "Gli assi sono gli stessi in tutti i grafici di questa serie: silhouette da 0.3 a 0.8, Davies-Bouldin da 0.9 a 1.2" in report
+    assert "Gli assi sono gli stessi in tutti i grafici di questa serie: silhouette da 0.3 a 0.8." in report  # cosine: no Davies-Bouldin panel
+    assert "`single` non è disegnato" in report
 
 
 def test_tuning_report_defines_the_bands_with_their_source_and_the_two_indices_without_one(tmp_path):
@@ -193,8 +206,8 @@ def test_tuning_report_writes_a_how_to_read_line_under_each_table_and_figure_onc
 
     report = _agglomerative_report(tmp_path, _curves_results())
 
-    # euclidean has ward and single, cosine only average: 2 main curves figures, 1 single, 2 metrics for each table
-    for hint, count in ((HINT_CURVES, 2), (HINT_CURVES_SINGLE, 1), (HINT_COPHENETIC, 2), (HINT_JUMP, 2),
+    # euclidean has ward and single, cosine only average: 2 curves figures (single is not drawn), 2 metrics for each table
+    for hint, count in ((curves_hint((0.0, 1.0), None), 2), (HINT_COPHENETIC, 2), (HINT_JUMP, 2),
                         (HINT_DENDROGRAM, 1), (HINT_LABELS_2D, 1)):
         assert report.count(_hint(hint)) == count, hint[0][:40]
 

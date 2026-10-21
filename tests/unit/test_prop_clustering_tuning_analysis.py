@@ -20,8 +20,10 @@ from src.analysis.clustering_tuning_analysis import (
     combo_key,
     dendrogram_jump,
     density_metrics,
+    curves_subset,
     k_curves_figure,
     k_curves_targets,
+    run_axis_limits,
     linkage_agreement,
     load_clustering_tuning_run,
     noise_filtered_curves_figures,
@@ -221,28 +223,35 @@ def _curves_results(draw):
 
 @settings(max_examples=30)
 @given(_curves_results())
-def test_the_curves_targets_partition_the_rows_of_the_run(results):
+def test_the_curves_targets_are_the_metrics_with_a_non_single_row_and_cover_those_rows(results):
     targets = k_curves_targets(results)
     assert len(targets) == len(set(targets))
-    covered = 0
-    for metric, single in targets:
-        subset = results[(results["metric"] == metric) & ((results["linkage"] == "single") == single)]
-        assert not subset.empty
-        covered += len(subset)
-    assert covered == len(results)  # ogni riga della run sta in un solo grafico
-    singles = [t for t in targets if t[1]]
-    assert {m for m, _ in singles} == set(results.loc[results["linkage"] == "single", "metric"])
+    non_single = results[results["linkage"] != "single"]
+    assert set(targets) == set(non_single["metric"])
+    assert sum(len(curves_subset(results, metric)) for metric in targets) == len(non_single)  # every non-single row is in one figure
 
 
 @settings(max_examples=8)
 @given(_curves_results())
 def test_a_figure_exists_for_every_target_and_none_for_a_metric_the_run_does_not_have(results):
-    metric, single = k_curves_targets(results)[0]
-    figure = k_curves_figure(results, metric, single)
-    has_db = results[(results["metric"] == metric) & ((results["linkage"] == "single") == single)]["davies_bouldin"].notna().any()
-    assert len(figure.axes) == (3 if has_db else 2)  # il pannello di Davies-Bouldin sparisce se è tutto NaN
+    metric = k_curves_targets(results)[0]
+    figure = k_curves_figure(results, metric)
+    has_db = curves_subset(results, metric)["davies_bouldin"].notna().any()
+    assert len(figure.axes) == (2 if has_db else 1)  # il pannello di Davies-Bouldin sparisce se è tutto NaN
     with pytest.raises(ValueError, match="no row of the run has metric"):
-        k_curves_figure(results, "chebyshev", False)
+        k_curves_figure(results, "chebyshev")
+
+
+@settings(max_examples=30)
+@given(_curves_results())
+def test_the_run_axis_limits_leave_every_point_of_every_figure_strictly_inside(results):
+    for column in ("silhouette", "davies_bouldin"):
+        values = results.loc[results["linkage"] != "single", column].dropna()
+        if values.empty:
+            continue
+        low, high = run_axis_limits(results, column)
+        assert low < values.min() and values.max() < high  # a point on the edge would be cut by the frame
+        assert low == pytest.approx(round(low, 1)) and high == pytest.approx(round(high, 1))  # whole tenths
 
 
 @st.composite

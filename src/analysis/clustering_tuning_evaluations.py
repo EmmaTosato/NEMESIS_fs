@@ -120,11 +120,11 @@ def _validate_noise_filtered_curves_settings(settings: dict) -> None:
 
 def _run_k_curves(context: EvaluationContext, settings: dict) -> list[Path]:
     run = context.run
-    curves = {k_curves_file_name(metric, single): (metric, single) for metric, single in k_curves_targets(run.results)}
+    curves = {k_curves_file_name(metric): metric for metric in k_curves_targets(run.results)}
     paths = {name: run.run_dir / name for name in curves}
     refuse_existing(list(paths.values()), context.overwrite)
-    for name, (metric, single) in curves.items():
-        k_curves_figure(run.results, metric, single).savefig(paths[name], dpi=FIGURE_DPI)
+    for name, metric in curves.items():
+        k_curves_figure(run.results, metric).savefig(paths[name], dpi=FIGURE_DPI)
     return list(paths.values())
 
 

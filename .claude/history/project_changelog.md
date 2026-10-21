@@ -6,6 +6,16 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 21-10-26 — Le curve di agglomerative: niente figura `single`, niente asse fisso, assi uguali in tutta la run
+
+**Cosa è cambiato**: `k_curves_metric=<metric>.png` ha due pannelli (silhouette; Davies-Bouldin solo per `euclidean`) invece di tre: il pannello con asse fisso da -1 a 1 è tolto. Le figure `k_curves_single_metric=<metric>.png` non si producono più; `single` resta nello sweep, in `tuning_results.csv`, nelle tabelle del report e negli altri file. Gli assi sono quelli della run, uguali in ogni figura: per ogni `metric` l'intervallo dei dati senza `single` più l'8% per lato, poi il più basso dei minimi e il più alto dei massimi, arrotondati al decimo (per difetto il minimo, per eccesso il massimo). `run_axis_limits` in `clustering_tuning_analysis.py`; per Davies-Bouldin la stessa regola. Sul tuning `19-10_s2.4-vol_nc12_varimax`: silhouette 0.0-0.8, Davies-Bouldin 0.1-1.9.
+
+**Perché**: l'asse adattato era calcolato per figura, quindi due figure non si confrontavano a colpo d'occhio; quello fisso comprimeva le differenze tra linkage. `single` non si considera nella scelta (nella stessa run, con `cosine`, tutti i suoi 29 valori di silhouette sono negativi, da -0.56 a -0.02) e una scala che lo includesse schiaccerebbe gli altri linkage.
+
+**Alternative scartate**: una scala per metrica (coincideva con l'asse adattato già esistente: stessi numeri); una scala unica che includa `single`; tenere la figura `single` solo per `euclidean`. Un primo prototipo arrotondava Davies-Bouldin senza margine: il punto a 1.69 toccava il bordo a 1.7 e veniva tagliato, da cui il margine dell'8% anche per quell'indice.
+
+**Conseguenza attuale**: una `metric` con soli linkage `single` non ha figura delle curve. Le linee tratteggiate delle fasce di Kaufman & Rousseeuw restano sul pannello della silhouette fino a quando non si decide altro. Le cartelle di tuning scritte prima di oggi possono contenere ancora `k_curves_single_metric=*.png`: il codice non le legge né le cancella.
+
 ## 21-10-26 — Le due pipeline di valutazione del tuning cambiano nome
 
 **Cosa è cambiato**: `evaluate_tuning_embeddings` (tuning di dim reduction) diventa `evaluate_dim_reduction_tuning`; `analyze_clustering_tuning` (tuning di clustering) diventa `evaluate_clustering_tuning`. Rinominati script in `src/pipeline/`, config in `config/pipelines/`, guide in `docs/guides/`, job in `jobs/`, test di integrazione, `EvaluateTuningEmbeddingsConfig` → `EvaluateDimReductionTuningConfig`, `AnalyzeClusteringTuningConfig` → `EvaluateClusteringTuningConfig` e i due loader. Le directory di log dei vecchi lanci (`logs/evaluate_tuning_embeddings/`, `logs/analyze_clustering_tuning/`) restano sul disco con il nome vecchio.

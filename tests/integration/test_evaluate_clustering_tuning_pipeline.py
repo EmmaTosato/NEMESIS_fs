@@ -100,10 +100,10 @@ def test_agglomerative_run_gets_cophenetic_jump_and_curves(tmp_path, monkeypatch
     assert ward.idxmax() == 3
     for metric in ("euclidean", "cosine"):
         assert (tuning_dir / f"k_curves_metric={metric}.png").stat().st_size > 0
-        assert (tuning_dir / f"k_curves_single_metric={metric}.png").stat().st_size > 0  # single has a figure of its own
+        assert not (tuning_dir / f"k_curves_single_metric={metric}.png").exists()  # single is not drawn
     report = (tuning_dir / "report.md").read_text()
     assert "## metric = euclidean" in report and "## metric = cosine" in report
-    assert "### linkage = single" in report and "(k_curves_single_metric=euclidean.png)" in report
+    assert "### linkage = single" in report and "k_curves_single" not in report
     agreement = pd.read_csv(tuning_dir / "linkage_agreement.csv")
     assert set(zip(agreement["linkage_a"], agreement["linkage_b"])) == {
         ("ward", "average"), ("ward", "single"), ("average", "single")  # euclidean has ward; cosine only average and single

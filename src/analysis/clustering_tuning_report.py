@@ -30,7 +30,7 @@ from src.analysis.clustering_tuning_analysis import (
     k_curves_file_name,
     ordered,
     read_run_config,
-    silhouette_zoom_limits,
+    run_axis_limits,
 )
 from src.analysis.clustering_tuning_evaluations import (
     COPHENETIC_CORRELATION,
@@ -95,14 +95,6 @@ JUMP_TERM = (
 
 # One block under each figure/table of a report, written as a quote: what it shows, how to read it, what it does not say.
 # Descriptions only, no verdict. Each hint is a tuple of bullets.
-HINT_CURVES = (
-    "Cosa mostra: come cambiano silhouette e Davies-Bouldin al crescere di `n_clusters`, con una linea per ogni linkage.",
-    "I pannelli: silhouette con asse da -1 a 1 (a sinistra); la stessa silhouette con asse adattato ai dati (al centro, le "
-    "differenze sembrano più grandi); Davies-Bouldin (a destra).",
-    "Come si legge: conta la forma della linea su tutti i k, non un punto solo. Silhouette: più alta è meglio. Davies-Bouldin: "
-    "più bassa è meglio.",
-)
-HINT_CURVES_SINGLE = ("Come sopra, ma solo per il linkage `single`: ha spesso valori molto diversi dagli altri, quindi sta in un grafico a parte.",)
 HINT_COPHENETIC = (
     "Cosa mostra: quanto l'albero di ogni linkage rispetta le distanze vere tra i soggetti. Serve a confrontare i linkage tra loro (stessa `metric`): più è alto, più l'albero è fedele.",
     "Cosa non dice: niente su quanti cluster scegliere.",
@@ -160,23 +152,44 @@ def silhouette_band(value: float) -> str | None:
     rounded = round(float(value), 2)
     return next(name for name, _, lower_edge in SILHOUETTE_BANDS if rounded >= lower_edge)
 
-def convention_lines_caption(subset: pd.DataFrame) -> str:
-    """The sentence that says which dashed lines of CONVENTION_LINES each silhouette panel of a figure of `subset` shows."""
-    low, high = silhouette_zoom_limits(subset["silhouette"])
+def convention_lines_caption(low: float, high: float) -> str:
+    """The sentence that says which dashed lines of CONVENTION_LINES a silhouette panel with y-limits `low`..`high` shows."""
     visible = [line for line in CONVENTION_LINES if low <= line <= high]
     hidden = [line for line in CONVENTION_LINES if line not in visible]
     as_text = lambda lines: ", ".join(f"{line:.2f}" for line in lines)
     if not hidden:
-        center = "si vedono tutti"
+        shown = "Si vedono tutti."
     elif not visible:
-        center = "non se ne vede nessuno (cadono tutti fuori dal grafico)"
+        shown = "Non se ne vede nessuno (cadono tutti fuori dal grafico)."
     else:
-        shown = f"si vede solo {as_text(visible)}" if len(visible) == 1 else f"si vedono {as_text(visible)}"
-        center = f"{shown}; gli altri ({as_text(hidden)}) cadono fuori dal grafico"
+        seen = f"si vede solo {as_text(visible)}" if len(visible) == 1 else f"si vedono {as_text(visible)}"
+        shown = f"{seen[0].upper()}{seen[1:]}; gli altri ({as_text(hidden)}) cadono fuori dal grafico."
+    return f"Linee grigie tratteggiate sulla silhouette: i limiti delle fasce di Kaufman & Rousseeuw ({as_text(CONVENTION_LINES)}). {shown}"
+
+
+def curves_hint(silhouette_limits: tuple[float, float], davies_bouldin_limits: tuple[float, float] | None) -> tuple[str, ...]:
+    """The hint under the curves figure of one metric. The axes are those of the whole run, so the text carries their
+    values; `davies_bouldin_limits` is None for a metric whose figure has no Davies-Bouldin panel (it needs `euclidean`)."""
+    if davies_bouldin_limits:
+        panels = "silhouette (a sinistra) e Davies-Bouldin (a destra)"
+        axes = (
+            f"silhouette da {silhouette_limits[0]:.1f} a {silhouette_limits[1]:.1f}, "
+            f"Davies-Bouldin da {davies_bouldin_limits[0]:.1f} a {davies_bouldin_limits[1]:.1f}"
+        )
+    else:
+        panels = "silhouette; Davies-Bouldin non c'è perché per questa `metric` non esiste"
+        axes = f"silhouette da {silhouette_limits[0]:.1f} a {silhouette_limits[1]:.1f}"
     return (
-        f"Linee grigie tratteggiate sulla silhouette: i limiti delle fasce di Kaufman & Rousseeuw ({as_text(CONVENTION_LINES)}). "
-        f"Pannello a sinistra: si vedono tutti. Pannello centrale: {center}."
+        "Cosa mostra: come cambiano silhouette e Davies-Bouldin al crescere di `n_clusters`, con una linea per ogni linkage. "
+        "`single` non è disegnato: i suoi valori sono nelle tabelle sotto.",
+        f"I pannelli: {panels}.",
+        f"Gli assi sono gli stessi in tutti i grafici di questa serie: {axes}. Sono l'intervallo dei dati di tutte le `metric` "
+        "della run con un margine dell'8%, arrotondato al decimo. Il confronto è tra le forme delle linee: una silhouette di "
+        "`metric` diverse non si confronta nel valore.",
+        "Come si legge: conta la forma della linea su tutti i k, non un punto solo. Silhouette: più alta è meglio. Davies-Bouldin: "
+        "più bassa è meglio.",
     )
+
 
 def _format_report_value(column: str, value: float, key_columns: tuple[str, ...]) -> str:
     if pd.isna(value):
@@ -247,20 +260,20 @@ def _silhouette_comment(group: pd.DataFrame, key_column: str = "n_clusters", key
     return lines
 
 
-def _curves_section(subset: pd.DataFrame, metric: str) -> list[str]:
-    """The figures of one metric of an agglomerative report, with the line that says which dashed lines they show."""
-    lines: list[str] = []
-    for single, title, hint in ((False, "senza single", HINT_CURVES), (True, "solo single (scala diversa)", HINT_CURVES_SINGLE)):
-        figure_subset = curves_subset(subset, metric, single)
-        if not figure_subset.empty:
-            lines += [
-                f"**Curve per n_clusters, {title}**",
-                "",
-                f"![{title}]({k_curves_file_name(metric, single)})",
-                "",
-                *_hint_lines((*hint, convention_lines_caption(figure_subset))),
-            ]
-    return lines
+def _curves_section(results: pd.DataFrame, metric: str) -> list[str]:
+    """The curves figure of one metric of an agglomerative report, with its hint and the line that says which dashed lines
+    it shows; empty for a metric with no linkage other than `single`. `results` is the whole run: the axes are shared."""
+    if curves_subset(results, metric).empty:
+        return []
+    silhouette_limits = run_axis_limits(results, "silhouette")
+    davies_bouldin_limits = run_axis_limits(results, "davies_bouldin") if curves_subset(results, metric)["davies_bouldin"].notna().any() else None
+    return [
+        "**Curve per n_clusters**",
+        "",
+        f"![curve per n_clusters]({k_curves_file_name(metric)})",
+        "",
+        *_hint_lines((*curves_hint(silhouette_limits, davies_bouldin_limits), convention_lines_caption(*silhouette_limits))),
+    ]
 
 
 def _cophenetic_table(cophenetic: pd.DataFrame, metric: str) -> str:
@@ -360,7 +373,7 @@ def _agglomerative_report_markdown(
     ]
     for metric in ordered(results["metric"].unique(), METRIC_ORDER):
         subset = results[results["metric"] == metric]
-        lines += [f"## metric = {metric}", "", *_curves_section(subset, metric)]
+        lines += [f"## metric = {metric}", "", *_curves_section(results, metric)]
         for linkage in ordered(subset["linkage"].unique(), LINKAGE_ORDER):
             group = subset[subset["linkage"] == linkage]
             table = group.sort_values("n_clusters")[["n_clusters", "silhouette", "davies_bouldin", "calinski_harabasz"]]
