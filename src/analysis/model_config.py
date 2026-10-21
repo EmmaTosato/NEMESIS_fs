@@ -45,14 +45,14 @@ class DimReductionConfig:
 
 
 @dataclass(frozen=True)
-class EvaluateTuningEmbeddingsConfig:
+class EvaluateDimReductionTuningConfig:
     tuning_dir: Path
     overwrite: bool
     tuning_evaluations: dict[str, dict]
 
 
 @dataclass(frozen=True)
-class AnalyzeClusteringTuningConfig:
+class EvaluateClusteringTuningConfig:
     tuning_dir: Path
     overwrite: bool
     evaluations_file: Path
@@ -105,8 +105,8 @@ def load_dim_reduction_config(path: str | Path) -> DimReductionConfig:
     )
 
 
-def load_evaluate_tuning_embeddings_config(path: str | Path) -> EvaluateTuningEmbeddingsConfig:
-    """Config of src/pipeline/evaluate_tuning_embeddings.py: which stored tuning run to evaluate
+def load_evaluate_dim_reduction_tuning_config(path: str | Path) -> EvaluateDimReductionTuningConfig:
+    """Config of src/pipeline/evaluate_dim_reduction_tuning.py: which stored tuning run to evaluate
     and with what. Only embedding evaluations are accepted - sweep scores need the original
     matrix, which this entry point never loads - and at least one is required.
     """
@@ -114,21 +114,21 @@ def load_evaluate_tuning_embeddings_config(path: str | Path) -> EvaluateTuningEm
     evaluations = _require_tuning_evaluations(raw, allowed_kinds=frozenset({KIND_EMBEDDING_EVALUATION}))
     if not evaluations:
         raise ValueError("config: field 'tuning_evaluations' must list at least one evaluation to run")
-    return EvaluateTuningEmbeddingsConfig(
+    return EvaluateDimReductionTuningConfig(
         tuning_dir=Path(_require_str(raw, "tuning_dir")),
         overwrite=_require_bool(raw, "overwrite"),
         tuning_evaluations=evaluations,
     )
 
 
-def load_analyze_clustering_tuning_config(path: str | Path) -> AnalyzeClusteringTuningConfig:
-    """Config of src/pipeline/analyze_clustering_tuning.py: which stored clustering tuning run to analyse, which
+def load_evaluate_clustering_tuning_config(path: str | Path) -> EvaluateClusteringTuningConfig:
+    """Config of src/pipeline/evaluate_clustering_tuning.py: which stored clustering tuning run to analyse, which
     evaluations to run on it (the same `tuning_evaluations` block clustering.json takes; the block needs a key
     for the method of the run, checked once the run is read) and whether to write report.md. The settings of
     the evaluations (k range, noise limit) are in `evaluations_file`, not here. Every field is required.
     """
     raw = _read_config(path)
-    return AnalyzeClusteringTuningConfig(
+    return EvaluateClusteringTuningConfig(
         tuning_dir=Path(_require_str(raw, "tuning_dir")),
         overwrite=_require_bool(raw, "overwrite"),
         evaluations_file=Path(_require_str(raw, "evaluations_file")),

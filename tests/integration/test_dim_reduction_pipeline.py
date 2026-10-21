@@ -1165,13 +1165,13 @@ def test_dim_reduction_fine_tuning_plot_hdbscan_writes_grid_and_csv_per_leaf(tmp
 
 def test_dim_reduction_fine_tuning_then_standalone_evaluation_on_the_stored_run(tmp_path, monkeypatch):
     """The on-disk contract end to end: what dim_reduction.py writes (embeddings.npz + config.md)
-    is exactly what evaluate_tuning_embeddings.py reads - same settings reproduce the in-sweep CSV
+    is exactly what evaluate_dim_reduction_tuning.py reads - same settings reproduce the in-sweep CSV
     byte for byte, other settings add files next to it."""
-    from src.pipeline import evaluate_tuning_embeddings
+    from src.pipeline import evaluate_dim_reduction_tuning
 
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(dim_reduction, "LOGS_ROOT", tmp_path / "dr_logs")
-    monkeypatch.setattr(evaluate_tuning_embeddings, "LOGS_ROOT", tmp_path / "eval_logs")
+    monkeypatch.setattr(evaluate_dim_reduction_tuning, "LOGS_ROOT", tmp_path / "eval_logs")
     cfg_path = _write_tuning_cfg(
         tmp_path, input_dir, _write_nested_umap_params(tmp_path), {"trustworthiness": {}, "plot_hdbscan": _HDBSCAN_TINY}
     )
@@ -1184,7 +1184,7 @@ def test_dim_reduction_fine_tuning_then_standalone_evaluation_on_the_stored_run(
         path.write_text(
             json.dumps({"tuning_dir": str(tuning_dir), "overwrite": overwrite, "tuning_evaluations": {"plot_hdbscan": settings}})
         )
-        return evaluate_tuning_embeddings.main(["--config", str(path)])
+        return evaluate_dim_reduction_tuning.main(["--config", str(path)])
 
     assert _evaluate({"min_cluster_size": 3, "min_samples": 1}, overwrite=False) == 0
     assert (tuning_dir / "metric=cosine" / "hdbscan_grid_mcs3_ms1.png").is_file()
@@ -1222,10 +1222,10 @@ def test_dim_reduction_fine_tuning_plot_hdbscan_without_2d_twin_fails_before_the
     assert not (tmp_path / "dr_out" / "tuning").exists()
 
 
-def test_evaluate_tuning_embeddings_missing_embeddings_npz_returns_1(tmp_path, monkeypatch, caplog):
-    from src.pipeline import evaluate_tuning_embeddings
+def test_evaluate_dim_reduction_tuning_missing_embeddings_npz_returns_1(tmp_path, monkeypatch, caplog):
+    from src.pipeline import evaluate_dim_reduction_tuning
 
-    monkeypatch.setattr(evaluate_tuning_embeddings, "LOGS_ROOT", tmp_path / "eval_logs")
+    monkeypatch.setattr(evaluate_dim_reduction_tuning, "LOGS_ROOT", tmp_path / "eval_logs")
     run_dir = tmp_path / "some_tuning_run"
     run_dir.mkdir()
     cfg_path = tmp_path / "evaluate.json"
@@ -1234,7 +1234,7 @@ def test_evaluate_tuning_embeddings_missing_embeddings_npz_returns_1(tmp_path, m
     )
 
     with caplog.at_level(logging.ERROR):
-        assert evaluate_tuning_embeddings.main(["--config", str(cfg_path)]) == 1
+        assert evaluate_dim_reduction_tuning.main(["--config", str(cfg_path)]) == 1
 
     assert "save_tuning_embeddings=true" in caplog.text
 

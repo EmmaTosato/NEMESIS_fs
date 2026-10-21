@@ -3,7 +3,7 @@
 Computes nothing. It reads what the evaluations of src/analysis/clustering_tuning_evaluations.py wrote in the run
 folder (cophenetic_correlation.csv, dendrogram_jump.csv, linkage_agreement.csv, density_metrics.csv, the figures) and
 tuning_results.csv, and lays them out with the explanation of each index: what it measures, how to read it, what it
-does not say. Called by the sweep (src/pipeline/clustering.py) and by src/pipeline/analyze_clustering_tuning.py, so the
+does not say. Called by the sweep (src/pipeline/clustering.py) and by src/pipeline/evaluate_clustering_tuning.py, so the
 report is the same either way.
 
 Nothing here classifies a combination as good, usable or stable with a threshold of ours: the outputs are measurements,

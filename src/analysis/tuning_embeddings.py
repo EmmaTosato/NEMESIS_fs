@@ -1,6 +1,6 @@
 """On-disk conventions of a dim_reduction tuning run's embeddings, shared by the pipeline that
 writes them (src/pipeline/dim_reduction.py) and every reader that works from them afterwards
-(src/analysis/tuning_evaluations.py, src/pipeline/evaluate_tuning_embeddings.py).
+(src/analysis/tuning_evaluations.py, src/pipeline/evaluate_dim_reduction_tuning.py).
 
 A tuning run directory holds embeddings.npz (one array per swept combination, keyed by
 combo_key), config.md (a fenced JSON block snapshotting the run's own base_params/tuning_grid/

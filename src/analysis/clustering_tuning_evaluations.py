@@ -1,5 +1,5 @@
 """Registry of the evaluations a clustering tuning run applies, declared in the `tuning_evaluations` block
-of clustering.json (and of analyze_clustering_tuning.json).
+of clustering.json (and of evaluate_clustering_tuning.json).
 
 Same idea as src/analysis/tuning_evaluations.py (dim_reduction), for a stored clustering tuning
 (src/analysis/clustering_tuning_analysis.py::ClusteringTuningRun): one EvaluationSpec per evaluation, run

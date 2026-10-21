@@ -33,13 +33,13 @@ _CASES: dict[str, tuple] = {
          "tuning_evaluations": {"trustworthiness": {}, "plot_hdbscan": _HDBSCAN}},
         {"run_notes"},
     ),
-    "evaluate_tuning_embeddings": (
-        M.load_evaluate_tuning_embeddings_config,
+    "evaluate_dim_reduction_tuning": (
+        M.load_evaluate_dim_reduction_tuning_config,
         {"tuning_dir": "td", "overwrite": True, "tuning_evaluations": {"plot_hdbscan": _HDBSCAN}},
         set(),
     ),
-    "analyze_clustering_tuning": (
-        M.load_analyze_clustering_tuning_config,
+    "evaluate_clustering_tuning": (
+        M.load_evaluate_clustering_tuning_config,
         {"tuning_dir": "td", "overwrite": False, "evaluations_file": "ef.json", "write_report": True,
          "tuning_evaluations": {"general": [], "agglomerative": ["cophenetic_correlation"]}},
         set(),
@@ -65,8 +65,8 @@ _CASE_NAMES = list(_CASES)
 _NESTED = {
     "dim_reduction": [("color_by", 0), ("tuning_evaluations", "plot_hdbscan"), ("tuning_evaluations", "plot_hdbscan", "min_samples"),
                       ("tuning_evaluations", "trustworthiness")],
-    "evaluate_tuning_embeddings": [("tuning_evaluations", "plot_hdbscan"), ("tuning_evaluations", "plot_hdbscan", "min_cluster_size")],
-    "analyze_clustering_tuning": [("tuning_evaluations", "general"), ("tuning_evaluations", "agglomerative"),
+    "evaluate_dim_reduction_tuning": [("tuning_evaluations", "plot_hdbscan"), ("tuning_evaluations", "plot_hdbscan", "min_cluster_size")],
+    "evaluate_clustering_tuning": [("tuning_evaluations", "general"), ("tuning_evaluations", "agglomerative"),
                                   ("tuning_evaluations", "agglomerative", 0)],
     "clustering_reduced": [("clustering_methods", 0), ("clustering_methods", 1), ("tuning_evaluations", "general"),
                            ("tuning_evaluations", "kmeans")],
@@ -316,7 +316,7 @@ def test_a_wrongly_typed_reduction_params_file_is_a_valueerror_even_when_it_woul
 
 @pytest.mark.parametrize("value", [None, [], "plot_hdbscan", 3, True, [{"plot_hdbscan": {}}]])
 def test_a_tuning_evaluations_block_that_is_not_an_object_is_a_valueerror(value):
-    for case in ("dim_reduction", "evaluate_tuning_embeddings"):
+    for case in ("dim_reduction", "evaluate_dim_reduction_tuning"):
         with pytest.raises(ValueError, match="tuning_evaluations"):
             _load(case, _mutated(case, ("tuning_evaluations",), value))
 
@@ -324,19 +324,19 @@ def test_a_tuning_evaluations_block_that_is_not_an_object_is_a_valueerror(value)
 def test_an_empty_tuning_evaluations_block_is_valid_for_dim_reduction_but_not_for_the_standalone_entry_point():
     assert _load("dim_reduction", _mutated("dim_reduction", ("tuning_evaluations",), {})).tuning_evaluations == {}
     with pytest.raises(ValueError, match="at least one"):
-        _load("evaluate_tuning_embeddings", _mutated("evaluate_tuning_embeddings", ("tuning_evaluations",), {}))
+        _load("evaluate_dim_reduction_tuning", _mutated("evaluate_dim_reduction_tuning", ("tuning_evaluations",), {}))
 
 
 @pytest.mark.parametrize("name", sorted(n for n, spec in EVALUATIONS.items() if spec.kind == KIND_SWEEP_SCORE))
 def test_the_standalone_entry_point_rejects_every_sweep_score(name):
     with pytest.raises(ValueError, match="cannot be run here"):
-        _load("evaluate_tuning_embeddings", _mutated("evaluate_tuning_embeddings", ("tuning_evaluations",), {name: {}}))
+        _load("evaluate_dim_reduction_tuning", _mutated("evaluate_dim_reduction_tuning", ("tuning_evaluations",), {name: {}}))
 
 
 @pytest.mark.parametrize("name", sorted(n for n, spec in EVALUATIONS.items() if spec.kind == KIND_EMBEDDING_EVALUATION))
 def test_the_standalone_entry_point_accepts_every_embedding_evaluation_with_valid_settings(name):
     settings_ = _HDBSCAN if name == "plot_hdbscan" else {}
-    loaded = _load("evaluate_tuning_embeddings", _mutated("evaluate_tuning_embeddings", ("tuning_evaluations",), {name: settings_}))
+    loaded = _load("evaluate_dim_reduction_tuning", _mutated("evaluate_dim_reduction_tuning", ("tuning_evaluations",), {name: settings_}))
     assert loaded.tuning_evaluations == {name: settings_}
 
 

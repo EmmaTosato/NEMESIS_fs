@@ -94,11 +94,11 @@ Fonti consultate (secondarie): [Wikipedia, Silhouette (clustering)](https://en.w
 - L'asse y è la distanza di fusione: più una fusione è in alto, più i due cluster erano lontani.
 - **Ogni linkage ha una scala sua** (ward misura un aumento di varianza, single una distanza minima): si confronta la *forma* dell'albero tra pannelli, non l'altezza.
 - Una linea orizzontale taglia l'albero e ogni linea verticale che attraversa è un cluster. La linea rossa tratteggiata (`cut_k`) mostra dove cade il taglio che dà quel numero di cluster.
-- Il taglio è naturale dove, prima di quelle fusioni, c'è un salto grande: i cluster che stanno per unirsi sono molto più lontani di quelli già uniti. Il rapporto tra due altezze consecutive è esattamente la colonna `jump` di `dendrogram_jump.csv` (`docs/guides/analyze_clustering_tuning.md`).
+- Il taglio è naturale dove, prima di quelle fusioni, c'è un salto grande: i cluster che stanno per unirsi sono molto più lontani di quelli già uniti. Il rapporto tra due altezze consecutive è esattamente la colonna `jump` di `dendrogram_jump.csv` (`docs/guides/evaluate_clustering_tuning.md`).
 - **Esempio didattico.** Le ultime fusioni sono a 20, 8, 1,5, 1,2, 1,0. I salti tra altezze consecutive sono 20 → 8 (2,5 volte) e 8 → 1,5 (circa 5 volte, il più netto): tagliare tra 8 e 1,5 disfa le due fusioni più alte e lascia **3 cluster**.
 - Se le fusioni scendono gradualmente, senza un salto che spicchi, l'albero non indica nessun k: la scelta resta una decisione tua, da prendere con gli indici e con la clinica.
 - Il dendrogramma dice dove l'albero si divide, non se i cluster sono utili. Sotto le ultime 30 foglie non si vede niente.
-- **Seguire l'albero k dopo k.** Passando da k-1 a k cluster esattamente un cluster si divide in due (si disfa la fusione più alta ancora in piedi). Guardare quale cluster si divide, dove stanno i due pezzi nell'embedding e che anatomia hanno aiuta a capire da cosa è fatto un cluster grande (notebook `dendrogram_embedding_explorer`, `docs/guides/analyze_clustering_tuning.md`).
+- **Seguire l'albero k dopo k.** Passando da k-1 a k cluster esattamente un cluster si divide in due (si disfa la fusione più alta ancora in piedi). Guardare quale cluster si divide, dove stanno i due pezzi nell'embedding e che anatomia hanno aiuta a capire da cosa è fatto un cluster grande (notebook `dendrogram_embedding_explorer`, `docs/guides/evaluate_clustering_tuning.md`).
 
 ### Agglomerative — cophenetic correlation
 

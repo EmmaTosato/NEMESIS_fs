@@ -1,4 +1,4 @@
-"""Integration test: analyze_clustering_tuning.py chained onto a real clustering.py fine-tuning run."""
+"""Integration test: evaluate_clustering_tuning.py chained onto a real clustering.py fine-tuning run."""
 
 import json
 from pathlib import Path
@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.pipeline import analyze_clustering_tuning, clustering
+from src.pipeline import evaluate_clustering_tuning, clustering
 from src.utils.artifacts import save_matrix
 
 N_PER_BLOB = 20
@@ -67,7 +67,7 @@ def _run_tuning(tmp_path, monkeypatch, method, entry, evaluations=(), write_repo
 
 
 def _analyze(tmp_path, monkeypatch, tuning_dir, overwrite=False, evaluations=None, write_report=True):
-    monkeypatch.setattr(analyze_clustering_tuning, "LOGS_ROOT", tmp_path / "an_logs")
+    monkeypatch.setattr(evaluate_clustering_tuning, "LOGS_ROOT", tmp_path / "an_logs")
     config = {
         "tuning_dir": str(tuning_dir),
         "overwrite": overwrite,
@@ -77,7 +77,7 @@ def _analyze(tmp_path, monkeypatch, tuning_dir, overwrite=False, evaluations=Non
     }
     config_path = tmp_path / "an.json"
     config_path.write_text(json.dumps(config))
-    return analyze_clustering_tuning.main(["--config", str(config_path)])
+    return evaluate_clustering_tuning.main(["--config", str(config_path)])
 
 
 def test_agglomerative_run_gets_cophenetic_jump_and_curves(tmp_path, monkeypatch):
@@ -193,7 +193,7 @@ def test_hdbscan_run_with_all_noise_still_gets_density_metrics_without_curves(tm
 
 
 def test_a_sweep_that_declares_the_evaluations_writes_the_files_a_later_analysis_writes(tmp_path, monkeypatch):
-    """The sweep and analyze_clustering_tuning run the same function: same files, same numbers."""
+    """The sweep and evaluate_clustering_tuning run the same function: same files, same numbers."""
     entry = {"params": {"min_cluster_size": 10, "min_samples": 5}, "tuning_grid": {"min_cluster_size": [10, 15], "min_samples": [3, 5]}}
     tuning_dir = _run_tuning(tmp_path, monkeypatch, "hdbscan", entry, evaluations=EVALUATIONS_BY_METHOD["hdbscan"])
     by_the_sweep = (tuning_dir / "density_metrics.csv").read_bytes()

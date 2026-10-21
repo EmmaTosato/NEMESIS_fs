@@ -32,7 +32,7 @@ already exist - no auto-build fallback). Two modes, chosen by `fine_tuning`:
   declared in config.tuning_evaluations (src/analysis/tuning_evaluations.py): the sweep's own
   score (always) plus the embedding-based ones (today plot_hdbscan: HDBSCAN on every
   combination, one grid PNG + CSV per nested leaf). The embedding-based ones can also be run
-  later on a stored run, without refitting: src/pipeline/evaluate_tuning_embeddings.py.
+  later on a stored run, without refitting: src/pipeline/evaluate_dim_reduction_tuning.py.
 
 Output lives under two separate branches of output_root, never mixed:
 <output_root>/production/<method>/ (embeddings + plots + runs.csv) and
@@ -335,7 +335,7 @@ def _run_embedding_evaluations(
     """Runs the embedding-based evaluations declared in config.tuning_evaluations on the sweep that
     was just computed (in memory - works whether or not save_tuning_embeddings is on). False, with
     the error logged, if one fails: the sweep's own files are already on disk by then, and the
-    same evaluations can be re-run on them without refitting (src/pipeline/evaluate_tuning_embeddings.py).
+    same evaluations can be re-run on them without refitting (src/pipeline/evaluate_dim_reduction_tuning.py).
     """
     keys = list(tuning_grid)
     run = TuningRun(

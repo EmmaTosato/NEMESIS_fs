@@ -20,7 +20,7 @@ Fonte: lettura del codice (`src/analysis/clustering_tuning.py`, `clustering_tuni
 | # | Superficie | Quando | Cosa legge/calcola |
 |---|---|---|---|
 | A | `tuning_results.csv` + `tuning_plot.png` | sweep di `clustering.py --fine_tuning true` | indici per combinazione, calcolati durante lo sweep |
-| B | `analyze_clustering_tuning` → `report.md`, `cophenetic_correlation.csv`, `dendrogram_jump.csv`, `linkage_agreement.csv`, `density_metrics.csv`, curve | dopo lo sweep, dalle etichette salvate | indici aggiuntivi senza rifare il clustering |
+| B | `evaluate_clustering_tuning` → `report.md`, `cophenetic_correlation.csv`, `dendrogram_jump.csv`, `linkage_agreement.csv`, `density_metrics.csv`, curve | dopo lo sweep, dalle etichette salvate | indici aggiuntivi senza rifare il clustering |
 | C | `clustering_tuning_explorer.ipynb` (e `dendrogram_embedding_explorer.ipynb`) | a mano, su tuning già fatto | rilegge A, ricalcola cophenetic da `X`, filtra per rumore |
 | D | cartella di **produzione** (`cluster_plot.png`, `silhouette_plot.png`, `config.md`) | `clustering.py` produzione | silhouette per soggetto (euclidea), conteggio cluster e rumore |
 | E | App Dash, pannello "Valutazione del clustering" | su run di produzione | `geometric_summary`, `model_fit_metrics`, membership (solo matrici ≤ 1000 colonne) |
@@ -93,7 +93,7 @@ Quando si sceglie una combinazione dal tuning si guardano silhouette, CH, DB. Qu
 
 | Valore | Dove |
 |---|---|
-| rumore 0.10 | `embedding_app.py` (`NOISE_WARNING_FRACTION`), `clustering_evaluation.ipynb` cella 19, `clustering_tuning_explorer.ipynb` (`MAX_NOISE_FRACTION`), `config/pipelines/analyze_clustering_tuning.json` (`curves_max_noise_fraction`) |
+| rumore 0.10 | `embedding_app.py` (`NOISE_WARNING_FRACTION`), `clustering_evaluation.ipynb` cella 19, `clustering_tuning_explorer.ipynb` (`MAX_NOISE_FRACTION`), `config/pipelines/evaluate_clustering_tuning.json` (`curves_max_noise_fraction`) |
 | probabilità 0.5 | `clustering_tuning.py` (`SOFT_MEMBERSHIP_LOW`, fissa nella definizione della colonna), `embedding_app.py` (`LOW_PROBABILITY`, `LOW_MEMBERSHIP`), `clustering_evaluation.ipynb` (stesse due, ridefinite) |
 
 Cambiarne una non cambia le altre: il notebook può mostrare un 10% e l'app un 15% senza accorgersene.
@@ -150,7 +150,7 @@ Idea: ogni metrica ha **una definizione, un punto di calcolo, una soglia (se ser
 | hdbscan_soft | `membership_mean`, `membership_share_below_half`, `persistence_mean`; per cluster `own_mean`, cluster "altro" più probabile |
 
 ### 5.3 Soglie
-Una sola fonte (config o costanti in un modulo), letta da app, notebook e `analyze_clustering_tuning`. Nessuna soglia nuova: si tolgono i duplicati.
+Una sola fonte (config o costanti in un modulo), letta da app, notebook e `evaluate_clustering_tuning`. Nessuna soglia nuova: si tolgono i duplicati.
 
 ---
 

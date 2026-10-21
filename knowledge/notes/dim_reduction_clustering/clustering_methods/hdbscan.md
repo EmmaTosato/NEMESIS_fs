@@ -148,7 +148,7 @@ Default verificati con `inspect.signature` sulle versioni installate.
 La documentazione del pacchetto consiglia di partire da `min_cluster_size` (il parametro intuitivo: la taglia più piccola che si vuole chiamare cluster) e di usare `min_samples` per rendere il metodo più o meno conservativo [6]. Il progetto li sweepa insieme in una sola run:
 
 1. **Heatmap** `min_cluster_size` × `min_samples` per ogni indice, `noise_fraction` e `n_clusters_found` (`tuning_plot.png`; per `hdbscan_soft` una per `cluster_selection_method`).
-2. **`density_metrics.csv`** (`analyze_clustering_tuning`): in più `largest_cluster_share`, sul totale dei soggetti.
+2. **`density_metrics.csv`** (`evaluate_clustering_tuning`): in più `largest_cluster_share`, sul totale dei soggetti.
 3. **Curve con poco rumore** (`noise_filtered_curves*.png`): silhouette e DB contro `min_cluster_size`, solo per le combinazioni con `noise_fraction` sotto `curves_max_noise_fraction`, un limite di esempio scelto dall'utente, non una soglia di merito.
 4. **Per `hdbscan_soft`**: `membership_mean`, `membership_share_below_half` (la soglia 0,5 è fissa nel codice, `SOFT_MEMBERSHIP_LOW`: una scelta del progetto) e `persistence_mean`.
 5. **Tra embedding**: ARI sui soli soggetti non rumore in entrambe le run (confronto tra più run: non è nel `report.md` di una singola run).

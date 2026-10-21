@@ -6,6 +6,14 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 21-10-26 — Le due pipeline di valutazione del tuning cambiano nome
+
+**Cosa è cambiato**: `evaluate_tuning_embeddings` (tuning di dim reduction) diventa `evaluate_dim_reduction_tuning`; `analyze_clustering_tuning` (tuning di clustering) diventa `evaluate_clustering_tuning`. Rinominati script in `src/pipeline/`, config in `config/pipelines/`, guide in `docs/guides/`, job in `jobs/`, test di integrazione, `EvaluateTuningEmbeddingsConfig` → `EvaluateDimReductionTuningConfig`, `AnalyzeClusteringTuningConfig` → `EvaluateClusteringTuningConfig` e i due loader. Le directory di log dei vecchi lanci (`logs/evaluate_tuning_embeddings/`, `logs/analyze_clustering_tuning/`) restano sul disco con il nome vecchio.
+
+**Perché**: i due nomi non dicevano che fanno la stessa cosa su due pipeline diverse (si leggeva `evaluate_tuning_embeddings` come adatto anche al clustering). Stesso verbo e stesso oggetto, cambia solo la pipeline.
+
+**Conseguenza attuale**: le voci di questo archivio scritte prima di oggi usano i nomi vecchi.
+
 ## 21-10-26 — Il report del tuning ha un modulo proprio; `clustering_tuning_explorer` eliminato
 
 **Cosa è cambiato**: `tuning_report_markdown`, i testi «come leggerlo» (`HINT_*`, `REPORT_TERMS`) e le funzioni di formattazione sono passati da `clustering_tuning_analysis.py` al nuovo `src/analysis/clustering_tuning_report.py`, che non calcola nulla: legge dalla cartella i file delle valutazioni (`write_report`). Lo chiamano lo sweep (nuovo campo `write_report` in `clustering.json`, verificato all'avvio con `require_report_evaluations`) e `analyze_clustering_tuning`: stesso `report.md` nei due casi. Il notebook `notebooks/post-results_analysis/clustering_tuning_explorer.ipynb` è stato eliminato; i test del report sono in `tests/unit/test_clustering_tuning_report.py` e `test_prop_clustering_tuning_report.py`.

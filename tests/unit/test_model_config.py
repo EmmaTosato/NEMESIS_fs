@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 
 from src.analysis.model_config import (
-    load_analyze_clustering_tuning_config,
+    load_evaluate_clustering_tuning_config,
     load_clustering_config,
     load_dim_reduction_config,
-    load_evaluate_tuning_embeddings_config,
+    load_evaluate_dim_reduction_tuning_config,
 )
 
 _SHARED = {
@@ -98,20 +98,20 @@ def test_dim_reduction_config_invalid_tuning_evaluations_raises(tmp_path, bad_bl
         load_dim_reduction_config(_write(tmp_path, "dr.json", _dr_payload(tuning_evaluations=bad_block)))
 
 
-def test_evaluate_tuning_embeddings_config_valid(tmp_path):
+def test_evaluate_dim_reduction_tuning_config_valid(tmp_path):
     payload = {
         "tuning_dir": "results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol",
         "overwrite": False,
         "tuning_evaluations": {"plot_hdbscan": {"min_cluster_size": 100, "min_samples": 10}},
         "write_report": False,
     }
-    config = load_evaluate_tuning_embeddings_config(_write(tmp_path, "ev.json", payload))
+    config = load_evaluate_dim_reduction_tuning_config(_write(tmp_path, "ev.json", payload))
     assert config.tuning_dir == Path("results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol")
     assert config.overwrite is False
     assert config.tuning_evaluations == payload["tuning_evaluations"]
 
 
-def test_evaluate_tuning_embeddings_config_rejects_sweep_score(tmp_path):
+def test_evaluate_dim_reduction_tuning_config_rejects_sweep_score(tmp_path):
     """trustworthiness needs the original matrix, which this entry point never loads - rejected
     at load time instead of being silently skipped."""
     payload = {
@@ -121,21 +121,21 @@ def test_evaluate_tuning_embeddings_config_rejects_sweep_score(tmp_path):
         "write_report": False,
     }
     with pytest.raises(ValueError, match="'trustworthiness'\\] is a sweep_score and cannot be run here"):
-        load_evaluate_tuning_embeddings_config(_write(tmp_path, "ev.json", payload))
+        load_evaluate_dim_reduction_tuning_config(_write(tmp_path, "ev.json", payload))
 
 
-def test_evaluate_tuning_embeddings_config_empty_block_raises(tmp_path):
+def test_evaluate_dim_reduction_tuning_config_empty_block_raises(tmp_path):
     payload = {"tuning_dir": "x", "overwrite": False, "tuning_evaluations": {}}
     with pytest.raises(ValueError, match="at least one evaluation"):
-        load_evaluate_tuning_embeddings_config(_write(tmp_path, "ev.json", payload))
+        load_evaluate_dim_reduction_tuning_config(_write(tmp_path, "ev.json", payload))
 
 
 @pytest.mark.parametrize("missing", ["tuning_dir", "overwrite", "tuning_evaluations"])
-def test_evaluate_tuning_embeddings_config_missing_field_raises(tmp_path, missing):
+def test_evaluate_dim_reduction_tuning_config_missing_field_raises(tmp_path, missing):
     payload = {"tuning_dir": "x", "overwrite": False, "tuning_evaluations": {"plot_hdbscan": {"min_cluster_size": 100, "min_samples": 10}}}
     del payload[missing]
     with pytest.raises(ValueError, match=f"missing required field '{missing}'"):
-        load_evaluate_tuning_embeddings_config(_write(tmp_path, "ev.json", payload))
+        load_evaluate_dim_reduction_tuning_config(_write(tmp_path, "ev.json", payload))
 
 
 def test_dim_reduction_config_missing_fine_tuning_raises(tmp_path):
@@ -595,8 +595,8 @@ def _analyze_payload(**overrides):
     return payload
 
 
-def test_analyze_clustering_tuning_config_valid(tmp_path):
-    config = load_analyze_clustering_tuning_config(_write(tmp_path, "an.json", _analyze_payload()))
+def test_evaluate_clustering_tuning_config_valid(tmp_path):
+    config = load_evaluate_clustering_tuning_config(_write(tmp_path, "an.json", _analyze_payload()))
 
     assert config.tuning_dir == Path("results/lesion/clustering/tuning/agglomerative/umap/08-10_s1.4-vol_m_dice_nc2")
     assert config.evaluations_file == Path("config/registry/clustering_evaluations.json")
@@ -615,18 +615,18 @@ def test_analyze_clustering_tuning_config_valid(tmp_path):
         ({"overwrite": "no"}, "'overwrite' must be a boolean"),
     ],
 )
-def test_analyze_clustering_tuning_config_invalid_raises(tmp_path, overrides, message):
+def test_evaluate_clustering_tuning_config_invalid_raises(tmp_path, overrides, message):
     with pytest.raises(ValueError, match=message):
-        load_analyze_clustering_tuning_config(_write(tmp_path, "an.json", _analyze_payload(**overrides)))
+        load_evaluate_clustering_tuning_config(_write(tmp_path, "an.json", _analyze_payload(**overrides)))
 
 
 @pytest.mark.parametrize("field", ["evaluations_file", "tuning_evaluations", "write_report"])
-def test_analyze_clustering_tuning_config_has_no_defaults(tmp_path, field):
+def test_evaluate_clustering_tuning_config_has_no_defaults(tmp_path, field):
     payload = _analyze_payload()
     del payload[field]
 
     with pytest.raises(ValueError, match=f"missing required field '{field}'"):
-        load_analyze_clustering_tuning_config(_write(tmp_path, "an.json", payload))
+        load_evaluate_clustering_tuning_config(_write(tmp_path, "an.json", payload))
 
 
 def _clustering_tuning_payload(**overrides):

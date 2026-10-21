@@ -1,4 +1,4 @@
-"""E2E: la catena intera build_lesion_matrix -> dim_reduction -> clustering -> analyze_clustering_tuning.
+"""E2E: la catena intera build_lesion_matrix -> dim_reduction -> clustering -> evaluate_clustering_tuning.
 
 Gli altri test di integrazione agganciano al massimo due stadi per volta; qui ogni stadio consuma
 l'artefatto vero scritto dal precedente (nessun file scritto a mano nel mezzo), e si verifica che
@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.pipeline import analyze_clustering_tuning, clustering, dim_reduction
+from src.pipeline import evaluate_clustering_tuning, clustering, dim_reduction
 from src.utils.artifacts import load_matrix
 from tests.factories.ids import subject_ids
 from tests.factories.lesion_dataset import add_clinical_columns, run_build_lesion_matrix, write_json
@@ -135,14 +135,14 @@ def test_tuning_chain_feeds_the_analysis_step(tmp_path, monkeypatch, chain):
     assert len(results) == 3 * 2  # prodotto della griglia, nessuna combinazione persa o duplicata
     assert not results.duplicated(subset=["n_clusters", "linkage", "metric"]).any()
 
-    monkeypatch.setattr(analyze_clustering_tuning, "LOGS_ROOT", tmp_path / "an_logs")
+    monkeypatch.setattr(evaluate_clustering_tuning, "LOGS_ROOT", tmp_path / "an_logs")
     registry = json.loads(Path("config/registry/clustering_evaluations.json").read_text())
     evaluations_file = write_json(tmp_path / "evaluations.json", {**registry, "dendrogram_jump": {"k_range": {"min": 2, "max": 4}}})
     cfg = {
         "tuning_dir": str(tuning_dir), "overwrite": False, "evaluations_file": str(evaluations_file), "write_report": True,
         "tuning_evaluations": {"general": [], "agglomerative": ["k_curves", "cophenetic_correlation", "dendrogram_jump", "linkage_agreement"]},
     }
-    assert analyze_clustering_tuning.main(["--config", str(write_json(tmp_path / "an.json", cfg))]) == 0
+    assert evaluate_clustering_tuning.main(["--config", str(write_json(tmp_path / "an.json", cfg))]) == 0
 
     jump = pd.read_csv(tuning_dir / "dendrogram_jump.csv")
     assert set(jump["n_clusters"]) <= {2, 3, 4}

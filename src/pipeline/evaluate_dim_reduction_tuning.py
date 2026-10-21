@@ -1,7 +1,7 @@
 """CLI entry point: run embedding-based evaluations on an already-stored dim_reduction tuning run.
 
 Usage:
-    python -m src.pipeline.evaluate_tuning_embeddings --config config/pipelines/evaluate_tuning_embeddings.json
+    python -m src.pipeline.evaluate_dim_reduction_tuning --config config/pipelines/evaluate_dim_reduction_tuning.json
 
 The same evaluations dim_reduction.py applies right after a sweep when its config declares them in
 `tuning_evaluations` (today plot_hdbscan), run later on the embeddings.npz that sweep saved
@@ -21,25 +21,25 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from src.analysis.model_config import load_evaluate_tuning_embeddings_config
+from src.analysis.model_config import load_evaluate_dim_reduction_tuning_config
 from src.analysis.tuning_embeddings import load_tuning_run
 from src.analysis.tuning_evaluations import run_embedding_evaluations, validate_embedding_evaluations_feasible
 from src.utils.logging_setup import attach_file_handler, log_duration
 
-LOGS_ROOT = Path("logs") / "evaluate_tuning_embeddings"
-LOG_FILENAME_PREFIX = "evaluate_tuning_embeddings"
+LOGS_ROOT = Path("logs") / "evaluate_dim_reduction_tuning"
+LOG_FILENAME_PREFIX = "evaluate_dim_reduction_tuning"
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run embedding-based evaluations on a stored dim_reduction tuning run.")
-    parser.add_argument("--config", required=True, help="Path to an evaluate_tuning_embeddings.json file")
+    parser.add_argument("--config", required=True, help="Path to an evaluate_dim_reduction_tuning.json file")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     logging.getLogger().setLevel(logging.INFO)
 
     try:
-        config = load_evaluate_tuning_embeddings_config(args.config)
+        config = load_evaluate_dim_reduction_tuning_config(args.config)
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return 1

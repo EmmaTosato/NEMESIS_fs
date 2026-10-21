@@ -1,4 +1,4 @@
-"""`src/pipeline/evaluate_tuning_embeddings.py::main`: rami di errore su un tuning già salvato (file veri minuscoli).
+"""`src/pipeline/evaluate_dim_reduction_tuning.py::main`: rami di errore su un tuning già salvato (file veri minuscoli).
 
 Il tuning è scritto a mano nel suo formato su disco (`embeddings.npz` + blocco ```json in `config.md`), lo stesso
 che `dim_reduction.py` produce e `load_tuning_run` rilegge.
@@ -15,7 +15,7 @@ import pandas as pd
 import pytest
 
 from src.analysis.tuning_embeddings import combo_key
-from src.pipeline import evaluate_tuning_embeddings as pipeline
+from src.pipeline import evaluate_dim_reduction_tuning as pipeline
 
 HDBSCAN = {"min_cluster_size": 10, "min_samples": 3}
 KEYS = ["metric", "n_components", "n_neighbors"]

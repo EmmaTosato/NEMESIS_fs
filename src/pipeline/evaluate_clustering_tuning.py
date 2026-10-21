@@ -1,7 +1,7 @@
 """CLI entry point: analyse an already-stored clustering tuning run.
 
 Usage:
-    python -m src.pipeline.analyze_clustering_tuning --config config/pipelines/analyze_clustering_tuning.json
+    python -m src.pipeline.evaluate_clustering_tuning --config config/pipelines/evaluate_clustering_tuning.json
 
 Reads the files `clustering.py --fine_tuning true` wrote (tuning_results.csv, clusterings.npz, config.md and,
 for the evaluations that need it, the matrix its config.md points to) and runs on them the evaluations
@@ -31,23 +31,23 @@ import pandas as pd
 from src.analysis.clustering_tuning_analysis import ADP, load_clustering_tuning_run, read_run_config
 from src.analysis.clustering_tuning_evaluations import load_evaluation_settings, refuse_existing, run_evaluations
 from src.analysis.clustering_tuning_report import REPORT_FILENAME, write_report
-from src.analysis.model_config import load_analyze_clustering_tuning_config
+from src.analysis.model_config import load_evaluate_clustering_tuning_config
 from src.utils.logging_setup import attach_file_handler, log_duration
 
-LOGS_ROOT = Path("logs") / "analyze_clustering_tuning"
-LOG_FILENAME_PREFIX = "analyze_clustering_tuning"
+LOGS_ROOT = Path("logs") / "evaluate_clustering_tuning"
+LOG_FILENAME_PREFIX = "evaluate_clustering_tuning"
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Analyse a stored clustering tuning run.")
-    parser.add_argument("--config", required=True, help="Path to an analyze_clustering_tuning.json file")
+    parser.add_argument("--config", required=True, help="Path to an evaluate_clustering_tuning.json file")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     logging.getLogger().setLevel(logging.INFO)
 
     try:
-        config = load_analyze_clustering_tuning_config(args.config)
+        config = load_evaluate_clustering_tuning_config(args.config)
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return 1

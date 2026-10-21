@@ -63,7 +63,7 @@ Two modes, chosen by `fine_tuning`, same convention as dim_reduction.py:
   any evaluated combination's labels without recomputing the sweep.
   The evaluations declared in config.tuning_evaluations (src/analysis/clustering_tuning_evaluations.py: cophenetic
   correlation, dendrogram jump, ... per method) run right after the sweep on those stored labels - the same
-  function src/pipeline/analyze_clustering_tuning.py runs later on the folder - and write their files next to
+  function src/pipeline/evaluate_clustering_tuning.py runs later on the folder - and write their files next to
   tuning_results.csv. With config.write_report, report.md (src/analysis/clustering_tuning_report.py) is written
   from those files.
 
@@ -706,7 +706,7 @@ def _run_one_method_tuning(
 
     if evaluations_for(config.tuning_evaluations, method):
         try:
-            # the same function analyze_clustering_tuning.py runs later on the stored folder, so the sweep and a
+            # the same function evaluate_clustering_tuning.py runs later on the stored folder, so the sweep and a
             # later run give the same files (labels come back from clusterings.npz, the matrix is the one in memory)
             written = run_evaluations(
                 config.tuning_evaluations, evaluation_settings, load_clustering_tuning_run(output_dir), overwrite=False, matrix=X

@@ -102,7 +102,7 @@ Fonte dei significati: documentazione di `AgglomerativeClustering` [10].
 Nessuna fonte dà una regola per scegliere linkage e k; le diagnostiche sotto sono quelle classiche più due del progetto.
 
 1. **Il linkage, a metrica fissata.**
-   - *Correlazione cofenetica* per (metric, linkage): quanto l'albero rispetta le distanze [6]. Si confronta solo dentro una metrica. Output: `cophenetic_correlation.csv` (`analyze_clustering_tuning`).
+   - *Correlazione cofenetica* per (metric, linkage): quanto l'albero rispetta le distanze [6]. Si confronta solo dentro una metrica. Output: `cophenetic_correlation.csv` (`evaluate_clustering_tuning`).
    - *Accordo tra linkage*: ARI [9] tra le partizioni di due linkage allo stesso k (`linkage_agreement.csv`). Dove è vicino a 1 la scelta del linkage cambia poco. Scelta del progetto.
 2. **Il numero di cluster.**
    - *Dendrogramma*: un taglio è naturale dove, salendo, c'è un salto grande tra due altezze consecutive. Il progetto lo riassume nel **salto del dendrogramma** (`dendrogram_jump.csv`): l'altezza della fusione da $k$ a $k-1$ cluster divisa per quella da $k+1$ a $k$, cioè con $h_1 \ge h_2 \ge \dots$ le altezze dalla più alta, $J(k) = h_{k-1}/h_k$. È una diagnostica del progetto, senza fasce di letteratura.

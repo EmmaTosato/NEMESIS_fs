@@ -10,7 +10,7 @@ Two kinds, told apart by what they need:
   and require_native_score_declared makes sure that statement is true.
 - KIND_EMBEDDING_EVALUATION (plot_hdbscan): reads only the saved embeddings, so it runs right
   after a sweep (in memory) or any time later on a stored run, with no refit and no X
-  (src/pipeline/evaluate_tuning_embeddings.py). Same code path both ways: run_embedding_evaluations.
+  (src/pipeline/evaluate_dim_reduction_tuning.py). Same code path both ways: run_embedding_evaluations.
 
 Adding a mechanism = one EvaluationSpec in EVALUATIONS (settings validation, optional feasibility
 check against the grid, a run function). Nothing else - config parsing, the pipeline and the

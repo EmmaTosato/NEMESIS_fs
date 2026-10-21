@@ -81,11 +81,11 @@ Decisione dell'utente (21-10-26): **non** rilanciare `mask_fc.py` per ora. Non �
 
 ### Tuning del clustering: cosa resta dopo il registro delle valutazioni
 
-Fatto (21-10-26): blocco `tuning_evaluations` nel config, registro in `src/analysis/clustering_tuning_evaluations.py`, parametri in `config/registry/clustering_evaluations.json`, stessa funzione nello sweep e in `analyze_clustering_tuning` (`.claude/history/project_changelog.md`). Resta:
+Fatto (21-10-26): blocco `tuning_evaluations` nel config, registro in `src/analysis/clustering_tuning_evaluations.py`, parametri in `config/registry/clustering_evaluations.json`, stessa funzione nello sweep e in `evaluate_clustering_tuning` (`.claude/history/project_changelog.md`). Resta:
 
 - decidere quali metriche entrano nel registro e con quali soglie (Dunn, silhouette per cluster, quota del cluster più grande per agglomerative, membership e persistence di `hdbscan_soft` come valutazioni dichiarate: oggi sono colonne dello sweep o assenti);
 - i testi del report (`HINT_*`, `REPORT_TERMS`) sono costanti in `src/analysis/clustering_tuning_report.py`: farli arrivare da `docs/` e `knowledge/` perché non divergano;
-- il report è scritto dal codice (sweep con `write_report`, o `analyze_clustering_tuning`), non da un notebook: `clustering_tuning_explorer` è stato eliminato il 21-10-26; ciò che provava lo si prova in `clustering_evaluation` (da spostare in `pipeline_building`) e poi entra nel registro e nel modulo del report;
+- il report è scritto dal codice (sweep con `write_report`, o `evaluate_clustering_tuning`), non da un notebook: `clustering_tuning_explorer` è stato eliminato il 21-10-26; ciò che provava lo si prova in `clustering_evaluation` (da spostare in `pipeline_building`) e poi entra nel registro e nel modulo del report;
 - le figure delle valutazioni sono salvate a 150 dpi (`FIGURE_DPI` in `clustering_tuning_evaluations.py`): alzare la qualità;
 - la produzione e Dash con le stesse funzioni e soglie; `clustering_evaluation.ipynb` verso `pipeline_building`;
 - ICL, gap statistic e self-tuning eigengap sono nello stesso modulo di `clustering_tuning.py` ma senza una valutazione nel registro (si recuperano da `46c3123`).
@@ -108,7 +108,7 @@ Fuori dal primo giro di implementazione (19-10-26), da riprendere dopo aver deci
 - **Dimensione del cluster che si divide da k a k+1**: non esiste nel codice.
 - **Accordo tra embedding** (ARI tra nc2, nc3 e nc10, a parità di k e linkage): esiste solo in `src/analysis/cluster_comparison.py` (il notebook `clustering_tuning_explorer`, eliminato il 21-10-26, lo calcolava anche per i tuning) (sezione "Confronto" tolta dall'app); confronta più run, quindi non entra nel `report.md` di una singola run.
 - **Composizione dei cluster per dataset e lato**: esiste in `src/analysis/cluster_composition.py` e nel pannello dell'app, non nei report.
-- **Dove riprodurre dendrogrammi, matrice interclasse e `labels_2d_*`**: li scrive `clustering.py`, non `analyze_clustering_tuning`; il report non li cita.
+- **Dove riprodurre dendrogrammi, matrice interclasse e `labels_2d_*`**: li scrive `clustering.py`, non `evaluate_clustering_tuning`; il report non li cita.
 
 ---
 

@@ -1,9 +1,9 @@
-# Analizzare un tuning di clustering già salvato (`analyze_clustering_tuning`)
+# Analizzare un tuning di clustering già salvato (`evaluate_clustering_tuning`)
 
 Calcola su un tuning di `clustering.py` già concluso ciò che lo sweep non scrive, senza rifare il clustering: legge `tuning_results.csv`, `clusterings.npz` e `config.md` della cartella della run e scrive i risultati accanto a quei file. Lesione e SDC allo stesso modo. ADP non è gestito (ha le sue diagnostiche: [`clustering.md`](clustering.md)).
 
-- **Script**: `src/pipeline/analyze_clustering_tuning.py`
-- **Configurazione**: `config/pipelines/analyze_clustering_tuning.json`
+- **Script**: `src/pipeline/evaluate_clustering_tuning.py`
+- **Configurazione**: `config/pipelines/evaluate_clustering_tuning.json`
 
 ---
 
@@ -12,12 +12,12 @@ Calcola su un tuning di `clustering.py` già concluso ciò che lo sweep non scri
 ### 1. In locale
 ```bash
 conda activate nemesis
-python -m src.pipeline.analyze_clustering_tuning --config config/pipelines/analyze_clustering_tuning.json
+python -m src.pipeline.evaluate_clustering_tuning --config config/pipelines/evaluate_clustering_tuning.json
 ```
 
 ### 2. Sul server (tramite SLURM)
 ```bash
-sbatch jobs/run_analyze_clustering_tuning.sh
+sbatch jobs/run_evaluate_clustering_tuning.sh
 ```
 
 ---
@@ -53,7 +53,7 @@ Nella cartella della run (rilanciare la pipeline del tuning con `overwrite: true
 | hdbscan, hdbscan_soft | `density_metrics.csv` | `tuning_results.csv` più `n_clusters_found` (contato dalle etichette) e `largest_cluster_share` (sul totale dei soggetti, rumore compreso; vuoto se tutti i soggetti sono rumore). Sono misure: nessuna combinazione è classificata come buona o utilizzabile. |
 | hdbscan, hdbscan_soft | `noise_filtered_curves[_<cluster_selection_method>].png` | Silhouette e Davies-Bouldin contro `min_cluster_size`, una linea per `min_samples`, solo le combinazioni con poco rumore. Se per un `cluster_selection_method` nessuna combinazione è sotto il limite (`leaf` non scende sotto il 15%), manca quel file e il log lo dice. |
 
-Ogni lancio scrive un log in `logs/analyze_clustering_tuning/`.
+Ogni lancio scrive un log in `logs/evaluate_clustering_tuning/`.
 
 ---
 

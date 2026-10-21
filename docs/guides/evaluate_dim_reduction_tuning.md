@@ -1,9 +1,9 @@
-# Valutare un tuning già salvato (`evaluate_tuning_embeddings`)
+# Valutare un tuning già salvato (`evaluate_dim_reduction_tuning`)
 
 Applica a un tuning di `dim_reduction` già concluso le valutazioni che lavorano sui soli embedding (oggi `plot_hdbscan`), senza rifare lo sweep. Funziona su lesione e SDC allo stesso modo: legge solo la cartella del tuning.
 
-- **Script**: `src/pipeline/evaluate_tuning_embeddings.py`
-- **Configurazione**: `config/pipelines/evaluate_tuning_embeddings.json`
+- **Script**: `src/pipeline/evaluate_dim_reduction_tuning.py`
+- **Configurazione**: `config/pipelines/evaluate_dim_reduction_tuning.json`
 
 ---
 
@@ -12,12 +12,12 @@ Applica a un tuning di `dim_reduction` già concluso le valutazioni che lavorano
 ### 1. In locale
 ```bash
 conda activate nemesis
-python -m src.pipeline.evaluate_tuning_embeddings --config config/pipelines/evaluate_tuning_embeddings.json
+python -m src.pipeline.evaluate_dim_reduction_tuning --config config/pipelines/evaluate_dim_reduction_tuning.json
 ```
 
 ### 2. Sul server (tramite SLURM)
 ```bash
-sbatch jobs/run_evaluate_tuning_embeddings.sh
+sbatch jobs/run_evaluate_dim_reduction_tuning.sh
 ```
 
 ---
@@ -40,4 +40,4 @@ Non servono la matrice originale né i metadati. Per questo il punteggio dello s
 
 Gli stessi file che scrive `dim_reduction` quando la valutazione è nel suo blocco, nelle stesse cartelle del tuning (una per foglia `metric=.../n_components=.../`): per `plot_hdbscan`, `hdbscan_grid_mcs<N>_ms<M>.png` e `hdbscan_results_mcs<N>_ms<M>.csv`. Le impostazioni stanno nel nome del file: rilanciare con altre impostazioni aggiunge file accanto ai precedenti. Con le stesse impostazioni il risultato è identico a quello calcolato durante lo sweep.
 
-`config.md` del tuning non viene modificato: descrive lo sweep, non le valutazioni successive. Ogni lancio scrive un log in `logs/evaluate_tuning_embeddings/`.
+`config.md` del tuning non viene modificato: descrive lo sweep, non le valutazioni successive. Ogni lancio scrive un log in `logs/evaluate_dim_reduction_tuning/`.

@@ -125,7 +125,7 @@ $$
 
 - Non è un indice della letteratura con un nome proprio: è la quota di soggetti etichettati come rumore, riportata dal progetto accanto a ogni indice (`compute_clustering_metrics`).
 - **Perché conta**: silhouette, CH e DB sono calcolati sui soli soggetti clusterizzati. Una combinazione che manda nel rumore i soggetti difficili lascia i più facili e fa salire gli indici senza che la partizione sia migliore. DBCV (§8) evita il problema pesando ogni cluster per la sua quota sul **totale** dei soggetti, rumore compreso [7].
-- **Cosa ne fa il progetto**: nessuna soglia di merito. `curves_max_noise_fraction` (pipeline `analyze_clustering_tuning`) e `NOISE_WARNING_FRACTION` (notebook di valutazione) sono valori di esempio dichiarati come tali.
+- **Cosa ne fa il progetto**: nessuna soglia di merito. `curves_max_noise_fraction` (pipeline `evaluate_clustering_tuning`) e `NOISE_WARNING_FRACTION` (notebook di valutazione) sono valori di esempio dichiarati come tali.
 - In ADP il rumore viene solo dalle righe tutte a zero (distanza dice non definita), perché il progetto usa `halo=False` (vedi [`adp.md`](adp.md)).
 
 ---

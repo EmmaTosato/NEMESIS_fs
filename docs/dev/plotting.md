@@ -105,7 +105,7 @@ A small registry plus a shared writer, so adding a new coloring mode is one dict
 
 ## Figure dei notebook di lettura di un tuning
 
-Le figure di `dendrogram_embedding_explorer` (`notebooks/post-results_analysis/`) sono disegnate nel notebook con matplotlib e nilearn, non da `plotting.py`, e non usano `_CATEGORICAL_PALETTE`. Convenzioni (uso dei notebook: `docs/guides/analyze_clustering_tuning.md`):
+Le figure di `dendrogram_embedding_explorer` (`notebooks/post-results_analysis/`) sono disegnate nel notebook con matplotlib e nilearn, non da `plotting.py`, e non usano `_CATEGORICAL_PALETTE`. Convenzioni (uso dei notebook: `docs/guides/evaluate_clustering_tuning.md`):
 
 **`dendrogram_embedding_explorer`, prima figura (albero + embedding), una per k**
 
