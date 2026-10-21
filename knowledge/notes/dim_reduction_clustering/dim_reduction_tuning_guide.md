@@ -18,7 +18,7 @@ Per `umap`/`tsne`/`pacmap`/`pca`, il tuning esegue lo stesso metodo su una grigl
 
 ## Trustworthiness, in dettaglio
 
-`umap`, `tsne` e `pacmap` non hanno una nozione nativa di "varianza spiegata" (non sono decomposizioni lineari) — l'unica metrica di qualità disponibile senza un ground truth di riferimento è la **trustworthiness** (Venna & Kaski 2006, implementata in `sklearn.manifold.trustworthiness`, unica metrica di questo tipo nella libreria).
+`umap`, `tsne` e `pacmap` non hanno una nozione nativa di "varianza spiegata" (non sono decomposizioni lineari) — l'unica metrica di qualità disponibile senza un ground truth di riferimento è la **trustworthiness** (Venna & Kaski 2001, implementata in `sklearn.manifold.trustworthiness`, unica metrica di questo tipo nella libreria).
 
 **Definizione formale** (dalla documentazione scikit-learn):
 
@@ -88,13 +88,13 @@ Il **valore assoluto** della trustworthiness non si confronta tra `n_components`
 - Un'unica linea media sui parametri liberi sintetizza l'andamento; le linee singole mostrano se è lo stesso per tutte le combinazioni o dipende da `n_neighbors`/`min_dist`.
 - Il gomito dice dove smette di convenire aumentare le dimensioni **per la conservazione dei vicinati**, non quante servono al clustering: la scelta resta congiunta al pattern clinico/anatomico e alla diagnostica del clustering, come sopra.
 
-Solo UMAP varia `n_components` nello sweep (`config/registry/params_reduction.json`: `n_components` è nella `tuning_grid` di `umap`). t-SNE e PaCMAP restano a `n_components = 2` fisso e non hanno nulla da confrontare in questo senso. Il guadagno marginale si legge direttamente dai `tuning_results.csv` già su disco (colonne `n_components`, `trustworthiness`), senza nuovi calcoli.
+Tra i metodi non lineari solo UMAP varia `n_components` nello sweep (`config/registry/params_reduction.json`: `n_components` è nella `tuning_grid` di `umap`). t-SNE e PaCMAP restano a `n_components = 2` fisso e non hanno nulla da confrontare in questo senso. Il guadagno marginale si legge direttamente dai `tuning_results.csv` già su disco (colonne `n_components`, `trustworthiness`), senza nuovi calcoli.
 
 ## File di output
 
 - `tuning_results.csv`: una riga per combinazione (colonna metrica secondo la tabella sopra). Se `nested_params` è dichiarato, una copia filtrata per ogni foglia.
 - `tuning_plot.png`: curva a 1 parametro (solo se **non** c'è `nested_params` e la griglia libera ha 1 solo parametro — es. PCA/PaCMAP).
 - `embeddings_grid_<colore>.png`: scatter reali per foglia, quando `nested_params` **è** dichiarato (umap/tsne).
-- `embeddings.npz` (opt-in, `save_tuning_embeddings: true`): l'embedding vero di **ogni** combinazione sweeppata, indicizzato da una chiave `"chiave1=valore1,..."` — pensato per un futuro plot interattivo stile Figura 4 di [pair-code.github.io/understanding-umap](https://pair-code.github.io/understanding-umap/) (griglia `n_neighbors`×`min_dist`, solo lettura/plotting, mai rifit lato browser — non ancora implementato).
-- `metadata.csv` (stesso trigger di `embeddings.npz`): anagrafica arricchita (`lesion_volume_voxels`/`lesion_side`/`nihss`), necessaria perché `embeddings_grid_*.png` colora i punti al volo.
+- `embeddings.npz` (opt-in, `save_tuning_embeddings: true`): l'embedding vero di **ogni** combinazione sweeppata, indicizzato da una chiave `"chiave1=valore1,..."` — letto da `generate_understanding_umap_report.py` (`docs/guides/understanding_umap_report.md`), che costruisce un report HTML nel layout di [pair-code.github.io/understanding-umap](https://pair-code.github.io/understanding-umap/) (griglia `n_neighbors`×`min_dist`, cursori; solo lettura e plotting, mai rifit lato browser), e dagli altri strumenti che rileggono un tuning salvato.
+- `metadata.csv` (stesso trigger di `embeddings.npz`): anagrafica dei soggetti così come letta da `input_path` (nelle run su disco: `subject_id`, `dataset`). Lato e NIHSS non ci sono: si risolvono dal registro dei soggetti (`assets/metadata/participants.csv`) al momento del plot, perché `embeddings_grid_*.png` colora i punti al volo.
 - `config.md`: snapshot di `tuning_grid`/`nested_params`/parametri fissi per l'intero run.

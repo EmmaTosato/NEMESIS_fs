@@ -76,7 +76,7 @@ La giustificazione è la proprietà delle componenti connesse sopra. Von Luxburg
 
 ## 3. Il nostro contesto
 
-- **Input**: embedding UMAP (2, 3, 10 componenti) o score PCA, circa 1570-5845 soggetti. Le run di tuning registrate in `results/{lesion,sdc}/clustering/tuning/spectral/runs_tuning.csv` sono tutte su UMAP euclideo.
+- **Input**: embedding UMAP (2, 3, 10 componenti) o score PCA, circa 1570-5845 soggetti. Le run di tuning registrate in `results/{lesion,sdc}/clustering/tuning/spectral/runs_tuning.csv` sono tutte su embedding UMAP (metrica UMAP `euclidean`; per le lesioni anche `dice`); lo spectral lavora comunque in distanza euclidea sulle coordinate dell'embedding.
 - **`gamma` dipende dalla scala dell'embedding.** Misura fatta per questa nota sull'UMAP a 2 componenti di `s2.2-vol` (1570 soggetti, `results/sdc/dim_reduction/production/umap/07-09_s2.2-vol_m_euclidean_nc2`): la distanza al quadrato mediana tra due soggetti è circa 25.9. Quota di coppie con affinità sotto $10^{-6}$: 7% con $\gamma=0.1$, 66% con $\gamma=1$, 89% con $\gamma=5$. Lo stesso $\gamma$ su uno spazio PCA, con scala diversa, costruisce un grafo diverso: i valori della griglia non sono trasferibili tra embedding.
 - **Memoria**: `rbf` costruisce una matrice densa $n \times n$ in `float64`, circa 273 MB a 5845 soggetti; `nearest_neighbors` una matrice sparsa.
 - **Embedding UMAP e connettività**: UMAP può creare false separazioni dentro un gruppo vero [9]. Con un grafo `nearest_neighbors` a `n_neighbors` piccolo, isole separate dell'embedding diventano componenti connesse distinte, e lo spectral le separa per costruzione. scikit-learn avvisa quando il grafo non è connesso.

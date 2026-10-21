@@ -18,7 +18,7 @@
 
 - **Gerarchico**, dal basso verso l'alto, **deterministico** e **non supervisionato**.
 - Il numero di cluster non è nell'algoritmo: si decide dopo, tagliando l'albero.
-- Nel progetto gira sugli embedding UMAP e sui punteggi PCA.
+- Nel progetto gira sugli embedding UMAP, sui punteggi PCA e sulla matrice `stream` (87 colonne).
 - `linkage` e `metric` si variano insieme a `n_clusters`; `ward` esiste solo con la metrica euclidea, quindi le altre combinazioni con `ward` vengono scartate.
 
 ## Cosa restituisce
@@ -49,4 +49,4 @@ Altezza del passo 3, dalle quattro distanze tra i due gruppi (0-5 = 5, 0-7 = 7, 
 - Tagliando a `n_clusters` = 2 si ottengono {0, 1} e {5, 7}, qualunque sia il linkage.
 - Il linkage cambia a che altezza si fondono i due gruppi, e con più punti anche quali gruppi si fondono per primi.
 
-Approfondimento: `clustering_literature_survey.md` (sezione sul clustering gerarchico), `clustering_tuning_guide.md` (dendrogramma, regola di ward).
+Approfondimento: `knowledge/notes/dim_reduction_clustering/clustering_methods/agglomerative.md` (linkage, formule, tuning); `clustering_literature_survey.md` (sezione sul clustering gerarchico), `clustering_tuning_guide.md` (dendrogramma, regola di ward).

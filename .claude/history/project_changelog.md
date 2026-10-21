@@ -10,7 +10,7 @@ Voci in ordine cronologico inverso.
 
 **Cosa è cambiato**: in `knowledge/notes/dim_reduction_clustering/` sono nate due cartelle con una nota per metodo, fonti in coda a ogni nota:
 - `dim_reduction_methods/`: `README.md`, `evaluation.md`, `pca.md`, `pca_varimax.md`, `tsne.md`, `umap.md`, `pacmap.md`. `pacmap.md` è spostato qui dal livello superiore (contenuto conservato e completato);
-- `clustering_methods/`: `README.md`, `evaluation_metrics.md`, `agglomerative.md`, `hdbscan.md` (hard e soft), `adp.md`, `kmeans.md`, `gmm.md`, `spectral.md`, `evidence_accumulation.md`.
+- `clustering_methods/`: `README.md`, `evaluation_metrics.md`, `agglomerative.md`, `hdbscan.md` (hard e soft), `adp.md`, `kmeans.md`, `gmm.md`, `spectral.md`. La nota `evidence_accumulation.md` fu scritta nella stessa sessione e tolta insieme al metodo (voce del 21-10-26 in `methods_changelog.md`): non è mai stata committata.
 
 Link aggiornati in `docs/guides/dim_reduction.md`, `docs/dev/models.md`, `management/cheatsheets/pacmap.md` e nelle note di livello superiore. Le note esistenti (`employed_dim_reduction_methods.md`, `clustering_literature_survey.md`, ecc.) restano e rimandano alle cartelle.
 
@@ -20,7 +20,7 @@ Link aggiornati in `docs/guides/dim_reduction.md`, `docs/dev/models.md`, `manage
 
 ## 21-10-26 — Cancellato `assets/metadata/lesion_quality_metrics.csv`, rimasto su disco dopo la sua sostituzione
 
-**Cosa è cambiato**: il file (5853 righe di dati, colonne `subject_id`, `dataset`, `out_of_brain_fraction`; ultimo commit 29-09-26 `028205e`) è stato cancellato dal working tree, e il suo paragrafo è stato tolto da `docs/guides/metadata.md`. Nessun commit fatto dall'assistente.
+**Cosa è cambiato**: il file (5853 righe di dati, colonne `subject_id`, `dataset`, `out_of_brain_fraction`; ultimo commit 29-09-26 `028205e`) è stato cancellato, e il suo paragrafo è stato tolto da `docs/guides/metadata.md`. La cancellazione è registrata nel commit `b4c643f` (21-10-26).
 
 **Perché**: la voce del 29-09-26 più sotto dichiarava che il file «non esiste più», ma era rimasto su disco e tracciato in git. Il grep su `src/`, `config/`, `tests/`, `scripts/`, `docs/` e `notebooks/` non trovava nessuno che lo scrivesse o lo leggesse; la stessa misura è la colonna `out_of_brain_fraction_<griglia>` di `lesion_metadata.csv`. Cancellazione chiesta esplicitamente dall'utente.
 
@@ -32,14 +32,14 @@ Link aggiornati in `docs/guides/dim_reduction.md`, `docs/dev/models.md`, `manage
 - `management/notes/slides_metodi.md` (4 metodi: PCA, varimax, agglomerative, HDBSCAN) diviso in `management/cheatsheets/{pca,pca-varimax,agglomerative,hdbscan}.md` più un `README.md` con la tabella di confronto;
 - `management/notes/pacmap.md` → `knowledge/notes/dim_reduction_clustering/pacmap.md` (è una nota con fonte e versione installata, cioè verificata);
 - `management/notes/proposal.md` → `management/nemesis_project/proposal.md` (documento di progetto, come gli altri lì);
-- aggiunte le schede `umap`, `pacmap`, `kmeans`, `evidence-accumulation`, `adp` (nove in tutto) e verificate le quattro esistenti contro `knowledge/notes/` e `docs/`: corretti in `hdbscan.md` l'effetto di `min_samples` sul numero di cluster (la fonte non lo dice, descrive solo rumore ed estensione) e la stabilità, che esiste solo in `hdbscan_soft`; in `agglomerative.md` "ward con euclidea sugli UMAP" (nel progetto linkage e metrica si sweeppano insieme); in `pca-varimax.md` le 500 iterazioni (sono il parametro `rotation_max_iter`). "Deterministico" per PCA e varimax non aveva fonte: aggiunto a `employed_dim_reduction_methods.md`;
+- aggiunte le schede `umap`, `pacmap`, `kmeans`, `evidence-accumulation`, `adp` (commit `28ec2aa`; nove in tutto, otto dopo che `evidence-accumulation.md` è stata tolta con il metodo, vedi `methods_changelog.md` 21-10-26) e verificate le quattro esistenti contro `knowledge/notes/` e `docs/`: corretti in `hdbscan.md` l'effetto di `min_samples` sul numero di cluster (la fonte non lo dice, descrive solo rumore ed estensione) e la stabilità, che esiste solo in `hdbscan_soft`; in `agglomerative.md` "ward con euclidea sugli UMAP" (nel progetto linkage e metrica si sweeppano insieme); in `pca-varimax.md` le 500 iterazioni (sono il parametro `rotation_max_iter`). "Deterministico" per PCA e varimax non aveva fonte: aggiunto a `employed_dim_reduction_methods.md`;
 - aggiornati i riferimenti vivi: `README.md` (albero), `.claude/CLAUDE.md`, `challenge_of_clustering_after_dim_reduction.md`.
 
 **Perché**: `notes` compariva sia in `knowledge/notes/` (fonti di verità, costruite da letteratura e documentazione) sia in `management/notes/` (riassunti personali per sé e per le presentazioni): il nome nascondeva la differenza di stato. Una scheda è una vista derivata e non contiene fatti assenti da `knowledge/notes/`.
 
 **Scartato**: rinominare `knowledge/notes/` (27 file lo citano; il lato personale ne costava 10) · `management/summaries/` (esiste già `summaries/` alla radice, output per run) · `personal/`, `appunti/`, `presentations/` (generici o troppo stretti) · un file unico per tutte le schede (500+ righe a regime).
 
-**Ancora vero oggi**: `management/notes/` non esiste più; `clustering_metrics_report.md` (non tracciato, analisi del 20-10 sulle metriche di valutazione del clustering) è stato messo in `management/cheatsheets/` su indicazione dell'utente, anche se non è una scheda per metodo. I riferimenti vivi a `management/notes/TODO.md` (inesistente) sono stati sostituiti col commit `2ed3dcb` (`.claude/CLAUDE.md`, `src/features/lesion.py`, `docs/dev/lesion_matrix.md`) o tolti (`src/analysis/prediction.py`: la voce "Fase 7" non ha più un posto dove essere tracciata, la limitazione resta nel docstring; `proposal.md`: `workflow.md` non esiste). Quelli nei changelog e in `docs/debugging/` sono storici e restano com'erano.
+**Ancora vero oggi**: `management/notes/` non esiste più; `clustering_metrics_report.md` (analisi del 20-10 sulle metriche di valutazione del clustering, entrata con il commit `34fdd81`) è stato messo in `management/cheatsheets/` su indicazione dell'utente, anche se non è una scheda per metodo. I riferimenti vivi a `management/notes/TODO.md` (inesistente) sono stati sostituiti col commit `2ed3dcb` (`.claude/CLAUDE.md`, `src/features/lesion.py`) o tolti (`src/analysis/prediction.py`: la voce "Fase 7" non ha più un posto dove essere tracciata, la limitazione resta nel docstring; `docs/dev/lesion_matrix.md`: il rimando è sparito con la riscrittura al presente; `proposal.md`: tolto il rimando a `workflow.md`, che non esiste, nel paragrafo della tabella per fasi. Resta quello della nota `(***)` sotto il diagramma, non toccato). Quelli nei changelog e in `docs/debugging/` sono storici e restano com'erano.
 
 ## 19-10-26 — Eliminata `results/reports/cluster_tuning_notebooks/`: il report di una run sta nella cartella della run
 
@@ -378,7 +378,7 @@ L'applicabilità per metodo è nel codice: `src/analysis/clustering_evaluation.p
 
 ## 29-09-26 — Embedding Explorer: pannello «Descrizione del cluster», scelte di layout fatte su richiesta
 
-**Cosa è stato deciso** (commit `2cfb871`, `src/analysis/cluster_description.py` e `embedding_app.py`; ogni voce nacque da un'osservazione dell'utente sul risultato a schermo):
+**Cosa è stato deciso** (commit `2cfb871` e, per il fondo grigio del riquadro di avviso, `7bb7892`; `src/analysis/cluster_description.py` e `embedding_app.py`; ogni voce nacque da un'osservazione dell'utente sul risultato a schermo):
 - **Griglia a 3 colonne** (`_GRID_COLUMNS = 3`) invece di una riga sola per le 5 variabili. Con la pagina a 1100 px ogni sotto-grafico veniva ~200 px, troppo stretto per assi leggibili, e tick e titoli andavano rimpiccioliti («così non si capisce niente, con label e assi così piccoli»). Font alzati su tutto il pannello («in generale aumenta un po' il font»).
 - **Un colore per variabile**, lo stesso per il grafico e per l'intestazione della sua colonna nella tabella sotto, senza legenda («vorrei più varietà nei colori dato che stiamo plottando variabili diverse»).
 - **Tabella delle statistiche numeriche sotto i grafici, con tutti i cluster a confronto** (`ClusterStats` per ogni cluster) invece del solo cluster selezionato.

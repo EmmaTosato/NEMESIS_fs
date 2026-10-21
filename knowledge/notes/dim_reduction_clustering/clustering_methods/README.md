@@ -30,7 +30,7 @@ Le metriche specifiche di un metodo stanno nella sua nota: inertia e gap statist
 | Interessa come i gruppi si dividono a più scale | `agglomerative` | l'albero contiene tutte le partizioni annidate [2] | - |
 | Distanza non euclidea sull'embedding | `agglomerative` con `average`/`complete` | accetta altre metriche [2] | `kmeans`, `gmm`, `ward` |
 | Numero di gruppi ignoto, densità diverse, soggetti atipici da lasciare fuori | `hdbscan`, `hdbscan_soft` | rumore esplicito, k dalla densità [5] | metodi che assegnano tutti |
-| Clusterizzare la matrice **grezza** con distanze `dice`/`jaccard` | `adp` | l'unico che lavora sulle distanze della matrice, k dalla densità [7] | metodi solo euclidei |
+| Clusterizzare la matrice **grezza** con distanze `dice`/`jaccard` | `adp` | clusterizza direttamente le distanze della matrice, con k dalla densità [7]; `agglomerative` accetta `dice`/`jaccard` come `metric`, ma con k fissato | metodi solo euclidei |
 | Gruppi che si toccano o un continuo | nessun metodo discreto lo rivela; leggere con cautela tutti | [6]; `../clustering_literature_survey.md` §3 | - |
 
 ## Cose da sapere valide per tutti

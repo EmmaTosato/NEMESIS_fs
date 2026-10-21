@@ -46,15 +46,15 @@ I primi due termini crescono con la distanza (attrazione), il terzo decresce (re
 **Altre tecniche** [2]:
 
 - **Inizializzazione con PCA** (`init="pca"` di default, passato a `fit_transform`, non al costruttore).
-- **Ricerca dei vicini con FAISS** (`knn_backend="faiss"` di default; Annoy non è più mantenuto).
+- **Ricerca dei vicini con FAISS** (`knn_backend="faiss"` di default; Annoy non è più mantenuto [2]). Per `euclidean` il sorgente usa un indice `IndexHNSWFlat` (HNSW): i vicini sono approssimati, non esatti come nelle distanze precalcolate di UMAP e t-SNE. Con `random_state` fissato i thread di FAISS sono limitati a 1.
 - **PCA preliminare** (`apply_pca=True`): se le variabili sono più di 100 e `distance` non è `hamming`, i dati vengono centrati e ridotti con `TruncatedSVD(n_components=100)` prima di cercare i vicini (sorgente, `preprocess_X`). "Using PCA to preprocess the data can largely accelerate the DR process without losing too much accuracy" [2].
 
 ## 3. Il nostro contesto
 
 - **Dati.** `data/derived/lesion_matrix/25-08_s1.2-vol`: 5269 × 264274, `uint8` (binaria). Non c'è ancora una run di PaCMAP nel repo (nessuna cartella `pacmap` sotto `results/`, nessuna menzione in `docs/experiments/`).
 - **Cosa vede davvero PaCMAP.** Con `apply_pca: true` e 264274 colonne, i vicini, le coppie e l'inizializzazione si calcolano sulle prime **100** componenti della SVD troncata, non sui voxel. È un metodo "PCA → neighbor embedding" (la pipeline ibrida di `../dim_reduction_literature_survey.md`, §5).
-- **Distanza.** `PaCMAP.__init__` accetta `distance` ∈ {`euclidean`, `manhattan`, `angular`, `hamming`, `dot`} (elenco `VALID_METRICS` nel sorgente 0.9.1); il repo non lo passa, quindi è euclidea. Non c'è un'opzione Dice o `precomputed`, quindi il confronto `dice`/`euclidean` fatto per UMAP e t-SNE qui non è possibile.
-- **Ipotesi annotata in precedenza** ("per lesioni binarie la distanza di Hamming potrebbe essere più adatta dell'euclidea"): su vettori 0/1 la distanza di Hamming di PaCMAP (il numero di posizioni diverse, `hamming_dist` nel sorgente) è uguale all'euclidea al quadrato, quindi ordina i vicini allo stesso modo. Le differenze pratiche sarebbero due: con `hamming` la PCA preliminare viene saltata (vicini sui voxel grezzi) e la distanza scalata cambia forma. Non dà la proprietà che Dice ha e l'euclidea no (normalizzare per i volumi).
+- **Distanza.** `PaCMAP.__init__` accetta `distance` ∈ {`euclidean`, `manhattan`, `angular`, `hamming`, `dot`} (elenco `VALID_METRICS` nel sorgente 0.9.1); il repo non lo passa, quindi è euclidea. Con il backend `faiss` di default solo `euclidean`, `angular` e `manhattan` funzionano: `hamming` e `dot` sollevano `NotImplementedError` (provato su 0.9.1), e `annoy` non è installato nell'ambiente. Non c'è un'opzione Dice o `precomputed`, quindi il confronto `dice`/`euclidean` fatto per UMAP e t-SNE qui non è possibile.
+- **Ipotesi "per lesioni binarie la distanza di Hamming potrebbe essere più adatta dell'euclidea"**: su vettori 0/1 la distanza di Hamming di PaCMAP (il numero di posizioni diverse, `hamming_dist` nel sorgente) è uguale all'euclidea al quadrato, quindi ordina i vicini allo stesso modo. Le differenze pratiche sarebbero due: con `hamming` la PCA preliminare viene saltata (vicini sui voxel grezzi) e la distanza scalata cambia forma. Non dà la proprietà che Dice ha e l'euclidea no (normalizzare per i volumi). Con il backend di default `hamming` non è comunque utilizzabile.
 - **Uso a valle.** `n_components` è fisso a 2: un clustering su PaCMAP lavorerebbe su un embedding 2D (vedi §10).
 
 ## 4. I parametri

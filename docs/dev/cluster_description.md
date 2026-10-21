@@ -37,10 +37,10 @@ Two requested dimensions are **not** in this list:
 These cautions hold for the panel and for section 4 of `clustering_evaluation.ipynb` (`docs/guides/evaluation.md`), which describes clusters with the same `participants.csv` variables. Neither runs a statistical test: they are numbers to read next to the number of subjects, and nothing tells whether a difference between clusters exceeds chance.
 
 - **Skewed variables**: the median describes a cluster better than the mean for variables like the lesion volume; with few subjects a median is unstable.
-- **Variables derived from the clustering input**: the lesion volume (a lesion run) and the disconnection load (an sdc run) come from the data the clustering was built on, so a difference between clusters is partly by construction.
+- **Variables derived from the clustering input**: the lesion volume (a lesion run) and, in section 4 of the notebook, the disconnection load (an sdc run) come from the data the clustering was built on, so a difference between clusters is partly by construction. The panel has no disconnection variable.
 - **A cluster that is almost a dataset**: other differences may reflect the site of origin and not biology. The dataset distribution is the first thing to check.
 - **NIHSS and education exist only for some datasets**: UCL-UK, the largest, has neither, so their per-cluster figures rest only on the datasets that have them; the `n_available/n_total` of each variable says how many subjects that is.
-- **Mean disconnection is not a separate variable**: it is the disconnection load divided by a constant, the same values on another scale.
+- **Mean disconnection is not a separate variable** (notebook section 4): it is the disconnection load divided by a constant (`disconnection_mean_2mm` / `disconnection_load_voxels_2mm` is the same value for every subject), the same values on another scale.
 
 ## `cluster_composition(metadata, cluster_label) -> tuple[pd.DataFrame, list[str]]`
 
@@ -85,9 +85,9 @@ The 5 variables are not laid out in a single row: at the app's 1100px page width
 
 Type sizes are deliberately generous. The title is pinned to the top (`y=0.975, yanchor="top"`) with `margin.t=170`, so the extra top margin becomes a **gap between the heading and the first row of panels** rather than padding above the heading.
 
-**Coverage sits in the subplot title, not the x-axis title.** As an axis title it rendered lower under the one subplot that has tick labels (the categorical bar chart — its `F`/`M` labels push the title down) than under the box plots, which have none: five coverage figures meant to be scanned together, sitting on two different baselines. In the title they align by construction. Found by rendering the figure and looking at it, not by any numeric check — the geometry assertions all passed; a regression test now guards it.
+**Coverage sits in the subplot title, not the x-axis title.** As an axis title it would render lower under the one subplot that has tick labels (the categorical bar chart — its `F`/`M` labels push the title down) than under the box plots, which have none: five coverage figures meant to be scanned together, sitting on two different baselines. In the title they align by construction; a regression test guards it (the geometry assertions alone do not catch a misaligned baseline, only rendering the figure does).
 
-Height is `_ROW_HEIGHT * n_rows + 110`, i.e. it grows with the grid instead of clipping the x-axis band off a fixed-height container.
+Height is `_ROW_HEIGHT * n_rows + 180`, i.e. it grows with the grid instead of clipping the x-axis band off a fixed-height container.
 
 ### Color
 
@@ -173,7 +173,7 @@ A **table rather than a second figure**: the request was for the numbers themsel
 
 **Numbers are formatted Italian-style** (`_format_number`): `.` groups thousands, `,` is the decimal separator — `5.265,4`, not `5 265.4`. The whole app is in Italian, so English-formatted numbers read as a foreign convention exactly where the eye is scanning fastest. Implemented by swapping Python's own grouped format rather than with `locale`, which is process-global, depends on what is installed on the machine, and would silently change every other number this process formats.
 
-**Coverage (`n_available/n_total`) prints under a value only where that variable is genuinely incomplete** (`_coverage_note`). It used to sit under every cell: 25 near-identical fractions competing with the values they annotated, which is how a coverage note stops being read at all. Printed only when it says something, it is a signal again — and the caption states the rule, so full coverage is never silently assumed.
+**Coverage (`n_available/n_total`) prints under a value only where that variable is genuinely incomplete** (`_coverage_note`). Under every cell it would be 25 near-identical fractions competing with the values they annotate, which is how a coverage note stops being read at all. Printed only when it says something, it is a signal — and the caption states the rule, so full coverage is never silently assumed.
 
 Hover on a continuous cell gives median/min/max. Tooltips enhance, never gate: the value and the coverage are both readable without hovering.
 

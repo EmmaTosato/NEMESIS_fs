@@ -2,7 +2,7 @@
 
 Audience: developers/agents working on `src/analysis/cluster_comparison.py`, `src/analysis/cluster_pair.py` and the "Confronto" section they feed in `src/analysis/embedding_app.py`. For how the section looks from a user's point of view, see `docs/guides/embedding_app.md`.
 
-**The section is not mounted in the app**: `build_app` has no layout block and no callback for it, and the index does not list it. The numbers and the page builders below are complete and tested, and stay in place for when it returns; the pickers and callbacks described under "The page" are not wired.
+**The section is not mounted in the app**: `build_app` has no layout block and no callback for it, and the index does not list it. The numbers and the page builders below are complete and tested, and stay in place for when it returns; the pickers and callbacks of the section do not exist in `build_app` (see "The page").
 
 The section has two modes:
 
@@ -28,7 +28,7 @@ Why the rule is this strict:
 - **Same method and same `tag_param`**: the only thing that may differ between the two runs is the upstream pipeline (lesion vs sdc), so a disagreement cannot be blamed on the clustering criterion.
 - **Common subjects only**: the two modalities cover different subjects by construction (`lesion` includes subjects without a computed SDC output, and the other way round), so the comparison runs on the intersection and `align_runs` reports `n_a`, `n_b` and `n_common`; it never merges silently.
 - **Centroids are never compared across modalities**: the embeddings live in different feature spaces (lesion voxels vs SDC regions), so two coordinates are not the same quantity even when both are 2D. The valid stand-in is the clinical phenotype of each cluster (see "Clinical profile"), which does not depend on coordinates.
-- **Centroid distance between two runs** (`clustering_comparison.ipynb`, Part 1 section 8 and Part 3) needs a shared embedding: the same `session_name`, `reduction_method`, `reduction_n_components` and `reduction_metric` (hence the same upstream `input_path`). Two embeddings share a space only by numerical coincidence, never by guarantee; the notebook's `require_shared_embedding` raises on any differing key, and Part 3 skips the incompatible pairs printing the reason.
+- **Centroid distance between two runs** (`clustering_comparison.ipynb`, Part 1 section 5 and Part 3) needs a shared embedding: the same `session_name`, `reduction_method`, `reduction_n_components` and `reduction_metric` (hence the same upstream `input_path`). Two embeddings share a space only by numerical coincidence, never by guarantee; the notebook's `require_shared_embedding` raises on any differing key, and Part 3 skips the incompatible pairs printing the reason.
 
 ## `cluster_comparison.py`
 
@@ -104,7 +104,7 @@ The numeric variables and their registry columns are `CLUSTER_DESCRIPTION_VARIAB
 
 - `cluster_pair_content_for(run, label_1, label_2)`: summary, clinical profile, regression, centroids. Never raises: a non-clustering run, an empty or repeated cluster or an unreadable registry is an `html.P` naming the cause. A run on raw data gets a message instead of the centroid block (its matrix is the feature space, not an embedding).
 - `cluster_pair_anatomy_for(run, label_1, label_2, lesion_cfg, sdc_cfg, build_overlap_view, build_disconnection_view)`: the lesion maps and, for an `sdc` run, the disconnection maps in `percent` mode, each as the two clusters and their difference. It is a **separate callback and Div** from the numbers because the first build of a cluster reads every subject's NIfTI; `build_app` passes the same cached builders as the single-cluster panels. The run is a `State` of that callback, so choosing another run (which resets both clusters to `None`) never builds the maps of a stale cluster choice.
-- Pickers: `comparison-run-a`, `comparison-run-b` (only in `modality`), `comparison-cluster-1`/`-2` (only in `clusters`; options from `pair_cluster_option_label`, filled by `_update_comparison_clusters`). `_show_comparison_mode` swaps which are visible.
+- Pickers: none exist in `build_app`. `comparable_runs` gives the options of a run B picker (`modality` mode) and `pair_cluster_option_label(label, metadata)` the text of a cluster option (`clusters` mode); the pickers, the mode switch and their callbacks have to be written when the section is mounted.
 
 ## Colors
 

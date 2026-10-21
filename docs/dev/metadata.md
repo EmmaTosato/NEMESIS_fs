@@ -34,7 +34,7 @@ assets/metadata/excluded_subjects.csv   — chi resta fuori dalle matrici (gener
         │  letto da build_lesion_matrix.py e build_sdc_matrix.py, non da enrich
 ```
 
-**Cinque file, cinque domande.** Il registro (`participants.csv`) risponde a "chi esiste" e "cosa sappiamo di lui"; `lesion_metadata.csv` a "cosa misurano le sue maschere"; `sdc_metadata.csv` a "quanto è disconnesso"; `excluded_subjects.csv` a "chi entra in analisi".
+**Quattro file, cinque domande.** Il registro (`participants.csv`) risponde a "chi esiste" e "cosa sappiamo di lui"; `lesion_metadata.csv` a "cosa misurano le sue maschere"; `sdc_metadata.csv` a "quanto è disconnesso"; `excluded_subjects.csv` a "chi entra in analisi".
 
 `enrich_metadata.py` **non apre nessun file NIfTI**: i valori derivati dalle maschere li copia da `lesion_metadata.csv`, quelli derivati dai disconnettomi da `sdc_metadata.csv`. Non li copia da un artefatto `data/derived/lesion_matrix/<sessione>/` già costruito, perché quell'artefatto sarebbe una seconda fonte di verità: se la griglia cambia senza ricostruirlo, il suo valore diverge da quello delle maschere (vedi `.claude/history/methods_changelog.md`). Il punto fisso è: il valore nasce **in un posto solo**, la pipeline che misura le maschere, e il registro ne tiene una copia dichiarata.
 

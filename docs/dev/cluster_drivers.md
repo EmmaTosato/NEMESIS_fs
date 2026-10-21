@@ -16,7 +16,7 @@ A logistic regression with outcome 1 = "in this cluster", 0 = "in another cluste
 
 ### Errors
 
-`ValueError` for mismatched lengths, unknown columns, no variables, a single class after dropping missing values, a constant numeric column, an unknown reference level, fewer than `MIN_EVENTS_PER_TERM` (10) subjects in the rarer class per term (Peduzzi et al. 1996), collinear terms (condition number of the correlation matrix above 1e8), or a coefficient beyond `MAX_ABS_COEFFICIENT` (15 per standard deviation: one variable almost separates the groups and the likelihood has no finite maximum). The caller prints the message (the app page does, for `pair_regression`).
+`ValueError` for mismatched lengths, unknown columns, no variables, a single class after dropping missing values, a constant numeric column, an unknown reference level, fewer than `MIN_EVENTS_PER_TERM` (10) subjects in the rarer class per term (Peduzzi et al. 1996), collinear terms (condition number of the correlation matrix above 1e8), or a coefficient beyond `MAX_ABS_COEFFICIENT` (15 per standard deviation: one variable almost separates the groups and the likelihood has no finite maximum). The caller prints the message (`embedding_app._cluster_pair_regression_block` does, for `pair_regression`; the "Confronto" section that holds it is not mounted, see `docs/dev/cluster_comparison.md`).
 
 ### How to read the result
 

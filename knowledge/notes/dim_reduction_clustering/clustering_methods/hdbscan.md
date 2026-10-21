@@ -53,7 +53,7 @@ $$
 
 **Albero condensato** [2, 5]. Scendendo nella gerarchia, a ogni divisione:
 - se entrambi i figli hanno almeno `min_cluster_size` punti, il cluster si divide davvero in due cluster nuovi;
-- se un figlio ne ha meno, quei punti "cadono fuori" dal cluster padre, che continua a esistere con un nome invariato;
+- se un figlio ne ha meno, quei punti "cadono fuori" dal cluster padre, che continua a esistere con un nome invariato. Nell'etichetta finale restano nel padre (di solito con probabilità bassa) se il padre è un cluster scelto; sono rumore se non lo è (verificato con `hdbscan` 0.8.44 e scikit-learn 1.8.0: un gruppo di 30 punti vicino a un cluster viene assorbito, uno lontano da tutto è rumore);
 - se tutti e due ne hanno meno, il cluster scompare.
 
 **Stabilità di un cluster** [1, 2]. Un cluster $C$ nasce a $\lambda_{\min}(C)$; ogni suo punto $x$ ne esce a $\lambda_{\max}(x, C)$ (cade fuori, o il cluster si divide):
@@ -74,7 +74,7 @@ S(C) & \text{se } C \text{ è una foglia} \\
 \end{cases}
 $$
 
-Un cluster viene scelto se la sua stabilità supera la **somma** delle stabilità (già ottimizzate) dei figli; altrimenti si tengono i figli. Il codice del pacchetto fa esattamente questo confronto e, con `allow_single_cluster=False`, esclude la radice dalla scelta (`_hdbscan_tree.pyx::get_clusters`, 0.8.44).
+Un cluster viene scelto se la sua stabilità non è inferiore alla **somma** delle stabilità (già ottimizzate) dei figli; altrimenti si tengono i figli (a parità si tiene il padre). Il codice del pacchetto fa esattamente questo confronto e, con `allow_single_cluster=False`, esclude la radice dalla scelta (`_hdbscan_tree.pyx::get_clusters`, 0.8.44).
 
 **Selezione `leaf`.** Prende le foglie dell'albero condensato: cluster più piccoli e omogenei, e di solito più rumore [5, 6].
 

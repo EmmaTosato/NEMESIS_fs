@@ -23,7 +23,7 @@ Regola unica: **un dato del soggetto viene da `assets/metadata/participants.csv`
 | `dataset` | metadata.csv del run | `dataset` |
 | `cluster` | metadata.csv del run | `cluster_label` |
 
-Un run più vecchio può portare ancora nel suo `metadata.csv` una **copia** di quelle colonne cliniche, che può divergere dal registro: il registro vince sempre, così due run degli stessi soggetti si colorano allo stesso modo.
+Un run può portare nel suo `metadata.csv` una **copia** di una di queste colonne (oggi solo `lesion_volume_voxels`), che può divergere dal registro: il registro vince sempre, così due run degli stessi soggetti si colorano allo stesso modo.
 
 Sul volume la differenza è sostanziale: il `lesion_volume_voxels` di un run conta i voxel sulla griglia che *quel* `build_lesion_matrix` ha usato, mentre le colonne del registro sono calcolate una volta sola su una griglia fissa per tutti i soggetti — le uniche confrontabili fra run.
 
@@ -120,7 +120,7 @@ Poi apri `http://127.0.0.1:8060` nel browser. Opzioni:
 
   **Riavvia** (a destra di Run) rimette tutti i selettori a `---`, Run compresa: i grafici si nascondono finché non si sceglie una run (`open_pickers`).
 
-  Scoperta generica alla base (`results/*/dim_reduction/production/*/*`, `results/*/clustering/production/*/*/*` - profondità diversa per pipeline, `clustering.py` ha il segmento extra `<reduction_method>`) - una futura modalità o metodo compare da solo nei passi 1/3, senza toccare il codice. `clustering.py` non genera più la cartella `comparison/` sotto `production/` (il confronto multi-metodo tra `cluster_plot.png` non esiste) - un'eventuale cartella `comparison/` residua resta comunque esclusa automaticamente: non ha mai un `manifest.json`, lo stesso controllo che scarta qualunque cartella incompleta.
+  Scoperta generica alla base (`results/*/dim_reduction/production/*/*`, `results/*/clustering/production/*/*/*` - profondità diversa per pipeline, `clustering.py` ha il segmento extra `<reduction_method>`) - una futura modalità o metodo compare da solo nei passi 1/3, senza toccare il codice. `clustering.py` non genera la cartella `comparison/` sotto `production/` (il confronto multi-metodo tra `cluster_plot.png` non esiste) - un'eventuale cartella `comparison/` residua resta comunque esclusa automaticamente: non ha mai un `manifest.json`, lo stesso controllo che scarta qualunque cartella incompleta.
 
   **Metrica/Componenti/Parametri letti da `config.md`, non dal nome del run**: il nome (`13-08_s1.1_m_dice_nc3`, `01-09_s1.1_m_euclidean_n2_k4_link_average`) è una convenzione testuale scelta a mano da chi lancia la pipeline, non garantita per ogni metodo - `run_params`/`read_run_config` leggono invece rispettivamente la riga `Params used: {...}` e il blocco ` ```json ` sotto `## Config`, entrambi scritti per davvero in ogni `config.md` da `dim_reduction.py`/`clustering.py`, le stesse fonti usate per l'anteprima "Params used"/"Config" già presenti in ogni run.
 - **Descrizione del colore**: sotto il titolo "Embedding Visualization" e sopra il plot, una o due frasi dicono cosa significa il colore attivo e cosa significa il grigio. Il testo è il campo `description` di ogni voce di `COLOR_MODES` (quella del bottone neutro sta in `embedding_app.py`), accanto a etichetta e scala.
@@ -226,13 +226,13 @@ Sotto il grafico, una tabella con **una riga per cluster** e una colonna per var
 - `—` significa che nessun soggetto di quel cluster ha quel dato
 - la colonna **Soggetti** segnala, quando capita, quanti soggetti sono "fuori registro" (vedi sotto)
 
-Il bucket **rumore** di hdbscan/dbscan (label `-1`, i soggetti non assegnati) compare in tabella come "Rumore": è un gruppo reale di soggetti del run e vederne le statistiche è utile, ma non è un cluster.
+Il bucket **rumore** di hdbscan/hdbscan_soft (label `-1`, i soggetti non assegnati) compare in tabella come "Rumore": è un gruppo reale di soggetti del run e vederne le statistiche è utile, ma non è un cluster.
 
 Tutti i valori vengono da `assets/metadata/participants.csv` (l'anagrafica clinica del progetto), non dal `metadata.csv` del run - vedi `docs/dev/cluster_description.md` per l'elenco completo delle variabili e perché.
 
 Se qualche soggetto del cluster **non ha affatto una riga** in `participants.csv` (caso distinto da un valore mancante per una singola variabile), il pannello si disegna comunque su tutti gli altri e mostra sopra il grafico una riga di avviso che elenca i soggetti coinvolti. Quei soggetti restano contati nel `totale` di ogni variabile - il cluster non rimpicciolisce - ma non contribuiscono alcun valore. Per farli sparire dall'avviso, rilancia `src/pipeline/populate_metadata.py` (vedi `docs/guides/metadata.md`) così che entrino nell'anagrafica.
 
-Il pannello descrive e non testa: nessun numero dice se una differenza tra cluster supera il caso. Per le variabili asimmetriche, come il volume, la mediana (nel tooltip) descrive meglio della media; volume e disconnessione derivano dai dati del clustering, quindi la loro differenza tra cluster è in parte per costruzione; Istruzione e NIHSS esistono solo per alcuni dataset (UCL-UK non ha nessuno dei due). Le cautele complete sono in `docs/dev/cluster_description.md` ("Reading a cluster description").
+Il pannello descrive e non testa: nessun numero dice se una differenza tra cluster supera il caso. Per le variabili asimmetriche, come il volume, la mediana (nel tooltip) descrive meglio della media; il volume (run lesion) deriva dai dati del clustering, quindi la sua differenza tra cluster è in parte per costruzione; Istruzione e NIHSS esistono solo per alcuni dataset (UCL-UK non ha nessuno dei due). Le cautele complete sono in `docs/dev/cluster_description.md` ("Reading a cluster description").
 
 Nessun bottone "Salva HTML"/"Salva PNG" dedicato - come per lo scatter dell'embedding in cima alla pagina, l'icona fotocamera di Plotly (visibile al passaggio del mouse) esporta un PNG dello stato attuale.
 

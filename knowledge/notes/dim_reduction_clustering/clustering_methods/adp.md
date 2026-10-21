@@ -49,7 +49,7 @@ $$
 F(\mu) = 1 - \mu^{-d} \quad\Longrightarrow\quad -\log\big(1 - F(\mu)\big) = d \log \mu
 $$
 
-$d$ è la pendenza della retta per l'origine tra $\log \mu$ e $-\log(1 - F_{\text{emp}}(\mu))$. DADApy scarta una quota dei $\mu$ più grandi (`mu_fraction`, default 0,9 = usa il 90%) [6]. Nel progetto il valore è salvato come `id_2nn` in `tuning_results.csv`, uno per `metric`/`maxk`.
+$d$ è la pendenza della retta per l'origine tra $\log \mu$ e $-\log(1 - F_{\text{emp}}(\mu))$. DADApy scarta una quota dei $\mu$ più grandi (`mu_fraction`, default 0,9 = usa il 90%) [6]. Nel progetto il valore è salvato come `id_2nn` in `tuning_results.csv`, uno per `metric` (non dipende da `maxk`: usa solo i primi due vicini).
 
 La dimensione intrinseca serve perché il volume di un intorno di raggio $r$ cresce come $r^d$: la densità stimata dai vicini dipende da $d$, non dal numero di colonne della matrice [3, 4].
 
@@ -107,7 +107,7 @@ Default verificati con `inspect.signature` su DADApy 0.3.4.
 | Parametro | Dove | Significato | Default DADApy | Nel progetto |
 |---|---|---|---|---|
 | `Z` | `compute_clustering_ADP` | soglia di significatività per tenere separati due picchi (§2.4) | `1.65` | sweep 0,25-16; base 1,65 |
-| `maxk` | `Clustering(...)` | numero massimo di vicini per soggetto: tetto di $\hat k_i$, dell'intorno 2NN e dei picchi | `min(100, N-1)` (`base.py`) | `100`; deve essere minore del numero di righe distinte |
+| `maxk` | `Clustering(...)` | numero massimo di vicini per soggetto: tetto di $\hat k_i$, quindi dell'intorno in cui si cercano picchi e bordi. Non entra nel 2NN, che usa solo i primi due vicini | `min(100, N-1)` (`base.py`) | `100`; deve essere minore del numero di righe distinte |
 | `halo` | `compute_clustering_ADP` | marca come rumore i punti sotto la densità di bordo del loro cluster | `False` | `False` fisso |
 | `v2` | `compute_clustering_ADP` | implementazione con meno memoria, più lenta | `False` | default |
 | `alpha` | `compute_density_PAk` | severità del test che sceglie $\hat k_i$ | `1e-6` | default |

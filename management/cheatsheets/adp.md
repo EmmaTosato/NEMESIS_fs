@@ -7,7 +7,7 @@
 - L'unica manopola è **`Z`**, la soglia di significatività: un picco resta un cluster a sé solo se la sua densità supera quella del punto più basso che lo collega a un picco vicino di più di `Z` volte l'incertezza della stima.
   - `Z` basso: molti cluster piccoli.
   - `Z` alto: i picchi si fondono, pochi cluster.
-- Si usa sulla **matrice grezza** (lesione, SDC voxelwise o streamline), non su un embedding. È l'unico metodo che clusterizza direttamente le distanze `dice` e `jaccard`.
+- Si usa sulla **matrice grezza** (lesione, SDC voxelwise o streamline), non su un embedding. Clusterizza direttamente le distanze `dice` e `jaccard` della matrice.
 
 ## Che tipo di metodo è
 
@@ -43,4 +43,4 @@ Due picchi collegati da un punto più basso (numeri inventati per illustrare). I
 - Con `Z` basso i due picchi sono due cluster, con `Z` alto uno solo. Lo sweep varia `Z` da 0,25 a 16.
 - Nessun numero di cluster è scelto a mano: sta a noi decidere se c'è un tratto stabile di `Z`.
 
-Approfondimento: `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md`, sezione "ADP"; i parametri sono in `docs/guides/clustering.md`.
+Approfondimento: `knowledge/notes/dim_reduction_clustering/clustering_methods/adp.md` (formule, parametri, insidie); `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md`, sezione "ADP"; i parametri sono in `docs/guides/clustering.md`.

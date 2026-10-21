@@ -69,7 +69,7 @@ con i coefficienti [2, 4]:
 
 ## 3. Il nostro contesto
 
-- **Input.** Embedding UMAP con `n_components` 2, 3 o 10 (metrica UMAP `euclidean` o `dice`), oppure la matrice SDC "stream" a 87 colonne (`docs/guides/evaluation.md`). Circa 5000-5850 soggetti a seconda della matrice.
+- **Input.** Embedding UMAP con `n_components` 2, 3 o 10 (metrica UMAP `euclidean` o `dice`), score PCA (anche varimax), oppure la matrice SDC "stream" a 87 colonne (`docs/guides/evaluation.md`). Circa 1100-5850 soggetti a seconda della matrice.
 - **Griglia attuale** (`config/registry/params_clustering.json`, voce `agglomerative`): `n_clusters` da 2 a 30, `linkage` ∈ {ward, average, complete, single}, `metric` ∈ {euclidean, cosine, manhattan}. `ward` con metrica non euclidea è saltato con un avviso (`is_invalid_ward_metric_combo`): restano 10 coppie (linkage, metric) × 29 k = 290 combinazioni.
 - **Distanze precalcolate.** Per `euclidean` (e `dice`/`jaccard`, supportate dal codice ma non nella griglia attuale) con linkage diverso da `ward`, la matrice delle distanze è calcolata una volta per metrica e riusata per fit e silhouette (`_agglomerative_fit_metric_aware`). È un'ottimizzazione: il risultato è lo stesso del fit diretto.
 - **`params` di base**: `n_clusters: 3`, `linkage: ward`, `metric: euclidean`. Il file è stato condiviso da più run: va confrontato con la colonna `params` di `runs_tuning.csv` prima di rilanciare (`lessons_learned.md`, #36).

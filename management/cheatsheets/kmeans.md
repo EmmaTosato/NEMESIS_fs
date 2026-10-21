@@ -38,7 +38,7 @@ Quattro soggetti su una retta, in posizione 0, 1, 5 e 7, con `k` = 2 e centroidi
 | 3 | nessun cambiamento | convergenza |
 
 - Inertia finale: (0,5² + 0,5²) + (1² + 1²) = **2,5**.
-- Qui qualsiasi partenza ragionevole arriva allo stesso risultato. Su dati veri partenze diverse possono fermarsi su divisioni diverse: per questo si ripete con più `n_init`.
+- Qui qualsiasi partenza ragionevole arriva allo stesso risultato. Su dati veri partenze diverse possono fermarsi su divisioni diverse: per questo si controlla la stabilità rispetto al seme (e si può alzare `n_init`; con `k-means++` il default `"auto"` fa un solo fit).
 - Il valore di `k` non esce dall'algoritmo: lo si sceglie guardando gomito e indici.
 
-Approfondimento: `knowledge/notes/dim_reduction_clustering/clustering_literature_survey.md` (sezione sulla meccanica degli algoritmi), `clustering_tuning_guide.md` (inertia, stabilità di inizializzazione).
+Approfondimento: `knowledge/notes/dim_reduction_clustering/clustering_methods/kmeans.md` (obiettivo, k-means++, parametri, tuning); `knowledge/notes/dim_reduction_clustering/clustering_literature_survey.md` (sezione sulla meccanica degli algoritmi), `clustering_tuning_guide.md` (inertia, stabilità di inizializzazione).

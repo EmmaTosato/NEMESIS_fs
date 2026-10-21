@@ -192,8 +192,6 @@ class _AdpSession:
         if maxk >= n_distinct:
             raise ValueError(f"adp: maxk={maxk} needs more than maxk distinct rows, X has {n_distinct} (after dropping zero rows/duplicates)")
         distances = self.distance(metric)[np.ix_(representatives, representatives)]
-        if not np.isfinite(distances).all():
-            raise ValueError(f"adp: the {metric} distance matrix has non-finite values")
 
         neighbours = np.argsort(distances, axis=1, kind="stable")[:, : maxk + 1]
         neighbour_distances = np.take_along_axis(distances, neighbours, axis=1)

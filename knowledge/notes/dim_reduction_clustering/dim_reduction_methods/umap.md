@@ -78,7 +78,7 @@ Default verificati sulla firma installata di `umap.UMAP.__init__`. La riproducib
 - **Trustworthiness** a `k = 10` sulla stessa matrice di distanze dell'embedding (punteggio del tuning; [evaluation.md](evaluation.md)). Non confrontabile tra `n_components` diversi.
 - **`plot_hdbscan`**: numero di cluster e quota di rumore di HDBSCAN su ogni combinazione, letti come sonda di stabilità tra celle vicine della griglia (`../dim_reduction_tuning_guide.md`).
 - **Gemello 2D**: un embedding a più componenti si guarda solo con un fit separato a `n_components=2` con gli stessi iperparametri, mai con le prime due colonne (`lessons_learned.md` #16).
-- **Non calcolati nel repo**: continuity, conservazione dei *k* vicini, correlazione delle distanze. Nei benchmark di de Bodt et al. UMAP in 2D ha una conservazione dei 10 vicini (0,14-0,25) inferiore a t-SNE e superiore a PCA [10, Tabella 2].
+- **Non calcolati nel repo**: continuity, conservazione dei *k* vicini, correlazione delle distanze. Nei benchmark di de Bodt et al. UMAP in 2D ha una conservazione dei 10 vicini (0,08-0,25 sui quattro dataset) inferiore a t-SNE e superiore a PCA [10, Tabella 2].
 
 ## 7. Quando usarlo
 
@@ -94,7 +94,7 @@ Default verificati sulla firma installata di `umap.UMAP.__init__`. La riproducib
 | Scala bene con `n_components` e con *n* [2, 4] | Non conserva la densità [3, 4] |
 | Qualunque metrica, anche precomputata [2] | Può creare "false tears": cluster più fini di quelli presenti nei dati [3] |
 | Inizializzazione spettrale di default, che aiuta la struttura globale [11] | Costo non convesso e stocastico [10, §6.1] |
-| Può proiettare punti nuovi (`transform`) [4] | Il costo ottimizzato non è quello dichiarato [5] |
+| Può proiettare punti nuovi (metodo `transform` di `umap.UMAP`) | Il costo ottimizzato non è quello dichiarato [5] |
 | | Con `random_state` fissato è single-thread [9] |
 
 ## 9. Un esempio semplice

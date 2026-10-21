@@ -20,7 +20,7 @@ Lo scrivono due script, che rispondono a due domande diverse e non si sovrascriv
 | `sdc_metadata.csv` | quanto è disconnesso ciascun soggetto, in totale: carico e media sul cervello, dal suo disconnettoma | `src/pipeline/compute_sdc_metadata.py` |
 | `excluded_subjects.csv` | quali soggetti tenere fuori dalle matrici di produzione, con il motivo | `src/pipeline/build_excluded_subjects.py`, dalla lista che scrivi **tu** nel config `build_excluded_subjects.json` |
 
-In `assets/metadata/` c'è anche `columns_by_dataset.xlsx`, scritto dal notebook `metadata_raw` ([`exploration.md`](exploration.md)): la tabella colonna × dataset dei tsv clinici grezzi (una `X` dove il dataset ha la colonna, ordinata da chi è condivisa da più dataset a chi è specifica di uno). Serve a confrontare gli schemi dei tsv; non è letto da nessuna pipeline.
+In `assets/metadata/` c'è anche `columns_by_dataset.xlsx`, scritto dal notebook `metadata_raw` ([`exploration.md`](exploration.md)): la tabella colonna × dataset dei tsv clinici grezzi (una `X` dove il dataset ha la colonna; le colonne presenti in tutti i dataset sono escluse; ordinata da chi è condivisa da più dataset a chi è specifica di uno). Serve a confrontare gli schemi dei tsv; non è letto da nessuna pipeline.
 
 Gli altri file della cartella sono di servizio: `lesion_metadata.config.json` e `sdc_metadata.config.json` (il config esatto con cui sono stati prodotti i rispettivi csv), e `participants_protected.json` (ciò che `enrich_metadata` non tocca mai, vedi più sotto). La frazione dei voxel di lesione fuori dal brain è la colonna `out_of_brain_fraction_<griglia>` di `lesion_metadata.csv`.
 

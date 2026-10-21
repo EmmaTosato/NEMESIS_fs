@@ -17,10 +17,10 @@
 ## Che tipo di metodo è
 
 - **Non lineare** e **non supervisionato**: usa solo la matrice.
-- Parte da una **PCA** (`init="pca"`) e ottimizza con AdaGrad. Per accelerare fa anche una PCA preliminare (`apply_pca=True`).
-- Sopra i 10.000 punti `n_neighbors` si scala da solo.
+- Parte da una **PCA** (`init="pca"`) e ottimizza con Adam (il README della libreria dice AdaGrad, il codice usa Adam). Per accelerare fa anche una PCA preliminare (`apply_pca=True`): sui voxel i vicini si cercano sulle prime 100 componenti, non sui voxel.
+- `n_neighbors` si scala da solo sopra i 10.000 punti solo se vale `None`; il progetto passa sempre un numero.
 - Funziona su dati molto diversi: immagini, RNA di singola cellula, nuvole di punti.
-- Metrica: di default euclidea (`distance`). Per lesioni binarie la distanza di Hamming potrebbe essere più adatta, ma è un'ipotesi e non un risultato.
+- Metrica: di default euclidea (`distance`). Non esiste Dice né `precomputed`. `hamming` su vettori 0/1 ordina i vicini come l'euclidea e, con il backend `faiss` di default, non funziona.
 
 ## Cosa restituisce
 
