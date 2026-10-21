@@ -193,7 +193,7 @@ Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorat
 
 - `ari_vs_prev_z`: ARI, sui soli soggetti clusterizzati, contro il `Z` immediatamente più basso (stesse altre impostazioni). Un tratto vicino a 1 è un plateau: la partizione non dipende dalla soglia.
 
-`tuning_plot.png` ha `Z` in scala logaritmica e un pannello per ogni misura: `n_clusters_found`, `largest_cluster_share`, `ari_vs_prev_z`, `silhouette` (e `calinski_harabasz`/`davies_bouldin`, se la run ha `euclidean`), una linea per metrica. Con `save_tuning_clusterings: true` le partizioni sono in `clusterings.npz` con chiavi `Z=1.65` (formato letto dal notebook `clustering_tuning_explorer`, sezione ADP, che legge solo file già scritti: `dadapy` non serve).
+`tuning_plot.png` ha `Z` in scala logaritmica e un pannello per ogni misura: `n_clusters_found`, `largest_cluster_share`, `ari_vs_prev_z`, `silhouette` (e `calinski_harabasz`/`davies_bouldin`, se la run ha `euclidean`), una linea per metrica. Con `save_tuning_clusterings: true` le partizioni sono in `clusterings.npz` con chiavi `Z=1.65` (il formato di `combo_key`; leggerle non richiede `dadapy`).
 
 **Come leggere lo sweep** (dettaglio in `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md`, sezione "ADP"):
 
@@ -201,7 +201,6 @@ Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorat
 - Un tratto di `Z` con `n_clusters_found` fisso e `ari_vs_prev_z` vicino a 1 è un plateau: il risultato non dipende dalla soglia. Se la partizione cambia a ogni passo, dipende dalla soglia e non dai dati.
 - Un solo cluster a `Z` alto è il limite atteso: con una soglia severa nessun picco è significativo.
 - Un numero di cluster che compare per un solo `Z` è un caso dello sweep.
-- Il notebook riassume lo sweep in una tabella dei plateau: per ogni numero di cluster (e per ogni metrica), il `Z` minimo e massimo che lo producono e quanti valori dello sweep ci cadono.
 
 ### Soggetti che non entrano nel clustering
 
@@ -240,6 +239,7 @@ Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorat
 | **`save_tuning_clusterings`** | *Booleano* | Solo in Fine-Tuning: se `true`, salva le etichette di cluster di *ogni* combinazione testata (non solo i punteggi in `tuning_results.csv`) in `clusterings.npz` + `metadata.csv`, per poterle rileggere senza ripetere lo sweep. `false` di default — obbligatorio dichiararlo comunque, anche in produzione. |
 | **`evaluations_file`** | *Stringa* | Il file con i parametri delle valutazioni del tuning, per nome di valutazione (di norma `"config/registry/clustering_evaluations.json"`): l'intervallo di k del salto del dendrogramma, il limite di rumore delle curve. Una soglia vive solo qui: la leggono lo sweep e `analyze_clustering_tuning`. |
 | **`tuning_evaluations`** | *Oggetto* | Le valutazioni del tuning, per chiave: `"general"` (valgono per ogni metodo; lista vuota se non ce ne sono) e una chiave per ogni metodo di `clustering_methods` (lista vuota se nessuna). Ogni nome deve valere per quella chiave: `k_curves`, `cophenetic_correlation`, `dendrogram_jump`, `linkage_agreement` per `agglomerative`; `density_metrics`, `noise_filtered_curves` per `hdbscan` e `hdbscan_soft`. Obbligatorio in ogni config; letto solo con `fine_tuning: true`, dove le valutazioni non vuote richiedono `save_tuning_clusterings: true` (leggono le etichette di `clusterings.npz`). |
+| **`write_report`** | *Booleano* | Obbligatorio in ogni config; letto solo con `fine_tuning: true`. Se `true`, a fine sweep scrive `report.md` dai file delle valutazioni (`src/analysis/clustering_tuning_report.py`). Richiede che `tuning_evaluations` elenchi le valutazioni che il report del metodo legge (agglomerative: `cophenetic_correlation`, `dendrogram_jump`, `linkage_agreement`; HDBSCAN: `density_metrics`; ADP: nessuna) e che ogni metodo abbia un report (agglomerative, hdbscan, hdbscan_soft, adp). |
 | **`run_notes`** | *Stringa* | Note libere sull'esecuzione. |
 
 > **Nota su `params_clustering.json`**: Per la maggior parte dei metodi, bisogna specificare in questo file il numero di cluster voluti (es. `"n_clusters": 4`) prima di avviare l'esecuzione in produzione.

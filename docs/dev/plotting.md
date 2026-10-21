@@ -105,7 +105,7 @@ A small registry plus a shared writer, so adding a new coloring mode is one dict
 
 ## Figure dei notebook di lettura di un tuning
 
-Le figure di `clustering_tuning_explorer` e `dendrogram_embedding_explorer` (`notebooks/post-results_analysis/`) sono disegnate nei notebook con matplotlib e nilearn, non da `plotting.py`, e non usano `_CATEGORICAL_PALETTE`. Convenzioni (uso dei notebook: `docs/guides/analyze_clustering_tuning.md`):
+Le figure di `dendrogram_embedding_explorer` (`notebooks/post-results_analysis/`) sono disegnate nel notebook con matplotlib e nilearn, non da `plotting.py`, e non usano `_CATEGORICAL_PALETTE`. Convenzioni (uso dei notebook: `docs/guides/analyze_clustering_tuning.md`):
 
 **`dendrogram_embedding_explorer`, prima figura (albero + embedding), una per k**
 
@@ -116,8 +116,3 @@ Le figure di `clustering_tuning_explorer` e `dendrogram_embedding_explorer` (`no
 - **Linea del taglio.** Rossa tratteggiata, a metà tra l'altezza dell'ultima fusione tenuta e quella della prima scartata.
 
 **`dendrogram_embedding_explorer`, seconda figura (mappa anatomica)**: sfondo nero, una riga per ciascuno dei due figli, tre sezioni dal rosso al giallo con colorbar; la scala è propria di ogni mappa (calcolo in `docs/dev/anatomical_maps.md`).
-
-**`clustering_tuning_explorer`**
-
-- **Proiezione di ADP su un UMAP 2D**: colori dalla mappa `tab20` (etichetta modulo 20), rumore (`-1`) come croci nere.
-- **Confronto tra embedding**: le curve di agglomerative hanno un asse y per pannello (un pannello per `n_components`), perché i valori assoluti non si confrontano; le heatmap di HDBSCAN (cluster trovati e `noise_fraction`) usano `viridis` con la stessa scala di colore su tutta la riga.

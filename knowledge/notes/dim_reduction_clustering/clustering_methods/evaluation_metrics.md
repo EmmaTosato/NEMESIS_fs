@@ -138,7 +138,7 @@ $$
 |---|---|---|---|
 | Stabilità di un cluster HDBSCAN | quanto a lungo, al variare della densità, il cluster esiste come tale | Campello et al. 2013 [8] | `cluster_persistence_` → `persistence_mean` (solo `hdbscan_soft`) |
 | Plateau di un parametro | la partizione cambia se il parametro cambia di poco? | scelta del progetto | `ari_vs_prev_z` (ADP) |
-| Accordo tra varianti | linkage o embedding diversi danno la stessa partizione? | ARI, Hubert & Arabie 1985 [9] | `linkage_agreement.csv`, confronto tra embedding nel notebook `clustering_tuning_explorer` |
+| Accordo tra varianti | linkage o embedding diversi danno la stessa partizione? | ARI, Hubert & Arabie 1985 [9] | `linkage_agreement.csv`; il confronto tra embedding non è nel report |
 | Stabilità al ricampionamento | i cluster si ritrovano su sottocampioni o dati perturbati? | Hennig 2007 [10]; Monti et al. 2003 [13] | non implementata per agglomerativo, HDBSCAN e ADP |
 
 **Stabilità di un cluster in HDBSCAN** [8]. Con $\lambda = 1/\varepsilon$ (l'inverso della distanza di taglio), un cluster $C$ nasce a $\lambda_{\min}(C)$ e ogni suo punto $x$ ne esce a $\lambda_{\max}(x, C)$:

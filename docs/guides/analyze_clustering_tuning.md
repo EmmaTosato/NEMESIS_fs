@@ -59,23 +59,7 @@ Ogni lancio scrive un log in `logs/analyze_clustering_tuning/`.
 
 ## Notebook per leggere un tuning
 
-Due notebook in `notebooks/post-results_analysis/` leggono un tuning già salvato. Non rifanno nessun tuning e non scrivono nulla. Come leggere gli indici e i grafici: [`clustering_tuning_guide.md`](../../knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md).
-
-### `clustering_tuning_explorer`
-
-Mostra i risultati di `results/<lesion|sdc>/clustering/tuning/` metodo per metodo. Ogni sezione ha una cella in cui si sceglie la run (`RUN_DIR`) e, se serve, un parametro; poi si eseguono le celle sotto. Una run alla volta per sezione.
-
-Legge `tuning_results.csv`, `config.md`, `metadata.csv` e i grafici già scritti da `clustering.py`. Dalla matrice a cui punta `input_path` ricalcola solo ciò che lo sweep non salva: i dendrogrammi e la cophenetic correlation (agglomerative). Il suo ordine di soggetti deve coincidere con quello di `metadata.csv`, altrimenti il notebook si ferma.
-
-| Sezione | Cosa fa | Parametri da impostare |
-| :--- | :--- | :--- |
-| Gli indici che compaiono | Spiega silhouette, CH e DB (tutte le sezioni li usano). CH e DB sono `NaN` con le metriche non euclidee: non è un errore | nessuno |
-| Agglomerative 1-3 | Dendrogrammi (un pannello per `linkage` valido per `METRIC`, ultime 30 foglie, linea rossa del taglio `cut_k`), cophenetic correlation per `linkage`, tabella e curve di silhouette e Davies-Bouldin per `n_clusters` (senza `single`). Lo sweep prova ogni k da 2 a 30 | `RUN_DIR`, `METRIC` (impostata una volta e usata nelle sezioni 1-3; `ward` solo con `euclidean`) |
-| HDBSCAN 1-2 | `tuning_plot.png` e tabella ordinata per silhouette; poi le sole combinazioni con `noise_fraction` fino a `MAX_NOISE_FRACTION`, con le curve di silhouette e Davies-Bouldin contro `min_cluster_size` | `RUN_DIR`, `MAX_NOISE_FRACTION` (un esempio, 0,1 = al massimo il 10% di rumore: si cambia liberamente) |
-| ADP 1-3 | `tuning_plot.png`, tabella per `Z`, tabella dei plateau (per ogni numero di cluster l'intervallo di `Z` e quanti valori dello sweep ci cadono), etichette di `clusterings.npz` proiettate su un UMAP 2D già esistente (croci nere = rumore). Legge solo file già scritti: `dadapy` non serve | `RUN_DIR`, `ADP_Z_VALUES`, `PLOTS` (coppie UMAP 2D di produzione e metrica ADP; l'UMAP deve avere 2 colonne e gli stessi soggetti, nello stesso ordine, della run) |
-| Confronto tra embedding | Lo stesso metodo (agglomerative, HDBSCAN) su UMAP con `n_components` 2, 3 e 10 | `EMBEDDING_METRIC` (metrica UMAP, `dice` o `euclidean`), `SESSION_PREFIX`, `COMPARE_METRIC` (metrica del clustering, non quella di UMAP), `COMPARE_LINKAGE`, `COMPARE_K`, `COMPARE_PAIR`, `COMPARE_MIN_CLUSTER_SIZE`, `COMPARE_MIN_SAMPLES` |
-
-**Confronto tra embedding.** Il notebook trova da solo le tre run di ciascun metodo: cerca in `results/lesion/clustering/tuning/<metodo>/umap/` le cartelle `<SESSION_PREFIX>_*` il cui `config.md` ha `reduction_metric` uguale a `EMBEDDING_METRIC`, una per `n_components`. Solleva errore se `n_components` non sono esattamente 2, 3 e 10, se due run hanno lo stesso `n_components` o se i soggetti non coincidono (stessi e nello stesso ordine). Una tabella iniziale riporta `n_neighbors` e `min_dist` di UMAP per ciascuna run, perché possono cambiare insieme a `n_components`. Output, per agglomerative: curve per `n_clusters` (un pannello per `n_components`, un asse y ciascuno), ARI tra le run per k da 2 a 10, dimensioni dei cluster e contingenza tra due run (righe = prima run, colonne = seconda); per HDBSCAN: heatmap dei cluster trovati e di `noise_fraction` per run (stessa scala di colore su tutta la riga), ARI sui soli soggetti non-rumore in entrambe le run (con la colonna "soggetti confrontati") e dimensioni dei cluster. Come leggerli: sezione "Confrontare la stessa run su embedding diversi" della guida al tuning.
+Un notebook in `notebooks/post-results_analysis/` legge un tuning già salvato. Non rifà nessun tuning e non scrive nulla. Come leggere gli indici e i grafici: [`clustering_tuning_guide.md`](../../knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md).
 
 ### `dendrogram_embedding_explorer`
 

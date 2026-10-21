@@ -126,7 +126,7 @@ Fonti: documentazione e docstring di DADApy [6]; la pagina di `compute_clusterin
 
 - `n_clusters_found` e `largest_cluster_share` (quota nel cluster più grande) al variare di `Z`, in scala logaritmica;
 - `ari_vs_prev_z`: ARI [8] con la partizione al `Z` immediatamente più basso, sui soggetti clusterizzati. Un tratto vicino a 1 con `n_clusters_found` fisso è un **plateau**: lì la partizione non dipende dalla soglia;
-- la tabella dei plateau del notebook `clustering_tuning_explorer`: per ogni numero di cluster, il `Z` minimo e massimo che lo producono;
+- la tabella dei plateau: per ogni numero di cluster, il `Z` minimo e massimo che lo producono (non è più prodotta da nessuno script);
 - `n_small_clusters`: cluster con meno di 10 soggetti (`SMALL_CLUSTER_SIZE = 10` è una scelta del progetto, senza fonte);
 - `metric` nella stessa run: le due partizioni si confrontano con l'ARI e con variabili esterne (es. `lesion_side`), non con la silhouette.
 

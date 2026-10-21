@@ -144,7 +144,7 @@ Per ogni `n_clusters` e `linkage` (per una sola `metric`, di solito `euclidean`;
 - **Il rumore può far salire gli indici senza che la partizione migliori.** Silhouette, CH e DB sono calcolati solo sui soggetti che hanno un cluster: una combinazione che scarta molti soggetti lascia i più facili da separare, e l'indice sale. Succede con `min_cluster_size` o `min_samples` alti.
   - Indice alto e rumore basso: candidato credibile.
   - Indice alto e rumore alto: l'indice descrive solo una parte dei soggetti, non è un candidato.
-  - Il limite di rumore sotto cui tenere le combinazioni (`curves_max_noise_fraction` nella pipeline `analyze_clustering_tuning`, `MAX_NOISE_FRACTION` nel notebook `clustering_tuning_explorer`) è un esempio che si cambia liberamente, non una soglia di merito: `noise_fraction` 0,30 vuol dire il 30% dei soggetti nel rumore.
+  - Il limite di rumore sotto cui tenere le combinazioni (`max_noise_fraction` di `noise_filtered_curves` in `config/registry/clustering_evaluations.json`) è un esempio che si cambia liberamente, non una soglia di merito: `noise_fraction` 0,30 vuol dire il 30% dei soggetti nel rumore.
 - **Calinski-Harabasz** può diventare enorme con moltissimi cluster minuscoli senza che la partizione sia migliore.
 
 ### Spectral — eigengap

@@ -84,8 +84,9 @@ Decisione dell'utente (21-10-26): **non** rilanciare `mask_fc.py` per ora. Non �
 Fatto (21-10-26): blocco `tuning_evaluations` nel config, registro in `src/analysis/clustering_tuning_evaluations.py`, parametri in `config/registry/clustering_evaluations.json`, stessa funzione nello sweep e in `analyze_clustering_tuning` (`.claude/history/project_changelog.md`). Resta:
 
 - decidere quali metriche entrano nel registro e con quali soglie (Dunn, silhouette per cluster, quota del cluster più grande per agglomerative, membership e persistence di `hdbscan_soft` come valutazioni dichiarate: oggi sono colonne dello sweep o assenti);
-- il report come prodotto del notebook `clustering_tuning_explorer`, per metodo e riduzione, con le spiegazioni che arrivano da `docs/` e `knowledge/`; oggi `report.md` lo scrive ancora `analyze_clustering_tuning` (`write_report`);
-- il notebook speculare ai file prodotti, e le immagini riplottate in alta qualità (le figure sono salvate a 150 dpi);
+- i testi del report (`HINT_*`, `REPORT_TERMS`) sono costanti in `src/analysis/clustering_tuning_report.py`: farli arrivare da `docs/` e `knowledge/` perché non divergano;
+- il report è scritto dal codice (sweep con `write_report`, o `analyze_clustering_tuning`), non da un notebook: `clustering_tuning_explorer` è stato eliminato il 21-10-26; ciò che provava lo si prova in `clustering_evaluation` (da spostare in `pipeline_building`) e poi entra nel registro e nel modulo del report;
+- le figure delle valutazioni sono salvate a 150 dpi (`FIGURE_DPI` in `clustering_tuning_evaluations.py`): alzare la qualità;
 - la produzione e Dash con le stesse funzioni e soglie; `clustering_evaluation.ipynb` verso `pipeline_building`;
 - ICL, gap statistic e self-tuning eigengap sono nello stesso modulo di `clustering_tuning.py` ma senza una valutazione nel registro (si recuperano da `46c3123`).
 
@@ -105,7 +106,7 @@ Fuori dal primo giro di implementazione (19-10-26), da riprendere dopo aver deci
 - **Dimensioni dei cluster nelle tabelle**: `largest_cluster_share` e `n_small_clusters` (meno di 10 soggetti, la definizione già usata da HDBSCAN e ADP in `clustering_tuning_analysis.py` e `adp.py`) non sono calcolati per agglomerative. Sulla run SDC `16-10 nc10` la quota del cluster più grande va, con euclidean, dal 64-70% a k=2 al 7-8% a k=30; `single` ha il 97% a k=2 e 20 cluster sotto l'1% a k=30.
 - **Scree plot**: altezza di fusione contro k. Oggi c'è solo il rapporto in `dendrogram_jump.csv`.
 - **Dimensione del cluster che si divide da k a k+1**: non esiste nel codice.
-- **Accordo tra embedding** (ARI tra nc2, nc3 e nc10, a parità di k e linkage): esiste solo nel notebook `clustering_tuning_explorer.ipynb` e in `src/analysis/cluster_comparison.py` (sezione "Confronto" tolta dall'app); confronta più run, quindi non entra nel `report.md` di una singola run.
+- **Accordo tra embedding** (ARI tra nc2, nc3 e nc10, a parità di k e linkage): esiste solo in `src/analysis/cluster_comparison.py` (il notebook `clustering_tuning_explorer`, eliminato il 21-10-26, lo calcolava anche per i tuning) (sezione "Confronto" tolta dall'app); confronta più run, quindi non entra nel `report.md` di una singola run.
 - **Composizione dei cluster per dataset e lato**: esiste in `src/analysis/cluster_composition.py` e nel pannello dell'app, non nei report.
 - **Dove riprodurre dendrogrammi, matrice interclasse e `labels_2d_*`**: li scrive `clustering.py`, non `analyze_clustering_tuning`; il report non li cita.
 
@@ -124,7 +125,7 @@ Il giro ha allineato docs, note e notebook alla regola «il markdown di un noteb
 - **Non archiviati nello storico** (decisioni minori): rimozione dei `summaries/` di `dim_reduction` e `clustering` (commit `567630d`, la ragione è ancora in `docs/dev/models.md`) e `tag_param`/`tag_prefix` come liste parallele (commit `625b2c1`, la storia è nel messaggio del commit).
 
 **Incoerenze note, da decidere**
-- **Cosa dire sulla silhouette** (`management/cheatsheets/clustering_metrics_report.md`, §4.4 e decisione 3): l'app e `clustering_evaluation` dicono che nessun indice ha un valore di riferimento e che una nuvola senza cluster ha silhouette circa 0,4; `clustering_tuning_explorer` (cella 3) dice che la silhouette «si legge da sola» e non cita le fasce di Kaufman & Rousseeuw, che stanno in `clustering_tuning_guide.md`. Tre messaggi diversi sullo stesso numero.
+- **Cosa dire sulla silhouette** (`management/cheatsheets/clustering_metrics_report.md`, §4.4 e decisione 3): l'app e `clustering_evaluation` dicono che nessun indice ha un valore di riferimento e che una nuvola senza cluster ha silhouette circa 0,4; il report del tuning cita le fasce di Kaufman & Rousseeuw (che stanno anche in `clustering_tuning_guide.md`). Messaggi diversi sullo stesso numero. Il notebook `clustering_tuning_explorer`, che ne dava un terzo, è stato eliminato.
 - **`management/cheatsheets/hdbscan.md`**: il passo «taglia minima» dice che i punti del pezzo piccolo «escono dal cluster padre», mentre l'esempio della scheda e `clustering.md` dicono che un gruppo di 30 «resta rumore»; il comportamento reale è più sfumato (i punti fuori da un cluster padre selezionato restano nel padre con probabilità bassa). La scheda descrive `eom` e `leaf` come validi per entrambi i metodi, ma nel progetto solo `hdbscan_soft` li fa variare; `hdbscan` di sklearn usa sempre `eom`.
 - **`.claude/CLAUDE.md`** non contiene la regola sul markdown dei notebook; sta solo in `docs/guides/exploration.md`, «Regole di scrittura dei notebook».
 - **Link rotto** in `docs/experiments/s2.4-vol.md`: punta a `results/legacy/sdc_s2.4-vol_07-10/...`, e `results/legacy/` è vuota su disco.

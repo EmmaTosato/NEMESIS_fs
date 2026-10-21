@@ -6,6 +6,16 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 21-10-26 — Il report del tuning ha un modulo proprio; `clustering_tuning_explorer` eliminato
+
+**Cosa è cambiato**: `tuning_report_markdown`, i testi «come leggerlo» (`HINT_*`, `REPORT_TERMS`) e le funzioni di formattazione sono passati da `clustering_tuning_analysis.py` al nuovo `src/analysis/clustering_tuning_report.py`, che non calcola nulla: legge dalla cartella i file delle valutazioni (`write_report`). Lo chiamano lo sweep (nuovo campo `write_report` in `clustering.json`, verificato all'avvio con `require_report_evaluations`) e `analyze_clustering_tuning`: stesso `report.md` nei due casi. Il notebook `notebooks/post-results_analysis/clustering_tuning_explorer.ipynb` è stato eliminato; i test del report sono in `tests/unit/test_clustering_tuning_report.py` e `test_prop_clustering_tuning_report.py`.
+
+**Perché**: il notebook ricalcolava e ridisegnava ciò che le valutazioni già scrivono, con soglie proprie (`MAX_NOISE_FRACTION`). Un posto che calcola (`clustering_tuning_evaluations.py`), un posto che scrive il report. Ciò che va provato di nuovo si prova nel notebook di sviluppo `clustering_evaluation` e, se approvato, entra nel registro e nel modulo del report.
+
+**Perso con il notebook**: il confronto tra embedding (ARI tra nc2, nc3 e nc10), la tabella dei plateau di ADP, la proiezione delle etichette ADP su un UMAP 2D, i dendrogrammi con la linea di taglio `cut_k`. Il codice del notebook è in `git log` (commit prima di quello che lo elimina).
+
+**Conseguenza attuale**: `write_report: true` richiede che ogni metodo di `clustering_methods` abbia un report (agglomerative, hdbscan, hdbscan_soft, adp) e che `tuning_evaluations` elenchi le valutazioni che quel report legge.
+
 ## 21-10-26 — Le valutazioni del tuning del clustering si dichiarano nel config, con parametri in un registro unico
 
 **Cosa è cambiato**: `clustering.json` e `analyze_clustering_tuning.json` hanno un blocco `tuning_evaluations` con la chiave `general` e una per metodo (liste di nomi). Le valutazioni stanno in un registro (`src/analysis/clustering_tuning_evaluations.py`: `k_curves`, `cophenetic_correlation`, `dendrogram_jump`, `linkage_agreement`, `density_metrics`, `noise_filtered_curves`) e girano con una sola funzione, `run_evaluations`: subito dopo lo sweep (da `clustering.py`) e in un secondo momento (da `analyze_clustering_tuning`). `k_range` e `curves_max_noise_fraction` sono usciti dal config di analisi e stanno in `config/registry/clustering_evaluations.json`, per nome di valutazione. `report.md` non calcola più niente: legge dalla cartella i file delle valutazioni (flag `write_report`). Commit `93450bb`, `abbd5f6`.

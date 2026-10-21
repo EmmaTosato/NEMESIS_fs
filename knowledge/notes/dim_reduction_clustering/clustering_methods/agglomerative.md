@@ -107,7 +107,7 @@ Nessuna fonte dà una regola per scegliere linkage e k; le diagnostiche sotto so
 2. **Il numero di cluster.**
    - *Dendrogramma*: un taglio è naturale dove, salendo, c'è un salto grande tra due altezze consecutive. Il progetto lo riassume nel **salto del dendrogramma** (`dendrogram_jump.csv`): l'altezza della fusione da $k$ a $k-1$ cluster divisa per quella da $k+1$ a $k$, cioè con $h_1 \ge h_2 \ge \dots$ le altezze dalla più alta, $J(k) = h_{k-1}/h_k$. È una diagnostica del progetto, senza fasce di letteratura.
    - *Indici per k*: silhouette (con la stessa `metric`), e CH e DB solo per `euclidean` (curve `k_curves_metric=<metric>.png`). Si cerca un picco della silhouette e una valle di DB **stabili** tra linkage, non un massimo isolato. `single` sta in un grafico a parte perché la sua silhouette crolla.
-3. **La stabilità rispetto all'embedding.** Lo stesso k e linkage su UMAP con `n_components` diversi: ARI tra le partizioni e contingenza dei cluster (notebook `clustering_tuning_explorer`, sezione di confronto).
+3. **La stabilità rispetto all'embedding.** Lo stesso k e linkage su UMAP con `n_components` diversi: ARI tra le partizioni e contingenza dei cluster (confronto tra più run: non è nel `report.md` di una singola run).
 
 Guida operativa ai grafici: [`clustering_tuning_guide.md`](../clustering_tuning_guide.md), sezioni "Agglomerative".
 

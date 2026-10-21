@@ -151,7 +151,7 @@ La documentazione del pacchetto consiglia di partire da `min_cluster_size` (il p
 2. **`density_metrics.csv`** (`analyze_clustering_tuning`): in più `largest_cluster_share`, sul totale dei soggetti.
 3. **Curve con poco rumore** (`noise_filtered_curves*.png`): silhouette e DB contro `min_cluster_size`, solo per le combinazioni con `noise_fraction` sotto `curves_max_noise_fraction`, un limite di esempio scelto dall'utente, non una soglia di merito.
 4. **Per `hdbscan_soft`**: `membership_mean`, `membership_share_below_half` (la soglia 0,5 è fissa nel codice, `SOFT_MEMBERSHIP_LOW`: una scelta del progetto) e `persistence_mean`.
-5. **Tra embedding**: ARI sui soli soggetti non rumore in entrambe le run (notebook `clustering_tuning_explorer`).
+5. **Tra embedding**: ARI sui soli soggetti non rumore in entrambe le run (confronto tra più run: non è nel `report.md` di una singola run).
 
 Cosa cercare: una zona della griglia dove numero di cluster e partizione cambiano poco e il rumore resta basso. Lettura dei grafici: [`clustering_tuning_guide.md`](../clustering_tuning_guide.md), "HDBSCAN".
 
