@@ -828,3 +828,16 @@ def test_plot_silhouette_analysis_panel_height_follows_cluster_size_with_a_floor
     heights = [panel.get_position().height for panel in figure.axes[:-1]]
     assert heights[0] / heights[1] == pytest.approx(2.0, rel=0.02)  # twice the subjects, twice the height
     assert heights[2] / heights[1] == pytest.approx(0.05 / (100 / 302), rel=0.02)  # 2 subjects: the floor share, not 2/302
+
+
+def test_plot_dbcv_per_cluster_writes_the_figure_and_refuses_a_run_with_no_cluster(tmp_path):
+    from src.analysis.plotting import plot_dbcv_per_cluster
+
+    clusters = pd.DataFrame({"cluster": [0, 1], "n": [30, 12], "dbcv": [0.7, -0.2]})
+    path = tmp_path / "out" / "dbcv_plot.png"
+
+    plot_dbcv_per_cluster(clusters, 0.25, path, "title")
+
+    assert path.stat().st_size > 0
+    with pytest.raises(ValueError, match="fewer than 2 clusters"):
+        plot_dbcv_per_cluster(clusters.iloc[:0], float("nan"), tmp_path / "none.png", "title")

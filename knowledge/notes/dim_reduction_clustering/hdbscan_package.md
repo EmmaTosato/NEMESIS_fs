@@ -66,9 +66,9 @@ Il docstring della classe elenca anche `cluster_selection_persistence`, `cluster
 | `cluster_persistence_` | Stabilità di ogni cluster, da 0 (effimero) a 1 (persiste su tutte le scale). |
 | `outlier_scores_` | Punteggio GLOSH: più alto, più il punto è un outlier **locale**. Un punto al bordo di un cluster denso può avere punteggio alto pur essendo clusterizzato. Non coincide con l'etichetta `-1`. |
 | `exemplars_` | Punti rappresentativi di ogni cluster (quelli che restano più a lungo). |
-| `relative_validity_` | Approssimazione veloce del DBCV. Richiede `gen_min_span_tree=True`. NEMESIS non la usa. |
+| `relative_validity_` | Approssimazione veloce del DBCV. Richiede `gen_min_span_tree=True`. NEMESIS non la usa: calcola il DBCV esatto con `validity_index`. |
 | `condensed_tree_`, `single_linkage_tree_`, `minimum_spanning_tree_` | Gli alberi dei passi 2-4, con conversione in pandas/NetworkX e grafici. Larghezza di un ramo = numero di punti; lunghezza = persistenza. |
-| `hdbscan.validity.validity_index` | Indice di validità basato sulla densità (DBCV). |
+| `hdbscan.validity.validity_index` | Indice di validità basato sulla densità (DBCV). NEMESIS lo usa, euclideo, per `hdbscan` e `hdbscan_soft` (`src/analysis/dbcv.py`). Restituisce l'intero `0` per "tutto rumore", `nan` con un solo cluster e solleva con un cluster di un soggetto: il progetto scrive NaN sotto 2 cluster. |
 | `hdbscan.prediction.approximate_predict` | Etichetta e forza per punti **nuovi**, senza modificare l'albero (il metodo è transduttivo: riaddestrare ogni tanto per evitare derive). Richiede `prediction_data=True`. |
 | `hdbscan.branches.BranchDetector` | Rami (forme a Y) dentro un cluster, sull'eccentricità invece che sulla densità. |
 
@@ -102,7 +102,7 @@ I due non danno la stessa partizione con gli stessi numeri. Misurato sui 10 embe
 
 - **Perché esiste**: per la probabilità di appartenere a ciascun cluster (soft clustering), che sklearn non offre.
 - **Griglia di tuning** (`config/registry/params_clustering.json`): `min_cluster_size` × `min_samples` × `cluster_selection_method` (`eom`, `leaf`), con `approx_min_span_tree=False` fisso: il risultato non dipende dall'approssimazione, e su queste dimensioni costa poco. `alpha` resta a 1 e `allow_single_cluster` a falso: la documentazione sconsiglia il primo e il secondo serve solo per dati omogenei.
-- **Colonne in più** in `tuning_results.csv`, rispetto a `hdbscan`: `membership_mean` (media, sui non-rumore, della probabilità di stare nel proprio cluster), `membership_share_below_half` (quota di non-rumore sotto 0,5) e `persistence_mean` (media di `cluster_persistence_`).
+- **Colonne in più** in `tuning_results.csv`, rispetto a `hdbscan`: `membership_mean` (media, sui non-rumore, della probabilità di stare nel proprio cluster) e `persistence_mean` (media di `cluster_persistence_`). Nessuna soglia sulla probabilità: in letteratura non c'è un valore di riferimento. `persistence_mean` esiste solo qui: `hdbscan` di sklearn non ha `cluster_persistence_` e non la calcola.
 - **Produzione**: una run salva `membership.npy` (la matrice soggetti × cluster) e `membership_own` in `metadata.csv`; la sezione 3.2 di `clustering_evaluation.ipynb` le legge.
-- **Cosa non usa**: `relative_validity_`/DBCV (scartato in tutto il progetto), `approximate_predict`, `cluster_selection_epsilon` (dipende dalla scala dell'embedding), rilevamento dei rami.
-- **Quando i cluster sono zero** (tutto rumore): le colonne di silhouette e quelle del pacchetto valgono NaN, e il log lo dice.
+- **Cosa non usa**: `relative_validity_`, `approximate_predict`, `cluster_selection_epsilon` (dipende dalla scala dell'embedding), rilevamento dei rami.
+- **Quando i cluster sono zero** (tutto rumore): le colonne del pacchetto valgono NaN, il DBCV non è definito (NaN, mai 0), e il log lo dice.

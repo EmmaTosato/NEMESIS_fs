@@ -1,6 +1,6 @@
 # Metriche di valutazione del clustering
 
-Riferimento condiviso per le note dei singoli metodi in questa cartella. Definisce, con la fonte, gli indici che il progetto calcola o che la letteratura propone per i metodi gerarchici e di densità: silhouette, correlazione cofenetica, DBCV, frazione di rumore, stabilità, Calinski-Harabasz e Davies-Bouldin (più Dunn, usato nel notebook di valutazione).
+Riferimento condiviso per le note dei singoli metodi in questa cartella. Definisce, con la fonte, gli indici che il progetto calcola o che la letteratura propone per i metodi gerarchici e di densità: silhouette, correlazione cofenetica, DBCV, frazione di rumore, stabilità, Calinski-Harabasz e Davies-Bouldin (più Dunn, usato nel notebook di valutazione e nell'Embedding Explorer).
 
 - **Cosa questa nota non fa**: non dice come leggere i grafici di un tuning (quello è in [`clustering_tuning_guide.md`](../clustering_tuning_guide.md)) e non descrive i notebook ([`docs/guides/evaluation.md`](../../../../docs/guides/evaluation.md)).
 - **Regola del progetto**: i report non danno verdetti con soglie scelte da noi. Le uniche fasce citate sono quelle della silhouette (Kaufman & Rousseeuw 1990), e sono una convenzione di letteratura, non un risultato.
@@ -138,8 +138,8 @@ $$
 $$
 
 - Non è un indice della letteratura con un nome proprio: è la quota di soggetti etichettati come rumore, riportata dal progetto accanto a ogni indice (`compute_clustering_metrics`).
-- **Perché conta**: silhouette, CH e DB sono calcolati sui soli soggetti clusterizzati. Una combinazione che manda nel rumore i soggetti difficili lascia i più facili e fa salire gli indici senza che la partizione sia migliore. DBCV (§8) evita il problema pesando ogni cluster per la sua quota sul **totale** dei soggetti, rumore compreso [7].
-- **Cosa ne fa il progetto**: nessuna soglia di merito. `curves_max_noise_fraction` (pipeline `evaluate_clustering_tuning`) e `NOISE_WARNING_FRACTION` (notebook di valutazione) sono valori di esempio dichiarati come tali.
+- **Perché conta**: silhouette, CH, DB e Dunn si calcolano sui soli soggetti clusterizzati. Una combinazione che manda nel rumore i soggetti difficili lascia i più facili e fa salire gli indici senza che la partizione sia migliore. Per questo il progetto non li calcola per HDBSCAN: DBCV (§8) evita il problema pesando ogni cluster per la sua quota sul **totale** dei soggetti, rumore compreso [7].
+- **Cosa ne fa il progetto**: la quota di rumore è una misura, sempre riportata accanto agli altri indici, senza soglia: nessun limite di rumore filtra i risultati o fa comparire un avviso.
 - In ADP il rumore viene solo dalle righe tutte a zero (distanza dice non definita), perché il progetto usa `halo=False` (vedi [`adp.md`](adp.md)).
 
 ---
@@ -205,7 +205,13 @@ $$
 - **Implementazioni**: `hdbscan.validity.validity_index` (pacchetto `hdbscan`, con l'argomento `d` per la dimensione); `relative_validity_`, un'approssimazione veloce sul solo MST di HDBSCAN che la documentazione del pacchetto dichiara utile **solo** per confrontare iperparametri, non come misura assoluta (docstring di `hdbscan.HDBSCAN`, 0.8.44) [14].
 - **Esempio**: per i punti 0, 1, 2, 6, 7, 15 partizionati da HDBSCAN in {0, 1, 2}, {6, 7} e il rumore {15}, `validity_index` dà 0,63 (`hdbscan` 0.8.44).
 
-**Nel progetto: non usato.** È stato scartato per HDBSCAN (`docs/guides/clustering.md`; motivazione in `docs/dev/models.md`: nemmeno l'esempio ufficiale di scikit-learn per HDBSCAN lo usa). Resta qui perché è l'indice che la letteratura propone per questo tipo di cluster. Due limiti di fatto: $a_{\text{core}}$ dipende dalla dimensione $d$, che per una distanza `dice` su voxel non è definita in modo ovvio; e il calcolo esatto richiede le distanze dentro ogni cluster.
+**Nel progetto: è l'indice interno di `hdbscan` e `hdbscan_soft`.** Sostituisce silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn per questi due metodi, per due motivi: si calcolano sui soli soggetti non rumore (§6) e presuppongono cluster compatti. DBCV non ha né l'uno né l'altro limite.
+
+- **Dove**: è una colonna di `density_metrics.csv` (valutazione `density_metrics` del tuning, anche su un tuning già salvato), una riga di `config.md` e `dbcv_per_cluster.csv` + `dbcv_plot.png` in una run di produzione, e un pannello dell'Embedding Explorer. Una sola funzione, `src/analysis/dbcv.py`, usa `hdbscan.validity.validity_index` con distanza euclidea.
+- **Con meno di 2 cluster non è definito**: il progetto scrive NaN (cella vuota nei report), mai 0. `validity_index` restituisce l'intero `0` per "tutto rumore", indistinguibile da un punteggio vero di 0; con un solo cluster restituisce `nan` e un avviso. Un cluster di un solo soggetto fa sollevare un `ValueError`.
+- **Come si legge**: nessun valore di riferimento in letteratura e nessuna soglia nel progetto. Non è confrontabile tra embedding diversi. Il valore della run non è la media dei cluster: ogni cluster pesa per la sua quota di tutti i soggetti, rumore compreso.
+- **Costo**: circa 1-2 secondi per combinazione (5845 soggetti, 12-30 componenti), fino a una quindicina di secondi con un cluster molto grande: una griglia di 56 combinazioni richiede circa un minuto e mezzo.
+- **Limite di fatto**: $a_{\text{core}}$ dipende dalla dimensione $d$, che per una distanza `dice` su voxel non è definita in modo ovvio: il progetto lo calcola solo sugli embedding euclidei.
 
 ---
 
@@ -225,13 +231,14 @@ con $\delta$ la minima distanza tra due punti di cluster diversi e $\Delta$ il d
 
 | Indice | agglomerative | hdbscan / hdbscan_soft | adp |
 |---|---|---|---|
-| Silhouette | sì, con la metrica del clustering | sì, euclidea, rumore escluso | sì, con la distanza del clustering |
-| Calinski-Harabasz, Davies-Bouldin | solo `euclidean` | sì (euclidei), rumore escluso | solo `euclidean` |
+| Silhouette | sì, con la metrica del clustering | no (rumore escluso, cluster compatti: vedi DBCV) | sì, con la distanza del clustering |
+| Calinski-Harabasz, Davies-Bouldin | solo `euclidean`, indefiniti con un'altra metrica | no | solo `euclidean` |
 | Correlazione cofenetica | sì | no (l'albero è sulla raggiungibilità reciproca) | no |
 | Salto del dendrogramma | sì (diagnostica del progetto) | no | no |
 | Frazione di rumore | sempre 0 | sì | solo righe a zero |
 | Stabilità propria | no | `persistence_mean` (`hdbscan_soft`) | plateau in `Z` (`ari_vs_prev_z`) |
-| DBCV | possibile, non usato | pensato per questo, non usato | possibile, non usato |
+| Dunn | sì (notebook e Embedding Explorer) | no | no |
+| DBCV | non usato | sì, euclideo | non usato |
 
 ---
 

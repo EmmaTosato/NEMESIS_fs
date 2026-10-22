@@ -8,6 +8,24 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 22-10-26 — HDBSCAN: il DBCV sostituisce silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn; via le soglie sul rumore e sulla probabilità
+
+Per `hdbscan` e `hdbscan_soft` l'indice interno è il **DBCV** (Moulavi et al. 2014, `hdbscan.validity.validity_index`, euclideo, `src/analysis/dbcv.py`). Silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn non si calcolano più per questi due metodi: in tuning, report, mappa, produzione (via `silhouette_plot.png`), Embedding Explorer e `clustering_evaluation.ipynb`. Restano per agglomerative, kmeans, gmm e spectral.
+
+**Perché.** Quei quattro indici si calcolano sui soli soggetti non rumore: se l'algoritmo scarta i soggetti difficili, salgono (su `s2.4-vol` HDBSCAN: silhouette 0,47-0,62 con il 22-40% di rumore, 0,21-0,31 con rumore ≤ 11%), e presuppongono cluster compatti. Il DBCV pesa ogni cluster per |Cᵢ|/|O| con |O| che include il rumore, quindi il rumore lo abbassa da solo. Moulavi (tesi 2014, cap. 3, letta dall'utente: non riletta qui) sconsiglia di togliere il rumore senza penalità, che era il modo usato finora.
+
+**Alternative scartate.** (1) Tenere la silhouette moltiplicata per (|O|−|N|)/|O|, il rimedio di Moulavi: resta un indice per cluster compatti. (2) Tenere Calinski-Harabasz, Davies-Bouldin e Dunn: stessi due limiti della silhouette. (3) `relative_validity_` del pacchetto: approssimato, "utile solo per confrontare iperparametri" (docstring). (4) Persistenza anche per `hdbscan` di sklearn dal suo `_single_linkage_tree_` con le funzioni del pacchetto: riproduce esattamente le etichette di sklearn su tre combinazioni reali, ma usa due pezzi privati e non si confronta con quella di `hdbscan_soft`; decisione dell'utente: non si calcola, la persistenza resta solo in `hdbscan_soft`.
+
+**Casi degeneri, misurati su `hdbscan_soft` nc30 (56 combinazioni) e `hdbscan` nc12 varimax (28).** Con 0 cluster `validity_index` restituisce l'intero `0`, identico a un punteggio vero (24 combinazioni su 56 e 5 su 28 sono tutto rumore); con 1 cluster `nan` e un avviso; con un cluster di 1 soggetto solleva. Regola: meno di 2 cluster è **NaN** (cella vuota, mai 0), un cluster di 1 soggetto un `ValueError`. Tempo: 87 s per 56 combinazioni, 60 s per 28, fino a circa 15 s per combinazione con un cluster molto grande.
+
+**Soglie tolte.** Il limite di rumore del 10% (`max_noise_fraction`, `NOISE_WARNING_FRACTION`): nessuna fonte, il DBCV risolve il problema che filtrava; la soglia 0,5 sulla probabilità (`membership_share_below_half`, `SOFT_MEMBERSHIP_LOW`, `share_below_threshold`, `LOW_PROBABILITY`, `LOW_MEMBERSHIP`): nessuna fonte. Restano le medie.
+
+**Calinski-Harabasz e Davies-Bouldin: solo distanza euclidea, ovunque** (sweep, valutazioni, report, produzione, app): usano i centroidi. Con un'altra metrica la colonna è vuota e il report lo scrive; mai calcolati in un'altra geometria.
+
+**Conseguenza ancora vera.** Il DBCV non ha un valore di riferimento e non si confronta tra embedding diversi; è solo euclideo (una run HDBSCAN con un'altra `metric` lo rifiuta). `membership_mean` e `persistence_mean` di `hdbscan_soft` nascono dal fit e non si ricalcolano dalle etichette.
+
+---
+
 ## 21-10-26 — I report del tuning non usano più le fasce di Kaufman & Rousseeuw
 
 **Cosa è cambiato**: `report.md` (agglomerative, HDBSCAN, `hdbscan_soft`) e le curve per `n_clusters` non collocano più la silhouette nelle fasce 0.71-1.00 / 0.51-0.70 / 0.26-0.50 / ≤0.25. Via le linee grigie sui grafici, i punti "Silhouette per fascia" sotto le tabelle e la frase "non accettabile per convenzione" sulle silhouette negative; restano il conteggio delle negative, quelle non calcolabili e il valore a k minimo e massimo. Nei "Termini" del report una riga dice che le fasce esistono e rimanda a `knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md` §2, dove sono spiegate. Cancellati `SILHOUETTE_BANDS`, `CONVENTION_LINES`, `silhouette_band`, `convention_lines_caption`.

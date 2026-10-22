@@ -147,10 +147,10 @@ Default verificati con `inspect.signature` sulle versioni installate.
 
 La documentazione del pacchetto consiglia di partire da `min_cluster_size` (il parametro intuitivo: la taglia più piccola che si vuole chiamare cluster) e di usare `min_samples` per rendere il metodo più o meno conservativo [6]. Il progetto li sweepa insieme in una sola run:
 
-1. **Heatmap** `min_cluster_size` × `min_samples` per ogni indice, `noise_fraction` e `n_clusters_found` (`tuning_plot.png`; per `hdbscan_soft` una per `cluster_selection_method`).
-2. **`density_metrics.csv`** (`evaluate_clustering_tuning`): in più `largest_cluster_share`, sul totale dei soggetti.
-3. **Curve con poco rumore** (`noise_filtered_curves*.png`): silhouette e DB contro `min_cluster_size`, solo per le combinazioni con `noise_fraction` sotto `curves_max_noise_fraction`, un limite di esempio scelto dall'utente, non una soglia di merito.
-4. **Per `hdbscan_soft`**: `membership_mean`, `membership_share_below_half` (la soglia 0,5 è fissa nel codice, `SOFT_MEMBERSHIP_LOW`: una scelta del progetto) e `persistence_mean`.
+1. **`density_metrics.csv`** (valutazione `density_metrics`, dopo lo sweep o su un tuning già salvato): `tuning_results.csv` più `n_clusters_found`, `largest_cluster_share` (sul totale dei soggetti) e `dbcv`.
+2. **Heatmap** `min_cluster_size` × `min_samples` (valutazione `tuning_heatmaps`, `tuning_plot.png`; per `hdbscan_soft` una per `cluster_selection_method`) di DBCV, rumore, quota del cluster più grande, numero di cluster e, per `hdbscan_soft`, probabilità media e persistenza.
+3. **Curve** (valutazione `dbcv_curves`, `dbcv_curves*.png`): DBCV, rumore, quota del cluster più grande e numero di cluster contro `min_cluster_size`, una linea per `min_samples`. Tutte le combinazioni, nessun limite sul rumore.
+4. **Per `hdbscan_soft`**: `membership_mean` e `persistence_mean`, senza soglia sulla probabilità.
 5. **Tra embedding**: ARI sui soli soggetti non rumore in entrambe le run (confronto tra più run: non è nel `report.md` di una singola run).
 
 Cosa cercare: una zona della griglia dove numero di cluster e partizione cambiano poco e il rumore resta basso. Lettura dei grafici: [`clustering_tuning_guide.md`](../clustering_tuning_guide.md), "HDBSCAN".
@@ -160,10 +160,9 @@ Cosa cercare: una zona della griglia dove numero di cluster e partizione cambian
 ## 7. Come si valuta l'output
 
 - **Frazione di rumore** e **numero di cluster trovati**, sempre ([`evaluation_metrics.md`](evaluation_metrics.md), §6).
-- **Silhouette, CH, DB** sui soli soggetti non rumore: alti con rumore alto non sono un buon segno, sono un sottoinsieme facile.
+- **DBCV**, l'indice interno ([`evaluation_metrics.md`](evaluation_metrics.md), §8): pesa il rumore, quindi non premia chi scarta i soggetti difficili. Silhouette, CH, DB e Dunn non si calcolano per HDBSCAN: sui soli soggetti non rumore salgono con il rumore, e presuppongono cluster compatti.
 - **Stabilità** (`persistence_mean`, solo soft): i cluster persistono su un ampio intervallo di densità?
 - **`probabilities_`** (hard, sezione 3.1 del notebook di valutazione) e **vettori soft** (sezione 3.2): quanti soggetti stanno al margine del loro cluster, e quali cluster si contendono soggetti.
-- **DBCV** è l'indice proposto in letteratura per questi cluster [3]; il progetto non lo usa ([`evaluation_metrics.md`](evaluation_metrics.md), §8).
 
 ---
 
@@ -221,7 +220,7 @@ Sei soggetti su una retta: 0, 1, 2, 6, 7, 15. `min_cluster_size = 2`, scikit-lea
    - una zona densa nell'embedding può essere prodotta da UMAP (con `min_dist` basso i punti vengono impacchettati di proposito);
    - `probabilities_` su un embedding molto impacchettato descrive l'impacchettamento, non la densità dei dati originali (`docs/guides/evaluation.md`);
    - un cluster che compare a un solo `n_components` o a un solo `min_dist` va trattato come possibile artefatto ([`challenge_of_clustering_after_dim_reduction.md`](../challenge_of_clustering_after_dim_reduction.md)).
-2. **Indici alti grazie al rumore.** Silhouette, CH e DB escludono il rumore ([`evaluation_metrics.md`](evaluation_metrics.md), §6).
+2. **Indici alti grazie al rumore.** Silhouette, CH, DB e Dunn escludono il rumore ([`evaluation_metrics.md`](evaluation_metrics.md), §6): per questo HDBSCAN ha il DBCV (§8), che lo pesa.
 3. **`min_samples` non fissato.** Vale `min_cluster_size` e cambia insieme a lui [6, 7]: il progetto lo fissa sempre.
 4. **Confrontare `hdbscan` e `hdbscan_soft`.** Convenzione di `min_samples` diversa (§5).
 5. **`probabilities_` letta come probabilità di classe.** Non lo è (§2); il confronto tra cluster è possibile solo con i vettori soft, che sono un'altra grandezza.
