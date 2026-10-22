@@ -40,6 +40,7 @@ def _summary(**overrides) -> GeometricSummary:
         clusters=pd.DataFrame(
             {"n": [100, 200], "silhouette_mean": [0.21, 0.6], "share_negative": [0.15, 0.01]}, index=[0, 1]
         ),
+        subject_labels=np.repeat([0, 1], [100, 200]), subject_values=np.concatenate([np.full(100, 0.21), np.full(200, 0.6)]),
     )
     return GeometricSummary(**{**values, **overrides})
 
@@ -156,11 +157,11 @@ def _graphs(component) -> list:
     return [graph for child in (children if isinstance(children, (list, tuple)) else [children]) for graph in _graphs(child)]
 
 
-def test_the_panel_draws_one_silhouette_graph_with_a_bar_per_cluster():
+def test_the_panel_draws_one_silhouette_graph_with_a_panel_per_cluster():
     content = cluster_quality_content_for(_run(), model_fit_of=_fit, summary_of=lambda _run: _summary())
 
     (graph,) = _graphs(content)
-    assert list(graph.figure.data[0].y) == ["0 · n=100", "1 · n=200"]
+    assert [len(trace.x) for trace in graph.figure.data] == [100, 200]  # every subject of each cluster is drawn
 
 
 def _adp_summary() -> AdpSummary:
@@ -177,7 +178,7 @@ def test_the_adp_panel_shows_purity_silhouette_and_a_row_per_cluster():
     text = _text(content)
     assert pending is False
     assert "Purezza dei 5 vicini" in text and "Purezza attesa a caso" in text and "Coppie a distanza 1" in text
-    assert len(_graphs(content)) == 1  # the silhouette bars
+    assert len(_graphs(content)) == 1  # the silhouette panels
     assert "Come leggere questi indici" in text and "60 soggetti clusterizzati di 60" in text
 
 

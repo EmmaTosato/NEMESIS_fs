@@ -10,129 +10,118 @@ import pytest
 from hypothesis import given, settings, strategies as st
 
 from src.analysis.cluster_quality import build_mean_membership_figure, build_silhouette_figure
-from src.analysis.plotting import _palette_for_labels
+from src.analysis.plotting import _SILHOUETTE_MIN_PANEL_SHARE, _palette_for_labels
 
 
 _fast = settings(max_examples=12)  # costruire una figura plotly costa ~30 ms
 
 
 @st.composite
-def silhouette_tables(draw, min_clusters=1, max_clusters=12):
+def subject_silhouettes(draw, min_clusters=1, max_clusters=10):
+    """The cluster and the silhouette of each subject: 1 to 10 clusters, each with 1 to 60 subjects."""
     labels = draw(st.lists(st.integers(0, 40), min_size=min_clusters, max_size=max_clusters, unique=True))
-    count = len(labels)
-    return pd.DataFrame(
-        {
-            "n": draw(st.lists(st.integers(1, 500), min_size=count, max_size=count)),
-            "silhouette_mean": draw(st.lists(st.floats(-1, 1, allow_nan=False), min_size=count, max_size=count)),
-            "share_negative": draw(st.lists(st.floats(0, 1, allow_nan=False), min_size=count, max_size=count)),
-        },
-        index=labels,
-    )
+    sizes = draw(st.lists(st.integers(1, 60), min_size=len(labels), max_size=len(labels)))
+    values = draw(st.lists(st.floats(-1, 1, allow_nan=False), min_size=sum(sizes), max_size=sum(sizes)))
+    return np.repeat(labels, sizes), np.asarray(values)
 
 
 # --- build_silhouette_figure ---------------------------------------------------------------------------------
 
 
 @_fast
-@given(table=silhouette_tables())
-def test_the_bars_are_the_clusters_in_ascending_label_order_with_their_own_values(table):
-    figure = build_silhouette_figure(table)
+@given(subjects=subject_silhouettes())
+def test_there_is_one_panel_per_cluster_in_ascending_label_order_holding_exactly_its_subjects(subjects):
+    labels, values = subjects
 
-    ordered = table.sort_index()
-    bar = figure.data[0]
-    assert list(bar.y) == [f"{label} · n={n}" for label, n in zip(ordered.index, ordered["n"])]
-    np.testing.assert_array_equal(np.asarray(bar.x), ordered["silhouette_mean"].to_numpy())
-    np.testing.assert_allclose([row[1] for row in bar.customdata], ordered["share_negative"].to_numpy() * 100)
-    assert [row[0] for row in bar.customdata] == list(ordered["n"])
+    figure = build_silhouette_figure(labels, values)
+
+    clusters = sorted(set(labels.tolist()))
+    assert [a.text for a in figure.layout.annotations[:-1]] == [f"cluster {c}" for c in clusters]
+    for trace, cluster in zip(figure.data, clusters):
+        np.testing.assert_array_equal(np.asarray(trace.x), np.sort(values[labels == cluster])[::-1])
+    assert sum(len(trace.x) for trace in figure.data) == len(values)  # no subject lost or drawn twice
 
 
 @_fast
-@given(table=silhouette_tables(), data=st.data())
-def test_the_figure_does_not_depend_on_the_order_of_the_rows_of_the_table(table, data):
-    shuffled = table.iloc[list(data.draw(st.permutations(range(len(table)))))]
+@given(subjects=subject_silhouettes(), data=st.data())
+def test_the_figure_does_not_depend_on_the_order_of_the_subjects(subjects, data):
+    labels, values = subjects
+    order = data.draw(st.permutations(range(len(labels))))
 
-    a, b = build_silhouette_figure(table), build_silhouette_figure(shuffled)
+    a, b = build_silhouette_figure(labels, values), build_silhouette_figure(labels[order], values[order])
 
-    assert list(a.data[0].y) == list(b.data[0].y)
-    np.testing.assert_array_equal(np.asarray(a.data[0].x), np.asarray(b.data[0].x))
-    assert list(a.data[0].marker.color) == list(b.data[0].marker.color)
+    assert [list(t.x) for t in a.data] == [list(t.x) for t in b.data]
+    assert [t.fillcolor for t in a.data] == [t.fillcolor for t in b.data]
     assert a.layout.shapes[0].x0 == pytest.approx(b.layout.shapes[0].x0)
 
 
 @_fast
-@given(table=silhouette_tables())
-def test_the_average_line_is_the_size_weighted_mean_and_lies_inside_the_range_of_the_bars(table):
-    """Media sui soggetti (pesata per n), non media delle barre; sta sempre fra la barra minima e la massima."""
-    figure = build_silhouette_figure(table)
+@given(subjects=subject_silhouettes())
+def test_the_average_line_is_the_mean_over_the_subjects_in_every_panel_and_inside_their_range(subjects):
+    labels, values = subjects
 
-    (line,) = figure.layout.shapes
-    expected = float((table["silhouette_mean"] * table["n"]).sum() / table["n"].sum())
-    assert line.x0 == line.x1 == pytest.approx(expected)
-    assert table["silhouette_mean"].min() - 1e-12 <= line.x0 <= table["silhouette_mean"].max() + 1e-12
-    assert f"{expected:.2f}" in figure.layout.annotations[0].text
+    figure = build_silhouette_figure(labels, values)
 
-
-@_fast
-@given(table=silhouette_tables(), factor=st.integers(2, 9))
-def test_multiplying_every_cluster_size_by_a_constant_does_not_move_the_average_line(table, factor):
-    scaled = table.assign(n=table["n"] * factor)
-
-    assert build_silhouette_figure(scaled).layout.shapes[0].x0 == pytest.approx(build_silhouette_figure(table).layout.shapes[0].x0)
+    assert len(figure.layout.shapes) == len(set(labels.tolist()))
+    for line in figure.layout.shapes:
+        assert line.x0 == line.x1 == pytest.approx(values.mean())
+        assert values.min() - 1e-12 <= line.x0 <= values.max() + 1e-12
+    assert f"{values.mean():.2f}" in figure.layout.annotations[-1].text
 
 
 @_fast
-@given(table=silhouette_tables())
-def test_the_axis_is_the_full_silhouette_range_and_the_height_grows_with_the_clusters(table):
-    figure = build_silhouette_figure(table)
+@given(subjects=subject_silhouettes())
+def test_the_axes_are_the_full_silhouette_range_and_the_height_grows_with_the_clusters(subjects):
+    labels, values = subjects
 
-    assert tuple(figure.layout.xaxis.range) == (-1, 1)
-    bigger = build_silhouette_figure(pd.concat([table, table.rename(index=lambda label: label + 100)]))
-    assert bigger.layout.height > figure.layout.height
+    figure = build_silhouette_figure(labels, values)
 
-
-@_fast
-@given(table=silhouette_tables())
-def test_every_cluster_gets_the_color_of_the_scatter_palette(table):
-    figure = build_silhouette_figure(table)
-
-    labels = sorted(int(label) for label in table.index)
-    palette = _palette_for_labels(labels)
-    assert list(figure.data[0].marker.color) == [palette[label] for label in labels]
-
-
-@pytest.mark.parametrize("column", ["n", "silhouette_mean", "share_negative"])
-@_fast
-@given(table=silhouette_tables())
-def test_a_missing_required_column_raises_naming_it(column, table):
-    with pytest.raises(ValueError, match=column):
-        build_silhouette_figure(table.drop(columns=column))
+    assert all(tuple(axis.range) == (-1, 1) for axis in figure.select_xaxes())
+    more = build_silhouette_figure(np.concatenate([labels, labels + 100]), np.concatenate([values, values]))
+    assert more.layout.height > figure.layout.height
 
 
 @_fast
-@given(table=silhouette_tables())
-def test_extra_columns_do_not_change_the_figure(table):
-    extended = table.assign(extra=1.0)
+@given(subjects=subject_silhouettes())
+def test_the_panel_heights_follow_the_cluster_sizes_but_never_fall_below_the_floor(subjects):
+    labels, values = subjects
 
-    a, b = build_silhouette_figure(table), build_silhouette_figure(extended)
+    figure = build_silhouette_figure(labels, values)
 
-    assert list(a.data[0].y) == list(b.data[0].y)
-    np.testing.assert_array_equal(np.asarray(a.data[0].x), np.asarray(b.data[0].x))
-
-
-def test_a_single_cluster_is_drawn_and_the_average_is_its_own_silhouette():
-    table = pd.DataFrame({"n": [7], "silhouette_mean": [0.25], "share_negative": [0.0]}, index=[3])
-
-    figure = build_silhouette_figure(table)
-
-    assert list(figure.data[0].y) == ["3 · n=7"]
-    assert figure.layout.shapes[0].x0 == pytest.approx(0.25)
+    heights = np.array([axis.domain[1] - axis.domain[0] for axis in figure.select_yaxes()])
+    shares = np.array([np.mean(labels == cluster) for cluster in sorted(set(labels.tolist()))])
+    expected = np.maximum(shares, _SILHOUETTE_MIN_PANEL_SHARE)
+    np.testing.assert_allclose(heights / heights.sum(), expected / expected.sum(), rtol=1e-6)
 
 
-def test_a_table_with_no_subjects_at_all_is_refused_not_drawn_with_a_nan_average_line():
-    table = pd.DataFrame({"n": [0, 0], "silhouette_mean": [0.1, 0.2], "share_negative": [0.0, 0.0]}, index=[0, 1])
+@_fast
+@given(subjects=subject_silhouettes())
+def test_every_cluster_gets_the_color_of_the_scatter_palette(subjects):
+    labels, values = subjects
 
-    with pytest.raises(ValueError, match="n=0"):
-        build_silhouette_figure(table)
+    figure = build_silhouette_figure(labels, values)
+
+    clusters = sorted(set(labels.tolist()))
+    palette = _palette_for_labels(clusters)
+    assert [trace.fillcolor for trace in figure.data] == [palette[cluster] for cluster in clusters]
+
+
+@_fast
+@given(subjects=subject_silhouettes(), position=st.integers(0, 10_000))
+def test_one_non_finite_silhouette_is_refused_not_drawn_with_a_nan_average_line(subjects, position):
+    labels, values = subjects
+    broken = values.copy()
+    broken[position % len(broken)] = np.nan
+
+    with pytest.raises(ValueError, match="not a finite number"):
+        build_silhouette_figure(labels, broken)
+
+
+def test_a_single_cluster_is_drawn_and_the_average_is_its_own():
+    figure = build_silhouette_figure(np.array([3, 3, 3]), np.array([0.1, 0.4, 0.7]))
+
+    assert len(figure.data) == 1 and figure.layout.shapes[0].x0 == pytest.approx(0.4)
+    assert figure.layout.annotations[0].text == "cluster 3"
 
 
 # --- build_mean_membership_figure ----------------------------------------------------------------------------

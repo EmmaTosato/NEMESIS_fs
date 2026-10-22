@@ -162,6 +162,25 @@ def test_per_cluster_silhouette_excludes_noise():
     assert breakdown.clusters["n"].sum() == len(X) - 5
 
 
+def test_the_breakdown_keeps_the_silhouette_of_every_subject_without_the_noise():
+    from sklearn.metrics import silhouette_samples
+
+    from src.analysis.clustering_evaluation import per_cluster_silhouette
+
+    X = _three_blobs()
+    labels = np.repeat([0, 1, 2], 30)
+    labels[:5] = -1
+
+    breakdown = per_cluster_silhouette(X, labels, combo_params={})
+
+    kept = labels != -1
+    np.testing.assert_array_equal(breakdown.subject_labels, labels[kept])  # same order, noise gone
+    np.testing.assert_allclose(breakdown.subject_values, silhouette_samples(X[kept], labels[kept]))
+    assert breakdown.subject_values.mean() == pytest.approx(breakdown.micro)
+    for cluster, row in breakdown.clusters.iterrows():  # the per-cluster table is a summary of those values
+        assert breakdown.subject_values[breakdown.subject_labels == cluster].mean() == pytest.approx(row["silhouette_mean"])
+
+
 def test_per_cluster_silhouette_refuses_a_non_euclidean_run():
     from src.analysis.clustering_evaluation import per_cluster_silhouette
 
@@ -514,6 +533,16 @@ def test_geometric_summary_matches_sklearn_on_well_separated_blobs():
     assert list(summary.clusters["n"]) == [30, 30, 30]
 
 
+def test_geometric_summary_carries_the_silhouette_of_every_clustered_subject():
+    X, labels = _three_blobs(), _blob_labels().copy()
+    labels[:9] = -1
+
+    summary = geometric_summary(X, labels, {"n_clusters": 3})
+
+    assert len(summary.subject_values) == 81 and -1 not in summary.subject_labels
+    assert summary.subject_values.mean() == pytest.approx(summary.silhouette)
+
+
 def test_geometric_summary_leaves_noise_out_of_the_indices_but_not_out_of_the_shares():
     X, labels = _three_blobs(), _blob_labels().copy()
     labels[:9] = -1  # 9 of 90 subjects are noise
@@ -572,6 +601,8 @@ def test_adp_summary_matches_its_parts_on_the_clustered_subjects_only():
     assert summary.silhouette.micro == pytest.approx(distance_matrix_silhouette(expected_distances, labels[kept]).micro)
     assert summary.pairs_at_distance_1 == pytest.approx(saturated_pair_share(expected_distances))
     assert (summary.n_subjects, summary.n_clustered, summary.k) == (90, 84, 5)
+    assert len(summary.silhouette.subject_values) == 84  # the clustered subjects, the ones the panels draw
+    np.testing.assert_array_equal(summary.silhouette.subject_labels, labels[kept])
     assert summary.noise_fraction == pytest.approx(6 / 90)
     assert list(summary.clusters.columns) == [
         "n", "purity", "chance", "max_possible", "evaluable", "silhouette_mean", "share_negative"

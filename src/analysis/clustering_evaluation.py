@@ -312,12 +312,16 @@ def weakest_soft_members(labels: np.ndarray, membership: np.ndarray, n_lowest: i
 class SilhouetteBreakdown:
     """Silhouette of one run split by cluster. `micro` is the mean over subjects (what
     sklearn's silhouette_score returns, dominated by the large clusters), `macro` the mean of the
-    per-cluster means (every cluster weighs the same), `minimum` the weakest cluster's mean."""
+    per-cluster means (every cluster weighs the same), `minimum` the weakest cluster's mean.
+    `subject_labels`/`subject_values` are the silhouette of every subject (noise left out, same order),
+    what the panels of the quality figure draw."""
 
     clusters: pd.DataFrame  # index: cluster label; columns: n, silhouette_mean, share_negative
     micro: float
     macro: float
     minimum: float
+    subject_labels: np.ndarray
+    subject_values: np.ndarray
 
 
 def per_cluster_silhouette(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> SilhouetteBreakdown:
@@ -343,6 +347,8 @@ def silhouette_breakdown(labels: np.ndarray, samples: np.ndarray) -> SilhouetteB
         micro=float(samples.mean()),
         macro=float(clusters["silhouette_mean"].mean()),
         minimum=float(clusters["silhouette_mean"].min()),
+        subject_labels=np.asarray(labels),
+        subject_values=np.asarray(samples),
     )
 
 
@@ -462,7 +468,8 @@ class GeometricSummary:
     excluded. `silhouette` is the mean over subjects (micro), `silhouette_macro` the mean of the
     per-cluster means and `silhouette_min` the weakest cluster's (SilhouetteBreakdown), `clusters`
     the per-cluster table; `largest_cluster_share` is over all subjects, noise included, like
-    `noise_fraction`."""
+    `noise_fraction`. `subject_labels`/`subject_values` are the silhouette of every subject, noise left out
+    (SilhouetteBreakdown)."""
 
     n_subjects: int
     n_components: int
@@ -476,6 +483,8 @@ class GeometricSummary:
     davies_bouldin: float
     dunn: float
     clusters: pd.DataFrame  # per_cluster_silhouette's table: index cluster label; n, silhouette_mean, share_negative
+    subject_labels: np.ndarray
+    subject_values: np.ndarray
 
 
 def geometric_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> GeometricSummary:
@@ -506,6 +515,7 @@ def geometric_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> 
         silhouette=float(metrics["silhouette"]), silhouette_macro=breakdown.macro, silhouette_min=breakdown.minimum,
         calinski_harabasz=float(metrics["calinski_harabasz"]), davies_bouldin=float(metrics["davies_bouldin"]),
         dunn=float(dunn), clusters=breakdown.clusters,
+        subject_labels=breakdown.subject_labels, subject_values=breakdown.subject_values,
     )
 
 

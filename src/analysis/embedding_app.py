@@ -2482,9 +2482,9 @@ def adp_quality_content_for(
             ["Cluster", "Soggetti", "Purezza", "Attesa a caso", "Valutabile", "Silhouette media", "Silhouette negativa"],
             cluster_rows, text_columns=(0,),
         ),
-        _chart_heading("Silhouette per cluster", "una barra per cluster, rumore escluso"),
+        _chart_heading("Silhouette per cluster", "un pannello per cluster, rumore escluso"),
         dcc.Graph(
-            figure=build_silhouette_figure(summary.silhouette.clusters),
+            figure=build_silhouette_figure(summary.silhouette.subject_labels, summary.silhouette.subject_values),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
             style={"width": "100%"},
         ),
@@ -2511,10 +2511,11 @@ def _quality_guide() -> html.Details:
             ("Davies-Bouldin", "per ogni cluster, somiglianza con il cluster più simile. Più basso è meglio, 0 = cluster compatti e separati"),
             ("Dunn", "distanza minima tra cluster divisa per il diametro massimo di un cluster. Più alto è meglio, è sensibile agli outlier"),
             ("Grafico per cluster", (
-                "mostra quali cluster hanno confini ambigui anche se la media complessiva è buona. Il numero di soggetti (n) "
-                "è nell'etichetta di ogni barra e va letto con la barra: un cluster di un soggetto ha silhouette 0 per "
-                "convenzione, la media di 2 o 3 soggetti può essere estrema per caso. Passando il mouse su una barra "
-                "compare la quota di soggetti con silhouette negativa"
+                "un pannello per cluster con la silhouette di ogni soggetto, dal più alto in alto: mostra quali cluster hanno "
+                "confini ambigui anche se la media complessiva è buona (quanti soggetti stanno sotto zero, quanto è omogeneo "
+                "il cluster). L'altezza del pannello segue la dimensione del cluster, con un minimo perché un cluster piccolo "
+                "resti leggibile; un cluster di un soggetto ha silhouette 0 per convenzione. La linea rossa è la media sui "
+                "soggetti. Passando il mouse su un punto compaiono il cluster, la sua dimensione e la silhouette di quel soggetto"
             )),
         ],
         [
@@ -2725,9 +2726,9 @@ def cluster_quality_content_for(
             className="quality-intro",
         ),
         _table(["Indice", "Valore", "Lettura"], rows, text_columns=(0, 2)),
-        _chart_heading("Silhouette per cluster", "una barra per cluster, rumore escluso"),
+        _chart_heading("Silhouette per cluster", "un pannello per cluster, rumore escluso"),
         dcc.Graph(
-            figure=build_silhouette_figure(summary.clusters),
+            figure=build_silhouette_figure(summary.subject_labels, summary.subject_values),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
             style={"width": "100%"},
         ),

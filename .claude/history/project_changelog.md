@@ -6,6 +6,16 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 22-10-26 — App: la silhouette per cluster passa dalle barre ai pannelli (Plotly)
+
+**Cosa è cambiato**: nel pannello "Valutazione del clustering" dell'Embedding Explorer `build_silhouette_figure` (`cluster_quality.py`) non disegna più una barra per cluster con la silhouette media: disegna un pannello per cluster con la silhouette di ogni soggetto, la stessa figura di `silhouette_plot.png` di produzione senza lo scatter (altezza proporzionale ai soggetti con minimo del 5%, linea rossa sulla media, asse da -1 a 1). Per averla `SilhouetteBreakdown` e `GeometricSummary` portano ora anche `subject_labels` e `subject_values` (silhouette di ogni soggetto, rumore escluso); `AdpSummary` le prende da `silhouette`. La firma della funzione è `build_silhouette_figure(subject_labels, subject_values)`.
+
+**Perché**: le barre erano una sintesi dei pannelli (un numero per cluster, la stessa tabella di `silhouette_per_cluster.csv`): l'unico dato in più era la media di ogni cluster, mentre i pannelli mostrano la forma della distribuzione, quanti soggetti sono negativi e quanto è omogeneo il cluster. Un solo disegno in produzione e nell'app, invece di due con ruoli sovrapposti.
+
+**Alternative scartate**: tenere entrambi (pannelli in produzione, barre nell'app), con la media di ogni cluster disegnata nei pannelli; tenere solo le barre.
+
+**Conseguenza attuale**: la media del singolo cluster non compare in nessuna figura: sta in `silhouette_per_cluster.csv` (agglomerative) e nella tabella "Per cluster" dell'app per ADP. La tabella degli indici dell'app mostra ancora micro, macro e cluster peggiore (`GeometricSummary`); quel punto non è stato toccato.
+
 ## 21-10-26 — Silhouette di produzione: plot a pannelli per ogni metodo; per agglomerative anche tabella per cluster e media in config.md, con la distanza della run
 
 **Cosa è cambiato**: `silhouette_plot.png` ha un pannello per cluster (altezza proporzionale ai soggetti, minimo il 5% dell'altezza) con la linea rossa sulla media, asse x fisso da -1 a 1 e titolo "Average silhouette coefficient = <media> (<distanza>)"; sostituisce il vecchio plot per **tutti** i metodi, perché `plot_silhouette_analysis` è una sola funzione. Per **agglomerative** si aggiungono `silhouette_per_cluster.csv` (`cluster, n, silhouette_mean, share_negative`, da `clustering_evaluation.silhouette_breakdown`, ora pubblica) e la riga `Average silhouette coefficient: <media> (<distanza>)` in `Summary` di `config.md`. `compute_silhouette_samples` accetta anche `cosine` e `manhattan`; agglomerative e ADP sono scorati con la propria `metric` (default euclidean se i params non la dicono), ogni altro metodo in euclidean come prima. HDBSCAN, kmeans, gmm, spectral e ADP non ricevono né la tabella né la riga: HDBSCAN è ancora da decidere.
