@@ -666,6 +666,30 @@ def _draw_silhouette_panels(
     return axes
 
 
+def plot_dbcv_per_cluster(clusters: pd.DataFrame, score: float, output_path: Path, title: str) -> None:
+    """The DBCV of every cluster of one production run of hdbscan / hdbscan_soft: one horizontal bar per cluster
+    (`clusters` has the columns `cluster`, `n`, `dbcv`), labelled with its size, and a dashed line at the run's DBCV
+    (`score`, the average of the clusters' own scores weighted by size over all the subjects, noise included - so it
+    is not the mean of the bars). Raises ValueError for an empty `clusters` (a run with fewer than 2 clusters has no
+    DBCV to draw)."""
+    if clusters.empty:
+        raise ValueError("plot_dbcv_per_cluster needs at least one cluster: a run with fewer than 2 clusters has no DBCV")
+    figure, axis = plt.subplots(figsize=(7, 1.8 + 0.4 * len(clusters)))
+    positions = np.arange(len(clusters))
+    axis.barh(positions, clusters["dbcv"], color="#4c78a8")
+    axis.set_yticks(positions)
+    axis.set_yticklabels([f"cluster {int(row.cluster)}  (n={int(row.n)})" for row in clusters.itertuples()])
+    axis.invert_yaxis()
+    axis.axvline(0, color="black", linewidth=0.6)
+    axis.axvline(score, color="crimson", linestyle="--", label=f"DBCV of the run = {score:.3f}")
+    axis.set_xlabel("DBCV of the cluster (-1 to 1, higher = better)")
+    axis.set_title(title, fontsize=9)
+    axis.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.25), frameon=False)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(figure)
+
+
 def plot_silhouette_analysis(
     sample_labels: np.ndarray,
     sample_silhouette_values: np.ndarray,

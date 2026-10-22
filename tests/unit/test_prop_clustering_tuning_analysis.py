@@ -19,6 +19,7 @@ from src.analysis.clustering_tuning_analysis import (
     LINKAGE_ORDER,
     combo_key,
     dendrogram_jump,
+    dbcv_curves_figures,
     density_metrics,
     curves_subset,
     k_curves_figure,
@@ -26,7 +27,6 @@ from src.analysis.clustering_tuning_analysis import (
     run_axis_limits,
     linkage_agreement,
     load_clustering_tuning_run,
-    noise_filtered_curves_figures,
     silhouette_zoom_limits,
 )
 
@@ -130,10 +130,23 @@ def _density_run(labelings: list[np.ndarray], method: str = "hdbscan") -> Cluste
     return ClusteringTuningRun(Path("run"), method, Path("m"), results, {combo_key(row, columns): lab for row, lab in zip(rows, labelings)})
 
 
-@given(st.lists(st.lists(st.sampled_from(_LABEL_POOL), min_size=1, max_size=25), min_size=1, max_size=4), st.integers(0, 10_000))
-def test_density_metrics_are_computed_from_the_labels_with_noise_in_the_denominator(labelings, seed):
-    arrays = [np.array(lab) for lab in labelings]
-    metrics = density_metrics(_density_run(arrays))
+@st.composite
+def _labelings(draw):
+    """1-4 labellings of the same n subjects, a cluster of one subject turned into noise (DBCV refuses it)."""
+    n = draw(st.integers(2, 25))
+    arrays = []
+    for labels in draw(st.lists(st.lists(st.sampled_from(_LABEL_POOL), min_size=n, max_size=n), min_size=1, max_size=4)):
+        array = np.array(labels)
+        values, counts = np.unique(array[array != -1], return_counts=True)
+        array[np.isin(array, values[counts < 2])] = -1
+        arrays.append(array)
+    return arrays
+
+
+@given(_labelings(), st.integers(0, 10_000))
+def test_density_metrics_are_computed_from_the_labels_with_noise_in_the_denominator(arrays, seed):
+    X = np.random.default_rng(seed).normal(size=(len(arrays[0]), 2))
+    metrics = density_metrics(_density_run(arrays), X)
 
     for i, labels in enumerate(arrays):
         found = labels[labels != -1]
@@ -144,19 +157,27 @@ def test_density_metrics_are_computed_from_the_labels_with_noise_in_the_denomina
         else:
             assert share == pytest.approx(pd.Series(found).value_counts().max() / len(labels))
             assert share <= (len(found) / len(labels)) + 1e-12  # il cluster più grande non supera i soggetti non rumore
+        if len(np.unique(found)) < 2:
+            assert np.isnan(metrics.loc[i, "dbcv"])  # indefinito sotto 2 cluster, mai 0
+        else:
+            assert -1 - 1e-9 <= metrics.loc[i, "dbcv"] <= 1 + 1e-9
     renamed = [pd.Series(a).map({v: (v if v == -1 else v + 50) for v in np.unique(a)}).to_numpy() for a in arrays]
-    pd.testing.assert_frame_equal(metrics, density_metrics(_density_run(renamed)))
+    pd.testing.assert_frame_equal(metrics, density_metrics(_density_run(renamed), X))
 
 
 @given(st.lists(st.integers(0, 3), min_size=1, max_size=15))
 def test_density_metrics_refuses_a_stored_cluster_count_that_contradicts_the_labels(labels):
-    run = _density_run([np.array(labels)])
-    true_count = len(np.unique(labels))
+    labels = np.array(labels)
+    values, counts = np.unique(labels, return_counts=True)
+    labels[np.isin(labels, values[counts < 2])] = -1
+    X = np.random.default_rng(0).normal(size=(len(labels), 2))
+    run = _density_run([labels])
+    true_count = len(np.unique(labels[labels != -1]))
     run.results["n_clusters_found"] = [true_count]
-    density_metrics(run)  # coerente: passa
+    density_metrics(run, X)  # coerente: passa
     run.results["n_clusters_found"] = [true_count + 1]
     with pytest.raises(ValueError, match="differs from the clusters"):
-        density_metrics(run)
+        density_metrics(run, X)
 
 
 @st.composite
@@ -255,14 +276,15 @@ def test_the_run_axis_limits_leave_every_point_of_every_figure_strictly_inside(r
 
 
 @st.composite
-def _noise_metrics(draw):
+def _curve_metrics(draw):
     methods = draw(st.lists(st.sampled_from(["eom", "leaf"]), min_size=1, max_size=2, unique=True)) if draw(st.booleans()) else [None]
     rows = []
     for method in methods:
         for size in (5, 10, 20):
             for samples in (1, 5):
-                row = {"min_cluster_size": size, "min_samples": samples, "silhouette": 0.3, "davies_bouldin": 1.2,
-                       "noise_fraction": draw(st.sampled_from([0.0, 0.1, 0.4, 0.9]))}
+                row = {"min_cluster_size": size, "min_samples": samples, "noise_fraction": draw(st.sampled_from([0.0, 0.1, 0.4, 0.9])),
+                       "largest_cluster_share": 0.3, "n_clusters_found": 3,
+                       "dbcv": draw(st.sampled_from([np.nan, -0.1, 0.0, 0.4]))}
                 if method is not None:
                     row["cluster_selection_method"] = method
                 rows.append(row)
@@ -270,16 +292,9 @@ def _noise_metrics(draw):
 
 
 @settings(max_examples=8)
-@given(_noise_metrics(), st.sampled_from([0.0, 0.1, 0.5, 1.0]))
-def test_each_group_has_a_noise_filtered_figure_or_is_listed_as_having_none(metrics, limit):
-    figures, without = noise_filtered_curves_figures(metrics, limit)
-    if "cluster_selection_method" in metrics.columns:
-        groups = {name: group for name, group in metrics.groupby("cluster_selection_method")}
-    else:
-        groups = {"": metrics}
-    assert set(figures) | set(without) == set(groups) and not set(figures) & set(without)  # ogni gruppo in uno solo dei due
-    for name, group in groups.items():
-        kept = int((group["noise_fraction"] <= limit).sum())
-        assert (name in without) == (kept == 0)
-        if kept:
-            assert f"{kept} of {len(group)} combinations" in figures[name]._suptitle.get_text()
+@given(_curve_metrics())
+def test_every_group_gets_a_dbcv_figure_whatever_its_noise_or_undefined_scores(metrics):
+    figures = dbcv_curves_figures(metrics)
+    expected = set(metrics["cluster_selection_method"]) if "cluster_selection_method" in metrics.columns else {""}
+    assert set(figures) == expected  # nessun limite di rumore: ogni gruppo ha il suo grafico
+

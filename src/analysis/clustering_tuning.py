@@ -13,6 +13,10 @@ independent of which n_clusters ends up chosen (agglomerative's dendrogram +
 interclass distance matrix, spectral's eigengap) - see
 docs/dev/models.md for the full rationale, including why HDBSCAN gets neither
 a standalone diagnostic nor a plotted inertia/bic-style column.
+
+The density methods (hdbscan, hdbscan_soft) are the exception to "the 3 generic metrics": the sweep writes only their
+`noise_fraction` and fit-derived columns, and their internal index (DBCV) is written afterwards by the
+`density_metrics` evaluation (clustering_tuning_evaluations.py), which also runs on a stored tuning.
 """
 
 from __future__ import annotations
@@ -65,16 +69,17 @@ METHOD_METRIC_COLUMNS: dict[str, list[str]] = {
     "kmeans": ["silhouette", "calinski_harabasz", "davies_bouldin", "inertia"],
     "agglomerative": ["silhouette", "calinski_harabasz", "davies_bouldin"],
     "gmm": ["silhouette", "calinski_harabasz", "davies_bouldin", "bic", "aic"],
-    "hdbscan": ["silhouette", "calinski_harabasz", "davies_bouldin", "noise_fraction", "n_clusters_found"],
-    "hdbscan_soft": [
-        "silhouette", "calinski_harabasz", "davies_bouldin", "noise_fraction", "n_clusters_found",
-        "membership_mean", "membership_share_below_half", "persistence_mean",
-    ],
+    # the density methods are not scored with silhouette/Calinski-Harabasz/Davies-Bouldin (computed on the non-noise
+    # subjects only, for compact clusters): their index is DBCV, written by the `density_metrics` evaluation
+    "hdbscan": ["noise_fraction", "n_clusters_found"],
+    "hdbscan_soft": ["noise_fraction", "n_clusters_found", "membership_mean", "persistence_mean"],
     "spectral": ["silhouette", "calinski_harabasz", "davies_bouldin"],
     "adp": ["silhouette", "calinski_harabasz", "davies_bouldin", "n_clusters_found", "largest_cluster_share", "ari_vs_prev_z"],
 }
 
 STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral"}
+
+DENSITY_SWEEP_METHODS = ("hdbscan", "hdbscan_soft")
 
 # HIGH #13 (audit 15/08/26): the 3 geometric metrics below always score X under
 # sklearn's own default (Euclidean) - only valid if the clustering method itself also
@@ -169,6 +174,15 @@ def compute_clustering_metrics(X: np.ndarray, labels: np.ndarray, combo_params: 
         "davies_bouldin": float(davies_bouldin_score(non_noise_X, non_noise_labels)),
         "noise_fraction": noise_fraction,
     }
+
+
+def compute_noise_metrics(labels: np.ndarray, combo_params: dict | None = None) -> dict[str, float]:
+    """The generic metrics of the density methods (hdbscan, hdbscan_soft): only `noise_fraction`, the share of subjects
+    labelled -1. Their internal index, DBCV, is Euclidean (src/analysis/dbcv.py), so a run clustered under another
+    metric/affinity is refused here (require_euclidean_compatible), never scored in the wrong geometry."""
+    require_euclidean_compatible(combo_params)
+    labels = np.asarray(labels)
+    return {"noise_fraction": float((labels == -1).sum()) / len(labels)}
 
 
 # Distances sklearn's silhouette_samples computes itself, on X as is: the non-euclidean `metric`s of agglomerative.
@@ -426,8 +440,7 @@ def hdbscan_labels_and_probabilities(X: np.ndarray, params: dict) -> tuple[np.nd
     reachable from the fitted estimator itself. Used by clustering.py's production path
     (project-clustering-tuning-redesign memory, 26-08-26) to size cluster_plot.png's markers by
     confidence (plotting.plot_clusters_2d's `point_sizes`) - sklearn's own official HDBSCAN
-    example's diagnostic (plot_hdbscan.html), not DBCV/condensation tree (see docs/dev/models.md
-    for why those were dropped).
+    example's diagnostic (plot_hdbscan.html).
     """
     fitted = HDBSCAN(**params).fit(X)
     return fitted.labels_, fitted.probabilities_
@@ -459,18 +472,13 @@ def _hdbscan_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.ndarray
     return labels, {"n_clusters_found": n_clusters_found}
 
 
-SOFT_MEMBERSHIP_LOW = 0.5  # fixed: it is the "membership_share_below_half" column's own definition
-
-
 def _hdbscan_soft_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.ndarray, dict[str, float]]:
     """The metrics specific to the standalone `hdbscan` package, on top of n_clusters_found:
     - membership_mean: mean, over the non-noise subjects, of the soft probability of being in their own
       cluster (`all_points_membership_vectors`, the row entry of the subject's cluster);
-    - membership_share_below_half: share of the non-noise subjects whose own-cluster probability is
-      under SOFT_MEMBERSHIP_LOW;
     - persistence_mean: mean `cluster_persistence_`, the stability of the clusters in [0, 1].
-    A combination with no cluster has none of the three: they are NaN, like the silhouette-family
-    metrics of the same combination (compute_clustering_metrics records a degenerate NaN there too).
+    Both come from the fit, not from the labels, so no later evaluation can recompute them. A combination
+    with no cluster has neither: they are NaN.
     """
     fitted = hdbscan_soft_fit(X, params)
     labels = fitted.labels_
@@ -478,7 +486,6 @@ def _hdbscan_soft_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.nd
     metrics = {
         "n_clusters_found": float(n_clusters_found),
         "membership_mean": float("nan"),
-        "membership_share_below_half": float("nan"),
         "persistence_mean": float("nan"),
     }
     if n_clusters_found == 0:
@@ -487,7 +494,6 @@ def _hdbscan_soft_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.nd
     own = own_cluster_membership(soft_membership_matrix(fitted), labels)
     own = own[~np.isnan(own)]  # the non-noise subjects
     metrics["membership_mean"] = float(own.mean())
-    metrics["membership_share_below_half"] = float((own < SOFT_MEMBERSHIP_LOW).mean())
     metrics["persistence_mean"] = float(np.mean(fitted.cluster_persistence_))
     return labels, metrics
 
@@ -574,7 +580,11 @@ def run_clustering_tuning_sweep(
             generic_metrics = compute_clustering_metrics_metric_aware(X, labels, metric, agglomerative_distance_cache)
         elif method in _EXTRA_METRICS_EVALUATORS:
             labels, extra_metrics = _EXTRA_METRICS_EVALUATORS[method](X, combo_params)
-            generic_metrics = compute_clustering_metrics(X, labels, combo_params)
+            generic_metrics = (
+                compute_noise_metrics(labels, combo_params)
+                if method in DENSITY_SWEEP_METHODS
+                else compute_clustering_metrics(X, labels, combo_params)
+            )
         else:
             labels = CLUSTERING_METHODS[method](X, combo_params)
             extra_metrics = {}

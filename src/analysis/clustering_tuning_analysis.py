@@ -7,8 +7,10 @@ src/analysis/clustering_tuning_report.py lays the files out as report.md:
 
 - agglomerative: cophenetic correlation and dendrogram jump per (metric, linkage), agreement between linkages,
   silhouette and Davies-Bouldin curves per n_clusters (the linkages other than `single`, on axes shared by the run);
-- hdbscan / hdbscan_soft: the number of clusters and the share of the largest cluster of every combination, and the
-  silhouette/Davies-Bouldin curves restricted to combinations with little noise.
+- hdbscan / hdbscan_soft: the number of clusters, the share of the largest cluster and DBCV of every combination, the
+  curves of those against min_cluster_size and the map of every column over min_cluster_size x min_samples;
+- agglomerative / hdbscan / hdbscan_soft: the columns the sweep writes that can be recomputed from the stored labels
+  (silhouette, Calinski-Harabasz, Davies-Bouldin of agglomerative; noise_fraction of the density methods).
 """
 
 from __future__ import annotations
@@ -24,7 +26,13 @@ import pandas as pd
 from matplotlib.figure import Figure
 from sklearn.metrics import adjusted_rand_score
 
-from src.analysis.clustering_tuning import compute_dendrogram_linkage, cophenetic_correlation, is_invalid_ward_metric_combo
+from src.analysis.clustering_tuning import (
+    compute_clustering_metrics_metric_aware,
+    compute_dendrogram_linkage,
+    cophenetic_correlation,
+    is_invalid_ward_metric_combo,
+)
+from src.analysis.dbcv import dbcv
 
 AGGLOMERATIVE = "agglomerative"
 DENSITY_METHODS = ("hdbscan", "hdbscan_soft")
@@ -264,65 +272,111 @@ def k_curves_figure(results: pd.DataFrame, metric: str) -> Figure:
     return figure
 
 
-def density_metrics(run: ClusteringTuningRun) -> pd.DataFrame:
-    """tuning_results.csv of an hdbscan / hdbscan_soft run with `n_clusters_found` and `largest_cluster_share`
-    (over all subjects, noise included), both computed from the stored labels. `largest_cluster_share` is NaN
-    when every subject is noise.
+def density_metrics(run: ClusteringTuningRun, X: np.ndarray) -> pd.DataFrame:
+    """tuning_results.csv of an hdbscan / hdbscan_soft run with `n_clusters_found`, `largest_cluster_share` (over all
+    subjects, noise included) and `dbcv` (src/analysis/dbcv.py, on `X`, the matrix the run clustered), all computed
+    from the stored labels. `largest_cluster_share` is NaN when every subject is noise and `dbcv` when there are
+    fewer than 2 clusters.
 
     If the run also wrote `n_clusters_found` the two must agree, or this raises (a clusterings.npz that does
-    not belong to this tuning_results.csv).
+    not belong to this tuning_results.csv). Raises ValueError if `X` has not one row per subject.
     """
     if run.method not in DENSITY_METHODS:
         raise ValueError(f"density_metrics needs an hdbscan or hdbscan_soft run, got {run.method!r}")
     columns = SWEPT_COLUMNS[run.method]
-    n_clusters, largest_share = [], []
+    n_clusters, largest_share, dbcv_scores = [], [], []
     for row in run.results.to_dict("records"):
         labels = run.labels[combo_key(row, columns)]
         found = labels[labels != NOISE_LABEL]
         n_clusters.append(len(np.unique(found)))
         largest_share.append(float(np.bincount(found).max() / len(labels)) if len(found) else float("nan"))
+        dbcv_scores.append(dbcv(X, labels)[0])
 
     metrics = run.results.copy()
     if "n_clusters_found" in metrics.columns and not np.array_equal(metrics["n_clusters_found"].to_numpy(), n_clusters):
         raise ValueError(f"{run.run_dir}: n_clusters_found in tuning_results.csv differs from the clusters in clusterings.npz")
     metrics["n_clusters_found"] = n_clusters
     metrics["largest_cluster_share"] = largest_share
+    metrics["dbcv"] = dbcv_scores
     return metrics
 
 
-def noise_filtered_curves_figures(metrics: pd.DataFrame, max_noise_fraction: float) -> tuple[dict[str, Figure], list[str]]:
-    """Silhouette and Davies-Bouldin against min_cluster_size, one line per min_samples, keeping only the
-    combinations with `noise_fraction` at most `max_noise_fraction`: a silhouette that is high only because the
-    hardest subjects were thrown into the noise does not appear.
+DENSITY_METRICS_FILE = "density_metrics.csv"
 
-    One figure per `cluster_selection_method` for hdbscan_soft (keyed by it), a single one keyed "" for hdbscan.
-    Returns (figures, without_figure): a group where no combination is under the limit (the `leaf` selection
-    never goes below 15% noise; a run without structure may have none at all) has no figure and is listed in
-    `without_figure`. That is a finding about the run, not an error: `figures` may then be empty.
-    """
-    groups = dict(tuple(metrics.groupby("cluster_selection_method"))) if "cluster_selection_method" in metrics.columns else {"": metrics}
-    figures, without_figure = {}, []
-    for name, group in groups.items():
-        kept = group[group["noise_fraction"] <= max_noise_fraction]
-        if kept.empty:
-            without_figure.append(name)
-            continue
-        figure = Figure(figsize=(11, 4))
-        axes = figure.subplots(1, 2, sharex=True)
-        for axis, column, label in zip(axes, ("silhouette", "davies_bouldin"), ("Silhouette (higher = better)", "Davies-Bouldin (lower = better)")):
-            for min_samples, line in kept.groupby("min_samples"):
+# The columns of density_metrics.csv drawn in the map and in the curves, in this order (those the run has).
+DENSITY_MAP_COLUMNS = ("dbcv", "noise_fraction", "largest_cluster_share", "n_clusters_found", "membership_mean", "persistence_mean")
+DENSITY_CURVE_COLUMNS = (
+    ("dbcv", "DBCV (higher = better)"),
+    ("noise_fraction", "noise_fraction"),
+    ("largest_cluster_share", "largest_cluster_share"),
+    ("n_clusters_found", "n_clusters_found"),
+)
+SELECTION_COLUMN = "cluster_selection_method"
+
+
+def read_density_metrics(run_dir: Path) -> pd.DataFrame:
+    """density_metrics.csv of a run folder, the table the density evaluations after `density_metrics` read.
+    Raises FileNotFoundError naming the evaluation to run first."""
+    path = Path(run_dir) / DENSITY_METRICS_FILE
+    if not path.is_file():
+        raise FileNotFoundError(f"{path} not found: run the `density_metrics` evaluation before the ones that read it")
+    return pd.read_csv(path)
+
+
+def density_groups(metrics: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """The rows of a density table by `cluster_selection_method` (hdbscan_soft), or a single group keyed "" (hdbscan)."""
+    if SELECTION_COLUMN in metrics.columns:
+        return {str(name): group for name, group in metrics.groupby(SELECTION_COLUMN)}
+    return {"": metrics}
+
+
+def dbcv_curves_figures(metrics: pd.DataFrame) -> dict[str, Figure]:
+    """DBCV, noise_fraction, largest_cluster_share and n_clusters_found against min_cluster_size, one line per
+    min_samples, every combination (no filter on the noise: it is one of the panels). A point is missing where the
+    combination has fewer than 2 clusters and DBCV is undefined (not 0). One figure per `cluster_selection_method`
+    for hdbscan_soft (keyed by it), a single one keyed "" for hdbscan."""
+    figures = {}
+    sizes = sorted(metrics["min_cluster_size"].unique())
+    for name, group in density_groups(metrics).items():
+        figure = Figure(figsize=(17, 3.8))
+        axes = figure.subplots(1, len(DENSITY_CURVE_COLUMNS), sharex=True)
+        for axis, (column, label) in zip(axes, DENSITY_CURVE_COLUMNS):
+            for min_samples, line in group.groupby("min_samples"):
                 line = line.sort_values("min_cluster_size")
-                axis.plot(line["min_cluster_size"], line[column], marker="o", markersize=4, label=min_samples)
+                axis.plot(line["min_cluster_size"], line[column], marker="o", markersize=4, label=f"min_samples={min_samples}")
             axis.set_xscale("log")
-            sizes = sorted(metrics["min_cluster_size"].unique())
             axis.set_xticks(sizes, sizes)
             axis.minorticks_off()
+            axis.tick_params(labelsize=8)
             axis.set_xlabel("min_cluster_size")
-            axis.set_ylabel(label)
+            axis.set_title(label, fontsize=10)
             axis.grid(alpha=0.3)
-        axes[0].legend(title="min_samples")
-        title = f"noise_fraction <= {max_noise_fraction}: {len(kept)} of {len(group)} combinations"
-        figure.suptitle(f"{name}, {title}" if name else title)
+        axes[0].axhline(0, color="black", linewidth=0.6)
+        axes[0].legend(fontsize=7)
+        figure.suptitle(f"{name}: a missing DBCV point means fewer than 2 clusters" if name else "a missing DBCV point means fewer than 2 clusters", fontsize=9)
         figure.tight_layout()
         figures[name] = figure
-    return figures, without_figure
+    return figures
+
+
+def recomputed_internal_metrics(run: ClusteringTuningRun, X: np.ndarray, distance_cache: dict[str, np.ndarray] | None = None) -> pd.DataFrame:
+    """tuning_results.csv of the run with the columns the sweep computes from the labels recomputed from clusterings.npz:
+    silhouette, calinski_harabasz and davies_bouldin for agglomerative (scored under the row's own `metric`, the two
+    euclidean-only ones NaN under another), noise_fraction for the density methods. The same functions the sweep uses.
+    Columns that come from the fit (`membership_mean`, `persistence_mean`) are left as they are."""
+    columns = SWEPT_COLUMNS[run.method]
+    distance_cache = {} if distance_cache is None else distance_cache
+    rows = []
+    for row in run.results.to_dict("records"):
+        labels = run.labels[combo_key(row, columns)]
+        if run.method == AGGLOMERATIVE:
+            rows.append(compute_clustering_metrics_metric_aware(X, labels, row["metric"], distance_cache))
+        else:
+            rows.append({"noise_fraction": float((labels == NOISE_LABEL).sum()) / len(labels)})
+    recomputed = pd.DataFrame(rows, index=run.results.index)
+    metrics = run.results.copy()
+    for column in recomputed.columns:
+        if column not in metrics.columns:
+            raise ValueError(f"{run.run_dir / 'tuning_results.csv'} has no column {column!r}: this run did not write it, nothing to rewrite")
+        metrics[column] = recomputed[column]
+    return metrics

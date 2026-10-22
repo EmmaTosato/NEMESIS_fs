@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,17 +31,23 @@ import pandas as pd
 from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.clustering_tuning_analysis import (
     AGGLOMERATIVE,
+    DENSITY_MAP_COLUMNS,
+    DENSITY_METRICS_FILE,
     DENSITY_METHODS,
     ClusteringTuningRun,
     cophenetic_table,
+    dbcv_curves_figures,
+    density_groups,
     density_metrics,
     jump_table,
     k_curves_figure,
     k_curves_file_name,
     k_curves_targets,
     linkage_agreement,
-    noise_filtered_curves_figures,
+    read_density_metrics,
+    recomputed_internal_metrics,
 )
+from src.analysis.plotting import compose_clustering_tuning_title, plot_clustering_tuning_heatmaps
 from src.utils.artifacts import load_matrix
 
 GENERAL = "general"
@@ -50,11 +57,14 @@ COPHENETIC_CORRELATION = "cophenetic_correlation"
 DENDROGRAM_JUMP = "dendrogram_jump"
 LINKAGE_AGREEMENT = "linkage_agreement"
 DENSITY_METRICS = "density_metrics"
-NOISE_FILTERED_CURVES = "noise_filtered_curves"
+DBCV_CURVES = "dbcv_curves"
+TUNING_HEATMAPS = "tuning_heatmaps"
+INTERNAL_METRICS = "internal_metrics"
 
 _ALL_METHODS = frozenset(CLUSTERING_METHODS)
 _AGGLOMERATIVE_ONLY = frozenset({AGGLOMERATIVE})
 _DENSITY_ONLY = frozenset(DENSITY_METHODS)
+_RECOMPUTABLE_METHODS = frozenset({AGGLOMERATIVE, *DENSITY_METHODS})
 
 FIGURE_DPI = 150
 
@@ -110,14 +120,6 @@ def _validate_dendrogram_jump_settings(settings: dict) -> None:
         raise ValueError(f"evaluations registry: {DENDROGRAM_JUMP!r} k_range.min ({k_range['min']}) is greater than k_range.max ({k_range['max']})")
 
 
-def _validate_noise_filtered_curves_settings(settings: dict) -> None:
-    if set(settings) != {"max_noise_fraction"}:
-        raise ValueError(f"evaluations registry: {NOISE_FILTERED_CURVES!r} needs exactly 'max_noise_fraction', got {sorted(settings)}")
-    value = settings["max_noise_fraction"]
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 < value <= 1:
-        raise ValueError(f"evaluations registry: {NOISE_FILTERED_CURVES!r} max_noise_fraction must be a number in (0, 1], got {value!r}")
-
-
 def _run_k_curves(context: EvaluationContext, settings: dict) -> list[Path]:
     run = context.run
     curves = {k_curves_file_name(metric): metric for metric in k_curves_targets(run.results)}
@@ -154,21 +156,56 @@ def _run_linkage_agreement(context: EvaluationContext, settings: dict) -> list[P
 
 
 def _run_density_metrics(context: EvaluationContext, settings: dict) -> list[Path]:
-    return _write_table(context, "density_metrics.csv", lambda: density_metrics(context.run))
+    return _write_table(context, DENSITY_METRICS_FILE, lambda: density_metrics(context.run, context.matrix()))
 
 
-def _run_noise_filtered_curves(context: EvaluationContext, settings: dict) -> list[Path]:
-    run, limit = context.run, settings["max_noise_fraction"]
-    figures, without_figure = noise_filtered_curves_figures(density_metrics(run), limit)
-    for name in without_figure:
-        logging.warning(
-            "no combination has noise_fraction <= %s%s: no curves figure for it", limit, f" for cluster_selection_method={name}" if name else ""
-        )
-    paths = {name: run.run_dir / (f"noise_filtered_curves_{name}.png" if name else "noise_filtered_curves.png") for name in figures}
+def _density_figure_paths(run_dir: Path, figures: Mapping[str, object], stem: str) -> dict[str, Path]:
+    """`<stem>.png` for the single figure of hdbscan (key ""), `<stem>_cluster_selection_method=<value>.png` for each of hdbscan_soft."""
+    return {name: run_dir / (f"{stem}_cluster_selection_method={name}.png" if name else f"{stem}.png") for name in figures}
+
+
+def _run_dbcv_curves(context: EvaluationContext, settings: dict) -> list[Path]:
+    run = context.run
+    figures = dbcv_curves_figures(read_density_metrics(run.run_dir))
+    paths = _density_figure_paths(run.run_dir, figures, "dbcv_curves")
     refuse_existing(list(paths.values()), context.overwrite)
     for name, figure in figures.items():
         figure.savefig(paths[name], dpi=FIGURE_DPI)
     return list(paths.values())
+
+
+def _run_tuning_heatmaps(context: EvaluationContext, settings: dict) -> list[Path]:
+    """The map of every column of density_metrics.csv over min_cluster_size x min_samples, one file per
+    cluster_selection_method for hdbscan_soft (the name tuning_plot[_cluster_selection_method=<value>].png the sweep
+    gave it before DBCV existed, which is what the report links)."""
+    run = context.run
+    groups = density_groups(read_density_metrics(run.run_dir))
+    paths = _density_figure_paths(run.run_dir, groups, "tuning_plot")
+    refuse_existing(list(paths.values()), context.overwrite)
+    title = compose_clustering_tuning_title(run.run_dir, run.method)
+    for name, group in groups.items():
+        columns = [column for column in DENSITY_MAP_COLUMNS if column in group.columns and group[column].notna().any()]
+        plot_clustering_tuning_heatmaps(
+            group, "min_cluster_size", "min_samples", columns, paths[name], f"{title} - cluster_selection_method={name}" if name else title
+        )
+    return list(paths.values())
+
+
+def _run_internal_metrics(context: EvaluationContext, settings: dict) -> list[Path]:
+    """Recomputes from the stored labels the columns the sweep computes from them and rewrites them in
+    tuning_results.csv, leaving every other column as it is. It replaces a file the sweep wrote, so it only runs
+    with overwrite=true; the file is written to a temporary name first and renamed, never left half written."""
+    run = context.run
+    path = run.run_dir / "tuning_results.csv"
+    if not context.overwrite:
+        raise FileExistsError(f"{INTERNAL_METRICS} rewrites {path.name}: set overwrite=true to allow it")
+    metrics = recomputed_internal_metrics(run, context.matrix(), context.distance_cache)
+    temporary = path.with_suffix(".csv.tmp")
+    metrics.to_csv(temporary, index=False)
+    os.replace(temporary, path)
+    for column in metrics.columns:  # the evaluations that follow read run.results: they must see the new values
+        run.results[column] = metrics[column]
+    return [path]
 
 
 EVALUATIONS: dict[str, EvaluationSpec] = {
@@ -177,7 +214,9 @@ EVALUATIONS: dict[str, EvaluationSpec] = {
     DENDROGRAM_JUMP: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_dendrogram_jump_settings, _run_dendrogram_jump),
     LINKAGE_AGREEMENT: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(LINKAGE_AGREEMENT), _run_linkage_agreement),
     DENSITY_METRICS: EvaluationSpec(_DENSITY_ONLY, _validate_no_settings(DENSITY_METRICS), _run_density_metrics),
-    NOISE_FILTERED_CURVES: EvaluationSpec(_DENSITY_ONLY, _validate_noise_filtered_curves_settings, _run_noise_filtered_curves),
+    DBCV_CURVES: EvaluationSpec(_DENSITY_ONLY, _validate_no_settings(DBCV_CURVES), _run_dbcv_curves),
+    TUNING_HEATMAPS: EvaluationSpec(_DENSITY_ONLY, _validate_no_settings(TUNING_HEATMAPS), _run_tuning_heatmaps),
+    INTERNAL_METRICS: EvaluationSpec(_RECOMPUTABLE_METHODS, _validate_no_settings(INTERNAL_METRICS), _run_internal_metrics),
 }
 
 

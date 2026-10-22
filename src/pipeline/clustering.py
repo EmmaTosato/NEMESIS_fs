@@ -19,7 +19,9 @@ Two modes, chosen by `fine_tuning`, same convention as dim_reduction.py:
   params_clustering.json, writing a new artifact per method: the same
   matrix (unchanged - clustering doesn't transform the feature space) as
   matrix.npy, cluster_label appended to metadata.csv, plus a set of
-  cluster-colored plots (cluster_plot.png, silhouette_plot.png) - all
+  cluster-colored plots (cluster_plot.png, silhouette_plot.png; hdbscan and
+  hdbscan_soft have no silhouette: they get DBCV in config.md, dbcv_per_cluster.csv
+  and dbcv_plot.png instead, which need no viz embedding) - all
   built on a *viz embedding* resolved once per run,
   never a slice of X (see _resolve_viz_embedding/plan §3): reused directly
   when X already has 2 or 3 components, or read from `viz_embedding_path` (a
@@ -95,8 +97,10 @@ from src.analysis.clustering import (
     soft_membership_matrix,
 )
 from src.analysis.clustering_evaluation import silhouette_breakdown
+from src.analysis.dbcv import dbcv
 from src.analysis.clustering_tuning import (
     CONSENSUS_METRIC_COLUMNS,
+    DENSITY_SWEEP_METHODS,
     METHOD_METRIC_COLUMNS,
     SPECTRAL_AFFINITY_HYPERPARAM,
     STABILITY_ELIGIBLE_METHODS,
@@ -113,6 +117,7 @@ from src.analysis.clustering_tuning import (
     hdbscan_labels_and_probabilities,
     is_invalid_ward_metric_combo,
     representative_values,
+    require_euclidean_compatible,
     run_clustering_tuning_sweep,
     run_spectral_affinity_aware_sweep,
 )
@@ -134,6 +139,7 @@ from src.analysis.plotting import (
     compose_clustering_tuning_title,
     plot_clusters_2d,
     plot_clustering_tuning_heatmaps,
+    plot_dbcv_per_cluster,
     plot_clustering_tuning_metrics,
     plot_dendrograms_grid,
     plot_eigengaps_grid,
@@ -391,7 +397,13 @@ def _run_one_method(
         metadata_out["membership_own"] = own_membership  # NaN for noise: it has no own cluster
     
     # The plot needs it only when there is a viz embedding; agglomerative also writes it as a table and in config.md.
-    silhouette = _run_silhouette(X, cluster_labels, method, params) if method == "agglomerative" or X_viz is not None else None
+    # hdbscan / hdbscan_soft have no silhouette (non-noise subjects only, compact clusters): their index is DBCV
+    silhouette = (
+        _run_silhouette(X, cluster_labels, method, params)
+        if method not in DENSITY_SWEEP_METHODS and (method == "agglomerative" or X_viz is not None)
+        else None
+    )
+    run_dbcv = _run_dbcv(X, cluster_labels, params) if method in DENSITY_SWEEP_METHODS else None
 
     effective_session_name = config.session_name
     if embedding_tag:
@@ -407,7 +419,7 @@ def _run_one_method(
             output_dir,
             X,
             metadata_out,
-            _build_readme_lines(config, method, X, cluster_labels, params, now, silhouette),
+            _build_readme_lines(config, method, X, cluster_labels, params, now, silhouette, run_dbcv),
             overwrite=config.overwrite,
             extra_arrays=extra_arrays,
         )
@@ -421,6 +433,13 @@ def _run_one_method(
             _write_silhouette_per_cluster(output_dir, silhouette)
         except OSError as exc:
             logging.error("[%s] cannot write %s: %s", method, SILHOUETTE_PER_CLUSTER_FILENAME, exc)
+            return None
+
+    if run_dbcv is not None and not run_dbcv.clusters.empty:
+        try:
+            _write_dbcv_per_cluster(output_dir, run_dbcv, compose_cluster_plot_title(output_dir, config.reduction_method, method))
+        except OSError as exc:
+            logging.error("[%s] cannot write %s: %s", method, DBCV_PER_CLUSTER_FILENAME, exc)
             return None
 
     if X_viz is not None:
@@ -626,14 +645,64 @@ def _write_silhouette_per_cluster(output_dir: Path, silhouette: RunSilhouette) -
     table.rename_axis("cluster").to_csv(output_dir / SILHOUETTE_PER_CLUSTER_FILENAME)
 
 
+DBCV_PER_CLUSTER_FILENAME = "dbcv_per_cluster.csv"
+DBCV_PLOT_FILENAME = "dbcv_plot.png"
+
+
+@dataclass(frozen=True)
+class RunDbcv:
+    """The DBCV of one production run of hdbscan / hdbscan_soft: `score` (NaN when it is undefined, see `note`),
+    `clusters` (columns cluster, n, dbcv; empty when undefined) and `note`, why it is undefined ("" when it is not)."""
+
+    score: float
+    clusters: pd.DataFrame
+    note: str
+
+
+def _run_dbcv(X: np.ndarray, cluster_labels: np.ndarray, params: dict) -> RunDbcv:
+    """DBCV of the run (src/analysis/dbcv.py). Undefined, with the reason in `note` (written in config.md), for a run
+    with fewer than 2 clusters and for one clustered under a non-Euclidean metric: DBCV here is Euclidean, never
+    computed in another geometry. A degenerate production result is not an error of the run."""
+    try:
+        require_euclidean_compatible(params)
+    except ValueError as exc:
+        logging.warning("no DBCV for this run: %s", exc)
+        return RunDbcv(float("nan"), pd.DataFrame(columns=["cluster", "n", "dbcv"]), f"not defined for metric={params.get('metric')!r}: DBCV is Euclidean")
+    try:
+        score, per_cluster = dbcv(X, cluster_labels)
+    except ValueError as exc:
+        logging.error("DBCV cannot be computed for this run: %s", exc)
+        return RunDbcv(float("nan"), pd.DataFrame(columns=["cluster", "n", "dbcv"]), f"not computed: {exc}")
+    if not per_cluster:
+        logging.warning("no DBCV for this run: fewer than 2 clusters")
+        return RunDbcv(score, pd.DataFrame(columns=["cluster", "n", "dbcv"]), "not defined: fewer than 2 clusters")
+    sizes = pd.Series(cluster_labels[cluster_labels != -1]).value_counts()
+    clusters = pd.DataFrame({"cluster": list(per_cluster), "n": [int(sizes[c]) for c in per_cluster], "dbcv": list(per_cluster.values())})
+    return RunDbcv(score, clusters, "")
+
+
+def _write_dbcv_per_cluster(output_dir: Path, run_dbcv: RunDbcv, title: str) -> None:
+    """dbcv_per_cluster.csv (one row per cluster: its size and its own DBCV) and dbcv_plot.png."""
+    run_dbcv.clusters.to_csv(output_dir / DBCV_PER_CLUSTER_FILENAME, index=False)
+    plot_dbcv_per_cluster(run_dbcv.clusters, run_dbcv.score, output_dir / DBCV_PLOT_FILENAME, title)
+
+
 def _summary_lines(
-    config: ClusteringConfig, method: str, X: np.ndarray, cluster_labels: np.ndarray, params: dict, silhouette: "RunSilhouette | None"
+    config: ClusteringConfig,
+    method: str,
+    X: np.ndarray,
+    cluster_labels: np.ndarray,
+    params: dict,
+    silhouette: "RunSilhouette | None",
+    run_dbcv: "RunDbcv | None" = None,
 ) -> list[str]:
     silhouette_lines = (
         [f"Average silhouette coefficient: {silhouette.values.mean():.3f} ({silhouette.metric})"]
         if method == "agglomerative" and silhouette is not None
         else []
     )
+    if run_dbcv is not None:
+        silhouette_lines.append(f"DBCV: {run_dbcv.score:.3f} (euclidean)" if not run_dbcv.note else f"DBCV: {run_dbcv.note}")
     return [
         "## Config",
         "",
@@ -671,9 +740,10 @@ def _build_readme_lines(
     params: dict,
     now: datetime,
     silhouette: "RunSilhouette | None",
+    run_dbcv: "RunDbcv | None" = None,
 ) -> list[str]:
     title = f"# {config.project} clustering ({method}) — {now.strftime('%d-%m-%y %H:%M')}"
-    return [title, ""] + _summary_lines(config, method, X, cluster_labels, params, silhouette)
+    return [title, ""] + _summary_lines(config, method, X, cluster_labels, params, silhouette, run_dbcv)
 
 
 def _run_fine_tuning(
@@ -856,7 +926,11 @@ def _write_tuning_output(
         # calinski_harabasz/davies_bouldin exist only for the euclidean metric - NaN (an empty subplot)
         # for dice/jaccard; the columns stay in tuning_results.csv either way.
         metric_cols = [c for c in metric_cols if results[c].notna().any()]
-    if method == "spectral" and "affinity" in tuning_grid:
+    if method in DENSITY_SWEEP_METHODS:
+        # the map of these methods includes DBCV, which the sweep does not compute: the `tuning_heatmaps` evaluation
+        # draws it (clustering_tuning_evaluations.py), after the sweep or later on the stored tuning
+        pass
+    elif method == "spectral" and "affinity" in tuning_grid:
         # project-clustering-tuning-redesign memory (26-08-26): the affinity-aware sweep's own
         # x-axis is whatever other key was actually swept (typically n_clusters) - "affinity"
         # itself and its own hyperparameter (n_neighbors/gamma) become the per-line grouping
@@ -875,14 +949,6 @@ def _write_tuning_output(
         # adp compared across distances: one line per metric, Z (log) on x - a heatmap of 2 metrics x 18 Z
         # values would be unreadable
         plot_grouped_tuning_metrics(results, "Z", "metric", metric_cols, output_dir / "tuning_plot.png", title, log_x=True)
-    elif method == "hdbscan_soft" and "cluster_selection_method" in tuning_grid and len(swept_params) == 3:
-        # a heatmap is 2-D: min_cluster_size x min_samples inside, one file per cluster_selection_method value
-        heatmap_params = [key for key in swept_params if key != "cluster_selection_method"]
-        for selection in tuning_grid["cluster_selection_method"]:
-            plot_clustering_tuning_heatmaps(
-                results[results["cluster_selection_method"] == selection], heatmap_params[0], heatmap_params[1], metric_cols,
-                output_dir / f"tuning_plot_cluster_selection_method={selection}.png", f"{title} - cluster_selection_method={selection}",
-            )
     elif len(swept_params) == 1:
         # adp's Z is swept over orders of magnitude (0.25..16): log x-axis
         plot_clustering_tuning_metrics(

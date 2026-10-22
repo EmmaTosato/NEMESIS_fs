@@ -27,11 +27,13 @@
     ],
     "hdbscan": [
       "density_metrics",
-      "noise_filtered_curves"
+      "tuning_heatmaps",
+      "dbcv_curves"
     ],
     "hdbscan_soft": [
       "density_metrics",
-      "noise_filtered_curves"
+      "tuning_heatmaps",
+      "dbcv_curves"
     ]
   },
   "write_report": true,

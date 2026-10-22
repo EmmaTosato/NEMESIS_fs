@@ -54,25 +54,33 @@ REPORT_TERMS: dict[str, str] = {
     ),
     "davies_bouldin": "media, sui cluster, del rapporto tra quanto il cluster è disperso e quanto è vicino al cluster più simile. Più bassa è meglio.",
     "calinski_harabasz": "rapporto tra la separazione dei cluster e la compattezza di ciascuno. Più alto è meglio; tende a crescere con il numero di cluster.",
-    "noise_fraction": "quota dei soggetti non assegnati a nessun cluster (rumore); sono esclusi dal calcolo degli indici.",
+    "noise_fraction": "quota dei soggetti non assegnati a nessun cluster (rumore).",
     "n_clusters_found": "numero di cluster, rumore escluso.",
     "largest_cluster_share": "quota dei soggetti, rumore compreso, nel cluster più grande.",
     "n_small_clusters": "cluster con meno di 10 soggetti.",
     "id_2nn": "dimensione intrinseca stimata dei dati; costante per `metric`.",
     "ari_vs_prev_z": "ARI (accordo tra due partizioni, 1 = identiche) con la partizione al valore di `Z` immediatamente più basso, sui soli soggetti clusterizzati.",
     "membership_mean": "media, sui soggetti non rumore, della probabilità di appartenere al proprio cluster.",
-    "membership_share_below_half": "quota dei soggetti non rumore con probabilità di appartenenza sotto 0.5.",
     "persistence_mean": "stabilità media dei cluster (0 effimeri, 1 stabili).",
+    "dbcv": (
+        "indice di validità basato sulla densità (Moulavi et al. 2014): per ogni cluster confronta quanto è rado al suo "
+        "interno con quanto è separato dal cluster più vicino; la media è pesata sulla dimensione dei cluster, con il "
+        "rumore nel denominatore, quindi il rumore abbassa il punteggio. Va da -1 a 1: più alto è meglio. Non definito con "
+        "meno di 2 cluster."
+    ),
 }
 
 SILHOUETTE_CONVENTION_NOTE = (
     "**Fasce della silhouette**: esistono fasce di lettura (Kaufman & Rousseeuw 1990, *Finding Groups in Data*); questo "
     "report non le usa. Spiegazione e fonti in `knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md`."
 )
-SILHOUETTE_DENSITY_NOTE = (
-    " Per HDBSCAN la silhouette (come Davies-Bouldin e Calinski-Harabasz) è calcolata sui soli soggetti non rumore: va letta "
-    "accanto a `noise_fraction`."
+DENSITY_INDICES_NOTE = (
+    "**Indici non calcolati**: silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn non sono calcolati per HDBSCAN: si "
+    "calcolano sui soli soggetti non rumore (se l'algoritmo scarta i soggetti più difficili, salgono) e presuppongono "
+    "cluster compatti. Il DBCV pesa il rumore. Spiegazione in "
+    "`knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md`."
 )
+NON_EUCLIDEAN_NOTE = "Calinski-Harabasz e Davies-Bouldin non sono definiti per `{metric}`: richiedono la distanza euclidea (cella vuota)."
 COPHENETIC_TERM = (
     "correlazione tra le distanze vere tra i soggetti e le distanze che l'albero implica. Va da -1 a 1: vicino a 1 l'albero "
     "rispetta bene le distanze. Un valore per `metric` e `linkage`, non si confronta tra `metric` diverse. Nessuna fascia con "
@@ -120,11 +128,11 @@ HINT_HEATMAP = (
     "Cosa mostra: gli stessi numeri delle tabelle su tutta la griglia `min_cluster_size` × `min_samples`, un riquadro per metrica.",
     "Attenzione: ogni riquadro ha una sua scala di colore adattata ai dati, quindi le differenze piccole sembrano grandi.",
 )
-HINT_FILTERED_CURVES = (
-    "Cosa mostra: silhouette e Davies-Bouldin contro `min_cluster_size`, una linea per `min_samples`, solo per le combinazioni "
-    "con poco rumore.",
-    "Attenzione: il limite di rumore è scritto nel titolo del grafico (`curves_max_noise_fraction` del config, una scelta "
-    "nostra). Le combinazioni con più rumore non compaiono; per `leaf` può non esserci nessun grafico.",
+HINT_DBCV_CURVES = (
+    "Cosa mostra: DBCV, quota di rumore, quota del cluster più grande e numero di cluster contro `min_cluster_size`, una linea "
+    "per `min_samples`. Tutte le combinazioni, nessun filtro sul rumore.",
+    "Un punto manca dove i cluster sono meno di 2: il DBCV non è definito, non vale 0.",
+    "Cosa non dice: da solo il DBCV non dice quale combinazione scegliere; va letto accanto al rumore.",
 )
 
 def _hint_lines(hint: tuple[str, ...]) -> list[str]:
@@ -132,9 +140,9 @@ def _hint_lines(hint: tuple[str, ...]) -> list[str]:
     return ["> **Come leggerlo**", *(f"> - {sentence}" for sentence in hint), ""]
 
 
-DENSITY_REPORT_COLUMNS = ("min_cluster_size", "min_samples", "silhouette", "davies_bouldin", "calinski_harabasz", "noise_fraction", "n_clusters_found", "largest_cluster_share")
-DENSITY_SOFT_COLUMNS = ("cluster_selection_method", "membership_mean", "membership_share_below_half", "persistence_mean")
-DENSITY_TABLE_COLUMNS = ("min_cluster_size", "n_clusters_found", "noise_fraction", "largest_cluster_share", "silhouette", "davies_bouldin", "calinski_harabasz")
+DENSITY_REPORT_COLUMNS = ("min_cluster_size", "min_samples", "noise_fraction", "n_clusters_found", "largest_cluster_share", "dbcv")
+DENSITY_SOFT_COLUMNS = ("cluster_selection_method", "membership_mean", "persistence_mean")
+DENSITY_TABLE_COLUMNS = ("min_cluster_size", "n_clusters_found", "noise_fraction", "largest_cluster_share", "dbcv")
 
 AGGLOMERATIVE_REPORT_COLUMNS = ("n_clusters", "linkage", "metric", "silhouette", "davies_bouldin", "calinski_harabasz")
 
@@ -167,6 +175,8 @@ def _format_report_value(column: str, value: float, key_columns: tuple[str, ...]
         return "–"
     if column in REPORT_COUNT_COLUMNS:
         return str(int(value))
+    if not isinstance(value, str) and round(value, 3) == 0:
+        value = 0.0  # never "-0.000"
     if column == "calinski_harabasz":
         return f"{value:,.0f}"
     if column in key_columns:
@@ -335,7 +345,10 @@ def _agglomerative_report_markdown(
     ]
     for metric in ordered(results["metric"].unique(), METRIC_ORDER):
         subset = results[results["metric"] == metric]
-        lines += [f"## metric = {metric}", "", *_curves_section(results, metric)]
+        lines += [f"## metric = {metric}", ""]
+        if metric != "euclidean":
+            lines += [NON_EUCLIDEAN_NOTE.format(metric=metric), ""]
+        lines += _curves_section(results, metric)
         for linkage in ordered(subset["linkage"].unique(), LINKAGE_ORDER):
             group = subset[subset["linkage"] == linkage]
             table = group.sort_values("n_clusters")[["n_clusters", "silhouette", "davies_bouldin", "calinski_harabasz"]]
@@ -355,18 +368,19 @@ def _extremes_text(group: pd.DataFrame, column: str, label: str) -> str:
     """"da <min> (min_cluster_size ...) a <max> (min_cluster_size ...)" for `column` of one min_samples table."""
     def at(value: float) -> str:
         sizes = [int(size) for size in group.loc[group[column] == value, "min_cluster_size"]]
-        text = f"{value:.3f}" if column == "noise_fraction" else f"{int(value)}"
+        text = f"{value:.3f}" if column in ("noise_fraction", "dbcv") else f"{int(value)}"
         return f"{text} (min_cluster_size {_k_ranges(sizes)})"
     return f"- {label}: da {at(group[column].min())} a {at(group[column].max())}"
 
 
 def _density_comment(group: pd.DataFrame) -> list[str]:
-    """The bullets under the table of one min_samples of an hdbscan / hdbscan_soft report."""
-    lines = _silhouette_comment(group, "min_cluster_size", "min_cluster_size", "")
+    """The bullets under the table of one min_samples of an hdbscan / hdbscan_soft report. Measurements only."""
+    defined = group[group["dbcv"].notna()]
+    lines = [_extremes_text(defined, "dbcv", "**DBCV**") if not defined.empty else "- **DBCV**: mai definito"]
     lines += [_extremes_text(group, "noise_fraction", "**Rumore**"), _extremes_text(group, "n_clusters_found", "**Cluster trovati**")]
-    empty = [int(size) for size in group.loc[group["n_clusters_found"] == 0, "min_cluster_size"]]
-    if empty:
-        lines.append(f"- **Nessun cluster** (tutti i soggetti rumore): {_count_phrase(len(empty), len(group), '')} (min_cluster_size {_k_ranges(empty)})")
+    undefined = [int(size) for size in group.loc[group["dbcv"].isna(), "min_cluster_size"]]
+    if undefined:
+        lines.append(f"- **Meno di 2 cluster** (DBCV non definito): {_count_phrase(len(undefined), len(group), '')} (min_cluster_size {_k_ranges(undefined)})")
     return lines
 
 
@@ -384,10 +398,10 @@ def _density_report_markdown(run_dir: Path, method: str, input_path: Path, resul
         "",
         "**Come è fatto**",
         "",
-        *(["- Una sezione per `cluster_selection_method`: le silhouette di metodi diversi non si confrontano."] if is_soft else []),
+        *(["- Una sezione per `cluster_selection_method`: i risultati di metodi diversi non si confrontano."] if is_soft else []),
         "- Dentro: una tabella per `min_samples`, con una riga per ogni `min_cluster_size`.",
         "- Dati completi: `tuning_results.csv`, `density_metrics.csv`.",
-        "- Una cella vuota (–) è un indice non calcolabile per quella combinazione (con 0 cluster non c'è silhouette).",
+        "- Una cella vuota (–) è un indice non definito per quella combinazione (con meno di 2 cluster non c'è DBCV).",
         "",
     ]
     for selection in (ordered(results["cluster_selection_method"].unique(), ("eom", "leaf")) if is_soft else [None]):
@@ -396,17 +410,14 @@ def _density_report_markdown(run_dir: Path, method: str, input_path: Path, resul
         if selection is not None:
             lines += [f"## cluster_selection_method = {selection}", ""]
             heading = "###"
-        suffix = "" if selection is None else f"_{selection}"
         heatmap = "tuning_plot.png" if selection is None else f"tuning_plot_cluster_selection_method={selection}.png"
-        lines += _images_section(
-            run_dir,
-            [("Heatmap delle metriche", heatmap, HINT_HEATMAP), ("Curve con poco rumore", f"noise_filtered_curves{suffix}.png", HINT_FILTERED_CURVES)],
-        )
+        curves = "dbcv_curves.png" if selection is None else f"dbcv_curves_cluster_selection_method={selection}.png"
+        lines += _images_section(run_dir, [("Heatmap delle metriche", heatmap, HINT_HEATMAP), ("Curve contro min_cluster_size", curves, HINT_DBCV_CURVES)])
         for min_samples in sorted(subset["min_samples"].unique()):
             group = subset[subset["min_samples"] == min_samples].sort_values("min_cluster_size")
             lines += [f"{heading} min_samples = {int(min_samples)}", "", _markdown_table(group[columns], ("min_cluster_size",)), "", *_density_comment(group), ""]
     terms = [f"- **`{column}`**: {REPORT_TERMS[column]}" for column in (*DENSITY_TABLE_COLUMNS[1:], *(DENSITY_SOFT_COLUMNS[1:] if is_soft else ()))]
-    return "\n".join([*lines, "## Termini", "", *terms, f"- {SILHOUETTE_CONVENTION_NOTE}{SILHOUETTE_DENSITY_NOTE}", ""])
+    return "\n".join([*lines, "## Termini", "", *terms, f"- {DENSITY_INDICES_NOTE}", ""])
 
 
 def tuning_report_markdown(
@@ -421,10 +432,10 @@ def tuning_report_markdown(
     the frames of `cophenetic_table` and `jump_table`, and `agreement`, that of `linkage_agreement`: required here and refused for
     any other method) and links to the tree and label images clustering.py wrote in the run folder, when it did.
 
-    hdbscan / hdbscan_soft (`results` is `density_metrics`: it needs `largest_cluster_share`): a
-    link to the heatmap clustering.py wrote, and one table per `min_samples` (one section per `cluster_selection_method`
-    for hdbscan_soft) with a row per `min_cluster_size` and bullets with the negative silhouettes, the range of the noise
-    and of the number of clusters.
+    hdbscan / hdbscan_soft (`results` is `density_metrics`: it needs `largest_cluster_share` and `dbcv`): links to the
+    heatmap and the DBCV curves the evaluations wrote, and one table per `min_samples` (one section per
+    `cluster_selection_method` for hdbscan_soft) with a row per `min_cluster_size` and bullets with the range of the DBCV,
+    of the noise and of the number of clusters.
 
     adp: one table per `metric`, the swept columns first and every other column after them, ordered by silhouette,
     highest first (an empty silhouette last). Nothing is classified by a threshold. Raises ValueError for a

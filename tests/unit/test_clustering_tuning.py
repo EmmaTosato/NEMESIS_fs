@@ -273,8 +273,8 @@ def test_run_clustering_tuning_sweep_hdbscan_noise_fraction_varies_with_min_clus
 
 
 def test_run_clustering_tuning_sweep_hdbscan_soft_reports_its_membership_metrics():
-    """hdbscan_soft adds three columns from the package itself: the soft probability of a subject
-    being in its own cluster (mean, share under 0.5) and the mean cluster persistence."""
+    """hdbscan_soft adds two columns from the package itself: the mean soft probability of a subject
+    being in its own cluster and the mean cluster persistence. No threshold on the probability."""
     from hdbscan import HDBSCAN as PackageHDBSCAN, all_points_membership_vectors
 
     X = _three_blobs()
@@ -287,7 +287,6 @@ def test_run_clustering_tuning_sweep_hdbscan_soft_reports_its_membership_metrics
         clustered = np.flatnonzero(fitted.labels_ != -1)
         own = all_points_membership_vectors(fitted)[clustered, fitted.labels_[clustered]]
         assert row["membership_mean"] == pytest.approx(own.mean())
-        assert row["membership_share_below_half"] == pytest.approx((own < 0.5).mean())
         assert row["persistence_mean"] == pytest.approx(np.mean(fitted.cluster_persistence_))
         assert 0.0 <= row["membership_mean"] <= 1.0
         assert row["n_clusters_found"] == len(set(fitted.labels_) - {-1})
@@ -300,7 +299,7 @@ def test_run_clustering_tuning_sweep_hdbscan_soft_records_nan_membership_when_no
     row = df.iloc[0]
     assert row["n_clusters_found"] == 0
     assert row["noise_fraction"] == 1.0
-    assert np.isnan(row[["membership_mean", "membership_share_below_half", "persistence_mean"]].to_numpy(dtype=float)).all()
+    assert np.isnan(row[["membership_mean", "persistence_mean"]].to_numpy(dtype=float)).all()
 
 
 def test_run_clustering_tuning_sweep_hdbscan_reports_n_clusters_found():
@@ -733,3 +732,23 @@ def test_compute_self_tuning_eigengap_raises_on_coincident_neighbors():
 
     with pytest.raises(ValueError, match="coincident neighbors"):
         compute_self_tuning_eigengap(X, local_scale_k=7)
+
+
+@pytest.mark.parametrize("method", ["hdbscan", "hdbscan_soft"])
+def test_the_density_sweep_writes_no_silhouette_calinski_harabasz_or_davies_bouldin(method):
+    """Computed on the non-noise subjects only and for compact clusters: the index of these methods is DBCV, written
+    by the density_metrics evaluation. Only noise_fraction is a generic column of their sweep."""
+    X = _three_blobs()
+    df, _ = run_clustering_tuning_sweep(method, X, {"min_samples": 5}, {"min_cluster_size": [10, 15]})
+
+    assert not {"silhouette", "calinski_harabasz", "davies_bouldin", "membership_share_below_half"} & set(df.columns)
+    assert {"noise_fraction", "n_clusters_found"} <= set(df.columns)
+    assert not {"silhouette", "calinski_harabasz", "davies_bouldin"} & set(METHOD_METRIC_COLUMNS[method])
+
+
+def test_compute_noise_metrics_is_the_noise_share_and_refuses_a_non_euclidean_run():
+    from src.analysis.clustering_tuning import compute_noise_metrics
+
+    assert compute_noise_metrics(np.array([0, 0, -1, -1, -1])) == {"noise_fraction": 0.6}
+    with pytest.raises(ValueError, match="Euclidean"):
+        compute_noise_metrics(np.array([0, 1]), {"metric": "cosine"})

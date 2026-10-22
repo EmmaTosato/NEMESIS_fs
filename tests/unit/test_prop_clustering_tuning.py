@@ -33,17 +33,25 @@ def test_metric_columns_are_declared_for_exactly_the_registered_clustering_metho
     assert set(CT.METHOD_METRIC_COLUMNS) == set(CLUSTERING_METHODS)
 
 
-@pytest.mark.parametrize("method", sorted(CT.METHOD_METRIC_COLUMNS))
+@pytest.mark.parametrize("method", sorted(set(CT.METHOD_METRIC_COLUMNS) - set(CT.DENSITY_SWEEP_METHODS)))
 def test_every_method_reports_the_three_generic_scores_without_repeated_columns(method):
     columns = CT.METHOD_METRIC_COLUMNS[method]
     assert columns[:3] == _GENERIC
     assert len(columns) == len(set(columns))
 
 
+@pytest.mark.parametrize("method", CT.DENSITY_SWEEP_METHODS)
+def test_the_density_methods_report_noise_not_the_three_generic_scores_without_repeated_columns(method):
+    columns = CT.METHOD_METRIC_COLUMNS[method]
+    assert columns[0] == "noise_fraction" and not set(_GENERIC) & set(columns)
+    assert len(columns) == len(set(columns))
+
+
 def test_the_extra_metric_evaluators_only_cover_methods_with_extra_columns():
     for method in CT._EXTRA_METRICS_EVALUATORS:
         assert method in CLUSTERING_METHODS
-        assert len(CT.METHOD_METRIC_COLUMNS[method]) > 3  # un evaluator "extra" senza colonne extra non avrebbe senso
+        extra = [c for c in CT.METHOD_METRIC_COLUMNS[method] if c not in (*_GENERIC, "noise_fraction")]
+        assert extra  # un evaluator "extra" senza colonne extra non avrebbe senso
 
 
 def test_stability_and_consensus_registries_agree_on_their_eligible_methods():

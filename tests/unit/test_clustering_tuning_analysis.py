@@ -7,11 +7,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from src.analysis.clustering_tuning import compute_clustering_metrics_metric_aware
+from src.analysis.dbcv import dbcv
 from src.analysis.clustering_tuning_analysis import (
     ClusteringTuningRun,
     combo_key,
     cophenetic_table,
     dendrogram_jump,
+    dbcv_curves_figures,
     density_metrics,
     jump_table,
     k_curves_figure,
@@ -20,7 +23,7 @@ from src.analysis.clustering_tuning_analysis import (
     run_axis_limits,
     linkage_agreement,
     load_clustering_tuning_run,
-    noise_filtered_curves_figures,
+    recomputed_internal_metrics,
     silhouette_zoom_limits,
 )
 
@@ -111,81 +114,124 @@ def test_load_run_rejects_clusterings_that_do_not_match_the_results(tmp_path):
         load_clustering_tuning_run(tmp_path)
 
 
-def test_density_metrics_computes_the_cluster_count_and_the_largest_share(tmp_path):
-    metrics = density_metrics(_density_run(tmp_path))
+def _blobs(n_subjects: int = 20) -> np.ndarray:
+    """One row per subject of the density runs below: three well-separated blobs, so every labelling has a DBCV."""
+    rng = np.random.default_rng(0)
+    centres = np.repeat([0.0, 6.0, 12.0], -(-n_subjects // 3))[:n_subjects]
+    return centres[:, None] + rng.normal(scale=0.3, size=(n_subjects, 3))
+
+
+def test_density_metrics_computes_the_cluster_count_the_largest_share_and_the_dbcv(tmp_path):
+    run = _density_run(tmp_path)
+    X = _blobs()
+    metrics = density_metrics(run, X)
 
     assert metrics["n_clusters_found"].tolist() == [4, 2, 3]
     assert metrics["largest_cluster_share"].tolist() == pytest.approx([0.25, 0.5, 0.8])
+    expected = [dbcv(X, run.labels[key])[0] for key in run.labels]
+    assert metrics["dbcv"].tolist() == pytest.approx(expected)
     assert "usable" not in metrics.columns  # a measurement table, no verdict
 
 
 def test_density_metrics_counts_noise_in_the_denominator_of_the_largest_share(tmp_path):
     labels = np.array([0] * 6 + [1] * 4 + [-1] * 10)
-    rows = [{"min_cluster_size": 5, "min_samples": 5, "noise_fraction": 0.5, "silhouette": 0.5, "davies_bouldin": 1.0}]
+    rows = [{"min_cluster_size": 5, "min_samples": 5, "noise_fraction": 0.5}]
     _write_run(tmp_path, "hdbscan", rows, {"min_cluster_size=5,min_samples=5": labels})
 
-    metrics = density_metrics(load_clustering_tuning_run(tmp_path))
+    metrics = density_metrics(load_clustering_tuning_run(tmp_path), _blobs())
 
     assert metrics.loc[0, "largest_cluster_share"] == pytest.approx(6 / 20)
 
 
 def test_density_metrics_rejects_n_clusters_found_that_disagrees_with_the_labels(tmp_path):
-    rows = [{"min_cluster_size": 5, "min_samples": 5, "noise_fraction": 0.0, "silhouette": 0.5, "davies_bouldin": 1.0, "n_clusters_found": 7}]
+    rows = [{"min_cluster_size": 5, "min_samples": 5, "noise_fraction": 0.0, "n_clusters_found": 7}]
     _write_run(tmp_path, "hdbscan", rows, {"min_cluster_size=5,min_samples=5": np.repeat([0, 1], 5)})
 
     with pytest.raises(ValueError, match="n_clusters_found"):
-        density_metrics(load_clustering_tuning_run(tmp_path))
+        density_metrics(load_clustering_tuning_run(tmp_path), _blobs(10))
 
 
-def test_density_metrics_all_noise_has_no_largest_share(tmp_path):
-    rows = [{"min_cluster_size": 5, "min_samples": 5, "noise_fraction": 1.0, "silhouette": np.nan, "davies_bouldin": np.nan}]
-    _write_run(tmp_path, "hdbscan", rows, {"min_cluster_size=5,min_samples=5": np.full(8, -1)})
+@pytest.mark.parametrize("labels", [np.full(8, -1), np.zeros(8, dtype=int), np.array([0] * 4 + [-1] * 4)])
+def test_density_metrics_leaves_the_dbcv_undefined_below_two_clusters_never_zero(tmp_path, labels):
+    """Regression: the hdbscan package returns the integer 0 for an all-noise labelling, which reads as a real score."""
+    rows = [{"min_cluster_size": 5, "min_samples": 5, "noise_fraction": 1.0}]
+    _write_run(tmp_path, "hdbscan", rows, {"min_cluster_size=5,min_samples=5": labels})
 
-    metrics = density_metrics(load_clustering_tuning_run(tmp_path))
+    metrics = density_metrics(load_clustering_tuning_run(tmp_path), _blobs(8))
 
-    assert np.isnan(metrics.loc[0, "largest_cluster_share"])
-
-
-def test_noise_filtered_curves_with_no_combination_kept_returns_no_figure_instead_of_raising(tmp_path):
-    """Regression: a run with every combination above the noise limit (UMAP euclidean, streamline) used to
-    abort before density_metrics.csv was written, so the runs with no structure got no output at all."""
-    metrics = density_metrics(_density_run(tmp_path)).assign(noise_fraction=0.5)
-
-    figures, without_figure = noise_filtered_curves_figures(metrics, 0.1)
-
-    assert figures == {}
-    assert without_figure == [""]
+    assert np.isnan(metrics.loc[0, "dbcv"])
+    if (labels == -1).all():
+        assert np.isnan(metrics.loc[0, "largest_cluster_share"])
 
 
-def test_noise_filtered_curves_returns_one_figure_for_hdbscan(tmp_path):
-    metrics = density_metrics(_density_run(tmp_path))
+def test_density_metrics_rejects_a_matrix_that_is_not_the_runs(tmp_path):
+    with pytest.raises(ValueError, match="one row per label"):
+        density_metrics(_density_run(tmp_path), _blobs(19))
 
-    figures, without_figure = noise_filtered_curves_figures(metrics, 0.1)
+
+def test_dbcv_curves_returns_one_figure_for_hdbscan(tmp_path):
+    metrics = density_metrics(_density_run(tmp_path), _blobs())
+
+    figures = dbcv_curves_figures(metrics)
 
     assert list(figures) == [""]
-    assert without_figure == []
 
 
-def test_noise_filtered_curves_returns_one_figure_per_selection_method(tmp_path):
-    metrics = density_metrics(_density_run(tmp_path))
+def test_dbcv_curves_returns_one_figure_per_selection_method(tmp_path):
+    metrics = density_metrics(_density_run(tmp_path), _blobs())
     soft = pd.concat([metrics.assign(cluster_selection_method="eom"), metrics.assign(cluster_selection_method="leaf")])
 
-    figures, without_figure = noise_filtered_curves_figures(soft, 0.1)
-
-    assert sorted(figures) == ["eom", "leaf"]
-    assert without_figure == []
+    assert sorted(dbcv_curves_figures(soft)) == ["eom", "leaf"]
 
 
-def test_noise_filtered_curves_reports_the_selection_method_with_no_combination_under_the_limit(tmp_path):
-    """Regression: on a real hdbscan_soft run `leaf` never goes below 15% noise, and that used to abort the
-    whole analysis instead of leaving out only the figure that could not be drawn."""
-    metrics = density_metrics(_density_run(tmp_path))
-    soft = pd.concat([metrics.assign(cluster_selection_method="eom"), metrics.assign(cluster_selection_method="leaf", noise_fraction=0.4)])
+def test_dbcv_curves_draw_every_combination_even_with_no_dbcv_and_much_noise(tmp_path):
+    """No limit on the noise (a threshold of ours is gone): a run with every DBCV undefined still gets its figure."""
+    metrics = density_metrics(_density_run(tmp_path), _blobs()).assign(noise_fraction=0.9, dbcv=np.nan)
 
-    figures, without_figure = noise_filtered_curves_figures(soft, 0.1)
+    figures = dbcv_curves_figures(metrics)
 
-    assert list(figures) == ["eom"]
-    assert without_figure == ["leaf"]
+    assert list(figures) == [""]
+    assert len(figures[""].axes[0].lines) == 2  # the line of the data and the zero line
+
+
+def test_recomputed_internal_metrics_of_agglomerative_match_the_functions_the_sweep_uses():
+    X = _three_blobs()
+    labels = {
+        "n_clusters=2,linkage=average,metric=euclidean": np.repeat([0, 1], [30, 15]),
+        "n_clusters=3,linkage=average,metric=cosine": np.repeat([0, 1, 2], 15),
+    }
+    rows = [{"n_clusters": 2, "linkage": "average", "metric": "euclidean", "silhouette": 9.0, "calinski_harabasz": 9.0, "davies_bouldin": 9.0, "noise_fraction": 0.0},
+            {"n_clusters": 3, "linkage": "average", "metric": "cosine", "silhouette": 9.0, "calinski_harabasz": 9.0, "davies_bouldin": 9.0, "noise_fraction": 0.0}]
+    run = ClusteringTuningRun(Path("run"), "agglomerative", Path("m"), pd.DataFrame(rows), labels)
+
+    metrics = recomputed_internal_metrics(run, X)
+
+    euclid = compute_clustering_metrics_metric_aware(X, labels["n_clusters=2,linkage=average,metric=euclidean"], "euclidean")
+    cosine = compute_clustering_metrics_metric_aware(X, labels["n_clusters=3,linkage=average,metric=cosine"], "cosine")
+    assert metrics.loc[0, "silhouette"] == pytest.approx(euclid["silhouette"])
+    assert metrics.loc[0, "calinski_harabasz"] == pytest.approx(euclid["calinski_harabasz"])
+    assert metrics.loc[1, "silhouette"] == pytest.approx(cosine["silhouette"])
+    # Calinski-Harabasz and Davies-Bouldin need the euclidean distance: undefined, not computed, under cosine
+    assert np.isnan(metrics.loc[1, "calinski_harabasz"]) and np.isnan(metrics.loc[1, "davies_bouldin"])
+
+
+def test_recomputed_internal_metrics_of_a_density_run_are_the_noise_fraction_and_keep_the_fit_columns(tmp_path):
+    labels = np.array([0] * 6 + [1] * 4 + [-1] * 10)
+    rows = [{"min_cluster_size": 5, "min_samples": 5, "noise_fraction": 0.0, "membership_mean": 0.7}]
+    _write_run(tmp_path, "hdbscan", rows, {"min_cluster_size=5,min_samples=5": labels})
+
+    metrics = recomputed_internal_metrics(load_clustering_tuning_run(tmp_path), _blobs())
+
+    assert metrics.loc[0, "noise_fraction"] == pytest.approx(0.5)
+    assert metrics.loc[0, "membership_mean"] == 0.7  # comes from the fit: not recomputable, not touched
+
+
+def test_recomputed_internal_metrics_refuses_a_column_the_run_never_wrote():
+    rows = [{"n_clusters": 2, "linkage": "average", "metric": "euclidean"}]
+    run = ClusteringTuningRun(Path("run"), "agglomerative", Path("m"), pd.DataFrame(rows), {"n_clusters=2,linkage=average,metric=euclidean": np.repeat([0, 1], [30, 15])})
+
+    with pytest.raises(ValueError, match="did not write it"):
+        recomputed_internal_metrics(run, _three_blobs())
 
 
 def _agglomerative_run(tmp_path: Path, rows: list[dict]) -> ClusteringTuningRun:

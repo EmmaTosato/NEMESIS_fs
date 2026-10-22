@@ -26,14 +26,14 @@ def _blobs_matrix(tmp_path):
 REGISTRY = json.loads(Path("config/registry/clustering_evaluations.json").read_text())
 EVALUATIONS_BY_METHOD = {
     "agglomerative": ["k_curves", "cophenetic_correlation", "dendrogram_jump", "linkage_agreement"],
-    "hdbscan": ["density_metrics", "noise_filtered_curves"],
+    "hdbscan": ["density_metrics", "tuning_heatmaps", "dbcv_curves"],
 }
 
 
 def _evaluations_file(tmp_path):
-    """The shipped registry with the k range and noise limit these tiny fixtures need."""
+    """The shipped registry with the k range these tiny fixtures need."""
     path = tmp_path / "evaluations.json"
-    settings = {**REGISTRY, "dendrogram_jump": {"k_range": {"min": 3, "max": 6}}, "noise_filtered_curves": {"max_noise_fraction": 0.5}}
+    settings = {**REGISTRY, "dendrogram_jump": {"k_range": {"min": 3, "max": 6}}}
     path.write_text(json.dumps(settings))
     return path
 
@@ -113,7 +113,7 @@ def test_agglomerative_run_gets_cophenetic_jump_and_curves(tmp_path, monkeypatch
     assert "| 3 | " in report.split("### Salto del dendrogramma")[1]  # k_range 3-6 of this config
 
 
-def test_hdbscan_run_gets_density_metrics_and_filtered_curves(tmp_path, monkeypatch):
+def test_hdbscan_run_gets_density_metrics_with_dbcv_the_map_and_the_curves(tmp_path, monkeypatch):
     entry = {
         "params": {"min_cluster_size": 10, "min_samples": 5},
         "tuning_grid": {"min_cluster_size": [10, 15], "min_samples": [3, 5]},
@@ -124,15 +124,18 @@ def test_hdbscan_run_gets_density_metrics_and_filtered_curves(tmp_path, monkeypa
 
     metrics = pd.read_csv(tuning_dir / "density_metrics.csv")
     assert len(metrics) == 4
-    assert {"largest_cluster_share", "n_clusters_found"} <= set(metrics.columns)
+    assert {"largest_cluster_share", "n_clusters_found", "dbcv"} <= set(metrics.columns)
     assert "usable" not in metrics.columns
     # three blobs of equal size are found whole, with a third of the subjects in each
     assert metrics["n_clusters_found"].eq(3).all()
     assert metrics["largest_cluster_share"].round(2).eq(0.33).all()
+    assert metrics["dbcv"].gt(0.5).all()  # three well-separated blobs
     report = (tuning_dir / "report.md").read_text()
     assert "## min_samples = 3" in report and "## min_samples = 5" in report  # one table per min_samples
-    assert "| min_cluster_size | n_clusters_found | noise_fraction | largest_cluster_share | silhouette |" in report
-    assert (tuning_dir / "noise_filtered_curves.png").stat().st_size > 0
+    assert "| min_cluster_size | n_clusters_found | noise_fraction | largest_cluster_share | dbcv |" in report
+    for name in ("dbcv_curves.png", "tuning_plot.png"):
+        assert (tuning_dir / name).stat().st_size > 0
+        assert f"({name})" in report
 
 
 def test_a_second_run_without_overwrite_stops_and_leaves_the_files(tmp_path, monkeypatch, caplog):
@@ -179,9 +182,9 @@ def test_adp_run_without_tuning_results_stops(tmp_path, monkeypatch, caplog):
     assert "tuning_results.csv" in caplog.text
 
 
-def test_hdbscan_run_with_all_noise_still_gets_density_metrics_without_curves(tmp_path, monkeypatch):
-    """Regression: 8 of 58 real tuning runs have every combination above the noise limit; the analysis used to
-    stop without writing anything for them."""
+def test_hdbscan_run_with_all_noise_still_gets_density_metrics_with_the_dbcv_undefined(tmp_path, monkeypatch):
+    """Regression: 8 of 58 real tuning runs have every combination all noise; the analysis used to stop without
+    writing anything for them. There is no noise limit any more: the figures are drawn, the DBCV is undefined, not 0."""
     entry = {"params": {"min_cluster_size": 30, "min_samples": 3}, "tuning_grid": {"min_cluster_size": [30, 40], "min_samples": [3]}}
     tuning_dir = _run_tuning(tmp_path, monkeypatch, "hdbscan", entry)
 
@@ -189,7 +192,9 @@ def test_hdbscan_run_with_all_noise_still_gets_density_metrics_without_curves(tm
 
     metrics = pd.read_csv(tuning_dir / "density_metrics.csv")
     assert metrics["noise_fraction"].eq(1.0).all()
-    assert not (tuning_dir / "noise_filtered_curves.png").exists()
+    assert metrics["dbcv"].isna().all()
+    assert (tuning_dir / "dbcv_curves.png").stat().st_size > 0
+    assert "- **DBCV**: mai definito" in (tuning_dir / "report.md").read_text()
 
 
 def test_a_sweep_that_declares_the_evaluations_writes_the_files_a_later_analysis_writes(tmp_path, monkeypatch):
@@ -197,12 +202,12 @@ def test_a_sweep_that_declares_the_evaluations_writes_the_files_a_later_analysis
     entry = {"params": {"min_cluster_size": 10, "min_samples": 5}, "tuning_grid": {"min_cluster_size": [10, 15], "min_samples": [3, 5]}}
     tuning_dir = _run_tuning(tmp_path, monkeypatch, "hdbscan", entry, evaluations=EVALUATIONS_BY_METHOD["hdbscan"])
     by_the_sweep = (tuning_dir / "density_metrics.csv").read_bytes()
-    assert (tuning_dir / "noise_filtered_curves.png").stat().st_size > 0
-    assert "Evaluations applied: ['density_metrics', 'noise_filtered_curves']" in (tuning_dir / "config.md").read_text()
+    assert (tuning_dir / "dbcv_curves.png").stat().st_size > 0
+    assert "Evaluations applied: ['density_metrics', 'tuning_heatmaps', 'dbcv_curves']" in (tuning_dir / "config.md").read_text()
 
     assert _analyze(tmp_path, monkeypatch, tuning_dir, overwrite=True) == 0
 
-    assert (tuning_dir / "density_metrics.csv").read_bytes() == by_the_sweep
+    assert (tuning_dir / "density_metrics.csv").read_bytes() == by_the_sweep  # the DBCV included
 
 
 def test_the_report_needs_the_evaluation_files_and_says_which_is_missing(tmp_path, monkeypatch, caplog):
@@ -222,7 +227,7 @@ def test_without_a_report_only_the_listed_evaluations_run(tmp_path, monkeypatch)
     assert _analyze(tmp_path, monkeypatch, tuning_dir, evaluations={"hdbscan": ["density_metrics"]}, write_report=False) == 0
 
     assert (tuning_dir / "density_metrics.csv").is_file()
-    assert not (tuning_dir / "noise_filtered_curves.png").exists() and not (tuning_dir / "report.md").exists()
+    assert not (tuning_dir / "dbcv_curves.png").exists() and not (tuning_dir / "report.md").exists()
 
 
 def test_a_sweep_with_write_report_writes_the_report_a_later_analysis_writes(tmp_path, monkeypatch):
@@ -234,3 +239,21 @@ def test_a_sweep_with_write_report_writes_the_report_a_later_analysis_writes(tmp
     assert _analyze(tmp_path, monkeypatch, tuning_dir, overwrite=True) == 0
 
     assert (tuning_dir / "report.md").read_bytes() == by_the_sweep
+
+
+def test_internal_metrics_run_later_reproduces_what_the_sweep_wrote_and_needs_overwrite(tmp_path, monkeypatch, caplog):
+    """The sweep and the evaluation score with the same functions: rewriting tuning_results.csv from the stored labels
+    changes no value of an agglomerative run, and it is refused without overwrite=true."""
+    entry = {"params": {"n_clusters": 3}, "tuning_grid": {"n_clusters": [2, 3], "linkage": ["ward", "average"], "metric": ["euclidean", "cosine"]}}
+    tuning_dir = _run_tuning(tmp_path, monkeypatch, "agglomerative", entry)
+    by_the_sweep = pd.read_csv(tuning_dir / "tuning_results.csv")
+    evaluations = {"agglomerative": ["internal_metrics"]}
+
+    assert _analyze(tmp_path, monkeypatch, tuning_dir, evaluations=evaluations, write_report=False) == 1
+    assert "overwrite=true" in caplog.text and pd.read_csv(tuning_dir / "tuning_results.csv").equals(by_the_sweep)
+
+    assert _analyze(tmp_path, monkeypatch, tuning_dir, overwrite=True, evaluations=evaluations, write_report=False) == 0
+
+    rewritten = pd.read_csv(tuning_dir / "tuning_results.csv")
+    pd.testing.assert_frame_equal(rewritten, by_the_sweep, check_exact=False, rtol=1e-9)
+    assert rewritten["calinski_harabasz"].isna().eq(rewritten["metric"] == "cosine").all()  # euclidean-only, undefined under cosine

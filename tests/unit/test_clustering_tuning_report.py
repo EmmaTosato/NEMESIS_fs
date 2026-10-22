@@ -12,7 +12,7 @@ from src.analysis.clustering_tuning_report import (
     HINT_AGREEMENT,
     HINT_COPHENETIC,
     HINT_DENDROGRAM,
-    HINT_FILTERED_CURVES,
+    HINT_DBCV_CURVES,
     HINT_HEATMAP,
     HINT_JUMP,
     HINT_LABELS_2D,
@@ -244,68 +244,79 @@ def _density_results(soft: bool = False) -> pd.DataFrame:
         {
             "min_cluster_size": [10, 50, 10, 50],
             "min_samples": [1, 1, 5, 5],
-            "silhouette": [0.30, 0.55, 0.10, np.nan],
-            "davies_bouldin": [0.8, 0.7, 0.9, np.nan],
-            "calinski_harabasz": [1200.0, 300.0, 800.0, np.nan],
             "noise_fraction": [0.2, 0.1, 0.25, 1.0],
             "n_clusters_found": [30.0, 5.0, 12.0, 0.0],
             "largest_cluster_share": [0.1, 0.4, 0.2, np.nan],
+            "dbcv": [0.12, 0.31, -0.04, np.nan],
         }
     )
     if not soft:
         return frame
-    soft_columns = {"membership_mean": 0.6, "membership_share_below_half": 0.4, "persistence_mean": 0.2}
+    soft_columns = {"membership_mean": 0.6, "persistence_mean": 0.2}
     return pd.concat([frame.assign(cluster_selection_method=method, **soft_columns) for method in ("eom", "leaf")], ignore_index=True)
 
 
-def test_tuning_report_of_hdbscan_has_a_table_per_min_samples_with_integer_counts(tmp_path):
+def test_tuning_report_of_hdbscan_has_a_table_per_min_samples_with_integer_counts_and_the_dbcv(tmp_path):
     report = tuning_report_markdown(tmp_path / "run", "hdbscan", Path("matrix"), _density_results())
 
     assert "## min_samples = 1" in report and "## min_samples = 5" in report
-    assert "| min_cluster_size | n_clusters_found | noise_fraction | largest_cluster_share | silhouette | davies_bouldin | calinski_harabasz |" in report
-    assert "| 10 | 30 | 0.200 | 0.100 | 0.300 | 0.800 | 1,200 |" in report
-    assert "| 50 | 0 | 1.000 | – | – | – | – |" in report  # all noise: no share, no index
+    assert "| min_cluster_size | n_clusters_found | noise_fraction | largest_cluster_share | dbcv |" in report
+    assert "| 10 | 30 | 0.200 | 0.100 | 0.120 |" in report
+    assert "| 50 | 0 | 1.000 | – | – |" in report  # all noise: no share, no DBCV
     assert "cluster_selection_method" not in report
 
 
-def test_tuning_report_of_hdbscan_comments_the_negative_silhouettes_the_noise_and_the_cluster_count_of_each_table(tmp_path):
+def test_tuning_report_of_a_density_method_has_no_silhouette_family_columns_and_says_why(tmp_path):
+    report = tuning_report_markdown(tmp_path / "run", "hdbscan", Path("matrix"), _density_results())
+
+    body, terms = report.split("## Termini")
+    for name in ("silhouette", "davies_bouldin", "calinski_harabasz"):
+        assert name not in body
+    assert "Indici non calcolati" in terms and "**`dbcv`**" in terms
+
+
+def test_tuning_report_of_hdbscan_comments_the_dbcv_the_noise_and_the_cluster_count_of_each_table(tmp_path):
     report = tuning_report_markdown(tmp_path / "run", "hdbscan", Path("matrix"), _density_results())
 
     first = report.split("## min_samples = 1")[1].split("## min_samples = 5")[0]
-    assert "- **Silhouette negativa**: nessuna" in first
+    assert "- **DBCV**: da 0.120 (min_cluster_size 10) a 0.310 (min_cluster_size 50)" in first
     assert "- **Rumore**: da 0.100 (min_cluster_size 50) a 0.200 (min_cluster_size 10)" in first
     assert "- **Cluster trovati**: da 5 (min_cluster_size 50) a 30 (min_cluster_size 10)" in first
-    assert "Nessun cluster" not in first
+    assert "Meno di 2 cluster" not in first
     second = report.split("## min_samples = 5")[1]
-    assert "- **Nessun cluster** (tutti i soggetti rumore): 1 su 2 (min_cluster_size 50)" in second
-    assert "- **Silhouette non calcolabile**: 1 su 2 (min_cluster_size 50)" in second
-    assert "- **Dal primo all'ultimo valore** (min_cluster_size): min_cluster_size=10: 0.100, min_cluster_size=50: –" in second
+    assert "- **Meno di 2 cluster** (DBCV non definito): 1 su 2 (min_cluster_size 50)" in second
+    assert "- **DBCV**: da -0.040 (min_cluster_size 10) a -0.040 (min_cluster_size 10)" in second
 
 
-def test_tuning_report_of_hdbscan_links_the_heatmap_only_when_it_exists_and_says_the_noise_is_left_out_of_the_indices(tmp_path):
+def test_tuning_report_of_a_density_method_with_no_dbcv_at_all_says_so(tmp_path):
+    results = _density_results().assign(dbcv=np.nan, n_clusters_found=0.0)
+
+    assert "- **DBCV**: mai definito" in tuning_report_markdown(tmp_path / "run", "hdbscan", Path("matrix"), results)
+
+
+def test_tuning_report_of_hdbscan_links_the_heatmap_and_the_curves_only_when_they_exist(tmp_path):
     run_dir = tmp_path / "run"
     run_dir.mkdir()
-    assert "tuning_plot" not in tuning_report_markdown(run_dir, "hdbscan", Path("matrix"), _density_results())
+    report = tuning_report_markdown(run_dir, "hdbscan", Path("matrix"), _density_results())
+    assert "tuning_plot" not in report and "dbcv_curves" not in report
 
     (run_dir / "tuning_plot.png").write_bytes(b"png")
+    (run_dir / "dbcv_curves.png").write_bytes(b"png")
     report = tuning_report_markdown(run_dir, "hdbscan", Path("matrix"), _density_results())
 
     assert report.count("(tuning_plot.png)") == 1 and report.count(_hint(HINT_HEATMAP)) == 1
-    assert "sui soli soggetti non rumore" in report.split("## Termini")[1]
+    assert report.count("(dbcv_curves.png)") == 1 and report.count(_hint(HINT_DBCV_CURVES)) == 1
 
 
-def test_tuning_report_links_the_filtered_curves_per_selection_method_when_they_exist(tmp_path):
+def test_tuning_report_links_the_dbcv_curves_per_selection_method_when_they_exist(tmp_path):
     run_dir = tmp_path / "run"
     run_dir.mkdir()
-    (run_dir / "noise_filtered_curves_eom.png").write_bytes(b"png")  # leaf has none: no combination under the noise limit
+    (run_dir / "dbcv_curves_cluster_selection_method=eom.png").write_bytes(b"png")
 
     soft = tuning_report_markdown(run_dir, "hdbscan_soft", Path("matrix"), _density_results(soft=True))
-    assert soft.count("(noise_filtered_curves_eom.png)") == 1 and "noise_filtered_curves_leaf" not in soft
-    assert soft.index("(noise_filtered_curves_eom.png)") < soft.index("## cluster_selection_method = leaf")
-    assert soft.count(_hint(HINT_FILTERED_CURVES)) == 1
 
-    (run_dir / "noise_filtered_curves.png").write_bytes(b"png")
-    assert "(noise_filtered_curves.png)" in tuning_report_markdown(run_dir, "hdbscan", Path("matrix"), _density_results())
+    assert soft.count("(dbcv_curves_cluster_selection_method=eom.png)") == 1 and "dbcv_curves_cluster_selection_method=leaf" not in soft
+    assert soft.index("(dbcv_curves_cluster_selection_method=eom.png)") < soft.index("## cluster_selection_method = leaf")
 
 
 def test_tuning_report_of_hdbscan_soft_has_a_section_per_selection_method_and_the_membership_columns(tmp_path):
@@ -317,12 +328,15 @@ def test_tuning_report_of_hdbscan_soft_has_a_section_per_selection_method_and_th
 
     assert report.index("## cluster_selection_method = eom") < report.index("## cluster_selection_method = leaf")
     assert report.count("### min_samples = 1") == 2 and report.count("### min_samples = 5") == 2
-    assert "membership_mean | membership_share_below_half | persistence_mean |" in report
+    assert "dbcv | membership_mean | persistence_mean |" in report
+    assert "membership_share_below_half" not in report  # no threshold on the probability
     assert "(tuning_plot_cluster_selection_method=leaf.png)" in report and "tuning_plot_cluster_selection_method=eom.png" not in report
     assert "**`membership_mean`**" in report.split("## Termini")[1]
 
 
 def test_tuning_report_of_a_density_method_rejects_a_table_without_the_density_columns(tmp_path):
+    with pytest.raises(ValueError, match=r"no column\(s\) \['dbcv'\]"):
+        tuning_report_markdown(tmp_path / "run", "hdbscan", Path("matrix"), _density_results().drop(columns="dbcv"))
     with pytest.raises(ValueError, match=r"no column\(s\) \['largest_cluster_share'\]"):
         tuning_report_markdown(tmp_path / "run", "hdbscan", Path("matrix"), _density_results().drop(columns="largest_cluster_share"))
     with pytest.raises(ValueError, match=r"no column\(s\) \['membership_mean'\]"):
@@ -358,3 +372,11 @@ def test_require_report_evaluations_names_the_method_and_the_missing_evaluations
 def test_require_report_evaluations_refuses_a_method_with_no_report():
     with pytest.raises(ValueError, match="'kmeans' has no report"):
         require_report_evaluations({"general": (), "kmeans": ()}, ("kmeans",))
+
+
+def test_the_agglomerative_report_says_calinski_harabasz_and_davies_bouldin_are_undefined_for_a_non_euclidean_metric(tmp_path):
+    report = _agglomerative_report(tmp_path, _agglomerative_results())
+
+    cosine = report.split("## metric = cosine")[1]
+    assert "non sono definiti per `cosine`" in cosine.split("###")[0]
+    assert "non sono definiti" not in report.split("## metric = cosine")[0]

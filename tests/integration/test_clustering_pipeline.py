@@ -665,9 +665,8 @@ def test_clustering_production_hdbscan_soft_saves_the_membership_matrix_and_own_
 
 
 def test_clustering_fine_tuning_hdbscan_min_samples_joint_sweep_writes_heatmap(tmp_path, monkeypatch):
-    """project-clustering-tuning-redesign memory (26-08-26): min_cluster_size x min_samples
-    reuses the existing 2-swept-param heatmap mechanism, in a single sweep run (no repeated/
-    sequential tuning runs)."""
+    """min_cluster_size x min_samples in a single sweep run. The map includes DBCV, which the sweep does not
+    compute: the tuning_heatmaps evaluation draws it from density_metrics.csv, right after the sweep."""
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
@@ -690,9 +689,9 @@ def test_clustering_fine_tuning_hdbscan_min_samples_joint_sweep_writes_heatmap(t
         "overwrite": False,
         "fine_tuning": True,
         "reduced_data": False,
-        "save_tuning_clusterings": False,
+        "save_tuning_clusterings": True,
         "evaluations_file": "config/registry/clustering_evaluations.json",
-        "tuning_evaluations": {"general": [], "hdbscan": []},
+        "tuning_evaluations": {"general": [], "hdbscan": ["density_metrics", "tuning_heatmaps", "dbcv_curves"]},
         "write_report": False,
         "run_notes": None,
     }
@@ -702,16 +701,41 @@ def test_clustering_fine_tuning_hdbscan_min_samples_joint_sweep_writes_heatmap(t
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
     tuning_dir = next(p for p in (output_root / "tuning" / "hdbscan" / "umap").iterdir() if p.is_dir())
-    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0  # heatmap, 2 swept params
+    for name in ("tuning_plot.png", "dbcv_curves.png"):  # drawn by the evaluations, not by the sweep
+        assert (tuning_dir / name).stat().st_size > 0
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert len(results) == 4
     assert set(results["min_samples"]) == {2, 5}
+    assert not {"silhouette", "calinski_harabasz", "davies_bouldin"} & set(results.columns)  # DBCV is the index of the density methods
+    assert "dbcv" in pd.read_csv(tuning_dir / "density_metrics.csv").columns
+
+
+def test_clustering_fine_tuning_hdbscan_without_evaluations_draws_no_map(tmp_path, monkeypatch):
+    """The map of the density methods is an evaluation: a config that declares none gets none, and no error."""
+    input_dir = _build_matrix(tmp_path, monkeypatch)
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({"hdbscan": {"params": {}, "tuning_grid": {"min_cluster_size": [2, 5], "min_samples": [2, 5]}}}))
+    cfg = {
+        "project": "testproj", "input_path": str(input_dir), "reduction_method": "umap", "clustering_methods": ["hdbscan"],
+        "params_file": str(params_path), "output_root": str(tmp_path / "cl_out"), "session_name": "tune_none", "overwrite": False,
+        "fine_tuning": True, "reduced_data": False, "save_tuning_clusterings": False,
+        "evaluations_file": "config/registry/clustering_evaluations.json", "tuning_evaluations": {"general": [], "hdbscan": []},
+        "write_report": False, "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    tuning_dir = next(p for p in (tmp_path / "cl_out" / "tuning" / "hdbscan" / "umap").iterdir() if p.is_dir())
+    assert not (tuning_dir / "tuning_plot.png").exists() and (tuning_dir / "tuning_results.csv").is_file()
 
 
 def test_clustering_fine_tuning_hdbscan_soft_writes_one_heatmap_per_cluster_selection_method(tmp_path, monkeypatch):
     """hdbscan_soft sweeps min_cluster_size x min_samples x cluster_selection_method: a heatmap is 2-D,
-    so the pipeline writes one tuning_plot per selection method, with the three membership columns."""
+    so the tuning_heatmaps evaluation writes one tuning_plot per selection method, with the two fit-derived columns."""
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
@@ -739,9 +763,9 @@ def test_clustering_fine_tuning_hdbscan_soft_writes_one_heatmap_per_cluster_sele
         "overwrite": False,
         "fine_tuning": True,
         "reduced_data": False,
-        "save_tuning_clusterings": False,
+        "save_tuning_clusterings": True,
         "evaluations_file": "config/registry/clustering_evaluations.json",
-        "tuning_evaluations": {"general": [], "hdbscan_soft": []},
+        "tuning_evaluations": {"general": [], "hdbscan_soft": ["density_metrics", "tuning_heatmaps", "dbcv_curves"]},
         "write_report": False,
         "run_notes": None,
     }
@@ -753,10 +777,12 @@ def test_clustering_fine_tuning_hdbscan_soft_writes_one_heatmap_per_cluster_sele
     tuning_dir = next(p for p in (output_root / "tuning" / "hdbscan_soft" / "umap").iterdir() if p.is_dir())
     for selection in ("eom", "leaf"):
         assert (tuning_dir / f"tuning_plot_cluster_selection_method={selection}.png").stat().st_size > 0
+        assert (tuning_dir / f"dbcv_curves_cluster_selection_method={selection}.png").stat().st_size > 0
 
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert len(results) == 8
-    assert {"membership_mean", "membership_share_below_half", "persistence_mean"} <= set(results.columns)
+    assert {"membership_mean", "persistence_mean"} <= set(results.columns)
+    assert "membership_share_below_half" not in results.columns  # no threshold on the probability
 
 
 def test_clustering_end_to_end_multiple_methods_writes_each_method_independently(tmp_path, monkeypatch):
@@ -2223,3 +2249,61 @@ def test_clustering_fine_tuning_adp_metric_and_z_sweep_writes_one_line_per_metri
     assert results.loc[results["metric"] == "dice", "calinski_harabasz"].isna().all()
     assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
     assert set(np.load(tuning_dir / "clusterings.npz").files) == {"metric=dice,Z=1.65", "metric=dice,Z=4.0", "metric=euclidean,Z=1.65", "metric=euclidean,Z=4.0"}
+
+
+def _blobs_with_noise() -> tuple[np.ndarray, np.ndarray]:
+    rng = np.random.default_rng(0)
+    X = np.vstack([rng.normal(centre, 0.3, (30, 2)) for centre in (0.0, 8.0)] + [rng.uniform(-20, 30, (6, 2))])
+    return X, np.array([0] * 30 + [1] * 30 + [-1] * 6)
+
+
+def test_run_dbcv_of_a_production_result_has_a_row_per_cluster_with_its_size():
+    X, labels = _blobs_with_noise()
+
+    result = clustering._run_dbcv(X, labels, {"min_cluster_size": 5})
+
+    assert result.note == "" and 0 < result.score <= 1
+    assert result.clusters["cluster"].tolist() == [0, 1] and result.clusters["n"].tolist() == [30, 30]
+
+
+def test_run_dbcv_is_undefined_with_the_reason_for_fewer_than_two_clusters_and_for_a_non_euclidean_run(caplog):
+    X, labels = _blobs_with_noise()
+
+    with caplog.at_level("WARNING"):
+        one = clustering._run_dbcv(X, np.where(labels == 0, 0, -1), {})
+        cosine = clustering._run_dbcv(X, labels, {"metric": "cosine"})
+
+    assert np.isnan(one.score) and one.clusters.empty and "fewer than 2 clusters" in one.note
+    assert np.isnan(cosine.score) and "Euclidean" in cosine.note
+    assert caplog.text.count("no DBCV for this run") == 2
+
+
+def test_clustering_production_hdbscan_writes_the_dbcv_files_and_no_silhouette(tmp_path, monkeypatch):
+    """Two blobs and a few outliers: hdbscan finds clusters, so config.md carries the DBCV and the run folder the per-cluster
+    table and plot; the silhouette (non-noise subjects only, compact clusters) is not computed for this method."""
+    from src.utils.artifacts import save_matrix
+
+    monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
+    X, _ = _blobs_with_noise()
+    input_dir = tmp_path / "matrix_in"
+    save_matrix(input_dir, X, pd.DataFrame({"subject_id": [f"sub-STUNIPD{i:04d}" for i in range(len(X))], "dataset": "siteA"}), ["# blobs"], overwrite=False)
+    params_path = tmp_path / "params_clustering.json"
+    params_path.write_text(json.dumps({"hdbscan": {"params": {"min_cluster_size": 10}}}))
+    cfg = {
+        "project": "testproj", "input_path": str(input_dir), "reduction_method": "umap", "clustering_methods": ["hdbscan"],
+        "params_file": str(params_path), "output_root": str(tmp_path / "cl_out"), "session_name": "run1", "overwrite": False,
+        "fine_tuning": False, "reduced_data": False, "save_tuning_clusterings": False,
+        "evaluations_file": "config/registry/clustering_evaluations.json", "tuning_evaluations": {"general": [], "hdbscan": []},
+        "write_report": False, "run_notes": None,
+    }
+    cfg_path = tmp_path / "cl.json"
+    cfg_path.write_text(json.dumps(cfg))
+
+    assert clustering.main(["--config", str(cfg_path)]) == 0
+
+    out_dir = next(p for p in (tmp_path / "cl_out" / "production" / "hdbscan" / "umap").iterdir() if p.is_dir())
+    table = pd.read_csv(out_dir / "dbcv_per_cluster.csv")
+    assert list(table.columns) == ["cluster", "n", "dbcv"] and len(table) >= 2
+    assert (out_dir / "dbcv_plot.png").stat().st_size > 0
+    assert "DBCV: " in (out_dir / "config.md").read_text() and "(euclidean)" in (out_dir / "config.md").read_text()
+    assert not (out_dir / "silhouette_plot.png").exists() and not (out_dir / "silhouette_per_cluster.csv").exists()
