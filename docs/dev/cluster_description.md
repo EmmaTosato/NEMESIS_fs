@@ -1,6 +1,6 @@
 # Cluster description — technical reference
 
-Audience: developers/agents working on `src/analysis/cluster_description.py` and the "Descrizione del cluster" panel it feeds in `src/analysis/embedding_app.py`. For how the panel looks/behaves from a user's point of view, see `docs/guides/embedding_app.md` ("Descrizione del cluster"). For the anatomy panels (lesion/SDC maps) this one sits alongside, see `docs/dev/anatomical_maps.md` — this panel is deliberately **not** documented there: it never touches a lesion mask or disconnectome file, only `assets/metadata/participants.csv`.
+Audience: developers/agents working on `src/analysis/cluster_description.py` and the "Cluster description" panel it feeds in `src/analysis/embedding_app.py`. For how the panel looks/behaves from a user's point of view, see `docs/guides/embedding_app.md` ("Cluster description"). For the anatomy panels (lesion/SDC maps) this one sits alongside, see `docs/dev/anatomical_maps.md` — this panel is deliberately **not** documented there: it never touches a lesion mask or disconnectome file, only `assets/metadata/participants.csv`.
 
 ## Why every variable comes from `participants.csv`, never a run's own `metadata.csv`
 
@@ -119,7 +119,7 @@ These are members of `plotting._CATEGORICAL_PALETTE` (a test pins that), but **n
 
 Every bar is direct-labeled. With 2–3 categories that is a handful of numbers, not the "a value on every point" clutter the rule warns against — and the palette's lighter slots sit below 3:1 against a white surface, which obliges a visible label rather than making it optional.
 
-Rendered in `embedding_app.py` as a plain `dcc.Graph` with the same minimal `modeBarButtons=[["toImage"]]` config as the main embedding scatter — no custom "Salva HTML"/"Salva PNG" buttons. Those exist on the anatomy panels specifically because `nilearn`'s `view_img` HTML has no built-in static-image export (see `docs/dev/anatomical_maps.md`); a Plotly figure already has one (the camera icon), so duplicating it here would be redundant, not more consistent.
+Rendered in `embedding_app.py` as a plain `dcc.Graph` with the same minimal `modeBarButtons=[["toImage"]]` config as the main embedding scatter — no custom "Save HTML"/"Save PNG" buttons. Those exist on the anatomy panels specifically because `nilearn`'s `view_img` HTML has no built-in static-image export (see `docs/dev/anatomical_maps.md`); a Plotly figure already has one (the camera icon), so duplicating it here would be redundant, not more consistent.
 
 ## `clusters_comparison_stats(metadata) -> list[ClusterStats]`
 

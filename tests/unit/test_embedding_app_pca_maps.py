@@ -101,9 +101,9 @@ def test_run_component_maps_refuses_what_is_not_a_pca_dim_reduction_run(tmp_path
     scores, matrix = _scores_and_matrix()
     source = _source_dir(tmp_path, matrix)
 
-    with pytest.raises(ValueError, match="solo per i run di dim_reduction con metodo pca"):
+    with pytest.raises(ValueError, match="only for dim_reduction runs with the pca method"):
         run_component_maps(_pca_run(tmp_path / "a", scores, source, method="umap"), ComponentMapStore(tmp_path / "cache"))
-    with pytest.raises(ValueError, match="solo per i run di dim_reduction con metodo pca"):
+    with pytest.raises(ValueError, match="only for dim_reduction runs with the pca method"):
         run_component_maps(_pca_run(tmp_path / "b", scores, source, pipeline="clustering"), ComponentMapStore(tmp_path / "cache"))
 
 
@@ -111,7 +111,7 @@ def test_run_component_maps_names_a_missing_or_non_voxelwise_source(tmp_path):
     scores, matrix = _scores_and_matrix()
     store = ComponentMapStore(tmp_path / "cache")
 
-    with pytest.raises(ValueError, match="non esiste"):
+    with pytest.raises(ValueError, match="does not exist"):
         run_component_maps(_pca_run(tmp_path / "a", scores, tmp_path / "no_such_matrix"), store)
     with pytest.raises(ValueError, match="non_constant_mask.npy"):
         run_component_maps(_pca_run(tmp_path / "b", scores, _source_dir(tmp_path / "src", matrix, mask=False)), store)
@@ -137,13 +137,13 @@ def test_the_component_view_is_centred_on_the_peak_and_returns_its_t(tmp_path):
 
 def test_the_component_view_refuses_an_unknown_component_and_an_all_zero_map(tmp_path):
     data = _data(tmp_path)
-    with pytest.raises(ValueError, match="la componente 3 non esiste"):
+    with pytest.raises(ValueError, match="component 3 does not exist"):
         _build_component_map_view(data, 3)
     zeros = ComponentMapData(
         maps=ComponentMapSet(t=np.zeros((1, 40), dtype=np.float32), reproducibility=np.array([0.5]), n_degenerate_voxels=0),
         geometry=data.geometry, source_modified_after_run=False,
     )
-    with pytest.raises(ValueError, match="tutta a zero"):
+    with pytest.raises(ValueError, match="is all zero"):
         _build_component_map_view(zeros, 1)
 
 
@@ -162,9 +162,9 @@ def test_the_panel_shows_the_reproducibility_graph_and_the_chosen_component(tmp_
 
     text = _text(content)
     assert pending is False
-    assert "Componente 2: t massimo 9, riproducibilità 0,40" in text
-    assert "Riproducibilità media 0,675" in text and "(componente 2)" in text  # the weakest component
-    assert len(_find(content, dcc.Graph)) == 1 and "Attenzione" not in text
+    assert "Component 2: max t 9, reproducibility 0,40" in text
+    assert "Mean reproducibility 0,675" in text and "(component 2)" in text  # the weakest component
+    assert len(_find(content, dcc.Graph)) == 1 and "Warning" not in text
 
 
 def test_the_panel_warns_when_the_source_matrix_changed_after_the_run(tmp_path):
@@ -173,7 +173,7 @@ def test_the_panel_warns_when_the_source_matrix_changed_after_the_run(tmp_path):
 
     content, _pending = component_maps_content_for(run, 1, lambda _run: data, _stub_view)
 
-    assert "Attenzione" in _text(content) and "modificata dopo il run" in _text(content)
+    assert "Warning" in _text(content) and "modified after the run" in _text(content)
 
 
 def test_the_panel_says_it_is_computing_and_asks_to_keep_polling(tmp_path):
@@ -181,7 +181,7 @@ def test_the_panel_says_it_is_computing_and_asks_to_keep_polling(tmp_path):
 
     content, pending = component_maps_content_for(run, 1, lambda _run: None, _stub_view)
 
-    assert pending is True and "in corso" in _text(content)
+    assert pending is True and "Computing" in _text(content)
 
 
 def test_the_panel_names_the_cause_when_the_maps_cannot_be_made(tmp_path):

@@ -54,11 +54,11 @@ class CompositionVariable:
 
 COMPOSITION_VARIABLES: list[CompositionVariable] = [
     CompositionVariable("dataset", "Dataset", "categorical", "dataset"),
-    CompositionVariable("lesion_side", "Lato della lesione", "categorical", "lesion_side", category_order=("left", "right", "both")),
-    CompositionVariable("location_dominant", "Localizzazione dominante della lesione", "categorical", "location_dominant_2mm"),
+    CompositionVariable("lesion_side", "Lesion side", "categorical", "lesion_side", category_order=("left", "right", "both")),
+    CompositionVariable("location_dominant", "Dominant lesion location", "categorical", "location_dominant_2mm"),
     CompositionVariable("nihss", "NIHSS", "continuous", "NIHSS"),
-    CompositionVariable("lesion_volume", "Volume della lesione (voxel, 2mm)", "continuous", "lesion_volume_voxels_2mm", log_scale=True),
-    CompositionVariable("disconnection_load", "Carico di disconnessione (voxel, 2mm)", "continuous", "disconnection_load_voxels_2mm"),
+    CompositionVariable("lesion_volume", "Lesion volume (voxels, 2mm)", "continuous", "lesion_volume_voxels_2mm", log_scale=True),
+    CompositionVariable("disconnection_load", "Disconnection load (voxels, 2mm)", "continuous", "disconnection_load_voxels_2mm"),
 ]
 
 
@@ -153,11 +153,11 @@ def build_composition_figure(frame: pd.DataFrame, variable: CompositionVariable)
                 customdata=list(zip(counts[category], shares[category])),
                 marker=dict(color=palette[category], line=dict(color="white", width=1)),
                 hovertemplate=(
-                    "cluster %{y}<br>" + category + ": %{customdata[0]} soggetti (%{customdata[1]:.1f}% del cluster)<extra></extra>"
+                    "cluster %{y}<br>" + category + ": %{customdata[0]} subjects (%{customdata[1]:.1f}% of the cluster)<extra></extra>"
                 ),
             ))
         fig.update_layout(barmode="stack", barnorm="percent", legend=dict(orientation="h", y=-0.38, x=0))
-        fig.update_xaxes(title_text="% del cluster", range=[0, 100])
+        fig.update_xaxes(title_text="% of the cluster", range=[0, 100])
         fig.update_yaxes(title_text="cluster", type="category", autorange="reversed")
 
     fig.update_xaxes(gridcolor=_GRIDLINE_COLOR, zeroline=False)

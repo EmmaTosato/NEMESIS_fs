@@ -21,7 +21,6 @@ from src.analysis.clustering_evaluation import (
     geometric_summary,
     knn_purity,
     model_fit_metrics,
-    noise_warning,
     per_cluster_silhouette,
     require_applicable,
     saturated_pair_share,
@@ -71,30 +70,17 @@ def test_a_run_is_accepted_exactly_by_the_evaluations_that_list_its_method(evalu
 
 
 def test_an_unknown_evaluation_is_refused_with_the_list_of_known_ones():
-    with pytest.raises(ValueError, match="valutazione sconosciuta"):
+    with pytest.raises(ValueError, match="unknown evaluation"):
         require_applicable("silhouette_magica", "kmeans")
 
 
 def test_every_method_gets_some_evaluation_of_its_geometry():
     for method in CLUSTERING_METHODS:
-        assert method in EVALUATIONS["geometric_metrics"].methods or method in EVALUATIONS["knn_purity"].methods
+        assert any(method in EVALUATIONS[name].methods for name in ("geometric_metrics", "knn_purity", "dbcv"))
 
 
-# --- noise_warning --------------------------------------------------------------------------------
-
-
-@given(st.floats(0, 1), st.floats(0, 1))
-def test_noise_warning_exists_exactly_when_the_noise_exceeds_the_threshold(fraction, threshold):
-    message = noise_warning("run-A", fraction, threshold)
-    assert (message is not None) == (fraction > threshold)
-    if message is not None:
-        assert message.startswith("run-A:") and "%" in message and "." not in message.split(":")[1].split("%")[0]  # virgola decimale
-
-
-@pytest.mark.parametrize("fraction, threshold", [(-0.1, 0.5), (1.1, 0.5), (0.5, -0.1), (0.5, 1.5), (float("nan"), 0.5), (0.5, float("nan"))])
-def test_noise_warning_refuses_values_outside_the_unit_interval(fraction, threshold):
-    with pytest.raises(ValueError, match="must be in"):
-        noise_warning("run", fraction, threshold)
+def test_no_method_gets_both_the_geometric_indices_and_dbcv():
+    assert not EVALUATIONS["geometric_metrics"].methods & EVALUATIONS["dbcv"].methods
 
 
 # --- saturated_pair_share -------------------------------------------------------------------------
@@ -362,14 +348,14 @@ def _soft_run(draw, min_clusters: int = 1):
     return labels, membership
 
 
-@given(_soft_run(), st.floats(0.05, 1.0))
-def test_soft_summary_accounts_for_every_subject_and_keeps_probabilities_in_range(run, threshold):
+@given(_soft_run())
+def test_soft_summary_accounts_for_every_subject_and_keeps_probabilities_in_range(run):
     labels, membership = run
-    summary = soft_membership_summary(labels, membership, threshold)
+    summary = soft_membership_summary(labels, membership)
     k = membership.shape[1]
     assert summary.clusters["n"].sum() == (labels != -1).sum()
     assert summary.n_noise == (labels == -1).sum()
-    assert summary.clusters["own_mean"].between(0, 1).all() and summary.clusters["share_below_threshold"].between(0, 1).all()
+    assert summary.clusters["own_mean"].between(0, 1).all()
     np.testing.assert_allclose(np.diag(summary.mean_vectors.loc[list(range(k))].to_numpy()), summary.clusters["own_mean"].to_numpy())
     assert (-1 in summary.mean_vectors.index) == bool((labels == -1).any())  # il rumore ha il suo vettore medio solo se c'è
     if k > 1:
@@ -377,14 +363,6 @@ def test_soft_summary_accounts_for_every_subject_and_keeps_probabilities_in_rang
         assert summary.clusters["top_other_mean"].between(0, 1).all()
     else:
         assert summary.clusters["top_other_mean"].isna().all()  # un solo cluster: nessun "altro", NaN e non 0
-
-
-@given(_soft_run(), st.floats(0.05, 0.5), st.floats(0.0, 0.5))
-def test_a_higher_threshold_can_only_raise_the_share_below_it(run, threshold, extra):
-    labels, membership = run
-    low = soft_membership_summary(labels, membership, threshold).clusters["share_below_threshold"]
-    high = soft_membership_summary(labels, membership, min(1.0, threshold + extra)).clusters["share_below_threshold"]
-    assert (high >= low - 1e-12).all()
 
 
 @given(_soft_run(), st.integers(1, 40))
@@ -407,14 +385,12 @@ def test_weakest_members_are_the_lowest_own_probabilities_noise_excluded(run, n_
 def test_soft_summary_and_weakest_refuse_inconsistent_inputs():
     labels = np.array([0, 0, 1, 1, -1])
     good = np.full((5, 2), 0.5)
-    with pytest.raises(ValueError, match="threshold"):
-        soft_membership_summary(labels, good, 0.0)
     with pytest.raises(ValueError, match="every subject is noise"):
-        soft_membership_summary(np.full(5, -1), np.empty((5, 0)), 0.5)
+        soft_membership_summary(np.full(5, -1), np.empty((5, 0)))
     with pytest.raises(ValueError, match="0..k-1"):
-        soft_membership_summary(np.array([0, 0, 2, 2, -1]), good, 0.5)
+        soft_membership_summary(np.array([0, 0, 2, 2, -1]), good)
     with pytest.raises(ValueError, match="must be"):
-        soft_membership_summary(labels, good[:4], 0.5)
+        soft_membership_summary(labels, good[:4])
     with pytest.raises(ValueError, match="n_lowest"):
         weakest_soft_members(labels, good, 0)
     with pytest.raises(ValueError, match="every subject is noise"):

@@ -108,7 +108,7 @@ class ChiSquareResult:
 
 def cluster_name(label: int) -> str:
     """Display name of a cluster label: hdbscan's -1 bucket is noise, not a cluster named "-1"."""
-    return "rumore" if label == _NOISE_LABEL else str(label)
+    return "noise" if label == _NOISE_LABEL else str(label)
 
 
 def _require_comparable_metadata(metadata: pd.DataFrame, name: str) -> None:

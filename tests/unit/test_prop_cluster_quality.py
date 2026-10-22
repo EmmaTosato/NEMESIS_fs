@@ -144,8 +144,8 @@ def test_the_heatmap_holds_the_table_unchanged_with_one_row_per_cluster_and_nois
 
     np.testing.assert_array_equal(np.asarray(heatmap.z), table.to_numpy())
     assert list(heatmap.x) == [f"cluster {int(c)}" for c in table.columns]
-    assert list(heatmap.y) == ["rumore" if int(label) == -1 else f"cluster {int(label)}" for label in table.index]
-    assert ("rumore" in list(heatmap.y)) == (-1 in table.index)
+    assert list(heatmap.y) == ["noise" if int(label) == -1 else f"cluster {int(label)}" for label in table.index]
+    assert ("noise" in list(heatmap.y)) == (-1 in table.index)
     assert (heatmap.zmin, heatmap.zmax) == (0, 1)
 
 

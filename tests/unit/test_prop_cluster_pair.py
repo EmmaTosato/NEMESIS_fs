@@ -100,7 +100,7 @@ def test_counts_exclude_missing_values_and_statistics_stay_in_range(args):
         assert p.dropna().between(0, 1).all() and p_fdr.dropna().between(0, 1).all()
         assert (p_fdr.dropna() >= p.dropna() - 1e-12).all()  # BH non abbassa mai un p
     categorical = comparison.categorical
-    assert categorical[["share_1", "share_2"]].stack().dropna().between(0, 1).all()  # NaN = lato con meno di 2 soggetti
+    assert categorical[["share_1", "share_2"]].stack().dropna().between(0, 1).all()  # NaN = lato con meno di 2 subjects
     assert (categorical["n_1"] + categorical["n_2"] > 0).all()
 
 
@@ -119,10 +119,10 @@ def test_a_column_that_is_entirely_missing_leaves_its_tests_missing_not_zero():
     pair.frame["age"] = np.nan
     pair.frame["sex"] = np.nan
     comparison = pair_clinical_comparison(pair, 4)
-    age = comparison.numeric.set_index("variable").loc["Età (anni)"]
+    age = comparison.numeric.set_index("variable").loc["Age (years)"]
     assert age["n_1"] == 0 and age["n_2"] == 0
     assert np.isnan(age[["median_1", "median_2", "r", "p"]].astype(float)).all()
-    assert "Sesso" not in set(comparison.categorical["variable"])  # nessuna categoria da testare
+    assert "Sex" not in set(comparison.categorical["variable"])  # nessuna categoria da testare
 
 
 @pytest.mark.parametrize("label_1", [4, 9])

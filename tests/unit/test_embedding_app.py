@@ -372,7 +372,7 @@ def test_view_note_for_names_the_twin_only_when_the_run_is_drawn_on_it(tmp_path)
     note = view_note_for(run)
 
     assert twin_dir.name in note
-    assert "10 componenti" in note
+    assert "10 components" in note
     assert view_note_for(direct) is None
 
 
@@ -425,10 +425,10 @@ def test_graph_content_for_clustering_on_10_components_draws_the_twin_and_says_s
 
     figure = graph.figure
     twin_embedding, _m, _ = load_matrix(twin_dir)
-    drawn_x = np.concatenate([np.asarray(trace.x, dtype=float) for trace in figure.data if trace.name != "centroide"])
+    drawn_x = np.concatenate([np.asarray(trace.x, dtype=float) for trace in figure.data if trace.name != "centroid"])
     np.testing.assert_array_equal(np.sort(drawn_x), np.sort(twin_embedding[:, 0]))
     assert twin_dir.name in figure.layout.annotations[0].text
-    assert any(trace.name == "centroide" for trace in figure.data)
+    assert any(trace.name == "centroid" for trace in figure.data)
 
 
 def _embedding_and_metadata(n=4):
@@ -1367,7 +1367,7 @@ def test_lesion_save_buttons_do_not_use_stale_clickdata_after_run_switch(tmp_pat
     # "run-picker"). The Save buttons read clickData directly via State, so with the old code
     # pressing "Salva HTML"/"Salva PNG" right after switching runs - without clicking a new point
     # on the new run - silently downloaded the *previous* run's clicked subject, with the visible
-    # panel already showing "Clicca un punto..." and no indication of what was actually
+    # panel already showing "Click a point..." and no indication of what was actually
     # downloaded. Exercised through the real Dash callbacks (Flask test client), not the
     # underlying pure functions, since the bug lived in the callback wiring itself (which State
     # each callback reads), not in graph_content_for/lesion_viewer_content_for.
@@ -1424,7 +1424,7 @@ def test_lesion_save_buttons_do_not_use_stale_clickdata_after_run_switch(tmp_pat
     assert resp.status_code == 200
     response = resp.get_json()["response"]
     assert response["lesion-viewer-subject"]["data"] is None
-    assert "Clicca un punto" in json.dumps(response["lesion-viewer-content"]["children"])
+    assert "Click a point" in json.dumps(response["lesion-viewer-content"]["children"])
 
     # 3) Press "Salva HTML" without clicking a new point on run-b - the Save callback now reads
     # the just-reset Store (None), not the still-stale embedding-graph.clickData, so it must not
@@ -1576,7 +1576,7 @@ def test_cluster_centroids_trace_starts_hidden_but_stays_in_the_legend():
     _add_cluster_centroids_trace(figure, embedding, metadata)
 
     trace = figure.data[-1]
-    assert trace.name == "centroide"
+    assert trace.name == "centroid"
     assert trace.visible == "legendonly"
     assert trace.showlegend is True
 
@@ -1620,7 +1620,7 @@ def test_representative_subject_content_for_lesion_modality_returns_iframe(tmp_p
     heading, caption, viewer_wrap = content.children
     assert "Cluster 0" in heading.children
     assert "sub-STUNIPD0001" in heading.children
-    assert "distanza=" in caption.children
+    assert "distance=" in caption.children
     assert isinstance(viewer_wrap.children, html.Iframe)
 
 
@@ -1670,7 +1670,7 @@ def test_graph_content_for_adds_centroid_trace_for_clustering_run(tmp_path):
 
     assert isinstance(content, dcc.Graph)
     trace_names = [trace.name for trace in content.figure.data]
-    assert "centroide" in trace_names
+    assert "centroid" in trace_names
 
 
 def test_graph_content_for_no_centroid_trace_for_dim_reduction_run(tmp_path):
@@ -1682,7 +1682,7 @@ def test_graph_content_for_no_centroid_trace_for_dim_reduction_run(tmp_path):
 
     assert isinstance(content, dcc.Graph)
     trace_names = [trace.name for trace in content.figure.data]
-    assert "centroide" not in trace_names
+    assert "centroid" not in trace_names
 
 
 _PARTICIPANTS_REGISTRY_COLUMNS = ["subject_id", "original_id", "dataset", "disease_id", "has_lesion", "has_sdc", "has_features"]
@@ -1828,7 +1828,7 @@ def test_cluster_description_table_labels_the_noise_bucket_not_as_a_cluster(_par
 
     rows = _table_rows(cluster_description_content_for(metadata, 0))
 
-    assert rows[0].children[0].children.children[1] == "Rumore"
+    assert rows[0].children[0].children.children[1] == "Noise"
     assert rows[1].children[0].children.children[1] == "Cluster 0"
 
 
@@ -1964,7 +1964,7 @@ def test_description_sits_between_the_section_heading_and_the_plot(tmp_path):
     heading = next(i for i, child in enumerate(content) if getattr(child, "children", None) == "Embedding Visualization")
     assert ids[heading + 1] == "color-description"
     assert ids[heading + 2] == "graph-area"
-    assert content[heading + 1].children == color_mode_description("neutro")
+    assert content[heading + 1].children == color_mode_description("neutral")
 
 
 def test_cluster_composition_content_for_returns_one_graph_per_variable(_participants_registry_root):

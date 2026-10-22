@@ -221,7 +221,7 @@ A 2 mm `nearest` è un sottocampionamento (un voxel su otto), quindi il carico a
 
 Alternative considerate e scartate (`.claude/history/methods_changelog.md`):
 
-- **Volume sogliato** (`#{p > 0.5}`): è la soglia che il pannello "Disconnessione per cluster" dell'app già usa, ma una soglia è una scelta in più da giustificare, e su 200 soggetti ordina quasi come la somma (Spearman 0,993) pur avendo un soggetto su 200 a zero. Non scritto.
+- **Volume sogliato** (`#{p > 0.5}`): è la soglia che il pannello "Disconnection per cluster" dell'app già usa, ma una soglia è una scelta in più da giustificare, e su 200 soggetti ordina quasi come la somma (Spearman 0,993) pur avendo un soggetto su 200 a zero. Non scritto.
 - **`n_nonzero_voxels` di BCBToolKit**: misura quanto *si diffonde* la disconnessione, non quanta ce n'è. Il minimo non nullo è costante a `1/178 = 0,0056` (un solo donatore sano), quindi conta qualunque traccia: mediana 36% del cervello, fino al 91%.
 - **`map_mean_nonzero`** (media sui soli voxel non nulli): il denominatore varia per soggetto, quindi non è un carico ma un'intensità. Variabile genuinamente diversa, non richiesta.
 - **Leggere i `mapstats.tsv` di BCBToolKit** invece di aprire i NIfTI: `map_sum` coincide al decimale con quello ricalcolato (verificato), ma non è mascherato sul cervello e non permette soglie. Si preferisce la misura nostra, con la scelta in/fuori dal cervello esplicita.

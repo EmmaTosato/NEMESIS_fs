@@ -168,7 +168,7 @@ def _same_embedding_pair():
 
 
 def test_cluster_name_labels_noise():
-    assert cluster_name(-1) == "rumore"
+    assert cluster_name(-1) == "noise"
     assert cluster_name(3) == "3"
 
 

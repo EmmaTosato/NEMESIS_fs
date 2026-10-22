@@ -154,8 +154,8 @@ COLOR_MODES: dict[str, ColorMode] = {
     "dataset": ColorMode(
         kind="categorical", column="dataset", label="dataset",
         description=(
-            "Punti colorati per coorte di provenienza. Mostra se l'embedding separa i pazienti "
-            "per sito o per acquisizione invece che per la lesione."
+            "Points colored by cohort of origin. It shows whether the embedding separates patients "
+            "by site or acquisition rather than by lesion."
         ),
     ),
     # "unknown" sentinel for an unresolvable subject (dataset-wide gap, e.g. PASPORT has no
@@ -165,8 +165,8 @@ COLOR_MODES: dict[str, ColorMode] = {
     "side": ColorMode(
         kind="categorical", column="lesion_side", label="lesion side", registry_column="lesion_side",
         description=(
-            "Punti colorati per lato della lesione (left, right, both), preso dalla clinica dove è "
-            "registrato e altrimenti dalla maschera della lesione. Grigio: lato non disponibile."
+            "Points colored by lesion side (left, right, both), taken from the clinical record where it is "
+            "recorded and otherwise from the lesion mask. Gray: side not available."
         ),
     ),
     # The anatomical category holding most of the lesion (compute_lesion_metadata's
@@ -177,9 +177,9 @@ COLOR_MODES: dict[str, ColorMode] = {
         kind="categorical", column=_LOCATION_COLUMN, registry_column=_LOCATION_COLUMN, label="lesion location",
         categories=_LOCATION_CATEGORIES,
         description=(
-            "Punti colorati per sede della lesione: la categoria anatomica che ne contiene la quota maggiore. "
-            "cortex_white_boundary sono i voxel su cui i due atlanti non concordano (corteccia o bianca). "
-            "Grigio: sede non disponibile."
+            "Points colored by lesion location: the anatomical category that holds the largest share of it. "
+            "cortex_white_boundary are the voxels on which the two atlases disagree (cortex or white matter). "
+            "Gray: location not available."
         ),
     ),
     "volume": ColorMode(
@@ -188,8 +188,8 @@ COLOR_MODES: dict[str, ColorMode] = {
         registry_column=grid_column("volume", DEFAULT_GRID),
         label="lesion volume",
         description=(
-            "Punti colorati per volume della lesione, in voxel sulla griglia scelta, con scala "
-            "logaritmica. Grigio: volume nullo o mancante."
+            "Points colored by lesion volume, in voxels on the chosen grid, with a "
+            "logarithmic scale. Gray: zero or missing volume."
         ),
         # Heavily right-skewed (a handful of large-lesion outliers otherwise
         # stretch a linear scale so far that almost every other point looks
@@ -215,9 +215,9 @@ COLOR_MODES: dict[str, ColorMode] = {
         registry_column=grid_column("disconnection_load", DEFAULT_GRID),
         label="disconnection load",
         description=(
-            "Punti colorati per quanta disconnessione strutturale ha il paziente in totale: la somma, "
-            "su tutti i voxel del suo cervello, della probabilità di disconnessione di ciascun voxel, "
-            "nella griglia scelta, con scala lineare."
+            "Points colored by how much structural disconnection the patient has in total: the sum, "
+            "over all voxels of the brain, of the disconnection probability of each voxel, "
+            "on the chosen grid, with a linear scale."
         ),
         # Restricted to sdc runs, unlike volume/side/nihss (26-10-06, on request): a "lesion"
         # run's own embedding is about lesion location/volume, and this app does not yet have a
@@ -230,8 +230,8 @@ COLOR_MODES: dict[str, ColorMode] = {
         registry_column=grid_column("disconnection_mean", DEFAULT_GRID),
         label="mean disconnection",
         description=(
-            "Punti colorati per probabilità media di disconnessione sul cervello (da 0 a 1). "
-            "Ordina i pazienti come il carico di disconnessione: cambia solo l'unità."
+            "Points colored by mean disconnection probability over the brain (from 0 to 1). "
+            "It orders the patients like the disconnection load: only the unit changes."
         ),
         restricted_to_modality="sdc",
     ),
@@ -244,8 +244,8 @@ COLOR_MODES: dict[str, ColorMode] = {
         registry_column="NIHSS",
         label="NIHSS (severity)",
         description=(
-            "Punti colorati per gravità clinica del deficit (NIHSS, più alto è più grave). "
-            "Grigio: NIHSS non registrato, come in tutta la coorte UCL-UK."
+            "Points colored by clinical severity of the deficit (NIHSS, higher is more severe). "
+            "Gray: NIHSS not recorded, as in the whole UCL-UK cohort."
         ),
         # Linear: less skewed than volume, and kept on the same viridis
         # palette as volume (not a second hue family) - deliberately, on
@@ -264,7 +264,7 @@ COLOR_MODES: dict[str, ColorMode] = {
     # nothing is hidden.
     "cluster_label": ColorMode(
         kind="categorical", column="cluster_label", label="cluster",
-        description="Punti colorati per cluster assegnato. Il rumore di HDBSCAN compare come categoria -1.",
+        description="Points colored by assigned cluster. HDBSCAN noise appears as category -1.",
     ),
 }
 

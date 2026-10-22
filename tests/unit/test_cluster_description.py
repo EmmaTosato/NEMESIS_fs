@@ -12,8 +12,10 @@ from src.analysis.cluster_description import (
     build_cluster_description_figure,
     cluster_composition,
     clusters_comparison_stats,
+    group_stats,
     variable_summary,
 )
+from src.utils.participants import load_participants_registry
 
 _REGISTRY_COLUMNS = ["subject_id", "original_id", "dataset", "disease_id", "has_lesion", "has_sdc", "has_features"]
 
@@ -222,6 +224,63 @@ def test_clusters_comparison_stats_counts_unregistered_subjects_per_cluster(_reg
     assert stats[1].summaries["age"]["n_available"] == 0
 
 
+def test_group_stats_describes_any_group_of_subjects_with_the_same_numbers_as_a_cluster(_registry_root):
+    """A group is not a cluster (the Dendrogram Explorer describes the cluster that splits and the two it gives, which
+    overlap): the same subjects described as a group or as a cluster give identical summaries."""
+    _write_registry(
+        _registry_root,
+        [
+            [*_base_row("sub-STUNIPD0001"), "60.0", "F", "12.0", "4.0", "1000"],
+            [*_base_row("sub-STUNIPD0002"), "70.0", "M", "16.0", "8.0", "2000"],
+            [*_base_row("sub-STUNIPD0003"), "80.0", "M", "10.0", "2.0", "3000"],
+        ],
+        ["age", "sex", "education", "NIHSS", "lesion_volume_voxels_2mm"],
+    )
+    ids = np.array(["sub-STUNIPD0001", "sub-STUNIPD0002", "sub-STUNIPD0003"])
+    metadata = pd.DataFrame({"subject_id": ids, "cluster_label": [0, 0, 1]})
+    registry = load_participants_registry().set_index("subject_id")
+
+    as_group = group_stats(7, ids[:2], registry)
+    as_cluster = {s.cluster_label: s for s in clusters_comparison_stats(metadata)}[0]
+
+    assert as_group.cluster_label == 7 and as_group.n_total == 2
+    assert as_group.summaries == as_cluster.summaries
+
+
+def test_group_stats_of_overlapping_groups_each_count_their_own_subjects(_registry_root):
+    _write_registry(
+        _registry_root,
+        [[*_base_row(f"sub-STUNIPD000{i}"), str(50 + i), "F", "12.0", "4.0", "1000"] for i in range(1, 4)],
+        ["age", "sex", "education", "NIHSS", "lesion_volume_voxels_2mm"],
+    )
+    ids = np.array([f"sub-STUNIPD000{i}" for i in range(1, 4)])
+    registry = load_participants_registry().set_index("subject_id")
+
+    whole, part = group_stats(0, ids, registry), group_stats(1, ids[:1], registry)
+
+    assert (whole.n_total, part.n_total) == (3, 1)
+    assert whole.summaries["age"]["mean"] == pytest.approx(52.0) and part.summaries["age"]["mean"] == pytest.approx(51.0)
+
+
+def test_group_stats_counts_an_unregistered_subject_in_the_group(_registry_root):
+    _write_registry(_registry_root, [[*_base_row("sub-STUNIPD0001"), "60.0", "F", "12.0", "4.0", "1000"]],
+                     ["age", "sex", "education", "NIHSS", "lesion_volume_voxels_2mm"])
+    registry = load_participants_registry().set_index("subject_id")
+
+    stat = group_stats(0, np.array(["sub-STUNIPD0001", "sub-STUNIPD9999"]), registry)
+
+    assert (stat.n_total, stat.n_unregistered) == (2, 1)
+
+
+def test_group_stats_of_an_empty_group_raises(_registry_root):
+    _write_registry(_registry_root, [[*_base_row("sub-STUNIPD0001"), "60.0", "F", "12.0", "4.0", "1000"]],
+                     ["age", "sex", "education", "NIHSS", "lesion_volume_voxels_2mm"])
+    registry = load_participants_registry().set_index("subject_id")
+
+    with pytest.raises(ValueError, match="no subjects"):
+        group_stats(0, np.array([], dtype=str), registry)
+
+
 def test_clusters_comparison_stats_raises_without_a_cluster_label_column(_registry_root):
     _write_registry(_registry_root, [[*_base_row("sub-STUNIPD0001"), "60.0", "F", "12.0", "4.0", "1000"]],
                      ["age", "sex", "education", "NIHSS", "lesion_volume_voxels_2mm"])
@@ -254,7 +313,7 @@ def test_build_cluster_description_figure_lays_out_three_per_row_with_readable_t
     assert widths == {0.273}  # 3 columns, not 5
     assert layout["xaxis6"]["visible"] is False and layout["yaxis6"]["visible"] is False
     assert {a.font.size for a in figure.layout.annotations} == {17}
-    assert "#e87ba4" in figure.layout.title.text and "2 soggetti" in figure.layout.title.text
+    assert "#e87ba4" in figure.layout.title.text and "2 subjects" in figure.layout.title.text
     # Bold heading, pinned to the top with a wide margin under it (29-09-26 feedback).
     assert figure.layout.title.text.startswith("<b>")
     assert figure.layout.margin.t >= 150

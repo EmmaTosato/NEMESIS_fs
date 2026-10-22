@@ -1,6 +1,6 @@
 # Cluster composition — technical reference
 
-Audience: developers/agents working on `src/analysis/cluster_composition.py` and the "Composizione dei cluster" panel it feeds in `src/analysis/embedding_app.py`. For how the panel looks from a user's point of view, see `docs/guides/embedding_app.md`. Its sibling for one chosen cluster is `docs/dev/cluster_description.md`.
+Audience: developers/agents working on `src/analysis/cluster_composition.py` and the "Cluster composition" panel it feeds in `src/analysis/embedding_app.py`. For how the panel looks from a user's point of view, see `docs/guides/embedding_app.md`. Its sibling for one chosen cluster is `docs/dev/cluster_description.md`.
 
 ## What it is
 

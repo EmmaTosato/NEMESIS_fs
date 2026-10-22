@@ -1,6 +1,6 @@
 # Guida all'Embedding Explorer (app Dash)
 
-App web live per esplorare interattivamente un run **di produzione** (`dim_reduction.py` o `clustering.py`, entrambi con `fine_tuning: false`) - 2D o 3D, con un selettore di run e bottoni di colorazione (neutro/dataset/side/volume/disconnection load/mean disconnection/nihss/cluster), stile editoriale. Un solo processo copre **tutti** i run di produzione già scritti, non un file HTML da rigenerare ogni volta. Cliccando un punto si vede anche la vera anatomia lesionale di quel paziente; per un run di modalità `sdc` si vede anche il suo disconnettoma; per un run `clustering.py` lo scatter può mostrare anche i centroidi dei cluster cerchiati (spenti di default, si accendono dalla legenda), e si può vedere la overlap map (lesione), la mappa di disconnessione, il soggetto rappresentativo e la composizione demografica/clinica di ciascun cluster - vedi "Anatomia lesionale", "Disconnessione (SDC)", "Overlap map per cluster", "Disconnessione per cluster", "Soggetto rappresentativo del cluster", "Descrizione del cluster" e "Composizione dei cluster" più sotto.
+App web live per esplorare interattivamente un run **di produzione** (`dim_reduction.py` o `clustering.py`, entrambi con `fine_tuning: false`) - 2D o 3D, con un selettore di run e bottoni di colorazione (neutro/dataset/side/volume/disconnection load/mean disconnection/nihss/cluster), stile editoriale. Un solo processo copre **tutti** i run di produzione già scritti, non un file HTML da rigenerare ogni volta. Cliccando un punto si vede anche la vera anatomia lesionale di quel paziente; per un run di modalità `sdc` si vede anche il suo disconnettoma; per un run `clustering.py` lo scatter può mostrare anche i centroidi dei cluster cerchiati (spenti di default, si accendono dalla legenda), e si può vedere la overlap map (lesione), la mappa di disconnessione, il soggetto rappresentativo e la composizione demografica/clinica di ciascun cluster - vedi "Lesion anatomy", "Disconnection (SDC)", "Overlap map per cluster", "Disconnection per cluster", "Representative subject of the cluster", "Cluster description" e "Cluster composition" più sotto.
 
 - **Script**: `src/pipeline/embedding_app.py`
 - **Logica**: `src/analysis/embedding_app.py`, `src/analysis/anatomical_maps.py` (risoluzione path + overlap/mean map) — architettura/dettagli implementativi: `docs/dev/anatomical_maps.md`
@@ -48,15 +48,15 @@ I due colorano i punti **in modo identico**: il divisore è una costante, quindi
 
 La scala è **lineare**, non logaritmica come il volume: il carico di disconnessione non ha pochi valori enormi che schiacciano tutti gli altri (misurato sull'intera coorte: massimo/mediana 7,6, contro 97 per il volume lesionale), e una scala log allungherebbe la coda dei soggetti poco disconnessi. Un soggetto con carico **0** è quindi un valore vero in fondo alla scala, non un "missing".
 
-Come il volume, hanno la riga **Griglia** (vedi sotto). I valori vengono da `sdc_metadata.csv` tramite `enrich_metadata.py` (sezione `sdc_metadata`, [`docs/guides/metadata.md`](metadata.md)): finché quel passaggio non è stato eseguito, i due bottoni mostrano un messaggio che dice di lanciarlo, non un grafico vuoto.
+Come il volume, hanno la riga **Grid** (vedi sotto). I valori vengono da `sdc_metadata.csv` tramite `enrich_metadata.py` (sezione `sdc_metadata`, [`docs/guides/metadata.md`](metadata.md)): finché quel passaggio non è stato eseguito, i due bottoni mostrano un messaggio che dice di lanciarlo, non un grafico vuoto.
 
-**Non è la stessa quantità della mappa "Disconnessione per cluster"**, più sotto: quella conta un voxel come disconnesso solo se la probabilità supera `0.5`, il colore somma ogni probabilità senza soglia. Ordinano i soggetti quasi allo stesso modo (Spearman 0,99 su 200 soggetti) ma non sono la stessa formula.
+**Non è la stessa quantità della mappa "Disconnection per cluster"**, più sotto: quella conta un voxel come disconnesso solo se la probabilità supera `0.5`, il colore somma ogni probabilità senza soglia. Ordinano i soggetti quasi allo stesso modo (Spearman 0,99 su 200 soggetti) ma non sono la stessa formula.
 
 I due bottoni sono **visibili solo per un run di modalità `sdc`**: su un run `lesion` mostrano un messaggio esplicito invece di un grafico, anche se il valore esiste nel registro per quasi tutti i soggetti (il contrario non vale - `volume`/`side`/`nihss` restano disponibili su un run `sdc`, per relazionare un cluster di disconnessione al lato o al volume della lesione).
 
-### Griglia
+### Grid
 
-Quando il colore attivo è **volume**, **disconnection load** o **mean disconnection**, sotto ai bottoni compare una riga **Griglia** con `2mm` (il default, la griglia di produzione) e `1mm`. Il bottone scelto decide quale colonna del registro si legge (`..._2mm` oppure `..._1mm`); la riga sparisce con qualunque altro colore. Mostra solo le griglie che il registro ha davvero: una griglia appare da sé appena `enrich_metadata.py` ne copia la colonna (`copy_columns`, [`docs/guides/metadata.md`](metadata.md)), e scegliere una griglia che manca a quel colore mostra il messaggio che dice di rilanciarlo, non un grafico diverso.
+Quando il colore attivo è **volume**, **disconnection load** o **mean disconnection**, sotto ai bottoni compare una riga **Grid** con `2mm` (il default, la griglia di produzione) e `1mm`. Il bottone scelto decide quale colonna del registro si legge (`..._2mm` oppure `..._1mm`); la riga sparisce con qualunque altro colore. Mostra solo le griglie che il registro ha davvero: una griglia appare da sé appena `enrich_metadata.py` ne copia la colonna (`copy_columns`, [`docs/guides/metadata.md`](metadata.md)), e scegliere una griglia che manca a quel colore mostra il messaggio che dice di rilanciarlo, non un grafico diverso.
 
 Il numero sulla barra dei colori cambia con la griglia: a 2 mm un voxel vale 8 mm³, quindi il carico è circa 8 volte più piccolo (`~37 000` contro `~297 000` per lo stesso soggetto), mentre la media sul cervello (0-1) resta la stessa. Il **colore** dei punti no: sui 5853 soggetti i due carichi ordinano i soggetti quasi identicamente (Spearman 0,9999994).
 
@@ -90,8 +90,8 @@ Poi apri `http://127.0.0.1:8060` nel browser. Opzioni:
 | `--results-root` | `results` | Radice da scansionare (`<root>/*/dim_reduction/production/*/*` e `<root>/*/clustering/production/*/*/*`)          |
 | `--lesion-config` | `config/pipelines/build_lesion_matrix.json` | Config (stessa forma usata da `build_lesion_matrix.py`) che risolve `data_root`/`lesion_glob`/`reference_template_path`/`binarize_threshold`/`resample_interpolation` per i pannelli di anatomia lesionale sotto - caricato/validato con lo stesso loader (`load_build_matrix_config`), fallisce subito all'avvio se il config o il template di riferimento mancano |
 | `--sdc-config` | `config/pipelines/build_sdc_matrix.json` | Config (stessa forma usata da `build_sdc_matrix.py`) che risolve `data_root`/`reference_template_path`/`resample_interpolation` per i pannelli di anatomia SDC sotto - deve avere `representation: "voxelwise"` (fallisce subito all'avvio altrimenti, `representation: "parcellated"` non ha un `disconnectome-map.nii.gz` grezzo da mostrare) |
-| `--clustering-params-file` | `config/registry/params_clustering.json` | Registry (stesso file che usa `clustering.py`) da cui il passo "Parametri" del selettore legge il `tag_param` di ciascun metodo di clustering (`n_clusters`/`linkage` per agglomerative, ecc. - `load_tag_params`) |
-| `--cache-dir` | `results/cache` | Dove si salva ciò che è troppo lento da rifare a ogni clic o a ogni avvio, calcolato una volta: in `raw_distances/` la matrice delle distanze dice di un run `adp` (sezione "Valutazione del clustering", circa 270 MB per matrice), in `component_maps/` le mappe t delle componenti di un run `pca` (sezione "Mappe delle componenti"), in `binary_masks/` i voxel sopra soglia di ogni maschera lesionale e di ogni disconnettoma (circa 27 KB per soggetto: ~320 MB per tutti i 5845 soggetti, il doppio per lesione e disconnettoma), che rendono istantanea l'overlap map di un cluster già visto anche dopo un riavvio |
+| `--clustering-params-file` | `config/registry/params_clustering.json` | Registry (stesso file che usa `clustering.py`) da cui il passo "Parameters" del selettore legge il `tag_param` di ciascun metodo di clustering (`n_clusters`/`linkage` per agglomerative, ecc. - `load_tag_params`) |
+| `--cache-dir` | `results/cache` | Dove si salva ciò che è troppo lento da rifare a ogni clic o a ogni avvio, calcolato una volta: in `raw_distances/` la matrice delle distanze dice di un run `adp` (sezione "Clustering evaluation", circa 270 MB per matrice), in `component_maps/` le mappe t delle componenti di un run `pca` (sezione "Component maps"), in `binary_masks/` i voxel sopra soglia di ogni maschera lesionale e di ogni disconnettoma (circa 27 KB per soggetto: ~320 MB per tutti i 5845 soggetti, il doppio per lesione e disconnettoma), che rendono istantanea l'overlap map di un cluster già visto anche dopo un riavvio |
 | `--preload`      | off         | All'avvio, in un thread di background, legge una volta tutti i soggetti di tutti i run di clustering (maschere lesionali sempre; disconnettomi SDC solo per i run `sdc`) popolando la cache condivisa di `src/analysis/anatomical_maps.py::BinaryMaskStore` - da quel momento la mappa di anatomia di qualunque cluster di qualunque run si apre in circa un secondo invece che ricalcolarsi da zero al primo clic |
 | `--port`         | `8060`    | Porta locale (non l'8050 di default di Dash, per non collidere con un'altra istanza Dash locale già in esecuzione) |
 | `--debug`        | off         | Modalità debug di Dash (auto-reload, overlay errori nel browser)                                                   |
@@ -100,32 +100,32 @@ Poi apri `http://127.0.0.1:8060` nel browser. Opzioni:
 
 ## Cosa mostra
 
-- **Nove selettori** + il bottone **Riavvia** (in ordine di decisione, da sinistra a destra - sostituiscono il dropdown unico che mischiava i run di ogni metodo/metrica/dimensionalità insieme; i primi otto sono filtri facoltativi, vedi sotto):
+- **Nove selettori** + il bottone **Reset** (in ordine di decisione, da sinistra a destra - sostituiscono il dropdown unico che mischiava i run di ogni metodo/metrica/dimensionalità insieme; i primi otto sono filtri facoltativi, vedi sotto):
 
-  1. **Dato** - la modalità (`lesion`, `sdc` - nessuna modifica di codice richiesta, discovery generica su `results/*/...`).
-  2. **Soggetti** - il numero di soggetti della matrice del run (letto da `manifest.json`, senza caricare la matrice): serve a distinguere run dello stesso tipo fatte su coorti di dimensione diversa, per esempio prima e dopo un'esclusione.
-  3. **Pipeline** - `dim_reduction` o `clustering` (le uniche 2 che questa app scopre - vedi `PRODUCTION_PIPELINES`/`discover_production_runs`); `dim_reduction` è elencata per prima (pipeline più matura), non alfabeticamente.
-  4. **Metodo** - il metodo dentro quella pipeline (`umap`/`pca`/`tsne`/`pacmap`... per dim_reduction, `kmeans`/`hdbscan`/`spectral`/... per clustering).
-  5. **Riduzione** - il metodo di riduzione su cui è calcolato il run: per un run `clustering.py` è `umap`, `tsne`, ... oppure `raw` (dati non ridotti, mostrato per ultimo, così il default è un embedding vero quando esiste); per la pipeline `dim_reduction` il campo è nascosto, perché il Metodo *è* già il metodo di riduzione. Senza questo passo i run su `umap` e su `raw` finivano nelle stesse liste Metrica/Componenti/Run.
-  6. **Metrica** - la metrica dell'**embedding a monte** (letta dai parametri realmente usati dal run - vedi sotto): per un run `dim_reduction.py` è la sua stessa metrica; per un run `clustering.py` è la metrica dell'embedding su cui è stato calcolato (`reduction_metric`, letta da `config.md`), **non** un iperparametro del metodo di clustering. `"—"` solo quando l'asse non esiste davvero: pca/pacmap per dim_reduction, o un run `clustering.py` lanciato direttamente su dati non ridotti (`reduction_method: "raw"`).
-  7. **Componenti** - `n_components` dello stesso embedding a monte (`reduction_n_components` per `clustering.py`); stesso `"—"` di sentinella nei casi limite di cui sopra.
-  8. **Parametri** - gli iperparametri propri del metodo di clustering scelto (`n_clusters`+`linkage` per agglomerative, `min_cluster_size`+`min_samples` per hdbscan, ecc. - registrati come `tag_param` in `config/registry/params_clustering.json`/`--clustering-params-file`, `load_tag_params`), mostrati come combinazioni leggibili (`"n_clusters=4, linkage=average"`) - una per ogni combinazione realmente eseguita per i valori scelti a sinistra. Sempre `"—"` per la pipeline `dim_reduction` (non ha iperparametri di clustering).
+  1. **Data** - la modalità (`lesion`, `sdc` - nessuna modifica di codice richiesta, discovery generica su `results/*/...`).
+  2. **Pipeline** - `dim_reduction` o `clustering` (le uniche 2 che questa app scopre - vedi `PRODUCTION_PIPELINES`/`discover_production_runs`); `dim_reduction` è elencata per prima (pipeline più matura), non alfabeticamente.
+  3. **Method** - il metodo dentro quella pipeline (`umap`/`pca`/`tsne`/`pacmap`... per dim_reduction, `kmeans`/`hdbscan`/`spectral`/... per clustering).
+  4. **Reduction** - il metodo di riduzione su cui è calcolato il run: per un run `clustering.py` è `umap`, `tsne`, ... oppure `raw` (dati non ridotti, mostrato per ultimo, così il default è un embedding vero quando esiste); per la pipeline `dim_reduction` il campo è nascosto, perché il Method *è* già il metodo di riduzione. Senza questo passo i run su `umap` e su `raw` finivano nelle stesse liste Metric/Components/Run.
+  5. **Subjects** - il numero di soggetti della matrice del run (letto da `manifest.json`, senza caricare la matrice): serve a distinguere run dello stesso tipo fatte su coorti di dimensione diversa, per esempio prima e dopo un'esclusione.
+  6. **Metric** - la metrica dell'**embedding a monte** (letta dai parametri realmente usati dal run - vedi sotto): per un run `dim_reduction.py` è la sua stessa metrica; per un run `clustering.py` è la metrica dell'embedding su cui è stato calcolato (`reduction_metric`, letta da `config.md`), **non** un iperparametro del metodo di clustering. `"—"` solo quando l'asse non esiste davvero: pca/pacmap per dim_reduction, o un run `clustering.py` lanciato direttamente su dati non ridotti (`reduction_method: "raw"`).
+  7. **Components** - `n_components` dello stesso embedding a monte (`reduction_n_components` per `clustering.py`); stesso `"—"` di sentinella nei casi limite di cui sopra.
+  8. **Parameters** - gli iperparametri propri del metodo di clustering scelto (`n_clusters`+`linkage` per agglomerative, `min_cluster_size`+`min_samples` per hdbscan, ecc. - registrati come `tag_param` in `config/registry/params_clustering.json`/`--clustering-params-file`, `load_tag_params`), mostrati come combinazioni leggibili (`"n_clusters=4, linkage=average"`) - una per ogni combinazione realmente eseguita per i valori scelti a sinistra. Sempre `"—"` per la pipeline `dim_reduction` (non ha iperparametri di clustering).
   9. **Run** - il run vero e proprio (es. `13-08_s1.1_m_dice_nc3`), la lista delle run che hanno i valori dei selettori impostati, ordinata cronologicamente (dal prefisso `DD-MM` del nome, una senza data in fondo), con la più recente scelta di default. Un secondo run della stessa identica combinazione in una data diversa compare qui, non sovrascrive il primo.
 
-  **Una cascata da sinistra a destra.** Ogni selettore offre solo i valori delle run compatibili con le scelte fatte **a sinistra**: dopo aver scelto Pipeline e Metodo, Metrica offre solo le metriche di quel metodo, e così via. I selettori a destra non restringono mai quelli a sinistra. Ognuno ha come prima voce `---`, che significa "nessun filtro": si può quindi **fermarsi in qualunque punto** (per esempio a Componenti) e scegliere direttamente la Run.
+  **Una cascata da sinistra a destra.** Ogni selettore offre solo i valori delle run compatibili con le scelte fatte **a sinistra**: dopo aver scelto Pipeline e Method, Metric offre solo le metriche di quel metodo, e così via. I selettori a destra non restringono mai quelli a sinistra. Ognuno ha come prima voce `---`, che significa "nessun filtro": si può quindi **fermarsi in qualunque punto** (per esempio a Components) e scegliere direttamente la Run.
 
   **Scegliere la Run riempie i selettori ancora a `---`** con i valori di quella run: i parametri seguono la run, non il contrario. Dopo, la lista Run contiene solo le run con gli stessi valori; per allargarla si rimette a `---` un selettore a sinistra.
 
-  **Se cambi un selettore** e uno di quelli a destra non è più compatibile, torna a `---` e lo vedi. La run scelta resta se i selettori la elencano ancora, altrimenti è la più recente. Con Run a `---` (nessuna run scelta) i grafici e i pannelli sotto i selettori sono nascosti e la pagina lo dice; `---` resta scelto finché non ne scegli una, anche se cambi i filtri. All'apertura la pagina parte invece su una run, con Dato la prima modalità e Pipeline `dim_reduction`, gli altri a `---`. Quando un selettore (per esempio Metodo) è a `---`, il nome di ogni run nella barra è seguito dal suo valore per quel selettore, `12-10_s1.4-vol_m_dice_nc2  (dim_reduction / umap)`, così run di metodi diversi si distinguono. `—` (una sola lineetta) è invece un **valore** vero, "questa run non ha quell'asse" (per esempio la metrica di una PCA): non è `---`. Tutti i selettori si aggiornano insieme, in una sola callback (`resolve_pickers`), mai uno dopo l'altro.
+  **Se cambi un selettore** e uno di quelli a destra non è più compatibile, torna a `---` e lo vedi. La run scelta resta se i selettori la elencano ancora, altrimenti è la più recente. Con Run a `---` (nessuna run scelta) i grafici e i pannelli sotto i selettori sono nascosti e la pagina lo dice; `---` resta scelto finché non ne scegli una, anche se cambi i filtri. All'apertura la pagina parte con Data la prima modalità, Pipeline `dim_reduction`, gli altri selettori **e la Run** a `---`: nessuna run è scelta finché non la scegli tu. "Reset" mette invece a `---` tutti i selettori, Data e Pipeline compresi. Quando un selettore (per esempio Method) è a `---`, il nome di ogni run nella barra è seguito dal suo valore per quel selettore, `12-10_s1.4-vol_m_dice_nc2  (dim_reduction / umap)`, così run di metodi diversi si distinguono. `—` (una sola lineetta) è invece un **valore** vero, "questa run non ha quell'asse" (per esempio la metrica di una PCA): non è `---`. Tutti i selettori si aggiornano insieme, in una sola callback (`resolve_pickers`), mai uno dopo l'altro.
 
-  **Riavvia** (a destra di Run) rimette tutti i selettori a `---`, Run compresa: i grafici si nascondono finché non si sceglie una run (`open_pickers`).
+  **Reset** (a destra di Run) rimette tutti i selettori a `---`, Run compresa: i grafici si nascondono finché non si sceglie una run (`open_pickers`).
 
   Scoperta generica alla base (`results/*/dim_reduction/production/*/*`, `results/*/clustering/production/*/*/*` - profondità diversa per pipeline, `clustering.py` ha il segmento extra `<reduction_method>`) - una futura modalità o metodo compare da solo nei passi 1/3, senza toccare il codice. `clustering.py` non genera la cartella `comparison/` sotto `production/` (il confronto multi-metodo tra `cluster_plot.png` non esiste) - un'eventuale cartella `comparison/` residua resta comunque esclusa automaticamente: non ha mai un `manifest.json`, lo stesso controllo che scarta qualunque cartella incompleta.
 
-  **Metrica/Componenti/Parametri letti da `config.md`, non dal nome del run**: il nome (`13-08_s1.1_m_dice_nc3`, `01-09_s1.1_m_euclidean_n2_k4_link_average`) è una convenzione testuale scelta a mano da chi lancia la pipeline, non garantita per ogni metodo - `run_params`/`read_run_config` leggono invece rispettivamente la riga `Params used: {...}` e il blocco ` ```json ` sotto `## Config`, entrambi scritti per davvero in ogni `config.md` da `dim_reduction.py`/`clustering.py`, le stesse fonti usate per l'anteprima "Params used"/"Config" già presenti in ogni run.
+  **Metric/Components/Parameters letti da `config.md`, non dal nome del run**: il nome (`13-08_s1.1_m_dice_nc3`, `01-09_s1.1_m_euclidean_n2_k4_link_average`) è una convenzione testuale scelta a mano da chi lancia la pipeline, non garantita per ogni metodo - `run_params`/`read_run_config` leggono invece rispettivamente la riga `Params used: {...}` e il blocco ` ```json ` sotto `## Config`, entrambi scritti per davvero in ogni `config.md` da `dim_reduction.py`/`clustering.py`, le stesse fonti usate per l'anteprima "Params used"/"Config" già presenti in ogni run.
 - **Descrizione del colore**: sotto il titolo "Embedding Visualization" e sopra il plot, una o due frasi dicono cosa significa il colore attivo e cosa significa il grigio. Il testo è il campo `description` di ogni voce di `COLOR_MODES` (quella del bottone neutro sta in `embedding_app.py`), accanto a etichetta e scala.
 - **Bottoni di colorazione**: uno per "Neutro" più uno per ogni voce di `src.analysis.embedding_coloring.COLOR_MODES` (dataset/lesion side/lesion volume/disconnection load/mean disconnection/NIHSS (severity)/cluster) - lo stesso registro che usa `dim_reduction.py` in produzione, mai una copia. `cluster` è visibile solo per run che hanno davvero una colonna `cluster_label` in `metadata.csv` (cioè solo run `clustering.py`) - scegliere quel bottone su un run `dim_reduction.py` mostra un messaggio d'errore esplicito al posto del grafico, non un plot vuoto. Il label noise di HDBSCAN (`-1`) è mostrato come una categoria come le altre, senza colorazione grigia dedicata - a differenza del `cluster_plot.png` di produzione, questo è un esploratore generico su qualunque colonna di metadata, non il diagnostico dedicato al clustering.
-- **Il grafico** ("Embedding Visualization"): 2D o 3D, deciso automaticamente dalla forma dell'embedding salvato per quel run (`embedding.shape[1]`) - mai uno slicing di un embedding con più componenti (vedi sotto). Per un run `clustering.py`, la matrice mostrata è quella usata per il clustering stesso (`clustering.py` non trasforma mai lo spazio delle feature) - se quel run è stato lanciato su un embedding già a 2/3 componenti si vede direttamente, altrimenti si disegna sul suo embedding gemello 2D/3D, se ne ha registrato uno (`viz_embedding_path`), o risulta "non mostrabile" (vedi sotto). Per un run `clustering.py`, lo scatter mostra anche un cerchio nero (con il numero del cluster) in corrispondenza del **centroide** di ciascun cluster - il punto medio delle coordinate embedding di quel cluster, non un soggetto reale. Passandoci sopra col mouse si vede quale soggetto reale è il più vicino a quel centroide - lo stesso soggetto mostrato nel pannello "Soggetto rappresentativo del cluster" più sotto.
+- **Il grafico** ("Embedding Visualization"): 2D o 3D, deciso automaticamente dalla forma dell'embedding salvato per quel run (`embedding.shape[1]`) - mai uno slicing di un embedding con più componenti (vedi sotto). Per un run `clustering.py`, la matrice mostrata è quella usata per il clustering stesso (`clustering.py` non trasforma mai lo spazio delle feature) - se quel run è stato lanciato su un embedding già a 2/3 componenti si vede direttamente, altrimenti si disegna sul suo embedding gemello 2D/3D, se ne ha registrato uno (`viz_embedding_path`), o risulta "non mostrabile" (vedi sotto). Per un run `clustering.py`, lo scatter mostra anche un cerchio nero (con il numero del cluster) in corrispondenza del **centroide** di ciascun cluster - il punto medio delle coordinate embedding di quel cluster, non un soggetto reale. Passandoci sopra col mouse si vede quale soggetto reale è il più vicino a quel centroide - lo stesso soggetto mostrato nel pannello "Representative subject of the cluster" più sotto.
 
 ## Un run con più di 3 componenti
 
@@ -143,9 +143,9 @@ Un run senza `viz_embedding_path` resta non mostrabile e non viene scartato dal 
 
 ## Indice della pagina
 
-In alto a destra c'è un menu **Indice**, chiuso di default e fisso sullo schermo mentre scorri. Aprendolo si salta a una sezione. Elenca solo le sezioni che il run scelto ha davvero: un run `lesion` non mostra "Disconnessione (SDC)", un run di `dim_reduction` non mostra le sezioni per cluster.
+In alto a destra c'è un menu **Indice**, chiuso di default e fisso sullo schermo mentre scorri. Aprendolo si salta a una sezione. Elenca solo le sezioni che il run scelto ha davvero: un run `lesion` non mostra "Disconnection (SDC)", un run di `dim_reduction` non mostra le sezioni per cluster.
 
-## Anatomia lesionale
+## Lesion anatomy
 
 Pannello sempre visibile sotto il grafico, indipendentemente dal run scelto: mostra un messaggio ("Clicca un punto...") finché non si clicca un punto dell'embedding, poi la vera lesione di quel paziente in un visualizzatore 3D interattivo `nilearn` (`nilearn.plotting.view_img`, sfondo MNI152, `black_bg=False` → pagina bianca, ruotabile/zoomabile nel browser, colormap `autumn`).
 
@@ -155,7 +155,7 @@ Il paziente è risolto tramite `subject_id`/`dataset` del run corrente (colonne 
 
 Per un run `clustering.py` la pagina si divide in due, separate da una riga netta e da questo titolo: **sopra** tutto ciò che riguarda l'intero run o un singolo soggetto (scatter, anatomia lesionale, disconnettoma), **sotto** tutto ciò che riguarda un cluster alla volta.
 
-La prima cosa della sezione è il selettore **Cluster**, centrato: pilota *tutti* i pannelli che seguono (overlap map, frequency map, soggetto rappresentativo, descrizione del cluster).
+La prima cosa della sezione è il selettore **Cluster**, centrato: pilota *tutti* i pannelli che seguono (overlap map, frequency map, soggetto rappresentativo, descrizione del cluster). La prima voce è **«all»**: invece di un cluster, le due mappe (lesione e, per un run `sdc`, disconnessione) mostrano tutti i cluster insieme (vedi sotto). Il selettore parte comunque dal primo cluster, perché «all» costruisce le mappe di tutti.
 
 Per un run `dim_reduction.py` l'intera sezione è nascosta.
 
@@ -163,17 +163,27 @@ Per un run `dim_reduction.py` l'intera sezione è nascosta.
 
 ## Overlap map per cluster
 
-Visibile solo per un run **`clustering.py`** (cioè con una colonna `cluster_label` in `metadata.csv`) - per un run `dim_reduction.py` il pannello resta nascosto. Un dropdown "Cluster" (una mappa alla volta, non una griglia con tutti i cluster insieme) fa vedere, per i pazienti di quel cluster, la percentuale di sovrapposizione lesionale voxel per voxel (`src.analysis.anatomical_maps.build_overlap_map`, promossa da `notebooks/post-results_analysis/embedding_to_anatomy_mapping.ipynb` §2) - stesso viewer `nilearn.plotting.view_img` (sfondo bianco) del pannello sopra, colormap `hot`, titolo con il numero di soggetti nel cluster.
+Visibile solo per un run **`clustering.py`** (cioè con una colonna `cluster_label` in `metadata.csv`) - per un run `dim_reduction.py` il pannello resta nascosto. Un dropdown "Cluster" (una mappa alla volta; con «all» la griglia di tutti, vedi sotto) fa vedere, per i pazienti di quel cluster, la percentuale di sovrapposizione lesionale voxel per voxel (`src.analysis.anatomical_maps.build_overlap_map`, promossa da `notebooks/post-results_analysis/embedding_to_anatomy_mapping.ipynb` §2) - stesso viewer `nilearn.plotting.view_img` (sfondo bianco) del pannello sopra, colormap `hot`, titolo con il numero di soggetti nel cluster.
 
 Se uno o più soggetti del cluster non hanno il file grezzo della lesione su disco (dato locale incompleto - può succedere con dati vecchi, vedi `.claude/history/data_changelog.md`), non fanno fallire il pannello: vengono esclusi dalla mappa (e dal numero di soggetti nel titolo) e appare una riga di avviso in arancione con l'elenco di chi è stato escluso.
 
-## Disconnessione (SDC)
+### Tutti i cluster insieme («all»)
 
-Pannello visibile solo per un run di modalità **`sdc`** (un run `lesion` non ha un disconnettoma da mostrare - il pannello resta nascosto, non vuoto). Stesso comportamento del pannello "Anatomia lesionale": mostra un messaggio finché non si clicca un punto, poi il vero disconnettoma di quel paziente (`nilearn.plotting.view_img`, sfondo MNI152, colormap `magma`, colorbar attiva - a differenza della maschera di lesione binaria, il disconnettoma è una probabilità continua [0, 1] per voxel, mai binarizzata, quindi la colorbar è informativa). Solo i valori sopra 0.02 vengono colorati, per evitare che il rumore quasi-zero appaia come puntinato nero sullo sfondo.
+Scegliendo «all» nel selettore, il pannello "Overlap map per cluster" (e, per un run `sdc`, "Disconnection per cluster", con il bottone della modalità scelto) mostra **tutti i cluster della run in un unico blocco**, largo fino a 1700 px (esce dalla colonna centrale della pagina):
+
+- **A sinistra, una volta sola**, l'embedding della run, piccolo, con una legenda ("Cluster 0", "Cluster 1", ...; il rumore di HDBSCAN è "Rumore", in grigio). I colori sono quelli dello scatter in cima alla pagina. La legenda non riporta i soggetti: la numerosità è nel titolo di ogni mappa e nel tooltip dei punti. Un embedding non a 2 componenti, o non disegnabile, non si affetta: al suo posto un messaggio, e le mappe si vedono lo stesso.
+- **A destra, le mappe di tutti i cluster**, due per riga, tante righe quante servono: si scorre verso il basso, senza dividere in schermate né ridisegnare l'embedding. Ogni mappa ha il titolo "■ Cluster 3 (n=319)", con il quadratino del colore che il cluster ha nell'embedding. Con un solo cluster la mappa è una, più grande.
+- Un cluster di cui non si può costruire la mappa mostra il suo messaggio al posto della mappa; gli altri si vedono.
+
+I bottoni "Save HTML"/"Save PNG" del pannello non compaiono con «all» (salvano la mappa di un cluster). "Representative subject" e "Cluster description" sono per cluster: con «all» chiedono di sceglierne uno. Le mappe di «all» sono più piccole di quelle del pannello di un cluster (580 px invece di 900) e hanno la loro cache.
+
+## Disconnection (SDC)
+
+Pannello visibile solo per un run di modalità **`sdc`** (un run `lesion` non ha un disconnettoma da mostrare - il pannello resta nascosto, non vuoto). Stesso comportamento del pannello "Lesion anatomy": mostra un messaggio finché non si clicca un punto, poi il vero disconnettoma di quel paziente (`nilearn.plotting.view_img`, sfondo MNI152, colormap `magma`, colorbar attiva - a differenza della maschera di lesione binaria, il disconnettoma è una probabilità continua [0, 1] per voxel, mai binarizzata, quindi la colorbar è informativa). Solo i valori sopra 0.02 vengono colorati, per evitare che il rumore quasi-zero appaia come puntinato nero sullo sfondo.
 
 Il paziente è risolto tramite `subject_id`/`dataset` del run corrente più `data_root`/`--sdc-config`'s `reference_template_path` (`src.analysis.anatomical_maps.resolve_lesion_paths`, stessa funzione del pannello lesionale, riusata su un glob diverso) - se il file non si trova sul disco locale, messaggio d'errore esplicito, mai un grafico vuoto.
 
-## Disconnessione per cluster
+## Disconnection per cluster
 
 Visibile solo per un run che è **sia** `sdc` **sia** `clustering.py` insieme. Usa il selettore "Cluster" della sezione.
 
@@ -195,11 +205,11 @@ Serve comunque: usa **tutta** l'informazione continua invece di buttarla via a u
 
 Stesso avviso arancione se qualche soggetto del cluster non ha il disconnettoma su disco.
 
-## Soggetto rappresentativo del cluster
+## Representative subject of the cluster
 
-Visibile solo per un run **`clustering.py`** (qualunque modalità), dopo i due pannelli di mappa per cluster sopra - usa il selettore "Cluster" in cima alla sezione. Per il cluster scelto, mostra il soggetto reale più vicino al suo centroide nello spazio del clustering (lo stesso cerchio nero visto nel grafico in cima alla pagina) - non un punto medio astratto, ma il paziente che più gli somiglia. Mostra la lesione di quel soggetto per un run di modalità `lesion`, il suo disconnettoma per un run `sdc` - stesso viewer interattivo, stessi bottoni "Salva HTML"/"Salva PNG" dei due pannelli a singolo soggetto sopra (senza il terzo bottone glass brain).
+Visibile solo per un run **`clustering.py`** (qualunque modalità), dopo i due pannelli di mappa per cluster sopra - usa il selettore "Cluster" in cima alla sezione. Per il cluster scelto, mostra il soggetto reale più vicino al suo centroide nello spazio del clustering (lo stesso cerchio nero visto nel grafico in cima alla pagina) - non un punto medio astratto, ma il paziente che più gli somiglia. Mostra la lesione di quel soggetto per un run di modalità `lesion`, il suo disconnettoma per un run `sdc` - stesso viewer interattivo, stessi bottoni "Save HTML"/"Save PNG" dei due pannelli a singolo soggetto sopra (senza il terzo bottone glass brain).
 
-## Descrizione del cluster
+## Cluster description
 
 Visibile per **qualunque** run `clustering.py`, indipendentemente dalla modalità (a differenza dei due pannelli "frequency map" sopra, qui non serve un file di lesione/disconnettoma - solo l'anagrafica del soggetto). Riusa lo stesso dropdown "Cluster". Due parti, una sopra l'altra.
 
@@ -224,7 +234,7 @@ Sotto il grafico, una tabella con **una riga per cluster** e una colonna per var
 - **Sesso**: conteggio e percentuale per categoria
 - sotto ogni valore, sempre `n=` - i soggetti che hanno quella variabile sul totale del cluster
 - `—` significa che nessun soggetto di quel cluster ha quel dato
-- la colonna **Soggetti** segnala, quando capita, quanti soggetti sono "fuori registro" (vedi sotto)
+- la colonna **Subjects** segnala, quando capita, quanti soggetti sono "not in registry" (vedi sotto)
 
 Il bucket **rumore** di hdbscan/hdbscan_soft (label `-1`, i soggetti non assegnati) compare in tabella come "Rumore": è un gruppo reale di soggetti del run e vederne le statistiche è utile, ma non è un cluster.
 
@@ -234,9 +244,9 @@ Se qualche soggetto del cluster **non ha affatto una riga** in `participants.csv
 
 Il pannello descrive e non testa: nessun numero dice se una differenza tra cluster supera il caso. Per le variabili asimmetriche, come il volume, la mediana (nel tooltip) descrive meglio della media; il volume (run lesion) deriva dai dati del clustering, quindi la sua differenza tra cluster è in parte per costruzione; Istruzione e NIHSS esistono solo per alcuni dataset (UCL-UK non ha nessuno dei due). Le cautele complete sono in `docs/dev/cluster_description.md` ("Reading a cluster description").
 
-Nessun bottone "Salva HTML"/"Salva PNG" dedicato - come per lo scatter dell'embedding in cima alla pagina, l'icona fotocamera di Plotly (visibile al passaggio del mouse) esporta un PNG dello stato attuale.
+Nessun bottone "Save HTML"/"Save PNG" dedicato - come per lo scatter dell'embedding in cima alla pagina, l'icona fotocamera di Plotly (visibile al passaggio del mouse) esporta un PNG dello stato attuale.
 
-## Composizione dei cluster
+## Cluster composition
 
 Ultimo pannello della pagina, per un run di clustering. Mette **tutti i cluster del run affiancati**, un grafico per variabile, per vedere come si distribuiscono le variabili da un cluster all'altro. Non dipende dal cluster scelto nel dropdown.
 
@@ -262,7 +272,7 @@ Sotto il titolo di ogni grafico, `n=` indica i soggetti con il dato sul totale d
 
 Dettagli di implementazione: `docs/dev/cluster_composition.md`.
 
-## Mappe delle componenti
+## Component maps
 
 Per un run `dim_reduction` con metodo **`pca`** compare una sezione che mostra **dove nel cervello vive ogni componente**, come nel § 6 di `notebooks/pipeline_building/thiebaut_2020_replication.ipynb`. Si sceglie la componente dal menu e si vede la sua mappa in un viewer interattivo (rosso e blu, le tre sezioni che si incrociano sul picco).
 
@@ -287,11 +297,11 @@ Si cerca dove sta la zona rossa: se è compatta, la componente è una zona del c
 
 Dettagli di implementazione: `docs/dev/covariance_pca.md` (sezione "Component maps").
 
-## Valutazione del clustering
+## Clustering evaluation
 
-Ultimo pannello della pagina, per un run di clustering. Dà gli **indici geometrici dell'intero run** (non del cluster scelto nel dropdown): quanto i cluster sono compatti e separati nello spazio su cui è stato fatto il clustering, con il rumore di HDBSCAN (`-1`) escluso. È la sezione 2 di `clustering_evaluation.ipynb`, calcolata nell'app.
+Ultimo pannello della pagina, per un run di clustering. Dà gli **indici dell'intero run** (non del cluster scelto nel dropdown): quanto i cluster sono compatti e separati nello spazio su cui è stato fatto il clustering. Per kmeans, gmm, agglomerative e spectral sono gli indici geometrici (sezione 2 di `clustering_evaluation.ipynb`); per `hdbscan` e `hdbscan_soft` è il DBCV (sezione 2.3), perché silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn si calcolano sui soli soggetti non rumore e presuppongono cluster compatti. Calinski-Harabasz e Davies-Bouldin valgono solo con la distanza euclidea. Il rumore non ha soglia né avviso: è un numero della tabella.
 
-Una tabella con valore e lettura di:
+Una tabella con valore e lettura di (non per `hdbscan` e `hdbscan_soft`, vedi sotto):
 
 - **Silhouette** (da -1 a 1, più alta è meglio) in tre sintesi: media sui soggetti (pesa di più i cluster grandi), media dei cluster (ogni cluster pesa uguale) e **silhouette del cluster peggiore**. Per ogni soggetto confronta la distanza media dal proprio cluster con quella dal cluster più vicino: vicino a 1 cluster netti, vicino a 0 confini ambigui, negativo il soggetto è più vicino a un altro cluster che al proprio
 - **Calinski-Harabasz** (più alto è meglio): dispersione tra i cluster divisa per la dispersione dentro i cluster
@@ -300,6 +310,8 @@ Una tabella con valore e lettura di:
 - numero di **cluster** (rumore escluso), quota del **cluster più grande** e quota di **rumore**, sul totale dei soggetti
 
 Sotto la tabella, **Silhouette per cluster**: un pannello per cluster, uno sotto l'altro, con la silhouette di ogni soggetto (da -1 a 1, dal più alto in alto), nel colore che il cluster ha nello scatter. È lo stesso disegno di `silhouette_plot.png` delle run di produzione, senza lo scatter e con la versione Plotly. L'altezza di un pannello segue la dimensione del cluster, con un minimo del 5% perché un cluster piccolo resti leggibile (i pannelli dei cluster più piccoli non sono quindi proporzionali). La forma mostra quanti soggetti hanno silhouette negativa (più vicini a un altro cluster che al proprio) e quanto è omogeneo il cluster; un cluster di un soggetto ha silhouette 0 per convenzione. La linea rossa è la media sui soggetti. Passando il mouse su un punto compaiono il cluster, la sua dimensione e la silhouette di quel soggetto. Serve a vedere quali cluster hanno confini ambigui anche quando la media complessiva è buona. L'icona fotocamera di Plotly esporta il PNG.
+
+**Run `hdbscan` e `hdbscan_soft`**: la tabella ha il **DBCV** della run (da -1 a 1, più alto è meglio; pesa ogni cluster per la sua quota di tutti i soggetti, rumore compreso, quindi il rumore lo abbassa), il numero di cluster, la quota del cluster più grande e quella di rumore. Sotto, **DBCV per cluster**: una barra per cluster con il suo punteggio e la sua dimensione, nel colore del cluster nello scatter, e una linea tratteggiata sul DBCV della run (che non è la media delle barre: i cluster grandi pesano di più). È lo stesso disegno di `dbcv_plot.png` delle run di produzione. Con meno di 2 cluster il DBCV non è definito: il pannello lo dice, non mostra un numero. Il DBCV è lo stesso che scrive il tuning (`density_metrics.csv`).
 
 In fondo alla tabella, **Statistica del modello** (sezione 3 del notebook), la statistica propria del metodo del run:
 
@@ -312,14 +324,14 @@ In fondo alla tabella, **Statistica del modello** (sezione 3 del notebook), la s
 
 `kmeans`, `gmm` e `agglomerative` sono **rifittati** con i parametri del run e il valore è accettato solo se il rifit riproduce **esattamente** le etichette salvate (altrimenti, per esempio con `random_state` non fissato, descriverebbe un altro modello): in quel caso il blocco dice perché invece di mostrare un numero. `hdbscan` legge le etichette, senza rifit. `spectral` e `adp` non hanno una statistica propria e il blocco lo dice (gli indici geometrici sopra valgono comunque). inertia e BIC/AIC non sono sulla stessa scala: non si confrontano tra metodi. Il rifit costa meno di 2 secondi su tutti i run provati e il risultato è in memoria per run. Se la tabella geometrica non è calcolabile (per esempio un solo cluster) la statistica del modello compare comunque.
 
-Per i run `hdbscan` e `hdbscan_soft` il pannello aggiunge un blocco sull'**appartenenza** dei soggetti al proprio cluster. Le soglie (0,5) sono esempi: in letteratura non c'è un riferimento.
+Per i run `hdbscan` e `hdbscan_soft` il pannello aggiunge un blocco sull'**appartenenza** dei soggetti al proprio cluster. Nessuna soglia sulla probabilità: in letteratura non c'è un riferimento, le tabelle riportano medie.
 
-- **`hdbscan` - Posizione nel cluster** (sezione 3.1): HDBSCAN di sklearn è rifittato con i parametri del run e accettato solo se riproduce esattamente le etichette salvate. Per ogni cluster: numero di soggetti, probabilità media (`probabilities_`) e quota di soggetti sotto 0,5. La probabilità va da 0 a 1 ed è calcolata **dentro il cluster**: vicino a 1 il soggetto sta nel cuore, vicino a 0 sta al margine. **Non** è la probabilità di stare in questo cluster invece che in un altro, e non è confrontabile tra cluster di densità diversa. Su un UMAP con `min_dist` = 0 misura anche quanto UMAP ha impacchettato il cluster.
-- **`hdbscan_soft` - Appartenenza ai cluster** (sezione 3.2): legge `membership.npy`, la matrice soggetti × cluster salvata con il run, senza rifit. Una tabella per cluster (soggetti, probabilità media nel proprio, quota sotto 0,5, altro cluster più probabile e la sua probabilità media), una **heatmap dei vettori medi** (righe: cluster dei soggetti, e "rumore"; colonne: cluster di appartenenza; la diagonale è la probabilità media nel proprio cluster, le celle fuori diagonale dicono quali cluster si sovrappongono) e i **10 soggetti meno saldi** nel proprio cluster, con l'altro cluster più probabile. Le righe non sommano a 1: la parte mancante è la probabilità di essere rumore, quindi 0,4 nel proprio cluster e 0,1 negli altri è un soggetto debole vicino al rumore, mentre 0,4 e 0,35 in un altro è un soggetto conteso tra i due. Non è confrontabile con la probabilità di `hdbscan`, che è un'altra implementazione e dice un'altra cosa.
+- **`hdbscan` - Posizione nel cluster** (sezione 3.1): HDBSCAN di sklearn è rifittato con i parametri del run e accettato solo se riproduce esattamente le etichette salvate. Per ogni cluster: numero di soggetti, probabilità media (`probabilities_`). La probabilità va da 0 a 1 ed è calcolata **dentro il cluster**: vicino a 1 il soggetto sta nel cuore, vicino a 0 sta al margine. **Non** è la probabilità di stare in questo cluster invece che in un altro, e non è confrontabile tra cluster di densità diversa. Su un UMAP con `min_dist` = 0 misura anche quanto UMAP ha impacchettato il cluster.
+- **`hdbscan_soft` - Appartenenza ai cluster** (sezione 3.2): legge `membership.npy`, la matrice soggetti × cluster salvata con il run, senza rifit. Una tabella per cluster (soggetti, probabilità media nel proprio, altro cluster più probabile e la sua probabilità media), una **heatmap dei vettori medi** (righe: cluster dei soggetti, e "rumore"; colonne: cluster di appartenenza; la diagonale è la probabilità media nel proprio cluster, le celle fuori diagonale dicono quali cluster si sovrappongono) e i **10 soggetti meno saldi** nel proprio cluster, con l'altro cluster più probabile. Le righe non sommano a 1: la parte mancante è la probabilità di essere rumore, quindi 0,4 nel proprio cluster e 0,1 negli altri è un soggetto debole vicino al rumore, mentre 0,4 e 0,35 in un altro è un soggetto conteso tra i due. Non è confrontabile con la probabilità di `hdbscan`, che è un'altra implementazione e dice un'altra cosa.
 
 Un blocco che non si può calcolare (rifit che non riproduce le etichette, run senza `membership.npy`, run con tutti i soggetti rumore) dice la causa e non nasconde il resto del pannello. I due blocchi costano da meno di un secondo a circa 2 secondi sui run provati e restano in memoria per run.
 
-Se il rumore supera il 10% compare un avviso: gli indici descrivono solo i soggetti rimasti. Subito sotto il titolo del pannello, "Come leggere questi indici" (menu a tendina, chiuso di default) dice la direzione di ogni indice e i limiti della lettura: **nessuno ha un valore di riferimento**. Una nuvola senza cluster divisa da un algoritmo ha comunque una silhouette positiva, e Calinski-Harabasz, Davies-Bouldin e Dunn di un run solo non hanno una scala. Embedding diversi (2 o 10 componenti, lesion o sdc) non sono confrontabili tra loro. Gli indici assumono cluster compatti e convessi, quindi favoriscono `kmeans` e `gmm`: per gli altri metodi un valore basso non dimostra che i cluster siano sbagliati. La lettura sezione per sezione (compresa la silhouette per cluster, micro e macro) è in `docs/guides/evaluation.md`; le fasce della silhouette citate in letteratura sono in `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md`.
+Subito sotto il titolo del pannello, "Come leggere questi indici" (menu a tendina, chiuso di default) dice la direzione di ogni indice e i limiti della lettura: **nessuno ha un valore di riferimento**. Una nuvola senza cluster divisa da un algoritmo ha comunque una silhouette positiva, e Calinski-Harabasz, Davies-Bouldin e Dunn di un run solo non hanno una scala. Embedding diversi (2 o 10 componenti, lesion o sdc) non sono confrontabili tra loro. Gli indici assumono cluster compatti e convessi, quindi favoriscono `kmeans` e `gmm`: per gli altri metodi un valore basso non dimostra che i cluster siano sbagliati. La lettura sezione per sezione (compresa la silhouette per cluster, micro e macro) è in `docs/guides/evaluation.md`; le fasce della silhouette citate in letteratura sono in `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md`.
 
 ### Run `adp`
 
@@ -344,13 +356,61 @@ Il calcolo richiede da meno di un secondo a pochi secondi (5845 soggetti, 10 com
 
 Dettagli di implementazione: `docs/dev/models.md` (`geometric_summary`).
 
+## Dendrogram Explorer
+
+È l'ultima sezione della pagina, con un titolo proprio come il "Clustering Explorer", larga fino a 1700 px come il blocco «all». Compare solo per un run di `clustering` con metodo `agglomerative`. Segue l'albero **k dopo k**: passando da k-1 a k cluster un cluster si divide in due. Serve a capire da cosa è fatto un cluster grande mentre si spezza.
+
+Un run di produzione ha un solo k. Le etichette per ogni k stanno in un **tuning** che ha clusterizzato la stessa matrice, quindi il pannello ne usa uno e lo fa scegliere a te.
+
+**Tuning compatibile.** Un tuning è compatibile con il run se ha clusterizzato lo stesso `input_path` (la stessa matrice di partenza: riduzione, componenti e data dell'embedding), ha salvato le etichette della combinazione del run (`n_clusters`, `linkage`, `metric`) e le sue etichette per quel k sono **la stessa partizione** di quelle del run, sugli stessi soggetti nello stesso ordine. Date e nomi non contano: il controllo è sui file. Il menu elenca i compatibili; sotto, i tuning sulla stessa matrice che non lo sono, ciascuno con il motivo. Senza compatibili il pannello lo dice. Come si decide: `docs/dev/models.md` (`tuning_match`).
+
+**Cosa si sceglie.**
+
+| Selettore | Significato |
+| :--- | :--- |
+| Tuning compatibile | Da quale tuning leggere le etichette per ogni k. |
+| k | I k che il tuning ha salvato, fino a 30 (i colori sono 30). Parte dal k del run, o dal più vicino salvato. Vale per la panoramica e per il percorso. |
+| Mappa | Lesione o disconnessione di tutte le mappe. Parte sempre da lesione, qualunque sia la modalità del run. |
+
+Sotto i selettori ci sono due parti: la panoramica «All Clusters» e «Agglomerative decomposed», il percorso dal k più piccolo a quello scelto.
+
+### All Clusters
+
+I k cluster del tuning a quel k, fermi, nello stesso formato di «all»: l'embedding piccolo a sinistra con la legenda, le mappe di tutti i cluster a destra, due per riga. I cluster sono numerati da sinistra a destra come sull'albero e portano le foglie che contengono ("Cluster 2 · L9–L13"), così si ritrovano nel percorso; hanno anche lo stesso colore che hanno lì.
+
+### Agglomerative decomposed
+
+Per ogni k, dal più piccolo del tuning a quello scelto, **una schermata** sotto l'altra, separate da una riga e da spazio; un titolo con una linea sopra lo stacca dalla panoramica:
+
+- **Il primo (k più piccolo)** mostra l'albero e l'embedding con quei cluster, e **solo** la mappa del cluster che si dividerà al passo dopo ("Si dividerà"); in grassetto, nell'embedding, il suo nome.
+- **Ogni schermata successiva** mostra la divisione già avvenuta. Una riga dice quale cluster si è diviso in quali due e a quale distanza di fusione (`k=4: L19–L30 (n=2194) si è diviso in L19–L24 (n=1243) e L25–L30 (n=951), distanza di fusione 151.5`).
+- **A sinistra**, due grafici: l'albero troncato, con le foglie `L1`, `L2`, ... e la linea rossa del taglio a quel k, e sotto l'embedding con k colori, uno per cluster, gli stessi dell'albero. Il pezzo più grande di una divisione tiene il colore del cluster da cui nasce, il più piccolo ne prende uno nuovo. Il nome di ogni cluster (le foglie che contiene, `L5–L6`: le foglie restano uguali a ogni k, le etichette numeriche no) sta sul grafico in un riquadro bianco; i due nati dalla divisione sono più grandi e in grassetto. Non c'è legenda, perché cresce con k.
+- **A destra**, in alto la mappa di "Was" (il cluster di k-1 che si è diviso), sotto affiancate le mappe dei due "New". Ogni titolo ha il quadratino del colore del cluster nell'embedding. Sono le stesse mappe di "Overlap map per cluster" e "Disconnection per cluster", ma più piccole, con la loro cache.
+- **Sotto tutto il disegno, una tabella** (larga al massimo 1100 px, centrata, non rimpicciolita) che descrive "Was" e i due "New": soggetti, età, sesso, istruzione, NIHSS e volume della lesione, nel formato della tabella di confronto dei cluster (media ± deviazione standard, `n/N` sotto il valore dove il dato non copre tutto il gruppo). I valori vengono da `participants.csv`. "Was" è l'unione dei due "New".
+
+Un k che il tuning non ha eseguito (uno sweep su 2, 3, 4, 5, 6, 8, 10 non ha 7 e 9) non si può scegliere, ma il percorso lo attraversa: le sue etichette sono il taglio dell'albero in k cluster.
+
+**Controllo.** L'albero non è salvato, quindi si ricalcola sulla matrice del run. Per ogni k salvato il taglio dell'albero deve dare esattamente le etichette del tuning (ARI = 1): altrimenti il pannello dice che non le riproduce e non disegna nulla.
+
+Quando il pannello dice una causa invece della figura:
+
+- **Nessun tuning compatibile**, o il run non registra la `metric` nei suoi parametri (i run lesione del 01-09 e 03-09 con k da 4 a 6): senza la combinazione non si sa quale tuning confrontare.
+- **Run su più di 1000 colonne** (dato grezzo): l'albero non si calcola qui.
+- **Embedding non a 2 componenti**: si disegna solo un 2D, mai una fetta di uno più grande. Le mappe della panoramica si vedono comunque; il percorso, che ha l'embedding in ogni schermata, mostra il messaggio.
+
+**Quanto costa.** L'albero costa da frazioni di secondo a pochi secondi e resta in memoria per (run, tuning). Le mappe costano circa 40 ms a soggetto la prima volta (dopo, le maschere dei soggetti sono su disco in `results/cache`), poi sono in cache per cluster e per larghezza, non per k: un cluster che si divide più avanti è già pronto. Misurato su `16-10_s2.4-vol_m_euclidean_nc2_k7_link_ward` (5845 soggetti, maschere già su disco, disconnessione): «all» con 7 cluster in 6 s (5,6 MB); k=10: panoramica 7 s (7,8 MB), percorso 15 s (21 MB); k=30: panoramica 18 s (21 MB), percorso 38 s (67 MB). Il secondo passaggio sullo stesso k è immediato. Con k grandi la pagina è pesante: ogni schermata porta tre viewer.
+
+**Finestre strette.** La panoramica e ogni schermata sono disegnate per 1700 px; in una finestra più stretta si rimpiccioliscono per intero (CSS `zoom`) invece di essere tagliate, fino a circa 1250 px. Le tabelle restano a grandezza piena.
+
+Lo stesso confronto, su una run di tuning qualsiasi e senza passare da un run di produzione, è nel notebook `dendrogram_embedding_explorer` (`evaluate_clustering_tuning.md`).
+
 ## Salvare un grafico
 
 Ogni plot interattivo ha un modo di salvarlo:
 
 - **Scatter dell'embedding**: passandoci sopra col mouse compare un'unica icona nella modebar di Plotly (fotocamera, "toImage") - esporta un PNG dello stato attuale (run/colorazione correnti). Il resto della modebar di Plotly resta nascosto (stile minimale).
-- **Ognuno dei 5 pannelli di anatomia**: "Salva HTML" scarica l'HTML autonomo del viewer (stesso file che il browser sta già mostrando nell'iframe), riapribile offline con l'interattività intatta. "Salva PNG" scarica invece un'immagine statica (`nilearn.plotting.plot_stat_map`, stessa soglia/colormap/colorbar del viewer interattivo) - utile per incollare la vista in un documento o una presentazione, dove l'interattività non serve.
-- **Solo i 2 pannelli a singolo soggetto** ("Anatomia lesionale", "Disconnessione (SDC)"): un terzo bottone, "Salva PNG (glass brain)" - una singola silhouette trasparente del cervello (`nilearn.plotting.plot_glass_brain`) invece delle 3 fette piatte di "Salva PNG". Per la lesione usa `autumn` (stesso colore del viewer interattivo sopra - una maschera binaria non ha un gradiente da mostrare); per il disconnettoma usa `magma` con una soglia più alta (0.1 invece di ~0) e leggera trasparenza - una proiezione glass-brain somma il segnale lungo tutta la profondità del volume, quindi a soglia quasi zero il rumore di fondo diventa visibile come sottili striature scure.
+- **Ognuno dei 5 pannelli di anatomia**: "Save HTML" scarica l'HTML autonomo del viewer (stesso file che il browser sta già mostrando nell'iframe), riapribile offline con l'interattività intatta. "Save PNG" scarica invece un'immagine statica (`nilearn.plotting.plot_stat_map`, stessa soglia/colormap/colorbar del viewer interattivo) - utile per incollare la vista in un documento o una presentazione, dove l'interattività non serve.
+- **Solo i 2 pannelli a singolo soggetto** ("Lesion anatomy", "Disconnection (SDC)"): un terzo bottone, "Save PNG (glass brain)" - una singola silhouette trasparente del cervello (`nilearn.plotting.plot_glass_brain`) invece delle 3 fette piatte di "Save PNG". Per la lesione usa `autumn` (stesso colore del viewer interattivo sopra - una maschera binaria non ha un gradiente da mostrare); per il disconnettoma usa `magma` con una soglia più alta (0.1 invece di ~0) e leggera trasparenza - una proiezione glass-brain somma il segnale lungo tutta la profondità del volume, quindi a soglia quasi zero il rumore di fondo diventa visibile come sottili striature scure.
 
 ---
 

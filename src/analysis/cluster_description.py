@@ -129,12 +129,12 @@ class ClusterStats:
 # already carries it per subject. Once enrich_metadata.py surfaces it into participants.csv,
 # adding it here is exactly the one-line change this registry shape exists for.)
 CLUSTER_DESCRIPTION_VARIABLES: list[ClusterDescriptionVariable] = [
-    ClusterDescriptionVariable("age", "Età (anni)", "continuous", "age", color="#1a6bab"),
-    ClusterDescriptionVariable("sex", "Sesso", "categorical", "sex", color="#d97a29"),
-    ClusterDescriptionVariable("education", "Istruzione (anni)", "continuous", "education", color="#7b4fa0"),
+    ClusterDescriptionVariable("age", "Age (years)", "continuous", "age", color="#1a6bab"),
+    ClusterDescriptionVariable("sex", "Sex", "categorical", "sex", color="#d97a29"),
+    ClusterDescriptionVariable("education", "Education (years)", "continuous", "education", color="#7b4fa0"),
     ClusterDescriptionVariable("nihss", "NIHSS", "continuous", "NIHSS", color="#008300"),
     ClusterDescriptionVariable(
-        "lesion_volume_voxels", "Volume lesione (voxel)", "continuous", "lesion_volume_voxels_2mm",
+        "lesion_volume_voxels", "Lesion volume (voxels)", "continuous", "lesion_volume_voxels_2mm",
         decimals=0, color="#b03d68",
     ),
 ]
@@ -220,19 +220,26 @@ def clusters_comparison_stats(metadata: pd.DataFrame) -> list[ClusterStats]:
         raise ValueError(f"this run's metadata has no {_CLUSTER_LABEL_COLUMN} values at all")
 
     registry = load_participants_registry().set_index("subject_id")
-    stats: list[ClusterStats] = []
-    for label in labels:
-        subject_ids = metadata.loc[metadata[_CLUSTER_LABEL_COLUMN] == label, "subject_id"].to_numpy()
-        composition, unregistered = _join_registry(subject_ids, registry)
-        stats.append(
-            ClusterStats(
-                cluster_label=label,
-                n_total=len(composition),
-                n_unregistered=len(unregistered),
-                summaries={v.name: variable_summary(composition, v) for v in CLUSTER_DESCRIPTION_VARIABLES},
-            )
-        )
-    return stats
+    return [
+        group_stats(label, metadata.loc[metadata[_CLUSTER_LABEL_COLUMN] == label, "subject_id"].to_numpy(), registry)
+        for label in labels
+    ]
+
+
+def group_stats(label: int, subject_ids: np.ndarray, registry: pd.DataFrame) -> ClusterStats:
+    """The table row of any group of subjects, not only of a whole cluster (22-10-26: the Dendrogram Explorer
+    describes the cluster that splits and the two it gives, which overlap). `registry` is the participants registry
+    indexed by subject_id, read once by the caller. A subject missing from it stays in the count with missing values,
+    as everywhere else in this module. Raises ValueError for an empty group: it has nothing to describe."""
+    if len(subject_ids) == 0:
+        raise ValueError(f"group {label!r} has no subjects to describe")
+    composition, unregistered = _join_registry(subject_ids, registry)
+    return ClusterStats(
+        cluster_label=label,
+        n_total=len(composition),
+        n_unregistered=len(unregistered),
+        summaries={v.name: variable_summary(composition, v) for v in CLUSTER_DESCRIPTION_VARIABLES},
+    )
 
 
 def variable_summary(composition: pd.DataFrame, variable: ClusterDescriptionVariable) -> dict:
@@ -381,7 +388,7 @@ def build_cluster_description_figure(
             # "distanza tra intestazione e plot maggiore, fai la scritta Cluster in grassetto").
             # y/yanchor keep the heading against the top edge so the extra top margin becomes a
             # gap under it, not padding above it.
-            text=f"<b>{swatch}Cluster {cluster_label}</b> · {len(composition)} soggetti",
+            text=f"<b>{swatch}Cluster {cluster_label}</b> · {len(composition)} subjects",
             font=dict(size=24, family=_FONT_STACK, color=_TEXT_COLOR),
             x=0.02, xanchor="left", y=0.975, yanchor="top",
         ),

@@ -13,7 +13,7 @@ Come le pipeline si passano i dati, chi è la fonte di verità di cosa, e quali 
 
 Ogni dato nasce **in un solo posto**: i volumi delle lesioni in `lesion_metadata.csv`, il carico di disconnessione in `sdc_metadata.csv`, la lista di chi resta fuori in `excluded_subjects.csv`. `participants.csv` ne tiene una copia dichiarata (`enrich_metadata`), quindi va riallineato quando una fonte cambia.
 
-`participants.csv` è la **fonte di verità delle variabili per l'analisi**: lo leggono i colori dei grafici (`embedding_coloring.color_values`), il pannello "Descrizione del cluster" (età, sesso, istruzione, NIHSS), `calibrate_lesion_side_threshold` (le etichette cliniche del lato), e i notebook `lesion_analysis`, `clustering_evaluation` e `sdc_analysis`. Il lettore è `src/utils/participants.py::load_participants_registry`, che interpreta i flag `has_*` come booleani veri.
+`participants.csv` è la **fonte di verità delle variabili per l'analisi**: lo leggono i colori dei grafici (`embedding_coloring.color_values`), il pannello "Cluster description" (età, sesso, istruzione, NIHSS), `calibrate_lesion_side_threshold` (le etichette cliniche del lato), e i notebook `lesion_analysis`, `clustering_evaluation` e `sdc_analysis`. Il lettore è `src/utils/participants.py::load_participants_registry`, che interpreta i flag `has_*` come booleani veri.
 
 ## Due grafi di dipendenze
 

@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from src.analysis.cluster_composition import cluster_colors
-from src.analysis.cluster_quality import build_mean_membership_figure, build_silhouette_figure
+from src.analysis.cluster_quality import build_dbcv_figure, build_mean_membership_figure, build_silhouette_figure
 
 
 def _subjects(index=(0, 1, 2), sizes=(30, 5, 120), means=(0.5, -0.1, 0.3)):
@@ -72,7 +72,7 @@ def test_each_panel_is_named_after_its_cluster_and_the_hover_gives_the_size_and_
     figure = build_silhouette_figure(*_subjects())
 
     assert [a.text for a in figure.layout.annotations[:3]] == ["cluster 0", "cluster 1", "cluster 2"]
-    assert "cluster 2 · 120 soggetti" in figure.data[2].hovertemplate and "%{x:.3f}" in figure.data[2].hovertemplate
+    assert "cluster 2 · 120 subjects" in figure.data[2].hovertemplate and "%{x:.3f}" in figure.data[2].hovertemplate
 
 
 def test_the_clusters_are_drawn_in_ascending_label_order_whatever_the_order_of_the_subjects():
@@ -106,7 +106,7 @@ def test_the_membership_heatmap_has_a_row_per_subject_cluster_and_a_noise_row_na
     figure = build_mean_membership_figure(_mean_vectors())
 
     heatmap = figure.data[0]
-    assert list(heatmap.y) == ["cluster 0", "cluster 1", "rumore"] and list(heatmap.x) == ["cluster 0", "cluster 1"]
+    assert list(heatmap.y) == ["cluster 0", "cluster 1", "noise"] and list(heatmap.x) == ["cluster 0", "cluster 1"]
     assert heatmap.z.tolist() == [[0.9, 0.1], [0.2, 0.8], [0.05, 0.1]]
     assert (heatmap.zmin, heatmap.zmax) == (0, 1)  # a probability, whatever the matrix happens to contain
 
@@ -118,3 +118,24 @@ def test_the_membership_heatmap_without_noise_has_no_noise_row():
 def test_the_membership_heatmap_rejects_an_empty_table():
     with pytest.raises(ValueError, match="no cluster to draw"):
         build_mean_membership_figure(_mean_vectors().iloc[0:0])
+
+
+def _dbcv_clusters():
+    return pd.DataFrame({"n": [100, 40, 15], "dbcv": [0.72, -0.1, 0.38]}, index=pd.Index([0, 1, 2], name="cluster"))
+
+
+def test_the_dbcv_figure_has_a_bar_per_cluster_with_its_size_and_a_line_at_the_runs_score():
+    figure = build_dbcv_figure(_dbcv_clusters(), 0.227)
+
+    bar = figure.data[0]
+    assert list(bar.x) == pytest.approx([0.72, -0.1, 0.38])
+    assert list(bar.y) == ["cluster 0  (n=100)", "cluster 1  (n=40)", "cluster 2  (n=15)"]
+    assert [line.x0 for line in figure.layout.shapes if line.line.dash == "dash"] == [0.227]  # the run's score, not the mean of the bars
+    assert tuple(figure.layout.xaxis.range) == (-1, 1)
+
+
+def test_the_dbcv_figure_refuses_nothing_to_draw_and_a_score_that_is_not_a_number():
+    with pytest.raises(ValueError, match="no cluster"):
+        build_dbcv_figure(_dbcv_clusters().iloc[:0], 0.1)
+    with pytest.raises(ValueError, match="not a finite"):
+        build_dbcv_figure(_dbcv_clusters().assign(dbcv=[0.1, np.nan, 0.2]), 0.1)

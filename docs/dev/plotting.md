@@ -101,7 +101,7 @@ A small registry plus a shared writer, so adding a new coloring mode is one dict
 
 ## `src/analysis/component_map_plots.py`
 
-`build_reproducibility_figure(reproducibility, selected) -> go.Figure` draws the bar chart of the "Mappe delle componenti" panel of the Embedding Explorer (`docs/guides/embedding_app.md`, numbers in `docs/dev/covariance_pca.md`): one bar per component with the correlation across voxels between its two maps from two random halves of the subjects, the `selected` component (1-based) darker, a dashed line at `PAPER_REPRODUCIBILITY` (0.813, the mean reported by Thiebaut de Schotten et al. 2020, from halves of 666 subjects; the halves here are larger, so it is a reference and not a target). It is a plotly figure, not matplotlib. Raises `ValueError` for an empty `reproducibility` or a `selected` outside `1..n`.
+`build_reproducibility_figure(reproducibility, selected) -> go.Figure` draws the bar chart of the "Component maps" panel of the Embedding Explorer (`docs/guides/embedding_app.md`, numbers in `docs/dev/covariance_pca.md`): one bar per component with the correlation across voxels between its two maps from two random halves of the subjects, the `selected` component (1-based) darker, a dashed line at `PAPER_REPRODUCIBILITY` (0.813, the mean reported by Thiebaut de Schotten et al. 2020, from halves of 666 subjects; the halves here are larger, so it is a reference and not a target). It is a plotly figure, not matplotlib. Raises `ValueError` for an empty `reproducibility` or a `selected` outside `1..n`.
 
 ## Figure dei notebook di lettura di un tuning
 

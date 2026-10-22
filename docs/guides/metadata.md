@@ -117,7 +117,7 @@ Su una stessa griglia le due colonne **ordinano i soggetti allo stesso modo**: i
 ### Cosa viene misurato, e cosa no
 
 - **Solo dentro la maschera cerebrale.** Il disconnettoma di BCBToolKit ha una quota di massa fuori dal cervello (mediana 0,80% della massa totale, fino all'8,9% in un caso, misurato su 400 soggetti casuali): è tractografia che esce dal cervello, non disconnessione. È la stessa scelta di `correct_out_of_brain` per le lesioni.
-- **Senza soglia.** Ogni voxel pesa la sua probabilità. È diverso dal pannello "Disconnessione per cluster" dell'Embedding Explorer, che conta un voxel come disconnesso solo sopra `0.5`: le due quantità ordinano i soggetti quasi allo stesso modo (Spearman 0,99 su 200 soggetti) ma non sono la stessa formula.
+- **Senza soglia.** Ogni voxel pesa la sua probabilità. È diverso dal pannello "Disconnection per cluster" dell'Embedding Explorer, che conta un voxel come disconnesso solo sopra `0.5`: le due quantità ordinano i soggetti quasi allo stesso modo (Spearman 0,99 su 200 soggetti) ma non sono la stessa formula.
 - **Ogni mappa con il suo header.** Le mappe non stanno tutte sullo stesso reticolo di voxel: tra gli 8 dataset ci sono **3 header distinti** (orientamento LAS con offset x `+90`; RAS con `-90`, cioè traslato di 1 voxel; RAS con `-91`, identico al template MNI). Ogni mappa viene portata sulla griglia con il proprio header (`nearest`; a 1 mm è una rimappatura intera esatta, la somma non cambia), mai con un flip fisso: un flip è giusto per un solo gruppo e specchierebbe gli altri senza alcun errore.
 
 ### Parametri di `config/pipelines/compute_sdc_metadata.json`

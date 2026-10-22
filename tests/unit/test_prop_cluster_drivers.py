@@ -103,9 +103,9 @@ def test_renaming_the_categorical_levels_only_renames_the_terms(seed, new_names)
     mapping = dict(zip(["A", "B", "C"], new_names))
     straight = _fit(features, in_cluster)
     renamed = _fit(features.assign(dataset=features["dataset"].map(mapping)), in_cluster, references={"dataset": mapping["A"]})
-    # stesso modello, termini rinominati: "dataset: B (rif. A)" -> "dataset: <nuovo B> (rif. <nuovo A>)"
+    # stesso modello, termini rinominati: "dataset: B (ref. A)" -> "dataset: <nuovo B> (ref. <nuovo A>)"
     expected_terms = [
-        term if not term.startswith("dataset: ") else f"dataset: {mapping[term.split(': ')[1].split(' ')[0]]} (rif. {mapping['A']})"
+        term if not term.startswith("dataset: ") else f"dataset: {mapping[term.split(': ')[1].split(' ')[0]]} (ref. {mapping['A']})"
         for term in straight.coefficients.index
     ]
     renamed_by_term = renamed.coefficients.reindex(expected_terms)
@@ -119,7 +119,7 @@ def test_two_level_categorical_odds_invert_when_the_reference_level_swaps(seed):
     features = features.assign(dataset=np.where(features["dataset"] == "A", "A", "B"))
     vs_a = _fit(features, in_cluster, numeric=["age"], references={"dataset": "A"}).coefficients
     vs_b = _fit(features, in_cluster, numeric=["age"], references={"dataset": "B"}).coefficients
-    np.testing.assert_allclose(vs_a.loc["dataset: B (rif. A)", "odds_ratio"] * vs_b.loc["dataset: A (rif. B)", "odds_ratio"], 1.0, rtol=1e-6)
+    np.testing.assert_allclose(vs_a.loc["dataset: B (ref. A)", "odds_ratio"] * vs_b.loc["dataset: A (ref. B)", "odds_ratio"], 1.0, rtol=1e-6)
     np.testing.assert_allclose(vs_a.loc["age", "odds_ratio"], vs_b.loc["age", "odds_ratio"], rtol=1e-6)
 
 

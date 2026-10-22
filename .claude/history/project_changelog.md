@@ -6,6 +6,23 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 22-10-26 — Tuning del clustering: la mappa e le curve di HDBSCAN diventano valutazioni del registro; nasce `internal_metrics`
+
+Regola: tutto ciò che si fa durante lo sweep si può rifare con `evaluate_clustering_tuning.json`, e viceversa; una funzione, dichiarata in `tuning_evaluations`, eseguita dallo sweep appena finisce e dalla pipeline sul tuning salvato.
+
+- Il DBCV sta in `density_metrics` (colonna `dbcv` di `density_metrics.csv`), non è una colonna dello sweep. La mappa `tuning_plot*.png` di `hdbscan`/`hdbscan_soft` non la disegna più lo sweep: la disegna `tuning_heatmaps` da `density_metrics.csv`. Le curve `dbcv_curves*.png` (`dbcv_curves`) sostituiscono `noise_filtered_curves`, tolta dal registro con il suo `max_noise_fraction`. Le valutazioni girano nell'ordine dichiarato: `density_metrics` prima delle altre due, che ne leggono il file.
+- `internal_metrics` (agglomerative, hdbscan, hdbscan_soft) ricalcola dalle etichette salvate le colonne che lo sweep scrive (silhouette, CH, DB; `noise_fraction`) con le stesse funzioni e le riscrive in `tuning_results.csv`, solo con `overwrite: true`, passando da un file temporaneo. Non è nei config di default (con `overwrite: false` si fermerebbe sempre).
+- **Scartato**: togliere dallo sweep il calcolo di quelle colonne e farlo solo nella valutazione: cambierebbe lo sweep di tutti i metodi (le loro mappe leggono quelle colonne) e imporrebbe `save_tuning_clusterings: true` sempre.
+- **Ancora aperto** (`.claude/open_problems.md`): `membership_mean` e `persistence_mean` di `hdbscan_soft` nascono dal fit, nessuna valutazione le rifà.
+
+## 22-10-26 — App: tutte le frasi dell'Embedding Explorer in inglese
+
+**Cosa è cambiato**: etichette, intestazioni, guide "Come leggere...", messaggi di stato e di errore, tooltip e descrizioni dei colori dell'app sono in inglese (prima italiano). Toccati `embedding_app.py` (circa 480 frammenti) e i moduli che gli forniscono testo: `embedding_coloring`, `cluster_composition`, `cluster_pair`, `cluster_quality`, `cluster_description`, `cluster_comparison`, `cluster_drivers`, `component_map_plots`, `dendrogram_splits`, `clustering_evaluation` (le ragioni di `EVALUATIONS` e i messaggi di `require_applicable`). Selettori: Data, Pipeline, Method, Reduction, Subjects, Metric, Components, Parameters, Run, bottone Reset. `NEUTRAL_MODE` vale `"neutral"` (era `"neutro"`); il termine `rumore` dei cluster è `noise`, `(rif. X)` dei termini di regressione è `(ref. X)`.
+
+**Cosa NON è cambiato**: il formato dei numeri (`_format_number`: virgola decimale, punto per le migliaia) resta italiano, quindi nel testo inglese compaiono ancora `0,675`. Docstring, commenti e `docs/` restano in italiano/inglese come prima; le guide citano i nuovi nomi inglesi dei pannelli.
+
+**Conseguenza**: i test che asseriscono sul testo dell'app cercano le frasi inglesi; una nuova frase dell'app va scritta in inglese.
+
 ## 22-10-26 — App: la silhouette per cluster passa dalle barre ai pannelli (Plotly)
 
 **Cosa è cambiato**: nel pannello "Valutazione del clustering" dell'Embedding Explorer `build_silhouette_figure` (`cluster_quality.py`) non disegna più una barra per cluster con la silhouette media: disegna un pannello per cluster con la silhouette di ogni soggetto, la stessa figura di `silhouette_plot.png` di produzione senza lo scatter (altezza proporzionale ai soggetti con minimo del 5%, linea rossa sulla media, asse da -1 a 1). Per averla `SilhouetteBreakdown` e `GeometricSummary` portano ora anche `subject_labels` e `subject_values` (silhouette di ogni soggetto, rumore escluso); `AdpSummary` le prende da `silhouette`. La firma della funzione è `build_silhouette_figure(subject_labels, subject_values)`.
@@ -25,6 +42,16 @@ Voci in ordine cronologico inverso.
 **Alternative scartate**: due versioni del plot (una per agglomerative, una per gli altri), cioè codice duplicato; "Average silhouette width" (il termine di Rousseeuw 1987) al posto di "coefficient": scelta dell'utente, più aderente a sklearn. In sklearn "Silhouette Coefficient" indica anche il valore del singolo soggetto, quindi nel plot l'asse x e il titolo usano lo stesso nome per due cose; per Kaufman & Rousseeuw (1990) il "silhouette coefficient" sarebbe il massimo, al variare di k, della media (ricordo non verificato: il libro non è in `knowledge/papers/`).
 
 **Conseguenza attuale**: le run di produzione già scritte hanno ancora il plot vecchio e nessuna tabella o riga in `config.md`: non sono state rigenerate. Una run con meno di 2 cluster non ha silhouette (warning, niente plot, tabella e riga).
+
+## 21-10-26 — Quale tuning corrisponde a una run di produzione: stesso `input_path` e stesse etichette, non il nome
+
+**Cosa è cambiato**: nuovo `src/analysis/tuning_match.py` (`find_compatible_tunings`). Un tuning agglomerative è compatibile con una run di produzione se ha lo stesso `input_path` nel `config.md`, ha salvato in `clusterings.npz` la combinazione (`n_clusters`, `linkage`, `metric`) della run, ha gli stessi soggetti nello stesso ordine e le sue etichette per quel k sono la stessa partizione (ARI esattamente 1). Lo usa la sezione "Dendrogram Explorer" dell'Embedding Explorer, che fa scegliere all'utente tra i compatibili (`src/analysis/dendrogram_splits.py`, `embedding_app.py`).
+
+**Perché**: produzione e tuning hanno date diverse e il nome non dice quale matrice hanno clusterizzato. `input_path` è già scritto da entrambe le pipeline e contiene riduzione, componenti e data dell'embedding, quindi non si legge nulla dal nome né da `docs/experiments/pipelines.md` (che è un disegno per persone, non un dato).
+
+**Alternative scartate**: confrontare data e nome della run (fragile: le sessioni sono state rinominate in blocco il 02-09-26); fidarsi del solo `input_path` (una cartella di tuning riusata da una run successiva tiene la chiave e cambia le etichette, `lessons_learned.md` #18); assumere `euclidean` per le run senza `metric` (niente fallback: sollevano `ValueError`).
+
+**Conseguenza attuale**: su 95 run agglomerative di produzione, 82 hanno un tuning compatibile, 7 no (raw `s2.3-stream`, mai tunate) e 6 sollevano `ValueError` (lesione `01-09`/`03-09`, k da 4 a 6, i cui parametri non registrano la `metric`). Il notebook `dendrogram_embedding_explorer` ha ancora la sua copia della logica dell'albero: due posti da tenere allineati finché non importa `dendrogram_splits.py`.
 
 ## 21-10-26 — Le curve di agglomerative: niente figura `single`, niente asse fisso, assi uguali in tutta la run
 

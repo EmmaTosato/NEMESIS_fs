@@ -2,8 +2,8 @@
 
 The numbers come from src/analysis/clustering_evaluation.py (geometric_summary); this module only
 draws them: the silhouette of every subject, cluster by cluster (section 2.1 of
-notebooks/post-results_analysis/clustering_evaluation.ipynb) and the mean membership vectors of a
-hdbscan_soft run (section 3.2).
+notebooks/post-results_analysis/clustering_evaluation.ipynb), the DBCV of every cluster of a density run and the
+mean membership vectors of a hdbscan_soft run (section 3.2).
 """
 
 from __future__ import annotations
@@ -66,7 +66,7 @@ def build_silhouette_figure(subject_labels: np.ndarray, subject_values: np.ndarr
             go.Scatter(
                 x=members, y=np.arange(len(members))[::-1], mode="lines", fill="tozerox", fillcolor=colors[cluster],
                 line=dict(color=colors[cluster], width=0.5), showlegend=False,
-                hovertemplate=f"cluster {cluster} · {len(members)} soggetti<br>silhouette: %{{x:.3f}}<extra></extra>",
+                hovertemplate=f"cluster {cluster} · {len(members)} subjects<br>silhouette: %{{x:.3f}}<extra></extra>",
             ),
             row=row, col=1,
         )
@@ -79,7 +79,7 @@ def build_silhouette_figure(subject_labels: np.ndarray, subject_values: np.ndarr
         figure.update_yaxes(range=[-0.5, len(members) - 0.5], showticklabels=False, ticks="", row=row, col=1)
     figure.add_annotation(
         x=average, y=1, xref="x", yref="paper", yanchor="bottom", showarrow=False,
-        text=f"media sui soggetti = {average:.2f}", font=dict(size=13, color=_AVERAGE_COLOR),
+        text=f"mean over subjects = {average:.2f}", font=dict(size=13, color=_AVERAGE_COLOR),
     )
     figure.update_xaxes(range=[-1, 1], gridcolor=_GRIDLINE_COLOR, zeroline=True, zerolinecolor=_MUTED_COLOR)
     figure.update_xaxes(title_text="silhouette", row=len(clusters), col=1)
@@ -102,13 +102,13 @@ def build_mean_membership_figure(mean_vectors: pd.DataFrame) -> go.Figure:
     Raises ValueError if it is empty."""
     if mean_vectors.empty:
         raise ValueError("the mean membership table has no cluster to draw")
-    rows = ["rumore" if int(label) == -1 else f"cluster {int(label)}" for label in mean_vectors.index]
+    rows = ["noise" if int(label) == -1 else f"cluster {int(label)}" for label in mean_vectors.index]
     columns = [f"cluster {int(label)}" for label in mean_vectors.columns]
     figure = go.Figure(go.Heatmap(
         z=mean_vectors.to_numpy(), x=columns, y=rows, zmin=0, zmax=1, colorscale="Blues",
         text=[[f"{value:.2f}" for value in row] for row in mean_vectors.to_numpy()], texttemplate="%{text}",
-        hovertemplate="soggetti di %{y}<br>probabilità media di stare in %{x}: %{z:.3f}<extra></extra>",
-        colorbar=dict(title=dict(text="probabilità", side="top"), x=1.04, thickness=18),
+        hovertemplate="subjects of %{y}<br>mean probability of being in %{x}: %{z:.3f}<extra></extra>",
+        colorbar=dict(title=dict(text="probability", side="top"), x=1.04, thickness=18),
         xgap=2, ygap=2,
     ))
     figure.update_xaxes(type="category", side="top", tickangle=-90, ticks="outside", ticklen=12, tickcolor="rgba(0,0,0,0)")
@@ -117,5 +117,40 @@ def build_mean_membership_figure(mean_vectors: pd.DataFrame) -> go.Figure:
         template="simple_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family=_FONT_STACK, color=_TEXT_COLOR), margin=dict(l=50, r=50, t=130, b=40),
         height=170 + _HEATMAP_ROW_HEIGHT * len(rows),
+    )
+    return figure
+
+
+def build_dbcv_figure(clusters: pd.DataFrame, score: float) -> go.Figure:
+    """The DBCV of every cluster of a density run (hdbscan, hdbscan_soft): one horizontal bar per cluster, in the
+    color the cluster has in the embedding scatter, labelled with its size, and a dashed line at the DBCV of the whole
+    run. The line is not the mean of the bars: the run's score weighs each cluster by its share of all the subjects,
+    noise included, so the noise pulls it down.
+
+    `clusters` is DensitySummary.clusters (index: cluster label; columns: n, dbcv) and `score` its `dbcv`. The same
+    picture as dbcv_plot.png of a production run (plotting.plot_dbcv_per_cluster). Raises ValueError if `clusters` is
+    empty or has a DBCV that is not a finite number."""
+    if clusters.empty:
+        raise ValueError("there is no cluster to draw")
+    if not np.isfinite(clusters["dbcv"].to_numpy(dtype=float)).all():
+        raise ValueError("a cluster has a DBCV that is not a finite number")
+    labels = [int(label) for label in clusters.index]
+    colors = _palette_for_labels(sorted(labels))
+    names = [f"cluster {label}  (n={int(n)})" for label, n in zip(labels, clusters["n"])]
+    figure = go.Figure(go.Bar(
+        x=clusters["dbcv"], y=names, orientation="h", marker_color=[colors[label] for label in labels],
+        hovertemplate="%{y}<br>DBCV: %{x:.3f}<extra></extra>",
+    ))
+    figure.add_vline(x=0, line_color=_TEXT_COLOR, line_width=1, opacity=1)
+    figure.add_vline(
+        x=score, line_color=_AVERAGE_COLOR, line_width=2, line_dash="dash", opacity=1,
+        annotation_text=f"run {score:.3f}", annotation_position="top", annotation_font_color=_AVERAGE_COLOR,
+    )
+    figure.update_xaxes(range=[-1, 1], title_text="DBCV of the cluster (-1 to 1, higher is better)", gridcolor=_GRIDLINE_COLOR)
+    figure.update_yaxes(type="category", autorange="reversed")
+    figure.update_layout(
+        template="simple_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family=_FONT_STACK, color=_TEXT_COLOR), margin=dict(l=110, r=30, t=50, b=50),
+        height=_PLOT_HEIGHT_BASE + _PLOT_HEIGHT_PER_CLUSTER * len(labels) // 2, showlegend=False,
     )
     return figure

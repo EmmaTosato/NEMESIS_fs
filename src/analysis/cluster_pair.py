@@ -36,33 +36,33 @@ _CLUSTER_LABEL_COLUMN = COLOR_MODES["cluster_label"].column
 # (name, label, registry column): the share of the lesion in each anatomical location, from the
 # subject registry (2mm grid, one fixed grid for every subject).
 LOCATION_FRACTIONS: list[tuple[str, str, str]] = [
-    ("loc_infratentorial", "Quota infratentoriale", "location_infratentorial_2mm"),
-    ("loc_subcortical_gray", "Quota sottocorticale grigia", "location_subcortical_gray_2mm"),
-    ("loc_cortex_only", "Quota corticale", "location_cortex_only_2mm"),
-    ("loc_cortex_white_boundary", "Quota giunzione corteccia-bianca", "location_cortex_white_boundary_2mm"),
-    ("loc_white_matter_only", "Quota sostanza bianca", "location_white_matter_only_2mm"),
-    ("loc_ventricle", "Quota ventricolare", "location_ventricle_2mm"),
-    ("loc_unlabeled", "Quota senza etichetta", "location_unlabeled_2mm"),
+    ("loc_infratentorial", "Infratentorial share", "location_infratentorial_2mm"),
+    ("loc_subcortical_gray", "Subcortical gray share", "location_subcortical_gray_2mm"),
+    ("loc_cortex_only", "Cortical share", "location_cortex_only_2mm"),
+    ("loc_cortex_white_boundary", "Cortex-white matter boundary share", "location_cortex_white_boundary_2mm"),
+    ("loc_white_matter_only", "White matter share", "location_white_matter_only_2mm"),
+    ("loc_ventricle", "Ventricular share", "location_ventricle_2mm"),
+    ("loc_unlabeled", "Unlabeled share", "location_unlabeled_2mm"),
 ]
 
 # (name, label, registry column) of the categorical variables tested besides sex.
 CATEGORICAL_VARIABLES: list[tuple[str, str, str]] = [
-    ("sex", "Sesso", "sex"),
+    ("sex", "Sex", "sex"),
     ("dataset", "Dataset", "dataset"),
-    ("lesion_side", "Lato della lesione", "lesion_side"),
-    ("location_dominant", "Sede dominante", "location_dominant_2mm"),
+    ("lesion_side", "Lesion side", "lesion_side"),
+    ("location_dominant", "Dominant location", "location_dominant_2mm"),
 ]
 
 REGRESSION_NUMERIC = ["age", "nihss", "log_lesion_volume", "loc_cortex_only", "loc_subcortical_gray", "loc_infratentorial"]
 REGRESSION_CATEGORICAL = ["sex", "dataset"]
 REGRESSION_LABELS: dict[str, str] = {
-    "age": "età",
+    "age": "age",
     "nihss": "NIHSS",
-    "log_lesion_volume": "volume lesione (log10)",
-    "loc_cortex_only": "quota corticale",
-    "loc_subcortical_gray": "quota sottocorticale grigia",
-    "loc_infratentorial": "quota infratentoriale",
-    "sex": "sesso",
+    "log_lesion_volume": "lesion volume (log10)",
+    "loc_cortex_only": "cortical share",
+    "loc_subcortical_gray": "subcortical gray share",
+    "loc_infratentorial": "infratentorial share",
+    "sex": "sex",
     "dataset": "dataset",
 }
 
@@ -234,7 +234,7 @@ def pair_regression(pair: PairFrame, label_1: int) -> RegressionResult:
 
 
 def regression_term_label(term: str) -> str:
-    """The reading of a coefficient name: "age" -> "età", "sex: M (rif. F)" -> "sesso: M (rif. F)"."""
+    """The reading of a coefficient name: "age" -> "età", "sex: M (ref. F)" -> "sex: M (ref. F)"."""
     name, separator, rest = term.partition(": ")
     if name not in REGRESSION_LABELS:
         raise ValueError(f"unknown regression term {term!r}, expected one of {sorted(REGRESSION_LABELS)}")
@@ -261,8 +261,8 @@ def build_odds_ratio_figure(result: RegressionResult, label_1: int, label_2: int
     )
     figure.add_vline(x=1, line={"color": "#555", "width": 1, "dash": "dash"})
     figure.update_xaxes(
-        type="log", title=f"odds ratio  ←  più probabile nel cluster {cluster_name(label_2)} | "
-        f"più probabile nel cluster {cluster_name(label_1)}  →",
+        type="log", title=f"odds ratio  ←  more likely in cluster {cluster_name(label_2)} | "
+        f"more likely in cluster {cluster_name(label_1)}  →",
         gridcolor="#ececec",
     )
     figure.update_yaxes(showgrid=False)

@@ -9,7 +9,7 @@ Question answered: which variables distinguish one cluster from the rest, **all 
 A logistic regression with outcome 1 = "in this cluster", 0 = "in another cluster", fitted with no regularization (`C=np.inf`).
 
 - **Numeric** columns are standardized (mean 0, standard deviation 1, over the subjects used): each odds ratio is per standard deviation, and variables are comparable. Transformations such as a log for a skewed quantity are the caller's.
-- **Categorical** columns become one 0/1 column per level except the reference level (`references[column]`, default the most frequent). Terms are named `column: level (rif. reference)`.
+- **Categorical** columns become one 0/1 column per level except the reference level (`references[column]`, default the most frequent). Terms are named `column: level (ref. reference)`.
 - **Missing values**: subjects missing any used column are dropped (`n_dropped_missing` reports how many), not imputed.
 - **Inference**: Wald standard errors from the Fisher information `X' W X` (W = p(1-p)), 95% confidence interval and two-sided p on the log-odds scale. For a single binary term the standard error equals Woolf's formula for the log odds ratio, which a test checks.
 - **Diagnostics** in `RegressionResult`: McFadden pseudo-R², in-sample AUC, `events_per_term`, and per-term `vif` (variance inflation factor, from the inverse of the terms' correlation matrix; above ~5 a term's odds ratio is unstable).

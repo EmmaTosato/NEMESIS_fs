@@ -50,7 +50,7 @@ def test_require_applicable_rejects_an_unlisted_method():
 
 
 def test_require_applicable_rejects_an_unknown_evaluation():
-    with pytest.raises(ValueError, match="valutazione sconosciuta"):
+    with pytest.raises(ValueError, match="unknown evaluation"):
         require_applicable("silhouete", "kmeans")
 
 
@@ -283,27 +283,6 @@ def test_knn_purity_rejects_bad_input():
         knn_purity(distances, labels, k=15)
 
 
-# --- noise_warning -----------------------------------------------------------
-
-
-def test_noise_warning_is_silent_up_to_the_threshold_and_names_the_run_above_it():
-    from src.analysis.clustering_evaluation import noise_warning
-
-    assert noise_warning("run_a", 0.004, 0.10) is None
-    assert noise_warning("run_a", 0.10, 0.10) is None  # the threshold itself is not above it
-    message = noise_warning("hdbscan_mcs200", 0.274, 0.10)
-    assert message is not None and "hdbscan_mcs200" in message and "27,4%" in message
-
-
-def test_noise_warning_rejects_values_outside_the_unit_interval():
-    from src.analysis.clustering_evaluation import noise_warning
-
-    with pytest.raises(ValueError, match="noise_fraction"):
-        noise_warning("run_a", 27.4, 0.10)  # a percentage passed as a fraction
-    with pytest.raises(ValueError, match="threshold"):
-        noise_warning("run_a", 0.2, 10)
-
-
 def test_adp_is_scored_by_knn_purity_and_not_by_the_euclidean_geometric_metrics():
     require_applicable("knn_purity", "adp")
     with pytest.raises(ValueError, match="'adp'"):
@@ -404,16 +383,14 @@ def test_membership_confidence_summarises_hdbscans_own_probabilities_per_cluster
     labels, probabilities = _fit_hdbscan(X)
     assert (labels == -1).any() and len(set(labels) - {-1}) == 3  # the fixture is what the test assumes
 
-    result = membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, labels, threshold=0.7)
+    result = membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, labels)
 
     for cluster, row in result.clusters.iterrows():
         p = probabilities[labels == cluster]
         assert row["n"] == len(p)
         assert row["probability_mean"] == pytest.approx(p.mean())
-        assert row["share_below_threshold"] == pytest.approx((p < 0.7).mean())
-    assert result.clusters["share_below_threshold"].max() > 0  # the loose cluster has weak members
+    assert list(result.clusters.columns) == ["n", "probability_mean"]  # no threshold: the literature has no reference value
     assert result.n_noise == int((labels == -1).sum())
-    assert result.n_confident == int((probabilities[labels != -1] >= 0.7).sum())
 
 
 def test_membership_confidence_refuses_a_refit_that_does_not_reproduce_the_labels():
@@ -421,28 +398,19 @@ def test_membership_confidence_refuses_a_refit_that_does_not_reproduce_the_label
     labels, _ = _fit_hdbscan(X)
 
     with pytest.raises(ValueError, match="does not reproduce the stored labels"):
-        membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, np.roll(labels, 1), threshold=0.5)
+        membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, np.roll(labels, 1))
 
 
 def test_membership_confidence_refuses_a_method_without_membership_probabilities():
     with pytest.raises(ValueError, match="'kmeans'"):
-        membership_confidence("kmeans", np.zeros((4, 2)), {}, np.zeros(4, dtype=int), threshold=0.5)
-
-
-@pytest.mark.parametrize("threshold", [0.0, -0.1, 1.5])
-def test_membership_confidence_rejects_a_threshold_outside_zero_one(threshold):
-    X = _blobs_of_mixed_density()
-    labels, _ = _fit_hdbscan(X)
-
-    with pytest.raises(ValueError, match="threshold must be in"):
-        membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, labels, threshold=threshold)
+        membership_confidence("kmeans", np.zeros((4, 2)), {}, np.zeros(4, dtype=int))
 
 
 def test_membership_confidence_refuses_a_run_that_is_all_noise():
     X = _blobs_of_mixed_density()
 
     with pytest.raises(ValueError, match="every subject is noise"):
-        membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, np.full(len(X), -1), threshold=0.5)
+        membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, np.full(len(X), -1))
 
 
 def test_membership_confidence_is_registered_for_hdbscan_only():
@@ -472,11 +440,11 @@ def _soft_fixture():
 def test_soft_membership_summary_reads_each_cluster_from_its_own_column_and_names_the_nearest_other():
     labels, membership = _soft_fixture()
 
-    result = soft_membership_summary(labels, membership, threshold=0.5)
+    result = soft_membership_summary(labels, membership)
 
     assert result.clusters.loc[0, "n"] == 3
     assert result.clusters.loc[0, "own_mean"] == pytest.approx((0.9 + 0.7 + 0.4) / 3)
-    assert result.clusters.loc[0, "share_below_threshold"] == pytest.approx(1 / 3)
+    assert "share_below_threshold" not in result.clusters.columns  # no threshold on the probability
     assert result.clusters.loc[0, "top_other"] == 1
     assert result.clusters.loc[0, "top_other_mean"] == pytest.approx((0.05 + 0.20 + 0.30) / 3)
     assert result.clusters.loc[1, "own_mean"] == pytest.approx(0.7)
@@ -487,7 +455,7 @@ def test_soft_membership_summary_reads_each_cluster_from_its_own_column_and_name
 def test_soft_membership_summary_mean_vectors_have_a_noise_row_and_the_own_means_on_the_diagonal():
     labels, membership = _soft_fixture()
 
-    result = soft_membership_summary(labels, membership, threshold=0.5)
+    result = soft_membership_summary(labels, membership)
 
     assert result.mean_vectors.index.tolist() == [0, 1, -1]
     np.testing.assert_allclose(np.diag(result.mean_vectors.loc[[0, 1]].to_numpy()), result.clusters["own_mean"].to_numpy())
@@ -497,14 +465,12 @@ def test_soft_membership_summary_mean_vectors_have_a_noise_row_and_the_own_means
 def test_soft_membership_summary_rejects_inconsistent_input():
     labels, membership = _soft_fixture()
 
-    with pytest.raises(ValueError, match="threshold must be in"):
-        soft_membership_summary(labels, membership, threshold=0.0)
     with pytest.raises(ValueError, match="every subject is noise"):
-        soft_membership_summary(np.full(6, -1), membership, threshold=0.5)
+        soft_membership_summary(np.full(6, -1), membership)
     with pytest.raises(ValueError, match="0..k-1"):
-        soft_membership_summary(np.array([0, 0, 0, 2, 2, -1]), membership, threshold=0.5)
+        soft_membership_summary(np.array([0, 0, 0, 2, 2, -1]), membership)
     with pytest.raises(ValueError, match=r"\(6, 2\)"):
-        soft_membership_summary(labels, membership[:, :1], threshold=0.5)
+        soft_membership_summary(labels, membership[:, :1])
 
 
 def test_soft_membership_is_registered_for_hdbscan_soft_only():
@@ -680,3 +646,45 @@ def test_weakest_soft_members_rejects_bad_input():
         weakest_soft_members(np.full(6, -1), membership, 3)
     with pytest.raises(ValueError, match="one row per label"):
         weakest_soft_members(labels, membership[:-1], 3)
+
+
+
+# --- density_summary / DBCV -------------------------------------------------------------------------
+
+
+def _density_fixture():
+    rng = np.random.default_rng(0)
+    X = np.vstack([rng.normal(centre, 0.3, (30, 2)) for centre in (0.0, 8.0)] + [rng.uniform(-20, 30, (6, 2))])
+    return X, np.array([0] * 30 + [1] * 30 + [-1] * 6)
+
+
+def test_density_summary_has_the_dbcv_the_shares_and_one_row_per_cluster():
+    from src.analysis.clustering_evaluation import density_summary
+    from src.analysis.dbcv import dbcv
+
+    X, labels = _density_fixture()
+    result = density_summary(X, labels, {"min_cluster_size": 5})
+
+    assert result.dbcv == pytest.approx(dbcv(X, labels)[0])
+    assert result.n_clusters == 2 and result.n_subjects == 66 and result.n_components == 2
+    assert result.largest_cluster_share == pytest.approx(30 / 66) and result.noise_fraction == pytest.approx(6 / 66)
+    assert result.clusters["n"].tolist() == [30, 30] and list(result.clusters.columns) == ["n", "dbcv"]
+
+
+def test_density_summary_refuses_fewer_than_two_clusters_and_a_non_euclidean_run():
+    from src.analysis.clustering_evaluation import density_summary
+
+    X, labels = _density_fixture()
+    with pytest.raises(ValueError, match="at least 2 clusters"):
+        density_summary(X, np.where(labels == 0, 0, -1), {})
+    with pytest.raises(ValueError, match="Euclidean"):
+        density_summary(X, labels, {"metric": "cosine"})
+
+
+def test_the_density_methods_have_dbcv_and_not_the_geometric_indices():
+    for method in ("hdbscan", "hdbscan_soft"):
+        require_applicable("dbcv", method)
+        with pytest.raises(ValueError, match="DBCV instead"):
+            require_applicable("geometric_metrics", method)
+    with pytest.raises(ValueError, match="'kmeans'"):
+        require_applicable("dbcv", "kmeans")

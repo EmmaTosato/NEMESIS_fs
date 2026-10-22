@@ -28,7 +28,7 @@ def test_the_regression_recovers_the_true_odds_ratios_inside_their_confidence_in
     result = cluster_vs_rest_regression(features, outcome, numeric=["signal", "protective", "noise"], categorical=["dataset"])
 
     table = result.coefficients
-    for term, true_log_odds in [("signal", 1.0), ("protective", -0.6), ("dataset: B (rif. A)", 0.8), ("noise", 0.0)]:
+    for term, true_log_odds in [("signal", 1.0), ("protective", -0.6), ("dataset: B (ref. A)", 0.8), ("noise", 0.0)]:
         assert table.loc[term, "ci_low"] < np.exp(true_log_odds) < table.loc[term, "ci_high"], term
     assert table.loc["signal", "p_value"] < 1e-10
     assert table.loc["noise", "p_value"] > 0.01
@@ -57,7 +57,7 @@ def test_the_standard_error_of_a_single_binary_term_is_woolfs_formula():
     a, b = ((group == "y") & outcome).sum(), ((group == "y") & ~outcome).sum()
     c, d = ((group == "x") & outcome).sum(), ((group == "x") & ~outcome).sum()
     woolf_se = np.sqrt(1 / a + 1 / b + 1 / c + 1 / d)
-    row = result.coefficients.loc["group: y (rif. x)"]
+    row = result.coefficients.loc["group: y (ref. x)"]
     assert row["odds_ratio"] == pytest.approx((a * d) / (b * c), rel=1e-4)
     assert np.log(row["ci_high"] / row["odds_ratio"]) == pytest.approx(1.959964 * woolf_se, rel=1e-4)
 
@@ -67,7 +67,7 @@ def test_the_default_reference_level_is_the_most_frequent_one():
 
     result = cluster_vs_rest_regression(features, outcome, numeric=[], categorical=["dataset"])
 
-    assert list(result.coefficients.index) == ["dataset: B (rif. A)"]  # A is twice as frequent as B
+    assert list(result.coefficients.index) == ["dataset: B (ref. A)"]  # A is twice as frequent as B
 
 
 def test_subjects_with_a_missing_value_are_dropped_and_counted():

@@ -204,4 +204,4 @@ def test_the_figure_titles_report_the_true_coverage_of_each_variable(registry_ro
     for variable in CLUSTER_DESCRIPTION_VARIABLES:
         summary = variable_summary(composition, variable)
         assert f"n={summary['n_available']}/{summary['n_total']}" in titles
-    assert f"{len(composition)} soggetti" in figure.layout.title.text
+    assert f"{len(composition)} subjects" in figure.layout.title.text

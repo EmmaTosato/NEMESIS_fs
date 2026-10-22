@@ -99,7 +99,7 @@ def cluster_vs_rest_regression(
         if reference not in set(levels):
             raise ValueError(f"reference level {reference!r} of {column!r} is not among {sorted(set(levels))}")
         for level in sorted(set(levels) - {reference}):
-            design[f"{column}: {level} (rif. {reference})"] = (levels == level).astype(float)
+            design[f"{column}: {level} (ref. {reference})"] = (levels == level).astype(float)
     if design.shape[1] == 0:
         raise ValueError("the design has no columns: every categorical column has a single level")
 

@@ -34,17 +34,17 @@ def build_reproducibility_figure(reproducibility: np.ndarray, selected: int) -> 
     positions = np.arange(1, n_components + 1)
     figure = go.Figure(go.Bar(
         x=positions, y=reproducibility, marker=dict(color=[_SELECTED_COLOR if k == selected else _BAR_COLOR for k in positions]),
-        hovertemplate="componente %{x}<br>riproducibilità: %{y:.3f}<extra></extra>", showlegend=False,
+        hovertemplate="component %{x}<br>reproducibility: %{y:.3f}<extra></extra>", showlegend=False,
     ))
     figure.add_hline(
         y=PAPER_REPRODUCIBILITY, line=dict(color="#c0392b", dash="dash", width=1),
-        annotation_text=f"media del paper ({PAPER_REPRODUCIBILITY})", annotation_position="bottom right",
+        annotation_text=f"paper mean ({PAPER_REPRODUCIBILITY})", annotation_position="bottom right",
     )
-    figure.update_xaxes(title_text="componente", type="category", gridcolor=_GRIDLINE_COLOR)
-    figure.update_yaxes(title_text="riproducibilità tra le due metà", range=[0, 1.02], gridcolor=_GRIDLINE_COLOR)
+    figure.update_xaxes(title_text="component", type="category", gridcolor=_GRIDLINE_COLOR)
+    figure.update_yaxes(title_text="reproducibility between the two halves", range=[0, 1.02], gridcolor=_GRIDLINE_COLOR)
     figure.update_layout(
         title=dict(
-            text=f'<b>Riproducibilità delle mappe</b><br><span style="font-size:13.5px;color:{_MUTED_COLOR}">due metà casuali dei soggetti</span>',
+            text=f'<b>Map reproducibility</b><br><span style="font-size:13.5px;color:{_MUTED_COLOR}">two random halves of the subjects</span>',
             font=dict(size=17, family=_FONT_STACK, color=_TEXT_COLOR), x=0.02, xanchor="left",
         ),
         template="simple_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",

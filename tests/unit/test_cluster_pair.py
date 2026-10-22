@@ -121,12 +121,12 @@ def test_pair_frame_names_a_registry_column_that_is_missing(tmp_path, monkeypatc
 def test_clinical_comparison_finds_the_planted_differences_with_the_right_sign(registry):
     comparison = pair_clinical_comparison(pair_frame(_metadata(registry), 0, 1), 0)
 
-    age = comparison.numeric.set_index("variable").loc["Età (anni)"]
+    age = comparison.numeric.set_index("variable").loc["Age (years)"]
     assert age["median_1"] > age["median_2"]
     assert age["r"] > 0.3 and age["p_fdr"] < 1e-3
-    volume = comparison.numeric.set_index("variable").loc["Volume lesione (voxel)"]
+    volume = comparison.numeric.set_index("variable").loc["Lesion volume (voxels)"]
     assert volume["r"] > 0.3 and volume["p_fdr"] < 1e-3
-    sex = comparison.categorical.set_index(["variable", "category"]).loc[("Sesso", "F")]
+    sex = comparison.categorical.set_index(["variable", "category"]).loc[("Sex", "F")]
     assert sex["share_1"] > sex["share_2"] and sex["odds_ratio"] > 1 and sex["p_fdr"] < 0.01
 
 
@@ -188,8 +188,8 @@ def test_regression_raises_when_a_cluster_is_too_small_for_the_terms(registry):
 
 
 def test_regression_term_labels_read_numeric_and_categorical_terms():
-    assert regression_term_label("age") == "età"
-    assert regression_term_label("sex: M (rif. F)") == "sesso: M (rif. F)"
+    assert regression_term_label("age") == "age"
+    assert regression_term_label("sex: M (ref. F)") == "sex: M (ref. F)"
     with pytest.raises(ValueError, match="unknown regression term"):
         regression_term_label("height")
 
@@ -201,7 +201,7 @@ def test_odds_ratio_figure_has_one_point_per_term_on_a_log_axis(registry):
 
     assert len(figure.data[0].x) == len(result.coefficients)
     assert figure.layout.xaxis.type == "log"
-    assert "più probabile nel cluster 0" in figure.layout.xaxis.title.text
+    assert "more likely in cluster 0" in figure.layout.xaxis.title.text
 
 
 # --- centroid_separation ---------------------------------------------------------------------

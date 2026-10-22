@@ -101,7 +101,7 @@ def _params_file(tmp_path, methods=("kmeans",)):
 def test_a_run_is_not_comparable_with_itself(tmp_path):
     run = _make_clustering_run(tmp_path)
 
-    assert comparison_incompatibility(run, run, _params_file(tmp_path)) == "le due run sono la stessa run"
+    assert comparison_incompatibility(run, run, _params_file(tmp_path)) == "the two runs are the same run"
 
 
 def _modality_pair(tmp_path, **sdc_overrides):
@@ -123,7 +123,7 @@ def test_modality_mode_rejects_the_same_modality(tmp_path):
 
     reason = comparison_incompatibility(lesion, other_lesion, _params_file(tmp_path))
 
-    assert "modalità diverse" in reason
+    assert "different modalities" in reason
 
 
 def test_modality_mode_rejects_a_different_clustering_method(tmp_path):
@@ -131,7 +131,7 @@ def test_modality_mode_rejects_a_different_clustering_method(tmp_path):
 
     reason = comparison_incompatibility(lesion, sdc, _params_file(tmp_path, methods=("kmeans", "gmm")))
 
-    assert "metodi di clustering diversi" in reason
+    assert "different clustering methods" in reason
 
 
 def test_modality_mode_rejects_different_method_parameters(tmp_path):
@@ -139,7 +139,7 @@ def test_modality_mode_rejects_different_method_parameters(tmp_path):
 
     reason = comparison_incompatibility(lesion, sdc, _params_file(tmp_path))
 
-    assert "parametri del metodo diversi" in reason
+    assert "different method parameters" in reason
     assert "n_clusters=5" in reason and "n_clusters=4" in reason
 
 
@@ -148,13 +148,13 @@ def test_modality_mode_rejects_a_different_upstream_metric(tmp_path):
 
     reason = comparison_incompatibility(lesion, sdc, _params_file(tmp_path))
 
-    assert "embedding di partenza diversi" in reason
+    assert "different starting embeddings" in reason
 
 
 def test_modality_mode_rejects_a_different_number_of_components(tmp_path):
     lesion, sdc = _modality_pair(tmp_path, reduction_n_components=3)
 
-    assert "embedding di partenza diversi" in comparison_incompatibility(lesion, sdc, _params_file(tmp_path))
+    assert "different starting embeddings" in comparison_incompatibility(lesion, sdc, _params_file(tmp_path))
 
 
 def test_candidates_are_all_the_clustering_runs_raw_ones_included(tmp_path):
@@ -224,10 +224,10 @@ def test_modality_content_reports_the_partial_intersection_and_the_clinical_prof
     content = comparison_content_for(lesion, sdc, _params_file(tmp_path))
 
     text = _flatten_text(content)
-    assert "3 soggetti in comune" in text
-    assert "solo in A: 1" in text and "solo in B: 1" in text
-    assert "Profilo clinico dei cluster" in text
-    assert "Distanza tra centroidi" not in text
+    assert "3 subjects in common" in text
+    assert "only in A: 1" in text and "only in B: 1" in text
+    assert "Clinical profile of the clusters" in text
+    assert "Distance between centroids" not in text
 
 
 def test_content_for_an_incompatible_pair_names_the_reason(tmp_path):
@@ -236,7 +236,7 @@ def test_content_for_an_incompatible_pair_names_the_reason(tmp_path):
     content = comparison_content_for(lesion, sdc, _params_file(tmp_path))
 
     assert isinstance(content, html.P)
-    assert "non sono confrontabili" in content.children
+    assert "are not comparable" in content.children
 
 
 def test_content_for_runs_without_common_subjects_says_so(tmp_path):
@@ -262,13 +262,13 @@ def test_pair_content_has_the_summary_clinical_regression_and_centroid_blocks(tm
 
     text = _flatten_text(content)
     assert isinstance(content, html.Div)
-    assert "Primo cluster: cluster 0 · 2 soggetti" in text and "Secondo cluster: cluster 1 · 2 soggetti" in text
-    assert "Profilo demografico e clinico" in text and "Età (anni)" in text and "Sesso" in text
-    assert "Cosa distingue i due cluster" in text
+    assert "First cluster: cluster 0 · 2 subjects" in text and "Second cluster: cluster 1 · 2 subjects" in text
+    assert "Demographic and clinical profile" in text and "Age (years)" in text and "Sex" in text
+    assert "What distinguishes the two clusters" in text
     # the registry has the same location shares for every subject, so the regression cannot be fitted:
     # the block says why instead of showing nothing
     assert "constant among the subjects used" in text
-    assert "Distanza tra i centroidi" in text
+    assert "Distance between centroids" in text
     # the centroids (0.5, 0) and (10.5, 0), each cluster 0.5 wide
     assert "10,00" in text and "0,50" in text
 
@@ -278,7 +278,7 @@ def test_pair_content_swaps_the_clusters_not_the_distance(tmp_path, _registry_ro
 
     forward, backward = _flatten_text(cluster_pair_content_for(run, 0, 1)), _flatten_text(cluster_pair_content_for(run, 1, 0))
 
-    assert "Primo cluster: cluster 1" in backward
+    assert "First cluster: cluster 1" in backward
     assert "10,00" in forward and "10,00" in backward
 
 
@@ -287,7 +287,7 @@ def test_pair_content_names_the_noise_cluster(tmp_path, _registry_root):
 
     text = _flatten_text(cluster_pair_content_for(run, -1, 0))
 
-    assert "Primo cluster: rumore · 1 soggetti" in text
+    assert "First cluster: noise · 1 subjects" in text
 
 
 def test_pair_content_reports_an_empty_or_repeated_cluster(tmp_path, _registry_root):
@@ -307,7 +307,7 @@ def test_pair_content_warns_about_a_subject_missing_from_the_registry(tmp_path, 
 
     text = _flatten_text(cluster_pair_content_for(run, 0, 1))
 
-    assert "1 soggetti dei due cluster non hanno una riga nel registro" in text
+    assert "1 subjects of the two clusters have no row in the registry" in text
     assert "sub-STUNIPD0099" in text
 
 
@@ -316,8 +316,8 @@ def test_pair_centroid_block_says_a_raw_run_has_no_embedding(tmp_path, _registry
 
     text = _flatten_text(cluster_pair_content_for(run, 0, 1))
 
-    assert "La run è su dati grezzi" in text
-    assert "Profilo demografico e clinico" in text
+    assert "The run is on raw data" in text
+    assert "Demographic and clinical profile" in text
 
 
 def test_pair_content_refuses_a_dim_reduction_run(tmp_path):
@@ -325,14 +325,14 @@ def test_pair_content_refuses_a_dim_reduction_run(tmp_path):
 
     content = cluster_pair_content_for(run, 0, 1)
 
-    assert isinstance(content, html.P) and "non è una run di clustering" in content.children
+    assert isinstance(content, html.P) and "is not a clustering run" in content.children
 
 
 def test_pair_cluster_option_label_carries_the_size_and_names_the_noise():
     metadata = pd.DataFrame({"cluster_label": [-1, 0, 0, 0]})
 
-    assert pair_cluster_option_label(0, metadata) == "Cluster 0 · 3 soggetti"
-    assert pair_cluster_option_label(-1, metadata) == "Rumore · 1 soggetti"
+    assert pair_cluster_option_label(0, metadata) == "Cluster 0 · 3 subjects"
+    assert pair_cluster_option_label(-1, metadata) == "Noise · 1 subjects"
 
 
 def _anatomy_run(tmp_path, modality="lesion"):
@@ -356,8 +356,8 @@ def test_pair_anatomy_shows_each_cluster_and_their_difference_for_a_lesion_run(t
     text = _flatten_text(content)
     assert isinstance(content, html.Div)
     assert "Cluster 0 (n=2)" in text and "Cluster 1 (n=2)" in text
-    assert "Differenza: cluster 0 meno cluster 1" in text
-    assert "Anatomia della disconnessione" not in text
+    assert "Difference: cluster 0 minus cluster 1" in text
+    assert "Disconnection anatomy" not in text
 
 
 def test_pair_anatomy_adds_the_disconnection_maps_for_an_sdc_run(tmp_path):
@@ -365,8 +365,8 @@ def test_pair_anatomy_adds_the_disconnection_maps_for_an_sdc_run(tmp_path):
 
     text = _flatten_text(cluster_pair_anatomy_for(run, 0, 1, _lesion_cfg(data_root), _sdc_cfg(data_root)))
 
-    assert "Anatomia della lesione" in text and "Anatomia della disconnessione" in text
-    assert text.count("Differenza: cluster 0 meno cluster 1") == 2
+    assert "Lesion anatomy" in text and "Disconnection anatomy" in text
+    assert text.count("Difference: cluster 0 minus cluster 1") == 2
 
 
 def test_pair_anatomy_difference_is_signed_by_which_cluster_has_the_voxel(tmp_path):
@@ -405,7 +405,7 @@ def test_pair_anatomy_rejects_the_same_cluster_twice(tmp_path):
 
     content = cluster_pair_anatomy_for(run, 0, 0, _lesion_cfg(data_root), _sdc_cfg(data_root))
 
-    assert isinstance(content, html.P) and "lo stesso" in content.children
+    assert isinstance(content, html.P) and "the same" in content.children
 
 
 # --- page index ------------------------------------------------------------------------------

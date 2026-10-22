@@ -37,7 +37,7 @@ Memory is one block of columns plus one square matrix, never the matrix: X may b
 
 ## The component maps in the Embedding Explorer
 
-`src/analysis/component_maps.py` computes the same maps for a `pca` run of `dim_reduction.py`, for the app's "Mappe delle componenti" panel (`embedding_app.run_component_maps`, `component_maps_content_for`).
+`src/analysis/component_maps.py` computes the same maps for a `pca` run of `dim_reduction.py`, for the app's "Component maps" panel (`embedding_app.run_component_maps`, `component_maps_content_for`).
 
 - **Inputs.** The scores are the run's own `matrix.npy` (rotated or not, whatever the run saved); the matrix they are regressed against is the run's `input_path` (read from its `config.md`, relative to the working directory). `load_map_geometry(source_dir)` gives where its columns are in the brain: `non_constant_mask.npy` (flat, over the template grid, C order) and the header of the `reference_template_path` named in the matrix's own `config.md`. A matrix without either (parcellated, streamline, FC) raises with that cause. `to_volume(values, geometry)` puts one value per column back on the grid.
 - **What is computed.** `ComponentMapStore.request(source_dir, scores, subject_ids)` runs `component_t_maps` once with three row sets (all subjects and two random halves, `SPLIT_SEED` = 0), orients every component with `positive_peak_signs` (the same signs for the halves), and stores the oriented whole-sample t-maps (float32, memory-mapped on read), the per-component `map_reproducibility` and the number of degenerate voxels.

@@ -130,12 +130,13 @@ def test_an_index_with_no_readable_run_raises(tmp_path):
 
 # --- the selectors -----------------------------------------------------------------------------------------------
 
-def test_the_first_render_opens_on_the_first_modality_and_the_preferred_pipeline_with_the_rest_open(_indexed):
+def test_the_first_render_opens_on_the_first_modality_and_the_preferred_pipeline_with_no_run_chosen(_indexed):
     state = resolve_pickers(_indexed, {field: None for field in PICKER_FIELDS}, None)
 
     assert state.chosen["modality"] == "lesion" and state.chosen["pipeline"] == "dim_reduction"
     assert all(state.chosen[f] == UNSET for f in ("method", "reduction", "metric", "n_components", "tag_params"))
-    assert state.chosen["run"] == _key("lesion", "dim_reduction", "umap", "undated")  # the most recent of the listed runs
+    assert state.chosen["run"] == UNSET  # no run chosen at the first render
+    assert state.options["run"][1:]  # the runs of the preset filters are still listed
 
 
 def test_every_filter_starts_with_the_open_choice_and_lists_only_what_exists(_indexed):
@@ -217,8 +218,8 @@ def test_riavvia_puts_every_selector_including_the_run_back_to_the_open_choice(_
     assert state.options["run"] == [UNSET, *(item.run.key for item in _indexed)]
 
 
-def test_the_subjects_selector_comes_right_after_dato():
-    assert PICKER_FIELDS[:3] == ("modality", "n_subjects", "pipeline")
+def test_the_selectors_are_ordered_dato_pipeline_method_reduction_subjects():
+    assert PICKER_FIELDS[:5] == ("modality", "pipeline", "method", "reduction", "n_subjects")
 
 
 def test_run_offers_the_open_choice_first_and_keeps_it_while_chosen(_indexed):
@@ -231,10 +232,6 @@ def test_run_offers_the_open_choice_first_and_keeps_it_while_chosen(_indexed):
     assert UNSET not in state.run_labels
 
 
-def test_the_first_render_does_not_start_on_the_open_run_choice(_indexed):
-    state = resolve_pickers(_indexed, {field: None for field in PICKER_FIELDS}, None)
-
-    assert state.chosen["run"] != UNSET
 
 
 def test_the_chosen_run_stays_while_the_filters_still_list_it_else_it_is_the_most_recent(_indexed):
@@ -323,14 +320,14 @@ def test_the_riavvia_button_resets_every_selector_through_the_callback(_runs, tm
     assert all(payload[ids[f]]["value"] == UNSET for f in PICKER_FIELDS)
 
 
-def test_the_page_lays_out_dato_then_soggetti_then_pipeline_and_has_a_riavvia_button(_runs, tmp_path):
+def test_the_page_lays_out_the_selectors_in_order_and_has_a_riavvia_button(_runs, tmp_path):
     app = build_app(_runs, _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache")
 
     layout = json.dumps(app.layout.to_plotly_json(), default=lambda node: node.to_plotly_json())
 
-    positions = [layout.index(f'"{name}-picker"') for name in ("modality", "n-subjects", "pipeline", "method", "reduction", "metric", "n-components", "tag-params", "run")]
+    positions = [layout.index(f'"{name}-picker"') for name in ("modality", "pipeline", "method", "reduction", "n-subjects", "metric", "n-components", "tag-params", "run")]
     assert positions == sorted(positions)
-    assert '"reset-pickers-btn"' in layout and '"Riavvia"' in layout
+    assert '"reset-pickers-btn"' in layout and '"Reset"' in layout
 
 
 def _post_run_picker(app, run_value, output_ids, output_props):
@@ -406,7 +403,11 @@ def test_the_subjects_selector_filters_the_runs_and_is_filtered_by_the_others(_i
     state = resolve_pickers(indexed, _current(modality="lesion", n_subjects=5845), "n_subjects")
     assert set(state.options["run"][1:]) == {_key("lesion", "dim_reduction", "umap", "10-08_a"), _key("lesion", "clustering", "kmeans", "12-08_k3", "umap")}
 
-    # Soggetti is the second selector: it offers the counts of the runs of the modality only, and narrows Pipeline
+    # Soggetti comes after Riduzione: it offers the counts of the runs left by the selectors before it, and narrows Metrica
+    state = resolve_pickers(indexed, _current(modality="lesion", pipeline="dim_reduction", n_subjects=5845), "n_subjects")
+    assert state.options["n_subjects"] == [UNSET, 100, 5845]  # no clustering run's count (5200) is offered here
+    assert state.options["pipeline"] == [UNSET, *PRODUCTION_PIPELINES]  # not narrowed by the selector to its right
+
     state = resolve_pickers(indexed, _current(modality="lesion", n_subjects=5200), "n_subjects")
     assert state.options["n_subjects"] == [UNSET, 100, 5200, 5845]
-    assert state.options["pipeline"] == [UNSET, "clustering"]  # only a clustering run has 5200 subjects
+    assert state.options["metric"] == [UNSET, "dice"]  # only the 5200-subject run has a metric to offer
