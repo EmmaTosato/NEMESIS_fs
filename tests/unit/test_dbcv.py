@@ -106,3 +106,14 @@ def test_run_dbcv_still_raises_for_a_cluster_of_one_subject():
 
     with pytest.raises(ValueError, match="at least 2 subjects"):
         run_dbcv(X, labels, {})
+
+
+def test_a_float32_embedding_gives_the_score_of_its_float64_values_instead_of_a_dtype_error():
+    # UMAP embeddings are saved as float32; the hdbscan package only accepts float64 ("Buffer dtype mismatch")
+    X, labels = _three_blobs()
+    X32 = X.astype(np.float32)
+
+    score32, per_cluster32 = dbcv(X32, labels)
+    score64, per_cluster64 = dbcv(X32.astype(np.float64), labels)
+
+    assert score32 == score64 and per_cluster32 == per_cluster64

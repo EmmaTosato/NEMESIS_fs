@@ -37,8 +37,10 @@ def dbcv(X: np.ndarray, labels: np.ndarray) -> tuple[float, dict[int, float]]:
     - A cluster with a single subject has no internal structure to measure: raises ValueError (the density methods
       of this project never produce one, min_cluster_size is at least 2).
     - Raises ValueError for a `labels`/`X` length mismatch or a non-finite value in `X`.
+    - `X` is read as float64, what the `hdbscan` package requires: a float32 embedding (UMAP's) is cast, it is not
+      refused. Meant for embeddings: a matrix of hundreds of thousands of columns would be copied in float64.
     """
-    X = np.asarray(X)
+    X = np.asarray(X, dtype=np.float64)
     labels = np.asarray(labels)
     if X.ndim != 2 or len(X) != len(labels):
         raise ValueError(f"X must be 2D with one row per label, got X.shape={X.shape} and {len(labels)} labels")
