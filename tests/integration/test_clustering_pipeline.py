@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from src.analysis.clustering_evaluation import geometric_summary, model_fit_metrics
 from src.pipeline import build_lesion_matrix, clustering
 
 
@@ -413,13 +414,13 @@ def test_clustering_agglomerative_production_writes_the_silhouette_per_cluster_a
     assert f"Average silhouette coefficient: {average:.3f} ({metric})" in (out_dir / "config.md").read_text()
 
 
-def test_run_silhouette_scores_agglomerative_and_adp_under_their_metric_and_every_other_method_as_euclidean():
+def test_run_silhouette_scores_adp_under_its_metric_and_every_other_method_as_euclidean():
     rng = np.random.default_rng(0)
     X = np.vstack([rng.normal([5, 1, 1], 1.5, (20, 3)), rng.normal([1, 5, 1], 1.5, (20, 3))])
     labels = np.array([0] * 20 + [1] * 20)  # same partition for every call: only the distance can differ
 
-    agglomerative = clustering._run_silhouette(X, labels, "agglomerative", {"metric": "cosine"})
-    euclidean = clustering._run_silhouette(X, labels, "agglomerative", {"metric": "euclidean"})
+    agglomerative = clustering._run_silhouette(X, labels, "adp", {"metric": "cosine"})
+    euclidean = clustering._run_silhouette(X, labels, "adp", {"metric": "euclidean"})
     kmeans = clustering._run_silhouette(X, labels, "kmeans", {"metric": "cosine"})  # kmeans has no metric: params are ignored
 
     assert agglomerative.metric == "cosine" and euclidean.metric == "euclidean" and kmeans.metric == "euclidean"
@@ -431,7 +432,7 @@ def test_run_silhouette_is_none_for_a_result_with_fewer_than_two_clusters(caplog
     X = np.random.default_rng(0).normal(size=(10, 3))
 
     with caplog.at_level(logging.WARNING):
-        assert clustering._run_silhouette(X, np.zeros(10, dtype=int), "agglomerative", {"metric": "euclidean"}) is None
+        assert clustering._run_silhouette(X, np.zeros(10, dtype=int), "adp", {"metric": "euclidean"}) is None
     assert "no silhouette for this run" in caplog.text
 
 
@@ -445,7 +446,36 @@ def test_clustering_agglomerative_production_with_one_cluster_has_no_silhouette_
     out_dir = _run_production(tmp_path, monkeypatch, "agglomerative", {"n_clusters": 1, "linkage": "ward"})
 
     assert not (out_dir / "silhouette_per_cluster.csv").exists()
-    assert "silhouette" not in (out_dir / "config.md").read_text()
+    text = (out_dir / "config.md").read_text()
+    assert "silhouette" not in text and "Dunn" not in text and "Cophenetic" not in text
+
+
+def test_clustering_agglomerative_production_writes_the_indices_of_the_app_in_config(tmp_path, monkeypatch):
+    from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score
+
+    out_dir = _run_production(tmp_path, monkeypatch, "agglomerative", {"n_clusters": 3, "linkage": "ward", "metric": "euclidean"})
+
+    text = (out_dir / "config.md").read_text()
+    X = np.load(out_dir / "matrix.npy")
+    labels = pd.read_csv(out_dir / "metadata.csv")["cluster_label"].to_numpy()
+    summary = geometric_summary(X, labels, {"n_clusters": 3, "linkage": "ward", "metric": "euclidean"})
+    tree = model_fit_metrics("agglomerative", X, {"n_clusters": 3, "linkage": "ward", "metric": "euclidean"}, labels)
+    assert f"Largest cluster: {np.bincount(labels).max() / len(labels) * 100:.1f}% of the subjects" in text
+    assert f"Calinski-Harabasz: {calinski_harabasz_score(X, labels):.1f}" in text
+    assert f"Davies-Bouldin: {davies_bouldin_score(X, labels):.3f}" in text
+    assert f"Dunn: {summary.dunn:.4f}" in text
+    assert f"Cophenetic correlation: {tree['cophenetic_correlation']:.3f}" in text
+    assert f"Dendrogram jump (k=3): {tree['dendrogram_jump']:.2f}" in text
+
+
+def test_clustering_agglomerative_production_with_a_non_euclidean_metric_keeps_the_run_and_says_euclidean_only(tmp_path, monkeypatch):
+    out_dir = _run_production(tmp_path, monkeypatch, "agglomerative", {"n_clusters": 3, "linkage": "average", "metric": "cosine"})
+
+    text = (out_dir / "config.md").read_text()
+    for name in ("Calinski-Harabasz", "Davies-Bouldin", "Dunn"):
+        assert f"{name}: — (Euclidean distance only)" in text
+    assert "Average silhouette coefficient:" in text and "(cosine)" in text
+    assert "Cophenetic correlation:" in text and "Largest cluster:" in text
 
 
 def test_clustering_other_methods_write_neither_the_silhouette_table_nor_its_config_line(tmp_path, monkeypatch):

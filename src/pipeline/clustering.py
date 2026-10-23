@@ -96,7 +96,7 @@ from src.analysis.clustering import (
     own_cluster_membership,
     soft_membership_matrix,
 )
-from src.analysis.clustering_evaluation import silhouette_breakdown
+from src.analysis.clustering_evaluation import GeometricSummary, geometric_summary, model_fit_metrics, silhouette_breakdown
 from src.analysis.dbcv import RunDbcv, run_dbcv
 from src.analysis.partition_shape import partition_shape
 from src.analysis.clustering_tuning import (
@@ -399,11 +399,15 @@ def _run_one_method(
     
     # The plot needs it only when there is a viz embedding; agglomerative also writes it as a table and in config.md.
     # hdbscan / hdbscan_soft have no silhouette (non-noise subjects only, compact clusters): their index is DBCV
-    silhouette = (
-        _run_silhouette(X, cluster_labels, method, params)
-        if method not in DENSITY_SWEEP_METHODS and (method == "agglomerative" or X_viz is not None)
-        else None
-    )
+    geometry = _run_agglomerative_geometry(X, cluster_labels, params) if method == "agglomerative" else None
+    if method == "agglomerative":
+        silhouette = None if geometry is None else geometry.silhouette
+    else:
+        silhouette = (
+            _run_silhouette(X, cluster_labels, method, params)
+            if method not in DENSITY_SWEEP_METHODS and X_viz is not None
+            else None
+        )
     dbcv_result = run_dbcv(X, cluster_labels, params) if method in DENSITY_SWEEP_METHODS else None
     if dbcv_result is not None and dbcv_result.note:
         logging.warning("no DBCV for this run: %s", dbcv_result.note)
@@ -422,7 +426,7 @@ def _run_one_method(
             output_dir,
             X,
             metadata_out,
-            _build_readme_lines(config, method, X, cluster_labels, params, now, silhouette, dbcv_result),
+            _build_readme_lines(config, method, X, cluster_labels, params, now, geometry, dbcv_result),
             overwrite=config.overwrite,
             extra_arrays=extra_arrays,
         )
@@ -617,7 +621,8 @@ def _config_summary(config: ClusteringConfig, method: str) -> str:
 
 SILHOUETTE_PER_CLUSTER_FILENAME = "silhouette_per_cluster.csv"
 # Methods whose clustering has its own `metric`: scored under it. Every other method is scored on X as is, euclidean.
-SILHOUETTE_OWN_METRIC_METHODS = ("adp", "agglomerative")
+# (agglomerative gets its silhouette with the rest of its indices, _run_agglomerative_geometry.)
+SILHOUETTE_OWN_METRIC_METHODS = ("adp",)
 
 
 @dataclass(frozen=True)
@@ -642,6 +647,57 @@ def _run_silhouette(X: np.ndarray, cluster_labels: np.ndarray, method: str, para
     return RunSilhouette(metric, labels, values)
 
 
+@dataclass(frozen=True)
+class RunGeometry:
+    """What a production run of agglomerative is scored with: the indices of `geometric_summary` (silhouette in the
+    run's own distance; Calinski-Harabasz, Davies-Bouldin and Dunn only with the Euclidean one) and the statistics of
+    its tree at the run's k (`model_fit_metrics`: cophenetic correlation, dendrogram jump)."""
+
+    summary: GeometricSummary
+    tree: dict[str, float]
+
+    @property
+    def silhouette(self) -> RunSilhouette:
+        return RunSilhouette(self.summary.metric, self.summary.subject_labels, self.summary.subject_values)
+
+
+def _run_agglomerative_geometry(X: np.ndarray, cluster_labels: np.ndarray, params: dict) -> RunGeometry | None:
+    """None, with a warning, when the result cannot be scored (fewer than 2 clusters, or every cluster a single
+    subject): a degenerate production result is not an error of the run, it just has nothing to score. Anything
+    `model_fit_metrics` raises once the indices exist (a refit that does not reproduce the labels) is a real
+    problem: it is logged as an error and the run goes on without the tree statistics' lines."""
+    try:
+        summary = geometric_summary(X, cluster_labels, params)
+    except ValueError as exc:
+        logging.warning("[agglomerative] no indices for this run: %s", exc)
+        return None
+    try:
+        tree = model_fit_metrics("agglomerative", X, params, cluster_labels)
+    except ValueError as exc:
+        logging.error("[agglomerative] cannot score the tree of this run: %s", exc)
+        return None
+    return RunGeometry(summary, tree)
+
+
+def _geometry_lines(geometry: RunGeometry) -> list[str]:
+    """The config.md lines of an agglomerative run. An index defined only with the Euclidean distance says so
+    instead of showing a number when the run was clustered under another one."""
+    summary = geometry.summary
+
+    def euclidean_only(name: str, value: float, decimals: int) -> str:
+        return f"{name}: {value:.{decimals}f}" if summary.metric == "euclidean" else f"{name}: — (Euclidean distance only)"
+
+    return [
+        f"Largest cluster: {summary.largest_cluster_share * 100:.1f}% of the subjects",
+        f"Average silhouette coefficient: {summary.subject_values.mean():.3f} ({summary.metric})",
+        euclidean_only("Calinski-Harabasz", summary.calinski_harabasz, 1),
+        euclidean_only("Davies-Bouldin", summary.davies_bouldin, 3),
+        euclidean_only("Dunn", summary.dunn, 4),
+        f"Cophenetic correlation: {geometry.tree['cophenetic_correlation']:.3f}",
+        f"Dendrogram jump (k={int(geometry.tree['n_clusters'])}): {geometry.tree['dendrogram_jump']:.2f}",
+    ]
+
+
 def _write_silhouette_per_cluster(output_dir: Path, silhouette: RunSilhouette) -> None:
     """One row per cluster: subjects, mean silhouette, share of subjects with a negative silhouette."""
     table = silhouette_breakdown(silhouette.labels, silhouette.values).clusters
@@ -664,16 +720,12 @@ def _summary_lines(
     X: np.ndarray,
     cluster_labels: np.ndarray,
     params: dict,
-    silhouette: "RunSilhouette | None",
+    geometry: "RunGeometry | None",
     dbcv_result: "RunDbcv | None" = None,
 ) -> list[str]:
-    silhouette_lines = (
-        [f"Average silhouette coefficient: {silhouette.values.mean():.3f} ({silhouette.metric})"]
-        if method == "agglomerative" and silhouette is not None
-        else []
-    )
+    index_lines = _geometry_lines(geometry) if method == "agglomerative" and geometry is not None else []
     if dbcv_result is not None:
-        silhouette_lines.append(f"DBCV: {dbcv_result.score:.3f} (euclidean)" if not dbcv_result.note else f"DBCV: {dbcv_result.note}")
+        index_lines.append(f"DBCV: {dbcv_result.score:.3f} (euclidean)" if not dbcv_result.note else f"DBCV: {dbcv_result.note}")
     return [
         "## Config",
         "",
@@ -685,7 +737,7 @@ def _summary_lines(
         "",
         f"Matrix shape: {X.shape[0]} subjects x {X.shape[1]} features",
         _clusters_found_line(cluster_labels),
-        *silhouette_lines,
+        *index_lines,
         f"Params used: {json.dumps(params)}",
     ]
 
@@ -709,11 +761,11 @@ def _build_readme_lines(
     cluster_labels: np.ndarray,
     params: dict,
     now: datetime,
-    silhouette: "RunSilhouette | None",
+    geometry: "RunGeometry | None",
     dbcv_result: "RunDbcv | None" = None,
 ) -> list[str]:
     title = f"# {config.project} clustering ({method}) — {now.strftime('%d-%m-%y %H:%M')}"
-    return [title, ""] + _summary_lines(config, method, X, cluster_labels, params, silhouette, dbcv_result)
+    return [title, ""] + _summary_lines(config, method, X, cluster_labels, params, geometry, dbcv_result)
 
 
 def _run_fine_tuning(

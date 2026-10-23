@@ -6,6 +6,14 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 23-10-26 — La produzione di agglomerative scrive gli stessi indici dell'app
+
+`config.md` di una run di produzione di agglomerative ha ora, oltre alla silhouette, `Largest cluster`, `Calinski-Harabasz`, `Davies-Bouldin`, `Dunn`, `Cophenetic correlation` e `Dendrogram jump (k=<k>)`, calcolati con `geometric_summary` e `model_fit_metrics` (le funzioni dell'app e del notebook), non con codice proprio. Per una run con `metric` non euclidea le tre righe euclidee dicono `— (Euclidean distance only)` (regola A, stessa voce sotto). `_run_silhouette` resta per gli altri metodi; per agglomerative la silhouette per soggetto viene dalla stessa chiamata.
+
+Costo misurato su due run vere, senza riscriverle: 3,1 s (PCA, 5845 x 12) e 4,8 s (grezza `s2.4-stream`, 5831 x 87, `cosine`). Su una matrice grezza molto larga (voxel) non misurato: non esiste una run di produzione agglomerative di quel tipo.
+
+Ancora vero: le run di produzione già scritte non hanno le righe nuove (non rigenerate); il tuning di agglomerative non ha ancora Dunn, quota del cluster maggiore e silhouette per cluster tra le valutazioni (`.claude/open_problems.md`).
+
 ## 23-10-26 — Un solo punto per numero di cluster, rumore, quota maggiore e DBCV (tuning, produzione, app)
 
 Prima gli stessi numeri si calcolavano a mano in 5 file (`clustering_tuning.py`, `clustering_tuning_analysis.py`, `clustering_evaluation.py`, `src/pipeline/clustering.py`, `tuning_evaluations.py`) e il DBCV aveva tre avvolgitori con tre comportamenti diversi per la distanza non euclidea (tuning: nessun controllo; produzione: NaN con nota; app: errore). Ora `src/analysis/partition_shape.py` (`partition_shape`, `NOISE_LABEL`) conta cluster e rumore, e `src/analysis/dbcv.py::run_dbcv` è l'unica chiamata al DBCV. `NOISE_LABEL` era definito 4 volte; resta in `adp.py` (non toccato).
