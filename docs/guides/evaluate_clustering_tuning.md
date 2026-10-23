@@ -20,6 +20,7 @@ python -m src.pipeline.evaluate_clustering_tuning   (su un tuning già salvato)
 - **Quali valutazioni girano**: le elenca il blocco `tuning_evaluations` del config, per metodo (`clustering.json` per lo sweep, `evaluate_clustering_tuning.json` a posteriori). Le soglie (intervallo di k, limite di rumore) sono in `config/registry/clustering_evaluations.json`, lette dallo stesso file in entrambi i casi: stessi parametri, stessi file, stessi numeri.
 - **Perché due ingressi**: con le valutazioni dichiarate in `clustering.json` hai tutto alla fine dello sweep; se poi cambi una soglia, aggiungi una valutazione o ritocchi un plot, rilanci solo questa pipeline sul tuning salvato, senza rifare lo sweep.
 - **Dove sta il codice**: le valutazioni in `src/analysis/clustering_tuning_evaluations.py` (un registro, una voce per valutazione); il report in `src/analysis/clustering_tuning_report.py`, che non calcola nulla e legge i file della cartella.
+- **Metodi coperti**: `agglomerative`, `hdbscan` e `hdbscan_soft`. `kmeans`, `gmm`, `spectral` e `adp` sono in stand by: questa pipeline rifiuta il loro tuning (`unsupported clustering_method`, tranne `adp`, che ha solo `report.md`), le colonne che il loro sweep scrive non si ricalcolano, e produzione e app li valutano come prima. Si riprendono dopo aver chiuso i tre metodi sopra.
 
 - **Script**: `src/pipeline/evaluate_clustering_tuning.py`
 - **Configurazione**: `config/pipelines/evaluate_clustering_tuning.json`

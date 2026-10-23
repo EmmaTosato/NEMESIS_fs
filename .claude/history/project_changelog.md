@@ -6,6 +6,14 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 23-10-26 — Catena di valutazione del clustering: kmeans, gmm, spectral e adp in stand by
+
+Scelta dell'utente: la catena `tuning_evaluations` → `report.md` → produzione → app si chiude prima per `agglomerative`, `hdbscan` e `hdbscan_soft`; `kmeans`, `gmm`, `spectral` e `adp` restano com'erano. Per loro: `evaluate_clustering_tuning` rifiuta il tuning (`unsupported clustering_method`; `adp` ha solo `report.md`), le colonne dello sweep (`inertia`, `bic`/`aic`, silhouette, CH, DB) non si ricalcolano con nessuna valutazione, la produzione scrive solo ciò che scriveva (per kmeans, gmm e spectral nessuna riga di indici in `config.md`) e l'app li valuta con i pannelli che ha già.
+
+Perché: finire una catena per tre metodi, con le stesse funzioni in tuning, produzione e app, prima di estenderla; estenderla a sette insieme moltiplicava le decisioni aperte (quali indici, quali soglie, quale report). Scartato: portare avanti tutti i metodi in parallelo.
+
+Ancora vero: la regola «tutto ciò che fa lo sweep si può rifare con `evaluate_clustering_tuning`» vale solo per i tre metodi coperti.
+
 ## 23-10-26 — Tuning di agglomerative: `largest_cluster_share` e `dunn_index` come valutazioni del registro; la silhouette per cluster resta fuori
 
 Due valutazioni nuove nel registro (`config/registry/clustering_evaluations.json`, `clustering_tuning_evaluations.py`), solo per agglomerative, dichiarate in `tuning_evaluations` di `clustering.json` e `evaluate_clustering_tuning.json`: `largest_cluster_share.csv` (quota del cluster più grande per combinazione, `partition_shape`) e `dunn_index.csv` (`dunn_index`, vuoto con una `metric` non euclidea: regola A). Stesse funzioni della produzione e dell'app; un test confronta i valori sulle stesse etichette.
