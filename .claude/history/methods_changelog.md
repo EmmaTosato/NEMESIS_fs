@@ -35,6 +35,16 @@ Per `hdbscan` e `hdbscan_soft` l'indice interno è il **DBCV** (Moulavi et al. 2
 
 ---
 
+## 21-10-26 — PCA: con `rotation: "none"` la chiave `rotation_n_components` non si legge più
+
+In `src/analysis/pca_method.py` (commit `0b49ccc`) la chiave `rotation_n_components` viene ignorata quando `rotation` è `"none"`. Prima `_validate_rotation_n_components` sollevava `ValueError` («rotation is 'none' - remove it»). Il test che fissava l'errore è sostituito da `test_rotation_n_components_is_not_read_without_a_rotation` (stesso embedding e stessa `explained_share` con e senza la chiave).
+
+Perché (dal commento del codice): una stessa griglia di tuning può così sweeppare `rotation` su `none` e su una rotazione tenendo la stessa voce `rotation_n_components`. Alternativa scartata: il rifiuto esplicito, che obbligava a tenere in griglie separate il ramo non ruotato. Il cambio è venuto dentro il commit dei test `hypothesis`, ma non è un bug trovato da loro, e né il messaggio del commit né `docs/debugging/debug_21_10_26.md` lo citano.
+
+Conseguenza ancora vera oggi: con `none` la chiave non è nemmeno validata, quindi un valore sbagliato (es. `rotation_n_components` minore di `n_components`) non è segnalato su quel ramo. Il contratto è descritto in `docs/guides/dim_reduction.md`, tabella dei parametri della PCA.
+
+---
+
 ## 21-10-26 — I report del tuning non usano più le fasce di Kaufman & Rousseeuw
 
 **Cosa è cambiato**: `report.md` (agglomerative, HDBSCAN, `hdbscan_soft`) e le curve per `n_clusters` non collocano più la silhouette nelle fasce 0.71-1.00 / 0.51-0.70 / 0.26-0.50 / ≤0.25. Via le linee grigie sui grafici, i punti "Silhouette per fascia" sotto le tabelle e la frase "non accettabile per convenzione" sulle silhouette negative; restano il conteggio delle negative, quelle non calcolabili e il valore a k minimo e massimo. Nei "Termini" del report una riga dice che le fasce esistono e rimanda a `knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md` §2, dove sono spiegate. Cancellati `SILHOUETTE_BANDS`, `CONVENTION_LINES`, `silhouette_band`, `convention_lines_caption`.

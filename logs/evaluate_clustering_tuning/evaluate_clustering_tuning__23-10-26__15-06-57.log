@@ -1,0 +1,6 @@
+INFO: analysing results/lesion/clustering/tuning/hdbscan/umap/08-10_s1.4-vol_m_dice_nc3: method=hdbscan
+INFO: running clustering tuning evaluation density_metrics with settings {}
+INFO: running clustering tuning evaluation tuning_heatmaps with settings {}
+INFO: running clustering tuning evaluation dbcv_curves with settings {}
+INFO: done - 4 file(s) written under results/lesion/clustering/tuning/hdbscan/umap/08-10_s1.4-vol_m_dice_nc3, log written to logs/evaluate_clustering_tuning/evaluate_clustering_tuning__23-10-26__15-06-57.log
+INFO: run duration: 0:00:35

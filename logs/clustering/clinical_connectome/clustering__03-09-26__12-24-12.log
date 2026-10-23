@@ -1,0 +1,19 @@
+INFO: reduced_data=true - input_path treated as an already-computed embedding (results/lesion/dim_reduction/production/umap/28-08_s1.2-vol_m_euclidean_nc2, shape (5269, 2))
+INFO: [kmeans] clustered matrix written to results/lesion/clustering/production/kmeans/umap/03-09_s1.2-vol_m_euclidean_n2_k6 (shape (5269, 2))
+INFO: [kmeans] cluster plot written to results/lesion/clustering/production/kmeans/umap/03-09_s1.2-vol_m_euclidean_n2_k6/cluster_plot.png
+INFO: [kmeans] silhouette plot written to results/lesion/clustering/production/kmeans/umap/03-09_s1.2-vol_m_euclidean_n2_k6/silhouette_plot.png
+INFO: [kmeans] done - output written to results/lesion/clustering/production/kmeans/umap/03-09_s1.2-vol_m_euclidean_n2_k6
+INFO: [gmm] clustered matrix written to results/lesion/clustering/production/gmm/umap/03-09_s1.2-vol_m_euclidean_n2_n_comp6_cov_full (shape (5269, 2))
+INFO: [gmm] cluster plot written to results/lesion/clustering/production/gmm/umap/03-09_s1.2-vol_m_euclidean_n2_n_comp6_cov_full/cluster_plot.png
+INFO: [gmm] silhouette plot written to results/lesion/clustering/production/gmm/umap/03-09_s1.2-vol_m_euclidean_n2_n_comp6_cov_full/silhouette_plot.png
+INFO: [gmm] done - output written to results/lesion/clustering/production/gmm/umap/03-09_s1.2-vol_m_euclidean_n2_n_comp6_cov_full
+INFO: [agglomerative] clustered matrix written to results/lesion/clustering/production/agglomerative/umap/03-09_s1.2-vol_m_euclidean_n2_k6_link_average (shape (5269, 2))
+INFO: [agglomerative] cluster plot written to results/lesion/clustering/production/agglomerative/umap/03-09_s1.2-vol_m_euclidean_n2_k6_link_average/cluster_plot.png
+INFO: [agglomerative] silhouette plot written to results/lesion/clustering/production/agglomerative/umap/03-09_s1.2-vol_m_euclidean_n2_k6_link_average/silhouette_plot.png
+INFO: [agglomerative] done - output written to results/lesion/clustering/production/agglomerative/umap/03-09_s1.2-vol_m_euclidean_n2_k6_link_average
+INFO: [spectral] clustered matrix written to results/lesion/clustering/production/spectral/umap/03-09_s1.2-vol_m_euclidean_n2_k6_aff_rbf (shape (5269, 2))
+INFO: [spectral] cluster plot written to results/lesion/clustering/production/spectral/umap/03-09_s1.2-vol_m_euclidean_n2_k6_aff_rbf/cluster_plot.png
+INFO: [spectral] silhouette plot written to results/lesion/clustering/production/spectral/umap/03-09_s1.2-vol_m_euclidean_n2_k6_aff_rbf/silhouette_plot.png
+INFO: [spectral] done - output written to results/lesion/clustering/production/spectral/umap/03-09_s1.2-vol_m_euclidean_n2_k6_aff_rbf
+INFO: done - all 4 method(s) written under results/lesion/clustering, log written to logs/clustering/clinical_connectome/clustering__03-09-26__12-24-12.log
+INFO: run duration: 0:00:05

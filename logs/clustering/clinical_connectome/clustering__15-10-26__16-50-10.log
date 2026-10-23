@@ -1,0 +1,33 @@
+INFO: reduced_data=true - input_path treated as an already-computed embedding (results/lesion/dim_reduction/production/umap/08-10_s1.4-vol_m_euclidean_nc2, shape (5845, 2))
+INFO: Starting clustering fine-tuning sweep for hdbscan_soft (28 combinations)
+INFO: Evaluating combination 1/28: {'min_cluster_size': 10, 'min_samples': 1}
+INFO: Evaluating combination 2/28: {'min_cluster_size': 10, 'min_samples': 5}
+INFO: Evaluating combination 3/28: {'min_cluster_size': 10, 'min_samples': 10}
+INFO: Evaluating combination 4/28: {'min_cluster_size': 10, 'min_samples': 20}
+INFO: Evaluating combination 5/28: {'min_cluster_size': 15, 'min_samples': 1}
+INFO: Evaluating combination 6/28: {'min_cluster_size': 15, 'min_samples': 5}
+INFO: Evaluating combination 7/28: {'min_cluster_size': 15, 'min_samples': 10}
+INFO: Evaluating combination 8/28: {'min_cluster_size': 15, 'min_samples': 20}
+INFO: Evaluating combination 9/28: {'min_cluster_size': 20, 'min_samples': 1}
+INFO: Evaluating combination 10/28: {'min_cluster_size': 20, 'min_samples': 5}
+INFO: Evaluating combination 11/28: {'min_cluster_size': 20, 'min_samples': 10}
+INFO: Evaluating combination 12/28: {'min_cluster_size': 20, 'min_samples': 20}
+INFO: Evaluating combination 13/28: {'min_cluster_size': 30, 'min_samples': 1}
+INFO: Evaluating combination 14/28: {'min_cluster_size': 30, 'min_samples': 5}
+INFO: Evaluating combination 15/28: {'min_cluster_size': 30, 'min_samples': 10}
+INFO: Evaluating combination 16/28: {'min_cluster_size': 30, 'min_samples': 20}
+INFO: Evaluating combination 17/28: {'min_cluster_size': 50, 'min_samples': 1}
+INFO: Evaluating combination 18/28: {'min_cluster_size': 50, 'min_samples': 5}
+INFO: Evaluating combination 19/28: {'min_cluster_size': 50, 'min_samples': 10}
+INFO: Evaluating combination 20/28: {'min_cluster_size': 50, 'min_samples': 20}
+INFO: Evaluating combination 21/28: {'min_cluster_size': 75, 'min_samples': 1}
+INFO: Evaluating combination 22/28: {'min_cluster_size': 75, 'min_samples': 5}
+INFO: Evaluating combination 23/28: {'min_cluster_size': 75, 'min_samples': 10}
+INFO: Evaluating combination 24/28: {'min_cluster_size': 75, 'min_samples': 20}
+INFO: Evaluating combination 25/28: {'min_cluster_size': 100, 'min_samples': 1}
+INFO: Evaluating combination 26/28: {'min_cluster_size': 100, 'min_samples': 5}
+INFO: Evaluating combination 27/28: {'min_cluster_size': 100, 'min_samples': 10}
+INFO: Evaluating combination 28/28: {'min_cluster_size': 100, 'min_samples': 20}
+INFO: [hdbscan_soft] tuning results written to results/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_euclidean_nc2 (28 combination(s) evaluated)
+INFO: done - fine-tuning for all 1 method(s) written under results/lesion/clustering, log written to logs/clustering/clinical_connectome/clustering__15-10-26__16-50-10.log
+INFO: run duration: 0:00:05

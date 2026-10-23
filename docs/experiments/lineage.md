@@ -23,10 +23,12 @@ flowchart TB
         S22["<b>s2.2-vol</b> · 07-09<br/>1570"]
         S24["<b>s2.4-vol</b> · 07-10<br/>5845 · 8 dataset<br/>291345 colonne<br/>voxel fuori dal brain<br/>non azzerati"]
         S24N["<b>s2.4-vol</b> · 16-10<br/>5845 · 8 dataset<br/>227235 colonne<br/>voxel fuori dal brain<br/>azzerati"]
+        S23["<b>s2.3-stream</b> · 30-09<br/>5838 · 87 tratti"]
         S24S["<b>s2.4-stream</b> · 07-10<br/>5831 · 87 tratti"]
         S21 -->|"+ UKE/WAKEUP_acute<br/>parcellata →<br/>voxel-wise"| S22
         S22 -->|"coorte piena"| S24
         S24 -->|"stessa coorte,<br/>voxel fuori dal brain<br/>azzerati"| S24N
+        S23 -->|"stessa rappresentazione,<br/>lista di esclusioni<br/>attuale, −7 soggetti"| S24S
         S24 -.->|"stessi dataset,<br/>altra rappresentazione,<br/>−14 senza alcun<br/>tratto colpito"| S24S
     end
 
@@ -44,4 +46,4 @@ flowchart TB
 - **s1.4-vol non è confrontabile voxel per voxel con le sessioni lesionali precedenti**: i voxel fuori dal brain sono stati azzerati su 1501 soggetti.
 - **s2.1 e s2.2-vol** sono state costruite apposta con la stessa griglia di iperparametri, così l'unica variabile tra le due è la rappresentazione — 232 regioni contro 290940 voxel. La loro trustworthiness però **non si confronta**: ognuna misura la fedeltà al proprio spazio di input.
 
-**s2.3-stream** non compare: era la streamline pensata quando UCL-UK non aveva ancora il CSV, e non esiste più come sessione a sé. È stata rifatta come s2.4-stream sulla lista di esclusioni attuale.
+**s2.3-stream** ha gli stessi 8 dataset di s2.4-stream ma 7 soggetti in più (5838 contro 5831, lista di esclusioni di allora): le righe non sono allineate per posizione e le run dell'una non si riusano sull'altra.

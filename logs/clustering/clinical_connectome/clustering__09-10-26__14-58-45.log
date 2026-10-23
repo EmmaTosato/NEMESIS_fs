@@ -1,0 +1,388 @@
+INFO: reduced_data=true - input_path treated as an already-computed embedding (results/sdc/dim_reduction/production/umap/08-10_s2.4-vol_m_euclidean_nc2, shape (5845, 2))
+INFO: Starting clustering fine-tuning sweep for agglomerative (348 combinations)
+INFO: Evaluating combination 1/348: {'n_clusters': 2, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 2, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 2, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 4/348: {'n_clusters': 2, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 5/348: {'n_clusters': 2, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 6/348: {'n_clusters': 2, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 7/348: {'n_clusters': 2, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 8/348: {'n_clusters': 2, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 9/348: {'n_clusters': 2, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 10/348: {'n_clusters': 2, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 11/348: {'n_clusters': 2, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 12/348: {'n_clusters': 2, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 13/348: {'n_clusters': 3, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 3, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 3, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 16/348: {'n_clusters': 3, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 17/348: {'n_clusters': 3, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 18/348: {'n_clusters': 3, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 19/348: {'n_clusters': 3, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 20/348: {'n_clusters': 3, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 21/348: {'n_clusters': 3, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 22/348: {'n_clusters': 3, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 23/348: {'n_clusters': 3, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 24/348: {'n_clusters': 3, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 25/348: {'n_clusters': 4, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 4, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 4, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 28/348: {'n_clusters': 4, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 29/348: {'n_clusters': 4, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 30/348: {'n_clusters': 4, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 31/348: {'n_clusters': 4, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 32/348: {'n_clusters': 4, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 33/348: {'n_clusters': 4, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 34/348: {'n_clusters': 4, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 35/348: {'n_clusters': 4, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 36/348: {'n_clusters': 4, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 37/348: {'n_clusters': 5, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 5, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 5, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 40/348: {'n_clusters': 5, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 41/348: {'n_clusters': 5, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 42/348: {'n_clusters': 5, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 43/348: {'n_clusters': 5, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 44/348: {'n_clusters': 5, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 45/348: {'n_clusters': 5, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 46/348: {'n_clusters': 5, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 47/348: {'n_clusters': 5, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 48/348: {'n_clusters': 5, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 49/348: {'n_clusters': 6, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 6, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 6, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 52/348: {'n_clusters': 6, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 53/348: {'n_clusters': 6, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 54/348: {'n_clusters': 6, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 55/348: {'n_clusters': 6, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 56/348: {'n_clusters': 6, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 57/348: {'n_clusters': 6, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 58/348: {'n_clusters': 6, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 59/348: {'n_clusters': 6, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 60/348: {'n_clusters': 6, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 61/348: {'n_clusters': 7, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 7, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 7, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 64/348: {'n_clusters': 7, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 65/348: {'n_clusters': 7, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 66/348: {'n_clusters': 7, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 67/348: {'n_clusters': 7, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 68/348: {'n_clusters': 7, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 69/348: {'n_clusters': 7, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 70/348: {'n_clusters': 7, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 71/348: {'n_clusters': 7, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 72/348: {'n_clusters': 7, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 73/348: {'n_clusters': 8, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 8, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 8, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 76/348: {'n_clusters': 8, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 77/348: {'n_clusters': 8, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 78/348: {'n_clusters': 8, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 79/348: {'n_clusters': 8, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 80/348: {'n_clusters': 8, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 81/348: {'n_clusters': 8, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 82/348: {'n_clusters': 8, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 83/348: {'n_clusters': 8, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 84/348: {'n_clusters': 8, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 85/348: {'n_clusters': 9, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 9, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 9, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 88/348: {'n_clusters': 9, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 89/348: {'n_clusters': 9, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 90/348: {'n_clusters': 9, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 91/348: {'n_clusters': 9, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 92/348: {'n_clusters': 9, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 93/348: {'n_clusters': 9, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 94/348: {'n_clusters': 9, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 95/348: {'n_clusters': 9, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 96/348: {'n_clusters': 9, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 97/348: {'n_clusters': 10, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 10, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 10, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 100/348: {'n_clusters': 10, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 101/348: {'n_clusters': 10, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 102/348: {'n_clusters': 10, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 103/348: {'n_clusters': 10, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 104/348: {'n_clusters': 10, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 105/348: {'n_clusters': 10, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 106/348: {'n_clusters': 10, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 107/348: {'n_clusters': 10, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 108/348: {'n_clusters': 10, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 109/348: {'n_clusters': 11, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 11, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 11, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 112/348: {'n_clusters': 11, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 113/348: {'n_clusters': 11, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 114/348: {'n_clusters': 11, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 115/348: {'n_clusters': 11, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 116/348: {'n_clusters': 11, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 117/348: {'n_clusters': 11, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 118/348: {'n_clusters': 11, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 119/348: {'n_clusters': 11, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 120/348: {'n_clusters': 11, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 121/348: {'n_clusters': 12, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 12, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 12, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 124/348: {'n_clusters': 12, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 125/348: {'n_clusters': 12, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 126/348: {'n_clusters': 12, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 127/348: {'n_clusters': 12, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 128/348: {'n_clusters': 12, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 129/348: {'n_clusters': 12, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 130/348: {'n_clusters': 12, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 131/348: {'n_clusters': 12, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 132/348: {'n_clusters': 12, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 133/348: {'n_clusters': 13, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 13, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 13, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 136/348: {'n_clusters': 13, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 137/348: {'n_clusters': 13, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 138/348: {'n_clusters': 13, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 139/348: {'n_clusters': 13, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 140/348: {'n_clusters': 13, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 141/348: {'n_clusters': 13, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 142/348: {'n_clusters': 13, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 143/348: {'n_clusters': 13, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 144/348: {'n_clusters': 13, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 145/348: {'n_clusters': 14, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 14, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 14, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 148/348: {'n_clusters': 14, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 149/348: {'n_clusters': 14, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 150/348: {'n_clusters': 14, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 151/348: {'n_clusters': 14, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 152/348: {'n_clusters': 14, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 153/348: {'n_clusters': 14, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 154/348: {'n_clusters': 14, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 155/348: {'n_clusters': 14, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 156/348: {'n_clusters': 14, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 157/348: {'n_clusters': 15, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 15, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 15, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 160/348: {'n_clusters': 15, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 161/348: {'n_clusters': 15, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 162/348: {'n_clusters': 15, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 163/348: {'n_clusters': 15, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 164/348: {'n_clusters': 15, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 165/348: {'n_clusters': 15, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 166/348: {'n_clusters': 15, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 167/348: {'n_clusters': 15, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 168/348: {'n_clusters': 15, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 169/348: {'n_clusters': 16, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 16, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 16, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 172/348: {'n_clusters': 16, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 173/348: {'n_clusters': 16, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 174/348: {'n_clusters': 16, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 175/348: {'n_clusters': 16, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 176/348: {'n_clusters': 16, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 177/348: {'n_clusters': 16, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 178/348: {'n_clusters': 16, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 179/348: {'n_clusters': 16, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 180/348: {'n_clusters': 16, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 181/348: {'n_clusters': 17, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 17, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 17, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 184/348: {'n_clusters': 17, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 185/348: {'n_clusters': 17, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 186/348: {'n_clusters': 17, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 187/348: {'n_clusters': 17, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 188/348: {'n_clusters': 17, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 189/348: {'n_clusters': 17, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 190/348: {'n_clusters': 17, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 191/348: {'n_clusters': 17, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 192/348: {'n_clusters': 17, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 193/348: {'n_clusters': 18, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 18, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 18, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 196/348: {'n_clusters': 18, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 197/348: {'n_clusters': 18, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 198/348: {'n_clusters': 18, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 199/348: {'n_clusters': 18, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 200/348: {'n_clusters': 18, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 201/348: {'n_clusters': 18, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 202/348: {'n_clusters': 18, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 203/348: {'n_clusters': 18, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 204/348: {'n_clusters': 18, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 205/348: {'n_clusters': 19, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 19, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 19, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 208/348: {'n_clusters': 19, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 209/348: {'n_clusters': 19, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 210/348: {'n_clusters': 19, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 211/348: {'n_clusters': 19, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 212/348: {'n_clusters': 19, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 213/348: {'n_clusters': 19, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 214/348: {'n_clusters': 19, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 215/348: {'n_clusters': 19, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 216/348: {'n_clusters': 19, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 217/348: {'n_clusters': 20, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 20, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 20, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 220/348: {'n_clusters': 20, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 221/348: {'n_clusters': 20, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 222/348: {'n_clusters': 20, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 223/348: {'n_clusters': 20, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 224/348: {'n_clusters': 20, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 225/348: {'n_clusters': 20, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 226/348: {'n_clusters': 20, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 227/348: {'n_clusters': 20, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 228/348: {'n_clusters': 20, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 229/348: {'n_clusters': 21, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 21, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 21, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 232/348: {'n_clusters': 21, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 233/348: {'n_clusters': 21, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 234/348: {'n_clusters': 21, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 235/348: {'n_clusters': 21, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 236/348: {'n_clusters': 21, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 237/348: {'n_clusters': 21, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 238/348: {'n_clusters': 21, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 239/348: {'n_clusters': 21, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 240/348: {'n_clusters': 21, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 241/348: {'n_clusters': 22, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 22, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 22, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 244/348: {'n_clusters': 22, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 245/348: {'n_clusters': 22, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 246/348: {'n_clusters': 22, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 247/348: {'n_clusters': 22, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 248/348: {'n_clusters': 22, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 249/348: {'n_clusters': 22, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 250/348: {'n_clusters': 22, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 251/348: {'n_clusters': 22, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 252/348: {'n_clusters': 22, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 253/348: {'n_clusters': 23, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 23, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 23, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 256/348: {'n_clusters': 23, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 257/348: {'n_clusters': 23, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 258/348: {'n_clusters': 23, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 259/348: {'n_clusters': 23, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 260/348: {'n_clusters': 23, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 261/348: {'n_clusters': 23, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 262/348: {'n_clusters': 23, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 263/348: {'n_clusters': 23, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 264/348: {'n_clusters': 23, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 265/348: {'n_clusters': 24, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 24, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 24, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 268/348: {'n_clusters': 24, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 269/348: {'n_clusters': 24, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 270/348: {'n_clusters': 24, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 271/348: {'n_clusters': 24, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 272/348: {'n_clusters': 24, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 273/348: {'n_clusters': 24, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 274/348: {'n_clusters': 24, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 275/348: {'n_clusters': 24, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 276/348: {'n_clusters': 24, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 277/348: {'n_clusters': 25, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 25, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 25, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 280/348: {'n_clusters': 25, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 281/348: {'n_clusters': 25, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 282/348: {'n_clusters': 25, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 283/348: {'n_clusters': 25, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 284/348: {'n_clusters': 25, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 285/348: {'n_clusters': 25, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 286/348: {'n_clusters': 25, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 287/348: {'n_clusters': 25, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 288/348: {'n_clusters': 25, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 289/348: {'n_clusters': 26, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 26, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 26, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 292/348: {'n_clusters': 26, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 293/348: {'n_clusters': 26, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 294/348: {'n_clusters': 26, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 295/348: {'n_clusters': 26, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 296/348: {'n_clusters': 26, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 297/348: {'n_clusters': 26, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 298/348: {'n_clusters': 26, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 299/348: {'n_clusters': 26, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 300/348: {'n_clusters': 26, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 301/348: {'n_clusters': 27, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 27, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 27, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 304/348: {'n_clusters': 27, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 305/348: {'n_clusters': 27, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 306/348: {'n_clusters': 27, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 307/348: {'n_clusters': 27, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 308/348: {'n_clusters': 27, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 309/348: {'n_clusters': 27, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 310/348: {'n_clusters': 27, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 311/348: {'n_clusters': 27, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 312/348: {'n_clusters': 27, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 313/348: {'n_clusters': 28, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 28, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 28, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 316/348: {'n_clusters': 28, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 317/348: {'n_clusters': 28, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 318/348: {'n_clusters': 28, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 319/348: {'n_clusters': 28, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 320/348: {'n_clusters': 28, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 321/348: {'n_clusters': 28, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 322/348: {'n_clusters': 28, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 323/348: {'n_clusters': 28, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 324/348: {'n_clusters': 28, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 325/348: {'n_clusters': 29, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 29, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 29, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 328/348: {'n_clusters': 29, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 329/348: {'n_clusters': 29, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 330/348: {'n_clusters': 29, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 331/348: {'n_clusters': 29, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 332/348: {'n_clusters': 29, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 333/348: {'n_clusters': 29, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 334/348: {'n_clusters': 29, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 335/348: {'n_clusters': 29, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 336/348: {'n_clusters': 29, 'linkage': 'single', 'metric': 'manhattan'}
+INFO: Evaluating combination 337/348: {'n_clusters': 30, 'linkage': 'ward', 'metric': 'euclidean'}
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 30, 'linkage': 'ward', 'metric': 'cosine'}: linkage='ward' requires metric in ['euclidean', 'l2']
+WARNING: [agglomerative] skipping invalid combination {'n_clusters': 30, 'linkage': 'ward', 'metric': 'manhattan'}: linkage='ward' requires metric in ['euclidean', 'l2']
+INFO: Evaluating combination 340/348: {'n_clusters': 30, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 341/348: {'n_clusters': 30, 'linkage': 'average', 'metric': 'cosine'}
+INFO: Evaluating combination 342/348: {'n_clusters': 30, 'linkage': 'average', 'metric': 'manhattan'}
+INFO: Evaluating combination 343/348: {'n_clusters': 30, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 344/348: {'n_clusters': 30, 'linkage': 'complete', 'metric': 'cosine'}
+INFO: Evaluating combination 345/348: {'n_clusters': 30, 'linkage': 'complete', 'metric': 'manhattan'}
+INFO: Evaluating combination 346/348: {'n_clusters': 30, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 347/348: {'n_clusters': 30, 'linkage': 'single', 'metric': 'cosine'}
+INFO: Evaluating combination 348/348: {'n_clusters': 30, 'linkage': 'single', 'metric': 'manhattan'}
+WARNING: [agglomerative] tuning_grid has 3 swept parameters - no metric plot generated (only 1 or 2 are supported)
+INFO: [agglomerative] dendrogram written to results/sdc/clustering/tuning/agglomerative/umap/09-10_s2.4-vol_m_euclidean_nc2/dendrogram_metric=euclidean.png
+INFO: [agglomerative] dendrogram written to results/sdc/clustering/tuning/agglomerative/umap/09-10_s2.4-vol_m_euclidean_nc2/dendrogram_metric=cosine.png
+INFO: [agglomerative] dendrogram written to results/sdc/clustering/tuning/agglomerative/umap/09-10_s2.4-vol_m_euclidean_nc2/dendrogram_metric=manhattan.png
+INFO: [agglomerative] interclass distance matrix written to results/sdc/clustering/tuning/agglomerative/umap/09-10_s2.4-vol_m_euclidean_nc2/interclass_distance_matrix.png
+INFO: [agglomerative] tuning results written to results/sdc/clustering/tuning/agglomerative/umap/09-10_s2.4-vol_m_euclidean_nc2 (290 combination(s) evaluated)
+INFO: Starting clustering fine-tuning sweep for hdbscan (28 combinations)
+INFO: Evaluating combination 1/28: {'min_cluster_size': 10, 'min_samples': 1}
+INFO: Evaluating combination 2/28: {'min_cluster_size': 10, 'min_samples': 5}
+INFO: Evaluating combination 3/28: {'min_cluster_size': 10, 'min_samples': 10}
+INFO: Evaluating combination 4/28: {'min_cluster_size': 10, 'min_samples': 20}
+INFO: Evaluating combination 5/28: {'min_cluster_size': 15, 'min_samples': 1}
+INFO: Evaluating combination 6/28: {'min_cluster_size': 15, 'min_samples': 5}
+INFO: Evaluating combination 7/28: {'min_cluster_size': 15, 'min_samples': 10}
+INFO: Evaluating combination 8/28: {'min_cluster_size': 15, 'min_samples': 20}
+INFO: Evaluating combination 9/28: {'min_cluster_size': 20, 'min_samples': 1}
+INFO: Evaluating combination 10/28: {'min_cluster_size': 20, 'min_samples': 5}
+INFO: Evaluating combination 11/28: {'min_cluster_size': 20, 'min_samples': 10}
+INFO: Evaluating combination 12/28: {'min_cluster_size': 20, 'min_samples': 20}
+INFO: Evaluating combination 13/28: {'min_cluster_size': 30, 'min_samples': 1}
+INFO: Evaluating combination 14/28: {'min_cluster_size': 30, 'min_samples': 5}
+INFO: Evaluating combination 15/28: {'min_cluster_size': 30, 'min_samples': 10}
+INFO: Evaluating combination 16/28: {'min_cluster_size': 30, 'min_samples': 20}
+INFO: Evaluating combination 17/28: {'min_cluster_size': 50, 'min_samples': 1}
+INFO: Evaluating combination 18/28: {'min_cluster_size': 50, 'min_samples': 5}
+INFO: Evaluating combination 19/28: {'min_cluster_size': 50, 'min_samples': 10}
+INFO: Evaluating combination 20/28: {'min_cluster_size': 50, 'min_samples': 20}
+INFO: Evaluating combination 21/28: {'min_cluster_size': 75, 'min_samples': 1}
+INFO: Evaluating combination 22/28: {'min_cluster_size': 75, 'min_samples': 5}
+INFO: Evaluating combination 23/28: {'min_cluster_size': 75, 'min_samples': 10}
+INFO: Evaluating combination 24/28: {'min_cluster_size': 75, 'min_samples': 20}
+INFO: Evaluating combination 25/28: {'min_cluster_size': 100, 'min_samples': 1}
+INFO: Evaluating combination 26/28: {'min_cluster_size': 100, 'min_samples': 5}
+INFO: Evaluating combination 27/28: {'min_cluster_size': 100, 'min_samples': 10}
+INFO: Evaluating combination 28/28: {'min_cluster_size': 100, 'min_samples': 20}
+INFO: [hdbscan] tuning results written to results/sdc/clustering/tuning/hdbscan/umap/09-10_s2.4-vol_m_euclidean_nc2 (28 combination(s) evaluated)
+INFO: done - fine-tuning for all 2 method(s) written under results/sdc/clustering, log written to logs/clustering/clinical_connectome/clustering__09-10-26__14-58-45.log
+INFO: run duration: 0:02:46

@@ -9,9 +9,6 @@ data/*
 
 results/
 
-logs/
-summaries/
-
 .claude/dim_reduction_clustering/*
 
 .obsidian/

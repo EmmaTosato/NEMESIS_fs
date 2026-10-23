@@ -13,8 +13,6 @@ Riferimento condiviso per le note dei singoli metodi in questa cartella. Definis
 - **Del modello**: esistono solo per un certo metodo e descrivono il suo fit. Correlazione cofenetica (agglomerativo), stabilità dei cluster e frazione di rumore (HDBSCAN), il plateau in `Z` (ADP).
 - **Esterni o di accordo**: confrontano due partizioni (ARI, NMI). Definiti in [`clustering_literature_survey.md`](../clustering_literature_survey.md), §6; qui servono solo per la stabilità (§7).
 
-Nessun indice interno è neutrale rispetto al metodo. Ognuno contiene un'idea di cluster, e premia i metodi che condividono quell'idea [3, 11].
-
 ---
 
 ## 2. Silhouette (Rousseeuw 1987)
@@ -59,8 +57,6 @@ L'esempio di scikit-learn su Affinity Propagation stampa la media con l'etichett
 - **È una convenzione, non un test.** Non dice se i cluster sono reali: una nuvola senza cluster ha comunque una silhouette positiva con k-means o con un clustering gerarchico (il caso è nei problemi aperti del progetto, "modello nullo per la silhouette").
 - **Dipende dalla forma dei cluster.** Vale quanto detto sotto: premia cluster compatti e convessi.
 - **Il progetto non la usa.** I report del tuning e le tabelle non classificano nessuna combinazione in una fascia: danno i valori, il numero di silhouette negative e il valore al primo e all'ultimo $k$. Il report di tuning dice solo che le fasce esistono e rimanda a questa nota. L'interpretazione dei valori si costruisce caso per caso, sui dati.
-
-**Cosa assume.** La silhouette confronta distanze **medie** su interi cluster. Funziona bene con cluster compatti e convessi, e premia meno un cluster allungato o a forma irregolare, anche se reale [1, 11].
 
 **Come la usa il progetto.**
 - Il rumore (`-1`) è escluso prima del calcolo (`compute_clustering_metrics`, `src/analysis/clustering_tuning.py`). Va sempre letta con la frazione di rumore (§6).
@@ -244,11 +240,10 @@ con $\delta$ la minima distanza tra due punti di cluster diversi e $\Delta$ il d
 
 ## 11. Insidie comuni
 
-1. **Gli indici interni non sono un giudice neutrale.** Silhouette, CH e DB premiano cluster compatti e convessi; un metodo di densità può trovare un gruppo reale e avere indici bassi [1, 11].
-2. **Su un embedding si misura l'embedding.** UMAP non preserva la densità e può creare "false tears" (fratture) [16]: indici alti su un embedding con `min_dist` basso possono dire più dei parametri di UMAP che dei dati (vedi [`challenge_of_clustering_after_dim_reduction.md`](../challenge_of_clustering_after_dim_reduction.md)).
-3. **Il rumore fa salire gli indici.** Va sempre letto `noise_fraction` accanto (§6).
-4. **Spazi diversi, numeri non confrontabili.** Stessa silhouette su due embedding, o con due metriche, non è la stessa cosa.
-5. **Nessun indice sceglie k da solo.** Ogni indice ha una sua idea di cluster; il progetto non sceglie in automatico.
+1. **Su un embedding si misura l'embedding.** UMAP non preserva la densità e può creare "false tears" (fratture) [16]: indici alti su un embedding con `min_dist` basso possono dire più dei parametri di UMAP che dei dati (vedi [`challenge_of_clustering_after_dim_reduction.md`](../challenge_of_clustering_after_dim_reduction.md)).
+2. **Il rumore fa salire gli indici.** Va sempre letto `noise_fraction` accanto (§6).
+3. **Spazi diversi, numeri non confrontabili.** Stessa silhouette su due embedding, o con due metriche, non è la stessa cosa.
+4. **Nessun indice sceglie k da solo.** Il progetto non sceglie in automatico.
 
 ---
 

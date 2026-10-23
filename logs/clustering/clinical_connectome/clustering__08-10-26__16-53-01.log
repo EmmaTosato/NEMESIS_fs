@@ -1,0 +1,154 @@
+INFO: reduced_data=true - input_path treated as an already-computed embedding (results/lesion/dim_reduction/production/umap/08-10_s1.4-vol_m_dice_nc10, shape (5845, 10))
+INFO: Starting clustering fine-tuning sweep for agglomerative (116 combinations)
+INFO: Evaluating combination 1/116: {'n_clusters': 2, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 2/116: {'n_clusters': 2, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 3/116: {'n_clusters': 2, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 4/116: {'n_clusters': 2, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 5/116: {'n_clusters': 3, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 6/116: {'n_clusters': 3, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 7/116: {'n_clusters': 3, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 8/116: {'n_clusters': 3, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 9/116: {'n_clusters': 4, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 10/116: {'n_clusters': 4, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 11/116: {'n_clusters': 4, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 12/116: {'n_clusters': 4, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 13/116: {'n_clusters': 5, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 14/116: {'n_clusters': 5, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 15/116: {'n_clusters': 5, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 16/116: {'n_clusters': 5, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 17/116: {'n_clusters': 6, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 18/116: {'n_clusters': 6, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 19/116: {'n_clusters': 6, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 20/116: {'n_clusters': 6, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 21/116: {'n_clusters': 7, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 22/116: {'n_clusters': 7, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 23/116: {'n_clusters': 7, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 24/116: {'n_clusters': 7, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 25/116: {'n_clusters': 8, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 26/116: {'n_clusters': 8, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 27/116: {'n_clusters': 8, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 28/116: {'n_clusters': 8, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 29/116: {'n_clusters': 9, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 30/116: {'n_clusters': 9, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 31/116: {'n_clusters': 9, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 32/116: {'n_clusters': 9, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 33/116: {'n_clusters': 10, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 34/116: {'n_clusters': 10, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 35/116: {'n_clusters': 10, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 36/116: {'n_clusters': 10, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 37/116: {'n_clusters': 11, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 38/116: {'n_clusters': 11, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 39/116: {'n_clusters': 11, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 40/116: {'n_clusters': 11, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 41/116: {'n_clusters': 12, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 42/116: {'n_clusters': 12, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 43/116: {'n_clusters': 12, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 44/116: {'n_clusters': 12, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 45/116: {'n_clusters': 13, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 46/116: {'n_clusters': 13, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 47/116: {'n_clusters': 13, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 48/116: {'n_clusters': 13, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 49/116: {'n_clusters': 14, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 50/116: {'n_clusters': 14, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 51/116: {'n_clusters': 14, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 52/116: {'n_clusters': 14, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 53/116: {'n_clusters': 15, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 54/116: {'n_clusters': 15, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 55/116: {'n_clusters': 15, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 56/116: {'n_clusters': 15, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 57/116: {'n_clusters': 16, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 58/116: {'n_clusters': 16, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 59/116: {'n_clusters': 16, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 60/116: {'n_clusters': 16, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 61/116: {'n_clusters': 17, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 62/116: {'n_clusters': 17, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 63/116: {'n_clusters': 17, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 64/116: {'n_clusters': 17, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 65/116: {'n_clusters': 18, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 66/116: {'n_clusters': 18, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 67/116: {'n_clusters': 18, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 68/116: {'n_clusters': 18, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 69/116: {'n_clusters': 19, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 70/116: {'n_clusters': 19, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 71/116: {'n_clusters': 19, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 72/116: {'n_clusters': 19, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 73/116: {'n_clusters': 20, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 74/116: {'n_clusters': 20, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 75/116: {'n_clusters': 20, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 76/116: {'n_clusters': 20, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 77/116: {'n_clusters': 21, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 78/116: {'n_clusters': 21, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 79/116: {'n_clusters': 21, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 80/116: {'n_clusters': 21, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 81/116: {'n_clusters': 22, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 82/116: {'n_clusters': 22, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 83/116: {'n_clusters': 22, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 84/116: {'n_clusters': 22, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 85/116: {'n_clusters': 23, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 86/116: {'n_clusters': 23, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 87/116: {'n_clusters': 23, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 88/116: {'n_clusters': 23, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 89/116: {'n_clusters': 24, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 90/116: {'n_clusters': 24, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 91/116: {'n_clusters': 24, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 92/116: {'n_clusters': 24, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 93/116: {'n_clusters': 25, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 94/116: {'n_clusters': 25, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 95/116: {'n_clusters': 25, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 96/116: {'n_clusters': 25, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 97/116: {'n_clusters': 26, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 98/116: {'n_clusters': 26, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 99/116: {'n_clusters': 26, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 100/116: {'n_clusters': 26, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 101/116: {'n_clusters': 27, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 102/116: {'n_clusters': 27, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 103/116: {'n_clusters': 27, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 104/116: {'n_clusters': 27, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 105/116: {'n_clusters': 28, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 106/116: {'n_clusters': 28, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 107/116: {'n_clusters': 28, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 108/116: {'n_clusters': 28, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 109/116: {'n_clusters': 29, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 110/116: {'n_clusters': 29, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 111/116: {'n_clusters': 29, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 112/116: {'n_clusters': 29, 'linkage': 'single', 'metric': 'euclidean'}
+INFO: Evaluating combination 113/116: {'n_clusters': 30, 'linkage': 'ward', 'metric': 'euclidean'}
+INFO: Evaluating combination 114/116: {'n_clusters': 30, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 115/116: {'n_clusters': 30, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 116/116: {'n_clusters': 30, 'linkage': 'single', 'metric': 'euclidean'}
+WARNING: [agglomerative] tuning_grid has 3 swept parameters - no metric plot generated (only 1 or 2 are supported)
+INFO: [agglomerative] dendrogram written to results/lesion/clustering/tuning/agglomerative/umap/08-10_s1.4-vol_m_dice_nc10/dendrogram_metric=euclidean.png
+INFO: [agglomerative] interclass distance matrix written to results/lesion/clustering/tuning/agglomerative/umap/08-10_s1.4-vol_m_dice_nc10/interclass_distance_matrix.png
+INFO: [agglomerative] tuning results written to results/lesion/clustering/tuning/agglomerative/umap/08-10_s1.4-vol_m_dice_nc10 (116 combination(s) evaluated)
+INFO: Starting clustering fine-tuning sweep for hdbscan (28 combinations)
+INFO: Evaluating combination 1/28: {'min_cluster_size': 10, 'min_samples': 1}
+INFO: Evaluating combination 2/28: {'min_cluster_size': 10, 'min_samples': 5}
+INFO: Evaluating combination 3/28: {'min_cluster_size': 10, 'min_samples': 10}
+INFO: Evaluating combination 4/28: {'min_cluster_size': 10, 'min_samples': 20}
+INFO: Evaluating combination 5/28: {'min_cluster_size': 15, 'min_samples': 1}
+INFO: Evaluating combination 6/28: {'min_cluster_size': 15, 'min_samples': 5}
+INFO: Evaluating combination 7/28: {'min_cluster_size': 15, 'min_samples': 10}
+INFO: Evaluating combination 8/28: {'min_cluster_size': 15, 'min_samples': 20}
+INFO: Evaluating combination 9/28: {'min_cluster_size': 20, 'min_samples': 1}
+INFO: Evaluating combination 10/28: {'min_cluster_size': 20, 'min_samples': 5}
+INFO: Evaluating combination 11/28: {'min_cluster_size': 20, 'min_samples': 10}
+INFO: Evaluating combination 12/28: {'min_cluster_size': 20, 'min_samples': 20}
+INFO: Evaluating combination 13/28: {'min_cluster_size': 30, 'min_samples': 1}
+INFO: Evaluating combination 14/28: {'min_cluster_size': 30, 'min_samples': 5}
+INFO: Evaluating combination 15/28: {'min_cluster_size': 30, 'min_samples': 10}
+INFO: Evaluating combination 16/28: {'min_cluster_size': 30, 'min_samples': 20}
+INFO: Evaluating combination 17/28: {'min_cluster_size': 50, 'min_samples': 1}
+INFO: Evaluating combination 18/28: {'min_cluster_size': 50, 'min_samples': 5}
+INFO: Evaluating combination 19/28: {'min_cluster_size': 50, 'min_samples': 10}
+INFO: Evaluating combination 20/28: {'min_cluster_size': 50, 'min_samples': 20}
+INFO: Evaluating combination 21/28: {'min_cluster_size': 75, 'min_samples': 1}
+INFO: Evaluating combination 22/28: {'min_cluster_size': 75, 'min_samples': 5}
+INFO: Evaluating combination 23/28: {'min_cluster_size': 75, 'min_samples': 10}
+INFO: Evaluating combination 24/28: {'min_cluster_size': 75, 'min_samples': 20}
+INFO: Evaluating combination 25/28: {'min_cluster_size': 100, 'min_samples': 1}
+INFO: Evaluating combination 26/28: {'min_cluster_size': 100, 'min_samples': 5}
+INFO: Evaluating combination 27/28: {'min_cluster_size': 100, 'min_samples': 10}
+INFO: Evaluating combination 28/28: {'min_cluster_size': 100, 'min_samples': 20}
+INFO: [hdbscan] tuning results written to results/lesion/clustering/tuning/hdbscan/umap/08-10_s1.4-vol_m_dice_nc10 (28 combination(s) evaluated)
+INFO: done - fine-tuning for all 2 method(s) written under results/lesion/clustering, log written to logs/clustering/clinical_connectome/clustering__08-10-26__16-53-01.log
+INFO: run duration: 0:03:24

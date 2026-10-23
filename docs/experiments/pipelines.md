@@ -189,7 +189,7 @@ flowchart LR
     R24 --> N24T --> N24P --> CT24R --> CP24R
 ```
 
-## Prima tornata — s1.1, s1.2, s2.1, s2.2
+## Prima tornata — s1.1, s1.2, s2.1, s2.2, s2.3
 
 ```mermaid
 flowchart LR
@@ -202,7 +202,7 @@ flowchart LR
         R12R["s1.2-vol<br/>lesion_matrix<br/>25-08<br/>5269 subj."]
         R21["s2.1-schaefer-200-tian-s2<br/>sdc_matrix<br/>27-08<br/>1119 subj."]
         R22["s2.2-vol<br/>sdc_matrix<br/>07-09<br/>1570 subj."]
-        R23["s2.3-stream<br/>sdc_matrix<br/>87 tratti<br/>non ancora costruita"]:::pending
+        R23["s2.3-stream<br/>sdc_matrix<br/>30-09<br/>5838 subj.<br/>87 tratti"]
     end
 
     subgraph COL1["Dim Red. — Tuning"]
@@ -222,7 +222,7 @@ flowchart LR
         P12R["no dim reduction"]
         P21["31-08<hr/><b>UMAP</b><br/>euclidean<br/>nc2/nc3<hr/><b>t-SNE</b><br/>euclidean<br/>nc2"]
         P22["07-09<hr/><b>UMAP</b><br/>euclidean<br/>nc2/nc3<hr/><b>t-SNE</b><br/>euclidean<br/>nc2"]
-        P23["no dim reduction"]
+        P23["30-09<hr/><b>UMAP</b><br/>euclidean nc2<br/>(solo per la vista)"]
     end
 
     subgraph COL3["Clustering — Tuning"]
@@ -232,7 +232,7 @@ flowchart LR
         CT12R["03-09<hr/>raw dice/euclidean<br/>264274 voxel<br/>agglomerative"]
         CT21["01-09<hr/>UMAP euclidean<br/>nc2/nc3"]
         CT22["10-09<hr/>UMAP euclidean<br/>nc2/nc3"]
-        CT23["non ancora lanciata<hr/>raw<br/>87 tratti"]:::pending
+        CT23["nessun tuning"]
     end
 
     subgraph COL4["Clustering — Prod."]
@@ -242,7 +242,7 @@ flowchart LR
         CP12R["run degenere"]:::pending
         CP21["non ancora lanciata"]:::pending
         CP22["10-09<hr/>UMAP euclidean nc2<br/>8 opzioni k"]
-        CP23["non ancora lanciata<hr/>raw<br/>k 4-10"]:::pending
+        CP23["30-09<hr/>raw<br/>87 tratti<br/>agglomerative ward: 7 run<br/>k-means: 7 run<br/>HDBSCAN: 1 run<br/>(15 run)"]
     end
 
     R11 --> T11 --> P11 --> CT11 --> CP11
@@ -250,7 +250,7 @@ flowchart LR
     R12R --> T12R --> P12R --> CT12R -.-> CP12R
     R21 --> T21 --> P21 --> CT21 -.-> CP21
     R22 --> T22 --> P22 --> CT22 --> CP22
-    R23 -.-> T23 -.-> P23 -.-> CT23 -.-> CP23
+    R23 --> T23 --> P23 --> CT23 -.-> CP23
 ```
 
 Dove il metodo di clustering non è indicato: k-means, agglomerative, gmm, hdbscan, spectral.

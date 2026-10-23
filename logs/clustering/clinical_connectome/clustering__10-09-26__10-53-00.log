@@ -1,0 +1,16 @@
+INFO: reduced_data=true - input_path treated as an already-computed embedding (results/sdc/dim_reduction/production/umap/07-09_s2.2-vol_m_euclidean_nc2, shape (1570, 2))
+INFO: Starting clustering fine-tuning sweep for kmeans (7 combinations)
+INFO: Evaluating combination 1/7: {'n_clusters': 2}
+INFO: Evaluating combination 2/7: {'n_clusters': 3}
+INFO: Evaluating combination 3/7: {'n_clusters': 4}
+INFO: Evaluating combination 4/7: {'n_clusters': 5}
+INFO: Evaluating combination 5/7: {'n_clusters': 6}
+INFO: Evaluating combination 6/7: {'n_clusters': 8}
+INFO: Evaluating combination 7/7: {'n_clusters': 10}
+INFO: [kmeans] tuning results written to results/sdc/clustering/tuning/kmeans/umap/10-09_s2.2-vol_m_euclidean_nc2 (7 combination(s) evaluated)
+INFO: [kmeans] stability analysis written to results/sdc/clustering/tuning/kmeans/umap/10-09_s2.2-vol_m_euclidean_nc2
+INFO: Starting clustering fine-tuning sweep for agglomerative (20 combinations)
+INFO: Evaluating combination 1/20: {'n_clusters': 2, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 2/20: {'n_clusters': 2, 'linkage': 'average', 'metric': 'dice'}
+ERROR: [agglomerative] metric='dice' requires a strictly binary (0/1) matrix - X has value(s) outside {0, 1} (e.g. a continuous matrix in [0, 1] is not a valid input for jaccard/dice - use a different metric, e.g. euclidean, or a weighted/Ruzicka-style overlap metric for continuous data instead)
+INFO: run duration: 0:00:05

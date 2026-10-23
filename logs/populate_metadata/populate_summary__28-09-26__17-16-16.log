@@ -1,0 +1,11 @@
+INFO: UNIPD/WashU: admitted=195 only_in_tsv=124 only_on_disk=0 excluded_by_group=0 disease_id_mismatch=0
+INFO: UNIPD/PSP: admitted=168 only_in_tsv=69 only_on_disk=0 excluded_by_group=0 disease_id_mismatch=0
+INFO: UNIPD/PASPORT: admitted=83 only_in_tsv=14 only_on_disk=0 excluded_by_group=0 disease_id_mismatch=0
+INFO: UKLFR/stroke_UKLFR: admitted=705 only_in_tsv=30 only_on_disk=0 excluded_by_group=0 disease_id_mismatch=0
+INFO: UCL-UK/UCLStrokeData: admitted=4119 only_in_tsv=0 only_on_disk=0 excluded_by_group=0 disease_id_mismatch=0
+INFO: UKE/WAKEUP_acute: admitted=451 only_in_tsv=52 only_on_disk=0 excluded_by_group=0 disease_id_mismatch=0
+INFO: UKE/SFB936_ses01: admitted=56 only_in_tsv=1 only_on_disk=0 excluded_by_group=0 disease_id_mismatch=0
+INFO: UNIPD/NEMESIS_T0: admitted=76 only_in_tsv=28 only_on_disk=0 excluded_by_group=0 disease_id_mismatch=0
+INFO: overwrite=false: 5752 existing row(s) untouched, 132 new subject(s) appended
+INFO: done - 5884 subject(s) in assets/metadata/participants.csv, report written to summaries/populate_metadata/populate_summary__28-09-26__17-16-16.md
+INFO: run duration: 0:00:00

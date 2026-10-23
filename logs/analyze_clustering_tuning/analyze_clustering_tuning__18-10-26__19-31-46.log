@@ -1,0 +1,5 @@
+INFO: analysing /private/tmp/claude-501/-Users-emmatosato-Local-Projects-Local-PhD-Projects-NEMESIS-fs/7214fd67-a685-4229-b103-81f7fca6a36e/scratchpad/dry/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_euclidean_nc2: method=hdbscan_soft, 56 combinations
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: usable combinations: 9 of 56
+INFO: done - 2 file(s) written under /private/tmp/claude-501/-Users-emmatosato-Local-Projects-Local-PhD-Projects-NEMESIS-fs/7214fd67-a685-4229-b103-81f7fca6a36e/scratchpad/dry/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_euclidean_nc2, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__18-10-26__19-31-46.log
+INFO: run duration: 0:00:00

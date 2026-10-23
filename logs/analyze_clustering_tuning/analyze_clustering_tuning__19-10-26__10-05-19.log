@@ -1,0 +1,3 @@
+INFO: analysing results/lesion/clustering/tuning/hdbscan/umap/08-10_s1.4-vol_m_dice_nc2: method=hdbscan
+INFO: done - 3 file(s) written under results/lesion/clustering/tuning/hdbscan/umap/08-10_s1.4-vol_m_dice_nc2, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__10-05-19.log
+INFO: run duration: 0:00:00

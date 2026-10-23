@@ -1,0 +1,8 @@
+INFO: analysing /private/tmp/claude-501/-Users-emmatosato-Local-Projects-Local-PhD-Projects-NEMESIS-fs/7214fd67-a685-4229-b103-81f7fca6a36e/scratchpad/dry/sdc/clustering/tuning/hdbscan/umap/16-10_s2.4-vol_m_euclidean_nc10: method=hdbscan, 28 combinations
+INFO: analysing /private/tmp/claude-501/-Users-emmatosato-Local-Projects-Local-PhD-Projects-NEMESIS-fs/7214fd67-a685-4229-b103-81f7fca6a36e/scratchpad/dry/sdc/clustering/tuning/hdbscan/umap/16-10_s2.4-vol_m_euclidean_nc10: method=hdbscan, 28 combinations
+INFO: usable combinations: 0 of 28
+INFO: done - 2 file(s) written under /private/tmp/claude-501/-Users-emmatosato-Local-Projects-Local-PhD-Projects-NEMESIS-fs/7214fd67-a685-4229-b103-81f7fca6a36e/scratchpad/dry/sdc/clustering/tuning/hdbscan/umap/16-10_s2.4-vol_m_euclidean_nc10, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__18-10-26__19-36-23.log
+INFO: usable combinations: 0 of 28
+INFO: done - 2 file(s) written under /private/tmp/claude-501/-Users-emmatosato-Local-Projects-Local-PhD-Projects-NEMESIS-fs/7214fd67-a685-4229-b103-81f7fca6a36e/scratchpad/dry/sdc/clustering/tuning/hdbscan/umap/16-10_s2.4-vol_m_euclidean_nc10, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__18-10-26__19-36-23.log
+INFO: run duration: 0:00:00
+INFO: run duration: 0:00:00

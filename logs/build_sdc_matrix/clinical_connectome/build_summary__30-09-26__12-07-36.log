@@ -1,0 +1,4 @@
+INFO: 15 subject(s) excluded by assets/metadata/excluded_subjects.csv: ['sub-STUCLUK0383', 'sub-STUCLUK0661', 'sub-STUCLUK0797', 'sub-STUCLUK0907', 'sub-STUCLUK1508', 'sub-STUCLUK2160', 'sub-STUCLUK2359', 'sub-STUCLUK2664', 'sub-STUCLUK2846', 'sub-STUCLUK2951', 'sub-STUCLUK3025', 'sub-STUCLUK3108', 'sub-STUCLUK3453', 'sub-STUKLFR0671', 'sub-STUNIPD0222']
+INFO: matrix written to data/derived/sdc_matrix/30-09_s2.3-stream (shape (5838, 87))
+INFO: done - matrix written to data/derived/sdc_matrix/30-09_s2.3-stream, report written to summaries/build_sdc_matrix/clinical_connectome/build_summary__30-09-26__12-07-36.md, log written to logs/build_sdc_matrix/clinical_connectome/build_summary__30-09-26__12-07-36.log
+INFO: run duration: 0:00:04

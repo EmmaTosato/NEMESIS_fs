@@ -70,7 +70,7 @@ L'unico iperparametro di sostanza è **quante componenti tenere**; la decomposiz
 - **Varianza spiegata** cumulata delle componenti tenute: la misura del tuning (`cumulative_explained_variance`) [3]. Vedi [evaluation.md](evaluation.md).
 - **Dipendenza da variabili note**: R² delle componenti con volume e lato della lesione (`employed_dim_reduction_methods.md`).
 - **Riproducibilità**: correlazione delle mappe stimate su due metà dei soggetti, come in [5].
-- Come visualizzazione in 2D la PCA conserva male i vicini: nei tre dataset biologici di de Bodt et al. (Tasic, Kanton, 1000 Genomes) la conservazione dei 10 vicini è 0,02-0,04, la correlazione delle distanze 0,83-0,92; sul dataset di testo (Wikipedia) 0,00 e 0,32 [9, Tabella 2]. Nei primi è forte sul globale e debole sul locale.
+- Come visualizzazione in 2D la PCA è forte sul globale e debole sul locale: nel confronto di de Bodt et al. t-SNE ha la qualità locale più alta, PCA e MDS la qualità globale più alta [9, §4].
 
 ## 7. Quando usarla
 

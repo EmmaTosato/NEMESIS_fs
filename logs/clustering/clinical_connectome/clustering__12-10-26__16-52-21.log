@@ -1,0 +1,7 @@
+INFO: reduced_data=true - input_path treated as an already-computed embedding (results/lesion/dim_reduction/production/umap/08-10_s1.4-vol_m_dice_nc10, shape (5845, 10))
+WARNING: X has 10 components (not 2 or 3) and no viz_embedding_path was given - skipping every cluster-colored plot (cluster_plot.png/silhouette_plot.png) for this run. If X has more than 3 components, produce a companion 2D/3D embedding separately (dim_reduction.py, same params as the one used for this input, only n_components different) and set viz_embedding_path to plot - see docs/dev/clustering_migration_plan.md §3.
+INFO: [hdbscan] clustered matrix written to results/lesion/clustering/production/hdbscan/umap/12-10_s1.4-vol_m_dice_nc10_mcs30_ms10 (shape (5845, 10))
+WARNING: [hdbscan] no viz embedding available (see warning logged in main()) - skipping cluster_plot.png/silhouette_plot.png
+INFO: [hdbscan] done - output written to results/lesion/clustering/production/hdbscan/umap/12-10_s1.4-vol_m_dice_nc10_mcs30_ms10
+INFO: done - all 1 method(s) written under results/lesion/clustering, log written to logs/clustering/clinical_connectome/clustering__12-10-26__16-52-21.log
+INFO: run duration: 0:00:00

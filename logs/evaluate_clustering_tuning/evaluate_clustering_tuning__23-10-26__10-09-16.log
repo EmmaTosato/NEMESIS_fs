@@ -1,0 +1,6 @@
+INFO: analysing results/sdc/clustering/tuning/hdbscan/pca/19-10_s2.4-vol_nc12_varimax: method=hdbscan
+INFO: running clustering tuning evaluation density_metrics with settings {}
+INFO: running clustering tuning evaluation tuning_heatmaps with settings {}
+INFO: running clustering tuning evaluation dbcv_curves with settings {}
+INFO: done - 4 file(s) written under results/sdc/clustering/tuning/hdbscan/pca/19-10_s2.4-vol_nc12_varimax, log written to logs/evaluate_clustering_tuning/evaluate_clustering_tuning__23-10-26__10-09-16.log
+INFO: run duration: 0:00:15

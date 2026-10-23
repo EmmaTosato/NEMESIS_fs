@@ -1,0 +1,11 @@
+INFO: 15 of the config's 22 row(s) were already in the file
+INFO: 15 unchanged, 7 added, 0 removed
+INFO: + sub-STUKE0146,UKE/WAKEUP_acute,empty_mask,all,0
+INFO: + sub-STUKE0201,UKE/WAKEUP_acute,empty_mask,all,0
+INFO: + sub-STUKE0329,UKE/WAKEUP_acute,out_of_brain_fraction_too_high,all,0.4761904761904761
+INFO: + sub-STUKLFR0227,UKLFR/stroke_UKLFR,out_of_brain_fraction_too_high,all,0.7631379962192817
+INFO: + sub-STUNIPD0516,UNIPD/PASPORT,out_of_brain_fraction_too_high,all,0.9432913765399036
+INFO: + sub-STUNIPD0552,UNIPD/PASPORT,out_of_brain_fraction_too_high,all,0.4102254428341385
+INFO: + sub-STUNIPD0558,UNIPD/PASPORT,out_of_brain_fraction_too_high,all,1
+INFO: dry-run - nothing written to assets/metadata/excluded_subjects.csv, report at summaries/build_excluded_subjects/excluded_summary__06-10-26__18-14-55.md
+INFO: run duration: 0:00:00

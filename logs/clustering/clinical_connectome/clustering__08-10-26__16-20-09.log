@@ -1,0 +1,28 @@
+INFO: reduced_data=false - input_path treated as a raw feature matrix (data/derived/sdc_matrix/07-09_s2.2-vol, shape (1570, 290940))
+INFO: Starting adp fine-tuning sweep (18 combinations)
+WARNING: [adp] 1 all-zero row(s) have no dice/jaccard distance - labelled -1 (noise) for every metric, so every metric clusters the same subjects; row indices: [1064]
+INFO: Evaluating combination 1/18: {'Z': 0.25}
+INFO: [adp] computing dice distances for 1569 row(s)
+INFO: [adp] metric=dice maxk=100: intrinsic dimension (2NN) = 7.88
+INFO: Evaluating combination 2/18: {'Z': 0.5}
+INFO: Evaluating combination 3/18: {'Z': 0.75}
+INFO: Evaluating combination 4/18: {'Z': 1.0}
+INFO: Evaluating combination 5/18: {'Z': 1.25}
+INFO: Evaluating combination 6/18: {'Z': 1.5}
+INFO: Evaluating combination 7/18: {'Z': 1.65}
+INFO: Evaluating combination 8/18: {'Z': 2.0}
+INFO: Evaluating combination 9/18: {'Z': 2.5}
+INFO: Evaluating combination 10/18: {'Z': 3.0}
+INFO: Evaluating combination 11/18: {'Z': 3.5}
+INFO: Evaluating combination 12/18: {'Z': 4.0}
+INFO: Evaluating combination 13/18: {'Z': 5.0}
+INFO: Evaluating combination 14/18: {'Z': 6.0}
+INFO: Evaluating combination 15/18: {'Z': 8.0}
+INFO: Evaluating combination 16/18: {'Z': 10.0}
+INFO: Evaluating combination 17/18: {'Z': 12.0}
+WARNING: [adp] 1 cluster(s) found (need 2..n-1) - silhouette/calinski_harabasz/davies_bouldin recorded as NaN
+INFO: Evaluating combination 18/18: {'Z': 16.0}
+WARNING: [adp] 1 cluster(s) found (need 2..n-1) - silhouette/calinski_harabasz/davies_bouldin recorded as NaN
+INFO: [adp] tuning results written to results/sdc/clustering/tuning/adp/raw/08-10_s2.2-vol (18 combination(s) evaluated)
+INFO: done - fine-tuning for all 1 method(s) written under results/sdc/clustering, log written to logs/clustering/clinical_connectome/clustering__08-10-26__16-20-09.log
+INFO: run duration: 0:03:14

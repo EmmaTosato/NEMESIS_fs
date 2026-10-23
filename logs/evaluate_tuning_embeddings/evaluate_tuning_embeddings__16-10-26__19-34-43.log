@@ -1,0 +1,14 @@
+INFO: evaluating results/sdc/dim_reduction/tuning/umap/16-10_s2.4-vol: 90 combinations, nested_params=['metric', 'n_components']
+INFO: running tuning evaluation plot_hdbscan with settings {'min_cluster_size': 75, 'min_samples': 10}
+ERROR: tuning evaluation failed: [PosixPath('results/sdc/dim_reduction/tuning/umap/16-10_s2.4-vol/metric=euclidean/n_components=2/hdbscan_grid_mcs75_ms10.png'), PosixPath('results/sdc/dim_reduction/tuning/umap/16-10_s2.4-vol/metric=euclidean/n_components=2/hdbscan_results_mcs75_ms10.csv')] already exist - set overwrite=true to replace them
+Traceback (most recent call last):
+  File "/Users/emmatosato/Local Projects/Local PhD Projects/NEMESIS_fs/src/pipeline/evaluate_tuning_embeddings.py", line 66, in main
+    written = run_embedding_evaluations(config.tuning_evaluations, run, config.overwrite)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/emmatosato/Local Projects/Local PhD Projects/NEMESIS_fs/src/analysis/tuning_evaluations.py", line 248, in run_embedding_evaluations
+    written += spec.run(run, settings, overwrite)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/emmatosato/Local Projects/Local PhD Projects/NEMESIS_fs/src/analysis/tuning_evaluations.py", line 152, in _run_plot_hdbscan
+    raise FileExistsError(f"{existing} already exist - set overwrite=true to replace them")
+FileExistsError: [PosixPath('results/sdc/dim_reduction/tuning/umap/16-10_s2.4-vol/metric=euclidean/n_components=2/hdbscan_grid_mcs75_ms10.png'), PosixPath('results/sdc/dim_reduction/tuning/umap/16-10_s2.4-vol/metric=euclidean/n_components=2/hdbscan_results_mcs75_ms10.csv')] already exist - set overwrite=true to replace them
+INFO: run duration: 0:00:00

@@ -1,0 +1,21 @@
+INFO: reduced_data=true - input_path treated as an already-computed embedding (results/lesion/dim_reduction/production/umap/11-08_s1.1_m_euclidean_nc2, shape (1150, 2))
+INFO: [agglomerative] clustered matrix written to results/lesion/clustering/production/agglomerative/umap/01-09_s1.1_m_euclidean_n2_k5_linkaverage (shape (1150, 2))
+INFO: [agglomerative] cluster plot written to results/lesion/clustering/production/agglomerative/umap/01-09_s1.1_m_euclidean_n2_k5_linkaverage/cluster_plot.png
+INFO: [agglomerative] silhouette plot written to results/lesion/clustering/production/agglomerative/umap/01-09_s1.1_m_euclidean_n2_k5_linkaverage/silhouette_plot.png
+INFO: [agglomerative] done - output written to results/lesion/clustering/production/agglomerative/umap/01-09_s1.1_m_euclidean_n2_k5_linkaverage
+INFO: [gmm] clustered matrix written to results/lesion/clustering/production/gmm/umap/01-09_s1.1_m_euclidean_n2_n_comp5_covfull (shape (1150, 2))
+INFO: [gmm] cluster plot written to results/lesion/clustering/production/gmm/umap/01-09_s1.1_m_euclidean_n2_n_comp5_covfull/cluster_plot.png
+INFO: [gmm] silhouette plot written to results/lesion/clustering/production/gmm/umap/01-09_s1.1_m_euclidean_n2_n_comp5_covfull/silhouette_plot.png
+INFO: [gmm] done - output written to results/lesion/clustering/production/gmm/umap/01-09_s1.1_m_euclidean_n2_n_comp5_covfull
+INFO: [kmeans] clustered matrix written to results/lesion/clustering/production/kmeans/umap/01-09_s1.1_m_euclidean_n2_k5 (shape (1150, 2))
+INFO: [kmeans] cluster plot written to results/lesion/clustering/production/kmeans/umap/01-09_s1.1_m_euclidean_n2_k5/cluster_plot.png
+INFO: [kmeans] silhouette plot written to results/lesion/clustering/production/kmeans/umap/01-09_s1.1_m_euclidean_n2_k5/silhouette_plot.png
+INFO: [kmeans] done - output written to results/lesion/clustering/production/kmeans/umap/01-09_s1.1_m_euclidean_n2_k5
+INFO: [spectral] clustered matrix written to results/lesion/clustering/production/spectral/umap/01-09_s1.1_m_euclidean_n2_k5_affnearest_neighbors (shape (1150, 2))
+INFO: [spectral] cluster plot written to results/lesion/clustering/production/spectral/umap/01-09_s1.1_m_euclidean_n2_k5_affnearest_neighbors/cluster_plot.png
+INFO: [spectral] silhouette plot written to results/lesion/clustering/production/spectral/umap/01-09_s1.1_m_euclidean_n2_k5_affnearest_neighbors/silhouette_plot.png
+INFO: [spectral] done - output written to results/lesion/clustering/production/spectral/umap/01-09_s1.1_m_euclidean_n2_k5_affnearest_neighbors
+INFO: comparison plot written to results/lesion/clustering/production/comparison/umap/01-09_s1.1_m_euclidean_n2/cluster_comparison.png
+INFO: interactive comparison plot written to results/lesion/clustering/production/comparison/umap/01-09_s1.1_m_euclidean_n2/cluster_comparison_interactive.html
+INFO: done - all 4 method(s) written under results/lesion/clustering, log written to logs/clustering/clinical_connectome/clustering__01-09-26__09-40-46.log
+INFO: run duration: 0:00:02

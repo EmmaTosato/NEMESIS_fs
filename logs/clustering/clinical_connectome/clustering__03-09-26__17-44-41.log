@@ -1,0 +1,24 @@
+INFO: reduced_data=false - input_path treated as a raw feature matrix (data/derived/lesion_matrix/25-08_s1.2-vol, shape (5269, 264274))
+INFO: Starting clustering fine-tuning sweep for agglomerative (20 combinations)
+INFO: Evaluating combination 1/20: {'n_clusters': 2, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 2/20: {'n_clusters': 2, 'linkage': 'average', 'metric': 'dice'}
+INFO: Evaluating combination 3/20: {'n_clusters': 2, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 4/20: {'n_clusters': 2, 'linkage': 'complete', 'metric': 'dice'}
+INFO: Evaluating combination 5/20: {'n_clusters': 3, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 6/20: {'n_clusters': 3, 'linkage': 'average', 'metric': 'dice'}
+INFO: Evaluating combination 7/20: {'n_clusters': 3, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 8/20: {'n_clusters': 3, 'linkage': 'complete', 'metric': 'dice'}
+INFO: Evaluating combination 9/20: {'n_clusters': 4, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 10/20: {'n_clusters': 4, 'linkage': 'average', 'metric': 'dice'}
+INFO: Evaluating combination 11/20: {'n_clusters': 4, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 12/20: {'n_clusters': 4, 'linkage': 'complete', 'metric': 'dice'}
+INFO: Evaluating combination 13/20: {'n_clusters': 5, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 14/20: {'n_clusters': 5, 'linkage': 'average', 'metric': 'dice'}
+INFO: Evaluating combination 15/20: {'n_clusters': 5, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 16/20: {'n_clusters': 5, 'linkage': 'complete', 'metric': 'dice'}
+INFO: Evaluating combination 17/20: {'n_clusters': 6, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 18/20: {'n_clusters': 6, 'linkage': 'average', 'metric': 'dice'}
+INFO: Evaluating combination 19/20: {'n_clusters': 6, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 20/20: {'n_clusters': 6, 'linkage': 'complete', 'metric': 'dice'}
+WARNING: [agglomerative] tuning_grid has 3 swept parameters - no metric plot generated (only 1 or 2 are supported)
+INFO: run duration: 0:17:29

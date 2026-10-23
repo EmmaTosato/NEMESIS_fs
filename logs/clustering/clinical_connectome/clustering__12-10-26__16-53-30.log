@@ -1,0 +1,7 @@
+INFO: reduced_data=true - input_path treated as an already-computed embedding (results/lesion/dim_reduction/production/umap/08-10_s1.4-vol_m_euclidean_nc10, shape (5845, 10))
+INFO: [hdbscan] clustered matrix written to results/lesion/clustering/production/hdbscan/umap/12-10_s1.4-vol_m_euclidean_nc10_mcs100_ms20 (shape (5845, 10))
+INFO: [hdbscan] cluster plot written to results/lesion/clustering/production/hdbscan/umap/12-10_s1.4-vol_m_euclidean_nc10_mcs100_ms20/cluster_plot.png
+INFO: [hdbscan] silhouette plot written to results/lesion/clustering/production/hdbscan/umap/12-10_s1.4-vol_m_euclidean_nc10_mcs100_ms20/silhouette_plot.png
+INFO: [hdbscan] done - output written to results/lesion/clustering/production/hdbscan/umap/12-10_s1.4-vol_m_euclidean_nc10_mcs100_ms20
+INFO: done - all 1 method(s) written under results/lesion/clustering, log written to logs/clustering/clinical_connectome/clustering__12-10-26__16-53-30.log
+INFO: run duration: 0:00:01

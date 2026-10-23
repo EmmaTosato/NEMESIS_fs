@@ -1,0 +1,10 @@
+INFO: reduced_data=false - input_path treated as a raw feature matrix (data/derived/lesion_matrix/07-10_s1.4-vol, shape (5845, 221955))
+WARNING: [adp] 1 row(s) are exact duplicates of another row (distance 0) - clustered once and labelled like their twin; row indices: [5385]
+INFO: [adp] computing dice distances for 5845 row(s)
+INFO: [adp] metric=dice maxk=100: intrinsic dimension (2NN) = 12.20
+INFO: [adp] clustered matrix written to results/lesion/clustering/production/adp/raw/12-10_s1.4-vol_m_dice_Z40 (shape (5845, 221955))
+INFO: [adp] cluster plot written to results/lesion/clustering/production/adp/raw/12-10_s1.4-vol_m_dice_Z40/cluster_plot.png
+INFO: [adp] silhouette plot written to results/lesion/clustering/production/adp/raw/12-10_s1.4-vol_m_dice_Z40/silhouette_plot.png
+INFO: [adp] done - output written to results/lesion/clustering/production/adp/raw/12-10_s1.4-vol_m_dice_Z40
+INFO: done - all 1 method(s) written under results/lesion/clustering, log written to logs/clustering/clinical_connectome/clustering__12-10-26__16-57-12.log
+INFO: run duration: 0:01:44

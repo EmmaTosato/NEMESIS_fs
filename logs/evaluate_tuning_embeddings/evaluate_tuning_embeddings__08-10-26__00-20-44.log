@@ -1,0 +1,10 @@
+INFO: evaluating results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol: 180 combinations, nested_params=['metric', 'n_components']
+INFO: running tuning evaluation plot_hdbscan with settings {'min_cluster_size': 100, 'min_samples': 10}
+INFO: plot_hdbscan: wrote results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol/metric=dice/n_components=2/hdbscan_grid_mcs100_ms10.png and results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol/metric=dice/n_components=2/hdbscan_results_mcs100_ms10.csv (30 combinations)
+INFO: plot_hdbscan: wrote results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol/metric=dice/n_components=3/hdbscan_grid_mcs100_ms10.png and results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol/metric=dice/n_components=3/hdbscan_results_mcs100_ms10.csv (30 combinations)
+INFO: plot_hdbscan: wrote results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol/metric=dice/n_components=10/hdbscan_grid_mcs100_ms10.png and results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol/metric=dice/n_components=10/hdbscan_results_mcs100_ms10.csv (30 combinations)
+INFO: plot_hdbscan: wrote results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol/metric=euclidean/n_components=2/hdbscan_grid_mcs100_ms10.png and results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol/metric=euclidean/n_components=2/hdbscan_results_mcs100_ms10.csv (30 combinations)
+INFO: plot_hdbscan: wrote results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol/metric=euclidean/n_components=3/hdbscan_grid_mcs100_ms10.png and results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol/metric=euclidean/n_components=3/hdbscan_results_mcs100_ms10.csv (30 combinations)
+INFO: plot_hdbscan: wrote results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol/metric=euclidean/n_components=10/hdbscan_grid_mcs100_ms10.png and results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol/metric=euclidean/n_components=10/hdbscan_results_mcs100_ms10.csv (30 combinations)
+INFO: done - 12 file(s) written under results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol, log written to logs/evaluate_tuning_embeddings/evaluate_tuning_embeddings__08-10-26__00-20-44.log
+INFO: run duration: 0:00:37

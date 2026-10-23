@@ -1,0 +1,7 @@
+INFO: reduced_data=true - input_path treated as an already-computed embedding (results/sdc/dim_reduction/production/umap/16-10_s2.4-vol_m_euclidean_nc10, shape (5845, 10))
+INFO: [agglomerative] clustered matrix written to results/sdc/clustering/production/agglomerative/umap/16-10_s2.4-vol_m_euclidean_nc10_k6_link_average (shape (5845, 10))
+INFO: [agglomerative] cluster plot written to results/sdc/clustering/production/agglomerative/umap/16-10_s2.4-vol_m_euclidean_nc10_k6_link_average/cluster_plot.png
+INFO: [agglomerative] silhouette plot written to results/sdc/clustering/production/agglomerative/umap/16-10_s2.4-vol_m_euclidean_nc10_k6_link_average/silhouette_plot.png
+INFO: [agglomerative] done - output written to results/sdc/clustering/production/agglomerative/umap/16-10_s2.4-vol_m_euclidean_nc10_k6_link_average
+INFO: done - all 1 method(s) written under results/sdc/clustering, log written to logs/clustering/clinical_connectome/clustering__16-10-26__17-59-02.log
+INFO: run duration: 0:00:01

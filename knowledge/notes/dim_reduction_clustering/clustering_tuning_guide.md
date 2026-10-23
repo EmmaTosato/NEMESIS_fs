@@ -179,7 +179,7 @@ Il progetto non ha uno strumento che produca questi confronti in un colpo: si fa
   - Dimensioni dei cluster a un k scelto, per ogni run, e *contingenza* tra due run: tabella che incrocia i loro cluster (righe = prima run, colonne = seconda), dove ogni cella conta i soggetti in comune. Gruppi con la stessa dimensione in tutte le run si ritrovano; un cluster che finisce quasi tutto in una colonna è lo stesso gruppo.
 - **HDBSCAN.**
   - Una heatmap per run, per cluster trovati e per `noise_fraction`, su `min_cluster_size` × `min_samples`, da riportare sulla stessa scala di colore per tutte le run. La stessa coppia di parametri dà numeri simili nelle heatmap se la struttura si ripete; molti cluster e rumore alto in una sola run segnalano un embedding frammentato.
-  - ARI tra le partizioni di due run. In `agreement_metrics` (`src/analysis/cluster_comparison.py`) il rumore conta come un gruppo a sé; calcolato sui soli soggetti non-rumore in entrambe, l'ARI descrive solo una parte del campione, quindi si riporta anche quanti soggetti sono (nessuna tabella del progetto lo fa). ARI vicino a 1 = stessa struttura. Si affianca alle dimensioni dei cluster di ogni run.
+  - ARI tra le partizioni di due run. In `agreement_metrics` (`src/analysis/cluster_comparison.py`) il rumore conta come un gruppo a sé. ARI vicino a 1 = stessa struttura. Si affianca alle dimensioni dei cluster di ogni run.
 
 ---
 

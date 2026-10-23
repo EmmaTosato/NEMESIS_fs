@@ -1,0 +1,7 @@
+INFO: reduced_data=true - input_path treated as an already-computed embedding (results/sdc/dim_reduction/production/pca/18-10_s2.4-vol_nc12, shape (5845, 12))
+INFO: [hdbscan] clustered matrix written to results/sdc/clustering/production/hdbscan/pca/19-10_s2.4-vol_nc12_mcs75_ms5 (shape (5845, 12))
+INFO: [hdbscan] cluster plot written to results/sdc/clustering/production/hdbscan/pca/19-10_s2.4-vol_nc12_mcs75_ms5/cluster_plot.png
+WARNING: [hdbscan] skipping silhouette_plot.png: cannot compute per-sample silhouette: 0 non-noise cluster(s) found (need 2..n-1)
+INFO: [hdbscan] done - output written to results/sdc/clustering/production/hdbscan/pca/19-10_s2.4-vol_nc12_mcs75_ms5
+INFO: done - all 1 method(s) written under results/sdc/clustering, log written to logs/clustering/clinical_connectome/clustering__19-10-26__10-29-44.log
+INFO: run duration: 0:00:00

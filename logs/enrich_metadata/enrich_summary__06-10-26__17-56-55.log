@@ -1,0 +1,28 @@
+WARNING: dataset=UCL-UK/UCLStrokeData: no 'education' column in data/clinical_connectome/metadata_tsv/participants_UCL.tsv - 4119 subject(s) left empty
+WARNING: dataset=UCL-UK/UCLStrokeData: no 'lesion_side' column in data/clinical_connectome/metadata_tsv/participants_UCL.tsv - 4119 subject(s) left empty
+WARNING: dataset=UCL-UK/UCLStrokeData: no 'NIHSS' column in data/clinical_connectome/metadata_tsv/participants_UCL.tsv - 4119 subject(s) left empty
+WARNING: dataset=UCL-UK/UCLStrokeData: no 'clinical_date' column in data/clinical_connectome/metadata_tsv/participants_UCL.tsv - 4119 subject(s) left empty
+INFO: UCL-UK/UCLStrokeData: 4119 subject(s), missing variables=['education', 'lesion_side', 'NIHSS', 'clinical_date'], substituted=-
+WARNING: dataset=UKE/SFB936_ses01: no 'clinical_date' column in data/clinical_connectome/metadata_tsv/participants_UKE_SFB.tsv - 56 subject(s) left empty
+INFO: UKE/SFB936_ses01: 56 subject(s), missing variables=['clinical_date'], substituted=-
+WARNING: dataset=UKE/WAKEUP_acute: no 'clinical_date' column in data/clinical_connectome/metadata_tsv/participants_UKE.tsv - 451 subject(s) left empty
+INFO: UKE/WAKEUP_acute: 451 subject(s), missing variables=['clinical_date'], substituted=-
+INFO: UKLFR/stroke_UKLFR: 705 subject(s), missing variables=-, substituted=-
+WARNING: dataset=UNIPD/NEMESIS_T0: no 'education' column in data/clinical_connectome/metadata_tsv/participants_NEMESIS_T0.tsv - 76 subject(s) left empty
+WARNING: dataset=UNIPD/NEMESIS_T0: no 'lesion_side' column in data/clinical_connectome/metadata_tsv/participants_NEMESIS_T0.tsv - 76 subject(s) left empty
+WARNING: dataset=UNIPD/NEMESIS_T0: no 'NIHSS' column in data/clinical_connectome/metadata_tsv/participants_NEMESIS_T0.tsv - 76 subject(s) left empty
+WARNING: dataset=UNIPD/NEMESIS_T0: no 'clinical_date' column in data/clinical_connectome/metadata_tsv/participants_NEMESIS_T0.tsv - 76 subject(s) left empty
+INFO: UNIPD/NEMESIS_T0: 76 subject(s), missing variables=['education', 'lesion_side', 'NIHSS', 'clinical_date'], substituted=-
+WARNING: dataset=UNIPD/PASPORT: no 'lesion_side' column in data/clinical_connectome/metadata_tsv/participants_PASPORT.tsv - 83 subject(s) left empty
+WARNING: dataset=UNIPD/PASPORT: 'NIHSS' resolved from column 'NIHSS_at_presentation' (registered substitution - a clinical equivalence assumption, see VARIABLE_SOURCE_OVERRIDES)
+WARNING: dataset=UNIPD/PASPORT: no 'clinical_date' column in data/clinical_connectome/metadata_tsv/participants_PASPORT.tsv - 83 subject(s) left empty
+INFO: UNIPD/PASPORT: 83 subject(s), missing variables=['lesion_side', 'clinical_date'], substituted={'NIHSS': 'NIHSS_at_presentation'}
+INFO: UNIPD/PSP: 168 subject(s), missing variables=-, substituted=-
+INFO: UNIPD/WashU: 195 subject(s), missing variables=-, substituted=-
+INFO: lesion_metadata: 5853/5853 subject(s) matched for lesion_volume_voxels_2mm (from assets/metadata/lesion_metadata.csv)
+INFO: lesion_metadata: 4401/4405 subject(s) missing lesion_side filled from lesion_side_2mm
+WARNING: lesion_metadata: 4 subject(s) remain without lesion_side - measured, but lesion_side_2mm is empty for them (no side attributable to their mask): ['sub-STUCLUK0362', 'sub-STUCLUK1284', 'sub-STUCLUK1739', 'sub-STUNIPD0558']
+INFO: sdc_metadata: 5853/5853 subject(s) matched for disconnection_load_voxels_1mm (from assets/metadata/sdc_metadata.csv)
+INFO: sdc_metadata: 5853/5853 subject(s) matched for disconnection_mean_1mm (from assets/metadata/sdc_metadata.csv)
+INFO: done - 5853 subject(s) in assets/metadata/participants.csv, report written to summaries/enrich_metadata/enrich_summary__06-10-26__17-56-55.md
+INFO: run duration: 0:00:00

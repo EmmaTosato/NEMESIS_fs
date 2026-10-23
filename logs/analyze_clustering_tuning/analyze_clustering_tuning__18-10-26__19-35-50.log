@@ -1,0 +1,6 @@
+INFO: analysing /private/tmp/claude-501/-Users-emmatosato-Local-Projects-Local-PhD-Projects-NEMESIS-fs/7214fd67-a685-4229-b103-81f7fca6a36e/scratchpad/dry/sdc/clustering/tuning/hdbscan/pca/17-10_s2.4-vol_nc42: method=hdbscan, 28 combinations
+ERROR: analysis failed: no combination has noise_fraction <= 0.1
+INFO: run duration: 0:00:00
+INFO: analysing /private/tmp/claude-501/-Users-emmatosato-Local-Projects-Local-PhD-Projects-NEMESIS-fs/7214fd67-a685-4229-b103-81f7fca6a36e/scratchpad/dry/sdc/clustering/tuning/hdbscan/pca/17-10_s2.4-vol_nc42: method=hdbscan, 28 combinations
+ERROR: analysis failed: no combination has noise_fraction <= 0.1
+INFO: run duration: 0:00:00

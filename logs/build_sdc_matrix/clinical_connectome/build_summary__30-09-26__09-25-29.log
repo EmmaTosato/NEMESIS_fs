@@ -1,0 +1,3 @@
+INFO: matrix written to data/derived/sdc_matrix/30-09_s2.3-stream (shape (1734, 87))
+INFO: done - matrix written to data/derived/sdc_matrix/30-09_s2.3-stream, report written to summaries/build_sdc_matrix/clinical_connectome/build_summary__30-09-26__09-25-29.md, log written to logs/build_sdc_matrix/clinical_connectome/build_summary__30-09-26__09-25-29.log
+INFO: run duration: 0:00:02

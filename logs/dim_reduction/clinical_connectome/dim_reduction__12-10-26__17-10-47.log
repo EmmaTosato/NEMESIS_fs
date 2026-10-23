@@ -1,0 +1,3 @@
+INFO: embedding written to results/lesion/dim_reduction/production/umap/12-10_s1.4-vol_m_dice_nc2 (shape (5845, 2))
+INFO: done - embedding written to results/lesion/dim_reduction/production/umap/12-10_s1.4-vol_m_dice_nc2, log written to logs/dim_reduction/clinical_connectome/dim_reduction__12-10-26__17-10-47.log
+INFO: run duration: 0:02:13

@@ -1,0 +1,2 @@
+INFO: reduced_data=true - input_path treated as an already-computed embedding (results/sdc/dim_reduction/production/pca/17-10_s2.4-vol_nc30, shape (5845, 30))
+INFO: run duration: 0:00:00

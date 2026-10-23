@@ -1,0 +1,7 @@
+INFO: reduced_data=false - input_path treated as a raw feature matrix (data/derived/sdc_matrix/07-10_s2.4-stream, shape (5831, 87))
+INFO: [hdbscan] clustered matrix written to results/sdc/clustering/production/hdbscan/raw/14-10_s2.4-stream_mcs20_ms1 (shape (5831, 87))
+INFO: [hdbscan] cluster plot written to results/sdc/clustering/production/hdbscan/raw/14-10_s2.4-stream_mcs20_ms1/cluster_plot.png
+INFO: [hdbscan] silhouette plot written to results/sdc/clustering/production/hdbscan/raw/14-10_s2.4-stream_mcs20_ms1/silhouette_plot.png
+INFO: [hdbscan] done - output written to results/sdc/clustering/production/hdbscan/raw/14-10_s2.4-stream_mcs20_ms1
+INFO: done - all 1 method(s) written under results/sdc/clustering, log written to logs/clustering/clinical_connectome/clustering__14-10-26__15-13-37.log
+INFO: run duration: 0:00:02

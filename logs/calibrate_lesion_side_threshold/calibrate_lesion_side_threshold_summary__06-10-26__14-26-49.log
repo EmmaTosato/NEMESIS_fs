@@ -1,0 +1,4 @@
+INFO: calibrating on grid=1mm for ['UNIPD/WashU', 'UKLFR/stroke_UKLFR', 'UKE/WAKEUP_acute', 'UKE/SFB936_ses01'], from assets/metadata/lesion_metadata.csv
+WARNING: 1 subject(s) have an undefined laterality_index (zero lesion voxels on both sides of the midline) and are excluded from calibration: ['sub-STUKLFR0671']
+INFO: done - 1352 subject(s) calibrated on, best threshold=0.28 (accuracy=0.973), literature default=0.20 (accuracy=0.973), report written to summaries/calibrate_lesion_side_threshold/calibrate_lesion_side_threshold_summary__06-10-26__14-26-49.md
+INFO: run duration: 0:00:00

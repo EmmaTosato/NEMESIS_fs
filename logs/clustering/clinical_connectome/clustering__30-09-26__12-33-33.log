@@ -1,0 +1,15 @@
+INFO: reduced_data=false - input_path treated as a raw feature matrix (data/derived/sdc_matrix/30-09_s2.3-stream, shape (5838, 87))
+INFO: [kmeans] clustered matrix written to results/sdc/clustering/production/kmeans/raw/30-09_s2.3-stream_k10 (shape (5838, 87))
+INFO: [kmeans] cluster plot written to results/sdc/clustering/production/kmeans/raw/30-09_s2.3-stream_k10/cluster_plot.png
+INFO: [kmeans] silhouette plot written to results/sdc/clustering/production/kmeans/raw/30-09_s2.3-stream_k10/silhouette_plot.png
+INFO: [kmeans] done - output written to results/sdc/clustering/production/kmeans/raw/30-09_s2.3-stream_k10
+INFO: [agglomerative] clustered matrix written to results/sdc/clustering/production/agglomerative/raw/30-09_s2.3-stream_k10_link_ward (shape (5838, 87))
+INFO: [agglomerative] cluster plot written to results/sdc/clustering/production/agglomerative/raw/30-09_s2.3-stream_k10_link_ward/cluster_plot.png
+INFO: [agglomerative] silhouette plot written to results/sdc/clustering/production/agglomerative/raw/30-09_s2.3-stream_k10_link_ward/silhouette_plot.png
+INFO: [agglomerative] done - output written to results/sdc/clustering/production/agglomerative/raw/30-09_s2.3-stream_k10_link_ward
+INFO: [evidence_accumulation] clustered matrix written to results/sdc/clustering/production/evidence_accumulation/raw/30-09_s2.3-stream_t05_k10 (shape (5838, 87))
+INFO: [evidence_accumulation] cluster plot written to results/sdc/clustering/production/evidence_accumulation/raw/30-09_s2.3-stream_t05_k10/cluster_plot.png
+INFO: [evidence_accumulation] silhouette plot written to results/sdc/clustering/production/evidence_accumulation/raw/30-09_s2.3-stream_t05_k10/silhouette_plot.png
+INFO: [evidence_accumulation] done - output written to results/sdc/clustering/production/evidence_accumulation/raw/30-09_s2.3-stream_t05_k10
+INFO: done - all 3 method(s) written under results/sdc/clustering, log written to logs/clustering/clinical_connectome/clustering__30-09-26__12-33-33.log
+INFO: run duration: 0:01:49

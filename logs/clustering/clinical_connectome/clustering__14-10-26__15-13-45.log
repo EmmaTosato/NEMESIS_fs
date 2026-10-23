@@ -1,0 +1,10 @@
+INFO: reduced_data=false - input_path treated as a raw feature matrix (data/derived/sdc_matrix/07-10_s2.4-stream, shape (5831, 87))
+WARNING: [adp] 1 row(s) are exact duplicates of another row (distance 0) - clustered once and labelled like their twin; row indices: [2296]
+INFO: [adp] computing dice distances for 5831 row(s)
+INFO: [adp] metric=dice maxk=100: intrinsic dimension (2NN) = 5.47
+INFO: [adp] clustered matrix written to results/sdc/clustering/production/adp/raw/14-10_s2.4-stream_m_dice_Z25 (shape (5831, 87))
+INFO: [adp] cluster plot written to results/sdc/clustering/production/adp/raw/14-10_s2.4-stream_m_dice_Z25/cluster_plot.png
+INFO: [adp] silhouette plot written to results/sdc/clustering/production/adp/raw/14-10_s2.4-stream_m_dice_Z25/silhouette_plot.png
+INFO: [adp] done - output written to results/sdc/clustering/production/adp/raw/14-10_s2.4-stream_m_dice_Z25
+INFO: done - all 1 method(s) written under results/sdc/clustering, log written to logs/clustering/clinical_connectome/clustering__14-10-26__15-13-45.log
+INFO: run duration: 0:00:04

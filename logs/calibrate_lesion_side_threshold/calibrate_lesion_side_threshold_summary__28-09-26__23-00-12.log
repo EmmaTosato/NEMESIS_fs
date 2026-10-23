@@ -1,0 +1,4 @@
+INFO: computing laterality_index for ['UNIPD/WashU', 'UNIPD/PSP', 'UKLFR/stroke_UKLFR', 'UKE/WAKEUP_acute', 'UKE/SFB936_ses01'] (this reads/resamples every lesion mask - can take minutes)
+WARNING: 3 subject(s) have an undefined laterality_index (zero lesion voxels on both sides of the midline) and are excluded from calibration: ['sub-STUKE0146', 'sub-STUKE0201', 'sub-STUKLFR0671']
+INFO: done - 1445 subject(s) calibrated on, best threshold=0.36 (accuracy=0.975), literature default=0.20 (accuracy=0.974), report written to summaries/calibrate_lesion_side_threshold/calibrate_lesion_side_threshold_summary__28-09-26__23-00-12.md
+INFO: run duration: 0:01:11

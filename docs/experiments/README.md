@@ -10,11 +10,12 @@ Un file per **sessione**: una coorte, una matrice, e tutto quello che ci è stat
 | [s1.4-vol](s1.4-vol.md) | 07-10 | Lesione voxel-wise | 5845 | Clustering di produzione, 79 run |
 | [s2.1-schaefer-200-tian-s2](s2.1-schaefer-200-tian-s2.md) | 26-08 | SDC parcellata | 1119 | Clustering di tuning, nessuna produzione |
 | [s2.2-vol](s2.2-vol.md) | 07-09 | SDC voxel-wise | 1570 | Clustering di produzione, 8 opzioni di k |
+| [s2.3-stream](s2.3-stream.md) | 30-09 | SDC streamline, 87 tratti | 5838 | Clustering di produzione, 15 run |
 | [s2.4-vol](s2.4-vol.md) | 07-10 | SDC voxel-wise, voxel fuori dal brain non azzerati | 5845 | Clustering di produzione, 30 run |
 | [s2.4-vol](s2.4-vol.md#seconda-tornata-16-10--voxel-fuori-dal-brain-azzerati) | 16-10 | SDC voxel-wise, voxel fuori dal brain azzerati | 5845 | Clustering di produzione, 29 run su 30 (dim reduction e clustering di tuning completi); PCA: tuning, nc30 e nc42, 2 run di clustering |
 | [s2.4-stream](s2.4-stream.md) | 07-10 | SDC streamline, 87 tratti | 5831 | Clustering di produzione, 19 run |
 
-Due sessioni non hanno un file: **s2.3-stream** (mai costruita con quel nome, rifatta come s2.4-stream sulla lista di esclusioni attuale) e la **sessione 3** (FC), che non è ancora partita.
+La **sessione 3** (FC) non ha un file: non è ancora partita.
 
 Due viste d'insieme:
 

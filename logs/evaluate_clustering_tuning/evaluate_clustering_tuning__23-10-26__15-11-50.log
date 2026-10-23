@@ -1,0 +1,6 @@
+INFO: analysing results/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_euclidean_nc10: method=hdbscan_soft
+INFO: running clustering tuning evaluation density_metrics with settings {}
+INFO: running clustering tuning evaluation tuning_heatmaps with settings {}
+INFO: running clustering tuning evaluation dbcv_curves with settings {}
+INFO: done - 6 file(s) written under results/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_euclidean_nc10, log written to logs/evaluate_clustering_tuning/evaluate_clustering_tuning__23-10-26__15-11-50.log
+INFO: run duration: 0:00:27

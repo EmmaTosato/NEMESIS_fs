@@ -1,0 +1,5 @@
+INFO: analysing /private/tmp/claude-501/-Users-emmatosato-Local-Projects-Local-PhD-Projects-NEMESIS-fs/bc3dc216-db1c-412a-89cc-9d69f5258690/scratchpad/agg/19-10_s2.4-vol_nc12_varimax: method=agglomerative
+INFO: running clustering tuning evaluation largest_cluster_share with settings {}
+INFO: running clustering tuning evaluation dunn_index with settings {}
+INFO: done - 2 file(s) written under /private/tmp/claude-501/-Users-emmatosato-Local-Projects-Local-PhD-Projects-NEMESIS-fs/bc3dc216-db1c-412a-89cc-9d69f5258690/scratchpad/agg/19-10_s2.4-vol_nc12_varimax, log written to logs/evaluate_clustering_tuning/evaluate_clustering_tuning__23-10-26__11-35-42.log
+INFO: run duration: 0:00:34

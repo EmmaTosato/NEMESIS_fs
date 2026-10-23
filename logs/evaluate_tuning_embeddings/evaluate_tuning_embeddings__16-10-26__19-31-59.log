@@ -1,0 +1,4 @@
+INFO: evaluating results/sdc/dim_reduction/tuning/umap/16-10_s2.4-vol: 90 combinations, nested_params=['metric', 'n_components']
+INFO: running tuning evaluation plot_hdbscan with settings {'min_cluster_size': 75, 'min_samples': 10}
+INFO: plot_hdbscan: wrote results/sdc/dim_reduction/tuning/umap/16-10_s2.4-vol/metric=euclidean/n_components=2/hdbscan_grid_mcs75_ms10.png and results/sdc/dim_reduction/tuning/umap/16-10_s2.4-vol/metric=euclidean/n_components=2/hdbscan_results_mcs75_ms10.csv (30 combinations)
+INFO: plot_hdbscan: wrote results/sdc/dim_reduction/tuning/umap/16-10_s2.4-vol/metric=euclidean/n_components=3/hdbscan_grid_mcs75_ms10.png and results/sdc/dim_reduction/tuning/umap/16-10_s2.4-vol/metric=euclidean/n_components=3/hdbscan_results_mcs75_ms10.csv (30 combinations)

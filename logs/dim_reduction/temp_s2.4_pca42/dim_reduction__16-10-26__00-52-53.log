@@ -1,0 +1,2 @@
+ERROR: 'pca' has no valid viz-refit at a different dimensionality - the production embedding has 42 components but viz_n_components=2 was requested. Only ['tsne', 'umap'] support a same-metric refit at a different n_components (see this function's own docstring for why pca/pacmap don't) - rerun with viz_n_components equal to n_components for this method instead
+INFO: run duration: 0:03:19

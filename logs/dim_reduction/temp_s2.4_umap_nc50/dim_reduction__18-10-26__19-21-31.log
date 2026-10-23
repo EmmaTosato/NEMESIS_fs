@@ -1,0 +1,35 @@
+INFO: Starting fine-tuning sweep for umap (30 combinations)
+INFO: Evaluating combination 1/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 5, 'min_dist': 0.0}
+INFO: Evaluating combination 2/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 5, 'min_dist': 0.01}
+INFO: Evaluating combination 3/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 5, 'min_dist': 0.05}
+INFO: Evaluating combination 4/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 5, 'min_dist': 0.1}
+INFO: Evaluating combination 5/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 5, 'min_dist': 0.5}
+INFO: Evaluating combination 6/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 5, 'min_dist': 1.0}
+INFO: Evaluating combination 7/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 15, 'min_dist': 0.0}
+INFO: Evaluating combination 8/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 15, 'min_dist': 0.01}
+INFO: Evaluating combination 9/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 15, 'min_dist': 0.05}
+INFO: Evaluating combination 10/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 15, 'min_dist': 0.1}
+INFO: Evaluating combination 11/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 15, 'min_dist': 0.5}
+INFO: Evaluating combination 12/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 15, 'min_dist': 1.0}
+INFO: Evaluating combination 13/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 30, 'min_dist': 0.0}
+INFO: Evaluating combination 14/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 30, 'min_dist': 0.01}
+INFO: Evaluating combination 15/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 30, 'min_dist': 0.05}
+INFO: Evaluating combination 16/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 30, 'min_dist': 0.1}
+INFO: Evaluating combination 17/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 30, 'min_dist': 0.5}
+INFO: Evaluating combination 18/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 30, 'min_dist': 1.0}
+INFO: Evaluating combination 19/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 50, 'min_dist': 0.0}
+INFO: Evaluating combination 20/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 50, 'min_dist': 0.01}
+INFO: Evaluating combination 21/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 50, 'min_dist': 0.05}
+INFO: Evaluating combination 22/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 50, 'min_dist': 0.1}
+INFO: Evaluating combination 23/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 50, 'min_dist': 0.5}
+INFO: Evaluating combination 24/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 50, 'min_dist': 1.0}
+INFO: Evaluating combination 25/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 100, 'min_dist': 0.0}
+INFO: Evaluating combination 26/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 100, 'min_dist': 0.01}
+INFO: Evaluating combination 27/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 100, 'min_dist': 0.05}
+INFO: Evaluating combination 28/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 100, 'min_dist': 0.1}
+INFO: Evaluating combination 29/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 100, 'min_dist': 0.5}
+INFO: Evaluating combination 30/30: {'metric': 'euclidean', 'n_components': 50, 'n_neighbors': 100, 'min_dist': 1.0}
+INFO: skipping embeddings_grid for tmp/s2.4_umap_nc50_tuning/dim_reduction/tuning/umap/18-10_s2.4-vol/metric=euclidean/n_components=50: n_components=50 (only n_components=2 combinations get this diagnostic - see src/pipeline/plot_tuning_embedding_3d.py for an on-demand 3D view of a specific combination)
+INFO: tuning results written to tmp/s2.4_umap_nc50_tuning/dim_reduction/tuning/umap/18-10_s2.4-vol (30 combinations evaluated)
+INFO: done - tuning results written to tmp/s2.4_umap_nc50_tuning/dim_reduction/tuning/umap/18-10_s2.4-vol, log written to logs/dim_reduction/temp_s2.4_umap_nc50/dim_reduction__18-10-26__19-21-31.log
+INFO: run duration: 0:18:11

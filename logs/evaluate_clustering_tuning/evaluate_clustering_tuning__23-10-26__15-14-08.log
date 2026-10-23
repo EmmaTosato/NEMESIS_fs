@@ -1,0 +1,9 @@
+INFO: analysing results/sdc/clustering/tuning/agglomerative/pca/17-10_s2.4-vol_nc30: method=agglomerative
+INFO: running clustering tuning evaluation k_curves with settings {}
+INFO: running clustering tuning evaluation cophenetic_correlation with settings {}
+INFO: running clustering tuning evaluation dendrogram_jump with settings {'k_range': {'min': 2, 'max': 30}}
+INFO: running clustering tuning evaluation linkage_agreement with settings {}
+INFO: running clustering tuning evaluation largest_cluster_share with settings {}
+INFO: running clustering tuning evaluation dunn_index with settings {}
+INFO: done - 9 file(s) written under results/sdc/clustering/tuning/agglomerative/pca/17-10_s2.4-vol_nc30, log written to logs/evaluate_clustering_tuning/evaluate_clustering_tuning__23-10-26__15-14-08.log
+INFO: run duration: 0:00:58

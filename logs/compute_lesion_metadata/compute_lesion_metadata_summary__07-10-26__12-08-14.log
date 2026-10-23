@@ -1,0 +1,2 @@
+INFO: done - 5853 subject(s) written to assets/metadata/lesion_metadata.csv (config at assets/metadata/lesion_metadata.config.json), report written to summaries/compute_lesion_metadata/compute_lesion_metadata_summary__07-10-26__12-08-14.md, log written to logs/compute_lesion_metadata/compute_lesion_metadata_summary__07-10-26__12-08-14.log
+INFO: run duration: 0:32:24

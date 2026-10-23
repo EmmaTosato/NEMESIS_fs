@@ -1,0 +1,9 @@
+INFO: analysing /private/tmp/claude-501/-Users-emmatosato-Local-Projects-Local-PhD-Projects-NEMESIS-fs/bc3dc216-db1c-412a-89cc-9d69f5258690/scratchpad/mirror/sdc/clustering/tuning/agglomerative/pca/19-10_s2.4-vol_nc12_varimax: method=agglomerative
+INFO: running clustering tuning evaluation k_curves with settings {}
+INFO: running clustering tuning evaluation cophenetic_correlation with settings {}
+INFO: running clustering tuning evaluation dendrogram_jump with settings {'k_range': {'min': 2, 'max': 30}}
+INFO: running clustering tuning evaluation linkage_agreement with settings {}
+INFO: running clustering tuning evaluation largest_cluster_share with settings {}
+INFO: running clustering tuning evaluation dunn_index with settings {}
+INFO: done - 9 file(s) written under /private/tmp/claude-501/-Users-emmatosato-Local-Projects-Local-PhD-Projects-NEMESIS-fs/bc3dc216-db1c-412a-89cc-9d69f5258690/scratchpad/mirror/sdc/clustering/tuning/agglomerative/pca/19-10_s2.4-vol_nc12_varimax, log written to logs/evaluate_clustering_tuning/evaluate_clustering_tuning__23-10-26__11-56-20.log
+INFO: run duration: 0:00:48

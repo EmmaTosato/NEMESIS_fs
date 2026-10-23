@@ -1,0 +1,34 @@
+WARNING: dataset=UCL-UK/UCLStrokeData: no 'education' column in data/clinical_connectome/metadata_tsv/participants_UCL.tsv - 4119 subject(s) left empty
+WARNING: dataset=UCL-UK/UCLStrokeData: no 'lesion_side' column in data/clinical_connectome/metadata_tsv/participants_UCL.tsv - 4119 subject(s) left empty
+WARNING: dataset=UCL-UK/UCLStrokeData: no 'NIHSS' column in data/clinical_connectome/metadata_tsv/participants_UCL.tsv - 4119 subject(s) left empty
+WARNING: dataset=UCL-UK/UCLStrokeData: no 'clinical_date' column in data/clinical_connectome/metadata_tsv/participants_UCL.tsv - 4119 subject(s) left empty
+INFO: UCL-UK/UCLStrokeData: 4119 subject(s), missing variables=['education', 'lesion_side', 'NIHSS', 'clinical_date'], substituted=-
+WARNING: dataset=UKE/WAKEUP_acute: no 'clinical_date' column in data/clinical_connectome/metadata_tsv/participants_UKE.tsv - 451 subject(s) left empty
+INFO: UKE/WAKEUP_acute: 451 subject(s), missing variables=['clinical_date'], substituted=-
+INFO: UKLFR/stroke_UKLFR: 729 subject(s), missing variables=-, substituted=-
+WARNING: dataset=UNIPD/PASPORT: no 'lesion_side' column in data/clinical_connectome/metadata_tsv/participants_PASPORT.tsv - 83 subject(s) left empty
+WARNING: dataset=UNIPD/PASPORT: 'NIHSS' resolved from column 'NIHSS_at_presentation' (registered substitution - a clinical equivalence assumption, see VARIABLE_SOURCE_OVERRIDES)
+WARNING: dataset=UNIPD/PASPORT: no 'clinical_date' column in data/clinical_connectome/metadata_tsv/participants_PASPORT.tsv - 83 subject(s) left empty
+INFO: UNIPD/PASPORT: 83 subject(s), missing variables=['lesion_side', 'clinical_date'], substituted={'NIHSS': 'NIHSS_at_presentation'}
+INFO: UNIPD/PSP: 168 subject(s), missing variables=-, substituted=-
+INFO: UNIPD/WashU: 202 subject(s), missing variables=-, substituted=-
+INFO: lesion_volume_voxels: 5720/5752 subject(s) matched from data/derived/lesion_matrix/06-09_s1.3-vol
+INFO: done - 5752 subject(s) in assets/metadata/participants.csv, report written to summaries/enrich_metadata/enrich_summary__06-09-26__21-01-29.md
+INFO: run duration: 0:00:00
+WARNING: dataset=UCL-UK/UCLStrokeData: no 'education' column in data/clinical_connectome/metadata_tsv/participants_UCL.tsv - 4119 subject(s) left empty
+WARNING: dataset=UCL-UK/UCLStrokeData: no 'lesion_side' column in data/clinical_connectome/metadata_tsv/participants_UCL.tsv - 4119 subject(s) left empty
+WARNING: dataset=UCL-UK/UCLStrokeData: no 'NIHSS' column in data/clinical_connectome/metadata_tsv/participants_UCL.tsv - 4119 subject(s) left empty
+WARNING: dataset=UCL-UK/UCLStrokeData: no 'clinical_date' column in data/clinical_connectome/metadata_tsv/participants_UCL.tsv - 4119 subject(s) left empty
+INFO: UCL-UK/UCLStrokeData: 4119 subject(s), missing variables=['education', 'lesion_side', 'NIHSS', 'clinical_date'], substituted=-
+WARNING: dataset=UKE/WAKEUP_acute: no 'clinical_date' column in data/clinical_connectome/metadata_tsv/participants_UKE.tsv - 451 subject(s) left empty
+INFO: UKE/WAKEUP_acute: 451 subject(s), missing variables=['clinical_date'], substituted=-
+INFO: UKLFR/stroke_UKLFR: 729 subject(s), missing variables=-, substituted=-
+WARNING: dataset=UNIPD/PASPORT: no 'lesion_side' column in data/clinical_connectome/metadata_tsv/participants_PASPORT.tsv - 83 subject(s) left empty
+WARNING: dataset=UNIPD/PASPORT: 'NIHSS' resolved from column 'NIHSS_at_presentation' (registered substitution - a clinical equivalence assumption, see VARIABLE_SOURCE_OVERRIDES)
+WARNING: dataset=UNIPD/PASPORT: no 'clinical_date' column in data/clinical_connectome/metadata_tsv/participants_PASPORT.tsv - 83 subject(s) left empty
+INFO: UNIPD/PASPORT: 83 subject(s), missing variables=['lesion_side', 'clinical_date'], substituted={'NIHSS': 'NIHSS_at_presentation'}
+INFO: UNIPD/PSP: 168 subject(s), missing variables=-, substituted=-
+INFO: UNIPD/WashU: 202 subject(s), missing variables=-, substituted=-
+INFO: lesion_volume_voxels: 5720/5752 subject(s) matched from data/derived/lesion_matrix/06-09_s1.3-vol
+INFO: done - 5752 subject(s) in assets/metadata/participants.csv, report written to summaries/enrich_metadata/enrich_summary__06-09-26__21-01-29.md
+INFO: run duration: 0:00:00

@@ -1,0 +1,7 @@
+INFO: reduced_data=true - input_path treated as an already-computed embedding (results/sdc/dim_reduction/production/umap/07-09_s2.2-vol_m_euclidean_nc2, shape (1570, 2))
+INFO: [spectral] clustered matrix written to results/sdc/clustering/production/spectral/umap/10-09_s2.2-vol_m_euclidean_nc2_k8_aff_rbf (shape (1570, 2))
+INFO: [spectral] cluster plot written to results/sdc/clustering/production/spectral/umap/10-09_s2.2-vol_m_euclidean_nc2_k8_aff_rbf/cluster_plot.png
+INFO: [spectral] silhouette plot written to results/sdc/clustering/production/spectral/umap/10-09_s2.2-vol_m_euclidean_nc2_k8_aff_rbf/silhouette_plot.png
+INFO: [spectral] done - output written to results/sdc/clustering/production/spectral/umap/10-09_s2.2-vol_m_euclidean_nc2_k8_aff_rbf
+INFO: done - all 1 method(s) written under results/sdc/clustering, log written to logs/clustering/clinical_connectome/clustering__10-09-26__11-54-17.log
+INFO: run duration: 0:00:01

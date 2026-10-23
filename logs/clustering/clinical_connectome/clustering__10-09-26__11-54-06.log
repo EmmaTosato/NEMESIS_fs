@@ -1,0 +1,19 @@
+INFO: reduced_data=true - input_path treated as an already-computed embedding (results/sdc/dim_reduction/production/umap/07-09_s2.2-vol_m_euclidean_nc2, shape (1570, 2))
+INFO: [agglomerative] clustered matrix written to results/sdc/clustering/production/agglomerative/umap/10-09_s2.2-vol_m_euclidean_nc2_k2_link_average (shape (1570, 2))
+INFO: [agglomerative] cluster plot written to results/sdc/clustering/production/agglomerative/umap/10-09_s2.2-vol_m_euclidean_nc2_k2_link_average/cluster_plot.png
+INFO: [agglomerative] silhouette plot written to results/sdc/clustering/production/agglomerative/umap/10-09_s2.2-vol_m_euclidean_nc2_k2_link_average/silhouette_plot.png
+INFO: [agglomerative] done - output written to results/sdc/clustering/production/agglomerative/umap/10-09_s2.2-vol_m_euclidean_nc2_k2_link_average
+INFO: [kmeans] clustered matrix written to results/sdc/clustering/production/kmeans/umap/10-09_s2.2-vol_m_euclidean_nc2_k2 (shape (1570, 2))
+INFO: [kmeans] cluster plot written to results/sdc/clustering/production/kmeans/umap/10-09_s2.2-vol_m_euclidean_nc2_k2/cluster_plot.png
+INFO: [kmeans] silhouette plot written to results/sdc/clustering/production/kmeans/umap/10-09_s2.2-vol_m_euclidean_nc2_k2/silhouette_plot.png
+INFO: [kmeans] done - output written to results/sdc/clustering/production/kmeans/umap/10-09_s2.2-vol_m_euclidean_nc2_k2
+INFO: [gmm] clustered matrix written to results/sdc/clustering/production/gmm/umap/10-09_s2.2-vol_m_euclidean_nc2_n_comp2_cov_spherical (shape (1570, 2))
+INFO: [gmm] cluster plot written to results/sdc/clustering/production/gmm/umap/10-09_s2.2-vol_m_euclidean_nc2_n_comp2_cov_spherical/cluster_plot.png
+INFO: [gmm] silhouette plot written to results/sdc/clustering/production/gmm/umap/10-09_s2.2-vol_m_euclidean_nc2_n_comp2_cov_spherical/silhouette_plot.png
+INFO: [gmm] done - output written to results/sdc/clustering/production/gmm/umap/10-09_s2.2-vol_m_euclidean_nc2_n_comp2_cov_spherical
+INFO: [spectral] clustered matrix written to results/sdc/clustering/production/spectral/umap/10-09_s2.2-vol_m_euclidean_nc2_k2_aff_rbf (shape (1570, 2))
+INFO: [spectral] cluster plot written to results/sdc/clustering/production/spectral/umap/10-09_s2.2-vol_m_euclidean_nc2_k2_aff_rbf/cluster_plot.png
+INFO: [spectral] silhouette plot written to results/sdc/clustering/production/spectral/umap/10-09_s2.2-vol_m_euclidean_nc2_k2_aff_rbf/silhouette_plot.png
+INFO: [spectral] done - output written to results/sdc/clustering/production/spectral/umap/10-09_s2.2-vol_m_euclidean_nc2_k2_aff_rbf
+INFO: done - all 4 method(s) written under results/sdc/clustering, log written to logs/clustering/clinical_connectome/clustering__10-09-26__11-54-06.log
+INFO: run duration: 0:00:01

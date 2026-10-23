@@ -1,0 +1,4 @@
+INFO: analysing results/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_euclidean_nc3: method=hdbscan_soft
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: done - 3 file(s) written under results/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_euclidean_nc3, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__10-05-58.log
+INFO: run duration: 0:00:00

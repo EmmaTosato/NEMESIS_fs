@@ -1,0 +1,3 @@
+INFO: assets/metadata/excluded_subjects.csv has columns ['subject_id', 'dataset', 'reason', 'value'] instead of ['subject_id', 'dataset', 'reason', 'scope', 'value']: replaced as a whole by 15 row(s)
+INFO: done - 15 row(s) in assets/metadata/excluded_subjects.csv, report written to summaries/build_excluded_subjects/excluded_summary__05-10-26__13-39-32.md
+INFO: run duration: 0:00:00

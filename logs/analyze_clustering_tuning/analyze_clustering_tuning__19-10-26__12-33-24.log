@@ -1,0 +1,54 @@
+INFO: analysing results/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_dice_nc3: method=hdbscan_soft
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: done - 3 file(s) written under results/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_dice_nc3, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__12-33-24.log
+INFO: run duration: 0:00:00
+INFO: analysing results/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_euclidean_nc10: method=hdbscan_soft
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=eom: no curves figure for it
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: done - 2 file(s) written under results/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_euclidean_nc10, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__12-33-24.log
+INFO: run duration: 0:00:00
+INFO: analysing results/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_euclidean_nc2: method=hdbscan_soft
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: done - 3 file(s) written under results/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_euclidean_nc2, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__12-33-24.log
+INFO: run duration: 0:00:00
+INFO: analysing results/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_euclidean_nc3: method=hdbscan_soft
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: done - 3 file(s) written under results/lesion/clustering/tuning/hdbscan_soft/umap/15-10_s1.4-vol_m_euclidean_nc3, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__12-33-24.log
+INFO: run duration: 0:00:00
+INFO: analysing results/sdc/clustering/tuning/hdbscan_soft/pca/19-10_s2.4-vol_nc12: method=hdbscan_soft
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=eom: no curves figure for it
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: done - 2 file(s) written under results/sdc/clustering/tuning/hdbscan_soft/pca/19-10_s2.4-vol_nc12, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__12-33-24.log
+INFO: run duration: 0:00:00
+INFO: analysing results/sdc/clustering/tuning/hdbscan_soft/pca/19-10_s2.4-vol_nc2: method=hdbscan_soft
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=eom: no curves figure for it
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: done - 2 file(s) written under results/sdc/clustering/tuning/hdbscan_soft/pca/19-10_s2.4-vol_nc2, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__12-33-24.log
+INFO: run duration: 0:00:00
+INFO: analysing results/sdc/clustering/tuning/hdbscan_soft/pca/19-10_s2.4-vol_nc30: method=hdbscan_soft
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=eom: no curves figure for it
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: done - 2 file(s) written under results/sdc/clustering/tuning/hdbscan_soft/pca/19-10_s2.4-vol_nc30, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__12-33-24.log
+INFO: run duration: 0:00:00
+INFO: analysing results/sdc/clustering/tuning/hdbscan_soft/pca/19-10_s2.4-vol_nc42: method=hdbscan_soft
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=eom: no curves figure for it
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: done - 2 file(s) written under results/sdc/clustering/tuning/hdbscan_soft/pca/19-10_s2.4-vol_nc42, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__12-33-24.log
+INFO: run duration: 0:00:00
+INFO: analysing results/sdc/clustering/tuning/hdbscan_soft/raw/15-10_s2.4-stream: method=hdbscan_soft
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=eom: no curves figure for it
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: done - 2 file(s) written under results/sdc/clustering/tuning/hdbscan_soft/raw/15-10_s2.4-stream, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__12-33-24.log
+INFO: run duration: 0:00:00
+INFO: analysing results/sdc/clustering/tuning/hdbscan_soft/umap/16-10_s2.4-vol_m_euclidean_nc10: method=hdbscan_soft
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: done - 3 file(s) written under results/sdc/clustering/tuning/hdbscan_soft/umap/16-10_s2.4-vol_m_euclidean_nc10, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__12-33-24.log
+INFO: run duration: 0:00:00
+INFO: analysing results/sdc/clustering/tuning/hdbscan_soft/umap/16-10_s2.4-vol_m_euclidean_nc2: method=hdbscan_soft
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: done - 3 file(s) written under results/sdc/clustering/tuning/hdbscan_soft/umap/16-10_s2.4-vol_m_euclidean_nc2, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__12-33-24.log
+INFO: run duration: 0:00:00
+INFO: analysing results/sdc/clustering/tuning/hdbscan_soft/umap/16-10_s2.4-vol_m_euclidean_nc3: method=hdbscan_soft
+WARNING: no combination has noise_fraction <= 0.1 for cluster_selection_method=leaf: no curves figure for it
+INFO: done - 3 file(s) written under results/sdc/clustering/tuning/hdbscan_soft/umap/16-10_s2.4-vol_m_euclidean_nc3, log written to logs/analyze_clustering_tuning/analyze_clustering_tuning__19-10-26__12-33-24.log
+INFO: run duration: 0:00:00

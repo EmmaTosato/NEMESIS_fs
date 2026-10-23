@@ -1,0 +1,7 @@
+INFO: reduced_data=false - input_path treated as a raw feature matrix (data/derived/lesion_matrix/25-08_s1.2-vol, shape (5269, 264274))
+INFO: Starting clustering fine-tuning sweep for agglomerative (20 combinations)
+INFO: Evaluating combination 1/20: {'n_clusters': 2, 'linkage': 'average', 'metric': 'euclidean'}
+INFO: Evaluating combination 2/20: {'n_clusters': 2, 'linkage': 'average', 'metric': 'dice'}
+INFO: Evaluating combination 3/20: {'n_clusters': 2, 'linkage': 'complete', 'metric': 'euclidean'}
+INFO: Evaluating combination 4/20: {'n_clusters': 2, 'linkage': 'complete', 'metric': 'dice'}
+INFO: Evaluating combination 5/20: {'n_clusters': 3, 'linkage': 'average', 'metric': 'euclidean'}

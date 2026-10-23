@@ -1,0 +1,46 @@
+INFO: reduced_data=false - input_path treated as a raw feature matrix (data/derived/lesion_matrix/07-10_s1.4-vol, shape (5845, 221955))
+INFO: Starting adp fine-tuning sweep (36 combinations)
+WARNING: [adp] 1 row(s) are exact duplicates of another row (distance 0) - clustered once and labelled like their twin; row indices: [5385]
+INFO: Evaluating combination 1/36: {'metric': 'dice', 'Z': 0.25}
+INFO: [adp] computing dice distances for 5845 row(s)
+INFO: [adp] metric=dice maxk=100: intrinsic dimension (2NN) = 12.20
+INFO: Evaluating combination 2/36: {'metric': 'dice', 'Z': 0.5}
+INFO: Evaluating combination 3/36: {'metric': 'dice', 'Z': 0.75}
+INFO: Evaluating combination 4/36: {'metric': 'dice', 'Z': 1.0}
+INFO: Evaluating combination 5/36: {'metric': 'dice', 'Z': 1.25}
+INFO: Evaluating combination 6/36: {'metric': 'dice', 'Z': 1.5}
+INFO: Evaluating combination 7/36: {'metric': 'dice', 'Z': 1.65}
+INFO: Evaluating combination 8/36: {'metric': 'dice', 'Z': 2.0}
+INFO: Evaluating combination 9/36: {'metric': 'dice', 'Z': 2.5}
+INFO: Evaluating combination 10/36: {'metric': 'dice', 'Z': 3.0}
+INFO: Evaluating combination 11/36: {'metric': 'dice', 'Z': 3.5}
+INFO: Evaluating combination 12/36: {'metric': 'dice', 'Z': 4.0}
+INFO: Evaluating combination 13/36: {'metric': 'dice', 'Z': 5.0}
+INFO: Evaluating combination 14/36: {'metric': 'dice', 'Z': 6.0}
+INFO: Evaluating combination 15/36: {'metric': 'dice', 'Z': 8.0}
+INFO: Evaluating combination 16/36: {'metric': 'dice', 'Z': 10.0}
+INFO: Evaluating combination 17/36: {'metric': 'dice', 'Z': 12.0}
+INFO: Evaluating combination 18/36: {'metric': 'dice', 'Z': 16.0}
+INFO: Evaluating combination 19/36: {'metric': 'euclidean', 'Z': 0.25}
+INFO: [adp] computing euclidean distances for 5845 row(s)
+INFO: [adp] metric=euclidean maxk=100: intrinsic dimension (2NN) = 38.35
+INFO: Evaluating combination 20/36: {'metric': 'euclidean', 'Z': 0.5}
+INFO: Evaluating combination 21/36: {'metric': 'euclidean', 'Z': 0.75}
+INFO: Evaluating combination 22/36: {'metric': 'euclidean', 'Z': 1.0}
+INFO: Evaluating combination 23/36: {'metric': 'euclidean', 'Z': 1.25}
+INFO: Evaluating combination 24/36: {'metric': 'euclidean', 'Z': 1.5}
+INFO: Evaluating combination 25/36: {'metric': 'euclidean', 'Z': 1.65}
+INFO: Evaluating combination 26/36: {'metric': 'euclidean', 'Z': 2.0}
+INFO: Evaluating combination 27/36: {'metric': 'euclidean', 'Z': 2.5}
+INFO: Evaluating combination 28/36: {'metric': 'euclidean', 'Z': 3.0}
+INFO: Evaluating combination 29/36: {'metric': 'euclidean', 'Z': 3.5}
+INFO: Evaluating combination 30/36: {'metric': 'euclidean', 'Z': 4.0}
+INFO: Evaluating combination 31/36: {'metric': 'euclidean', 'Z': 5.0}
+INFO: Evaluating combination 32/36: {'metric': 'euclidean', 'Z': 6.0}
+INFO: Evaluating combination 33/36: {'metric': 'euclidean', 'Z': 8.0}
+INFO: Evaluating combination 34/36: {'metric': 'euclidean', 'Z': 10.0}
+INFO: Evaluating combination 35/36: {'metric': 'euclidean', 'Z': 12.0}
+INFO: Evaluating combination 36/36: {'metric': 'euclidean', 'Z': 16.0}
+INFO: [adp] tuning results written to results/lesion/clustering/tuning/adp/raw/08-10_s1.4-vol (36 combination(s) evaluated)
+INFO: done - fine-tuning for all 1 method(s) written under results/lesion/clustering, log written to logs/clustering/clinical_connectome/clustering__08-10-26__16-52-12.log
+INFO: run duration: 0:02:11
