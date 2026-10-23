@@ -6,6 +6,16 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 23-10-26 — Tuning di agglomerative: `largest_cluster_share` e `dunn_index` come valutazioni del registro; la silhouette per cluster resta fuori
+
+Due valutazioni nuove nel registro (`config/registry/clustering_evaluations.json`, `clustering_tuning_evaluations.py`), solo per agglomerative, dichiarate in `tuning_evaluations` di `clustering.json` e `evaluate_clustering_tuning.json`: `largest_cluster_share.csv` (quota del cluster più grande per combinazione, `partition_shape`) e `dunn_index.csv` (`dunn_index`, vuoto con una `metric` non euclidea: regola A). Stesse funzioni della produzione e dell'app; un test confronta i valori sulle stesse etichette.
+
+**Scelta dell'utente: la silhouette per cluster (media dei cluster, cluster peggiore, quota negativa) non entra nel tuning.** Serve a guardare una run scelta, non a confrontare centinaia di combinazioni, e ha un costo per combinazione; sta nella produzione (`silhouette_per_cluster.csv`, `silhouette_plot.png`) e nell'app. Nel tuning resta la silhouette media. Scartato: tre valutazioni con la silhouette per cluster inclusa.
+
+Costo misurato su copie di due tuning veri (290 combinazioni ciascuno, PCA 12 e 2 componenti): 34 s e 31 s per le due valutazioni insieme. Dunn è calcolato per le 116 combinazioni euclidee, vuoto per le 174 con cosine e manhattan.
+
+Ancora vero: il report non legge i due file. Le colonne si aggiungono alle tabelle approvate il 19-10 solo dopo un esempio in `tmp/` e l'ok dell'utente (non rigenerare i report alla cieca).
+
 ## 23-10-26 — La produzione di agglomerative scrive gli stessi indici dell'app
 
 `config.md` di una run di produzione di agglomerative ha ora, oltre alla silhouette, `Largest cluster`, `Calinski-Harabasz`, `Davies-Bouldin`, `Dunn`, `Cophenetic correlation` e `Dendrogram jump (k=<k>)`, calcolati con `geometric_summary` e `model_fit_metrics` (le funzioni dell'app e del notebook), non con codice proprio. Per una run con `metric` non euclidea le tre righe euclidee dicono `— (Euclidean distance only)` (regola A, stessa voce sotto). `_run_silhouette` resta per gli altri metodi; per agglomerative la silhouette per soggetto viene dalla stessa chiamata.

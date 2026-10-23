@@ -7,7 +7,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.analysis.clustering_tuning import compute_clustering_metrics_metric_aware
+from src.analysis.clustering_evaluation import geometric_summary
+from src.analysis.clustering_tuning import compute_clustering_metrics_metric_aware, dunn_index
 from src.analysis.dbcv import dbcv
 from src.analysis.clustering_tuning_analysis import (
     ClusteringTuningRun,
@@ -16,6 +17,8 @@ from src.analysis.clustering_tuning_analysis import (
     dendrogram_jump,
     dbcv_curves_figures,
     density_metrics,
+    dunn_table,
+    largest_cluster_share_table,
     jump_table,
     k_curves_figure,
     k_curves_file_name,
@@ -392,3 +395,60 @@ def test_linkage_agreement_skips_a_linkage_that_was_not_swept_for_a_metric_and_r
     assert agreement["metric"].tolist() == ["euclidean"]  # cosine has a single linkage: no pair
     with pytest.raises(ValueError, match="needs an agglomerative run"):
         linkage_agreement(ClusteringTuningRun(tmp_path, "hdbscan", Path("m"), pd.DataFrame(), {}))
+
+
+# --- largest_cluster_share_table / dunn_table ---------------------------------------------------------------
+
+
+def _blob_labels_run(rows_labels: list[tuple[str, str, int, np.ndarray]]) -> ClusteringTuningRun:
+    """An agglomerative run on `_three_blobs()` with one row per (linkage, metric, k, labels) given."""
+    rows = [{"n_clusters": k, "linkage": linkage, "metric": metric} for linkage, metric, k, _ in rows_labels]
+    labels = {f"n_clusters={k},linkage={linkage},metric={metric}": array for linkage, metric, k, array in rows_labels}
+    return ClusteringTuningRun(Path("run"), "agglomerative", Path("m"), pd.DataFrame(rows), labels)
+
+
+def test_largest_cluster_share_table_gives_one_row_per_combination_over_all_the_subjects():
+    skewed = np.array([0] * 30 + [1] * 10 + [2] * 5)
+    balanced = np.repeat([0, 1, 2], 15)
+    run = _blob_labels_run([("ward", "euclidean", 3, skewed), ("average", "cosine", 3, balanced)])
+
+    table = largest_cluster_share_table(run)
+
+    assert list(table.columns) == ["n_clusters", "linkage", "metric", "largest_cluster_share"]
+    assert table["largest_cluster_share"].tolist() == pytest.approx([30 / 45, 15 / 45])
+    assert table["linkage"].tolist() == ["ward", "average"] and table["metric"].tolist() == ["euclidean", "cosine"]
+
+
+def test_dunn_table_is_dunn_index_for_a_euclidean_combination_and_empty_for_another_metric():
+    X = _three_blobs()
+    labels = np.repeat([0, 1, 2], 15)
+    run = _blob_labels_run([("average", "euclidean", 3, labels), ("average", "cosine", 3, labels)])
+
+    table = dunn_table(run, X)
+
+    assert list(table.columns) == ["n_clusters", "linkage", "metric", "dunn"]
+    assert table["dunn"].iloc[0] == pytest.approx(dunn_index(X, labels)) and table["dunn"].iloc[0] > 1  # separated blobs
+    assert np.isnan(table["dunn"].iloc[1])
+
+
+def test_the_tuning_gives_the_same_dunn_and_largest_share_as_the_production_summary_for_the_same_labels():
+    X = _three_blobs()
+    labels = np.array([0] * 20 + [1] * 15 + [2] * 10)
+    run = _blob_labels_run([("ward", "euclidean", 3, labels)])
+
+    summary = geometric_summary(X, labels, {"linkage": "ward", "metric": "euclidean"})
+
+    assert dunn_table(run, X)["dunn"].iloc[0] == pytest.approx(summary.dunn)
+    assert largest_cluster_share_table(run)["largest_cluster_share"].iloc[0] == pytest.approx(summary.largest_cluster_share)
+
+
+def test_dunn_table_and_largest_share_table_refuse_a_density_run_and_a_degenerate_combination():
+    density = ClusteringTuningRun(Path("run"), "hdbscan", Path("m"), pd.DataFrame(), {})
+    one_cluster = _blob_labels_run([("ward", "euclidean", 2, np.zeros(45, dtype=int))])
+
+    with pytest.raises(ValueError, match="needs an agglomerative run"):
+        largest_cluster_share_table(density)
+    with pytest.raises(ValueError, match="needs an agglomerative run"):
+        dunn_table(density, _three_blobs())
+    with pytest.raises(ValueError, match="needs >= 2 non-noise clusters"):
+        dunn_table(one_cluster, _three_blobs())

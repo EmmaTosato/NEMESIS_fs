@@ -23,7 +23,9 @@
       "k_curves",
       "cophenetic_correlation",
       "dendrogram_jump",
-      "linkage_agreement"
+      "linkage_agreement",
+      "largest_cluster_share",
+      "dunn_index"
     ],
     "hdbscan": [
       "density_metrics",

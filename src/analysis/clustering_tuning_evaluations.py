@@ -39,10 +39,12 @@ from src.analysis.clustering_tuning_analysis import (
     dbcv_curves_figures,
     density_groups,
     density_metrics,
+    dunn_table,
     jump_table,
     k_curves_figure,
     k_curves_file_name,
     k_curves_targets,
+    largest_cluster_share_table,
     linkage_agreement,
     read_density_metrics,
     recomputed_internal_metrics,
@@ -56,6 +58,8 @@ K_CURVES = "k_curves"
 COPHENETIC_CORRELATION = "cophenetic_correlation"
 DENDROGRAM_JUMP = "dendrogram_jump"
 LINKAGE_AGREEMENT = "linkage_agreement"
+LARGEST_CLUSTER_SHARE = "largest_cluster_share"
+DUNN_INDEX = "dunn_index"
 DENSITY_METRICS = "density_metrics"
 DBCV_CURVES = "dbcv_curves"
 TUNING_HEATMAPS = "tuning_heatmaps"
@@ -155,6 +159,14 @@ def _run_linkage_agreement(context: EvaluationContext, settings: dict) -> list[P
     return _write_table(context, "linkage_agreement.csv", lambda: linkage_agreement(context.run))
 
 
+def _run_largest_cluster_share(context: EvaluationContext, settings: dict) -> list[Path]:
+    return _write_table(context, "largest_cluster_share.csv", lambda: largest_cluster_share_table(context.run))
+
+
+def _run_dunn_index(context: EvaluationContext, settings: dict) -> list[Path]:
+    return _write_table(context, "dunn_index.csv", lambda: dunn_table(context.run, context.matrix()))
+
+
 def _run_density_metrics(context: EvaluationContext, settings: dict) -> list[Path]:
     return _write_table(context, DENSITY_METRICS_FILE, lambda: density_metrics(context.run, context.matrix()))
 
@@ -213,6 +225,8 @@ EVALUATIONS: dict[str, EvaluationSpec] = {
     COPHENETIC_CORRELATION: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(COPHENETIC_CORRELATION), _run_cophenetic_correlation),
     DENDROGRAM_JUMP: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_dendrogram_jump_settings, _run_dendrogram_jump),
     LINKAGE_AGREEMENT: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(LINKAGE_AGREEMENT), _run_linkage_agreement),
+    LARGEST_CLUSTER_SHARE: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(LARGEST_CLUSTER_SHARE), _run_largest_cluster_share),
+    DUNN_INDEX: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(DUNN_INDEX), _run_dunn_index),
     DENSITY_METRICS: EvaluationSpec(_DENSITY_ONLY, _validate_no_settings(DENSITY_METRICS), _run_density_metrics),
     DBCV_CURVES: EvaluationSpec(_DENSITY_ONLY, _validate_no_settings(DBCV_CURVES), _run_dbcv_curves),
     TUNING_HEATMAPS: EvaluationSpec(_DENSITY_ONLY, _validate_no_settings(TUNING_HEATMAPS), _run_tuning_heatmaps),

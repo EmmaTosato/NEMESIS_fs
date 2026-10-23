@@ -110,6 +110,8 @@ def test_a_valid_block_keeps_its_keys_and_order():
         ({"general": [], "agglomerative": ["k_curves", "k_curves"]}, "duplicate"),
         ({"general": [], "agglomerative": ["invented"]}, "unknown clustering tuning evaluation"),
         ({"general": [], "hdbscan": ["cophenetic_correlation"]}, "does not apply"),
+        ({"general": [], "hdbscan": ["dunn_index"]}, "does not apply"),
+        ({"general": [], "hdbscan_soft": ["largest_cluster_share"]}, "does not apply"),
         ({"general": ["density_metrics"]}, "does not apply to every method"),
     ],
 )
@@ -236,6 +238,29 @@ def test_agglomerative_evaluations_read_the_matrix_of_the_run_and_share_a_cache(
     assert [path.name for path in written] == ["cophenetic_correlation.csv", "dendrogram_jump.csv", "linkage_agreement.csv"]
     assert set(pd.read_csv(run.run_dir / "dendrogram_jump.csv")["n_clusters"]) == {2, 3, 4}
     assert set(pd.read_csv(run.run_dir / "cophenetic_correlation.csv")["linkage"]) == {"ward", "average"}
+
+
+def test_the_dunn_and_largest_share_evaluations_write_one_row_per_combination(tmp_path):
+    run = _agglomerative_run(tmp_path)
+    block = validate_tuning_evaluations_block({"general": [], "agglomerative": ["largest_cluster_share", "dunn_index"]})
+
+    written = run_evaluations(block, _settings(), run, overwrite=False)
+
+    assert [path.name for path in written] == ["largest_cluster_share.csv", "dunn_index.csv"]
+    share = pd.read_csv(run.run_dir / "largest_cluster_share.csv")
+    dunn = pd.read_csv(run.run_dir / "dunn_index.csv")
+    assert len(share) == len(dunn) == 4 and share["largest_cluster_share"].between(0, 1).all()
+    assert dunn["dunn"].notna().all() and set(dunn["linkage"]) == {"ward", "average"}
+
+
+def test_the_dunn_and_largest_share_evaluations_refuse_to_replace_their_files_without_overwrite(tmp_path):
+    run = _agglomerative_run(tmp_path)
+    block = validate_tuning_evaluations_block({"general": [], "agglomerative": ["dunn_index"]})
+    run_evaluations(block, _settings(), run, overwrite=False)
+
+    with pytest.raises(FileExistsError, match="dunn_index.csv"):
+        run_evaluations(block, _settings(), run, overwrite=False)
+    run_evaluations(block, _settings(), run, overwrite=True)
 
 
 def test_a_matrix_the_caller_holds_is_used_instead_of_the_run_input_path(tmp_path):

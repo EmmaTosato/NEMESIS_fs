@@ -3,6 +3,8 @@
   "cophenetic_correlation": {},
   "dendrogram_jump": {"k_range": {"min": 2, "max": 30}},
   "linkage_agreement": {},
+  "largest_cluster_share": {},
+  "dunn_index": {},
   "density_metrics": {},
   "dbcv_curves": {},
   "tuning_heatmaps": {},

@@ -30,6 +30,7 @@ from src.analysis.clustering_tuning import (
     compute_clustering_metrics_metric_aware,
     compute_dendrogram_linkage,
     cophenetic_correlation,
+    dunn_index,
     is_invalid_ward_metric_combo,
 )
 from src.analysis.dbcv import run_dbcv
@@ -190,6 +191,39 @@ def linkage_agreement(run: ClusteringTuningRun) -> pd.DataFrame:
             ari = adjusted_rand_score(labels[linkage_a], labels[linkage_b])
             rows.append({"metric": metric, "n_clusters": int(k), "linkage_a": linkage_a, "linkage_b": linkage_b, "ari": float(ari)})
     return pd.DataFrame(rows, columns=["metric", "n_clusters", "linkage_a", "linkage_b", "ari"])
+
+
+def largest_cluster_share_table(run: ClusteringTuningRun) -> pd.DataFrame:
+    """Share of the subjects in the largest cluster of every combination of an agglomerative run (`partition_shape`, the
+    same count the production run and the Embedding Explorer use): one row per combination, columns `n_clusters`,
+    `linkage`, `metric`, `largest_cluster_share`. Computed from the stored labels."""
+    if run.method != AGGLOMERATIVE:
+        raise ValueError(f"largest_cluster_share_table needs an agglomerative run, got {run.method!r}")
+    columns = SWEPT_COLUMNS[AGGLOMERATIVE]
+    rows = [
+        {**{name: row[name] for name in columns}, "largest_cluster_share": partition_shape(run.labels[combo_key(row, columns)]).largest_cluster_share}
+        for row in run.results.to_dict("records")
+    ]
+    return pd.DataFrame(rows, columns=[*columns, "largest_cluster_share"])
+
+
+def dunn_table(run: ClusteringTuningRun, X: np.ndarray) -> pd.DataFrame:
+    """Dunn index of every combination of an agglomerative run (`dunn_index`, the function of the production run and of
+    the Embedding Explorer), on `X`, the matrix the run clustered: one row per combination, columns `n_clusters`,
+    `linkage`, `metric`, `dunn`. Dunn is defined with the Euclidean distance only: a combination under another `metric`
+    has an empty `dunn`, not a number computed in the wrong geometry. Raises ValueError, from `dunn_index`, for a
+    combination with fewer than 2 clusters or with every cluster a single subject."""
+    if run.method != AGGLOMERATIVE:
+        raise ValueError(f"dunn_table needs an agglomerative run, got {run.method!r}")
+    columns = SWEPT_COLUMNS[AGGLOMERATIVE]
+    rows = [
+        {
+            **{name: row[name] for name in columns},
+            "dunn": dunn_index(X, run.labels[combo_key(row, columns)]) if row["metric"] == "euclidean" else float("nan"),
+        }
+        for row in run.results.to_dict("records")
+    ]
+    return pd.DataFrame(rows, columns=[*columns, "dunn"])
 
 
 def ordered(values, preferred: tuple[str, ...]) -> list[str]:
