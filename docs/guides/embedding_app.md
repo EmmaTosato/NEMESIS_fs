@@ -98,6 +98,21 @@ Poi apri `http://127.0.0.1:8060` nel browser. Opzioni:
 
 ---
 
+## Le schede
+
+Sotto i selettori e i bottoni di colore la pagina mostra **una scheda alla volta**; i selettori sono condivisi, quindi cambiando run tutte le schede lo seguono.
+
+| Scheda | Pannelli | Compare per |
+| :--- | :--- | :--- |
+| **Embedding** | Embedding Visualization, Lesion anatomy, Disconnection (SDC), Component maps | ogni run |
+| **Clustering** | Clustering Explorer (selettore Cluster), Overlap map, Disconnection per cluster, Representative subject, Cluster description, Cluster composition, Clustering evaluation | un run di `clustering.py` |
+| **Dendrogram** | Dendrogram Explorer | un run di clustering `agglomerative` |
+
+- Una scheda che il run non ha sparisce; con una sola scheda disponibile (un run di `dim_reduction`) la barra non compare.
+- La scheda scelta resta finché il run la ha. Cambiando run verso uno che non la ha (Dendrogram → kmeans) la pagina torna a **Embedding**.
+- L'**Index** (in alto a destra) elenca solo le sezioni della scheda aperta.
+- I pannelli di tutte le schede sono già nella pagina e si nascondono: aprire una scheda non ricostruisce nulla (vedi `docs/dev/models.md`).
+
 ## Cosa mostra
 
 - **Nove selettori** + il bottone **Reset** (in ordine di decisione, da sinistra a destra - sostituiscono il dropdown unico che mischiava i run di ogni metodo/metrica/dimensionalità insieme; i primi otto sono filtri facoltativi, vedi sotto):
@@ -248,7 +263,7 @@ Nessun bottone "Save HTML"/"Save PNG" dedicato - come per lo scatter dell'embedd
 
 ## Cluster composition
 
-Ultimo pannello della pagina, per un run di clustering. Mette **tutti i cluster del run affiancati**, un grafico per variabile, per vedere come si distribuiscono le variabili da un cluster all'altro. Non dipende dal cluster scelto nel dropdown.
+Pannello della scheda Clustering, per un run di clustering. Mette **tutti i cluster del run affiancati**, un grafico per variabile, per vedere come si distribuiscono le variabili da un cluster all'altro. Non dipende dal cluster scelto nel dropdown.
 
 Variabili categoriche, barre orizzontali al 100%: una barra per cluster, divisa per categoria, così cluster di dimensioni diverse si confrontano sulla stessa scala.
 
@@ -299,7 +314,7 @@ Dettagli di implementazione: `docs/dev/covariance_pca.md` (sezione "Component ma
 
 ## Clustering evaluation
 
-Ultimo pannello della pagina, per un run di clustering. Dà gli **indici dell'intero run** (non del cluster scelto nel dropdown): quanto i cluster sono compatti e separati nello spazio su cui è stato fatto il clustering. Per kmeans, gmm, agglomerative e spectral sono gli indici geometrici (sezione 2 di `clustering_evaluation.ipynb`); per `hdbscan` e `hdbscan_soft` è il DBCV (sezione 2.3), perché silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn si calcolano sui soli soggetti non rumore e presuppongono cluster compatti. Calinski-Harabasz e Davies-Bouldin valgono solo con la distanza euclidea. Per un run clusterizzato con un'altra `metric` (es. `cosine` di agglomerative) la **silhouette si misura in quella metrica** (la stessa del clustering, come nello sweep e in `silhouette_plot.png`) e Calinski-Harabasz, Davies-Bouldin e Dunn mostrano «—» con la lettura «Euclidean distance only»; sopra la tabella una riga dice quale distanza usa la silhouette. Il rumore non ha soglia né avviso: è un numero della tabella.
+Ultimo pannello della scheda Clustering, per un run di clustering. Dà gli **indici dell'intero run** (non del cluster scelto nel dropdown): quanto i cluster sono compatti e separati nello spazio su cui è stato fatto il clustering. Per kmeans, gmm, agglomerative e spectral sono gli indici geometrici (sezione 2 di `clustering_evaluation.ipynb`); per `hdbscan` e `hdbscan_soft` è il DBCV (sezione 2.3), perché silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn si calcolano sui soli soggetti non rumore e presuppongono cluster compatti. Calinski-Harabasz e Davies-Bouldin valgono solo con la distanza euclidea. Per un run clusterizzato con un'altra `metric` (es. `cosine` di agglomerative) la **silhouette si misura in quella metrica** (la stessa del clustering, come nello sweep e in `silhouette_plot.png`) e Calinski-Harabasz, Davies-Bouldin e Dunn mostrano «—» con la lettura «Euclidean distance only»; sopra la tabella una riga dice quale distanza usa la silhouette. Il rumore non ha soglia né avviso: è un numero della tabella.
 
 Una tabella con valore e lettura di (non per `hdbscan` e `hdbscan_soft`, vedi sotto):
 
@@ -358,7 +373,7 @@ Dettagli di implementazione: `docs/dev/models.md` (`geometric_summary`).
 
 ## Dendrogram Explorer
 
-È l'ultima sezione della pagina, con un titolo proprio come il "Clustering Explorer", larga fino a 1700 px come il blocco «all». Compare solo per un run di `clustering` con metodo `agglomerative`. Segue l'albero **k dopo k**: passando da k-1 a k cluster un cluster si divide in due. Serve a capire da cosa è fatto un cluster grande mentre si spezza.
+È una scheda a sé (Dendrogram), con un titolo proprio come il "Clustering Explorer", larga fino a 1700 px come il blocco «all». Compare solo per un run di `clustering` con metodo `agglomerative`. Segue l'albero **k dopo k**: passando da k-1 a k cluster un cluster si divide in due. Serve a capire da cosa è fatto un cluster grande mentre si spezza.
 
 Un run di produzione ha un solo k. Le etichette per ogni k stanno in un **tuning** che ha clusterizzato la stessa matrice, quindi il pannello ne usa uno e lo fa scegliere a te.
 

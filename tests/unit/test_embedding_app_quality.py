@@ -269,6 +269,7 @@ def test_the_quality_callback_keeps_polling_an_adp_run_until_its_distances_are_r
         "inputs": [
             {"id": "run-picker", "property": "value", "value": run.key},
             {"id": "cluster-quality-poll", "property": "n_intervals", "value": 0},
+            {"id": "selected-page-tab", "property": "data", "value": "clustering"},
         ],
         "changedPropIds": ["run-picker.value"],
     }

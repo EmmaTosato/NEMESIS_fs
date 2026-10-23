@@ -1909,6 +1909,7 @@ def test_preload_fills_both_stores_so_cluster_maps_need_no_file_reads(tmp_path, 
         "inputs": [
             {"id": "run-picker", "property": "value", "value": run.key},
             {"id": "cluster-picker", "property": "value", "value": 0},
+            {"id": "selected-page-tab", "property": "data", "value": "clustering"},
         ],
         "changedPropIds": ["cluster-picker.value"],
         "state": [],
@@ -1974,7 +1975,8 @@ def test_description_sits_between_the_section_heading_and_the_plot(tmp_path):
     run_dir = _make_run_dir(tmp_path / "results", run_name="run-2d", n_dims=2)
     run = ProductionRun("lesion", "dim_reduction", "umap", "run-2d", run_dir)
     app = build_app([run], _lesion_cfg(tmp_path), _sdc_cfg(tmp_path), _clustering_params_file(tmp_path), tmp_path / "cache")
-    content = next(child for child in app.layout.children if getattr(child, "id", None) == "run-content").children
+    run_content = next(child for child in app.layout.children if getattr(child, "id", None) == "run-content").children
+    content = next(child for child in run_content if getattr(child, "id", None) == "tab-embedding").children
     ids = [getattr(child, "id", None) for child in content]
 
     heading = next(i for i, child in enumerate(content) if getattr(child, "children", None) == "Embedding Visualization")

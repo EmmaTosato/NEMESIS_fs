@@ -254,6 +254,16 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 }}
 /* The meaning of each label of a categorical mode (ColorMode.legend): a bullet list under the sentence, centred as a
    block but read left-aligned. */
+.tab-bar {{ display: flex; justify-content: center; gap: 8px; margin: 8px 0 8px; border-bottom: 1px solid {_GRID_BORDER}; }}
+.tab-btn {{
+    font-family: inherit; font-size: 18px; font-weight: 600; padding: 12px 30px; cursor: pointer; color: #767676;
+    background: none; border: none; border-bottom: 3px solid transparent; margin-bottom: -1px;
+}}
+.tab-btn:hover {{ color: {_TEXT_COLOR}; }}
+.tab-btn.active {{ color: {_TEXT_COLOR}; border-bottom-color: {_TEXT_COLOR}; }}
+/* The first section of a tab is the top of its page: no heavy rule and a short gap, instead of the break that
+   .section-divider draws between two sections of one page. */
+.tab-content > .section-divider:first-child {{ margin-top: 32px; border-top: none; padding-top: 0; }}
 .color-legend {{ display: inline-block; text-align: left; margin: 10px 0 0; padding-left: 22px; font-size: 16px; }}
 .color-legend li {{ margin: 3px 0; }}
 .graph-wrap {{ display: flex; justify-content: center; width: 100%; }}
@@ -3881,37 +3891,82 @@ def dendrogram_steps_content_for(
     return html.Div(screens, className="dendrogram-steps wide-block")
 
 
-# --- Page index (08-10-26) ------------------------------------------------------------------
+# --- Page tabs and index (08-10-26, tabs 23-10-26) ---------------------------------------------
 
-# (anchor id, label, shown for this run?) in page order. The panels that only exist for some runs
+# The page shows one view of the run at a time. A tab exists only for a run that has what it shows: the embedding
+# for any run, the clustering panels for a clustering run, the dendrogram for an agglomerative one.
+TAB_EMBEDDING = "embedding"
+TAB_CLUSTERING = "clustering"
+TAB_DENDROGRAM = "dendrogram"
+PAGE_TAB_LABELS: dict[str, str] = {TAB_EMBEDDING: "Embedding", TAB_CLUSTERING: "Clustering", TAB_DENDROGRAM: "Dendrogram"}
+
+
+def _is_clustering_run(run: ProductionRun | None) -> bool:
+    return run is not None and run.pipeline == "clustering"
+
+
+def _is_agglomerative_clustering_run(run: ProductionRun | None) -> bool:
+    return _is_clustering_run(run) and run.method == "agglomerative"
+
+
+_TAB_SHOWN: dict[str, Callable[[ProductionRun | None], bool]] = {
+    TAB_EMBEDDING: lambda run: run is not None,
+    TAB_CLUSTERING: _is_clustering_run,
+    TAB_DENDROGRAM: _is_agglomerative_clustering_run,
+}
+
+
+def page_tabs_for(run: ProductionRun | None) -> list[str]:
+    """The tabs `run` has, in page order; none without a run."""
+    return [tab for tab, shown in _TAB_SHOWN.items() if shown(run)]
+
+
+def active_page_tab(run: ProductionRun | None, selected: str | None) -> str:
+    """The tab shown for `run` when the user last chose `selected`: that one if the run has it, else the embedding
+    (a run without the chosen tab, or none chosen yet). Raises ValueError for a run-less page."""
+    if run is None:
+        raise ValueError("there is no tab without a run")
+    return selected if selected in page_tabs_for(run) else TAB_EMBEDDING
+
+
+def tab_is_active(run: ProductionRun, selected: str | None, tab: str) -> bool:
+    """Whether `tab` is the one shown for `run` after the user chose `selected` (active_page_tab). What the callbacks of
+    the Clustering and Dendrogram tabs ask first: a tab that is not shown builds nothing."""
+    return active_page_tab(run, selected) == tab
+
+
+# (anchor id, label, tab it sits in, shown for this run?) in page order. The panels that only exist for some runs
 # (see _update_cluster_picker and _update_disconnectome_panel_visibility) are listed only for
-# those runs, so the index never links to a hidden section.
-_INDEX_SECTIONS: tuple[tuple[str, str, Callable[[ProductionRun | None], bool]], ...] = (
-    ("controls-section", "Run choice", lambda run: True),
-    ("embedding-section", "Embedding Visualization", lambda run: run is not None),
-    ("lesion-panel", "Lesion anatomy", lambda run: run is not None),
-    ("disconnectome-panel", "Disconnection (SDC)", lambda run: run is not None and run.modality == "sdc"),
-    ("pca-map-panel", "Component maps", lambda run: run is not None and _is_pca_run(run)),
-    ("clustering-section", "Clustering Explorer", lambda run: run is not None and run.pipeline == "clustering"),
-    ("cluster-map-panel", "Overlap map per cluster", lambda run: run is not None and run.pipeline == "clustering"),
+# those runs, so the index never links to a hidden section. A tab of None is in every tab.
+_INDEX_SECTIONS: tuple[tuple[str, str, str | None, Callable[[ProductionRun | None], bool]], ...] = (
+    ("controls-section", "Run choice", None, lambda run: True),
+    ("embedding-section", "Embedding Visualization", TAB_EMBEDDING, lambda run: run is not None),
+    ("lesion-panel", "Lesion anatomy", TAB_EMBEDDING, lambda run: run is not None),
+    ("disconnectome-panel", "Disconnection (SDC)", TAB_EMBEDDING, lambda run: run is not None and run.modality == "sdc"),
+    ("pca-map-panel", "Component maps", TAB_EMBEDDING, lambda run: run is not None and _is_pca_run(run)),
+    ("clustering-section", "Clustering Explorer", TAB_CLUSTERING, _is_clustering_run),
+    ("cluster-map-panel", "Overlap map per cluster", TAB_CLUSTERING, _is_clustering_run),
     (
-        "disconnection-map-panel", "Disconnection per cluster",
-        lambda run: run is not None and run.pipeline == "clustering" and run.modality == "sdc",
+        "disconnection-map-panel", "Disconnection per cluster", TAB_CLUSTERING,
+        lambda run: _is_clustering_run(run) and run.modality == "sdc",
     ),
-    ("representative-subject-panel", "Representative subject", lambda run: run is not None and run.pipeline == "clustering"),
-    ("cluster-description-panel", "Cluster description", lambda run: run is not None and run.pipeline == "clustering"),
-    ("cluster-composition-panel", "Cluster composition", lambda run: run is not None and run.pipeline == "clustering"),
-    ("cluster-quality-panel", "Clustering evaluation", lambda run: run is not None and run.pipeline == "clustering"),
-    (
-        "dendrogram-panel", "Dendrogram Explorer",
-        lambda run: run is not None and run.pipeline == "clustering" and run.method == "agglomerative",
-    ),
+    ("representative-subject-panel", "Representative subject", TAB_CLUSTERING, _is_clustering_run),
+    ("cluster-description-panel", "Cluster description", TAB_CLUSTERING, _is_clustering_run),
+    ("cluster-composition-panel", "Cluster composition", TAB_CLUSTERING, _is_clustering_run),
+    ("cluster-quality-panel", "Clustering evaluation", TAB_CLUSTERING, _is_clustering_run),
+    ("dendrogram-panel", "Dendrogram Explorer", TAB_DENDROGRAM, _is_agglomerative_clustering_run),
 )
 
 
-def index_entries_for(run: ProductionRun | None) -> list[tuple[str, str]]:
-    """(anchor id, label) of the page sections visible for `run`, in page order."""
-    return [(anchor, label) for anchor, label, shown in _INDEX_SECTIONS if shown(run)]
+def index_entries_for(run: ProductionRun | None, tab: str | None = None) -> list[tuple[str, str]]:
+    """(anchor id, label) of the page sections `run` has, in page order; with `tab`, only those on that tab (and the
+    ones on every tab). Raises ValueError for a tab that does not exist."""
+    if tab is not None and tab not in PAGE_TAB_LABELS:
+        raise ValueError(f"unknown tab {tab!r} - known: {list(PAGE_TAB_LABELS)}")
+    return [
+        (anchor, label) for anchor, label, section_tab, shown in _INDEX_SECTIONS
+        if shown(run) and (tab is None or section_tab in (None, tab))
+    ]
 
 
 def _index_links(entries: list[tuple[str, str]]) -> list[html.A]:
@@ -4288,6 +4343,7 @@ def build_app(
             dcc.Store(id="selected-color-mode", data=NEUTRAL_MODE),
             dcc.Store(id="selected-grid", data=DEFAULT_GRID),
             dcc.Store(id="selected-disconnection-mode", data=DEFAULT_DISCONNECTION_MAP_MODE),
+            dcc.Store(id="selected-page-tab", data=TAB_EMBEDDING),
             html.P(
                 "No run chosen: the Run selector is at ---. Choose a run to see the charts and panels.",
                 id="no-run-message",
@@ -4298,295 +4354,329 @@ def build_app(
             html.Div(
                 id="run-content",
                 children=[
-                html.H2("Embedding Visualization", id="embedding-section", className="section-heading"),
-                html.Div(_NEUTRAL_DESCRIPTION, id="color-description", className="color-description"),
-                html.Div(id="graph-area", className="graph-wrap"),
-                # Always-visible (per design decision, 01-09-26 - not an appear-on-click popup):
-                # placeholder until a point is clicked, subject's nilearn viewer afterward.
+                # The three views of a run (embedding, clustering, dendrogram): one is shown at a time (_apply_page_tab),
+                # the tabs a run has not got are hidden. Each tab holds the panels that belong together; the panels keep
+                # their own visibility callbacks, which only say whether the run has them at all.
                 html.Div(
-                    id="lesion-panel",
-                    className="anatomy-panel",
+                    id="page-tab-bar",
+                    className="tab-bar",
                     children=[
-                        html.H2("Lesion anatomy", className="section-heading"),
-                        html.Div(id="lesion-viewer-content", children=_LESION_PLACEHOLDER),
-                        # Single source of truth for "which subject is actually visible in the panel
-                        # above right now" (01-09-26 bug fix) - set atomically with
-                        # lesion-viewer-content.children by the same callback below, never derived
-                        # separately from embedding-graph.clickData again downstream. clickData is a
-                        # client-side prop that does NOT reset just because a *different* dcc.Graph
-                        # instance with the same id gets mounted in its place (switching run-picker
-                        # replaces graph-area's children, but React/Dash patches the same-id node
-                        # rather than remounting it) - the Save buttons below used to read clickData
-                        # directly via State, so after a run change they kept silently offering a
-                        # download for the *previous* run's clicked subject even though this panel
-                        # had already reset to the placeholder, with no visible link between what was
-                        # shown and what got downloaded. None whenever the panel shows the placeholder
-                        # or an unresolvable-subject error, so a stale/absent selection can never be
-                        # downloaded regardless of what embedding-graph.clickData still holds.
-                        dcc.Store(id="lesion-viewer-subject", data=None),
+                        html.Button(
+                            label, id={"type": "page-tab-btn", "tab": name}, n_clicks=0,
+                            className="tab-btn active" if name == TAB_EMBEDDING else "tab-btn",
+                        )
+                        for name, label in PAGE_TAB_LABELS.items()
+                    ],
+                ),
+                html.Div(
+                    id="tab-embedding",
+                    className="tab-content",
+                    children=[
+                        html.H2("Embedding Visualization", id="embedding-section", className="section-heading"),
+                        html.Div(_NEUTRAL_DESCRIPTION, id="color-description", className="color-description"),
+                        html.Div(id="graph-area", className="graph-wrap"),
+                        # Always-visible (per design decision, 01-09-26 - not an appear-on-click popup):
+                        # placeholder until a point is clicked, subject's nilearn viewer afterward.
                         html.Div(
-                            className="save-btn-row",
+                            id="lesion-panel",
+                            className="anatomy-panel",
                             children=[
-                                html.Button("Save HTML", id="lesion-save-btn", n_clicks=0, className="save-btn"),
-                                html.Button("Save PNG", id="lesion-png-btn", n_clicks=0, className="save-btn"),
-                                html.Button(
-                                    "Save PNG (glass brain)", id="lesion-glass-png-btn", n_clicks=0, className="save-btn"
+                                html.H2("Lesion anatomy", className="section-heading"),
+                                html.Div(id="lesion-viewer-content", children=_LESION_PLACEHOLDER),
+                                # Single source of truth for "which subject is actually visible in the panel
+                                # above right now" (01-09-26 bug fix) - set atomically with
+                                # lesion-viewer-content.children by the same callback below, never derived
+                                # separately from embedding-graph.clickData again downstream. clickData is a
+                                # client-side prop that does NOT reset just because a *different* dcc.Graph
+                                # instance with the same id gets mounted in its place (switching run-picker
+                                # replaces graph-area's children, but React/Dash patches the same-id node
+                                # rather than remounting it) - the Save buttons below used to read clickData
+                                # directly via State, so after a run change they kept silently offering a
+                                # download for the *previous* run's clicked subject even though this panel
+                                # had already reset to the placeholder, with no visible link between what was
+                                # shown and what got downloaded. None whenever the panel shows the placeholder
+                                # or an unresolvable-subject error, so a stale/absent selection can never be
+                                # downloaded regardless of what embedding-graph.clickData still holds.
+                                dcc.Store(id="lesion-viewer-subject", data=None),
+                                html.Div(
+                                    className="save-btn-row",
+                                    children=[
+                                        html.Button("Save HTML", id="lesion-save-btn", n_clicks=0, className="save-btn"),
+                                        html.Button("Save PNG", id="lesion-png-btn", n_clicks=0, className="save-btn"),
+                                        html.Button(
+                                            "Save PNG (glass brain)", id="lesion-glass-png-btn", n_clicks=0, className="save-btn"
+                                        ),
+                                    ],
+                                ),
+                                dcc.Download(id="lesion-download"),
+                                dcc.Download(id="lesion-png-download"),
+                                dcc.Download(id="lesion-glass-png-download"),
+                            ],
+                        ),
+                        # Hidden by default (style toggled by _update_disconnectome_panel_visibility below) -
+                        # only a modality="sdc" run (its subjects have a disconnectome-map.nii.gz on disk,
+                        # see SDC_DISCONNECTOME_GLOB) ever shows this panel; a "lesion" run has no such file,
+                        # showing it there would be either empty or a crash on every single click (01-09-26 -
+                        # 29-09-26 SDC extension, on request: "come per le lesioni ... plottare anche la
+                        # frequency map con la disconnessione").
+                        html.Div(
+                            id="disconnectome-panel",
+                            className="anatomy-panel",
+                            style={"display": "none"},
+                            children=[
+                                html.H2("Disconnection (SDC)", className="section-heading"),
+                                html.Div(id="disconnectome-viewer-content", children=_DISCONNECTOME_PLACEHOLDER),
+                                # Same clickData-persistence fix as lesion-viewer-subject above, same reasoning.
+                                dcc.Store(id="disconnectome-viewer-subject", data=None),
+                                html.Div(
+                                    className="save-btn-row",
+                                    children=[
+                                        html.Button("Save HTML", id="disconnectome-save-btn", n_clicks=0, className="save-btn"),
+                                        html.Button("Save PNG", id="disconnectome-png-btn", n_clicks=0, className="save-btn"),
+                                        html.Button(
+                                            "Save PNG (glass brain)", id="disconnectome-glass-png-btn", n_clicks=0,
+                                            className="save-btn",
+                                        ),
+                                    ],
+                                ),
+                                dcc.Download(id="disconnectome-download"),
+                                dcc.Download(id="disconnectome-png-download"),
+                                dcc.Download(id="disconnectome-glass-png-download"),
+                            ],
+                        ),
+                        # Hidden by default (style toggled by _update_pca_panel below): only a pca dim_reduction run has
+                        # components. 16-10-26, on request: the brain maps of the components, as in section 6 of
+                        # notebooks/pipeline_building/thiebaut_2020_replication.ipynb.
+                        html.Div(
+                            id="pca-map-panel",
+                            className="anatomy-panel",
+                            style={"display": "none"},
+                            children=[
+                                html.H2("Component maps", className="section-heading"),
+                                html.Div(
+                                    className="cluster-chooser",
+                                    children=[
+                                        html.Label("Component", className="picker-label"),
+                                        dcc.Dropdown(id="pca-component-picker", clearable=False),
+                                    ],
+                                ),
+                                html.Div(id="pca-map-content"),
+                                # Enabled only while the maps are being computed in the background.
+                                dcc.Interval(id="pca-map-poll", interval=_QUALITY_POLL_MS, disabled=True),
+                            ],
+                        ),
+                    ],
+                ),
+                html.Div(
+                    id="tab-clustering",
+                    className="tab-content",
+                    style={"display": "none"},
+                    children=[
+                        # Hidden by default (style toggled by _update_cluster_picker below) - only a
+                        # 30-09-26, on request: everything below is per-CLUSTER, everything above is
+                        # per-subject/whole-run. The break is marked with a heavier rule and its own
+                        # title, and the cluster chooser is lifted out of the first panel it happened to
+                        # live in (cluster-map-panel) to sit here, centred, as the section's first act -
+                        # it scopes every panel that follows, so it belongs to the section, not to one of
+                        # its panels. Callbacks still resolve it by component id, so nothing else moves.
+                        html.Div(
+                            id="clustering-section",
+                            className="section-divider",
+                            style={"display": "none"},
+                            children=[
+                                html.H2("Clustering Explorer", className="section-title"),
+                                html.P(
+                                    "The sections below describe one cluster at a time. Choose which one, or “all” to see them all together.",
+                                    className="section-intro",
+                                ),
+                                html.Div(
+                                    className="cluster-chooser",
+                                    children=[
+                                        html.Label("Cluster", className="picker-label"),
+                                        dcc.Dropdown(id="cluster-picker", clearable=False),
+                                    ],
                                 ),
                             ],
                         ),
-                        dcc.Download(id="lesion-download"),
-                        dcc.Download(id="lesion-png-download"),
-                        dcc.Download(id="lesion-glass-png-download"),
-                    ],
-                ),
-                # Hidden by default (style toggled by _update_disconnectome_panel_visibility below) -
-                # only a modality="sdc" run (its subjects have a disconnectome-map.nii.gz on disk,
-                # see SDC_DISCONNECTOME_GLOB) ever shows this panel; a "lesion" run has no such file,
-                # showing it there would be either empty or a crash on every single click (01-09-26 -
-                # 29-09-26 SDC extension, on request: "come per le lesioni ... plottare anche la
-                # frequency map con la disconnessione").
-                html.Div(
-                    id="disconnectome-panel",
-                    className="anatomy-panel",
-                    style={"display": "none"},
-                    children=[
-                        html.H2("Disconnection (SDC)", className="section-heading"),
-                        html.Div(id="disconnectome-viewer-content", children=_DISCONNECTOME_PLACEHOLDER),
-                        # Same clickData-persistence fix as lesion-viewer-subject above, same reasoning.
-                        dcc.Store(id="disconnectome-viewer-subject", data=None),
+                        # clustering.py run (metadata has cluster_label) ever shows this panel.
                         html.Div(
-                            className="save-btn-row",
+                            id="cluster-map-panel",
+                            className="anatomy-panel",
+                            style={"display": "none"},
                             children=[
-                                html.Button("Save HTML", id="disconnectome-save-btn", n_clicks=0, className="save-btn"),
-                                html.Button("Save PNG", id="disconnectome-png-btn", n_clicks=0, className="save-btn"),
-                                html.Button(
-                                    "Save PNG (glass brain)", id="disconnectome-glass-png-btn", n_clicks=0,
-                                    className="save-btn",
+                                html.H2("Overlap map per cluster", className="section-heading"),
+                                html.Div(id="cluster-map-content"),
+                                html.Div(
+                                    className="save-btn-row",
+                                    children=[
+                                        html.Button("Save HTML", id="cluster-save-btn", n_clicks=0, className="save-btn"),
+                                        html.Button("Save PNG", id="cluster-png-btn", n_clicks=0, className="save-btn"),
+                                    ],
                                 ),
+                                dcc.Download(id="cluster-download"),
+                                dcc.Download(id="cluster-png-download"),
                             ],
                         ),
-                        dcc.Download(id="disconnectome-download"),
-                        dcc.Download(id="disconnectome-png-download"),
-                        dcc.Download(id="disconnectome-glass-png-download"),
-                    ],
-                ),
-                # Hidden by default (style toggled by _update_pca_panel below): only a pca dim_reduction run has
-                # components. 16-10-26, on request: the brain maps of the components, as in section 6 of
-                # notebooks/pipeline_building/thiebaut_2020_replication.ipynb.
-                html.Div(
-                    id="pca-map-panel",
-                    className="anatomy-panel",
-                    style={"display": "none"},
-                    children=[
-                        html.H2("Component maps", className="section-heading"),
+                        # Hidden by default (style toggled by _update_disconnection_map_panel_visibility
+                        # below) - needs BOTH a modality="sdc" run (a disconnectome file to average) AND a
+                        # clustering.py run (a cluster_label to group by), unlike disconnectome-panel above
+                        # which only needs the former. Reuses cluster-picker itself (no separate "Cluster"
+                        # dropdown here) - the same clustering run has exactly one set of clusters regardless
+                        # of which map family (lesion overlap vs disconnection mean) is being viewed, so a
+                        # second dropdown would only ever show the identical options as the first.
                         html.Div(
-                            className="cluster-chooser",
+                            id="disconnection-map-panel",
+                            className="anatomy-panel",
+                            style={"display": "none"},
                             children=[
-                                html.Label("Component", className="picker-label"),
-                                dcc.Dropdown(id="pca-component-picker", clearable=False),
-                            ],
-                        ),
-                        html.Div(id="pca-map-content"),
-                        # Enabled only while the maps are being computed in the background.
-                        dcc.Interval(id="pca-map-poll", interval=_QUALITY_POLL_MS, disabled=True),
-                    ],
-                ),
-                # Hidden by default (style toggled by _update_cluster_picker below) - only a
-                # 30-09-26, on request: everything below is per-CLUSTER, everything above is
-                # per-subject/whole-run. The break is marked with a heavier rule and its own
-                # title, and the cluster chooser is lifted out of the first panel it happened to
-                # live in (cluster-map-panel) to sit here, centred, as the section's first act -
-                # it scopes every panel that follows, so it belongs to the section, not to one of
-                # its panels. Callbacks still resolve it by component id, so nothing else moves.
-                html.Div(
-                    id="clustering-section",
-                    className="section-divider",
-                    style={"display": "none"},
-                    children=[
-                        html.H2("Clustering Explorer", className="section-title"),
-                        html.P(
-                            "The sections below describe one cluster at a time. Choose which one, or “all” to see them all together.",
-                            className="section-intro",
-                        ),
-                        html.Div(
-                            className="cluster-chooser",
-                            children=[
-                                html.Label("Cluster", className="picker-label"),
-                                dcc.Dropdown(id="cluster-picker", clearable=False),
-                            ],
-                        ),
-                    ],
-                ),
-                # clustering.py run (metadata has cluster_label) ever shows this panel.
-                html.Div(
-                    id="cluster-map-panel",
-                    className="anatomy-panel",
-                    style={"display": "none"},
-                    children=[
-                        html.H2("Overlap map per cluster", className="section-heading"),
-                        html.Div(id="cluster-map-content"),
-                        html.Div(
-                            className="save-btn-row",
-                            children=[
-                                html.Button("Save HTML", id="cluster-save-btn", n_clicks=0, className="save-btn"),
-                                html.Button("Save PNG", id="cluster-png-btn", n_clicks=0, className="save-btn"),
-                            ],
-                        ),
-                        dcc.Download(id="cluster-download"),
-                        dcc.Download(id="cluster-png-download"),
-                    ],
-                ),
-                # Hidden by default (style toggled by _update_disconnection_map_panel_visibility
-                # below) - needs BOTH a modality="sdc" run (a disconnectome file to average) AND a
-                # clustering.py run (a cluster_label to group by), unlike disconnectome-panel above
-                # which only needs the former. Reuses cluster-picker itself (no separate "Cluster"
-                # dropdown here) - the same clustering run has exactly one set of clusters regardless
-                # of which map family (lesion overlap vs disconnection mean) is being viewed, so a
-                # second dropdown would only ever show the identical options as the first.
-                html.Div(
-                    id="disconnection-map-panel",
-                    className="anatomy-panel",
-                    style={"display": "none"},
-                    children=[
-                        html.H2("Disconnection per cluster", className="section-heading"),
-                        # 30-09-26: two readings of the same subjects, explicitly chosen rather
-                        # than one silently assumed - see DISCONNECTION_PERCENT_MODE's comment.
-                        html.Div(
-                            [
-                                html.Span("Map", className="grid-row-label"),
-                                *[
-                                    html.Button(
-                                        DISCONNECTION_MAP_MODE_LABELS[mode],
-                                        id={"type": "disconnection-mode-btn", "mode": mode},
-                                        n_clicks=0,
-                                        className="active" if mode == DEFAULT_DISCONNECTION_MAP_MODE else "",
-                                    )
-                                    for mode in DISCONNECTION_MAP_MODE_LABELS
-                                ],
-                            ],
-                            className="color-buttons grid-row",
-                        ),
-                        html.Div(id="disconnection-map-content"),
-                        html.Div(
-                            className="save-btn-row",
-                            children=[
-                                html.Button("Save HTML", id="disconnection-save-btn", n_clicks=0, className="save-btn"),
-                                html.Button("Save PNG", id="disconnection-png-btn", n_clicks=0, className="save-btn"),
-                            ],
-                        ),
-                        dcc.Download(id="disconnection-download"),
-                        dcc.Download(id="disconnection-png-download"),
-                    ],
-                ),
-                # Hidden by default (style toggled by _update_cluster_picker below, same condition
-                # as cluster-map-panel/disconnection-map-panel - run.pipeline == "clustering") -
-                # 29-09-26, on request: shown *after* the two per-cluster map panels above (moved
-                # there the same day, from its first position above them), driven by the *same*
-                # "Cluster" dropdown they already share (cluster-picker itself is defined inside
-                # cluster-map-panel above - Dash resolves callbacks by component id regardless of
-                # where in the tree that id physically lives).
-                html.Div(
-                    id="representative-subject-panel",
-                    className="anatomy-panel",
-                    style={"display": "none"},
-                    children=[
-                        html.H2("Representative subject of the cluster", className="section-heading"),
-                        html.Div(id="representative-subject-content"),
-                        html.Div(
-                            className="save-btn-row",
-                            children=[
-                                html.Button("Save HTML", id="representative-save-btn", n_clicks=0, className="save-btn"),
-                                html.Button("Save PNG", id="representative-png-btn", n_clicks=0, className="save-btn"),
-                            ],
-                        ),
-                        dcc.Download(id="representative-download"),
-                        dcc.Download(id="representative-png-download"),
-                    ],
-                ),
-                # Hidden by default (style toggled by _update_cluster_picker below, same condition
-                # as cluster-map-panel - run.pipeline == "clustering") - 29-09-26, on request: last
-                # of the per-cluster panels, driven by the same shared cluster-picker. Visible for
-                # any clustering.py run regardless of modality (age/sex/education/NIHSS/lesion
-                # volume come from the subject registry, not from a disconnectome/lesion file).
-                html.Div(
-                    id="cluster-description-panel",
-                    className="anatomy-panel",
-                    style={"display": "none"},
-                    children=[
-                        html.H2("Cluster description", className="section-heading"),
-                        html.Div(id="cluster-description-content"),
-                    ],
-                ),
-                # Hidden by default (style toggled by _update_cluster_picker below, same condition as
-                # the other per-cluster panels) - 07-10-26, on request: last panel of the page. Not
-                # driven by cluster-picker: it compares every cluster of the run at once.
-                html.Div(
-                    id="cluster-composition-panel",
-                    className="anatomy-panel",
-                    style={"display": "none"},
-                    children=[
-                        html.H2("Cluster composition", className="section-heading"),
-                        html.Div(id="cluster-composition-content"),
-                    ],
-                ),
-                # Hidden by default (style toggled by _update_cluster_picker, same condition as the other
-                # clustering panels) - 16-10-26, on request: the whole-run geometric indices, after the
-                # composition panel. Like it, not driven by cluster-picker.
-                html.Div(
-                    id="cluster-quality-panel",
-                    className="anatomy-panel",
-                    style={"display": "none"},
-                    children=[
-                        html.H2("Clustering evaluation", className="section-heading"),
-                        html.Div(id="cluster-quality-content"),
-                        # Enabled only while an adp run's distance matrix is being computed in the background.
-                        dcc.Interval(id="cluster-quality-poll", interval=_QUALITY_POLL_MS, disabled=True),
-                    ],
-                ),
-                # Hidden by default (style toggled by _update_dendrogram_panel below): only an agglomerative
-                # clustering run has a tree. 21-10-26, on request: a section of its own, the last of the page,
-                # like "Clustering Explorer" (section-divider, not one more .anatomy-panel): it follows the tree
-                # k by k on a tuning that reproduces this production run, chosen by the user among the compatible ones.
-                html.Div(
-                    id="dendrogram-panel",
-                    className="section-divider",
-                    style={"display": "none"},
-                    children=[
-                        html.H2("Dendrogram Explorer", className="section-title"),
-                        html.P(
-                            "Going from k-1 to k clusters, one cluster splits in two. Choose a k: the tree is walked from the "
-                            "smallest k up to that k. Each step shows the tree and the embedding, the anatomy of the cluster "
-                            "that splits and of the two it gives, and a table describing them. The labels for each k come from "
-                            "a tuning compatible with this run.",
-                            className="section-intro",
-                        ),
-                        html.Div(
-                            className="cluster-chooser cluster-chooser-wide",
-                            children=[
-                                html.Label("Compatible tuning", className="picker-label"),
-                                dcc.Dropdown(id="dendrogram-tuning-picker", clearable=False),
-                            ],
-                        ),
-                        html.Div(id="dendrogram-tuning-note"),
-                        html.Div(
-                            className="cluster-chooser",
-                            children=[
-                                html.Label("k", className="picker-label"),
-                                dcc.Dropdown(id="dendrogram-k-picker", clearable=False),
-                            ],
-                        ),
-                        html.Div(
-                            className="cluster-chooser",
-                            children=[
-                                html.Label("Map", className="picker-label"),
-                                dcc.Dropdown(
-                                    id="dendrogram-map-picker", clearable=False, value="lesion",
-                                    options=[{"label": label, "value": value} for value, label in DENDROGRAM_MAP_MODALITIES.items()],
+                                html.H2("Disconnection per cluster", className="section-heading"),
+                                # 30-09-26: two readings of the same subjects, explicitly chosen rather
+                                # than one silently assumed - see DISCONNECTION_PERCENT_MODE's comment.
+                                html.Div(
+                                    [
+                                        html.Span("Map", className="grid-row-label"),
+                                        *[
+                                            html.Button(
+                                                DISCONNECTION_MAP_MODE_LABELS[mode],
+                                                id={"type": "disconnection-mode-btn", "mode": mode},
+                                                n_clicks=0,
+                                                className="active" if mode == DEFAULT_DISCONNECTION_MAP_MODE else "",
+                                            )
+                                            for mode in DISCONNECTION_MAP_MODE_LABELS
+                                        ],
+                                    ],
+                                    className="color-buttons grid-row",
                                 ),
+                                html.Div(id="disconnection-map-content"),
+                                html.Div(
+                                    className="save-btn-row",
+                                    children=[
+                                        html.Button("Save HTML", id="disconnection-save-btn", n_clicks=0, className="save-btn"),
+                                        html.Button("Save PNG", id="disconnection-png-btn", n_clicks=0, className="save-btn"),
+                                    ],
+                                ),
+                                dcc.Download(id="disconnection-download"),
+                                dcc.Download(id="disconnection-png-download"),
                             ],
                         ),
-                        html.H2("Agglomerative decomposed", className="dendrogram-steps-title"),
-                        dcc.Loading(html.Div(id="dendrogram-steps-content")),
+                        # Hidden by default (style toggled by _update_cluster_picker below, same condition
+                        # as cluster-map-panel/disconnection-map-panel - run.pipeline == "clustering") -
+                        # 29-09-26, on request: shown *after* the two per-cluster map panels above (moved
+                        # there the same day, from its first position above them), driven by the *same*
+                        # "Cluster" dropdown they already share (cluster-picker itself is defined inside
+                        # cluster-map-panel above - Dash resolves callbacks by component id regardless of
+                        # where in the tree that id physically lives).
+                        html.Div(
+                            id="representative-subject-panel",
+                            className="anatomy-panel",
+                            style={"display": "none"},
+                            children=[
+                                html.H2("Representative subject of the cluster", className="section-heading"),
+                                html.Div(id="representative-subject-content"),
+                                html.Div(
+                                    className="save-btn-row",
+                                    children=[
+                                        html.Button("Save HTML", id="representative-save-btn", n_clicks=0, className="save-btn"),
+                                        html.Button("Save PNG", id="representative-png-btn", n_clicks=0, className="save-btn"),
+                                    ],
+                                ),
+                                dcc.Download(id="representative-download"),
+                                dcc.Download(id="representative-png-download"),
+                            ],
+                        ),
+                        # Hidden by default (style toggled by _update_cluster_picker below, same condition
+                        # as cluster-map-panel - run.pipeline == "clustering") - 29-09-26, on request: last
+                        # of the per-cluster panels, driven by the same shared cluster-picker. Visible for
+                        # any clustering.py run regardless of modality (age/sex/education/NIHSS/lesion
+                        # volume come from the subject registry, not from a disconnectome/lesion file).
+                        html.Div(
+                            id="cluster-description-panel",
+                            className="anatomy-panel",
+                            style={"display": "none"},
+                            children=[
+                                html.H2("Cluster description", className="section-heading"),
+                                html.Div(id="cluster-description-content"),
+                            ],
+                        ),
+                        # Hidden by default (style toggled by _update_cluster_picker below, same condition as
+                        # the other per-cluster panels) - 07-10-26, on request: last panel of the page. Not
+                        # driven by cluster-picker: it compares every cluster of the run at once.
+                        html.Div(
+                            id="cluster-composition-panel",
+                            className="anatomy-panel",
+                            style={"display": "none"},
+                            children=[
+                                html.H2("Cluster composition", className="section-heading"),
+                                html.Div(id="cluster-composition-content"),
+                            ],
+                        ),
+                        # Hidden by default (style toggled by _update_cluster_picker, same condition as the other
+                        # clustering panels) - 16-10-26, on request: the whole-run geometric indices, after the
+                        # composition panel. Like it, not driven by cluster-picker.
+                        html.Div(
+                            id="cluster-quality-panel",
+                            className="anatomy-panel",
+                            style={"display": "none"},
+                            children=[
+                                html.H2("Clustering evaluation", className="section-heading"),
+                                html.Div(id="cluster-quality-content"),
+                                # Enabled only while an adp run's distance matrix is being computed in the background.
+                                dcc.Interval(id="cluster-quality-poll", interval=_QUALITY_POLL_MS, disabled=True),
+                            ],
+                        ),
+                    ],
+                ),
+                html.Div(
+                    id="tab-dendrogram",
+                    className="tab-content",
+                    style={"display": "none"},
+                    children=[
+                        # Hidden by default (style toggled by _update_dendrogram_panel below): only an agglomerative
+                        # clustering run has a tree. 21-10-26, on request: a section of its own, the last of the page,
+                        # like "Clustering Explorer" (section-divider, not one more .anatomy-panel): it follows the tree
+                        # k by k on a tuning that reproduces this production run, chosen by the user among the compatible ones.
+                        html.Div(
+                            id="dendrogram-panel",
+                            className="section-divider",
+                            style={"display": "none"},
+                            children=[
+                                html.H2("Dendrogram Explorer", className="section-title"),
+                                html.P(
+                                    "Going from k-1 to k clusters, one cluster splits in two. Choose a k: the tree is walked from the "
+                                    "smallest k up to that k. Each step shows the tree and the embedding, the anatomy of the cluster "
+                                    "that splits and of the two it gives, and a table describing them. The labels for each k come from "
+                                    "a tuning compatible with this run.",
+                                    className="section-intro",
+                                ),
+                                html.Div(
+                                    className="cluster-chooser cluster-chooser-wide",
+                                    children=[
+                                        html.Label("Compatible tuning", className="picker-label"),
+                                        dcc.Dropdown(id="dendrogram-tuning-picker", clearable=False),
+                                    ],
+                                ),
+                                html.Div(id="dendrogram-tuning-note"),
+                                html.Div(
+                                    className="cluster-chooser",
+                                    children=[
+                                        html.Label("k", className="picker-label"),
+                                        dcc.Dropdown(id="dendrogram-k-picker", clearable=False),
+                                    ],
+                                ),
+                                html.Div(
+                                    className="cluster-chooser",
+                                    children=[
+                                        html.Label("Map", className="picker-label"),
+                                        dcc.Dropdown(
+                                            id="dendrogram-map-picker", clearable=False, value="lesion",
+                                            options=[{"label": label, "value": value} for value, label in DENDROGRAM_MAP_MODALITIES.items()],
+                                        ),
+                                    ],
+                                ),
+                                html.H2("Agglomerative decomposed", className="dendrogram-steps-title"),
+                                dcc.Loading(html.Div(id="dendrogram-steps-content")),
+                            ],
+                        ),
                     ],
                 ),
                 ],
@@ -4597,11 +4687,52 @@ def build_app(
                 className="page-index",
                 children=[
                     html.Summary("Index"),
-                    html.Nav(id="page-index-links", children=_index_links(index_entries_for(None))),
+                    html.Nav(id="page-index-links", children=_index_links(index_entries_for(None, TAB_EMBEDDING))),
                 ],
             ),
         ],
     )
+
+    @app.callback(
+        Output("selected-page-tab", "data"),
+        Input({"type": "page-tab-btn", "tab": ALL}, "n_clicks"),
+        Input("run-picker", "value"),
+        State("selected-page-tab", "data"),
+        prevent_initial_call=True,
+    )
+    def _select_page_tab(_all_n_clicks: list[int], run_key: str | None, current: str):
+        if isinstance(ctx.triggered_id, dict):
+            return ctx.triggered_id["tab"]
+        if run_key in (None, UNSET):
+            raise PreventUpdate
+        return active_page_tab(runs_by_key[run_key], current)
+
+    @app.callback(
+        Output({"type": "page-tab-btn", "tab": ALL}, "className"),
+        Output({"type": "page-tab-btn", "tab": ALL}, "style"),
+        Output("page-tab-bar", "style"),
+        Output("tab-embedding", "style"),
+        Output("tab-clustering", "style"),
+        Output("tab-dendrogram", "style"),
+        Input("selected-page-tab", "data"),
+        Input("run-picker", "value"),
+        State({"type": "page-tab-btn", "tab": ALL}, "id"),
+    )
+    def _apply_page_tab(selected: str | None, run_key: str | None, ids: list[dict]):
+        """Shows the active tab, marks its button and hides the buttons of the tabs the run has not got (and the whole
+        bar when the run has only one)."""
+        if run_key is None:
+            raise PreventUpdate
+        if run_key == UNSET:  # nothing is shown: run-content is hidden, and the bar and tabs stay as they were
+            raise PreventUpdate
+        run = runs_by_key[run_key]
+        available = page_tabs_for(run)
+        active = active_page_tab(run, selected)
+        classes = ["tab-btn active" if button["tab"] == active else "tab-btn" for button in ids]
+        styles = [{} if button["tab"] in available else {"display": "none"} for button in ids]
+        bar_style = {} if len(available) > 1 else {"display": "none"}
+        tab_styles = [{"display": "block"} if tab == active else {"display": "none"} for tab in PAGE_TAB_LABELS]
+        return classes, styles, bar_style, *tab_styles
 
     @app.callback(
         Output("run-content", "style"),
@@ -4923,13 +5054,16 @@ def build_app(
         Output("cluster-map-content", "children"),
         Input("run-picker", "value"),
         Input("cluster-picker", "value"),
+        Input("selected-page-tab", "data"),
     )
-    def _update_cluster_map(run_key: str | None, cluster_label: int | str | None):
+    def _update_cluster_map(run_key: str | None, cluster_label: int | str | None, selected_tab: str | None):
         if run_key in (None, UNSET) or cluster_label is None:
             raise PreventUpdate
         run = runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
+        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
+            return []
         if cluster_label == ALL_CLUSTERS:
             embedding, embedding_message = _run_embedding(run)
             return all_clusters_content_for(
@@ -4942,13 +5076,16 @@ def build_app(
         Output("representative-subject-content", "children"),
         Input("run-picker", "value"),
         Input("cluster-picker", "value"),
+        Input("selected-page-tab", "data"),
     )
-    def _update_representative_subject(run_key: str | None, cluster_label: int | str | None):
+    def _update_representative_subject(run_key: str | None, cluster_label: int | str | None, selected_tab: str | None):
         if run_key in (None, UNSET) or cluster_label is None:
             raise PreventUpdate
         run = runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
+        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
+            return []
         if cluster_label == ALL_CLUSTERS:
             return html.P("Choose a cluster to see its representative subject.", className="status-message")
         try:
@@ -4969,13 +5106,16 @@ def build_app(
         Output("cluster-description-content", "children"),
         Input("run-picker", "value"),
         Input("cluster-picker", "value"),
+        Input("selected-page-tab", "data"),
     )
-    def _update_cluster_description(run_key: str | None, cluster_label: int | str | None):
+    def _update_cluster_description(run_key: str | None, cluster_label: int | str | None, selected_tab: str | None):
         if run_key in (None, UNSET) or cluster_label is None:
             raise PreventUpdate
         run = runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
+        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
+            return []
         if cluster_label == ALL_CLUSTERS:
             return html.P("Choose a cluster to see its description.", className="status-message")
         return cluster_description_content_for(run_metadata(run), cluster_label)
@@ -4983,13 +5123,16 @@ def build_app(
     @app.callback(
         Output("cluster-composition-content", "children"),
         Input("run-picker", "value"),
+        Input("selected-page-tab", "data"),
     )
-    def _update_cluster_composition(run_key: str | None):
+    def _update_cluster_composition(run_key: str | None, selected_tab: str | None):
         if run_key in (None, UNSET):
             raise PreventUpdate
         run = runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
+        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
+            return []
         return cluster_composition_content_for(run_metadata(run))
 
     @app.callback(
@@ -4997,13 +5140,16 @@ def build_app(
         Output("cluster-quality-poll", "disabled"),
         Input("run-picker", "value"),
         Input("cluster-quality-poll", "n_intervals"),
+        Input("selected-page-tab", "data"),
     )
-    def _update_cluster_quality(run_key: str | None, _n_intervals: int):
+    def _update_cluster_quality(run_key: str | None, _n_intervals: int, selected_tab: str | None):
         if run_key in (None, UNSET):
             raise PreventUpdate
         run = runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
+        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
+            return [], True  # nothing shown, so nothing to poll for (reopening the tab restarts it)
         if run.method == "adp":
             content, pending = adp_quality_content_for(run, summary_of=_cached_adp_summary)
             return content, not pending
@@ -5086,8 +5232,13 @@ def build_app(
         Input("dendrogram-tuning-picker", "value"),
         Input("dendrogram-k-picker", "value"),
         Input("dendrogram-map-picker", "value"),
+        Input("selected-page-tab", "data"),
     )
-    def _update_dendrogram_steps(run_key: str | None, tuning_value: str | None, k: int | None, modality: str | None):
+    def _update_dendrogram_steps(
+        run_key: str | None, tuning_value: str | None, k: int | None, modality: str | None, selected_tab: str | None
+    ):
+        if run_key not in (None, UNSET) and not tab_is_active(runs_by_key[run_key], selected_tab, TAB_DENDROGRAM):
+            return []
         context = _dendrogram_context(run_key, tuning_value, k, modality)
         if isinstance(context, html.P):
             return context
@@ -5256,13 +5407,16 @@ def build_app(
         Input("run-picker", "value"),
         Input("cluster-picker", "value"),
         Input("selected-disconnection-mode", "data"),
+        Input("selected-page-tab", "data"),
     )
-    def _update_disconnection_map(run_key: str | None, cluster_label: int | str | None, map_mode: str):
+    def _update_disconnection_map(run_key: str | None, cluster_label: int | str | None, map_mode: str, selected_tab: str | None):
         if run_key in (None, UNSET) or cluster_label is None:
             raise PreventUpdate
         run = runs_by_key[run_key]
         if run.modality != "sdc" or run.pipeline != "clustering":
             raise PreventUpdate
+        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
+            return []
         if cluster_label == ALL_CLUSTERS:
             embedding, embedding_message = _run_embedding(run)
             return all_clusters_content_for(
@@ -5343,11 +5497,15 @@ def build_app(
     @app.callback(
         Output("page-index-links", "children"),
         Input("run-picker", "value"),
+        Input("selected-page-tab", "data"),
     )
-    def _update_page_index(run_key: str | None):
+    def _update_page_index(run_key: str | None, selected_tab: str | None):
         if run_key is None:
             raise PreventUpdate
-        return _index_links(index_entries_for(None if run_key == UNSET else runs_by_key[run_key]))
+        if run_key == UNSET:
+            return _index_links(index_entries_for(None, TAB_EMBEDDING))
+        run = runs_by_key[run_key]
+        return _index_links(index_entries_for(run, active_page_tab(run, selected_tab)))
 
     def _preload_stores() -> None:
         """Reads every subject of every clustering run once, in the background, into the two

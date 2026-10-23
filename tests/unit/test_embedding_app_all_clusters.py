@@ -207,6 +207,9 @@ def _app(tmp_path, run):
     return build_app([run], _lesion_cfg(tmp_path / "data"), _sdc_cfg(tmp_path / "data"), _clustering_params_file(tmp_path), tmp_path / "cache")
 
 
+CLUSTERING_TAB = ("selected-page-tab", "data", "clustering")
+
+
 def _post(app, outputs, inputs, state=()):
     specs = [{"id": component, "property": prop} for component, prop in outputs]
     names = [f"{component}.{prop}" for component, prop in outputs]
@@ -240,7 +243,7 @@ def test_all_in_the_lesion_map_panel_draws_every_cluster(tmp_path):
 
     response = _post(
         _app(tmp_path, run), [("cluster-map-content", "children")],
-        [("run-picker", "value", run.key), ("cluster-picker", "value", ALL_CLUSTERS)],
+        [("run-picker", "value", run.key), ("cluster-picker", "value", ALL_CLUSTERS), CLUSTERING_TAB],
     )
 
     assert response.status_code == 200
@@ -253,7 +256,7 @@ def test_all_in_the_disconnection_panel_draws_every_cluster_of_an_sdc_run(tmp_pa
 
     response = _post(
         _app(tmp_path, run), [("disconnection-map-content", "children")],
-        [("run-picker", "value", run.key), ("cluster-picker", "value", ALL_CLUSTERS), ("selected-disconnection-mode", "data", "percent")],
+        [("run-picker", "value", run.key), ("cluster-picker", "value", ALL_CLUSTERS), ("selected-disconnection-mode", "data", "percent"), CLUSTERING_TAB],
     )
 
     assert response.status_code == 200
@@ -265,7 +268,7 @@ def test_all_in_the_per_cluster_panels_asks_to_choose_a_cluster(tmp_path):
     app = _app(tmp_path, run)
 
     for output in ("representative-subject-content", "cluster-description-content"):
-        response = _post(app, [(output, "children")], [("run-picker", "value", run.key), ("cluster-picker", "value", ALL_CLUSTERS)])
+        response = _post(app, [(output, "children")], [("run-picker", "value", run.key), ("cluster-picker", "value", ALL_CLUSTERS), CLUSTERING_TAB])
 
         assert response.status_code == 200
         assert "Choose a cluster" in json.dumps(response.get_json()["response"])
@@ -276,7 +279,7 @@ def test_a_single_cluster_still_gets_its_own_panel_not_the_overview(tmp_path):
 
     response = _post(
         _app(tmp_path, run), [("cluster-map-content", "children")],
-        [("run-picker", "value", run.key), ("cluster-picker", "value", 0)],
+        [("run-picker", "value", run.key), ("cluster-picker", "value", 0), CLUSTERING_TAB],
     )
 
     assert "all-clusters-overview" not in json.dumps(response.get_json()["response"])

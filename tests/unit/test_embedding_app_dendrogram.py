@@ -457,7 +457,8 @@ def test_a_tuning_value_left_over_from_another_run_updates_nothing(cohort, app):
 STEPS_OUTPUT = [("dendrogram-steps-content", "children")]
 def _steps_inputs(cohort, k):
     return [("run-picker", "value", cohort["run"].key), ("dendrogram-tuning-picker", "value", str(cohort["tuning_dir"])),
-            ("dendrogram-k-picker", "value", k), ("dendrogram-map-picker", "value", "lesion")]
+            ("dendrogram-k-picker", "value", k), ("dendrogram-map-picker", "value", "lesion"),
+            ("selected-page-tab", "data", "dendrogram")]
 
 
 def test_steps_callback_walks_the_tree_down_to_k(cohort, app):
@@ -511,3 +512,12 @@ def test_the_walk_starts_right_after_the_pickers_with_no_overview_of_every_clust
 
     assert "dendrogram-overview-content" not in str(panel.to_plotly_json())
     assert "Agglomerative decomposed" in texts
+
+
+def test_steps_callback_builds_nothing_while_another_tab_is_shown(cohort, app):
+    inputs = [*_steps_inputs(cohort, 3)[:-1], ("selected-page-tab", "data", "clustering")]
+
+    response = _post(app, STEPS_OUTPUT, inputs)
+
+    assert response.status_code == 200
+    assert response.get_json()["response"]["dendrogram-steps-content"]["children"] == []
