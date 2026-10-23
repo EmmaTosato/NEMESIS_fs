@@ -1,6 +1,6 @@
 # Problemi aperti e cose da fare — NEMESIS
 
-Ultimo aggiornamento: 19-10-26 (aggiunto il modello nullo per la silhouette).
+Ultimo aggiornamento: 23-10-26 (lateralità tutta geometrica; guida del pannello «Clustering evaluation» da riscrivere).
 
 Elenco vivo di ciò che è **aperto adesso**: problemi noti non risolti, decisioni non prese, lavori iniziati e non finiti. Una voce si cancella quando è chiusa — non si tiene lo storico qui.
 
@@ -79,11 +79,32 @@ Decisione dell'utente (21-10-26): **non** rilanciare `mask_fc.py` per ora. Non �
 
 ## 🟡 Lavori da fare
 
+### Lateralità: calcolarla tutta dalla maschera (geometrica), non tenere il lato clinico del tsv
+
+**Decisione (23-10-26, da implementare)**: `lesion_side` va calcolato per **tutti** i soggetti dalla maschera (indice di lateralità geometrico), senza conservare il lato clinico del tsv dove esiste. Oggi il registro tiene il valore clinico e usa quello geometrico solo per riempire le celle vuote (`lesion_side_from`, `lesion_side_source`).
+
+- **Perché**: una sola definizione per tutta la coorte, calcolata allo stesso modo ovunque. Il lato clinico esiste solo per ~1445 soggetti, ha un significato diverso (il `both` clinico non coincide con una maschera bilaterale) e per WashU è in disaccordo con la maschera in 11 soggetti su 162.
+- **Da fare**: togliere la precedenza al clinico in `enrich_metadata` (`lesion_side_from` scrive sempre, `geometric_override_datasets` e la distinzione `clinical`/`geometric` in `lesion_side_source` perdono senso), aggiornare `docs/guides/metadata.md`, `docs/dev/metadata.md` e `lesion_laterality.md`, rigenerare `participants.csv`.
+- **Legame con la voce WashU** (sopra): la decisione A («`participants.csv` riporta il lato clinico per gli 11») viene superata. Le 6 maschere probabilmente capovolte restano un limite noto: con il lato geometrico il `lesion_side` di quei soggetti segue la maschera, non l'etichetta clinica.
+- **Da decidere**: soglia per `both` sull'indice di lateralità (oggi non c'è un valore che riduca la differenza col `both` clinico, vedi `knowledge/notes/neuroimaging/lesion_laterality.md`).
+
+### Sede della lesione: ricategorizzare l'etichetta «cortex»
+
+**Da fare (23-10-26)**: rivedere come l'etichetta corticale entra nelle categorie di sede. Oggi `cortex_only` e `cortex_white_boundary` (i voxel in cui i due atlanti Harvard-Oxford, corticale e «Cerebral White Matter», si sovrappongono) sono due categorie separate (`src/features/lesion_location.py`), e i voxel con la sola etichetta `Cerebral Cortex` dell'atlante sotto-corticale finiscono in `unlabeled` (7.862 dei 15.409 voxel `unlabeled` a 2 mm, `docs/dev/metadata.md`).
+
+- **Non ancora deciso**: la nuova ripartizione (per esempio fondere o spostare `cortex_white_boundary`, assegnare a `cortex_only` i voxel `Cerebral Cortex` oggi `unlabeled`).
+- **Legame**: la scelta stretta/larga di «corticale coinvolta» nella voce sulle soglie di sede (sopra) e le colonne `location_cortex_*` di `participants.csv`. Una ricategorizzazione cambia `lesion_metadata.csv`, `participants.csv`, i colori dell'app (`embedding_coloring.py`) e `cluster_pair.py`.
+
 ### Tuning del clustering: cosa resta dopo il registro delle valutazioni
 
 Fatto (21-10-26): blocco `tuning_evaluations` nel config, registro in `src/analysis/clustering_tuning_evaluations.py`, parametri in `config/registry/clustering_evaluations.json`, stessa funzione nello sweep e in `evaluate_clustering_tuning` (`.claude/history/project_changelog.md`). Resta:
 
-- decidere quali metriche entrano nel registro e con quali soglie (Dunn, silhouette per cluster, quota del cluster più grande per agglomerative, membership e persistence di `hdbscan_soft` come valutazioni dichiarate: oggi sono colonne dello sweep o assenti);
+- **Regola: tutto ciò che si fa durante lo sweep si può rifare con `evaluate_clustering_tuning.json`, e viceversa.** Le colonne che lo sweep scrive in `tuning_results.csv` si ricalcolano con la valutazione `internal_metrics` (dalle etichette salvate, solo con `overwrite: true`); lo sweep le calcola ancora da sé con le stesse funzioni.
+  - Non si ricalcolano dalle etichette: `membership_mean` e `persistence_mean` di `hdbscan_soft`, che nascono dal fit (`hdbscan_soft_fit`). Nessuna valutazione le rifà.
+  - Ancora aperto per gli altri metodi: la regola vale per agglomerative e HDBSCAN; kmeans, gmm, spectral e adp scrivono nello sweep colonne (`inertia`, `bic`/`aic`, ...) che nessuna valutazione ricalcola.
+  - `k_curves` di agglomerative legge `silhouette` e `davies_bouldin` da `tuning_results.csv`: se `internal_metrics` li riscrive, i valori nuovi arrivano alle curve solo con `internal_metrics` dichiarata prima.
+- decidere quali metriche entrano nel registro per agglomerative (Dunn, silhouette per cluster, quota del cluster più grande: oggi Dunn è solo nell'app e nel notebook, la quota non è calcolata per agglomerative);
+- **Embedding Explorer, pannello «Clustering evaluation»: la guida «How to read these indices» (`_quality_guide` in `embedding_app.py`) descrive le metriche di oggi** (silhouette nelle tre sintesi, Calinski-Harabasz, Davies-Bouldin, Dunn, grafico per cluster, i quattro limiti) **e va riscritta quando la scelta delle metriche è fatta**; stessa sorte per la guida di `adp` (`_adp_guide`) e per la tabella degli indici sopra. Oggi, per un run con `metric` non euclidea (es. cosine), il pannello mostra la silhouette nella metrica del run e «—» per Calinski-Harabasz, Davies-Bouldin e Dunn (come nello sweep): anche questa regola segue la scelta;
 - i testi del report (`HINT_*`, `REPORT_TERMS`) sono costanti in `src/analysis/clustering_tuning_report.py`: farli arrivare da `docs/` e `knowledge/` perché non divergano;
 - il report è scritto dal codice (sweep con `write_report`, o `evaluate_clustering_tuning`), non da un notebook: `clustering_tuning_explorer` è stato eliminato il 21-10-26; ciò che provava lo si prova in `clustering_evaluation` (da spostare in `pipeline_building`) e poi entra nel registro e nel modulo del report;
 - le figure delle valutazioni sono salvate a 150 dpi (`FIGURE_DPI` in `clustering_tuning_evaluations.py`): alzare la qualità;
@@ -117,17 +138,23 @@ Fuori dal primo giro di implementazione (19-10-26), da riprendere dopo aver deci
 Il giro ha allineato docs, note e notebook alla regola «il markdown di un notebook non è fonte di informazione nuova». Restano questi punti.
 
 **Verifiche non fatte**
-- Il contenuto dei docs riscritti dagli agenti (circa 30 file tra `docs/` e `knowledge/notes/`) è stato controllato per struttura (link, date, titoli, JSON), non riga per riga. Misure riportate dagli agenti e non ricalcolate: i pesi di `bcbtoolkit/` e il totale in `docs/guides/datasets.md` (circa 8,4 GB e 12 GB), il «52 su 169» soggetti di `fc_analysis`, le 42 componenti per il 90% di varianza sul `16-10_s2.4-vol` (il 42 è attribuito al `07-10`, come nel notebook di replica).
-- `management/cheatsheets/`: controllate solo `pca.md`, `pca-varimax.md`, `agglomerative.md`, `hdbscan.md`. Non controllate contro le note: `adp.md`, `kmeans.md`, `umap.md`, `pacmap.md`.
+- Il contenuto dei docs riscritti dagli agenti (circa 30 file tra `docs/` e `knowledge/notes/`) è stato controllato per struttura (link, date, titoli, JSON), non riga per riga. Misure riportate dagli agenti e non ricalcolate: il «52 su 169» soggetti di `fc_analysis` (`mask_summary.csv` ha 169 righe per combinazione, ma il 52 non compare nei file letti) e le 42 componenti per il 90% di varianza: l'output salvato di `pca_evaluation.ipynb` conferma 42 per il `16-10_s2.4-vol` (90,1%), mentre `docs/dev/covariance_pca.md` attribuisce il 42 al `07-10_s2.4-vol` e il notebook di replica non ha output salvato per verificarlo.
+- **Cifre di `docs/dev/covariance_pca.md` senza output salvato**: i circa 25,7 GB di memoria di `sklearn.decomposition.PCA` sul `07-10_s2.4-vol` e la correlazione 0,74-0,91 (mediana 0,84) tra mappa *t* e mappa dei pesi. I GB delle matrici (6,8 e 5,3) e delle matrici quadrate (413 e 680) tornano, in GB decimali; `max_matrix_gib` è invece in GiB.
+- **Accordo senza le inversioni piene**: `lesion_laterality.md` e `docs/guides/metadata.md` dicono 98,4% senza i 15 soggetti con lato opposto e |LI| ≥ 0,95; da `lesion_metadata.csv` e `participants.csv` il calcolo dà 1408/1430 = 98,5%. Può essere una differenza di troncamento o nella definizione di «inversione».
+- **Cifre delle note sul clustering non ricalcolate**: in `knowledge/notes/dim_reduction_clustering/clustering_methods/` l'84% di coppie a distanza dice 1 sulle lesioni e lo 0,0015% sulle mappe SDC (`adp.md`, `docs/guides/evaluation.md`), i 30-55 secondi per 56 combinazioni HDBSCAN (`hdbscan.md`), la quota 89% con γ=5 (`spectral.md`; per γ=0,1 e γ=1 il ricalcolo dà 7% e 66%, come scritto) e il «Silhouette Coefficient: 0.753» dell'esempio di scikit-learn (`evaluation_metrics.md`). Le fasce di Kaufman & Rousseeuw restano da fonti secondarie (libro non consultato).
+- **Riferimenti a riga nel debug report**: `docs/debugging/debug_21_10_26.md` cita `src/analysis/consensus_clustering.py:260-276`, righe che esistevano al commit `0b49ccc` (276 righe) e non più dopo `1e43759` (191 righe, rimozione di Evidence Accumulation). Per un report storico è accettabile; non va riletto contro il file attuale.
+- `management/cheatsheets/`: ogni numero e ogni termine tra apici delle schede di metodo compare nella nota da cui deriva, tranne i valori degli esempi giocattolo, di cui è stata controllata l'aritmetica (`adp.md`, `kmeans.md`, `pca-varimax.md`, `hdbscan.md`); per `umap.md` e `pacmap.md` sono controllati parametri e valori numerici contro le note, non ogni frase. Non verificato il rimando delle schede alle sezioni di approfondimento. `clustering_metrics_report.md` è un audit dello stato precedente (soglie sparse, criterio «usabile», silhouette di HDBSCAN): non è una scheda e non è riallineato.
+- **Il criterio «usabile»** (3-30 cluster, rumore ≤ 25%, cluster più grande ≤ 60%) è tolto da `docs/experiments/s2.4-vol.md`; resta in `docs/experiments/s1.4-vol.md`, `s2.4-stream.md` e nel diagramma di `docs/experiments/pipelines.md`. Le tabelle di `s2.4-vol.md` e `s1.4-vol.md` citano silhouette di tuning di HDBSCAN scritte quando la silhouette si calcolava ancora per quel metodo: sono i valori delle run di allora.
+- **Valori di de Bodt et al. 2025 (Tabella 2)** citati in `dim_reduction_methods/pca.md` e `evaluation.md` (conservazione dei 10 vicini 0,02-0,04 per PCA e 0,20-0,46 per t-SNE, correlazione delle distanze 0,83-0,92): la tabella è un'immagine nella copia estratta, non verificabili dal testo; è verificato solo l'enunciato qualitativo (t-SNE migliore sul locale, PCA/MDS sul globale).
+- **«42 componenti» in `pca_varimax.md` e `covariance_pca.md`**: stessa attribuzione al `07-10_s2.4-vol` già annotata sopra; il 42 è confermato solo per il `16-10_s2.4-vol`.
 - `dendrogram_embedding_explorer.ipynb`: la modifica al codice (`split_at` senza `labels_previous`) non è stata provata con una riesecuzione.
 - **Voci nuove di `.claude/history/` con motivazione ricavata dai vecchi docs e non dai commit**: git conferma le date e i commit, non le frasi. Riguarda `methods_changelog.md` (03-09-26 agglomerative: «ore per combinazione» con jaccard/dice è una stima non misurata; 06-09-26 SDC voxel-wise: «5 dataset, 1 mm, ribaltamenti e traslazioni intere» non riletto sugli header su disco; 29-09-26 mappe anatomiche: le immagini di confronto `tmp/anatomy_rendering/*.png` non esistono più, restano i prototipi `.py`) e `project_changelog.md` (26-08-26 `write_embeddings_grid`: il doc dava 26-08, il commit che toglie il flag è del 27-08, tenuto 26-08 nel titolo; 29-09-26 pannello «Descrizione del cluster»; 01-09-26 palette e tag dell'embedding).
 - **Design record «project-clustering-tuning-redesign»**: i docs lo citano, ma il file di memoria non esiste più. Se il design non è scritto nei docs, non è scritto da nessuna parte.
 - **Non archiviati nello storico** (decisioni minori): rimozione dei `summaries/` di `dim_reduction` e `clustering` (commit `567630d`, la ragione è ancora in `docs/dev/models.md`) e `tag_param`/`tag_prefix` come liste parallele (commit `625b2c1`, la storia è nel messaggio del commit).
 
 **Incoerenze note, da decidere**
-- **`management/cheatsheets/hdbscan.md`**: il passo «taglia minima» dice che i punti del pezzo piccolo «escono dal cluster padre», mentre l'esempio della scheda e `clustering.md` dicono che un gruppo di 30 «resta rumore»; il comportamento reale è più sfumato (i punti fuori da un cluster padre selezionato restano nel padre con probabilità bassa). La scheda descrive `eom` e `leaf` come validi per entrambi i metodi, ma nel progetto solo `hdbscan_soft` li fa variare; `hdbscan` di sklearn usa sempre `eom`.
 - **`.claude/CLAUDE.md`** non contiene la regola sul markdown dei notebook; sta solo in `docs/guides/exploration.md`, «Regole di scrittura dei notebook».
-- **Link rotto** in `docs/experiments/s2.4-vol.md`: punta a `results/legacy/sdc_s2.4-vol_07-10/...`, e `results/legacy/` è vuota su disco.
+- **Link a `results/legacy/`** in `docs/experiments/s2.4-vol.md`: verificato, `results/legacy/sdc_s2.4-vol_07-10/` esiste e i file linkati ci sono (`config.md`, `tuning_results.csv`). Le sole voci non risolvibili sono i pattern con `*` e le cartelle generiche scritti nel testo.
 
 **Notebook**
 - `thiebaut_2020_replication.ipynb` ha salvato un errore alla cella 8 (`ValueError`: la cache in `results/pipeline_building/thiebaut_2020_replication/07-10_s2.4-vol` viene da un'altra matrice). È la guardia voluta del notebook; per farlo ripartire si cancella la cartella della cache oppure si imposta `USE_CACHE = False`. Non rieseguito in questo giro, e non è stato modificato.
