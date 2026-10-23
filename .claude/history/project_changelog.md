@@ -6,6 +6,12 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 23-10-26 — Tolte la silhouette macro e il cluster peggiore, e le etichette 2D
+
+**Silhouette macro e silhouette del cluster peggiore**: tolte da `SilhouetteBreakdown` (`macro`, `minimum`), da `GeometricSummary` (`silhouette_macro`, `silhouette_min`), dal pannello geometrico dell'Embedding Explorer (righe e voce della guida «le tre sintesi») e dal pannello adp (stesse due righe, perché usa lo stesso `SilhouetteBreakdown`). Restano la silhouette media sui soggetti e la tabella per cluster (`n`, `silhouette_mean`, `share_negative`; in produzione `silhouette_per_cluster.csv`). Scelta dell'utente. Non aggiornato: `notebooks/post-results_analysis/clustering_evaluation.ipynb` (celle 2, 2.1 e 2.2 usano `macro`, `minimum`, `silhouette_min`) e `management/cheatsheets/clustering_metrics_report.md` (audit dello stato precedente): il notebook va corretto o svuotato.
+
+**Etichette 2D**: nessun codice le generava più (il generatore stava nel notebook eliminato il 21-10-26). Tolti dal report i link a `labels_2d_<linkage>_<metric>.png` e il suo blocco «Come leggerlo» (`HINT_LABELS_2D`); spostati fuori da `results/` (backup nello scratchpad della sessione) i 28 file `labels_2d_*.png`, `labels2d_*.png` e `view2d_*.png`; rigenerati i 16 `report.md` di agglomerative.
+
 ## 23-10-26 — Report di agglomerative con Dunn e quota maggiore; tuning veri rigenerati con i flussi nuovi
 
 `clustering_tuning_report.py` legge `largest_cluster_share.csv` e `dunn_index.csv` (le valutazioni sono ora richieste da `REPORT_EVALUATIONS`) e le mette come colonne `dunn` e `largest_cluster_share` nelle tabelle per `linkage`; la nota sulla distanza non euclidea include Dunn. Le due colonne si uniscono a `tuning_results.csv` sulle colonne dello sweep (`_with_agglomerative_indices`), e il report rifiuta file con un numero di righe diverso.

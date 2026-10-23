@@ -117,7 +117,7 @@ Guida operativa ai grafici: [`clustering_tuning_guide.md`](../clustering_tuning_
 
 - **Indici interni** ([`evaluation_metrics.md`](evaluation_metrics.md)): silhouette con la metrica del clustering; CH e DB solo con `euclidean` (`NaN` altrimenti). Nessun rumore: `noise_fraction` è sempre 0.
 - **Del modello**: correlazione cofenetica [6] e salto del dendrogramma al k della run (`model_fit_metrics`, `src/analysis/clustering_evaluation.py`). Il fit viene ripetuto e accettato solo se riproduce le etichette salvate.
-- **Silhouette per cluster** (micro, macro, minimo): un cluster con silhouette media bassa o molti valori negativi ha confini ambigui anche se la media globale è buona [7].
+- **Silhouette per cluster** (tabella per cluster): un cluster con silhouette media bassa o molti valori negativi ha confini ambigui anche se la media globale è buona [7].
 
 ---
 

@@ -292,15 +292,12 @@ def weakest_soft_members(labels: np.ndarray, membership: np.ndarray, n_lowest: i
 @dataclass(frozen=True)
 class SilhouetteBreakdown:
     """Silhouette of one run split by cluster. `micro` is the mean over subjects (what
-    sklearn's silhouette_score returns, dominated by the large clusters), `macro` the mean of the
-    per-cluster means (every cluster weighs the same), `minimum` the weakest cluster's mean.
+    sklearn's silhouette_score returns, dominated by the large clusters).
     `subject_labels`/`subject_values` are the silhouette of every subject (noise left out, same order),
     what the panels of the quality figure draw."""
 
     clusters: pd.DataFrame  # index: cluster label; columns: n, silhouette_mean, share_negative
     micro: float
-    macro: float
-    minimum: float
     subject_labels: np.ndarray
     subject_values: np.ndarray
 
@@ -338,8 +335,6 @@ def silhouette_breakdown(labels: np.ndarray, samples: np.ndarray) -> SilhouetteB
     return SilhouetteBreakdown(
         clusters=clusters,
         micro=float(samples.mean()),
-        macro=float(clusters["silhouette_mean"].mean()),
-        minimum=float(clusters["silhouette_mean"].min()),
         subject_labels=np.asarray(labels),
         subject_values=np.asarray(samples),
     )
@@ -458,8 +453,7 @@ def knn_purity(distances: np.ndarray, labels: np.ndarray, k: int) -> KnnPurity:
 @dataclass(frozen=True)
 class GeometricSummary:
     """The geometric indices of one run, on the space it was clustered in, noise (label -1)
-    excluded. `silhouette` is the mean over subjects (micro), `silhouette_macro` the mean of the
-    per-cluster means and `silhouette_min` the weakest cluster's (SilhouetteBreakdown), `clusters`
+    excluded. `silhouette` is the mean over subjects (micro, SilhouetteBreakdown), `clusters`
     the per-cluster table; `largest_cluster_share` is over all subjects, noise included, like
     `noise_fraction`. `subject_labels`/`subject_values` are the silhouette of every subject, noise left out
     (SilhouetteBreakdown). `metric` is the distance the silhouette is measured in (the run's own); Calinski-Harabasz,
@@ -472,8 +466,6 @@ class GeometricSummary:
     largest_cluster_share: float
     noise_fraction: float
     silhouette: float
-    silhouette_macro: float
-    silhouette_min: float
     calinski_harabasz: float
     davies_bouldin: float
     dunn: float
@@ -514,7 +506,7 @@ def geometric_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> 
     return GeometricSummary(
         n_subjects=shape.n_subjects, n_components=X.shape[1], metric=metric, n_clusters=shape.n_clusters,
         largest_cluster_share=shape.largest_cluster_share, noise_fraction=shape.noise_fraction,
-        silhouette=breakdown.micro, silhouette_macro=breakdown.macro, silhouette_min=breakdown.minimum,
+        silhouette=breakdown.micro,
         clusters=breakdown.clusters, subject_labels=breakdown.subject_labels, subject_values=breakdown.subject_values,
         **euclidean_only,
     )

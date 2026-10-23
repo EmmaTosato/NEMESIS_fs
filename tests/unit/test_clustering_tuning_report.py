@@ -15,7 +15,6 @@ from src.analysis.clustering_tuning_report import (
     HINT_DBCV_CURVES,
     HINT_HEATMAP,
     HINT_JUMP,
-    HINT_LABELS_2D,
     curves_hint,
     tuning_report_markdown,
 )
@@ -170,43 +169,32 @@ def test_tuning_report_has_a_cophenetic_table_and_a_jump_table_per_metric(tmp_pa
     assert "| n_clusters | average |" in report.split("## metric = cosine")[1]
 
 
-def test_tuning_report_links_the_images_clustering_wrote_in_the_run_folder_and_only_those(tmp_path):
+def test_tuning_report_links_the_dendrogram_clustering_wrote_in_the_run_folder_and_only_that(tmp_path):
     run_dir = tmp_path / "run"
     run_dir.mkdir()
-    for name in ("dendrogram_metric=euclidean.png", "labels_2d_ward_euclidean.png"):
-        (run_dir / name).write_bytes(b"png")
+    (run_dir / "dendrogram_metric=euclidean.png").write_bytes(b"png")
+    (run_dir / "labels_2d_ward_euclidean.png").write_bytes(b"png")  # no code writes it any more: the report does not know it
 
     report = _agglomerative_report(tmp_path, _curves_results())
 
-    assert "(dendrogram_metric=euclidean.png)" in report and "(labels_2d_ward_euclidean.png)" in report
-    assert "labels_2d_single_euclidean.png" not in report and "dendrogram_metric=cosine.png" not in report
+    assert "(dendrogram_metric=euclidean.png)" in report and "dendrogram_metric=cosine.png" not in report
+    assert "labels_2d" not in report
 
 
 def test_tuning_report_writes_a_how_to_read_line_under_each_table_and_figure_once(tmp_path):
     run_dir = tmp_path / "run"
     run_dir.mkdir()
-    for name in ("dendrogram_metric=euclidean.png", "labels_2d_ward_euclidean.png", "labels_2d_single_euclidean.png"):
-        (run_dir / name).write_bytes(b"png")
+    (run_dir / "dendrogram_metric=euclidean.png").write_bytes(b"png")
 
     report = _agglomerative_report(tmp_path, _curves_results())
 
     # euclidean has ward and single, cosine only average: 2 curves figures (single is not drawn), 2 metrics for each table
-    for hint, count in ((curves_hint((0.0, 1.0), None), 2), (HINT_COPHENETIC, 2), (HINT_JUMP, 2),
-                        (HINT_DENDROGRAM, 1), (HINT_LABELS_2D, 1)):
+    for hint, count in ((curves_hint((0.0, 1.0), None), 2), (HINT_COPHENETIC, 2), (HINT_JUMP, 2), (HINT_DENDROGRAM, 1)):
         assert report.count(_hint(hint)) == count, hint[0][:40]
 
 
-def test_tuning_report_without_the_images_has_no_hint_for_them_and_a_series_hint_moves_to_the_first_image_that_exists(tmp_path):
-    bare = _agglomerative_report(tmp_path, _curves_results())
-    assert HINT_DENDROGRAM[0] not in bare and HINT_LABELS_2D[0] not in bare
-
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
-    (run_dir / "labels_2d_single_euclidean.png").write_bytes(b"png")  # the first of the series (ward) is missing
-    report = _agglomerative_report(tmp_path, _curves_results())
-
-    assert report.count(_hint(HINT_LABELS_2D)) == 1
-    assert report.index("labels_2d_single_euclidean.png") < report.index(HINT_LABELS_2D[0])
+def test_tuning_report_without_the_dendrogram_has_no_hint_for_it(tmp_path):
+    assert HINT_DENDROGRAM[0] not in _agglomerative_report(tmp_path, _curves_results())
 
 
 def test_tuning_report_defines_cophenetic_and_jump_without_a_band(tmp_path):

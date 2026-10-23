@@ -318,7 +318,7 @@ Ultimo pannello della scheda Clustering, per un run di clustering. Dà gli **ind
 
 Una tabella con valore e lettura di (non per `hdbscan` e `hdbscan_soft`, vedi sotto):
 
-- **Silhouette** (da -1 a 1, più alta è meglio) in tre sintesi: media sui soggetti (pesa di più i cluster grandi), media dei cluster (ogni cluster pesa uguale) e **silhouette del cluster peggiore**. Per ogni soggetto confronta la distanza media dal proprio cluster con quella dal cluster più vicino: vicino a 1 cluster netti, vicino a 0 confini ambigui, negativo il soggetto è più vicino a un altro cluster che al proprio
+- **Silhouette** (da -1 a 1, più alta è meglio) come media sui soggetti (pesa di più i cluster grandi). Per ogni soggetto confronta la distanza media dal proprio cluster con quella dal cluster più vicino: vicino a 1 cluster netti, vicino a 0 confini ambigui, negativo il soggetto è più vicino a un altro cluster che al proprio
 - **Calinski-Harabasz** (più alto è meglio): dispersione tra i cluster divisa per la dispersione dentro i cluster
 - **Davies-Bouldin** (più basso è meglio): 0 = cluster compatti e separati
 - **Dunn** (più alto è meglio, sensibile agli outlier): distanza minima tra due cluster divisa per il diametro massimo di un cluster
@@ -346,14 +346,14 @@ Per i run `hdbscan` e `hdbscan_soft` il pannello aggiunge un blocco sull'**appar
 
 Un blocco che non si può calcolare (rifit che non riproduce le etichette, run senza `membership.npy`, run con tutti i soggetti rumore) dice la causa e non nasconde il resto del pannello. I due blocchi costano da meno di un secondo a circa 2 secondi sui run provati e restano in memoria per run.
 
-Subito sotto il titolo del pannello, "Come leggere questi indici" (menu a tendina, chiuso di default) dice la direzione di ogni indice e i limiti della lettura: **nessuno ha un valore di riferimento**. Una nuvola senza cluster divisa da un algoritmo ha comunque una silhouette positiva, e Calinski-Harabasz, Davies-Bouldin e Dunn di un run solo non hanno una scala. Embedding diversi (2 o 10 componenti, lesion o sdc) non sono confrontabili tra loro. Gli indici assumono cluster compatti e convessi, quindi favoriscono `kmeans` e `gmm`: per gli altri metodi un valore basso non dimostra che i cluster siano sbagliati. La lettura sezione per sezione (compresa la silhouette per cluster, micro e macro) è in `docs/guides/evaluation.md`; le fasce della silhouette citate in letteratura sono in `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md`.
+Subito sotto il titolo del pannello, "Come leggere questi indici" (menu a tendina, chiuso di default) dice la direzione di ogni indice e i limiti della lettura: **nessuno ha un valore di riferimento**. Una nuvola senza cluster divisa da un algoritmo ha comunque una silhouette positiva, e Calinski-Harabasz, Davies-Bouldin e Dunn di un run solo non hanno una scala. Embedding diversi (2 o 10 componenti, lesion o sdc) non sono confrontabili tra loro. Gli indici assumono cluster compatti e convessi, quindi favoriscono `kmeans` e `gmm`: per gli altri metodi un valore basso non dimostra che i cluster siano sbagliati. La lettura sezione per sezione (compresa la silhouette per cluster) è in `docs/guides/evaluation.md`; le fasce della silhouette citate in letteratura sono in `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md`.
 
 ### Run `adp`
 
 `adp` clusterizza la distanza dice sulla matrice grezza, che gli indici euclidei sopra misurerebbero in un'altra geometria. Per questi run il pannello mostra invece (sezione 2.2 del notebook), tutti sulla **distanza dice** e sui soli soggetti clusterizzati:
 
 - **Purezza dei 10 vicini**: la quota dei 10 soggetti più vicini che sta nello stesso cluster, accanto al valore **atteso a caso**. Un cluster con 10 soggetti o meno non può raggiungere 1: resta in tabella (colonna "Valutabile") ma fuori dal riassunto.
-- **Silhouette sulla distanza dice**: media sui soggetti, media dei cluster, cluster peggiore, e le barre per cluster.
+- **Silhouette sulla distanza dice**: media sui soggetti e le barre per cluster.
 - **Coppie a distanza 1**: la quota di coppie senza voxel in comune. Va guardata prima della silhouette: se è alta (le lesioni: 84%) quasi tutte le distanze valgono 1 e la silhouette sta vicino a 0 qualunque sia la struttura, quindi si usa la purezza.
 - **Cluster, rumore, soggetti in cluster piccoli, quota con pareggio** (soggetti con vicini a pari distanza), e una tabella con una riga per cluster.
 

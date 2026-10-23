@@ -144,8 +144,6 @@ def test_per_cluster_silhouette_micro_and_macro_differ_on_unbalanced_clusters():
     breakdown = per_cluster_silhouette(X, labels, combo_params={})
 
     assert breakdown.clusters["n"].tolist() == [200, 20]
-    assert breakdown.minimum == breakdown.clusters["silhouette_mean"].min()
-    assert breakdown.micro != pytest.approx(breakdown.macro)  # sklearn's mean is dominated by the big cluster
     assert breakdown.micro == pytest.approx(silhouette_score(X, labels))
     assert breakdown.clusters.loc[1, "share_negative"] > breakdown.clusters.loc[0, "share_negative"]
 
@@ -329,8 +327,6 @@ def test_distance_matrix_silhouette_matches_the_euclidean_breakdown_on_euclidean
     result = distance_matrix_silhouette(pairwise_distances(X), labels)
 
     assert result.micro == pytest.approx(expected.micro)
-    assert result.macro == pytest.approx(expected.macro)
-    assert result.minimum == pytest.approx(expected.minimum)
     pd.testing.assert_frame_equal(result.clusters, expected.clusters)
 
 
@@ -518,8 +514,7 @@ def test_geometric_summary_matches_sklearn_on_well_separated_blobs():
     assert summary.davies_bouldin == pytest.approx(davies_bouldin_score(X, labels))
     assert (summary.n_subjects, summary.n_components, summary.n_clusters) == (90, 2, 3)
     assert summary.largest_cluster_share == pytest.approx(1 / 3) and summary.noise_fraction == 0.0
-    assert summary.silhouette_min <= summary.silhouette and summary.dunn > 0
-    assert summary.silhouette_macro == pytest.approx(summary.clusters["silhouette_mean"].mean())
+    assert summary.dunn > 0
     assert list(summary.clusters["n"]) == [30, 30, 30]
 
 
@@ -564,7 +559,7 @@ def test_geometric_summary_of_a_cosine_run_has_the_cosine_silhouette_and_no_eucl
     assert summary.metric == "cosine"
     assert summary.silhouette == pytest.approx(silhouette_score(X, labels, metric="cosine"))
     assert np.isnan([summary.calinski_harabasz, summary.davies_bouldin, summary.dunn]).all()
-    assert np.isfinite([summary.silhouette_macro, summary.silhouette_min, summary.largest_cluster_share]).all()
+    assert np.isfinite(summary.largest_cluster_share)
 
 
 def test_geometric_summary_of_a_euclidean_run_names_its_metric_and_has_every_index():

@@ -36,7 +36,7 @@ from tests.unit.test_embedding_app import _make_run_dir
 def _summary(**overrides) -> GeometricSummary:
     values = dict(
         n_subjects=5845, n_components=2, metric="euclidean", n_clusters=7, largest_cluster_share=0.412, noise_fraction=0.003,
-        silhouette=0.546, silhouette_macro=0.431, silhouette_min=0.21, calinski_harabasz=17157.442,
+        silhouette=0.546, calinski_harabasz=17157.442,
         davies_bouldin=0.462, dunn=0.0123,
         clusters=pd.DataFrame(
             {"n": [100, 200], "silhouette_mean": [0.21, 0.6], "share_negative": [0.15, 0.01]}, index=[0, 1]
@@ -91,8 +91,9 @@ def _text(component) -> str:
 def test_the_panel_shows_every_index_with_italian_number_formatting():
     text = _text(cluster_quality_content_for(_run(), model_fit_of=_fit, summary_of=lambda _run: _summary()))
 
-    for expected in ("0,546", "0,431", "0,210", "17.157,4", "0,462", "0,0123", "41,2%", "0,3%", "5845 subjects"):
+    for expected in ("0,546", "17.157,4", "0,462", "0,0123", "41,2%", "0,3%", "5845 subjects"):
         assert expected in text
+    assert "0,431" not in text and "worst cluster" not in text and "mean over clusters" not in text  # no macro, no weakest cluster
     assert "How to read these indices" in text
 
 
@@ -102,7 +103,7 @@ def test_a_run_clustered_with_another_metric_has_its_silhouette_and_a_dash_for_t
     content = cluster_quality_content_for(_run("agglomerative"), model_fit_of=_fit, summary_of=lambda _run: cosine)
 
     text = _text(content)
-    assert "0,546" in text and "0,431" in text and "0,210" in text  # the three silhouette summaries
+    assert "0,546" in text  # the mean silhouette, measured in the cosine distance
     assert "nan" not in text.lower() and "—" in text
     assert text.count("Euclidean distance only") == 3  # Calinski-Harabasz, Davies-Bouldin, Dunn
     assert "uses the cosine distance" in text

@@ -237,14 +237,13 @@ def test_distance_matrix_silhouette_matches_sklearn_and_ignores_label_names_and_
     breakdown = distance_matrix_silhouette(distances, labels)
 
     assert breakdown.micro == pytest.approx(silhouette_score(distances, labels, metric="precomputed"))
-    assert -1.0 <= breakdown.minimum <= breakdown.macro <= 1.0
     assert -1.0 <= breakdown.micro <= 1.0
     assert breakdown.clusters["n"].sum() == len(labels)
     assert breakdown.clusters["share_negative"].between(0, 1).all()
 
     order = np.random.default_rng(seed).permutation(len(labels))
     permuted = distance_matrix_silhouette(distances[np.ix_(order, order)], _rename(labels[order], seed))
-    assert permuted.micro == pytest.approx(breakdown.micro) and permuted.macro == pytest.approx(breakdown.macro)
+    assert permuted.micro == pytest.approx(breakdown.micro)
 
 
 @pytest.mark.parametrize("labels", [[0, 0, 0, 0], [0, 1, 2, 3]])
@@ -264,7 +263,9 @@ def test_per_cluster_silhouette_leaves_the_noise_out_whatever_its_names(data, se
     assert breakdown.clusters["n"].sum() == kept.sum()  # il rumore non è né un cluster né un soggetto valutato
     without_noise = per_cluster_silhouette(points[kept], labels[kept], {})
     assert breakdown.micro == pytest.approx(without_noise.micro)
-    assert per_cluster_silhouette(points, _rename_keep_noise(labels, seed), {}).macro == pytest.approx(breakdown.macro)
+    renamed = per_cluster_silhouette(points, _rename_keep_noise(labels, seed), {})
+    assert renamed.micro == pytest.approx(breakdown.micro)
+    assert sorted(renamed.clusters["silhouette_mean"]) == pytest.approx(sorted(breakdown.clusters["silhouette_mean"]))
 
 
 def _rename_keep_noise(labels: np.ndarray, seed: int) -> np.ndarray:
@@ -299,7 +300,7 @@ def test_geometric_summary_is_finite_and_consistent_or_a_documented_error(data):
         assert "undefined" in str(error) or "cannot compute" in str(error) or "at least 2 clusters" in str(error)
         return
     kept = labels != -1
-    values = [summary.silhouette, summary.silhouette_macro, summary.silhouette_min, summary.calinski_harabasz,
+    values = [summary.silhouette, summary.calinski_harabasz,
               summary.davies_bouldin, summary.dunn, summary.noise_fraction, summary.largest_cluster_share]
     assert all(np.isfinite(v) for v in values)
     assert summary.n_subjects == len(labels) and summary.n_components == points.shape[1]
@@ -307,7 +308,7 @@ def test_geometric_summary_is_finite_and_consistent_or_a_documented_error(data):
     assert summary.noise_fraction == pytest.approx((~kept).mean())
     assert summary.largest_cluster_share * len(labels) == pytest.approx(pd.Series(labels[kept]).value_counts().max())
     assert summary.calinski_harabasz >= 0 and summary.davies_bouldin >= 0 and summary.dunn >= 0
-    assert -1 <= summary.silhouette_min <= summary.silhouette_macro <= 1
+    assert -1 <= summary.silhouette <= 1
 
 
 @settings(max_examples=25)
@@ -321,7 +322,7 @@ def test_geometric_summary_does_not_depend_on_row_order_or_on_a_common_offset(da
         return
     order = np.random.default_rng(seed).permutation(len(labels))
     moved = geometric_summary(points[order] + offset, labels[order], {})
-    for name in ("silhouette", "silhouette_macro", "calinski_harabasz", "davies_bouldin", "dunn"):
+    for name in ("silhouette", "calinski_harabasz", "davies_bouldin", "dunn"):
         assert getattr(moved, name) == pytest.approx(getattr(base, name), rel=1e-5, abs=1e-6), name
 
 

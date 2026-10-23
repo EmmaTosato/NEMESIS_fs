@@ -124,12 +124,6 @@ HINT_DENDROGRAM = (
     "dà quel numero di cluster.",
     "Limiti: sono mostrate solo le ultime 30 fusioni, quindi i k piccoli; le altezze non si confrontano tra linkage.",
 )
-HINT_LABELS_2D = (
-    "Cosa mostra: i soggetti su un piano 2D, colorati per cluster, un riquadro per ogni k mostrato. Il piano è un UMAP "
-    "\"gemello\" in 2D, non lo spazio in cui è stato fatto il clustering.",
-    "Cosa non dice: indica dove cadono i cluster, non quanto siano separati nello spazio vero.",
-    "Vale per tutte le immagini di questa serie.",
-)
 HINT_HEATMAP = (
     "Cosa mostra: gli stessi numeri delle tabelle su tutta la griglia `min_cluster_size` × `min_samples`, un riquadro per metrica.",
     "Attenzione: ogni riquadro ha una sua scala di colore adattata ai dati, quindi le differenze piccole sembrano grandi.",
@@ -298,14 +292,9 @@ def _images_section(run_dir: Path, names: list[tuple[str, str, tuple[str, ...] |
 def _dendrogram_section(
     run_dir: Path, results: pd.DataFrame, cophenetic: pd.DataFrame, agreement: pd.DataFrame, jump: pd.DataFrame, metric: str
 ) -> list[str]:
-    """Cophenetic correlation, agreement between linkages, dendrogram jump and the tree/label images of one metric of an
+    """Cophenetic correlation, agreement between linkages, dendrogram jump and the tree image of one metric of an
     agglomerative report."""
-    linkages = ordered(results[results["metric"] == metric]["linkage"].unique(), LINKAGE_ORDER)
     images: list[tuple[str, str, tuple[str, ...] | None]] = [("Dendrogramma (ultime 30 fusioni)", f"dendrogram_metric={metric}.png", HINT_DENDROGRAM)]
-    images += [
-        (f"Etichette sul piano 2D, {linkage}", f"labels_2d_{linkage}_{metric}.png", HINT_LABELS_2D if index == 0 else None)
-        for index, linkage in enumerate(linkages)
-    ]
     return [
         "### Cophenetic correlation", "", _cophenetic_table(cophenetic, metric), "", *_hint_lines(HINT_COPHENETIC),
         "### Accordo tra linkage (ARI)", "", *_agreement_block(agreement, metric),
@@ -344,7 +333,7 @@ def _agglomerative_report_markdown(
         "",
         "- Una sezione per `metric` (la distanza usata): gli indici di `metric` diverse non si confrontano.",
         "- In ogni sezione: curve per `n_clusters`, una tabella per `linkage`, poi gli strumenti per scegliere il **linkage** "
-        "(curve, cophenetic, accordo tra linkage) e quelli per scegliere dove tagliare l'albero, cioè **k** (salto, dendrogramma, etichette 2D).",
+        "(curve, cophenetic, accordo tra linkage) e quelli per scegliere dove tagliare l'albero, cioè **k** (salto, dendrogramma).",
         "- Dati completi: `tuning_results.csv`, `largest_cluster_share.csv`, `dunn_index.csv`, `cophenetic_correlation.csv`, "
         "`linkage_agreement.csv`, `dendrogram_jump.csv`.",
         "- Una cella vuota (–) è un indice non calcolabile per quella combinazione.",

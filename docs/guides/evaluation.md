@@ -45,7 +45,7 @@ L'applicabilità è verificata dal codice: `src/analysis/clustering_evaluation.p
 | Sezione | Metodo di valutazione | Metodi di clustering | Codice |
 |---|---|---|---|
 | 2 | Metriche geometriche: Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn | tutti tranne adp | `clustering_tuning.compute_clustering_metrics`, `dunn_index` |
-| 2.1 | Silhouette per cluster (micro, macro, minimo) | tutti tranne adp | `clustering_evaluation.per_cluster_silhouette` |
+| 2.1 | Silhouette per cluster (tabella e media sui soggetti) | tutti tranne adp | `clustering_evaluation.per_cluster_silhouette` |
 | 2.2 | Purezza dei k vicini, silhouette sulla distanza dice e quota di coppie a distanza 1 | adp | `clustering_evaluation.knn_purity`, `distance_matrix_silhouette`, `saturated_pair_share` |
 | 3 | Metriche del modello: `inertia`, `bic`/`aic`, `cophenetic_correlation`/`dendrogram_jump`, `noise_fraction`/`n_clusters_found` | kmeans, gmm, agglomerative, hdbscan, hdbscan_soft | `clustering_evaluation.model_fit_metrics` |
 | 3.1 | Posizione nel cluster: probabilità media e quota sotto soglia per cluster | hdbscan | `clustering_evaluation.membership_confidence` |
@@ -107,14 +107,14 @@ Nessuno degli indici sotto ha un valore di riferimento proprio per una run sola:
 | Davies-Bouldin (DB) | più basso è meglio | per ogni cluster il caso peggiore del rapporto tra la sua dispersione e la vicinanza al cluster più simile, poi la media; 0 = cluster compatti e separati |
 | Dunn | più alto è meglio | distanza minima tra due cluster divisa per il diametro massimo di un cluster; sensibile agli outlier |
 
-- La tabella aggiunge: numero di cluster, quota del cluster più grande (`largest_cluster_share`), quota di rumore (`noise_fraction`) e `silhouette_min`, la silhouette media del **cluster peggiore** (il `minimum` della 2.1).
+- La tabella aggiunge: numero di cluster, quota del cluster più grande (`largest_cluster_share`), quota di rumore (`noise_fraction`).
 - Una nuvola senza cluster, divisa da un algoritmo, ha comunque una silhouette positiva: il valore da solo non dice se c'è struttura. CH, DB e Dunn di una run sola non hanno una scala. Embedding diversi (2 o 10 componenti, lesion o sdc) non sono confrontabili.
 - Gli indici assumono cluster compatti e convessi: favoriscono `kmeans` e `gmm`, per gli altri metodi un valore basso non dimostra che i cluster siano sbagliati.
 
 **Sezione 2.1, silhouette per cluster**
 
-- Tre sintesi: **micro** (media sui soggetti, pesa di più i cluster grandi), **macro** (media delle medie dei cluster, ogni cluster pesa uguale), **minimum** (il cluster peggiore). Per cluster, `silhouette_mean` e `share_negative` (quota di soggetti con silhouette negativa).
-- Un cluster con silhouette media bassa, o con molti soggetti negativi, ha confini ambigui anche se la media complessiva è buona. Se micro e macro sono molto diversi, cluster grandi e piccoli hanno qualità diversa.
+- Media sui soggetti (**micro**, pesa di più i cluster grandi). Per cluster, `silhouette_mean` e `share_negative` (quota di soggetti con silhouette negativa).
+- Un cluster con silhouette media bassa, o con molti soggetti negativi, ha confini ambigui anche se la media complessiva è buona.
 - Il **minimum si legge insieme a `n`**: un cluster di un solo soggetto ha silhouette 0 per convenzione, uno di 2 o 3 soggetti può avere una media estrema per caso.
 
 **Sezione 2.2, adp**
@@ -123,7 +123,7 @@ Nessuno degli indici sotto ha un valore di riferimento proprio per una run sola:
 - **`pairs_at_distance_1`**: la quota di coppie senza voxel in comune. Va guardata prima della silhouette.
   - **Alta** (lesioni: 84%): quasi tutte le distanze valgono 1, quindi la distanza media da un cluster intero è dominata da coppie a distanza 1 anche se il soggetto ha alcuni vicini veri. La silhouette sta vicino a 0 qualunque sia la struttura: si ignora e si usa la purezza.
   - **Bassa** (sdc: 0,0015%): le distanze sono varie e la silhouette si legge come nella 2.1. Può comunque restare bassa con una purezza alta: la purezza guarda i `K_NEIGHBORS` vicini più prossimi, la silhouette la distanza media da interi cluster, quindi i vicini possono essere coerenti senza che i cluster siano ben separati in media.
-- La silhouette è quella della 2.1 (micro, macro, minimum, rumore escluso), ma sulla distanza dice: non è confrontabile con quella euclidea delle run su embedding.
+- La silhouette è quella della 2.1 (media sui soggetti, rumore escluso), ma sulla distanza dice: non è confrontabile con quella euclidea delle run su embedding.
 - La purezza è in parte circolare: adp forma i cluster proprio su questi vicini, quindi una purezza alta dice che i cluster sono coerenti, non che siano "veri".
 - La matrice delle distanze tra soggetti (`raw_distance`) si calcola una volta per coppia (`input_path`, metrica) e resta in memoria nel kernel: le run adp della stessa matrice la condividono. I soggetti con la riga tutta a zero hanno dice indefinita (denominatore 0): adp li etichetta `-1` e restano fuori. I tempi della matrice nell'app sono in `docs/guides/embedding_app.md` ("Run `adp`").
 

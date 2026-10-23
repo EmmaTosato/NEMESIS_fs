@@ -2559,8 +2559,6 @@ def adp_quality_content_for(
         [f"Purity of the {summary.k} neighbors", _format_number(purity.purity, 3), "higher is better, from 0 to 1"],
         ["Purity expected by chance", _format_number(purity.chance, 3), "to be read next to the purity"],
         ["Dice silhouette (mean over subjects)", _format_number(silhouette.micro, 3), "higher is better, from -1 to 1"],
-        ["Dice silhouette (mean over clusters)", _format_number(silhouette.macro, 3), "every cluster weighs the same"],
-        ["Dice silhouette of the worst cluster", _format_number(silhouette.minimum, 3), "higher is better"],
         ["Pairs at distance 1", share(summary.pairs_at_distance_1), "if it is high the silhouette is not informative"],
         ["Clusters (noise excluded)", str(len(purity.clusters)), ""],
         ["Noise", share(summary.noise_fraction), "of the subjects"],
@@ -2606,11 +2604,6 @@ def _quality_guide() -> html.Details:
                 "for each subject, compares the mean distance from its own cluster with that from the nearest cluster. "
                 "From -1 to 1, higher is better: near 1 the clusters are sharp, near 0 the boundaries are ambiguous, "
                 "negative the subject is in the wrong cluster"
-            )),
-            ("Silhouette, the three summaries", (
-                "the mean over subjects weighs large clusters more; the mean over clusters makes every cluster weigh the same; "
-                "the worst cluster is the lowest mean. If the first two are very different, large and small clusters "
-                "have different quality"
             )),
             ("Calinski-Harabasz", "dispersion between clusters divided by that within clusters. Higher is better"),
             ("Davies-Bouldin", "for each cluster, similarity to the most similar cluster. Lower is better, 0 = compact and separated clusters"),
@@ -2877,8 +2870,6 @@ def cluster_quality_content_for(
 
     rows = [
         ["Silhouette (mean over subjects)", _format_number(summary.silhouette, 3), "higher is better, from -1 to 1"],
-        ["Silhouette (mean over clusters)", _format_number(summary.silhouette_macro, 3), "every cluster weighs the same, even the smallest"],
-        ["Silhouette of the worst cluster", _format_number(summary.silhouette_min, 3), "higher is better"],
         ["Calinski-Harabasz", *euclidean_only(summary.calinski_harabasz, 1, "higher is better")],
         ["Davies-Bouldin", *euclidean_only(summary.davies_bouldin, 3, "lower is better")],
         ["Dunn", *euclidean_only(summary.dunn, 4, "higher is better")],
