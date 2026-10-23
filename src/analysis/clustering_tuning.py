@@ -48,6 +48,7 @@ from src.analysis.consensus_clustering import (
     run_rsc_repeats,
 )
 from src.analysis.distances import PRECOMPUTABLE_METRICS, SUPPORTED_BINARY_METRICS, pairwise_distance, precomputed_distance
+from src.analysis.partition_shape import NOISE_LABEL, partition_shape
 
 CONSENSUS_METRIC_COLUMNS = ("rsc_eigengap", "monti_stability")
 
@@ -155,12 +156,13 @@ def compute_clustering_metrics(X: np.ndarray, labels: np.ndarray, combo_params: 
     """
     require_euclidean_compatible(combo_params)
     labels = np.asarray(labels)
-    noise_mask = labels == -1
-    noise_fraction = float(noise_mask.sum()) / len(labels)
+    shape = partition_shape(labels)
+    noise_fraction = shape.noise_fraction
+    noise_mask = labels == NOISE_LABEL
 
     non_noise_X = X[~noise_mask]
     non_noise_labels = labels[~noise_mask]
-    n_unique = len(np.unique(non_noise_labels))
+    n_unique = shape.n_clusters
 
     if n_unique < 2 or n_unique > len(non_noise_labels) - 1:
         logging.warning(
@@ -188,8 +190,7 @@ def compute_noise_metrics(labels: np.ndarray, combo_params: dict | None = None) 
     labelled -1. Their internal index, DBCV, is Euclidean (src/analysis/dbcv.py), so a run clustered under another
     metric/affinity is refused here (require_euclidean_compatible), never scored in the wrong geometry."""
     require_euclidean_compatible(combo_params)
-    labels = np.asarray(labels)
-    return {"noise_fraction": float((labels == -1).sum()) / len(labels)}
+    return {"noise_fraction": partition_shape(labels).noise_fraction}
 
 
 # Distances sklearn's silhouette_samples computes itself, on X as is: the non-euclidean `metric`s of agglomerative.
@@ -475,8 +476,7 @@ def _hdbscan_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.ndarray
     looked reasonable for). label -1 (noise) is excluded, same convention as noise_fraction.
     """
     labels = CLUSTERING_METHODS["hdbscan"](X, params)
-    n_clusters_found = float(len(np.unique(labels[labels != -1])))
-    return labels, {"n_clusters_found": n_clusters_found}
+    return labels, {"n_clusters_found": float(partition_shape(labels).n_clusters)}
 
 
 def _hdbscan_soft_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.ndarray, dict[str, float]]:
@@ -489,7 +489,7 @@ def _hdbscan_soft_with_extra_metrics(X: np.ndarray, params: dict) -> tuple[np.nd
     """
     fitted = hdbscan_soft_fit(X, params)
     labels = fitted.labels_
-    n_clusters_found = len(np.unique(labels[labels != -1]))
+    n_clusters_found = partition_shape(labels).n_clusters
     metrics = {
         "n_clusters_found": float(n_clusters_found),
         "membership_mean": float("nan"),

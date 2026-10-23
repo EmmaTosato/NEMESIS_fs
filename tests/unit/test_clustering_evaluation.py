@@ -716,14 +716,25 @@ def test_density_summary_has_the_dbcv_the_shares_and_one_row_per_cluster():
     assert result.clusters["n"].tolist() == [30, 30] and list(result.clusters.columns) == ["n", "dbcv"]
 
 
-def test_density_summary_refuses_fewer_than_two_clusters_and_a_non_euclidean_run():
+def test_density_summary_of_a_run_dbcv_is_not_defined_for_keeps_the_shares_and_says_why():
     from src.analysis.clustering_evaluation import density_summary
 
     X, labels = _density_fixture()
-    with pytest.raises(ValueError, match="at least 2 clusters"):
-        density_summary(X, np.where(labels == 0, 0, -1), {})
-    with pytest.raises(ValueError, match="Euclidean"):
-        density_summary(X, labels, {"metric": "cosine"})
+    one = density_summary(X, np.where(labels == 0, 0, -1), {})
+    cosine = density_summary(X, labels, {"metric": "cosine"})
+
+    assert np.isnan(one.dbcv) and one.clusters.empty and "fewer than 2 clusters" in one.note and one.n_clusters == 1
+    assert np.isnan(cosine.dbcv) and cosine.clusters.empty and "Euclidean" in cosine.note
+    assert cosine.n_clusters == 2 and cosine.noise_fraction == pytest.approx(6 / 66)
+    assert density_summary(X, labels, {}).note == ""
+
+
+def test_density_summary_raises_for_a_length_mismatch():
+    from src.analysis.clustering_evaluation import density_summary
+
+    X, labels = _density_fixture()
+    with pytest.raises(ValueError, match="one row per label"):
+        density_summary(X, labels[:-1], {})
 
 
 def test_the_density_methods_have_dbcv_and_not_the_geometric_indices():
@@ -733,3 +744,33 @@ def test_the_density_methods_have_dbcv_and_not_the_geometric_indices():
             require_applicable("geometric_metrics", method)
     with pytest.raises(ValueError, match="'kmeans'"):
         require_applicable("dbcv", "kmeans")
+
+
+# --- the tuning, the production run and the app give the same number for the same labels ----------------
+
+
+@pytest.mark.parametrize("metric", ["euclidean", "cosine", "manhattan"])
+def test_the_tuning_silhouette_is_the_mean_of_the_per_subject_silhouette_of_the_production_run(metric):
+    from src.analysis.clustering_tuning import compute_clustering_metrics_metric_aware, compute_silhouette_samples
+
+    rng = np.random.default_rng(1)
+    X = np.vstack([rng.normal(centre, 1.0, (25, 5)) for centre in (0.0, 3.0, 6.0)])
+    labels = np.repeat([0, 1, 2], 25)
+
+    tuning = compute_clustering_metrics_metric_aware(X, labels, metric)["silhouette"]
+    _, samples = compute_silhouette_samples(X, labels, metric)
+
+    assert tuning == pytest.approx(samples.mean(), abs=1e-9)
+
+
+def test_the_tuning_and_the_app_count_clusters_and_noise_the_same_way():
+    from src.analysis.clustering_evaluation import density_summary, model_fit_metrics
+    from src.analysis.clustering_tuning import compute_noise_metrics
+
+    X, labels = _density_fixture()
+
+    fit = model_fit_metrics("hdbscan", X, {}, labels)
+    summary = density_summary(X, labels, {})
+
+    assert compute_noise_metrics(labels)["noise_fraction"] == fit["noise_fraction"] == summary.noise_fraction
+    assert fit["n_clusters_found"] == summary.n_clusters == 2

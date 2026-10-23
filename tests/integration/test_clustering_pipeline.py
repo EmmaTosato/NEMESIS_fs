@@ -2257,27 +2257,6 @@ def _blobs_with_noise() -> tuple[np.ndarray, np.ndarray]:
     return X, np.array([0] * 30 + [1] * 30 + [-1] * 6)
 
 
-def test_run_dbcv_of_a_production_result_has_a_row_per_cluster_with_its_size():
-    X, labels = _blobs_with_noise()
-
-    result = clustering._run_dbcv(X, labels, {"min_cluster_size": 5})
-
-    assert result.note == "" and 0 < result.score <= 1
-    assert result.clusters["cluster"].tolist() == [0, 1] and result.clusters["n"].tolist() == [30, 30]
-
-
-def test_run_dbcv_is_undefined_with_the_reason_for_fewer_than_two_clusters_and_for_a_non_euclidean_run(caplog):
-    X, labels = _blobs_with_noise()
-
-    with caplog.at_level("WARNING"):
-        one = clustering._run_dbcv(X, np.where(labels == 0, 0, -1), {})
-        cosine = clustering._run_dbcv(X, labels, {"metric": "cosine"})
-
-    assert np.isnan(one.score) and one.clusters.empty and "fewer than 2 clusters" in one.note
-    assert np.isnan(cosine.score) and "Euclidean" in cosine.note
-    assert caplog.text.count("no DBCV for this run") == 2
-
-
 def test_clustering_production_hdbscan_writes_the_dbcv_files_and_no_silhouette(tmp_path, monkeypatch):
     """Two blobs and a few outliers: hdbscan finds clusters, so config.md carries the DBCV and the run folder the per-cluster
     table and plot; the silhouette (non-noise subjects only, compact clusters) is not computed for this method."""

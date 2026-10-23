@@ -29,9 +29,9 @@ from sklearn.metrics import (
 )
 
 from src.analysis.embedding_coloring import COLOR_MODES
+from src.analysis.partition_shape import NOISE_LABEL
 
 _CLUSTER_LABEL_COLUMN = COLOR_MODES["cluster_label"].column
-_NOISE_LABEL = -1
 
 _TEXT_COLOR = "#333"
 _FONT_STACK = (
@@ -108,7 +108,7 @@ class ChiSquareResult:
 
 def cluster_name(label: int) -> str:
     """Display name of a cluster label: hdbscan's -1 bucket is noise, not a cluster named "-1"."""
-    return "noise" if label == _NOISE_LABEL else str(label)
+    return "noise" if label == NOISE_LABEL else str(label)
 
 
 def _require_comparable_metadata(metadata: pd.DataFrame, name: str) -> None:

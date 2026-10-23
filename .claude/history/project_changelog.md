@@ -6,6 +6,18 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 23-10-26 — Un solo punto per numero di cluster, rumore, quota maggiore e DBCV (tuning, produzione, app)
+
+Prima gli stessi numeri si calcolavano a mano in 5 file (`clustering_tuning.py`, `clustering_tuning_analysis.py`, `clustering_evaluation.py`, `src/pipeline/clustering.py`, `tuning_evaluations.py`) e il DBCV aveva tre avvolgitori con tre comportamenti diversi per la distanza non euclidea (tuning: nessun controllo; produzione: NaN con nota; app: errore). Ora `src/analysis/partition_shape.py` (`partition_shape`, `NOISE_LABEL`) conta cluster e rumore, e `src/analysis/dbcv.py::run_dbcv` è l'unica chiamata al DBCV. `NOISE_LABEL` era definito 4 volte; resta in `adp.py` (non toccato).
+
+Regola per la distanza non euclidea (scelta dell'utente, 23-10-26): la run non si rifiuta, si vede con le celle vuote e la scritta «solo euclidea». `density_summary` non solleva più per una run non euclidea o con meno di 2 cluster: `dbcv` NaN, tabella vuota, `note` col motivo, quote del rumore e del cluster maggiore presenti. Scartato: rifiutare la run (nasconde le run `cosine`).
+
+Unico cambio di comportamento oltre a quello: un cluster di 1 soggetto in produzione dava NaN con un errore nel log, ora solleva `ValueError` come nel tuning e nell'app (non può succedere con `min_cluster_size` ≥ 2).
+
+Non unificata, di proposito: la silhouette. Produzione e app usano già `compute_silhouette_samples`; il tuning usa `silhouette_score` con la cache delle distanze, per la velocità. Un test confronta i due su `euclidean`, `cosine`, `manhattan` (stesso valore a 1e-9).
+
+Ancora vero: `notebooks/post-results_analysis/clustering_evaluation.ipynb` (cella DBCV) chiama `density_summary`; una run non definita ora compare nella tabella con `dbcv` NaN invece di essere «saltata», senza il motivo (`summary.note` non è mostrato).
+
 ## 23-10-26 — Dendrogram Explorer: via la panoramica «All Clusters»
 
 Rimossa dalla sezione `dendrogram-panel` la panoramica dei k cluster del tuning (`dendrogram_overview_content_for`, la sua callback, i suoi test): ripeteva l'opzione «all» del Clustering Explorer. La sezione parte da «Agglomerative decomposed». `cluster_overview_content_for` resta, usata solo da «all».

@@ -2400,8 +2400,8 @@ def run_density_summary(run: ProductionRun) -> DensitySummary:
     """DBCV and the cluster/noise shares of an hdbscan / hdbscan_soft run, on the matrix it was clustered on.
 
     Raises ValueError, with the cause, for a method DBCV does not apply to (the others have the geometric indices -
-    src.analysis.clustering_evaluation.EVALUATIONS), a matrix with more than MAX_QUALITY_COLUMNS columns, a
-    non-Euclidean run, or fewer than 2 clusters (DBCV is undefined)."""
+    src.analysis.clustering_evaluation.EVALUATIONS) and for a matrix with more than MAX_QUALITY_COLUMNS columns. A
+    non-Euclidean run or one with fewer than 2 clusters comes back with `dbcv` NaN and the reason in `note`."""
     require_applicable("dbcv", run.method)
     _require_narrow_matrix(run)
     matrix, metadata, _extra_arrays = load_matrix(run.path)
@@ -2789,7 +2789,8 @@ def _density_quality_content(
     membership_blocks: list,
 ) -> html.Div:
     """The quality panel of an hdbscan / hdbscan_soft run: DBCV in place of the geometric indices. A run DBCV is not
-    defined for (fewer than 2 clusters, non-Euclidean, too many columns) says why instead of a number."""
+    defined for (fewer than 2 clusters, non-Euclidean) shows the shares with an empty DBCV cell and the reason; one the
+    panel cannot read at all (too many columns) says why instead of a table."""
     try:
         summary = density_of(run)
     except ValueError as exc:
@@ -2799,7 +2800,7 @@ def _density_quality_content(
         return f"{_format_number(value * 100, 1)}%"
 
     rows = [
-        ["DBCV", _format_number(summary.dbcv, 3), "higher is better, from -1 to 1"],
+        ["DBCV", "—" if summary.note else _format_number(summary.dbcv, 3), summary.note or "higher is better, from -1 to 1"],
         ["Clusters (noise excluded)", str(summary.n_clusters), ""],
         ["Largest cluster", share(summary.largest_cluster_share), "of the subjects"],
         ["Noise", share(summary.noise_fraction), "of the subjects"],
@@ -2811,12 +2812,14 @@ def _density_quality_content(
             className="quality-intro",
         ),
         _table(["Index", "Value", "Reading"], rows, text_columns=(0, 2)),
-        _chart_heading("DBCV per cluster", "one bar per cluster; the dashed line is the run's score"),
-        dcc.Graph(
-            figure=build_dbcv_figure(summary.clusters, summary.dbcv),
-            config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%"},
-        ),
+        *([] if summary.note else [
+            _chart_heading("DBCV per cluster", "one bar per cluster; the dashed line is the run's score"),
+            dcc.Graph(
+                figure=build_dbcv_figure(summary.clusters, summary.dbcv),
+                config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
+                style={"width": "100%"},
+            ),
+        ]),
         _model_fit_block(run, model_fit_of),
         *membership_blocks,
     ])

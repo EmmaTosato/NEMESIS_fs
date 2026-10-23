@@ -97,7 +97,8 @@ from src.analysis.clustering import (
     soft_membership_matrix,
 )
 from src.analysis.clustering_evaluation import silhouette_breakdown
-from src.analysis.dbcv import dbcv
+from src.analysis.dbcv import RunDbcv, run_dbcv
+from src.analysis.partition_shape import partition_shape
 from src.analysis.clustering_tuning import (
     CONSENSUS_METRIC_COLUMNS,
     DENSITY_SWEEP_METHODS,
@@ -403,7 +404,9 @@ def _run_one_method(
         if method not in DENSITY_SWEEP_METHODS and (method == "agglomerative" or X_viz is not None)
         else None
     )
-    run_dbcv = _run_dbcv(X, cluster_labels, params) if method in DENSITY_SWEEP_METHODS else None
+    dbcv_result = run_dbcv(X, cluster_labels, params) if method in DENSITY_SWEEP_METHODS else None
+    if dbcv_result is not None and dbcv_result.note:
+        logging.warning("no DBCV for this run: %s", dbcv_result.note)
 
     effective_session_name = config.session_name
     if embedding_tag:
@@ -419,7 +422,7 @@ def _run_one_method(
             output_dir,
             X,
             metadata_out,
-            _build_readme_lines(config, method, X, cluster_labels, params, now, silhouette, run_dbcv),
+            _build_readme_lines(config, method, X, cluster_labels, params, now, silhouette, dbcv_result),
             overwrite=config.overwrite,
             extra_arrays=extra_arrays,
         )
@@ -435,9 +438,9 @@ def _run_one_method(
             logging.error("[%s] cannot write %s: %s", method, SILHOUETTE_PER_CLUSTER_FILENAME, exc)
             return None
 
-    if run_dbcv is not None and not run_dbcv.clusters.empty:
+    if dbcv_result is not None and not dbcv_result.clusters.empty:
         try:
-            _write_dbcv_per_cluster(output_dir, run_dbcv, compose_cluster_plot_title(output_dir, config.reduction_method, method))
+            _write_dbcv_per_cluster(output_dir, dbcv_result, compose_cluster_plot_title(output_dir, config.reduction_method, method))
         except OSError as exc:
             logging.error("[%s] cannot write %s: %s", method, DBCV_PER_CLUSTER_FILENAME, exc)
             return None
@@ -649,42 +652,10 @@ DBCV_PER_CLUSTER_FILENAME = "dbcv_per_cluster.csv"
 DBCV_PLOT_FILENAME = "dbcv_plot.png"
 
 
-@dataclass(frozen=True)
-class RunDbcv:
-    """The DBCV of one production run of hdbscan / hdbscan_soft: `score` (NaN when it is undefined, see `note`),
-    `clusters` (columns cluster, n, dbcv; empty when undefined) and `note`, why it is undefined ("" when it is not)."""
-
-    score: float
-    clusters: pd.DataFrame
-    note: str
-
-
-def _run_dbcv(X: np.ndarray, cluster_labels: np.ndarray, params: dict) -> RunDbcv:
-    """DBCV of the run (src/analysis/dbcv.py). Undefined, with the reason in `note` (written in config.md), for a run
-    with fewer than 2 clusters and for one clustered under a non-Euclidean metric: DBCV here is Euclidean, never
-    computed in another geometry. A degenerate production result is not an error of the run."""
-    try:
-        require_euclidean_compatible(params)
-    except ValueError as exc:
-        logging.warning("no DBCV for this run: %s", exc)
-        return RunDbcv(float("nan"), pd.DataFrame(columns=["cluster", "n", "dbcv"]), f"not defined for metric={params.get('metric')!r}: DBCV is Euclidean")
-    try:
-        score, per_cluster = dbcv(X, cluster_labels)
-    except ValueError as exc:
-        logging.error("DBCV cannot be computed for this run: %s", exc)
-        return RunDbcv(float("nan"), pd.DataFrame(columns=["cluster", "n", "dbcv"]), f"not computed: {exc}")
-    if not per_cluster:
-        logging.warning("no DBCV for this run: fewer than 2 clusters")
-        return RunDbcv(score, pd.DataFrame(columns=["cluster", "n", "dbcv"]), "not defined: fewer than 2 clusters")
-    sizes = pd.Series(cluster_labels[cluster_labels != -1]).value_counts()
-    clusters = pd.DataFrame({"cluster": list(per_cluster), "n": [int(sizes[c]) for c in per_cluster], "dbcv": list(per_cluster.values())})
-    return RunDbcv(score, clusters, "")
-
-
-def _write_dbcv_per_cluster(output_dir: Path, run_dbcv: RunDbcv, title: str) -> None:
+def _write_dbcv_per_cluster(output_dir: Path, dbcv_result: RunDbcv, title: str) -> None:
     """dbcv_per_cluster.csv (one row per cluster: its size and its own DBCV) and dbcv_plot.png."""
-    run_dbcv.clusters.to_csv(output_dir / DBCV_PER_CLUSTER_FILENAME, index=False)
-    plot_dbcv_per_cluster(run_dbcv.clusters, run_dbcv.score, output_dir / DBCV_PLOT_FILENAME, title)
+    dbcv_result.clusters.to_csv(output_dir / DBCV_PER_CLUSTER_FILENAME, index=False)
+    plot_dbcv_per_cluster(dbcv_result.clusters, dbcv_result.score, output_dir / DBCV_PLOT_FILENAME, title)
 
 
 def _summary_lines(
@@ -694,15 +665,15 @@ def _summary_lines(
     cluster_labels: np.ndarray,
     params: dict,
     silhouette: "RunSilhouette | None",
-    run_dbcv: "RunDbcv | None" = None,
+    dbcv_result: "RunDbcv | None" = None,
 ) -> list[str]:
     silhouette_lines = (
         [f"Average silhouette coefficient: {silhouette.values.mean():.3f} ({silhouette.metric})"]
         if method == "agglomerative" and silhouette is not None
         else []
     )
-    if run_dbcv is not None:
-        silhouette_lines.append(f"DBCV: {run_dbcv.score:.3f} (euclidean)" if not run_dbcv.note else f"DBCV: {run_dbcv.note}")
+    if dbcv_result is not None:
+        silhouette_lines.append(f"DBCV: {dbcv_result.score:.3f} (euclidean)" if not dbcv_result.note else f"DBCV: {dbcv_result.note}")
     return [
         "## Config",
         "",
@@ -724,11 +695,10 @@ def _clusters_found_line(cluster_labels: np.ndarray) -> str:
     the cluster count (counting it as a cluster would silently overstate the
     result); reports the noise count separately when present, for any method.
     """
-    noise_mask = cluster_labels == -1
-    n_clusters = int(np.unique(cluster_labels[~noise_mask]).shape[0])
-    line = f"Clusters found: {n_clusters}"
-    if noise_mask.any():
-        line += f" (+ {int(noise_mask.sum())} noise points, label -1)"
+    shape = partition_shape(cluster_labels)
+    line = f"Clusters found: {shape.n_clusters}"
+    if shape.n_noise:
+        line += f" (+ {shape.n_noise} noise points, label -1)"
     return line
 
 
@@ -740,10 +710,10 @@ def _build_readme_lines(
     params: dict,
     now: datetime,
     silhouette: "RunSilhouette | None",
-    run_dbcv: "RunDbcv | None" = None,
+    dbcv_result: "RunDbcv | None" = None,
 ) -> list[str]:
     title = f"# {config.project} clustering ({method}) — {now.strftime('%d-%m-%y %H:%M')}"
-    return [title, ""] + _summary_lines(config, method, X, cluster_labels, params, silhouette, run_dbcv)
+    return [title, ""] + _summary_lines(config, method, X, cluster_labels, params, silhouette, dbcv_result)
 
 
 def _run_fine_tuning(

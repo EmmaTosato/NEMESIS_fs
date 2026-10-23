@@ -508,6 +508,22 @@ def test_a_density_run_with_no_dbcv_renders_the_cause_and_leaves_the_rest():
     assert "at least 2 clusters" in text and "Model statistic" in text and "Noise" in text
 
 
+def test_a_density_run_with_dbcv_not_defined_shows_the_shares_a_dash_and_the_reason_without_the_chart():
+    undefined = _density(
+        dbcv=float("nan"), n_clusters=1, note="not defined: fewer than 2 clusters",
+        clusters=pd.DataFrame({"n": [], "dbcv": []}, index=pd.Index([], name="cluster")),
+    )
+
+    content = cluster_quality_content_for(
+        _run(method="hdbscan"), _unused, _fit, confidence_of=_unused, soft_of=_unused, density_of=lambda _run: undefined
+    )
+
+    text = _text(content)
+    assert "not defined: fewer than 2 clusters" in text and "—" in text and "nan" not in text
+    assert "Largest cluster" in text and "Noise" in text and "Model statistic" in text
+    assert not any("DBCV of the cluster" in str(graph.figure.layout.xaxis.title.text) for graph in _graphs(content))
+
+
 def test_run_density_summary_reads_the_saved_run_and_refuses_other_methods(tmp_path):
     rng = np.random.default_rng(0)
     X = np.vstack([rng.normal(centre, 0.3, (30, 2)) for centre in (0.0, 8.0)])

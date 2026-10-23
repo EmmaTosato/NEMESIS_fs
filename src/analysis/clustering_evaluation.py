@@ -29,7 +29,8 @@ from src.analysis.clustering_tuning import (
     require_euclidean_compatible,
 )
 from src.analysis.clustering_tuning_analysis import dendrogram_jump
-from src.analysis.dbcv import dbcv
+from src.analysis.dbcv import run_dbcv
+from src.analysis.partition_shape import partition_shape
 
 
 @dataclass(frozen=True)
@@ -105,11 +106,8 @@ def model_fit_metrics(method: str, X: np.ndarray, params: dict, labels: np.ndarr
     labels = np.asarray(labels)
 
     if method in ("hdbscan", "hdbscan_soft"):
-        noise = labels == -1
-        return {
-            "noise_fraction": float(noise.mean()),
-            "n_clusters_found": float(len(np.unique(labels[~noise]))),
-        }
+        shape = partition_shape(labels)
+        return {"noise_fraction": shape.noise_fraction, "n_clusters_found": float(shape.n_clusters)}
 
     if method == "agglomerative":
         return _agglomerative_model_fit(X, params, labels)
@@ -499,9 +497,9 @@ def geometric_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> 
     labels = np.asarray(labels)
     if X.ndim != 2 or len(X) != len(labels):
         raise ValueError(f"X must be 2D with one row per label, got X.shape={X.shape} and {len(labels)} labels")
-    sizes = np.unique(labels[labels != -1], return_counts=True)[1]
-    if len(sizes) < 2:
-        raise ValueError(f"the indices need at least 2 clusters once noise is left out, this run has {len(sizes)}")
+    shape = partition_shape(labels)
+    if shape.n_clusters < 2:
+        raise ValueError(f"the indices need at least 2 clusters once noise is left out, this run has {shape.n_clusters}")
     metric = run_metric(combo_params)
     breakdown = per_cluster_silhouette(X, labels, combo_params)
     if metric == "euclidean":
@@ -514,8 +512,8 @@ def geometric_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> 
     else:
         euclidean_only = {"calinski_harabasz": float("nan"), "davies_bouldin": float("nan"), "dunn": float("nan")}
     return GeometricSummary(
-        n_subjects=len(labels), n_components=X.shape[1], metric=metric, n_clusters=len(sizes),
-        largest_cluster_share=float(sizes.max() / len(labels)), noise_fraction=float((labels == -1).mean()),
+        n_subjects=shape.n_subjects, n_components=X.shape[1], metric=metric, n_clusters=shape.n_clusters,
+        largest_cluster_share=shape.largest_cluster_share, noise_fraction=shape.noise_fraction,
         silhouette=breakdown.micro, silhouette_macro=breakdown.macro, silhouette_min=breakdown.minimum,
         clusters=breakdown.clusters, subject_labels=breakdown.subject_labels, subject_values=breakdown.subject_values,
         **euclidean_only,
@@ -572,7 +570,8 @@ def adp_summary(distances: np.ndarray, non_empty: np.ndarray, labels: np.ndarray
 class DensitySummary:
     """The evaluation of one hdbscan / hdbscan_soft run: DBCV over all the subjects (noise included in the weights)
     and the cluster/noise shares. `clusters` has one row per cluster, indexed by its label, with `n` and `dbcv` (its
-    own score). `dbcv` is NaN when the run has fewer than 2 clusters (src/analysis/dbcv.py)."""
+    own score). `dbcv` is NaN, `clusters` empty and `note` the reason when DBCV is not defined for the run: fewer
+    than 2 clusters, or a non-Euclidean metric (src/analysis/dbcv.py::run_dbcv). `note` is "" otherwise."""
 
     n_subjects: int
     n_components: int
@@ -581,26 +580,28 @@ class DensitySummary:
     noise_fraction: float
     dbcv: float
     clusters: pd.DataFrame  # index: cluster label; columns: n, dbcv
+    note: str = ""
 
 
 def density_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> DensitySummary:
     """DBCV and the cluster/noise shares of a density run, the bundle of the DBCV section of the evaluation notebook
     and of the Embedding Explorer panel.
 
-    Euclidean only: `combo_params` is the run's own params, and a run clustered under another metric is refused
-    (require_euclidean_compatible), never scored in the wrong geometry. Raises ValueError for that, for a
-    `labels`/`X` length mismatch, for a cluster of one subject or non-finite values (dbcv), and for a run with
-    fewer than 2 clusters, where the index is undefined (the panel then says so, it does not show a number).
+    `combo_params` is the run's own params. A run for which DBCV is not defined (fewer than 2 clusters, or clustered
+    under a non-Euclidean metric) is not refused: it comes back with the shares, `dbcv` NaN and the reason in `note`
+    (src/analysis/dbcv.py::run_dbcv). Raises ValueError for a `labels`/`X` length mismatch, for a cluster of one
+    subject and for non-finite values.
     """
-    require_euclidean_compatible(combo_params)
     labels = np.asarray(labels)
-    score, per_cluster = dbcv(X, labels)
-    if not per_cluster:
-        raise ValueError(f"DBCV needs at least 2 clusters, this run has {len(np.unique(labels[labels != -1]))}")
-    sizes = pd.Series(labels[labels != -1]).value_counts()
-    clusters = pd.DataFrame({"n": [int(sizes[c]) for c in per_cluster], "dbcv": list(per_cluster.values())}, index=pd.Index(list(per_cluster), name="cluster"))
+    if X.ndim != 2 or len(X) != len(labels):
+        raise ValueError(f"X must be 2D with one row per label, got X.shape={X.shape} and {len(labels)} labels")
+    shape = partition_shape(labels)
+    result = run_dbcv(X, labels, combo_params)
+    clusters = result.clusters.set_index("cluster") if not result.clusters.empty else pd.DataFrame(
+        {"n": [], "dbcv": []}, index=pd.Index([], name="cluster")
+    )
     return DensitySummary(
-        n_subjects=len(labels), n_components=X.shape[1], n_clusters=len(per_cluster),
-        largest_cluster_share=float(sizes.max() / len(labels)), noise_fraction=float((labels == -1).mean()),
-        dbcv=score, clusters=clusters,
+        n_subjects=shape.n_subjects, n_components=X.shape[1], n_clusters=shape.n_clusters,
+        largest_cluster_share=shape.largest_cluster_share, noise_fraction=shape.noise_fraction,
+        dbcv=result.score, clusters=clusters, note=result.note,
     )

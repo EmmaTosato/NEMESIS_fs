@@ -32,7 +32,8 @@ from src.analysis.clustering_tuning import (
     cophenetic_correlation,
     is_invalid_ward_metric_combo,
 )
-from src.analysis.dbcv import dbcv
+from src.analysis.dbcv import run_dbcv
+from src.analysis.partition_shape import partition_shape
 
 AGGLOMERATIVE = "agglomerative"
 DENSITY_METHODS = ("hdbscan", "hdbscan_soft")
@@ -44,8 +45,6 @@ SWEPT_COLUMNS: dict[str, tuple[str, ...]] = {
     "hdbscan": ("min_cluster_size", "min_samples"),
     "hdbscan_soft": ("min_cluster_size", "min_samples", "cluster_selection_method"),
 }
-
-NOISE_LABEL = -1
 
 ADP = "adp"
 
@@ -287,10 +286,10 @@ def density_metrics(run: ClusteringTuningRun, X: np.ndarray) -> pd.DataFrame:
     n_clusters, largest_share, dbcv_scores = [], [], []
     for row in run.results.to_dict("records"):
         labels = run.labels[combo_key(row, columns)]
-        found = labels[labels != NOISE_LABEL]
-        n_clusters.append(len(np.unique(found)))
-        largest_share.append(float(np.bincount(found).max() / len(labels)) if len(found) else float("nan"))
-        dbcv_scores.append(dbcv(X, labels)[0])
+        shape = partition_shape(labels)
+        n_clusters.append(shape.n_clusters)
+        largest_share.append(shape.largest_cluster_share)
+        dbcv_scores.append(run_dbcv(X, labels, row).score)
 
     metrics = run.results.copy()
     if "n_clusters_found" in metrics.columns and not np.array_equal(metrics["n_clusters_found"].to_numpy(), n_clusters):
@@ -372,7 +371,7 @@ def recomputed_internal_metrics(run: ClusteringTuningRun, X: np.ndarray, distanc
         if run.method == AGGLOMERATIVE:
             rows.append(compute_clustering_metrics_metric_aware(X, labels, row["metric"], distance_cache))
         else:
-            rows.append({"noise_fraction": float((labels == NOISE_LABEL).sum()) / len(labels)})
+            rows.append({"noise_fraction": partition_shape(labels).noise_fraction})
     recomputed = pd.DataFrame(rows, index=run.results.index)
     metrics = run.results.copy()
     for column in recomputed.columns:

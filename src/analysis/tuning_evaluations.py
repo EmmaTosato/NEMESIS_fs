@@ -32,6 +32,7 @@ import numpy as np
 import pandas as pd
 
 from src.analysis.clustering import hdbscan_cluster
+from src.analysis.partition_shape import partition_shape
 from src.analysis.plotting import compose_tuning_leaf_title, plot_hdbscan_grid
 from src.analysis.tuning_embeddings import TuningRun, combo_key, leaf_dir, parse_combo_key
 
@@ -162,7 +163,8 @@ def _run_plot_hdbscan(run: TuningRun, settings: dict, overwrite: bool) -> list[P
             values = {name: values[name] for name in keys}
             key = combo_key(keys, list(values.values()))
             labels = hdbscan_cluster(run.embeddings[key], hdbscan_params)
-            n_clusters, noise_fraction = len(np.unique(labels[labels != -1])), float((labels == -1).mean())
+            shape = partition_shape(labels)
+            n_clusters, noise_fraction = shape.n_clusters, shape.noise_fraction
             rows.append({**values, "n_clusters_found": n_clusters, "noise_fraction": noise_fraction})
 
             lines = _params_lines(values)

@@ -1,9 +1,10 @@
 """DBCV (Density-Based Clustering Validation, Moulavi et al. 2014), the internal index of the density methods.
 
-One function, `dbcv`, used by the tuning evaluations (src/analysis/clustering_tuning_analysis.py::density_metrics),
-the production run of hdbscan / hdbscan_soft (src/pipeline/clustering.py) and the Embedding Explorer, so the three
-give the same number for the same labels. Explanation and source: knowledge/notes/dim_reduction_clustering/
-clustering_methods/evaluation_metrics.md §8.
+`dbcv` is the index itself; `run_dbcv` is what the tuning evaluations (src/analysis/clustering_tuning_analysis.py::
+density_metrics), the production run of hdbscan / hdbscan_soft (src/pipeline/clustering.py) and the Embedding Explorer
+(src/analysis/clustering_evaluation.py::density_summary) all call, so the three give the same number, and the same
+"not defined" answer with its reason, for the same labels. Explanation and source: knowledge/notes/
+dim_reduction_clustering/clustering_methods/evaluation_metrics.md §8.
 
 Why not the silhouette-family indices for these methods: they are computed on the non-noise subjects only, so
 discarding the hardest subjects as noise raises them, and they assume compact clusters. DBCV weighs each cluster by
@@ -12,9 +13,15 @@ its share of all the subjects, noise included, so the noise lowers the score by 
 
 from __future__ import annotations
 
-import numpy as np
+from dataclasses import dataclass
 
-NOISE_LABEL = -1
+import numpy as np
+import pandas as pd
+
+from src.analysis.clustering_tuning import require_euclidean_compatible
+from src.analysis.partition_shape import NOISE_LABEL, partition_shape
+
+CLUSTER_COLUMNS = ["cluster", "n", "dbcv"]
 
 
 def dbcv(X: np.ndarray, labels: np.ndarray) -> tuple[float, dict[int, float]]:
@@ -55,3 +62,32 @@ def dbcv(X: np.ndarray, labels: np.ndarray) -> tuple[float, dict[int, float]]:
         compact[labels == cluster] = new_label
     score, per_cluster = validity_index(X, compact, metric="euclidean", per_cluster_scores=True)
     return float(score), {int(cluster): float(per_cluster[i]) for i, cluster in enumerate(clusters)}
+
+
+@dataclass(frozen=True)
+class RunDbcv:
+    """The DBCV of one run: `score` (NaN when undefined, see `note`), `clusters` (columns cluster, n, dbcv; empty when
+    undefined) and `note`, why it is undefined ("" when it is not)."""
+
+    score: float
+    clusters: pd.DataFrame
+    note: str
+
+
+def run_dbcv(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> RunDbcv:
+    """DBCV of a run, with its per-cluster table. `combo_params` is the run's own params.
+
+    Two outcomes are legitimate and come back as NaN with the reason in `note`, never as an error and never as a
+    number: a run clustered under a non-Euclidean metric/affinity (DBCV here is Euclidean, it is not computed in
+    another geometry) and a run with fewer than 2 clusters (the index compares clusters with each other).
+    Everything `dbcv` raises for stays an error (a cluster of one subject, non-finite values, a length mismatch)."""
+    try:
+        require_euclidean_compatible(combo_params)
+    except ValueError:
+        return RunDbcv(float("nan"), pd.DataFrame(columns=CLUSTER_COLUMNS), f"not defined for metric={combo_params.get('metric')!r}: DBCV is Euclidean")
+    score, per_cluster = dbcv(X, labels)
+    if not per_cluster:
+        return RunDbcv(score, pd.DataFrame(columns=CLUSTER_COLUMNS), "not defined: fewer than 2 clusters")
+    sizes = partition_shape(labels).cluster_sizes
+    clusters = pd.DataFrame({"cluster": list(per_cluster), "n": [sizes[c] for c in per_cluster], "dbcv": list(per_cluster.values())})
+    return RunDbcv(score, clusters, "")
