@@ -7,6 +7,7 @@ from nilearn.image import resample_to_img
 
 from src.analysis.anatomical_maps import (
     BinaryMaskStore,
+    DiscoveredFiles,
     _GridResampler,
     build_mean_map,
     build_overlap_map,
@@ -100,6 +101,73 @@ def test_resolve_available_lesion_paths_skips_unresolvable_subjects_and_warns(tm
     assert set(resolved) == {"sub-STUNIPD0001", "sub-STUNIPD0002"}
     assert missing == ["sub-STUNIPD9999"]
     assert any("sub-STUNIPD9999" in record.message for record in caplog.records)
+
+
+@pytest.fixture
+def discovery_calls(monkeypatch):
+    """The real discover_files_by_subject, counting how many times anatomical_maps asks it for a dataset."""
+    import src.analysis.anatomical_maps as anatomical_maps
+
+    calls = []
+    real = anatomical_maps.discover_files_by_subject
+
+    def counting(data_root, dataset, glob, group_filter=None):
+        calls.append((dataset, glob))
+        return real(data_root, dataset, glob, group_filter=group_filter)
+
+    monkeypatch.setattr(anatomical_maps, "discover_files_by_subject", counting)
+    return calls
+
+
+def _two_clusters(tmp_path):
+    ids = [f"sub-STUNIPD{i:04d}" for i in range(1, 5)]
+    for index, subject in enumerate(ids):
+        _make_lesion_subject(tmp_path, "siteA", subject, [(index, 1, 1)])
+    return ids[:2], ids[2:], {subject: "siteA" for subject in ids}
+
+
+def test_discovered_files_look_a_dataset_up_once_for_every_cluster_asked(tmp_path, discovery_calls):
+    first, second, dataset = _two_clusters(tmp_path)
+    discovered = DiscoveredFiles()
+
+    resolved_first, _ = resolve_available_lesion_paths(first, dataset, tmp_path, _LESION_GLOB, discovered)
+    resolved_second, _ = resolve_available_lesion_paths(second, dataset, tmp_path, _LESION_GLOB, discovered)
+
+    assert len(discovery_calls) == 1
+    assert set(resolved_first) == set(first) and set(resolved_second) == set(second)
+
+
+def test_without_discovered_files_every_call_looks_the_dataset_up_again(tmp_path, discovery_calls):
+    first, second, dataset = _two_clusters(tmp_path)
+
+    resolve_available_lesion_paths(first, dataset, tmp_path, _LESION_GLOB)
+    resolve_available_lesion_paths(second, dataset, tmp_path, _LESION_GLOB)
+
+    assert len(discovery_calls) == 2
+
+
+def test_discovered_files_are_per_dataset_and_per_glob(tmp_path, discovery_calls):
+    _make_lesion_subject(tmp_path, "siteA", "sub-STUNIPD0001", [(1, 1, 1)])
+    _make_lesion_subject(tmp_path, "siteB", "sub-STUNIPD0002", [(2, 2, 2)])
+    _make_disconnectome_subject(tmp_path, "siteA", "sub-STUNIPD0001", {(1, 1, 1): 0.9})
+    discovered = DiscoveredFiles()
+
+    resolve_lesion_paths(["sub-STUNIPD0001"], {"sub-STUNIPD0001": "siteA"}, tmp_path, _LESION_GLOB, discovered)
+    resolve_lesion_paths(["sub-STUNIPD0002"], {"sub-STUNIPD0002": "siteB"}, tmp_path, _LESION_GLOB, discovered)
+    disconnectomes = resolve_lesion_paths(["sub-STUNIPD0001"], {"sub-STUNIPD0001": "siteA"}, tmp_path, _DISCONNECTOME_GLOB, discovered)
+
+    assert discovery_calls == [("siteA", _LESION_GLOB), ("siteB", _LESION_GLOB), ("siteA", _DISCONNECTOME_GLOB)]
+    assert "desc-disconnectome" in disconnectomes["sub-STUNIPD0001"].name  # not the lesion mask of the same dataset
+
+
+def test_discovered_files_still_report_a_subject_with_no_file_as_missing(tmp_path):
+    first, _second, dataset = _two_clusters(tmp_path)
+    dataset["sub-STUNIPD0009"] = "siteA"
+    discovered = DiscoveredFiles()
+
+    resolved, missing = resolve_available_lesion_paths([*first, "sub-STUNIPD0009"], dataset, tmp_path, _LESION_GLOB, discovered)
+
+    assert set(resolved) == set(first) and missing == ["sub-STUNIPD0009"]
 
 
 def test_resolve_available_lesion_paths_no_missing_returns_empty_list(tmp_path, caplog):

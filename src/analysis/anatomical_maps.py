@@ -42,18 +42,40 @@ from nilearn.image import resample_to_img
 from src.features.subject_discovery import discover_files_by_subject
 
 
+class DiscoveredFiles:
+    """Memo of discover_files_by_subject, one entry per (data_root, dataset, glob).
+
+    Finding the files of one dataset globs once per subject of the whole dataset (thousands of calls,
+    about 2 s), and a cluster map asked it again for every cluster even though the answer is the same
+    (22-10-26, measured: 37 of 84 s for the 18 maps of a walk down the dendrogram, with every subject's
+    mask already cached on disk). Held by the caller for the life of an app, like BinaryMaskStore: a file
+    added or removed on disk while the app runs is not seen until the next start. Thread-safe for the same
+    reason as BinaryMaskStore: a key computed twice by concurrent callers gives the same dict.
+    """
+
+    def __init__(self) -> None:
+        self._by_key: dict[tuple[Path, str, str], dict[str, Path]] = {}
+
+    def of_dataset(self, data_root: Path, dataset: str, glob: str) -> dict[str, Path]:
+        key = (Path(data_root), dataset, glob)
+        if key not in self._by_key:
+            self._by_key[key], _excluded_by_group = discover_files_by_subject(data_root, dataset, glob, group_filter=None)
+        return self._by_key[key]
+
+
 def _resolve_lesion_paths_partial(
     subject_ids: list[str],
     dataset_by_subject: dict[str, str],
     data_root: Path,
     lesion_glob: str,
+    discovered: DiscoveredFiles | None = None,
 ) -> tuple[dict[str, Path], list[str]]:
     """Shared resolution core for resolve_lesion_paths/resolve_available_lesion_paths - returns
     (resolved, missing) without deciding what "missing" means for the caller (hard-fail vs.
     skip-and-report); that decision belongs to whichever of the two public functions calls this.
 
     One discover_files_by_subject call per distinct dataset among subject_ids (not one per
-    subject - cheap, globs once per dataset). Raises ValueError if a subject_id has no entry in
+    subject - globs once per dataset), or none when `discovered` already holds that dataset. Raises ValueError if a subject_id has no entry in
     dataset_by_subject at all - a caller bug (a subject genuinely missing from the metadata this
     request came from), never silently treated the same as "missing on disk"."""
     requested_by_dataset: dict[str, list[str]] = {}
@@ -65,7 +87,10 @@ def _resolve_lesion_paths_partial(
     resolved: dict[str, Path] = {}
     missing: list[str] = []
     for dataset, wanted in requested_by_dataset.items():
-        found_by_subject, _excluded_by_group = discover_files_by_subject(data_root, dataset, lesion_glob, group_filter=None)
+        if discovered is None:
+            found_by_subject, _excluded_by_group = discover_files_by_subject(data_root, dataset, lesion_glob, group_filter=None)
+        else:
+            found_by_subject = discovered.of_dataset(data_root, dataset, lesion_glob)
         for subject_id in wanted:
             if subject_id in found_by_subject:
                 resolved[subject_id] = found_by_subject[subject_id]
@@ -79,6 +104,7 @@ def resolve_lesion_paths(
     dataset_by_subject: dict[str, str],
     data_root: Path,
     lesion_glob: str,
+    discovered: DiscoveredFiles | None = None,
 ) -> dict[str, Path]:
     """subject_id -> its lesion mask path, resolved under data_root/lesion_glob.
 
@@ -89,7 +115,7 @@ def resolve_lesion_paths(
     caller that CAN legitimately proceed with fewer subjects than requested (a per-cluster
     aggregate map), see resolve_available_lesion_paths instead.
     """
-    resolved, missing = _resolve_lesion_paths_partial(subject_ids, dataset_by_subject, data_root, lesion_glob)
+    resolved, missing = _resolve_lesion_paths_partial(subject_ids, dataset_by_subject, data_root, lesion_glob, discovered)
     if missing:
         raise ValueError(
             f"{len(missing)}/{len(subject_ids)} requested subject(s) not found on disk under "
@@ -103,6 +129,7 @@ def resolve_available_lesion_paths(
     dataset_by_subject: dict[str, str],
     data_root: Path,
     lesion_glob: str,
+    discovered: DiscoveredFiles | None = None,
 ) -> tuple[dict[str, Path], list[str]]:
     """Like resolve_lesion_paths, but for a caller that can legitimately build its result from
     whichever subjects ARE resolvable, instead of needing every single one requested (29-09-26,
@@ -121,7 +148,7 @@ def resolve_available_lesion_paths(
     Raises ValueError if EVERY requested subject is unresolvable - an aggregate map built from
     zero subjects is not a legitimate partial result, just an empty one dressed up as a warning.
     """
-    resolved, missing = _resolve_lesion_paths_partial(subject_ids, dataset_by_subject, data_root, lesion_glob)
+    resolved, missing = _resolve_lesion_paths_partial(subject_ids, dataset_by_subject, data_root, lesion_glob, discovered)
     if missing:
         logging.warning(
             "%d/%d requested subject(s) not found on disk under %s (glob=%r), excluded from this "

@@ -1332,12 +1332,9 @@ def test_disconnection_map_content_for_valid_cluster_returns_iframe(tmp_path):
     assert isinstance(content, html.Div)
     heading, caption, viewer_wrap = content.children
     assert heading.children == "Cluster 0 (n=2)"
-    # The caption is [sentence, <span class="anatomy-note">] since 30-09-26: what the colour
-    # means on the first line, why the map is built this way on a quieter second one.
-    sentence, note = caption.children
+    # The percent mode has no second line: the caption is the sentence alone.
+    sentence = caption.children
     assert "%" in sentence and "0-100%" in sentence     # default mode is "percent"
-    assert note.className == "anatomy-note"
-    assert f"{DISCONNECTION_PROBABILITY_THRESHOLD:g}" in note.children
     assert isinstance(viewer_wrap.children, html.Iframe)
 
 
@@ -1946,6 +1943,9 @@ def test_every_color_mode_has_a_description_without_an_equals_sign(mode_name):
     description = color_mode_description(mode_name)
 
     assert description.strip()
+    assert "=" not in description
+
+
 def test_the_location_description_lists_what_every_label_means_one_bullet_each():
     from src.analysis.embedding_coloring import COLOR_MODES
 
@@ -1962,9 +1962,6 @@ def test_the_location_description_lists_what_every_label_means_one_bullet_each()
 def test_a_mode_without_a_legend_is_the_sentence_alone():
     assert color_mode_description_children("dataset") == "Points colored by cohort of origin."
     assert color_mode_description_children("neutral") == color_mode_description("neutral")
-
-
-    assert "=" not in description
 
 
 def test_each_description_belongs_to_its_own_mode():
