@@ -8,6 +8,15 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 23-10-26 — Embedding Explorer: la silhouette di un run non euclideo si misura nella sua metrica
+
+Il pannello «Clustering evaluation» rifiutava ogni run con `metric` non euclidea (es. `cosine` di agglomerative: 36 run di produzione, tra cui tutte le `19-10_s2.4-vol_*_link_average` e le `14-10_s2.4-stream_*`) e non mostrava nessun indice. Ora (`clustering_evaluation.run_metric`, `geometric_summary`, `per_cluster_silhouette`) la silhouette (tre sintesi e grafico per cluster) usa la `metric` del run; Calinski-Harabasz, Davies-Bouldin e Dunn sono NaN e il pannello mostra «—» con «Euclidean distance only». Un'affinità non euclidea (spectral `precomputed`) o una metrica che la silhouette non sa misurare restano un errore esplicito.
+
+Perché: è la stessa regola dello sweep (`compute_clustering_metrics_metric_aware`) e della silhouette di produzione, e il rifiuto non lasciava leggere nulla. Verificato su `19-10_s2.4-vol_m_euclidean_nc2_k7_link_average`: silhouette 0,736 con cosine (sklearn diretto sulla matrice del run), 0,218 se fosse stata misurata in euclidea. Alternativa scartata: calcolare Dunn nella metrica del run (matematicamente possibile) — lasciato vuoto finché la scelta delle metriche non è fatta (`open_problems.md`).
+
+Ancora vero: i notebook `clustering_evaluation`/`clustering_comparison` rifiutano ancora le run non euclidee; la guida «How to read these indices» del pannello va riscritta con la scelta delle metriche.
+
+
 ## 22-10-26 — HDBSCAN: il DBCV sostituisce silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn; via le soglie sul rumore e sulla probabilità
 
 Per `hdbscan` e `hdbscan_soft` l'indice interno è il **DBCV** (Moulavi et al. 2014, `hdbscan.validity.validity_index`, euclideo, `src/analysis/dbcv.py`). Silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn non si calcolano più per questi due metodi: in tuning, report, mappa, produzione (via `silhouette_plot.png`), Embedding Explorer e `clustering_evaluation.ipynb`. Restano per agglomerative, kmeans, gmm e spectral.
@@ -71,6 +80,8 @@ Restano su disco le 7 run di produzione `results/sdc/clustering/production/evide
 - k di split ~√n;
 - il criterio lifetime;
 - il taglio C > t.
+
+**Run di produzione cancellate (23-10-26, su richiesta)**: `results/sdc/clustering/production/evidence_accumulation/` (7 run `30-09_s2.3-stream_t05_k4…k10` più il loro `runs.csv`, 32 MB), che facevano scrivere all'Embedding Explorer un warning a ogni avvio (metodo senza voce in `params_clustering.json`). Non sono ricostruibili senza il codice del commit `27087d1`.
 
 ## 21-10-26 — `buckner_7n` escluso dalle matrici SDC parcellate: l'esclusione provvisoria diventa definitiva
 

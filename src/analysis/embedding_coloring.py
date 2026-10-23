@@ -81,6 +81,9 @@ class ColorMode:
     # UNKNOWN_CATEGORICAL) raises in color_values. None: an open vocabulary (dataset, side),
     # coloured by sorted position among the labels present.
     categories: tuple[str, ...] | None = None
+    # (label, meaning) pairs shown as a bullet list under `description`, for a categorical mode whose labels are not
+    # self-explanatory. Order is the legend's.
+    legend: tuple[tuple[str, str], ...] = ()
 
 
 # Lesion volume and overall disconnection are measured on a voxel grid, and the registry holds one
@@ -153,10 +156,7 @@ def available_grids() -> list[str]:
 COLOR_MODES: dict[str, ColorMode] = {
     "dataset": ColorMode(
         kind="categorical", column="dataset", label="dataset",
-        description=(
-            "Points colored by cohort of origin. It shows whether the embedding separates patients "
-            "by site or acquisition rather than by lesion."
-        ),
+        description="Points colored by cohort of origin.",
     ),
     # "unknown" sentinel for an unresolvable subject (dataset-wide gap, e.g. PASPORT has no
     # lesion_side column at all, or a per-subject missing cell). The sentinel is applied here,
@@ -176,10 +176,16 @@ COLOR_MODES: dict[str, ColorMode] = {
     "location": ColorMode(
         kind="categorical", column=_LOCATION_COLUMN, registry_column=_LOCATION_COLUMN, label="lesion location",
         categories=_LOCATION_CATEGORIES,
-        description=(
-            "Points colored by lesion location: the anatomical category that holds the largest share of it. "
-            "cortex_white_boundary are the voxels on which the two atlases disagree (cortex or white matter). "
-            "Gray: location not available."
+        description="Points colored by the anatomical category that holds the largest share of the lesion:",
+        legend=(
+            ("infratentorial", "brainstem and cerebellum"),
+            ("subcortical_gray", "thalamus, caudate, putamen, pallidum, hippocampus, amygdala, accumbens"),
+            ("cortex_only", "cortex"),
+            ("cortex_white_boundary", "voxels the two atlases disagree on (cortex for one, white matter for the other)"),
+            ("white_matter_only", "cerebral white matter"),
+            ("ventricle", "lateral ventricle"),
+            ("unlabeled", "inside the brain, but no label the rules recognise"),
+            ("gray", "location not available (lesion entirely outside the brain)"),
         ),
     ),
     "volume": ColorMode(

@@ -181,11 +181,35 @@ def test_the_breakdown_keeps_the_silhouette_of_every_subject_without_the_noise()
         assert breakdown.subject_values[breakdown.subject_labels == cluster].mean() == pytest.approx(row["silhouette_mean"])
 
 
-def test_per_cluster_silhouette_refuses_a_non_euclidean_run():
+def test_per_cluster_silhouette_is_measured_in_the_metric_of_the_run():
+    """The same labels on the same points score differently under cosine and euclidean: a run clustered with cosine
+    must be scored with cosine (lessons_learned.md #15), as sklearn does."""
+    from sklearn.metrics import silhouette_samples
+
     from src.analysis.clustering_evaluation import per_cluster_silhouette
 
-    with pytest.raises(ValueError, match="metric='dice'"):
-        per_cluster_silhouette(_three_blobs(), np.repeat([0, 1, 2], 30), combo_params={"metric": "dice"})
+    rng = np.random.default_rng(0)
+    X = np.abs(rng.normal(size=(60, 4))) * rng.uniform(0.2, 5, size=(60, 1)) + np.repeat(np.eye(3, 4) * 3, 20, axis=0)
+    labels = np.repeat([0, 1, 2], 20)
+
+    cosine = per_cluster_silhouette(X, labels, combo_params={"metric": "cosine"})
+
+    assert cosine.micro == pytest.approx(silhouette_samples(X, labels, metric="cosine").mean())
+    assert cosine.micro != pytest.approx(silhouette_samples(X, labels).mean())
+
+
+def test_per_cluster_silhouette_refuses_a_non_euclidean_affinity():
+    from src.analysis.clustering_evaluation import per_cluster_silhouette
+
+    with pytest.raises(ValueError, match="affinity='precomputed'"):
+        per_cluster_silhouette(_three_blobs(), np.repeat([0, 1, 2], 30), combo_params={"affinity": "precomputed"})
+
+
+def test_per_cluster_silhouette_refuses_a_metric_it_cannot_score():
+    from src.analysis.clustering_evaluation import per_cluster_silhouette
+
+    with pytest.raises(ValueError, match="chebyshev"):
+        per_cluster_silhouette(_three_blobs(), np.repeat([0, 1, 2], 30), combo_params={"metric": "chebyshev"})
 
 
 # --- knn_purity -------------------------------------------------------------
@@ -530,9 +554,30 @@ def test_geometric_summary_needs_two_clusters_once_noise_is_left_out():
         geometric_summary(X, labels, {})
 
 
-def test_geometric_summary_refuses_a_run_clustered_under_another_metric():
-    with pytest.raises(ValueError, match="Euclidean"):
-        geometric_summary(_three_blobs(), _blob_labels(), {"metric": "dice"})
+def test_geometric_summary_of_a_cosine_run_has_the_cosine_silhouette_and_no_euclidean_only_index():
+    from sklearn.metrics import silhouette_score
+
+    X, labels = _three_blobs() + 20.0, _blob_labels()
+
+    summary = geometric_summary(X, labels, {"metric": "cosine"})
+
+    assert summary.metric == "cosine"
+    assert summary.silhouette == pytest.approx(silhouette_score(X, labels, metric="cosine"))
+    assert np.isnan([summary.calinski_harabasz, summary.davies_bouldin, summary.dunn]).all()
+    assert np.isfinite([summary.silhouette_macro, summary.silhouette_min, summary.largest_cluster_share]).all()
+
+
+def test_geometric_summary_of_a_euclidean_run_names_its_metric_and_has_every_index():
+    for params in ({}, {"metric": "euclidean"}):
+        summary = geometric_summary(_three_blobs(), _blob_labels(), params)
+
+        assert summary.metric == "euclidean"
+        assert np.isfinite([summary.calinski_harabasz, summary.davies_bouldin, summary.dunn]).all()
+
+
+def test_geometric_summary_still_refuses_a_non_euclidean_affinity():
+    with pytest.raises(ValueError, match="affinity"):
+        geometric_summary(_three_blobs(), _blob_labels(), {"affinity": "precomputed"})
 
 
 def test_geometric_summary_rejects_labels_that_do_not_match_the_rows():

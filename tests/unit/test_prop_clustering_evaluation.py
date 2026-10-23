@@ -274,9 +274,15 @@ def _rename_keep_noise(labels: np.ndarray, seed: int) -> np.ndarray:
     return out
 
 
-def test_per_cluster_silhouette_refuses_a_run_that_was_not_clustered_in_euclidean_geometry():
+def test_per_cluster_silhouette_refuses_a_run_with_a_non_euclidean_affinity():
     points, labels = gaussian_blobs(5, seed=2)
     with pytest.raises(ValueError, match="Euclidean"):
+        per_cluster_silhouette(points, labels, {"affinity": "precomputed"})
+
+
+def test_per_cluster_silhouette_refuses_a_binary_metric_on_a_continuous_matrix():
+    points, labels = gaussian_blobs(5, seed=2)
+    with pytest.raises(ValueError, match="dice"):
         per_cluster_silhouette(points, labels, {"metric": "dice"})
 
 

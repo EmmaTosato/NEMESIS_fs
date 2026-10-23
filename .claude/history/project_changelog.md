@@ -6,6 +6,12 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 23-10-26 — Dendrogram Explorer: via la panoramica «All Clusters»
+
+Rimossa dalla sezione `dendrogram-panel` la panoramica dei k cluster del tuning (`dendrogram_overview_content_for`, la sua callback, i suoi test): ripeteva l'opzione «all» del Clustering Explorer. La sezione parte da «Agglomerative decomposed». `cluster_overview_content_for` resta, usata solo da «all».
+
+Ancora vero: nel blocco «all» l'embedding è `position: sticky` dentro `.wide-block`, che per questo usa `overflow-x: clip` (con `auto` lo sticky non scatta).
+
 ## 22-10-26 — Tuning del clustering: la mappa e le curve di HDBSCAN diventano valutazioni del registro; nasce `internal_metrics`
 
 Regola: tutto ciò che si fa durante lo sweep si può rifare con `evaluate_clustering_tuning.json`, e viceversa; una funzione, dichiarata in `tuning_evaluations`, eseguita dallo sweep appena finisce e dalla pipeline sul tuning salvato.

@@ -35,7 +35,7 @@ from tests.unit.test_embedding_app import _make_run_dir
 
 def _summary(**overrides) -> GeometricSummary:
     values = dict(
-        n_subjects=5845, n_components=2, n_clusters=7, largest_cluster_share=0.412, noise_fraction=0.003,
+        n_subjects=5845, n_components=2, metric="euclidean", n_clusters=7, largest_cluster_share=0.412, noise_fraction=0.003,
         silhouette=0.546, silhouette_macro=0.431, silhouette_min=0.21, calinski_harabasz=17157.442,
         davies_bouldin=0.462, dunn=0.0123,
         clusters=pd.DataFrame(
@@ -94,6 +94,24 @@ def test_the_panel_shows_every_index_with_italian_number_formatting():
     for expected in ("0,546", "0,431", "0,210", "17.157,4", "0,462", "0,0123", "41,2%", "0,3%", "5845 subjects"):
         assert expected in text
     assert "How to read these indices" in text
+
+
+def test_a_run_clustered_with_another_metric_has_its_silhouette_and_a_dash_for_the_euclidean_only_indices():
+    cosine = _summary(metric="cosine", calinski_harabasz=float("nan"), davies_bouldin=float("nan"), dunn=float("nan"))
+
+    content = cluster_quality_content_for(_run("agglomerative"), model_fit_of=_fit, summary_of=lambda _run: cosine)
+
+    text = _text(content)
+    assert "0,546" in text and "0,431" in text and "0,210" in text  # the three silhouette summaries
+    assert "nan" not in text.lower() and "—" in text
+    assert text.count("Euclidean distance only") == 3  # Calinski-Harabasz, Davies-Bouldin, Dunn
+    assert "uses the cosine distance" in text
+
+
+def test_a_euclidean_run_has_no_dash_and_no_metric_sentence():
+    text = _text(cluster_quality_content_for(_run(), model_fit_of=_fit, summary_of=lambda _run: _summary()))
+
+    assert "Euclidean distance only" not in text and "uses the" not in text
 
 
 def test_the_guide_to_the_indices_is_a_collapsed_menu_right_under_the_heading():

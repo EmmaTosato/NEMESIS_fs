@@ -41,6 +41,7 @@ from src.analysis.embedding_app import (
     disconnection_map_content_for,
     discover_production_runs,
     color_mode_description,
+    color_mode_description_children,
     graph_content_for,
     lesion_viewer_content_for,
     load_run,
@@ -1945,6 +1946,24 @@ def test_every_color_mode_has_a_description_without_an_equals_sign(mode_name):
     description = color_mode_description(mode_name)
 
     assert description.strip()
+def test_the_location_description_lists_what_every_label_means_one_bullet_each():
+    from src.analysis.embedding_coloring import COLOR_MODES
+
+    children = color_mode_description_children("location")
+
+    sentence, bullets = children
+    assert sentence == color_mode_description("location")
+    assert isinstance(bullets, html.Ul) and len(bullets.children) == len(COLOR_MODES["location"].legend)
+    labels = [item.children[0].children for item in bullets.children]
+    assert labels == [*COLOR_MODES["location"].categories, "gray"]  # every category of the legend order, then the gray one
+    assert all(meaning.strip(": ") for item in bullets.children for meaning in [item.children[1]])
+
+
+def test_a_mode_without_a_legend_is_the_sentence_alone():
+    assert color_mode_description_children("dataset") == "Points colored by cohort of origin."
+    assert color_mode_description_children("neutral") == color_mode_description("neutral")
+
+
     assert "=" not in description
 
 

@@ -29,7 +29,7 @@ Sul volume la differenza è sostanziale: il `lesion_volume_voxels` di un run con
 
 ### Sede della lesione
 
-Il bottone **lesion location** colora ogni punto per **dove sta la lesione**: la categoria anatomica che ne contiene la quota maggiore, una tra sette (`infratentorial`, `subcortical_gray`, `cortex_only`, `cortex_white_boundary`, `white_matter_only`, `ventricle`, `unlabeled`). `cortex_white_boundary` non è una sede: sono i voxel su cui i due atlanti Harvard-Oxford non concordano (corteccia per uno, sostanza bianca per l'altro). Definizioni e regole: [`docs/dev/metadata.md`](../dev/metadata.md), sezione *La sede della lesione*.
+Il bottone **lesion location** colora ogni punto per **dove sta la lesione**: la categoria anatomica che ne contiene la quota maggiore, una tra sette (`infratentorial`, `subcortical_gray`, `cortex_only`, `cortex_white_boundary`, `white_matter_only`, `ventricle`, `unlabeled`). `cortex_white_boundary` non è una sede: sono i voxel su cui i due atlanti Harvard-Oxford non concordano (corteccia per uno, sostanza bianca per l'altro). Sopra il grafico la frase del bottone è seguita da un **elenco puntato con il significato di ogni etichetta** (più il grigio); il bottone **dataset** ha solo la frase "Points colored by cohort of origin.". Definizioni e regole: [`docs/dev/metadata.md`](../dev/metadata.md), sezione *La sede della lesione*.
 
 - **Ogni etichetta ha sempre lo stesso colore**, in qualunque run e anche se in quel run un'altra etichetta non compare (di solito `cortex_white_boundary`, rara: 21 soggetti su 5853). La legenda segue l'ordine delle categorie, non quello alfabetico.
 - **Grigio**: sede non disponibile, cioè i soggetti con la lesione tutta fuori dal cervello (4 su 5853).
@@ -155,7 +155,7 @@ Il paziente è risolto tramite `subject_id`/`dataset` del run corrente (colonne 
 
 Per un run `clustering.py` la pagina si divide in due, separate da una riga netta e da questo titolo: **sopra** tutto ciò che riguarda l'intero run o un singolo soggetto (scatter, anatomia lesionale, disconnettoma), **sotto** tutto ciò che riguarda un cluster alla volta.
 
-La prima cosa della sezione è il selettore **Cluster**, centrato: pilota *tutti* i pannelli che seguono (overlap map, frequency map, soggetto rappresentativo, descrizione del cluster). La prima voce è **«all»**: invece di un cluster, le due mappe (lesione e, per un run `sdc`, disconnessione) mostrano tutti i cluster insieme (vedi sotto). Il selettore parte comunque dal primo cluster, perché «all» costruisce le mappe di tutti.
+La prima cosa della sezione è il selettore **Cluster**, centrato (sotto, uno spazio bianco di circa 100 px lo separa dal primo pannello): pilota *tutti* i pannelli che seguono (overlap map, frequency map, soggetto rappresentativo, descrizione del cluster). La prima voce è **«all»**: invece di un cluster, le due mappe (lesione e, per un run `sdc`, disconnessione) mostrano tutti i cluster insieme (vedi sotto). Il selettore parte comunque dal primo cluster, perché «all» costruisce le mappe di tutti.
 
 Per un run `dim_reduction.py` l'intera sezione è nascosta.
 
@@ -171,7 +171,7 @@ Se uno o più soggetti del cluster non hanno il file grezzo della lesione su dis
 
 Scegliendo «all» nel selettore, il pannello "Overlap map per cluster" (e, per un run `sdc`, "Disconnection per cluster", con il bottone della modalità scelto) mostra **tutti i cluster della run in un unico blocco**, largo fino a 1700 px (esce dalla colonna centrale della pagina):
 
-- **A sinistra, una volta sola**, l'embedding della run, piccolo, con una legenda ("Cluster 0", "Cluster 1", ...; il rumore di HDBSCAN è "Rumore", in grigio). I colori sono quelli dello scatter in cima alla pagina. La legenda non riporta i soggetti: la numerosità è nel titolo di ogni mappa e nel tooltip dei punti. Un embedding non a 2 componenti, o non disegnabile, non si affetta: al suo posto un messaggio, e le mappe si vedono lo stesso.
+- **A sinistra, una volta sola**, l'embedding della run, piccolo, che **scorre con te** (`position: sticky`, 24 px dal bordo alto della finestra): resta visibile mentre si scende lungo le mappe e si ferma dove finiscono le mappe del pannello, cioè prima di "Disconnection per cluster" (e, in quel pannello, prima della sezione che segue). Tra l'embedding e la prima colonna di mappe ci sono circa 40 px. Ha una legenda ("Cluster 0", "Cluster 1", ...; il rumore di HDBSCAN è "Rumore", in grigio). I colori sono quelli dello scatter in cima alla pagina. La legenda non riporta i soggetti: la numerosità è nel titolo di ogni mappa e nel tooltip dei punti. Un embedding non a 2 componenti, o non disegnabile, non si affetta: al suo posto un messaggio, e le mappe si vedono lo stesso.
 - **A destra, le mappe di tutti i cluster**, due per riga, tante righe quante servono: si scorre verso il basso, senza dividere in schermate né ridisegnare l'embedding. Ogni mappa ha il titolo "■ Cluster 3 (n=319)", con il quadratino del colore che il cluster ha nell'embedding. Con un solo cluster la mappa è una, più grande.
 - Un cluster di cui non si può costruire la mappa mostra il suo messaggio al posto della mappa; gli altri si vedono.
 
@@ -299,7 +299,7 @@ Dettagli di implementazione: `docs/dev/covariance_pca.md` (sezione "Component ma
 
 ## Clustering evaluation
 
-Ultimo pannello della pagina, per un run di clustering. Dà gli **indici dell'intero run** (non del cluster scelto nel dropdown): quanto i cluster sono compatti e separati nello spazio su cui è stato fatto il clustering. Per kmeans, gmm, agglomerative e spectral sono gli indici geometrici (sezione 2 di `clustering_evaluation.ipynb`); per `hdbscan` e `hdbscan_soft` è il DBCV (sezione 2.3), perché silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn si calcolano sui soli soggetti non rumore e presuppongono cluster compatti. Calinski-Harabasz e Davies-Bouldin valgono solo con la distanza euclidea. Il rumore non ha soglia né avviso: è un numero della tabella.
+Ultimo pannello della pagina, per un run di clustering. Dà gli **indici dell'intero run** (non del cluster scelto nel dropdown): quanto i cluster sono compatti e separati nello spazio su cui è stato fatto il clustering. Per kmeans, gmm, agglomerative e spectral sono gli indici geometrici (sezione 2 di `clustering_evaluation.ipynb`); per `hdbscan` e `hdbscan_soft` è il DBCV (sezione 2.3), perché silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn si calcolano sui soli soggetti non rumore e presuppongono cluster compatti. Calinski-Harabasz e Davies-Bouldin valgono solo con la distanza euclidea. Per un run clusterizzato con un'altra `metric` (es. `cosine` di agglomerative) la **silhouette si misura in quella metrica** (la stessa del clustering, come nello sweep e in `silhouette_plot.png`) e Calinski-Harabasz, Davies-Bouldin e Dunn mostrano «—» con la lettura «Euclidean distance only»; sopra la tabella una riga dice quale distanza usa la silhouette. Il rumore non ha soglia né avviso: è un numero della tabella.
 
 Una tabella con valore e lettura di (non per `hdbscan` e `hdbscan_soft`, vedi sotto):
 
@@ -349,7 +349,7 @@ La purezza è in parte circolare: adp forma i cluster proprio su questi vicini, 
 Quando il pannello dice una causa invece dei numeri:
 
 - **Run su una matrice con più di 1000 colonne** (`MAX_QUALITY_COLUMNS`), cioè su dato grezzo come i 221955 voxel della matrice lesionale: silhouette e Dunn leggono tutte le coppie di soggetti e non si calcolano qui; si fanno nel notebook.
-- **Run non euclideo** (metrica o affinità diversa da euclidea, es. `cosine`): gli indici sarebbero calcolati nella geometria sbagliata.
+- **Affinità non euclidea** (spectral con affinità `precomputed`) o una `metric` che la silhouette non sa misurare (non `euclidean`, `cosine`, `manhattan`, `dice`, `jaccard`): non c'è una distanza in cui misurare, quindi nessun indice.
 - **Meno di 2 cluster** una volta tolto il rumore.
 
 Il calcolo richiede da meno di un secondo a pochi secondi (5845 soggetti, 10 componenti: circa 4 s) e viene fatto una volta per run: il secondo passaggio sullo stesso run è immediato.
@@ -369,24 +369,20 @@ Un run di produzione ha un solo k. Le etichette per ogni k stanno in un **tuning
 | Selettore | Significato |
 | :--- | :--- |
 | Tuning compatibile | Da quale tuning leggere le etichette per ogni k. |
-| k | I k che il tuning ha salvato, fino a 30 (i colori sono 30). Parte dal k del run, o dal più vicino salvato. Vale per la panoramica e per il percorso. |
+| k | I k che il tuning ha salvato, fino a 30 (i colori sono 30). Parte dal k del run, o dal più vicino salvato. Il percorso va dal k più piccolo a questo. |
 | Mappa | Lesione o disconnessione di tutte le mappe. Parte sempre da lesione, qualunque sia la modalità del run. |
 
-Sotto i selettori ci sono due parti: la panoramica «All Clusters» e «Agglomerative decomposed», il percorso dal k più piccolo a quello scelto.
-
-### All Clusters
-
-I k cluster del tuning a quel k, fermi, nello stesso formato di «all»: l'embedding piccolo a sinistra con la legenda, le mappe di tutti i cluster a destra, due per riga. I cluster sono numerati da sinistra a destra come sull'albero e portano le foglie che contengono ("Cluster 2 · L9–L13"), così si ritrovano nel percorso; hanno anche lo stesso colore che hanno lì.
+Sotto i selettori comincia direttamente «Agglomerative decomposed» (i cluster di un k, tutti insieme, si vedono con «all» nel Clustering Explorer).
 
 ### Agglomerative decomposed
 
-Per ogni k, dal più piccolo del tuning a quello scelto, **una schermata** sotto l'altra, separate da una riga e da spazio; un titolo con una linea sopra lo stacca dalla panoramica:
+Per ogni k, dal più piccolo del tuning a quello scelto, **una schermata** sotto l'altra, separate da una riga e da spazio:
 
-- **Il primo (k più piccolo)** mostra l'albero e l'embedding con quei cluster, e **solo** la mappa del cluster che si dividerà al passo dopo ("Si dividerà"); in grassetto, nell'embedding, il suo nome.
-- **Ogni schermata successiva** mostra la divisione già avvenuta. Una riga dice quale cluster si è diviso in quali due e a quale distanza di fusione (`k=4: L19–L30 (n=2194) si è diviso in L19–L24 (n=1243) e L25–L30 (n=951), distanza di fusione 151.5`).
-- **A sinistra**, due grafici: l'albero troncato, con le foglie `L1`, `L2`, ... e la linea rossa del taglio a quel k, e sotto l'embedding con k colori, uno per cluster, gli stessi dell'albero. Il pezzo più grande di una divisione tiene il colore del cluster da cui nasce, il più piccolo ne prende uno nuovo. Il nome di ogni cluster (le foglie che contiene, `L5–L6`: le foglie restano uguali a ogni k, le etichette numeriche no) sta sul grafico in un riquadro bianco; i due nati dalla divisione sono più grandi e in grassetto. Non c'è legenda, perché cresce con k.
+- **Il primo (k più piccolo)** mostra l'albero e l'embedding con quei cluster, e **solo** la mappa del cluster che si dividerà al passo dopo ("Will split"); in grassetto, nell'embedding, il suo nome.
+- **Ogni schermata successiva** mostra la divisione già avvenuta. Una riga dice quale cluster si è diviso in quali due e a quale distanza di fusione (`k=4: L19–L30 (n=2194) split into L19–L24 (n=1243) and L25–L30 (n=951), merge distance 151.5`).
+- **A sinistra** (560 px), due grafici, separati da circa 60 px dalle mappe a destra: l'albero troncato (titolo "Tree (last merges)", assi "leaf" e "merge distance"), con le foglie `L1`, `L2`, ... e la linea rossa "cut k=…" del taglio a quel k, e sotto l'embedding ("Embedding, k clusters") con k colori, uno per cluster, gli stessi dell'albero. Il pezzo più grande di una divisione tiene il colore del cluster da cui nasce, il più piccolo ne prende uno nuovo. Il nome di ogni cluster (le foglie che contiene, `L5–L6`: le foglie restano uguali a ogni k, le etichette numeriche no) sta sul grafico in un riquadro bianco; i due nati dalla divisione sono più grandi e in grassetto. Non c'è legenda, perché cresce con k.
 - **A destra**, in alto la mappa di "Was" (il cluster di k-1 che si è diviso), sotto affiancate le mappe dei due "New". Ogni titolo ha il quadratino del colore del cluster nell'embedding. Sono le stesse mappe di "Overlap map per cluster" e "Disconnection per cluster", ma più piccole, con la loro cache.
-- **Sotto tutto il disegno, una tabella** (larga al massimo 1100 px, centrata, non rimpicciolita) che descrive "Was" e i due "New": soggetti, età, sesso, istruzione, NIHSS e volume della lesione, nel formato della tabella di confronto dei cluster (media ± deviazione standard, `n/N` sotto il valore dove il dato non copre tutto il gruppo). I valori vengono da `participants.csv`. "Was" è l'unione dei due "New".
+- **Sotto tutto il disegno, a circa 90 px da esso, una tabella** (al massimo 900 px, centrata, più piccola di quella di confronto dei cluster: carattere ridotto e nomi delle colonne che vanno a capo; non segue lo zoom del disegno) che descrive "Was" e i due "New": soggetti, età, sesso, istruzione, NIHSS e volume della lesione, nel formato della tabella di confronto dei cluster (media ± deviazione standard, `n/N` sotto il valore dove il dato non copre tutto il gruppo). I valori vengono da `participants.csv`. "Was" è l'unione dei due "New".
 
 Un k che il tuning non ha eseguito (uno sweep su 2, 3, 4, 5, 6, 8, 10 non ha 7 e 9) non si può scegliere, ma il percorso lo attraversa: le sue etichette sono il taglio dell'albero in k cluster.
 
@@ -396,11 +392,11 @@ Quando il pannello dice una causa invece della figura:
 
 - **Nessun tuning compatibile**, o il run non registra la `metric` nei suoi parametri (i run lesione del 01-09 e 03-09 con k da 4 a 6): senza la combinazione non si sa quale tuning confrontare.
 - **Run su più di 1000 colonne** (dato grezzo): l'albero non si calcola qui.
-- **Embedding non a 2 componenti**: si disegna solo un 2D, mai una fetta di uno più grande. Le mappe della panoramica si vedono comunque; il percorso, che ha l'embedding in ogni schermata, mostra il messaggio.
+- **Embedding non a 2 componenti**: si disegna solo un 2D, mai una fetta di uno più grande. Il percorso, che ha l'embedding in ogni schermata, mostra il messaggio.
 
-**Quanto costa.** L'albero costa da frazioni di secondo a pochi secondi e resta in memoria per (run, tuning). Le mappe costano circa 40 ms a soggetto la prima volta (dopo, le maschere dei soggetti sono su disco in `results/cache`), poi sono in cache per cluster e per larghezza, non per k: un cluster che si divide più avanti è già pronto. Misurato su `16-10_s2.4-vol_m_euclidean_nc2_k7_link_ward` (5845 soggetti, maschere già su disco, disconnessione): «all» con 7 cluster in 6 s (5,6 MB); k=10: panoramica 7 s (7,8 MB), percorso 15 s (21 MB); k=30: panoramica 18 s (21 MB), percorso 38 s (67 MB). Il secondo passaggio sullo stesso k è immediato. Con k grandi la pagina è pesante: ogni schermata porta tre viewer.
+**Quanto costa.** L'albero costa da frazioni di secondo a pochi secondi e resta in memoria per (run, tuning). Le mappe costano circa 40 ms a soggetto la prima volta (dopo, le maschere dei soggetti sono su disco in `results/cache`), poi sono in cache per cluster e per larghezza, non per k: un cluster che si divide più avanti è già pronto. Misurato su `16-10_s2.4-vol_m_euclidean_nc2_k7_link_ward` (5845 soggetti, maschere già su disco, disconnessione): «all» con 7 cluster in 6 s (5,6 MB); percorso fino a k=10 in 15 s (21 MB), fino a k=30 in 38 s (67 MB). Il secondo passaggio sullo stesso k è immediato. Con k grandi la pagina è pesante: ogni schermata porta tre viewer.
 
-**Finestre strette.** La panoramica e ogni schermata sono disegnate per 1700 px; in una finestra più stretta si rimpiccioliscono per intero (CSS `zoom`) invece di essere tagliate, fino a circa 1250 px. Le tabelle restano a grandezza piena.
+**Finestre strette.** Il blocco «all» e ogni schermata sono disegnate per 1700 px; in una finestra più stretta si rimpiccioliscono per intero (CSS `zoom`) invece di essere tagliate, fino a circa 1250 px. Le tabelle restano a grandezza piena.
 
 Lo stesso confronto, su una run di tuning qualsiasi e senza passare da un run di produzione, è nel notebook `dendrogram_embedding_explorer` (`evaluate_clustering_tuning.md`).
 

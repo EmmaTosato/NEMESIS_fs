@@ -25,6 +25,7 @@ from src.analysis.clustering_tuning import (
     cophenetic_correlation,
     dunn_index,
     hdbscan_labels_and_probabilities,
+    require_euclidean_affinity,
     require_euclidean_compatible,
 )
 from src.analysis.clustering_tuning_analysis import dendrogram_jump
@@ -306,16 +307,28 @@ class SilhouetteBreakdown:
     subject_values: np.ndarray
 
 
-def per_cluster_silhouette(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> SilhouetteBreakdown:
-    """Per-cluster breakdown of the Euclidean silhouette, noise (label -1) excluded.
+def run_metric(combo_params: dict) -> str:
+    """The distance a run was clustered with: its `metric` param, Euclidean when it has none (kmeans, gmm, ward...).
+    Raises ValueError for an affinity that is not Euclidean (spectral with a precomputed affinity: no distance to
+    score in, lessons_learned.md #15) or a `metric` that is not a plain string."""
+    require_euclidean_affinity(combo_params)
+    metric = combo_params.get("metric")
+    if metric is None:
+        return "euclidean"
+    if not isinstance(metric, str):
+        raise ValueError(f"metric must be a plain string, got {metric!r}")
+    return metric
 
-    `combo_params` is the run's own params: required (not optional like in
-    compute_clustering_metrics) so a run clustered under a non-Euclidean metric/affinity is
-    refused here too, instead of being scored under the wrong geometry (lessons_learned.md #15).
-    Raises ValueError for fewer than 2 non-noise clusters (compute_silhouette_samples).
+
+def per_cluster_silhouette(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> SilhouetteBreakdown:
+    """Per-cluster breakdown of the silhouette in the distance the run was clustered with, noise (label -1) excluded.
+
+    `combo_params` is the run's own params: required (not optional like in compute_clustering_metrics) so the
+    silhouette is always measured in the run's own `metric` and never in another geometry (lessons_learned.md #15).
+    Raises ValueError for fewer than 2 non-noise clusters (compute_silhouette_samples), for an affinity that is
+    not Euclidean (run_metric) or for a `metric` compute_silhouette_samples does not support.
     """
-    require_euclidean_compatible(combo_params)
-    kept_labels, samples = compute_silhouette_samples(X, np.asarray(labels))
+    kept_labels, samples = compute_silhouette_samples(X, np.asarray(labels), metric=run_metric(combo_params))
     return silhouette_breakdown(kept_labels, samples)
 
 
@@ -451,10 +464,12 @@ class GeometricSummary:
     per-cluster means and `silhouette_min` the weakest cluster's (SilhouetteBreakdown), `clusters`
     the per-cluster table; `largest_cluster_share` is over all subjects, noise included, like
     `noise_fraction`. `subject_labels`/`subject_values` are the silhouette of every subject, noise left out
-    (SilhouetteBreakdown)."""
+    (SilhouetteBreakdown). `metric` is the distance the silhouette is measured in (the run's own); Calinski-Harabasz,
+    Davies-Bouldin and Dunn are NaN unless it is "euclidean"."""
 
     n_subjects: int
     n_components: int
+    metric: str
     n_clusters: int
     largest_cluster_share: float
     noise_fraction: float
@@ -473,11 +488,13 @@ def geometric_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> 
     """Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn and the run's cluster/noise shares, the
     bundle of section 2 of notebooks/post-results_analysis/clustering_evaluation.ipynb.
 
-    Euclidean only: `combo_params` is the run's own params and a run clustered under another
-    metric/affinity is refused (require_euclidean_compatible), never scored in the wrong geometry.
+    `combo_params` is the run's own params. The silhouette is measured in the run's `metric` (run_metric); the other
+    three are Euclidean-only, like in the tuning sweep (compute_clustering_metrics_metric_aware), so for a run
+    clustered under another metric they are NaN, never computed in the wrong geometry.
 
     Raises ValueError for a `labels`/`X` length mismatch, fewer than 2 clusters once noise is left
-    out, an index that comes out undefined (every cluster a single subject), or a non-Euclidean run.
+    out, an index that comes out undefined (every cluster a single subject), an affinity that is not Euclidean or a
+    metric the silhouette does not support.
     """
     labels = np.asarray(labels)
     if X.ndim != 2 or len(X) != len(labels):
@@ -485,19 +502,23 @@ def geometric_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> 
     sizes = np.unique(labels[labels != -1], return_counts=True)[1]
     if len(sizes) < 2:
         raise ValueError(f"the indices need at least 2 clusters once noise is left out, this run has {len(sizes)}")
+    metric = run_metric(combo_params)
     breakdown = per_cluster_silhouette(X, labels, combo_params)
-    metrics = compute_clustering_metrics(X, labels, combo_params=combo_params)
-    dunn = dunn_index(X, labels)
-    undefined = sorted(name for name, value in {**metrics, "dunn": dunn}.items() if not np.isfinite(value))
-    if undefined:
-        raise ValueError(f"undefined for this run (every cluster is a single subject?): {undefined}")
+    if metric == "euclidean":
+        metrics = compute_clustering_metrics(X, labels, combo_params=combo_params)
+        dunn = dunn_index(X, labels)
+        undefined = sorted(name for name, value in {**metrics, "dunn": dunn}.items() if not np.isfinite(value))
+        if undefined:
+            raise ValueError(f"undefined for this run (every cluster is a single subject?): {undefined}")
+        euclidean_only = {name: float(metrics[name]) for name in ("calinski_harabasz", "davies_bouldin")} | {"dunn": float(dunn)}
+    else:
+        euclidean_only = {"calinski_harabasz": float("nan"), "davies_bouldin": float("nan"), "dunn": float("nan")}
     return GeometricSummary(
-        n_subjects=len(labels), n_components=X.shape[1], n_clusters=len(sizes),
-        largest_cluster_share=float(sizes.max() / len(labels)), noise_fraction=float(metrics["noise_fraction"]),
-        silhouette=float(metrics["silhouette"]), silhouette_macro=breakdown.macro, silhouette_min=breakdown.minimum,
-        calinski_harabasz=float(metrics["calinski_harabasz"]), davies_bouldin=float(metrics["davies_bouldin"]),
-        dunn=float(dunn), clusters=breakdown.clusters,
-        subject_labels=breakdown.subject_labels, subject_values=breakdown.subject_values,
+        n_subjects=len(labels), n_components=X.shape[1], metric=metric, n_clusters=len(sizes),
+        largest_cluster_share=float(sizes.max() / len(labels)), noise_fraction=float((labels == -1).mean()),
+        silhouette=breakdown.micro, silhouette_macro=breakdown.macro, silhouette_min=breakdown.minimum,
+        clusters=breakdown.clusters, subject_labels=breakdown.subject_labels, subject_values=breakdown.subject_values,
+        **euclidean_only,
     )
 
 

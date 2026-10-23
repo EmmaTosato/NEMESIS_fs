@@ -107,11 +107,10 @@ def _in_allow_list(field: str, value: object, allowed: frozenset) -> bool:
         raise ValueError(f"{field} must be a plain scalar (string/null), got {value!r}") from exc
 
 
-def require_euclidean_compatible(combo_params: dict | None) -> None:
-    """Raises ValueError if combo_params names an affinity/metric outside the Euclidean allow-lists
-    (or one that isn't a plain scalar). None -> no check."""
-    if combo_params is None:
-        return
+def require_euclidean_affinity(combo_params: dict) -> None:
+    """Raises ValueError if combo_params names an affinity outside the Euclidean allow-list (or one that isn't a
+    plain scalar). No `metric` check: a run's metric can be scored in its own distance (compute_silhouette_samples),
+    an affinity cannot."""
     affinity = combo_params.get("affinity")
     if not _in_allow_list("affinity", affinity, _EUCLIDEAN_SAFE_AFFINITY):
         raise ValueError(
@@ -120,6 +119,14 @@ def require_euclidean_compatible(combo_params: dict | None) -> None:
             "plain Euclidean feature matrix - pass an explicit metric-aware score instead of calling this "
             "function, or register affinity in _EUCLIDEAN_SAFE_AFFINITY if it's actually Euclidean-based"
         )
+
+
+def require_euclidean_compatible(combo_params: dict | None) -> None:
+    """Raises ValueError if combo_params names an affinity/metric outside the Euclidean allow-lists
+    (or one that isn't a plain scalar). None -> no check."""
+    if combo_params is None:
+        return
+    require_euclidean_affinity(combo_params)
     metric = combo_params.get("metric")
     if not _in_allow_list("metric", metric, _EUCLIDEAN_SAFE_METRIC):
         raise ValueError(

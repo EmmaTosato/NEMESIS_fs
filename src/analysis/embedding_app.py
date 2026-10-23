@@ -133,7 +133,6 @@ from src.analysis.dendrogram_splits import (
     build_split_tree,
     build_step_embedding_figure,
     build_tree_figure,
-    leaf_name,
     replay_splits,
     saved_labels_for,
     single_label,
@@ -253,6 +252,10 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
     max-width: 820px; min-height: 3em; margin: 0 auto 32px; text-align: center;
     font-size: 17px; line-height: 1.5; color: #595959;
 }}
+/* The meaning of each label of a categorical mode (ColorMode.legend): a bullet list under the sentence, centred as a
+   block but read left-aligned. */
+.color-legend {{ display: inline-block; text-align: left; margin: 10px 0 0; padding-left: 22px; font-size: 16px; }}
+.color-legend li {{ margin: 3px 0; }}
 .graph-wrap {{ display: flex; justify-content: center; width: 100%; }}
 .graph-wrap > div {{ width: 100%; }}
 .status-message {{ text-align: center; color: #595959; font-size: 18px; margin: 64px 0; }}
@@ -287,7 +290,9 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 /* Dendrogram Explorer: the walk starts well below the pickers, and each step is set apart from the previous one. */
 /* Blocks that need more than the 1100 px of .page (the overview of every cluster, the walk down the tree): as wide as
    the window up to 1700 px, centred on the page. */
-.wide-block {{ width: min(1700px, calc(100vw - 48px)); margin-left: 50%; transform: translateX(-50%); box-sizing: border-box; overflow-x: auto; }}
+/* overflow-x: clip, not auto: auto would make the block a scroll container and the sticky embedding inside it (see
+   .overview-embedding) would stick to the block, which never scrolls, instead of to the window. */
+.wide-block {{ width: min(1700px, calc(100vw - 48px)); margin-left: 50%; transform: translateX(-50%); box-sizing: border-box; overflow-x: clip; }}
 /* "all" in the cluster picker: the save buttons below belong to a single cluster's map. */
 .anatomy-panel:has(.all-clusters-overview) .save-btn-row {{ display: none; }}
 .overview-heading {{ font-size: 24px; font-weight: 700; text-align: center; margin: 64px 0 10px; }}
@@ -302,24 +307,31 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
 @media (max-width: 1350px) {{ .overview-body, .dendrogram-step-body {{ zoom: 0.72; }} }}
 @media (max-width: 1250px) {{ .overview-body, .dendrogram-step-body {{ zoom: 0.65; }} }}
 .overview-body, .dendrogram-step-body {{ zoom: min(1, calc((100vw - 48px) / 1652px)); }}
-.overview-body {{ display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 40px; }}
+.overview-body {{ display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 36px; align-items: start; margin-top: 40px; }}
+/* The embedding follows the reader down the maps and stops where the maps end (the end of .overview-body). */
+.overview-embedding {{ position: sticky; top: 24px; }}
 .overview-grid {{ display: grid; gap: 48px 64px; justify-content: center; align-items: start; }}
 .map-tile-title {{ display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 18px; font-weight: 600; margin: 4px 0; }}
 .map-tile-title.large {{ font-size: 20px; }}
 .map-swatch {{ width: 15px; height: 15px; border-radius: 3px; flex: none; }}
 .map-tile iframe {{ display: block; border: none; }}
-.dendrogram-steps-title {{ text-align: center; font-size: 34px; font-weight: 800; margin: 140px 0 0; padding-top: 64px; border-top: 2px solid #bfbfbf; }}
+.dendrogram-steps-title {{ text-align: center; font-size: 34px; font-weight: 800; margin: 96px 0 0; }}
 .dendrogram-step {{ box-sizing: border-box; min-height: 900px; padding: 80px 0 10px; margin-top: 64px; border-top: 1px solid #d9d9d9; }}
 .dendrogram-step.first {{ padding-top: 18px; margin-top: 0; border-top: none; }}
 .dendrogram-step-title {{ font-size: 20px; margin: 0 0 36px; text-align: center; }}
-.dendrogram-step-body {{ display: grid; grid-template-columns: minmax(0, 1fr) 1010px; gap: 12px; align-items: start; }}
+.dendrogram-step-body {{ display: grid; grid-template-columns: 560px 1010px; justify-content: center; gap: 60px; align-items: start; }}
 .dendrogram-step-maps {{ display: flex; flex-direction: column; gap: 10px; }}
 .dendrogram-step-row {{ display: flex; gap: 12px; justify-content: center; align-items: flex-start; }}
 /* The table of a step sits below the drawing, at the normal size of the page's other tables and not zoomed with it. */
-.dendrogram-step-table {{ max-width: 1100px; margin: 56px auto 0; }}
+/* Two classes: .stats-table-wrap, declared further down, sets its own margin-top and would win over a single one. */
+.stats-table-wrap.dendrogram-step-table {{ max-width: 900px; margin: 88px auto 0; }}
+.dendrogram-step-table .stats-table {{ width: auto; margin: 0 auto; }}
+.dendrogram-step-table .stats-table th {{ white-space: normal; max-width: 92px; line-height: 1.3; font-size: 11.5px; padding: 0 12px 9px; }}
+.dendrogram-step-table .stats-table td {{ padding: 13px 12px 11px; font-size: 15px; }}
+.dendrogram-step-table .stats-cluster {{ font-size: 15px; }}
 .cluster-chooser .picker-label {{ font-size: 16px; }}
 /* The panel directly under the chooser must not re-draw the section break with its own rule. */
-.section-divider + .anatomy-panel {{ margin-top: 40px; border-top: none; padding-top: 0; }}
+.section-divider + .anatomy-panel {{ margin-top: 96px; border-top: none; padding-top: 0; }}
 /* A further bump over .section-heading's own 30px (01-09-26, follow-up feedback: "un po' più
    grandi") - kept scoped to the two anatomy panels, not "Embedding Visualization" above, since
    only these two were called out this time. */
@@ -2377,7 +2389,7 @@ def run_geometric_summary(run: ProductionRun) -> GeometricSummary:
 
     Raises ValueError, with the cause, for a run they are not defined for or too costly here: a
     method they do not apply to (adp - src.analysis.clustering_evaluation.EVALUATIONS), a matrix
-    with more than MAX_QUALITY_COLUMNS columns, a non-Euclidean run, or fewer than 2 clusters."""
+    with more than MAX_QUALITY_COLUMNS columns, a non-Euclidean affinity, or fewer than 2 clusters."""
     require_applicable("geometric_metrics", run.method)
     _require_narrow_matrix(run)
     matrix, metadata, _extra_arrays = load_matrix(run.path)
@@ -2639,9 +2651,17 @@ def _model_fit_block(run: ProductionRun, model_fit_of: Callable[[ProductionRun],
     except ValueError as exc:
         return html.Div([heading, html.P(str(exc), className="status-message")])
     if run.method in ("kmeans", "gmm"):
-        guide = "Inertia and BIC/AIC do not have the same scale. The model is refitted with the run parameters and accepted only if it reproduces the saved labels."
+        guide = (
+            "The model is fitted again with the run's parameters and used only if it gives exactly the saved labels. "
+            "Inertia (k-means) and BIC/AIC (GMM) are on different scales: they are not comparable between methods."
+        )
     elif run.method == "agglomerative":
-        guide = "The tree is rebuilt with the run parameters and accepted only if it reproduces the saved labels. The cophenetic correlation is not compared across different metrics."
+        guide = (
+            "The tree is rebuilt from the run's matrix with its linkage and metric, and used only if cutting it gives exactly "
+            "the saved labels. The cophenetic correlation says how well the heights of the tree reproduce the distances between "
+            "subjects (1 = perfectly); it is measured against the run's own distance, so it is not comparable between runs "
+            "with a different metric."
+        )
     else:
         guide = "The statistic is read from the run labels, without refitting."
     return html.Div([
@@ -2836,13 +2856,19 @@ def cluster_quality_content_for(
     def share(value: float) -> str:
         return f"{_format_number(value * 100, 1)}%"
 
+    euclidean = summary.metric == "euclidean"
+
+    def euclidean_only(value: float, decimals: int, reading: str) -> list[str]:
+        """[value, reading] of an index defined only with Euclidean distance: a dash and why, for another metric."""
+        return [_format_number(value, decimals), reading] if euclidean else ["—", "Euclidean distance only"]
+
     rows = [
         ["Silhouette (mean over subjects)", _format_number(summary.silhouette, 3), "higher is better, from -1 to 1"],
         ["Silhouette (mean over clusters)", _format_number(summary.silhouette_macro, 3), "every cluster weighs the same, even the smallest"],
         ["Silhouette of the worst cluster", _format_number(summary.silhouette_min, 3), "higher is better"],
-        ["Calinski-Harabasz", _format_number(summary.calinski_harabasz, 1), "higher is better"],
-        ["Davies-Bouldin", _format_number(summary.davies_bouldin, 3), "lower is better"],
-        ["Dunn", _format_number(summary.dunn, 4), "higher is better"],
+        ["Calinski-Harabasz", *euclidean_only(summary.calinski_harabasz, 1, "higher is better")],
+        ["Davies-Bouldin", *euclidean_only(summary.davies_bouldin, 3, "lower is better")],
+        ["Dunn", *euclidean_only(summary.dunn, 4, "higher is better")],
         ["Clusters (noise excluded)", str(summary.n_clusters), ""],
         ["Largest cluster", share(summary.largest_cluster_share), "of the subjects"],
         ["Noise", share(summary.noise_fraction), "of the subjects"],
@@ -2851,7 +2877,8 @@ def cluster_quality_content_for(
     children += [
         html.P(
             f"Computed on the {summary.n_components} columns of the matrix the clustering was run on "
-            f"({summary.n_subjects} subjects), with noise (-1) excluded.",
+            f"({summary.n_subjects} subjects), with noise (-1) excluded"
+            + ("." if euclidean else f". The silhouette uses the {summary.metric} distance, the one the clustering used."),
             className="quality-intro",
         ),
         _table(["Index", "Value", "Reading"], rows, text_columns=(0, 2)),
@@ -3585,7 +3612,7 @@ def cluster_overview_content_for(
             html.P([caption, html.Span(note, className="anatomy-note") if note else None], className="anatomy-caption"),
             html.Div(
                 className="overview-body",
-                children=[left, html.Div(tiles, className="overview-grid", style={"gridTemplateColumns": f"repeat({cols}, auto)"})],
+                children=[html.Div(left, className="overview-embedding"), html.Div(tiles, className="overview-grid", style={"gridTemplateColumns": f"repeat({cols}, auto)"})],
             ),
         ],
     )
@@ -3709,38 +3736,6 @@ def _dendrogram_map_tile(
     except ValueError as exc:
         return html.P(f"{name}: {exc}", className="status-message")
     return _map_tile(view, f"{title} (n={n_subjects})", color, large=large, warning=_missing_subjects_warning(missing))
-
-
-def dendrogram_overview_content_for(
-    run: ProductionRun, metadata: pd.DataFrame, tree: SplitTree, embedding: np.ndarray | None, embedding_message: str | None,
-    k: int, modality: str, build_view: DendrogramViewBuilder,
-) -> html.Div | html.P:
-    """The k clusters of the tuning at k, frozen: what the walk down the tree below starts from. The small embedding
-    once, with a legend, and the maps of all the clusters (cluster_overview_content_for). The clusters are numbered
-    from the left of the tree and carry the leaves they hold, so each can be followed in the steps below, and have the
-    colour they have there. Raises ValueError for an unknown modality."""
-    if modality not in DENDROGRAM_MAP_MODALITIES:
-        raise ValueError(f"unknown map modality {modality!r} - known: {sorted(DENDROGRAM_MAP_MODALITIES)}")
-    options = dendrogram_k_options(tree)
-    if k not in options:
-        return html.P(f"k={k} is not among those of the tuning (from {options[0]} to {options[-1]})", className="status-message")
-    labels = tree.labels_by_k[k]
-    leaf_color = replay_splits(tree.Z, tree.labels_by_k, tree.leaf_of_subject, len(tree.members), k)[-1][1]
-    first_leaf = {int(lab): tree.leaf_of_subject[labels == lab].min() for lab in np.unique(labels)}
-    order = sorted(first_leaf, key=first_leaf.get)
-    names = {lab: leaf_name(np.flatnonzero(labels == lab), tree.leaf_of_subject) for lab in order}
-    tags = {lab: f"Cluster {index + 1} · {names[lab]}" for index, lab in enumerate(order)}
-    colors = {lab: _color_of(np.flatnonzero(labels == lab), leaf_color, tree) for lab in order}
-    caption, note = _map_texts(modality)
-    metadata_at_k = metadata.assign(**{_CLUSTER_LABEL_COLUMN: labels})
-
-    def build_tile(label: int, width: int) -> tuple[StatMapView, int, list[str]]:
-        view, n_subjects, _img, missing = build_view(run, metadata_at_k, label, modality, names[label], width)
-        return view, n_subjects, missing
-
-    return cluster_overview_content_for(
-        "All Clusters", caption, note, embedding, embedding_message, labels, order, tags, colors, build_tile,
-    )
 
 
 @dataclass(frozen=True)
@@ -3923,6 +3918,16 @@ def _index_links(entries: list[tuple[str, str]]) -> list[html.A]:
 def color_mode_description(mode_name: str) -> str:
     """The sentence shown above the plot for `mode_name` (neutral included)."""
     return _NEUTRAL_DESCRIPTION if mode_name == NEUTRAL_MODE else COLOR_MODES[mode_name].description
+
+
+def color_mode_description_children(mode_name: str) -> str | list:
+    """What fills the description block above the plot: the sentence alone, or, for a mode with a `legend`, the
+    sentence followed by one bullet per label saying what it means."""
+    description = color_mode_description(mode_name)
+    legend = () if mode_name == NEUTRAL_MODE else COLOR_MODES[mode_name].legend
+    if not legend:
+        return description
+    return [description, html.Ul([html.Li([html.B(label), f": {meaning}"]) for label, meaning in legend], className="color-legend")]
 
 
 def _color_button_label(mode_name: str) -> str:
@@ -4291,7 +4296,7 @@ def build_app(
                 id="run-content",
                 children=[
                 html.H2("Embedding Visualization", id="embedding-section", className="section-heading"),
-                html.P(_NEUTRAL_DESCRIPTION, id="color-description", className="color-description"),
+                html.Div(_NEUTRAL_DESCRIPTION, id="color-description", className="color-description"),
                 html.Div(id="graph-area", className="graph-wrap"),
                 # Always-visible (per design decision, 01-09-26 - not an appear-on-click popup):
                 # placeholder until a point is clicked, subject's nilearn viewer afterward.
@@ -4546,11 +4551,10 @@ def build_app(
                     children=[
                         html.H2("Dendrogram Explorer", className="section-title"),
                         html.P(
-                            "Going from k-1 to k clusters, one cluster splits in two. Once a k is chosen, the tree is walked "
-                            "again from the smallest k up to that k: at each "
-                            "step the tree and the embedding, the anatomy of the cluster that splits and of the two that result, "
-                            "and a table describing them. The labels for each k come from a tuning compatible with "
-                            "this run.",
+                            "Going from k-1 to k clusters, one cluster splits in two. Choose a k: the tree is walked from the "
+                            "smallest k up to that k. Each step shows the tree and the embedding, the anatomy of the cluster "
+                            "that splits and of the two it gives, and a table describing them. The labels for each k come from "
+                            "a tuning compatible with this run.",
                             className="section-intro",
                         ),
                         html.Div(
@@ -4578,7 +4582,6 @@ def build_app(
                                 ),
                             ],
                         ),
-                        dcc.Loading(html.Div(id="dendrogram-overview-content")),
                         html.H2("Agglomerative decomposed", className="dendrogram-steps-title"),
                         dcc.Loading(html.Div(id="dendrogram-steps-content")),
                     ],
@@ -4681,8 +4684,8 @@ def build_app(
         return ["active" if button_id["grid"] == selected_grid else "" for button_id in ids]
 
     @app.callback(Output("color-description", "children"), Input("selected-color-mode", "data"))
-    def _describe_color_mode(selected_mode: str) -> str:
-        return color_mode_description(selected_mode)
+    def _describe_color_mode(selected_mode: str) -> str | list:
+        return color_mode_description_children(selected_mode)
 
     @app.callback(
         Output("color-grid-row", "style"),
@@ -5072,23 +5075,6 @@ def build_app(
     def _dendrogram_build_view(tuning_dir: Path) -> DendrogramViewBuilder:
         return lambda run_, metadata_at_k, label, modality_, name, width: _cached_dendrogram_view(
             run_, metadata_at_k, label, modality_, name, width, tuning_dir
-        )
-
-    @app.callback(
-        Output("dendrogram-overview-content", "children"),
-        Input("run-picker", "value"),
-        Input("dendrogram-tuning-picker", "value"),
-        Input("dendrogram-k-picker", "value"),
-        Input("dendrogram-map-picker", "value"),
-    )
-    def _update_dendrogram_overview(run_key: str | None, tuning_value: str | None, k: int | None, modality: str | None):
-        context = _dendrogram_context(run_key, tuning_value, k, modality)
-        if isinstance(context, html.P):
-            return context
-        run, tuning_dir, tree = context
-        embedding, embedding_message = _run_embedding(run)
-        return dendrogram_overview_content_for(
-            run, run_metadata(run), tree, embedding, embedding_message, k, modality, _dendrogram_build_view(tuning_dir)
         )
 
     @app.callback(
