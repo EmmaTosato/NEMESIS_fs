@@ -54,7 +54,7 @@ K-means si può leggere come la decomposizione dei dati in una mistura di Gaussi
 
 ## 3. Il nostro contesto
 
-- **Input**: un embedding, non la matrice grezza. Le run esistenti usano UMAP a 2, 3 o 10 componenti (sessioni `s1.1-vol`, `s1.2-vol`, `s2.1-schaefer-200-tian-s2`, `s2.2-vol`) e, in produzione, la matrice SDC streamline a 87 colonne (sessione `s2.3-stream`). Su score PCA non è stato lanciato. Il numero di soggetti va da circa 1100 a 5300.
+- **Input**: un embedding, non la matrice grezza. Le run esistenti usano UMAP a 2, 3 o 10 componenti (sessioni `s1.1-vol`, `s1.2-vol`, `s2.1-schaefer-200-tian-s2`, `s2.2-vol`) e, in produzione, la matrice SDC streamline a 87 colonne (sessione `s2.3-stream`). Su score PCA non è stato lanciato. Il numero di soggetti va da circa 1100 a circa 5800.
 - **Distanza**: sempre euclidea (K-means non ne accetta altre). Sugli score PCA la distanza euclidea è quella dello spazio delle componenti. Su UMAP la documentazione ufficiale avverte che l'embedding non conserva del tutto la densità e può creare false separazioni (*false tears*) dentro un cluster vero [10]: K-means prende le distanze dell'embedding così come sono.
 - **Scala**: K-means pesa ogni dimensione per la sua varianza. Negli score PCA le prime componenti hanno varianza maggiore e quindi contano di più nella distanza. Se questo sia voluto è una scelta del progetto, non una proprietà del metodo.
 - **Costo**: la complessità media è $O(k\,n\,T)$ ($T$ iterazioni) [6]: con $n \approx 5000$, $k \le 30$ e poche dimensioni un fit richiede frazioni di secondo. È il metodo più economico della pipeline.

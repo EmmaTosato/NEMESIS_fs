@@ -64,7 +64,7 @@ Il disconnettoma non usa la diffusione del paziente: usa le trattografie di **so
 | README di BCBToolKit | 178 nell'atlante incluso (2 mm); 180 negli atlanti scaricabili a 2 mm e a 1 mm [2] |
 | **Mappe di questo progetto** | **178** (vedi sotto) |
 
-Il valore 178 delle nostre mappe è **verificato sui dati**, non preso da una fonte: il minimo valore non nullo di ogni disconnettoma (`map_min_nonzero` nei `mapstats.tsv`) è sempre 0,005618 = 1/178, cioè un solo soggetto su 178 (controllato su soggetti di UNIPD/PSP, UCL-UK, UKE/WAKEUP e UKLFR; vedi anche `docs/dev/metadata.md`). Quale dei rilasci elencati sopra corrisponda esattamente a queste 178 trattografie **non è verificato**.
+Il valore 178 delle nostre mappe è **verificato sui dati**, non preso da una fonte: il minimo valore non nullo di ogni disconnettoma (`map_min_nonzero` nei `mapstats.tsv`) è sempre 0,005618 = 1/178, cioè un solo soggetto su 178 (controllato sui `mapstats.tsv` dei disconnettomi di tutti e 5852 i soggetti con mappa non vuota, degli 8 dataset; `sub-STUKLFR0671` ha la mappa vuota; vedi anche `docs/dev/metadata.md`). Quale dei rilasci elencati sopra corrisponda esattamente a queste 178 trattografie **non è verificato**.
 
 Foulon et al. 2018 riportano che 10 soggetti bastano per una mappa che condivide più del 70% della varianza con quella della popolazione, e che la somiglianza anatomica non cala con l'età [1].
 
@@ -153,7 +153,7 @@ Thiebaut de Schotten et al. 2015 scelgono di considerare solo i voxel sopra il 5
 - **Ridondanza con la lesione.** La disconnessione strutturale indiretta non spiega quasi mai varianza in più rispetto alla lesione [6]; misure globali di disconnessione correlano fortemente con il volume della lesione [13] (sezione 15 per il nostro caso).
 - **Disconnessione non è disfunzione.** La mappa dice quali fibre passano dalla lesione, non quanto la loro perdita alteri la funzione.
 - **Limiti propri dei nostri dati** (fatti misurati nel progetto, non letteratura):
-  - la trattografia esce dal cervello: in mediana lo 0,80% della massa della mappa sta fuori dalla maschera cerebrale, fino al 15,3% (`docs/dev/sdc_matrix.md`);
+  - la trattografia esce dal cervello: in mediana lo 0,80% della massa della mappa sta fuori dalla maschera cerebrale, fino al 15,3% (`docs/dev/sdc_matrix.md`, 5845 soggetti a 2 mm);
   - per le maschere frazionarie di PSP non è noto se BCBToolKit binarizzi o usi pesi continui (`.claude/open_problems.md`);
   - `sub-STUKLFR0671` ha una mappa interamente nulla (`.claude/history/data_changelog.md`, 07-09-26).
 

@@ -32,7 +32,7 @@ La varianza dei $b_{ij}^2$ di una colonna è alta quando pochi *loadings* sono g
 
 ## 3. Il nostro contesto
 
-- **Perché c'è.** È il metodo di "Data compression" di Thiebaut de Schotten et al. 2020: PCA sulla matrice di covarianza con rotazione varimax, al massimo 500 iterazioni, 30 componenti su 46 per superare il 90% della varianza su 372 regioni [5]. Il repo lo replica su voxel invece che su regioni (`docs/dev/covariance_pca.md`).
+- **Perché c'è.** È il metodo di "Data compression" di Thiebaut de Schotten et al. 2020: PCA sulla matrice di covarianza con rotazione varimax, al massimo 500 iterazioni, 30 componenti su 46 per superare il 90% della varianza [5]. Il repo lo replica su voxel invece che su regioni (`docs/dev/covariance_pca.md`).
 - **Disconnettoma voxel-wise.** L'obiettivo è leggere le componenti come territori di disconnessione (un fascio, un emisfero), cosa che i pesi PCA non ruotati, distribuiti su tutto il cervello, non permettono [2, §2.2.4].
 - **Configurazione attuale** (`params_reduction_sdc.json`, scelta del progetto): si ruotano 150 componenti (`rotation_n_components: 150`) e si tengono le 12 ruotate con più varianza (`n_components: 12`).
 - **A valle.** Per il clustering il progetto consiglia i punteggi **non ruotati** (`employed_dim_reduction_methods.md`, "Quando usare cosa"), per i motivi del §10.
@@ -54,7 +54,7 @@ Il repo non passa `normalize`, `tol`, `power`, `kappa`, `gamma`: valgono i defau
 ## 5. Come si fa il tuning
 
 - **Quante componenti ruotare** è la scelta che conta: il varimax è congiunto su tutte le componenti ruotate, quindi ruotarne 14 o 42 dà profili diversi (`employed_dim_reduction_methods.md`, "Cosa si guadagna e cosa si perde"). Il criterio del paper è la quota di varianza (>90%) [5]; nel repo `variance_share: 0.9` dà 42 componenti su `07-10_s2.4-vol` (`docs/dev/covariance_pca.md`).
-- La quota di varianza totale delle *k* componenti è la stessa con e senza rotazione, quindi il punteggio del tuning (`cumulative_explained_variance`) non distingue `none` da `varimax`: la scelta tra i due si fa sulle mappe e sui controlli del §6.
+- Se le componenti ruotate sono quelle tenute, la quota di varianza totale delle *k* è la stessa con e senza rotazione, quindi il punteggio del tuning (`cumulative_explained_variance`) non distingue `none` da `varimax`: la scelta tra i due si fa sulle mappe e sui controlli del §6. Con `rotation_n_components` le *k* tenute sono un sottoinsieme delle ruotate e la loro quota è minore di quella delle prime *k* della PCA (le prime *k* massimizzano la varianza di qualunque sottospazio di dimensione *k*): il punteggio distingue i due casi.
 - Un tuning ha senso su `rotation_n_components`, non su `n_components` a rotazione fissa: cambiare *k* senza `rotation_n_components` cambia la rotazione stessa.
 
 ## 6. Come si valuta l'output
@@ -62,7 +62,7 @@ Il repo non passa `normalize`, `tol`, `power`, `kappa`, `gamma`: valgono i defau
 - **Struttura semplice**: quanto i *loadings* al quadrato di ogni componente sono concentrati su poche variabili (il criterio $V$ stesso).
 - **Varianza per componente dopo la rotazione**: somma dei $b_{ij}^2$ della colonna divisa per la varianza totale; serve per ordinare le componenti ruotate, che non hanno un ordine proprio.
 - **Indipendenza dal volume e dal lato** (R², come in [5]) e **riproducibilità** delle mappe su due metà dei soggetti (Pearson tra mappe; nel paper 0,813 ± 0,079 [5]). Implementazione: `notebooks/post-results_analysis/pca_evaluation.ipynb`, descritta in `employed_dim_reduction_methods.md`.
-- Le misure dei vicinati ([evaluation.md](evaluation.md)) vanno lette con cautela: la rotazione non cambia il sottospazio, ma i punteggi ruotati sono riscalati a varianza 1, quindi le distanze euclidee tra soggetti calcolate sui punteggi cambiano rispetto alla PCA non ruotata (vedi §10).
+- Le misure dei vicinati ([evaluation.md](evaluation.md)) vanno lette con cautela: la rotazione non cambia il sottospazio delle componenti ruotate (con `rotation_n_components`, le tenute ne sono un sottoinsieme: il sottospazio è diverso da quello delle prime *k* della PCA), e i punteggi ruotati sono riscalati a varianza 1, quindi le distanze euclidee tra soggetti calcolate sui punteggi cambiano rispetto alla PCA non ruotata (vedi §10).
 
 ## 7. Quando usarla
 

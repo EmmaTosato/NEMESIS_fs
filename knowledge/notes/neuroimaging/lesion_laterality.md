@@ -57,7 +57,7 @@ Il lato si conta **sulla griglia**, non sul file originale. Ogni maschera viene 
 
 $$x(i) = a_{00}\, i + a_{03}$$
 
-dove $i$ è l'indice del primo asse e $a_{00}, a_{03}$ i termini della prima riga dell'affine. Se l'asse è orientato `L` il segno è invertito, così $x > 0$ è sempre l'emisfero destro anatomico. Tagliare l'array a metà della shape sarebbe sbagliato: il template a 1 mm non è simmetrico (x da −91 a +90 mm) e le maschere su disco hanno origini e orientamenti diversi.
+dove $i$ è l'indice del primo asse e $a_{00}, a_{03}$ i termini della prima riga dell'affine. Con l'asse orientato `L` $a_{00} < 0$, quindi non serve alcuna inversione esplicita: $x > 0$ è sempre l'emisfero destro anatomico. Tagliare l'array a metà della shape sarebbe sbagliato: il template a 1 mm non è simmetrico (x da −91 a +90 mm) e le maschere su disco hanno origini e orientamenti diversi.
 
 ## 5. Il piano mediano
 
@@ -116,7 +116,7 @@ A 1 mm, sugli stessi cinque dataset (1447 soggetti, PSP compresa): 97,4% a 0,20 
 ## 9. Limiti
 
 - **La classe `both` è debole.** A 0,20 il metodo riconosce 3 dei 24 `both` clinici; il massimo nella griglia di soglie è 7 su 24, a 0,58-0,60, al prezzo di classificare `both` molte lesioni unilaterali. Per 14 dei 24 la lesione sta quasi tutta da un lato ($|LI| \geq 0{,}9$, `docs/guides/metadata.md`): il `both` clinico e una maschera bilaterale non sono lo stesso fatto.
-- **Inversioni piene.** 15 soggetti hanno lato clinico e geometrico opposti con $|LI| \geq 0{,}95$; nessuna soglia li corregge. Senza di loro l'accordo a 0,20 è 98,4% (`docs/guides/metadata.md`, sezione "Forzare il lato geometrico").
+- **Inversioni piene.** 15 soggetti hanno lato clinico e geometrico opposti con $|LI| \geq 0{,}95$; nessuna soglia li corregge. Senza di loro l'accordo a 0,20 è 98,5% (1408/1430) (`docs/guides/metadata.md`, sezione "Forzare il lato geometrico").
 - **Lesioni infratentoriali.** L'indice attribuisce un lato anche a lesioni di tronco o cervelletto. I paper di riferimento del laboratorio riportano il lato come categoria e trattano tronco e cervelletto a parte: Corbetta et al. 2015 elencano tronco e cervelletto come categorie di sede proprie [3], Bisogno et al. 2021 contano separatamente 79 lesioni sinistre, 71 destre e 14 di cervelletto o tronco [4]. Chi confronta con quei lavori filtra con `location_infratentorial_2mm` ([`lesion_location.md`](lesion_location.md)).
 - **Lato anatomico.** L'indice dice da che parte del piano mediano MNI sta la massa della lesione, non da che parte stanno i sintomi.
 - **Nessuna regola quantitativa nei paper core.** Nei testi di Corbetta 2015 [3], Salvalaggio 2020 [5], Bisogno 2021 [4] e Talozzi 2023 [6] (in `knowledge/papers/stroke_core/`) il lato è riportato come emisfero colpito (es. "64 right hemispheres" [5]; percentuali per emisfero per coorte [6]), senza una regola numerica per attribuirlo da una maschera.

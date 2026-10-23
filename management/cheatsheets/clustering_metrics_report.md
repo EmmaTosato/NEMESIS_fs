@@ -3,6 +3,8 @@
 Data: 2026-10-20. Metodi coperti: `agglomerative`, `hdbscan` (sklearn), `hdbscan_soft` (pacchetto `hdbscan`).
 Fonte: lettura del codice (`src/analysis/clustering_tuning.py`, `clustering_tuning_analysis.py`, `clustering_evaluation.py`, `cluster_quality.py`, `embedding_app.py`, `src/pipeline/clustering.py`), dei notebook sotto `notebooks/post-results_analysis/` e dei docs. Niente è stato rieseguito.
 
+(23-10-26, superata in parte dal commit `a91c300`, 22-10-26: per `hdbscan` e `hdbscan_soft` silhouette, CH, DB e Dunn non si calcolano più, in nessuna delle sei superfici; l'indice interno è il DBCV (`src/analysis/dbcv.py`, `evaluation_metrics.md` §8). Quindi le righe «Silhouette, CH, DB» di 3.2 e 3.3 e il nucleo comune di 5.1 non valgono più per i due metodi di densità. Sono tolti anche `membership_share_below_half` (soglia 0.5), le curve filtrate per rumore (soglia 0.1), `NOISE_WARNING_FRACTION`, `LOW_PROBABILITY`, `LOW_MEMBERSHIP` e `curves_max_noise_fraction`: nessuna di queste costanti compare più in `src/`, `config/` o nei notebook, quindi 4.3 è chiusa. Il resto vale per agglomerative.)
+
 ---
 
 ## 1. Sintesi
@@ -99,11 +101,11 @@ Quando si sceglie una combinazione dal tuning si guardano silhouette, CH, DB. Qu
 Cambiarne una non cambia le altre: il notebook può mostrare un 10% e l'app un 15% senza accorgersene.
 
 ### 4.4 Le fasce di Kaufman-Rousseeuw compaiono solo nel report del tuning
-`report.md` (B) colloca la silhouette in fasce (0.71-1.00 forte, 0.51-0.70 ragionevole, 0.26-0.50 debole, ≤ 0.25 nessuna struttura). L'app (E) dice invece "nessuno dei quattro indici ha un valore di riferimento" e che una nuvola gaussiana senza cluster, divisa da ward, ha comunque silhouette ~0.4. Il notebook C dice che la silhouette "è l'unico che si legge da solo". Tre messaggi diversi sullo stesso numero. Le fasce sono una convenzione pubblicata, non una nostra soglia, ma la scelta di mostrarle in un posto solo va decisa. (21-10-26, superata in parte: le fasce sono ora anche in `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md`, sezione «Fasce di valori: cosa dice la letteratura», e `docs/guides/evaluation.md` rimanda a quella sezione per la silhouette. Ricontrollato il resto: l'app dice ancora che nessuno dei quattro indici ha un valore di riferimento e che una nuvola senza cluster ha comunque silhouette ~0.4 (`embedding_app.py`, «Come leggere questi indici»; `docs/guides/embedding_app.md`, che rimanda alla guida per le fasce), e `clustering_evaluation.ipynb` (F) dice lo stesso. Il notebook C (`clustering_tuning_explorer.ipynb`, «Gli indici che compaiono») dice ancora che la silhouette «è l'unico dei tre che si legge da solo» e non cita le fasce: il disaccordo con l'app resta. `dendrogram_embedding_explorer.ipynb` non commenta la silhouette.)
+`report.md` (B) colloca la silhouette in fasce (0.71-1.00 forte, 0.51-0.70 ragionevole, 0.26-0.50 debole, ≤ 0.25 nessuna struttura). L'app (E) dice invece "nessuno dei quattro indici ha un valore di riferimento" e che una nuvola gaussiana senza cluster, divisa da ward, ha comunque silhouette ~0.4. Il notebook C dice che la silhouette "è l'unico che si legge da solo". Tre messaggi diversi sullo stesso numero. Le fasce sono una convenzione pubblicata, non una nostra soglia, ma la scelta di mostrarle in un posto solo va decisa. (21-10-26, superata in parte: le fasce sono ora anche in `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md`, sezione «Fasce di valori: cosa dice la letteratura», e `docs/guides/evaluation.md` rimanda a quella sezione per la silhouette. Ricontrollato il resto: l'app dice ancora che nessuno dei quattro indici ha un valore di riferimento e che una nuvola senza cluster ha comunque silhouette ~0.4 (`embedding_app.py`, «Come leggere questi indici»; `docs/guides/embedding_app.md`, che rimanda alla guida per le fasce), e `clustering_evaluation.ipynb` (F) dice lo stesso. Il notebook C (`clustering_tuning_explorer.ipynb`, «Gli indici che compaiono») dice ancora che la silhouette «è l'unico dei tre che si legge da solo» e non cita le fasce: il disaccordo con l'app resta. `dendrogram_embedding_explorer.ipynb` non commenta la silhouette. 22-10-26, ulteriore aggiornamento: dal commit `417a852` il `report.md` non colloca più la silhouette nelle fasce, le cita soltanto; la decisione 3 del §6 non riguarda più il report.)
 
 ### 4.5 Geometria non euclidea: produzione incoerente col tuning
 - Lo sweep di agglomerative calcola la silhouette nella `metric` giusta (matrice precomputata per cosine/manhattan).
-- `silhouette_plot.png` di produzione usa `"euclidean"` fisso per ogni metodo tranne adp (`src/pipeline/clustering.py:427`).
+- `silhouette_plot.png` di produzione usa `"euclidean"` fisso per ogni metodo tranne adp (`src/pipeline/clustering.py:427`). (22-10-26, superata dal commit `43a0ac4`: `_run_silhouette` usa la `metric` della run per agglomerative e ADP, `SILHOUETTE_OWN_METRIC_METHODS`; il pannello dell'app continua a rifiutare una run non euclidea.)
 - Il pannello dell'app rifiuta invece una run non euclidea (`require_euclidean_compatible`).
 - Oggi è **latente**: il registro ha `metric: euclidean` per agglomerative. Non ho controllato la `metric` di ogni singola run di produzione su disco, solo il registro e i nomi delle cartelle. Stessa famiglia di `lessons_learned.md` #15.
 
@@ -162,7 +164,7 @@ Una sola fonte (config o costanti in un modulo), letta da app, notebook e `evalu
 4. **Soglie**: confermi di volerle in un'unica fonte? (rumore, probabilità 0.5)
 5. **Dove si legge il tuning**: il `report.md` è la fonte canonica e il notebook C si riduce a ciò che il report non può fare (dendrogrammi interattivi)? Oppure il contrario?
 6. **Stabilità per sottocampionamento** (4.8): va resa una funzione in `src/`, o la decisione su HDBSCAN si riscrive senza?
-7. **Fix isolati** da fare a prescindere: scambio homogeneity/completeness (4.6), `silhouette_plot.png` euclideo fisso (4.5), riga sbagliata del README (4.2). (4.6: già corretto, vedi la nota in 4.6)
+7. **Fix isolati** da fare a prescindere: scambio homogeneity/completeness (4.6), `silhouette_plot.png` euclideo fisso (4.5), riga sbagliata del README (4.2). (4.6 e 4.5: già corretti, vedi le note; 4.2: la riga del README non cita più il flag `usable`)
 
 ---
 

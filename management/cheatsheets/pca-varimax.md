@@ -5,6 +5,7 @@
 - Parte dalla PCA e **ruota le prime k componenti**, mantenendole ortogonali.
 - L'obiettivo è che ogni componente abbia pesi forti su poche variabili e quasi nulli sulle altre.
 - La **varianza totale** spiegata dalle k componenti non cambia, ma si ridistribuisce tra loro.
+- Nel progetto si ruotano più componenti di quelle tenute (`rotation_n_components`, es. 150 ruotate e 12 tenute, quelle con più varianza): in quel caso la varianza delle tenute è minore di quella delle prime k della PCA.
 - Le componenti diventano più interpretabili: "regioni" o pattern distinti.
 
 ## Che tipo di metodo è

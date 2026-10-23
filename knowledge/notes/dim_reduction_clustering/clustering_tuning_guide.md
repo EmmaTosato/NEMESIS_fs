@@ -8,22 +8,22 @@ Definizioni e fonti degli indici: [`clustering_methods/evaluation_metrics.md`](c
 
 Il tuning **non sceglie mai il valore migliore per te**. Per ogni valore testato calcola indici e grafici diagnostici, li salva su disco, e si ferma lì. La scelta finale del parametro da usare in produzione è sempre una decisione umana, guidata dai plot.
 
-Ogni sweep testa un solo iperparametro principale per metodo:
+Ogni sweep ha un iperparametro principale per metodo:
 
 | Metodo                          | Parametro testato    |
 | ------------------------------- | -------------------- |
 | KMeans, Agglomerative, Spectral | `n_clusters`       |
 | GMM                             | `n_components`     |
-| HDBSCAN                         | `min_cluster_size` |
+| HDBSCAN, HDBSCAN soft           | `min_cluster_size` |
 | ADP                             | `Z`                |
 
-Agglomerative in più testa `linkage` e `metric` insieme a `n_clusters`. Non tutte le combinazioni sono valide: `linkage="ward"` accetta solo la metrica euclidea, quindi ogni combinazione che li accoppia diversamente viene scartata in automatico (con un avviso in log), non silenziosamente.
+Altri iperparametri si sweepano insieme (griglie in `config/registry/params_clustering.json`): `linkage` e `metric` per Agglomerative, `affinity` per Spectral, `covariance_type` per GMM, `min_samples` per HDBSCAN (HDBSCAN soft anche `cluster_selection_method`), `metric` per ADP. Non tutte le combinazioni sono valide: `linkage="ward"` accetta solo la metrica euclidea, quindi ogni combinazione che li accoppia diversamente viene scartata in automatico (con un avviso in log), non silenziosamente.
 
 ---
 
 ## I 3 indici universali
 
-Calcolati per tutti e 6 i metodi, sempre nello stesso file (`tuning_plot.png`), uno per sotto-grafico.
+Calcolati per KMeans, GMM, Spectral, Agglomerative e ADP (non per HDBSCAN e HDBSCAN soft, vedi sotto), sempre nello stesso file (`tuning_plot.png`), uno per sotto-grafico.
 
 | Indice                      | Range    | Direzione           | Come leggerlo                                                                                                                                                                                                                                                                                  |
 | --------------------------- | -------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -41,7 +41,7 @@ Calcolati per tutti e 6 i metodi, sempre nello stesso file (`tuning_plot.png`), 
 
 ### Fasce di valori: cosa dice la letteratura
 
-Solo la silhouette ha una scala di interpretazione citata in letteratura (Kaufman & Rousseeuw 1990: 0.71-1.00 forte, 0.51-0.70 ragionevole, 0.26-0.50 debole, fino a 0.25 nessuna struttura). È una **convenzione**, non un risultato, e il progetto **non la usa** nei report. Cosa dice, a cosa si riferisce (il massimo della silhouette media su tutti i k, non una singola partizione), perché gli estremi cambiano da fonte a fonte e quali sono i suoi limiti: [`clustering_methods/evaluation_metrics.md`](clustering_methods/evaluation_metrics.md), §2.
+Solo la silhouette ha una scala di interpretazione citata in letteratura (Kaufman & Rousseeuw 1990: 0.71-1.00 forte, 0.51-0.70 ragionevole, 0.26-0.50 debole, fino a 0.25 nessuna struttura; riportata da fonti secondarie, il libro non è nel repo). È una **convenzione**, non un risultato: il progetto **non la usa** e il `report.md` del tuning si limita a dire che esiste. Cosa dice, a cosa si riferisce (il massimo della silhouette media su tutti i k, non una singola partizione), perché gli estremi cambiano da fonte a fonte e quali sono i suoi limiti: [`clustering_methods/evaluation_metrics.md`](clustering_methods/evaluation_metrics.md), §2.
 
 - **Limiti noti**: funziona meglio con cluster convessi; con dati ad alta dimensione tende a dare valori più bassi (Wikipedia, "Silhouette (clustering)").
 - **Davies-Bouldin e Calinski-Harabasz**: nessuna fascia con fonte. Le fonti secondarie consultate li descrivono come indici da usare per confronto tra partizioni degli stessi dati (Davies-Bouldin: più basso è meglio; Calinski-Harabasz: si prende il k che lo massimizza). Le pagine che parlano di "vicino a 0" per Davies-Bouldin o di "sotto 1" per Calinski-Harabasz non citano una fonte. I testi originali (Davies & Bouldin 1979; Caliński & Harabasz 1974) non sono stati consultati.
@@ -51,7 +51,7 @@ Fonti consultate (secondarie): [Wikipedia, Silhouette (clustering)](https://en.w
 
 ### Attenzione a questi tre casi particolari
 
-- **HDBSCAN**: i punti classificati come rumore vengono esclusi dai 3 indici. La frazione di rumore è sempre riportata a parte (`noise_fraction`) — mai nascosta, mai fusa nel calcolo.
+- **HDBSCAN e HDBSCAN soft**: i 3 indici non si calcolano (escluderebbero il rumore e presuppongono cluster compatti). L'indice interno è il DBCV, che pesa il rumore (sezione "HDBSCAN", sotto). La frazione di rumore è sempre riportata a parte (`noise_fraction`) — mai nascosta, mai fusa nel calcolo.
 - **Clustering fatto direttamente sui voxel grezzi (non su un embedding)**: i 3 indici usano distanza euclidea, che su dati binari di lesione è dominata dal volume della lesione più che dalla sua forma o posizione. Il workflow raccomandato è ridurre la dimensionalità prima e poi clusterizzare sull'embedding: il bias si attenua (ma non sparisce del tutto).
 - **Agglomerative con `metric` non euclidea**: Silhouette resta sempre calcolabile, ma Calinski-Harabasz e Davies-Bouldin sono per costruzione legati alla geometria euclidea e vengono registrati come vuoti per ogni combinazione che usa una metrica diversa. Se stai leggendo una sweep con più metriche, aspettati colonne vuote per le righe non euclidee: è normale, non un bug. Lo stesso vale per ADP con la distanza `dice` o `jaccard`.
 
@@ -85,7 +85,7 @@ Fonti consultate (secondarie): [Wikipedia, Silhouette (clustering)](https://en.w
 - Con migliaia di soggetti l'albero completo è illeggibile: si disegna solo la parte alta, le ultime 30 foglie (cioè le ultime 29 fusioni). In basso non ci sono soggetti ma rami, e il numero tra parentesi sotto ogni ramo è quanti soggetti contiene.
 - L'asse y è la distanza di fusione: più una fusione è in alto, più i due cluster erano lontani.
 - **Ogni linkage ha una scala sua** (ward misura un aumento di varianza, single una distanza minima): si confronta la *forma* dell'albero tra pannelli, non l'altezza.
-- Una linea orizzontale taglia l'albero e ogni linea verticale che attraversa è un cluster. La linea rossa tratteggiata (`cut_k`) mostra dove cade il taglio che dà quel numero di cluster.
+- Una linea orizzontale taglia l'albero e ogni linea verticale che attraversa è un cluster. Nel Dendrogram Explorer (`docs/guides/embedding_app.md`) una linea rossa tratteggiata (`cut_k`) mostra dove cade il taglio che dà quel numero di cluster; i PNG `dendrogram_metric=<metric>.png` non ce l'hanno.
 - Il taglio è naturale dove, prima di quelle fusioni, c'è un salto grande: i cluster che stanno per unirsi sono molto più lontani di quelli già uniti. Il rapporto tra due altezze consecutive è esattamente la colonna `jump` di `dendrogram_jump.csv` (`docs/guides/evaluate_clustering_tuning.md`).
 - **Esempio didattico.** Le ultime fusioni sono a 20, 8, 1,5, 1,2, 1,0. I salti tra altezze consecutive sono 20 → 8 (2,5 volte) e 8 → 1,5 (circa 5 volte, il più netto): tagliare tra 8 e 1,5 disfa le due fusioni più alte e lascia **3 cluster**.
 - Se le fusioni scendono gradualmente, senza un salto che spicchi, l'albero non indica nessun k: la scelta resta una decisione tua, da prendere con gli indici e con la clinica.
@@ -106,7 +106,7 @@ Fonti consultate (secondarie): [Wikipedia, Silhouette (clustering)](https://en.w
 
 ### Agglomerative — indici per `n_clusters`
 
-Per ogni `n_clusters` e `linkage` (per una sola `metric`, di solito `euclidean`; `single` si lascia fuori dal confronto perché la sua silhouette scende molto sotto quella degli altri) silhouette, Calinski-Harabasz e Davies-Bouldin dicono quanto i cluster sono compatti e separati. Si leggono insieme al dendrogramma.
+Per ogni `n_clusters` e `linkage` (per una sola `metric`, di solito `euclidean`; `single` si lascia fuori dal confronto perché la sua silhouette scende molto sotto quella degli altri) silhouette e Davies-Bouldin (le curve `k_curves_metric=<metric>.png`; Calinski-Harabasz sta in `tuning_results.csv` e nelle tabelle del `report.md`, non nelle curve) dicono quanto i cluster sono compatti e separati. Si leggono insieme al dendrogramma.
 
 - Si cerca un `n_clusters` dove la silhouette ha un **picco** (più alta dei k vicini) e Davies-Bouldin una **valle** (più basso dei vicini), e dove i linkage concordano.
 - Una silhouette che sale sempre verso i k grandi, senza picchi, segnala che non c'è un k naturale.
@@ -125,19 +125,19 @@ Per ogni `n_clusters` e `linkage` (per una sola `metric`, di solito `euclidean`;
 - **Come si leggono**: più basso = meglio.
 - **Attenzione**: se scendono in modo monotono per tutta la griglia senza mai risalire, in quel range non stanno dando informazione utile — la griglia non arriva al punto di svolta. In questo caso appoggiati ai 3 indici generici.
 
-### HDBSCAN — frazione di rumore
+### HDBSCAN — DBCV, rumore e numero di cluster
 
-- Colonna in più nello stesso `tuning_plot.png`. Va sempre letta insieme agli altri indici, mai da sola: un `min_cluster_size` grande può dare indici ottimi solo perché scarta molti soggetti "difficili" come rumore. È un vero trade-off tra qualità e copertura del campione.
-- Non esiste un grafico standalone dedicato: il valore giusto di `min_cluster_size` si giudica direttamente dalla curva di frazione di rumore incrociata con Silhouette.
-- **Come si legge `tuning_plot.png`.** Lo sweep varia `min_cluster_size` e `min_samples` insieme, quindi il file è una griglia di tabelle colorate (heatmap), una per ogni indice, per `noise_fraction` e per `n_clusters_found`: `min_cluster_size` sull'asse x, `min_samples` sull'asse y, il colore è il valore. Si cercano le celle con i colori migliori e poi si controlla il rumore *di quella stessa cella* prima di fidarsi.
+- **DBCV** è l'indice interno di `hdbscan` e `hdbscan_soft` (valutazione `density_metrics`, colonna `dbcv` di `density_metrics.csv`): da -1 a 1, più alto è meglio, pesa il rumore. Silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn non si calcolano per HDBSCAN ([`evaluation_metrics.md`](clustering_methods/evaluation_metrics.md), §8). Non è definito con meno di 2 cluster: cella vuota, non 0.
+- **Frazione di rumore** (`noise_fraction`): colonna di `tuning_results.csv`. Si legge sempre insieme al DBCV: un `min_cluster_size` grande può dare cluster netti scartando molti soggetti come rumore. È un vero trade-off tra qualità e copertura del campione. Nessun limite di rumore filtra i risultati.
+- **Come si leggono `tuning_plot.png` e `dbcv_curves.png`.** Lo sweep varia `min_cluster_size` e `min_samples` insieme.
+  - `tuning_plot.png` è una griglia di tabelle colorate (heatmap), una per DBCV, rumore, quota del cluster più grande, numero di cluster e, per `hdbscan_soft`, probabilità media e persistenza: `min_cluster_size` sull'asse x, `min_samples` sull'asse y, il colore è il valore. Ogni riquadro ha la sua scala di colore, quindi le differenze piccole sembrano grandi.
+  - `dbcv_curves.png` ha gli stessi numeri come curve contro `min_cluster_size`, una linea per `min_samples`. Un punto manca dove i cluster sono meno di 2.
+  - Si cercano le celle con DBCV alto e si controlla il rumore *di quella stessa cella*.
 - **I due parametri.**
   - `min_cluster_size`: soggetti minimi perché un gruppo conti come cluster. Con 50, un gruppo di 30 non è un cluster (resta rumore).
   - `min_samples`: quanto il metodo è severo nel decidere che un soggetto sta in una zona densa. Più è alto, più soggetti finiscono nel rumore.
-- **Il rumore può far salire gli indici senza che la partizione migliori.** Silhouette, CH e DB sono calcolati solo sui soggetti che hanno un cluster: una combinazione che scarta molti soggetti lascia i più facili da separare, e l'indice sale. Succede con `min_cluster_size` o `min_samples` alti.
-  - Indice alto e rumore basso: candidato credibile.
-  - Indice alto e rumore alto: l'indice descrive solo una parte dei soggetti, non è un candidato.
-  - Il limite di rumore sotto cui tenere le combinazioni (`max_noise_fraction` di `noise_filtered_curves` in `config/registry/clustering_evaluations.json`) è un esempio che si cambia liberamente, non una soglia di merito: `noise_fraction` 0,30 vuol dire il 30% dei soggetti nel rumore.
-- **Calinski-Harabasz** può diventare enorme con moltissimi cluster minuscoli senza che la partizione sia migliore.
+- **Il rumore può far salire gli indici calcolati sui soli soggetti clusterizzati** (silhouette e simili): per questo non sono usati qui. Il DBCV pesa il rumore, quindi una combinazione che scarta molti soggetti non viene premiata.
+- **Il DBCV non ha un valore di riferimento** e non si confronta tra embedding diversi: si leggono le forme sulla griglia, non un valore assoluto.
 
 ### Spectral — eigengap
 
@@ -155,7 +155,7 @@ ADP (*Advanced Density Peaks*) non ha un numero di cluster da scegliere: lo deci
   - `ari_vs_prev_z`: quanto la partizione somiglia a quella del `Z` immediatamente più basso (1 = identica, 0 = quanto il caso). Vicino a 1 è un plateau.
   - `silhouette`: calcolata con la distanza usata per clusterizzare, quindi **non confrontabile tra metriche**. CH e DB esistono solo con `euclidean`; con `dice` restano vuoti.
 - **Come si legge**: si cerca un tratto di `Z` con `n_clusters_found` fisso e `ari_vs_prev_z` vicino a 1, dove il risultato non dipende dalla soglia. Se la partizione cambia a ogni passo, dipende dalla soglia e non dai dati.
-- **Tabella dei plateau.** Riassume il grafico: per ogni numero di cluster trovato, l'intervallo di `Z` che lo produce (minimo e massimo) e quanti valori dello sweep ci cadono.
+- **Tabella dei plateau** (nessuno script la produce: si ricava da `tuning_results.csv`). Riassume il grafico: per ogni numero di cluster trovato, l'intervallo di `Z` che lo produce (minimo e massimo) e quanti valori dello sweep ci cadono.
   - Un intervallo largo (per esempio da 4 a 10) vuol dire che quel numero di cluster non dipende dalla soglia.
   - Un numero che compare per un solo `Z` è un caso dello sweep, non un risultato.
   - Un solo cluster (tutti insieme) a `Z` alto è il limite atteso: con una soglia severa nessun picco è significativo.
@@ -168,6 +168,8 @@ ADP (*Advanced Density Peaks*) non ha un numero di cluster da scegliere: lo deci
 
 Lo stesso metodo, sugli stessi soggetti, su embedding UMAP di dimensione diversa (`n_components` = 2, 3, 10), con la stessa metrica UMAP. Se il risultato cambia molto con l'embedding, non è affidabile.
 
+Il progetto non ha uno strumento che produca questi confronti in un colpo: si fanno sui `tuning_results.csv` (e `density_metrics.csv`) di ogni run e, per le partizioni, con il notebook `clustering_comparison` (`docs/guides/evaluation.md`). Il `tuning_plot.png` di ogni run ha la propria scala di colore: le heatmap di run diverse non si confrontano a colpo d'occhio.
+
 - **Cosa si confronta.** I valori assoluti degli indici non si confrontano tra embedding (ogni embedding è uno spazio diverso): si confrontano le partizioni, le dimensioni dei cluster e la struttura.
 - **ARI (*adjusted Rand index*).** Misura l'accordo tra due divisioni degli stessi soggetti: 1 = identiche, 0 = quanto il caso. Un ARI alto a un certo k vuol dire che quel taglio non dipende da `n_components`.
 - **Attenzione ai parametri UMAP.** `n_neighbors` e `min_dist` possono cambiare insieme a `n_components`: va guardato quali valgono per ciascuna run, per non attribuire a `n_components` una differenza dovuta a loro.
@@ -176,8 +178,8 @@ Lo stesso metodo, sugli stessi soggetti, su embedding UMAP di dimensione diversa
   - ARI tra le partizioni di due embedding a parità di `n_clusters`, `linkage` e `metric`.
   - Dimensioni dei cluster a un k scelto, per ogni run, e *contingenza* tra due run: tabella che incrocia i loro cluster (righe = prima run, colonne = seconda), dove ogni cella conta i soggetti in comune. Gruppi con la stessa dimensione in tutte le run si ritrovano; un cluster che finisce quasi tutto in una colonna è lo stesso gruppo.
 - **HDBSCAN.**
-  - Una heatmap per run, per cluster trovati e per `noise_fraction`, su `min_cluster_size` × `min_samples`, con la stessa scala di colore su tutte le run. La stessa coppia di parametri dà numeri simili nelle heatmap se la struttura si ripete; molti cluster e rumore alto in una sola run segnalano un embedding frammentato.
-  - ARI tra le partizioni di due run **sui soli soggetti non-rumore in entrambe**: la colonna "soggetti confrontati" dice quanti sono, e se sono pochi l'ARI descrive solo una parte del campione. ARI vicino a 1 = stessa struttura. Si affianca alle dimensioni dei cluster di ogni run.
+  - Una heatmap per run, per cluster trovati e per `noise_fraction`, su `min_cluster_size` × `min_samples`, da riportare sulla stessa scala di colore per tutte le run. La stessa coppia di parametri dà numeri simili nelle heatmap se la struttura si ripete; molti cluster e rumore alto in una sola run segnalano un embedding frammentato.
+  - ARI tra le partizioni di due run. In `agreement_metrics` (`src/analysis/cluster_comparison.py`) il rumore conta come un gruppo a sé; calcolato sui soli soggetti non-rumore in entrambe, l'ARI descrive solo una parte del campione, quindi si riporta anche quanti soggetti sono (nessuna tabella del progetto lo fa). ARI vicino a 1 = stessa struttura. Si affianca alle dimensioni dei cluster di ogni run.
 
 ---
 
@@ -209,7 +211,7 @@ Generati sempre:
 | File                   | Contenuto                                                                                                                                                                                                                                                                               |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tuning_results.csv` | Una riga per ogni valore testato, con tutti gli indici calcolati.                                                                                                                                                                                                                       |
-| `tuning_plot.png`    | Griglia di sotto-grafici, uno per indice —**solo se la sweep varia 1 o 2 parametri**. Con 3 o più parametri sweepati non viene generato un plot aggregato (solo un avviso in log): il CSV e le diagnostiche standalone del metodo restano l'unico modo di leggere quella sweep. |
+| `tuning_plot.png`    | Griglia di sotto-grafici, uno per indice (per HDBSCAN e HDBSCAN soft lo scrive la valutazione `tuning_heatmaps`) —**solo se la sweep varia 1 o 2 parametri**. Con 3 o più parametri sweepati non viene generato un plot aggregato (solo un avviso in log): il CSV e le diagnostiche standalone del metodo restano l'unico modo di leggere quella sweep. |
 | `config.md`          | Snapshot dei parametri usati per quella run.                                                                                                                                                                                                                                            |
 
 Diagnostiche standalone (indipendenti dal valore scelto), solo per il metodo indicato:

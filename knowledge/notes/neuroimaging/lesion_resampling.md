@@ -113,7 +113,7 @@ Sulla griglia a 2 mm 4 soggetti su 5853 hanno volume 0 ([`lesion_metrics.md`](le
 - `sub-STUKE0146`, `sub-STUKE0201` (WAKEUP, 1 mm genuino): lesioni reali di 8 e 3 voxel a 1 mm dentro il cervello (la prima ha 16 voxel nel file grezzo, metà fuori dal cervello), perse nel campionamento;
 - `sub-STUNIPD0558`: lesione quasi tutta fuori dal cervello.
 
-Il builder solleva solo se **tutti** i soggetti si azzerano: un singolo soggetto a zero è un caso di dominio. La decisione è per soggetto: i primi tre sono in `assets/metadata/excluded_subjects.csv` con `reason=empty_mask`, il quarto con `out_of_brain_fraction_too_high`. Una riga tutta a zero non è innocua: con Jaccard/Dice la distanza tra due vettori nulli è indefinita, e scikit-learn la restituisce come 0.
+Il builder solleva solo se **tutti** i soggetti si azzerano: un singolo soggetto a zero è un caso di dominio. La decisione è per soggetto: i primi tre sono in `assets/metadata/excluded_subjects.csv` con `reason=empty_mask`, il quarto con `out_of_brain_fraction_too_high`. Una riga tutta a zero non è innocua: con Jaccard/Dice la distanza tra due vettori nulli è indefinita: scikit-learn/scipy la restituiscono come 0 per Jaccard e come NaN per Dice, mentre `binary_pairwise_distance` del repo (`src/analysis/distances.py`) rifiuta del tutto una riga tutta a zero.
 
 ## 11. Decisione in vigore
 

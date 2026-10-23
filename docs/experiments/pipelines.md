@@ -38,7 +38,7 @@ flowchart LR
 
     subgraph COL4["Clustering — Prod."]
         direction TB
-        CP14["12-10<hr/>UMAP dice/euclidean<br/>nc2/nc10<br/>agglomerative ward: 23 run<br/>HDBSCAN: 40 run<br/>(67 run)"]
+        CP14["12-10<hr/>UMAP dice/euclidean<br/>nc2/nc10<br/>agglomerative ward: 23 run<br/>HDBSCAN: 40 run<br/>(63 run)"]
         CP14S["15-10<hr/>UMAP dice/euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 12 run"]
         CP14R["12-10<hr/>raw dice<br/>221955 voxel<br/>ADP Z 2.5-4.0<br/>(4 run)"]
     end
@@ -66,13 +66,14 @@ flowchart LR
         direction TB
         T24["16-10<hr/><b>UMAP</b><br/>euclidean<br/>nc2/nc3/nc10"]
         T24P["16-10<hr/><b>PCA</b><br/>none/varimax<br/>2-150 componenti"]
+        T24T["18-10<hr/><b>t-SNE</b><br/>euclidean<br/>nc2"]
         N24T["no dim reduction"]
     end
 
     subgraph COL2["Dim Red. — Prod."]
         direction TB
         P24["16-10<hr/><b>UMAP</b><br/>euclidean<br/>nc2/nc3/nc10"]
-        P24P["16-10 / 17-10<hr/><b>PCA</b><br/>non ruotata<br/>nc42, nc30<hr/>18-10<br/><b>PCA</b><br/>nc12, nc2<br/>(solo per la vista)"]
+        P24P["16-10 / 17-10<hr/><b>PCA</b><br/>non ruotata<br/>nc42, nc30<hr/>18-10<br/><b>PCA</b><br/>non ruotata<br/>nc12, nc2<hr/>19-10<br/><b>PCA</b><br/>varimax<br/>nc12, nc2"]
         N24P["no dim reduction"]
     end
 
@@ -80,15 +81,15 @@ flowchart LR
         direction TB
         CT24["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>agglomerative, HDBSCAN"]
         CT24S["16-10<hr/>UMAP euclidean<br/>nc2/nc3/nc10<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
-        CT24P["17-10<hr/>PCA nc42, nc30<br/>agglomerative, HDBSCAN<hr/>18-10<br/>PCA nc2, nc12<br/>agglomerative, HDBSCAN<hr/>19-10<br/>PCA nc2/nc12/nc30/nc42<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf"]
+        CT24P["17-10<hr/>PCA nc42, nc30<br/>agglomerative, HDBSCAN<hr/>18-10<br/>PCA nc2, nc12<br/>agglomerative, HDBSCAN<hr/>19-10<br/>PCA nc2/nc12/nc30/nc42<br/>HDBSCAN soft<br/>mcs x ms x eom/leaf<hr/>19-10<br/>PCA varimax nc2, nc12<br/>agglomerative, HDBSCAN,<br/>HDBSCAN soft"]
         CT24R["16-10<hr/>raw dice/euclidean<br/>227235 voxel<br/>ADP"]
     end
 
     subgraph COL4["Clustering — Prod."]
         direction TB
-        CP24["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>agglomerative: 14 run<br/>HDBSCAN: 7 run<br/>(21 run)"]
+        CP24["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>agglomerative: 14 run<br/>HDBSCAN: 7 run<hr/>19-10<br/>agglomerative: 20 run<br/>(altri k e linkage)<br/>(41 run)"]
         CP24S["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 4 run su 5"]
-        CP24P["18-10 / 19-10<hr/>PCA nc42, nc30, nc12, nc2<br/>agglomerative<br/>ward k=3: 4 run<br/>HDBSCAN: 20 run<br/>HDBSCAN soft: 20 run<br/>(44 run)"]
+        CP24P["18-10 / 19-10<hr/>PCA nc42, nc30, nc12, nc2<br/>(agglomerative anche su nc2 varimax)<br/>agglomerative: 13 run<br/>(ward k=3: 5 run)<br/>HDBSCAN: 20 run<br/>HDBSCAN soft: 20 run<br/>(53 run)"]
         CP24R["16-10<hr/>raw dice<br/>227235 voxel<br/>ADP Z 2.0-3.5<br/>(4 run)"]
     end
 
@@ -96,6 +97,7 @@ flowchart LR
     P24 --> CT24 --> CP24
     P24 --> CT24S --> CP24S
     R24 --> T24P --> P24P --> CT24P --> CP24P
+    R24 --> T24T
     R24 --> N24T --> N24P --> CT24R --> CP24R
 ```
 
@@ -215,7 +217,7 @@ flowchart LR
 
     subgraph COL2["Dim Red. — Prod."]
         direction TB
-        P11["11-08<hr/><b>UMAP</b><br/>dice/euclidean<br/>nc2/nc3/nc10<hr/><b>t-SNE</b><br/>dice/euclidean<br/>nc2"]
+        P11["11-08 / 13-08<hr/><b>UMAP</b><br/>dice/euclidean<br/>nc2/nc10 (11-08)<br/>nc3 (13-08)<hr/>28-08<br/><b>t-SNE</b><br/>dice/euclidean<br/>nc2"]
         P12["28-08<hr/><b>UMAP</b><br/>dice/euclidean<br/>nc2/nc3/nc10<hr/><b>t-SNE</b><br/>dice/euclidean<br/>nc2"]
         P12R["no dim reduction"]
         P21["31-08<hr/><b>UMAP</b><br/>euclidean<br/>nc2/nc3<hr/><b>t-SNE</b><br/>euclidean<br/>nc2"]

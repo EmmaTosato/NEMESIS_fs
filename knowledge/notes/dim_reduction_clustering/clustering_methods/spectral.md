@@ -58,7 +58,7 @@ Quello implementato, nella sostanza, da scikit-learn [2, 5]:
 3. normalizza ogni riga di $U$ a norma 1 (in Ng-Jordan-Weiss);
 4. clusterizza le righe con K-means: la riga $i$ è il soggetto $i$.
 
-scikit-learn usa `spectral_embedding` con il Laplaciano normalizzato e tiene anche il primo autovettore (`drop_first=False`, letto nel codice installato). Il passo 4 è scelto da `assign_labels` [5]:
+scikit-learn usa `spectral_embedding` con il Laplaciano normalizzato e tiene anche il primo autovettore (`drop_first=False`, letto nel codice installato). Differisce da Ng-Jordan-Weiss in due punti, letti nello stesso codice: non normalizza le righe di $U$ e riscala gli autovettori di $L_{\mathrm{sym}}$ per $D^{-1/2}$ ("recovering u = D^-1/2 x"), cioè usa autovettori di $L_{\mathrm{rw}}$. Il passo 4 è scelto da `assign_labels` [5]:
 
 - `kmeans` (default): K-means sugli autovettori, sensibile all'inizializzazione;
 - `discretize`: discretizzazione di Yu & Shi, meno sensibile all'inizializzazione;
@@ -76,11 +76,11 @@ La giustificazione è la proprietà delle componenti connesse sopra. Von Luxburg
 
 ## 3. Il nostro contesto
 
-- **Input**: embedding UMAP (2, 3, 10 componenti) o score PCA, circa 1570-5845 soggetti. Le run di tuning registrate in `results/{lesion,sdc}/clustering/tuning/spectral/runs_tuning.csv` sono tutte su embedding UMAP (metrica UMAP `euclidean`; per le lesioni anche `dice`); lo spectral lavora comunque in distanza euclidea sulle coordinate dell'embedding.
+- **Input**: embedding UMAP (2, 3, 10 componenti) o score PCA, circa 1100-5900 soggetti a seconda della coorte (1119, 1150, 1570, 5269, 5845 nelle matrici salvate). Le run di tuning registrate in `results/{lesion,sdc}/clustering/tuning/spectral/runs_tuning.csv` sono tutte su embedding UMAP (metrica UMAP `euclidean`; per le lesioni anche `dice`); lo spectral lavora comunque in distanza euclidea sulle coordinate dell'embedding.
 - **`gamma` dipende dalla scala dell'embedding.** Misura fatta per questa nota sull'UMAP a 2 componenti di `s2.2-vol` (1570 soggetti, `results/sdc/dim_reduction/production/umap/07-09_s2.2-vol_m_euclidean_nc2`): la distanza al quadrato mediana tra due soggetti è circa 25.9. Quota di coppie con affinità sotto $10^{-6}$: 7% con $\gamma=0.1$, 66% con $\gamma=1$, 89% con $\gamma=5$. Lo stesso $\gamma$ su uno spazio PCA, con scala diversa, costruisce un grafo diverso: i valori della griglia non sono trasferibili tra embedding.
 - **Memoria**: `rbf` costruisce una matrice densa $n \times n$ in `float64`, circa 273 MB a 5845 soggetti; `nearest_neighbors` una matrice sparsa.
 - **Embedding UMAP e connettività**: UMAP può creare false separazioni dentro un gruppo vero [9]. Con un grafo `nearest_neighbors` a `n_neighbors` piccolo, isole separate dell'embedding diventano componenti connesse distinte, e lo spectral le separa per costruzione. scikit-learn avvisa quando il grafo non è connesso.
-- **Determinismo**: con `assign_labels="cluster_qr"` e il solutore di default (`arpack`), `random_state` fissa solo il vettore di partenza di ARPACK (letto nel codice installato), che non cambia gli autovettori a cui si converge. Il risultato è in pratica deterministico. In una prova su dati sintetici per questa nota (2000 punti, 4 gruppi, `nearest_neighbors`, 50 vicini) sei semi hanno dato partizioni identiche (ARI 1.0). Conseguenza: le diagnostiche basate su ripetizioni a semi diversi (RSC) non vedono variabilità ([`evaluation_metrics.md`](evaluation_metrics.md), sezione 7).
+- **Determinismo**: con `assign_labels="cluster_qr"` e il solutore di default (`arpack`), `random_state` fissa solo il vettore di partenza di ARPACK (letto nel codice installato). Se il grafo è connesso gli autovettori a cui si converge non dipendono dal vettore di partenza e le etichette sono identiche tra semi. Se il grafo ha più componenti connesse l'autospazio dell'autovalore 0 è degenere, ARPACK ne restituisce una base che dipende dal seme e le etichette cambiano. Prova sull'UMAP a 2 componenti di `s2.2-vol` (1570 soggetti), 4 semi, `n_clusters` in 2, 3, 5, 8, 12, 20, 30: etichette identiche tra semi per `rbf` (`gamma` 0.1, 1, 5), per `nearest_neighbors` con 50 vicini e (provati `n_clusters` 5 e 12) con 30 vicini, tutti a grafo connesso; diverse per `nearest_neighbors` con 10 vicini in tutti e 7 i `n_clusters` (grafo a 4 componenti connesse; l'ARI minimo tra semi va da -0.02 a 0.87). Con lo stesso seme due run danno sempre lo stesso risultato. Conseguenza: le diagnostiche a semi diversi (RSC) non vedono variabilità solo quando il grafo è connesso ([`evaluation_metrics.md`](evaluation_metrics.md), sezione 7).
 
 ## 4. Parametri
 
@@ -96,7 +96,7 @@ Default verificati con `inspect.signature(SpectralClustering)` su scikit-learn 1
 | `n_components` | Numero di autovettori; se `None` vale `n_clusters`. | intero o `None` | `None` | default |
 | `eigen_solver` | `arpack`, `lobpcg`, `amg`; `None` usa `arpack`. | stringa o `None` | `None` | default |
 | `n_init` | Inizializzazioni del K-means finale; usato solo con `assign_labels="kmeans"`. | intero | 10 | non usato |
-| `random_state` | Seme per l'inizializzazione di `lobpcg`/`amg` e del K-means finale. | intero o `None` | `None` | 0 |
+| `random_state` | Seme per l'inizializzazione di `lobpcg`/`amg`, del K-means finale e (dal codice) del vettore di partenza di ARPACK. | intero o `None` | `None` | 0 |
 
 La sweep è *affinity-aware* (`run_spectral_affinity_aware_sweep`, `src/analysis/clustering_tuning.py`): `n_neighbors` si prova solo con `nearest_neighbors` e `gamma` solo con `rbf`, perché scikit-learn ignora in silenzio il parametro che non si applica. Totale: $29 \times (3 + 3) = 174$ fit.
 
@@ -110,7 +110,7 @@ $$
 w_{ij} = \exp\!\left(-\frac{\lVert x_i - x_j\rVert^2}{\sigma_i\,\sigma_j}\right).
 $$
 Toglie `gamma` dalla sweep: se l'eigengap self-tuning indica lo stesso $k$ della griglia, la scelta di `gamma` non era decisiva.
-5. **Stabilità del numero di cluster** (opzionale, blocco `"consensus"`): [`evaluation_metrics.md`](evaluation_metrics.md), sezione 7. Con `cluster_qr` la stabilità rispetto al seme è quasi sempre perfetta per costruzione (sezione 3): è informativa solo la versione su sottocampioni (Monti).
+5. **Stabilità del numero di cluster** (opzionale, blocco `"consensus"`): [`evaluation_metrics.md`](evaluation_metrics.md), sezione 7. Con `cluster_qr` la stabilità rispetto al seme è perfetta se il grafo è connesso (sezione 3), e non lo è con un grafo a più componenti (`n_neighbors` piccolo): in quel caso misura la degenerazione dell'autospazio, non la struttura dei dati. La versione su sottocampioni (Monti) resta informativa in entrambi i casi.
 
 ## 6. Come si valuta l'output
 
@@ -130,7 +130,7 @@ Toglie `gamma` dalla sweep: se l'eigengap self-tuning indica lo stesso $k$ della
 **Pro**
 - Trova gruppi non convessi, purché connessi [3].
 - Fondamento chiaro: rilassamento del normalized cut [1], proprietà degli autovalori del Laplaciano [3].
-- Con `cluster_qr` l'assegnazione finale è deterministica e senza parametri [7].
+- Con `cluster_qr` l'assegnazione finale, dati gli autovettori, è deterministica e senza parametri [7].
 - L'eigengap dà un'indicazione su $k$ interna al metodo [3].
 
 **Contro**
@@ -157,8 +157,8 @@ Senza l'arco $b$-$c$ il grafo ha due componenti connesse e gli autovalori divent
 - **`gamma` non è trasferibile** tra embedding o sessioni: con $\gamma=1$ su un UMAP 2D due terzi delle coppie hanno affinità praticamente nulla (sezione 3).
 - **Un solo parametro del grafo per volta**: `n_neighbors` con `rbf`, o `gamma` con `nearest_neighbors`, vengono ignorati senza errore [5]. La sweep del progetto lo evita.
 - **Grafo non connesso**: le componenti connesse diventano cluster per forza [3]. Su UMAP, se le isole sono false separazioni [9], lo spectral le conferma.
-- **Eigengap del progetto e grafo di sklearn non coincidono del tutto**: `compute_eigengap` costruisce il grafo `nearest_neighbors` con `include_self=False`, mentre `SpectralClustering` usa `include_self=True` (codice di scikit-learn 1.8.0). La diagonale di $W$ cambia, quindi gli autovalori del plot sono di un grafo leggermente diverso da quello clusterizzato.
-- **`cluster_qr` rende le ripetizioni identiche**: ripetere lo spectral a semi diversi non produce diversità tra ripetizioni, quindi l'RSC non dice nulla ([`evaluation_metrics.md`](evaluation_metrics.md), sezione 7).
+- **Eigengap del progetto e grafo di sklearn non coincidono del tutto**: `compute_eigengap` costruisce il grafo `nearest_neighbors` con `include_self=False`, mentre `SpectralClustering` usa `include_self=True` (codice di scikit-learn 1.8.0). `include_self=True` conta il punto stesso tra i `n_neighbors`: il grafo clusterizzato ha `n_neighbors` - 1 vicini veri per nodo, quello dell'eigengap `n_neighbors`. La diagonale di $W$ non conta, perché `csgraph.laplacian` la ignora (verificato). Gli autovalori del plot sono quindi di un grafo leggermente diverso da quello clusterizzato (a 2000 punti sintetici e 50 vicini, il secondo autovalore vale 0.00433 nel plot contro 0.00423 con `include_self=True`).
+- **`cluster_qr` rende le ripetizioni identiche solo a grafo connesso**: lì ripetere lo spectral a semi diversi non produce diversità, quindi l'RSC non dice nulla ([`evaluation_metrics.md`](evaluation_metrics.md), sezione 7). Con un grafo a più componenti il seme cambia la base dell'autospazio degenere e quindi le etichette (sezione 3).
 - **Indici euclidei su un metodo a grafo**: possono sottovalutare cluster non convessi (sezione 6).
 
 ## Fonti

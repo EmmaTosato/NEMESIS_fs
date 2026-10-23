@@ -69,7 +69,7 @@ con i coefficienti [2, 4]:
 
 ## 3. Il nostro contesto
 
-- **Input.** Embedding UMAP con `n_components` 2, 3 o 10 (metrica UMAP `euclidean` o `dice`), score PCA (anche varimax), oppure la matrice SDC "stream" a 87 colonne (`docs/guides/evaluation.md`). Circa 1100-5850 soggetti a seconda della matrice.
+- **Input.** Embedding UMAP con `n_components` 2, 3 o 10 (metrica UMAP `euclidean` o `dice`), score PCA (anche varimax), la matrice SDC "stream" a 87 colonne (`docs/guides/evaluation.md`), oppure la matrice lesionale grezza. Circa 1100-5850 soggetti a seconda della matrice.
 - **Griglia attuale** (`config/registry/params_clustering.json`, voce `agglomerative`): `n_clusters` da 2 a 30, `linkage` ∈ {ward, average, complete, single}, `metric` ∈ {euclidean, cosine, manhattan}. `ward` con metrica non euclidea è saltato con un avviso (`is_invalid_ward_metric_combo`): restano 10 coppie (linkage, metric) × 29 k = 290 combinazioni.
 - **Distanze precalcolate.** Per `euclidean` (e `dice`/`jaccard`, supportate dal codice ma non nella griglia attuale) con linkage diverso da `ward`, la matrice delle distanze è calcolata una volta per metrica e riusata per fit e silhouette (`_agglomerative_fit_metric_aware`). È un'ottimizzazione: il risultato è lo stesso del fit diretto.
 - **`params` di base**: `n_clusters: 3`, `linkage: ward`, `metric: euclidean`. Il file è stato condiviso da più run: va confrontato con la colonna `params` di `runs_tuning.csv` prima di rilanciare (`lessons_learned.md`, #36).
@@ -106,7 +106,7 @@ Nessuna fonte dà una regola per scegliere linkage e k; le diagnostiche sotto so
    - *Accordo tra linkage*: ARI [9] tra le partizioni di due linkage allo stesso k (`linkage_agreement.csv`). Dove è vicino a 1 la scelta del linkage cambia poco. Scelta del progetto.
 2. **Il numero di cluster.**
    - *Dendrogramma*: un taglio è naturale dove, salendo, c'è un salto grande tra due altezze consecutive. Il progetto lo riassume nel **salto del dendrogramma** (`dendrogram_jump.csv`): l'altezza della fusione da $k$ a $k-1$ cluster divisa per quella da $k+1$ a $k$, cioè con $h_1 \ge h_2 \ge \dots$ le altezze dalla più alta, $J(k) = h_{k-1}/h_k$. È una diagnostica del progetto, senza fasce di letteratura.
-   - *Indici per k*: silhouette (con la stessa `metric`), e CH e DB solo per `euclidean` (curve `k_curves_metric=<metric>.png`). Si cerca un picco della silhouette e una valle di DB **stabili** tra linkage, non un massimo isolato. `single` sta in un grafico a parte perché la sua silhouette crolla.
+   - *Indici per k*: silhouette (con la stessa `metric`), e CH e DB solo per `euclidean` (colonne di `tuning_results.csv`). Le curve `k_curves_metric=<metric>.png` disegnano silhouette e DB (DB solo per `euclidean`), una linea per linkage. Si cerca un picco della silhouette e una valle di DB **stabili** tra linkage, non un massimo isolato. `single` non è disegnato (la sua silhouette scende molto sotto quella degli altri): i suoi valori sono nelle tabelle del report.
 3. **La stabilità rispetto all'embedding.** Lo stesso k e linkage su UMAP con `n_components` diversi: ARI tra le partizioni e contingenza dei cluster (confronto tra più run: non è nel `report.md` di una singola run).
 
 Guida operativa ai grafici: [`clustering_tuning_guide.md`](../clustering_tuning_guide.md), sezioni "Agglomerative".

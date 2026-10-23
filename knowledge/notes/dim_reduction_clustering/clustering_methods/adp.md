@@ -91,7 +91,7 @@ Il risultato è una "topografia" dei dati: i picchi significativi e le selle che
 
 ## 3. Il nostro contesto
 
-- **Input**: matrici **grezze**, non embedding: lesione binaria (circa 220-290 mila voxel per soggetto), disconnettoma SDC voxelwise, SDC streamline (`docs/guides/clustering.md`, `docs/guides/evaluation.md`). Circa 1500-5850 soggetti secondo la matrice.
+- **Input**: matrici **grezze**, non embedding: lesione binaria (circa 220-270 mila voxel per soggetto), disconnettoma SDC voxelwise (circa 230-290 mila), SDC streamline (87 tratti) (`docs/guides/clustering.md`, `docs/guides/evaluation.md`). Circa 1500-5850 soggetti secondo la matrice.
 - **Distanza**: `dice`, `jaccard` o `euclidean` (`ADP_METRICS`). Su una matrice continua ≥ 0 (SDC) `dice`/`jaccard` sono le versioni pesate (Czekanowski/Ruzicka), che su matrici 0/1 coincidono con le classiche (`docs/guides/clustering.md`).
 - **Distanze esatte**: la matrice $N \times N$ intera è calcolata dal progetto (`pairwise_distance`) e a DADApy arrivano solo i `maxk` vicini (`Clustering(distances=(distanze, indici), maxk=...)`). Memoria: una matrice `float64` $N \times N$ per metrica, circa 270 MB a 5800 soggetti.
 - **Righe a zero**: `dice`/`jaccard` non sono definite; quei soggetti prendono `-1` per ogni metrica. **Righe duplicate**: clusterizzate una volta, il gemello eredita l'etichetta (DADApy divide per la distanza dal primo vicino, che sarebbe 0).
@@ -126,7 +126,7 @@ Fonti: documentazione e docstring di DADApy [6]; la pagina di `compute_clusterin
 
 - `n_clusters_found` e `largest_cluster_share` (quota nel cluster più grande) al variare di `Z`, in scala logaritmica;
 - `ari_vs_prev_z`: ARI [8] con la partizione al `Z` immediatamente più basso, sui soggetti clusterizzati. Un tratto vicino a 1 con `n_clusters_found` fisso è un **plateau**: lì la partizione non dipende dalla soglia;
-- la tabella dei plateau: per ogni numero di cluster, il `Z` minimo e massimo che lo producono (non è più prodotta da nessuno script);
+- la tabella dei plateau: per ogni numero di cluster, il `Z` minimo e massimo che lo producono (nessuno script la produce: si ricava da `tuning_results.csv`);
 - `n_small_clusters`: cluster con meno di 10 soggetti (`SMALL_CLUSTER_SIZE = 10` è una scelta del progetto, senza fonte);
 - `metric` nella stessa run: le due partizioni si confrontano con l'ARI e con variabili esterne (es. `lesion_side`), non con la silhouette.
 
@@ -201,7 +201,7 @@ Margini: per $a$, $5{,}0 - 3{,}6 = 1{,}4$; per $b$, $4{,}2 - 3{,}6 = 0{,}6$. Inc
 4. **Silhouette tra metriche diverse.** Non si confrontano (`dice` ed `euclidean` hanno scale diverse).
 5. **Il rumore non è rumore di densità.** Con `halo=False` il `-1` sono solo le righe a zero (§4).
 6. **`maxk` vicino alla taglia dei cluster piccoli.** L'intorno $\hat k_i$ di un soggetto di un cluster piccolo può includere soggetti di altri cluster; con `maxk` alto la densità si liscia. Il progetto non lo sweepa: è un'osservazione nostra, non un risultato della fonte.
-7. **ADP su un embedding.** UMAP non preserva la densità e può creare fratture [9]: una densità stimata in un embedding UMAP descrive l'embedding. Il progetto usa ADP sulle matrici grezze anche per questo; le etichette ADP proiettate su un UMAP 2D servono solo a vederle (`clustering_tuning_guide.md`, "ADP").
+7. **ADP su un embedding.** UMAP non preserva del tutto la densità e può creare false fratture nei cluster [9]: una densità stimata in un embedding UMAP descrive l'embedding. Il progetto usa ADP sulle matrici grezze anche per questo; le etichette ADP proiettate su un UMAP 2D servono solo a vederle (`clustering_tuning_guide.md`, "ADP").
 8. **La dimensione intrinseca su `dice`.** 2NN e PAk sono definiti su qualunque distanza, ma l'interpretazione di $d$ come dimensione di una varietà richiede che la distanza sia localmente euclidea [4]. Per `dice` su maschere binarie questo non è dimostrato: `id_2nn` va letto come un parametro della stima, non come una proprietà anatomica.
 
 ---

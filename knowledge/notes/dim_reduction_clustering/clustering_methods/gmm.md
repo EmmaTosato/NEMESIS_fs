@@ -42,7 +42,7 @@ $$
 \Sigma_j = \frac{1}{N_j}\sum_i \gamma_{ij}\,(x_i-\mu_j)(x_i-\mu_j)^\top .
 $$
 
-Dempster et al. dimostrano che ogni iterazione non fa diminuire la verosimiglianza [1]. Come per K-means, la convergenza è verso un massimo **locale**, quindi l'inizializzazione conta [5, 7]. Bicego descrive EM come "simile a K-means, ma con un grado di appartenenza" invece di un'assegnazione rigida [5].
+Dempster et al. dimostrano che ogni iterazione non fa diminuire la verosimiglianza [1]. Come per K-means, la convergenza è verso un massimo **locale**, quindi l'inizializzazione conta [5, 7]. Bicego descrive EM come un algoritmo che "assomiglia al K-means, ma tiene conto del grado di appartenenza" a un cluster, invece di un'assegnazione rigida [5].
 
 scikit-learn aggiunge `reg_covar` alla diagonale di ogni $\Sigma_j$ per garantire che le covarianze restino positive [7].
 
@@ -85,7 +85,7 @@ $\mathrm{EN}$ vale 0 se ogni soggetto appartiene con certezza a una componente e
 
 ## 3. Il nostro contesto
 
-- **Input**: embedding UMAP a 2, 3 o 10 componenti o score PCA (fino a 12 componenti in `s2.4-vol`), con circa 1570-5845 soggetti.
+- **Input**: embedding UMAP a 2, 3 o 10 componenti o score PCA (fino a 12 componenti in `s2.4-vol`), con circa 1100-5900 soggetti a seconda della coorte (1119, 1150, 1570, 5269, 5845 nelle matrici salvate).
 - **Numero di parametri**: con $d=2$ e $k=6$ `full` sono $18 + 12 + 5 = 35$; con $d=12$ e $k=30$ `full` sono $2340 + 360 + 29 = 2729$. Su 5845 soggetti è ancora stimabile, ma `full` ad alto $k$ si avvicina al limite in cui ogni componente ha pochi soggetti per parametro.
 - **Forma dei gruppi**: la mistura assume gruppi ellissoidali [5]. Gli embedding UMAP non conservano del tutto la densità [10]: un gruppo visibile in UMAP non è necessariamente Gaussiano, e il BIC può spezzarlo in più componenti (sezione 2, ICL).
 - **Produzione**: `gmm_cluster` usa `fit_predict`, cioè solo l'etichetta più probabile. Le probabilità soft (`predict_proba`) non vengono salvate (scelta del progetto).
@@ -158,7 +158,7 @@ Una dimensione, due componenti già stimate: $\pi_1 = \pi_2 = 0.5$, $\mu_1 = 0$,
 - **BIC che scende sempre**: con gruppi non Gaussiani o tanti soggetti, componenti in più migliorano sempre la densità stimata. È un'informazione sulla forma dei dati, non un $k$ da scegliere [9].
 - **`n_init=1` di default**: un solo massimo locale per combinazione, se la stability analysis non mostra che basta.
 - **Covarianze degeneri**: una componente che collassa su pochi punti molto vicini ha varianza quasi zero; `reg_covar` serve proprio a mantenerle positive [7]. Un BIC molto basso con una componente minuscola va controllato.
-- **`spherical` come base**: dà cluster simili a K-means; la differenza con K-means emerge solo con `diag`, `tied` o `full`.
+- **`spherical` come base**: cluster sferici come K-means, ma con varianza e peso propri per ogni componente: con gruppi di varianza diversa le etichette divergono da quelle di K-means (su due gruppi sintetici di varianza 3.0 e 0.5, ARI 0.24 tra i due). Le forme non sferiche richiedono `diag`, `tied` o `full`.
 - **Solo l'etichetta in produzione**: l'informazione di incertezza, il vantaggio principale del metodo, oggi non arriva ai risultati salvati.
 
 ## Fonti

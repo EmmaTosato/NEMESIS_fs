@@ -5,7 +5,7 @@ Questa guida illustra in modo dettagliato come utilizzare la pipeline `build_les
 - **Script**: `src/pipeline/build_lesion_matrix.py`
 - **Configurazione**: `config/pipelines/build_lesion_matrix.json` *(usata sia per locale che server)*
 
-La produzione attuale (`session_name: "voxelwise_s2"`) copre tutte le coorti in-scope — elenco
+La produzione attuale (`session_name: "s1.4-vol"`) copre tutte le coorti in-scope — elenco
 completo, N e dettagli per-coorte in [`docs/guides/datasets.md`](datasets.md), non ripetuti qui
 (così un dataset aggiunto/rimosso non richiede modifiche a questa guida). Struttura dati identica
 su ogni coorte in-scope (`manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz`,
@@ -37,7 +37,7 @@ python -m src.pipeline.build_lesion_matrix --config config/pipelines/build_lesio
 
 Le lesioni 3D binarie (sano=0, rotto=1) dei pazienti devono essere allineate e standardizzate. Lo script estrae i dati spaziali e li "appiattisce" in una tabella matematica a 2 Dimensioni:
 - **Righe**: Rappresentano i singoli pazienti.
-- **Colonne**: Rappresentano un singolo voxel millimetrico (fino a 800.000 colonne).
+- **Colonne**: Rappresentano un singolo voxel millimetrico (902.629 colonne sulla griglia a 2mm, prima di togliere i voxel mai lesionati).
 - **Valori**: `0` o `1`.
 - **Ideale per**: Analisi statistiche micro-strutturali, embedding/clustering a piena risoluzione.
 
@@ -54,7 +54,7 @@ Un file che non finisce in `.nii.gz` non combacia con il glob, quindi compare co
 
 ### Griglia comune
 
-Le maschere arrivano da centri diversi, con **shape** (numero di voxel per asse), **dimensione del voxel** (mm) e quindi **griglia** diverse, anche se tutte sono nello stesso spazio standard (MNI152NLin6Asym). Perché una colonna significhi lo stesso punto del cervello per tutti, ogni maschera la cui shape o affine differisce da quella di `reference_template_path` viene ricampionata su quella griglia (oggi il template a 2mm in `assets/templates/`). La griglia della matrice è quindi quella del template, qualunque sia la risoluzione nativa del primo soggetto. Differenza tra griglia e spazio, e perché si usa `nearest`: [`knowledge/notes/neuroimaging/lesion_resampling.md`](../../knowledge/notes/neuroimaging/lesion_resampling.md).
+Le maschere arrivano da centri diversi e hanno **griglie** diverse anche se tutte sono nello stesso spazio standard (MNI152NLin6Asym): oggi hanno tutte shape 182×218×182 e voxel di 1mm, ma tre **affine** (orientamento LAS o RAS e origine in x di +90, −90 o −91), quindi lo stesso indice di voxel cade in punti diversi. Perché una colonna significhi lo stesso punto del cervello per tutti, ogni maschera la cui shape o affine differisce da quella di `reference_template_path` viene ricampionata su quella griglia (oggi il template a 2mm in `assets/templates/`). La griglia della matrice è quindi quella del template, qualunque sia la risoluzione nativa del primo soggetto. Differenza tra griglia e spazio, e perché si usa `nearest`: [`knowledge/notes/neuroimaging/lesion_resampling.md`](../../knowledge/notes/neuroimaging/lesion_resampling.md).
 
 ---
 
@@ -76,7 +76,7 @@ Spiegazione delle chiavi di `config/pipelines/build_lesion_matrix.json`:
 | **`correct_out_of_brain`** | `false` (default) oppure `true`: azzera i voxel di lesione fuori dalla maschera cerebrale e tiene il soggetto nella matrice, con `lesion_volume_voxels` ricalcolato sui dati corretti. Richiede `brain_mask_path`. |
 | **`brain_mask_path`** | Maschera cerebrale MNI di riferimento, sulla stessa griglia di `reference_template_path` (es. `assets/templates/tpl-MNI152NLin6Asym_res-2_desc-brain_mask.nii.gz` per la griglia a 2mm attualmente in uso). **Obbligatoria** se `correct_out_of_brain` è `true`, ignorata altrimenti. |
 | **`output_root`** | Sede file (di base: `"data/derived/lesion_matrix"`). |
-| **`session_name`** | Nome univoco per distinguere i batch es. `"voxelwise_s2"`. |
+| **`session_name`** | Nome univoco per distinguere i batch es. `"s1.4-vol"`. |
 | **`overwrite`** | `true` sovrascrive output di run passati. |
 
 ---
@@ -136,4 +136,4 @@ Il calcolo è costoso (una lettura per soggetto, un ricampionamento per griglia)
 - **Frequenza voxel-wise**: sommando una colonna si ottiene in quanti soggetti quel voxel è lesionato; dividendo per il numero di soggetti, la frazione della coorte. La distribuzione di queste frequenze è l'**overlap lesionale globale** della coorte: dice dove le lesioni si concentrano e quanto poco si sovrappongono altrove.
 - **"Core" dell'overlap**: i voxel lesionati in almeno una certa quota della coorte. La quota (`10%` nel notebook `lesion_matrix_build`) è una scelta di esplorazione modificabile, non una definizione della pipeline né una soglia usata per costruire la matrice.
 - **Controlli di coerenza dopo la riduzione**: nessun voxel con frequenza 0 e nessuno con frequenza pari a tutti i soggetti (entrambi sono costanti e sono già stati tolti). Altrimenti la riduzione non è stata applicata.
-- **Controlli sui valori**: la matrice ha solo `0` e `1` e nessun NaN per costruzione (maschere soglia → booleano → `uint8`). Un soggetto con somma di riga `0` ha la lesione sparita dopo il ricampionamento o la correzione: non è un errore della pipeline, è una decisione per-soggetto da prendere guardando `lesion_metadata.csv` e da registrare in `excluded_subjects.csv` (motivo `empty_mask`).
+- **Controlli sui valori**: la matrice ha solo `0` e `1` e nessun NaN per costruzione (maschere soglia → booleano → `uint8`). Un soggetto con somma di riga `0` ha la maschera vuota in origine, oppure la lesione sparita dopo il ricampionamento o la correzione: non è un errore della pipeline, è una decisione per-soggetto da prendere guardando `lesion_metadata.csv` e da registrare in `excluded_subjects.csv` (motivo `empty_mask`).

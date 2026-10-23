@@ -44,6 +44,12 @@ Non unificata, di proposito: la silhouette. Produzione e app usano già `compute
 
 Ancora vero: `notebooks/post-results_analysis/clustering_evaluation.ipynb` (cella DBCV) chiama `density_summary`; una run non definita ora compare nella tabella con `dbcv` NaN invece di essere «saltata», senza il motivo (`summary.note` non è mostrato).
 
+## 23-10-26 — Embedding Explorer: la pagina in tre schede (Embedding, Clustering, Dendrogram)
+
+La pagina unica di 12 sezioni è divisa in tre schede sotto i selettori, che restano condivisi: *Embedding* (scatter, anatomia lesionale, SDC, componenti PCA), *Clustering* (Clustering Explorer, i pannelli per cluster, composizione, valutazione), *Dendrogram* (solo run agglomerative). La valutazione sta dentro *Clustering*, non in una scheda a sé (scelta dell'utente: è un pannello per l'intero run ma fa parte dell'analisi dei cluster). Una scheda che il run non ha sparisce; cambiando run verso uno senza la scheda aperta la pagina torna a *Embedding*.
+
+Fase 1: i pannelli di tutte le schede restano nella pagina e si nascondono, quindi una scheda chiusa continua a calcolare. Da fare (fase 2): ricostruire *Clustering* e *Dendrogram* solo quando si aprono e far restituire `no_update` alle callback pesanti di una scheda inattiva; mappe e indici sono già nelle cache Python (`BinaryMaskStore` su disco, cache dei viewer in memoria), quindi tornare su una scheda non ricalcola. Alternativa scartata: `dash.pages`, perché il selettore di run è lo stato condiviso e andrebbe portato tra pagine.
+
 ## 23-10-26 — Dendrogram Explorer: via la panoramica «All Clusters»
 
 Rimossa dalla sezione `dendrogram-panel` la panoramica dei k cluster del tuning (`dendrogram_overview_content_for`, la sua callback, i suoi test): ripeteva l'opzione «all» del Clustering Explorer. La sezione parte da «Agglomerative decomposed». `cluster_overview_content_for` resta, usata solo da «all».

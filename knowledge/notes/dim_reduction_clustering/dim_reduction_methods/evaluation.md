@@ -46,7 +46,7 @@ $$
 
 vale 0 al caso e 1 per una conservazione perfetta (de Bodt et al. seguono Lee et al. 2015) [1, §8]. L'area sotto $R(k)$ con l'asse *k* in scala logaritmica riassume tutte le scale in un numero ("AUC" di [1, §8]).
 
-**Ordine di grandezza.** In de Bodt et al. la conservazione dei 10 vicini in 2D va da 0,02-0,04 per PCA a 0,20-0,46 per t-SNE [1, Tabella 2]. Chari & Pachter 2023 riportano, su dati single-cell, distanze di Jaccard tra gli insiemi dei 30 vicini nei due spazi quasi sempre sopra 0,7 [7]. In 2D la maggior parte dei vicini veri si perde comunque: un valore basso è la norma, non un errore.
+**Ordine di grandezza.** In de Bodt et al. la conservazione dei 10 vicini in 2D va da 0,00-0,04 per PCA a 0,20-0,46 per t-SNE [1, Tabella 2]. Chari & Pachter 2023 riportano, su dati single-cell, distanze di Jaccard tra gli insiemi dei 30 vicini nei due spazi quasi sempre sopra 0,7 [7]. In 2D la maggior parte dei vicini veri si perde comunque: un valore basso è la norma, non un errore.
 
 ## Misure globali: le distanze
 

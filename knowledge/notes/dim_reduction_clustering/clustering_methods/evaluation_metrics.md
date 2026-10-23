@@ -7,7 +7,7 @@ Riferimento condiviso per le note dei singoli metodi in questa cartella. Definis
 
 ---
 
-## 1. Due famiglie di indici
+## 1. Tre famiglie di indici
 
 - **Interni**: usano solo i dati e le etichette. Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn, DBCV. Rispondono a "quanto sono compatti e separati i cluster in questo spazio".
 - **Del modello**: esistono solo per un certo metodo e descrivono il suo fit. Correlazione cofenetica (agglomerativo), stabilità dei cluster e frazione di rumore (HDBSCAN), il plateau in `Z` (ADP).
@@ -176,7 +176,7 @@ $$
 \mathrm{PAC} = \frac{\#\{(i<j) : 0.1 < C_{ij} < 0.9\}}{n(n-1)/2} .
 $$
 
-Șenbabaoğlu, Michailidis & Li lo propongono al posto dell'area sotto la CDF di Monti et al., che mostrano essere distorta verso $k$ grandi [17]. Con spectral e `assign_labels="cluster_qr"` le ripetizioni a semi diversi danno la stessa partizione ([`spectral.md`](spectral.md), sezione 3): $C$ contiene solo 0 e 1 e l'RSC non aggiunge informazione; è informativa solo la versione su sottocampioni (Monti).
+Șenbabaoğlu, Michailidis & Li lo propongono al posto dell'area sotto la CDF di Monti et al., che mostrano essere distorta verso $k$ grandi [17]. Con spectral, `assign_labels="cluster_qr"` e grafo di affinità connesso le ripetizioni a semi diversi danno la stessa partizione ([`spectral.md`](spectral.md), sezione 3): $C$ contiene solo 0 e 1 e l'RSC non aggiunge informazione (a grafo non connesso le partizioni cambiano col seme); è informativa solo la versione su sottocampioni (Monti).
 
 ---
 

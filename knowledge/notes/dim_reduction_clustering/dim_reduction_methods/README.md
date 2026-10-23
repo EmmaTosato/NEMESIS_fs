@@ -31,7 +31,7 @@ Le versioni sono quelle dell'ambiente `nemesis` (verificate con `import umap, sk
 | disconnettoma per tratto (`s2.4-stream`) | 5831 × 87 | continui |
 | disconnettoma parcellato (`s2.1-schaefer-200-tian-s2`) | 1119 × 232 | continui |
 
-Dimensioni da [`docs/guides/dim_reduction.md`](../../../../docs/guides/dim_reduction.md) e [`docs/experiments/README.md`](../../../../docs/experiments/README.md). In quasi tutte le matrici le variabili sono 40-50 volte più dei soggetti (*p* ≫ *n*). L'embedding non è il prodotto finale: è l'ingresso di `clustering.py` (`--reduced_data true`).
+Dimensioni da [`docs/guides/dim_reduction.md`](../../../../docs/guides/dim_reduction.md) e [`docs/experiments/README.md`](../../../../docs/experiments/README.md). In quasi tutte le matrici le variabili sono 38-50 volte più dei soggetti (*p* ≫ *n*). L'embedding non è il prodotto finale: è l'ingresso di `clustering.py` (`--reduced_data true`).
 
 ## Quale metodo, in una tabella
 

@@ -37,7 +37,7 @@ Le metriche specifiche di un metodo stanno nella sua nota: inertia e gap statist
 
 - **Il tuning non sceglie per te**: ogni sweep produce indici e grafici, la scelta è umana (`../clustering_tuning_guide.md`).
 - **Gli indici assoluti non si confrontano tra embedding diversi**: si confrontano le partizioni (ARI) e le dimensioni dei cluster ([`evaluation_metrics.md`](evaluation_metrics.md)).
-- **Metodi stocastici e deterministici**: `kmeans` e `gmm` dipendono dal seme; `agglomerative`, `hdbscan`, `adp` sono deterministici; `spectral` con `cluster_qr` lo è in pratica ([`spectral.md`](spectral.md), sezione 3).
+- **Metodi stocastici e deterministici**: `kmeans` e `gmm` dipendono dal seme; `agglomerative`, `hdbscan`, `adp` sono deterministici; `spectral` con `cluster_qr` lo è solo a grafo di affinità connesso ([`spectral.md`](spectral.md), sezione 3).
 
 ## Fonti
 

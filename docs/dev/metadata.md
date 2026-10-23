@@ -222,7 +222,7 @@ A 2 mm `nearest` è un sottocampionamento (un voxel su otto), quindi il carico a
 Alternative considerate e scartate (`.claude/history/methods_changelog.md`):
 
 - **Volume sogliato** (`#{p > 0.5}`): è la soglia che il pannello "Disconnection per cluster" dell'app già usa, ma una soglia è una scelta in più da giustificare, e su 200 soggetti ordina quasi come la somma (Spearman 0,993) pur avendo un soggetto su 200 a zero. Non scritto.
-- **`n_nonzero_voxels` di BCBToolKit**: misura quanto *si diffonde* la disconnessione, non quanta ce n'è. Il minimo non nullo è costante a `1/178 = 0,0056` (un solo donatore sano), quindi conta qualunque traccia: mediana 36% del cervello, fino al 91%.
+- **`n_nonzero_voxels` di BCBToolKit**: misura quanto *si diffonde* la disconnessione, non quanta ce n'è. Il minimo non nullo è costante a `1/178 = 0,0056` (un solo donatore sano), quindi conta qualunque traccia: sulle 5853 mappe a 1 mm, `n_nonzero_voxels` è in mediana il 35% dei voxel della maschera cerebrale a 1 mm (1.827.243), fino al 95%. Il conteggio include i voxel fuori dal cervello; contando solo quelli dentro la maschera sono il 34% in mediana e fino all'85%.
 - **`map_mean_nonzero`** (media sui soli voxel non nulli): il denominatore varia per soggetto, quindi non è un carico ma un'intensità. Variabile genuinamente diversa, non richiesta.
 - **Leggere i `mapstats.tsv` di BCBToolKit** invece di aprire i NIfTI: `map_sum` coincide al decimale con quello ricalcolato (verificato), ma non è mascherato sul cervello e non permette soglie. Si preferisce la misura nostra, con la scelta in/fuori dal cervello esplicita.
 
@@ -242,7 +242,7 @@ Questa eterogeneità è stata scoperta per caso: un primo calcolo esplorativo as
 
 ### Solo dentro il cervello
 
-Il disconnettoma porta una quota di massa fuori dalla maschera cerebrale (mediana 0,80% della massa totale, fino all'8,9% in un caso, misurato su 400 soggetti casuali). È tractografia che esce dal cervello, non disconnessione, ed è la stessa scelta di `correct_out_of_brain` per le lesioni. La matrice SDC voxel-wise la applica con lo stesso flag (`docs/dev/sdc_matrix.md`): con `correct_out_of_brain: true` la somma di ogni riga della matrice coincide con `disconnection_load_voxels_2mm`. Non c'è un'opzione per disattivarla: nessun uso chiesto ne ha bisogno, e un parametro non letto da nessuno è un campo di config morto.
+Il disconnettoma porta una quota di massa fuori dalla maschera cerebrale (mediana 0,80% della massa totale, 99° percentile 6,7%, massimo 15,3%, misurato sui 5845 soggetti a 2 mm). È tractografia che esce dal cervello, non disconnessione, ed è la stessa scelta di `correct_out_of_brain` per le lesioni. La matrice SDC voxel-wise la applica con lo stesso flag (`docs/dev/sdc_matrix.md`): con `correct_out_of_brain: true` la somma di ogni riga della matrice coincide con `disconnection_load_voxels_2mm`. Non c'è un'opzione per disattivarla: nessun uso chiesto ne ha bisogno, e un parametro non letto da nessuno è un campo di config morto.
 
 ### Scala di colore: lineare
 

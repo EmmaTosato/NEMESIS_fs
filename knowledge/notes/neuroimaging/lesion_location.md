@@ -65,7 +65,7 @@ Due conseguenze da conoscere:
 | `unlabeled` | 15.409 | 6,7% |
 | totale (maschera cerebrale) | 228.483 | 100% |
 
-Dei 15.409 voxel `unlabeled`, 7.862 hanno l'etichetta `Cerebral Cortex` dell'atlante sotto-corticale senza un'etichetta corticale. 6.182 voxel etichettati da uno degli atlanti stanno fuori dalla maschera cerebrale e non entrano in nessuna categoria.
+Dei 15.409 voxel `unlabeled`, 7.862 hanno l'etichetta `Cerebral Cortex` dell'atlante sotto-corticale senza un'etichetta corticale. 6.722 voxel etichettati da uno dei tre atlanti (6.182 dai due Harvard-Oxford, 540 dal cervelletto) stanno fuori dalla maschera cerebrale e non entrano in nessuna categoria.
 
 ### 2.3 Perché queste categorie
 

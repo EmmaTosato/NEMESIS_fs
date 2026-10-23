@@ -103,7 +103,7 @@ Un cluster viene scelto se la sua stabilità non è inferiore alla **somma** del
 
 ## 4. Il nostro contesto
 
-- **Input**: embedding UMAP (`n_components` 2, 3, 10) o la matrice SDC "stream" a 87 colonne; circa 5000-5850 soggetti. Distanza euclidea (non è passata `metric`).
+- **Input**: embedding UMAP (`n_components` 2, 3, 10), punteggi PCA (2-42 componenti) o la matrice SDC "stream" a 87 colonne; circa 5000-5850 soggetti. Distanza euclidea (non è passata `metric`).
 - **Dimensioni**: la FAQ del pacchetto indica HDBSCAN adatto fino a circa 50-100 dimensioni [6]; i nostri spazi (2-87) rientrano. Sulle matrici di voxel (centinaia di migliaia di colonne) la densità sarebbe poco informativa: per quelle il progetto usa ADP ([`adp.md`](adp.md)).
 - **Griglie** (`config/registry/params_clustering.json`):
   - `hdbscan`: `min_cluster_size` ∈ {10, 15, 20, 30, 50, 75, 100} × `min_samples` ∈ {1, 5, 10, 20} = 28 combinazioni; base 100/10; `cluster_selection_method` resta il default `eom`.
@@ -151,7 +151,7 @@ La documentazione del pacchetto consiglia di partire da `min_cluster_size` (il p
 2. **Heatmap** `min_cluster_size` × `min_samples` (valutazione `tuning_heatmaps`, `tuning_plot.png`; per `hdbscan_soft` una per `cluster_selection_method`) di DBCV, rumore, quota del cluster più grande, numero di cluster e, per `hdbscan_soft`, probabilità media e persistenza.
 3. **Curve** (valutazione `dbcv_curves`, `dbcv_curves*.png`): DBCV, rumore, quota del cluster più grande e numero di cluster contro `min_cluster_size`, una linea per `min_samples`. Tutte le combinazioni, nessun limite sul rumore.
 4. **Per `hdbscan_soft`**: `membership_mean` e `persistence_mean`, senza soglia sulla probabilità.
-5. **Tra embedding**: ARI sui soli soggetti non rumore in entrambe le run (confronto tra più run: non è nel `report.md` di una singola run).
+5. **Tra embedding**: ARI tra le run (`agreement_metrics` conta il rumore come un gruppo a sé; confronto tra più run: non è nel `report.md` di una singola run).
 
 Cosa cercare: una zona della griglia dove numero di cluster e partizione cambiano poco e il rumore resta basso. Lettura dei grafici: [`clustering_tuning_guide.md`](../clustering_tuning_guide.md), "HDBSCAN".
 

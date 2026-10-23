@@ -2,7 +2,7 @@
 
 Schede brevi per afferrare un concetto prima o durante una presentazione, scritte per essere ridette a voce. Sono una vista derivata: non contengono fatti che non stiano anche in `knowledge/notes/` (o, per i parametri del progetto, in `docs/`), che restano la fonte di verità. Ogni scheda rimanda, in fondo, alla sezione di approfondimento.
 
-Ogni metodo ha le stesse quattro parti: cosa fa, che tipo di metodo è, cosa restituisce, esempio concreto. Gli esempi numerici sono costruiti per illustrare, non vengono dai dati.
+Ogni metodo ha le stesse quattro parti: cosa fa, che tipo di metodo è, cosa restituisce, esempio concreto (la scheda di HDBSCAN ne ha una quinta, «Come si valuta»). Gli esempi numerici sono costruiti per illustrare, non vengono dai dati.
 
 ## Riduzione dimensionale
 

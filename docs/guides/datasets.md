@@ -4,9 +4,7 @@ Quali coorti cliniche usa NEMESIS, quanti soggetti hanno **davvero**, quali tipi
 
 I dati risiedono sul server **EBRAIN** (`/data/corbetta/Clinical_connectome`) e vengono copiati in locale a mano sotto `data/clinical_connectome/derivatives/<centro>/<coorte>/`. Una pipeline di retrieval (`retrieve_data.py`) lo faceva in automatico: è stata ritirata, resta in git.
 
-Tutti i numeri di questa pagina sono **verificati sul disco e sui tsv**, non stimati. 
-
-
+Tutti i numeri di questa pagina sono **verificati sul disco e sui tsv**, non stimati.
 
 Per rigenerarli: `notebooks/exploration/dataset_availability.ipynb` (esplorazione diretta del filesystem) o `assets/metadata/participants.csv` (vedi sotto).
 
@@ -33,12 +31,12 @@ Le parole che questa pagina e `notebooks/exploration/dataset_availability.ipynb`
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | **`UCL-UK/UCLStrokeData`** | 4119 (4119 ST) | **4119** | 4119 | — | 1.0 mm | reticolo 2 mm |
 | **`UKLFR/stroke_UKLFR`** | 735 (735 ST) | 705 | 705 | — | 1.0 mm | reticolo 2 mm |
-| **`UKE/WAKEUP_acute`** | 503 (503 ST) | 451 ️ | 451 | — | 1.0 mm | **1 mm** |
+| **`UKE/WAKEUP_acute`** | 503 (503 ST) | 451 | 451 | — | 1.0 mm | **1 mm** |
 | **`UNIPD/WashU`** | 319 (251 ST + 68 HC) | 195 | 195 | **225** (169 ST + 56 HC) | 1.0 mm | reticolo 2 mm |
 | **`UNIPD/PSP`** | 237 (237 ST) | 168 | 168 | — | 1.0 mm | **2 mm interpolata** |
 | **`UNIPD/PASPORT`** | 97 (97 ST) | 83 | 83 | — | 1.0 mm | **1 mm** |
-| **`UNIPD/NEMESIS_T0`** | 104 (76 ST nel registro) | 76 | 76 | — | 1.0 mm | reticolo 2 mm |
-| **`UKE/SFB936_ses01`** | 57 (56 ST nel registro) | 56 | 56 | — | 1.0 mm | reticolo 2 mm |
+| **`UNIPD/NEMESIS_T0`** | 104 (76 con maschera in `participants.csv`) | 76 | 76 | — | 1.0 mm | reticolo 2 mm |
+| **`UKE/SFB936_ses01`** | 57 (56 con maschera in `participants.csv`) | 56 | 56 | — | 1.0 mm | reticolo 2 mm |
 
 Tutte le maschere sono in spazio `MNI152NLin6Asym` su griglia **1.0 mm**, `182x218x182`: verificato sugli header NIfTI di tutte e 5853.
 
@@ -54,11 +52,11 @@ Lo stesso indice d'array è quindi un voxel fisico diverso (LAS e RAS sono specc
 
 ### ⚠️ La griglia è 1 mm per tutti, il dettaglio no
 
-`manual_masks/` non contiene segmentazioni disegnate a mano: è la lesione **già ricampionata da BCBToolKit** sulla propria griglia di lavoro a 1 mm, rinominata togliendo `res-1` dal nome (`..._res-1_label-lesion_mask.nii.gz`); `bcbtoolkit/` non contiene la maschera, solo il disconnettoma e le tabelle parcellate (vedi sotto) (vedi anche `data/clinical_connectome/derivatives/README.md`, non versionato).
+`manual_masks/` non contiene segmentazioni disegnate a mano: è la lesione **già ricampionata da BCBToolKit** sulla propria griglia di lavoro a 1 mm, rinominata togliendo `res-1` dal nome (`..._res-1_label-lesion_mask.nii.gz`); `bcbtoolkit/` non contiene la maschera, solo il disconnettoma e le tabelle parcellate (vedi sotto); vedi anche `data/clinical_connectome/derivatives/README.md`, non versionato.
 
 Un ricampionamento non crea dettaglio che non c'era. Per i dataset la cui segmentazione originale era a 2 mm, il risultato è un volume su griglia da 1 mm i cui voxel sono **costanti in blocchi 2x2x2 allineati** — ogni voxel originale replicato 8 volte. È questo che distingue le due colonne:
 
-- **`reticolo 2 mm`** — 5150 soggetti (UCL-UK, UKLFR, WashU, NEMESIS_T0, SFB936). Nessun dettaglio sotto i 2 mm.
+- **`reticolo 2 mm`** — 5150 soggetti (UCL-UK, UKLFR, WashU, NEMESIS_T0, SFB936; i 705 di UKLFR contano 704 perché `sub-STUKLFR0671` ha la maschera vuota e non è classificabile). Nessun dettaglio sotto i 2 mm.
 - **`1 mm`** — 534 soggetti (PASPORT, WAKEUP). Segmentazione genuinamente a 1 mm, binaria (solo 0 e 1).
 - **`2 mm interpolata`** — 168 soggetti (PSP). Maschera a 2 mm portata a 1 mm con interpolazione lineare: i valori non sono solo 0 e 1 ma multipli di 1/8, e valgono 0 o 1 solo i voxel che coincidono con i centri della griglia a 2 mm (la somma dei valori è esattamente 8 × il volume a 2 mm). Conseguenze per le colonne a 1 mm in [`docs/dev/metadata.md`](../dev/metadata.md).
 
@@ -136,7 +134,7 @@ Un tsv il cui schema non ha ancora quei campi (manca almeno uno tra `center_id`,
 Due conseguenze pratiche, entrambe gestite in `docs/dev/metadata.md`:
 - **PASPORT non ha `NIHSS`** (solo `NIHSS_at_presentation`/`_24H`/`_3m`) né `lesion_side`; **UCL-UK non ha nessuno dei due**, e nemmeno una colonna sostitutiva.
 - **`lesion_side` è incompleto anche dove esiste** (PSP 47%, WashU 84%): per questo verrà calcolato geometricamente dalla maschera dove manca.
-- **`lesion_side` ha il valore `both` solo in UKE** (25 soggetti nel registro): è l'etichetta del tsv e non coincide con una maschera bilaterale; vedi [`metadata.md`](metadata.md), sezione sul valore `both`.
+- **Nei tsv `lesion_side` ha il valore `both` solo in UKE** (30 righe, di cui 25 con maschera in `participants.csv`, tutte in `UKE/WAKEUP_acute`): è l'etichetta del tsv e non coincide con una maschera bilaterale; vedi [`metadata.md`](metadata.md), sezione sul valore `both`.
 
 **Punteggi comportamentali — solo WashU** (% sui 251 ST): `ARAT_L`/`ARAT_R` 94%, `Boston_nam` 92%, `NIHSS` 74%, `9HPT_L`/`9HPT_R` 65%, `Clock` 65%, `Corsi` 34%. `GDS_15` esiste come colonna ma è vuota al 100% per questa coorte.
 
@@ -188,13 +186,13 @@ tar -xzf ../<nome>_archive.tar.gz -C .
 
 ## Ingombro su disco (locale)
 
-`data/clinical_connectome/derivatives/` pesa **12 GB** in totale (`du`):
+`data/clinical_connectome/derivatives/` pesa **11,9 GB** in totale. Le dimensioni sono quelle reali dei file (somma dei byte, 1 GB = 10⁹ byte), non lo spazio allocato da `du`, che per i file piccoli è più alto (blocchi da 4 KB):
 
 | Tipo | Peso |
 | :--- | ---: |
-| `bcbtoolkit/` (8 dataset, 5853 soggetti) | ~8.4 GB |
-| `features_archive.tar.gz` (i 215 soggetti WashU compressi) | 2.1 GB |
-| `features/` (solo WashU, i 10 soggetti in chiaro) | 222 MB |
-| `manual_masks/` (8 dataset, 5853 soggetti) | ~919 MB |
+| `bcbtoolkit/` (8 dataset, 5853 soggetti) | 8,45 GB |
+| `features_archive.tar.gz` (i 215 soggetti WashU compressi) | 2,22 GB |
+| `manual_masks/` (8 dataset, 5853 soggetti) | 0,95 GB |
+| `features/` (solo WashU, i 10 soggetti in chiaro) | 0,23 GB |
 
-Dentro l'SDC, il peso è dominato dalla mappa voxel-wise: `res-1_desc-disconnectome.nii.gz` ~5,5 GB (~64% del totale), i 15 CSV `LF-disconnectome` ~2,6 GB (~31%), i 16 CSV `LF-lesion` ~0,4 GB (~5%), i `mapstats.tsv` ~46 MB (~0,5%). Non c'è una mappa di lesione per soggetto. I soli CSV parcellati (~3,0 GB) bastano per una matrice tipo `build_sdc_matrix.py`.
+Dentro l'SDC, il peso è dominato dalla mappa voxel-wise: `res-1_desc-disconnectome.nii.gz` 5,72 GB (68% di `bcbtoolkit/`), i 15 CSV `LF-disconnectome` 2,57 GB (30%), i 16 CSV `LF-lesion` 0,15 GB (2%), i `mapstats.tsv` 3 MB (0,03%). Non c'è una mappa di lesione per soggetto. I soli CSV parcellati (2,7 GB) bastano per una matrice tipo `build_sdc_matrix.py`.

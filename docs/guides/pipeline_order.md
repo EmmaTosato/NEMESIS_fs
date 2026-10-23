@@ -164,7 +164,7 @@ python -m src.pipeline.clustering --config config/pipelines/clustering.json
 ```
 
 Raggruppa i soggetti con `kmeans`, `agglomerative`, `gmm`, `hdbscan`, `hdbscan_soft` o `spectral`.
-`adp` (Advanced Density Peaks, `dadapy`) è l'eccezione: gira da solo, sulla matrice grezza, nell'ambiente con `dadapy` e con un config per matrice (`config/pipelines/clustering_adp_<sessione>.json`) (sezione "ADP" di [`clustering.md`](clustering.md)).
+`adp` (Advanced Density Peaks, `dadapy`) è l'eccezione: gira da solo, sulla matrice grezza, nell'ambiente con `dadapy` e con una copia di `clustering.json` che elenca solo `adp` (sezione "ADP" di [`clustering.md`](clustering.md)).
 **Input:** la matrice (`reduced_data: false`) o un embedding del passo 6 (`true`), più `params_clustering.json`. **Output:** `results/<modalità>/clustering/{production,tuning}/<metodo>/<riduzione>/...`. Se la matrice ha più di 3 componenti, per i grafici dei cluster serve un `viz_embedding_path`, cioè un run 2D di `dim_reduction` sugli stessi soggetti. Guida: [`clustering.md`](clustering.md).
 
 **Valutazioni del tuning:** il blocco `tuning_evaluations` di `clustering.json` elenca, per metodo, le valutazioni che girano subito dopo lo sweep (cophenetic e salto del dendrogramma per agglomerative; numero di cluster e quota del cluster più grande per HDBSCAN). **Passo opzionale, dopo un tuning:** `python -m src.pipeline.evaluate_clustering_tuning --config config/pipelines/evaluate_clustering_tuning.json` rilancia le stesse valutazioni su un tuning già salvato (`save_tuning_clusterings: true`), con la stessa funzione e gli stessi parametri, e scrive un `report.md` per run, senza rifare il clustering. Guida: [`evaluate_clustering_tuning.md`](evaluate_clustering_tuning.md).
