@@ -34,6 +34,8 @@ from src.analysis.clustering_tuning_evaluations import (
     COPHENETIC_CORRELATION,
     DENDROGRAM_JUMP,
     DENSITY_METRICS,
+    DUNN_INDEX,
+    LARGEST_CLUSTER_SHARE,
     LINKAGE_AGREEMENT,
     evaluations_for,
     refuse_existing,
@@ -54,6 +56,10 @@ REPORT_TERMS: dict[str, str] = {
     ),
     "davies_bouldin": "media, sui cluster, del rapporto tra quanto il cluster è disperso e quanto è vicino al cluster più simile. Più bassa è meglio.",
     "calinski_harabasz": "rapporto tra la separazione dei cluster e la compattezza di ciascuno. Più alto è meglio; tende a crescere con il numero di cluster.",
+    "dunn": (
+        "rapporto tra la distanza minima tra due cluster e il diametro massimo di un cluster (la distanza più grande tra due "
+        "soggetti dello stesso cluster). Più alto è meglio."
+    ),
     "noise_fraction": "quota dei soggetti non assegnati a nessun cluster (rumore).",
     "n_clusters_found": "numero di cluster, rumore escluso.",
     "largest_cluster_share": "quota dei soggetti, rumore compreso, nel cluster più grande.",
@@ -80,7 +86,7 @@ DENSITY_INDICES_NOTE = (
     "cluster compatti. Il DBCV pesa il rumore. Spiegazione in "
     "`knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md`."
 )
-NON_EUCLIDEAN_NOTE = "Calinski-Harabasz e Davies-Bouldin non sono definiti per `{metric}`: richiedono la distanza euclidea (cella vuota)."
+NON_EUCLIDEAN_NOTE = "Calinski-Harabasz, Davies-Bouldin e Dunn non sono definiti per `{metric}`: richiedono la distanza euclidea (cella vuota)."
 COPHENETIC_TERM = (
     "correlazione tra le distanze vere tra i soggetti e le distanze che l'albero implica. Va da -1 a 1: vicino a 1 l'albero "
     "rispetta bene le distanze. Un valore per `metric` e `linkage`, non si confronta tra `metric` diverse. Nessuna fascia con "
@@ -144,7 +150,7 @@ DENSITY_REPORT_COLUMNS = ("min_cluster_size", "min_samples", "noise_fraction", "
 DENSITY_SOFT_COLUMNS = ("cluster_selection_method", "membership_mean", "persistence_mean")
 DENSITY_TABLE_COLUMNS = ("min_cluster_size", "n_clusters_found", "noise_fraction", "largest_cluster_share", "dbcv")
 
-AGGLOMERATIVE_REPORT_COLUMNS = ("n_clusters", "linkage", "metric", "silhouette", "davies_bouldin", "calinski_harabasz")
+AGGLOMERATIVE_REPORT_COLUMNS = ("n_clusters", "linkage", "metric", "silhouette", "davies_bouldin", "calinski_harabasz", "dunn", "largest_cluster_share")
 
 def curves_hint(silhouette_limits: tuple[float, float], davies_bouldin_limits: tuple[float, float] | None) -> tuple[str, ...]:
     """The hint under the curves figure of one metric. The axes are those of the whole run, so the text carries their
@@ -339,7 +345,8 @@ def _agglomerative_report_markdown(
         "- Una sezione per `metric` (la distanza usata): gli indici di `metric` diverse non si confrontano.",
         "- In ogni sezione: curve per `n_clusters`, una tabella per `linkage`, poi gli strumenti per scegliere il **linkage** "
         "(curve, cophenetic, accordo tra linkage) e quelli per scegliere dove tagliare l'albero, cioè **k** (salto, dendrogramma, etichette 2D).",
-        "- Dati completi: `tuning_results.csv`, `cophenetic_correlation.csv`, `linkage_agreement.csv`, `dendrogram_jump.csv`.",
+        "- Dati completi: `tuning_results.csv`, `largest_cluster_share.csv`, `dunn_index.csv`, `cophenetic_correlation.csv`, "
+        "`linkage_agreement.csv`, `dendrogram_jump.csv`.",
         "- Una cella vuota (–) è un indice non calcolabile per quella combinazione.",
         "",
     ]
@@ -351,10 +358,15 @@ def _agglomerative_report_markdown(
         lines += _curves_section(results, metric)
         for linkage in ordered(subset["linkage"].unique(), LINKAGE_ORDER):
             group = subset[subset["linkage"] == linkage]
-            table = group.sort_values("n_clusters")[["n_clusters", "silhouette", "davies_bouldin", "calinski_harabasz"]]
+            table = group.sort_values("n_clusters")[
+                ["n_clusters", "silhouette", "davies_bouldin", "calinski_harabasz", "dunn", "largest_cluster_share"]
+            ]
             lines += [f"### linkage = {linkage}", "", _markdown_table(table, ("n_clusters",)), "", *_silhouette_comment(group), ""]
         lines += _dendrogram_section(run_dir, results, cophenetic, agreement, jump, metric)
-    terms = [f"- **`{column}`**: {REPORT_TERMS[column]}" for column in ("silhouette", "davies_bouldin", "calinski_harabasz")]
+    terms = [
+        f"- **`{column}`**: {REPORT_TERMS[column]}"
+        for column in ("silhouette", "davies_bouldin", "calinski_harabasz", "dunn", "largest_cluster_share")
+    ]
     terms += [
         f"- **`cophenetic_correlation`**: {COPHENETIC_TERM}",
         f"- **`ari`**: {ARI_TERM}",
@@ -484,7 +496,7 @@ REPORT_FILENAME = "report.md"
 
 # The evaluations whose files a report reads from the run folder, by method (adp: none, only tuning_results.csv).
 REPORT_EVALUATIONS: dict[str, tuple[str, ...]] = {
-    AGGLOMERATIVE: (COPHENETIC_CORRELATION, DENDROGRAM_JUMP, LINKAGE_AGREEMENT),
+    AGGLOMERATIVE: (COPHENETIC_CORRELATION, DENDROGRAM_JUMP, LINKAGE_AGREEMENT, LARGEST_CLUSTER_SHARE, DUNN_INDEX),
     **{method: (DENSITY_METRICS,) for method in DENSITY_METHODS},
     ADP: (),
 }
@@ -508,6 +520,22 @@ def _read_run_csv(run_dir: Path, name: str, method: str) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
+def _with_agglomerative_indices(run_dir: Path, results: pd.DataFrame, share: pd.DataFrame, dunn: pd.DataFrame) -> pd.DataFrame:
+    """`tuning_results.csv` of an agglomerative run with the `largest_cluster_share` and `dunn` columns of the two evaluation
+    files, joined on the swept columns. Raises ValueError if a file does not have exactly one row per combination of
+    tuning_results (the analysis of another run)."""
+    keys = ["n_clusters", "linkage", "metric"]
+    merged = results
+    for name, frame, column in (("largest_cluster_share.csv", share, "largest_cluster_share"), ("dunn_index.csv", dunn, "dunn")):
+        missing = [key for key in (*keys, column) if key not in frame.columns]
+        if missing:
+            raise ValueError(f"{run_dir}: {name} has no column(s) {missing} - needed for the agglomerative report")
+        if len(frame) != len(results) or len(results.merge(frame[[*keys, column]], on=keys, how="inner")) != len(results):
+            raise ValueError(f"{run_dir}: {name} does not have one row per combination of tuning_results.csv (an analysis of another run?)")
+        merged = merged.merge(frame[[*keys, column]], on=keys, how="left")
+    return merged
+
+
 def write_report(run_dir: Path, overwrite: bool) -> Path:
     """Writes <run_dir>/report.md from the files in the folder and returns its path. Needs config.md and
     tuning_results.csv, and the CSVs of REPORT_EVALUATIONS for the run's method. Raises FileExistsError if the
@@ -520,6 +548,7 @@ def write_report(run_dir: Path, overwrite: bool) -> Path:
     results = _read_run_csv(run_dir, "tuning_results.csv", method)
     if method == AGGLOMERATIVE:
         frames = {name: _read_run_csv(run_dir, f"{name}.csv", method) for name in REPORT_EVALUATIONS[method]}
+        results = _with_agglomerative_indices(run_dir, results, frames[LARGEST_CLUSTER_SHARE], frames[DUNN_INDEX])
         text = tuning_report_markdown(
             run_dir, method, input_path, results,
             frames[COPHENETIC_CORRELATION], frames[LINKAGE_AGREEMENT], frames[DENDROGRAM_JUMP],

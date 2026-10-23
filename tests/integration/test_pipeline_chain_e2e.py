@@ -140,7 +140,7 @@ def test_tuning_chain_feeds_the_analysis_step(tmp_path, monkeypatch, chain):
     evaluations_file = write_json(tmp_path / "evaluations.json", {**registry, "dendrogram_jump": {"k_range": {"min": 2, "max": 4}}})
     cfg = {
         "tuning_dir": str(tuning_dir), "overwrite": False, "evaluations_file": str(evaluations_file), "write_report": True,
-        "tuning_evaluations": {"general": [], "agglomerative": ["k_curves", "cophenetic_correlation", "dendrogram_jump", "linkage_agreement"]},
+        "tuning_evaluations": {"general": [], "agglomerative": ["k_curves", "cophenetic_correlation", "dendrogram_jump", "linkage_agreement", "largest_cluster_share", "dunn_index"]},
     }
     assert evaluate_clustering_tuning.main(["--config", str(write_json(tmp_path / "an.json", cfg))]) == 0
 

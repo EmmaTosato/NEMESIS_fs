@@ -36,6 +36,8 @@ def _curves_results() -> pd.DataFrame:
             "silhouette": [0.5, 0.4, 0.1, -0.2, 0.7, 0.6],
             "davies_bouldin": [1.0, 1.1, 2.0, 2.0, np.nan, np.nan],
             "calinski_harabasz": [100.0, 90.0, 20.0, 10.0, np.nan, np.nan],
+            "dunn": [0.4, 0.3, 0.1, 0.05, np.nan, np.nan],
+            "largest_cluster_share": [0.6, 0.5, 0.97, 0.96, 0.7, 0.55],
         }
     )
 
@@ -50,6 +52,8 @@ def _agglomerative_results() -> pd.DataFrame:
             "noise_fraction": [0.0, 0.0, 0.0, 0.0],
             "calinski_harabasz": [7258.9, 1200.0, np.nan, np.nan],
             "davies_bouldin": [0.7, 0.8, np.nan, np.nan],
+            "dunn": [0.21, 0.12, np.nan, np.nan],
+            "largest_cluster_share": [0.64, 0.5, 0.8, 0.7],
         }
     )
 
@@ -101,6 +105,8 @@ def test_tuning_report_counts_the_negative_silhouettes_and_gives_the_first_and_l
             "silhouette": [0.30, 0.45, 0.10, -0.05, -0.20],
             "davies_bouldin": [1.0] * 5,
             "calinski_harabasz": [10.0] * 5,
+            "dunn": [0.1] * 5,
+            "largest_cluster_share": [0.9] * 5,
         }
     )
 
@@ -357,7 +363,12 @@ def test_tuning_report_rejects_a_method_without_report_and_a_missing_column(tmp_
 
 
 def test_require_report_evaluations_accepts_a_block_that_lists_what_the_report_reads():
-    block = {"general": (), "agglomerative": ("cophenetic_correlation", "dendrogram_jump", "linkage_agreement"), "hdbscan": ("density_metrics",), "adp": ()}
+    block = {
+        "general": (),
+        "agglomerative": ("cophenetic_correlation", "dendrogram_jump", "linkage_agreement", "largest_cluster_share", "dunn_index"),
+        "hdbscan": ("density_metrics",),
+        "adp": (),
+    }
 
     require_report_evaluations(block, ("agglomerative", "hdbscan", "adp"))
 
@@ -365,7 +376,7 @@ def test_require_report_evaluations_accepts_a_block_that_lists_what_the_report_r
 def test_require_report_evaluations_names_the_method_and_the_missing_evaluations():
     block = {"general": (), "agglomerative": ("cophenetic_correlation",)}
 
-    with pytest.raises(ValueError, match=r"lacks \['dendrogram_jump', 'linkage_agreement'\] for 'agglomerative'"):
+    with pytest.raises(ValueError, match=r"lacks \['dendrogram_jump', 'linkage_agreement', 'largest_cluster_share', 'dunn_index'\] for 'agglomerative'"):
         require_report_evaluations(block, ("agglomerative",))
 
 
@@ -380,3 +391,38 @@ def test_the_agglomerative_report_says_calinski_harabasz_and_davies_bouldin_are_
     cosine = report.split("## metric = cosine")[1]
     assert "non sono definiti per `cosine`" in cosine.split("###")[0]
     assert "non sono definiti" not in report.split("## metric = cosine")[0]
+
+
+def test_the_agglomerative_report_tables_have_dunn_and_the_largest_cluster_share_and_define_them(tmp_path):
+    report = _agglomerative_report(tmp_path, _agglomerative_results())
+
+    assert "| n_clusters | silhouette | davies_bouldin | calinski_harabasz | dunn | largest_cluster_share |" in report
+    assert "| 2 | 0.300 | 0.700 | 7,259 | 0.210 | 0.640 |" in report
+    terms = report.split("## Termini")[1]
+    assert "- **`dunn`**:" in terms and "- **`largest_cluster_share`**:" in terms
+    assert "`largest_cluster_share.csv`, `dunn_index.csv`" in report
+
+
+def test_the_agglomerative_report_leaves_dunn_empty_for_a_non_euclidean_metric_and_says_so(tmp_path):
+    report = _agglomerative_report(tmp_path, _agglomerative_results())
+
+    cosine = report.split("## metric = cosine")[1].split("## Termini")[0]
+    assert "Calinski-Harabasz, Davies-Bouldin e Dunn non sono definiti per `cosine`" in cosine
+    assert "| 2 | 0.200 | – | – | – | 0.800 |" in cosine
+
+
+def test_the_report_joins_the_two_files_on_the_swept_columns_and_refuses_files_of_another_run(tmp_path):
+    from src.analysis.clustering_tuning_report import _with_agglomerative_indices
+
+    results = _agglomerative_results().drop(columns=["dunn", "largest_cluster_share"])
+    keys = results[["n_clusters", "linkage", "metric"]]
+    share = keys.assign(largest_cluster_share=[0.1, 0.2, 0.3, 0.4]).iloc[::-1]  # another row order
+    dunn = keys.assign(dunn=[1.0, 2.0, np.nan, np.nan])
+
+    joined = _with_agglomerative_indices(tmp_path, results, share, dunn)
+
+    assert joined["largest_cluster_share"].tolist() == [0.1, 0.2, 0.3, 0.4] and joined["dunn"].iloc[:2].tolist() == [1.0, 2.0]
+    with pytest.raises(ValueError, match="one row per combination"):
+        _with_agglomerative_indices(tmp_path, results, share.iloc[:3], dunn)
+    with pytest.raises(ValueError, match=r"no column\(s\) \['dunn'\]"):
+        _with_agglomerative_indices(tmp_path, results, share, dunn.drop(columns="dunn"))

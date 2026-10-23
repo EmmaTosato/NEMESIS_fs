@@ -6,6 +6,14 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 23-10-26 — Report di agglomerative con Dunn e quota maggiore; tuning veri rigenerati con i flussi nuovi
+
+`clustering_tuning_report.py` legge `largest_cluster_share.csv` e `dunn_index.csv` (le valutazioni sono ora richieste da `REPORT_EVALUATIONS`) e le mette come colonne `dunn` e `largest_cluster_share` nelle tabelle per `linkage`; la nota sulla distanza non euclidea include Dunn. Le due colonne si uniscono a `tuning_results.csv` sulle colonne dello sweep (`_with_agglomerative_indices`), e il report rifiuta file con un numero di righe diverso.
+
+Rigenerati il 23-10-26, su richiesta dell'utente, con `evaluate_clustering_tuning` (`overwrite: true`): le 48 cartelle di tuning con report (16 agglomerative, 16 `hdbscan`, 16 `hdbscan_soft`); poi i 16 `report.md` di agglomerative con le colonne nuove. I file dei vecchi flussi (117: `noise_filtered_curves*`, `k_curves_single_*`, `k_curves_<linkage>_<metrica>`, `k_table_*`, `k_evaluation_*`, `cophenetic.csv`) sono stati spostati, non cancellati, fuori dal repo (copia di sicurezza nello scratchpad della sessione); dai `tuning_results.csv` di HDBSCAN sono state tolte silhouette, CH e DB. Non toccati: i prodotti d'analisi (`composition_*`, `tracts_*`, `nb_*`) in 4 cartelle di agglomerative e le cartelle senza report (agosto-10 settembre).
+
+Trovato rigenerando: `dbcv()` falliva sugli embedding UMAP `float32` (`lessons_learned.md` #46), corretto.
+
 ## 23-10-26 — Catena di valutazione del clustering: kmeans, gmm, spectral e adp in stand by
 
 Scelta dell'utente: la catena `tuning_evaluations` → `report.md` → produzione → app si chiude prima per `agglomerative`, `hdbscan` e `hdbscan_soft`; `kmeans`, `gmm`, `spectral` e `adp` restano com'erano. Per loro: `evaluate_clustering_tuning` rifiuta il tuning (`unsupported clustering_method`; `adp` ha solo `report.md`), le colonne dello sweep (`inertia`, `bic`/`aic`, silhouette, CH, DB) non si ricalcolano con nessuna valutazione, la produzione scrive solo ciò che scriveva (per kmeans, gmm e spectral nessuna riga di indici in `config.md`) e l'app li valuta con i pannelli che ha già.

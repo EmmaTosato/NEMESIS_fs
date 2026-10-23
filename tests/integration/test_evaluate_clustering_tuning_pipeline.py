@@ -25,7 +25,7 @@ def _blobs_matrix(tmp_path):
 
 REGISTRY = json.loads(Path("config/registry/clustering_evaluations.json").read_text())
 EVALUATIONS_BY_METHOD = {
-    "agglomerative": ["k_curves", "cophenetic_correlation", "dendrogram_jump", "linkage_agreement"],
+    "agglomerative": ["k_curves", "cophenetic_correlation", "dendrogram_jump", "linkage_agreement", "largest_cluster_share", "dunn_index"],
     "hdbscan": ["density_metrics", "tuning_heatmaps", "dbcv_curves"],
 }
 
