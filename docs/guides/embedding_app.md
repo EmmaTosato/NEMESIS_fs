@@ -111,7 +111,7 @@ Sotto i selettori e i bottoni di colore la pagina mostra **una scheda alla volta
 - Una scheda che il run non ha sparisce; con una sola scheda disponibile (un run di `dim_reduction`) la barra non compare.
 - La scheda scelta resta finché il run la ha. Cambiando run verso uno che non la ha (Dendrogram → kmeans) la pagina torna a **Embedding**.
 - L'**Index** (in alto a destra) elenca solo le sezioni della scheda aperta.
-- I pannelli di tutte le schede sono già nella pagina e si nascondono: aprire una scheda non ricostruisce nulla (vedi `docs/dev/models.md`).
+- **Clustering e Dendrogram si costruiscono quando le apri** e si svuotano quando le lasci (la pagina resta leggera, niente viewer in memoria nel browser). Tornarci è più veloce della prima volta perché mappe, indici e alberi sono già nelle cache dell'app: su `16-10_s2.4-vol_m_euclidean_nc2_k7_link_ward` Clustering passa da circa 7 s a 1 s, Dendrogram da circa 12 s a 3 s. Embedding resta sempre montata. Cosa non si conserva uscendo da una scheda: lo scroll, la rotazione di un viewer, il cluster già aperto nella vista (il selettore Cluster e il k del Dendrogram restano). Dettagli: `docs/dev/models.md`.
 
 ## Cosa mostra
 
