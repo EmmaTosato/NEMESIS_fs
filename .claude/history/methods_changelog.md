@@ -8,6 +8,18 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 26-10-26 — Agglomerative su UMAP di s2.4-vol: una griglia comune di metriche, linkage e k
+
+**Cosa è cambiato**: sui due UMAP del 16-10 (nc2 e nc10) la produzione di agglomerative ha le stesse 4 combinazioni metrica/linkage (euclidean `ward` e `average`, cosine `average` e `complete`) con gli stessi 11 k: 3, 5, 6, 7, 8, 9, 10, 13, 14, 15, 18 (88 run). Lanciate 61 run (30 euclidee, 31 cosine) a completamento di quelle già fatte il 16-10 e il 19-10; i parametri di ogni run sono nel suo `config.md`.
+
+**Perché**: prima ogni input aveva combinazioni e k diversi (euclidea `ward` solo su nc2, `average` solo su nc10; k scelti dal tuning di allora), quindi due run non erano confrontabili se non per caso. Con la stessa griglia su ogni cella si leggono differenze di input, metrica e linkage senza che il k le confonda.
+
+**Alternative scartate**: tenere i k propri di ogni input (scelti dalla silhouette del suo tuning), che mantiene la scelta ma non permette il confronto; solo contare le run mancanti senza lanciarle.
+
+**Conseguenza ancora vera oggi**: restano 7 run cosine del 19-10 con k fuori griglia (nc2 `average` k=2, nc2 `complete` k=2, 4, 19, nc10 `average` k=2, 11, nc10 `complete` k=2), lasciate apposta. `single` e `complete` euclidea non sono in griglia. Le PCA non sono ancora allineate.
+
+---
+
 ## 23-10-26 — Embedding Explorer: la silhouette di un run non euclideo si misura nella sua metrica
 
 Il pannello «Clustering evaluation» rifiutava ogni run con `metric` non euclidea (es. `cosine` di agglomerative: 36 run di produzione, tra cui tutte le `19-10_s2.4-vol_*_link_average` e le `14-10_s2.4-stream_*`) e non mostrava nessun indice. Ora (`clustering_evaluation.run_metric`, `geometric_summary`, `per_cluster_silhouette`) la silhouette (tre sintesi e grafico per cluster) usa la `metric` del run; Calinski-Harabasz, Davies-Bouldin e Dunn sono NaN e il pannello mostra «—» con «Euclidean distance only». Un'affinità non euclidea (spectral `precomputed`) o una metrica che la silhouette non sa misurare restano un errore esplicito.

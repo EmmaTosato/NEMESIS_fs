@@ -87,7 +87,7 @@ flowchart LR
 
     subgraph COL4["Clustering — Prod."]
         direction TB
-        CP24["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>agglomerative: 14 run<br/>HDBSCAN: 7 run<hr/>19-10<br/>agglomerative: 20 run<br/>(altri k e linkage)<br/>(41 run)"]
+        CP24["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>agglomerative: 14 run<br/>HDBSCAN: 7 run<hr/>19-10<br/>agglomerative: 20 run<br/>(altri k e linkage)<hr/>26-10<br/>agglomerative: 61 run<br/>(griglia allineata)<br/>(102 run)"]
         CP24S["16-10<hr/>UMAP euclidean<br/>nc2/nc10<br/>HDBSCAN soft: 4 run su 5"]
         CP24P["18-10 / 19-10<hr/>PCA nc42, nc30, nc12, nc2<br/>(agglomerative anche su nc2 varimax)<br/>agglomerative: 13 run<br/>(ward k=3: 5 run)<br/>HDBSCAN: 20 run<br/>HDBSCAN soft: 20 run<br/>(53 run)"]
         CP24R["16-10<hr/>raw dice<br/>227235 voxel<br/>ADP Z 2.0-3.5<br/>(4 run)"]
