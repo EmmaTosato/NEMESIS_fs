@@ -5,7 +5,8 @@
 the sweep does not write; src/analysis/clustering_tuning_evaluations.py runs them and writes their files, and
 src/analysis/clustering_tuning_report.py lays the files out as report.md:
 
-- agglomerative: cophenetic correlation and dendrogram jump per (metric, linkage), agreement between linkages,
+- agglomerative: cophenetic correlation and dendrogram jump per (metric, linkage), the merge trees themselves (drawn by
+  the `dendrograms` evaluation), agreement between linkages,
   silhouette and Davies-Bouldin curves per n_clusters (the linkages other than `single`, on axes shared by the run);
 - hdbscan / hdbscan_soft: the number of clusters, the share of the largest cluster and DBCV of every combination, the
   curves of those against min_cluster_size and the map of every column over min_cluster_size x min_samples;
@@ -177,6 +178,18 @@ def jump_table(
     return pd.DataFrame(rows)
 
 
+def dendrogram_linkages(
+    run: ClusteringTuningRun, X: np.ndarray, distance_cache: dict[str, np.ndarray] | None = None
+) -> dict[str, dict[str, np.ndarray]]:
+    """The merge tree (scipy linkage matrix) of every valid (metric, linkage) of an agglomerative run, as
+    `{metric: {linkage: tree}}` in the order the run stored them."""
+    distance_cache = {} if distance_cache is None else distance_cache
+    trees: dict[str, dict[str, np.ndarray]] = {}
+    for p in _valid_metric_linkage_pairs(run, "dendrogram_linkages"):
+        trees.setdefault(p["metric"], {})[p["linkage"]] = compute_dendrogram_linkage(X, p, distance_cache)
+    return trees
+
+
 def linkage_agreement(run: ClusteringTuningRun) -> pd.DataFrame:
     """Adjusted Rand index between the partitions of every two linkages of an agglomerative run, at each `n_clusters`
     and `metric`. One row per (metric, n_clusters, linkage_a, linkage_b), with the linkages in LINKAGE_ORDER; a linkage
@@ -254,6 +267,10 @@ def k_curves_targets(results: pd.DataFrame) -> list[str]:
 
 def k_curves_file_name(metric: str) -> str:
     return f"k_curves_metric={metric}.png"
+
+
+def dendrogram_file_name(metric: str) -> str:
+    return f"dendrogram_metric={metric}.png"
 
 
 def run_axis_limits(results: pd.DataFrame, column: str) -> tuple[float, float]:

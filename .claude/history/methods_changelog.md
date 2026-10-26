@@ -8,6 +8,16 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 26-10-26 — `hdbscan_soft`: via i soggetti più deboli (taglio a 10)
+
+Tolta dall'app (pannello «Cluster membership», sezione 3.2) la tabella dei 10 soggetti con la probabilità più bassa nel proprio cluster, con la funzione `weakest_soft_members`, la costante `N_WEAKEST_MEMBERS`, i test e le righe di `evaluation.md`. Scelta dell'utente.
+
+Perché: «i 10 più deboli» è un taglio arbitrario, quindi una soglia, e il progetto non mette soglie nostre sulla probabilità (stessa ragione della voce 22-10-26). Restano la tabella per cluster (probabilità media nel proprio, altro cluster più probabile), la heatmap dei vettori medi, `membership.npy` e la colonna `membership_own` di `metadata.csv`, tutte senza soglie.
+
+Ancora vero: `notebooks/post-results_analysis/clustering_evaluation.ipynb` ha ancora `N_LOWEST` e il calcolo dei più deboli (sezione 3.2): da togliere con il resto del notebook.
+
+---
+
 ## 26-10-26 — Agglomerative su UMAP di s2.4-vol: una griglia comune di metriche, linkage e k
 
 **Cosa è cambiato**: sui due UMAP del 16-10 (nc2 e nc10) la produzione di agglomerative ha le stesse 4 combinazioni metrica/linkage (euclidean `ward` e `average`, cosine `average` e `complete`) con gli stessi 11 k: 3, 5, 6, 7, 8, 9, 10, 13, 14, 15, 18 (88 run). Lanciate 61 run (30 euclidee, 31 cosine) a completamento di quelle già fatte il 16-10 e il 19-10; i parametri di ogni run sono nel suo `config.md`.

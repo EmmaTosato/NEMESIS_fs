@@ -25,6 +25,7 @@ from src.analysis.clustering_tuning_analysis import (
     LINKAGE_ORDER,
     METRIC_ORDER,
     curves_subset,
+    dendrogram_file_name,
     k_curves_file_name,
     ordered,
     read_run_config,
@@ -122,7 +123,7 @@ HINT_DENDROGRAM = (
     "Cosa mostra: l'albero delle fusioni; l'asse verticale è l'altezza a cui due gruppi si uniscono.",
     "Come si legge: una fusione molto più alta della precedente separa gruppi distinti; tagliare l'albero a una certa altezza "
     "dà quel numero di cluster.",
-    "Limiti: sono mostrate solo le ultime 30 fusioni, quindi i k piccoli; le altezze non si confrontano tra linkage.",
+    "Limiti: sono mostrate solo le ultime fusioni (quante, sta sull'asse orizzontale della figura), quindi i k piccoli; le altezze non si confrontano tra linkage.",
 )
 HINT_HEATMAP = (
     "Cosa mostra: gli stessi numeri delle tabelle su tutta la griglia `min_cluster_size` × `min_samples`, un riquadro per metrica.",
@@ -294,7 +295,7 @@ def _dendrogram_section(
 ) -> list[str]:
     """Cophenetic correlation, agreement between linkages, dendrogram jump and the tree image of one metric of an
     agglomerative report."""
-    images: list[tuple[str, str, tuple[str, ...] | None]] = [("Dendrogramma (ultime 30 fusioni)", f"dendrogram_metric={metric}.png", HINT_DENDROGRAM)]
+    images: list[tuple[str, str, tuple[str, ...] | None]] = [("Dendrogramma", dendrogram_file_name(metric), HINT_DENDROGRAM)]
     return [
         "### Cophenetic correlation", "", _cophenetic_table(cophenetic, metric), "", *_hint_lines(HINT_COPHENETIC),
         "### Accordo tra linkage (ARI)", "", *_agreement_block(agreement, metric),

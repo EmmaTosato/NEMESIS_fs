@@ -1067,6 +1067,8 @@ def test_clustering_fine_tuning_two_swept_params_writes_heatmap(tmp_path, monkey
     results = pd.read_csv(tuning_dir / "tuning_results.csv")
     assert len(results) == 4  # 2 x 2 cartesian product
     assert set(results["linkage"]) == {"ward", "average"}
+    # the sweep itself writes no dendrogram and no interclass matrix: the dendrogram is the `dendrograms` evaluation
+    assert not list(tuning_dir.glob("dendrogram*")) and not (tuning_dir / "interclass_distance_matrix.png").exists()
 
 
 def test_clustering_fine_tuning_overwrite_wipes_stale_plot_from_incompatible_prior_grid(tmp_path, monkeypatch):
@@ -1199,10 +1201,9 @@ def test_clustering_fine_tuning_kmeans_with_consensus_writes_rsc_monti_columns(t
 
 def test_clustering_fine_tuning_agglomerative_metric_aware_sweep_writes_new_diagnostics(tmp_path, monkeypatch):
     """project-clustering-tuning-redesign memory (26-08-26): a swept linkage x metric grid must
-    (1) skip the invalid ward+non-euclidean combinations rather than crash, (2) write one
-    dendrogram per swept linkage value (not a single stale dendrogram.png), (3) write
-    interclass_distance_matrix.png, one heatmap per swept metric value, using the fixture's own
-    "dataset" metadata column as the weak ground-truth proxy grouping."""
+    (1) skip the invalid ward+non-euclidean combinations rather than crash, (2) get one
+    dendrogram per swept metric from the `dendrograms` evaluation (not a single stale
+    dendrogram.png), (3) write no interclass_distance_matrix.png any more."""
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
@@ -1234,9 +1235,9 @@ def test_clustering_fine_tuning_agglomerative_metric_aware_sweep_writes_new_diag
         "overwrite": False,
         "fine_tuning": True,
         "reduced_data": False,
-        "save_tuning_clusterings": False,
+        "save_tuning_clusterings": True,
         "evaluations_file": "config/registry/clustering_evaluations.json",
-        "tuning_evaluations": {"general": [], "agglomerative": []},
+        "tuning_evaluations": {"general": [], "agglomerative": ["dendrograms"]},
         "write_report": False,
         "run_notes": None,
     }
@@ -1260,7 +1261,7 @@ def test_clustering_fine_tuning_agglomerative_metric_aware_sweep_writes_new_diag
     assert not (tuning_dir / "dendrogram.png").exists()  # replaced by the per-metric files
     assert not (tuning_dir / "dendrogram_ward.png").exists()  # replaced by the per-metric files
 
-    assert (tuning_dir / "interclass_distance_matrix.png").stat().st_size > 0
+    assert not (tuning_dir / "interclass_distance_matrix.png").exists()  # no longer written
 
 
 def test_clustering_fine_tuning_kmeans_with_stability_writes_stability_output(tmp_path, monkeypatch):
@@ -1467,7 +1468,7 @@ def test_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkey
     params_path = tmp_path / "params_clustering.json"
     params_path.write_text(
         json.dumps(
-            {"agglomerative": {"params": {"n_clusters": 3, "linkage": "ward"}, "tuning_grid": {"n_clusters": [2, 3]}}}
+            {"agglomerative": {"params": {"n_clusters": 3, "linkage": "ward"}, "tuning_grid": {"n_clusters": [2, 3], "linkage": ["ward"], "metric": ["euclidean"]}}}
         )
     )
 
@@ -1483,9 +1484,9 @@ def test_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkey
         "overwrite": False,
         "fine_tuning": True,
         "reduced_data": False,
-        "save_tuning_clusterings": False,
+        "save_tuning_clusterings": True,
         "evaluations_file": "config/registry/clustering_evaluations.json",
-        "tuning_evaluations": {"general": [], "agglomerative": []},
+        "tuning_evaluations": {"general": [], "agglomerative": ["dendrograms"]},
         "write_report": False,
         "run_notes": None,
     }
@@ -1495,9 +1496,8 @@ def test_clustering_fine_tuning_agglomerative_writes_dendrogram(tmp_path, monkey
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
     tuning_dir = next(p for p in (output_root / "tuning" / "agglomerative" / "umap").iterdir() if p.is_dir())
-    assert (tuning_dir / "tuning_plot.png").stat().st_size > 0
-    # linkage/metric not swept -> base_params defaults (ward, euclidean), single-subplot file
-    assert (tuning_dir / "dendrogram_metric=euclidean.png").stat().st_size > 0  # standalone diagnostic, agglomerative-only
+    # one linkage and one metric swept -> a single-subplot file
+    assert (tuning_dir / "dendrogram_metric=euclidean.png").stat().st_size > 0  # the `dendrograms` evaluation, agglomerative-only
 
 
 def test_clustering_fine_tuning_spectral_writes_eigengap(tmp_path, monkeypatch):

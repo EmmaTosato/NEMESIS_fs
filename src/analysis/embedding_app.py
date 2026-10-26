@@ -102,7 +102,6 @@ from src.analysis.clustering_evaluation import (
     model_fit_metrics,
     require_applicable,
     soft_membership_summary,
-    weakest_soft_members,
 )
 from src.analysis.raw_distances import RawDistanceStore
 from src.analysis.cluster_description import (
@@ -741,18 +740,19 @@ def _reduction_method_label(run: ProductionRun) -> str:
     return NO_METRIC if run.reduction_method is None else run.reduction_method
 
 
-def _run_tag_param_label(run: ProductionRun, tag_param: list[str]) -> str | None:
+def _run_tag_param_label(run: ProductionRun, tag_param: list[str], optional: tuple[str, ...] = ()) -> str | None:
     """Human-readable "key=value, key2=value2" combination of `run`'s own values for
     `tag_param` (params_clustering.json's registered hyperparameter names for this method, in
     their own declared order) - doubles as the tag_param picker's own option value (two runs
     with the same combination share the same label by construction, no separate encode/decode
     step needed). None if `run`'s own params can't be read, or don't actually carry one of the
-    registered keys (a registry/artifact mismatch - excluded, not guessed)."""
+    registered keys (a registry/artifact mismatch - excluded, not guessed). The keys in `optional` are the
+    exception: a run that never recorded one of them (OPTIONAL_TAG_PARAMS) just has it left out of the label."""
     params = _run_params_or_none(run)
     if params is None:
         return None
     try:
-        values = {key: params[key] for key in tag_param}
+        values = {key: params[key] for key in tag_param if key in params or key not in optional}
     except KeyError as exc:
         logging.warning("%s: params missing tag_param key %s, excluding this run from picker options", run.path, exc)
         return None
@@ -785,8 +785,19 @@ UNSET = "---"
 
 # The selectors that filter the run list, in the order they are shown. "run" is the list itself: the runs that
 # match every filter that is set; choosing one of them does not set the filters that are not.
-PICKER_FACETS: tuple[str, ...] = ("modality", "pipeline", "method", "reduction", "n_subjects", "metric", "n_components", "tag_params")
+PICKER_FACETS: tuple[str, ...] = (
+    "modality", "pipeline", "method", "reduction", "n_subjects", "metric", "n_components", "tag_params", "tag_params_rest",
+)
 PICKER_FIELDS: tuple[str, ...] = (*PICKER_FACETS, "run")
+
+# The methods whose hyperparameters take two selectors instead of one: the registered `tag_param` keys listed here go to
+# the first ("tag_params"), the others to the second ("tag_params_rest"). Every other method has all of them in the
+# first and NO_METRIC in the second.
+SPLIT_TAG_PARAMS: dict[str, tuple[str, ...]] = {"agglomerative": ("n_clusters",)}
+
+# Registered `tag_param` keys that some runs never recorded in their params (agglomerative runs from before the metric
+# was a param): those runs stay in the picker, the key just does not appear in their label.
+OPTIONAL_TAG_PARAMS: dict[str, tuple[str, ...]] = {"agglomerative": ("metric",)}
 
 # Shown next to a run's name for the facets that are not set, so runs of different methods are told apart.
 _RUN_LABEL_FACETS = ("modality", "pipeline", "method", "reduction")
@@ -805,18 +816,20 @@ def run_picker_values(run: ProductionRun, clustering_params_file: str | Path) ->
     """The value `run` has at every filter selector (PICKER_FACETS). Raises ValueError if `run`'s own
     params/config cannot be read."""
     metric, n_components = run_reduction_axis(run)
-    tag_params = NO_METRIC
+    tag_params = tag_params_rest = NO_METRIC
     if run.pipeline == "clustering":
         tag_param = _load_tag_params_or_none(clustering_params_file, run.method)
         if tag_param:
-            label = _run_tag_param_label(run, tag_param)
-            if label is None:
+            first = [key for key in tag_param if key in SPLIT_TAG_PARAMS.get(run.method, tag_param)]
+            rest = [key for key in tag_param if key not in first]
+            labels = [_run_tag_param_label(run, keys, OPTIONAL_TAG_PARAMS.get(run.method, ())) if keys else NO_METRIC for keys in (first, rest)]
+            if None in labels:
                 raise ValueError(f"{run.path}: params do not carry the registered tag_param keys {tag_param}")
-            tag_params = label
+            tag_params, tag_params_rest = labels
     return {
         "modality": run.modality, "pipeline": run.pipeline, "method": run.method,
         "reduction": _reduction_method_label(run), "metric": metric, "n_components": n_components,
-        "n_subjects": _run_n_subjects(run), "tag_params": tag_params,
+        "n_subjects": _run_n_subjects(run), "tag_params": tag_params, "tag_params_rest": tag_params_rest,
     }
 
 
@@ -2433,11 +2446,6 @@ def run_model_fit(run: ProductionRun) -> dict[str, float]:
     return model_fit_metrics(run.method, matrix, run_params(run), metadata["cluster_label"].to_numpy())
 
 
-# How many of the weakest subjects the soft table lists. No threshold on the probability: the literature has no
-# reference value for it.
-N_WEAKEST_MEMBERS = 10
-
-
 def run_membership_confidence(run: ProductionRun) -> MembershipConfidence:
     """How firmly each subject of an hdbscan run sits in its cluster (section 3.1 of the evaluation
     notebook): sklearn's HDBSCAN is refitted with the run's own params and accepted only if it reproduces the
@@ -2449,19 +2457,15 @@ def run_membership_confidence(run: ProductionRun) -> MembershipConfidence:
     return membership_confidence(run.method, matrix, run_params(run), metadata["cluster_label"].to_numpy())
 
 
-def run_soft_membership(run: ProductionRun) -> tuple[SoftMembership, pd.DataFrame]:
+def run_soft_membership(run: ProductionRun) -> SoftMembership:
     """The soft clustering of a hdbscan_soft run (section 3.2): the per-cluster summary with the mean
-    membership vectors, and the N_WEAKEST_MEMBERS subjects least firmly in their own cluster (with their
-    subject_id). Read from the membership.npy the run saved, no refit. Raises ValueError, with the cause,
-    for another method or a run without membership.npy."""
+    membership vectors. Read from the membership.npy the run saved, no refit. Raises ValueError, with the
+    cause, for another method or a run without membership.npy."""
     require_applicable("soft_membership", run.method)
     _matrix, metadata, extra_arrays = load_matrix(run.path, mmap=True)  # only the labels and membership are wanted
     if "membership" not in extra_arrays:
         raise ValueError("the run has no membership.npy: it is not an hdbscan_soft production run")
-    labels, membership = metadata["cluster_label"].to_numpy(), extra_arrays["membership"]
-    weakest = weakest_soft_members(labels, membership, N_WEAKEST_MEMBERS)
-    weakest.insert(0, "subject_id", metadata["subject_id"].to_numpy()[weakest.index])
-    return soft_membership_summary(labels, membership), weakest
+    return soft_membership_summary(metadata["cluster_label"].to_numpy(), extra_arrays["membership"])
 
 
 # How often the panel looks again at a background computation (milliseconds).
@@ -2701,12 +2705,12 @@ def _confidence_block(run: ProductionRun, confidence_of: Callable[[ProductionRun
 
 
 def _soft_membership_block(
-    run: ProductionRun, soft_of: Callable[[ProductionRun], tuple[SoftMembership, pd.DataFrame]]
+    run: ProductionRun, soft_of: Callable[[ProductionRun], SoftMembership]
 ) -> html.Div:
-    """Section 3.2 for a hdbscan_soft run: per cluster table, mean membership vectors, weakest subjects."""
+    """Section 3.2 for a hdbscan_soft run: per cluster table and mean membership vectors."""
     heading = html.P("Cluster membership (soft clustering)", className="comparison-subheading")
     try:
-        summary, weakest = soft_of(run)
+        summary = soft_of(run)
     except ValueError as exc:
         return html.Div([heading, html.P(str(exc), className="status-message")])
 
@@ -2720,21 +2724,12 @@ def _soft_membership_block(
         ]
         for label, row in summary.clusters.iterrows()
     ]
-    weakest_rows = [
-        [
-            str(row.subject_id), str(int(row.cluster)), _format_number(row.own_membership, 3), other(row.best_other),
-            _format_number(row.best_other_probability, 3) if pd.notna(row.best_other_probability) else "—",
-        ]
-        for row in weakest.itertuples()
-    ]
     return html.Div([
         heading,
         _guide(
             "How to read these tables",
             [
                 ("Rows", "do not sum to 1: the rest is the probability of being noise"),
-                ("Weak", "0.4 in its own cluster and 0.1 in the others: close to noise"),
-                ("Contested", "0.4 in its own cluster and 0.35 in another: between the two"),
                 ("Heatmap", "diagonal = mean probability in the own cluster; off-diagonal = clusters that overlap"),
             ],
             [
@@ -2752,11 +2747,6 @@ def _soft_membership_block(
             figure=build_mean_membership_figure(summary.mean_vectors),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
             style={"width": "100%"},
-        ),
-        html.P(f"The {len(weakest)} subjects least firmly in their own cluster", className="comparison-subheading"),
-        _table(
-            ["Subject", "Cluster", "Probability in own", "Most likely other cluster", "Probability in the other"],
-            weakest_rows, text_columns=(0,),
         ),
     ])
 
@@ -2833,7 +2823,7 @@ def cluster_quality_content_for(
     summary_of: Callable[[ProductionRun], GeometricSummary] = run_geometric_summary,
     model_fit_of: Callable[[ProductionRun], dict[str, float]] = run_model_fit,
     confidence_of: Callable[[ProductionRun], MembershipConfidence] = run_membership_confidence,
-    soft_of: Callable[[ProductionRun], tuple[SoftMembership, pd.DataFrame]] = run_soft_membership,
+    soft_of: Callable[[ProductionRun], SoftMembership] = run_soft_membership,
     density_of: Callable[[ProductionRun], DensitySummary] = run_density_summary,
 ) -> html.Div:
     """Panel "Clustering evaluation": under the collapsed guide to the indices, the geometric indices of
@@ -4111,7 +4101,7 @@ def build_app(
     representative_cache: dict[tuple[str, int], html.Div] = {}
     model_fit_cache: dict[str, dict[str, float]] = {}
     confidence_cache: dict[str, MembershipConfidence] = {}
-    soft_membership_cache: dict[str, tuple[SoftMembership, pd.DataFrame]] = {}
+    soft_membership_cache: dict[str, SoftMembership] = {}
     density_summary_cache: dict[str, DensitySummary] = {}
 
     # Dendrogram panel (21-10-26). The compatible tunings of a run are looked up once per run (the runs themselves are
@@ -4179,7 +4169,7 @@ def build_app(
             confidence_cache[run.key] = run_membership_confidence(run)
         return confidence_cache[run.key]
 
-    def _cached_soft_membership(run: ProductionRun) -> tuple[SoftMembership, pd.DataFrame]:
+    def _cached_soft_membership(run: ProductionRun) -> SoftMembership:
         if run.key not in soft_membership_cache:
             soft_membership_cache[run.key] = run_soft_membership(run)
         return soft_membership_cache[run.key]
@@ -4266,11 +4256,12 @@ def build_app(
     # NO_N_COMPONENTS sentinel option each , since
     # clustering method params have no metric/n_components axis to offer. Every selector's options are
     # filled by the picker callback below, empty at layout-build time.
-    def _picker_field(label: str, dropdown_id: str, field_id: str | None = None) -> html.Div:
+    def _picker_field(label: str, dropdown_id: str, field_id: str | None = None, label_id: str | None = None) -> html.Div:
         extra = {} if field_id is None else {"id": field_id}
+        label_extra = {} if label_id is None else {"id": label_id}
         return html.Div(
             className="picker-field",
-            children=[html.Label(label, className="picker-label"), dcc.Dropdown(id=dropdown_id, clearable=False)],
+            children=[html.Label(label, className="picker-label", **label_extra), dcc.Dropdown(id=dropdown_id, clearable=False)],
             **extra,
         )
 
@@ -4310,7 +4301,10 @@ def build_app(
                             # more than just the upstream embedding's metric/n_components - each
                             # method's own hyperparameters (n_clusters/linkage for agglomerative,
                             # etc.) do too. NO_METRIC-only for dim_reduction (see run_picker_values).
-                            _picker_field("Parameters", "tag-params-picker"),
+                            # Agglomerative has two (SPLIT_TAG_PARAMS): k here, linkage and metric next; the label and
+                            # the second selector follow the method (_update_tag_params_selectors).
+                            _picker_field("Parameters", "tag-params-picker", label_id="tag-params-label"),
+                            _picker_field("Linkage / metric", "tag-params-rest-picker", field_id="tag-params-rest-field"),
                             _picker_field("Run", "run-picker"),
                             html.Button("Reset", id="reset-pickers-btn", n_clicks=0, className="save-btn"),
                         ],
@@ -4741,8 +4735,21 @@ def build_app(
             raise PreventUpdate
         return {"display": "none"} if pipeline == "dim_reduction" else {}
 
-    # One callback for every selector (see resolve_pickers): the 9 values (and the "Riavvia" button) come in, the
-    # 9 option lists and 9 values go out. The eight before "Run" are optional filters ("---" = not a filter); "Run" lists the runs
+    @app.callback(
+        Output("tag-params-label", "children"),
+        Output("tag-params-rest-field", "style"),
+        Input("pipeline-picker", "value"),
+        Input("method-picker", "value"),
+    )
+    def _update_tag_params_selectors(pipeline: str | None, method: str | None):
+        if pipeline is None or method is None:
+            raise PreventUpdate
+        split = method in SPLIT_TAG_PARAMS
+        shown = pipeline != "dim_reduction" and (split or method == UNSET)
+        return ("k" if method == "agglomerative" else "Parameters"), ({} if shown else {"display": "none"})
+
+    # One callback for every selector (see resolve_pickers): the 10 values (and the "Riavvia" button) come in, the
+    # 10 option lists and 10 values go out. The nine before "Run" are optional filters ("---" = not a filter); "Run" lists the runs
     # that match the filters that are set. The selectors are both inputs and outputs of this callback; Dash
     # does not re-trigger a callback from its own outputs.
     picker_ids = {field: f"{field.replace('_', '-')}-picker" for field in PICKER_FIELDS}

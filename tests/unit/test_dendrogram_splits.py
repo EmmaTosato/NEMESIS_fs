@@ -19,12 +19,14 @@ from src.analysis.dendrogram_splits import (
     check_tree_reproduces_labels,
     colors_at,
     cut_height,
+    label_box,
     labels_by_k_from,
     leaf_name,
     leaves_of_truncated_tree,
     replay_splits,
     saved_labels_for,
     split_at,
+    spread_labels,
 )
 
 BLOB_SIZES = (20, 23, 27, 31, 36, 42)  # all different: a split of two equal clusters has no "bigger piece"
@@ -191,6 +193,61 @@ def test_embedding_figure_names_every_cluster_and_makes_the_highlighted_ones_big
     assert len(bold) == 2 and all(a.font.size > 10 for a in bold)
     assert all(a.font.size == 12 for a in labels if a not in bold)
     assert "i due nuovi" in figure.layout.title.text and "4 cluster" in figure.layout.title.text
+
+
+def _label_rectangles(figure):
+    """(x0, y0, x1, y1) in pixels of every annotation of the embedding figure, from the same estimate the builder uses."""
+    layout = figure.layout
+    plot_w = layout.width - layout.margin.l - layout.margin.r
+    plot_h = layout.height - layout.margin.t - layout.margin.b
+    (xa, xb), (ya, yb) = layout.xaxis.range, layout.yaxis.range
+    rects = []
+    for a in figure.layout.annotations:
+        bold = a.text.startswith("<b>")
+        w, h = label_box(a.text.replace("<b>", "").replace("</b>", ""), bold)
+        cx = (a.x - xa) / (xb - xa) * plot_w + a.xshift
+        cy = (yb - a.y) / (yb - ya) * plot_h - a.yshift
+        rects.append((cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2))
+    return rects
+
+
+def _overlap(a, b):
+    return min(a[2], b[2]) > max(a[0], b[0]) and min(a[3], b[3]) > max(a[1], b[1])
+
+
+def test_embedding_figure_labels_never_overlap_even_when_the_clusters_sit_on_top_of_each_other(tree):
+    # every cluster squeezed on (almost) the same spot: the medians coincide, the labels must still be apart
+    squeezed = tree["embedding"] * 1e-6 + np.array([3.0, 4.0])
+    leaf_color, split = colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, LAST_P)
+    everything = {child["label"] for child in split["children"]}
+
+    figure, _ = _embedding_figure(tree, LAST_P, highlighted=everything, embedding=squeezed)
+
+    rects = _label_rectangles(figure)
+    assert len(rects) == LAST_P
+    assert not any(_overlap(a, b) for i, a in enumerate(rects) for b in rects[i + 1:])
+
+
+def test_embedding_figure_labels_stay_inside_the_plot(tree):
+    figure, _ = _embedding_figure(tree, 4, highlighted={0})
+
+    plot_w = figure.layout.width - figure.layout.margin.l - figure.layout.margin.r
+    plot_h = figure.layout.height - figure.layout.margin.t - figure.layout.margin.b
+    for x0, y0, x1, y1 in _label_rectangles(figure):
+        assert x0 >= -1e-6 and y0 >= -1e-6 and x1 <= plot_w + 1e-6 and y1 <= plot_h + 1e-6
+
+
+def test_spread_labels_leaves_labels_that_already_are_apart_where_they_are():
+    centres = np.array([[50.0, 50.0], [300.0, 200.0]])
+
+    placed = spread_labels(centres, [(40.0, 20.0), (40.0, 20.0)], (0, 0, 400, 300))
+
+    np.testing.assert_allclose(placed, centres)
+
+
+def test_spread_labels_raises_when_the_labels_cannot_fit():
+    with pytest.raises(ValueError, match="do not fit"):
+        spread_labels(np.full((30, 2), 10.0), [(80.0, 40.0)] * 30, (0, 0, 100, 60))
 
 
 def test_embedding_figure_refuses_a_three_component_embedding_instead_of_slicing_it(tree):

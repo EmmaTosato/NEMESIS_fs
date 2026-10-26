@@ -48,12 +48,11 @@ Two modes, chosen by `fine_tuning`, same convention as dim_reduction.py:
   Calinski-Harabasz, Davies-Bouldin - see src/analysis/clustering_tuning.py)
   plus a method-specific extra where one exists (kmeans' inertia, gmm's
   bic/aic). Writes tuning_results.csv + tuning_plot.png (one subplot per
-  metric) to <output_root>/tuning/<method>/<dd-mm>_<session_name>/, plus a
-  standalone diagnostic plot for the 2 methods that have one, independent of
-  the swept `n_clusters`/`n_components` grid: agglomerative's
-  dendrogram_metric=<metric>.png (one per swept metric, one subplot per valid
-  linkage), spectral's eigengap_affinity=<affinity>.png (one per swept
-  affinity, one subplot per value of that affinity's own hyperparameter). No
+  metric) to <output_root>/tuning/<method>/<dd-mm>_<session_name>/, plus, for
+  spectral, a standalone diagnostic plot independent of the swept
+  `n_clusters`/`n_components` grid: eigengap_affinity=<affinity>.png (one per
+  swept affinity, one subplot per value of that affinity's own hyperparameter;
+  agglomerative's dendrogram is the `dendrograms` evaluation). No
   automatic selection -
   a human reads the outputs and picks parameters by hand, writes them into
   params_clustering.json's "params", and re-runs with fine_tuning=false. The
@@ -109,14 +108,11 @@ from src.analysis.clustering_tuning import (
     STABILITY_NUISANCE_PARAM,
     STABILITY_TARGET_PARAM,
     STANDALONE_DIAGNOSTIC_METHODS,
-    compute_dendrogram_linkage,
     compute_eigengap,
-    compute_interclass_distance_matrix,
     compute_silhouette_samples,
     compute_stability_sweep,
     consensus_suggestion_lines,
     hdbscan_labels_and_probabilities,
-    is_invalid_ward_metric_combo,
     representative_values,
     require_euclidean_compatible,
     run_clustering_tuning_sweep,
@@ -142,10 +138,8 @@ from src.analysis.plotting import (
     plot_clustering_tuning_heatmaps,
     plot_dbcv_per_cluster,
     plot_clustering_tuning_metrics,
-    plot_dendrograms_grid,
     plot_eigengaps_grid,
     plot_grouped_tuning_metrics,
-    plot_interclass_distance_matrix,
     plot_silhouette_analysis,
     plot_spectral_tuning,
     plot_stability_analysis,
@@ -988,7 +982,7 @@ def _write_tuning_output(
         )
 
     if method in STANDALONE_DIAGNOSTIC_METHODS:
-        _write_standalone_diagnostic(output_dir, method, X, base_params, tuning_grid, metadata, title)
+        _write_standalone_diagnostic(output_dir, method, X, base_params, tuning_grid, title)
 
     readme_lines = [
         f"# {title}",
@@ -1101,15 +1095,12 @@ def _write_stability_output(
 
 
 def _write_standalone_diagnostic(
-    output_dir: Path, method: str, X: np.ndarray, base_params: dict, tuning_grid: dict[str, list], metadata: pd.DataFrame, title: str
+    output_dir: Path, method: str, X: np.ndarray, base_params: dict, tuning_grid: dict[str, list], title: str
 ) -> None:
     """Diagnostic plot(s) independent of which value in the swept grid ends up chosen - see
-    src/analysis/clustering_tuning.py's module docstring for why these 2 (and only these 2)
-    methods get one.
+    src/analysis/clustering_tuning.py's module docstring for why only spectral gets one here.
     """
-    if method == "agglomerative":
-        _write_agglomerative_diagnostics(output_dir, X, base_params, tuning_grid, metadata, title)
-    elif method == "spectral":
+    if method == "spectral":
         _write_spectral_diagnostics(output_dir, X, base_params, tuning_grid, title)
     else:
         raise ValueError(f"no standalone diagnostic wired for method {method!r}")
@@ -1124,7 +1115,7 @@ def _write_spectral_diagnostics(output_dir: Path, X: np.ndarray, base_params: di
     already documented for agglomerative's dendrogram (clustering_tuning_guide.md), just found
     later for spectral. Falls back to a single affinity (`base_params`/default "rbf", matching
     compute_eigengap's own default) with a single subplot when `affinity` isn't swept - same
-    grouping mechanism as _write_agglomerative_diagnostics' per-metric dendrogram grid.
+    grouping mechanism as the dendrograms evaluation's per-metric grid.
     """
     affinities = list(dict.fromkeys(tuning_grid["affinity"])) if "affinity" in tuning_grid else [base_params.get("affinity", "rbf")]
 
@@ -1148,56 +1139,6 @@ def _write_spectral_diagnostics(output_dir: Path, X: np.ndarray, base_params: di
         eigengap_path = output_dir / f"eigengap_affinity={affinity}.png"
         plot_eigengaps_grid(eigenvalues_by_label, eigengap_path, f"{title} (affinity={affinity})")
         logging.info("[spectral] eigengap plot written to %s", eigengap_path)
-
-
-def _write_agglomerative_diagnostics(
-    output_dir: Path, X: np.ndarray, base_params: dict, tuning_grid: dict[str, list], metadata: pd.DataFrame, title: str
-) -> None:
-    """One dendrogram plot per swept `metric` value, one subplot per `linkage` valid for that
-    metric (ward+non-euclidean skipped, same rule the sweep itself applies via
-    is_invalid_ward_metric_combo) - found 28-08-26 that the previous per-linkage dendrogram
-    (project-clustering-tuning-redesign memory, 26-08-26) was always computed at a fixed
-    `metric` (base_params' default, "euclidean"), never reflecting a swept `metric`
-    (clustering_tuning_guide.md documented this as a known limitation before it was fixed
-    here). Falls back to a single metric/linkage (base_params/defaults) with a single subplot
-    when neither is swept - same shape, no separate code path needed. Plus a metric-selection
-    pre-check, independent of any fit: one interclass-distance heatmap per swept `metric` value
-    (or the base_params/default "euclidean" metric alone when metric isn't swept), using
-    "dataset" as the weak ground-truth proxy grouping - skipped with a warning (not a sweep
-    failure) when metadata has no "dataset" column to use as one.
-    """
-    linkages = list(dict.fromkeys(tuning_grid["linkage"])) if "linkage" in tuning_grid else [base_params.get("linkage", "ward")]
-    metrics = list(dict.fromkeys(tuning_grid["metric"])) if "metric" in tuning_grid else [base_params.get("metric", "euclidean")]
-
-    # See compute_dendrogram_linkage's distance_cache docstring: a jaccard/dice distance matrix
-    # depends only on (X, metric), not on linkage - shared here across every linkage sharing the
-    # same metric, instead of recomputed once per (metric, linkage) combination.
-    distance_cache: dict[str, np.ndarray] = {}
-    for metric in metrics:
-        linkage_matrices = {}
-        for linkage in linkages:
-            combo_params = {**base_params, "linkage": linkage, "metric": metric}
-            if is_invalid_ward_metric_combo(combo_params):
-                continue  # same skip the sweep itself applies - ward requires euclidean/l2
-            linkage_matrices[linkage] = compute_dendrogram_linkage(X, combo_params, distance_cache)
-
-        dendrogram_path = output_dir / f"dendrogram_metric={metric}.png"
-        plot_dendrograms_grid(linkage_matrices, dendrogram_path, f"{title} (metric={metric})")
-        logging.info("[agglomerative] dendrogram written to %s", dendrogram_path)
-
-    if "dataset" not in metadata.columns:
-        logging.warning(
-            "[agglomerative] metadata has no 'dataset' column - skipping interclass_distance_matrix.png "
-            "(no weak ground-truth proxy grouping available)"
-        )
-        return
-
-    metrics = list(dict.fromkeys(tuning_grid["metric"])) if "metric" in tuning_grid else [base_params.get("metric", "euclidean")]
-    proxy_labels = metadata["dataset"].to_numpy()
-    results_by_metric = {metric: compute_interclass_distance_matrix(X, proxy_labels, metric) for metric in metrics}
-    interclass_path = output_dir / "interclass_distance_matrix.png"
-    plot_interclass_distance_matrix(results_by_metric, interclass_path, title)
-    logging.info("[agglomerative] interclass distance matrix written to %s", interclass_path)
 
 
 def _log_path(config: ClusteringConfig, now: datetime) -> Path:

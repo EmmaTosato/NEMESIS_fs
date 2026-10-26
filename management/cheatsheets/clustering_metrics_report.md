@@ -73,7 +73,7 @@ Come 3.2 più le metriche del soft clustering. Non confrontabile con 3.2: altra 
 | `membership_mean` | ✔ media su tutti i soggetti non-rumore | ✔ | ✘ | ✘ a livello di run; per cluster c'è `own_mean` |
 | `membership_share_below_half` | ✔ soglia fissa 0.5 | ✔ | ✘ | per cluster, soglia `LOW_MEMBERSHIP` = 0.5 |
 | `persistence_mean` | ✔ | ✔ | ✘ | ✘ (in nessun punto di produzione) |
-| Cluster "altro" più probabile, vettori medi, soggetti più deboli | ✘ | ✘ | ✘ | ✔ |
+| Cluster "altro" più probabile, vettori medi | ✘ | ✘ | ✘ | ✔ |
 
 Su `membership_mean`: il tuning dà **un numero per combinazione**, la produzione dà **un numero per cluster**. Sono la stessa grandezza aggregata in modo diverso, e non c'è il passaggio dall'una all'altra.
 

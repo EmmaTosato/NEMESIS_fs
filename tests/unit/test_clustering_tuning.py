@@ -15,7 +15,6 @@ from src.analysis.clustering_tuning import (
     compute_dendrogram_linkage,
     compute_eigengap,
     compute_gap_statistic,
-    compute_interclass_distance_matrix,
     compute_self_tuning_eigengap,
     compute_silhouette_samples,
     compute_stability_sweep,
@@ -422,8 +421,9 @@ def test_hdbscan_labels_and_probabilities_shapes_and_noise_has_zero_probability(
     assert (probabilities[labels == -1] == 0).all()
 
 
-def test_standalone_diagnostic_methods_covers_exactly_agglomerative_spectral():
-    assert STANDALONE_DIAGNOSTIC_METHODS == {"agglomerative", "spectral"}
+def test_standalone_diagnostic_methods_is_only_spectral():
+    # agglomerative's dendrogram is the `dendrograms` evaluation, not a sweep diagnostic
+    assert STANDALONE_DIAGNOSTIC_METHODS == {"spectral"}
 
 
 # --- representative_values / compute_stability_sweep (kmeans/gmm stability analysis,
@@ -554,32 +554,6 @@ def test_run_clustering_tuning_sweep_agglomerative_non_euclidean_has_nan_ch_db()
     assert df["calinski_harabasz"].isna().all()
     assert df["davies_bouldin"].isna().all()
     assert df["silhouette"].notna().all()
-
-
-def test_compute_interclass_distance_matrix_within_group_lower_than_between():
-    X, groups = _binary_toy_groups()
-
-    unique_groups, matrix = compute_interclass_distance_matrix(X, groups, "dice")
-
-    assert unique_groups == ["group0", "group1", "group2"]
-    assert matrix.shape == (3, 3)
-    # within-group (diagonal) distance should be lower than between-group (off-diagonal) -
-    # the 3 groups were built with disjoint "core" feature subsets specifically for this
-    for i in range(3):
-        for j in range(3):
-            if i != j:
-                assert matrix[i, i] < matrix[i, j]
-
-
-def test_compute_interclass_distance_matrix_single_member_group_is_nan():
-    X, groups = _binary_toy_groups()
-    groups = groups.astype(object)  # avoid numpy fixed-width string truncation on the next line
-    groups[0] = "singleton"  # only 1 subject now belongs to "singleton"
-
-    unique_groups, matrix = compute_interclass_distance_matrix(X, groups, "euclidean")
-
-    singleton_idx = unique_groups.index("singleton")
-    assert np.isnan(matrix[singleton_idx, singleton_idx])
 
 
 # --- run_clustering_tuning_sweep(consensus_config=...) / consensus_suggestion_lines ---

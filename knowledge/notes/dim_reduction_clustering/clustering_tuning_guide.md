@@ -72,7 +72,7 @@ Fonti consultate (secondarie): [Wikipedia, Silhouette (clustering)](https://en.w
 
 ### Agglomerative — dendrogramma
 
-- **Dove**: un file `dendrogram_metric=<metric>.png` per ogni `metric` testata, con un subplot per ogni `linkage` valido per quella metrica (`ward` con metrica non euclidea è scartato, stessa regola della sweep) — indipendente dal numero di cluster scelto. Il dendrogramma è calcolato per ogni combinazione (`linkage`, `metric`) sweepata, quindi ogni file riflette la propria metrica e ogni subplot il proprio `linkage`.
+- **Dove**: la valutazione `dendrograms` scrive un file `dendrogram_metric=<metric>.png` per ogni `metric` testata, con un subplot per ogni `linkage` valido per quella metrica (`ward` con metrica non euclidea è scartato, stessa regola della sweep) — indipendente dal numero di cluster scelto, e rifacibile dopo il tuning con `evaluate_clustering_tuning`. Il dendrogramma è calcolato per ogni combinazione (`linkage`, `metric`) sweepata, quindi ogni file riflette la propria metrica e ogni subplot il proprio `linkage`.
 - **Come si legge**: dal basso verso l'alto. Ogni fusione verticale unisce due sotto-gruppi all'altezza (asse y) della loro distanza di fusione.
 - **Cosa cercare**: il salto verticale più grande tra due fusioni consecutive indica il taglio più naturale.
   - Salto grande vicino alla cima → la struttura più forte è binaria (2 cluster).
@@ -89,7 +89,7 @@ Fonti consultate (secondarie): [Wikipedia, Silhouette (clustering)](https://en.w
 - Il taglio è naturale dove, prima di quelle fusioni, c'è un salto grande: i cluster che stanno per unirsi sono molto più lontani di quelli già uniti. Il rapporto tra due altezze consecutive è esattamente la colonna `jump` di `dendrogram_jump.csv` (`docs/guides/evaluate_clustering_tuning.md`).
 - **Esempio didattico.** Le ultime fusioni sono a 20, 8, 1,5, 1,2, 1,0. I salti tra altezze consecutive sono 20 → 8 (2,5 volte) e 8 → 1,5 (circa 5 volte, il più netto): tagliare tra 8 e 1,5 disfa le due fusioni più alte e lascia **3 cluster**.
 - Se le fusioni scendono gradualmente, senza un salto che spicchi, l'albero non indica nessun k: la scelta resta una decisione tua, da prendere con gli indici e con la clinica.
-- Il dendrogramma dice dove l'albero si divide, non se i cluster sono utili. Sotto le ultime 30 foglie non si vede niente.
+- Il dendrogramma dice dove l'albero si divide, non se i cluster sono utili. Sotto le ultime foglie mostrate (`truncate_last_p`, 30 nel registro delle valutazioni) non si vede niente.
 - **Seguire l'albero k dopo k.** Passando da k-1 a k cluster esattamente un cluster si divide in due (si disfa la fusione più alta ancora in piedi). Guardare quale cluster si divide, dove stanno i due pezzi nell'embedding e che anatomia hanno aiuta a capire da cosa è fatto un cluster grande (notebook `dendrogram_embedding_explorer`, `docs/guides/evaluate_clustering_tuning.md`).
 
 ### Agglomerative — cophenetic correlation
@@ -111,12 +111,6 @@ Per ogni `n_clusters` e `linkage` (per una sola `metric`, di solito `euclidean`;
 - Si cerca un `n_clusters` dove la silhouette ha un **picco** (più alta dei k vicini) e Davies-Bouldin una **valle** (più basso dei vicini), e dove i linkage concordano.
 - Una silhouette che sale sempre verso i k grandi, senza picchi, segnala che non c'è un k naturale.
 - Nessun indice basta da solo: vanno confrontati con il dendrogramma.
-
-### Agglomerative — matrice di distanza interclasse
-
-- **Dove**: un heatmap per ogni `metric` testata, indipendente dal numero di cluster. Generata solo se i metadati includono un raggruppamento noto a priori (es. il dataset di provenienza).
-- **Cosa misura**: usa quel raggruppamento come proxy debole di verità nota, e calcola la distanza media dentro ogni gruppo e tra coppie di gruppi diverse, per ciascuna metrica candidata.
-- **Come si legge**: la metrica migliore tiene la diagonale (dentro-gruppo) bassa e le celle fuori diagonale (tra-gruppo) alte. Non ti dice nulla sul numero di cluster: usala **prima** di guardare Silhouette/CH/DB, per capire quale metrica approfondire.
 
 ### GMM — BIC / AIC
 
@@ -218,8 +212,7 @@ Diagnostiche standalone (indipendenti dal valore scelto), solo per il metodo ind
 
 | File                                                             | Metodo                | Sempre presente?                                                    |
 | ---------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------- |
-| Dendrogramma (uno per`metric`, subplot per `linkage`)        | Agglomerative         | Sì                                                                 |
-| Matrice di distanza interclasse                                  | Agglomerative         | Solo se è disponibile un raggruppamento noto a priori nei metadati |
+| Dendrogramma (uno per`metric`, subplot per `linkage`; valutazione `dendrograms`) | Agglomerative | Sì, se la valutazione è dichiarata |
 | Eigengap (uno per`affinity`, subplot per il suo iperparametro) | Spectral              | Sì                                                                 |
 
 Output opzionali, solo se attivati in config:

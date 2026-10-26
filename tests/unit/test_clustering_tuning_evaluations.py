@@ -263,6 +263,59 @@ def test_the_dunn_and_largest_share_evaluations_refuse_to_replace_their_files_wi
     run_evaluations(block, _settings(), run, overwrite=True)
 
 
+def _two_metric_run(tmp_path: Path) -> ClusteringTuningRun:
+    """ward and average for euclidean, average only for cosine (ward + cosine is invalid and was never swept)."""
+    rows = [
+        {"n_clusters": k, "linkage": linkage, "metric": metric}
+        for k in (2, 3)
+        for linkage, metric in (("ward", "euclidean"), ("average", "euclidean"), ("average", "cosine"))
+    ]
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True)
+    return ClusteringTuningRun(run_dir, "agglomerative", Path("does_not_exist"), pd.DataFrame(rows), {})
+
+
+def test_the_dendrograms_evaluation_writes_one_file_per_metric_of_the_run(tmp_path):
+    run = _two_metric_run(tmp_path)
+    block = validate_tuning_evaluations_block({"general": [], "agglomerative": ["dendrograms"]})
+
+    written = run_evaluations(block, _settings(), run, overwrite=False, matrix=_three_blobs())
+
+    assert [path.name for path in written] == ["dendrogram_metric=euclidean.png", "dendrogram_metric=cosine.png"]
+    assert all(path.stat().st_size > 0 for path in written)
+
+
+def test_the_dendrograms_evaluation_draws_the_number_of_merges_the_registry_asks_for(tmp_path):
+    block = validate_tuning_evaluations_block({"general": [], "agglomerative": ["dendrograms"]})
+    sizes = {}
+    for last_merges in (5, 30):
+        run = _two_metric_run(tmp_path / str(last_merges))
+        settings = {**_settings(), "dendrograms": {"truncate_last_p": last_merges}}
+        written = run_evaluations(block, settings, run, overwrite=False, matrix=_three_blobs())
+        sizes[last_merges] = written[0].read_bytes()
+
+    assert sizes[5] != sizes[30]
+
+
+def test_the_dendrograms_evaluation_refuses_to_replace_its_files_without_overwrite(tmp_path):
+    run = _two_metric_run(tmp_path)
+    block = validate_tuning_evaluations_block({"general": [], "agglomerative": ["dendrograms"]})
+    run_evaluations(block, _settings(), run, overwrite=False, matrix=_three_blobs())
+
+    with pytest.raises(FileExistsError, match="dendrogram_metric=cosine.png"):
+        run_evaluations(block, _settings(), run, overwrite=False, matrix=_three_blobs())
+    run_evaluations(block, _settings(), run, overwrite=True, matrix=_three_blobs())
+
+
+@pytest.mark.parametrize("settings", [{}, {"truncate_last_p": 1}, {"truncate_last_p": 30.0}, {"truncate_last_p": True}, {"truncate_last_p": 30, "other": 1}])
+def test_the_dendrograms_registry_entry_needs_exactly_an_integer_number_of_merges_of_at_least_two(settings, tmp_path):
+    bad = tmp_path / "registry.json"
+    bad.write_text(json.dumps({**VALID, "dendrograms": settings}))
+
+    with pytest.raises(ValueError, match="dendrograms"):
+        load_evaluation_settings(bad)
+
+
 def test_a_matrix_the_caller_holds_is_used_instead_of_the_run_input_path(tmp_path):
     run = _agglomerative_run(tmp_path)
     run = ClusteringTuningRun(run.run_dir, run.method, tmp_path / "does_not_exist", run.results, run.labels)

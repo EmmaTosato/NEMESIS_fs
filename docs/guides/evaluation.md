@@ -49,7 +49,7 @@ L'applicabilità è verificata dal codice: `src/analysis/clustering_evaluation.p
 | 2.2 | Purezza dei k vicini, silhouette sulla distanza dice e quota di coppie a distanza 1 | adp | `clustering_evaluation.knn_purity`, `distance_matrix_silhouette`, `saturated_pair_share` |
 | 3 | Metriche del modello: `inertia`, `bic`/`aic`, `cophenetic_correlation`/`dendrogram_jump`, `noise_fraction`/`n_clusters_found` | kmeans, gmm, agglomerative, hdbscan, hdbscan_soft | `clustering_evaluation.model_fit_metrics` |
 | 3.1 | Posizione nel cluster: probabilità media e quota sotto soglia per cluster | hdbscan | `clustering_evaluation.membership_confidence` |
-| 3.2 | Appartenenza ai cluster: per cluster, probabilità media nel proprio e cluster più vicino; vettori medi; soggetti più deboli | hdbscan_soft | `clustering_evaluation.soft_membership_summary` |
+| 3.2 | Appartenenza ai cluster: per cluster, probabilità media nel proprio e cluster più vicino; vettori medi | hdbscan_soft | `clustering_evaluation.soft_membership_summary` |
 | 4 | Descrizione dei cluster con le variabili di `participants.csv`: soggetti con il dato, media ± deviazione standard, mediana [Q1–Q3], percentuali per categoria; nessun test | tutti | funzioni del notebook (`registry_frame`, `coverage_table`, `describe_clusters`) |
 
 ### Due modi di arrivare ai dati
@@ -73,7 +73,6 @@ Tutti si modificano a mano nelle celle indicate; i valori sono quelli di partenz
 | `METHODS` | sezione 1 | metodi da cercare, per esempio `["kmeans", "hdbscan"]`; le run trovate hanno come nome `<metodo>_<resto del nome della cartella>` |
 | `SELECTED_RUNS` | sezione 1 | dizionario nome leggibile -> path della colonna `output`. Lo riempie la cella di ricerca, ma si possono aggiungere run a mano, anche di tipo diverso (lesion e sdc insieme). Una cartella che `runs.csv` elenca ma che non esiste più viene saltata con un messaggio |
 | `K_NEIGHBORS` | sezione 2.2 | quanti vicini guarda la purezza (10) |
-| `N_LOWEST` | sezione 3.2 | quanti soggetti più deboli mostrare per run (10) |
 | `DESCRIBED_RUN` | sezione 4 | nome di una run di `SELECTED_RUNS`; `None` = la prima caricata |
 | `MAX_MISSING_LISTED` | utils, sezione 4 | una variabile mancante a non più di tanti soggetti (10) non entra nella tabella di copertura |
 
@@ -83,7 +82,7 @@ Nessuna soglia sul rumore né sulla probabilità: in letteratura non c'è un val
 
 - **Metriche geometriche**: assumono distanza euclidea e cluster compatti e convessi, quindi favoriscono kmeans/gmm. `compute_clustering_metrics(combo_params=...)` rifiuta una run con `metric`/`affinity` non euclideo. Non si applicano a hdbscan e hdbscan_soft, che hanno il DBCV (sezione 2.3). Valori di embedding diversi (lesion vs sdc) non sono confrontabili.
 - **Metriche del modello**: kmeans, gmm e agglomerative vengono rifittati con i parametri della run e accettati solo se riproducono esattamente le etichette salvate (altrimenti `ValueError`, tipico di `random_state` non fissato). `inertia` e BIC/AIC non sono sulla stessa scala.
-- **Posizione nel cluster**: `probabilities_` di HDBSCAN è normalizzata dentro ogni cluster (0 per il rumore), quindi dice quanto un soggetto sta nel nucleo **del suo** cluster. Non è la probabilità di stare in quel cluster invece che in un altro, e non è confrontabile tra cluster di densità diversa. Esiste solo sullo stimatore: la run viene rifittata con i suoi parametri e accettata solo se riproduce le etichette salvate. La soglia (`LOW_PROBABILITY`) non ha un riferimento in letteratura. È calcolata sulla densità dello spazio clusterizzato: su un embedding con `min_dist=0` descrive quanto UMAP ha impacchettato il cluster, non è un indice di validità.
+- **Posizione nel cluster**: `probabilities_` di HDBSCAN è normalizzata dentro ogni cluster (0 per il rumore), quindi dice quanto un soggetto sta nel nucleo **del suo** cluster. Non è la probabilità di stare in quel cluster invece che in un altro, e non è confrontabile tra cluster di densità diversa. Esiste solo sullo stimatore: la run viene rifittata con i suoi parametri e accettata solo se riproduce le etichette salvate. Nessuna soglia sulla probabilità: in letteratura non c'è un valore di riferimento. È calcolata sulla densità dello spazio clusterizzato: su un embedding con `min_dist=0` descrive quanto UMAP ha impacchettato il cluster, non è un indice di validità.
 - **Appartenenza ai cluster (hdbscan_soft)**: legge `membership.npy`, la matrice soggetti x cluster che una run di produzione di `hdbscan_soft` salva (`soft_membership_matrix`), senza rifittare; `membership_own` in `metadata.csv` è la probabilità del soggetto nel proprio cluster (NaN per il rumore, che non ha un cluster proprio). Le righe della matrice non sommano a 1: la parte mancante è la probabilità di essere rumore, quindi un soggetto con probabilità bassa ovunque è debole, non conteso. Una run senza `membership.npy` o con tutti i soggetti rumore solleva. Non è confrontabile con la 3.1: un'altra implementazione di HDBSCAN e un'altra grandezza.
 - **Descrizione clinica (sezione 4)**: una run alla volta (`DESCRIBED_RUN`, `None` = la prima caricata), non passa dal registro `EVALUATIONS` perché vale per tutti i metodi e usa solo le etichette. Le variabili vengono da `participants.csv`, mai dal `metadata.csv` della run; un soggetto non registrato resta con valori mancanti e viene segnalato; il rumore di hdbscan è escluso. NIHSS e istruzione mancano per interi dataset (UCL-UK non li ha). La disconnessione media non è tra le variabili: è il carico diviso per una costante.
 - **Rumore di hdbscan**: il DBCV lo pesa; la sua quota è sempre mostrata (`noise_fraction`), senza soglia né avviso.
@@ -149,7 +148,6 @@ Nessuno degli indici sotto ha un valore di riferimento proprio per una run sola:
 |---|---|
 | per cluster | `n`, `own_mean` (media della probabilità dei suoi soggetti di stare in quel cluster), `top_other` e `top_other_mean` (l'altro cluster a cui i suoi soggetti appartengono di più, in media, e quanto) |
 | vettori medi | righe: cluster di appartenenza (e -1 per il rumore); colonne: tutti i cluster. La diagonale è `own_mean`; fuori diagonale si vede quali cluster si sovrappongono |
-| soggetti più deboli | i `N_LOWEST` soggetti con la probabilità più bassa nel proprio cluster, con l'altro cluster più probabile e la sua probabilità (solo se i cluster sono più di uno) |
 
 - Il rumore non ha un cluster proprio: è fuori da `own_mean` e ha una riga a parte nei vettori medi.
 - Le righe della matrice non sommano a 1 (la parte mancante è la probabilità di essere rumore): un soggetto con 0,4 nel proprio cluster e 0,1 negli altri è debole, vicino al rumore; uno con 0,4 e 0,35 in un altro cluster è conteso tra i due.

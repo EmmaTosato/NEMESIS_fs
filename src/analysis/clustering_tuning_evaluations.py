@@ -37,6 +37,8 @@ from src.analysis.clustering_tuning_analysis import (
     ClusteringTuningRun,
     cophenetic_table,
     dbcv_curves_figures,
+    dendrogram_file_name,
+    dendrogram_linkages,
     density_groups,
     density_metrics,
     dunn_table,
@@ -49,7 +51,7 @@ from src.analysis.clustering_tuning_analysis import (
     read_density_metrics,
     recomputed_internal_metrics,
 )
-from src.analysis.plotting import compose_clustering_tuning_title, plot_clustering_tuning_heatmaps
+from src.analysis.plotting import compose_clustering_tuning_title, plot_clustering_tuning_heatmaps, plot_dendrograms_grid
 from src.utils.artifacts import load_matrix
 
 GENERAL = "general"
@@ -57,6 +59,7 @@ GENERAL = "general"
 K_CURVES = "k_curves"
 COPHENETIC_CORRELATION = "cophenetic_correlation"
 DENDROGRAM_JUMP = "dendrogram_jump"
+DENDROGRAMS = "dendrograms"
 LINKAGE_AGREEMENT = "linkage_agreement"
 LARGEST_CLUSTER_SHARE = "largest_cluster_share"
 DUNN_INDEX = "dunn_index"
@@ -124,6 +127,14 @@ def _validate_dendrogram_jump_settings(settings: dict) -> None:
         raise ValueError(f"evaluations registry: {DENDROGRAM_JUMP!r} k_range.min ({k_range['min']}) is greater than k_range.max ({k_range['max']})")
 
 
+def _validate_dendrograms_settings(settings: dict) -> None:
+    if set(settings) != {"truncate_last_p"}:
+        raise ValueError(f"evaluations registry: {DENDROGRAMS!r} needs exactly 'truncate_last_p', got {sorted(settings)}")
+    value = settings["truncate_last_p"]
+    if isinstance(value, bool) or not isinstance(value, int) or value < 2:
+        raise ValueError(f"evaluations registry: {DENDROGRAMS!r} truncate_last_p must be an integer >= 2, got {value!r}")
+
+
 def _run_k_curves(context: EvaluationContext, settings: dict) -> list[Path]:
     run = context.run
     curves = {k_curves_file_name(metric): metric for metric in k_curves_targets(run.results)}
@@ -153,6 +164,18 @@ def _run_dendrogram_jump(context: EvaluationContext, settings: dict) -> list[Pat
     return _write_table(
         context, "dendrogram_jump.csv", lambda: jump_table(context.run, context.matrix(), k_range, context.distance_cache)
     )
+
+
+def _run_dendrograms(context: EvaluationContext, settings: dict) -> list[Path]:
+    """One file per metric of the run, a subplot per linkage valid for it (the tree drawn is cut to its last
+    `truncate_last_p` merges); the files are checked before the trees are computed, which can be slow."""
+    run = context.run
+    paths = {metric: run.run_dir / dendrogram_file_name(metric) for metric in dict.fromkeys(run.results["metric"])}
+    refuse_existing(list(paths.values()), context.overwrite)
+    title = compose_clustering_tuning_title(run.run_dir, run.method)
+    for metric, trees in dendrogram_linkages(run, context.matrix(), context.distance_cache).items():
+        plot_dendrograms_grid(trees, paths[metric], f"{title} (metric={metric})", settings["truncate_last_p"])
+    return list(paths.values())
 
 
 def _run_linkage_agreement(context: EvaluationContext, settings: dict) -> list[Path]:
@@ -224,6 +247,7 @@ EVALUATIONS: dict[str, EvaluationSpec] = {
     K_CURVES: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(K_CURVES), _run_k_curves),
     COPHENETIC_CORRELATION: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(COPHENETIC_CORRELATION), _run_cophenetic_correlation),
     DENDROGRAM_JUMP: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_dendrogram_jump_settings, _run_dendrogram_jump),
+    DENDROGRAMS: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_dendrograms_settings, _run_dendrograms),
     LINKAGE_AGREEMENT: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(LINKAGE_AGREEMENT), _run_linkage_agreement),
     LARGEST_CLUSTER_SHARE: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(LARGEST_CLUSTER_SHARE), _run_largest_cluster_share),
     DUNN_INDEX: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(DUNN_INDEX), _run_dunn_index),

@@ -8,13 +8,14 @@ import pandas as pd
 import pytest
 
 from src.analysis.clustering_evaluation import geometric_summary
-from src.analysis.clustering_tuning import compute_clustering_metrics_metric_aware, dunn_index
+from src.analysis.clustering_tuning import compute_clustering_metrics_metric_aware, compute_dendrogram_linkage, dunn_index
 from src.analysis.dbcv import dbcv
 from src.analysis.clustering_tuning_analysis import (
     ClusteringTuningRun,
     combo_key,
     cophenetic_table,
     dendrogram_jump,
+    dendrogram_linkages,
     dbcv_curves_figures,
     density_metrics,
     dunn_table,
@@ -277,7 +278,25 @@ def test_jump_table_has_a_row_per_pair_and_k_and_a_sharper_cut_at_the_true_k(tmp
     assert ward[3] > ward[5]
 
 
-@pytest.mark.parametrize("table", [lambda run: cophenetic_table(run, _three_blobs()), lambda run: jump_table(run, _three_blobs(), range(3, 4))])
+def test_dendrogram_linkages_groups_the_valid_trees_by_metric_and_each_is_the_tree_of_that_pair(tmp_path):
+    run = _agglomerative_run(tmp_path, _rows_with_invalid_ward_cosine())
+    X = _three_blobs()
+
+    trees = dendrogram_linkages(run, X)
+
+    # ward + cosine is invalid in sklearn and was never swept: it must not appear
+    assert {metric: set(by_linkage) for metric, by_linkage in trees.items()} == {"euclidean": {"ward", "average"}, "cosine": {"average"}}
+    np.testing.assert_array_equal(trees["cosine"]["average"], compute_dendrogram_linkage(X, {"linkage": "average", "metric": "cosine"}))
+
+
+@pytest.mark.parametrize(
+    "table",
+    [
+        lambda run: cophenetic_table(run, _three_blobs()),
+        lambda run: jump_table(run, _three_blobs(), range(3, 4)),
+        lambda run: dendrogram_linkages(run, _three_blobs()),
+    ],
+)
 def test_the_dendrogram_tables_reject_a_density_run(tmp_path, table):
     run = ClusteringTuningRun(tmp_path, "hdbscan", Path("m"), pd.DataFrame(), {})
 

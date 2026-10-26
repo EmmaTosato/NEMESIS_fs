@@ -32,7 +32,6 @@ from src.analysis.plotting import (
     plot_embedding_continuous,
     plot_embedding_grid_blocks,
     plot_hdbscan_grid,
-    plot_interclass_distance_matrix,
     plot_silhouette_analysis,
     plot_spectral_tuning,
     plot_stability_analysis,
@@ -422,24 +421,6 @@ def test_plot_clusters_2d_writes_file_with_point_sizes(tmp_path):
 
     assert output_path.exists()
     assert output_path.stat().st_size > 0
-
-
-def test_plot_interclass_distance_matrix_writes_one_panel_per_metric(tmp_path):
-    results_by_metric = {
-        "euclidean": (["a", "b"], np.array([[0.1, 0.9], [0.9, 0.1]])),
-        "cosine": (["a", "b"], np.array([[0.2, 0.8], [0.8, 0.2]])),
-    }
-    output_path = tmp_path / "interclass_distance_matrix.png"
-
-    plot_interclass_distance_matrix(results_by_metric, output_path, "test title")
-
-    assert output_path.exists()
-    assert output_path.stat().st_size > 0
-
-
-def test_plot_interclass_distance_matrix_raises_on_empty_dict(tmp_path):
-    with pytest.raises(ValueError, match="at least one metric"):
-        plot_interclass_distance_matrix({}, tmp_path / "out.png", "title")
 
 
 def test_plot_grouped_tuning_metrics_writes_one_panel_per_metric(tmp_path):

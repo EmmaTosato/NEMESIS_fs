@@ -9,8 +9,8 @@ tuning.py.
 Two kinds of extras beyond the 3 generic metrics, see METHOD_METRIC_COLUMNS -
 per-combination scalar columns for methods that expose one after fitting
 (kmeans' inertia_, gmm's bic_/aic_), and standalone single-fit diagnostics
-independent of which n_clusters ends up chosen (agglomerative's dendrogram +
-interclass distance matrix, spectral's eigengap) - see
+independent of which n_clusters ends up chosen (spectral's eigengap; agglomerative's
+dendrogram is the `dendrograms` evaluation of clustering_tuning_evaluations.py) - see
 docs/dev/models.md for the full rationale, including why HDBSCAN gets neither
 a standalone diagnostic nor a plotted inertia/bic-style column.
 
@@ -78,7 +78,7 @@ METHOD_METRIC_COLUMNS: dict[str, list[str]] = {
     "adp": ["silhouette", "calinski_harabasz", "davies_bouldin", "n_clusters_found", "largest_cluster_share", "ari_vs_prev_z"],
 }
 
-STANDALONE_DIAGNOSTIC_METHODS = {"agglomerative", "spectral"}
+STANDALONE_DIAGNOSTIC_METHODS = {"spectral"}
 
 DENSITY_SWEEP_METHODS = ("hdbscan", "hdbscan_soft")
 
@@ -404,41 +404,6 @@ def compute_clustering_metrics_metric_aware(
         metrics["calinski_harabasz"] = float("nan")
         metrics["davies_bouldin"] = float("nan")
     return metrics
-
-
-def compute_interclass_distance_matrix(X: np.ndarray, proxy_labels: np.ndarray, metric: str) -> tuple[list, np.ndarray]:
-    """Average pairwise distance within/between proxy groups for one candidate `metric` -
-    independent of any clustering fit (project-clustering-tuning-redesign memory: a
-    metric-selection pre-check, modeled on sklearn's plot_agglomerative_clustering_metrics.html
-    "interclass distance matrix" panel; doubles as the substitute diagnostic for combinations
-    where compute_clustering_metrics_metric_aware skipped Calinski-Harabasz/Davies-Bouldin,
-    non-euclidean metrics).
-
-    `proxy_labels` is a weak ground-truth grouping (e.g. dataset/site, lesion side, vascular
-    territory - see docs/dev/models.md) - not a clustering result. Returns (sorted unique
-    groups, matrix) where matrix[a, b] is the mean pairwise distance between group a and group
-    b (diagonal = within-group spread, off-diagonal = between-group separation). A group with
-    fewer than 2 members has an undefined within-group spread - recorded as NaN, not 0.0 (which
-    would misrepresent "no data" as "identical").
-    """
-    proxy_labels = np.asarray(proxy_labels)
-    groups = sorted(pd.unique(proxy_labels).tolist())
-    distance_matrix = precomputed_distance(X, metric) if metric in SUPPORTED_BINARY_METRICS else pairwise_distances(X, metric=metric)
-
-    matrix = np.zeros((len(groups), len(groups)))
-    for a, group_a in enumerate(groups):
-        idx_a = np.where(proxy_labels == group_a)[0]
-        for b, group_b in enumerate(groups):
-            idx_b = np.where(proxy_labels == group_b)[0]
-            sub = distance_matrix[np.ix_(idx_a, idx_b)]
-            if group_a == group_b:
-                if len(idx_a) < 2:
-                    matrix[a, b] = float("nan")
-                else:
-                    matrix[a, b] = sub[np.triu_indices(len(idx_a), k=1)].mean()
-            else:
-                matrix[a, b] = sub.mean()
-    return groups, matrix
 
 
 def hdbscan_labels_and_probabilities(X: np.ndarray, params: dict) -> tuple[np.ndarray, np.ndarray]:
@@ -782,8 +747,8 @@ def compute_dendrogram_linkage(
     reason _agglomerative_fit_metric_aware does: is_invalid_ward_metric_combo upstream only
     filters ward+*non-euclidean*, leaving ward+euclidean (a valid combination) to reach this
     function. distance_cache (optional, keyed by metric name), same role as
-    _agglomerative_fit_metric_aware's own cache: the caller (clustering.py's
-    _write_agglomerative_diagnostics) calls this once per (metric, linkage) combination, so
+    _agglomerative_fit_metric_aware's own cache: the callers (clustering_tuning_analysis's
+    dendrogram_linkages and cophenetic/jump tables) call this once per (metric, linkage) combination, so
     without it the same metric's distance matrix would be recomputed for every linkage sharing
     it.
     """

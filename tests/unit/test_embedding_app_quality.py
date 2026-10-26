@@ -11,7 +11,6 @@ from src.analysis.clustering_evaluation import (
     adp_summary,
     membership_confidence,
     soft_membership_summary,
-    weakest_soft_members,
 )
 from src.analysis.embedding_app import (
     ProductionRun,
@@ -380,10 +379,8 @@ _SOFT_LABELS = np.array([0, 0, 1, 1, -1, 0])
 _SOFT_MEMBERSHIP = np.array([[0.9, 0.05], [0.4, 0.35], [0.1, 0.8], [0.2, 0.3], [0.05, 0.05], [0.6, 0.1]])
 
 
-def _soft_pair():
-    weakest = weakest_soft_members(_SOFT_LABELS, _SOFT_MEMBERSHIP, 2)
-    weakest.insert(0, "subject_id", [f"sub-{i}" for i in weakest.index])
-    return soft_membership_summary(_SOFT_LABELS, _SOFT_MEMBERSHIP), weakest
+def _soft_summary():
+    return soft_membership_summary(_SOFT_LABELS, _SOFT_MEMBERSHIP)
 
 
 def test_an_hdbscan_run_gets_the_position_in_cluster_block():
@@ -403,16 +400,16 @@ def test_an_hdbscan_run_gets_the_position_in_cluster_block():
     assert "Mean probability" in text and "Below" not in text and "Cluster membership" not in text  # no threshold column
 
 
-def test_a_hdbscan_soft_run_gets_the_soft_membership_block_with_heatmap_and_weakest_subjects():
+def test_a_hdbscan_soft_run_gets_the_soft_membership_block_with_heatmap_and_no_subject_list():
     content = cluster_quality_content_for(
-        _run(method="hdbscan_soft"), lambda _run: _summary(), _fit, confidence_of=_unused, soft_of=lambda _run: _soft_pair(),
+        _run(method="hdbscan_soft"), lambda _run: _summary(), _fit, confidence_of=_unused, soft_of=lambda _run: _soft_summary(),
         density_of=lambda _run: _density(),
     )
 
     text = _text(content)
     assert "Cluster membership" in text and "Position in the cluster" not in text
     assert "1 noise subjects" in text
-    assert "sub-3" in text and "sub-1" in text and "0,300" in text  # the two weakest, lowest first
+    assert "least firmly" not in text and "sub-3" not in text  # no list of subjects: its length would be a threshold
     assert len(_graphs(content)) == 2  # the DBCV bars and the membership heatmap
 
 
@@ -469,14 +466,13 @@ def test_run_membership_confidence_refuses_labels_the_refit_does_not_reproduce(t
         run_membership_confidence(run)
 
 
-def test_run_soft_membership_reads_the_saved_membership_and_names_the_weakest_subjects(tmp_path):
+def test_run_soft_membership_reads_the_saved_membership(tmp_path):
     X = np.zeros((6, 2))
     run = _save_run(tmp_path, "hdbscan_soft", X, _SOFT_LABELS, {"min_cluster_size": 2}, extra_arrays={"membership": _SOFT_MEMBERSHIP})
 
-    summary, weakest = run_soft_membership(run)
+    summary = run_soft_membership(run)
 
     assert summary.n_noise == 1 and list(summary.clusters.index) == [0, 1]
-    assert list(weakest["subject_id"])[:2] == ["sub-3", "sub-1"]  # the lowest own probability first
 
 
 def test_run_soft_membership_refuses_a_run_without_membership_npy(tmp_path):

@@ -73,7 +73,7 @@ def test_a_dim_reduction_run_takes_its_own_metric_and_components_and_has_no_para
 
     assert values == {
         "modality": "lesion", "pipeline": "dim_reduction", "method": "umap", "reduction": NO_METRIC,
-        "metric": "euclidean", "n_components": 2, "tag_params": NO_METRIC,
+        "metric": "euclidean", "n_components": 2, "tag_params": NO_METRIC, "tag_params_rest": NO_METRIC,
         "n_subjects": 4,
     }
 
@@ -102,6 +102,70 @@ def test_a_method_missing_from_the_registry_has_the_sentinel_for_parametri_not_a
     values = run_picker_values(_runs[4], _clustering_params_file(tmp_path, methods=("gmm",)))  # kmeans not registered
 
     assert values["tag_params"] == NO_METRIC
+
+
+def _agglomerative_runs(tmp_path):
+    root = tmp_path / "results"
+    runs = []
+    for name, k, linkage, metric in (
+        ("10-08_k3_ward", 3, "ward", "euclidean"), ("11-08_k5_ward", 5, "ward", "euclidean"), ("12-08_k5_avg", 5, "average", "cosine"),
+    ):
+        path = _make_run_dir(
+            root, pipeline="clustering", method="agglomerative", run_name=name, reduction_method="umap",
+            params={"n_clusters": k, "linkage": linkage, "metric": metric},
+        )
+        runs.append(ProductionRun("lesion", "clustering", "agglomerative", name, path, reduction_method="umap"))
+    registry = tmp_path / "params_clustering.json"
+    registry.write_text(json.dumps({"agglomerative": {"tag_param": ["n_clusters", "linkage", "metric"]}, "kmeans": {"tag_param": ["n_clusters"]}}))
+    return runs, registry
+
+
+def test_an_agglomerative_run_has_k_in_one_selector_and_linkage_and_metric_in_the_other(tmp_path):
+    runs, registry = _agglomerative_runs(tmp_path)
+
+    values = run_picker_values(runs[2], registry)
+
+    assert values["tag_params"] == "n_clusters=5"
+    assert values["tag_params_rest"] == "linkage=average, metric=cosine"
+
+
+def test_an_agglomerative_run_that_never_recorded_its_metric_stays_in_the_picker_without_it(tmp_path):
+    runs, registry = _agglomerative_runs(tmp_path)
+    old = _make_run_dir(
+        tmp_path / "results", pipeline="clustering", method="agglomerative", run_name="03-09_old", reduction_method="umap",
+        params={"n_clusters": 4, "linkage": "average"},
+    )
+
+    values = run_picker_values(ProductionRun("lesion", "clustering", "agglomerative", "03-09_old", old, reduction_method="umap"), registry)
+
+    assert (values["tag_params"], values["tag_params_rest"]) == ("n_clusters=4", "linkage=average")
+
+
+def test_a_registered_key_that_is_not_optional_still_excludes_the_run_that_lacks_it(tmp_path):
+    runs, registry = _agglomerative_runs(tmp_path)
+    broken = _make_run_dir(
+        tmp_path / "results", pipeline="clustering", method="agglomerative", run_name="03-09_broken", reduction_method="umap",
+        params={"n_clusters": 4, "metric": "euclidean"},  # no linkage
+    )
+
+    with pytest.raises(ValueError, match="tag_param"):
+        run_picker_values(ProductionRun("lesion", "clustering", "agglomerative", "03-09_broken", broken, reduction_method="umap"), registry)
+
+
+def test_a_method_that_is_not_split_keeps_all_its_parameters_in_the_first_selector(_runs, tmp_path):
+    values = run_picker_values(_runs[5], _clustering_params_file(tmp_path))  # kmeans
+
+    assert values["tag_params"] == "n_clusters=5" and values["tag_params_rest"] == NO_METRIC
+
+
+def test_choosing_k_narrows_linkage_and_metric_to_what_was_run_with_that_k(tmp_path):
+    runs, registry = _agglomerative_runs(tmp_path)
+    indexed = index_runs(runs, registry)
+
+    state = resolve_pickers(indexed, _current(modality="lesion", pipeline="clustering", tag_params="n_clusters=3"), "tag_params")
+
+    assert state.options["tag_params"] == [UNSET, "n_clusters=3", "n_clusters=5"]
+    assert state.options["tag_params_rest"] == [UNSET, "linkage=ward, metric=euclidean"]
 
 
 # --- the index ---------------------------------------------------------------------------------------------------
@@ -325,7 +389,7 @@ def test_the_page_lays_out_the_selectors_in_order_and_has_a_riavvia_button(_runs
 
     layout = json.dumps(app.layout.to_plotly_json(), default=lambda node: node.to_plotly_json())
 
-    positions = [layout.index(f'"{name}-picker"') for name in ("modality", "pipeline", "method", "reduction", "n-subjects", "metric", "n-components", "tag-params", "run")]
+    positions = [layout.index(f'"{name}-picker"') for name in ("modality", "pipeline", "method", "reduction", "n-subjects", "metric", "n-components", "tag-params", "tag-params-rest", "run")]
     assert positions == sorted(positions)
     assert '"reset-pickers-btn"' in layout and '"Reset"' in layout
 

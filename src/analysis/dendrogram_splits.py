@@ -17,7 +17,7 @@ The tree is not stored by the tuning, so it is recomputed; `check_tree_reproduce
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -226,6 +226,15 @@ def build_split_tree(X: np.ndarray, linkage: str, metric: str, saved: Mapping[in
 
 _FONT = {"family": "system-ui, -apple-system, sans-serif", "size": 14}
 
+# The embedding sits in a 560 px column (.dendrogram-step-body in embedding_app.py): fixing the width and the axis
+# ranges makes data -> pixel exact, which is what keeping the labels apart needs.
+EMBEDDING_WIDTH = 560
+_EMBEDDING_MARGIN = {"l": 56, "r": 12, "t": 36, "b": 48}
+_AXIS_PADDING = 0.06  # share of the data span left empty on each side
+_LABEL_GAP = 4  # minimum free pixels between two labels
+_LABEL_SIZE, _LABEL_SIZE_BOLD = 12, 18
+_LABEL_MAX_PASSES = 200
+
 
 def build_tree_figure(
     Z: np.ndarray, layout: dict, members: list[np.ndarray], leaf_color: np.ndarray, cut_k: int, height: int = 380
@@ -265,6 +274,47 @@ def build_tree_figure(
     return fig
 
 
+def label_box(name: str, bold: bool) -> tuple[float, float]:
+    """(width, height) in pixels of the label of `name`, border and padding included: an estimate from the character
+    count, since the browser's text metrics are not available here."""
+    size = _LABEL_SIZE_BOLD if bold else _LABEL_SIZE
+    pad = (3 if bold else 2) + (2 if bold else 1)
+    return len(name) * size * (0.66 if bold else 0.6) + 2 * pad, size * 1.25 + 2 * pad
+
+
+def spread_labels(
+    centres: np.ndarray, boxes: Sequence[tuple[float, float]], bounds: tuple[float, float, float, float]
+) -> np.ndarray:
+    """Positions (pixels, same frame as `centres`) of boxes of size `boxes` (width, height) moved the least that leaves
+    `_LABEL_GAP` pixels between any two, and inside `bounds` (x0, y0, x1, y1). Each overlapping pair is pushed apart
+    along the axis it overlaps least, half and half. Raises ValueError when no free arrangement is found in
+    `_LABEL_MAX_PASSES` passes (the labels do not fit in the plot), never returns overlapping labels."""
+    pos = np.array(centres, dtype=float)
+    x0, y0, x1, y1 = bounds
+    n = len(pos)
+    for _ in range(_LABEL_MAX_PASSES):
+        moved = False
+        for i in range(n):
+            for j in range(i + 1, n):
+                dx, dy = pos[j] - pos[i]
+                need_x = (boxes[i][0] + boxes[j][0]) / 2 + _LABEL_GAP - abs(dx)
+                need_y = (boxes[i][1] + boxes[j][1]) / 2 + _LABEL_GAP - abs(dy)
+                if need_x <= 0 or need_y <= 0:
+                    continue
+                axis, need, delta = (0, need_x, dx) if need_x <= need_y else (1, need_y, dy)
+                step = need / 2 + 0.5
+                sign = 1.0 if delta > 0 else -1.0 if delta < 0 else (1.0 if i < j else -1.0)
+                pos[i, axis] -= sign * step
+                pos[j, axis] += sign * step
+                moved = True
+        for i in range(n):
+            pos[i, 0] = np.clip(pos[i, 0], x0 + boxes[i][0] / 2, x1 - boxes[i][0] / 2)
+            pos[i, 1] = np.clip(pos[i, 1], y0 + boxes[i][1] / 2, y1 - boxes[i][1] / 2)
+        if not moved:
+            return pos
+    raise ValueError(f"the {n} labels do not fit in the plot without overlapping")
+
+
 def build_step_embedding_figure(
     embedding: np.ndarray,
     labels_k: np.ndarray,
@@ -276,34 +326,50 @@ def build_step_embedding_figure(
 ) -> go.Figure:
     """The embedding of the cut `labels_k`, one colour per cluster (the colour of its leaves in the tree), the name of
     each at its median on a white label. No legend: it grows with k. The names of the `highlighted` clusters (the ones
-    that divide) are bigger and bold; `note` is said in the title. `embedding` must have 2 columns: a 3-component
-    embedding is not sliced."""
+    that divide) are bigger and bold; `note` is said in the title. The names are moved off their median just enough
+    that no two overlap (spread_labels). `embedding` must have 2 columns: a 3-component embedding is not sliced."""
     if embedding.ndim != 2 or embedding.shape[1] != 2:
         raise ValueError(f"the embedding has shape {embedding.shape}: only 2 components can be drawn, never a slice of more")
     cut_k = len(np.unique(labels_k))
     fig = go.Figure()
     first_leaf = {lab: leaf_of_subject[labels_k == lab].min() for lab in np.unique(labels_k)}
+    names, colors, centres = [], [], []
     for lab in sorted(first_leaf, key=first_leaf.get):
         subjects = np.flatnonzero(labels_k == lab)
         color = PALETTE[single_label(leaf_color[leaf_of_subject], subjects, f"cluster {lab}, colour")]
         name = leaf_name(subjects, leaf_of_subject)
-        bold = lab in highlighted
         fig.add_trace(  # SVG on purpose: a page of many Scattergl graphs runs out of WebGL contexts
             go.Scatter(
                 x=embedding[subjects, 0], y=embedding[subjects, 1], mode="markers", marker={"size": 4, "color": color},
                 hovertemplate=f"{name} (n={len(subjects)})<extra></extra>",
             )
         )
-        centre = np.median(embedding[subjects], axis=0)
+        names.append((name, lab in highlighted))
+        colors.append(color)
+        centres.append(np.median(embedding[subjects], axis=0))
+    ranges = []
+    for axis in (0, 1):
+        low, high = embedding[:, axis].min(), embedding[:, axis].max()
+        pad = (high - low) * _AXIS_PADDING or 1.0
+        ranges.append((low - pad, high + pad))
+    plot_w = EMBEDDING_WIDTH - _EMBEDDING_MARGIN["l"] - _EMBEDDING_MARGIN["r"]
+    plot_h = height - _EMBEDDING_MARGIN["t"] - _EMBEDDING_MARGIN["b"]
+    anchors = np.array([  # y grows downwards on screen, upwards in the data
+        [(c[0] - ranges[0][0]) / (ranges[0][1] - ranges[0][0]) * plot_w, (ranges[1][1] - c[1]) / (ranges[1][1] - ranges[1][0]) * plot_h]
+        for c in centres
+    ])
+    placed = spread_labels(anchors, [label_box(n, b) for n, b in names], (0, 0, plot_w, plot_h))
+    for (name, bold), color, centre, anchor, spot in zip(names, colors, centres, anchors, placed):
+        dx, dy = spot - anchor
         fig.add_annotation(  # a label with its own background: points drawn under a plain text trace hide it
-            x=centre[0], y=centre[1], text=f"<b>{name}</b>" if bold else name, showarrow=False,
-            bgcolor="rgba(255,255,255,0.9)", bordercolor=color, borderwidth=2 if bold else 1, borderpad=3 if bold else 2,
-            font={"size": 18 if bold else 12, "color": "#222"},
+            x=centre[0], y=centre[1], xshift=float(dx), yshift=float(-dy), text=f"<b>{name}</b>" if bold else name,
+            showarrow=False, bgcolor="rgba(255,255,255,0.9)", bordercolor=color, borderwidth=2 if bold else 1,
+            borderpad=3 if bold else 2, font={"size": _LABEL_SIZE_BOLD if bold else _LABEL_SIZE, "color": "#222"},
         )
-    fig.update_xaxes(title_text="dim 1", title_standoff=6, zeroline=False)
-    fig.update_yaxes(title_text="dim 2", title_standoff=6, zeroline=False)
+    fig.update_xaxes(title_text="dim 1", title_standoff=6, zeroline=False, range=list(ranges[0]))
+    fig.update_yaxes(title_text="dim 2", title_standoff=6, zeroline=False, range=list(ranges[1]))
     fig.update_layout(
-        height=height, template="plotly_white", showlegend=False, font=_FONT, margin={"l": 56, "r": 12, "t": 36, "b": 48},
+        height=height, width=EMBEDDING_WIDTH, template="plotly_white", showlegend=False, font=_FONT, margin=_EMBEDDING_MARGIN,
         title={"text": f"Embedding, {cut_k} clusters" + (f" ({note})" if note else ""), "x": 0.5, "y": 0.97, "font": {"size": 16}},
     )
     return fig

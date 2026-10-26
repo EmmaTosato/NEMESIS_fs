@@ -25,7 +25,6 @@ from src.analysis.clustering_evaluation import (
     require_applicable,
     saturated_pair_share,
     soft_membership_summary,
-    weakest_soft_members,
 )
 from tests.factories.matrices import gaussian_blobs
 
@@ -372,24 +371,7 @@ def test_soft_summary_accounts_for_every_subject_and_keeps_probabilities_in_rang
         assert summary.clusters["top_other_mean"].isna().all()  # un solo cluster: nessun "altro", NaN e non 0
 
 
-@given(_soft_run(), st.integers(1, 40))
-def test_weakest_members_are_the_lowest_own_probabilities_noise_excluded(run, n_lowest):
-    labels, membership = run
-    table = weakest_soft_members(labels, membership, n_lowest)
-    clustered = np.flatnonzero(labels != -1)
-    own = membership[clustered, labels[clustered]]
-
-    assert len(table) == min(n_lowest, len(clustered))
-    assert table["own_membership"].is_monotonic_increasing
-    assert set(table.index) <= set(clustered.tolist())  # il rumore non compare mai
-    np.testing.assert_allclose(table["own_membership"].to_numpy(), np.sort(own)[: len(table)])
-    if membership.shape[1] > 1:
-        assert (table["best_other"].to_numpy() != table["cluster"].to_numpy()).all()
-    else:
-        assert table["best_other"].isna().all() and table["best_other_probability"].isna().all()
-
-
-def test_soft_summary_and_weakest_refuse_inconsistent_inputs():
+def test_soft_summary_refuses_inconsistent_inputs():
     labels = np.array([0, 0, 1, 1, -1])
     good = np.full((5, 2), 0.5)
     with pytest.raises(ValueError, match="every subject is noise"):
@@ -398,10 +380,6 @@ def test_soft_summary_and_weakest_refuse_inconsistent_inputs():
         soft_membership_summary(np.array([0, 0, 2, 2, -1]), good)
     with pytest.raises(ValueError, match="must be"):
         soft_membership_summary(labels, good[:4])
-    with pytest.raises(ValueError, match="n_lowest"):
-        weakest_soft_members(labels, good, 0)
-    with pytest.raises(ValueError, match="every subject is noise"):
-        weakest_soft_members(np.full(5, -1), np.empty((5, 0)), 3)
 
 
 # --- model_fit_metrics ----------------------------------------------------------------------------

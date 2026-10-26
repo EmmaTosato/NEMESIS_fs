@@ -206,7 +206,7 @@ def compose_cluster_plot_title(output_dir: Path, reduction_method: str, clusteri
 
 def compose_clustering_tuning_title(output_dir: Path, method: str) -> str:
     """Title for clustering.py's fine-tuning output (tuning_plot.png and every standalone
-    diagnostic built from the same `title` - dendrogram/eigengap/interclass-distance/
+    diagnostic built from the same `title` - dendrogram/eigengap/
     stability): "<Modality> - Clustering Tuning -
     <Method>", same capitalization convention as compose_cluster_plot_title. Deliberately
     shorter than compose_run_title's full output_dir path dump (which this replaces here,
@@ -1099,51 +1099,6 @@ def plot_stability_analysis(
     plt.close(fig)
 
 
-def plot_interclass_distance_matrix(
-    results_by_metric: dict[str, tuple[list, np.ndarray]], output_path: Path, title: str
-) -> None:
-    """One heatmap subplot per candidate metric (agglomerative's metric-selection pre-check,
-    clustering_tuning.compute_interclass_distance_matrix - project-clustering-tuning-redesign
-    memory, 26-08-26, modeled on sklearn's plot_agglomerative_clustering_metrics.html): diagonal
-    cells are within-proxy-group spread, off-diagonal cells are between-group separation - a
-    metric that keeps the diagonal low and off-diagonal high is a better candidate for that
-    metric's own tuning_grid sweep. `results_by_metric` maps each metric name to its own
-    (groups, matrix) pair from compute_interclass_distance_matrix, not computed here - this
-    function only lays them out.
-    """
-    if not results_by_metric:
-        raise ValueError("plot_interclass_distance_matrix needs at least one metric")
-
-    metrics = list(results_by_metric)
-    # wspace=1.1 (up from 0.5, 31-08-26): each subplot draws its own y-tick labels (the
-    # group names, unabbreviated - e.g. "UKLFR/stroke_UKLFR"), not shared with its
-    # neighbor's, so the gap needs to fit one subplot's colorbar *and* the next
-    # subplot's label text - 0.5 let the two collide (verified visually on real
-    # dataset-name-length labels).
-    fig, axes = plt.subplots(
-        1, len(metrics), figsize=(5.2 * len(metrics), 4), squeeze=False, gridspec_kw={"wspace": 1.1}
-    )
-
-    for i, metric in enumerate(metrics):
-        groups, matrix = results_by_metric[metric]
-        ax = axes[0][i]
-        image = ax.imshow(matrix, cmap="viridis")
-        ax.set_xticks(range(len(groups)))
-        ax.set_yticks(range(len(groups)))
-        ax.set_xticklabels([str(g) for g in groups], rotation=45, ha="right")
-        ax.set_yticklabels([str(g) for g in groups])
-        for a in range(len(groups)):
-            for b in range(len(groups)):
-                ax.text(b, a, f"{matrix[a, b]:.2f}", ha="center", va="center", color="white")
-        ax.set_title(f"metric={metric}")
-        fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
-
-    fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", y=1.05)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-
-
 def plot_grouped_tuning_metrics(
     df: pd.DataFrame, x_param: str, group_param: str, metric_cols: list[str], output_path: Path, title: str, log_x: bool = False
 ) -> None:
@@ -1211,8 +1166,7 @@ def plot_spectral_tuning(df: pd.DataFrame, param_col: str, metric_cols: list[str
 def plot_dendrograms_grid(
     linkage_matrices_by_linkage: dict[str, np.ndarray], output_path: Path, title: str, truncate_last_p: int = 30
 ) -> None:
-    """One truncated dendrogram (scipy) subplot per `linkage` value, laid out side by side -
-    counterpart to plot_interclass_distance_matrix's per-metric grid. Replaces the old
+    """One truncated dendrogram (scipy) subplot per `linkage` value, laid out side by side. Replaces the old
     single-panel plot_dendrogram (found 28-08-26 to always be computed at a fixed `metric`,
     never reflecting a swept `metric` - see clustering_tuning_guide.md): the caller now groups
     diagnostics by `metric` (one file per metric value) and passes every valid `linkage` for
@@ -1242,7 +1196,7 @@ def plot_dendrograms_grid(
     linkages = list(linkage_matrices_by_linkage)
     # wspace=0.35 (explicit, 31-08-26 - was matplotlib's default ~0.2, cramped once real
     # subject-index tick labels are rotated 45deg): same spacing convention as
-    # plot_interclass_distance_matrix/plot_eigengaps_grid below, not left to the default.
+    # plot_eigengaps_grid below, not left to the default.
     fig, axes = plt.subplots(1, len(linkages), figsize=(7 * len(linkages), 6), squeeze=False, gridspec_kw={"wspace": 0.35})
 
     for i, linkage in enumerate(linkages):
@@ -1262,7 +1216,7 @@ def plot_dendrograms_grid(
 def plot_eigengaps_grid(eigenvalues_by_label: dict[str, np.ndarray], output_path: Path, title: str) -> None:
     """One eigengap subplot per label (typically one per value of the affinity's own
     hyperparameter - `n_neighbors` for `nearest_neighbors`, `gamma` for `rbf`), laid out side
-    by side - counterpart to plot_interclass_distance_matrix's per-metric grid. Replaces the
+    by side. Replaces the
     old single-panel plot_eigengap (found 28-08-26 to always be computed from `base_params`
     alone, never reflecting a swept `affinity`/hyperparameter - same gap already documented for
     agglomerative's dendrogram): the caller groups diagnostics by `affinity` (one file per
@@ -1275,8 +1229,8 @@ def plot_eigengaps_grid(eigenvalues_by_label: dict[str, np.ndarray], output_path
         raise ValueError("plot_eigengaps_grid needs at least one set of eigenvalues")
 
     labels = list(eigenvalues_by_label)
-    # wspace=0.35 (explicit, 31-08-26 - same spacing convention as plot_dendrograms_grid/
-    # plot_interclass_distance_matrix above, not left to matplotlib's default ~0.2).
+    # wspace=0.35 (explicit, 31-08-26 - same spacing convention as plot_dendrograms_grid,
+    # not left to matplotlib's default ~0.2).
     fig, axes = plt.subplots(1, len(labels), figsize=(6 * len(labels), 5), squeeze=False, gridspec_kw={"wspace": 0.35})
 
     for i, label in enumerate(labels):

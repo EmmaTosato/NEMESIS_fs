@@ -6,6 +6,24 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 26-10-26 — Colonna `membership_share_below_half` tolta dai `tuning_results.csv` e `density_metrics.csv` di `hdbscan_soft`
+
+La colonna (quota di soggetti con probabilità sotto 0,5) è stata tolta per scelta dell'utente il 22-10-26 (niente soglie nostre, `methods_changelog.md`); il codice attuale non la scrive (test che lo asserisce: `test_clustering_tuning.py`, `test_clustering_pipeline.py`, `test_clustering_tuning_report.py`) ma restava nei file delle 16 cartelle di tuning di `hdbscan_soft` (6 lesione, 10 SDC). Tolta il 26-10-26 da 32 file (`tuning_results.csv` e `density_metrics.csv` per cartella) con uno script una tantum nello scratchpad: celle delle altre colonne identiche byte per byte, verificato contro le copie originali in `results/legacy/clustering_prodotti_flusso_vecchio_26-10-26/old_membership_share/` (stesso albero di `results/`).
+
+Ancora vero: il `config.md` di quelle 16 cartelle ha ancora la riga `Metrics:` con la lista dello sweep di allora (`silhouette`, `calinski_harabasz`, `davies_bouldin`, `membership_share_below_half`, ...): descrive cosa calcolava lo sweep, non è stato toccato.
+
+## 26-10-26 — Il dendrogramma di agglomerative diventa una valutazione del registro; via la matrice interclasse
+
+**Dendrogramma**: non lo scrive più lo sweep (`_write_agglomerative_diagnostics`, eliminata) ma la valutazione `dendrograms` (`clustering_tuning_evaluations.py`, solo agglomerative), che gira dopo lo sweep e su un tuning già salvato con `evaluate_clustering_tuning`. Un file `dendrogram_metric=<metric>.png` per `metric` della run, un riquadro per `linkage` valido; coppie (metric, linkage) lette da `tuning_results.csv` come per cofenetica e salto (`dendrogram_linkages`), matrice e distanze dal contesto. Impostazione nel registro: `dendrograms.truncate_last_p` (30, prima un default di `plot_dendrograms_grid`). Dichiarata in `tuning_evaluations.agglomerative` di `clustering.json` e `evaluate_clustering_tuning.json`; non è in `REPORT_EVALUATIONS` (scrive un'immagine, non un CSV: il report la linka solo se c'è, come le curve per k). La didascalia del report non dice più «ultime 30 fusioni»: il numero sta sull'asse della figura.
+
+**Matrice interclasse**: tolta. `compute_interclass_distance_matrix`, `plot_interclass_distance_matrix`, i loro test e la scrittura nello sweep sono eliminati; i 28 `interclass_distance_matrix.png` sono in `results/legacy/clustering_prodotti_flusso_vecchio_26-10-26/old_interclass/` (stesso albero di `results/`). Scelta dell'utente.
+
+`STANDALONE_DIAGNOSTIC_METHODS` è ora `{"spectral"}` (eigengap, in stand by, non toccato).
+
+Verifica su una copia di `19-10_s2.4-vol_nc2_varimax` (scratchpad): la valutazione riscrive i 3 dendrogrammi, uguali pixel per pixel a quelli dello sweep tranne il titolo (la copia sta fuori da `results/`, quindi la modalità nel titolo non si ricava). Costo 5 s. Alterando `truncate_last_p` o il filtro delle coppie valide i test falliscono.
+
+Ancora vero: la valutazione richiede che la griglia spazzi `linkage` e `metric` (legge quelle colonne di `tuning_results.csv`, come cofenetica e salto); lo sweep di prima, con `linkage`/`metric` fissi, disegnava comunque un dendrogramma dai parametri di base. L'albero si ricalcola in tre valutazioni (cofenetica, salto, dendrogramma): nessuna cache degli alberi, non misurata. I dendrogrammi già su disco non sono stati rigenerati.
+
 ## 26-10-26 — La metrica di clustering entra nel nome delle run di agglomerative (`mk_`)
 
 **Cosa è cambiato**: in `config/registry/params_clustering.json`, `agglomerative` ha `tag_param` = `n_clusters`, `linkage`, `metric` e `tag_prefix` = `k`, `link_`, `mk_`. Una run di produzione si chiama `<data>_<sessione>_<tag embedding>_k<k>_link_<linkage>_mk_<metrica>`. Le 95 cartelle esistenti (29 `results/lesion`, 66 `results/sdc`, tutte le sorgenti: umap, pca, raw) sono state rinominate a mano e la colonna `output` dei due `runs.csv` aggiornata; i due `runs.csv` hanno una colonna `metric` in più, dopo `linkage` (stessa posizione che avrebbe scritto la pipeline, altrimenti la guardia sull'header di `run_log` rifiuta la prossima run).
@@ -17,6 +35,31 @@ Voci in ordine cronologico inverso.
 **Conseguenza ancora vera oggi**: i metodi `hdbscan`, `hdbscan_soft` e `gmm` non hanno la metrica nel tag; le 14 righe del 12-10 di `results/sdc/.../runs.csv` puntano a cartelle non più in `production/` e restano con il vecchio nome.
 
 ---
+
+## 26-10-26 — Backup dei prodotti del flusso vecchio di clustering: da scratchpad a `results/legacy/`
+
+Il 23-10-26 i prodotti dei flussi vecchi erano stati tolti da `results/` e tenuti in una cartella temporanea della sessione. Copiati il 26-10-26 in `results/legacy/clustering_prodotti_flusso_vecchio_26-10-26/` (88 MB, gitignored come tutto `results/`); conteggi dei file uguali tra origine e copia, `diff -rq` pulito su `old_products_stale`. Ogni sottocartella riproduce l'albero di `results/` (`lesion|sdc/clustering/...`), quindi si ripristina con una `cp -R`.
+
+| Cartella | File | Cosa contiene |
+|---|---|---|
+| `old_products` | 749 | file dei flussi vecchi dei 48 tuning con report: `k_curves*`, `k_table_*`, `k_evaluation_*`, `noise_filtered_curves*`, `dendrogram_metric=*`, `linkage_agreement`, `interclass_distance_matrix`, `density_metrics`, `tuning_plot*`, e le versioni precedenti di `tuning_results.csv`, `config.md`, `report.md` (48 ciascuno) |
+| `old_products_reports` | 16 | `report.md` precedenti di agglomerative |
+| `old_products_labels2d` | 28 | `labels_2d_*`, `labels2d_*`, `view2d_*` (voce 23-10-26 sulle etichette 2D) |
+| `old_products_stale` | 174 | 89 prodotti d'analisi in 4 cartelle di tuning di agglomerative (`composition_*` 54, `tracts_*` 15, `interclass_*` 6, `nb_*`, `dendrograms_*`, altri) e 85 `silhouette_plot.png` di run di produzione di `hdbscan`/`hdbscan_soft` |
+
+Il numero «153 file» ricordato a fine sessione non torna con il disco: i file di `old_products_stale` sono 174 (89 + 85).
+
+Le due voci del 23-10-26 che citano «backup nello scratchpad della sessione» si riferiscono a questa cartella.
+
+Ancora vero: sono copie per sicurezza, nessun codice le legge. Non rimetterle in `results/clustering/`: i report e le valutazioni attuali non le linkano.
+
+## 26-10-26 — `all_candidates.csv` e `comparison/` del flusso vecchio dei notebook spostati in `results/legacy/`
+
+Spostati (non cancellati) in `results/legacy/cluster_tuning_notebooks_flusso_vecchio_26-10-26/`, con lo stesso albero di `results/`: `lesion/clustering/tuning/all_candidates.csv` e `sdc/clustering/tuning/all_candidates.csv` (18-10, colonna `verdict` basata su soglie nostre, regola poi tolta) e `lesion/clustering/tuning/comparison/umap/` (8 file: confronti tra embedding `nc2`/`nc3`/`nc10` del flusso vecchio dei notebook, ARI tra partizioni, curve, purezza dei vicini).
+
+Perché: nessun flusso attuale li scrive né li legge (`grep` su `src/`, `docs/`, `config/`, `notebooks/`, `scripts/`, `tests/`, `README.md`: nessun riferimento fuori dal changelog), e sono le uniche copie. Scartato: cancellarli.
+
+Ancora vero: la voce 18-10-26 che cita `results/legacy/cluster_tuning_notebooks_pre-split_18-10-26/` rimanda a una cartella che non esiste più; ora porta al percorso sopra.
 
 ## 23-10-26 — Tolte la silhouette macro e il cluster peggiore, e le etichette 2D
 
@@ -230,7 +273,7 @@ Eliminati anche `results/lesion/clustering/tuning/SUMMARY.md` e `results/sdc/clu
 
 **Cosa è cambiato** (a mano, senza rilanciare niente; `results/` è ignorato da git): da `results/reports/cluster_tuning_notebooks/cluster_*/{images,tables,adp}/` sono stati spostati 307 file nelle cartelle delle run in `results/{lesion,sdc}/clustering/tuning/<metodo>/...` (agglomerative, hdbscan, adp), assegnati per nome del file; i file ADP di più report della stessa matrice condividono la cartella ADP e hanno il prefisso del report (`lesion_dice_nc2_07-10__...`). 12 file erano copie byte-identiche di file già presenti nella run (sha256) e sono stati cancellati. Restano nei report 24 file che non appartengono a una run sola (confronti tra embedding, immagini di riferimento, tabelle ausiliarie del metodo vecchio). `report.md` cita i file con percorso relativo (nessun riferimento rotto). L'elenco completo, con origine e destinazione, è in `results/reports/cluster_tuning_notebooks/MOVES_18-10-26.json`.
 
-`SUMMARY.md` è diviso in `results/lesion/clustering/tuning/SUMMARY.md` e `results/sdc/clustering/tuning/SUMMARY.md` (lo streamline è in `sdc`); `all_candidates.csv` (208 righe) è diviso per modalità (128 lesione, 80 SDC). Gli originali sono in `results/legacy/cluster_tuning_notebooks_pre-split_18-10-26/`.
+`SUMMARY.md` è diviso in `results/lesion/clustering/tuning/SUMMARY.md` e `results/sdc/clustering/tuning/SUMMARY.md` (lo streamline è in `sdc`); `all_candidates.csv` (208 righe) è diviso per modalità (128 lesione, 80 SDC). Gli originali pre-split non esistono più (cartella `results/legacy/cluster_tuning_notebooks_pre-split_18-10-26/` assente il 26-10-26); i due `all_candidates.csv` per modalità sono in `results/legacy/cluster_tuning_notebooks_flusso_vecchio_26-10-26/` (voce 26-10-26).
 
 **Perché**: una cartella report doveva contenere solo ciò che non esiste altrove; le immagini e le tabelle di una run appartengono alla run.
 
