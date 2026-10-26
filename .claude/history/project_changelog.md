@@ -6,6 +6,18 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 26-10-26 — La metrica di clustering entra nel nome delle run di agglomerative (`mk_`)
+
+**Cosa è cambiato**: in `config/registry/params_clustering.json`, `agglomerative` ha `tag_param` = `n_clusters`, `linkage`, `metric` e `tag_prefix` = `k`, `link_`, `mk_`. Una run di produzione si chiama `<data>_<sessione>_<tag embedding>_k<k>_link_<linkage>_mk_<metrica>`. Le 95 cartelle esistenti (29 `results/lesion`, 66 `results/sdc`, tutte le sorgenti: umap, pca, raw) sono state rinominate a mano e la colonna `output` dei due `runs.csv` aggiornata; i due `runs.csv` hanno una colonna `metric` in più, dopo `linkage` (stessa posizione che avrebbe scritto la pipeline, altrimenti la guardia sull'header di `run_log` rifiuta la prossima run).
+
+**Perché**: il nome non diceva la metrica del clustering, e il `m_` iniziale è quella dell'embedding, che fa pensare il contrario. Due run con stessa data, embedding, k e linkage ma metrica diversa avrebbero avuto lo stesso nome (finora distinte solo dalla data: 16-10 euclidea, 19-10 cosine). `mk_` distingue la metrica del clustering da `m_` dell'embedding.
+
+**Sei run senza `metric` nei `params`** (lesione, 01-09 e 03-09, scritte prima che il registro la dichiarasse): rinominate `mk_euclidean`, il default di `AgglomerativeClustering` (`metric=None` → euclidea), non un valore dedotto.
+
+**Conseguenza ancora vera oggi**: i metodi `hdbscan`, `hdbscan_soft` e `gmm` non hanno la metrica nel tag; le 14 righe del 12-10 di `results/sdc/.../runs.csv` puntano a cartelle non più in `production/` e restano con il vecchio nome.
+
+---
+
 ## 23-10-26 — Tolte la silhouette macro e il cluster peggiore, e le etichette 2D
 
 **Silhouette macro e silhouette del cluster peggiore**: tolte da `SilhouetteBreakdown` (`macro`, `minimum`), da `GeometricSummary` (`silhouette_macro`, `silhouette_min`), dal pannello geometrico dell'Embedding Explorer (righe e voce della guida «le tre sintesi») e dal pannello adp (stesse due righe, perché usa lo stesso `SilhouetteBreakdown`). Restano la silhouette media sui soggetti e la tabella per cluster (`n`, `silhouette_mean`, `share_negative`; in produzione `silhouette_per_cluster.csv`). Scelta dell'utente. Non aggiornato: `notebooks/post-results_analysis/clustering_evaluation.ipynb` (celle 2, 2.1 e 2.2 usano `macro`, `minimum`, `silhouette_min`) e `management/cheatsheets/clustering_metrics_report.md` (audit dello stato precedente): il notebook va corretto o svuotato.
