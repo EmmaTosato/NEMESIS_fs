@@ -8,16 +8,21 @@ import pandas as pd
 import pytest
 
 from src.analysis.clustering_tuning_report import (
-    require_report_evaluations,
-    HINT_AGREEMENT,
-    HINT_COPHENETIC,
-    HINT_DENDROGRAM,
-    HINT_DBCV_CURVES,
-    HINT_HEATMAP,
-    HINT_JUMP,
+    REPORT_TEXT_KEYS,
     curves_hint,
+    load_report_texts,
+    require_report_evaluations,
     tuning_report_markdown,
 )
+
+# the explanations are read from the file the report reads: the tests compare against it, never against a copy of the text
+TEXTS = load_report_texts()
+HINT_AGREEMENT = TEXTS["hint:agreement"]
+HINT_COPHENETIC = TEXTS["hint:cophenetic"]
+HINT_DENDROGRAM = TEXTS["hint:dendrogram"]
+HINT_DBCV_CURVES = TEXTS["hint:dbcv_curves"]
+HINT_HEATMAP = TEXTS["hint:heatmap"]
+HINT_JUMP = TEXTS["hint:jump"]
 
 
 def _hint(hint: tuple[str, ...]) -> str:
@@ -189,7 +194,7 @@ def test_tuning_report_writes_a_how_to_read_line_under_each_table_and_figure_onc
     report = _agglomerative_report(tmp_path, _curves_results())
 
     # euclidean has ward and single, cosine only average: 2 curves figures (single is not drawn), 2 metrics for each table
-    for hint, count in ((curves_hint((0.0, 1.0), None), 2), (HINT_COPHENETIC, 2), (HINT_JUMP, 2), (HINT_DENDROGRAM, 1)):
+    for hint, count in ((curves_hint(TEXTS, (0.0, 1.0), None), 2), (HINT_COPHENETIC, 2), (HINT_JUMP, 2), (HINT_DENDROGRAM, 1)):
         assert report.count(_hint(hint)) == count, hint[0][:40]
 
 
@@ -414,3 +419,26 @@ def test_the_report_joins_the_two_files_on_the_swept_columns_and_refuses_files_o
         _with_agglomerative_indices(tmp_path, results, share.iloc[:3], dunn)
     with pytest.raises(ValueError, match=r"no column\(s\) \['dunn'\]"):
         _with_agglomerative_indices(tmp_path, results, share, dunn.drop(columns="dunn"))
+
+
+def test_the_shipped_texts_file_defines_exactly_the_texts_the_report_looks_up():
+    assert set(TEXTS) == set(REPORT_TEXT_KEYS)
+    assert all(isinstance(TEXTS[key], tuple) == key.startswith("hint:") for key in TEXTS)  # a hint is a list, the rest a paragraph
+
+
+@pytest.mark.parametrize("davies_bouldin_limits", [(0.5, 3.0), None])
+def test_the_curves_hint_fills_every_placeholder_from_the_file(davies_bouldin_limits):
+    hint = curves_hint(TEXTS, (0.1, 0.9), davies_bouldin_limits)
+
+    assert len(hint) == len(TEXTS["hint:curves"])
+    assert not any("{" in item or "}" in item for item in hint)
+    assert "da 0.1 a 0.9" in hint[2] and ("Davies-Bouldin da 0.5 a 3.0" in hint[2]) == (davies_bouldin_limits is not None)
+
+
+def test_the_agglomerative_report_explains_its_indices_with_the_text_of_the_file(tmp_path):
+    report = _agglomerative_report(tmp_path, _curves_results())
+
+    for name in ("silhouette", "davies_bouldin", "calinski_harabasz", "dunn", "largest_cluster_share", "cophenetic_correlation", "ari", "jump"):
+        assert f"- **`{name}`**: {TEXTS[f'term:{name}']}" in report
+    assert TEXTS["note:silhouette_convention"] in report
+    assert TEXTS["note:non_euclidean"].format(metric="cosine") in report  # cosine is in the run, euclidean-only indices are empty

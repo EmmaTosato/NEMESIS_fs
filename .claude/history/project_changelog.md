@@ -6,11 +6,40 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 27-10-26 — `clustering_evaluation.ipynb` eliminato
+
+Il notebook (valutazione di una run alla volta: indici geometrici, statistica del modello, appartenenza, descrizione clinica) è stato cancellato per scelta dell'utente (`git rm`; recuperabile da `git`, ultimo commit con il file: `e0cfc55`). Non è stato spostato in `pipeline_building` né riparato.
+
+Perché: l'app Dash copre le sue sezioni (pannelli «Clustering evaluation» e «Cluster description»), e tenerlo allineato a `src/` costava lavoro per un file destinato a sparire. Il sostituto per scegliere i parametri è il `report.md` del tuning.
+
+Cambiato di conseguenza:
+- `docs/guides/evaluation.md` descrive solo `clustering_comparison.ipynb`; la lettura degli indici di una run sta in `docs/guides/embedding_app.md`.
+- Il messaggio dell'app per una run su più di 1000 colonne (`MAX_QUALITY_COLUMNS`) non rimanda più al notebook: manda a `tuning_results.csv` e `report.md`.
+- Tolti i rimandi al notebook da docstring di `src/analysis/` (`clustering_evaluation.py`, `cluster_quality.py`, `embedding_app.py`, `clustering_tuning.py`), da `docs/dev/`, `docs/guides/` e da tre note in `knowledge/notes/dim_reduction_clustering/`.
+
+Ancora vero: la prima cella di testo di `clustering_comparison.ipynb` dice ancora che la valutazione di una run alla volta sta in `clustering_evaluation.ipynb` (non toccato: il notebook non si modifica senza chiedere). `management/project_scaffold_guide.md` lo cita come esempio di nome. La voce del 26-10-26 sulla scheda `clustering_metrics_report.md`: nel working tree ne era ricomparsa una copia salvata alle 17:13 (versione più vecchia, con il nome `analyze_clustering_tuning`); archiviata come `results/legacy/management_cheatsheets_26-10-26/clustering_metrics_report_resaved_17-13.md`.
+
+## 26-10-26 — I testi di `report.md` del clustering escono dal codice in `utils/report_texts/`; figure a 200 dpi
+
+Le spiegazioni degli indici del report di un tuning (definizioni dei termini, note, riquadri «Come leggerlo»: prima `REPORT_TERMS`, `HINT_*`, `COPHENETIC_TERM`, ... in `clustering_tuning_report.py`) stanno ora in `utils/report_texts/clustering_tuning.md`, una sezione `## <tipo>: <nome>` per testo, 30 testi. Il report li legge con `src/utils/text_registry.py::load_text_registry`, che si ferma con errore se il file non ha esattamente i testi che il codice cerca (mancante, ripetuto, sconosciuto, vuoto): un testo non sparisce in silenzio dal report e il file non conserva testi che nessuno usa. Il percorso si ricava dalla posizione del modulo, senza campo nei config.
+
+Perché fuori dal codice: sono testi da leggere e da correggere con l'utente, non logica. Scartati: `knowledge/notes/dim_reduction_clustering/clustering_methods/` (storico per l'utente, il codice non può dipenderne), `config/registry/` (solo JSON, un testo lungo in JSON è illeggibile), `assets/` (dati di neuroimmagini). Il file sta in una cartella nuova `utils/` alla radice, scelta dell'utente.
+
+Cambiate di passaggio le definizioni di `membership_mean` e `persistence_mean` (come nella guida: media semplice, di norma scende con i cluster, si confronta a parità di `n_clusters_found`). Le altre spiegazioni (`evaluation.md`, `evaluation_metrics.md`, guide del Dash) non sono state spostate: hanno scopi diversi e saranno toccate con la guida dell'app.
+
+**Figure**: `FIGURE_DPI` passa da 150 a 200 e vale ora per tutte e quattro le figure delle valutazioni (`k_curves`, `dendrograms`, `tuning_heatmaps`, `dbcv_curves`): `plot_dendrograms_grid` e `plot_clustering_tuning_heatmaps` salvavano a 150 fisso e hanno ora un parametro `dpi`. Il `tuning_plot.png` dello sweep resta a 150. I file già su disco non sono stati rigenerati.
+
+## 26-10-26 — `clustering_metrics_report.md` archiviata fuori da `management/cheatsheets/`
+
+Il file (176 righe, audit del 20-10-26 delle metriche di valutazione del clustering, con una proposta di convergenza) non era una scheda di metodo ed era superato in più punti: le righe su silhouette/CH/DB di HDBSCAN, le soglie 0,5 e 0,1, il criterio «usabile» e la silhouette macro/minima descrivono un'implementazione che non esiste più. La convergenza che proponeva è stata fatta (una sola catena tuning → report → produzione → app, voci del 23-10-26). Spostata in `results/legacy/management_cheatsheets_26-10-26/` (la copia in git resta nella storia); tolta la sezione «Altri riassunti» di `management/cheatsheets/README.md`, che la elencava da sola. Scelta dell'utente. Scartato: riscriverla, perché duplicherebbe `docs/guides/evaluate_clustering_tuning.md`.
+
+Ancora vero: le voci del 23-10-26 qui sotto che citano il file lo chiamano ancora `management/cheatsheets/clustering_metrics_report.md`.
+
 ## 26-10-26 — Colonna `membership_share_below_half` tolta dai `tuning_results.csv` e `density_metrics.csv` di `hdbscan_soft`
 
 La colonna (quota di soggetti con probabilità sotto 0,5) è stata tolta per scelta dell'utente il 22-10-26 (niente soglie nostre, `methods_changelog.md`); il codice attuale non la scrive (test che lo asserisce: `test_clustering_tuning.py`, `test_clustering_pipeline.py`, `test_clustering_tuning_report.py`) ma restava nei file delle 16 cartelle di tuning di `hdbscan_soft` (6 lesione, 10 SDC). Tolta il 26-10-26 da 32 file (`tuning_results.csv` e `density_metrics.csv` per cartella) con uno script una tantum nello scratchpad: celle delle altre colonne identiche byte per byte, verificato contro le copie originali in `results/legacy/clustering_prodotti_flusso_vecchio_26-10-26/old_membership_share/` (stesso albero di `results/`).
 
-Ancora vero: il `config.md` di quelle 16 cartelle ha ancora la riga `Metrics:` con la lista dello sweep di allora (`silhouette`, `calinski_harabasz`, `davies_bouldin`, `membership_share_below_half`, ...): descrive cosa calcolava lo sweep, non è stato toccato.
+Il 27-10-26 la riga `Metrics:` del `config.md` di quelle 16 cartelle (elencava ancora `silhouette`, `calinski_harabasz`, `davies_bouldin`, `membership_share_below_half`) è stata allineata alle colonne vere di `tuning_results.csv` senza i parametri variati: `noise_fraction`, `n_clusters_found`, `membership_mean`, `persistence_mean`. Cambiata solo quella riga.
 
 ## 26-10-26 — Il dendrogramma di agglomerative diventa una valutazione del registro; via la matrice interclasse
 
@@ -44,6 +73,7 @@ Il 23-10-26 i prodotti dei flussi vecchi erano stati tolti da `results/` e tenut
 |---|---|---|
 | `old_products` | 749 | file dei flussi vecchi dei 48 tuning con report: `k_curves*`, `k_table_*`, `k_evaluation_*`, `noise_filtered_curves*`, `dendrogram_metric=*`, `linkage_agreement`, `interclass_distance_matrix`, `density_metrics`, `tuning_plot*`, e le versioni precedenti di `tuning_results.csv`, `config.md`, `report.md` (48 ciascuno) |
 | `old_products_reports` | 16 | `report.md` precedenti di agglomerative |
+| `old_products_reports_2` | 16 | altri 16 `report.md` precedenti (copiati il 27-10-26 dalla cartella temporanea di una sessione precedente) |
 | `old_products_labels2d` | 28 | `labels_2d_*`, `labels2d_*`, `view2d_*` (voce 23-10-26 sulle etichette 2D) |
 | `old_products_stale` | 174 | 89 prodotti d'analisi in 4 cartelle di tuning di agglomerative (`composition_*` 54, `tracts_*` 15, `interclass_*` 6, `nb_*`, `dendrograms_*`, altri) e 85 `silhouette_plot.png` di run di produzione di `hdbscan`/`hdbscan_soft` |
 

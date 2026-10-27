@@ -143,7 +143,7 @@ Una combinazione senza nessun cluster (tutto rumore) ha queste due colonne a `Na
 
 **Tempi** (5845 soggetti): circa 30-55 secondi per 56 combinazioni su un embedding UMAP; circa 3 minuti sulla matrice grezza a 87 colonne.
 
-**Tuning**: i vettori soft entrano solo come le due colonne riassuntive, la matrice non viene salvata. **Produzione**: oltre a `matrix.npy` e `metadata.csv` (con `cluster_label`), la run salva `membership.npy` (soggetti × cluster; il numero di colonne è il numero di cluster, nessuna colonna se tutti i soggetti sono rumore) e la colonna `membership_own` in `metadata.csv`, la probabilità del soggetto nel proprio cluster (vuota per il rumore, che non ha un cluster proprio). In `cluster_plot.png` la dimensione dei marker segue `membership_own`. Si leggono nella sezione 3.2 di `clustering_evaluation.ipynb` (`docs/guides/evaluation.md`).
+**Tuning**: i vettori soft entrano solo come le due colonne riassuntive, la matrice non viene salvata. **Produzione**: oltre a `matrix.npy` e `metadata.csv` (con `cluster_label`), la run salva `membership.npy` (soggetti × cluster; il numero di colonne è il numero di cluster, nessuna colonna se tutti i soggetti sono rumore) e la colonna `membership_own` in `metadata.csv`, la probabilità del soggetto nel proprio cluster (vuota per il rumore, che non ha un cluster proprio). In `cluster_plot.png` la dimensione dei marker segue `membership_own`. Si leggono nel pannello "Clustering evaluation" dell'app Dash (`docs/guides/embedding_app.md`).
 
 ---
 
@@ -211,7 +211,7 @@ Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorat
 
 ### Limiti da tenere presenti
 
-- Le metriche geometriche del notebook di valutazione (`compute_clustering_metrics`) rifiutano `dice`/`jaccard`: assumono distanza euclidea. Per ADP si legge la `silhouette` del tuning, che usa la distanza giusta.
+- Le metriche geometriche (`compute_clustering_metrics`) rifiutano `dice`/`jaccard`: assumono distanza euclidea. Per ADP si legge la `silhouette` del tuning, che usa la distanza giusta.
 
 - La silhouette di produzione (`silhouette_plot.png` e, per agglomerative, `silhouette_per_cluster.csv` e la riga di `config.md`) usa la distanza della run: la `metric` per agglomerative e ADP, euclidea per ogni altro metodo. Una media non si confronta tra distanze diverse.
 

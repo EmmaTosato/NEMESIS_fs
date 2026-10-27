@@ -23,9 +23,3 @@ Ogni metodo ha le stesse quattro parti: cosa fa, che tipo di metodo è, cosa res
 | [adp.md](adp.md) | per picchi di densità | `Z` e la metrica; il numero di cluster non si fissa | etichetta (−1 = rumore) |
 
 Tutti i metodi sono non supervisionati: nel progetto le funzioni di riduzione e di clustering ricevono solo la matrice (`docs/dev/models.md`).
-
-## Altri riassunti
-
-Non sono schede per metodo e non derivano dalla letteratura.
-
-- [clustering_metrics_report.md](clustering_metrics_report.md): dove compaiono le metriche di valutazione del clustering (sweep di tuning, analisi del tuning, produzione) e una proposta di convergenza. Fonte: lettura del codice e dei docs del 20-10-26, niente è stato rieseguito.

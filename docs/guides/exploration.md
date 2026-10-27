@@ -175,14 +175,13 @@ Fissa i parametri di `nested_params` del registry (`metric` per t-SNE; `metric` 
 
 ## `notebooks/post-results_analysis/`
 
-Leggono run già **prodotte**: di clustering (due notebook di analisi, una run o più run, più l'esplorazione di un tuning) e di PCA (`pca_evaluation`). Per il clustering un criterio separa le analisi: se usano dati *interni* al clustering o dati *esterni* a esso.
+Leggono run già **prodotte**: di clustering (un notebook di confronto tra più run, più l'esplorazione di un tuning) e di PCA (`pca_evaluation`). Per il clustering un criterio separa le analisi: se usano dati *interni* al clustering o dati *esterni* a esso.
 
 - **Empirica**: usa solo le etichette e lo spazio su cui la run è stata costruita (embedding o matrice). Risponde a "com'è fatta e quanto è affidabile questa partizione, quanto si accorda con un'altra".
-- **Interpretativa**: porta variabili o immagini che il clustering non ha visto (cliniche, demografiche, mappe anatomiche). Risponde a "cosa rappresentano questi cluster". Vive nell'app Dash (mappe, soggetti rappresentativi, composizione dei cluster); nei notebook le parti interpretative sono la sezione 4 di `clustering_evaluation`, che descrive i cluster con le variabili cliniche e non fa nessun test, `dendrogram_embedding_explorer`, che mostra le mappe anatomiche dei due cluster nati da ogni divisione dell'albero, e le parti 2 (profilo clinico/demografico) e 4 (due cluster della stessa run) di `clustering_comparison`.
+- **Interpretativa**: porta variabili o immagini che il clustering non ha visto (cliniche, demografiche, mappe anatomiche). Risponde a "cosa rappresentano questi cluster". Vive nell'app Dash (mappe, soggetti rappresentativi, composizione dei cluster); nei notebook le parti interpretative sono `dendrogram_embedding_explorer`, che mostra le mappe anatomiche dei due cluster nati da ogni divisione dell'albero, e le parti 2 (profilo clinico/demografico) e 4 (due cluster della stessa run) di `clustering_comparison`.
 
 | Notebook | Scope | Domanda | Legge | Scrive |
 |---|---|---|---|---|
-| `clustering_evaluation` | empirica, **una** run | quanto è buona questa run? (metriche geometriche e del modello, confidenza di appartenenza) e come sono distribuite le variabili cliniche nei suoi cluster (sezione 4, solo descrittiva, nessun test) | la run (`matrix.npy`, `metadata.csv`, `config.md`), `participants.csv` per la sezione 4 | nulla |
 | `clustering_comparison` | empirica, **più** run (le parti 2 e 4 portano anche variabili esterne) | in cosa differiscono queste run? (accordo tra partizioni, corrispondenza dei cluster, confronto cross-modalità lesion/sdc sull'intersezione dei soggetti con il profilo clinico/demografico dei cluster, distanze tra cluster nell'embedding, confronto di due cluster della stessa run con dati clinici e mappa di differenza) | le run scelte, `participants.csv` (profilo clinico e parte 4), i file delle lesioni (mappa di differenza della parte 4) | nulla |
 | `dendrogram_embedding_explorer` | interpretativa, **una** run di tuning agglomerative | passando da k-1 a k cluster quale cluster si divide, dove stanno i due pezzi nell'embedding e che anatomia hanno (sovrapposizione delle lesioni o disconnessione, a scelta con `MAP_MODALITY`)? | la run di tuning (`config.md`, `metadata.csv`, `clusterings.npz`), l'embedding 2D di `input_path`, i file dei soggetti su disco | nulla (cache delle mappe condivisa con l'app, `results/cache/binary_masks`) |
 | `pca_evaluation` | valutazione di **una** PCA, di produzione o di tuning (una combinazione) | quante componenti tenere (varianza cumulata), quanta varianza spiega ogni componente ruotata, quanto dipende ciascuna dal volume e dal lato della lesione, dove sta nel cervello (mappe *t* e riproducibilità tra metà), come separa i soggetti (embedding) | la run (`matrix.npy`/`embeddings.npz`, `eigenvalues.npy`/`.npz`, `metadata.csv`, `config.md`), la matrice su cui la PCA è stata calcolata (sezioni 4 e 6), `participants.csv` | solo la cache delle mappe in `results/cache/component_maps`, la stessa dell'app |
@@ -203,7 +202,7 @@ I parametri da modificare sono `RUN_PATH` (cartella della run, di produzione o d
 
 **`dendrogram_embedding_explorer`.** Segue l'agglomerative k dopo k su un tuning già eseguito: per ogni k un cluster si divide in due, e il notebook mostra albero ed embedding (un colore per cluster) e la mappa anatomica dei due figli. Non rifà nessun tuning: ricalcola solo l'albero sull'embedding 2D e verifica che coincida con le etichette salvate (ARI = 1, altrimenti si ferma). Parametri e lettura: [`evaluate_clustering_tuning.md`](evaluate_clustering_tuning.md).
 
-Guida di evaluation e comparison, e dove vive ogni analisi: [`evaluation.md`](evaluation.md).
+Guida del notebook di confronto, e dove vive ogni analisi (la valutazione di una run alla volta è nell'app Dash): [`evaluation.md`](evaluation.md).
 
 ---
 

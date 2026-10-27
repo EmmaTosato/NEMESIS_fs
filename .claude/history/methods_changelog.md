@@ -8,6 +8,12 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 26-10-26 — Il criterio «usabile» esce da `s1.4-vol.md`, `s2.4-stream.md` e `pipelines.md`
+
+Il criterio (3-30 cluster, rumore ≤ 25%, cluster più grande ≤ 60%) non esiste nel codice ed è una soglia nostra; era già stato tolto da `s2.4-vol.md` (22-10-26). Tolto il 26-10-26 dagli altri tre file, con lo stesso trattamento: via la classifica «posto tra le usabili» e i conteggi di righe usabili, via `share_below_half` (colonna e soglia 0,5 non esistono più); restano le misure (cluster, rumore, silhouette di allora). In `s1.4-vol.md` la scelta delle run prodotte è descritta solo come «per famiglia di granularità»; di nc3 resta scritto che non è stata prodotta, senza il motivo (era il criterio).
+
+---
+
 ## 26-10-26 — `hdbscan_soft`: via i soggetti più deboli (taglio a 10)
 
 Tolta dall'app (pannello «Cluster membership», sezione 3.2) la tabella dei 10 soggetti con la probabilità più bassa nel proprio cluster, con la funzione `weakest_soft_members`, la costante `N_WEAKEST_MEMBERS`, i test e le righe di `evaluation.md`. Scelta dell'utente.

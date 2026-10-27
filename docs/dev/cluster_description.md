@@ -34,7 +34,7 @@ Two requested dimensions are **not** in this list:
 
 ## Reading a cluster description
 
-These cautions hold for the panel and for section 4 of `clustering_evaluation.ipynb` (`docs/guides/evaluation.md`), which describes clusters with the same `participants.csv` variables. Neither runs a statistical test: they are numbers to read next to the number of subjects, and nothing tells whether a difference between clusters exceeds chance.
+These cautions hold for the panel. It runs no statistical test: the tables are numbers to read next to the number of subjects, and nothing tells whether a difference between clusters exceeds chance.
 
 - **Skewed variables**: the median describes a cluster better than the mean for variables like the lesion volume; with few subjects a median is unstable.
 - **Variables derived from the clustering input**: the lesion volume (a lesion run) and, in section 4 of the notebook, the disconnection load (an sdc run) come from the data the clustering was built on, so a difference between clusters is partly by construction. The panel has no disconnection variable.

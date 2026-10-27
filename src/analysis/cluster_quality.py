@@ -1,9 +1,8 @@
 """Plots of the "Valutazione del clustering" panel in src/analysis/embedding_app.py.
 
 The numbers come from src/analysis/clustering_evaluation.py (geometric_summary); this module only
-draws them: the silhouette of every subject, cluster by cluster (section 2.1 of
-notebooks/post-results_analysis/clustering_evaluation.ipynb), the DBCV of every cluster of a density run and the
-mean membership vectors of a hdbscan_soft run (section 3.2).
+draws them: the silhouette of every subject, cluster by cluster, the DBCV of every cluster of a density run and the
+mean membership vectors of a hdbscan_soft run.
 """
 
 from __future__ import annotations

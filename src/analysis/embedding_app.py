@@ -1304,10 +1304,8 @@ def _add_cluster_centroids_trace(
     figure: go.Figure, embedding: np.ndarray, metadata: pd.DataFrame, cluster_space: np.ndarray | None = None
 ) -> None:
     """Overlays a black-outlined circle + cluster_label text at each cluster's centroid
-    (cluster_centroids_with_nearest_subject) on top of `figure`'s own point traces - same
-    circled-centroid style as notebooks/post-results_analysis/clustering_evaluation.ipynb's
-    plot_embedding_with_centroids (29-09-26, on request), added as an extra Plotly trace on
-    the live interactive scatter instead of a separate static matplotlib plot.
+    (cluster_centroids_with_nearest_subject) on top of `figure`'s own point traces, as an
+    extra Plotly trace on the live interactive scatter.
 
     The trace starts hidden (visible="legendonly", 29-09-26 on request): the circles sit on top
     of the points and are a deliberate lookup ("where is cluster 3 centred"), not the default
@@ -1497,10 +1495,8 @@ def cluster_centroids_with_nearest_subject(
     embedding: np.ndarray, metadata: pd.DataFrame, cluster_space: np.ndarray | None = None
 ) -> pd.DataFrame:
     """Per-cluster centroid (mean of that cluster's own embedding coordinates) plus the real
-    subject_id closest to it in that same embedding space (Euclidean distance) - promoted
-    29-09-26 from notebooks/post-results_analysis/clustering_evaluation.ipynb's own
-    cluster_centroids/nearest_subject_to_centroid (same algorithm, adapted to read `metadata`
-    directly instead of a notebook-local extended_runs dict). A centroid is a mean point, not
+    subject_id closest to it in that same embedding space (Euclidean distance), read from
+    `metadata` directly. A centroid is a mean point, not
     a real subject - this is the closest real one, used both to overlay circled centroids on
     the embedding scatter (graph_content_for) and to pick which real subject's anatomy the
     "Soggetto rappresentativo del cluster" panel shows (representative_subject_content_for).
@@ -2001,10 +1997,7 @@ def representative_subject_content_for(
     two per-cluster map panels: the real subject closest to `cluster_label`'s centroid in the
     embedding space (cluster_centroids_with_nearest_subject) - a centroid is a mean point, not
     a real subject, this shows the closest real one instead. Dispatches to the lesion or SDC
-    disconnectome viewer by `run.modality` (mirroring notebooks/post-results_analysis/
-    clustering_evaluation.ipynb's plot_representative_map, which dispatches by parsing
-    `input_path` instead - this app already has modality as a first-class ProductionRun field,
-    no string-matching needed).
+    disconnectome viewer by `run.modality`.
 
     Same never-raises contract as every other *_content_for function here: an empty/
     unresolvable cluster, or a representative subject whose file can't be resolved on disk,
@@ -2403,7 +2396,7 @@ def _require_narrow_matrix(run: ProductionRun) -> None:
     if n_columns > MAX_QUALITY_COLUMNS:
         raise ValueError(
             f"the run was computed on {n_columns} columns (raw data, not an embedding): not computed here "
-            f"beyond {MAX_QUALITY_COLUMNS} columns (done in notebooks/post-results_analysis/clustering_evaluation.ipynb)"
+            f"beyond {MAX_QUALITY_COLUMNS} columns (read the indices of the tuning: tuning_results.csv and report.md)"
         )
 
 
@@ -2432,7 +2425,7 @@ def run_density_summary(run: ProductionRun) -> DensitySummary:
 
 
 def run_model_fit(run: ProductionRun) -> dict[str, float]:
-    """The statistic of the model itself for a clustering run (section 3 of the evaluation notebook):
+    """The statistic of the model itself for a clustering run:
     inertia for kmeans, BIC and AIC for gmm, cophenetic correlation and dendrogram jump for agglomerative,
     noise share and number of clusters for hdbscan/hdbscan_soft.
 
@@ -2447,8 +2440,7 @@ def run_model_fit(run: ProductionRun) -> dict[str, float]:
 
 
 def run_membership_confidence(run: ProductionRun) -> MembershipConfidence:
-    """How firmly each subject of an hdbscan run sits in its cluster (section 3.1 of the evaluation
-    notebook): sklearn's HDBSCAN is refitted with the run's own params and accepted only if it reproduces the
+    """How firmly each subject of an hdbscan run sits in its cluster: sklearn's HDBSCAN is refitted with the run's own params and accepted only if it reproduces the
     stored labels. Raises ValueError, with the cause, for another method, a matrix wider than
     MAX_QUALITY_COLUMNS, a refit that does not reproduce the labels, or a run that is all noise."""
     require_applicable("membership_confidence", run.method)
@@ -2458,7 +2450,7 @@ def run_membership_confidence(run: ProductionRun) -> MembershipConfidence:
 
 
 def run_soft_membership(run: ProductionRun) -> SoftMembership:
-    """The soft clustering of a hdbscan_soft run (section 3.2): the per-cluster summary with the mean
+    """The soft clustering of a hdbscan_soft run: the per-cluster summary with the mean
     membership vectors. Read from the membership.npy the run saved, no refit. Raises ValueError, with the
     cause, for another method or a run without membership.npy."""
     require_applicable("soft_membership", run.method)
@@ -2471,7 +2463,7 @@ def run_soft_membership(run: ProductionRun) -> SoftMembership:
 # How often the panel looks again at a background computation (milliseconds).
 _QUALITY_POLL_MS = 5000
 
-# Neighbours counted by the purity of an adp run (the K_NEIGHBORS of the evaluation notebook).
+# Neighbours counted by the purity of an adp run.
 ADP_K_NEIGHBORS = 10
 
 
@@ -2506,7 +2498,7 @@ def _guide(title: str, points: list[tuple[str, str]], limits: list[str] | None =
 
 
 def _adp_guide() -> html.Details:
-    """How to read the adp indices (section 2.2 of the evaluation notebook)."""
+    """How to read the adp indices (the adp indices)."""
     return _guide(
         "How to read these indices",
         [
@@ -2600,7 +2592,7 @@ def adp_quality_content_for(
 
 
 def _quality_guide() -> html.Details:
-    """How to read the geometric indices (section 2 of the evaluation notebook)."""
+    """How to read the geometric indices (the geometric indices)."""
     return _guide(
         "How to read these indices",
         [
@@ -2827,16 +2819,15 @@ def cluster_quality_content_for(
     density_of: Callable[[ProductionRun], DensitySummary] = run_density_summary,
 ) -> html.Div:
     """Panel "Clustering evaluation": under the collapsed guide to the indices, the geometric indices of
-    the whole run (Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn, the weakest cluster's silhouette,
+    the whole run (Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn, the silhouette of each cluster,
     number of clusters, share of the largest one and of the noise; hdbscan and hdbscan_soft have DBCV, in its
     place, with its score per cluster) and the statistic of the model itself
-    (inertia, BIC/AIC, cophenetic correlation and dendrogram jump, noise and number of clusters), ported
-    from sections 2 and 3 of the evaluation notebook. Not tied to the chosen cluster. `summary_of` and
+    (inertia, BIC/AIC, cophenetic correlation and dendrogram jump, noise and number of clusters). Not tied to the chosen cluster. `summary_of` and
     `model_fit_of` compute (or serve from a cache) the numbers.
 
     Same never-raises contract as every other *_content_for: each of the two parts renders its own cause
     when it is not defined for the run, so one failing never hides the other. An hdbscan run adds the position
-    of its subjects in their cluster (section 3.1), a hdbscan_soft run its soft membership (section 3.2)."""
+    of its subjects in their cluster, a hdbscan_soft run its soft membership."""
     membership_blocks: list = []
     if run.method == "hdbscan":
         membership_blocks.append(_confidence_block(run, confidence_of))

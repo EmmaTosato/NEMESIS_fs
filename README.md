@@ -33,6 +33,7 @@ src/
 ├── utils/          # shared I/O, logging, run-history helpers
 └── pipeline/       # CLI entry points, one per pipeline
 scripts/          # accessory utilities (cache maintenance, tables, derived indices), never analysis steps
+utils/            # texts the code reads as data (report explanations), edited by hand
 jobs/             # one sbatch job script per pipeline, for cluster runs
 tests/
 ├── unit/          # synthetic fixtures, no external data required

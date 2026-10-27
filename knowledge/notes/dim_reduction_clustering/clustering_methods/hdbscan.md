@@ -162,7 +162,7 @@ Cosa cercare: una zona della griglia dove numero di cluster e partizione cambian
 - **Frazione di rumore** e **numero di cluster trovati**, sempre ([`evaluation_metrics.md`](evaluation_metrics.md), §6).
 - **DBCV**, l'indice interno ([`evaluation_metrics.md`](evaluation_metrics.md), §8): pesa il rumore, quindi non premia chi scarta i soggetti difficili. Silhouette, CH, DB e Dunn non si calcolano per HDBSCAN: sui soli soggetti non rumore salgono con il rumore, e presuppongono cluster compatti.
 - **Stabilità** (`persistence_mean`, solo soft): i cluster persistono su un ampio intervallo di densità?
-- **`probabilities_`** (hard, sezione 3.1 del notebook di valutazione) e **vettori soft** (sezione 3.2): quanti soggetti stanno al margine del loro cluster, e quali cluster si contendono soggetti.
+- **`probabilities_`** (hard) e **vettori soft**, nel pannello "Clustering evaluation" dell'app Dash: quanti soggetti stanno al margine del loro cluster, e quali cluster si contendono soggetti.
 
 ---
 
@@ -218,7 +218,7 @@ Sei soggetti su una retta: 0, 1, 2, 6, 7, 15. `min_cluster_size = 2`, scikit-lea
 
 1. **Clustering di densità dopo UMAP.** La documentazione di `umap-learn` dice che UMAP, come t-SNE, non preserva completamente la densità e può creare "false tears", fratture in un cluster unico, che portano a cluster più fini di quelli presenti [11]. La stessa pagina consiglia, per il clustering, `n_neighbors` più alto, `min_dist` vicino a 0 e più di 2 componenti, e mostra HDBSCAN su UMAP a 10 componenti [11]. Conseguenze per NEMESIS:
    - una zona densa nell'embedding può essere prodotta da UMAP (con `min_dist` basso i punti vengono impacchettati di proposito);
-   - `probabilities_` su un embedding molto impacchettato descrive l'impacchettamento, non la densità dei dati originali (`docs/guides/evaluation.md`);
+   - `probabilities_` su un embedding molto impacchettato descrive l'impacchettamento, non la densità dei dati originali (`docs/guides/embedding_app.md`);
    - un cluster che compare a un solo `n_components` o a un solo `min_dist` va trattato come possibile artefatto ([`challenge_of_clustering_after_dim_reduction.md`](../challenge_of_clustering_after_dim_reduction.md)).
 2. **Indici alti grazie al rumore.** Silhouette, CH, DB e Dunn escludono il rumore ([`evaluation_metrics.md`](evaluation_metrics.md), §6): per questo HDBSCAN ha il DBCV (§8), che lo pesa.
 3. **`min_samples` non fissato.** Vale `min_cluster_size` e cambia insieme a lui [6, 7]: il progetto lo fissa sempre.

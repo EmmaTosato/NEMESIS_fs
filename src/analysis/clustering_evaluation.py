@@ -1,9 +1,7 @@
 """Which single-run evaluation applies to which clustering method.
 
-Backs notebooks/post-results_analysis/clustering_evaluation.ipynb: each of its sections is one
-evaluation (a metric, or a bundle of metrics) and declares here which of
-CLUSTERING_METHODS it is meaningful for. The notebook calls require_applicable before every
-section, so a run of the wrong method is refused loudly instead of producing a number that
+Each evaluation (a metric, or a bundle of metrics) declares here which of CLUSTERING_METHODS it is
+meaningful for, and require_applicable refuses the others loudly instead of producing a number that
 looks valid and is not.
 """
 
@@ -445,8 +443,7 @@ class GeometricSummary:
 
 
 def geometric_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> GeometricSummary:
-    """Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn and the run's cluster/noise shares, the
-    bundle of section 2 of notebooks/post-results_analysis/clustering_evaluation.ipynb.
+    """Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn and the run's cluster/noise shares.
 
     `combo_params` is the run's own params. The silhouette is measured in the run's `metric` (run_metric); the other
     three are Euclidean-only, like in the tuning sweep (compute_clustering_metrics_metric_aware), so for a run
@@ -484,7 +481,7 @@ def geometric_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> 
 
 @dataclass(frozen=True)
 class AdpSummary:
-    """Section 2.2 of the evaluation notebook for one adp run, on the distance adp clustered in (dice on
+    """The geometric indices of one adp run, on the distance adp clustered in (dice on
     the raw matrix), over the clustered subjects only: noise (-1) and the subjects with an all-zero row
     (undefined distance, labelled -1 by adp) are left out. `noise_fraction` is over all subjects."""
 
@@ -546,8 +543,7 @@ class DensitySummary:
 
 
 def density_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> DensitySummary:
-    """DBCV and the cluster/noise shares of a density run, the bundle of the DBCV section of the evaluation notebook
-    and of the Embedding Explorer panel.
+    """DBCV and the cluster/noise shares of a density run, as the Embedding Explorer panel shows them.
 
     `combo_params` is the run's own params. A run for which DBCV is not defined (fewer than 2 clusters, or clustered
     under a non-Euclidean metric) is not refused: it comes back with the shares, `dbcv` NaN and the reason in `note`

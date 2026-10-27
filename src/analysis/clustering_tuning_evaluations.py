@@ -73,7 +73,7 @@ _AGGLOMERATIVE_ONLY = frozenset({AGGLOMERATIVE})
 _DENSITY_ONLY = frozenset(DENSITY_METHODS)
 _RECOMPUTABLE_METHODS = frozenset({AGGLOMERATIVE, *DENSITY_METHODS})
 
-FIGURE_DPI = 150
+FIGURE_DPI = 200
 
 
 @dataclass
@@ -174,7 +174,7 @@ def _run_dendrograms(context: EvaluationContext, settings: dict) -> list[Path]:
     refuse_existing(list(paths.values()), context.overwrite)
     title = compose_clustering_tuning_title(run.run_dir, run.method)
     for metric, trees in dendrogram_linkages(run, context.matrix(), context.distance_cache).items():
-        plot_dendrograms_grid(trees, paths[metric], f"{title} (metric={metric})", settings["truncate_last_p"])
+        plot_dendrograms_grid(trees, paths[metric], f"{title} (metric={metric})", settings["truncate_last_p"], dpi=FIGURE_DPI)
     return list(paths.values())
 
 
@@ -221,7 +221,7 @@ def _run_tuning_heatmaps(context: EvaluationContext, settings: dict) -> list[Pat
     for name, group in groups.items():
         columns = [column for column in DENSITY_MAP_COLUMNS if column in group.columns and group[column].notna().any()]
         plot_clustering_tuning_heatmaps(
-            group, "min_cluster_size", "min_samples", columns, paths[name], f"{title} - cluster_selection_method={name}" if name else title
+            group, "min_cluster_size", "min_samples", columns, paths[name], f"{title} - cluster_selection_method={name}" if name else title, dpi=FIGURE_DPI
         )
     return list(paths.values())
 

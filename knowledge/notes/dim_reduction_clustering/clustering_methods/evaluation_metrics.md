@@ -1,6 +1,6 @@
 # Metriche di valutazione del clustering
 
-Riferimento condiviso per le note dei singoli metodi in questa cartella. Definisce, con la fonte, gli indici che il progetto calcola o che la letteratura propone per i metodi gerarchici e di densità: silhouette, correlazione cofenetica, DBCV, frazione di rumore, stabilità, Calinski-Harabasz e Davies-Bouldin (più Dunn, usato nel notebook di valutazione e nell'Embedding Explorer).
+Riferimento condiviso per le note dei singoli metodi in questa cartella. Definisce, con la fonte, gli indici che il progetto calcola o che la letteratura propone per i metodi gerarchici e di densità: silhouette, correlazione cofenetica, DBCV, frazione di rumore, stabilità, Calinski-Harabasz e Davies-Bouldin (più Dunn, usato nell'Embedding Explorer).
 
 - **Cosa questa nota non fa**: non dice come leggere i grafici di un tuning (quello è in [`clustering_tuning_guide.md`](../clustering_tuning_guide.md)) e non descrive i notebook ([`docs/guides/evaluation.md`](../../../../docs/guides/evaluation.md)).
 - **Regola del progetto**: i report non danno verdetti con soglie scelte da noi. Le uniche fasce citate sono quelle della silhouette (Kaufman & Rousseeuw 1990), e sono una convenzione di letteratura, non un risultato.
@@ -63,7 +63,7 @@ L'esempio di scikit-learn su Affinity Propagation stampa la media con l'etichett
 - Con una metrica non euclidea (agglomerativo con `cosine`/`manhattan`, ADP con `dice`) la silhouette è calcolata con **la stessa** distanza del clustering, non con l'euclidea (`compute_clustering_metrics_metric_aware`; `adp._scores`).
 - Due silhouette calcolate con distanze diverse, o su spazi diversi (due embedding), non si confrontano: ogni spazio ha la sua scala.
 - Nelle run di produzione `silhouette_plot.png` ha un pannello per cluster con la silhouette di ogni soggetto, la media nel titolo e la distanza con cui è misurata; per agglomerative la media è anche in `config.md` e la media di ogni cluster in `silhouette_per_cluster.csv` (`docs/guides/clustering.md`). Una media grande può nascondere un cluster debole: per questo la tabella dà anche la media del singolo cluster e la quota di soggetti negativi.
-- Per ADP sulla matrice delle lesioni, l'84% delle coppie è a distanza dice esattamente 1 (`saturated_pair_share`, `docs/guides/evaluation.md`): la distanza media da un cluster è allora dominata da quelle coppie e la silhouette resta vicina a 0 quale che sia la struttura. È un'osservazione sul nostro dato, non della letteratura.
+- Per ADP sulla matrice delle lesioni, l'84% delle coppie è a distanza dice esattamente 1 (`saturated_pair_share`, `docs/guides/embedding_app.md`): la distanza media da un cluster è allora dominata da quelle coppie e la silhouette resta vicina a 0 quale che sia la struttura. È un'osservazione sul nostro dato, non della letteratura.
 
 **Esempio.** Cinque punti su una retta: 0, 1, 2 (cluster 1) e 6, 7 (cluster 2). Per il punto 0: $a = (1+2)/2 = 1{,}5$, $b = (6+7)/2 = 6{,}5$, $s = (6{,}5 - 1{,}5)/6{,}5 = 0{,}77$. La media sui cinque punti è 0,78 (calcolata con scikit-learn 1.8.0).
 

@@ -356,3 +356,43 @@ def test_internal_metrics_rewrites_the_columns_it_owns_only_with_overwrite_and_k
 def test_internal_metrics_does_not_apply_to_a_method_it_cannot_recompute():
     with pytest.raises(ValueError, match="does not apply"):
         validate_tuning_evaluations_block({"general": [], "kmeans": ["internal_metrics"]})
+
+
+def _png_width(path: Path) -> int:
+    import matplotlib.image as mpimg
+
+    return mpimg.imread(path).shape[1]
+
+
+@pytest.mark.parametrize(
+    "evaluation, method, figure",
+    [
+        ("k_curves", "agglomerative", "k_curves_metric=euclidean.png"),
+        ("dendrograms", "agglomerative", "dendrogram_metric=euclidean.png"),
+        ("tuning_heatmaps", "hdbscan", "tuning_plot.png"),
+        ("dbcv_curves", "hdbscan", "dbcv_curves.png"),
+    ],
+)
+def test_every_figure_of_an_evaluation_is_saved_at_figure_dpi(tmp_path, monkeypatch, evaluation, method, figure):
+    import src.analysis.clustering_tuning_evaluations as evaluations
+
+    widths = {}
+    for dpi in (50, 100):
+        monkeypatch.setattr(evaluations, "FIGURE_DPI", dpi)
+        folder = tmp_path / str(dpi)
+        folder.mkdir()
+        if method == "agglomerative":
+            run = _two_metric_run(folder)
+            run = ClusteringTuningRun(
+                run.run_dir, run.method, run.input_path,
+                pd.DataFrame([{"n_clusters": k, "linkage": linkage, "metric": "euclidean", "silhouette": 0.5, "davies_bouldin": 1.0}
+                              for k in (2, 3) for linkage in ("ward", "average")]),
+                run.labels,
+            )
+        else:
+            run = _density_run(folder)
+        block = validate_tuning_evaluations_block({"general": [], method: ["density_metrics", evaluation] if method == "hdbscan" else [evaluation]})
+        run_evaluations(block, _settings(), run, overwrite=False, matrix=_blobs() if method == "hdbscan" else _three_blobs())
+        widths[dpi] = _png_width(run.run_dir / figure)
+
+    assert widths[100] == pytest.approx(2 * widths[50], abs=3)

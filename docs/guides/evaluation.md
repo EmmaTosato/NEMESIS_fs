@@ -1,167 +1,33 @@
-# Guida ai notebook di valutazione del clustering
+# Guida al notebook di confronto tra run di clustering
 
-Due notebook sotto `notebooks/post-results_analysis/` (evaluation e comparison) lavorano su run di clustering già **prodotte** (`fine_tuning: false`, lette da `results/<lesion|sdc>/clustering/production/<metodo>/<embedding>/<run_name>/`). La scelta di `k`/iperparametri è fatta altrove (`clustering.py --fine_tuning true`, `tuning_results.csv`/`tuning_plot.png`): qui non si sceglie niente in automatico (`code_standards.md` §0), si leggono tabelle e grafici.
+`clustering_comparison.ipynb`, sotto `notebooks/post-results_analysis/`, lavora su run di clustering già **prodotte** (`fine_tuning: false`, lette da `results/<lesion|sdc>/clustering/production/<metodo>/<embedding>/<run_name>/`). La scelta di `k`/iperparametri è fatta altrove (`clustering.py --fine_tuning true`, `tuning_results.csv`/`tuning_plot.png`): qui non si sceglie niente in automatico (`code_standards.md` §0), si leggono tabelle e grafici.
 
-| Notebook | Domanda | Unità di analisi |
-|---|---|---|
-| `clustering_evaluation.ipynb` | com'è fatta questa run? | una run alla volta |
-| `clustering_comparison.ipynb` | in cosa differiscono queste run? | due o più run |
+La valutazione di **una run alla volta** non ha un notebook: sta nell'app Dash, nei pannelli "Clustering evaluation" (indici geometrici o DBCV, statistica del modello, appartenenza ai cluster; `docs/guides/embedding_app.md`) e "Cluster description" (variabili cliniche per cluster, senza test; `docs/dev/cluster_description.md`). Per scegliere i parametri si leggono invece `report.md` e le figure del tuning (`docs/guides/evaluate_clustering_tuning.md`).
 
 ## Scope: dove vive ogni analisi
 
-Il criterio (empirica contro interpretativa) è in [`exploration.md`](exploration.md). Evaluation e comparison sono **empirici**, con una sola eccezione: la sezione 4 di evaluation descrive i cluster con le variabili cliniche, senza test. L'interpretazione (mappe, soggetti rappresentativi, composizione dei cluster) è nell'app Dash.
+Il criterio (empirica contro interpretativa) è in [`exploration.md`](exploration.md). Il confronto è **empirico**; l'interpretazione (mappe, soggetti rappresentativi, composizione dei cluster) è nell'app Dash.
 
-| Analisi | Notebook |
+| Analisi | Dove |
 |---|---|
-| Metriche geometriche e del modello di una run | `clustering_evaluation` (tutte le sezioni da 2 a 3.2 anche nell'app Dash: pannello "Clustering evaluation"; la 4 è nel pannello "Cluster description") |
+| Metriche geometriche e del modello di una run | app Dash, pannello "Clustering evaluation" |
+| Tabelle descrittive per cluster su età, sesso, NIHSS, volume, dataset, lato, sede dominante (nessun test) | app Dash, pannello "Cluster description" |
 | Accordo tra partizioni (ARI/NMI/VI), contingency, abbinamento e Jaccard tra cluster di run diverse | `clustering_comparison` |
 | Distanze tra cluster **nello spazio dell'embedding** (centroidi, Mahalanobis, linkage) | `clustering_comparison` |
-| Tabelle descrittive per cluster su età, sesso, NIHSS, volume, dataset, lato, sede dominante (nessun test) | `clustering_evaluation`, sezione 4 |
 | Mappe di overlap e disconnessione, soggetti rappresentativi | app Dash |
 | Distanze tra cluster **nello spazio delle mappe o del profilo clinico** | nessun notebook (non implementato) |
 | Perché due cluster abbinati differiscono (A∩B, A\B, B\A descritti con le variabili esterne) | nessun notebook (non implementato) |
 
-I casi di confine seguono il criterio: una distanza calcolata sulle coordinate dell'embedding è empirica; una calcolata su mappe anatomiche o variabili cliniche descrive i cluster ed è interpretativa. Un'analisi che serve a entrambi i notebook (l'abbinamento dei cluster) vive come funzione in `src/analysis/`, perché i notebook non si importano tra loro.
+I casi di confine seguono il criterio: una distanza calcolata sulle coordinate dell'embedding è empirica; una calcolata su mappe anatomiche o variabili cliniche descrive i cluster ed è interpretativa. Un'analisi che serve a più di un posto (l'abbinamento dei cluster) vive come funzione in `src/analysis/`, perché i notebook non si importano tra loro.
 
-**Stato attuale.** `clustering_evaluation` non contiene più l'associazione con le variabili cliniche, i centroidi, i soggetti rappresentativi né i grafici (i plot di `clustering.py` si guardano direttamente in `results/`). L'associazione è sostituita dalla descrizione per cluster della sezione 4, senza test; centroidi e soggetti rappresentativi sono nell'app Dash. `clustering_comparison` ha ancora le sezioni della versione unica, con la vecchia numerazione e il profilo clinico per cluster della Parte 2 §3.
-
-Sono notebook locali, non pipeline CLI:
+È un notebook locale, non una pipeline CLI:
 
 ```bash
 conda activate nemesis
-jupyter lab notebooks/post-results_analysis/clustering_evaluation.ipynb
+jupyter lab notebooks/post-results_analysis/clustering_comparison.ipynb
 ```
 
 Nessun dataset sintetico: le run si scelgono a mano in `SELECTED_RUNS` (path della colonna `output` di `list_production_runs`).
-
----
-
-## `clustering_evaluation.ipynb` — una run alla volta
-
-Ogni sezione è un **metodo di valutazione** (una metrica o un gruppo di metriche lette insieme) e riporta quattro cose: che metodo è, cosa fa, come si legge, a quali metodi di clustering si applica.
-
-L'applicabilità è verificata dal codice: `src/analysis/clustering_evaluation.py` tiene il registro `EVALUATIONS` (valutazione → metodi) e `require_applicable`, che solleva `ValueError` per un metodo non previsto. Nel notebook `applicable_runs(valutazione)` salta le run non applicabili stampando il motivo (una riga per metodo); se non ne resta nessuna la sezione non produce niente, senza errore. Un test (`tests/unit/test_clustering_evaluation.py`) garantisce che il registro nomini solo metodi di `CLUSTERING_METHODS`.
-
-| Sezione | Metodo di valutazione | Metodi di clustering | Codice |
-|---|---|---|---|
-| 2 | Metriche geometriche: Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn | tutti tranne adp | `clustering_tuning.compute_clustering_metrics`, `dunn_index` |
-| 2.1 | Silhouette per cluster (tabella e media sui soggetti) | tutti tranne adp | `clustering_evaluation.per_cluster_silhouette` |
-| 2.2 | Purezza dei k vicini, silhouette sulla distanza dice e quota di coppie a distanza 1 | adp | `clustering_evaluation.knn_purity`, `distance_matrix_silhouette`, `saturated_pair_share` |
-| 3 | Metriche del modello: `inertia`, `bic`/`aic`, `cophenetic_correlation`/`dendrogram_jump`, `noise_fraction`/`n_clusters_found` | kmeans, gmm, agglomerative, hdbscan, hdbscan_soft | `clustering_evaluation.model_fit_metrics` |
-| 3.1 | Posizione nel cluster: probabilità media e quota sotto soglia per cluster | hdbscan | `clustering_evaluation.membership_confidence` |
-| 3.2 | Appartenenza ai cluster: per cluster, probabilità media nel proprio e cluster più vicino; vettori medi | hdbscan_soft | `clustering_evaluation.soft_membership_summary` |
-| 4 | Descrizione dei cluster con le variabili di `participants.csv`: soggetti con il dato, media ± deviazione standard, mediana [Q1–Q3], percentuali per categoria; nessun test | tutti | funzioni del notebook (`registry_frame`, `coverage_table`, `describe_clusters`) |
-
-### Due modi di arrivare ai dati
-
-Una run di clustering vive in uno di due spazi, e da questo dipende quali sezioni la riguardano:
-
-- **Embedding** (UMAP a 2 o 10 componenti): `agglomerative`, `hdbscan`, `hdbscan_soft`, `kmeans`, `gmm`, `spectral`. `X` è l'embedding.
-- **Dato grezzo** (`reduction_method == "raw"`): `adp` e le run `sdc` fatte sulla matrice non ridotta. `X` è la matrice delle feature, non un embedding.
-  - `adp` sulla matrice delle lesioni (circa 220 mila voxel per soggetto) o sul disconnettoma voxelwise, distanza dice. Ha la sezione 2.2 al posto della 2 (vedi sotto).
-  - Le run `sdc` su dato grezzo (la matrice `stream`, 87 colonne, una per tratto) sono euclidee e di poche colonne: valgono le stesse sezioni degli embedding.
-
-### Parametri del notebook (evaluation)
-
-Tutti si modificano a mano nelle celle indicate; i valori sono quelli di partenza.
-
-| Parametro | Dove | Cosa fa |
-|---|---|---|
-| `OBJECT_TYPE` | sezione 1 | `"lesion"` o `"sdc"`: in quale albero `results/<tipo>/clustering/production/` cercare |
-| `PREFIX` | sezione 1 | data della run, con cui inizia il nome della cartella (es. `"12-10_"`) |
-| `METRIC` | sezione 1 | pezzo del nome della cartella che identifica la metrica dell'embedding a monte (es. `"_m_dice_"`). `None` per le run su dato grezzo (sdc), il cui nome non la contiene |
-| `METHODS` | sezione 1 | metodi da cercare, per esempio `["kmeans", "hdbscan"]`; le run trovate hanno come nome `<metodo>_<resto del nome della cartella>` |
-| `SELECTED_RUNS` | sezione 1 | dizionario nome leggibile -> path della colonna `output`. Lo riempie la cella di ricerca, ma si possono aggiungere run a mano, anche di tipo diverso (lesion e sdc insieme). Una cartella che `runs.csv` elenca ma che non esiste più viene saltata con un messaggio |
-| `K_NEIGHBORS` | sezione 2.2 | quanti vicini guarda la purezza (10) |
-| `DESCRIBED_RUN` | sezione 4 | nome di una run di `SELECTED_RUNS`; `None` = la prima caricata |
-| `MAX_MISSING_LISTED` | utils, sezione 4 | una variabile mancante a non più di tanti soggetti (10) non entra nella tabella di copertura |
-
-Nessuna soglia sul rumore né sulla probabilità: in letteratura non c'è un valore di riferimento, e le soglie che c'erano sono state tolte.
-
-### Cose che non si vedono dal registro
-
-- **Metriche geometriche**: assumono distanza euclidea e cluster compatti e convessi, quindi favoriscono kmeans/gmm. `compute_clustering_metrics(combo_params=...)` rifiuta una run con `metric`/`affinity` non euclideo. Non si applicano a hdbscan e hdbscan_soft, che hanno il DBCV (sezione 2.3). Valori di embedding diversi (lesion vs sdc) non sono confrontabili.
-- **Metriche del modello**: kmeans, gmm e agglomerative vengono rifittati con i parametri della run e accettati solo se riproducono esattamente le etichette salvate (altrimenti `ValueError`, tipico di `random_state` non fissato). `inertia` e BIC/AIC non sono sulla stessa scala.
-- **Posizione nel cluster**: `probabilities_` di HDBSCAN è normalizzata dentro ogni cluster (0 per il rumore), quindi dice quanto un soggetto sta nel nucleo **del suo** cluster. Non è la probabilità di stare in quel cluster invece che in un altro, e non è confrontabile tra cluster di densità diversa. Esiste solo sullo stimatore: la run viene rifittata con i suoi parametri e accettata solo se riproduce le etichette salvate. Nessuna soglia sulla probabilità: in letteratura non c'è un valore di riferimento. È calcolata sulla densità dello spazio clusterizzato: su un embedding con `min_dist=0` descrive quanto UMAP ha impacchettato il cluster, non è un indice di validità.
-- **Appartenenza ai cluster (hdbscan_soft)**: legge `membership.npy`, la matrice soggetti x cluster che una run di produzione di `hdbscan_soft` salva (`soft_membership_matrix`), senza rifittare; `membership_own` in `metadata.csv` è la probabilità del soggetto nel proprio cluster (NaN per il rumore, che non ha un cluster proprio). Le righe della matrice non sommano a 1: la parte mancante è la probabilità di essere rumore, quindi un soggetto con probabilità bassa ovunque è debole, non conteso. Una run senza `membership.npy` o con tutti i soggetti rumore solleva. Non è confrontabile con la 3.1: un'altra implementazione di HDBSCAN e un'altra grandezza.
-- **Descrizione clinica (sezione 4)**: una run alla volta (`DESCRIBED_RUN`, `None` = la prima caricata), non passa dal registro `EVALUATIONS` perché vale per tutti i metodi e usa solo le etichette. Le variabili vengono da `participants.csv`, mai dal `metadata.csv` della run; un soggetto non registrato resta con valori mancanti e viene segnalato; il rumore di hdbscan è escluso. NIHSS e istruzione mancano per interi dataset (UCL-UK non li ha). La disconnessione media non è tra le variabili: è il carico diviso per una costante.
-- **Rumore di hdbscan**: il DBCV lo pesa; la sua quota è sempre mostrata (`noise_fraction`), senza soglia né avviso.
-- **DBCV (sezione 2.3, hdbscan e hdbscan_soft)**: `density_summary` dà il DBCV della run, la quota del cluster più grande, il rumore e una riga per cluster (`n`, `dbcv`). Il valore della run pesa ogni cluster per la sua quota di tutti i soggetti, rumore compreso: non è la media dei cluster. Solo distanza euclidea; con meno di 2 cluster, o con un'altra distanza, il DBCV è vuoto (NaN) e `note` dice perché, mentre quota del cluster più grande e rumore restano.
-- **adp**: clusterizza il dato grezzo, quindi `X` è la matrice delle feature (soggetti x voxel) e non un embedding: `load_run` la apre con `mmap` e la marca `is_raw`.
-  - Sezione 2: le metriche geometriche non si applicano (il registro rifiuta adp): `compute_clustering_metrics` rifiuta `dice`/`jaccard`. Per adp la 2.2 dà due letture sulla distanza con cui ha clusterizzato, nella stessa tabella (i soggetti con riga vuota, etichettati `-1`, restano fuori). La purezza dei k vicini dipende solo dall'ordine dei vicini; un cluster con `K_NEIGHBORS` o meno soggetti non è valutabile. La silhouette sulla distanza dice è riportata con `pairs_at_distance_1`, la quota di coppie a distanza esattamente 1: sulle lesioni è l'84% e la silhouette è inutilizzabile (lettura: purezza), sulle mappe sdc è lo 0,0015% e la silhouette si legge normalmente.
-  - Sezione 3: saltata (nessuna statistica propria).
-
-Lesion e sdc possono convivere nella stessa `SELECTED_RUNS`: ogni run è valutata da sola. Dopo la selezione una cella svuota `runs` e carica solo le run scelte: senza quella cella nessuna sezione produce niente.
-
-### Come si leggono le sezioni
-
-Nessuno degli indici sotto ha un valore di riferimento proprio per una run sola: si leggono per direzione e per confronto, mai come "buono/cattivo". Le uniche fasce citate in letteratura (solo per la silhouette, Kaufman & Rousseeuw) sono una convenzione, non un risultato, e il progetto non le usa: cosa sono e a cosa si riferiscono è in [`evaluation_metrics.md`](../../knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md), §2.
-
-**Sezione 2, metriche geometriche** (spazio della run, rumore di hdbscan escluso)
-
-| Indice | Direzione | Cosa misura |
-|---|---|---|
-| Silhouette | più alto è meglio, da -1 a 1 | per ogni soggetto, distanza media dal proprio cluster contro quella dal cluster più vicino. Vicino a 1: cluster netti. Vicino a 0: confini ambigui. Negativo: il soggetto è più vicino a un altro cluster che al proprio |
-| Calinski-Harabasz (CH) | più alto è meglio | dispersione tra i cluster divisa per la dispersione dentro i cluster |
-| Davies-Bouldin (DB) | più basso è meglio | per ogni cluster il caso peggiore del rapporto tra la sua dispersione e la vicinanza al cluster più simile, poi la media; 0 = cluster compatti e separati |
-| Dunn | più alto è meglio | distanza minima tra due cluster divisa per il diametro massimo di un cluster; sensibile agli outlier |
-
-- La tabella aggiunge: numero di cluster, quota del cluster più grande (`largest_cluster_share`), quota di rumore (`noise_fraction`).
-- Una nuvola senza cluster, divisa da un algoritmo, ha comunque una silhouette positiva: il valore da solo non dice se c'è struttura. CH, DB e Dunn di una run sola non hanno una scala. Embedding diversi (2 o 10 componenti, lesion o sdc) non sono confrontabili.
-- Gli indici assumono cluster compatti e convessi: favoriscono `kmeans` e `gmm`, per gli altri metodi un valore basso non dimostra che i cluster siano sbagliati.
-
-**Sezione 2.1, silhouette per cluster**
-
-- Media sui soggetti (**micro**, pesa di più i cluster grandi). Per cluster, `silhouette_mean` e `share_negative` (quota di soggetti con silhouette negativa).
-- Un cluster con silhouette media bassa, o con molti soggetti negativi, ha confini ambigui anche se la media complessiva è buona.
-- Il **minimum si legge insieme a `n`**: un cluster di un solo soggetto ha silhouette 0 per convenzione, uno di 2 o 3 soggetti può avere una media estrema per caso.
-
-**Sezione 2.2, adp**
-
-- **Purezza**: da 0 a 1, la quota dei `K_NEIGHBORS` vicini più prossimi (distanza dice) che sta nello stesso cluster del soggetto. Si legge accanto a `chance`, il valore atteso con etichette indipendenti dalla geometria: (n_c - 1)/(n - 1) per un cluster di n_c soggetti su n. Un cluster con `K_NEIGHBORS` soggetti o meno non può raggiungere 1: `evaluable` è False e resta fuori dal riassunto. `tied_share` è la quota di soggetti con vicini a pari distanza, dove la scelta tra i pari distanza è a caso.
-- **`pairs_at_distance_1`**: la quota di coppie senza voxel in comune. Va guardata prima della silhouette.
-  - **Alta** (lesioni: 84%): quasi tutte le distanze valgono 1, quindi la distanza media da un cluster intero è dominata da coppie a distanza 1 anche se il soggetto ha alcuni vicini veri. La silhouette sta vicino a 0 qualunque sia la struttura: si ignora e si usa la purezza.
-  - **Bassa** (sdc: 0,0015%): le distanze sono varie e la silhouette si legge come nella 2.1. Può comunque restare bassa con una purezza alta: la purezza guarda i `K_NEIGHBORS` vicini più prossimi, la silhouette la distanza media da interi cluster, quindi i vicini possono essere coerenti senza che i cluster siano ben separati in media.
-- La silhouette è quella della 2.1 (media sui soggetti, rumore escluso), ma sulla distanza dice: non è confrontabile con quella euclidea delle run su embedding.
-- La purezza è in parte circolare: adp forma i cluster proprio su questi vicini, quindi una purezza alta dice che i cluster sono coerenti, non che siano "veri".
-- La matrice delle distanze tra soggetti (`raw_distance`) si calcola una volta per coppia (`input_path`, metrica) e resta in memoria nel kernel: le run adp della stessa matrice la condividono. I soggetti con la riga tutta a zero hanno dice indefinita (denominatore 0): adp li etichetta `-1` e restano fuori. I tempi della matrice nell'app sono in `docs/guides/embedding_app.md` ("Run `adp`").
-
-**Sezione 3, metriche del modello**
-
-| Statistica | Metodo | Lettura |
-|---|---|---|
-| `inertia` | kmeans | somma delle distanze al quadrato dai centroidi; più bassa è meglio, ma cala sempre al crescere di k: utile solo guardando come cala (gomito) |
-| `bic`, `aic` | gmm | verosimiglianza penalizzata per la complessità; più basso è meglio, il BIC penalizza di più |
-| `cophenetic_correlation`, `dendrogram_jump` | agglomerative | cofenetica: correlazione tra le distanze vere e quelle dell'albero, più è alta più l'albero è fedele (non si confronta tra metriche diverse). Salto: altezza della fusione da k a k-1 divisa per quella da k+1 a k, vicino a 1 non c'è un taglio naturale a k, più è alto più è netto |
-| `n_clusters` | agglomerative | il k della run (da `n_clusters` nei suoi parametri), non una misura: è il numero di cluster a cui è letto il salto del dendrogramma, riportato accanto per sapere a quale taglio si riferisce |
-| `noise_fraction` | hdbscan, hdbscan_soft | quota di soggetti senza cluster: molto alta = parametri troppo restrittivi |
-| `n_clusters_found` | hdbscan, hdbscan_soft | è un risultato, non un parametro: molti cluster piccoli = parametri troppo permissivi |
-
-**Sezione 3.1, posizione nel cluster (hdbscan)**
-
-- La probabilità (da 0 a 1) è calcolata **dentro ogni cluster**: vicino a 1 il soggetto sta nel cuore, vicino a 0 sta al margine (assegnato comunque a quel cluster, ma per poco non è rumore). Un soggetto con 0,2 non è incerto tra due cluster: è in periferia del suo.
-- Per cluster: `n` (rumore escluso) e `probability_mean` (vicino a 1 = cluster quasi tutto nucleo). Nessuna soglia: in letteratura non c'è un valore di riferimento per una probabilità.
-
-**Sezione 3.2, appartenenza ai cluster (hdbscan_soft)**
-
-| Tabella | Lettura |
-|---|---|
-| per cluster | `n`, `own_mean` (media della probabilità dei suoi soggetti di stare in quel cluster), `top_other` e `top_other_mean` (l'altro cluster a cui i suoi soggetti appartengono di più, in media, e quanto) |
-| vettori medi | righe: cluster di appartenenza (e -1 per il rumore); colonne: tutti i cluster. La diagonale è `own_mean`; fuori diagonale si vede quali cluster si sovrappongono |
-
-- Il rumore non ha un cluster proprio: è fuori da `own_mean` e ha una riga a parte nei vettori medi.
-- Le righe della matrice non sommano a 1 (la parte mancante è la probabilità di essere rumore): un soggetto con 0,4 nel proprio cluster e 0,1 negli altri è debole, vicino al rumore; uno con 0,4 e 0,35 in un altro cluster è conteso tra i due.
-
-**Sezione 4, descrizione clinica**
-
-- **Tabella "soggetti con il dato"**: per cluster (e per tutti insieme nell'ultima riga), quanti soggetti hanno la variabile e che quota sono sul cluster. Una variabile che manca a non più di `MAX_MISSING_LISTED` soggetti non è nella tabella: una riga di avviso sopra dice che tutti ce l'hanno, oppure elenca chi manca e il suo cluster. Un valore vuoto conta come mancante, come NaN.
-- **Media ± deviazione standard e mediana [Q1-Q3]**: sui soli soggetti che hanno il dato. Per le variabili asimmetriche, come il volume della lesione, la mediana descrive il cluster meglio della media.
-- **Percentuali per categoria**: quota di ogni categoria nel cluster, sui soli soggetti che hanno il dato.
-- **Nessun test**: le differenze tra cluster si leggono a occhio, tenendo il numero di soggetti accanto. Con pochi soggetti una mediana è instabile, e nessun numero dice se una differenza supera il caso.
-- **Cautele**:
-  - volume della lesione (run lesion) e carico di disconnessione (run sdc) derivano dai dati con cui è fatto il clustering: la differenza tra cluster è in parte per costruzione;
-  - NIHSS e istruzione esistono solo per alcuni dataset: UCL-UK, il più grande, non ha nessuno dei due, quindi le loro righe poggiano solo sui dataset che li hanno e quanti soggetti sono lo dice la tabella di copertura;
-  - se un cluster coincide quasi con un dataset, le altre differenze possono dipendere dal sito di provenienza e non dalla biologia: la tabella del dataset è il primo controllo da guardare.
 
 ---
 

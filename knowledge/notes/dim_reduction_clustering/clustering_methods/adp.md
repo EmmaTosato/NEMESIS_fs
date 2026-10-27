@@ -136,10 +136,10 @@ Il criterio del plateau è una scelta del progetto, coerente con l'idea che un c
 
 ## 6. Come si valuta l'output
 
-- **Silhouette sulla stessa distanza** del clustering (`dice` o `euclidean`) [7]. Si legge **dopo** `pairs_at_distance_1`, la quota di coppie a distanza dice esattamente 1: sulle lesioni è l'84% e la silhouette resta vicina a 0 qualunque sia la struttura; sulle mappe SDC è lo 0,0015% e si legge normalmente (`docs/guides/evaluation.md`).
+- **Silhouette sulla stessa distanza** del clustering (`dice` o `euclidean`) [7]. Si legge **dopo** `pairs_at_distance_1`, la quota di coppie a distanza dice esattamente 1: sulle lesioni è l'84% e la silhouette resta vicina a 0 qualunque sia la struttura; sulle mappe SDC è lo 0,0015% e si legge normalmente (`docs/guides/embedding_app.md`).
 - **Purezza dei k vicini** (`knn_purity`): la quota dei vicini più prossimi nello stesso cluster, accanto al valore atteso per caso $(n_c - 1)/(n - 1)$. Usa solo l'ordine delle distanze, quindi non risente della saturazione. È in parte circolare: ADP costruisce i cluster proprio sui vicini.
 - **CH e DB** solo con `euclidean` ([`evaluation_metrics.md`](evaluation_metrics.md), §3-4).
-- **Nessuna statistica propria del modello** nel notebook di valutazione (sezione 3 saltata). La topografia di DADApy (densità dei picchi e delle selle) esiste nell'oggetto (`log_den_bord`) ma il progetto non la salva.
+- **Nessuna statistica propria del modello** nel pannello "Clustering evaluation" (la statistica del modello è saltata). La topografia di DADApy (densità dei picchi e delle selle) esiste nell'oggetto (`log_den_bord`) ma il progetto non la salva.
 
 ---
 

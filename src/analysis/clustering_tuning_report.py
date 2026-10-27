@@ -7,7 +7,9 @@ does not say. Called by the sweep (src/pipeline/clustering.py) and by src/pipeli
 report is the same either way.
 
 Nothing here classifies a combination as good, usable or stable, with a threshold of ours or of the literature: the
-outputs are measurements. The silhouette bands of Kaufman & Rousseeuw are only mentioned (SILHOUETTE_CONVENTION_NOTE).
+outputs are measurements. The silhouette bands of Kaufman & Rousseeuw are only mentioned (note `silhouette_convention`).
+
+The explanations of the indices are not written here: they are read from utils/report_texts/clustering_tuning.md (REPORT_TEXTS_PATH).
 """
 
 from __future__ import annotations
@@ -41,6 +43,7 @@ from src.analysis.clustering_tuning_evaluations import (
     evaluations_for,
     refuse_existing,
 )
+from src.utils.text_registry import load_text_registry
 
 REPORT_METHODS = (AGGLOMERATIVE, *DENSITY_METHODS, ADP)
 
@@ -49,92 +52,28 @@ REPORT_METHODS = (AGGLOMERATIVE, *DENSITY_METHODS, ADP)
 REPORT_GROUP_COLUMN: dict[str, str | None] = {ADP: "metric"}
 REPORT_KEY_COLUMNS: dict[str, tuple[str, ...]] = {ADP: ("Z",)}
 REPORT_COUNT_COLUMNS = ("n_clusters", "min_cluster_size", "min_samples", "n_clusters_found", "n_small_clusters")
-REPORT_TERMS: dict[str, str] = {
-    "silhouette": (
-        "per ogni soggetto confronta la distanza media dai compagni del suo cluster con quella dal cluster più vicino; qui è la "
-        "media su tutti i soggetti. Va da -1 a 1: più alta è meglio; sotto 0 i soggetti sono in media più vicini a un altro "
-        "cluster che al proprio."
-    ),
-    "davies_bouldin": "media, sui cluster, del rapporto tra quanto il cluster è disperso e quanto è vicino al cluster più simile. Più bassa è meglio.",
-    "calinski_harabasz": "rapporto tra la separazione dei cluster e la compattezza di ciascuno. Più alto è meglio; tende a crescere con il numero di cluster.",
-    "dunn": (
-        "rapporto tra la distanza minima tra due cluster e il diametro massimo di un cluster (la distanza più grande tra due "
-        "soggetti dello stesso cluster). Più alto è meglio."
-    ),
-    "noise_fraction": "quota dei soggetti non assegnati a nessun cluster (rumore).",
-    "n_clusters_found": "numero di cluster, rumore escluso.",
-    "largest_cluster_share": "quota dei soggetti, rumore compreso, nel cluster più grande.",
-    "n_small_clusters": "cluster con meno di 10 soggetti.",
-    "id_2nn": "dimensione intrinseca stimata dei dati; costante per `metric`.",
-    "ari_vs_prev_z": "ARI (accordo tra due partizioni, 1 = identiche) con la partizione al valore di `Z` immediatamente più basso, sui soli soggetti clusterizzati.",
-    "membership_mean": "media, sui soggetti non rumore, della probabilità di appartenere al proprio cluster.",
-    "persistence_mean": "stabilità media dei cluster (0 effimeri, 1 stabili).",
-    "dbcv": (
-        "indice di validità basato sulla densità (Moulavi et al. 2014): per ogni cluster confronta quanto è rado al suo "
-        "interno con quanto è separato dal cluster più vicino; la media è pesata sulla dimensione dei cluster, con il "
-        "rumore nel denominatore, quindi il rumore abbassa il punteggio. Va da -1 a 1: più alto è meglio. Non definito con "
-        "meno di 2 cluster."
-    ),
-}
+# The explanations of the indices (what each measures, how to read it, what it does not say) are not in this module: they are
+# in `utils/report_texts/clustering_tuning.md`, a markdown file anyone can read and edit. The keys below are every text the
+# report looks up in it; the file must define exactly these (src/utils/text_registry.py raises otherwise).
+REPORT_TEXTS_PATH = Path(__file__).resolve().parents[2] / "utils" / "report_texts" / "clustering_tuning.md"
 
-SILHOUETTE_CONVENTION_NOTE = (
-    "**Fasce della silhouette**: esistono fasce di lettura (Kaufman & Rousseeuw 1990, *Finding Groups in Data*); questo "
-    "report non le usa. Spiegazione e fonti in `knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md`."
+# The columns a report of adp (or a density method) explains, in this order of preference.
+REPORT_COLUMN_TERMS = (
+    "silhouette", "davies_bouldin", "calinski_harabasz", "dunn", "noise_fraction", "n_clusters_found", "largest_cluster_share",
+    "n_small_clusters", "id_2nn", "ari_vs_prev_z", "membership_mean", "persistence_mean", "dbcv",
 )
-DENSITY_INDICES_NOTE = (
-    "**Indici non calcolati**: silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn non sono calcolati per HDBSCAN: si "
-    "calcolano sui soli soggetti non rumore (se l'algoritmo scarta i soggetti più difficili, salgono) e presuppongono "
-    "cluster compatti. Il DBCV pesa il rumore. Spiegazione in "
-    "`knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md`."
-)
-NON_EUCLIDEAN_NOTE = "Calinski-Harabasz, Davies-Bouldin e Dunn non sono definiti per `{metric}`: richiedono la distanza euclidea (cella vuota)."
-COPHENETIC_TERM = (
-    "correlazione tra le distanze vere tra i soggetti e le distanze che l'albero implica. Va da -1 a 1: vicino a 1 l'albero "
-    "rispetta bene le distanze. Un valore per `metric` e `linkage`, non si confronta tra `metric` diverse. Nessuna fascia con "
-    "fonte in letteratura."
-)
-ARI_TERM = (
-    "adjusted Rand index: accordo tra due partizioni degli stessi soggetti, 1 = identiche, 0 = quanto il caso. Qui tra i "
-    "linkage della stessa `metric`, allo stesso k; non dipende dai nomi dei cluster."
-)
-JUMP_TERM = (
-    "per ogni k, altezza della fusione che porta da k a k-1 cluster divisa per quella della fusione che porta da k+1 a k. "
-    "Vicino a 1: nessun taglio netto a k; più è alto, più il taglio a k è netto. Le altezze sono in unità diverse per ogni "
-    "linkage, quindi i linkage non si confrontano. Nessuna fascia con fonte in letteratura."
+REPORT_TEXT_KEYS = (
+    *(f"term:{name}" for name in (*REPORT_COLUMN_TERMS, "cophenetic_correlation", "ari", "jump")),
+    "note:silhouette_convention", "note:density_indices", "note:non_euclidean",
+    "fragment:curves_panels_both", "fragment:curves_panels_silhouette_only", "fragment:curves_axes_both", "fragment:curves_axes_silhouette_only",
+    *(f"hint:{name}" for name in ("curves", "cophenetic", "agreement", "jump", "dendrogram", "heatmap", "dbcv_curves")),
 )
 
-# One block under each figure/table of a report, written as a quote: what it shows, how to read it, what it does not say.
-# Descriptions only, no verdict. Each hint is a tuple of bullets.
-HINT_COPHENETIC = (
-    "Cosa mostra: quanto l'albero di ogni linkage rispetta le distanze vere tra i soggetti. Serve a confrontare i linkage tra loro (stessa `metric`): più è alto, più l'albero è fedele.",
-    "Cosa non dice: niente su quanti cluster scegliere.",
-)
-HINT_AGREEMENT = (
-    "Cosa mostra: per ogni k, quanto due linkage producono la stessa partizione dei soggetti (ARI: 1 = identiche, 0 = quanto il caso).",
-    "Come si legge: dove l'ARI è vicino a 1 per tutte le coppie, scegliere il linkage cambia poco; dove è basso, la partizione dipende dal linkage.",
-    "Cosa non dice: quale dei due linkage sia quello giusto.",
-)
-HINT_JUMP = (
-    "Cosa mostra: per ogni k, quanto è netto il taglio dell'albero in k cluster. Vicino a 1 non c'è un taglio netto; più è "
-    "alto, più è netto.",
-    "Cosa non dice: i linkage non si confrontano tra loro (altezze in unità diverse); e non dice se i cluster hanno senso clinico.",
-)
-HINT_DENDROGRAM = (
-    "Cosa mostra: l'albero delle fusioni; l'asse verticale è l'altezza a cui due gruppi si uniscono.",
-    "Come si legge: una fusione molto più alta della precedente separa gruppi distinti; tagliare l'albero a una certa altezza "
-    "dà quel numero di cluster.",
-    "Limiti: sono mostrate solo le ultime fusioni (quante, sta sull'asse orizzontale della figura), quindi i k piccoli; le altezze non si confrontano tra linkage.",
-)
-HINT_HEATMAP = (
-    "Cosa mostra: gli stessi numeri delle tabelle su tutta la griglia `min_cluster_size` × `min_samples`, un riquadro per metrica.",
-    "Attenzione: ogni riquadro ha una sua scala di colore adattata ai dati, quindi le differenze piccole sembrano grandi.",
-)
-HINT_DBCV_CURVES = (
-    "Cosa mostra: DBCV, quota di rumore, quota del cluster più grande e numero di cluster contro `min_cluster_size`, una linea "
-    "per `min_samples`. Tutte le combinazioni, nessun filtro sul rumore.",
-    "Un punto manca dove i cluster sono meno di 2: il DBCV non è definito, non vale 0.",
-    "Cosa non dice: da solo il DBCV non dice quale combinazione scegliere; va letto accanto al rumore.",
-)
+
+def load_report_texts(path: Path = REPORT_TEXTS_PATH) -> dict[str, str | tuple[str, ...]]:
+    """The texts of the report by `kind:name` (src/utils/text_registry.py): a string, or a tuple of bullets for a `hint`."""
+    return load_text_registry(path, REPORT_TEXT_KEYS, bullet_kinds=("hint",))
+
 
 def _hint_lines(hint: tuple[str, ...]) -> list[str]:
     """A hint as a markdown quote: a title line, one bullet per sentence, a blank line."""
@@ -147,28 +86,18 @@ DENSITY_TABLE_COLUMNS = ("min_cluster_size", "n_clusters_found", "noise_fraction
 
 AGGLOMERATIVE_REPORT_COLUMNS = ("n_clusters", "linkage", "metric", "silhouette", "davies_bouldin", "calinski_harabasz", "dunn", "largest_cluster_share")
 
-def curves_hint(silhouette_limits: tuple[float, float], davies_bouldin_limits: tuple[float, float] | None) -> tuple[str, ...]:
+def curves_hint(
+    texts: Mapping[str, str | tuple[str, ...]], silhouette_limits: tuple[float, float], davies_bouldin_limits: tuple[float, float] | None
+) -> tuple[str, ...]:
     """The hint under the curves figure of one metric. The axes are those of the whole run, so the text carries their
     values; `davies_bouldin_limits` is None for a metric whose figure has no Davies-Bouldin panel (it needs `euclidean`)."""
+    values = {"silhouette_min": f"{silhouette_limits[0]:.1f}", "silhouette_max": f"{silhouette_limits[1]:.1f}"}
     if davies_bouldin_limits:
-        panels = "silhouette (a sinistra) e Davies-Bouldin (a destra)"
-        axes = (
-            f"silhouette da {silhouette_limits[0]:.1f} a {silhouette_limits[1]:.1f}, "
-            f"Davies-Bouldin da {davies_bouldin_limits[0]:.1f} a {davies_bouldin_limits[1]:.1f}"
-        )
+        values |= {"davies_bouldin_min": f"{davies_bouldin_limits[0]:.1f}", "davies_bouldin_max": f"{davies_bouldin_limits[1]:.1f}"}
+        panels, axes = texts["fragment:curves_panels_both"], texts["fragment:curves_axes_both"].format(**values)
     else:
-        panels = "silhouette; Davies-Bouldin non c'è perché per questa `metric` non esiste"
-        axes = f"silhouette da {silhouette_limits[0]:.1f} a {silhouette_limits[1]:.1f}"
-    return (
-        "Cosa mostra: come cambiano silhouette e Davies-Bouldin al crescere di `n_clusters`, con una linea per ogni linkage. "
-        "`single` non è disegnato: i suoi valori sono nelle tabelle sotto.",
-        f"I pannelli: {panels}.",
-        f"Gli assi sono gli stessi in tutti i grafici di questa serie: {axes}. Sono l'intervallo dei dati di tutte le `metric` "
-        "della run con un margine dell'8%, arrotondato al decimo. Il confronto è tra le forme delle linee: una silhouette di "
-        "`metric` diverse non si confronta nel valore.",
-        "Come si legge: conta la forma della linea su tutti i k, non un punto solo. Silhouette: più alta è meglio. Davies-Bouldin: "
-        "più bassa è meglio.",
-    )
+        panels, axes = texts["fragment:curves_panels_silhouette_only"], texts["fragment:curves_axes_silhouette_only"].format(**values)
+    return tuple(item.format(panels=panels, axes=axes) for item in texts["hint:curves"])
 
 
 def _format_report_value(column: str, value: float, key_columns: tuple[str, ...]) -> str:
@@ -233,7 +162,7 @@ def _silhouette_comment(group: pd.DataFrame, key_column: str = "n_clusters", key
     return lines
 
 
-def _curves_section(results: pd.DataFrame, metric: str) -> list[str]:
+def _curves_section(texts: Mapping[str, str | tuple[str, ...]], results: pd.DataFrame, metric: str) -> list[str]:
     """The curves figure of one metric of an agglomerative report, with its hint; empty for a metric with no linkage
     other than `single`. `results` is the whole run: the axes are shared."""
     if curves_subset(results, metric).empty:
@@ -245,7 +174,7 @@ def _curves_section(results: pd.DataFrame, metric: str) -> list[str]:
         "",
         f"![curve per n_clusters]({k_curves_file_name(metric)})",
         "",
-        *_hint_lines(curves_hint(silhouette_limits, davies_bouldin_limits)),
+        *_hint_lines(curves_hint(texts, silhouette_limits, davies_bouldin_limits)),
     ]
 
 
@@ -262,11 +191,11 @@ def _agreement_table(agreement: pd.DataFrame, metric: str) -> str:
     return _markdown_table(wide[list(dict.fromkeys(subset["pair"]))].reset_index(), ("n_clusters",))
 
 
-def _agreement_block(agreement: pd.DataFrame, metric: str) -> list[str]:
+def _agreement_block(texts: Mapping[str, str | tuple[str, ...]], agreement: pd.DataFrame, metric: str) -> list[str]:
     """The agreement table with its hint, or a line saying there is none: a metric with a single linkage has no pair."""
     if agreement[agreement["metric"] == metric].empty:
         return ["Non calcolabile: la run ha un solo linkage per questa `metric`.", ""]
-    return [_agreement_table(agreement, metric), "", *_hint_lines(HINT_AGREEMENT)]
+    return [_agreement_table(agreement, metric), "", *_hint_lines(texts["hint:agreement"])]
 
 
 def _jump_table(jump: pd.DataFrame, metric: str) -> str:
@@ -291,15 +220,15 @@ def _images_section(run_dir: Path, names: list[tuple[str, str, tuple[str, ...] |
 
 
 def _dendrogram_section(
-    run_dir: Path, results: pd.DataFrame, cophenetic: pd.DataFrame, agreement: pd.DataFrame, jump: pd.DataFrame, metric: str
+    texts: Mapping[str, str | tuple[str, ...]], run_dir: Path, cophenetic: pd.DataFrame, agreement: pd.DataFrame, jump: pd.DataFrame, metric: str
 ) -> list[str]:
     """Cophenetic correlation, agreement between linkages, dendrogram jump and the tree image of one metric of an
     agglomerative report."""
-    images: list[tuple[str, str, tuple[str, ...] | None]] = [("Dendrogramma", dendrogram_file_name(metric), HINT_DENDROGRAM)]
+    images: list[tuple[str, str, tuple[str, ...] | None]] = [("Dendrogramma", dendrogram_file_name(metric), texts["hint:dendrogram"])]
     return [
-        "### Cophenetic correlation", "", _cophenetic_table(cophenetic, metric), "", *_hint_lines(HINT_COPHENETIC),
-        "### Accordo tra linkage (ARI)", "", *_agreement_block(agreement, metric),
-        "### Salto del dendrogramma", "", _jump_table(jump, metric), "", *_hint_lines(HINT_JUMP),
+        "### Cophenetic correlation", "", _cophenetic_table(cophenetic, metric), "", *_hint_lines(texts["hint:cophenetic"]),
+        "### Accordo tra linkage (ARI)", "", *_agreement_block(texts, agreement, metric),
+        "### Salto del dendrogramma", "", _jump_table(jump, metric), "", *_hint_lines(texts["hint:jump"]),
         *_images_section(run_dir, images),
     ]
 
@@ -322,7 +251,8 @@ def _check_agglomerative_inputs(
 
 
 def _agglomerative_report_markdown(
-    run_dir: Path, input_path: Path, results: pd.DataFrame, cophenetic: pd.DataFrame, agreement: pd.DataFrame, jump: pd.DataFrame
+    texts: Mapping[str, str | tuple[str, ...]], run_dir: Path, input_path: Path, results: pd.DataFrame, cophenetic: pd.DataFrame,
+    agreement: pd.DataFrame, jump: pd.DataFrame,
 ) -> str:
     _check_agglomerative_inputs(run_dir, results, cophenetic, agreement, jump)
     lines = [
@@ -344,24 +274,24 @@ def _agglomerative_report_markdown(
         subset = results[results["metric"] == metric]
         lines += [f"## metric = {metric}", ""]
         if metric != "euclidean":
-            lines += [NON_EUCLIDEAN_NOTE.format(metric=metric), ""]
-        lines += _curves_section(results, metric)
+            lines += [texts["note:non_euclidean"].format(metric=metric), ""]
+        lines += _curves_section(texts, results, metric)
         for linkage in ordered(subset["linkage"].unique(), LINKAGE_ORDER):
             group = subset[subset["linkage"] == linkage]
             table = group.sort_values("n_clusters")[
                 ["n_clusters", "silhouette", "davies_bouldin", "calinski_harabasz", "dunn", "largest_cluster_share"]
             ]
             lines += [f"### linkage = {linkage}", "", _markdown_table(table, ("n_clusters",)), "", *_silhouette_comment(group), ""]
-        lines += _dendrogram_section(run_dir, results, cophenetic, agreement, jump, metric)
+        lines += _dendrogram_section(texts, run_dir, cophenetic, agreement, jump, metric)
     terms = [
-        f"- **`{column}`**: {REPORT_TERMS[column]}"
+        f"- **`{column}`**: {texts[f'term:{column}']}"
         for column in ("silhouette", "davies_bouldin", "calinski_harabasz", "dunn", "largest_cluster_share")
     ]
     terms += [
-        f"- **`cophenetic_correlation`**: {COPHENETIC_TERM}",
-        f"- **`ari`**: {ARI_TERM}",
-        f"- **`jump`**: {JUMP_TERM}",
-        f"- {SILHOUETTE_CONVENTION_NOTE}",
+        f"- **`cophenetic_correlation`**: {texts['term:cophenetic_correlation']}",
+        f"- **`ari`**: {texts['term:ari']}",
+        f"- **`jump`**: {texts['term:jump']}",
+        f"- {texts['note:silhouette_convention']}",
     ]
     return "\n".join([*lines, "## Termini", "", *terms, ""])
 
@@ -386,7 +316,9 @@ def _density_comment(group: pd.DataFrame) -> list[str]:
     return lines
 
 
-def _density_report_markdown(run_dir: Path, method: str, input_path: Path, results: pd.DataFrame) -> str:
+def _density_report_markdown(
+    texts: Mapping[str, str | tuple[str, ...]], run_dir: Path, method: str, input_path: Path, results: pd.DataFrame
+) -> str:
     is_soft = method == "hdbscan_soft"
     required = [*DENSITY_REPORT_COLUMNS, *(DENSITY_SOFT_COLUMNS if is_soft else ())]
     missing = [column for column in required if column not in results.columns]
@@ -414,12 +346,12 @@ def _density_report_markdown(run_dir: Path, method: str, input_path: Path, resul
             heading = "###"
         heatmap = "tuning_plot.png" if selection is None else f"tuning_plot_cluster_selection_method={selection}.png"
         curves = "dbcv_curves.png" if selection is None else f"dbcv_curves_cluster_selection_method={selection}.png"
-        lines += _images_section(run_dir, [("Heatmap delle metriche", heatmap, HINT_HEATMAP), ("Curve contro min_cluster_size", curves, HINT_DBCV_CURVES)])
+        lines += _images_section(run_dir, [("Heatmap delle metriche", heatmap, texts["hint:heatmap"]), ("Curve contro min_cluster_size", curves, texts["hint:dbcv_curves"])])
         for min_samples in sorted(subset["min_samples"].unique()):
             group = subset[subset["min_samples"] == min_samples].sort_values("min_cluster_size")
             lines += [f"{heading} min_samples = {int(min_samples)}", "", _markdown_table(group[columns], ("min_cluster_size",)), "", *_density_comment(group), ""]
-    terms = [f"- **`{column}`**: {REPORT_TERMS[column]}" for column in (*DENSITY_TABLE_COLUMNS[1:], *(DENSITY_SOFT_COLUMNS[1:] if is_soft else ()))]
-    return "\n".join([*lines, "## Termini", "", *terms, f"- {DENSITY_INDICES_NOTE}", ""])
+    terms = [f"- **`{column}`**: {texts[f'term:{column}']}" for column in (*DENSITY_TABLE_COLUMNS[1:], *(DENSITY_SOFT_COLUMNS[1:] if is_soft else ()))]
+    return "\n".join([*lines, "## Termini", "", *terms, f"- {texts['note:density_indices']}", ""])
 
 
 def tuning_report_markdown(
@@ -445,14 +377,15 @@ def tuning_report_markdown(
     """
     if method not in REPORT_METHODS:
         raise ValueError(f"no report for clustering_method {method!r} - supported: {list(REPORT_METHODS)}")
+    texts = load_report_texts()
     if method == AGGLOMERATIVE:
         if cophenetic is None or agreement is None or jump is None:
             raise ValueError(f"{run_dir}: the agglomerative report needs the cophenetic, agreement and jump frames")
-        return _agglomerative_report_markdown(run_dir, input_path, results, cophenetic, agreement, jump)
+        return _agglomerative_report_markdown(texts, run_dir, input_path, results, cophenetic, agreement, jump)
     if cophenetic is not None or agreement is not None or jump is not None:
         raise ValueError(f"{run_dir}: cophenetic, agreement and jump belong to the agglomerative report, not to {method!r}")
     if method in DENSITY_METHODS:
-        return _density_report_markdown(run_dir, method, input_path, results)
+        return _density_report_markdown(texts, run_dir, method, input_path, results)
     group_column, key_columns = REPORT_GROUP_COLUMN[method], REPORT_KEY_COLUMNS[method]
     required = [*key_columns, "silhouette", *([group_column] if group_column else [])]
     missing = [column for column in required if column not in results.columns]
@@ -478,7 +411,7 @@ def tuning_report_markdown(
         group = group.drop(columns=[group_column]) if group_column else group
         group = group.sort_values("silhouette", ascending=False, na_position="last", kind="stable")
         lines += ["", f"## {group_column} = {name}" if group_column else "## Tabella", "", _markdown_table(group, key_columns)]
-    terms = [f"- **`{column}`**: {definition}" for column, definition in REPORT_TERMS.items() if column in results.columns]
+    terms = [f"- **`{column}`**: {texts[f'term:{column}']}" for column in REPORT_COLUMN_TERMS if column in results.columns]
     return "\n".join([*lines, "", "## Termini", "", *terms, ""])
 
 

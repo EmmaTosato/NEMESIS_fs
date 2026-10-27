@@ -982,7 +982,7 @@ def plot_tuning_curve(df: pd.DataFrame, param_col: str, metric_col: str, output_
 
 
 def plot_clustering_tuning_heatmaps(
-    df: pd.DataFrame, param_x: str, param_y: str, metric_cols: list[str], output_path: Path, title: str
+    df: pd.DataFrame, param_x: str, param_y: str, metric_cols: list[str], output_path: Path, title: str, dpi: int = 150
 ) -> None:
     """One heatmap subplot per metric in metric_cols, sharing param_x/param_y
     on the two axes - a 2-parameter clustering-tuning sweep (params_clustering.json),
@@ -1019,7 +1019,7 @@ def plot_clustering_tuning_heatmaps(
     fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -1164,7 +1164,7 @@ def plot_spectral_tuning(df: pd.DataFrame, param_col: str, metric_cols: list[str
 
 
 def plot_dendrograms_grid(
-    linkage_matrices_by_linkage: dict[str, np.ndarray], output_path: Path, title: str, truncate_last_p: int = 30
+    linkage_matrices_by_linkage: dict[str, np.ndarray], output_path: Path, title: str, truncate_last_p: int = 30, dpi: int = 150
 ) -> None:
     """One truncated dendrogram (scipy) subplot per `linkage` value, laid out side by side. Replaces the old
     single-panel plot_dendrogram (found 28-08-26 to always be computed at a fixed `metric`,
@@ -1209,7 +1209,7 @@ def plot_dendrograms_grid(
 
     fig.suptitle(title, fontsize=_SINGLE_PLOT_TITLE_FONTSIZE, fontweight="bold", y=1.05)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
     plt.close(fig)
 
 

@@ -245,8 +245,7 @@ def dunn_index(X: np.ndarray, labels: np.ndarray) -> float:
     (project-clustering-tuning-evaluation-tables memory, 25-08-26) - no sklearn/scipy
     built-in exists, so this is a from-scratch implementation on top of sklearn's own
     pairwise_distances (Euclidean by default, same assumption as compute_clustering_metrics -
-    not metric-aware like compute_clustering_metrics_metric_aware, since the exploratory
-    evaluation notebook that consumes this only ever runs it on plain-Euclidean data).
+    not metric-aware like compute_clustering_metrics_metric_aware, since it only runs on plain-Euclidean data).
 
     HDBSCAN-style noise (label -1) is excluded, same convention as compute_clustering_metrics.
     Raises ValueError for fewer than 2 non-noise clusters (undefined), or if every non-noise
@@ -816,7 +815,7 @@ def compute_eigengap(X: np.ndarray, params: dict, max_k: int = 20) -> np.ndarray
 # everything above, these are deliberately *not* wired into run_clustering_tuning_sweep/
 # clustering.py - they're reusable, tested functions meant to be called post-hoc from a
 # notebook against an already-produced tuning run's matrix.npy/
-# tuning_results.csv, same contract as dunn_index for the evaluation notebook. No pipeline/
+# tuning_results.csv, same contract as dunn_index. No pipeline/
 # config/docs changes, no reruns needed. One per method's own hardest-to-justify parameter -
 # HDBSCAN deliberately excluded (its own relative_validity_ overlaps with DBCV, already
 # rejected in docs/guides/clustering.md, so adding it here would silently contradict that

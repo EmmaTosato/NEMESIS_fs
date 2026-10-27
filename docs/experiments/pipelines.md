@@ -136,7 +136,7 @@ flowchart LR
         direction TB
         CP25["14-10<hr/>raw<br/>87 tratti<br/>agglomerative<br/>average/cosine: 7 run<br/>HDBSCAN: 6 run<br/>(13 run)"]
         CP25R["14-10<hr/>raw dice<br/>87 tratti<br/>ADP Z 2.5-6.0<br/>(6 run)"]
-        CP25S["nessuna combinazione usabile"]:::pending
+        CP25S["nessuna run prodotta"]:::pending
     end
 
     R25 --> N25T --> P25 --> CT25 --> CP25
