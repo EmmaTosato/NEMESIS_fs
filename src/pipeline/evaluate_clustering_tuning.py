@@ -9,10 +9,10 @@ the config's `tuning_evaluations` block lists for the run's method
 (src/analysis/clustering_tuning_evaluations.py - the same function the sweep runs when its own config lists them),
 writing their files next to the run's:
 
-- agglomerative: cophenetic_correlation.csv, dendrogram_jump.csv, linkage_agreement.csv, largest_cluster_share.csv,
-  dunn_index.csv, k_curves_metric=<metric>.png (one figure per metric, the linkages other than single, on axes
+- agglomerative: the columns `jump`, `largest_cluster_share` and `dunn` of tuning_results.csv (one value per combination,
+  added to the file, replaced only with overwrite), cophenetic_correlation.csv, linkage_agreement.csv, k_curves_metric=<metric>.png (one figure per metric, the linkages other than single, on axes
   shared by the run) and dendrogram_metric=<metric>.png (one figure per metric, a subplot per valid linkage)
-- hdbscan / hdbscan_soft: density_metrics.csv, tuning_plot[_cluster_selection_method=<method>].png and
+- hdbscan / hdbscan_soft: the columns `largest_cluster_share` and `dbcv` of tuning_results.csv, tuning_plot[_cluster_selection_method=<method>].png and
   dbcv_curves[_cluster_selection_method=<method>].png
 - agglomerative / hdbscan / hdbscan_soft, internal_metrics: the columns of tuning_results.csv recomputed from the labels
 

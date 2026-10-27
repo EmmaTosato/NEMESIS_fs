@@ -21,6 +21,7 @@ from src.analysis.clustering_tuning_analysis import (
     dunn_table,
     largest_cluster_share_table,
     jump_table,
+    merge_columns,
     k_curves_figure,
     k_curves_file_name,
     k_curves_targets,
@@ -266,16 +267,43 @@ def test_cophenetic_table_scores_each_valid_metric_linkage_pair(tmp_path):
     assert cophenetic["cophenetic_correlation"].between(0, 1).all()
 
 
-def test_jump_table_has_a_row_per_pair_and_k_and_a_sharper_cut_at_the_true_k(tmp_path):
-    run = _agglomerative_run(tmp_path, _rows_with_invalid_ward_cosine())
+def _valid_rows(ks: tuple[int, ...]) -> list[dict]:
+    return [
+        {"n_clusters": k, "linkage": linkage, "metric": metric}
+        for k in ks
+        for linkage, metric in (("ward", "euclidean"), ("average", "euclidean"), ("average", "cosine"))
+    ]
 
-    jump = jump_table(run, _three_blobs(), range(3, 6))
 
-    assert set(jump["n_clusters"]) == {3, 4, 5}
-    assert set(zip(jump["metric"], jump["linkage"])) == {("euclidean", "ward"), ("euclidean", "average"), ("cosine", "average")}
+def test_jump_table_has_a_row_per_combination_in_the_order_of_the_run_and_a_sharper_cut_at_the_true_k(tmp_path):
+    run = _agglomerative_run(tmp_path, _valid_rows((3, 4, 5)))
+
+    jump = jump_table(run, _three_blobs())
+
+    assert list(jump.columns) == ["n_clusters", "linkage", "metric", "jump"]
+    assert jump[["n_clusters", "linkage", "metric"]].equals(run.results[["n_clusters", "linkage", "metric"]])
     # three well-separated blobs: the cut at 3 clusters is sharper than the one at 5, for ward
     ward = jump[(jump["metric"] == "euclidean") & (jump["linkage"] == "ward")].set_index("n_clusters")["jump"]
     assert ward[3] > ward[5]
+
+
+def test_jump_table_scores_each_combination_at_its_own_k_not_at_a_range(tmp_path):
+    rows = [
+        {"n_clusters": 3, "linkage": "ward", "metric": "euclidean"},
+        {"n_clusters": 2, "linkage": "average", "metric": "euclidean"},
+        {"n_clusters": 5, "linkage": "average", "metric": "euclidean"},
+    ]
+
+    jump = jump_table(_agglomerative_run(tmp_path, rows), _three_blobs())
+
+    assert jump["n_clusters"].tolist() == [3, 2, 5] and jump["jump"].notna().all()
+
+
+def test_jump_table_refuses_a_combination_sklearn_rejects(tmp_path):
+    run = _agglomerative_run(tmp_path, _rows_with_invalid_ward_cosine())  # ward + cosine: never swept in a real run
+
+    with pytest.raises(ValueError, match="not a valid combination"):
+        jump_table(run, _three_blobs())
 
 
 def test_dendrogram_linkages_groups_the_valid_trees_by_metric_and_each_is_the_tree_of_that_pair(tmp_path):
@@ -293,7 +321,7 @@ def test_dendrogram_linkages_groups_the_valid_trees_by_metric_and_each_is_the_tr
     "table",
     [
         lambda run: cophenetic_table(run, _three_blobs()),
-        lambda run: jump_table(run, _three_blobs(), range(3, 4)),
+        lambda run: jump_table(run, _three_blobs()),
         lambda run: dendrogram_linkages(run, _three_blobs()),
     ],
 )
@@ -471,3 +499,60 @@ def test_dunn_table_and_largest_share_table_refuse_a_density_run_and_a_degenerat
         dunn_table(density, _three_blobs())
     with pytest.raises(ValueError, match="needs >= 2 non-noise clusters"):
         dunn_table(one_cluster, _three_blobs())
+
+
+# --- merge_columns ---------------------------------------------------------------------------------------------
+
+KEY = ("n_clusters", "linkage", "metric")
+
+
+def _merge_results() -> pd.DataFrame:
+    return pd.DataFrame(_valid_rows((2, 3))).assign(silhouette=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
+
+
+def test_merge_columns_joins_on_the_swept_columns_not_on_the_row_order():
+    results = _merge_results()
+    table = results[list(KEY)].assign(dunn=[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]).iloc[::-1]  # another row order
+
+    merged = merge_columns(results, table, KEY, ("dunn",))
+
+    assert merged["dunn"].tolist() == [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]
+    assert merged[list(KEY)].equals(results[list(KEY)])
+
+
+def test_merge_columns_adds_a_new_column_at_the_end_and_replaces_an_existing_one_where_it_stands():
+    results = _merge_results().assign(marker="kept")
+    table = results[list(KEY)].assign(silhouette=9.0, dunn=1.0)
+
+    merged = merge_columns(results, table, KEY, ("silhouette", "dunn"))
+
+    assert list(merged.columns) == [*results.columns, "dunn"]
+    assert merged["silhouette"].eq(9.0).all() and merged["dunn"].eq(1.0).all() and merged["marker"].eq("kept").all()
+    assert results["silhouette"].tolist() == [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]  # the input is not touched
+
+
+def test_merge_columns_only_touches_the_columns_it_is_given():
+    results = _merge_results()
+    table = results[list(KEY)].assign(silhouette=9.0, dunn=1.0)
+
+    merged = merge_columns(results, table, KEY, ("dunn",))
+
+    assert merged["silhouette"].tolist() == results["silhouette"].tolist()  # a column of the table it does not own is ignored
+
+
+@pytest.mark.parametrize(
+    "table_of, owned, message",
+    [
+        (lambda r: r[list(KEY)].iloc[:-1].assign(dunn=1.0), ("dunn",), "one row per combination"),
+        (lambda r: pd.concat([r[list(KEY)].assign(dunn=1.0), r[list(KEY)].iloc[:1].assign(dunn=2.0)]), ("dunn",), "repeats a combination"),
+        (lambda r: r[list(KEY)].assign(dunn=1.0).replace({"ward": "single"}), ("dunn",), "one row per combination"),
+        (lambda r: r[list(KEY)], ("dunn",), r"no column\(s\) \['dunn'\]"),
+        (lambda r: r[list(KEY)].assign(dunn=1.0), ("linkage",), "cannot own them"),
+    ],
+)
+def test_merge_columns_refuses_the_table_of_another_run_a_repeat_a_missing_column_and_a_swept_column(table_of, owned, message):
+    results = _merge_results()
+
+    with pytest.raises(ValueError, match=message):
+        merge_columns(results, table_of(results), KEY, owned)
+

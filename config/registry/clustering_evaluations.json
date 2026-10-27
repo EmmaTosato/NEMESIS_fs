@@ -1,7 +1,7 @@
 {
   "k_curves": {},
   "cophenetic_correlation": {},
-  "dendrogram_jump": {"k_range": {"min": 2, "max": 30}},
+  "dendrogram_jump": {},
   "dendrograms": {"truncate_last_p": 30},
   "linkage_agreement": {},
   "largest_cluster_share": {},

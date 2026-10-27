@@ -73,8 +73,7 @@ def test_every_evaluation_applies_to_known_clustering_methods_only():
         (json.dumps({}), "missing"),
         (json.dumps({**VALID, "invented": {}}), "unknown"),
         (json.dumps({**VALID, "k_curves": {"dpi": 3}}), "takes no settings"),
-        (json.dumps({**VALID, "dendrogram_jump": {"k_range": {"min": 5, "max": 3}}}), "greater than"),
-        (json.dumps({**VALID, "dendrogram_jump": {"k_range": {"min": 1, "max": 3}}}), "integer >= 2"),
+        (json.dumps({**VALID, "dendrogram_jump": {"k_range": {"min": 2, "max": 30}}}), "takes no settings"),  # the k is each combination's own
         (json.dumps({**VALID, "dbcv_curves": {"max_noise_fraction": 0.1}}), "takes no settings"),
         (json.dumps({**VALID, "noise_filtered_curves": {}}), "unknown"),  # the noise limit is gone from the registry
     ],
@@ -155,9 +154,10 @@ def test_density_evaluations_write_their_files_and_nothing_else(tmp_path):
 
     written = run_evaluations(block, _settings(), run, overwrite=False, matrix=_blobs())
 
-    assert sorted(path.name for path in written) == ["dbcv_curves.png", "density_metrics.csv", "tuning_plot.png"]
-    metrics = pd.read_csv(tmp_path / "density_metrics.csv")
-    assert metrics["n_clusters_found"].tolist() == [4, 2]
+    assert sorted(path.name for path in written) == ["dbcv_curves.png", "tuning_plot.png", "tuning_results.csv"]
+    metrics = pd.read_csv(tmp_path / "tuning_results.csv")
+    assert metrics["n_clusters_found"].tolist() == [4, 2]  # the run did not write it: it comes from the labels
+    assert not (tmp_path / "density_metrics.csv").exists()
     assert metrics["dbcv"].notna().all()
     for name in ("dbcv_curves.png", "tuning_plot.png"):
         assert (tmp_path / name).stat().st_size > 0
@@ -175,17 +175,45 @@ def test_the_figures_of_a_soft_run_get_one_file_per_selection_method(tmp_path):
     written = run_evaluations(block, _settings(), run, overwrite=False, matrix=_blobs())
 
     assert sorted(path.name for path in written) == [
-        "dbcv_curves_cluster_selection_method=eom.png", "dbcv_curves_cluster_selection_method=leaf.png", "density_metrics.csv",
-        "tuning_plot_cluster_selection_method=eom.png", "tuning_plot_cluster_selection_method=leaf.png",
+        "dbcv_curves_cluster_selection_method=eom.png", "dbcv_curves_cluster_selection_method=leaf.png",
+        "tuning_plot_cluster_selection_method=eom.png", "tuning_plot_cluster_selection_method=leaf.png", "tuning_results.csv",
     ]
 
 
-def test_the_figures_read_density_metrics_csv_so_it_must_be_declared_before_them(tmp_path):
+def test_the_figures_read_the_density_columns_so_density_metrics_must_be_declared_before_them(tmp_path):
     run = _density_run(tmp_path)
     block = validate_tuning_evaluations_block({"general": [], "hdbscan": ["dbcv_curves"]})
 
-    with pytest.raises(FileNotFoundError, match="density_metrics"):
+    with pytest.raises(ValueError, match=r"no column\(s\).*run the `density_metrics` evaluation"):
         run_evaluations(block, _settings(), run, overwrite=False, matrix=_blobs())
+
+
+def test_density_metrics_keeps_the_sweeps_own_columns_and_adds_only_its_two(tmp_path):
+    run = _density_run(tmp_path)
+    run.results["n_clusters_found"] = [4, 2]  # what the sweep wrote
+    run.results["membership_mean"] = [0.7, 0.8]  # comes from the fit: no evaluation can recompute it
+    _write_results(run)
+    block = validate_tuning_evaluations_block({"general": [], "hdbscan": ["density_metrics"]})
+
+    run_evaluations(block, _settings(), run, overwrite=False, matrix=_blobs())
+
+    stored = pd.read_csv(tmp_path / "tuning_results.csv")
+    assert list(stored.columns)[-2:] == ["largest_cluster_share", "dbcv"]  # appended after the sweep's columns, which keep their place
+    assert stored["membership_mean"].tolist() == [0.7, 0.8] and stored["n_clusters_found"].tolist() == [4, 2]
+    assert stored["dbcv"].notna().all()
+
+
+def test_density_metrics_stops_when_the_runs_cluster_count_contradicts_the_labels_and_leaves_the_file(tmp_path):
+    run = _density_run(tmp_path)
+    run.results["n_clusters_found"] = [4, 3]  # the second combination has 2 clusters in the stored labels
+    _write_results(run)
+    before = (tmp_path / "tuning_results.csv").read_bytes()
+    block = validate_tuning_evaluations_block({"general": [], "hdbscan": ["density_metrics"]})
+
+    with pytest.raises(ValueError, match="n_clusters_found"):
+        run_evaluations(block, _settings(), run, overwrite=True, matrix=_blobs())
+
+    assert (tmp_path / "tuning_results.csv").read_bytes() == before
 
 
 def test_an_evaluation_not_in_the_block_is_not_run(tmp_path):
@@ -226,41 +254,76 @@ def test_a_block_with_no_key_for_the_runs_method_raises(tmp_path):
         run_evaluations(block, _settings(), run, overwrite=False)
 
 
+def _write_results(run: ClusteringTuningRun) -> None:
+    run.results.to_csv(run.run_dir / "tuning_results.csv", index=False)
+
+
 def test_agglomerative_evaluations_read_the_matrix_of_the_run_and_share_a_cache(tmp_path):
     run = _agglomerative_run(tmp_path)
     block = validate_tuning_evaluations_block(
         {"general": [], "agglomerative": ["cophenetic_correlation", "dendrogram_jump", "linkage_agreement"]}
     )
-    settings = {**_settings(), "dendrogram_jump": {"k_range": {"min": 2, "max": 4}}}
 
-    written = run_evaluations(block, settings, run, overwrite=False)
+    written = run_evaluations(block, _settings(), run, overwrite=False)
 
-    assert [path.name for path in written] == ["cophenetic_correlation.csv", "dendrogram_jump.csv", "linkage_agreement.csv"]
-    assert set(pd.read_csv(run.run_dir / "dendrogram_jump.csv")["n_clusters"]) == {2, 3, 4}
+    # the jump is a column of tuning_results.csv, the two tables with another key are files of their own
+    assert [path.name for path in written] == ["cophenetic_correlation.csv", "tuning_results.csv", "linkage_agreement.csv"]
+    stored = pd.read_csv(run.run_dir / "tuning_results.csv")
+    assert len(stored) == 4 and stored["jump"].notna().all()
     assert set(pd.read_csv(run.run_dir / "cophenetic_correlation.csv")["linkage"]) == {"ward", "average"}
+    assert not (run.run_dir / "dendrogram_jump.csv").exists()
 
 
-def test_the_dunn_and_largest_share_evaluations_write_one_row_per_combination(tmp_path):
+def test_the_dunn_and_largest_share_evaluations_add_their_columns_to_tuning_results_and_keep_the_others(tmp_path):
     run = _agglomerative_run(tmp_path)
+    run.results["marker"] = "kept"
+    _write_results(run)
     block = validate_tuning_evaluations_block({"general": [], "agglomerative": ["largest_cluster_share", "dunn_index"]})
 
     written = run_evaluations(block, _settings(), run, overwrite=False)
 
-    assert [path.name for path in written] == ["largest_cluster_share.csv", "dunn_index.csv"]
-    share = pd.read_csv(run.run_dir / "largest_cluster_share.csv")
-    dunn = pd.read_csv(run.run_dir / "dunn_index.csv")
-    assert len(share) == len(dunn) == 4 and share["largest_cluster_share"].between(0, 1).all()
-    assert dunn["dunn"].notna().all() and set(dunn["linkage"]) == {"ward", "average"}
+    assert [path.name for path in written] == ["tuning_results.csv", "tuning_results.csv"]
+    stored = pd.read_csv(run.run_dir / "tuning_results.csv")
+    assert list(stored.columns) == [*pd.read_csv(run.run_dir / "tuning_results.csv", nrows=0).columns[:-2], "largest_cluster_share", "dunn"]
+    assert len(stored) == 4 and stored["largest_cluster_share"].between(0, 1).all() and stored["dunn"].notna().all()
+    assert stored["marker"].eq("kept").all() and stored["silhouette"].eq(0.5).all()
+    assert not list(run.run_dir.glob("*.tmp")) and not (run.run_dir / "dunn_index.csv").exists()
+    assert run.results["dunn"].notna().all()  # the evaluations after it, and the report, see the new columns
 
 
-def test_the_dunn_and_largest_share_evaluations_refuse_to_replace_their_files_without_overwrite(tmp_path):
+def test_a_per_combination_evaluation_refuses_to_replace_its_column_without_overwrite_and_replaces_only_that_column(tmp_path):
+    run = _agglomerative_run(tmp_path)
+    block = validate_tuning_evaluations_block({"general": [], "agglomerative": ["dunn_index"]})
+    run_evaluations(block, _settings(), run, overwrite=False)
+    stored = pd.read_csv(run.run_dir / "tuning_results.csv")
+    run.results["dunn"] = -1.0  # a stale value the evaluation has to correct
+    run.results["silhouette"] = 7.0  # a column it does not own: it must come out of the file as it is in memory
+
+    with pytest.raises(FileExistsError, match=r"already has the column\(s\) \['dunn'\].*overwrite=true"):
+        run_evaluations(block, _settings(), run, overwrite=False)
+    assert pd.read_csv(run.run_dir / "tuning_results.csv").equals(stored)  # refused: nothing touched
+
+    run_evaluations(block, _settings(), run, overwrite=True)
+
+    replaced = pd.read_csv(run.run_dir / "tuning_results.csv")
+    assert replaced["dunn"].gt(0).all()  # recomputed, no longer -1
+    assert replaced["silhouette"].eq(7.0).all() and list(replaced.columns) == list(stored.columns)
+
+
+def test_a_per_combination_evaluation_checks_the_file_before_computing_the_table(tmp_path, monkeypatch):
+    import src.analysis.clustering_tuning_evaluations as evaluations
+
     run = _agglomerative_run(tmp_path)
     block = validate_tuning_evaluations_block({"general": [], "agglomerative": ["dunn_index"]})
     run_evaluations(block, _settings(), run, overwrite=False)
 
-    with pytest.raises(FileExistsError, match="dunn_index.csv"):
+    def fail(*args, **kwargs):
+        raise AssertionError("the table was computed before the column was checked")
+
+    monkeypatch.setattr(evaluations, "dunn_table", fail)
+
+    with pytest.raises(FileExistsError):
         run_evaluations(block, _settings(), run, overwrite=False)
-    run_evaluations(block, _settings(), run, overwrite=True)
 
 
 def _two_metric_run(tmp_path: Path) -> ClusteringTuningRun:
@@ -324,10 +387,6 @@ def test_a_matrix_the_caller_holds_is_used_instead_of_the_run_input_path(tmp_pat
     written = run_evaluations(block, _settings(), run, overwrite=False, matrix=_three_blobs())
 
     assert [path.name for path in written] == ["cophenetic_correlation.csv"]
-
-
-def _write_results(run: ClusteringTuningRun) -> None:
-    run.results.to_csv(run.run_dir / "tuning_results.csv", index=False)
 
 
 def test_internal_metrics_rewrites_the_columns_it_owns_only_with_overwrite_and_keeps_the_others(tmp_path):

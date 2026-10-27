@@ -86,7 +86,7 @@ Fonti consultate (secondarie): [Wikipedia, Silhouette (clustering)](https://en.w
 - L'asse y è la distanza di fusione: più una fusione è in alto, più i due cluster erano lontani.
 - **Ogni linkage ha una scala sua** (ward misura un aumento di varianza, single una distanza minima): si confronta la *forma* dell'albero tra pannelli, non l'altezza.
 - Una linea orizzontale taglia l'albero e ogni linea verticale che attraversa è un cluster. Nel Dendrogram Explorer (`docs/guides/embedding_app.md`) una linea rossa tratteggiata (`cut_k`) mostra dove cade il taglio che dà quel numero di cluster; i PNG `dendrogram_metric=<metric>.png` non ce l'hanno.
-- Il taglio è naturale dove, prima di quelle fusioni, c'è un salto grande: i cluster che stanno per unirsi sono molto più lontani di quelli già uniti. Il rapporto tra due altezze consecutive è esattamente la colonna `jump` di `dendrogram_jump.csv` (`docs/guides/evaluate_clustering_tuning.md`).
+- Il taglio è naturale dove, prima di quelle fusioni, c'è un salto grande: i cluster che stanno per unirsi sono molto più lontani di quelli già uniti. Il rapporto tra due altezze consecutive è esattamente la colonna `jump` di `tuning_results.csv` (`docs/guides/evaluate_clustering_tuning.md`).
 - **Esempio didattico.** Le ultime fusioni sono a 20, 8, 1,5, 1,2, 1,0. I salti tra altezze consecutive sono 20 → 8 (2,5 volte) e 8 → 1,5 (circa 5 volte, il più netto): tagliare tra 8 e 1,5 disfa le due fusioni più alte e lascia **3 cluster**.
 - Se le fusioni scendono gradualmente, senza un salto che spicchi, l'albero non indica nessun k: la scelta resta una decisione tua, da prendere con gli indici e con la clinica.
 - Il dendrogramma dice dove l'albero si divide, non se i cluster sono utili. Sotto le ultime foglie mostrate (`truncate_last_p`, 30 nel registro delle valutazioni) non si vede niente.
@@ -121,7 +121,7 @@ Per ogni `n_clusters` e `linkage` (per una sola `metric`, di solito `euclidean`;
 
 ### HDBSCAN — DBCV, rumore e numero di cluster
 
-- **DBCV** è l'indice interno di `hdbscan` e `hdbscan_soft` (valutazione `density_metrics`, colonna `dbcv` di `density_metrics.csv`): da -1 a 1, più alto è meglio, pesa il rumore. Silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn non si calcolano per HDBSCAN ([`evaluation_metrics.md`](clustering_methods/evaluation_metrics.md), §8). Non è definito con meno di 2 cluster: cella vuota, non 0.
+- **DBCV** è l'indice interno di `hdbscan` e `hdbscan_soft` (valutazione `density_metrics`, colonna `dbcv` di `tuning_results.csv`): da -1 a 1, più alto è meglio, pesa il rumore. Silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn non si calcolano per HDBSCAN ([`evaluation_metrics.md`](clustering_methods/evaluation_metrics.md), §8). Non è definito con meno di 2 cluster: cella vuota, non 0.
 - **Frazione di rumore** (`noise_fraction`): colonna di `tuning_results.csv`. Si legge sempre insieme al DBCV: un `min_cluster_size` grande può dare cluster netti scartando molti soggetti come rumore. È un vero trade-off tra qualità e copertura del campione. Nessun limite di rumore filtra i risultati.
 - **Come si leggono `tuning_plot.png` e `dbcv_curves.png`.** Lo sweep varia `min_cluster_size` e `min_samples` insieme.
   - `tuning_plot.png` è una griglia di tabelle colorate (heatmap), una per DBCV, rumore, quota del cluster più grande, numero di cluster e, per `hdbscan_soft`, probabilità media e persistenza: `min_cluster_size` sull'asse x, `min_samples` sull'asse y, il colore è il valore. Ogni riquadro ha la sua scala di colore, quindi le differenze piccole sembrano grandi.
@@ -162,7 +162,7 @@ ADP (*Advanced Density Peaks*) non ha un numero di cluster da scegliere: lo deci
 
 Lo stesso metodo, sugli stessi soggetti, su embedding UMAP di dimensione diversa (`n_components` = 2, 3, 10), con la stessa metrica UMAP. Se il risultato cambia molto con l'embedding, non è affidabile.
 
-Il progetto non ha uno strumento che produca questi confronti in un colpo: si fanno sui `tuning_results.csv` (e `density_metrics.csv`) di ogni run e, per le partizioni, con il notebook `clustering_comparison` (`docs/guides/evaluation.md`). Il `tuning_plot.png` di ogni run ha la propria scala di colore: le heatmap di run diverse non si confrontano a colpo d'occhio.
+Il progetto non ha uno strumento che produca questi confronti in un colpo: si fanno sui `tuning_results.csv` di ogni run e, per le partizioni, con il notebook `clustering_comparison` (`docs/guides/evaluation.md`). Il `tuning_plot.png` di ogni run ha la propria scala di colore: le heatmap di run diverse non si confrontano a colpo d'occhio.
 
 - **Cosa si confronta.** I valori assoluti degli indici non si confrontano tra embedding (ogni embedding è uno spazio diverso): si confrontano le partizioni, le dimensioni dei cluster e la struttura.
 - **ARI (*adjusted Rand index*).** Misura l'accordo tra due divisioni degli stessi soggetti: 1 = identiche, 0 = quanto il caso. Un ARI alto a un certo k vuol dire che quel taglio non dipende da `n_components`.

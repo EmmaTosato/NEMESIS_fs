@@ -147,7 +147,7 @@ Default verificati con `inspect.signature` sulle versioni installate.
 
 La documentazione del pacchetto consiglia di partire da `min_cluster_size` (il parametro intuitivo: la taglia più piccola che si vuole chiamare cluster) e di usare `min_samples` per rendere il metodo più o meno conservativo [6]. Il progetto li sweepa insieme in una sola run:
 
-1. **`density_metrics.csv`** (valutazione `density_metrics`, dopo lo sweep o su un tuning già salvato): `tuning_results.csv` più `n_clusters_found`, `largest_cluster_share` (sul totale dei soggetti) e `dbcv`.
+1. **Colonne di `tuning_results.csv`** (valutazione `density_metrics`, dopo lo sweep o su un tuning già salvato): `largest_cluster_share` (sul totale dei soggetti) e `dbcv`, accanto a `n_clusters_found` dello sweep.
 2. **Heatmap** `min_cluster_size` × `min_samples` (valutazione `tuning_heatmaps`, `tuning_plot.png`; per `hdbscan_soft` una per `cluster_selection_method`) di DBCV, rumore, quota del cluster più grande, numero di cluster e, per `hdbscan_soft`, probabilità media e persistenza.
 3. **Curve** (valutazione `dbcv_curves`, `dbcv_curves*.png`): DBCV, rumore, quota del cluster più grande e numero di cluster contro `min_cluster_size`, una linea per `min_samples`. Tutte le combinazioni, nessun limite sul rumore.
 4. **Per `hdbscan_soft`**: `membership_mean` e `persistence_mean`, senza soglia sulla probabilità.

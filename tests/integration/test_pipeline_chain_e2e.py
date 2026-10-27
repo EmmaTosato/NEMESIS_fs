@@ -5,7 +5,6 @@ l'artefatto vero scritto dal precedente (nessun file scritto a mano nel mezzo), 
 gli ID dei soggetti, il loro ordine, le shape e i tipi sopravvivano a tutta la catena.
 """
 
-import json
 from pathlib import Path
 
 import numpy as np
@@ -136,17 +135,16 @@ def test_tuning_chain_feeds_the_analysis_step(tmp_path, monkeypatch, chain):
     assert not results.duplicated(subset=["n_clusters", "linkage", "metric"]).any()
 
     monkeypatch.setattr(evaluate_clustering_tuning, "LOGS_ROOT", tmp_path / "an_logs")
-    registry = json.loads(Path("config/registry/clustering_evaluations.json").read_text())
-    evaluations_file = write_json(tmp_path / "evaluations.json", {**registry, "dendrogram_jump": {"k_range": {"min": 2, "max": 4}}})
+    evaluations_file = Path("config/registry/clustering_evaluations.json")
     cfg = {
         "tuning_dir": str(tuning_dir), "overwrite": False, "evaluations_file": str(evaluations_file), "write_report": True,
         "tuning_evaluations": {"general": [], "agglomerative": ["k_curves", "cophenetic_correlation", "dendrogram_jump", "linkage_agreement", "largest_cluster_share", "dunn_index"]},
     }
     assert evaluate_clustering_tuning.main(["--config", str(write_json(tmp_path / "an.json", cfg))]) == 0
 
-    jump = pd.read_csv(tuning_dir / "dendrogram_jump.csv")
-    assert set(jump["n_clusters"]) <= {2, 3, 4}
-    assert jump["jump"].notna().all()
+    evaluated = pd.read_csv(tuning_dir / "tuning_results.csv")
+    assert len(evaluated) == len(results)  # the evaluations add columns, never rows
+    assert evaluated["jump"].notna().all() and evaluated["dunn"].notna().all()
     cophenetic = pd.read_csv(tuning_dir / "cophenetic_correlation.csv")
     value_column = [c for c in cophenetic.columns if c not in ("metric", "linkage")]
     assert len(value_column) == 1, f"colonne inattese in cophenetic_correlation.csv: {list(cophenetic.columns)}"

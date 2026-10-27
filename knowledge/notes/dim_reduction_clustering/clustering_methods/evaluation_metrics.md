@@ -203,7 +203,7 @@ $$
 
 **Nel progetto: è l'indice interno di `hdbscan` e `hdbscan_soft`.** Sostituisce silhouette, Calinski-Harabasz, Davies-Bouldin e Dunn per questi due metodi, per due motivi: si calcolano sui soli soggetti non rumore (§6) e presuppongono cluster compatti. DBCV non ha né l'uno né l'altro limite.
 
-- **Dove**: è una colonna di `density_metrics.csv` (valutazione `density_metrics` del tuning, anche su un tuning già salvato), una riga di `config.md` e `dbcv_per_cluster.csv` + `dbcv_plot.png` in una run di produzione, e un pannello dell'Embedding Explorer. Una sola funzione, `src/analysis/dbcv.py`, usa `hdbscan.validity.validity_index` con distanza euclidea.
+- **Dove**: è una colonna di `tuning_results.csv` (valutazione `density_metrics` del tuning, anche su un tuning già salvato), una riga di `config.md` e `dbcv_per_cluster.csv` + `dbcv_plot.png` in una run di produzione, e un pannello dell'Embedding Explorer. Una sola funzione, `src/analysis/dbcv.py`, usa `hdbscan.validity.validity_index` con distanza euclidea.
 - **Con meno di 2 cluster non è definito**: il progetto scrive NaN (cella vuota nei report), mai 0. `validity_index` restituisce l'intero `0` per "tutto rumore", indistinguibile da un punteggio vero di 0; con un solo cluster restituisce `nan` e un avviso. Un cluster di un solo soggetto fa sollevare un `ValueError`.
 - **Come si legge**: nessun valore di riferimento in letteratura e nessuna soglia nel progetto. Non è confrontabile tra embedding diversi. Il valore della run non è la media dei cluster: ogni cluster pesa per la sua quota di tutti i soggetti, rumore compreso.
 - **Costo**: circa 1-2 secondi per combinazione (5845 soggetti, 12-30 componenti), fino a una quindicina di secondi con un cluster molto grande: una griglia di 56 combinazioni richiede circa un minuto e mezzo.
@@ -213,7 +213,7 @@ $$
 
 ## 9. Dunn (1974)
 
-Usato dal notebook `clustering_evaluation` (`dunn_index`, `src/analysis/clustering_tuning.py`), non dal tuning.
+Calcolato da `dunn_index` (`src/analysis/clustering_tuning.py`): colonna `dunn` del tuning di agglomerative, riga di `config.md` di una run di produzione e tabella dell'Embedding Explorer.
 
 $$
 D = \frac{\min_{i \neq j} \delta(C_i, C_j)}{\max_{q} \Delta(C_q)}

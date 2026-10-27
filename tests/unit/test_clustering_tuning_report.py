@@ -42,6 +42,7 @@ def _curves_results() -> pd.DataFrame:
             "calinski_harabasz": [100.0, 90.0, 20.0, 10.0, np.nan, np.nan],
             "dunn": [0.4, 0.3, 0.1, 0.05, np.nan, np.nan],
             "largest_cluster_share": [0.6, 0.5, 0.97, 0.96, 0.7, 0.55],
+            "jump": [1.2, 1.3, 1.2, 1.3, 1.2, 1.3],
         }
     )
 
@@ -58,13 +59,14 @@ def _agglomerative_results() -> pd.DataFrame:
             "davies_bouldin": [0.7, 0.8, np.nan, np.nan],
             "dunn": [0.21, 0.12, np.nan, np.nan],
             "largest_cluster_share": [0.64, 0.5, 0.8, 0.7],
+            "jump": [1.2, 1.3, 1.2, 1.3],
         }
     )
 
 
-def _dendrogram_frames(results: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """The cophenetic, agreement and jump frames the analysis would give for `results`: 0.9 for every (metric, linkage),
-    an ARI of 0.5 for every pair of linkages of a metric at every n_clusters, a jump of 1 + n_clusters / 10."""
+def _dendrogram_frames(results: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The cophenetic and agreement frames the analysis would give for `results`: 0.9 for every (metric, linkage),
+    an ARI of 0.5 for every pair of linkages of a metric at every n_clusters."""
     cophenetic = results[["metric", "linkage"]].drop_duplicates().assign(cophenetic_correlation=0.9)
     pairs = [
         {"metric": metric, "n_clusters": k, "linkage_a": a, "linkage_b": b, "ari": 0.5}
@@ -72,13 +74,12 @@ def _dendrogram_frames(results: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFram
         for a, b in itertools.combinations([name for name in ("ward", "average", "complete", "single") if name in set(group["linkage"])], 2)
     ]
     agreement = pd.DataFrame(pairs, columns=["metric", "n_clusters", "linkage_a", "linkage_b", "ari"])
-    jump = results[["metric", "linkage", "n_clusters"]].assign(jump=lambda frame: 1 + frame["n_clusters"] / 10)
-    return cophenetic, agreement, jump
+    return cophenetic, agreement
 
 
 def _agglomerative_report(tmp_path: Path, results: pd.DataFrame) -> str:
-    cophenetic, agreement, jump = _dendrogram_frames(results)
-    return tuning_report_markdown(tmp_path / "run", "agglomerative", Path("matrix"), results, cophenetic, agreement, jump)
+    cophenetic, agreement = _dendrogram_frames(results)
+    return tuning_report_markdown(tmp_path / "run", "agglomerative", Path("matrix"), results, cophenetic, agreement)
 
 
 def test_tuning_report_has_a_table_per_metric_and_linkage_with_the_three_indices_by_n_clusters(tmp_path):
@@ -111,6 +112,7 @@ def test_tuning_report_counts_the_negative_silhouettes_and_gives_the_first_and_l
             "calinski_harabasz": [10.0] * 5,
             "dunn": [0.1] * 5,
             "largest_cluster_share": [0.9] * 5,
+            "jump": [1.1] * 5,
         }
     )
 
@@ -211,17 +213,17 @@ def test_tuning_report_defines_cophenetic_and_jump_without_a_band(tmp_path):
 
 def test_tuning_report_of_agglomerative_needs_the_analysis_frames_and_no_other_method_takes_them(tmp_path):
     results = _curves_results()
-    cophenetic, agreement, jump = _dendrogram_frames(results)
+    cophenetic, agreement = _dendrogram_frames(results)
     adp = pd.DataFrame({"metric": ["dice"], "Z": [1.0], "silhouette": [0.1]})
 
-    with pytest.raises(ValueError, match="needs the cophenetic, agreement and jump frames"):
+    with pytest.raises(ValueError, match="needs the cophenetic and agreement frames"):
         tuning_report_markdown(tmp_path / "run", "agglomerative", Path("matrix"), results)
     with pytest.raises(ValueError, match="belong to the agglomerative report"):
-        tuning_report_markdown(tmp_path / "run", "adp", Path("matrix"), adp, cophenetic, agreement, jump)
-    with pytest.raises(ValueError, match="no cophenetic or jump row for metric='cosine'"):
-        tuning_report_markdown(tmp_path / "run", "agglomerative", Path("matrix"), results, cophenetic[cophenetic["metric"] != "cosine"], agreement, jump)
+        tuning_report_markdown(tmp_path / "run", "adp", Path("matrix"), adp, cophenetic, agreement)
+    with pytest.raises(ValueError, match="no cophenetic row for metric='cosine'"):
+        tuning_report_markdown(tmp_path / "run", "agglomerative", Path("matrix"), results, cophenetic[cophenetic["metric"] != "cosine"], agreement)
     with pytest.raises(ValueError, match=r"agreement has no column\(s\) \['ari'\]"):
-        tuning_report_markdown(tmp_path / "run", "agglomerative", Path("matrix"), results, cophenetic, agreement.drop(columns="ari"), jump)
+        tuning_report_markdown(tmp_path / "run", "agglomerative", Path("matrix"), results, cophenetic, agreement.drop(columns="ari"))
 
 
 def test_tuning_report_has_an_agreement_table_per_metric_and_says_when_a_metric_has_a_single_linkage(tmp_path):
@@ -393,7 +395,8 @@ def test_the_agglomerative_report_tables_have_dunn_and_the_largest_cluster_share
     assert "| 2 | 0.300 | 0.700 | 7,259 | 0.210 | 0.640 |" in report
     terms = report.split("## Termini")[1]
     assert "- **`dunn`**:" in terms and "- **`largest_cluster_share`**:" in terms
-    assert "`largest_cluster_share.csv`, `dunn_index.csv`" in report
+    assert "`tuning_results.csv` (anche `dunn`, `largest_cluster_share` e `jump`)" in report
+    assert "dunn_index.csv" not in report and "dendrogram_jump.csv" not in report
 
 
 def test_the_agglomerative_report_leaves_dunn_empty_for_a_non_euclidean_metric_and_says_so(tmp_path):
@@ -404,21 +407,13 @@ def test_the_agglomerative_report_leaves_dunn_empty_for_a_non_euclidean_metric_a
     assert "| 2 | 0.200 | – | – | – | 0.800 |" in cosine
 
 
-def test_the_report_joins_the_two_files_on_the_swept_columns_and_refuses_files_of_another_run(tmp_path):
-    from src.analysis.clustering_tuning_report import _with_agglomerative_indices
+@pytest.mark.parametrize("column", ["dunn", "largest_cluster_share", "jump"])
+def test_the_agglomerative_report_needs_the_columns_of_the_per_combination_evaluations_and_says_which_is_missing(tmp_path, column):
+    results = _agglomerative_results().drop(columns=column)
+    cophenetic, agreement = _dendrogram_frames(results)
 
-    results = _agglomerative_results().drop(columns=["dunn", "largest_cluster_share"])
-    keys = results[["n_clusters", "linkage", "metric"]]
-    share = keys.assign(largest_cluster_share=[0.1, 0.2, 0.3, 0.4]).iloc[::-1]  # another row order
-    dunn = keys.assign(dunn=[1.0, 2.0, np.nan, np.nan])
-
-    joined = _with_agglomerative_indices(tmp_path, results, share, dunn)
-
-    assert joined["largest_cluster_share"].tolist() == [0.1, 0.2, 0.3, 0.4] and joined["dunn"].iloc[:2].tolist() == [1.0, 2.0]
-    with pytest.raises(ValueError, match="one row per combination"):
-        _with_agglomerative_indices(tmp_path, results, share.iloc[:3], dunn)
-    with pytest.raises(ValueError, match=r"no column\(s\) \['dunn'\]"):
-        _with_agglomerative_indices(tmp_path, results, share, dunn.drop(columns="dunn"))
+    with pytest.raises(ValueError, match=rf"tuning_results has no column\(s\) \['{column}'\]"):
+        tuning_report_markdown(tmp_path / "run", "agglomerative", Path("matrix"), results, cophenetic, agreement)
 
 
 def test_the_shipped_texts_file_defines_exactly_the_texts_the_report_looks_up():

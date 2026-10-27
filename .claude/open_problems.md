@@ -126,7 +126,7 @@ Da decidere: quale dei due (o un altro), se si applica anche a Davies-Bouldin e 
 Fuori dal primo giro di implementazione (19-10-26), da riprendere dopo aver deciso come leggere dendrogramma, cophenetic e salto:
 
 - **Dimensioni dei cluster nelle tabelle**: `largest_cluster_share` e `n_small_clusters` (meno di 10 soggetti, la definizione già usata da HDBSCAN e ADP in `clustering_tuning_analysis.py` e `adp.py`) non sono calcolati per agglomerative. Sulla run SDC `16-10 nc10` la quota del cluster più grande va, con euclidean, dal 64-70% a k=2 al 7-8% a k=30; `single` ha il 97% a k=2 e 20 cluster sotto l'1% a k=30.
-- **Scree plot**: altezza di fusione contro k. Oggi c'è solo il rapporto in `dendrogram_jump.csv`.
+- **Scree plot**: altezza di fusione contro k. Oggi c'è solo il rapporto, nella colonna `jump` di `tuning_results.csv`.
 - **Dimensione del cluster che si divide da k a k+1**: non esiste nel codice.
 - **Accordo tra embedding** (ARI tra nc2, nc3 e nc10, a parità di k e linkage): esiste solo in `src/analysis/cluster_comparison.py` (il notebook `clustering_tuning_explorer`, eliminato il 21-10-26, lo calcolava anche per i tuning) (sezione "Confronto" tolta dall'app); confronta più run, quindi non entra nel `report.md` di una singola run.
 - **Composizione dei cluster per dataset e lato**: esiste in `src/analysis/cluster_composition.py` e nel pannello dell'app, non nei report.

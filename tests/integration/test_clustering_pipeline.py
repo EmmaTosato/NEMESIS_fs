@@ -696,7 +696,7 @@ def test_clustering_production_hdbscan_soft_saves_the_membership_matrix_and_own_
 
 def test_clustering_fine_tuning_hdbscan_min_samples_joint_sweep_writes_heatmap(tmp_path, monkeypatch):
     """min_cluster_size x min_samples in a single sweep run. The map includes DBCV, which the sweep does not
-    compute: the tuning_heatmaps evaluation draws it from density_metrics.csv, right after the sweep."""
+    compute: the tuning_heatmaps evaluation draws it from the dbcv column of tuning_results.csv, right after the sweep."""
     input_dir = _build_matrix(tmp_path, monkeypatch)
     monkeypatch.setattr(clustering, "LOGS_ROOT", tmp_path / "cl_logs")
 
@@ -738,7 +738,8 @@ def test_clustering_fine_tuning_hdbscan_min_samples_joint_sweep_writes_heatmap(t
     assert len(results) == 4
     assert set(results["min_samples"]) == {2, 5}
     assert not {"silhouette", "calinski_harabasz", "davies_bouldin"} & set(results.columns)  # DBCV is the index of the density methods
-    assert "dbcv" in pd.read_csv(tuning_dir / "density_metrics.csv").columns
+    assert "dbcv" in pd.read_csv(tuning_dir / "tuning_results.csv").columns
+    assert not (tuning_dir / "density_metrics.csv").exists()
 
 
 def test_clustering_fine_tuning_hdbscan_without_evaluations_draws_no_map(tmp_path, monkeypatch):

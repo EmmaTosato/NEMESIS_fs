@@ -5,11 +5,13 @@
 the sweep does not write; src/analysis/clustering_tuning_evaluations.py runs them and writes their files, and
 src/analysis/clustering_tuning_report.py lays the files out as report.md:
 
-- agglomerative: cophenetic correlation and dendrogram jump per (metric, linkage), the merge trees themselves (drawn by
+- agglomerative: cophenetic correlation per (metric, linkage), the dendrogram jump, Dunn and the largest cluster share of
+  every combination (columns that `merge_columns` adds to tuning_results.csv), the merge trees themselves (drawn by
   the `dendrograms` evaluation), agreement between linkages,
   silhouette and Davies-Bouldin curves per n_clusters (the linkages other than `single`, on axes shared by the run);
-- hdbscan / hdbscan_soft: the number of clusters, the share of the largest cluster and DBCV of every combination, the
-  curves of those against min_cluster_size and the map of every column over min_cluster_size x min_samples;
+- hdbscan / hdbscan_soft: the share of the largest cluster and DBCV of every combination (columns that `merge_columns` adds
+  to tuning_results.csv; the number of clusters is the sweep's own column, checked against the labels), the curves of
+  those against min_cluster_size and the map of every column over min_cluster_size x min_samples;
 - agglomerative / hdbscan / hdbscan_soft: the columns the sweep writes that can be recomputed from the stored labels
   (silhouette, Calinski-Harabasz, Davies-Bouldin of agglomerative; noise_fraction of the density methods).
 """
@@ -19,6 +21,7 @@ from __future__ import annotations
 import itertools
 import json
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -125,7 +128,7 @@ def load_clustering_tuning_run(run_dir: Path) -> ClusteringTuningRun:
     return ClusteringTuningRun(run_dir, method, Path(config["input_path"]), results, labels)
 
 
-def dendrogram_jump(linkage_matrix: np.ndarray, k_values: range) -> dict[int, float]:
+def dendrogram_jump(linkage_matrix: np.ndarray, k_values: Iterable[int]) -> dict[int, float]:
     """Height of the merge from k to k-1 clusters divided by that of the merge from k+1 to k, for each k.
     Close to 1 the tree has no natural cut at k; the larger it is, the sharper the cut.
 
@@ -165,17 +168,25 @@ def cophenetic_table(run: ClusteringTuningRun, X: np.ndarray, distance_cache: di
     return pd.DataFrame(rows)
 
 
-def jump_table(
-    run: ClusteringTuningRun, X: np.ndarray, k_values: range, distance_cache: dict[str, np.ndarray] | None = None
-) -> pd.DataFrame:
-    """Dendrogram jump of every valid (metric, linkage) of an agglomerative run at each k of `k_values`: one row
-    per (metric, linkage, n_clusters), columns `metric`, `linkage`, `n_clusters`, `jump`."""
+def jump_table(run: ClusteringTuningRun, X: np.ndarray, distance_cache: dict[str, np.ndarray] | None = None) -> pd.DataFrame:
+    """Dendrogram jump of every combination of an agglomerative run, at the combination's own `n_clusters`: one row per
+    combination, in the order of `tuning_results.csv`, columns `n_clusters`, `linkage`, `metric`, `jump`. The tree of
+    each (metric, linkage) is computed once. Raises ValueError for a combination sklearn rejects (ward with a
+    non-euclidean metric) and, from `dendrogram_jump`, for a k the tree cannot give."""
     distance_cache = {} if distance_cache is None else distance_cache
-    rows = []
+    columns = SWEPT_COLUMNS[AGGLOMERATIVE]
+    jumps: dict[tuple[str, str], dict[int, float]] = {}
     for p in _valid_metric_linkage_pairs(run, "jump_table"):
-        jumps = dendrogram_jump(compute_dendrogram_linkage(X, p, distance_cache), k_values)
-        rows += [{"metric": p["metric"], "linkage": p["linkage"], "n_clusters": k, "jump": jump} for k, jump in jumps.items()]
-    return pd.DataFrame(rows)
+        pair = run.results[(run.results["metric"] == p["metric"]) & (run.results["linkage"] == p["linkage"])]
+        k_values = sorted({int(k) for k in pair["n_clusters"]})
+        jumps[(p["metric"], p["linkage"])] = dendrogram_jump(compute_dendrogram_linkage(X, p, distance_cache), k_values)
+    rows = []
+    for row in run.results.to_dict("records"):
+        pair_jumps = jumps.get((row["metric"], row["linkage"]))
+        if pair_jumps is None:
+            raise ValueError(f"jump_table: {combo_key(row, columns)} is not a valid combination (ward needs the euclidean metric)")
+        rows.append({**{name: row[name] for name in columns}, "jump": pair_jumps[int(row["n_clusters"])]})
+    return pd.DataFrame(rows, columns=[*columns, "jump"])
 
 
 def dendrogram_linkages(
@@ -237,6 +248,34 @@ def dunn_table(run: ClusteringTuningRun, X: np.ndarray) -> pd.DataFrame:
         for row in run.results.to_dict("records")
     ]
     return pd.DataFrame(rows, columns=[*columns, "dunn"])
+
+
+def merge_columns(results: pd.DataFrame, table: pd.DataFrame, key_columns: tuple[str, ...], owned: tuple[str, ...]) -> pd.DataFrame:
+    """`results` with the `owned` columns of `table`, joined on `key_columns` (the swept columns), never by position.
+
+    A column of `owned` already in `results` is replaced where it stands, a new one is added at the end; every other column
+    is returned as it is. Raises ValueError if `owned` includes a key column, if `table` lacks a key or owned column or
+    repeats a combination, or if its combinations are not exactly those of `results` (the table of another run)."""
+    clash = [column for column in owned if column in key_columns]
+    if clash:
+        raise ValueError(f"{clash} are swept columns: an evaluation cannot own them")
+    missing = [column for column in (*key_columns, *owned) if column not in table.columns]
+    if missing:
+        raise ValueError(f"the evaluation table has no column(s) {missing}")
+    keys = list(key_columns)
+    if table.duplicated(keys).any():
+        raise ValueError(f"the evaluation table repeats a combination of {keys}")
+    joined = results[keys].merge(table[[*keys, *owned]], on=keys, how="outer", indicator=True)
+    if (joined["_merge"] != "both").any():
+        raise ValueError(
+            f"the evaluation table does not have one row per combination of tuning_results.csv "
+            f"({len(table)} rows against {len(results)}; an evaluation of another run?)"
+        )
+    aligned = results[keys].merge(table[[*keys, *owned]], on=keys, how="left")
+    merged = results.copy()
+    for column in owned:
+        merged[column] = aligned[column].to_numpy()
+    return merged
 
 
 def ordered(values, preferred: tuple[str, ...]) -> list[str]:
@@ -323,9 +362,9 @@ def k_curves_figure(results: pd.DataFrame, metric: str) -> Figure:
 
 
 def density_metrics(run: ClusteringTuningRun, X: np.ndarray) -> pd.DataFrame:
-    """tuning_results.csv of an hdbscan / hdbscan_soft run with `n_clusters_found`, `largest_cluster_share` (over all
+    """The results of an hdbscan / hdbscan_soft run with `n_clusters_found`, `largest_cluster_share` (over all
     subjects, noise included) and `dbcv` (src/analysis/dbcv.py, on `X`, the matrix the run clustered), all computed
-    from the stored labels. `largest_cluster_share` is NaN when every subject is noise and `dbcv` when there are
+    from the stored labels (the evaluation writes the last two, and the first only when the run lacks it). `largest_cluster_share` is NaN when every subject is noise and `dbcv` when there are
     fewer than 2 clusters.
 
     If the run also wrote `n_clusters_found` the two must agree, or this raises (a clusterings.npz that does
@@ -351,9 +390,7 @@ def density_metrics(run: ClusteringTuningRun, X: np.ndarray) -> pd.DataFrame:
     return metrics
 
 
-DENSITY_METRICS_FILE = "density_metrics.csv"
-
-# The columns of density_metrics.csv drawn in the map and in the curves, in this order (those the run has).
+# The columns of tuning_results.csv drawn in the map and in the curves, in this order (those the run has).
 DENSITY_MAP_COLUMNS = ("dbcv", "noise_fraction", "largest_cluster_share", "n_clusters_found", "membership_mean", "persistence_mean")
 DENSITY_CURVE_COLUMNS = (
     ("dbcv", "DBCV (higher = better)"),
@@ -364,13 +401,13 @@ DENSITY_CURVE_COLUMNS = (
 SELECTION_COLUMN = "cluster_selection_method"
 
 
-def read_density_metrics(run_dir: Path) -> pd.DataFrame:
-    """density_metrics.csv of a run folder, the table the density evaluations after `density_metrics` read.
-    Raises FileNotFoundError naming the evaluation to run first."""
-    path = Path(run_dir) / DENSITY_METRICS_FILE
-    if not path.is_file():
-        raise FileNotFoundError(f"{path} not found: run the `density_metrics` evaluation before the ones that read it")
-    return pd.read_csv(path)
+def density_results(run: ClusteringTuningRun) -> pd.DataFrame:
+    """The results of a density run with the columns of the `density_metrics` evaluation, which the figures read.
+    Raises ValueError naming the evaluation to run first when one is missing."""
+    missing = [column for column, _ in DENSITY_CURVE_COLUMNS if column not in run.results.columns]
+    if missing:
+        raise ValueError(f"{run.run_dir / 'tuning_results.csv'} has no column(s) {missing}: run the `density_metrics` evaluation before the ones that read them")
+    return run.results
 
 
 def density_groups(metrics: pd.DataFrame) -> dict[str, pd.DataFrame]:

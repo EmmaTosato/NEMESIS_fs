@@ -32,8 +32,8 @@ from src.analysis.clustering import CLUSTERING_METHODS
 from src.analysis.clustering_tuning_analysis import (
     AGGLOMERATIVE,
     DENSITY_MAP_COLUMNS,
-    DENSITY_METRICS_FILE,
     DENSITY_METHODS,
+    SWEPT_COLUMNS,
     ClusteringTuningRun,
     cophenetic_table,
     dbcv_curves_figures,
@@ -48,7 +48,8 @@ from src.analysis.clustering_tuning_analysis import (
     k_curves_targets,
     largest_cluster_share_table,
     linkage_agreement,
-    read_density_metrics,
+    merge_columns,
+    density_results,
     recomputed_internal_metrics,
 )
 from src.analysis.plotting import compose_clustering_tuning_title, plot_clustering_tuning_heatmaps, plot_dendrograms_grid
@@ -114,19 +115,6 @@ def _validate_no_settings(name: str) -> Callable[[dict], None]:
     return validate
 
 
-def _validate_dendrogram_jump_settings(settings: dict) -> None:
-    if set(settings) != {"k_range"} or not isinstance(settings["k_range"], dict):
-        raise ValueError(f"evaluations registry: {DENDROGRAM_JUMP!r} needs exactly a 'k_range' object, got {settings!r}")
-    k_range = settings["k_range"]
-    if set(k_range) != {"min", "max"}:
-        raise ValueError(f"evaluations registry: {DENDROGRAM_JUMP!r} k_range needs exactly 'min' and 'max', got {sorted(k_range)}")
-    for key in ("min", "max"):
-        if isinstance(k_range[key], bool) or not isinstance(k_range[key], int) or k_range[key] < 2:
-            raise ValueError(f"evaluations registry: {DENDROGRAM_JUMP!r} k_range.{key} must be an integer >= 2, got {k_range[key]!r}")
-    if k_range["min"] > k_range["max"]:
-        raise ValueError(f"evaluations registry: {DENDROGRAM_JUMP!r} k_range.min ({k_range['min']}) is greater than k_range.max ({k_range['max']})")
-
-
 def _validate_dendrograms_settings(settings: dict) -> None:
     if set(settings) != {"truncate_last_p"}:
         raise ValueError(f"evaluations registry: {DENDROGRAMS!r} needs exactly 'truncate_last_p', got {sorted(settings)}")
@@ -146,11 +134,35 @@ def _run_k_curves(context: EvaluationContext, settings: dict) -> list[Path]:
 
 
 def _write_table(context: EvaluationContext, name: str, table: Callable[[], pd.DataFrame]) -> list[Path]:
-    """Writes `table()` as <run folder>/<name>; the file is checked before the table is computed, which can be slow."""
+    """Writes `table()` as <run folder>/<name>; the file is checked before the table is computed, which can be slow.
+    For a table with its own key (not one row per combination of tuning_results.csv)."""
     path = context.run.run_dir / name
     refuse_existing([path], context.overwrite)
     table().to_csv(path, index=False)
     return [path]
+
+
+def _write_results(run: ClusteringTuningRun, frame: pd.DataFrame) -> list[Path]:
+    """Replaces tuning_results.csv with `frame`, written to a temporary name and renamed so the file is never left
+    half written, and gives the run in memory the same columns: the evaluations after this one read them."""
+    path = run.run_dir / "tuning_results.csv"
+    temporary = path.with_suffix(".csv.tmp")
+    frame.to_csv(temporary, index=False)
+    os.replace(temporary, path)
+    for column in frame.columns:
+        run.results[column] = frame[column]
+    return [path]
+
+
+def _write_columns(context: EvaluationContext, columns: tuple[str, ...], table: Callable[[], pd.DataFrame]) -> list[Path]:
+    """Adds the `columns` of `table()` (one row per combination) to tuning_results.csv, joined on the swept columns, and
+    leaves every other column as it is. A column that is already there is replaced, only with overwrite=true; this is
+    checked before the table is computed, which can be slow."""
+    run = context.run
+    existing = [column for column in columns if column in run.results.columns]
+    if existing and not context.overwrite:
+        raise FileExistsError(f"tuning_results.csv already has the column(s) {existing} - set overwrite=true to replace them")
+    return _write_results(run, merge_columns(run.results, table(), SWEPT_COLUMNS[run.method], columns))
 
 
 def _run_cophenetic_correlation(context: EvaluationContext, settings: dict) -> list[Path]:
@@ -160,10 +172,7 @@ def _run_cophenetic_correlation(context: EvaluationContext, settings: dict) -> l
 
 
 def _run_dendrogram_jump(context: EvaluationContext, settings: dict) -> list[Path]:
-    k_range = range(settings["k_range"]["min"], settings["k_range"]["max"] + 1)
-    return _write_table(
-        context, "dendrogram_jump.csv", lambda: jump_table(context.run, context.matrix(), k_range, context.distance_cache)
-    )
+    return _write_columns(context, ("jump",), lambda: jump_table(context.run, context.matrix(), context.distance_cache))
 
 
 def _run_dendrograms(context: EvaluationContext, settings: dict) -> list[Path]:
@@ -183,15 +192,20 @@ def _run_linkage_agreement(context: EvaluationContext, settings: dict) -> list[P
 
 
 def _run_largest_cluster_share(context: EvaluationContext, settings: dict) -> list[Path]:
-    return _write_table(context, "largest_cluster_share.csv", lambda: largest_cluster_share_table(context.run))
+    return _write_columns(context, ("largest_cluster_share",), lambda: largest_cluster_share_table(context.run))
 
 
 def _run_dunn_index(context: EvaluationContext, settings: dict) -> list[Path]:
-    return _write_table(context, "dunn_index.csv", lambda: dunn_table(context.run, context.matrix()))
+    return _write_columns(context, ("dunn",), lambda: dunn_table(context.run, context.matrix()))
 
 
 def _run_density_metrics(context: EvaluationContext, settings: dict) -> list[Path]:
-    return _write_table(context, DENSITY_METRICS_FILE, lambda: density_metrics(context.run, context.matrix()))
+    """Adds `largest_cluster_share` and `dbcv` to tuning_results.csv. `n_clusters_found` is the sweep's own column: the
+    table checks it against the labels and never replaces it; a run that lacks it gets it from the labels."""
+    owned = ("largest_cluster_share", "dbcv")
+    if "n_clusters_found" not in context.run.results.columns:
+        owned = ("n_clusters_found", *owned)
+    return _write_columns(context, owned, lambda: density_metrics(context.run, context.matrix()))
 
 
 def _density_figure_paths(run_dir: Path, figures: Mapping[str, object], stem: str) -> dict[str, Path]:
@@ -201,7 +215,7 @@ def _density_figure_paths(run_dir: Path, figures: Mapping[str, object], stem: st
 
 def _run_dbcv_curves(context: EvaluationContext, settings: dict) -> list[Path]:
     run = context.run
-    figures = dbcv_curves_figures(read_density_metrics(run.run_dir))
+    figures = dbcv_curves_figures(density_results(run))
     paths = _density_figure_paths(run.run_dir, figures, "dbcv_curves")
     refuse_existing(list(paths.values()), context.overwrite)
     for name, figure in figures.items():
@@ -210,11 +224,11 @@ def _run_dbcv_curves(context: EvaluationContext, settings: dict) -> list[Path]:
 
 
 def _run_tuning_heatmaps(context: EvaluationContext, settings: dict) -> list[Path]:
-    """The map of every column of density_metrics.csv over min_cluster_size x min_samples, one file per
+    """The map of every column of tuning_results.csv that is a density measure over min_cluster_size x min_samples, one file per
     cluster_selection_method for hdbscan_soft (the name tuning_plot[_cluster_selection_method=<value>].png the sweep
     gave it before DBCV existed, which is what the report links)."""
     run = context.run
-    groups = density_groups(read_density_metrics(run.run_dir))
+    groups = density_groups(density_results(run))
     paths = _density_figure_paths(run.run_dir, groups, "tuning_plot")
     refuse_existing(list(paths.values()), context.overwrite)
     title = compose_clustering_tuning_title(run.run_dir, run.method)
@@ -228,25 +242,17 @@ def _run_tuning_heatmaps(context: EvaluationContext, settings: dict) -> list[Pat
 
 def _run_internal_metrics(context: EvaluationContext, settings: dict) -> list[Path]:
     """Recomputes from the stored labels the columns the sweep computes from them and rewrites them in
-    tuning_results.csv, leaving every other column as it is. It replaces a file the sweep wrote, so it only runs
-    with overwrite=true; the file is written to a temporary name first and renamed, never left half written."""
-    run = context.run
-    path = run.run_dir / "tuning_results.csv"
+    tuning_results.csv, leaving every other column as it is. It replaces columns the sweep wrote, so it only runs
+    with overwrite=true."""
     if not context.overwrite:
-        raise FileExistsError(f"{INTERNAL_METRICS} rewrites {path.name}: set overwrite=true to allow it")
-    metrics = recomputed_internal_metrics(run, context.matrix(), context.distance_cache)
-    temporary = path.with_suffix(".csv.tmp")
-    metrics.to_csv(temporary, index=False)
-    os.replace(temporary, path)
-    for column in metrics.columns:  # the evaluations that follow read run.results: they must see the new values
-        run.results[column] = metrics[column]
-    return [path]
+        raise FileExistsError(f"{INTERNAL_METRICS} rewrites tuning_results.csv: set overwrite=true to allow it")
+    return _write_results(context.run, recomputed_internal_metrics(context.run, context.matrix(), context.distance_cache))
 
 
 EVALUATIONS: dict[str, EvaluationSpec] = {
     K_CURVES: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(K_CURVES), _run_k_curves),
     COPHENETIC_CORRELATION: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(COPHENETIC_CORRELATION), _run_cophenetic_correlation),
-    DENDROGRAM_JUMP: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_dendrogram_jump_settings, _run_dendrogram_jump),
+    DENDROGRAM_JUMP: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(DENDROGRAM_JUMP), _run_dendrogram_jump),
     DENDROGRAMS: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_dendrograms_settings, _run_dendrograms),
     LINKAGE_AGREEMENT: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(LINKAGE_AGREEMENT), _run_linkage_agreement),
     LARGEST_CLUSTER_SHARE: EvaluationSpec(_AGGLOMERATIVE_ONLY, _validate_no_settings(LARGEST_CLUSTER_SHARE), _run_largest_cluster_share),

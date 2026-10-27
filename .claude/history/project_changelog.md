@@ -6,6 +6,38 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 27-10-26 — Tuning di clustering: le valutazioni per combinazione scrivono colonne in `tuning_results.csv` (agglomerative; passo 1 di 4)
+
+Per scelta dell'utente: una tabella per tuning, non un file per valutazione. `dunn_index`, `largest_cluster_share` e `dendrogram_jump` non scrivono più `dunn_index.csv`, `largest_cluster_share.csv`, `dendrogram_jump.csv`: aggiungono a `tuning_results.csv` le colonne `dunn`, `largest_cluster_share`, `jump`.
+- **Unione per chiave** (`n_clusters`, `linkage`, `metric`), mai per posizione: `clustering_tuning_analysis.merge_columns` si ferma se la tabella ha combinazioni diverse da quelle del file, ne ripete una, manca di una colonna o pretende una colonna spazzata. Tocca solo le colonne che la valutazione possiede.
+- **Una colonna già presente si sostituisce solo con `overwrite: true`**, controllo fatto prima di calcolare (il calcolo può durare). La scrittura passa da un file temporaneo e una rinomina; `internal_metrics` usa lo stesso scrittore (`_write_results`).
+- **`k_range` tolto** da `config/registry/clustering_evaluations.json` (`dendrogram_jump` non ha più impostazioni): il salto si calcola al `n_clusters` di ogni combinazione, che la griglia già decide. Prima era una tabella a parte su un intervallo 2-30.
+- Il report legge `tuning_results.csv` e si ferma se manca `dunn`, `largest_cluster_share` o `jump`; `_with_agglomerative_indices` non esiste più.
+
+Restano file a parte `cophenetic_correlation.csv` (una riga per metrica e linkage, indipendente da k) e `linkage_agreement.csv` (una riga per coppia di linkage): hanno un'altra chiave.
+
+Alternative scartate: tenere un file per valutazione (i numeri di una combinazione sparsi in cinque file da unire a mano); un solo file `internal_indices.csv` (resta un secondo file da unire).
+
+Non fatta in questo passo: la produzione (esclusa da questo giro: indici in `config.md`, tabelle per cluster con un'altra chiave). Le cartelle già scritte sono state migrate nel passo 4 (voce sopra). Verifica: `pytest tests/` 5708 passed, 17 skipped; le regole nuove verificate per mutazione (unione per posizione, tabella di un'altra run, colonna spazzata, sostituzione senza `overwrite`, calcolo prima del controllo, colonne non possedute, scrittura non atomica: tutte bocciate dai test).
+
+## 27-10-26 — Le 48 cartelle di tuning con report migrate al formato a colonne (passo 4 di 4)
+
+Per le 48 cartelle con report (16 `agglomerative`, 16 `hdbscan`, 16 `hdbscan_soft`, tutte sotto `results/{lesion,sdc}/clustering/tuning/`): le colonne di `dunn_index.csv`, `largest_cluster_share.csv`, `dendrogram_jump.csv` (agglomerative) e di `density_metrics.csv` (`largest_cluster_share`, `dbcv`; HDBSCAN) sono state unite a `tuning_results.csv` con `merge_columns`, per chiave; i valori sono verificati uguali a quelli dei vecchi file; i vecchi CSV sono cancellati; i 48 `report.md` sono rigenerati dal codice attuale (solo lettura, nessuna ricomputazione).
+
+Scelta: unione una tantum dei CSV esistenti invece del rilancio completo di `evaluate_clustering_tuning` (circa 48 minuti). Il rilancio avrebbe solo riscritto le figure a 200 dpi; per un controllo dei report, ricostruiti prima in una copia e confrontati con gli esistenti, le tabelle erano identiche e le differenze erano solo la riga «Dati completi», la didascalia e la nota «Limiti» del dendrogramma e i testi di `membership_mean`/`persistence_mean` (testi di `utils/report_texts/`).
+
+Ancora vero oggi: **le figure delle 48 cartelle sono a 150 dpi** (`k_curves`, `dendrogram_metric`, `tuning_plot`, `dbcv_curves`), il codice attuale le scrive a 200 dpi (`FIGURE_DPI`); i dendrogrammi esistenti sono quelli scritti dallo sweep, non dalla valutazione `dendrograms` (stesso impianto, risoluzione diversa; contenuto non confrontato pixel per pixel). Un rilancio con `overwrite: true` li porta a 200 dpi. Le cartelle senza report (24, precedenti alla catena) non sono toccate. Backup dei file cancellati e dei vecchi report, fuori dal repo: `/private/tmp/claude-501/-Users-emmatosato-Local-Projects-Local-PhD-Projects-NEMESIS-fs/05c6b563-df1c-4493-a4ca-befb4a55c04c/scratchpad/backup_before_migration/` (temporaneo: non è un archivio).
+
+## 27-10-26 — Tuning di clustering: `density_metrics` di HDBSCAN scrive colonne in `tuning_results.csv` (passo 2 di 4)
+
+Stessa regola del passo 1, per `hdbscan` e `hdbscan_soft`. `density_metrics.csv` non esiste più: la valutazione `density_metrics` aggiunge a `tuning_results.csv` le colonne `largest_cluster_share` e `dbcv` (unione per chiave `min_cluster_size`, `min_samples`, più `cluster_selection_method` per `hdbscan_soft`).
+- **`n_clusters_found` è colonna dello sweep**: la valutazione la ricalcola dalle etichette e si ferma se la run ne ha una diversa (`ValueError`, il file resta com'è), ma non la sostituisce. Se la run non l'ha scritta (non succede con `clustering.py`, succede nelle fixture) la aggiunge dalle etichette.
+- **`membership_mean` e `persistence_mean`** di `hdbscan_soft` nascono dal fit: la valutazione non le possiede e non le tocca.
+- **`tuning_heatmaps` e `dbcv_curves` leggono le colonne della run** (`density_results`): se mancano, `ValueError` che dice di far girare prima `density_metrics`. Prima leggevano `density_metrics.csv`, `FileNotFoundError`.
+- **Report**: legge solo `tuning_results.csv`; se mancano `largest_cluster_share` o `dbcv` dice che le scrive `density_metrics`. Lo stesso messaggio per agglomerative nomina le valutazioni che scrivono le sue colonne.
+
+Le cartelle di HDBSCAN già scritte (16 `hdbscan`, 16 `hdbscan_soft`) sono state migrate nel passo 4 (voce sopra). Verifica: `pytest tests/` 5710 passed, 17 skipped; per mutazione (sostituzione di `n_clusters_found`, figure su colonne assenti, controllo del conteggio dei cluster tolto) bocciate dai test.
+
 ## 27-10-26 — `clustering_evaluation.ipynb` eliminato
 
 Il notebook (valutazione di una run alla volta: indici geometrici, statistica del modello, appartenenza, descrizione clinica) è stato cancellato per scelta dell'utente (`git rm`; recuperabile da `git`, ultimo commit con il file: `e0cfc55`). Non è stato spostato in `pipeline_building` né riparato.

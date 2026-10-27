@@ -95,7 +95,7 @@ Three swept parameters (`min_cluster_size`, `min_samples`, `cluster_selection_me
 
 ### HDBSCAN — `min_samples` joint sweep + probabilities_-sized production scatter
 
-HDBSCAN's internal index is DBCV (`src/analysis/dbcv.py`, below), not the silhouette-family indices: they are computed on the non-noise subjects only and assume compact clusters. The sweep (`run_clustering_tuning_sweep`) writes for `hdbscan`/`hdbscan_soft` only `noise_fraction` (`compute_noise_metrics`, which refuses a non-euclidean `metric`/`affinity`) and the method's own columns; the `density_metrics` evaluation adds `dbcv`, and it also runs on a stored tuning. `probabilities_` still sizes the production scatter (`hdbscan_labels_and_probabilities`).
+HDBSCAN's internal index is DBCV (`src/analysis/dbcv.py`, below), not the silhouette-family indices: they are computed on the non-noise subjects only and assume compact clusters. The sweep (`run_clustering_tuning_sweep`) writes for `hdbscan`/`hdbscan_soft` only `noise_fraction` (`compute_noise_metrics`, which refuses a non-euclidean `metric`/`affinity`) and the method's own columns; the `density_metrics` evaluation adds the `largest_cluster_share` and `dbcv` columns to `tuning_results.csv` (`n_clusters_found` stays the sweep's own, checked against the labels), and it also runs on a stored tuning. `probabilities_` still sizes the production scatter (`hdbscan_labels_and_probabilities`).
 
 `min_samples` was added to `tuning_grid` alongside `min_cluster_size` (`config/registry/params_clustering.json`'s checked-in `"hdbscan"` entry) - deterministic like agglomerative (no `random_state`), so both axes are swept **jointly in one run** (the user's explicit constraint: no repeated/sequential tuning runs), drawn with `plotting.plot_clustering_tuning_heatmaps`, the same 2-swept-param heatmap mechanism built for agglomerative's `n_clusters`×`linkage`, now called by the `tuning_heatmaps` evaluation.
 
@@ -160,7 +160,7 @@ Wired into `clustering_tuning.run_clustering_tuning_sweep` via an optional `cons
 
 ## `src/analysis/dbcv.py` — the internal index of the density methods
 
-`dbcv(X, labels) -> (score, per_cluster)`: DBCV (Moulavi et al. 2014) of a clustering with the `hdbscan` package's `validity_index` (euclidean, per-cluster scores). `run_dbcv(X, labels, combo_params) -> RunDbcv(score, clusters, note)` is the one call for the tuning (`clustering_tuning_analysis.density_metrics` writes it in `density_metrics.csv`), the production run (`pipeline/clustering.py`: `config.md` line, `dbcv_per_cluster.csv`, `dbcv_plot.png` via `plotting.plot_dbcv_per_cluster`) and the Embedding Explorer (`clustering_evaluation.density_summary`, `cluster_quality.build_dbcv_figure`), so they give the same number, and the same answer when it is not defined, for the same labels. A run clustered under a non-Euclidean metric/affinity, or with fewer than 2 clusters, gets `score` NaN, no cluster rows and the reason in `note` (never an error, never a number); a cluster of one subject, non-finite values or a length mismatch raise.
+`dbcv(X, labels) -> (score, per_cluster)`: DBCV (Moulavi et al. 2014) of a clustering with the `hdbscan` package's `validity_index` (euclidean, per-cluster scores). `run_dbcv(X, labels, combo_params) -> RunDbcv(score, clusters, note)` is the one call for the tuning (`clustering_tuning_analysis.density_metrics` computes it; the evaluation writes it as the `dbcv` column of `tuning_results.csv`), the production run (`pipeline/clustering.py`: `config.md` line, `dbcv_per_cluster.csv`, `dbcv_plot.png` via `plotting.plot_dbcv_per_cluster`) and the Embedding Explorer (`clustering_evaluation.density_summary`, `cluster_quality.build_dbcv_figure`), so they give the same number, and the same answer when it is not defined, for the same labels. A run clustered under a non-Euclidean metric/affinity, or with fewer than 2 clusters, gets `score` NaN, no cluster rows and the reason in `note` (never an error, never a number); a cluster of one subject, non-finite values or a length mismatch raise.
 
 - Fewer than 2 clusters (all noise, or one): `score` is NaN and `per_cluster` empty. The package returns the integer `0` for all noise, indistinguishable from a real score, and `nan` with a warning for one cluster: the call is never made for these inputs.
 - A cluster of one subject, non-finite values in `X` or a length mismatch raise `ValueError`.
@@ -272,7 +272,7 @@ results/<project>/clustering/tuning/<method>/<reduction_method>/<dd-mm>_<session
     (+ stability_results.csv, stability_plot.png iff method in kmeans/gmm;
       + <diagnostic>.png iff method in STANDALONE_DIAGNOSTIC_METHODS;
       + clusterings.npz, metadata.csv iff save_tuning_clusterings=true;
-      + the files of the evaluations listed in tuning_evaluations (cophenetic_correlation.csv, density_metrics.csv, k_curves_*.png, ...)
+      + the evaluations listed in tuning_evaluations: columns added to tuning_results.csv (jump, dunn, largest_cluster_share, dbcv) and files (cophenetic_correlation.csv, k_curves_*.png, ...)
         and report.md iff write_report - the same ones src/pipeline/evaluate_clustering_tuning.py writes later on a stored run;
       hdbscan/hdbscan_soft: tuning_plot*.png only from the tuning_heatmaps evaluation, not from the sweep)
 ```
