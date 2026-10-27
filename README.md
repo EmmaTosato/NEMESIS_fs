@@ -21,7 +21,7 @@ conda env create -f environment.yml
 conda activate nemesis
 ```
 
-See [`docs/setup.md`](docs/setup.md) for full environment setup, and each pipeline's guide under [`docs/guides/`](docs/guides/) for its exact invocation. The order in which the pipelines run, from raw data to `dim_reduction`/`clustering`, is in [`docs/guides/pipeline_order.md`](docs/guides/pipeline_order.md) (technical flow: [`docs/dev/pipeline_flow.md`](docs/dev/pipeline_flow.md)).
+Docs are navigated from [`docs/README.md`](docs/README.md). See [`docs/guides/setup.md`](docs/guides/setup.md) for full environment setup, and each pipeline's guide under [`docs/guides/`](docs/guides/) for its exact invocation. The order in which the pipelines run, from raw data to `dim_reduction`/`clustering`, is in [`docs/guides/pipeline_order.md`](docs/guides/pipeline_order.md) (technical flow: [`docs/dev/pipeline_flow.md`](docs/dev/pipeline_flow.md)).
 
 ## Repository structure
 
@@ -39,7 +39,7 @@ tests/
 ├── unit/          # synthetic fixtures, no external data required
 └── integration/   # against the real EBRAIN mount / tmp_path E2E, self-skipping if unreachable
 docs/
-├── setup.md       # environment setup
+├── README.md      # navigation guide to the docs
 ├── guides/        # how to use each pipeline (user-facing)
 ├── dev/           # architecture/implementation reference (developer-facing)
 ├── experiments/   # one file per session: what was tried, seen and decided
@@ -116,7 +116,7 @@ Task 1 (lesion embedding/clustering) is the most mature piece above; Task 2's em
 
 ## Environment
 
-Conda environment **`nemesis`**, defined in [`environment.yml`](environment.yml) (numpy, scipy, pandas, scikit-learn, umap-learn, matplotlib, seaborn, networkx, jupyterlab, nibabel, nilearn). See [`docs/setup.md`](docs/setup.md) for creating/updating it — [Quick start](#quick-start) above covers the common case.
+Conda environment **`nemesis`**, defined in [`environment.yml`](environment.yml) (the single source of the package list). See [`docs/guides/setup.md`](docs/guides/setup.md) for creating/updating it — [Quick start](#quick-start) above covers the common case.
 
 ## Contributing / development conventions
 

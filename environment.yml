@@ -12,6 +12,7 @@ dependencies:
   - matplotlib
   - seaborn
   - plotly
+  - dash
   - networkx
   - openpyxl
   - jupyterlab
