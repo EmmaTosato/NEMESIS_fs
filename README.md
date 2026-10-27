@@ -55,7 +55,11 @@ management/
 └── cheatsheets/   # short per-method cards for presentations, derived from knowledge/notes/
 knowledge/        # notes/ = our own syntheses; papers/ = extracted reference literature (docling)
 data/             # local copy of raw + derived data (gitignored, not in repo)
-results/          # dimensionality-reduction/clustering outputs (gitignored, not in repo)
+results/          # gitignored, not in repo
+├── lesion/, sdc/  # dim_reduction and clustering outputs, one folder per modality
+├── tables/        # dataset summary tables (scripts/build_dataset_summary_table.py)
+├── cache/         # recomputable caches (Embedding Explorer, PCA notebook): safe to delete
+└── legacy/        # products of old flows, read by no code
 summaries/, logs/  # per-run outputs of the pipelines (gitignored)
 .claude/          # agent-facing project instructions and conventions
 ```

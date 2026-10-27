@@ -6,6 +6,15 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 27-10-26 — `results/`: tabelle in `results/tables`, cache del notebook di Thiebaut in `results/cache`
+
+`results/` ha ora cinque cartelle: `lesion/`, `sdc/` (output delle pipeline), `tables/`, `cache/` (rigenerabile) e `legacy/` (prodotti di flussi vecchi, non letti da nessun codice).
+
+- **`results/reports/tables/` → `results/tables/`** (6 file: `dataset_summary_table` e `group_summary_table`, `.tex`/`.pdf`/`.png`), e `results/reports/` cancellata (conteneva solo un `.DS_Store`). `scripts/build_dataset_summary_table.py` e `jobs/run_build_dataset_summary_table.sh` scrivevano già in `results/tables`: il livello `reports/` era un resto di un layout precedente. Nessun codice cambiato.
+- **Cache di `thiebaut_2020_replication.ipynb`**: il notebook cercava `results/pipeline_building/thiebaut_2020_replication/<sessione>/`, che non esisteva, mentre la cache stava in `results/cache/thiebaut_2020_replication/<sessione>/`. Scelta dell'utente: il codice segue il disco. `CACHE_DIR` del notebook, `docs/dev/covariance_pca.md` e `docs/guides/exploration.md` puntano a `results/cache/`. Scartato: spostare la cache in `results/pipeline_building/` (una cartella di primo livello in più per una sola cache rigenerabile).
+- **`results/legacy/` lasciata com'è** (4 cartelle, 26 GB, nomi non uniformi: due con suffisso `_26-10-26`, una `sdc_s2.4-vol_07-10`). Rinominarla avrebbe cambiato 7 riferimenti in `docs/` e `.claude/` (i link di `docs/experiments/s2.4-vol.md` ai suoi `config.md` e `tuning_results.csv`).
+- `results/` è gitignorata: nessuna traccia in `git log`.
+
 ## 27-10-26 — Tuning di clustering: le valutazioni per combinazione scrivono colonne in `tuning_results.csv` (agglomerative; passo 1 di 4)
 
 Per scelta dell'utente: una tabella per tuning, non un file per valutazione. `dunn_index`, `largest_cluster_share` e `dendrogram_jump` non scrivono più `dunn_index.csv`, `largest_cluster_share.csv`, `dendrogram_jump.csv`: aggiungono a `tuning_results.csv` le colonne `dunn`, `largest_cluster_share`, `jump`.

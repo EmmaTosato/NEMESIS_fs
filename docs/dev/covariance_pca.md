@@ -51,7 +51,7 @@ Memory is one block of columns plus one square matrix, never the matrix: X may b
 `thiebaut_2020_replication.ipynb` reads `matrix.npy` (memory-mapped) and `metadata.csv` of `SESSION_DIR` and the lesion volume column of `assets/metadata/participants.csv`. It writes only a cache.
 
 - **Parameters.** `SESSION_DIR` (`07-10_s2.4-vol`), `VARIANCE_SHARE_FOR_VARIMAX` (0.9), `VARIMAX_MAX_ITER` (500), `LESION_VOLUME_COLUMN` (`lesion_volume_voxels_2mm`), `USE_CACHE`, and for the maps `COMPONENTS_TO_PLOT`, `MAP_THRESHOLD_FRACTION` (0.3) and `SPLIT_SEED` (0).
-- **Cache.** `results/pipeline_building/thiebaut_2020_replication/<session>/` holds `pca.npz`, `varimax.npz` and `maps.npz`, each next to a JSON fingerprint (session, matrix shape and mtime; plus the number of components and `max_iter` for the varimax; plus the split seed for the maps). A cache from another matrix or other parameters raises instead of being reused.
+- **Cache.** `results/cache/thiebaut_2020_replication/<session>/` holds `pca.npz`, `varimax.npz` and `maps.npz`, each next to a JSON fingerprint (session, matrix shape and mtime; plus the number of components and `max_iter` for the varimax; plus the split seed for the maps). A cache from another matrix or other parameters raises instead of being reused.
 - **Sections.** 1 parameters; 2 PCA on the covariance; 3 components needed for 50%, 80% and 90% of the variance (`CovariancePca.n_components_for`); 4 varimax on the smallest number of components reaching `VARIANCE_SHARE_FOR_VARIMAX`; 5 R^2 of the scores with the lesion volume, rotated and unrotated (the paper: all rotated R^2 below 0.1); 6 t-maps, their reproducibility between two halves and the figures.
 
 ## Evaluating a PCA run (`pca_evaluation`)
