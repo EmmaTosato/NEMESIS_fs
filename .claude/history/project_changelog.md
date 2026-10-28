@@ -6,6 +6,19 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 28-10-26 — Run di spectral, kmeans, gmm e adp spostate in `results/legacy/`
+
+Per scelta dell'utente, le cartelle dei quattro metodi sono state spostate (non cancellate) sotto `results/legacy/clustering_spectral_kmeans_gmm_adp_28-10-26/`, con lo stesso albero di `results/`: `{lesion,sdc}/clustering/{production,tuning}/{spectral,kmeans,gmm,adp}/`. Sono 16 cartelle di metodo, 25 GB (di cui `adp` quasi tutto: 4,8 GB lesione + 20 GB SDC in produzione), con 54 cartelle di run di produzione e 37 di tuning. Ogni cartella di metodo è stata spostata intera, compresi `runs.csv`/`runs_tuning.csv`: in `results/` non restano righe con `output` che punta a un percorso inesistente (`lessons_learned.md` #24). Per ripristinare basta una `mv`/`cp -R` inversa.
+
+In `results/{lesion,sdc}/clustering/{production,tuning}/` restano `agglomerative`, `hdbscan`, `hdbscan_soft`.
+
+**Conseguenze ancora vere oggi**:
+- L'Embedding Explorer scopre le run con un glob su `*/clustering/production/*/*/*`: le run dei quattro metodi non compaiono più.
+- Link aggiornati in `docs/experiments/s1.4-vol.md` e `s2.4-stream.md` (report di tuning di `adp`).
+- `notebooks/post-results_analysis/clustering_comparison.ipynb` cita ancora tre run di produzione `kmeans` (`results/{lesion,sdc}/clustering/production/kmeans/umap/...`) che ora stanno in `legacy/`: non modificato (i notebook non si toccano senza richiesta).
+- I log in `logs/clustering/` citano i vecchi percorsi: sono cronaca, non si aggiornano.
+- `results/` è gitignorata: nessuna traccia in `git log`.
+
 ## 27-10-26 — `results/`: tabelle in `results/tables`, cache del notebook di Thiebaut in `results/cache`
 
 `results/` ha ora cinque cartelle: `lesion/`, `sdc/` (output delle pipeline), `tables/`, `cache/` (rigenerabile) e `legacy/` (prodotti di flussi vecchi, non letti da nessun codice).
