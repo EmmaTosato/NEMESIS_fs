@@ -25,7 +25,6 @@ from src.analysis.embedding_app import (
     ProductionRun,
     SdcViewerConfig,
     UndisplayableRunError,
-    _FONT_STACK,
     _build_cluster_disconnection_view,
     _build_cluster_overlap_view,
     _n_components_option_label,
@@ -52,6 +51,7 @@ from src.analysis.embedding_app import (
     run_reduction_axis,
     run_title,
 )
+from src.analysis.embedding_app.style import _FONT_STACK
 from src.utils.artifacts import load_matrix, save_matrix
 
 _LESION_AFFINE = np.eye(4) * 2

@@ -10,7 +10,6 @@ from dash import dcc, html
 
 from src.analysis.embedding_app import (
     ALL_CLUSTERS,
-    CSS,
     ProductionRun,
     _build_cluster_disconnection_view,
     _build_cluster_overlap_view,
@@ -18,6 +17,7 @@ from src.analysis.embedding_app import (
     build_app,
     run_metadata,
 )
+from src.analysis.embedding_app.style import CSS
 from tests.unit.test_embedding_app import (
     _clustering_params_file,
     _lesion_cfg,
@@ -303,7 +303,7 @@ def test_the_save_buttons_do_nothing_for_all(tmp_path, button, download):
 
 
 def test_the_stylesheet_hides_the_save_buttons_of_a_panel_that_shows_all():
-    from src.analysis.embedding_app import _INDEX_STRING
+    from src.analysis.embedding_app.style import _INDEX_STRING
 
     assert ".anatomy-panel:has(.all-clusters-overview) .save-btn-row" in _INDEX_STRING
 
