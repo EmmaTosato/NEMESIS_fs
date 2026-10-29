@@ -9,8 +9,6 @@ data/*
 
 results/
 
-.claude/dim_reduction_clustering/*
-
 .obsidian/
 
 sdc_download/

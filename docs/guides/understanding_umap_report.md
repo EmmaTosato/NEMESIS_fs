@@ -13,7 +13,7 @@ Questa guida descrive l'utilizzo di `generate_understanding_umap_report.py`, che
 Le due directory di tuning passate come input devono:
 1. Contenere `embeddings.npz` + `metadata.csv` (scritti solo se `save_tuning_embeddings: true` era attivo nel run di `dim_reduction.py` che le ha prodotte — vedi `docs/guides/dim_reduction.md`).
 2. Riferirsi **esattamente alla stessa coorte, nello stesso ordine** — lo script lo verifica esplicitamente confrontando i due `metadata.csv` riga per riga, e si ferma con un errore chiaro se non combaciano (mai un confronto silenzioso tra popolazioni diverse).
-3. La directory UMAP deve avere `nested_params: ["metric", "n_components"]` (sia `n_components=2` che `n_components=3` valutati, per la Figura 3 2D-vs-3D); quella t-SNE `nested_params: ["metric"]` (sempre 2D — se un giorno esisterà un run t-SNE con `n_components=3`, si potrà reintrodurre un confronto 3D UMAP-vs-t-SNE, oggi assente per questo motivo).
+3. La directory UMAP deve avere `nested_params: ["metric", "n_components"]` (sia `n_components=2` che `n_components=3` valutati, per la Figura 3 2D-vs-3D); quella t-SNE `nested_params: ["metric"]` (sempre 2D, perciò non c'è un confronto 3D UMAP-vs-t-SNE).
 
 ---
 
@@ -27,21 +27,23 @@ sbatch jobs/run_generate_understanding_umap_report.sh
 ### 2. In Locale
 Dal PC locale, dopo aver attivato l'ambiente `nemesis`:
 ```bash
-PYTHONPATH=. python -m src.pipeline.generate_understanding_umap_report \
+python -m src.pipeline.generate_understanding_umap_report \
   --umap-tuning-dir results/lesion/dim_reduction/tuning/umap/13-08_s1.1-vol \
   --tsne-tuning-dir results/lesion/dim_reduction/tuning/tsne/13-08_s1.1-vol
 ```
+
+Le due cartelle di tuning del job (`13-08_s1.1-vol`) sono scritte dentro `jobs/run_generate_understanding_umap_report.sh`: per un altro tuning si modifica quel file.
 
 ---
 
 ## Output
 
-Un file `understanding_umap_<metric>.html` per ogni metrica presente nella directory UMAP (oggi `dice`, `euclidean`), scritto **dentro la directory di tuning UMAP stessa** — non in una cartella di report separata, stesso principio già seguito da `embeddings_grid_*.png` per ogni leaf.
+Un file `understanding_umap_<metric>.html` per ogni metrica presente nella directory UMAP (`dice`, `euclidean`), scritto **dentro la directory di tuning UMAP stessa** — non in una cartella di report separata, stesso principio già seguito da `embeddings_grid_*.png` per ogni leaf.
 
 Ogni pagina contiene 5 figure, in due sezioni:
 
 **UMAP across parameters / dimensions** (dati reali, sempre):
-1. Griglia statica `n_neighbors` × `min_dist`, colorabile per `dataset`/`side`/`volume`/`nihss`.
+1. Griglia statica `n_neighbors` × `min_dist`, colorabile per `dataset` e, se `metadata.csv` del tuning ha la colonna, per `volume`. Lato e NIHSS non stanno in `metadata.csv`: il report non li offre.
 2. Stesso spazio, ma con due slider trascinabili al posto della griglia fissa.
 3. UMAP 2D vs UMAP 3D affiancati, ciascuno con i propri slider — il 3D è un fit realmente separato (`n_components=3`), non una proiezione 2D con una coordinata aggiunta.
 

@@ -2,7 +2,7 @@
 
 Quali coorti cliniche usa NEMESIS, quanti soggetti hanno **davvero**, quali tipi di dato esistono per ciascuna e cosa di tutto questo è presente nel workspace locale.
 
-I dati risiedono sul server **EBRAIN** (`/data/corbetta/Clinical_connectome`) e vengono copiati in locale a mano sotto `data/clinical_connectome/derivatives/<centro>/<coorte>/`. Una pipeline di retrieval (`retrieve_data.py`) lo faceva in automatico: è stata ritirata, resta in git.
+I dati risiedono sul server **EBRAIN** (`/data/corbetta/Clinical_connectome`) e vengono copiati in locale a mano sotto `data/clinical_connectome/derivatives/<centro>/<coorte>/`. La storia delle pipeline ritirate (retrieval, calcolo SDC) è in `.claude/history/project_changelog.md`.
 
 Tutti i numeri di questa pagina sono **verificati sul disco e sui tsv**, non stimati.
 
@@ -60,11 +60,11 @@ Un ricampionamento non crea dettaglio che non c'era. Per i dataset la cui segmen
 - **`1 mm`** — 534 soggetti (PASPORT, WAKEUP). Segmentazione genuinamente a 1 mm, binaria (solo 0 e 1).
 - **`2 mm interpolata`** — 168 soggetti (PSP). Maschera a 2 mm portata a 1 mm con interpolazione lineare: i valori non sono solo 0 e 1 ma multipli di 1/8, e valgono 0 o 1 solo i voxel che coincidono con i centri della griglia a 2 mm (la somma dei valori è esattamente 8 × il volume a 2 mm). Conseguenze per le colonne a 1 mm in [`docs/dev/metadata.md`](../dev/metadata.md).
 
-Verificato su **tutti e 5853** i soggetti, non a campione: per ciascuno si cerca, tra gli 8 allineamenti possibili, se esiste un raggruppamento in blocchi 2x2x2 con zero blocchi misti. Il verdetto è **uniforme dentro ogni dataset** (nessun dataset misto) e l'allineamento pulito è sempre `(1,1,1)`. L'unica eccezione non classificabile è `sub-STUKLFR0671`, la cui maschera è vuota.
+Il test cerca, tra gli 8 allineamenti possibili, un raggruppamento in blocchi 2x2x2 con zero blocchi misti. Il verdetto è **uniforme dentro ogni dataset** (nessun dataset misto) e l'allineamento pulito è sempre `(1,1,1)`. L'unica eccezione non classificabile è `sub-STUKLFR0671`, la cui maschera è vuota.
 
-**Perché conta.** `assets/metadata/lesion_metadata.csv` misura ogni maschera su due griglie, 1 mm e 2 mm, per distinguere una maschera vuota da una lesione minuscola persa nel sottocampionamento ([`docs/guides/metadata.md`](metadata.md)). Per i dataset a reticolo 2 mm il conteggio sulla griglia di produzione a 2 mm **ricostruisce esattamente** la maschera originale, quindi nessuna lesione può sparire e `lesion_volume_voxels_1mm` è esattamente `8 x lesion_volume_voxels_2mm`: non aggiunge informazione. La perdita per sottocampionamento è possibile **solo** per i 534 soggetti a 1 mm genuino — e infatti 2 dei 4 soggetti con volume 0 sulla griglia di produzione stanno in WAKEUP, con lesioni reali di 8 e 3 voxel.
+**Perché conta.** `assets/metadata/lesion_metadata.csv` misura ogni maschera su due griglie, 1 mm e 2 mm, per distinguere una maschera vuota da una lesione minuscola persa nel sottocampionamento ([`docs/guides/metadata.md`](metadata.md)). Per i dataset a reticolo 2 mm il conteggio sulla griglia di produzione a 2 mm **ricostruisce esattamente** la maschera originale, quindi nessuna lesione può sparire. Il conteggio *grezzo* a 1 mm è esattamente `8 x` quello a 2 mm; le colonne del csv sono contate dopo l'azzeramento dei voxel fuori dal brain su ciascuna griglia e differiscono di poco (entro il 2% per il 90% dei soggetti), quindi la colonna a 1 mm aggiunge poca informazione ([`docs/dev/metadata.md`](../dev/metadata.md)). La perdita per sottocampionamento è possibile **solo** per i 534 soggetti a 1 mm genuino — e infatti 2 dei 4 soggetti con volume 0 sulla griglia di produzione stanno in WAKEUP, con lesioni reali di 8 e 3 voxel.
 
-**UKLFR e WashU sono a 1mm**: `manual_masks/` viene dalla stessa sorgente usata per l'SDC (`Clinical_connectome_stroke/<dataset>/lesion/`, già a 1mm) e coincide esattamente con `bcbtoolkit/` per questi due dataset (0 discrepanze, vedi sotto). Il **dettaglio** attuale di entrambi è su reticolo 2 mm (vedi la nota sopra): la griglia a 1 mm viene da quel ricampionamento, non da una segmentazione a 1 mm.
+**UKLFR e WashU sono a 1mm**: `manual_masks/` viene dalla stessa sorgente usata per l'SDC (`Clinical_connectome_stroke/<dataset>/lesion/`, già a 1mm) e coincide esattamente con `bcbtoolkit/` per questi due dataset (0 discrepanze, vedi sotto). Il **dettaglio** di entrambi è su reticolo 2 mm (vedi la nota sopra): la griglia a 1 mm viene da quel ricampionamento, non da una segmentazione a 1 mm.
 
 ### Perché le colonne non coincidono
 
@@ -133,7 +133,7 @@ Un tsv il cui schema non ha ancora quei campi (manca almeno uno tra `center_id`,
 
 Due conseguenze pratiche, entrambe gestite in `docs/dev/metadata.md`:
 - **PASPORT non ha `NIHSS`** (solo `NIHSS_at_presentation`/`_24H`/`_3m`) né `lesion_side`; **UCL-UK non ha nessuno dei due**, e nemmeno una colonna sostitutiva.
-- **`lesion_side` è incompleto anche dove esiste** (PSP 47%, WashU 84%): per questo verrà calcolato geometricamente dalla maschera dove manca.
+- **`lesion_side` è incompleto anche dove esiste** (PSP 47%, WashU 84%): per questo viene calcolato geometricamente dalla maschera dove manca.
 - **Nei tsv `lesion_side` ha il valore `both` solo in UKE** (30 righe, di cui 25 con maschera in `participants.csv`, tutte in `UKE/WAKEUP_acute`): è l'etichetta del tsv e non coincide con una maschera bilaterale; vedi [`metadata.md`](metadata.md), sezione sul valore `both`.
 
 **Punteggi comportamentali — solo WashU** (% sui 251 ST): `ARAT_L`/`ARAT_R` 94%, `Boston_nam` 92%, `NIHSS` 74%, `9HPT_L`/`9HPT_R` 65%, `Clock` 65%, `Corsi` 34%. `GDS_15` esiste come colonna ma è vuota al 100% per questa coorte.
@@ -166,7 +166,7 @@ Le lesioni in spazio nativo non normalizzato (`lesion/raw/anat/lesion_roi`) esis
 
 Le matrici finali (`build_lesion_matrix.py`; `mask_fc.py`+`build_fc_matrix.py`) sono già calcolate a partire dai dati grezzi, che quindi in locale servono solo per notebook/esplorazione. `scripts/archive_local_raw_data.py` riduce una cartella a **10 soggetti campione**, comprimendo il resto in un `.tar.gz` verificato (contenuto riletto e confrontato con quanto tarrato, prima di cancellare gli originali).
 
-Le 5 `manual_masks/` sono complete. Restano ridotte solo due cartelle:
+Le 8 `manual_masks/` sono complete. Restano ridotte solo due cartelle:
 
 | Cartella | Popolazione reale | In chiaro | Nell'archivio |
 | :--- | :---: | :---: | :---: |

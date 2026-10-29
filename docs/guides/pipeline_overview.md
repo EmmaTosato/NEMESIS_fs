@@ -69,7 +69,7 @@ La disconnessione viene da BCBToolKit, a monte. Tre rappresentazioni, una per ru
 ### 2c. Connettività funzionale (FC) — [`fc_matrix_building.md`](fc_matrix_building.md)
 
 - **`mask_fc`**: sovrappone la lesione alla rete FC del paziente e marca `NaN` i nodi coperti dalla lesione. Il `mask_summary.csv` dice quanti nodi ha perso ogni soggetto.
-- **`build_fc_matrix`**: vettorizza ogni rete (scarta la parte ridondante) e impila i soggetti; le connessioni costanti per tutti sono rimosse e loggate.
+- **`build_fc_matrix`**: vettorizza ogni rete (scarta la parte ridondante) e impila i soggetti di un solo gruppo (`ST` dalle reti mascherate, `HC` dalle reti grezze); le connessioni costanti per tutti sono rimosse e loggate.
 - **Scelte:** i `NaN` restano `NaN` (queste pipeline non imputano); nessun paziente è escluso per troppi nodi persi (soglia non implementata di proposito). Il ramo non legge né il registro né la lista degli esclusi.
 
 ---

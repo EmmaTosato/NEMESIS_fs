@@ -60,7 +60,7 @@ results/          # gitignored, not in repo
 ├── tables/        # dataset summary tables (scripts/build_dataset_summary_table.py)
 ├── cache/         # recomputable caches (Embedding Explorer, PCA notebook): safe to delete
 └── legacy/        # products of old flows, read by no code
-summaries/, logs/  # per-run outputs of the pipelines (gitignored)
+summaries/, logs/  # per-run outputs of the pipelines (versioned in git)
 .claude/          # agent-facing project instructions and conventions
 ```
 
@@ -69,14 +69,10 @@ Raw neuroimaging data (`*.nii`, `*.nii.gz`) is never stored in this repo — it 
 ## What's implemented so far
 
 ### Retired pipelines
-Three pipelines existed and have been removed; their code stays in `git log`, and no guide documents them anymore.
-
-- **Data retrieval** (`retrieve_data.py`, `src/retrieval/`): copied lesion masks, FC features and SDC output from EBRAIN into `data/`. Data is now copied by hand; the subject-naming rule it carried lives on in `src/utils/subject_ids.py` ([`docs/guides/datasets.md`](docs/guides/datasets.md)).
-- **SDC computation** (`compute_sdc.py`, `src/sdc/`): ran BCBToolKit Stage 1 + Stage 2 over the lesion masks on the cluster. The SDC output it produced is what `build_sdc_matrix.py` reads.
-- **Atlas building** (`build_combined_atlas.py`, `src/atlases/`): combined-atlas construction for a parcellation-then-varimax-PCA replication, no longer pursued.
+Pipelines that no longer exist are not documented in this repository's guides. Their existence and the reason they were retired are recorded in [`.claude/history/project_changelog.md`](.claude/history/project_changelog.md); their code stays in `git log`.
 
 ### FC lesion masking and matrix building
-`src/features/functional.py`, `src/pipeline/mask_fc.py` + `build_fc_matrix.py` — two deliberately decoupled pipelines that turn the WashU functional-connectivity CSVs (already computed via XCP-D, 12 atlas combos) into a subjects × edges feature matrix ready for `dim_reduction.py`. `mask_fc.py` marks as missing (`NaN`, not zero — see [`docs/dev/fc_matrix.md`](docs/dev/fc_matrix.md) for why) any FC node whose territory is substantially lesioned (`nilearn`-based coverage check, same `min_coverage` scheme as XCP-D's own BOLD-coverage thresholding), writing one masked matrix per subject to `data/derived/features/masked_fc/`; `build_fc_matrix.py` reads only that already-masked output, vectorizes and stacks it into `data/derived/features/fc_matrix/`. The per-subject exclusion threshold question is settled (no threshold, no subject excluded); NaN-imputation remains deliberately open, pending an empirical look at the full cohort.
+`src/features/functional.py`, `src/pipeline/mask_fc.py` + `build_fc_matrix.py` — two deliberately decoupled pipelines that turn the WashU functional-connectivity CSVs (already computed via XCP-D, 12 atlas combos) into a subjects × edges feature matrix ready for `dim_reduction.py`. `mask_fc.py` marks as missing (`NaN`, not zero — see [`docs/dev/fc_matrix.md`](docs/dev/fc_matrix.md) for why) any FC node whose territory is substantially lesioned (`nilearn`-based coverage check, same `min_coverage` scheme as XCP-D's own BOLD-coverage thresholding), writing one masked matrix per subject to `data/derived/features/masked_fc/`; `build_fc_matrix.py` builds one subject group per run (`group`): `ST` reads only that already-masked output, `HC` (healthy controls, no lesion, nothing to mask) reads the raw FC; it vectorizes and stacks it into `data/derived/features/fc_matrix/`. The per-subject exclusion threshold question is settled (no threshold, no subject excluded); NaN-imputation remains deliberately open, pending an empirical look at the full cohort.
 
 📖 Guides: [`fc_matrix_building.md`](docs/guides/fc_matrix_building.md) · Architecture: [`docs/dev/fc_matrix.md`](docs/dev/fc_matrix.md)
 

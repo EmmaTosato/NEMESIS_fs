@@ -11,9 +11,10 @@ Il criterio (empirica contro interpretativa) è in [`exploration.md`](exploratio
 | Analisi | Dove |
 |---|---|
 | Metriche geometriche e del modello di una run | app Dash, pannello "Clustering evaluation" |
-| Tabelle descrittive per cluster su età, sesso, NIHSS, volume, dataset, lato, sede dominante (nessun test) | app Dash, pannello "Cluster description" |
+| Tabelle descrittive per cluster su età, sesso, istruzione, NIHSS, volume (nessun test) | app Dash, pannello "Cluster description" |
+| Composizione dei cluster per dataset, lato, sede dominante (più NIHSS e volume) | app Dash, pannello "Cluster composition" |
 | Accordo tra partizioni (ARI/NMI/VI), contingency, abbinamento e Jaccard tra cluster di run diverse | `clustering_comparison` |
-| Distanze tra cluster **nello spazio dell'embedding** (centroidi, Mahalanobis, linkage) | `clustering_comparison` |
+| Distanze tra cluster **nello spazio dell'embedding** (centroidi, raggio dei cluster) | `clustering_comparison` |
 | Mappe di overlap e disconnessione, soggetti rappresentativi | app Dash |
 | Distanze tra cluster **nello spazio delle mappe o del profilo clinico** | nessun notebook (non implementato) |
 | Perché due cluster abbinati differiscono (A∩B, A\B, B\A descritti con le variabili esterne) | nessun notebook (non implementato) |

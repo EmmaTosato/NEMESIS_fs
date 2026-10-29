@@ -60,7 +60,7 @@ Registry condiviso: **`config/registry/metadata_sources.json`** — per ogni dat
 
 Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv` (`subject_id`, `source` ∈ {`kept_in_place`, `archive`}), scritto da `archive_local_raw_data.py`: il registro macchina-leggibile della popolazione reale, leggibile senza decomprimere gigabyte. `populate_metadata.py` deliberatamente **non** lo legge: la potatura è una misura temporanea di spazio locale, non una proprietà permanente del progetto, e cablarla nella pipeline significherebbe incastonare un workaround nel contratto.
 
-**Quindi: dopo aver lanciato `populate_metadata.py` o `enrich_metadata.py`, controlla se qualche cartella è potata e correggi a mano i `has_*` interessati** — oppure decomprimi prima e lancia con `overwrite=true`. Le cartelle potate oggi sono `UNIPD/WashU/features/` e `data/derived/features/masked_fc/`. Il gruppo del soggetto non è memorizzato nel manifest perché derivabile: `group_of(subject_id)`.
+**Quindi: `has_*` descrive il disco locale, non la popolazione reale.** Per una cartella potata il dato vero si legge dal manifest, non dal registro: `has_features` di WashU conta i soggetti presenti in `features/`, non quelli archiviati. Per un registro che descriva anche i soggetti archiviati, decomprimi prima e lancia con `overwrite=true`. Le cartelle potate sono `UNIPD/WashU/features/` e `data/derived/features/masked_fc/`. Il gruppo del soggetto non è memorizzato nel manifest perché derivabile: `group_of(subject_id)`.
 
 ## Cosa esiste davvero adesso
 
@@ -68,7 +68,7 @@ Ogni cartella potata porta quindi un **manifest**, `<nome>_archive_subjects.tsv`
 - **`assets/metadata/lesion_metadata.csv`** — una riga per soggetto con maschera, quattro colonne per griglia (`lesion_volume_voxels_<g>`, `out_of_brain_fraction_<g>`, `laterality_index_<g>`, `lesion_side_<g>`) e, solo sulla griglia 2 mm, otto colonne di sede (`location_dominant_2mm` e una frazione per categoria, vedi "La sede della lesione"), più `lesion_metadata.config.json` accanto: il config della run che l'ha prodotto.
 - **`assets/metadata/sdc_metadata.csv`** — una riga per soggetto con disconnettoma, due colonne per griglia (`disconnection_load_voxels_<g>`, `disconnection_mean_<g>`, con `<g>` = `2mm` e `1mm`), più `sdc_metadata.config.json` accanto: il config della run che l'ha prodotto.
 - **`assets/metadata/excluded_subjects.csv`** — `subject_id, dataset, reason, scope, value`, generato da `src/pipeline/build_excluded_subjects.py` dal suo config.
-- **I tsv per-dataset `assets/metadata/<DATASET>_participants_*.tsv` non esistono più**: cancellati. Ogni consumatore è stato spostato sul file unico.
+- **In `assets/metadata/` non ci sono tsv per-dataset**: il file unico è `participants.csv`, letto da ogni consumatore.
 - **`data/derived/<pipeline>/<sessione>/metadata.csv`** — contiene solo ciò che appartiene a quella run (`subject_id`, `dataset`, `lesion_volume_voxels` per `build_lesion_matrix.py`). Non è la fonte da cui `enrich_metadata.py` copia `lesion_volume_voxels` in `participants.csv` (vedi sopra) — è solo l'artefatto della run stessa: la sua colonna può differire da quella nel registro se le due griglie non coincidono.
 
 ### Chi legge il registro
@@ -100,7 +100,7 @@ UCL-UK resta comunque vuoto: non ha nessuna colonna NIHSS-correlata.
 
 Prodotto da `src/pipeline/compute_lesion_metadata.py`, config `config/pipelines/compute_lesion_metadata.json`. Una riga per **ogni** soggetto con maschera discoverabile, nessuna soglia applicata: le esclusioni sono un livello a parte.
 
-È **agnostico del clinico**: non apre nessun `participants.tsv`, non sa cosa sia un NIHSS. Questa separazione è il motivo per cui esiste come pipeline propria e non come blocco di `enrich_metadata`: leggere imaging e leggere tsv clinici sono due lavori diversi, e prima della separazione le metriche derivate dalle maschere erano sparse su tre posti (una cache diagnostica, due colonne nel registro, una colonna nel `metadata.csv` di ogni matrice) senza che nessuno le avesse tutte.
+È **agnostico del clinico**: non apre nessun `participants.tsv`, non sa cosa sia un NIHSS. Questa separazione è il motivo per cui esiste come pipeline propria e non come blocco di `enrich_metadata`: leggere imaging e leggere tsv clinici sono due lavori diversi, e le metriche derivate dalle maschere stanno in un solo posto, `lesion_metadata.csv`.
 
 ### Quattro colonne per griglia
 

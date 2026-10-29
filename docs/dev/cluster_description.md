@@ -11,7 +11,7 @@ Two separate reasons, not one:
 
 ## `CLUSTER_DESCRIPTION_VARIABLES: list[ClusterDescriptionVariable]`
 
-A declarative registry, same shape as `embedding_coloring.py`'s own `COLOR_MODES` — deliberately not the same registry (see "Why not extend `COLOR_MODES` instead" below). Each entry: `name` (internal key), `label` (Italian, shown as that variable's subplot title), `kind` (`"continuous"` | `"categorical"`), `registry_column` (the exact `assets/metadata/participants.csv` column).
+A declarative registry, same shape as `embedding_coloring.py`'s own `COLOR_MODES` — deliberately not the same registry (see "Why not extend `COLOR_MODES` instead" below). Each entry: `name` (internal key), `label` (English, shown as that variable's subplot title), `kind` (`"continuous"` | `"categorical"`), `registry_column` (the exact `assets/metadata/participants.csv` column).
 
 The registry covers 5 of the 7 requested dimensions:
 
@@ -171,7 +171,7 @@ A **table rather than a second figure**: the request was for the numbers themsel
 
 `std` is `None` for a single-subject cluster and renders as the mean alone: a standard deviation of one value does not exist, which is a different statement from `0`.
 
-**Numbers are formatted Italian-style** (`_format_number`): `.` groups thousands, `,` is the decimal separator — `5.265,4`, not `5 265.4`. The whole app is in Italian, so English-formatted numbers read as a foreign convention exactly where the eye is scanning fastest. Implemented by swapping Python's own grouped format rather than with `locale`, which is process-global, depends on what is installed on the machine, and would silently change every other number this process formats.
+**Numbers are formatted Italian-style** (`src/utils/number_format.py::format_number`; per i numeri che scrive Plotly stesso, `layout.separators=",."`, impostato su ogni figura da `_italian_figure`): `.` groups thousands, `,` is the decimal separator — `5.265,4`, not `5 265.4`. The interface text is in English; the numbers follow the Italian convention. Implemented by swapping Python's own grouped format rather than with `locale`, which is process-global, depends on what is installed on the machine, and would silently change every other number this process formats.
 
 **Coverage (`n_available/n_total`) prints under a value only where that variable is genuinely incomplete** (`_coverage_note`). Under every cell it would be 25 near-identical fractions competing with the values they annotate, which is how a coverage note stops being read at all. Printed only when it says something, it is a signal — and the caption states the rule, so full coverage is never silently assumed.
 

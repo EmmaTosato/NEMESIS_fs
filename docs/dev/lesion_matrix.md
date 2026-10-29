@@ -6,7 +6,7 @@ This file covers turning lesion masks into a feature matrix ready for dimensiona
 
 **`lesion_glob`**: the real layout of a dataset under `data/clinical_connectome/derivatives/<center>/<dataset>/` is `manual_masks/<subject>/anat/<subject>_space-MNI152NLin6Asym_label-lesion_mask.nii.gz`, so `config/pipelines/build_lesion_matrix.json` uses `"manual_masks/*/anat/*_label-lesion_mask.nii.gz"`. The number of subject directories equals the number of matching lesion files in each of the 8 datasets (UCL-UK 4119, UKE/SFB936 56, UKE/WAKEUP 451, UKLFR 705, NEMESIS_T0 76, PASPORT 83, PSP 168, WashU 195).
 
-**No parcellation**: voxel-wise is the only output shape `build_lesion_matrix()` produces. An atlas-parcellated shape (each subject's feature vector as the proportion of damage per atlas region, the characterisation Thiebaut de Schotten et al. 2020 use ahead of their varimax-rotated PCA, built from a combined atlas) is not supported: the parcellation-then-varimax-PCA replication is not pursued through this pipeline (project decision).
+**Two representations**: `build_lesion_matrix()` in `src/features/lesion.py` produces only the voxel-wise shape. The pipeline `src/pipeline/build_lesion_matrix.py` picks between it and `src/features/parcellated_csv.py::build_parcellated_matrix` (subjects × anatomical regions) through the config field `representation`. The parcellated shape reads the `LF-lesion` CSVs BCBToolKit already computed; no atlas is applied to the masks here, and no combined atlas is built.
 
 ## `src/features/lesion.py` — lesion feature matrix
 

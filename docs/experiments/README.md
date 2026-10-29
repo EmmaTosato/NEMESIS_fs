@@ -17,6 +17,8 @@ Un file per **sessione**: una coorte, una matrice, e tutto quello che ci è stat
 
 La **sessione 3** (FC) non ha un file: non è ancora partita.
 
+Le run di `spectral`, `kmeans`, `gmm` e `adp` stanno in `results/legacy/clustering_spectral_kmeans_gmm_adp_28-10-26/`, con lo stesso albero di `results/`; quelle di s2.4-vol del 07-10 in `results/legacy/sdc_s2.4-vol_07-10/`. I conteggi di run della tabella le includono, e i link dei file di sessione verso `results/.../clustering/{production,tuning}/<metodo>` di questi quattro metodi vanno letti sotto `legacy/`. In `results/` restano `agglomerative`, `hdbscan` e `hdbscan_soft`.
+
 Due viste d'insieme:
 
 - [**lineage.md**](lineage.md) — da quale sessione deriva quale, cosa cambia tra l'una e l'altra, e quali coorti si possono confrontare tra loro.

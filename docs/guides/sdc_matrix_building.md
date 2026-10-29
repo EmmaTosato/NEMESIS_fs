@@ -4,7 +4,7 @@ Questa guida illustra come usare `build_sdc_matrix.py` per trasformare l'output 
 
 - **`parcellated`** (originale): un CSV per atlante già parcellato (`bcbtoolkit/<subject_id>/*.csv`) → matrice **soggetti × regioni**, allineamento per **nome regione**, non per posizione (righe non in ordine stabile tra soggetti — verificato sui dati reali). A differenza di `build_lesion_matrix.py`, nessuna colonna viene mai scartata.
 - **`voxelwise`**: il `disconnectome-map` `.nii.gz` non ancora parcellato → matrice **soggetti × voxel**, stesso approccio di `build_lesion_matrix.py` (resampling su griglia comune), ma valori **continui** (probabilità di disconnessione 0-1), mai binarizzati. Le colonne costanti vengono scartate come in `build_lesion_matrix.py`. Con `correct_out_of_brain: true` i voxel fuori dal cervello vengono azzerati prima, quindi spariscono anche loro.
-- **`streamline`**: il CSV `LF-lesion_atlas-yeh_hcp1065_streamline.csv` (colonne `tract,streamline_ratio`) → matrice **soggetti × tratti** (87 tratti di sostanza bianca), un valore per tratto: la quota di streamline di quel tratto colpite. Allineamento per **nome del tratto**; nessuna colonna scartata, come in `parcellated`. Nonostante la famiglia `LF-lesion` è una misura di disconnessione, quindi appartiene alla track `s2.x` (vedi [`docs/experiments/`](../experiments/README.md)).
+- **`streamline`**: il CSV `LF-lesion_atlas-yeh_hcp1065_streamline.csv` (colonne `tract,streamline_ratio`) → matrice **soggetti × tratti** (87 tratti di sostanza bianca), un valore per tratto: la quota di streamline di quel tratto colpite. Allineamento per **nome del tratto**; nessuna colonna scartata, come in `parcellated`. Il file è della famiglia `LF-lesion`, ma misura la disconnessione (streamline colpite), quindi appartiene alla track `s2.x` (`s2.3-stream`, `s2.4-stream`; vedi [`docs/experiments/`](../experiments/README.md)).
 
 - **Script**: `src/pipeline/build_sdc_matrix.py` (stesso entry point per tutte e tre le modalità)
 - **Configurazione**: `config/pipelines/build_sdc_matrix.json`
@@ -56,26 +56,28 @@ La lista degli esclusi è **la stessa** che legge `build_lesion_matrix.py`, quin
 
 ## Dettaglio Parametri JSON
 
-Comuni a entrambe le modalità:
+Comuni a tutte e tre le modalità:
 
 | Parametro | Descrizione |
 | :--- | :--- |
 | **`project`** | Nome del progetto (es. `"clinical_connectome"`). |
 | **`data_root`** | Sede dei dati grezzi estratti (es. `"data/clinical_connectome/derivatives"`). |
-| **`datasets`** | Lista delle coorti da includere — solo quelle con `bcbtoolkit/` (oggi tutti e 8 i dataset stroke: WashU, PASPORT, PSP, stroke_UKLFR, UCL-UK, UKE/WAKEUP_acute, NEMESIS_T0, SFB936_ses01; il CSV streamline `yeh_hcp1065_streamline` c'è per tutti). |
+| **`datasets`** | Lista delle coorti da includere — solo quelle con `bcbtoolkit/` (tutti e 8 i dataset stroke: WashU, PASPORT, PSP, stroke_UKLFR, UCL-UK, UKE/WAKEUP_acute, NEMESIS_T0, SFB936_ses01; il CSV streamline `yeh_hcp1065_streamline` c'è per tutti). |
 | **`group_filter`** | Lista per filtrare i pazienti sani vs malati (`["ST"]` = solo stroke). `null` non applica filtri. |
 | **`object`** | `"disconnectome"` (probabilità di disconnessione) o `"lesion"` (proporzione di danno diretto, parcellata). Vincolato dalla `representation`: solo `"disconnectome"` con `"voxelwise"`, solo `"lesion"` con `"streamline"`. |
 | **`representation`** | `"parcellated"`, `"voxelwise"` o `"streamline"` — sceglie quali campi sotto sono richiesti. |
-| **`output_root`** | Sede output (default: `"data/derived/sdc_matrix"`). |
+| **`excluded_subjects_path`** | Obbligatorio. Lista dei soggetti esclusi (di norma `"assets/metadata/excluded_subjects.csv"`), la stessa letta dalla matrice lesionale. |
+| **`output_root`** | Obbligatorio, nessun default (es. `"data/derived/sdc_matrix"`). |
 | **`session_name`** | Nome univoco per il batch, es. `"s1.1-vol"`. |
 | **`overwrite`** | `true` sovrascrive output di run passati. |
+| **`run_notes`** | Opzionale. Note libere sulla run, scritte in `config.md`. |
 
 Solo per `representation: "parcellated"`:
 
 | Parametro | Descrizione |
 | :--- | :--- |
 | **`atlas`** | Uno degli atlanti disponibili in `bcbtoolkit/` (es. `"schaefer_200_tian_s2"`), **uno per run**. |
-| **`value_column`** | Quale statistica per-regione estrarre: `"fraction_covered"`, `"mean_overlap"` (default consigliato), `"weighted_mean_overlap"`, `"sum_overlap"`, `"p90_overlap"`, `"p95_overlap"`. |
+| **`value_column`** | Obbligatorio, nessun default. Quale statistica per-regione estrarre: `"fraction_covered"`, `"mean_overlap"`, `"weighted_mean_overlap"`, `"sum_overlap"`, `"p90_overlap"`, `"p95_overlap"`. |
 | **`reference_labels_path`** | File con l'elenco autoritativo e fisso delle regioni per l'atlante scelto, es. `"assets/atlases/sdc_labels/schaefer_200_tian_s2.csv"` — vedi sotto per aggiungerne uno nuovo. |
 
 Solo per `representation: "streamline"`:
@@ -101,7 +103,7 @@ La trattografia di BCBToolKit esce dal cervello: in mediana lo 0,80% della massa
 
 `config.md` e il report elencano ogni soggetto corretto con il numero di voxel azzerati (`n_voxels_corrected`) e la quota di massa tolta (`mass_removed`): le mappe sono continue, quindi il solo numero di voxel non dice quanto è stato scartato. Una mappa con valori non finiti o negativi ferma la run. Una matrice già costruita senza correzione non si corregge sul posto: si costruisce una sessione nuova.
 
-### Atlanti attualmente supportati (solo `parcellated`)
+### Atlanti supportati (solo `parcellated`)
 Solo quelli con un file di reference in `assets/atlases/sdc_labels/`: `schaefer_200_tian_s2` (232 regioni), `schaefer_300_tian_s2` (332 regioni), `schaefer_400_tian_s2` (432 regioni). Per aggiungerne un altro, vedi `docs/dev/sdc_matrix.md` § "Adding a new atlas". **Escluso strutturalmente**: `buckner_7n` (il CSV ha una sola riga per soggetto, non parcellato per network — anomalia nota). `yeh_hcp1065_streamline` ha uno schema completamente diverso (tratti invece di regioni) e non è gestito qui, ma dalla sua `representation: "streamline"`.
 
 ---

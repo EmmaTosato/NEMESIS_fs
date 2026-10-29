@@ -5,15 +5,14 @@ Questa guida illustra in modo dettagliato come utilizzare la pipeline `build_les
 - **Script**: `src/pipeline/build_lesion_matrix.py`
 - **Configurazione**: `config/pipelines/build_lesion_matrix.json` *(usata sia per locale che server)*
 
-La produzione attuale (`session_name: "s1.4-vol"`) copre tutte le coorti in-scope — elenco
+La produzione (`session_name: "s1.4-vol"`) copre tutte le coorti in-scope — elenco
 completo, N e dettagli per-coorte in [`docs/guides/datasets.md`](datasets.md), non ripetuti qui
 (così un dataset aggiunto/rimosso non richiede modifiche a questa guida). Struttura dati identica
 su ogni coorte in-scope (`manual_masks/{subject_id}/anat/{subject_id}_space-MNI152NLin6Asym_label-lesion_mask.nii.gz`,
 stesso spazio MNI152NLin6Asym), quindi nessun cambio di logica nella pipeline dovuto
 all'aggiunta/rimozione di una coorte — solo il campo `datasets` nel config.
 
-> **Nota**: `build_lesion_matrix.py` produce solo matrici voxel-wise — non esiste una modalità
-> *parcellated* (matrice per macro-aree anatomiche via atlante) per questa pipeline.
+> **Nota**: `build_lesion_matrix.py` ha due rappresentazioni, scelte da `representation`: `voxelwise` (soggetti × voxel, dalle maschere) e `parcellated` (soggetti × regioni, dai CSV `LF-lesion` che BCBToolKit ha già calcolato). Questa guida descrive soprattutto la `voxelwise`; i campi della `parcellated` sono in tabella.
 
 ---
 
@@ -54,7 +53,7 @@ Un file che non finisce in `.nii.gz` non combacia con il glob, quindi compare co
 
 ### Griglia comune
 
-Le maschere arrivano da centri diversi e hanno **griglie** diverse anche se tutte sono nello stesso spazio standard (MNI152NLin6Asym): oggi hanno tutte shape 182×218×182 e voxel di 1mm, ma tre **affine** (orientamento LAS o RAS e origine in x di +90, −90 o −91), quindi lo stesso indice di voxel cade in punti diversi. Perché una colonna significhi lo stesso punto del cervello per tutti, ogni maschera la cui shape o affine differisce da quella di `reference_template_path` viene ricampionata su quella griglia (oggi il template a 2mm in `assets/templates/`). La griglia della matrice è quindi quella del template, qualunque sia la risoluzione nativa del primo soggetto. Differenza tra griglia e spazio, e perché si usa `nearest`: [`knowledge/notes/neuroimaging/lesion_resampling.md`](../../knowledge/notes/neuroimaging/lesion_resampling.md).
+Le maschere arrivano da centri diversi e hanno **griglie** diverse anche se tutte sono nello stesso spazio standard (MNI152NLin6Asym): hanno tutte shape 182×218×182 e voxel di 1mm, ma tre **affine** (orientamento LAS o RAS e origine in x di +90, −90 o −91), quindi lo stesso indice di voxel cade in punti diversi. Perché una colonna significhi lo stesso punto del cervello per tutti, ogni maschera la cui shape o affine differisce da quella di `reference_template_path` viene ricampionata su quella griglia (il template a 2mm in `assets/templates/`). La griglia della matrice è quindi quella del template, qualunque sia la risoluzione nativa del primo soggetto. Differenza tra griglia e spazio, e perché si usa `nearest`: [`knowledge/notes/neuroimaging/lesion_resampling.md`](../../knowledge/notes/neuroimaging/lesion_resampling.md).
 
 ---
 
@@ -67,17 +66,20 @@ Spiegazione delle chiavi di `config/pipelines/build_lesion_matrix.json`:
 | **`project`** | Nome del progetto (es. `"clinical_connectome"`). |
 | **`data_root`** | Sede dei dati grezzi estratti (es. `"data/clinical_connectome/derivatives"`). |
 | **`datasets`** | Lista delle coorti da includere (es. `["UNIPD/WashU", ...]`). |
+| **`representation`** | `"voxelwise"` o `"parcellated"`. **Obbligatorio.** I campi dell'altra rappresentazione sono rifiutati. |
 | **`group_filter`** | Lista per filtrare i pazienti sani vs malati. `["ST"]` include solo gli "Stroke". `null` non applica filtri. |
-| **`reference_template_path`** | File MNI di riferimento spaziale per la "Deformazione/Resampling" di tutte le lesioni. |
-| **`lesion_glob`** | Il percorso fisso dei file (non toccare): `"manual_masks/*/anat/*_label-lesion_mask.nii.gz"`. |
-| **`binarize_threshold`** | (Solitamente `0.5`). Trasforma contorni grigi della deformazione spaziale in lesione netta (1 o 0). |
-| **`resample_interpolation`**| La matematica della deformazione spaziale (`"linear"`/`"nearest"`/`"continuous"` — vedi `_KNOWN_INTERPOLATIONS` in `src/analysis/build_config.py`). **Per una maschera binaria si usa `"nearest"`** — motivazione, sfumature del downsampling e interazione con `binarize_threshold` in [`knowledge/notes/neuroimaging/lesion_resampling.md`](../../knowledge/notes/neuroimaging/lesion_resampling.md). |
+| **`reference_template_path`** | Solo `voxelwise`. File MNI di riferimento spaziale per la "Deformazione/Resampling" di tutte le lesioni. |
+| **`lesion_glob`** | Solo `voxelwise`. Il percorso fisso dei file (non toccare): `"manual_masks/*/anat/*_label-lesion_mask.nii.gz"`. |
+| **`binarize_threshold`** | Solo `voxelwise`. (Solitamente `0.5`). Trasforma contorni grigi della deformazione spaziale in lesione netta (1 o 0). |
+| **`resample_interpolation`**| Solo `voxelwise`. La matematica della deformazione spaziale (`"linear"`/`"nearest"`/`"continuous"` — vedi `_KNOWN_INTERPOLATIONS` in `src/analysis/build_config.py`). **Per una maschera binaria si usa `"nearest"`** — motivazione, sfumature del downsampling e interazione con `binarize_threshold` in [`knowledge/notes/neuroimaging/lesion_resampling.md`](../../knowledge/notes/neuroimaging/lesion_resampling.md). |
 | **`excluded_subjects_path`** | La lista dei soggetti da tenere fuori (`assets/metadata/excluded_subjects.csv`). **Obbligatorio.** Vedi sotto. |
-| **`correct_out_of_brain`** | `false` (default) oppure `true`: azzera i voxel di lesione fuori dalla maschera cerebrale e tiene il soggetto nella matrice, con `lesion_volume_voxels` ricalcolato sui dati corretti. Richiede `brain_mask_path`. |
-| **`brain_mask_path`** | Maschera cerebrale MNI di riferimento, sulla stessa griglia di `reference_template_path` (es. `assets/templates/tpl-MNI152NLin6Asym_res-2_desc-brain_mask.nii.gz` per la griglia a 2mm attualmente in uso). **Obbligatoria** se `correct_out_of_brain` è `true`, ignorata altrimenti. |
+| **`correct_out_of_brain`** | Solo `voxelwise`. `false` (default) oppure `true`: azzera i voxel di lesione fuori dalla maschera cerebrale e tiene il soggetto nella matrice, con `lesion_volume_voxels` ricalcolato sui dati corretti. Richiede `brain_mask_path`. |
+| **`brain_mask_path`** | Solo `voxelwise`. Maschera cerebrale MNI di riferimento, sulla stessa griglia di `reference_template_path` (es. `assets/templates/tpl-MNI152NLin6Asym_res-2_desc-brain_mask.nii.gz` per la griglia a 2mm). **Obbligatoria** se `correct_out_of_brain` è `true`, ignorata altrimenti. |
+| **`atlas`**, **`value_column`**, **`reference_labels_path`** | Solo `parcellated` (stessi nomi di `build_sdc_matrix.json`): atlante, colonna dei CSV `LF-lesion` da usare, file delle etichette di riferimento. |
 | **`output_root`** | Sede file (di base: `"data/derived/lesion_matrix"`). |
 | **`session_name`** | Nome univoco per distinguere i batch es. `"s1.4-vol"`. |
 | **`overwrite`** | `true` sovrascrive output di run passati. |
+| **`run_notes`** | Opzionale. Testo libero scritto in `runs.csv`. |
 
 ---
 

@@ -22,12 +22,15 @@ def lesion_mask(self, subject_id):
 
 **Va bene:**
 ```python
-def lesion_mask(self, subject_id: str) -> Path | None:
-    if not self.has_derivatives():
-        raise ValueError(f"il dataset {self.name!r} non contiene derivatives (manual_masks)")
-    ...
-    return match  # None è un caso legittimo e documentato (manca per QUEL soggetto), non un errore nascosto
+def group_of(subject_id: str) -> str:  # src/utils/subject_ids.py
+    match = _SUBJECT_RE.fullmatch(subject_id)
+    if match is None:
+        raise ValueError(f"subject_id does not match expected naming: {subject_id!r}")
+    return "HC" if match.group("hc") else match.group("disease")
+    # un ID malformato, o di un sito non registrato in KNOWN_SITES, solleva: il gruppo non viene mai indovinato
 ```
+
+**Eccezione dichiarata**: la scrittura dei grafici di embedding (`src/analysis/embedding_plots.py`). Un grafico è un prodotto ausiliario di una run che ha già salvato i suoi artefatti: se non si scrive per un errore atteso (`OSError`, `ValueError`) si logga un WARNING con il conteggio dei grafici mancanti e la run prosegue. Ogni altra eccezione è un bug e ferma la run.
 
 Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fallire rumorosamente" e "andare avanti comunque", si fallisce rumorosamente.
 
@@ -37,7 +40,7 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 
 | Regola | Dettaglio |
 |---|---|
-| Struttura a livelli | `utils` → `features` → `models`/`analysis` → `pipeline`. I livelli alti dipendono da quelli bassi, mai il contrario |
+| Struttura a livelli | `utils` → `features` → `analysis` → `pipeline`. I livelli alti dipendono da quelli bassi, mai il contrario |
 | Una responsabilità per modulo | No classi che fanno tutto (I/O + logica + metriche insieme) |
 | No stato globale | Niente variabili a livello di modulo che persistono tra chiamate; dipendenze passate come argomenti |
 | Composizione > ereditarietà | Preferire wrapping/composizione a gerarchie di classi profonde (>3-4 livelli) |
@@ -53,6 +56,7 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 | Funzioni piccole | Una responsabilità, idealmente <30 righe; nomi che descrivono cosa fanno. Il limite vale per funzione/metodo, non per la classe nel suo complesso: una classe con molti metodi piccoli e coesi va bene |
 | Nomi chiari | No abbreviazioni oscure; ok abbreviazioni standard di dominio (SDC, ROI, MNI...) |
 | Niente codice morto | Funzioni/classi/import non usati si cancellano subito — verificare con `grep -rn` prima di eliminare, mai lasciare "per sicurezza" |
+| Codice parcheggiato | Codice non più chiamato da nessuno ma da tenere recuperabile si sposta in `tests/legacy/` insieme ai suoi test (non raccolti da pytest, eseguibili per percorso), non resta in `src/`. Unica eccezione dichiarata: la sezione «Confronto» di `embedding_app.py` (builder e test restano al loro posto, non montata nell'app) |
 | Niente shim di compatibilità | No wrapper "per i vecchi chiamanti", no `# rimosso` in commento, no stub di funzioni eliminate |
 
 ---
@@ -91,9 +95,9 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 
 - Log in inglese, stile ibrido testo libero + `chiave=valore`
 - Mai dati sensibili (credenziali, path con auth) nei log
-- Ogni eccezione loggata con contesto completo (`exc_info=True`), mai in silenzio
+- Ogni eccezione inattesa è loggata con contesto completo (`exc_info=True`) o rilanciata, mai in silenzio. Per un errore di dominio con eccezione nominata (un file assente per quel soggetto, un config non valido) basta il messaggio con la causa: la traccia dello stack sarebbe rumore
 - Livelli usati coerentemente: INFO (milestone), DEBUG (dettagli verbosi), WARNING (recuperabile), ERROR (richiede attenzione)
-- Ogni entry point di pipeline (`src/pipeline/*.py`) logga la durata del run (`src/utils/logging_setup.py::log_duration`, chiamata da un `finally` che avvolge il corpo di `main()` da quando lo start time è catturato in poi) - così la durata è nota sia sul path di successo sia su un `return` anticipato per errore, non solo quando il run completa pulito (vedi `docs/debugging/debug_25_08_26.md`)
+- Ogni entry point di pipeline (`src/pipeline/*.py`, tranne `embedding_app.py`: è un server che resta in ascolto, non ha una durata del run) logga la durata del run (`src/utils/logging_setup.py::log_duration`, chiamata da un `finally` che avvolge il corpo di `main()` da quando lo start time è catturato in poi) - così la durata è nota sia sul path di successo sia su un `return` anticipato per errore, non solo quando il run completa pulito (vedi `docs/debugging/debug_25_08_26.md`)
 
 ---
 
@@ -107,7 +111,7 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 ## 8. Debug report
 
 - Un file per sessione di debug (`docs/debugging/debug_DD_MM_YY.md`)
-- Un bug per sezione, con livello di criticità e "lessons learned" obbligatorio (azionabile, non una parafrasi del bug) (`lesson_learned.md`)
+- Un bug per sezione, con livello di criticità e "lessons learned" obbligatorio (azionabile, non una parafrasi del bug) (`lessons_learned.md`)
 
 ---
 

@@ -28,13 +28,13 @@ Gli altri file della cartella sono di servizio: `lesion_metadata.config.json` e 
 
 ## Come si lancia, in ordine
 
-Quattro passaggi, in quest'ordine: chi esiste, cosa misurano le maschere, quanto sono disconnessi i soggetti, e infine il join che riempie il registro. Un quarto, indipendente, genera la lista delle esclusioni (`excluded_subjects.csv`) quando cambia.
+Quattro passaggi, in quest'ordine: chi esiste (`populate_metadata`), cosa misurano le maschere, quanto sono disconnessi i soggetti, e infine il join che riempie il registro. Un quinto, indipendente, genera la lista delle esclusioni (`excluded_subjects.csv`) quando cambia.
 
 ```bash
 conda activate nemesis
 cd "$PROJECT_ROOT"
 
-PYTHONPATH="$PROJECT_ROOT" python -m src.pipeline.populate_metadata --config config/pipelines/populate_metadata.json
+python -m src.pipeline.populate_metadata --config config/pipelines/populate_metadata.json
 python -m src.pipeline.compute_lesion_metadata --config config/pipelines/compute_lesion_metadata.json
 python -m src.pipeline.compute_sdc_metadata --config config/pipelines/compute_sdc_metadata.json
 python -m src.pipeline.enrich_metadata --config config/pipelines/enrich_metadata.json
@@ -43,9 +43,9 @@ python -m src.pipeline.enrich_metadata --config config/pipelines/enrich_metadata
 python -m src.pipeline.build_excluded_subjects --config config/pipelines/build_excluded_subjects.json
 ```
 
-Tutte le pipeline accettano `--dry-run`: eseguono ogni controllo e scrivono il report, senza toccare nulla. **Usalo la prima volta dopo aver cambiato un config.**
+Le quattro pipeline successive a `populate_metadata` (`compute_lesion_metadata`, `compute_sdc_metadata`, `enrich_metadata`, `build_excluded_subjects`) accettano `--dry-run`: eseguono ogni controllo e scrivono il report, senza toccare nulla. **Usalo la prima volta dopo aver cambiato un config.**
 
-Su cluster: `sbatch jobs/run_compute_lesion_metadata.sh`, `sbatch jobs/run_compute_sdc_metadata.sh`, `sbatch jobs/run_enrich_metadata.sh`, `sbatch jobs/run_build_excluded_subjects.sh` (le cartelle `logs/slurm/<pipeline>/` devono già esistere).
+Su cluster: `sbatch jobs/run_populate_metadata.sh`, `sbatch jobs/run_compute_lesion_metadata.sh`, `sbatch jobs/run_compute_sdc_metadata.sh`, `sbatch jobs/run_enrich_metadata.sh`, `sbatch jobs/run_build_excluded_subjects.sh` (le cartelle `logs/slurm/<pipeline>/` devono già esistere).
 
 ---
 
@@ -112,7 +112,7 @@ Due colonne per griglia, su **2 mm** (la griglia di produzione) e **1 mm** (quel
 | `disconnection_load_voxels_<g>` | La somma della probabilità di disconnessione sui voxel **dentro il cervello**. È l'analogo del volume lesionale: per una mappa binaria sarebbe un conteggio di voxel; qui ogni voxel pesa la sua probabilità, quindi l'unità è "voxel pesati per probabilità" (1 mm³ a 1 mm, 8 mm³ a 2 mm). |
 | `disconnection_mean_<g>` | La stessa somma divisa per il numero di voxel del cervello: la probabilità media di disconnessione sul cervello, tra 0 e 1. |
 
-Su una stessa griglia le due colonne **ordinano i soggetti allo stesso modo**: il divisore è una costante della griglia. Cambia solo il numero che si legge (`~60 000` oppure `~0,033`). Il carico si legge come un volume, la media come "quanta parte del cervello, in media".
+Su una stessa griglia le due colonne **ordinano i soggetti allo stesso modo**: il divisore è una costante della griglia. Cambia solo il numero che si legge (a 1 mm la mediana del carico è ~60 000 e quella della media ~0,033; a 2 mm il carico è ~7 500 e la media resta ~0,033). Il carico si legge come un volume, la media come "quanta parte del cervello, in media".
 
 ### Cosa viene misurato, e cosa no
 
@@ -175,7 +175,7 @@ sub-STUCLUK2160,UCL-UK/UCLStrokeData,all_zero_features,sdc-streamline,0
   "lesion_metadata_path": "assets/metadata/lesion_metadata.csv",
   "overwrite": false,
   "exclusions": [
-    {"reason": "empty_mask", "scope": "all", "value_column": "lesion_volume_voxels_1mm", "subjects": ["sub-STUKLFR0671"]},
+    {"reason": "empty_mask", "scope": "all", "value_column": "lesion_volume_voxels_2mm", "subjects": ["sub-STUKLFR0671"]},
     {"reason": "all_zero_features", "scope": "sdc-streamline", "value": 0, "subjects": ["sub-STUCLUK0383", "..."]}
   ]
 }
@@ -219,6 +219,8 @@ I soggetti esclusi **restano nel registro** con `has_lesion` e `has_sdc` intatti
 | **`run_notes`** | Nota libera, finisce nel report. |
 
 ### `lesion_metadata`: il join sul csv delle misure
+
+Esempio ridotto: il config reale copia 10 colonne (i due volumi, `location_dominant_2mm` e le sette frazioni di sede; elenco in `config/pipelines/enrich_metadata.json`).
 
 ```json
 "lesion_metadata": {
@@ -299,7 +301,7 @@ Il join su `sdc_metadata.csv` applica gli stessi tre controlli contro `has_sdc` 
 Due controlli, uno per file:
 
 - **Registro contro csv**: `lesion_volume_voxels_2mm` del registro deve coincidere con quello del csv per ogni soggetto. Se no, rilancia `enrich_metadata`.
-- **Csv contro maschere e config**: il csv è aggiornato se `lesion_metadata.config.json` (accanto al csv) coincide con `config/pipelines/compute_lesion_metadata.json` e nessuna maschera è più recente del csv:
+- **Csv contro maschere e config**: il csv è aggiornato se `lesion_metadata.config.json` (accanto al csv) coincide con `config/pipelines/compute_lesion_metadata.json` sulle chiavi che cambiano le misure (`datasets`, `group_filter`, `grids`, `correct_out_of_brain`, `side_threshold`, `binarize_threshold`, `resample_interpolation`, `location`, `lesion_glob`; non `written`, `output_path`, `overwrite`, `run_notes`) e nessuna maschera è più recente del csv:
 
   ```bash
   find data/clinical_connectome/derivatives -path '*manual_masks*' -name '*_label-lesion_mask.nii.gz' -newer assets/metadata/lesion_metadata.csv | wc -l   # 0 = nessuna maschera più recente
@@ -330,7 +332,7 @@ Una cella che nella fonte è vuota svuota la cella del registro, con `overwrite:
 
 ### `protected_path`: tenere intatto
 
-Un json (`assets/metadata/participants_protected.json`) elenca ciò che una run non deve toccare:
+Un json (`assets/metadata/participants_protected.json`) elenca ciò che una run non deve toccare. Esempio illustrativo: il file nel repo è `{"columns": [], "subjects": []}` e non protegge nulla.
 
 ```json
 {
@@ -389,4 +391,4 @@ Conseguenza pratica: se aggiungi `NIHSS` al registro oggi, **anche le run vecchi
 
 ## Attenzione: `has_*` descrive il disco, e il disco può essere potato
 
-`populate_metadata.py` scandisce le cartelle per riempire `has_lesion`/`has_sdc`/`has_features`, e una scansione non vede dentro un `.tar.gz`. Le cartelle archiviate localmente per spazio (oggi `UNIPD/WashU/features/` e `data/derived/features/masked_fc/`) vanno quindi decompresse prima, oppure i `has_*` interessati vanno corretti a mano. Vedi [`docs/guides/datasets.md`](datasets.md).
+`populate_metadata.py` scandisce le cartelle per riempire `has_lesion`/`has_sdc`/`has_features`, e una scansione non vede dentro un `.tar.gz`. Le cartelle archiviate localmente per spazio (oggi `UNIPD/WashU/features/` e `data/derived/features/masked_fc/`) vanno quindi decompresse prima per un registro completo; altrimenti `has_*` descrive i soli soggetti presenti sul disco e la popolazione reale si legge dal manifest `<nome>_archive_subjects.tsv`. Vedi [`docs/guides/datasets.md`](datasets.md).

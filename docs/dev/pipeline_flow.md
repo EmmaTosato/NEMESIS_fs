@@ -29,7 +29,7 @@ Le pipeline dipendono l'una dall'altra in due modi diversi.
 | `enrich_metadata` | `participants.csv`, `lesion_metadata.csv`, `sdc_metadata.csv`, i tsv grezzi |
 | `build_excluded_subjects` | `lesion_metadata.csv` e `participants.csv` (validazione) |
 | `build_lesion_matrix`, `build_sdc_matrix` | `participants.csv` e `excluded_subjects.csv` |
-| `mask_fc`, `build_fc_matrix` | solo dati grezzi (poi l'una l'output dell'altra) |
+| `mask_fc`, `build_fc_matrix` | solo dati grezzi; `build_fc_matrix` con `group: ST` legge l'output di `mask_fc`, con `group: HC` i dati grezzi |
 | `dim_reduction` | una matrice |
 | `clustering` | una matrice, oppure un run di `dim_reduction` |
 | `evaluate_dim_reduction_tuning` | un tuning di `dim_reduction` salvato con `save_tuning_embeddings: true` (non legge la matrice né i metadati) |

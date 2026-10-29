@@ -2,6 +2,8 @@
 
 Manuale operativo: come leggere gli indici e i grafici prodotti da una sweep di tuning, e come decidere cosa fare a partire da quello che vedi.
 
+> **Metodi in stand by**: `kmeans`, `gmm`, `spectral` e `adp` sono fuori dalla catena `tuning_evaluations → report.md` dal 23-10-26 (`evaluate_clustering_tuning` li rifiuta), e le loro run e i loro tuning stanno in `results/legacy/clustering_spectral_kmeans_gmm_adp_28-10-26/`. Le sezioni che li riguardano descrivono il metodo e il codice che lo sweepa, non la catena attuale: `inertia`, `bic`/`aic`, eigengap e plateau non sono più prodotti da `report.md`.
+
 Definizioni e fonti degli indici: [`clustering_methods/evaluation_metrics.md`](clustering_methods/evaluation_metrics.md). Formule e parametri dei singoli metodi: cartella [`clustering_methods/`](clustering_methods/), indice in [`README.md`](clustering_methods/README.md) (es. [`kmeans.md`](clustering_methods/kmeans.md), [`gmm.md`](clustering_methods/gmm.md), [`spectral.md`](clustering_methods/spectral.md), [`agglomerative.md`](clustering_methods/agglomerative.md), [`hdbscan.md`](clustering_methods/hdbscan.md), [`adp.md`](clustering_methods/adp.md)).
 
 ## Regola d'oro
@@ -27,7 +29,7 @@ Calcolati per KMeans, GMM, Spectral, Agglomerative e ADP (non per HDBSCAN e HDBS
 
 | Indice                      | Range    | Direzione           | Come leggerlo                                                                                                                                                                                                                                                                                  |
 | --------------------------- | -------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Silhouette**        | −1 → 1 | più alto = meglio  | Vicino a 1: cluster compatti e separati. Vicino a 0: cluster che si sovrappongono. Negativo: punti probabilmente nel cluster sbagliato. È l'unico dei tre con un valore assoluto interpretabile da solo — gli altri due si leggono solo per confronto tra valori diversi dello stesso sweep. |
+| **Silhouette**        | −1 → 1 | più alto = meglio  | Vicino a 1: cluster compatti e separati. Vicino a 0: cluster che si sovrappongono. Negativo: punti probabilmente nel cluster sbagliato. Si confronta solo dentro la stessa run (vedi `clustering_methods/evaluation_metrics.md`): una nuvola senza cluster ha comunque silhouette positiva, e nessuna soglia vale come verdetto. |
 | **Calinski-Harabasz** | 0 → +∞ | più alto = meglio  | Rapporto tra separazione fra i cluster e compattezza dentro ciascun cluster. Tende quasi sempre a crescere insieme al numero di cluster: da solo non basta per scegliere il numero di cluster, usalo come conferma.                                                                            |
 | **Davies-Bouldin**    | 0 → +∞ | più basso = meglio | Media di quanto ogni cluster è disperso rispetto a quanto è vicino al suo "vicino" più simile. È l'unico dei tre che penalizza esplicitamente due cluster troppo ravvicinati — per questo a volte non è d'accordo con Silhouette.                                                        |
 

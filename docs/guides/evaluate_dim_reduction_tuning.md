@@ -1,6 +1,6 @@
 # Valutare un tuning già salvato (`evaluate_dim_reduction_tuning`)
 
-Applica a un tuning di `dim_reduction` già concluso le valutazioni che lavorano sui soli embedding (oggi `plot_hdbscan`), senza rifare lo sweep. Funziona su lesione e SDC allo stesso modo: legge solo la cartella del tuning.
+Applica a un tuning di `dim_reduction` già concluso le valutazioni che lavorano sui soli embedding (`plot_hdbscan`), senza rifare lo sweep. Funziona su lesione e SDC allo stesso modo: legge solo la cartella del tuning.
 
 - **Script**: `src/pipeline/evaluate_dim_reduction_tuning.py`
 - **Configurazione**: `config/pipelines/evaluate_dim_reduction_tuning.json`
@@ -33,7 +33,7 @@ Se gli embedding non hanno 2 componenti, per disegnarli serve nella griglia anch
 | Parametro | Tipo | Descrizione |
 | :--- | :--- | :--- |
 | **`tuning_dir`** | *Stringa* | La cartella del tuning, es. `results/lesion/dim_reduction/tuning/umap/07-10_s1.4-vol` o `results/sdc/...`. Deve esistere. Si usa il percorso relativo alla radice del repo: il titolo dei grafici ne deriva la modalità (lesione o SDC); il metodo si legge da `config.md`. |
-| **`overwrite`** | *Booleano* | Se `false`, lo script si ferma se i file della valutazione esistono già; se `true`, li sostituisce. |
+| **`overwrite`** | *Booleano* | Se `false`, lo script controlla tutte le foglie prima di scrivere e, se un file della valutazione esiste già, si ferma senza scrivere niente (esce con codice 1, senza traceback); se `true`, li sostituisce. |
 | **`tuning_evaluations`** | *Oggetto* | Le valutazioni da lanciare, almeno una. Stessa sintassi del blocco omonimo di `dim_reduction.json` (vedi [`dim_reduction.md`](dim_reduction.md)). `plot_hdbscan` vuole esattamente `min_cluster_size` (intero >= 2) e `min_samples` (intero >= 1). I punteggi dello sweep (`trustworthiness`, `cumulative_explained_variance`) sono rifiutati. |
 
 ## Output

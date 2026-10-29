@@ -37,4 +37,4 @@ git push origin main
 
 ## Nota
 
-Niente più eccezioni "regola verificabile" (quelle esistevano solo per la divergenza strutturale tra due branch diversi). `data/`, `results/`, `logs/`, `summaries/` restano comunque gitignored come sempre (non sono nemmeno tracciati, quindi non c'entrano con l'allineamento tra checkout) — vedi `.gitignore`.
+Niente più eccezioni "regola verificabile" (quelle esistevano solo per la divergenza strutturale tra due branch diversi). `data/` e `results/` sono gitignored (non sono tracciati, quindi non c'entrano con l'allineamento tra checkout); `logs/` e `summaries/` sono invece versionati — vedi `.gitignore`.

@@ -16,6 +16,28 @@ Voci in ordine cronologico inverso.
 
 **Conseguenza ancora vera**: una run senza i due file mostra un messaggio, non una tabella; così `kmeans`, `gmm`, `spectral` (nessun risultato salvato, run in `results/legacy`). `clustering_evaluation.density_summary` e `membership_confidence` (con `DensitySummary`, `MembershipConfidence`, la voce `membership_confidence` del registro `EVALUATIONS` e i loro test) non stanno più in `src/`: sono in `tests/legacy/density_membership_summaries.py`, con la voce in `EVALUATIONS_TO_RESTORE`. Le voci `geometric_metrics` e `dbcv` del registro restano (le tengono in piedi i test di proprietà), ma nessun codice le interroga più.
 
+## 29-10-26 — Convenzioni: codice parcheggiato in `tests/legacy/`, grafici di embedding con errori attesi, `exc_info` e `log_duration`
+
+**Cosa è cambiato**: quattro regole di `code_standards.md`, decise con l'utente durante la revisione delle criticità Medie dell'audit.
+- **Codice parcheggiato** (§2): codice non più chiamato da nessuno ma da tenere recuperabile si sposta in `tests/legacy/` con i suoi test (file non raccolti da pytest, eseguibili per percorso). Primi casi: `integrated_completed_likelihood`, `compute_gap_statistic`, `gap_statistic_suggested_k` (kmeans/gmm in stand by) → `tests/legacy/kmeans_gmm_post_hoc_diagnostics.py`; `colors_at` → `tests/legacy/dendrogram_colors_at.py`. Eccezione dichiarata: la sezione «Confronto» di `embedding_app.py`, che resta in `src/`.
+- **Eccezione al §0** per `src/analysis/embedding_plots.py`: un grafico che non si scrive per `OSError` o `ValueError` è un WARNING con il conteggio dei grafici mancanti; ogni altra eccezione ferma la run.
+- **§6, `exc_info`**: obbligatorio per le eccezioni inattese; per gli errori di dominio con eccezione nominata basta il messaggio con la causa.
+- **§6, `log_duration`**: tutti gli entry point di `src/pipeline/` la chiamano, tranne `embedding_app.py` (un server). Aggiunta a `generate_understanding_umap_report.py` e `replot_dim_reduction.py`.
+
+**Scartato**: aggiungere `exc_info=True` ai 73 log che non l'hanno (log pieni di tracce per errori attesi); cancellare del tutto le funzioni di kmeans/gmm (perderebbero la possibilità di riprenderle).
+
+**Conseguenze ancora vere oggi**: anche `colors_at` (`dendrogram_splits.py`) è in `tests/legacy/dendrogram_colors_at.py`; i test del Dendrogram Explorer usano un helper locale, ultimo passo di `replay_splits`. Il piano per spezzare `embedding_app.py` è in `.claude/audit/06_piano_spezzamento_embedding_app.md`.
+
+## 29-10-26 — `build_fc_matrix`: un gruppo di soggetti per run (`group`: `ST` o `HC`)
+
+**Cosa è cambiato** (`src/pipeline/build_fc_matrix.py`, `src/analysis/build_config.py`, `src/features/functional.py::build_fc_matrix_from_raw`): `build_fc_matrix.json` ha il campo obbligatorio `group`. `"ST"` legge le reti mascherate da `mask_fc` (`masked_fc_root`, come prima); `"HC"` legge le reti grezze del dataset (`data_root`, `dataset`, `fc_glob_template`), perché un controllo sano non ha maschera di lesione e `mask_fc` non lo processa. I campi dell'altro gruppo sono rifiutati al caricamento. Un gruppo per matrice: pazienti e sani non si mescolano.
+
+**Perché**: la guida prometteva `["ST","HC"]` con i sani «a 0 nodi compromessi», ma il codice li saltava (`mask_fc` richiede la maschera) e non esisteva alcun percorso per una matrice di soli sani. Emerso dall'audit (C-048); l'utente vuole `mask_fc` solo sulle lesioni e `build_fc_matrix` capace di prendere gli HC.
+
+**Scartato**: far scrivere a `mask_fc` copie non mascherate dei sani («0 nodi compromessi»): sposterebbe i sani in una pipeline pensata solo per le lesioni.
+
+**Conseguenze ancora vere oggi**: ogni config di `build_fc_matrix` ha bisogno di `group` (`config/pipelines/build_fc_matrix.json` ha `"ST"`). Pazienti e sani della stessa giornata richiedono `session_name` diversi. Le FC grezze dei sani non sono in locale (stanno in `features_archive.tar.gz`): la costruzione reale di una matrice `HC` non è ancora stata lanciata, il percorso è coperto solo da test su dati sintetici.
+
 ## 28-10-26 — Produzione di clustering: `production_results.csv` e `production_results_per_cluster.csv`, `config.md` solo parametri
 
 **Cosa è cambiato** (`src/pipeline/clustering.py`, nuovo `src/analysis/production_results.py`): una run di produzione di `agglomerative`, `hdbscan` e `hdbscan_soft` scrive due tabelle accanto a `matrix.npy`.

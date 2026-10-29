@@ -27,7 +27,6 @@ cd "$PROJECT_ROOT"
 python -m src.pipeline.<nome> --config config/pipelines/<nome>.json
 ```
 
-- `populate_metadata` richiede anche `PYTHONPATH="$PROJECT_ROOT"` davanti al comando.
 - `--dry-run` (controlli e report, nessuna scrittura) esiste solo per `compute_lesion_metadata`, `compute_sdc_metadata`, `enrich_metadata` e `build_excluded_subjects`.
 - Su cluster: `sbatch jobs/run_<nome>.sh`.
 
@@ -68,7 +67,7 @@ dati grezzi (copia a mano da EBRAIN)
 ## 1. `populate_metadata` — chi esiste
 
 ```bash
-PYTHONPATH="$PROJECT_ROOT" python -m src.pipeline.populate_metadata --config config/pipelines/populate_metadata.json
+python -m src.pipeline.populate_metadata --config config/pipelines/populate_metadata.json
 ```
 
 Unisce i tsv grezzi alle cartelle dei soggetti su disco.
@@ -80,7 +79,7 @@ Unisce i tsv grezzi alle cartelle dei soggetti su disco.
 python -m src.pipeline.compute_lesion_metadata --config config/pipelines/compute_lesion_metadata.json
 ```
 
-Misura ogni maschera su due griglie (1 e 2 mm): volume, frazione fuori dal brain, lateralità e lato. Circa 15 minuti sull'intera coorte.
+Misura ogni maschera su due griglie (1 e 2 mm): volume, frazione fuori dal brain, lateralità e lato. Circa 30 minuti sull'intera coorte.
 **Input:** maschere di lesione, template. **Output:** `assets/metadata/lesion_metadata.csv`.
 
 ## 2b. `compute_sdc_metadata` — quanto è disconnesso ogni soggetto
@@ -107,7 +106,7 @@ Aggiunge al registro età, sesso, istruzione, NIHSS, data clinica, lato, volumi 
 python -m src.pipeline.build_excluded_subjects --config config/pipelines/build_excluded_subjects.json
 ```
 
-Scrive la lista dei soggetti esclusi (elencati nel config) con motivo e valore. Non si escludono le lesioni piccole; si escludono quelle con più del 30% dei voxel fuori dal brain.
+Scrive la lista dei soggetti esclusi (elencati nel config) con motivo e valore. Non si escludono le lesioni piccole. La regola con cui sono stati scelti i soggetti da elencare (più del 30% dei voxel fuori dal brain) non è nel config: è in `.claude/history/methods_changelog.md` (07-10-26).
 **Input:** il config, `lesion_metadata.csv`, il registro. **Output:** `assets/metadata/excluded_subjects.csv`. Guida: [`metadata.md`](metadata.md).
 
 ---
@@ -122,7 +121,7 @@ Tre rami indipendenti. Ognuno scrive una cartella con `matrix.npy`, `metadata.cs
 python -m src.pipeline.build_lesion_matrix --config config/pipelines/build_lesion_matrix.json
 ```
 
-Matrice binaria soggetti × voxel delle lesioni. `correct_out_of_brain` (`true` o `false`) azzera o no i voxel fuori dal brain.
+Matrice delle lesioni, scelta da `representation`: `voxelwise` (soggetti × voxel, binaria) o `parcellated` (soggetti × regioni, dai CSV `LF-lesion` di BCBToolKit). Con `voxelwise`, `correct_out_of_brain` (`true` o `false`) azzera o no i voxel fuori dal brain.
 **Input:** maschere, template 2 mm, `excluded_subjects.csv`. **Output:** `data/derived/lesion_matrix/<gg-mm>_<sessione>/`. Guida: [`matrix_building.md`](matrix_building.md).
 
 ### 5b. `build_sdc_matrix`
@@ -141,7 +140,7 @@ python -m src.pipeline.mask_fc --config config/pipelines/mask_fc.json
 python -m src.pipeline.build_fc_matrix --config config/pipelines/build_fc_matrix.json
 ```
 
-`mask_fc` marca come mancanti (NaN) i nodi di connettività coperti da lesione; `build_fc_matrix` impila i risultati.
+`mask_fc` marca come mancanti (NaN) i nodi di connettività coperti da lesione; `build_fc_matrix` impila i risultati di un gruppo di soggetti (`group`: `ST` dalle reti mascherate, `HC` dalle reti grezze: i sani non hanno lesione e non passano da `mask_fc`).
 **Input:** CSV FC, maschere, atlanti. **Output:** `data/derived/features/masked_fc/<atlas_combo>/`, poi `data/derived/features/fc_matrix/<atlas_combo>/`. Guida: [`fc_matrix_building.md`](fc_matrix_building.md).
 
 ---
@@ -174,6 +173,19 @@ Per esplorare i risultati salvati:
 ```bash
 python -m src.pipeline.embedding_app
 ```
+
+---
+
+## Passi opzionali
+
+Fuori dal flusso principale, lanciati a mano con argomenti da riga di comando (non hanno `--config`):
+
+| Passo | Quando | Comando |
+|---|---|---|
+| `calibrate_lesion_side_threshold` | scegliere `side_threshold` contro le etichette cliniche di `lesion_side`; scrive un report, non modifica `participants.csv` | `python -m src.pipeline.calibrate_lesion_side_threshold --grid 2mm --datasets UNIPD/WashU UNIPD/PSP UKLFR/stroke_UKLFR UKE/WAKEUP_acute UKE/SFB936_ses01` |
+| `generate_understanding_umap_report` | report HTML su un tuning UMAP e uno t-SNE già salvati | `python -m src.pipeline.generate_understanding_umap_report --umap-tuning-dir <dir> --tsne-tuning-dir <dir>` ([guida](understanding_umap_report.md)) |
+| `plot_tuning_embedding_3d` | vedere in 3D una combinazione di tuning a 3 componenti | `python -m src.pipeline.plot_tuning_embedding_3d --embeddings-npz <npz> --metadata-csv <csv> --combo-key <chiave> --reduction-method umap --output-dir <dir>` |
+| `replot_dim_reduction` | rifare i grafici 2D di una run già scritta, senza ricalcolare l'embedding | `python -m src.pipeline.replot_dim_reduction --run-dir <dir>` |
 
 ---
 

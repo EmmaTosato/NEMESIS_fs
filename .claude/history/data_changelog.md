@@ -224,6 +224,9 @@ voxel di UKLFR/WashU passata da 1.5mm/2.0mm nativo a 1mm (stessa fonte dell'SDC)
 una fragilità di `reference_template_path` risolta lo stesso giorno, vedi `project_changelog.md`
 23-09-26.
 
+**Superata il 29-10-26**: `participants.csv` oggi ha tutti e 8 i dataset (`populate_metadata.json` li elenca). **Indagine su due soggetti** (sola lettura): (1) `sub-STUKE0146` ha oggi nella maschera 16 voxel a 1 mm, come il 06-09: il `lesion_volume_voxels_1mm = 8` di `lesion_metadata.csv` è il conteggio dopo l'azzeramento dei voxel fuori dal brain (`out_of_brain_fraction_1mm = 0,5`), non un cambio dei dati; `sub-STUKE0201` resta a 3. (2) `sub-STUKLFR0671` ha oggi una maschera **vuota** (0 voxel, `float64`, file del 05-08). Le matrici costruite prima del 23-09 (`21-07_s1.1-vol`, `25-08_s1.2-vol`, `06-09_s1.3-vol`) hanno per lui una riga con 23.960 voxel a 2 mm, quindi la maschera è cambiata con la sostituzione del 23-09. Anche gli output di BCBToolKit nella cartella `bcbtoolkit/` sono nulli: i CSV `LF-lesion` (26-08) hanno sovrapposizione 0 e la mappa di disconnessione (03-09) ha 0 voxel non nulli. BCBToolKit ha quindi lavorato su una maschera vuota, non su una lesione grande.
+**Chiusa il 29-10-26** (decisione dell'utente): la maschera vuota di `sub-STUKLFR0671` è **corretta**. La vecchia copia locale da 23.960 voxel a 2 mm (56.785 a 1 mm) non era la maschera giusta; il soggetto ha lesione vuota ed è escluso (`empty_mask`, `scope=all`). L'utente non ha il file originale del server e non indica la provenienza della vecchia copia: non è stata ricostruita.
+
 ---
 
 ## 07-09-26 — `sub-STUKLFR0671`: mappa di disconnessione vuota nonostante una lesione grande
@@ -238,6 +241,8 @@ plausibile: è output degenere di BCBToolKit, non una proprietà del soggetto.
 
 È l'unico caso tra i 1570 soggetti ammessi. Non è stato ricalcolato (`compute_sdc.py`
 gira solo sul cluster) né rimosso dalla matrice.
+
+**Riletta il 29-10-26**: la causa più probabile non è un output degenere su una lesione grande. I CSV `LF-lesion` di BCBToolKit (26-08) per questo soggetto hanno sovrapposizione 0, e la maschera attuale (copiata il 23-09 dalla fonte) è vuota: BCBToolKit ha processato una maschera vuota. La maschera con 56.785 voxel era la vecchia copia locale, che sembra diversa da quella usata per l'SDC (poi confermato dall'utente il 29-10-26: la maschera vuota è quella corretta). `sub-STUKLFR0671` è in `excluded_subjects.csv` (`empty_mask`).
 
 Nota: lo stesso soggetto compare in `docs/dev/sdc_matrix.md` come l'esempio verificato
 di chi *ha* una maschera registrata pur mancando dal `manual_masks/` locale — quel
@@ -286,6 +291,8 @@ vanno gestite prima, non dopo aver visto un outlier strano nell'embedding.
 Prima run di `scripts/populate_metadata.py`: ha scritto `has_features=False` per 192 soggetti WashU che le FC ce l'hanno, perché `UNIPD/WashU/features/` era potata al campione di 10 e una scansione del disco non vede dentro un `.tar.gz`.
 
 Corretto decomprimendo l'archivio, rilanciando con `overwrite=true` (`has_features` da 10 → 169 ST) e ricomprimendo. Da qui la scelta di **non** far leggere il manifest alla pipeline (la potatura è una misura temporanea di spazio locale, non una proprietà del progetto): la correzione resta manuale e documentata in `docs/dev/metadata.md`.
+
+**Superata il 29-10-26**: con `features/` di nuovo potata, `participants.csv` ha `has_features=True` per 10 soggetti WashU su 195 (il resync del 23-09 con `overwrite: true` ha letto il disco potato). Decisione dell'utente: la correzione manuale non si rifà. `has_features` descrive il disco locale; la popolazione reale si legge dal manifest `<nome>_archive_subjects.tsv` della cartella potata, perché i dati sono archiviati per spazio finché non servono.
 
 Introdotti nello stesso giorno i manifest `<nome>_archive_subjects.tsv` in ogni cartella potata, e corretto il comando di ripristino nei `README_ARCHIVE.md` (diceva `tar -xzf <archivio> -C .` ma l'archivio sta un livello sopra la cartella, quindi non lo trovava mai).
 

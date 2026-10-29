@@ -21,18 +21,18 @@ Ordine di lettura Fase 1: `.claude/` → `docs/` → `knowledge/notes/`, nell'or
 | File | Stato | Righe | Ultima riga analizzata |
 |---|---|---|---|
 | `.claude/history/data_changelog.md` | [x] COMPLETATO | 223 | 223 |
-| `.claude/history/methods_changelog.md` | [ ] TODO | 963 | 0 |
-| `.claude/history/project_changelog.md` | [~] IN CORSO | 887 | 64 (riferimenti dell intero file già verificati con script) |
-| `.claude/history/stato_progetto_archive.md` | [ ] TODO | 587 | 0 |
+| `.claude/history/methods_changelog.md` | [x] COMPLETATO | 992 | 992 |
+| `.claude/history/project_changelog.md` | [x] COMPLETATO | 972 | 972 |
+| `.claude/history/stato_progetto_archive.md` | [x] COMPLETATO (sola lettura: solo riferimenti) | 587 | 587 |
 
 ### 1.1c `.claude/` extra, non elencati dall'utente (skills, impostazioni) (4 file)
 
 | File | Stato | Righe | Ultima riga analizzata |
 |---|---|---|---|
 | `.claude/skills/history/SKILL.md` | [x] COMPLETATO | 79 | 79 |
-| `.claude/skills/stato-progetto/SKILL.md` | [ ] TODO | 53 | 0 |
-| `.claude/settings.local.json` | [ ] TODO | 8 | 0 |
-| `.claude/scheduled_tasks.lock` | [ ] TODO | bin | 0 |
+| `.claude/skills/stato-progetto/SKILL.md` | [x] COMPLETATO | 53 | 53 |
+| `.claude/settings.local.json` | [x] COMPLETATO | 8 | 8 |
+| `.claude/scheduled_tasks.lock` | [x] COMPLETATO (stantio, C-104) | bin | - |
 
 ### 1.2a `docs/setup.md` (1 file)
 
@@ -44,18 +44,18 @@ Ordine di lettura Fase 1: `.claude/` → `docs/` → `knowledge/notes/`, nell'or
 
 | File | Stato | Righe | Ultima riga analizzata |
 |---|---|---|---|
-| `docs/guides/clustering.md` | [ ] TODO | 281 | 0 |
-| `docs/guides/datasets.md` | [ ] TODO | 198 | 0 |
+| `docs/guides/clustering.md` | [x] COMPLETATO | 281 | 281 |
+| `docs/guides/datasets.md` | [x] COMPLETATO | 198 | 198 |
 | `docs/guides/dim_reduction.md` | [x] COMPLETATO | 134 | 134 |
-| `docs/guides/embedding_app.md` | [ ] TODO | 432 | 0 |
+| `docs/guides/embedding_app.md` | [x] COMPLETATO | 433 (432 al bootstrap) | 433 |
 | `docs/guides/evaluate_clustering_tuning.md` | [x] COMPLETATO | 121 | 121 |
 | `docs/guides/evaluate_dim_reduction_tuning.md` | [x] COMPLETATO | 43 | 43 |
-| `docs/guides/evaluation.md` | [ ] TODO | 259 | 0 |
-| `docs/guides/exploration.md` | [ ] TODO | 216 | 0 |
+| `docs/guides/evaluation.md` | [x] COMPLETATO | 123 (259 al bootstrap; riscritto da `591e078`) | 123 |
+| `docs/guides/exploration.md` | [x] COMPLETATO | 215 (216 al bootstrap) | 215 |
 | `docs/guides/fc_matrix_building.md` | [x] COMPLETATO | 57 | 57 |
-| `docs/guides/matrix_building.md` | [ ] TODO | 139 | 0 |
-| `docs/guides/metadata.md` | [ ] TODO | 392 | 0 |
-| `docs/guides/pipeline_order.md` | [ ] TODO | 198 | 0 |
+| `docs/guides/matrix_building.md` | [x] COMPLETATO | 139 | 139 |
+| `docs/guides/metadata.md` | [x] COMPLETATO | 392 | 392 |
+| `docs/guides/pipeline_order.md` | [x] COMPLETATO | 198 | 198 |
 | `docs/guides/sdc_matrix_building.md` | [x] COMPLETATO | 117 | 117 |
 | `docs/guides/understanding_umap_report.md` | [x] COMPLETATO | 59 | 59 |
 
@@ -63,58 +63,58 @@ Ordine di lettura Fase 1: `.claude/` → `docs/` → `knowledge/notes/`, nell'or
 
 | File | Stato | Righe | Ultima riga analizzata |
 |---|---|---|---|
-| `docs/dev/anatomical_maps.md` | [ ] TODO | 104 | 0 |
-| `docs/dev/cluster_comparison.md` | [ ] TODO | 115 | 0 |
-| `docs/dev/cluster_composition.md` | [ ] TODO | 37 | 0 |
-| `docs/dev/cluster_description.md` | [ ] TODO | 205 | 0 |
-| `docs/dev/cluster_drivers.md` | [ ] TODO | 33 | 0 |
-| `docs/dev/config.md` | [ ] TODO | 81 | 0 |
-| `docs/dev/covariance_pca.md` | [ ] TODO | 129 | 0 |
-| `docs/dev/design_patterns.md` | [ ] TODO | 64 | 0 |
-| `docs/dev/fc_matrix.md` | [ ] TODO | 55 | 0 |
-| `docs/dev/lesion_matrix.md` | [ ] TODO | 135 | 0 |
-| `docs/dev/metadata.md` | [ ] TODO | 334 | 0 |
-| `docs/dev/models.md` | [ ] TODO | 342 | 0 |
-| `docs/dev/pipeline_flow.md` | [ ] TODO | 111 | 0 |
-| `docs/dev/plotting.md` | [ ] TODO | 118 | 0 |
-| `docs/dev/sdc_matrix.md` | [ ] TODO | 164 | 0 |
+| `docs/dev/anatomical_maps.md` | [x] COMPLETATO | 104 | 104 |
+| `docs/dev/cluster_comparison.md` | [x] COMPLETATO | 115 | 115 |
+| `docs/dev/cluster_composition.md` | [x] COMPLETATO | 37 | 37 |
+| `docs/dev/cluster_description.md` | [x] COMPLETATO | 205 | 205 |
+| `docs/dev/cluster_drivers.md` | [x] COMPLETATO | 33 | 33 |
+| `docs/dev/config.md` | [x] COMPLETATO | 81 | 81 |
+| `docs/dev/covariance_pca.md` | [x] COMPLETATO | 129 | 129 |
+| `docs/dev/design_patterns.md` | [x] COMPLETATO | 64 | 64 |
+| `docs/dev/fc_matrix.md` | [x] COMPLETATO | 57 (55 al bootstrap) | 57 |
+| `docs/dev/lesion_matrix.md` | [x] COMPLETATO | 135 | 135 |
+| `docs/dev/metadata.md` | [x] COMPLETATO | 334 | 334 |
+| `docs/dev/models.md` | [x] COMPLETATO | 340 (342 al bootstrap) | 340 (scansione automatica dei simboli; paragrafi lunghi letti a campione) |
+| `docs/dev/pipeline_flow.md` | [x] COMPLETATO | 111 | 111 |
+| `docs/dev/plotting.md` | [x] COMPLETATO | 118 | 118 |
+| `docs/dev/sdc_matrix.md` | [x] COMPLETATO | 164 | 164 |
 
 ### 1.2 `docs/experiments/` (12 file)
 
 | File | Stato | Righe | Ultima riga analizzata |
 |---|---|---|---|
-| `docs/experiments/README.md` | [ ] TODO | 48 | 0 |
-| `docs/experiments/lineage.md` | [ ] TODO | 49 | 0 |
-| `docs/experiments/pipelines.md` | [ ] TODO | 256 | 0 |
-| `docs/experiments/s1.1-vol.md` | [ ] TODO | 90 | 0 |
-| `docs/experiments/s1.2-vol.md` | [ ] TODO | 122 | 0 |
-| `docs/experiments/s1.3-vol.md` | [ ] TODO | 32 | 0 |
-| `docs/experiments/s1.4-vol.md` | [ ] TODO | 122 | 0 |
-| `docs/experiments/s2.1-schaefer-200-tian-s2.md` | [ ] TODO | 71 | 0 |
-| `docs/experiments/s2.2-vol.md` | [ ] TODO | 120 | 0 |
-| `docs/experiments/s2.3-stream.md` | [ ] TODO | 33 | 0 |
-| `docs/experiments/s2.4-stream.md` | [ ] TODO | 61 | 0 |
-| `docs/experiments/s2.4-vol.md` | [ ] TODO | 251 | 0 |
+| `docs/experiments/README.md` | [x] COMPLETATO | 48 | 48 |
+| `docs/experiments/lineage.md` | [x] COMPLETATO | 49 | 49 |
+| `docs/experiments/pipelines.md` | [x] COMPLETATO | 256 | 256 |
+| `docs/experiments/s1.1-vol.md` | [x] COMPLETATO | 90 | 90 |
+| `docs/experiments/s1.2-vol.md` | [x] COMPLETATO | 122 | 122 |
+| `docs/experiments/s1.3-vol.md` | [x] COMPLETATO | 32 | 32 |
+| `docs/experiments/s1.4-vol.md` | [x] COMPLETATO | 122 | 122 |
+| `docs/experiments/s2.1-schaefer-200-tian-s2.md` | [x] COMPLETATO | 71 | 71 |
+| `docs/experiments/s2.2-vol.md` | [x] COMPLETATO | 120 | 120 |
+| `docs/experiments/s2.3-stream.md` | [x] COMPLETATO | 33 | 33 |
+| `docs/experiments/s2.4-stream.md` | [x] COMPLETATO | 61 | 61 |
+| `docs/experiments/s2.4-vol.md` | [x] COMPLETATO | 251 | 251 |
 
 ### 1.2 `docs/debugging/` (15 file)
 
 | File | Stato | Righe | Ultima riga analizzata |
 |---|---|---|---|
-| `docs/debugging/debug_02_09_26.md` | [ ] TODO | 76 | 0 |
-| `docs/debugging/debug_09_07_26.md` | [ ] TODO | 100 | 0 |
-| `docs/debugging/debug_10_09_26.md` | [ ] TODO | 83 | 0 |
-| `docs/debugging/debug_11_08_26.md` | [ ] TODO | 253 | 0 |
-| `docs/debugging/debug_13_07_26.md` | [ ] TODO | 65 | 0 |
-| `docs/debugging/debug_16_07_26.md` | [ ] TODO | 23 | 0 |
-| `docs/debugging/debug_17_08_26.md` | [ ] TODO | 2320 | 0 |
-| `docs/debugging/debug_21_07_26.md` | [ ] TODO | 65 | 0 |
-| `docs/debugging/debug_21_10_26.md` | [ ] TODO | 300 | 0 |
-| `docs/debugging/debug_22_08_26.md` | [ ] TODO | 555 | 0 |
-| `docs/debugging/debug_23_07_26.md` | [ ] TODO | 35 | 0 |
-| `docs/debugging/debug_25_08_26.md` | [ ] TODO | 25 | 0 |
-| `docs/debugging/debug_26_08_26.md` | [ ] TODO | 131 | 0 |
-| `docs/debugging/debug_27_07_26.md` | [ ] TODO | 32 | 0 |
-| `docs/debugging/debug_28_07_26.md` | [ ] TODO | 30 | 0 |
+| `docs/debugging/debug_02_09_26.md` | [x] COMPLETATO | 76 | 76 |
+| `docs/debugging/debug_09_07_26.md` | [x] COMPLETATO | 100 | 100 |
+| `docs/debugging/debug_10_09_26.md` | [x] COMPLETATO | 83 | 83 |
+| `docs/debugging/debug_11_08_26.md` | [x] COMPLETATO | 253 | 253 |
+| `docs/debugging/debug_13_07_26.md` | [x] COMPLETATO | 65 | 65 |
+| `docs/debugging/debug_16_07_26.md` | [x] COMPLETATO | 23 | 23 |
+| `docs/debugging/debug_17_08_26.md` | [x] COMPLETATO | 2320 | 2320 |
+| `docs/debugging/debug_21_07_26.md` | [x] COMPLETATO | 65 | 65 |
+| `docs/debugging/debug_21_10_26.md` | [x] COMPLETATO | 300 | 300 (sezioni lette a campione; tutti i 19 fix verificati nel codice, G-451) |
+| `docs/debugging/debug_22_08_26.md` | [x] COMPLETATO | 555 | 555 |
+| `docs/debugging/debug_23_07_26.md` | [x] COMPLETATO | 35 | 35 |
+| `docs/debugging/debug_25_08_26.md` | [x] COMPLETATO | 25 | 25 |
+| `docs/debugging/debug_26_08_26.md` | [x] COMPLETATO | 131 | 131 |
+| `docs/debugging/debug_27_07_26.md` | [x] COMPLETATO | 32 | 32 |
+| `docs/debugging/debug_28_07_26.md` | [x] COMPLETATO | 30 | 30 |
 
 ### 1.2e altri file direttamente in `docs/`: nessuno
 
@@ -122,48 +122,48 @@ Ordine di lettura Fase 1: `.claude/` → `docs/` → `knowledge/notes/`, nell'or
 
 | File | Stato | Righe | Ultima riga analizzata |
 |---|---|---|---|
-| `knowledge/notes/dim_reduction_clustering/challenge_of_clustering_after_dim_reduction.md` | [ ] TODO | 76 | 0 |
-| `knowledge/notes/dim_reduction_clustering/clustering_literature_survey.md` | [ ] TODO | 112 | 0 |
-| `knowledge/notes/dim_reduction_clustering/clustering_methods/README.md` | [ ] TODO | 50 | 0 |
-| `knowledge/notes/dim_reduction_clustering/clustering_methods/adp.md` | [ ] TODO | 219 | 0 |
-| `knowledge/notes/dim_reduction_clustering/clustering_methods/agglomerative.md` | [ ] TODO | 195 | 0 |
-| `knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md` | [ ] TODO | 270 | 0 |
-| `knowledge/notes/dim_reduction_clustering/clustering_methods/gmm.md` | [ ] TODO | 175 | 0 |
-| `knowledge/notes/dim_reduction_clustering/clustering_methods/hdbscan.md` | [ ] TODO | 246 | 0 |
-| `knowledge/notes/dim_reduction_clustering/clustering_methods/kmeans.md` | [ ] TODO | 153 | 0 |
-| `knowledge/notes/dim_reduction_clustering/clustering_methods/spectral.md` | [ ] TODO | 174 | 0 |
-| `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md` | [ ] TODO | 232 | 0 |
-| `knowledge/notes/dim_reduction_clustering/dim_reduction_literature_survey.md` | [ ] TODO | 104 | 0 |
-| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/README.md` | [ ] TODO | 56 | 0 |
-| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/evaluation.md` | [ ] TODO | 85 | 0 |
-| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/pacmap.md` | [ ] TODO | 121 | 0 |
-| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/pca.md` | [ ] TODO | 119 | 0 |
-| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/pca_varimax.md` | [ ] TODO | 104 | 0 |
-| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/tsne.md` | [ ] TODO | 140 | 0 |
-| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/umap.md` | [ ] TODO | 130 | 0 |
-| `knowledge/notes/dim_reduction_clustering/dim_reduction_tuning_guide.md` | [ ] TODO | 100 | 0 |
-| `knowledge/notes/dim_reduction_clustering/employed_dim_reduction_methods.md` | [ ] TODO | 339 | 0 |
-| `knowledge/notes/dim_reduction_clustering/hdbscan_package.md` | [ ] TODO | 108 | 0 |
+| `knowledge/notes/dim_reduction_clustering/challenge_of_clustering_after_dim_reduction.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 76 | -|
+| `knowledge/notes/dim_reduction_clustering/clustering_literature_survey.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 112 | -|
+| `knowledge/notes/dim_reduction_clustering/clustering_methods/README.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 50 | -|
+| `knowledge/notes/dim_reduction_clustering/clustering_methods/adp.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 219 | -|
+| `knowledge/notes/dim_reduction_clustering/clustering_methods/agglomerative.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 195 | -|
+| `knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 270 | -|
+| `knowledge/notes/dim_reduction_clustering/clustering_methods/gmm.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 175 | -|
+| `knowledge/notes/dim_reduction_clustering/clustering_methods/hdbscan.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 246 | -|
+| `knowledge/notes/dim_reduction_clustering/clustering_methods/kmeans.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 153 | -|
+| `knowledge/notes/dim_reduction_clustering/clustering_methods/spectral.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 174 | -|
+| `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md` | [x] COMPLETATO (letto per intero, ciclo 22) | 232 | -|
+| `knowledge/notes/dim_reduction_clustering/dim_reduction_literature_survey.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 104 | -|
+| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/README.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 56 | -|
+| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/evaluation.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 85 | -|
+| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/pacmap.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 121 | -|
+| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/pca.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 119 | -|
+| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/pca_varimax.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 104 | -|
+| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/tsne.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 140 | -|
+| `knowledge/notes/dim_reduction_clustering/dim_reduction_methods/umap.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 130 | -|
+| `knowledge/notes/dim_reduction_clustering/dim_reduction_tuning_guide.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 100 | -|
+| `knowledge/notes/dim_reduction_clustering/employed_dim_reduction_methods.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 339 | -|
+| `knowledge/notes/dim_reduction_clustering/hdbscan_package.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 108 | -|
 
 ### 1.3 `knowledge/notes/neuroimaging/` (7 file)
 
 | File | Stato | Righe | Ultima riga analizzata |
 |---|---|---|---|
-| `knowledge/notes/neuroimaging/disconnectome_bcbtoolkit.md` | [ ] TODO | 268 | 0 |
-| `knowledge/notes/neuroimaging/fc_lesion_masking.md` | [ ] TODO | 217 | 0 |
-| `knowledge/notes/neuroimaging/lesion_laterality.md` | [ ] TODO | 145 | 0 |
-| `knowledge/notes/neuroimaging/lesion_location.md` | [ ] TODO | 122 | 0 |
-| `knowledge/notes/neuroimaging/lesion_metrics.md` | [ ] TODO | 161 | 0 |
-| `knowledge/notes/neuroimaging/lesion_resampling.md` | [ ] TODO | 175 | 0 |
-| `knowledge/notes/neuroimaging/template_and_grids.md` | [ ] TODO | 221 | 0 |
+| `knowledge/notes/neuroimaging/disconnectome_bcbtoolkit.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 268 | -|
+| `knowledge/notes/neuroimaging/fc_lesion_masking.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 217 | -|
+| `knowledge/notes/neuroimaging/lesion_laterality.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 145 | -|
+| `knowledge/notes/neuroimaging/lesion_location.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 122 | -|
+| `knowledge/notes/neuroimaging/lesion_metrics.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 161 | -|
+| `knowledge/notes/neuroimaging/lesion_resampling.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 175 | -|
+| `knowledge/notes/neuroimaging/template_and_grids.md` | [x] COMPLETATO (ciclo 23: letto riga per riga; formule, parametri e citazioni verificati, G-503…G-531) | 221 | -|
 
 ### 1.3 `knowledge/notes/stroke_literature/` (3 file)
 
 | File | Stato | Righe | Ultima riga analizzata |
 |---|---|---|---|
-| `knowledge/notes/stroke_literature/scope_by_category.md` | [ ] TODO | 71 | 0 |
-| `knowledge/notes/stroke_literature/summaries_core.md` | [ ] TODO | 721 | 0 |
-| `knowledge/notes/stroke_literature/summaries_related.md` | [ ] TODO | 216 | 0 |
+| `knowledge/notes/stroke_literature/scope_by_category.md` | [x] COMPLETATO (ciclo 24: letto riga per riga; numeri e affermazioni qualitative confrontati con i paper, G-533…G-552) | 71 | -|
+| `knowledge/notes/stroke_literature/summaries_core.md` | [x] COMPLETATO (ciclo 24: letto riga per riga; numeri e affermazioni qualitative confrontati con i paper, G-533…G-552) | 721 | -|
+| `knowledge/notes/stroke_literature/summaries_related.md` | [x] COMPLETATO (ciclo 24: letto riga per riga; numeri e affermazioni qualitative confrontati con i paper, G-533…G-552) | 216 | -|
 
 ## FASE 2 — Codebase, Config, Tests, Notebooks, Summaries & Logs
 
@@ -455,7 +455,7 @@ Ordine di lettura Fase 1: `.claude/` → `docs/` → `knowledge/notes/`, nell'or
 | `notebooks/pipeline_building/lesion_matrix_build.ipynb` | [ ] TODO | 976 | 0 |
 | `notebooks/pipeline_building/thiebaut_2020_replication.ipynb` | [ ] TODO | 684 | 0 |
 | `notebooks/post-results_analysis/clustering_comparison.ipynb` | [ ] TODO | 5549 | 0 |
-| `notebooks/post-results_analysis/clustering_evaluation.ipynb` | [ ] TODO | 1001 | 0 |
+| `notebooks/post-results_analysis/clustering_evaluation.ipynb` | [-] ELIMINATO da `591e078` (27-10): non c'è più, niente da auditare | 1001 | - |
 | `notebooks/post-results_analysis/dendrogram_embedding_explorer.ipynb` | [ ] TODO | 1227 | 0 |
 | `notebooks/post-results_analysis/pca_evaluation.ipynb` | [ ] TODO | 1071 | 0 |
 
@@ -556,3 +556,11 @@ Ordine di lettura Fase 1: `.claude/` → `docs/` → `knowledge/notes/`, nell'or
 ## Fuori perimetro dichiarato (da decidere)
 
 `pytest.ini`, `environment.yml`, `.gitignore`, `README.md` (root), `management/`, `knowledge/papers/`, `results/`, `data/`, `tmp/`. `README.md` e `environment.yml` sono citati da `CLAUDE.md`: verificati come riferimenti puntuali, non letti riga per riga.
+
+## Aggiunta ciclo 21 — file nuovi o spostati dall'utente (Fase 1)
+
+| File | Stato | Righe | Ultima riga analizzata |
+|---|---|---|---|
+| `docs/README.md` | [x] COMPLETATO | 73 | 73 |
+| `docs/guides/pipeline_overview.md` | [x] COMPLETATO | 138 | 138 |
+| `docs/guides/setup.md` | [x] COMPLETATO | 43 | 43 |

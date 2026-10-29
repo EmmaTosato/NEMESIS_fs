@@ -1,6 +1,6 @@
 # Cluster comparison — technical reference
 
-Audience: developers/agents working on `src/analysis/cluster_comparison.py`, `src/analysis/cluster_pair.py` and the "Confronto" section they feed in `src/analysis/embedding_app.py`. For how the section looks from a user's point of view, see `docs/guides/embedding_app.md`.
+Audience: developers/agents working on `src/analysis/cluster_comparison.py`, `src/analysis/cluster_pair.py` and the "Confronto" section they feed in `src/analysis/embedding_app.py` (parked: the section is not mounted in the app, see below). For how the section looks from a user's point of view, see `docs/guides/embedding_app.md`.
 
 **The section is not mounted in the app**: `build_app` has no layout block and no callback for it, and the index does not list it. The numbers and the page builders below are complete and tested, and stay in place for when it returns; the pickers and callbacks of the section do not exist in `build_app` (see "The page").
 
