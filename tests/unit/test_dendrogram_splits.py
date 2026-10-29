@@ -17,7 +17,6 @@ from src.analysis.dendrogram_splits import (
     build_step_embedding_figure,
     build_tree_figure,
     check_tree_reproduces_labels,
-    colors_at,
     cut_height,
     label_box,
     labels_by_k_from,
@@ -34,6 +33,12 @@ N_SUBJECTS = sum(BLOB_SIZES)
 LAST_P = 5
 
 
+def _colors_at(Z, labels_by_k, leaf_of_subject, n_leaves, k):
+    """The leaf colours at k and the split k-1 -> k: the last step of replay_splits."""
+    _k, leaf_color, split = replay_splits(Z, labels_by_k, leaf_of_subject, n_leaves, k)[-1]
+    return leaf_color, split
+
+
 @pytest.fixture(scope="module")
 def tree():
     """Six well-separated 2D blobs of different spread, so the splits come in a fixed, non-degenerate order."""
@@ -46,6 +51,12 @@ def tree():
     saved = {k: fcluster(Z, k, "maxclust") for k in range(2, LAST_P + 1)}
     return {"embedding": embedding, "Z": Z, "layout": layout, "members": members, "leaf_of_subject": leaf_of_subject,
             "labels_by_k": labels_by_k_from(saved, LAST_P, Z)}
+
+
+def _run_of(tree, k=LAST_P):
+    """(labels, colours by label) of a run that clustered the tree's matrix into k clusters, colours unlike any of PALETTE."""
+    labels = tree["labels_by_k"][k]
+    return labels, {int(label): f"#0000{i:02x}" for i, label in enumerate(np.unique(labels))}
 
 
 def test_leaves_cover_every_subject_exactly_once(tree):
@@ -82,9 +93,9 @@ def test_cut_height_is_between_the_last_merge_kept_and_the_first_dropped(tree):
 
 
 def test_every_k_has_exactly_k_colours_and_the_bigger_piece_keeps_the_colour(tree):
-    previous, _ = colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, 2)
+    previous, _ = _colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, 2)
     for k in range(3, LAST_P + 1):
-        leaf_color, split = colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, k)
+        leaf_color, split = _colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, k)
         assert len(set(leaf_color)) == k
         bigger, smaller = sorted(split["children"], key=lambda child: child["n"], reverse=True)
         bigger_leaves = np.unique(tree["leaf_of_subject"][bigger["members"]])
@@ -92,11 +103,6 @@ def test_every_k_has_exactly_k_colours_and_the_bigger_piece_keeps_the_colour(tre
         assert set(leaf_color[bigger_leaves]) == set(previous[bigger_leaves]) == set(previous[smaller_leaves])
         assert set(leaf_color[smaller_leaves]).isdisjoint(set(previous))
         previous = leaf_color
-
-
-def test_colors_at_k_below_the_first_split_raises(tree):
-    with pytest.raises(ValueError, match="first split"):
-        colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, 1)
 
 
 def test_a_k_the_tuning_did_not_sweep_is_the_cut_of_the_tree_into_k_clusters(tree):
@@ -136,7 +142,7 @@ def test_replay_splits_gives_one_step_per_k_with_the_colours_of_that_k(tree):
     assert [k for k, _colors, _split in steps] == list(range(2, LAST_P + 1))
     for k, leaf_color, _split in steps:
         assert len(set(leaf_color[leaf_color >= 0])) == k  # k colours at k, not the final ones
-    by_hand = [colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, k)[0] for k in range(2, LAST_P + 1)]
+    by_hand = [_colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, k)[0] for k in range(2, LAST_P + 1)]
     assert all(np.array_equal(a, b) for (_k, a, _s), b in zip(steps, by_hand))
 
 
@@ -163,9 +169,9 @@ def test_a_leaf_cut_in_two_by_the_labels_raises(tree):
 
 
 def _embedding_figure(tree, k, highlighted=(), embedding=None, note=""):
-    leaf_color, _split = colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, k)
+    leaf_color, _split = _colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, k)
     figure = build_step_embedding_figure(
-        tree["embedding"] if embedding is None else embedding, tree["labels_by_k"][k], leaf_color,
+        tree["embedding"] if embedding is None else embedding, tree["labels_by_k"][k], leaf_color, PALETTE,
         tree["leaf_of_subject"], set(highlighted), note,
     )
     return figure, leaf_color
@@ -182,7 +188,7 @@ def test_embedding_figure_has_one_trace_per_cluster_with_the_colour_of_its_leave
 
 
 def test_embedding_figure_names_every_cluster_and_makes_the_highlighted_ones_bigger_and_bold(tree):
-    leaf_color, split = colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, 4)
+    leaf_color, split = _colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, 4)
     new = {child["label"] for child in split["children"]}
 
     figure, _ = _embedding_figure(tree, 4, highlighted=new, note="i due nuovi")
@@ -218,7 +224,7 @@ def _overlap(a, b):
 def test_embedding_figure_labels_never_overlap_even_when_the_clusters_sit_on_top_of_each_other(tree):
     # every cluster squeezed on (almost) the same spot: the medians coincide, the labels must still be apart
     squeezed = tree["embedding"] * 1e-6 + np.array([3.0, 4.0])
-    leaf_color, split = colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, LAST_P)
+    leaf_color, split = _colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, LAST_P)
     everything = {child["label"] for child in split["children"]}
 
     figure, _ = _embedding_figure(tree, LAST_P, highlighted=everything, embedding=squeezed)
@@ -258,9 +264,9 @@ def test_embedding_figure_refuses_a_three_component_embedding_instead_of_slicing
 
 
 def test_tree_figure_colours_each_leaf_as_its_cluster_and_cuts_at_k(tree):
-    leaf_color, _split = colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, 4)
+    leaf_color, _split = _colors_at(tree["Z"], tree["labels_by_k"], tree["leaf_of_subject"], LAST_P, 4)
 
-    figure = build_tree_figure(tree["Z"], tree["layout"], tree["members"], leaf_color, 4)
+    figure = build_tree_figure(tree["Z"], tree["layout"], tree["members"], leaf_color, PALETTE, 4)
 
     leaves = figure.data[1]
     assert list(leaves.marker.color) == [PALETTE[c] for c in leaf_color]
@@ -303,7 +309,7 @@ def test_saved_labels_of_a_non_agglomerative_tuning_raise(tree):
 def test_build_split_tree_follows_the_saved_labels_up_to_the_highest_k(tree):
     saved = saved_labels_for(_tuning(tree), "ward", "euclidean")
 
-    built = build_split_tree(tree["embedding"], "ward", "euclidean", saved)
+    built = build_split_tree(tree["embedding"], "ward", "euclidean", saved, *_run_of(tree))
 
     assert built.k_max == LAST_P
     assert len(built.members) == LAST_P
@@ -314,7 +320,7 @@ def test_build_split_tree_follows_the_saved_labels_up_to_the_highest_k(tree):
 def test_build_split_tree_of_a_sweep_with_holes_offers_only_the_swept_k_and_follows_every_split(tree):
     saved = {k: fcluster(tree["Z"], k, "maxclust") for k in (3, 5)}
 
-    built = build_split_tree(tree["embedding"], "ward", "euclidean", saved)
+    built = build_split_tree(tree["embedding"], "ward", "euclidean", saved, *_run_of(tree))
 
     assert built.saved_ks == (3, 5)
     assert set(built.labels_by_k) == set(range(1, 6))  # 1, 2 and 4 are cuts of the tree
@@ -325,14 +331,16 @@ def test_build_split_tree_refuses_a_hole_filled_with_labels_that_are_not_the_tre
     wrong[0], wrong[-1] = wrong[-1], wrong[0]
 
     with pytest.raises(ValueError, match="k=3"):
-        build_split_tree(tree["embedding"], "ward", "euclidean", {3: wrong, 5: fcluster(tree["Z"], 5, "maxclust")})
+        build_split_tree(
+            tree["embedding"], "ward", "euclidean", {3: wrong, 5: fcluster(tree["Z"], 5, "maxclust")}, *_run_of(tree)
+        )
 
 
 def test_build_split_tree_caps_the_leaves_at_the_number_of_colours(tree):
     # 30 saved k on a matrix with few subjects is not needed: only the cap matters, so check it on the arithmetic.
     saved = {k: fcluster(tree["Z"], k, "maxclust") for k in range(2, MAX_LEAVES + 3) if k <= N_SUBJECTS}
 
-    built = build_split_tree(tree["embedding"], "ward", "euclidean", saved)
+    built = build_split_tree(tree["embedding"], "ward", "euclidean", saved, *_run_of(tree))
 
     assert built.k_max == MAX_LEAVES
 
@@ -342,16 +350,59 @@ def test_build_split_tree_refuses_a_matrix_that_is_not_the_one_clustered(tree):
     other_matrix = np.random.default_rng(1).normal(size=tree["embedding"].shape)
 
     with pytest.raises(ValueError, match="does not reproduce"):
-        build_split_tree(other_matrix, "ward", "euclidean", saved)
+        build_split_tree(other_matrix, "ward", "euclidean", saved, *_run_of(tree))
 
 
 def test_build_split_tree_refuses_labels_of_another_number_of_subjects(tree):
     saved = saved_labels_for(_tuning(tree), "ward", "euclidean")
 
     with pytest.raises(ValueError, match="subjects"):
-        build_split_tree(tree["embedding"][:-1], "ward", "euclidean", saved)
+        build_split_tree(tree["embedding"][:-1], "ward", "euclidean", saved, *_run_of(tree))
 
 
 def test_build_split_tree_with_no_saved_labels_raises(tree):
     with pytest.raises(ValueError, match="no saved labels"):
-        build_split_tree(tree["embedding"], "ward", "euclidean", {})
+        build_split_tree(tree["embedding"], "ward", "euclidean", {}, *_run_of(tree))
+
+
+def test_the_tree_is_drawn_in_the_colours_the_runs_clusters_have_elsewhere(tree):
+    saved = saved_labels_for(_tuning(tree), "ward", "euclidean")
+    run_labels, run_colors = _run_of(tree)
+    built = build_split_tree(tree["embedding"], "ward", "euclidean", saved, run_labels, run_colors)
+
+    leaf_color, _split = _colors_at(built.Z, built.labels_by_k, built.leaf_of_subject, LAST_P, LAST_P)
+    drawn = np.array([built.palette[leaf_color[leaf]] for leaf in built.leaf_of_subject])
+    assert list(drawn) == [run_colors[int(label)] for label in run_labels]
+    assert len(set(built.palette)) == len(built.palette) == len(PALETTE)
+
+
+def test_a_colour_follows_its_cluster_back_through_the_splits(tree):
+    saved = saved_labels_for(_tuning(tree), "ward", "euclidean")
+    run_labels, run_colors = _run_of(tree)
+    built = build_split_tree(tree["embedding"], "ward", "euclidean", saved, run_labels, run_colors)
+
+    # the cluster of k=3 that survives unsplit to k=5 is drawn in the colour it has in the run
+    leaf_color_3, _ = _colors_at(built.Z, built.labels_by_k, built.leaf_of_subject, LAST_P, 3)
+    unsplit = 0
+    for label in np.unique(built.labels_by_k[3]):
+        subjects = np.flatnonzero(built.labels_by_k[3] == label)
+        if len(np.unique(run_labels[subjects])) == 1:
+            unsplit += 1
+            assert built.palette[leaf_color_3[built.leaf_of_subject[subjects[0]]]] == run_colors[int(run_labels[subjects[0]])]
+    assert unsplit >= 1
+
+
+def test_the_palette_refuses_a_run_that_is_not_a_cut_of_the_tree(tree):
+    saved = saved_labels_for(_tuning(tree), "ward", "euclidean")
+    run_labels, run_colors = _run_of(tree)
+    shuffled = np.roll(run_labels, 5)
+
+    with pytest.raises(ValueError, match="not the run's clustering"):
+        build_split_tree(tree["embedding"], "ward", "euclidean", saved, shuffled, run_colors)
+
+
+def test_the_palette_refuses_a_run_with_a_single_cluster(tree):
+    saved = saved_labels_for(_tuning(tree), "ward", "euclidean")
+
+    with pytest.raises(ValueError, match="1 clusters"):
+        build_split_tree(tree["embedding"], "ward", "euclidean", saved, np.zeros(N_SUBJECTS, dtype=int), {0: "#000000"})

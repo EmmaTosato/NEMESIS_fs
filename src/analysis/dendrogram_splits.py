@@ -164,19 +164,37 @@ def replay_splits(
     return steps
 
 
-def colors_at(
-    Z: np.ndarray, labels_by_k: Mapping[int, np.ndarray], leaf_of_subject: np.ndarray, n_leaves: int, k: int
-) -> tuple[np.ndarray, dict]:
-    """The leaf colours at k and the split k-1 -> k (the last of replay_splits). Raises ValueError for k < 2."""
-    _k, leaf_color, split = replay_splits(Z, labels_by_k, leaf_of_subject, n_leaves, k)[-1]
-    return leaf_color, split
+def run_palette(
+    Z: np.ndarray, labels_by_k: Mapping[int, np.ndarray], leaf_of_subject: np.ndarray, n_leaves: int,
+    run_labels: np.ndarray, run_colors: Mapping[int, str],
+) -> tuple[str, ...]:
+    """PALETTE reordered so that each cluster of the tree at the run's own k has the colour it has in the run's other
+    views (`run_colors`, by cluster label). A colour never leaves the cluster that holds it (the bigger piece of a split
+    keeps it), so the colour of a cluster at the run's k is the one it had at every k before; the colours the run's k
+    does not use, which the tree only needs at a higher k, are the unused ones of PALETTE in order. Raises ValueError
+    when the run has fewer than 2 clusters or more than the tree has, or when the tree's cut at that k is not the
+    run's clustering (adjusted Rand index below 1.0)."""
+    k_run = len(np.unique(run_labels))
+    if k_run < 2 or k_run not in labels_by_k:
+        raise ValueError(f"the run has {k_run} clusters: the tree has the cuts for k from 2 to {max(labels_by_k)}")
+    ari = adjusted_rand_score(labels_by_k[k_run], run_labels)
+    if ari != 1.0:
+        raise ValueError(f"the tree cut at k={k_run} is not the run's clustering (ARI={ari:.4f}): its colours cannot be matched")
+    leaf_color = replay_splits(Z, labels_by_k, leaf_of_subject, n_leaves, k_run)[-1][1]
+    palette: list[str | None] = [None] * len(PALETTE)
+    for label in np.unique(run_labels):
+        subjects = np.flatnonzero(run_labels == label)
+        palette[single_label(leaf_color[leaf_of_subject], subjects, f"cluster {label}, colour")] = run_colors[label]
+    spare = iter(color for color in PALETTE if color not in set(run_colors.values()))
+    return tuple(color if color is not None else next(spare) for color in palette)
 
 
 @dataclass(frozen=True)
 class SplitTree:
     """What is computed once per (matrix, tuning, linkage, metric) and reused at every k: the linkage matrix, the
     truncated tree's leaves, the labels of every k from 1 (one cluster) to `k_max` and which of those k the tuning
-    swept (`saved_ks`, the ones worth offering: the others are in between, to follow the splits)."""
+    swept (`saved_ks`, the ones worth offering: the others are in between, to follow the splits). `palette` is the colour
+    of each colour index of the walk (run_palette)."""
 
     Z: np.ndarray
     layout: dict
@@ -184,6 +202,7 @@ class SplitTree:
     leaf_of_subject: np.ndarray
     labels_by_k: dict[int, np.ndarray]
     saved_ks: tuple[int, ...]
+    palette: tuple[str, ...]
 
     @property
     def k_max(self) -> int:
@@ -202,11 +221,15 @@ def saved_labels_for(tuning: ClusteringTuningRun, linkage: str, metric: str) -> 
     return {int(row["n_clusters"]): tuning.labels[combo_key(row, columns)] for row in rows.to_dict("records")}
 
 
-def build_split_tree(X: np.ndarray, linkage: str, metric: str, saved: Mapping[int, np.ndarray]) -> SplitTree:
-    """The tree of `X` (the matrix the run clustered) for (`linkage`, `metric`), with the labels the tuning saved. The
-    tree has `min(MAX_LEAVES, highest saved k)` leaves. Raises ValueError when X and the labels disagree on the number
-    of subjects, when no k from 2 is saved, or when the recomputed tree does not reproduce the saved labels
-    (check_tree_reproduces_labels)."""
+def build_split_tree(
+    X: np.ndarray, linkage: str, metric: str, saved: Mapping[int, np.ndarray], run_labels: np.ndarray,
+    run_colors: Mapping[int, str],
+) -> SplitTree:
+    """The tree of `X` (the matrix the run clustered) for (`linkage`, `metric`), with the labels the tuning saved, in the
+    colours the run's clusters (`run_labels`, one per subject) have in `run_colors`. The tree has
+    `min(MAX_LEAVES, highest saved k)` leaves. Raises ValueError when X and the labels disagree on the number of
+    subjects, when no k from 2 is saved, when the recomputed tree does not reproduce the saved labels
+    (check_tree_reproduces_labels) or when it does not cut into the run's clusters (run_palette)."""
     saved_ks = tuple(sorted(k for k in saved if k >= 2))
     if not saved_ks:
         raise ValueError("no saved labels: nothing to follow")
@@ -218,9 +241,10 @@ def build_split_tree(X: np.ndarray, linkage: str, metric: str, saved: Mapping[in
     labels_by_k = labels_by_k_from({k: saved[k] for k in saved_ks if k <= k_max}, k_max, Z)
     layout, members, leaf_of_subject = leaves_of_truncated_tree(Z, k_max)
     check_tree_reproduces_labels(Z, labels_by_k, members, [k for k in saved_ks if k <= k_max])
+    palette = run_palette(Z, labels_by_k, leaf_of_subject, len(members), run_labels, run_colors)
     return SplitTree(
         Z=Z, layout=layout, members=members, leaf_of_subject=leaf_of_subject, labels_by_k=labels_by_k,
-        saved_ks=tuple(k for k in saved_ks if k <= k_max),
+        saved_ks=tuple(k for k in saved_ks if k <= k_max), palette=palette,
     )
 
 
@@ -237,7 +261,8 @@ _LABEL_MAX_PASSES = 200
 
 
 def build_tree_figure(
-    Z: np.ndarray, layout: dict, members: list[np.ndarray], leaf_color: np.ndarray, cut_k: int, height: int = 380
+    Z: np.ndarray, layout: dict, members: list[np.ndarray], leaf_color: np.ndarray, palette: Sequence[str], cut_k: int,
+    height: int = 380,
 ) -> go.Figure:
     """The tree truncated to its leaves (`L1`, `L2`, ... from the left), each leaf a square of the colour of the
     cluster of the cut at `cut_k` it belongs to, and a red dashed line at that cut. A figure of its own, not a subplot
@@ -254,7 +279,7 @@ def build_tree_figure(
     fig.add_trace(
         go.Scatter(
             x=leaf_x, y=[0] * n_leaves, mode="markers",
-            marker={"symbol": "square", "size": 11, "color": [PALETTE[leaf_color[i]] for i in range(n_leaves)]},
+            marker={"symbol": "square", "size": 11, "color": [palette[leaf_color[i]] for i in range(n_leaves)]},
             hovertext=[f"L{i + 1}: {len(m)} subjects" for i, m in enumerate(members)], hoverinfo="text",
         )
     )
@@ -319,6 +344,7 @@ def build_step_embedding_figure(
     embedding: np.ndarray,
     labels_k: np.ndarray,
     leaf_color: np.ndarray,
+    palette: Sequence[str],
     leaf_of_subject: np.ndarray,
     highlighted: set[int],
     note: str,
@@ -336,7 +362,7 @@ def build_step_embedding_figure(
     names, colors, centres = [], [], []
     for lab in sorted(first_leaf, key=first_leaf.get):
         subjects = np.flatnonzero(labels_k == lab)
-        color = PALETTE[single_label(leaf_color[leaf_of_subject], subjects, f"cluster {lab}, colour")]
+        color = palette[single_label(leaf_color[leaf_of_subject], subjects, f"cluster {lab}, colour")]
         name = leaf_name(subjects, leaf_of_subject)
         fig.add_trace(  # SVG on purpose: a page of many Scattergl graphs runs out of WebGL contexts
             go.Scatter(

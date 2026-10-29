@@ -314,6 +314,15 @@ def _css_rule(selector: str) -> str:
     return match.group(1)
 
 
+def test_the_titles_that_open_a_tab_have_the_same_font_size():
+    """"Clustering Explorer" and "Dendrogram Explorer" are .section-title; "Embedding Visualization" is a .section-heading
+    (30 px) given its own rule so that it matches them."""
+    def font_size(selector: str) -> str:
+        return re.search(r"font-size:\s*(\d+px)", _css_rule(selector)).group(1)
+
+    assert font_size("#embedding-section") == font_size(".section-title") == "40px"
+
+
 def test_the_embedding_column_is_sticky_so_that_it_follows_the_reader_down_the_maps(tmp_path):
     content = _content(tmp_path)
 

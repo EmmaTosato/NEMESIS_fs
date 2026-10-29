@@ -11,6 +11,7 @@ from hypothesis import given, settings, strategies as st
 
 from src.analysis.cluster_quality import build_mean_membership_figure, build_silhouette_figure
 from src.analysis.plotting import _SILHOUETTE_MIN_PANEL_SHARE, _palette_for_labels
+from src.utils.number_format import format_number
 
 
 _fast = settings(max_examples=12)  # costruire una figura plotly costa ~30 ms
@@ -66,7 +67,7 @@ def test_the_average_line_is_the_mean_over_the_subjects_in_every_panel_and_insid
     for line in figure.layout.shapes:
         assert line.x0 == line.x1 == pytest.approx(values.mean())
         assert values.min() - 1e-12 <= line.x0 <= values.max() + 1e-12
-    assert f"{values.mean():.2f}" in figure.layout.annotations[-1].text
+    assert format_number(values.mean(), 2) in figure.layout.annotations[-1].text
 
 
 @_fast
@@ -154,8 +155,9 @@ def test_the_heatmap_holds_the_table_unchanged_with_one_row_per_cluster_and_nois
 def test_the_cell_text_is_each_value_with_two_decimals(table):
     heatmap = build_mean_membership_figure(table).data[0]
 
-    expected = [[f"{value:.2f}" for value in row] for row in table.to_numpy()]
-    assert [list(row) for row in heatmap.text] == expected
+    # written by Plotly from z, not in Python, so it follows the figure's decimal separator
+    assert heatmap.texttemplate == "%{z:.2f}"
+    assert heatmap.z.tolist() == table.to_numpy().tolist()
 
 
 @_fast

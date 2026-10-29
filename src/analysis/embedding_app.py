@@ -124,7 +124,6 @@ from src.analysis.cluster_pair import (
 from src.analysis.clustering_tuning_analysis import load_clustering_tuning_run
 from src.analysis.cluster_overview import build_overview_embedding_figure, overview_grid_plan
 from src.analysis.dendrogram_splits import (
-    PALETTE,
     SplitTree,
     build_split_tree,
     build_step_embedding_figure,
@@ -158,6 +157,7 @@ from src.utils.artifacts import (
     read_run_config,
     read_run_params,
 )
+from src.utils.number_format import PLOTLY_SEPARATORS, format_number, format_scientific
 from src.utils.participants import load_participants_registry
 
 _CLUSTER_LABEL_COLUMN = COLOR_MODES["cluster_label"].column
@@ -272,6 +272,9 @@ body {{ font-family: {_FONT_STACK}; margin: 0; background: #fff; color: {_TEXT_C
    subheading this panel used to read as (feedback: "va scritto più grande" / "un pelo più
    grande" on a follow-up pass). */
 .section-heading {{ font-size: 30px; font-weight: 800; margin: 40px 0 20px; text-align: center; }}
+/* The three titles that open a tab ("Embedding Visualization", "Clustering Explorer", "Dendrogram Explorer") are
+   the same size: the first one is a .section-heading, so it takes .section-title's size and keeps its own margins. */
+#embedding-section {{ font-size: 40px; letter-spacing: -0.01em; }}
 /* Anatomy panels (lesion viewer / cluster overlap map, 01-09-26) - same page-width container as
    .page itself (not .graph-wrap's centered flex, these are full-width blocks with their own
    heading), separated from the picker/scatter above by a thin rule instead of a boxy border. */
@@ -1395,7 +1398,7 @@ def graph_content_for(
     # affordance this app offers per plot (01-09-26, on request) - still hidden until hover
     # (Plotly's own default displayModeBar="hover"), so the minimal look from 14-08-26 holds.
     config = {"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False}
-    return dcc.Graph(id="embedding-graph", figure=figure, config=config, style={"width": "100%"})
+    return dcc.Graph(id="embedding-graph", figure=_italian_figure(figure), config=config, style={"width": "100%"})
 
 
 # nilearn.plotting.view_img's own default (600px) reads narrow inside this page's 1100px-wide
@@ -2018,21 +2021,14 @@ def representative_subject_content_for(
         return html.P(str(exc), className="status-message")
     return _anatomy_viewer(
         view, f"Cluster {cluster_label} — representative: {subject_id} ({dataset})",
-        f"Real subject closest to the cluster centroid in the clustering space (distance={distance:.3f})",
+        f"Real subject closest to the cluster centroid in the clustering space (distance={format_number(distance, 3)})",
     )
 
 
-def _format_number(value: float, decimals: int) -> str:
-    """Italian number formatting: '.' groups thousands, ',' is the decimal separator -
-    5265.4 -> '5.265,4' (29-09-26 feedback: "i numeri non sono ben scritti, non si capisce
-    molto bene"). The whole app is in Italian, so English-formatted numbers ('5 265.4') read
-    as a foreign convention exactly where the reader is scanning fastest.
-
-    Done by swapping Python's own grouped format rather than with `locale`: locale is process
-    global, depends on what happens to be installed on the machine, and would silently change
-    every other number this process formats."""
-    grouped = f"{value:,.{decimals}f}"          # 5,265.4
-    return grouped.translate(str.maketrans({",": ".", ".": ","}))
+def _italian_figure(figure: go.Figure) -> go.Figure:
+    """`figure` with ',' as decimal separator and '.' for thousands in every number Plotly formats (ticks, hover,
+    colorbars), as format_number does for the text of the page."""
+    return figure.update_layout(separators=PLOTLY_SEPARATORS)
 
 
 def _format_continuous_cell(summary: dict, variable: ClusterDescriptionVariable) -> html.Td:
@@ -2050,10 +2046,10 @@ def _format_continuous_cell(summary: dict, variable: ClusterDescriptionVariable)
         return html.Td([html.Div("—", className="stat-value stat-empty")])
 
     decimals = variable.decimals
-    mean = _format_number(summary["mean"], decimals)
+    mean = format_number(summary["mean"], decimals)
     # std is None for a single subject: a standard deviation of one value does not exist, which
     # is a different statement from "0".
-    spread = None if summary["std"] is None else f"± {_format_number(summary['std'], decimals)}"
+    spread = None if summary["std"] is None else f"± {format_number(summary['std'], decimals)}"
 
     value = [mean] if spread is None else [mean, " ", html.Span(spread, className="stat-sd")]
     return html.Td(
@@ -2061,9 +2057,9 @@ def _format_continuous_cell(summary: dict, variable: ClusterDescriptionVariable)
         # Hover detail only - median/min/max enhance, they never gate: the headline number and
         # the coverage are both readable without hovering.
         title=(
-            f"mediana {_format_number(summary['median'], decimals)} · "
-            f"min {_format_number(summary['min'], decimals)} · "
-            f"max {_format_number(summary['max'], decimals)}"
+            f"mediana {format_number(summary['median'], decimals)} · "
+            f"min {format_number(summary['min'], decimals)} · "
+            f"max {format_number(summary['max'], decimals)}"
         ),
     )
 
@@ -2106,7 +2102,7 @@ def _stats_table(entries: Sequence[tuple[str, str, ClusterStats, bool]]) -> html
 
     rows = []
     for name, color, stat, highlighted in entries:
-        size = [html.Div(_format_number(stat.n_total, 0), className="stat-value")]
+        size = [html.Div(format_number(stat.n_total, 0), className="stat-value")]
         if stat.n_unregistered:
             size.append(html.Span(f"{stat.n_unregistered} not in registry", className="stats-n"))
         cells = [
@@ -2208,7 +2204,7 @@ def cluster_description_content_for(metadata: pd.DataFrame, cluster_label: int) 
     warning = _unregistered_subjects_warning(unregistered)
     if warning is not None:
         children.append(warning)
-    children.append(dcc.Graph(figure=figure, config=config, style={"width": "100%"}))
+    children.append(dcc.Graph(figure=_italian_figure(figure), config=config, style={"width": "100%"}))
     children.append(_clusters_comparison_table(stats, cluster_label))
     return html.Div(children)
 
@@ -2238,7 +2234,7 @@ def cluster_composition_content_for(metadata: pd.DataFrame) -> html.Div | html.P
         html.Div(
             className="composition-grid",
             children=[
-                dcc.Graph(figure=build_composition_figure(frame, variable), config=config, style={"width": "100%"})
+                dcc.Graph(figure=_italian_figure(build_composition_figure(frame, variable)), config=config, style={"width": "100%"})
                 for variable in COMPOSITION_VARIABLES
             ],
         )
@@ -2350,24 +2346,24 @@ def component_maps_content_for(
         ))
     children += [
         html.P(
-            f"Mean reproducibility {_format_number(float(reproducibility.mean()), 3)} ± "
-            f"{_format_number(float(reproducibility.std(ddof=1)) if len(reproducibility) > 1 else 0.0, 3)}, "
-            f"from {_format_number(float(reproducibility.min()), 3)} (component {int(reproducibility.argmin()) + 1}) to "
-            f"{_format_number(float(reproducibility.max()), 3)} (component {int(reproducibility.argmax()) + 1}). "
+            f"Mean reproducibility {format_number(float(reproducibility.mean()), 3)} ± "
+            f"{format_number(float(reproducibility.std(ddof=1)) if len(reproducibility) > 1 else 0.0, 3)}, "
+            f"from {format_number(float(reproducibility.min()), 3)} (component {int(reproducibility.argmin()) + 1}) to "
+            f"{format_number(float(reproducibility.max()), 3)} (component {int(reproducibility.argmax()) + 1}). "
             "The paper reports 0.813 ± 0.079 with halves of 666 subjects: here the halves are much larger, so the values are not directly comparable.",
             className="section-intro",
         ),
         dcc.Graph(
-            figure=build_reproducibility_figure(reproducibility, component),
+            figure=_italian_figure(build_reproducibility_figure(reproducibility, component)),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
             style={"width": "100%"},
         ),
         _anatomy_viewer(
             view,
-            heading=f"Component {component}: max t {_format_number(abs(peak), 0)}, reproducibility {_format_number(float(reproducibility[component - 1]), 2)}",
+            heading=f"Component {component}: max t {format_number(abs(peak), 0)}, reproducibility {format_number(float(reproducibility[component - 1]), 2)}",
             caption=(
                 "Red: the more a subject has this component, the more that voxel is disconnected. Blue: the more it has it, the less it is disconnected. "
-                f"Voxels with |t| of at least {_format_number(COMPONENT_MAP_THRESHOLD_FRACTION * 100, 0)}% of the peak are colored."
+                f"Voxels with |t| of at least {format_number(COMPONENT_MAP_THRESHOLD_FRACTION * 100, 0)}% of the peak are colored."
             ),
             note=(
                 "The sign of a component is arbitrary: each map is oriented with the peak red, so look at the shape, "
@@ -2519,13 +2515,13 @@ def adp_quality_content_for(
         ), True
 
     def share(value: float) -> str:
-        return f"{_format_number(value * 100, 1)}%"
+        return f"{format_number(value * 100, 1)}%"
 
     purity, silhouette = summary.purity, summary.silhouette
     rows = [
-        [f"Purity of the {summary.k} neighbors", _format_number(purity.purity, 3), "higher is better, from 0 to 1"],
-        ["Purity expected by chance", _format_number(purity.chance, 3), "to be read next to the purity"],
-        ["Dice silhouette (mean over subjects)", _format_number(silhouette.micro, 3), "higher is better, from -1 to 1"],
+        [f"Purity of the {summary.k} neighbors", format_number(purity.purity, 3), "higher is better, from 0 to 1"],
+        ["Purity expected by chance", format_number(purity.chance, 3), "to be read next to the purity"],
+        ["Dice silhouette (mean over subjects)", format_number(silhouette.micro, 3), "higher is better, from -1 to 1"],
         ["Pairs at distance 1", share(summary.pairs_at_distance_1), "if it is high the silhouette is not informative"],
         ["Clusters (noise excluded)", str(len(purity.clusters)), ""],
         ["Noise", share(summary.noise_fraction), "of the subjects"],
@@ -2534,8 +2530,8 @@ def adp_quality_content_for(
     ]
     cluster_rows = [
         [
-            str(label), str(int(row.n)), _format_number(row.purity, 3), _format_number(row.chance, 3),
-            "yes" if row.evaluable else "no", _format_number(row.silhouette_mean, 3), share(row.share_negative),
+            str(label), str(int(row.n)), format_number(row.purity, 3), format_number(row.chance, 3),
+            "yes" if row.evaluable else "no", format_number(row.silhouette_mean, 3), share(row.share_negative),
         ]
         for label, row in summary.clusters.iterrows()
     ]
@@ -2554,7 +2550,7 @@ def adp_quality_content_for(
         ),
         _chart_heading("Silhouette per cluster", "one panel per cluster, noise excluded"),
         dcc.Graph(
-            figure=build_silhouette_figure(summary.silhouette.subject_labels, summary.silhouette.subject_values),
+            figure=_italian_figure(build_silhouette_figure(summary.silhouette.subject_labels, summary.silhouette.subject_values)),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
             style={"width": "100%"},
         ),
@@ -2608,8 +2604,8 @@ def _soft_membership_block(
 
     cluster_rows = [
         [
-            str(label), str(int(row.n)), _format_number(row.own_mean, 3),
-            other(row.top_other), _format_number(row.top_other_mean, 3) if pd.notna(row.top_other_mean) else "—",
+            str(label), str(int(row.n)), format_number(row.own_mean, 3),
+            other(row.top_other), format_number(row.top_other_mean, 3) if pd.notna(row.top_other_mean) else "—",
         ]
         for label, row in summary.clusters.iterrows()
     ]
@@ -2633,7 +2629,7 @@ def _soft_membership_block(
         ),
         _chart_heading("Mean membership vectors", "rows: subjects cluster; columns: membership cluster"),
         dcc.Graph(
-            figure=build_mean_membership_figure(summary.mean_vectors),
+            figure=_italian_figure(build_mean_membership_figure(summary.mean_vectors)),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
             style={"width": "100%"},
         ),
@@ -2684,16 +2680,16 @@ def _saved_row(label: str, saved: SavedResults, name: str, decimals: int, readin
     value = saved.values[name]
     if np.isnan(value):
         return [label, "—", saved.notes[name]]
-    return [label, f"{_format_number(value * 100, 1)}%" if percent else _format_number(value, decimals), reading]
+    return [label, f"{format_number(value * 100, 1)}%" if percent else format_number(value, decimals), reading]
 
 
 def _cell(value: float, decimals: int) -> str:
     """A number of a per-cluster table, a dash where the run saved none."""
-    return "—" if pd.isna(value) else _format_number(value, decimals)
+    return "—" if pd.isna(value) else format_number(value, decimals)
 
 
 def _share_cell(value: float) -> str:
-    return "—" if pd.isna(value) else f"{_format_number(value * 100, 1)}%"
+    return "—" if pd.isna(value) else f"{format_number(value * 100, 1)}%"
 
 
 def _tree_block(saved: SavedResults, n_clusters: int) -> html.Div:
@@ -2751,7 +2747,7 @@ def _agglomerative_quality_content(
         silhouette_chart: list = [html.P(str(exc), className="status-message")]
     else:
         silhouette_chart = [dcc.Graph(
-            figure=build_silhouette_figure(breakdown.subject_labels, breakdown.subject_values),
+            figure=_italian_figure(build_silhouette_figure(breakdown.subject_labels, breakdown.subject_values)),
             config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
             style={"width": "100%"},
         )]
@@ -2805,7 +2801,7 @@ def _density_quality_content(
             chart = [
                 _chart_heading("DBCV per cluster", "one bar per cluster; the dashed line is the run's score"),
                 dcc.Graph(
-                    figure=figure,
+                    figure=_italian_figure(figure),
                     config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
                     style={"width": "100%"},
                 ),
@@ -3014,13 +3010,13 @@ def _comparison_summary(run_a: ProductionRun, run_b: ProductionRun, aligned: Ali
     return html.Div(
         className="comparison-summary",
         children=[
-            html.P([html.B("A: "), comparison_run_label(run_a), f" · {_format_number(aligned.n_a, 0)} subjects"]),
-            html.P([html.B("B: "), comparison_run_label(run_b), f" · {_format_number(aligned.n_b, 0)} subjects"]),
+            html.P([html.B("A: "), comparison_run_label(run_a), f" · {format_number(aligned.n_a, 0)} subjects"]),
+            html.P([html.B("B: "), comparison_run_label(run_b), f" · {format_number(aligned.n_b, 0)} subjects"]),
             html.P(
                 [
                     html.B("Compared: "),
-                    f"{_format_number(aligned.n_common, 0)} subjects in common "
-                    f"(only in A: {_format_number(aligned.n_only_a, 0)} · only in B: {_format_number(aligned.n_only_b, 0)}).",
+                    f"{format_number(aligned.n_common, 0)} subjects in common "
+                    f"(only in A: {format_number(aligned.n_only_a, 0)} · only in B: {format_number(aligned.n_only_b, 0)}).",
                 ]
             ),
         ],
@@ -3030,7 +3026,7 @@ def _comparison_summary(run_a: ProductionRun, run_b: ProductionRun, aligned: Ali
 def _agreement_block(aligned: AlignedRuns) -> html.Div:
     metrics = agreement_metrics(aligned.labels_a, aligned.labels_b)
     rows = [
-        [name, html.Span(_format_number(value, 3), className="stat-value"), agreement_level(name, value) or "—"]
+        [name, html.Span(format_number(value, 3), className="stat-value"), agreement_level(name, value) or "—"]
         for name, value in metrics.items()
     ]
     return html.Div([
@@ -3067,7 +3063,7 @@ def _contingency_block(tables: ContingencyTables) -> html.Div:
         ),
         html.Div(
             className="composition-grid",
-            children=[dcc.Graph(figure=figure, config=config, style={"width": "100%"}) for figure in figures],
+            children=[dcc.Graph(figure=_italian_figure(figure), config=config, style={"width": "100%"}) for figure in figures],
         ),
     ])
 
@@ -3088,7 +3084,7 @@ def _chi_square_block(counts: pd.DataFrame) -> html.Div:
         html.P(
             [
                 html.B("Chi-square test of independence: "),
-                f"χ² = {_format_number(result.chi2, 1)}, degrees of freedom = {result.dof}, p = {result.p_value:.2e}.",
+                f"χ² = {format_number(result.chi2, 1)}, degrees of freedom = {result.dof}, p = {format_scientific(result.p_value, 2)}.",
             ],
             className="comparison-summary-line",
         ),
@@ -3099,7 +3095,7 @@ def _chi_square_block(counts: pd.DataFrame) -> html.Div:
             "which pairs drive it.",
             className="comparison-note",
         ),
-        dcc.Graph(figure=figure, config=config, style={"width": "100%"}),
+        dcc.Graph(figure=_italian_figure(figure), config=config, style={"width": "100%"}),
     ])
 
 
@@ -3108,9 +3104,9 @@ def _purity_table(counts: pd.DataFrame, source: str, target: str) -> html.Div:
     rows = [
         [
             f"{source}: {cluster_name(int(label))}",
-            _format_number(int(row.n_subjects), 0),
+            format_number(int(row.n_subjects), 0),
             f"{target}: {cluster_name(int(row.dominant_target_cluster))}",
-            html.Span(f"{_format_number(float(row.purity_pct), 1)}%", className="stat-value"),
+            html.Span(f"{format_number(float(row.purity_pct), 1)}%", className="stat-value"),
         ]
         for label, row in table.iterrows()
     ]
@@ -3201,13 +3197,13 @@ def _pair_name(label: int) -> str:
 
 def pair_cluster_option_label(label: int, metadata: pd.DataFrame) -> str:
     n_subjects = int((metadata[_CLUSTER_LABEL_COLUMN] == label).sum())
-    return f"{_pair_name(label).capitalize()} · {_format_number(n_subjects, 0)} subjects"
+    return f"{_pair_name(label).capitalize()} · {format_number(n_subjects, 0)} subjects"
 
 
 def _format_p(value: float) -> str:
     if np.isnan(value):
         return "—"
-    return f"{value:.3f}" if value >= 0.001 else f"{value:.1e}"
+    return format_number(value, 3) if value >= 0.001 else format_scientific(value, 1)
 
 
 def _p_fdr_cell(value: float):
@@ -3217,19 +3213,19 @@ def _p_fdr_cell(value: float):
 
 
 def _format_optional(value: float, decimals: int) -> str:
-    return "—" if np.isnan(value) else _format_number(value, decimals)
+    return "—" if np.isnan(value) else format_number(value, decimals)
 
 
 def _format_median(value: float) -> str:
     """Whole numbers from 100 up (a voxel count), two decimals below (an age is read to the year
     elsewhere, but a share of the lesion is 0.xx)."""
-    return "—" if np.isnan(value) else _format_number(value, 0 if abs(value) >= 100 else 2)
+    return "—" if np.isnan(value) else format_number(value, 0 if abs(value) >= 100 else 2)
 
 
 def _cluster_pair_summary(run: ProductionRun, metadata: pd.DataFrame, label_1: int, label_2: int) -> html.Div:
     def line(role: str, label: int) -> html.P:
         n_subjects = int((metadata[_CLUSTER_LABEL_COLUMN] == label).sum())
-        return html.P([html.B(f"{role}: "), f"{_pair_name(label)} · {_format_number(n_subjects, 0)} subjects"])
+        return html.P([html.B(f"{role}: "), f"{_pair_name(label)} · {format_number(n_subjects, 0)} subjects"])
 
     return html.Div(
         className="comparison-summary",
@@ -3247,7 +3243,7 @@ def _cluster_pair_clinical_block(pair: PairFrame, label_1: int, label_2: int) ->
 
     numeric_rows = [
         [
-            row.variable, _format_number(int(row.n_1), 0), _format_number(int(row.n_2), 0),
+            row.variable, format_number(int(row.n_1), 0), format_number(int(row.n_2), 0),
             _format_median(row.median_1), _format_median(row.median_2), _format_optional(row.r, 2),
             _format_p(row.p), _p_fdr_cell(row.p_fdr),
         ]
@@ -3255,9 +3251,9 @@ def _cluster_pair_clinical_block(pair: PairFrame, label_1: int, label_2: int) ->
     ]
     categorical_rows = [
         [
-            row.variable, row.category, _format_number(int(row.n_1), 0), _format_number(int(row.n_2), 0),
-            "—" if np.isnan(row.share_1) else f"{_format_number(100 * row.share_1, 1)}%",
-            "—" if np.isnan(row.share_2) else f"{_format_number(100 * row.share_2, 1)}%",
+            row.variable, row.category, format_number(int(row.n_1), 0), format_number(int(row.n_2), 0),
+            "—" if np.isnan(row.share_1) else f"{format_number(100 * row.share_1, 1)}%",
+            "—" if np.isnan(row.share_2) else f"{format_number(100 * row.share_2, 1)}%",
             _format_optional(row.odds_ratio, 2), _format_p(row.p), _p_fdr_cell(row.p_fdr),
         ]
         for row in comparison.categorical.itertuples()
@@ -3334,9 +3330,9 @@ def _cluster_pair_regression_block(pair: PairFrame, label_1: int, label_2: int) 
     config = {"displayModeBar": True, "modeBarButtonsToRemove": ["select2d", "lasso2d"], "displaylogo": False}
     rows = [
         [
-            regression_term_label(term), _format_number(row.odds_ratio, 2),
-            f"{_format_number(row.ci_low, 2)} – {_format_number(row.ci_high, 2)}", _format_p(row.p_value),
-            _format_number(row.vif, 1),
+            regression_term_label(term), format_number(row.odds_ratio, 2),
+            f"{format_number(row.ci_low, 2)} – {format_number(row.ci_high, 2)}", _format_p(row.p_value),
+            format_number(row.vif, 1),
         ]
         for term, row in result.coefficients.iterrows()
     ]
@@ -3344,13 +3340,13 @@ def _cluster_pair_regression_block(pair: PairFrame, label_1: int, label_2: int) 
         heading,
         note,
         html.P(
-            f"{_format_number(result.n_used, 0)} subjects used ({_format_number(result.n_in_cluster, 0)} in {name_1}, "
-            f"{_format_number(result.n_used - result.n_in_cluster, 0)} in {name_2}; "
-            f"{_format_number(result.n_dropped_missing, 0)} excluded for missing data) · AUC = {_format_number(result.auc, 2)} · "
-            f"pseudo-R² = {_format_number(result.pseudo_r2, 2)}",
+            f"{format_number(result.n_used, 0)} subjects used ({format_number(result.n_in_cluster, 0)} in {name_1}, "
+            f"{format_number(result.n_used - result.n_in_cluster, 0)} in {name_2}; "
+            f"{format_number(result.n_dropped_missing, 0)} excluded for missing data) · AUC = {format_number(result.auc, 2)} · "
+            f"pseudo-R² = {format_number(result.pseudo_r2, 2)}",
             className="comparison-summary-line",
         ),
-        dcc.Graph(figure=build_odds_ratio_figure(result, label_1, label_2), config=config, style={"width": "100%"}),
+        dcc.Graph(figure=_italian_figure(build_odds_ratio_figure(result, label_1, label_2)), config=config, style={"width": "100%"}),
         _table(["Variable", "Odds\nratio", "Interval\n95%", "p", "VIF"], rows),
         _points(
             "How to read the quality measures:",
@@ -3396,8 +3392,8 @@ def _cluster_pair_centroid_block(
         _table(
             ["Distance between\ncentroids", f"Radius\n{name_1}", f"Radius\n{name_2}"],
             [[
-                html.Span(_format_number(separation.distance, 2), className="stat-value"),
-                _format_number(separation.radius_1, 2), _format_number(separation.radius_2, 2),
+                html.Span(format_number(separation.distance, 2), className="stat-value"),
+                format_number(separation.radius_1, 2), format_number(separation.radius_2, 2),
             ]],
         ),
     ])
@@ -3526,7 +3522,8 @@ def _map_tile(view: StatMapView, title: str, swatch: str, large: bool = False, w
 
 
 def _static_graph(figure: go.Figure) -> dcc.Graph:
-    return dcc.Graph(figure=figure, config={"displayModeBar": False}, style={"height": f"{figure.layout.height}px"})
+    config = {"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False}
+    return dcc.Graph(figure=_italian_figure(figure), config=config, style={"height": f"{figure.layout.height}px"})
 
 
 def cluster_overview_content_for(
@@ -3641,8 +3638,11 @@ def build_run_split_tree(run: ProductionRun, tuning_dir: Path) -> SplitTree:
     if missing:
         raise ValueError(f"{run.path}: params lack {missing}, the tree cannot be rebuilt")
     saved = saved_labels_for(load_clustering_tuning_run(tuning_dir), params["linkage"], params["metric"])
-    matrix, _metadata, _extra_arrays = load_matrix(run.path)
-    return build_split_tree(matrix, params["linkage"], params["metric"], saved)
+    matrix, metadata, _extra_arrays = load_matrix(run.path)
+    run_labels = metadata[_CLUSTER_LABEL_COLUMN].to_numpy()
+    return build_split_tree(
+        matrix, params["linkage"], params["metric"], saved, run_labels, _palette_for_labels(cluster_options(metadata))
+    )
 
 
 def dendrogram_tuning_note(matches: list[TuningMatch]) -> html.Div:
@@ -3681,7 +3681,7 @@ _STEP_CHILD_WIDTH = 495
 
 def _color_of(members: np.ndarray, leaf_color: np.ndarray, tree: SplitTree) -> str:
     """The colour (hex) of a group of subjects that is one whole cluster of the cut `leaf_color` belongs to."""
-    return PALETTE[single_label(leaf_color[tree.leaf_of_subject], members, "group colour")]
+    return tree.palette[single_label(leaf_color[tree.leaf_of_subject], members, "group colour")]
 
 
 def _dendrogram_map_tile(
@@ -3737,7 +3737,8 @@ def dendrogram_step_content_for(
     try:
         embedding_figure: dcc.Graph | html.P = _static_graph(
             build_step_embedding_figure(
-                embedding, tree.labels_by_k[step.k], step.leaf_color, tree.leaf_of_subject, step.highlighted, step.note
+                embedding, tree.labels_by_k[step.k], step.leaf_color, tree.palette, tree.leaf_of_subject, step.highlighted,
+                step.note
             )
         )
     except ValueError as exc:
@@ -3772,7 +3773,7 @@ def dendrogram_step_content_for(
             html.Div(
                 className="dendrogram-step-body",
                 children=[
-                    html.Div([_static_graph(build_tree_figure(tree.Z, tree.layout, tree.members, step.leaf_color, step.k)), embedding_figure]),
+                    html.Div([_static_graph(build_tree_figure(tree.Z, tree.layout, tree.members, step.leaf_color, tree.palette, step.k)), embedding_figure]),
                     html.Div(rows, className="dendrogram-step-maps"),
                 ],
             ),
@@ -3822,7 +3823,7 @@ def dendrogram_steps_content_for(
         parent, (child_a, child_b) = split["parent"], split["children"]
         head = (
             f"k={step_k}: {parent['name']} (n={parent['n']}) split into {child_a['name']} (n={child_a['n']}) and "
-            f"{child_b['name']} (n={child_b['n']}), merge distance {split['distance']:.1f}"
+            f"{child_b['name']} (n={child_b['n']}), merge distance {format_number(split['distance'], 1)}"
         )
         parent_label = single_label(tree.labels_by_k[step_k - 1], parent["members"], "parent")
         screens.append(dendrogram_step_content_for(

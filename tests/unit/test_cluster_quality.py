@@ -6,6 +6,7 @@ import pytest
 
 from src.analysis.cluster_composition import cluster_colors
 from src.analysis.cluster_quality import build_dbcv_figure, build_mean_membership_figure, build_silhouette_figure
+from src.utils.number_format import format_number
 
 
 def _subjects(index=(0, 1, 2), sizes=(30, 5, 120), means=(0.5, -0.1, 0.3)):
@@ -47,6 +48,25 @@ def test_the_panels_have_the_color_the_clusters_have_in_the_embedding_scatter():
     assert [trace.fillcolor for trace in figure.data] == [scatter[0], scatter[2], scatter[5]]
 
 
+def test_the_label_of_the_mean_is_large_enough_to_read_at_a_glance():
+    labels, values = _subjects()
+
+    label = build_silhouette_figure(labels, values).layout.annotations[-1]
+
+    assert label.text.startswith("mean over subjects") and label.font.size >= 18
+
+
+def test_the_numbers_written_on_the_figures_use_the_decimal_comma():
+    labels, values = _subjects()
+
+    mean_label = build_silhouette_figure(labels, values).layout.annotations[-1].text
+    run_label = build_dbcv_figure(_dbcv_clusters(), 0.227).layout.annotations[-1].text
+
+    assert "." not in mean_label and "," in mean_label
+    assert run_label == "run 0,227"
+    assert build_mean_membership_figure(_mean_vectors()).data[0].texttemplate == "%{z:.2f}"  # Plotly's own, so it follows `separators`
+
+
 def test_a_dashed_line_marks_the_mean_over_all_subjects_in_every_panel():
     labels, values = _subjects()  # the clusters are very different in size: the mean of the means is another number
 
@@ -56,7 +76,7 @@ def test_a_dashed_line_marks_the_mean_over_all_subjects_in_every_panel():
     for line in figure.layout.shapes:
         assert line.x0 == line.x1 == pytest.approx(values.mean()) and line.line.dash == "dash"
         assert line.opacity == 1  # simple_white gives every shape 0.3 opacity: the line would be nearly invisible
-    assert f"{values.mean():.2f}" in figure.layout.annotations[-1].text
+    assert format_number(values.mean(), 2) in figure.layout.annotations[-1].text
     cluster_means = [values[labels == cluster].mean() for cluster in (0, 1, 2)]
     assert abs(values.mean() - np.mean(cluster_means)) > 0.05
 

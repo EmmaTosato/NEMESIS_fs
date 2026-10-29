@@ -54,7 +54,7 @@ class ColorMode:
     kind: ColorKind
     column: str  # metadata.csv column this mode reads, when the run carries it itself
     label: str
-    # One or two sentences (Italian, like the rest of the app's own prose) shown above the plot
+    # One or two sentences (English, like the rest of the app's interface) shown above the plot
     # while this mode is active: what the colour means and what grey means. Lives here, next to
     # the label and the scale, so a mode's meaning and its description cannot drift apart.
     description: str
@@ -270,7 +270,7 @@ COLOR_MODES: dict[str, ColorMode] = {
     # nothing is hidden.
     "cluster_label": ColorMode(
         kind="categorical", column="cluster_label", label="cluster",
-        description="Points colored by assigned cluster. HDBSCAN noise appears as category -1.",
+        description="Points colored by assigned cluster.",
     ),
 }
 

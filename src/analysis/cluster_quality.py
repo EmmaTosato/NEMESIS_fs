@@ -13,6 +13,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from src.analysis.plotting import _SILHOUETTE_MIN_PANEL_SHARE, _palette_for_labels
+from src.utils.number_format import format_number
 
 _TEXT_COLOR = "#333"
 _MUTED_COLOR = "#767676"
@@ -26,6 +27,7 @@ _PLOT_HEIGHT_BASE = 280  # px of the silhouette panels, plus _PLOT_HEIGHT_PER_CL
 _PLOT_HEIGHT_PER_CLUSTER = 40
 _PANEL_GAP = 0.012  # of the figure height, between two panels
 _AVERAGE_COLOR = "#d62728"
+_AVERAGE_LABEL_SIZE = 18  # px of "mean over subjects = ...": it fits the 40 px top margin
 _FIGURE_MARGINS = dict(l=20, r=30, t=40, b=50)
 _SILHOUETTE_MARGINS = {**_FIGURE_MARGINS, "l": 90}  # room for the name of each cluster, left of its panel
 
@@ -78,7 +80,7 @@ def build_silhouette_figure(subject_labels: np.ndarray, subject_values: np.ndarr
         figure.update_yaxes(range=[-0.5, len(members) - 0.5], showticklabels=False, ticks="", row=row, col=1)
     figure.add_annotation(
         x=average, y=1, xref="x", yref="paper", yanchor="bottom", showarrow=False,
-        text=f"mean over subjects = {average:.2f}", font=dict(size=13, color=_AVERAGE_COLOR),
+        text=f"mean over subjects = {format_number(average, 2)}", font=dict(size=_AVERAGE_LABEL_SIZE, color=_AVERAGE_COLOR),
     )
     figure.update_xaxes(range=[-1, 1], gridcolor=_GRIDLINE_COLOR, zeroline=True, zerolinecolor=_MUTED_COLOR)
     figure.update_xaxes(title_text="silhouette", row=len(clusters), col=1)
@@ -105,7 +107,7 @@ def build_mean_membership_figure(mean_vectors: pd.DataFrame) -> go.Figure:
     columns = [f"cluster {int(label)}" for label in mean_vectors.columns]
     figure = go.Figure(go.Heatmap(
         z=mean_vectors.to_numpy(), x=columns, y=rows, zmin=0, zmax=1, colorscale="Blues",
-        text=[[f"{value:.2f}" for value in row] for row in mean_vectors.to_numpy()], texttemplate="%{text}",
+        texttemplate="%{z:.2f}",
         hovertemplate="subjects of %{y}<br>mean probability of being in %{x}: %{z:.3f}<extra></extra>",
         colorbar=dict(title=dict(text="probability", side="top"), x=1.04, thickness=18),
         xgap=2, ygap=2,
@@ -143,7 +145,7 @@ def build_dbcv_figure(clusters: pd.DataFrame, score: float) -> go.Figure:
     figure.add_vline(x=0, line_color=_TEXT_COLOR, line_width=1, opacity=1)
     figure.add_vline(
         x=score, line_color=_AVERAGE_COLOR, line_width=2, line_dash="dash", opacity=1,
-        annotation_text=f"run {score:.3f}", annotation_position="top", annotation_font_color=_AVERAGE_COLOR,
+        annotation_text=f"run {format_number(score, 3)}", annotation_position="top", annotation_font_color=_AVERAGE_COLOR,
     )
     figure.update_xaxes(range=[-1, 1], title_text="DBCV of the cluster (-1 to 1, higher is better)", gridcolor=_GRIDLINE_COLOR)
     figure.update_yaxes(type="category", autorange="reversed")

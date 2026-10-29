@@ -521,3 +521,26 @@ def test_steps_callback_builds_nothing_while_another_tab_is_shown(cohort, app):
 
     assert response.status_code == 200
     assert response.get_json()["response"]["dendrogram-steps-content"]["children"] == []
+
+
+def test_the_figures_of_the_steps_have_the_png_button_and_the_decimal_comma(cohort):
+    content = _steps(cohort)
+    tree_graph, embedding_graph, *_ = _parts(content.children[-1])
+
+    for graph in (tree_graph, embedding_graph):
+        assert graph.config["modeBarButtons"] == [["toImage"]] and graph.config["displayModeBar"] is True
+        assert graph.figure.layout.separators == ",."
+
+
+def test_the_dendrogram_draws_each_cluster_of_the_run_in_the_colour_of_the_clustering_scatter(cohort):
+    from src.analysis.embedding_app import cluster_options
+    from src.analysis.plotting import _palette_for_labels
+
+    tree, metadata = _context(cohort)
+    labels = metadata["cluster_label"].to_numpy()
+    expected = _palette_for_labels(cluster_options(metadata))
+    k_run = len(np.unique(labels))
+
+    leaf_color = replay_splits(tree.Z, tree.labels_by_k, tree.leaf_of_subject, len(tree.members), k_run)[-1][1]
+
+    assert [tree.palette[leaf_color[leaf]] for leaf in tree.leaf_of_subject] == [expected[int(label)] for label in labels]
