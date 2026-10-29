@@ -10,7 +10,6 @@ from sklearn.cluster import AgglomerativeClustering
 
 from src.analysis.clustering_evaluation import AdpSummary, adp_summary, silhouette_breakdown, soft_membership_summary
 from src.analysis.embedding_app import (
-    ProductionRun,
     adp_quality_content_for,
     cluster_quality_content_for,
     index_entries_for,
@@ -19,6 +18,7 @@ from src.analysis.embedding_app import (
     run_silhouette_samples,
     run_soft_membership,
 )
+from src.analysis.embedding_app.runs import ProductionRun
 from src.analysis.production_results import SavedResults, compute_production_results, write_production_results
 from src.analysis.raw_distances import RawDistanceStore
 from src.utils.artifacts import save_matrix

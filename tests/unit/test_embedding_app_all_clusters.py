@@ -10,13 +10,12 @@ from dash import dcc, html
 
 from src.analysis.embedding_app import (
     ALL_CLUSTERS,
-    ProductionRun,
     _build_cluster_disconnection_view,
     _build_cluster_overlap_view,
     all_clusters_content_for,
     build_app,
-    run_metadata,
 )
+from src.analysis.embedding_app.runs import ProductionRun, run_metadata
 from src.analysis.embedding_app.style import CSS
 from tests.unit.test_embedding_app import (
     _clustering_params_file,

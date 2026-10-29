@@ -6,19 +6,16 @@ import logging
 
 import pytest
 
-from src.analysis.embedding_app import (
-    NO_METRIC,
-    NO_N_COMPONENTS,
+from src.analysis.embedding_app import build_app
+from src.analysis.embedding_app.picker import (
     PICKER_FIELDS,
-    PRODUCTION_PIPELINES,
     UNSET,
-    ProductionRun,
-    build_app,
     index_runs,
     open_pickers,
     resolve_pickers,
     run_picker_values,
 )
+from src.analysis.embedding_app.runs import NO_METRIC, NO_N_COMPONENTS, PRODUCTION_PIPELINES, ProductionRun
 from tests.unit.test_embedding_app import _clustering_params_file, _lesion_cfg, _make_run_dir, _sdc_cfg
 
 

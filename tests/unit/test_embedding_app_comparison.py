@@ -8,7 +8,6 @@ import pytest
 from dash import dcc, html
 
 from src.analysis.embedding_app import (
-    ProductionRun,
     build_app,
     cluster_pair_anatomy_for,
     cluster_pair_content_for,
@@ -18,8 +17,8 @@ from src.analysis.embedding_app import (
     comparison_incompatibility,
     index_entries_for,
     pair_cluster_option_label,
-    run_metadata,
 )
+from src.analysis.embedding_app.runs import ProductionRun, run_metadata
 from src.utils.artifacts import save_matrix
 from tests.unit.test_embedding_app import (
     _clustering_params_file,

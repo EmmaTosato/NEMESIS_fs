@@ -11,7 +11,7 @@ import nibabel as nib
 import numpy as np
 
 from src.analysis.build_config import BuildMatrixConfig, SdcMatrixConfig
-from src.analysis.embedding_app import ProductionRun
+from src.analysis.embedding_app.runs import ProductionRun
 from src.pipeline import embedding_app
 
 

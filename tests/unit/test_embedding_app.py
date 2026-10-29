@@ -18,16 +18,10 @@ from src.analysis.embedding_coloring import DEFAULT_GRID, available_grids
 from src.analysis.embedding_app import (
     COLOR_MODE_ORDER,
     NEUTRAL_MODE,
-    NO_METRIC,
-    NO_N_COMPONENTS,
-    PRODUCTION_PIPELINES,
     LesionViewerConfig,
-    ProductionRun,
     SdcViewerConfig,
-    UndisplayableRunError,
     _build_cluster_disconnection_view,
     _build_cluster_overlap_view,
-    _n_components_option_label,
     _static_glass_brain_png_bytes,
     _static_png_bytes,
     build_app,
@@ -36,20 +30,28 @@ from src.analysis.embedding_app import (
     cluster_composition_content_for,
     cluster_description_content_for,
     cluster_options,
-    disconnectome_viewer_content_for,
-    disconnection_map_content_for,
-    discover_production_runs,
     color_mode_description,
     color_mode_description_children,
+    disconnection_map_content_for,
+    disconnectome_viewer_content_for,
     graph_content_for,
     lesion_viewer_content_for,
-    load_run,
     overlap_map_content_for,
     representative_subject_content_for,
+    run_title,
+)
+from src.analysis.embedding_app.picker import _n_components_option_label
+from src.analysis.embedding_app.runs import (
+    NO_METRIC,
+    NO_N_COMPONENTS,
+    PRODUCTION_PIPELINES,
+    ProductionRun,
+    UndisplayableRunError,
+    discover_production_runs,
+    load_run,
     run_metadata,
     run_params,
     run_reduction_axis,
-    run_title,
 )
 from src.analysis.embedding_app.style import _FONT_STACK
 from src.utils.artifacts import load_matrix, save_matrix
@@ -364,7 +366,7 @@ def test_load_run_rejects_a_twin_that_is_not_2d_or_3d(tmp_path):
 
 
 def test_view_note_for_names_the_twin_only_when_the_run_is_drawn_on_it(tmp_path):
-    from src.analysis.embedding_app import view_note_for
+    from src.analysis.embedding_app.runs import view_note_for
 
     run, twin_dir = _make_clustering_run_with_twin(tmp_path / "results")
     direct_dir = _make_run_dir(tmp_path / "results", pipeline="clustering", method="ward", run_name="run-2d", n_dims=2)
@@ -378,7 +380,7 @@ def test_view_note_for_names_the_twin_only_when_the_run_is_drawn_on_it(tmp_path)
 
 
 def test_load_cluster_space_is_the_clustered_matrix_only_for_an_embedding_drawn_on_a_twin(tmp_path):
-    from src.analysis.embedding_app import load_cluster_space
+    from src.analysis.embedding_app.runs import load_cluster_space
 
     run, _twin_dir = _make_clustering_run_with_twin(tmp_path / "results")
     raw_run, _ = _make_clustering_run_with_twin(tmp_path / "results_raw", reduced_data=False)

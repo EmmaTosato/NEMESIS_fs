@@ -7,12 +7,12 @@ from src.analysis.embedding_app import (
     TAB_CLUSTERING,
     TAB_DENDROGRAM,
     TAB_EMBEDDING,
-    ProductionRun,
     active_page_tab,
     build_app,
     index_entries_for,
     page_tabs_for,
 )
+from src.analysis.embedding_app.runs import ProductionRun
 from tests.unit.test_embedding_app import _clustering_params_file, _lesion_cfg, _make_run_dir, _sdc_cfg
 
 

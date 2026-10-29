@@ -12,13 +12,13 @@ from dash import dcc, html
 from src.analysis.component_maps import ComponentMapSet, ComponentMapStore, MapGeometry, load_map_geometry
 from src.analysis.embedding_app import (
     ComponentMapData,
-    ProductionRun,
     _build_component_map_view,
     build_app,
     component_maps_content_for,
     index_entries_for,
     run_component_maps,
 )
+from src.analysis.embedding_app.runs import ProductionRun
 from src.utils.artifacts import save_matrix
 from tests.unit.test_component_maps import _scores_and_matrix, _source_dir
 from tests.unit.test_embedding_app import _lesion_cfg, _make_run_dir, _sdc_cfg

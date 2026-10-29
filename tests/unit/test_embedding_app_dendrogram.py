@@ -14,7 +14,6 @@ from src.analysis.clustering_tuning import compute_dendrogram_linkage
 from src.analysis.dendrogram_splits import PALETTE, replay_splits, saved_labels_for
 from src.analysis.embedding_app import (
     DENDROGRAM_MAP_MODALITIES,
-    ProductionRun,
     build_app,
     build_run_split_tree,
     dendrogram_k_options,
@@ -23,6 +22,7 @@ from src.analysis.embedding_app import (
     run_compatible_tunings,
     tuning_root_of,
 )
+from src.analysis.embedding_app.runs import ProductionRun
 from src.utils.artifacts import save_matrix
 from tests.unit.test_embedding_app import (
     _clustering_params_file,

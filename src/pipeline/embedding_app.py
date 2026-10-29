@@ -28,13 +28,8 @@ import logging
 from pathlib import Path
 
 from src.analysis.build_config import load_build_matrix_config, load_build_sdc_matrix_config
-from src.analysis.embedding_app import (
-    SDC_DISCONNECTOME_GLOB,
-    LesionViewerConfig,
-    SdcViewerConfig,
-    build_app,
-    discover_production_runs,
-)
+from src.analysis.embedding_app import SDC_DISCONNECTOME_GLOB, LesionViewerConfig, SdcViewerConfig, build_app
+from src.analysis.embedding_app.runs import discover_production_runs
 from src.features.lesion import load_reference_image
 
 
