@@ -403,15 +403,25 @@ def _run_production(tmp_path, monkeypatch, method: str, params: dict) -> Path:
     return next(p for p in (output_root / "production" / method / "umap").iterdir() if p.is_dir())
 
 
+def _results_of(out_dir: Path) -> dict[str, tuple[float, object]]:
+    """production_results.csv as {metric: (value, note)}: an empty value comes back as NaN, an empty note as NaN too."""
+    table = pd.read_csv(out_dir / "production_results.csv")
+    assert list(table.columns) == ["metric", "value", "note"]
+    return {row.metric: (row.value, row.note) for row in table.itertuples()}
+
+
 @pytest.mark.parametrize("metric", ["euclidean", "cosine", "manhattan"])
-def test_clustering_agglomerative_production_writes_the_silhouette_per_cluster_and_the_average_in_config(tmp_path, monkeypatch, metric):
+def test_clustering_agglomerative_production_writes_the_results_tables_and_no_result_in_config(tmp_path, monkeypatch, metric):
     out_dir = _run_production(tmp_path, monkeypatch, "agglomerative", {"n_clusters": 3, "linkage": "average", "metric": metric})
 
-    table = pd.read_csv(out_dir / "silhouette_per_cluster.csv")
+    table = pd.read_csv(out_dir / "production_results_per_cluster.csv")
     assert list(table.columns) == ["cluster", "n", "silhouette_mean", "share_negative"]
     assert table["n"].sum() == 12
     average = (table["n"] * table["silhouette_mean"]).sum() / table["n"].sum()  # the average over subjects
-    assert f"Average silhouette coefficient: {average:.3f} ({metric})" in (out_dir / "config.md").read_text()
+    assert _results_of(out_dir)["silhouette"][0] == pytest.approx(average)
+    assert not (out_dir / "silhouette_per_cluster.csv").exists()
+    text = (out_dir / "config.md").read_text()
+    assert "silhouette" not in text.lower() and "Clusters found" not in text and "Params used" in text
 
 
 def test_run_silhouette_scores_adp_under_its_metric_and_every_other_method_as_euclidean():
@@ -439,15 +449,18 @@ def test_run_silhouette_is_none_for_a_result_with_fewer_than_two_clusters(caplog
 def test_clustering_agglomerative_params_without_metric_are_scored_as_euclidean(tmp_path, monkeypatch):
     out_dir = _run_production(tmp_path, monkeypatch, "agglomerative", {"n_clusters": 3, "linkage": "ward"})
 
-    assert "(euclidean)" in (out_dir / "config.md").read_text()
+    results = _results_of(out_dir)
+    assert not np.isnan(results["calinski_harabasz"][0]) and pd.isna(results["calinski_harabasz"][1])  # Euclidean: defined
 
 
 def test_clustering_agglomerative_production_with_one_cluster_has_no_silhouette_and_still_succeeds(tmp_path, monkeypatch):
     out_dir = _run_production(tmp_path, monkeypatch, "agglomerative", {"n_clusters": 1, "linkage": "ward"})
 
-    assert not (out_dir / "silhouette_per_cluster.csv").exists()
-    text = (out_dir / "config.md").read_text()
-    assert "silhouette" not in text and "Dunn" not in text and "Cophenetic" not in text
+    results = _results_of(out_dir)
+    for name in ("silhouette", "calinski_harabasz", "davies_bouldin", "dunn"):
+        assert np.isnan(results[name][0]) and "at least 2 clusters" in results[name][1]  # empty, with the reason
+    assert results["largest_cluster_share"][0] == 1.0
+    assert not (out_dir / "silhouette_plot.png").exists()
 
 
 def test_clustering_agglomerative_production_writes_the_indices_of_the_app_in_config(tmp_path, monkeypatch):
@@ -455,34 +468,37 @@ def test_clustering_agglomerative_production_writes_the_indices_of_the_app_in_co
 
     out_dir = _run_production(tmp_path, monkeypatch, "agglomerative", {"n_clusters": 3, "linkage": "ward", "metric": "euclidean"})
 
-    text = (out_dir / "config.md").read_text()
+    results = _results_of(out_dir)
     X = np.load(out_dir / "matrix.npy")
     labels = pd.read_csv(out_dir / "metadata.csv")["cluster_label"].to_numpy()
     summary = geometric_summary(X, labels, {"n_clusters": 3, "linkage": "ward", "metric": "euclidean"})
     tree = model_fit_metrics("agglomerative", X, {"n_clusters": 3, "linkage": "ward", "metric": "euclidean"}, labels)
-    assert f"Largest cluster: {np.bincount(labels).max() / len(labels) * 100:.1f}% of the subjects" in text
-    assert f"Calinski-Harabasz: {calinski_harabasz_score(X, labels):.1f}" in text
-    assert f"Davies-Bouldin: {davies_bouldin_score(X, labels):.3f}" in text
-    assert f"Dunn: {summary.dunn:.4f}" in text
-    assert f"Cophenetic correlation: {tree['cophenetic_correlation']:.3f}" in text
-    assert f"Dendrogram jump (k=3): {tree['dendrogram_jump']:.2f}" in text
+    assert results["largest_cluster_share"][0] == pytest.approx(np.bincount(labels).max() / len(labels))
+    assert results["silhouette"][0] == pytest.approx(summary.silhouette)
+    assert results["calinski_harabasz"][0] == pytest.approx(calinski_harabasz_score(X, labels))
+    assert results["davies_bouldin"][0] == pytest.approx(davies_bouldin_score(X, labels))
+    assert results["dunn"][0] == pytest.approx(summary.dunn)
+    assert results["cophenetic_correlation"][0] == pytest.approx(tree["cophenetic_correlation"])
+    assert results["dendrogram_jump"][0] == pytest.approx(tree["dendrogram_jump"])
+    assert "n_clusters_found" not in results and "noise_fraction" not in results  # k is the parameter; no noise
 
 
 def test_clustering_agglomerative_production_with_a_non_euclidean_metric_keeps_the_run_and_says_euclidean_only(tmp_path, monkeypatch):
     out_dir = _run_production(tmp_path, monkeypatch, "agglomerative", {"n_clusters": 3, "linkage": "average", "metric": "cosine"})
 
-    text = (out_dir / "config.md").read_text()
-    for name in ("Calinski-Harabasz", "Davies-Bouldin", "Dunn"):
-        assert f"{name}: — (Euclidean distance only)" in text
-    assert "Average silhouette coefficient:" in text and "(cosine)" in text
-    assert "Cophenetic correlation:" in text and "Largest cluster:" in text
+    results = _results_of(out_dir)
+    for name in ("calinski_harabasz", "davies_bouldin", "dunn"):
+        assert np.isnan(results[name][0]) and results[name][1] == "Euclidean distance only"
+    for name in ("silhouette", "cophenetic_correlation", "dendrogram_jump", "largest_cluster_share"):
+        assert not np.isnan(results[name][0]) and pd.isna(results[name][1])
 
 
-def test_clustering_other_methods_write_neither_the_silhouette_table_nor_its_config_line(tmp_path, monkeypatch):
+def test_clustering_methods_without_a_results_file_keep_their_clusters_found_line_in_config(tmp_path, monkeypatch):
     out_dir = _run_production(tmp_path, monkeypatch, "kmeans", {"n_clusters": 3, "random_state": 0, "n_init": 10})
 
-    assert not (out_dir / "silhouette_per_cluster.csv").exists()
-    assert "silhouette" not in (out_dir / "config.md").read_text()
+    assert not (out_dir / "production_results.csv").exists() and not (out_dir / "production_results_per_cluster.csv").exists()
+    text = (out_dir / "config.md").read_text()
+    assert "Clusters found: 3" in text and "silhouette" not in text
 
 
 def test_clustering_end_to_end_gmm(tmp_path, monkeypatch):
@@ -595,8 +611,13 @@ def test_clustering_end_to_end_hdbscan_reports_noise_separately(tmp_path, monkey
     assert set(metadata["cluster_label"].unique()) == {-1}
 
     readme = (out_dir / "config.md").read_text()
-    assert "Clusters found: 0" in readme
-    assert "12 noise points, label -1" in readme
+    assert "Clusters found" not in readme and "noise points" not in readme  # config.md has no result
+    results = _results_of(out_dir)
+    assert results["n_clusters_found"][0] == 0 and results["noise_fraction"][0] == 1.0
+    for name in ("largest_cluster_share", "dbcv", "membership_mean"):
+        assert np.isnan(results[name][0]) and not pd.isna(results[name][1])  # empty, with the reason
+    assert metadata["membership_own"].isna().all()  # the noise has no cluster: no probability
+    assert len(pd.read_csv(out_dir / "production_results_per_cluster.csv")) == 0
 
 
 def test_clustering_end_to_end_hdbscan_cluster_plot_sized_by_probabilities(tmp_path, monkeypatch):
@@ -692,6 +713,21 @@ def test_clustering_production_hdbscan_soft_saves_the_membership_matrix_and_own_
     clustered = np.flatnonzero(labels != -1)
     np.testing.assert_allclose(own[clustered], extra["membership"][clustered, labels[clustered]])
     assert (out_dir / "cluster_plot.png").stat().st_size > 0
+
+    # the numbers of the run: the persistence of every cluster is the fitted model's own, in label order
+    from src.analysis.clustering import hdbscan_soft_fit
+
+    fitted = hdbscan_soft_fit(blobs, {"min_cluster_size": 10, "min_samples": 5})
+    np.testing.assert_array_equal(fitted.labels_, labels)
+    per_cluster = pd.read_csv(out_dir / "production_results_per_cluster.csv")
+    assert list(per_cluster.columns) == ["cluster", "n", "dbcv", "membership_mean", "persistence"]
+    assert per_cluster["cluster"].tolist() == [0, 1, 2]
+    np.testing.assert_allclose(per_cluster["persistence"], fitted.cluster_persistence_)
+    np.testing.assert_allclose(per_cluster["membership_mean"], [own[labels == c].mean() for c in (0, 1, 2)])
+    results = _results_of(out_dir)
+    assert results["persistence_mean"][0] == pytest.approx(fitted.cluster_persistence_.mean())
+    assert results["membership_mean"][0] == pytest.approx(np.nanmean(own))
+    assert results["n_clusters_found"][0] == 3 and results["noise_fraction"][0] == pytest.approx((labels == -1).mean())
 
 
 def test_clustering_fine_tuning_hdbscan_min_samples_joint_sweep_writes_heatmap(tmp_path, monkeypatch):
@@ -2312,8 +2348,19 @@ def test_clustering_production_hdbscan_writes_the_dbcv_files_and_no_silhouette(t
     assert clustering.main(["--config", str(cfg_path)]) == 0
 
     out_dir = next(p for p in (tmp_path / "cl_out" / "production" / "hdbscan" / "umap").iterdir() if p.is_dir())
-    table = pd.read_csv(out_dir / "dbcv_per_cluster.csv")
-    assert list(table.columns) == ["cluster", "n", "dbcv"] and len(table) >= 2
+    table = pd.read_csv(out_dir / "production_results_per_cluster.csv")
+    assert list(table.columns) == ["cluster", "n", "dbcv", "membership_mean"] and len(table) >= 2
     assert (out_dir / "dbcv_plot.png").stat().st_size > 0
-    assert "DBCV: " in (out_dir / "config.md").read_text() and "(euclidean)" in (out_dir / "config.md").read_text()
-    assert not (out_dir / "silhouette_plot.png").exists() and not (out_dir / "silhouette_per_cluster.csv").exists()
+    results = _results_of(out_dir)
+    assert list(results) == ["n_clusters_found", "noise_fraction", "largest_cluster_share", "dbcv", "membership_mean"]
+    assert not np.isnan(results["dbcv"][0]) and "DBCV" not in (out_dir / "config.md").read_text()
+    assert not (out_dir / "silhouette_plot.png").exists() and not (out_dir / "dbcv_per_cluster.csv").exists()
+    # hdbscan of sklearn: the probability of every subject is saved, the noise (which sklearn gives 0) has none
+    from sklearn.cluster import HDBSCAN
+
+    metadata = pd.read_csv(out_dir / "metadata.csv")
+    labels = metadata["cluster_label"].to_numpy()
+    probabilities = HDBSCAN(min_cluster_size=10).fit(np.load(out_dir / "matrix.npy")).probabilities_
+    assert (labels == -1).any() and np.isnan(metadata["membership_own"].to_numpy()).tolist() == (labels == -1).tolist()
+    np.testing.assert_allclose(metadata["membership_own"].to_numpy()[labels != -1], probabilities[labels != -1])
+    assert "persistence_mean" not in results and "persistence" not in table.columns

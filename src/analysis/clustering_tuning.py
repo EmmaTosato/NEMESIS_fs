@@ -355,10 +355,9 @@ def compute_clustering_metrics_metric_aware(
     exists for them at all) - skipped (NaN) for any non-euclidean metric, not aborted.
 
     Agglomerative never produces the HDBSCAN-style noise label -1 (no stochastic/density
-    rejection step) - noise_fraction is always 0.0, kept in the returned dict only for the same
-    column shape as compute_clustering_metrics. A degenerate combination (fewer than 2, or more
-    than n-1, clusters - possible if n_clusters approaches n_samples) is recorded as NaN with a
-    logged warning, same convention as compute_clustering_metrics.
+    rejection step), so it has no `noise_fraction` column: it would always be 0.0. A degenerate
+    combination (fewer than 2, or more than n-1, clusters - possible if n_clusters approaches
+    n_samples) is recorded as NaN with a logged warning, same convention as compute_clustering_metrics.
 
     distance_cache (03-09-26, optional, keyed by metric name): without it, silhouette's own
     distance matrix was computed *again* here for any metric in PRECOMPUTABLE_METRICS - entirely
@@ -382,7 +381,7 @@ def compute_clustering_metrics_metric_aware(
             "- degenerate combination, recording NaN",
             n_unique,
         )
-        return {"silhouette": float("nan"), "calinski_harabasz": float("nan"), "davies_bouldin": float("nan"), "noise_fraction": 0.0}
+        return {"silhouette": float("nan"), "calinski_harabasz": float("nan"), "davies_bouldin": float("nan")}
 
     if metric in PRECOMPUTABLE_METRICS:
         if distance_cache is not None and metric in distance_cache:
@@ -395,7 +394,7 @@ def compute_clustering_metrics_metric_aware(
     else:
         silhouette = float(silhouette_score(X, labels, metric=metric))
 
-    metrics = {"silhouette": silhouette, "noise_fraction": 0.0}
+    metrics = {"silhouette": silhouette}
     if metric == "euclidean":
         metrics["calinski_harabasz"] = float(calinski_harabasz_score(X, labels))
         metrics["davies_bouldin"] = float(davies_bouldin_score(X, labels))

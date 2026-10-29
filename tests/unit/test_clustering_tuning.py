@@ -493,7 +493,7 @@ def _binary_toy_groups():
     return np.array(rows), np.array(groups)
 
 
-def test_compute_clustering_metrics_metric_aware_euclidean_computes_all_four():
+def test_compute_clustering_metrics_metric_aware_euclidean_computes_its_three_indices():
     X = _three_blobs()
     labels = np.array([0] * 15 + [1] * 15 + [2] * 15)
 
@@ -502,7 +502,7 @@ def test_compute_clustering_metrics_metric_aware_euclidean_computes_all_four():
     assert metrics["silhouette"] > 0.8
     assert not np.isnan(metrics["calinski_harabasz"])
     assert not np.isnan(metrics["davies_bouldin"])
-    assert metrics["noise_fraction"] == 0.0
+    assert "noise_fraction" not in metrics  # agglomerative has no noise: the column would always be 0
 
 
 def test_compute_clustering_metrics_metric_aware_non_euclidean_skips_ch_db():

@@ -8,6 +8,15 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 28-10-26 — Probabilità di appartenenza e persistenza in produzione (hdbscan, hdbscan_soft)
+
+- **`membership_own`** (probabilità del soggetto nel proprio cluster) si salva per `hdbscan` come per `hdbscan_soft`. Per il rumore è **vuota**: `probabilities_` di sklearn gli dà 0, ma il rumore non ha un cluster e uno 0 si leggerebbe come improbabilità misurata. Le due probabilità vengono da implementazioni diverse (`hdbscan_soft` è il pacchetto `hdbscan`, `methods_changelog` 15-10-26) e non si confrontano, anche se la colonna ha lo stesso nome.
+- **`membership_mean`** (run): media di `membership_own` sui soggetti non rumore; nelle righe per cluster, la media dentro il cluster. La media della run non è la media delle medie per cluster: i cluster grandi pesano di più.
+- **`persistence_mean`** (solo `hdbscan_soft`): media semplice dei valori `cluster_persistence_` sui cluster, come nel tuning; `persistence` per cluster è il valore del cluster, indicizzato per etichetta 0..k-1. Per `hdbscan` di sklearn la persistenza non esiste e non si calcola.
+- Scelta dell'utente: salvare queste misure in produzione, non solo nel tuning, così che l'app non debba rifare il fit.
+
+---
+
 ## 26-10-26 — Il criterio «usabile» esce da `s1.4-vol.md`, `s2.4-stream.md` e `pipelines.md`
 
 Il criterio (3-30 cluster, rumore ≤ 25%, cluster più grande ≤ 60%) non esiste nel codice ed è una soglia nostra; era già stato tolto da `s2.4-vol.md` (22-10-26). Tolto il 26-10-26 dagli altri tre file, con lo stesso trattamento: via la classifica «posto tra le usabili» e i conteggi di righe usabili, via `share_below_half` (colonna e soglia 0,5 non esistono più); restano le misure (cluster, rumore, silhouette di allora). In `s1.4-vol.md` la scelta delle run prodotte è descritta solo come «per famiglia di granularità»; di nc3 resta scritto che non è stata prodotta, senza il motivo (era il criterio).

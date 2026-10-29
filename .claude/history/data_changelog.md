@@ -10,6 +10,97 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 29-10-26 — `production_results*.csv` scritti in 36 produzioni hdbscan_soft (con persistenza)
+
+**Cosa è cambiato**:
+- In tutte le 36 cartelle sotto `results/{lesion,sdc}/clustering/production/hdbscan_soft/` sono stati aggiunti `production_results.csv` (`n_clusters_found`, `noise_fraction`, `largest_cluster_share`, `dbcv`, `membership_mean`, `persistence_mean`) e `production_results_per_cluster.csv` (`cluster,n,dbcv,membership_mean,persistence`).
+- Cancellati i 20 `dbcv_per_cluster.csv`: stesse colonne e valori nel nuovo file per cluster (verificato run per run prima di cancellare).
+- `metadata.csv` non toccato: `membership_own` c'era già in tutte le 36 e coincide con il ricalcolo.
+
+**Come**: refit del `HDBSCAN` del pacchetto `hdbscan` (`hdbscan_soft_fit`) sulla `matrix.npy` di ogni run. `persistence` è `cluster_persistence_` del fit. Il refit è accettato perché riproduce le etichette salvate (36 su 36) e la matrice `membership.npy` (differenza massima 0.0).
+
+**Allineamento della persistenza**: il pacchetto non documenta l'ordine di `cluster_persistence_`. Assunto: indice = etichetta del cluster. Verificato in modo indipendente su 6 run con almeno 3 cluster, ricostruendo la stabilità di ogni cluster dall'albero condensato: stabilità / (persistenza × dimensione del cluster) è costante tra i cluster con l'ordine per etichetta, e non lo è con l'ordine spostato di uno.
+
+**Casi limite**: 16 run hanno 0 cluster (tutti rumore): `largest_cluster_share`, `dbcv`, `membership_mean`, `persistence_mean` vuoti con la nota, file per cluster con la sola intestazione. Nessuna run con 1 solo cluster.
+
+**Verifica**: `Clusters found` e rumore del `config.md` coincidono in 36 su 36; `persistence_mean` = media di `persistence`; `membership_mean` per cluster = media di `membership_own`. Zero errori, zero `.tmp`.
+
+**Conseguenza ancora vera oggi**: le persistenze di hdbscan_soft non sono confrontabili con nulla di hdbscan (sklearn non le ha).
+
+---
+
+## 29-10-26 — `production_results*.csv` e `membership_own` scritti in 79 produzioni hdbscan
+
+**Cosa è cambiato**:
+- In 79 cartelle sotto `results/{lesion,sdc}/clustering/production/hdbscan/` (tutte tranne le 2 del 10-09) sono stati aggiunti `production_results.csv` (`n_clusters_found`, `noise_fraction`, `largest_cluster_share`, `dbcv`, `membership_mean`) e `production_results_per_cluster.csv` (`cluster,n,dbcv,membership_mean`).
+- Aggiunta la colonna `membership_own` (ultima) a `metadata.csv` delle stesse 79 run: probabilità del soggetto nel proprio cluster, vuota per il rumore.
+- Cancellati i 63 `dbcv_per_cluster.csv`: il nuovo file per cluster ha le stesse colonne `cluster,n,dbcv` con gli stessi valori (verificato run per run prima della cancellazione), più `membership_mean`.
+
+**Come**: refit di `HDBSCAN(**params)` sulla `matrix.npy` di ogni run (stessa chiamata della produzione, `hdbscan_labels_and_probabilities`), accettato solo perché le etichette ricalcolate coincidono con `cluster_label` salvate: 79 su 79. Nessuna produzione rigenerata, nessun `config.md` modificato.
+
+**Casi limite**: 16 run hanno 0 cluster (tutti i soggetti rumore): `largest_cluster_share`, `dbcv` e `membership_mean` vuoti con la nota, file per cluster con la sola intestazione. Nessuna run ha 1 solo cluster.
+
+**Verifica**: `Clusters found` e numero di punti rumore del `config.md` coincidono con il ricalcolato in 79 su 79; `membership_own` è vuota esattamente dove `cluster_label` è -1; `membership_mean` per cluster coincide con la media di `membership_own`. Zero errori, zero file `.tmp`.
+
+**Conseguenza ancora vera oggi**: `dbcv_plot.png` resta; la run del 10-09 (2 cartelle hdbscan) non ha né `production_results*.csv` né `membership_own`.
+
+---
+
+## 29-10-26 — `production_results*.csv` scritti in 151 produzioni agglomerative; `noise_fraction` tolta da 28 `tuning_results.csv`
+
+**Cosa è cambiato**:
+- In 151 cartelle sotto `results/{lesion,sdc}/clustering/production/agglomerative/` (tutte tranne le 5 del 10-09) sono stati aggiunti `production_results.csv` (`metric,value,note`: silhouette, calinski_harabasz, davies_bouldin, dunn, largest_cluster_share, cophenetic_correlation, dendrogram_jump) e `production_results_per_cluster.csv` (`cluster,n,silhouette_mean,share_negative`). Con distanza non euclidea CH/DB/Dunn sono vuoti con la nota `Euclidean distance only` (62 run).
+- Cancellati i 151 `silhouette_per_cluster.csv`, sostituiti dal nuovo file per cluster, che ha lo stesso contenuto (colonne e valori identici, verificato run per run prima della cancellazione).
+- Tolta la colonna `noise_fraction` da tutte le 28 `tuning_results.csv` di agglomerative (16 con `report.md`, poi le 12 senza, su ordine esplicito dell'utente); era 0.0 in tutte le righe, verificato prima di riscrivere, e il resto della tabella è identico dopo la rilettura.
+
+**Come**: calcolo con `src/analysis/production_results.py` (lo stesso codice della produzione) su `matrix.npy` e `metadata.csv` di ogni run; nessuna produzione rigenerata, nessun `config.md` modificato.
+
+**Verifica**: per le 61 run del 26-10, ogni indice ricalcolato coincide con la riga del proprio `config.md` (tolleranza 1% / 5e-4, `—` ↔ vuoto); per le 151, il file per cluster ricalcolato coincide con il vecchio `silhouette_per_cluster.csv`. Zero errori, zero file `.tmp`.
+
+**Conseguenza ancora vera oggi**: i `config.md` delle run precedenti al 28-10 conservano ancora gli indici nella sezione Summary (e `Clusters found`), le run nuove no: la fonte unica dei numeri è `production_results.csv`.
+
+---
+
+## 28-10-26 — `dbcv_per_cluster.csv` e `dbcv_plot.png` scritti in 83 produzioni hdbscan / hdbscan_soft che non li avevano
+
+**Cosa è cambiato**: in 83 cartelle sotto `results/{lesion,sdc}/clustering/production/{hdbscan,hdbscan_soft}/` (63 `hdbscan`, 20 `hdbscan_soft`) sono stati aggiunti `dbcv_per_cluster.csv` (colonne `cluster`, `n`, `dbcv`) e `dbcv_plot.png`, 166 file in tutto. Nient'altro è stato toccato: `config.md` (senza la riga `DBCV:`), `cluster_plot.png`, `matrix.npy`, `metadata.csv`, `membership.npy` sono invariati. Restano senza i due file: le 32 cartelle con 0 o 1 cluster (16 `hdbscan`, 16 `hdbscan_soft`; la pipeline non li scrive in quel caso) e 2 cartelle `hdbscan` del 10-09, escluse come per agglomerative. Totali oggi: `hdbscan` 63 su 81, `hdbscan_soft` 20 su 36.
+
+**Perché**: il codice del DBCV in produzione è del 22-10-26 (commit `a91c300`); tutte le produzioni precedenti non lo hanno mai avuto. Le produzioni non si rigenerano: i file sono stati calcolati da `matrix.npy` e `cluster_label` di ciascuna run con le stesse funzioni della produzione (`run_dbcv` per i numeri, `_write_dbcv_per_cluster` per CSV e figura, titolo da `compose_cluster_plot_title`), da uno script nello scratchpad, senza toccare `src/`. Distanza euclidea, la sola in cui il DBCV è definito. Scrittura in una cartella temporanea dentro la run e spostamento dei due file, mai sopra file esistenti; il calcolo di tutte le run e il confronto con il tuning precedono la prima scrittura (un solo scarto oltre 1e-6 avrebbe fermato tutto).
+
+**Verifica**: il DBCV della run è stato confrontato con la colonna `dbcv` del tuning sulla stessa matrice e stessa combinazione di parametri (`min_cluster_size`, `min_samples`, e `cluster_selection_method` per le soft): 78 run confrontate, differenza massima 8,3e-17. Cinque run `hdbscan` della lesione (01-09: `mcs20_ms10`, `mcs15_ms5`; 03-09: `mcs100_ms20`, `mcs200_ms5`, `mcs75_ms20`) non hanno un tuning con colonna `dbcv` sulla stessa matrice e non sono confrontate.
+
+**Conseguenza ancora vera oggi**: `config.md` di queste 83 run non ha la riga `DBCV: x (euclidean)`, che le produzioni nuove scrivono; il valore della run sta solo nell'app (calcolato dal vivo) e nel `dbcv_plot.png`. L'app non legge i due file.
+
+---
+
+## 27-10-26 — `silhouette_per_cluster.csv` scritto in 90 produzioni agglomerative che non lo avevano
+
+**Cosa è cambiato**: in 90 cartelle sotto `results/{lesion,sdc}/clustering/production/agglomerative/` è stato aggiunto `silhouette_per_cluster.csv` (colonne `cluster`, `n`, `silhouette_mean`, `share_negative`, lo stesso formato delle 26-10). Cartelle per data: lesione 01-09 (3), 03-09 (3), 12-10 (23); sdc 30-09 (7), 14-10 (7), 16-10 (14), 18-10 (2), 19-10 (31). Nient'altro è stato toccato: `config.md`, `silhouette_plot.png`, `cluster_plot.png`, `matrix.npy` e `metadata.csv` sono invariati. Restano senza CSV le 5 cartelle del 10-09 (sdc, `umap`, `s2.2-vol`), escluse su richiesta dell'utente; le 61 del 26-10 lo avevano già. Totale oggi: 151 CSV su 156 cartelle.
+
+**Perché**: il file lo scrive `clustering.py` dal commit `43a0ac4` (21-10-26); le produzioni precedenti non lo hanno mai avuto. Le produzioni non si rigenerano (regola in vigore): il CSV è stato calcolato dalla `matrix.npy` e dalla colonna `cluster_label` di `metadata.csv` di ciascuna run, con le stesse funzioni della produzione (`compute_silhouette_samples`, `silhouette_breakdown`), da uno script temporaneo nello scratchpad, senza toccare `src/`. Scrittura via file temporaneo e rinomina, mai sopra un file esistente.
+
+**Distanza**: quella della run (`metric` dei `Params used` di `config.md`; euclidea dove manca, 6 run del 01-09 e 03-09, il cui nome dice `mk_euclidean`). Scartata la distanza sempre euclidea: coinciderebbe con la figura vecchia ma non con la distanza con cui agglomerative ha formato i cluster. Scelta dell'utente.
+
+**Verifica**: lo stesso script ha ricalcolato le 61 run del 26-10 e confrontato con i loro CSV: differenza massima 2,96e-8. Sulla PCA 19-10 nc12 k3 la media pesata del CSV è 0,382, uguale al valore stampato in `silhouette_plot.png`.
+
+**Conseguenza ancora vera oggi**: per le 31 run con `metric=cosine` (24 del 19-10, 7 del 14-10) il CSV è in distanza coseno, mentre la loro `silhouette_plot.png` precede il commit `43a0ac4` ed è calcolata in euclidea: la media del CSV non coincide con la media scritta in quella figura. Per le altre 59 coincidono. Il `config.md` di queste 90 run non ha le righe degli indici (le hanno solo le 26-10).
+
+---
+
+## 27-10-26 — `config.md` di 16 tuning agglomerative: aggiunta la riga `Evaluations applied`
+
+**Cosa è cambiato**: in 16 `config.md` sotto `results/{lesion,sdc}/clustering/tuning/agglomerative/` (le 16 cartelle con `report.md`: lesione `08-10_s1.4-vol_m_{dice,euclidean}_nc{2,3,10}`, sdc `pca/` 17-10 nc30 e nc42, 18-10 nc12 e nc2, 19-10 nc12_varimax e nc2_varimax, `raw/09-10_s2.4-stream`, `umap/16-10_s2.4-vol_m_euclidean_nc{2,3,10}`) è stata inserita nel `## Summary`, subito dopo `Metrics:`, una riga:
+
+`Evaluations applied: ['k_curves', 'cophenetic_correlation', 'dendrogram_jump', 'linkage_agreement', 'largest_cluster_share', 'dunn_index']`
+
+Nient'altro è cambiato: il blocco JSON e la riga `Metrics:` sono intatti. Le 12 cartelle senza report e le cartelle `hdbscan`/`hdbscan_soft` non sono state toccate.
+
+**Perché**: le 28 `config.md` precedono i campi che `clustering.py` scrive oggi (`tuning_evaluations`, `Evaluations applied`), quindi non dicevano quali valutazioni fossero girate. L'elenco è **dedotto dai log**, non letto dalla run: `logs/evaluate_clustering_tuning/` del 23-10-26, un log per cartella, stesse 6 valutazioni nello stesso ordine in tutte e 16. Scelta dell'utente: riscrittura a mano, scartate "lasciare com'è" (raccomandata) e "rilanciare `evaluate_clustering_tuning` con `overwrite: true`" (circa 48 minuti, non è chiaro se riscrive `config.md`). Non aggiunti `evaluations_file` e `write_report` al JSON: il valore di `evaluations_file` non è nei log e andava indovinato.
+
+**Conseguenza ancora vera oggi**: la riga è la lista delle valutazioni del 23-10-26, non scritta dalla pipeline. La valutazione `dendrograms` non è in elenco perché non è mai girata: i `dendrogram_metric=<metric>.png` di queste cartelle sono quelli dello sweep. In `hdbscan`/`hdbscan_soft` la riga `Metrics:` dei `config.md` esistenti elenca ancora `silhouette`, `calinski_harabasz` e `davies_bouldin`, che non sono più colonne del CSV (il codice oggi scrive `noise_fraction`, `n_clusters_found`, e per `hdbscan_soft` anche `membership_mean`, `persistence_mean`).
+
+---
+
 ## 16-10-26 — `lesion_matrix/07-10_s1.4-vol` e `sdc_matrix/07-10_s2.4-vol`: righe riordinate alfabeticamente per dataset
 
 **Cosa è cambiato**: in `matrix.npy` e `metadata.csv` di entrambe le matrici le 5845 righe sono passate dall'ordine dei dataset del config (WashU, PASPORT, PSP, UKLFR, UCL-UK, WAKEUP, NEMESIS_T0, SFB936) all'ordine alfabetico per nome del dataset (UCL-UK, SFB936, WAKEUP, UKLFR, NEMESIS_T0, PASPORT, PSP, WashU), poi `subject_id`. Nessun valore è cambiato: è una permutazione delle righe (la colonna `lesion_volume_voxels` del lesion `metadata.csv` si è mossa con la sua riga). `non_constant_mask.npy`, `manifest.json` e `config.md` sono invariati.

@@ -6,6 +6,22 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 28-10-26 — Produzione di clustering: `production_results.csv` e `production_results_per_cluster.csv`, `config.md` solo parametri
+
+**Cosa è cambiato** (`src/pipeline/clustering.py`, nuovo `src/analysis/production_results.py`): una run di produzione di `agglomerative`, `hdbscan` e `hdbscan_soft` scrive due tabelle accanto a `matrix.npy`.
+- `production_results.csv`: colonne `metric`, `value`, `note`, una riga per misura. Agglomerative: `silhouette`, `calinski_harabasz`, `davies_bouldin`, `dunn`, `largest_cluster_share`, `cophenetic_correlation`, `dendrogram_jump`. hdbscan: `n_clusters_found`, `noise_fraction`, `largest_cluster_share`, `dbcv`, `membership_mean`. hdbscan_soft: le stesse più `persistence_mean`. Una misura non definita ha `value` vuoto e il motivo in `note` (`Euclidean distance only`, `not defined: ...`, `no cluster: every subject is noise`).
+- `production_results_per_cluster.csv`: una riga per cluster. Agglomerative `cluster, n, silhouette_mean, share_negative`; hdbscan `cluster, n, dbcv, membership_mean`; hdbscan_soft in più `persistence`. Sostituisce `silhouette_per_cluster.csv` e `dbcv_per_cluster.csv`, che il codice non scrive più.
+- `metadata.csv` di `hdbscan` ha la colonna `membership_own` (come `hdbscan_soft`).
+- `config.md` contiene solo i parametri di partenza (JSON, `Matrix shape`, `Params used`): via `Clusters found`, la riga `DBCV` e gli indici di agglomerative. I metodi senza file di risultati (kmeans, gmm, spectral, adp) tengono `Clusters found`.
+- Il calcolo sta in un solo modulo, riusato da produzione e dal backfill delle run già scritte.
+- `noise_fraction` non è più una colonna dello sweep di agglomerative (valeva sempre 0 nelle 28 cartelle); `compute_clustering_metrics_metric_aware` non la restituisce più.
+
+**Perché**: i risultati stavano in tre posti (testo di `config.md`, file per cluster con nomi e colonne diversi, solo l'app), e `config.md` doveva descrivere solo ciò con cui la run è entrata. Un nome per tabella, in coppia con `tuning_results.csv`. Scelte dell'utente.
+
+**Scartato**: tenere `silhouette_per_cluster.csv` / `dbcv_per_cluster.csv` aggiungendo colonne (un file che si chiama «dbcv» con dentro probabilità e persistenza); un `clustering_evaluation.csv` come nome (il nome dice meno di `production_results.csv`).
+
+**Conseguenze ancora vere oggi**: le run già scritte non hanno ancora `production_results*.csv` (backfill da fare); hanno ancora i vecchi file per cluster e le righe di risultato nel `config.md`. Le 28 `tuning_results.csv` di agglomerative hanno ancora la colonna `noise_fraction`. L'app Dash non legge né `config.md` né queste tabelle: calcola dal vivo.
+
 ## 28-10-26 — Run di spectral, kmeans, gmm e adp spostate in `results/legacy/`
 
 Per scelta dell'utente, le cartelle dei quattro metodi sono state spostate (non cancellate) sotto `results/legacy/clustering_spectral_kmeans_gmm_adp_28-10-26/`, con lo stesso albero di `results/`: `{lesion,sdc}/clustering/{production,tuning}/{spectral,kmeans,gmm,adp}/`. Sono 16 cartelle di metodo, 25 GB (di cui `adp` quasi tutto: 4,8 GB lesione + 20 GB SDC in produzione), con 54 cartelle di run di produzione e 37 di tuning. Ogni cartella di metodo è stata spostata intera, compresi `runs.csv`/`runs_tuning.csv`: in `results/` non restano righe con `output` che punta a un percorso inesistente (`lessons_learned.md` #24). Per ripristinare basta una `mv`/`cp -R` inversa.

@@ -143,7 +143,7 @@ Una combinazione senza nessun cluster (tutto rumore) ha queste due colonne a `Na
 
 **Tempi** (5845 soggetti): circa 30-55 secondi per 56 combinazioni su un embedding UMAP; circa 3 minuti sulla matrice grezza a 87 colonne.
 
-**Tuning**: i vettori soft entrano solo come le due colonne riassuntive, la matrice non viene salvata. **Produzione**: oltre a `matrix.npy` e `metadata.csv` (con `cluster_label`), la run salva `membership.npy` (soggetti × cluster; il numero di colonne è il numero di cluster, nessuna colonna se tutti i soggetti sono rumore) e la colonna `membership_own` in `metadata.csv`, la probabilità del soggetto nel proprio cluster (vuota per il rumore, che non ha un cluster proprio). In `cluster_plot.png` la dimensione dei marker segue `membership_own`. Si leggono nel pannello "Clustering evaluation" dell'app Dash (`docs/guides/embedding_app.md`).
+**Tuning**: i vettori soft entrano solo come le due colonne riassuntive, la matrice non viene salvata. **Produzione**: oltre a `matrix.npy` e `metadata.csv` (con `cluster_label`), la run salva `membership.npy` (soggetti × cluster; il numero di colonne è il numero di cluster, nessuna colonna se tutti i soggetti sono rumore) e la colonna `membership_own` in `metadata.csv`, la probabilità del soggetto nel proprio cluster (vuota per il rumore, che non ha un cluster proprio). In `cluster_plot.png` la dimensione dei marker segue `membership_own`. La stabilità di ogni cluster (`cluster_persistence_` del modello) e la sua media stanno in `production_results_per_cluster.csv` e `production_results.csv` (vedi "Se in Produzione"). Si leggono nel pannello "Clustering evaluation" dell'app Dash (`docs/guides/embedding_app.md`).
 
 ---
 
@@ -213,7 +213,7 @@ Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorat
 
 - Le metriche geometriche (`compute_clustering_metrics`) rifiutano `dice`/`jaccard`: assumono distanza euclidea. Per ADP si legge la `silhouette` del tuning, che usa la distanza giusta.
 
-- La silhouette di produzione (`silhouette_plot.png` e, per agglomerative, `silhouette_per_cluster.csv` e la riga di `config.md`) usa la distanza della run: la `metric` per agglomerative e ADP, euclidea per ogni altro metodo. Una media non si confronta tra distanze diverse.
+- La silhouette di produzione (`silhouette_plot.png` e, per agglomerative, `production_results.csv` e `production_results_per_cluster.csv`) usa la distanza della run: la `metric` per agglomerative e ADP, euclidea per ogni altro metodo. Una media non si confronta tra distanze diverse.
 
 - `cluster_plot.png` ha bisogno di un `viz_embedding_path` (la matrice grezza ha più di 3 colonne). L'UMAP di produzione è `euclidean`, ADP clusterizza con `dice`: le due viste non condividono la metrica.
 
@@ -255,14 +255,34 @@ A seconda della modalità, vengono generati risultati diversi. **Produzione e tu
 
 ### Se in "Produzione" (`production/<metodo>/<reduction_method>/`, es. `production/kmeans/umap/` o `production/hdbscan/umap/`)
 1. **`matrix.npy`**: Copia della matrice di partenza.
-2. **`metadata.csv`**: File arricchito con la colonna **`cluster_label`**.
+2. **`metadata.csv`**: File arricchito con la colonna **`cluster_label`** (rumore = -1) e, per hdbscan e hdbscan_soft, con **`membership_own`**: la probabilità del soggetto di appartenere al proprio cluster (`probabilities_` per hdbscan, la matrice soft per hdbscan_soft), vuota per il rumore, che non ha un cluster. Le due probabilità vengono da implementazioni diverse e non si confrontano.
 3. **`cluster_plot.png`**: Grafico 2D/3D statico colorato per cluster (titolo `"<Modality> - <ReductionMethod> - <ClusteringMethod>"`, es. `"Lesions - Umap - Kmeans"`). Nessuna versione `.html` per-run — la vista interattiva di un singolo run vive in `src.pipeline.embedding_app` (vedi `docs/guides/embedding_app.md`), che legge questo stesso `matrix.npy`/`metadata.csv` senza bisogno di un file HTML da rigenerare.
 4. **`silhouette_plot.png`** (non per hdbscan e hdbscan_soft): un pannello per cluster con la silhouette di ogni soggetto (da -1 a 1, dal più alto in alto), la linea rossa tratteggiata sulla media e, a destra, lo scatter dei cluster. Il titolo riporta la *Average silhouette coefficient* (la media sui soggetti, rumore escluso) e la distanza con cui è misurata. L'altezza di un pannello segue la dimensione del cluster, con un minimo del 5% dell'altezza totale perché il nome di un cluster piccolo resti leggibile (i pannelli dei cluster più piccoli non sono quindi proporzionali).
-5. **`silhouette_per_cluster.csv`** (solo agglomerative): una riga per cluster con `cluster`, `n` (soggetti), `silhouette_mean` (media del cluster) e `share_negative` (quota dei soggetti con silhouette negativa). La media sui soggetti, pesata per `n`, è la *Average silhouette coefficient* del titolo del plot e della riga `Average silhouette coefficient: 0.452 (euclidean)` che agglomerative scrive in `Summary` di `config.md`. Una run con meno di 2 cluster non ha silhouette: niente plot, tabella e riga, e un warning nel log.
+5. **`production_results.csv`** (agglomerative, hdbscan, hdbscan_soft): i numeri della run, una riga per misura, con le colonne `metric`, `value` e `note`. Una misura non definita per la run ha `value` vuoto e il motivo in `note`, mai un numero inventato. Le funzioni sono quelle del tuning e dell'app (`src/analysis/production_results.py`).
 
-   Nel `Summary` di `config.md` agglomerative scrive anche, con le stesse funzioni dell'app (`geometric_summary`, `model_fit_metrics`): `Largest cluster` (quota dei soggetti nel cluster più grande), `Calinski-Harabasz`, `Davies-Bouldin`, `Dunn`, `Cophenetic correlation` e `Dendrogram jump (k=<k della run>)`. Calinski-Harabasz, Davies-Bouldin e Dunn valgono solo con la distanza euclidea: per una run con un'altra `metric` la riga dice `— (Euclidean distance only)` e la silhouette resta, misurata nella distanza della run. Con meno di 2 cluster nessuna di queste righe viene scritta.
+   | Metodo | Righe (`metric`) |
+   |---|---|
+   | agglomerative | `silhouette` (nella distanza della run), `calinski_harabasz`, `davies_bouldin`, `dunn`, `largest_cluster_share`, `cophenetic_correlation`, `dendrogram_jump` (al k della run) |
+   | hdbscan | `n_clusters_found`, `noise_fraction`, `largest_cluster_share`, `dbcv`, `membership_mean` |
+   | hdbscan_soft | come hdbscan, più `persistence_mean` |
 
-6. **`dbcv_per_cluster.csv`** e **`dbcv_plot.png`** (solo hdbscan e hdbscan_soft, con almeno 2 cluster): una riga per cluster con `cluster`, `n` (soggetti) e `dbcv` (il suo indice), e il grafico a barre corrispondente con una linea tratteggiata sul DBCV della run. Il DBCV della run è anche la riga `DBCV: 0.054 (euclidean)` di `config.md` (`DBCV: not defined: fewer than 2 clusters` se i cluster sono meno di 2). Il valore della run non è la media delle barre: ogni cluster pesa per la sua quota di tutti i soggetti, rumore compreso.
+   - **Calinski-Harabasz, Davies-Bouldin e Dunn** valgono solo con la distanza euclidea: con un'altra `metric` hanno `value` vuoto e `note` = `Euclidean distance only`.
+   - **Cofenetica e salto** rifanno l'albero con i parametri della run e valgono solo se riproduce le etichette salvate; altrimenti `value` è vuoto e la `note` dice il motivo.
+   - **Meno di 2 cluster**: `dbcv` (e le misure geometriche di agglomerative) sono vuote con il motivo; le altre righe restano.
+   - **Nessun cluster** (tutti i soggetti rumore): `largest_cluster_share`, `membership_mean` e `persistence_mean` sono vuote, `note` = `no cluster: every subject is noise`.
+   - **`membership_mean`** è la media di `membership_own` sui soggetti non rumore; **`persistence_mean`** la media semplice, sui cluster, di `cluster_persistence_`. Un valore per tutta la run.
+   - **`n_clusters` non c'è per agglomerative**: è il parametro `n_clusters`.
+6. **`production_results_per_cluster.csv`** (agglomerative, hdbscan, hdbscan_soft): una riga per cluster, rumore escluso.
+
+   | Metodo | Colonne |
+   |---|---|
+   | agglomerative | `cluster`, `n`, `silhouette_mean`, `share_negative` (quota dei soggetti con silhouette negativa) |
+   | hdbscan | `cluster`, `n`, `dbcv`, `membership_mean` |
+   | hdbscan_soft | `cluster`, `n`, `dbcv`, `membership_mean`, `persistence` (`cluster_persistence_`, da 0 a 1: una per cluster, nell'ordine delle etichette 0..k-1) |
+
+   La media sui soggetti di `silhouette_mean`, pesata per `n`, è la riga `silhouette` di `production_results.csv`. Il `dbcv` della run non è la media dei `dbcv` per cluster: ogni cluster pesa per la sua quota di tutti i soggetti, rumore compreso.
+7. **`dbcv_plot.png`** (solo hdbscan e hdbscan_soft, con almeno 2 cluster): le barre del `dbcv` di ogni cluster, con una linea tratteggiata sul DBCV della run.
+8. **`config.md`**: solo ciò con cui la run è partita (JSON dei parametri, `Matrix shape`, `Params used`); i risultati stanno nei due file sopra. I metodi che non hanno ancora un file di risultati (kmeans, gmm, spectral, adp) tengono in più la riga `Clusters found`.
 
 Nessuna cartella `production/comparison/` — non esiste un plot di confronto cross-metodo generato dalla pipeline: per confrontare più metodi si aprono i `cluster_plot.png` di ciascuno, o si usa `embedding_app.py` (un run alla volta).
 

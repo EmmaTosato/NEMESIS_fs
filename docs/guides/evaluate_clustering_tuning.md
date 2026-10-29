@@ -94,7 +94,7 @@ Nella cartella della run (rilanciare la pipeline del tuning con `overwrite: true
 
 Ogni lancio scrive un log in `logs/evaluate_clustering_tuning/`.
 
-La silhouette per cluster (soggetti, media e quota negativa di ogni cluster) non è una valutazione del tuning: serve a guardare una run scelta, quindi sta nella produzione (`silhouette_per_cluster.csv`, `silhouette_plot.png`) e nell'Embedding Explorer. Nel tuning resta la silhouette media sui soggetti.
+La silhouette per cluster (soggetti, media e quota negativa di ogni cluster) non è una valutazione del tuning: serve a guardare una run scelta, quindi sta nella produzione (`production_results_per_cluster.csv`, `silhouette_plot.png`) e nell'Embedding Explorer. Nel tuning resta la silhouette media sui soggetti.
 
 ---
 
