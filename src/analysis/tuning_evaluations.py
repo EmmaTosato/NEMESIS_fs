@@ -140,7 +140,8 @@ def _run_plot_hdbscan(run: TuningRun, settings: dict, overwrite: bool) -> list[P
     components), drawn on its 2D twin: one grid PNG plus one results CSV per nested leaf (one
     folder per nested-parameter value, the same layout embeddings_grid_*.png uses). Files carry
     the HDBSCAN settings in their name, so re-running with other settings adds files instead of
-    replacing them.
+    replacing them. Every target is checked before the first write, so a refusal never leaves a
+    run with only some of its leaves written.
     """
     hdbscan_params = {name: settings[name] for name in _HDBSCAN_SETTINGS}
     tag = f"mcs{settings['min_cluster_size']}_ms{settings['min_samples']}"
@@ -148,15 +149,17 @@ def _run_plot_hdbscan(run: TuningRun, settings: dict, overwrite: bool) -> list[P
     free_params = [name for name in keys if name not in run.nested_params]
     viz_keys = {key: visualization_key(key, emb.shape[1], run.embeddings) for key, emb in run.embeddings.items()}
 
-    written: list[Path] = []
+    targets = []
     for leaf_values in itertools.product(*(run.tuning_grid[name] for name in run.nested_params)):
         leaf = dict(zip(run.nested_params, leaf_values))
         directory = leaf_dir(run.run_dir, run.nested_params, leaf)
-        png_path, csv_path = directory / f"hdbscan_grid_{tag}.png", directory / f"hdbscan_results_{tag}.csv"
-        existing = [p for p in (png_path, csv_path) if p.exists()]
-        if existing and not overwrite:
-            raise FileExistsError(f"{existing} already exist - set overwrite=true to replace them")
+        targets.append((leaf, directory, directory / f"hdbscan_grid_{tag}.png", directory / f"hdbscan_results_{tag}.csv"))
+    existing = [p for _, _, png_path, csv_path in targets for p in (png_path, csv_path) if p.exists()]
+    if existing and not overwrite:
+        raise FileExistsError(f"{existing} already exist - set overwrite=true to replace them")
 
+    written: list[Path] = []
+    for leaf, directory, png_path, csv_path in targets:
         cells, rows = [], []
         for free_values in itertools.product(*(run.tuning_grid[name] for name in free_params)):
             values = {**leaf, **dict(zip(free_params, free_values))}

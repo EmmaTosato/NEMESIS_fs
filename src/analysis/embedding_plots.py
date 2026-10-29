@@ -22,6 +22,17 @@ from src.analysis.plotting import (
     plot_embedding_grid_blocks,
 )
 
+# The errors a single plot may end with without it being a bug: a file that cannot be written
+# (OSError) and data the coloring mode cannot use (ValueError, e.g. a column absent from the
+# metadata). Only these are logged and skipped, so one bad mode does not cost the others; any
+# other exception is a programming error and stops the run (code_standards.md §0).
+_EXPECTED_PLOT_ERRORS = (OSError, ValueError)
+
+
+def _log_unwritten(failed: list[str], total: int) -> None:
+    if failed:
+        logging.warning("%d of %d embedding plot(s) not written: %s", len(failed), total, ", ".join(failed))
+
 
 def write_embedding_plots(
     embedding: np.ndarray,
@@ -44,8 +55,9 @@ def write_embedding_plots(
     (docs/guides/embedding_app.md, see docs/dev/plotting.md for why no
     static 3D rendering exists here).
 
-    Each static output is wrapped in its own try/except (broad Exception,
-    logged as WARNING) - one bad coloring mode must not abort the whole run.
+    Each static output is wrapped in its own try/except for `_EXPECTED_PLOT_ERRORS` (logged
+    as WARNING, with a final count of the plots not written) - one bad coloring mode must not
+    abort the whole run. Any other exception propagates.
     """
     n_dims = embedding.shape[1]
     if n_dims not in (2, 3):
@@ -58,10 +70,12 @@ def write_embedding_plots(
         # module (see docstring) - nothing left to compute color_by values for.
         return
 
+    failed: list[str] = []
     try:
         plot_embedding_2d(embedding, output_dir / f"{file_prefix}_unico.png", xlabel, ylabel, title_fn(None))
-    except Exception as exc:
+    except _EXPECTED_PLOT_ERRORS as exc:
         logging.warning("failed to generate 'unico' embedding plot: %s", exc)
+        failed.append("unico")
 
     for name in color_by:
         mode = resolve_color_mode(name)
@@ -69,8 +83,9 @@ def write_embedding_plots(
 
         try:
             values = color_values(metadata, name)
-        except Exception as exc:
+        except _EXPECTED_PLOT_ERRORS as exc:
             logging.warning("failed to read values for color_by mode %r: %s", name, exc)
+            failed.append(name)
             continue
 
         static_path = output_dir / f"{file_prefix}_{name}.png"
@@ -85,8 +100,11 @@ def write_embedding_plots(
                     embedding, values, static_path, xlabel, ylabel, title,
                     colorbar_label=mode.label, log_scale=mode.log_scale,
                 )
-        except Exception as exc:
+        except _EXPECTED_PLOT_ERRORS as exc:
             logging.warning("failed to generate %r embedding plot: %s", name, exc)
+            failed.append(name)
+
+    _log_unwritten(failed, 1 + len(color_by))
 
 
 def write_embedding_grid(
@@ -108,12 +126,15 @@ def write_embedding_grid(
     parameter held at its base/production value) - this function only
     decides which color to render each block set in, same registry/failure
     handling as write_embedding_plots (one bad coloring mode logged as
-    WARNING, does not abort the others).
+    WARNING with a final count, does not abort the others; any exception outside
+    `_EXPECTED_PLOT_ERRORS` propagates).
     """
+    failed: list[str] = []
     try:
         plot_embedding_grid_blocks(blocks, output_dir / f"{file_prefix}_unico.png", xlabel, ylabel, title_fn(None))
-    except Exception as exc:
+    except _EXPECTED_PLOT_ERRORS as exc:
         logging.warning("failed to generate 'unico' embedding grid: %s", exc)
+        failed.append("unico")
 
     for name in color_by:
         mode = resolve_color_mode(name)
@@ -131,5 +152,8 @@ def write_embedding_grid(
                 log_scale=mode.log_scale,
                 category_order=mode.categories,
             )
-        except Exception as exc:
+        except _EXPECTED_PLOT_ERRORS as exc:
             logging.warning("failed to generate %r embedding grid: %s", name, exc)
+            failed.append(name)
+
+    _log_unwritten(failed, 1 + len(color_by))

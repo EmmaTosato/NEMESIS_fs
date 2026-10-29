@@ -70,6 +70,14 @@ def test_replot_overwrites_existing_plots_in_place(tmp_path):
     assert (run / "embedding_plot_unico.png").read_bytes().startswith(b"\x89PNG")
 
 
+def test_main_logs_the_run_duration_even_when_the_run_is_missing(tmp_path, caplog):
+    import logging
+
+    with caplog.at_level(logging.INFO):
+        assert replot.main(["--run-dir", str(tmp_path / "nowhere")]) == 1
+    assert "run duration:" in caplog.text
+
+
 @pytest.mark.parametrize("missing", ["absent_dir", "no_manifest"])
 def test_main_missing_run_returns_1_with_a_readable_message(tmp_path, capsys, missing):
     run = tmp_path / "nowhere"

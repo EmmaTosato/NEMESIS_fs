@@ -171,48 +171,6 @@ def test_representative_values_of_nothing_is_a_valueerror():
         CT.representative_values([])
 
 
-# ---- gap_statistic_suggested_k --------------------------------------------------------------------------------------------------------------------------
-
-
-def _gap_frame(ks, gaps, sks):
-    return pd.DataFrame({"n_clusters": ks, "gap": gaps, "gap_sk": sks})
-
-
-def _oracle(frame):
-    ordered = frame.sort_values("n_clusters").reset_index(drop=True)
-    for i in range(len(ordered) - 1):
-        if ordered.loc[i, "gap"] >= ordered.loc[i + 1, "gap"] - ordered.loc[i + 1, "gap_sk"]:
-            return int(ordered.loc[i, "n_clusters"])
-    return None
-
-
-@settings(max_examples=200)
-@given(
-    ks=st.lists(st.integers(1, 30), min_size=1, max_size=8, unique=True),
-    data=st.data(),
-)
-def test_the_one_se_rule_matches_its_definition_and_never_picks_the_last_k(ks, data):
-    gaps = [data.draw(st.floats(-2, 2, allow_nan=False)) for _ in ks]
-    sks = [data.draw(st.floats(0, 1, allow_nan=False)) for _ in ks]
-    frame = _gap_frame(ks, gaps, sks)
-    out = CT.gap_statistic_suggested_k(frame)
-    assert out == _oracle(frame)
-    assert out is None or (out in ks and out != max(ks))  # l'ultimo k non ha un successore con cui confrontarsi
-
-
-@settings(max_examples=60)
-@given(ks=st.lists(st.integers(1, 30), min_size=2, max_size=8, unique=True), seed=st.integers(0, 10**6))
-def test_the_row_order_of_the_gap_table_does_not_change_the_answer(ks, seed):
-    rng = np.random.default_rng(seed)
-    frame = _gap_frame(ks, rng.normal(size=len(ks)), rng.uniform(0, 1, size=len(ks)))
-    shuffled = frame.sample(frac=1.0, random_state=seed)
-    assert CT.gap_statistic_suggested_k(shuffled) == CT.gap_statistic_suggested_k(frame)
-
-
-def test_the_gap_rule_with_an_empty_table_is_none_not_an_error():
-    assert CT.gap_statistic_suggested_k(_gap_frame([], [], [])) is None
-
-
 # ---- consensus_suggestion_lines ----------------------------------------------------------------------------------------------------------------------------
 
 

@@ -160,6 +160,8 @@ def test_existing_outputs_without_overwrite_return_1_and_are_not_replaced(run, c
         assert pipeline.main(_cfg(run)) == 1
     assert "tuning evaluation failed" in caplog.text
     assert csv.read_text() == "sentinel\n"
+    failure = next(r for r in caplog.records if "tuning evaluation failed" in r.getMessage())
+    assert failure.exc_info is None  # expected condition: the message names the cause, no stack trace
 
     assert pipeline.main(_cfg(run, overwrite=True)) == 0
     assert csv.read_text() != "sentinel\n"

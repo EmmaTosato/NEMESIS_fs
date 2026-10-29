@@ -4,6 +4,8 @@ parsing/error handling had no test coverage of its own (only
 src/analysis/understanding_umap_report.py's underlying functions were tested).
 """
 
+import logging
+
 import numpy as np
 import pandas as pd
 
@@ -69,6 +71,17 @@ def test_main_writes_report_and_returns_0(tmp_path):
 
     assert exit_code == 0
     assert (umap_dir / "understanding_umap_dice.html").is_file()
+
+
+def test_main_logs_the_run_duration_on_success_and_on_error(tmp_path, caplog):
+    umap_dir = _write_umap_tuning_dir(tmp_path / "umap")
+    tsne_dir = _write_tsne_tuning_dir(tmp_path / "tsne")
+    with caplog.at_level(logging.INFO):
+        assert pipeline.main(["--umap-tuning-dir", str(umap_dir), "--tsne-tuning-dir", str(tsne_dir)]) == 0
+        assert "run duration:" in caplog.text
+        caplog.clear()
+        assert pipeline.main(["--umap-tuning-dir", str(tmp_path / "absent"), "--tsne-tuning-dir", str(tsne_dir)]) == 1
+        assert "run duration:" in caplog.text
 
 
 def test_main_missing_umap_dir_returns_1_not_raw_traceback(tmp_path):

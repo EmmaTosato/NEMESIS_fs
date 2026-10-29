@@ -55,15 +55,8 @@ _CATEGORICAL_PALETTE = [
 _NOISE_COLOR = "#9e9d98"
 
 # Shared between plot_clusters_2d (single method) and plot_silhouette_analysis
-# (scatter panel). Was 18/opaque/no declutter - same overplotting problem
-# already fixed for the embedding plots (see _EMBEDDING_MARKER_SIZE below)
-# was flagged there as "plausible here too, out of scope for that fix" and
-# hit in practice 01-09-26 on HDBSCAN production plots (1150+ subjects,
-# small markers overlapping into a blob) - same fix applied here now:
-# smaller size, light transparency, _declutter_points. Was also applied to
-# plot_clusters_comparison before that function was removed (01-09-26,
-# see plot_clusters_2d's docstring below - the comparison plot was
-# dropped entirely, not just this fix).
+# (scatter panel). Small, semi-transparent markers plus _declutter_points: with
+# 1000+ subjects larger opaque markers overlap into a blob.
 _MARKER_SIZE = 6
 _MARKER_ALPHA = 0.9
 _AXIS_PADDING_FRACTION = 0.08

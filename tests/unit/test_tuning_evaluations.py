@@ -202,6 +202,22 @@ def test_plot_hdbscan_refuses_to_replace_existing_files_unless_overwrite(tmp_pat
     run_embedding_evaluations({"plot_hdbscan": HDBSCAN_SETTINGS}, run, overwrite=True)
 
 
+def test_plot_hdbscan_refusal_writes_nothing_even_when_only_a_later_leaf_is_occupied(tmp_path):
+    """The occupied leaf comes after free ones: the check covers every leaf before the first write,
+    so the run is never left with only some of its leaves written."""
+    run = _run(tmp_path)
+    occupied = tmp_path / "metric=euclidean/n_components=4"
+    occupied.mkdir(parents=True)
+    (occupied / "hdbscan_results_mcs10_ms3.csv").write_text("sentinel\n")
+
+    with pytest.raises(FileExistsError, match="overwrite=true"):
+        run_embedding_evaluations({"plot_hdbscan": HDBSCAN_SETTINGS}, run, overwrite=False)
+
+    assert not (tmp_path / "metric=euclidean/n_components=2/hdbscan_grid_mcs10_ms3.png").exists()
+    assert not (tmp_path / "metric=euclidean/n_components=2/hdbscan_results_mcs10_ms3.csv").exists()
+    assert (occupied / "hdbscan_results_mcs10_ms3.csv").read_text() == "sentinel\n"
+
+
 def test_plot_hdbscan_with_other_settings_adds_files_instead_of_replacing(tmp_path):
     run = _run(tmp_path)
     other = {"min_cluster_size": 20, "min_samples": 5}

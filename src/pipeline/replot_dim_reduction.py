@@ -50,6 +50,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -65,6 +66,7 @@ from src.analysis.plotting import (
     plot_embedding_continuous,
 )
 from src.utils.artifacts import load_matrix
+from src.utils.logging_setup import log_duration
 
 CLUSTER_LABEL_COLUMN = "cluster_label"
 
@@ -170,16 +172,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--run-dir", required=True, help="Existing dim_reduction/clustering output directory")
     args = parser.parse_args(argv)
 
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     run_dir = Path(args.run_dir)
+    now = datetime.now()
     try:
-        output_paths = replot(run_dir)
-    except (FileNotFoundError, ValueError) as exc:
-        print(f"error: {exc}")
-        return 1
+        try:
+            output_paths = replot(run_dir)
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"error: {exc}")
+            return 1
 
-    for path in output_paths:
-        print(f"plot rewritten to {path}")
-    return 0
+        for path in output_paths:
+            print(f"plot rewritten to {path}")
+        return 0
+    finally:
+        log_duration(now)
 
 
 if __name__ == "__main__":

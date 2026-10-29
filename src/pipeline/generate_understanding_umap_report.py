@@ -24,9 +24,11 @@ from __future__ import annotations
 
 import argparse
 import logging
+from datetime import datetime
 from pathlib import Path
 
 from src.analysis.understanding_umap_report import generate_report
+from src.utils.logging_setup import log_duration
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -39,15 +41,19 @@ def main(argv: list[str] | None = None) -> int:
 
     umap_tuning_dir = Path(args.umap_tuning_dir)
     tsne_tuning_dir = Path(args.tsne_tuning_dir)
+    now = datetime.now()
     try:
-        output_paths = generate_report(umap_tuning_dir, tsne_tuning_dir, output_dir=umap_tuning_dir)
-    except (FileNotFoundError, ValueError) as exc:
-        logging.error(str(exc))
-        return 1
+        try:
+            output_paths = generate_report(umap_tuning_dir, tsne_tuning_dir, output_dir=umap_tuning_dir)
+        except (FileNotFoundError, ValueError) as exc:
+            logging.error(str(exc))
+            return 1
 
-    for path in output_paths:
-        logging.info("report written: %s", path)
-    return 0
+        for path in output_paths:
+            logging.info("report written: %s", path)
+        return 0
+    finally:
+        log_duration(now)
 
 
 if __name__ == "__main__":

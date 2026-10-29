@@ -42,7 +42,7 @@ carries its own chronological run history, distinct from any single run's
 own config.md (see docs/dev/config.md). fine_tuning=true's sweep can also
 persist every combination's actual embedding (not just its score) into
 <output_root>/tuning/<method>/<dd-mm>_<session_name>/embeddings.npz, plus a
-self-contained metadata.csv (same enrichment _run_production always applies),
+self-contained metadata.csv (the input's own metadata, like _run_production),
 when config.save_tuning_embeddings is true (opt-in, off by default) - so a
 later reader can plot any saved combination without reloading X or the
 participants.tsv registry.

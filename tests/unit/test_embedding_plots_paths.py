@@ -31,7 +31,7 @@ def _title(label):
 
 
 def _boom(*args, **kwargs):
-    raise RuntimeError("render exploded")
+    raise OSError("render exploded")  # a write failure: one of the errors a plot may legitimately end with
 
 
 def test_unico_failure_is_a_warning_and_color_modes_are_still_written(tmp_path, monkeypatch, caplog):
@@ -42,6 +42,27 @@ def test_unico_failure_is_a_warning_and_color_modes_are_still_written(tmp_path, 
     assert not (tmp_path / "embedding_plot_unico.png").exists()
     assert (tmp_path / "embedding_plot_dataset.png").stat().st_size > 0
     assert "failed to generate 'unico' embedding plot: render exploded" in caplog.text
+
+
+def test_an_unexpected_error_in_a_plot_stops_the_run_instead_of_being_logged_away(tmp_path, monkeypatch):
+    """A TypeError/KeyError inside a renderer is a bug, not a missing file or a bad column: it must
+    not end as a warning on a run that then looks successful."""
+    embedding, metadata = _data()
+
+    def bug(*args, **kwargs):
+        raise TypeError("renderer bug")
+
+    monkeypatch.setattr(embedding_plots, "plot_embedding_2d", bug)
+    with pytest.raises(TypeError, match="renderer bug"):
+        write_embedding_plots(embedding, metadata, ["dataset"], tmp_path, "x", "y", _title)
+
+
+def test_the_count_of_plots_not_written_is_logged(tmp_path, monkeypatch, caplog):
+    embedding, metadata = _data()
+    monkeypatch.setattr(embedding_plots, "plot_embedding_categorical", _boom)
+    with caplog.at_level(logging.WARNING):
+        write_embedding_plots(embedding, metadata, ["dataset"], tmp_path, "x", "y", _title)
+    assert "1 of 2 embedding plot(s) not written: dataset" in caplog.text
 
 
 def test_categorical_render_failure_names_the_mode_and_keeps_the_others(tmp_path, monkeypatch, caplog):
@@ -94,7 +115,7 @@ def test_grid_unico_failure_is_a_warning_and_color_grids_still_written(tmp_path,
 
     def fail_only_unico(blocks, path, *args, **kwargs):
         if path.name.endswith("_unico.png"):
-            raise RuntimeError("render exploded")
+            raise OSError("render exploded")
         return real(blocks, path, *args, **kwargs)
 
     monkeypatch.setattr(embedding_plots, "plot_embedding_grid_blocks", fail_only_unico)

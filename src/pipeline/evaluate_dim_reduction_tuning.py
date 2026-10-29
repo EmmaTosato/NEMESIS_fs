@@ -64,7 +64,10 @@ def main(argv: list[str] | None = None) -> int:
         logging.info("evaluating %s: %d combinations, nested_params=%s", run.run_dir, len(run.embeddings), run.nested_params)
         try:
             written = run_embedding_evaluations(config.tuning_evaluations, run, config.overwrite)
-        except (FileExistsError, OSError, ValueError) as exc:
+        except FileExistsError as exc:
+            logging.error("tuning evaluation failed: %s", exc)
+            return 1
+        except (OSError, ValueError) as exc:
             logging.error("tuning evaluation failed: %s", exc, exc_info=isinstance(exc, OSError))
             return 1
 
