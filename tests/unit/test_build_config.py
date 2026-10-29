@@ -284,6 +284,7 @@ def test_mask_fc_invalid_configs_raise_value_error(tmp_path, overrides, match):
 
 _BUILD_FC_MATRIX_BASE = {
     "project": "clinical_connectome",
+    "group": "ST",
     "masked_fc_root": "data/derived/features/masked_fc",
     "atlas_combos": ["Yan200TianS2Buckner7N"],
     "output_root": "data/derived/features/fc_matrix",
@@ -320,6 +321,71 @@ def test_build_fc_matrix_multiple_atlas_combos(tmp_path):
 def test_build_fc_matrix_run_notes_passthrough(tmp_path):
     config = load_build_fc_matrix_config(_write_build_fc_matrix(tmp_path, {"run_notes": "prova sweep"}))
     assert config.run_notes == "prova sweep"
+
+
+_BUILD_FC_MATRIX_HC = {
+    "project": "clinical_connectome",
+    "group": "HC",
+    "data_root": "data/clinical_connectome/derivatives",
+    "dataset": "UNIPD/WashU",
+    "fc_glob_template": "features/*/func/*_FC-pearson_atlas-{combo}.csv",
+    "atlas_combos": ["Yan200TianS2Buckner7N"],
+    "output_root": "data/derived/features/fc_matrix",
+    "session_name": "s1-hc",
+    "overwrite": False,
+}
+
+
+def _write_build_fc_matrix_hc(tmp_path, overrides=None, drop=()):
+    cfg = {k: v for k, v in {**_BUILD_FC_MATRIX_HC, **(overrides or {})}.items() if k not in drop}
+    path = tmp_path / "build_fc_matrix_hc.json"
+    path.write_text(json.dumps(cfg))
+    return path
+
+
+def test_build_fc_matrix_st_config_has_no_raw_fc_fields(tmp_path):
+    config = load_build_fc_matrix_config(_write_build_fc_matrix(tmp_path, {}))
+    assert config.group == "ST"
+    assert (config.data_root, config.dataset, config.fc_glob_template) == (None, None, None)
+
+
+def test_build_fc_matrix_hc_config_reads_the_raw_fc_source(tmp_path):
+    config = load_build_fc_matrix_config(_write_build_fc_matrix_hc(tmp_path))
+    assert config.group == "HC"
+    assert config.masked_fc_root is None
+    assert str(config.data_root) == "data/clinical_connectome/derivatives"
+    assert config.dataset == "UNIPD/WashU"
+    assert config.fc_glob_template.endswith("atlas-{combo}.csv")
+
+
+@pytest.mark.parametrize("missing", ["data_root", "dataset", "fc_glob_template"])
+def test_build_fc_matrix_hc_config_requires_each_raw_fc_field(tmp_path, missing):
+    with pytest.raises(ValueError, match=f"missing required field '{missing}'"):
+        load_build_fc_matrix_config(_write_build_fc_matrix_hc(tmp_path, drop=(missing,)))
+
+
+def test_build_fc_matrix_hc_config_rejects_masked_fc_root(tmp_path):
+    with pytest.raises(ValueError, match="'masked_fc_root' is only read by group='ST'"):
+        load_build_fc_matrix_config(_write_build_fc_matrix_hc(tmp_path, {"masked_fc_root": "m"}))
+
+
+@pytest.mark.parametrize("stray", ["data_root", "dataset", "fc_glob_template"])
+def test_build_fc_matrix_st_config_rejects_raw_fc_fields(tmp_path, stray):
+    with pytest.raises(ValueError, match="only read by group='HC'"):
+        load_build_fc_matrix_config(_write_build_fc_matrix(tmp_path, {stray: "x"}))
+
+
+@pytest.mark.parametrize("group", ["PD", "GM", "st", "ST,HC", ""])
+def test_build_fc_matrix_group_must_be_st_or_hc(tmp_path, group):
+    with pytest.raises(ValueError, match="group"):
+        load_build_fc_matrix_config(_write_build_fc_matrix(tmp_path, {"group": group}))
+
+
+def test_build_fc_matrix_group_is_required(tmp_path):
+    path = tmp_path / "cfg.json"
+    path.write_text(json.dumps({k: v for k, v in _BUILD_FC_MATRIX_BASE.items() if k != "group"}))
+    with pytest.raises(ValueError, match="missing required field 'group'"):
+        load_build_fc_matrix_config(path)
 
 
 def test_build_fc_matrix_missing_file_raises(tmp_path):

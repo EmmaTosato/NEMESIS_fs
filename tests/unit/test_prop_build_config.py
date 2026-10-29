@@ -52,7 +52,7 @@ _CASES: dict[str, tuple] = {
     ),
     "build_fc_matrix": (
         B.load_build_fc_matrix_config,
-        {"project": "p", "masked_fc_root": "m", "atlas_combos": ["c1", "c2"], "output_root": "o", "session_name": "s",
+        {"project": "p", "group": "ST", "masked_fc_root": "m", "atlas_combos": ["c1", "c2"], "output_root": "o", "session_name": "s",
          "overwrite": True, "run_notes": "n"},
         {"run_notes"},
     ),

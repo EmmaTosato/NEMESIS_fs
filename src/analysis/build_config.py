@@ -301,10 +301,22 @@ def load_mask_fc_config(path: str | Path) -> MaskFcConfig:
     )
 
 
+# Groups build_fc_matrix can build a matrix for: ST reads the lesion-masked FC that mask_fc.py wrote,
+# HC reads the raw FC (a healthy control has no lesion mask, so mask_fc.py never processes one).
+FC_MATRIX_GROUPS = ("ST", "HC")
+
+
 @dataclass(frozen=True)
 class BuildFcMatrixConfig:
     project: str
-    masked_fc_root: Path
+    # The subject group this matrix is built for, never a mix: it picks the input source.
+    group: str
+    # group="ST" only (None for "HC").
+    masked_fc_root: Path | None
+    # group="HC" only (None for "ST"): where the raw FC lives, same fields mask_fc.json uses.
+    data_root: Path | None
+    dataset: str | None
+    fc_glob_template: str | None
     atlas_combos: list[str]
     output_root: Path
     session_name: str
@@ -315,9 +327,13 @@ class BuildFcMatrixConfig:
 def load_build_fc_matrix_config(path: str | Path) -> BuildFcMatrixConfig:
     """Load and validate a build_fc_matrix.json file.
 
-    No lesion_glob, no atlas_path, no min_coverage here - this pipeline reads
-    only the already-masked CSVs mask_fc.py already wrote (masked_fc_root),
-    by design (see src/features/functional.py module docstring).
+    `group` ("ST" or "HC") is the selector of which subjects go into the matrix; the two
+    groups are never mixed in one matrix and each reads a different input, so each has
+    its own required fields (the other group's are rejected, never silently ignored):
+    - "ST": masked_fc_root - only the already-masked CSVs mask_fc.py wrote, no lesion
+      mask and no atlas touched here, by design (see src/features/functional.py).
+    - "HC": data_root, dataset, fc_glob_template - the raw FC of the healthy controls
+      (they have no lesion mask, so there is nothing for mask_fc.py to mask).
     """
     path = Path(path)
     if not path.is_file():
@@ -328,9 +344,32 @@ def load_build_fc_matrix_config(path: str | Path) -> BuildFcMatrixConfig:
     if not isinstance(raw, dict):
         raise ValueError(f"config: top-level content must be a JSON object, got {raw!r}")
 
+    group = _require_str(raw, "group")
+    if group not in FC_MATRIX_GROUPS:
+        raise ValueError(f"config: field 'group' must be one of {list(FC_MATRIX_GROUPS)}, got {group!r}")
+
+    raw_fc_fields = ("data_root", "dataset", "fc_glob_template")
+    if group == "ST":
+        stray = [key for key in raw_fc_fields if key in raw]
+        if stray:
+            raise ValueError(f"config: {stray} are only read by group='HC' (got group='ST') - remove them")
+        masked_fc_root = Path(_require_str(raw, "masked_fc_root"))
+        data_root = dataset = fc_glob_template = None
+    else:
+        if "masked_fc_root" in raw:
+            raise ValueError("config: 'masked_fc_root' is only read by group='ST' (got group='HC') - remove it")
+        masked_fc_root = None
+        data_root = Path(_require_str(raw, "data_root"))
+        dataset = _require_str(raw, "dataset")
+        fc_glob_template = _require_str(raw, "fc_glob_template")
+
     return BuildFcMatrixConfig(
         project=_require_str(raw, "project"),
-        masked_fc_root=Path(_require_str(raw, "masked_fc_root")),
+        group=group,
+        masked_fc_root=masked_fc_root,
+        data_root=data_root,
+        dataset=dataset,
+        fc_glob_template=fc_glob_template,
         atlas_combos=_require_unique_str_list(raw, "atlas_combos"),
         output_root=Path(_require_str(raw, "output_root")),
         session_name=_require_str(raw, "session_name"),

@@ -31,6 +31,7 @@ def _write_masked_fc(masked_fc_root, combo, subject, fc, dataset="siteA"):
 def _write_config(tmp_path, masked_fc_root, output_root, overrides=None):
     cfg = {
         "project": "testproj",
+        "group": "ST",
         "masked_fc_root": str(masked_fc_root),
         "atlas_combos": ["ComboX"],
         "output_root": str(output_root),
@@ -88,6 +89,58 @@ def test_build_fc_matrix_end_to_end(tmp_path, monkeypatch, caplog):
     runs_csv = (output_root / "runs.csv").read_text()
     assert "s1" in runs_csv
     assert "ComboX" in runs_csv
+
+
+def _write_raw_fc(data_root, dataset, combo, subject, fc):
+    """A raw FC file as the dataset stores it (tab-separated), under features/<subject>/func/."""
+    folder = data_root / dataset / "features" / subject / "func"
+    folder.mkdir(parents=True, exist_ok=True)
+    fc.to_csv(folder / f"{subject}_FC-pearson_atlas-{combo}.csv", sep="\t")
+
+
+def test_build_fc_matrix_hc_builds_the_healthy_controls_from_raw_fc(tmp_path, monkeypatch):
+    """The HC group has no lesion mask, so it never goes through mask_fc.py: its matrix is built
+    from the raw FC, only with the healthy controls of a dataset that also holds stroke patients."""
+    monkeypatch.setattr(build_fc_matrix, "REPORTS_ROOT", tmp_path / "summaries")
+    monkeypatch.setattr(build_fc_matrix, "LOGS_ROOT", tmp_path / "logs")
+    data_root = tmp_path / "derivatives"
+    output_root = tmp_path / "out"
+    nodes = ["A", "B", "C"]
+    fc_hc1 = pd.DataFrame([[1.0, 0.1, 0.2], [0.1, 1.0, 0.3], [0.2, 0.3, 1.0]], index=nodes, columns=nodes)
+    fc_hc2 = pd.DataFrame([[1.0, 0.4, 0.5], [0.4, 1.0, 0.6], [0.5, 0.6, 1.0]], index=nodes, columns=nodes)
+    fc_st = pd.DataFrame([[1.0, 0.7, 0.8], [0.7, 1.0, 0.9], [0.8, 0.9, 1.0]], index=nodes, columns=nodes)
+    _write_raw_fc(data_root, "siteA", "ComboX", "sub-STUNIPDHC0001", fc_hc1)
+    _write_raw_fc(data_root, "siteA", "ComboX", "sub-STUNIPDHC0002", fc_hc2)
+    _write_raw_fc(data_root, "siteA", "ComboX", "sub-STUNIPD0001", fc_st)
+
+    config_path = tmp_path / "build_fc_matrix_hc.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "project": "testproj",
+                "group": "HC",
+                "data_root": str(data_root),
+                "dataset": "siteA",
+                "fc_glob_template": "features/*/func/*_FC-pearson_atlas-{combo}.csv",
+                "atlas_combos": ["ComboX"],
+                "output_root": str(output_root),
+                "session_name": "s1-hc",
+                "overwrite": False,
+            }
+        )
+    )
+
+    assert build_fc_matrix.main(["--config", str(config_path)]) == 0
+
+    out_dir = next((output_root / "ComboX").iterdir())
+    X, metadata, _ = load_matrix(out_dir)
+    assert list(metadata["subject_id"]) == ["sub-STUNIPDHC0001", "sub-STUNIPDHC0002"]
+    assert list(metadata["dataset"]) == ["siteA", "siteA"]
+    assert X.shape == (2, 3) and not np.isnan(X).any()
+    readme = (out_dir / "config.md").read_text()
+    assert "Group: HC" in readme and "Raw FC, nothing masked" in readme
+    runs = pd.read_csv(output_root / "runs.csv")
+    assert runs.iloc[0]["input_path"] == str(data_root / "siteA")
 
 
 def test_build_fc_matrix_drops_constant_edge(tmp_path, monkeypatch):

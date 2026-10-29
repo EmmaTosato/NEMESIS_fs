@@ -427,6 +427,24 @@ def drop_constant_edges(X: np.ndarray, edge_names: list[str]) -> tuple[np.ndarra
     return X[:, keep_mask], kept_edge_names, dropped_info
 
 
+def _vectorize_subject_csvs(subject_files: dict[str, Path], read_csv_kwargs: dict) -> dict[str, pd.Series]:
+    """Edge vector of every subject's FC csv, with the node order of the first subject as
+    reference - every other subject is checked against it, never assumed to match."""
+    vectors: dict[str, pd.Series] = {}
+    reference_node_names: np.ndarray | None = None
+    for subject, path in subject_files.items():
+        try:
+            fc = pd.read_csv(path, index_col=0, **read_csv_kwargs)
+        except (OSError, EOFError, pd.errors.ParserError, pd.errors.EmptyDataError) as exc:
+            raise ValueError(f"{subject}: cannot read FC file {path}: {exc}") from exc
+        if reference_node_names is None:
+            reference_node_names = np.array(fc.index)
+        elif list(fc.index) != list(reference_node_names) or list(fc.columns) != list(reference_node_names):
+            raise ValueError(f"{subject}: node order in {path} does not match the reference subject's order")
+        vectors[subject] = vectorize_upper_triangle(fc, reference_node_names)
+    return vectors
+
+
 def build_fc_matrix_from_masked(masked_fc_dir: Path) -> tuple[np.ndarray, pd.DataFrame, list[str], list[tuple[str, float]]]:
     """Vectorize + stack every masked FC matrix under masked_fc_dir into one X.
 
@@ -443,18 +461,38 @@ def build_fc_matrix_from_masked(masked_fc_dir: Path) -> tuple[np.ndarray, pd.Dat
     subject_files = discover_masked_fc_files(masked_fc_dir)
     dataset_by_subject = _load_dataset_by_subject(masked_fc_dir)
 
-    vectors: dict[str, pd.Series] = {}
-    reference_node_names: np.ndarray | None = None
-    for subject, path in subject_files.items():
-        fc_masked = pd.read_csv(path, index_col=0)
-        if reference_node_names is None:
-            reference_node_names = np.array(fc_masked.index)
-        elif list(fc_masked.index) != list(reference_node_names) or list(fc_masked.columns) != list(
-            reference_node_names
-        ):
-            raise ValueError(f"{subject}: node order in {path} does not match the reference subject's order")
-        vectors[subject] = vectorize_upper_triangle(fc_masked, reference_node_names)
-
+    vectors = _vectorize_subject_csvs(subject_files, {})
     X, metadata, edge_names = stack_fc_vectors(vectors, dataset_by_subject)
+    X_filtered, kept_edge_names, dropped_info = drop_constant_edges(X, edge_names)
+    return X_filtered, metadata, kept_edge_names, dropped_info
+
+
+def build_fc_matrix_from_raw(
+    data_root: Path, dataset: str, atlas_combo: str, fc_glob_template: str, group: str
+) -> tuple[np.ndarray, pd.DataFrame, list[str], list[tuple[str, float]]]:
+    """Vectorize + stack the raw (unmasked) FC of every `group` subject of `dataset` into one X.
+
+    The path for subjects without a lesion mask (healthy controls), which mask_fc.py
+    never processes: nothing is masked, so X has no NaN from compromised nodes. The
+    dataset folder may hold other groups too (WashU holds ST and HC): they are left out
+    and counted in the log, never mixed in. A subject's own file that cannot be read
+    stops the build with its name, since dropping it would silently change the cohort.
+
+    Returns the same tuple as build_fc_matrix_from_masked. Raises FileNotFoundError if no
+    FC file matches for the combo, ValueError if none belongs to `group`.
+    """
+    dataset_root = Path(data_root) / dataset
+    fc_glob = fc_glob_template.format(combo=atlas_combo)
+    if not any(dataset_root.glob(fc_glob)):
+        raise FileNotFoundError(f"no FC files found matching {fc_glob!r} under {dataset_root}")
+
+    fc_by_subject, excluded_by_group = discover_files_by_subject(data_root, dataset, fc_glob, [group])
+    if not fc_by_subject:
+        raise ValueError(f"no {group} subject has an FC file matching {fc_glob!r} under {dataset_root}")
+    if excluded_by_group:
+        logging.info("%s: %d subject(s) of other groups left out of the %s matrix", atlas_combo, len(excluded_by_group), group)
+
+    vectors = _vectorize_subject_csvs(fc_by_subject, {"sep": "\t"})
+    X, metadata, edge_names = stack_fc_vectors(vectors, {subject: dataset for subject in vectors})
     X_filtered, kept_edge_names, dropped_info = drop_constant_edges(X, edge_names)
     return X_filtered, metadata, kept_edge_names, dropped_info

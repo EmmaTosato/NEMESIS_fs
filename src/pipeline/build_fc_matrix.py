@@ -1,15 +1,19 @@
-"""CLI entry point: build a subjects x edges FC feature matrix from already-masked FC data.
+"""CLI entry point: build a subjects x edges FC feature matrix for one subject group.
 
 Usage:
     python -m src.pipeline.build_fc_matrix --config config/pipelines/build_fc_matrix.json
 
+The config's `group` selects which subjects go into the matrix (never a mix) and,
+with it, the input:
+- "ST" (stroke): the NaN-masked per-subject CSVs mask_fc.py already wrote. The
+  output still has NaN in it (compromised edges) - imputation to a concrete fill
+  value is a separate, later step that belongs next to src/analysis/reduction.py,
+  not here (see src/features/functional.py module docstring for why).
+- "HC" (healthy controls): the raw FC of the dataset. A healthy control has no lesion
+  mask, so mask_fc.py never processes one and there is nothing to mask.
+
 Deliberately decoupled from mask_fc.py (own config, own output, own run
-history) - this pipeline never touches a lesion mask or an atlas; it only
-reads the NaN-masked per-subject CSVs mask_fc.py already wrote. The output
-matrix still has NaN in it (compromised edges) - imputation to a concrete
-fill value is a separate, later step that belongs next to
-src/analysis/reduction.py, not here (see src/features/functional.py module
-docstring for why).
+history) - this pipeline never touches a lesion mask or an atlas.
 
 Processes every atlas_combo listed in the config sequentially, one
 build_fc_matrix_from_masked() call per combo, each writing its own matrix
@@ -34,7 +38,7 @@ import numpy as np
 import pandas as pd
 
 from src.analysis.build_config import BuildFcMatrixConfig, load_build_fc_matrix_config
-from src.features.functional import build_fc_matrix_from_masked
+from src.features.functional import build_fc_matrix_from_masked, build_fc_matrix_from_raw
 from src.utils.artifacts import save_matrix
 from src.utils.logging_setup import attach_file_handler, log_duration
 from src.utils.run_log import append_run_log_entry
@@ -46,7 +50,7 @@ REPORT_FILENAME_PREFIX = "build_summary"
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Build a subjects x edges FC feature matrix from already-masked FC data."
+        description="Build a subjects x edges FC feature matrix for one subject group (ST: masked FC, HC: raw FC)."
     )
     parser.add_argument("--config", required=True, help="Path to a build_fc_matrix.json file")
     args = parser.parse_args(argv)
@@ -72,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         combo_reports: dict[str, dict] = {}
         failed_combos: dict[str, str] = {}
         for combo in config.atlas_combos:
-            input_dir = config.masked_fc_root / combo
+            input_dir = _input_dir(config, combo)
             # AUDIT_FINDINGS.md #29: atlas_combos are independent (each reads its own
             # masked_fc/<combo>/ folder) - a combo whose input isn't ready yet (mask_fc.py
             # not rerun for it, e.g. after a min_coverage change) must not block the other,
@@ -81,7 +85,12 @@ def main(argv: list[str] | None = None) -> int:
             # those are infra-level faults (disk full, permissions) likely to recur on every
             # remaining combo, not a per-combo input gap.
             try:
-                X, metadata, edge_names, dropped_info = build_fc_matrix_from_masked(input_dir)
+                if config.group == "ST":
+                    X, metadata, edge_names, dropped_info = build_fc_matrix_from_masked(input_dir)
+                else:
+                    X, metadata, edge_names, dropped_info = build_fc_matrix_from_raw(
+                        config.data_root, config.dataset, combo, config.fc_glob_template, config.group
+                    )
             except (FileNotFoundError, ValueError) as exc:
                 logging.warning("%s: skipped, could not be built: %s", combo, exc)
                 failed_combos[combo] = str(exc)
@@ -192,10 +201,22 @@ def main(argv: list[str] | None = None) -> int:
         log_duration(now)
 
 
+def _input_dir(config: BuildFcMatrixConfig, combo: str) -> Path:
+    """Where this run's input lives, as recorded in runs.csv: the combo's masked-FC folder
+    for ST, the dataset folder holding the raw FC for HC."""
+    if config.group == "ST":
+        return config.masked_fc_root / combo
+    return config.data_root / config.dataset
+
+
 def _config_summary(config: BuildFcMatrixConfig) -> str:
     payload = {
         "project": config.project,
-        "masked_fc_root": str(config.masked_fc_root),
+        "group": config.group,
+        "masked_fc_root": str(config.masked_fc_root) if config.masked_fc_root is not None else None,
+        "data_root": str(config.data_root) if config.data_root is not None else None,
+        "dataset": config.dataset,
+        "fc_glob_template": config.fc_glob_template,
         "atlas_combos": config.atlas_combos,
         "output_root": str(config.output_root),
         "session_name": config.session_name,
@@ -220,10 +241,16 @@ def _build_readme_lines(
         "## Summary",
         "",
         f"Matrix shape: {X.shape[0]} subjects x {X.shape[1]} edges",
+        f"Group: {config.group}",
         f"Constant edges dropped: {len(dropped_info)}",
-        "Matrix still contains NaN for lesion-compromised edges - imputation happens later, "
-        "immediately before dimensionality reduction, not in this artifact.",
     ]
+    if config.group == "ST":
+        lines.append(
+            "Matrix still contains NaN for lesion-compromised edges - imputation happens later, "
+            "immediately before dimensionality reduction, not in this artifact."
+        )
+    else:
+        lines.append("Raw FC, nothing masked: the matrix has no NaN from compromised edges.")
     return lines
 
 

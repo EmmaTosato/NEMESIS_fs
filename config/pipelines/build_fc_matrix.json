@@ -1,5 +1,6 @@
 {
   "project": "clinical_connectome",
+  "group": "ST",
   "masked_fc_root": "data/derived/features/masked_fc",
   "atlas_combos": [
     "Yan100TianS1Buckner7N",

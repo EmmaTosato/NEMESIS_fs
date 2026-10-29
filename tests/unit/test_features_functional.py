@@ -7,6 +7,7 @@ import pytest
 
 from src.features.functional import (
     build_fc_matrix_from_masked,
+    build_fc_matrix_from_raw,
     compute_parcel_coverage,
     discover_masked_fc_files,
     discover_subject_files,
@@ -642,3 +643,69 @@ def test_mask_dataset_fc_one_bad_subject_does_not_abort_the_others(tmp_path):
     assert not (output_dir / "sub-STUNIPD0002_masked_fc.csv").exists()
     assert set(failed) == {"sub-STUNIPD0002"}
     assert "node order" in failed["sub-STUNIPD0002"]
+
+
+# --- build_fc_matrix_from_raw (healthy controls: raw FC, nothing masked) ----------
+
+_RAW_GLOB = "features/*/func/*_FC-pearson_atlas-{combo}.csv"
+_RAW_NODES = ["A", "B", "C"]
+
+
+def _write_raw_fc(data_root, subject, ab, ac, bc, combo="ComboX", nodes=_RAW_NODES, dataset="siteA"):
+    """A raw FC file as the dataset stores it: tab-separated, node names as index."""
+    m = np.array([[1.0, ab, ac], [ab, 1.0, bc], [ac, bc, 1.0]])
+    folder = data_root / dataset / "features" / subject / "func"
+    folder.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(m, index=nodes, columns=nodes).to_csv(folder / f"{subject}_FC-pearson_atlas-{combo}.csv", sep="\t")
+
+
+def test_build_fc_matrix_from_raw_keeps_only_the_requested_group(tmp_path):
+    _write_raw_fc(tmp_path, "sub-STUNIPDHC0001", 0.1, 0.2, 0.3)
+    _write_raw_fc(tmp_path, "sub-STUNIPDHC0002", 0.4, 0.5, 0.6)
+    _write_raw_fc(tmp_path, "sub-STUNIPD0001", 0.7, 0.8, 0.9)  # a stroke patient in the same folder
+
+    X, metadata, edge_names, dropped_info = build_fc_matrix_from_raw(tmp_path, "siteA", "ComboX", _RAW_GLOB, "HC")
+
+    assert list(metadata["subject_id"]) == ["sub-STUNIPDHC0001", "sub-STUNIPDHC0002"]
+    assert list(metadata["dataset"]) == ["siteA", "siteA"]
+    assert edge_names == ["A__B", "A__C", "B__C"]
+    assert X[0].tolist() == pytest.approx([0.1, 0.2, 0.3])
+    assert X[1].tolist() == pytest.approx([0.4, 0.5, 0.6])
+    assert not np.isnan(X).any()  # nothing is masked
+    assert dropped_info == []
+
+
+def test_build_fc_matrix_from_raw_st_selects_the_patients_instead(tmp_path):
+    _write_raw_fc(tmp_path, "sub-STUNIPDHC0001", 0.1, 0.2, 0.3)
+    _write_raw_fc(tmp_path, "sub-STUNIPD0001", 0.7, 0.8, 0.9)
+
+    _, metadata, _, _ = build_fc_matrix_from_raw(tmp_path, "siteA", "ComboX", _RAW_GLOB, "ST")
+
+    assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
+
+
+def test_build_fc_matrix_from_raw_no_file_for_the_combo_raises(tmp_path):
+    _write_raw_fc(tmp_path, "sub-STUNIPDHC0001", 0.1, 0.2, 0.3, combo="ComboX")
+    with pytest.raises(FileNotFoundError, match="no FC files found"):
+        build_fc_matrix_from_raw(tmp_path, "siteA", "ComboY", _RAW_GLOB, "HC")
+
+
+def test_build_fc_matrix_from_raw_no_subject_of_the_group_raises(tmp_path):
+    _write_raw_fc(tmp_path, "sub-STUNIPD0001", 0.7, 0.8, 0.9)
+    with pytest.raises(ValueError, match="no HC subject"):
+        build_fc_matrix_from_raw(tmp_path, "siteA", "ComboX", _RAW_GLOB, "HC")
+
+
+def test_build_fc_matrix_from_raw_node_order_mismatch_raises(tmp_path):
+    _write_raw_fc(tmp_path, "sub-STUNIPDHC0001", 0.1, 0.2, 0.3)
+    _write_raw_fc(tmp_path, "sub-STUNIPDHC0002", 0.1, 0.2, 0.3, nodes=["B", "A", "C"])
+    with pytest.raises(ValueError, match="does not match the reference subject"):
+        build_fc_matrix_from_raw(tmp_path, "siteA", "ComboX", _RAW_GLOB, "HC")
+
+
+def test_build_fc_matrix_from_raw_unreadable_file_names_the_subject(tmp_path):
+    _write_raw_fc(tmp_path, "sub-STUNIPDHC0001", 0.1, 0.2, 0.3)
+    (tmp_path / "siteA" / "features" / "sub-STUNIPDHC0002" / "func").mkdir(parents=True)
+    (tmp_path / "siteA" / "features" / "sub-STUNIPDHC0002" / "func" / "sub-STUNIPDHC0002_FC-pearson_atlas-ComboX.csv").write_text("")
+    with pytest.raises(ValueError, match="sub-STUNIPDHC0002.*cannot read"):
+        build_fc_matrix_from_raw(tmp_path, "siteA", "ComboX", _RAW_GLOB, "HC")
