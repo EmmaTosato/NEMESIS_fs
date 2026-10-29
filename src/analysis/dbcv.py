@@ -1,9 +1,8 @@
 """DBCV (Density-Based Clustering Validation, Moulavi et al. 2014), the internal index of the density methods.
 
 `dbcv` is the index itself; `run_dbcv` is what the tuning evaluations (src/analysis/clustering_tuning_analysis.py::
-density_metrics), the production run of hdbscan / hdbscan_soft (src/pipeline/clustering.py) and the Embedding Explorer
-(src/analysis/clustering_evaluation.py::density_summary) all call, so the three give the same number, and the same
-"not defined" answer with its reason, for the same labels. Explanation and source: knowledge/notes/
+density_metrics) and the production run of hdbscan / hdbscan_soft (src/analysis/production_results.py, which the Embedding
+Explorer reads) call, so the two give the same number, and the same "not defined" answer with its reason, for the same labels. Explanation and source: knowledge/notes/
 dim_reduction_clustering/clustering_methods/evaluation_metrics.md §8.
 
 Why not the silhouette-family indices for these methods: they are computed on the non-noise subjects only, so

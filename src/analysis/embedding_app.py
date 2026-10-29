@@ -91,18 +91,15 @@ from src.analysis.component_map_plots import build_reproducibility_figure
 from src.analysis.component_maps import ComponentMapSet, ComponentMapStore, MapGeometry, load_map_geometry, to_volume
 from src.analysis.clustering_evaluation import (
     AdpSummary,
-    DensitySummary,
-    GeometricSummary,
-    MembershipConfidence,
+    SilhouetteBreakdown,
     SoftMembership,
     adp_summary,
-    density_summary,
-    geometric_summary,
-    membership_confidence,
-    model_fit_metrics,
+    per_cluster_silhouette,
     require_applicable,
+    run_metric,
     soft_membership_summary,
 )
+from src.analysis.production_results import RESULTS_METHODS, SavedResults, read_production_results
 from src.analysis.raw_distances import RawDistanceStore
 from src.analysis.cluster_description import (
     CLUSTER_DESCRIPTION_VARIABLES,
@@ -2384,9 +2381,9 @@ def component_maps_content_for(
 
 # --- Clustering quality (16-10-26) ----------------------------------------------------------------
 
-# The silhouette and Dunn read every pair of subjects, so their cost grows with the number of columns:
+# The silhouette of every subject reads every pair of subjects, so its cost grows with the number of columns:
 # about a second for 5845 subjects x 10 components, minutes for the 221955 voxels of a raw lesion matrix.
-# Past this many columns the panel does not compute them (the notebook reads such a run memory-mapped).
+# Past this many columns the panel does not draw it (the notebook reads such a run memory-mapped).
 MAX_QUALITY_COLUMNS = 1000
 
 
@@ -2395,58 +2392,32 @@ def _require_narrow_matrix(run: ProductionRun) -> None:
     n_columns = _matrix_shape(run)[1]
     if n_columns > MAX_QUALITY_COLUMNS:
         raise ValueError(
-            f"the run was computed on {n_columns} columns (raw data, not an embedding): not computed here "
+            f"the run was computed on {n_columns} columns (raw data, not an embedding): not drawn here "
             f"beyond {MAX_QUALITY_COLUMNS} columns (read the indices of the tuning: tuning_results.csv and report.md)"
         )
 
 
-def run_geometric_summary(run: ProductionRun) -> GeometricSummary:
-    """The geometric indices of a clustering run, on the matrix it was clustered on (matrix.npy).
+def run_production_results(run: ProductionRun) -> SavedResults:
+    """The numbers the production run saved (production_results.csv and production_results_per_cluster.csv): the panel
+    shows them, it does not compute them again. Raises FileNotFoundError for a run without the files and ValueError
+    for files that are not the method's (read_production_results)."""
+    return read_production_results(run.path, run.method)
 
-    Raises ValueError, with the cause, for a run they are not defined for or too costly here: a
-    method they do not apply to (adp - src.analysis.clustering_evaluation.EVALUATIONS), a matrix
-    with more than MAX_QUALITY_COLUMNS columns, a non-Euclidean affinity, or fewer than 2 clusters."""
-    require_applicable("geometric_metrics", run.method)
+
+def run_distance_metric(run: ProductionRun) -> str:
+    """The distance the run was clustered with (the one its silhouette is measured in)."""
+    return run_metric(run_params(run))
+
+
+def run_silhouette_samples(run: ProductionRun) -> SilhouetteBreakdown:
+    """The silhouette of every subject of a clustering run, on the matrix it was clustered on (matrix.npy) and in the
+    run's own distance: the one thing the saved tables do not hold, because it has a value per subject.
+
+    Raises ValueError, with the cause, for a matrix with more than MAX_QUALITY_COLUMNS columns or a run the silhouette
+    is not defined for (fewer than 2 clusters, a non-Euclidean affinity)."""
     _require_narrow_matrix(run)
     matrix, metadata, _extra_arrays = load_matrix(run.path)
-    return geometric_summary(matrix, metadata["cluster_label"].to_numpy(), run_params(run))
-
-
-def run_density_summary(run: ProductionRun) -> DensitySummary:
-    """DBCV and the cluster/noise shares of an hdbscan / hdbscan_soft run, on the matrix it was clustered on.
-
-    Raises ValueError, with the cause, for a method DBCV does not apply to (the others have the geometric indices -
-    src.analysis.clustering_evaluation.EVALUATIONS) and for a matrix with more than MAX_QUALITY_COLUMNS columns. A
-    non-Euclidean run or one with fewer than 2 clusters comes back with `dbcv` NaN and the reason in `note`."""
-    require_applicable("dbcv", run.method)
-    _require_narrow_matrix(run)
-    matrix, metadata, _extra_arrays = load_matrix(run.path)
-    return density_summary(matrix, metadata["cluster_label"].to_numpy(), run_params(run))
-
-
-def run_model_fit(run: ProductionRun) -> dict[str, float]:
-    """The statistic of the model itself for a clustering run:
-    inertia for kmeans, BIC and AIC for gmm, cophenetic correlation and dendrogram jump for agglomerative,
-    noise share and number of clusters for hdbscan/hdbscan_soft.
-
-    kmeans, gmm and agglomerative are refitted with the run's own params and accepted only if they reproduce
-    the stored labels exactly (model_fit_metrics). Raises ValueError, with the cause, for a method with no such
-    statistic, a matrix wider than MAX_QUALITY_COLUMNS (a refit on it would not be quick), or a refit that
-    does not reproduce the labels."""
-    require_applicable("model_fit_metrics", run.method)
-    _require_narrow_matrix(run)
-    matrix, metadata, _extra_arrays = load_matrix(run.path)
-    return model_fit_metrics(run.method, matrix, run_params(run), metadata["cluster_label"].to_numpy())
-
-
-def run_membership_confidence(run: ProductionRun) -> MembershipConfidence:
-    """How firmly each subject of an hdbscan run sits in its cluster: sklearn's HDBSCAN is refitted with the run's own params and accepted only if it reproduces the
-    stored labels. Raises ValueError, with the cause, for another method, a matrix wider than
-    MAX_QUALITY_COLUMNS, a refit that does not reproduce the labels, or a run that is all noise."""
-    require_applicable("membership_confidence", run.method)
-    _require_narrow_matrix(run)
-    matrix, metadata, _extra_arrays = load_matrix(run.path)
-    return membership_confidence(run.method, matrix, run_params(run), metadata["cluster_label"].to_numpy())
+    return per_cluster_silhouette(matrix, metadata["cluster_label"].to_numpy(), run_params(run))
 
 
 def run_soft_membership(run: ProductionRun) -> SoftMembership:
@@ -2622,80 +2593,6 @@ def _quality_guide() -> html.Details:
     )
 
 
-def _model_fit_rows(method: str, metrics: dict[str, float]) -> list[list[str]]:
-    """The table rows (name, value) of the model statistic of `method` (the keys model_fit_metrics returns for it)."""
-    if method == "kmeans":
-        return [["Inertia", _format_number(metrics["inertia"], 1)]]
-    if method == "gmm":
-        return [["BIC", _format_number(metrics["bic"], 1)], ["AIC", _format_number(metrics["aic"], 1)]]
-    if method == "agglomerative":
-        return [
-            ["Cophenetic correlation", _format_number(metrics["cophenetic_correlation"], 3)],
-            [f"Dendrogram jump (k={int(metrics['n_clusters'])})", _format_number(metrics["dendrogram_jump"], 2)],
-        ]
-    if method in ("hdbscan", "hdbscan_soft"):
-        return [
-            ["Noise", f"{_format_number(metrics['noise_fraction'] * 100, 1)}%"],
-            ["Clusters found", str(int(metrics["n_clusters_found"]))],
-        ]
-    raise ValueError(f"no model statistic rows for method {method!r}")
-
-
-def _model_fit_block(run: ProductionRun, model_fit_of: Callable[[ProductionRun], dict[str, float]]) -> html.Div:
-    """The "Statistica del modello" block of the quality panel. A method with no statistic of its own says
-    so in one line; a refit that does not reproduce the stored labels says why, never a number."""
-    heading = html.P("Model statistic", className="comparison-subheading")
-    try:
-        metrics = model_fit_of(run)
-    except ValueError as exc:
-        return html.Div([heading, html.P(str(exc), className="status-message")])
-    if run.method in ("kmeans", "gmm"):
-        guide = (
-            "The model is fitted again with the run's parameters and used only if it gives exactly the saved labels. "
-            "Inertia (k-means) and BIC/AIC (GMM) are on different scales: they are not comparable between methods."
-        )
-    elif run.method == "agglomerative":
-        guide = (
-            "The tree is rebuilt from the run's matrix with its linkage and metric, and used only if cutting it gives exactly "
-            "the saved labels. The cophenetic correlation says how well the heights of the tree reproduce the distances between "
-            "subjects (1 = perfectly); it is measured against the run's own distance, so it is not comparable between runs "
-            "with a different metric."
-        )
-    else:
-        guide = "The statistic is read from the run labels, without refitting."
-    return html.Div([
-        heading,
-        _table(["Statistic", "Value"], _model_fit_rows(run.method, metrics), text_columns=(0,)),
-        html.P(guide, className="comparison-note centered"),
-    ])
-
-
-def _confidence_block(run: ProductionRun, confidence_of: Callable[[ProductionRun], MembershipConfidence]) -> html.Div:
-    """Section 3.1 for an hdbscan run: per cluster, the mean probability of its subjects in it."""
-    heading = html.P("Position in the cluster (HDBSCAN probability)", className="comparison-subheading")
-    try:
-        result = confidence_of(run)
-    except ValueError as exc:
-        return html.Div([heading, html.P(str(exc), className="status-message")])
-    rows = [[str(label), str(int(row.n)), _format_number(row.probability_mean, 3)] for label, row in result.clusters.iterrows()]
-    return html.Div([
-        heading,
-        _guide(
-            "How to read this table",
-            [
-                ("Probability", "from 0 to 1, within the cluster: near 1 the subject is at the core, near 0 at the margin"),
-                ("It is not", "the probability of being in this cluster rather than another, nor comparable across clusters of different density"),
-            ],
-            [
-                "It depends on the density of the clustered space: on UMAP with min_dist = 0 it tells how tightly UMAP packed the cluster, not that it is real.",
-                "There is no reference value for a probability: the table reports the mean, with no threshold.",
-            ],
-        ),
-        html.P(f"{result.n_noise} noise subjects (excluded).", className="quality-intro"),
-        _table(["Cluster", "Subjects", "Mean probability"], rows, text_columns=(0,)),
-    ])
-
-
 def _soft_membership_block(
     run: ProductionRun, soft_of: Callable[[ProductionRun], SoftMembership]
 ) -> html.Div:
@@ -2743,140 +2640,218 @@ def _soft_membership_block(
     ])
 
 
-def _density_guide() -> html.Details:
-    """How to read DBCV, and why the silhouette-family indices are not shown for hdbscan / hdbscan_soft."""
+def _density_guide(soft: bool) -> html.Details:
+    """How to read DBCV, the probability of a subject in its cluster and (hdbscan_soft) the persistence of a cluster, and
+    why the silhouette-family indices are not shown for hdbscan / hdbscan_soft."""
+    points = [
+        ("DBCV", (
+            "density-based cluster validity (Moulavi et al. 2014). For each cluster it compares how sparse the cluster is "
+            "inside with how far it is from the nearest cluster. From -1 to 1, higher is better"
+        )),
+        ("The run's score", (
+            "the average of the clusters' own scores, each weighted by its share of all the subjects, noise included: "
+            "the noise lowers the score by itself, so a clustering that throws the hard subjects away is not rewarded"
+        )),
+        ("Plot per cluster", "one bar per cluster with its own score and size; the dashed line is the run's score, which is not the mean of the bars"),
+        ("Probability", (
+            "from 0 to 1, within the cluster: near 1 the subject is at the core, near 0 at the margin. It is not the probability "
+            "of being in this cluster rather than another, nor comparable across clusters of different density"
+        )),
+    ]
+    if soft:
+        points.append((
+            "Persistence",
+            "from 0 to 1 for each cluster: 1 is a cluster that lasts over all the distance scales of the tree, 0 one that vanishes at once",
+        ))
     return _guide(
         "How to read DBCV",
-        [
-            ("DBCV", (
-                "density-based cluster validity (Moulavi et al. 2014). For each cluster it compares how sparse the cluster is "
-                "inside with how far it is from the nearest cluster. From -1 to 1, higher is better"
-            )),
-            ("The run's score", (
-                "the average of the clusters' own scores, each weighted by its share of all the subjects, noise included: "
-                "the noise lowers the score by itself, so a clustering that throws the hard subjects away is not rewarded"
-            )),
-            ("Plot per cluster", "one bar per cluster with its own score and size; the dashed line is the run's score, which is not the mean of the bars"),
-        ],
+        points,
         [
             "Silhouette, Calinski-Harabasz, Davies-Bouldin and Dunn are not computed for these methods: they use the non-noise subjects only "
             "(the hardest ones, thrown into the noise, make them rise) and assume compact clusters.",
             "DBCV has no reference value, and it is not comparable across different embeddings.",
             "It is undefined with fewer than 2 clusters.",
+            "The probability depends on the density of the clustered space: on UMAP with min_dist = 0 it tells how tightly UMAP packed "
+            "the cluster, not that it is real. There is no reference value for a probability"
+            + (" or a persistence" if soft else "") + ": the tables report means, with no threshold.",
         ],
     )
 
 
-def _density_quality_content(
-    run: ProductionRun,
-    density_of: Callable[[ProductionRun], DensitySummary],
-    model_fit_of: Callable[[ProductionRun], dict[str, float]],
-    membership_blocks: list,
-) -> html.Div:
-    """The quality panel of an hdbscan / hdbscan_soft run: DBCV in place of the geometric indices. A run DBCV is not
-    defined for (fewer than 2 clusters, non-Euclidean) shows the shares with an empty DBCV cell and the reason; one the
-    panel cannot read at all (too many columns) says why instead of a table."""
-    try:
-        summary = density_of(run)
-    except ValueError as exc:
-        return html.Div([_density_guide(), html.P(str(exc), className="status-message"), _model_fit_block(run, model_fit_of), *membership_blocks])
+def _saved_row(label: str, saved: SavedResults, name: str, decimals: int, reading: str, percent: bool = False) -> list[str]:
+    """[label, value, reading] of a metric a run saved. A metric that is not defined for the run is a dash and the reason
+    saved with it (its note)."""
+    value = saved.values[name]
+    if np.isnan(value):
+        return [label, "—", saved.notes[name]]
+    return [label, f"{_format_number(value * 100, 1)}%" if percent else _format_number(value, decimals), reading]
 
-    def share(value: float) -> str:
-        return f"{_format_number(value * 100, 1)}%"
 
+def _cell(value: float, decimals: int) -> str:
+    """A number of a per-cluster table, a dash where the run saved none."""
+    return "—" if pd.isna(value) else _format_number(value, decimals)
+
+
+def _share_cell(value: float) -> str:
+    return "—" if pd.isna(value) else f"{_format_number(value * 100, 1)}%"
+
+
+def _tree_block(saved: SavedResults, n_clusters: int) -> html.Div:
+    """The "Model statistic" block of an agglomerative run: the cophenetic correlation and the dendrogram jump it saved."""
     rows = [
-        ["DBCV", "—" if summary.note else _format_number(summary.dbcv, 3), summary.note or "higher is better, from -1 to 1"],
-        ["Clusters (noise excluded)", str(summary.n_clusters), ""],
-        ["Largest cluster", share(summary.largest_cluster_share), "of the subjects"],
-        ["Noise", share(summary.noise_fraction), "of the subjects"],
+        _saved_row("Cophenetic correlation", saved, "cophenetic_correlation", 3, ""),
+        _saved_row(f"Dendrogram jump (k={n_clusters})", saved, "dendrogram_jump", 2, ""),
     ]
     return html.Div([
-        _density_guide(),
+        html.P("Model statistic", className="comparison-subheading"),
+        # the third column only says why a statistic is not defined: no column when every one is
+        _table(["Statistic", "Value", "Reading"], rows, text_columns=(0, 2))
+        if any(row[2] for row in rows)
+        else _table(["Statistic", "Value"], [row[:2] for row in rows], text_columns=(0,)),
         html.P(
-            f"Computed on the {summary.n_components} columns of the matrix the clustering was run on ({summary.n_subjects} subjects).",
+            "Cophenetic correlation: how faithfully the tree reflects the real distances between subjects. From -1 to 1: "
+            "the higher, the better the tree reproduces them. It is measured with the run's own distance, so it is not "
+            "comparable between runs with a different metric.",
+            className="comparison-note centered",
+        ),
+        html.P(
+            "Dendrogram jump (at the run's k): how sharp the cut at k is. It is the height of the merge that takes the tree "
+            "from k to k-1 clusters divided by the height of the merge from k+1 to k. Near 1 the tree has no clear gap at k; "
+            "the higher, the sharper the cut. Heights are in the units of each linkage, so it is not comparable between linkages.",
+            className="comparison-note centered",
+        ),
+    ])
+
+
+def _agglomerative_quality_content(
+    run: ProductionRun,
+    saved: SavedResults,
+    metric: str,
+    silhouette_of: Callable[[ProductionRun], SilhouetteBreakdown],
+) -> html.Div:
+    """The panel of an agglomerative run: the indices and the tree statistics it saved, its table per cluster, and the
+    silhouette of every subject (the one part computed here, `silhouette_of`; a run it cannot be drawn for says why)."""
+    clusters = saved.per_cluster
+    n_clusters = len(clusters)
+    rows = [
+        _saved_row("Silhouette (mean over subjects)", saved, "silhouette", 3, "higher is better, from -1 to 1"),
+        _saved_row("Calinski-Harabasz", saved, "calinski_harabasz", 1, "higher is better"),
+        _saved_row("Davies-Bouldin", saved, "davies_bouldin", 3, "lower is better"),
+        _saved_row("Dunn", saved, "dunn", 4, "higher is better"),
+        ["Clusters", str(n_clusters), ""],
+        _saved_row("Largest cluster", saved, "largest_cluster_share", 1, "of the subjects", percent=True),
+    ]
+    cluster_rows = [
+        [str(int(row.cluster)), str(int(row.n)), _cell(row.silhouette_mean, 3), _share_cell(row.share_negative)]
+        for row in clusters.itertuples()
+    ]
+    try:
+        breakdown = silhouette_of(run)
+    except (ValueError, OSError) as exc:
+        silhouette_chart: list = [html.P(str(exc), className="status-message")]
+    else:
+        silhouette_chart = [dcc.Graph(
+            figure=build_silhouette_figure(breakdown.subject_labels, breakdown.subject_values),
+            config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
+            style={"width": "100%"},
+        )]
+    return html.Div([
+        _quality_guide(),
+        html.P(
+            f"{int(clusters['n'].sum())} subjects, as the production run saved them (production_results.csv)"
+            + ("." if metric == "euclidean" else f". The silhouette uses the {metric} distance, the one the clustering used."),
             className="quality-intro",
         ),
         _table(["Index", "Value", "Reading"], rows, text_columns=(0, 2)),
-        *([] if summary.note else [
-            _chart_heading("DBCV per cluster", "one bar per cluster; the dashed line is the run's score"),
-            dcc.Graph(
-                figure=build_dbcv_figure(summary.clusters, summary.dbcv),
-                config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-                style={"width": "100%"},
-            ),
-        ]),
-        _model_fit_block(run, model_fit_of),
-        *membership_blocks,
+        html.P("Per cluster", className="comparison-subheading"),
+        _table(["Cluster", "Subjects", "Mean silhouette", "Negative silhouette"], cluster_rows, text_columns=(0,)),
+        _chart_heading("Silhouette per cluster", "one panel per cluster"),
+        *silhouette_chart,
+        _tree_block(saved, n_clusters),
+    ])
+
+
+def _density_quality_content(
+    run: ProductionRun, saved: SavedResults, soft_of: Callable[[ProductionRun], SoftMembership]
+) -> html.Div:
+    """The panel of an hdbscan / hdbscan_soft run: DBCV, the shares of clusters and noise and the mean probability of the
+    subjects in their cluster (and, for hdbscan_soft, the persistence of the clusters) as the run saved them, its table
+    per cluster and the DBCV of every cluster. A DBCV not defined for the run is a dash with the reason and no chart.
+    hdbscan_soft adds its soft membership, read from the membership.npy the run saved."""
+    soft = run.method == "hdbscan_soft"
+    rows = [
+        _saved_row("DBCV", saved, "dbcv", 3, "higher is better, from -1 to 1"),
+        ["Clusters (noise excluded)", str(int(saved.values["n_clusters_found"])), ""],
+        _saved_row("Largest cluster", saved, "largest_cluster_share", 1, "of the subjects", percent=True),
+        _saved_row("Noise", saved, "noise_fraction", 1, "of the subjects", percent=True),
+        _saved_row("Mean probability in own cluster", saved, "membership_mean", 3, "mean over the clustered subjects"),
+    ]
+    if soft:
+        rows.append(_saved_row("Mean persistence", saved, "persistence_mean", 3, "mean over the clusters"))
+    columns = ["Cluster", "Subjects", "DBCV", "Mean probability"] + (["Persistence"] if soft else [])
+    cluster_rows = [
+        [str(int(row.cluster)), str(int(row.n)), _cell(row.dbcv, 3), _cell(row.membership_mean, 3)]
+        + ([_cell(row.persistence, 3)] if soft else [])
+        for row in saved.per_cluster.itertuples()
+    ]
+    chart: list = []
+    if not np.isnan(saved.values["dbcv"]):
+        clusters = saved.per_cluster.set_index("cluster")[["n", "dbcv"]]
+        try:
+            figure = build_dbcv_figure(clusters, saved.values["dbcv"])
+        except ValueError as exc:
+            chart = [_chart_heading("DBCV per cluster", "one bar per cluster; the dashed line is the run's score"), html.P(str(exc), className="status-message")]
+        else:
+            chart = [
+                _chart_heading("DBCV per cluster", "one bar per cluster; the dashed line is the run's score"),
+                dcc.Graph(
+                    figure=figure,
+                    config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
+                    style={"width": "100%"},
+                ),
+            ]
+    return html.Div([
+        _density_guide(soft),
+        html.P("As the production run saved them (production_results.csv).", className="quality-intro"),
+        _table(["Index", "Value", "Reading"], rows, text_columns=(0, 2)),
+        html.P("Per cluster", className="comparison-subheading"),
+        _table(columns, cluster_rows, text_columns=(0,)),
+        *chart,
+        *([_soft_membership_block(run, soft_of)] if soft else []),
     ])
 
 
 def cluster_quality_content_for(
     run: ProductionRun,
-    summary_of: Callable[[ProductionRun], GeometricSummary] = run_geometric_summary,
-    model_fit_of: Callable[[ProductionRun], dict[str, float]] = run_model_fit,
-    confidence_of: Callable[[ProductionRun], MembershipConfidence] = run_membership_confidence,
+    results_of: Callable[[ProductionRun], SavedResults] = run_production_results,
+    silhouette_of: Callable[[ProductionRun], SilhouetteBreakdown] = run_silhouette_samples,
     soft_of: Callable[[ProductionRun], SoftMembership] = run_soft_membership,
-    density_of: Callable[[ProductionRun], DensitySummary] = run_density_summary,
+    metric_of: Callable[[ProductionRun], str] = run_distance_metric,
 ) -> html.Div:
-    """Panel "Clustering evaluation": under the collapsed guide to the indices, the geometric indices of
-    the whole run (Silhouette, Calinski-Harabasz, Davies-Bouldin, Dunn, the silhouette of each cluster,
-    number of clusters, share of the largest one and of the noise; hdbscan and hdbscan_soft have DBCV, in its
-    place, with its score per cluster) and the statistic of the model itself
-    (inertia, BIC/AIC, cophenetic correlation and dendrogram jump, noise and number of clusters). Not tied to the chosen cluster. `summary_of` and
-    `model_fit_of` compute (or serve from a cache) the numbers.
+    """Panel "Clustering evaluation" of an agglomerative, hdbscan or hdbscan_soft run: under the collapsed guide to the
+    indices, the numbers the production run saved (`results_of`: production_results.csv and
+    production_results_per_cluster.csv, never computed again) and its table per cluster. An agglomerative run adds the
+    silhouette of every subject (`silhouette_of`), the one part computed here; an hdbscan_soft run its soft membership.
+    Not tied to the chosen cluster.
 
-    Same never-raises contract as every other *_content_for: each of the two parts renders its own cause
-    when it is not defined for the run, so one failing never hides the other. An hdbscan run adds the position
-    of its subjects in their cluster, a hdbscan_soft run its soft membership."""
-    membership_blocks: list = []
-    if run.method == "hdbscan":
-        membership_blocks.append(_confidence_block(run, confidence_of))
-    elif run.method == "hdbscan_soft":
-        membership_blocks.append(_soft_membership_block(run, soft_of))
-    if run.method in ("hdbscan", "hdbscan_soft"):
-        return _density_quality_content(run, density_of, model_fit_of, membership_blocks)
+    Same never-raises contract as every other *_content_for: a run without the saved files (written before production
+    runs saved them) or with files that are not its method's renders the cause instead of a table, and so does a method
+    the panel has no numbers for."""
+    if run.method not in RESULTS_METHODS:
+        return html.Div([html.P(
+            f"The panel has no numbers for the method {run.method!r}: production runs of {list(RESULTS_METHODS)} save them.",
+            className="status-message",
+        )])
+    agglomerative = run.method == "agglomerative"
     try:
-        summary = summary_of(run)
-    except ValueError as exc:
-        return html.Div([_quality_guide(), html.P(str(exc), className="status-message"), _model_fit_block(run, model_fit_of), *membership_blocks])
-
-    def share(value: float) -> str:
-        return f"{_format_number(value * 100, 1)}%"
-
-    euclidean = summary.metric == "euclidean"
-
-    def euclidean_only(value: float, decimals: int, reading: str) -> list[str]:
-        """[value, reading] of an index defined only with Euclidean distance: a dash and why, for another metric."""
-        return [_format_number(value, decimals), reading] if euclidean else ["—", "Euclidean distance only"]
-
-    rows = [
-        ["Silhouette (mean over subjects)", _format_number(summary.silhouette, 3), "higher is better, from -1 to 1"],
-        ["Calinski-Harabasz", *euclidean_only(summary.calinski_harabasz, 1, "higher is better")],
-        ["Davies-Bouldin", *euclidean_only(summary.davies_bouldin, 3, "lower is better")],
-        ["Dunn", *euclidean_only(summary.dunn, 4, "higher is better")],
-        ["Clusters (noise excluded)", str(summary.n_clusters), ""],
-        ["Largest cluster", share(summary.largest_cluster_share), "of the subjects"],
-        ["Noise", share(summary.noise_fraction), "of the subjects"],
-    ]
-    children: list = [_quality_guide()]
-    children += [
-        html.P(
-            f"Computed on the {summary.n_components} columns of the matrix the clustering was run on "
-            f"({summary.n_subjects} subjects), with noise (-1) excluded"
-            + ("." if euclidean else f". The silhouette uses the {summary.metric} distance, the one the clustering used."),
-            className="quality-intro",
-        ),
-        _table(["Index", "Value", "Reading"], rows, text_columns=(0, 2)),
-        _chart_heading("Silhouette per cluster", "one panel per cluster, noise excluded"),
-        dcc.Graph(
-            figure=build_silhouette_figure(summary.subject_labels, summary.subject_values),
-            config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%"},
-        ),
-        _model_fit_block(run, model_fit_of),
-        *membership_blocks,
-    ]
-    return html.Div(children)
+        saved = results_of(run)
+        metric = metric_of(run) if agglomerative else ""
+    except (ValueError, OSError) as exc:
+        guide = _quality_guide() if agglomerative else _density_guide(run.method == "hdbscan_soft")
+        return html.Div([guide, html.P(str(exc), className="status-message")])
+    if agglomerative:
+        return _agglomerative_quality_content(run, saved, metric, silhouette_of)
+    return _density_quality_content(run, saved, soft_of)
 
 
 # --- Comparison inside a run and between two runs (08-10-26) ------------------------------------
@@ -4084,16 +4059,13 @@ def build_app(
             )
         return disconnection_view_cache[cache_key]
 
-    # Geometric indices per run (16-10-26): about a second for a 5845-subject run, so computed once per
+    # Silhouette of every subject per run (16-10-26): about a second for a 5845-subject run, so computed once per
     # run and served from memory afterwards. Same closure-cache reasoning as the two view caches above;
-    # a run the indices are not defined for raises ValueError and is never cached.
-    geometric_summary_cache: dict[str, GeometricSummary] = {}
+    # a run it is not defined for raises ValueError and is never cached.
+    silhouette_cache: dict[str, SilhouetteBreakdown] = {}
     # The representative subject's viewer: about a second of nilearn per (run, cluster), kept like the other views.
     representative_cache: dict[tuple[str, int], html.Div] = {}
-    model_fit_cache: dict[str, dict[str, float]] = {}
-    confidence_cache: dict[str, MembershipConfidence] = {}
     soft_membership_cache: dict[str, SoftMembership] = {}
-    density_summary_cache: dict[str, DensitySummary] = {}
 
     # Dendrogram panel (21-10-26). The compatible tunings of a run are looked up once per run (the runs themselves are
     # fixed at startup); the tree is the seconds-long part, kept per (run, tuning); the two anatomy views of a split
@@ -4154,22 +4126,10 @@ def build_app(
             return None, str(exc)
         return embedding, None
 
-    def _cached_confidence(run: ProductionRun) -> MembershipConfidence:
-        # An HDBSCAN refit: seconds at most on the runs seen so far, memoised per run.
-        if run.key not in confidence_cache:
-            confidence_cache[run.key] = run_membership_confidence(run)
-        return confidence_cache[run.key]
-
     def _cached_soft_membership(run: ProductionRun) -> SoftMembership:
         if run.key not in soft_membership_cache:
             soft_membership_cache[run.key] = run_soft_membership(run)
         return soft_membership_cache[run.key]
-
-    def _cached_model_fit(run: ProductionRun) -> dict[str, float]:
-        # A refit of kmeans/gmm: under a second on every run seen so far, memoised like the summary above.
-        if run.key not in model_fit_cache:
-            model_fit_cache[run.key] = run_model_fit(run)
-        return model_fit_cache[run.key]
     raw_distance_store = RawDistanceStore(Path(cache_dir) / "raw_distances")
     component_map_store = ComponentMapStore(Path(cache_dir) / "component_maps")
     component_map_cache: dict[str, ComponentMapData] = {}
@@ -4201,15 +4161,10 @@ def build_app(
             adp_summary_cache[run.key] = summary
         return adp_summary_cache[run.key]
 
-    def _cached_density_summary(run: ProductionRun) -> DensitySummary:
-        if run.key not in density_summary_cache:
-            density_summary_cache[run.key] = run_density_summary(run)
-        return density_summary_cache[run.key]
-
-    def _cached_geometric_summary(run: ProductionRun) -> GeometricSummary:
-        if run.key not in geometric_summary_cache:
-            geometric_summary_cache[run.key] = run_geometric_summary(run)
-        return geometric_summary_cache[run.key]
+    def _cached_silhouette(run: ProductionRun) -> SilhouetteBreakdown:
+        if run.key not in silhouette_cache:
+            silhouette_cache[run.key] = run_silhouette_samples(run)
+        return silhouette_cache[run.key]
 
     app = Dash(__name__, suppress_callback_exceptions=True)
     app.index_string = _INDEX_STRING
@@ -5142,9 +5097,7 @@ def build_app(
         if run.method == "adp":
             content, pending = adp_quality_content_for(run, summary_of=_cached_adp_summary)
             return content, not pending
-        return cluster_quality_content_for(
-            run, _cached_geometric_summary, _cached_model_fit, _cached_confidence, _cached_soft_membership, _cached_density_summary
-        ), True
+        return cluster_quality_content_for(run, silhouette_of=_cached_silhouette, soft_of=_cached_soft_membership), True
 
     def _is_agglomerative(run: ProductionRun) -> bool:
         return run.pipeline == "clustering" and run.method == "agglomerative"

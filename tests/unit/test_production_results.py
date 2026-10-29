@@ -9,12 +9,15 @@ from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, silho
 from src.analysis.dbcv import run_dbcv
 from src.analysis.production_results import (
     EUCLIDEAN_ONLY_NOTE,
+    METRICS_BY_METHOD,
     NO_CLUSTER_NOTE,
+    PER_CLUSTER_COLUMNS_BY_METHOD,
     PER_CLUSTER_FILENAME,
     RESULTS_FILENAME,
     agglomerative_results,
     compute_production_results,
     density_results,
+    read_production_results,
     write_production_results,
 )
 
@@ -213,3 +216,97 @@ def test_write_production_results_refuses_an_existing_table_before_writing_anyth
 
     write_production_results(tmp_path, results, overwrite=True)
     assert pd.read_csv(tmp_path / PER_CLUSTER_FILENAME)["n"].tolist() == [30, 30]
+
+
+def _one_result_of_each_method() -> dict:
+    """The ProductionResults of each of the three methods, on small real data."""
+    X, labels = _blobs()
+    noisy_X, noisy_labels, membership = _noisy_blobs()
+    return {
+        "agglomerative": compute_production_results("agglomerative", X, labels, WARD),
+        "hdbscan": compute_production_results("hdbscan", noisy_X, noisy_labels, {}, membership),
+        "hdbscan_soft": compute_production_results("hdbscan_soft", noisy_X, noisy_labels, {}, membership, np.array([0.3, 0.8])),
+    }
+
+
+def test_the_rows_and_columns_read_back_are_the_ones_each_method_writes():
+    for method, results in _one_result_of_each_method().items():
+        assert tuple(results.results["metric"]) == METRICS_BY_METHOD[method]
+        assert tuple(results.per_cluster.columns) == PER_CLUSTER_COLUMNS_BY_METHOD[method]
+
+
+@pytest.mark.parametrize("method", ["agglomerative", "hdbscan", "hdbscan_soft"])
+def test_read_production_results_gives_back_what_write_production_results_wrote(tmp_path, method):
+    results = _one_result_of_each_method()[method]
+    write_production_results(tmp_path, results)
+
+    saved = read_production_results(tmp_path, method)
+
+    written = {row.metric: (row.value, row.note) for row in results.results.itertuples()}
+    assert set(saved.values) == set(written)
+    for metric, (value, note) in written.items():
+        assert saved.values[metric] == pytest.approx(float(value) if value == value else np.nan, nan_ok=True)
+        assert saved.notes[metric] == (note if isinstance(note, str) else "")
+    pd.testing.assert_frame_equal(saved.per_cluster, results.per_cluster, check_dtype=False)
+
+
+def test_read_production_results_keeps_a_measure_that_is_not_defined_as_nan_with_its_reason(tmp_path):
+    X, labels = _blobs()
+    write_production_results(tmp_path, compute_production_results("agglomerative", X, labels, {**WARD, "metric": "cosine", "linkage": "average"}))
+
+    saved = read_production_results(tmp_path, "agglomerative")
+
+    assert np.isnan(saved.values["dunn"]) and saved.notes["dunn"] == EUCLIDEAN_ONLY_NOTE
+    assert saved.values["silhouette"] > 0 and saved.notes["silhouette"] == ""
+
+
+def test_read_production_results_of_a_run_that_is_all_noise_has_nan_values_and_no_cluster_row(tmp_path):
+    X = np.zeros((6, 2))
+    labels = np.full(6, -1)
+    write_production_results(tmp_path, compute_production_results("hdbscan_soft", X, labels, {}, np.full(6, np.nan), np.array([])))
+
+    saved = read_production_results(tmp_path, "hdbscan_soft")
+
+    assert saved.values["n_clusters_found"] == 0 and saved.values["noise_fraction"] == 1
+    assert np.isnan(saved.values["dbcv"]) and np.isnan(saved.values["membership_mean"])
+    assert saved.notes["membership_mean"] == NO_CLUSTER_NOTE and saved.per_cluster.empty
+
+
+def test_read_production_results_names_the_missing_file(tmp_path):
+    write_production_results(tmp_path, _one_result_of_each_method()["hdbscan"])
+    (tmp_path / PER_CLUSTER_FILENAME).unlink()
+
+    with pytest.raises(FileNotFoundError, match=PER_CLUSTER_FILENAME):
+        read_production_results(tmp_path, "hdbscan")
+    with pytest.raises(FileNotFoundError, match=RESULTS_FILENAME):
+        read_production_results(tmp_path / "empty", "hdbscan")
+
+
+def test_read_production_results_refuses_files_that_are_not_the_methods(tmp_path):
+    write_production_results(tmp_path, _one_result_of_each_method()["hdbscan"])
+
+    with pytest.raises(ValueError, match="persistence_mean"):
+        read_production_results(tmp_path, "hdbscan_soft")  # a plain hdbscan run read as a soft one
+    with pytest.raises(ValueError, match="no production results for method 'kmeans'"):
+        read_production_results(tmp_path, "kmeans")
+
+
+def test_read_production_results_refuses_a_header_a_repeated_metric_and_a_value_that_is_not_a_number(tmp_path):
+    write_production_results(tmp_path, _one_result_of_each_method()["hdbscan"])
+    path = tmp_path / RESULTS_FILENAME
+    original = path.read_text()
+
+    path.write_text(original.replace("metric,value,note", "metric,score,note"))
+    with pytest.raises(ValueError, match="columns"):
+        read_production_results(tmp_path, "hdbscan")
+    path.write_text(original.replace("noise_fraction", "dbcv"))
+    with pytest.raises(ValueError, match="metrics"):
+        read_production_results(tmp_path, "hdbscan")
+    path.write_text(original.replace("n_clusters_found,2", "n_clusters_found,two"))
+    with pytest.raises(ValueError, match="not a number"):
+        read_production_results(tmp_path, "hdbscan")
+    path.write_text(original)
+    per_cluster = tmp_path / PER_CLUSTER_FILENAME
+    per_cluster.write_text(per_cluster.read_text().replace("membership_mean", "probability"))
+    with pytest.raises(ValueError, match="columns"):
+        read_production_results(tmp_path, "hdbscan")

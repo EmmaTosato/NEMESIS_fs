@@ -126,7 +126,7 @@ def build_dbcv_figure(clusters: pd.DataFrame, score: float) -> go.Figure:
     run. The line is not the mean of the bars: the run's score weighs each cluster by its share of all the subjects,
     noise included, so the noise pulls it down.
 
-    `clusters` is DensitySummary.clusters (index: cluster label; columns: n, dbcv) and `score` its `dbcv`. The same
+    `clusters` has one row per cluster (index: cluster label; columns: n, dbcv) and `score` is the DBCV of the run. The same
     picture as dbcv_plot.png of a production run (plotting.plot_dbcv_per_cluster). Raises ValueError if `clusters` is
     empty or has a DBCV that is not a finite number."""
     if clusters.empty:

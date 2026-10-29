@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.cluster import HDBSCAN, KMeans
+from sklearn.cluster import KMeans
 from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, silhouette_score
 from sklearn.mixture import GaussianMixture
 
@@ -15,7 +15,6 @@ from src.analysis.clustering_evaluation import (
     geometric_summary,
     knn_purity,
     saturated_pair_share,
-    membership_confidence,
     model_fit_metrics,
     require_applicable,
     soft_membership_summary,
@@ -373,71 +372,6 @@ def test_saturated_pair_share_counts_pairs_not_the_zero_diagonal():
         saturated_pair_share(np.zeros((1, 1)))
 
 
-# --- membership_confidence --------------------------------------------------
-
-_HDBSCAN_PARAMS = {"min_cluster_size": 15, "min_samples": 5}
-
-
-def _blobs_of_mixed_density():
-    """Two tight blobs and a loose one, plus a few far outliers: HDBSCAN finds three clusters,
-    some noise, and probabilities below 1 inside the loose cluster."""
-    rng = np.random.default_rng(0)
-    return np.vstack(
-        [
-            rng.normal(loc=[0, 0], scale=0.2, size=(60, 2)),
-            rng.normal(loc=[8, 0], scale=1.0, size=(60, 2)),
-            rng.normal(loc=[0, 8], scale=0.2, size=(60, 2)),
-            [[30.0, 30.0], [-30.0, 30.0], [30.0, -30.0]],
-        ]
-    )
-
-
-def _fit_hdbscan(X):
-    fitted = HDBSCAN(**_HDBSCAN_PARAMS).fit(X)
-    return fitted.labels_, fitted.probabilities_
-
-
-def test_membership_confidence_summarises_hdbscans_own_probabilities_per_cluster():
-    X = _blobs_of_mixed_density()
-    labels, probabilities = _fit_hdbscan(X)
-    assert (labels == -1).any() and len(set(labels) - {-1}) == 3  # the fixture is what the test assumes
-
-    result = membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, labels)
-
-    for cluster, row in result.clusters.iterrows():
-        p = probabilities[labels == cluster]
-        assert row["n"] == len(p)
-        assert row["probability_mean"] == pytest.approx(p.mean())
-    assert list(result.clusters.columns) == ["n", "probability_mean"]  # no threshold: the literature has no reference value
-    assert result.n_noise == int((labels == -1).sum())
-
-
-def test_membership_confidence_refuses_a_refit_that_does_not_reproduce_the_labels():
-    X = _blobs_of_mixed_density()
-    labels, _ = _fit_hdbscan(X)
-
-    with pytest.raises(ValueError, match="does not reproduce the stored labels"):
-        membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, np.roll(labels, 1))
-
-
-def test_membership_confidence_refuses_a_method_without_membership_probabilities():
-    with pytest.raises(ValueError, match="'kmeans'"):
-        membership_confidence("kmeans", np.zeros((4, 2)), {}, np.zeros(4, dtype=int))
-
-
-def test_membership_confidence_refuses_a_run_that_is_all_noise():
-    X = _blobs_of_mixed_density()
-
-    with pytest.raises(ValueError, match="every subject is noise"):
-        membership_confidence("hdbscan", X, _HDBSCAN_PARAMS, np.full(len(X), -1))
-
-
-def test_membership_confidence_is_registered_for_hdbscan_only():
-    require_applicable("membership_confidence", "hdbscan")
-    with pytest.raises(ValueError, match="'agglomerative'"):
-        require_applicable("membership_confidence", "agglomerative")
-
-
 # --- soft_membership_summary --------------------------------------------------
 
 
@@ -658,49 +592,6 @@ def _soft_membership():
     return labels, membership
 
 
-# --- density_summary / DBCV -------------------------------------------------------------------------
-
-
-def _density_fixture():
-    rng = np.random.default_rng(0)
-    X = np.vstack([rng.normal(centre, 0.3, (30, 2)) for centre in (0.0, 8.0)] + [rng.uniform(-20, 30, (6, 2))])
-    return X, np.array([0] * 30 + [1] * 30 + [-1] * 6)
-
-
-def test_density_summary_has_the_dbcv_the_shares_and_one_row_per_cluster():
-    from src.analysis.clustering_evaluation import density_summary
-    from src.analysis.dbcv import dbcv
-
-    X, labels = _density_fixture()
-    result = density_summary(X, labels, {"min_cluster_size": 5})
-
-    assert result.dbcv == pytest.approx(dbcv(X, labels)[0])
-    assert result.n_clusters == 2 and result.n_subjects == 66 and result.n_components == 2
-    assert result.largest_cluster_share == pytest.approx(30 / 66) and result.noise_fraction == pytest.approx(6 / 66)
-    assert result.clusters["n"].tolist() == [30, 30] and list(result.clusters.columns) == ["n", "dbcv"]
-
-
-def test_density_summary_of_a_run_dbcv_is_not_defined_for_keeps_the_shares_and_says_why():
-    from src.analysis.clustering_evaluation import density_summary
-
-    X, labels = _density_fixture()
-    one = density_summary(X, np.where(labels == 0, 0, -1), {})
-    cosine = density_summary(X, labels, {"metric": "cosine"})
-
-    assert np.isnan(one.dbcv) and one.clusters.empty and "fewer than 2 clusters" in one.note and one.n_clusters == 1
-    assert np.isnan(cosine.dbcv) and cosine.clusters.empty and "Euclidean" in cosine.note
-    assert cosine.n_clusters == 2 and cosine.noise_fraction == pytest.approx(6 / 66)
-    assert density_summary(X, labels, {}).note == ""
-
-
-def test_density_summary_raises_for_a_length_mismatch():
-    from src.analysis.clustering_evaluation import density_summary
-
-    X, labels = _density_fixture()
-    with pytest.raises(ValueError, match="one row per label"):
-        density_summary(X, labels[:-1], {})
-
-
 def test_the_density_methods_have_dbcv_and_not_the_geometric_indices():
     for method in ("hdbscan", "hdbscan_soft"):
         require_applicable("dbcv", method)
@@ -725,16 +616,3 @@ def test_the_tuning_silhouette_is_the_mean_of_the_per_subject_silhouette_of_the_
     _, samples = compute_silhouette_samples(X, labels, metric)
 
     assert tuning == pytest.approx(samples.mean(), abs=1e-9)
-
-
-def test_the_tuning_and_the_app_count_clusters_and_noise_the_same_way():
-    from src.analysis.clustering_evaluation import density_summary, model_fit_metrics
-    from src.analysis.clustering_tuning import compute_noise_metrics
-
-    X, labels = _density_fixture()
-
-    fit = model_fit_metrics("hdbscan", X, {}, labels)
-    summary = density_summary(X, labels, {})
-
-    assert compute_noise_metrics(labels)["noise_fraction"] == fit["noise_fraction"] == summary.noise_fraction
-    assert fit["n_clusters_found"] == summary.n_clusters == 2

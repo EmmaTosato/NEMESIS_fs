@@ -30,6 +30,23 @@ RESULTS_METHODS = ("agglomerative", "hdbscan", "hdbscan_soft")
 EUCLIDEAN_ONLY_NOTE = "Euclidean distance only"
 NO_CLUSTER_NOTE = "no cluster: every subject is noise"
 
+# The rows of production_results.csv and the columns of production_results_per_cluster.csv of each method: what
+# read_production_results demands of a saved run, and what the writers below produce.
+_DENSITY_METRICS = ("n_clusters_found", "noise_fraction", "largest_cluster_share", "dbcv", "membership_mean")
+METRICS_BY_METHOD: dict[str, tuple[str, ...]] = {
+    "agglomerative": (
+        "silhouette", "calinski_harabasz", "davies_bouldin", "dunn", "largest_cluster_share",
+        "cophenetic_correlation", "dendrogram_jump",
+    ),
+    "hdbscan": _DENSITY_METRICS,
+    "hdbscan_soft": (*_DENSITY_METRICS, "persistence_mean"),
+}
+PER_CLUSTER_COLUMNS_BY_METHOD: dict[str, tuple[str, ...]] = {
+    "agglomerative": ("cluster", "n", "silhouette_mean", "share_negative"),
+    "hdbscan": ("cluster", "n", "dbcv", "membership_mean"),
+    "hdbscan_soft": ("cluster", "n", "dbcv", "membership_mean", "persistence"),
+}
+
 _NAN = float("nan")
 
 
@@ -43,6 +60,16 @@ class ProductionResults:
     per_cluster: pd.DataFrame
     summary: GeometricSummary | None = None
     dbcv: RunDbcv | None = None
+
+
+@dataclass(frozen=True)
+class SavedResults:
+    """What a production run saved: `values` and `notes` by metric (a measure that is not defined for the run is NaN, with
+    the reason in its note; every other note is ""), and `per_cluster`, the table of production_results_per_cluster.csv."""
+
+    values: dict[str, float]
+    notes: dict[str, str]
+    per_cluster: pd.DataFrame
 
 
 def _results_table(rows: list[tuple[str, float, str]]) -> pd.DataFrame:
@@ -189,3 +216,42 @@ def write_production_results(output_dir: Path, results: ProductionResults, overw
     _write_csv(results.results, paths[0])
     _write_csv(results.per_cluster, paths[1])
     return paths
+
+
+def read_production_results(run_dir: Path, method: str) -> SavedResults:
+    """The two tables a production run of `method` saved in `run_dir`, as write_production_results wrote them.
+
+    Raises FileNotFoundError if one of the files is missing (a run written before production runs saved them), and
+    ValueError, naming the file, for a `method` that has none, a header or a set of rows that is not the method's, a metric
+    twice, or a value that is not a number."""
+    if method not in RESULTS_METHODS:
+        raise ValueError(f"no production results for method {method!r} - known: {list(RESULTS_METHODS)}")
+    paths = {name: run_dir / name for name in (RESULTS_FILENAME, PER_CLUSTER_FILENAME)}
+    missing = [name for name, path in paths.items() if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(f"{run_dir.name} has no {' and no '.join(missing)}: a clustering.py production run saves them")
+
+    results = pd.read_csv(paths[RESULTS_FILENAME], dtype={"metric": str, "note": str}, keep_default_na=True)
+    if list(results.columns) != RESULTS_COLUMNS:
+        raise ValueError(f"{paths[RESULTS_FILENAME]} has the columns {list(results.columns)}, expected {RESULTS_COLUMNS}")
+    if sorted(results["metric"]) != sorted(METRICS_BY_METHOD[method]):
+        raise ValueError(
+            f"{paths[RESULTS_FILENAME]} has the metrics {list(results['metric'])}, "
+            f"a {method} run has {list(METRICS_BY_METHOD[method])}"
+        )
+    try:
+        numbers = pd.to_numeric(results["value"], errors="raise").astype(float)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"{paths[RESULTS_FILENAME]} has a value that is not a number: {exc}") from exc
+
+    per_cluster = pd.read_csv(paths[PER_CLUSTER_FILENAME])
+    if list(per_cluster.columns) != list(PER_CLUSTER_COLUMNS_BY_METHOD[method]):
+        raise ValueError(
+            f"{paths[PER_CLUSTER_FILENAME]} has the columns {list(per_cluster.columns)}, "
+            f"a {method} run has {list(PER_CLUSTER_COLUMNS_BY_METHOD[method])}"
+        )
+    return SavedResults(
+        values=dict(zip(results["metric"], numbers)),
+        notes=dict(zip(results["metric"], results["note"].fillna(""))),
+        per_cluster=per_cluster,
+    )

@@ -22,12 +22,10 @@ from src.analysis.clustering_tuning import (
     compute_silhouette_samples,
     cophenetic_correlation,
     dunn_index,
-    hdbscan_labels_and_probabilities,
     require_euclidean_affinity,
     require_euclidean_compatible,
 )
 from src.analysis.clustering_tuning_analysis import dendrogram_jump
-from src.analysis.dbcv import run_dbcv
 from src.analysis.partition_shape import partition_shape
 
 
@@ -70,11 +68,6 @@ EVALUATIONS: dict[str, Evaluation] = {
         "the subjects x clusters matrix of membership probabilities is an output of the soft clustering of the "
         "hdbscan package, saved with the run: the other methods assign a subject to a cluster without a degree of membership "
         "to each (sklearn HDBSCAN has only probabilities_, the closeness to the core of its own cluster)",
-    ),
-    "membership_confidence": Evaluation(
-        frozenset({"hdbscan"}),
-        "probabilities_ is an output of HDBSCAN only (strength of membership of each subject in its own cluster, "
-        "normalized within the cluster); the other methods assign a subject to a cluster without a degree of membership",
     ),
 }
 
@@ -149,50 +142,6 @@ def _agglomerative_model_fit(X: np.ndarray, params: dict, labels: np.ndarray) ->
         "cophenetic_correlation": cophenetic_correlation(X, params, distance_cache),
         "dendrogram_jump": dendrogram_jump(linkage_matrix, range(n_clusters, n_clusters + 1))[n_clusters],
     }
-
-
-@dataclass(frozen=True)
-class MembershipConfidence:
-    """How firmly the subjects of an hdbscan run belong to their cluster, from `probabilities_`.
-
-    `clusters` has one row per non-noise cluster: `n` and `probability_mean`. No threshold: the literature has
-    no reference value for a probability, so the table reports the mean only.
-    """
-
-    clusters: pd.DataFrame  # index: cluster label; columns: n, probability_mean
-    n_noise: int
-
-
-def membership_confidence(method: str, X: np.ndarray, params: dict, labels: np.ndarray) -> MembershipConfidence:
-    """Membership strength of an already-produced hdbscan run.
-
-    `probabilities_` is a lambda value normalised to [0, 1] inside each cluster (0 for noise), so it
-    says how close a subject sits to the core of *its* cluster, not how likely it is to belong to this
-    cluster rather than another. It exists only on the fitted estimator, which a run does not store: it
-    is refit with the run's own params and accepted only if it reproduces the stored labels exactly, as
-    in model_fit_metrics. It is a description of the density in the space clustered (an embedding with
-    min_dist=0 is already packed), not a validity index. Noise is left out of every number (its
-    probability is 0 by construction).
-
-    Raises ValueError for a method other than hdbscan, a refit that does not reproduce the labels, or a
-    run where every subject is noise.
-    """
-    require_applicable("membership_confidence", method)
-    labels = np.asarray(labels)
-    noise = labels == -1
-    if noise.all():
-        raise ValueError("every subject is noise (label -1): there is no cluster to describe")
-
-    refit_labels, probabilities = hdbscan_labels_and_probabilities(X, params)
-    if not np.array_equal(refit_labels, labels):
-        raise ValueError(
-            f"refitting 'hdbscan' with params={params} does not reproduce the stored labels - "
-            "its probabilities would describe a different fit than the run"
-        )
-
-    frame = pd.DataFrame({"cluster": labels[~noise], "probability": probabilities[~noise]})
-    grouped = frame.groupby("cluster")["probability"]
-    return MembershipConfidence(clusters=pd.DataFrame({"n": grouped.size(), "probability_mean": grouped.mean()}), n_noise=int(noise.sum()))
 
 
 @dataclass(frozen=True)
@@ -522,44 +471,4 @@ def adp_summary(distances: np.ndarray, non_empty: np.ndarray, labels: np.ndarray
         k=k, n_subjects=len(labels), n_clustered=len(clustered_labels), noise_fraction=float((labels == -1).mean()),
         pairs_at_distance_1=saturated_pair_share(clustered_distances), purity=purity, silhouette=silhouette,
         clusters=pd.concat([purity.clusters, silhouette.clusters[["silhouette_mean", "share_negative"]]], axis=1),
-    )
-
-
-@dataclass(frozen=True)
-class DensitySummary:
-    """The evaluation of one hdbscan / hdbscan_soft run: DBCV over all the subjects (noise included in the weights)
-    and the cluster/noise shares. `clusters` has one row per cluster, indexed by its label, with `n` and `dbcv` (its
-    own score). `dbcv` is NaN, `clusters` empty and `note` the reason when DBCV is not defined for the run: fewer
-    than 2 clusters, or a non-Euclidean metric (src/analysis/dbcv.py::run_dbcv). `note` is "" otherwise."""
-
-    n_subjects: int
-    n_components: int
-    n_clusters: int
-    largest_cluster_share: float
-    noise_fraction: float
-    dbcv: float
-    clusters: pd.DataFrame  # index: cluster label; columns: n, dbcv
-    note: str = ""
-
-
-def density_summary(X: np.ndarray, labels: np.ndarray, combo_params: dict) -> DensitySummary:
-    """DBCV and the cluster/noise shares of a density run, as the Embedding Explorer panel shows them.
-
-    `combo_params` is the run's own params. A run for which DBCV is not defined (fewer than 2 clusters, or clustered
-    under a non-Euclidean metric) is not refused: it comes back with the shares, `dbcv` NaN and the reason in `note`
-    (src/analysis/dbcv.py::run_dbcv). Raises ValueError for a `labels`/`X` length mismatch, for a cluster of one
-    subject and for non-finite values.
-    """
-    labels = np.asarray(labels)
-    if X.ndim != 2 or len(X) != len(labels):
-        raise ValueError(f"X must be 2D with one row per label, got X.shape={X.shape} and {len(labels)} labels")
-    shape = partition_shape(labels)
-    result = run_dbcv(X, labels, combo_params)
-    clusters = result.clusters.set_index("cluster") if not result.clusters.empty else pd.DataFrame(
-        {"n": [], "dbcv": []}, index=pd.Index([], name="cluster")
-    )
-    return DensitySummary(
-        n_subjects=shape.n_subjects, n_components=X.shape[1], n_clusters=shape.n_clusters,
-        largest_cluster_share=shape.largest_cluster_share, noise_fraction=shape.noise_fraction,
-        dbcv=result.score, clusters=clusters, note=result.note,
     )

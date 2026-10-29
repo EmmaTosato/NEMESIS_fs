@@ -6,6 +6,16 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 29-10-26 — Embedding Explorer: il pannello "Clustering evaluation" legge i numeri salvati dalla produzione
+
+**Cosa è cambiato**: per `agglomerative`, `hdbscan` e `hdbscan_soft` il pannello legge `production_results.csv` e `production_results_per_cluster.csv` (`production_results.read_production_results`) invece di rifittare e ricalcolare. Calcola solo la silhouette di ogni soggetto di agglomerative (il valore per soggetto non sta nei file). Tolti dall'app: `run_geometric_summary`, `run_density_summary`, `run_model_fit`, `run_membership_confidence`, le loro quattro cache, i blocchi "Model statistic" di kmeans/gmm/hdbscan e "Position in the cluster" (la probabilità media per cluster è una colonna della tabella per cluster). Al suo posto la tabella per cluster (silhouette, DBCV, probabilità, persistenza).
+
+**Perché**: una sola fonte per i numeri di una run (la produzione) invece di due calcoli che possono divergere; sparisce il limite di 1000 colonne per la tabella (resta per il grafico della silhouette).
+
+**Scartato**: ripiego sul calcolo dal vivo per le run senza i file (le 7 del 10-09, escluse dal backfill). Tiene in piedi tutto il codice di calcolo per sole 7 run ed è un secondo percorso che può dare numeri diversi dai file; scelta l'alternativa: il pannello dice quale file manca (`code_standards.md` §0).
+
+**Conseguenza ancora vera**: una run senza i due file mostra un messaggio, non una tabella; così `kmeans`, `gmm`, `spectral` (nessun risultato salvato, run in `results/legacy`). `clustering_evaluation.density_summary` e `membership_confidence` (con `DensitySummary`, `MembershipConfidence`, la voce `membership_confidence` del registro `EVALUATIONS` e i loro test) non stanno più in `src/`: sono in `tests/legacy/density_membership_summaries.py`, con la voce in `EVALUATIONS_TO_RESTORE`. Le voci `geometric_metrics` e `dbcv` del registro restano (le tengono in piedi i test di proprietà), ma nessun codice le interroga più.
+
 ## 28-10-26 — Produzione di clustering: `production_results.csv` e `production_results_per_cluster.csv`, `config.md` solo parametri
 
 **Cosa è cambiato** (`src/pipeline/clustering.py`, nuovo `src/analysis/production_results.py`): una run di produzione di `agglomerative`, `hdbscan` e `hdbscan_soft` scrive due tabelle accanto a `matrix.npy`.
