@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.analysis.embedding_app import COLOR_MODE_ORDER, NEUTRAL_MODE
+from src.analysis.embedding_app.embedding_view import COLOR_MODE_ORDER, NEUTRAL_MODE
 from src.pipeline import plot_tuning_embedding_3d as plot3d
 from src.utils import participants as participants_registry
 from tests.factories.ids import subject_ids

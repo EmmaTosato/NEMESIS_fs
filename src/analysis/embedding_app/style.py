@@ -1,5 +1,5 @@
-"""The visual identity of the Embedding Explorer: design tokens, the page's CSS and the HTML
-skeleton Dash renders it into.
+"""The visual identity of the Embedding Explorer: design tokens, the page's CSS, the HTML
+skeleton Dash renders it into, and the number format every figure on the page is given.
 
 The bottom layer of the embedding_app package - it imports nothing from its siblings, they
 read the tokens from here (figures style their fonts and axes with the same values the CSS
@@ -7,6 +7,10 @@ uses, so the page and the plots in it cannot drift apart).
 """
 
 from __future__ import annotations
+
+import plotly.graph_objects as go
+
+from src.utils.number_format import PLOTLY_SEPARATORS
 
 # Same measured design tokens as src/analysis/understanding_umap_report.py's own _CSS
 # (PAIR-style editorial report, 13/14-08-26 sessions) - not imported directly (that module's
@@ -332,3 +336,9 @@ _INDEX_STRING = f"""<!DOCTYPE html>
 <footer>{{%config%}}{{%scripts%}}{{%renderer%}}</footer>
 </body>
 </html>"""
+
+
+def _italian_figure(figure: go.Figure) -> go.Figure:
+    """`figure` with ',' as decimal separator and '.' for thousands in every number Plotly formats (ticks, hover,
+    colorbars), as format_number does for the text of the page."""
+    return figure.update_layout(separators=PLOTLY_SEPARATORS)

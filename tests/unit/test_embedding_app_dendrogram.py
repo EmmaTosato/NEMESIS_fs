@@ -533,7 +533,7 @@ def test_the_figures_of_the_steps_have_the_png_button_and_the_decimal_comma(coho
 
 
 def test_the_dendrogram_draws_each_cluster_of_the_run_in_the_colour_of_the_clustering_scatter(cohort):
-    from src.analysis.embedding_app import cluster_options
+    from src.analysis.embedding_app.embedding_view import cluster_options
     from src.analysis.plotting import _palette_for_labels
 
     tree, metadata = _context(cohort)

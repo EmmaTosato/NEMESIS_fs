@@ -43,7 +43,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.analysis.embedding_app import COLOR_MODE_ORDER, NEUTRAL_MODE, build_embedding_figure
+from src.analysis.embedding_app.embedding_view import COLOR_MODE_ORDER, NEUTRAL_MODE, build_embedding_figure
 from src.analysis.embedding_coloring import COLOR_MODES
 from src.utils.logging_setup import log_duration
 

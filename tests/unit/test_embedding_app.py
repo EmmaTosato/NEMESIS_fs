@@ -16,8 +16,6 @@ from dash import dcc, html
 from src.analysis.embedding_app import DISCONNECTION_PROBABILITY_THRESHOLD
 from src.analysis.embedding_coloring import DEFAULT_GRID, available_grids
 from src.analysis.embedding_app import (
-    COLOR_MODE_ORDER,
-    NEUTRAL_MODE,
     LesionViewerConfig,
     SdcViewerConfig,
     _build_cluster_disconnection_view,
@@ -25,19 +23,23 @@ from src.analysis.embedding_app import (
     _static_glass_brain_png_bytes,
     _static_png_bytes,
     build_app,
-    build_embedding_figure,
-    cluster_centroids_with_nearest_subject,
     cluster_composition_content_for,
     cluster_description_content_for,
-    cluster_options,
-    color_mode_description,
-    color_mode_description_children,
     disconnection_map_content_for,
     disconnectome_viewer_content_for,
-    graph_content_for,
     lesion_viewer_content_for,
     overlap_map_content_for,
     representative_subject_content_for,
+)
+from src.analysis.embedding_app.embedding_view import (
+    COLOR_MODE_ORDER,
+    NEUTRAL_MODE,
+    build_embedding_figure,
+    cluster_centroids_with_nearest_subject,
+    cluster_options,
+    color_mode_description,
+    color_mode_description_children,
+    graph_content_for,
     run_title,
 )
 from src.analysis.embedding_app.picker import _n_components_option_label
@@ -1564,7 +1566,7 @@ def test_cluster_centroids_trace_starts_hidden_but_stays_in_the_legend():
     plot, solo quando selezionati dalla legenda diventano attivi". visible="legendonly" is the
     only setting that does both - visible=False would drop the trace from the legend entirely,
     leaving the reader no way to switch it back on."""
-    from src.analysis.embedding_app import _add_cluster_centroids_trace
+    from src.analysis.embedding_app.embedding_view import _add_cluster_centroids_trace
 
     figure = go.Figure()
     embedding = np.array([[0.0, 0.0], [1.0, 1.0], [5.0, 5.0], [6.0, 6.0]])
