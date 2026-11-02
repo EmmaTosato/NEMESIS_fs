@@ -7,18 +7,20 @@ import pandas as pd
 import pytest
 from dash import dcc, html
 
-from src.analysis.embedding_app import (
-    build_app,
+from src.analysis.embedding_app import build_app
+from src.analysis.embedding_app.panels.cluster_pair import (
     cluster_pair_anatomy_for,
     cluster_pair_content_for,
+    pair_cluster_option_label,
+)
+from src.analysis.embedding_app.panels.comparison import (
     comparable_runs,
     comparison_candidates,
     comparison_content_for,
     comparison_incompatibility,
-    index_entries_for,
-    pair_cluster_option_label,
 )
 from src.analysis.embedding_app.runs import ProductionRun, run_metadata
+from src.analysis.embedding_app.tabs import index_entries_for
 from src.utils.artifacts import save_matrix
 from tests.unit.test_embedding_app import (
     _clustering_params_file,

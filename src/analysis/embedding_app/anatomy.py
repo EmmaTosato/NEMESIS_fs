@@ -591,3 +591,11 @@ def representative_subject_content_for(
         view, f"Cluster {cluster_label} — representative: {subject_id} ({dataset})",
         f"Real subject closest to the cluster centroid in the clustering space (distance={format_number(distance, 3)})",
     )
+
+
+# What each anatomy panel shows before a point has been clicked: the panels exist from the
+# first render (their callbacks fill them in place), so they need something to say meanwhile.
+_LESION_PLACEHOLDER = html.P("Click a point in the embedding to see the lesion.", className="status-message")
+_DISCONNECTOME_PLACEHOLDER = html.P(
+    "Click a point in the embedding to see the disconnectome.", className="status-message"
+)

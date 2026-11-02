@@ -2,17 +2,17 @@
 
 import pytest
 
-from src.analysis.embedding_app import (
+from src.analysis.embedding_app import build_app
+from src.analysis.embedding_app.runs import ProductionRun
+from src.analysis.embedding_app.tabs import (
     PAGE_TAB_LABELS,
     TAB_CLUSTERING,
     TAB_DENDROGRAM,
     TAB_EMBEDDING,
     active_page_tab,
-    build_app,
     index_entries_for,
     page_tabs_for,
 )
-from src.analysis.embedding_app.runs import ProductionRun
 from tests.unit.test_embedding_app import _clustering_params_file, _lesion_cfg, _make_run_dir, _sdc_cfg
 
 
@@ -187,7 +187,7 @@ def test_the_clustering_tab_builds_its_panels_again_when_it_is_shown(tmp_path):
 
 
 def test_tab_is_active_follows_the_fallback_of_active_page_tab():
-    from src.analysis.embedding_app import tab_is_active
+    from src.analysis.embedding_app.tabs import tab_is_active
 
     assert tab_is_active(AGGLOMERATIVE, TAB_DENDROGRAM, TAB_DENDROGRAM)
     assert not tab_is_active(KMEANS, TAB_DENDROGRAM, TAB_DENDROGRAM)  # falls back to the embedding

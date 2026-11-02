@@ -12,17 +12,17 @@ from scipy.cluster.hierarchy import fcluster
 
 from src.analysis.clustering_tuning import compute_dendrogram_linkage
 from src.analysis.dendrogram_splits import PALETTE, replay_splits, saved_labels_for
-from src.analysis.embedding_app import (
+from src.analysis.embedding_app import build_app
+from src.analysis.embedding_app.panels.dendrogram import (
     DENDROGRAM_MAP_MODALITIES,
-    build_app,
     build_run_split_tree,
     dendrogram_k_options,
     dendrogram_steps_content_for,
-    index_entries_for,
     run_compatible_tunings,
     tuning_root_of,
 )
 from src.analysis.embedding_app.runs import ProductionRun
+from src.analysis.embedding_app.tabs import index_entries_for
 from src.utils.artifacts import save_matrix
 from tests.unit.test_embedding_app import (
     _clustering_params_file,

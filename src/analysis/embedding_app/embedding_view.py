@@ -48,6 +48,10 @@ _NEUTRAL_DESCRIPTION = (
 )
 COLOR_MODE_ORDER: tuple[str, ...] = (NEUTRAL_MODE, *COLOR_MODES.keys())
 
+# The metadata column a clustering run's own labels are in, read from the registry rather than
+# written out again: the panels that group subjects by cluster all index by it.
+_CLUSTER_LABEL_COLUMN = COLOR_MODES["cluster_label"].column
+
 
 def _color_label(mode_name: str) -> str | None:
     return None if mode_name == NEUTRAL_MODE else COLOR_MODES[mode_name].label
