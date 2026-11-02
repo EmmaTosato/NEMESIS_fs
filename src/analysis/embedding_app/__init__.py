@@ -48,28 +48,13 @@ import logging
 import threading
 from pathlib import Path
 
-import nibabel as nib
-import numpy as np
-import pandas as pd
 from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
-from nilearn.plotting.html_stat_map import StatMapView
 
-from src.analysis.anatomical_maps import (
-    BinaryMaskStore,
-    DiscoveredFiles,
-    resolve_available_lesion_paths,
-    resolve_lesion_paths,
-)
-from src.analysis.clustering_evaluation import AdpSummary, SilhouetteBreakdown, SoftMembership
-from src.analysis.component_maps import ComponentMapStore
-from src.analysis.dendrogram_splits import SplitTree
+from src.analysis.anatomical_maps import resolve_available_lesion_paths, resolve_lesion_paths
 from src.analysis.embedding_app.anatomy import (
     DEFAULT_DISCONNECTION_MAP_MODE,
     DISCONNECTION_MAP_MODE_LABELS,
-    DISCONNECTION_PERCENT_MODE,
-    DISCONNECTION_PROBABILITY_THRESHOLD,
-    _ANATOMY_VIEWER_WIDTH,
     _DISCONNECTOME_CMAP,
     _DISCONNECTOME_DISPLAY_THRESHOLD,
     _DISCONNECTOME_GLASS_BRAIN_ALPHA,
@@ -78,8 +63,6 @@ from src.analysis.embedding_app.anatomy import (
     _LESION_PLACEHOLDER,
     LesionViewerConfig,
     SdcViewerConfig,
-    _build_cluster_disconnection_view,
-    _build_cluster_overlap_view,
     _build_subject_disconnectome_view,
     _build_subject_lesion_view,
     _resolve_subject_dataset,
@@ -92,6 +75,7 @@ from src.analysis.embedding_app.anatomy import (
     overlap_map_content_for,
     representative_subject_content_for,
 )
+from src.analysis.embedding_app.context import AppContext
 from src.analysis.embedding_app.embedding_view import (
     COLOR_MODE_ORDER,
     NEUTRAL_MODE,
@@ -105,38 +89,26 @@ from src.analysis.embedding_app.embedding_view import (
 from src.analysis.embedding_app.panels.dendrogram import (
     DENDROGRAM_MAP_MODALITIES,
     DendrogramViewBuilder,
-    build_run_split_tree,
     dendrogram_k_options,
     dendrogram_steps_content_for,
     dendrogram_tuning_note,
-    run_compatible_tunings,
 )
 from src.analysis.embedding_app.panels.description import (
     cluster_composition_content_for,
     cluster_description_content_for,
 )
 from src.analysis.embedding_app.panels.overview import ALL_CLUSTERS, all_clusters_content_for
-from src.analysis.embedding_app.panels.pca_maps import (
-    ComponentMapData,
-    _build_component_map_view,
-    _is_pca_run,
-    component_maps_content_for,
-    run_component_maps,
-)
+from src.analysis.embedding_app.panels.pca_maps import _is_pca_run, component_maps_content_for
 from src.analysis.embedding_app.panels.quality import (
     _QUALITY_POLL_MS,
     adp_quality_content_for,
     cluster_quality_content_for,
-    run_adp_summary,
-    run_silhouette_samples,
-    run_soft_membership,
 )
 from src.analysis.embedding_app.picker import (
     PICKER_FIELDS,
     SPLIT_TAG_PARAMS,
     UNSET,
     _n_components_option_label,
-    index_runs,
     open_pickers,
     resolve_pickers,
 )
@@ -162,8 +134,6 @@ from src.analysis.embedding_app.tabs import (
     tab_is_active,
 )
 from src.analysis.embedding_coloring import DEFAULT_GRID, GRID_MODES, available_grids
-from src.analysis.raw_distances import RawDistanceStore
-from src.analysis.tuning_match import TuningMatch
 from src.utils.participants import load_participants_registry
 
 
@@ -185,15 +155,14 @@ def build_app(
     (load_run + build_embedding_figure), never cached: at this cohort size (~1150 subjects,
     matrix.npy a few hundred KB at most) a fresh disk read + figure build is fast enough that
     a cache would add complexity for no measurable benefit. Same philosophy holds for the
-    single-subject lesion viewer added 01-09-26 (one small NIfTI, also fast enough uncached) -
-    but *not* for the per-cluster overlap map (same panel-family, very different cost: measured
-    ~40ms/subject to load+resample, dominating the whole panel's response time for a real
-    several-hundred-subject cluster), which this app does cache in-process
-    (cluster_view_cache/_cached_cluster_overlap_view below, 01-09-26 perf fix). The two SDC
-    disconnectome panels added 29-09-26 (single-subject viewer, per-cluster mean-disconnection
-    map) mirror this exact split - single-subject uncached, per-cluster cached
-    (disconnection_view_cache/_cached_cluster_disconnection_view) - same per-subject cost shape,
-    just averaging instead of counting (build_mean_map vs build_overlap_map).
+    single-subject lesion viewer (one small NIfTI, also fast enough uncached) - but *not* for
+    the per-cluster overlap map (same panel-family, very different cost: measured ~40ms/subject
+    to load+resample, dominating the whole panel's response time for a real
+    several-hundred-subject cluster). The two SDC disconnectome panels mirror that split -
+    single-subject uncached, per-cluster kept - same per-subject cost shape, just averaging
+    instead of counting (build_mean_map vs build_overlap_map). Everything this app does keep
+    lives in its AppContext (src/analysis/embedding_app/context.py), built once here and read
+    by the callbacks below; that module's docstring says what is memoised and on which key.
 
     suppress_callback_exceptions=True (01-09-26): the anatomy panels' own callbacks reference
     component ids ("embedding-graph") that only exist once graph_content_for actually renders a
@@ -214,88 +183,7 @@ def build_app(
     if not runs:
         raise ValueError("The app needs at least one production run - none were discovered, nothing to display")
 
-    runs_by_key = {run.key: run for run in runs}
-    # Each run's value at every filter selector, read once here and not on every click.
-    indexed_runs = index_runs(runs, clustering_params_file)
-
-    # Per-subject "voxels above threshold" memos (30-09-26), shared by every run and cluster of
-    # this app instance - see BinaryMaskStore. Plain closure variables, like the view caches.
-    lesion_store = BinaryMaskStore(
-        lesion_cfg.reference_img, lesion_cfg.resample_interpolation, lesion_cfg.binarize_threshold,
-        cache_dir=Path(cache_dir) / "binary_masks",
-    )
-    disconnection_store = BinaryMaskStore(
-        sdc_cfg.reference_img, sdc_cfg.resample_interpolation, DISCONNECTION_PROBABILITY_THRESHOLD,
-        cache_dir=Path(cache_dir) / "binary_masks",
-    )
-
-    # Cluster-overlap-map cache (01-09-26 perf fix) - process-lifetime, in-memory, scoped to
-    # this one app instance (a plain closure variable, not a module-level global -
-    # code_standards.md §1 "no stato globale"). Keyed by (run.key, cluster_label): switching
-    # back to an already-viewed cluster (or re-viewing it via the "Salva HTML" button after
-    # already looking at it) is then instant instead of re-loading+resampling every subject's
-    # real NIfTI mask from disk again. A failed build (ValueError - an unresolvable subject) is
-    # never cached, so a transient/fixable problem can be retried on the next click.
-    # Which files each dataset holds (22-10-26): found once per app, shared by every per-cluster map and the preload.
-    discovered_files = DiscoveredFiles()
-
-    cluster_view_cache: dict[tuple[str, int, int], tuple[StatMapView, int, nib.Nifti1Image, list[str]]] = {}
-
-    def _cached_cluster_overlap_view(
-        run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig,
-        width_view: int = _ANATOMY_VIEWER_WIDTH,
-    ) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
-        # The width is part of the key: the same cluster is drawn big in its own panel and smaller in the overview.
-        cache_key = (run.key, cluster_label, width_view)
-        if cache_key not in cluster_view_cache:
-            cluster_view_cache[cache_key] = _build_cluster_overlap_view(
-                run, metadata, cluster_label, lesion_cfg, mask_store=lesion_store, discovered=discovered_files,
-                width_view=width_view,
-            )
-        return cluster_view_cache[cache_key]
-
-    # Same caching reasoning as cluster_view_cache above, for the SDC per-cluster mean
-    # disconnection map (29-09-26) - a separate dict/cache_key namespace since a (run.key,
-    # cluster_label) pair for a clustering run could in principle collide across the two if
-    # they shared one dict (a clustering run's own key doesn't encode which of the two anatomy
-    # families produced a given cache entry).
-    disconnection_view_cache: dict[
-        tuple[str, int, str, int], tuple[StatMapView, int, nib.Nifti1Image, list[str]]
-    ] = {}
-
-    def _cached_cluster_disconnection_view(
-        run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig,
-        map_mode: str = DEFAULT_DISCONNECTION_MAP_MODE, width_view: int = _ANATOMY_VIEWER_WIDTH,
-    ) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
-        # map_mode is part of the key (30-09-26): the same cluster now has two different maps,
-        # and keying on (run, cluster) alone would serve whichever was built first for both. The width too (22-10-26).
-        cache_key = (run.key, cluster_label, map_mode, width_view)
-        if cache_key not in disconnection_view_cache:
-            disconnection_view_cache[cache_key] = _build_cluster_disconnection_view(
-                run, metadata, cluster_label, sdc_cfg, map_mode, mask_store=disconnection_store,
-                discovered=discovered_files, width_view=width_view,
-            )
-        return disconnection_view_cache[cache_key]
-
-    # Silhouette of every subject per run (16-10-26): about a second for a 5845-subject run, so computed once per
-    # run and served from memory afterwards. Same closure-cache reasoning as the two view caches above;
-    # a run it is not defined for raises ValueError and is never cached.
-    silhouette_cache: dict[str, SilhouetteBreakdown] = {}
-    # The representative subject's viewer: about a second of nilearn per (run, cluster), kept like the other views.
-    representative_cache: dict[tuple[str, int], html.Div] = {}
-    soft_membership_cache: dict[str, SoftMembership] = {}
-
-    # Dendrogram panel (21-10-26). The compatible tunings of a run are looked up once per run (the runs themselves are
-    # fixed at startup); the tree is the seconds-long part, kept per (run, tuning); the two anatomy views of a split
-    # cost about 40 ms per subject, kept per (run, tuning, modality, cluster name). A failed build is never cached.
-    compatible_tunings_cache: dict[str, list[TuningMatch]] = {}
-    split_tree_cache: dict[tuple[str, str], SplitTree] = {}
-    dendrogram_view_cache: dict[tuple, tuple[StatMapView, int, nib.Nifti1Image, list[str]]] = {}
-
-    def _compatible_tunings(run: ProductionRun) -> list[TuningMatch]:
-        if run.key not in compatible_tunings_cache:
-            compatible_tunings_cache[run.key] = run_compatible_tunings(run)
-        return compatible_tunings_cache[run.key]
+    app_ctx = AppContext.build(runs, lesion_cfg, sdc_cfg, clustering_params_file, cache_dir)
 
     def _chosen_tuning_dir(run: ProductionRun, tuning_value: str | None) -> Path:
         """The compatible tuning picked in the panel. PreventUpdate for a value that is not one of this run's compatible
@@ -303,86 +191,12 @@ def build_app(
         if tuning_value is None:
             raise PreventUpdate
         try:
-            compatible = {str(match.run_dir) for match in _compatible_tunings(run) if match.compatible}
+            compatible = {str(match.run_dir) for match in app_ctx.compatible_tunings(run) if match.compatible}
         except ValueError:
             raise PreventUpdate
         if tuning_value not in compatible:
             raise PreventUpdate
         return Path(tuning_value)
-
-    def _cached_split_tree(run: ProductionRun, tuning_dir: Path) -> SplitTree:
-        key = (run.key, str(tuning_dir))
-        if key not in split_tree_cache:
-            split_tree_cache[key] = build_run_split_tree(run, tuning_dir)
-        return split_tree_cache[key]
-
-    def _cached_dendrogram_view(
-        run: ProductionRun, metadata_at_k: pd.DataFrame, label: int, modality: str, name: str, width: int, tuning_dir: Path
-    ) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
-        # Keyed by the cluster's name (the leaves it holds), not by k: a cluster that survives several splits is the
-        # same subjects at each of them, and is built once per map width (the overview draws it smaller than the steps).
-        key = (run.key, str(tuning_dir), modality, name, width)
-        if key not in dendrogram_view_cache:
-            if modality == "lesion":
-                dendrogram_view_cache[key] = _build_cluster_overlap_view(
-                    run, metadata_at_k, label, lesion_cfg, mask_store=lesion_store, discovered=discovered_files,
-                    width_view=width,
-                )
-            else:
-                dendrogram_view_cache[key] = _build_cluster_disconnection_view(
-                    run, metadata_at_k, label, sdc_cfg, DISCONNECTION_PERCENT_MODE, mask_store=disconnection_store,
-                    discovered=discovered_files, width_view=width,
-                )
-        return dendrogram_view_cache[key]
-
-    def _run_embedding(run: ProductionRun) -> tuple[np.ndarray | None, str | None]:
-        """(embedding, None) of a run, or (None, why it cannot be drawn): the overview of every cluster still draws the
-        maps of a run whose embedding is missing, and says so."""
-        try:
-            embedding, _metadata = load_run(run)
-        except UndisplayableRunError as exc:
-            return None, str(exc)
-        return embedding, None
-
-    def _cached_soft_membership(run: ProductionRun) -> SoftMembership:
-        if run.key not in soft_membership_cache:
-            soft_membership_cache[run.key] = run_soft_membership(run)
-        return soft_membership_cache[run.key]
-    raw_distance_store = RawDistanceStore(Path(cache_dir) / "raw_distances")
-    component_map_store = ComponentMapStore(Path(cache_dir) / "component_maps")
-    component_map_cache: dict[str, ComponentMapData] = {}
-    component_view_cache: dict[tuple[str, int], tuple[StatMapView, float]] = {}
-
-    def _cached_component_maps(run: ProductionRun) -> ComponentMapData | None:
-        # Memoised once computed (reading the entry back is cheap, not free); None (still computing) is not.
-        if run.key not in component_map_cache:
-            data = run_component_maps(run, component_map_store)
-            if data is None:
-                return None
-            component_map_cache[run.key] = data
-        return component_map_cache[run.key]
-
-    def _cached_component_view(data: ComponentMapData, component: int) -> tuple[StatMapView, float]:
-        # The view of a component is a second of nilearn; keyed by the maps' identity through the run key it came from.
-        key = next(run_key for run_key, cached in component_map_cache.items() if cached is data), component
-        if key not in component_view_cache:
-            component_view_cache[key] = _build_component_map_view(data, component)
-        return component_view_cache[key]
-    adp_summary_cache: dict[str, AdpSummary] = {}
-
-    def _cached_adp_summary(run: ProductionRun) -> AdpSummary | None:
-        # Seconds once the distance matrix exists, so memoised per run; None (still computing) is not.
-        if run.key not in adp_summary_cache:
-            summary = run_adp_summary(run, raw_distance_store)
-            if summary is None:
-                return None
-            adp_summary_cache[run.key] = summary
-        return adp_summary_cache[run.key]
-
-    def _cached_silhouette(run: ProductionRun) -> SilhouetteBreakdown:
-        if run.key not in silhouette_cache:
-            silhouette_cache[run.key] = run_silhouette_samples(run)
-        return silhouette_cache[run.key]
 
     app = Dash(__name__, suppress_callback_exceptions=True)
     app.index_string = _INDEX_STRING
@@ -854,7 +668,7 @@ def build_app(
             return ctx.triggered_id["tab"]
         if run_key in (None, UNSET):
             raise PreventUpdate
-        return active_page_tab(runs_by_key[run_key], current)
+        return active_page_tab(app_ctx.runs_by_key[run_key], current)
 
     @app.callback(
         Output({"type": "page-tab-btn", "tab": ALL}, "className"),
@@ -874,7 +688,7 @@ def build_app(
             raise PreventUpdate
         if run_key == UNSET:  # nothing is shown: run-content is hidden, and the bar and tabs stay as they were
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         available = page_tabs_for(run)
         active = active_page_tab(run, selected)
         classes = ["tab-btn active" if button["tab"] == active else "tab-btn" for button in ids]
@@ -927,9 +741,9 @@ def build_app(
         current = dict(zip(PICKER_FIELDS, picker_values))
         changed = next((field for field in PICKER_FIELDS if picker_ids[field] == ctx.triggered_id), None)
         if ctx.triggered_id == "reset-pickers-btn":
-            state = open_pickers(indexed_runs)
+            state = open_pickers(app_ctx.indexed_runs)
         else:
-            state = resolve_pickers(indexed_runs, current, changed)
+            state = resolve_pickers(app_ctx.indexed_runs, current, changed)
 
         def label(field: str, value) -> str:
             if value == UNSET:
@@ -999,7 +813,7 @@ def build_app(
     def _update_graph(run_key: str | None, selected_mode: str, grid: str):
         if run_key in (None, UNSET):
             raise PreventUpdate
-        return graph_content_for(runs_by_key[run_key], selected_mode, grid)
+        return graph_content_for(app_ctx.runs_by_key[run_key], selected_mode, grid)
 
     @app.callback(
         Output("lesion-viewer-content", "children"),
@@ -1020,7 +834,7 @@ def build_app(
         subject_id = click_data["points"][0].get("text")
         if subject_id is None:
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         return lesion_viewer_content_for(run, subject_id, run_metadata(run), lesion_cfg), subject_id
 
     @app.callback(
@@ -1033,7 +847,7 @@ def build_app(
     def _download_lesion_html(_n_clicks: int, subject_id: str | None, run_key: str | None):
         if subject_id is None or run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         try:
             view, _dataset = _build_subject_lesion_view(run, subject_id, run_metadata(run), lesion_cfg)
         except ValueError:
@@ -1052,7 +866,7 @@ def build_app(
     def _download_lesion_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
         if subject_id is None or run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         try:
             # Resolves the subject's real lesion mask path directly - no need to build the
             # interactive view_img (_build_subject_lesion_view) just to render a static PNG.
@@ -1077,7 +891,7 @@ def build_app(
     def _download_lesion_glass_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
         if subject_id is None or run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         try:
             dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
             lesion_paths = resolve_lesion_paths([subject_id], {subject_id: dataset}, lesion_cfg.data_root, lesion_cfg.lesion_glob)
@@ -1099,7 +913,7 @@ def build_app(
     def _update_disconnectome_panel_visibility(run_key: str | None):
         if run_key in (None, UNSET):
             raise PreventUpdate
-        return {} if runs_by_key[run_key].modality == "sdc" else {"display": "none"}
+        return {} if app_ctx.runs_by_key[run_key].modality == "sdc" else {"display": "none"}
 
     @app.callback(
         Output("disconnectome-viewer-content", "children"),
@@ -1110,7 +924,7 @@ def build_app(
     def _update_disconnectome_viewer(click_data: dict | None, run_key: str | None):
         if run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         # Same run-change reset as _update_lesion_viewer, plus a modality gate: a "lesion" run's
         # subjects don't have a disconnectome-map.nii.gz to resolve at all (this panel stays
         # hidden for them via _update_disconnectome_panel_visibility, but its own content must
@@ -1132,7 +946,7 @@ def build_app(
     def _download_disconnectome_html(_n_clicks: int, subject_id: str | None, run_key: str | None):
         if subject_id is None or run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         try:
             view, _dataset = _build_subject_disconnectome_view(run, subject_id, run_metadata(run), sdc_cfg)
         except ValueError:
@@ -1149,7 +963,7 @@ def build_app(
     def _download_disconnectome_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
         if subject_id is None or run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         try:
             dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
             disconnectome_paths = resolve_lesion_paths(
@@ -1173,7 +987,7 @@ def build_app(
     def _download_disconnectome_glass_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
         if subject_id is None or run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         try:
             dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
             disconnectome_paths = resolve_lesion_paths(
@@ -1201,7 +1015,7 @@ def build_app(
     def _update_cluster_picker(run_key: str | None):
         if run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         hidden = {"display": "none"}
         if run.pipeline != "clustering":
             return [], None, hidden, hidden, hidden, hidden, hidden, hidden
@@ -1221,18 +1035,18 @@ def build_app(
     def _update_cluster_map(run_key: str | None, cluster_label: int | str | None, selected_tab: str | None):
         if run_key in (None, UNSET) or cluster_label is None:
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
         if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
             return []
         if cluster_label == ALL_CLUSTERS:
-            embedding, embedding_message = _run_embedding(run)
+            embedding, embedding_message = app_ctx.embedding(run)
             return all_clusters_content_for(
                 run, run_metadata(run), embedding, embedding_message, "lesion", DEFAULT_DISCONNECTION_MAP_MODE,
-                lambda run_, metadata, label, width: _cached_cluster_overlap_view(run_, metadata, label, lesion_cfg, width_view=width),
+                lambda run_, metadata, label, width: app_ctx.cluster_overlap_view(run_, metadata, label, lesion_cfg, width_view=width),
             )
-        return overlap_map_content_for(run, run_metadata(run), cluster_label, lesion_cfg, build_view=_cached_cluster_overlap_view)
+        return overlap_map_content_for(run, run_metadata(run), cluster_label, lesion_cfg, build_view=app_ctx.cluster_overlap_view)
 
     @app.callback(
         Output("representative-subject-content", "children"),
@@ -1243,7 +1057,7 @@ def build_app(
     def _update_representative_subject(run_key: str | None, cluster_label: int | str | None, selected_tab: str | None):
         if run_key in (None, UNSET) or cluster_label is None:
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
         if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
@@ -1257,12 +1071,12 @@ def build_app(
             # panel - the main graph above already shows this same error for this run.
             return html.P(str(exc), className="status-message")
         key = (run.key, cluster_label)
-        if key not in representative_cache:
+        if key not in app_ctx.representatives:
             content = representative_subject_content_for(run, embedding, metadata, cluster_label, lesion_cfg, sdc_cfg)
             if not isinstance(content, html.P):  # a status message (a missing file...) is not remembered: it may be fixed
-                representative_cache[key] = content
+                app_ctx.representatives[key] = content
             return content
-        return representative_cache[key]
+        return app_ctx.representatives[key]
 
     @app.callback(
         Output("cluster-description-content", "children"),
@@ -1273,7 +1087,7 @@ def build_app(
     def _update_cluster_description(run_key: str | None, cluster_label: int | str | None, selected_tab: str | None):
         if run_key in (None, UNSET) or cluster_label is None:
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
         if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
@@ -1290,7 +1104,7 @@ def build_app(
     def _update_cluster_composition(run_key: str | None, selected_tab: str | None):
         if run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
         if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
@@ -1307,15 +1121,15 @@ def build_app(
     def _update_cluster_quality(run_key: str | None, _n_intervals: int, selected_tab: str | None):
         if run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
         if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
             return [], True  # nothing shown, so nothing to poll for (reopening the tab restarts it)
         if run.method == "adp":
-            content, pending = adp_quality_content_for(run, summary_of=_cached_adp_summary)
+            content, pending = adp_quality_content_for(run, summary_of=app_ctx.adp_summary)
             return content, not pending
-        return cluster_quality_content_for(run, silhouette_of=_cached_silhouette, soft_of=_cached_soft_membership), True
+        return cluster_quality_content_for(run, silhouette_of=app_ctx.silhouette, soft_of=app_ctx.soft_membership), True
 
     def _is_agglomerative(run: ProductionRun) -> bool:
         return run.pipeline == "clustering" and run.method == "agglomerative"
@@ -1331,12 +1145,12 @@ def build_app(
     def _update_dendrogram_panel(run_key: str | None):
         if run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if not _is_agglomerative(run):
             return {"display": "none"}, [], None, [], no_update
         default_map = "lesion"
         try:
-            matches = _compatible_tunings(run)
+            matches = app_ctx.compatible_tunings(run)
         except ValueError as exc:
             return {}, [], None, html.P(str(exc), className="status-message"), default_map
         options = [{"label": match.run_dir.name, "value": str(match.run_dir)} for match in matches if match.compatible]
@@ -1351,12 +1165,12 @@ def build_app(
     def _update_dendrogram_k(run_key: str | None, tuning_value: str | None):
         if run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if not _is_agglomerative(run):
             raise PreventUpdate
         tuning_dir = _chosen_tuning_dir(run, tuning_value)
         try:
-            tree = _cached_split_tree(run, tuning_dir)
+            tree = app_ctx.split_tree(run, tuning_dir)
         except ValueError:
             return [], None  # the figure callback shows why
         k_values = dendrogram_k_options(tree)
@@ -1369,12 +1183,12 @@ def build_app(
         cannot be built. PreventUpdate while the pickers still hold values of the previously chosen run."""
         if run_key in (None, UNSET) or k is None or modality is None:
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if not _is_agglomerative(run):
             raise PreventUpdate
         tuning_dir = _chosen_tuning_dir(run, tuning_value)
         try:
-            tree = _cached_split_tree(run, tuning_dir)
+            tree = app_ctx.split_tree(run, tuning_dir)
         except ValueError as exc:
             return html.P(str(exc), className="status-message")
         if k not in dendrogram_k_options(tree):
@@ -1382,7 +1196,7 @@ def build_app(
         return run, tuning_dir, tree
 
     def _dendrogram_build_view(tuning_dir: Path) -> DendrogramViewBuilder:
-        return lambda run_, metadata_at_k, label, modality_, name, width: _cached_dendrogram_view(
+        return lambda run_, metadata_at_k, label, modality_, name, width: app_ctx.dendrogram_view(
             run_, metadata_at_k, label, modality_, name, width, tuning_dir
         )
 
@@ -1397,13 +1211,13 @@ def build_app(
     def _update_dendrogram_steps(
         run_key: str | None, tuning_value: str | None, k: int | None, modality: str | None, selected_tab: str | None
     ):
-        if run_key not in (None, UNSET) and not tab_is_active(runs_by_key[run_key], selected_tab, TAB_DENDROGRAM):
+        if run_key not in (None, UNSET) and not tab_is_active(app_ctx.runs_by_key[run_key], selected_tab, TAB_DENDROGRAM):
             return []
         context = _dendrogram_context(run_key, tuning_value, k, modality)
         if isinstance(context, html.P):
             return context
         run, tuning_dir, tree = context
-        embedding, embedding_message = _run_embedding(run)
+        embedding, embedding_message = app_ctx.embedding(run)
         if embedding is None:
             return html.P(embedding_message, className="status-message")
         return dendrogram_steps_content_for(
@@ -1420,7 +1234,7 @@ def build_app(
     def _update_pca_panel(run_key: str | None):
         if run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if not _is_pca_run(run):
             return {"display": "none"}, [], None
         n_components = _matrix_shape(run)[1]
@@ -1436,10 +1250,10 @@ def build_app(
     def _update_pca_maps(run_key: str | None, component: int | None, _n_intervals: int):
         if run_key in (None, UNSET) or component is None:
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if not _is_pca_run(run):
             raise PreventUpdate
-        content, pending = component_maps_content_for(run, component, _cached_component_maps, _cached_component_view)
+        content, pending = component_maps_content_for(run, component, app_ctx.component_maps, app_ctx.component_view)
         return content, not pending
 
     @app.callback(
@@ -1452,7 +1266,7 @@ def build_app(
     def _download_representative_html(_n_clicks: int, run_key: str | None, cluster_label: int | None):
         if run_key in (None, UNSET) or cluster_label is None or cluster_label == ALL_CLUSTERS:
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
         try:
@@ -1482,7 +1296,7 @@ def build_app(
     def _download_representative_png(_n_clicks: int, run_key: str | None, cluster_label: int | None):
         if run_key in (None, UNSET) or cluster_label is None or cluster_label == ALL_CLUSTERS:
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
         try:
@@ -1520,11 +1334,11 @@ def build_app(
     def _download_cluster_html(_n_clicks: int, run_key: str | None, cluster_label: int | None):
         if run_key in (None, UNSET) or cluster_label is None or cluster_label == ALL_CLUSTERS:
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
         try:
-            view, _n_subjects, _percentage_img, _missing = _cached_cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
+            view, _n_subjects, _percentage_img, _missing = app_ctx.cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
         except ValueError:
             raise PreventUpdate
         return dcc.send_string(_style_nilearn_html(view.html), filename=f"cluster_{cluster_label}_overlap_map.html")
@@ -1539,14 +1353,14 @@ def build_app(
     def _download_cluster_png(_n_clicks: int, run_key: str | None, cluster_label: int | None):
         if run_key in (None, UNSET) or cluster_label is None or cluster_label == ALL_CLUSTERS:
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if run.pipeline != "clustering":
             raise PreventUpdate
         try:
             # Reuses the same process-lifetime cache the HTML download/panel display already
             # populate - percentage_img is the exact image the interactive view itself renders,
             # not a second build_overlap_map pass (see _build_cluster_overlap_view's docstring).
-            _view, _n_subjects, percentage_img, _missing = _cached_cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
+            _view, _n_subjects, percentage_img, _missing = app_ctx.cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
         except ValueError:
             raise PreventUpdate
         png_bytes = _static_png_bytes(percentage_img, threshold=1e-6, cmap="hot", colorbar=True)
@@ -1559,7 +1373,7 @@ def build_app(
     def _update_disconnection_map_panel_visibility(run_key: str | None):
         if run_key in (None, UNSET):
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         return {} if (run.modality == "sdc" and run.pipeline == "clustering") else {"display": "none"}
 
     @app.callback(
@@ -1572,22 +1386,22 @@ def build_app(
     def _update_disconnection_map(run_key: str | None, cluster_label: int | str | None, map_mode: str, selected_tab: str | None):
         if run_key in (None, UNSET) or cluster_label is None:
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if run.modality != "sdc" or run.pipeline != "clustering":
             raise PreventUpdate
         if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
             return []
         if cluster_label == ALL_CLUSTERS:
-            embedding, embedding_message = _run_embedding(run)
+            embedding, embedding_message = app_ctx.embedding(run)
             return all_clusters_content_for(
                 run, run_metadata(run), embedding, embedding_message, "sdc", map_mode,
-                lambda run_, metadata, label, width: _cached_cluster_disconnection_view(
+                lambda run_, metadata, label, width: app_ctx.cluster_disconnection_view(
                     run_, metadata, label, sdc_cfg, map_mode, width_view=width
                 ),
             )
         return disconnection_map_content_for(
             run, run_metadata(run), cluster_label, sdc_cfg,
-            build_view=_cached_cluster_disconnection_view, map_mode=map_mode,
+            build_view=app_ctx.cluster_disconnection_view, map_mode=map_mode,
         )
 
     @app.callback(
@@ -1618,11 +1432,11 @@ def build_app(
     def _download_disconnection_html(_n_clicks: int, run_key: str | None, cluster_label: int | None):
         if run_key in (None, UNSET) or cluster_label is None or cluster_label == ALL_CLUSTERS:
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if run.modality != "sdc" or run.pipeline != "clustering":
             raise PreventUpdate
         try:
-            view, _n_subjects, _mean_img, _missing = _cached_cluster_disconnection_view(run, run_metadata(run), cluster_label, sdc_cfg)
+            view, _n_subjects, _mean_img, _missing = app_ctx.cluster_disconnection_view(run, run_metadata(run), cluster_label, sdc_cfg)
         except ValueError:
             raise PreventUpdate
         return dcc.send_string(
@@ -1639,14 +1453,14 @@ def build_app(
     def _download_disconnection_png(_n_clicks: int, run_key: str | None, cluster_label: int | None):
         if run_key in (None, UNSET) or cluster_label is None or cluster_label == ALL_CLUSTERS:
             raise PreventUpdate
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         if run.modality != "sdc" or run.pipeline != "clustering":
             raise PreventUpdate
         try:
             # Reuses the same process-lifetime cache the HTML download/panel display already
             # populate - mean_img is the exact image the interactive view itself renders, not a
             # second build_mean_map pass (see _build_cluster_disconnection_view's docstring).
-            _view, _n_subjects, mean_img, _missing = _cached_cluster_disconnection_view(run, run_metadata(run), cluster_label, sdc_cfg)
+            _view, _n_subjects, mean_img, _missing = app_ctx.cluster_disconnection_view(run, run_metadata(run), cluster_label, sdc_cfg)
         except ValueError:
             raise PreventUpdate
         png_bytes = _static_png_bytes(
@@ -1664,7 +1478,7 @@ def build_app(
             raise PreventUpdate
         if run_key == UNSET:
             return _index_links(index_entries_for(None, TAB_EMBEDDING))
-        run = runs_by_key[run_key]
+        run = app_ctx.runs_by_key[run_key]
         return _index_links(index_entries_for(run, active_page_tab(run, selected_tab)))
 
     def _preload_stores() -> None:
@@ -1686,15 +1500,15 @@ def build_app(
             if run.modality == "sdc":
                 datasets["disconnection"].update(by_subject)
         for name, store, cfg_data_root, glob in (
-            ("lesion", lesion_store, lesion_cfg.data_root, lesion_cfg.lesion_glob),
-            ("disconnection", disconnection_store, sdc_cfg.data_root, sdc_cfg.disconnectome_glob),
+            ("lesion", app_ctx.lesion_store, lesion_cfg.data_root, lesion_cfg.lesion_glob),
+            ("disconnection", app_ctx.disconnection_store, sdc_cfg.data_root, sdc_cfg.disconnectome_glob),
         ):
             by_subject = datasets[name]
             if not by_subject:
                 continue
             try:
                 paths, _missing = resolve_available_lesion_paths(
-                    list(by_subject), by_subject, cfg_data_root, glob, discovered_files
+                    list(by_subject), by_subject, cfg_data_root, glob, app_ctx.discovered_files
                 )
                 logging.info("preload %s: reading %d subject(s)", name, len(paths))
                 store.preload(paths.values())
