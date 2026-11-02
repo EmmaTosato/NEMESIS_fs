@@ -6,10 +6,15 @@ into. The faithful way to run one is the request the browser itself makes, so th
 `/_dash-update-component` on the app's own Flask test client and hands back what the callback
 returned.
 
-An input is written `"component-id.property"` with its value; an entry that is already a list
-or a dict is passed through untouched, which is how a pattern-matching input (one entry per
-matching component) is given. The order matters: Dash maps the inputs to the function's
+An input is written `"component-id.property"` with its value; a pattern-matching id is written
+as its JSON (`'{"mode":"dataset","type":"color-mode-btn"}.n_clicks'`), and an entry that is
+already a list or a dict is passed through untouched - which is how a wildcard input, one entry
+per matching component, is given. The order matters: Dash maps the inputs to the function's
 parameters by position, exactly as declared in the decorator.
+
+A callback is looked up by a key Dash builds itself: several outputs are joined with "..", and
+a wildcard id carries ALL as `["ALL"]`. Rebuilding that by hand is how you get a key that is one
+dot off and a KeyError that says nothing, so `key_for` asks the app for it instead.
 """
 
 from __future__ import annotations
@@ -21,32 +26,63 @@ PREVENTED = object()
 """What a callback that raised PreventUpdate returns: Dash answers 204 with no body."""
 
 
+def key_for(app, output: str) -> str:
+    """The key `app.callback_map` holds for the callback that writes `output`.
+
+    Raises if no callback writes it, or more than one does - both mean the test is asking for
+    something that does not exist rather than something that quietly does the wrong thing."""
+    matches = [key for key in app.callback_map if output in key.split("...") or key == output]
+    if len(matches) != 1:
+        raise ValueError(f"{output!r}: {len(matches)} callback lo scrivono, atteso 1 - trovati {matches}")
+    return matches[0]
+
+
+def _split(name: str) -> tuple[str | dict, str]:
+    """("component-id", "property"), the id parsed back to a dict when it is a pattern id."""
+    component_id, prop = name.rsplit(".", 1)
+    return (json.loads(component_id) if component_id.startswith("{") else component_id), prop
+
+
 def _dependency(entry: tuple[str, Any] | list | dict) -> list | dict:
     if isinstance(entry, (list, dict)):
         return entry
     name, value = entry
-    component_id, prop = name.rsplit(".", 1)
+    component_id, prop = _split(name)
     return {"id": component_id, "property": prop, "value": value}
 
 
-def _output_spec(names: list[str]) -> tuple[str, list | dict]:
+def _one_output(name: str) -> dict:
+    component_id, prop = _split(name)
+    return {"id": component_id, "property": prop}
+
+
+def _output_spec(names: list[str | list[str]]) -> tuple[str, list | dict]:
     """Dash reads a single output and several outputs differently, and a list of one is misread
     as a wildcard multi-output spec (checked against its own _validate.validate_multi_return),
-    so a single output must be a bare dict and a bare "id.property" string."""
-    pairs = [name.rsplit(".", 1) for name in names]
-    if len(pairs) == 1:
-        component_id, prop = pairs[0]
-        return f"{component_id}.{prop}", {"id": component_id, "property": prop}
-    joined = ".." + "...".join(f"{cid}.{prop}" for cid, prop in pairs) + ".."
-    return joined, [{"id": cid, "property": prop} for cid, prop in pairs]
+    so a single output must be a bare dict and a bare "id.property" string.
+
+    The spec must also mirror the callback's own grouping: one `Output` on a wildcard id is ONE
+    output holding every component it matches, so it is written as a nested list of names and
+    stays nested here - flattening it gives "Wrong length output_spec"."""
+    if len(names) == 1 and isinstance(names[0], str):
+        spec = _one_output(names[0])
+        return f"{spec['id'] if isinstance(spec['id'], str) else names[0].rsplit('.', 1)[0]}.{spec['property']}", spec
+    flat = [name for entry in names for name in ([entry] if isinstance(entry, str) else entry)]
+    joined = ".." + "...".join(flat) + ".."
+    spec = [
+        [_one_output(name) for name in entry] if isinstance(entry, list) else _one_output(entry)
+        for entry in names
+    ]
+    return joined, spec
 
 
 def fire(
     app,
-    outputs: str | list[str],
+    outputs: str | list[str | list[str]],
     inputs: list[tuple[str, Any] | list | dict],
     changed: list[str] | None = None,
     state: list[tuple[str, Any] | list | dict] | None = None,
+    key: str | None = None,
 ) -> dict:
     """Runs the callback that writes `outputs` and returns `{component_id: {property: value}}`,
     or PREVENTED if it raised PreventUpdate.
@@ -57,6 +93,8 @@ def fire(
     """
     names = [outputs] if isinstance(outputs, str) else list(outputs)
     output, output_spec = _output_spec(names)
+    if key is not None:
+        output = key
     input_specs = [_dependency(entry) for entry in inputs]
     if changed is None:
         changed = [
@@ -84,9 +122,10 @@ def fire_one(
     inputs: list[tuple[str, Any] | list | dict],
     changed: list[str] | None = None,
     state: list[tuple[str, Any] | list | dict] | None = None,
+    key: str | None = None,
 ):
     """The single value a one-output callback returned, or PREVENTED."""
-    result = fire(app, output, inputs, changed, state)
+    result = fire(app, output, inputs, changed, state, key)
     if result is PREVENTED:
         return PREVENTED
     component_id, prop = output.rsplit(".", 1)
