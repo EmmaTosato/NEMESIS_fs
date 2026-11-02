@@ -12,11 +12,13 @@ import io
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import nibabel as nib
 import numpy as np
 import pandas as pd
-from dash import html
+from dash import Dash, Input, Output, State, ctx, dcc, html
+from dash.exceptions import PreventUpdate
 from nilearn import plotting as nilearn_plotting
 from nilearn.plotting.html_stat_map import StatMapView
 
@@ -30,10 +32,14 @@ from src.analysis.anatomical_maps import (
 )
 from src.analysis.embedding_app.blocks import _missing_subjects_warning, _warning_box
 from src.analysis.embedding_app.embedding_view import cluster_centroids_with_nearest_subject
-from src.analysis.embedding_app.runs import ProductionRun, load_cluster_space
+from src.analysis.embedding_app.picker import UNSET
+from src.analysis.embedding_app.runs import ProductionRun, load_cluster_space, run_metadata
 from src.analysis.embedding_app.style import _FONT_STACK, _TEXT_COLOR
 from src.analysis.embedding_coloring import COLOR_MODES
 from src.utils.number_format import format_number
+
+if TYPE_CHECKING:  # importing it for real would close the loop context -> this module
+    from src.analysis.embedding_app.context import AppContext
 
 
 @dataclass(frozen=True)
@@ -599,3 +605,193 @@ _LESION_PLACEHOLDER = html.P("Click a point in the embedding to see the lesion."
 _DISCONNECTOME_PLACEHOLDER = html.P(
     "Click a point in the embedding to see the disconnectome.", className="status-message"
 )
+
+
+def register_callbacks(app: Dash, context: AppContext) -> None:
+    """Wires this panel to the app. Called once by build_app, which owns the layout the ids
+    below refer to."""
+    @app.callback(
+        Output("lesion-viewer-content", "children"),
+        Output("lesion-viewer-subject", "data"),
+        Input("embedding-graph", "clickData"),
+        Input("run-picker", "value"),
+    )
+    def _update_lesion_viewer(click_data: dict | None, run_key: str | None):
+        if run_key in (None, UNSET):
+            raise PreventUpdate
+        # A run change resets to the placeholder (ctx.triggered_id tells the two Inputs apart) -
+        # a subject clicked on a previous run must not linger once the picker moves on. The
+        # Store resets to None in lockstep, so the Save buttons below (reading it, not
+        # embedding-graph.clickData directly) can never offer a stale cross-run download - see
+        # the Store's own docstring in app.layout for the clickData-persistence bug this fixes.
+        if ctx.triggered_id == "run-picker" or click_data is None:
+            return _LESION_PLACEHOLDER, None
+        subject_id = click_data["points"][0].get("text")
+        if subject_id is None:
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        return lesion_viewer_content_for(run, subject_id, run_metadata(run), context.lesion_cfg), subject_id
+
+    @app.callback(
+        Output("lesion-download", "data"),
+        Input("lesion-save-btn", "n_clicks"),
+        State("lesion-viewer-subject", "data"),
+        State("run-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_lesion_html(_n_clicks: int, subject_id: str | None, run_key: str | None):
+        if subject_id is None or run_key in (None, UNSET):
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        try:
+            view, _dataset = _build_subject_lesion_view(run, subject_id, run_metadata(run), context.lesion_cfg)
+        except ValueError:
+            # The visible panel already reports this via lesion_viewer_content_for - the save
+            # button simply has nothing to offer, not a second error surface.
+            raise PreventUpdate
+        return dcc.send_string(_style_nilearn_html(view.html), filename=f"{subject_id}_lesion_3d.html")
+
+    @app.callback(
+        Output("lesion-png-download", "data"),
+        Input("lesion-png-btn", "n_clicks"),
+        State("lesion-viewer-subject", "data"),
+        State("run-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_lesion_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
+        if subject_id is None or run_key in (None, UNSET):
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        try:
+            # Resolves the subject's real lesion mask path directly - no need to build the
+            # interactive view_img (_build_subject_lesion_view) just to render a static PNG.
+            dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
+            lesion_paths = resolve_lesion_paths([subject_id], {subject_id: dataset}, context.lesion_cfg.data_root, context.lesion_cfg.lesion_glob)
+        except ValueError:
+            # Same never-raises-into-the-callback contract as _download_lesion_html: the visible
+            # panel already reports this, the save button simply has nothing to offer.
+            raise PreventUpdate
+        png_bytes = _static_png_bytes(
+            str(lesion_paths[subject_id]), threshold=context.lesion_cfg.binarize_threshold, cmap="autumn", colorbar=False,
+        )
+        return dcc.send_bytes(png_bytes, filename=f"{subject_id}_lesion.png")
+
+    @app.callback(
+        Output("lesion-glass-png-download", "data"),
+        Input("lesion-glass-png-btn", "n_clicks"),
+        State("lesion-viewer-subject", "data"),
+        State("run-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_lesion_glass_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
+        if subject_id is None or run_key in (None, UNSET):
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        try:
+            dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
+            lesion_paths = resolve_lesion_paths([subject_id], {subject_id: dataset}, context.lesion_cfg.data_root, context.lesion_cfg.lesion_glob)
+        except ValueError:
+            # Same never-raises-into-the-callback contract as _download_lesion_png.
+            raise PreventUpdate
+        # cmap="autumn" - same choice as _build_subject_lesion_view's own ortho view (see its
+        # docstring): a binary mask has no gradient to show, autumn's solid bright yellow reads
+        # clearly on both the ortho and this glass-brain projection.
+        png_bytes = _static_glass_brain_png_bytes(
+            str(lesion_paths[subject_id]), threshold=context.lesion_cfg.binarize_threshold, cmap="autumn", colorbar=False,
+        )
+        return dcc.send_bytes(png_bytes, filename=f"{subject_id}_lesion_glass.png")
+
+    @app.callback(
+        Output("disconnectome-panel", "style"),
+        Input("run-picker", "value"),
+    )
+    def _update_disconnectome_panel_visibility(run_key: str | None):
+        if run_key in (None, UNSET):
+            raise PreventUpdate
+        return {} if context.runs_by_key[run_key].modality == "sdc" else {"display": "none"}
+
+    @app.callback(
+        Output("disconnectome-viewer-content", "children"),
+        Output("disconnectome-viewer-subject", "data"),
+        Input("embedding-graph", "clickData"),
+        Input("run-picker", "value"),
+    )
+    def _update_disconnectome_viewer(click_data: dict | None, run_key: str | None):
+        if run_key in (None, UNSET):
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        # Same run-change reset as _update_lesion_viewer, plus a modality gate: a "lesion" run's
+        # subjects don't have a disconnectome-map.nii.gz to resolve at all (this panel stays
+        # hidden for them via _update_disconnectome_panel_visibility, but its own content must
+        # still reset rather than linger/attempt a doomed resolution on every click).
+        if run.modality != "sdc" or ctx.triggered_id == "run-picker" or click_data is None:
+            return _DISCONNECTOME_PLACEHOLDER, None
+        subject_id = click_data["points"][0].get("text")
+        if subject_id is None:
+            raise PreventUpdate
+        return disconnectome_viewer_content_for(run, subject_id, run_metadata(run), context.sdc_cfg), subject_id
+
+    @app.callback(
+        Output("disconnectome-download", "data"),
+        Input("disconnectome-save-btn", "n_clicks"),
+        State("disconnectome-viewer-subject", "data"),
+        State("run-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_disconnectome_html(_n_clicks: int, subject_id: str | None, run_key: str | None):
+        if subject_id is None or run_key in (None, UNSET):
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        try:
+            view, _dataset = _build_subject_disconnectome_view(run, subject_id, run_metadata(run), context.sdc_cfg)
+        except ValueError:
+            raise PreventUpdate
+        return dcc.send_string(_style_nilearn_html(view.html), filename=f"{subject_id}_disconnectome.html")
+
+    @app.callback(
+        Output("disconnectome-png-download", "data"),
+        Input("disconnectome-png-btn", "n_clicks"),
+        State("disconnectome-viewer-subject", "data"),
+        State("run-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_disconnectome_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
+        if subject_id is None or run_key in (None, UNSET):
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        try:
+            dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
+            disconnectome_paths = resolve_lesion_paths(
+                [subject_id], {subject_id: dataset}, context.sdc_cfg.data_root, context.sdc_cfg.disconnectome_glob
+            )
+        except ValueError:
+            raise PreventUpdate
+        png_bytes = _static_png_bytes(
+            str(disconnectome_paths[subject_id]), threshold=_DISCONNECTOME_DISPLAY_THRESHOLD,
+            cmap=_DISCONNECTOME_CMAP, colorbar=True,
+        )
+        return dcc.send_bytes(png_bytes, filename=f"{subject_id}_disconnectome.png")
+
+    @app.callback(
+        Output("disconnectome-glass-png-download", "data"),
+        Input("disconnectome-glass-png-btn", "n_clicks"),
+        State("disconnectome-viewer-subject", "data"),
+        State("run-picker", "value"),
+        prevent_initial_call=True,
+    )
+    def _download_disconnectome_glass_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
+        if subject_id is None or run_key in (None, UNSET):
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        try:
+            dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
+            disconnectome_paths = resolve_lesion_paths(
+                [subject_id], {subject_id: dataset}, context.sdc_cfg.data_root, context.sdc_cfg.disconnectome_glob
+            )
+        except ValueError:
+            raise PreventUpdate
+        png_bytes = _static_glass_brain_png_bytes(
+            str(disconnectome_paths[subject_id]), threshold=_DISCONNECTOME_GLASS_BRAIN_THRESHOLD, cmap="magma",
+            colorbar=True, alpha=_DISCONNECTOME_GLASS_BRAIN_ALPHA,
+        )
+        return dcc.send_bytes(png_bytes, filename=f"{subject_id}_disconnectome_glass.png")

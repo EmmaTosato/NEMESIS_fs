@@ -48,32 +48,18 @@ import logging
 import threading
 from pathlib import Path
 
-from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
+from dash import Dash, Input, Output, dcc, html
 from dash.exceptions import PreventUpdate
 
-from src.analysis.anatomical_maps import resolve_available_lesion_paths, resolve_lesion_paths
+from src.analysis.anatomical_maps import resolve_available_lesion_paths
 from src.analysis.embedding_app.anatomy import (
     DEFAULT_DISCONNECTION_MAP_MODE,
     DISCONNECTION_MAP_MODE_LABELS,
-    _DISCONNECTOME_CMAP,
-    _DISCONNECTOME_DISPLAY_THRESHOLD,
-    _DISCONNECTOME_GLASS_BRAIN_ALPHA,
-    _DISCONNECTOME_GLASS_BRAIN_THRESHOLD,
     _DISCONNECTOME_PLACEHOLDER,
     _LESION_PLACEHOLDER,
     LesionViewerConfig,
     SdcViewerConfig,
-    _build_subject_disconnectome_view,
-    _build_subject_lesion_view,
-    _resolve_subject_dataset,
-    _static_glass_brain_png_bytes,
-    _static_png_bytes,
-    _style_nilearn_html,
-    disconnection_map_content_for,
-    disconnectome_viewer_content_for,
-    lesion_viewer_content_for,
-    overlap_map_content_for,
-    representative_subject_content_for,
+    register_callbacks as register_anatomy,
 )
 from src.analysis.embedding_app.context import AppContext
 from src.analysis.embedding_app.embedding_view import (
@@ -81,60 +67,29 @@ from src.analysis.embedding_app.embedding_view import (
     NEUTRAL_MODE,
     _NEUTRAL_DESCRIPTION,
     _color_button_label,
-    cluster_centroids_with_nearest_subject,
     cluster_options,
-    color_mode_description_children,
-    graph_content_for,
+    register_callbacks as register_embedding_view,
 )
+from src.analysis.embedding_app.panels.cluster_maps import register_callbacks as register_cluster_maps
 from src.analysis.embedding_app.panels.dendrogram import (
     DENDROGRAM_MAP_MODALITIES,
-    DendrogramViewBuilder,
-    dendrogram_k_options,
-    dendrogram_steps_content_for,
-    dendrogram_tuning_note,
+    register_callbacks as register_dendrogram,
 )
-from src.analysis.embedding_app.panels.description import (
-    cluster_composition_content_for,
-    cluster_description_content_for,
-)
-from src.analysis.embedding_app.panels.overview import ALL_CLUSTERS, all_clusters_content_for
-from src.analysis.embedding_app.panels.pca_maps import _is_pca_run, component_maps_content_for
-from src.analysis.embedding_app.panels.quality import (
-    _QUALITY_POLL_MS,
-    adp_quality_content_for,
-    cluster_quality_content_for,
-)
-from src.analysis.embedding_app.picker import (
-    PICKER_FIELDS,
-    SPLIT_TAG_PARAMS,
-    UNSET,
-    _n_components_option_label,
-    open_pickers,
-    resolve_pickers,
-)
-from src.analysis.embedding_app.runs import (
-    ProductionRun,
-    UndisplayableRunError,
-    _matrix_shape,
-    load_cluster_space,
-    load_run,
-    run_metadata,
-    run_params,
-)
+from src.analysis.embedding_app.panels.description import register_callbacks as register_description
+from src.analysis.embedding_app.panels.overview import ALL_CLUSTERS
+from src.analysis.embedding_app.panels.pca_maps import register_callbacks as register_pca_maps
+from src.analysis.embedding_app.panels.quality import _QUALITY_POLL_MS, register_callbacks as register_quality
+from src.analysis.embedding_app.picker import UNSET, register_callbacks as register_pickers
+from src.analysis.embedding_app.runs import ProductionRun, run_metadata
 from src.analysis.embedding_app.style import _INDEX_STRING
 from src.analysis.embedding_app.tabs import (
     PAGE_TAB_LABELS,
-    TAB_CLUSTERING,
-    TAB_DENDROGRAM,
     TAB_EMBEDDING,
     _index_links,
-    active_page_tab,
     index_entries_for,
-    page_tabs_for,
-    tab_is_active,
+    register_callbacks as register_tabs,
 )
-from src.analysis.embedding_coloring import DEFAULT_GRID, GRID_MODES, available_grids
-from src.utils.participants import load_participants_registry
+from src.analysis.embedding_coloring import DEFAULT_GRID, available_grids
 
 
 
@@ -183,20 +138,7 @@ def build_app(
     if not runs:
         raise ValueError("The app needs at least one production run - none were discovered, nothing to display")
 
-    app_ctx = AppContext.build(runs, lesion_cfg, sdc_cfg, clustering_params_file, cache_dir)
-
-    def _chosen_tuning_dir(run: ProductionRun, tuning_value: str | None) -> Path:
-        """The compatible tuning picked in the panel. PreventUpdate for a value that is not one of this run's compatible
-        tunings: the callbacks of the panel also fire with the value left over from the previously chosen run."""
-        if tuning_value is None:
-            raise PreventUpdate
-        try:
-            compatible = {str(match.run_dir) for match in app_ctx.compatible_tunings(run) if match.compatible}
-        except ValueError:
-            raise PreventUpdate
-        if tuning_value not in compatible:
-            raise PreventUpdate
-        return Path(tuning_value)
+    context = AppContext.build(runs, lesion_cfg, sdc_cfg, clustering_params_file, cache_dir)
 
     app = Dash(__name__, suppress_callback_exceptions=True)
     app.index_string = _INDEX_STRING
@@ -657,351 +599,6 @@ def build_app(
     )
 
     @app.callback(
-        Output("selected-page-tab", "data"),
-        Input({"type": "page-tab-btn", "tab": ALL}, "n_clicks"),
-        Input("run-picker", "value"),
-        State("selected-page-tab", "data"),
-        prevent_initial_call=True,
-    )
-    def _select_page_tab(_all_n_clicks: list[int], run_key: str | None, current: str):
-        if isinstance(ctx.triggered_id, dict):
-            return ctx.triggered_id["tab"]
-        if run_key in (None, UNSET):
-            raise PreventUpdate
-        return active_page_tab(app_ctx.runs_by_key[run_key], current)
-
-    @app.callback(
-        Output({"type": "page-tab-btn", "tab": ALL}, "className"),
-        Output({"type": "page-tab-btn", "tab": ALL}, "style"),
-        Output("page-tab-bar", "style"),
-        Output("tab-embedding", "style"),
-        Output("tab-clustering", "style"),
-        Output("tab-dendrogram", "style"),
-        Input("selected-page-tab", "data"),
-        Input("run-picker", "value"),
-        State({"type": "page-tab-btn", "tab": ALL}, "id"),
-    )
-    def _apply_page_tab(selected: str | None, run_key: str | None, ids: list[dict]):
-        """Shows the active tab, marks its button and hides the buttons of the tabs the run has not got (and the whole
-        bar when the run has only one)."""
-        if run_key is None:
-            raise PreventUpdate
-        if run_key == UNSET:  # nothing is shown: run-content is hidden, and the bar and tabs stay as they were
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        available = page_tabs_for(run)
-        active = active_page_tab(run, selected)
-        classes = ["tab-btn active" if button["tab"] == active else "tab-btn" for button in ids]
-        styles = [{} if button["tab"] in available else {"display": "none"} for button in ids]
-        bar_style = {} if len(available) > 1 else {"display": "none"}
-        tab_styles = [{"display": "block"} if tab == active else {"display": "none"} for tab in PAGE_TAB_LABELS]
-        return classes, styles, bar_style, *tab_styles
-
-    @app.callback(
-        Output("run-content", "style"),
-        Output("no-run-message", "style"),
-        Input("run-picker", "value"),
-    )
-    def _toggle_run_content(run_key: str | None):
-        if run_key is None:
-            raise PreventUpdate
-        return ({"display": "none"}, {}) if run_key == UNSET else ({}, {"display": "none"})
-
-    @app.callback(Output("reduction-picker-field", "style"), Input("pipeline-picker", "value"))
-    def _toggle_reduction_picker(pipeline: str | None):
-        if pipeline is None:
-            raise PreventUpdate
-        return {"display": "none"} if pipeline == "dim_reduction" else {}
-
-    @app.callback(
-        Output("tag-params-label", "children"),
-        Output("tag-params-rest-field", "style"),
-        Input("pipeline-picker", "value"),
-        Input("method-picker", "value"),
-    )
-    def _update_tag_params_selectors(pipeline: str | None, method: str | None):
-        if pipeline is None or method is None:
-            raise PreventUpdate
-        split = method in SPLIT_TAG_PARAMS
-        shown = pipeline != "dim_reduction" and (split or method == UNSET)
-        return ("k" if method == "agglomerative" else "Parameters"), ({} if shown else {"display": "none"})
-
-    # One callback for every selector (see resolve_pickers): the 10 values (and the "Riavvia" button) come in, the
-    # 10 option lists and 10 values go out. The nine before "Run" are optional filters ("---" = not a filter); "Run" lists the runs
-    # that match the filters that are set. The selectors are both inputs and outputs of this callback; Dash
-    # does not re-trigger a callback from its own outputs.
-    picker_ids = {field: f"{field.replace('_', '-')}-picker" for field in PICKER_FIELDS}
-
-    @app.callback(
-        [Output(picker_ids[field], prop) for field in PICKER_FIELDS for prop in ("options", "value")],
-        [*(Input(picker_ids[field], "value") for field in PICKER_FIELDS), Input("reset-pickers-btn", "n_clicks")],
-    )
-    def _update_pickers(*values):
-        *picker_values, _reset_clicks = values
-        current = dict(zip(PICKER_FIELDS, picker_values))
-        changed = next((field for field in PICKER_FIELDS if picker_ids[field] == ctx.triggered_id), None)
-        if ctx.triggered_id == "reset-pickers-btn":
-            state = open_pickers(app_ctx.indexed_runs)
-        else:
-            state = resolve_pickers(app_ctx.indexed_runs, current, changed)
-
-        def label(field: str, value) -> str:
-            if value == UNSET:
-                return UNSET
-            if field == "run":
-                return state.run_labels[value]
-            return _n_components_option_label(value) if field == "n_components" else str(value)
-
-        outputs = []
-        for field in PICKER_FIELDS:
-            outputs += [[{"label": label(field, value), "value": value} for value in state.options[field]], state.chosen[field]]
-        return outputs
-
-    @app.callback(
-        Output("selected-color-mode", "data"),
-        Input({"type": "color-mode-btn", "mode": ALL}, "n_clicks"),
-        prevent_initial_call=True,
-    )
-    def _select_color_mode(_all_n_clicks: list[int]) -> str:
-        if ctx.triggered_id is None:
-            raise PreventUpdate
-        return ctx.triggered_id["mode"]
-
-    @app.callback(
-        Output({"type": "color-mode-btn", "mode": ALL}, "className"),
-        Input("selected-color-mode", "data"),
-        State({"type": "color-mode-btn", "mode": ALL}, "id"),
-    )
-    def _highlight_active_button(selected_mode: str, ids: list[dict]) -> list[str]:
-        return ["active" if button_id["mode"] == selected_mode else "" for button_id in ids]
-
-    @app.callback(
-        Output("selected-grid", "data"),
-        Input({"type": "grid-btn", "grid": ALL}, "n_clicks"),
-        prevent_initial_call=True,
-    )
-    def _select_grid(_all_n_clicks: list[int]) -> str:
-        if ctx.triggered_id is None:
-            raise PreventUpdate
-        return ctx.triggered_id["grid"]
-
-    @app.callback(
-        Output({"type": "grid-btn", "grid": ALL}, "className"),
-        Input("selected-grid", "data"),
-        State({"type": "grid-btn", "grid": ALL}, "id"),
-    )
-    def _highlight_active_grid(selected_grid: str, ids: list[dict]) -> list[str]:
-        return ["active" if button_id["grid"] == selected_grid else "" for button_id in ids]
-
-    @app.callback(Output("color-description", "children"), Input("selected-color-mode", "data"))
-    def _describe_color_mode(selected_mode: str) -> str | list:
-        return color_mode_description_children(selected_mode)
-
-    @app.callback(
-        Output("color-grid-row", "style"),
-        Input("selected-color-mode", "data"),
-    )
-    def _toggle_grid_row(selected_mode: str) -> dict:
-        return {} if selected_mode in GRID_MODES else {"display": "none"}
-
-    @app.callback(
-        Output("graph-area", "children"),
-        Input("run-picker", "value"),
-        Input("selected-color-mode", "data"),
-        Input("selected-grid", "data"),
-    )
-    def _update_graph(run_key: str | None, selected_mode: str, grid: str):
-        if run_key in (None, UNSET):
-            raise PreventUpdate
-        return graph_content_for(app_ctx.runs_by_key[run_key], selected_mode, grid)
-
-    @app.callback(
-        Output("lesion-viewer-content", "children"),
-        Output("lesion-viewer-subject", "data"),
-        Input("embedding-graph", "clickData"),
-        Input("run-picker", "value"),
-    )
-    def _update_lesion_viewer(click_data: dict | None, run_key: str | None):
-        if run_key in (None, UNSET):
-            raise PreventUpdate
-        # A run change resets to the placeholder (ctx.triggered_id tells the two Inputs apart) -
-        # a subject clicked on a previous run must not linger once the picker moves on. The
-        # Store resets to None in lockstep, so the Save buttons below (reading it, not
-        # embedding-graph.clickData directly) can never offer a stale cross-run download - see
-        # the Store's own docstring in app.layout for the clickData-persistence bug this fixes.
-        if ctx.triggered_id == "run-picker" or click_data is None:
-            return _LESION_PLACEHOLDER, None
-        subject_id = click_data["points"][0].get("text")
-        if subject_id is None:
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        return lesion_viewer_content_for(run, subject_id, run_metadata(run), lesion_cfg), subject_id
-
-    @app.callback(
-        Output("lesion-download", "data"),
-        Input("lesion-save-btn", "n_clicks"),
-        State("lesion-viewer-subject", "data"),
-        State("run-picker", "value"),
-        prevent_initial_call=True,
-    )
-    def _download_lesion_html(_n_clicks: int, subject_id: str | None, run_key: str | None):
-        if subject_id is None or run_key in (None, UNSET):
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        try:
-            view, _dataset = _build_subject_lesion_view(run, subject_id, run_metadata(run), lesion_cfg)
-        except ValueError:
-            # The visible panel already reports this via lesion_viewer_content_for - the save
-            # button simply has nothing to offer, not a second error surface.
-            raise PreventUpdate
-        return dcc.send_string(_style_nilearn_html(view.html), filename=f"{subject_id}_lesion_3d.html")
-
-    @app.callback(
-        Output("lesion-png-download", "data"),
-        Input("lesion-png-btn", "n_clicks"),
-        State("lesion-viewer-subject", "data"),
-        State("run-picker", "value"),
-        prevent_initial_call=True,
-    )
-    def _download_lesion_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
-        if subject_id is None or run_key in (None, UNSET):
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        try:
-            # Resolves the subject's real lesion mask path directly - no need to build the
-            # interactive view_img (_build_subject_lesion_view) just to render a static PNG.
-            dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
-            lesion_paths = resolve_lesion_paths([subject_id], {subject_id: dataset}, lesion_cfg.data_root, lesion_cfg.lesion_glob)
-        except ValueError:
-            # Same never-raises-into-the-callback contract as _download_lesion_html: the visible
-            # panel already reports this, the save button simply has nothing to offer.
-            raise PreventUpdate
-        png_bytes = _static_png_bytes(
-            str(lesion_paths[subject_id]), threshold=lesion_cfg.binarize_threshold, cmap="autumn", colorbar=False,
-        )
-        return dcc.send_bytes(png_bytes, filename=f"{subject_id}_lesion.png")
-
-    @app.callback(
-        Output("lesion-glass-png-download", "data"),
-        Input("lesion-glass-png-btn", "n_clicks"),
-        State("lesion-viewer-subject", "data"),
-        State("run-picker", "value"),
-        prevent_initial_call=True,
-    )
-    def _download_lesion_glass_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
-        if subject_id is None or run_key in (None, UNSET):
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        try:
-            dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
-            lesion_paths = resolve_lesion_paths([subject_id], {subject_id: dataset}, lesion_cfg.data_root, lesion_cfg.lesion_glob)
-        except ValueError:
-            # Same never-raises-into-the-callback contract as _download_lesion_png.
-            raise PreventUpdate
-        # cmap="autumn" - same choice as _build_subject_lesion_view's own ortho view (see its
-        # docstring): a binary mask has no gradient to show, autumn's solid bright yellow reads
-        # clearly on both the ortho and this glass-brain projection.
-        png_bytes = _static_glass_brain_png_bytes(
-            str(lesion_paths[subject_id]), threshold=lesion_cfg.binarize_threshold, cmap="autumn", colorbar=False,
-        )
-        return dcc.send_bytes(png_bytes, filename=f"{subject_id}_lesion_glass.png")
-
-    @app.callback(
-        Output("disconnectome-panel", "style"),
-        Input("run-picker", "value"),
-    )
-    def _update_disconnectome_panel_visibility(run_key: str | None):
-        if run_key in (None, UNSET):
-            raise PreventUpdate
-        return {} if app_ctx.runs_by_key[run_key].modality == "sdc" else {"display": "none"}
-
-    @app.callback(
-        Output("disconnectome-viewer-content", "children"),
-        Output("disconnectome-viewer-subject", "data"),
-        Input("embedding-graph", "clickData"),
-        Input("run-picker", "value"),
-    )
-    def _update_disconnectome_viewer(click_data: dict | None, run_key: str | None):
-        if run_key in (None, UNSET):
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        # Same run-change reset as _update_lesion_viewer, plus a modality gate: a "lesion" run's
-        # subjects don't have a disconnectome-map.nii.gz to resolve at all (this panel stays
-        # hidden for them via _update_disconnectome_panel_visibility, but its own content must
-        # still reset rather than linger/attempt a doomed resolution on every click).
-        if run.modality != "sdc" or ctx.triggered_id == "run-picker" or click_data is None:
-            return _DISCONNECTOME_PLACEHOLDER, None
-        subject_id = click_data["points"][0].get("text")
-        if subject_id is None:
-            raise PreventUpdate
-        return disconnectome_viewer_content_for(run, subject_id, run_metadata(run), sdc_cfg), subject_id
-
-    @app.callback(
-        Output("disconnectome-download", "data"),
-        Input("disconnectome-save-btn", "n_clicks"),
-        State("disconnectome-viewer-subject", "data"),
-        State("run-picker", "value"),
-        prevent_initial_call=True,
-    )
-    def _download_disconnectome_html(_n_clicks: int, subject_id: str | None, run_key: str | None):
-        if subject_id is None or run_key in (None, UNSET):
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        try:
-            view, _dataset = _build_subject_disconnectome_view(run, subject_id, run_metadata(run), sdc_cfg)
-        except ValueError:
-            raise PreventUpdate
-        return dcc.send_string(_style_nilearn_html(view.html), filename=f"{subject_id}_disconnectome.html")
-
-    @app.callback(
-        Output("disconnectome-png-download", "data"),
-        Input("disconnectome-png-btn", "n_clicks"),
-        State("disconnectome-viewer-subject", "data"),
-        State("run-picker", "value"),
-        prevent_initial_call=True,
-    )
-    def _download_disconnectome_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
-        if subject_id is None or run_key in (None, UNSET):
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        try:
-            dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
-            disconnectome_paths = resolve_lesion_paths(
-                [subject_id], {subject_id: dataset}, sdc_cfg.data_root, sdc_cfg.disconnectome_glob
-            )
-        except ValueError:
-            raise PreventUpdate
-        png_bytes = _static_png_bytes(
-            str(disconnectome_paths[subject_id]), threshold=_DISCONNECTOME_DISPLAY_THRESHOLD,
-            cmap=_DISCONNECTOME_CMAP, colorbar=True,
-        )
-        return dcc.send_bytes(png_bytes, filename=f"{subject_id}_disconnectome.png")
-
-    @app.callback(
-        Output("disconnectome-glass-png-download", "data"),
-        Input("disconnectome-glass-png-btn", "n_clicks"),
-        State("disconnectome-viewer-subject", "data"),
-        State("run-picker", "value"),
-        prevent_initial_call=True,
-    )
-    def _download_disconnectome_glass_png(_n_clicks: int, subject_id: str | None, run_key: str | None):
-        if subject_id is None or run_key in (None, UNSET):
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        try:
-            dataset = _resolve_subject_dataset(run_metadata(run), subject_id)
-            disconnectome_paths = resolve_lesion_paths(
-                [subject_id], {subject_id: dataset}, sdc_cfg.data_root, sdc_cfg.disconnectome_glob
-            )
-        except ValueError:
-            raise PreventUpdate
-        png_bytes = _static_glass_brain_png_bytes(
-            str(disconnectome_paths[subject_id]), threshold=_DISCONNECTOME_GLASS_BRAIN_THRESHOLD, cmap="magma",
-            colorbar=True, alpha=_DISCONNECTOME_GLASS_BRAIN_ALPHA,
-        )
-        return dcc.send_bytes(png_bytes, filename=f"{subject_id}_disconnectome_glass.png")
-
-    @app.callback(
         Output("cluster-picker", "options"),
         Output("cluster-picker", "value"),
         Output("clustering-section", "style"),
@@ -1015,7 +612,7 @@ def build_app(
     def _update_cluster_picker(run_key: str | None):
         if run_key in (None, UNSET):
             raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
+        run = context.runs_by_key[run_key]
         hidden = {"display": "none"}
         if run.pipeline != "clustering":
             return [], None, hidden, hidden, hidden, hidden, hidden, hidden
@@ -1026,460 +623,22 @@ def build_app(
             clusters[0], {}, {}, {}, {}, {}, {},
         )
 
-    @app.callback(
-        Output("cluster-map-content", "children"),
-        Input("run-picker", "value"),
-        Input("cluster-picker", "value"),
-        Input("selected-page-tab", "data"),
-    )
-    def _update_cluster_map(run_key: str | None, cluster_label: int | str | None, selected_tab: str | None):
-        if run_key in (None, UNSET) or cluster_label is None:
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if run.pipeline != "clustering":
-            raise PreventUpdate
-        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
-            return []
-        if cluster_label == ALL_CLUSTERS:
-            embedding, embedding_message = app_ctx.embedding(run)
-            return all_clusters_content_for(
-                run, run_metadata(run), embedding, embedding_message, "lesion", DEFAULT_DISCONNECTION_MAP_MODE,
-                lambda run_, metadata, label, width: app_ctx.cluster_overlap_view(run_, metadata, label, lesion_cfg, width_view=width),
-            )
-        return overlap_map_content_for(run, run_metadata(run), cluster_label, lesion_cfg, build_view=app_ctx.cluster_overlap_view)
+    register_embedding_view(app, context)
 
-    @app.callback(
-        Output("representative-subject-content", "children"),
-        Input("run-picker", "value"),
-        Input("cluster-picker", "value"),
-        Input("selected-page-tab", "data"),
-    )
-    def _update_representative_subject(run_key: str | None, cluster_label: int | str | None, selected_tab: str | None):
-        if run_key in (None, UNSET) or cluster_label is None:
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if run.pipeline != "clustering":
-            raise PreventUpdate
-        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
-            return []
-        if cluster_label == ALL_CLUSTERS:
-            return html.P("Choose a cluster to see its representative subject.", className="status-message")
-        try:
-            embedding, metadata = load_run(run)
-        except UndisplayableRunError as exc:
-            # Same never-raises-into-the-callback contract as every other *_content_for
-            # panel - the main graph above already shows this same error for this run.
-            return html.P(str(exc), className="status-message")
-        key = (run.key, cluster_label)
-        if key not in app_ctx.representatives:
-            content = representative_subject_content_for(run, embedding, metadata, cluster_label, lesion_cfg, sdc_cfg)
-            if not isinstance(content, html.P):  # a status message (a missing file...) is not remembered: it may be fixed
-                app_ctx.representatives[key] = content
-            return content
-        return app_ctx.representatives[key]
+    register_tabs(app, context)
 
-    @app.callback(
-        Output("cluster-description-content", "children"),
-        Input("run-picker", "value"),
-        Input("cluster-picker", "value"),
-        Input("selected-page-tab", "data"),
-    )
-    def _update_cluster_description(run_key: str | None, cluster_label: int | str | None, selected_tab: str | None):
-        if run_key in (None, UNSET) or cluster_label is None:
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if run.pipeline != "clustering":
-            raise PreventUpdate
-        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
-            return []
-        if cluster_label == ALL_CLUSTERS:
-            return html.P("Choose a cluster to see its description.", className="status-message")
-        return cluster_description_content_for(run_metadata(run), cluster_label)
+    register_pickers(app, context)
 
-    @app.callback(
-        Output("cluster-composition-content", "children"),
-        Input("run-picker", "value"),
-        Input("selected-page-tab", "data"),
-    )
-    def _update_cluster_composition(run_key: str | None, selected_tab: str | None):
-        if run_key in (None, UNSET):
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if run.pipeline != "clustering":
-            raise PreventUpdate
-        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
-            return []
-        return cluster_composition_content_for(run_metadata(run))
+    register_anatomy(app, context)
+    register_cluster_maps(app, context)
 
-    @app.callback(
-        Output("cluster-quality-content", "children"),
-        Output("cluster-quality-poll", "disabled"),
-        Input("run-picker", "value"),
-        Input("cluster-quality-poll", "n_intervals"),
-        Input("selected-page-tab", "data"),
-    )
-    def _update_cluster_quality(run_key: str | None, _n_intervals: int, selected_tab: str | None):
-        if run_key in (None, UNSET):
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if run.pipeline != "clustering":
-            raise PreventUpdate
-        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
-            return [], True  # nothing shown, so nothing to poll for (reopening the tab restarts it)
-        if run.method == "adp":
-            content, pending = adp_quality_content_for(run, summary_of=app_ctx.adp_summary)
-            return content, not pending
-        return cluster_quality_content_for(run, silhouette_of=app_ctx.silhouette, soft_of=app_ctx.soft_membership), True
+    register_description(app, context)
 
-    def _is_agglomerative(run: ProductionRun) -> bool:
-        return run.pipeline == "clustering" and run.method == "agglomerative"
+    register_quality(app, context)
 
-    @app.callback(
-        Output("dendrogram-panel", "style"),
-        Output("dendrogram-tuning-picker", "options"),
-        Output("dendrogram-tuning-picker", "value"),
-        Output("dendrogram-tuning-note", "children"),
-        Output("dendrogram-map-picker", "value"),
-        Input("run-picker", "value"),
-    )
-    def _update_dendrogram_panel(run_key: str | None):
-        if run_key in (None, UNSET):
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if not _is_agglomerative(run):
-            return {"display": "none"}, [], None, [], no_update
-        default_map = "lesion"
-        try:
-            matches = app_ctx.compatible_tunings(run)
-        except ValueError as exc:
-            return {}, [], None, html.P(str(exc), className="status-message"), default_map
-        options = [{"label": match.run_dir.name, "value": str(match.run_dir)} for match in matches if match.compatible]
-        return {}, options, (options[0]["value"] if options else None), dendrogram_tuning_note(matches), default_map
+    register_pca_maps(app, context)
 
-    @app.callback(
-        Output("dendrogram-k-picker", "options"),
-        Output("dendrogram-k-picker", "value"),
-        Input("run-picker", "value"),
-        Input("dendrogram-tuning-picker", "value"),
-    )
-    def _update_dendrogram_k(run_key: str | None, tuning_value: str | None):
-        if run_key in (None, UNSET):
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if not _is_agglomerative(run):
-            raise PreventUpdate
-        tuning_dir = _chosen_tuning_dir(run, tuning_value)
-        try:
-            tree = app_ctx.split_tree(run, tuning_dir)
-        except ValueError:
-            return [], None  # the figure callback shows why
-        k_values = dendrogram_k_options(tree)
-        production_k = run_params(run)["n_clusters"]
-        # The production k, or the nearest one the tuning swept (a sweep can have holes: 2..6, 8, 10).
-        return [{"label": str(k), "value": k} for k in k_values], min(k_values, key=lambda k: abs(k - production_k))
-
-    def _dendrogram_context(run_key: str | None, tuning_value: str | None, k: int | None, modality: str | None):
-        """(run, tuning dir, tree) the two callbacks below work on, or a status message in their place when the tree
-        cannot be built. PreventUpdate while the pickers still hold values of the previously chosen run."""
-        if run_key in (None, UNSET) or k is None or modality is None:
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if not _is_agglomerative(run):
-            raise PreventUpdate
-        tuning_dir = _chosen_tuning_dir(run, tuning_value)
-        try:
-            tree = app_ctx.split_tree(run, tuning_dir)
-        except ValueError as exc:
-            return html.P(str(exc), className="status-message")
-        if k not in dendrogram_k_options(tree):
-            raise PreventUpdate  # the k left over from the previous tuning, until the k picker is refilled
-        return run, tuning_dir, tree
-
-    def _dendrogram_build_view(tuning_dir: Path) -> DendrogramViewBuilder:
-        return lambda run_, metadata_at_k, label, modality_, name, width: app_ctx.dendrogram_view(
-            run_, metadata_at_k, label, modality_, name, width, tuning_dir
-        )
-
-    @app.callback(
-        Output("dendrogram-steps-content", "children"),
-        Input("run-picker", "value"),
-        Input("dendrogram-tuning-picker", "value"),
-        Input("dendrogram-k-picker", "value"),
-        Input("dendrogram-map-picker", "value"),
-        Input("selected-page-tab", "data"),
-    )
-    def _update_dendrogram_steps(
-        run_key: str | None, tuning_value: str | None, k: int | None, modality: str | None, selected_tab: str | None
-    ):
-        if run_key not in (None, UNSET) and not tab_is_active(app_ctx.runs_by_key[run_key], selected_tab, TAB_DENDROGRAM):
-            return []
-        context = _dendrogram_context(run_key, tuning_value, k, modality)
-        if isinstance(context, html.P):
-            return context
-        run, tuning_dir, tree = context
-        embedding, embedding_message = app_ctx.embedding(run)
-        if embedding is None:
-            return html.P(embedding_message, className="status-message")
-        return dendrogram_steps_content_for(
-            run, run_metadata(run), tree, embedding, k, modality, _dendrogram_build_view(tuning_dir),
-            load_participants_registry().set_index("subject_id"),
-        )
-
-    @app.callback(
-        Output("pca-map-panel", "style"),
-        Output("pca-component-picker", "options"),
-        Output("pca-component-picker", "value"),
-        Input("run-picker", "value"),
-    )
-    def _update_pca_panel(run_key: str | None):
-        if run_key in (None, UNSET):
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if not _is_pca_run(run):
-            return {"display": "none"}, [], None
-        n_components = _matrix_shape(run)[1]
-        return {}, [{"label": f"Component {k}", "value": k} for k in range(1, n_components + 1)], 1
-
-    @app.callback(
-        Output("pca-map-content", "children"),
-        Output("pca-map-poll", "disabled"),
-        Input("run-picker", "value"),
-        Input("pca-component-picker", "value"),
-        Input("pca-map-poll", "n_intervals"),
-    )
-    def _update_pca_maps(run_key: str | None, component: int | None, _n_intervals: int):
-        if run_key in (None, UNSET) or component is None:
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if not _is_pca_run(run):
-            raise PreventUpdate
-        content, pending = component_maps_content_for(run, component, app_ctx.component_maps, app_ctx.component_view)
-        return content, not pending
-
-    @app.callback(
-        Output("representative-download", "data"),
-        Input("representative-save-btn", "n_clicks"),
-        State("run-picker", "value"),
-        State("cluster-picker", "value"),
-        prevent_initial_call=True,
-    )
-    def _download_representative_html(_n_clicks: int, run_key: str | None, cluster_label: int | None):
-        if run_key in (None, UNSET) or cluster_label is None or cluster_label == ALL_CLUSTERS:
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if run.pipeline != "clustering":
-            raise PreventUpdate
-        try:
-            embedding, metadata = load_run(run)
-            centroids = cluster_centroids_with_nearest_subject(embedding, metadata, load_cluster_space(run))
-            subject_id = centroids.loc[cluster_label, "nearest_subject_id"]
-            if run.modality == "lesion":
-                view, _dataset = _build_subject_lesion_view(run, subject_id, metadata, lesion_cfg)
-            else:
-                view, _dataset = _build_subject_disconnectome_view(run, subject_id, metadata, sdc_cfg)
-        except (ValueError, KeyError):
-            # Same never-raises-into-the-callback contract as _download_lesion_html: the
-            # visible panel already reports this, the save button simply has nothing to offer.
-            # ValueError also covers UndisplayableRunError (its own subclass) from load_run.
-            raise PreventUpdate
-        return dcc.send_string(
-            _style_nilearn_html(view.html), filename=f"cluster_{cluster_label}_representative_{subject_id}.html"
-        )
-
-    @app.callback(
-        Output("representative-png-download", "data"),
-        Input("representative-png-btn", "n_clicks"),
-        State("run-picker", "value"),
-        State("cluster-picker", "value"),
-        prevent_initial_call=True,
-    )
-    def _download_representative_png(_n_clicks: int, run_key: str | None, cluster_label: int | None):
-        if run_key in (None, UNSET) or cluster_label is None or cluster_label == ALL_CLUSTERS:
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if run.pipeline != "clustering":
-            raise PreventUpdate
-        try:
-            embedding, metadata = load_run(run)
-            centroids = cluster_centroids_with_nearest_subject(embedding, metadata, load_cluster_space(run))
-            subject_id = centroids.loc[cluster_label, "nearest_subject_id"]
-            dataset = _resolve_subject_dataset(metadata, subject_id)
-            if run.modality == "lesion":
-                lesion_paths = resolve_lesion_paths(
-                    [subject_id], {subject_id: dataset}, lesion_cfg.data_root, lesion_cfg.lesion_glob
-                )
-                png_bytes = _static_png_bytes(
-                    str(lesion_paths[subject_id]), threshold=lesion_cfg.binarize_threshold, cmap="autumn",
-                    colorbar=False,
-                )
-            else:
-                disconnectome_paths = resolve_lesion_paths(
-                    [subject_id], {subject_id: dataset}, sdc_cfg.data_root, sdc_cfg.disconnectome_glob
-                )
-                png_bytes = _static_png_bytes(
-                    str(disconnectome_paths[subject_id]), threshold=_DISCONNECTOME_DISPLAY_THRESHOLD,
-                    cmap=_DISCONNECTOME_CMAP, colorbar=True,
-                )
-        except (ValueError, KeyError):
-            raise PreventUpdate
-        return dcc.send_bytes(png_bytes, filename=f"cluster_{cluster_label}_representative_{subject_id}.png")
-
-    @app.callback(
-        Output("cluster-download", "data"),
-        Input("cluster-save-btn", "n_clicks"),
-        State("run-picker", "value"),
-        State("cluster-picker", "value"),
-        prevent_initial_call=True,
-    )
-    def _download_cluster_html(_n_clicks: int, run_key: str | None, cluster_label: int | None):
-        if run_key in (None, UNSET) or cluster_label is None or cluster_label == ALL_CLUSTERS:
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if run.pipeline != "clustering":
-            raise PreventUpdate
-        try:
-            view, _n_subjects, _percentage_img, _missing = app_ctx.cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
-        except ValueError:
-            raise PreventUpdate
-        return dcc.send_string(_style_nilearn_html(view.html), filename=f"cluster_{cluster_label}_overlap_map.html")
-
-    @app.callback(
-        Output("cluster-png-download", "data"),
-        Input("cluster-png-btn", "n_clicks"),
-        State("run-picker", "value"),
-        State("cluster-picker", "value"),
-        prevent_initial_call=True,
-    )
-    def _download_cluster_png(_n_clicks: int, run_key: str | None, cluster_label: int | None):
-        if run_key in (None, UNSET) or cluster_label is None or cluster_label == ALL_CLUSTERS:
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if run.pipeline != "clustering":
-            raise PreventUpdate
-        try:
-            # Reuses the same process-lifetime cache the HTML download/panel display already
-            # populate - percentage_img is the exact image the interactive view itself renders,
-            # not a second build_overlap_map pass (see _build_cluster_overlap_view's docstring).
-            _view, _n_subjects, percentage_img, _missing = app_ctx.cluster_overlap_view(run, run_metadata(run), cluster_label, lesion_cfg)
-        except ValueError:
-            raise PreventUpdate
-        png_bytes = _static_png_bytes(percentage_img, threshold=1e-6, cmap="hot", colorbar=True)
-        return dcc.send_bytes(png_bytes, filename=f"cluster_{cluster_label}_overlap_map.png")
-
-    @app.callback(
-        Output("disconnection-map-panel", "style"),
-        Input("run-picker", "value"),
-    )
-    def _update_disconnection_map_panel_visibility(run_key: str | None):
-        if run_key in (None, UNSET):
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        return {} if (run.modality == "sdc" and run.pipeline == "clustering") else {"display": "none"}
-
-    @app.callback(
-        Output("disconnection-map-content", "children"),
-        Input("run-picker", "value"),
-        Input("cluster-picker", "value"),
-        Input("selected-disconnection-mode", "data"),
-        Input("selected-page-tab", "data"),
-    )
-    def _update_disconnection_map(run_key: str | None, cluster_label: int | str | None, map_mode: str, selected_tab: str | None):
-        if run_key in (None, UNSET) or cluster_label is None:
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if run.modality != "sdc" or run.pipeline != "clustering":
-            raise PreventUpdate
-        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
-            return []
-        if cluster_label == ALL_CLUSTERS:
-            embedding, embedding_message = app_ctx.embedding(run)
-            return all_clusters_content_for(
-                run, run_metadata(run), embedding, embedding_message, "sdc", map_mode,
-                lambda run_, metadata, label, width: app_ctx.cluster_disconnection_view(
-                    run_, metadata, label, sdc_cfg, map_mode, width_view=width
-                ),
-            )
-        return disconnection_map_content_for(
-            run, run_metadata(run), cluster_label, sdc_cfg,
-            build_view=app_ctx.cluster_disconnection_view, map_mode=map_mode,
-        )
-
-    @app.callback(
-        Output("selected-disconnection-mode", "data"),
-        Input({"type": "disconnection-mode-btn", "mode": ALL}, "n_clicks"),
-        prevent_initial_call=True,
-    )
-    def _select_disconnection_mode(_all_n_clicks: list[int]) -> str:
-        if ctx.triggered_id is None:
-            raise PreventUpdate
-        return ctx.triggered_id["mode"]
-
-    @app.callback(
-        Output({"type": "disconnection-mode-btn", "mode": ALL}, "className"),
-        Input("selected-disconnection-mode", "data"),
-        State({"type": "disconnection-mode-btn", "mode": ALL}, "id"),
-    )
-    def _highlight_active_disconnection_mode(selected: str, ids: list[dict]) -> list[str]:
-        return ["active" if button_id["mode"] == selected else "" for button_id in ids]
-
-    @app.callback(
-        Output("disconnection-download", "data"),
-        Input("disconnection-save-btn", "n_clicks"),
-        State("run-picker", "value"),
-        State("cluster-picker", "value"),
-        prevent_initial_call=True,
-    )
-    def _download_disconnection_html(_n_clicks: int, run_key: str | None, cluster_label: int | None):
-        if run_key in (None, UNSET) or cluster_label is None or cluster_label == ALL_CLUSTERS:
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if run.modality != "sdc" or run.pipeline != "clustering":
-            raise PreventUpdate
-        try:
-            view, _n_subjects, _mean_img, _missing = app_ctx.cluster_disconnection_view(run, run_metadata(run), cluster_label, sdc_cfg)
-        except ValueError:
-            raise PreventUpdate
-        return dcc.send_string(
-            _style_nilearn_html(view.html), filename=f"cluster_{cluster_label}_disconnection_mean_map.html"
-        )
-
-    @app.callback(
-        Output("disconnection-png-download", "data"),
-        Input("disconnection-png-btn", "n_clicks"),
-        State("run-picker", "value"),
-        State("cluster-picker", "value"),
-        prevent_initial_call=True,
-    )
-    def _download_disconnection_png(_n_clicks: int, run_key: str | None, cluster_label: int | None):
-        if run_key in (None, UNSET) or cluster_label is None or cluster_label == ALL_CLUSTERS:
-            raise PreventUpdate
-        run = app_ctx.runs_by_key[run_key]
-        if run.modality != "sdc" or run.pipeline != "clustering":
-            raise PreventUpdate
-        try:
-            # Reuses the same process-lifetime cache the HTML download/panel display already
-            # populate - mean_img is the exact image the interactive view itself renders, not a
-            # second build_mean_map pass (see _build_cluster_disconnection_view's docstring).
-            _view, _n_subjects, mean_img, _missing = app_ctx.cluster_disconnection_view(run, run_metadata(run), cluster_label, sdc_cfg)
-        except ValueError:
-            raise PreventUpdate
-        png_bytes = _static_png_bytes(
-            mean_img, threshold=_DISCONNECTOME_DISPLAY_THRESHOLD, cmap=_DISCONNECTOME_CMAP, colorbar=True,
-        )
-        return dcc.send_bytes(png_bytes, filename=f"cluster_{cluster_label}_disconnection_mean_map.png")
-
-    @app.callback(
-        Output("page-index-links", "children"),
-        Input("run-picker", "value"),
-        Input("selected-page-tab", "data"),
-    )
-    def _update_page_index(run_key: str | None, selected_tab: str | None):
-        if run_key is None:
-            raise PreventUpdate
-        if run_key == UNSET:
-            return _index_links(index_entries_for(None, TAB_EMBEDDING))
-        run = app_ctx.runs_by_key[run_key]
-        return _index_links(index_entries_for(run, active_page_tab(run, selected_tab)))
+    register_dendrogram(app, context)
 
     def _preload_stores() -> None:
         """Reads every subject of every clustering run once, in the background, into the two
@@ -1500,15 +659,15 @@ def build_app(
             if run.modality == "sdc":
                 datasets["disconnection"].update(by_subject)
         for name, store, cfg_data_root, glob in (
-            ("lesion", app_ctx.lesion_store, lesion_cfg.data_root, lesion_cfg.lesion_glob),
-            ("disconnection", app_ctx.disconnection_store, sdc_cfg.data_root, sdc_cfg.disconnectome_glob),
+            ("lesion", context.lesion_store, context.lesion_cfg.data_root, context.lesion_cfg.lesion_glob),
+            ("disconnection", context.disconnection_store, context.sdc_cfg.data_root, context.sdc_cfg.disconnectome_glob),
         ):
             by_subject = datasets[name]
             if not by_subject:
                 continue
             try:
                 paths, _missing = resolve_available_lesion_paths(
-                    list(by_subject), by_subject, cfg_data_root, glob, app_ctx.discovered_files
+                    list(by_subject), by_subject, cfg_data_root, glob, context.discovered_files
                 )
                 logging.info("preload %s: reading %d subject(s)", name, len(paths))
                 store.preload(paths.values())

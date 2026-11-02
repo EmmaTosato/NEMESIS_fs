@@ -9,10 +9,13 @@ polled, never in the click.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+from dash import Dash, Input, Output
 from dash import dcc, html
+from dash.exceptions import PreventUpdate
 
 from src.analysis.cluster_quality import build_dbcv_figure, build_mean_membership_figure, build_silhouette_figure
 from src.analysis.clustering_evaluation import (
@@ -26,8 +29,10 @@ from src.analysis.clustering_evaluation import (
     soft_membership_summary,
 )
 from src.analysis.embedding_app.blocks import _table
+from src.analysis.embedding_app.picker import UNSET
 from src.analysis.embedding_app.runs import ProductionRun, _matrix_shape, run_metadata, run_params
 from src.analysis.embedding_app.style import _italian_figure
+from src.analysis.embedding_app.tabs import TAB_CLUSTERING, tab_is_active
 from src.analysis.production_results import RESULTS_METHODS, SavedResults, read_production_results
 from src.analysis.raw_distances import RawDistanceStore
 from src.utils.artifacts import MATRIX_FILENAME, load_matrix
@@ -515,3 +520,31 @@ def _chart_heading(title: str, subtitle: str) -> html.Div:
         html.P(title, className="comparison-subheading"),
         html.P(subtitle, className="quality-intro"),
     ])
+
+
+if TYPE_CHECKING:  # importing it for real would close a loop through the panels
+    from src.analysis.embedding_app.context import AppContext
+
+
+def register_callbacks(app: Dash, context: AppContext) -> None:
+    """Wires this panel to the app. Called once by build_app, which owns the layout the ids
+    below refer to."""
+    @app.callback(
+        Output("cluster-quality-content", "children"),
+        Output("cluster-quality-poll", "disabled"),
+        Input("run-picker", "value"),
+        Input("cluster-quality-poll", "n_intervals"),
+        Input("selected-page-tab", "data"),
+    )
+    def _update_cluster_quality(run_key: str | None, _n_intervals: int, selected_tab: str | None):
+        if run_key in (None, UNSET):
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        if run.pipeline != "clustering":
+            raise PreventUpdate
+        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
+            return [], True  # nothing shown, so nothing to poll for (reopening the tab restarts it)
+        if run.method == "adp":
+            content, pending = adp_quality_content_for(run, summary_of=context.adp_summary)
+            return content, not pending
+        return cluster_quality_content_for(run, silhouette_of=context.silhouette, soft_of=context.soft_membership), True

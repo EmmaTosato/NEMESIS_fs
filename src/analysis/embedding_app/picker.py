@@ -10,6 +10,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+from dash import Dash, Input, Output, ctx
+from dash.exceptions import PreventUpdate
 
 from src.analysis.embedding_app.runs import (
     NO_METRIC,
@@ -22,6 +26,9 @@ from src.analysis.embedding_app.runs import (
     run_reduction_axis,
 )
 from src.analysis.params import load_tag_params
+
+if TYPE_CHECKING:  # importing it for real would close a loop through the panels
+    from src.analysis.embedding_app.context import AppContext
 
 
 def _n_components_option_label(n: int) -> str:
@@ -88,6 +95,10 @@ PICKER_FACETS: tuple[str, ...] = (
     "modality", "pipeline", "method", "reduction", "n_subjects", "metric", "n_components", "tag_params", "tag_params_rest",
 )
 PICKER_FIELDS: tuple[str, ...] = (*PICKER_FACETS, "run")
+
+# The id of each selector in the layout, derived from its field name rather than written out again:
+# the callback that owns all ten reads and writes them by these ids.
+PICKER_IDS: dict[str, str] = {field: f"{field.replace('_', '-')}-picker" for field in PICKER_FIELDS}
 
 # The methods whose hyperparameters take two selectors instead of one: the registered `tag_param` keys listed here go to
 # the first ("tag_params"), the others to the second ("tag_params_rest"). Every other method has all of them in the
@@ -247,3 +258,55 @@ def _run_label(item: IndexedRun, shown_facets: list[str]) -> str:
     """The run's name, followed by its value at each facet that is not a filter (the n.a. ones left out)."""
     extras = [str(item.values[facet]) for facet in shown_facets if item.values[facet] != NO_METRIC]
     return item.run.run_name if not extras else f"{item.run.run_name}  ({' / '.join(extras)})"
+
+
+def register_callbacks(app: Dash, context: AppContext) -> None:
+    """Wires this panel to the app. Called once by build_app, which owns the layout the ids
+    below refer to."""
+    @app.callback(Output("reduction-picker-field", "style"), Input("pipeline-picker", "value"))
+    def _toggle_reduction_picker(pipeline: str | None):
+        if pipeline is None:
+            raise PreventUpdate
+        return {"display": "none"} if pipeline == "dim_reduction" else {}
+
+    @app.callback(
+        Output("tag-params-label", "children"),
+        Output("tag-params-rest-field", "style"),
+        Input("pipeline-picker", "value"),
+        Input("method-picker", "value"),
+    )
+    def _update_tag_params_selectors(pipeline: str | None, method: str | None):
+        if pipeline is None or method is None:
+            raise PreventUpdate
+        split = method in SPLIT_TAG_PARAMS
+        shown = pipeline != "dim_reduction" and (split or method == UNSET)
+        return ("k" if method == "agglomerative" else "Parameters"), ({} if shown else {"display": "none"})
+
+    # One callback for every selector (see resolve_pickers): the 10 values (and the "Riavvia" button) come in, the
+    # 10 option lists and 10 values go out. The nine before "Run" are optional filters ("---" = not a filter); "Run" lists the runs
+    # that match the filters that are set. The selectors are both inputs and outputs of this callback; Dash
+    # does not re-trigger a callback from its own outputs.
+    @app.callback(
+        [Output(PICKER_IDS[field], prop) for field in PICKER_FIELDS for prop in ("options", "value")],
+        [*(Input(PICKER_IDS[field], "value") for field in PICKER_FIELDS), Input("reset-pickers-btn", "n_clicks")],
+    )
+    def _update_pickers(*values):
+        *picker_values, _reset_clicks = values
+        current = dict(zip(PICKER_FIELDS, picker_values))
+        changed = next((field for field in PICKER_FIELDS if PICKER_IDS[field] == ctx.triggered_id), None)
+        if ctx.triggered_id == "reset-pickers-btn":
+            state = open_pickers(context.indexed_runs)
+        else:
+            state = resolve_pickers(context.indexed_runs, current, changed)
+
+        def label(field: str, value) -> str:
+            if value == UNSET:
+                return UNSET
+            if field == "run":
+                return state.run_labels[value]
+            return _n_components_option_label(value) if field == "n_components" else str(value)
+
+        outputs = []
+        for field in PICKER_FIELDS:
+            outputs += [[{"label": label(field, value), "value": value} for value in state.options[field]], state.chosen[field]]
+        return outputs

@@ -10,12 +10,15 @@ anatomy is shown are the same computation, not two.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from dash import dcc, html
+from dash import ALL, Dash, Input, Output, State, ctx, dcc, html
+from dash.exceptions import PreventUpdate
 
+from src.analysis.embedding_app.picker import UNSET
 from src.analysis.embedding_app.runs import (
     ProductionRun,
     UndisplayableRunError,
@@ -37,6 +40,9 @@ from src.analysis.plotting import (
     _palette_for_categories,
     compose_embedding_plot_title,
 )
+
+if TYPE_CHECKING:  # importing it for real would close the loop context -> anatomy -> this module
+    from src.analysis.embedding_app.context import AppContext
 
 # "neutro" first, same convention as embedding_coloring.COLOR_MODES/the notebook prototype -
 # the neutral single-color view is always available and always the default, every other
@@ -456,3 +462,65 @@ def _color_button_label(mode_name: str) -> str:
     # color_by segment (src/analysis/plotting.py), which interpolates the label verbatim
     # instead of re-casing it.
     return "neutral" if mode_name == NEUTRAL_MODE else COLOR_MODES[mode_name].label
+
+
+def register_callbacks(app: Dash, context: AppContext) -> None:
+    """Wires this panel to the app. Called once by build_app, which owns the layout the ids
+    below refer to."""
+    @app.callback(
+        Output("selected-color-mode", "data"),
+        Input({"type": "color-mode-btn", "mode": ALL}, "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def _select_color_mode(_all_n_clicks: list[int]) -> str:
+        if ctx.triggered_id is None:
+            raise PreventUpdate
+        return ctx.triggered_id["mode"]
+
+    @app.callback(
+        Output({"type": "color-mode-btn", "mode": ALL}, "className"),
+        Input("selected-color-mode", "data"),
+        State({"type": "color-mode-btn", "mode": ALL}, "id"),
+    )
+    def _highlight_active_button(selected_mode: str, ids: list[dict]) -> list[str]:
+        return ["active" if button_id["mode"] == selected_mode else "" for button_id in ids]
+
+    @app.callback(
+        Output("selected-grid", "data"),
+        Input({"type": "grid-btn", "grid": ALL}, "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def _select_grid(_all_n_clicks: list[int]) -> str:
+        if ctx.triggered_id is None:
+            raise PreventUpdate
+        return ctx.triggered_id["grid"]
+
+    @app.callback(
+        Output({"type": "grid-btn", "grid": ALL}, "className"),
+        Input("selected-grid", "data"),
+        State({"type": "grid-btn", "grid": ALL}, "id"),
+    )
+    def _highlight_active_grid(selected_grid: str, ids: list[dict]) -> list[str]:
+        return ["active" if button_id["grid"] == selected_grid else "" for button_id in ids]
+
+    @app.callback(Output("color-description", "children"), Input("selected-color-mode", "data"))
+    def _describe_color_mode(selected_mode: str) -> str | list:
+        return color_mode_description_children(selected_mode)
+
+    @app.callback(
+        Output("color-grid-row", "style"),
+        Input("selected-color-mode", "data"),
+    )
+    def _toggle_grid_row(selected_mode: str) -> dict:
+        return {} if selected_mode in GRID_MODES else {"display": "none"}
+
+    @app.callback(
+        Output("graph-area", "children"),
+        Input("run-picker", "value"),
+        Input("selected-color-mode", "data"),
+        Input("selected-grid", "data"),
+    )
+    def _update_graph(run_key: str | None, selected_mode: str, grid: str):
+        if run_key in (None, UNSET):
+            raise PreventUpdate
+        return graph_content_for(context.runs_by_key[run_key], selected_mode, grid)

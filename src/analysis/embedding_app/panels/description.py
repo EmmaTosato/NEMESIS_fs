@@ -9,9 +9,12 @@ is made by reading, not by a p-value.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import pandas as pd
+from dash import Dash, Input, Output
 from dash import dcc, html
+from dash.exceptions import PreventUpdate
 
 from src.analysis.cluster_composition import COMPOSITION_VARIABLES, build_composition_figure, composition_frame
 from src.analysis.cluster_description import (
@@ -23,7 +26,11 @@ from src.analysis.cluster_description import (
     clusters_comparison_stats,
 )
 from src.analysis.embedding_app.blocks import _warning_box
+from src.analysis.embedding_app.panels.overview import ALL_CLUSTERS
+from src.analysis.embedding_app.picker import UNSET
+from src.analysis.embedding_app.runs import run_metadata
 from src.analysis.embedding_app.style import _italian_figure
+from src.analysis.embedding_app.tabs import TAB_CLUSTERING, tab_is_active
 from src.analysis.plotting import _palette_for_labels
 from src.utils.number_format import format_number
 
@@ -254,3 +261,44 @@ def cluster_composition_content_for(metadata: pd.DataFrame) -> html.Div | html.P
         )
     )
     return html.Div(children)
+
+
+if TYPE_CHECKING:  # importing it for real would close a loop through the panels
+    from src.analysis.embedding_app.context import AppContext
+
+
+def register_callbacks(app: Dash, context: AppContext) -> None:
+    """Wires this panel to the app. Called once by build_app, which owns the layout the ids
+    below refer to."""
+    @app.callback(
+        Output("cluster-description-content", "children"),
+        Input("run-picker", "value"),
+        Input("cluster-picker", "value"),
+        Input("selected-page-tab", "data"),
+    )
+    def _update_cluster_description(run_key: str | None, cluster_label: int | str | None, selected_tab: str | None):
+        if run_key in (None, UNSET) or cluster_label is None:
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        if run.pipeline != "clustering":
+            raise PreventUpdate
+        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
+            return []
+        if cluster_label == ALL_CLUSTERS:
+            return html.P("Choose a cluster to see its description.", className="status-message")
+        return cluster_description_content_for(run_metadata(run), cluster_label)
+
+    @app.callback(
+        Output("cluster-composition-content", "children"),
+        Input("run-picker", "value"),
+        Input("selected-page-tab", "data"),
+    )
+    def _update_cluster_composition(run_key: str | None, selected_tab: str | None):
+        if run_key in (None, UNSET):
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        if run.pipeline != "clustering":
+            raise PreventUpdate
+        if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
+            return []
+        return cluster_composition_content_for(run_metadata(run))

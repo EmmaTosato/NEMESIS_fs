@@ -8,10 +8,13 @@ same table, so it never links to a section that is not there.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
-from dash import html
+from dash import ALL, Dash, Input, Output, State, ctx, html
+from dash.exceptions import PreventUpdate
 
 from src.analysis.embedding_app.panels.pca_maps import _is_pca_run
+from src.analysis.embedding_app.picker import UNSET
 from src.analysis.embedding_app.runs import ProductionRun
 
 
@@ -59,6 +62,10 @@ def tab_is_active(run: ProductionRun, selected: str | None, tab: str) -> bool:
     return active_page_tab(run, selected) == tab
 
 
+if TYPE_CHECKING:  # importing it for real would close a loop through the panels
+    from src.analysis.embedding_app.context import AppContext
+
+
 # (anchor id, label, tab it sits in, shown for this run?) in page order. The panels that only exist for some runs
 # (see _update_cluster_picker and _update_disconnectome_panel_visibility) are listed only for
 # those runs, so the index never links to a hidden section. A tab of None is in every tab.
@@ -95,3 +102,71 @@ def index_entries_for(run: ProductionRun | None, tab: str | None = None) -> list
 
 def _index_links(entries: list[tuple[str, str]]) -> list[html.A]:
     return [html.A(label, href=f"#{anchor}", className="page-index-link") for anchor, label in entries]
+
+
+def register_callbacks(app: Dash, context: AppContext) -> None:
+    """Wires this panel to the app. Called once by build_app, which owns the layout the ids
+    below refer to."""
+    @app.callback(
+        Output("selected-page-tab", "data"),
+        Input({"type": "page-tab-btn", "tab": ALL}, "n_clicks"),
+        Input("run-picker", "value"),
+        State("selected-page-tab", "data"),
+        prevent_initial_call=True,
+    )
+    def _select_page_tab(_all_n_clicks: list[int], run_key: str | None, current: str):
+        if isinstance(ctx.triggered_id, dict):
+            return ctx.triggered_id["tab"]
+        if run_key in (None, UNSET):
+            raise PreventUpdate
+        return active_page_tab(context.runs_by_key[run_key], current)
+
+    @app.callback(
+        Output({"type": "page-tab-btn", "tab": ALL}, "className"),
+        Output({"type": "page-tab-btn", "tab": ALL}, "style"),
+        Output("page-tab-bar", "style"),
+        Output("tab-embedding", "style"),
+        Output("tab-clustering", "style"),
+        Output("tab-dendrogram", "style"),
+        Input("selected-page-tab", "data"),
+        Input("run-picker", "value"),
+        State({"type": "page-tab-btn", "tab": ALL}, "id"),
+    )
+    def _apply_page_tab(selected: str | None, run_key: str | None, ids: list[dict]):
+        """Shows the active tab, marks its button and hides the buttons of the tabs the run has not got (and the whole
+        bar when the run has only one)."""
+        if run_key is None:
+            raise PreventUpdate
+        if run_key == UNSET:  # nothing is shown: run-content is hidden, and the bar and tabs stay as they were
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        available = page_tabs_for(run)
+        active = active_page_tab(run, selected)
+        classes = ["tab-btn active" if button["tab"] == active else "tab-btn" for button in ids]
+        styles = [{} if button["tab"] in available else {"display": "none"} for button in ids]
+        bar_style = {} if len(available) > 1 else {"display": "none"}
+        tab_styles = [{"display": "block"} if tab == active else {"display": "none"} for tab in PAGE_TAB_LABELS]
+        return classes, styles, bar_style, *tab_styles
+
+    @app.callback(
+        Output("run-content", "style"),
+        Output("no-run-message", "style"),
+        Input("run-picker", "value"),
+    )
+    def _toggle_run_content(run_key: str | None):
+        if run_key is None:
+            raise PreventUpdate
+        return ({"display": "none"}, {}) if run_key == UNSET else ({}, {"display": "none"})
+
+    @app.callback(
+        Output("page-index-links", "children"),
+        Input("run-picker", "value"),
+        Input("selected-page-tab", "data"),
+    )
+    def _update_page_index(run_key: str | None, selected_tab: str | None):
+        if run_key is None:
+            raise PreventUpdate
+        if run_key == UNSET:
+            return _index_links(index_entries_for(None, TAB_EMBEDDING))
+        run = context.runs_by_key[run_key]
+        return _index_links(index_entries_for(run, active_page_tab(run, selected_tab)))

@@ -12,10 +12,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import nibabel as nib
 import numpy as np
+from dash import Dash, Input, Output
 from dash import dcc, html
+from dash.exceptions import PreventUpdate
 from nilearn import plotting as nilearn_plotting
 from nilearn.plotting.html_stat_map import StatMapView
 
@@ -23,7 +26,8 @@ from src.analysis.component_map_plots import build_reproducibility_figure
 from src.analysis.component_maps import ComponentMapSet, ComponentMapStore, MapGeometry, load_map_geometry, to_volume
 from src.analysis.embedding_app.anatomy import _ANATOMY_VIEWER_WIDTH, _anatomy_viewer, _masked_for_view_colorbar
 from src.analysis.embedding_app.blocks import _warning_box
-from src.analysis.embedding_app.runs import ProductionRun, run_metadata
+from src.analysis.embedding_app.picker import UNSET
+from src.analysis.embedding_app.runs import ProductionRun, _matrix_shape, run_metadata
 from src.analysis.embedding_app.style import _italian_figure
 from src.utils.artifacts import MANIFEST_FILENAME, MATRIX_FILENAME, read_run_config
 from src.utils.number_format import format_number
@@ -160,3 +164,42 @@ def component_maps_content_for(
         ),
     ]
     return html.Div(children), False
+
+
+if TYPE_CHECKING:  # importing it for real would close a loop through the panels
+    from src.analysis.embedding_app.context import AppContext
+
+
+def register_callbacks(app: Dash, context: AppContext) -> None:
+    """Wires this panel to the app. Called once by build_app, which owns the layout the ids
+    below refer to."""
+    @app.callback(
+        Output("pca-map-panel", "style"),
+        Output("pca-component-picker", "options"),
+        Output("pca-component-picker", "value"),
+        Input("run-picker", "value"),
+    )
+    def _update_pca_panel(run_key: str | None):
+        if run_key in (None, UNSET):
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        if not _is_pca_run(run):
+            return {"display": "none"}, [], None
+        n_components = _matrix_shape(run)[1]
+        return {}, [{"label": f"Component {k}", "value": k} for k in range(1, n_components + 1)], 1
+
+    @app.callback(
+        Output("pca-map-content", "children"),
+        Output("pca-map-poll", "disabled"),
+        Input("run-picker", "value"),
+        Input("pca-component-picker", "value"),
+        Input("pca-map-poll", "n_intervals"),
+    )
+    def _update_pca_maps(run_key: str | None, component: int | None, _n_intervals: int):
+        if run_key in (None, UNSET) or component is None:
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        if not _is_pca_run(run):
+            raise PreventUpdate
+        content, pending = component_maps_content_for(run, component, context.component_maps, context.component_view)
+        return content, not pending

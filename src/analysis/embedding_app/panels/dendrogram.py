@@ -11,11 +11,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import nibabel as nib
 import numpy as np
 import pandas as pd
+from dash import Dash, Input, Output, dcc, html, no_update
 from dash import dcc, html
+from dash.exceptions import PreventUpdate
 from nilearn.plotting.html_stat_map import StatMapView
 
 from src.analysis.cluster_description import group_stats
@@ -34,11 +37,14 @@ from src.analysis.embedding_app.embedding_view import _CLUSTER_LABEL_COLUMN, clu
 from src.analysis.embedding_app.panels.description import _stats_table
 from src.analysis.embedding_app.panels.overview import _map_tile, _static_graph
 from src.analysis.embedding_app.panels.quality import _require_narrow_matrix
-from src.analysis.embedding_app.runs import ProductionRun, run_params
+from src.analysis.embedding_app.picker import UNSET
+from src.analysis.embedding_app.runs import ProductionRun, run_metadata, run_params
+from src.analysis.embedding_app.tabs import TAB_DENDROGRAM, tab_is_active
 from src.analysis.plotting import _palette_for_labels
 from src.analysis.tuning_match import TuningMatch, find_compatible_tunings
 from src.utils.artifacts import load_matrix
 from src.utils.number_format import format_number
+from src.utils.participants import load_participants_registry
 
 
 # --- Dendrogram and splits (21-10-26) --------------------------------------------------------
@@ -275,3 +281,118 @@ def dendrogram_steps_content_for(
             modality, build_view,
         ))
     return html.Div(screens, className="dendrogram-steps wide-block")
+
+
+if TYPE_CHECKING:  # importing it for real would close a loop through the panels
+    from src.analysis.embedding_app.context import AppContext
+
+
+def register_callbacks(app: Dash, context: AppContext) -> None:
+    """Wires this panel to the app. Called once by build_app, which owns the layout the ids
+    below refer to."""
+    def _chosen_tuning_dir(run: ProductionRun, tuning_value: str | None) -> Path:
+        """The compatible tuning picked in the panel. PreventUpdate for a value that is not one of this run's compatible
+        tunings: the callbacks of the panel also fire with the value left over from the previously chosen run."""
+        if tuning_value is None:
+            raise PreventUpdate
+        try:
+            compatible = {str(match.run_dir) for match in context.compatible_tunings(run) if match.compatible}
+        except ValueError:
+            raise PreventUpdate
+        if tuning_value not in compatible:
+            raise PreventUpdate
+        return Path(tuning_value)
+
+    def _is_agglomerative(run: ProductionRun) -> bool:
+        return run.pipeline == "clustering" and run.method == "agglomerative"
+
+    @app.callback(
+        Output("dendrogram-panel", "style"),
+        Output("dendrogram-tuning-picker", "options"),
+        Output("dendrogram-tuning-picker", "value"),
+        Output("dendrogram-tuning-note", "children"),
+        Output("dendrogram-map-picker", "value"),
+        Input("run-picker", "value"),
+    )
+    def _update_dendrogram_panel(run_key: str | None):
+        if run_key in (None, UNSET):
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        if not _is_agglomerative(run):
+            return {"display": "none"}, [], None, [], no_update
+        default_map = "lesion"
+        try:
+            matches = context.compatible_tunings(run)
+        except ValueError as exc:
+            return {}, [], None, html.P(str(exc), className="status-message"), default_map
+        options = [{"label": match.run_dir.name, "value": str(match.run_dir)} for match in matches if match.compatible]
+        return {}, options, (options[0]["value"] if options else None), dendrogram_tuning_note(matches), default_map
+
+    @app.callback(
+        Output("dendrogram-k-picker", "options"),
+        Output("dendrogram-k-picker", "value"),
+        Input("run-picker", "value"),
+        Input("dendrogram-tuning-picker", "value"),
+    )
+    def _update_dendrogram_k(run_key: str | None, tuning_value: str | None):
+        if run_key in (None, UNSET):
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        if not _is_agglomerative(run):
+            raise PreventUpdate
+        tuning_dir = _chosen_tuning_dir(run, tuning_value)
+        try:
+            tree = context.split_tree(run, tuning_dir)
+        except ValueError:
+            return [], None  # the figure callback shows why
+        k_values = dendrogram_k_options(tree)
+        production_k = run_params(run)["n_clusters"]
+        # The production k, or the nearest one the tuning swept (a sweep can have holes: 2..6, 8, 10).
+        return [{"label": str(k), "value": k} for k in k_values], min(k_values, key=lambda k: abs(k - production_k))
+
+    def _dendrogram_context(run_key: str | None, tuning_value: str | None, k: int | None, modality: str | None):
+        """(run, tuning dir, tree) the two callbacks below work on, or a status message in their place when the tree
+        cannot be built. PreventUpdate while the pickers still hold values of the previously chosen run."""
+        if run_key in (None, UNSET) or k is None or modality is None:
+            raise PreventUpdate
+        run = context.runs_by_key[run_key]
+        if not _is_agglomerative(run):
+            raise PreventUpdate
+        tuning_dir = _chosen_tuning_dir(run, tuning_value)
+        try:
+            tree = context.split_tree(run, tuning_dir)
+        except ValueError as exc:
+            return html.P(str(exc), className="status-message")
+        if k not in dendrogram_k_options(tree):
+            raise PreventUpdate  # the k left over from the previous tuning, until the k picker is refilled
+        return run, tuning_dir, tree
+
+    def _dendrogram_build_view(tuning_dir: Path) -> DendrogramViewBuilder:
+        return lambda run_, metadata_at_k, label, modality_, name, width: context.dendrogram_view(
+            run_, metadata_at_k, label, modality_, name, width, tuning_dir
+        )
+
+    @app.callback(
+        Output("dendrogram-steps-content", "children"),
+        Input("run-picker", "value"),
+        Input("dendrogram-tuning-picker", "value"),
+        Input("dendrogram-k-picker", "value"),
+        Input("dendrogram-map-picker", "value"),
+        Input("selected-page-tab", "data"),
+    )
+    def _update_dendrogram_steps(
+        run_key: str | None, tuning_value: str | None, k: int | None, modality: str | None, selected_tab: str | None
+    ):
+        if run_key not in (None, UNSET) and not tab_is_active(context.runs_by_key[run_key], selected_tab, TAB_DENDROGRAM):
+            return []
+        chosen = _dendrogram_context(run_key, tuning_value, k, modality)
+        if isinstance(chosen, html.P):
+            return chosen
+        run, tuning_dir, tree = chosen
+        embedding, embedding_message = context.embedding(run)
+        if embedding is None:
+            return html.P(embedding_message, className="status-message")
+        return dendrogram_steps_content_for(
+            run, run_metadata(run), tree, embedding, k, modality, _dendrogram_build_view(tuning_dir),
+            load_participants_registry().set_index("subject_id"),
+        )
