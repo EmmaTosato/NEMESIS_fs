@@ -13,11 +13,7 @@ import pytest
 
 from dash import dcc, html
 
-from src.analysis.embedding_app import (
-    build_app,
-    cluster_composition_content_for,
-    cluster_description_content_for,
-)
+from src.analysis.embedding_app import build_app
 from src.analysis.embedding_app.anatomy import (
     DISCONNECTION_PROBABILITY_THRESHOLD,
     LesionViewerConfig,
@@ -55,6 +51,10 @@ from src.analysis.embedding_app.runs import (
     run_metadata,
     run_params,
     run_reduction_axis,
+)
+from src.analysis.embedding_app.panels.description import (
+    cluster_composition_content_for,
+    cluster_description_content_for,
 )
 from src.analysis.embedding_app.style import _FONT_STACK
 from src.analysis.embedding_coloring import DEFAULT_GRID, available_grids

@@ -10,12 +10,11 @@ import pytest
 from dash import dcc, html
 
 from src.analysis.component_maps import ComponentMapSet, ComponentMapStore, MapGeometry, load_map_geometry
-from src.analysis.embedding_app import (
+from src.analysis.embedding_app import build_app, index_entries_for
+from src.analysis.embedding_app.panels.pca_maps import (
     ComponentMapData,
     _build_component_map_view,
-    build_app,
     component_maps_content_for,
-    index_entries_for,
     run_component_maps,
 )
 from src.analysis.embedding_app.runs import ProductionRun

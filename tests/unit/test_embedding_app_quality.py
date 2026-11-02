@@ -9,10 +9,10 @@ from dash import dcc, html
 from sklearn.cluster import AgglomerativeClustering
 
 from src.analysis.clustering_evaluation import AdpSummary, adp_summary, silhouette_breakdown, soft_membership_summary
-from src.analysis.embedding_app import (
+from src.analysis.embedding_app import index_entries_for
+from src.analysis.embedding_app.panels.quality import (
     adp_quality_content_for,
     cluster_quality_content_for,
-    index_entries_for,
     run_adp_summary,
     run_production_results,
     run_silhouette_samples,
@@ -263,7 +263,7 @@ def test_run_silhouette_samples_refuses_a_matrix_wider_than_the_limit(tmp_path, 
         tmp_path / "results", pipeline="clustering", method="agglomerative", run_name="15-10_x",
         params=_AGGLOMERATIVE_PARAMS, extra_metadata={"cluster_label": [0, 0, 1, 1]},
     )
-    monkeypatch.setattr("src.analysis.embedding_app.MAX_QUALITY_COLUMNS", 1)  # the fixture matrix has 2 columns
+    monkeypatch.setattr("src.analysis.embedding_app.panels.quality.MAX_QUALITY_COLUMNS", 1)  # the fixture matrix has 2 columns
 
     with pytest.raises(ValueError, match="2 columns"):
         run_silhouette_samples(_run(path=run_dir))
@@ -426,7 +426,7 @@ def test_run_adp_summary_refuses_a_method_that_is_not_adp(tmp_path):
 
 
 def test_run_adp_summary_reads_the_run_matrix_and_waits_for_the_background_distances(tmp_path, monkeypatch):
-    monkeypatch.setattr("src.analysis.embedding_app.ADP_K_NEIGHBORS", 1)  # the fixture run has 4 subjects
+    monkeypatch.setattr("src.analysis.embedding_app.panels.quality.ADP_K_NEIGHBORS", 1)  # the fixture run has 4 subjects
     run_dir = _make_run_dir(
         tmp_path / "results", pipeline="clustering", method="adp", reduction_method="raw", run_name="15-10_x",
         params={"metric": "dice", "Z": 2.5}, extra_metadata={"cluster_label": [-1, 0, 0, 1]}, reduced_data=False,
@@ -451,7 +451,7 @@ def test_the_quality_callback_keeps_polling_an_adp_run_until_its_distances_are_r
     from src.analysis.embedding_app import build_app
     from tests.unit.test_embedding_app import _lesion_cfg, _sdc_cfg
 
-    monkeypatch.setattr("src.analysis.embedding_app.ADP_K_NEIGHBORS", 1)  # the fixture run has 4 subjects
+    monkeypatch.setattr("src.analysis.embedding_app.panels.quality.ADP_K_NEIGHBORS", 1)  # the fixture run has 4 subjects
     run_dir = _make_run_dir(
         tmp_path / "results", pipeline="clustering", method="adp", reduction_method="raw", run_name="15-10_x",
         params={"metric": "dice", "Z": 2.5}, extra_metadata={"cluster_label": [-1, 0, 0, 1]}, reduced_data=False,

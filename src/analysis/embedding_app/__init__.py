@@ -44,18 +44,15 @@ docstring.
 
 from __future__ import annotations
 
-import json
 import logging
 import threading
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 
 import nibabel as nib
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
 from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 from nilearn import plotting as nilearn_plotting
@@ -81,31 +78,7 @@ from src.analysis.cluster_comparison import (
     contingency_tables,
     purity_table,
 )
-from src.analysis.cluster_composition import COMPOSITION_VARIABLES, build_composition_figure, composition_frame
-from src.analysis.cluster_quality import build_dbcv_figure, build_mean_membership_figure, build_silhouette_figure
-from src.analysis.component_map_plots import build_reproducibility_figure
-from src.analysis.component_maps import ComponentMapSet, ComponentMapStore, MapGeometry, load_map_geometry, to_volume
-from src.analysis.clustering_evaluation import (
-    AdpSummary,
-    SilhouetteBreakdown,
-    SoftMembership,
-    adp_summary,
-    per_cluster_silhouette,
-    require_applicable,
-    run_metric,
-    soft_membership_summary,
-)
-from src.analysis.production_results import RESULTS_METHODS, SavedResults, read_production_results
-from src.analysis.raw_distances import RawDistanceStore
-from src.analysis.cluster_description import (
-    CLUSTER_DESCRIPTION_VARIABLES,
-    ClusterDescriptionVariable,
-    ClusterStats,
-    build_cluster_description_figure,
-    cluster_composition,
-    clusters_comparison_stats,
-    group_stats,
-)
+from src.analysis.cluster_description import clusters_comparison_stats, group_stats
 from src.analysis.cluster_pair import (
     PairComparison,
     PairFrame,
@@ -117,8 +90,9 @@ from src.analysis.cluster_pair import (
     pair_regression,
     regression_term_label,
 )
+from src.analysis.clustering_evaluation import AdpSummary, SilhouetteBreakdown, SoftMembership
 from src.analysis.clustering_tuning_analysis import load_clustering_tuning_run
-from src.analysis.cluster_overview import build_overview_embedding_figure, overview_grid_plan
+from src.analysis.component_maps import ComponentMapStore
 from src.analysis.dendrogram_splits import (
     SplitTree,
     build_split_tree,
@@ -133,20 +107,18 @@ from src.analysis.embedding_app.anatomy import (
     DISCONNECTION_MAP_MODE_LABELS,
     DISCONNECTION_PERCENT_MODE,
     DISCONNECTION_PROBABILITY_THRESHOLD,
-    LesionViewerConfig,
-    SdcViewerConfig,
     _ANATOMY_VIEWER_WIDTH,
     _DISCONNECTOME_CMAP,
     _DISCONNECTOME_DISPLAY_THRESHOLD,
     _DISCONNECTOME_GLASS_BRAIN_ALPHA,
     _DISCONNECTOME_GLASS_BRAIN_THRESHOLD,
+    LesionViewerConfig,
+    SdcViewerConfig,
     _anatomy_viewer,
     _build_cluster_disconnection_view,
     _build_cluster_overlap_view,
     _build_subject_disconnectome_view,
     _build_subject_lesion_view,
-    _map_texts,
-    _masked_for_view_colorbar,
     _resolve_subject_dataset,
     _static_glass_brain_png_bytes,
     _static_png_bytes,
@@ -167,6 +139,34 @@ from src.analysis.embedding_app.embedding_view import (
     cluster_options,
     color_mode_description_children,
     graph_content_for,
+)
+from src.analysis.embedding_app.panels.description import (
+    _clusters_comparison_table,
+    _stats_table,
+    cluster_composition_content_for,
+    cluster_description_content_for,
+)
+from src.analysis.embedding_app.panels.overview import (
+    ALL_CLUSTERS,
+    _map_tile,
+    _static_graph,
+    all_clusters_content_for,
+)
+from src.analysis.embedding_app.panels.pca_maps import (
+    ComponentMapData,
+    _build_component_map_view,
+    _is_pca_run,
+    component_maps_content_for,
+    run_component_maps,
+)
+from src.analysis.embedding_app.panels.quality import (
+    _QUALITY_POLL_MS,
+    _require_narrow_matrix,
+    adp_quality_content_for,
+    cluster_quality_content_for,
+    run_adp_summary,
+    run_silhouette_samples,
+    run_soft_membership,
 )
 from src.analysis.embedding_app.picker import (
     PICKER_FIELDS,
@@ -193,848 +193,13 @@ from src.analysis.embedding_app.runs import (
 from src.analysis.embedding_app.style import _INDEX_STRING, _italian_figure
 from src.analysis.embedding_coloring import COLOR_MODES, DEFAULT_GRID, GRID_MODES, available_grids
 from src.analysis.plotting import _palette_for_labels
+from src.analysis.raw_distances import RawDistanceStore
 from src.analysis.tuning_match import TuningMatch, find_compatible_tunings
-from src.utils.artifacts import MANIFEST_FILENAME, MATRIX_FILENAME, load_matrix, read_run_config
+from src.utils.artifacts import load_matrix
 from src.utils.number_format import format_number, format_scientific
 from src.utils.participants import load_participants_registry
 
 _CLUSTER_LABEL_COLUMN = COLOR_MODES["cluster_label"].column
-
-
-def _unregistered_subjects_warning(unregistered: list[str]) -> html.Div | None:
-    """Sibling of _missing_subjects_warning for cluster_description_content_for (29-09-26) - a
-    DIFFERENT gap, deliberately worded so the two are never confused: _missing_subjects_warning
-    is about a subject whose lesion/disconnectome FILE isn't on disk (excluded from that map),
-    this one is about a subject with no row in assets/metadata/participants.csv at all (still
-    counted in the panel's own n/total, just with no value for any variable). None when every
-    subject of the cluster resolved."""
-    if not unregistered:
-        return None
-    return _warning_box(
-        f"{len(unregistered)} subjects of this cluster have no row in the registry "
-        f"(assets/metadata/participants.csv). They count in the total of every variable, but "
-        f"carry no value.",
-        detail=", ".join(unregistered),
-    )
-
-
-def _format_continuous_cell(summary: dict, variable: ClusterDescriptionVariable) -> html.Td:
-    """`media ± ds` at this variable's own declared precision, plus the coverage note where the
-    variable does not cover the whole cluster.
-
-    No in-cell bar (29-09-26, on request: "non voglio quelle righe colorate nella tabella, mi
-    confondono la lettura"). The cross-cluster comparison is carried by the numbers alone -
-    which is what the Italian formatting and the larger type are for - while the figure above
-    stays the visual read.
-
-    An empty cell is "—", never "nan ± nan" and never a blank that could read as a rendering gap.
-    """
-    if summary["n_available"] == 0:
-        return html.Td([html.Div("—", className="stat-value stat-empty")])
-
-    decimals = variable.decimals
-    mean = format_number(summary["mean"], decimals)
-    # std is None for a single subject: a standard deviation of one value does not exist, which
-    # is a different statement from "0".
-    spread = None if summary["std"] is None else f"± {format_number(summary['std'], decimals)}"
-
-    value = [mean] if spread is None else [mean, " ", html.Span(spread, className="stat-sd")]
-    return html.Td(
-        [html.Div(value, className="stat-value"), _coverage_note(summary)],
-        # Hover detail only - median/min/max enhance, they never gate: the headline number and
-        # the coverage are both readable without hovering.
-        title=(
-            f"mediana {format_number(summary['median'], decimals)} · "
-            f"min {format_number(summary['min'], decimals)} · "
-            f"max {format_number(summary['max'], decimals)}"
-        ),
-    )
-
-
-def _format_categorical_cell(summary: dict) -> html.Td:
-    """Counts per category, sorted by name so a category keeps the same position in every row
-    and the column can be read downwards. No proportion bar (29-09-26, on request) - the
-    figure's own bar chart above carries that."""
-    if summary["n_available"] == 0:
-        return html.Td([html.Div("—", className="stat-value stat-empty")])
-
-    label = " · ".join(f"{c} {summary['counts'][c]}" for c in sorted(summary["counts"]))
-    return html.Td([html.Div(label, className="stat-value"), _coverage_note(summary)])
-
-
-def _coverage_note(summary: dict) -> html.Span | None:
-    """The n_available/n_total line, shown ONLY where the variable is actually incomplete.
-
-    It used to sit under every cell: 25 near-identical fractions competing with the values they
-    were annotating, which is how a coverage note stops being read at all. Printed only when it
-    says something, it goes back to being a signal. Full coverage is not silently assumed
-    either - the caption under the table states the rule."""
-    if summary["n_available"] == summary["n_total"]:
-        return None
-    return html.Span(f"{summary['n_available']}/{summary['n_total']}", className="stats-n")
-
-
-def _stats_table(entries: Sequence[tuple[str, str, ClusterStats, bool]]) -> html.Table:
-    """One row per entry (name, swatch colour, stats, highlighted), one column per CLUSTER_DESCRIPTION_VARIABLES entry,
-    so a variable is read down a column across the rows rather than by flipping a dropdown. The rows are clusters in
-    the cross-cluster table and the cluster that splits plus the two it gives in the Dendrogram Explorer; the cells are
-    the same in both (_format_continuous_cell, _format_categorical_cell)."""
-    # Plain headers: the per-variable colored underline was dropped on request (29-09-26). The
-    # figure above still colors each variable and the in-cell bars carry the same hue, so the
-    # column/panel tie survives without a second colored rule competing with the header text.
-    header = html.Tr([
-        html.Th("Cluster"), html.Th("Subjects"),
-        *[html.Th(variable.label) for variable in CLUSTER_DESCRIPTION_VARIABLES],
-    ])
-
-    rows = []
-    for name, color, stat, highlighted in entries:
-        size = [html.Div(format_number(stat.n_total, 0), className="stat-value")]
-        if stat.n_unregistered:
-            size.append(html.Span(f"{stat.n_unregistered} not in registry", className="stats-n"))
-        cells = [
-            _format_categorical_cell(stat.summaries[v.name]) if v.kind == "categorical"
-            else _format_continuous_cell(stat.summaries[v.name], v)
-            for v in CLUSTER_DESCRIPTION_VARIABLES
-        ]
-        rows.append(
-            html.Tr(
-                [
-                    html.Td(html.Div([html.Span(className="stats-swatch", style={"background": color}), name], className="stats-cluster")),
-                    html.Td(size),
-                    *cells,
-                ],
-                className="selected" if highlighted else "",
-            )
-        )
-    return html.Table([html.Thead(header), html.Tbody(rows)], className="stats-table")
-
-
-def _clusters_comparison_table(stats: list[ClusterStats], selected_cluster: int | None) -> html.Div:
-    """The cross-cluster comparison table rendered under the selected cluster's own figure
-    (29-09-26, on request) - one row per cluster, one column per CLUSTER_DESCRIPTION_VARIABLES
-    entry, so a variable is read down a column across clusters rather than by flipping the
-    dropdown between them.
-
-    A table rather than a second figure: the ask was for the numbers themselves, and a 5-8
-    cluster x 5 variable grid is past the point where a reader can hold that many color classes
-    apart. It doubles as the table view the figure's own fills require for accessibility. In-cell
-    bars were tried and removed on request (29-09-26) - they competed with the digits rather
-    than supporting them.
-
-    Every cluster of the run is listed, including the selected one (highlighted) and hdbscan's
-    noise bucket (-1, labelled as such rather than shown as a cluster named "-1"). With
-    selected_cluster=None no row is highlighted (the comparison section has no chosen cluster)."""
-    palette = _palette_for_labels([stat.cluster_label for stat in stats])
-    entries = [
-        (
-            "Noise" if stat.cluster_label == -1 else f"Cluster {stat.cluster_label}", palette[stat.cluster_label], stat,
-            stat.cluster_label == selected_cluster,
-        )
-        for stat in stats
-    ]
-    return html.Div(
-        [
-            _stats_table(entries),
-            html.P(
-                [
-                    html.B("Values: "),
-                    "mean ± standard deviation.",
-                    html.Br(),
-                    html.B("Sex: "),
-                    "count per category.",
-                    html.Br(),
-                    html.B("Number under the value: "),
-                    "subjects that have that variable, out of the cluster total. It appears only "
-                    "where the variable does not cover the whole cluster.",
-                    html.Br(),
-                    html.B("Hover over a cell: "),
-                    "median, minimum and maximum.",
-                ],
-                className="stats-caption",
-            ),
-        ],
-        className="stats-table-wrap",
-    )
-
-
-def cluster_description_content_for(metadata: pd.DataFrame, cluster_label: int) -> dcc.Graph | html.Div | html.P:
-    """Panel "Descrizione del cluster" (29-09-26, on request), shown after the two frequency-map
-    panels - age/sex/education/NIHSS/lesion-volume composition of `cluster_label`'s subjects
-    (src.analysis.cluster_description.cluster_composition/build_cluster_description_figure),
-    every one of them read from assets/metadata/participants.csv (see that module's own
-    docstring for why, not a run's own metadata.csv). Visible for any clustering.py run
-    regardless of modality - unlike the two frequency-map panels, this doesn't need a
-    disconnectome/lesion mask file at all, only the subject registry.
-
-    Same never-raises contract as every other *_content_for function here: an empty cluster
-    renders an html.P status message instead of crashing the callback. A cluster whose subjects
-    are only *partly* in the registry is not an error at all (29-09-26, on request): the figure
-    is built over everyone, with the unregistered subjects counted in each variable's n_total
-    but contributing no value, and an _unregistered_subjects_warning line naming them is
-    rendered above it - the same "partial result, never silent" shape the two anatomy panels
-    already use for a subject whose mask file is missing. Rendered as a plain dcc.Graph (Plotly's own "toImage"
-    camera icon is this panel's only export, same as the main embedding scatter) - no Salva
-    HTML/PNG buttons, those exist only for the nilearn iframe-based anatomy panels above, which
-    have no built-in export of their own."""
-    try:
-        composition, unregistered = cluster_composition(metadata, cluster_label)
-        stats = clusters_comparison_stats(metadata)
-    except ValueError as exc:
-        return html.P(str(exc), className="status-message")
-
-    palette = _palette_for_labels([stat.cluster_label for stat in stats])
-    figure = build_cluster_description_figure(composition, cluster_label, color=palette.get(cluster_label))
-    config = {"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False}
-
-    children: list = []
-    warning = _unregistered_subjects_warning(unregistered)
-    if warning is not None:
-        children.append(warning)
-    children.append(dcc.Graph(figure=_italian_figure(figure), config=config, style={"width": "100%"}))
-    children.append(_clusters_comparison_table(stats, cluster_label))
-    return html.Div(children)
-
-
-def cluster_composition_content_for(metadata: pd.DataFrame) -> html.Div | html.P:
-    """Panel "Composizione dei cluster" (07-10-26, on request), last panel of the page: every
-    cluster of the run side by side, one plot per variable (dataset, lesion side, dominant lesion
-    location as 100%-stacked bars; NIHSS, lesion volume, disconnection load as box plots), all
-    read from assets/metadata/participants.csv (src.analysis.cluster_composition). Unlike
-    "Descrizione del cluster" it does not depend on the chosen cluster: it is the same for the
-    whole run, so its callback only listens to the run picker.
-
-    Same never-raises contract as every other *_content_for function here: a run whose registry
-    lacks a needed column renders an html.P status message. Subjects missing from the registry
-    stay in the plots as missing values, named in an _unregistered_subjects_warning line."""
-    try:
-        frame, unregistered = composition_frame(metadata)
-    except ValueError as exc:
-        return html.P(str(exc), className="status-message")
-
-    config = {"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False}
-    children: list = []
-    warning = _unregistered_subjects_warning(unregistered)
-    if warning is not None:
-        children.append(warning)
-    children.append(
-        html.Div(
-            className="composition-grid",
-            children=[
-                dcc.Graph(figure=_italian_figure(build_composition_figure(frame, variable)), config=config, style={"width": "100%"})
-                for variable in COMPOSITION_VARIABLES
-            ],
-        )
-    )
-    return html.Div(children)
-
-
-# --- PCA component maps (16-10-26) ---------------------------------------------------------------
-
-# A voxel of a component's map is coloured when its |t| reaches this share of the component's peak |t|: with
-# thousands of subjects even small effects have a high t, and a fixed |t| > 3 would colour almost the whole brain.
-COMPONENT_MAP_THRESHOLD_FRACTION = 0.3
-_COMPONENT_MAP_CMAP = "cold_hot"
-
-
-@dataclass(frozen=True)
-class ComponentMapData:
-    """What the component-map panel needs for one pca run: the maps, where their voxels are, and whether the
-    source matrix was modified after the run was written (the maps then pair the run's scores with a matrix that
-    may not be the one they came from)."""
-
-    maps: ComponentMapSet
-    geometry: MapGeometry
-    source_modified_after_run: bool
-
-
-def _is_pca_run(run: ProductionRun) -> bool:
-    return run.pipeline == "dim_reduction" and run.method == "pca"
-
-
-def run_component_maps(run: ProductionRun, store: ComponentMapStore) -> ComponentMapData | None:
-    """The component maps of a pca dim_reduction run (src/analysis/component_maps.py), or None while they are
-    still being computed in the background.
-
-    The scores are the run's own matrix.npy; the matrix they are regressed against is the run's `input_path`
-    (relative to the folder the app is launched from, the repo root). Raises ValueError, with the cause, for a
-    run that is not a pca one, a source matrix that is missing, not voxelwise, or not the run's (other subjects)."""
-    if not _is_pca_run(run):
-        raise ValueError("component maps exist only for dim_reduction runs with the pca method")
-    input_path = read_run_config(run.path)["input_path"]
-    source_dir = Path(input_path)
-    if not (source_dir / MATRIX_FILENAME).is_file():
-        raise ValueError(
-            f"the matrix the run was computed on ({input_path}) does not exist: it is needed for the maps, "
-            "and it is looked up from the folder the app was launched from"
-        )
-    geometry = load_map_geometry(source_dir)
-    maps = store.request(source_dir, np.load(run.path / MATRIX_FILENAME), run_metadata(run)["subject_id"].tolist())
-    if maps is None:
-        return None
-    written = datetime.fromisoformat(json.loads((run.path / MANIFEST_FILENAME).read_text())["created_at"])
-    modified = datetime.fromtimestamp((source_dir / MATRIX_FILENAME).stat().st_mtime, tz=timezone.utc)
-    return ComponentMapData(maps=maps, geometry=geometry, source_modified_after_run=modified > written)
-
-
-def _build_component_map_view(data: ComponentMapData, component: int) -> tuple[StatMapView, float]:
-    """(interactive view, peak t) of one component (1-based): the t-map of the component, voxels below
-    COMPONENT_MAP_THRESHOLD_FRACTION of its peak left uncoloured, the three sections crossing at the peak.
-    Raises ValueError for a component with an all-zero map or outside the run's components."""
-    n_components = data.maps.t.shape[0]
-    if not 1 <= component <= n_components:
-        raise ValueError(f"component {component} does not exist: the run has {n_components}")
-    t_map = np.asarray(data.maps.t[component - 1])
-    peak_column = int(np.argmax(np.abs(t_map)))
-    peak = float(t_map[peak_column])
-    if peak == 0.0:
-        raise ValueError(f"the map of component {component} is all zero: no voxel has an effect")
-    peak_voxel = np.unravel_index(np.flatnonzero(data.geometry.mask)[peak_column], data.geometry.shape)
-    peak_mm = nib.affines.apply_affine(data.geometry.affine, peak_voxel)
-    shown = _masked_for_view_colorbar(to_volume(t_map, data.geometry), COMPONENT_MAP_THRESHOLD_FRACTION * abs(peak))
-    view = nilearn_plotting.view_img(
-        shown, bg_img="MNI152", black_bg=False, threshold=1e-6, cmap=_COMPONENT_MAP_CMAP, symmetric_cmap=True,
-        vmax=abs(peak), cut_coords=tuple(float(c) for c in peak_mm), title=None, width_view=_ANATOMY_VIEWER_WIDTH,
-    )
-    return view, peak
-
-
-def component_maps_content_for(
-    run: ProductionRun,
-    component: int,
-    maps_of: Callable[[ProductionRun], ComponentMapData | None],
-    view_of: Callable[[ComponentMapData, int], tuple[StatMapView, float]] = _build_component_map_view,
-) -> tuple[html.Div | html.P, bool]:
-    """(content, pending) of the "Mappe delle componenti" panel for one component (1-based) of a pca run:
-    the reproducibility of every component's map, then the chosen component's t-map in an interactive viewer.
-    `pending` is True while the maps are still being computed: the content then says so and the caller keeps
-    polling. Same never-raises contract as the other *_content_for functions."""
-    try:
-        data = maps_of(run)
-    except (ValueError, OSError) as exc:
-        return html.P(str(exc), className="status-message"), False
-    if data is None:
-        return html.P(
-            "Computing the maps: one pass over the voxel matrix for each subject, from a few minutes "
-            "upwards depending on the matrix. It is saved to disk: next time it is instant. The page updates by itself.",
-            className="status-message",
-        ), True
-    try:
-        view, peak = view_of(data, component)
-    except ValueError as exc:
-        return html.P(str(exc), className="status-message"), False
-
-    reproducibility = data.maps.reproducibility
-    children: list = []
-    if data.source_modified_after_run:
-        children.append(_warning_box(
-            "The matrix the run was computed on was modified after the run. If its subjects or its values "
-            "have changed, the maps pair the run scores with data that is not what they came from."
-        ))
-    children += [
-        html.P(
-            f"Mean reproducibility {format_number(float(reproducibility.mean()), 3)} ± "
-            f"{format_number(float(reproducibility.std(ddof=1)) if len(reproducibility) > 1 else 0.0, 3)}, "
-            f"from {format_number(float(reproducibility.min()), 3)} (component {int(reproducibility.argmin()) + 1}) to "
-            f"{format_number(float(reproducibility.max()), 3)} (component {int(reproducibility.argmax()) + 1}). "
-            "The paper reports 0.813 ± 0.079 with halves of 666 subjects: here the halves are much larger, so the values are not directly comparable.",
-            className="section-intro",
-        ),
-        dcc.Graph(
-            figure=_italian_figure(build_reproducibility_figure(reproducibility, component)),
-            config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%"},
-        ),
-        _anatomy_viewer(
-            view,
-            heading=f"Component {component}: max t {format_number(abs(peak), 0)}, reproducibility {format_number(float(reproducibility[component - 1]), 2)}",
-            caption=(
-                "Red: the more a subject has this component, the more that voxel is disconnected. Blue: the more it has it, the less it is disconnected. "
-                f"Voxels with |t| of at least {format_number(COMPONENT_MAP_THRESHOLD_FRACTION * 100, 0)}% of the peak are colored."
-            ),
-            note=(
-                "The sign of a component is arbitrary: each map is oriented with the peak red, so look at the shape, "
-                "not the color. The map is the t of a multiple regression per voxel on the scores of all components together "
-                "(not the component weights), without a permutation test."
-            ),
-        ),
-    ]
-    return html.Div(children), False
-
-
-# --- Clustering quality (16-10-26) ----------------------------------------------------------------
-
-# The silhouette of every subject reads every pair of subjects, so its cost grows with the number of columns:
-# about a second for 5845 subjects x 10 components, minutes for the 221955 voxels of a raw lesion matrix.
-# Past this many columns the panel does not draw it (the notebook reads such a run memory-mapped).
-MAX_QUALITY_COLUMNS = 1000
-
-
-def _require_narrow_matrix(run: ProductionRun) -> None:
-    """Raises ValueError if the matrix `run` was clustered on has more than MAX_QUALITY_COLUMNS columns."""
-    n_columns = _matrix_shape(run)[1]
-    if n_columns > MAX_QUALITY_COLUMNS:
-        raise ValueError(
-            f"the run was computed on {n_columns} columns (raw data, not an embedding): not drawn here "
-            f"beyond {MAX_QUALITY_COLUMNS} columns (read the indices of the tuning: tuning_results.csv and report.md)"
-        )
-
-
-def run_production_results(run: ProductionRun) -> SavedResults:
-    """The numbers the production run saved (production_results.csv and production_results_per_cluster.csv): the panel
-    shows them, it does not compute them again. Raises FileNotFoundError for a run without the files and ValueError
-    for files that are not the method's (read_production_results)."""
-    return read_production_results(run.path, run.method)
-
-
-def run_distance_metric(run: ProductionRun) -> str:
-    """The distance the run was clustered with (the one its silhouette is measured in)."""
-    return run_metric(run_params(run))
-
-
-def run_silhouette_samples(run: ProductionRun) -> SilhouetteBreakdown:
-    """The silhouette of every subject of a clustering run, on the matrix it was clustered on (matrix.npy) and in the
-    run's own distance: the one thing the saved tables do not hold, because it has a value per subject.
-
-    Raises ValueError, with the cause, for a matrix with more than MAX_QUALITY_COLUMNS columns or a run the silhouette
-    is not defined for (fewer than 2 clusters, a non-Euclidean affinity)."""
-    _require_narrow_matrix(run)
-    matrix, metadata, _extra_arrays = load_matrix(run.path)
-    return per_cluster_silhouette(matrix, metadata["cluster_label"].to_numpy(), run_params(run))
-
-
-def run_soft_membership(run: ProductionRun) -> SoftMembership:
-    """The soft clustering of a hdbscan_soft run: the per-cluster summary with the mean
-    membership vectors. Read from the membership.npy the run saved, no refit. Raises ValueError, with the
-    cause, for another method or a run without membership.npy."""
-    require_applicable("soft_membership", run.method)
-    _matrix, metadata, extra_arrays = load_matrix(run.path, mmap=True)  # only the labels and membership are wanted
-    if "membership" not in extra_arrays:
-        raise ValueError("the run has no membership.npy: it is not an hdbscan_soft production run")
-    return soft_membership_summary(metadata["cluster_label"].to_numpy(), extra_arrays["membership"])
-
-
-# How often the panel looks again at a background computation (milliseconds).
-_QUALITY_POLL_MS = 5000
-
-# Neighbours counted by the purity of an adp run.
-ADP_K_NEIGHBORS = 10
-
-
-def run_adp_summary(run: ProductionRun, store: RawDistanceStore) -> AdpSummary | None:
-    """k-neighbour purity and silhouette on the dice distance of an adp run, or None while the distance
-    matrix is still being computed in the background (RawDistanceStore.request).
-
-    Reads the run's own matrix.npy (what adp clustered: the matrix may have been rebuilt since, the
-    run keeps its copy) memory-mapped, and only metadata.csv for the subjects and labels. Raises
-    ValueError for a run that is not adp, or whatever adp_summary refuses."""
-    require_applicable("knn_purity", run.method)
-    metadata = run_metadata(run)
-    distances = store.request(run.path / MATRIX_FILENAME, metadata["subject_id"].tolist(), run_params(run)["metric"])
-    if distances is None:
-        return None
-    return adp_summary(distances.distances, distances.non_empty, metadata["cluster_label"].to_numpy(), ADP_K_NEIGHBORS)
-
-
-def _guide(title: str, points: list[tuple[str, str]], limits: list[str] | None = None) -> html.Details:
-    """A collapsed explanation under a panel's heading: one bullet per idea ("Name: sentence"), then, if any,
-    the limits of the reading, one bullet each."""
-    children: list = [
-        html.Summary(title),
-        html.Ul([html.Li([html.B(f"{name}: "), text]) for name, text in points], className="comparison-points"),
-    ]
-    if limits:
-        children += [
-            html.P("Limits", className="comparison-subheading"),
-            html.Ul([html.Li(limit) for limit in limits], className="comparison-points"),
-        ]
-    return html.Details(className="comparison-guide", children=children)
-
-
-def _adp_guide() -> html.Details:
-    """How to read the adp indices (the adp indices)."""
-    return _guide(
-        "How to read these indices",
-        [
-            ("Neighbor purity", (
-                f"for each subject, the share of its {ADP_K_NEIGHBORS} nearest neighbors (dice distance, the one adp used to "
-                "cluster) that lies in its own cluster. From 0 to 1; near 1 the neighbors almost always lie in its "
-                "cluster. Read it next to the value expected by chance, (cluster n - 1) / (total n - 1)"
-            )),
-            ("Small clusters", (
-                f"a cluster with {ADP_K_NEIGHBORS} subjects or fewer cannot reach 1: it stays in the table but is left out of the summary"
-            )),
-            ("Pairs at distance 1", (
-                "share of subject pairs with no voxel in common, to be looked at before the silhouette. If it is high "
-                "(lesions: 84%) almost all distances equal 1 and the silhouette stays near 0 whatever the structure: "
-                "use the purity. If it is low (voxelwise disconnectome: 0.0015%) the silhouette is read as for the other methods"
-            )),
-            ("Share with ties", (
-                "subjects whose last counted neighbor has the same distance as the next one; for them the purity is the value "
-                "expected when choosing at random among the ties"
-            )),
-        ],
-        [
-            "Purity is partly circular: adp forms the clusters on exactly these neighbors. A high purity says the clusters are coherent, not that they are \"true\".",
-            "The silhouette is on the dice distance: it is not comparable with the Euclidean one of the runs on embeddings.",
-            "Noise (-1) and the subjects with an all-zero matrix (dice distance undefined, adp labels them -1) are excluded.",
-        ],
-    )
-
-
-def adp_quality_content_for(
-    run: ProductionRun, summary_of: Callable[[ProductionRun], AdpSummary | None]
-) -> tuple[html.Div | html.P, bool]:
-    """(content, pending) of the "Valutazione del clustering" panel for an adp run: the k-neighbour purity,
-    the silhouette on the dice distance and the share of pairs at distance 1, with a per-cluster table.
-    `pending` is True while the distance matrix is still being computed: the content then says so and
-    the caller keeps polling. Same never-raises contract as the other *_content_for functions."""
-    try:
-        summary = summary_of(run)
-    except (ValueError, OSError) as exc:
-        return html.P(str(exc), className="status-message"), False
-    if summary is None:
-        return html.P(
-            "Computing the dice distance matrix between the subjects (about 4 minutes for lesions, "
-            "up to about 25 for the voxelwise disconnectome). It is saved to disk: next time it is instant. "
-            "The page updates by itself.",
-            className="status-message",
-        ), True
-
-    def share(value: float) -> str:
-        return f"{format_number(value * 100, 1)}%"
-
-    purity, silhouette = summary.purity, summary.silhouette
-    rows = [
-        [f"Purity of the {summary.k} neighbors", format_number(purity.purity, 3), "higher is better, from 0 to 1"],
-        ["Purity expected by chance", format_number(purity.chance, 3), "to be read next to the purity"],
-        ["Dice silhouette (mean over subjects)", format_number(silhouette.micro, 3), "higher is better, from -1 to 1"],
-        ["Pairs at distance 1", share(summary.pairs_at_distance_1), "if it is high the silhouette is not informative"],
-        ["Clusters (noise excluded)", str(len(purity.clusters)), ""],
-        ["Noise", share(summary.noise_fraction), "of the subjects"],
-        [f"Subjects in clusters of {summary.k} or fewer", str(purity.n_not_evaluable), "left out of the purity summary"],
-        ["Share with ties", share(purity.tied_share), "subjects with neighbors at equal distance"],
-    ]
-    cluster_rows = [
-        [
-            str(label), str(int(row.n)), format_number(row.purity, 3), format_number(row.chance, 3),
-            "yes" if row.evaluable else "no", format_number(row.silhouette_mean, 3), share(row.share_negative),
-        ]
-        for label, row in summary.clusters.iterrows()
-    ]
-    children: list = [_adp_guide()]
-    children += [
-        html.P(
-            f"Computed on the dice distance of the raw data, the one adp clustered with, on {summary.n_clustered} "
-            f"clustered subjects out of {summary.n_subjects}.",
-            className="quality-intro",
-        ),
-        _table(["Index", "Value", "Reading"], rows, text_columns=(0, 2)),
-        html.P("Per cluster", className="comparison-subheading"),
-        _table(
-            ["Cluster", "Subjects", "Purity", "Expected by chance", "Evaluable", "Mean silhouette", "Negative silhouette"],
-            cluster_rows, text_columns=(0,),
-        ),
-        _chart_heading("Silhouette per cluster", "one panel per cluster, noise excluded"),
-        dcc.Graph(
-            figure=_italian_figure(build_silhouette_figure(summary.silhouette.subject_labels, summary.silhouette.subject_values)),
-            config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%"},
-        ),
-    ]
-    return html.Div(children), False
-
-
-def _quality_guide() -> html.Details:
-    """How to read the geometric indices (the geometric indices)."""
-    return _guide(
-        "How to read these indices",
-        [
-            ("Silhouette", (
-                "for each subject, compares the mean distance from its own cluster with that from the nearest cluster. "
-                "From -1 to 1, higher is better: near 1 the clusters are sharp, near 0 the boundaries are ambiguous, "
-                "negative the subject is in the wrong cluster"
-            )),
-            ("Calinski-Harabasz", "dispersion between clusters divided by that within clusters. Higher is better"),
-            ("Davies-Bouldin", "for each cluster, similarity to the most similar cluster. Lower is better, 0 = compact and separated clusters"),
-            ("Dunn", "minimum distance between clusters divided by the maximum diameter of a cluster. Higher is better, it is sensitive to outliers"),
-            ("Plot per cluster", (
-                "one panel per cluster with the silhouette of each subject, highest at the top: it shows which clusters have "
-                "ambiguous boundaries even if the overall mean is good (how many subjects are below zero, how homogeneous "
-                "the cluster is). The panel height follows the cluster size, with a minimum so that a small cluster "
-                "stays readable; a one-subject cluster has silhouette 0 by convention. The red line is the mean over the "
-                "subjects. Hovering over a point shows the cluster, its size and the silhouette of that subject"
-            )),
-        ],
-        [
-            "None of the four indices has a reference value.",
-            "A cloud with no clusters, split by an algorithm, still has a positive silhouette (ward, 3 clusters, "
-            "2-component Gaussian cloud: about 0.4): the value alone does not say whether there is structure.",
-            "Calinski-Harabasz, Davies-Bouldin and Dunn of a single run have no scale.",
-            "Different embeddings (2 or 10 components, lesion or sdc) are not comparable with each other.",
-        ],
-    )
-
-
-def _soft_membership_block(
-    run: ProductionRun, soft_of: Callable[[ProductionRun], SoftMembership]
-) -> html.Div:
-    """Section 3.2 for a hdbscan_soft run: per cluster table and mean membership vectors."""
-    heading = html.P("Cluster membership (soft clustering)", className="comparison-subheading")
-    try:
-        summary = soft_of(run)
-    except ValueError as exc:
-        return html.Div([heading, html.P(str(exc), className="status-message")])
-
-    def other(value) -> str:
-        return "—" if pd.isna(value) else str(int(value))
-
-    cluster_rows = [
-        [
-            str(label), str(int(row.n)), format_number(row.own_mean, 3),
-            other(row.top_other), format_number(row.top_other_mean, 3) if pd.notna(row.top_other_mean) else "—",
-        ]
-        for label, row in summary.clusters.iterrows()
-    ]
-    return html.Div([
-        heading,
-        _guide(
-            "How to read these tables",
-            [
-                ("Rows", "do not sum to 1: the rest is the probability of being noise"),
-                ("Heatmap", "diagonal = mean probability in the own cluster; off-diagonal = clusters that overlap"),
-            ],
-            [
-                "It depends on the density of the clustered space: on UMAP with min_dist = 0 it also measures how tightly UMAP packed the groups.",
-                "There is no reference value for a probability: the tables report means, with no threshold.",
-            ],
-        ),
-        html.P(f"{summary.n_noise} noise subjects: they have no cluster of their own, and have a separate row in the matrix.", className="quality-intro"),
-        _table(
-            ["Cluster", "Subjects", "Mean probability in own", "Most likely other cluster", "Mean probability in the other"],
-            cluster_rows, text_columns=(0,),
-        ),
-        _chart_heading("Mean membership vectors", "rows: subjects cluster; columns: membership cluster"),
-        dcc.Graph(
-            figure=_italian_figure(build_mean_membership_figure(summary.mean_vectors)),
-            config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%"},
-        ),
-    ])
-
-
-def _density_guide(soft: bool) -> html.Details:
-    """How to read DBCV, the probability of a subject in its cluster and (hdbscan_soft) the persistence of a cluster, and
-    why the silhouette-family indices are not shown for hdbscan / hdbscan_soft."""
-    points = [
-        ("DBCV", (
-            "density-based cluster validity (Moulavi et al. 2014). For each cluster it compares how sparse the cluster is "
-            "inside with how far it is from the nearest cluster. From -1 to 1, higher is better"
-        )),
-        ("The run's score", (
-            "the average of the clusters' own scores, each weighted by its share of all the subjects, noise included: "
-            "the noise lowers the score by itself, so a clustering that throws the hard subjects away is not rewarded"
-        )),
-        ("Plot per cluster", "one bar per cluster with its own score and size; the dashed line is the run's score, which is not the mean of the bars"),
-        ("Probability", (
-            "from 0 to 1, within the cluster: near 1 the subject is at the core, near 0 at the margin. It is not the probability "
-            "of being in this cluster rather than another, nor comparable across clusters of different density"
-        )),
-    ]
-    if soft:
-        points.append((
-            "Persistence",
-            "from 0 to 1 for each cluster: 1 is a cluster that lasts over all the distance scales of the tree, 0 one that vanishes at once",
-        ))
-    return _guide(
-        "How to read DBCV",
-        points,
-        [
-            "Silhouette, Calinski-Harabasz, Davies-Bouldin and Dunn are not computed for these methods: they use the non-noise subjects only "
-            "(the hardest ones, thrown into the noise, make them rise) and assume compact clusters.",
-            "DBCV has no reference value, and it is not comparable across different embeddings.",
-            "It is undefined with fewer than 2 clusters.",
-            "The probability depends on the density of the clustered space: on UMAP with min_dist = 0 it tells how tightly UMAP packed "
-            "the cluster, not that it is real. There is no reference value for a probability"
-            + (" or a persistence" if soft else "") + ": the tables report means, with no threshold.",
-        ],
-    )
-
-
-def _saved_row(label: str, saved: SavedResults, name: str, decimals: int, reading: str, percent: bool = False) -> list[str]:
-    """[label, value, reading] of a metric a run saved. A metric that is not defined for the run is a dash and the reason
-    saved with it (its note)."""
-    value = saved.values[name]
-    if np.isnan(value):
-        return [label, "—", saved.notes[name]]
-    return [label, f"{format_number(value * 100, 1)}%" if percent else format_number(value, decimals), reading]
-
-
-def _cell(value: float, decimals: int) -> str:
-    """A number of a per-cluster table, a dash where the run saved none."""
-    return "—" if pd.isna(value) else format_number(value, decimals)
-
-
-def _share_cell(value: float) -> str:
-    return "—" if pd.isna(value) else f"{format_number(value * 100, 1)}%"
-
-
-def _tree_block(saved: SavedResults, n_clusters: int) -> html.Div:
-    """The "Model statistic" block of an agglomerative run: the cophenetic correlation and the dendrogram jump it saved."""
-    rows = [
-        _saved_row("Cophenetic correlation", saved, "cophenetic_correlation", 3, ""),
-        _saved_row(f"Dendrogram jump (k={n_clusters})", saved, "dendrogram_jump", 2, ""),
-    ]
-    return html.Div([
-        html.P("Model statistic", className="comparison-subheading"),
-        # the third column only says why a statistic is not defined: no column when every one is
-        _table(["Statistic", "Value", "Reading"], rows, text_columns=(0, 2))
-        if any(row[2] for row in rows)
-        else _table(["Statistic", "Value"], [row[:2] for row in rows], text_columns=(0,)),
-        html.P(
-            "Cophenetic correlation: how faithfully the tree reflects the real distances between subjects. From -1 to 1: "
-            "the higher, the better the tree reproduces them. It is measured with the run's own distance, so it is not "
-            "comparable between runs with a different metric.",
-            className="comparison-note centered",
-        ),
-        html.P(
-            "Dendrogram jump (at the run's k): how sharp the cut at k is. It is the height of the merge that takes the tree "
-            "from k to k-1 clusters divided by the height of the merge from k+1 to k. Near 1 the tree has no clear gap at k; "
-            "the higher, the sharper the cut. Heights are in the units of each linkage, so it is not comparable between linkages.",
-            className="comparison-note centered",
-        ),
-    ])
-
-
-def _agglomerative_quality_content(
-    run: ProductionRun,
-    saved: SavedResults,
-    metric: str,
-    silhouette_of: Callable[[ProductionRun], SilhouetteBreakdown],
-) -> html.Div:
-    """The panel of an agglomerative run: the indices and the tree statistics it saved, its table per cluster, and the
-    silhouette of every subject (the one part computed here, `silhouette_of`; a run it cannot be drawn for says why)."""
-    clusters = saved.per_cluster
-    n_clusters = len(clusters)
-    rows = [
-        _saved_row("Silhouette (mean over subjects)", saved, "silhouette", 3, "higher is better, from -1 to 1"),
-        _saved_row("Calinski-Harabasz", saved, "calinski_harabasz", 1, "higher is better"),
-        _saved_row("Davies-Bouldin", saved, "davies_bouldin", 3, "lower is better"),
-        _saved_row("Dunn", saved, "dunn", 4, "higher is better"),
-        ["Clusters", str(n_clusters), ""],
-        _saved_row("Largest cluster", saved, "largest_cluster_share", 1, "of the subjects", percent=True),
-    ]
-    cluster_rows = [
-        [str(int(row.cluster)), str(int(row.n)), _cell(row.silhouette_mean, 3), _share_cell(row.share_negative)]
-        for row in clusters.itertuples()
-    ]
-    try:
-        breakdown = silhouette_of(run)
-    except (ValueError, OSError) as exc:
-        silhouette_chart: list = [html.P(str(exc), className="status-message")]
-    else:
-        silhouette_chart = [dcc.Graph(
-            figure=_italian_figure(build_silhouette_figure(breakdown.subject_labels, breakdown.subject_values)),
-            config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-            style={"width": "100%"},
-        )]
-    return html.Div([
-        _quality_guide(),
-        html.P(
-            f"{int(clusters['n'].sum())} subjects, as the production run saved them (production_results.csv)"
-            + ("." if metric == "euclidean" else f". The silhouette uses the {metric} distance, the one the clustering used."),
-            className="quality-intro",
-        ),
-        _table(["Index", "Value", "Reading"], rows, text_columns=(0, 2)),
-        html.P("Per cluster", className="comparison-subheading"),
-        _table(["Cluster", "Subjects", "Mean silhouette", "Negative silhouette"], cluster_rows, text_columns=(0,)),
-        _chart_heading("Silhouette per cluster", "one panel per cluster"),
-        *silhouette_chart,
-        _tree_block(saved, n_clusters),
-    ])
-
-
-def _density_quality_content(
-    run: ProductionRun, saved: SavedResults, soft_of: Callable[[ProductionRun], SoftMembership]
-) -> html.Div:
-    """The panel of an hdbscan / hdbscan_soft run: DBCV, the shares of clusters and noise and the mean probability of the
-    subjects in their cluster (and, for hdbscan_soft, the persistence of the clusters) as the run saved them, its table
-    per cluster and the DBCV of every cluster. A DBCV not defined for the run is a dash with the reason and no chart.
-    hdbscan_soft adds its soft membership, read from the membership.npy the run saved."""
-    soft = run.method == "hdbscan_soft"
-    rows = [
-        _saved_row("DBCV", saved, "dbcv", 3, "higher is better, from -1 to 1"),
-        ["Clusters (noise excluded)", str(int(saved.values["n_clusters_found"])), ""],
-        _saved_row("Largest cluster", saved, "largest_cluster_share", 1, "of the subjects", percent=True),
-        _saved_row("Noise", saved, "noise_fraction", 1, "of the subjects", percent=True),
-        _saved_row("Mean probability in own cluster", saved, "membership_mean", 3, "mean over the clustered subjects"),
-    ]
-    if soft:
-        rows.append(_saved_row("Mean persistence", saved, "persistence_mean", 3, "mean over the clusters"))
-    columns = ["Cluster", "Subjects", "DBCV", "Mean probability"] + (["Persistence"] if soft else [])
-    cluster_rows = [
-        [str(int(row.cluster)), str(int(row.n)), _cell(row.dbcv, 3), _cell(row.membership_mean, 3)]
-        + ([_cell(row.persistence, 3)] if soft else [])
-        for row in saved.per_cluster.itertuples()
-    ]
-    chart: list = []
-    if not np.isnan(saved.values["dbcv"]):
-        clusters = saved.per_cluster.set_index("cluster")[["n", "dbcv"]]
-        try:
-            figure = build_dbcv_figure(clusters, saved.values["dbcv"])
-        except ValueError as exc:
-            chart = [_chart_heading("DBCV per cluster", "one bar per cluster; the dashed line is the run's score"), html.P(str(exc), className="status-message")]
-        else:
-            chart = [
-                _chart_heading("DBCV per cluster", "one bar per cluster; the dashed line is the run's score"),
-                dcc.Graph(
-                    figure=_italian_figure(figure),
-                    config={"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False},
-                    style={"width": "100%"},
-                ),
-            ]
-    return html.Div([
-        _density_guide(soft),
-        html.P("As the production run saved them (production_results.csv).", className="quality-intro"),
-        _table(["Index", "Value", "Reading"], rows, text_columns=(0, 2)),
-        html.P("Per cluster", className="comparison-subheading"),
-        _table(columns, cluster_rows, text_columns=(0,)),
-        *chart,
-        *([_soft_membership_block(run, soft_of)] if soft else []),
-    ])
-
-
-def cluster_quality_content_for(
-    run: ProductionRun,
-    results_of: Callable[[ProductionRun], SavedResults] = run_production_results,
-    silhouette_of: Callable[[ProductionRun], SilhouetteBreakdown] = run_silhouette_samples,
-    soft_of: Callable[[ProductionRun], SoftMembership] = run_soft_membership,
-    metric_of: Callable[[ProductionRun], str] = run_distance_metric,
-) -> html.Div:
-    """Panel "Clustering evaluation" of an agglomerative, hdbscan or hdbscan_soft run: under the collapsed guide to the
-    indices, the numbers the production run saved (`results_of`: production_results.csv and
-    production_results_per_cluster.csv, never computed again) and its table per cluster. An agglomerative run adds the
-    silhouette of every subject (`silhouette_of`), the one part computed here; an hdbscan_soft run its soft membership.
-    Not tied to the chosen cluster.
-
-    Same never-raises contract as every other *_content_for: a run without the saved files (written before production
-    runs saved them) or with files that are not its method's renders the cause instead of a table, and so does a method
-    the panel has no numbers for."""
-    if run.method not in RESULTS_METHODS:
-        return html.Div([html.P(
-            f"The panel has no numbers for the method {run.method!r}: production runs of {list(RESULTS_METHODS)} save them.",
-            className="status-message",
-        )])
-    agglomerative = run.method == "agglomerative"
-    try:
-        saved = results_of(run)
-        metric = metric_of(run) if agglomerative else ""
-    except (ValueError, OSError) as exc:
-        guide = _quality_guide() if agglomerative else _density_guide(run.method == "hdbscan_soft")
-        return html.Div([guide, html.P(str(exc), className="status-message")])
-    if agglomerative:
-        return _agglomerative_quality_content(run, saved, metric, silhouette_of)
-    return _density_quality_content(run, saved, soft_of)
 
 
 # --- Comparison inside a run and between two runs (08-10-26) ------------------------------------
@@ -1114,14 +279,6 @@ def comparable_runs(runs: list[ProductionRun], run_a: ProductionRun, clustering_
         if reason is None:
             compatible.append(candidate)
     return compatible
-
-
-def _chart_heading(title: str, subtitle: str) -> html.Div:
-    """The title of a chart as page text (a sub-heading and one line under it), not inside the figure."""
-    return html.Div([
-        html.P(title, className="comparison-subheading"),
-        html.P(subtitle, className="quality-intro"),
-    ])
 
 
 def _points(lead: str, points: list) -> html.Div:
@@ -1668,112 +825,6 @@ def cluster_pair_anatomy_for(
             ),
         ]
     return html.Div(children)
-
-
-# --- Overview of every cluster (22-10-26) -----------------------------------------------------
-
-# The value of the Clustering Explorer's cluster picker that draws every cluster instead of one.
-ALL_CLUSTERS = "all"
-
-
-def _map_tile(view: StatMapView, title: str, swatch: str, large: bool = False, warning: str | None = None) -> html.Div:
-    """One map of the overview or of the walk down the tree: the cluster's name behind a square of its colour in the
-    embedding, over the viewer. Sized by the view itself: the iframe has the exact pixel size nilearn gave it."""
-    children = [
-        html.Div(
-            [html.Span(className="map-swatch", style={"background": swatch}), title],
-            className="map-tile-title large" if large else "map-tile-title",
-        ),
-        html.Iframe(
-            key=f"{title}|{view.width}", srcDoc=_style_nilearn_html(view.html),
-            style={"width": f"{view.width}px", "height": f"{view.height}px"},
-        ),
-    ]
-    if warning is not None:
-        children.append(html.P(warning, className="anatomy-note"))
-    return html.Div(children, className="map-tile", style={"width": f"{view.width}px"})
-
-
-def _static_graph(figure: go.Figure) -> dcc.Graph:
-    config = {"displayModeBar": True, "modeBarButtons": [["toImage"]], "displaylogo": False}
-    return dcc.Graph(figure=_italian_figure(figure), config=config, style={"height": f"{figure.layout.height}px"})
-
-
-def cluster_overview_content_for(
-    heading: str,
-    caption: str,
-    note: str | None,
-    embedding: np.ndarray | None,
-    embedding_message: str | None,
-    labels: np.ndarray,
-    order: list[int],
-    tags: dict[int, str],
-    colors: dict[int, str],
-    build_tile: Callable[[int, int], tuple[StatMapView, int, list[str]]],
-    extra_classes: str = "",
-) -> html.Div:
-    """Every cluster of `labels` at once: the small embedding, drawn once, with its legend on the left and the maps of
-    all the clusters on the right, two per row, as many rows as needed (the page scrolls, there are no screens).
-
-    `build_tile(label, width)` returns (view, n_subjects, subjects without a file) for one cluster at a map width. It
-    may raise ValueError: that cluster then shows its own status message and the others are still drawn. Without an
-    `embedding` the maps are drawn all the same and `embedding_message` says why there is no embedding (a run whose
-    embedding is not drawable, or not 2-component). Raises ValueError for no cluster at all."""
-    cols, width = overview_grid_plan(len(order))
-    tiles: list = []
-    for label in order:
-        try:
-            view, n_subjects, missing = build_tile(label, width)
-        except ValueError as exc:
-            tiles.append(html.P(f"{tags[label]}: {exc}", className="status-message"))
-            continue
-        tiles.append(_map_tile(view, f"{tags[label]} (n={n_subjects})", colors[label], warning=_missing_subjects_warning(missing)))
-    if embedding is None:
-        left: html.Div | html.P = html.P(embedding_message, className="status-message")
-    else:
-        try:
-            left = _static_graph(build_overview_embedding_figure(embedding, labels, order, tags, colors))
-        except ValueError as exc:
-            left = html.P(str(exc), className="status-message")
-    return html.Div(
-        className=f"cluster-overview wide-block {extra_classes}".strip(),
-        children=[
-            html.H3(heading, className="overview-heading"),
-            html.P([caption, html.Span(note, className="anatomy-note") if note else None], className="anatomy-caption"),
-            html.Div(
-                className="overview-body",
-                children=[html.Div(left, className="overview-embedding"), html.Div(tiles, className="overview-grid", style={"gridTemplateColumns": f"repeat({cols}, auto)"})],
-            ),
-        ],
-    )
-
-
-def all_clusters_content_for(
-    run: ProductionRun,
-    metadata: pd.DataFrame,
-    embedding: np.ndarray | None,
-    embedding_message: str | None,
-    modality: str,
-    map_mode: str,
-    build_view: Callable[[ProductionRun, pd.DataFrame, int, int], tuple[StatMapView, int, nib.Nifti1Image, list[str]]],
-) -> html.Div:
-    """What "all" in the Clustering Explorer's cluster picker draws: every cluster of the run (the noise of hdbscan
-    included, as "Rumore"), the maps of `modality` ("lesion" or "sdc", with `map_mode` for the latter), in the colours of
-    the run's embedding scatter. `build_view(run, metadata, label, width)` builds one cluster's view."""
-    labels = metadata[COLOR_MODES["cluster_label"].column].to_numpy()
-    order = cluster_options(metadata)
-    palette = _palette_for_labels(order)
-    tags = {label: "Noise" if label == -1 else f"Cluster {label}" for label in order}
-    caption, note = _map_texts(modality, map_mode)
-
-    def build_tile(label: int, width: int) -> tuple[StatMapView, int, list[str]]:
-        view, n_subjects, _img, missing = build_view(run, metadata, label, width)
-        return view, n_subjects, missing
-
-    return cluster_overview_content_for(
-        f"All clusters of the run: {len(order)}", caption, note, embedding, embedding_message, labels, order, tags, palette,
-        build_tile, extra_classes="all-clusters-overview",
-    )
 
 
 # --- Dendrogram and splits (21-10-26) --------------------------------------------------------
