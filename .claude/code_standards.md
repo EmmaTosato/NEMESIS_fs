@@ -56,7 +56,7 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 | Funzioni piccole | Una responsabilità, idealmente <30 righe; nomi che descrivono cosa fanno. Il limite vale per funzione/metodo, non per la classe nel suo complesso: una classe con molti metodi piccoli e coesi va bene |
 | Nomi chiari | No abbreviazioni oscure; ok abbreviazioni standard di dominio (SDC, ROI, MNI...) |
 | Niente codice morto | Funzioni/classi/import non usati si cancellano subito — verificare con `grep -rn` prima di eliminare, mai lasciare "per sicurezza" |
-| Codice parcheggiato | Codice non più chiamato da nessuno ma da tenere recuperabile si sposta in `tests/legacy/` insieme ai suoi test (non raccolti da pytest, eseguibili per percorso), non resta in `src/`. Unica eccezione dichiarata: la sezione «Confronto» di `embedding_app.py` (builder e test restano al loro posto, non montata nell'app) |
+| Codice parcheggiato | Codice non più chiamato da nessuno ma da tenere recuperabile si sposta in `tests/legacy/` insieme ai suoi test (non raccolti da pytest, eseguibili per percorso), non resta in `src/`. Unica eccezione dichiarata: la sezione «Confronto» (`src/analysis/embedding_app/panels/comparison.py`, `src/analysis/embedding_app/panels/cluster_pair.py`) (builder e test restano al loro posto, non montata nell'app) |
 | Niente shim di compatibilità | No wrapper "per i vecchi chiamanti", no `# rimosso` in commento, no stub di funzioni eliminate |
 
 ---

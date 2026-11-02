@@ -286,7 +286,7 @@ A seconda della modalità, vengono generati risultati diversi. **Produzione e tu
 7. **`dbcv_plot.png`** (solo hdbscan e hdbscan_soft, con almeno 2 cluster): le barre del `dbcv` di ogni cluster, con una linea tratteggiata sul DBCV della run.
 8. **`config.md`**: solo ciò con cui la run è partita (JSON dei parametri, `Matrix shape`, `Params used`); i risultati stanno nei due file sopra. I metodi che non hanno ancora un file di risultati (kmeans, gmm, spectral, adp) tengono in più la riga `Clusters found`.
 
-Nessuna cartella `production/comparison/` — non esiste un plot di confronto cross-metodo generato dalla pipeline: per confrontare più metodi si aprono i `cluster_plot.png` di ciascuno, o si usa `embedding_app.py` (un run alla volta).
+Nessuna cartella `production/comparison/` — non esiste un plot di confronto cross-metodo generato dalla pipeline: per confrontare più metodi si aprono i `cluster_plot.png` di ciascuno, o si usa `src/pipeline/embedding_app.py` (un run alla volta).
 
 ### Se in "Fine-Tuning" (`tuning/<metodo>/<reduction_method>/`)
 1. **`tuning_results.csv`**: Risultati numerici dello sweep parametri.

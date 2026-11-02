@@ -45,6 +45,7 @@ Per chi modifica il codice: architettura, scelte implementative, invarianti. Si 
 | Metadati | [`metadata.md`](dev/metadata.md) |
 | Modelli di riduzione e clustering | [`models.md`](dev/models.md), [`covariance_pca.md`](dev/covariance_pca.md) |
 | Grafici | [`plotting.md`](dev/plotting.md) |
+| Struttura dell'app Dash | [`embedding_app.md`](dev/embedding_app.md) |
 | Pannelli dell'app Dash | [`anatomical_maps.md`](dev/anatomical_maps.md), [`cluster_description.md`](dev/cluster_description.md), [`cluster_composition.md`](dev/cluster_composition.md), [`cluster_comparison.md`](dev/cluster_comparison.md), [`cluster_drivers.md`](dev/cluster_drivers.md) |
 
 ## `experiments/` — cosa è stato fatto e deciso

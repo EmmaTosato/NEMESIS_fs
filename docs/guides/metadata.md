@@ -382,7 +382,7 @@ Non serve copiare i valori altrove: i consumatori leggono il registro direttamen
 | `build_sdc_matrix.py` | `has_lesion`, per decidere quali soggetti ammettere |
 | `build_lesion_matrix.py` / `build_sdc_matrix.py` | `excluded_subjects.csv`, per escludere gli stessi soggetti |
 | `dim_reduction.py` / `clustering.py` | `lesion_side`/`NIHSS` per i color mode `side`/`nihss`, risolti al momento del plot |
-| `src/analysis/cluster_description.py` (pannello di `embedding_app.py`) | età, sesso, istruzione, NIHSS, `lesion_volume_voxels_2mm` per la composizione dei cluster |
+| `src/analysis/cluster_description.py` (pannello di `src/analysis/embedding_app/panels/description.py`) | età, sesso, istruzione, NIHSS, `lesion_volume_voxels_2mm` per la composizione dei cluster |
 | `notebooks/exploration/lesion_analysis.ipynb` | `lesion_metadata.csv`, per decidere le esclusioni |
 
 Conseguenza pratica: se aggiungi `NIHSS` al registro oggi, **anche le run vecchie** si possono colorare per NIHSS, senza rigenerarle.

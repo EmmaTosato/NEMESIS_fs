@@ -1,6 +1,6 @@
 # Cluster comparison — technical reference
 
-Audience: developers/agents working on `src/analysis/cluster_comparison.py`, `src/analysis/cluster_pair.py` and the "Confronto" section they feed in `src/analysis/embedding_app.py` (parked: the section is not mounted in the app, see below). For how the section looks from a user's point of view, see `docs/guides/embedding_app.md`.
+Audience: developers/agents working on `src/analysis/cluster_comparison.py`, `src/analysis/cluster_pair.py` and the "Confronto" section they feed in `src/analysis/embedding_app/panels/comparison.py` and `src/analysis/embedding_app/panels/cluster_pair.py` (parked: the section is not mounted in the app, see below). For how the section looks from a user's point of view, see `docs/guides/embedding_app.md`.
 
 **The section is not mounted in the app**: `build_app` has no layout block and no callback for it, and the index does not list it. The numbers and the page builders below are complete and tested, and stay in place for when it returns; the pickers and callbacks of the section do not exist in `build_app` (see "The page").
 
@@ -13,7 +13,7 @@ The section has two modes:
 
 - `src/analysis/cluster_comparison.py`: the numbers and the heatmaps of the `modality` mode. It receives two runs' metadata and never reads from disk or knows the run layout.
 - `src/analysis/cluster_pair.py`: the numbers of the `clusters` mode. It reads the subject registry (`participants.csv`) and nothing else from disk; maps and embeddings come in as arguments.
-- `src/analysis/embedding_app.py`: which pairs of runs may be compared, loading them, and the HTML. It knows `ProductionRun`, `config.md` and the params registry.
+- `src/analysis/embedding_app/panels/comparison.py`, `src/analysis/embedding_app/panels/cluster_pair.py`: which pairs of runs may be compared, loading them, and the HTML. It knows `ProductionRun`, `config.md` and the params registry.
 
 ## Which pairs of runs are comparable (mode `modality`)
 
@@ -100,7 +100,7 @@ A test pins both directions on a pair where one run refines the other.
 
 The numeric variables and their registry columns are `CLUSTER_DESCRIPTION_VARIABLES` plus `LOCATION_FRACTIONS`; categorical ones are `CATEGORICAL_VARIABLES`. The laterality index of the interpretation notebook is not used: it lives in `lesion_metadata.csv`, not in the registry.
 
-### The page (`embedding_app.py`)
+### The page (`src/analysis/embedding_app/panels/comparison.py`)
 
 - `cluster_pair_content_for(run, label_1, label_2)`: summary, clinical profile, regression, centroids. Never raises: a non-clustering run, an empty or repeated cluster or an unreadable registry is an `html.P` naming the cause. A run on raw data gets a message instead of the centroid block (its matrix is the feature space, not an embedding).
 - `cluster_pair_anatomy_for(run, label_1, label_2, lesion_cfg, sdc_cfg, build_overlap_view, build_disconnection_view)`: the lesion maps and, for an `sdc` run, the disconnection maps in `percent` mode, each as the two clusters and their difference. It is a **separate callback and Div** from the numbers because the first build of a cluster reads every subject's NIfTI; `build_app` passes the same cached builders as the single-cluster panels. The run is a `State` of that callback, so choosing another run (which resets both clusters to `None`) never builds the maps of a stale cluster choice.

@@ -106,7 +106,7 @@ Each production/tuning run is tagged with a **session id** (`sX.Y[-<format>]` �
 🏗️ Architecture: [`models.md`](docs/dev/models.md) · [`config.md`](docs/dev/config.md) · [`plotting.md`](docs/dev/plotting.md)
 
 ### Embedding exploration tools
-`src/analysis/embedding_app.py`, `src/pipeline/embedding_app.py`/`generate_understanding_umap_report.py` — two complementary viewers, neither a modeling pipeline itself. `embedding_app.py` is a live local Dash app that browses every already-saved `dim_reduction.py`/`clustering.py` production run (2D/3D scatter, color-mode picker, interactive per-subject/per-cluster anatomy panels). `generate_understanding_umap_report.py` renders a static, PAIR-style HTML report from an existing UMAP/t-SNE fine-tuning sweep (parameter grid, dual-slider explorer, UMAP-vs-t-SNE comparison) for non-technical readers.
+`src/analysis/embedding_app/`, `src/pipeline/embedding_app.py`/`generate_understanding_umap_report.py` — two complementary viewers, neither a modeling pipeline itself. The Embedding Explorer is a live local Dash app that browses every already-saved `dim_reduction.py`/`clustering.py` production run (2D/3D scatter, color-mode picker, interactive per-subject/per-cluster anatomy panels). `generate_understanding_umap_report.py` renders a static, PAIR-style HTML report from an existing UMAP/t-SNE fine-tuning sweep (parameter grid, dual-slider explorer, UMAP-vs-t-SNE comparison) for non-technical readers.
 
 📖 Guides: [`embedding_app.md`](docs/guides/embedding_app.md) · [`understanding_umap_report.md`](docs/guides/understanding_umap_report.md)
 
