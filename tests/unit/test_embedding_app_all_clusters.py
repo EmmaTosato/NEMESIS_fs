@@ -8,13 +8,8 @@ import pandas as pd
 import pytest
 from dash import dcc, html
 
-from src.analysis.embedding_app import (
-    ALL_CLUSTERS,
-    _build_cluster_disconnection_view,
-    _build_cluster_overlap_view,
-    all_clusters_content_for,
-    build_app,
-)
+from src.analysis.embedding_app import ALL_CLUSTERS, all_clusters_content_for, build_app
+from src.analysis.embedding_app.anatomy import _build_cluster_disconnection_view, _build_cluster_overlap_view
 from src.analysis.embedding_app.runs import ProductionRun, run_metadata
 from src.analysis.embedding_app.style import CSS
 from tests.unit.test_embedding_app import (

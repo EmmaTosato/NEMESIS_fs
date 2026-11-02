@@ -309,7 +309,7 @@ def test_a_cluster_is_always_called_by_the_same_name_so_that_the_cache_keyed_by_
 
 
 def _real_view_builder(cohort):
-    from src.analysis.embedding_app import _build_cluster_disconnection_view, _build_cluster_overlap_view
+    from src.analysis.embedding_app.anatomy import _build_cluster_disconnection_view, _build_cluster_overlap_view
 
     tmp_path = cohort["tmp_path"]
     for index, subject in enumerate(SUBJECTS):
@@ -339,7 +339,7 @@ def test_every_map_of_a_screen_is_a_titled_viewer_with_the_colour_square_of_its_
 
 
 def test_a_cluster_without_resolvable_subjects_is_a_status_message_in_place_of_its_map(cohort):
-    from src.analysis.embedding_app import _build_cluster_overlap_view
+    from src.analysis.embedding_app.anatomy import _build_cluster_overlap_view
 
     # no lesion file was written in this test
     content = _steps(

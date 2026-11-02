@@ -375,7 +375,7 @@ def test_pair_anatomy_difference_is_signed_by_which_cluster_has_the_voxel(tmp_pa
     seen = {}
 
     def build(run_, metadata, label, cfg):
-        from src.analysis.embedding_app import _build_cluster_overlap_view
+        from src.analysis.embedding_app.anatomy import _build_cluster_overlap_view
 
         result = _build_cluster_overlap_view(run_, metadata, label, cfg)
         seen[label] = result[2]

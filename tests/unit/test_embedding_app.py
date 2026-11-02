@@ -13,18 +13,19 @@ import pytest
 
 from dash import dcc, html
 
-from src.analysis.embedding_app import DISCONNECTION_PROBABILITY_THRESHOLD
-from src.analysis.embedding_coloring import DEFAULT_GRID, available_grids
 from src.analysis.embedding_app import (
+    build_app,
+    cluster_composition_content_for,
+    cluster_description_content_for,
+)
+from src.analysis.embedding_app.anatomy import (
+    DISCONNECTION_PROBABILITY_THRESHOLD,
     LesionViewerConfig,
     SdcViewerConfig,
     _build_cluster_disconnection_view,
     _build_cluster_overlap_view,
     _static_glass_brain_png_bytes,
     _static_png_bytes,
-    build_app,
-    cluster_composition_content_for,
-    cluster_description_content_for,
     disconnection_map_content_for,
     disconnectome_viewer_content_for,
     lesion_viewer_content_for,
@@ -56,6 +57,7 @@ from src.analysis.embedding_app.runs import (
     run_reduction_axis,
 )
 from src.analysis.embedding_app.style import _FONT_STACK
+from src.analysis.embedding_coloring import DEFAULT_GRID, available_grids
 from src.utils.artifacts import load_matrix, save_matrix
 
 _LESION_AFFINE = np.eye(4) * 2
