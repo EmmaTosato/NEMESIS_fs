@@ -57,6 +57,7 @@ from src.analysis.embedding_app.panels.description import (
     cluster_description_content_for,
 )
 from src.analysis.embedding_app.style import _FONT_STACK
+from tests.unit.embedding_app_callbacks import PREVENTED, fire, fire_one
 from src.analysis.embedding_coloring import DEFAULT_GRID, available_grids
 from src.utils.artifacts import load_matrix, save_matrix
 
@@ -1384,65 +1385,35 @@ def test_lesion_save_buttons_do_not_use_stale_clickdata_after_run_switch(tmp_pat
     run_a = ProductionRun("lesion", "dim_reduction", "umap", "run-a", dir_a)
     run_b = ProductionRun("lesion", "dim_reduction", "umap", "run-b", dir_b)
     app = build_app([run_a, run_b], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path), tmp_path / "cache")
-    app.server.config["TESTING"] = True
-    client = app.server.test_client()
-
-    def post(output_id_props, inputs, changed, state=None):
-        outputs = [{"id": i, "property": p} for i, p in output_id_props]
-        if len(outputs) > 1:
-            output = ".." + "...".join(f"{i}.{p}" for i, p in output_id_props) + ".."
-        else:
-            output = f"{output_id_props[0][0]}.{output_id_props[0][1]}"
-            outputs = outputs[0]  # a genuinely single output needs a bare dict, not a list-of-one
-            # (a list-of-one is misread as a wildcard multi-output spec by this Dash version -
-            # confirmed against its own _validate.validate_multi_return while investigating the
-            # original bug report).
-        body = {"output": output, "outputs": outputs, "inputs": inputs, "changedPropIds": changed, "state": state or []}
-        resp = client.post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
-        return resp
 
     click_data = {"points": [{"text": "sub-STUNIPD0001"}]}
 
     # 1) Click the subject while run-a is selected - the Store records it.
-    resp = post(
-        [("lesion-viewer-content", "children"), ("lesion-viewer-subject", "data")],
-        [
-            {"id": "embedding-graph", "property": "clickData", "value": click_data},
-            {"id": "run-picker", "property": "value", "value": run_a.key},
-        ],
-        ["embedding-graph.clickData"],
+    response = fire(
+        app, ["lesion-viewer-content.children", "lesion-viewer-subject.data"],
+        [("embedding-graph.clickData", click_data), ("run-picker.value", run_a.key)],
+        changed=["embedding-graph.clickData"],
     )
-    assert resp.status_code == 200
-    assert resp.get_json()["response"]["lesion-viewer-subject"]["data"] == "sub-STUNIPD0001"
+    assert response["lesion-viewer-subject"]["data"] == "sub-STUNIPD0001"
 
     # 2) Switch to run-b (clickData itself would still be the stale value client-side, exactly
     # as in the real browser bug) - the Store must reset to None, same as the visible placeholder.
-    resp = post(
-        [("lesion-viewer-content", "children"), ("lesion-viewer-subject", "data")],
-        [
-            {"id": "embedding-graph", "property": "clickData", "value": click_data},
-            {"id": "run-picker", "property": "value", "value": run_b.key},
-        ],
-        ["run-picker.value"],
+    response = fire(
+        app, ["lesion-viewer-content.children", "lesion-viewer-subject.data"],
+        [("embedding-graph.clickData", click_data), ("run-picker.value", run_b.key)],
+        changed=["run-picker.value"],
     )
-    assert resp.status_code == 200
-    response = resp.get_json()["response"]
     assert response["lesion-viewer-subject"]["data"] is None
     assert "Click a point" in json.dumps(response["lesion-viewer-content"]["children"])
 
     # 3) Press "Salva HTML" without clicking a new point on run-b - the Save callback now reads
     # the just-reset Store (None), not the still-stale embedding-graph.clickData, so it must not
     # produce a download at all (PreventUpdate -> 204, no "lesion-download" key in the response).
-    resp = post(
-        [("lesion-download", "data")],
-        [{"id": "lesion-save-btn", "property": "n_clicks", "value": 1}],
-        ["lesion-save-btn.n_clicks"],
-        state=[
-            {"id": "lesion-viewer-subject", "property": "data", "value": None},
-            {"id": "run-picker", "property": "value", "value": run_b.key},
-        ],
-    )
-    assert resp.status_code == 204
+    assert fire(
+        app, "lesion-download.data",
+        [("lesion-save-btn.n_clicks", 1)],
+        state=[("lesion-viewer-subject.data", None), ("run-picker.value", run_b.key)],
+    ) is PREVENTED
 
 
 def test_sdc_panels_visible_only_for_sdc_modality_runs(tmp_path):
@@ -1462,20 +1433,9 @@ def test_sdc_panels_visible_only_for_sdc_modality_runs(tmp_path):
     sdc_dr_run = ProductionRun("sdc", "dim_reduction", "umap", "sdc-dr-run", sdc_dim_reduction_dir)
     sdc_cl_run = ProductionRun("sdc", "clustering", "kmeans", "sdc-cl-run", sdc_clustering_dir, reduction_method="umap")
     app = build_app([lesion_run, sdc_dr_run, sdc_cl_run], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path), tmp_path / "cache")
-    app.server.config["TESTING"] = True
-    client = app.server.test_client()
 
     def panel_style(output_id, run_key):
-        body = {
-            "output": f"{output_id}.style",
-            "outputs": {"id": output_id, "property": "style"},
-            "inputs": [{"id": "run-picker", "property": "value", "value": run_key}],
-            "changedPropIds": ["run-picker.value"],
-            "state": [],
-        }
-        resp = client.post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
-        assert resp.status_code == 200
-        return resp.get_json()["response"][output_id]["style"]
+        return fire_one(app, f"{output_id}.style", [("run-picker.value", run_key)])
 
     assert panel_style("disconnectome-panel", lesion_run.key) == {"display": "none"}
     assert panel_style("disconnectome-panel", sdc_dr_run.key) == {}
@@ -1503,8 +1463,6 @@ def test_representative_subject_panel_visible_only_for_clustering_runs(tmp_path)
     dr_run = ProductionRun("lesion", "dim_reduction", "umap", "dr-run", dr_dir)
     cl_run = ProductionRun("lesion", "clustering", "kmeans", "cl-run", cl_dir, reduction_method="umap")
     app = build_app([dr_run, cl_run], _lesion_cfg(data_root), _sdc_cfg(data_root), _clustering_params_file(tmp_path), tmp_path / "cache")
-    app.server.config["TESTING"] = True
-    client = app.server.test_client()
 
     output_id_props = [
         ("cluster-picker", "options"), ("cluster-picker", "value"),
@@ -1514,16 +1472,7 @@ def test_representative_subject_panel_visible_only_for_clustering_runs(tmp_path)
     ]
 
     def cluster_picker_outputs(run_key):
-        body = {
-            "output": ".." + "...".join(f"{i}.{p}" for i, p in output_id_props) + "..",
-            "outputs": [{"id": i, "property": p} for i, p in output_id_props],
-            "inputs": [{"id": "run-picker", "property": "value", "value": run_key}],
-            "changedPropIds": ["run-picker.value"],
-            "state": [],
-        }
-        resp = client.post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
-        assert resp.status_code == 200
-        return resp.get_json()["response"]
+        return fire(app, [f"{i}.{p}" for i, p in output_id_props], [("run-picker.value", run_key)])
 
     assert cluster_picker_outputs(dr_run.key)["representative-subject-panel"]["style"] == {"display": "none"}
     assert cluster_picker_outputs(cl_run.key)["representative-subject-panel"]["style"] == {}
@@ -1907,22 +1856,12 @@ def test_preload_fills_both_stores_so_cluster_maps_need_no_file_reads(tmp_path, 
         raise AssertionError(f"file read after preload: {path}")
 
     monkeypatch.setattr("src.analysis.anatomical_maps.nib.load", _no_reads)
-    app.server.config["TESTING"] = True
-    client = app.server.test_client()
-    body = {
-        "output": "cluster-map-content.children",
-        "outputs": {"id": "cluster-map-content", "property": "children"},
-        "inputs": [
-            {"id": "run-picker", "property": "value", "value": run.key},
-            {"id": "cluster-picker", "property": "value", "value": 0},
-            {"id": "selected-page-tab", "property": "data", "value": "clustering"},
-        ],
-        "changedPropIds": ["cluster-picker.value"],
-        "state": [],
-    }
-    resp = client.post("/_dash-update-component", data=json.dumps(body), content_type="application/json")
-    assert resp.status_code == 200
-    assert "status-message" not in json.dumps(resp.get_json())
+    content = fire_one(
+        app, "cluster-map-content.children",
+        [("run-picker.value", run.key), ("cluster-picker.value", 0), ("selected-page-tab.data", "clustering")],
+        changed=["cluster-picker.value"],
+    )
+    assert "status-message" not in json.dumps(content)
 
 
 def test_preload_failure_is_logged_and_does_not_crash(tmp_path, caplog):
