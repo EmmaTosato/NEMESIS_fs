@@ -123,7 +123,7 @@ Nient'altro è cambiato: il blocco JSON e la riga `Metrics:` sono intatti. Le 12
 
 **Perché**: la cartella contiene l'intero output di BCBToolKit (disconnettoma e lesione, `LF-*` per atlante, `lesion-map`, mapstats), non solo l'SDC. `sdc` era un nome locale: EBRAIN non lo usa. Serve perché `build_lesion_matrix` possa leggere i `LF-lesion` senza che la lesione stia sotto un nome SDC. Scartato: spostare i `LF-lesion` in `manual_masks/` (mescola un prodotto calcolato con le maschere e il glob che le trova); lasciare `sdc/`.
 
-**Conseguenza ancora vera oggi**: ogni nuova copia dei dati deve usare `bcbtoolkit/`. Il nome è in `BCBTOOLKIT_DIR` (`src/features/sdc.py`), nella chiave di `PRESENCE_COLUMN_BY_DATA_TYPE` (`src/pipeline/populate_metadata.py`), in `SDC_DISCONNECTOME_GLOB` (`src/analysis/embedding_app.py`) e in `disconnectome_glob` dei config. La colonna `has_sdc` del registro non cambia: indica la modalità SDC, non la cartella. Le voci precedenti di questo file e i report in `docs/debugging/` parlano di `sdc/`: era il nome di allora.
+**Conseguenza ancora vera oggi**: ogni nuova copia dei dati deve usare `bcbtoolkit/`. Il nome è in `BCBTOOLKIT_DIR` (`src/features/sdc.py`), nella chiave di `PRESENCE_COLUMN_BY_DATA_TYPE` (`src/pipeline/populate_metadata.py`), in `SDC_DISCONNECTOME_GLOB` (`src/analysis/embedding_app/anatomy.py`) e in `disconnectome_glob` dei config. La colonna `has_sdc` del registro non cambia: indica la modalità SDC, non la cartella. Le voci precedenti di questo file e i report in `docs/debugging/` parlano di `sdc/`: era il nome di allora.
 
 ---
 

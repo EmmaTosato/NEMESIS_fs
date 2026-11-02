@@ -787,7 +787,7 @@ Il confronto avviene sempre e solo sull'intersezione dei `subject_id`, dichiarat
 
 **Alternative scartate**: mantenere il precalcolo per-run e limitarsi a velocizzare il ricampionamento (`_GridResampler` da solo) — avrebbe comunque ripetuto il lavoro per ogni run sullo stesso soggetto, non risolvendo il caso reale (più run aperti in una sessione lunga).
 
-**Conseguenza ancora vera oggi**: i due store (`BinaryMaskStore` per lesioni e per disconnettomi SDC) vivono per la durata del processo `embedding_app`, non per singola run — un riavvio dell'app senza `--preload` torna al comportamento lazy (primo accesso più lento, poi cache calda per quel soggetto). Bug noto e non corretto: il download PNG statico della mappa di disconnessione (`_download_disconnection_png`) usa sempre `_DISCONNECTOME_DISPLAY_THRESHOLD` anche in modalità "percent", dove dovrebbe usare `1e-6` come la vista interattiva.
+**Conseguenza ancora vera oggi**: i due store (`BinaryMaskStore` per lesioni e per disconnettomi SDC) vivono per la durata del processo `embedding_app`, non per singola run — un riavvio dell'app senza `--preload` torna al comportamento lazy (primo accesso più lento, poi cache calda per quel soggetto). Bug noto e non corretto: il download PNG statico della mappa di disconnessione (`_download_disconnection_png`, oggi in `embedding_app/panels/cluster_maps.py`) usa sempre `_DISCONNECTOME_DISPLAY_THRESHOLD` anche in modalità "percent", dove dovrebbe usare `1e-6` come la vista interattiva.
 
 ---
 
@@ -823,7 +823,7 @@ Il confronto avviene sempre e solo sull'intersezione dei `subject_id`, dichiarat
 
 **Alternative scartate sulla colormap**: `nipy_spectral` (la colormap della Fig. 1 di Thiebaut de Schotten et al. 2020), provata e annullata lo stesso giorno perché l'utente non voleva una palette arcobaleno. Per la lesione `magma` fu provata e annullata lo stesso giorno: per una maschera binaria il suo colore più alto è un giallo pallido quasi bianco, illeggibile su sfondo bianco sui dati reali.
 
-**Conseguenza ancora vera oggi**: le cifre sono nelle costanti di `embedding_app.py` e nelle loro note (`docs/dev/anatomical_maps.md`). Le immagini di confronto citate nelle note del codice (`tmp/anatomy_rendering/*.png`) stanno in `tmp/anatomy_rendering/renders/` (gitignorata, 72 PNG), accanto ai prototipi `.py`: il percorso citato nel codice non include `renders/`. Per la lesione sono state confrontate anche `hot`/`inferno`/`plasma` (altrettanto o più slavate) e `Reds`/`YlOrRd` (leggibili ma più opache), vedi il docstring di `_build_subject_lesion_view`.
+**Conseguenza ancora vera oggi**: le cifre sono nelle costanti di `embedding_app/anatomy.py` e nelle loro note (`docs/dev/anatomical_maps.md`). Le immagini di confronto citate nelle note del codice (`tmp/anatomy_rendering/*.png`) stanno in `tmp/anatomy_rendering/renders/` (gitignorata, 72 PNG), accanto ai prototipi `.py`: il percorso citato nel codice non include `renders/`. Per la lesione sono state confrontate anche `hot`/`inferno`/`plasma` (altrettanto o più slavate) e `Reds`/`YlOrRd` (leggibili ma più opache), vedi il docstring di `_build_subject_lesion_view`.
 
 ---
 

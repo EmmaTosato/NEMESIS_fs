@@ -1,6 +1,6 @@
 # 06 — Piano di spezzamento di `embedding_app.py` (C-022)
 
-Piano, non implementazione. Nessuna riga di codice è stata spostata.
+**Eseguito il 02-11-26** (12 commit, `9db71c3`..`2ebaa1b`). Le §1-§7 sono il piano come fu scritto il 29-10-26; la §8 dice com'è finito e dove si è deviato. La struttura vera è in `docs/dev/embedding_app.md`.
 
 ## 1. Stato attuale
 
@@ -94,3 +94,30 @@ Ogni modulo di `panels/` espone due funzioni con la stessa firma:
 ## 7. Stima e ordine
 
 Lavoro per una sessione dedicata, in worktree separato, da iniziare dopo il commit del lavoro in corso sull'app. Le fasi 1-2 sono a basso rischio (spostamenti); la fase 4 è quella che richiede attenzione.
+
+---
+
+## 8. Esito (02-11-26)
+
+12 commit, `9db71c3`..`2ebaa1b`. 18 moduli, 6180 righe, il più grande 652 (`anatomy.py`); `build_app` 1543 → 358. Quale modulo tiene cosa sta in `docs/dev/embedding_app.md`, non qui: questo file è il piano, non la struttura.
+
+### Dove si è deviato dal piano
+
+- **Nessuna tabella `PANELS`** (§3): `build_app` chiama nove `register_*(app, context)` espliciti. Con nove pannelli non interscambiabili — ognuno in una scheda precisa, in un ordine deciso a mano — la tabella aggiunge un'indirezione senza togliere niente di visibile.
+- **`build_app` resta in `__init__.py`**, non in un `app.py`: così `from src.analysis.embedding_app import build_app` non cambia per la pipeline né per i test.
+- **`panels/cluster_maps.py` e `blocks.py` non erano nel piano.** `blocks.py` (tre helper di presentazione letti da 3-4 pannelli) è dovuto venire *prima* dei pannelli, o ognuno avrebbe importato da `__init__.py`. `cluster_maps.py` è nato da un ciclo di import: tenere i callback delle mappe per cluster in `anatomy.py` creava `anatomy → panels.overview → anatomy`, e il ciclo diceva il vero — quei callback sono uno strato sopra il disegnare una mappa. Lo stesso modulo ha poi riportato `anatomy.py` sotto le 800 righe quando questo ha preso i suoi layout.
+- **Ordine diverso dalle fasi §4**: l'`AppContext` (fase 3) è servito *prima* dello spostamento dei callback (fase 4) non per ordine ma perché è ciò che lo ha reso uno spostamento — dopo di esso quasi ogni callback non legge più niente dallo scope di `build_app` tranne quell'oggetto.
+
+### Il criterio §6 non soddisfatto
+
+«Nessuna funzione sopra le ~150 righe»: ne restano tre, `build_app` (358), `panels/cluster_maps.py::register_callbacks` (266) e `anatomy.py::register_callbacks` (188). I callback dentro i due `register_callbacks` sono 12 e 9 e nessuno supera le 30 righe: è la lista delle registrazioni a essere lunga, non il lavoro di una funzione — la stessa forma dell'eccezione già scritta nel §2 di `code_standards.md` per una classe con molti metodi piccoli e coesi. Nel repo le funzioni sopra le 30 righe passano da 211/960 a 225/991, quelle sopra le 200 da 2 a 3: lo split ha abbassato il massimo, non il conteggio.
+
+Le 358 righe di `build_app`, misurate: docstring 33, controlli (`_picker_field`, i bottoni di colore e di griglia, il blocco `controls-section` dentro il layout) 78, i corpi delle tre schede 104, `_preload_stores` 35, `_update_cluster_picker` 13, le nove chiamate `register_*` 9, il resto assemblaggio.
+
+### La rete, e perché non bastava lo snapshot
+
+Con `suppress_callback_exceptions=True` un callback cablato a un `id` inesistente non spara e non solleva. Lo snapshot del contratto prende un `id` che cambia, non un corpo che si rompe: `coverage` sul file vecchio ha mostrato **22 callback su 44 mai eseguiti da alcun test** (circa 120 righe di logica). I 68 test scritti prima dello spostamento (55 di cablaggio, 10 su `AppContext`, 3 sul contratto) hanno poi intercettato i due errori veri del lavoro, entrambi di nome: `ctx` per il contesto dell'app oscurava `from dash import ctx` (13 test rossi), e il successivo `context` collideva con una variabile locale di un callback del dendrogramma (3 rossi).
+
+Oltre alla suite: sha256 di `/_dash-layout` identico prima/dopo (20694 byte, pannelli nascosti compresi), screenshot headless identico al pixel, e quattro confronti su dati veri aggiunti via via — perché lo screenshot della pagina senza run scelta non mostra nessuno dei pannelli spostati.
+
+Suite finale: **5822 passed, 17 skipped**; 392 test nei file dell'app.

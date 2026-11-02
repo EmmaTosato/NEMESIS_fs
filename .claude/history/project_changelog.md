@@ -6,6 +6,28 @@ Decisioni su **come è organizzato il repo**: fonti di verità uniche, pipeline 
 
 Voci in ordine cronologico inverso.
 
+## 02-11-26 — `embedding_app` da un file di 5541 righe a un pacchetto di 18 moduli
+
+**Cosa è cambiato** (12 commit, `9db71c3`..`2ebaa1b`, piano in `.claude/audit/06_piano_spezzamento_embedding_app.md`, criticità C-022): `src/analysis/embedding_app.py` è ora il pacchetto `src/analysis/embedding_app/`, 6180 righe in 18 moduli, il più grande 652. `build_app` passa da 1543 righe a 358. `src/pipeline/embedding_app.py` resta l'unico entry point e non è cambiato: importa `build_app` dal pacchetto.
+
+Tre strati: i moduli trasversali (`runs.py` scoperta e lettura delle run, `picker.py` i dieci selettori a cascata, `style.py`, `embedding_view.py` lo scatter, `anatomy.py` la mappa di un soggetto, `blocks.py` i tre helper di presentazione condivisi, `tabs.py`, `context.py`), i nove pannelli sotto `panels/` e `__init__.py` che assembla. Ogni pannello espone `layout()` e `register_callbacks(app, context)`; 43 dei 44 callback stanno nel pannello che scrivono.
+
+`AppContext` (`context.py`, `@dataclass(frozen=True)`, 20 campi e 12 metodi) sostituisce le undici cache che erano chiusure dentro `build_app`. Non è solo ordine: è ciò che ha reso lo spostamento dei callback uno spostamento e non una riscrittura, perché dopo di esso quasi ogni callback non legge più niente dallo scope di `build_app` tranne quell'oggetto.
+
+**Perché una rete di test prima e non solo uno snapshot**: con `suppress_callback_exceptions=True` un callback cablato a un `id` che non esiste non spara e non solleva — si vede solo usando la pagina. Lo snapshot del contratto (gli `id` del layout e la mappa dei callback) prende un `id` che cambia, non un corpo che si rompe. `coverage` sul vecchio file ha mostrato che **22 callback su 44 non erano eseguiti da nessun test** (circa 120 righe di logica): sono stati scritti 68 test nuovi (55 di cablaggio, 10 su `AppContext`, 3 sul contratto) **prima** di spostare i callback. Hanno poi intercettato i due errori veri del lavoro: `ctx` come nome del contesto dell'app, che oscurava `from dash import ctx` e trasformava `ctx.triggered_id` in un attributo di `AppContext` (13 test rossi), e il successivo `context`, che collideva con una variabile locale di un callback del dendrogramma (3 test rossi, `UnboundLocalError`).
+
+**Scartato**:
+- *La tabella `PANELS`* prevista dal piano (`panels/__init__.py` con nome → `(layout, register_callbacks)`): `build_app` chiama nove `register_*(app, context)` espliciti. Con nove pannelli una tabella aggiunge un'indirezione senza togliere niente di visibile, e i pannelli non sono interscambiabili (ognuno sta in una scheda precisa, in un ordine deciso a mano).
+- *Uno shim `embedding_app.py` che ri-esporta* (`code_standards.md` §2): aggiornati i 29 riferimenti nelle doc e i `monkeypatch` dei test per percorso.
+- *Un modulo `app.py`* per `build_app`, come nel piano: sta in `__init__.py`, così `from src.analysis.embedding_app import build_app` non cambia.
+
+**Conseguenze ancora vere oggi**:
+- Due regole non ovvie, in `docs/dev/embedding_app.md`: `AppContext` si importa sotto `TYPE_CHECKING` (altrimenti `context → anatomy → panel → context`), e `ctx` in un callback è sempre il contesto di Dash, mai quello dell'app.
+- La sezione «Confronto» parcheggiata (`code_standards.md` §2) è in `panels/comparison.py` e `panels/cluster_pair.py`, non montata.
+- `tests/unit/embedding_app_contract.py` si rigenera da sé (`PYTHONPATH=. python -m tests.unit.embedding_app_contract`) e `test_embedding_app_contract.py` lo confronta: un `id` o un callback che cambia senza intenzione fa rosso. Il terzo test non è un dato fissato ma l'invariante che `suppress_callback_exceptions` nasconde — ogni componente scritto da un callback esiste nel layout.
+- Il criterio «nessuna funzione sopra le ~150 righe» del piano **non è soddisfatto**: `build_app` è 358, `panels/cluster_maps.py::register_callbacks` 266 e `anatomy.py::register_callbacks` 188 (i singoli callback dentro i due `register_callbacks` sono 12 e 9, nessuno sopra le 30: è la lista delle registrazioni a essere lunga, non il lavoro di una funzione). Nel repo le funzioni sopra le 30 righe passano da 211/960 a 225/991 e quelle sopra le 200 da 2 a 3: lo split ha abbassato il massimo (1543 → 358), non il conteggio.
+- Suite: 5822 passed, 17 skipped; 392 test nei file dell'app.
+
 ## 29-10-26 — Embedding Explorer: il pannello "Clustering evaluation" legge i numeri salvati dalla produzione
 
 **Cosa è cambiato**: per `agglomerative`, `hdbscan` e `hdbscan_soft` il pannello legge `production_results.csv` e `production_results_per_cluster.csv` (`production_results.read_production_results`) invece di rifittare e ricalcolare. Calcola solo la silhouette di ogni soggetto di agglomerative (il valore per soggetto non sta nei file). Tolti dall'app: `run_geometric_summary`, `run_density_summary`, `run_model_fit`, `run_membership_confidence`, le loro quattro cache, i blocchi "Model statistic" di kmeans/gmm/hdbscan e "Position in the cluster" (la probabilità media per cluster è una colonna della tabella per cluster). Al suo posto la tabella per cluster (silhouette, DBCV, probabilità, persistenza).
@@ -19,14 +41,14 @@ Voci in ordine cronologico inverso.
 ## 29-10-26 — Convenzioni: codice parcheggiato in `tests/legacy/`, grafici di embedding con errori attesi, `exc_info` e `log_duration`
 
 **Cosa è cambiato**: quattro regole di `code_standards.md`, decise con l'utente durante la revisione delle criticità Medie dell'audit.
-- **Codice parcheggiato** (§2): codice non più chiamato da nessuno ma da tenere recuperabile si sposta in `tests/legacy/` con i suoi test (file non raccolti da pytest, eseguibili per percorso). Primi casi: `integrated_completed_likelihood`, `compute_gap_statistic`, `gap_statistic_suggested_k` (kmeans/gmm in stand by) → `tests/legacy/kmeans_gmm_post_hoc_diagnostics.py`; `colors_at` → `tests/legacy/dendrogram_colors_at.py`. Eccezione dichiarata: la sezione «Confronto» di `embedding_app.py`, che resta in `src/`.
+- **Codice parcheggiato** (§2): codice non più chiamato da nessuno ma da tenere recuperabile si sposta in `tests/legacy/` con i suoi test (file non raccolti da pytest, eseguibili per percorso). Primi casi: `integrated_completed_likelihood`, `compute_gap_statistic`, `gap_statistic_suggested_k` (kmeans/gmm in stand by) → `tests/legacy/kmeans_gmm_post_hoc_diagnostics.py`; `colors_at` → `tests/legacy/dendrogram_colors_at.py`. Eccezione dichiarata: la sezione «Confronto», che resta in `src/` (oggi `embedding_app/panels/comparison.py` e `cluster_pair.py`, non montate).
 - **Eccezione al §0** per `src/analysis/embedding_plots.py`: un grafico che non si scrive per `OSError` o `ValueError` è un WARNING con il conteggio dei grafici mancanti; ogni altra eccezione ferma la run.
 - **§6, `exc_info`**: obbligatorio per le eccezioni inattese; per gli errori di dominio con eccezione nominata basta il messaggio con la causa.
 - **§6, `log_duration`**: tutti gli entry point di `src/pipeline/` la chiamano, tranne `embedding_app.py` (un server). Aggiunta a `generate_understanding_umap_report.py` e `replot_dim_reduction.py`.
 
 **Scartato**: aggiungere `exc_info=True` ai 73 log che non l'hanno (log pieni di tracce per errori attesi); cancellare del tutto le funzioni di kmeans/gmm (perderebbero la possibilità di riprenderle).
 
-**Conseguenze ancora vere oggi**: anche `colors_at` (`dendrogram_splits.py`) è in `tests/legacy/dendrogram_colors_at.py`; i test del Dendrogram Explorer usano un helper locale, ultimo passo di `replay_splits`. Il piano per spezzare `embedding_app.py` è in `.claude/audit/06_piano_spezzamento_embedding_app.md`.
+**Conseguenze ancora vere oggi**: anche `colors_at` (`dendrogram_splits.py`) è in `tests/legacy/dendrogram_colors_at.py`; i test del Dendrogram Explorer usano un helper locale, ultimo passo di `replay_splits`. Il piano per spezzare `embedding_app.py` è stato eseguito il 02-11-26 (voce in cima a questo file).
 
 ## 29-10-26 — `build_fc_matrix`: un gruppo di soggetti per run (`group`: `ST` o `HC`)
 
@@ -940,7 +962,7 @@ Ricablati sul registro: `src/features/sdc.py` (`has_lesion` come criterio di amm
 
 **Perché**: per confrontare più metodi oggi si aprono i `cluster_plot.png` di ciascuno, oppure si usa `embedding_app.py` (un run alla volta) — il confronto cross-metodo dedicato è stato ritenuto non necessario.
 
-**Conseguenza ancora vera oggi**: nessuna pipeline produce un artefatto di confronto multi-metodo. Un'eventuale cartella `comparison/` residua da prima di questa data resta sul disco ma è esclusa automaticamente dalla discovery di `embedding_app.py` (non ha mai un `manifest.json`).
+**Conseguenza ancora vera oggi**: nessuna pipeline produce un artefatto di confronto multi-metodo. Un'eventuale cartella `comparison/` residua da prima di questa data resta sul disco ma è esclusa automaticamente dalla discovery dell'app (`embedding_app/runs.py`: non ha mai un `manifest.json`).
 
 ---
 
@@ -952,7 +974,7 @@ Ricablati sul registro: `src/features/sdc.py` (`has_lesion` come criterio di amm
 
 **Perché**: risultati prodotti da embedding sorgente diversi non devono finire nella stessa cartella. I tre campi hanno il prefisso `reduction_` perché `gmm` ha come iperparametro proprio `n_components` (`lessons_learned.md` #33).
 
-**Conseguenza ancora vera oggi**: `embedding_app.py::discover_production_runs` ha una profondità di glob che dipende dalla pipeline; senza quell'adattamento ogni run di clustering sarebbe sparita dal selettore senza errori. Risultati scritti prima del 31-08-26 sono sul layout senza il segmento; 30 foglie di clustering/tuning sono state spostate a mano sotto `umap/` e 5 `runs_tuning.csv` hanno guadagnato la colonna (dal messaggio del commit, `results/` è ignorato da git).
+**Conseguenza ancora vera oggi**: `discover_production_runs` (oggi `embedding_app/runs.py`) ha una profondità di glob che dipende dalla pipeline; senza quell'adattamento ogni run di clustering sarebbe sparita dal selettore senza errori. Risultati scritti prima del 31-08-26 sono sul layout senza il segmento; 30 foglie di clustering/tuning sono state spostate a mano sotto `umap/` e 5 `runs_tuning.csv` hanno guadagnato la colonna (dal messaggio del commit, `results/` è ignorato da git).
 
 ---
 

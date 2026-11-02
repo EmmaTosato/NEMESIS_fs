@@ -1,9 +1,9 @@
 # 02 — Contraddizioni e problemi aperti (richiedono una decisione dell'utente)
 
 Severità: **Alta** (la doc induce a un errore operativo) · **Media** (affermazione falsa/obsoleta con effetto pratico) · **Bassa** (imprecisione, omissione, stile).
-Le correzioni decise dall'utente il 29-10-26 (revisione delle Medie) sono applicate: la riga «Stato» di ogni voce dice cosa è stato fatto. Le altre voci attendono una decisione.
+Ogni voce è chiusa: la sua riga «Stato» dice cosa è stato fatto (le prime il 29-10-26, nella revisione delle Medie; l'ultima, C-022, il 02-11-26).
 
-Aperti: 57 · Alta: 0 · Media: 1 · Bassa: 56 (114 voci registrate, 57 chiuse: C-001, C-002, C-003, C-004, C-005, C-006, C-008, C-009, C-010, C-014, C-015, C-016, C-017, C-018, C-019, C-020, C-021, C-023, C-026, C-027, C-028, C-031, C-034, C-036, C-039, C-040, C-043, C-044, C-045, C-046, C-047, C-048, C-049, C-050, C-051, C-053, C-054, C-055, C-056, C-058, C-059, C-060, C-061, C-062, C-063, C-065, C-066, C-068, C-069, C-071, C-072, C-073, C-074, C-080, C-092, C-094, C-105)
+Aperti: 0 (114 voci registrate, tutte chiuse: C-001, C-002, C-003, C-004, C-005, C-006, C-007, C-008, C-009, C-010, C-011, C-012, C-013, C-014, C-015, C-016, C-017, C-018, C-019, C-020, C-021, C-022, C-023, C-024, C-025, C-026, C-027, C-028, C-029, C-030, C-031, C-032, C-033, C-034, C-035, C-036, C-037, C-038, C-039, C-040, C-041, C-042, C-043, C-044, C-045, C-046, C-047, C-048, C-049, C-050, C-051, C-052, C-053, C-054, C-055, C-056, C-057, C-058, C-059, C-060, C-061, C-062, C-063, C-064, C-065, C-066, C-067, C-068, C-069, C-070, C-071, C-072, C-073, C-074, C-075, C-076, C-077, C-078, C-079, C-080, C-081, C-082, C-083, C-084, C-085, C-086, C-087, C-088, C-089, C-090, C-091, C-092, C-093, C-094, C-095, C-096, C-097, C-098, C-099, C-100, C-101, C-102, C-103, C-104, C-105, C-106, C-107, C-108, C-109, C-110, C-111, C-112, C-113, C-114)
 
 ---
 
@@ -150,6 +150,8 @@ Scansioni AST su `src/` + `scripts/`; ogni numero è riproducibile con `grep`/`a
 - **Domanda**: la regola resta indicativa, oppure pianifichiamo lo spezzamento di `embedding_app.py` (fuori dall'audit, che è sola lettura)?
 - **Stato (29-10-26): APERTA, aggiornata** — decisione dell'utente: pianificare uno spezzamento modulare. Piano scritto in `06_piano_spezzamento_embedding_app.md`; nessun codice toccato. Resta aperta fino all'esecuzione.
 - **Aggiornamento (29-10-26)**: l'utente la lascia aperta, l'esecuzione è complessa; nessun lavoro in corso.
+- **Stato (02-11-26): CHIUSA** — piano eseguito in 12 commit (`9db71c3`..`2ebaa1b`): `src/analysis/embedding_app.py` è il pacchetto `src/analysis/embedding_app/` (18 moduli, 6180 righe, il più grande 652), `build_app` 1543 → 358. Esito e scostamenti dal piano nella §8 di `06_piano_spezzamento_embedding_app.md`; decisione e alternative scartate in `project_changelog.md` (02-11-26).
+- **Ri-misurato**: 991 funzioni in `src/`+`scripts/` (erano 960), 225 sopra le 30 righe (erano 211), 21 sopra le 100 (18), 3 sopra le 200 (2). Il massimo scende da 1543 a 358 (`build_app`), ma le altre due oltre le 150 sono nuove: `panels/cluster_maps.py::register_callbacks` (266, 12 callback) e `anatomy.py::register_callbacks` (188, 9) — nessun callback al loro interno supera le 30 righe, è la lista delle registrazioni a essere lunga. Il §1 («una responsabilità per modulo») è soddisfatto; il §2 («idealmente <30») resta un obiettivo, come già scritto qui sopra.
 
 ## C-023 — Media — §2: codice morto (a meno dell'eccezione "Confronto")
 - **Dove**: `src/analysis/clustering_tuning.py:861 integrated_completed_likelihood`, `:917 compute_gap_statistic`; `dendrogram_splits.py:167 colors_at`; `embedding_app.py:2964 comparable_runs`, `:3206 comparison_content_for`, `:3246 pair_cluster_option_label`.

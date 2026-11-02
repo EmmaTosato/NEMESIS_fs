@@ -33,6 +33,8 @@ Il metodo che ha funzionato:
 
 ## 3. Le 5 Medie aperte (da fare per prime)
 
+**Prompt consumato** (02-11-26): tutte e cinque sono chiuse — C-040, C-063, C-072 e C-074 nei blocchi 7 e 8, C-022 col blocco 9 (lo split, eseguito). La tabella resta com'era quando il prompt fu scritto; lo stato vero è in `02_contradictions_and_open_issues.md` e `04_handoff_state.md`.
+
 | ID | Cosa resta | Come procedere |
 |---|---|---|
 | **C-022** | `src/analysis/embedding_app.py` ha 5541 righe e `build_app` 1543. L'utente ha deciso di **pianificare uno spezzamento modulare e scalabile, coerente con i design pattern del progetto**. | Il piano è in `06_piano_spezzamento_embedding_app.md`. Non iniziare finché l'utente non ha committato il suo lavoro in corso sull'app (rischio di conflitti). Poi: una fase alla volta, con lo snapshot degli `id` e dei callback prima/dopo e uno screenshot headless. Probabilmente conviene una sessione dedicata in un worktree. |
