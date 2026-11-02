@@ -396,3 +396,48 @@ def register_callbacks(app: Dash, context: AppContext) -> None:
             run, run_metadata(run), tree, embedding, k, modality, _dendrogram_build_view(tuning_dir),
             load_participants_registry().set_index("subject_id"),
         )
+
+def layout() -> html.Div:
+    """The panel as it sits in the page. build_app places it; the callbacks above fill it."""
+    return html.Div(
+        id="dendrogram-panel",
+        className="section-divider",
+        style={"display": "none"},
+        children=[
+            html.H2("Dendrogram Explorer", className="section-title"),
+            html.P(
+                "Going from k-1 to k clusters, one cluster splits in two. Choose a k: the tree is walked from the "
+                "smallest k up to that k. Each step shows the tree and the embedding, the anatomy of the cluster "
+                "that splits and of the two it gives, and a table describing them. The labels for each k come from "
+                "a tuning compatible with this run.",
+                className="section-intro",
+            ),
+            html.Div(
+                className="cluster-chooser cluster-chooser-wide",
+                children=[
+                    html.Label("Compatible tuning", className="picker-label"),
+                    dcc.Dropdown(id="dendrogram-tuning-picker", clearable=False),
+                ],
+            ),
+            html.Div(id="dendrogram-tuning-note"),
+            html.Div(
+                className="cluster-chooser",
+                children=[
+                    html.Label("k", className="picker-label"),
+                    dcc.Dropdown(id="dendrogram-k-picker", clearable=False),
+                ],
+            ),
+            html.Div(
+                className="cluster-chooser",
+                children=[
+                    html.Label("Map", className="picker-label"),
+                    dcc.Dropdown(
+                        id="dendrogram-map-picker", clearable=False, value="lesion",
+                        options=[{"label": label, "value": value} for value, label in DENDROGRAM_MAP_MODALITIES.items()],
+                    ),
+                ],
+            ),
+            html.H2("Agglomerative decomposed", className="dendrogram-steps-title"),
+            dcc.Loading(html.Div(id="dendrogram-steps-content")),
+        ],
+    )

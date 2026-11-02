@@ -302,3 +302,27 @@ def register_callbacks(app: Dash, context: AppContext) -> None:
         if not tab_is_active(run, selected_tab, TAB_CLUSTERING):
             return []
         return cluster_composition_content_for(run_metadata(run))
+
+def description_panel() -> html.Div:
+    """The panel as it sits in the page. build_app places it; the callbacks above fill it."""
+    return html.Div(
+        id="cluster-description-panel",
+        className="anatomy-panel",
+        style={"display": "none"},
+        children=[
+            html.H2("Cluster description", className="section-heading"),
+            html.Div(id="cluster-description-content"),
+        ],
+    )
+
+def composition_panel() -> html.Div:
+    """The panel as it sits in the page. build_app places it; the callbacks above fill it."""
+    return html.Div(
+        id="cluster-composition-panel",
+        className="anatomy-panel",
+        style={"display": "none"},
+        children=[
+            html.H2("Cluster composition", className="section-heading"),
+            html.Div(id="cluster-composition-content"),
+        ],
+    )

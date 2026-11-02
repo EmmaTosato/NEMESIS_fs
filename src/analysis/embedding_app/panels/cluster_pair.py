@@ -33,11 +33,13 @@ from src.analysis.embedding_app.anatomy import (
     LesionViewerConfig,
     SdcViewerConfig,
     _anatomy_viewer,
-    _build_cluster_disconnection_view,
-    _build_cluster_overlap_view,
 )
 from src.analysis.embedding_app.blocks import _missing_subjects_warning, _table, _warning_box
 from src.analysis.embedding_app.embedding_view import _CLUSTER_LABEL_COLUMN, cluster_options
+from src.analysis.embedding_app.panels.cluster_maps import (
+    _build_cluster_disconnection_view,
+    _build_cluster_overlap_view,
+)
 from src.analysis.embedding_app.panels.comparison import _points, comparison_run_label
 from src.analysis.embedding_app.runs import ProductionRun, run_metadata
 from src.analysis.embedding_app.style import _italian_figure

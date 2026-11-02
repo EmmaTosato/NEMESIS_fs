@@ -18,13 +18,15 @@ from src.analysis.embedding_app.anatomy import (
     DISCONNECTION_PROBABILITY_THRESHOLD,
     LesionViewerConfig,
     SdcViewerConfig,
-    _build_cluster_disconnection_view,
-    _build_cluster_overlap_view,
     _static_glass_brain_png_bytes,
     _static_png_bytes,
-    disconnection_map_content_for,
     disconnectome_viewer_content_for,
     lesion_viewer_content_for,
+)
+from src.analysis.embedding_app.panels.cluster_maps import (
+    _build_cluster_disconnection_view,
+    _build_cluster_overlap_view,
+    disconnection_map_content_for,
     overlap_map_content_for,
     representative_subject_content_for,
 )

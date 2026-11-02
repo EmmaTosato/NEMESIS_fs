@@ -9,7 +9,6 @@ pipelines read, never re-parsed by hand here.
 from __future__ import annotations
 
 import io
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -22,21 +21,11 @@ from dash.exceptions import PreventUpdate
 from nilearn import plotting as nilearn_plotting
 from nilearn.plotting.html_stat_map import StatMapView
 
-from src.analysis.anatomical_maps import (
-    BinaryMaskStore,
-    DiscoveredFiles,
-    build_mean_map,
-    build_overlap_map,
-    resolve_available_lesion_paths,
-    resolve_lesion_paths,
-)
-from src.analysis.embedding_app.blocks import _missing_subjects_warning, _warning_box
-from src.analysis.embedding_app.embedding_view import cluster_centroids_with_nearest_subject
+from src.analysis.anatomical_maps import resolve_lesion_paths
+from src.analysis.embedding_app.blocks import _warning_box
 from src.analysis.embedding_app.picker import UNSET
-from src.analysis.embedding_app.runs import ProductionRun, load_cluster_space, run_metadata
+from src.analysis.embedding_app.runs import ProductionRun, run_metadata
 from src.analysis.embedding_app.style import _FONT_STACK, _TEXT_COLOR
-from src.analysis.embedding_coloring import COLOR_MODES
-from src.utils.number_format import format_number
 
 if TYPE_CHECKING:  # importing it for real would close the loop context -> this module
     from src.analysis.embedding_app.context import AppContext
@@ -223,8 +212,9 @@ def _static_png_bytes(stat_map_img: str | nib.Nifti1Image, *, threshold: float, 
     """Non-interactive PNG counterpart to the "Salva HTML" download (11-09-26, on request) -
     view_img's own HTML page has no static-image export, so this renders the same stat_map_img
     a second time via nilearn.plotting.plot_stat_map instead, matching the interactive view's own
-    bg_img/threshold/cmap/colorbar choices (see _build_subject_lesion_view/
-    _build_cluster_overlap_view) rather than an independently-styled second rendering.
+    bg_img/threshold/cmap/colorbar choices (see _build_subject_lesion_view here, and
+    panels/cluster_maps.py's _build_cluster_overlap_view for the per-cluster one) rather than an
+    independently-styled second rendering.
     symmetric_cbar=False mirrors view_img's own symmetric_cmap=False: both maps this app ever
     passes here are non-negative (a binary lesion mask, or a 0-100% overlap percentage), so
     nilearn's "auto" guess is unnecessary to rely on. No bg_img passed - unlike view_img,
@@ -337,51 +327,6 @@ def lesion_viewer_content_for(
     return _anatomy_viewer(view, f"{subject_id} ({dataset})", "Colored area = Lesion")
 
 
-def _build_cluster_overlap_view(
-    run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig,
-    mask_store: BinaryMaskStore | None = None, discovered: DiscoveredFiles | None = None,
-    width_view: int = _ANATOMY_VIEWER_WIDTH,
-) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
-    """Returns (view, n_subjects, percentage_img, missing_subjects) - n_subjects is needed by
-    the caller to build its own heading (title=None here, same reasoning as
-    _build_subject_lesion_view); percentage_img (the same image the view itself renders) is
-    returned alongside it (11-09-26) so the "Salva PNG" download can reuse it rather than paying
-    build_overlap_map's per-subject load+resample cost a second time. colorbar stays on (unlike
-    the subject viewer): the overlap percentage is a genuinely continuous, informative value.
-
-    missing_subjects (29-09-26, on request) lists cluster members whose lesion mask isn't
-    resolvable on disk right now (resolve_available_lesion_paths) - excluded from the map
-    instead of failing the whole panel over them (a real, already-documented local data gap,
-    e.g. after a lesion-mask swap left some subjects' raw files no longer retrieved on this
-    machine - .claude/history/data_changelog.md 23-09-26). n_subjects counts only the resolved
-    subjects actually used - the same denominator build_overlap_map's percentage is computed
-    against, never the cluster's full nominal size.
-
-    Raises ValueError if cluster_label has no subjects in this run's metadata, or if EVERY one
-    of them is unresolvable (see resolve_available_lesion_paths/build_overlap_map) - a map with
-    zero subjects behind it is not a legitimate partial result. threshold is a near-zero epsilon
-    (not lesion_cfg.binarize_threshold, which binarizes each individual subject's mask before
-    counting - see build_overlap_map) so every voxel with any real overlap (>0%) is shown, not
-    just voxels above some display-only cutoff."""
-    column = COLOR_MODES["cluster_label"].column
-    cluster_metadata = metadata.loc[metadata[column] == cluster_label]
-    if cluster_metadata.empty:
-        raise ValueError(f"no subjects with {column}={cluster_label!r} in this run's metadata")
-    dataset_by_subject = dict(zip(cluster_metadata["subject_id"], cluster_metadata["dataset"]))
-    lesion_paths, missing_subjects = resolve_available_lesion_paths(
-        list(dataset_by_subject), dataset_by_subject, lesion_cfg.data_root, lesion_cfg.lesion_glob, discovered
-    )
-    _count_img, percentage_img = build_overlap_map(
-        lesion_paths, lesion_cfg.reference_img, lesion_cfg.binarize_threshold, lesion_cfg.resample_interpolation,
-        store=mask_store,
-    )
-    view = nilearn_plotting.view_img(
-        percentage_img, bg_img="MNI152", black_bg=False, threshold=1e-6, cmap="hot", symmetric_cmap=False, title=None,
-        width_view=width_view,
-    )
-    return view, len(lesion_paths), percentage_img, missing_subjects
-
-
 def _map_texts(modality: str, map_mode: str = DISCONNECTION_PERCENT_MODE) -> tuple[str, str | None]:
     """(caption, note) of a cluster map: what its colour means, and for a disconnection map why it is built that way.
     One wording for the panel of a cluster, the overview of every cluster and the walk down the tree, so the maps read
@@ -401,35 +346,6 @@ def _map_texts(modality: str, map_mode: str = DISCONNECTION_PERCENT_MODE) -> tup
             "The mean tells how strong the disconnection is.",
         )
     raise ValueError(f"unknown disconnection map mode {map_mode!r} - known: {sorted(DISCONNECTION_MAP_MODE_LABELS)}")
-
-
-def overlap_map_content_for(
-    run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, lesion_cfg: LesionViewerConfig,
-    build_view: Callable[
-        [ProductionRun, pd.DataFrame, int, LesionViewerConfig], tuple[StatMapView, int, nib.Nifti1Image, list[str]]
-    ] = _build_cluster_overlap_view,
-) -> html.Div | html.P:
-    """Same never-raises contract as lesion_viewer_content_for - a cluster with zero resolvable
-    subjects shows a status message in the panel, not a crashed callback. A cluster with *some*
-    (not all) unresolvable subjects instead renders the map over its available subjects, with an
-    extra warning line naming which ones were excluded (_missing_subjects_warning) - never a
-    silent partial result.
-
-    build_view defaults to the always-fresh _build_cluster_overlap_view (what every test calls
-    this with) - build_app passes its own cached wrapper instead (01-09-26 perf fix: measured
-    ~40ms/subject, dominating the whole panel's response time for a real several-hundred-subject
-    cluster - see anatomical_maps.build_overlap_map's own docstring), so switching back to an
-    already-viewed cluster in the running app is instant, without this function itself needing
-    to know anything about caching."""
-    try:
-        view, n_subjects, _percentage_img, missing_subjects = build_view(run, metadata, cluster_label, lesion_cfg)
-    except ValueError as exc:
-        return html.P(str(exc), className="status-message")
-    return _anatomy_viewer(
-        view, f"Cluster {cluster_label} (n={n_subjects})",
-        "Color = % of subjects in the cluster with a lesion in that voxel (0-100%)",
-        warning=_missing_subjects_warning(missing_subjects),
-    )
 
 
 def _build_subject_disconnectome_view(
@@ -469,134 +385,6 @@ def disconnectome_viewer_content_for(
     except ValueError as exc:
         return html.P(str(exc), className="status-message")
     return _anatomy_viewer(view, f"{subject_id} ({dataset})", "Color = disconnection probability per voxel (0-1)")
-
-
-def _build_cluster_disconnection_view(
-    run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig,
-    map_mode: str = DEFAULT_DISCONNECTION_MAP_MODE, mask_store: BinaryMaskStore | None = None,
-    discovered: DiscoveredFiles | None = None, width_view: int = _ANATOMY_VIEWER_WIDTH,
-) -> tuple[StatMapView, int, nib.Nifti1Image, list[str]]:
-    """Returns (view, n_subjects, mean_img, missing_subjects) - same reasoning as
-    _build_cluster_overlap_view (including missing_subjects - see its own docstring), but the
-    continuous-data counterpart: build_mean_map's voxelwise mean instead of build_overlap_map's
-    binarized count/percentage (there is no "binarize each subject then count" step for a value
-    that's already a continuous probability, see build_mean_map's own docstring). mean_img is
-    returned alongside the view (same reasoning as percentage_img above) so the "Salva PNG"
-    download can reuse it rather than paying build_mean_map's per-subject load+resample cost a
-    second time.
-
-    map_mode (30-09-26, on request):
-
-    - "percent" (default) binarizes each subject's disconnectome at
-      DISCONNECTION_PROBABILITY_THRESHOLD and counts, via the SAME build_overlap_map the lesion
-      panel uses - so the two maps become the same quantity, "% of the cluster's subjects
-      affected in this voxel", and are directly comparable. Displayed with the same near-zero
-      display threshold as the lesion overlap map, for the same reason.
-    - "mean" is the previous behaviour, build_mean_map's voxelwise mean of the continuous
-      probabilities. It uses the full information instead of discarding it at a cutoff, so it
-      still sees widespread sub-threshold disconnection that "percent" shows as empty - but it
-      is NOT a proportion of subjects (see the constants above).
-
-    Raises ValueError for an unknown map_mode, if cluster_label has no subjects in this run's
-    metadata, or if EVERY one of them is unresolvable (see resolve_available_lesion_paths)."""
-    if map_mode not in DISCONNECTION_MAP_MODE_LABELS:
-        raise ValueError(
-            f"unknown disconnection map mode {map_mode!r} - known: {sorted(DISCONNECTION_MAP_MODE_LABELS)}"
-        )
-    column = COLOR_MODES["cluster_label"].column
-    cluster_metadata = metadata.loc[metadata[column] == cluster_label]
-    if cluster_metadata.empty:
-        raise ValueError(f"no subjects with {column}={cluster_label!r} in this run's metadata")
-    dataset_by_subject = dict(zip(cluster_metadata["subject_id"], cluster_metadata["dataset"]))
-    disconnectome_paths, missing_subjects = resolve_available_lesion_paths(
-        list(dataset_by_subject), dataset_by_subject, sdc_cfg.data_root, sdc_cfg.disconnectome_glob, discovered
-    )
-    if map_mode == DISCONNECTION_PERCENT_MODE:
-        _count_img, img = build_overlap_map(
-            disconnectome_paths, sdc_cfg.reference_img,
-            DISCONNECTION_PROBABILITY_THRESHOLD, sdc_cfg.resample_interpolation, store=mask_store,
-        )
-        display_threshold = 1e-6  # any non-zero voxel, exactly as the lesion overlap map
-        view_source = img
-    else:
-        img = build_mean_map(disconnectome_paths, sdc_cfg.reference_img, sdc_cfg.resample_interpolation)
-        # threshold=1e-6 below, not _DISCONNECTOME_DISPLAY_THRESHOLD directly - see
-        # _masked_for_view_colorbar's own docstring (avoids view_img's gray sub-threshold band).
-        view_source = _masked_for_view_colorbar(img, _DISCONNECTOME_DISPLAY_THRESHOLD)
-        display_threshold = 1e-6
-    # The colormap stays magma in both modes: it encodes WHICH DATA this is (disconnection,
-    # not lesion), a cue the app uses everywhere, while the scale is what now matches the
-    # lesion map in "percent".
-    view = nilearn_plotting.view_img(
-        view_source, bg_img="MNI152", black_bg=False, threshold=display_threshold,
-        cmap=_DISCONNECTOME_CMAP, symmetric_cmap=False, title=None, width_view=width_view,
-    )
-    return view, len(disconnectome_paths), img, missing_subjects
-
-
-def disconnection_map_content_for(
-    run: ProductionRun, metadata: pd.DataFrame, cluster_label: int, sdc_cfg: SdcViewerConfig,
-    build_view: Callable[
-        ..., tuple[StatMapView, int, nib.Nifti1Image, list[str]]
-    ] = _build_cluster_disconnection_view,
-    map_mode: str = DEFAULT_DISCONNECTION_MAP_MODE,
-) -> html.Div | html.P:
-    """Same never-raises contract as overlap_map_content_for (including the same skip-and-warn
-    behavior for a cluster with *some* unresolvable subjects, _missing_subjects_warning) - a
-    cluster with zero resolvable subjects shows a status message in the panel, not a crashed
-    callback.
-
-    build_view defaults to the always-fresh _build_cluster_disconnection_view (what every test
-    calls this with) - build_app passes its own cached wrapper instead, same perf reasoning as
-    overlap_map_content_for's own cache (per-subject load+resample dominates the panel's response
-    time for a real several-hundred-subject cluster)."""
-    try:
-        view, n_subjects, _img, missing_subjects = build_view(run, metadata, cluster_label, sdc_cfg, map_mode)
-    except ValueError as exc:
-        return html.P(str(exc), className="status-message")
-    # The caption states the threshold in "percent" mode: the map's whole meaning depends on
-    # it, so it must never be read without it.
-    caption, note = _map_texts("sdc", map_mode)
-    return _anatomy_viewer(
-        view, f"Cluster {cluster_label} (n={n_subjects})", caption,
-        warning=_missing_subjects_warning(missing_subjects), note=note,
-    )
-
-
-def representative_subject_content_for(
-    run: ProductionRun, embedding: np.ndarray, metadata: pd.DataFrame, cluster_label: int,
-    lesion_cfg: LesionViewerConfig, sdc_cfg: SdcViewerConfig,
-) -> html.Div | html.P:
-    """Panel "Soggetto rappresentativo del cluster" (29-09-26, on request), shown after the
-    two per-cluster map panels: the real subject closest to `cluster_label`'s centroid in the
-    embedding space (cluster_centroids_with_nearest_subject) - a centroid is a mean point, not
-    a real subject, this shows the closest real one instead. Dispatches to the lesion or SDC
-    disconnectome viewer by `run.modality`.
-
-    Same never-raises contract as every other *_content_for function here: an empty/
-    unresolvable cluster, or a representative subject whose file can't be resolved on disk,
-    renders an html.P status message instead of crashing the callback."""
-    try:
-        centroids = cluster_centroids_with_nearest_subject(embedding, metadata, load_cluster_space(run))
-    except ValueError as exc:
-        return html.P(str(exc), className="status-message")
-    if cluster_label not in centroids.index:
-        column = COLOR_MODES["cluster_label"].column
-        return html.P(f"no subjects with {column}={cluster_label!r} in this run's metadata", className="status-message")
-    subject_id = centroids.loc[cluster_label, "nearest_subject_id"]
-    distance = centroids.loc[cluster_label, "distance_to_centroid"]
-
-    try:
-        if run.modality == "lesion":
-            view, dataset = _build_subject_lesion_view(run, subject_id, metadata, lesion_cfg)
-        else:
-            view, dataset = _build_subject_disconnectome_view(run, subject_id, metadata, sdc_cfg)
-    except ValueError as exc:
-        return html.P(str(exc), className="status-message")
-    return _anatomy_viewer(
-        view, f"Cluster {cluster_label} — representative: {subject_id} ({dataset})",
-        f"Real subject closest to the cluster centroid in the clustering space (distance={format_number(distance, 3)})",
-    )
 
 
 # What each anatomy panel shows before a point has been clicked: the panels exist from the
@@ -795,3 +583,70 @@ def register_callbacks(app: Dash, context: AppContext) -> None:
             colorbar=True, alpha=_DISCONNECTOME_GLASS_BRAIN_ALPHA,
         )
         return dcc.send_bytes(png_bytes, filename=f"{subject_id}_disconnectome_glass.png")
+
+def lesion_panel() -> html.Div:
+    """The panel as it sits in the page. build_app places it; the callbacks above fill it."""
+    return html.Div(
+        id="lesion-panel",
+        className="anatomy-panel",
+        children=[
+            html.H2("Lesion anatomy", className="section-heading"),
+            html.Div(id="lesion-viewer-content", children=_LESION_PLACEHOLDER),
+            # Single source of truth for "which subject is actually visible in the panel
+            # above right now" (01-09-26 bug fix) - set atomically with
+            # lesion-viewer-content.children by the same callback below, never derived
+            # separately from embedding-graph.clickData again downstream. clickData is a
+            # client-side prop that does NOT reset just because a *different* dcc.Graph
+            # instance with the same id gets mounted in its place (switching run-picker
+            # replaces graph-area's children, but React/Dash patches the same-id node
+            # rather than remounting it) - the Save buttons below used to read clickData
+            # directly via State, so after a run change they kept silently offering a
+            # download for the *previous* run's clicked subject even though this panel
+            # had already reset to the placeholder, with no visible link between what was
+            # shown and what got downloaded. None whenever the panel shows the placeholder
+            # or an unresolvable-subject error, so a stale/absent selection can never be
+            # downloaded regardless of what embedding-graph.clickData still holds.
+            dcc.Store(id="lesion-viewer-subject", data=None),
+            html.Div(
+                className="save-btn-row",
+                children=[
+                    html.Button("Save HTML", id="lesion-save-btn", n_clicks=0, className="save-btn"),
+                    html.Button("Save PNG", id="lesion-png-btn", n_clicks=0, className="save-btn"),
+                    html.Button(
+                        "Save PNG (glass brain)", id="lesion-glass-png-btn", n_clicks=0, className="save-btn"
+                    ),
+                ],
+            ),
+            dcc.Download(id="lesion-download"),
+            dcc.Download(id="lesion-png-download"),
+            dcc.Download(id="lesion-glass-png-download"),
+        ],
+    )
+
+def disconnectome_panel() -> html.Div:
+    """The panel as it sits in the page. build_app places it; the callbacks above fill it."""
+    return html.Div(
+        id="disconnectome-panel",
+        className="anatomy-panel",
+        style={"display": "none"},
+        children=[
+            html.H2("Disconnection (SDC)", className="section-heading"),
+            html.Div(id="disconnectome-viewer-content", children=_DISCONNECTOME_PLACEHOLDER),
+            # Same clickData-persistence fix as lesion-viewer-subject above, same reasoning.
+            dcc.Store(id="disconnectome-viewer-subject", data=None),
+            html.Div(
+                className="save-btn-row",
+                children=[
+                    html.Button("Save HTML", id="disconnectome-save-btn", n_clicks=0, className="save-btn"),
+                    html.Button("Save PNG", id="disconnectome-png-btn", n_clicks=0, className="save-btn"),
+                    html.Button(
+                        "Save PNG (glass brain)", id="disconnectome-glass-png-btn", n_clicks=0,
+                        className="save-btn",
+                    ),
+                ],
+            ),
+            dcc.Download(id="disconnectome-download"),
+            dcc.Download(id="disconnectome-png-download"),
+            dcc.Download(id="disconnectome-glass-png-download"),
+        ],
+    )

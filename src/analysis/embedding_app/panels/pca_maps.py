@@ -25,7 +25,7 @@ from nilearn.plotting.html_stat_map import StatMapView
 from src.analysis.component_map_plots import build_reproducibility_figure
 from src.analysis.component_maps import ComponentMapSet, ComponentMapStore, MapGeometry, load_map_geometry, to_volume
 from src.analysis.embedding_app.anatomy import _ANATOMY_VIEWER_WIDTH, _anatomy_viewer, _masked_for_view_colorbar
-from src.analysis.embedding_app.blocks import _warning_box
+from src.analysis.embedding_app.blocks import BACKGROUND_POLL_MS, _warning_box
 from src.analysis.embedding_app.picker import UNSET
 from src.analysis.embedding_app.runs import ProductionRun, _matrix_shape, run_metadata
 from src.analysis.embedding_app.style import _italian_figure
@@ -203,3 +203,24 @@ def register_callbacks(app: Dash, context: AppContext) -> None:
             raise PreventUpdate
         content, pending = component_maps_content_for(run, component, context.component_maps, context.component_view)
         return content, not pending
+
+def layout() -> html.Div:
+    """The panel as it sits in the page. build_app places it; the callbacks above fill it."""
+    return html.Div(
+        id="pca-map-panel",
+        className="anatomy-panel",
+        style={"display": "none"},
+        children=[
+            html.H2("Component maps", className="section-heading"),
+            html.Div(
+                className="cluster-chooser",
+                children=[
+                    html.Label("Component", className="picker-label"),
+                    dcc.Dropdown(id="pca-component-picker", clearable=False),
+                ],
+            ),
+            html.Div(id="pca-map-content"),
+            # Enabled only while the maps are being computed in the background.
+            dcc.Interval(id="pca-map-poll", interval=BACKGROUND_POLL_MS, disabled=True),
+        ],
+    )

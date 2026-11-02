@@ -28,7 +28,7 @@ from src.analysis.clustering_evaluation import (
     run_metric,
     soft_membership_summary,
 )
-from src.analysis.embedding_app.blocks import _table
+from src.analysis.embedding_app.blocks import BACKGROUND_POLL_MS, _table
 from src.analysis.embedding_app.picker import UNSET
 from src.analysis.embedding_app.runs import ProductionRun, _matrix_shape, run_metadata, run_params
 from src.analysis.embedding_app.style import _italian_figure
@@ -91,8 +91,6 @@ def run_soft_membership(run: ProductionRun) -> SoftMembership:
     return soft_membership_summary(metadata["cluster_label"].to_numpy(), extra_arrays["membership"])
 
 
-# How often the panel looks again at a background computation (milliseconds).
-_QUALITY_POLL_MS = 5000
 
 # Neighbours counted by the purity of an adp run.
 ADP_K_NEIGHBORS = 10
@@ -548,3 +546,17 @@ def register_callbacks(app: Dash, context: AppContext) -> None:
             content, pending = adp_quality_content_for(run, summary_of=context.adp_summary)
             return content, not pending
         return cluster_quality_content_for(run, silhouette_of=context.silhouette, soft_of=context.soft_membership), True
+
+def layout() -> html.Div:
+    """The panel as it sits in the page. build_app places it; the callbacks above fill it."""
+    return html.Div(
+        id="cluster-quality-panel",
+        className="anatomy-panel",
+        style={"display": "none"},
+        children=[
+            html.H2("Clustering evaluation", className="section-heading"),
+            html.Div(id="cluster-quality-content"),
+            # Enabled only while an adp run's distance matrix is being computed in the background.
+            dcc.Interval(id="cluster-quality-poll", interval=BACKGROUND_POLL_MS, disabled=True),
+        ],
+    )

@@ -10,7 +10,7 @@ from dash import dcc, html
 
 from src.analysis.embedding_app import build_app
 from src.analysis.embedding_app.panels.overview import ALL_CLUSTERS, all_clusters_content_for
-from src.analysis.embedding_app.anatomy import _build_cluster_disconnection_view, _build_cluster_overlap_view
+from src.analysis.embedding_app.panels.cluster_maps import _build_cluster_disconnection_view, _build_cluster_overlap_view
 from src.analysis.embedding_app.runs import ProductionRun, run_metadata
 from src.analysis.embedding_app.style import CSS
 from tests.unit.test_embedding_app import (

@@ -1,5 +1,6 @@
 """The small page blocks more than one panel is built from: a warning callout, the
-sentence for subjects left out of a map, and a table of numbers.
+sentence for subjects left out of a map, a table of numbers, and how often a panel waiting on
+a background computation asks again.
 
 They carry the wording and the CSS classes, so the same situation reads the same way
 wherever it comes up. Anything only one panel uses lives with that panel instead.
@@ -51,3 +52,7 @@ def _table(headers: list[str], rows: list[list], text_columns: tuple[int, ...] =
         className="stats-table comparison-table",
     )
     return html.Div(table, className="stats-table-wrap comparison-table-wrap")
+
+
+# How often the panel looks again at a background computation (milliseconds).
+BACKGROUND_POLL_MS = 5000

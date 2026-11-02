@@ -37,6 +37,8 @@ from src.analysis.embedding_app.anatomy import (
     _ANATOMY_VIEWER_WIDTH,
     LesionViewerConfig,
     SdcViewerConfig,
+)
+from src.analysis.embedding_app.panels.cluster_maps import (
     _build_cluster_disconnection_view,
     _build_cluster_overlap_view,
 )

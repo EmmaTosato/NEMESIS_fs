@@ -170,3 +170,28 @@ def register_callbacks(app: Dash, context: AppContext) -> None:
             return _index_links(index_entries_for(None, TAB_EMBEDDING))
         run = context.runs_by_key[run_key]
         return _index_links(index_entries_for(run, active_page_tab(run, selected_tab)))
+
+def page_index() -> html.Div:
+    """The panel as it sits in the page. build_app places it; the callbacks above fill it."""
+    return html.Details(
+        id="page-index",
+        className="page-index",
+        children=[
+            html.Summary("Index"),
+            html.Nav(id="page-index-links", children=_index_links(index_entries_for(None, TAB_EMBEDDING))),
+        ],
+    )
+
+def tab_bar() -> html.Div:
+    """The panel as it sits in the page. build_app places it; the callbacks above fill it."""
+    return html.Div(
+        id="page-tab-bar",
+        className="tab-bar",
+        children=[
+            html.Button(
+                label, id={"type": "page-tab-btn", "tab": name}, n_clicks=0,
+                className="tab-btn active" if name == TAB_EMBEDDING else "tab-btn",
+            )
+            for name, label in PAGE_TAB_LABELS.items()
+        ],
+    )
