@@ -78,7 +78,7 @@ Il docstring della classe elenca anche `cluster_selection_persistence`, `cluster
 
 Come è calcolata (pagina *How Soft Clustering Works*):
 - **Parte basata sulla distanza**: per ogni cluster, l'inverso della distanza minima dagli *exemplars* del cluster, normalizzato a somma 1.
-- **Parte basata sull'outlier** (derivata da GLOSH): per ogni cluster, il punteggio `λ_max / (λ_max − altezza di fusione)`, normalizzato.
+- **Parte basata sull'outlier** (derivata da GLOSH): per ogni cluster, il punteggio `λ_max / (λ_max − altezza di fusione)`, normalizzato. È la formula della documentazione: il codice 0.8.44 calcola altro (vedi la discrepanza al §3 di `clustering_methods/hdbscan.md`).
 - **Combinazione**: le due distribuzioni si combinano con Bayes, `(distanza × outlier) / somma`. Dà una probabilità *condizionata* a stare in un cluster, che somma a 1.
 - **Probabilità non condizionata**: il vettore si moltiplica per `P(il punto è in qualche cluster) = altezza massima di fusione / λ_max del cluster più vicino`. Per questo **le righe non sommano a 1**: i punti rumore hanno probabilità bassa su tutti i cluster, e la parte mancante è la probabilità di essere rumore.
 

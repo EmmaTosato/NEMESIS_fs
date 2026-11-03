@@ -25,8 +25,21 @@ Tre strati: i moduli trasversali (`runs.py` scoperta e lettura delle run, `picke
 - Due regole non ovvie, in `docs/dev/embedding_app.md`: `AppContext` si importa sotto `TYPE_CHECKING` (altrimenti `context → anatomy → panel → context`), e `ctx` in un callback è sempre il contesto di Dash, mai quello dell'app.
 - La sezione «Confronto» parcheggiata (`code_standards.md` §2) è in `panels/comparison.py` e `panels/cluster_pair.py`, non montata.
 - `tests/unit/embedding_app_contract.py` si rigenera da sé (`PYTHONPATH=. python -m tests.unit.embedding_app_contract`) e `test_embedding_app_contract.py` lo confronta: un `id` o un callback che cambia senza intenzione fa rosso. Il terzo test non è un dato fissato ma l'invariante che `suppress_callback_exceptions` nasconde — ogni componente scritto da un callback esiste nel layout.
-- Il criterio «nessuna funzione sopra le ~150 righe» del piano **non è soddisfatto**: `build_app` è 358, `panels/cluster_maps.py::register_callbacks` 266 e `anatomy.py::register_callbacks` 188 (i singoli callback dentro i due `register_callbacks` sono 12 e 9, nessuno sopra le 30: è la lista delle registrazioni a essere lunga, non il lavoro di una funzione). Nel repo le funzioni sopra le 30 righe passano da 211/960 a 225/991 e quelle sopra le 200 da 2 a 3: lo split ha abbassato il massimo (1543 → 358), non il conteggio.
+- Il criterio «nessuna funzione sopra le ~150 righe» del piano **non è soddisfatto**: `build_app` è 358, `panels/cluster_maps.py::register_callbacks` 266 e `anatomy.py::register_callbacks` 188 (i singoli callback dentro i due `register_callbacks` sono 12 e 9, nessuno sopra le 30: è la lista delle registrazioni a essere lunga, non il lavoro di una funzione). Nel repo le funzioni sopra le 30 righe passano da 211/960 a 225/991 e quelle sopra le 200 da 2 a 3: lo split ha abbassato il massimo (1543 → 358), non il conteggio. **Il criterio è stato ritirato dall'utente il 03-11-26**: la soglia non è ~150 righe ma 800-1000, quindi nessuna funzione del repo la supera (la più lunga è `build_app`, 358) e `build_app` resta com'è. Le tre estrazioni proposte (controlli → `picker.py`, corpi delle schede → `tabs.py`, `_preload_stores` → un nuovo `preload.py`, da 358 a ~141 righe) non vanno fatte.
 - Suite: 5822 passed, 17 skipped; 392 test nei file dell'app.
+
+## 02-11-26 — `docs/experiments/` e `docs/debugging/` come registri cronologici; pagina dei moduli ritirati; pulizia di `.claude/`
+
+**Cosa è cambiato**: tre decisioni dell'ultimo blocco dell'audit di fase 1.
+- **Regola del presente**: vale per `docs/guides/`, `docs/dev/` e `README.md`. `docs/experiments/` e `docs/debugging/` sono registri cronologici per sessione e possono raccontare il passato. Scritto in `docs/README.md` e in `.claude/CLAUDE.md`.
+- **Moduli ritirati nei report di debug**: una sola pagina, `docs/debugging/README.md` (cosa è stato ritirato, quando, in che commit, quali report ne parlano), invece di una riga in testa a ognuno dei report. Nei report del 17-08 e del 22-08 le sezioni superate sono segnate «Superato» e il cambiamento successivo sta in righe «Stato attuale».
+- **`AUDIT_FINDINGS.md`**: era il nome di `docs/debugging/debug_17_08_26.md`; i 45 rimandi in commenti e docstring di `src/` e `tests/` (26 file) ora puntano al file vero. Cambiati solo commenti.
+- **`.claude/audit/`** è nella struttura di `.claude/CLAUDE.md` (cosa contiene, a che punto sono le due fasi); `skills/` e `settings.local.json` restano fuori.
+- **`.claude/`**: cancellato `scheduled_tasks.lock` (processo morto dal 3 settembre) e svuotato `permissions.allow` di `settings.local.json` (un `ls` una tantum e un `Read` su un percorso del cluster che qui non esiste).
+
+**Scartato**: una riga «Moduli ritirati dopo questa data» in testa a ciascuno dei ~14 report (ripete la stessa informazione in 14 posti); registrare la silhouette di HDBSCAN come valutazione per non ricalcolarla (lavoro sul codice, non una correzione di testo).
+
+**Conseguenza ancora vera oggi**: un agente che applica «il passato solo in `debugging/`» a `experiments/` sbaglia; la cronologia di quella cartella è voluta.
 
 ## 29-10-26 — Embedding Explorer: il pannello "Clustering evaluation" legge i numeri salvati dalla produzione
 
@@ -191,7 +204,7 @@ Ancora vero: la valutazione richiede che la griglia spazzi `linkage` e `metric` 
 
 ## 26-10-26 — Backup dei prodotti del flusso vecchio di clustering: da scratchpad a `results/legacy/`
 
-Il 23-10-26 i prodotti dei flussi vecchi erano stati tolti da `results/` e tenuti in una cartella temporanea della sessione. Copiati il 26-10-26 in `results/legacy/clustering_prodotti_flusso_vecchio_26-10-26/` (88 MB, gitignored come tutto `results/`); conteggi dei file uguali tra origine e copia, `diff -rq` pulito su `old_products_stale`. Ogni sottocartella riproduce l'albero di `results/` (`lesion|sdc/clustering/...`), quindi si ripristina con una `cp -R`.
+Il 23-10-26 i prodotti dei flussi vecchi erano stati tolti da `results/` e tenuti in una cartella temporanea della sessione. Copiati il 26-10-26 in `results/legacy/clustering_prodotti_flusso_vecchio_26-10-26/` (95 MB al 02-11-26; gitignored come tutto `results/`); conteggi dei file uguali tra origine e copia, `diff -rq` pulito su `old_products_stale`. Ogni sottocartella riproduce l'albero di `results/` (`lesion|sdc/clustering/...`), quindi si ripristina con una `cp -R`.
 
 | Cartella | File | Cosa contiene |
 |---|---|---|
@@ -199,9 +212,11 @@ Il 23-10-26 i prodotti dei flussi vecchi erano stati tolti da `results/` e tenut
 | `old_products_reports` | 16 | `report.md` precedenti di agglomerative |
 | `old_products_reports_2` | 16 | altri 16 `report.md` precedenti (copiati il 27-10-26 dalla cartella temporanea di una sessione precedente) |
 | `old_products_labels2d` | 28 | `labels_2d_*`, `labels2d_*`, `view2d_*` (voce 23-10-26 sulle etichette 2D) |
+| `old_interclass` | 28 | gli `interclass_distance_matrix.png` della matrice interclasse tolta (voce sulla matrice interclasse, più sopra) |
+| `old_membership_share` | 32 | i `tuning_results.csv` e `density_metrics.csv` di `hdbscan_soft` con la colonna `membership_share_below_half`, tolta il 22-10-26 (voce «Colonna `membership_share_below_half` tolta», più sopra) |
 | `old_products_stale` | 174 | 89 prodotti d'analisi in 4 cartelle di tuning di agglomerative (`composition_*` 54, `tracts_*` 15, `interclass_*` 6, `nb_*`, `dendrograms_*`, altri) e 85 `silhouette_plot.png` di run di produzione di `hdbscan`/`hdbscan_soft` |
 
-Il numero «153 file» ricordato a fine sessione non torna con il disco: i file di `old_products_stale` sono 174 (89 + 85).
+L'albero ha sette sottocartelle, tutte descritte nella tabella. Il numero «153 file» ricordato a fine sessione non torna con il disco: i file di `old_products_stale` sono 174 (89 + 85).
 
 Le due voci del 23-10-26 che citano «backup nello scratchpad della sessione» si riferiscono a questa cartella.
 
@@ -625,7 +640,7 @@ Scartata la seconda pagina: il Clustering Explorer ha circa 40 callback aggancia
 
 **Perché**: richiesta dell'utente. Le analisi nuove si provano nel notebook e, se servono, passano in `src/analysis/` con i test e poi nel pannello dell'app. L'ultima sezione del notebook elenca cosa è già nell'app e cosa è solo qui.
 
-**Conseguenza**: `config/pipelines/build_sdc_matrix.json` oggi è `streamline` e l'app richiede un config `voxelwise` per le mappe SDC (`src/pipeline/embedding_app.py` fallisce all'avvio altrimenti). Il notebook non dipende da quel file: dichiara la griglia SDC (2mm, `nearest`, la stessa delle matrici `s2.x-vol`) nella cella di configurazione.
+**Conseguenza (al 07-10-26)**: `config/pipelines/build_sdc_matrix.json` era `streamline` (oggi è `voxelwise`) e l'app richiede un config `voxelwise` per le mappe SDC (`src/pipeline/embedding_app.py` fallisce all'avvio altrimenti). Il notebook non dipende da quel file: dichiara la griglia SDC (2mm, `nearest`, la stessa delle matrici `s2.x-vol`) nella cella di configurazione.
 
 ## 07-10-26 — `clustering_evaluation.ipynb` diviso in evaluation (una run) e comparison (più run)
 
@@ -893,7 +908,7 @@ non richiede codice.
 
 **Decisione per il futuro**: si lavora su `main` di default; un branch nasce solo per un task specifico e viene mergeato/cancellato appena concluso — mai tenuto in vita come branch parallelo permanente. Vedi `.claude/branch_alignment.md`.
 
-**Conseguenza ancora vera oggi**: `main` locale e `origin/main` sono allineati (stesso commit). `backup-pre-split` è recuperabile da `068d2ff` (`git checkout -b backup-pre-split 068d2ff`) finché il reflog lo conserva.
+**Conseguenza vera al 23-09-26**: `main` locale e `origin/main` sono allineati (stesso commit). `backup-pre-split` era recuperabile da `068d2ff` (`git checkout -b backup-pre-split 068d2ff`) finché il reflog lo conservava; non più recuperabile (oggetto non nel repo).
 
 ---
 
@@ -903,7 +918,7 @@ Esplorazione di **niivue** come renderer alternativo ai pannelli di anatomia di 
 
 Chiuso senza adottare niivue e senza una valutazione conclusiva dei due renderer: l'esplorazione era ferma da tempo e teneva aperto un branch che nessuno stava portando avanti. `main` resta su nilearn.
 
-La punta era **`facef6f`**: `git checkout -b viz-niivue facef6f` lo ricrea finché il reflog lo conserva (~90 giorni). Lo SHA è annotato qui proprio perché un branch cancellato non compare in `git log`.
+La punta era **`facef6f`**: `git checkout -b viz-niivue facef6f` lo ricreava finché il reflog lo conservava (~90 giorni). Non più recuperabile (oggetto non nel repo). Lo SHA è annotato qui perché un branch cancellato non compare in `git log`.
 
 ---
 
@@ -1030,12 +1045,32 @@ Ricablati sul registro: `src/features/sdc.py` (`has_lesion` come criterio di amm
 
 **Alternativa scartata**: far ricalcolare la riduzione al volo dentro `clustering.py` stesso (un `embed()` interno). Scartata in sessione come troppo complessa da implementare bene subito — `clustering.py` non chiama mai `embed()`, in nessun ramo; `reduced_data` è puramente dichiarativo, mai un trigger di calcolo.
 
-**Conseguenza ancora vera oggi**: `src/pipeline/dim_reduction_clustering.py`, il suo config e il suo job non esistono più. La logica di viz a 2/3/>3 componenti (`_resolve_viz_embedding` in `clustering.py`, `embedding_for_viz` in `reduction.py`) e i campi `reduced_data`/`viz_embedding_path` sono documentati in `docs/dev/models.md`/`config.md`. I risultati storici sotto `results/lesion/dim_reduction_clustering/` restano un archivio del vecchio pipeline, non spostati.
+**Conseguenza ancora vera oggi**: `src/pipeline/dim_reduction_clustering.py`, il suo config e il suo job non esistono più. La logica di viz a 2/3/>3 componenti (`_resolve_viz_embedding` in `clustering.py`, `embedding_for_viz` in `reduction.py`) e i campi `reduced_data`/`viz_embedding_path` sono documentati in `docs/dev/models.md`/`config.md`. I risultati storici sotto `results/lesion/dim_reduction_clustering/` erano un archivio del vecchio pipeline; la cartella non c'è più sotto `results/`.
 
 ---
 
-## 2026-08 — Produzione e tuning separati in due rami sotto `output_root` (`dim_reduction.py`/`clustering.py`)
+## 08-26 — Produzione e tuning separati in due rami sotto `output_root` (`dim_reduction.py`/`clustering.py`)
 
 **Cosa è cambiato**: `results/lesion/dim_reduction/production/<metodo>/...` e `results/lesion/dim_reduction/tuning/<metodo>/...` (stesso schema per `clustering.py`) sono due rami separati sotto `output_root`, mai mescolati. Prima di questa riorganizzazione, `tuning/` viveva dentro la cartella del metodo (`<metodo>/tuning/...`).
 
 **Conseguenza ancora vera oggi**: risultati scritti prima di questa riorganizzazione possono trovarsi sul vecchio layout (`<metodo>/tuning/...`) invece che sotto un ramo `tuning/` di primo livello — chi ispeziona risultati storici più vecchi di questa riorganizzazione deve tenerlo a mente; i risultati nuovi seguono sempre lo schema a due rami.
+
+---
+
+## 2026-10-29 — Standard di test: quando una funzione del repo può essere sostituita (`code_standards.md` §4)
+
+**Cosa è cambiato**: la regola «mai mockare il codice sotto test» elenca ora i soli casi in cui un test può sostituire una funzione del repo, se non è il soggetto del test: spia che poi chiama la funzione vera, iniezione di un errore per provare il confine di errore del chiamante, dipendenza che nei test non può girare (il server Dash). Un ramo interno si raggiunge con dati che lo attivano, non sostituendo l'helper che lo sceglie.
+
+**Perché**: l'audit (C-024) segnalava ~13 sostituzioni; l'esame completo ne ha trovate 51, quasi tutte dei tre tipi sopra. Due violavano la regola in spirito (`_is_binary` in `test_distances.py`, `group_of` in `test_build_dataset_summary_table_paths.py`) e sono state riscritte senza sostituzioni.
+
+**Alternativa scartata**: lasciare la regola com'era e rivedere i test uno per uno senza scrivere i casi ammessi (il prossimo test dello stesso tipo avrebbe riaperto la domanda).
+
+---
+
+## 2026-10-29 — Eccezioni dichiarate: percorsi dei job, costanti di log/report, entry point senza job
+
+**Cosa è cambiato**: `code_standards.md` §5 ammette due eccezioni al «niente valori ambiente-dipendenti nel codice»: i percorsi del cluster dentro `jobs/*.sh`, e le costanti di modulo `LOGS_ROOT`/`REPORTS_ROOT`/`METADATA_ROOT` (`logs/<nome>/`, `summaries/<nome>/`, `assets/metadata`, relative alla radice del repo). `.claude/CLAUDE.md` dichiara che `embedding_app.py` (server interattivo) e `archive_local_raw_data.py` (dati locali) non hanno un job, e che `code_standards.md` vale anche per `scripts/`.
+
+**Perché**: i 18 job hanno gli stessi 4 percorsi del cluster e non sono verificabili in locale; i percorsi di log/report sono la struttura del repo, non cambiano da una macchina all'altra.
+
+**Alternative scartate**: parametrizzare i 18 job; spostare 24 campi in `config/pipelines/*.json` (campi mai variati, 15 moduli da toccare).

@@ -22,7 +22,7 @@ Questo studio analizza 97 pazienti con ictus cronico all'emisfero sinistro per c
 
 ## Risultati
 
-- **Lesion-Symptom Mapping:** Il danno all'area STG (z = 2.97) correla con ridotta comprensione, mentre il danno all'opercolo rolandico (z = -2.92 e -2.97) correla con ridotta produzione (Spontaneous Speech).
+- **Lesion-Symptom Mapping:** Il danno all'area STG (z = 2.97) correla con ridotta comprensione, mentre il danno al giro precentrale correla con una comprensione più alta (z = 3.09); il danno a due regioni frontali dell'opercolo rolandico (z = -2.92 e -2.97) correla con ridotta produzione (Spontaneous Speech).
 - **Connettività Strutturale:** L'integrità di 7 pathway strutturali ipsilesionali ha predetto i punteggi di comprensione (z = 3.81-4.40; in particolare tra superior temporal sulcus sinistro e middle temporal gyrus sinistro). 6 pathway (molti dei quali interemisferici) hanno predetto la produzione (z = 3.84-4.56). Nessun tratto intraemisferico destro era predittivo.
 - **rsFC controllata per volume lesionale:** 5 connessioni funzionali temporoparietali esclusive del ventral stream sinistro (es. inferior parietal gyrus - middle temporal gyrus) hanno predetto i punteggi di comprensione (z = 4.32-4.96). Nessuna connessione funzionale ha predetto significativamente la produzione.
 - **rsFC controllata per volume + connettività strutturale:** 4 delle connessioni temporoparietali precedenti sono rimaste predittori significativi (z = 4.29-4.64), dimostrando un contributo indipendente dalla disconnessione strutturale diretta.
@@ -116,6 +116,8 @@ Questo studio ha analizzato 65 pazienti cronici con ictus sottocorticale (32 con
 
 _EEG response varies with lesion location in patients with chronic stroke_
 
+_Da fonte non presente: il paper non è in `knowledge/papers/stroke_related/`, quindi i numeri di questa sintesi non sono verificabili sul repo._
+
 ## Riassunto brevissimo
 
 Questo studio ha valutato come le risposte elettroencefalografiche (EEG) durante compiti motori varino in base alla sede della lesione in 12 pazienti con ictus cronico, divisi in 3 gruppi: lesioni sopratentoriali che includono la corteccia motoria primaria M1 (SM1+), lesioni sopratentoriali che escludono M1 (SM1-), e lesioni sottotentoriali (INF). Attraverso l'analisi della desincronizzazione evento-correlata (ERD) e del coefficiente di lateralità (LC) in banda beta durante compiti motori (attivi e immaginati), è emerso che i pazienti SM1+ mostrano un LC negativo (maggiore attivazione compensatoria dell'emisfero contralesionale intatto), mentre i pazienti SM1- e INF (con M1 intatta) presentano un LC positivo simile a quello dei 12 controlli sani. La topografia EEG varia drasticamente: il gruppo INF ha mappe molto simili ai sani, SM1- mostra un'attivazione controlaterale ma più diffusa, e SM1+ ha un'attivazione fortemente sbilanciata verso l'emisfero ipsilaterale (sano), suggerendo che la neuroriabilitazione BCI debba sempre essere personalizzata in base alla posizione della lesione.
@@ -149,6 +151,8 @@ Questo studio ha valutato come le risposte elettroencefalografiche (EEG) durante
 # Jimenez-Marin et al. (2022)
 
 _Multimodal and multidomain lesion network mapping enhances prediction of sensorimotor behavior in stroke patients_
+
+_Da fonte non presente: il paper non è in `knowledge/papers/stroke_related/`, quindi i numeri di questa sintesi non sono verificabili sul repo._
 
 ## Riassunto brevissimo
 

@@ -1,6 +1,6 @@
 # Problemi aperti e cose da fare — NEMESIS
 
-Ultimo aggiornamento: 23-10-26 (lateralità tutta geometrica; guida del pannello «Clustering evaluation» da riscrivere).
+Ultimo aggiornamento: 30-10-26 (tipo di ictus nel pannello «Cluster description»; lateralità tutta geometrica; guida del pannello «Clustering evaluation» da riscrivere).
 
 Elenco vivo di ciò che è **aperto adesso**: problemi noti non risolti, decisioni non prese, lavori iniziati e non finiti. Una voce si cancella quando è chiusa — non si tiene lo storico qui.
 
@@ -31,7 +31,7 @@ Le 168 maschere `UNIPD/PSP` hanno valori tra 0 e 1 (multipli di 1/8) invece di s
 - *Forza della prova*: sul solo 9HPT, 5 dei 6 casi WashU informativi indicano l'etichetta. Se la maschera fosse quella giusta (quindi il test dovrebbe sbagliare), vedere questo risultato per caso — dato l'86% di accuratezza di base del test — ha probabilità ≈ 3×10⁻⁴ (assumendo indipendenza tra soggetti). È un'evidenza, non una conferma radiologica: nessuna T1 è stata guardata direttamente per questi 6.
 - *Segnale di contorno*: l'associazione con la manualità (mancini 31% vs destrimani 4% di disaccordo) è compatibile con un errore di lato commesso più facilmente su un soggetto codificato come mancino, non con un artefatto di scanner o di geometria (che non dovrebbe distinguere per manualità). Metodo e numeri completi in `.claude/history/methods_changelog.md` (06-10-26).
 
-**Decisione (A, 06-10-26): non si interviene sui dati.** `participants.csv` riporta per gli 11 il lato clinico (`lesion_side_source = "clinical"`, forzatura geometrica spenta — `geometric_override_datasets: []` in `config/pipelines/enrich_metadata.json`). Le maschere restano quelle che sono nelle matrici di produzione (lesione voxel-wise, SDC), comprese le 6 probabilmente capovolte: nessuna esclusione, nessuna correzione geometrica. Motivo: un'inferenza comportamentale, per quanto forte (p ≈ 3×10⁻⁴), non è una conferma diretta sull'immagine — correggere o escludere sulla base di un'inferenza sposterebbe il problema (rischio di agire sui soggetti sbagliati) senza risolverlo. Resta un limite noto, documentato qui, non un'azione sui dati.
+**Decisione (A, 06-10-26): non si interviene sui dati. Superata dalla decisione del 23-10-26 (lato geometrico per tutti, sezione «Lavori da fare») quando sarà implementata; fino ad allora vale.** `participants.csv` riporta per gli 11 il lato clinico (`lesion_side_source = "clinical"`, forzatura geometrica spenta — `geometric_override_datasets: []` in `config/pipelines/enrich_metadata.json`). Le maschere restano quelle che sono nelle matrici di produzione (lesione voxel-wise, SDC), comprese le 6 probabilmente capovolte: nessuna esclusione, nessuna correzione geometrica. Motivo: un'inferenza comportamentale, per quanto forte (p ≈ 3×10⁻⁴), non è una conferma diretta sull'immagine — correggere o escludere sulla base di un'inferenza sposterebbe il problema (rischio di agire sui soggetti sbagliati) senza risolverlo. Resta un limite noto, documentato qui, non un'azione sui dati.
 
 **Controlli sulle immagini (06-10-26)**: nelle immagini dei WashU la lesione nativa e la maschera MNI stanno dallo stesso lato, quindi la normalizzazione non inverte; nessuna proprietà degli header delle T1 native (orientamento, software, scanner) distingue gli 11 da 20 controlli concordi; il contrasto maschera/specchio sulla T1 non discrimina (controlli e disaccordi sovrapposti). Le maschere locali non sono le `manual_masks` del server: sono l'output SDC (1 mm), mentre il server ha le originali sul reticolo a 2 mm (circa un ottavo dei voxel).
 
@@ -63,7 +63,7 @@ Quota minima della lesione in una categoria per dirla "coinvolta" e per dirla "p
 
 ### Colonne `NIHSS_5a/5b` di UKLFR probabilmente scambiate
 
-Nel tsv UKLFR il braccio più deficitario corrisponde alla lesione **omolaterale** (75/75 sui soggetti con asimmetria: braccio "a" peggiore → lesione sinistra, "b" peggiore → destra), il contrario dello standard NIHSS (5a sinistro, 5b destro). Verificato solo per 5a/5b, non per 6a/6b. Nessun codice del repo usa questi item oggi (solo il `NIHSS` totale); conta se qualcuno li usa.
+Nel tsv UKLFR il braccio più deficitario corrisponde alla lesione **omolaterale** (82/82 sui soggetti con asimmetria: braccio "a" peggiore → lesione sinistra, "b" peggiore → destra), il contrario dello standard NIHSS (5a sinistro, 5b destro). Verificato solo per 5a/5b, non per 6a/6b. Nessun codice del repo usa questi item oggi (solo il `NIHSS` totale); conta se qualcuno li usa.
 
 ### `sub-STUKLFR0671`: maschera di lesione vuota oggi, 56.785 voxel quando è stata costruita la s2.2-vol
 
@@ -85,7 +85,7 @@ Decisione dell'utente (21-10-26): **non** rilanciare `mask_fc.py` per ora. Non �
 
 **Decisione (23-10-26, da implementare)**: `lesion_side` va calcolato per **tutti** i soggetti dalla maschera (indice di lateralità geometrico), senza conservare il lato clinico del tsv dove esiste. Oggi il registro tiene il valore clinico e usa quello geometrico solo per riempire le celle vuote (`lesion_side_from`, `lesion_side_source`).
 
-- **Perché**: una sola definizione per tutta la coorte, calcolata allo stesso modo ovunque. Il lato clinico esiste solo per ~1445 soggetti, ha un significato diverso (il `both` clinico non coincide con una maschera bilaterale) e per WashU è in disaccordo con la maschera in 11 soggetti su 162.
+- **Perché**: una sola definizione per tutta la coorte, calcolata allo stesso modo ovunque. Il lato clinico esiste solo per 1448 soggetti, ha un significato diverso (il `both` clinico non coincide con una maschera bilaterale) e per WashU è in disaccordo con la maschera in 11 soggetti su 162.
 - **Da fare**: togliere la precedenza al clinico in `enrich_metadata` (`lesion_side_from` scrive sempre, `geometric_override_datasets` e la distinzione `clinical`/`geometric` in `lesion_side_source` perdono senso), aggiornare `docs/guides/metadata.md`, `docs/dev/metadata.md` e `lesion_laterality.md`, rigenerare `participants.csv`.
 - **Legame con la voce WashU** (sopra): la decisione A («`participants.csv` riporta il lato clinico per gli 11») viene superata. Le 6 maschere probabilmente capovolte restano un limite noto: con il lato geometrico il `lesion_side` di quei soggetti segue la maschera, non l'etichetta clinica.
 - **Da decidere**: soglia per `both` sull'indice di lateralità (oggi non c'è un valore che riduca la differenza col `both` clinico, vedi `knowledge/notes/neuroimaging/lesion_laterality.md`).
@@ -105,7 +105,7 @@ Fatto (21-10-26): blocco `tuning_evaluations` nel config, registro in `src/analy
   - `k_curves` di agglomerative legge `silhouette` e `davies_bouldin` da `tuning_results.csv`: se `internal_metrics` li riscrive, i valori nuovi arrivano alle curve solo con `internal_metrics` dichiarata prima.
 - agglomerative: `dunn_index` e `largest_cluster_share` sono valutazioni del registro (23-10-26); la silhouette per cluster resta solo in produzione e nell'app, per scelta. Il report le legge: sono due colonne (`dunn`, `largest_cluster_share`) delle tabelle per linkage;
 - **Embedding Explorer, pannello «Clustering evaluation»: la guida «How to read these indices» (`_quality_guide` in `embedding_app.py`) descrive le metriche di oggi** (silhouette nelle tre sintesi, Calinski-Harabasz, Davies-Bouldin, Dunn, grafico per cluster, i quattro limiti) **e va riscritta quando la scelta delle metriche è fatta**; stessa sorte per la guida di `adp` (`_adp_guide`) e per la tabella degli indici sopra. Oggi, per un run con `metric` non euclidea (es. cosine), il pannello mostra la silhouette nella metrica del run e «—» per Calinski-Harabasz, Davies-Bouldin e Dunn (come nello sweep): anche questa regola segue la scelta;
-- **cartelle di tuning di agosto-10 settembre senza report** (12 di agglomerative, 12 di HDBSCAN): non rigenerate, precedono la catena delle valutazioni. Le 48 cartelle con report sono state rigenerate il 23-10-26 con i flussi attuali. Restano, non toccati, i prodotti d'analisi dentro 4 cartelle di agglomerative (`composition_*`, `tracts_*`, `nb_*`: `08-10_s1.4-vol_m_dice_nc2`, `08-10_s1.4-vol_m_dice_nc10`, `08-10_s1.4-vol_m_euclidean_nc2`, `09-10_s2.4-stream`);
+- **cartelle di tuning di agosto-10 settembre senza report** (12 di agglomerative, 12 di HDBSCAN): non rigenerate, precedono la catena delle valutazioni. Le 48 cartelle con report (16 per metodo) hanno tutte il `report.md` del 27-10-26, generato con i flussi attuali. Restano, non toccati, i prodotti d'analisi dentro 4 cartelle di agglomerative (`composition_*`, `tracts_*`, `nb_*`: `08-10_s1.4-vol_m_dice_nc2`, `08-10_s1.4-vol_m_dice_nc10`, `08-10_s1.4-vol_m_euclidean_nc2`, `09-10_s2.4-stream`);
 - il report è scritto dal codice (sweep con `write_report`, o `evaluate_clustering_tuning`), non da un notebook: `clustering_tuning_explorer` è stato eliminato il 21-10-26; ciò che si vuole provare entra nel registro delle valutazioni e nel modulo del report;
 - la produzione e Dash con le stesse funzioni e soglie;
 - ICL, gap statistic e self-tuning eigengap sono nello stesso modulo di `clustering_tuning.py` ma senza una valutazione nel registro (si recuperano da `46c3123`).
@@ -177,7 +177,6 @@ Il giro ha allineato docs, note e notebook alla regola «il markdown di un noteb
 
 *Note, docs e storico*
 - **Fonti primarie assenti da `knowledge/papers/`**: Rousseeuw, Kaufman & Rousseeuw, Caliński & Harabasz, Davies & Bouldin, Moulavi, Monti, Hubert & Arabie, Vinh, Rosenberg & Hirschberg, Jolliffe & Cadima, Kaiser, Dempster, Schwarz, Shi & Malik, Ng-Jordan-Weiss, von Luxburg, Rodriguez & Laio, d'Errico, Ward, Lloyd, Arthur & Vassilvitskii e altri: le formule delle note non sono verificabili contro il testo originale. Le più utili da aggiungere: Moulavi 2014 e Monti 2003 (reggono le metriche in produzione).
-- **`evaluation_metrics.md` §§1-2** attribuisce a Dinh et al. 2025 (§4.2) e a Bicego 2021 [3, 11] l'idea che silhouette, CH e DB premino cluster compatti; i due testi dicono altro. Togliere le citazioni o trovare una fonte.
 - **`clustering_tuning_guide.md` r.30** dice che la silhouette è «l'unico dei tre con un valore assoluto interpretabile da solo», mentre la regola del progetto e `evaluation_metrics.md` §2 dicono che nessun valore è classificato in fasce e che i valori non si confrontano tra spazi. Ammorbidire.
 - **`clustering_comparison.ipynb`**: la Parte 2 usa `scipy.stats.chi2_contingency` (p-value, residui) sulla tabella di contingenza tra modalità: la regola «niente test statistici» è scritta per la descrizione clinica, da chiarire se vale anche qui. Il notebook è classificato «empirica» ma la Parte 2 §3 (profilo clinico) e la Parte 4 sono interpretative, e la Parte 4 usa builder parcheggiati dall'app. In `docs/guides/evaluation.md` la tabella «Scope» assegna al notebook analisi che nessun notebook implementa.
 - **`dataset_availability.ipynb` cella 20**: un soggetto senza `disease_id` non entra in nessun gruppo e i conteggi WashU non sommano al totale; solo la cella 23 solleva.
@@ -192,6 +191,14 @@ Il giro ha allineato docs, note e notebook alla regola «il markdown di un noteb
 - In `sdc_analysis.ipynb` le stringhe di `print` della cella 5 dicono «ammessi» mentre il testo dice «massimo ammissibile».
 - Le celle markdown riscritte hanno applicato in modo non sistematico la regola dei backtick (solo per i nomi che l'utente modifica).
 - I risultati delle riesecuzioni non sono stati riportati nei docs (decide l'utente quando): curva di varianza, R² e riproducibilità della replica di Thiebaut e di `pca_evaluation` per `s2.4-vol` (`docs/experiments/s2.4-vol.md`), cophenetic e ARI tra embedding del tuning explorer, conteggi di `lesion_matrix_build`, metriche descrittive di `sdc_analysis`.
+
+### Tipo di ictus (emorragico/ischemico) nel pannello «Cluster description»
+
+`participants.csv` non ha la colonna. Il dato esiste solo per PSP (`lesion_type`: 189 ischemici, 18 emorragici, 30 `n/a` su 237); UKLFR lo dice solo per coorte (`disease_notes`), UKE ha solo gli ictus precedenti.
+
+**Da fare**: (1) aggiungerlo a `KNOWN_VARIABLES` di `enrich_metadata.py` e a `variables` in `config/pipelines/enrich_metadata.json`; promuovere `disease_notes` di UKLFR a valore per soggetto è un giudizio di equivalenza clinica, e se preso va in `VARIABLE_SOURCE_OVERRIDES`; (2) poi una voce `ClusterDescriptionVariable` (`kind="categorical"`) in `CLUSTER_DESCRIPTION_VARIABLES`; (3) rilanciare `tests/unit/test_cluster_description.py` e `tests/unit/test_embedding_app.py`.
+
+**Da decidere**: la copertura sarebbe ~2,9% (168/5853, solo PSP), sotto l'istruzione (14,7%): una sesta sottotrama vuota per il 97% dei cluster vale la sua larghezza? Un valore categorico mancante (es. `sex`) deve avere una barra «unknown» invece di essere escluso da `counts` (interagisce con il percorso dei soggetti non registrati, mancanti per tutte le variabili insieme)? La copertura di istruzione/NIHSS è migliorata abbastanza da chiudere la questione?
 
 ## Note
 

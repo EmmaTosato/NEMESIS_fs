@@ -1,6 +1,6 @@
 # Allineamento checkout (main + branch temporanei)
 
-Lavoro su `main`, lavorato **contemporaneamente da due checkout** (server/cluster e PC locale), più eventuali branch **temporanei** per un singolo task — mergeati in `main` e cancellati appena il task è concluso, non tenuti in vita come branch permanenti paralleli. `origin/server-pnc` resta come ref remoto storico, non più toccato: non è il modello corrente.
+Lavoro su `main`, lavorato **contemporaneamente da due checkout** (server/cluster e PC locale), più eventuali branch **temporanei** per un singolo task — mergeati in `main` e cancellati appena il task è concluso, non tenuti in vita come branch permanenti paralleli.
 
 Nessuna eccezione di file/cartelle da gestire su `main`: la sincronizzazione tra i due checkout è pura questione di `git pull`/`git push` tenuti allineati. Le regole sotto (pull in entrata, push in uscita) valgono sia su `main` sia su un branch temporaneo aperto per un task.
 

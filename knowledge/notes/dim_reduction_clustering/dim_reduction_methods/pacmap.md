@@ -118,4 +118,4 @@ Con `n_neighbors = 5`, `MN_ratio = 0,5`, `FP_ratio = 2`: ogni soggetto ha 5 copp
 
 1. Wang, Y., Huang, H., Rudin, C., Shaposhnik, Y. (2021). *Understanding How Dimension Reduction Tools Work: An Empirical Approach to Deciphering t-SNE, UMAP, TriMap, and PaCMAP for Data Visualization.* Journal of Machine Learning Research 22(201): 1-73. http://jmlr.org/papers/v22/20-1061.html
 2. PaCMAP, README e sorgente della versione 0.9.1. https://github.com/YingfanWang/PaCMAP
-3. de Bodt, C., Diaz-Papkovich, A., Kobak, D. et al. (2025). *Low-dimensional embeddings of high-dimensional data.* arXiv:2508.15929 (in `knowledge/papers/methods/`).
+3. de Bodt, C., Diaz-Papkovich, A., Kobak, D. et al. (2025). *Low-dimensional embeddings of high-dimensional data.* arXiv:2508.15929 (in `knowledge/papers/methods/`; non citata nel testo).

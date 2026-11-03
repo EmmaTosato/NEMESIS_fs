@@ -30,4 +30,4 @@ A logistic regression with outcome 1 = "in this cluster", 0 = "in another cluste
 - It is association, not cause.
 - A variable derived from the clustering input is associated with the cluster partly by construction (lesion summaries for a lesion run, disconnection summaries for an sdc run).
 - A category that is absent from the cluster (no infratentorial lesion, say) gives an odds ratio near 0 with a very wide interval: instability, not a result. That is the case when an interval spans several orders of magnitude.
-- Lesion volume and disconnection load correlate 0.88 on the current cohort: using both gives VIF above 8, so a model should keep only one of the two.
+- Lesion volume and disconnection load correlate 0.88 on the logarithms (0.91 Spearman): the VIF is about 4.5 with these two terms alone, so a model should keep only one of the two.

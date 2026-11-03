@@ -233,9 +233,9 @@ Esempio ridotto: il config reale copia 10 colonne (i due volumi, `location_domin
 
 `enrich_metadata` **non apre nessuna maschera**: copia numeri già calcolati. Ogni scelta su *come* una maschera è misurata (quali griglie, se azzerare i voxel fuori dal brain, quale soglia per il lato) vive nel config di `compute_lesion_metadata`, non qui.
 
-- **`copy_columns`**: colonne copiate **con lo stesso nome**, per tutti i soggetti in scope, secondo la regola di `overwrite`. Ogni nome deve esistere nel csv, e non può essere una colonna di `populate_metadata.py`. Una colonna non elencata non viene portata nel registro e resta disponibile nel csv per il notebook: oggi le due frazioni fuori dal brain e i due indici di lateralità stanno solo lì. Il volume è copiato su entrambe le griglie perché l'Embedding Explorer offre la scelta 1 mm/2 mm.
+- **`copy_columns`**: colonne copiate **con lo stesso nome**, per tutti i soggetti in scope, secondo la regola di `overwrite`. Ogni nome deve esistere nel csv, e non può essere una colonna di `populate_metadata.py`. Una colonna non elencata non viene portata nel registro e resta disponibile nel csv per il notebook: le due frazioni fuori dal brain e i due indici di lateralità stanno solo lì. Il volume è copiato su entrambe le griglie perché l'Embedding Explorer offre la scelta 1 mm/2 mm.
 - **`lesion_side_from`**: quale colonna del csv riempie `lesion_side`. Ha una regola diversa da `copy_columns`, per questo è una chiave a sé: scrive **solo dove la risoluzione clinica ha lasciato la cella vuota**, e scrive anche `lesion_side_source = "geometric"`. Un valore clinico non viene sovrascritto, salvo l'eccezione di `geometric_override_datasets` (sotto). `null` disattiva il riempimento e lascia `lesion_side` solo clinico. Richiede `lesion_side` in `variables`.
-- **`geometric_override_datasets`**: lista di dataset dove un lato clinico opposto a quello della maschera viene **forzato** a quello geometrico. Obbligatoria; `[]` (il valore in uso) la disattiva; se non vuota richiede `lesion_side_from` e `overwrite: true`, perché sostituisce un valore già presente. Un nome non presente nel registro fa fallire la run. Spiegata, e motivata, nella sezione seguente.
+- **`geometric_override_datasets`**: lista di dataset dove un lato clinico opposto a quello della maschera viene **forzato** a quello geometrico. Obbligatoria; `[]` la disattiva; se non vuota richiede `lesion_side_from` e `overwrite: true`, perché sostituisce un valore già presente. Un nome non presente nel registro fa fallire la run. Spiegata, e motivata, nella sezione seguente.
 
 Nel registro la colonna resta **`lesion_side`, senza suffisso di griglia**, perché per i soggetti con etichetta clinica quel valore non viene da nessuna griglia: un suffisso sarebbe falso per la maggioranza delle celle. `lesion_side_from` dice da quale griglia viene la parte geometrica, `lesion_side_source` dice quale delle due provenienze ha vinto per ogni soggetto.
 
@@ -252,7 +252,7 @@ Nel registro la colonna resta **`lesion_side`, senza suffisso di griglia**, perc
 
 I due significati non coincidono: il `both` clinico non implica una maschera bilaterale (per 14 dei 24 `both` clinici con un indice calcolabile la lesione sta quasi tutta da un lato, `|laterality_index| ≥ 0,9`) e una maschera bilaterale non ha un `both` clinico (la soglia ritrova 3 dei 24). Nessuna soglia riduce la differenza (limiti in [`knowledge/notes/neuroimaging/lesion_laterality.md`](../../knowledge/notes/neuroimaging/lesion_laterality.md)). Chi usa `lesion_side` per un'analisi sul lato legge `both` insieme a `lesion_side_source`, e non lo tratta come "lesione bilaterale" senza controllare da dove viene.
 
-### Forzare il lato geometrico (`geometric_override_datasets`, oggi spenta)
+### Forzare il lato geometrico (`geometric_override_datasets`)
 
 > **Opzione disponibile, spenta.** `geometric_override_datasets` è `[]`: nessun lato clinico viene sovrascritto e `participants.csv` riporta, per ogni soggetto con etichetta, il valore del tsv (`lesion_side_source = "clinical"`).
 
@@ -369,7 +369,7 @@ Un json (`assets/metadata/participants_protected.json`) elenca ciò che una run 
 
 ### Sostituzioni di colonna
 
-Se una variabile non esiste col nome canonico in un dataset, viene letta da un'altra colonna **solo** se la sostituzione è registrata a mano nel codice (`VARIABLE_SOURCE_OVERRIDES`), mai dedotta da un nome somigliante. Oggi ce n'è una: PASPORT non ha un NIHSS baseline, quindi `NIHSS` viene da `NIHSS_at_presentation`. È un'assunzione di equivalenza clinica, quindi compare a `WARNING` nel log e in una sezione dedicata del report.
+Se una variabile non esiste col nome canonico in un dataset, viene letta da un'altra colonna **solo** se la sostituzione è registrata a mano nel codice (`VARIABLE_SOURCE_OVERRIDES`), mai dedotta da un nome somigliante. Ce n'è una: PASPORT non ha un NIHSS baseline, quindi `NIHSS` viene da `NIHSS_at_presentation`. È un'assunzione di equivalenza clinica, quindi compare a `WARNING` nel log e in una sezione dedicata del report.
 
 ---
 
@@ -385,10 +385,10 @@ Non serve copiare i valori altrove: i consumatori leggono il registro direttamen
 | `src/analysis/cluster_description.py` (pannello di `src/analysis/embedding_app/panels/description.py`) | età, sesso, istruzione, NIHSS, `lesion_volume_voxels_2mm` per la composizione dei cluster |
 | `notebooks/exploration/lesion_analysis.ipynb` | `lesion_metadata.csv`, per decidere le esclusioni |
 
-Conseguenza pratica: se aggiungi `NIHSS` al registro oggi, **anche le run vecchie** si possono colorare per NIHSS, senza rigenerarle.
+Conseguenza pratica: se aggiungi `NIHSS` al registro, **anche le run vecchie** si possono colorare per NIHSS, senza rigenerarle.
 
 ---
 
 ## Attenzione: `has_*` descrive il disco, e il disco può essere potato
 
-`populate_metadata.py` scandisce le cartelle per riempire `has_lesion`/`has_sdc`/`has_features`, e una scansione non vede dentro un `.tar.gz`. Le cartelle archiviate localmente per spazio (oggi `UNIPD/WashU/features/` e `data/derived/features/masked_fc/`) vanno quindi decompresse prima per un registro completo; altrimenti `has_*` descrive i soli soggetti presenti sul disco e la popolazione reale si legge dal manifest `<nome>_archive_subjects.tsv`. Vedi [`docs/guides/datasets.md`](datasets.md).
+`populate_metadata.py` scandisce le cartelle per riempire `has_lesion`/`has_sdc`/`has_features`, e una scansione non vede dentro un `.tar.gz`. Le cartelle archiviate localmente per spazio (`UNIPD/WashU/features/` e `data/derived/features/masked_fc/`) vanno quindi decompresse prima per un registro completo; altrimenti `has_*` descrive i soli soggetti presenti sul disco e la popolazione reale si legge dal manifest `<nome>_archive_subjects.tsv`. Vedi [`docs/guides/datasets.md`](datasets.md).

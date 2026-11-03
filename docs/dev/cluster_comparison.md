@@ -98,7 +98,7 @@ A test pins both directions on a pair where one run refines the other.
 - **Centroid distance**: read against each cluster's radius (`radius_1`, `radius_2`, the mean distance of its subjects from its own centroid); a distance much larger than both radii means well separated clusters. Only for a run on an embedding: on a raw run the matrix is the feature space.
 - **Maps**: per cluster, the % of subjects with a lesion in each voxel; the difference is cluster 1 minus cluster 2, red where the lesion is more frequent in cluster 1 and blue where it is in cluster 2 (`RdBu_r`, symmetric around 0).
 
-The numeric variables and their registry columns are `CLUSTER_DESCRIPTION_VARIABLES` plus `LOCATION_FRACTIONS`; categorical ones are `CATEGORICAL_VARIABLES`. The laterality index of the interpretation notebook is not used: it lives in `lesion_metadata.csv`, not in the registry.
+The numeric variables and their registry columns are `CLUSTER_DESCRIPTION_VARIABLES` plus `LOCATION_FRACTIONS`; categorical ones are `CATEGORICAL_VARIABLES`. The laterality index is not among them: it lives in `lesion_metadata.csv`, not in the registry.
 
 ### The page (`src/analysis/embedding_app/panels/comparison.py`)
 

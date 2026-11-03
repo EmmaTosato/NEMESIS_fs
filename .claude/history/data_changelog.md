@@ -10,6 +10,28 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 02-11-26 — 39 righe di `runs*.csv` di `results/sdc/` spostate nei log di `results/legacy/sdc_s2.4-vol_07-10/`
+
+**Cosa è cambiato**: le 39 righe `s2.4-vol` dei log di `results/sdc/` con `output` verso cartelle già spostate in `results/legacy/sdc_s2.4-vol_07-10/` (28-10-26) sono state tolte dai log originali e scritte, verbatim e con la stessa intestazione, in un `runs.csv`/`runs_tuning.csv` nello stesso percorso relativo sotto `results/legacy/sdc_s2.4-vol_07-10/` (prima la cartella non aveva nessun log). La colonna `output` delle righe spostate resta il percorso vecchio sotto `results/sdc/`, come nei log dei quattro metodi spostati il 28-10-26.
+
+| Log (percorso relativo) | Righe spostate | Righe rimaste |
+|---|---|---|
+| `clustering/production/agglomerative/runs.csv` | 14 | 127 |
+| `clustering/production/hdbscan/runs.csv` | 7 | 36 |
+| `clustering/production/hdbscan_soft/runs.csv` | 5 | 24 |
+| `clustering/tuning/{agglomerative,hdbscan}/runs_tuning.csv` | 3 + 3 | 14 + 14 |
+| `clustering/tuning/hdbscan_soft/runs_tuning.csv` | 3 | 10 |
+| `dim_reduction/production/umap/runs.csv` | 3 | 9 |
+| `dim_reduction/tuning/umap/runs_tuning.csv` | 1 | 3 |
+
+**Come**: script nello scratchpad che separa le righe per CSV (taglio sulle righe grezze, nessuna riserializzazione). Prima di scrivere ha verificato che ogni `output` spostato esista sotto `results/legacy/sdc_s2.4-vol_07-10/` e dopo che i conteggi di righe tornino (39 spostate; 237 rimaste negli otto file toccati). Dopo lo spostamento nessuna riga di `results/{lesion,sdc}/**/runs*.csv` ha un `output` inesistente.
+
+**Perché**: la voce del 28-10-26 afferma che in `results/` non restano righe con `output` verso percorsi inesistenti; per queste 39 non era vero (`lessons_learned.md` #24).
+
+**Conseguenza ancora vera oggi**: nessuna sulle cartelle. Un lettore dei log di `results/sdc/` non conta più run che non ci sono; le run `07-10_s2.4-vol` si leggono nei log di `results/legacy/sdc_s2.4-vol_07-10/`.
+
+---
+
 ## 29-10-26 — `production_results*.csv` scritti in 36 produzioni hdbscan_soft (con persistenza)
 
 **Cosa è cambiato**:

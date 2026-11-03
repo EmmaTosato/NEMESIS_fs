@@ -6,7 +6,7 @@ This file covers the actual math/algorithms and how the 2 CLIs orchestrate them.
 
 > `src/pipeline/dim_reduction_clustering.py` (the one-shot "reduce then cluster" CLI) no longer exists - its capability was folded into `clustering.py` as an explicit two-step workflow (`dim_reduction.py` first, `clustering.py --reduced_data true` on its output second), not reimplemented inside `clustering.py`. See `.claude/history/project_changelog.md` for the full rationale and what changed.
 
-**Status**: `reduction.py`, `clustering.py`, `tuning.py`, `clustering_tuning.py`, `consensus_clustering.py`, `distances.py`, and the 2 `src/pipeline/` CLI entry points (with matching `jobs/`) are implemented, including the manual fine-tuning mechanism for `dim_reduction.py` (umap/tsne/pca/pacmap) and `clustering.py` (kmeans/agglomerative/gmm/hdbscan/hdbscan_soft/spectral/adp). `REDUCTION_METHODS` today: `umap`, `tsne`, `pca`, `pacmap` (a varimax-rotated PCA is `pca` with `rotation: "varimax"`, see below). `CLUSTERING_METHODS` today: `kmeans`, `agglomerative`, `gmm`, `hdbscan`, `hdbscan_soft`, `spectral`, `adp` (`hdbscan` is the density-based method, see `clustering_tuning.py` below).
+**Status**: `reduction.py`, `clustering.py`, `tuning.py`, `clustering_tuning.py`, `consensus_clustering.py`, `distances.py`, and the 2 `src/pipeline/` CLI entry points (with matching `jobs/`) are implemented, including the manual fine-tuning mechanism for `dim_reduction.py` (umap/tsne/pca/pacmap) and `clustering.py` (kmeans/agglomerative/gmm/hdbscan/hdbscan_soft/spectral/adp). `REDUCTION_METHODS`: `umap`, `tsne`, `pca`, `pacmap` (a varimax-rotated PCA is `pca` with `rotation: "varimax"`, see below). `CLUSTERING_METHODS`: `kmeans`, `agglomerative`, `gmm`, `hdbscan`, `hdbscan_soft`, `spectral`, `adp` (`hdbscan` is the density-based method, see `clustering_tuning.py` below).
 
 ## `src/analysis/reduction.py` / `clustering.py` — modeling strategies
 
@@ -65,7 +65,7 @@ Same "no automatic selection" philosophy as `tuning.py`, but clustering has no g
 
 `compute_clustering_metrics(X, labels, combo_params=None) -> dict[str, float]` returns `{"silhouette", "calinski_harabasz", "davies_bouldin", "noise_fraction"}` for the methods scored with the geometric indices (the density methods get only `compute_noise_metrics`'s `noise_fraction`, see below) - `sklearn.metrics.silhouette_score`/`calinski_harabasz_score`/`davies_bouldin_score` excluding any HDBSCAN-style noise (`label == -1`) first (undefined for a "cluster" that isn't one), with `noise_fraction` always reported so the exclusion is visible rather than silent. A degenerate combination (fewer than 2 non-noise clusters, or every non-noise point its own cluster) can't have the 3 metrics computed at all - caught (the same condition `sklearn` itself would raise on) and recorded as `NaN` with a logged warning rather than aborting the whole sweep, since a bad hyperparameter combination is expected information in a tuning sweep, not a bug (distinct from `lessons_learned.md`'s silent-fallback pattern: this is one documented, intentional strategy for a legitimate domain case, not a caught-and-hidden error).
 
-`combo_params` (optional, only `run_clustering_tuning_sweep` below always passes it): when given, `require_euclidean_compatible` raises `ValueError` upfront if it names a distance/affinity the 3 geometric indices' Euclidean assumption doesn't hold for - silhouette/Calinski-Harabasz/Davies-Bouldin all default to Euclidean distance internally, correct only as long as the clustering method itself also treated `X` as a plain Euclidean feature space. `_EUCLIDEAN_SAFE_AFFINITY = {None, "nearest_neighbors", "rbf"}` (spectral's `affinity`) and `_EUCLIDEAN_SAFE_METRIC = {None, "euclidean"}` (agglomerative's `metric`) are an explicit allow-list (`lessons_learned.md` #20, over a free-form guess) of every value known to still mean "X is a plain Euclidean feature matrix" - anything else, most importantly `affinity="precomputed"` (X is itself a distance/affinity matrix under an arbitrary metric, e.g. Jaccard/Dice) or a non-Euclidean `metric`, makes X's own coordinates meaningless to a Euclidean index, so the function refuses outright rather than silently scoring the wrong geometry. Dormant today - no production/tuning config sets either value.
+`combo_params` (optional, only `run_clustering_tuning_sweep` below always passes it): when given, `require_euclidean_compatible` raises `ValueError` upfront if it names a distance/affinity the 3 geometric indices' Euclidean assumption doesn't hold for - silhouette/Calinski-Harabasz/Davies-Bouldin all default to Euclidean distance internally, correct only as long as the clustering method itself also treated `X` as a plain Euclidean feature space. `_EUCLIDEAN_SAFE_AFFINITY = {None, "nearest_neighbors", "rbf"}` (spectral's `affinity`) and `_EUCLIDEAN_SAFE_METRIC = {None, "euclidean"}` (agglomerative's `metric`) are an explicit allow-list (`lessons_learned.md` #20, over a free-form guess) of every value known to still mean "X is a plain Euclidean feature matrix" - anything else, most importantly `affinity="precomputed"` (X is itself a distance/affinity matrix under an arbitrary metric, e.g. Jaccard/Dice) or a non-Euclidean `metric`, makes X's own coordinates meaningless to a Euclidean index, so the function refuses outright rather than silently scoring the wrong geometry. Dormant - no production/tuning config sets either value.
 
 `compute_silhouette_samples(X, labels, metric="euclidean") -> tuple[np.ndarray, np.ndarray]` is the per-sample counterpart used for `plotting.plot_silhouette_analysis` (production time, not the sweep above, see `docs/dev/plotting.md`): same noise-exclusion convention as `compute_clustering_metrics`, but returns `(non_noise_labels, sample_silhouette_values)` from `sklearn.metrics.silhouette_samples` instead of one aggregate number - their mean equals `compute_clustering_metrics`'s `"silhouette"` exactly. Unlike `compute_clustering_metrics`'s NaN-and-warn on a degenerate combination (built for an unattended sweep over many combinations), this **raises** `ValueError` - it runs once for the single already-chosen production result, so the caller (`clustering.py`'s `_run_silhouette`) decides what to skip, catching that specific exception and logging a warning rather than failing the whole run. `metric` is the distance the clustering used: `euclidean` and `cosine`/`manhattan` (sklearn scores `X` under that distance, as the sweep does in `compute_clustering_metrics_metric_aware`), or `dice`/`jaccard` (the exact distance matrix); any other raises.
 
@@ -193,7 +193,7 @@ A production run is one fit, a tuning sweeps many combinations, and their dates 
 - **Same matrix = same `input_path`.** Both config.md record it (the `dim_reduction` production run for a reduced run, the feature matrix for a raw one), and it already carries the reduction method, `n_components`, metric and date of the embedding, so none of those is parsed from a run name. Paths are compared absolute (`base_dir` is the working directory they are relative to). `docs/experiments/pipelines.md` is a drawing of the same relation, not read by the code.
 - **Compatible = also reproduces the labels.** A candidate is compatible only if its `clusterings.npz` has the production combination (`n_clusters`, `linkage`, `metric`, from the run's `Params used:`), its `metadata.csv` has the same subjects in the same order, and its labels for that combination are the production partition (`adjusted_rand_score == 1.0`; label names are free). Same `input_path` alone is not enough: a tuning directory reused by a later run keeps the key and changes the labels (lessons learned #18).
 - **Errors.** A candidate that cannot be read (no `clusterings.npz`, truncated archive) is returned rejected with the reason, not dropped. A tuning whose config.md cannot be parsed is logged and skipped. A production run that is not agglomerative, or whose params lack `n_clusters`/`linkage`/`metric`, raises `ValueError`: the `metric` is not assumed to be the library default.
-- **Today.** Of the 95 agglomerative production runs, 82 have a compatible tuning. 7 have none (raw `s2.3-stream`, never tuned) and 6 raise (lesion `01-09`/`03-09` `k4-k6`, whose params do not record `metric`).
+- **No compatible tuning.** A production run that was never tuned (e.g. the raw `s2.3-stream` ones) has none; a run whose params do not record `metric` (lesion `01-09`/`03-09`, `k4-k6`) raises.
 
 ## `src/analysis/dendrogram_splits.py` — an agglomerative tree followed k by k
 
@@ -216,27 +216,27 @@ The files each map reads are looked up once per dataset and app (`anatomical_map
 
 ## `src/analysis/adp.py` — ADP (DADApy) as `CLUSTERING_METHODS["adp"]`
 
-*Advanced Density Peaks* (d'Errico et al. 2021) come metodo di clustering a sé, `adp_cluster(X, params) -> labels`, registrato come gli altri. Scelte di disegno:
+*Advanced Density Peaks* (d'Errico et al. 2021) as a clustering method of its own, `adp_cluster(X, params) -> labels`, registered like the others. Design choices:
 
-- **Gira sulla matrice grezza, con la sua distanza.** DADApy riceve le tabelle dei `maxk` vicini (`distances=(dist, ind)`) calcolate da `distances.py::pairwise_distance`, non coordinate. È l'unico metodo con `dice`/`jaccard` come metrica di clustering vera; gli altri la usano al massimo per una distanza precalcolata (agglomerative) o non la usano.
+- **It runs on the raw matrix, with its own distance.** DADApy receives the tables of the `maxk` neighbours (`distances=(dist, ind)`) computed by `distances.py::pairwise_distance`, not coordinates. It is the only method with `dice`/`jaccard` as a true clustering metric; the others use them at most for a precomputed distance (agglomerative) or not at all.
 
-- **Il numero di cluster non è un parametro.** `params = {"metric", "Z", "maxk"}`, validati da `validate_adp_params`: un'altra chiave, o un valore fuori dominio, solleva. `halo=False` e gli stimatori (2NN per la dimensione intrinseca, PAk per la densità) sono fissi.
+- **The number of clusters is not a parameter.** `params = {"metric", "Z", "maxk"}`, validated by `validate_adp_params`: any other key, or a value out of domain, raises. `halo=False` and the estimators (2NN for the intrinsic dimension, PAk for the density) are fixed.
 
-- **Una sessione per matrice (`_AdpSession`).** Piano delle righe e distanze (per `metric`) si calcolano una volta; densità e dimensione intrinseca una volta per `(metric, maxk)`, perché non dipendono da `Z`. Un tuning su `Z` ripete solo `compute_clustering_ADP`. Per questo `clustering_tuning.run_clustering_tuning_sweep` delega ad `adp.run_adp_tuning_sweep` invece di chiamare `CLUSTERING_METHODS["adp"]` a ogni combinazione, che ricalcolerebbe le distanze N x N ogni volta (stessa ragione della cache delle distanze di agglomerative, `lessons_learned.md` #29).
+- **One session per matrix (`_AdpSession`).** The row plan and the distances (per `metric`) are computed once; the density and the intrinsic dimension once per `(metric, maxk)`, because they do not depend on `Z`. A tuning over `Z` repeats only `compute_clustering_ADP`. This is why `clustering_tuning.run_clustering_tuning_sweep` delegates to `adp.run_adp_tuning_sweep` instead of calling `CLUSTERING_METHODS["adp"]` for every combination, which would recompute the N x N distances each time (same reason as the distance cache of agglomerative, `lessons_learned.md` #29).
 
-- **Righe a zero e duplicati sono gestiti, non nascosti** (`_plan_rows`). `dice`/`jaccard` non esistono per una riga a zero, e DADApy divide per la distanza dal primo vicino, che è 0 tra duplicati esatti. Le righe a zero prendono `NOISE_LABEL = -1` per ogni metrica (stesso insieme di soggetti per tutte, convenzione del rumore di HDBSCAN: escluse dagli indici, contate da `noise_fraction`); i duplicati si clusterizzano una volta e il gemello eredita l'etichetta. Entrambi i casi sono loggati a `WARNING` con gli indici di riga. Due righe *diverse* a distanza numericamente 0 sollevano `ValueError`, non si perturbano.
+- **Zero rows and duplicates are handled, not hidden** (`_plan_rows`). `dice`/`jaccard` do not exist for a zero row, and DADApy divides by the distance to the first neighbour, which is 0 between exact duplicates. Zero rows get `NOISE_LABEL = -1` for every metric (same set of subjects for all of them, HDBSCAN's noise convention: excluded from the indices, counted by `noise_fraction`); duplicates are clustered once and the twin inherits the label. Both cases are logged at `WARNING` with the row indices. Two *different* rows at a numerically 0 distance raise `ValueError`, they are not perturbed.
 
-- **Silhouette con la distanza giusta.** `silhouette_score` sulla matrice precalcolata della metrica usata (lezione #15); `calinski_harabasz`/`davies_bouldin` solo per `euclidean` (centroidi), `NaN` altrimenti, come per agglomerative; calcolati dalla matrice delle distanze euclidee al quadrato (`_euclidean_dispersion_scores`, formule esatte, uguali a quelle di sklearn: un test lo verifica), senza `X`: le versioni di sklearn convertono `X` in `float64`, 10-14 GB a ogni `Z` su queste matrici. `compute_silhouette_samples(X, labels, metric)` (grafico di produzione) accetta `metric` per lo stesso motivo; agglomerative con `metric` non euclidea passa dalla silhouette euclidea del grafico di produzione (`clustering.py::SILHOUETTE_OWN_METRIC_METHODS` contiene solo `adp`).
+- **Silhouette with the right distance.** `silhouette_score` on the precomputed matrix of the metric used (lesson #15); `calinski_harabasz`/`davies_bouldin` only for `euclidean` (centroids), `NaN` otherwise, as for agglomerative; computed from the matrix of squared Euclidean distances (`_euclidean_dispersion_scores`, exact formulas, equal to sklearn's: a test checks it), without `X`: sklearn's versions convert `X` to `float64`, 10-14 GB at every `Z` on these matrices. `compute_silhouette_samples(X, labels, metric)` (production plot) accepts `metric` for the same reason; agglomerative with a non-Euclidean `metric` goes through the production plot's Euclidean silhouette (`clustering.py::SILHOUETTE_OWN_METRIC_METHODS` contains only `adp`).
 
-- **Import lazy di `dadapy`** (`_import_dadapy`): `src/analysis/clustering.py` importa `adp.py` per il registro, e deve caricarsi anche nell'ambiente `nemesis`, che non ha `dadapy` (dipende da `jax`). Il fit senza `dadapy` solleva `ImportError` con il messaggio che indica l'ambiente separato; `clustering.py` lo cattura (produzione e tuning) e ritorna 1 senza traceback.
+- **Lazy import of `dadapy`** (`_import_dadapy`): `src/analysis/clustering.py` imports `adp.py` for the registry, and must load in the `nemesis` environment too, which does not have `dadapy` (it depends on `jax`). A fit without `dadapy` raises `ImportError` with a message pointing at the separate environment; `clustering.py` catches it (production and tuning) and returns 1 without a traceback.
 
-- **Determinismo.** La "perturbazione" che DADApy applica ai vicini a distanza identica (frequenti con `dice` su dati binari) è un offset fisso di precisione macchina, non un rumore casuale: due run danno le stesse etichette (test).
+- **Determinism.** The "perturbation" DADApy applies to neighbours at identical distance (frequent with `dice` on binary data) is a fixed offset of machine precision, not random noise: two runs give the same labels (test).
 
-Colonne di `tuning_results.csv`, plateau e uso: `docs/guides/clustering.md`, sezione "ADP".
+Columns of `tuning_results.csv`, plateau and use: `docs/guides/clustering.md`, section "ADP".
 
 ## `src/pipeline/dim_reduction.py` / `clustering.py` — the 2 modeling CLIs
 
-Same shape as `build_lesion_matrix.py` (`docs/dev/lesion_matrix.md`: `main(argv) -> int`, staged `try`/`except`, `reports/<script>/<project>/` + `logs/<script>/<project>/`), reading an existing matrix artifact via `artifacts.load_matrix(input_path)` rather than building one.
+Same shape as `build_lesion_matrix.py` (`docs/dev/lesion_matrix.md`: `main(argv) -> int`, staged `try`/`except`, `logs/<script>/<project>/`, no `summaries/` report - see below), reading an existing matrix artifact via `artifacts.load_matrix(input_path)` rather than building one.
 
 **Output tree: `production/` vs `tuning/`** (both CLIs): the very first segment under `output_root` is always `production` or `tuning` - never mixed, never both writing into the same subtree - so a tuning sweep and a production artifact can never collide on disk and a directory listing immediately says which kind of run produced it. `tuning/` is a top-level sibling of `production/` (not nested inside each method's own folder), each with its own method-name segment underneath: `<output_root>/production/<method>/<dd-mm>_<session_name>/` and `<output_root>/tuning/<method>/<dd-mm>_<session_name>/`. `runs.csv` lives inside the `production/` branch next to the method folders it logs, `runs_tuning.csv` inside `tuning/` - see `src/utils/run_log.py` below for the exact per-CLI paths.
 
@@ -246,26 +246,28 @@ Same shape as `build_lesion_matrix.py` (`docs/dev/lesion_matrix.md`: `main(argv)
 
 Everything either CLI ever writes to disk, for one single invocation - the reference to answer "delete everything this run produced" or "undo this run" precisely, without missing a file or deleting something shared with other runs.
 
+`<modality>` is `lesion` or `sdc`, the first segment under `results/`; `<project>` (e.g. `clinical_connectome`) appears only in the log paths.
+
 **Exclusively owned by one run** (safe to `rm -rf` the whole directory, nothing else reads it):
 
 ```
 logs/dim_reduction/<project>/dim_reduction__<dd-mm-yy>__<HH-MM-SS>.log
 logs/clustering/<project>/clustering__<dd-mm-yy>__<HH-MM-SS>.log
 
-results/<project>/dim_reduction/production/<method>/<dd-mm>_<session_name>/
+results/<modality>/dim_reduction/production/<method>/<dd-mm>_<session_name>/
 ├── matrix.npy, metadata.csv, config.md, manifest.json
 └── *.png                                  (embedding + silhouette plots)
 
-results/<project>/dim_reduction/tuning/<method>/<dd-mm>_<session_name>/
+results/<modality>/dim_reduction/tuning/<method>/<dd-mm>_<session_name>/
 └── tuning_results.csv, tuning_plot.png, config.md
     (+ embeddings.npz, metadata.csv iff save_tuning_embeddings=true;
       <param>=<value>/ nested leaves iff nested_params declared)
 
-results/<project>/clustering/production/<method>/<reduction_method>/<dd-mm>_<session_name>/
+results/<modality>/clustering/production/<method>/<reduction_method>/<dd-mm>_<session_name>/
 ├── matrix.npy, metadata.csv, config.md, manifest.json
 └── *.png                                  (cluster_plot.png, silhouette_plot.png)
 
-results/<project>/clustering/tuning/<method>/<reduction_method>/<dd-mm>_<session_name>/
+results/<modality>/clustering/tuning/<method>/<reduction_method>/<dd-mm>_<session_name>/
 └── tuning_results.csv, tuning_plot.png, config.md
     (+ stability_results.csv, stability_plot.png iff method in kmeans/gmm;
       + <diagnostic>.png iff method in STANDALONE_DIAGNOSTIC_METHODS;
@@ -280,15 +282,15 @@ Note the `<method>`/`<reduction_method>` segments must be resolved to their actu
 **Shared, append-only** - a run adds exactly one row here; deleting the run means removing that one row, never the file itself (other runs' history lives in the same file):
 
 ```
-results/<project>/dim_reduction/production/<method>/runs.csv
-results/<project>/dim_reduction/tuning/<method>/runs_tuning.csv
-results/<project>/clustering/production/<method>/<reduction_method>/runs.csv
-results/<project>/clustering/tuning/<method>/<reduction_method>/runs_tuning.csv
+results/<modality>/dim_reduction/production/<method>/runs.csv
+results/<modality>/dim_reduction/tuning/<method>/runs_tuning.csv
+results/<modality>/clustering/production/<method>/<reduction_method>/runs.csv
+results/<modality>/clustering/tuning/<method>/<reduction_method>/runs_tuning.csv
 ```
 
 Each row is identified by its `run_id`/`session`+`timestamp` columns (`docs/dev/config.md`) - match on those, not on position.
 
-**No cross-method `comparison/` artifact** - `clustering.py` writes nothing at `results/<project>/clustering/production/comparison/<reduction_method>/<dd-mm>_<session_name>/` (not even when `len(clustering_methods) > 1`). A directory of that shape from earlier runs may still sit on disk (`src/analysis/embedding_app.py::discover_production_runs` excludes it, see below), but nothing writes new ones.
+**No cross-method `comparison/` artifact** - `clustering.py` writes nothing at `results/<modality>/clustering/production/comparison/<reduction_method>/<dd-mm>_<session_name>/` (not even when `len(clustering_methods) > 1`).
 
 **`clustering.py` runs every method in `clustering_methods` in a loop, not just one**: a private `_run_one_method(config, method, ...)` helper does the full per-method flow (params → cluster → `save_matrix` → `cluster_plot.png` → `runs.csv`) and returns the `cluster_labels` it actually saved (or `None` on failure, which stops the whole run - no partial-failure tolerance, consistent with the rest of this pipeline's fail-fast error handling).
 

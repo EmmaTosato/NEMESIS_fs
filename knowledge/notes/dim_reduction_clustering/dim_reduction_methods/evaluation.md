@@ -44,7 +44,7 @@ $$
 R(k) = \frac{(n-1)\,Q(k) - k}{n-1-k}
 $$
 
-vale 0 al caso e 1 per una conservazione perfetta (de Bodt et al. seguono Lee et al. 2015) [1, §8]. L'area sotto $R(k)$ con l'asse *k* in scala logaritmica riassume tutte le scale in un numero ("AUC" di [1, §8]).
+vale 0 al caso e 1 per una conservazione perfetta (de Bodt et al. seguono Lee et al. 2015, che non è nella lista delle fonti) [1, §8]. L'area sotto $R(k)$ con l'asse *k* in scala logaritmica riassume tutte le scale in un numero ("AUC" di [1, §8]).
 
 **Ordine di grandezza.** In de Bodt et al. la conservazione dei 10 vicini in 2D va da 0,00-0,04 per PCA a 0,20-0,46 per t-SNE [1, Tabella 2]. Chari & Pachter 2023 riportano, su dati single-cell, distanze di Jaccard tra gli insiemi dei 30 vicini nei due spazi quasi sempre sopra 0,7 [7]. In 2D la maggior parte dei vicini veri si perde comunque: un valore basso è la norma, non un errore.
 
@@ -80,6 +80,6 @@ Implementazione: `src/analysis/tuning.py` (`evaluate_umap`, `evaluate_tsne`, `ev
 3. scikit-learn 1.8, `sklearn.manifold.trustworthiness`. https://scikit-learn.org/stable/modules/generated/sklearn.manifold.trustworthiness.html
 4. Venna, J., Kaski, S. (2006). *Local multidimensional scaling.* Neural Networks 19(6-7): 889-899. https://doi.org/10.1016/j.neunet.2006.05.014
 5. Kobak, D., Berens, P. (2019). *The art of using t-SNE for single-cell transcriptomics.* Nature Communications 10: 5416. https://doi.org/10.1038/s41467-019-13056-x
-6. Lee, J. A., Verleysen, M. (2009). *Quality assessment of dimensionality reduction: rank-based criteria.* Neurocomputing 72(7-9): 1431-1443. https://doi.org/10.1016/j.neucom.2008.12.017
+6. Lee, J. A., Verleysen, M. (2009). *Quality assessment of dimensionality reduction: rank-based criteria.* Neurocomputing 72(7-9): 1431-1443. https://doi.org/10.1016/j.neucom.2008.12.017 (non citata nel testo)
 7. Chari, T., Pachter, L. (2023). *The specious art of single-cell genomics.* PLoS Computational Biology 19(8): e1011288. https://doi.org/10.1371/journal.pcbi.1011288
 8. Jolliffe, I. T., Cadima, J. (2016). *Principal component analysis: a review and recent developments.* Phil. Trans. R. Soc. A 374: 20150202. https://doi.org/10.1098/rsta.2015.0202

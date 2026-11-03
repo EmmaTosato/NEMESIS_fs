@@ -13,7 +13,7 @@ Come le pipeline si passano i dati, chi è la fonte di verità di cosa, e quali 
 
 Ogni dato nasce **in un solo posto**: i volumi delle lesioni in `lesion_metadata.csv`, il carico di disconnessione in `sdc_metadata.csv`, la lista di chi resta fuori in `excluded_subjects.csv`. `participants.csv` ne tiene una copia dichiarata (`enrich_metadata`), quindi va riallineato quando una fonte cambia.
 
-`participants.csv` è la **fonte di verità delle variabili per l'analisi**: lo leggono i colori dei grafici (`embedding_coloring.color_values`), il pannello "Cluster description" (età, sesso, istruzione, NIHSS), `calibrate_lesion_side_threshold` (le etichette cliniche del lato), e i notebook `lesion_analysis`, `clustering_evaluation` e `sdc_analysis`. Il lettore è `src/utils/participants.py::load_participants_registry`, che interpreta i flag `has_*` come booleani veri.
+`participants.csv` è la **fonte di verità delle variabili per l'analisi**: lo leggono i colori dei grafici (`embedding_coloring.color_values`), il pannello "Cluster description" (età, sesso, istruzione, NIHSS), `calibrate_lesion_side_threshold` (le etichette cliniche del lato), e i notebook `lesion_analysis`, `clustering_comparison` e `sdc_analysis`. Il lettore è `src/utils/participants.py::load_participants_registry`, che interpreta i flag `has_*` come booleani veri.
 
 ## Due grafi di dipendenze
 
@@ -102,7 +102,9 @@ Lo stesso nome, con significati vicini ma non identici, in ogni pipeline:
 
 ## Provenienza
 
-- **Ogni run di pipeline:** `logs/<pipeline>/` (log grezzo), `summaries/<pipeline>/` (report) e, per le matrici, `dim_reduction` e `clustering`, `runs.csv` (produzione) e `runs_tuning.csv` (tuning).
+- **Ogni run di pipeline** scrive `logs/<pipeline>/` (log grezzo), tranne `embedding_app`, `generate_understanding_umap_report`, `replot_dim_reduction` e `plot_tuning_embedding_3d`.
+- **Il report** in `summaries/<pipeline>/` lo scrivono le pipeline dei metadati (`populate_metadata`, `enrich_metadata`, `compute_lesion_metadata`, `compute_sdc_metadata`, `build_excluded_subjects`, `calibrate_lesion_side_threshold`) e quelle delle matrici SDC e FC (`build_sdc_matrix`, `mask_fc`, `build_fc_matrix`); le altre non lo scrivono.
+- **Per le matrici, `dim_reduction` e `clustering`**: `runs.csv` (produzione) e `runs_tuning.csv` (tuning).
 - **Ogni cartella di output:** il suo `config.md` riporta i parametri usati.
 - **Le decisioni:** `.claude/history/` (`data_changelog.md`, `methods_changelog.md`, `project_changelog.md`).
 

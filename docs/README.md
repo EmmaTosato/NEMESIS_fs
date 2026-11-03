@@ -58,7 +58,7 @@ Un file per **sessione** (`sX.Y-<formato>.md`): la coorte, la matrice e tutto ci
 
 ## `debugging/` — bug trovati e corretti
 
-Un report datato per sessione di debug (`debug_GG_MM_AA.md`), un bug per sezione. È l'unica parte di `docs/` che racconta il passato. I pattern di errore generalizzabili sono raccolti in [`.claude/lessons_learned.md`](../.claude/lessons_learned.md).
+Un report datato per sessione di debug (`debug_GG_MM_AA.md`), un bug per sezione. Insieme a `experiments/` è la parte di `docs/` che racconta il passato: sono registri cronologici per sessione. I pattern di errore generalizzabili sono raccolti in [`.claude/lessons_learned.md`](../.claude/lessons_learned.md).
 
 ## Fuori da `docs/`
 
@@ -71,4 +71,4 @@ Un report datato per sessione di debug (`debug_GG_MM_AA.md`), un bug per sezione
 
 ## Regola di scrittura
 
-`guides/` e `dev/` descrivono il **presente**: niente «prima faceva», niente date di modifiche. Il passato sta in `debugging/`, in `.claude/history/` e in `git log`.
+`guides/` e `dev/` descrivono il **presente**: niente «prima faceva», niente date di modifiche. Il passato sta in `debugging/` e `experiments/` (registri cronologici per sessione), in `.claude/history/` e in `git log`.

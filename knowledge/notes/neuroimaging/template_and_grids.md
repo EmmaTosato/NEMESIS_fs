@@ -151,7 +151,7 @@ Le colonne dopo la rimozione sono quelle di `docs/experiments/s1.4-vol.md`/`s2.4
 2. **Memoria e calcolo.** La matrice piena a 1 mm non è costruibile su nessuna macchina disponibile (§ 11); la documentazione di nilearn indica il sottocampionamento come modo per aumentare la velocità e ridurre la memoria [20].
 3. **Pratica della letteratura sul disconnettoma.** Thiebaut de Schotten et al. 2020 registrano le lesioni nello spazio MNI a $2 \times 2 \times 2$ mm prima della PCA [21]; Talozzi et al. 2023 normalizzano le lesioni in MNI152 a 2 mm con BCBToolKit prima di UMAP [22]; Bisogno et al. 2025 ricampionano le lesioni a 2 mm isotropi per la disconnessione funzionale [16].
 
-**Il costo** è limitato ai soggetti a 1 mm genuino (534: PASPORT, WAKEUP) e riguarda le lesioni più piccole. È il motivo per cui `lesion_metadata.csv` conserva entrambe le griglie: distingue una maschera vuota da una lesione persa nel campionamento.
+**Il costo** è limitato ai soggetti a 1 mm genuino (534: PASPORT, WAKEUP) e riguarda le lesioni più piccole. È il motivo per cui `lesion_metadata.csv` conserva entrambe le griglie: distingue una maschera vuota da una lesione persa nel campionamento. I tre gruppi di dettaglio nativo (5150, 534 e 168 di PSP) sommano 5852 soggetti: il 5853° ha la maschera vuota e non è classificabile.
 
 ---
 

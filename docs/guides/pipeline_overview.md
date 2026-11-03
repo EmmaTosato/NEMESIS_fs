@@ -13,7 +13,7 @@ registro soggetti ──► misure sulle maschere ──► lista esclusi ──
 Tre principi valgono in ogni passo:
 
 - **Niente fallback silenziosi.** Un input mancante, ambiguo o fuori formato ferma la run con un errore che lo nomina; un caso limite si dichiara, non si copre.
-- **Stessa coorte per costruzione.** Lesione e SDC leggono la stessa lista di esclusi, quindi un confronto tra modalità confronta gli stessi soggetti.
+- **Stessa coorte per costruzione.** Lesione e SDC leggono la stessa lista di esclusi, quindi un confronto tra modalità confronta gli stessi soggetti, salvo la matrice streamline (5831 soggetti invece di 5845: 14 hanno tutte le feature a zero).
 - **Nessuna soglia nostra nelle valutazioni.** I report danno misure; l'interpretazione si costruisce a mano.
 
 ---
@@ -35,7 +35,7 @@ Scelte metodologiche:
 - **Lateralità.** Indice `(sinistra − destra) / (sinistra + destra)`. Sotto la soglia `side_threshold` (0,20) il lato è `both`. La soglia è calibrata su 1445 soggetti con etichetta clinica vera (accordo 97,4%), non scelta a mano. Una lesione sul piano mediano non ha lato.
 - **Due griglie (1 e 2 mm).** Il confronto dei volumi dice se una lesione piccola sia sparita nel ricampionamento a 2 mm.
 - **Sede.** Ogni lesione dentro il brain è ripartita su sette categorie (sottocorticale, corteccia, sostanza bianca, infratentoriale...) con tre atlanti Harvard-Oxford; la categoria dominante è la sede. I voxel su cui due atlanti non concordano sono una categoria a parte: misurano l'incertezza dell'atlante, non una sede.
-- **Esclusioni.** Nessuna soglia di qualità fissa nelle pipeline: i dati non hanno un salto naturale, il giudizio sul caso limite è dell'analisi. Il criterio oggi in uso è l'eccesso di voxel fuori dal brain (oltre il 30%); le lesioni piccole non si escludono.
+- **Esclusioni.** Nessuna soglia di qualità fissa nelle pipeline: i dati non hanno un salto naturale, il giudizio sul caso limite è dell'analisi. Il criterio di qualità in uso è l'eccesso di voxel fuori dal brain (oltre il 30%); a questo si aggiungono due motivi tecnici, la maschera vuota (`empty_mask`) e le feature tutte a zero nella matrice streamline (`all_zero_features`). Le lesioni piccole non si escludono.
 - **Valori mancanti.** Una cella vuota è un caso di dominio (una maschera vuota non ha frazione fuori dal brain), mai uno 0 di comodo.
 - **Variabili protette.** `enrich_metadata` con `overwrite: false` scrive solo le celle vuote; ciò che è in `participants_protected.json` non si tocca mai.
 
@@ -108,7 +108,7 @@ Raggruppa i soggetti sull'embedding (di norma) o sulla matrice. Il numero di clu
 
 **Tuning.** Ogni combinazione riceve indici interni di qualità: silhouette (nella metrica della run), Calinski-Harabasz e Davies-Bouldin (solo con distanza euclidea; vuoti altrimenti), DBCV per gli HDBSCAN (rumore compreso; NaN con meno di 2 cluster). Per HDBSCAN si legge sempre insieme alla frazione di rumore.
 
-**Stabilità** (opzionale, kmeans/gmm/spectral): ripetizione con seed diversi (dipendenza dall'inizializzazione) e sottocampionamento (dipendenza dal campione).
+**Stabilità** (opzionale): ripetizione con seed diversi (dipendenza dall'inizializzazione) per kmeans e gmm; sottocampionamento (dipendenza dal campione) per kmeans, gmm e spectral.
 
 ---
 
@@ -121,7 +121,7 @@ Una sola catena, usata sia alla fine dello sweep sia a posteriori su un tuning s
   - `hdbscan` e `hdbscan_soft`: DBCV, quota del cluster più grande, heatmap e curve.
 - **Dove vanno i risultati.** Una valutazione che dà un valore per combinazione aggiunge colonne a `tuning_results.csv` (unione per chiave, mai per posizione; una colonna esistente si sostituisce solo con `overwrite: true`). Le tabelle con altra chiave e le figure hanno file propri.
 - **`report.md`** legge i file, non calcola. Le spiegazioni degli indici stanno in `utils/report_texts/clustering_tuning.md`.
-- **In stand by:** `kmeans`, `gmm`, `spectral`, `adp` non sono ancora nella catena.
+- **Fuori dalla catena:** `kmeans`, `gmm`, `spectral`, `adp`; `evaluate_clustering_tuning` li rifiuta.
 
 ---
 

@@ -12,7 +12,7 @@ Un file per **sessione**: una coorte, una matrice, e tutto quello che ci è stat
 | [s2.2-vol](s2.2-vol.md) | 07-09 | SDC voxel-wise | 1570 | Clustering di produzione, 8 opzioni di k |
 | [s2.3-stream](s2.3-stream.md) | 30-09 | SDC streamline, 87 tratti | 5838 | Clustering di produzione, 15 run |
 | [s2.4-vol](s2.4-vol.md) | 07-10 | SDC voxel-wise, voxel fuori dal brain non azzerati | 5845 | Clustering di produzione, 30 run |
-| [s2.4-vol](s2.4-vol.md#seconda-tornata-16-10--voxel-fuori-dal-brain-azzerati) | 16-10 | SDC voxel-wise, voxel fuori dal brain azzerati | 5845 | Clustering di produzione, 29 run su 30 (dim reduction e clustering di tuning completi); PCA: tuning, nc30 e nc42, 2 run di clustering |
+| [s2.4-vol](s2.4-vol.md#seconda-tornata-16-10--voxel-fuori-dal-brain-azzerati) | 16-10 | SDC voxel-wise, voxel fuori dal brain azzerati | 5845 | Clustering di produzione, 29 run su 30 (dim reduction e clustering di tuning completi); PCA: tuning con nc42, nc30, nc12 e nc2, 53 run di clustering |
 | [s2.4-stream](s2.4-stream.md) | 07-10 | SDC streamline, 87 tratti | 5831 | Clustering di produzione, 19 run |
 
 La **sessione 3** (FC) non ha un file: non è ancora partita.

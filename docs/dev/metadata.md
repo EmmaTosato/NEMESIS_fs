@@ -2,7 +2,7 @@
 
 Audience: chi lavora su `src/pipeline/populate_metadata.py`, `src/pipeline/compute_lesion_metadata.py`, `src/pipeline/enrich_metadata.py`, `src/utils/participants.py`, o chi deve capire dove vive un dato valore clinico/anagrafico (age, sex, NIHSS, lesion_side...) o derivato dalle maschere (volume, lato) e come ci è arrivato.
 
-Il ridisegno è **in vigore**: la fonte di verità unica esiste e i consumatori la leggono. Per quali campi esistono in quale dataset, vedi `docs/guides/datasets.md`.
+`participants.csv` è la fonte di verità unica e ogni consumatore la legge. Per quali campi esistono in quale dataset, vedi `docs/guides/datasets.md`.
 
 ## Come funziona
 
@@ -88,7 +88,7 @@ I valori mancanti sono una **cella vuota**, uniformemente. Il registro non è un
 
 Quando una variabile non esiste con il suo nome canonico in un dataset, `enrich_metadata.py` la legge da un'altra colonna **solo** se la sostituzione è scritta a mano in `VARIABLE_SOURCE_OVERRIDES`; non viene mai dedotta da un nome simile. Ogni sostituzione applicata finisce nel log a `WARNING` e in una sezione dedicata del report di run, perché è un'assunzione di equivalenza clinica e non deve restare invisibile.
 
-Una sola oggi:
+Una sola sostituzione è registrata:
 
 | Dataset | Variabile | Letta da | Perché |
 |---|---|---|---|
@@ -152,7 +152,7 @@ In UCL-UK le due griglie coincidono (1997 × 8 = 15976); in PSP il volume a 1 mm
 
 La stessa soglia vale anche a 1 mm: sugli stessi 1350 soggetti con lato clinico (PSP esclusa: le sue maschere a 1 mm sono frazionarie) la soglia 0.20 dà la stessa accuratezza a 1 mm e a 2 mm (97,3%) e attribuisce a **tutti** lo stesso lato. Il motivo per cui non era scontato: il piano mediano escluso da entrambi gli emisferi è spesso 1 mm su una griglia e 2 mm sull'altra (la griglia a 1 mm ha 91 fette a sinistra e 90 a destra, quella a 2 mm 45 e 45), quindi per una lesione quasi tutta mediana i due indici non sono interscambiabili.
 
-Quello script ora legge `laterality_index_<grid>` dal csv e **non apre nessuna maschera**: ricalibrare su un'altra griglia è un cambio di `--grid`, non un secondo passaggio su 5853 maschere.
+`calibrate_lesion_side_threshold` legge `laterality_index_<grid>` dal csv e **non apre nessuna maschera**: ricalibrare su un'altra griglia è un cambio di `--grid`, non un secondo passaggio su 5853 maschere.
 
 ### La sede della lesione
 
@@ -182,7 +182,7 @@ Atlanti, indici, allineamento, regole in forma di formula, fonti e limiti: [`kno
 - **Denominatore.** La frazione è sui voxel di lesione dentro il brain mask; con `correct_out_of_brain` attivo è esattamente `lesion_volume_voxels_<g>`, quindi frazione × volume dà i voxel. La quota fuori dal brain è `out_of_brain_fraction_<g>`.
 - **Parità.** Quando due categorie hanno lo stesso numero di voxel (frequente per lesioni di pochi voxel) vince la prima in `LOCATION_CATEGORIES`, cioè l'ordine della tabella (infratentoriale prima, `unlabeled` ultima). È deterministica, ma è una convenzione, non una misura.
 - **`NaN`.** Una lesione senza voxel dentro il brain (maschera vuota, o tutta fuori) non ha sede: tutte le otto celle vuote, mai frazioni a 0.
-- **Solo 2 mm, perché la sede a 1 mm non serve.** È anche la griglia giusta: a 2 mm la maschera ricostruisce l'originale, a 1 mm quelle di WashU/UKLFR sono ricampionamenti e quelle di PSP perdono voxel (sezione precedente). Se servirà a 1 mm si aggiungono le stesse otto colonne con suffisso `_1mm`: il codice le calcola per la griglia che `location.grid` nomina, quindi serve generalizzarlo a più griglie, oggi ne nomina una.
+- **Solo 2 mm, perché la sede a 1 mm non serve.** È anche la griglia giusta: a 2 mm la maschera ricostruisce l'originale, a 1 mm quelle di WashU/UKLFR sono ricampionamenti e quelle di PSP perdono voxel (sezione precedente). Il codice calcola le otto colonne per la sola griglia che `location.grid` nomina (una), quindi le colonne con suffisso `_1mm` richiederebbero di generalizzarlo a più griglie.
 - **Una sola griglia, e non il `_GRID_METRIC_PREFIXES`.** Le quattro misure per griglia sono la stessa tupla su ogni griglia; la sede no, ha il suo blocco `location` nel config e le sue colonne in coda.
 
 **Controlli all'avvio**, prima di aprire una maschera, tutti con `raise`: ogni atlante deve essere una mappa di voxel intera esatta sulla griglia (permutazione di assi con segno e offset intero: così il ricampionamento `nearest` attraverso l'affine, che porta un atlante LAS su un template RAS senza mai capovolgere un array, non perde né sposta etichette); il numero di voxel per etichetta non cambia col ricampionamento; i valori dei voxel sono esattamente gli indici dell'XML + 1; il baricentro di ogni etichetta `Left`/`Right` sta dal lato giusto del piano mediano in coordinate mondo (è il controllo che un flip sbagliato rompe). Le regole di categoria riconoscono le etichette per nome (14 sotto-corticali grigie, 1 tronco, 2 sostanza bianca, 2 ventricoli) e il numero atteso è verificato: un'etichetta rinominata solleva invece di spostare voxel in silenzio. L'XML di HO scrive "Left Lateral **Ventrical**" (refuso): la regola dei ventricoli cerca `Lateral Vent`.
@@ -238,7 +238,7 @@ Tutte 182×218×182 a 1 mm, ma con **3 header distinti**, raggruppati per datase
 
 Gli stessi voxel fisici stanno quindi a indici diversi: un flip fisso è giusto per il primo gruppo e specchia gli altri due; leggere per indice sbaglia i primi due. `compute_sdc_metadata` porta ogni mappa sulla griglia col **suo** header (`resample_to_img`, `nearest`, lo stesso passaggio di `build_sdc_voxelwise_matrix`). Con `nearest` e a 1 mm ogni caso è una rimappatura intera esatta e la somma non cambia. Verificato contro un calcolo geometrico indipendente per gruppo (flip / traslazione di 1 voxel / identità): scarto `0.0` su 12 soggetti, 4 per gruppo. Il test `test_compute_sdc_metadata_realigns_every_map_with_its_own_header` fallisce sia per "non riallineare" sia per "flippare sempre".
 
-Questa eterogeneità è stata scoperta per caso: un primo calcolo esplorativo assumeva uno specchio fisso, dedotto da pochi soggetti che erano per caso tutti LAS. Il censimento sull'intera popolazione (letture dei soli header, secondi) è ciò che l'ha smentita.
+Questa eterogeneità si vede solo con il censimento dell'intera popolazione (letture dei soli header, secondi): da pochi soggetti, per caso tutti LAS, si dedurrebbe uno specchio fisso, sbagliato per gli altri.
 
 ### Solo dentro il cervello
 
@@ -246,7 +246,7 @@ Il disconnettoma porta una quota di massa fuori dalla maschera cerebrale (median
 
 ### Scala di colore: lineare
 
-Il color mode dell'Embedding Explorer è **lineare**, a differenza del volume (log). Misurato sull'intera coorte: asimmetria del carico 1,5 e massimo/mediana 7,6, contro 4,1 e 97 per il volume lesionale. Il motivo per cui il volume ha la scala log — pochi valori enormi schiacciano tutti gli altri su un solo colore — qui non vale, e una scala log sovra-correggerebbe (asimmetria del log10: -0,8), allungando la coda dei soggetti poco disconnessi.
+Il color mode dell'Embedding Explorer è **lineare**, a differenza del volume (log). Misurato sull'intera coorte: asimmetria del carico 1,5 e massimo/mediana 7,7, contro 4,1 e 97 per il volume lesionale. Il motivo per cui il volume ha la scala log — pochi valori enormi schiacciano tutti gli altri su un solo colore — qui non vale, e una scala log sovra-correggerebbe (asimmetria del log10: -0,8), allungando la coda dei soggetti poco disconnessi.
 
 ### Un carico di zero è un valore vero
 
@@ -275,7 +275,7 @@ Le due chiavi sono separate perché le regole di scrittura sono diverse, e la se
 
 ### `geometric_override_datasets`: perché è per dataset e per regola
 
-La forzatura è una **regola per dataset**, non un elenco di ID. Un elenco di ID andrebbe rifatto a mano a ogni cambio delle maschere e non direbbe a un lettore perché quei soggetti; la regola (lato clinico `left`/`right` opposto a quello geometrico) si rilegge da `lesion_metadata.csv` a ogni run. È **per dataset** perché un default globale cambierebbe il registro su dati che nessuno ha guardato. Oggi è spenta (`[]`): i test indipendenti dal lato dicono che per WashU l'etichetta clinica è più spesso quella giusta. Motivazione, regola e verifica sono in `docs/guides/metadata.md`, sezione "Forzare il lato geometrico". Ogni soggetto forzato è un `WARNING` nel log: la forzatura contraddice il tsv di un dataset e non deve essere invisibile (come le sostituzioni di `VARIABLE_SOURCE_OVERRIDES`).
+La forzatura è una **regola per dataset**, non un elenco di ID. Un elenco di ID andrebbe rifatto a mano a ogni cambio delle maschere e non direbbe a un lettore perché quei soggetti; la regola (lato clinico `left`/`right` opposto a quello geometrico) si rilegge da `lesion_metadata.csv` a ogni run. È **per dataset** perché un default globale cambierebbe il registro su dati che nessuno ha guardato. È spenta (`[]`): i test indipendenti dal lato dicono che per WashU l'etichetta clinica è più spesso quella giusta. Motivazione, regola e verifica sono in `docs/guides/metadata.md`, sezione "Forzare il lato geometrico". Ogni soggetto forzato è un `WARNING` nel log: la forzatura contraddice il tsv di un dataset e non deve essere invisibile (come le sostituzioni di `VARIABLE_SOURCE_OVERRIDES`).
 
 ### Il join è stretto nei due sensi
 
@@ -316,13 +316,13 @@ Una sola regola di scrittura per tutte le colonne di `enrich_metadata` (`_apply`
 
 `subject_id, dataset, reason, scope, value`, generato da `src/pipeline/build_excluded_subjects.py` a partire dal config `config/pipelines/build_excluded_subjects.json`, dove ogni soggetto è elencato esplicitamente (nessuna soglia). Il modo usuale (`overwrite: false`) **aggiunge** al csv esistente senza toccarne le righe, quindi il csv è la fonte di verità e togliere una riga si fa a mano; con `overwrite: true` il csv è ricostruito dal solo config, che diventa allora la fonte. La modalità distruttiva è un flag esplicito, mai il comportamento di partenza: una pipeline che conosce solo alcune righe di un file condiviso non deve riscriverlo per intero senza che lo si sia chiesto. L'ultima cella di `notebooks/exploration/lesion_analysis.ipynb` non scrive nulla: stampa i blocchi da incollare nel config. Letto da `src/utils/participants.py::load_excluded_subjects`, e da lì da `build_lesion_matrix.py` e `build_sdc_matrix.py` tramite il campo `excluded_subjects_path` dei loro config — vedi `docs/dev/lesion_matrix.md`.
 
-La pipeline non applica nessuna soglia: i dati non hanno un salto naturale su cui metterne una (su 5853 soggetti, 3 maschere a 0 voxel a 2 mm, 132 con volume ≤ 10 voxel, coda continua; 234 soggetti sopra il 5% di frazione fuori dal brain, 73 sopra il 10%), e quale soggetto limite valga la pena di scartare è un giudizio che appartiene all'analisi.
+La pipeline non applica nessuna soglia: i dati non hanno un salto naturale su cui metterne una (su 5853 soggetti, 4 maschere a 0 voxel a 2 mm, 133 con volume ≤ 10 voxel (volumi dopo `correct_out_of_brain`), coda continua; 234 soggetti sopra il 5% di frazione fuori dal brain, 73 sopra il 10%), e quale soggetto limite valga la pena di scartare è un giudizio che appartiene all'analisi.
 
 ### Criteri di esclusione adottati
 
 La pipeline non applica soglie, ma la lista nel config non è arbitraria: segue due criteri di analisi.
 
-- **Lesioni piccole: nessuna esclusione.** Un soggetto non è scartato per il solo fatto che la lesione è piccola. Anche una lesione focale o minima può avere conseguenze cliniche gravi, quindi il volume non è un proxy di rilevanza clinica. Per volume si esclude solo la maschera vuota (`empty_mask`, 3 soggetti): il motivo `lesion_too_small` esiste nel vocabolario ma non è usato. Tra i soggetti inclusi il volume minimo a 2 mm è 1 voxel, e 122 soggetti stanno a 10 voxel o meno.
+- **Lesioni piccole: nessuna esclusione.** Un soggetto non è scartato per il solo fatto che la lesione è piccola. Anche una lesione focale o minima può avere conseguenze cliniche gravi, quindi il volume non è un proxy di rilevanza clinica. Per volume si esclude solo la maschera vuota (`empty_mask`, 3 soggetti): il motivo `lesion_too_small` esiste nel vocabolario ma non è usato. Tra i soggetti inclusi il volume minimo a 2 mm è 1 voxel, e 129 soggetti stanno a 10 voxel o meno.
 - **Lesioni fuori dal brain: esclusione sopra il 30%.** Si esclude (`out_of_brain_fraction_too_high`) chi ha **più del 30%** dei voxel di lesione fuori dalla maschera cerebrale, letto da `out_of_brain_fraction_2mm`, la frazione sulla griglia di produzione misurata prima dell'azzeramento. La regola è `frazione > soglia`: chi sta esattamente sulla soglia resta. Sotto la soglia il soggetto resta; i suoi voxel fuori dal brain sono azzerati solo con `correct_out_of_brain: true` nel config della matrice, e restano nella matrice con `false` (`docs/dev/lesion_matrix.md`). Oltre, la maschera è troppo contaminata perché il residuo rappresenti la lesione: è il caso di 5 soggetti, tutti sopra il 41%. La soglia viene dalla sezione "Lesione fuori dal brain" di `notebooks/exploration/lesion_analysis.ipynb`.
 
 `reason` ha un vocabolario chiuso in `KNOWN_EXCLUSION_REASONS` (`empty_mask`, `lesion_too_small`, `out_of_brain_fraction_too_high`, `all_zero_features`), pensato per crescere: aggiungerne uno è una voce lì più una riga in `docs/guides/metadata.md`. Chiuso e non libero perché la lista dei soggetti è scritta a mano nel config e un motivo con un typo diventerebbe in silenzio una categoria nuova che nessuno conta.

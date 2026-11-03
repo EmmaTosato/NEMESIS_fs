@@ -95,6 +95,8 @@ Tutte le maschere sono a 1 mm, ma il **dettaglio** non è lo stesso (`docs/guide
 | 1 mm genuino | PASPORT, WAKEUP | 534 | 0/1 |
 | 2 mm interpolata linearmente a 1 mm | PSP | 168 | multipli di $1/8$ |
 
+Le righe sommano 5852: il 5853° soggetto, `sub-STUKLFR0671`, ha la maschera vuota e non è classificabile (`docs/guides/datasets.md`).
+
 Sulla griglia a 2 mm ogni maschera è ricampionata (la shape è diversa). Sulla griglia a 1 mm le maschere RAS $-91$ sono usate così come sono, mentre le LAS $+90$ e RAS $-90$ sono rimappate attraverso l'affine: con `nearest` è una permutazione intera esatta, senza interpolazione di valori ([`lesion_metrics.md`](lesion_metrics.md) § 1.3).
 
 ## 9. Quanto pesa il downsampling

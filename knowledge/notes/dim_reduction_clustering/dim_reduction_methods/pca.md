@@ -60,7 +60,7 @@ Il metodo `pca` del repo ha un suo contratto (`src/analysis/pca_method.py`), con
 
 L'unico iperparametro di sostanza è **quante componenti tenere**; la decomposizione è una sola e non cambia con *k* (il repo la calcola una volta per sweep, `model_cache`).
 
-- **Soglia di varianza cumulata**: si tengono le componenti fino a una quota fissata. Per Jolliffe & Cadima il 70% è "a common, if subjective, cut-off point" [3]. Thiebaut de Schotten et al. 2020 usano "più del 90%" [5]; nel repo è `variance_share: 0.9` o la griglia su `n_components`.
+- **Soglia di varianza cumulata**: si tengono le componenti fino a una quota fissata. Per Jolliffe & Cadima il 70% è "a common, if subjective, cut-off point" [3]. Thiebaut de Schotten et al. 2020 tengono 30 componenti su 46, che spiegano più del 90% della varianza [5]; nel repo è `variance_share: 0.9` o la griglia su `n_components`.
 - **Scree plot** (Cattell 1966 [7]): si cerca il gomito dove la curva degli autovalori si appiattisce. È una lettura visiva, non un numero.
 - **Criterio di Kaiser** (Kaiser 1960 [13]: autovalore maggiore di 1 sulla matrice di correlazione) e **parallel analysis** (Horn 1965 [8]: si tengono le componenti con autovalore superiore a quello di dati casuali delle stesse dimensioni) sono le alternative classiche. Il repo non le implementa.
 - Nel repo la griglia è su `n_components` (da 2 a 150 per le lesioni) e lo spettro intero è salvato (`eigenvalues.npz`), da cui `notebooks/post-results_analysis/pca_evaluation.ipynb` disegna lo scree plot. Nessuna scelta automatica.

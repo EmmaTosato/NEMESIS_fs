@@ -109,7 +109,7 @@ Matrice di confusione a 0,20 (righe = etichetta clinica, colonne = lato geometri
 | right | 7 | 598 | 0 |
 | both | 14 | 7 | **3** |
 
-A 1 mm, sugli stessi cinque dataset (1447 soggetti, PSP compresa): 97,4% a 0,20 (1409/1447), massimo 0,28. Escludendo PSP, le cui maschere a 1 mm sono frazionarie, sugli stessi 1350 soggetti 0,20 dà lo stesso lato a 1 mm e a 2 mm per tutti i 1350 ([`.claude/history/methods_changelog.md`](../../../.claude/history/methods_changelog.md), voce del 06-10-26 "Verifica del lato forzato (WashU) con test comportamentali; soglia a 1 mm verificata; calibrazione rifatta").
+A 1 mm, sugli stessi cinque dataset (1447 soggetti, PSP compresa): 97,4% a 0,20 (1409/1447), massimo 0,28. Il riepilogo di questa calibrazione a 1 mm con PSP non è conservato in `summaries/calibrate_lesion_side_threshold/`: le cifre vengono dalla voce del changelog. Escludendo PSP, le cui maschere a 1 mm sono frazionarie, sugli stessi 1350 soggetti 0,20 dà lo stesso lato a 1 mm e a 2 mm per tutti i 1350 ([`.claude/history/methods_changelog.md`](../../../.claude/history/methods_changelog.md), voce del 06-10-26 "Verifica del lato forzato (WashU) con test comportamentali; soglia a 1 mm verificata; calibrazione rifatta").
 
 **Decisione in vigore: 0,20 su entrambe le griglie.** Lo scarto dal massimo è di un soggetto su 1445, e una soglia ottimizzata su 24 esempi di `both` rischia di adattarsi al campione.
 

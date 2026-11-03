@@ -50,6 +50,7 @@ Aperti: 0 (114 voci registrate, tutte chiuse: C-001, C-002, C-003, C-004, C-005,
 ## C-007 — Bassa — Doc vs Repo: job SLURM mancanti
 - **Dove**: `CLAUDE.md:29`. **Prova**: nessun `jobs/run_embedding_app.sh` (`src/pipeline/embedding_app.py`, server Dash interattivo) né `jobs/run_archive_local_raw_data.sh` (`scripts/archive_local_raw_data.py`, comprime i dati locali).
 - **Domanda**: sono eccezioni legittime (aggiungo la clausola alla regola) o servono i job?
+- **Stato (29-10-26): CHIUSA** — `.claude/CLAUDE.md` dichiara le due eccezioni (`embedding_app.py`, server interattivo; `archive_local_raw_data.py`, dati locali) alla regola «un job per entry point», sia nella regola sui job sia nella descrizione di `jobs/`.
 
 ## C-008 — Bassa — Affermazione troppo generale
 - **Dove**: `CLAUDE.md:21` ("every guide under `docs/guides/` documents both"). **Prova**: `datasets.md` ed `evaluation.md` non citano `sbatch`; non descrivono una pipeline.
@@ -72,16 +73,19 @@ Aperti: 0 (114 voci registrate, tutte chiuse: C-001, C-002, C-003, C-004, C-005,
 ## C-011 — Bassa — Perimetro di `code_standards.md`
 - **Dove**: `CLAUDE.md:70` ("`src/` (and its tests)") vs `code_standards.md:3` ("`src/`, `scripts/` (e i relativi test)").
 - **Domanda**: allineo `CLAUDE.md:70` aggiungendo `scripts/`?
+- **Stato (29-10-26): CHIUSA** — `.claude/CLAUDE.md` dice «`src/` and `scripts/` (and their tests in `tests/`)», come `code_standards.md:3`.
 
 ## C-012 — Bassa — `.claude/audit/` non è nella struttura di `CLAUDE.md`
 - **Dove**: `CLAUDE.md:31-49` non cita `.claude/audit/`; `.claude/skills/` e `.claude/settings.local.json` non sono documentati né in `CLAUDE.md` né nel perimetro dell'audit.
 - **Domanda**: a fine audit documento `.claude/audit/`? `skills/` e `settings.local.json` entrano nell'audit (li ho messi in `00_master_plan.md` §1.1c)?
 - **Stato (29-10-26): APERTA, aggiornata** — decisione dell'utente: documentare `.claude/audit/` in `.claude/CLAUDE.md` a fine audit; `skills/` e `settings.local.json` restano fuori. Nulla da fare finché l'audit non finisce.
+- **Stato (02-11-26): CHIUSA** — `.claude/audit/` documentato in `.claude/CLAUDE.md` (Repository structure): cosa contiene, a che punto sono le due fasi, da dove si riprende. `skills/` e `settings.local.json` restano fuori, come deciso.
 
 ## C-013 — Bassa — Percorsi dell'ambiente hardcoded nei job (da rivedere in Fase 2)
 - **Dove**: `jobs/run_*.sh` (es. `jobs/run_build_lesion_matrix.sh:7,11,17`: `/home/etosato/Projects/NEMESIS_fs`, `/home/etosato/miniconda3/...`).
 - **Prova**: il job "di riferimento" di `CLAUDE.md:24` contiene percorsi assoluti dell'utente sul cluster, contro `code_standards.md` §5 ("nessun valore ambiente-dipendente hardcoded").
 - **Domanda**: accettabile per script SLURM (specifici del cluster) o vanno parametrizzati? Da decidere prima della Fase 2 sui `jobs/`.
+- **Stato (29-10-26): CHIUSA** — decisione dell'utente: i percorsi del cluster nei 18 job (`PROJECT_ROOT`, `conda.sh`, log SLURM) restano; `code_standards.md` §5 li dichiara eccezione («`jobs/*.sh` contengono i percorsi del cluster»).
 
 ---
 
@@ -162,10 +166,12 @@ Scansioni AST su `src/` + `scripts/`; ogni numero è riproducibile con `grep`/`a
 ## C-024 — Bassa — §4: mock su funzioni del repo
 - **Dove**: `tests/` (315 `monkeypatch.setattr`). **Prova**: ~295 sostituiscono costanti di percorso con `tmp_path` (isolamento, legittimo); ~13 sostituiscono funzioni del repo: `embedding_app.build_app` ×3, `discover_production_runs` ×6, `load_*_config` ×4, `dim_reduction.load_matrix` ×2, `clustering.run_clustering_tuning_sweep`, `build_fc_matrix.save_matrix`.
 - **Domanda**: li esamino uno a uno in Fase 2 (tests/) contro "mai mockare il codice sotto test"?
+- **Stato (29-10-26): CHIUSA** — esaminati tutti i 51 punti dove un test sostituisce una funzione del repo (non erano 13): spie che chiamano la funzione vera, iniezioni di errore, dipendenze che non possono girare (server Dash). Due da correggere: `test_distances.py` forzava `_is_binary` (ora usa dati scalati ×2, che raggiungono il ramo continuo senza sostituzioni) e `test_build_dataset_summary_table_paths.py` sostituiva `group_of` (ora usa un ID PD vero). `code_standards.md` §4 elenca i casi ammessi.
 
 ## C-025 — Bassa — §5/§1: percorsi di output come costanti nei moduli
 - **Dove**: `src/pipeline/*.py` (`LOGS_ROOT = Path("logs") / "<nome>"`, `REPORTS_ROOT`), `participants.py` (`METADATA_ROOT`). **Prova**: ~14 moduli; i test devono fare `monkeypatch` di una costante.
 - **Domanda**: i percorsi relativi di log/report sono un'eccezione al §5 (da scrivere) o vanno in `config/`?
+- **Stato (29-10-26): CHIUSA** — decisione dell'utente: `LOGS_ROOT`/`REPORTS_ROOT`/`METADATA_ROOT` restano costanti di modulo; `code_standards.md` §5 dichiara l'eccezione (struttura del repo, uguale su ogni macchina; i test usano `tmp_path`).
 
 ## C-026 — Bassa — §8: nome sbagliato del file delle lezioni
 - **Dove**: `code_standards.md:110` (`lesson_learned.md`). **Prova**: il file è `.claude/lessons_learned.md`. **Domanda**: correggo?
@@ -183,6 +189,7 @@ Scansioni AST su `src/` + `scripts/`; ogni numero è riproducibile con `grep`/`a
 ## C-029 — Bassa — §2: due funzioni pubbliche senza annotazioni complete
 - **Dove**: `src/analysis/clustering.py:36 hdbscan_soft_fit` (manca il tipo di ritorno), `:53 soft_membership_matrix(fitted)` (manca il tipo del parametro).
 - **Prova**: 472/478 pubbliche complete; le altre 4 sono funzioni interne (`embedding_app.py:2713, 2992, 4763`, `clustering_tuning_analysis.py:229`). **Domanda**: le completo?
+- **Stato (29-10-26): CHIUSA** — `src/analysis/clustering.py`: `hdbscan_soft_fit(...) -> hdbscan.HDBSCAN` e `soft_membership_matrix(fitted: hdbscan.HDBSCAN)`, con `hdbscan` importato sotto `TYPE_CHECKING` (il pacchetto resta importato dentro la funzione). Le altre 4 senza annotazioni (`other`, `cells`, `label`, `ordered`) sono funzioni annidate, non pubbliche. Nessun cambio di comportamento: suite 5754 passed, 17 skipped.
 
 ---
 
@@ -192,6 +199,7 @@ Scansioni AST su `src/` + `scripts/`; ogni numero è riproducibile con `grep`/`a
 - **Dove**: `branch_alignment.md:3`. **Prova**: `git rev-list --count main..origin/server-pnc` = 21; `git cherry main origin/server-pnc`: 13 `+` (non in `main`), 8 `-` (equivalenti); ultimo commit 2026-08-22; merge-base `53dbab6` (2026-07-28, il commit che crea `branch_alignment.md`). I `+` includono "Resume compute_sdc production run, log TODO on streamline provenance" (3-8) e "Log compute_sdc production completion, add 2 lessons learned" (7-8).
 - **Impatto**: se il branch viene cancellato, quel lavoro (log di produzione, 2 lezioni, TODO sulla provenienza dello streamline) sparisce dal remoto.
 - **Domanda**: il contenuto è già in `main` per altra via (`lessons_learned.md` #26/#27 sembrano le due lezioni) e si può cancellare `origin/server-pnc`, o lo tengo com'è? Il documento deve dire "non integrato" invece di "storico"?
+- **Stato (29-10-26): CHIUSA** — rimossa da `branch_alignment.md:3` la frase su `origin/server-pnc`; il ramo remoto lo gestisce l'utente. Le due lezioni erano già in `lessons_learned.md` #26/#27; la riga di `TODO.md` sul file `streamline.csv` di `sub_BCB_example/` resta solo nel ramo.
 
 ---
 
@@ -210,10 +218,12 @@ Le cifre sui dati (PSP, WashU, 0671, sede, FC) sono state ricalcolate sui dati l
 - **Dove**: `open_problems.md:113` ("12 di agglomerative, 12 di HDBSCAN... Le 48 cartelle con report sono state rigenerate il 23-10-26").
 - **Prova**: senza `report.md`: agglomerative 15, hdbscan 15 (le 3 in più sono `09-10_*`); `report.md` presenti: agglomerative 48, hdbscan 32, hdbscan_soft 32; modificati il 23-10: 48, tutti agglomerative (i 64 di HDBSCAN restano vecchi, come dice `stato_progetto.md:22`).
 - **Domanda**: aggiorno i numeri (15+15) e preciso che le 48 sono solo di agglomerative?
+- **Stato (02-11-26): CHIUSA** — numeri già giusti (12+12 senza report, 48 con report, 16 per metodo); corretta la data: i 48 `report.md` sono del 27-10-26, non del 23-10 (`open_problems.md`, `stato_progetto.md`).
 
 ## C-033 — Bassa — Decisione del 23-10 non propagata
 - **Dove**: `open_problems.md:34` (decisione A: `participants.csv` riporta il lato clinico) vs `:84-90` (il 23-10 il lato diventa tutto geometrico, "supera la decisione A"); `stato_progetto.md` non cita la decisione; `README.md:94` ("a clinical value is never overwritten") la contraddirà quando sarà implementata. `:86` dà ~1445 soggetti con lato clinico, `participants.csv` ne ha 1448.
 - **Domanda**: marco la decisione A come superata nel testo di `:34` e aggiorno 1445→1448?
+- **Stato (02-11-26): CHIUSA** — in `open_problems.md` la decisione A è segnata come superata dalla decisione del 23-10-26 (che vale quando sarà implementata); 1445 → 1448. `README.md:94` resta vero finché la decisione del 23-10 non è implementata.
 
 ## C-034 — Media — Soggetti tutti-zero: "lasciati" nella documentazione, esclusi nei dati
 - **Dove**: `open_problems.md:213` e `docs/experiments/s1.3-vol.md:24` (`sub-STUKE0146`, `sub-STUKE0201` restano come righe tutte-zero, "2 su 5720") vs `assets/metadata/excluded_subjects.csv` (entrambi `empty_mask`, `scope=all`, che le due pipeline di matrici usano come lista di ammissione).
@@ -225,6 +235,7 @@ Le cifre sui dati (PSP, WashU, 0671, sede, FC) sono state ricalcolate sui dati l
 - **Dove**: `open_problems.md:66`. **Prova**: nel tsv UKLFR i soggetti con `5a != 5b` e lato noto sono 82; tutti omolaterali (34 sinistra + 48 destra), quindi la conclusione regge, il conteggio no. **Domanda**: aggiorno 75/75 in 82/82 (o indico il filtro usato)?
 
 ---
+- **Stato (02-11-26): CHIUSA** — ricontato sul tsv UKLFR: 82 soggetti con `5a != 5b`, tutti omolaterali (34 sinistra, 48 destra); 75/75 → 82/82.
 
 ## `lessons_learned.md`
 
@@ -239,6 +250,7 @@ Le cifre sui dati (PSP, WashU, 0671, sede, FC) sono state ricalcolate sui dati l
 - **Dove**: `lessons_learned.md:72-75` (#17: `regress_out_volume`, "Regression test added... `test_dim_reduction_fine_tuning_nested_n_components_and_regress_out_volume_refits_viz`").
 - **Prova**: `grep regress_out` in `src/` e `tests/` → 0; il test con quel nome non c'è. Restano `embedding_for_viz` e `test_embedding_for_viz_forwards_precompute_distance_metric_to_refit`. La regola generale della lesson resta valida.
 - **Domanda**: la funzionalità è stata rimossa di proposito (allora annoto "rimossa, la lezione resta") o il test è andato perso? Lo verifico in `docs/debugging/`/`methods_changelog.md`.
+- **Stato (02-11-26): CHIUSA** — `regress_out_volume` è stato rimosso il 12-08-26 (`3edb5b9`); annotato in `lessons_learned.md` #17 che il test citato è sparito con la funzione e la lezione resta.
 
 ## C-038 — Bassa — `debug_17_08_26.md` e `debug_22_08_26.md` non sono citati dal registro delle lezioni
 - **Dove**: `lessons_learned.md` (nessun "Seen in" verso i due file); `code_standards.md:110` (ogni bug ha "lessons learned" obbligatorio).
@@ -246,6 +258,7 @@ Le cifre sui dati (PSP, WashU, 0671, sede, FC) sono state ricalcolate sui dati l
 - **Domanda**: aggiungo i rimandi inversi dove una lezione è nata da quei report? Uniformo il formato dei titoli?
 
 ---
+- **Stato (02-11-26): CHIUSA** — aggiunti i rimandi a `debug_22_08_26.md` ai «Seen in» di #4, #5, #7, #15, #17, #21, #28 (`debug_17_08_26.md` era già in #28 dopo C-099). Formato dei titoli di `debug_10_09_26.md` (`## §N —`) lasciato com'è.
 
 ## `history/data_changelog.md` e skill `history`
 
@@ -274,12 +287,14 @@ Le cifre sui dati tornano; i problemi sono "conseguenze ancora vere oggi" che no
 - **Prova**: `git cat-file -t 068d2ff` e `facef6f` → "Not a valid object name". Il secondo ha 49 giorni (07-09 → 26-10), cioè entro i 90.
 - **Impatto**: lo SHA annotato "proprio perché un branch cancellato non compare in `git log`" non permette il recupero qui; può esistere solo nell'altro checkout (server) o essere stato ripulito da `git gc`.
 - **Domanda**: i due oggetti esistono sul server? Se no, tolgo la frase "recuperabile" (la storia dei due branch non è più recuperabile) e chiudo anche la voce di `open_problems.md`.
+- **Stato (02-11-26): CHIUSA** — i due SHA sono già segnati «non più recuperabile» (C-103); la voce in `open_problems.md` non c'è più; «ancora vera oggi» → «vera al 23-09-26».
 
 ## C-042 — Bassa — Formato e conteggi del registro
 - **Dove**: `project_changelog.md:883` (`## 2026-08 — Produzione e tuning separati…`, data senza giorno, contro il formato `GG-MM-AA` dello skill `history`); `:39-54` (backup "88 MB", tabella di 4 sottocartelle, ma sul disco ce ne sono 6 e 95 MB); `00_master_plan.md` (832 righe al bootstrap, oggi 887: il file cresce mentre lo audito).
 - **Domanda**: normalizzo il titolo dell'ultima voce con una data completa? Aggiorno il backup "88 MB / 4 cartelle" (le altre due sono descritte nelle due voci precedenti dello stesso giorno)?
 
 ---
+- **Stato (02-11-26): CHIUSA** — backup in `project_changelog.md`: 95 MB e sette sottocartelle (aggiunte `old_interclass` e `old_membership_share`). Il titolo `## 08-26` resta senza giorno: non è ricostruibile.
 
 ## `docs/setup.md` (ciclo 9)
 
@@ -354,6 +369,9 @@ Le cifre sui dati tornano; i problemi sono "conseguenze ancora vere oggi" che no
 - **Ciclo 17 (stessa voce)**: `anatomical_maps.md:9` («under today's local data layout»), `:39` («today only SDC's own disconnectome map»), `:43` («la situazione attuale»); `config.md:7` («no longer exist… folded into»), `:9` e `:33` («built *after*… the handoff's original listing order»); `design_patterns.md` nessuno.
 - **Domanda**: tolgo gli avverbi (e le frasi ipotetiche sul futuro) tenendo il fatto presente?
 - **Aggiornamento (29-10-26): APERTA, parziale** — tolti gli avverbi e le frasi sul futuro in `evaluate_dim_reduction_tuning.md`, `fc_matrix_building.md`, `understanding_umap_report.md` (anche la frase ipotetica sul t-SNE 3D), `sdc_matrix_building.md`, `matrix_building.md`, `dim_reduction.md:41`, `datasets.md:67,136`. Restano i cicli 13-17 (`clustering.md:235`, `metadata.md`, `embedding_app.md`, `anatomical_maps.md`, `config.md`, ecc.) e `dim_reduction.md:66,74,76`: li chiudo con i blocchi su `metadata.md`/`docs/dev`. `embedding_app.md` non toccato (modifiche non committate dell'utente).
+- **Aggiornamento 2 (29-10-26): APERTA, parziale** — su decisione dell'utente tolti anche i residui nelle guide: `metadata.md` (`oggi` in 6 punti, «il valore in uso»), `dim_reduction.md:74,76,127` (introduzione del campo, «futuro plot interattivo»), `clustering.md:237`, `evaluate_clustering_tuning.md:24`. **Lasciati di proposito**: `evaluation.md:44` (stato reale del notebook, scelta dell'utente), `dim_reduction.md:66`, «non è ancora normalizzato» (`datasets.md`, `exploration.md`), «in stand by» (`pipeline_overview.md`). Restano `embedding_app.md` (modifiche non committate dell'utente) e i file `docs/dev` (`anatomical_maps.md`, `config.md`): blocco `docs/dev`.
+- **Aggiornamento 3 (30-10-26): APERTA, parziale** — tolti gli avverbi temporali e la storia in `embedding_app.md` (`oggi`, «non fa più fallire»), `anatomical_maps.md`, `config.md` e nelle altre guide `docs/dev` toccate dal blocco (`metadata.md`, `models.md`, `plotting.md`, `cluster_description.md`). Restano solo i casi **lasciati di proposito**: `evaluation.md:44`, `dim_reduction.md:66`, «non è ancora normalizzato» (`datasets.md`, `exploration.md`), «in stand by» (`pipeline_overview.md`).
+- **Stato (02-11-26): CHIUSA** — i casi rimasti (`evaluation.md:44`, `dim_reduction.md:66`, «non è ancora normalizzato» in `datasets.md` ed `exploration.md`) sono lasciati di proposito dall'utente; «in stand by» di `pipeline_overview.md` riscritto («Fuori dalla catena»).
 
 ## C-053 — Bassa — Invocazioni non esatte o ridondanti nelle guide
 - **Dove**: `fc_matrix_building.md:36` ("`python -m src.pipeline...`" senza `--config`); `understanding_umap_report.md:30` (`PYTHONPATH=.` con `-m`) e `:22-25`.
@@ -387,6 +405,8 @@ Le cifre sui dati tornano; i problemi sono "conseguenze ancora vere oggi" che no
 - **Prova**: rilanciando `evaluate_clustering_tuning` su una copia (overwrite: true, rc=0, 39 s) i 6 CSV sono identici byte per byte, ma `report.md` cambia in 36 righe: "Dendrogramma (ultime 30 fusioni)" → "Dendrogramma"; "sono mostrate solo le ultime 30 fusioni" → "(quante, sta sull'asse orizzontale della figura)". Il resto del file coincide.
 - **Impatto**: lieve; i 48 report di agglomerative rigenerati il 23-10 (C-032, `stato_progetto.md:22`) sono già vecchi rispetto al codice di oggi. La guida descrive il comportamento nuovo.
 - **Domanda**: è atteso (modifica in corso dei testi)? Quando i testi sono chiusi, rigenero i 48 report e aggiorno i conteggi di C-032?
+- **Aggiornamento (29-10-26): APERTA** — su decisione dell'utente la voce resta aperta di proposito: a fine audit si rigenerano i 48 `report.md` insieme agli altri report. La rigenerazione scrive in `results/` e la lancia l'utente. Dopo la rigenerazione vanno aggiornati i conteggi di C-032.
+- **Stato (02-11-26): CHIUSA** — i 48 `report.md` sono tutti del 27-10-26 e il codice dei report è committato. Rigenerati su copie nello scratchpad (agglomerative ×2, hdbscan, `hdbscan_soft`): identici al salvato, a parte il percorso. Non rifatti gli altri 44. Nessuna rigenerazione da lanciare.
 
 ## `docs/guides/` — ciclo 12 (`matrix_building.md`, `pipeline_order.md`, `datasets.md`)
 
@@ -436,6 +456,8 @@ Le cifre sui dati tornano; i problemi sono "conseguenze ancora vere oggi" che no
 - **Ciclo 18**: anche `docs/dev/pipeline_flow.md:16` elenca `clustering_evaluation` tra i notebook che leggono `participants.csv`.
 - **Domanda**: correggo la cella 1 del notebook e le due frasi di `cluster_description.md` (la seconda va riletta quando audito `docs/dev/`), o preferisci farlo tu?
 - **Ciclo 20**: confermato in `docs/dev/cluster_description.md:40,43` («in section 4 of the notebook», «notebook section 4»).
+- **Aggiornamento (02-11-26)**: fatte `cluster_description.md:40,43` (tolta la «sezione 4 del notebook») e `pipeline_flow.md:16` (`clustering_evaluation` → `clustering_comparison`). **APERTA**: resta la cella 1 di `clustering_comparison.ipynb`; il testo è stato consegnato in chat e il notebook non è modificato. `management/project_scaffold_guide.md:340` è fuori perimetro (nome usato come esempio).
+- **Stato (02-11-26): CHIUSA** — su decisione dell'utente i notebook restano così per ora; la cella 1 di `clustering_comparison.ipynb` (rimando a `clustering_evaluation.ipynb`, eliminato) non è corretta. Il testo proposto è nel messaggio del 02-11-26; si riprende notebook per notebook, se e quando l'utente lo chiede.
 
 ## C-065 — Media — `evaluation.md:14`: dataset, lato e sede dominante non sono nel pannello "Cluster description"
 - **Dove**: `docs/guides/evaluation.md:14` ("Tabelle descrittive per cluster su età, sesso, NIHSS, volume, dataset, lato, sede dominante (nessun test) → app Dash, pannello 'Cluster description'").
@@ -457,6 +479,8 @@ Le cifre sui dati tornano; i problemi sono "conseguenze ancora vere oggi" che no
 - **Prova**: cella 1 di `dataset_availability` = un solo rimando a `exploration.md`; `lesion_analysis` elenca i tre assi senza dire cosa legge e scrive; `dim_reduction` e `fc_lesion_masking` non dicono cosa scrivono; `clustering_comparison` non dice cosa legge né cosa scrive (e rimanda a un notebook eliminato, C-064). Controllo fatto sui testi delle celle, non con un criterio automatico.
 - **Impatto**: leggero; la regola è in una guida, non in un test.
 - **Domanda**: adeguo i notebook, o la regola dice più di quanto vuoi (ammettere un rimando alla guida)?
+- **Aggiornamento (02-11-26)**: **APERTA** — testo della prima cella consegnato in chat per `dataset_availability`, `lesion_analysis`, `dim_reduction`, `fc_lesion_masking`, `clustering_comparison`; i notebook non sono modificati (si applica solo dopo «applica»).
+- **Stato (02-11-26): CHIUSA** — su decisione dell'utente i notebook restano così per ora; le prime celle di `dataset_availability`, `lesion_analysis`, `dim_reduction`, `fc_lesion_masking` e `clustering_comparison` non rispettano la regola di `exploration.md:211`. Testi proposti nel messaggio del 02-11-26; si riprende notebook per notebook, se e quando l'utente lo chiede.
 
 ## C-068 — Media — `evaluation.md:16`: il notebook non calcola Mahalanobis né distanze "linkage" tra cluster
 - **Dove**: `docs/guides/evaluation.md:16` ("Distanze tra cluster nello spazio dell'embedding (centroidi, Mahalanobis, linkage) → `clustering_comparison`").
@@ -480,6 +504,7 @@ Le cifre sui dati tornano; i problemi sono "conseguenze ancora vere oggi" che no
 - **Domanda**: tolgo `l1`, aggiungo le due chiavi alla tabella e rimando a `evaluate_clustering_tuning.md` per i file delle valutazioni?
 - **Nota (lavoro in corso)**: il working tree dell'utente toglie `k_range` da `clustering_evaluations.json` e fa del salto del dendrogramma una colonna `jump` di `tuning_results.csv` (niente più `dendrogram_jump.csv`): `clustering.md:39,239,241` ed `evaluate_clustering_tuning.md` andranno riallineati al commit.
 - **Aggiornamento (29-10-26): APERTA, parziale** — fatti (1) tolto `l1` e (2) aggiunte `reduced_data` e `viz_embedding_path` alla tabella. Resta (3) l'elenco dei file di output del tuning, da scrivere dopo che l'utente ha committato il lavoro su `k_range`/`jump` (altrimenti descriverei file che stanno per cambiare).
+- **Stato (02-11-26): CHIUSA** — (3) `clustering.md`, sezione Fine-Tuning: aggiunti i file delle valutazioni e `report.md`, con rimando a `evaluate_clustering_tuning.md`.
 
 ## C-071 — Media — `metadata.md:46`: `--dry-run` non esiste in `populate_metadata`
 - **Dove**: `metadata.md:46` («Tutte le pipeline accettano `--dry-run`… Usalo la prima volta dopo aver cambiato un config»); `:31` («Quattro passaggi… Un quarto…»: i comandi sono cinque); `:48` (quattro `sbatch`).
@@ -516,28 +541,33 @@ Le cifre sui dati tornano; i problemi sono "conseguenze ancora vere oggi" che no
 - **Dove**: `:168` («la stessa logica già validata in `notebooks/post-results_analysis/embeddings_analysis.ipynb` §4») e `:182` («promossa da `…/embedding_to_anatomy_mapping.ipynb` §2»).
 - **Prova**: `notebooks/` contiene 12 notebook, nessuno con questi nomi; la sezione *Cosa NON è* e `CLAUDE.md:54` chiedono la forma presente.
 - **Domanda**: tolgo i due rimandi (descrivono la storia del codice, non il presente)?
+- **Stato (30-10-26): CHIUSA** — tolti i rimandi ai due notebook inesistenti in `embedding_app.md` (`:168`, `:182`) e in `anatomical_maps.md:5`.
 
 ## C-076 — Bassa — `embedding_app.md`: cifre e omissioni minori
 - **Dove**: (1) `:3`, `:143` elencano sette bottoni (manca `lesion location`, presente in `COLOR_MODES` e al `:18`); (2) `:44` «`~60 000` è un soggetto tipico» è il valore a 1 mm, mentre il default è 2 mm (mediana ~7500, `:61` lo dice); (3) `:49` «massimo/mediana 7,6»: 7,683 → 7,7; (4) `:94` binary_masks «27 KB per soggetto: ~320 MB per tutti i 5845, il doppio per lesione e disconnettoma»: 27 KB × 5845 = 158 MB, e su disco ci sono 23396 file (19 KB in media, 453 MB).
 - **Impatto**: leggero.
 - **Domanda**: correggo i quattro punti (per (4) dimmi la cifra attesa: per modalità, per soggetto o totale)?
 - **Ciclo 20**: stesso «7,6» in `docs/dev/metadata.md:249` (massimo / mediana del carico: 7,683).
+- **Stato (30-10-26): CHIUSA** — `embedding_app.md`: `lesion location` aggiunto ai due elenchi di bottoni; `~60 000` detto a 1 mm (a 2 mm `~7 500`); 7,6 → 7,7 anche in `docs/dev/metadata.md`; `binary_masks` misurato: 23.396 file, ~17 KB l'uno, ~390 MB (453 MB su disco). La cifra 19 KB dell'audit era l'uso del disco, non la dimensione dei file.
 
 ## C-077 — Bassa — `cluster_drivers.md:33`: la correlazione 0,88 è sui logaritmi e il VIF non è «sopra 8»
 - **Dove**: `docs/dev/cluster_drivers.md:33` («Lesion volume and disconnection load correlate 0.88 on the current cohort: using both gives VIF above 8»).
 - **Prova**: su `participants.csv` (2 mm): correlazione dei logaritmi 0,881 (5849 soggetti con entrambi > 0); Pearson sui valori grezzi 0,797; Spearman 0,906. Con due soli termini VIF = 1/(1−r²) = 4,47 (2,74 sui grezzi). Un VIF sopra 8 richiederebbe r ≈ 0,94 oppure altri termini correlati nel modello.
 - **Impatto**: leggero; il consiglio (tenerne uno solo) regge, la cifra no. Il `cluster_pair` dell'app regredisce con trasformazioni scelte dal chiamante, non è detto che usi i log.
 - **Domanda**: scrivo «correlano 0,88 sui logaritmi (0,91 di Spearman): VIF ≈ 4,5 con questi due soli termini» e tolgo «sopra 8»?
+- **Stato (30-10-26): CHIUSA** — `cluster_drivers.md:33`: 0,88 sui logaritmi (0,91 di Spearman), VIF ≈ 4,5 con i due soli termini; tolto «sopra 8».
 
 ## C-078 — Bassa — `cluster_composition.md:7`: la callback ascolta anche la scheda attiva
 - **Dove**: `docs/dev/cluster_composition.md:7` («its callback listens to the run picker only»).
 - **Prova**: `embedding_app.py:5112-5116`: `Input("run-picker", "value")` e `Input("selected-page-tab", "data")`; fuori dalla scheda Clustering restituisce `[]` (le schede si costruiscono quando si aprono, `embedding_app.md:114`). Il 7° output di `_update_cluster_picker` e la griglia 440 px sono giusti.
 - **Domanda**: aggiorno la frase (due input: run e scheda)? Lo stesso vale probabilmente per gli altri pannelli della scheda (`cluster_description.md`).
+- **Stato (30-10-26): CHIUSA** — `cluster_composition.md:7`: la callback ha due input, il selettore di run e la scheda attiva. Gli altri file dei pannelli (`cluster_description.md`, `cluster_drivers.md`, `cluster_comparison.md`) non descrivono i loro input: niente da correggere.
 
 ## C-079 — Bassa — `fc_matrix.md`: cartella di output, rimando vuoto e storia nel presente
 - **Dove**: (1) `:39` cartella `fc_matrix/<combo>/<date>_<session_name>/`; (2) `:57` «(Phase C above)»; (3) `:13` («Resolved: … an earlier accidental transcription gap … has been closed»), `:33` («an earlier version re-checked only `.index`…»), `:19` («planned: `NAN_IMPUTATION_STRATEGIES`»), `:45` e `:47` («validated … before landing here»).
 - **Prova**: (1) `build_fc_matrix.py:118-119`: `effective_session_name = f"{session_name}-{combo}"` → `24-07_s3.1-Yan200TianS2Buckner7N`; (2) nel file non c'è una "Phase C"; (3) `CLAUDE.md:54` chiede la forma presente per `docs/dev/`; `NAN_IMPUTATION_STRATEGIES` non esiste in `src/` (a `:19` è «planned», corretto, ma datato).
 - **Domanda**: correggo (1) e (2) e riscrivo (3) come fatti presenti (spostando la storia in `project_changelog.md` se non c'è già)?
+- **Stato (30-10-26): CHIUSA** — `fc_matrix.md`: cartella `<date>_<session_name>-<combo>`; tolto «Phase C above»; storia riscritta come fatti presenti (`:13`, `:33`, `:47`), imputazione descritta come passo che non esiste ancora.
 
 ## C-080 — Media — `config.md:49`: il report di agglomerative non usa le fasce di Kaufman & Rousseeuw
 - **Dove**: `docs/dev/config.md:49` («The pipeline classifies nothing as good or usable with a threshold of ours… the only bands are the silhouette ones of a published convention (Kaufman & Rousseeuw 1990) in the agglomerative `report.md`, labelled as such»).
@@ -550,58 +580,69 @@ Le cifre sui dati tornano; i problemi sono "conseguenze ancora vere oggi" che no
 - **Dove**: `docs/dev/design_patterns.md:50` («`BuildMatrixConfig`, `DimReductionConfig`, `ClusteringConfig`, `DimReductionClusteringConfig` in `src/analysis/`»). `config.md:7` dice che la classe non esiste più.
 - **Prova**: `grep class .*Config` in `build_config.py` e `model_config.py`: nessuna `DimReductionClusteringConfig`; resta citata solo in `docs/debugging/debug_17_08_26.md` (storico, ammesso) e nelle due doc.
 - **Domanda**: la sostituisco con `EvaluateClusteringTuningConfig` (o la tolgo)?
+- **Stato (30-10-26): CHIUSA** — `design_patterns.md:50`: `DimReductionClusteringConfig` sostituita con `EvaluateClusteringTuningConfig`.
 
 ## C-082 — Bassa — `config.md`: tag di esempio obsoleti, storia di processo e una frase in italiano
 - **Dove**: (1) `:15` esempio `"tag_prefix": ["n_clust","link"]` → `n_clust4_linkward`; (2) `:7`, `:9`, `:33` (nota «built after… the handoff's original listing order»); (3) `:69` frase in italiano («Una chiave di `extra_columns` che coincide con una colonna di `FIELDNAMES`… solleva `ValueError`») in un file in inglese; (4) `:37` «the 5 regression tests in `test_model_config.py` that pin the validation order».
 - **Prova**: (1) i tag reali sono `k3_link_ward_mk_euclidean`, `k6`, `mcs100_ms10_sel_eom` (`load_method_params` sul registro); (2) `CLAUDE.md:54` chiede presente anche in `docs/dev/`; (4) `test_model_config.py` ha 57 test e nessuno cita l'ordine di validazione.
 - **Domanda**: aggiorno l'esempio con un tag reale, tolgo (2) e traduco (3), verifico (4) o tolgo il numero?
+- **Stato (30-10-26): CHIUSA** — `config.md`: esempio con un tag reale (`k3_link_ward_mk_euclidean`, anche a `:69`), tolta la storia di processo (`:7`, `:9`, `:33`) e il «5 regression tests», tradotta la frase italiana.
 
 ## C-083 — Bassa — `anatomical_maps.md`: riferimenti a cose che non esistono, cifre e lingua mista
 - **Dove**: (1) `:5`, `:9` notebook `embedding_to_anatomy_mapping.ipynb` (e la sua cella «Configurazione»); (2) `:33` helper `_load_and_binarize` «here»; (3) `:69`, `:86` immagini `tmp/anatomy_rendering/110_…`, `120_…`, `90_…`; (4) `:79` «about 27 KB» per entry; (5) paragrafi in italiano a `:41`, `:43`, `:63`, `:79`.
 - **Prova**: (1) il notebook non esiste (C-075); (2) in `anatomical_maps.py` non c'è `_load_and_binarize` (c'è `lesion.py::_load_and_binarize_lesion`; la lettura passa da `_GridResampler.load`); (3) `tmp/anatomy_rendering/` contiene solo `prototype*.py` (`tmp/` è ignorato da git); (4) su disco 453 MB in 23396 file = 19 KB (stesso numero di C-076); (5) il resto del file è in inglese.
 - **Impatto**: leggero; le evidenze citate non sono più controllabili.
 - **Domanda**: tolgo i rimandi (1)-(3), correggo (4) con la misura e uniformo la lingua?
+- **Stato (30-10-26): CHIUSA** — `anatomical_maps.md`: tolti notebook, `_load_and_binarize` e immagini di `tmp/`; «27 KB» → 17 KB (misura, vedi C-076); tradotti i quattro passaggi italiani; «today» tolti.
 
 ## C-084 — Bassa — `pipeline_flow.md:105`: non ogni pipeline scrive `summaries/`
 - **Dove**: `docs/dev/pipeline_flow.md:105` («Ogni run di pipeline: `logs/<pipeline>/` (log grezzo), `summaries/<pipeline>/` (report)…»).
 - **Prova**: `grep summaries src/pipeline/*.py`: lo scrivono `build_excluded_subjects`, `build_fc_matrix`, `build_sdc_matrix`, `calibrate_lesion_side_threshold`, `compute_lesion_metadata`, `compute_sdc_metadata`, `enrich_metadata`, `mask_fc`, `populate_metadata` (9 su 18). Non lo scrivono `build_lesion_matrix`, `clustering`, `dim_reduction`, `evaluate_clustering_tuning`, `evaluate_dim_reduction_tuning` (che hanno `config.md` e log) né `embedding_app`, `generate_understanding_umap_report`, `replot_dim_reduction`, `plot_tuning_embedding_3d`; questi ultimi quattro non scrivono nemmeno `logs/`. `ls summaries/` conferma sette cartelle.
 - **Domanda**: scrivo quali pipeline hanno il report (o «le pipeline di metadati e matrici SDC/FC») e dove stanno i parametri delle altre (`config.md`)?
+- **Stato (30-10-26): CHIUSA** — `pipeline_flow.md`: `logs/` per tutte tranne 4 pipeline; `summaries/` solo per le 9 pipeline dei metadati e delle matrici SDC/FC.
 
 ## C-085 — Bassa — `plotting.md`: lingua mista, storia di processo e `except Exception`
 - **Dove**: (1) le sezioni *Naming dei file di plot* (`:60-76`) e *Figure dei notebook* (`:106-118`) sono in italiano dentro un file in inglese; (2) storia e decisioni di sessione nel presente: «a first attempt at this used a percentile… had **zero visible effect**» (`:27`), «(user decision)» (`:13`), «the real 1150-subject cohort» (`:90`), «Alpha was tried much lower first (0.35)» (`:25`); (3) `:96` documenta come voluti i `try/except Exception` + `logging.warning` dei due writer di `embedding_plots.py`.
 - **Prova**: `CLAUDE.md:54` chiede il presente per `docs/dev/`; `grep "except Exception" src/analysis/embedding_plots.py`: 5 occorrenze, contro `code_standards.md` §3 («catturare eccezioni specifiche, non generiche»).
 - **Domanda**: uniformo la lingua, sposto la storia in `methods_changelog.md` e per (3) decidi se il codice va ristretto (Fase 2) o la regola ammette l'eccezione?
+- **Stato (30-10-26): CHIUSA** — `plotting.md`: sezioni *Naming* e *Figure dei notebook* tradotte in inglese; storia di processo tolta (decisioni registrate in `methods_changelog.md`, 30-10-26; la palette a 10 colori era già in `project_changelog.md`); `:96` riscritto sul codice già ristretto (`_EXPECTED_PLOT_ERRORS`, eccezione dichiarata in `code_standards.md` §0).
 
 ## C-086 — Bassa — `cluster_comparison.md:101`: rimando al notebook di interpretazione eliminato
 - **Dove**: `docs/dev/cluster_comparison.md:101` («The laterality index of the interpretation notebook is not used: it lives in `lesion_metadata.csv`, not in the registry»).
 - **Prova**: `cluster_interpretation.ipynb` è stato eliminato il 15-10-26 (`project_changelog.md`); i notebook sono 12 e nessuno è di interpretazione dei cluster.
 - **Domanda**: tolgo la frase, tenendo solo «l'indice di lateralità sta in `lesion_metadata.csv`, non nel registro»?
+- **Stato (30-10-26): CHIUSA** — `cluster_comparison.md:101`: tolto il rimando al notebook eliminato; resta «l'indice di lateralità sta in `lesion_metadata.csv`, non nel registro».
 
 ## C-087 — Bassa — `lesion_matrix.md`: numeri dopo la correzione, un loader descritto male, storia e una frase spezzata
 - **Dove**: (1) `:30` «3 masks at 0 voxels on the 2mm grid, 132 at ≤ 10 voxels»; (2) `:127` «`load_build_matrix_config` also parses `MaskFcConfig`/`BuildFcMatrixConfig`»; (3) `:82` («changed from the original… on request»), `:118` («per the handoff note's explicit deferral»), `:135` («Found while testing this script»); (4) `:131` («`main(argv) -> int`, staged `try`/`except` per phase, `logs/…/` written every run) but simpler control flow…» con parentesi che non si apre e confronto senza il termine di paragone).
 - **Prova**: (1) `lesion_metadata.csv` (volumi dopo `correct_out_of_brain`): 4 maschere a 0 voxel e 133 a ≤ 10 (la quarta è `sub-STUNIPD0558`, 100% fuori dal brain); 234 e 73 giusti; (2) in `build_config.py` ogni config ha il suo loader (`load_mask_fc_config`, `load_build_fc_matrix_config`, `load_compute_lesion_metadata_config`…); (3) `CLAUDE.md:54` chiede presente anche per `docs/dev/`; (4) leggere il testo.
 - **Domanda**: aggiorno (1) a 4/133 (dicendo che i volumi sono dopo la correzione), correggo (2), riscrivo (3) come fatti presenti e sistemo (4)?
+- **Stato (30-10-26): CHIUSA** — `lesion_matrix.md`: 4 maschere a 0 voxel e 133 a ≤ 10 (volumi dopo `correct_out_of_brain`); loader veri (`load_mask_fc_config`, `load_build_fc_matrix_config`); storia riscritta al presente; frase di `:131` sistemata (confronto con `mask_fc.py`).
 
 ## C-088 — Bassa — `sdc_matrix.md`: esempio di copia locale parziale e storia nel presente
 - **Dove**: `:78-83` («con `manual_masks/` con soli 10 soggetti per dataset mentre `bcbtoolkit/` ha la coorte intera… un soggetto "no lesion mask" (es. `sub-STUKLFR0671`) può averla registrata»), `:44` («an earlier draft of this design used "max rows observed"…»), `:141` («validated against `src.features.sdc`'s known sets»).
 - **Prova**: le maschere locali sono tutte e 5853 (8 dataset completi, `datasets.md`); `sub-STUKLFR0671` ha una maschera vuota (`empty_mask`, non assente); `KNOWN_OBJECTS` e `KNOWN_VALUE_COLUMNS` sono in `parcellated_csv.py` (importati da `build_config.py`). La regola «la presenza della maschera si risolve dal registro» resta valida.
 - **Domanda**: tolgo l'esempio «10 soggetti per dataset» (tenendo la regola) e la storia di `:44`, e correggo il modulo di `:141`?
+- **Stato (30-10-26): CHIUSA** — `sdc_matrix.md`: tolto l'esempio «10 soggetti per dataset» (regola mantenuta), la storia di `:44` e corretto il modulo dei set noti (`parcellated_csv.py`, `sdc.py`).
 
 ## C-089 — Bassa — `models.md`: cartelle e cifre superate, un file di riferimento inesistente, lingua mista
 - **Dove**: (1) `:241` «`reports/<script>/<project>/` + `logs/<script>/<project>/`» contro `:297` «No `summaries/` report for these 2 modeling CLIs»; (2) `:257-293` percorsi `results/<project>/…`; (3) `:293` «A directory of that shape from earlier runs may still sit on disk»; (4) `:198` «Today. Of the 95 agglomerative production runs, 82 have a compatible tuning. 7 have none… and 6 raise»; (5) la sezione `adp.py` (`:215-232`) è in italiano dentro un file in inglese.
 - **Prova**: (1) la cartella dei report è `summaries/` (non `reports/`) e `dim_reduction.py` / `clustering.py` non la scrivono (G-290); i log sono in `logs/<script>/<project>/` ✓. (2) il primo segmento è la modalità: `results/lesion/…` e `results/sdc/…`, mentre `<project>` (`clinical_connectome`) compare solo nei log. (3) nessuna `comparison/` sotto `results/*/clustering/production/`. (4) le run agglomerative di produzione sono oggi 156 (29 lesione + 127 sdc); i sei che sollevano (lesione `01-09` / `03-09`, k 4-6) restano, gli altri conteggi non sono più quelli.
 - **Domanda**: correggo (1)-(3), tolgo «Today…» o lo rifaccio con `find_compatible_tunings` (serve un'esecuzione), e traduco (5)?
+- **Stato (30-10-26): CHIUSA** — `models.md`: `summaries/` e `dim_reduction`/`clustering` che non la scrivono, `results/<modality>/`, tolta la frase sulla cartella `comparison/` rimasta su disco, tolti i conteggi di «Today» (restano le due regole), sezione `adp.py` tradotta.
 
 ## C-090 — Bassa — `cluster_description.md`: storia delle richieste e piano futuro dentro una doc al presente
 - **Dove**: `:16` («5 of the 7 requested dimensions»), `:26-29` («kept despite low coverage, on request», «originally-requested dimension»), `:184-205` (sezione «Next session» con ordine di lavoro, coverage «on today's registry population»).
 - **Prova**: `CLAUDE.md:54` chiede il presente per `docs/dev/`; il tipo di ictus non è nel registro (G-343) e la sezione è un piano, non un fatto.
 - **Domanda**: sposto «Next session» in `open_problems.md` (o in un `project_changelog`) e riscrivo `:16` e `:26-29` come fatti presenti (cosa il registro contiene e cosa no)?
+- **Stato (30-10-26): CHIUSA** — `cluster_description.md`: «Next session» spostata in `.claude/open_problems.md` (voce «Tipo di ictus…»); `:16` e `:26-29` riscritti come fatti presenti; sezione ora «Registry coverage».
 
 ## C-091 — Bassa — `docs/dev/metadata.md`: cifre dopo la correzione, referente mancante e storia nel presente
 - **Dove**: (1) `:319` «3 maschere a 0 voxel a 2 mm, 132 con volume ≤ 10»; (2) `:325` «122 soggetti a 10 voxel o meno» tra gli inclusi; (3) `:155` «Quello script ora legge `laterality_index_<grid>`» senza antecedente; (4) `:5` («Il ridisegno è **in vigore**»), `:71` («non esistono più: cancellati»), `:91` («Una sola oggi»), `:241` («scoperta per caso… un primo calcolo esplorativo»).
 - **Prova**: (1) e (2) ricalcolati da `lesion_metadata.csv` (volumi dopo `correct_out_of_brain`): 4 a 0 voxel e 133 a ≤ 10; tra gli inclusi (senza le 8 righe `scope = all`) i soggetti a ≤ 10 voxel sono 129. (3) il paragrafo precedente non nomina `calibrate_lesion_side_threshold`. (4) `CLAUDE.md:54`.
 - **Domanda**: aggiorno (1)-(2) (stessa correzione di C-087 in `lesion_matrix.md:30`), nomino lo script in (3) e riscrivo (4) come fatti presenti?
 
+- **Stato (30-10-26): CHIUSA** — `docs/dev/metadata.md`: 4 maschere a 0 voxel e 133 a ≤ 10 a 2 mm; tra gli inclusi 129 a ≤ 10 voxel (non 122); `calibrate_lesion_side_threshold` nominato; «in vigore», «una sola oggi», «scoperta per caso» riscritti al presente.
 
 ## C-092 — Media — `docs/experiments/`: i quattro metodi spostati in `results/legacy/` sono ancora descritti come presenti in `results/`
 - **Dove**: commit `8c9b498` (28-10) ha spostato `spectral`, `kmeans`, `gmm`, `adp` (16 cartelle di metodo, 25 GB) sotto `results/legacy/clustering_spectral_kmeans_gmm_adp_28-10-26/` e ha corretto **solo due file** (`s1.4-vol.md` e `s2.4-stream.md`: link ai report di ADP). Restano riferimenti al vecchio posto in: `s1.1-vol.md:28,42` (tuning di «5 metodi» in `results/lesion/clustering/tuning/`), `s1.2-vol.md:28,49`, `s2.1-schaefer-200-tian-s2.md:35` (e la tabella dei 5 metodi), `s2.2-vol.md:58,77`, `s2.3-stream.md:27` (il link `runs.csv` elenca 8 run su 15: i 7 kmeans sono in `legacy`), `s1.4-vol.md:57,122` (`runs.csv` «di ogni metodo»; «`production/adp` pesa 4.8 GB»), `s2.4-stream.md:34`, `s2.4-vol.md:193,251` («`production/adp` pesa 25 GB»: ora sta in `results/legacy/sdc_s2.4-vol_07-10/clustering/production/adp`), `pipelines.md:256` («k-means, agglomerative, gmm, hdbscan, spectral») e i conteggi di `README.md:10-16` (79, 15, 30, 29, 19), che contano ancora i metodi spostati.
@@ -615,6 +656,7 @@ Le cifre sui dati tornano; i problemi sono "conseguenze ancora vere oggi" che no
 - **Prova**: `os.path.isdir(output)` falso per queste 39 righe; sono le run della matrice `07-10_s2.4-vol` (cartelle in `results/legacy/sdc_s2.4-vol_07-10/`, che non ha nessun `runs*.csv`) più una run del 16-10 mai prodotta (`hdbscan_soft` nc10 100/20 `eom`, dichiarata mancante in `s2.4-vol.md:143`). `project_changelog.md` (28-10) scrive «in `results/` non restano righe con `output` che punta a un percorso inesistente»: vero per i quattro metodi, falso per queste.
 - **Impatto**: `lessons_learned.md` #24 (un `output` registrato è creduto valido): qualunque lettore di `runs.csv` conta 39 run che non ci sono (lo script `build_dim_reduction_strategies_csv.py`, che aveva il controllo `_output_dir_exists`, non esiste più in `scripts/`).
 - **Domanda**: sposto le 39 righe in un `runs.csv` dentro `results/legacy/sdc_s2.4-vol_07-10/…` (come per i quattro metodi) o le cancello?
+- **Stato (02-11-26): CHIUSA** — le 39 righe sono nei log di `results/legacy/sdc_s2.4-vol_07-10/…` (verbatim, `output` invariato; ogni `output` esiste lì); in `results/{lesion,sdc}` nessuna riga ha più un `output` inesistente. Voce in `data_changelog.md`.
 
 ## C-094 — Media — `s2.1-schaefer-200-tian-s2.md`: i numeri del tuning sono quelli di s1.1-vol
 - **Dove**: `:19-30` (tabella «5 metodi su `euclidean nc2`» e «fascia compatta 0.45-0.50»), `:53` («`nc3` … Non è stato fatto»); di riflesso `s2.2-vol.md:79` («a differenza di s2.1, dove l'ottimo cadeva a k=3-4 in fascia 0.45-0.50»).
@@ -622,62 +664,73 @@ Le cifre sui dati tornano; i problemi sono "conseguenze ancora vere oggi" che no
 - **Impatto**: la conclusione «a differenza di s2.1» di s2.2 e il confronto tra le due sessioni poggiano su numeri che non sono di s2.1.
 - **Domanda**: riscrivo la tabella con i valori di s2.1 (nc2 e nc3), correggo `:13` e `s2.2-vol.md:79`, e tolgo «Non è stato fatto» a `:53`?
 - **Stato (ciclo 25, su decisione dell'utente): CHIUSA** — il contenuto di `s2.1-schaefer-200-tian-s2.md` è stato cancellato e sostituito da «Evntualmente da rifare» (il file va rifatto con i valori veri di s2.1). Restano da gestire a parte: `s2.2-vol.md:79` («a differenza di s2.1…») e i rimandi a quel file da `README.md`, `lineage.md`, `pipelines.md` di `docs/experiments/`, che ora puntano a una pagina vuota.
+- **Aggiornamento (02-11-26)**: tolta da `s2.2-vol.md` la frase «a differenza di s2.1, dove l'ottimo cadeva a k=3-4»; restano la pagina segnaposto di s2.1 e i rimandi da `README.md`, `lineage.md`, `pipelines.md`.
 
 ## C-095 — Bassa — `docs/experiments/`: date, conteggi e un intervallo che non tornano
 - **Dove**: (1) `README.md:15` («PCA: tuning, nc30 e nc42, 2 run di clustering») contro `s2.4-vol.md:42-96` e `pipelines.md:92` (nc42, nc30, nc12, nc2; 53 run di clustering sulla PCA); (2) intestazioni «Tuning, **12-10**» in `s1.4-vol.md:61`, `s2.4-vol.md:195`, `s2.4-stream.md:36`, mentre le run di tuning sono del 08-10 (s1.4; ADP 08-10), 09-10 (s2.4-vol, s2.4-stream agglomerative/HDBSCAN) — così anche `pipelines.md:34,130,174`; (3) `s2.2-vol.md:67` «350 combinazioni, 175 per dimensionalità» contro 195 per nc (agglomerative 70 + HDBSCAN 18 + KMeans 7 + GMM 28 + Spectral 72) e 390 in tutto; (4) `s1.4-vol.md:105` «`euclidean` … il rumore è 13-67%»; (5) `s1.4-vol.md:28` («oggi l'indice interno… è il DBCV») e `:120` («che il notebook di tuning non calcola più»).
 - **Prova**: (1)(2) `runs.csv`/`runs_tuning.csv` per data; (3) righe di `tuning_results.csv` in `results/` e `legacy/`; (4) sonda HDBSCAN (`mcs=100, ms=10`) sui 90 embedding `euclidean` del tuning 07-10: rumore da 0 a 100%, mediana 27%, 35 celle fuori da 13-67%.
 - **Domanda**: correggo (1)-(3) e riscrivo (4) con l'intervallo vero (o «dipende dal riquadro: 0-100%»)? Per (5) `CLAUDE.md:54` copre `docs/experiments/`? Se no, sono accettabili.
+- **Stato (02-11-26): CHIUSA** — (1)-(3) corretti in `experiments/README.md`, `s1.4-vol.md`, `s2.4-vol.md`, `s2.4-stream.md`, `s2.2-vol.md` (in `pipelines.md` le date erano già giuste: 12-10 è la data delle produzioni); (4) «dipende dal riquadro (0-100%, mediana 27%)»; (5) accettabili, perché `CLAUDE.md` ora dichiara `docs/experiments/` un registro cronologico.
 
 ## C-096 — Bassa — Le silhouette di HDBSCAN e `hdbscan_soft` citate nei file di sessione non stanno più in nessun file della run
 - **Dove**: `s1.4-vol.md:25,32-35,74`, `s2.4-vol.md:167-179`, `s2.4-stream.md:23` (e `s1.4-vol.md:23`, «`tuning_results.csv` e `report.md`»).
 - **Prova**: dal commit `ea552f7` `tuning_results.csv` dei tuning `hdbscan` e `hdbscan_soft` ha le colonne `noise_fraction, n_clusters_found, largest_cluster_share, dbcv` (e `membership_mean`, `persistence_mean` per il soft): **niente `silhouette`**; i `report.md` hanno solo DBCV. I cinque valori controllati (0,648, 0,654, 0,588, 0,569, 0,377 di `s1.4-vol.md:32-35`) tornano ricalcolando la silhouette sui non-rumore da `clusterings.npz` e dall'embedding di produzione, quindi i numeri sono giusti, ma non verificabili dai file citati.
 - **Domanda**: la silhouette di HDBSCAN diventa una valutazione registrata (`clustering_evaluations.json`) o riscrivo le frasi con il DBCV e la quota di rumore?
+- **Stato (02-11-26): CHIUSA** — nota di provenienza in `s1.4-vol.md`, `s2.4-vol.md`, `s2.4-stream.md`: la silhouette è ricalcolata sui non-rumore da `clusterings.npz`, non è più in `tuning_results.csv`. Nessuna nuova valutazione registrata.
 
 ## C-097 — Bassa — `docs/debugging/`: percorsi, funzioni e test di moduli ritirati citati senza dire che non esistono più
 - **Dove**: quasi tutti i report. Moduli ritirati il 05-10 (`src/retrieval/`, `src/sdc/`, `retrieve_data`, `compute_sdc`, `verify_retrieval`, `data_summary`, `config/{file_patterns,retrieval}*.json`, `jobs/run_{retrieve_data,compute_sdc,…}.sh`, `docs/dev/retrieval.md`), il 06-09 (`enrich_lesion_metadata.py`, `src/features/clinical.py`, i tsv per dataset, `data/derived/clinical_metadata/`), il 14-08 (`dim_reduction_clustering.py`), il 18-08 (`docs/notes/`, `docs/methods/`, `docs/dev/analysis.md`, `knowledge/neuroimaging/`, `knowledge/dim_reduction_clustering/` ora sotto `knowledge/notes/`): `debug_09_07_26`, `11_08_26` (11 file di test, 5 file di `src/` e `docs/dev/retrieval.md`), `13_07_26`, `16_07_26`, `21_07_26`, `27_07_26` (cita `group_of` in `src/retrieval/dataset.py`, oggi `src/utils/subject_ids.py`), `28_07_26`, `26_08_26`, `02_09_26`, `17_08_26` (≥ 17 percorsi tra apici e 12 dei suoi 87 link a file, tutti verso `dim_reduction_clustering.py`, `enrich_lesion_metadata.py`, `clinical.py`), `22_08_26`; inoltre `notebooks/fc_lesion_masking.ipynb` (`23_07_26`), `management/notes/TODO.md` (`25_08_26`) e la skill `~/.claude/skills/silent-failure-audit/SKILL.md` (`09_07_26`) non esistono.
 - **Prova**: script nello scratchpad (percorsi tra apici inversi → `os.path.exists`; `test_*` e identificatori → `grep` in `src/scripts/tests`). Il solo report che marca ciò che è stato tolto è `debug_21_10_26.md` («Superato, nessun fix in repo», «eliminata»).
 - **Impatto**: il lettore non distingue un riferimento sbagliato da un modulo ritirato; molte entry «Seen in» di `lessons_learned.md` rimandano a sezioni il cui codice e il cui test non ci sono più.
 - **Domanda**: aggiungo in testa a ciascun report una riga «Moduli ritirati dopo questa data: …» (con rimando a `project_changelog.md`), oppure una sola pagina `docs/debugging/README.md` che elenca per file cosa è stato ritirato?
+- **Stato (02-11-26): CHIUSA** — `docs/debugging/README.md`: moduli ritirati con data e commit, e quali report li citano.
 
 ## C-098 — Bassa — `docs/debugging/`: fix descritti come presenti che sono stati rimossi, e report senza test di regressione
 - **Dove**: (1) `debug_22_08_26.md` §11 (box `.caveats` in `understanding_umap_report`, con `test_generate_report_includes_umap_interpretation_caveats`): rimosso il 28-08 (`fbafb8b` «Remove interpretive-caveats box») e il testo non lo dice; stesso per §6 (Evidence Accumulation, `1e43759`, 21-10), §14 (`evaluate_pca_varimax`, `pca_varimax`) e per i test `test_dim_reduction_fine_tuning_grid_refit_reuses_distance_cache_across_cells`, `test_evaluate_pca_varimax_fits_pca_only_once`, `test_run_clustering_tuning_sweep_evidence_accumulation_reuses_cooccurrence_across_thresholds`, `test_clustering_comparison_*` citati da `17_08_26`, `22_08_26`, `25_08_26`; (2) `debug_09_07_26.md` (7 sezioni) e `debug_13_07_26.md` (5) non citano nessun test di regressione, contro `code_standards.md` §4 e §8. (3) `debug_21_10_26.md`, intestazione: «tutte le sezioni sono corrette tranne la §4, superata», ma anche la §18 dice «Poi **superato**» (commit `ea619d0`, 22-10: `build_silhouette_figure` cambiata, controllo e test spariti) e la §15 è una cancellazione (`load_participants` eliminata).
 - **Prova**: `git log -S"caveats" -- src/analysis/understanding_umap_report.py`; `grep -rn "def test_…" tests/` vuoto; `grep` delle etichette «Test» sezione per sezione.
 - **Impatto**: §11 descrive come attiva una scelta (avvertire il lettore che le distanze UMAP non si leggono) che il codice ha poi abbandonato; `guides/understanding_umap_report.md` non ne parla.
 - **Domanda**: segno §11, §6, §14 come «Superato (rimosso il <data>, <commit>)» sul modello di `debug_21_10_26.md` §4, e per `09_07_26`/`13_07_26` basta una riga «test rimossi con il modulo»?
+- **Stato (02-11-26): CHIUSA** — §11, §6, §14 di `debug_22_08_26.md` segnate «Superato (rimosso il <data>, <commit>)»; riga sui test rimossi con il modulo in `debug_09_07_26.md` e `debug_13_07_26.md`; intestazione di `debug_21_10_26.md` aggiornata per §18 e §15.
 
 ## C-099 — Bassa — `AUDIT_FINDINGS.md` è il vecchio nome di `debug_17_08_26.md`, citato 41 volte, e il file ha un'intestazione superata
 - **Dove**: (1) `AUDIT_FINDINGS.md` è citato in 12 file di `src/` (`build_lesion_matrix.py`, `mask_fc.py`, `build_fc_matrix.py`, `embedding_app.py` ×2, `clustering_tuning.py`, `params.py`, `consensus_clustering.py`, `understanding_umap_report.py`, `subject_discovery.py`, `lesion.py`, `functional.py`), 12 file di `tests/`, `debug_22_08_26.md:3,555`, `debug_25_08_26.md:23` e `lessons_learned.md` #28; il file è `docs/debugging/debug_17_08_26.md` dal commit `b3d1d26`. (2) `debug_17_08_26.md:3-8` dice «Documento di lavoro (non un report di debug concluso)… da spostare/rinominare come report standard a lavoro concluso», mentre sta già in `docs/debugging/`, tutti i 69 finding sono chiusi e il titolo interno resta «Audit findings — 17/08/26». (3) Il finding #1 ha ancora «Stato: Deciso» ma `config/pipelines/clustering.json` ha `session_name: "s2.4-vol"`. (4) «Verificato e corretto», blocco MEDIUM: «18 finding implementati» con 16 numeri elencati; 16 + 4 + 2 + 2 = 24 = #26-#49, quindi 18 è un refuso. (5) `debug_17_08_26` e `debug_22_08_26` non compaiono in nessun «Seen in» di `lessons_learned.md`.
 - **Prova**: `git show --stat b3d1d26`; `grep -rl AUDIT_FINDINGS`; `grep -n "Stato:" docs/debugging/debug_17_08_26.md`; `config/pipelines/clustering.json:8`.
 - **Impatto**: chi segue un commento di `src/` o di un test cerca un file che non c'è; l'intestazione fa credere il documento ancora aperto.
 - **Domanda**: rimpiazzo «`AUDIT_FINDINGS.md`» con «`docs/debugging/debug_17_08_26.md`» nelle 41 occorrenze (è Fase 2: il codice non lo tocco io), riscrivo l'intestazione di `debug_17_08_26.md`, correggo «18» in «16» e aggiorno lo stato di #1?
+- **Stato (02-11-26): CHIUSA** — «AUDIT_FINDINGS.md» sostituito con `docs/debugging/debug_17_08_26.md` in 45 punti di 26 file di `src/` e `tests/` (solo commenti e docstring) e in `debug_22_08_26.md`, `debug_25_08_26.md`, `lessons_learned.md` #28; intestazione di `debug_17_08_26.md` riscritta, «18»→«16», stato attuale di #1. Suite: 5754 passed, 17 skipped. Non fatto: (5), aggiungere `debug_17`/`debug_22` ai «Seen in» di `lessons_learned.md` (nessuna domanda posta).
 
 ## C-100 — Bassa — `docs/README.md`: «il passato sta solo in `debugging/`», ma `experiments/` è un registro cronologico
 - **Dove**: `docs/README.md:60` («È l'unica parte di `docs/` che racconta il passato») e `:73` («Il passato sta in `debugging/`, in `.claude/history/` e in `git log`»), contro `docs/experiments/*.md` (date delle run, «sono state rifatte lo stesso giorno», «ora in `results/legacy/`», «Tuning, 12-10»), `README.md:40` di `experiments/` («cosa è stato provato, cosa si è visto, cosa si è deciso») e `.claude/CLAUDE.md:54` (la regola del presente nomina `docs/guides/`, `docs/dev/` e `README.md`, non `docs/experiments/`).
 - **Impatto**: un agente che applica «il passato solo in `debugging/`» a `experiments/` cancella la cronologia che quella cartella esiste per tenere (o, al contrario, non sa se una frase storica lì è un difetto).
 - **Domanda**: scrivo in `docs/README.md` e in `CLAUDE.md:54` che `experiments/` è un registro cronologico per sessione, come `debugging/`?
+- **Stato (02-11-26): CHIUSA** — `docs/README.md` (due frasi) e `.claude/CLAUDE.md:54`: `debugging/` ed `experiments/` sono registri cronologici per sessione.
 
 ## C-101 — Bassa — `pipeline_overview.md`: tre generalizzazioni troppo larghe e avverbi temporali
 - **Dove**: (1) `:111` «Stabilità (opzionale, kmeans/gmm/spectral): ripetizione con seed diversi… e sottocampionamento»; (2) `:16` «Lesione e SDC leggono la stessa lista di esclusi, quindi un confronto tra modalità confronta gli stessi soggetti»; (3) `:38` «Il criterio oggi in uso è l'eccesso di voxel fuori dal brain (oltre il 30%)»; (4) `:38` «oggi», `:124` «In stand by… non sono ancora nella catena».
 - **Prova**: (1) `STABILITY_ELIGIBLE_METHODS = {"kmeans", "gmm"}` (`clustering_tuning.py:65`) e il blocco `stability` esiste solo per kmeans e gmm in `params_clustering.json`; spectral ha il solo `consensus`; (2) lo scope `sdc-streamline` toglie 14 soggetti alla sola matrice streamline (5831 contro 5845; `lineage.md:44`); le due matrici voxel-wise condividono davvero 5845 righe; (3) `excluded_subjects.csv` ha 3 `empty_mask` (scope `all`) e 14 `all_zero_features` (scope `sdc-streamline`), oltre ai 5 `out_of_brain_fraction_too_high`; (4) `CLAUDE.md:54`.
 - **Domanda**: restringo (1) a «kmeans e gmm per le ripetizioni con seed; kmeans, gmm e spectral per il sottocampionamento», aggiungo a (2) «salvo la matrice streamline» e a (3) i due motivi mancanti, e riformulo (4) al presente senza avverbi?
+- **Stato (02-11-26): CHIUSA** — `pipeline_overview.md`: stabilità (seed solo kmeans/gmm), coorte «salvo la matrice streamline», motivi di esclusione `empty_mask` e `all_zero_features`, avverbi tolti.
 
 ## C-102 — Bassa — `debug_17_08_26.md` e `debug_22_08_26.md`: stato dei finding fermo al giorno del fix, senza nota per ciò che è cambiato dopo
 - **Dove**: `debug_17_08_26.md` #1 (`session_name` vuoto), #36 (tag di `spectral`), #47 (`reference_template_path` = maschera di un paziente), #53 (11 combo di atlante, manca `Yan200TianS2Buckner7N`), #32 (`management/notes/TODO.md`), #14 e #35-#37, #57 (Evidence Accumulation, `pca_varimax`); gli identificatori `_update_*_picker`, `metric_options`, `runs_for`, `n_components_options`; `debug_22_08_26.md` §7 (stesso tag di `spectral`).
 - **Prova**: `config/pipelines/clustering.json:9` ha `"session_name": "s2.4-vol"`; `params_clustering.json` ha `spectral` con `tag_param` `["n_clusters","affinity"]`, prefissi `["k","aff_"]` (non `n_clust`); `build_lesion_matrix.json` punta a `assets/templates/tpl-MNI152NLin6Asym_res-2_T1w.nii.gz` (`docs/dev/lesion_matrix.md:84` lo conferma); `mask_fc.json` e `build_fc_matrix.json` hanno 12 combo incluso `Yan200TianS2Buckner7N` (`docs/dev/fc_matrix.md:13` dice «Resolved»); `management/notes/` non esiste (`b397c85`); `grep -w` dei nomi dell'app in `src/` vuoto (script `dbg17.py` nello scratchpad). Il solo ritiro dichiarato nel report è #41 (28-08); #36, #47, #53 restano nello stato «documentato, valore non cambiato».
 - **Impatto**: chi legge #47 o #53 crede aperti due rischi già chiusi; chi legge #36 cerca un tag `n_clust` che non c'è. Allargamento di C-097/C-098/C-099 (stesso rimedio), non un errore operativo.
 - **Domanda**: nelle sezioni #1, #36, #47, #53 di `debug_17_08_26.md` e §7 di `debug_22_08_26.md` aggiungo una riga «Stato attuale (<data>): …» sul modello di #41, oppure basta la nota di apertura proposta in C-097?
+- **Stato (02-11-26): CHIUSA** — righe «Stato attuale (02-11-26)» in `debug_17_08_26.md` #1, #36, #47, #53 e `debug_22_08_26.md` §7.
 
 ## C-103 — Bassa — `.claude/history/`: «ancora vero oggi» ormai falso, ricette di recupero non eseguibili, una reintroduzione non registrata
 - **Dove**: `methods_changelog.md:985-991` (25-08-26: «rimossa la modalità `parcellated`… non esiste un parametro di rappresentazione»; rimanda a `management/notes/TODO.md`), `:893` (28-09-26: «`build_sdc_matrix.json` è ancora su `res-1`»), `:857` e `:829` (29-09-26: `correct_out_of_brain: false`; «oggi il file contiene solo l'intestazione»), `:451` (25 GB di ADP), `:689` («122 a 10 voxel o meno» tra gli inclusi), `:427` (voce 14-10 dopo 13-10); `project_changelog.md:558` («`build_sdc_matrix.json` oggi è streamline»), `:963` («restano sotto `results/lesion/dim_reduction_clustering/`»), `:826` e `:836` (hash `068d2ff`, `facef6f`), `:967` (intestazione `## 2026-08`).
 - **Prova**: `build_lesion_matrix.json:20` `"representation": "voxelwise"` (campo obbligatorio dal 15-10-26, `project_changelog.md:494-502`); `build_sdc_matrix.json:19,24` `voxelwise` e `res-2`; `build_lesion_matrix.json:31` `true`; `excluded_subjects.csv` 22 righe; `ls results` → `cache legacy lesion sdc tables`; `git cat-file -t 068d2ff` e `facef6f` → «Not a valid object name» e nessuna riga in `git reflog --all`; `du -sh` di `…legacy/…/sdc/clustering/production/adp` = 20 GB; 122 vale per i 5831 senza alcuna esclusione, 129 per i 5845. Le cifre di dati (massa fuori dal brain 15,3%, 19 min 54 s, 5/0,41/0,30, sede, 88/61/7 run, 67/25/19 produzioni) sono tutte corrette (G-471…G-477).
 - **Impatto**: negli archivi il passato è ammesso, ma la frase «ancora vero oggi» promette un fatto presente: chi legge `:985-991` crede che `build_lesion_matrix` non abbia la rappresentazione parcellata (e `methods_changelog.md` non contiene la reintroduzione del 15-10-26, che sta solo in `project_changelog.md`); chi esegue `git checkout -b … 068d2ff` ottiene un errore.
 - **Domanda**: (a) cambio «ancora vera oggi» in «vera al <data>» nelle sei occorrenze sopra e aggiungo a `methods_changelog.md` una riga datata 15-10-26 sulla reintroduzione di `representation: parcellated`? (b) le due ricette con `068d2ff` e `facef6f` le segno «non più recuperabile (oggetto non nel repo)»? (c) riordino la voce del 14-10 e porto `## 2026-08` a `## 08-26`?
+- **Stato (02-11-26): CHIUSA** — (a) «vera al <data>» nelle occorrenze citate di `methods_changelog.md` (con lo stato di oggi tra parentesi) e nuova voce del 15-10-26 sulla reintroduzione di `representation: parcellated`; in `project_changelog.md` `build_sdc_matrix.json` e la cartella `dim_reduction_clustering/` aggiornati; (b) `068d2ff` e `facef6f` segnati «non più recuperabile»; (c) voce del 14-10 spostata sopra quelle del 13-10, `## 2026-08` → `## 08-26`. Corretto anche 98,4% → 98,5% (1408/1430) in `methods_changelog.md`.
 
 ## C-104 — Bassa — `.claude/`: lock di sessione stantio e permessi su un percorso del cluster
 - **Dove**: `.claude/scheduled_tasks.lock` (130 byte, JSON: `sessionId` `17b0e196-…`, `pid` 85638, `procStart` «Thu Sep 3 13:44:27 2026»); `.claude/settings.local.json` (due permessi: un `Bash(ls …)` una tantum e `Read(//home/etosato/Projects/NEMESIS_fs/**)`).
 - **Prova**: `ps -p 85638` non restituisce processi; il lock risale al 3 settembre, oggi è il 28 ottobre; entrambi i file sono esclusi da git (`.git/info/exclude`, `~/.config/git/ignore`), quindi `git status` non li mostra; `/home/etosato/...` non esiste su questa macchina.
 - **Impatto**: nessuno sul codice. Un lock stantio può far credere a uno strumento che una sessione programmata sia ancora attiva; un permesso `Read(//home/etosato/**)` allarga l'accesso in lettura a un percorso che su una macchina con quel home sarebbe valido.
 - **Domanda**: cancello `scheduled_tasks.lock` e svuoto `settings.local.json` (restano i permessi che servono davvero)? `CLAUDE.md` non menziona nessuno dei due file.
+- **Stato (02-11-26): CHIUSA** — `scheduled_tasks.lock` cancellato (il pid 85638 non esiste); `settings.local.json` con `permissions.allow` vuoto.
 
 ## C-105 — Media — `clustering_tuning_guide.md`: la silhouette «interpretabile da sola» e cinque metodi descritti come attivi
 - **Dove**: `knowledge/notes/dim_reduction_clustering/clustering_tuning_guide.md:30` (tabella dei «3 indici universali»), `:26`, `:67-71`, `:115-157`, `:184-197`, `:222-223` (KMeans, GMM, Spectral, ADP e le stabilità).
@@ -691,55 +744,61 @@ Le cifre sui dati tornano; i problemi sono "conseguenze ancora vere oggi" che no
 - **Prova**: script sulle fonti numerate (`[n]` nel corpo contro l'elenco in «Fonti», nello scratchpad); `ls results/legacy/clustering_spectral_kmeans_gmm_adp_28-10-26/sdc/clustering/tuning/spectral`; `summaries/calibrate_lesion_side_threshold/` (nessun riepilogo a 1 mm con PSP); `methods_changelog.md:750` scrive 98,4% dove 1408/1430 dà 98,5%.
 - **Impatto**: le attribuzioni sbagliate che `open_problems.md` segnala per `evaluation_metrics.md` §§1-2 non ci sono più, ma la voce di `open_problems.md` è rimasta e le due fonti restano in lista senza essere citate: chi legge crede che sostengano qualche affermazione. Le altre sono omissioni formali. Il punto di `open_problems.md:193` su `lesion_metrics.md` §3.3 `[5, 7]` è invece solo parziale (Salvalaggio ammette la lesione come maschera, Talozzi no).
 - **Domanda**: (a) tolgo da `open_problems.md` la voce su Dinh/Bicego e aggiungo i richiami mancanti nelle note (o tolgo le fonti non usate)? (b) aggiorno `spectral.md:79` al percorso in `legacy`? (c) in `lesion_laterality.md:112` dichiaro che il riepilogo a 1 mm con PSP non è conservato e allineo 98,4%/98,5%?
-
-
+- **Stato (02-11-26): CHIUSA** — (a) voce Dinh/Bicego tolta da `open_problems.md`; fonti non citate marcate «(non citata nel testo)» in 5 note e «Lee et al. 2015» segnalato come assente dalla lista; (b) `spectral.md` punta al percorso in `legacy`; (c) `lesion_laterality.md` dichiara che il riepilogo a 1 mm con PSP non è conservato.
 
 ## C-107 — Bassa — `knowledge/notes/dim_reduction_clustering/`: citazioni alterate e attribuzioni oltre il testo della fonte
 - **Dove**: (a) `dim_reduction_tuning_guide.md:77` («more work is needed to validate this clustering approach»); (b) `dim_reduction_literature_survey.md:85` («Optimization… more work is needed to benchmark and study the theoretical properties»); (c) `dim_reduction_tuning_guide.md:17`, `dim_reduction_methods/pca.md:63`, `pca_varimax.md:56` (TdS 2020 avrebbe un criterio «>90%»); (d) `dim_reduction_methods/pca_varimax.md:7,82` (invarianza del sottospazio attribuita a Sorzano §2.2.4); (e) `employed_dim_reduction_methods.md:331` («da 0,39 a 0,98» attribuito al paper); (f) `challenge_of_clustering_after_dim_reduction.md:3` («165+ upvote sulla risposta principale»); (g) `tsne.md:53` e `dim_reduction_tuning_guide.md:68` («Supplementary Figure 1» a perplexity 40, 60, 80).
 - **Prova**: de Bodt §3.5: «We believe more work is needed to better understand and validate this clustering approach»; §6.1: «More work is needed to benchmark and to study the theoretical properties of such approaches»; TdS 2020: «30 components, out of 46 in total, explained more than 90% of the variance» (Results) e, nei Methods, «in order to estimate the number of principal components to extract» senza soglia; Sorzano §2.2.4 (solo «possible solutions are rotating the eigenvectors…»); nel testo estratto di TdS non compaiono «0.39» né «0.98» e il supplemento non c'è; nella pagina StackExchange 165 è il punteggio della domanda, la risposta di Schubert ha 201 voti.
 - **Impatto**: nessuna cifra operativa è sbagliata, ma tre virgolette non riproducono la fonte e due attribuzioni (la soglia del 90% come «criterio del paper», l'invarianza del sottospazio come contenuto di Sorzano) sono più forti del testo; per la tabella dei Metodi di un paper sono i punti che un revisore controllerebbe.
 - **Domanda**: (a, b) riporto le frasi per intero (o le tolgo dalle virgolette)? (c) riscrivo «TdS 2020 tengono 30 componenti su 46, che spiegano più del 90%» invece di «usano una soglia del 90%»? (d) sposto il riferimento di Sorzano alla sola frase che c'è? (e) tolgo l'intervallo 0,39-0,98 o dico da dove viene (figura/supplemento)? (f) scrivo «201 voti la risposta di Schubert»? (g) segno come non verificato il supplemento?
+- **Stato (02-11-26): CHIUSA** — (a)(b) frasi riportate per intero (riletto de Bodt §3.5 e §6.1); (c) «30 componenti su 46, più del 90%» in 3 note; (f) risposta di Schubert 201 voti, 165 è la domanda. **(d)(e)(g) corrette diversamente dalla proposta, dopo la rilettura**: Sorzano §2.2.4 dice davvero che sottospazio e ricostruzione restano gli stessi (attribuzione mantenuta, citazione spostata sulla frase che c'è); la cartella di Thiebaut de Schotten 2020 ha `supplementary.pdf` con i valori di riproducibilità per componente (0,393-0,975) e la Supplementary Figure 1 (t-SNE a perplexity 40, 60, 80): intervallo e figura restano, con il rimando al file. La prova dell'audit («supplemento non c'è») era sbagliata.
 
 ## C-108 — Bassa — `hdbscan.md` e `hdbscan_package.md`: la pagina di umap-learn non mostra 10 componenti; formula soft da documentazione senza la discrepanza
 - **Dove**: `clustering_methods/hdbscan.md:219`; `hdbscan_package.md:81`.
 - **Prova**: la pagina salvata (`websites/Using_UMAP_for_Clustering.html`) usa `umap.UMAP(n_neighbors=30, min_dist=0.0, n_components=2)` e scrive che si potrebbe ridurre a 10 dimensioni; `challenge_of_clustering_after_dim_reduction.md:45` lo riporta correttamente. In `hdbscan.md:96` la forma del punteggio di outlier del soft clustering è quella del codice (`exp(−λmax/h)` + softmax), mentre `hdbscan_package.md:81` dà `λmax/(λmax−h)` (documentazione) senza dire che il codice 0.8.44 fa altro.
 - **Impatto**: `hdbscan.md` attribuisce all'esempio ufficiale una configurazione (10 componenti) che l'esempio non usa; `hdbscan_package.md` fa ricavare numeri che il codice non produce.
 - **Domanda**: (a) correggo `hdbscan.md:219` in «dice che si può scendere a 10 componenti, ma l'esempio usa 2»? (b) aggiungo a `hdbscan_package.md:81` il rimando alla discrepanza descritta in `hdbscan.md:96`?
+- **Stato (02-11-26): CHIUSA** — `hdbscan.md` («l'esempio usa 2» componenti); `hdbscan_package.md` rimanda alla discrepanza al §3 di `hdbscan.md`.
 
 ## C-109 — Bassa — `dim_reduction_methods/tsne.md`: elenco delle fonti con i numeri 11 e 12 usati due volte
 - **Dove**: `tsne.md:136-140` (fonti 11 McInnes, 12 Böhm, poi 11 Torgerson, 12 Gower) e i richiami `[11, 12]` (riga 51), `[11]` (riga 100), `[12]` (riga 119).
 - **Prova**: lettura della lista; le prime sei fonti e la 13 sono univoche.
 - **Impatto**: `[11, 12]` a riga 51 si legge come McInnes e Böhm, ma intende Torgerson e Gower.
 - **Domanda**: rinumero Torgerson e Gower come 14 e 15 e aggiorno `[11, 12]` a riga 51 in `[14, 15]`?
+- **Stato (02-11-26): CHIUSA** — Torgerson e Gower rinumerati 14 e 15; richiamo `[14, 15]`.
 
 ## C-110 — Bassa — `knowledge/notes/`: un rimando sbagliato e un conteggio che non somma
 - **Dove**: `dim_reduction_clustering/employed_dim_reduction_methods.md:25` («84% con Dice sulla matrice grezza, vedi `docs/guides/evaluation.md`»); `neuroimaging/lesion_resampling.md:94-96` (§8) e `template_and_grids.md:144,150` (5150 + 534 + 168).
 - **Prova**: la cifra 84% (84,26% ricalcolato su `07-10_s1.4-vol`) è in `docs/guides/embedding_app.md:358` e `docs/dev/models.md:179-180`, non in `docs/guides/evaluation.md`; 5150 + 534 + 168 = 5852, mentre i soggetti con maschera sono 5853 (`sub-STUKLFR0671`, maschera vuota, non classificabile: `docs/guides/datasets.md:59`).
 - **Impatto**: chi segue il rimando non trova la cifra; chi somma la tabella trova un soggetto in meno senza spiegazione.
 - **Domanda**: (a) sposto il rimando su `embedding_app.md` (o `models.md`)? (b) aggiungo in `lesion_resampling.md` §8 e `template_and_grids.md` §11 una riga «un soggetto con maschera vuota non è classificabile»?
+- **Stato (02-11-26): CHIUSA** — rimando dell'84% a `embedding_app.md` e `models.md`; riga sul soggetto con maschera vuota (5150 + 534 + 168 = 5852) in `lesion_resampling.md` §8 e `template_and_grids.md` §12.
 
 ## C-111 — Bassa — `knowledge/notes/stroke_literature/`: sintesi senza fonte locale
 - **Dove**: `summaries_related.md` («Park et al. (2016)» riga 115; «Jimenez-Marin et al. (2022)» riga 149) e `summaries_core.md` («Cinetto et al. (2026)» riga 120); `knowledge/papers/index.md`.
 - **Prova**: `knowledge/papers/stroke_related/` contiene solo Filatova, Keator, Wang e Zhou (4 cartelle, come l'indice), quindi Park e Jimenez-Marin non hanno fonte; `stroke_core/Cinetto et al - 2026/` ha solo `Manuscript.docx` (non nell'indice, G-502; il testo è leggibile con `zipfile` e la sintesi torna, G-536); Tshimanga 2025 è nell'indice (con 7 file estratti) ma non ha una sintesi.
 - **Impatto**: i numeri di queste tre sintesi (24 per Cinetto) non sono verificabili sul repo; le altre 22 sezioni con una fonte locale tornano (G-532).
 - **Domanda**: (a) aggiungo al repo (o all'indice) le tre fonti, o segno le sintesi come «da fonte non presente»? (b) scrivo la sintesi di Tshimanga 2025 o tolgo la voce dall'indice dei paper con sintesi?
-
+- **Stato (02-11-26): CHIUSA** — Park 2016 e Jimenez-Marin 2022 marcate «da fonte non presente»; Cinetto 2026 aggiunta a `knowledge/papers/index.md` (solo `Manuscript.docx`) e nota nella sintesi; Tshimanga 2025 segnata «senza sintesi» nell'indice.
 
 ## C-112 — Bassa — `scope_by_category.md`: Thiebaut de Schotten 2020 non dice che le lesioni «seguono i vasi sanguigni»
 - **Dove**: `knowledge/notes/stroke_literature/scope_by_category.md:7` (riga A, primo paper).
 - **Prova**: nel testo estratto di Thiebaut de Schotten et al. 2020 le stringhe `vessel`, `vascular`, `arter` non compaiono (0 occorrenze); il paper scrive «The biased distribution of ischaemic stroke» e «strokes also seem to have a concentric distribution with a progressively increasing probability of damage from the surface of the brain to the deep white matter»; `summaries_core.md:480` lo riporta correttamente («distribuzione concentrica… dalla superficie alla materia bianca profonda»).
 - **Impatto**: `scope_by_category.md` e `summaries_core.md` si contraddicono sullo stesso paper; la frase sui vasi attribuisce a un paper di disconnessione un'affermazione di anatomia vascolare che è un altro tema (quello di Bisogno 2025).
 - **Domanda**: riscrivo la riga in «dimostra che le lesioni da ictus non sono distribuite a caso (concentriche, dalla superficie alla sostanza bianca profonda)»?
+- **Stato (02-11-26): CHIUSA** — `scope_by_category.md:7` riscritta (distribuzione concentrica, non aleatoria).
 
 ## C-113 — Bassa — `stroke_literature/summaries_*.md`: cinque affermazioni non trovate nelle fonti locali
 - **Dove**: (a) `summaries_core.md:92` (Pini: «ischemico o emorragico»); (b) `summaries_core.md:613` (Griffis 2019: «fattore ~2.5 (R²=0.10→0.25)») e `neuroimaging/disconnectome_bcbtoolkit.md:123` (stessa cifra); (c) `summaries_core.md:135` (Cinetto: «68 controlli sani abbinati»); (d) `summaries_related.md:25` (Keator: omette il giro precentrale, z = 3,09, associato a comprensione più alta, e la sede e gli z dell'opercolo rolandico non sono verificabili); (e) `summaries_core.md:26` (Zanola: il paper attribuisce il test H = 74,3 alle «motor abilities»).
 - **Prova**: (a) il testo di Pini dice «first-time stroke patients», i criteri sono in «Supplementary Material S1.1» non estratto; (b) il testo di Griffis 2019 dà solo «F 1,110 = 22.6, p < 0.001» per il confronto tra i modelli: R² 0,10 e 0,25 non compaiono (forse nella Fig. 2B); (c) nel `Manuscript.docx` di Cinetto compare «a supplementary sample of healthy participants» senza numero; (d) il testo di Keator ha «precentral gyrus … higher speech comprehension scores (z = 3.09)»; (e) Zanola scrive «motor abilities at 90 days» dopo aver parlato della mRS.
 - **Impatto**: nessuna cifra operativa; sono dettagli che una verifica sul paper non conferma (a, b, c, d) o che la sintesi risolve in silenzio (e).
 - **Domanda**: (a) tolgo «o emorragico» o lo cito dal supplemento? (b) cito la figura (o tolgo i due R²) sia in `summaries_core.md` sia in `disconnectome_bcbtoolkit.md`? (c) tolgo «68» o indico la fonte? (d) aggiungo il risultato sul precentrale? (e) nota «il paper scrive “motor abilities”, ma il test è sulla mRS»?
-
+- **Stato (02-11-26): CHIUSA** — (a) «o emorragico» tolto; (b) R² tolti in `summaries_core.md` e `disconnectome_bcbtoolkit.md` (restano il fattore 2,5, che il testo dà, e l'F); (c) «68» tolto; (d) aggiunto il precentrale (z = 3,09): gli z dell'opercolo rolandico sono nel paper e restano; (e) nota «motor abilities» contro mRS.
 
 ## C-114 — Bassa — `embedding_app.md:338`: la cofenetica è «(0-1)», l'interfaccia dice da -1 a 1
 - **Dove**: `docs/guides/embedding_app.md:338` (riga `agglomerative` della tabella «Statistica del modello»).
 - **Prova**: il lavoro non committato su `embedding_app.py` ha sostituito la nota unica con due frasi: «Cophenetic correlation: … From -1 to 1: the higher, the better…»; la correlazione cofenetica è una correlazione di Pearson (`evaluation_metrics.md:120`: «da -1 a 1»), e la guida scrive «correlazione (0-1)».
 - **Impatto**: la guida e l'interfaccia danno due intervalli diversi per lo stesso numero.
 - **Domanda**: scrivo «da -1 a 1» anche nella guida?
+- **Stato (02-11-26): CHIUSA** — già corretto: `embedding_app.md:336` dice «correlazione (da -1 a 1)» per la cofenetica.
+

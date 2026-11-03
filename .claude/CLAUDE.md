@@ -26,7 +26,7 @@ Two supported ways to invoke a pipeline entry point (`src/pipeline/*.py`, `scrip
   - `source .../conda.sh && conda activate nemesis`, then `cd` to the repo root.
   - The same invocation as the local case, taken from the pipeline's guide.
 
-Resource values in `jobs/` are conservative starting points (this is I/O-bound file-copying work, not compute-heavy), not fixed — adjust `--cpus-per-task`/`--mem`/`-t` per job as needed. When a new pipeline/script is added under `src/pipeline/` or `scripts/`, add a matching `jobs/run_<name>.sh` at the same time, not as an afterthought — it's needed the moment that pipeline runs on the cluster, even if only run locally for now.
+Resource values in `jobs/` are conservative starting points (this is I/O-bound file-copying work, not compute-heavy), not fixed — adjust `--cpus-per-task`/`--mem`/`-t` per job as needed. When a new pipeline/script is added under `src/pipeline/` or `scripts/`, add a matching `jobs/run_<name>.sh` at the same time, not as an afterthought — it's needed the moment that pipeline runs on the cluster, even if only run locally for now. Two entry points have no job by design: `src/pipeline/embedding_app.py` (an interactive Dash server) and `scripts/archive_local_raw_data.py` (compresses the local copy of the raw data).
 
 ## Repository structure
 
@@ -47,11 +47,12 @@ Resource values in `jobs/` are conservative starting points (this is I/O-bound f
 - `src/` — project source code: `features/`, `analysis/`, `utils/`, and `pipeline/` (CLI entry points).
 - `scripts/` — accessory utilities only, never analysis steps: local-cache maintenance, reporting tables, derived indices. Every CLI that is a step of the analysis lives in `src/pipeline/`.
 - `utils/` — texts the code reads as data, edited by hand and not code: `utils/report_texts/clustering_tuning.md` holds the explanations of the indices that `report.md` of a clustering tuning prints (read by `src/analysis/clustering_tuning_report.py` through `src/utils/text_registry.py`).
-- `jobs/` — one `sbatch` job script per `src/pipeline/`/`scripts/` entry point, for cluster runs (see "Running pipelines (local vs. SLURM)" above).
+- `jobs/` — one `sbatch` job script per `src/pipeline/`/`scripts/` entry point (except `embedding_app.py` and `archive_local_raw_data.py`), for cluster runs (see "Running pipelines (local vs. SLURM)" above).
+- `.claude/audit/` — the consistency audit of the repo: `00_master_plan.md` (what was read, file by file), `02_contradictions_and_open_issues.md` (the numbered entries `C-NNN` with their status), `04_handoff_state.md` (where the work stands, block by block), plus ledgers and session prompts. Phase 1 (`.claude/`, `docs/`, `knowledge/notes/`) is read in full, with one entry still open in `02_...` (C-022, the split of `embedding_app`); phase 2 (code, config, tests, notebooks, assets) has not started. It is a work record, not project documentation: read `04_handoff_state.md` first to resume it.
 
 ## Working in this repo
 
-- **`docs/` describes the present tense, never the past.** Everything under `docs/guides/`/`docs/dev/` (and `README.md`) states what is true *now*: no "fino al 04/09...", no "il primo tentativo è fallito", no "prima stava qui", no "questa pagina prima diceva". If a past event still matters, express its *consequence* as a current fact (e.g. "queste maschere sono derivate dall'SDC, non disegnate a mano" — not "il 03/09 sono state copiate e rinominate"). Docs recall past state only when the user explicitly asks for it. The dated exception is `docs/debugging/`, which is by definition a per-session historical record.
+- **`docs/` describes the present tense, never the past.** Everything under `docs/guides/`/`docs/dev/` (and `README.md`) states what is true *now*: no "fino al 04/09...", no "il primo tentativo è fallito", no "prima stava qui", no "questa pagina prima diceva". If a past event still matters, express its *consequence* as a current fact (e.g. "queste maschere sono derivate dall'SDC, non disegnate a mano" — not "il 03/09 sono state copiate e rinominate"). Docs recall past state only when the user explicitly asks for it. The dated exceptions are `docs/debugging/` and `docs/experiments/`, which are by definition chronological records, one per session.
 - **Where history goes instead** — `.claude/history/` is the archive, and the **`history` skill** does the routing (read it before writing there):
   - `data_changelog.md` — the bytes under `data/` changed (transfers, prunings/restores, moves, renames, in-place corrections; also a pipeline producing wrong output *because of the state of the data*). Exists because `data/` is gitignored, so `git log` knows none of it.
   - `methods_changelog.md` — a decision about *how we analyse* (a proxy for a missing variable, a computed feature, a threshold, adopting/dropping a method), with the alternatives rejected.
@@ -68,7 +69,7 @@ Resource values in `jobs/` are conservative starting points (this is I/O-bound f
 
 @code_standards.md
 
-Applies to any code written under `src/` (and its tests in `tests/`): architecture, error handling (no silent fallbacks — every edge case raises or is handled deliberately), testing, config, logging, docs conventions.
+Applies to any code written under `src/` and `scripts/` (and their tests in `tests/`): architecture, error handling (no silent fallbacks — every edge case raises or is handled deliberately), testing, config, logging, docs conventions.
 
 ## Lessons learned
 

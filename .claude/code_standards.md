@@ -77,7 +77,7 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 | Organizzazione | `tests/unit/` (isolati) e `tests/integration/` (roundtrip), specchiando la struttura di `src/` |
 | Regressione obbligatoria | Ogni bug fix ha un test che fallisce col codice vecchio e passa col nuovo |
 | Almeno un E2E | Un test che copre il flusso completo con dati reali piccoli |
-| Mock solo su I/O esterno | Mai mockare il codice sotto test; dati reali (piccoli) preferiti ai mock |
+| Mock solo su I/O esterno | Mai mockare il codice sotto test; dati reali (piccoli) preferiti ai mock. Sostituire una funzione del repo è ammesso solo se non è il soggetto del test e rientra in un caso: una **spia** che registra la chiamata e poi esegue la funzione vera; l'**iniezione di un errore** per provare il confine di errore del chiamante; una dipendenza che nei test non può girare (il server Dash di `embedding_app`). Un ramo interno si raggiunge con dati che lo attivano, non sostituendo l'helper che lo sceglie |
 | Suite verde prima di chiudere | Dopo modifiche a `src/`, girare `pytest tests/ -v` e riportare il conteggio esatto (es. `12/12 passed`) |
 
 ---
@@ -88,6 +88,9 @@ Questo principio ha priorità su tutti gli altri: in caso di dubbio tra "far fal
 - Ogni valore in un solo posto (single source of truth)
 - Commenti nei config solo se aggiungono informazione non deducibile dal nome del campo
 - Niente campi di config non letti da nessun codice attivo (verificare con `grep -rn` prima di tenerli)
+- **Eccezioni dichiarate** (valori che non dipendono dall'ambiente di esecuzione o che sono per natura legati a una macchina):
+  - Log e report di una pipeline stanno in `logs/<nome>/` e `summaries/<nome>/` (e i metadati in `assets/metadata`), relativi alla radice del repo: costanti di modulo (`LOGS_ROOT`, `REPORTS_ROOT`, `METADATA_ROOT`). Sono la struttura del repo, uguale su ogni macchina; i test le sostituiscono con `tmp_path`.
+  - `jobs/*.sh` contengono i percorsi del cluster (progetto, `conda.sh`, log SLURM): sono script di una macchina precisa.
 
 ---
 

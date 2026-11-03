@@ -4,7 +4,7 @@ Audience: developers/agents working on `src/analysis/cluster_composition.py` and
 
 ## What it is
 
-Where `cluster_description.py` describes the cluster picked in the dropdown, this module compares **every cluster of a run at once**: one plot per variable, one bar or box per cluster. The panel does not depend on the cluster picker, so its callback listens to the run picker only.
+Where `cluster_description.py` describes the cluster picked in the dropdown, this module compares **every cluster of a run at once**: one plot per variable, one bar or box per cluster. The panel does not depend on the cluster picker, so its callback listens to the run picker and to the active tab (outside the Clustering tab it returns nothing).
 
 ## `COMPOSITION_VARIABLES: list[CompositionVariable]`
 

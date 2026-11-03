@@ -120,7 +120,7 @@ Il **disconnettoma strutturale** (*structural disconnectome*, SDC) di un pazient
 
 **Il deficit dipende dalla disconnessione, non solo dalla sede.** Tre risultati su cui il progetto si appoggia (sintesi in `knowledge/notes/stroke_literature/summaries_core.md`):
 
-- **Griffis et al. 2019** (114 pazienti): la disconnessione strutturale spiega le alterazioni di connettività funzionale molto meglio del danno alla materia grigia; aggiungere la "SDC totale" moltiplica per circa 2,5 la varianza spiegata della perdita di modularità (R² aggiustato da 0,10 a 0,25) e resta l'unico predittore significativo anche aggiungendo il volume della lesione [12].
+- **Griffis et al. 2019** (114 pazienti): la disconnessione strutturale spiega le alterazioni di connettività funzionale molto meglio del danno alla materia grigia; aggiungere la "SDC totale" moltiplica per circa 2,5 la varianza spiegata della perdita di modularità e resta l'unico predittore significativo anche aggiungendo il volume della lesione [12].
 - **Salvalaggio et al. 2020** (132 pazienti): la disconnessione strutturale indiretta predice i deficit in quasi tutti i domini (0,16 < R² < 0,58, esclusa la memoria verbale), con un'accuratezza paragonabile alla lesione; la combinazione lesione + SDC migliora solo l'attenzione [6]. La disconnessione funzionale indiretta, invece, non predice [6].
 - **Thiebaut de Schotten et al. 2020** (1333 lesioni): il disconnettoma è legato alle mappe di attivazione funzionale più della sola lesione [5].
 - **Talozzi et al. 2023**: un embedding UMAP dei disconnettomi predice punteggi neuropsicologici a un anno meglio di sei modelli concorrenti, tra cui la topologia della lesione e il volume della lesione con l'età [7].

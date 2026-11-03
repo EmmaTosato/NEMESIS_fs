@@ -47,7 +47,7 @@ class BuildMatrixConfig:
     ...
 ```
 
-Every `load_*_config` function returns one of these (`BuildMatrixConfig`, `DimReductionConfig`, `ClusteringConfig`, `DimReductionClusteringConfig` in `src/analysis/`). `frozen=True` makes "config changed after validation" a class of bug that can't happen - nothing downstream can accidentally mutate a shared config object and desync it from what was actually validated.
+Every `load_*_config` function returns one of these (`BuildMatrixConfig`, `DimReductionConfig`, `ClusteringConfig`, `EvaluateClusteringTuningConfig` in `src/analysis/`). `frozen=True` makes "config changed after validation" a class of bug that can't happen - nothing downstream can accidentally mutate a shared config object and desync it from what was actually validated.
 
 ## Atomic write (temp-directory swap)
 

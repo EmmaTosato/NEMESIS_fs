@@ -207,7 +207,40 @@ La Fase 1 prosegue con **`docs/` adesso**: `docs/setup.md` (36), poi `docs/guide
 
 ## Blocco 4 — `metadata.md` (29-10-26), in corso
 - **Chiusa**: C-073 (aperti **57**: 0 alte, 1 media, 56 basse; 57 chiuse). Toccati `docs/guides/metadata.md` e il `run_notes` di `config/pipelines/compute_lesion_metadata.json` (97.3% a 1 mm). `tests/unit/test_compute_lesion_metadata.py` rilanciato.
-- **In attesa della risposta dell'utente**: i residui di C-052 (avverbi in `metadata.md`, `dim_reduction.md`, `clustering.md`, `evaluate_clustering_tuning.md`; scelta su `evaluation.md:44`) e C-057 (rigenerazione dei 48 `report.md`).
+- **C-052** (aperta, parziale): applicati i residui nelle guide (`metadata.md`, `dim_reduction.md`, `clustering.md`, `evaluate_clustering_tuning.md`); `evaluation.md:44` lasciato su scelta dell'utente. Restano `embedding_app.md` (modifiche non committate) e i file `docs/dev`.
+- **C-057** (aperta di proposito, scelta dell'utente): a fine audit si rigenerano i 48 `report.md` insieme agli altri report; la rigenerazione la lancia l'utente.
+- **Prossimo blocco**: `.claude/` e jobs (C-007, C-011, C-013, C-024, C-025, C-029, C-030) oppure `docs/dev` (C-075–C-091).
+
+## Blocco 5 — `.claude/` e `jobs/` (29-10-26)
+- **Esito**: aperti **50** (0 alte, 1 media, 49 basse; 64 chiuse). Chiuse: C-007, C-011, C-013, C-024, C-025, C-029, C-030.
+- **Toccati**: `.claude/CLAUDE.md` (eccezioni ai job, perimetro di `code_standards.md`), `.claude/code_standards.md` (§4 mock, §5 eccezioni), `.claude/branch_alignment.md`, `src/analysis/clustering.py` (tipi), `tests/unit/test_distances.py`, `tests/unit/test_build_dataset_summary_table_paths.py`. Suite: 5754 passed, 17 skipped (5771 raccolti).
+- **Da fare dall'utente**: cancellare `origin/server-pnc` se lo vuole (`git push origin --delete server-pnc`); non ne conserva la riga di `TODO.md` sul file `..._streamline.csv` di `sub_BCB_example/`.
+- **Prossimo blocco**: `docs/dev` (C-075–C-091) oppure experiments/debugging/history/knowledge (C-093–C-114).
+
+## Blocco 6 — `docs/dev` (30-10-26)
+- **Esito**: aperti **34** (0 alte, 1 media, 33 basse; 80 chiuse). Chiuse: C-075–C-079 e C-081–C-091 (C-080 era già chiusa). **C-052** aggiornata (resta aperta per i casi lasciati di proposito).
+- **File toccati** (solo testo): `docs/guides/embedding_app.md`; `docs/dev/` `anatomical_maps`, `cluster_comparison`, `cluster_composition`, `cluster_description`, `cluster_drivers`, `config`, `design_patterns`, `fc_matrix`, `lesion_matrix`, `metadata`, `models`, `pipeline_flow`, `plotting`, `sdc_matrix`; `.claude/open_problems.md` (voce sul tipo di ictus); `.claude/history/methods_changelog.md` (decisioni sui PNG degli embedding).
+- **Scelte applicate**: cifra `binary_masks` misurata (17 KB per file, 23.396 file); conteggi di «Today» in `models.md` tolti; storia di `plotting.md` fuori; «Next session» di `cluster_description.md` in `open_problems.md`; traduzione in inglese solo dei passaggi italiani dentro file in inglese.
+- **Non toccato**: `src/analysis/embedding_app/` (modifiche non committate dell'utente, lo split di C-022). Suite non rilanciata da questo blocco (solo testo); ultimo conteggio 5754 passed, 17 skipped.
+- **Prossimo blocco**: experiments, debugging, history, knowledge (C-093–C-114); poi C-064/C-067 (notebook, solo testo in chat), C-057, C-012, C-022.
+
+## Blocco 7 — experiments, debugging, history, knowledge (02-11-26)
+- **Esito**: aperti **14** (0 alte, 1 media, 13 basse; 100 chiuse). Chiuse: C-093, C-095–C-104, C-106–C-114 (C-094 e C-105 già chiuse). Aperte: C-012, C-022, C-032, C-033, C-035, C-037, C-038, C-041, C-042, C-052, C-057, C-064, C-067, C-070.
+- **Dati toccati** (spostamento, nessuna cancellazione): 39 righe di `runs*.csv` di `results/sdc/` ora nei log di `results/legacy/sdc_s2.4-vol_07-10/` (voce in `data_changelog.md`). Cancellato `.claude/scheduled_tasks.lock`; `settings.local.json` con `permissions.allow` vuoto.
+- **Codice**: solo commenti e docstring (45 occorrenze di `AUDIT_FINDINGS.md` in 26 file di `src/` e `tests/`). Suite: 5754 passed, 17 skipped.
+- **Nuovo**: `docs/debugging/README.md`; voci in `project_changelog.md`, `methods_changelog.md` (15-10-26, `representation: parcellated`) e `data_changelog.md`.
+- **Corretto rispetto all'audit**: C-107 (d)(e)(g): Sorzano §2.2.4 dice davvero che sottospazio e ricostruzione restano uguali; `supplementary.pdf` di Thiebaut de Schotten 2020 esiste e contiene l'intervallo 0,393-0,975 e la Supplementary Figure 1. C-113 (d): gli z dell'opercolo rolandico sono nel paper.
+- **Non fatto**: C-099 (5) (aggiungere `debug_17`/`debug_22` ai «Seen in»); in `open_problems.md` resta la voce su `clustering_tuning_guide.md` r.30, ormai risolta da C-105.
+- **Prossimo**: C-064/C-067 (testo di notebook in chat), C-070 punto 3, C-057 (l'utente rigenera i `report.md`, poi C-032), C-012, C-022 in una sessione dedicata, relazione finale.
+
+## Blocco 8 — chiusura della Fase 1 (02-11-26)
+- **Esito**: aperta **1** (0 alte, 1 media; 113 chiuse). Chiuse: C-012, C-032, C-033, C-035, C-037, C-038, C-041, C-042, C-052, C-057, C-064, C-067, C-070.
+- **Ancora aperta**: **C-022** (split di `embedding_app`, una sessione dedicata, appartiene alla Fase 2). **C-064** e **C-067** chiuse su decisione dell'utente senza toccare i notebook (da riprendere notebook per notebook, se e quando lo chiede).
+- **File toccati** (solo testo): `.claude/CLAUDE.md` (sezione `.claude/audit/`), `.claude/open_problems.md`, `.claude/stato_progetto.md`, `.claude/lessons_learned.md` (#4, #5, #7, #15, #17, #21, #28), `.claude/history/project_changelog.md`, `docs/dev/cluster_description.md`, `docs/dev/pipeline_flow.md`, `docs/guides/clustering.md`.
+- **Verifiche fatte**: `evaluate_clustering_tuning` rigenerato su copie nello scratchpad (agglomerative ×2, hdbscan, `hdbscan_soft`): `report.md` identici ai salvati; ricontato `NIHSS_5a/5b` sul tsv UKLFR (82); conteggi dei `report.md` (16 per metodo, tutti del 27-10). I quattro log scritti nel repo da quelle prove sono stati cancellati.
+- **Non toccato**: `management/project_scaffold_guide.md:340` (fuori perimetro). Suite non rilanciata da questo blocco (solo testo); ultimo conteggio 5754 passed, 17 skipped.
+- **Prossimo**: la Fase 2 (`src/`, `tests/`, `config/`, `jobs/`, `notebooks/`, `assets/`, `scripts/`, `summaries/`, `logs/`), con C-022.
+
 
 ## Blocco 9 — C-022, split di `embedding_app` (02-11-26)
 - **Esito**: aperti **0** (114 voci, tutte chiuse). Chiusa C-022, l'ultima: la Fase 1 dell'audit non ha più voci pendenti.
@@ -216,5 +249,5 @@ La Fase 1 prosegue con **`docs/` adesso**: `docs/setup.md` (36), poi `docs/guide
 - **Test**: 68 nuovi (55 di cablaggio, 10 su `AppContext`, 3 sul contratto), scritti **prima** di spostare i callback perché `coverage` ha mostrato 22 callback su 44 non eseguiti da nessun test. `tests/unit/embedding_app_contract.py` (snapshot rigenerabile degli `id` e dei callback) e `embedding_app_callbacks.py` (un solo modo di sparare un callback) sono nel repo. Suite: **5822 passed, 17 skipped**; 392 test nei file dell'app.
 - **Verifiche oltre la suite**: sha256 di `/_dash-layout` identico prima/dopo lo spostamento dei layout (20694 byte, pannelli nascosti compresi); screenshot headless identico al pixel; quattro confronti su dati veri (36 figure dell'embedding, 3 pannelli di anatomia, 6 di descrizione/qualità, albero dei salti e confronto fra due run), aggiunti via via perché lo screenshot della pagina senza run scelta non mostra nessuno di quei pannelli.
 - **Testi riallineati**: `docs/dev/embedding_app.md` (nuovo, quale modulo tiene cosa); 29 riferimenti in 14 file di `docs/` e `.claude/`; riga 02-11-26 in `docs/debugging/README.md` (i collegamenti a riga dei report del 17-08 e del 22-08 non si risolvono più); voce in `project_changelog.md`; in `methods_changelog.md` i due «Conseguenza ancora vera oggi» che dicevano dove stanno le costanti dei disconnettomi (ora `anatomy.py`) e `_download_disconnection_png` (ora `panels/cluster_maps.py`). I corpi dei report di debug **non** sono stati riscritti: sono registri cronologici, la pagina indice dice come leggerli.
-- **Non fatto**: le funzioni sopra le 150 righe restano tre (`build_app` 358, `panels/cluster_maps.py::register_callbacks` 266, `anatomy.py::register_callbacks` 188) contro il criterio «nessuna sopra le ~150» della §6 del piano — i singoli callback dentro i due `register_callbacks` sono 12 e 9, nessuno sopra le 30. `01_assertions_ledger.md` (S-004, S-008) non è stato toccato: è la misura statica alla data dell'audit, i numeri nuovi stanno nella chiusura di C-022.
+- **Non fatto, e non va fatto**: le funzioni sopra le 150 righe restano tre (`build_app` 358, `panels/cluster_maps.py::register_callbacks` 266, `anatomy.py::register_callbacks` 188) contro il criterio «nessuna sopra le ~150» della §6 del piano — i singoli callback dentro i due `register_callbacks` sono 12 e 9, nessuno sopra le 30. Il 03-11-26 l'utente ha ritirato quel criterio: la soglia è 800-1000 righe, che nessuna funzione del repo supera, quindi le tre restano come sono. `01_assertions_ledger.md` (S-004, S-008) non è stato toccato: è la misura statica alla data dell'audit, i numeri nuovi stanno nella chiusura di C-022.
 - **Prossimo**: la Fase 2 (`src/`, `tests/`, `config/`, `jobs/`, `notebooks/`, `assets/`, `scripts/`, `summaries/`, `logs/`) e la relazione finale. C-022 non è più un blocco.

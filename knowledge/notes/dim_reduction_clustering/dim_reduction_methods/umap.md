@@ -124,7 +124,7 @@ Quattro soggetti su una retta, alle posizioni 0, 1, 2 e 10, con `n_neighbors = 2
 7. Talozzi, L. et al. (2023). *Latent disconnectome prediction of long-term cognitive-behavioural symptoms in stroke.* Brain 146(5). https://doi.org/10.1093/brain/awad013 (in `knowledge/papers/stroke_core/`), Methods.
 8. Narayan, A., Berger, B., Cho, H. (2021). *Assessing single-cell transcriptomic variability through density-preserving data visualization.* Nature Biotechnology 39: 765-774. https://doi.org/10.1038/s41587-020-00801-7
 9. umap-learn, *UMAP Reproducibility*. https://umap-learn.readthedocs.io/en/latest/reproducibility.html
-10. de Bodt, C., Diaz-Papkovich, A., Kobak, D. et al. (2025). *Low-dimensional embeddings of high-dimensional data.* arXiv:2508.15929 (in `knowledge/papers/methods/`).
+10. de Bodt, C., Diaz-Papkovich, A., Kobak, D. et al. (2025). *Low-dimensional embeddings of high-dimensional data.* arXiv:2508.15929 (in `knowledge/papers/methods/`; non citata nel testo).
 11. Kobak, D., Linderman, G. C. (2021). *Initialization is critical for preserving global data structure in both t-SNE and UMAP.* Nature Biotechnology 39: 156-157. https://doi.org/10.1038/s41587-020-00809-z
 12. Wattenberg, M., Viégas, F., Johnson, I. (2016). *How to Use t-SNE Effectively.* Distill. https://doi.org/10.23915/distill.00002 (scritto per t-SNE; la documentazione `umap-learn` rimanda allo stesso tipo di cautele [3]).
 13. Chari, T., Pachter, L. (2023). *The specious art of single-cell genomics.* PLoS Computational Biology 19(8): e1011288. https://doi.org/10.1371/journal.pcbi.1011288

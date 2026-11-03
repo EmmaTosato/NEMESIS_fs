@@ -13,7 +13,7 @@ Two separate reasons, not one:
 
 A declarative registry, same shape as `embedding_coloring.py`'s own `COLOR_MODES` — deliberately not the same registry (see "Why not extend `COLOR_MODES` instead" below). Each entry: `name` (internal key), `label` (English, shown as that variable's subplot title), `kind` (`"continuous"` | `"categorical"`), `registry_column` (the exact `assets/metadata/participants.csv` column).
 
-The registry covers 5 of the 7 requested dimensions:
+The registry covers five variables:
 
 | name | registry_column | kind | coverage (5853 stroke subjects, project-wide) |
 |---|---|---|---|
@@ -23,10 +23,10 @@ The registry covers 5 of the 7 requested dimensions:
 | `nihss` | `NIHSS` | continuous | 27.1% (0% for UCL-UK — dataset-wide gap, not per-subject) |
 | `lesion_volume_voxels` | `lesion_volume_voxels_2mm` | continuous | 100% |
 
-Two requested dimensions are **not** in this list:
+Two points on what the registry holds:
 
-- **Istruzione/NIHSS were kept despite low coverage**, on request — never hidden, but always shown next to their own `n_available/n_total` (see `variable_summary` below), since a *per-cluster* coverage can differ wildly from the *project-wide* one (a cluster drawn mostly from one well-NIHSS'd dataset can be 90%+ populated even though the project-wide figure is 27%).
-- **Hemorrhagic/ischemic stroke type has no column in `assets/metadata/participants.csv`**, so it cannot be registered here yet. The datum itself is *not* missing from the project, only from the registry: `participants_PSP.tsv` carries it per subject in its own `lesion_type` column (189 `ischemic` / 18 `hemorrhagic` / 30 `n/a` of 237). UKLFR states it only cohort-wide (`disease_notes` = `"ischemic stroke"` for all 735), and UKE's `Ischemic_stroke`/`Intracranial_haemorrhage` are **not** this variable — they sit in that file's risk-factor/anamnesis block (alongside `Arterial_hypertension`, `Atrial_fibrillation`, `TIA`) and mean *prior* stroke, not the type of the index event. Surfacing it is `enrich_metadata.py`'s job first (see "Next session"), one `ClusterDescriptionVariable` line here second.
+- **Education and NIHSS are in the registry despite their low coverage** — never hidden, but always shown next to their own `n_available/n_total` (see `variable_summary` below), since a *per-cluster* coverage can differ wildly from the *project-wide* one (a cluster drawn mostly from one well-NIHSS'd dataset can be 90%+ populated even though the project-wide figure is 27%).
+- **Hemorrhagic/ischemic stroke type is not in the registry**: `assets/metadata/participants.csv` has no column for it (it would cover about 2.9% of subjects, 168/5853, PSP only). The datum itself is *not* missing from the project, only from the registry: `participants_PSP.tsv` carries it per subject in its own `lesion_type` column (189 `ischemic` / 18 `hemorrhagic` / 30 `n/a` of 237). UKLFR states it only cohort-wide (`disease_notes` = `"ischemic stroke"` for all 735), and UKE's `Ischemic_stroke`/`Intracranial_haemorrhage` are **not** this variable — they sit in that file's risk-factor/anamnesis block (alongside `Arterial_hypertension`, `Atrial_fibrillation`, `TIA`) and mean *prior* stroke, not the type of the index event. Surfacing it is `enrich_metadata.py`'s job first, one `ClusterDescriptionVariable` line here second.
 
 ### Why not extend `COLOR_MODES` instead of a new registry
 
@@ -37,10 +37,10 @@ Two requested dimensions are **not** in this list:
 These cautions hold for the panel. It runs no statistical test: the tables are numbers to read next to the number of subjects, and nothing tells whether a difference between clusters exceeds chance.
 
 - **Skewed variables**: the median describes a cluster better than the mean for variables like the lesion volume; with few subjects a median is unstable.
-- **Variables derived from the clustering input**: the lesion volume (a lesion run) and, in section 4 of the notebook, the disconnection load (an sdc run) come from the data the clustering was built on, so a difference between clusters is partly by construction. The panel has no disconnection variable.
+- **Variables derived from the clustering input**: the lesion volume (a lesion run) comes from the data the clustering was built on, so a difference between clusters is partly by construction. The panel has no disconnection variable.
 - **A cluster that is almost a dataset**: other differences may reflect the site of origin and not biology. The dataset distribution is the first thing to check.
 - **NIHSS and education exist only for some datasets**: UCL-UK, the largest, has neither, so their per-cluster figures rest only on the datasets that have them; the `n_available/n_total` of each variable says how many subjects that is.
-- **Mean disconnection is not a separate variable** (notebook section 4): it is the disconnection load divided by a constant (`disconnection_mean_2mm` / `disconnection_load_voxels_2mm` is the same value for every subject), the same values on another scale.
+- **Mean disconnection is not a separate variable**: it is the disconnection load divided by a constant (`disconnection_mean_2mm` / `disconnection_load_voxels_2mm` is the same value for every subject), the same values on another scale.
 
 ## `cluster_composition(metadata, cluster_label) -> tuple[pd.DataFrame, list[str]]`
 
@@ -73,7 +73,7 @@ One `plotly.subplots.make_subplots` figure, one subplot per `CLUSTER_DESCRIPTION
 
 ### Layout: 3 per row, not 1 row of 5
 
-The 5 variables are not laid out in a single row: at the app's 1100px page width that would leave each subplot ~200px wide — too narrow for a readable axis, so every tick and title would have to be shrunk to fit. `_GRID_COLUMNS = 3` gives ~290px each, which is what pays for the type sizes below. Any unused trailing cell (the 6th, today) has both axes set `visible=False`; an empty *framed* box reads as a subplot whose data failed to load.
+The 5 variables are not laid out in a single row: at the app's 1100px page width that would leave each subplot ~200px wide — too narrow for a readable axis, so every tick and title would have to be shrunk to fit. `_GRID_COLUMNS = 3` gives ~290px each, which is what pays for the type sizes below. Any unused trailing cell (the 6th) has both axes set `visible=False`; an empty *framed* box reads as a subplot whose data failed to load.
 
 | Element | Size |
 |---|---|
@@ -181,25 +181,6 @@ The `Cluster` column carries a 13px swatch in that cluster's own scatter color (
 
 `ClusterDescriptionVariable.decimals` (default `1`, `0` for the voxel count) is declared per variable rather than inferred from the values at render time: a column whose precision changed per row would defeat reading it downwards, and a voxel count with a decimal reads as false precision.
 
-## Next session
-
-### Stroke type (hemorrhagic/ischemic)
-
-The one originally-requested dimension still absent. Order of work, unchanged by anything above:
-
-1. Add it to `enrich_metadata.py`'s `KNOWN_VARIABLES` and to `variables` in `config/pipelines/enrich_metadata.json`, so it is written into `participants.csv`. Only PSP has a canonical per-subject column (`lesion_type`); whether UKLFR's cohort-wide `disease_notes` should be promoted to a per-subject value is a clinical-equivalence judgement, and if taken it belongs in `VARIABLE_SOURCE_OVERRIDES` where every such assumption is already logged and reported, never inferred from a similar-looking name.
-2. **Only then** add one `ClusterDescriptionVariable` entry (`kind="categorical"`) to `CLUSTER_DESCRIPTION_VARIABLES`. Nothing else in this module or in `embedding_app.py`'s wiring changes, by design.
-3. Re-run `pytest tests/unit/test_cluster_description.py tests/unit/test_embedding_app.py -v` and report the exact count (`code_standards.md` §4).
-
-Coverage caveat: on today's registry population that variable would sit at ~2.9% (168/5853 subjects, PSP only) — below `education`'s 14.7%. The panel handles it correctly either way (`n_available/n_total` is shown per variable), but it is worth deciding deliberately whether a 6th subplot that is empty for 97% of clusters earns its width.
-
-### Deferred design choices
-
-Worth revisiting once richer real data is in hand:
-
-- whether a missing categorical value (e.g. `sex`) should get its own visible "unknown" bar instead of being excluded from `counts` — note this now interacts with the unregistered-subject path above, since such a subject is missing for *every* variable at once;
-- whether `education`/`NIHSS` coverage has improved enough to settle the earlier sparsity concern.
-
-### Registry coverage
+## Registry coverage
 
 Improved coverage of the 5 registered variables needs **no code change here** — every stat and plot already reports `n_available/n_total` rather than assuming full coverage. Likewise, subjects newly added to `participants.csv` simply stop appearing in the unregistered-subjects warning; nothing in this module is keyed to a fixed population.

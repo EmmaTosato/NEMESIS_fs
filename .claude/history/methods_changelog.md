@@ -8,6 +8,20 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 30-10-26 — PNG statici degli embedding: trasparenza, declutter e scala log del volume (decisioni di fine agosto-inizio settembre, registrate dopo averle tolte da `docs/dev/plotting.md`)
+
+**Cosa è stato adottato**: nei PNG statici (`plot_embedding_2d`/`categorical`/`continuous`) marker di dimensione 6 e alpha 0,9; `_declutter_points` sposta i punti che si sovrapporrebbero sullo schermo, al più di 1 diametro del marker, con la distanza misurata in pixel dello schermo. Il volume lesionale è colorato su scala log (`log_scale`); NIHSS resta lineare, con la stessa palette (`viridis`).
+
+**Alternative scartate**:
+- **Alpha 0,35 senza declutter**: una trasparenza forte lava i grafici senza dare leggibilità, una volta che i punti non sono più impilati.
+- **Soglia del declutter da un percentile della distanza al vicino più prossimo nei dati**: nessun effetto visibile. Il problema è la sovrapposizione sullo schermo (migliaia di punti in un PNG largo ~1000 pixel), non le coordinate duplicate.
+- **Declutter di 2-3 diametri**: scioglie i sottogruppi stretti (per esempio i soggetti di un dataset molto vicini tra loro) e falsa quanto sono vicini nello spazio UMAP.
+- **Scala log per NIHSS**: no, per distinguere i due modi basta la forma della distribuzione dei colori, senza una seconda famiglia di tinte.
+
+**Conseguenza ancora vera**: `_declutter_points` è l'unico punto che sposta una posizione disegnata rispetto alla coordinata reale dell'embedding. Comportamento corrente: `docs/dev/plotting.md`.
+
+---
+
 ## 28-10-26 — Probabilità di appartenenza e persistenza in produzione (hdbscan, hdbscan_soft)
 
 - **`membership_own`** (probabilità del soggetto nel proprio cluster) si salva per `hdbscan` come per `hdbscan_soft`. Per il rumore è **vuota**: `probabilities_` di sklearn gli dà 0, ma il rumore non ha un cluster e uno 0 si leggerebbe come improbabilità misurata. Le due probabilità vengono da implementazioni diverse (`hdbscan_soft` è il pacchetto `hdbscan`, `methods_changelog` 15-10-26) e non si confrontano, anche se la colonna ha lo stesso nome.
@@ -246,6 +260,18 @@ Letti i 10 `tuning_results.csv` di `hdbscan_soft` (report in `results/reports/cl
 
 **Visualizzazione**: la regola "mai tagliare le prime colonne" (`lessons_learned.md` #16) ha come unica eccezione la PCA non ruotata, le cui colonne sono ordinate per varianza. Una PCA ruotata non ha ordine: tagliarla o rifittarla a un'altra dimensione è rifiutato. Prima di questa voce una `pca` con più componenti di `viz_n_components` (come le 150 del registro) si fermava al plot.
 
+---
+
+## 15-10-26 — `build_lesion_matrix` riacquista `representation: parcellated`, dopo la rimozione del 25-08-26
+
+**Decisione**: la modalità `parcellated` rimossa il 25-08-26 è di nuovo disponibile. `build_lesion_matrix.json` ha `representation` obbligatorio (`voxelwise` o `parcellated`, nessun default silenzioso); la logica dei CSV parcellati sta in `src/features/parcellated_csv.py`.
+
+**Perché/dettagli**: la voce corrispondente in `project_changelog.md` (15-10-26, «Logica dei CSV parcellati spostata in `src/features/parcellated_csv.py`»).
+
+**Conseguenza**: la voce del 25-08-26 sulla rimozione di `parcellated` descrive uno stato superato.
+
+---
+
 ## 15-10-26 — clustering_evaluation 3.1: la probabilità di HDBSCAN descrive la posizione nel cluster; tolti p10 e confronto delle silhouette
 
 **Cosa è cambiato** (`membership_confidence`, sezione 3.1): `clusters` ha solo `n`, `probability_mean` e `share_below_threshold`; via `probability_p10`, `silhouette_all` e `silhouette_confident`. Via anche il rifiuto delle run non euclidee e il vincolo di almeno 2 cluster, che esistevano solo per la silhouette; resta il rifit che deve riprodurre le etichette, e una run tutta rumore solleva. La sezione si chiama «Posizione nel cluster», non più «Confidenza di appartenenza».
@@ -362,6 +388,18 @@ Conseguenza ancora vera: il notebook non ha nessuna misura di stabilità né un 
 
 ---
 
+## 14-10-26 — Produzione clustering s2.4-stream: HDBSCAN "meno peggio" incluso su richiesta, UMAP 2D creato solo per la vista
+
+**Cosa è stato adottato**: 19 run sulla matrice grezza s2.4-stream (7 agglomerative `average`/`cosine` k=3-9; 6 HDBSCAN; 6 ADP `dice` Z = 2.5-6.0). Criterio "buoni e discreti" come s1.4/s2.4-vol, con due scostamenti:
+- **HDBSCAN**: nessuna riga è usabile (rumore 71-83%); sono state prodotte lo stesso le 6 righe "meno peggio" con 8-20 cluster, su richiesta. Descrivono il 17-29% dei soggetti. **Alternativa scartata**: non produrre HDBSCAN per lo streamline.
+- **ADP Z=5.0 e 6.0** (9 e 7 cluster): inclusi perché hanno 7-20 cluster e un cluster più grande sotto il 60%, senza averli letti nel report del tuning.
+
+**UMAP 2D**: per il grafico e per Dash serviva una vista con gli stessi 5831 soggetti. È stato creato `14-10_s2.4-stream_m_euclidean_nc2` (`n_neighbors=15`, `min_dist=0.0`, come quello di s2.3-stream), senza tuning. **Alternativa scartata**: usare l'UMAP di s2.3-stream (5838 soggetti, altro ordine) o produrre senza grafici (e poi dover rifare le run).
+
+**Conseguenza ancora vera**: l'UMAP è solo una vista; i cluster sono calcolati sui 87 tratti. Altri linkage (ward, complete) hanno solo k parziali instabili e non sono stati prodotti.
+
+---
+
 ## 13-10-26 — clustering_evaluation: purezza dei vicini, nullo e stabilità ripetuta (funzioni in `src/` e notebook)
 
 **Cosa è stato aggiunto** (`clustering_evaluation.py`, `consensus_clustering.py`): `per_cluster_silhouette` (micro, macro, minimo e quota di negativi per cluster), `null_reference_silhouette` (silhouette osservata contro lo stesso metodo rifittato su dati senza cluster, nullo `gaussian` o `permute`), `knn_purity` (quota dei k vicini nello stesso cluster, su matrice di distanze precalcolata), `subsampling_stability_ensemble` (n ripetizioni di sottocampione contro le etichette salvate, ARI e Jaccard per cluster).
@@ -433,18 +471,6 @@ Conseguenza ancora vera: il notebook non ha nessuna misura di stabilità né un 
 
 ---
 
-## 14-10-26 — Produzione clustering s2.4-stream: HDBSCAN "meno peggio" incluso su richiesta, UMAP 2D creato solo per la vista
-
-**Cosa è stato adottato**: 19 run sulla matrice grezza s2.4-stream (7 agglomerative `average`/`cosine` k=3-9; 6 HDBSCAN; 6 ADP `dice` Z = 2.5-6.0). Criterio "buoni e discreti" come s1.4/s2.4-vol, con due scostamenti:
-- **HDBSCAN**: nessuna riga è usabile (rumore 71-83%); sono state prodotte lo stesso le 6 righe "meno peggio" con 8-20 cluster, su richiesta. Descrivono il 17-29% dei soggetti. **Alternativa scartata**: non produrre HDBSCAN per lo streamline.
-- **ADP Z=5.0 e 6.0** (9 e 7 cluster): inclusi perché hanno 7-20 cluster e un cluster più grande sotto il 60%, senza averli letti nel report del tuning.
-
-**UMAP 2D**: per il grafico e per Dash serviva una vista con gli stessi 5831 soggetti. È stato creato `14-10_s2.4-stream_m_euclidean_nc2` (`n_neighbors=15`, `min_dist=0.0`, come quello di s2.3-stream), senza tuning. **Alternativa scartata**: usare l'UMAP di s2.3-stream (5838 soggetti, altro ordine) o produrre senza grafici (e poi dover rifare le run).
-
-**Conseguenza ancora vera**: l'UMAP è solo una vista; i cluster sono calcolati sui 87 tratti. Altri linkage (ward, complete) hanno solo k parziali instabili e non sono stati prodotti.
-
----
-
 ## 12-10-26 — Produzione clustering s2.4-vol (SDC voxelwise): stesso criterio "buoni e discreti" di s1.4, con HDBSCAN non stabile incluso
 
 **Cosa è stato adottato**: 25 run (14 agglomerative, 7 HDBSCAN, 4 ADP dice) scelte dal tuning del 12-10-26 con lo stesso criterio di s1.4-vol:
@@ -457,7 +483,7 @@ Conseguenza ancora vera: il notebook non ha nessuna misura di stabilità né un 
 **Conseguenza ancora vera**:
 - ADP Z=3.0 e Z=3.5 sono la stessa partizione (7 cluster, ARI ~1): la seconda è un duplicato, tenuto per simmetria con s1.4.
 - Z=4.0 (5 cluster) e Z=5.0 (3 cluster) sono "buoni" nel tuning ma non sono stati prodotti: l'intervallo scelto è 7-20 cluster.
-- Una run ADP su SDC dura circa 48 minuti e copia 6.3 GB: `production/adp` pesa 25 GB. Ogni Z ricalcola le distanze dice, anche se cambia solo il taglio.
+- Una run ADP su SDC dura circa 48 minuti e copia 6.3 GB: `production/adp` pesava 25 GB (dal 28-10-26 sta in `results/legacy/sdc_s2.4-vol_07-10/clustering/production/adp`). Ogni Z ricalcola le distanze dice, anche se cambia solo il taglio.
 
 ---
 
@@ -695,7 +721,7 @@ Il confronto avviene sempre e solo sull'intersezione dei `subject_id`, dichiarat
 
 **Decisione**: (1) le lesioni piccole **non** si escludono: anche una lesione focale o minima può avere conseguenze cliniche gravi, quindi il volume non è un proxy di rilevanza clinica; per volume si scarta solo la maschera vuota (`empty_mask`, 3 soggetti). Il motivo `lesion_too_small` resta nel vocabolario ma non è usato. (2) Si escludono i soggetti con **più del 30%** dei voxel di lesione fuori dalla maschera cerebrale (`out_of_brain_fraction_2mm`, misurata prima dell'azzeramento), motivo `out_of_brain_fraction_too_high`.
 
-**Verificato su `lesion_metadata.csv`/`excluded_subjects.csv`**: 5 soggetti sopra il 30%, tutti e soli quelli esclusi per questo motivo (frazione minima 0,41); tra i non esclusi il massimo è esattamente 0,30, quindi la soglia è stretta (`>`). Tra gli inclusi il volume minimo a 2 mm è 1 voxel, 122 soggetti stanno a 10 voxel o meno.
+**Verificato su `lesion_metadata.csv`/`excluded_subjects.csv`**: 5 soggetti sopra il 30%, tutti e soli quelli esclusi per questo motivo (frazione minima 0,41); tra i non esclusi il massimo è esattamente 0,30, quindi la soglia è stretta (`>`). Tra gli inclusi il volume minimo a 2 mm è 1 voxel, 122 soggetti stanno a 10 voxel o meno (conteggio sui 5831 con feature non nulle; sui 5845 ammessi sono 129).
 
 **Perché**: la voce del 29-09-26 ("Esclusione dei soggetti: lista curata a mano al posto delle soglie in config") spiega perché non esiste una soglia automatica sui dati (nessun salto naturale); la 30% è un criterio di analisi applicato a mano quando si compila il config, non un parametro di pipeline. Sotto la soglia il soggetto resta; i voxel fuori dal brain sono azzerati solo con `correct_out_of_brain: true`, flag che resta configurabile (`true` o `false`) in `build_lesion_matrix.json`.
 
@@ -756,7 +782,7 @@ Il confronto avviene sempre e solo sull'intersezione dei `subject_id`, dichiarat
 
 **Conclusione**: l'assunzione della forzatura è contraddetta dai dati nella maggior parte dei casi decidibili: la regola `geometric_override_datasets` scrive il lato sbagliato in 6 casi su 8 decidibili WashU. Non rimossa in questa voce: la decisione spetta all'utente (vedi `.claude/open_problems.md`). Conseguenza non voluta: le maschere capovolte sono nelle matrici (lesione, SDC).
 
-**Soglia a 1 mm** (`calibrate_lesion_side_threshold.py`, verità = `participants.csv` salvato prima della forzatura, con gli 11 ancora `clinical`): 2 mm con tutti e 5 i dataset, 1445 soggetti, soglia 0.20 → **97,4%** (identico alla calibrazione del 28-09-26; ottima 0.28, 97,5%). Senza PSP, sugli stessi 1350 soggetti: 97,3% a 1 mm e a 2 mm, **stesso lato per tutti i 1350**, 97,4% a 0.28 su entrambe. Senza le 15 inversioni piene (non correggibili da nessuna soglia) 98,4%. La soglia vale quindi a 1 mm. La classe `both` resta debole (24 etichette cliniche, 3 predette).
+**Soglia a 1 mm** (`calibrate_lesion_side_threshold.py`, verità = `participants.csv` salvato prima della forzatura, con gli 11 ancora `clinical`): 2 mm con tutti e 5 i dataset, 1445 soggetti, soglia 0.20 → **97,4%** (identico alla calibrazione del 28-09-26; ottima 0.28, 97,5%). Senza PSP, sugli stessi 1350 soggetti: 97,3% a 1 mm e a 2 mm, **stesso lato per tutti i 1350**, 97,4% a 0.28 su entrambe. Senza le 15 inversioni piene (non correggibili da nessuna soglia) 98,5% (1408/1430). La soglia vale quindi a 1 mm. La classe `both` resta debole (24 etichette cliniche, 3 predette).
 
 **Script rotto, ripristinato**: `calibrate_lesion_side_threshold.py` importava `KNOWN_LESION_SIDES` da `src/features/lesion.py`, cancellata il 29-09-26 (commit `cf6e1fe`) e mai ripristinata: falliva all'import e nessun test lo copriva. Ripristinata la costante, aggiunto `tests/unit/test_calibrate_lesion_side_threshold.py` (5 test).
 
@@ -835,7 +861,7 @@ Il confronto avviene sempre e solo sull'intersezione dei `subject_id`, dichiarat
 
 **Alternative scartate**: (a) tenere le soglie e affiancarci la lista — due meccanismi di ammissione attivi insieme, con il rischio che una soglia dimenticata in un config escluda soggetti che il notebook aveva deciso di tenere; (b) una lista per pipeline (una per la matrice lesionale, una per l'SDC) — due file che divergono, e un confronto lesione/SDC che silenziosamente confronta due coorti diverse; (c) far generare la lista da uno script a partire da soglie — sarebbe la soluzione (a) con un passaggio in più. Reintroduce `excluded_subjects`, scartata la mattina dello stesso giorno (vedi `project_changelog.md`, voce su `lesion_metrics`): allora l'argomento era che editare un config e rilanciare una pipeline di minuti fosse più macchinoso che correggere la cella a mano; ora la lista non fa rilanciare niente (è letta dalle pipeline di matrice, non da `enrich_metadata`) e la correzione a mano non è più possibile, perché ogni run di `enrich_metadata` ricopia le colonne derivate dalle maschere.
 
-**Conseguenza ancora vera oggi**: un file assente **solleva**, non significa "non escludere nessuno" — le due cose sono indistinguibili, e costruire una matrice di produzione con tutti i soggetti limite dentro è esattamente ciò che la lista esiste per evitare. Per dire "nessuna esclusione" si tiene il file con la sola intestazione. Ogni riga è validata contro il registro (ID inesistente, ID duplicato, `dataset` in disaccordo, motivo non registrato, `value` non numerico sollevano): il file è scritto a mano e i dati ridondanti scritti a mano divergono. Oggi il file contiene solo l'intestazione: nessuna esclusione è ancora stata decisa.
+**Conseguenza vera al 29-09-26**: un file assente **solleva**, non significa "non escludere nessuno" — le due cose sono indistinguibili, e costruire una matrice di produzione con tutti i soggetti limite dentro è esattamente ciò che la lista esiste per evitare. Per dire "nessuna esclusione" si tiene il file con la sola intestazione. Ogni riga è validata contro il registro (ID inesistente, ID duplicato, `dataset` in disaccordo, motivo non registrato, `value` non numerico sollevano): il file è scritto a mano e i dati ridondanti scritti a mano divergono. Al 29-09-26 il file conteneva solo l'intestazione: nessuna esclusione era ancora stata decisa (dal 06-10-26 ha 22 righe).
 
 ---
 
@@ -863,7 +889,7 @@ Il confronto avviene sempre e solo sull'intersezione dei `subject_id`, dichiarat
 
 **Alternativa scartata**: combinare i due meccanismi (esclusione sulla frazione grezza + correzione sui sopravvissuti). Scartata su richiesta esplicita dell'utente per restare più semplice e priva di ambiguità — un solo criterio di ammissione attivo alla volta, mai due che interagiscono implicitamente.
 
-**Conseguenza ancora vera oggi**: `config/pipelines/build_lesion_matrix.json` ha `correct_out_of_brain: false` — comportamento di produzione invariato, nessuna matrice già costruita è affetta (i thresholds/la correzione contano solo per run non ancora fatte, stessa nota della voce del 28-09-26). Il vecchio script standalone `scripts/lesion_fix.py`, che faceva la stessa correzione ma non era mai integrato in nessuna pipeline, è stato eliminato in questa stessa sessione (vedi `project_changelog.md`).
+**Conseguenza vera al 29-09-26**: `config/pipelines/build_lesion_matrix.json` aveva `correct_out_of_brain: false` (oggi è `true`) — comportamento di produzione invariato, nessuna matrice già costruita è affetta (i thresholds/la correzione contano solo per run non ancora fatte, stessa nota della voce del 28-09-26). Il vecchio script standalone `scripts/lesion_fix.py`, che faceva la stessa correzione ma non era mai integrato in nessuna pipeline, è stato eliminato in questa stessa sessione (vedi `project_changelog.md`).
 
 **Aggiornamento, stessa giornata**: la mutua esclusione descritta sopra **non esiste più**, perché `max_out_of_brain_fraction` è stata rimossa del tutto (voce "Esclusione dei soggetti: lista curata a mano", in cima a questo file). `correct_out_of_brain` resta, come unico uso di `brain_mask_path` in `build_lesion_matrix.json`, ed è attiva anche in `compute_lesion_metadata.json` (lì `true`). La ragione per cui le due strategie non andavano combinate resta valida e spiega perché non è stata tenuta una soglia accanto alla lista.
 
@@ -899,7 +925,7 @@ Il confronto avviene sempre e solo sull'intersezione dei `subject_id`, dichiarat
 
 **Perché**: la voce del 06-09-26 in questo stesso file fissa la griglia a 2mm per `build_lesion_matrix.py` (e per `build_sdc_matrix.py` in modalità `voxelwise`), con alternative misurate e scartate esplicitamente. Lo swap del 23-09-26 da un singolo file paziente a un template versionato (`project_changelog.md`) ha però impostato `res-1` (1mm) — non una scelta di risoluzione deliberata, solo la prima opzione disponibile al momento di rendere il riferimento stabile — introducendo una deviazione silenziosa dalla griglia già decisa. Richiesto esplicitamente dall'utente ("voglio risoluzione a 2mm"), verificato prima di applicare che `res-2` T1w e brain mask condividano shape/affine (91×109×91, 2mm isotropo).
 
-**Conseguenza ancora vera oggi**: `config/pipelines/build_sdc_matrix.json` (rappresentazione `voxelwise`) ha la **stessa** deviazione — `reference_template_path` è ancora su `res-1` — e non è stato toccato in questa sessione (fuori scope, riguarda solo `build_lesion_matrix.json`). Da allineare quando si torna a lavorare su quella pipeline. Nessun impatto su matrici già costruite (`data/derived/lesion_matrix/<sessione>/`): la griglia è fissata al momento del build, questo è solo un cambio di config per le run future.
+**Conseguenza vera al 28-09-26**: `config/pipelines/build_sdc_matrix.json` (rappresentazione `voxelwise`) aveva la **stessa** deviazione — `reference_template_path` era ancora su `res-1` (oggi è su `res-2`) — e non è stato toccato in questa sessione (fuori scope, riguarda solo `build_lesion_matrix.json`). Da allineare quando si torna a lavorare su quella pipeline. Nessun impatto su matrici già costruite (`data/derived/lesion_matrix/<sessione>/`): la griglia è fissata al momento del build, questo è solo un cambio di config per le run future.
 
 ---
 
@@ -995,6 +1021,6 @@ Il confronto avviene sempre e solo sull'intersezione dei `subject_id`, dichiarat
 
 **Decisione**: `build_lesion_matrix.py` produce solo matrici voxel-wise; la modalità `parcellated` (matrice per macro-aree anatomiche via atlante) è stata rimossa dalla pipeline.
 
-**Perché/dettagli**: vedi `management/notes/TODO.md`.
+**Perché/dettagli**: vedi `management/notes/TODO.md` (file non più nel repo).
 
-**Conseguenza ancora vera oggi**: non esiste un parametro di rappresentazione per questa pipeline — la matrice lesionale prodotta è sempre voxel-wise (a differenza di `build_sdc_matrix.py`, che ha sia `parcellated` sia `voxelwise`).
+**Conseguenza vera al 25-08-26**: non esisteva un parametro di rappresentazione per questa pipeline — la matrice lesionale prodotta era sempre voxel-wise (a differenza di `build_sdc_matrix.py`, che ha sia `parcellated` sia `voxelwise`). Superata il 15-10-26: `build_lesion_matrix.json` ha di nuovo `representation` obbligatorio (voce del 15-10-26 qui sopra).

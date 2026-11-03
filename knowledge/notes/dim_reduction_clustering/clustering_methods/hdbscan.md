@@ -216,7 +216,7 @@ Sei soggetti su una retta: 0, 1, 2, 6, 7, 15. `min_cluster_size = 2`, scikit-lea
 
 ## 11. Insidie
 
-1. **Clustering di densità dopo UMAP.** La documentazione di `umap-learn` dice che UMAP, come t-SNE, non preserva completamente la densità e può creare "false tears", fratture in un cluster unico, che portano a cluster più fini di quelli presenti [11]. La stessa pagina consiglia, per il clustering, `n_neighbors` più alto, `min_dist` vicino a 0 e più di 2 componenti, e mostra HDBSCAN su UMAP a 10 componenti [11]. Conseguenze per NEMESIS:
+1. **Clustering di densità dopo UMAP.** La documentazione di `umap-learn` dice che UMAP, come t-SNE, non preserva completamente la densità e può creare "false tears", fratture in un cluster unico, che portano a cluster più fini di quelli presenti [11]. La stessa pagina consiglia, per il clustering, `n_neighbors` più alto, `min_dist` vicino a 0 e più di 2 componenti: dice che si può scendere a 10 componenti, ma l'esempio con HDBSCAN usa 2 [11]. Conseguenze per NEMESIS:
    - una zona densa nell'embedding può essere prodotta da UMAP (con `min_dist` basso i punti vengono impacchettati di proposito);
    - `probabilities_` su un embedding molto impacchettato descrive l'impacchettamento, non la densità dei dati originali (`docs/guides/embedding_app.md`);
    - un cluster che compare a un solo `n_components` o a un solo `min_dist` va trattato come possibile artefatto ([`challenge_of_clustering_after_dim_reduction.md`](../challenge_of_clustering_after_dim_reduction.md)).
@@ -234,7 +234,7 @@ Sei soggetti su una retta: 0, 1, 2, 6, 7, 15. `min_cluster_size = 2`, scikit-lea
 
 1. Campello, R. J. G. B., Moulavi, D., Sander, J. (2013). Density-based clustering based on hierarchical density estimates. *PAKDD 2013*, LNCS 7819, 160-172. doi:10.1007/978-3-642-37456-2_14
 2. Campello, R. J. G. B., Moulavi, D., Zimek, A., Sander, J. (2015). Hierarchical density estimates for data clustering, visualization, and outlier detection. *ACM Transactions on Knowledge Discovery from Data*, 10(1), 5. doi:10.1145/2733381
-3. Moulavi, D., Jaskowiak, P. A., Campello, R. J. G. B., Zimek, A., Sander, J. (2014). Density-based clustering validation. *SIAM SDM 2014*, 839-847. doi:10.1137/1.9781611973440.96
+3. Moulavi, D., Jaskowiak, P. A., Campello, R. J. G. B., Zimek, A., Sander, J. (2014). Density-based clustering validation. *SIAM SDM 2014*, 839-847. doi:10.1137/1.9781611973440.96 (non citata nel testo)
 4. McInnes, L., Healy, J., Astels, S. (2017). hdbscan: Hierarchical density based clustering. *Journal of Open Source Software*, 2(11), 205. doi:10.21105/joss.00205
 5. Documentazione `hdbscan`, *How HDBSCAN Works*: https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html
 6. Documentazione `hdbscan`, *Parameter Selection for HDBSCAN\** e *FAQ*: https://hdbscan.readthedocs.io/en/latest/parameter_selection.html, https://hdbscan.readthedocs.io/en/latest/faq.html

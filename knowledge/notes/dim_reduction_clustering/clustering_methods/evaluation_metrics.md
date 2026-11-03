@@ -251,7 +251,7 @@ con $\delta$ la minima distanza tra due punti di cluster diversi e $\Delta$ il d
 
 1. Rousseeuw, P. J. (1987). Silhouettes: a graphical aid to the interpretation and validation of cluster analysis. *Journal of Computational and Applied Mathematics*, 20, 53-65. doi:10.1016/0377-0427(87)90125-7
 2. Kaufman, L., Rousseeuw, P. J. (1990). *Finding Groups in Data: An Introduction to Cluster Analysis*. Wiley. doi:10.1002/9780470316801 (non consultato direttamente: le fasce sono riportate dalle fonti secondarie [18], [19])
-3. Bicego, M. (2021). *Il clustering, parte 2* (dispense, Università di Verona), sezione "Indici di validità" - `knowledge/papers/methods/Slides_Bicego/`
+3. Bicego, M. (2021). *Il clustering, parte 2* (dispense, Università di Verona), sezione "Indici di validità" - `knowledge/papers/methods/Slides_Bicego/` (non citata nel testo)
 4. Caliński, T., Harabasz, J. (1974). A dendrite method for cluster analysis. *Communications in Statistics*, 3(1), 1-27. doi:10.1080/03610927408827101
 5. Davies, D. L., Bouldin, D. W. (1979). A cluster separation measure. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, PAMI-1(2), 224-227. doi:10.1109/TPAMI.1979.4766909
 6. Sokal, R. R., Rohlf, F. J. (1962). The comparison of dendrograms by objective methods. *Taxon*, 11(2), 33-40. doi:10.2307/1217208
@@ -259,7 +259,7 @@ con $\delta$ la minima distanza tra due punti di cluster diversi e $\Delta$ il d
 8. Campello, R. J. G. B., Moulavi, D., Sander, J. (2013). Density-based clustering based on hierarchical density estimates. *PAKDD 2013*, LNCS 7819, 160-172. doi:10.1007/978-3-642-37456-2_14
 9. Hubert, L., Arabie, P. (1985). Comparing partitions. *Journal of Classification*, 2(1), 193-218. doi:10.1007/BF01908075
 10. Hennig, C. (2007). Cluster-wise assessment of cluster stability. *Computational Statistics & Data Analysis*, 52(1), 258-271. doi:10.1016/j.csda.2006.11.025
-11. Dinh, T., Hauchi, W., Lisik, D. et al. (2025). Data clustering: an essential technique in data science. *Expert Systems with Applications*, §4.2 - `knowledge/papers/methods/Dinh et al - 2025 - Data clustering an essential technique in data science/`
+11. Dinh, T., Hauchi, W., Lisik, D. et al. (2025). Data clustering: an essential technique in data science. *Expert Systems with Applications*, §4.2 - `knowledge/papers/methods/Dinh et al - 2025 - Data clustering an essential technique in data science/` (non citata nel testo)
 12. scikit-learn 1.8.0, *Clustering performance evaluation* (silhouette, Calinski-Harabasz, Davies-Bouldin): https://scikit-learn.org/stable/modules/clustering.html#clustering-performance-evaluation
 13. Monti, S., Tamayo, P., Mesirov, J., Golub, T. (2003). Consensus clustering: a resampling-based method for class discovery and visualization of gene expression microarray data. *Machine Learning*, 52, 91-118. doi:10.1023/A:1023949509487
 14. Documentazione del pacchetto `hdbscan` (0.8.44), API reference e docstring di `hdbscan.HDBSCAN` (`relative_validity_`) e `hdbscan.validity.validity_index`: https://hdbscan.readthedocs.io/en/latest/api.html

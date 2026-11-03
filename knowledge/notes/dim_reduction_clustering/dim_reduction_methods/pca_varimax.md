@@ -4,7 +4,7 @@ Indice dei metodi: [README.md](README.md). Presuppone [pca.md](pca.md). La spieg
 
 ## 1. Cosa fa
 
-Prende le prime *k* componenti di una PCA e ne **ruota gli assi** dentro lo stesso sottospazio, finché ogni variabile pesa molto su una sola componente e quasi zero sulle altre ("struttura semplice") [1]. Il sottospazio, e quindi la ricostruzione dei dati, resta lo stesso; cambia solo come la varianza è distribuita tra le componenti [2, §2.2.4].
+Prende le prime *k* componenti di una PCA e ne **ruota gli assi** dentro lo stesso sottospazio, finché ogni variabile pesa molto su una sola componente e quasi zero sulle altre ("struttura semplice") [1]. Il sottospazio, e quindi la ricostruzione dei dati, resta lo stesso [2, §2.2.4]; cambia solo come la varianza è distribuita tra le componenti.
 
 ## 2. Perché lo fa: l'obiettivo matematico
 
@@ -53,7 +53,7 @@ Il repo non passa `normalize`, `tol`, `power`, `kappa`, `gamma`: valgono i defau
 
 ## 5. Come si fa il tuning
 
-- **Quante componenti ruotare** è la scelta che conta: il varimax è congiunto su tutte le componenti ruotate, quindi ruotarne 14 o 42 dà profili diversi (`employed_dim_reduction_methods.md`, "Cosa si guadagna e cosa si perde"). Il criterio del paper è la quota di varianza (>90%) [5]; nel repo `variance_share: 0.9` dà 42 componenti su `07-10_s2.4-vol` (`docs/dev/covariance_pca.md`).
+- **Quante componenti ruotare** è la scelta che conta: il varimax è congiunto su tutte le componenti ruotate, quindi ruotarne 14 o 42 dà profili diversi (`employed_dim_reduction_methods.md`, "Cosa si guadagna e cosa si perde"). Nel paper le componenti sono 30 su 46 (più del 90% della varianza) [5], senza una soglia dichiarata per sceglierle; nel repo `variance_share: 0.9` dà 42 componenti su `07-10_s2.4-vol` (`docs/dev/covariance_pca.md`).
 - Se le componenti ruotate sono quelle tenute, la quota di varianza totale delle *k* è la stessa con e senza rotazione, quindi il punteggio del tuning (`cumulative_explained_variance`) non distingue `none` da `varimax`: la scelta tra i due si fa sulle mappe e sui controlli del §6. Con `rotation_n_components` le *k* tenute sono un sottoinsieme delle ruotate e la loro quota è minore di quella delle prime *k* della PCA (le prime *k* massimizzano la varianza di qualunque sottospazio di dimensione *k*): il punteggio distingue i due casi.
 - Un tuning ha senso su `rotation_n_components`, non su `n_components` a rotazione fissa: cambiare *k* senza `rotation_n_components` cambia la rotazione stessa.
 
@@ -79,7 +79,7 @@ Richman 1986, in una rassegna sulla rotazione delle componenti principali, sosti
 | Pro | Contro |
 |---|---|
 | Componenti leggibili, ognuna su poche variabili [1] | Si perde l'ordine per varianza: la prima componente ruotata non è la più importante |
-| Stessa ricostruzione e stessa varianza totale della PCA [2, §2.2.4] | Il risultato dipende da quante componenti si ruotano |
+| Stessa ricostruzione della PCA [2, §2.2.4] e stessa varianza totale | Il risultato dipende da quante componenti si ruotano |
 | Deterministica (parte da $R = I$) | Massimo locale, non necessariamente globale |
 | È il metodo del paper di riferimento [5] | Produce componenti "pulite" anche quando i dati non hanno una struttura a gruppi: la pulizia non è prova di struttura |
 

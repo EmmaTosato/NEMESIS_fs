@@ -234,7 +234,7 @@ Nessun parametro non elencato è accettato (un refuso solleva, non viene ignorat
 | **`params_file`** | *Stringa* | File configurazione interna algoritmi (di norma `"config/registry/params_clustering.json"`). |
 | **`reduction_params_file`** | *Stringa \| null* | Il file `config/registry/params_reduction*.json` che ha prodotto `input_path` — `"config/registry/params_reduction.json"` per lesion, `"config/registry/params_reduction_sdc.json"` per sdc. **Obbligatorio quando `reduced_data: true`**, **vietato (deve mancare) quando `reduced_data: false`**. Serve a leggere `tag_param`/`tag_prefix` del `reduction_method` per ricostruire il tag dell'embedding (es. `"m_euclidean_nc2"`) direttamente dai parametri veri con cui `input_path` è stato costruito — mai scritto a mano in `session_name`, così non può disallinearsi dal vero `input_path` (vedi sotto). |
 | **`output_root`** | *Stringa* | Cartella radice per i risultati (es. `"results/lesion/clustering"`). |
-| **`session_name`** | *Stringa* | Identificativo di sessione (es. `"s1.1-vol"`). Da quando `reduction_params_file` esiste, **non serve più scriverci a mano l'embedding** (es. `"euclidean_n2"`) — viene derivato automaticamente da `input_path` e aggiunto al nome cartella finale. |
+| **`session_name`** | *Stringa* | Identificativo di sessione (es. `"s1.1-vol"`). **Non serve scriverci a mano l'embedding** (es. `"euclidean_n2"`) — viene derivato automaticamente da `input_path` e aggiunto al nome cartella finale. |
 | **`overwrite`** | *Booleano* | Se `true`, sovrascrive esecuzioni precedenti con lo stesso nome. |
 | **`fine_tuning`** | *Booleano* | `true` per tuning, `false` per produzione. |
 | **`save_tuning_clusterings`** | *Booleano* | Solo in Fine-Tuning: se `true`, salva le etichette di cluster di *ogni* combinazione testata (non solo i punteggi in `tuning_results.csv`) in `clusterings.npz` + `metadata.csv`, per poterle rileggere senza ripetere lo sweep. `false` di default — obbligatorio dichiararlo comunque, anche in produzione. |
@@ -293,6 +293,8 @@ Nessuna cartella `production/comparison/` — non esiste un plot di confronto cr
 2. **`tuning_plot.png`**: Sottografici per metrica calcolata (per hdbscan e hdbscan_soft lo scrive la valutazione `tuning_heatmaps`, dalle colonne di `tuning_results.csv`).
 3. Grafici diagnostici aggiuntivi (se supportati: l'eigengap di Spectral).
 4. **`clusterings.npz` & `metadata.csv`**: solo se `"save_tuning_clusterings": true` — un array di etichette per ogni combinazione testata (chiave `<param>=<valore>,...`), più la tabella soggetti corrispondente.
+5. **File delle valutazioni** (blocco `tuning_evaluations`, vedi [`evaluate_clustering_tuning.md`](evaluate_clustering_tuning.md)): le valutazioni con un valore per combinazione (`dendrogram_jump`, `largest_cluster_share`, `dunn_index`, `density_metrics`) aggiungono colonne a `tuning_results.csv`; le altre hanno file propri. Per `agglomerative`: `cophenetic_correlation.csv`, `linkage_agreement.csv`, `k_curves_metric=<metrica>.png` e `dendrogram_metric=<metrica>.png`. Per `hdbscan` e `hdbscan_soft`: `dbcv_curves.png` (con `hdbscan_soft`, un file per `cluster_selection_method`, e lo stesso vale per `tuning_plot`).
+6. **`report.md`** (se `write_report`): legge `tuning_results.csv` e i file delle valutazioni, non calcola.
 *(Non vengono salvati `matrix.npy` o grafici di assegnazione).*
 
 ### Diari di Bordo

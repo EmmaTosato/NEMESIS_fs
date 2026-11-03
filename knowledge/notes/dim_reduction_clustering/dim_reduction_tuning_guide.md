@@ -14,7 +14,7 @@ Per `umap`/`tsne`/`pacmap`/`pca`, il tuning esegue lo stesso metodo su una grigl
 | `umap`, `tsne`, `pacmap` | **Trustworthiness** (Venna & Kaski 2001, il riferimento della documentazione scikit-learn; poi Venna & Kaski 2006) | Nessun ground truth noto — l'unica cosa verificabile è se l'embedding ha distorto la vicinanza locale rispetto ai dati originali |
 | `pca` | **Varianza cumulativa spiegata** | Criterio nativo di PCA — quanta informazione sopravvive comprimendo a `n_components` (una rotazione non la cambia) |
 
-**Varianza cumulativa spiegata**: somma delle prime `n_components` `explained_variance_ratio_` di sklearn. Cresce monotonicamente — si legge come curva a **gomito**. Thiebaut de Schotten et al. 2020 usa soglia fissa >90%.
+**Varianza cumulativa spiegata**: somma delle prime `n_components` `explained_variance_ratio_` di sklearn. Cresce monotonicamente — si legge come curva a **gomito**. Thiebaut de Schotten et al. 2020 tengono 30 componenti su 46, che spiegano più del 90% della varianza.
 
 ## Trustworthiness, in dettaglio
 
@@ -74,7 +74,7 @@ Il numero è cieco a *come* è fatto l'embedding — `dim_reduction.py` produce 
 **Nessun numero fisso** — nessuna fonte letta prescrive un default valido in generale (2026-08 review, approfondita in `challenge_of_clustering_after_dim_reduction.md`):
 
 - **Talozzi et al. 2023** (paper di riferimento diretto per NEMESIS Task 2) usa UMAP a **2D**, esplicitamente, definendo dimensionalità più alta come non ancora esplorata ("future research").
-- **de Bodt et al. 2025**: 5-10D è presentata come pratica **emergente**, non consolidata ("more work is needed to validate this clustering approach") — una delle loro 20 best practice è *"Do not perform downstream analysis on 2D embeddings"*, ma senza indicare un numero definitivo.
+- **de Bodt et al. 2025**: 5-10D è presentata come pratica **emergente**, non consolidata ("We believe more work is needed to better understand and validate this clustering approach", §3.5) — una delle loro 20 best practice è *"Do not perform downstream analysis on 2D embeddings"*, ma senza indicare un numero definitivo.
 - **Documentazione ufficiale `umap-learn`** (stessi autori della libreria): sì, si può ridurre a più di 2D per il clustering, ma *"in general you should explore different embedding dimension options"* — nessun default, e un avvertimento esplicito: *"this is somewhat controversial, and should be attempted with care"*. UMAP non preserva bene la densità e può creare *"false tears"* (cluster più frammentati di quanto siano nei dati reali).
 
 **Implicazione pratica per leggere `tuning_results.csv`**: la trustworthiness non è comparabile tra `n_components` diversi (vedi sopra) — quindi non esiste un modo puramente numerico per scegliere quante componenti tenere prima del clustering, va sempre incrociato con il pattern clinico/anatomico e con la diagnostica descritta in `challenge_of_clustering_after_dim_reduction.md`.
